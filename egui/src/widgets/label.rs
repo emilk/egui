@@ -314,16 +314,19 @@ impl Widget for Label {
     fn ui(self, ui: &mut Ui) -> Response {
         let sense = self.sense;
 
+        let max_width = ui.available_width();
+
         if self.should_wrap(ui)
             && ui.layout().main_dir() == Direction::LeftToRight
             && ui.layout().main_wrap()
+            && max_width.is_finite()
         {
             // On a wrapping horizontal layout we want text to start after the previous widget,
             // then continue on the line below! This will take some extra work:
 
             let cursor = ui.cursor();
-            let max_width = ui.available_width();
             let first_row_indentation = max_width - ui.available_size_before_wrap().x;
+            egui_assert!(first_row_indentation.is_finite());
 
             let text_style = self.text_style_or_default(ui.style());
             let galley = ui.fonts().layout_multiline_with_indentation_and_max_width(

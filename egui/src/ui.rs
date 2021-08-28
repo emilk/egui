@@ -696,6 +696,7 @@ impl Ui {
     fn allocate_space_impl(&mut self, desired_size: Vec2) -> Rect {
         let item_spacing = self.spacing().item_spacing;
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
+        egui_assert!(!frame_rect.any_nan());
         let widget_rect = self.placer.justify_and_align(frame_rect, desired_size);
 
         self.placer
@@ -714,6 +715,7 @@ impl Ui {
     }
 
     pub(crate) fn advance_cursor_after_rect(&mut self, rect: Rect) -> Id {
+        egui_assert!(!rect.any_nan());
         let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
 
@@ -856,7 +858,7 @@ impl Ui {
     /// ```
     /// # use egui::Align;
     /// # let mut ui = &mut egui::Ui::__test();
-    /// egui::ScrollArea::auto_sized().show(ui, |ui| {
+    /// egui::ScrollArea::vertical().show(ui, |ui| {
     ///     let scroll_bottom = ui.button("Scroll to bottom.").clicked();
     ///     for i in 0..1000 {
     ///         ui.label(format!("Item {}", i));
@@ -868,8 +870,10 @@ impl Ui {
     /// });
     /// ```
     pub fn scroll_to_cursor(&mut self, align: Align) {
-        let target_y = self.next_widget_position().y;
-        self.ctx().frame_state().scroll_target = Some((target_y, align));
+        let target = self.next_widget_position();
+        for d in 0..2 {
+            self.ctx().frame_state().scroll_target[d] = Some((target[d], align));
+        }
     }
 }
 

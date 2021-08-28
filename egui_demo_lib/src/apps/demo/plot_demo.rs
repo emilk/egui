@@ -401,7 +401,7 @@ impl super::Demo for PlotDemo {
         Window::new(self.name())
             .open(open)
             .default_size(vec2(400.0, 400.0))
-            .scroll(false)
+            .vscroll(false)
             .show(ctx, |ui| self.ui(ui));
     }
 }

@@ -42,7 +42,7 @@ impl epi::App for ColorTest {
                 );
                 ui.separator();
             }
-            ScrollArea::auto_sized().show(ui, |ui| {
+            ScrollArea::both().auto_shrink([false; 2]).show(ui, |ui| {
                 self.ui(ui, &mut Some(frame.tex_allocator()));
             });
         });
@@ -55,6 +55,8 @@ impl ColorTest {
         ui: &mut Ui,
         mut tex_allocator: &mut Option<&mut dyn epi::TextureAllocator>,
     ) {
+        ui.set_max_width(680.0);
+
         ui.vertical_centered(|ui| {
             ui.add(crate::__egui_github_link_file!());
         });

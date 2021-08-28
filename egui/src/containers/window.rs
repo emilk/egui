@@ -28,7 +28,7 @@ pub struct Window<'open> {
     area: Area,
     frame: Option<Frame>,
     resize: Resize,
-    scroll: Option<ScrollArea>,
+    scroll: ScrollArea,
     collapsible: bool,
     with_title_bar: bool,
 }
@@ -51,7 +51,7 @@ impl<'open> Window<'open> {
                 .with_stroke(false)
                 .min_size([96.0, 32.0])
                 .default_size([340.0, 420.0]), // Default inner size of a window
-            scroll: None,
+            scroll: ScrollArea::neither(),
             collapsible: true,
             with_title_bar: true,
         }
@@ -203,24 +203,31 @@ impl<'open> Window<'open> {
     /// Text will not wrap, but will instead make your window width expand.
     pub fn auto_sized(mut self) -> Self {
         self.resize = self.resize.auto_sized();
-        self.scroll = None;
+        self.scroll = ScrollArea::neither();
         self
     }
 
-    /// Enable/disable scrolling. `false` by default.
-    pub fn scroll(mut self, scroll: bool) -> Self {
-        if scroll {
-            if self.scroll.is_none() {
-                self.scroll = Some(ScrollArea::auto_sized());
-            }
-            crate::egui_assert!(
-                self.scroll.is_some(),
-                "Window::scroll called multiple times"
-            );
-        } else {
-            self.scroll = None;
-        }
+    /// Enable/disable horizontal/vertical scrolling. `false` by default.
+    pub fn scroll2(mut self, scroll: [bool; 2]) -> Self {
+        self.scroll = self.scroll.scroll2(scroll);
         self
+    }
+
+    /// Enable/disable horizontal scrolling. `false` by default.
+    pub fn hscroll(mut self, hscroll: bool) -> Self {
+        self.scroll = self.scroll.hscroll(hscroll);
+        self
+    }
+
+    /// Enable/disable vertical scrolling. `false` by default.
+    pub fn vscroll(mut self, vscroll: bool) -> Self {
+        self.scroll = self.scroll.vscroll(vscroll);
+        self
+    }
+
+    #[deprecated = "Use .vscroll(…) instead"]
+    pub fn scroll(self, scroll: bool) -> Self {
+        self.vscroll(scroll)
     }
 
     /// Constrain the area up to which the window can be dragged.
@@ -352,7 +359,7 @@ impl<'open> Window<'open> {
                             ui.add_space(title_content_spacing);
                         }
 
-                        if let Some(scroll) = scroll {
+                        if scroll.has_any_bar() {
                             scroll.show(ui, add_contents)
                         } else {
                             add_contents(ui)

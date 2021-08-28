@@ -77,7 +77,7 @@ fn huge_content_lines(ui: &mut egui::Ui) {
     let text_style = TextStyle::Body;
     let row_height = ui.fonts()[text_style].row_height();
     let num_rows = 10_000;
-    ScrollArea::auto_sized().show_rows(ui, row_height, num_rows, |ui, row_range| {
+    ScrollArea::vertical().show_rows(ui, row_height, num_rows, |ui, row_range| {
         for row in row_range {
             let text = format!("This is row {}/{}", row + 1, num_rows);
             ui.label(text);
@@ -94,7 +94,7 @@ fn huge_content_painter(ui: &mut egui::Ui) {
     let row_height = ui.fonts()[text_style].row_height() + ui.spacing().item_spacing.y;
     let num_rows = 10_000;
 
-    ScrollArea::auto_sized().show_viewport(ui, |ui, viewport| {
+    ScrollArea::vertical().show_viewport(ui, |ui, viewport| {
         ui.set_height(row_height * num_rows as f32);
 
         let first_item = (viewport.min.y / row_height).floor().at_least(0.0) as usize;
@@ -184,7 +184,7 @@ impl super::View for ScrollTo {
             scroll_bottom |= ui.button("Scroll to bottom").clicked();
         });
 
-        let mut scroll_area = ScrollArea::from_max_height(200.0);
+        let mut scroll_area = ScrollArea::vertical().max_height(200.0);
         if go_to_scroll_offset {
             scroll_area = scroll_area.scroll_offset(self.offset);
         }

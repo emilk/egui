@@ -159,7 +159,7 @@ impl DemoWindows {
 
                 ui.separator();
 
-                ScrollArea::auto_sized().show(ui, |ui| {
+                ScrollArea::vertical().show(ui, |ui| {
                     use egui::special_emojis::{GITHUB, OS_APPLE, OS_LINUX, OS_WINDOWS};
 
                     ui.label("egui is an immediate mode GUI library written in Rust.");

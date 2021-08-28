@@ -6,7 +6,7 @@ pub struct WindowOptions {
     closable: bool,
     collapsible: bool,
     resizable: bool,
-    scroll: bool,
+    scroll2: [bool; 2],
     disabled_time: f64,
 
     anchored: bool,
@@ -21,8 +21,8 @@ impl Default for WindowOptions {
             title_bar: true,
             closable: true,
             collapsible: true,
-            resizable: false,
-            scroll: false,
+            resizable: true,
+            scroll2: [true; 2],
             disabled_time: f64::NEG_INFINITY,
             anchored: false,
             anchor: egui::Align2::RIGHT_TOP,
@@ -43,7 +43,7 @@ impl super::Demo for WindowOptions {
             closable,
             collapsible,
             resizable,
-            scroll,
+            scroll2,
             disabled_time,
             anchored,
             anchor,
@@ -61,7 +61,7 @@ impl super::Demo for WindowOptions {
             .resizable(resizable)
             .collapsible(collapsible)
             .title_bar(title_bar)
-            .scroll(scroll)
+            .scroll2(scroll2)
             .enabled(enabled);
         if closable {
             window = window.open(open);
@@ -81,7 +81,7 @@ impl super::View for WindowOptions {
             closable,
             collapsible,
             resizable,
-            scroll,
+            scroll2,
             disabled_time: _,
             anchored,
             anchor,
@@ -100,7 +100,8 @@ impl super::View for WindowOptions {
                     ui.checkbox(closable, "closable");
                     ui.checkbox(collapsible, "collapsible");
                     ui.checkbox(resizable, "resizable");
-                    ui.checkbox(scroll, "scroll");
+                    ui.checkbox(&mut scroll2[0], "hscroll");
+                    ui.checkbox(&mut scroll2[1], "vscroll");
                 });
             });
             ui.group(|ui| {
@@ -109,15 +110,15 @@ impl super::View for WindowOptions {
                     ui.set_enabled(*anchored);
                     ui.horizontal(|ui| {
                         ui.label("x:");
-                        ui.selectable_value(&mut anchor.0[0], egui::Align::LEFT, "Left");
-                        ui.selectable_value(&mut anchor.0[0], egui::Align::Center, "Center");
-                        ui.selectable_value(&mut anchor.0[0], egui::Align::RIGHT, "Right");
+                        ui.selectable_value(&mut anchor[0], egui::Align::LEFT, "Left");
+                        ui.selectable_value(&mut anchor[0], egui::Align::Center, "Center");
+                        ui.selectable_value(&mut anchor[0], egui::Align::RIGHT, "Right");
                     });
                     ui.horizontal(|ui| {
                         ui.label("y:");
-                        ui.selectable_value(&mut anchor.0[1], egui::Align::TOP, "Top");
-                        ui.selectable_value(&mut anchor.0[1], egui::Align::Center, "Center");
-                        ui.selectable_value(&mut anchor.0[1], egui::Align::BOTTOM, "Bottom");
+                        ui.selectable_value(&mut anchor[1], egui::Align::TOP, "Top");
+                        ui.selectable_value(&mut anchor[1], egui::Align::Center, "Center");
+                        ui.selectable_value(&mut anchor[1], egui::Align::BOTTOM, "Bottom");
                     });
                     ui.horizontal(|ui| {
                         ui.label("Offset:");

@@ -172,6 +172,22 @@ impl Align2 {
     }
 }
 
+impl std::ops::Index<usize> for Align2 {
+    type Output = Align;
+
+    #[inline(always)]
+    fn index(&self, index: usize) -> &Align {
+        &self.0[index]
+    }
+}
+
+impl std::ops::IndexMut<usize> for Align2 {
+    #[inline(always)]
+    fn index_mut(&mut self, index: usize) -> &mut Align {
+        &mut self.0[index]
+    }
+}
+
 pub fn center_size_in_rect(size: Vec2, frame: Rect) -> Rect {
     Align2::CENTER_CENTER.align_size_within_rect(size, frame)
 }

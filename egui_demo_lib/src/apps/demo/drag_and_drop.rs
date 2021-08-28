@@ -103,7 +103,7 @@ impl super::Demo for DragAndDropDemo {
         Window::new(self.name())
             .open(open)
             .default_size(vec2(256.0, 256.0))
-            .scroll(false)
+            .vscroll(false)
             .resizable(false)
             .show(ctx, |ui| self.ui(ui));
     }

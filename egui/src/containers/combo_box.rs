@@ -188,7 +188,9 @@ fn combo_box<R>(
         ui.memory().toggle_popup(popup_id);
     }
     let inner = crate::popup::popup_below_widget(ui, popup_id, &button_response, |ui| {
-        ScrollArea::from_max_height(ui.spacing().combo_height).show(ui, menu_contents)
+        ScrollArea::vertical()
+            .max_height(ui.spacing().combo_height)
+            .show(ui, menu_contents)
     });
 
     InnerResponse {

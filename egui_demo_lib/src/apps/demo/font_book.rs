@@ -84,7 +84,7 @@ impl super::View for FontBook {
 
         ui.separator();
 
-        egui::ScrollArea::auto_sized().show(ui, |ui| {
+        egui::ScrollArea::vertical().show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing = egui::Vec2::splat(2.0);
 
