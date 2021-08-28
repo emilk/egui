@@ -696,6 +696,7 @@ impl Ui {
     fn allocate_space_impl(&mut self, desired_size: Vec2) -> Rect {
         let item_spacing = self.spacing().item_spacing;
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
+        egui_assert!(!frame_rect.any_nan());
         let widget_rect = self.placer.justify_and_align(frame_rect, desired_size);
 
         self.placer
@@ -714,6 +715,7 @@ impl Ui {
     }
 
     pub(crate) fn advance_cursor_after_rect(&mut self, rect: Rect) -> Id {
+        egui_assert!(!rect.any_nan());
         let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
 
