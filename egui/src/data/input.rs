@@ -172,6 +172,8 @@ pub enum Event {
     /// IME composition ended with this final result.
     CompositionEnd(String),
 
+    /// On touch screens, report this *in addition to*
+    /// [`Self::PointerMoved`], [`Self::PointerButton`], [`Self::PointerGone`]
     Touch {
         /// Hashed device identifier (if available; may be zero).
         /// Can be used to separate touches from different devices.

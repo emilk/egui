@@ -46,6 +46,7 @@ pub use copypasta::ClipboardContext; // TODO: remove
 
 pub struct GliumInputState {
     pub pointer_pos_in_points: Option<Pos2>,
+    pub any_pointer_button_down: bool,
     pub raw: egui::RawInput,
 }
 
@@ -53,6 +54,7 @@ impl GliumInputState {
     pub fn from_pixels_per_point(pixels_per_point: f32) -> Self {
         Self {
             pointer_pos_in_points: Default::default(),
+            any_pointer_button_down: false,
             raw: egui::RawInput {
                 pixels_per_point: Some(pixels_per_point),
                 ..Default::default()
@@ -96,20 +98,51 @@ pub fn input_to_egui(
     clipboard: Option<&mut ClipboardContext>,
     input_state: &mut GliumInputState,
 ) {
+    // Useful for debugging egui touch support on non-touch devices.
+    let simulate_touches = false;
+
     use glutin::event::WindowEvent;
     match event {
         WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
             input_state.raw.pixels_per_point = Some(*scale_factor as f32);
         }
         WindowEvent::MouseInput { state, button, .. } => {
-            if let Some(pos_in_points) = input_state.pointer_pos_in_points {
+            if let Some(pos) = input_state.pointer_pos_in_points {
                 if let Some(button) = translate_mouse_button(*button) {
+                    let pressed = *state == glutin::event::ElementState::Pressed;
+
                     input_state.raw.events.push(egui::Event::PointerButton {
-                        pos: pos_in_points,
+                        pos,
                         button,
-                        pressed: *state == glutin::event::ElementState::Pressed,
+                        pressed,
                         modifiers: input_state.raw.modifiers,
                     });
+
+                    if simulate_touches {
+                        if pressed {
+                            input_state.any_pointer_button_down = true;
+
+                            input_state.raw.events.push(egui::Event::Touch {
+                                device_id: egui::TouchDeviceId(0),
+                                id: egui::TouchId(0),
+                                phase: egui::TouchPhase::Start,
+                                pos,
+                                force: 0.0
+                            });
+                        } else {
+                            input_state.any_pointer_button_down = false;
+
+                            input_state.raw.events.push(egui::Event::PointerGone);
+
+                            input_state.raw.events.push(egui::Event::Touch {
+                                device_id: egui::TouchDeviceId(0),
+                                id: egui::TouchId(0),
+                                phase: egui::TouchPhase::End,
+                                pos,
+                                force: 0.0
+                            });
+                        };
+                    }
                 }
             }
         }
@@ -122,10 +155,28 @@ pub fn input_to_egui(
                 pos_in_pixels.y as f32 / pixels_per_point,
             );
             input_state.pointer_pos_in_points = Some(pos_in_points);
-            input_state
-                .raw
-                .events
-                .push(egui::Event::PointerMoved(pos_in_points));
+
+            if simulate_touches {
+                if input_state.any_pointer_button_down {
+                    input_state
+                        .raw
+                        .events
+                        .push(egui::Event::PointerMoved(pos_in_points));
+
+                    input_state.raw.events.push(egui::Event::Touch {
+                        device_id: egui::TouchDeviceId(0),
+                        id: egui::TouchId(0),
+                        phase: egui::TouchPhase::Move,
+                        pos: pos_in_points,
+                        force: 0.0
+                    });
+                }
+            } else {
+                input_state
+                    .raw
+                    .events
+                    .push(egui::Event::PointerMoved(pos_in_points));
+            }
         }
         WindowEvent::CursorLeft { .. } => {
             input_state.pointer_pos_in_points = None;
