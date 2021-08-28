@@ -134,13 +134,24 @@ impl BackendPanel {
             }
         }
 
-        if !frame.is_web()
-            && ui
+        if !frame.is_web() {
+            ui.horizontal(|ui| {
+                ui.label("Window decorations:");
+                if ui.button("Show").clicked() {
+                    frame.set_decorations(true);
+                }
+                if ui.button("Hide").clicked() {
+                    frame.set_decorations(false);
+                }
+            });
+
+            if ui
                 .button("📱 Phone Size")
                 .on_hover_text("Resize the window to be small like a phone.")
                 .clicked()
-        {
-            frame.set_window_size(egui::Vec2::new(375.0, 812.0)); // iPhone 12 mini
+            {
+                frame.set_window_size(egui::Vec2::new(375.0, 812.0)); // iPhone 12 mini
+            }
         }
 
         ui.separator();
