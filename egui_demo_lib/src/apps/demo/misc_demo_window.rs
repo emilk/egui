@@ -35,12 +35,15 @@ impl Demo for MiscDemoWindow {
         Window::new(self.name())
             .open(open)
             .vscroll(true)
+            .hscroll(true)
             .show(ctx, |ui| self.ui(ui));
     }
 }
 
 impl View for MiscDemoWindow {
     fn ui(&mut self, ui: &mut Ui) {
+        ui.set_min_width(250.0);
+
         CollapsingHeader::new("Widgets")
             .default_open(true)
             .show(ui, |ui| {
