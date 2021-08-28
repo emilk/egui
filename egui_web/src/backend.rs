@@ -179,6 +179,7 @@ impl AppRunner {
                 http: runner.http.clone(),
                 output: &mut app_output,
                 repaint_signal: runner.needs_repaint.clone(),
+                decorated: false,
             }
             .build();
             runner.app.setup(
@@ -251,6 +252,7 @@ impl AppRunner {
             http: self.http.clone(),
             output: &mut app_output,
             repaint_signal: self.needs_repaint.clone(),
+            decorated: false,
         }
         .build();
 
@@ -266,6 +268,7 @@ impl AppRunner {
             let epi::backend::AppOutput {
                 quit: _,        // Can't quit a web page
                 window_size: _, // Can't resize a web page
+                decorated: _,   // Can't show decorations
             } = app_output;
         }
 
