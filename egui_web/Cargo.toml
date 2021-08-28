@@ -1,6 +1,6 @@
 [package]
 name = "egui_web"
-version = "0.14.0"
+version = "0.14.1"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for compiling egui code to WASM for a web page"
 license = "MIT OR Apache-2.0"

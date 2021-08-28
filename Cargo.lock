@@ -788,7 +788,7 @@ dependencies = [
 
 [[package]]
 name = "egui"
-version = "0.14.0"
+version = "0.14.1"
 dependencies = [
  "epaint",
  "ron",
@@ -836,7 +836,7 @@ dependencies = [
 
 [[package]]
 name = "egui_web"
-version = "0.14.0"
+version = "0.14.1"
 dependencies = [
  "egui",
  "epi",
