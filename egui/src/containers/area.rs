@@ -168,7 +168,7 @@ impl Area {
 pub(crate) struct Prepared {
     layer_id: LayerId,
     state: State,
-    movable: bool,
+    pub(crate) movable: bool,
     enabled: bool,
     drag_bounds: Option<Rect>,
 }
@@ -337,10 +337,13 @@ impl Prepared {
             state.pos += ctx.input().pointer.delta();
         }
 
-        if let Some(bounds) = drag_bounds {
-            state.pos = ctx.constrain_window_rect_to_area(state.rect(), bounds).min;
-        } else {
-            state.pos = ctx.constrain_window_rect(state.rect()).min;
+        // Important check - don't try to move e.g. a combobox popup!
+        if movable {
+            if let Some(bounds) = drag_bounds {
+                state.pos = ctx.constrain_window_rect_to_area(state.rect(), bounds).min;
+            } else {
+                state.pos = ctx.constrain_window_rect(state.rect()).min;
+            }
         }
 
         if (move_response.dragged() || move_response.clicked())

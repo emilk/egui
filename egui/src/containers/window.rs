@@ -404,6 +404,8 @@ impl<'open> Window<'open> {
             }
             content_inner
         };
+
+        area.movable = possible.movable; // Tell it the truth
         let full_response = area.end(ctx, area_content_ui);
 
         let inner_response = InnerResponse {
