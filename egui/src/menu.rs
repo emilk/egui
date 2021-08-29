@@ -42,8 +42,11 @@ impl BarState {
         ctx.memory().id_data_temp.insert(bar_id, self);
     }
     pub fn is_menu_open(&self, id: Id) -> bool {
-        self.open_menu.as_ref().map(|m| m.id) == Some(id)
+        is_menu_open(&self.open_menu, id)
     }
+}
+fn is_menu_open(menu: &Option<MenuRoot>, id: Id) -> bool {
+    menu.as_ref().map(|m| m.id) == Some(id)
 }
 
 /// The menu bar goes well in a [`TopBottomPanel::top`],
@@ -69,12 +72,17 @@ pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResp
     })
 }
 
+// trait alias
+trait InteractionFn: Fn(&Response, &mut Option<MenuRoot>, Id) -> MenuResponse {}
+impl<T: Fn(&Response, &mut Option<MenuRoot>, Id) -> MenuResponse> InteractionFn for T {}
+
 /// Menu root associated with an Id from a Response
 #[derive(Clone)]
 pub(crate) struct MenuRoot {
     pub menu_state: Arc<RwLock<MenuState>>,
     pub id: Id,
 }
+
 impl MenuRoot {
     pub fn new(position: Pos2, id: Id) -> Self {
         Self {
@@ -89,12 +97,88 @@ impl MenuRoot {
     ) -> InnerResponse<R> {
         MenuState::show(ctx, &self.menu_state, self.id, add_contents)
     }
+    fn stationary_interaction(
+        response: &Response,
+        root: &mut Option<MenuRoot>,
+        id: Id,
+    ) -> MenuResponse {
+        let pointer = &response.ctx.input().pointer;
+        if (response.clicked() && is_menu_open(root, id))
+            || response.ctx.input().key_pressed(Key::Escape)
+        {
+            return MenuResponse::Close;
+        } else if (response.clicked() && !is_menu_open(root, id))
+            || (response.hovered() && root.is_some())
+        {
+            let pos = response.rect.left_bottom();
+            return MenuResponse::Create(pos, id);
+        } else if pointer.any_pressed() {
+            if let Some(pos) = pointer.interact_pos() {
+                if let Some(root) = root {
+                    let menu_state = root.menu_state.read().unwrap();
+                    let in_old_menu = menu_state.area_contains(pos);
+                    if (!in_old_menu && pointer.primary_down()) || root.id == id {
+                        return MenuResponse::Close;
+                    }
+                }
+            }
+        }
+        MenuResponse::Stay
+    }
+    fn context_interaction(
+        response: &Response,
+        root: &mut Option<MenuRoot>,
+        id: Id,
+    ) -> MenuResponse {
+        let response = response.interact(Sense::click());
+        let pointer = &response.ctx.input().pointer;
+        if pointer.any_pressed() {
+            if let Some(pos) = pointer.interact_pos() {
+                let mut destroy = false;
+                let mut in_old_menu = false;
+                if let Some(root) = root {
+                    let menu_state = root.menu_state.read().unwrap();
+                    in_old_menu = menu_state.area_contains(pos);
+                    destroy = root.id == response.id;
+                }
+                if !in_old_menu {
+                    let in_target = response.rect.contains(pos);
+                    if in_target && pointer.secondary_down() {
+                        return MenuResponse::Create(pos, id);
+                    } else if (in_target && pointer.primary_down()) || destroy {
+                        return MenuResponse::Close;
+                    }
+                }
+            }
+        }
+        MenuResponse::Stay
+    }
+    fn click_interaction_impl(
+        response: &Response,
+        root: &mut Option<MenuRoot>,
+        id: Id,
+        interaction: impl InteractionFn,
+    ) {
+        match interaction(response, root, id) {
+            MenuResponse::Create(pos, id) => {
+                *root = Some(MenuRoot::new(pos, id));
+            }
+            MenuResponse::Close => *root = None,
+            MenuResponse::Stay => {}
+        };
+    }
+    pub fn context_click_interaction(response: &Response, root: &mut Option<MenuRoot>, id: Id) {
+        Self::click_interaction_impl(response, root, id, Self::context_interaction)
+    }
+    pub fn stationary_click_interaction(response: &Response, root: &mut Option<MenuRoot>, id: Id) {
+        Self::click_interaction_impl(response, root, id, Self::stationary_interaction)
+    }
 }
 #[derive(Clone, PartialEq)]
 pub(crate) enum MenuResponse {
     Close,
     Stay,
-    Create(Pos2),
+    Create(Pos2, Id),
 }
 impl MenuResponse {
     pub fn is_close(&self) -> bool {
@@ -257,8 +341,6 @@ pub(crate) struct MenuState {
     pub response: MenuResponse,
     /// Used to hash different `Id`s for sub-menus
     entry_count: usize,
-    /// Menu width.
-    pub width: f32,
 }
 impl MenuState {
     /// Close menu hierarchy.
@@ -275,7 +357,6 @@ impl MenuState {
             sub_menu: None,
             response: MenuResponse::Stay,
             entry_count: 0,
-            width: 100.0,
         }
     }
     pub fn show<R>(
@@ -423,7 +504,6 @@ pub(crate) fn menu_ui<'c, R>(
 ) -> InnerResponse<R> {
     let mut menu_state = menu_state_arc.write().unwrap();
     menu_state.entry_count = 0;
-    let width = menu_state.width;
     let pos = menu_state.rect.min;
     drop(menu_state);
 
@@ -447,7 +527,6 @@ pub(crate) fn menu_ui<'c, R>(
                 ui.set_style(style);
                 ui.with_layout(Layout::top_down_justified(Align::LEFT), |ui| {
                     ui.set_menu_state(menu_state_arc);
-                    ui.set_width(width);
                     add_contents(ui)
                 })
                 .inner
@@ -476,25 +555,10 @@ fn menu_impl<'c, R>(
     }
 
     let button_response = ui.add(button);
-    // Toggle
-    if button_response.clicked() && bar_state.is_menu_open(menu_id) {
-        bar_state.open_menu = None;
-    } else if button_response.clicked() && !bar_state.is_menu_open(menu_id)
-        || button_response.hovered() && bar_state.open_menu.is_some()
-    {
-        let pos = button_response.rect.left_bottom();
-        bar_state.open_menu = Some(MenuRoot::new(pos, menu_id));
-    }
-
+    MenuRoot::stationary_click_interaction(&button_response, &mut bar_state.open_menu, menu_id);
     let inner = if bar_state.is_menu_open(menu_id) || ui.ctx().memory().everything_is_visible() {
         let menu_state = &bar_state.open_menu.as_ref().unwrap().menu_state;
-        let inner = MenuState::show(ui.ctx(), menu_state, menu_id, add_contents).inner;
-
-        // TODO: this prevents sub-menus in menus. We should fix that.
-        if ui.input().key_pressed(Key::Escape) || button_response.clicked_elsewhere() {
-            bar_state.open_menu = None;
-        }
-        Some(inner)
+        Some(MenuState::show(ui.ctx(), menu_state, menu_id, add_contents).inner)
     } else {
         None
     };
