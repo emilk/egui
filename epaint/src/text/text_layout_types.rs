@@ -26,6 +26,7 @@ pub struct LayoutJob2 {
     /// and show up as the replacement character.
     /// Default: `true`.
     pub break_on_newline: bool,
+    // TODO: option to show whitespace
 }
 
 impl Default for LayoutJob2 {
@@ -37,6 +38,56 @@ impl Default for LayoutJob2 {
             first_row_min_height: 0.0,
             break_on_newline: true,
         }
+    }
+}
+
+impl LayoutJob2 {
+    pub fn simple_multiline(
+        text: String,
+        text_style: TextStyle,
+        color: Color32,
+        wrap_width: f32,
+    ) -> Self {
+        Self {
+            sections: vec![LayoutSection {
+                leading_space: 0.0,
+                byte_range: 0..text.len(),
+                format: TextFormat::simple(text_style, color),
+            }],
+            text,
+            wrap_width,
+            break_on_newline: true,
+            ..Default::default()
+        }
+    }
+
+    pub fn simple_singleline(text: String, text_style: TextStyle, color: Color32) -> Self {
+        Self {
+            sections: vec![LayoutSection {
+                leading_space: 0.0,
+                byte_range: 0..text.len(),
+                format: TextFormat::simple(text_style, color),
+            }],
+            text,
+            wrap_width: f32::INFINITY,
+            break_on_newline: false,
+            ..Default::default()
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.sections.is_empty()
+    }
+
+    pub fn append(&mut self, text: &str, leading_space: f32, format: TextFormat) {
+        let start = self.text.len();
+        self.text += text;
+        let byte_range = start..self.text.len();
+        self.sections.push(LayoutSection {
+            leading_space,
+            byte_range,
+            format,
+        });
     }
 }
 
@@ -58,6 +109,8 @@ impl std::hash::Hash for LayoutJob2 {
         break_on_newline.hash(state);
     }
 }
+
+// ----------------------------------------------------------------------------
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct LayoutSection {
@@ -82,6 +135,8 @@ impl std::hash::Hash for LayoutSection {
         format.hash(state);
     }
 }
+
+// ----------------------------------------------------------------------------
 
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
 pub struct TextFormat {
@@ -110,6 +165,18 @@ impl Default for TextFormat {
         }
     }
 }
+
+impl TextFormat {
+    pub fn simple(style: TextStyle, color: Color32) -> Self {
+        Self {
+            style,
+            color,
+            ..Default::default()
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Galley2 {
@@ -145,13 +212,16 @@ pub struct Row2 {
     //
     /// Logical bounding rectangle based on font heights etc.
     /// Can be slightly less or more than [`Self::mesh_bounds`].
-    pub logical_rect: Rect,
+    /// Use this when drawing a selection or similar!
+    /// Includes leading and trailing whitespace.
+    pub rect: Rect,
 
     /// The tessellated text, using non-normalized (texel) UV coordinates.
     /// That is, you need to divide the uv coordinates by the texture size.
     pub mesh: Mesh,
 
-    /// Bounding rectangle of the mesh that can be used for culling.
+    /// Bounds of the mesh, and can be used for culling.
+    /// Does NOT include leading or trailing whitespace glyphs!!
     pub mesh_bounds: Rect,
 
     /// If true, this `Row` came from a paragraph ending with a `\n`.
@@ -170,40 +240,26 @@ pub struct Glyph {
     /// Relative to the galley position.
     /// Logical position: pos.y is the same for all chars of the same [`TextFormat`].
     pub pos: Pos2,
+    /// The advance width.
+    pub width: f32,
     /// Position of the glyph in the font texture.
     pub uv_rect: UvRect,
     /// Index into [`Galley::section`]. Decides color etc
     pub section_index: u32,
 }
 
-// ----------------------------------------------------------------------------
-
-impl LayoutJob2 {
-    pub fn is_empty(&self) -> bool {
-        self.sections.is_empty()
-    }
-    pub fn append(&mut self, text: &str, leading_space: f32, format: TextFormat) {
-        let start = self.text.len();
-        self.text += text;
-        let byte_range = start..self.text.len();
-        self.sections.push(LayoutSection {
-            leading_space,
-            byte_range,
-            format,
-        });
-    }
-}
-
 impl Glyph {
-    pub fn max_x(&self) -> f32 {
-        self.pos.x + self.uv_rect.size.x
+    pub fn visual_max_x(&self) -> f32 {
+        self.pos.x + self.width
     }
 
     /// Same y range for all characters with the same [`TextFormat`].
     pub fn logical_rect(&self) -> Rect {
-        Rect::from_min_size(self.pos, vec2(self.uv_rect.size.x, self.font_row_height))
+        Rect::from_min_size(self.pos, vec2(self.width, self.font_row_height))
     }
 }
+
+// ----------------------------------------------------------------------------
 
 impl Row2 {
     /// Excludes the implicit `\n` after the `Row`, if any.
@@ -219,32 +275,18 @@ impl Row2 {
     }
 
     #[inline]
-    pub fn min_x(&self) -> f32 {
-        self.logical_rect.left()
-    }
-
-    #[inline]
-    pub fn max_x(&self) -> f32 {
-        self.logical_rect.right()
-    }
-
-    #[inline]
     pub fn min_y(&self) -> f32 {
-        self.logical_rect.top()
+        self.rect.top()
     }
 
     #[inline]
     pub fn max_y(&self) -> f32 {
-        self.logical_rect.bottom()
+        self.rect.bottom()
     }
 
     #[inline]
     pub fn height(&self) -> f32 {
-        self.logical_rect.height()
-    }
-
-    pub fn rect(&self) -> Rect {
-        self.logical_rect
+        self.rect.height()
     }
 
     /// Closest char at the desired x coordinate.
@@ -262,7 +304,7 @@ impl Row2 {
         if let Some(glyph) = self.glyphs.get(column) {
             glyph.pos.x
         } else {
-            self.max_x()
+            self.rect.right()
         }
     }
 }
@@ -285,7 +327,7 @@ impl Galley2 {
     /// Zero-width rect past the last character.
     fn end_pos(&self) -> Rect {
         if let Some(row) = self.rows.last() {
-            let x = row.max_x();
+            let x = row.rect.right();
             Rect::from_min_max(pos2(x, row.min_y()), pos2(x, row.max_y()))
         } else {
             // Empty galley
@@ -330,7 +372,7 @@ impl Galley2 {
 
     /// Returns a 0-width Rect.
     pub fn pos_from_cursor(&self, cursor: &Cursor) -> Rect {
-        self.pos_from_pcursor(cursor.pcursor) // The one TextEdit stores
+        self.pos_from_pcursor(cursor.pcursor) // pcursor is what TextEdit stores
     }
 
     /// Cursor at the given position within the galley
@@ -626,7 +668,7 @@ impl Galley2 {
             } else {
                 // keep same X coord
                 let x = self.pos_from_cursor(cursor).center().x;
-                let column = if x > self.rows[new_row].max_x() {
+                let column = if x > self.rows[new_row].rect.right() {
                     // beyond the end of this row - keep same colum
                     cursor.rcursor.column
                 } else {
@@ -657,7 +699,7 @@ impl Galley2 {
             } else {
                 // keep same X coord
                 let x = self.pos_from_cursor(cursor).center().x;
-                let column = if x > self.rows[new_row].max_x() {
+                let column = if x > self.rows[new_row].rect.right() {
                     // beyond the end of the next row - keep same column
                     cursor.rcursor.column
                 } else {

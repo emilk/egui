@@ -5,7 +5,7 @@ use crate::{
 };
 use epaint::{
     mutex::Mutex,
-    text::{Fonts, Galley, TextStyle},
+    text::{Fonts, Galley, Galley2, TextStyle},
     Shape, Stroke,
 };
 
@@ -379,6 +379,16 @@ impl Painter {
     #[inline(always)]
     pub fn galley(&self, pos: Pos2, galley: std::sync::Arc<Galley>, color: Color32) {
         self.galley_with_italics(pos, galley, color, false)
+    }
+
+    /// Paint text that has already been layed out in a [`Galley2`].
+    ///
+    /// You can create the `Galley` with [`Self::layout_text`].
+    #[inline(always)]
+    pub fn galley2(&self, pos: Pos2, galley: std::sync::Arc<Galley2>) {
+        if !galley.is_empty() {
+            self.add(Shape::Text2 { pos, galley });
+        }
     }
 
     pub fn galley_with_italics(

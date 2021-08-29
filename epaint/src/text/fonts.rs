@@ -330,7 +330,7 @@ impl Fonts {
     ///
     /// Most often you probably want `\n` to produce a new row,
     /// and so [`Self::layout_no_wrap`] may be a better choice.
-    pub fn layout_single_line(&self, text_style: TextStyle, text: String) -> Arc<Galley> {
+    pub fn layout_singleline(&self, text_style: TextStyle, text: String) -> Arc<Galley> {
         self.galley_cache.lock().layout(
             &self.fonts,
             LayoutJob {
@@ -382,6 +382,7 @@ impl Fonts {
         )
     }
 
+    /// Memoizes identical jobs for as long they are used every frame.
     pub fn layout2(&self, job: impl Into<Arc<LayoutJob2>>) -> Arc<Galley2> {
         self.galley_cache2.lock().layout(self, job.into())
     }
@@ -451,7 +452,7 @@ impl GalleyCache {
             } = job.clone();
             let font = &fonts[&text_style];
             let galley = match layout_params {
-                LayoutParams::SingleLine => font.layout_single_line(text),
+                LayoutParams::SingleLine => font.layout_singleline(text),
                 LayoutParams::Multiline {
                     first_row_indentation,
                     max_width_in_points,

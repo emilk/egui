@@ -372,7 +372,7 @@ impl Font {
     ///
     /// Most often you probably want `\n` to produce a new row,
     /// and so [`Self::layout_no_wrap`] may be a better choice.
-    pub fn layout_single_line(&self, text: String) -> Galley {
+    pub fn layout_singleline(&self, text: String) -> Galley {
         let x_offsets = self.layout_single_row_fragment(&text);
         let row = Row {
             x_offsets,

@@ -1,5 +1,8 @@
 use crate::{output::OutputEvent, util::undoer::Undoer, *};
-use epaint::{text::cursor::*, *};
+use epaint::{
+    text::{cursor::*, LayoutJob2},
+    *,
+};
 use std::ops::Range;
 
 #[derive(Clone, Debug, Default)]
@@ -460,6 +463,11 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             }
         };
 
+        let text_color = text_color
+            .or(ui.visuals().override_text_color)
+            // .unwrap_or_else(|| ui.style().interact(&response).text_color()); // too bright
+            .unwrap_or_else(|| ui.visuals().widgets.inactive.text_color());
+
         let prev_text = text.as_ref().to_owned();
         let text_style = text_style
             .or(ui.style().override_text_style)
@@ -476,11 +484,11 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
 
         let make_galley = |ui: &Ui, wrap_width: f32, text: &str| {
             let text = mask_if_password(text);
-            if multiline {
-                ui.fonts().layout_multiline(text_style, text, wrap_width)
+            ui.fonts().layout2(if multiline {
+                LayoutJob2::simple_multiline(text, text_style, text_color, wrap_width)
             } else {
-                ui.fonts().layout_single_line(text_style, text)
-            }
+                LayoutJob2::simple_singleline(text, text_style, text_color)
+            })
         };
 
         let copy_if_not_password = |ui: &Ui, text: String| {
@@ -791,21 +799,15 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             }
         }
 
-        let text_color = text_color
-            .or(ui.visuals().override_text_color)
-            // .unwrap_or_else(|| ui.style().interact(&response).text_color()); // too bright
-            .unwrap_or_else(|| ui.visuals().widgets.inactive.text_color());
-
-        painter.galley(text_draw_pos, galley, text_color);
+        painter.galley2(text_draw_pos, galley);
         if text.as_ref().is_empty() && !hint_text.is_empty() {
-            let galley = if multiline {
-                ui.fonts()
-                    .layout_multiline(text_style, hint_text, desired_size.x)
-            } else {
-                ui.fonts().layout_single_line(text_style, hint_text)
-            };
             let hint_text_color = ui.visuals().weak_text_color();
-            painter.galley(response.rect.min, galley, hint_text_color);
+            let galley = ui.fonts().layout2(if multiline {
+                LayoutJob2::simple_multiline(hint_text, text_style, hint_text_color, desired_size.x)
+            } else {
+                LayoutJob2::simple_singleline(hint_text, text_style, hint_text_color)
+            });
+            painter.galley2(response.rect.min, galley);
         }
 
         ui.memory().id_data.insert(id, state);
@@ -855,7 +857,7 @@ fn paint_cursor_selection(
     ui: &mut Ui,
     painter: &Painter,
     pos: Pos2,
-    galley: &Galley,
+    galley: &Galley2,
     cursorp: &CursorPair,
 ) {
     let color = ui.visuals().selection.bg_fill;
@@ -871,7 +873,7 @@ fn paint_cursor_selection(
         let left = if ri == min.row {
             row.x_offset(min.column)
         } else {
-            row.min_x()
+            row.rect.left()
         };
         let right = if ri == max.row {
             row.x_offset(max.column)
@@ -881,14 +883,17 @@ fn paint_cursor_selection(
             } else {
                 0.0
             };
-            row.max_x() + newline_size
+            row.rect.right() + newline_size
         };
-        let rect = Rect::from_min_max(pos + vec2(left, row.y_min), pos + vec2(right, row.y_max));
+        let rect = Rect::from_min_max(
+            pos + vec2(left, row.min_y()),
+            pos + vec2(right, row.max_y()),
+        );
         painter.rect_filled(rect, 0.0, color);
     }
 }
 
-fn paint_cursor_end(ui: &mut Ui, painter: &Painter, pos: Pos2, galley: &Galley, cursor: &Cursor) {
+fn paint_cursor_end(ui: &mut Ui, painter: &Painter, pos: Pos2, galley: &Galley2, cursor: &Cursor) {
     let stroke = ui.visuals().selection.stroke;
 
     let cursor_pos = galley.pos_from_cursor(cursor).translate(pos.to_vec2());
@@ -980,7 +985,7 @@ fn delete_next_word<S: TextBuffer>(text: &mut S, min_ccursor: CCursor) -> CCurso
 
 fn delete_paragraph_before_cursor<S: TextBuffer>(
     text: &mut S,
-    galley: &Galley,
+    galley: &Galley2,
     cursorp: &CursorPair,
 ) -> CCursor {
     let [min, max] = cursorp.sorted();
@@ -998,7 +1003,7 @@ fn delete_paragraph_before_cursor<S: TextBuffer>(
 
 fn delete_paragraph_after_cursor<S: TextBuffer>(
     text: &mut S,
-    galley: &Galley,
+    galley: &Galley2,
     cursorp: &CursorPair,
 ) -> CCursor {
     let [min, max] = cursorp.sorted();
@@ -1020,7 +1025,7 @@ fn delete_paragraph_after_cursor<S: TextBuffer>(
 fn on_key_press<S: TextBuffer>(
     cursorp: &mut CursorPair,
     text: &mut S,
-    galley: &Galley,
+    galley: &Galley2,
     key: Key,
     modifiers: &Modifiers,
 ) -> Option<CCursorPair> {
@@ -1097,12 +1102,13 @@ fn on_key_press<S: TextBuffer>(
     }
 }
 
-fn move_single_cursor(cursor: &mut Cursor, galley: &Galley, key: Key, modifiers: &Modifiers) {
+fn move_single_cursor(cursor: &mut Cursor, galley: &Galley2, key: Key, modifiers: &Modifiers) {
     match key {
         Key::ArrowLeft => {
             if modifiers.alt || modifiers.ctrl {
                 // alt on mac, ctrl on windows
-                *cursor = galley.from_ccursor(ccursor_previous_word(&galley.text, cursor.ccursor));
+                *cursor =
+                    galley.from_ccursor(ccursor_previous_word(&galley.text(), cursor.ccursor));
             } else if modifiers.mac_cmd {
                 *cursor = galley.cursor_begin_of_row(cursor);
             } else {
@@ -1112,7 +1118,7 @@ fn move_single_cursor(cursor: &mut Cursor, galley: &Galley, key: Key, modifiers:
         Key::ArrowRight => {
             if modifiers.alt || modifiers.ctrl {
                 // alt on mac, ctrl on windows
-                *cursor = galley.from_ccursor(ccursor_next_word(&galley.text, cursor.ccursor));
+                *cursor = galley.from_ccursor(ccursor_next_word(&galley.text(), cursor.ccursor));
             } else if modifiers.mac_cmd {
                 *cursor = galley.cursor_end_of_row(cursor);
             } else {

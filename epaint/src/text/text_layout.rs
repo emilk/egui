@@ -11,6 +11,8 @@ struct Paragraph {
     /// Start of the next glyph to be added.
     pub cursor_x: f32,
     pub glyphs: Vec<Glyph>,
+    /// In case of an empty paragraph ("\n"), use this as height.
+    pub empty_paragraph_height: f32,
 }
 
 pub fn layout(fonts: &Fonts, job: Arc<LayoutJob2>) -> Galley2 {
@@ -48,6 +50,7 @@ fn layout_section(
 
     for chr in job.text[byte_range.clone()].chars() {
         if job.break_on_newline && chr == '\n' {
+            paragraph.empty_paragraph_height = font_height; // TODO: replace this hack with actually including `\n` in the glyphs.
             out_paragraphs.push(Paragraph::default());
             paragraph = out_paragraphs.last_mut().unwrap();
         } else {
@@ -59,6 +62,7 @@ fn layout_section(
             paragraph.glyphs.push(Glyph {
                 chr,
                 pos: pos2(paragraph.cursor_x, f32::NAN),
+                width: glyph_info.advance_width,
                 font_row_height: font_height,
                 uv_rect: glyph_info.uv_rect,
                 section_index,
@@ -73,7 +77,7 @@ fn layout_section(
 
 /// We ignore y at this stage
 fn rect_from_x_range(x_range: RangeInclusive<f32>) -> Rect {
-    Rect::from_x_y_ranges(x_range, f32::NAN..=f32::NAN)
+    Rect::from_x_y_ranges(x_range, 0.0..=0.0)
 }
 
 fn rows_from_paragraphs(paragraphs: Vec<Paragraph>, wrap_width: f32) -> Vec<Row2> {
@@ -89,11 +93,14 @@ fn rows_from_paragraphs(paragraphs: Vec<Paragraph>, wrap_width: f32) -> Vec<Row2
                 glyphs: vec![],
                 mesh: Default::default(),
                 mesh_bounds: Rect::NAN,
-                logical_rect: rect_from_x_range(paragraph.cursor_x..=paragraph.cursor_x),
+                rect: Rect::from_min_size(
+                    pos2(paragraph.cursor_x, 0.0),
+                    vec2(0.0, paragraph.empty_paragraph_height),
+                ),
                 ends_with_newline: !is_last_paragraph,
             });
         } else {
-            let paragraph_max_x = paragraph.glyphs.last().unwrap().max_x();
+            let paragraph_max_x = paragraph.glyphs.last().unwrap().visual_max_x();
             if paragraph_max_x <= wrap_width {
                 // early-out optimization
                 let paragraph_min_x = paragraph.glyphs[0].pos.x;
@@ -101,7 +108,7 @@ fn rows_from_paragraphs(paragraphs: Vec<Paragraph>, wrap_width: f32) -> Vec<Row2
                     glyphs: paragraph.glyphs,
                     mesh: Default::default(),
                     mesh_bounds: Rect::NAN,
-                    logical_rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
+                    rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
                     ends_with_newline: !is_last_paragraph,
                 });
             } else {
@@ -132,7 +139,7 @@ fn line_break(paragraph: Paragraph, wrap_width: f32, out_rows: &mut Vec<Row2>) {
                     glyphs: vec![],
                     mesh: Default::default(),
                     mesh_bounds: Rect::NAN,
-                    logical_rect: rect_from_x_range(first_row_indentation..=first_row_indentation),
+                    rect: rect_from_x_range(first_row_indentation..=first_row_indentation),
                     ends_with_newline: false,
                 });
                 first_row_indentation = 0.0;
@@ -147,13 +154,13 @@ fn line_break(paragraph: Paragraph, wrap_width: f32, out_rows: &mut Vec<Row2>) {
                     .collect();
 
                 let paragraph_min_x = glyphs[0].pos.x;
-                let paragraph_max_x = glyphs.last().unwrap().max_x();
+                let paragraph_max_x = glyphs.last().unwrap().visual_max_x();
 
                 out_rows.push(Row2 {
                     glyphs,
                     mesh: Default::default(),
                     mesh_bounds: Rect::NAN,
-                    logical_rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
+                    rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
                     ends_with_newline: false,
                 });
 
@@ -179,13 +186,13 @@ fn line_break(paragraph: Paragraph, wrap_width: f32, out_rows: &mut Vec<Row2>) {
             .collect();
 
         let paragraph_min_x = glyphs[0].pos.x;
-        let paragraph_max_x = glyphs.last().unwrap().max_x();
+        let paragraph_max_x = glyphs.last().unwrap().visual_max_x();
 
         out_rows.push(Row2 {
             glyphs,
             mesh: Default::default(),
             mesh_bounds: Rect::NAN,
-            logical_rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
+            rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
             ends_with_newline: false,
         });
     }
@@ -196,7 +203,7 @@ fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob2>, mut rows: Vec<Row2>) ->
     let mut cursor_y = 0.0;
     let mut max_x: f32 = 0.0;
     for row in &mut rows {
-        let mut row_height = first_row_min_height;
+        let mut row_height = first_row_min_height.max(row.rect.height());
         first_row_min_height = 0.0;
         for glyph in &row.glyphs {
             row_height = row_height.max(glyph.font_row_height);
@@ -215,10 +222,10 @@ fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob2>, mut rows: Vec<Row2>) ->
             glyph.pos.y = fonts.round_to_pixel(glyph.pos.y);
         }
 
-        row.logical_rect.min.y = cursor_y;
-        row.logical_rect.max.y = cursor_y + row_height;
+        row.rect.min.y = cursor_y;
+        row.rect.max.y = cursor_y + row_height;
 
-        max_x = max_x.max(row.logical_rect.right());
+        max_x = max_x.max(row.rect.right());
         cursor_y += row_height;
         cursor_y = fonts.round_to_pixel(cursor_y);
     }
@@ -402,7 +409,7 @@ fn add_row_hline(
             }
         }
 
-        last_right_x = glyph.max_x();
+        last_right_x = glyph.visual_max_x();
     }
 
     end_line(line_start.take(), last_right_x);
