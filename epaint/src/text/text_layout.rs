@@ -8,11 +8,13 @@ use emath::*;
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct TextFormat {
     pub style: TextStyle,
+    /// Text color
     pub color: Color32,
+    pub background: Color32,
     pub italics: bool,
     pub underline: Stroke,
     pub strikethrough: Stroke,
-    // TODO: background_color, raised, lowered
+    // TODO: raised, lowered
 }
 
 impl Default for TextFormat {
@@ -20,6 +22,7 @@ impl Default for TextFormat {
         Self {
             style: TextStyle::Body,
             color: Color32::GRAY,
+            background: Color32::TRANSPARENT,
             italics: false,
             underline: Stroke::none(),
             strikethrough: Stroke::none(),
@@ -400,8 +403,15 @@ fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob>, mut rows: Vec<Row2>) -> 
 
 fn tesselate_row(fonts: &Fonts, job: &LayoutJob, row: &Row2) -> Mesh {
     let mut mesh = Mesh::default();
+
+    if row.glyphs.is_empty() {
+        return mesh;
+    }
+
     mesh.reserve_triangles(row.glyphs.len() * 2);
     mesh.reserve_vertices(row.glyphs.len() * 4);
+
+    add_row_backgrounds(job, row, &mut mesh);
 
     let mut any_underline = false;
     let mut any_strikethrough = false;
@@ -477,6 +487,53 @@ fn tesselate_row(fonts: &Fonts, job: &LayoutJob, row: &Row2) -> Mesh {
     }
 
     mesh
+}
+
+fn add_row_backgrounds(job: &LayoutJob, row: &Row2, mesh: &mut Mesh) {
+    if row.glyphs.is_empty() {
+        return;
+    }
+
+    let mut end_run = |start: Option<(Color32, Rect)>, stop_x: f32| {
+        if let Some((color, start_rect)) = start {
+            let rect = Rect::from_min_max(
+                pos2(start_rect.left(), start_rect.top()),
+                pos2(stop_x, start_rect.bottom()),
+            );
+            mesh.add_colored_rect(rect, color);
+        }
+    };
+
+    let mut run_start = None;
+    let mut last_rect = Rect::NAN;
+
+    for glyph in &row.glyphs {
+        let format = &job.sections[glyph.section_index as usize].format;
+        let color = format.background;
+        let rect = glyph.logical_rect();
+
+        if color == Color32::TRANSPARENT {
+            end_run(run_start.take(), rect.left());
+        } else {
+            if let Some((existing_color, start)) = run_start {
+                if existing_color == color
+                    && start.top() == rect.top()
+                    && start.bottom() == rect.bottom()
+                {
+                    // continue the same line
+                } else {
+                    end_run(run_start.take(), rect.left());
+                    run_start = Some((color, rect));
+                }
+            } else {
+                run_start = Some((color, rect));
+            }
+        }
+
+        last_rect = rect;
+    }
+
+    end_run(run_start.take(), last_rect.right());
 }
 
 fn add_row_hline(

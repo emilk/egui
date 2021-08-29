@@ -62,6 +62,7 @@ fn test_galley2(ui: &mut egui::Ui) {
         TextFormat {
             style: TextStyle::Body,
             color: Color32::WHITE,
+            background: Color32::GRAY,
             strikethrough: Stroke::new(1.0, Color32::GREEN),
             ..Default::default()
         },
