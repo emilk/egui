@@ -15,24 +15,34 @@
 //! }
 //! ```
 
+use super::{
+    style::{Spacing, WidgetVisuals},
+    Align, CtxRef, Id, InnerResponse, PointerState, Pos2, Rect, Response, Sense, Style, TextStyle,
+    Ui, Vec2,
+};
 use crate::{widgets::*, *};
 use epaint::Stroke;
+use std::sync::{Arc, RwLock};
 
 /// What is saved between frames.
-#[derive(Clone, Copy, Debug, Default)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
+#[derive(Clone, Default)]
 pub(crate) struct BarState {
-    open_menu: Option<Id>,
+    open_menu: Option<MenuRoot>,
 }
 
 impl BarState {
     fn load(ctx: &Context, bar_id: &Id) -> Self {
-        *ctx.memory().id_data_temp.get_or_default(*bar_id)
+        ctx.memory()
+            .id_data_temp
+            .get_or_default::<Self>(*bar_id)
+            .clone()
     }
 
     fn save(self, ctx: &Context, bar_id: Id) {
         ctx.memory().id_data_temp.insert(bar_id, self);
+    }
+    pub fn is_menu_open(&self, id: Id) -> bool {
+        self.open_menu.as_ref().map(|m| m.id) == Some(id)
     }
 }
 
@@ -59,6 +69,340 @@ pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResp
     })
 }
 
+/// Menu root associated with an Id from a Response
+#[derive(Clone)]
+pub(crate) struct MenuRoot {
+    pub menu_state: Arc<RwLock<MenuState>>,
+    pub id: Id,
+}
+impl MenuRoot {
+    pub fn new(position: Pos2, id: Id) -> Self {
+        Self {
+            menu_state: Arc::new(RwLock::new(MenuState::new(position))),
+            id,
+        }
+    }
+    pub fn show<R>(
+        &mut self,
+        ctx: &CtxRef,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
+        MenuState::show(ctx, &self.menu_state, self.id, add_contents)
+    }
+}
+#[derive(Clone, PartialEq)]
+pub(crate) enum MenuResponse {
+    Close,
+    Stay,
+    Create(Pos2),
+}
+impl MenuResponse {
+    pub fn is_close(&self) -> bool {
+        *self == Self::Close
+    }
+}
+pub(crate) enum EntryState {
+    /// Will not show hover visuals
+    Inactive,
+    /// Listening for hovers
+    Active,
+    /// Show open visuals
+    Open,
+}
+impl EntryState {
+    fn visuals<'a>(self, ui: &'a Ui, response: &'_ Response) -> &'a WidgetVisuals {
+        let widgets = &ui.style().visuals.widgets;
+        match self {
+            Self::Inactive => &widgets.inactive,
+            Self::Active => ui.style().interact(response),
+            Self::Open => &widgets.hovered,
+        }
+    }
+    fn submenu(menu_state: &MenuState, sub_id: Id) -> Self {
+        if menu_state.is_open(sub_id) {
+            Self::Open
+        } else if menu_state.any_open() {
+            Self::Inactive
+        } else {
+            Self::Active
+        }
+    }
+}
+pub struct MenuEntry {
+    text: String,
+    icon: String,
+    state: EntryState,
+    index: usize,
+}
+impl MenuEntry {
+    /// The `icon` can be an emoji (e.g. `⏵` right arrow), shown right of the label
+    #[allow(clippy::needless_pass_by_value)]
+    fn new(text: impl ToString, icon: impl ToString, state: EntryState, index: usize) -> Self {
+        Self {
+            text: text.to_string(),
+            icon: icon.to_string(),
+            state,
+            index,
+        }
+    }
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn icon(mut self, icon: impl ToString) -> Self {
+        self.icon = icon.to_string();
+        self
+    }
+    fn show_with_state(mut self, ui: &mut Ui, state: EntryState) -> Response {
+        self.state = state;
+        self.show(ui)
+    }
+    pub fn show(self, ui: &mut Ui) -> Response {
+        let MenuEntry {
+            text, icon, state, ..
+        } = self;
+
+        let text_style = TextStyle::Button;
+        let sense = Sense::click();
+
+        let button_padding = ui.spacing().button_padding;
+        let total_extra = button_padding + button_padding;
+        let text_available_width = ui.available_width() - total_extra.x;
+        let text_galley = ui
+            .fonts()
+            .layout_multiline(text_style, text, text_available_width);
+
+        let icon_available_width = text_available_width - text_galley.size.x;
+        let icon_galley = ui
+            .fonts()
+            .layout_multiline(text_style, icon, icon_available_width);
+        let text_and_icon_size = Vec2::new(
+            text_galley.size.x + icon_galley.size.x,
+            text_galley.size.y.max(icon_galley.size.y),
+        );
+        let desired_size = text_and_icon_size + 2.0 * button_padding;
+
+        let (rect, response) = ui.allocate_at_least(desired_size, sense);
+        response.widget_info(|| {
+            crate::WidgetInfo::labeled(crate::WidgetType::Button, &text_galley.text)
+        });
+
+        if ui.clip_rect().intersects(rect) {
+            response.interact(sense);
+            let visuals = state.visuals(ui, &response);
+            let text_pos = ui
+                .layout()
+                .align_size_within_rect(text_galley.size, rect.shrink2(button_padding))
+                .min;
+            let icon_pos = ui
+                .layout()
+                .with_cross_align(Align::RIGHT)
+                .align_size_within_rect(icon_galley.size, rect.shrink2(button_padding))
+                .min;
+
+            let fill = visuals.bg_fill;
+            let stroke = crate::Stroke::none();
+            ui.painter().rect(
+                rect.expand(visuals.expansion),
+                visuals.corner_radius,
+                fill,
+                stroke,
+            );
+
+            let text_color = visuals.text_color();
+            ui.painter().galley(text_pos, text_galley, text_color);
+            ui.painter().galley(icon_pos, icon_galley, text_color);
+        }
+        response
+    }
+}
+pub struct SubMenu {
+    entry: MenuEntry,
+    parent_state: Arc<RwLock<MenuState>>,
+}
+impl SubMenu {
+    #[allow(clippy::needless_pass_by_value)]
+    fn new(text: impl ToString, parent_state: Arc<RwLock<MenuState>>) -> Self {
+        let index = parent_state.write().unwrap().next_entry_index();
+        Self {
+            entry: MenuEntry::new(text, "⏵", EntryState::Active, index),
+            parent_state,
+        }
+    }
+    pub fn show<R>(
+        self,
+        ui: &mut Ui,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<Option<R>> {
+        let sub_id = ui.id().with(self.entry.index);
+        let button = self.entry.show_with_state(
+            ui,
+            EntryState::submenu(&*self.parent_state.read().unwrap(), sub_id),
+        );
+        self.parent_state
+            .write()
+            .unwrap()
+            .submenu_button_interaction(ui, sub_id, &button);
+        let inner = self
+            .parent_state
+            .write()
+            .unwrap()
+            .show_submenu(ui.ctx(), sub_id, add_contents);
+        InnerResponse::new(inner, button)
+    }
+}
+pub(crate) struct MenuState {
+    /// The opened sub-menu and its `Id`
+    sub_menu: Option<(Id, Arc<RwLock<MenuState>>)>,
+    /// Bounding box of this menu (without the sub-menu)
+    pub rect: Rect,
+    /// Used to check if any menu in the tree wants to close
+    pub response: MenuResponse,
+    /// Used to hash different `Id`s for sub-menus
+    entry_count: usize,
+    /// Menu width.
+    pub width: f32,
+}
+impl MenuState {
+    /// Close menu hierarchy.
+    pub fn close(&mut self) {
+        self.response = MenuResponse::Close;
+    }
+    /// Create a sub-menu.
+    pub fn submenu(menu_state: Arc<RwLock<Self>>, text: impl ToString) -> SubMenu {
+        SubMenu::new(text, menu_state)
+    }
+    pub fn new(position: Pos2) -> Self {
+        Self {
+            rect: Rect::from_min_size(position, Vec2::ZERO),
+            sub_menu: None,
+            response: MenuResponse::Stay,
+            entry_count: 0,
+            width: 100.0,
+        }
+    }
+    pub fn show<R>(
+        ctx: &CtxRef,
+        menu_state: &Arc<RwLock<Self>>,
+        id: Id,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
+        let style = Style {
+            spacing: Spacing {
+                item_spacing: Vec2::ZERO,
+                button_padding: crate::vec2(2.0, 0.0),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let menu_state_arc = menu_state.clone();
+        crate::menu::menu_ui(ctx, id, menu_state_arc, style, add_contents)
+    }
+    fn show_submenu<R>(
+        &mut self,
+        ctx: &CtxRef,
+        id: Id,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> Option<R> {
+        let (sub_response, response) = self.get_submenu(id).map(|sub| {
+            let inner_response = Self::show(ctx, sub, id, add_contents);
+            let mut sub = sub.write().unwrap();
+            sub.rect = inner_response.response.rect;
+            (sub.response.clone(), inner_response.inner)
+        })?;
+        self.cascade_response(sub_response);
+        Some(response)
+    }
+    /// Check if position is in the menu hierarchy's area.
+    pub fn area_contains(&self, pos: Pos2) -> bool {
+        self.rect.contains(pos)
+            || self
+                .sub_menu
+                .as_ref()
+                .map(|(_, sub)| sub.read().unwrap().area_contains(pos))
+                .unwrap_or(false)
+    }
+    fn next_entry_index(&mut self) -> usize {
+        self.entry_count += 1;
+        self.entry_count - 1
+    }
+    /// Sense button interaction opening and closing submenu.
+    fn submenu_button_interaction(&mut self, ui: &mut Ui, sub_id: Id, button: &Response) {
+        let pointer = &ui.input().pointer.clone();
+        let open = self.is_open(sub_id);
+        if self.moving_towards_current_submenu(pointer) {
+            // ensure to repaint once even when pointer is not moving
+            ui.ctx().request_repaint();
+        } else if !open && button.hovered() {
+            let pos = button.rect.right_top();
+            self.open_submenu(sub_id, pos);
+        } else if open && !button.hovered() && !self.hovering_current_submenu(pointer) {
+            self.close_submenu();
+        }
+    }
+    /// Check if `dir` points from `pos` towards left side of `rect`.
+    fn points_at_left_of_rect(pos: Pos2, dir: Vec2, rect: Rect) -> bool {
+        let vel_a = dir.angle();
+        let top_a = (rect.left_top() - pos).angle();
+        let bottom_a = (rect.left_bottom() - pos).angle();
+        bottom_a - vel_a >= 0.0 && top_a - vel_a <= 0.0
+    }
+    /// Check if pointer is moving towards current submenu.
+    fn moving_towards_current_submenu(&self, pointer: &PointerState) -> bool {
+        if pointer.is_still() {
+            return false;
+        }
+        if let Some(sub_menu) = self.get_current_submenu() {
+            if let Some(pos) = pointer.hover_pos() {
+                return Self::points_at_left_of_rect(
+                    pos,
+                    pointer.velocity(),
+                    sub_menu.read().unwrap().rect,
+                );
+            }
+        }
+        false
+    }
+    /// Check if pointer is hovering current submenu.
+    fn hovering_current_submenu(&self, pointer: &PointerState) -> bool {
+        if let Some(sub_menu) = self.get_current_submenu() {
+            if let Some(pos) = pointer.hover_pos() {
+                return sub_menu.read().unwrap().area_contains(pos);
+            }
+        }
+        false
+    }
+    /// Cascade close response to menu root.
+    fn cascade_response(&mut self, response: MenuResponse) {
+        if response.is_close() {
+            self.response = response;
+        }
+    }
+    fn any_open(&self) -> bool {
+        self.get_sub_id().is_some()
+    }
+    fn is_open(&self, id: Id) -> bool {
+        self.get_sub_id() == Some(id)
+    }
+    fn get_sub_id(&self) -> Option<Id> {
+        self.sub_menu.as_ref().map(|(id, _)| *id)
+    }
+    fn get_current_submenu(&self) -> Option<&Arc<RwLock<MenuState>>> {
+        self.sub_menu.as_ref().map(|(_, sub)| sub)
+    }
+    fn get_submenu(&mut self, id: Id) -> Option<&Arc<RwLock<MenuState>>> {
+        self.sub_menu
+            .as_ref()
+            .and_then(|(k, sub)| if id == *k { Some(sub) } else { None })
+    }
+    /// Open submenu at position, if not already open.
+    fn open_submenu(&mut self, id: Id, pos: Pos2) {
+        if !self.is_open(id) {
+            self.sub_menu = Some((id, Arc::new(RwLock::new(MenuState::new(pos)))));
+        }
+    }
+    fn close_submenu(&mut self) {
+        self.sub_menu = None;
+    }
+}
+
 /// Construct a top level menu in a menu bar. This would be e.g. "File", "Edit" etc.
 ///
 /// Returns `None` if the menu is not open.
@@ -73,32 +417,40 @@ pub fn menu<R>(
 pub(crate) fn menu_ui<'c, R>(
     ctx: &CtxRef,
     menu_id: impl std::hash::Hash,
-    pos: Pos2,
+    menu_state_arc: Arc<RwLock<MenuState>>,
     mut style: Style,
     add_contents: impl FnOnce(&mut Ui) -> R + 'c,
 ) -> InnerResponse<R> {
+    let mut menu_state = menu_state_arc.write().unwrap();
+    menu_state.entry_count = 0;
+    let width = menu_state.width;
+    let pos = menu_state.rect.min;
+    drop(menu_state);
+
+    // style.visuals.widgets.active.bg_fill = Color32::TRANSPARENT;
+    style.visuals.widgets.active.bg_stroke = Stroke::none();
+    // style.visuals.widgets.hovered.bg_fill = Color32::TRANSPARENT;
+    style.visuals.widgets.hovered.bg_stroke = Stroke::none();
+    style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
+    style.visuals.widgets.inactive.bg_stroke = Stroke::none();
     let area = Area::new(menu_id)
         .order(Order::Foreground)
         .fixed_pos(pos)
         .interactable(false)
         .drag_bounds(Rect::EVERYTHING);
     let frame = Frame::menu(&style);
-
     area.show(ctx, |ui| {
         frame
             .show(ui, |ui| {
                 const DEFAULT_MENU_WIDTH: f32 = 150.0; // TODO: add to ui.spacing
                 ui.set_max_width(DEFAULT_MENU_WIDTH);
-
-                // style.visuals.widgets.active.bg_fill = Color32::TRANSPARENT;
-                style.visuals.widgets.active.bg_stroke = Stroke::none();
-                // style.visuals.widgets.hovered.bg_fill = Color32::TRANSPARENT;
-                style.visuals.widgets.hovered.bg_stroke = Stroke::none();
-                style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
-                style.visuals.widgets.inactive.bg_stroke = Stroke::none();
                 ui.set_style(style);
-                ui.with_layout(Layout::top_down_justified(Align::LEFT), add_contents)
-                    .inner
+                ui.with_layout(Layout::top_down_justified(Align::LEFT), |ui| {
+                    ui.set_menu_state(menu_state_arc);
+                    ui.set_width(width);
+                    add_contents(ui)
+                })
+                .inner
             })
             .inner
     })
@@ -118,33 +470,25 @@ fn menu_impl<'c, R>(
 
     let mut button = Button::new(title);
 
-    if bar_state.open_menu == Some(menu_id) {
+    if bar_state.is_menu_open(menu_id) {
         button = button.fill(ui.visuals().widgets.open.bg_fill);
         button = button.stroke(ui.visuals().widgets.open.bg_stroke);
     }
 
     let button_response = ui.add(button);
-    if button_response.clicked() {
-        // Toggle
-        if bar_state.open_menu == Some(menu_id) {
-            bar_state.open_menu = None;
-        } else {
-            bar_state.open_menu = Some(menu_id);
-        }
-    } else if button_response.hovered() && bar_state.open_menu.is_some() {
-        bar_state.open_menu = Some(menu_id);
+    // Toggle
+    if button_response.clicked() && bar_state.is_menu_open(menu_id) {
+        bar_state.open_menu = None;
+    } else if button_response.clicked() && !bar_state.is_menu_open(menu_id)
+        || button_response.hovered() && bar_state.open_menu.is_some()
+    {
+        let pos = button_response.rect.left_bottom();
+        bar_state.open_menu = Some(MenuRoot::new(pos, menu_id));
     }
 
-    let inner = if bar_state.open_menu == Some(menu_id) || ui.ctx().memory().everything_is_visible()
-    {
-        let inner = menu_ui(
-            ui.ctx(),
-            menu_id,
-            button_response.rect.left_bottom(),
-            ui.style().as_ref().clone(),
-            add_contents,
-        )
-        .inner;
+    let inner = if bar_state.is_menu_open(menu_id) || ui.ctx().memory().everything_is_visible() {
+        let menu_state = &bar_state.open_menu.as_ref().unwrap().menu_state;
+        let inner = MenuState::show(ui.ctx(), menu_state, menu_id, add_contents).inner;
 
         // TODO: this prevents sub-menus in menus. We should fix that.
         if ui.input().key_pressed(Key::Escape) || button_response.clicked_elsewhere() {

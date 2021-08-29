@@ -4,8 +4,8 @@ use std::hash::Hash;
 use std::sync::{Arc, RwLock};
 
 use crate::{
-    color::*, containers::*, context_menu::MenuState, epaint::text::Fonts, layout::*,
-    mutex::MutexGuard, placer::Placer, widgets::*, *,
+    color::*, containers::*, epaint::text::Fonts, layout::*, menu::MenuState, mutex::MutexGuard,
+    placer::Placer, widgets::*, *,
 };
 
 // ----------------------------------------------------------------------------

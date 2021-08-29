@@ -55,6 +55,39 @@ impl ContextMenus {
             .height(self.height)
             .data_aspect(1.0)
     }
+    fn nested_menus(ui: &mut egui::Ui) {
+        if ui.button("Open...").clicked() {
+            ui.close();
+        }
+        ui.menu("SubMenu", |ui| {
+            ui.menu("SubMenu", |ui| {
+                if ui.button("Open...").clicked() {
+                    ui.close();
+                }
+                let _ = ui.button("Item");
+            });
+            ui.menu("SubMenu", |ui| {
+                if ui.button("Open...").clicked() {
+                    ui.close();
+                }
+                let _ = ui.button("Item");
+            });
+            let _ = ui.button("Item");
+            if ui.button("Open...").clicked() {
+                ui.close();
+            }
+        });
+        ui.menu("SubMenu", |ui| {
+            let _ = ui.button("Item1");
+            let _ = ui.button("Item2");
+            let _ = ui.button("Item3");
+            let _ = ui.button("Item4");
+            if ui.button("Open...").clicked() {
+                ui.close();
+            }
+        });
+        let _ = ui.button("Very long text for this item");
+    }
 }
 
 const DEFAULT_TITLE: &str = "☰ Context Menus";
@@ -155,39 +188,9 @@ impl super::View for ContextMenus {
         });
         ui.separator();
         ui.horizontal(|ui| {
-            ui.button("Nested context menu").context_menu(|ui| {
-                if ui.button("Open...").clicked() {
-                    ui.close();
-                }
-                ui.menu("SubMenu", |ui| {
-                    ui.menu("SubMenu", |ui| {
-                        if ui.button("Open...").clicked() {
-                            ui.close();
-                        }
-                        let _ = ui.button("Item");
-                    });
-                    ui.menu("SubMenu", |ui| {
-                        if ui.button("Open...").clicked() {
-                            ui.close();
-                        }
-                        let _ = ui.button("Item");
-                    });
-                    let _ = ui.button("Item");
-                    if ui.button("Open...").clicked() {
-                        ui.close();
-                    }
-                });
-                ui.menu("SubMenu", |ui| {
-                    let _ = ui.button("Item1");
-                    let _ = ui.button("Item2");
-                    let _ = ui.button("Item3");
-                    let _ = ui.button("Item4");
-                    if ui.button("Open...").clicked() {
-                        ui.close();
-                    }
-                });
-                let _ = ui.button("Very long text for this item");
-            });
+            ui.button("Nested context menu")
+                .context_menu(Self::nested_menus);
+            ui.menu("Top level menu", Self::nested_menus);
         });
         ui.separator();
         ui.label("Right click to edit items");
