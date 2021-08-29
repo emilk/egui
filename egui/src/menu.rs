@@ -66,7 +66,7 @@ pub fn menu<R>(
     ui: &mut Ui,
     title: impl ToString,
     add_contents: impl FnOnce(&mut Ui) -> R,
-) -> Option<R> {
+) -> InnerResponse<Option<R>> {
     menu_impl(ui, title, Box::new(add_contents))
 }
 
@@ -109,7 +109,7 @@ fn menu_impl<'c, R>(
     ui: &mut Ui,
     title: impl ToString,
     add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
-) -> Option<R> {
+) -> InnerResponse<Option<R>> {
     let title = title.to_string();
     let bar_id = ui.id();
     let menu_id = bar_id.with(&title);
@@ -156,5 +156,5 @@ fn menu_impl<'c, R>(
     };
 
     bar_state.save(ui.ctx(), bar_id);
-    inner
+    InnerResponse::new(inner, button_response)
 }

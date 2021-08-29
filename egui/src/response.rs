@@ -471,10 +471,7 @@ impl Response {
         }
     }
 
-    pub fn context_menu(
-        &self,
-        add_contents: impl FnOnce(&mut super::context_menu::MenuUi<'_, '_>),
-    ) -> &Self {
+    pub fn context_menu(&self, add_contents: impl FnOnce(&mut Ui)) -> &Self {
         self.ctx.show_context_menu(self, add_contents);
         self
     }

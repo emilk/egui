@@ -98,13 +98,13 @@ impl super::View for ContextMenus {
             ui.text_edit_singleline(&mut self.title)
                 .on_hover_text("Right click to clear")
                 .context_menu(|ui| {
-                    if ui.menu_item("Clear").clicked() {
+                    if ui.button("Clear").clicked() {
                         self.title = String::new();
-                        ui.close_menu();
+                        ui.close();
                     }
-                    if ui.menu_item("Reset").clicked() {
+                    if ui.button("Reset").clicked() {
                         self.title = DEFAULT_TITLE.to_owned();
-                        ui.close_menu();
+                        ui.close();
                     }
                 });
         });
@@ -116,29 +116,6 @@ impl super::View for ContextMenus {
             ui.add(self.example_plot())
                 .on_hover_text("Right click for options")
                 .context_menu(|ui| {
-                    if ui.radio_value(&mut self.plot, Plot::Sin, "Sin").clicked()
-                        || ui
-                            .radio_value(&mut self.plot, Plot::Bell, "Gaussian")
-                            .clicked()
-                        || ui
-                            .radio_value(&mut self.plot, Plot::Sigmoid, "Sigmoid")
-                            .clicked()
-                    {
-                        ui.close_menu();
-                    }
-                    ui.horizontal(|ui| {
-                        ui.checkbox(&mut self.show_axes[0], "x-Axis");
-                        ui.checkbox(&mut self.show_axes[1], "y-Axis");
-                    });
-                    let menu_state = &mut *ui.menu_state;
-                    let menu_ui = &mut *ui.ui;
-                    menu_ui.horizontal(|ui| {
-                        if ui.checkbox(&mut self.allow_drag, "Drag").changed()
-                            || ui.checkbox(&mut self.allow_zoom, "Zoom").changed()
-                        {
-                            menu_state.close();
-                        }
-                    });
                     ui.horizontal(|ui| {
                         ui.add(
                             egui::DragValue::new(&mut self.width)
@@ -151,42 +128,65 @@ impl super::View for ContextMenus {
                                 .prefix("Height:"),
                         );
                     });
+                    ui.menu("Plot", |ui| {
+                        if ui.radio_value(&mut self.plot, Plot::Sin, "Sin").clicked()
+                            || ui
+                                .radio_value(&mut self.plot, Plot::Bell, "Gaussian")
+                                .clicked()
+                            || ui
+                                .radio_value(&mut self.plot, Plot::Sigmoid, "Sigmoid")
+                                .clicked()
+                        {
+                            ui.close();
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        ui.checkbox(&mut self.show_axes[0], "x-Axis");
+                        ui.checkbox(&mut self.show_axes[1], "y-Axis");
+                    });
+                    ui.horizontal(|ui| {
+                        if ui.checkbox(&mut self.allow_drag, "Drag").changed()
+                            || ui.checkbox(&mut self.allow_zoom, "Zoom").changed()
+                        {
+                            ui.close();
+                        }
+                    });
                 });
         });
         ui.separator();
         ui.horizontal(|ui| {
             ui.button("Nested context menu").context_menu(|ui| {
-                if ui.menu_item("Open...").clicked() {
-                    ui.close_menu();
+                if ui.button("Open...").clicked() {
+                    ui.close();
                 }
-                ui.submenu("SubMenu", |ui| {
-                    ui.submenu("SubMenu", |ui| {
-                        if ui.menu_item("Open...").clicked() {
-                            ui.close_menu();
+                ui.menu("SubMenu", |ui| {
+                    ui.menu("SubMenu", |ui| {
+                        if ui.button("Open...").clicked() {
+                            ui.close();
                         }
-                        let _ = ui.menu_item("Item");
+                        let _ = ui.button("Item");
                     });
-                    ui.submenu("SubMenu", |ui| {
-                        if ui.menu_item("Open...").clicked() {
-                            ui.close_menu();
+                    ui.menu("SubMenu", |ui| {
+                        if ui.button("Open...").clicked() {
+                            ui.close();
                         }
-                        let _ = ui.menu_item("Item");
+                        let _ = ui.button("Item");
                     });
-                    let _ = ui.menu_item("Item");
-                    if ui.menu_item("Open...").clicked() {
-                        ui.close_menu();
+                    let _ = ui.button("Item");
+                    if ui.button("Open...").clicked() {
+                        ui.close();
                     }
                 });
-                ui.submenu("SubMenu", |ui| {
-                    let _ = ui.menu_item("Item1");
-                    let _ = ui.menu_item("Item2");
-                    let _ = ui.menu_item("Item3");
-                    let _ = ui.menu_item("Item4");
-                    if ui.menu_item("Open...").clicked() {
-                        ui.close_menu();
+                ui.menu("SubMenu", |ui| {
+                    let _ = ui.button("Item1");
+                    let _ = ui.button("Item2");
+                    let _ = ui.button("Item3");
+                    let _ = ui.button("Item4");
+                    if ui.button("Open...").clicked() {
+                        ui.close();
                     }
                 });
-                let _ = ui.menu_item("Very long text for this item");
+                let _ = ui.button("Very long text for this item");
             });
         });
         ui.separator();

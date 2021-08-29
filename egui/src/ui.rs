@@ -1,10 +1,11 @@
 // #![warn(missing_docs)]
 
 use std::hash::Hash;
+use std::sync::{Arc, RwLock};
 
 use crate::{
-    color::*, containers::*, epaint::text::Fonts, layout::*, mutex::MutexGuard, placer::Placer,
-    widgets::*, *,
+    color::*, containers::*, context_menu::MenuState, epaint::text::Fonts, layout::*,
+    mutex::MutexGuard, placer::Placer, widgets::*, *,
 };
 
 // ----------------------------------------------------------------------------
@@ -54,6 +55,9 @@ pub struct Ui {
     /// If false we are unresponsive to input,
     /// and all widgets will assume a gray style.
     enabled: bool,
+
+    /// Indicates whether this Ui belongs to a Menu.
+    menu_state: Option<Arc<RwLock<MenuState>>>,
 }
 
 impl Ui {
@@ -73,6 +77,7 @@ impl Ui {
             style,
             placer: Placer::new(max_rect, Layout::default()),
             enabled: true,
+            menu_state: None,
         }
     }
 
@@ -99,6 +104,7 @@ impl Ui {
             style: self.style.clone(),
             placer: Placer::new(max_rect, layout),
             enabled: self.enabled,
+            menu_state: None,
         }
     }
 
@@ -1729,6 +1735,28 @@ impl Ui {
         let size = vec2(self.available_width().max(total_required_width), max_height);
         self.advance_cursor_after_rect(Rect::from_min_size(top_left, size));
         result
+    }
+    /// Close menu (with submenus), if any.
+    pub fn close(&mut self) {
+        if let Some(menu_state) = &mut self.menu_state {
+            menu_state.write().unwrap().close();
+        }
+        self.menu_state = None;
+    }
+    pub(crate) fn set_menu_state(&mut self, menu_state: Arc<RwLock<MenuState>>) {
+        self.menu_state = Some(menu_state);
+    }
+    #[inline(always)]
+    pub fn menu<R>(
+        &mut self,
+        title: impl ToString,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<Option<R>> {
+        if let Some(menu_state) = self.menu_state.clone() {
+            MenuState::submenu(menu_state, title).show(self, add_contents)
+        } else {
+            menu::menu(self, title, add_contents)
+        }
     }
 }
 

@@ -145,9 +145,9 @@ impl super::View for DragAndDropDemo {
                             let response = ui.add(Label::new(item).sense(Sense::click()));
                             if self.editable {
                                 response.context_menu(|ui| {
-                                    if ui.menu_item("Remove").clicked() {
+                                    if ui.button("Remove").clicked() {
                                         self.columns[col_idx].remove(row_idx);
-                                        ui.close_menu();
+                                        ui.close();
                                     }
                                 });
                             }
@@ -162,9 +162,9 @@ impl super::View for DragAndDropDemo {
 
                 if self.editable {
                     response.context_menu(|ui| {
-                        if ui.menu_item("New Item").clicked() {
+                        if ui.button("New Item").clicked() {
                             self.columns[col_idx].push("New Item".to_string());
-                            ui.close_menu();
+                            ui.close();
                         }
                     });
                 }
