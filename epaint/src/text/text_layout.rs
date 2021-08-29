@@ -14,7 +14,9 @@ pub struct TextFormat {
     pub italics: bool,
     pub underline: Stroke,
     pub strikethrough: Stroke,
-    // TODO: raised, lowered
+    /// Align to top instead of bottom
+    pub raised: bool,
+    // TODO: lowered
 }
 
 impl Default for TextFormat {
@@ -26,6 +28,7 @@ impl Default for TextFormat {
             italics: false,
             underline: Stroke::none(),
             strikethrough: Stroke::none(),
+            raised: false,
         }
     }
 }
@@ -378,8 +381,14 @@ fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob>, mut rows: Vec<Row2>) -> 
 
         // Now positions each glyph:
         for glyph in &mut row.glyphs {
-            // Align down. TODO: adjustable with e.g. raised text
-            glyph.pos.y = cursor_y + row_height - glyph.font_row_height;
+            let format = &job.sections[glyph.section_index as usize].format;
+            if format.raised {
+                // Align up.
+                glyph.pos.y = cursor_y;
+            } else {
+                // Align down.
+                glyph.pos.y = cursor_y + row_height - glyph.font_row_height;
+            }
             glyph.pos.y = fonts.round_to_pixel(glyph.pos.y);
         }
 
@@ -500,6 +509,7 @@ fn add_row_backgrounds(job: &LayoutJob, row: &Row2, mesh: &mut Mesh) {
                 pos2(start_rect.left(), start_rect.top()),
                 pos2(stop_x, start_rect.bottom()),
             );
+            let rect = rect.expand(1.0); // looks better
             mesh.add_colored_rect(rect, color);
         }
     };
@@ -513,7 +523,7 @@ fn add_row_backgrounds(job: &LayoutJob, row: &Row2, mesh: &mut Mesh) {
         let rect = glyph.logical_rect();
 
         if color == Color32::TRANSPARENT {
-            end_run(run_start.take(), rect.left());
+            end_run(run_start.take(), last_rect.right());
         } else {
             if let Some((existing_color, start)) = run_start {
                 if existing_color == color
@@ -522,7 +532,7 @@ fn add_row_backgrounds(job: &LayoutJob, row: &Row2, mesh: &mut Mesh) {
                 {
                     // continue the same line
                 } else {
-                    end_run(run_start.take(), rect.left());
+                    end_run(run_start.take(), last_rect.right());
                     run_start = Some((color, rect));
                 }
             } else {
@@ -542,26 +552,26 @@ fn add_row_hline(
     mesh: &mut Mesh,
     stroke_and_y: impl Fn(&Glyph) -> (Stroke, f32),
 ) {
-    let mut end_line = |start: Option<(Stroke, Pos2)>, stop: Pos2| {
+    let mut end_line = |start: Option<(Stroke, Pos2)>, stop_x: f32| {
         if let Some((stroke, start)) = start {
-            add_hline(fonts, [start, stop], stroke, mesh);
+            add_hline(fonts, [start, pos2(stop_x, start.y)], stroke, mesh);
         }
     };
 
     let mut line_start = None;
-    let mut last_y = f32::NAN;
+    let mut last_right_x = f32::NAN;
 
     for glyph in &row.glyphs {
         let (stroke, y) = stroke_and_y(glyph);
 
         if stroke == Stroke::none() {
-            end_line(line_start.take(), pos2(glyph.pos.x, y));
+            end_line(line_start.take(), last_right_x);
         } else {
             if let Some((exisitng_stroke, start)) = line_start {
                 if exisitng_stroke == stroke && start.y == y {
                     // continue the same line
                 } else {
-                    end_line(line_start.take(), pos2(glyph.pos.x, start.y));
+                    end_line(line_start.take(), last_right_x);
                     line_start = Some((stroke, pos2(glyph.pos.x, y)));
                 }
             } else {
@@ -569,13 +579,10 @@ fn add_row_hline(
             }
         }
 
-        last_y = y;
+        last_right_x = glyph.max_x();
     }
 
-    end_line(
-        line_start.take(),
-        pos2(row.glyphs.last().unwrap().logical_rect().right(), last_y),
-    );
+    end_line(line_start.take(), last_right_x);
 }
 
 fn add_hline(fonts: &Fonts, [start, stop]: [Pos2; 2], stroke: Stroke, mesh: &mut Mesh) {

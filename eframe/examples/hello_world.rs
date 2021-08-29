@@ -99,7 +99,7 @@ fn test_galley2(ui: &mut egui::Ui) {
         },
     );
     job.append(
-        "world!".into(),
+        "world!\n".into(),
         0.0,
         TextFormat {
             style: TextStyle::Monospace,
@@ -108,9 +108,37 @@ fn test_galley2(ui: &mut egui::Ui) {
             ..Default::default()
         },
     );
+    job.append(
+        "Text can be ".into(),
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: Color32::WHITE,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "small ".into(),
+        0.0,
+        TextFormat {
+            style: TextStyle::Small,
+            color: Color32::WHITE,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "and raised!".into(),
+        0.0,
+        TextFormat {
+            style: TextStyle::Small,
+            color: Color32::WHITE,
+            raised: true,
+            ..Default::default()
+        },
+    );
 
     job.first_row_min_height = 50.0;
-    job.wrap_width = 100.0;
+    job.wrap_width = 150.0;
 
     let galley = layout(ui.fonts(), job.into());
 
