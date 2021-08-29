@@ -52,8 +52,7 @@ fn main() {
 
 fn test_galley2(ui: &mut egui::Ui) {
     use egui::epaint::text::text_layout::{layout, LayoutJob, TextFormat};
-    use egui::Color32;
-    use egui::TextStyle;
+    use egui::{Color32, Stroke, TextStyle};
 
     let mut job = LayoutJob::default();
 
@@ -63,7 +62,7 @@ fn test_galley2(ui: &mut egui::Ui) {
         TextFormat {
             style: TextStyle::Body,
             color: Color32::WHITE,
-            italics: false,
+            ..Default::default()
         },
     );
     job.append(
@@ -72,7 +71,7 @@ fn test_galley2(ui: &mut egui::Ui) {
         TextFormat {
             style: TextStyle::Heading,
             color: Color32::RED,
-            italics: false,
+            ..Default::default()
         },
     );
     job.append(
@@ -81,7 +80,8 @@ fn test_galley2(ui: &mut egui::Ui) {
         TextFormat {
             style: TextStyle::Small,
             color: Color32::WHITE,
-            italics: false,
+            underline: Stroke::new(1.0, Color32::WHITE),
+            ..Default::default()
         },
     );
     job.append(
@@ -91,6 +91,8 @@ fn test_galley2(ui: &mut egui::Ui) {
             style: TextStyle::Body,
             color: Color32::LIGHT_BLUE,
             italics: true,
+            underline: Stroke::new(1.0, Color32::WHITE),
+            ..Default::default()
         },
     );
     job.append(
@@ -99,7 +101,8 @@ fn test_galley2(ui: &mut egui::Ui) {
         TextFormat {
             style: TextStyle::Monospace,
             color: Color32::WHITE,
-            italics: false,
+            underline: Stroke::new(1.0, Color32::RED),
+            ..Default::default()
         },
     );
 

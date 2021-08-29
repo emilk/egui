@@ -2,7 +2,7 @@ use std::ops::{Range, RangeInclusive};
 use std::sync::Arc;
 
 use super::{font::*, *};
-use crate::{Color32, Mesh, Vertex};
+use crate::{Color32, Mesh, Stroke, Vertex};
 use emath::*;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -10,7 +10,8 @@ pub struct TextFormat {
     pub style: TextStyle,
     pub color: Color32,
     pub italics: bool,
-    // TODO: underline, background, strikethrough, raised, lowered, …
+    pub underline: Stroke,
+    // TODO: background_color, strikethrough, raised, lowered, …
 }
 
 impl Default for TextFormat {
@@ -19,6 +20,7 @@ impl Default for TextFormat {
             style: TextStyle::Body,
             color: Color32::GRAY,
             italics: false,
+            underline: Stroke::none(),
         }
     }
 }
@@ -86,14 +88,15 @@ pub struct Row2 {
     // /// `x_offsets.len() + (ends_with_newline as usize) == text.chars().count() + 1`
     // pub x_offsets: Vec<f32>,
     //
-    /// Logical bounding rectangle.
-    pub rect: Rect,
+    /// Logical bounding rectangle based on font heights etc.
+    /// Can be slightly less or more than [`Self::mesh_bounds`].
+    pub logical_rect: Rect,
 
-    /// The tesselated text, using non-normalized (texel) UV coordinates.
+    /// The tessellated text, using non-normalized (texel) UV coordinates.
     /// That is, you need to divide the uv coordinates by the texture size.
     pub mesh: Mesh,
 
-    /// Bounding rectangle of the mesh.
+    /// Bounding rectangle of the mesh that can be used for culling.
     pub mesh_bounds: Rect,
 
     /// If true, this `Row` came from a paragraph ending with a `\n`.
@@ -255,7 +258,7 @@ fn rows_from_paragraphs(paragraphs: Vec<Paragraph>, wrap_width: f32) -> Vec<Row2
                 glyphs: vec![],
                 mesh: Default::default(),
                 mesh_bounds: Rect::NAN,
-                rect: rect_from_x_range(paragraph.cursor_x..=paragraph.cursor_x),
+                logical_rect: rect_from_x_range(paragraph.cursor_x..=paragraph.cursor_x),
                 ends_with_newline: !is_last_paragraph,
             });
         } else {
@@ -267,7 +270,7 @@ fn rows_from_paragraphs(paragraphs: Vec<Paragraph>, wrap_width: f32) -> Vec<Row2
                     glyphs: paragraph.glyphs,
                     mesh: Default::default(),
                     mesh_bounds: Rect::NAN,
-                    rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
+                    logical_rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
                     ends_with_newline: !is_last_paragraph,
                 });
             } else {
@@ -298,7 +301,7 @@ fn line_break(paragraph: Paragraph, wrap_width: f32, out_rows: &mut Vec<Row2>) {
                     glyphs: vec![],
                     mesh: Default::default(),
                     mesh_bounds: Rect::NAN,
-                    rect: rect_from_x_range(first_row_indentation..=first_row_indentation),
+                    logical_rect: rect_from_x_range(first_row_indentation..=first_row_indentation),
                     ends_with_newline: false,
                 });
                 first_row_indentation = 0.0;
@@ -319,7 +322,7 @@ fn line_break(paragraph: Paragraph, wrap_width: f32, out_rows: &mut Vec<Row2>) {
                     glyphs,
                     mesh: Default::default(),
                     mesh_bounds: Rect::NAN,
-                    rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
+                    logical_rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
                     ends_with_newline: false,
                 });
 
@@ -351,7 +354,7 @@ fn line_break(paragraph: Paragraph, wrap_width: f32, out_rows: &mut Vec<Row2>) {
             glyphs,
             mesh: Default::default(),
             mesh_bounds: Rect::NAN,
-            rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
+            logical_rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
             ends_with_newline: false,
         });
     }
@@ -375,10 +378,10 @@ fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob>, mut rows: Vec<Row2>) -> 
             glyph.pos.y = fonts.round_to_pixel(glyph.pos.y);
         }
 
-        row.rect.min.y = cursor_y;
-        row.rect.max.y = cursor_y + row_height;
+        row.logical_rect.min.y = cursor_y;
+        row.logical_rect.max.y = cursor_y + row_height;
 
-        max_x = max_x.max(row.rect.right());
+        max_x = max_x.max(row.logical_rect.right());
         cursor_y += row_height;
         cursor_y = fonts.round_to_pixel(cursor_y);
     }
@@ -398,6 +401,8 @@ fn tesselate_row(fonts: &Fonts, job: &LayoutJob, row: &Row2) -> Mesh {
     mesh.reserve_triangles(row.glyphs.len() * 2);
     mesh.reserve_vertices(row.glyphs.len() * 4);
 
+    let mut any_underline = false;
+
     for glyph in &row.glyphs {
         let uv_rect = glyph.uv_rect;
         if !uv_rect.is_nothing() {
@@ -412,6 +417,7 @@ fn tesselate_row(fonts: &Fonts, job: &LayoutJob, row: &Row2) -> Mesh {
             );
 
             let format = &job.sections[glyph.section_index as usize].format;
+            any_underline |= format.underline != Stroke::none();
 
             let color = format.color;
 
@@ -447,7 +453,74 @@ fn tesselate_row(fonts: &Fonts, job: &LayoutJob, row: &Row2) -> Mesh {
             }
         }
     }
+
+    if any_underline {
+        let mut end_line = |start: Option<(Stroke, Pos2)>, stop: Pos2| {
+            if let Some((stroke, start)) = start {
+                add_hline(fonts, [start, stop], stroke, &mut mesh);
+            }
+        };
+
+        let mut line_start = None;
+        let mut last_y = f32::NAN;
+
+        for glyph in &row.glyphs {
+            let format = &job.sections[glyph.section_index as usize].format;
+            let stroke = format.underline;
+            let y = glyph.logical_rect().bottom();
+
+            if stroke == Stroke::none() {
+                end_line(line_start.take(), pos2(glyph.pos.x, y));
+            } else {
+                if let Some((exisitng_stroke, start)) = line_start {
+                    if exisitng_stroke == stroke && start.y == y {
+                        // continue the same line
+                    } else {
+                        end_line(line_start.take(), pos2(glyph.pos.x, y));
+                        line_start = Some((stroke, pos2(glyph.pos.x, y)));
+                    }
+                } else {
+                    line_start = Some((stroke, pos2(glyph.pos.x, y)));
+                }
+            }
+
+            last_y = y;
+        }
+
+        end_line(
+            line_start.take(),
+            pos2(row.glyphs.last().unwrap().logical_rect().right(), last_y),
+        );
+    }
+
     mesh
+}
+
+fn add_hline(fonts: &Fonts, [start, stop]: [Pos2; 2], stroke: Stroke, mesh: &mut Mesh) {
+    let antialiased = true;
+
+    if antialiased {
+        let mut path = crate::tessellator::Path::default();
+        path.add_line_segment([start, stop]);
+        let options = crate::tessellator::TessellationOptions::from_pixels_per_point(
+            fonts.pixels_per_point(),
+        );
+        path.stroke_open(stroke, options, mesh);
+    } else {
+        // Thin lines often lost, so this is a bad idea
+
+        assert_eq!(start.y, stop.y);
+
+        let min_y = fonts.round_to_pixel(start.y - 0.5 * stroke.width);
+        let max_y = fonts.round_to_pixel(min_y + stroke.width);
+
+        let rect = Rect::from_min_max(
+            pos2(fonts.round_to_pixel(start.x), min_y),
+            pos2(fonts.round_to_pixel(stop.x), max_y),
+        );
+
+        mesh.add_colored_rect(rect, stroke.color);
+    }
 }
 
 // ----------------------------------------------------------------------------
