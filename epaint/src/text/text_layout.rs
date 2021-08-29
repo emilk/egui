@@ -6,19 +6,15 @@ use crate::Color32;
 use emath::*;
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Section {
-    /// Takes up no space, does not produce a glyph.
-    /// Used for `first_row_indentation`.
-    HorizontalSpacing(f32),
-
-    Text {
-        /// Range into the galley text
-        byte_range: Range<usize>,
-        text_style: TextStyle,
-        color: Color32,
-        italics: bool,
-        // TODO: underline, background, strikethrough, raised, lowered, …
-    },
+pub struct Section {
+    /// Can be used for first row indentation.
+    leading_space: f32,
+    /// Range into the galley text
+    byte_range: Range<usize>,
+    text_style: TextStyle,
+    color: Color32,
+    italics: bool,
+    // TODO: underline, background, strikethrough, raised, lowered, …
 }
 
 /// Temporary storage before line-wrapping.
@@ -115,12 +111,19 @@ impl LayoutJob {
     pub fn is_empty(&self) -> bool {
         self.sections.is_empty()
     }
-
-    pub fn append(&mut self, text: &str, text_style: TextStyle, color: Color32, italics: bool) {
+    pub fn append(
+        &mut self,
+        text: &str,
+        leading_space: f32,
+        text_style: TextStyle,
+        color: Color32,
+        italics: bool,
+    ) {
         let start = self.text.len();
         self.text += text;
         let byte_range = start..self.text.len();
-        self.sections.push(Section::Text {
+        self.sections.push(Section {
+            leading_space,
             byte_range,
             text_style,
             color,
@@ -168,44 +171,43 @@ fn layout_section(
     out_paragraphs: &mut Vec<Paragraph>,
 ) {
     let mut paragraph = out_paragraphs.last_mut().unwrap();
-    match section {
-        Section::HorizontalSpacing(width) => {
-            paragraph.cursor_x += width;
-        }
-        Section::Text {
-            byte_range,
-            text_style,
-            color,
-            italics,
-        } => {
-            let font = &fonts[*text_style];
-            let font_height = font.row_height();
 
-            let mut last_glyph_id = None;
+    let Section {
+        leading_space,
+        byte_range,
+        text_style,
+        color,
+        italics,
+    } = section;
 
-            for chr in text[byte_range.clone()].chars() {
-                if chr == '\n' {
-                    out_paragraphs.push(Paragraph::default());
-                    paragraph = out_paragraphs.last_mut().unwrap();
-                } else {
-                    let (font_impl, glyph_info) = font.glyph_info_and_font_impl(chr);
-                    if let Some(last_glyph_id) = last_glyph_id {
-                        paragraph.cursor_x += font_impl.pair_kerning(last_glyph_id, glyph_info.id)
-                    }
+    paragraph.cursor_x += leading_space;
 
-                    paragraph.glyphs.push(Glyph {
-                        chr,
-                        pos: vec2(paragraph.cursor_x, font_height), // we use pos.y for height until the entire paragraph is done.
-                        uv_rect: glyph_info.uv_rect,
-                        color: *color,
-                        italics: *italics,
-                    });
+    let font = &fonts[*text_style];
+    let font_height = font.row_height();
 
-                    paragraph.cursor_x += glyph_info.advance_width;
-                    paragraph.cursor_x = font.round_to_pixel(paragraph.cursor_x);
-                    last_glyph_id = Some(glyph_info.id);
-                }
+    let mut last_glyph_id = None;
+
+    for chr in text[byte_range.clone()].chars() {
+        if chr == '\n' {
+            out_paragraphs.push(Paragraph::default());
+            paragraph = out_paragraphs.last_mut().unwrap();
+        } else {
+            let (font_impl, glyph_info) = font.glyph_info_and_font_impl(chr);
+            if let Some(last_glyph_id) = last_glyph_id {
+                paragraph.cursor_x += font_impl.pair_kerning(last_glyph_id, glyph_info.id)
             }
+
+            paragraph.glyphs.push(Glyph {
+                chr,
+                pos: vec2(paragraph.cursor_x, font_height), // we use pos.y for height until the entire paragraph is done.
+                uv_rect: glyph_info.uv_rect,
+                color: *color,
+                italics: *italics,
+            });
+
+            paragraph.cursor_x += glyph_info.advance_width;
+            paragraph.cursor_x = font.round_to_pixel(paragraph.cursor_x);
+            last_glyph_id = Some(glyph_info.id);
         }
     }
 }

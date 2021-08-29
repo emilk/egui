@@ -51,18 +51,47 @@ fn main() {
 }
 
 fn test_galley2(ui: &mut egui::Ui) {
-    use egui::epaint::text::text_layout::{layout, LayoutJob, Section};
+    use egui::epaint::text::text_layout::{layout, LayoutJob};
     use egui::Color32;
     use egui::TextStyle;
 
     let mut job = LayoutJob::default();
-    job.sections.push(Section::HorizontalSpacing(20.0));
 
-    job.append("Hello ".into(), TextStyle::Body, Color32::WHITE, false);
-    job.append("there ".into(), TextStyle::Heading, Color32::RED, false);
-    job.append("brave ".into(), TextStyle::Small, Color32::WHITE, false);
-    job.append("new ".into(), TextStyle::Body, Color32::LIGHT_BLUE, true);
-    job.append("world!".into(), TextStyle::Monospace, Color32::WHITE, false);
+    job.append(
+        "Hello ".into(),
+        20.0,
+        TextStyle::Body,
+        Color32::WHITE,
+        false,
+    );
+    job.append(
+        "there ".into(),
+        0.0,
+        TextStyle::Heading,
+        Color32::RED,
+        false,
+    );
+    job.append(
+        "brave ".into(),
+        0.0,
+        TextStyle::Small,
+        Color32::WHITE,
+        false,
+    );
+    job.append(
+        "new ".into(),
+        0.0,
+        TextStyle::Body,
+        Color32::LIGHT_BLUE,
+        true,
+    );
+    job.append(
+        "world!".into(),
+        0.0,
+        TextStyle::Monospace,
+        Color32::WHITE,
+        false,
+    );
 
     job.first_row_min_height = 50.0;
     job.wrap_width = 100.0;
