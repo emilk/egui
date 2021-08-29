@@ -86,7 +86,7 @@ impl super::Demo for ContextMenus {
         use super::View;
         let window = egui::Window::new(title)
             .id(egui::Id::new("demo_context_menus")) // required since we change the title
-            .scroll(false)
+            .vscroll(false)
             .open(open);
         window.show(ctx, |ui| self.ui(ui));
     }
