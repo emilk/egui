@@ -91,7 +91,7 @@ impl AllocInfo {
     }
 
     pub fn from_galley2(galley: &Galley2) -> Self {
-        Self::from_slice(galley.text.as_bytes())
+        Self::from_slice(galley.text().as_bytes())
             + Self::from_slice(&galley.rows)
             + galley
                 .rows

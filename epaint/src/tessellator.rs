@@ -763,7 +763,7 @@ impl Tessellator {
             self.options.round_to_pixel(galley_pos.y),
         );
 
-        let num_chars = galley.text.chars().count();
+        let num_chars = galley.text().chars().count();
         out.reserve_triangles(num_chars * 2);
         out.reserve_vertices(num_chars * 4);
 

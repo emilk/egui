@@ -1,16 +1,19 @@
-use std::ops::RangeInclusive;
+use std::ops::{Range, RangeInclusive};
+use std::sync::Arc;
 
 use super::{font::*, *};
 use crate::Color32;
 use emath::*;
 
+#[derive(Clone, Debug, PartialEq)]
 pub enum Section {
     /// Takes up no space, does not produce a glyph.
     /// Used for `first_row_indentation`.
     HorizontalSpacing(f32),
 
     Text {
-        text: String, // TODO: Cow<'a, str>
+        /// Range into the galley text
+        byte_range: Range<usize>,
         text_style: TextStyle,
         color: Color32,
         italics: bool,
@@ -33,12 +36,14 @@ pub struct Glyph {
     pub uv_rect: UvRect,
     pub color: Color32,
     pub italics: bool,
+    // TODO: format_index instead of duplicating it here
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Galley2 {
-    /// The full text, including any an all `\n`.
-    pub text: String,
+    /// The job that this galley is the result of.
+    /// Contains the original string and style sections.
+    pub job: Arc<LayoutJob>,
 
     /// Rows of text, from top to bottom.
     /// The number of chars in all rows sum up to text.chars().count().
@@ -77,8 +82,11 @@ pub struct Row2 {
     pub ends_with_newline: bool,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct LayoutSettings {
+#[derive(Clone, Debug, PartialEq)]
+pub struct LayoutJob {
+    pub text: String, // TODO: Cow<'static, str>
+    pub sections: Vec<Section>,
+
     /// Try to break text so that no row is wider than this.
     /// Set to [`f32::INFINITY`] to turn off wrapping.
     /// Note that `\n` always produces a new line.
@@ -92,12 +100,32 @@ pub struct LayoutSettings {
     pub first_row_min_height: f32,
 }
 
-impl Default for LayoutSettings {
+impl Default for LayoutJob {
     fn default() -> Self {
         Self {
+            text: Default::default(),
+            sections: Default::default(),
             wrap_width: f32::INFINITY,
             first_row_min_height: 0.0,
         }
+    }
+}
+
+impl LayoutJob {
+    pub fn is_empty(&self) -> bool {
+        self.sections.is_empty()
+    }
+
+    pub fn append(&mut self, text: &str, text_style: TextStyle, color: Color32, italics: bool) {
+        let start = self.text.len();
+        self.text += text;
+        let byte_range = start..self.text.len();
+        self.sections.push(Section::Text {
+            byte_range,
+            text_style,
+            color,
+            italics,
+        });
     }
 }
 
@@ -112,36 +140,40 @@ impl Glyph {
 impl Galley2 {
     #[inline(always)]
     pub fn is_empty(&self) -> bool {
-        self.text.is_empty()
+        self.job.is_empty()
+    }
+
+    pub fn text(&self) -> &str {
+        &self.job.text
     }
 }
 
 // ----------------------------------------------------------------------------
 
-pub fn layout(
-    fonts: &Fonts,
-    text: String,
-    sections: &[Section],
-    settings: &LayoutSettings,
-) -> Galley2 {
+pub fn layout(fonts: &Fonts, job: Arc<LayoutJob>) -> Galley2 {
     let mut paragraphs = vec![Paragraph::default()];
-    for section in sections {
-        layout_section(fonts, section, &mut paragraphs);
+    for section in &job.sections {
+        layout_section(fonts, &job.text, section, &mut paragraphs);
     }
 
-    let rows = rows_from_paragraphs(paragraphs, settings.wrap_width);
+    let rows = rows_from_paragraphs(paragraphs, job.wrap_width);
 
-    galley_from_rows(fonts, text, rows, settings.first_row_min_height)
+    galley_from_rows(fonts, job, rows)
 }
 
-fn layout_section(fonts: &Fonts, section: &Section, out_paragraphs: &mut Vec<Paragraph>) {
+fn layout_section(
+    fonts: &Fonts,
+    text: &str,
+    section: &Section,
+    out_paragraphs: &mut Vec<Paragraph>,
+) {
     let mut paragraph = out_paragraphs.last_mut().unwrap();
     match section {
         Section::HorizontalSpacing(width) => {
             paragraph.cursor_x += width;
         }
         Section::Text {
-            text,
+            byte_range,
             text_style,
             color,
             italics,
@@ -151,7 +183,7 @@ fn layout_section(fonts: &Fonts, section: &Section, out_paragraphs: &mut Vec<Par
 
             let mut last_glyph_id = None;
 
-            for chr in text.chars() {
+            for chr in text[byte_range.clone()].chars() {
                 if chr == '\n' {
                     out_paragraphs.push(Paragraph::default());
                     paragraph = out_paragraphs.last_mut().unwrap();
@@ -288,12 +320,8 @@ fn line_break(paragraph: Paragraph, wrap_width: f32, out_rows: &mut Vec<Row2>) {
     }
 }
 
-fn galley_from_rows(
-    fonts: &Fonts,
-    text: String,
-    mut rows: Vec<Row2>,
-    mut first_row_min_height: f32,
-) -> Galley2 {
+fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob>, mut rows: Vec<Row2>) -> Galley2 {
+    let mut first_row_min_height = job.first_row_min_height;
     let mut cursor_y = 0.0;
     let mut max_x: f32 = 0.0;
     for row in &mut rows {
@@ -321,7 +349,7 @@ fn galley_from_rows(
 
     let size = vec2(max_x, cursor_y);
 
-    Galley2 { text, rows, size }
+    Galley2 { job, rows, size }
 }
 
 // ----------------------------------------------------------------------------

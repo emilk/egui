@@ -51,51 +51,23 @@ fn main() {
 }
 
 fn test_galley2(ui: &mut egui::Ui) {
-    use egui::epaint::text::text_layout::{layout, LayoutSettings, Section};
+    use egui::epaint::text::text_layout::{layout, LayoutJob, Section};
     use egui::Color32;
     use egui::TextStyle;
 
-    let text = "Hello there brave new world!".into();
-    let sections = [
-        Section::HorizontalSpacing(64.0),
-        Section::Text {
-            text: "Hello ".into(),
-            text_style: TextStyle::Body,
-            color: Color32::WHITE,
-            italics: false,
-        },
-        Section::Text {
-            text: "there ".into(),
-            text_style: TextStyle::Heading,
-            color: Color32::RED,
-            italics: false,
-        },
-        Section::Text {
-            text: "brave ".into(),
-            text_style: TextStyle::Small,
-            color: Color32::WHITE,
-            italics: false,
-        },
-        Section::Text {
-            text: "new ".into(),
-            text_style: TextStyle::Body,
-            color: Color32::LIGHT_BLUE,
-            italics: true,
-        },
-        Section::Text {
-            text: "world!".into(),
-            text_style: TextStyle::Monospace,
-            color: Color32::WHITE,
-            italics: false,
-        },
-    ];
+    let mut job = LayoutJob::default();
+    job.sections.push(Section::HorizontalSpacing(20.0));
 
-    let settings = LayoutSettings {
-        first_row_min_height: 100.0,
-        wrap_width: 100.0,
-    };
+    job.append("Hello ".into(), TextStyle::Body, Color32::WHITE, false);
+    job.append("there ".into(), TextStyle::Heading, Color32::RED, false);
+    job.append("brave ".into(), TextStyle::Small, Color32::WHITE, false);
+    job.append("new ".into(), TextStyle::Body, Color32::LIGHT_BLUE, true);
+    job.append("world!".into(), TextStyle::Monospace, Color32::WHITE, false);
 
-    let galley = layout(ui.fonts(), text, &sections, &settings);
+    job.first_row_min_height = 50.0;
+    job.wrap_width = 100.0;
+
+    let galley = layout(ui.fonts(), job.into());
 
     let (response, painter) = ui.allocate_painter(galley.size, Sense::hover());
     painter.add(Shape::Text2 {
