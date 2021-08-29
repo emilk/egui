@@ -6,7 +6,7 @@ use crate::{Color32, Mesh, Stroke, TextStyle};
 use emath::*;
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct LayoutJob {
+pub struct LayoutJob2 {
     pub text: String, // TODO: Cow<'static, str>
     pub sections: Vec<LayoutSection>,
 
@@ -21,16 +21,41 @@ pub struct LayoutJob {
     /// in which case this will be the height of the earlier text.
     /// In other cases, set this to `0.0`.
     pub first_row_min_height: f32,
+
+    /// If `false`, all newlines characters will be ignored
+    /// and show up as the replacement character.
+    /// Default: `true`.
+    pub break_on_newline: bool,
 }
 
-impl Default for LayoutJob {
+impl Default for LayoutJob2 {
     fn default() -> Self {
         Self {
             text: Default::default(),
             sections: Default::default(),
             wrap_width: f32::INFINITY,
             first_row_min_height: 0.0,
+            break_on_newline: true,
         }
+    }
+}
+
+impl std::cmp::Eq for LayoutJob2 {} // TODO: this could be dangerous for +0 vs -0
+
+impl std::hash::Hash for LayoutJob2 {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let Self {
+            text,
+            sections,
+            wrap_width,
+            first_row_min_height,
+            break_on_newline,
+        } = self;
+        text.hash(state);
+        sections.hash(state);
+        ordered_float::OrderedFloat::from(*wrap_width).hash(state);
+        ordered_float::OrderedFloat::from(*first_row_min_height).hash(state);
+        break_on_newline.hash(state);
     }
 }
 
@@ -43,7 +68,22 @@ pub struct LayoutSection {
     pub format: TextFormat,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+impl std::cmp::Eq for LayoutSection {} // TODO: this could be dangerous for +0 vs -0
+
+impl std::hash::Hash for LayoutSection {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let Self {
+            leading_space,
+            byte_range,
+            format,
+        } = self;
+        ordered_float::OrderedFloat::from(*leading_space).hash(state);
+        byte_range.hash(state);
+        format.hash(state);
+    }
+}
+
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
 pub struct TextFormat {
     pub style: TextStyle,
     /// Text color
@@ -75,7 +115,7 @@ impl Default for TextFormat {
 pub struct Galley2 {
     /// The job that this galley is the result of.
     /// Contains the original string and style sections.
-    pub job: Arc<LayoutJob>,
+    pub job: Arc<LayoutJob2>,
 
     /// Rows of text, from top to bottom.
     /// The number of chars in all rows sum up to text.chars().count().
@@ -138,7 +178,7 @@ pub struct Glyph {
 
 // ----------------------------------------------------------------------------
 
-impl LayoutJob {
+impl LayoutJob2 {
     pub fn is_empty(&self) -> bool {
         self.sections.is_empty()
     }

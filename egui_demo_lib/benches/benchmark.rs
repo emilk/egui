@@ -78,10 +78,10 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         });
         c.bench_function("text2_layout_uncached", |b| {
             b.iter(|| {
-                use egui::epaint::text::{layout, LayoutJob, TextFormat};
+                use egui::epaint::text::{layout, LayoutJob2, TextFormat};
                 use egui::{Color32, TextStyle};
 
-                let mut job = LayoutJob::default();
+                let mut job = LayoutJob2::default();
                 job.append(
                     LOREM_IPSUM_LONG,
                     0.0,

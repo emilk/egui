@@ -10,7 +10,7 @@ use crate::{
     mutex::Mutex,
     text::{
         font::{Font, FontImpl},
-        Galley,
+        Galley, Galley2, LayoutJob2,
     },
     Texture, TextureAtlas,
 };
@@ -218,6 +218,7 @@ pub struct Fonts {
     buffered_texture: Mutex<Arc<Texture>>,
 
     galley_cache: Mutex<GalleyCache>,
+    galley_cache2: Mutex<GalleyCache2>,
 }
 
 impl Fonts {
@@ -277,6 +278,7 @@ impl Fonts {
             atlas,
             buffered_texture: Default::default(), //atlas.lock().texture().clone();
             galley_cache: Default::default(),
+            galley_cache2: Default::default(),
         }
     }
 
@@ -380,13 +382,19 @@ impl Fonts {
         )
     }
 
+    pub fn layout2(&self, job: impl Into<Arc<LayoutJob2>>) -> Arc<Galley2> {
+        self.galley_cache2.lock().layout(self, job.into())
+    }
+
     pub fn num_galleys_in_cache(&self) -> usize {
         self.galley_cache.lock().num_galleys_in_cache()
+            + self.galley_cache2.lock().num_galleys_in_cache()
     }
 
     /// Must be called once per frame to clear the [`Galley`] cache.
     pub fn end_frame(&self) {
-        self.galley_cache.lock().end_frame()
+        self.galley_cache.lock().end_frame();
+        self.galley_cache2.lock().end_frame();
     }
 }
 
@@ -457,6 +465,54 @@ impl GalleyCache {
             self.cache.insert(
                 job,
                 CachedGalley {
+                    last_used: self.generation,
+                    galley: galley.clone(),
+                },
+            );
+            galley
+        }
+    }
+
+    pub fn num_galleys_in_cache(&self) -> usize {
+        self.cache.len()
+    }
+
+    /// Must be called once per frame to clear the [`Galley`] cache.
+    pub fn end_frame(&mut self) {
+        let current_generation = self.generation;
+        self.cache.retain(|_key, cached| {
+            cached.last_used == current_generation // only keep those that were used this frame
+        });
+        self.generation = self.generation.wrapping_add(1);
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+struct CachedGalley2 {
+    /// When it was last used
+    last_used: u32,
+    galley: Arc<Galley2>,
+}
+
+#[derive(Default)]
+struct GalleyCache2 {
+    /// Frame counter used to do garbage collection on the cache
+    generation: u32,
+    cache: AHashMap<Arc<LayoutJob2>, CachedGalley2>,
+}
+
+impl GalleyCache2 {
+    fn layout(&mut self, fonts: &Fonts, job: Arc<LayoutJob2>) -> Arc<Galley2> {
+        if let Some(cached) = self.cache.get_mut(&job) {
+            cached.last_used = self.generation;
+            cached.galley.clone()
+        } else {
+            let galley = super::layout(fonts, job.clone());
+            let galley = Arc::new(galley);
+            self.cache.insert(
+                job,
+                CachedGalley2 {
                     last_used: self.generation,
                     galley: galley.clone(),
                 },

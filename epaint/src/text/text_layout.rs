@@ -1,7 +1,7 @@
 use std::ops::RangeInclusive;
 use std::sync::Arc;
 
-use super::{Fonts, Galley2, Glyph, LayoutJob, LayoutSection, Row2};
+use super::{Fonts, Galley2, Glyph, LayoutJob2, LayoutSection, Row2};
 use crate::{Color32, Mesh, Stroke, Vertex};
 use emath::*;
 
@@ -13,16 +13,10 @@ struct Paragraph {
     pub glyphs: Vec<Glyph>,
 }
 
-pub fn layout(fonts: &Fonts, job: Arc<LayoutJob>) -> Galley2 {
+pub fn layout(fonts: &Fonts, job: Arc<LayoutJob2>) -> Galley2 {
     let mut paragraphs = vec![Paragraph::default()];
     for (section_index, section) in job.sections.iter().enumerate() {
-        layout_section(
-            fonts,
-            &job.text,
-            section_index as u32,
-            section,
-            &mut paragraphs,
-        );
+        layout_section(fonts, &job, section_index as u32, section, &mut paragraphs);
     }
 
     let rows = rows_from_paragraphs(paragraphs, job.wrap_width);
@@ -32,7 +26,7 @@ pub fn layout(fonts: &Fonts, job: Arc<LayoutJob>) -> Galley2 {
 
 fn layout_section(
     fonts: &Fonts,
-    text: &str,
+    job: &LayoutJob2,
     section_index: u32,
     section: &LayoutSection,
     out_paragraphs: &mut Vec<Paragraph>,
@@ -52,8 +46,8 @@ fn layout_section(
 
     let mut last_glyph_id = None;
 
-    for chr in text[byte_range.clone()].chars() {
-        if chr == '\n' {
+    for chr in job.text[byte_range.clone()].chars() {
+        if job.break_on_newline && chr == '\n' {
             out_paragraphs.push(Paragraph::default());
             paragraph = out_paragraphs.last_mut().unwrap();
         } else {
@@ -197,7 +191,7 @@ fn line_break(paragraph: Paragraph, wrap_width: f32, out_rows: &mut Vec<Row2>) {
     }
 }
 
-fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob>, mut rows: Vec<Row2>) -> Galley2 {
+fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob2>, mut rows: Vec<Row2>) -> Galley2 {
     let mut first_row_min_height = job.first_row_min_height;
     let mut cursor_y = 0.0;
     let mut max_x: f32 = 0.0;
@@ -239,7 +233,7 @@ fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob>, mut rows: Vec<Row2>) -> 
     Galley2 { job, rows, size }
 }
 
-fn tesselate_row(fonts: &Fonts, job: &LayoutJob, row: &Row2) -> Mesh {
+fn tesselate_row(fonts: &Fonts, job: &LayoutJob2, row: &Row2) -> Mesh {
     let mut mesh = Mesh::default();
 
     if row.glyphs.is_empty() {
@@ -327,7 +321,7 @@ fn tesselate_row(fonts: &Fonts, job: &LayoutJob, row: &Row2) -> Mesh {
     mesh
 }
 
-fn add_row_backgrounds(job: &LayoutJob, row: &Row2, mesh: &mut Mesh) {
+fn add_row_backgrounds(job: &LayoutJob2, row: &Row2, mesh: &mut Mesh) {
     if row.glyphs.is_empty() {
         return;
     }

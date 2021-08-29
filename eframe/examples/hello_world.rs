@@ -51,10 +51,10 @@ fn main() {
 }
 
 fn test_galley2(ui: &mut egui::Ui) {
-    use egui::epaint::text::{layout, LayoutJob, TextFormat};
+    use egui::epaint::text::{layout, LayoutJob2, TextFormat};
     use egui::{Color32, Stroke, TextStyle};
 
-    let mut job = LayoutJob::default();
+    let mut job = LayoutJob2::default();
 
     job.append(
         "Hello ".into(),
