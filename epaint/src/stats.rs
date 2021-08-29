@@ -84,24 +84,14 @@ impl AllocInfo {
     //     }
     // }
 
-    pub fn from_galley(galley: &Galley) -> Self {
-        Self::from_slice(galley.text.as_bytes())
+    pub fn from_galley2(galley: &Galley2) -> Self {
+        Self::from_slice(galley.text().as_bytes())
             + Self::from_slice(&galley.rows)
             + galley.rows.iter().map(Self::from_galley_row).sum()
     }
 
-    pub fn from_galley2(galley: &Galley2) -> Self {
-        Self::from_slice(galley.text().as_bytes())
-            + Self::from_slice(&galley.rows)
-            + galley
-                .rows
-                .iter()
-                .map(|row| Self::from_mesh(&row.visuals.mesh) + Self::from_slice(&row.glyphs))
-                .sum()
-    }
-
-    fn from_galley_row(row: &crate::text::Row) -> Self {
-        Self::from_slice(&row.x_offsets) + Self::from_slice(&row.uv_rects)
+    fn from_galley_row(row: &crate::text::Row2) -> Self {
+        Self::from_mesh(&row.visuals.mesh) + Self::from_slice(&row.glyphs)
     }
 
     pub fn from_mesh(mesh: &Mesh) -> Self {
@@ -207,9 +197,6 @@ impl PaintStats {
             }
             Shape::Path { points, .. } => {
                 self.shape_path += AllocInfo::from_slice(points);
-            }
-            Shape::Text { galley, .. } => {
-                self.shape_text += AllocInfo::from_galley(galley);
             }
             Shape::Text2 { galley, .. } => {
                 self.shape_text += AllocInfo::from_galley2(galley);

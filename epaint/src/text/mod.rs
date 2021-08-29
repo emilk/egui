@@ -3,7 +3,6 @@
 pub mod cursor;
 mod font;
 mod fonts;
-mod galley;
 mod text_layout;
 mod text_layout_types;
 
@@ -12,7 +11,6 @@ pub const TAB_SIZE: usize = 4;
 
 pub use {
     fonts::{FontDefinitions, FontFamily, Fonts, TextStyle},
-    galley::{Galley, Row},
     text_layout::layout,
     text_layout_types::*,
 };

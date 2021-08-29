@@ -1,5 +1,5 @@
 use crate::{
-    text::{Fonts, Galley, Galley2, TextStyle},
+    text::{Fonts, Galley2, TextStyle},
     Color32, Mesh, Stroke,
 };
 use emath::*;
@@ -39,16 +39,6 @@ pub enum Shape {
         corner_radius: f32,
         fill: Color32,
         stroke: Stroke,
-    },
-    Text {
-        /// Top left corner of the first character..
-        pos: Pos2,
-        /// The layed out text.
-        galley: std::sync::Arc<Galley>,
-        /// Text color (foreground).
-        color: Color32,
-        /// If true, tilt the letters for a hacky italics effect.
-        fake_italics: bool,
     },
     Text2 {
         /// Top left corner of the first character..
@@ -303,9 +293,6 @@ impl Shape {
             }
             Shape::Rect { rect, .. } => {
                 *rect = rect.translate(delta);
-            }
-            Shape::Text { pos, .. } => {
-                *pos += delta;
             }
             Shape::Text2 { pos, .. } => {
                 *pos += delta;
