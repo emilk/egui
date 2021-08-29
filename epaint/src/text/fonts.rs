@@ -217,7 +217,7 @@ pub struct Fonts {
     /// This is so we can return a reference to it (the texture atlas is behind a lock).
     buffered_texture: Mutex<Arc<Texture>>,
 
-    galley_cache2: Mutex<GalleyCache2>,
+    galley_cache: Mutex<GalleyCache>,
 }
 
 impl Fonts {
@@ -276,7 +276,7 @@ impl Fonts {
             fonts,
             atlas,
             buffered_texture: Default::default(), //atlas.lock().texture().clone();
-            galley_cache2: Default::default(),
+            galley_cache: Default::default(),
         }
     }
 
@@ -322,7 +322,7 @@ impl Fonts {
     ///
     /// The implementation uses memoization so repeated calls are cheap.
     pub fn layout_job(&self, job: impl Into<Arc<LayoutJob>>) -> Arc<Galley> {
-        self.galley_cache2.lock().layout(self, job.into())
+        self.galley_cache.lock().layout(self, job.into())
     }
 
     /// Will wrap text at the given width and line break at `\n`.
@@ -370,12 +370,12 @@ impl Fonts {
     }
 
     pub fn num_galleys_in_cache(&self) -> usize {
-        self.galley_cache2.lock().num_galleys_in_cache()
+        self.galley_cache.lock().num_galleys_in_cache()
     }
 
     /// Must be called once per frame to clear the [`Galley`] cache.
     pub fn end_frame(&self) {
-        self.galley_cache2.lock().end_frame();
+        self.galley_cache.lock().end_frame();
     }
 }
 
@@ -397,13 +397,13 @@ struct CachedGalley2 {
 }
 
 #[derive(Default)]
-struct GalleyCache2 {
+struct GalleyCache {
     /// Frame counter used to do garbage collection on the cache
     generation: u32,
     cache: AHashMap<Arc<LayoutJob>, CachedGalley2>,
 }
 
-impl GalleyCache2 {
+impl GalleyCache {
     fn layout(&mut self, fonts: &Fonts, job: Arc<LayoutJob>) -> Arc<Galley> {
         if let Some(cached) = self.cache.get_mut(&job) {
             cached.last_used = self.generation;
