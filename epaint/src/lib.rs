@@ -97,7 +97,7 @@ pub use {
     stats::PaintStats,
     stroke::Stroke,
     tessellator::{TessellationOptions, Tessellator},
-    text::{Galley, TextStyle},
+    text::{Galley, Galley2, TextStyle},
     texture_atlas::{Texture, TextureAtlas},
 };
 

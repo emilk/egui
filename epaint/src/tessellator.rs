@@ -597,6 +597,20 @@ impl Tessellator {
                 }
                 self.tessellate_text(tex_size, pos, &galley, color, fake_italics, out);
             }
+            Shape::Text2 { pos, galley } => {
+                if options.debug_paint_text_rects {
+                    self.tessellate_rect(
+                        &PaintRect {
+                            rect: Rect::from_min_size(pos, galley.size).expand(0.5),
+                            corner_radius: 2.0,
+                            fill: Default::default(),
+                            stroke: (0.5, Color32::GREEN).into(),
+                        },
+                        out,
+                    );
+                }
+                self.tessellate_text2(tex_size, pos, &galley, out);
+            }
         }
     }
 
@@ -697,6 +711,99 @@ impl Tessellator {
                     );
 
                     if fake_italics {
+                        let idx = out.vertices.len() as u32;
+                        out.add_triangle(idx, idx + 1, idx + 2);
+                        out.add_triangle(idx + 2, idx + 1, idx + 3);
+
+                        let top_offset = rect.height() * 0.25 * Vec2::X;
+
+                        out.vertices.push(Vertex {
+                            pos: rect.left_top() + top_offset,
+                            uv: uv.left_top(),
+                            color,
+                        });
+                        out.vertices.push(Vertex {
+                            pos: rect.right_top() + top_offset,
+                            uv: uv.right_top(),
+                            color,
+                        });
+                        out.vertices.push(Vertex {
+                            pos: rect.left_bottom(),
+                            uv: uv.left_bottom(),
+                            color,
+                        });
+                        out.vertices.push(Vertex {
+                            pos: rect.right_bottom(),
+                            uv: uv.right_bottom(),
+                            color,
+                        });
+                    } else {
+                        out.add_rect_with_uv(rect, uv, color);
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn tessellate_text2(
+        &mut self,
+        tex_size: [usize; 2],
+        galley_pos: Pos2,
+        galley: &super::Galley2,
+        out: &mut Mesh,
+    ) {
+        if galley.is_empty() {
+            return;
+        }
+
+        // The contents of the galley is already snapped to pixel coordinates,
+        // but we need to make sure the galley ends up on the start of a physical pixel:
+        let galley_pos = pos2(
+            self.options.round_to_pixel(galley_pos.x),
+            self.options.round_to_pixel(galley_pos.y),
+        );
+
+        let num_chars = galley.text.chars().count();
+        out.reserve_triangles(num_chars * 2);
+        out.reserve_vertices(num_chars * 4);
+
+        let inv_tex_w = 1.0 / tex_size[0] as f32;
+        let inv_tex_h = 1.0 / tex_size[1] as f32;
+
+        let clip_slack = 2.0; // Some fudge to handle letters that are slightly larger than expected.
+        let clip_rect = self.clip_rect.expand(clip_slack);
+
+        for row in &galley.rows {
+            if self.options.coarse_tessellation_culling
+                && !clip_rect.intersects(row.rect.translate(galley_pos.to_vec2()))
+            {
+                // culling individual lines of text is important, since a single `Shape::Text`
+                // can span hundreds of lines.
+                continue;
+            }
+
+            for glyph in &row.glyphs {
+                let uv_rect = glyph.uv_rect;
+                if !uv_rect.is_nothing() {
+                    let mut left_top = galley_pos + glyph.pos + uv_rect.offset;
+                    left_top.x = self.options.round_to_pixel(left_top.x); // Pixel-perfection.
+                    left_top.y = self.options.round_to_pixel(left_top.y); // Pixel-perfection.
+
+                    let rect = Rect::from_min_max(left_top, left_top + uv_rect.size);
+                    let uv = Rect::from_min_max(
+                        pos2(
+                            uv_rect.min[0] as f32 * inv_tex_w,
+                            uv_rect.min[1] as f32 * inv_tex_h,
+                        ),
+                        pos2(
+                            uv_rect.max[0] as f32 * inv_tex_w,
+                            uv_rect.max[1] as f32 * inv_tex_h,
+                        ),
+                    );
+
+                    let color = glyph.color;
+
+                    if glyph.italics {
                         let idx = out.vertices.len() as u32;
                         out.add_triangle(idx, idx + 1, idx + 2);
                         out.add_triangle(idx + 2, idx + 1, idx + 3);
