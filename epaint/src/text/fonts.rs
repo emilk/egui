@@ -387,6 +387,21 @@ impl Fonts {
         self.galley_cache2.lock().layout(self, job.into())
     }
 
+    /// Common helper, for when you change color later (often done in egui).
+    pub fn layout2_delayed_color(
+        &self,
+        text: String,
+        text_style: TextStyle,
+        wrap_width: f32,
+    ) -> Arc<Galley2> {
+        self.layout2(LayoutJob2::simple(
+            text,
+            text_style,
+            crate::Color32::GREEN, // should stand out
+            wrap_width,
+        ))
+    }
+
     pub fn num_galleys_in_cache(&self) -> usize {
         self.galley_cache.lock().num_galleys_in_cache()
             + self.galley_cache2.lock().num_galleys_in_cache()

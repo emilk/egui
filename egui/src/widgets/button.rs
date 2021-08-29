@@ -1,6 +1,12 @@
-use epaint::text::LayoutJob2;
-
 use crate::*;
+
+fn select<T>(b: bool, if_true: T, if_false: T) -> T {
+    if b {
+        if_true
+    } else {
+        if_false
+    }
+}
 
 /// Clickable button with text.
 ///
@@ -152,17 +158,10 @@ impl Button {
         let total_extra = button_padding + button_padding;
 
         let wrap = wrap.unwrap_or_else(|| ui.wrap_text());
-        let wrap_width = if wrap {
-            ui.available_width() - total_extra.x
-        } else {
-            f32::INFINITY
-        };
-        let galley = ui.fonts().layout2(LayoutJob2::simple(
-            text,
-            text_style,
-            Color32::WHITE,
-            wrap_width,
-        )); // text color will be overwritten later
+        let wrap_width = select(wrap, ui.available_width() - total_extra.x, f32::INFINITY);
+        let galley = ui
+            .fonts()
+            .layout2_delayed_color(text, text_style, wrap_width);
 
         let mut desired_size = galley.size + 2.0 * button_padding;
         if !small {
@@ -282,12 +281,14 @@ impl<'a> Widget for Checkbox<'a> {
         let button_padding = spacing.button_padding;
         let total_extra = button_padding + vec2(icon_width + icon_spacing, 0.0) + button_padding;
 
-        let galley = if ui.wrap_text() {
-            ui.fonts()
-                .layout_multiline(text_style, text, ui.available_width() - total_extra.x)
-        } else {
-            ui.fonts().layout_no_wrap(text_style, text)
-        };
+        let wrap_width = select(
+            ui.wrap_text(),
+            ui.available_width() - total_extra.x,
+            f32::INFINITY,
+        );
+        let galley = ui
+            .fonts()
+            .layout2_delayed_color(text, text_style, wrap_width);
 
         let mut desired_size = total_extra + galley.size;
         desired_size = desired_size.at_least(spacing.interact_size);
@@ -298,7 +299,8 @@ impl<'a> Widget for Checkbox<'a> {
             *checked = !*checked;
             response.mark_changed();
         }
-        response.widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, *checked, &galley.text));
+        response
+            .widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, *checked, &galley.text()));
 
         // let visuals = ui.style().interact_selectable(&response, *checked); // too colorful
         let visuals = ui.style().interact(&response);
@@ -329,7 +331,8 @@ impl<'a> Widget for Checkbox<'a> {
         let text_color = text_color
             .or(ui.visuals().override_text_color)
             .unwrap_or_else(|| visuals.text_color());
-        ui.painter().galley(text_pos, galley, text_color);
+        ui.painter()
+            .galley2_with_color(text_pos, galley, text_color);
         response
     }
 }
@@ -403,19 +406,21 @@ impl Widget for RadioButton {
         let button_padding = ui.spacing().button_padding;
         let total_extra = button_padding + vec2(icon_width + icon_spacing, 0.0) + button_padding;
 
-        let galley = if ui.wrap_text() {
-            ui.fonts()
-                .layout_multiline(text_style, text, ui.available_width() - total_extra.x)
-        } else {
-            ui.fonts().layout_no_wrap(text_style, text)
-        };
+        let wrap_width = select(
+            ui.wrap_text(),
+            ui.available_width() - total_extra.x,
+            f32::INFINITY,
+        );
+        let galley = ui
+            .fonts()
+            .layout2_delayed_color(text, text_style, wrap_width);
 
         let mut desired_size = total_extra + galley.size;
         desired_size = desired_size.at_least(ui.spacing().interact_size);
         desired_size.y = desired_size.y.max(icon_width);
         let (rect, response) = ui.allocate_exact_size(desired_size, Sense::click());
         response
-            .widget_info(|| WidgetInfo::selected(WidgetType::RadioButton, checked, &galley.text));
+            .widget_info(|| WidgetInfo::selected(WidgetType::RadioButton, checked, &galley.text()));
 
         let text_pos = pos2(
             rect.min.x + button_padding.x + icon_width + icon_spacing,
@@ -449,7 +454,7 @@ impl Widget for RadioButton {
         let text_color = text_color
             .or(ui.visuals().override_text_color)
             .unwrap_or_else(|| visuals.text_color());
-        painter.galley(text_pos, galley, text_color);
+        painter.galley2_with_color(text_pos, galley, text_color);
         response
     }
 }
