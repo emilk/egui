@@ -634,7 +634,7 @@ impl Tessellator {
                         out,
                     );
                 }
-                self.tessellate_text2(tex_size, pos, &galley, underline, override_text_color, out);
+                self.tessellate_text(tex_size, pos, &galley, underline, override_text_color, out);
             }
         }
     }
@@ -669,7 +669,7 @@ impl Tessellator {
         path.stroke_closed(stroke, self.options, out);
     }
 
-    pub fn tessellate_text2(
+    pub fn tessellate_text(
         &mut self,
         tex_size: [usize; 2],
         galley_pos: Pos2,

@@ -5,9 +5,17 @@ use super::{cursor::*, font::UvRect};
 use crate::{Color32, Mesh, Stroke, TextStyle};
 use emath::*;
 
+/// Describes the task of laying out text.
+///
+/// This supports mixing different fonts, color and formats (underline etc).
+///
+/// Pass this to [`Fonts::layout_job]` or [`epaint::text::layout`].
 #[derive(Clone, Debug, PartialEq)]
 pub struct LayoutJob {
+    /// The complete text of this job, referenced by `LayoutSection`.
     pub text: String, // TODO: Cow<'static, str>
+
+    /// The different section, which can have different fonts, colors, etc.
     pub sections: Vec<LayoutSection>,
 
     /// Try to break text so that no row is wider than this.
@@ -26,7 +34,7 @@ pub struct LayoutJob {
     /// and show up as the replacement character.
     /// Default: `true`.
     pub break_on_newline: bool,
-    // TODO: option to show whitespace
+    // TODO: option to show whitespace characters
 }
 
 impl Default for LayoutJob {
@@ -42,6 +50,7 @@ impl Default for LayoutJob {
 }
 
 impl LayoutJob {
+    /// Break on `\n` and at the given wrap width.
     pub fn simple(text: String, text_style: TextStyle, color: Color32, wrap_width: f32) -> Self {
         Self {
             sections: vec![LayoutSection {
@@ -75,6 +84,7 @@ impl LayoutJob {
         self.sections.is_empty()
     }
 
+    /// Helper for adding a new section when building a `LayoutJob`.
     pub fn append(&mut self, text: &str, leading_space: f32, format: TextFormat) {
         let start = self.text.len();
         self.text += text;

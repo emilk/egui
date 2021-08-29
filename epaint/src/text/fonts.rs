@@ -336,7 +336,7 @@ impl Fonts {
         wrap_width: f32,
     ) -> Arc<Galley> {
         let job = LayoutJob::simple(text, text_style, color, wrap_width);
-        Self::layout_job(&self, job)
+        self.layout_job(job)
     }
 
     /// Will line break at `\n`.
@@ -349,7 +349,7 @@ impl Fonts {
         color: crate::Color32,
     ) -> Arc<Galley> {
         let job = LayoutJob::simple(text, text_style, color, f32::INFINITY);
-        Self::layout_job(&self, job)
+        self.layout_job(job)
     }
 
     /// Like [`Self::layout`], made for when you want to pick a color for the text later.

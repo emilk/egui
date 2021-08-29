@@ -102,7 +102,7 @@ impl LegendEntry {
         let (rect, response) = ui.allocate_exact_size(desired_size, Sense::click());
 
         response
-            .widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, *checked, &galley.text()));
+            .widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, *checked, galley.text()));
 
         let visuals = ui.style().interact(&response);
         let label_on_the_left = ui.layout().horizontal_align() == Align::RIGHT;

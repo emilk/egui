@@ -293,7 +293,7 @@ impl CollapsingHeader {
             header_response.mark_changed();
         }
         header_response
-            .widget_info(|| WidgetInfo::labeled(WidgetType::CollapsingHeader, &galley.text()));
+            .widget_info(|| WidgetInfo::labeled(WidgetType::CollapsingHeader, galley.text()));
 
         let visuals = ui
             .style()

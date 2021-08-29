@@ -110,7 +110,7 @@ fn rows_from_paragraphs(paragraphs: Vec<Paragraph>, wrap_width: f32) -> Vec<Row>
                     ends_with_newline: !is_last_paragraph,
                 });
             } else {
-                line_break(paragraph, wrap_width, &mut rows);
+                line_break(&paragraph, wrap_width, &mut rows);
             }
         }
     }
@@ -118,7 +118,7 @@ fn rows_from_paragraphs(paragraphs: Vec<Paragraph>, wrap_width: f32) -> Vec<Row>
     rows
 }
 
-fn line_break(paragraph: Paragraph, wrap_width: f32, out_rows: &mut Vec<Row>) {
+fn line_break(paragraph: &Paragraph, wrap_width: f32, out_rows: &mut Vec<Row>) {
     // Keeps track of good places to insert row break if we exceed `wrap_width`.
     let mut row_break_candidates = RowBreakCandidates::default();
 
@@ -316,20 +316,18 @@ fn add_row_backgrounds(job: &LayoutJob, row: &Row, mesh: &mut Mesh) {
 
         if color == Color32::TRANSPARENT {
             end_run(run_start.take(), last_rect.right());
-        } else {
-            if let Some((existing_color, start)) = run_start {
-                if existing_color == color
-                    && start.top() == rect.top()
-                    && start.bottom() == rect.bottom()
-                {
-                    // continue the same line
-                } else {
-                    end_run(run_start.take(), last_rect.right());
-                    run_start = Some((color, rect));
-                }
+        } else if let Some((existing_color, start)) = run_start {
+            if existing_color == color
+                && start.top() == rect.top()
+                && start.bottom() == rect.bottom()
+            {
+                // continue the same line
             } else {
+                end_run(run_start.take(), last_rect.right());
                 run_start = Some((color, rect));
             }
+        } else {
+            run_start = Some((color, rect));
         }
 
         last_rect = rect;
@@ -410,17 +408,15 @@ fn add_row_hline(
 
         if stroke == Stroke::none() {
             end_line(line_start.take(), last_right_x);
-        } else {
-            if let Some((exisitng_stroke, start)) = line_start {
-                if exisitng_stroke == stroke && start.y == y {
-                    // continue the same line
-                } else {
-                    end_line(line_start.take(), last_right_x);
-                    line_start = Some((stroke, pos2(glyph.pos.x, y)));
-                }
+        } else if let Some((existing_stroke, start)) = line_start {
+            if existing_stroke == stroke && start.y == y {
+                // continue the same line
             } else {
+                end_line(line_start.take(), last_right_x);
                 line_start = Some((stroke, pos2(glyph.pos.x, y)));
             }
+        } else {
+            line_start = Some((stroke, pos2(glyph.pos.x, y)));
         }
 
         last_right_x = glyph.visual_max_x();

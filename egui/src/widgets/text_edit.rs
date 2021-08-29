@@ -1107,8 +1107,7 @@ fn move_single_cursor(cursor: &mut Cursor, galley: &Galley, key: Key, modifiers:
         Key::ArrowLeft => {
             if modifiers.alt || modifiers.ctrl {
                 // alt on mac, ctrl on windows
-                *cursor =
-                    galley.from_ccursor(ccursor_previous_word(&galley.text(), cursor.ccursor));
+                *cursor = galley.from_ccursor(ccursor_previous_word(galley.text(), cursor.ccursor));
             } else if modifiers.mac_cmd {
                 *cursor = galley.cursor_begin_of_row(cursor);
             } else {
@@ -1118,7 +1117,7 @@ fn move_single_cursor(cursor: &mut Cursor, galley: &Galley, key: Key, modifiers:
         Key::ArrowRight => {
             if modifiers.alt || modifiers.ctrl {
                 // alt on mac, ctrl on windows
-                *cursor = galley.from_ccursor(ccursor_next_word(&galley.text(), cursor.ccursor));
+                *cursor = galley.from_ccursor(ccursor_next_word(galley.text(), cursor.ccursor));
             } else if modifiers.mac_cmd {
                 *cursor = galley.cursor_end_of_row(cursor);
             } else {

@@ -95,7 +95,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let mut mesh = egui::epaint::Mesh::default();
         c.bench_function("tessellate_text", |b| {
             b.iter(|| {
-                tessellator.tessellate_text2(
+                tessellator.tessellate_text(
                     fonts.texture().size(),
                     egui::Pos2::ZERO,
                     &galley,

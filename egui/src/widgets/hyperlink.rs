@@ -56,7 +56,7 @@ impl Widget for Hyperlink {
         let Hyperlink { url, label } = self;
         let galley = label.layout(ui);
         let (rect, response) = ui.allocate_exact_size(galley.size, Sense::click());
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::Hyperlink, &galley.text()));
+        response.widget_info(|| WidgetInfo::labeled(WidgetType::Hyperlink, galley.text()));
 
         if response.hovered() {
             ui.ctx().output().cursor_icon = CursorIcon::PointingHand;

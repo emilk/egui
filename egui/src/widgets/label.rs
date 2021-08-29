@@ -169,7 +169,7 @@ impl Label {
         self.layout_width(ui, max_width, line_color)
     }
 
-    /// line_color: used for underline and strikethrough, if any.
+    /// `line_color`: used for underline and strikethrough, if any.
     pub fn layout_width(&self, ui: &Ui, max_width: f32, line_color: Color32) -> Arc<Galley> {
         self.layout_impl(ui, 0.0, max_width, 0.0, line_color)
     }
@@ -204,29 +204,31 @@ impl Label {
             Stroke::none()
         };
 
-        let mut job = LayoutJob::default();
-        job.text = self.text.clone(); // TODO: avoid clone
-        job.wrap_width = wrap_width;
-        job.first_row_min_height = first_row_min_height;
-        job.sections.push(LayoutSection {
-            leading_space,
-            byte_range: 0..self.text.len(),
-            format: TextFormat {
-                style: text_style,
-                color: Color32::TEMPORARY_COLOR,
-                background: background_color,
-                italics: self.italics,
-                underline,
-                strikethrough,
-                raised: self.raised,
-            },
-        });
+        let job = LayoutJob {
+            text: self.text.clone(), // TODO: avoid clone
+            sections: vec![LayoutSection {
+                leading_space,
+                byte_range: 0..self.text.len(),
+                format: TextFormat {
+                    style: text_style,
+                    color: Color32::TEMPORARY_COLOR,
+                    background: background_color,
+                    italics: self.italics,
+                    underline,
+                    strikethrough,
+                    raised: self.raised,
+                },
+            }],
+            wrap_width,
+            first_row_min_height,
+            ..Default::default()
+        };
 
         ui.fonts().layout_job(job)
     }
 
-    /// has_focus: the item is selected with the keyboard, so highlight with underline.
-    /// response_color: Unless we have a special color set, use this.
+    /// `has_focus`: the item is selected with the keyboard, so highlight with underline.
+    /// `response_color`: Unless we have a special color set, use this.
     pub(crate) fn paint_galley(
         &self,
         ui: &mut Ui,
@@ -251,7 +253,7 @@ impl Label {
         });
     }
 
-    /// response_color: Unless we have a special color set, use this.
+    /// `response_color`: Unless we have a special color set, use this.
     fn get_text_color(&self, ui: &Ui, response_color: Color32) -> Color32 {
         if let Some(text_color) = self.text_color {
             text_color
@@ -333,14 +335,14 @@ impl Widget for Label {
                 let rect = row.rect.translate(vec2(pos.x, pos.y));
                 response |= ui.allocate_rect(rect, sense);
             }
-            response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, &galley.text()));
+            response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, galley.text()));
             let response_color = ui.style().interact(&response).text_color();
             self.paint_galley(ui, pos, galley, response.has_focus(), response_color);
             response
         } else {
             let galley = self.layout(ui);
             let (rect, response) = ui.allocate_exact_size(galley.size, sense);
-            response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, &galley.text()));
+            response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, galley.text()));
             let response_color = ui.style().interact(&response).text_color();
             self.paint_galley(ui, rect.min, galley, response.has_focus(), response_color);
             response
