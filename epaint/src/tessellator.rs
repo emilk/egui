@@ -763,79 +763,33 @@ impl Tessellator {
             self.options.round_to_pixel(galley_pos.y),
         );
 
-        let num_chars = galley.text().chars().count();
-        out.reserve_triangles(num_chars * 2);
-        out.reserve_vertices(num_chars * 4);
-
-        let inv_tex_w = 1.0 / tex_size[0] as f32;
-        let inv_tex_h = 1.0 / tex_size[1] as f32;
-
-        let clip_slack = 2.0; // Some fudge to handle letters that are slightly larger than expected.
-        let clip_rect = self.clip_rect.expand(clip_slack);
+        let uv_normalizer = vec2(1.0 / tex_size[0] as f32, 1.0 / tex_size[1] as f32);
 
         for row in &galley.rows {
+            if row.mesh.is_empty() {
+                continue;
+            }
+
             if self.options.coarse_tessellation_culling
-                && !clip_rect.intersects(row.rect.translate(galley_pos.to_vec2()))
+                && !self
+                    .clip_rect
+                    .intersects(row.mesh_bounds.translate(galley_pos.to_vec2()))
             {
                 // culling individual lines of text is important, since a single `Shape::Text`
                 // can span hundreds of lines.
                 continue;
             }
 
-            for glyph in &row.glyphs {
-                let uv_rect = glyph.uv_rect;
-                if !uv_rect.is_nothing() {
-                    let mut left_top = galley_pos + glyph.pos + uv_rect.offset;
-                    left_top.x = self.options.round_to_pixel(left_top.x); // Pixel-perfection.
-                    left_top.y = self.options.round_to_pixel(left_top.y); // Pixel-perfection.
-
-                    let rect = Rect::from_min_max(left_top, left_top + uv_rect.size);
-                    let uv = Rect::from_min_max(
-                        pos2(
-                            uv_rect.min[0] as f32 * inv_tex_w,
-                            uv_rect.min[1] as f32 * inv_tex_h,
-                        ),
-                        pos2(
-                            uv_rect.max[0] as f32 * inv_tex_w,
-                            uv_rect.max[1] as f32 * inv_tex_h,
-                        ),
-                    );
-
-                    let format = &galley.job.sections[glyph.section_index as usize].format;
-
-                    let color = format.color;
-
-                    if format.italics {
-                        let idx = out.vertices.len() as u32;
-                        out.add_triangle(idx, idx + 1, idx + 2);
-                        out.add_triangle(idx + 2, idx + 1, idx + 3);
-
-                        let top_offset = rect.height() * 0.25 * Vec2::X;
-
-                        out.vertices.push(Vertex {
-                            pos: rect.left_top() + top_offset,
-                            uv: uv.left_top(),
-                            color,
-                        });
-                        out.vertices.push(Vertex {
-                            pos: rect.right_top() + top_offset,
-                            uv: uv.right_top(),
-                            color,
-                        });
-                        out.vertices.push(Vertex {
-                            pos: rect.left_bottom(),
-                            uv: uv.left_bottom(),
-                            color,
-                        });
-                        out.vertices.push(Vertex {
-                            pos: rect.right_bottom(),
-                            uv: uv.right_bottom(),
-                            color,
-                        });
-                    } else {
-                        out.add_rect_with_uv(rect, uv, color);
-                    }
-                }
+            let index_offset = out.vertices.len() as u32;
+            for index in &row.mesh.indices {
+                out.indices.push(index_offset + index);
+            }
+            for vertex in &row.mesh.vertices {
+                out.vertices.push(Vertex {
+                    pos: galley_pos + vertex.pos.to_vec2(),
+                    uv: (vertex.uv.to_vec2() * uv_normalizer).to_pos2(),
+                    color: vertex.color,
+                });
             }
         }
     }

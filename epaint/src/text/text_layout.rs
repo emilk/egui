@@ -2,7 +2,7 @@ use std::ops::{Range, RangeInclusive};
 use std::sync::Arc;
 
 use super::{font::*, *};
-use crate::Color32;
+use crate::{Color32, Mesh, Vertex};
 use emath::*;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -43,7 +43,8 @@ struct Paragraph {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Glyph {
     pub chr: char,
-    pub pos: Vec2,
+    /// Relative to the galley position.
+    pub pos: Pos2,
     pub uv_rect: UvRect,
     /// Index into [`Galley::section`]. Decides color etc
     pub section_index: u32,
@@ -67,7 +68,6 @@ pub struct Galley2 {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Row2 {
-    // TODO: pre-tesselate each row into a `Mesh`.
     // Per-row, so we later can do per-row culling.
     // PROBLEM: we need to know texture size.
     // or we still do the UV normalization in `tesselator.rs`.
@@ -81,8 +81,16 @@ pub struct Row2 {
     // ///
     // /// `x_offsets.len() + (ends_with_newline as usize) == text.chars().count() + 1`
     // pub x_offsets: Vec<f32>,
-    /// Bounding rectangle
+    //
+    /// Logical bounding rectangle.
     pub rect: Rect,
+
+    /// The tesselated text, using non-normalized (texel) UV coordinates.
+    /// That is, you need to divide the uv coordinates by the texture size.
+    pub mesh: Mesh,
+
+    /// Bounding rectangle of the mesh.
+    pub mesh_bounds: Rect,
 
     /// If true, this `Row` came from a paragraph ending with a `\n`.
     /// The `\n` itself is omitted from [`Self::glyphs`].
@@ -207,7 +215,7 @@ fn layout_section(
 
             paragraph.glyphs.push(Glyph {
                 chr,
-                pos: vec2(paragraph.cursor_x, font_height), // we use pos.y for height until the entire paragraph is done.
+                pos: pos2(paragraph.cursor_x, font_height), // we use pos.y for height until the entire paragraph is done.
                 uv_rect: glyph_info.uv_rect,
                 section_index,
             });
@@ -235,6 +243,8 @@ fn rows_from_paragraphs(paragraphs: Vec<Paragraph>, wrap_width: f32) -> Vec<Row2
         if paragraph.glyphs.is_empty() {
             rows.push(Row2 {
                 glyphs: vec![],
+                mesh: Default::default(),
+                mesh_bounds: Rect::NAN,
                 rect: rect_from_x_range(paragraph.cursor_x..=paragraph.cursor_x),
                 ends_with_newline: !is_last_paragraph,
             });
@@ -245,6 +255,8 @@ fn rows_from_paragraphs(paragraphs: Vec<Paragraph>, wrap_width: f32) -> Vec<Row2
                 let paragraph_min_x = paragraph.glyphs[0].pos.x;
                 rows.push(Row2 {
                     glyphs: paragraph.glyphs,
+                    mesh: Default::default(),
+                    mesh_bounds: Rect::NAN,
                     rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
                     ends_with_newline: !is_last_paragraph,
                 });
@@ -274,6 +286,8 @@ fn line_break(paragraph: Paragraph, wrap_width: f32, out_rows: &mut Vec<Row2>) {
                 assert_eq!(row_start_idx, 0);
                 out_rows.push(Row2 {
                     glyphs: vec![],
+                    mesh: Default::default(),
+                    mesh_bounds: Rect::NAN,
                     rect: rect_from_x_range(first_row_indentation..=first_row_indentation),
                     ends_with_newline: false,
                 });
@@ -293,6 +307,8 @@ fn line_break(paragraph: Paragraph, wrap_width: f32, out_rows: &mut Vec<Row2>) {
 
                 out_rows.push(Row2 {
                     glyphs,
+                    mesh: Default::default(),
+                    mesh_bounds: Rect::NAN,
                     rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
                     ends_with_newline: false,
                 });
@@ -323,6 +339,8 @@ fn line_break(paragraph: Paragraph, wrap_width: f32, out_rows: &mut Vec<Row2>) {
 
         out_rows.push(Row2 {
             glyphs,
+            mesh: Default::default(),
+            mesh_bounds: Rect::NAN,
             rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
             ends_with_newline: false,
         });
@@ -356,9 +374,71 @@ fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob>, mut rows: Vec<Row2>) -> 
         cursor_y = fonts.round_to_pixel(cursor_y);
     }
 
+    for row in &mut rows {
+        row.mesh = tesselate_row(fonts, &job, row);
+        row.mesh_bounds = row.mesh.calc_bounds();
+    }
+
     let size = vec2(max_x, cursor_y);
 
     Galley2 { job, rows, size }
+}
+
+fn tesselate_row(fonts: &Fonts, job: &LayoutJob, row: &Row2) -> Mesh {
+    let mut mesh = Mesh::default();
+    mesh.reserve_triangles(row.glyphs.len() * 2);
+    mesh.reserve_vertices(row.glyphs.len() * 4);
+
+    for glyph in &row.glyphs {
+        let uv_rect = glyph.uv_rect;
+        if !uv_rect.is_nothing() {
+            let mut left_top = glyph.pos + uv_rect.offset;
+            left_top.x = fonts.round_to_pixel(left_top.x); // Pixel-perfection.
+            left_top.y = fonts.round_to_pixel(left_top.y); // Pixel-perfection.
+
+            let rect = Rect::from_min_max(left_top, left_top + uv_rect.size);
+            let uv = Rect::from_min_max(
+                pos2(uv_rect.min[0] as f32, uv_rect.min[1] as f32),
+                pos2(uv_rect.max[0] as f32, uv_rect.max[1] as f32),
+            );
+
+            let format = &job.sections[glyph.section_index as usize].format;
+
+            let color = format.color;
+
+            if format.italics {
+                let idx = mesh.vertices.len() as u32;
+                mesh.add_triangle(idx, idx + 1, idx + 2);
+                mesh.add_triangle(idx + 2, idx + 1, idx + 3);
+
+                let top_offset = rect.height() * 0.25 * Vec2::X;
+
+                mesh.vertices.push(Vertex {
+                    pos: rect.left_top() + top_offset,
+                    uv: uv.left_top(),
+                    color,
+                });
+                mesh.vertices.push(Vertex {
+                    pos: rect.right_top() + top_offset,
+                    uv: uv.right_top(),
+                    color,
+                });
+                mesh.vertices.push(Vertex {
+                    pos: rect.left_bottom(),
+                    uv: uv.left_bottom(),
+                    color,
+                });
+                mesh.vertices.push(Vertex {
+                    pos: rect.right_bottom(),
+                    uv: uv.right_bottom(),
+                    color,
+                });
+            } else {
+                mesh.add_rect_with_uv(rect, uv, color);
+            }
+        }
+    }
+    mesh
 }
 
 // ----------------------------------------------------------------------------
