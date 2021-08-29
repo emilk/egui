@@ -17,6 +17,9 @@ use std::sync::Arc;
 pub struct UvRect {
     /// X/Y offset for nice rendering (unit: points).
     pub offset: Vec2,
+
+    /// Screen size (in points) of this glyph.
+    /// Note that the height is different from the font height.
     pub size: Vec2,
 
     /// Top left corner UV in texture.
@@ -34,7 +37,7 @@ impl UvRect {
 
 #[derive(Clone, Copy, Debug)]
 pub struct GlyphInfo {
-    id: ab_glyph::GlyphId,
+    pub(crate) id: ab_glyph::GlyphId,
 
     /// Unit: points.
     pub advance_width: f32,
@@ -167,6 +170,7 @@ impl FontImpl {
         }
     }
 
+    #[inline]
     pub fn pair_kerning(
         &self,
         last_glyph_id: ab_glyph::GlyphId,
@@ -316,6 +320,13 @@ impl Font {
         font_index_glyph_info
     }
 
+    #[inline]
+    pub(crate) fn glyph_info_and_font_impl(&self, c: char) -> (&FontImpl, GlyphInfo) {
+        let (font_index, glyph_info) = self.glyph_info(c);
+        let font_impl = &self.fonts[font_index];
+        (font_impl, glyph_info)
+    }
+
     fn glyph_info_no_cache_or_fallback(&self, c: char) -> Option<(FontIndex, GlyphInfo)> {
         for (font_index, font_impl) in self.fonts.iter().enumerate() {
             if let Some(glyph_info) = font_impl.glyph_info(c) {
@@ -340,10 +351,7 @@ impl Font {
 
         for c in text.chars() {
             if !self.fonts.is_empty() {
-                let (font_index, glyph_info) = self.glyph_info(c);
-
-                let font_impl = &self.fonts[font_index];
-
+                let (font_impl, glyph_info) = self.glyph_info_and_font_impl(c);
                 if let Some(last_glyph_id) = last_glyph_id {
                     cursor_x_in_points += font_impl.pair_kerning(last_glyph_id, glyph_info.id)
                 }

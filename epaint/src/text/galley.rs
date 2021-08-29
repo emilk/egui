@@ -172,6 +172,7 @@ impl Galley {
 
 /// ## Physical positions
 impl Galley {
+    /// Zero-width rect past the last character.
     fn end_pos(&self) -> Rect {
         if let Some(row) = self.rows.last() {
             let x = row.max_x();

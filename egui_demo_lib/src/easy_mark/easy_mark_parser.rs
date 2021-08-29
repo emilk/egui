@@ -67,7 +67,7 @@ pub struct Style {
 ///
 /// ```
 pub struct Parser<'a> {
-    /// The remainer of the input text
+    /// The remainder of the input text
     s: &'a str,
     /// Are we at the start of a line?
     start_of_line: bool,
