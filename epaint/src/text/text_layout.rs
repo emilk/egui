@@ -43,8 +43,12 @@ struct Paragraph {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Glyph {
     pub chr: char,
+    /// The fonts row height.
+    pub font_row_height: f32,
     /// Relative to the galley position.
+    /// Logical position: pos.y is the same for all chars of the same [`TextFormat`].
     pub pos: Pos2,
+    /// Position of the glyph in the font texture.
     pub uv_rect: UvRect,
     /// Index into [`Galley::section`]. Decides color etc
     pub section_index: u32,
@@ -149,6 +153,11 @@ impl Glyph {
     pub fn max_x(&self) -> f32 {
         self.pos.x + self.uv_rect.size.x
     }
+
+    /// Same y range for all characters with the same [`TextFormat`].
+    pub fn logical_rect(&self) -> Rect {
+        Rect::from_min_size(self.pos, vec2(self.uv_rect.size.x, self.font_row_height))
+    }
 }
 
 impl Galley2 {
@@ -215,7 +224,8 @@ fn layout_section(
 
             paragraph.glyphs.push(Glyph {
                 chr,
-                pos: pos2(paragraph.cursor_x, font_height), // we use pos.y for height until the entire paragraph is done.
+                pos: pos2(paragraph.cursor_x, f32::NAN),
+                font_row_height: font_height,
                 uv_rect: glyph_info.uv_rect,
                 section_index,
             });
@@ -355,14 +365,13 @@ fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob>, mut rows: Vec<Row2>) -> 
         let mut row_height = first_row_min_height;
         first_row_min_height = 0.0;
         for glyph in &row.glyphs {
-            // We store font heights in pos.y temporarily.
-            row_height = row_height.max(glyph.pos.y);
+            row_height = row_height.max(glyph.font_row_height);
         }
 
         // Now positions each glyph:
         for glyph in &mut row.glyphs {
             // Align down. TODO: adjustable with e.g. raised text
-            glyph.pos.y = cursor_y + row_height - glyph.pos.y;
+            glyph.pos.y = cursor_y + row_height - glyph.font_row_height;
             glyph.pos.y = fonts.round_to_pixel(glyph.pos.y);
         }
 
