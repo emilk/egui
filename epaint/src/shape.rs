@@ -53,8 +53,14 @@ pub enum Shape {
     Text2 {
         /// Top left corner of the first character..
         pos: Pos2,
+
         /// The layed out text.
         galley: std::sync::Arc<Galley2>,
+
+        /// Add this underline to the whole text.
+        /// You can also set an underline when creating the galley.
+        underline: Stroke,
+
         /// If set, the text color in the galley will be ignored and replaced
         /// with the given color.
         /// This will NOT replace background color nor strikethrough/underline color.
@@ -189,6 +195,7 @@ impl Shape {
             pos,
             galley,
             override_text_color: None,
+            underline: Stroke::none(),
         }
     }
 }

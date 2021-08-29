@@ -390,6 +390,7 @@ impl Painter {
             self.add(Shape::Text2 {
                 pos,
                 galley,
+                underline: Stroke::none(),
                 override_text_color: None,
             });
         }
@@ -411,6 +412,7 @@ impl Painter {
             self.add(Shape::Text2 {
                 pos,
                 galley,
+                underline: Stroke::none(),
                 override_text_color: Some(text_color),
             });
         }

@@ -48,6 +48,9 @@ impl Color32 {
 
     pub const DEBUG_COLOR: Color32 = Color32::from_rgba_premultiplied(0, 200, 0, 128);
 
+    /// An ugly color that is planned to be replaced before making it to the screen.
+    pub const TEMPORARY_COLOR: Color32 = Color32::from_rgb(64, 254, 0);
+
     #[inline(always)]
     pub const fn from_rgb(r: u8, g: u8, b: u8) -> Self {
         Self([r, g, b, 255])

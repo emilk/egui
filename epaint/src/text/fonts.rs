@@ -409,7 +409,7 @@ impl Fonts {
         self.layout2(LayoutJob2::simple(
             text,
             text_style,
-            crate::Color32::GREEN, // should stand out
+            crate::Color32::TEMPORARY_COLOR,
             wrap_width,
         ))
     }

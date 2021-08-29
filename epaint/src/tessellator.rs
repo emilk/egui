@@ -639,6 +639,7 @@ impl Tessellator {
             Shape::Text2 {
                 pos,
                 galley,
+                underline,
                 override_text_color,
             } => {
                 if options.debug_paint_text_rects {
@@ -652,7 +653,7 @@ impl Tessellator {
                         out,
                     );
                 }
-                self.tessellate_text2(tex_size, pos, &galley, override_text_color, out);
+                self.tessellate_text2(tex_size, pos, &galley, underline, override_text_color, out);
             }
         }
     }
@@ -793,6 +794,7 @@ impl Tessellator {
         tex_size: [usize; 2],
         galley_pos: Pos2,
         galley: &super::Galley2,
+        underline: Stroke,
         override_text_color: Option<Color32>,
         out: &mut Mesh,
     ) {
@@ -814,11 +816,9 @@ impl Tessellator {
                 continue;
             }
 
-            if self.options.coarse_tessellation_culling
-                && !self
-                    .clip_rect
-                    .intersects(row.visuals.mesh_bounds.translate(galley_pos.to_vec2()))
-            {
+            let row_rect = row.visuals.mesh_bounds.translate(galley_pos.to_vec2());
+
+            if self.options.coarse_tessellation_culling && !self.clip_rect.intersects(row_rect) {
                 // culling individual lines of text is important, since a single `Shape::Text`
                 // can span hundreds of lines.
                 continue;
@@ -842,6 +842,14 @@ impl Tessellator {
                     uv: (vertex.uv.to_vec2() * uv_normalizer).to_pos2(),
                     color,
                 });
+            }
+
+            if underline != Stroke::none() {
+                self.scratchpad_path.clear();
+                self.scratchpad_path
+                    .add_line_segment([row_rect.left_bottom(), row_rect.right_bottom()]);
+                self.scratchpad_path
+                    .stroke_open(underline, self.options, out);
             }
         }
     }

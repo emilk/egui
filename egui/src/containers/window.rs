@@ -755,7 +755,7 @@ fn paint_frame_interaction(
 struct TitleBar {
     id: Id,
     title_label: Label,
-    title_galley: std::sync::Arc<Galley>,
+    title_galley: std::sync::Arc<Galley2>,
     min_rect: Rect,
     rect: Rect,
 }
@@ -848,8 +848,9 @@ impl TitleBar {
         let full_top_rect = Rect::from_x_y_ranges(self.rect.x_range(), self.min_rect.y_range());
         let text_pos = emath::align::center_size_in_rect(self.title_galley.size, full_top_rect);
         let text_pos = text_pos.left_top() - 1.5 * Vec2::Y; // HACK: center on x-height of text (looks better)
+        let text_color = ui.visuals().text_color();
         self.title_label
-            .paint_galley(ui, text_pos, self.title_galley);
+            .paint_galley(ui, text_pos, self.title_galley, false, text_color);
 
         if let Some(content_response) = &content_response {
             // paint separator between title and content:
