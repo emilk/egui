@@ -222,7 +222,7 @@ impl Label {
             },
         });
 
-        ui.fonts().layout2(job)
+        ui.fonts().layout_job(job)
     }
 
     /// has_focus: the item is selected with the keyboard, so highlight with underline.

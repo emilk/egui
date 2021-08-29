@@ -161,7 +161,7 @@ impl Button {
         let wrap_width = select(wrap, ui.available_width() - total_extra.x, f32::INFINITY);
         let galley = ui
             .fonts()
-            .layout2_delayed_color(text, text_style, wrap_width);
+            .layout_delayed_color(text, text_style, wrap_width);
 
         let mut desired_size = galley.size + 2.0 * button_padding;
         if !small {
@@ -287,7 +287,7 @@ impl<'a> Widget for Checkbox<'a> {
         );
         let galley = ui
             .fonts()
-            .layout2_delayed_color(text, text_style, wrap_width);
+            .layout_delayed_color(text, text_style, wrap_width);
 
         let mut desired_size = total_extra + galley.size;
         desired_size = desired_size.at_least(spacing.interact_size);
@@ -411,7 +411,7 @@ impl Widget for RadioButton {
         );
         let galley = ui
             .fonts()
-            .layout2_delayed_color(text, text_style, wrap_width);
+            .layout_delayed_color(text, text_style, wrap_width);
 
         let mut desired_size = total_extra + galley.size;
         desired_size = desired_size.at_least(ui.spacing().interact_size);

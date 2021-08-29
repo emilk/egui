@@ -316,12 +316,12 @@ impl Fonts {
     }
 
     /// Memoizes identical jobs for as long they are used every frame.
-    pub fn layout2(&self, job: impl Into<Arc<LayoutJob>>) -> Arc<Galley> {
+    pub fn layout_job(&self, job: impl Into<Arc<LayoutJob>>) -> Arc<Galley> {
         self.galley_cache2.lock().layout(self, job.into())
     }
 
-    /// Common helper for [`Self::layout2`].
-    pub fn layout2_simple(
+    /// Common helper for [`Self::layout`].
+    pub fn layout(
         &self,
         text: String,
         text_style: TextStyle,
@@ -329,28 +329,28 @@ impl Fonts {
         wrap_width: f32,
     ) -> Arc<Galley> {
         let job = LayoutJob::simple(text, text_style, color, wrap_width);
-        Self::layout2(&self, job)
+        Self::layout_job(&self, job)
     }
 
-    /// Common helper for [`Self::layout2`].
-    pub fn layout2_nowrap(
+    /// Common helper for [`Self::layout`].
+    pub fn layout_no_wrap(
         &self,
         text: String,
         text_style: TextStyle,
         color: crate::Color32,
     ) -> Arc<Galley> {
         let job = LayoutJob::simple(text, text_style, color, f32::INFINITY);
-        Self::layout2(&self, job)
+        Self::layout_job(&self, job)
     }
 
     /// Common helper, for when you change color later (often done in egui).
-    pub fn layout2_delayed_color(
+    pub fn layout_delayed_color(
         &self,
         text: String,
         text_style: TextStyle,
         wrap_width: f32,
     ) -> Arc<Galley> {
-        self.layout2(LayoutJob::simple(
+        self.layout_job(LayoutJob::simple(
             text,
             text_style,
             crate::Color32::TEMPORARY_COLOR,

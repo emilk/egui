@@ -219,7 +219,7 @@ impl Painter {
         color: Color32,
         text: impl ToString,
     ) -> Rect {
-        let galley = self.layout2_nowrap(text.to_string(), TextStyle::Monospace, color);
+        let galley = self.layout_no_wrap(text.to_string(), TextStyle::Monospace, color);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
         let frame_rect = rect.expand(2.0);
         self.add(Shape::Rect {
@@ -341,7 +341,7 @@ impl Painter {
         text_style: TextStyle,
         text_color: Color32,
     ) -> Rect {
-        let galley = self.layout2_nowrap(text.to_string(), text_style, text_color);
+        let galley = self.layout_no_wrap(text.to_string(), text_style, text_color);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
         self.galley(rect.min, galley);
         rect
@@ -351,34 +351,34 @@ impl Painter {
     ///
     /// Paint the results with [`Self::galley`].
     #[inline(always)]
-    pub fn layout2_simple(
+    pub fn layout(
         &self,
         text: String,
         text_style: TextStyle,
         color: crate::Color32,
         wrap_width: f32,
     ) -> std::sync::Arc<Galley> {
-        self.fonts()
-            .layout2_simple(text, text_style, color, wrap_width)
+        self.fonts().layout(text, text_style, color, wrap_width)
     }
 
     /// Will line break at `\n`.
     ///
     /// Paint the results with [`Self::galley`].
     #[inline(always)]
-    pub fn layout2_nowrap(
+    pub fn layout_no_wrap(
         &self,
         text: String,
         text_style: TextStyle,
         color: crate::Color32,
     ) -> std::sync::Arc<Galley> {
-        self.fonts()
-            .layout2_simple(text, text_style, color, f32::INFINITY)
+        self.fonts().layout(text, text_style, color, f32::INFINITY)
     }
 
     /// Paint text that has already been layed out in a [`Galley`].
     ///
-    /// You can create the `Galley` with [`Self::layout_text`].
+    /// You can create the `Galley` with [`Self::layout`].
+    ///
+    /// If you want to change the color of the text, use [`Self::galley_with_color`].
     #[inline(always)]
     pub fn galley(&self, pos: Pos2, galley: std::sync::Arc<Galley>) {
         if !galley.is_empty() {

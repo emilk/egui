@@ -67,7 +67,7 @@ impl Widget for SelectableLabel {
 
         let galley = ui
             .fonts()
-            .layout2_delayed_color(text, text_style, wrap_width);
+            .layout_delayed_color(text, text_style, wrap_width);
 
         let mut desired_size = total_extra + galley.size;
         desired_size.y = desired_size.y.at_least(ui.spacing().interact_size.y);

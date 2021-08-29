@@ -626,7 +626,7 @@ impl Prepared {
                 let color = color_from_alpha(ui, text_alpha);
                 let text = emath::round_to_decimals(value_main, 5).to_string(); // hack
 
-                let galley = ui.painter().layout2_nowrap(text, text_style, color);
+                let galley = ui.painter().layout_no_wrap(text, text_style, color);
 
                 let mut text_pos = pos_in_gui + vec2(1.0, -galley.size.y);
 

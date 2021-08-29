@@ -87,13 +87,10 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             })
         });
         c.bench_function("text_layout_cached", |b| {
-            b.iter(|| {
-                fonts.layout2_simple(LOREM_IPSUM_LONG.to_owned(), text_style, color, wrap_width)
-            })
+            b.iter(|| fonts.layout(LOREM_IPSUM_LONG.to_owned(), text_style, color, wrap_width))
         });
 
-        let galley =
-            fonts.layout2_simple(LOREM_IPSUM_LONG.to_owned(), text_style, color, wrap_width);
+        let galley = fonts.layout(LOREM_IPSUM_LONG.to_owned(), text_style, color, wrap_width);
         let mut tessellator = egui::epaint::Tessellator::from_options(Default::default());
         let mut mesh = egui::epaint::Mesh::default();
         c.bench_function("tessellate_text", |b| {

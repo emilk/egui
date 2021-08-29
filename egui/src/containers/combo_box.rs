@@ -158,11 +158,9 @@ fn combo_box<R>(
         let full_minimum_width = ui.spacing().slider_width;
         let icon_size = Vec2::splat(ui.spacing().icon_width);
 
-        let galley = ui.fonts().layout2_delayed_color(
-            selected.to_string(),
-            TextStyle::Button,
-            f32::INFINITY,
-        );
+        let galley =
+            ui.fonts()
+                .layout_delayed_color(selected.to_string(), TextStyle::Button, f32::INFINITY);
 
         let width = galley.size.x + ui.spacing().item_spacing.x + icon_size.x;
         let width = width.at_least(full_minimum_width);

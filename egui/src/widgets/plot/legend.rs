@@ -92,7 +92,7 @@ impl LegendEntry {
 
         let galley =
             ui.fonts()
-                .layout2_nowrap(text, ui.style().body_text_style, Color32::TEMPORARY_COLOR);
+                .layout_no_wrap(text, ui.style().body_text_style, Color32::TEMPORARY_COLOR);
 
         let icon_size = galley.size.y;
         let icon_spacing = icon_size / 5.0;
