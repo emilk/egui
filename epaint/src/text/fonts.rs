@@ -387,6 +387,18 @@ impl Fonts {
         self.galley_cache2.lock().layout(self, job.into())
     }
 
+    /// Common helper for [`Self::layout2`].
+    pub fn layout2_simple(
+        &self,
+        text: String,
+        text_style: TextStyle,
+        color: crate::Color32,
+        wrap_width: f32,
+    ) -> Arc<Galley2> {
+        let job = LayoutJob2::simple(text, text_style, color, wrap_width);
+        Self::layout2(&self, job)
+    }
+
     /// Common helper, for when you change color later (often done in egui).
     pub fn layout2_delayed_color(
         &self,

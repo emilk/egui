@@ -158,9 +158,11 @@ fn combo_box<R>(
         let full_minimum_width = ui.spacing().slider_width;
         let icon_size = Vec2::splat(ui.spacing().icon_width);
 
-        let galley = ui
-            .fonts()
-            .layout_no_wrap(TextStyle::Button, selected.to_string());
+        let galley = ui.fonts().layout2_delayed_color(
+            selected.to_string(),
+            TextStyle::Button,
+            f32::INFINITY,
+        );
 
         let width = galley.size.x + ui.spacing().item_spacing.x + icon_size.x;
         let width = width.at_least(full_minimum_width);
@@ -181,7 +183,7 @@ fn combo_box<R>(
 
         let text_rect = Align2::LEFT_CENTER.align_size_within_rect(galley.size, rect);
         ui.painter()
-            .galley(text_rect.min, galley, visuals.text_color());
+            .galley2_with_color(text_rect.min, galley, visuals.text_color());
     });
 
     if button_response.clicked() {

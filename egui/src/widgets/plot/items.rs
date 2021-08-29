@@ -912,16 +912,11 @@ impl PlotItem for Text {
         let pos = transform.position_from_value(&self.position);
         let galley = ui
             .fonts()
-            .layout_multiline(self.style, self.text.clone(), f32::INFINITY);
+            .layout2_simple(self.text.clone(), self.style, color, f32::INFINITY);
         let rect = self
             .anchor
             .anchor_rect(Rect::from_min_size(pos, galley.size));
-        shapes.push(Shape::Text {
-            pos: rect.min,
-            galley,
-            color,
-            fake_italics: false,
-        });
+        shapes.push(Shape::galley2(rect.min, galley));
         if self.highlight {
             shapes.push(Shape::rect_stroke(
                 rect.expand(2.0),
