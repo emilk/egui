@@ -68,50 +68,42 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let pixels_per_point = 1.0;
         let wrap_width = 512.0;
         let text_style = egui::TextStyle::Body;
+        let color = egui::Color32::WHITE;
         let fonts = egui::epaint::text::Fonts::from_definitions(
             pixels_per_point,
             egui::FontDefinitions::default(),
         );
-        let font = &fonts[text_style];
         c.bench_function("text_layout_uncached", |b| {
-            b.iter(|| font.layout_multiline(LOREM_IPSUM_LONG.to_owned(), wrap_width))
-        });
-        c.bench_function("text2_layout_uncached", |b| {
             b.iter(|| {
-                use egui::epaint::text::{layout, LayoutJob2, TextFormat};
-                use egui::{Color32, TextStyle};
+                use egui::epaint::text::{layout, LayoutJob2};
 
-                let mut job = LayoutJob2::default();
-                job.append(
-                    LOREM_IPSUM_LONG,
-                    0.0,
-                    TextFormat {
-                        style: TextStyle::Body,
-                        color: Color32::WHITE,
-                        ..Default::default()
-                    },
+                let job = LayoutJob2::simple(
+                    LOREM_IPSUM_LONG.to_owned(),
+                    egui::TextStyle::Body,
+                    color,
+                    wrap_width,
                 );
-                job.wrap_width = wrap_width;
-
                 layout(&fonts, job.into())
             })
         });
         c.bench_function("text_layout_cached", |b| {
-            b.iter(|| fonts.layout_multiline(text_style, LOREM_IPSUM_LONG.to_owned(), wrap_width))
+            b.iter(|| {
+                fonts.layout2_simple(LOREM_IPSUM_LONG.to_owned(), text_style, color, wrap_width)
+            })
         });
 
-        let galley = font.layout_multiline(LOREM_IPSUM_LONG.to_owned(), wrap_width);
+        let galley =
+            fonts.layout2_simple(LOREM_IPSUM_LONG.to_owned(), text_style, color, wrap_width);
         let mut tessellator = egui::epaint::Tessellator::from_options(Default::default());
         let mut mesh = egui::epaint::Mesh::default();
         c.bench_function("tessellate_text", |b| {
             b.iter(|| {
-                let fake_italics = false;
-                tessellator.tessellate_text(
+                tessellator.tessellate_text2(
                     fonts.texture().size(),
                     egui::Pos2::ZERO,
                     &galley,
-                    egui::Color32::WHITE,
-                    fake_italics,
+                    Default::default(),
+                    None,
                     &mut mesh,
                 );
                 mesh.clear();
