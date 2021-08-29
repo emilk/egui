@@ -78,24 +78,22 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         });
         c.bench_function("text2_layout_uncached", |b| {
             b.iter(|| {
-                use egui::epaint::text::text_layout::{layout, LayoutSettings, Section};
-                use egui::Color32;
-                use egui::TextStyle;
+                use egui::epaint::text::text_layout::{layout, LayoutJob, TextFormat};
+                use egui::{Color32, TextStyle};
 
-                let text = LOREM_IPSUM_LONG.into();
-                let sections = [Section::Text {
-                    text: LOREM_IPSUM_LONG.into(),
-                    text_style: TextStyle::Body,
-                    color: Color32::WHITE,
-                    italics: false,
-                }];
+                let mut job = LayoutJob::default();
+                job.append(
+                    LOREM_IPSUM_LONG,
+                    0.0,
+                    TextFormat {
+                        style: TextStyle::Body,
+                        color: Color32::WHITE,
+                        italics: false,
+                    },
+                );
+                job.wrap_width = wrap_width;
 
-                let settings = LayoutSettings {
-                    first_row_min_height: 0.0,
-                    wrap_width,
-                };
-
-                layout(&fonts, text, &sections, &settings)
+                layout(&fonts, job.into())
             })
         });
         c.bench_function("text_layout_cached", |b| {

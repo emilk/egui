@@ -5,24 +5,39 @@ use super::{font::*, *};
 use crate::Color32;
 use emath::*;
 
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct TextFormat {
+    pub style: TextStyle,
+    pub color: Color32,
+    pub italics: bool,
+    // TODO: underline, background, strikethrough, raised, lowered, …
+}
+
+impl Default for TextFormat {
+    fn default() -> Self {
+        Self {
+            style: TextStyle::Body,
+            color: Color32::GRAY,
+            italics: false,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Section {
     /// Can be used for first row indentation.
-    leading_space: f32,
+    pub leading_space: f32,
     /// Range into the galley text
-    byte_range: Range<usize>,
-    text_style: TextStyle,
-    color: Color32,
-    italics: bool,
-    // TODO: underline, background, strikethrough, raised, lowered, …
+    pub byte_range: Range<usize>,
+    pub format: TextFormat,
 }
 
 /// Temporary storage before line-wrapping.
 #[derive(Default, Clone)]
 struct Paragraph {
     /// Start of the next glyph to be added.
-    cursor_x: f32,
-    glyphs: Vec<Glyph>,
+    pub cursor_x: f32,
+    pub glyphs: Vec<Glyph>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -30,9 +45,8 @@ pub struct Glyph {
     pub chr: char,
     pub pos: Vec2,
     pub uv_rect: UvRect,
-    pub color: Color32,
-    pub italics: bool,
-    // TODO: format_index instead of duplicating it here
+    /// Index into [`Galley::section`]. Decides color etc
+    pub section_index: u32,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -111,28 +125,17 @@ impl LayoutJob {
     pub fn is_empty(&self) -> bool {
         self.sections.is_empty()
     }
-    pub fn append(
-        &mut self,
-        text: &str,
-        leading_space: f32,
-        text_style: TextStyle,
-        color: Color32,
-        italics: bool,
-    ) {
+    pub fn append(&mut self, text: &str, leading_space: f32, format: TextFormat) {
         let start = self.text.len();
         self.text += text;
         let byte_range = start..self.text.len();
         self.sections.push(Section {
             leading_space,
             byte_range,
-            text_style,
-            color,
-            italics,
+            format,
         });
     }
 }
-
-// ----------------------------------------------------------------------------
 
 impl Glyph {
     pub fn max_x(&self) -> f32 {
@@ -155,8 +158,14 @@ impl Galley2 {
 
 pub fn layout(fonts: &Fonts, job: Arc<LayoutJob>) -> Galley2 {
     let mut paragraphs = vec![Paragraph::default()];
-    for section in &job.sections {
-        layout_section(fonts, &job.text, section, &mut paragraphs);
+    for (section_index, section) in job.sections.iter().enumerate() {
+        layout_section(
+            fonts,
+            &job.text,
+            section_index as u32,
+            section,
+            &mut paragraphs,
+        );
     }
 
     let rows = rows_from_paragraphs(paragraphs, job.wrap_width);
@@ -167,6 +176,7 @@ pub fn layout(fonts: &Fonts, job: Arc<LayoutJob>) -> Galley2 {
 fn layout_section(
     fonts: &Fonts,
     text: &str,
+    section_index: u32,
     section: &Section,
     out_paragraphs: &mut Vec<Paragraph>,
 ) {
@@ -175,14 +185,12 @@ fn layout_section(
     let Section {
         leading_space,
         byte_range,
-        text_style,
-        color,
-        italics,
+        format,
     } = section;
 
     paragraph.cursor_x += leading_space;
 
-    let font = &fonts[*text_style];
+    let font = &fonts[format.style];
     let font_height = font.row_height();
 
     let mut last_glyph_id = None;
@@ -201,8 +209,7 @@ fn layout_section(
                 chr,
                 pos: vec2(paragraph.cursor_x, font_height), // we use pos.y for height until the entire paragraph is done.
                 uv_rect: glyph_info.uv_rect,
-                color: *color,
-                italics: *italics,
+                section_index,
             });
 
             paragraph.cursor_x += glyph_info.advance_width;

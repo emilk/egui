@@ -51,7 +51,7 @@ fn main() {
 }
 
 fn test_galley2(ui: &mut egui::Ui) {
-    use egui::epaint::text::text_layout::{layout, LayoutJob};
+    use egui::epaint::text::text_layout::{layout, LayoutJob, TextFormat};
     use egui::Color32;
     use egui::TextStyle;
 
@@ -60,37 +60,47 @@ fn test_galley2(ui: &mut egui::Ui) {
     job.append(
         "Hello ".into(),
         20.0,
-        TextStyle::Body,
-        Color32::WHITE,
-        false,
+        TextFormat {
+            style: TextStyle::Body,
+            color: Color32::WHITE,
+            italics: false,
+        },
     );
     job.append(
         "there ".into(),
         0.0,
-        TextStyle::Heading,
-        Color32::RED,
-        false,
+        TextFormat {
+            style: TextStyle::Heading,
+            color: Color32::RED,
+            italics: false,
+        },
     );
     job.append(
         "brave ".into(),
         0.0,
-        TextStyle::Small,
-        Color32::WHITE,
-        false,
+        TextFormat {
+            style: TextStyle::Small,
+            color: Color32::WHITE,
+            italics: false,
+        },
     );
     job.append(
         "new ".into(),
         0.0,
-        TextStyle::Body,
-        Color32::LIGHT_BLUE,
-        true,
+        TextFormat {
+            style: TextStyle::Body,
+            color: Color32::LIGHT_BLUE,
+            italics: true,
+        },
     );
     job.append(
         "world!".into(),
         0.0,
-        TextStyle::Monospace,
-        Color32::WHITE,
-        false,
+        TextFormat {
+            style: TextStyle::Monospace,
+            color: Color32::WHITE,
+            italics: false,
+        },
     );
 
     job.first_row_min_height = 50.0;

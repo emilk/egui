@@ -801,9 +801,11 @@ impl Tessellator {
                         ),
                     );
 
-                    let color = glyph.color;
+                    let format = &galley.job.sections[glyph.section_index as usize].format;
 
-                    if glyph.italics {
+                    let color = format.color;
+
+                    if format.italics {
                         let idx = out.vertices.len() as u32;
                         out.add_triangle(idx, idx + 1, idx + 2);
                         out.add_triangle(idx + 2, idx + 1, idx + 3);
