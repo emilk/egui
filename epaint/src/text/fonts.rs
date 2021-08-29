@@ -315,12 +315,19 @@ impl Fonts {
         self.fonts[&text_style].row_height()
     }
 
-    /// Memoizes identical jobs for as long they are used every frame.
+    /// Layout some text.
+    /// This is the most advanced layout function.
+    /// See also [`Self::layout`], [`Self::layout_no_wrap`] and
+    /// [`Self::layout_delayed_color`].
+    ///
+    /// The implementation uses memoization so repeated calls are cheap.
     pub fn layout_job(&self, job: impl Into<Arc<LayoutJob>>) -> Arc<Galley> {
         self.galley_cache2.lock().layout(self, job.into())
     }
 
-    /// Common helper for [`Self::layout`].
+    /// Will wrap text at the given width and line break at `\n`.
+    ///
+    /// The implementation uses memoization so repeated calls are cheap.
     pub fn layout(
         &self,
         text: String,
@@ -332,7 +339,9 @@ impl Fonts {
         Self::layout_job(&self, job)
     }
 
-    /// Common helper for [`Self::layout`].
+    /// Will line break at `\n`.
+    ///
+    /// The implementation uses memoization so repeated calls are cheap.
     pub fn layout_no_wrap(
         &self,
         text: String,
@@ -343,7 +352,9 @@ impl Fonts {
         Self::layout_job(&self, job)
     }
 
-    /// Common helper, for when you change color later (often done in egui).
+    /// Like [`Self::layout`], made for when you want to pick a color for the text later.
+    ///
+    /// The implementation uses memoization so repeated calls are cheap.
     pub fn layout_delayed_color(
         &self,
         text: String,

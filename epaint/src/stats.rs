@@ -198,7 +198,7 @@ impl PaintStats {
             Shape::Path { points, .. } => {
                 self.shape_path += AllocInfo::from_slice(points);
             }
-            Shape::Text2 { galley, .. } => {
+            Shape::Text { galley, .. } => {
                 self.shape_text += AllocInfo::from_galley(galley);
             }
             Shape::Mesh(mesh) => {

@@ -399,7 +399,7 @@ impl Painter {
         text_color: Color32,
     ) {
         if !galley.is_empty() {
-            self.add(Shape::Text2 {
+            self.add(Shape::Text {
                 pos,
                 galley,
                 underline: Stroke::none(),

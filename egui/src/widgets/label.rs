@@ -243,7 +243,7 @@ impl Label {
             Stroke::none()
         };
 
-        ui.painter().add(Shape::Text2 {
+        ui.painter().add(Shape::Text {
             pos,
             galley,
             override_text_color: Some(text_color),

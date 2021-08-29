@@ -1,5 +1,6 @@
 use crate::*;
 
+/// For those of us who miss `a ? yes : no`.
 fn select<T>(b: bool, if_true: T, if_false: T) -> T {
     if b {
         if_true

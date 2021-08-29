@@ -24,7 +24,7 @@ pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
             adjust_color(fill);
             adjust_color(&mut stroke.color);
         }
-        Shape::Text2 {
+        Shape::Text {
             galley,
             override_text_color,
             ..

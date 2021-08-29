@@ -40,7 +40,7 @@ pub enum Shape {
         fill: Color32,
         stroke: Stroke,
     },
-    Text2 {
+    Text {
         /// Top left corner of the first character..
         pos: Pos2,
 
@@ -181,7 +181,7 @@ impl Shape {
     }
 
     pub fn galley(pos: Pos2, galley: std::sync::Arc<Galley>) -> Self {
-        Self::Text2 {
+        Self::Text {
             pos,
             galley,
             override_text_color: None,
@@ -294,7 +294,7 @@ impl Shape {
             Shape::Rect { rect, .. } => {
                 *rect = rect.translate(delta);
             }
-            Shape::Text2 { pos, .. } => {
+            Shape::Text { pos, .. } => {
                 *pos += delta;
             }
             Shape::Mesh(mesh) => {

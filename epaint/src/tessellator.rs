@@ -617,7 +617,7 @@ impl Tessellator {
                 };
                 self.tessellate_rect(&rect, out);
             }
-            Shape::Text2 {
+            Shape::Text {
                 pos,
                 galley,
                 underline,
