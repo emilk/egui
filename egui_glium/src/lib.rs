@@ -580,10 +580,10 @@ impl EguiGlium {
         (needs_repaint, shapes)
     }
 
-    pub fn paint(
+    pub fn paint<T: glium::Surface>(
         &mut self,
         display: &glium::Display,
-        target: &mut glium::Frame,
+        target: &mut T,
         shapes: Vec<egui::epaint::ClippedShape>,
     ) {
         let clipped_meshes = self.egui_ctx.tessellate(shapes);

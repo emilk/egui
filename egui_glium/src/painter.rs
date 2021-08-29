@@ -95,10 +95,10 @@ impl Painter {
     /// Main entry-point for painting a frame.
     /// You should call `target.clear_color(..)` before
     /// and `target.finish()` after this.
-    pub fn paint_meshes(
+    pub fn paint_meshes<T: glium::Surface>(
         &mut self,
         display: &glium::Display,
-        target: &mut Frame,
+        target: &mut T,
         pixels_per_point: f32,
         cipped_meshes: Vec<egui::ClippedMesh>,
         egui_texture: &egui::Texture,
@@ -112,9 +112,9 @@ impl Painter {
     }
 
     #[inline(never)] // Easier profiling
-    pub fn paint_mesh(
+    pub fn paint_mesh<T: glium::Surface>(
         &mut self,
-        target: &mut Frame,
+        target: &mut T,
         display: &glium::Display,
         pixels_per_point: f32,
         clip_rect: Rect,
