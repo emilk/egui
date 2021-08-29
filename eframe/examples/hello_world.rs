@@ -143,8 +143,5 @@ fn test_galley2(ui: &mut egui::Ui) {
     let galley = layout(ui.fonts(), job.into());
 
     let (response, painter) = ui.allocate_painter(galley.size, Sense::hover());
-    painter.add(Shape::Text2 {
-        pos: response.rect.min,
-        galley: galley.into(),
-    });
+    painter.add(Shape::shape2(response.rect.min, galley.into()));
 }

@@ -185,7 +185,7 @@ impl Shape {
         text_style: TextStyle,
         color: Color32,
     ) -> Self {
-        let galley = fonts.layout2_simple(text.to_string(), text_style, color, f32::INFINITY);
+        let galley = fonts.layout2_nowrap(text.to_string(), text_style, color);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
         Self::galley2(rect.min, galley)
     }

@@ -5,7 +5,7 @@ use crate::{
 };
 use epaint::{
     mutex::Mutex,
-    text::{Fonts, Galley, Galley2, TextStyle},
+    text::{Fonts, Galley2, TextStyle},
     Shape, Stroke,
 };
 
@@ -219,9 +219,7 @@ impl Painter {
         color: Color32,
         text: impl ToString,
     ) -> Rect {
-        let galley = self
-            .fonts()
-            .layout_no_wrap(TextStyle::Monospace, text.to_string());
+        let galley = self.layout2_nowrap(text.to_string(), TextStyle::Monospace, color);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
         let frame_rect = rect.expand(2.0);
         self.add(Shape::Rect {
@@ -231,7 +229,7 @@ impl Painter {
             // stroke: Stroke::new(1.0, color),
             stroke: Default::default(),
         });
-        self.galley(rect.min, galley, color);
+        self.galley2(rect.min, galley);
         frame_rect
     }
 }
@@ -343,42 +341,39 @@ impl Painter {
         text_style: TextStyle,
         text_color: Color32,
     ) -> Rect {
-        let galley = self.layout_no_wrap(text_style, text.to_string());
+        let galley = self.layout2_nowrap(text.to_string(), text_style, text_color);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
-        self.galley(rect.min, galley, text_color);
+        self.galley2(rect.min, galley);
         rect
-    }
-
-    /// Will line break at `\n`.
-    ///
-    /// Paint the results with [`Self::galley`].
-    /// Always returns at least one row.
-    #[inline(always)]
-    pub fn layout_no_wrap(&self, text_style: TextStyle, text: String) -> std::sync::Arc<Galley> {
-        self.layout_multiline(text_style, text, f32::INFINITY)
     }
 
     /// Will wrap text at the given width and line break at `\n`.
     ///
-    /// Paint the results with [`Self::galley`].
-    /// Always returns at least one row.
+    /// Paint the results with [`Self::galley2`].
     #[inline(always)]
-    pub fn layout_multiline(
+    pub fn layout2_simple(
         &self,
-        text_style: TextStyle,
         text: String,
-        max_width_in_points: f32,
-    ) -> std::sync::Arc<Galley> {
+        text_style: TextStyle,
+        color: crate::Color32,
+        wrap_width: f32,
+    ) -> std::sync::Arc<Galley2> {
         self.fonts()
-            .layout_multiline(text_style, text, max_width_in_points)
+            .layout2_simple(text, text_style, color, wrap_width)
     }
 
-    /// Paint text that has already been layed out in a [`Galley`].
+    /// Will line break at `\n`.
     ///
-    /// You can create the `Galley` with [`Self::layout_no_wrap`] or [`Self::layout_multiline`].
+    /// Paint the results with [`Self::galley2`].
     #[inline(always)]
-    pub fn galley(&self, pos: Pos2, galley: std::sync::Arc<Galley>, color: Color32) {
-        self.galley_with_italics(pos, galley, color, false)
+    pub fn layout2_nowrap(
+        &self,
+        text: String,
+        text_style: TextStyle,
+        color: crate::Color32,
+    ) -> std::sync::Arc<Galley2> {
+        self.fonts()
+            .layout2_simple(text, text_style, color, f32::INFINITY)
     }
 
     /// Paint text that has already been layed out in a [`Galley2`].
@@ -387,12 +382,7 @@ impl Painter {
     #[inline(always)]
     pub fn galley2(&self, pos: Pos2, galley: std::sync::Arc<Galley2>) {
         if !galley.is_empty() {
-            self.add(Shape::Text2 {
-                pos,
-                galley,
-                underline: Stroke::none(),
-                override_text_color: None,
-            });
+            self.add(Shape::galley2(pos, galley));
         }
     }
 
@@ -414,23 +404,6 @@ impl Painter {
                 galley,
                 underline: Stroke::none(),
                 override_text_color: Some(text_color),
-            });
-        }
-    }
-
-    pub fn galley_with_italics(
-        &self,
-        pos: Pos2,
-        galley: std::sync::Arc<Galley>,
-        color: Color32,
-        fake_italics: bool,
-    ) {
-        if !galley.is_empty() {
-            self.add(Shape::Text {
-                pos,
-                galley,
-                color,
-                fake_italics,
             });
         }
     }

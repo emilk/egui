@@ -626,7 +626,7 @@ impl Prepared {
                 let color = color_from_alpha(ui, text_alpha);
                 let text = emath::round_to_decimals(value_main, 5).to_string(); // hack
 
-                let galley = ui.fonts().layout_singleline(text_style, text);
+                let galley = ui.painter().layout2_nowrap(text, text_style, color);
 
                 let mut text_pos = pos_in_gui + vec2(1.0, -galley.size.y);
 
@@ -635,12 +635,7 @@ impl Prepared {
                     .at_most(transform.frame().max[1 - axis] - galley.size[1 - axis] - 2.0)
                     .at_least(transform.frame().min[1 - axis] + 1.0);
 
-                shapes.push(Shape::Text {
-                    pos: text_pos,
-                    galley,
-                    color,
-                    fake_italics: false,
-                });
+                shapes.push(Shape::galley2(text_pos, galley));
             }
         }
 
