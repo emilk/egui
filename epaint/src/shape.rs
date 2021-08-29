@@ -55,6 +55,10 @@ pub enum Shape {
         pos: Pos2,
         /// The layed out text.
         galley: std::sync::Arc<Galley2>,
+        /// If set, the text color in the galley will be ignored and replaced
+        /// with the given color.
+        /// This will NOT replace background color nor strikethrough/underline color.
+        override_text_color: Option<Color32>,
     },
     Mesh(Mesh),
 }

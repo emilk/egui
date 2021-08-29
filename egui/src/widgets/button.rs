@@ -1,3 +1,5 @@
+use epaint::text::LayoutJob2;
+
 use crate::*;
 
 /// Clickable button with text.
@@ -150,12 +152,17 @@ impl Button {
         let total_extra = button_padding + button_padding;
 
         let wrap = wrap.unwrap_or_else(|| ui.wrap_text());
-        let galley = if wrap {
-            ui.fonts()
-                .layout_multiline(text_style, text, ui.available_width() - total_extra.x)
+        let wrap_width = if wrap {
+            ui.available_width() - total_extra.x
         } else {
-            ui.fonts().layout_no_wrap(text_style, text)
+            f32::INFINITY
         };
+        let galley = ui.fonts().layout2(LayoutJob2::simple(
+            text,
+            text_style,
+            Color32::WHITE,
+            wrap_width,
+        )); // text color will be overwritten later
 
         let mut desired_size = galley.size + 2.0 * button_padding;
         if !small {
@@ -164,7 +171,7 @@ impl Button {
         desired_size = desired_size.at_least(min_size);
 
         let (rect, response) = ui.allocate_at_least(desired_size, sense);
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::Button, &galley.text));
+        response.widget_info(|| WidgetInfo::labeled(WidgetType::Button, galley.text()));
 
         if ui.clip_rect().intersects(rect) {
             let visuals = ui.style().interact(&response);
@@ -187,7 +194,8 @@ impl Button {
             let text_color = text_color
                 .or(ui.visuals().override_text_color)
                 .unwrap_or_else(|| visuals.text_color());
-            ui.painter().galley(text_pos, galley, text_color);
+            ui.painter()
+                .galley2_with_color(text_pos, galley, text_color);
         }
 
         response

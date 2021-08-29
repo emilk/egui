@@ -485,7 +485,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
         let make_galley = |ui: &Ui, wrap_width: f32, text: &str| {
             let text = mask_if_password(text);
             ui.fonts().layout2(if multiline {
-                LayoutJob2::simple_multiline(text, text_style, text_color, wrap_width)
+                LayoutJob2::simple(text, text_style, text_color, wrap_width)
             } else {
                 LayoutJob2::simple_singleline(text, text_style, text_color)
             })
@@ -803,7 +803,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
         if text.as_ref().is_empty() && !hint_text.is_empty() {
             let hint_text_color = ui.visuals().weak_text_color();
             let galley = ui.fonts().layout2(if multiline {
-                LayoutJob2::simple_multiline(hint_text, text_style, hint_text_color, desired_size.x)
+                LayoutJob2::simple(hint_text, text_style, hint_text_color, desired_size.x)
             } else {
                 LayoutJob2::simple_singleline(hint_text, text_style, hint_text_color)
             });

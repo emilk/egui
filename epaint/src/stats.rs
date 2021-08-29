@@ -96,7 +96,7 @@ impl AllocInfo {
             + galley
                 .rows
                 .iter()
-                .map(|row| Self::from_mesh(&row.mesh) + Self::from_slice(&row.glyphs))
+                .map(|row| Self::from_mesh(&row.visuals.mesh) + Self::from_slice(&row.glyphs))
                 .sum()
     }
 

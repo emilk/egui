@@ -42,12 +42,7 @@ impl Default for LayoutJob2 {
 }
 
 impl LayoutJob2 {
-    pub fn simple_multiline(
-        text: String,
-        text_style: TextStyle,
-        color: Color32,
-        wrap_width: f32,
-    ) -> Self {
+    pub fn simple(text: String, text_style: TextStyle, color: Color32, wrap_width: f32) -> Self {
         Self {
             sections: vec![LayoutSection {
                 leading_space: 0.0,
@@ -61,6 +56,7 @@ impl LayoutJob2 {
         }
     }
 
+    /// Does not break on `\n`, but shows the replacement character instead.
     pub fn simple_singleline(text: String, text_style: TextStyle, color: Color32) -> Self {
         Self {
             sections: vec![LayoutSection {
@@ -216,6 +212,19 @@ pub struct Row2 {
     /// Includes leading and trailing whitespace.
     pub rect: Rect,
 
+    pub visuals: Row2Visuals,
+
+    /// If true, this `Row` came from a paragraph ending with a `\n`.
+    /// The `\n` itself is omitted from [`Self::glyphs`].
+    /// A `\n` in the input text always creates a new `Row` below it,
+    /// so that text that ends with `\n` has an empty `Row` last.
+    /// This also implies that the last `Row` in a `Galley` always has `ends_with_newline == false`.
+    pub ends_with_newline: bool,
+}
+
+/// The tessellated output of a row.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Row2Visuals {
     /// The tessellated text, using non-normalized (texel) UV coordinates.
     /// That is, you need to divide the uv coordinates by the texture size.
     pub mesh: Mesh,
@@ -224,12 +233,19 @@ pub struct Row2 {
     /// Does NOT include leading or trailing whitespace glyphs!!
     pub mesh_bounds: Rect,
 
-    /// If true, this `Row` came from a paragraph ending with a `\n`.
-    /// The `\n` itself is omitted from [`Self::glyphs`].
-    /// A `\n` in the input text always creates a new `Row` below it,
-    /// so that text that ends with `\n` has an empty `Row` last.
-    /// This also implies that the last `Row` in a `Galley` always has `ends_with_newline == false`.
-    pub ends_with_newline: bool,
+    /// The range of vertices in the mesh the contain glyphs.
+    /// Before comes backgrounds (if any), and after any underlines and strikethrough.
+    pub glyph_vertex_range: Range<usize>,
+}
+
+impl Default for Row2Visuals {
+    fn default() -> Self {
+        Self {
+            mesh: Default::default(),
+            mesh_bounds: Rect::NOTHING,
+            glyph_vertex_range: 0..0,
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]

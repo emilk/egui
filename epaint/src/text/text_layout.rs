@@ -1,7 +1,7 @@
 use std::ops::RangeInclusive;
 use std::sync::Arc;
 
-use super::{Fonts, Galley2, Glyph, LayoutJob2, LayoutSection, Row2};
+use super::{Fonts, Galley2, Glyph, LayoutJob2, LayoutSection, Row2, Row2Visuals};
 use crate::{Color32, Mesh, Stroke, Vertex};
 use emath::*;
 
@@ -91,8 +91,7 @@ fn rows_from_paragraphs(paragraphs: Vec<Paragraph>, wrap_width: f32) -> Vec<Row2
         if paragraph.glyphs.is_empty() {
             rows.push(Row2 {
                 glyphs: vec![],
-                mesh: Default::default(),
-                mesh_bounds: Rect::NAN,
+                visuals: Default::default(),
                 rect: Rect::from_min_size(
                     pos2(paragraph.cursor_x, 0.0),
                     vec2(0.0, paragraph.empty_paragraph_height),
@@ -106,8 +105,7 @@ fn rows_from_paragraphs(paragraphs: Vec<Paragraph>, wrap_width: f32) -> Vec<Row2
                 let paragraph_min_x = paragraph.glyphs[0].pos.x;
                 rows.push(Row2 {
                     glyphs: paragraph.glyphs,
-                    mesh: Default::default(),
-                    mesh_bounds: Rect::NAN,
+                    visuals: Default::default(),
                     rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
                     ends_with_newline: !is_last_paragraph,
                 });
@@ -137,8 +135,7 @@ fn line_break(paragraph: Paragraph, wrap_width: f32, out_rows: &mut Vec<Row2>) {
                 assert_eq!(row_start_idx, 0);
                 out_rows.push(Row2 {
                     glyphs: vec![],
-                    mesh: Default::default(),
-                    mesh_bounds: Rect::NAN,
+                    visuals: Default::default(),
                     rect: rect_from_x_range(first_row_indentation..=first_row_indentation),
                     ends_with_newline: false,
                 });
@@ -158,8 +155,7 @@ fn line_break(paragraph: Paragraph, wrap_width: f32, out_rows: &mut Vec<Row2>) {
 
                 out_rows.push(Row2 {
                     glyphs,
-                    mesh: Default::default(),
-                    mesh_bounds: Rect::NAN,
+                    visuals: Default::default(),
                     rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
                     ends_with_newline: false,
                 });
@@ -190,8 +186,7 @@ fn line_break(paragraph: Paragraph, wrap_width: f32, out_rows: &mut Vec<Row2>) {
 
         out_rows.push(Row2 {
             glyphs,
-            mesh: Default::default(),
-            mesh_bounds: Rect::NAN,
+            visuals: Default::default(),
             rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
             ends_with_newline: false,
         });
@@ -231,8 +226,7 @@ fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob2>, mut rows: Vec<Row2>) ->
     }
 
     for row in &mut rows {
-        row.mesh = tesselate_row(fonts, &job, row);
-        row.mesh_bounds = row.mesh.calc_bounds();
+        row.visuals = tesselate_row(fonts, &job, row);
     }
 
     let size = vec2(max_x, cursor_y);
@@ -240,72 +234,34 @@ fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob2>, mut rows: Vec<Row2>) ->
     Galley2 { job, rows, size }
 }
 
-fn tesselate_row(fonts: &Fonts, job: &LayoutJob2, row: &Row2) -> Mesh {
-    let mut mesh = Mesh::default();
-
+fn tesselate_row(fonts: &Fonts, job: &LayoutJob2, row: &mut Row2) -> Row2Visuals {
     if row.glyphs.is_empty() {
-        return mesh;
+        return Default::default();
     }
 
-    mesh.reserve_triangles(row.glyphs.len() * 2);
-    mesh.reserve_vertices(row.glyphs.len() * 4);
-
-    add_row_backgrounds(job, row, &mut mesh);
-
+    let mut any_background = false;
     let mut any_underline = false;
     let mut any_strikethrough = false;
 
     for glyph in &row.glyphs {
-        let uv_rect = glyph.uv_rect;
-        if !uv_rect.is_nothing() {
-            let mut left_top = glyph.pos + uv_rect.offset;
-            left_top.x = fonts.round_to_pixel(left_top.x); // Pixel-perfection.
-            left_top.y = fonts.round_to_pixel(left_top.y); // Pixel-perfection.
-
-            let rect = Rect::from_min_max(left_top, left_top + uv_rect.size);
-            let uv = Rect::from_min_max(
-                pos2(uv_rect.min[0] as f32, uv_rect.min[1] as f32),
-                pos2(uv_rect.max[0] as f32, uv_rect.max[1] as f32),
-            );
-
-            let format = &job.sections[glyph.section_index as usize].format;
-            any_underline |= format.underline != Stroke::none();
-            any_strikethrough |= format.strikethrough != Stroke::none();
-
-            let color = format.color;
-
-            if format.italics {
-                let idx = mesh.vertices.len() as u32;
-                mesh.add_triangle(idx, idx + 1, idx + 2);
-                mesh.add_triangle(idx + 2, idx + 1, idx + 3);
-
-                let top_offset = rect.height() * 0.25 * Vec2::X;
-
-                mesh.vertices.push(Vertex {
-                    pos: rect.left_top() + top_offset,
-                    uv: uv.left_top(),
-                    color,
-                });
-                mesh.vertices.push(Vertex {
-                    pos: rect.right_top() + top_offset,
-                    uv: uv.right_top(),
-                    color,
-                });
-                mesh.vertices.push(Vertex {
-                    pos: rect.left_bottom(),
-                    uv: uv.left_bottom(),
-                    color,
-                });
-                mesh.vertices.push(Vertex {
-                    pos: rect.right_bottom(),
-                    uv: uv.right_bottom(),
-                    color,
-                });
-            } else {
-                mesh.add_rect_with_uv(rect, uv, color);
-            }
-        }
+        let format = &job.sections[glyph.section_index as usize].format;
+        any_background |= format.background != Color32::TRANSPARENT;
+        any_underline |= format.underline != Stroke::none();
+        any_strikethrough |= format.strikethrough != Stroke::none();
     }
+
+    let mut mesh = Mesh::default();
+
+    mesh.reserve_triangles(row.glyphs.len() * 2);
+    mesh.reserve_vertices(row.glyphs.len() * 4);
+
+    if any_background {
+        add_row_backgrounds(job, row, &mut mesh);
+    }
+
+    let glyph_vertex_start = mesh.vertices.len();
+    tessellate_glyphs(fonts, job, row, &mut mesh);
+    let glyph_vertex_end = mesh.vertices.len();
 
     if any_underline {
         add_row_hline(fonts, row, &mut mesh, |glyph| {
@@ -325,7 +281,13 @@ fn tesselate_row(fonts: &Fonts, job: &LayoutJob2, row: &Row2) -> Mesh {
         });
     }
 
-    mesh
+    let mesh_bounds = mesh.calc_bounds();
+
+    Row2Visuals {
+        mesh,
+        mesh_bounds,
+        glyph_vertex_range: glyph_vertex_start..glyph_vertex_end,
+    }
 }
 
 fn add_row_backgrounds(job: &LayoutJob2, row: &Row2, mesh: &mut Mesh) {
@@ -374,6 +336,58 @@ fn add_row_backgrounds(job: &LayoutJob2, row: &Row2, mesh: &mut Mesh) {
     }
 
     end_run(run_start.take(), last_rect.right());
+}
+
+fn tessellate_glyphs(fonts: &Fonts, job: &LayoutJob2, row: &Row2, mesh: &mut Mesh) {
+    for glyph in &row.glyphs {
+        let uv_rect = glyph.uv_rect;
+        if !uv_rect.is_nothing() {
+            let mut left_top = glyph.pos + uv_rect.offset;
+            left_top.x = fonts.round_to_pixel(left_top.x); // Pixel-perfection.
+            left_top.y = fonts.round_to_pixel(left_top.y); // Pixel-perfection.
+
+            let rect = Rect::from_min_max(left_top, left_top + uv_rect.size);
+            let uv = Rect::from_min_max(
+                pos2(uv_rect.min[0] as f32, uv_rect.min[1] as f32),
+                pos2(uv_rect.max[0] as f32, uv_rect.max[1] as f32),
+            );
+
+            let format = &job.sections[glyph.section_index as usize].format;
+
+            let color = format.color;
+
+            if format.italics {
+                let idx = mesh.vertices.len() as u32;
+                mesh.add_triangle(idx, idx + 1, idx + 2);
+                mesh.add_triangle(idx + 2, idx + 1, idx + 3);
+
+                let top_offset = rect.height() * 0.25 * Vec2::X;
+
+                mesh.vertices.push(Vertex {
+                    pos: rect.left_top() + top_offset,
+                    uv: uv.left_top(),
+                    color,
+                });
+                mesh.vertices.push(Vertex {
+                    pos: rect.right_top() + top_offset,
+                    uv: uv.right_top(),
+                    color,
+                });
+                mesh.vertices.push(Vertex {
+                    pos: rect.left_bottom(),
+                    uv: uv.left_bottom(),
+                    color,
+                });
+                mesh.vertices.push(Vertex {
+                    pos: rect.right_bottom(),
+                    uv: uv.right_bottom(),
+                    color,
+                });
+            } else {
+                mesh.add_rect_with_uv(rect, uv, color);
+            }
+        }
+    }
 }
 
 fn add_row_hline(

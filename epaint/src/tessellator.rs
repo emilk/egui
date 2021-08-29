@@ -636,7 +636,11 @@ impl Tessellator {
                 }
                 self.tessellate_text(tex_size, pos, &galley, color, fake_italics, out);
             }
-            Shape::Text2 { pos, galley } => {
+            Shape::Text2 {
+                pos,
+                galley,
+                override_text_color,
+            } => {
                 if options.debug_paint_text_rects {
                     self.tessellate_rect(
                         &PaintRect {
@@ -648,7 +652,7 @@ impl Tessellator {
                         out,
                     );
                 }
-                self.tessellate_text2(tex_size, pos, &galley, out);
+                self.tessellate_text2(tex_size, pos, &galley, override_text_color, out);
             }
         }
     }
@@ -789,6 +793,7 @@ impl Tessellator {
         tex_size: [usize; 2],
         galley_pos: Pos2,
         galley: &super::Galley2,
+        override_text_color: Option<Color32>,
         out: &mut Mesh,
     ) {
         if galley.is_empty() {
@@ -805,14 +810,14 @@ impl Tessellator {
         let uv_normalizer = vec2(1.0 / tex_size[0] as f32, 1.0 / tex_size[1] as f32);
 
         for row in &galley.rows {
-            if row.mesh.is_empty() {
+            if row.visuals.mesh.is_empty() {
                 continue;
             }
 
             if self.options.coarse_tessellation_culling
                 && !self
                     .clip_rect
-                    .intersects(row.mesh_bounds.translate(galley_pos.to_vec2()))
+                    .intersects(row.visuals.mesh_bounds.translate(galley_pos.to_vec2()))
             {
                 // culling individual lines of text is important, since a single `Shape::Text`
                 // can span hundreds of lines.
@@ -820,14 +825,22 @@ impl Tessellator {
             }
 
             let index_offset = out.vertices.len() as u32;
-            for index in &row.mesh.indices {
+            for index in &row.visuals.mesh.indices {
                 out.indices.push(index_offset + index);
             }
-            for vertex in &row.mesh.vertices {
+            for (i, vertex) in row.visuals.mesh.vertices.iter().enumerate() {
+                let mut color = vertex.color;
+
+                if let Some(override_text_color) = override_text_color {
+                    if row.visuals.glyph_vertex_range.contains(&i) {
+                        color = override_text_color;
+                    }
+                }
+
                 out.vertices.push(Vertex {
                     pos: galley_pos + vertex.pos.to_vec2(),
                     uv: (vertex.uv.to_vec2() * uv_normalizer).to_pos2(),
-                    color: vertex.color,
+                    color,
                 });
             }
         }

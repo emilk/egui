@@ -387,7 +387,32 @@ impl Painter {
     #[inline(always)]
     pub fn galley2(&self, pos: Pos2, galley: std::sync::Arc<Galley2>) {
         if !galley.is_empty() {
-            self.add(Shape::Text2 { pos, galley });
+            self.add(Shape::Text2 {
+                pos,
+                galley,
+                override_text_color: None,
+            });
+        }
+    }
+
+    /// Paint text that has already been layed out in a [`Galley2`].
+    ///
+    /// You can create the `Galley` with [`Self::layout_text`].
+    ///
+    /// The text color in the [`Galley2`] will be replaced with the given color.
+    #[inline(always)]
+    pub fn galley2_with_color(
+        &self,
+        pos: Pos2,
+        galley: std::sync::Arc<Galley2>,
+        text_color: Color32,
+    ) {
+        if !galley.is_empty() {
+            self.add(Shape::Text2 {
+                pos,
+                galley,
+                override_text_color: Some(text_color),
+            });
         }
     }
 
