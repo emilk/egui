@@ -755,7 +755,7 @@ fn paint_frame_interaction(
 struct TitleBar {
     id: Id,
     title_label: Label,
-    title_galley: std::sync::Arc<Galley2>,
+    title_galley: std::sync::Arc<Galley>,
     min_rect: Rect,
     rect: Rect,
 }

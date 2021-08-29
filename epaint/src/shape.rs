@@ -1,5 +1,5 @@
 use crate::{
-    text::{Fonts, Galley2, TextStyle},
+    text::{Fonts, Galley, TextStyle},
     Color32, Mesh, Stroke,
 };
 use emath::*;
@@ -45,7 +45,7 @@ pub enum Shape {
         pos: Pos2,
 
         /// The layed out text.
-        galley: std::sync::Arc<Galley2>,
+        galley: std::sync::Arc<Galley>,
 
         /// Add this underline to the whole text.
         /// You can also set an underline when creating the galley.
@@ -177,10 +177,10 @@ impl Shape {
     ) -> Self {
         let galley = fonts.layout2_nowrap(text.to_string(), text_style, color);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
-        Self::galley2(rect.min, galley)
+        Self::galley(rect.min, galley)
     }
 
-    pub fn galley2(pos: Pos2, galley: std::sync::Arc<Galley2>) -> Self {
+    pub fn galley(pos: Pos2, galley: std::sync::Arc<Galley>) -> Self {
         Self::Text2 {
             pos,
             galley,

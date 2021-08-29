@@ -673,7 +673,7 @@ impl Tessellator {
         &mut self,
         tex_size: [usize; 2],
         galley_pos: Pos2,
-        galley: &super::Galley2,
+        galley: &super::Galley,
         underline: Stroke,
         override_text_color: Option<Color32>,
         out: &mut Mesh,

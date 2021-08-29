@@ -145,7 +145,7 @@ impl LegendEntry {
         };
 
         let text_position = pos2(text_position_x, rect.center().y - 0.5 * galley.size.y);
-        painter.galley2_with_color(text_position, galley, visuals.text_color());
+        painter.galley_with_color(text_position, galley, visuals.text_color());
 
         *checked ^= response.clicked_by(PointerButton::Primary);
         *hovered = response.hovered();

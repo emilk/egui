@@ -183,7 +183,7 @@ fn combo_box<R>(
 
         let text_rect = Align2::LEFT_CENTER.align_size_within_rect(galley.size, rect);
         ui.painter()
-            .galley2_with_color(text_rect.min, galley, visuals.text_color());
+            .galley_with_color(text_rect.min, galley, visuals.text_color());
     });
 
     if button_response.clicked() {

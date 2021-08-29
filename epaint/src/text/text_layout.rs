@@ -1,7 +1,7 @@
 use std::ops::RangeInclusive;
 use std::sync::Arc;
 
-use super::{Fonts, Galley2, Glyph, LayoutJob2, LayoutSection, Row2, Row2Visuals};
+use super::{Fonts, Galley, Glyph, LayoutJob, LayoutSection, Row, Row2Visuals};
 use crate::{Color32, Mesh, Stroke, Vertex};
 use emath::*;
 
@@ -15,7 +15,7 @@ struct Paragraph {
     pub empty_paragraph_height: f32,
 }
 
-pub fn layout(fonts: &Fonts, job: Arc<LayoutJob2>) -> Galley2 {
+pub fn layout(fonts: &Fonts, job: Arc<LayoutJob>) -> Galley {
     let mut paragraphs = vec![Paragraph::default()];
     for (section_index, section) in job.sections.iter().enumerate() {
         layout_section(fonts, &job, section_index as u32, section, &mut paragraphs);
@@ -28,7 +28,7 @@ pub fn layout(fonts: &Fonts, job: Arc<LayoutJob2>) -> Galley2 {
 
 fn layout_section(
     fonts: &Fonts,
-    job: &LayoutJob2,
+    job: &LayoutJob,
     section_index: u32,
     section: &LayoutSection,
     out_paragraphs: &mut Vec<Paragraph>,
@@ -80,7 +80,7 @@ fn rect_from_x_range(x_range: RangeInclusive<f32>) -> Rect {
     Rect::from_x_y_ranges(x_range, 0.0..=0.0)
 }
 
-fn rows_from_paragraphs(paragraphs: Vec<Paragraph>, wrap_width: f32) -> Vec<Row2> {
+fn rows_from_paragraphs(paragraphs: Vec<Paragraph>, wrap_width: f32) -> Vec<Row> {
     let num_paragraphs = paragraphs.len();
 
     let mut rows = vec![];
@@ -89,7 +89,7 @@ fn rows_from_paragraphs(paragraphs: Vec<Paragraph>, wrap_width: f32) -> Vec<Row2
         let is_last_paragraph = (i + 1) == num_paragraphs;
 
         if paragraph.glyphs.is_empty() {
-            rows.push(Row2 {
+            rows.push(Row {
                 glyphs: vec![],
                 visuals: Default::default(),
                 rect: Rect::from_min_size(
@@ -103,7 +103,7 @@ fn rows_from_paragraphs(paragraphs: Vec<Paragraph>, wrap_width: f32) -> Vec<Row2
             if paragraph_max_x <= wrap_width {
                 // early-out optimization
                 let paragraph_min_x = paragraph.glyphs[0].pos.x;
-                rows.push(Row2 {
+                rows.push(Row {
                     glyphs: paragraph.glyphs,
                     visuals: Default::default(),
                     rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
@@ -118,7 +118,7 @@ fn rows_from_paragraphs(paragraphs: Vec<Paragraph>, wrap_width: f32) -> Vec<Row2
     rows
 }
 
-fn line_break(paragraph: Paragraph, wrap_width: f32, out_rows: &mut Vec<Row2>) {
+fn line_break(paragraph: Paragraph, wrap_width: f32, out_rows: &mut Vec<Row>) {
     // Keeps track of good places to insert row break if we exceed `wrap_width`.
     let mut row_break_candidates = RowBreakCandidates::default();
 
@@ -133,7 +133,7 @@ fn line_break(paragraph: Paragraph, wrap_width: f32, out_rows: &mut Vec<Row2>) {
             if first_row_indentation > 0.0 && !row_break_candidates.has_word_boundary() {
                 // Allow the first row to be completely empty, because we know there will be more space on the next row:
                 assert_eq!(row_start_idx, 0);
-                out_rows.push(Row2 {
+                out_rows.push(Row {
                     glyphs: vec![],
                     visuals: Default::default(),
                     rect: rect_from_x_range(first_row_indentation..=first_row_indentation),
@@ -153,7 +153,7 @@ fn line_break(paragraph: Paragraph, wrap_width: f32, out_rows: &mut Vec<Row2>) {
                 let paragraph_min_x = glyphs[0].pos.x;
                 let paragraph_max_x = glyphs.last().unwrap().visual_max_x();
 
-                out_rows.push(Row2 {
+                out_rows.push(Row {
                     glyphs,
                     visuals: Default::default(),
                     rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
@@ -184,7 +184,7 @@ fn line_break(paragraph: Paragraph, wrap_width: f32, out_rows: &mut Vec<Row2>) {
         let paragraph_min_x = glyphs[0].pos.x;
         let paragraph_max_x = glyphs.last().unwrap().visual_max_x();
 
-        out_rows.push(Row2 {
+        out_rows.push(Row {
             glyphs,
             visuals: Default::default(),
             rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
@@ -193,7 +193,7 @@ fn line_break(paragraph: Paragraph, wrap_width: f32, out_rows: &mut Vec<Row2>) {
     }
 }
 
-fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob2>, mut rows: Vec<Row2>) -> Galley2 {
+fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob>, mut rows: Vec<Row>) -> Galley {
     let mut first_row_min_height = job.first_row_min_height;
     let mut cursor_y = 0.0;
     let mut max_x: f32 = 0.0;
@@ -231,10 +231,10 @@ fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob2>, mut rows: Vec<Row2>) ->
 
     let size = vec2(max_x, cursor_y);
 
-    Galley2 { job, rows, size }
+    Galley { job, rows, size }
 }
 
-fn tesselate_row(fonts: &Fonts, job: &LayoutJob2, row: &mut Row2) -> Row2Visuals {
+fn tesselate_row(fonts: &Fonts, job: &LayoutJob, row: &mut Row) -> Row2Visuals {
     if row.glyphs.is_empty() {
         return Default::default();
     }
@@ -290,7 +290,7 @@ fn tesselate_row(fonts: &Fonts, job: &LayoutJob2, row: &mut Row2) -> Row2Visuals
     }
 }
 
-fn add_row_backgrounds(job: &LayoutJob2, row: &Row2, mesh: &mut Mesh) {
+fn add_row_backgrounds(job: &LayoutJob, row: &Row, mesh: &mut Mesh) {
     if row.glyphs.is_empty() {
         return;
     }
@@ -338,7 +338,7 @@ fn add_row_backgrounds(job: &LayoutJob2, row: &Row2, mesh: &mut Mesh) {
     end_run(run_start.take(), last_rect.right());
 }
 
-fn tessellate_glyphs(fonts: &Fonts, job: &LayoutJob2, row: &Row2, mesh: &mut Mesh) {
+fn tessellate_glyphs(fonts: &Fonts, job: &LayoutJob, row: &Row, mesh: &mut Mesh) {
     for glyph in &row.glyphs {
         let uv_rect = glyph.uv_rect;
         if !uv_rect.is_nothing() {
@@ -392,7 +392,7 @@ fn tessellate_glyphs(fonts: &Fonts, job: &LayoutJob2, row: &Row2, mesh: &mut Mes
 
 fn add_row_hline(
     fonts: &Fonts,
-    row: &Row2,
+    row: &Row,
     mesh: &mut Mesh,
     stroke_and_y: impl Fn(&Glyph) -> (Stroke, f32),
 ) {

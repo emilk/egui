@@ -96,8 +96,7 @@ impl Widget for SelectableLabel {
             .visuals
             .override_text_color
             .unwrap_or_else(|| visuals.text_color());
-        ui.painter()
-            .galley2_with_color(text_pos, galley, text_color);
+        ui.painter().galley_with_color(text_pos, galley, text_color);
         response
     }
 }

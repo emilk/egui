@@ -916,7 +916,7 @@ impl PlotItem for Text {
         let rect = self
             .anchor
             .anchor_rect(Rect::from_min_size(pos, galley.size));
-        shapes.push(Shape::galley2(rect.min, galley));
+        shapes.push(Shape::galley(rect.min, galley));
         if self.highlight {
             shapes.push(Shape::rect_stroke(
                 rect.expand(2.0),

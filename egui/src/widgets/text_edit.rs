@@ -1,6 +1,6 @@
 use crate::{output::OutputEvent, util::undoer::Undoer, *};
 use epaint::{
-    text::{cursor::*, LayoutJob2},
+    text::{cursor::*, LayoutJob},
     *,
 };
 use std::ops::Range;
@@ -485,9 +485,9 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
         let make_galley = |ui: &Ui, wrap_width: f32, text: &str| {
             let text = mask_if_password(text);
             ui.fonts().layout2(if multiline {
-                LayoutJob2::simple(text, text_style, text_color, wrap_width)
+                LayoutJob::simple(text, text_style, text_color, wrap_width)
             } else {
-                LayoutJob2::simple_singleline(text, text_style, text_color)
+                LayoutJob::simple_singleline(text, text_style, text_color)
             })
         };
 
@@ -799,15 +799,15 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             }
         }
 
-        painter.galley2(text_draw_pos, galley);
+        painter.galley(text_draw_pos, galley);
         if text.as_ref().is_empty() && !hint_text.is_empty() {
             let hint_text_color = ui.visuals().weak_text_color();
             let galley = ui.fonts().layout2(if multiline {
-                LayoutJob2::simple(hint_text, text_style, hint_text_color, desired_size.x)
+                LayoutJob::simple(hint_text, text_style, hint_text_color, desired_size.x)
             } else {
-                LayoutJob2::simple_singleline(hint_text, text_style, hint_text_color)
+                LayoutJob::simple_singleline(hint_text, text_style, hint_text_color)
             });
-            painter.galley2(response.rect.min, galley);
+            painter.galley(response.rect.min, galley);
         }
 
         ui.memory().id_data.insert(id, state);
@@ -857,7 +857,7 @@ fn paint_cursor_selection(
     ui: &mut Ui,
     painter: &Painter,
     pos: Pos2,
-    galley: &Galley2,
+    galley: &Galley,
     cursorp: &CursorPair,
 ) {
     let color = ui.visuals().selection.bg_fill;
@@ -893,7 +893,7 @@ fn paint_cursor_selection(
     }
 }
 
-fn paint_cursor_end(ui: &mut Ui, painter: &Painter, pos: Pos2, galley: &Galley2, cursor: &Cursor) {
+fn paint_cursor_end(ui: &mut Ui, painter: &Painter, pos: Pos2, galley: &Galley, cursor: &Cursor) {
     let stroke = ui.visuals().selection.stroke;
 
     let cursor_pos = galley.pos_from_cursor(cursor).translate(pos.to_vec2());
@@ -985,7 +985,7 @@ fn delete_next_word<S: TextBuffer>(text: &mut S, min_ccursor: CCursor) -> CCurso
 
 fn delete_paragraph_before_cursor<S: TextBuffer>(
     text: &mut S,
-    galley: &Galley2,
+    galley: &Galley,
     cursorp: &CursorPair,
 ) -> CCursor {
     let [min, max] = cursorp.sorted();
@@ -1003,7 +1003,7 @@ fn delete_paragraph_before_cursor<S: TextBuffer>(
 
 fn delete_paragraph_after_cursor<S: TextBuffer>(
     text: &mut S,
-    galley: &Galley2,
+    galley: &Galley,
     cursorp: &CursorPair,
 ) -> CCursor {
     let [min, max] = cursorp.sorted();
@@ -1025,7 +1025,7 @@ fn delete_paragraph_after_cursor<S: TextBuffer>(
 fn on_key_press<S: TextBuffer>(
     cursorp: &mut CursorPair,
     text: &mut S,
-    galley: &Galley2,
+    galley: &Galley,
     key: Key,
     modifiers: &Modifiers,
 ) -> Option<CCursorPair> {
@@ -1102,7 +1102,7 @@ fn on_key_press<S: TextBuffer>(
     }
 }
 
-fn move_single_cursor(cursor: &mut Cursor, galley: &Galley2, key: Key, modifiers: &Modifiers) {
+fn move_single_cursor(cursor: &mut Cursor, galley: &Galley, key: Key, modifiers: &Modifiers) {
     match key {
         Key::ArrowLeft => {
             if modifiers.alt || modifiers.ctrl {

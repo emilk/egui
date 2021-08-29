@@ -6,7 +6,7 @@ use crate::{Color32, Mesh, Stroke, TextStyle};
 use emath::*;
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct LayoutJob2 {
+pub struct LayoutJob {
     pub text: String, // TODO: Cow<'static, str>
     pub sections: Vec<LayoutSection>,
 
@@ -29,7 +29,7 @@ pub struct LayoutJob2 {
     // TODO: option to show whitespace
 }
 
-impl Default for LayoutJob2 {
+impl Default for LayoutJob {
     fn default() -> Self {
         Self {
             text: Default::default(),
@@ -41,7 +41,7 @@ impl Default for LayoutJob2 {
     }
 }
 
-impl LayoutJob2 {
+impl LayoutJob {
     pub fn simple(text: String, text_style: TextStyle, color: Color32, wrap_width: f32) -> Self {
         Self {
             sections: vec![LayoutSection {
@@ -87,9 +87,9 @@ impl LayoutJob2 {
     }
 }
 
-impl std::cmp::Eq for LayoutJob2 {} // TODO: this could be dangerous for +0 vs -0
+impl std::cmp::Eq for LayoutJob {} // TODO: this could be dangerous for +0 vs -0
 
-impl std::hash::Hash for LayoutJob2 {
+impl std::hash::Hash for LayoutJob {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         let Self {
             text,
@@ -175,23 +175,23 @@ impl TextFormat {
 // ----------------------------------------------------------------------------
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Galley2 {
+pub struct Galley {
     /// The job that this galley is the result of.
     /// Contains the original string and style sections.
-    pub job: Arc<LayoutJob2>,
+    pub job: Arc<LayoutJob>,
 
     /// Rows of text, from top to bottom.
     /// The number of chars in all rows sum up to text.chars().count().
     /// Note that each paragraph (pieces of text separated with `\n`)
     /// can be split up into multiple rows.
-    pub rows: Vec<Row2>,
+    pub rows: Vec<Row>,
 
     /// Bounding size (min is always `[0,0]`)
     pub size: Vec2,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Row2 {
+pub struct Row {
     // Per-row, so we later can do per-row culling.
     // PROBLEM: we need to know texture size.
     // or we still do the UV normalization in `tesselator.rs`.
@@ -277,7 +277,7 @@ impl Glyph {
 
 // ----------------------------------------------------------------------------
 
-impl Row2 {
+impl Row {
     /// Excludes the implicit `\n` after the `Row`, if any.
     #[inline]
     pub fn char_count_excluding_newline(&self) -> usize {
@@ -325,7 +325,7 @@ impl Row2 {
     }
 }
 
-impl Galley2 {
+impl Galley {
     #[inline(always)]
     pub fn is_empty(&self) -> bool {
         self.job.is_empty()
@@ -339,7 +339,7 @@ impl Galley2 {
 // ----------------------------------------------------------------------------
 
 /// ## Physical positions
-impl Galley2 {
+impl Galley {
     /// Zero-width rect past the last character.
     fn end_pos(&self) -> Rect {
         if let Some(row) = self.rows.last() {
@@ -439,7 +439,7 @@ impl Galley2 {
 }
 
 /// ## Cursor positions
-impl Galley2 {
+impl Galley {
     /// Cursor to one-past last character.
     pub fn end(&self) -> Cursor {
         if self.rows.is_empty() {
@@ -485,7 +485,7 @@ impl Galley2 {
 }
 
 /// ## Cursor conversions
-impl Galley2 {
+impl Galley {
     // The returned cursor is clamped.
     pub fn from_ccursor(&self, ccursor: CCursor) -> Cursor {
         let prefer_next_row = ccursor.prefer_next_row;
@@ -645,7 +645,7 @@ impl Galley2 {
 }
 
 /// ## Cursor positions
-impl Galley2 {
+impl Galley {
     pub fn cursor_left_one_character(&self, cursor: &Cursor) -> Cursor {
         if cursor.ccursor.index == 0 {
             Default::default()

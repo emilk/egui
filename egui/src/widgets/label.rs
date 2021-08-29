@@ -1,7 +1,7 @@
 use crate::*;
 use epaint::{
-    text::{LayoutJob2, LayoutSection, TextFormat},
-    Galley2,
+    text::{LayoutJob, LayoutSection, TextFormat},
+    Galley,
 };
 use std::sync::Arc;
 
@@ -163,14 +163,14 @@ impl Label {
 }
 
 impl Label {
-    pub fn layout(&self, ui: &Ui) -> Arc<Galley2> {
+    pub fn layout(&self, ui: &Ui) -> Arc<Galley> {
         let max_width = ui.available_width();
         let line_color = self.get_text_color(ui, ui.visuals().text_color());
         self.layout_width(ui, max_width, line_color)
     }
 
     /// line_color: used for underline and strikethrough, if any.
-    pub fn layout_width(&self, ui: &Ui, max_width: f32, line_color: Color32) -> Arc<Galley2> {
+    pub fn layout_width(&self, ui: &Ui, max_width: f32, line_color: Color32) -> Arc<Galley> {
         self.layout_impl(ui, 0.0, max_width, 0.0, line_color)
     }
 
@@ -181,7 +181,7 @@ impl Label {
         max_width: f32,
         first_row_min_height: f32,
         line_color: Color32,
-    ) -> Arc<Galley2> {
+    ) -> Arc<Galley> {
         let text_style = self.text_style_or_default(ui.style());
         let wrap_width = if self.should_wrap(ui) {
             max_width
@@ -204,7 +204,7 @@ impl Label {
             Stroke::none()
         };
 
-        let mut job = LayoutJob2::default();
+        let mut job = LayoutJob::default();
         job.text = self.text.clone(); // TODO: avoid clone
         job.wrap_width = wrap_width;
         job.first_row_min_height = first_row_min_height;
@@ -231,7 +231,7 @@ impl Label {
         &self,
         ui: &mut Ui,
         pos: Pos2,
-        galley: Arc<Galley2>,
+        galley: Arc<Galley>,
         has_focus: bool,
         response_color: Color32,
     ) {

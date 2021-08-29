@@ -10,7 +10,7 @@ use crate::{
     mutex::Mutex,
     text::{
         font::{Font, FontImpl},
-        Galley2, LayoutJob2,
+        Galley, LayoutJob,
     },
     Texture, TextureAtlas,
 };
@@ -316,7 +316,7 @@ impl Fonts {
     }
 
     /// Memoizes identical jobs for as long they are used every frame.
-    pub fn layout2(&self, job: impl Into<Arc<LayoutJob2>>) -> Arc<Galley2> {
+    pub fn layout2(&self, job: impl Into<Arc<LayoutJob>>) -> Arc<Galley> {
         self.galley_cache2.lock().layout(self, job.into())
     }
 
@@ -327,8 +327,8 @@ impl Fonts {
         text_style: TextStyle,
         color: crate::Color32,
         wrap_width: f32,
-    ) -> Arc<Galley2> {
-        let job = LayoutJob2::simple(text, text_style, color, wrap_width);
+    ) -> Arc<Galley> {
+        let job = LayoutJob::simple(text, text_style, color, wrap_width);
         Self::layout2(&self, job)
     }
 
@@ -338,8 +338,8 @@ impl Fonts {
         text: String,
         text_style: TextStyle,
         color: crate::Color32,
-    ) -> Arc<Galley2> {
-        let job = LayoutJob2::simple(text, text_style, color, f32::INFINITY);
+    ) -> Arc<Galley> {
+        let job = LayoutJob::simple(text, text_style, color, f32::INFINITY);
         Self::layout2(&self, job)
     }
 
@@ -349,8 +349,8 @@ impl Fonts {
         text: String,
         text_style: TextStyle,
         wrap_width: f32,
-    ) -> Arc<Galley2> {
-        self.layout2(LayoutJob2::simple(
+    ) -> Arc<Galley> {
+        self.layout2(LayoutJob::simple(
             text,
             text_style,
             crate::Color32::TEMPORARY_COLOR,
@@ -382,18 +382,18 @@ impl std::ops::Index<TextStyle> for Fonts {
 struct CachedGalley2 {
     /// When it was last used
     last_used: u32,
-    galley: Arc<Galley2>,
+    galley: Arc<Galley>,
 }
 
 #[derive(Default)]
 struct GalleyCache2 {
     /// Frame counter used to do garbage collection on the cache
     generation: u32,
-    cache: AHashMap<Arc<LayoutJob2>, CachedGalley2>,
+    cache: AHashMap<Arc<LayoutJob>, CachedGalley2>,
 }
 
 impl GalleyCache2 {
-    fn layout(&mut self, fonts: &Fonts, job: Arc<LayoutJob2>) -> Arc<Galley2> {
+    fn layout(&mut self, fonts: &Fonts, job: Arc<LayoutJob>) -> Arc<Galley> {
         if let Some(cached) = self.cache.get_mut(&job) {
             cached.last_used = self.generation;
             cached.galley.clone()

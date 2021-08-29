@@ -75,9 +75,9 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         );
         c.bench_function("text_layout_uncached", |b| {
             b.iter(|| {
-                use egui::epaint::text::{layout, LayoutJob2};
+                use egui::epaint::text::{layout, LayoutJob};
 
-                let job = LayoutJob2::simple(
+                let job = LayoutJob::simple(
                     LOREM_IPSUM_LONG.to_owned(),
                     egui::TextStyle::Body,
                     color,

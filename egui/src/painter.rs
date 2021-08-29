@@ -5,7 +5,7 @@ use crate::{
 };
 use epaint::{
     mutex::Mutex,
-    text::{Fonts, Galley2, TextStyle},
+    text::{Fonts, Galley, TextStyle},
     Shape, Stroke,
 };
 
@@ -229,7 +229,7 @@ impl Painter {
             // stroke: Stroke::new(1.0, color),
             stroke: Default::default(),
         });
-        self.galley2(rect.min, galley);
+        self.galley(rect.min, galley);
         frame_rect
     }
 }
@@ -343,13 +343,13 @@ impl Painter {
     ) -> Rect {
         let galley = self.layout2_nowrap(text.to_string(), text_style, text_color);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
-        self.galley2(rect.min, galley);
+        self.galley(rect.min, galley);
         rect
     }
 
     /// Will wrap text at the given width and line break at `\n`.
     ///
-    /// Paint the results with [`Self::galley2`].
+    /// Paint the results with [`Self::galley`].
     #[inline(always)]
     pub fn layout2_simple(
         &self,
@@ -357,45 +357,45 @@ impl Painter {
         text_style: TextStyle,
         color: crate::Color32,
         wrap_width: f32,
-    ) -> std::sync::Arc<Galley2> {
+    ) -> std::sync::Arc<Galley> {
         self.fonts()
             .layout2_simple(text, text_style, color, wrap_width)
     }
 
     /// Will line break at `\n`.
     ///
-    /// Paint the results with [`Self::galley2`].
+    /// Paint the results with [`Self::galley`].
     #[inline(always)]
     pub fn layout2_nowrap(
         &self,
         text: String,
         text_style: TextStyle,
         color: crate::Color32,
-    ) -> std::sync::Arc<Galley2> {
+    ) -> std::sync::Arc<Galley> {
         self.fonts()
             .layout2_simple(text, text_style, color, f32::INFINITY)
     }
 
-    /// Paint text that has already been layed out in a [`Galley2`].
+    /// Paint text that has already been layed out in a [`Galley`].
     ///
     /// You can create the `Galley` with [`Self::layout_text`].
     #[inline(always)]
-    pub fn galley2(&self, pos: Pos2, galley: std::sync::Arc<Galley2>) {
+    pub fn galley(&self, pos: Pos2, galley: std::sync::Arc<Galley>) {
         if !galley.is_empty() {
-            self.add(Shape::galley2(pos, galley));
+            self.add(Shape::galley(pos, galley));
         }
     }
 
-    /// Paint text that has already been layed out in a [`Galley2`].
+    /// Paint text that has already been layed out in a [`Galley`].
     ///
     /// You can create the `Galley` with [`Self::layout_text`].
     ///
-    /// The text color in the [`Galley2`] will be replaced with the given color.
+    /// The text color in the [`Galley`] will be replaced with the given color.
     #[inline(always)]
-    pub fn galley2_with_color(
+    pub fn galley_with_color(
         &self,
         pos: Pos2,
-        galley: std::sync::Arc<Galley2>,
+        galley: std::sync::Arc<Galley>,
         text_color: Color32,
     ) {
         if !galley.is_empty() {

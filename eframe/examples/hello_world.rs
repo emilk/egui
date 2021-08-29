@@ -37,7 +37,7 @@ impl epi::App for MyApp {
 
             ui.separator();
 
-            test_galley2(ui);
+            test_galley(ui);
         });
 
         // Resize the native window to be just the size we need it to be:
@@ -50,11 +50,11 @@ fn main() {
     eframe::run_native(Box::new(MyApp::default()), options);
 }
 
-fn test_galley2(ui: &mut egui::Ui) {
-    use egui::epaint::text::{layout, LayoutJob2, TextFormat};
+fn test_galley(ui: &mut egui::Ui) {
+    use egui::epaint::text::{layout, LayoutJob, TextFormat};
     use egui::{Color32, Stroke, TextStyle};
 
-    let mut job = LayoutJob2::default();
+    let mut job = LayoutJob::default();
 
     job.append(
         "Hello ".into(),
@@ -143,5 +143,5 @@ fn test_galley2(ui: &mut egui::Ui) {
     let galley = layout(ui.fonts(), job.into());
 
     let (response, painter) = ui.allocate_painter(galley.size, Sense::hover());
-    painter.add(Shape::galley2(response.rect.min, galley.into()));
+    painter.add(Shape::galley(response.rect.min, galley.into()));
 }
