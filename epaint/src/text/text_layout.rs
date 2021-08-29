@@ -1,46 +1,9 @@
-use std::ops::{Range, RangeInclusive};
+use std::ops::RangeInclusive;
 use std::sync::Arc;
 
-use super::{font::*, *};
+use super::{Fonts, Galley2, Glyph, LayoutJob, LayoutSection, Row2};
 use crate::{Color32, Mesh, Stroke, Vertex};
 use emath::*;
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct TextFormat {
-    pub style: TextStyle,
-    /// Text color
-    pub color: Color32,
-    pub background: Color32,
-    pub italics: bool,
-    pub underline: Stroke,
-    pub strikethrough: Stroke,
-    /// Align to top instead of bottom
-    pub raised: bool,
-    // TODO: lowered
-}
-
-impl Default for TextFormat {
-    fn default() -> Self {
-        Self {
-            style: TextStyle::Body,
-            color: Color32::GRAY,
-            background: Color32::TRANSPARENT,
-            italics: false,
-            underline: Stroke::none(),
-            strikethrough: Stroke::none(),
-            raised: false,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Section {
-    /// Can be used for first row indentation.
-    pub leading_space: f32,
-    /// Range into the galley text
-    pub byte_range: Range<usize>,
-    pub format: TextFormat,
-}
 
 /// Temporary storage before line-wrapping.
 #[derive(Default, Clone)]
@@ -49,140 +12,6 @@ struct Paragraph {
     pub cursor_x: f32,
     pub glyphs: Vec<Glyph>,
 }
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct Glyph {
-    pub chr: char,
-    /// The fonts row height.
-    pub font_row_height: f32,
-    /// Relative to the galley position.
-    /// Logical position: pos.y is the same for all chars of the same [`TextFormat`].
-    pub pos: Pos2,
-    /// Position of the glyph in the font texture.
-    pub uv_rect: UvRect,
-    /// Index into [`Galley::section`]. Decides color etc
-    pub section_index: u32,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Galley2 {
-    /// The job that this galley is the result of.
-    /// Contains the original string and style sections.
-    pub job: Arc<LayoutJob>,
-
-    /// Rows of text, from top to bottom.
-    /// The number of chars in all rows sum up to text.chars().count().
-    /// Note that each paragraph (pieces of text separated with `\n`)
-    /// can be split up into multiple rows.
-    pub rows: Vec<Row2>,
-
-    /// Bounding size (min is always `[0,0]`)
-    pub size: Vec2,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Row2 {
-    // Per-row, so we later can do per-row culling.
-    // PROBLEM: we need to know texture size.
-    // or we still do the UV normalization in `tesselator.rs`.
-    /// One for each `char`.
-    pub glyphs: Vec<Glyph>,
-
-    // /// The start of each character, probably starting at zero.
-    // /// The last element is the end of the last character.
-    // /// This is never empty.
-    // /// Unit: points.
-    // ///
-    // /// `x_offsets.len() + (ends_with_newline as usize) == text.chars().count() + 1`
-    // pub x_offsets: Vec<f32>,
-    //
-    /// Logical bounding rectangle based on font heights etc.
-    /// Can be slightly less or more than [`Self::mesh_bounds`].
-    pub logical_rect: Rect,
-
-    /// The tessellated text, using non-normalized (texel) UV coordinates.
-    /// That is, you need to divide the uv coordinates by the texture size.
-    pub mesh: Mesh,
-
-    /// Bounding rectangle of the mesh that can be used for culling.
-    pub mesh_bounds: Rect,
-
-    /// If true, this `Row` came from a paragraph ending with a `\n`.
-    /// The `\n` itself is omitted from [`Self::glyphs`].
-    /// A `\n` in the input text always creates a new `Row` below it,
-    /// so that text that ends with `\n` has an empty `Row` last.
-    /// This also implies that the last `Row` in a `Galley` always has `ends_with_newline == false`.
-    pub ends_with_newline: bool,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct LayoutJob {
-    pub text: String, // TODO: Cow<'static, str>
-    pub sections: Vec<Section>,
-
-    /// Try to break text so that no row is wider than this.
-    /// Set to [`f32::INFINITY`] to turn off wrapping.
-    /// Note that `\n` always produces a new line.
-    pub wrap_width: f32,
-
-    /// The first row must be at least this high.
-    /// This is in case we lay out text that is the continuation
-    /// of some earlier text (sharing the same row),
-    /// in which case this will be the height of the earlier text.
-    /// In other cases, set this to `0.0`.
-    pub first_row_min_height: f32,
-}
-
-impl Default for LayoutJob {
-    fn default() -> Self {
-        Self {
-            text: Default::default(),
-            sections: Default::default(),
-            wrap_width: f32::INFINITY,
-            first_row_min_height: 0.0,
-        }
-    }
-}
-
-impl LayoutJob {
-    pub fn is_empty(&self) -> bool {
-        self.sections.is_empty()
-    }
-    pub fn append(&mut self, text: &str, leading_space: f32, format: TextFormat) {
-        let start = self.text.len();
-        self.text += text;
-        let byte_range = start..self.text.len();
-        self.sections.push(Section {
-            leading_space,
-            byte_range,
-            format,
-        });
-    }
-}
-
-impl Glyph {
-    pub fn max_x(&self) -> f32 {
-        self.pos.x + self.uv_rect.size.x
-    }
-
-    /// Same y range for all characters with the same [`TextFormat`].
-    pub fn logical_rect(&self) -> Rect {
-        Rect::from_min_size(self.pos, vec2(self.uv_rect.size.x, self.font_row_height))
-    }
-}
-
-impl Galley2 {
-    #[inline(always)]
-    pub fn is_empty(&self) -> bool {
-        self.job.is_empty()
-    }
-
-    pub fn text(&self) -> &str {
-        &self.job.text
-    }
-}
-
-// ----------------------------------------------------------------------------
 
 pub fn layout(fonts: &Fonts, job: Arc<LayoutJob>) -> Galley2 {
     let mut paragraphs = vec![Paragraph::default()];
@@ -205,12 +34,12 @@ fn layout_section(
     fonts: &Fonts,
     text: &str,
     section_index: u32,
-    section: &Section,
+    section: &LayoutSection,
     out_paragraphs: &mut Vec<Paragraph>,
 ) {
     let mut paragraph = out_paragraphs.last_mut().unwrap();
 
-    let Section {
+    let LayoutSection {
         leading_space,
         byte_range,
         format,

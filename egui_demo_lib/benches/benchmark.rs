@@ -78,7 +78,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         });
         c.bench_function("text2_layout_uncached", |b| {
             b.iter(|| {
-                use egui::epaint::text::text_layout::{layout, LayoutJob, TextFormat};
+                use egui::epaint::text::{layout, LayoutJob, TextFormat};
                 use egui::{Color32, TextStyle};
 
                 let mut job = LayoutJob::default();
@@ -88,7 +88,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                     TextFormat {
                         style: TextStyle::Body,
                         color: Color32::WHITE,
-                        italics: false,
+                        ..Default::default()
                     },
                 );
                 job.wrap_width = wrap_width;
