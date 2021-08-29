@@ -11,7 +11,8 @@ pub struct TextFormat {
     pub color: Color32,
     pub italics: bool,
     pub underline: Stroke,
-    // TODO: background_color, strikethrough, raised, lowered, …
+    pub strikethrough: Stroke,
+    // TODO: background_color, raised, lowered
 }
 
 impl Default for TextFormat {
@@ -21,6 +22,7 @@ impl Default for TextFormat {
             color: Color32::GRAY,
             italics: false,
             underline: Stroke::none(),
+            strikethrough: Stroke::none(),
         }
     }
 }
@@ -402,6 +404,7 @@ fn tesselate_row(fonts: &Fonts, job: &LayoutJob, row: &Row2) -> Mesh {
     mesh.reserve_vertices(row.glyphs.len() * 4);
 
     let mut any_underline = false;
+    let mut any_strikethrough = false;
 
     for glyph in &row.glyphs {
         let uv_rect = glyph.uv_rect;
@@ -418,6 +421,7 @@ fn tesselate_row(fonts: &Fonts, job: &LayoutJob, row: &Row2) -> Mesh {
 
             let format = &job.sections[glyph.section_index as usize].format;
             any_underline |= format.underline != Stroke::none();
+            any_strikethrough |= format.strikethrough != Stroke::none();
 
             let color = format.color;
 
@@ -455,45 +459,66 @@ fn tesselate_row(fonts: &Fonts, job: &LayoutJob, row: &Row2) -> Mesh {
     }
 
     if any_underline {
-        let mut end_line = |start: Option<(Stroke, Pos2)>, stop: Pos2| {
-            if let Some((stroke, start)) = start {
-                add_hline(fonts, [start, stop], stroke, &mut mesh);
-            }
-        };
-
-        let mut line_start = None;
-        let mut last_y = f32::NAN;
-
-        for glyph in &row.glyphs {
+        add_row_hline(fonts, row, &mut mesh, |glyph| {
             let format = &job.sections[glyph.section_index as usize].format;
             let stroke = format.underline;
             let y = glyph.logical_rect().bottom();
+            (stroke, y)
+        });
+    }
 
-            if stroke == Stroke::none() {
-                end_line(line_start.take(), pos2(glyph.pos.x, y));
-            } else {
-                if let Some((exisitng_stroke, start)) = line_start {
-                    if exisitng_stroke == stroke && start.y == y {
-                        // continue the same line
-                    } else {
-                        end_line(line_start.take(), pos2(glyph.pos.x, y));
-                        line_start = Some((stroke, pos2(glyph.pos.x, y)));
-                    }
-                } else {
-                    line_start = Some((stroke, pos2(glyph.pos.x, y)));
-                }
-            }
-
-            last_y = y;
-        }
-
-        end_line(
-            line_start.take(),
-            pos2(row.glyphs.last().unwrap().logical_rect().right(), last_y),
-        );
+    if any_strikethrough {
+        add_row_hline(fonts, row, &mut mesh, |glyph| {
+            let format = &job.sections[glyph.section_index as usize].format;
+            let stroke = format.strikethrough;
+            let y = glyph.logical_rect().center().y;
+            (stroke, y)
+        });
     }
 
     mesh
+}
+
+fn add_row_hline(
+    fonts: &Fonts,
+    row: &Row2,
+    mesh: &mut Mesh,
+    stroke_and_y: impl Fn(&Glyph) -> (Stroke, f32),
+) {
+    let mut end_line = |start: Option<(Stroke, Pos2)>, stop: Pos2| {
+        if let Some((stroke, start)) = start {
+            add_hline(fonts, [start, stop], stroke, mesh);
+        }
+    };
+
+    let mut line_start = None;
+    let mut last_y = f32::NAN;
+
+    for glyph in &row.glyphs {
+        let (stroke, y) = stroke_and_y(glyph);
+
+        if stroke == Stroke::none() {
+            end_line(line_start.take(), pos2(glyph.pos.x, y));
+        } else {
+            if let Some((exisitng_stroke, start)) = line_start {
+                if exisitng_stroke == stroke && start.y == y {
+                    // continue the same line
+                } else {
+                    end_line(line_start.take(), pos2(glyph.pos.x, start.y));
+                    line_start = Some((stroke, pos2(glyph.pos.x, y)));
+                }
+            } else {
+                line_start = Some((stroke, pos2(glyph.pos.x, y)));
+            }
+        }
+
+        last_y = y;
+    }
+
+    end_line(
+        line_start.take(),
+        pos2(row.glyphs.last().unwrap().logical_rect().right(), last_y),
+    );
 }
 
 fn add_hline(fonts: &Fonts, [start, stop]: [Pos2; 2], stroke: Stroke, mesh: &mut Mesh) {
