@@ -39,6 +39,7 @@ where
 impl std::cmp::Eq for Stroke {} // TODO: this could be dangerous for +0 vs -0
 
 impl std::hash::Hash for Stroke {
+    #[inline(always)]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         ordered_float::OrderedFloat::from(self.width).hash(state);
         self.color.hash(state);

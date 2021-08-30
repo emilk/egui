@@ -83,7 +83,6 @@ impl LayoutJob {
         }
     }
 
-
     #[inline(always)]
     pub fn is_empty(&self) -> bool {
         self.sections.is_empty()
@@ -105,6 +104,7 @@ impl LayoutJob {
 impl std::cmp::Eq for LayoutJob {} // TODO: this could be dangerous for +0 vs -0
 
 impl std::hash::Hash for LayoutJob {
+    #[inline]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         let Self {
             text,
@@ -135,6 +135,7 @@ pub struct LayoutSection {
 impl std::cmp::Eq for LayoutSection {} // TODO: this could be dangerous for +0 vs -0
 
 impl std::hash::Hash for LayoutSection {
+    #[inline]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         let Self {
             leading_space,
@@ -353,6 +354,7 @@ impl Galley {
         self.job.is_empty()
     }
 
+    #[inline(always)]
     pub fn text(&self) -> &str {
         &self.job.text
     }
