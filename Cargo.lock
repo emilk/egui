@@ -885,7 +885,6 @@ dependencies = [
  "atomic_refcell",
  "cint",
  "emath",
- "ordered-float",
  "parking_lot",
  "serde",
 ]
@@ -1630,15 +1629,6 @@ name = "oorandom"
 version = "11.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ab1bc2a289d34bd04a330323ac98a1b4bc82c9d9fcb1e66b63caa84da26b575"
-
-[[package]]
-name = "ordered-float"
-version = "2.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "039f02eb0f69271f26abe3202189275d7aa2258b903cb0281b5de710a2570ff3"
-dependencies = [
- "num-traits",
-]
 
 [[package]]
 name = "osmesa-sys"

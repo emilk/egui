@@ -10,7 +10,7 @@ use emath::*;
 /// This supports mixing different fonts, color and formats (underline etc).
 ///
 /// Pass this to [`Fonts::layout_job]` or [`epaint::text::layout`].
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct LayoutJob {
     /// The complete text of this job, referenced by `LayoutSection`.
     pub text: String, // TODO: Cow<'static, str>
@@ -101,8 +101,6 @@ impl LayoutJob {
     }
 }
 
-impl std::cmp::Eq for LayoutJob {} // TODO: this could be dangerous for +0 vs -0
-
 impl std::hash::Hash for LayoutJob {
     #[inline]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -113,17 +111,31 @@ impl std::hash::Hash for LayoutJob {
             first_row_min_height,
             break_on_newline,
         } = self;
+
         text.hash(state);
         sections.hash(state);
-        ordered_float::OrderedFloat::from(*wrap_width).hash(state);
-        ordered_float::OrderedFloat::from(*first_row_min_height).hash(state);
+        crate::f32_hash(state, *wrap_width);
+        crate::f32_hash(state, *first_row_min_height);
         break_on_newline.hash(state);
     }
 }
 
+impl PartialEq for LayoutJob {
+    #[inline(always)]
+    fn eq(&self, other: &Self) -> bool {
+        self.text == other.text
+            && self.sections == other.sections
+            && crate::f32_eq(self.wrap_width, other.wrap_width)
+            && crate::f32_eq(self.first_row_min_height, other.first_row_min_height)
+            && self.break_on_newline == other.break_on_newline
+    }
+}
+
+impl std::cmp::Eq for LayoutJob {}
+
 // ----------------------------------------------------------------------------
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct LayoutSection {
     /// Can be used for first row indentation.
     pub leading_space: f32,
@@ -131,8 +143,6 @@ pub struct LayoutSection {
     pub byte_range: Range<usize>,
     pub format: TextFormat,
 }
-
-impl std::cmp::Eq for LayoutSection {} // TODO: this could be dangerous for +0 vs -0
 
 impl std::hash::Hash for LayoutSection {
     #[inline]
@@ -142,11 +152,22 @@ impl std::hash::Hash for LayoutSection {
             byte_range,
             format,
         } = self;
-        ordered_float::OrderedFloat::from(*leading_space).hash(state);
+        crate::f32_hash(state, *leading_space);
         byte_range.hash(state);
         format.hash(state);
     }
 }
+
+impl PartialEq for LayoutSection {
+    #[inline(always)]
+    fn eq(&self, other: &Self) -> bool {
+        crate::f32_eq(self.leading_space, other.leading_space)
+            && self.byte_range == other.byte_range
+            && self.format == other.format
+    }
+}
+
+impl std::cmp::Eq for LayoutSection {}
 
 // ----------------------------------------------------------------------------
 
