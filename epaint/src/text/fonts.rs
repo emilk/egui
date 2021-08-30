@@ -405,20 +405,21 @@ struct GalleyCache {
 
 impl GalleyCache {
     fn layout(&mut self, fonts: &Fonts, job: Arc<LayoutJob>) -> Arc<Galley> {
-        if let Some(cached) = self.cache.get_mut(&job) {
-            cached.last_used = self.generation;
-            cached.galley.clone()
-        } else {
-            let galley = super::layout(fonts, job.clone());
-            let galley = Arc::new(galley);
-            self.cache.insert(
-                job,
-                CachedGalley2 {
+        match self.cache.entry(job.clone()) {
+            std::collections::hash_map::Entry::Occupied(entry) => {
+                let cached = entry.into_mut();
+                cached.last_used = self.generation;
+                cached.galley.clone()
+            }
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                let galley = super::layout(fonts, job.clone());
+                let galley = Arc::new(galley);
+                entry.insert(CachedGalley2 {
                     last_used: self.generation,
                     galley: galley.clone(),
-                },
-            );
-            galley
+                });
+                galley
+            }
         }
     }
 
