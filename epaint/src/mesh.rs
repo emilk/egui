@@ -95,9 +95,8 @@ impl Mesh {
             );
 
             let index_offset = self.vertices.len() as u32;
-            for index in &other.indices {
-                self.indices.push(index_offset + index);
-            }
+            self.indices
+                .extend(other.indices.iter().map(|index| index + index_offset));
             self.vertices.extend(other.vertices.iter());
         }
     }

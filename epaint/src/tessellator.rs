@@ -705,24 +705,37 @@ impl Tessellator {
             }
 
             let index_offset = out.vertices.len() as u32;
-            for index in &row.visuals.mesh.indices {
-                out.indices.push(index_offset + index);
-            }
-            for (i, vertex) in row.visuals.mesh.vertices.iter().enumerate() {
-                let mut color = vertex.color;
 
-                if let Some(override_text_color) = override_text_color {
-                    if row.visuals.glyph_vertex_range.contains(&i) {
-                        color = override_text_color;
-                    }
-                }
+            out.indices.extend(
+                row.visuals
+                    .mesh
+                    .indices
+                    .iter()
+                    .map(|index| index + index_offset),
+            );
 
-                out.vertices.push(Vertex {
-                    pos: galley_pos + vertex.pos.to_vec2(),
-                    uv: (vertex.uv.to_vec2() * uv_normalizer).to_pos2(),
-                    color,
-                });
-            }
+            out.vertices.extend(
+                row.visuals
+                    .mesh
+                    .vertices
+                    .iter()
+                    .enumerate()
+                    .map(|(i, vertex)| {
+                        let mut color = vertex.color;
+
+                        if let Some(override_text_color) = override_text_color {
+                            if row.visuals.glyph_vertex_range.contains(&i) {
+                                color = override_text_color;
+                            }
+                        }
+
+                        Vertex {
+                            pos: galley_pos + vertex.pos.to_vec2(),
+                            uv: (vertex.uv.to_vec2() * uv_normalizer).to_pos2(),
+                            color,
+                        }
+                    }),
+            );
 
             if underline != Stroke::none() {
                 self.scratchpad_path.clear();
