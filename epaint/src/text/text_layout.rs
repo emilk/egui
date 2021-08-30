@@ -225,11 +225,13 @@ fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob>, mut rows: Vec<Row>) -> G
         cursor_y = fonts.round_to_pixel(cursor_y);
     }
 
+    let format_summary = format_summary(&job);
+
     let mut num_vertices = 0;
     let mut num_indices = 0;
 
     for row in &mut rows {
-        row.visuals = tesselate_row(fonts, &job, row);
+        row.visuals = tesselate_row(fonts, &job, &format_summary, row);
         num_vertices += row.visuals.mesh.vertices.len();
         num_indices += row.visuals.mesh.indices.len();
     }
@@ -245,20 +247,31 @@ fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob>, mut rows: Vec<Row>) -> G
     }
 }
 
-fn tesselate_row(fonts: &Fonts, job: &LayoutJob, row: &mut Row) -> Row2Visuals {
+#[derive(Default)]
+struct FormatSummary {
+    any_background: bool,
+    any_underline: bool,
+    any_strikethrough: bool,
+}
+
+fn format_summary(job: &LayoutJob) -> FormatSummary {
+    let mut format_summary = FormatSummary::default();
+    for section in &job.sections {
+        format_summary.any_background |= section.format.background != Color32::TRANSPARENT;
+        format_summary.any_underline |= section.format.underline != Stroke::none();
+        format_summary.any_strikethrough |= section.format.strikethrough != Stroke::none();
+    }
+    format_summary
+}
+
+fn tesselate_row(
+    fonts: &Fonts,
+    job: &LayoutJob,
+    format_summary: &FormatSummary,
+    row: &mut Row,
+) -> Row2Visuals {
     if row.glyphs.is_empty() {
         return Default::default();
-    }
-
-    let mut any_background = false;
-    let mut any_underline = false;
-    let mut any_strikethrough = false;
-
-    for glyph in &row.glyphs {
-        let format = &job.sections[glyph.section_index as usize].format;
-        any_background |= format.background != Color32::TRANSPARENT;
-        any_underline |= format.underline != Stroke::none();
-        any_strikethrough |= format.strikethrough != Stroke::none();
     }
 
     let mut mesh = Mesh::default();
@@ -266,7 +279,7 @@ fn tesselate_row(fonts: &Fonts, job: &LayoutJob, row: &mut Row) -> Row2Visuals {
     mesh.reserve_triangles(row.glyphs.len() * 2);
     mesh.reserve_vertices(row.glyphs.len() * 4);
 
-    if any_background {
+    if format_summary.any_background {
         add_row_backgrounds(job, row, &mut mesh);
     }
 
@@ -274,7 +287,7 @@ fn tesselate_row(fonts: &Fonts, job: &LayoutJob, row: &mut Row) -> Row2Visuals {
     tessellate_glyphs(fonts, job, row, &mut mesh);
     let glyph_vertex_end = mesh.vertices.len();
 
-    if any_underline {
+    if format_summary.any_underline {
         add_row_hline(fonts, row, &mut mesh, |glyph| {
             let format = &job.sections[glyph.section_index as usize].format;
             let stroke = format.underline;
@@ -283,7 +296,7 @@ fn tesselate_row(fonts: &Fonts, job: &LayoutJob, row: &mut Row) -> Row2Visuals {
         });
     }
 
-    if any_strikethrough {
+    if format_summary.any_strikethrough {
         add_row_hline(fonts, row, &mut mesh, |glyph| {
             let format = &job.sections[glyph.section_index as usize].format;
             let stroke = format.strikethrough;
