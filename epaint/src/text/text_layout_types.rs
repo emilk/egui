@@ -38,6 +38,7 @@ pub struct LayoutJob {
 }
 
 impl Default for LayoutJob {
+    #[inline]
     fn default() -> Self {
         Self {
             text: Default::default(),
@@ -51,6 +52,7 @@ impl Default for LayoutJob {
 
 impl LayoutJob {
     /// Break on `\n` and at the given wrap width.
+    #[inline]
     pub fn simple(text: String, text_style: TextStyle, color: Color32, wrap_width: f32) -> Self {
         Self {
             sections: vec![LayoutSection {
@@ -66,6 +68,7 @@ impl LayoutJob {
     }
 
     /// Does not break on `\n`, but shows the replacement character instead.
+    #[inline]
     pub fn simple_singleline(text: String, text_style: TextStyle, color: Color32) -> Self {
         Self {
             sections: vec![LayoutSection {
@@ -80,6 +83,8 @@ impl LayoutJob {
         }
     }
 
+
+    #[inline(always)]
     pub fn is_empty(&self) -> bool {
         self.sections.is_empty()
     }
@@ -159,6 +164,7 @@ pub struct TextFormat {
 }
 
 impl Default for TextFormat {
+    #[inline]
     fn default() -> Self {
         Self {
             style: TextStyle::Body,
@@ -173,6 +179,7 @@ impl Default for TextFormat {
 }
 
 impl TextFormat {
+    #[inline]
     pub fn simple(style: TextStyle, color: Color32) -> Self {
         Self {
             style,
