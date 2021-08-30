@@ -412,7 +412,7 @@ impl GalleyCache {
                 cached.galley.clone()
             }
             std::collections::hash_map::Entry::Vacant(entry) => {
-                let galley = super::layout(fonts, job.clone());
+                let galley = super::layout(fonts, job);
                 let galley = Arc::new(galley);
                 entry.insert(CachedGalley2 {
                     last_used: self.generation,
