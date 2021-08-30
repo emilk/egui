@@ -9,7 +9,7 @@ use emath::*;
 ///
 /// This supports mixing different fonts, color and formats (underline etc).
 ///
-/// Pass this to [`Fonts::layout_job]` or [`epaint::text::layout`].
+/// Pass this to [`Fonts::layout_job]` or [`crate::text::layout`].
 #[derive(Clone, Debug)]
 pub struct LayoutJob {
     /// The complete text of this job, referenced by `LayoutSection`.
@@ -236,27 +236,16 @@ pub struct Galley {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Row {
-    // Per-row, so we later can do per-row culling.
-    // PROBLEM: we need to know texture size.
-    // or we still do the UV normalization in `tesselator.rs`.
     /// One for each `char`.
     pub glyphs: Vec<Glyph>,
 
-    // /// The start of each character, probably starting at zero.
-    // /// The last element is the end of the last character.
-    // /// This is never empty.
-    // /// Unit: points.
-    // ///
-    // /// `x_offsets.len() + (ends_with_newline as usize) == text.chars().count() + 1`
-    // pub x_offsets: Vec<f32>,
-    //
     /// Logical bounding rectangle based on font heights etc.
-    /// Can be slightly less or more than [`Self::mesh_bounds`].
     /// Use this when drawing a selection or similar!
     /// Includes leading and trailing whitespace.
     pub rect: Rect,
 
-    pub visuals: Row2Visuals,
+    /// The mesh, ready to be rendered.
+    pub visuals: RowVisuals,
 
     /// If true, this `Row` came from a paragraph ending with a `\n`.
     /// The `\n` itself is omitted from [`Self::glyphs`].
@@ -268,7 +257,7 @@ pub struct Row {
 
 /// The tessellated output of a row.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Row2Visuals {
+pub struct RowVisuals {
     /// The tessellated text, using non-normalized (texel) UV coordinates.
     /// That is, you need to divide the uv coordinates by the texture size.
     pub mesh: Mesh,
@@ -282,7 +271,7 @@ pub struct Row2Visuals {
     pub glyph_vertex_range: Range<usize>,
 }
 
-impl Default for Row2Visuals {
+impl Default for RowVisuals {
     fn default() -> Self {
         Self {
             mesh: Default::default(),
@@ -295,27 +284,26 @@ impl Default for Row2Visuals {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Glyph {
     pub chr: char,
-    /// The fonts row height.
-    pub font_row_height: f32,
     /// Relative to the galley position.
     /// Logical position: pos.y is the same for all chars of the same [`TextFormat`].
     pub pos: Pos2,
-    /// The advance width.
-    pub width: f32,
+    /// Advance width and font row height.
+    pub size: Vec2,
     /// Position of the glyph in the font texture.
     pub uv_rect: UvRect,
-    /// Index into [`Galley::section`]. Decides color etc
+    /// Index into [`LayoutJob::sections`]. Decides color etc.
     pub section_index: u32,
 }
 
 impl Glyph {
-    pub fn visual_max_x(&self) -> f32 {
-        self.pos.x + self.width
+    pub fn max_x(&self) -> f32 {
+        self.pos.x + self.size.x
     }
 
     /// Same y range for all characters with the same [`TextFormat`].
+    #[inline]
     pub fn logical_rect(&self) -> Rect {
-        Rect::from_min_size(self.pos, vec2(self.width, self.font_row_height))
+        Rect::from_min_size(self.pos, self.size)
     }
 }
 

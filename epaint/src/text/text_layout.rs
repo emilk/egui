@@ -1,7 +1,7 @@
 use std::ops::RangeInclusive;
 use std::sync::Arc;
 
-use super::{Fonts, Galley, Glyph, LayoutJob, LayoutSection, Row, Row2Visuals};
+use super::{Fonts, Galley, Glyph, LayoutJob, LayoutSection, Row, RowVisuals};
 use crate::{Color32, Mesh, Stroke, Vertex};
 use emath::*;
 
@@ -50,7 +50,7 @@ fn layout_section(
 
     for chr in job.text[byte_range.clone()].chars() {
         if job.break_on_newline && chr == '\n' {
-            paragraph.empty_paragraph_height = font_height; // TODO: replace this hack with actually including `\n` in the glyphs.
+            paragraph.empty_paragraph_height = font_height; // TODO: replace this hack with actually including `\n` in the glyphs?
             out_paragraphs.push(Paragraph::default());
             paragraph = out_paragraphs.last_mut().unwrap();
         } else {
@@ -62,8 +62,7 @@ fn layout_section(
             paragraph.glyphs.push(Glyph {
                 chr,
                 pos: pos2(paragraph.cursor_x, f32::NAN),
-                width: glyph_info.advance_width,
-                font_row_height: font_height,
+                size: vec2(glyph_info.advance_width, font_height),
                 uv_rect: glyph_info.uv_rect,
                 section_index,
             });
@@ -99,7 +98,7 @@ fn rows_from_paragraphs(paragraphs: Vec<Paragraph>, wrap_width: f32) -> Vec<Row>
                 ends_with_newline: !is_last_paragraph,
             });
         } else {
-            let paragraph_max_x = paragraph.glyphs.last().unwrap().visual_max_x();
+            let paragraph_max_x = paragraph.glyphs.last().unwrap().max_x();
             if paragraph_max_x <= wrap_width {
                 // early-out optimization
                 let paragraph_min_x = paragraph.glyphs[0].pos.x;
@@ -133,6 +132,7 @@ fn line_break(paragraph: &Paragraph, wrap_width: f32, out_rows: &mut Vec<Row>) {
             if first_row_indentation > 0.0 && !row_break_candidates.has_word_boundary() {
                 // Allow the first row to be completely empty, because we know there will be more space on the next row:
                 assert_eq!(row_start_idx, 0);
+                // TODO: this records the height of this first row 0, though that is probably fine since first_row_indentation usually comes with a first_row_min_height.
                 out_rows.push(Row {
                     glyphs: vec![],
                     visuals: Default::default(),
@@ -151,7 +151,7 @@ fn line_break(paragraph: &Paragraph, wrap_width: f32, out_rows: &mut Vec<Row>) {
                     .collect();
 
                 let paragraph_min_x = glyphs[0].pos.x;
-                let paragraph_max_x = glyphs.last().unwrap().visual_max_x();
+                let paragraph_max_x = glyphs.last().unwrap().max_x();
 
                 out_rows.push(Row {
                     glyphs,
@@ -164,7 +164,7 @@ fn line_break(paragraph: &Paragraph, wrap_width: f32, out_rows: &mut Vec<Row>) {
                 row_start_x = paragraph.glyphs[row_start_idx].pos.x;
                 row_break_candidates = Default::default();
             } else {
-                // Can't break, so don't!
+                // Found no place to break, so we have to overrun wrap_width.
             }
         }
 
@@ -182,7 +182,7 @@ fn line_break(paragraph: &Paragraph, wrap_width: f32, out_rows: &mut Vec<Row>) {
             .collect();
 
         let paragraph_min_x = glyphs[0].pos.x;
-        let paragraph_max_x = glyphs.last().unwrap().visual_max_x();
+        let paragraph_max_x = glyphs.last().unwrap().max_x();
 
         out_rows.push(Row {
             glyphs,
@@ -193,6 +193,7 @@ fn line_break(paragraph: &Paragraph, wrap_width: f32, out_rows: &mut Vec<Row>) {
     }
 }
 
+/// Calculate the Y positions and tessellate the text.
 fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob>, mut rows: Vec<Row>) -> Galley {
     let mut first_row_min_height = job.first_row_min_height;
     let mut cursor_y = 0.0;
@@ -201,8 +202,9 @@ fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob>, mut rows: Vec<Row>) -> G
         let mut row_height = first_row_min_height.max(row.rect.height());
         first_row_min_height = 0.0;
         for glyph in &row.glyphs {
-            row_height = row_height.max(glyph.font_row_height);
+            row_height = row_height.max(glyph.size.y);
         }
+        row_height = fonts.round_to_pixel(row_height);
 
         // Now positions each glyph:
         for glyph in &mut row.glyphs {
@@ -212,7 +214,7 @@ fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob>, mut rows: Vec<Row>) -> G
                 glyph.pos.y = cursor_y;
             } else {
                 // Align down.
-                glyph.pos.y = cursor_y + row_height - glyph.font_row_height;
+                glyph.pos.y = cursor_y + row_height - glyph.size.y;
             }
             glyph.pos.y = fonts.round_to_pixel(glyph.pos.y);
         }
@@ -231,7 +233,7 @@ fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob>, mut rows: Vec<Row>) -> G
     let mut num_indices = 0;
 
     for row in &mut rows {
-        row.visuals = tesselate_row(fonts, &job, &format_summary, row);
+        row.visuals = tessellate_row(fonts, &job, &format_summary, row);
         num_vertices += row.visuals.mesh.vertices.len();
         num_indices += row.visuals.mesh.indices.len();
     }
@@ -264,12 +266,12 @@ fn format_summary(job: &LayoutJob) -> FormatSummary {
     format_summary
 }
 
-fn tesselate_row(
+fn tessellate_row(
     fonts: &Fonts,
     job: &LayoutJob,
     format_summary: &FormatSummary,
     row: &mut Row,
-) -> Row2Visuals {
+) -> RowVisuals {
     if row.glyphs.is_empty() {
         return Default::default();
     }
@@ -307,13 +309,15 @@ fn tesselate_row(
 
     let mesh_bounds = mesh.calc_bounds();
 
-    Row2Visuals {
+    RowVisuals {
         mesh,
         mesh_bounds,
         glyph_vertex_range: glyph_vertex_start..glyph_vertex_end,
     }
 }
 
+/// Create background for glyphs that have them.
+/// Creates as few rectangular regions as possible.
 fn add_row_backgrounds(job: &LayoutJob, row: &Row, mesh: &mut Mesh) {
     if row.glyphs.is_empty() {
         return;
@@ -321,10 +325,7 @@ fn add_row_backgrounds(job: &LayoutJob, row: &Row, mesh: &mut Mesh) {
 
     let mut end_run = |start: Option<(Color32, Rect)>, stop_x: f32| {
         if let Some((color, start_rect)) = start {
-            let rect = Rect::from_min_max(
-                pos2(start_rect.left(), start_rect.top()),
-                pos2(stop_x, start_rect.bottom()),
-            );
+            let rect = Rect::from_min_max(start_rect.left_top(), pos2(stop_x, start_rect.bottom()));
             let rect = rect.expand(1.0); // looks better
             mesh.add_colored_rect(rect, color);
         }
@@ -345,7 +346,7 @@ fn add_row_backgrounds(job: &LayoutJob, row: &Row, mesh: &mut Mesh) {
                 && start.top() == rect.top()
                 && start.bottom() == rect.bottom()
             {
-                // continue the same line
+                // continue the same background rectangle
             } else {
                 end_run(run_start.take(), last_rect.right());
                 run_start = Some((color, rect));
@@ -365,8 +366,8 @@ fn tessellate_glyphs(fonts: &Fonts, job: &LayoutJob, row: &Row, mesh: &mut Mesh)
         let uv_rect = glyph.uv_rect;
         if !uv_rect.is_nothing() {
             let mut left_top = glyph.pos + uv_rect.offset;
-            left_top.x = fonts.round_to_pixel(left_top.x); // Pixel-perfection.
-            left_top.y = fonts.round_to_pixel(left_top.y); // Pixel-perfection.
+            left_top.x = fonts.round_to_pixel(left_top.x);
+            left_top.y = fonts.round_to_pixel(left_top.y);
 
             let rect = Rect::from_min_max(left_top, left_top + uv_rect.size);
             let uv = Rect::from_min_max(
@@ -412,6 +413,7 @@ fn tessellate_glyphs(fonts: &Fonts, job: &LayoutJob, row: &Row, mesh: &mut Mesh)
     }
 }
 
+/// Add a horizontal line over a row of glyphs with a stroke and y decided by a callback.
 fn add_row_hline(
     fonts: &Fonts,
     row: &Row,
@@ -443,7 +445,7 @@ fn add_row_hline(
             line_start = Some((stroke, pos2(glyph.pos.x, y)));
         }
 
-        last_right_x = glyph.visual_max_x();
+        last_right_x = glyph.max_x();
     }
 
     end_line(line_start.take(), last_right_x);
@@ -453,7 +455,7 @@ fn add_hline(fonts: &Fonts, [start, stop]: [Pos2; 2], stroke: Stroke, mesh: &mut
     let antialiased = true;
 
     if antialiased {
-        let mut path = crate::tessellator::Path::default();
+        let mut path = crate::tessellator::Path::default(); // TODO: reuse this to avoid re-allocations.
         path.add_line_segment([start, stop]);
         let options = crate::tessellator::TessellationOptions::from_pixels_per_point(
             fonts.pixels_per_point(),
@@ -485,9 +487,9 @@ struct RowBreakCandidates {
     /// Breaking at ` ` or other whitespace
     /// is always the primary candidate.
     space: Option<usize>,
-    /// Logogram (single character representing a whole word) are good candidates for line break.
+    /// Logograms (single character representing a whole word) are good candidates for line break.
     logogram: Option<usize>,
-    /// Breaking at a dash is super-
+    /// Breaking at a dash is a super-
     /// good idea.
     dash: Option<usize>,
     /// This is nicer for things like URLs, e.g. www.
