@@ -225,13 +225,24 @@ fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob>, mut rows: Vec<Row>) -> G
         cursor_y = fonts.round_to_pixel(cursor_y);
     }
 
+    let mut num_vertices = 0;
+    let mut num_indices = 0;
+
     for row in &mut rows {
         row.visuals = tesselate_row(fonts, &job, row);
+        num_vertices += row.visuals.mesh.vertices.len();
+        num_indices += row.visuals.mesh.indices.len();
     }
 
     let size = vec2(max_x, cursor_y);
 
-    Galley { job, rows, size }
+    Galley {
+        job,
+        rows,
+        size,
+        num_vertices,
+        num_indices,
+    }
 }
 
 fn tesselate_row(fonts: &Fonts, job: &LayoutJob, row: &mut Row) -> Row2Visuals {

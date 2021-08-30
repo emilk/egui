@@ -682,6 +682,9 @@ impl Tessellator {
             return;
         }
 
+        out.vertices.reserve(galley.num_vertices);
+        out.indices.reserve(galley.num_indices);
+
         // The contents of the galley is already snapped to pixel coordinates,
         // but we need to make sure the galley ends up on the start of a physical pixel:
         let galley_pos = pos2(

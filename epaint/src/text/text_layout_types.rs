@@ -198,6 +198,11 @@ pub struct Galley {
 
     /// Bounding size (min is always `[0,0]`)
     pub size: Vec2,
+
+    /// Total number of vertices in all the row meshes.
+    pub num_vertices: usize,
+    /// Total number of indices in all the row meshes.
+    pub num_indices: usize,
 }
 
 #[derive(Clone, Debug, PartialEq)]
