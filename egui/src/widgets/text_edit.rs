@@ -237,6 +237,7 @@ pub struct TextEdit<'t, S: TextBuffer = String> {
     desired_width: Option<f32>,
     desired_height_rows: usize,
     lock_focus: bool,
+    cursor_at_end: bool,
 }
 impl<'t, S: TextBuffer> TextEdit<'t, S> {
     pub fn cursor(ui: &Ui, id: Id) -> Option<CursorPair> {
@@ -264,6 +265,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             desired_width: None,
             desired_height_rows: 1,
             lock_focus: false,
+            cursor_at_end: true,
         }
     }
 
@@ -283,6 +285,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             desired_width: None,
             desired_height_rows: 4,
             lock_focus: false,
+            cursor_at_end: true,
         }
     }
 
@@ -369,6 +372,14 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
         self.lock_focus = b;
         self
     }
+
+    /// When `true` (default), the cursor will initially be placed at the end of the text.
+    ///
+    /// When `false`, the cursor will initially be placed at the beginning of the text.
+    pub fn cursor_at_end(mut self, b: bool) -> Self {
+        self.cursor_at_end = b;
+        self
+    }
 }
 
 impl<'t, S: TextBuffer> Widget for TextEdit<'t, S> {
@@ -438,6 +449,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             desired_width,
             desired_height_rows,
             lock_focus,
+            cursor_at_end,
         } = self;
 
         let mask_if_password = |text: &str| {
@@ -569,7 +581,13 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                         secondary: galley.from_pcursor(cursorp.secondary.pcursor),
                     }
                 })
-                .unwrap_or_else(|| CursorPair::one(galley.end()));
+                .unwrap_or_else(|| {
+                    if cursor_at_end {
+                        CursorPair::one(galley.end())
+                    } else {
+                        CursorPair::default()
+                    }
+                });
 
             // We feed state to the undoer both before and after handling input
             // so that the undoer creates automatic saves even when there are no events for a while.
