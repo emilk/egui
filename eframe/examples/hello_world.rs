@@ -36,8 +36,6 @@ impl epi::App for MyApp {
             ui.label(format!("Hello '{}', age {}", name, age));
 
             ui.separator();
-
-            test_galley(ui);
         });
 
         // Resize the native window to be just the size we need it to be:
@@ -48,100 +46,4 @@ impl epi::App for MyApp {
 fn main() {
     let options = eframe::NativeOptions::default();
     eframe::run_native(Box::new(MyApp::default()), options);
-}
-
-fn test_galley(ui: &mut egui::Ui) {
-    use egui::epaint::text::{layout, LayoutJob, TextFormat};
-    use egui::{Color32, Stroke, TextStyle};
-
-    let mut job = LayoutJob::default();
-
-    job.append(
-        "Hello ".into(),
-        20.0,
-        TextFormat {
-            style: TextStyle::Body,
-            color: Color32::WHITE,
-            background: Color32::GRAY,
-            strikethrough: Stroke::new(1.0, Color32::GREEN),
-            ..Default::default()
-        },
-    );
-    job.append(
-        "there ".into(),
-        0.0,
-        TextFormat {
-            style: TextStyle::Heading,
-            color: Color32::RED,
-            strikethrough: Stroke::new(1.0, Color32::GREEN),
-            ..Default::default()
-        },
-    );
-    job.append(
-        "brave ".into(),
-        0.0,
-        TextFormat {
-            style: TextStyle::Small,
-            color: Color32::WHITE,
-            underline: Stroke::new(1.0, Color32::WHITE),
-            ..Default::default()
-        },
-    );
-    job.append(
-        "new ".into(),
-        0.0,
-        TextFormat {
-            style: TextStyle::Body,
-            color: Color32::LIGHT_BLUE,
-            italics: true,
-            underline: Stroke::new(1.0, Color32::WHITE),
-            ..Default::default()
-        },
-    );
-    job.append(
-        "world!\n".into(),
-        0.0,
-        TextFormat {
-            style: TextStyle::Monospace,
-            color: Color32::WHITE,
-            underline: Stroke::new(1.0, Color32::RED),
-            ..Default::default()
-        },
-    );
-    job.append(
-        "Text can be ".into(),
-        0.0,
-        TextFormat {
-            style: TextStyle::Body,
-            color: Color32::WHITE,
-            ..Default::default()
-        },
-    );
-    job.append(
-        "small ".into(),
-        0.0,
-        TextFormat {
-            style: TextStyle::Small,
-            color: Color32::WHITE,
-            ..Default::default()
-        },
-    );
-    job.append(
-        "and raised!".into(),
-        0.0,
-        TextFormat {
-            style: TextStyle::Small,
-            color: Color32::WHITE,
-            raised: true,
-            ..Default::default()
-        },
-    );
-
-    job.first_row_min_height = 50.0;
-    job.wrap_width = 150.0;
-
-    let galley = layout(ui.fonts(), job.into());
-
-    let (response, painter) = ui.allocate_painter(galley.size, Sense::hover());
-    painter.add(Shape::galley(response.rect.min, galley.into()));
 }

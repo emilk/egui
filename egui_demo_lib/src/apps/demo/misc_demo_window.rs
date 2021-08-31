@@ -50,6 +50,12 @@ impl View for MiscDemoWindow {
                 self.widgets.ui(ui);
             });
 
+        CollapsingHeader::new("Text layout")
+            .default_open(false)
+            .show(ui, |ui| {
+                text_layout_ui(ui);
+            });
+
         CollapsingHeader::new("Colors")
             .default_open(false)
             .show(ui, |ui| {
@@ -422,4 +428,177 @@ impl SubTree {
 
         Action::Keep
     }
+}
+
+// ----------------------------------------------------------------------------
+
+fn text_layout_ui(ui: &mut egui::Ui) {
+    use egui::epaint::text::{self, TextFormat};
+
+    let mut job = text::LayoutJob::default();
+
+    let first_row_indentation = 10.0;
+
+    job.append(
+        "This is a demonstration of ",
+        first_row_indentation,
+        TextFormat {
+            style: TextStyle::Body,
+            color: Color32::LIGHT_GRAY,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "the egui text layout engine. ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: Color32::WHITE,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "It supports ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: Color32::WHITE,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "different ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: Color32::from_rgb(110, 255, 110),
+            ..Default::default()
+        },
+    );
+    job.append(
+        "colors, ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: Color32::from_rgb(128, 140, 255),
+            ..Default::default()
+        },
+    );
+    job.append(
+        "backgrounds, ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: Color32::LIGHT_GRAY,
+            background: Color32::from_rgb(128, 32, 32),
+            ..Default::default()
+        },
+    );
+    job.append(
+        "mixed ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Heading,
+            color: Color32::LIGHT_GRAY,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "fonts, ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Small,
+            color: Color32::LIGHT_GRAY,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "raised text, ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Small,
+            color: Color32::LIGHT_GRAY,
+            raised: true,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "with ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: Color32::LIGHT_GRAY,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "underlining",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: Color32::LIGHT_GRAY,
+            underline: Stroke::new(1.0, Color32::LIGHT_BLUE),
+            ..Default::default()
+        },
+    );
+    job.append(
+        " and ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: Color32::LIGHT_GRAY,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "strikethrough",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: Color32::LIGHT_GRAY,
+            strikethrough: Stroke::new(2.0, Color32::RED),
+            ..Default::default()
+        },
+    );
+    job.append(
+        ". Of course, ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: Color32::LIGHT_GRAY,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "you can",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: Color32::LIGHT_GRAY,
+            strikethrough: Stroke::new(1.0, Color32::WHITE),
+            ..Default::default()
+        },
+    );
+    job.append(
+        " mix these!",
+        0.0,
+        TextFormat {
+            style: TextStyle::Small,
+            color: Color32::LIGHT_BLUE,
+            background: Color32::from_rgb(128, 0, 0),
+            underline: Stroke::new(1.0, Color32::WHITE),
+            ..Default::default()
+        },
+    );
+
+    job.wrap_width = ui.available_width();
+
+    let galley = text::layout(ui.fonts(), job.into());
+
+    let (response, painter) = ui.allocate_painter(galley.size, Sense::hover());
+    painter.add(Shape::galley(response.rect.min, galley.into()));
+
+    ui.vertical_centered(|ui| {
+        ui.add(crate::__egui_github_link_file_line!());
+    });
 }
