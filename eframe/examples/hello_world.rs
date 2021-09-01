@@ -1,5 +1,4 @@
 use eframe::{egui, epi};
-use egui::{Sense, Shape};
 
 struct MyApp {
     name: String,
@@ -34,8 +33,6 @@ impl epi::App for MyApp {
                 *age += 1;
             }
             ui.label(format!("Hello '{}', age {}", name, age));
-
-            ui.separator();
         });
 
         // Resize the native window to be just the size we need it to be:
