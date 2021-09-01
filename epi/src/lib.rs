@@ -317,6 +317,17 @@ pub trait TextureAllocator {
     fn free(&mut self, id: egui::TextureId);
 }
 
+/// Abstraction for texture reference
+pub trait NativeTexture {
+    type Texture;
+
+    /// Bind native texture to egui texture
+    fn bind_native_texture(&mut self, native: Self::Texture) -> egui::TextureId;
+
+    /// Change id's actual pointing texture
+    /// only for user texture
+    fn replace_texture_ref(&mut self, id: egui::TextureId, replacing: Self::Texture);
+}
 /// How to signal the [`egui`] integration that a repaint is required.
 pub trait RepaintSignal: Send + Sync {
     /// This signals the [`egui`] integration that a repaint is required.

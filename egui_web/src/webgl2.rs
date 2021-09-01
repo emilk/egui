@@ -349,6 +349,26 @@ impl epi::TextureAllocator for WebGl2Painter {
     }
 }
 
+impl epi::NativeTexture for WebGl2Painter {
+    type Texture = WebGlTexture;
+
+    fn bind_native_texture(&mut self, native: Self::Texture) -> egui::TextureId {
+        self.register_webgl_texture(native)
+    }
+
+    fn replace_texture_ref(&mut self, id: egui::TextureId, replacing: Self::Texture) {
+        if let egui::TextureId::User(id) = id {
+            if let Some(Some(user_texture)) = self.user_textures.get_mut(id as usize) {
+                *user_texture = UserTexture {
+                    size: (0, 0),
+                    pixels: vec![],
+                    gl_texture: Some(replacing),
+                }
+            }
+        }
+    }
+}
+
 impl crate::Painter for WebGl2Painter {
     fn as_tex_allocator(&mut self) -> &mut dyn epi::TextureAllocator {
         self

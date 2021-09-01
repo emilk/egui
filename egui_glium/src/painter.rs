@@ -320,3 +320,22 @@ impl Painter {
         }
     }
 }
+
+impl epi::NativeTexture for Painter {
+    type Texture = glium::texture::srgb_texture2d::SrgbTexture2d;
+
+    fn bind_native_texture(&mut self, native: Self::Texture) -> egui::TextureId {
+        self.register_glium_texture(native)
+    }
+
+    fn replace_texture_ref(&mut self, id: egui::TextureId, replacing: Self::Texture) {
+        if let egui::TextureId::User(id) = id {
+            if let Some(Some(user_texture)) = self.user_textures.get_mut(id as usize) {
+                *user_texture = UserTexture {
+                    pixels: vec![],
+                    gl_texture: Some(replacing),
+                };
+            }
+        }
+    }
+}
