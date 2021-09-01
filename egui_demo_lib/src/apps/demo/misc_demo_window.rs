@@ -433,9 +433,9 @@ impl SubTree {
 // ----------------------------------------------------------------------------
 
 fn text_layout_ui(ui: &mut egui::Ui) {
-    use egui::epaint::text::{self, TextFormat};
+    use egui::epaint::text::{LayoutJob, TextFormat};
 
-    let mut job = text::LayoutJob::default();
+    let mut job = LayoutJob::default();
 
     let first_row_indentation = 10.0;
 
@@ -593,10 +593,10 @@ fn text_layout_ui(ui: &mut egui::Ui) {
 
     job.wrap_width = ui.available_width();
 
-    let galley = text::layout(ui.fonts(), job.into());
+    let galley = ui.fonts().layout_job(job);
 
     let (response, painter) = ui.allocate_painter(galley.size, Sense::hover());
-    painter.add(Shape::galley(response.rect.min, galley.into()));
+    painter.add(Shape::galley(response.rect.min, galley));
 
     ui.vertical_centered(|ui| {
         ui.add(crate::__egui_github_link_file_line!());

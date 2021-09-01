@@ -292,13 +292,14 @@ fn syntax_highlighting(response: &Response, text: &str) -> Option<ColoredText> {
 
 /// Lines of text fragments
 #[cfg(feature = "syntect")]
-struct ColoredText(Vec<Vec<(syntect::highlighting::Style, String)>>);
+struct ColoredText(egui::epaint::text::LayoutJob);
 
 #[cfg(feature = "syntect")]
 impl ColoredText {
     /// e.g. `text_with_extension("fn foo() {}", "rs")`
     pub fn text_with_extension(text: &str, extension: &str) -> Option<ColoredText> {
         use syntect::easy::HighlightLines;
+        use syntect::highlighting::FontStyle;
         use syntect::highlighting::ThemeSet;
         use syntect::parsing::SyntaxSet;
         use syntect::util::LinesWithEndings;
@@ -310,32 +311,57 @@ impl ColoredText {
 
         let mut h = HighlightLines::new(syntax, &ts.themes["base16-mocha.dark"]);
 
-        let lines = LinesWithEndings::from(text)
-            .map(|line| {
-                h.highlight(line, &ps)
-                    .into_iter()
-                    .map(|(style, range)| (style, range.trim_end_matches('\n').to_owned()))
-                    .collect()
-            })
-            .collect();
+        use egui::epaint::text::{LayoutJob, LayoutSection, TextFormat};
 
-        Some(ColoredText(lines))
+        let mut job = LayoutJob {
+            text: text.into(),
+            ..Default::default()
+        };
+
+        for line in LinesWithEndings::from(text) {
+            for (style, range) in h.highlight(line, &ps) {
+                let fg = style.foreground;
+                let text_color = egui::Color32::from_rgb(fg.r, fg.g, fg.b);
+                let italics = style.font_style.contains(FontStyle::ITALIC);
+                let underline = style.font_style.contains(FontStyle::ITALIC);
+                let underline = if underline {
+                    egui::Stroke::new(1.0, text_color)
+                } else {
+                    egui::Stroke::none()
+                };
+                job.sections.push(LayoutSection {
+                    leading_space: 0.0,
+                    byte_range: as_byte_range(text, range),
+                    format: TextFormat {
+                        style: egui::TextStyle::Monospace,
+                        color: text_color,
+                        italics,
+                        underline,
+                        ..Default::default()
+                    },
+                });
+            }
+        }
+
+        Some(ColoredText(job))
     }
 
     pub fn ui(&self, ui: &mut egui::Ui) {
-        for line in &self.0 {
-            ui.horizontal_wrapped(|ui| {
-                ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
-                ui.set_row_height(ui.fonts()[egui::TextStyle::Body].row_height());
-
-                for (style, range) in line {
-                    let fg = style.foreground;
-                    let text_color = egui::Color32::from_rgb(fg.r, fg.g, fg.b);
-                    ui.add(egui::Label::new(range).monospace().text_color(text_color));
-                }
-            });
-        }
+        let mut job = self.0.clone();
+        job.wrap_width = ui.available_width();
+        let galley = ui.fonts().layout_job(job);
+        let (response, painter) = ui.allocate_painter(galley.size, egui::Sense::hover());
+        painter.add(egui::Shape::galley(response.rect.min, galley));
     }
+}
+
+fn as_byte_range(whole: &str, range: &str) -> std::ops::Range<usize> {
+    let whole_start = whole.as_ptr() as usize;
+    let range_start = range.as_ptr() as usize;
+    assert!(whole_start <= range_start);
+    assert!(range_start + range.len() <= whole_start + whole.len());
+    let offset = range_start - whole_start;
+    offset..(offset + range.len())
 }
 
 #[cfg(not(feature = "syntect"))]

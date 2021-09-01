@@ -15,6 +15,10 @@ struct Paragraph {
     pub empty_paragraph_height: f32,
 }
 
+/// Layout text into a [`Galley`].
+///
+/// In most cases you should use [`Fonts::layout_job`] instead
+/// since that memoizes the input, making subsequent layouting of the same text much faster.
 pub fn layout(fonts: &Fonts, job: Arc<LayoutJob>) -> Galley {
     let mut paragraphs = vec![Paragraph::default()];
     for (section_index, section) in job.sections.iter().enumerate() {
