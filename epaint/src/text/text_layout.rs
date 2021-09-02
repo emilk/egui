@@ -145,6 +145,7 @@ fn line_break(paragraph: &Paragraph, wrap_width: f32, out_rows: &mut Vec<Row>) {
                     rect: rect_from_x_range(first_row_indentation..=first_row_indentation),
                     ends_with_newline: false,
                 });
+                row_start_x += first_row_indentation;
                 first_row_indentation = 0.0;
             } else if let Some(last_kept_index) = row_break_candidates.get() {
                 let glyphs: Vec<Glyph> = paragraph.glyphs[row_start_idx..=last_kept_index]
