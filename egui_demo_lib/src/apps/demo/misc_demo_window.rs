@@ -407,12 +407,18 @@ fn text_layout_ui(ui: &mut egui::Ui) {
 
     let first_row_indentation = 10.0;
 
+    let (default_color, strong_color) = if ui.visuals().dark_mode {
+        (Color32::LIGHT_GRAY, Color32::WHITE)
+    } else {
+        (Color32::DARK_GRAY, Color32::BLACK)
+    };
+
     job.append(
         "This is a demonstration of ",
         first_row_indentation,
         TextFormat {
             style: TextStyle::Body,
-            color: Color32::LIGHT_GRAY,
+            color: default_color,
             ..Default::default()
         },
     );
@@ -421,7 +427,7 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         0.0,
         TextFormat {
             style: TextStyle::Body,
-            color: Color32::WHITE,
+            color: strong_color,
             ..Default::default()
         },
     );
@@ -430,7 +436,7 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         0.0,
         TextFormat {
             style: TextStyle::Body,
-            color: Color32::WHITE,
+            color: default_color,
             ..Default::default()
         },
     );
@@ -457,17 +463,17 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         0.0,
         TextFormat {
             style: TextStyle::Body,
-            color: Color32::LIGHT_GRAY,
+            color: default_color,
             background: Color32::from_rgb(128, 32, 32),
             ..Default::default()
         },
     );
     job.append(
-        "mixed ",
+        "mixing ",
         0.0,
         TextFormat {
             style: TextStyle::Heading,
-            color: Color32::LIGHT_GRAY,
+            color: default_color,
             ..Default::default()
         },
     );
@@ -475,8 +481,8 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         "fonts, ",
         0.0,
         TextFormat {
-            style: TextStyle::Small,
-            color: Color32::LIGHT_GRAY,
+            style: TextStyle::Monospace,
+            color: default_color,
             ..Default::default()
         },
     );
@@ -485,8 +491,8 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         0.0,
         TextFormat {
             style: TextStyle::Small,
-            color: Color32::LIGHT_GRAY,
-            raised: true,
+            color: default_color,
+            valign: Align::TOP,
             ..Default::default()
         },
     );
@@ -495,7 +501,7 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         0.0,
         TextFormat {
             style: TextStyle::Body,
-            color: Color32::LIGHT_GRAY,
+            color: default_color,
             ..Default::default()
         },
     );
@@ -504,7 +510,7 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         0.0,
         TextFormat {
             style: TextStyle::Body,
-            color: Color32::LIGHT_GRAY,
+            color: default_color,
             underline: Stroke::new(1.0, Color32::LIGHT_BLUE),
             ..Default::default()
         },
@@ -514,7 +520,7 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         0.0,
         TextFormat {
             style: TextStyle::Body,
-            color: Color32::LIGHT_GRAY,
+            color: default_color,
             ..Default::default()
         },
     );
@@ -523,8 +529,8 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         0.0,
         TextFormat {
             style: TextStyle::Body,
-            color: Color32::LIGHT_GRAY,
-            strikethrough: Stroke::new(2.0, Color32::RED),
+            color: default_color,
+            strikethrough: Stroke::new(2.0, Color32::RED.linear_multiply(0.5)),
             ..Default::default()
         },
     );
@@ -533,7 +539,7 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         0.0,
         TextFormat {
             style: TextStyle::Body,
-            color: Color32::LIGHT_GRAY,
+            color: default_color,
             ..Default::default()
         },
     );
@@ -542,8 +548,8 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         0.0,
         TextFormat {
             style: TextStyle::Body,
-            color: Color32::LIGHT_GRAY,
-            strikethrough: Stroke::new(1.0, Color32::WHITE),
+            color: default_color,
+            strikethrough: Stroke::new(1.0, strong_color),
             ..Default::default()
         },
     );
@@ -554,7 +560,7 @@ fn text_layout_ui(ui: &mut egui::Ui) {
             style: TextStyle::Small,
             color: Color32::LIGHT_BLUE,
             background: Color32::from_rgb(128, 0, 0),
-            underline: Stroke::new(1.0, Color32::WHITE),
+            underline: Stroke::new(1.0, strong_color),
             ..Default::default()
         },
     );
