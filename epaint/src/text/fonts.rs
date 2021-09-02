@@ -390,7 +390,7 @@ impl std::ops::Index<TextStyle> for Fonts {
 
 // ----------------------------------------------------------------------------
 
-struct CachedGalley2 {
+struct CachedGalley {
     /// When it was last used
     last_used: u32,
     galley: Arc<Galley>,
@@ -400,7 +400,7 @@ struct CachedGalley2 {
 struct GalleyCache {
     /// Frame counter used to do garbage collection on the cache
     generation: u32,
-    cache: AHashMap<Arc<LayoutJob>, CachedGalley2>,
+    cache: AHashMap<Arc<LayoutJob>, CachedGalley>,
 }
 
 impl GalleyCache {
@@ -414,7 +414,7 @@ impl GalleyCache {
             std::collections::hash_map::Entry::Vacant(entry) => {
                 let galley = super::layout(fonts, job);
                 let galley = Arc::new(galley);
-                entry.insert(CachedGalley2 {
+                entry.insert(CachedGalley {
                     last_used: self.generation,
                     galley: galley.clone(),
                 });
