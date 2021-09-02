@@ -215,13 +215,7 @@ fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob>, mut rows: Vec<Row>) -> G
         // Now positions each glyph:
         for glyph in &mut row.glyphs {
             let format = &job.sections[glyph.section_index as usize].format;
-            if format.raised {
-                // Align up.
-                glyph.pos.y = cursor_y;
-            } else {
-                // Align down.
-                glyph.pos.y = cursor_y + row_height - glyph.size.y;
-            }
+            glyph.pos.y = cursor_y + format.valign.to_factor() * (row_height - glyph.size.y);
             glyph.pos.y = fonts.round_to_pixel(glyph.pos.y);
         }
 

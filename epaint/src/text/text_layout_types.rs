@@ -180,8 +180,9 @@ pub struct TextFormat {
     pub italics: bool,
     pub underline: Stroke,
     pub strikethrough: Stroke,
-    /// Align to top instead of bottom
-    pub raised: bool,
+    /// If you use a small font and [`Align::TOP`] you
+    /// can get the effect of raised text.
+    pub valign: Align,
     // TODO: lowered
 }
 
@@ -195,7 +196,7 @@ impl Default for TextFormat {
             italics: false,
             underline: Stroke::none(),
             strikethrough: Stroke::none(),
-            raised: false,
+            valign: Align::BOTTOM,
         }
     }
 }

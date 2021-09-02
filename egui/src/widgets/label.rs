@@ -204,6 +204,12 @@ impl Label {
             Stroke::none()
         };
 
+        let valign = if self.raised {
+            Align::TOP
+        } else {
+            ui.layout().vertical_align()
+        };
+
         let job = LayoutJob {
             text: self.text.clone(), // TODO: avoid clone
             sections: vec![LayoutSection {
@@ -216,7 +222,7 @@ impl Label {
                     italics: self.italics,
                     underline,
                     strikethrough,
-                    raised: self.raised,
+                    valign,
                 },
             }],
             wrap_width,
