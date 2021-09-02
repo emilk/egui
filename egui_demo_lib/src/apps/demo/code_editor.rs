@@ -41,21 +41,35 @@ impl super::Demo for CodeEditor {
 
 impl super::View for CodeEditor {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            ui.label("An example of syntax highlighting in a TextEdit.");
-            ui.add(crate::__egui_github_link_file!());
-        });
-
         let Self {
             code,
             language,
             highlighter,
         } = self;
 
+        ui.horizontal(|ui| {
+            ui.set_height(0.0);
+            ui.label("An example of syntax highlighting in a TextEdit.");
+            ui.add(crate::__egui_github_link_file!());
+        });
+
         if cfg!(feature = "syntect") {
             ui.horizontal(|ui| {
                 ui.label("Language:");
                 ui.text_edit_singleline(language);
+            });
+            ui.horizontal_wrapped(|ui| {
+                ui.spacing_mut().item_spacing.x = 0.0;
+                ui.label("Syntax highlighting powered by ");
+                ui.hyperlink_to("syntect", "https://github.com/trishume/syntect");
+                ui.label(".");
+            });
+        } else {
+            ui.horizontal_wrapped(|ui|{
+                ui.spacing_mut().item_spacing.x = 0.0;
+                ui.label("Compile the demo with the 'syntect' feature to enable much nicer syntax highlighting using ");
+                ui.hyperlink_to("syntect", "https://github.com/trishume/syntect");
+                ui.label(".");
             });
         }
 
@@ -222,9 +236,9 @@ impl Highligher {
         let quoted_string_format = TextFormat::simple(
             monospace,
             if is_dark_mode {
-                Color32::YELLOW
+                Color32::KHAKI
             } else {
-                Color32::BLACK
+                Color32::BROWN
             },
         );
         let keyword_format = TextFormat::simple(
