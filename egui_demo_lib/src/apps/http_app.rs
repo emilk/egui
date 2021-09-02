@@ -292,7 +292,7 @@ fn syntax_highlighting(response: &Response, text: &str) -> Option<ColoredText> {
 
 /// Lines of text fragments
 #[cfg(feature = "syntect")]
-struct ColoredText(egui::epaint::text::LayoutJob);
+struct ColoredText(egui::text::LayoutJob);
 
 #[cfg(feature = "syntect")]
 impl ColoredText {
@@ -311,7 +311,7 @@ impl ColoredText {
 
         let mut h = HighlightLines::new(syntax, &ts.themes["base16-mocha.dark"]);
 
-        use egui::epaint::text::{LayoutJob, LayoutSection, TextFormat};
+        use egui::text::{LayoutJob, LayoutSection, TextFormat};
 
         let mut job = LayoutJob {
             text: text.into(),

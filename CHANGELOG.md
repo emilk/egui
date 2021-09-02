@@ -14,6 +14,9 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 * All `Ui`:s must now have a finite `max_rect`.
   * Deprecated: `max_rect_finite`, `available_size_before_wrap_finite` and `available_rect_before_wrap_finite`.
 
+### Fixed 🐛
+* Fix wrongly sized multiline `TextEdit` in justified layouts.
+
 
 ## 0.14.2 - 2021-08-28 - Window resize fix
 

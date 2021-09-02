@@ -45,7 +45,7 @@ pub struct Style {
     pub strong: bool,
     /// _underline_
     pub underline: bool,
-    /// -strikethrough-
+    /// ~strikethrough~
     pub strikethrough: bool,
     /// /italics/
     pub italics: bool,

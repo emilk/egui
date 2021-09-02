@@ -1,9 +1,7 @@
 use crate::{output::OutputEvent, util::undoer::Undoer, *};
-use epaint::{
-    text::{cursor::*, LayoutJob},
-    *,
-};
+use epaint::text::{cursor::*, Galley, LayoutJob};
 use std::ops::Range;
+use std::sync::Arc;
 
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
@@ -225,7 +223,6 @@ impl TextBuffer for String {
 /// ```
 ///
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
-#[derive(Debug)]
 pub struct TextEdit<'t, S: TextBuffer = String> {
     text: &'t mut S,
     hint_text: String,
@@ -233,6 +230,7 @@ pub struct TextEdit<'t, S: TextBuffer = String> {
     id_source: Option<Id>,
     text_style: Option<TextStyle>,
     text_color: Option<Color32>,
+    layouter: Option<&'t mut dyn FnMut(&Ui, &str, f32) -> Arc<Galley>>,
     password: bool,
     frame: bool,
     multiline: bool,
@@ -242,6 +240,7 @@ pub struct TextEdit<'t, S: TextBuffer = String> {
     lock_focus: bool,
     cursor_at_end: bool,
 }
+
 impl<'t, S: TextBuffer> TextEdit<'t, S> {
     pub fn cursor(ui: &Ui, id: Id) -> Option<CursorPair> {
         ui.memory()
@@ -254,33 +253,23 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
 impl<'t, S: TextBuffer> TextEdit<'t, S> {
     /// No newlines (`\n`) allowed. Pressing enter key will result in the `TextEdit` losing focus (`response.lost_focus`).
     pub fn singleline(text: &'t mut S) -> Self {
-        TextEdit {
-            text,
-            hint_text: Default::default(),
-            id: None,
-            id_source: None,
-            text_style: None,
-            text_color: None,
-            password: false,
-            frame: true,
-            multiline: false,
-            enabled: true,
-            desired_width: None,
+        Self {
             desired_height_rows: 1,
-            lock_focus: false,
-            cursor_at_end: true,
+            multiline: false,
+            ..Self::multiline(text)
         }
     }
 
     /// A `TextEdit` for multiple lines. Pressing enter key will create a new line.
     pub fn multiline(text: &'t mut S) -> Self {
-        TextEdit {
+        Self {
             text,
             hint_text: Default::default(),
             id: None,
             id_source: None,
             text_style: None,
             text_color: None,
+            layouter: None,
             password: false,
             frame: true,
             multiline: true,
@@ -337,6 +326,34 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
 
     pub fn text_color_opt(mut self, text_color: Option<Color32>) -> Self {
         self.text_color = text_color;
+        self
+    }
+
+    /// Override how text is being shown inside the `TextEdit`.
+    ///
+    /// This can be used to implement things like syntax highlighting.
+    ///
+    /// This function will be called at least once per frame,
+    /// so it is strongly suggested that you cache the results of any syntax highlighter
+    /// so as not to waste CPU highlighting the same string every frame.
+    ///
+    /// The arguments is the enclosing [`Ui`] (so you can access e.g. [`Ui::fonts`]),
+    /// the text and the wrap width.
+    ///
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// # let mut my_code = String::new();
+    /// # fn my_memoized_highlighter(s: &str) -> egui::text::LayoutJob { Default::default() }
+    /// let mut layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
+    ///     let mut layout_job: egui::text::LayoutJob = my_memoized_highlighter(string);
+    ///     layout_job.wrap_width = wrap_width;
+    ///     ui.fonts().layout_job(layout_job)
+    /// };
+    /// ui.add(egui::TextEdit::multiline(&mut my_code).layouter(&mut layouter));
+    /// ```
+    pub fn layouter(mut self, layouter: &'t mut dyn FnMut(&Ui, &str, f32) -> Arc<Galley>) -> Self {
+        self.layouter = Some(layouter);
+
         self
     }
 
@@ -436,6 +453,14 @@ fn mask_massword(text: &str) -> String {
         .collect::<String>()
 }
 
+fn mask_if_password(is_password: bool, text: &str) -> String {
+    if is_password {
+        mask_massword(text)
+    } else {
+        text.to_owned()
+    }
+}
+
 impl<'t, S: TextBuffer> TextEdit<'t, S> {
     fn content_ui(self, ui: &mut Ui) -> Response {
         let TextEdit {
@@ -445,6 +470,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             id_source,
             text_style,
             text_color,
+            layouter,
             password,
             frame: _,
             multiline,
@@ -454,14 +480,6 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             lock_focus,
             cursor_at_end,
         } = self;
-
-        let mask_if_password = |text: &str| {
-            if password {
-                mask_massword(text)
-            } else {
-                text.to_owned()
-            }
-        };
 
         let text_color = text_color
             .or(ui.visuals().override_text_color)
@@ -482,8 +500,8 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             desired_width.min(available_width)
         };
 
-        let make_galley = |ui: &Ui, wrap_width: f32, text: &str| {
-            let text = mask_if_password(text);
+        let mut default_layouter = move |ui: &Ui, text: &str, wrap_width: f32| {
+            let text = mask_if_password(password, text);
             ui.fonts().layout_job(if multiline {
                 LayoutJob::simple(text, text_style, text_color, wrap_width)
             } else {
@@ -491,13 +509,15 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             })
         };
 
+        let layouter = layouter.unwrap_or(&mut default_layouter);
+
         let copy_if_not_password = |ui: &Ui, text: String| {
             if !password {
                 ui.ctx().output().copied_text = text;
             }
         };
 
-        let mut galley = make_galley(ui, wrap_width, text.as_ref());
+        let mut galley = layouter(ui, text.as_ref(), wrap_width);
 
         let desired_height = (desired_height_rows.at_least(1) as f32) * line_spacing;
         let desired_size = vec2(wrap_width, galley.size.y.max(desired_height));
@@ -737,7 +757,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                     response.mark_changed();
 
                     // Layout again to avoid frame delay, and to keep `text` and `galley` in sync.
-                    galley = make_galley(ui, wrap_width, text.as_ref());
+                    galley = layouter(ui, text.as_ref(), wrap_width);
 
                     // Set cursorp using new galley:
                     cursorp = CursorPair {
@@ -824,16 +844,18 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
         if response.changed {
             response.widget_info(|| {
                 WidgetInfo::text_edit(
-                    mask_if_password(prev_text.as_str()),
-                    mask_if_password(text.as_str()),
+                    mask_if_password(password, prev_text.as_str()),
+                    mask_if_password(password, text.as_str()),
                 )
             });
         } else if selection_changed {
             let text_cursor = text_cursor.unwrap();
             let char_range =
                 text_cursor.primary.ccursor.index..=text_cursor.secondary.ccursor.index;
-            let info =
-                WidgetInfo::text_selection_changed(char_range, mask_if_password(text.as_str()));
+            let info = WidgetInfo::text_selection_changed(
+                char_range,
+                mask_if_password(password, text.as_str()),
+            );
             response
                 .ctx
                 .output()
@@ -842,8 +864,8 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
         } else {
             response.widget_info(|| {
                 WidgetInfo::text_edit(
-                    mask_if_password(prev_text.as_str()),
-                    mask_if_password(text.as_str()),
+                    mask_if_password(password, prev_text.as_str()),
+                    mask_if_password(password, text.as_str()),
                 )
             });
         }
