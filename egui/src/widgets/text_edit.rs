@@ -369,7 +369,8 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
         self
     }
 
-    /// Set to 0.0 to keep as small as possible
+    /// Set to 0.0 to keep as small as possible.
+    /// Set to [`f32::INFINITY`] to take up all available space.
     pub fn desired_width(mut self, desired_width: f32) -> Self {
         self.desired_width = Some(desired_width);
         self

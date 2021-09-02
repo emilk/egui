@@ -309,7 +309,13 @@ impl ColoredText {
 
         let syntax = ps.find_syntax_by_extension(extension)?;
 
-        let mut h = HighlightLines::new(syntax, &ts.themes["base16-mocha.dark"]);
+        let dark_mode = true;
+        let theme = if dark_mode {
+            "base16-mocha.dark"
+        } else {
+            "base16-ocean.light"
+        };
+        let mut h = HighlightLines::new(syntax, &ts.themes[theme]);
 
         use egui::text::{LayoutJob, LayoutSection, TextFormat};
 

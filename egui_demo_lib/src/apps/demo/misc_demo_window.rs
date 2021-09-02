@@ -120,8 +120,6 @@ impl View for MiscDemoWindow {
 pub struct Widgets {
     angle: f32,
     password: String,
-    lock_focus: bool,
-    code_snippet: String,
 }
 
 impl Default for Widgets {
@@ -129,25 +127,13 @@ impl Default for Widgets {
         Self {
             angle: std::f32::consts::TAU / 3.0,
             password: "hunter2".to_owned(),
-            lock_focus: true,
-            code_snippet: "\
-fn main() {
-\tprintln!(\"Hello world!\");
-}
-"
-            .to_owned(),
         }
     }
 }
 
 impl Widgets {
     pub fn ui(&mut self, ui: &mut Ui) {
-        let Self {
-            angle,
-            password,
-            lock_focus,
-            code_snippet,
-        } = self;
+        let Self { angle, password } = self;
         ui.vertical_centered(|ui| {
             ui.add(crate::__egui_github_link_file_line!());
         });
@@ -202,24 +188,6 @@ impl Widgets {
                 .on_hover_text("See the example code for how to use egui to store UI state");
             ui.add(super::password::password(password));
         });
-
-        ui.separator();
-
-        ui.horizontal(|ui| {
-            ui.label("Code editor:");
-
-            ui.separator();
-
-            ui.checkbox(lock_focus, "Lock focus").on_hover_text(
-                "When checked, pressing TAB will insert a tab instead of moving focus",
-            );
-        });
-
-        ui.add(
-            TextEdit::multiline(code_snippet)
-                .code_editor()
-                .lock_focus(*lock_focus),
-        );
     }
 }
 
