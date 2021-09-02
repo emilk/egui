@@ -21,7 +21,7 @@ impl Hyperlink {
         let url = url.to_string();
         Self {
             url: url.clone(),
-            label: Label::new(url),
+            label: Label::new(url).sense(Sense::click()),
         }
     }
 
@@ -54,8 +54,7 @@ impl Hyperlink {
 impl Widget for Hyperlink {
     fn ui(self, ui: &mut Ui) -> Response {
         let Hyperlink { url, label } = self;
-        let galley = label.layout(ui);
-        let (rect, response) = ui.allocate_exact_size(galley.size, Sense::click());
+        let (pos, galley, response) = label.layout_in_ui(ui);
         response.widget_info(|| WidgetInfo::labeled(WidgetType::Hyperlink, galley.text()));
 
         if response.hovered() {
@@ -85,7 +84,7 @@ impl Widget for Hyperlink {
         };
 
         ui.painter().add(Shape::Text {
-            pos: rect.min,
+            pos,
             galley,
             override_text_color: Some(color),
             underline,

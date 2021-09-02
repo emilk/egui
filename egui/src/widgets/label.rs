@@ -302,12 +302,10 @@ impl Label {
             }
         })
     }
-}
 
-impl Widget for Label {
-    fn ui(self, ui: &mut Ui) -> Response {
+    /// Do layout and place the galley in the ui, without painting it or adding widget info.
+    pub(crate) fn layout_in_ui(&self, ui: &mut Ui) -> (Pos2, Arc<Galley>, Response) {
         let sense = self.sense;
-
         let max_width = ui.available_width();
 
         if self.should_wrap(ui)
@@ -341,18 +339,22 @@ impl Widget for Label {
                 let rect = row.rect.translate(vec2(pos.x, pos.y));
                 response |= ui.allocate_rect(rect, sense);
             }
-            response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, galley.text()));
-            let response_color = ui.style().interact(&response).text_color();
-            self.paint_galley(ui, pos, galley, response.has_focus(), response_color);
-            response
+            (pos, galley, response)
         } else {
             let galley = self.layout(ui);
             let (rect, response) = ui.allocate_exact_size(galley.size, sense);
-            response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, galley.text()));
-            let response_color = ui.style().interact(&response).text_color();
-            self.paint_galley(ui, rect.min, galley, response.has_focus(), response_color);
-            response
+            (rect.min, galley, response)
         }
+    }
+}
+
+impl Widget for Label {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let (pos, galley, response) = self.layout_in_ui(ui);
+        response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, galley.text()));
+        let response_color = ui.style().interact(&response).text_color();
+        self.paint_galley(ui, pos, galley, response.has_focus(), response_color);
+        response
     }
 }
 
