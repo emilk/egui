@@ -12,7 +12,6 @@ use {
         texture::{self, srgb_texture2d::SrgbTexture2d},
         uniform,
         uniforms::{MagnifySamplerFilter, SamplerWrapFunction},
-        Frame, Surface,
     },
 };
 
