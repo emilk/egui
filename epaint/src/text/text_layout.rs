@@ -37,26 +37,28 @@ fn layout_section(
     section: &LayoutSection,
     out_paragraphs: &mut Vec<Paragraph>,
 ) {
-    let mut paragraph = out_paragraphs.last_mut().unwrap();
-
     let LayoutSection {
         leading_space,
         byte_range,
         format,
     } = section;
-
-    paragraph.cursor_x += leading_space;
-
     let font = &fonts[format.style];
     let font_height = font.row_height();
+
+    let mut paragraph = out_paragraphs.last_mut().unwrap();
+    if paragraph.glyphs.is_empty() {
+        paragraph.empty_paragraph_height = font_height; // TODO: replace this hack with actually including `\n` in the glyphs?
+    }
+
+    paragraph.cursor_x += leading_space;
 
     let mut last_glyph_id = None;
 
     for chr in job.text[byte_range.clone()].chars() {
         if job.break_on_newline && chr == '\n' {
-            paragraph.empty_paragraph_height = font_height; // TODO: replace this hack with actually including `\n` in the glyphs?
             out_paragraphs.push(Paragraph::default());
             paragraph = out_paragraphs.last_mut().unwrap();
+            paragraph.empty_paragraph_height = font_height; // TODO: replace this hack with actually including `\n` in the glyphs?
         } else {
             let (font_impl, glyph_info) = font.glyph_info_and_font_impl(chr);
             if let Some(last_glyph_id) = last_glyph_id {
