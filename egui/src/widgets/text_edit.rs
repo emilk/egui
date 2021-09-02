@@ -491,7 +491,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
         let text_style = text_style
             .or(ui.style().override_text_style)
             .unwrap_or_else(|| ui.style().body_text_style);
-        let line_spacing = ui.fonts().row_height(text_style);
+        let row_height = ui.fonts().row_height(text_style);
         const MIN_WIDTH: f32 = 24.0; // Never make a `TextEdit` more narrow than this.
         let available_width = ui.available_width().at_least(MIN_WIDTH);
         let desired_width = desired_width.unwrap_or_else(|| ui.spacing().text_edit_width);
@@ -520,7 +520,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
 
         let mut galley = layouter(ui, text.as_ref(), wrap_width);
 
-        let desired_height = (desired_height_rows.at_least(1) as f32) * line_spacing;
+        let desired_height = (desired_height_rows.at_least(1) as f32) * row_height;
         let desired_size = vec2(wrap_width, galley.size.y.max(desired_height));
         let (auto_id, rect) = ui.allocate_space(desired_size);
 
@@ -554,7 +554,14 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                     && ui.input().pointer.is_moving()
                 {
                     // preview:
-                    paint_cursor_end(ui, &painter, response.rect.min, &galley, &cursor_at_pointer);
+                    paint_cursor_end(
+                        ui,
+                        row_height,
+                        &painter,
+                        response.rect.min,
+                        &galley,
+                        &cursor_at_pointer,
+                    );
                 }
 
                 if response.double_clicked() {
@@ -807,7 +814,14 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
         if ui.memory().has_focus(id) {
             if let Some(cursorp) = state.cursorp {
                 paint_cursor_selection(ui, &painter, text_draw_pos, &galley, &cursorp);
-                paint_cursor_end(ui, &painter, text_draw_pos, &galley, &cursorp.primary);
+                paint_cursor_end(
+                    ui,
+                    row_height,
+                    &painter,
+                    text_draw_pos,
+                    &galley,
+                    &cursorp.primary,
+                );
 
                 if enabled {
                     ui.ctx().output().text_cursor_pos = Some(
@@ -916,11 +930,19 @@ fn paint_cursor_selection(
     }
 }
 
-fn paint_cursor_end(ui: &mut Ui, painter: &Painter, pos: Pos2, galley: &Galley, cursor: &Cursor) {
+fn paint_cursor_end(
+    ui: &mut Ui,
+    row_height: f32,
+    painter: &Painter,
+    pos: Pos2,
+    galley: &Galley,
+    cursor: &Cursor,
+) {
     let stroke = ui.visuals().selection.stroke;
 
-    let cursor_pos = galley.pos_from_cursor(cursor).translate(pos.to_vec2());
-    let cursor_pos = cursor_pos.expand(1.5); // slightly above/below row
+    let mut cursor_pos = galley.pos_from_cursor(cursor).translate(pos.to_vec2());
+    cursor_pos.max.y = cursor_pos.max.y.at_least(cursor_pos.min.y + row_height); // Handle completely empty galleys
+    cursor_pos = cursor_pos.expand(1.5); // slightly above/below row
 
     let top = cursor_pos.center_top();
     let bottom = cursor_pos.center_bottom();
