@@ -468,7 +468,11 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
         const MIN_WIDTH: f32 = 24.0; // Never make a `TextEdit` more narrow than this.
         let available_width = ui.available_width().at_least(MIN_WIDTH);
         let desired_width = desired_width.unwrap_or_else(|| ui.spacing().text_edit_width);
-        let mut wrap_width = desired_width.min(available_width);
+        let wrap_width = if ui.layout().horizontal_justify() {
+            available_width
+        } else {
+            desired_width.min(available_width)
+        };
 
         let make_galley = |ui: &Ui, wrap_width: f32, text: &str| {
             let text = mask_if_password(text);
@@ -490,12 +494,6 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
         let desired_height = (desired_height_rows.at_least(1) as f32) * line_spacing;
         let desired_size = vec2(wrap_width, galley.size.y.max(desired_height));
         let (auto_id, rect) = ui.allocate_space(desired_size);
-
-        if (rect.width() - desired_size.x).abs() > 0.5 {
-            // We didn't get what we asked for. Likely we are in a justified layout, and got enlarged.
-            wrap_width = rect.width();
-            galley = make_galley(ui, wrap_width, text.as_ref())
-        }
 
         let id = id.unwrap_or_else(|| {
             if let Some(id_source) = id_source {
