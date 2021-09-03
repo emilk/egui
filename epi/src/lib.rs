@@ -317,7 +317,7 @@ pub trait TextureAllocator {
     fn free(&mut self, id: egui::TextureId);
 }
 
-/// Abstraction for texture reference
+/// Abstraction for platform dependent texture reference
 pub trait NativeTexture {
     type Texture;
 
@@ -328,6 +328,7 @@ pub trait NativeTexture {
     /// only for user texture
     fn replace_texture_ref(&mut self, id: egui::TextureId, replacing: Self::Texture);
 }
+
 /// How to signal the [`egui`] integration that a repaint is required.
 pub trait RepaintSignal: Send + Sync {
     /// This signals the [`egui`] integration that a repaint is required.
