@@ -4,7 +4,9 @@ All notable changes to the `egui_glium` integration will be noted in this file.
 
 
 ## Unreleased
+* Remove "http" feature (use https://github.com/emilk/ehttp instead!).
 * Add `epi::NativeTexture` trait for glium painter
+
 
 ## 0.14.0 - 2021-08-24
 * Fix native file dialogs hanging (eg. when using [`rfd`](https://github.com/PolyMeilex/rfd)).

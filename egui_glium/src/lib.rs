@@ -19,8 +19,6 @@
 #![allow(clippy::manual_range_contains, clippy::single_match)]
 
 mod backend;
-#[cfg(feature = "http")]
-pub mod http;
 mod painter;
 #[cfg(feature = "persistence")]
 pub mod persistence;

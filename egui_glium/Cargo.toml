@@ -4,10 +4,10 @@ version = "0.14.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui natively using the glium library"
 edition = "2018"
-homepage = "https://github.com/emilk/egui"
+homepage = "https://github.com/emilk/egui/tree/master/egui_glium"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/emilk/egui"
+repository = "https://github.com/emilk/egui/tree/master/egui_glium"
 categories = ["gui", "game-development"]
 keywords = ["glium", "egui", "gui", "gamedev"]
 include = [
@@ -28,9 +28,6 @@ epi = { version = "0.14.0", path = "../epi" }
 glium = "0.30"
 webbrowser = "0.5"
 
-# feature "http":
-ureq = { version = "2.0", optional = true }
-
 # feature "persistence":
 directories-next = { version = "2", optional = true }
 ron = { version = "0.6", optional = true }
@@ -50,7 +47,6 @@ default = ["default_fonts"]
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["egui/default_fonts"]
-http = ["epi/http", "ureq"]
 persistence = [
     "directories-next",
     "egui/persistence",

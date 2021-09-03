@@ -65,7 +65,7 @@ impl super::View for CodeEditor {
         } else {
             ui.horizontal_wrapped(|ui|{
                 ui.spacing_mut().item_spacing.x = 0.0;
-                ui.label("Compile the demo with the 'syntect' feature to enable much nicer syntax highlighting using ");
+                ui.label("Compile the demo with the 'syntax_highlighting' feature to enable much nicer syntax highlighting using ");
                 ui.hyperlink_to("syntect", "https://github.com/trishume/syntect");
                 ui.label(".");
             });

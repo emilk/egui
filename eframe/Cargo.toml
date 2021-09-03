@@ -4,10 +4,10 @@ version = "0.14.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "egui framework - write GUI apps that compiles to web and/or natively"
 edition = "2018"
-homepage = "https://github.com/emilk/egui"
+homepage = "https://github.com/emilk/egui/tree/master/eframe"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/emilk/egui"
+repository = "https://github.com/emilk/egui/tree/master/eframe"
 categories = ["gui", "game-development"]
 keywords = ["egui", "gui", "gamedev"]
 include = [
@@ -40,7 +40,6 @@ default = ["default_fonts"]
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["egui/default_fonts"]
-http = ["egui_glium/http", "egui_web/http"]
 persistence = ["epi/persistence", "egui_glium/persistence", "egui_web/persistence"]
 screen_reader = ["egui_glium/screen_reader", "egui_web/screen_reader"] # experimental
 time = ["egui_glium/time"] # for seconds_since_midnight
