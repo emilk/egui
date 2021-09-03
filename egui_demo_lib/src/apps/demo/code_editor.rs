@@ -12,13 +12,11 @@ pub struct CodeEditor {
 impl Default for CodeEditor {
     fn default() -> Self {
         Self {
-            code: r#"
-// A very simple example
-fn main() {
-    println!("Hello world!");
-}
-"#
-            .trim_start()
+            code: "// A very simple example\n\
+fn main() {\n\
+\tprintln!(\"Hello world!\");\n\
+}\n\
+"
             .into(),
             language: "rs".into(),
             highlighter: Default::default(),

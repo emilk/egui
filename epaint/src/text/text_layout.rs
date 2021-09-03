@@ -116,6 +116,7 @@ fn rows_from_paragraphs(paragraphs: Vec<Paragraph>, wrap_width: f32) -> Vec<Row>
                 });
             } else {
                 line_break(&paragraph, wrap_width, &mut rows);
+                rows.last_mut().unwrap().ends_with_newline = !is_last_paragraph;
             }
         }
     }
@@ -137,8 +138,7 @@ fn line_break(paragraph: &Paragraph, wrap_width: f32, out_rows: &mut Vec<Row>) {
         if potential_row_width > wrap_width {
             if first_row_indentation > 0.0 && !row_break_candidates.has_word_boundary() {
                 // Allow the first row to be completely empty, because we know there will be more space on the next row:
-                assert_eq!(row_start_idx, 0);
-                // TODO: this records the height of this first row 0, though that is probably fine since first_row_indentation usually comes with a first_row_min_height.
+                // TODO: this records the height of this first row as zero, though that is probably fine since first_row_indentation usually comes with a first_row_min_height.
                 out_rows.push(Row {
                     glyphs: vec![],
                     visuals: Default::default(),
