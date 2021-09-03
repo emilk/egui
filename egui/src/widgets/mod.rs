@@ -92,7 +92,7 @@ pub fn reset_button<T: Default + PartialEq>(ui: &mut Ui, value: &mut T) {
 
 // ----------------------------------------------------------------------------
 
-pub fn stroke_ui(ui: &mut crate::Ui, stroke: &mut epaint::Stroke, text: &str) {
+pub fn stroke_ui(ui: &mut crate::Ui, stroke: &mut epaint::Stroke, text: &'static str) {
     let epaint::Stroke { width, color } = stroke;
     ui.horizontal(|ui| {
         ui.add(DragValue::new(width).speed(0.1).clamp_range(0.0..=5.0))
@@ -108,7 +108,7 @@ pub fn stroke_ui(ui: &mut crate::Ui, stroke: &mut epaint::Stroke, text: &str) {
     });
 }
 
-pub(crate) fn shadow_ui(ui: &mut Ui, shadow: &mut epaint::Shadow, text: &str) {
+pub(crate) fn shadow_ui(ui: &mut Ui, shadow: &mut epaint::Shadow, text: &'static str) {
     let epaint::Shadow { extrusion, color } = shadow;
     ui.horizontal(|ui| {
         ui.label(text);

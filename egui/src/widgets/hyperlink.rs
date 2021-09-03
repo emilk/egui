@@ -11,32 +11,29 @@ use crate::*;
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Hyperlink {
-    url: String,
+    url: Estring,
     label: Label,
 }
 
 impl Hyperlink {
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn new(url: impl ToString) -> Self {
-        let url = url.to_string();
+    pub fn new(url: impl Into<Estring>) -> Self {
+        let url = url.into();
         Self {
             url: url.clone(),
             label: Label::new(url).sense(Sense::click()),
         }
     }
 
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn from_label_and_url(label: impl Into<Label>, url: impl ToString) -> Self {
+    pub fn from_label_and_url(label: impl Into<Label>, url: impl Into<Estring>) -> Self {
         Self {
-            url: url.to_string(),
+            url: url.into(),
             label: label.into(),
         }
     }
 
     /// Show some other text than the url
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn text(mut self, text: impl ToString) -> Self {
-        self.label.text = text.to_string();
+    pub fn text(mut self, text: impl Into<Estring>) -> Self {
+        self.label.text = text.into();
         self
     }
 
@@ -63,13 +60,13 @@ impl Widget for Hyperlink {
         if response.clicked() {
             let modifiers = ui.ctx().input().modifiers;
             ui.ctx().output().open_url = Some(crate::output::OpenUrl {
-                url: url.clone(),
+                url: url.to_string(),
                 new_tab: modifiers.any(),
             });
         }
         if response.middle_clicked() {
             ui.ctx().output().open_url = Some(crate::output::OpenUrl {
-                url: url.clone(),
+                url: url.to_string(),
                 new_tab: true,
             });
         }

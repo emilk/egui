@@ -16,7 +16,7 @@ use std::sync::Arc;
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Label {
     // TODO: not pub
-    pub(crate) text: String,
+    pub(crate) text: Estring,
     pub(crate) wrap: Option<bool>,
     pub(crate) text_style: Option<TextStyle>,
     pub(crate) background_color: Color32,
@@ -32,10 +32,9 @@ pub struct Label {
 }
 
 impl Label {
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn new(text: impl ToString) -> Self {
+    pub fn new(text: impl Into<Estring>) -> Self {
         Self {
-            text: text.to_string(),
+            text: text.into(),
             wrap: None,
             text_style: None,
             background_color: Color32::TRANSPARENT,
@@ -51,7 +50,7 @@ impl Label {
         }
     }
 
-    pub fn text(&self) -> &str {
+    pub(crate) fn text(&self) -> &Estring {
         &self.text
     }
 
@@ -211,7 +210,7 @@ impl Label {
         };
 
         let job = LayoutJob {
-            text: self.text.clone(), // TODO: avoid clone
+            text: self.text.clone(),
             sections: vec![LayoutSection {
                 leading_space,
                 byte_range: 0..self.text.len(),
@@ -358,8 +357,20 @@ impl Widget for Label {
     }
 }
 
-impl From<&str> for Label {
-    fn from(s: &str) -> Label {
+impl From<&'static str> for Label {
+    fn from(s: &'static str) -> Label {
+        Label::new(s)
+    }
+}
+
+impl From<&Estring> for Label {
+    fn from(s: &Estring) -> Label {
+        Label::new(s)
+    }
+}
+
+impl From<Estring> for Label {
+    fn from(s: Estring) -> Label {
         Label::new(s)
     }
 }

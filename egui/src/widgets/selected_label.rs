@@ -24,16 +24,15 @@ use crate::*;
 #[derive(Debug)]
 pub struct SelectableLabel {
     selected: bool,
-    text: String,
+    text: Estring,
     text_style: Option<TextStyle>,
 }
 
 impl SelectableLabel {
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn new(selected: bool, text: impl ToString) -> Self {
+    pub fn new(selected: bool, text: impl Into<Estring>) -> Self {
         Self {
             selected,
-            text: text.to_string(),
+            text: text.into(),
             text_style: None,
         }
     }

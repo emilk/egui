@@ -1,8 +1,7 @@
 use crate::{
     emath::{lerp, Align, Pos2, Rect, Vec2},
-    CursorIcon, PointerButton, NUM_POINTER_BUTTONS,
+    CtxRef, CursorIcon, Estring, Id, LayerId, PointerButton, Sense, Ui, NUM_POINTER_BUTTONS,
 };
-use crate::{CtxRef, Id, LayerId, Sense, Ui};
 
 // ----------------------------------------------------------------------------
 
@@ -373,14 +372,14 @@ impl Response {
     /// For that, use [`Self::on_disabled_hover_text`] instead.
     ///
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
-    pub fn on_hover_text(self, text: impl ToString) -> Self {
+    pub fn on_hover_text(self, text: impl Into<Estring>) -> Self {
         self.on_hover_ui(|ui| {
             ui.add(crate::widgets::Label::new(text));
         })
     }
 
     /// Show this text when hovering if the widget is disabled.
-    pub fn on_disabled_hover_text(self, text: impl ToString) -> Self {
+    pub fn on_disabled_hover_text(self, text: impl Into<Estring>) -> Self {
         self.on_disabled_hover_ui(|ui| {
             ui.add(crate::widgets::Label::new(text));
         })

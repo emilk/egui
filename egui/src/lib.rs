@@ -352,7 +352,7 @@ pub use emath as math; // historical reasons
 pub use emath::{lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rect, Vec2};
 pub use epaint::{
     color, mutex,
-    text::{FontDefinitions, FontFamily, TextStyle},
+    text::{Estring, FontDefinitions, FontFamily, TextStyle},
     ClippedMesh, Color32, Rgba, Shape, Stroke, Texture, TextureId,
 };
 
@@ -378,7 +378,9 @@ pub use {
 };
 
 pub mod text {
-    pub use epaint::text::{Galley, LayoutJob, LayoutSection, TextFormat, TAB_SIZE};
+    pub use epaint::text::{
+        Galley, LayoutJob, LayoutJobBuilder, LayoutSection, TextFormat, TAB_SIZE,
+    };
 }
 
 // ----------------------------------------------------------------------------

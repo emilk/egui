@@ -241,7 +241,7 @@ fn example_plot() -> egui::plot::Plot {
         .data_aspect(1.0)
 }
 
-fn doc_link_label<'a>(title: &'a str, search_term: &'a str) -> impl egui::Widget + 'a {
+fn doc_link_label(title: &'static str, search_term: &'static str) -> impl egui::Widget {
     let label = format!("{}:", title);
     let url = format!("https://docs.rs/egui?search={}", search_term);
     move |ui: &mut egui::Ui| {

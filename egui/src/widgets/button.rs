@@ -22,7 +22,7 @@ fn select<T>(b: bool, if_true: T, if_false: T) -> T {
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Button {
-    text: String,
+    text: Estring,
     text_color: Option<Color32>,
     text_style: Option<TextStyle>,
     /// None means default for interact
@@ -36,10 +36,9 @@ pub struct Button {
 }
 
 impl Button {
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn new(text: impl ToString) -> Self {
+    pub fn new(text: impl Into<Estring>) -> Self {
         Self {
-            text: text.to_string(),
+            text: text.into(),
             text_color: None,
             text_style: None,
             fill: None,
@@ -235,17 +234,16 @@ impl Widget for Button {
 #[derive(Debug)]
 pub struct Checkbox<'a> {
     checked: &'a mut bool,
-    text: String,
+    text: Estring,
     text_color: Option<Color32>,
     text_style: Option<TextStyle>,
 }
 
 impl<'a> Checkbox<'a> {
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn new(checked: &'a mut bool, text: impl ToString) -> Self {
+    pub fn new(checked: &'a mut bool, text: impl Into<Estring>) -> Self {
         Checkbox {
             checked,
-            text: text.to_string(),
+            text: text.into(),
             text_color: None,
             text_style: None,
         }
@@ -360,17 +358,16 @@ impl<'a> Widget for Checkbox<'a> {
 #[derive(Debug)]
 pub struct RadioButton {
     checked: bool,
-    text: String,
+    text: Estring,
     text_color: Option<Color32>,
     text_style: Option<TextStyle>,
 }
 
 impl RadioButton {
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn new(checked: bool, text: impl ToString) -> Self {
+    pub fn new(checked: bool, text: impl Into<Estring>) -> Self {
         Self {
             checked,
-            text: text.to_string(),
+            text: text.into(),
             text_color: None,
             text_style: None,
         }

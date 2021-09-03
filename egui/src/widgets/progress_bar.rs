@@ -1,7 +1,7 @@
 use crate::*;
 
 enum ProgressBarText {
-    Custom(String),
+    Custom(Estring),
     Percentage,
 }
 
@@ -31,9 +31,8 @@ impl ProgressBar {
     }
 
     /// A custom text to display on the progress bar.
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn text(mut self, text: impl ToString) -> Self {
-        self.text = Some(ProgressBarText::Custom(text.to_string()));
+    pub fn text(mut self, text: impl Into<Estring>) -> Self {
+        self.text = Some(ProgressBarText::Custom(text.into()));
         self
     }
 
@@ -125,9 +124,9 @@ impl Widget for ProgressBar {
         }
 
         if let Some(text_kind) = text {
-            let text = match text_kind {
+            let text: Estring = match text_kind {
                 ProgressBarText::Custom(string) => string,
-                ProgressBarText::Percentage => format!("{}%", (progress * 100.0) as usize),
+                ProgressBarText::Percentage => format!("{}%", (progress * 100.0) as usize).into(),
             };
             ui.painter().sub_region(outer_rect).text(
                 outer_rect.left_center() + vec2(ui.spacing().item_spacing.x, 0.0),

@@ -262,7 +262,7 @@ impl ColorTest {
         &mut self,
         ui: &mut Ui,
         tex_allocator: &mut Option<&mut dyn epi::TextureAllocator>,
-        label: &str,
+        label: &'static str,
         bg_fill: Color32,
         gradient: &Gradient,
     ) {
@@ -284,7 +284,13 @@ impl ColorTest {
         }
     }
 
-    fn vertex_gradient(&mut self, ui: &mut Ui, label: &str, bg_fill: Color32, gradient: &Gradient) {
+    fn vertex_gradient(
+        &mut self,
+        ui: &mut Ui,
+        label: &'static str,
+        bg_fill: Color32,
+        gradient: &Gradient,
+    ) {
         if !self.vertex_gradients {
             return;
         }

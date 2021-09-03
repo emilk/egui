@@ -126,7 +126,7 @@ impl ToString for LineStyle {
 pub struct HLine {
     pub(super) y: f64,
     pub(super) stroke: Stroke,
-    pub(super) name: String,
+    pub(super) name: Estring,
     pub(super) highlight: bool,
     pub(super) style: LineStyle,
 }
@@ -136,7 +136,7 @@ impl HLine {
         Self {
             y: y.into(),
             stroke: Stroke::new(1.0, Color32::TRANSPARENT),
-            name: String::default(),
+            name: Estring::default(),
             highlight: false,
             style: LineStyle::Solid,
         }
@@ -178,9 +178,8 @@ impl HLine {
     ///
     /// Multiple plot items may share the same name, in which case they will also share an entry in
     /// the legend.
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn name(mut self, name: impl ToString) -> Self {
-        self.name = name.to_string();
+    pub fn name(mut self, name: impl Into<Estring>) -> Self {
+        self.name = name.into();
         self
     }
 }
@@ -204,7 +203,7 @@ impl PlotItem for HLine {
     fn initialize(&mut self, _x_range: RangeInclusive<f64>) {}
 
     fn name(&self) -> &str {
-        &self.name
+        self.name.as_str()
     }
 
     fn color(&self) -> Color32 {
@@ -236,7 +235,7 @@ impl PlotItem for HLine {
 pub struct VLine {
     pub(super) x: f64,
     pub(super) stroke: Stroke,
-    pub(super) name: String,
+    pub(super) name: Estring,
     pub(super) highlight: bool,
     pub(super) style: LineStyle,
 }
@@ -246,7 +245,7 @@ impl VLine {
         Self {
             x: x.into(),
             stroke: Stroke::new(1.0, Color32::TRANSPARENT),
-            name: String::default(),
+            name: Estring::default(),
             highlight: false,
             style: LineStyle::Solid,
         }
@@ -288,9 +287,8 @@ impl VLine {
     ///
     /// Multiple plot items may share the same name, in which case they will also share an entry in
     /// the legend.
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn name(mut self, name: impl ToString) -> Self {
-        self.name = name.to_string();
+    pub fn name(mut self, name: impl Into<Estring>) -> Self {
+        self.name = name.into();
         self
     }
 }
@@ -314,7 +312,7 @@ impl PlotItem for VLine {
     fn initialize(&mut self, _x_range: RangeInclusive<f64>) {}
 
     fn name(&self) -> &str {
-        &self.name
+        self.name.as_str()
     }
 
     fn color(&self) -> Color32 {
@@ -542,7 +540,7 @@ impl MarkerShape {
 pub struct Line {
     pub(super) series: Values,
     pub(super) stroke: Stroke,
-    pub(super) name: String,
+    pub(super) name: Estring,
     pub(super) highlight: bool,
     pub(super) fill: Option<f32>,
     pub(super) style: LineStyle,
@@ -602,9 +600,8 @@ impl Line {
     ///
     /// Multiple plot items may share the same name, in which case they will also share an entry in
     /// the legend.
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn name(mut self, name: impl ToString) -> Self {
-        self.name = name.to_string();
+    pub fn name(mut self, name: impl Into<Estring>) -> Self {
+        self.name = name.into();
         self
     }
 }
@@ -709,7 +706,7 @@ impl PlotItem for Line {
 pub struct Polygon {
     pub(super) series: Values,
     pub(super) stroke: Stroke,
-    pub(super) name: String,
+    pub(super) name: Estring,
     pub(super) highlight: bool,
     pub(super) fill_alpha: f32,
     pub(super) style: LineStyle,
@@ -770,9 +767,8 @@ impl Polygon {
     ///
     /// Multiple plot items may share the same name, in which case they will also share an entry in
     /// the legend.
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn name(mut self, name: impl ToString) -> Self {
-        self.name = name.to_string();
+    pub fn name(mut self, name: impl Into<Estring>) -> Self {
+        self.name = name.into();
         self
     }
 }
@@ -842,20 +838,19 @@ impl PlotItem for Polygon {
 
 /// Text inside the plot.
 pub struct Text {
-    pub(super) text: String,
+    pub(super) text: Estring,
     pub(super) style: TextStyle,
     pub(super) position: Value,
-    pub(super) name: String,
+    pub(super) name: Estring,
     pub(super) highlight: bool,
     pub(super) color: Color32,
     pub(super) anchor: Align2,
 }
 
 impl Text {
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn new(position: Value, text: impl ToString) -> Self {
+    pub fn new(position: Value, text: impl Into<Estring>) -> Self {
         Self {
-            text: text.to_string(),
+            text: text.into(),
             style: TextStyle::Small,
             position,
             name: Default::default(),
@@ -895,9 +890,8 @@ impl Text {
     ///
     /// Multiple plot items may share the same name, in which case they will also share an entry in
     /// the legend.
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn name(mut self, name: impl ToString) -> Self {
-        self.name = name.to_string();
+    pub fn name(mut self, name: impl Into<Estring>) -> Self {
+        self.name = name.into();
         self
     }
 }
@@ -965,7 +959,7 @@ pub struct Points {
     pub(super) filled: bool,
     /// The maximum extent of the marker from its center.
     pub(super) radius: f32,
-    pub(super) name: String,
+    pub(super) name: Estring,
     pub(super) highlight: bool,
     pub(super) stems: Option<f32>,
 }
@@ -1026,9 +1020,8 @@ impl Points {
     ///
     /// Multiple plot items may share the same name, in which case they will also share an entry in
     /// the legend.
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn name(mut self, name: impl ToString) -> Self {
-        self.name = name.to_string();
+    pub fn name(mut self, name: impl Into<Estring>) -> Self {
+        self.name = name.into();
         self
     }
 }
@@ -1221,7 +1214,7 @@ pub struct Arrows {
     pub(super) origins: Values,
     pub(super) tips: Values,
     pub(super) color: Color32,
-    pub(super) name: String,
+    pub(super) name: Estring,
     pub(super) highlight: bool,
 }
 
@@ -1254,9 +1247,8 @@ impl Arrows {
     ///
     /// Multiple plot items may share the same name, in which case they will also share an entry in
     /// the legend.
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn name(mut self, name: impl ToString) -> Self {
-        self.name = name.to_string();
+    pub fn name(mut self, name: impl Into<Estring>) -> Self {
+        self.name = name.into();
         self
     }
 }
@@ -1340,7 +1332,7 @@ pub struct PlotImage {
     pub(super) bg_fill: Color32,
     pub(super) tint: Color32,
     pub(super) highlight: bool,
-    pub(super) name: String,
+    pub(super) name: Estring,
 }
 
 impl PlotImage {
@@ -1388,9 +1380,8 @@ impl PlotImage {
     ///
     /// Multiple plot items may share the same name, in which case they will also share an entry in
     /// the legend.
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn name(mut self, name: impl ToString) -> Self {
-        self.name = name.to_string();
+    pub fn name(mut self, name: impl Into<Estring>) -> Self {
+        self.name = name.into();
         self
     }
 }

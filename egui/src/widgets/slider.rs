@@ -1,5 +1,3 @@
-#![allow(clippy::needless_pass_by_value)] // False positives with `impl ToString`
-
 use crate::{widgets::Label, *};
 use std::ops::RangeInclusive;
 
@@ -58,9 +56,9 @@ pub struct Slider<'a> {
     clamp_to_range: bool,
     smart_aim: bool,
     show_value: bool,
-    prefix: String,
-    suffix: String,
-    text: String,
+    prefix: Estring,
+    suffix: Estring,
+    text: Estring,
     text_color: Option<Color32>,
     min_decimals: usize,
     max_decimals: Option<usize>,
@@ -115,20 +113,20 @@ impl<'a> Slider<'a> {
     }
 
     /// Show a prefix before the number, e.g. "x: "
-    pub fn prefix(mut self, prefix: impl ToString) -> Self {
-        self.prefix = prefix.to_string();
+    pub fn prefix(mut self, prefix: impl Into<Estring>) -> Self {
+        self.prefix = prefix.into();
         self
     }
 
     /// Add a suffix to the number, this can be e.g. a unit ("°" or " m")
-    pub fn suffix(mut self, suffix: impl ToString) -> Self {
-        self.suffix = suffix.to_string();
+    pub fn suffix(mut self, suffix: impl Into<Estring>) -> Self {
+        self.suffix = suffix.into();
         self
     }
 
     /// Show a text next to the slider (e.g. explaining what the slider controls).
-    pub fn text(mut self, text: impl ToString) -> Self {
-        self.text = text.to_string();
+    pub fn text(mut self, text: impl Into<Estring>) -> Self {
+        self.text = text.into();
         self
     }
 

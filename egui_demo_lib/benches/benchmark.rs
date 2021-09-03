@@ -57,7 +57,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 ui.label("the quick brown fox jumps over the lazy dog");
             })
         });
-        c.bench_function("label format!", |b| {
+        c.bench_function("label String", |b| {
             b.iter(|| {
                 ui.label("the quick brown fox jumps over the lazy dog".to_owned());
             })
@@ -77,20 +77,16 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             b.iter(|| {
                 use egui::epaint::text::{layout, LayoutJob};
 
-                let job = LayoutJob::simple(
-                    LOREM_IPSUM_LONG.to_owned(),
-                    egui::TextStyle::Body,
-                    color,
-                    wrap_width,
-                );
+                let job =
+                    LayoutJob::simple(LOREM_IPSUM_LONG, egui::TextStyle::Body, color, wrap_width);
                 layout(&fonts, job.into())
             })
         });
         c.bench_function("text_layout_cached", |b| {
-            b.iter(|| fonts.layout(LOREM_IPSUM_LONG.to_owned(), text_style, color, wrap_width))
+            b.iter(|| fonts.layout(LOREM_IPSUM_LONG, text_style, color, wrap_width))
         });
 
-        let galley = fonts.layout(LOREM_IPSUM_LONG.to_owned(), text_style, color, wrap_width);
+        let galley = fonts.layout(LOREM_IPSUM_LONG, text_style, color, wrap_width);
         let mut tessellator = egui::epaint::Tessellator::from_options(Default::default());
         let mut mesh = egui::epaint::Mesh::default();
         c.bench_function("tessellate_text", |b| {

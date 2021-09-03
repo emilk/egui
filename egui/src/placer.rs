@@ -262,7 +262,7 @@ impl Placer {
 }
 
 impl Placer {
-    pub(crate) fn debug_paint_cursor(&self, painter: &crate::Painter, text: impl ToString) {
+    pub(crate) fn debug_paint_cursor(&self, painter: &crate::Painter, text: impl Into<Estring>) {
         let stroke = Stroke::new(1.0, Color32::DEBUG_COLOR);
 
         if let Some(grid) = &self.grid {

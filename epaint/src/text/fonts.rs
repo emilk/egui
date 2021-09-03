@@ -10,7 +10,7 @@ use crate::{
     mutex::Mutex,
     text::{
         font::{Font, FontImpl},
-        Galley, LayoutJob,
+        Estring, Galley, LayoutJob,
     },
     Texture, TextureAtlas,
 };
@@ -330,7 +330,7 @@ impl Fonts {
     /// The implementation uses memoization so repeated calls are cheap.
     pub fn layout(
         &self,
-        text: String,
+        text: impl Into<Estring>,
         text_style: TextStyle,
         color: crate::Color32,
         wrap_width: f32,
@@ -344,7 +344,7 @@ impl Fonts {
     /// The implementation uses memoization so repeated calls are cheap.
     pub fn layout_no_wrap(
         &self,
-        text: String,
+        text: impl Into<Estring>,
         text_style: TextStyle,
         color: crate::Color32,
     ) -> Arc<Galley> {
@@ -357,7 +357,7 @@ impl Fonts {
     /// The implementation uses memoization so repeated calls are cheap.
     pub fn layout_delayed_color(
         &self,
-        text: String,
+        text: impl Into<Estring>,
         text_style: TextStyle,
         wrap_width: f32,
     ) -> Arc<Galley> {

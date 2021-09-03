@@ -121,7 +121,7 @@ impl WrapApp {
 
             for (anchor, app) in self.apps.iter_mut() {
                 if ui
-                    .selectable_label(self.selected_anchor == anchor, app.name())
+                    .selectable_label(self.selected_anchor == anchor, app.name().to_owned())
                     .clicked()
                 {
                     self.selected_anchor = anchor.to_owned();

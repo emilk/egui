@@ -43,7 +43,7 @@ pub fn item_ui(ui: &mut Ui, item: easy_mark::Item<'_>) {
         }
         easy_mark::Item::Hyperlink(style, text, url) => {
             let label = label_from_style(text, &style);
-            ui.add(Hyperlink::from_label_and_url(label, url));
+            ui.add(Hyperlink::from_label_and_url(label, url.to_owned()));
         }
 
         easy_mark::Item::Separator => {
@@ -75,7 +75,7 @@ pub fn item_ui(ui: &mut Ui, item: easy_mark::Item<'_>) {
         }
         easy_mark::Item::CodeBlock(_language, code) => {
             let where_to_put_background = ui.painter().add(Shape::Noop);
-            let mut rect = ui.monospace(code).rect;
+            let mut rect = ui.monospace(code.to_owned()).rect;
             rect = rect.expand(1.0); // looks better
             rect.max.x = ui.max_rect().max.x;
             let code_bg_color = ui.visuals().code_bg_color;
@@ -102,7 +102,7 @@ fn label_from_style(text: &str, style: &easy_mark::Style) -> Label {
 
     let small = small || raised; // Raised text is also smaller
 
-    let mut label = Label::new(text);
+    let mut label = Label::new(text.to_owned());
     if heading && !small {
         label = label.heading().strong();
     }

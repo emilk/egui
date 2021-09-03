@@ -5,7 +5,7 @@ use crate::{
 };
 use epaint::{
     mutex::Mutex,
-    text::{Fonts, Galley, TextStyle},
+    text::{Estring, Fonts, Galley, TextStyle},
     Shape, Stroke,
 };
 
@@ -193,17 +193,10 @@ impl Painter {
 
 /// ## Debug painting
 impl Painter {
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn debug_rect(&mut self, rect: Rect, color: Color32, text: impl ToString) {
+    pub fn debug_rect(&mut self, rect: Rect, color: Color32, text: impl Into<Estring>) {
         self.rect_stroke(rect, 0.0, (1.0, color));
         let text_style = TextStyle::Monospace;
-        self.text(
-            rect.min,
-            Align2::LEFT_TOP,
-            text.to_string(),
-            text_style,
-            color,
-        );
+        self.text(rect.min, Align2::LEFT_TOP, text.into(), text_style, color);
     }
 
     pub fn error(&self, pos: Pos2, text: impl std::fmt::Display) -> Rect {
@@ -211,15 +204,14 @@ impl Painter {
     }
 
     /// text with a background
-    #[allow(clippy::needless_pass_by_value)]
     pub fn debug_text(
         &self,
         pos: Pos2,
         anchor: Align2,
         color: Color32,
-        text: impl ToString,
+        text: impl Into<Estring>,
     ) -> Rect {
-        let galley = self.layout_no_wrap(text.to_string(), TextStyle::Monospace, color);
+        let galley = self.layout_no_wrap(text, TextStyle::Monospace, color);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
         let frame_rect = rect.expand(2.0);
         self.add(Shape::Rect {
@@ -332,16 +324,15 @@ impl Painter {
     /// [`Self::layout`] or [`Self::layout_no_wrap`].
     ///
     /// Returns where the text ended up.
-    #[allow(clippy::needless_pass_by_value)]
     pub fn text(
         &self,
         pos: Pos2,
         anchor: Align2,
-        text: impl ToString,
+        text: impl Into<Estring>,
         text_style: TextStyle,
         text_color: Color32,
     ) -> Rect {
-        let galley = self.layout_no_wrap(text.to_string(), text_style, text_color);
+        let galley = self.layout_no_wrap(text, text_style, text_color);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
         self.galley(rect.min, galley);
         rect
@@ -353,7 +344,7 @@ impl Painter {
     #[inline(always)]
     pub fn layout(
         &self,
-        text: String,
+        text: impl Into<Estring>,
         text_style: TextStyle,
         color: crate::Color32,
         wrap_width: f32,
@@ -367,7 +358,7 @@ impl Painter {
     #[inline(always)]
     pub fn layout_no_wrap(
         &self,
-        text: String,
+        text: impl Into<Estring>,
         text_style: TextStyle,
         color: crate::Color32,
     ) -> std::sync::Arc<Galley> {

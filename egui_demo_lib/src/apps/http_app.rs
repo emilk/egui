@@ -132,10 +132,12 @@ impl epi::App for HttpApp {
                     }
                     Err(error) => {
                         // This should only happen if the fetch API isn't available or something similar.
-                        ui.add(
-                            egui::Label::new(if error.is_empty() { "Error" } else { error })
-                                .text_color(egui::Color32::RED),
-                        );
+                        let error = if error.is_empty() {
+                            "Error".to_owned()
+                        } else {
+                            error.clone()
+                        };
+                        ui.add(egui::Label::new(error).text_color(egui::Color32::RED));
                     }
                 }
             }
@@ -325,7 +327,7 @@ impl ColoredText {
         use egui::text::{LayoutJob, LayoutSection, TextFormat};
 
         let mut job = LayoutJob {
-            text: text.into(),
+            text: text.to_owned().into(),
             ..Default::default()
         };
 

@@ -64,7 +64,7 @@ pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResp
 /// Returns `None` if the menu is not open.
 pub fn menu<R>(
     ui: &mut Ui,
-    title: impl ToString,
+    title: impl Into<Estring>,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
     menu_impl(ui, title, Box::new(add_contents))
@@ -104,13 +104,12 @@ pub(crate) fn menu_ui<'c, R>(
     })
 }
 
-#[allow(clippy::needless_pass_by_value)]
 fn menu_impl<'c, R>(
     ui: &mut Ui,
-    title: impl ToString,
+    title: impl Into<Estring>,
     add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
 ) -> Option<R> {
-    let title = title.to_string();
+    let title = title.into();
     let bar_id = ui.id();
     let menu_id = bar_id.with(&title);
 

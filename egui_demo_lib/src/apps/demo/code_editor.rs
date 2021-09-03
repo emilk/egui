@@ -117,7 +117,7 @@ impl MemoizedSyntaxHighlighter {
                 .highlight(is_dark_mode, code, language)
                 .unwrap_or_else(|| {
                     LayoutJob::simple(
-                        code.into(),
+                        code.to_owned(),
                         egui::TextStyle::Monospace,
                         if is_dark_mode {
                             egui::Color32::LIGHT_GRAY
@@ -172,7 +172,7 @@ impl Highligher {
         use egui::text::{LayoutSection, TextFormat};
 
         let mut job = LayoutJob {
-            text: text.into(),
+            text: text.to_owned().into(),
             ..Default::default()
         };
 
@@ -226,7 +226,7 @@ impl Highligher {
     fn highlight(&self, is_dark_mode: bool, mut text: &str, _language: &str) -> Option<LayoutJob> {
         // Extremely simple syntax highlighter for when we compile without syntect
 
-        use egui::text::TextFormat;
+        use egui::text::{LayoutJobBuilder, TextFormat};
         use egui::Color32;
         let monospace = egui::TextStyle::Monospace;
 
@@ -265,7 +265,7 @@ impl Highligher {
             },
         );
 
-        let mut job = LayoutJob::default();
+        let mut job = LayoutJobBuilder::default();
 
         while !text.is_empty() {
             if text.starts_with("//") {
@@ -308,7 +308,7 @@ impl Highligher {
             }
         }
 
-        Some(job)
+        Some(job.build())
     }
 }
 

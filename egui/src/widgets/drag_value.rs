@@ -1,5 +1,3 @@
-#![allow(clippy::needless_pass_by_value)] // False positives with `impl ToString`
-
 use std::ops::RangeInclusive;
 
 use crate::*;
@@ -50,8 +48,8 @@ fn set(get_set_value: &mut GetSetValue<'_>, value: f64) {
 pub struct DragValue<'a> {
     get_set_value: GetSetValue<'a>,
     speed: f64,
-    prefix: String,
-    suffix: String,
+    prefix: Estring,
+    suffix: Estring,
     clamp_range: RangeInclusive<f64>,
     min_decimals: usize,
     max_decimals: Option<usize>,
@@ -100,14 +98,14 @@ impl<'a> DragValue<'a> {
     }
 
     /// Show a prefix before the number, e.g. "x: "
-    pub fn prefix(mut self, prefix: impl ToString) -> Self {
-        self.prefix = prefix.to_string();
+    pub fn prefix(mut self, prefix: impl Into<Estring>) -> Self {
+        self.prefix = prefix.into();
         self
     }
 
     /// Add a suffix to the number, this can be e.g. a unit ("°" or " m")
-    pub fn suffix(mut self, suffix: impl ToString) -> Self {
-        self.suffix = suffix.to_string();
+    pub fn suffix(mut self, suffix: impl Into<Estring>) -> Self {
+        self.suffix = suffix.into();
         self
     }
 

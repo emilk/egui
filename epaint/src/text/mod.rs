@@ -1,6 +1,7 @@
 //! Everything related to text, fonts, text layout, cursors etc.
 
 pub mod cursor;
+mod estring;
 mod font;
 mod fonts;
 mod text_layout;
@@ -10,6 +11,7 @@ mod text_layout_types;
 pub const TAB_SIZE: usize = 4;
 
 pub use {
+    estring::Estring,
     fonts::{FontDefinitions, FontFamily, Fonts, TextStyle},
     text_layout::layout,
     text_layout_types::*,

@@ -1,5 +1,5 @@
 use crate::{
-    text::{Fonts, Galley, TextStyle},
+    text::{Estring, Fonts, Galley, TextStyle},
     Color32, Mesh, Stroke,
 };
 use emath::*;
@@ -166,16 +166,15 @@ impl Shape {
         }
     }
 
-    #[allow(clippy::needless_pass_by_value)]
     pub fn text(
         fonts: &Fonts,
         pos: Pos2,
         anchor: Align2,
-        text: impl ToString,
+        text: impl Into<Estring>,
         text_style: TextStyle,
         color: Color32,
     ) -> Self {
-        let galley = fonts.layout_no_wrap(text.to_string(), text_style, color);
+        let galley = fonts.layout_no_wrap(text.into(), text_style, color);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
         Self::galley(rect.min, galley)
     }

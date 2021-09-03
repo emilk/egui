@@ -23,7 +23,7 @@ use epaint::Shape;
 pub struct ComboBox {
     id_source: Id,
     label: Option<Label>,
-    selected_text: String,
+    selected_text: Estring,
     width: Option<f32>,
 }
 
@@ -56,9 +56,8 @@ impl ComboBox {
     }
 
     /// What we show as the currently selected value
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn selected_text(mut self, selected_text: impl ToString) -> Self {
-        self.selected_text = selected_text.to_string();
+    pub fn selected_text(mut self, selected_text: impl Into<Estring>) -> Self {
+        self.selected_text = selected_text.into();
         self
     }
 
@@ -143,11 +142,10 @@ impl ComboBox {
     }
 }
 
-#[allow(clippy::needless_pass_by_value)]
 fn combo_box<R>(
     ui: &mut Ui,
     button_id: Id,
-    selected: impl ToString,
+    selected: impl Into<Estring>,
     menu_contents: impl FnOnce(&mut Ui) -> R,
 ) -> InnerResponse<Option<R>> {
     let popup_id = button_id.with("popup");
@@ -158,9 +156,9 @@ fn combo_box<R>(
         let full_minimum_width = ui.spacing().slider_width;
         let icon_size = Vec2::splat(ui.spacing().icon_width);
 
-        let galley =
-            ui.fonts()
-                .layout_delayed_color(selected.to_string(), TextStyle::Button, f32::INFINITY);
+        let galley = ui
+            .fonts()
+            .layout_delayed_color(selected, TextStyle::Button, f32::INFINITY);
 
         let width = galley.size.x + ui.spacing().item_spacing.x + icon_size.x;
         let width = width.at_least(full_minimum_width);

@@ -329,7 +329,7 @@ impl Tree {
         )
     }
     pub fn ui(&mut self, ui: &mut Ui) -> Action {
-        self.1.ui(ui, 0, "root", &mut self.0)
+        self.1.ui(ui, 0, "root".to_owned(), &mut self.0)
     }
 }
 
@@ -342,16 +342,16 @@ impl SubTree {
         &mut self,
         ui: &mut Ui,
         depth: usize,
-        name: &str,
+        name: String,
         selected_name: &mut String,
     ) -> Action {
-        let response = CollapsingHeader::new(name)
+        let response = CollapsingHeader::new(name.clone())
             .default_open(depth < 1)
             .selectable(true)
             .selected(selected_name.as_str() == name)
-            .show(ui, |ui| self.children_ui(ui, name, depth, selected_name));
+            .show(ui, |ui| self.children_ui(ui, &name, depth, selected_name));
         if response.header_response.clicked() {
-            *selected_name = name.to_string();
+            *selected_name = name;
         }
         response.body_returned.unwrap_or(Action::Keep)
     }
@@ -379,7 +379,7 @@ impl SubTree {
                 if tree.ui(
                     ui,
                     depth + 1,
-                    &format!("{}/{}", parent_name, i),
+                    format!("{}/{}", parent_name, i),
                     selected_name,
                 ) == Action::Keep
                 {
@@ -401,9 +401,9 @@ impl SubTree {
 // ----------------------------------------------------------------------------
 
 fn text_layout_ui(ui: &mut egui::Ui) {
-    use egui::epaint::text::{LayoutJob, TextFormat};
+    use egui::epaint::text::{LayoutJobBuilder, TextFormat};
 
-    let mut job = LayoutJob::default();
+    let mut job = LayoutJobBuilder::default();
 
     let first_row_indentation = 10.0;
 
@@ -565,6 +565,7 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         },
     );
 
+    let mut job = job.build();
     job.wrap_width = ui.available_width();
 
     let galley = ui.fonts().layout_job(job);

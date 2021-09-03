@@ -1,7 +1,7 @@
 use std::ops::Range;
 use std::sync::Arc;
 
-use super::{cursor::*, font::UvRect};
+use super::{cursor::*, font::UvRect, Estring};
 use crate::{Color32, Mesh, Stroke, TextStyle};
 use emath::*;
 
@@ -13,7 +13,7 @@ use emath::*;
 #[derive(Clone, Debug)]
 pub struct LayoutJob {
     /// The complete text of this job, referenced by `LayoutSection`.
-    pub text: String, // TODO: Cow<'static, str>
+    pub text: Estring,
 
     /// The different section, which can have different fonts, colors, etc.
     pub sections: Vec<LayoutSection>,
@@ -53,7 +53,13 @@ impl Default for LayoutJob {
 impl LayoutJob {
     /// Break on `\n` and at the given wrap width.
     #[inline]
-    pub fn simple(text: String, text_style: TextStyle, color: Color32, wrap_width: f32) -> Self {
+    pub fn simple(
+        text: impl Into<Estring>,
+        text_style: TextStyle,
+        color: Color32,
+        wrap_width: f32,
+    ) -> Self {
+        let text = text.into();
         Self {
             sections: vec![LayoutSection {
                 leading_space: 0.0,
@@ -69,7 +75,12 @@ impl LayoutJob {
 
     /// Does not break on `\n`, but shows the replacement character instead.
     #[inline]
-    pub fn simple_singleline(text: String, text_style: TextStyle, color: Color32) -> Self {
+    pub fn simple_singleline(
+        text: impl Into<Estring>,
+        text_style: TextStyle,
+        color: Color32,
+    ) -> Self {
+        let text = text.into();
         Self {
             sections: vec![LayoutSection {
                 leading_space: 0.0,
@@ -86,18 +97,6 @@ impl LayoutJob {
     #[inline(always)]
     pub fn is_empty(&self) -> bool {
         self.sections.is_empty()
-    }
-
-    /// Helper for adding a new section when building a `LayoutJob`.
-    pub fn append(&mut self, text: &str, leading_space: f32, format: TextFormat) {
-        let start = self.text.len();
-        self.text += text;
-        let byte_range = start..self.text.len();
-        self.sections.push(LayoutSection {
-            leading_space,
-            byte_range,
-            format,
-        });
     }
 }
 
@@ -132,6 +131,37 @@ impl PartialEq for LayoutJob {
 }
 
 impl std::cmp::Eq for LayoutJob {}
+
+// ----------------------------------------------------------------------------
+
+/// Build a [`LayoutJob`] from many small pieces.
+#[derive(Clone, Debug, Default)]
+pub struct LayoutJobBuilder {
+    text: String,
+    sections: Vec<LayoutSection>,
+}
+
+impl LayoutJobBuilder {
+    /// Helper for adding a new section when building a `LayoutJob`.
+    pub fn append(&mut self, text: &str, leading_space: f32, format: TextFormat) {
+        let start = self.text.len();
+        self.text += text;
+        let byte_range = start..self.text.len();
+        self.sections.push(LayoutSection {
+            leading_space,
+            byte_range,
+            format,
+        });
+    }
+
+    pub fn build(self) -> LayoutJob {
+        LayoutJob {
+            text: self.text.into(),
+            sections: self.sections,
+            ..Default::default()
+        }
+    }
+}
 
 // ----------------------------------------------------------------------------
 
@@ -366,7 +396,7 @@ impl Galley {
 
     #[inline(always)]
     pub fn text(&self) -> &str {
-        &self.job.text
+        self.job.text.as_str()
     }
 }
 

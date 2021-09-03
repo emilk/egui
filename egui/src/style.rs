@@ -919,7 +919,7 @@ impl DebugOptions {
 fn slider_vec2<'a>(
     value: &'a mut Vec2,
     range: std::ops::RangeInclusive<f32>,
-    text: &'a str,
+    text: &'static str,
 ) -> impl Widget + 'a {
     move |ui: &mut crate::Ui| {
         ui.horizontal(|ui| {

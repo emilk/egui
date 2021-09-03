@@ -1,4 +1,4 @@
-use crate::{egui_assert, emath::*, Align};
+use crate::{egui_assert, emath::*, Align, Estring};
 use std::f32::INFINITY;
 
 // ----------------------------------------------------------------------------
@@ -737,7 +737,7 @@ impl Layout {
         painter: &crate::Painter,
         region: &Region,
         stroke: epaint::Stroke,
-        text: impl ToString,
+        text: impl Into<Estring>,
     ) {
         let cursor = region.cursor;
         let next_pos = self.next_widget_position(region);

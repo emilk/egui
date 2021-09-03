@@ -225,7 +225,7 @@ impl TextBuffer for String {
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct TextEdit<'t, S: TextBuffer = String> {
     text: &'t mut S,
-    hint_text: String,
+    hint_text: Estring,
     id: Option<Id>,
     id_source: Option<Id>,
     text_style: Option<TextStyle>,
@@ -302,9 +302,8 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
     }
 
     /// Show a faint hint text when the text field is empty.
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn hint_text(mut self, hint_text: impl ToString) -> Self {
-        self.hint_text = hint_text.to_string();
+    pub fn hint_text(mut self, hint_text: impl Into<Estring>) -> Self {
+        self.hint_text = hint_text.into();
         self
     }
 
