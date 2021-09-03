@@ -4,7 +4,8 @@ All notable changes to the `egui_web` integration will be noted in this file.
 
 
 ## Unreleased
-* Add [epi::NativeTexture] trait for webgl1 webgl2 painter
+### Added
+* `epi::NativeTexture` trait for webgl1 webgl2 painter
 
 ## 0.14.1 - 2021-08-28
 

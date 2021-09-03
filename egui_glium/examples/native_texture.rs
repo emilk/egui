@@ -26,7 +26,7 @@ fn main() {
     let display = create_display(&event_loop);
 
     let mut egui = egui_glium::EguiGlium::new(&display);
-
+    // load image by image crate
     let image = image::load(
         Cursor::new(&include_bytes!("rust-logo-blk.png")[..]),
         image::ImageFormat::Png,
@@ -34,9 +34,12 @@ fn main() {
     .unwrap()
     .to_rgba8();
     let image_dimensions = image.dimensions();
+    // mark as image
     let image =
-        glium::texture::RawImage2d::from_raw_rgba_reversed(&image.into_raw(), image_dimensions);
+        glium::texture::RawImage2d::from_raw_rgba(image.into_raw(), image_dimensions);
+    //load to gpu memory
     let native_texture = glium::texture::SrgbTexture2d::new(&display, image).unwrap();
+    // allocate egui's texture id for GL texture
     let texture_id = egui
         .ctx_and_painter_mut()
         .1
@@ -48,21 +51,11 @@ fn main() {
             let mut quit = false;
 
             egui::SidePanel::left("my_side_panel").show(egui.ctx(), |ui| {
-                ui.heading("Hello World!");
+                ui.heading("");
                 if ui.button("Quit").clicked() {
                     quit = true;
                 }
 
-                egui::ComboBox::from_label("Version")
-                    .width(150.0)
-                    .selected_text("foo")
-                    .show_ui(ui, |ui| {
-                        egui::CollapsingHeader::new("Dev")
-                            .default_open(true)
-                            .show(ui, |ui| {
-                                ui.label("contents");
-                            });
-                    });
             });
             egui::Window::new("NativeTextureDisplay").show(egui.ctx(), |ui| {
                 ui.image(texture_id, egui::Vec2::new(128.0, 128.0));
