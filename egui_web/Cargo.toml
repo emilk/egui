@@ -42,14 +42,6 @@ default = ["default_fonts"]
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["egui/default_fonts"]
-http = [
-  "epi/http",
-  "web-sys/Headers",
-  "web-sys/Request",
-  "web-sys/RequestInit",
-  "web-sys/RequestMode",
-  "web-sys/Response",
-]
 persistence = ["egui/persistence", "ron", "serde"]
 screen_reader = ["tts"] # experimental
 

@@ -810,6 +810,7 @@ version = "0.14.0"
 dependencies = [
  "criterion",
  "egui",
+ "ehttp",
  "epi",
  "image",
  "serde",
@@ -830,7 +831,6 @@ dependencies = [
  "ron",
  "serde",
  "tts",
- "ureq",
  "webbrowser",
 ]
 
@@ -844,6 +844,19 @@ dependencies = [
  "ron",
  "serde",
  "tts",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
+name = "ehttp"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b078e2305de4c998700ac152b3e7a358d7fbe77e15b3b1cd2c44a8b82176124f"
+dependencies = [
+ "js-sys",
+ "ureq",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",

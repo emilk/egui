@@ -19,6 +19,9 @@ include = [
   "fonts/*.txt",
 ]
 
+[package.metadata.docs.rs]
+all-features = true
+
 [lib]
 
 [dependencies]

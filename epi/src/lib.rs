@@ -1,6 +1,6 @@
 //! Backend-agnostic interface for writing apps using [`egui`].
 //!
-//! `epi` provides interfaces for window management, serialization and http requests.
+//! `epi` provides interfaces for window management and serialization.
 //! An app written for `epi` can then be plugged into [`eframe`](https://docs.rs/eframe),
 //! the egui framework crate.
 //!
@@ -221,7 +221,7 @@ pub struct IconData {
 /// Represents the surroundings of your app.
 ///
 /// It provides methods to inspect the surroundings (are we on the web?),
-/// allocate textures, do http requests, and change settings (e.g. window size).
+/// allocate textures, and change settings (e.g. window size).
 pub struct Frame<'a>(backend::FrameBuilder<'a>);
 
 impl<'a> Frame<'a> {
@@ -254,19 +254,6 @@ impl<'a> Frame<'a> {
     /// If you need to request a repaint from another thread, clone this and send it to that other thread.
     pub fn repaint_signal(&self) -> std::sync::Arc<dyn RepaintSignal> {
         self.0.repaint_signal.clone()
-    }
-
-    /// Very simple Http fetch API.
-    /// Calls the given callback when done.
-    ///
-    /// You must enable the "http" feature for this.
-    #[cfg(feature = "http")]
-    pub fn http_fetch(
-        &self,
-        request: http::Request,
-        on_done: impl 'static + Send + FnOnce(Result<http::Response, http::Error>),
-    ) {
-        self.0.http.fetch_dyn(request, Box::new(on_done))
     }
 }
 
@@ -374,104 +361,9 @@ pub const APP_KEY: &str = "app";
 
 // ----------------------------------------------------------------------------
 
-#[cfg(feature = "http")]
-/// `epi` supports simple HTTP requests with [`Frame::http_fetch`].
-///
-/// You must enable the "http" feature for this.
-pub mod http {
-    use std::collections::BTreeMap;
-
-    /// A simple http request.
-    pub struct Request {
-        /// "GET", …
-        pub method: String,
-        /// https://…
-        pub url: String,
-        /// The raw bytes.
-        pub body: Vec<u8>,
-        /// ("Accept", "*/*"), …
-        pub headers: BTreeMap<String, String>,
-    }
-
-    impl Request {
-        pub fn create_headers_map(headers: &[(&str, &str)]) -> BTreeMap<String, String> {
-            headers
-                .iter()
-                .map(|e| (e.0.to_owned(), e.1.to_owned()))
-                .collect()
-        }
-
-        /// Create a `GET` request with the given url.
-        #[allow(clippy::needless_pass_by_value)]
-        pub fn get(url: impl ToString) -> Self {
-            Self {
-                method: "GET".to_owned(),
-                url: url.to_string(),
-                body: vec![],
-                headers: Request::create_headers_map(&[("Accept", "*/*")]),
-            }
-        }
-
-        /// Create a `POST` request with the given url and body.
-        #[allow(clippy::needless_pass_by_value)]
-        pub fn post(url: impl ToString, body: impl ToString) -> Self {
-            Self {
-                method: "POST".to_owned(),
-                url: url.to_string(),
-                body: body.to_string().into_bytes(),
-                headers: Request::create_headers_map(&[
-                    ("Accept", "*/*"),
-                    ("Content-Type", "text/plain; charset=utf-8"),
-                ]),
-            }
-        }
-    }
-
-    /// Response from a completed HTTP request.
-    pub struct Response {
-        /// The URL we ended up at. This can differ from the request url when we have followed redirects.
-        pub url: String,
-        /// Did we get a 2xx response code?
-        pub ok: bool,
-        /// Status code (e.g. `404` for "File not found").
-        pub status: u16,
-        /// Status text (e.g. "File not found" for status code `404`).
-        pub status_text: String,
-        /// The raw bytes.
-        pub bytes: Vec<u8>,
-
-        pub headers: BTreeMap<String, String>,
-    }
-
-    impl Response {
-        pub fn text(&self) -> Option<String> {
-            String::from_utf8(self.bytes.clone()).ok()
-        }
-
-        pub fn content_type(&self) -> Option<String> {
-            self.headers.get("content-type").cloned()
-        }
-    }
-    /// Possible errors does NOT include e.g. 404, which is NOT considered an error.
-    pub type Error = String;
-}
-
-// ----------------------------------------------------------------------------
-
 /// You only need to look here if you are writing a backend for `epi`.
 pub mod backend {
     use super::*;
-
-    /// Implements `Http` requests.
-    #[cfg(feature = "http")]
-    pub trait Http {
-        /// Calls the given callback when done.
-        fn fetch_dyn(
-            &self,
-            request: http::Request,
-            on_done: Box<dyn FnOnce(Result<http::Response, http::Error>) + Send>,
-        );
-    }
 
     /// The data required by [`Frame`] each frame.
     pub struct FrameBuilder<'a> {
@@ -479,9 +371,6 @@ pub mod backend {
         pub info: IntegrationInfo,
         /// A way to allocate textures (on integrations that support it).
         pub tex_allocator: &'a mut dyn TextureAllocator,
-        /// Do http requests.
-        #[cfg(feature = "http")]
-        pub http: std::sync::Arc<dyn backend::Http>,
         /// Where the app can issue commands back to the integration.
         pub output: &'a mut AppOutput,
         /// If you need to request a repaint from another thread, clone this and send it to that other thread.

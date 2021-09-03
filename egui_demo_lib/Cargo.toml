@@ -28,6 +28,7 @@ epi = { version = "0.14.0", path = "../epi" }
 unicode_names2 = { version = "0.4.0", default-features = false }
 
 # feature "http":
+ehttp = { version = "0.1.0", optional = true }
 image = { version = "0.23", default-features = false, features = ["jpeg", "png"], optional = true }
 
 # feature "syntax_highlighting":
@@ -41,7 +42,7 @@ criterion = { version = "0.3", default-features = false }
 
 [features]
 default = []
-http = ["image", "epi/http"]
+http = ["ehttp", "image"]
 persistence = ["egui/persistence", "epi/persistence", "serde"]
 syntax_highlighting = ["syntect"]
 

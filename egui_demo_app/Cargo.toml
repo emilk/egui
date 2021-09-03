@@ -15,7 +15,7 @@ egui_demo_lib = { version = "0.14.0", path = "../egui_demo_lib", features = ["ex
 
 [features]
 default = ["persistence"]
-http = ["eframe/http", "egui_demo_lib/http"]
+http = ["egui_demo_lib/http"]
 persistence = ["eframe/persistence", "egui_demo_lib/persistence"]
 screen_reader = ["eframe/screen_reader"] # experimental
 syntax_highlighting = ["egui_demo_lib/syntax_highlighting"]
