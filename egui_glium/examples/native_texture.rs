@@ -26,7 +26,7 @@ fn main() {
     let display = create_display(&event_loop);
 
     let mut egui = egui_glium::EguiGlium::new(&display);
-    // load image by image crate
+    //load image by image crate
     let image = image::load(
         Cursor::new(&include_bytes!("rust-logo-blk.png")[..]),
         image::ImageFormat::Png,
@@ -34,12 +34,11 @@ fn main() {
     .unwrap()
     .to_rgba8();
     let image_dimensions = image.dimensions();
-    // mark as image
-    let image =
-        glium::texture::RawImage2d::from_raw_rgba(image.into_raw(), image_dimensions);
+    //mark as image
+    let image = glium::texture::RawImage2d::from_raw_rgba(image.into_raw(), image_dimensions);
     //load to gpu memory
     let native_texture = glium::texture::SrgbTexture2d::new(&display, image).unwrap();
-    // allocate egui's texture id for GL texture
+    //allocate egui's texture id for GL texture
     let texture_id = egui
         .ctx_and_painter_mut()
         .1
@@ -55,7 +54,6 @@ fn main() {
                 if ui.button("Quit").clicked() {
                     quit = true;
                 }
-
             });
             egui::Window::new("NativeTextureDisplay").show(egui.ctx(), |ui| {
                 ui.image(texture_id, egui::Vec2::new(128.0, 128.0));
