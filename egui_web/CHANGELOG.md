@@ -4,6 +4,7 @@ All notable changes to the `egui_web` integration will be noted in this file.
 
 
 ## Unreleased
+* Remove "http" feature (use https://github.com/emilk/ehttp instead!).
 
 
 ## 0.14.1 - 2021-08-28

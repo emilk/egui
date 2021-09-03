@@ -29,5 +29,4 @@ serde = { version = "1", optional = true }
 
 [features]
 default = []
-http = []
 persistence = ["ron", "serde"]
