@@ -10,7 +10,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let mut demo_windows = egui_demo_lib::DemoWindows::default();
 
         // The most end-to-end benchmark.
-        c.bench_function("demo_with_tesselate__realistic", |b| {
+        c.bench_function("demo_with_tessellate__realistic", |b| {
             b.iter(|| {
                 ctx.begin_frame(raw_input.clone());
                 demo_windows.ui(&ctx);
@@ -19,7 +19,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             })
         });
 
-        c.bench_function("demo_no_tesselate", |b| {
+        c.bench_function("demo_no_tessellate", |b| {
             b.iter(|| {
                 ctx.begin_frame(raw_input.clone());
                 demo_windows.ui(&ctx);
@@ -39,7 +39,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let mut ctx = egui::CtxRef::default();
         ctx.memory().set_everything_is_visible(true); // give us everything
         let mut demo_windows = egui_demo_lib::DemoWindows::default();
-        c.bench_function("demo_full_no_tesselate", |b| {
+        c.bench_function("demo_full_no_tessellate", |b| {
             b.iter(|| {
                 ctx.begin_frame(raw_input.clone());
                 demo_windows.ui(&ctx);
