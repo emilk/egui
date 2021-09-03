@@ -45,7 +45,7 @@ pub struct Style {
     pub strong: bool,
     /// _underline_
     pub underline: bool,
-    /// -strikethrough-
+    /// ~strikethrough~
     pub strikethrough: bool,
     /// /italics/
     pub italics: bool,
@@ -67,7 +67,7 @@ pub struct Style {
 ///
 /// ```
 pub struct Parser<'a> {
-    /// The remainer of the input text
+    /// The remainder of the input text
     s: &'a str,
     /// Are we at the start of a line?
     start_of_line: bool,

@@ -59,18 +59,21 @@ impl Widget for SelectableLabel {
         let button_padding = ui.spacing().button_padding;
         let total_extra = button_padding + button_padding;
 
-        let galley = if ui.wrap_text() {
-            ui.fonts()
-                .layout_multiline(text_style, text, ui.available_width() - total_extra.x)
+        let wrap_width = if ui.wrap_text() {
+            ui.available_width() - total_extra.x
         } else {
-            ui.fonts().layout_no_wrap(text_style, text)
+            f32::INFINITY
         };
+
+        let galley = ui
+            .fonts()
+            .layout_delayed_color(text, text_style, wrap_width);
 
         let mut desired_size = total_extra + galley.size;
         desired_size.y = desired_size.y.at_least(ui.spacing().interact_size.y);
         let (rect, response) = ui.allocate_at_least(desired_size, Sense::click());
         response.widget_info(|| {
-            WidgetInfo::selected(WidgetType::SelectableLabel, selected, &galley.text)
+            WidgetInfo::selected(WidgetType::SelectableLabel, selected, galley.text())
         });
 
         let text_pos = ui
@@ -93,7 +96,7 @@ impl Widget for SelectableLabel {
             .visuals
             .override_text_color
             .unwrap_or_else(|| visuals.text_color());
-        ui.painter().galley(text_pos, galley, text_color);
+        ui.painter().galley_with_color(text_pos, galley, text_color);
         response
     }
 }

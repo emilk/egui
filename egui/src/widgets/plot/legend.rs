@@ -90,7 +90,9 @@ impl LegendEntry {
             hovered,
         } = self;
 
-        let galley = ui.fonts().layout_no_wrap(ui.style().body_text_style, text);
+        let galley =
+            ui.fonts()
+                .layout_delayed_color(text, ui.style().body_text_style, f32::INFINITY);
 
         let icon_size = galley.size.y;
         let icon_spacing = icon_size / 5.0;
@@ -99,7 +101,8 @@ impl LegendEntry {
         let desired_size = total_extra + galley.size;
         let (rect, response) = ui.allocate_exact_size(desired_size, Sense::click());
 
-        response.widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, *checked, &galley.text));
+        response
+            .widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, *checked, galley.text()));
 
         let visuals = ui.style().interact(&response);
         let label_on_the_left = ui.layout().horizontal_align() == Align::RIGHT;
@@ -142,7 +145,7 @@ impl LegendEntry {
         };
 
         let text_position = pos2(text_position_x, rect.center().y - 0.5 * galley.size.y);
-        painter.galley(text_position, galley, visuals.text_color());
+        painter.galley_with_color(text_position, galley, visuals.text_color());
 
         *checked ^= response.clicked_by(PointerButton::Primary);
         *hovered = response.hovered();

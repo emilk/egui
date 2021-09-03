@@ -21,7 +21,7 @@ impl Hyperlink {
         let url = url.to_string();
         Self {
             url: url.clone(),
-            label: Label::new(url),
+            label: Label::new(url).sense(Sense::click()),
         }
     }
 
@@ -54,9 +54,8 @@ impl Hyperlink {
 impl Widget for Hyperlink {
     fn ui(self, ui: &mut Ui) -> Response {
         let Hyperlink { url, label } = self;
-        let galley = label.layout(ui);
-        let (rect, response) = ui.allocate_exact_size(galley.size, Sense::click());
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::Hyperlink, &galley.text));
+        let (pos, galley, response) = label.layout_in_ui(ui);
+        response.widget_info(|| WidgetInfo::labeled(WidgetType::Hyperlink, galley.text()));
 
         if response.hovered() {
             ui.ctx().output().cursor_icon = CursorIcon::PointingHand;
@@ -78,19 +77,18 @@ impl Widget for Hyperlink {
         let color = ui.visuals().hyperlink_color;
         let visuals = ui.style().interact(&response);
 
-        if response.hovered() || response.has_focus() {
-            // Underline:
-            for row in &galley.rows {
-                let rect = row.rect().translate(rect.min.to_vec2());
-                ui.painter().line_segment(
-                    [rect.left_bottom(), rect.right_bottom()],
-                    (visuals.fg_stroke.width, color),
-                );
-            }
-        }
+        let underline = if response.hovered() || response.has_focus() {
+            Stroke::new(visuals.fg_stroke.width, color)
+        } else {
+            Stroke::none()
+        };
 
-        let label = label.text_color(color);
-        label.paint_galley(ui, rect.min, galley);
+        ui.painter().add(Shape::Text {
+            pos,
+            galley,
+            override_text_color: Some(color),
+            underline,
+        });
 
         response.on_hover_text(url)
     }

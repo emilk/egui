@@ -45,7 +45,9 @@ The native backend is [`egui_glium`](https://github.com/emilk/egui/tree/master/e
 
 `sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev`
 
-On Fedora Rawhide you need to run `dnf install clang clang-devel clang-tools-extra speech-dispatcher-devel`
+On Fedora Rawhide you need to run:
+
+`dnf install clang clang-devel clang-tools-extra speech-dispatcher-devel libxkbcommon-devel pkg-config openssl-devel`
 
 **NOTE**: This is just for the demo app - egui itself is completely platform agnostic!
 
@@ -79,7 +81,7 @@ ui.label(format!("Hello '{}', age {}", name, age));
 * Extensible: [easy to write your own widgets for egui](https://github.com/emilk/egui/blob/master/egui_demo_lib/src/apps/demo/toggle_switch.rs)
 * Modular: You should be able to use small parts of egui and combine them in new ways
 * Safe: there is no `unsafe` code in egui
-* Minimal dependencies: [`ab_glyph`](https://crates.io/crates/ab_glyph) [`ahash`](https://crates.io/crates/ahash) [`atomic_refcell`](https://crates.io/crates/atomic_refcell) [`ordered-float`](https://crates.io/crates/ordered-float).
+* Minimal dependencies: [`ab_glyph`](https://crates.io/crates/ab_glyph) [`ahash`](https://crates.io/crates/ahash) [`atomic_refcell`](https://crates.io/crates/atomic_refcell)
 
 egui is *not* a framework. egui is a library you call into, not an environment you program for.
 
@@ -179,6 +181,7 @@ If you making an app, consider using [`eframe`](https://github.com/emilk/egui/tr
 * [`egui_winit_ash_vk_mem`](https://crates.io/crates/egui_winit_ash_vk_mem) for for [winit](https://github.com/rust-windowing/winit), [ash](https://github.com/MaikKlein/ash) and [vk_mem](https://github.com/gwihlidal/vk-mem-rs).
 * [`egui_winit_platform`](https://github.com/hasenbanck/egui_winit_platform) for [winit](https://crates.io/crates/winit) (requires separate painter).
 * [`egui_winit_vulkano`](https://github.com/hakolao/egui_winit_vulkano) for [Vulkano](https://github.com/vulkano-rs/vulkano).
+* [`fltk-egui`](https://crates.io/crates/fltk-egui) for [fltk-rs](https://github.com/fltk-rs/fltk-rs).
 * [`ggez-egui`](https://github.com/NemuiSen/ggez-egui) for the [ggez](https://ggez.rs/) game framework.
 * [`godot-egui`](https://github.com/setzer22/godot-egui) for [`godot-rust`](https://github.com/godot-rust/godot-rust).
 * [`nannou_egui`](https://github.com/AlexEne/nannou_egui) for [nannou](https://nannou.cc).

@@ -85,13 +85,13 @@ impl AllocInfo {
     // }
 
     pub fn from_galley(galley: &Galley) -> Self {
-        Self::from_slice(galley.text.as_bytes())
+        Self::from_slice(galley.text().as_bytes())
             + Self::from_slice(&galley.rows)
             + galley.rows.iter().map(Self::from_galley_row).sum()
     }
 
     fn from_galley_row(row: &crate::text::Row) -> Self {
-        Self::from_slice(&row.x_offsets) + Self::from_slice(&row.uv_rects)
+        Self::from_mesh(&row.visuals.mesh) + Self::from_slice(&row.glyphs)
     }
 
     pub fn from_mesh(mesh: &Mesh) -> Self {

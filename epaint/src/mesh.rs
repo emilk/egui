@@ -35,6 +35,7 @@ pub struct Mesh {
 
     /// The texture to use when drawing these triangles.
     pub texture_id: TextureId,
+    // TODO: bounding rectangle
 }
 
 impl Mesh {
@@ -72,6 +73,15 @@ impl Mesh {
         self.indices.is_empty() && self.vertices.is_empty()
     }
 
+    /// Calculate a bounding rectangle.
+    pub fn calc_bounds(&self) -> Rect {
+        let mut bounds = Rect::NOTHING;
+        for v in &self.vertices {
+            bounds.extend_with(v.pos);
+        }
+        bounds
+    }
+
     /// Append all the indices and vertices of `other` to `self`.
     pub fn append(&mut self, other: Mesh) {
         crate::epaint_assert!(other.is_valid());
@@ -85,9 +95,8 @@ impl Mesh {
             );
 
             let index_offset = self.vertices.len() as u32;
-            for index in &other.indices {
-                self.indices.push(index_offset + index);
-            }
+            self.indices
+                .extend(other.indices.iter().map(|index| index + index_offset));
             self.vertices.extend(other.vertices.iter());
         }
     }
