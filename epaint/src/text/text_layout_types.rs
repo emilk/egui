@@ -1,35 +1,224 @@
-//! A [`Galley`] is a piece of text after layout, i.e. where each character has been assigned a position.
-//!
-//! ## How it works
-//! This is going to get complicated.
-//!
-//! To avoid confusion, we never use the word "line".
-//! The `\n` character demarcates the split of text into "paragraphs".
-//! Each paragraph is wrapped at some width onto one or more "rows".
-//!
-//! If this cursors sits right at the border of a wrapped row break (NOT paragraph break)
-//! do we prefer the next row?
-//! For instance, consider this single paragraph, word wrapped:
-//! ``` text
-//! Hello_
-//! world!
-//! ```
-//!
-//! The offset `6` is both the end of the first row
-//! and the start of the second row.
-//! [`CCursor::prefer_next_row`] etc selects which.
+use std::ops::Range;
+use std::sync::Arc;
 
 use super::{cursor::*, font::UvRect};
-use emath::{pos2, NumExt, Rect, Vec2};
+use crate::{Color32, Mesh, Stroke, TextStyle};
+use emath::*;
 
-/// A collection of text locked into place.
+/// Describes the task of laying out text.
+///
+/// This supports mixing different fonts, color and formats (underline etc).
+///
+/// Pass this to [`Fonts::layout_job]` or [`crate::text::layout`].
+#[derive(Clone, Debug)]
+pub struct LayoutJob {
+    /// The complete text of this job, referenced by `LayoutSection`.
+    pub text: String, // TODO: Cow<'static, str>
+
+    /// The different section, which can have different fonts, colors, etc.
+    pub sections: Vec<LayoutSection>,
+
+    /// Try to break text so that no row is wider than this.
+    /// Set to [`f32::INFINITY`] to turn off wrapping.
+    /// Note that `\n` always produces a new line.
+    pub wrap_width: f32,
+
+    /// The first row must be at least this high.
+    /// This is in case we lay out text that is the continuation
+    /// of some earlier text (sharing the same row),
+    /// in which case this will be the height of the earlier text.
+    /// In other cases, set this to `0.0`.
+    pub first_row_min_height: f32,
+
+    /// If `false`, all newlines characters will be ignored
+    /// and show up as the replacement character.
+    /// Default: `true`.
+    pub break_on_newline: bool,
+    // TODO: option to show whitespace characters
+}
+
+impl Default for LayoutJob {
+    #[inline]
+    fn default() -> Self {
+        Self {
+            text: Default::default(),
+            sections: Default::default(),
+            wrap_width: f32::INFINITY,
+            first_row_min_height: 0.0,
+            break_on_newline: true,
+        }
+    }
+}
+
+impl LayoutJob {
+    /// Break on `\n` and at the given wrap width.
+    #[inline]
+    pub fn simple(text: String, text_style: TextStyle, color: Color32, wrap_width: f32) -> Self {
+        Self {
+            sections: vec![LayoutSection {
+                leading_space: 0.0,
+                byte_range: 0..text.len(),
+                format: TextFormat::simple(text_style, color),
+            }],
+            text,
+            wrap_width,
+            break_on_newline: true,
+            ..Default::default()
+        }
+    }
+
+    /// Does not break on `\n`, but shows the replacement character instead.
+    #[inline]
+    pub fn simple_singleline(text: String, text_style: TextStyle, color: Color32) -> Self {
+        Self {
+            sections: vec![LayoutSection {
+                leading_space: 0.0,
+                byte_range: 0..text.len(),
+                format: TextFormat::simple(text_style, color),
+            }],
+            text,
+            wrap_width: f32::INFINITY,
+            break_on_newline: false,
+            ..Default::default()
+        }
+    }
+
+    #[inline(always)]
+    pub fn is_empty(&self) -> bool {
+        self.sections.is_empty()
+    }
+
+    /// Helper for adding a new section when building a `LayoutJob`.
+    pub fn append(&mut self, text: &str, leading_space: f32, format: TextFormat) {
+        let start = self.text.len();
+        self.text += text;
+        let byte_range = start..self.text.len();
+        self.sections.push(LayoutSection {
+            leading_space,
+            byte_range,
+            format,
+        });
+    }
+}
+
+impl std::hash::Hash for LayoutJob {
+    #[inline]
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let Self {
+            text,
+            sections,
+            wrap_width,
+            first_row_min_height,
+            break_on_newline,
+        } = self;
+
+        text.hash(state);
+        sections.hash(state);
+        crate::f32_hash(state, *wrap_width);
+        crate::f32_hash(state, *first_row_min_height);
+        break_on_newline.hash(state);
+    }
+}
+
+impl PartialEq for LayoutJob {
+    #[inline(always)]
+    fn eq(&self, other: &Self) -> bool {
+        self.text == other.text
+            && self.sections == other.sections
+            && crate::f32_eq(self.wrap_width, other.wrap_width)
+            && crate::f32_eq(self.first_row_min_height, other.first_row_min_height)
+            && self.break_on_newline == other.break_on_newline
+    }
+}
+
+impl std::cmp::Eq for LayoutJob {}
+
+// ----------------------------------------------------------------------------
+
+#[derive(Clone, Debug)]
+pub struct LayoutSection {
+    /// Can be used for first row indentation.
+    pub leading_space: f32,
+    /// Range into the galley text
+    pub byte_range: Range<usize>,
+    pub format: TextFormat,
+}
+
+impl std::hash::Hash for LayoutSection {
+    #[inline]
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let Self {
+            leading_space,
+            byte_range,
+            format,
+        } = self;
+        crate::f32_hash(state, *leading_space);
+        byte_range.hash(state);
+        format.hash(state);
+    }
+}
+
+impl PartialEq for LayoutSection {
+    #[inline(always)]
+    fn eq(&self, other: &Self) -> bool {
+        crate::f32_eq(self.leading_space, other.leading_space)
+            && self.byte_range == other.byte_range
+            && self.format == other.format
+    }
+}
+
+impl std::cmp::Eq for LayoutSection {}
+
+// ----------------------------------------------------------------------------
+
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
+pub struct TextFormat {
+    pub style: TextStyle,
+    /// Text color
+    pub color: Color32,
+    pub background: Color32,
+    pub italics: bool,
+    pub underline: Stroke,
+    pub strikethrough: Stroke,
+    /// If you use a small font and [`Align::TOP`] you
+    /// can get the effect of raised text.
+    pub valign: Align,
+    // TODO: lowered
+}
+
+impl Default for TextFormat {
+    #[inline]
+    fn default() -> Self {
+        Self {
+            style: TextStyle::Body,
+            color: Color32::GRAY,
+            background: Color32::TRANSPARENT,
+            italics: false,
+            underline: Stroke::none(),
+            strikethrough: Stroke::none(),
+            valign: Align::BOTTOM,
+        }
+    }
+}
+
+impl TextFormat {
+    #[inline]
+    pub fn simple(style: TextStyle, color: Color32) -> Self {
+        Self {
+            style,
+            color,
+            ..Default::default()
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Galley {
-    /// The [`crate::TextStyle`] (font) used.
-    pub text_style: crate::TextStyle,
-
-    /// The full text, including any an all `\n`.
-    pub text: String,
+    /// The job that this galley is the result of.
+    /// Contains the original string and style sections.
+    pub job: Arc<LayoutJob>,
 
     /// Rows of text, from top to bottom.
     /// The number of chars in all rows sum up to text.chars().count().
@@ -37,88 +226,123 @@ pub struct Galley {
     /// can be split up into multiple rows.
     pub rows: Vec<Row>,
 
-    // Optimization: calculated once and reused.
+    /// Bounding size (min is always `[0,0]`)
     pub size: Vec2,
+
+    /// Total number of vertices in all the row meshes.
+    pub num_vertices: usize,
+    /// Total number of indices in all the row meshes.
+    pub num_indices: usize,
 }
 
-/// A typeset piece of text on a single row.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Row {
-    /// The start of each character, probably starting at zero.
-    /// The last element is the end of the last character.
-    /// This is never empty.
-    /// Unit: points.
-    ///
-    /// `x_offsets.len() + (ends_with_newline as usize) == text.chars().count() + 1`
-    pub x_offsets: Vec<f32>,
+    /// One for each `char`.
+    pub glyphs: Vec<Glyph>,
 
-    /// Per-character. Used when rendering.
-    pub uv_rects: Vec<Option<UvRect>>,
+    /// Logical bounding rectangle based on font heights etc.
+    /// Use this when drawing a selection or similar!
+    /// Includes leading and trailing whitespace.
+    pub rect: Rect,
 
-    /// Top of the row, offset within the Galley.
-    /// Unit: points.
-    pub y_min: f32,
-
-    /// Bottom of the row, offset within the Galley.
-    /// Unit: points.
-    pub y_max: f32,
+    /// The mesh, ready to be rendered.
+    pub visuals: RowVisuals,
 
     /// If true, this `Row` came from a paragraph ending with a `\n`.
-    /// The `\n` itself is omitted from `x_offsets`.
+    /// The `\n` itself is omitted from [`Self::glyphs`].
     /// A `\n` in the input text always creates a new `Row` below it,
     /// so that text that ends with `\n` has an empty `Row` last.
     /// This also implies that the last `Row` in a `Galley` always has `ends_with_newline == false`.
     pub ends_with_newline: bool,
 }
 
-impl Row {
-    #[inline]
-    pub fn sanity_check(&self) {
-        assert!(!self.x_offsets.is_empty());
-        assert!(self.x_offsets.len() == self.uv_rects.len() + 1);
+/// The tessellated output of a row.
+#[derive(Clone, Debug, PartialEq)]
+pub struct RowVisuals {
+    /// The tessellated text, using non-normalized (texel) UV coordinates.
+    /// That is, you need to divide the uv coordinates by the texture size.
+    pub mesh: Mesh,
+
+    /// Bounds of the mesh, and can be used for culling.
+    /// Does NOT include leading or trailing whitespace glyphs!!
+    pub mesh_bounds: Rect,
+
+    /// The range of vertices in the mesh the contain glyphs.
+    /// Before comes backgrounds (if any), and after any underlines and strikethrough.
+    pub glyph_vertex_range: Range<usize>,
+}
+
+impl Default for RowVisuals {
+    fn default() -> Self {
+        Self {
+            mesh: Default::default(),
+            mesh_bounds: Rect::NOTHING,
+            glyph_vertex_range: 0..0,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct Glyph {
+    pub chr: char,
+    /// Relative to the galley position.
+    /// Logical position: pos.y is the same for all chars of the same [`TextFormat`].
+    pub pos: Pos2,
+    /// Advance width and font row height.
+    pub size: Vec2,
+    /// Position of the glyph in the font texture.
+    pub uv_rect: UvRect,
+    /// Index into [`LayoutJob::sections`]. Decides color etc.
+    pub section_index: u32,
+}
+
+impl Glyph {
+    pub fn max_x(&self) -> f32 {
+        self.pos.x + self.size.x
     }
 
+    /// Same y range for all characters with the same [`TextFormat`].
+    #[inline]
+    pub fn logical_rect(&self) -> Rect {
+        Rect::from_min_size(self.pos, self.size)
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+impl Row {
     /// Excludes the implicit `\n` after the `Row`, if any.
     #[inline]
     pub fn char_count_excluding_newline(&self) -> usize {
-        assert!(!self.x_offsets.is_empty());
-        self.x_offsets.len() - 1
+        self.glyphs.len()
     }
 
     /// Includes the implicit `\n` after the `Row`, if any.
     #[inline]
     pub fn char_count_including_newline(&self) -> usize {
-        self.char_count_excluding_newline() + (self.ends_with_newline as usize)
+        self.glyphs.len() + (self.ends_with_newline as usize)
     }
 
     #[inline]
-    pub fn min_x(&self) -> f32 {
-        *self.x_offsets.first().unwrap()
+    pub fn min_y(&self) -> f32 {
+        self.rect.top()
     }
 
     #[inline]
-    pub fn max_x(&self) -> f32 {
-        *self.x_offsets.last().unwrap()
+    pub fn max_y(&self) -> f32 {
+        self.rect.bottom()
     }
 
     #[inline]
     pub fn height(&self) -> f32 {
-        self.y_max - self.y_min
-    }
-
-    pub fn rect(&self) -> Rect {
-        Rect::from_min_max(
-            pos2(self.min_x(), self.y_min),
-            pos2(self.max_x(), self.y_max),
-        )
+        self.rect.height()
     }
 
     /// Closest char at the desired x coordinate.
     /// Returns something in the range `[0, char_count_excluding_newline()]`.
     pub fn char_at(&self, desired_x: f32) -> usize {
-        for (i, char_x_bounds) in self.x_offsets.windows(2).enumerate() {
-            let char_center_x = 0.5 * (char_x_bounds[0] + char_x_bounds[1]);
-            if desired_x < char_center_x {
+        for (i, glyph) in self.glyphs.iter().enumerate() {
+            if desired_x < glyph.logical_rect().center().x {
                 return i;
             }
         }
@@ -126,56 +350,35 @@ impl Row {
     }
 
     pub fn x_offset(&self, column: usize) -> f32 {
-        self.x_offsets[column.min(self.x_offsets.len() - 1)]
-    }
-
-    // Move down this much
-    #[inline(always)]
-    pub fn translate_y(&mut self, dy: f32) {
-        self.y_min += dy;
-        self.y_max += dy;
+        if let Some(glyph) = self.glyphs.get(column) {
+            glyph.pos.x
+        } else {
+            self.rect.right()
+        }
     }
 }
 
 impl Galley {
     #[inline(always)]
     pub fn is_empty(&self) -> bool {
-        self.text.is_empty()
+        self.job.is_empty()
     }
 
     #[inline(always)]
-    pub(crate) fn char_count_excluding_newlines(&self) -> usize {
-        let mut char_count = 0;
-        for row in &self.rows {
-            char_count += row.char_count_excluding_newline();
-        }
-        char_count
-    }
-
-    pub fn sanity_check(&self) {
-        let mut char_count = 0;
-        for row in &self.rows {
-            row.sanity_check();
-            char_count += row.char_count_including_newline();
-        }
-        crate::epaint_assert!(char_count == self.text.chars().count());
-        if let Some(last_row) = self.rows.last() {
-            crate::epaint_assert!(
-                !last_row.ends_with_newline,
-                "If the text ends with '\\n', there would be an empty row last.\n\
-                Galley: {:#?}",
-                self
-            );
-        }
+    pub fn text(&self) -> &str {
+        &self.job.text
     }
 }
 
+// ----------------------------------------------------------------------------
+
 /// ## Physical positions
 impl Galley {
+    /// Zero-width rect past the last character.
     fn end_pos(&self) -> Rect {
         if let Some(row) = self.rows.last() {
-            let x = row.max_x();
-            Rect::from_min_max(pos2(x, row.y_min), pos2(x, row.y_max))
+            let x = row.rect.right();
+            Rect::from_min_max(pos2(x, row.min_y()), pos2(x, row.max_y()))
         } else {
             // Empty galley
             Rect::from_min_max(pos2(0.0, 0.0), pos2(0.0, 0.0))
@@ -201,7 +404,7 @@ impl Galley {
                         && column >= row.char_count_excluding_newline();
                     if !select_next_row_instead {
                         let x = row.x_offset(column);
-                        return Rect::from_min_max(pos2(x, row.y_min), pos2(x, row.y_max));
+                        return Rect::from_min_max(pos2(x, row.min_y()), pos2(x, row.max_y()));
                     }
                 }
             }
@@ -219,7 +422,7 @@ impl Galley {
 
     /// Returns a 0-width Rect.
     pub fn pos_from_cursor(&self, cursor: &Cursor) -> Rect {
-        self.pos_from_pcursor(cursor.pcursor) // The one TextEdit stores
+        self.pos_from_pcursor(cursor.pcursor) // pcursor is what TextEdit stores
     }
 
     /// Cursor at the given position within the galley
@@ -231,8 +434,8 @@ impl Galley {
         let mut pcursor_it = PCursor::default();
 
         for (row_nr, row) in self.rows.iter().enumerate() {
-            let is_pos_within_row = pos.y >= row.y_min && pos.y <= row.y_max;
-            let y_dist = (row.y_min - pos.y).abs().min((row.y_max - pos.y).abs());
+            let is_pos_within_row = pos.y >= row.min_y() && pos.y <= row.max_y();
+            let y_dist = (row.min_y() - pos.y).abs().min((row.max_y() - pos.y).abs());
             if is_pos_within_row || y_dist < best_y_dist {
                 best_y_dist = y_dist;
                 let column = row.char_at(pos.x);
@@ -515,7 +718,7 @@ impl Galley {
             } else {
                 // keep same X coord
                 let x = self.pos_from_cursor(cursor).center().x;
-                let column = if x > self.rows[new_row].max_x() {
+                let column = if x > self.rows[new_row].rect.right() {
                     // beyond the end of this row - keep same colum
                     cursor.rcursor.column
                 } else {
@@ -546,7 +749,7 @@ impl Galley {
             } else {
                 // keep same X coord
                 let x = self.pos_from_cursor(cursor).center().x;
-                let column = if x > self.rows[new_row].max_x() {
+                let column = if x > self.rows[new_row].rect.right() {
                     // beyond the end of the next row - keep same column
                     cursor.rcursor.column
                 } else {
@@ -576,246 +779,5 @@ impl Galley {
             row: cursor.rcursor.row,
             column: self.rows[cursor.rcursor.row].char_count_excluding_newline(),
         })
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-#[test]
-fn test_text_layout() {
-    impl PartialEq for Cursor {
-        fn eq(&self, other: &Cursor) -> bool {
-            (self.ccursor, self.rcursor, self.pcursor)
-                == (other.ccursor, other.rcursor, other.pcursor)
-        }
-    }
-
-    use crate::*;
-
-    let pixels_per_point = 1.0;
-    let fonts = text::Fonts::from_definitions(pixels_per_point, text::FontDefinitions::default());
-    let font = &fonts[TextStyle::Monospace];
-
-    let galley = font.layout_multiline("".to_owned(), 1024.0);
-    assert_eq!(galley.rows.len(), 1);
-    assert!(!galley.rows[0].ends_with_newline);
-    assert_eq!(galley.rows[0].x_offsets, vec![0.0]);
-
-    let galley = font.layout_multiline("\n".to_owned(), 1024.0);
-    assert_eq!(galley.rows.len(), 2);
-    assert!(galley.rows[0].ends_with_newline);
-    assert!(!galley.rows[1].ends_with_newline);
-    assert_eq!(galley.rows[1].x_offsets, vec![0.0]);
-
-    let galley = font.layout_multiline("\n\n".to_owned(), 1024.0);
-    assert_eq!(galley.rows.len(), 3);
-    assert!(galley.rows[0].ends_with_newline);
-    assert!(galley.rows[1].ends_with_newline);
-    assert!(!galley.rows[2].ends_with_newline);
-    assert_eq!(galley.rows[2].x_offsets, vec![0.0]);
-
-    let galley = font.layout_multiline(" ".to_owned(), 1024.0);
-    assert_eq!(galley.rows.len(), 1);
-    assert!(!galley.rows[0].ends_with_newline);
-
-    let galley = font.layout_multiline("One row!".to_owned(), 1024.0);
-    assert_eq!(galley.rows.len(), 1);
-    assert!(!galley.rows[0].ends_with_newline);
-
-    let galley = font.layout_multiline("First row!\n".to_owned(), 1024.0);
-    assert_eq!(galley.rows.len(), 2);
-    assert!(galley.rows[0].ends_with_newline);
-    assert!(!galley.rows[1].ends_with_newline);
-    assert_eq!(galley.rows[1].x_offsets, vec![0.0]);
-
-    let galley = font.layout_multiline("line\nbreak".to_owned(), 40.0);
-    assert_eq!(galley.rows.len(), 2);
-    assert!(galley.rows[0].ends_with_newline);
-    assert!(!galley.rows[1].ends_with_newline);
-
-    // Test wrapping:
-    let galley = font.layout_multiline("word wrap".to_owned(), 40.0);
-    assert_eq!(galley.rows.len(), 2);
-    assert!(!galley.rows[0].ends_with_newline);
-    assert!(!galley.rows[1].ends_with_newline);
-
-    {
-        // Test wrapping:
-        let galley = font.layout_multiline("word wrap.\nNew para.".to_owned(), 40.0);
-        assert_eq!(galley.rows.len(), 4);
-        assert!(!galley.rows[0].ends_with_newline);
-        assert_eq!(galley.rows[0].char_count_excluding_newline(), "word ".len());
-        assert_eq!(galley.rows[0].char_count_including_newline(), "word ".len());
-        assert!(galley.rows[1].ends_with_newline);
-        assert_eq!(galley.rows[1].char_count_excluding_newline(), "wrap.".len());
-        assert_eq!(
-            galley.rows[1].char_count_including_newline(),
-            "wrap.\n".len()
-        );
-        assert_eq!(galley.rows[2].char_count_excluding_newline(), "New ".len());
-        assert_eq!(galley.rows[3].char_count_excluding_newline(), "para.".len());
-        assert!(!galley.rows[2].ends_with_newline);
-        assert!(!galley.rows[3].ends_with_newline);
-
-        let cursor = Cursor::default();
-        assert_eq!(cursor, galley.from_ccursor(cursor.ccursor));
-        assert_eq!(cursor, galley.from_rcursor(cursor.rcursor));
-        assert_eq!(cursor, galley.from_pcursor(cursor.pcursor));
-
-        let cursor = galley.end();
-        assert_eq!(cursor, galley.from_ccursor(cursor.ccursor));
-        assert_eq!(cursor, galley.from_rcursor(cursor.rcursor));
-        assert_eq!(cursor, galley.from_pcursor(cursor.pcursor));
-        assert_eq!(
-            cursor,
-            Cursor {
-                ccursor: CCursor::new(20),
-                rcursor: RCursor { row: 3, column: 5 },
-                pcursor: PCursor {
-                    paragraph: 1,
-                    offset: 9,
-                    prefer_next_row: false,
-                }
-            }
-        );
-
-        let cursor = galley.from_ccursor(CCursor::new(1));
-        assert_eq!(cursor.rcursor, RCursor { row: 0, column: 1 });
-        assert_eq!(
-            cursor.pcursor,
-            PCursor {
-                paragraph: 0,
-                offset: 1,
-                prefer_next_row: false,
-            }
-        );
-        assert_eq!(cursor, galley.from_ccursor(cursor.ccursor));
-        assert_eq!(cursor, galley.from_rcursor(cursor.rcursor));
-        assert_eq!(cursor, galley.from_pcursor(cursor.pcursor));
-
-        let cursor = galley.from_pcursor(PCursor {
-            paragraph: 1,
-            offset: 2,
-            prefer_next_row: false,
-        });
-        assert_eq!(cursor.rcursor, RCursor { row: 2, column: 2 });
-        assert_eq!(cursor, galley.from_ccursor(cursor.ccursor));
-        assert_eq!(cursor, galley.from_rcursor(cursor.rcursor));
-        assert_eq!(cursor, galley.from_pcursor(cursor.pcursor));
-
-        let cursor = galley.from_pcursor(PCursor {
-            paragraph: 1,
-            offset: 6,
-            prefer_next_row: false,
-        });
-        assert_eq!(cursor.rcursor, RCursor { row: 3, column: 2 });
-        assert_eq!(cursor, galley.from_ccursor(cursor.ccursor));
-        assert_eq!(cursor, galley.from_rcursor(cursor.rcursor));
-        assert_eq!(cursor, galley.from_pcursor(cursor.pcursor));
-
-        // On the border between two rows within the same paragraph:
-        let cursor = galley.from_rcursor(RCursor { row: 0, column: 5 });
-        assert_eq!(
-            cursor,
-            Cursor {
-                ccursor: CCursor::new(5),
-                rcursor: RCursor { row: 0, column: 5 },
-                pcursor: PCursor {
-                    paragraph: 0,
-                    offset: 5,
-                    prefer_next_row: false,
-                }
-            }
-        );
-        assert_eq!(cursor, galley.from_rcursor(cursor.rcursor));
-
-        let cursor = galley.from_rcursor(RCursor { row: 1, column: 0 });
-        assert_eq!(
-            cursor,
-            Cursor {
-                ccursor: CCursor::new(5),
-                rcursor: RCursor { row: 1, column: 0 },
-                pcursor: PCursor {
-                    paragraph: 0,
-                    offset: 5,
-                    prefer_next_row: false,
-                }
-            }
-        );
-        assert_eq!(cursor, galley.from_rcursor(cursor.rcursor));
-    }
-
-    {
-        // Test cursor movement:
-        let galley = font.layout_multiline("word wrap.\nNew para.".to_owned(), 40.0);
-        assert_eq!(galley.rows.len(), 4);
-        assert!(!galley.rows[0].ends_with_newline);
-        assert!(galley.rows[1].ends_with_newline);
-        assert!(!galley.rows[2].ends_with_newline);
-        assert!(!galley.rows[3].ends_with_newline);
-
-        let cursor = Cursor::default();
-
-        assert_eq!(galley.cursor_up_one_row(&cursor), cursor);
-        assert_eq!(galley.cursor_begin_of_row(&cursor), cursor);
-
-        assert_eq!(
-            galley.cursor_end_of_row(&cursor),
-            Cursor {
-                ccursor: CCursor::new(5),
-                rcursor: RCursor { row: 0, column: 5 },
-                pcursor: PCursor {
-                    paragraph: 0,
-                    offset: 5,
-                    prefer_next_row: false,
-                }
-            }
-        );
-
-        assert_eq!(
-            galley.cursor_down_one_row(&cursor),
-            Cursor {
-                ccursor: CCursor::new(5),
-                rcursor: RCursor { row: 1, column: 0 },
-                pcursor: PCursor {
-                    paragraph: 0,
-                    offset: 5,
-                    prefer_next_row: false,
-                }
-            }
-        );
-
-        let cursor = Cursor::default();
-        assert_eq!(
-            galley.cursor_down_one_row(&galley.cursor_down_one_row(&cursor)),
-            Cursor {
-                ccursor: CCursor::new(11),
-                rcursor: RCursor { row: 2, column: 0 },
-                pcursor: PCursor {
-                    paragraph: 1,
-                    offset: 0,
-                    prefer_next_row: false,
-                }
-            }
-        );
-
-        let cursor = galley.end();
-        assert_eq!(galley.cursor_down_one_row(&cursor), cursor);
-
-        let cursor = galley.end();
-        assert!(galley.cursor_up_one_row(&galley.end()) != cursor);
-
-        assert_eq!(
-            galley.cursor_up_one_row(&galley.end()),
-            Cursor {
-                ccursor: CCursor::new(15),
-                rcursor: RCursor { row: 2, column: 5 },
-                pcursor: PCursor {
-                    paragraph: 1,
-                    offset: 4,
-                    prefer_next_row: false,
-                }
-            }
-        );
     }
 }

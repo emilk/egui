@@ -7,7 +7,16 @@ pub fn easy_mark(ui: &mut Ui, easy_mark: &str) {
 }
 
 pub fn easy_mark_it<'em>(ui: &mut Ui, items: impl Iterator<Item = easy_mark::Item<'em>>) {
-    ui.horizontal_wrapped(|ui| {
+    let initial_size = vec2(
+        ui.available_width(),
+        ui.spacing().interact_size.y, // Assume there will be
+    );
+
+    let layout = Layout::left_to_right()
+        .with_main_wrap(true)
+        .with_cross_align(Align::BOTTOM);
+
+    ui.allocate_ui_with_layout(initial_size, layout, |ui| {
         ui.spacing_mut().item_spacing.x = 0.0;
         ui.set_row_height(ui.fonts()[TextStyle::Body].row_height());
 

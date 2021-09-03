@@ -127,7 +127,10 @@ impl Vec2 {
     /// `v.to_pos2()` is equivalent to `Pos2::default() + v`.
     #[inline(always)]
     pub fn to_pos2(self) -> crate::Pos2 {
-        crate::Pos2::new(self.x, self.y)
+        crate::Pos2 {
+            x: self.x,
+            y: self.y,
+        }
     }
 
     /// Safe normalize: returns zero if input is zero.
