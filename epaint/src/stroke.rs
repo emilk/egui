@@ -1,3 +1,5 @@
+#![allow(clippy::derive_hash_xor_eq)] // We need to impl Hash for f32, but we don't implement Eq, which is fine
+
 use super::*;
 
 /// Describes the width and color of a line.
