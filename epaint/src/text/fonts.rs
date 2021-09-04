@@ -4,8 +4,6 @@ use std::{
     sync::Arc,
 };
 
-use ahash::AHashMap;
-
 use crate::{
     mutex::Mutex,
     text::{
@@ -321,8 +319,8 @@ impl Fonts {
     /// [`Self::layout_delayed_color`].
     ///
     /// The implementation uses memoization so repeated calls are cheap.
-    pub fn layout_job(&self, job: impl Into<Arc<LayoutJob>>) -> Arc<Galley> {
-        self.galley_cache.lock().layout(self, job.into())
+    pub fn layout_job(&self, job: LayoutJob) -> Arc<Galley> {
+        self.galley_cache.lock().layout(self, job)
     }
 
     /// Will wrap text at the given width and line break at `\n`.
@@ -400,19 +398,25 @@ struct CachedGalley {
 struct GalleyCache {
     /// Frame counter used to do garbage collection on the cache
     generation: u32,
-    cache: AHashMap<Arc<LayoutJob>, CachedGalley>,
+    cache: nohash_hasher::IntMap<u64, CachedGalley>,
 }
 
 impl GalleyCache {
-    fn layout(&mut self, fonts: &Fonts, job: Arc<LayoutJob>) -> Arc<Galley> {
-        match self.cache.entry(job.clone()) {
+    fn layout(&mut self, fonts: &Fonts, job: LayoutJob) -> Arc<Galley> {
+        let hash = {
+            let mut hasher = ahash::AHasher::new_with_keys(123, 456); // TODO: even faster hasher?
+            job.hash(&mut hasher);
+            hasher.finish()
+        };
+
+        match self.cache.entry(hash) {
             std::collections::hash_map::Entry::Occupied(entry) => {
                 let cached = entry.into_mut();
                 cached.last_used = self.generation;
                 cached.galley.clone()
             }
             std::collections::hash_map::Entry::Vacant(entry) => {
-                let galley = super::layout(fonts, job);
+                let galley = super::layout(fonts, job.into());
                 let galley = Arc::new(galley);
                 entry.insert(CachedGalley {
                     last_used: self.generation,
