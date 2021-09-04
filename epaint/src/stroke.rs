@@ -1,9 +1,11 @@
+#![allow(clippy::derive_hash_xor_eq)] // We need to impl Hash for f32, but we don't implement Eq, which is fine
+
 use super::*;
 
 /// Describes the width and color of a line.
 ///
 /// The default stroke is the same as [`Stroke::none`].
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct Stroke {
     pub width: f32,
@@ -44,12 +46,3 @@ impl std::hash::Hash for Stroke {
         color.hash(state);
     }
 }
-
-impl PartialEq for Stroke {
-    #[inline(always)]
-    fn eq(&self, other: &Self) -> bool {
-        self.color == other.color && crate::f32_eq(self.width, other.width)
-    }
-}
-
-impl std::cmp::Eq for Stroke {}
