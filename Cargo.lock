@@ -784,6 +784,7 @@ dependencies = [
  "egui_glium",
  "egui_web",
  "epi",
+ "image",
 ]
 
 [[package]]

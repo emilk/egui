@@ -34,6 +34,9 @@ egui_glium = { version = "0.14.0", path = "../egui_glium", default-features = fa
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 egui_web = { version = "0.14.0", path = "../egui_web", default-features = false }
 
+[dev-dependencies]
+image = { version = "0.23", default-features = false, features = ["png"] }
+
 [features]
 default = ["default_fonts"]
 
