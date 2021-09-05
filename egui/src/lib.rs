@@ -202,6 +202,31 @@
 //! }
 //! ```
 //!
+//! ## Auto-sizing panels and windows
+//! In egui, all panels and windows auto-shrink to fit the content.
+//! If the window or panel is also resizable, this can lead to a weird behavior
+//! where you can drag the edge of the panel/window to make it larger, and
+//! when you release the panel/window shrinks again.
+//! This is an artifact of immediate mode, and here are some alternatives on how to avoid it:
+//!
+//! 1. Turn of resizing with [`Window::resizable`], [`SidePanel::resizable`], [`TopBottomPanel::resizable`].
+//! 2. Wrap your panel contents in a [`ScrollArea`], or use [`Window::vscroll`] and [`Window::hscroll`].
+//! 3. Use a justified layout:
+//!
+//! ``` rust
+//! # let ui = &mut egui::Ui::__test();
+//! ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
+//!     ui.button("I am becoming wider as needed");
+//! });
+//! ```
+//!
+//! 4. Fill in extra space with emptiness:
+//!
+//! ``` rust
+//! # let ui = &mut egui::Ui::__test();
+//! ui.allocate_space(ui.available_size()); // put this LAST in your panel/window code
+//! ```
+//!
 //! ## Sizes
 //! You can control the size of widgets using [`Ui::add_sized`].
 //!
