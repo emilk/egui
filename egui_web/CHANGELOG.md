@@ -8,7 +8,7 @@ All notable changes to the `egui_web` integration will be noted in this file.
 ### Added
 * Remove "http" feature (use https://github.com/emilk/ehttp instead!).
 * `epi::NativeTexture` trait for webgl1 webgl2 painter
-* Remove `Painter::register_webgl_texture` 
+* Deprecate `Painter::register_webgl_texture` 
 
 ## 0.14.1 - 2021-08-28
 
