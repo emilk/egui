@@ -208,10 +208,10 @@ impl TextShape {
     }
 }
 
-impl Into<Shape> for TextShape {
+impl From<TextShape> for Shape {
     #[inline(always)]
-    fn into(self) -> Shape {
-        Shape::Text(self)
+    fn from(text_shape: TextShape) -> Self {
+        Self::Text(text_shape)
     }
 }
 
