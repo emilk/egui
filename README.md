@@ -317,6 +317,9 @@ On Linux and Mac, Firefox will copy the WebGL render target from GPU, to CPU and
 ### Why does my web app not fill the full width of the screen?
 To alleviate the above mentioned performance issues the default max-width of an egui web app is 1024 points. You can change this by overriding the `fn max_size_points` of [`epi::App`](https://docs.rs/epi/latest/epi/trait.App.html).
 
+### How do I render 3D stuff in an egui area?
+egui can't do 3D graphics itself, but if you use a 3D library (e.g. [`glium`](https://github.com/glium/glium) using [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium), or [`miniquad`](https://github.com/not-fl3/miniquad) using [`egui-miniquad`](https://github.com/not-fl3/egui-miniquad)) you can render your 3D content to a texture, then display it using [`ui.image(…)`](https://docs.rs/egui/latest/egui/struct.Ui.html#method.image). You first need to convert the native texture to an [`egui::TextureId`](https://docs.rs/egui/latest/egui/enum.TextureId.html), and how to do this depends on the integration you use (it's [`register_glium_texture`](https://docs.rs/egui_glium/latest/egui_glium/struct.Painter.html#method.register_glium_texture).
+
 
 ## Other
 
