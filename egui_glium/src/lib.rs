@@ -252,7 +252,8 @@ pub fn input_to_egui(
             let mut delta = match *delta {
                 glutin::event::MouseScrollDelta::LineDelta(x, y) => {
                     let line_height = 8.0; // magic value!
-                    vec2(x, y) * line_height
+                    let number_of_lines = 5.0;  // number of lines per one scroller click
+                    vec2(x, y) * line_height * number_of_lines
                 }
                 glutin::event::MouseScrollDelta::PixelDelta(delta) => {
                     vec2(delta.x as f32, delta.y as f32) / pixels_per_point
