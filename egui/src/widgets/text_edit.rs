@@ -1135,6 +1135,15 @@ fn on_key_press<S: TextBuffer>(
             Some(CCursorPair::one(ccursor))
         }
 
+        Key::ArrowLeft | Key::ArrowRight if modifiers.is_none() && !cursorp.is_empty() => {
+            if key == Key::ArrowLeft {
+                *cursorp = CursorPair::one(cursorp.sorted()[0]);
+            } else {
+                *cursorp = CursorPair::one(cursorp.sorted()[1]);
+            }
+            None
+        }
+
         Key::ArrowLeft | Key::ArrowRight | Key::ArrowUp | Key::ArrowDown | Key::Home | Key::End => {
             move_single_cursor(&mut cursorp.primary, galley, key, modifiers);
             if !modifiers.shift {
