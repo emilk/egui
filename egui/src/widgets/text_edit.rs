@@ -811,8 +811,22 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             text_draw_pos -= vec2(offset_x, 0.0);
         }
 
+        painter.galley(text_draw_pos, galley.clone());
+
+        if text.as_ref().is_empty() && !hint_text.is_empty() {
+            let hint_text_color = ui.visuals().weak_text_color();
+            let galley = ui.fonts().layout_job(if multiline {
+                LayoutJob::simple(hint_text, text_style, hint_text_color, desired_size.x)
+            } else {
+                LayoutJob::simple_singleline(hint_text, text_style, hint_text_color)
+            });
+            painter.galley(response.rect.min, galley);
+        }
+
         if ui.memory().has_focus(id) {
             if let Some(cursorp) = state.cursorp {
+                // We paint the cursor on top of the text, in case
+                // the text galley has backgrounds (as e.g. `code` snippets in markup do).
                 paint_cursor_selection(ui, &painter, text_draw_pos, &galley, &cursorp);
                 paint_cursor_end(
                     ui,
@@ -832,17 +846,6 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                     );
                 }
             }
-        }
-
-        painter.galley(text_draw_pos, galley);
-        if text.as_ref().is_empty() && !hint_text.is_empty() {
-            let hint_text_color = ui.visuals().weak_text_color();
-            let galley = ui.fonts().layout_job(if multiline {
-                LayoutJob::simple(hint_text, text_style, hint_text_color, desired_size.x)
-            } else {
-                LayoutJob::simple_singleline(hint_text, text_style, hint_text_color)
-            });
-            painter.galley(response.rect.min, galley);
         }
 
         ui.memory().id_data.insert(id, state);
@@ -897,10 +900,12 @@ fn paint_cursor_selection(
     galley: &Galley,
     cursorp: &CursorPair,
 ) {
-    let color = ui.visuals().selection.bg_fill;
     if cursorp.is_empty() {
         return;
     }
+
+    // We paint the cursor selection on top of the text, so make it transparent:
+    let color = ui.visuals().selection.bg_fill.linear_multiply(0.5);
     let [min, max] = cursorp.sorted();
     let min = min.rcursor;
     let max = max.rcursor;
