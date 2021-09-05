@@ -223,6 +223,7 @@ impl WebGlPainter {
         }
     }
 
+    #[deprecated = "Use: `NativeTexture::register_native_texture` instead"]
     pub fn register_webgl_texture(&mut self, texture: WebGlTexture) -> egui::TextureId {
         let id = self.alloc_user_texture_index();
         if let Some(Some(user_texture)) = self.user_textures.get_mut(id) {
@@ -367,6 +368,34 @@ impl epi::TextureAllocator for WebGlPainter {
 
     fn free(&mut self, id: egui::TextureId) {
         self.free_user_texture(id)
+    }
+}
+
+impl epi::NativeTexture for WebGlPainter {
+    type Texture = WebGlTexture;
+
+    fn register_native_texture(&mut self, native: Self::Texture) -> egui::TextureId {
+        let id = self.alloc_user_texture_index();
+        if let Some(Some(user_texture)) = self.user_textures.get_mut(id) {
+            *user_texture = UserTexture {
+                size: (0, 0),
+                pixels: vec![],
+                gl_texture: Some(native),
+            }
+        }
+        egui::TextureId::User(id as u64)
+    }
+
+    fn replace_native_texture(&mut self, id: egui::TextureId, replacing: Self::Texture) {
+        if let egui::TextureId::User(id) = id {
+            if let Some(Some(user_texture)) = self.user_textures.get_mut(id as usize) {
+                *user_texture = UserTexture {
+                    size: (0, 0),
+                    pixels: vec![],
+                    gl_texture: Some(replacing),
+                }
+            }
+        }
     }
 }
 
