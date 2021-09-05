@@ -28,7 +28,7 @@ fn main() {
     let mut egui = egui_glium::EguiGlium::new(&display);
     //load image by image crate
     let image = image::load(
-        Cursor::new(&include_bytes!("rust-logo-blk.png")[..]),
+        Cursor::new(&include_bytes!("../../eframe/examples/rust-logo-512x512.png")[..]),
         image::ImageFormat::Png,
     )
     .unwrap()
@@ -39,10 +39,7 @@ fn main() {
     //load to gpu memory
     let native_texture = glium::texture::SrgbTexture2d::new(&display, image).unwrap();
     //allocate egui's texture id for GL texture
-    let texture_id = egui
-        .ctx_and_painter_mut()
-        .1
-        .bind_native_texture(native_texture);
+    let texture_id = egui.painter_mut().register_native_texture(native_texture);
     event_loop.run(move |event, _, control_flow| {
         let mut redraw = || {
             egui.begin_frame(&display);

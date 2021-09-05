@@ -40,7 +40,7 @@ tts = { version = "0.17", optional = true }
 chrono = { version = "0.4", optional = true }
 
 [dev-dependencies]
-image="0.23"
+image = { version = "0.23", default-features = false, features = ["png"] }
 [features]
 default = ["default_fonts"]
 

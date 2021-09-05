@@ -40,7 +40,8 @@ use {
     std::hash::{Hash, Hasher},
 };
 
-pub use copypasta::ClipboardContext; // TODO: remove
+pub use copypasta::ClipboardContext;
+use std::borrow::BorrowMut; // TODO: remove
 
 pub struct GliumInputState {
     pub pointer_pos_in_points: Option<Pos2>,
@@ -643,5 +644,9 @@ impl EguiGlium {
             clipped_meshes,
             &self.egui_ctx.texture(),
         );
+    }
+
+    pub fn painter_mut(&mut self) -> &mut Painter {
+        self.painter.borrow_mut()
     }
 }

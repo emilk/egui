@@ -309,11 +309,11 @@ pub trait NativeTexture {
     type Texture;
 
     /// Bind native texture to egui texture
-    fn bind_native_texture(&mut self, native: Self::Texture) -> egui::TextureId;
+    fn register_native_texture(&mut self, native: Self::Texture) -> egui::TextureId;
 
     /// Change id's actual pointing texture
     /// only for user texture
-    fn replace_texture_ref(&mut self, id: egui::TextureId, replacing: Self::Texture);
+    fn replace_native_texture(&mut self, id: egui::TextureId, replacing: Self::Texture);
 }
 
 /// How to signal the [`egui`] integration that a repaint is required.
