@@ -33,6 +33,7 @@ impl Rot2 {
     /// The identity rotation: nothing rotates
     pub const IDENTITY: Self = Self { s: 0.0, c: 1.0 };
 
+    /// Angle is clockwise in radians.
     /// A 𝞃/4 = 90° rotation means rotating the X axis to the Y axis.
     pub fn from_angle(angle: f32) -> Self {
         let (s, c) = angle.sin_cos();

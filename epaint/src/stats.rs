@@ -198,8 +198,8 @@ impl PaintStats {
             Shape::Path { points, .. } => {
                 self.shape_path += AllocInfo::from_slice(points);
             }
-            Shape::Text { galley, .. } => {
-                self.shape_text += AllocInfo::from_galley(galley);
+            Shape::Text(text_shape) => {
+                self.shape_text += AllocInfo::from_galley(&text_shape.galley);
             }
             Shape::Mesh(mesh) => {
                 self.shape_mesh += AllocInfo::from_mesh(mesh);

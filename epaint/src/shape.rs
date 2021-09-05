@@ -40,22 +40,7 @@ pub enum Shape {
         fill: Color32,
         stroke: Stroke,
     },
-    Text {
-        /// Top left corner of the first character..
-        pos: Pos2,
-
-        /// The layed out text.
-        galley: std::sync::Arc<Galley>,
-
-        /// Add this underline to the whole text.
-        /// You can also set an underline when creating the galley.
-        underline: Stroke,
-
-        /// If set, the text color in the galley will be ignored and replaced
-        /// with the given color.
-        /// This will NOT replace background color nor strikethrough/underline color.
-        override_text_color: Option<Color32>,
-    },
+    Text(TextShape),
     Mesh(Mesh),
 }
 
@@ -181,14 +166,56 @@ impl Shape {
     }
 
     pub fn galley(pos: Pos2, galley: std::sync::Arc<Galley>) -> Self {
-        Self::Text {
+        TextShape::new(pos, galley).into()
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// How to draw some text on screen.
+#[derive(Clone, Debug, PartialEq)]
+pub struct TextShape {
+    /// Top left corner of the first character.
+    pub pos: Pos2,
+
+    /// The layed out text, from [`Fonts::layout_job`].
+    pub galley: std::sync::Arc<Galley>,
+
+    /// Add this underline to the whole text.
+    /// You can also set an underline when creating the galley.
+    pub underline: Stroke,
+
+    /// If set, the text color in the galley will be ignored and replaced
+    /// with the given color.
+    /// This will NOT replace background color nor strikethrough/underline color.
+    pub override_text_color: Option<Color32>,
+
+    /// Rotate text by this many radians clock-wise.
+    /// The pivot is `pos` (the upper left corner of the text).
+    pub angle: f32,
+}
+
+impl TextShape {
+    #[inline]
+    pub fn new(pos: Pos2, galley: std::sync::Arc<Galley>) -> Self {
+        Self {
             pos,
             galley,
-            override_text_color: None,
             underline: Stroke::none(),
+            override_text_color: None,
+            angle: 0.0,
         }
     }
 }
+
+impl Into<Shape> for TextShape {
+    #[inline(always)]
+    fn into(self) -> Shape {
+        Shape::Text(self)
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 /// Creates equally spaced filled circles from a line.
 fn points_from_line(
@@ -294,8 +321,8 @@ impl Shape {
             Shape::Rect { rect, .. } => {
                 *rect = rect.translate(delta);
             }
-            Shape::Text { pos, .. } => {
-                *pos += delta;
+            Shape::Text(text_shape) => {
+                text_shape.pos += delta;
             }
             Shape::Mesh(mesh) => {
                 mesh.translate(delta);

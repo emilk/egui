@@ -24,17 +24,13 @@ pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
             adjust_color(fill);
             adjust_color(&mut stroke.color);
         }
-        Shape::Text {
-            galley,
-            override_text_color,
-            ..
-        } => {
-            if let Some(override_text_color) = override_text_color {
+        Shape::Text(text_shape) => {
+            if let Some(override_text_color) = &mut text_shape.override_text_color {
                 adjust_color(override_text_color);
             }
 
-            if !galley.is_empty() {
-                let galley = std::sync::Arc::make_mut(galley);
+            if !text_shape.galley.is_empty() {
+                let galley = std::sync::Arc::make_mut(&mut text_shape.galley);
                 for row in &mut galley.rows {
                     for vertex in &mut row.visuals.mesh.vertices {
                         adjust_color(&mut vertex.color);

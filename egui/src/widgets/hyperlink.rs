@@ -83,11 +83,12 @@ impl Widget for Hyperlink {
             Stroke::none()
         };
 
-        ui.painter().add(Shape::Text {
+        ui.painter().add(epaint::TextShape {
             pos,
             galley,
             override_text_color: Some(color),
             underline,
+            angle: 0.0,
         });
 
         response.on_hover_text(url)

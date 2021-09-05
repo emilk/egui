@@ -183,7 +183,7 @@ impl Vec2 {
         self.y.atan2(self.x)
     }
 
-    /// Create a unit vector with the given angle (in radians).
+    /// Create a unit vector with the given CW angle (in radians).
     /// * An angle of zero gives the unit X axis.
     /// * An angle of 𝞃/4 = 90° gives the unit Y axis.
     ///

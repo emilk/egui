@@ -93,7 +93,7 @@ pub use {
     color::{Color32, Rgba},
     mesh::{Mesh, Mesh16, Vertex},
     shadow::Shadow,
-    shape::Shape,
+    shape::{Shape, TextShape},
     stats::PaintStats,
     stroke::Stroke,
     tessellator::{TessellationOptions, Tessellator},
