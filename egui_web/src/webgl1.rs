@@ -64,7 +64,6 @@ impl WebGlPainter {
 
         let srgb_supported = matches!(gl.get_extension("EXT_sRGB"), Ok(Some(_)));
 
-        #[allow(clippy::branches_sharing_code)]
         let (texture_format, program, post_process) = if srgb_supported {
             let vert_shader = compile_shader(
                 &gl,
