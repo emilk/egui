@@ -202,7 +202,7 @@ impl WebGl2Painter {
         }
     }
 
-    #[deprecated = 'Use NativeTexture::register_native_texture` instead]
+    #[deprecated = "Use: `NativeTexture::register_native_texture` instead"]
     pub fn register_webgl_texture(&mut self, texture: WebGlTexture) -> egui::TextureId {
         let id = self.alloc_user_texture_index();
         if let Some(Some(user_texture)) = self.user_textures.get_mut(id) {

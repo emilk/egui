@@ -241,7 +241,7 @@ impl Painter {
         id
     }
 
-    #[deprecated = 'Use NativeTexture::register_native_texture` instead]
+    #[deprecated = "Use: `NativeTexture::register_native_texture` instead"]
     pub fn register_glium_texture(
         &mut self,
         texture: glium::texture::SrgbTexture2d,
