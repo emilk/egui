@@ -6,7 +6,7 @@ use crate::{
 use epaint::{
     mutex::Mutex,
     text::{Fonts, Galley, TextStyle},
-    Shape, Stroke,
+    Shape, Stroke, TextShape,
 };
 
 /// Helper to paint shapes and text to a specific region on a specific layer.
@@ -154,10 +154,11 @@ impl Painter {
     /// It is up to the caller to make sure there is room for this.
     /// Can be used for free painting.
     /// NOTE: all coordinates are screen coordinates!
-    pub fn add(&self, mut shape: Shape) -> ShapeIdx {
+    pub fn add(&self, shape: impl Into<Shape>) -> ShapeIdx {
         if self.fade_to_color == Some(Color32::TRANSPARENT) {
             self.paint_list.lock().add(self.clip_rect, Shape::Noop)
         } else {
+            let mut shape = shape.into();
             self.transform_shape(&mut shape);
             self.paint_list.lock().add(self.clip_rect, shape)
         }
@@ -399,11 +400,9 @@ impl Painter {
         text_color: Color32,
     ) {
         if !galley.is_empty() {
-            self.add(Shape::Text {
-                pos,
-                galley,
-                underline: Stroke::none(),
+            self.add(TextShape {
                 override_text_color: Some(text_color),
+                ..TextShape::new(pos, galley)
             });
         }
     }

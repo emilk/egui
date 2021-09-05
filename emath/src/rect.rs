@@ -150,6 +150,21 @@ impl Rect {
         Rect::from_min_size(self.min + amnt, self.size())
     }
 
+    /// Rotate the bounds (will expand the `Rect`)
+    #[must_use]
+    #[inline]
+    pub fn rotate_bb(self, rot: crate::Rot2) -> Self {
+        let a = rot * self.left_top().to_vec2();
+        let b = rot * self.right_top().to_vec2();
+        let c = rot * self.left_bottom().to_vec2();
+        let d = rot * self.right_bottom().to_vec2();
+
+        Self::from_min_max(
+            a.min(b).min(c).min(d).to_pos2(),
+            a.max(b).max(c).max(d).to_pos2(),
+        )
+    }
+
     /// The intersection of two `Rect`, i.e. the area covered by both.
     #[must_use]
     pub fn intersect(self, other: Rect) -> Self {

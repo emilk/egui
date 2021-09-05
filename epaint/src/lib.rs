@@ -93,7 +93,7 @@ pub use {
     color::{Color32, Rgba},
     mesh::{Mesh, Mesh16, Vertex},
     shadow::Shadow,
-    shape::Shape,
+    shape::{Shape, TextShape},
     stats::PaintStats,
     stroke::Stroke,
     tessellator::{TessellationOptions, Tessellator},
@@ -187,14 +187,5 @@ pub(crate) fn f32_hash<H: std::hash::Hasher>(state: &mut H, f: f32) {
     } else {
         use std::hash::Hash;
         f.to_bits().hash(state)
-    }
-}
-
-#[inline(always)]
-pub(crate) fn f32_eq(a: f32, b: f32) -> bool {
-    if a.is_nan() && b.is_nan() {
-        true
-    } else {
-        a == b
     }
 }

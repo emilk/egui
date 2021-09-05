@@ -617,16 +617,12 @@ impl Tessellator {
                 };
                 self.tessellate_rect(&rect, out);
             }
-            Shape::Text {
-                pos,
-                galley,
-                underline,
-                override_text_color,
-            } => {
+            Shape::Text(text_shape) => {
                 if options.debug_paint_text_rects {
                     self.tessellate_rect(
                         &PaintRect {
-                            rect: Rect::from_min_size(pos, galley.size).expand(0.5),
+                            rect: Rect::from_min_size(text_shape.pos, text_shape.galley.size)
+                                .expand(0.5),
                             corner_radius: 2.0,
                             fill: Default::default(),
                             stroke: (0.5, Color32::GREEN).into(),
@@ -634,7 +630,7 @@ impl Tessellator {
                         out,
                     );
                 }
-                self.tessellate_text(tex_size, pos, &galley, underline, override_text_color, out);
+                self.tessellate_text(tex_size, text_shape, out);
             }
         }
     }
@@ -669,15 +665,15 @@ impl Tessellator {
         path.stroke_closed(stroke, self.options, out);
     }
 
-    pub fn tessellate_text(
-        &mut self,
-        tex_size: [usize; 2],
-        galley_pos: Pos2,
-        galley: &super::Galley,
-        underline: Stroke,
-        override_text_color: Option<Color32>,
-        out: &mut Mesh,
-    ) {
+    pub fn tessellate_text(&mut self, tex_size: [usize; 2], text_shape: TextShape, out: &mut Mesh) {
+        let TextShape {
+            pos: galley_pos,
+            galley,
+            underline,
+            override_text_color,
+            angle,
+        } = text_shape;
+
         if galley.is_empty() {
             return;
         }
@@ -694,12 +690,18 @@ impl Tessellator {
 
         let uv_normalizer = vec2(1.0 / tex_size[0] as f32, 1.0 / tex_size[1] as f32);
 
+        let rotator = Rot2::from_angle(angle);
+
         for row in &galley.rows {
             if row.visuals.mesh.is_empty() {
                 continue;
             }
 
-            let row_rect = row.visuals.mesh_bounds.translate(galley_pos.to_vec2());
+            let mut row_rect = row.visuals.mesh_bounds;
+            if angle != 0.0 {
+                row_rect = row_rect.rotate_bb(rotator);
+            }
+            row_rect = row_rect.translate(galley_pos.to_vec2());
 
             if self.options.coarse_tessellation_culling && !self.clip_rect.intersects(row_rect) {
                 // culling individual lines of text is important, since a single `Shape::Text`
@@ -724,7 +726,7 @@ impl Tessellator {
                     .iter()
                     .enumerate()
                     .map(|(i, vertex)| {
-                        let mut color = vertex.color;
+                        let Vertex { pos, uv, mut color } = *vertex;
 
                         if let Some(override_text_color) = override_text_color {
                             if row.visuals.glyph_vertex_range.contains(&i) {
@@ -732,9 +734,15 @@ impl Tessellator {
                             }
                         }
 
+                        let offset = if angle == 0.0 {
+                            pos.to_vec2()
+                        } else {
+                            rotator * pos.to_vec2()
+                        };
+
                         Vertex {
-                            pos: galley_pos + vertex.pos.to_vec2(),
-                            uv: (vertex.uv.to_vec2() * uv_normalizer).to_pos2(),
+                            pos: galley_pos + offset,
+                            uv: (uv.to_vec2() * uv_normalizer).to_pos2(),
                             color,
                         }
                     }),

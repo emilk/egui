@@ -223,6 +223,7 @@ struct Highligher {}
 
 #[cfg(not(feature = "syntect"))]
 impl Highligher {
+    #[allow(clippy::unused_self, clippy::unnecessary_wraps)]
     fn highlight(&self, is_dark_mode: bool, mut text: &str, _language: &str) -> Option<LayoutJob> {
         // Extremely simple syntax highlighter for when we compile without syntect
 
@@ -269,7 +270,7 @@ impl Highligher {
 
         while !text.is_empty() {
             if text.starts_with("//") {
-                let end = text.find('\n').unwrap_or(text.len());
+                let end = text.find('\n').unwrap_or_else(|| text.len());
                 job.append(&text[..end], 0.0, comment_format);
                 text = &text[end..];
             } else if text.starts_with('"') {
@@ -277,14 +278,14 @@ impl Highligher {
                     .find('"')
                     .map(|i| i + 2)
                     .or_else(|| text.find('\n'))
-                    .unwrap_or(text.len());
+                    .unwrap_or_else(|| text.len());
                 job.append(&text[..end], 0.0, quoted_string_format);
                 text = &text[end..];
             } else if text.starts_with(|c: char| c.is_ascii_alphanumeric()) {
                 let end = text[1..]
                     .find(|c: char| !c.is_ascii_alphanumeric())
                     .map(|i| i + 1)
-                    .unwrap_or(text.len());
+                    .unwrap_or_else(|| text.len());
                 let word = &text[..end];
                 if is_keyword(word) {
                     job.append(word, 0.0, keyword_format);
@@ -296,7 +297,7 @@ impl Highligher {
                 let end = text[1..]
                     .find(|c: char| !c.is_ascii_whitespace())
                     .map(|i| i + 1)
-                    .unwrap_or(text.len());
+                    .unwrap_or_else(|| text.len());
                 job.append(&text[..end], 0.0, whitespace_format);
                 text = &text[end..];
             } else {

@@ -251,11 +251,12 @@ impl Label {
             Stroke::none()
         };
 
-        ui.painter().add(Shape::Text {
+        ui.painter().add(epaint::TextShape {
             pos,
             galley,
             override_text_color: Some(text_color),
             underline,
+            angle: 0.0,
         });
     }
 

@@ -1,5 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 
+use egui::epaint::TextShape;
 use egui_demo_lib::LOREM_IPSUM_LONG;
 
 pub fn criterion_benchmark(c: &mut Criterion) {
@@ -93,16 +94,10 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let galley = fonts.layout(LOREM_IPSUM_LONG.to_owned(), text_style, color, wrap_width);
         let mut tessellator = egui::epaint::Tessellator::from_options(Default::default());
         let mut mesh = egui::epaint::Mesh::default();
+        let text_shape = TextShape::new(egui::Pos2::ZERO, galley);
         c.bench_function("tessellate_text", |b| {
             b.iter(|| {
-                tessellator.tessellate_text(
-                    fonts.texture().size(),
-                    egui::Pos2::ZERO,
-                    &galley,
-                    Default::default(),
-                    None,
-                    &mut mesh,
-                );
+                tessellator.tessellate_text(fonts.texture().size(), text_shape.clone(), &mut mesh);
                 mesh.clear();
             })
         });
