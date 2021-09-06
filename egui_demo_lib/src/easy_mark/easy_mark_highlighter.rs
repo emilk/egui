@@ -28,7 +28,10 @@ pub fn highlight_easymark(visuals: &egui::Visuals, mut text: &str) -> egui::text
 
     while !text.is_empty() {
         if start_of_line && text.starts_with("```") {
-            let end = text.find("\n```").map(|i| i + 4).unwrap_or(text.len());
+            let end = text
+                .find("\n```")
+                .map(|i| i + 4)
+                .unwrap_or_else(|| text.len());
             job.append(
                 &text[..end],
                 0.0,
@@ -45,12 +48,12 @@ pub fn highlight_easymark(visuals: &egui::Visuals, mut text: &str) -> egui::text
             continue;
         }
 
-        if text.starts_with("`") {
+        if text.starts_with('`') {
             style.code = true;
             let end = text[1..]
                 .find(&['`', '\n'][..])
                 .map(|i| i + 2)
-                .unwrap_or(text.len());
+                .unwrap_or_else(|| text.len());
             job.append(&text[..end], 0.0, format_from_style(visuals, &style));
             text = &text[end..];
             style.code = false;
