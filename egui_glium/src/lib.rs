@@ -251,8 +251,8 @@ pub fn input_to_egui(
         WindowEvent::MouseWheel { delta, .. } => {
             let mut delta = match *delta {
                 glutin::event::MouseScrollDelta::LineDelta(x, y) => {
-                    let line_height = 8.0; // magic value!
-                    vec2(x, y) * line_height
+                    let points_per_scroll_line = 50.0; // Scroll speed decided by consensus: https://github.com/emilk/egui/issues/461
+                    vec2(x, y) * points_per_scroll_line
                 }
                 glutin::event::MouseScrollDelta::PixelDelta(delta) => {
                     vec2(delta.x as f32, delta.y as f32) / pixels_per_point
