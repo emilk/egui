@@ -63,7 +63,7 @@ impl super::View for MultiTouch {
 
             // set up the drawing canvas with normalized coordinates:
             let (response, painter) =
-                ui.allocate_painter(ui.available_size_before_wrap_finite(), Sense::drag());
+                ui.allocate_painter(ui.available_size_before_wrap(), Sense::drag());
             // normalize painter coordinates to ±1 units in each direction with [0,0] in the center:
             let painter_proportions = response.rect.square_proportions();
             let to_screen = RectTransform::from_to(

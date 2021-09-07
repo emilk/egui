@@ -4,10 +4,10 @@ version = "0.14.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Minimal 2D graphics library for GUI work"
 edition = "2018"
-homepage = "https://github.com/emilk/egui"
+homepage = "https://github.com/emilk/egui/tree/master/epaint"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/emilk/egui"
+repository = "https://github.com/emilk/egui/tree/master/epaint"
 categories = ["graphics", "gui"]
 keywords = ["graphics", "gui", "egui"]
 include = [
@@ -19,6 +19,9 @@ include = [
   "fonts/*.txt",
 ]
 
+[package.metadata.docs.rs]
+all-features = true
+
 [lib]
 
 [dependencies]
@@ -28,7 +31,7 @@ ab_glyph = "0.2.11"
 ahash = { version = "0.7", features = ["std"], default-features = false }
 atomic_refcell = { version = "0.1", optional = true } # Used instead of parking_lot when you are always using epaint in a single thread. About as fast as parking_lot. Panics on multi-threaded use.
 cint = { version = "^0.2.2", optional = true }
-ordered-float = { version = "2", default-features = false }
+nohash-hasher = "0.2"
 parking_lot = { version = "0.11", optional = true } # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
 serde = { version = "1", features = ["derive"], optional = true }
 

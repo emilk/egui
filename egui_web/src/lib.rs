@@ -22,8 +22,6 @@
 #![warn(clippy::all, rust_2018_idioms)]
 
 pub mod backend;
-#[cfg(feature = "http")]
-pub mod http;
 mod painter;
 pub mod screen_reader;
 pub mod webgl1;
@@ -1050,7 +1048,9 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                     canvas_size_in_points(runner_ref.0.lock().canvas_id()).y
                 }
                 web_sys::WheelEvent::DOM_DELTA_LINE => {
-                    8.0 // magic value!
+                    #[allow(clippy::let_and_return)]
+                    let points_per_scroll_line = 8.0; // Note that this is intentionally different from what we use in egui_glium / winit.
+                    points_per_scroll_line
                 }
                 _ => 1.0,
             };

@@ -12,7 +12,6 @@ use {
         texture::{self, srgb_texture2d::SrgbTexture2d},
         uniform,
         uniforms::{MagnifySamplerFilter, SamplerWrapFunction},
-        Frame, Surface,
     },
 };
 
@@ -95,10 +94,10 @@ impl Painter {
     /// Main entry-point for painting a frame.
     /// You should call `target.clear_color(..)` before
     /// and `target.finish()` after this.
-    pub fn paint_meshes(
+    pub fn paint_meshes<T: glium::Surface>(
         &mut self,
         display: &glium::Display,
-        target: &mut Frame,
+        target: &mut T,
         pixels_per_point: f32,
         cipped_meshes: Vec<egui::ClippedMesh>,
         egui_texture: &egui::Texture,
@@ -112,9 +111,9 @@ impl Painter {
     }
 
     #[inline(never)] // Easier profiling
-    pub fn paint_mesh(
+    pub fn paint_mesh<T: glium::Surface>(
         &mut self,
-        target: &mut Frame,
+        target: &mut T,
         display: &glium::Display,
         pixels_per_point: f32,
         clip_rect: Rect,
@@ -242,8 +241,7 @@ impl Painter {
         id
     }
 
-    /// register glium texture as egui texture
-    /// Usable for render to image rectangle
+    #[deprecated = "Use: `NativeTexture::register_native_texture` instead"]
     pub fn register_glium_texture(
         &mut self,
         texture: glium::texture::SrgbTexture2d,
@@ -316,6 +314,34 @@ impl Painter {
                 let mipmaps = texture::MipmapsOption::NoMipmap;
                 user_texture.gl_texture =
                     Some(SrgbTexture2d::with_format(facade, pixels, format, mipmaps).unwrap());
+            }
+        }
+    }
+}
+
+impl epi::NativeTexture for Painter {
+    type Texture = glium::texture::srgb_texture2d::SrgbTexture2d;
+
+    fn register_native_texture(&mut self, native: Self::Texture) -> egui::TextureId {
+        let id = self.alloc_user_texture();
+        if let egui::TextureId::User(id) = id {
+            if let Some(Some(user_texture)) = self.user_textures.get_mut(id as usize) {
+                *user_texture = UserTexture {
+                    pixels: vec![],
+                    gl_texture: Some(native),
+                }
+            }
+        }
+        id
+    }
+
+    fn replace_native_texture(&mut self, id: egui::TextureId, replacing: Self::Texture) {
+        if let egui::TextureId::User(id) = id {
+            if let Some(Some(user_texture)) = self.user_textures.get_mut(id as usize) {
+                *user_texture = UserTexture {
+                    pixels: vec![],
+                    gl_texture: Some(replacing),
+                };
             }
         }
     }

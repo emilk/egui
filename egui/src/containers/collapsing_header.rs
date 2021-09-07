@@ -266,24 +266,25 @@ impl CollapsingHeader {
         let id = ui.make_persistent_id(id_source);
         let button_padding = ui.spacing().button_padding;
 
-        let available = ui.available_rect_before_wrap_finite();
+        let available = ui.available_rect_before_wrap();
         let text_pos = available.min + vec2(ui.spacing().indent, 0.0);
-        let galley = label.layout_width(ui, available.right() - text_pos.x);
-        let text_max_x = text_pos.x + galley.size.x;
+        let galley =
+            label.layout_width(ui, available.right() - text_pos.x, Color32::TEMPORARY_COLOR);
+        let text_max_x = text_pos.x + galley.size().x;
 
         let mut desired_width = text_max_x + button_padding.x - available.left();
         if ui.visuals().collapsing_header_frame {
             desired_width = desired_width.max(available.width()); // fill full width
         }
 
-        let mut desired_size = vec2(desired_width, galley.size.y + 2.0 * button_padding.y);
+        let mut desired_size = vec2(desired_width, galley.size().y + 2.0 * button_padding.y);
         desired_size = desired_size.at_least(ui.spacing().interact_size);
         let (_, rect) = ui.allocate_space(desired_size);
 
         let mut header_response = ui.interact(rect, id, Sense::click());
         let text_pos = pos2(
             text_pos.x,
-            header_response.rect.center().y - galley.size.y / 2.0,
+            header_response.rect.center().y - galley.size().y / 2.0,
         );
 
         let mut state = State::from_memory_with_default_open(ui.ctx(), id, default_open);
@@ -292,7 +293,7 @@ impl CollapsingHeader {
             header_response.mark_changed();
         }
         header_response
-            .widget_info(|| WidgetInfo::labeled(WidgetType::CollapsingHeader, &galley.text));
+            .widget_info(|| WidgetInfo::labeled(WidgetType::CollapsingHeader, galley.text()));
 
         let visuals = ui
             .style()
@@ -337,7 +338,7 @@ impl CollapsingHeader {
             paint_icon(ui, openness, &icon_response);
         }
 
-        ui.painter().galley(text_pos, galley, text_color);
+        ui.painter().galley_with_color(text_pos, galley, text_color);
 
         Prepared {
             id,
@@ -346,10 +347,19 @@ impl CollapsingHeader {
         }
     }
 
+    #[inline]
     pub fn show<R>(
         self,
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> CollapsingResponse<R> {
+        self.show_dyn(ui, Box::new(add_contents))
+    }
+
+    fn show_dyn<'c, R>(
+        self,
+        ui: &mut Ui,
+        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> CollapsingResponse<R> {
         // Make sure contents are bellow header,
         // and make sure it is one unit (necessary for putting a `CollapsingHeader` in a grid).

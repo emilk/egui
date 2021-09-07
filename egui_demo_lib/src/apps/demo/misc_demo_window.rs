@@ -50,6 +50,12 @@ impl View for MiscDemoWindow {
                 self.widgets.ui(ui);
             });
 
+        CollapsingHeader::new("Text layout")
+            .default_open(false)
+            .show(ui, |ui| {
+                text_layout_ui(ui);
+            });
+
         CollapsingHeader::new("Colors")
             .default_open(false)
             .show(ui, |ui| {
@@ -114,8 +120,6 @@ impl View for MiscDemoWindow {
 pub struct Widgets {
     angle: f32,
     password: String,
-    lock_focus: bool,
-    code_snippet: String,
 }
 
 impl Default for Widgets {
@@ -123,25 +127,13 @@ impl Default for Widgets {
         Self {
             angle: std::f32::consts::TAU / 3.0,
             password: "hunter2".to_owned(),
-            lock_focus: true,
-            code_snippet: "\
-fn main() {
-\tprintln!(\"Hello world!\");
-}
-"
-            .to_owned(),
         }
     }
 }
 
 impl Widgets {
     pub fn ui(&mut self, ui: &mut Ui) {
-        let Self {
-            angle,
-            password,
-            lock_focus,
-            code_snippet,
-        } = self;
+        let Self { angle, password } = self;
         ui.vertical_centered(|ui| {
             ui.add(crate::__egui_github_link_file_line!());
         });
@@ -196,24 +188,6 @@ impl Widgets {
                 .on_hover_text("See the example code for how to use egui to store UI state");
             ui.add(super::password::password(password));
         });
-
-        ui.separator();
-
-        ui.horizontal(|ui| {
-            ui.label("Code editor:");
-
-            ui.separator();
-
-            ui.checkbox(lock_focus, "Lock focus").on_hover_text(
-                "When checked, pressing TAB will insert a tab instead of moving focus",
-            );
-        });
-
-        ui.add(
-            TextEdit::multiline(code_snippet)
-                .code_editor()
-                .lock_focus(*lock_focus),
-        );
     }
 }
 
@@ -422,4 +396,183 @@ impl SubTree {
 
         Action::Keep
     }
+}
+
+// ----------------------------------------------------------------------------
+
+fn text_layout_ui(ui: &mut egui::Ui) {
+    use egui::epaint::text::{LayoutJob, TextFormat};
+
+    let mut job = LayoutJob::default();
+
+    let first_row_indentation = 10.0;
+
+    let (default_color, strong_color) = if ui.visuals().dark_mode {
+        (Color32::LIGHT_GRAY, Color32::WHITE)
+    } else {
+        (Color32::DARK_GRAY, Color32::BLACK)
+    };
+
+    job.append(
+        "This is a demonstration of ",
+        first_row_indentation,
+        TextFormat {
+            style: TextStyle::Body,
+            color: default_color,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "the egui text layout engine. ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: strong_color,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "It supports ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: default_color,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "different ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: Color32::from_rgb(110, 255, 110),
+            ..Default::default()
+        },
+    );
+    job.append(
+        "colors, ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: Color32::from_rgb(128, 140, 255),
+            ..Default::default()
+        },
+    );
+    job.append(
+        "backgrounds, ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: default_color,
+            background: Color32::from_rgb(128, 32, 32),
+            ..Default::default()
+        },
+    );
+    job.append(
+        "mixing ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Heading,
+            color: default_color,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "fonts, ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Monospace,
+            color: default_color,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "raised text, ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Small,
+            color: default_color,
+            valign: Align::TOP,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "with ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: default_color,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "underlining",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: default_color,
+            underline: Stroke::new(1.0, Color32::LIGHT_BLUE),
+            ..Default::default()
+        },
+    );
+    job.append(
+        " and ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: default_color,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "strikethrough",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: default_color,
+            strikethrough: Stroke::new(2.0, Color32::RED.linear_multiply(0.5)),
+            ..Default::default()
+        },
+    );
+    job.append(
+        ". Of course, ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: default_color,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "you can",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: default_color,
+            strikethrough: Stroke::new(1.0, strong_color),
+            ..Default::default()
+        },
+    );
+    job.append(
+        " mix these!",
+        0.0,
+        TextFormat {
+            style: TextStyle::Small,
+            color: Color32::LIGHT_BLUE,
+            background: Color32::from_rgb(128, 0, 0),
+            underline: Stroke::new(1.0, strong_color),
+            ..Default::default()
+        },
+    );
+
+    job.wrap_width = ui.available_width();
+
+    let galley = ui.fonts().layout_job(job);
+
+    let (response, painter) = ui.allocate_painter(galley.size(), Sense::hover());
+    painter.add(Shape::galley(response.rect.min, galley));
+
+    ui.vertical_centered(|ui| {
+        ui.add(crate::__egui_github_link_file_line!());
+    });
 }

@@ -7,9 +7,21 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 
 ## Unreleased
 
-
 ### Added ⭐
 * Add horizontal scrolling support to `ScrollArea` and `Window` (opt-in).
+* `TextEdit::layouter`: Add custom text layout for e.g. syntax highlighting or WYSIWYG.
+* `Fonts::layout_job*`: New text layout engine allowing mixing fonts, colors and styles, with underlining and strikethrough.
+
+### Changed 🔧
+* Label text will now be centered, right-aligned and/or justified based on the layout.
+* `Hyperlink` will now word-wrap just like a `Label`.
+* All `Ui`:s must now have a finite `max_rect`.
+  * Deprecated: `max_rect_finite`, `available_size_before_wrap_finite` and `available_rect_before_wrap_finite`.
+* `Painter`/`Fonts`: text layout now expect color when creating a `Galley`. You may override that color with `Painter::galley_with_color`.
+
+### Fixed 🐛
+* Fix wrongly sized multiline `TextEdit` in justified layouts.
+* Fix clip rectangle of windows that don't fit the central area.
 
 
 ## 0.14.2 - 2021-08-28 - Window resize fix

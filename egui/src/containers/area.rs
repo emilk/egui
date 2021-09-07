@@ -174,6 +174,18 @@ pub(crate) struct Prepared {
 }
 
 impl Area {
+    pub fn show<R>(
+        self,
+        ctx: &CtxRef,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
+        let prepared = self.begin(ctx);
+        let mut content_ui = prepared.content_ui(ctx);
+        let inner = add_contents(&mut content_ui);
+        let response = prepared.end(ctx, content_ui);
+        InnerResponse { inner, response }
+    }
+
     pub(crate) fn begin(self, ctx: &CtxRef) -> Prepared {
         let Area {
             id,
@@ -219,18 +231,6 @@ impl Area {
         }
     }
 
-    pub fn show<R>(
-        self,
-        ctx: &CtxRef,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
-        let prepared = self.begin(ctx);
-        let mut content_ui = prepared.content_ui(ctx);
-        let inner = add_contents(&mut content_ui);
-        let response = prepared.end(ctx, content_ui);
-        InnerResponse { inner, response }
-    }
-
     pub fn show_open_close_animation(&self, ctx: &CtxRef, frame: &Frame, is_open: bool) {
         // must be called first so animation managers know the latest state
         let visibility_factor = ctx.animate_bool(self.id.with("close_animation"), is_open);
@@ -274,23 +274,32 @@ impl Prepared {
     }
 
     pub(crate) fn content_ui(&self, ctx: &CtxRef) -> Ui {
-        let max_rect = Rect::from_min_size(self.state.pos, Vec2::INFINITY);
+        let screen_rect = ctx.input().screen_rect();
+
+        let bounds = if let Some(bounds) = self.drag_bounds {
+            bounds.intersect(screen_rect) // protect against infinite bounds
+        } else {
+            let central_area = ctx.available_rect();
+
+            let is_within_central_area = central_area.contains_rect(self.state.rect().shrink(1.0));
+            if is_within_central_area {
+                central_area // let's try to not cover side panels
+            } else {
+                screen_rect
+            }
+        };
+
+        let max_rect = Rect::from_min_max(
+            self.state.pos,
+            bounds.max.at_least(self.state.pos + Vec2::splat(32.0)),
+        );
+
         let shadow_radius = ctx.style().visuals.window_shadow.extrusion; // hacky
-        let bounds = self.drag_bounds.unwrap_or_else(|| ctx.input().screen_rect);
+        let clip_rect_margin = ctx.style().visuals.clip_rect_margin.max(shadow_radius);
 
-        let mut clip_rect = max_rect
-            .expand(ctx.style().visuals.clip_rect_margin)
-            .expand(shadow_radius)
+        let clip_rect = Rect::from_min_max(self.state.pos, bounds.max)
+            .expand(clip_rect_margin)
             .intersect(bounds);
-
-        // Windows are constrained to central area,
-        // (except in rare cases where they don't fit).
-        // Adjust clip rect so we don't cast shadows on side panels:
-        let central_area = ctx.available_rect();
-        let is_within_central_area = central_area.contains_rect(self.state.rect().shrink(1.0));
-        if is_within_central_area {
-            clip_rect = clip_rect.intersect(central_area);
-        }
 
         let mut ui = Ui::new(
             ctx.clone(),

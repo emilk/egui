@@ -127,7 +127,10 @@ impl Vec2 {
     /// `v.to_pos2()` is equivalent to `Pos2::default() + v`.
     #[inline(always)]
     pub fn to_pos2(self) -> crate::Pos2 {
-        crate::Pos2::new(self.x, self.y)
+        crate::Pos2 {
+            x: self.x,
+            y: self.y,
+        }
     }
 
     /// Safe normalize: returns zero if input is zero.
@@ -180,7 +183,7 @@ impl Vec2 {
         self.y.atan2(self.x)
     }
 
-    /// Create a unit vector with the given angle (in radians).
+    /// Create a unit vector with the given CW angle (in radians).
     /// * An angle of zero gives the unit X axis.
     /// * An angle of 𝞃/4 = 90° gives the unit Y axis.
     ///

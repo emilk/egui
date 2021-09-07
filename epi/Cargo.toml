@@ -4,10 +4,10 @@ version = "0.14.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Backend-agnostic interface for writing apps using egui"
 edition = "2018"
-homepage = "https://github.com/emilk/egui"
+homepage = "https://github.com/emilk/egui/tree/master/epi"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/emilk/egui"
+repository = "https://github.com/emilk/egui/tree/master/epi"
 categories = ["gui", "game-development"]
 keywords = ["egui", "gui", "gamedev"]
 include = [
@@ -29,5 +29,4 @@ serde = { version = "1", optional = true }
 
 [features]
 default = []
-http = []
 persistence = ["ron", "serde"]

@@ -367,10 +367,9 @@ impl Ui {
         self.placer.max_rect()
     }
 
-    /// This is like `max_rect()`, but will never be infinite.
-    /// This can be useful for widgets that expand to fit the available space.
+    #[deprecated = "Use .max_rect() instead"]
     pub fn max_rect_finite(&self) -> Rect {
-        self.placer.max_rect_finite()
+        self.max_rect()
     }
 
     /// Used for animation, kind of hacky
@@ -501,22 +500,18 @@ impl Ui {
         self.placer.available_rect_before_wrap().size()
     }
 
-    /// This is like `available_size_before_wrap()`, but will never be infinite.
-    /// This can be useful for widgets that expand to fit the available space.
-    /// In most layouts the next widget will be put in the top left corner of this `Rect`.
+    #[deprecated = "Use .available_size_before_wrap() instead"]
     pub fn available_size_before_wrap_finite(&self) -> Vec2 {
-        self.placer.available_rect_before_wrap_finite().size()
+        self.available_size_before_wrap()
     }
 
     pub fn available_rect_before_wrap(&self) -> Rect {
         self.placer.available_rect_before_wrap()
     }
 
-    /// This is like `available_rect_before_wrap()`, but will never be infinite.
-    /// This can be useful for widgets that expand to fit the available space.
-    /// In most layouts the next widget will be put in the top left corner of this `Rect`.
+    #[deprecated = "Use .available_rect_before_wrap() instead"]
     pub fn available_rect_before_wrap_finite(&self) -> Rect {
-        self.placer.available_rect_before_wrap_finite()
+        self.available_rect_before_wrap()
     }
 }
 
@@ -812,6 +807,7 @@ impl Ui {
         max_rect: Rect,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
+        egui_assert!(max_rect.is_finite());
         let mut child_ui = self.child_ui(max_rect, *self.layout());
         let ret = add_contents(&mut child_ui);
         let final_child_rect = child_ui.min_rect();
@@ -1283,6 +1279,13 @@ impl Ui {
     /// });
     /// ```
     pub fn scope<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
+        self.scope_dyn(Box::new(add_contents))
+    }
+
+    fn scope_dyn<'c, R>(
+        &mut self,
+        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
+    ) -> InnerResponse<R> {
         let child_rect = self.available_rect_before_wrap();
         let next_auto_id_source = self.next_auto_id_source;
         let mut child_ui = self.child_ui(child_rect, *self.layout());
@@ -1393,13 +1396,14 @@ impl Ui {
     ///     ui.label("row");
     /// });
     /// ```
-    #[inline(always)]
+    ///
+    /// See also [`Self::with_layout`] for more options.
+    #[inline]
     pub fn horizontal<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
-        self.horizontal_with_main_wrap(false, add_contents)
+        self.horizontal_with_main_wrap_dyn(false, Box::new(add_contents))
     }
 
     /// Like [`Self::horizontal`], but aligns content with top.
-    #[inline(always)]
     pub fn horizontal_top<R>(
         &mut self,
         add_contents: impl FnOnce(&mut Ui) -> R,
@@ -1427,20 +1431,13 @@ impl Ui {
     /// The returned `Response` will only have checked for mouse hover
     /// but can be used for tooltips (`on_hover_text`).
     /// It also contains the `Rect` used by the horizontal layout.
+    ///
+    /// See also [`Self::with_layout`] for more options.
     pub fn horizontal_wrapped<R>(
         &mut self,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.horizontal_with_main_wrap(true, add_contents)
-    }
-
-    #[inline(always)]
-    fn horizontal_with_main_wrap<R>(
-        &mut self,
-        main_wrap: bool,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
-        self.horizontal_with_main_wrap_dyn(main_wrap, Box::new(add_contents))
+        self.horizontal_with_main_wrap_dyn(true, Box::new(add_contents))
     }
 
     fn horizontal_with_main_wrap_dyn<'c, R>(
@@ -1473,9 +1470,11 @@ impl Ui {
     ///     ui.label("under");
     /// });
     /// ```
+    ///
+    /// See also [`Self::with_layout`] for more options.
     #[inline(always)]
     pub fn vertical<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
-        self.with_layout(Layout::top_down(Align::Min), add_contents)
+        self.with_layout_dyn(Layout::top_down(Align::Min), Box::new(add_contents))
     }
 
     /// Start a ui with vertical layout.
@@ -1488,11 +1487,12 @@ impl Ui {
     ///     ui.label("under");
     /// });
     /// ```
+    #[inline]
     pub fn vertical_centered<R>(
         &mut self,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.with_layout(Layout::top_down(Align::Center), add_contents)
+        self.with_layout_dyn(Layout::top_down(Align::Center), Box::new(add_contents))
     }
 
     /// Start a ui with vertical layout.
@@ -1509,16 +1509,25 @@ impl Ui {
         &mut self,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.with_layout(
+        self.with_layout_dyn(
             Layout::top_down(Align::Center).with_cross_justify(true),
-            add_contents,
+            Box::new(add_contents),
         )
     }
 
     /// The new layout will take up all available space.
     ///
-    /// Consider using [`Self::allocate_ui_with_layout`] instead,
-    /// or the helpers [`Self::horizontal]`, [`Self::vertical`], etc.
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// ui.with_layout(egui::Layout::right_to_left(), |ui| {
+    ///     ui.label("world!");
+    ///     ui.label("Hello");
+    /// });
+    /// ```
+    ///
+    /// See also [`Self::allocate_ui_with_layout`],
+    /// and the helpers [`Self::horizontal]`, [`Self::vertical`], etc.
+    #[inline]
     pub fn with_layout<R>(
         &mut self,
         layout: Layout,
@@ -1552,9 +1561,9 @@ impl Ui {
         &mut self,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
-        self.with_layout(
+        self.with_layout_dyn(
             Layout::centered_and_justified(Direction::TopDown),
-            add_contents,
+            Box::new(add_contents),
         )
     }
 
@@ -1595,10 +1604,20 @@ impl Ui {
     ///     columns[1].label("Second column");
     /// });
     /// ```
-    pub fn columns<F, R>(&mut self, num_columns: usize, add_contents: F) -> R
-    where
-        F: FnOnce(&mut [Self]) -> R,
-    {
+    #[inline]
+    pub fn columns<R>(
+        &mut self,
+        num_columns: usize,
+        add_contents: impl FnOnce(&mut [Self]) -> R,
+    ) -> R {
+        self.columns_dyn(num_columns, Box::new(add_contents))
+    }
+
+    fn columns_dyn<'c, R>(
+        &mut self,
+        num_columns: usize,
+        add_contents: Box<dyn FnOnce(&mut [Self]) -> R + 'c>,
+    ) -> R {
         // TODO: ensure there is space
         let spacing = self.spacing().item_spacing.x;
         let total_spacing = spacing * (num_columns as f32 - 1.0);
@@ -1649,7 +1668,7 @@ impl Ui {
     /// Shows the given text where the next widget is to be placed
     /// if when [`Context::set_debug_on_hover`] has been turned on and the mouse is hovering the Ui.
     pub fn trace_location(&self, text: impl ToString) {
-        let rect = self.max_rect_finite();
+        let rect = self.max_rect();
         if self.style().debug.debug_on_hover && self.rect_contains_pointer(rect) {
             self.placer
                 .debug_paint_cursor(&self.ctx().debug_painter(), text);

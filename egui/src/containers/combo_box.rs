@@ -70,6 +70,14 @@ impl ComboBox {
         ui: &mut Ui,
         menu_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<Option<R>> {
+        self.show_ui_dyn(ui, Box::new(menu_contents))
+    }
+
+    fn show_ui_dyn<'c, R>(
+        self,
+        ui: &mut Ui,
+        menu_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
+    ) -> InnerResponse<Option<R>> {
         let Self {
             id_source,
             label,
@@ -83,7 +91,7 @@ impl ComboBox {
             if let Some(width) = width {
                 ui.spacing_mut().slider_width = width; // yes, this is ugly. Will remove later.
             }
-            let mut ir = combo_box(ui, button_id, selected_text, menu_contents);
+            let mut ir = combo_box_dyn(ui, button_id, selected_text, menu_contents);
             if let Some(label) = label {
                 ir.response
                     .widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, label.text()));
@@ -144,11 +152,11 @@ impl ComboBox {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn combo_box<R>(
+fn combo_box_dyn<'c, R>(
     ui: &mut Ui,
     button_id: Id,
     selected: impl ToString,
-    menu_contents: impl FnOnce(&mut Ui) -> R,
+    menu_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
 ) -> InnerResponse<Option<R>> {
     let popup_id = button_id.with("popup");
 
@@ -158,13 +166,13 @@ fn combo_box<R>(
         let full_minimum_width = ui.spacing().slider_width;
         let icon_size = Vec2::splat(ui.spacing().icon_width);
 
-        let galley = ui
-            .fonts()
-            .layout_no_wrap(TextStyle::Button, selected.to_string());
+        let galley =
+            ui.fonts()
+                .layout_delayed_color(selected.to_string(), TextStyle::Button, f32::INFINITY);
 
-        let width = galley.size.x + ui.spacing().item_spacing.x + icon_size.x;
+        let width = galley.size().x + ui.spacing().item_spacing.x + icon_size.x;
         let width = width.at_least(full_minimum_width);
-        let height = galley.size.y.max(icon_size.y);
+        let height = galley.size().y.max(icon_size.y);
 
         let (_, rect) = ui.allocate_space(Vec2::new(width, height));
         let button_rect = ui.min_rect().expand2(ui.spacing().button_padding);
@@ -179,9 +187,9 @@ fn combo_box<R>(
         };
         paint_icon(ui.painter(), icon_rect.expand(visuals.expansion), visuals);
 
-        let text_rect = Align2::LEFT_CENTER.align_size_within_rect(galley.size, rect);
+        let text_rect = Align2::LEFT_CENTER.align_size_within_rect(galley.size(), rect);
         ui.painter()
-            .galley(text_rect.min, galley, visuals.text_color());
+            .galley_with_color(text_rect.min, galley, visuals.text_color());
     });
 
     if button_response.clicked() {

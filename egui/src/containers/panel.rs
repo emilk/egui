@@ -148,6 +148,15 @@ impl SidePanel {
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
+        self.show_inside_dyn(ui, Box::new(add_contents))
+    }
+
+    /// Show the panel inside a `Ui`.
+    fn show_inside_dyn<'c, R>(
+        self,
+        ui: &mut Ui,
+        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
+    ) -> InnerResponse<R> {
         let Self {
             side,
             id,
@@ -212,7 +221,7 @@ impl SidePanel {
         panel_ui.expand_to_include_rect(panel_rect);
         let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let inner_response = frame.show(&mut panel_ui, |ui| {
-            ui.set_min_height(ui.max_rect_finite().height()); // Make sure the frame fills the full height
+            ui.set_min_height(ui.max_rect().height()); // Make sure the frame fills the full height
             ui.set_min_width(*width_range.start());
             add_contents(ui)
         });
@@ -260,13 +269,22 @@ impl SidePanel {
         ctx: &CtxRef,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
+        self.show_dyn(ctx, Box::new(add_contents))
+    }
+
+    /// Show the panel at the top level.
+    fn show_dyn<'c, R>(
+        self,
+        ctx: &CtxRef,
+        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
+    ) -> InnerResponse<R> {
         let layer_id = LayerId::background();
         let side = self.side;
         let available_rect = ctx.available_rect();
         let clip_rect = ctx.input().screen_rect();
         let mut panel_ui = Ui::new(ctx.clone(), layer_id, self.id, available_rect, clip_rect);
 
-        let inner_response = self.show_inside(&mut panel_ui, add_contents);
+        let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
         let rect = inner_response.response.rect;
 
         match side {
@@ -407,6 +425,15 @@ impl TopBottomPanel {
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
+        self.show_inside_dyn(ui, Box::new(add_contents))
+    }
+
+    /// Show the panel inside a `Ui`.
+    fn show_inside_dyn<'c, R>(
+        self,
+        ui: &mut Ui,
+        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
+    ) -> InnerResponse<R> {
         let Self {
             side,
             id,
@@ -473,7 +500,7 @@ impl TopBottomPanel {
         panel_ui.expand_to_include_rect(panel_rect);
         let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let inner_response = frame.show(&mut panel_ui, |ui| {
-            ui.set_min_width(ui.max_rect_finite().width()); // Make the frame fill full width
+            ui.set_min_width(ui.max_rect().width()); // Make the frame fill full width
             ui.set_min_height(*height_range.start());
             add_contents(ui)
         });
@@ -521,6 +548,15 @@ impl TopBottomPanel {
         ctx: &CtxRef,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
+        self.show_dyn(ctx, Box::new(add_contents))
+    }
+
+    /// Show the panel at the top level.
+    fn show_dyn<'c, R>(
+        self,
+        ctx: &CtxRef,
+        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
+    ) -> InnerResponse<R> {
         let layer_id = LayerId::background();
         let available_rect = ctx.available_rect();
         let side = self.side;
@@ -528,7 +564,7 @@ impl TopBottomPanel {
         let clip_rect = ctx.input().screen_rect();
         let mut panel_ui = Ui::new(ctx.clone(), layer_id, self.id, available_rect, clip_rect);
 
-        let inner_response = self.show_inside(&mut panel_ui, add_contents);
+        let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
         let rect = inner_response.response.rect;
 
         match side {
@@ -586,9 +622,18 @@ impl CentralPanel {
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
+        self.show_inside_dyn(ui, Box::new(add_contents))
+    }
+
+    /// Show the panel inside a `Ui`.
+    fn show_inside_dyn<'c, R>(
+        self,
+        ui: &mut Ui,
+        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
+    ) -> InnerResponse<R> {
         let Self { frame } = self;
 
-        let panel_rect = ui.available_rect_before_wrap_finite();
+        let panel_rect = ui.available_rect_before_wrap();
         let mut panel_ui = ui.child_ui(panel_rect, Layout::top_down(Align::Min));
 
         let frame = frame.unwrap_or_else(|| Frame::central_panel(ui.style()));
@@ -604,6 +649,15 @@ impl CentralPanel {
         ctx: &CtxRef,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
+        self.show_dyn(ctx, Box::new(add_contents))
+    }
+
+    /// Show the panel at the top level.
+    fn show_dyn<'c, R>(
+        self,
+        ctx: &CtxRef,
+        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
+    ) -> InnerResponse<R> {
         let available_rect = ctx.available_rect();
         let layer_id = LayerId::background();
         let id = Id::new("central_panel");
@@ -611,7 +665,7 @@ impl CentralPanel {
         let clip_rect = ctx.input().screen_rect();
         let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, available_rect, clip_rect);
 
-        let inner_response = self.show_inside(&mut panel_ui, add_contents);
+        let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
 
         // Only inform ctx about what we actually used, so we can shrink the native window to fit.
         ctx.frame_state()

@@ -19,8 +19,6 @@
 #![allow(clippy::manual_range_contains, clippy::single_match)]
 
 mod backend;
-#[cfg(feature = "http")]
-pub mod http;
 mod painter;
 #[cfg(feature = "persistence")]
 pub mod persistence;
@@ -42,7 +40,8 @@ use {
     std::hash::{Hash, Hasher},
 };
 
-pub use copypasta::ClipboardContext; // TODO: remove
+pub use copypasta::ClipboardContext;
+use std::borrow::BorrowMut; // TODO: remove
 
 pub struct GliumInputState {
     pub pointer_pos_in_points: Option<Pos2>,
@@ -252,8 +251,8 @@ pub fn input_to_egui(
         WindowEvent::MouseWheel { delta, .. } => {
             let mut delta = match *delta {
                 glutin::event::MouseScrollDelta::LineDelta(x, y) => {
-                    let line_height = 8.0; // magic value!
-                    vec2(x, y) * line_height
+                    let points_per_scroll_line = 50.0; // Scroll speed decided by consensus: https://github.com/emilk/egui/issues/461
+                    vec2(x, y) * points_per_scroll_line
                 }
                 glutin::event::MouseScrollDelta::PixelDelta(delta) => {
                     vec2(delta.x as f32, delta.y as f32) / pixels_per_point
@@ -631,10 +630,10 @@ impl EguiGlium {
         (needs_repaint, shapes)
     }
 
-    pub fn paint(
+    pub fn paint<T: glium::Surface>(
         &mut self,
         display: &glium::Display,
-        target: &mut glium::Frame,
+        target: &mut T,
         shapes: Vec<egui::epaint::ClippedShape>,
     ) {
         let clipped_meshes = self.egui_ctx.tessellate(shapes);
@@ -645,5 +644,9 @@ impl EguiGlium {
             clipped_meshes,
             &self.egui_ctx.texture(),
         );
+    }
+
+    pub fn painter_mut(&mut self) -> &mut Painter {
+        self.painter.borrow_mut()
     }
 }

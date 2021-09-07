@@ -59,11 +59,6 @@ impl Placer {
     }
 
     #[inline(always)]
-    pub(crate) fn max_rect_finite(&self) -> Rect {
-        self.region.max_rect_finite()
-    }
-
-    #[inline(always)]
     pub(crate) fn force_set_min_rect(&mut self, min_rect: Rect) {
         self.region.min_rect = min_rect;
     }
@@ -93,14 +88,6 @@ impl Placer {
             grid.available_rect(&self.region)
         } else {
             self.layout.available_rect_before_wrap(&self.region)
-        }
-    }
-
-    pub(crate) fn available_rect_before_wrap_finite(&self) -> Rect {
-        if let Some(grid) = &self.grid {
-            grid.available_rect_finite(&self.region)
-        } else {
-            self.layout.available_rect_before_wrap_finite(&self.region)
         }
     }
 

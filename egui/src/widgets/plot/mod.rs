@@ -382,7 +382,7 @@ impl Widget for Plot {
                     if let (Some(height), Some(aspect)) = (height, view_aspect) {
                         height * aspect
                     } else {
-                        ui.available_size_before_wrap_finite().x
+                        ui.available_size_before_wrap().x
                     }
                 })
                 .at_least(min_size.x);
@@ -392,7 +392,7 @@ impl Widget for Plot {
                     if let Some(aspect) = view_aspect {
                         width / aspect
                     } else {
-                        ui.available_size_before_wrap_finite().y
+                        ui.available_size_before_wrap().y
                     }
                 })
                 .at_least(min_size.y);
@@ -626,21 +626,16 @@ impl Prepared {
                 let color = color_from_alpha(ui, text_alpha);
                 let text = emath::round_to_decimals(value_main, 5).to_string(); // hack
 
-                let galley = ui.fonts().layout_single_line(text_style, text);
+                let galley = ui.painter().layout_no_wrap(text, text_style, color);
 
-                let mut text_pos = pos_in_gui + vec2(1.0, -galley.size.y);
+                let mut text_pos = pos_in_gui + vec2(1.0, -galley.size().y);
 
                 // Make sure we see the labels, even if the axis is off-screen:
                 text_pos[1 - axis] = text_pos[1 - axis]
-                    .at_most(transform.frame().max[1 - axis] - galley.size[1 - axis] - 2.0)
+                    .at_most(transform.frame().max[1 - axis] - galley.size()[1 - axis] - 2.0)
                     .at_least(transform.frame().min[1 - axis] + 1.0);
 
-                shapes.push(Shape::Text {
-                    pos: text_pos,
-                    galley,
-                    color,
-                    fake_italics: false,
-                });
+                shapes.push(Shape::galley(text_pos, galley));
             }
         }
 

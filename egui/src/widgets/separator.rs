@@ -59,7 +59,7 @@ impl Widget for Separator {
         let is_horizontal_line = is_horizontal_line
             .unwrap_or_else(|| ui.is_grid() || !ui.layout().main_dir().is_horizontal());
 
-        let available_space = ui.available_size_before_wrap_finite();
+        let available_space = ui.available_size_before_wrap();
 
         let size = if is_horizontal_line {
             vec2(available_space.x, spacing)

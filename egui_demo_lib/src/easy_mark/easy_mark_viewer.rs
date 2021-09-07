@@ -7,7 +7,16 @@ pub fn easy_mark(ui: &mut Ui, easy_mark: &str) {
 }
 
 pub fn easy_mark_it<'em>(ui: &mut Ui, items: impl Iterator<Item = easy_mark::Item<'em>>) {
-    ui.horizontal_wrapped(|ui| {
+    let initial_size = vec2(
+        ui.available_width(),
+        ui.spacing().interact_size.y, // Assume there will be
+    );
+
+    let layout = Layout::left_to_right()
+        .with_main_wrap(true)
+        .with_cross_align(Align::BOTTOM);
+
+    ui.allocate_ui_with_layout(initial_size, layout, |ui| {
         ui.spacing_mut().item_spacing.x = 0.0;
         ui.set_row_height(ui.fonts()[TextStyle::Body].row_height());
 
@@ -68,7 +77,7 @@ pub fn item_ui(ui: &mut Ui, item: easy_mark::Item<'_>) {
             let where_to_put_background = ui.painter().add(Shape::Noop);
             let mut rect = ui.monospace(code).rect;
             rect = rect.expand(1.0); // looks better
-            rect.max.x = ui.max_rect_finite().max.x;
+            rect.max.x = ui.max_rect().max.x;
             let code_bg_color = ui.visuals().code_bg_color;
             ui.painter().set(
                 where_to_put_background,

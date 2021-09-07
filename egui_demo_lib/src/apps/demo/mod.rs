@@ -5,6 +5,7 @@
 // ----------------------------------------------------------------------------
 
 mod app;
+pub mod code_editor;
 pub mod dancing_strings;
 pub mod demo_app_windows;
 pub mod drag_and_drop;

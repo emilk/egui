@@ -304,7 +304,7 @@ impl ScrollArea {
     ///
     /// If the inner area can be very long, consider using [`Self::show_rows`] instead.
     pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
-        self.show_viewport(ui, |ui, _viewport| add_contents(ui))
+        self.show_viewport_dyn(ui, Box::new(|ui, _viewport| add_contents(ui)))
     }
 
     /// Efficiently show only the visible part of a large number of rows.
@@ -357,6 +357,14 @@ impl ScrollArea {
     /// `add_contents` is past the viewport, which is the relative view of the content.
     /// So if the passed rect has min = zero, then show the top left content (the user has not scrolled).
     pub fn show_viewport<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui, Rect) -> R) -> R {
+        self.show_viewport_dyn(ui, Box::new(add_contents))
+    }
+
+    fn show_viewport_dyn<'c, R>(
+        self,
+        ui: &mut Ui,
+        add_contents: Box<dyn FnOnce(&mut Ui, Rect) -> R + 'c>,
+    ) -> R {
         let mut prepared = self.begin(ui);
         let ret = add_contents(&mut prepared.content_ui, prepared.viewport);
         prepared.end(ui);

@@ -1,15 +1,30 @@
 use egui::*;
 
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[derive(PartialEq)]
+#[cfg_attr(feature = "persistence", serde(default))]
 pub struct EasyMarkEditor {
     code: String,
+    highlight_editor: bool,
+    show_rendered: bool,
+
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    highlighter: crate::easy_mark::MemoizedEasymarkHighlighter,
+}
+
+impl PartialEq for EasyMarkEditor {
+    fn eq(&self, other: &Self) -> bool {
+        (&self.code, self.highlight_editor, self.show_rendered)
+            == (&other.code, other.highlight_editor, other.show_rendered)
+    }
 }
 
 impl Default for EasyMarkEditor {
     fn default() -> Self {
         Self {
             code: DEFAULT_CODE.trim().to_owned(),
+            highlight_editor: true,
+            show_rendered: true,
+            highlighter: Default::default(),
         }
     }
 }
@@ -28,27 +43,63 @@ impl epi::App for EasyMarkEditor {
 
 impl EasyMarkEditor {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.vertical_centered(|ui| {
+        egui::Grid::new("controls").show(ui, |ui| {
+            ui.checkbox(&mut self.highlight_editor, "Highlight editor");
             egui::reset_button(ui, self);
+            ui.end_row();
+
+            ui.checkbox(&mut self.show_rendered, "Show rendered");
             ui.add(crate::__egui_github_link_file!());
         });
+
         ui.separator();
-        ui.columns(2, |columns| {
+
+        if self.show_rendered {
+            ui.columns(2, |columns| {
+                ScrollArea::vertical()
+                    .id_source("source")
+                    .show(&mut columns[0], |ui| self.editor_ui(ui));
+                ScrollArea::vertical()
+                    .id_source("rendered")
+                    .show(&mut columns[1], |ui| {
+                        // TODO: we can save some more CPU by caching the rendered output.
+                        crate::easy_mark::easy_mark(ui, &self.code);
+                    });
+            });
+        } else {
             ScrollArea::vertical()
                 .id_source("source")
-                .show(&mut columns[0], |ui| {
-                    ui.add(TextEdit::multiline(&mut self.code).text_style(TextStyle::Monospace));
-                    // let cursor = TextEdit::cursor(response.id);
-                    // TODO: cmd-i, cmd-b, etc for italics, bold, ....
-                });
-            ScrollArea::vertical()
-                .id_source("rendered")
-                .show(&mut columns[1], |ui| {
-                    crate::easy_mark::easy_mark(ui, &self.code);
-                });
-        });
+                .show(ui, |ui| self.editor_ui(ui))
+        }
+    }
+
+    fn editor_ui(&mut self, ui: &mut egui::Ui) {
+        let Self {
+            code, highlighter, ..
+        } = self;
+
+        if self.highlight_editor {
+            let mut layouter = |ui: &egui::Ui, easymark: &str, wrap_width: f32| {
+                let mut layout_job = highlighter.highlight(ui.visuals(), easymark);
+                layout_job.wrap_width = wrap_width;
+                ui.fonts().layout_job(layout_job)
+            };
+
+            ui.add(
+                egui::TextEdit::multiline(code)
+                    .desired_width(f32::INFINITY)
+                    .text_style(egui::TextStyle::Monospace) // for cursor height
+                    .layouter(&mut layouter),
+            );
+        } else {
+            ui.add(egui::TextEdit::multiline(code).desired_width(f32::INFINITY));
+        }
+        // let cursor = TextEdit::cursor(response.id);
+        // TODO: cmd-i, cmd-b, etc for italics, bold, ....
     }
 }
+
+// ----------------------------------------------------------------------------
 
 const DEFAULT_CODE: &str = r#"
 # EasyMark

@@ -4,6 +4,8 @@ All notable changes to the `eframe` crate.
 
 ## Unreleased
 * `Frame` now provides `set_decorations` to set whether to show window decorations.
+* Remove "http" feature (use https://github.com/emilk/ehttp instead!).
+* Increase native scroll speed.
 
 
 ## 0.14.0 - 2021-08-24

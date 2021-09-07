@@ -1,9 +1,8 @@
-use epi::http::{Request, Response};
 use std::sync::mpsc::Receiver;
 
 struct Resource {
     /// HTTP response
-    response: Response,
+    response: ehttp::Response,
 
     text: Option<String>,
 
@@ -15,7 +14,7 @@ struct Resource {
 }
 
 impl Resource {
-    fn from_response(response: Response) -> Self {
+    fn from_response(response: ehttp::Response) -> Self {
         let content_type = response.content_type().unwrap_or_default();
         let image = if content_type.starts_with("image/") {
             Image::decode(&response.bytes)
@@ -54,7 +53,7 @@ pub struct HttpApp {
     request_body: String,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
-    in_progress: Option<Receiver<Result<Response, String>>>,
+    in_progress: Option<Receiver<Result<ehttp::Response, String>>>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     result: Option<Result<Resource, String>>,
@@ -94,9 +93,15 @@ impl epi::App for HttpApp {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("HTTP Fetch Example");
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = 0.0;
+                ui.label("HTTP requests made using ");
+                ui.hyperlink_to("ehttp", "https://www.github.com/emilk/ehttp");
+                ui.label(".");
+            });
             ui.add(egui::github_link_file!(
                 "https://github.com/emilk/egui/blob/master/",
-                "(source code)"
+                "(demo source code)"
             ));
 
             if let Some(request) = ui_url(
@@ -110,7 +115,7 @@ impl epi::App for HttpApp {
                 let (sender, receiver) = std::sync::mpsc::channel();
                 self.in_progress = Some(receiver);
 
-                frame.http_fetch(request, move |response| {
+                ehttp::fetch(request, move |response| {
                     sender.send(response).ok();
                     repaint_signal.request_repaint();
                 });
@@ -144,7 +149,7 @@ fn ui_url(
     url: &mut String,
     method: &mut Method,
     request_body: &mut String,
-) -> Option<Request> {
+) -> Option<ehttp::Request> {
     let mut trigger_fetch = false;
 
     egui::Grid::new("request_params").show(ui, |ui| {
@@ -202,8 +207,8 @@ fn ui_url(
 
     if trigger_fetch {
         Some(match *method {
-            Method::Get => Request::get(url),
-            Method::Post => Request::post(url, request_body),
+            Method::Get => ehttp::Request::get(url),
+            Method::Post => ehttp::Request::post(url, request_body),
         })
     } else {
         None
@@ -284,7 +289,7 @@ fn ui_resource(
 // Syntax highlighting:
 
 #[cfg(feature = "syntect")]
-fn syntax_highlighting(response: &Response, text: &str) -> Option<ColoredText> {
+fn syntax_highlighting(response: &ehttp::Response, text: &str) -> Option<ColoredText> {
     let extension_and_rest: Vec<&str> = response.url.rsplitn(2, '.').collect();
     let extension = extension_and_rest.get(0)?;
     ColoredText::text_with_extension(text, extension)
@@ -292,13 +297,14 @@ fn syntax_highlighting(response: &Response, text: &str) -> Option<ColoredText> {
 
 /// Lines of text fragments
 #[cfg(feature = "syntect")]
-struct ColoredText(Vec<Vec<(syntect::highlighting::Style, String)>>);
+struct ColoredText(egui::text::LayoutJob);
 
 #[cfg(feature = "syntect")]
 impl ColoredText {
     /// e.g. `text_with_extension("fn foo() {}", "rs")`
     pub fn text_with_extension(text: &str, extension: &str) -> Option<ColoredText> {
         use syntect::easy::HighlightLines;
+        use syntect::highlighting::FontStyle;
         use syntect::highlighting::ThemeSet;
         use syntect::parsing::SyntaxSet;
         use syntect::util::LinesWithEndings;
@@ -308,38 +314,70 @@ impl ColoredText {
 
         let syntax = ps.find_syntax_by_extension(extension)?;
 
-        let mut h = HighlightLines::new(syntax, &ts.themes["base16-mocha.dark"]);
+        let dark_mode = true;
+        let theme = if dark_mode {
+            "base16-mocha.dark"
+        } else {
+            "base16-ocean.light"
+        };
+        let mut h = HighlightLines::new(syntax, &ts.themes[theme]);
 
-        let lines = LinesWithEndings::from(text)
-            .map(|line| {
-                h.highlight(line, &ps)
-                    .into_iter()
-                    .map(|(style, range)| (style, range.trim_end_matches('\n').to_owned()))
-                    .collect()
-            })
-            .collect();
+        use egui::text::{LayoutJob, LayoutSection, TextFormat};
 
-        Some(ColoredText(lines))
+        let mut job = LayoutJob {
+            text: text.into(),
+            ..Default::default()
+        };
+
+        for line in LinesWithEndings::from(text) {
+            for (style, range) in h.highlight(line, &ps) {
+                let fg = style.foreground;
+                let text_color = egui::Color32::from_rgb(fg.r, fg.g, fg.b);
+                let italics = style.font_style.contains(FontStyle::ITALIC);
+                let underline = style.font_style.contains(FontStyle::ITALIC);
+                let underline = if underline {
+                    egui::Stroke::new(1.0, text_color)
+                } else {
+                    egui::Stroke::none()
+                };
+                job.sections.push(LayoutSection {
+                    leading_space: 0.0,
+                    byte_range: as_byte_range(text, range),
+                    format: TextFormat {
+                        style: egui::TextStyle::Monospace,
+                        color: text_color,
+                        italics,
+                        underline,
+                        ..Default::default()
+                    },
+                });
+            }
+        }
+
+        Some(ColoredText(job))
     }
 
     pub fn ui(&self, ui: &mut egui::Ui) {
-        for line in &self.0 {
-            ui.horizontal_wrapped(|ui| {
-                ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
-                ui.set_row_height(ui.fonts()[egui::TextStyle::Body].row_height());
-
-                for (style, range) in line {
-                    let fg = style.foreground;
-                    let text_color = egui::Color32::from_rgb(fg.r, fg.g, fg.b);
-                    ui.add(egui::Label::new(range).monospace().text_color(text_color));
-                }
-            });
-        }
+        let mut job = self.0.clone();
+        job.wrap_width = ui.available_width();
+        let galley = ui.fonts().layout_job(job);
+        let (response, painter) = ui.allocate_painter(galley.size(), egui::Sense::hover());
+        painter.add(egui::Shape::galley(response.rect.min, galley));
     }
 }
 
+#[cfg(feature = "syntect")]
+fn as_byte_range(whole: &str, range: &str) -> std::ops::Range<usize> {
+    let whole_start = whole.as_ptr() as usize;
+    let range_start = range.as_ptr() as usize;
+    assert!(whole_start <= range_start);
+    assert!(range_start + range.len() <= whole_start + whole.len());
+    let offset = range_start - whole_start;
+    offset..(offset + range.len())
+}
+
 #[cfg(not(feature = "syntect"))]
-fn syntax_highlighting(_: &Response, _: &str) -> Option<ColoredText> {
+fn syntax_highlighting(_: &ehttp::Response, _: &str) -> Option<ColoredText> {
     None
 }
 #[cfg(not(feature = "syntect"))]

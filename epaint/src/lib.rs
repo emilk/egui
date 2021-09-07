@@ -93,7 +93,7 @@ pub use {
     color::{Color32, Rgba},
     mesh::{Mesh, Mesh16, Vertex},
     shadow::Shadow,
-    shape::Shape,
+    shape::{Shape, TextShape},
     stats::PaintStats,
     stroke::Stroke,
     tessellator::{TessellationOptions, Tessellator},
@@ -173,5 +173,19 @@ macro_rules! epaint_assert {
         )) {
             assert!($($arg)*);
         }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+#[inline(always)]
+pub(crate) fn f32_hash<H: std::hash::Hasher>(state: &mut H, f: f32) {
+    if f == 0.0 {
+        state.write_u8(0)
+    } else if f.is_nan() {
+        state.write_u8(1)
+    } else {
+        use std::hash::Hash;
+        f.to_bits().hash(state)
     }
 }
