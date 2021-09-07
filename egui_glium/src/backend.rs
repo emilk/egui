@@ -337,7 +337,15 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: epi::NativeOptions) {
             }
 
             {
-                let epi::backend::AppOutput { quit, window_size } = app_output;
+                let epi::backend::AppOutput {
+                    quit,
+                    window_size,
+                    decorated,
+                } = app_output;
+
+                if let Some(decorated) = decorated {
+                    display.gl_window().window().set_decorations(decorated);
+                }
 
                 if let Some(window_size) = window_size {
                     display.gl_window().window().set_inner_size(

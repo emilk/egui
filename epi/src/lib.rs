@@ -251,6 +251,12 @@ impl<'a> Frame<'a> {
         self.0.output.window_size = Some(size);
     }
 
+    /// Set whether to show window decorations (i.e. a frame around you app).
+    /// If false it will be difficult to move and resize the app.
+    pub fn set_decorations(&mut self, decorated: bool) {
+        self.0.output.decorated = Some(decorated);
+    }
+
     /// If you need to request a repaint from another thread, clone this and send it to that other thread.
     pub fn repaint_signal(&self) -> std::sync::Arc<dyn RepaintSignal> {
         self.0.repaint_signal.clone()
@@ -405,5 +411,8 @@ pub mod backend {
 
         /// Set to some size to resize the outer window (e.g. glium window) to this size.
         pub window_size: Option<egui::Vec2>,
+
+        /// Set to some bool to change window decorations
+        pub decorated: Option<bool>,
     }
 }
