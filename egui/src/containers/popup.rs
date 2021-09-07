@@ -100,12 +100,12 @@ pub fn show_tooltip_under<R>(
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
     let expanded_rect = rect.expand2(vec2(2.0, 4.0));
-    show_tooltip_at_avoid(
+    show_tooltip_at_avoid_dyn(
         ctx,
         id,
         Some(expanded_rect.left_bottom()),
         expanded_rect,
-        add_contents,
+        Box::new(add_contents),
     )
 }
 
@@ -118,15 +118,21 @@ pub fn show_tooltip_at<R>(
     suggested_position: Option<Pos2>,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
-    show_tooltip_at_avoid(ctx, id, suggested_position, Rect::NOTHING, add_contents)
+    show_tooltip_at_avoid_dyn(
+        ctx,
+        id,
+        suggested_position,
+        Rect::NOTHING,
+        Box::new(add_contents),
+    )
 }
 
-fn show_tooltip_at_avoid<R>(
+fn show_tooltip_at_avoid_dyn<'c, R>(
     ctx: &CtxRef,
     mut id: Id,
     suggested_position: Option<Pos2>,
     mut avoid_rect: Rect,
-    add_contents: impl FnOnce(&mut Ui) -> R,
+    add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
 ) -> Option<R> {
     let mut tooltip_rect = Rect::NOTHING;
     let mut count = 0;
@@ -170,7 +176,7 @@ fn show_tooltip_at_avoid<R>(
 
     let position = position.max(ctx.input().screen_rect().left_top());
 
-    let InnerResponse { inner, response } = show_tooltip_area(ctx, id, position, add_contents);
+    let InnerResponse { inner, response } = show_tooltip_area_dyn(ctx, id, position, add_contents);
     ctx.memory()
         .data_temp
         .get_mut_or_default::<crate::containers::popup::MonoState>()
@@ -201,11 +207,11 @@ pub fn show_tooltip_text(ctx: &CtxRef, id: Id, text: impl ToString) -> Option<()
 }
 
 /// Show a pop-over window.
-fn show_tooltip_area<R>(
+fn show_tooltip_area_dyn<'c, R>(
     ctx: &CtxRef,
     id: Id,
     window_pos: Pos2,
-    add_contents: impl FnOnce(&mut Ui) -> R,
+    add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
 ) -> InnerResponse<R> {
     use containers::*;
     Area::new(id)

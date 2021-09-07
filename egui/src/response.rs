@@ -552,6 +552,7 @@ pub struct InnerResponse<R> {
 }
 
 impl<R> InnerResponse<R> {
+    #[inline]
     pub fn new(inner: R, response: Response) -> Self {
         Self { inner, response }
     }

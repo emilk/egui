@@ -1279,6 +1279,13 @@ impl Ui {
     /// });
     /// ```
     pub fn scope<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
+        self.scope_dyn(Box::new(add_contents))
+    }
+
+    fn scope_dyn<'c, R>(
+        &mut self,
+        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
+    ) -> InnerResponse<R> {
         let child_rect = self.available_rect_before_wrap();
         let next_auto_id_source = self.next_auto_id_source;
         let mut child_ui = self.child_ui(child_rect, *self.layout());
@@ -1391,13 +1398,12 @@ impl Ui {
     /// ```
     ///
     /// See also [`Self::with_layout`] for more options.
-    #[inline(always)]
+    #[inline]
     pub fn horizontal<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
-        self.horizontal_with_main_wrap(false, add_contents)
+        self.horizontal_with_main_wrap_dyn(false, Box::new(add_contents))
     }
 
     /// Like [`Self::horizontal`], but aligns content with top.
-    #[inline(always)]
     pub fn horizontal_top<R>(
         &mut self,
         add_contents: impl FnOnce(&mut Ui) -> R,
@@ -1431,16 +1437,7 @@ impl Ui {
         &mut self,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.horizontal_with_main_wrap(true, add_contents)
-    }
-
-    #[inline(always)]
-    fn horizontal_with_main_wrap<R>(
-        &mut self,
-        main_wrap: bool,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
-        self.horizontal_with_main_wrap_dyn(main_wrap, Box::new(add_contents))
+        self.horizontal_with_main_wrap_dyn(true, Box::new(add_contents))
     }
 
     fn horizontal_with_main_wrap_dyn<'c, R>(
@@ -1477,7 +1474,7 @@ impl Ui {
     /// See also [`Self::with_layout`] for more options.
     #[inline(always)]
     pub fn vertical<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
-        self.with_layout(Layout::top_down(Align::Min), add_contents)
+        self.with_layout_dyn(Layout::top_down(Align::Min), Box::new(add_contents))
     }
 
     /// Start a ui with vertical layout.
@@ -1490,11 +1487,12 @@ impl Ui {
     ///     ui.label("under");
     /// });
     /// ```
+    #[inline]
     pub fn vertical_centered<R>(
         &mut self,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.with_layout(Layout::top_down(Align::Center), add_contents)
+        self.with_layout_dyn(Layout::top_down(Align::Center), Box::new(add_contents))
     }
 
     /// Start a ui with vertical layout.
@@ -1511,9 +1509,9 @@ impl Ui {
         &mut self,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.with_layout(
+        self.with_layout_dyn(
             Layout::top_down(Align::Center).with_cross_justify(true),
-            add_contents,
+            Box::new(add_contents),
         )
     }
 
@@ -1529,6 +1527,7 @@ impl Ui {
     ///
     /// See also [`Self::allocate_ui_with_layout`],
     /// and the helpers [`Self::horizontal]`, [`Self::vertical`], etc.
+    #[inline]
     pub fn with_layout<R>(
         &mut self,
         layout: Layout,
@@ -1562,9 +1561,9 @@ impl Ui {
         &mut self,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
-        self.with_layout(
+        self.with_layout_dyn(
             Layout::centered_and_justified(Direction::TopDown),
-            add_contents,
+            Box::new(add_contents),
         )
     }
 
@@ -1605,10 +1604,20 @@ impl Ui {
     ///     columns[1].label("Second column");
     /// });
     /// ```
-    pub fn columns<F, R>(&mut self, num_columns: usize, add_contents: F) -> R
-    where
-        F: FnOnce(&mut [Self]) -> R,
-    {
+    #[inline]
+    pub fn columns<R>(
+        &mut self,
+        num_columns: usize,
+        add_contents: impl FnOnce(&mut [Self]) -> R,
+    ) -> R {
+        self.columns_dyn(num_columns, Box::new(add_contents))
+    }
+
+    fn columns_dyn<'c, R>(
+        &mut self,
+        num_columns: usize,
+        add_contents: Box<dyn FnOnce(&mut [Self]) -> R + 'c>,
+    ) -> R {
         // TODO: ensure there is space
         let spacing = self.spacing().item_spacing.x;
         let total_spacing = spacing * (num_columns as f32 - 1.0);

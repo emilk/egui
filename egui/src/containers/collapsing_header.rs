@@ -347,10 +347,19 @@ impl CollapsingHeader {
         }
     }
 
+    #[inline]
     pub fn show<R>(
         self,
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> CollapsingResponse<R> {
+        self.show_dyn(ui, Box::new(add_contents))
+    }
+
+    fn show_dyn<'c, R>(
+        self,
+        ui: &mut Ui,
+        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> CollapsingResponse<R> {
         // Make sure contents are bellow header,
         // and make sure it is one unit (necessary for putting a `CollapsingHeader` in a grid).

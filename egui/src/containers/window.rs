@@ -240,15 +240,16 @@ impl<'open> Window<'open> {
 impl<'open> Window<'open> {
     /// Returns `None` if the window is not open (if [`Window::open`] was called with `&mut false`).
     /// Returns `Some(InnerResponse { inner: None })` if the window is collapsed.
+    #[inline]
     pub fn show<R>(
         self,
         ctx: &CtxRef,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<Option<R>>> {
-        self.show_impl(ctx, Box::new(add_contents))
+        self.show_dyn(ctx, Box::new(add_contents))
     }
 
-    fn show_impl<'c, R>(
+    fn show_dyn<'c, R>(
         self,
         ctx: &CtxRef,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,

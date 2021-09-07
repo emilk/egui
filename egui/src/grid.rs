@@ -328,6 +328,14 @@ impl Grid {
 
 impl Grid {
     pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
+        self.show_dyn(ui, Box::new(add_contents))
+    }
+
+    fn show_dyn<'c, R>(
+        self,
+        ui: &mut Ui,
+        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
+    ) -> InnerResponse<R> {
         let Self {
             id_source,
             num_columns,
