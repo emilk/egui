@@ -36,7 +36,12 @@ pub struct LayoutJob {
     /// and show up as the replacement character.
     /// Default: `true`.
     pub break_on_newline: bool,
-    // TODO: option to show whitespace characters
+
+    /// How to horizontally align the text (`Align::LEFT`, `Align::Center`, `Align::RIGHT`).
+    pub halign: Align,
+
+    /// Justify text so that word-wrapped rows fill the whole [`Self::wrap_width`]
+    pub justify: bool,
 }
 
 impl Default for LayoutJob {
@@ -48,6 +53,8 @@ impl Default for LayoutJob {
             wrap_width: f32::INFINITY,
             first_row_min_height: 0.0,
             break_on_newline: true,
+            halign: Align::LEFT,
+            justify: false,
         }
     }
 }
@@ -112,6 +119,8 @@ impl std::hash::Hash for LayoutJob {
             wrap_width,
             first_row_min_height,
             break_on_newline,
+            halign,
+            justify,
         } = self;
 
         text.hash(state);
@@ -119,6 +128,8 @@ impl std::hash::Hash for LayoutJob {
         crate::f32_hash(state, *wrap_width);
         crate::f32_hash(state, *first_row_min_height);
         break_on_newline.hash(state);
+        halign.hash(state);
+        justify.hash(state);
     }
 }
 
@@ -199,16 +210,24 @@ pub struct Galley {
     pub job: Arc<LayoutJob>,
 
     /// Rows of text, from top to bottom.
-    /// The number of chars in all rows sum up to text.chars().count().
+    /// The number of characters in all rows sum up to `job.text.chars().count()`.
     /// Note that each paragraph (pieces of text separated with `\n`)
     /// can be split up into multiple rows.
     pub rows: Vec<Row>,
 
-    /// Bounding size (min is always `[0,0]`)
-    pub size: Vec2,
+    /// Bounding rect.
+    ///
+    /// `rect.top()` is always 0.0.
+    ///
+    /// With [`LayoutJob::halign`]:
+    /// * [`Align::LEFT`]: rect.left() == 0.0
+    /// * [`Align::Center`]: rect.center() == 0.0
+    /// * [`Align::RIGHT`]: rect.right() == 0.0
+    pub rect: Rect,
 
     /// Total number of vertices in all the row meshes.
     pub num_vertices: usize,
+
     /// Total number of indices in all the row meshes.
     pub num_indices: usize,
 }
@@ -345,6 +364,10 @@ impl Galley {
     #[inline(always)]
     pub fn text(&self) -> &str {
         &self.job.text
+    }
+
+    pub fn size(&self) -> Vec2 {
+        self.rect.size()
     }
 }
 

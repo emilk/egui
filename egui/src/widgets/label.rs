@@ -171,9 +171,18 @@ impl Label {
 
     /// `line_color`: used for underline and strikethrough, if any.
     pub fn layout_width(&self, ui: &Ui, max_width: f32, line_color: Color32) -> Arc<Galley> {
-        self.layout_impl(ui, 0.0, max_width, 0.0, line_color)
+        let (halign, justify) = if ui.is_grid() {
+            (Align::LEFT, false) // TODO: remove special Grid hacks like these
+        } else {
+            (
+                ui.layout().horizontal_align(),
+                ui.layout().horizontal_justify(),
+            )
+        };
+        self.layout_impl(ui, 0.0, max_width, 0.0, line_color, halign, justify)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn layout_impl(
         &self,
         ui: &Ui,
@@ -181,6 +190,8 @@ impl Label {
         max_width: f32,
         first_row_min_height: f32,
         line_color: Color32,
+        halign: Align,
+        justify: bool,
     ) -> Arc<Galley> {
         let text_style = self.text_style_or_default(ui.style());
         let wrap_width = if self.should_wrap(ui) {
@@ -227,6 +238,8 @@ impl Label {
             }],
             wrap_width,
             first_row_min_height,
+            halign,
+            justify,
             ..Default::default()
         };
 
@@ -323,12 +336,16 @@ impl Label {
 
             let first_row_min_height = cursor.height();
             let default_color = self.get_text_color(ui, ui.visuals().text_color());
+            let halign = Align::Min;
+            let justify = false;
             let galley = self.layout_impl(
                 ui,
                 first_row_indentation,
                 max_width,
                 first_row_min_height,
                 default_color,
+                halign,
+                justify,
             );
 
             let pos = pos2(ui.max_rect().left(), ui.cursor().top());
@@ -343,8 +360,13 @@ impl Label {
             (pos, galley, response)
         } else {
             let galley = self.layout(ui);
-            let (rect, response) = ui.allocate_exact_size(galley.size, sense);
-            (rect.min, galley, response)
+            let (rect, response) = ui.allocate_exact_size(galley.size(), sense);
+            let pos = match galley.job.halign {
+                Align::LEFT => rect.left_top(),
+                Align::Center => rect.center_top(),
+                Align::RIGHT => rect.right_top(),
+            };
+            (pos, galley, response)
         }
     }
 }

@@ -795,9 +795,9 @@ fn show_title_bar(
 
         let minimum_width = if collapsible || show_close_button {
             // If at least one button is shown we make room for both buttons (since title is centered):
-            2.0 * (pad + button_size.x + item_spacing.x) + title_galley.size.x
+            2.0 * (pad + button_size.x + item_spacing.x) + title_galley.size().x
         } else {
-            pad + title_galley.size.x + pad
+            pad + title_galley.size().x + pad
         };
         let min_rect = Rect::from_min_size(ui.min_rect().min, vec2(minimum_width, height));
         let id = ui.advance_cursor_after_rect(min_rect);
@@ -846,8 +846,10 @@ impl TitleBar {
         self.title_label = self.title_label.text_color(style.fg_stroke.color);
 
         let full_top_rect = Rect::from_x_y_ranges(self.rect.x_range(), self.min_rect.y_range());
-        let text_pos = emath::align::center_size_in_rect(self.title_galley.size, full_top_rect);
-        let text_pos = text_pos.left_top() - 1.5 * Vec2::Y; // HACK: center on x-height of text (looks better)
+        let text_pos =
+            emath::align::center_size_in_rect(self.title_galley.size(), full_top_rect).left_top();
+        let text_pos = text_pos - self.title_galley.rect.min.to_vec2();
+        let text_pos = text_pos - 1.5 * Vec2::Y; // HACK: center on x-height of text (looks better)
         let text_color = ui.visuals().text_color();
         self.title_label
             .paint_galley(ui, text_pos, self.title_galley, false, text_color);

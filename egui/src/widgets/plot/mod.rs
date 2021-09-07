@@ -628,11 +628,11 @@ impl Prepared {
 
                 let galley = ui.painter().layout_no_wrap(text, text_style, color);
 
-                let mut text_pos = pos_in_gui + vec2(1.0, -galley.size.y);
+                let mut text_pos = pos_in_gui + vec2(1.0, -galley.size().y);
 
                 // Make sure we see the labels, even if the axis is off-screen:
                 text_pos[1 - axis] = text_pos[1 - axis]
-                    .at_most(transform.frame().max[1 - axis] - galley.size[1 - axis] - 2.0)
+                    .at_most(transform.frame().max[1 - axis] - galley.size()[1 - axis] - 2.0)
                     .at_least(transform.frame().min[1 - axis] + 1.0);
 
                 shapes.push(Shape::galley(text_pos, galley));

@@ -164,7 +164,7 @@ impl Button {
             .fonts()
             .layout_delayed_color(text, text_style, wrap_width);
 
-        let mut desired_size = galley.size + 2.0 * button_padding;
+        let mut desired_size = galley.size() + 2.0 * button_padding;
         if !small {
             desired_size.y = desired_size.y.at_least(ui.spacing().interact_size.y);
         }
@@ -177,7 +177,7 @@ impl Button {
             let visuals = ui.style().interact(&response);
             let text_pos = ui
                 .layout()
-                .align_size_within_rect(galley.size, rect.shrink2(button_padding))
+                .align_size_within_rect(galley.size(), rect.shrink2(button_padding))
                 .min;
 
             if frame {
@@ -290,7 +290,7 @@ impl<'a> Widget for Checkbox<'a> {
             .fonts()
             .layout_delayed_color(text, text_style, wrap_width);
 
-        let mut desired_size = total_extra + galley.size;
+        let mut desired_size = total_extra + galley.size();
         desired_size = desired_size.at_least(spacing.interact_size);
         desired_size.y = desired_size.y.max(icon_width);
         let (rect, mut response) = ui.allocate_exact_size(desired_size, Sense::click());
@@ -306,7 +306,7 @@ impl<'a> Widget for Checkbox<'a> {
         let visuals = ui.style().interact(&response);
         let text_pos = pos2(
             rect.min.x + button_padding.x + icon_width + icon_spacing,
-            rect.center().y - 0.5 * galley.size.y,
+            rect.center().y - 0.5 * galley.size().y,
         );
         let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
         ui.painter().add(Shape::Rect {
@@ -414,7 +414,7 @@ impl Widget for RadioButton {
             .fonts()
             .layout_delayed_color(text, text_style, wrap_width);
 
-        let mut desired_size = total_extra + galley.size;
+        let mut desired_size = total_extra + galley.size();
         desired_size = desired_size.at_least(ui.spacing().interact_size);
         desired_size.y = desired_size.y.max(icon_width);
         let (rect, response) = ui.allocate_exact_size(desired_size, Sense::click());
@@ -423,7 +423,7 @@ impl Widget for RadioButton {
 
         let text_pos = pos2(
             rect.min.x + button_padding.x + icon_width + icon_spacing,
-            rect.center().y - 0.5 * galley.size.y,
+            rect.center().y - 0.5 * galley.size().y,
         );
 
         // let visuals = ui.style().interact_selectable(&response, checked); // too colorful

@@ -13,6 +13,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 * `Fonts::layout_job*`: New text layout engine allowing mixing fonts, colors and styles, with underlining and strikethrough.
 
 ### Changed 🔧
+* Label text will now be centered, right-aligned and/or justified based on the layout.
 * `Hyperlink` will now word-wrap just like a `Label`.
 * All `Ui`:s must now have a finite `max_rect`.
   * Deprecated: `max_rect_finite`, `available_size_before_wrap_finite` and `available_rect_before_wrap_finite`.

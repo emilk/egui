@@ -292,6 +292,11 @@ impl Fonts {
         (point * self.pixels_per_point).round() / self.pixels_per_point
     }
 
+    #[inline(always)]
+    pub fn floor_to_pixel(&self, point: f32) -> f32 {
+        (point * self.pixels_per_point).floor() / self.pixels_per_point
+    }
+
     /// Call each frame to get the latest available font texture data.
     pub fn texture(&self) -> Arc<Texture> {
         let atlas = self.atlas.lock();

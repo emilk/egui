@@ -569,7 +569,7 @@ fn text_layout_ui(ui: &mut egui::Ui) {
 
     let galley = ui.fonts().layout_job(job);
 
-    let (response, painter) = ui.allocate_painter(galley.size, Sense::hover());
+    let (response, painter) = ui.allocate_painter(galley.size(), Sense::hover());
     painter.add(Shape::galley(response.rect.min, galley));
 
     ui.vertical_centered(|ui| {

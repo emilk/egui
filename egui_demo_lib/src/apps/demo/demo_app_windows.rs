@@ -163,14 +163,14 @@ impl DemoWindows {
                 ScrollArea::vertical().show(ui, |ui| {
                     use egui::special_emojis::{GITHUB, OS_APPLE, OS_LINUX, OS_WINDOWS};
 
-                    ui.label("egui is an immediate mode GUI library written in Rust.");
-
-                    ui.label(format!(
-                        "egui runs on the web, or natively on {}{}{}",
-                        OS_APPLE, OS_LINUX, OS_WINDOWS,
-                    ));
-
                     ui.vertical_centered(|ui| {
+                        ui.label("egui is an immediate mode GUI library written in Rust.");
+
+                        ui.label(format!(
+                            "egui runs on the web, or natively on {}{}{}",
+                            OS_APPLE, OS_LINUX, OS_WINDOWS,
+                        ));
+
                         ui.hyperlink_to(
                             format!("{} egui home page", GITHUB),
                             "https://github.com/emilk/egui",

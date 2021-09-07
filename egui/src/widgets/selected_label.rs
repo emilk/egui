@@ -69,7 +69,7 @@ impl Widget for SelectableLabel {
             .fonts()
             .layout_delayed_color(text, text_style, wrap_width);
 
-        let mut desired_size = total_extra + galley.size;
+        let mut desired_size = total_extra + galley.size();
         desired_size.y = desired_size.y.at_least(ui.spacing().interact_size.y);
         let (rect, response) = ui.allocate_at_least(desired_size, Sense::click());
         response.widget_info(|| {
@@ -78,7 +78,7 @@ impl Widget for SelectableLabel {
 
         let text_pos = ui
             .layout()
-            .align_size_within_rect(galley.size, rect.shrink2(button_padding))
+            .align_size_within_rect(galley.size(), rect.shrink2(button_padding))
             .min;
 
         let visuals = ui.style().interact_selectable(&response, selected);

@@ -270,21 +270,21 @@ impl CollapsingHeader {
         let text_pos = available.min + vec2(ui.spacing().indent, 0.0);
         let galley =
             label.layout_width(ui, available.right() - text_pos.x, Color32::TEMPORARY_COLOR);
-        let text_max_x = text_pos.x + galley.size.x;
+        let text_max_x = text_pos.x + galley.size().x;
 
         let mut desired_width = text_max_x + button_padding.x - available.left();
         if ui.visuals().collapsing_header_frame {
             desired_width = desired_width.max(available.width()); // fill full width
         }
 
-        let mut desired_size = vec2(desired_width, galley.size.y + 2.0 * button_padding.y);
+        let mut desired_size = vec2(desired_width, galley.size().y + 2.0 * button_padding.y);
         desired_size = desired_size.at_least(ui.spacing().interact_size);
         let (_, rect) = ui.allocate_space(desired_size);
 
         let mut header_response = ui.interact(rect, id, Sense::click());
         let text_pos = pos2(
             text_pos.x,
-            header_response.rect.center().y - galley.size.y / 2.0,
+            header_response.rect.center().y - galley.size().y / 2.0,
         );
 
         let mut state = State::from_memory_with_default_open(ui.ctx(), id, default_open);

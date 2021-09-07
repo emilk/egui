@@ -25,7 +25,18 @@ pub fn layout(fonts: &Fonts, job: Arc<LayoutJob>) -> Galley {
         layout_section(fonts, &job, section_index as u32, section, &mut paragraphs);
     }
 
-    let rows = rows_from_paragraphs(paragraphs, job.wrap_width);
+    let mut rows = rows_from_paragraphs(paragraphs, job.wrap_width);
+
+    let justify = job.justify && job.wrap_width.is_finite();
+
+    if justify || job.halign != Align::LEFT {
+        let num_rows = rows.len();
+        for (i, row) in rows.iter_mut().enumerate() {
+            let is_last_row = i + 1 == num_rows;
+            let justify_row = justify && !row.ends_with_newline && !is_last_row;
+            halign_and_jusitfy_row(fonts, row, job.halign, job.wrap_width, justify_row)
+        }
+    }
 
     galley_from_rows(fonts, job, rows)
 }
@@ -133,7 +144,7 @@ fn line_break(paragraph: &Paragraph, wrap_width: f32, out_rows: &mut Vec<Row>) {
     let mut row_start_idx = 0;
 
     for (i, glyph) in paragraph.glyphs.iter().enumerate() {
-        let potential_row_width = glyph.pos.x - row_start_x;
+        let potential_row_width = glyph.max_x() - row_start_x;
 
         if potential_row_width > wrap_width {
             if first_row_indentation > 0.0 && !row_break_candidates.has_word_boundary() {
@@ -200,10 +211,101 @@ fn line_break(paragraph: &Paragraph, wrap_width: f32, out_rows: &mut Vec<Row>) {
     }
 }
 
+fn halign_and_jusitfy_row(
+    fonts: &Fonts,
+    row: &mut Row,
+    halign: Align,
+    wrap_width: f32,
+    justify: bool,
+) {
+    if row.glyphs.is_empty() {
+        return;
+    }
+
+    let num_leading_spaces = row
+        .glyphs
+        .iter()
+        .take_while(|glyph| glyph.chr.is_whitespace())
+        .count();
+
+    let glyph_range = if num_leading_spaces == row.glyphs.len() {
+        // There is only whitespace
+        (0, row.glyphs.len())
+    } else {
+        let num_trailing_spaces = row
+            .glyphs
+            .iter()
+            .rev()
+            .take_while(|glyph| glyph.chr.is_whitespace())
+            .count();
+
+        (num_leading_spaces, row.glyphs.len() - num_trailing_spaces)
+    };
+    let num_glyphs_in_range = glyph_range.1 - glyph_range.0;
+    assert!(num_glyphs_in_range > 0);
+
+    let original_min_x = row.glyphs[glyph_range.0].logical_rect().min.x;
+    let original_max_x = row.glyphs[glyph_range.1 - 1].logical_rect().max.x;
+    let original_width = original_max_x - original_min_x;
+
+    let target_width = if justify && num_glyphs_in_range > 1 {
+        wrap_width
+    } else {
+        original_width
+    };
+
+    let (target_min_x, target_max_x) = match halign {
+        Align::LEFT => (0.0, target_width),
+        Align::Center => (-target_width / 2.0, target_width / 2.0),
+        Align::RIGHT => (-target_width, 0.0),
+    };
+
+    let num_spaces_in_range = row.glyphs[glyph_range.0..glyph_range.1]
+        .iter()
+        .filter(|glyph| glyph.chr.is_whitespace())
+        .count();
+
+    let mut extra_x_per_glyph = if num_glyphs_in_range == 1 {
+        0.0
+    } else {
+        (target_width - original_width) / (num_glyphs_in_range as f32 - 1.0)
+    };
+    extra_x_per_glyph = extra_x_per_glyph.at_least(0.0); // Don't contract
+
+    let mut extra_x_per_space = 0.0;
+    if 0 < num_spaces_in_range && num_spaces_in_range < num_glyphs_in_range {
+        // Add an integral number of pixels between each glyph,
+        // and add the balance to the spaces:
+
+        extra_x_per_glyph = fonts.floor_to_pixel(extra_x_per_glyph);
+
+        extra_x_per_space = (target_width
+            - original_width
+            - extra_x_per_glyph * (num_glyphs_in_range as f32 - 1.0))
+            / (num_spaces_in_range as f32);
+    }
+
+    let mut translate_x = target_min_x - original_min_x - extra_x_per_glyph * glyph_range.0 as f32;
+
+    for glyph in &mut row.glyphs {
+        glyph.pos.x += translate_x;
+        glyph.pos.x = fonts.round_to_pixel(glyph.pos.x);
+        translate_x += extra_x_per_glyph;
+        if glyph.chr.is_whitespace() {
+            translate_x += extra_x_per_space;
+        }
+    }
+
+    // Note we ignore the leading/trailing whitespace here!
+    row.rect.min.x = target_min_x;
+    row.rect.max.x = target_max_x;
+}
+
 /// Calculate the Y positions and tessellate the text.
 fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob>, mut rows: Vec<Row>) -> Galley {
     let mut first_row_min_height = job.first_row_min_height;
     let mut cursor_y = 0.0;
+    let mut min_x: f32 = 0.0;
     let mut max_x: f32 = 0.0;
     for row in &mut rows {
         let mut row_height = first_row_min_height.max(row.rect.height());
@@ -223,7 +325,8 @@ fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob>, mut rows: Vec<Row>) -> G
         row.rect.min.y = cursor_y;
         row.rect.max.y = cursor_y + row_height;
 
-        max_x = max_x.max(row.rect.right());
+        min_x = min_x.min(row.rect.min.x);
+        max_x = max_x.max(row.rect.max.x);
         cursor_y += row_height;
         cursor_y = fonts.round_to_pixel(cursor_y);
     }
@@ -239,12 +342,12 @@ fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob>, mut rows: Vec<Row>) -> G
         num_indices += row.visuals.mesh.indices.len();
     }
 
-    let size = vec2(max_x, cursor_y);
+    let rect = Rect::from_min_max(pos2(min_x, 0.0), pos2(max_x, cursor_y));
 
     Galley {
         job,
         rows,
-        size,
+        rect,
         num_vertices,
         num_indices,
     }

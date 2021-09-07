@@ -221,7 +221,7 @@ impl Painter {
         text: impl ToString,
     ) -> Rect {
         let galley = self.layout_no_wrap(text.to_string(), TextStyle::Monospace, color);
-        let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
+        let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size()));
         let frame_rect = rect.expand(2.0);
         self.add(Shape::Rect {
             rect: frame_rect,
@@ -343,7 +343,7 @@ impl Painter {
         text_color: Color32,
     ) -> Rect {
         let galley = self.layout_no_wrap(text.to_string(), text_style, text_color);
-        let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
+        let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size()));
         self.galley(rect.min, galley);
         rect
     }

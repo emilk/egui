@@ -162,9 +162,9 @@ fn combo_box<R>(
             ui.fonts()
                 .layout_delayed_color(selected.to_string(), TextStyle::Button, f32::INFINITY);
 
-        let width = galley.size.x + ui.spacing().item_spacing.x + icon_size.x;
+        let width = galley.size().x + ui.spacing().item_spacing.x + icon_size.x;
         let width = width.at_least(full_minimum_width);
-        let height = galley.size.y.max(icon_size.y);
+        let height = galley.size().y.max(icon_size.y);
 
         let (_, rect) = ui.allocate_space(Vec2::new(width, height));
         let button_rect = ui.min_rect().expand2(ui.spacing().button_padding);
@@ -179,7 +179,7 @@ fn combo_box<R>(
         };
         paint_icon(ui.painter(), icon_rect.expand(visuals.expansion), visuals);
 
-        let text_rect = Align2::LEFT_CENTER.align_size_within_rect(galley.size, rect);
+        let text_rect = Align2::LEFT_CENTER.align_size_within_rect(galley.size(), rect);
         ui.painter()
             .galley_with_color(text_rect.min, galley, visuals.text_color());
     });

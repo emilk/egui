@@ -373,7 +373,7 @@ pub struct WindowResizeTest {
 impl Default for WindowResizeTest {
     fn default() -> Self {
         Self {
-            text: crate::LOREM_IPSUM.to_owned(),
+            text: crate::LOREM_IPSUM_LONG.to_owned(),
         }
     }
 }
@@ -393,7 +393,7 @@ impl super::Demo for WindowResizeTest {
                 ui.label("This window will auto-size based on its contents.");
                 ui.heading("Resize this area:");
                 Resize::default().show(ui, |ui| {
-                    ui.code(crate::LOREM_IPSUM);
+                    lorem_ipsum(ui, crate::LOREM_IPSUM);
                 });
                 ui.heading("Resize the above area!");
             });
@@ -405,10 +405,10 @@ impl super::Demo for WindowResizeTest {
             .default_height(300.0)
             .show(ctx, |ui| {
                 ui.label(
-                    "This window is resizable and has a scroll area. You can shrink it to any size",
+                    "This window is resizable and has a scroll area. You can shrink it to any size.",
                 );
                 ui.separator();
-                ui.code(crate::LOREM_IPSUM_LONG);
+                lorem_ipsum(ui, crate::LOREM_IPSUM_LONG);
             });
 
         Window::new("↔ resizable + embedded scroll")
@@ -421,8 +421,9 @@ impl super::Demo for WindowResizeTest {
                 ui.label("However, we have a sub-region with a scroll bar:");
                 ui.separator();
                 ScrollArea::vertical().show(ui, |ui| {
-                    ui.code(crate::LOREM_IPSUM_LONG);
-                    ui.code(crate::LOREM_IPSUM_LONG);
+                    let lorem_ipsum_extra_long =
+                        format!("{}\n\n{}", crate::LOREM_IPSUM_LONG, crate::LOREM_IPSUM_LONG);
+                    lorem_ipsum(ui, &lorem_ipsum_extra_long);
                 });
                 // ui.heading("Some additional text here, that should also be visible"); // this works, but messes with the resizing a bit
             });
@@ -435,7 +436,7 @@ impl super::Demo for WindowResizeTest {
                 ui.label("This window is resizable but has no scroll area. This means it can only be resized to a size where all the contents is visible.");
                 ui.label("egui will not clip the contents of a window, nor add whitespace to it.");
                 ui.separator();
-                ui.code(crate::LOREM_IPSUM);
+                lorem_ipsum(ui, crate::LOREM_IPSUM);
             });
 
         Window::new("↔ resizable with TextEdit")
@@ -458,4 +459,13 @@ impl super::Demo for WindowResizeTest {
                 ui.allocate_space(ui.available_size());
             });
     }
+}
+
+fn lorem_ipsum(ui: &mut egui::Ui, text: &str) {
+    ui.with_layout(
+        egui::Layout::top_down(egui::Align::LEFT).with_cross_justify(true),
+        |ui| {
+            ui.add(egui::Label::new(text).weak());
+        },
+    );
 }

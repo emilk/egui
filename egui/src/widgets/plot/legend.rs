@@ -94,11 +94,11 @@ impl LegendEntry {
             ui.fonts()
                 .layout_delayed_color(text, ui.style().body_text_style, f32::INFINITY);
 
-        let icon_size = galley.size.y;
+        let icon_size = galley.size().y;
         let icon_spacing = icon_size / 5.0;
         let total_extra = vec2(icon_size + icon_spacing, 0.0);
 
-        let desired_size = total_extra + galley.size;
+        let desired_size = total_extra + galley.size();
         let (rect, response) = ui.allocate_exact_size(desired_size, Sense::click());
 
         response
@@ -139,12 +139,12 @@ impl LegendEntry {
         }
 
         let text_position_x = if label_on_the_left {
-            rect.right() - icon_size - icon_spacing - galley.size.x
+            rect.right() - icon_size - icon_spacing - galley.size().x
         } else {
             rect.left() + icon_size + icon_spacing
         };
 
-        let text_position = pos2(text_position_x, rect.center().y - 0.5 * galley.size.y);
+        let text_position = pos2(text_position_x, rect.center().y - 0.5 * galley.size().y);
         painter.galley_with_color(text_position, galley, visuals.text_color());
 
         *checked ^= response.clicked_by(PointerButton::Primary);
