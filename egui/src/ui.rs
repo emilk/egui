@@ -1389,6 +1389,8 @@ impl Ui {
     ///     ui.label("row");
     /// });
     /// ```
+    ///
+    /// See also [`Self::with_layout`] for more options.
     #[inline(always)]
     pub fn horizontal<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         self.horizontal_with_main_wrap(false, add_contents)
@@ -1423,6 +1425,8 @@ impl Ui {
     /// The returned `Response` will only have checked for mouse hover
     /// but can be used for tooltips (`on_hover_text`).
     /// It also contains the `Rect` used by the horizontal layout.
+    ///
+    /// See also [`Self::with_layout`] for more options.
     pub fn horizontal_wrapped<R>(
         &mut self,
         add_contents: impl FnOnce(&mut Ui) -> R,
@@ -1469,6 +1473,8 @@ impl Ui {
     ///     ui.label("under");
     /// });
     /// ```
+    ///
+    /// See also [`Self::with_layout`] for more options.
     #[inline(always)]
     pub fn vertical<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         self.with_layout(Layout::top_down(Align::Min), add_contents)
@@ -1513,8 +1519,16 @@ impl Ui {
 
     /// The new layout will take up all available space.
     ///
-    /// Consider using [`Self::allocate_ui_with_layout`] instead,
-    /// or the helpers [`Self::horizontal]`, [`Self::vertical`], etc.
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// ui.with_layout(egui::Layout::right_to_left(), |ui| {
+    ///     ui.label("world!");
+    ///     ui.label("Hello");
+    /// });
+    /// ```
+    ///
+    /// See also [`Self::allocate_ui_with_layout`],
+    /// and the helpers [`Self::horizontal]`, [`Self::vertical`], etc.
     pub fn with_layout<R>(
         &mut self,
         layout: Layout,
