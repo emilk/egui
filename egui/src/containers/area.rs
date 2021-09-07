@@ -274,16 +274,20 @@ impl Prepared {
     }
 
     pub(crate) fn content_ui(&self, ctx: &CtxRef) -> Ui {
-        let bounds = self.drag_bounds.unwrap_or_else(|| {
+        let screen_rect = ctx.input().screen_rect();
+
+        let bounds = if let Some(bounds) = self.drag_bounds {
+            bounds.intersect(screen_rect) // protect against infinite bounds
+        } else {
             let central_area = ctx.available_rect();
 
             let is_within_central_area = central_area.contains_rect(self.state.rect().shrink(1.0));
             if is_within_central_area {
                 central_area // let's try to not cover side panels
             } else {
-                ctx.input().screen_rect()
+                screen_rect
             }
-        });
+        };
 
         let max_rect = Rect::from_min_max(
             self.state.pos,
