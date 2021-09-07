@@ -1048,6 +1048,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                     canvas_size_in_points(runner_ref.0.lock().canvas_id()).y
                 }
                 web_sys::WheelEvent::DOM_DELTA_LINE => {
+                    #[allow(clippy::let_and_return)]
                     let points_per_scroll_line = 50.0; // Scroll speed decided by consensus: https://github.com/emilk/egui/issues/461
                     points_per_scroll_line
                 }
