@@ -20,6 +20,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 
 ### Fixed 🐛
 * Fix wrongly sized multiline `TextEdit` in justified layouts.
+* Fix clip rectangle of windows that don't fit the central area.
 
 
 ## 0.14.2 - 2021-08-28 - Window resize fix
