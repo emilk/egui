@@ -9,9 +9,6 @@ All notable changes to the `egui_web` integration will be noted in this file.
 * `epi::NativeTexture` trait for webgl1 webgl2 painter
 * Deprecate `Painter::register_webgl_texture`
 
-### Changed 🔧
-* Increase scroll speed.
-
 
 ## 0.14.1 - 2021-08-28
 ### Fixed 🐛

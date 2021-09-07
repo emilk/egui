@@ -1049,7 +1049,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 }
                 web_sys::WheelEvent::DOM_DELTA_LINE => {
                     #[allow(clippy::let_and_return)]
-                    let points_per_scroll_line = 50.0; // Scroll speed decided by consensus: https://github.com/emilk/egui/issues/461
+                    let points_per_scroll_line = 8.0; // Note that this is intentionally different from what we use in egui_glium / winit.
                     points_per_scroll_line
                 }
                 _ => 1.0,
