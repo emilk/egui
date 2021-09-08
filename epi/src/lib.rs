@@ -8,13 +8,6 @@
 
 // Forbid warnings in release builds:
 #![cfg_attr(not(debug_assertions), deny(warnings))]
-// Disabled so we can support rust 1.51:
-// #![deny(
-//     rustdoc::broken_intra_doc_links,
-//     rustdoc::invalid_codeblock_attributes,
-//     rustdoc::missing_crate_level_docs,
-//     rustdoc::private_intra_doc_links
-// )]
 #![forbid(unsafe_code)]
 #![warn(
     clippy::all,
@@ -77,11 +70,13 @@
     clippy::verbose_file_reads,
     clippy::zero_sized_map_values,
     future_incompatible,
+    missing_crate_level_docs,
     nonstandard_style,
     rust_2018_idioms
 )]
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
+#![warn(missing_docs)] // Let's keep `epi` well-documented.
 
 pub use egui; // Re-export for user convenience
 
@@ -312,6 +307,7 @@ pub trait TextureAllocator {
 
 /// Abstraction for platform dependent texture reference
 pub trait NativeTexture {
+    /// The native texture type.
     type Texture;
 
     /// Bind native texture to egui texture

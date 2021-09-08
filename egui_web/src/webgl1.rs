@@ -64,12 +64,12 @@ impl WebGlPainter {
 
         let srgb_supported = matches!(gl.get_extension("EXT_sRGB"), Ok(Some(_)));
 
+        let vert_shader = compile_shader(
+            &gl,
+            Gl::VERTEX_SHADER,
+            include_str!("shader/main_vertex_100es.glsl"),
+        )?;
         let (texture_format, program, post_process) = if srgb_supported {
-            let vert_shader = compile_shader(
-                &gl,
-                Gl::VERTEX_SHADER,
-                include_str!("shader/main_vertex_100es.glsl"),
-            )?;
             let frag_shader = compile_shader(
                 &gl,
                 Gl::FRAGMENT_SHADER,
@@ -82,11 +82,6 @@ impl WebGlPainter {
 
             (ExtSRgb::SRGB_ALPHA_EXT, program, Some(post_process))
         } else {
-            let vert_shader = compile_shader(
-                &gl,
-                Gl::VERTEX_SHADER,
-                include_str!("shader/vertex_100es.glsl"),
-            )?;
             let frag_shader = compile_shader(
                 &gl,
                 Gl::FRAGMENT_SHADER,
