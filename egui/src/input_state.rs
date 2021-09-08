@@ -8,10 +8,14 @@ pub use crate::data::input::Key;
 pub use touch_state::MultiTouchInfo;
 use touch_state::TouchState;
 
-/// If the pointer moves more than this, it is no longer a click (but maybe a drag)
+/// If the pointer moves more than this, it won't become a click (but it is still a drag)
 const MAX_CLICK_DIST: f32 = 6.0; // TODO: move to settings
+
+/// If the pointer is down for longer than this, it won't become a click (but it is still a drag)
+const MAX_CLICK_DURATION: f64 = 0.6; // TODO: move to settings
+
 /// The new pointer press must come within this many seconds from previous pointer release
-const MAX_CLICK_DELAY: f64 = 0.3; // TODO: move to settings
+const MAX_DOUBLE_CLICK_DELAY: f64 = 0.3; // TODO: move to settings
 
 /// Input state that egui updates each frame.
 ///
@@ -316,6 +320,9 @@ impl PointerEvent {
 /// Mouse or touch state.
 #[derive(Clone, Debug)]
 pub struct PointerState {
+    /// Latest known time
+    time: f64,
+
     // Consider a finger tapping a touch screen.
     // What position should we report?
     // The location of the touch, or `None`, because the finger is gone?
@@ -347,9 +354,13 @@ pub struct PointerState {
     /// `None` if no mouse button is down.
     press_origin: Option<Pos2>,
 
-    /// If the pointer button is down, will it register as a click when released?
-    /// Set to true on pointer button down, set to false when pointer button moves too much.
-    could_be_click: bool,
+    /// When did the current click/drag originate?
+    /// `None` if no mouse button is down.
+    press_start_time: Option<f64>,
+
+    /// Set to `true` if the pointer has moved too much (since being pressed)
+    /// for it to be registered as a click.
+    pub(crate) has_moved_too_much_for_a_click: bool,
 
     /// When did the pointer get click last?
     /// Used to check for double-clicks.
@@ -362,6 +373,7 @@ pub struct PointerState {
 impl Default for PointerState {
     fn default() -> Self {
         Self {
+            time: -f64::INFINITY,
             latest_pos: None,
             interact_pos: None,
             delta: Vec2::ZERO,
@@ -369,7 +381,8 @@ impl Default for PointerState {
             pos_history: History::new(1000, 0.1),
             down: Default::default(),
             press_origin: None,
-            could_be_click: false,
+            press_start_time: None,
+            has_moved_too_much_for_a_click: false,
             last_click_time: std::f64::NEG_INFINITY,
             pointer_events: vec![],
         }
@@ -379,6 +392,8 @@ impl Default for PointerState {
 impl PointerState {
     #[must_use]
     pub(crate) fn begin_frame(mut self, time: f64, new: &RawInput) -> PointerState {
+        self.time = time;
+
         self.pointer_events.clear();
 
         let old_pos = self.latest_pos;
@@ -392,10 +407,9 @@ impl PointerState {
                     self.latest_pos = Some(pos);
                     self.interact_pos = Some(pos);
 
-                    if let Some(press_origin) = &mut self.press_origin {
-                        self.could_be_click &= press_origin.distance(pos) < MAX_CLICK_DIST;
-                    } else {
-                        self.could_be_click = false;
+                    if let Some(press_origin) = self.press_origin {
+                        self.has_moved_too_much_for_a_click |=
+                            press_origin.distance(pos) > MAX_CLICK_DIST;
                     }
 
                     self.pointer_events.push(PointerEvent::Moved(pos));
@@ -422,13 +436,15 @@ impl PointerState {
 
                     if pressed {
                         self.press_origin = Some(pos);
-                        self.could_be_click = true;
+                        self.press_start_time = Some(time);
+                        self.has_moved_too_much_for_a_click = false;
                         self.pointer_events.push(PointerEvent::Pressed(pos));
                     } else {
-                        let clicked = self.could_be_click;
+                        let clicked = self.could_any_button_be_click();
 
                         let click = if clicked {
-                            let double_click = (time - self.last_click_time) < MAX_CLICK_DELAY;
+                            let double_click =
+                                (time - self.last_click_time) < MAX_DOUBLE_CLICK_DELAY;
                             let count = if double_click { 2 } else { 1 };
 
                             self.last_click_time = time;
@@ -446,10 +462,10 @@ impl PointerState {
                         self.pointer_events.push(PointerEvent::Released(click));
 
                         self.press_origin = None;
-                        self.could_be_click = false;
+                        self.press_start_time = None;
                     }
 
-                    self.down[button as usize] = pressed;
+                    self.down[button as usize] = pressed; // must be done after the above call to `could_any_button_be_click`
                 }
                 Event::PointerGone => {
                     self.latest_pos = None;
@@ -507,6 +523,13 @@ impl PointerState {
         self.press_origin
     }
 
+    /// When did the current click/drag originate?
+    /// `None` if no mouse button is down.
+    #[inline(always)]
+    pub fn press_start_time(&self) -> Option<f64> {
+        self.press_start_time
+    }
+
     /// Latest reported pointer position.
     /// When tapping a touch screen, this will be `None`.
     #[inline(always)]
@@ -547,6 +570,7 @@ impl PointerState {
 
     /// Is the pointer currently moving?
     /// This is smoothed so a few frames of stillness is required before this returns `false`.
+    #[inline]
     pub fn is_moving(&self) -> bool {
         self.velocity != Vec2::ZERO
     }
@@ -591,9 +615,24 @@ impl PointerState {
         self.down[button as usize]
     }
 
+    /// If the pointer button is down, will it register as a click when released?
     #[inline(always)]
     pub(crate) fn could_any_button_be_click(&self) -> bool {
-        self.could_be_click
+        if !self.any_down() {
+            return false;
+        }
+
+        if self.has_moved_too_much_for_a_click {
+            return false;
+        }
+
+        if let Some(press_start_time) = self.press_start_time {
+            if self.time - press_start_time > MAX_CLICK_DURATION {
+                return false;
+            }
+        }
+
+        true
     }
 
     /// Is the primary button currently down?
@@ -669,6 +708,7 @@ impl InputState {
 impl PointerState {
     pub fn ui(&self, ui: &mut crate::Ui) {
         let Self {
+            time: _,
             latest_pos,
             interact_pos,
             delta,
@@ -676,7 +716,8 @@ impl PointerState {
             pos_history: _,
             down,
             press_origin,
-            could_be_click,
+            press_start_time,
+            has_moved_too_much_for_a_click,
             last_click_time,
             pointer_events,
         } = self;
@@ -690,7 +731,11 @@ impl PointerState {
         ));
         ui.label(format!("down: {:#?}", down));
         ui.label(format!("press_origin: {:?}", press_origin));
-        ui.label(format!("could_be_click: {:#?}", could_be_click));
+        ui.label(format!("press_start_time: {:?} s", press_start_time));
+        ui.label(format!(
+            "has_moved_too_much_for_a_click: {}",
+            has_moved_too_much_for_a_click
+        ));
         ui.label(format!("last_click_time: {:#?}", last_click_time));
         ui.label(format!("pointer_events: {:?}", pointer_events));
     }

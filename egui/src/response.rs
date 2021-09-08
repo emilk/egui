@@ -106,6 +106,9 @@ impl std::fmt::Debug for Response {
 impl Response {
     /// Returns true if this widget was clicked this frame by the primary button.
     ///
+    /// A click is registered when the mouse or touch is released within
+    /// a certain amount of time and distance from when and where it was pressed.
+    ///
     /// Note that the widget must be sensing clicks with [`Sense::click`].
     /// [`crate::Button`] senses clicks; [`crate::Label`] does not (unless you call [`crate::Label::sense`]).
     ///
@@ -308,6 +311,7 @@ impl Response {
     /// For that, use [`Self::on_disabled_hover_ui`] instead.
     ///
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
+    #[doc(alias = "tooltip")]
     pub fn on_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
         if self.should_show_hover_ui() {
             crate::containers::show_tooltip_under(
@@ -347,24 +351,30 @@ impl Response {
 
     fn should_show_hover_ui(&self) -> bool {
         if self.ctx.memory().everything_is_visible() {
-            true
-        } else if self.hovered && self.ctx.input().pointer.has_pointer() {
-            let show_tooltips_only_when_still =
-                self.ctx.style().interaction.show_tooltips_only_when_still;
-            if show_tooltips_only_when_still {
-                if self.ctx.input().pointer.is_still() {
-                    true
-                } else {
-                    // wait for mouse to stop
-                    self.ctx.request_repaint();
-                    false
-                }
-            } else {
-                true
-            }
-        } else {
-            false
+            return true;
         }
+
+        if !self.hovered || !self.ctx.input().pointer.has_pointer() {
+            return false;
+        }
+
+        if self.ctx.style().interaction.show_tooltips_only_when_still {
+            if !self.ctx.input().pointer.is_still() {
+                // wait for mouse to stop
+                self.ctx.request_repaint();
+                return false;
+            }
+        }
+
+        // We don't want tooltips of things while we are dragging them,
+        // but we do want tooltips while holding down on an item on a touch screen.
+        if self.ctx.input().pointer.any_down()
+            && self.ctx.input().pointer.has_moved_too_much_for_a_click
+        {
+            return false;
+        }
+
+        true
     }
 
     /// Show this text if the widget was hovered (i.e. a tooltip).
@@ -373,6 +383,7 @@ impl Response {
     /// For that, use [`Self::on_disabled_hover_text`] instead.
     ///
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
+    #[doc(alias = "tooltip")]
     pub fn on_hover_text(self, text: impl ToString) -> Self {
         self.on_hover_ui(|ui| {
             ui.add(crate::widgets::Label::new(text));
