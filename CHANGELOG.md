@@ -18,6 +18,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md) and [
 * All `Ui`:s must now have a finite `max_rect`.
   * Deprecated: `max_rect_finite`, `available_size_before_wrap_finite` and `available_rect_before_wrap_finite`.
 * `Painter`/`Fonts`: text layout now expect color when creating a `Galley`. You may override that color with `Painter::galley_with_color`.
+* MSRV (Minimum Supported Rust Version) is now `1.54.0`.
 
 ### Fixed 🐛
 * Fix wrongly sized multiline `TextEdit` in justified layouts.

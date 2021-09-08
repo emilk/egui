@@ -3,7 +3,7 @@
 //! Try the live web demo: <https://emilk.github.io/egui/index.html>. Read more about egui at <https://github.com/emilk/egui>.
 //!
 //! `egui` is in heavy development, with each new version having breaking changes.
-//! You need to have rust 1.51.0 or later to use `egui`.
+//! You need to have rust 1.54.0 or later to use `egui`.
 //!
 //! To quickly get started with egui, you can take a look at [`egui_template`](https://github.com/emilk/egui_template)
 //! which uses [`eframe`](https://docs.rs/eframe).
@@ -267,13 +267,6 @@
 
 // Forbid warnings in release builds:
 #![cfg_attr(not(debug_assertions), deny(warnings))]
-// Disabled so we can support rust 1.51:
-// #![deny(
-//     rustdoc::broken_intra_doc_links,
-//     rustdoc::invalid_codeblock_attributes,
-//     rustdoc::missing_crate_level_docs,
-//     rustdoc::private_intra_doc_links
-// )]
 #![forbid(unsafe_code)]
 #![warn(
     clippy::all,
@@ -336,6 +329,7 @@
     clippy::verbose_file_reads,
     clippy::zero_sized_map_values,
     future_incompatible,
+    missing_crate_level_docs,
     nonstandard_style,
     rust_2018_idioms
 )]

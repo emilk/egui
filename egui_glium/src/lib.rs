@@ -7,15 +7,8 @@
 
 // Forbid warnings in release builds:
 #![cfg_attr(not(debug_assertions), deny(warnings))]
-// Disabled so we can support rust 1.51:
-// #![deny(
-//     rustdoc::broken_intra_doc_links,
-//     rustdoc::invalid_codeblock_attributes,
-//     rustdoc::missing_crate_level_docs,
-//     rustdoc::private_intra_doc_links
-// )]
 #![forbid(unsafe_code)]
-#![warn(clippy::all, rust_2018_idioms)]
+#![warn(clippy::all, missing_crate_level_docs, rust_2018_idioms)]
 #![allow(clippy::manual_range_contains, clippy::single_match)]
 
 mod backend;
