@@ -358,12 +358,12 @@ impl Response {
             return false;
         }
 
-        if self.ctx.style().interaction.show_tooltips_only_when_still {
-            if !self.ctx.input().pointer.is_still() {
-                // wait for mouse to stop
-                self.ctx.request_repaint();
-                return false;
-            }
+        if self.ctx.style().interaction.show_tooltips_only_when_still
+            && !self.ctx.input().pointer.is_still()
+        {
+            // wait for mouse to stop
+            self.ctx.request_repaint();
+            return false;
         }
 
         // We don't want tooltips of things while we are dragging them,
