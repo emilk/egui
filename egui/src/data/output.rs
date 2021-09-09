@@ -5,6 +5,7 @@ use crate::WidgetType;
 /// What egui emits each frame.
 /// The backend should use this.
 #[derive(Clone, Default, PartialEq)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct Output {
     /// Set the cursor to this icon.
     pub cursor_icon: CursorIcon,
@@ -12,7 +13,9 @@ pub struct Output {
     /// If set, open this url.
     pub open_url: Option<OpenUrl>,
 
-    /// Response to [`crate::Event::Copy`] or [`crate::Event::Cut`]. Ignore if empty.
+    /// If set, put this text in the system clipboard. Ignore if empty.
+    ///
+    /// This is often a response to [`crate::Event::Copy`] or [`crate::Event::Cut`].
     pub copied_text: String,
 
     /// If `true`, egui is requesting immediate repaint (i.e. on the next frame).
@@ -56,6 +59,7 @@ impl Output {
 }
 
 #[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct OpenUrl {
     pub url: String,
     /// If `true`, open the url in a new tab.
@@ -88,6 +92,7 @@ impl OpenUrl {
 ///
 /// Loosely based on <https://developer.mozilla.org/en-US/docs/Web/CSS/cursor>.
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub enum CursorIcon {
     /// Normal cursor icon, whatever that is.
     Default,
@@ -209,6 +214,7 @@ impl Default for CursorIcon {
 ///
 /// In particular, these events may be useful for accessability, i.e. for screen readers.
 #[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub enum OutputEvent {
     // A widget was clicked.
     Clicked(WidgetInfo),
@@ -236,6 +242,7 @@ impl std::fmt::Debug for OutputEvent {
 
 /// Describes a widget such as a [`crate::Button`] or a [`crate::TextEdit`].
 #[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct WidgetInfo {
     /// The type of widget this is.
     pub typ: WidgetType,

@@ -118,7 +118,6 @@ pub struct FontDefinitions {
     ///
     /// `epaint` has built-in-default for these,
     /// but you can override them if you like.
-    #[cfg_attr(feature = "persistence", serde(skip))]
     pub font_data: BTreeMap<String, FontData>,
 
     /// Which fonts (names) to use for each [`FontFamily`].

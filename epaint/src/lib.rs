@@ -95,6 +95,8 @@ pub use {
     texture_atlas::{Texture, TextureAtlas},
 };
 
+pub use emath::{pos2, vec2, Pos2, Rect, Vec2};
+
 pub use ahash;
 pub use emath;
 
