@@ -433,7 +433,7 @@ impl Widget for RadioButton {
 
         let painter = ui.painter();
 
-        painter.add(Shape::Circle {
+        painter.add(epaint::CircleShape {
             center: big_icon_rect.center(),
             radius: big_icon_rect.width() / 2.0 + visuals.expansion,
             fill: visuals.bg_fill,
@@ -441,7 +441,7 @@ impl Widget for RadioButton {
         });
 
         if checked {
-            painter.add(Shape::Circle {
+            painter.add(epaint::CircleShape {
                 center: small_icon_rect.center(),
                 radius: small_icon_rect.width() / 3.0,
                 fill: visuals.fg_stroke.color, // Intentional to use stroke and not fill

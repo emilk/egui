@@ -6,7 +6,7 @@ use crate::{
 use epaint::{
     mutex::Mutex,
     text::{Fonts, Galley, TextStyle},
-    RectShape, Shape, Stroke, TextShape,
+    CircleShape, RectShape, Shape, Stroke, TextShape,
 };
 
 /// Helper to paint shapes and text to a specific region on a specific layer.
@@ -252,7 +252,7 @@ impl Painter {
         fill_color: impl Into<Color32>,
         stroke: impl Into<Stroke>,
     ) {
-        self.add(Shape::Circle {
+        self.add(CircleShape {
             center,
             radius,
             fill: fill_color.into(),
@@ -261,7 +261,7 @@ impl Painter {
     }
 
     pub fn circle_filled(&self, center: Pos2, radius: f32, fill_color: impl Into<Color32>) {
-        self.add(Shape::Circle {
+        self.add(CircleShape {
             center,
             radius,
             fill: fill_color.into(),
@@ -270,7 +270,7 @@ impl Painter {
     }
 
     pub fn circle_stroke(&self, center: Pos2, radius: f32, stroke: impl Into<Stroke>) {
-        self.add(Shape::Circle {
+        self.add(CircleShape {
             center,
             radius,
             fill: Default::default(),

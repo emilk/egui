@@ -117,7 +117,7 @@ impl LegendEntry {
 
         let painter = ui.painter();
 
-        painter.add(Shape::Circle {
+        painter.add(epaint::CircleShape {
             center: icon_rect.center(),
             radius: icon_size * 0.5,
             fill: visuals.bg_fill,
@@ -130,7 +130,7 @@ impl LegendEntry {
             } else {
                 *color
             };
-            painter.add(Shape::Circle {
+            painter.add(epaint::CircleShape {
                 center: icon_rect.center(),
                 radius: icon_size * 0.4,
                 fill,

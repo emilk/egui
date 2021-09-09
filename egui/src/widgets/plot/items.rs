@@ -1081,12 +1081,12 @@ impl PlotItem for Points {
 
                 match shape {
                     MarkerShape::Circle => {
-                        shapes.push(Shape::Circle {
+                        shapes.push(Shape::Circle(epaint::CircleShape {
                             center,
                             radius,
                             fill,
                             stroke,
-                        });
+                        }));
                     }
                     MarkerShape::Diamond => {
                         let points = vec![tf(1.0, 0.0), tf(0.0, -1.0), tf(-1.0, 0.0), tf(0.0, 1.0)];

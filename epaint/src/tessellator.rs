@@ -541,12 +541,12 @@ impl Tessellator {
                     self.tessellate_shape(tex_size, shape, out)
                 }
             }
-            Shape::Circle {
+            Shape::Circle(CircleShape {
                 center,
                 radius,
                 fill,
                 stroke,
-            } => {
+            }) => {
                 if radius <= 0.0 {
                     return;
                 }

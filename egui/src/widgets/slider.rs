@@ -344,7 +344,7 @@ impl<'a> Slider<'a> {
                 // stroke: ui.visuals().widgets.inactive.bg_stroke,
             });
 
-            ui.painter().add(Shape::Circle {
+            ui.painter().add(epaint::CircleShape {
                 center: pos2(marker_center_x, rail_rect.center().y),
                 radius: handle_radius(rect) + visuals.expansion,
                 fill: visuals.bg_fill,

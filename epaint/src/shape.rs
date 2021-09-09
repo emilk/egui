@@ -14,12 +14,7 @@ pub enum Shape {
     /// Recursively nest more shapes - sometimes a convenience to be able to do.
     /// For performance reasons it is better to avoid it.
     Vec(Vec<Shape>),
-    Circle {
-        center: Pos2,
-        radius: f32,
-        fill: Color32,
-        stroke: Stroke,
-    },
+    Circle(CircleShape),
     LineSegment {
         points: [Pos2; 2],
         stroke: Stroke,
@@ -115,32 +110,22 @@ impl Shape {
 
     #[inline]
     pub fn circle_filled(center: Pos2, radius: f32, fill_color: impl Into<Color32>) -> Self {
-        Self::Circle {
-            center,
-            radius,
-            fill: fill_color.into(),
-            stroke: Default::default(),
-        }
+        Self::Circle(CircleShape::filled(center, radius, fill_color))
     }
 
     #[inline]
     pub fn circle_stroke(center: Pos2, radius: f32, stroke: impl Into<Stroke>) -> Self {
-        Self::Circle {
-            center,
-            radius,
-            fill: Default::default(),
-            stroke: stroke.into(),
-        }
+        Self::Circle(CircleShape::stroke(center, radius, stroke))
     }
 
     #[inline]
     pub fn rect_filled(rect: Rect, corner_radius: f32, fill_color: impl Into<Color32>) -> Self {
-        RectShape::filled(rect, corner_radius, fill_color).into()
+        Self::Rect(RectShape::filled(rect, corner_radius, fill_color))
     }
 
     #[inline]
     pub fn rect_stroke(rect: Rect, corner_radius: f32, stroke: impl Into<Stroke>) -> Self {
-        RectShape::stroke(rect, corner_radius, stroke).into()
+        Self::Rect(RectShape::stroke(rect, corner_radius, stroke))
     }
 
     #[allow(clippy::needless_pass_by_value)]
@@ -166,8 +151,47 @@ impl Shape {
 // ----------------------------------------------------------------------------
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct CircleShape {
+    pub center: Pos2,
+    pub radius: f32,
+    pub fill: Color32,
+    pub stroke: Stroke,
+}
+
+impl CircleShape {
+    #[inline]
+    pub fn filled(center: Pos2, radius: f32, fill_color: impl Into<Color32>) -> Self {
+        Self {
+            center,
+            radius,
+            fill: fill_color.into(),
+            stroke: Default::default(),
+        }
+    }
+
+    #[inline]
+    pub fn stroke(center: Pos2, radius: f32, stroke: impl Into<Stroke>) -> Self {
+        Self {
+            center,
+            radius,
+            fill: Default::default(),
+            stroke: stroke.into(),
+        }
+    }
+}
+
+impl From<CircleShape> for Shape {
+    #[inline(always)]
+    fn from(shape: CircleShape) -> Self {
+        Self::Circle(shape)
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct RectShape {
-    pub rect: emath::Rect,
+    pub rect: Rect,
     /// How rounded the corners are. Use `0.0` for no rounding.
     pub corner_radius: f32,
     pub fill: Color32,
@@ -338,8 +362,8 @@ impl Shape {
                     shape.translate(delta);
                 }
             }
-            Shape::Circle { center, .. } => {
-                *center += delta;
+            Shape::Circle(circle_shape) => {
+                circle_shape.center += delta;
             }
             Shape::LineSegment { points, .. } => {
                 for p in points {

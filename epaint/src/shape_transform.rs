@@ -9,9 +9,9 @@ pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
                 adjust_colors(shape, adjust_color)
             }
         }
-        Shape::Circle { fill, stroke, .. } => {
-            adjust_color(fill);
-            adjust_color(&mut stroke.color);
+        Shape::Circle(circle_shape) => {
+            adjust_color(&mut circle_shape.fill);
+            adjust_color(&mut circle_shape.stroke.color);
         }
         Shape::LineSegment { stroke, .. } => {
             adjust_color(&mut stroke.color);
