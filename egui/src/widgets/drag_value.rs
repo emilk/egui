@@ -55,6 +55,7 @@ pub struct DragValue<'a> {
     clamp_range: RangeInclusive<f64>,
     min_decimals: usize,
     max_decimals: Option<usize>,
+    enable_tooltip: bool,
 }
 
 impl<'a> DragValue<'a> {
@@ -84,6 +85,7 @@ impl<'a> DragValue<'a> {
             clamp_range: f64::NEG_INFINITY..=f64::INFINITY,
             min_decimals: 0,
             max_decimals: None,
+            enable_tooltip: true,
         }
     }
 
@@ -144,6 +146,12 @@ impl<'a> DragValue<'a> {
         self.max_decimals = Some(num_decimals);
         self
     }
+
+    /// Set whether to display the default tooltip.
+    pub fn show_tooltip(mut self, enabled: bool) -> Self {
+        self.enable_tooltip = enabled;
+        self
+    }
 }
 
 impl<'a> Widget for DragValue<'a> {
@@ -156,6 +164,7 @@ impl<'a> Widget for DragValue<'a> {
             suffix,
             min_decimals,
             max_decimals,
+            enable_tooltip,
         } = self;
 
         let is_slow_speed =
@@ -215,14 +224,15 @@ impl<'a> Widget for DragValue<'a> {
                 .min_size(ui.spacing().interact_size); // TODO: find some more generic solution to this
 
             let response = ui.add(button);
-            let response = response
-                .on_hover_cursor(CursorIcon::ResizeHorizontal)
-                .on_hover_text(format!(
+            let mut response = response.on_hover_cursor(CursorIcon::ResizeHorizontal);
+            if enable_tooltip {
+                response = response.on_hover_text(format!(
                     "{}{}{}\nDrag to edit or click to enter a value.\nPress 'Shift' while dragging for better control.",
                     prefix,
                     value as f32, // Show full precision value on-hover. TODO: figure out f64 vs f32
                     suffix
                 ));
+            }
 
             if response.clicked() {
                 ui.memory().request_focus(kb_edit_id);
