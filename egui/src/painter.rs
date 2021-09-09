@@ -224,13 +224,11 @@ impl Painter {
         let galley = self.layout_no_wrap(text.to_string(), TextStyle::Monospace, color);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size()));
         let frame_rect = rect.expand(2.0);
-        self.add(RectShape {
-            rect: frame_rect,
-            corner_radius: 0.0,
-            fill: Color32::from_black_alpha(240),
-            // stroke: Stroke::new(1.0, color),
-            stroke: Default::default(),
-        });
+        self.add(Shape::rect_filled(
+            frame_rect,
+            0.0,
+            Color32::from_black_alpha(240),
+        ));
         self.galley(rect.min, galley);
         frame_rect
     }

@@ -52,12 +52,11 @@ impl Shadow {
         let Self { extrusion, color } = *self;
 
         use crate::tessellator::*;
-        let rect = RectShape {
-            rect: rect.expand(0.5 * extrusion),
-            corner_radius: corner_radius + 0.5 * extrusion,
-            fill: color,
-            stroke: Default::default(),
-        };
+        let rect = RectShape::filled(
+            rect.expand(0.5 * extrusion),
+            corner_radius + 0.5 * extrusion,
+            color,
+        );
         let mut tessellator = Tessellator::from_options(TessellationOptions {
             aa_size: extrusion,
             anti_alias: true,

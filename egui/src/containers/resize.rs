@@ -282,7 +282,7 @@ impl Resize {
         if self.with_stroke && corner_response.is_some() {
             let rect = Rect::from_min_size(content_ui.min_rect().left_top(), state.desired_size);
             let rect = rect.expand(2.0); // breathing room for content
-            ui.painter().add(epaint::RectShape::stroke(
+            ui.painter().add(Shape::rect_stroke(
                 rect,
                 3.0,
                 ui.visuals().widgets.noninteractive.bg_stroke,

@@ -608,14 +608,9 @@ impl Tessellator {
             }
             Shape::Text(text_shape) => {
                 if options.debug_paint_text_rects {
+                    let rect = text_shape.galley.rect.translate(text_shape.pos.to_vec2());
                     self.tessellate_rect(
-                        &RectShape {
-                            rect: Rect::from_min_size(text_shape.pos, text_shape.galley.size())
-                                .expand(0.5),
-                            corner_radius: 2.0,
-                            fill: Default::default(),
-                            stroke: (0.5, Color32::GREEN).into(),
-                        },
+                        &RectShape::stroke(rect.expand(0.5), 2.0, (0.5, Color32::GREEN)),
                         out,
                     );
                 }
