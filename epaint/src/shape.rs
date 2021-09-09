@@ -48,6 +48,7 @@ pub enum Shape {
 impl Shape {
     /// A line between two points.
     /// More efficient than calling [`Self::line`].
+    #[inline]
     pub fn line_segment(points: [Pos2; 2], stroke: impl Into<Stroke>) -> Self {
         Self::LineSegment {
             points,
@@ -58,6 +59,7 @@ impl Shape {
     /// A line through many points.
     ///
     /// Use [`Self::line_segment`] instead if your line only connects two points.
+    #[inline]
     pub fn line(points: Vec<Pos2>, stroke: impl Into<Stroke>) -> Self {
         Self::Path {
             points,
@@ -68,6 +70,7 @@ impl Shape {
     }
 
     /// A line that closes back to the start point again.
+    #[inline]
     pub fn closed_line(points: Vec<Pos2>, stroke: impl Into<Stroke>) -> Self {
         Self::Path {
             points,
@@ -102,6 +105,7 @@ impl Shape {
     }
 
     /// A convex polygon with a fill and optional stroke.
+    #[inline]
     pub fn convex_polygon(
         points: Vec<Pos2>,
         fill: impl Into<Color32>,
@@ -115,6 +119,7 @@ impl Shape {
         }
     }
 
+    #[inline]
     pub fn circle_filled(center: Pos2, radius: f32, fill_color: impl Into<Color32>) -> Self {
         Self::Circle {
             center,
@@ -124,6 +129,7 @@ impl Shape {
         }
     }
 
+    #[inline]
     pub fn circle_stroke(center: Pos2, radius: f32, stroke: impl Into<Stroke>) -> Self {
         Self::Circle {
             center,
@@ -133,6 +139,7 @@ impl Shape {
         }
     }
 
+    #[inline]
     pub fn rect_filled(rect: Rect, corner_radius: f32, fill_color: impl Into<Color32>) -> Self {
         Self::Rect {
             rect,
@@ -142,6 +149,7 @@ impl Shape {
         }
     }
 
+    #[inline]
     pub fn rect_stroke(rect: Rect, corner_radius: f32, stroke: impl Into<Stroke>) -> Self {
         Self::Rect {
             rect,
@@ -165,6 +173,7 @@ impl Shape {
         Self::galley(rect.min, galley)
     }
 
+    #[inline]
     pub fn galley(pos: Pos2, galley: std::sync::Arc<Galley>) -> Self {
         TextShape::new(pos, galley).into()
     }
