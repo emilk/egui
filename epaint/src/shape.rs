@@ -129,6 +129,7 @@ impl Shape {
 
 /// How to paint a circle.
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct CircleShape {
     pub center: Pos2,
     pub radius: f32,
@@ -169,6 +170,7 @@ impl From<CircleShape> for Shape {
 
 /// A path which can be stroked and/or filled (if closed).
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct PathShape {
     pub points: Vec<Pos2>,
     /// If true, connect the first and last of the points together.
@@ -231,6 +233,7 @@ impl From<PathShape> for Shape {
 
 /// How to paint a rectangle.
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct RectShape {
     pub rect: Rect,
     /// How rounded the corners are. Use `0.0` for no rounding.
