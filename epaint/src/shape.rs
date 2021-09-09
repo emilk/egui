@@ -128,7 +128,7 @@ impl Shape {
 // ----------------------------------------------------------------------------
 
 /// How to paint a circle.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct CircleShape {
     pub center: Pos2,
@@ -232,7 +232,7 @@ impl From<PathShape> for Shape {
 // ----------------------------------------------------------------------------
 
 /// How to paint a rectangle.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct RectShape {
     pub rect: Rect,
