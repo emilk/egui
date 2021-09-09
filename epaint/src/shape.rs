@@ -19,15 +19,7 @@ pub enum Shape {
         points: [Pos2; 2],
         stroke: Stroke,
     },
-    Path {
-        points: Vec<Pos2>,
-        /// If true, connect the first and last of the points together.
-        /// This is required if `fill != TRANSPARENT`.
-        closed: bool,
-        /// Fill is only supported for convex polygons.
-        fill: Color32,
-        stroke: Stroke,
-    },
+    Path(PathShape),
     Rect(RectShape),
     Text(TextShape),
     Mesh(Mesh),
@@ -50,23 +42,13 @@ impl Shape {
     /// Use [`Self::line_segment`] instead if your line only connects two points.
     #[inline]
     pub fn line(points: Vec<Pos2>, stroke: impl Into<Stroke>) -> Self {
-        Self::Path {
-            points,
-            closed: false,
-            fill: Default::default(),
-            stroke: stroke.into(),
-        }
+        Self::Path(PathShape::line(points, stroke))
     }
 
     /// A line that closes back to the start point again.
     #[inline]
     pub fn closed_line(points: Vec<Pos2>, stroke: impl Into<Stroke>) -> Self {
-        Self::Path {
-            points,
-            closed: true,
-            fill: Default::default(),
-            stroke: stroke.into(),
-        }
+        Self::Path(PathShape::closed_line(points, stroke))
     }
 
     /// Turn a line into equally spaced dots.
@@ -100,12 +82,7 @@ impl Shape {
         fill: impl Into<Color32>,
         stroke: impl Into<Stroke>,
     ) -> Self {
-        Self::Path {
-            points,
-            closed: true,
-            fill: fill.into(),
-            stroke: stroke.into(),
-        }
+        Self::Path(PathShape::convex_polygon(points, fill, stroke))
     }
 
     #[inline]
@@ -150,6 +127,7 @@ impl Shape {
 
 // ----------------------------------------------------------------------------
 
+/// How to paint a circle.
 #[derive(Clone, Debug, PartialEq)]
 pub struct CircleShape {
     pub center: Pos2,
@@ -189,6 +167,69 @@ impl From<CircleShape> for Shape {
 
 // ----------------------------------------------------------------------------
 
+/// A path which can be stroked and/or filled (if closed).
+#[derive(Clone, Debug, PartialEq)]
+pub struct PathShape {
+    pub points: Vec<Pos2>,
+    /// If true, connect the first and last of the points together.
+    /// This is required if `fill != TRANSPARENT`.
+    pub closed: bool,
+    /// Fill is only supported for convex polygons.
+    pub fill: Color32,
+    pub stroke: Stroke,
+}
+
+impl PathShape {
+    /// A line through many points.
+    ///
+    /// Use [`Shape::line_segment`] instead if your line only connects two points.
+    #[inline]
+    pub fn line(points: Vec<Pos2>, stroke: impl Into<Stroke>) -> Self {
+        PathShape {
+            points,
+            closed: false,
+            fill: Default::default(),
+            stroke: stroke.into(),
+        }
+    }
+
+    /// A line that closes back to the start point again.
+    #[inline]
+    pub fn closed_line(points: Vec<Pos2>, stroke: impl Into<Stroke>) -> Self {
+        PathShape {
+            points,
+            closed: true,
+            fill: Default::default(),
+            stroke: stroke.into(),
+        }
+    }
+
+    /// A convex polygon with a fill and optional stroke.
+    #[inline]
+    pub fn convex_polygon(
+        points: Vec<Pos2>,
+        fill: impl Into<Color32>,
+        stroke: impl Into<Stroke>,
+    ) -> Self {
+        PathShape {
+            points,
+            closed: true,
+            fill: fill.into(),
+            stroke: stroke.into(),
+        }
+    }
+}
+
+impl From<PathShape> for Shape {
+    #[inline(always)]
+    fn from(shape: PathShape) -> Self {
+        Self::Path(shape)
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// How to paint a rectangle.
 #[derive(Clone, Debug, PartialEq)]
 pub struct RectShape {
     pub rect: Rect,
@@ -229,7 +270,7 @@ impl From<RectShape> for Shape {
 
 // ----------------------------------------------------------------------------
 
-/// How to draw some text on screen.
+/// How to paint some text on screen.
 #[derive(Clone, Debug, PartialEq)]
 pub struct TextShape {
     /// Top left corner of the first character.
@@ -316,7 +357,7 @@ fn dashes_from_line(
             let new_point = start + vector * (position_on_segment / segment_length);
             if drawing_dash {
                 // This is the end point.
-                if let Shape::Path { points, .. } = shapes.last_mut().unwrap() {
+                if let Shape::Path(PathShape { points, .. }) = shapes.last_mut().unwrap() {
                     points.push(new_point);
                 }
                 position_on_segment += gap_length;
@@ -329,7 +370,7 @@ fn dashes_from_line(
         }
         // If the segment ends and the dash is not finished, add the segment's end point.
         if drawing_dash {
-            if let Shape::Path { points, .. } = shapes.last_mut().unwrap() {
+            if let Shape::Path(PathShape { points, .. }) = shapes.last_mut().unwrap() {
                 points.push(end);
             }
         }
@@ -370,8 +411,8 @@ impl Shape {
                     *p += delta;
                 }
             }
-            Shape::Path { points, .. } => {
-                for p in points {
+            Shape::Path(path_shape) => {
+                for p in &mut path_shape.points {
                     *p += delta;
                 }
             }

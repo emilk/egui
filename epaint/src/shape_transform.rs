@@ -16,9 +16,9 @@ pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
         Shape::LineSegment { stroke, .. } => {
             adjust_color(&mut stroke.color);
         }
-        Shape::Path { fill, stroke, .. } => {
-            adjust_color(fill);
-            adjust_color(&mut stroke.color);
+        Shape::Path(path_shape) => {
+            adjust_color(&mut path_shape.fill);
+            adjust_color(&mut path_shape.stroke.color);
         }
         Shape::Rect(rect_shape) => {
             adjust_color(&mut rect_shape.fill);

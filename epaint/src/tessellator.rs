@@ -574,12 +574,12 @@ impl Tessellator {
                 self.scratchpad_path.add_line_segment(points);
                 self.scratchpad_path.stroke_open(stroke, options, out);
             }
-            Shape::Path {
+            Shape::Path(PathShape {
                 points,
                 closed,
                 fill,
                 stroke,
-            } => {
+            }) => {
                 if points.len() >= 2 {
                     self.scratchpad_path.clear();
                     if closed {

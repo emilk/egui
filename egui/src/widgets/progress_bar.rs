@@ -116,12 +116,10 @@ impl Widget for ProgressBar {
                         + vec2(-corner_radius, 0.0)
                 })
                 .collect();
-            ui.painter().add(Shape::Path {
+            ui.painter().add(Shape::line(
                 points,
-                closed: false,
-                fill: Color32::TRANSPARENT,
-                stroke: Stroke::new(2.0, visuals.faint_bg_color),
-            });
+                Stroke::new(2.0, visuals.faint_bg_color),
+            ));
         }
 
         if let Some(text_kind) = text {
