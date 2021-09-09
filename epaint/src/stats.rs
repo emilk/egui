@@ -163,6 +163,9 @@ pub struct PaintStats {
     pub shape_mesh: AllocInfo,
     pub shape_vec: AllocInfo,
 
+    pub text_shape_vertices: AllocInfo,
+    pub text_shape_indices: AllocInfo,
+
     /// Number of separate clip rectangles
     pub clipped_meshes: AllocInfo,
     pub vertices: AllocInfo,
@@ -200,6 +203,11 @@ impl PaintStats {
             }
             Shape::Text(text_shape) => {
                 self.shape_text += AllocInfo::from_galley(&text_shape.galley);
+
+                for row in &text_shape.galley.rows {
+                    self.text_shape_indices += AllocInfo::from_slice(&row.visuals.mesh.indices);
+                    self.text_shape_vertices += AllocInfo::from_slice(&row.visuals.mesh.vertices);
+                }
             }
             Shape::Mesh(mesh) => {
                 self.shape_mesh += AllocInfo::from_mesh(mesh);
