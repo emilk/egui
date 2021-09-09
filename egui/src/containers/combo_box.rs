@@ -238,7 +238,7 @@ fn button_frame(
 
     ui.painter().set(
         where_to_put_background,
-        Shape::Rect {
+        epaint::RectShape {
             rect: outer_rect.expand(visuals.expansion),
             corner_radius: visuals.corner_radius,
             fill: visuals.bg_fill,

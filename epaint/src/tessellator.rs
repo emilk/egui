@@ -603,24 +603,13 @@ impl Tessellator {
                     self.scratchpad_path.stroke(typ, stroke, options, out);
                 }
             }
-            Shape::Rect {
-                rect,
-                corner_radius,
-                fill,
-                stroke,
-            } => {
-                let rect = PaintRect {
-                    rect,
-                    corner_radius,
-                    fill,
-                    stroke,
-                };
-                self.tessellate_rect(&rect, out);
+            Shape::Rect(rect_shape) => {
+                self.tessellate_rect(&rect_shape, out);
             }
             Shape::Text(text_shape) => {
                 if options.debug_paint_text_rects {
                     self.tessellate_rect(
-                        &PaintRect {
+                        &RectShape {
                             rect: Rect::from_min_size(text_shape.pos, text_shape.galley.size())
                                 .expand(0.5),
                             corner_radius: 2.0,
@@ -635,8 +624,8 @@ impl Tessellator {
         }
     }
 
-    pub(crate) fn tessellate_rect(&mut self, rect: &PaintRect, out: &mut Mesh) {
-        let PaintRect {
+    pub(crate) fn tessellate_rect(&mut self, rect: &RectShape, out: &mut Mesh) {
+        let RectShape {
             mut rect,
             corner_radius,
             fill,
@@ -803,12 +792,11 @@ pub fn tessellate_shapes(
             tessellator.clip_rect = Rect::EVERYTHING;
             tessellator.tessellate_shape(
                 tex_size,
-                Shape::Rect {
-                    rect: *clip_rect,
-                    corner_radius: 0.0,
-                    fill: Default::default(),
-                    stroke: Stroke::new(2.0, Color32::from_rgb(150, 255, 150)),
-                },
+                Shape::rect_stroke(
+                    *clip_rect,
+                    0.0,
+                    Stroke::new(2.0, Color32::from_rgb(150, 255, 150)),
+                ),
                 mesh,
             )
         }

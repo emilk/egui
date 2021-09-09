@@ -404,7 +404,7 @@ impl Widget for Plot {
 
         // Background
         if show_background {
-            plot_painter.add(Shape::Rect {
+            plot_painter.add(epaint::RectShape {
                 rect,
                 corner_radius: 2.0,
                 fill: ui.visuals().extreme_bg_color,

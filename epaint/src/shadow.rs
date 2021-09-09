@@ -52,7 +52,7 @@ impl Shadow {
         let Self { extrusion, color } = *self;
 
         use crate::tessellator::*;
-        let rect = PaintRect {
+        let rect = RectShape {
             rect: rect.expand(0.5 * extrusion),
             corner_radius: corner_radius + 0.5 * extrusion,
             fill: color,

@@ -73,12 +73,12 @@ impl FrameHistory {
         let to_screen = emath::RectTransform::from_to(graph_rect, rect);
 
         let mut shapes = Vec::with_capacity(3 + 2 * history.len());
-        shapes.push(Shape::Rect {
+        shapes.push(Shape::Rect(epaint::RectShape {
             rect,
             corner_radius: style.corner_radius,
             fill: ui.visuals().extreme_bg_color,
             stroke: ui.style().noninteractive().bg_stroke,
-        });
+        }));
 
         let rect = rect.shrink(4.0);
         let color = ui.visuals().text_color();

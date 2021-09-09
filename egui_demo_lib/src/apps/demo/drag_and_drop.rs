@@ -65,7 +65,7 @@ pub fn drop_target<R>(
 
     ui.painter().set(
         where_to_put_background,
-        Shape::Rect {
+        epaint::RectShape {
             corner_radius: style.corner_radius,
             fill,
             stroke,

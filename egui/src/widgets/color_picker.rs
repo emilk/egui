@@ -57,7 +57,7 @@ fn show_hsva(ui: &mut Ui, color: Hsva, desired_size: Vec2) -> Response {
         ui.painter().rect_filled(left, 0.0, color);
         ui.painter().rect_filled(right, 0.0, color.to_opaque());
     } else {
-        ui.painter().add(Shape::Rect {
+        ui.painter().add(RectShape {
             rect,
             corner_radius: 2.0,
             fill: color.into(),

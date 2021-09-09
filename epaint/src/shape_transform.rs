@@ -20,9 +20,9 @@ pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
             adjust_color(fill);
             adjust_color(&mut stroke.color);
         }
-        Shape::Rect { fill, stroke, .. } => {
-            adjust_color(fill);
-            adjust_color(&mut stroke.color);
+        Shape::Rect(rect_shape) => {
+            adjust_color(&mut rect_shape.fill);
+            adjust_color(&mut rect_shape.stroke.color);
         }
         Shape::Text(text_shape) => {
             if let Some(override_text_color) = &mut text_shape.override_text_color {

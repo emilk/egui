@@ -33,13 +33,7 @@ pub enum Shape {
         fill: Color32,
         stroke: Stroke,
     },
-    Rect {
-        rect: Rect,
-        /// How rounded the corners are. Use `0.0` for no rounding.
-        corner_radius: f32,
-        fill: Color32,
-        stroke: Stroke,
-    },
+    Rect(RectShape),
     Text(TextShape),
     Mesh(Mesh),
 }
@@ -141,22 +135,12 @@ impl Shape {
 
     #[inline]
     pub fn rect_filled(rect: Rect, corner_radius: f32, fill_color: impl Into<Color32>) -> Self {
-        Self::Rect {
-            rect,
-            corner_radius,
-            fill: fill_color.into(),
-            stroke: Default::default(),
-        }
+        RectShape::filled(rect, corner_radius, fill_color).into()
     }
 
     #[inline]
     pub fn rect_stroke(rect: Rect, corner_radius: f32, stroke: impl Into<Stroke>) -> Self {
-        Self::Rect {
-            rect,
-            corner_radius,
-            fill: Default::default(),
-            stroke: stroke.into(),
-        }
+        RectShape::stroke(rect, corner_radius, stroke).into()
     }
 
     #[allow(clippy::needless_pass_by_value)]
@@ -176,6 +160,46 @@ impl Shape {
     #[inline]
     pub fn galley(pos: Pos2, galley: std::sync::Arc<Galley>) -> Self {
         TextShape::new(pos, galley).into()
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct RectShape {
+    pub rect: emath::Rect,
+    /// How rounded the corners are. Use `0.0` for no rounding.
+    pub corner_radius: f32,
+    pub fill: Color32,
+    pub stroke: Stroke,
+}
+
+impl RectShape {
+    #[inline]
+    pub fn filled(rect: Rect, corner_radius: f32, fill_color: impl Into<Color32>) -> Self {
+        Self {
+            rect,
+            corner_radius,
+            fill: fill_color.into(),
+            stroke: Default::default(),
+        }
+    }
+
+    #[inline]
+    pub fn stroke(rect: Rect, corner_radius: f32, stroke: impl Into<Stroke>) -> Self {
+        Self {
+            rect,
+            corner_radius,
+            fill: Default::default(),
+            stroke: stroke.into(),
+        }
+    }
+}
+
+impl From<RectShape> for Shape {
+    #[inline(always)]
+    fn from(shape: RectShape) -> Self {
+        Self::Rect(shape)
     }
 }
 
@@ -219,8 +243,8 @@ impl TextShape {
 
 impl From<TextShape> for Shape {
     #[inline(always)]
-    fn from(text_shape: TextShape) -> Self {
-        Self::Text(text_shape)
+    fn from(shape: TextShape) -> Self {
+        Self::Text(shape)
     }
 }
 
@@ -327,8 +351,8 @@ impl Shape {
                     *p += delta;
                 }
             }
-            Shape::Rect { rect, .. } => {
-                *rect = rect.translate(delta);
+            Shape::Rect(rect_shape) => {
+                rect_shape.rect = rect_shape.rect.translate(delta);
             }
             Shape::Text(text_shape) => {
                 text_shape.pos += delta;

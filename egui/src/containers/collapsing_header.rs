@@ -305,7 +305,7 @@ impl CollapsingHeader {
             .unwrap_or_else(|| visuals.text_color());
 
         if ui.visuals().collapsing_header_frame || self.show_background {
-            ui.painter().add(Shape::Rect {
+            ui.painter().add(epaint::RectShape {
                 rect: header_response.rect.expand(visuals.expansion),
                 corner_radius: visuals.corner_radius,
                 fill: visuals.bg_fill,

@@ -87,7 +87,7 @@ pub use {
     color::{Color32, Rgba},
     mesh::{Mesh, Mesh16, Vertex},
     shadow::Shadow,
-    shape::{Shape, TextShape},
+    shape::{RectShape, Shape, TextShape},
     stats::PaintStats,
     stroke::Stroke,
     tessellator::{TessellationOptions, Tessellator},
@@ -121,14 +121,6 @@ impl Default for TextureId {
     fn default() -> Self {
         Self::Egui
     }
-}
-
-pub(crate) struct PaintRect {
-    pub rect: emath::Rect,
-    /// How rounded the corners are. Use `0.0` for no rounding.
-    pub corner_radius: f32,
-    pub fill: Color32,
-    pub stroke: Stroke,
 }
 
 /// A [`Shape`] within a clip rectangle.
