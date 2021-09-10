@@ -56,6 +56,29 @@ impl Output {
         }
         Default::default()
     }
+
+    /// Add on new output.
+    pub fn append(&mut self, newer: Self) {
+        let Self {
+            cursor_icon,
+            open_url,
+            copied_text,
+            needs_repaint,
+            mut events,
+            text_cursor_pos,
+        } = newer;
+
+        self.cursor_icon = cursor_icon;
+        if open_url.is_some() {
+            self.open_url = open_url;
+        }
+        if !copied_text.is_empty() {
+            self.copied_text = copied_text;
+        }
+        self.needs_repaint |= needs_repaint;
+        self.events.append(&mut events);
+        self.text_cursor_pos = text_cursor_pos.or(self.text_cursor_pos);
+    }
 }
 
 #[derive(Clone, PartialEq)]

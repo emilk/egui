@@ -100,6 +100,33 @@ impl RawInput {
             dropped_files: std::mem::take(&mut self.dropped_files),
         }
     }
+
+    /// Add on new input.
+    pub fn append(&mut self, newer: Self) {
+        let Self {
+            scroll_delta,
+            zoom_delta,
+            screen_rect,
+            pixels_per_point,
+            time,
+            predicted_dt,
+            modifiers,
+            mut events,
+            mut hovered_files,
+            mut dropped_files,
+        } = newer;
+
+        self.scroll_delta += scroll_delta;
+        self.zoom_delta *= zoom_delta;
+        self.screen_rect = screen_rect.or(self.screen_rect);
+        self.pixels_per_point = pixels_per_point.or(self.pixels_per_point);
+        self.time = time.or(self.time);
+        self.predicted_dt = predicted_dt;
+        self.modifiers = modifiers;
+        self.events.append(&mut events);
+        self.hovered_files.append(&mut hovered_files);
+        self.dropped_files.append(&mut dropped_files);
+    }
 }
 
 /// A file about to be dropped into egui.
