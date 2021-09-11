@@ -34,7 +34,6 @@ use {
 };
 
 pub use copypasta::ClipboardContext;
-use std::borrow::BorrowMut; // TODO: remove
 
 pub struct GliumInputState {
     pub pointer_pos_in_points: Option<Pos2>,
@@ -556,8 +555,19 @@ impl EguiGlium {
         &self.egui_ctx
     }
 
+    pub fn painter_mut(&mut self) -> &mut crate::Painter {
+        &mut self.painter
+    }
+
     pub fn ctx_and_painter_mut(&mut self) -> (&egui::CtxRef, &mut crate::Painter) {
         (&self.egui_ctx, &mut self.painter)
+    }
+
+    pub fn pixels_per_point(&self) -> f32 {
+        self.input_state
+            .raw
+            .pixels_per_point
+            .unwrap_or_else(|| self.egui_ctx.pixels_per_point())
     }
 
     pub fn on_event(&mut self, event: &glium::glutin::event::WindowEvent<'_>) {
@@ -575,11 +585,13 @@ impl EguiGlium {
     }
 
     pub fn begin_frame(&mut self, display: &glium::Display) {
-        let pixels_per_point = self
-            .input_state
-            .raw
-            .pixels_per_point
-            .unwrap_or_else(|| self.egui_ctx.pixels_per_point());
+        let raw_input = self.take_raw_input(display);
+        self.egui_ctx.begin_frame(raw_input);
+    }
+
+    /// Prepare for a new frame. Normally you would call [`Self::begin_frame`] instead.
+    pub fn take_raw_input(&mut self, display: &glium::Display) -> egui::RawInput {
+        let pixels_per_point = self.pixels_per_point();
 
         self.input_state.raw.time = Some(self.start_time.elapsed().as_nanos() as f64 * 1e-9);
 
@@ -596,7 +608,7 @@ impl EguiGlium {
             None
         };
 
-        self.egui_ctx.begin_frame(self.input_state.raw.take());
+        self.input_state.raw.take()
     }
 
     /// Returns `needs_repaint` and shapes to draw.
@@ -605,10 +617,16 @@ impl EguiGlium {
         display: &glium::Display,
     ) -> (bool, Vec<egui::epaint::ClippedShape>) {
         let (egui_output, shapes) = self.egui_ctx.end_frame();
+        let needs_repaint = egui_output.needs_repaint;
+        self.handle_output(display, egui_output);
+        (needs_repaint, shapes)
+    }
 
+    pub fn handle_output(&mut self, display: &glium::Display, egui_output: egui::Output) {
         if self.egui_ctx.memory().options.screen_reader {
             self.screen_reader.speak(&egui_output.events_description());
         }
+
         if self.current_cursor_icon != egui_output.cursor_icon {
             // call only when changed to prevent flickering near frame boundary
             // when Windows OS tries to control cursor icon for window resizing
@@ -616,11 +634,7 @@ impl EguiGlium {
             self.current_cursor_icon = egui_output.cursor_icon;
         }
 
-        let needs_repaint = egui_output.needs_repaint;
-
         handle_output(egui_output, self.clipboard.as_mut(), display);
-
-        (needs_repaint, shapes)
     }
 
     pub fn paint<T: glium::Surface>(
@@ -637,9 +651,5 @@ impl EguiGlium {
             clipped_meshes,
             &self.egui_ctx.texture(),
         );
-    }
-
-    pub fn painter_mut(&mut self) -> &mut Painter {
-        self.painter.borrow_mut()
     }
 }
