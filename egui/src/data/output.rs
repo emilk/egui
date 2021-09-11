@@ -75,9 +75,16 @@ impl Output {
         if !copied_text.is_empty() {
             self.copied_text = copied_text;
         }
-        self.needs_repaint |= needs_repaint;
+        self.needs_repaint = needs_repaint; // if the last frame doesn't need a repaint, then we don't need to repaint
         self.events.append(&mut events);
         self.text_cursor_pos = text_cursor_pos.or(self.text_cursor_pos);
+    }
+
+    /// Take everything ephemeral (everything except `cursor_icon` currently)
+    pub fn take(&mut self) -> Self {
+        let taken = std::mem::take(self);
+        self.cursor_icon = taken.cursor_icon; // eveything else is ephemeral
+        taken
     }
 }
 
