@@ -397,7 +397,7 @@ pub use {
 };
 
 pub mod text {
-    pub use epaint::text::{Galley, LayoutJob, LayoutSection, TextFormat, TAB_SIZE};
+    pub use epaint::text::{Fonts, Galley, LayoutJob, LayoutSection, TextFormat, TAB_SIZE};
 }
 
 // ----------------------------------------------------------------------------

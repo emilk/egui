@@ -569,7 +569,7 @@ impl Context {
             };
 
             if self.fonts.is_none() || new_font_definitions.is_some() || pixels_per_point_changed {
-                self.fonts = Some(Arc::new(Fonts::from_definitions(
+                self.fonts = Some(Arc::new(Fonts::new(
                     pixels_per_point,
                     new_font_definitions.unwrap_or_else(|| {
                         self.fonts

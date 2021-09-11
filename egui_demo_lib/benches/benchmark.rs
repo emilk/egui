@@ -70,10 +70,8 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let wrap_width = 512.0;
         let text_style = egui::TextStyle::Body;
         let color = egui::Color32::WHITE;
-        let fonts = egui::epaint::text::Fonts::from_definitions(
-            pixels_per_point,
-            egui::FontDefinitions::default(),
-        );
+        let fonts =
+            egui::epaint::text::Fonts::new(pixels_per_point, egui::FontDefinitions::default());
         c.bench_function("text_layout_uncached", |b| {
             b.iter(|| {
                 use egui::epaint::text::{layout, LayoutJob};
