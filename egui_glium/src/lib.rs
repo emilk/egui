@@ -593,7 +593,7 @@ impl EguiGlium {
     pub fn take_raw_input(&mut self, display: &glium::Display) -> egui::RawInput {
         let pixels_per_point = self.pixels_per_point();
 
-        self.input_state.raw.time = Some(self.start_time.elapsed().as_nanos() as f64 * 1e-9);
+        self.input_state.raw.time = Some(self.start_time.elapsed().as_secs_f64());
 
         // On Windows, a minimized window will have 0 width and height.
         // See: https://github.com/rust-windowing/winit/issues/208

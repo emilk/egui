@@ -10,7 +10,7 @@ use crate::emath::*;
 /// [`crate::Context::wants_pointer_input`] and [`crate::Context::wants_keyboard_input`].
 ///
 /// All coordinates are in points (logical pixels) with origin (0, 0) in the top left corner.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct RawInput {
     /// How many points (logical pixels) the user scrolled
@@ -131,7 +131,7 @@ impl RawInput {
 }
 
 /// A file about to be dropped into egui.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct HoveredFile {
     /// Set by the `egui_glium` backend.
@@ -141,7 +141,7 @@ pub struct HoveredFile {
 }
 
 /// A file dropped into egui.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct DroppedFile {
     /// Set by the `egui_glium` backend.
