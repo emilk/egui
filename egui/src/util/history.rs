@@ -33,10 +33,6 @@ impl<T> History<T>
 where
     T: Copy,
 {
-    pub fn new(max_len: usize, max_age: f64) -> Self {
-        Self::from_max_len_age(max_len, max_age)
-    }
-
     pub fn from_max_len_age(max_len: usize, max_age: f64) -> Self {
         Self {
             max_len,
@@ -44,6 +40,11 @@ where
             total_count: 0,
             values: Default::default(),
         }
+    }
+
+    #[deprecated = "Use from_max_len_age"]
+    pub fn new(max_len: usize, max_age: f64) -> Self {
+        Self::from_max_len_age(max_len, max_age)
     }
 
     pub fn max_len(&self) -> usize {
@@ -125,6 +126,11 @@ where
         }
     }
 
+    // Mean number of events per second.
+    pub fn rate(&self) -> Option<f32> {
+        self.mean_time_interval().map(|time| 1.0 / time)
+    }
+
     /// Remove samples that are too old
     pub fn flush(&mut self, now: f64) {
         while self.values.len() > self.max_len {
@@ -154,6 +160,24 @@ where
         let num = self.len();
         if num > 0 {
             Some(self.sum() / (num as f32))
+        } else {
+            None
+        }
+    }
+}
+
+impl<T> History<T>
+where
+    T: Copy,
+    T: std::iter::Sum,
+    T: std::ops::Sub<Output = T>,
+    T: std::ops::Div<f32, Output = T>,
+{
+    /// Sum of all values divided by the elapsed time.
+    pub fn sum_over_time(&self) -> Option<T> {
+        let duration = self.duration();
+        if duration > 0.0 {
+            Some(self.sum() / duration)
         } else {
             None
         }

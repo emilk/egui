@@ -378,7 +378,7 @@ impl Default for PointerState {
             interact_pos: None,
             delta: Vec2::ZERO,
             velocity: Vec2::ZERO,
-            pos_history: History::new(1000, 0.1),
+            pos_history: History::from_max_len_age(1000, 0.1),
             down: Default::default(),
             press_origin: None,
             press_start_time: None,

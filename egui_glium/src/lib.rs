@@ -586,6 +586,10 @@ impl EguiGlium {
 
     pub fn begin_frame(&mut self, display: &glium::Display) {
         let raw_input = self.take_raw_input(display);
+        self.begin_frame_with_input(raw_input);
+    }
+
+    pub fn begin_frame_with_input(&mut self, raw_input: RawInput) {
         self.egui_ctx.begin_frame(raw_input);
     }
 
