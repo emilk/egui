@@ -121,9 +121,9 @@ impl RawInput {
         self.zoom_delta *= zoom_delta;
         self.screen_rect = screen_rect.or(self.screen_rect);
         self.pixels_per_point = pixels_per_point.or(self.pixels_per_point);
-        self.time = time.or(self.time);
-        self.predicted_dt = predicted_dt;
-        self.modifiers = modifiers;
+        self.time = time; // use latest time
+        self.predicted_dt = predicted_dt; // use latest dt
+        self.modifiers = modifiers; // use latest
         self.events.append(&mut events);
         self.hovered_files.append(&mut hovered_files);
         self.dropped_files.append(&mut dropped_files);
