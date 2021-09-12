@@ -47,6 +47,11 @@ pub struct Style {
 
     /// Options to help debug why egui behaves strangely.
     pub debug: DebugOptions,
+
+    /// Show tooltips explaining `DragValue`:s etc when hovered.
+    ///
+    /// This only affects a few egui widgets.
+    pub explanation_tooltips: bool,
 }
 
 impl Style {
@@ -361,6 +366,7 @@ impl Default for Style {
             visuals: Visuals::default(),
             animation_time: 1.0 / 12.0,
             debug: Default::default(),
+            explanation_tooltips: false,
         }
     }
 }
@@ -566,6 +572,7 @@ impl Style {
             visuals,
             animation_time,
             debug,
+            explanation_tooltips,
         } = self;
 
         visuals.light_dark_radio_buttons(ui);
@@ -624,6 +631,11 @@ impl Style {
         ui.collapsing("☝ Interaction", |ui| interaction.ui(ui));
         ui.collapsing("🎨 Visuals", |ui| visuals.ui(ui));
         ui.collapsing("🐛 Debug", |ui| debug.ui(ui));
+
+        ui.checkbox(explanation_tooltips, "Explanation tooltips")
+            .on_hover_text(
+                "Show explanatory text when hovering DragValue:s and other egui widgets",
+            );
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }

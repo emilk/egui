@@ -1144,9 +1144,12 @@ impl Ui {
         use std::f32::consts::TAU;
 
         let mut taus = *radians / TAU;
-        let mut response = self
-            .add(DragValue::new(&mut taus).speed(0.01).suffix("τ"))
-            .on_hover_text("1τ = one turn, 0.5τ = half a turn, etc. 0.25τ = 90°");
+        let mut response = self.add(DragValue::new(&mut taus).speed(0.01).suffix("τ"));
+
+        if self.style().explanation_tooltips {
+            response =
+                response.on_hover_text("1τ = one turn, 0.5τ = half a turn, etc. 0.25τ = 90°");
+        }
 
         // only touch `*radians` if we actually changed the value
         if taus != *radians / TAU {
