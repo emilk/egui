@@ -563,12 +563,17 @@ impl Tessellator {
                 self.scratchpad_path.stroke_closed(stroke, options, out);
             }
             Shape::Mesh(mesh) => {
-                // TODO: culling
-                if mesh.is_valid() {
-                    out.append(mesh);
-                } else {
+                if !mesh.is_valid() {
                     crate::epaint_assert!(false, "Invalid Mesh in Shape::Mesh");
+                    return;
                 }
+
+                if options.coarse_tessellation_culling && !clip_rect.intersects(mesh.calc_bounds())
+                {
+                    return;
+                }
+
+                out.append(mesh);
             }
             Shape::LineSegment { points, stroke } => {
                 if stroke.is_empty() {
