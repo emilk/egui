@@ -2,11 +2,13 @@ use std::collections::VecDeque;
 
 /// This struct tracks recent values of some time series.
 ///
-/// One use is to show a log of recent events,
-/// or show a graph over recent events.
+/// It can be used as a smoothing filter for e.g. latency, fps etc,
+/// or to show a log or graph of recent events.
 ///
-/// It has both a maximum length and a maximum storage time.
-/// Elements are dropped when either max length or max age is reached.
+/// It has a minimum and maximum length, as well as a maximum storage time.
+/// * The minimum length is to ensure you have enough data for an estimate.
+/// * The maximum length is to make sure the history doesn't take up too much space.
+/// * The maximum age is to make sure the estimate isn't outdated.
 ///
 /// Time difference between values can be zero, but never negative.
 ///
@@ -15,11 +17,15 @@ use std::collections::VecDeque;
 /// All times are in seconds.
 #[derive(Clone, Debug)]
 pub struct History<T> {
-    /// In elements, i.e. of `values.len()`
+    /// In elements, i.e. of `values.len()`.
+    /// The length is initially zero, but once past `min_len` will not shrink below it.
+    min_len: usize,
+
+    /// In elements, i.e. of `values.len()`.
     max_len: usize,
 
-    /// In seconds
-    max_age: f64, // TODO: f32
+    /// In seconds.
+    max_age: f32,
 
     /// Total number of elements seen ever
     total_count: u64,
@@ -33,18 +39,26 @@ impl<T> History<T>
 where
     T: Copy,
 {
-    pub fn from_max_len_age(max_len: usize, max_age: f64) -> Self {
+    /// Example:
+    /// ```
+    /// # use egui::util::History;
+    /// # fn now() -> f64 { 0.0 }
+    /// // Drop events that are older than one second,
+    /// // as long we keep at least two events. Never keep more than a hundred events.
+    /// let mut history = History::new(2..100, 1.0);
+    /// assert_eq!(history.average(), None);
+    /// history.add(now(), 40.0_f32);
+    /// history.add(now(), 44.0_f32);
+    /// assert_eq!(history.average(), Some(42.0));
+    /// ```
+    pub fn new(length_range: std::ops::Range<usize>, max_age: f32) -> Self {
         Self {
-            max_len,
+            min_len: length_range.start,
+            max_len: length_range.end,
             max_age,
             total_count: 0,
             values: Default::default(),
         }
-    }
-
-    #[deprecated = "Use from_max_len_age"]
-    pub fn new(max_len: usize, max_age: f64) -> Self {
-        Self::from_max_len_age(max_len, max_age)
     }
 
     pub fn max_len(&self) -> usize {
@@ -52,7 +66,7 @@ where
     }
 
     pub fn max_age(&self) -> f32 {
-        self.max_age as f32
+        self.max_age
     }
 
     pub fn is_empty(&self) -> bool {
@@ -136,9 +150,13 @@ where
         while self.values.len() > self.max_len {
             self.values.pop_front();
         }
-        while let Some((front_time, _)) = self.values.front() {
-            if *front_time < now - self.max_age {
-                self.values.pop_front();
+        while self.values.len() > self.min_len {
+            if let Some((front_time, _)) = self.values.front() {
+                if *front_time < now - (self.max_age as f64) {
+                    self.values.pop_front();
+                } else {
+                    break;
+                }
             } else {
                 break;
             }
