@@ -188,17 +188,14 @@ impl<T> History<T>
 where
     T: Copy,
     T: std::iter::Sum,
-    T: std::ops::Sub<Output = T>,
     T: std::ops::Div<f32, Output = T>,
+    T: std::ops::Mul<f32, Output = T>,
 {
-    /// Sum of all values divided by the elapsed time.
-    pub fn sum_over_time(&self) -> Option<T> {
-        let duration = self.duration();
-        if duration > 0.0 {
-            Some(self.sum() / duration)
-        } else {
-            None
-        }
+    /// Average times rate.
+    /// If you are keeping track of individual sizes of things (e.g. bytes),
+    /// this will estimate the bandwidth (bytes per second).
+    pub fn bandwidth(&self) -> Option<T> {
+        Some(self.average()? * self.rate()?)
     }
 }
 
