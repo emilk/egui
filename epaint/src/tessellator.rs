@@ -563,6 +563,7 @@ impl Tessellator {
                 self.scratchpad_path.stroke_closed(stroke, options, out);
             }
             Shape::Mesh(mesh) => {
+                // TODO: culling
                 if mesh.is_valid() {
                     out.append(mesh);
                 } else {
@@ -570,38 +571,23 @@ impl Tessellator {
                 }
             }
             Shape::LineSegment { points, stroke } => {
+                if stroke.is_empty() {
+                    return;
+                }
+
+                if options.coarse_tessellation_culling
+                    && !clip_rect
+                        .intersects(Rect::from_two_pos(points[0], points[1]).expand(stroke.width))
+                {
+                    return;
+                }
+
                 self.scratchpad_path.clear();
                 self.scratchpad_path.add_line_segment(points);
                 self.scratchpad_path.stroke_open(stroke, options, out);
             }
-            Shape::Path(PathShape {
-                points,
-                closed,
-                fill,
-                stroke,
-            }) => {
-                if points.len() >= 2 {
-                    self.scratchpad_path.clear();
-                    if closed {
-                        self.scratchpad_path.add_line_loop(&points);
-                    } else {
-                        self.scratchpad_path.add_open_points(&points);
-                    }
-
-                    if fill != Color32::TRANSPARENT {
-                        crate::epaint_assert!(
-                            closed,
-                            "You asked to fill a path that is not closed. That makes no sense."
-                        );
-                        self.scratchpad_path.fill(fill, options, out);
-                    }
-                    let typ = if closed {
-                        PathType::Closed
-                    } else {
-                        PathType::Open
-                    };
-                    self.scratchpad_path.stroke(typ, stroke, options, out);
-                }
+            Shape::Path(path_shape) => {
+                self.tessellate_path(path_shape, out);
             }
             Shape::Rect(rect_shape) => {
                 self.tessellate_rect(&rect_shape, out);
@@ -617,6 +603,46 @@ impl Tessellator {
                 self.tessellate_text(tex_size, text_shape, out);
             }
         }
+    }
+
+    pub(crate) fn tessellate_path(&mut self, path_shape: PathShape, out: &mut Mesh) {
+        if path_shape.points.len() < 2 {
+            return;
+        }
+
+        if self.options.coarse_tessellation_culling
+            && !path_shape.bounding_rect().intersects(self.clip_rect)
+        {
+            return;
+        }
+
+        let PathShape {
+            points,
+            closed,
+            fill,
+            stroke,
+        } = path_shape;
+
+        self.scratchpad_path.clear();
+        if closed {
+            self.scratchpad_path.add_line_loop(&points);
+        } else {
+            self.scratchpad_path.add_open_points(&points);
+        }
+
+        if fill != Color32::TRANSPARENT {
+            crate::epaint_assert!(
+                closed,
+                "You asked to fill a path that is not closed. That makes no sense."
+            );
+            self.scratchpad_path.fill(fill, self.options, out);
+        }
+        let typ = if closed {
+            PathType::Closed
+        } else {
+            PathType::Open
+        };
+        self.scratchpad_path.stroke(typ, stroke, self.options, out);
     }
 
     pub(crate) fn tessellate_rect(&mut self, rect: &RectShape, out: &mut Mesh) {

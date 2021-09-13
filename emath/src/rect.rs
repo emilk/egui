@@ -88,6 +88,15 @@ impl Rect {
         }
     }
 
+    /// Bounding-box around the points
+    pub fn from_points(points: &[Pos2]) -> Self {
+        let mut rect = Rect::NOTHING;
+        for &p in points {
+            rect.extend_with(p);
+        }
+        rect
+    }
+
     /// A `Rect` that contains every point to the right of the given X coordinate.
     #[inline]
     pub fn everything_right_of(left_x: f32) -> Self {
@@ -165,15 +174,6 @@ impl Rect {
         )
     }
 
-    /// The intersection of two `Rect`, i.e. the area covered by both.
-    #[must_use]
-    pub fn intersect(self, other: Rect) -> Self {
-        Self {
-            min: self.min.max(other.min),
-            max: self.max.min(other.max),
-        }
-    }
-
     #[must_use]
     #[inline]
     pub fn intersects(self, other: Rect) -> bool {
@@ -236,11 +236,24 @@ impl Rect {
         self.max.y = self.max.y.max(y);
     }
 
+    /// The union of two bounding rectangle, i.e. the minimum `Rect`
+    /// that contains both input rectangles.
     #[inline(always)]
+    #[must_use]
     pub fn union(self, other: Rect) -> Rect {
         Rect {
             min: self.min.min(other.min),
             max: self.max.max(other.max),
+        }
+    }
+
+    /// The intersection of two `Rect`, i.e. the area covered by both.
+    #[inline]
+    #[must_use]
+    pub fn intersect(self, other: Rect) -> Self {
+        Self {
+            min: self.min.max(other.min),
+            max: self.max.min(other.max),
         }
     }
 

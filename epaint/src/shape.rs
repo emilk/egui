@@ -220,6 +220,12 @@ impl PathShape {
             stroke: stroke.into(),
         }
     }
+
+    /// Screen-space bounding rectangle.
+    #[inline]
+    pub fn bounding_rect(&self) -> Rect {
+        Rect::from_points(&self.points).expand(self.stroke.width)
+    }
 }
 
 impl From<PathShape> for Shape {
@@ -261,6 +267,12 @@ impl RectShape {
             fill: Default::default(),
             stroke: stroke.into(),
         }
+    }
+
+    /// Screen-space bounding rectangle.
+    #[inline]
+    pub fn bounding_rect(&self) -> Rect {
+        self.rect.expand(self.stroke.width)
     }
 }
 
