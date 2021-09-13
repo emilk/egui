@@ -228,6 +228,10 @@ pub struct Galley {
     /// * [`Align::RIGHT`]: rect.right() == 0.0
     pub rect: Rect,
 
+    /// Tight bounding box around all the meshes in all the rows.
+    /// Can be used for culling.
+    pub mesh_bounds: Rect,
+
     /// Total number of vertices in all the row meshes.
     pub num_vertices: usize,
 

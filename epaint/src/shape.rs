@@ -307,6 +307,12 @@ impl TextShape {
             angle: 0.0,
         }
     }
+
+    /// Screen-space bounding rectangle.
+    #[inline]
+    pub fn bounding_rect(&self) -> Rect {
+        self.galley.mesh_bounds.translate(self.pos.to_vec2())
+    }
 }
 
 impl From<TextShape> for Shape {
