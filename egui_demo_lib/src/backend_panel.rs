@@ -143,12 +143,15 @@ impl BackendPanel {
             frame.set_window_size(egui::Vec2::new(375.0, 812.0)); // iPhone 12 mini
         }
 
-        ui.separator();
+        if !frame.is_web() {
+            ui.separator();
 
-        let mut fullscreen = ui.ctx().fullscreen();
-        ui.checkbox(&mut fullscreen, "🗖 Fullscreen")
-            .on_hover_text("Fullscreen the window");
-        ui.ctx().set_fullscreen(fullscreen);
+            let mut fullscreen = frame.is_fullscreen();
+            ui.checkbox(&mut fullscreen, "🗖 Fullscreen")
+                .on_hover_text("Fullscreen the window");
+
+            frame.set_fullscreen(fullscreen);
+        }
 
         ui.separator();
 

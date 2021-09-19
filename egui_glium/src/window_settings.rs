@@ -4,6 +4,8 @@ use glium::glutin;
 pub struct WindowSettings {
     /// outer position of window in physical pixels
     pos: Option<egui::Pos2>,
+    /// If the window was in the fullscreen state
+    fullscreen: bool,
     /// Inner size of window in logical pixels
     inner_size_points: Option<egui::Vec2>,
 }
@@ -30,6 +32,8 @@ impl WindowSettings {
                 .ok()
                 .map(|p| egui::pos2(p.x as f32, p.y as f32)),
 
+            fullscreen: display.gl_window().window().fullscreen().is_some(),
+
             inner_size_points: Some(egui::vec2(
                 inner_size_points.width as f32,
                 inner_size_points.height as f32,
@@ -42,10 +46,16 @@ impl WindowSettings {
         window: glutin::window::WindowBuilder,
     ) -> glutin::window::WindowBuilder {
         if let Some(inner_size_points) = self.inner_size_points {
-            window.with_inner_size(glutin::dpi::LogicalSize {
-                width: inner_size_points.x as f64,
-                height: inner_size_points.y as f64,
-            })
+            window
+                .with_inner_size(glutin::dpi::LogicalSize {
+                    width: inner_size_points.x as f64,
+                    height: inner_size_points.y as f64,
+                })
+                .with_fullscreen(if self.fullscreen {
+                    Some(glutin::window::Fullscreen::Borderless(None))
+                } else {
+                    None
+                })
         } else {
             window
         }

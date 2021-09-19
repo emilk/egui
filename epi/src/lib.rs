@@ -250,6 +250,16 @@ impl<'a> Frame<'a> {
         self.0.output.quit = true;
     }
 
+    /// Whether or not the window is being displayed in fullscreen mode
+    pub fn is_fullscreen(&self) -> bool {
+        self.0.output.fullscreen
+    }
+
+    /// Set fullscreen mode
+    pub fn set_fullscreen(&mut self, fullscreen: bool) {
+        self.0.output.fullscreen = fullscreen;
+    }
+
     /// Set the desired inner size of the window (in egui points).
     pub fn set_window_size(&mut self, size: egui::Vec2) {
         self.0.output.window_size = Some(size);
@@ -505,6 +515,9 @@ pub mod backend {
         /// Set to `true` to stop the app.
         /// This does nothing for web apps.
         pub quit: bool,
+
+        /// Sets the window to fullscreen mode.
+        pub fullscreen: bool,
 
         /// Set to some size to resize the outer window (e.g. glium window) to this size.
         pub window_size: Option<egui::Vec2>,

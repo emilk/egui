@@ -265,6 +265,7 @@ impl AppRunner {
         {
             let epi::backend::AppOutput {
                 quit: _,        // Can't quit a web page
+                fullscreen: _,  // Can't fullscreen a web page
                 window_size: _, // Can't resize a web page
             } = app_output;
         }

@@ -89,7 +89,12 @@ fn create_display(
         .with_resizable(native_options.resizable)
         .with_title(app.name())
         .with_transparent(native_options.transparent)
-        .with_window_icon(window_icon);
+        .with_window_icon(window_icon)
+        .with_fullscreen(if native_options.fullscreen {
+            Some(Fullscreen::Borderless(None))
+        } else {
+            None
+        });
 
     window_builder =
         window_builder_drag_and_drop(window_builder, native_options.drag_and_drop_support);
@@ -197,7 +202,6 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: epi::NativeOptions) {
         }
         None => {
             *egui.ctx().memory() = Default::default();
-            egui.ctx().set_fullscreen(native_options.fullscreen);
         }
     }
 
@@ -248,6 +252,11 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: epi::NativeOptions) {
         // TODO: handle app_output
         // eprintln!("Warmed up in {} ms", warm_up_start.elapsed().as_millis())
     }
+
+    let mut app_output = epi::backend::AppOutput {
+        fullscreen: display.gl_window().window().fullscreen().is_some(),
+        ..Default::default()
+    };
 
     let mut is_focused = true;
     let mut running = true;
@@ -321,11 +330,9 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: epi::NativeOptions) {
             }
 
             let frame_start = std::time::Instant::now();
-            let fullscreen = egui.ctx().fullscreen();
 
             egui.begin_frame(&display);
             let (ctx, painter) = egui.ctx_and_painter_mut();
-            let mut app_output = epi::backend::AppOutput::default();
             let mut frame = epi::backend::FrameBuilder {
                 info: integration_info(&display, previous_frame_time),
                 tex_allocator: painter,
@@ -356,22 +363,37 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: epi::NativeOptions) {
             }
 
             {
-                let epi::backend::AppOutput { quit, window_size } = app_output;
+                let epi::backend::AppOutput {
+                    quit,
+                    fullscreen,
+                    window_size,
+                } = app_output;
 
-                display.gl_window().window().set_fullscreen(if fullscreen {
-                    Some(Fullscreen::Borderless(None))
+                if fullscreen {
+                    if display.gl_window().window().fullscreen().is_none() {
+                        app_output.window_size = Some(Vec2 {
+                            x: display.gl_window().window().inner_size().width as f32,
+                            y: display.gl_window().window().inner_size().height as f32,
+                        });
+                    }
+                    display
+                        .gl_window()
+                        .window()
+                        .set_fullscreen(Some(Fullscreen::Borderless(None)));
                 } else {
-                    None
-                });
+                    display.gl_window().window().set_fullscreen(None);
 
-                if let Some(window_size) = window_size {
-                    display.gl_window().window().set_inner_size(
-                        glutin::dpi::PhysicalSize {
-                            width: (egui.ctx().pixels_per_point() * window_size.x).round(),
-                            height: (egui.ctx().pixels_per_point() * window_size.y).round(),
-                        }
-                        .to_logical::<f32>(native_pixels_per_point(&display) as f64),
-                    );
+                    if let Some(window_size) = window_size {
+                        display.gl_window().window().set_inner_size(
+                            glutin::dpi::PhysicalSize {
+                                width: (egui.ctx().pixels_per_point() * window_size.x).round(),
+                                height: (egui.ctx().pixels_per_point() * window_size.y).round(),
+                            }
+                            .to_logical::<f32>(native_pixels_per_point(&display) as f64),
+                        );
+                    } else {
+                        app_output.window_size = None;
+                    }
                 }
 
                 if quit {
