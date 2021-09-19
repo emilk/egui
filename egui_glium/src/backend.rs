@@ -341,6 +341,7 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: epi::NativeOptions) {
                     quit,
                     window_size,
                     decorated,
+                    drag_window,
                 } = app_output;
 
                 if let Some(decorated) = decorated {
@@ -355,6 +356,10 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: epi::NativeOptions) {
                         }
                         .to_logical::<f32>(native_pixels_per_point(&display) as f64),
                     );
+                }
+
+                if drag_window {
+                    let _ = display.gl_window().window().drag_window();
                 }
 
                 if quit {

@@ -252,6 +252,11 @@ impl<'a> Frame<'a> {
         self.0.output.decorated = Some(decorated);
     }
 
+    /// Drag window
+    pub fn drag_window(&mut self) {
+        self.0.output.drag_window = true;
+    }
+
     /// If you need to request a repaint from another thread, clone this and send it to that other thread.
     pub fn repaint_signal(&self) -> std::sync::Arc<dyn RepaintSignal> {
         self.0.repaint_signal.clone()
@@ -410,5 +415,8 @@ pub mod backend {
 
         /// Set to some bool to change window decorations
         pub decorated: Option<bool>,
+
+        /// Set to true to drap window
+        pub drag_window: bool,
     }
 }
