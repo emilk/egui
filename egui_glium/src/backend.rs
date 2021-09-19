@@ -196,14 +196,7 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: epi::NativeOptions) {
     )));
 
     let mut egui = EguiGlium::new(&display);
-    match deserialize_memory(&storage) {
-        Some(memory) => {
-            *egui.ctx().memory() = memory;
-        }
-        None => {
-            *egui.ctx().memory() = Default::default();
-        }
-    }
+    *egui.ctx().memory() = deserialize_memory(&storage).unwrap_or_default();
 
     {
         let (ctx, painter) = egui.ctx_and_painter_mut();
