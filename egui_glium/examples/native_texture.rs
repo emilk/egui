@@ -28,7 +28,7 @@ fn main() {
     let mut egui = egui_glium::EguiGlium::new(&display);
     //load image by image crate
     let image = image::load(
-        Cursor::new(&include_bytes!("../../eframe/examples/rust-logo-512x512.png")[..]),
+        Cursor::new(&include_bytes!("../../eframe/examples/rust-logo-256x256.png")[..]),
         image::ImageFormat::Png,
     )
     .unwrap()

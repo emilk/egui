@@ -521,31 +521,50 @@ impl Widget for ImageButton {
             selected,
         } = self;
 
-        let button_padding = ui.spacing().button_padding;
-        let size = image.size() + 2.0 * button_padding;
-        let (rect, response) = ui.allocate_exact_size(size, sense);
+        let padding = if frame {
+            // so we can see that it is a button:
+            Vec2::splat(ui.spacing().button_padding.x)
+        } else {
+            Vec2::ZERO
+        };
+        let padded_size = image.size() + 2.0 * padding;
+        let (rect, response) = ui.allocate_exact_size(padded_size, sense);
         response.widget_info(|| WidgetInfo::new(WidgetType::ImageButton));
 
         if ui.clip_rect().intersects(rect) {
-            let visuals = ui.style().interact(&response);
-
-            if selected {
+            let (expansion, corner_radius, fill, stroke) = if selected {
                 let selection = ui.visuals().selection;
-                ui.painter()
-                    .rect(rect, 0.0, selection.bg_fill, selection.stroke);
+                (-padding, 0.0, selection.bg_fill, selection.stroke)
             } else if frame {
-                ui.painter().rect(
-                    rect.expand(visuals.expansion),
+                let visuals = ui.style().interact(&response);
+                let expansion = if response.hovered {
+                    Vec2::splat(visuals.expansion) - padding
+                } else {
+                    Vec2::splat(visuals.expansion)
+                };
+                (
+                    expansion,
                     visuals.corner_radius,
                     visuals.bg_fill,
                     visuals.bg_stroke,
-                );
-            }
+                )
+            } else {
+                Default::default()
+            };
+
+            // Draw frame background (for transparent images):
+            ui.painter()
+                .rect_filled(rect.expand2(expansion), corner_radius, fill);
 
             let image_rect = ui
                 .layout()
-                .align_size_within_rect(image.size(), rect.shrink2(button_padding));
+                .align_size_within_rect(image.size(), rect.shrink2(padding));
+            // let image_rect = image_rect.expand2(expansion); // can make it blurry, so let's not
             image.paint_at(ui, image_rect);
+
+            // Draw frame outline:
+            ui.painter()
+                .rect_stroke(rect.expand2(expansion), corner_radius, stroke);
         }
 
         response
