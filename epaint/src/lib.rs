@@ -87,13 +87,15 @@ pub use {
     color::{Color32, Rgba},
     mesh::{Mesh, Mesh16, Vertex},
     shadow::Shadow,
-    shape::{Shape, TextShape},
+    shape::{CircleShape, PathShape, RectShape, Shape, TextShape},
     stats::PaintStats,
     stroke::Stroke,
     tessellator::{TessellationOptions, Tessellator},
     text::{Galley, TextStyle},
     texture_atlas::{Texture, TextureAtlas},
 };
+
+pub use emath::{pos2, vec2, Pos2, Rect, Vec2};
 
 pub use ahash;
 pub use emath;
@@ -106,6 +108,7 @@ pub const WHITE_UV: emath::Pos2 = emath::pos2(0.0, 0.0);
 
 /// What texture to use in a [`Mesh`] mesh.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub enum TextureId {
     /// The egui font texture.
     /// If you don't want to use a texture, pick this and the [`WHITE_UV`] for uv-coord.
@@ -120,14 +123,6 @@ impl Default for TextureId {
     fn default() -> Self {
         Self::Egui
     }
-}
-
-pub(crate) struct PaintRect {
-    pub rect: emath::Rect,
-    /// How rounded the corners are. Use `0.0` for no rounding.
-    pub corner_radius: f32,
-    pub fill: Color32,
-    pub stroke: Stroke,
 }
 
 /// A [`Shape`] within a clip rectangle.
@@ -146,6 +141,7 @@ pub struct ClippedShape(
 ///
 /// Everything is using logical points.
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct ClippedMesh(
     /// Clip / scissor rectangle.
     /// Only show the part of the [`Mesh`] that falls within this.

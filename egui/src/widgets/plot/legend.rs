@@ -117,7 +117,7 @@ impl LegendEntry {
 
         let painter = ui.painter();
 
-        painter.add(Shape::Circle {
+        painter.add(epaint::CircleShape {
             center: icon_rect.center(),
             radius: icon_size * 0.5,
             fill: visuals.bg_fill,
@@ -130,12 +130,11 @@ impl LegendEntry {
             } else {
                 *color
             };
-            painter.add(Shape::Circle {
-                center: icon_rect.center(),
-                radius: icon_size * 0.4,
+            painter.add(epaint::Shape::circle_filled(
+                icon_rect.center(),
+                icon_size * 0.4,
                 fill,
-                stroke: Default::default(),
-            });
+            ));
         }
 
         let text_position_x = if label_on_the_left {

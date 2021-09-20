@@ -425,7 +425,7 @@ impl<'t, S: TextBuffer> Widget for TextEdit<'t, S> {
             let visuals = ui.style().interact(&response);
             let frame_rect = response.rect.expand(visuals.expansion);
             let shape = if response.has_focus() {
-                Shape::Rect {
+                epaint::RectShape {
                     rect: frame_rect,
                     corner_radius: visuals.corner_radius,
                     // fill: ui.visuals().selection.bg_fill,
@@ -433,7 +433,7 @@ impl<'t, S: TextBuffer> Widget for TextEdit<'t, S> {
                     stroke: ui.visuals().selection.stroke,
                 }
             } else {
-                Shape::Rect {
+                epaint::RectShape {
                     rect: frame_rect,
                     corner_radius: visuals.corner_radius,
                     fill: ui.visuals().extreme_bg_color,

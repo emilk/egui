@@ -541,12 +541,12 @@ impl Tessellator {
                     self.tessellate_shape(tex_size, shape, out)
                 }
             }
-            Shape::Circle {
+            Shape::Circle(CircleShape {
                 center,
                 radius,
                 fill,
                 stroke,
-            } => {
+            }) => {
                 if radius <= 0.0 {
                     return;
                 }
@@ -563,70 +563,45 @@ impl Tessellator {
                 self.scratchpad_path.stroke_closed(stroke, options, out);
             }
             Shape::Mesh(mesh) => {
-                if mesh.is_valid() {
-                    out.append(mesh);
-                } else {
+                if !mesh.is_valid() {
                     crate::epaint_assert!(false, "Invalid Mesh in Shape::Mesh");
+                    return;
                 }
+
+                if options.coarse_tessellation_culling && !clip_rect.intersects(mesh.calc_bounds())
+                {
+                    return;
+                }
+
+                out.append(mesh);
             }
             Shape::LineSegment { points, stroke } => {
+                if stroke.is_empty() {
+                    return;
+                }
+
+                if options.coarse_tessellation_culling
+                    && !clip_rect
+                        .intersects(Rect::from_two_pos(points[0], points[1]).expand(stroke.width))
+                {
+                    return;
+                }
+
                 self.scratchpad_path.clear();
                 self.scratchpad_path.add_line_segment(points);
                 self.scratchpad_path.stroke_open(stroke, options, out);
             }
-            Shape::Path {
-                points,
-                closed,
-                fill,
-                stroke,
-            } => {
-                if points.len() >= 2 {
-                    self.scratchpad_path.clear();
-                    if closed {
-                        self.scratchpad_path.add_line_loop(&points);
-                    } else {
-                        self.scratchpad_path.add_open_points(&points);
-                    }
-
-                    if fill != Color32::TRANSPARENT {
-                        crate::epaint_assert!(
-                            closed,
-                            "You asked to fill a path that is not closed. That makes no sense."
-                        );
-                        self.scratchpad_path.fill(fill, options, out);
-                    }
-                    let typ = if closed {
-                        PathType::Closed
-                    } else {
-                        PathType::Open
-                    };
-                    self.scratchpad_path.stroke(typ, stroke, options, out);
-                }
+            Shape::Path(path_shape) => {
+                self.tessellate_path(path_shape, out);
             }
-            Shape::Rect {
-                rect,
-                corner_radius,
-                fill,
-                stroke,
-            } => {
-                let rect = PaintRect {
-                    rect,
-                    corner_radius,
-                    fill,
-                    stroke,
-                };
-                self.tessellate_rect(&rect, out);
+            Shape::Rect(rect_shape) => {
+                self.tessellate_rect(&rect_shape, out);
             }
             Shape::Text(text_shape) => {
                 if options.debug_paint_text_rects {
+                    let rect = text_shape.galley.rect.translate(text_shape.pos.to_vec2());
                     self.tessellate_rect(
-                        &PaintRect {
-                            rect: Rect::from_min_size(text_shape.pos, text_shape.galley.size())
-                                .expand(0.5),
-                            corner_radius: 2.0,
-                            fill: Default::default(),
-                            stroke: (0.5, Color32::GREEN).into(),
-                        },
+                        &RectShape::stroke(rect.expand(0.5), 2.0, (0.5, Color32::GREEN)),
                         out,
                     );
                 }
@@ -635,8 +610,48 @@ impl Tessellator {
         }
     }
 
-    pub(crate) fn tessellate_rect(&mut self, rect: &PaintRect, out: &mut Mesh) {
-        let PaintRect {
+    pub(crate) fn tessellate_path(&mut self, path_shape: PathShape, out: &mut Mesh) {
+        if path_shape.points.len() < 2 {
+            return;
+        }
+
+        if self.options.coarse_tessellation_culling
+            && !path_shape.bounding_rect().intersects(self.clip_rect)
+        {
+            return;
+        }
+
+        let PathShape {
+            points,
+            closed,
+            fill,
+            stroke,
+        } = path_shape;
+
+        self.scratchpad_path.clear();
+        if closed {
+            self.scratchpad_path.add_line_loop(&points);
+        } else {
+            self.scratchpad_path.add_open_points(&points);
+        }
+
+        if fill != Color32::TRANSPARENT {
+            crate::epaint_assert!(
+                closed,
+                "You asked to fill a path that is not closed. That makes no sense."
+            );
+            self.scratchpad_path.fill(fill, self.options, out);
+        }
+        let typ = if closed {
+            PathType::Closed
+        } else {
+            PathType::Open
+        };
+        self.scratchpad_path.stroke(typ, stroke, self.options, out);
+    }
+
+    pub(crate) fn tessellate_rect(&mut self, rect: &RectShape, out: &mut Mesh) {
+        let RectShape {
             mut rect,
             corner_radius,
             fill,
@@ -803,12 +818,11 @@ pub fn tessellate_shapes(
             tessellator.clip_rect = Rect::EVERYTHING;
             tessellator.tessellate_shape(
                 tex_size,
-                Shape::Rect {
-                    rect: *clip_rect,
-                    corner_radius: 0.0,
-                    fill: Default::default(),
-                    stroke: Stroke::new(2.0, Color32::from_rgb(150, 255, 150)),
-                },
+                Shape::rect_stroke(
+                    *clip_rect,
+                    0.0,
+                    Stroke::new(2.0, Color32::from_rgb(150, 255, 150)),
+                ),
                 mesh,
             )
         }

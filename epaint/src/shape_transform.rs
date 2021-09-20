@@ -9,20 +9,20 @@ pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
                 adjust_colors(shape, adjust_color)
             }
         }
-        Shape::Circle { fill, stroke, .. } => {
-            adjust_color(fill);
-            adjust_color(&mut stroke.color);
+        Shape::Circle(circle_shape) => {
+            adjust_color(&mut circle_shape.fill);
+            adjust_color(&mut circle_shape.stroke.color);
         }
         Shape::LineSegment { stroke, .. } => {
             adjust_color(&mut stroke.color);
         }
-        Shape::Path { fill, stroke, .. } => {
-            adjust_color(fill);
-            adjust_color(&mut stroke.color);
+        Shape::Path(path_shape) => {
+            adjust_color(&mut path_shape.fill);
+            adjust_color(&mut path_shape.stroke.color);
         }
-        Shape::Rect { fill, stroke, .. } => {
-            adjust_color(fill);
-            adjust_color(&mut stroke.color);
+        Shape::Rect(rect_shape) => {
+            adjust_color(&mut rect_shape.fill);
+            adjust_color(&mut rect_shape.stroke.color);
         }
         Shape::Text(text_shape) => {
             if let Some(override_text_color) = &mut text_shape.override_text_color {

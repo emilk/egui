@@ -333,11 +333,13 @@ fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob>, mut rows: Vec<Row>) -> G
 
     let format_summary = format_summary(&job);
 
+    let mut mesh_bounds = Rect::NOTHING;
     let mut num_vertices = 0;
     let mut num_indices = 0;
 
     for row in &mut rows {
         row.visuals = tessellate_row(fonts, &job, &format_summary, row);
+        mesh_bounds = mesh_bounds.union(row.visuals.mesh_bounds);
         num_vertices += row.visuals.mesh.vertices.len();
         num_indices += row.visuals.mesh.indices.len();
     }
@@ -348,6 +350,7 @@ fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob>, mut rows: Vec<Row>) -> G
         job,
         rows,
         rect,
+        mesh_bounds,
         num_vertices,
         num_indices,
     }

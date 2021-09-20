@@ -178,12 +178,12 @@ impl Frame {
             stroke,
         } = *self;
 
-        let frame_shape = Shape::Rect {
+        let frame_shape = Shape::Rect(epaint::RectShape {
             rect: outer_rect,
             corner_radius,
             fill,
             stroke,
-        };
+        });
 
         if shadow == Default::default() {
             frame_shape

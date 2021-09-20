@@ -333,7 +333,7 @@ impl<'a> Slider<'a> {
             let marker_center_x = self.x_from_value(value, x_range);
 
             let visuals = ui.style().interact(response);
-            ui.painter().add(Shape::Rect {
+            ui.painter().add(epaint::RectShape {
                 rect: rail_rect,
                 corner_radius: ui.visuals().widgets.inactive.corner_radius,
                 fill: ui.visuals().widgets.inactive.bg_fill,
@@ -344,7 +344,7 @@ impl<'a> Slider<'a> {
                 // stroke: ui.visuals().widgets.inactive.bg_stroke,
             });
 
-            ui.painter().add(Shape::Circle {
+            ui.painter().add(epaint::CircleShape {
                 center: pos2(marker_center_x, rail_rect.center().y),
                 radius: handle_radius(rect) + visuals.expansion,
                 fill: visuals.bg_fill,

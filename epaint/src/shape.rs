@@ -14,32 +14,13 @@ pub enum Shape {
     /// Recursively nest more shapes - sometimes a convenience to be able to do.
     /// For performance reasons it is better to avoid it.
     Vec(Vec<Shape>),
-    Circle {
-        center: Pos2,
-        radius: f32,
-        fill: Color32,
-        stroke: Stroke,
-    },
+    Circle(CircleShape),
     LineSegment {
         points: [Pos2; 2],
         stroke: Stroke,
     },
-    Path {
-        points: Vec<Pos2>,
-        /// If true, connect the first and last of the points together.
-        /// This is required if `fill != TRANSPARENT`.
-        closed: bool,
-        /// Fill is only supported for convex polygons.
-        fill: Color32,
-        stroke: Stroke,
-    },
-    Rect {
-        rect: Rect,
-        /// How rounded the corners are. Use `0.0` for no rounding.
-        corner_radius: f32,
-        fill: Color32,
-        stroke: Stroke,
-    },
+    Path(PathShape),
+    Rect(RectShape),
     Text(TextShape),
     Mesh(Mesh),
 }
@@ -48,6 +29,7 @@ pub enum Shape {
 impl Shape {
     /// A line between two points.
     /// More efficient than calling [`Self::line`].
+    #[inline]
     pub fn line_segment(points: [Pos2; 2], stroke: impl Into<Stroke>) -> Self {
         Self::LineSegment {
             points,
@@ -58,23 +40,15 @@ impl Shape {
     /// A line through many points.
     ///
     /// Use [`Self::line_segment`] instead if your line only connects two points.
+    #[inline]
     pub fn line(points: Vec<Pos2>, stroke: impl Into<Stroke>) -> Self {
-        Self::Path {
-            points,
-            closed: false,
-            fill: Default::default(),
-            stroke: stroke.into(),
-        }
+        Self::Path(PathShape::line(points, stroke))
     }
 
     /// A line that closes back to the start point again.
+    #[inline]
     pub fn closed_line(points: Vec<Pos2>, stroke: impl Into<Stroke>) -> Self {
-        Self::Path {
-            points,
-            closed: true,
-            fill: Default::default(),
-            stroke: stroke.into(),
-        }
+        Self::Path(PathShape::closed_line(points, stroke))
     }
 
     /// Turn a line into equally spaced dots.
@@ -102,53 +76,33 @@ impl Shape {
     }
 
     /// A convex polygon with a fill and optional stroke.
+    #[inline]
     pub fn convex_polygon(
         points: Vec<Pos2>,
         fill: impl Into<Color32>,
         stroke: impl Into<Stroke>,
     ) -> Self {
-        Self::Path {
-            points,
-            closed: true,
-            fill: fill.into(),
-            stroke: stroke.into(),
-        }
+        Self::Path(PathShape::convex_polygon(points, fill, stroke))
     }
 
+    #[inline]
     pub fn circle_filled(center: Pos2, radius: f32, fill_color: impl Into<Color32>) -> Self {
-        Self::Circle {
-            center,
-            radius,
-            fill: fill_color.into(),
-            stroke: Default::default(),
-        }
+        Self::Circle(CircleShape::filled(center, radius, fill_color))
     }
 
+    #[inline]
     pub fn circle_stroke(center: Pos2, radius: f32, stroke: impl Into<Stroke>) -> Self {
-        Self::Circle {
-            center,
-            radius,
-            fill: Default::default(),
-            stroke: stroke.into(),
-        }
+        Self::Circle(CircleShape::stroke(center, radius, stroke))
     }
 
+    #[inline]
     pub fn rect_filled(rect: Rect, corner_radius: f32, fill_color: impl Into<Color32>) -> Self {
-        Self::Rect {
-            rect,
-            corner_radius,
-            fill: fill_color.into(),
-            stroke: Default::default(),
-        }
+        Self::Rect(RectShape::filled(rect, corner_radius, fill_color))
     }
 
+    #[inline]
     pub fn rect_stroke(rect: Rect, corner_radius: f32, stroke: impl Into<Stroke>) -> Self {
-        Self::Rect {
-            rect,
-            corner_radius,
-            fill: Default::default(),
-            stroke: stroke.into(),
-        }
+        Self::Rect(RectShape::stroke(rect, corner_radius, stroke))
     }
 
     #[allow(clippy::needless_pass_by_value)]
@@ -165,6 +119,7 @@ impl Shape {
         Self::galley(rect.min, galley)
     }
 
+    #[inline]
     pub fn galley(pos: Pos2, galley: std::sync::Arc<Galley>) -> Self {
         TextShape::new(pos, galley).into()
     }
@@ -172,7 +127,165 @@ impl Shape {
 
 // ----------------------------------------------------------------------------
 
-/// How to draw some text on screen.
+/// How to paint a circle.
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+pub struct CircleShape {
+    pub center: Pos2,
+    pub radius: f32,
+    pub fill: Color32,
+    pub stroke: Stroke,
+}
+
+impl CircleShape {
+    #[inline]
+    pub fn filled(center: Pos2, radius: f32, fill_color: impl Into<Color32>) -> Self {
+        Self {
+            center,
+            radius,
+            fill: fill_color.into(),
+            stroke: Default::default(),
+        }
+    }
+
+    #[inline]
+    pub fn stroke(center: Pos2, radius: f32, stroke: impl Into<Stroke>) -> Self {
+        Self {
+            center,
+            radius,
+            fill: Default::default(),
+            stroke: stroke.into(),
+        }
+    }
+}
+
+impl From<CircleShape> for Shape {
+    #[inline(always)]
+    fn from(shape: CircleShape) -> Self {
+        Self::Circle(shape)
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// A path which can be stroked and/or filled (if closed).
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+pub struct PathShape {
+    pub points: Vec<Pos2>,
+    /// If true, connect the first and last of the points together.
+    /// This is required if `fill != TRANSPARENT`.
+    pub closed: bool,
+    /// Fill is only supported for convex polygons.
+    pub fill: Color32,
+    pub stroke: Stroke,
+}
+
+impl PathShape {
+    /// A line through many points.
+    ///
+    /// Use [`Shape::line_segment`] instead if your line only connects two points.
+    #[inline]
+    pub fn line(points: Vec<Pos2>, stroke: impl Into<Stroke>) -> Self {
+        PathShape {
+            points,
+            closed: false,
+            fill: Default::default(),
+            stroke: stroke.into(),
+        }
+    }
+
+    /// A line that closes back to the start point again.
+    #[inline]
+    pub fn closed_line(points: Vec<Pos2>, stroke: impl Into<Stroke>) -> Self {
+        PathShape {
+            points,
+            closed: true,
+            fill: Default::default(),
+            stroke: stroke.into(),
+        }
+    }
+
+    /// A convex polygon with a fill and optional stroke.
+    #[inline]
+    pub fn convex_polygon(
+        points: Vec<Pos2>,
+        fill: impl Into<Color32>,
+        stroke: impl Into<Stroke>,
+    ) -> Self {
+        PathShape {
+            points,
+            closed: true,
+            fill: fill.into(),
+            stroke: stroke.into(),
+        }
+    }
+
+    /// Screen-space bounding rectangle.
+    #[inline]
+    pub fn bounding_rect(&self) -> Rect {
+        Rect::from_points(&self.points).expand(self.stroke.width)
+    }
+}
+
+impl From<PathShape> for Shape {
+    #[inline(always)]
+    fn from(shape: PathShape) -> Self {
+        Self::Path(shape)
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// How to paint a rectangle.
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+pub struct RectShape {
+    pub rect: Rect,
+    /// How rounded the corners are. Use `0.0` for no rounding.
+    pub corner_radius: f32,
+    pub fill: Color32,
+    pub stroke: Stroke,
+}
+
+impl RectShape {
+    #[inline]
+    pub fn filled(rect: Rect, corner_radius: f32, fill_color: impl Into<Color32>) -> Self {
+        Self {
+            rect,
+            corner_radius,
+            fill: fill_color.into(),
+            stroke: Default::default(),
+        }
+    }
+
+    #[inline]
+    pub fn stroke(rect: Rect, corner_radius: f32, stroke: impl Into<Stroke>) -> Self {
+        Self {
+            rect,
+            corner_radius,
+            fill: Default::default(),
+            stroke: stroke.into(),
+        }
+    }
+
+    /// Screen-space bounding rectangle.
+    #[inline]
+    pub fn bounding_rect(&self) -> Rect {
+        self.rect.expand(self.stroke.width)
+    }
+}
+
+impl From<RectShape> for Shape {
+    #[inline(always)]
+    fn from(shape: RectShape) -> Self {
+        Self::Rect(shape)
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// How to paint some text on screen.
 #[derive(Clone, Debug, PartialEq)]
 pub struct TextShape {
     /// Top left corner of the first character.
@@ -206,12 +319,18 @@ impl TextShape {
             angle: 0.0,
         }
     }
+
+    /// Screen-space bounding rectangle.
+    #[inline]
+    pub fn bounding_rect(&self) -> Rect {
+        self.galley.mesh_bounds.translate(self.pos.to_vec2())
+    }
 }
 
 impl From<TextShape> for Shape {
     #[inline(always)]
-    fn from(text_shape: TextShape) -> Self {
-        Self::Text(text_shape)
+    fn from(shape: TextShape) -> Self {
+        Self::Text(shape)
     }
 }
 
@@ -259,7 +378,7 @@ fn dashes_from_line(
             let new_point = start + vector * (position_on_segment / segment_length);
             if drawing_dash {
                 // This is the end point.
-                if let Shape::Path { points, .. } = shapes.last_mut().unwrap() {
+                if let Shape::Path(PathShape { points, .. }) = shapes.last_mut().unwrap() {
                     points.push(new_point);
                 }
                 position_on_segment += gap_length;
@@ -272,7 +391,7 @@ fn dashes_from_line(
         }
         // If the segment ends and the dash is not finished, add the segment's end point.
         if drawing_dash {
-            if let Shape::Path { points, .. } = shapes.last_mut().unwrap() {
+            if let Shape::Path(PathShape { points, .. }) = shapes.last_mut().unwrap() {
                 points.push(end);
             }
         }
@@ -305,21 +424,21 @@ impl Shape {
                     shape.translate(delta);
                 }
             }
-            Shape::Circle { center, .. } => {
-                *center += delta;
+            Shape::Circle(circle_shape) => {
+                circle_shape.center += delta;
             }
             Shape::LineSegment { points, .. } => {
                 for p in points {
                     *p += delta;
                 }
             }
-            Shape::Path { points, .. } => {
-                for p in points {
+            Shape::Path(path_shape) => {
+                for p in &mut path_shape.points {
                     *p += delta;
                 }
             }
-            Shape::Rect { rect, .. } => {
-                *rect = rect.translate(delta);
+            Shape::Rect(rect_shape) => {
+                rect_shape.rect = rect_shape.rect.translate(delta);
             }
             Shape::Text(text_shape) => {
                 text_shape.pos += delta;

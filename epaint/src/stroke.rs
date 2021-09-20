@@ -26,6 +26,12 @@ impl Stroke {
             color: color.into(),
         }
     }
+
+    /// True if width is zero or color is transparent
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.width <= 0.0 || self.color == Color32::TRANSPARENT
+    }
 }
 
 impl<Color> From<(f32, Color)> for Stroke

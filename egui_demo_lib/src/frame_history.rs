@@ -6,9 +6,10 @@ pub struct FrameHistory {
 
 impl Default for FrameHistory {
     fn default() -> Self {
-        let max_age: f64 = 1.0;
+        let max_age: f32 = 1.0;
+        let max_len = (max_age * 300.0).round() as usize;
         Self {
-            frame_times: History::from_max_len_age((max_age * 300.0).round() as usize, max_age),
+            frame_times: History::new(0..max_len, max_age),
         }
     }
 }
@@ -73,12 +74,12 @@ impl FrameHistory {
         let to_screen = emath::RectTransform::from_to(graph_rect, rect);
 
         let mut shapes = Vec::with_capacity(3 + 2 * history.len());
-        shapes.push(Shape::Rect {
+        shapes.push(Shape::Rect(epaint::RectShape {
             rect,
             corner_radius: style.corner_radius,
             fill: ui.visuals().extreme_bg_color,
             stroke: ui.style().noninteractive().bg_stroke,
-        });
+        }));
 
         let rect = rect.shrink(4.0);
         let color = ui.visuals().text_color();

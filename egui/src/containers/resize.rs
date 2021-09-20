@@ -282,12 +282,11 @@ impl Resize {
         if self.with_stroke && corner_response.is_some() {
             let rect = Rect::from_min_size(content_ui.min_rect().left_top(), state.desired_size);
             let rect = rect.expand(2.0); // breathing room for content
-            ui.painter().add(epaint::Shape::Rect {
+            ui.painter().add(Shape::rect_stroke(
                 rect,
-                corner_radius: 3.0,
-                fill: Default::default(),
-                stroke: ui.visuals().widgets.noninteractive.bg_stroke,
-            });
+                3.0,
+                ui.visuals().widgets.noninteractive.bg_stroke,
+            ));
         }
 
         if let Some(corner_response) = corner_response {

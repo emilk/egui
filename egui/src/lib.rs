@@ -397,7 +397,7 @@ pub use {
 };
 
 pub mod text {
-    pub use epaint::text::{Galley, LayoutJob, LayoutSection, TextFormat, TAB_SIZE};
+    pub use epaint::text::{Fonts, Galley, LayoutJob, LayoutSection, TextFormat, TAB_SIZE};
 }
 
 // ----------------------------------------------------------------------------
@@ -527,6 +527,7 @@ pub mod special_emojis {
 
 /// The different types of built-in widgets in egui
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub enum WidgetType {
     Label, // TODO: emit Label events
     Hyperlink,

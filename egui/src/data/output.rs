@@ -5,6 +5,7 @@ use crate::WidgetType;
 /// What egui emits each frame.
 /// The backend should use this.
 #[derive(Clone, Default, PartialEq)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct Output {
     /// Set the cursor to this icon.
     pub cursor_icon: CursorIcon,
@@ -12,7 +13,9 @@ pub struct Output {
     /// If set, open this url.
     pub open_url: Option<OpenUrl>,
 
-    /// Response to [`crate::Event::Copy`] or [`crate::Event::Cut`]. Ignore if empty.
+    /// If set, put this text in the system clipboard. Ignore if empty.
+    ///
+    /// This is often a response to [`crate::Event::Copy`] or [`crate::Event::Cut`].
     pub copied_text: String,
 
     /// If `true`, egui is requesting immediate repaint (i.e. on the next frame).
@@ -53,9 +56,40 @@ impl Output {
         }
         Default::default()
     }
+
+    /// Add on new output.
+    pub fn append(&mut self, newer: Self) {
+        let Self {
+            cursor_icon,
+            open_url,
+            copied_text,
+            needs_repaint,
+            mut events,
+            text_cursor_pos,
+        } = newer;
+
+        self.cursor_icon = cursor_icon;
+        if open_url.is_some() {
+            self.open_url = open_url;
+        }
+        if !copied_text.is_empty() {
+            self.copied_text = copied_text;
+        }
+        self.needs_repaint = needs_repaint; // if the last frame doesn't need a repaint, then we don't need to repaint
+        self.events.append(&mut events);
+        self.text_cursor_pos = text_cursor_pos.or(self.text_cursor_pos);
+    }
+
+    /// Take everything ephemeral (everything except `cursor_icon` currently)
+    pub fn take(&mut self) -> Self {
+        let taken = std::mem::take(self);
+        self.cursor_icon = taken.cursor_icon; // eveything else is ephemeral
+        taken
+    }
 }
 
 #[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct OpenUrl {
     pub url: String,
     /// If `true`, open the url in a new tab.
@@ -88,6 +122,7 @@ impl OpenUrl {
 ///
 /// Loosely based on <https://developer.mozilla.org/en-US/docs/Web/CSS/cursor>.
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub enum CursorIcon {
     /// Normal cursor icon, whatever that is.
     Default,
@@ -209,6 +244,7 @@ impl Default for CursorIcon {
 ///
 /// In particular, these events may be useful for accessability, i.e. for screen readers.
 #[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub enum OutputEvent {
     // A widget was clicked.
     Clicked(WidgetInfo),
@@ -236,6 +272,7 @@ impl std::fmt::Debug for OutputEvent {
 
 /// Describes a widget such as a [`crate::Button`] or a [`crate::TextEdit`].
 #[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct WidgetInfo {
     /// The type of widget this is.
     pub typ: WidgetType,

@@ -118,7 +118,6 @@ pub struct FontDefinitions {
     ///
     /// `epaint` has built-in-default for these,
     /// but you can override them if you like.
-    #[cfg_attr(feature = "persistence", serde(skip))]
     pub font_data: BTreeMap<String, FontData>,
 
     /// Which fonts (names) to use for each [`FontFamily`].
@@ -219,7 +218,7 @@ pub struct Fonts {
 }
 
 impl Fonts {
-    pub fn from_definitions(pixels_per_point: f32, definitions: FontDefinitions) -> Self {
+    pub fn new(pixels_per_point: f32, definitions: FontDefinitions) -> Self {
         assert!(
             0.0 < pixels_per_point && pixels_per_point < 100.0,
             "pixels_per_point out of range: {}",
@@ -276,6 +275,11 @@ impl Fonts {
             buffered_texture: Default::default(), //atlas.lock().texture().clone();
             galley_cache: Default::default(),
         }
+    }
+
+    #[deprecated = "Renamed to Fonts::new"]
+    pub fn from_definitions(pixels_per_point: f32, definitions: FontDefinitions) -> Self {
+        Self::new(pixels_per_point, definitions)
     }
 
     #[inline(always)]

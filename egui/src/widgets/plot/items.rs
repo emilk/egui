@@ -800,12 +800,7 @@ impl PlotItem for Polygon {
 
         let fill = Rgba::from(stroke.color).to_opaque().multiply(fill_alpha);
 
-        let shape = Shape::Path {
-            points: values_tf.clone(),
-            closed: true,
-            fill: fill.into(),
-            stroke: Stroke::none(),
-        };
+        let shape = Shape::convex_polygon(values_tf.clone(), fill, Stroke::none());
         shapes.push(shape);
         values_tf.push(*values_tf.first().unwrap());
         style.style_line(values_tf, *stroke, *highlight, shapes);
@@ -1081,21 +1076,16 @@ impl PlotItem for Points {
 
                 match shape {
                     MarkerShape::Circle => {
-                        shapes.push(Shape::Circle {
+                        shapes.push(Shape::Circle(epaint::CircleShape {
                             center,
                             radius,
                             fill,
                             stroke,
-                        });
+                        }));
                     }
                     MarkerShape::Diamond => {
                         let points = vec![tf(1.0, 0.0), tf(0.0, -1.0), tf(-1.0, 0.0), tf(0.0, 1.0)];
-                        shapes.push(Shape::Path {
-                            points,
-                            closed: true,
-                            fill,
-                            stroke,
-                        });
+                        shapes.push(Shape::convex_polygon(points, fill, stroke));
                     }
                     MarkerShape::Square => {
                         let points = vec![
@@ -1104,12 +1094,7 @@ impl PlotItem for Points {
                             tf(-frac_1_sqrt_2, -frac_1_sqrt_2),
                             tf(-frac_1_sqrt_2, frac_1_sqrt_2),
                         ];
-                        shapes.push(Shape::Path {
-                            points,
-                            closed: true,
-                            fill,
-                            stroke,
-                        });
+                        shapes.push(Shape::convex_polygon(points, fill, stroke));
                     }
                     MarkerShape::Cross => {
                         let diagonal1 = [
@@ -1132,12 +1117,7 @@ impl PlotItem for Points {
                     MarkerShape::Up => {
                         let points =
                             vec![tf(0.0, -1.0), tf(-0.5 * sqrt_3, 0.5), tf(0.5 * sqrt_3, 0.5)];
-                        shapes.push(Shape::Path {
-                            points,
-                            closed: true,
-                            fill,
-                            stroke,
-                        });
+                        shapes.push(Shape::convex_polygon(points, fill, stroke));
                     }
                     MarkerShape::Down => {
                         let points = vec![
@@ -1145,22 +1125,12 @@ impl PlotItem for Points {
                             tf(-0.5 * sqrt_3, -0.5),
                             tf(0.5 * sqrt_3, -0.5),
                         ];
-                        shapes.push(Shape::Path {
-                            points,
-                            closed: true,
-                            fill,
-                            stroke,
-                        });
+                        shapes.push(Shape::convex_polygon(points, fill, stroke));
                     }
                     MarkerShape::Left => {
                         let points =
                             vec![tf(-1.0, 0.0), tf(0.5, -0.5 * sqrt_3), tf(0.5, 0.5 * sqrt_3)];
-                        shapes.push(Shape::Path {
-                            points,
-                            closed: true,
-                            fill,
-                            stroke,
-                        });
+                        shapes.push(Shape::convex_polygon(points, fill, stroke));
                     }
                     MarkerShape::Right => {
                         let points = vec![
@@ -1168,12 +1138,7 @@ impl PlotItem for Points {
                             tf(-0.5, -0.5 * sqrt_3),
                             tf(-0.5, 0.5 * sqrt_3),
                         ];
-                        shapes.push(Shape::Path {
-                            points,
-                            closed: true,
-                            fill,
-                            stroke,
-                        });
+                        shapes.push(Shape::convex_polygon(points, fill, stroke));
                     }
                     MarkerShape::Asterisk => {
                         let vertical = [tf(0.0, -1.0), tf(0.0, 1.0)];

@@ -57,7 +57,7 @@ fn show_hsva(ui: &mut Ui, color: Hsva, desired_size: Vec2) -> Response {
         ui.painter().rect_filled(left, 0.0, color);
         ui.painter().rect_filled(right, 0.0, color.to_opaque());
     } else {
-        ui.painter().add(Shape::Rect {
+        ui.painter().add(RectShape {
             rect,
             corner_radius: 2.0,
             fill: color.into(),
@@ -190,7 +190,7 @@ fn color_slider_2d(
     let x = lerp(rect.left()..=rect.right(), *x_value);
     let y = lerp(rect.bottom()..=rect.top(), *y_value);
     let picked_color = color_at(*x_value, *y_value);
-    ui.painter().add(Shape::Circle {
+    ui.painter().add(epaint::CircleShape {
         center: pos2(x, y),
         radius: rect.width() / 12.0,
         fill: picked_color,
