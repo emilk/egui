@@ -1,7 +1,6 @@
 //! Example how to use [epi::NativeTexture] with glium.
 use epi::NativeTexture;
 use glium::glutin;
-use std::io::Cursor;
 
 fn create_display(event_loop: &glutin::event_loop::EventLoop<()>) -> glium::Display {
     let window_builder = glutin::window::WindowBuilder::new()
@@ -21,25 +20,37 @@ fn create_display(event_loop: &glutin::event_loop::EventLoop<()>) -> glium::Disp
     glium::Display::new(window_builder, context_builder, event_loop).unwrap()
 }
 
+fn load_glium_image(png_data: &[u8]) -> glium::texture::RawImage2d<u8> {
+    // Load image using the image crate:
+    let image = image::load_from_memory(png_data).unwrap().to_rgba8();
+    let image_dimensions = image.dimensions();
+
+    // Premultiply alpha:
+    let pixels: Vec<_> = image
+        .into_vec()
+        .chunks_exact(4)
+        .map(|p| egui::Color32::from_rgba_unmultiplied(p[0], p[1], p[2], p[3]))
+        .flat_map(|color| color.to_array())
+        .collect();
+
+    // Convert to glium image:
+    glium::texture::RawImage2d::from_raw_rgba(pixels, image_dimensions)
+}
+
 fn main() {
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
     let display = create_display(&event_loop);
 
     let mut egui = egui_glium::EguiGlium::new(&display);
-    //load image by image crate
-    let image = image::load(
-        Cursor::new(&include_bytes!("../../eframe/examples/rust-logo-256x256.png")[..]),
-        image::ImageFormat::Png,
-    )
-    .unwrap()
-    .to_rgba8();
-    let image_dimensions = image.dimensions();
-    //mark as image
-    let image = glium::texture::RawImage2d::from_raw_rgba(image.into_raw(), image_dimensions);
-    //load to gpu memory
+
+    let png_data = include_bytes!("../../eframe/examples/rust-logo-256x256.png");
+    let image = load_glium_image(png_data);
+    let image_size = egui::Vec2::new(image.width as f32, image.height as f32);
+    // Load to gpu memory
     let native_texture = glium::texture::SrgbTexture2d::new(&display, image).unwrap();
-    //allocate egui's texture id for GL texture
+    // Allocate egui's texture id for GL texture
     let texture_id = egui.painter_mut().register_native_texture(native_texture);
+
     event_loop.run(move |event, _, control_flow| {
         let mut redraw = || {
             egui.begin_frame(&display);
@@ -53,7 +64,7 @@ fn main() {
                 }
             });
             egui::Window::new("NativeTextureDisplay").show(egui.ctx(), |ui| {
-                ui.image(texture_id, egui::Vec2::new(128.0, 128.0));
+                ui.image(texture_id, image_size);
             });
             let (needs_repaint, shapes) = egui.end_frame(&display);
 
