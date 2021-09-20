@@ -13,6 +13,7 @@ use {
         uniform,
         uniforms::{MagnifySamplerFilter, SamplerWrapFunction},
     },
+    std::rc::Rc,
 };
 
 pub struct Painter {
@@ -30,8 +31,9 @@ struct UserTexture {
     /// This is the format glium likes.
     pixels: Vec<Vec<(u8, u8, u8, u8)>>,
 
-    /// Lazily uploaded
-    gl_texture: Option<SrgbTexture2d>,
+    /// Lazily uploaded from [`Self::pixels`],
+    /// or owned by the user via `register_native_texture`.
+    gl_texture: Option<Rc<SrgbTexture2d>>,
 }
 
 impl Painter {
@@ -242,20 +244,9 @@ impl Painter {
     }
 
     #[deprecated = "Use: `NativeTexture::register_native_texture` instead"]
-    pub fn register_glium_texture(
-        &mut self,
-        texture: glium::texture::SrgbTexture2d,
-    ) -> egui::TextureId {
-        let id = self.alloc_user_texture();
-        if let egui::TextureId::User(id) = id {
-            if let Some(Some(user_texture)) = self.user_textures.get_mut(id as usize) {
-                *user_texture = UserTexture {
-                    pixels: vec![],
-                    gl_texture: Some(texture),
-                }
-            }
-        }
-        id
+    pub fn register_glium_texture(&mut self, texture: Rc<SrgbTexture2d>) -> egui::TextureId {
+        use epi::NativeTexture as _;
+        self.register_native_texture(texture)
     }
 
     pub fn set_user_texture(
@@ -302,7 +293,8 @@ impl Painter {
                 .get(id as usize)?
                 .as_ref()?
                 .gl_texture
-                .as_ref(),
+                .as_ref()
+                .map(|rc| rc.as_ref()),
         }
     }
 
@@ -312,15 +304,18 @@ impl Painter {
                 let pixels = std::mem::take(&mut user_texture.pixels);
                 let format = texture::SrgbFormat::U8U8U8U8;
                 let mipmaps = texture::MipmapsOption::NoMipmap;
-                user_texture.gl_texture =
-                    Some(SrgbTexture2d::with_format(facade, pixels, format, mipmaps).unwrap());
+                user_texture.gl_texture = Some(
+                    SrgbTexture2d::with_format(facade, pixels, format, mipmaps)
+                        .unwrap()
+                        .into(),
+                );
             }
         }
     }
 }
 
 impl epi::NativeTexture for Painter {
-    type Texture = glium::texture::srgb_texture2d::SrgbTexture2d;
+    type Texture = Rc<SrgbTexture2d>;
 
     fn register_native_texture(&mut self, native: Self::Texture) -> egui::TextureId {
         let id = self.alloc_user_texture();

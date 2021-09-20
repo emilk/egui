@@ -47,9 +47,11 @@ fn main() {
     let image = load_glium_image(png_data);
     let image_size = egui::Vec2::new(image.width as f32, image.height as f32);
     // Load to gpu memory
-    let native_texture = glium::texture::SrgbTexture2d::new(&display, image).unwrap();
+    let glium_texture = glium::texture::SrgbTexture2d::new(&display, image).unwrap();
+    // Allow us to share the texture with egui:
+    let glium_texture = std::rc::Rc::new(glium_texture);
     // Allocate egui's texture id for GL texture
-    let texture_id = egui.painter_mut().register_native_texture(native_texture);
+    let texture_id = egui.painter_mut().register_native_texture(glium_texture);
 
     event_loop.run(move |event, _, control_flow| {
         let mut redraw = || {
