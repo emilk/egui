@@ -252,7 +252,10 @@ impl<'a> Frame<'a> {
         self.0.output.decorated = Some(decorated);
     }
 
-    /// Drag window
+    /// When called, the native window will follow the
+    /// movement of the cursor while the primary mouse button is down.
+    ///
+    /// Does not work on the web, and works badly on Mac.
     pub fn drag_window(&mut self) {
         self.0.output.drag_window = true;
     }
