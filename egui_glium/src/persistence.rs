@@ -81,6 +81,9 @@ pub fn read_memory(ctx: &egui::Context, memory_file_path: impl AsRef<std::path::
 }
 
 /// Alternative to `FileStorage`
+///
+/// # Errors
+/// When failing to serialize or create the file.
 pub fn write_memory(
     ctx: &egui::Context,
     memory_file_path: impl AsRef<std::path::Path>,

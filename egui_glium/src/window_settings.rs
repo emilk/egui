@@ -1,5 +1,6 @@
-use glium::glutin;
+use egui_for_winit::winit;
 
+#[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct WindowSettings {
     /// outer position of window in physical pixels
@@ -37,47 +38,31 @@ impl WindowSettings {
         }
     }
 
-    pub fn initialize_size(
+    pub fn initialize_window(
         &self,
-        window: glutin::window::WindowBuilder,
-    ) -> glutin::window::WindowBuilder {
+        mut window: winit::window::WindowBuilder,
+    ) -> winit::window::WindowBuilder {
+        if !cfg!(target_os = "windows") {
+            // If the app last ran on two monitors and only one is now connected, then
+            // the given position is invalid.
+            // If this happens on Mac, the window is clamped into valid area.
+            // If this happens on Windows, the window is hidden and impossible to bring to get at.
+            // So we don't restore window positions on Windows.
+            if let Some(pos) = self.pos {
+                window = window.with_position(winit::dpi::PhysicalPosition {
+                    x: pos.x as f64,
+                    y: pos.y as f64,
+                });
+            }
+        }
+
         if let Some(inner_size_points) = self.inner_size_points {
-            window.with_inner_size(glutin::dpi::LogicalSize {
+            window.with_inner_size(winit::dpi::LogicalSize {
                 width: inner_size_points.x as f64,
                 height: inner_size_points.y as f64,
             })
         } else {
             window
-        }
-
-        // Not yet available in winit: https://github.com/rust-windowing/winit/issues/1190
-        // if let Some(pos) = self.pos {
-        //     *window = window.with_outer_pos(glutin::dpi::PhysicalPosition {
-        //         x: pos.x as f64,
-        //         y: pos.y as f64,
-        //     });
-        // }
-    }
-
-    pub fn restore_positions(&self, display: &glium::Display) {
-        // not needed, done by `initialize_size`
-        // let size = self.size.unwrap_or_else(|| vec2(1024.0, 800.0));
-        // display
-        //     .gl_window()
-        //     .window()
-        //     .set_inner_size(glutin::dpi::PhysicalSize {
-        //         width: size.x as f64,
-        //         height: size.y as f64,
-        //     });
-
-        if let Some(pos) = self.pos {
-            display
-                .gl_window()
-                .window()
-                .set_outer_position(glutin::dpi::PhysicalPosition::new(
-                    pos.x as f64,
-                    pos.y as f64,
-                ));
         }
     }
 }

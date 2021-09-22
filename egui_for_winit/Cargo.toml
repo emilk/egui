@@ -1,0 +1,37 @@
+[package]
+name = "egui_for_winit"
+version = "0.14.0"
+authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+description = "Bindings for using egui with winit"
+edition = "2018"
+homepage = "https://github.com/emilk/egui/tree/master/egui_for_winit"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/emilk/egui/tree/master/egui_for_winit"
+categories = ["gui", "game-development"]
+keywords = ["winit", "egui", "gui", "gamedev"]
+include = [
+  "../LICENSE-APACHE",
+  "../LICENSE-MIT",
+  "**/*.rs",
+  "Cargo.toml",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+
+[dependencies]
+egui = { version = "0.14.0", path = "../egui", default-features = false }
+epi = { version = "0.14.0", path = "../epi" }
+winit = "0.25"
+
+copypasta = { version = "0.7", optional = true }
+webbrowser = { version = "0.5", optional = true }
+
+# feature screen_reader
+tts = { version = "0.17", optional = true }
+
+[features]
+default = ["copypasta", "webbrowser"]
+
+screen_reader = ["tts"] # experimental

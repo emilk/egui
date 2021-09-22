@@ -13,3 +13,5 @@ To use on Linux, first run:
 ```
 sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev
 ```
+
+This crate depends on [`egui_for_winit`](https://github.com/emilk/egui/tree/master/egui_for_winit).

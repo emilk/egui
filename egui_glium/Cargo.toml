@@ -22,25 +22,22 @@ include = [
 all-features = true
 
 [dependencies]
-copypasta = "0.7"
 egui = { version = "0.14.0", path = "../egui", default-features = false, features = ["single_threaded"] }
+egui_for_winit = { version = "0.14.0", path = "../egui_for_winit" }
 epi = { version = "0.14.0", path = "../epi" }
 glium = "0.30"
-webbrowser = "0.5"
 
 # feature "persistence":
 directories-next = { version = "2", optional = true }
 ron = { version = "0.6", optional = true }
 serde = { version = "1", optional = true }
 
-# feature screen_reader
-tts = { version = "0.17", optional = true }
-
 # feature "time"
 chrono = { version = "0.4", optional = true }
 
 [dev-dependencies]
 image = { version = "0.23", default-features = false, features = ["png"] }
+
 [features]
 default = ["default_fonts"]
 
@@ -55,4 +52,4 @@ persistence = [
     "serde",
 ]
 time = ["chrono"] # for seconds_since_midnight
-screen_reader = ["tts"] # experimental
+screen_reader = ["egui_for_winit/screen_reader"] # experimental

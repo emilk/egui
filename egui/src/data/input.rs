@@ -134,7 +134,7 @@ impl RawInput {
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct HoveredFile {
-    /// Set by the `egui_glium` backend.
+    /// Set by the `egui_for_winit` backend.
     pub path: Option<std::path::PathBuf>,
     /// With the `egui_web` backend, this is set to the mime-type of the file (if available).
     pub mime: String,
@@ -144,7 +144,7 @@ pub struct HoveredFile {
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct DroppedFile {
-    /// Set by the `egui_glium` backend.
+    /// Set by the `egui_for_winit` backend.
     pub path: Option<std::path::PathBuf>,
     /// Name of the file. Set by the `egui_web` backend.
     pub name: String,

@@ -15,7 +15,7 @@ cargo clippy --workspace --all-targets --all-features --  -D warnings -W clippy:
 cargo test --workspace --all-targets --all-features
 cargo fmt --all -- --check
 
-cargo doc -p emath -p epaint -p egui -p eframe -p epi -p egui_web -p egui_glium --lib --no-deps --all-features
+cargo doc -p emath -p epaint -p egui -p eframe -p epi -p egui_web -p egui_for_winit -p egui_glium --lib --no-deps --all-features
 cargo doc -p egui_web --target wasm32-unknown-unknown --lib --no-deps --all-features
 
 # ------------------------------------------------------------

@@ -822,20 +822,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "egui_for_winit"
+version = "0.14.0"
+dependencies = [
+ "copypasta",
+ "egui",
+ "epi",
+ "tts",
+ "webbrowser",
+ "winit",
+]
+
+[[package]]
 name = "egui_glium"
 version = "0.14.0"
 dependencies = [
  "chrono",
- "copypasta",
  "directories-next",
  "egui",
+ "egui_for_winit",
  "epi",
  "glium",
  "image",
  "ron",
  "serde",
- "tts",
- "webbrowser",
 ]
 
 [[package]]

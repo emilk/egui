@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "egui_demo_app",
     "egui_demo_lib",
+    "egui_for_winit",
     "egui_glium",
     "egui_web",
     "egui",
