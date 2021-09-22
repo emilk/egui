@@ -87,6 +87,7 @@ pub fn screen_size_in_pixels(window: &winit::window::Window) -> egui::Vec2 {
     egui::vec2(size.width, size.height)
 }
 
+/// Handles the integration between egui and winit.
 pub struct State {
     start_time: std::time::Instant,
     egui_input: egui::RawInput,
@@ -103,10 +104,12 @@ pub struct State {
 }
 
 impl State {
+    /// Initialize with the native pixels_per_point (dpi scaling).
     pub fn new(window: &winit::window::Window) -> Self {
         Self::from_pixels_per_point(crate::native_pixels_per_point(window))
     }
 
+    /// Initialize with a given dpi scaling.
     pub fn from_pixels_per_point(pixels_per_point: f32) -> Self {
         Self {
             start_time: std::time::Instant::now(),
@@ -126,7 +129,7 @@ impl State {
         }
     }
 
-    /// The same as what egui uses
+    /// The same as what egui uses.
     pub fn pixels_per_point(&self) -> f32 {
         self.current_pixels_per_point
     }
@@ -159,6 +162,9 @@ impl State {
         self.egui_input.take()
     }
 
+    /// Call this when there is a new event.
+    ///
+    /// The result can be found in [`Self::egui_input`] and be extracted with [`Self::take_egui_input`].
     pub fn on_event(&mut self, event: &winit::event::WindowEvent<'_>) {
         // Useful for debugging egui touch support on non-touch devices.
         let simulate_touches = false;
@@ -399,6 +405,9 @@ impl State {
         }
     }
 
+    /// Call with the output given by `egui`.
+    ///
+    /// This will update the cursor, copy text to the clipboard, etc.
     pub fn handle_output(
         &mut self,
         window: &winit::window::Window,
