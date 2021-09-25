@@ -26,7 +26,7 @@ Depends only on `egui`.
 Adds a thin application level wrapper around `egui` for hosting an `egui` app inside of `eframe`.
 
 ### `egui_for_winit`
-This crates provides bindings between [`egui`](https://github.com/emilk/egui) and [glium](https://crates.io/crates/winit).
+This crates provides bindings between [`egui`](https://github.com/emilk/egui) and [winit](https://crates.io/crates/winit).
 
 The library translates winit events to egui, handled copy/paste, updates the cursor, open links clicked in egui, etc.
 

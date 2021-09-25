@@ -167,7 +167,7 @@ I maintain two official egui integrations made for apps:
 
 * [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web) for making a web app. Compiles to WASM, renders with WebGL. [Click to run the egui demo](https://emilk.github.io/egui/index.html).
 * [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium) for compiling native apps with [Glium](https://github.com/glium/glium).
-* [`egui_for_winit`](https://github.com/emilk/egui/tree/master/egui_for_winit) for integrating with [`winit`](https://github.com/rust-windowing/winit). `egui_for_winit` is useed by `egui_glium`.
+* [`egui_for_winit`](https://github.com/emilk/egui/tree/master/egui_for_winit) for integrating with [`winit`](https://github.com/rust-windowing/winit). `egui_for_winit` is used by `egui_glium`.
 
 If you making an app, consider using [`eframe`](https://github.com/emilk/egui/tree/master/eframe), a framework which allows you to write code that works on both the web (`egui_web`) and native (using `egui_glium`).
 
