@@ -83,8 +83,8 @@ pub fn native_pixels_per_point(window: &winit::window::Window) -> f32 {
 pub fn screen_size_in_pixels(window: &winit::window::Window) -> egui::Vec2 {
     // let (width_in_pixels, height_in_pixels) = display.get_framebuffer_dimensions();
     // egui::vec2(width_in_pixels as f32, height_in_pixels as f32)
-    let size = window.inner_size().to_logical(window.scale_factor());
-    egui::vec2(size.width, size.height)
+    let size = window.inner_size();
+    egui::vec2(size.width as f32, size.height as f32)
 }
 
 /// Handles the integration between egui and winit.
@@ -151,15 +151,17 @@ impl State {
         // On Windows, a minimized window will have 0 width and height.
         // See: https://github.com/rust-windowing/winit/issues/208
         // This solves an issue where egui window positions would be changed when minimizing on Windows.
-        let screen_size = screen_size_in_pixels(display);
-        self.egui_input.screen_rect = if screen_size.x > 0.0 && screen_size.y > 0.0 {
-            Some(egui::Rect::from_min_size(
-                Default::default(),
-                screen_size / pixels_per_point,
-            ))
-        } else {
-            None
-        };
+        let screen_size_in_pixels = screen_size_in_pixels(display);
+        let screen_size_in_points = screen_size_in_pixels / pixels_per_point;
+        self.egui_input.screen_rect =
+            if screen_size_in_points.x > 0.0 && screen_size_in_points.y > 0.0 {
+                Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    screen_size_in_points,
+                ))
+            } else {
+                None
+            };
 
         self.egui_input.take()
     }
