@@ -23,7 +23,7 @@ all-features = true
 
 [dependencies]
 egui = { version = "0.14.0", path = "../egui", default-features = false, features = ["single_threaded"] }
-egui_for_winit = { version = "0.14.0", path = "../egui_for_winit" }
+egui_for_winit = { version = "0.14.0", path = "../egui_for_winit", default-features = false }
 epi = { version = "0.14.0", path = "../epi" }
 glium = "0.30"
 
@@ -41,9 +41,16 @@ image = { version = "0.23", default-features = false, features = ["png"] }
 [features]
 default = ["default_fonts"]
 
+# enable cut/copy/paste to OS clipboard.
+clipboard = ["egui_for_winit/clipboard"]
+
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["egui/default_fonts"]
+
+# enable opening links in a browser when an egui hyperlink is clicked.
+links = ["egui_for_winit/links"]
+
 persistence = [
     "directories-next",
     "egui/persistence",
@@ -51,5 +58,9 @@ persistence = [
     "ron",
     "serde",
 ]
-time = ["chrono"] # for seconds_since_midnight
-screen_reader = ["egui_for_winit/screen_reader"] # experimental
+
+# for seconds_since_midnight (used in egui_demo_lib)
+time = ["chrono"]
+
+# experimental support for a screen reader
+screen_reader = ["egui_for_winit/screen_reader"]

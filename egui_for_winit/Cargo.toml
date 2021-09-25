@@ -32,6 +32,13 @@ webbrowser = { version = "0.5", optional = true }
 tts = { version = "0.17", optional = true }
 
 [features]
-default = ["copypasta", "webbrowser"]
+default = ["clipboard", "links"]
 
-screen_reader = ["tts"] # experimental
+# enable cut/copy/paste to OS clipboard.
+clipboard = ["copypasta"]
+
+# enable opening links in a browser when an egui hyperlink is clicked.
+links = ["webbrowser"]
+
+# experimental support for a screen reader
+screen_reader = ["tts"]
