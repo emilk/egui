@@ -13,11 +13,6 @@ impl TypeId {
 
 impl From<std::any::TypeId> for TypeId {
     fn from(id: std::any::TypeId) -> Self {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
-
-        let mut hasher = DefaultHasher::new();
-        id.hash(&mut hasher);
-        Self(hasher.finish())
+        Self(epaint::util::hash(id))
     }
 }

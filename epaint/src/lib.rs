@@ -82,6 +82,7 @@ mod stroke;
 pub mod tessellator;
 pub mod text;
 mod texture_atlas;
+pub mod util;
 
 pub use {
     color::{Color32, Rgba},

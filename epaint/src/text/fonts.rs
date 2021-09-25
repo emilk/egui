@@ -1,8 +1,4 @@
-use std::{
-    collections::BTreeMap,
-    hash::{Hash, Hasher},
-    sync::Arc,
-};
+use std::{collections::BTreeMap, sync::Arc};
 
 use crate::{
     mutex::Mutex,
@@ -261,10 +257,7 @@ impl Fonts {
             let mut atlas = atlas.lock();
             let texture = atlas.texture_mut();
             // Make sure we seed the texture version with something unique based on the default characters:
-            use std::collections::hash_map::DefaultHasher;
-            let mut hasher = DefaultHasher::default();
-            texture.pixels.hash(&mut hasher);
-            texture.version = hasher.finish();
+            texture.version = crate::util::hash(&texture.pixels);
         }
 
         Self {
@@ -412,11 +405,7 @@ struct GalleyCache {
 
 impl GalleyCache {
     fn layout(&mut self, fonts: &Fonts, job: LayoutJob) -> Arc<Galley> {
-        let hash = {
-            let mut hasher = ahash::AHasher::new_with_keys(123, 456); // TODO: even faster hasher?
-            job.hash(&mut hasher);
-            hasher.finish()
-        };
+        let hash = crate::util::hash_with(&job, ahash::AHasher::new_with_keys(123, 456)); // TODO: even faster hasher?
 
         match self.cache.entry(hash) {
             std::collections::hash_map::Entry::Occupied(entry) => {

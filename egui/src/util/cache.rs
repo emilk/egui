@@ -1,4 +1,4 @@
-use std::hash::{Hash, Hasher};
+use epaint::util::hash;
 
 const SIZE: usize = 1024; // must be small for web/WASM build (for unknown reason)
 
@@ -24,7 +24,7 @@ impl<K, V> std::fmt::Debug for Cache<K, V> {
 
 impl<K, V> Cache<K, V>
 where
-    K: Hash + PartialEq,
+    K: std::hash::Hash + PartialEq,
 {
     pub fn get(&self, key: &K) -> Option<&V> {
         let bucket = (hash(key) % (SIZE as u64)) as usize;
@@ -38,11 +38,4 @@ where
         let bucket = (hash(&key) % (SIZE as u64)) as usize;
         self.0[bucket] = Some((key, value));
     }
-}
-
-fn hash(value: impl Hash) -> u64 {
-    use std::collections::hash_map::DefaultHasher;
-    let mut hasher = DefaultHasher::default();
-    value.hash(&mut hasher);
-    hasher.finish()
 }
