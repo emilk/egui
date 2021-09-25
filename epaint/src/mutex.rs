@@ -2,6 +2,9 @@
 //!
 //! When the `single_threaded` feature is on the mutexes will panic when locked from different threads.
 
+#[cfg(not(any(feature = "single_threaded", feature = "multi_threaded")))]
+compile_error!("Either feature \"single_threaded\" or \"multi_threaded\" must be enabled.");
+
 // ----------------------------------------------------------------------------
 
 /// The lock you get from [`Mutex`].

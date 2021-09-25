@@ -47,7 +47,7 @@ cint = ["epaint/cint"]
 
 persistence = ["serde", "epaint/persistence", "ron"]
 
-# Only needed if you plan to use the same egui::Context from multiple threads.
+# multi_threaded is only needed if you plan to use the same egui::Context from multiple threads.
 single_threaded = ["epaint/single_threaded"]
 multi_threaded = ["epaint/multi_threaded"]
 
