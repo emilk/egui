@@ -429,6 +429,7 @@ impl State {
 
         self.set_cursor_icon(window, output.cursor_icon);
 
+        #[cfg(feature = "webbrowser")]
         if let Some(open) = output.open_url {
             if let Err(err) = webbrowser::open(&open.url) {
                 eprintln!("Failed to open url: {}", err);
