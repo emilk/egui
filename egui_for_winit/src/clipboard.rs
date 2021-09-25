@@ -27,9 +27,7 @@ impl Clipboard {
         if let Some(clipboard) = &mut self.copypasta {
             use copypasta::ClipboardProvider as _;
             match clipboard.get_contents() {
-                Ok(contents) => {
-                    return Some(contents);
-                }
+                Ok(contents) => Some(contents),
                 Err(err) => {
                     eprintln!("Paste error: {}", err);
                     None
