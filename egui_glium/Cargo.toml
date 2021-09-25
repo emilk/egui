@@ -42,6 +42,7 @@ image = { version = "0.23", default-features = false, features = ["png"] }
 default = ["clipboard", "default_fonts", "links"]
 
 # enable cut/copy/paste to OS clipboard.
+# if disabled a clipboard will be simulated so you can still copy/paste within the egui app.
 clipboard = ["egui_for_winit/clipboard"]
 
 # If set, egui will use `include_bytes!` to bundle some fonts.

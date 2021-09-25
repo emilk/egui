@@ -74,6 +74,7 @@
 
 pub use winit;
 
+pub mod clipboard;
 pub mod screen_reader;
 
 pub fn native_pixels_per_point(window: &winit::window::Window) -> f32 {
@@ -97,16 +98,14 @@ pub struct State {
     /// What egui uses.
     current_pixels_per_point: f32,
 
-    screen_reader: crate::screen_reader::ScreenReader,
-
-    #[cfg(feature = "copypasta")]
-    clipboard: Option<copypasta::ClipboardContext>,
+    clipboard: clipboard::Clipboard,
+    screen_reader: screen_reader::ScreenReader,
 }
 
 impl State {
     /// Initialize with the native `pixels_per_point` (dpi scaling).
     pub fn new(window: &winit::window::Window) -> Self {
-        Self::from_pixels_per_point(crate::native_pixels_per_point(window))
+        Self::from_pixels_per_point(native_pixels_per_point(window))
     }
 
     /// Initialize with a given dpi scaling.
@@ -122,10 +121,8 @@ impl State {
             current_cursor_icon: egui::CursorIcon::Default,
             current_pixels_per_point: pixels_per_point,
 
-            screen_reader: crate::screen_reader::ScreenReader::default(),
-
-            #[cfg(feature = "copypasta")]
-            clipboard: init_clipboard(),
+            clipboard: Default::default(),
+            screen_reader: screen_reader::ScreenReader::default(),
         }
     }
 
@@ -298,17 +295,8 @@ impl State {
                         } else if is_copy_command(self.egui_input.modifiers, keycode) {
                             self.egui_input.events.push(egui::Event::Copy);
                         } else if is_paste_command(self.egui_input.modifiers, keycode) {
-                            #[cfg(feature = "copypasta")]
-                            if let Some(clipboard) = &mut self.clipboard {
-                                use copypasta::ClipboardProvider as _;
-                                match clipboard.get_contents() {
-                                    Ok(contents) => {
-                                        self.egui_input.events.push(egui::Event::Text(contents));
-                                    }
-                                    Err(err) => {
-                                        eprintln!("Paste error: {}", err);
-                                    }
-                                }
+                            if let Some(contents) = self.clipboard.get() {
+                                self.egui_input.events.push(egui::Event::Text(contents));
                             }
                         }
                     }
@@ -439,7 +427,7 @@ impl State {
         }
 
         if !output.copied_text.is_empty() {
-            self.copy_to_clipboard(output.copied_text);
+            self.clipboard.set(output.copied_text);
         }
 
         if let Some(egui::Pos2 { x, y }) = output.text_cursor_pos {
@@ -486,27 +474,6 @@ impl State {
             }
         } else {
             window.set_cursor_visible(false);
-        }
-    }
-
-    fn copy_to_clipboard(&mut self, _copied_text: String) {
-        #[cfg(feature = "copypasta")]
-        if let Some(clipboard) = &mut self.clipboard {
-            use copypasta::ClipboardProvider as _;
-            if let Err(err) = clipboard.set_contents(_copied_text) {
-                eprintln!("Copy/Cut error: {}", err);
-            }
-        }
-    }
-}
-
-#[cfg(feature = "copypasta")]
-fn init_clipboard() -> Option<copypasta::ClipboardContext> {
-    match copypasta::ClipboardContext::new() {
-        Ok(clipboard) => Some(clipboard),
-        Err(err) => {
-            eprintln!("Failed to initialize clipboard: {}", err);
-            None
         }
     }
 }

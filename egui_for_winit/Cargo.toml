@@ -35,6 +35,7 @@ tts = { version = "0.17", optional = true }
 default = ["clipboard", "links"]
 
 # enable cut/copy/paste to OS clipboard.
+# if disabled a clipboard will be simulated so you can still copy/paste within the egui app.
 clipboard = ["copypasta"]
 
 # enable opening links in a browser when an egui hyperlink is clicked.
