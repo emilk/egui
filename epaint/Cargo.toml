@@ -36,7 +36,7 @@ parking_lot = { version = "0.11", optional = true } # Using parking_lot over std
 serde = { version = "1", features = ["derive"], optional = true }
 
 [features]
-default = ["multi_threaded", "default_fonts"]
+default = ["default_fonts", "multi_threaded"]
 
 # If set, epaint will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
@@ -55,4 +55,5 @@ persistence = ["serde", "emath/serde"]
 single_threaded = ["atomic_refcell"]
 
 # Only needed if you plan to use the same fonts from multiple threads.
+# It comes with a minor performance impact.
 multi_threaded = ["parking_lot"]

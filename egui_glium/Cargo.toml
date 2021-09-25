@@ -39,7 +39,7 @@ chrono = { version = "0.4", optional = true }
 image = { version = "0.23", default-features = false, features = ["png"] }
 
 [features]
-default = ["default_fonts"]
+default = ["clipboard", "default_fonts", "links"]
 
 # enable cut/copy/paste to OS clipboard.
 clipboard = ["egui_for_winit/clipboard"]
@@ -59,8 +59,8 @@ persistence = [
     "serde",
 ]
 
-# for seconds_since_midnight (used in egui_demo_lib)
-time = ["chrono"]
-
 # experimental support for a screen reader
 screen_reader = ["egui_for_winit/screen_reader"]
+
+# for seconds_since_midnight (used in egui_demo_lib)
+time = ["chrono"]
