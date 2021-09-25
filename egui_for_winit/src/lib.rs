@@ -104,7 +104,7 @@ pub struct State {
 }
 
 impl State {
-    /// Initialize with the native pixels_per_point (dpi scaling).
+    /// Initialize with the native `pixels_per_point` (dpi scaling).
     pub fn new(window: &winit::window::Window) -> Self {
         Self::from_pixels_per_point(crate::native_pixels_per_point(window))
     }
@@ -129,7 +129,8 @@ impl State {
         }
     }
 
-    /// The same as what egui uses.
+    /// The number of physical pixels per logical point,
+    /// as configured on the current egui context (see [`egui::Context::pixels_per_point`]).
     pub fn pixels_per_point(&self) -> f32 {
         self.current_pixels_per_point
     }
@@ -140,7 +141,8 @@ impl State {
         &self.egui_input
     }
 
-    /// Prepare for a new frame by extracting the accumulated input.
+    /// Prepare for a new frame by extracting the accumulated input,
+    /// as well as setting [the time](egui::RawInput::time) and [screen rectangle](egui::RawInput::screen_rect).
     pub fn take_egui_input(&mut self, display: &winit::window::Window) -> egui::RawInput {
         let pixels_per_point = self.pixels_per_point();
 
@@ -407,7 +409,12 @@ impl State {
 
     /// Call with the output given by `egui`.
     ///
-    /// This will update the cursor, copy text to the clipboard, etc.
+    /// This will, if needed:
+    /// * update the cursor
+    /// * copy text to the clipboard
+    /// * open any clicked urls
+    /// * update the IME
+    /// *
     pub fn handle_output(
         &mut self,
         window: &winit::window::Window,
@@ -428,14 +435,8 @@ impl State {
             }
         }
 
-        #[cfg(feature = "copypasta")]
         if !output.copied_text.is_empty() {
-            if let Some(clipboard) = &mut self.clipboard {
-                use copypasta::ClipboardProvider as _;
-                if let Err(err) = clipboard.set_contents(output.copied_text) {
-                    eprintln!("Copy/Cut error: {}", err);
-                }
-            }
+            self.copy_to_clipboard(output.copied_text);
         }
 
         if let Some(egui::Pos2 { x, y }) = output.text_cursor_pos {
@@ -443,7 +444,7 @@ impl State {
         }
     }
 
-    /// Helper: checks for Alt-F4 (windows/linux) or Cmd-Q (Mac)
+    /// Returns `true` if Alt-F4 (windows/linux) or Cmd-Q (Mac)
     pub fn is_quit_shortcut(&self, input: &winit::event::KeyboardInput) -> bool {
         if cfg!(target_os = "macos") {
             input.state == winit::event::ElementState::Pressed
@@ -456,7 +457,7 @@ impl State {
         }
     }
 
-    /// Is this a close event or a Cmd-Q/Alt-F4 keyboard command?
+    /// Returns `true` if this a close event or a Cmd-Q/Alt-F4 keyboard command.
     pub fn is_quit_event(&self, event: &winit::event::WindowEvent<'_>) -> bool {
         use winit::event::WindowEvent;
         match event {
@@ -482,6 +483,16 @@ impl State {
             }
         } else {
             window.set_cursor_visible(false);
+        }
+    }
+
+    fn copy_to_clipboard(&mut self, _copied_text: String) {
+        #[cfg(feature = "copypasta")]
+        if let Some(clipboard) = &mut self.clipboard {
+            use copypasta::ClipboardProvider as _;
+            if let Err(err) = clipboard.set_contents(_copied_text) {
+                eprintln!("Copy/Cut error: {}", err);
+            }
         }
     }
 }
