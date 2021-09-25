@@ -419,11 +419,8 @@ impl State {
 
         self.set_cursor_icon(window, output.cursor_icon);
 
-        #[cfg(feature = "webbrowser")]
         if let Some(open) = output.open_url {
-            if let Err(err) = webbrowser::open(&open.url) {
-                eprintln!("Failed to open url: {}", err);
-            }
+            self.open_url(open.url);
         }
 
         if !output.copied_text.is_empty() {
@@ -474,6 +471,18 @@ impl State {
             }
         } else {
             window.set_cursor_visible(false);
+        }
+    }
+
+    fn open_url(&mut self, _url: String) {
+        #[cfg(feature = "webbrowser")]
+        if let Err(err) = webbrowser::open(&_url) {
+            eprintln!("Failed to open url: {}", err);
+        }
+
+        #[cfg(not(feature = "webbrowser"))]
+        {
+            eprintln!("Cannot open url - feature \"links\" not enabled.");
         }
     }
 }
