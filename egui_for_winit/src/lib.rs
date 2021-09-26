@@ -100,6 +100,10 @@ pub struct State {
 
     clipboard: clipboard::Clipboard,
     screen_reader: screen_reader::ScreenReader,
+
+    /// If `true`, mouse inputs will be treated as touches.
+    /// Useful for debugging touch support in egui.
+    simulate_touch_screen: bool,
 }
 
 impl State {
@@ -123,17 +127,21 @@ impl State {
 
             clipboard: Default::default(),
             screen_reader: screen_reader::ScreenReader::default(),
+
+            simulate_touch_screen: false,
         }
     }
 
     /// The number of physical pixels per logical point,
     /// as configured on the current egui context (see [`egui::Context::pixels_per_point`]).
+    #[inline]
     pub fn pixels_per_point(&self) -> f32 {
         self.current_pixels_per_point
     }
 
     /// The current input state.
     /// This is changed by [`Self::on_event`] and cleared by [`Self::take_egui_input`].
+    #[inline]
     pub fn egui_input(&self) -> &egui::RawInput {
         &self.egui_input
     }
@@ -167,9 +175,6 @@ impl State {
     ///
     /// The result can be found in [`Self::egui_input`] and be extracted with [`Self::take_egui_input`].
     pub fn on_event(&mut self, event: &winit::event::WindowEvent<'_>) {
-        // Useful for debugging egui touch support on non-touch devices.
-        let simulate_touches = false;
-
         use winit::event::WindowEvent;
         match event {
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
@@ -178,75 +183,9 @@ impl State {
                 self.current_pixels_per_point = pixels_per_point;
             }
             WindowEvent::MouseInput { state, button, .. } => {
-                if let Some(pos) = self.pointer_pos_in_points {
-                    if let Some(button) = translate_mouse_button(*button) {
-                        let pressed = *state == winit::event::ElementState::Pressed;
-
-                        self.egui_input.events.push(egui::Event::PointerButton {
-                            pos,
-                            button,
-                            pressed,
-                            modifiers: self.egui_input.modifiers,
-                        });
-
-                        if simulate_touches {
-                            if pressed {
-                                self.any_pointer_button_down = true;
-
-                                self.egui_input.events.push(egui::Event::Touch {
-                                    device_id: egui::TouchDeviceId(0),
-                                    id: egui::TouchId(0),
-                                    phase: egui::TouchPhase::Start,
-                                    pos,
-                                    force: 0.0,
-                                });
-                            } else {
-                                self.any_pointer_button_down = false;
-
-                                self.egui_input.events.push(egui::Event::PointerGone);
-
-                                self.egui_input.events.push(egui::Event::Touch {
-                                    device_id: egui::TouchDeviceId(0),
-                                    id: egui::TouchId(0),
-                                    phase: egui::TouchPhase::End,
-                                    pos,
-                                    force: 0.0,
-                                });
-                            };
-                        }
-                    }
-                }
+                self.on_mouse_button_input(*state, *button);
             }
-            WindowEvent::CursorMoved {
-                position: pos_in_pixels,
-                ..
-            } => {
-                let pos_in_points = egui::pos2(
-                    pos_in_pixels.x as f32 / self.pixels_per_point(),
-                    pos_in_pixels.y as f32 / self.pixels_per_point(),
-                );
-                self.pointer_pos_in_points = Some(pos_in_points);
-
-                if simulate_touches {
-                    if self.any_pointer_button_down {
-                        self.egui_input
-                            .events
-                            .push(egui::Event::PointerMoved(pos_in_points));
-
-                        self.egui_input.events.push(egui::Event::Touch {
-                            device_id: egui::TouchDeviceId(0),
-                            id: egui::TouchId(0),
-                            phase: egui::TouchPhase::Move,
-                            pos: pos_in_points,
-                            force: 0.0,
-                        });
-                    }
-                } else {
-                    self.egui_input
-                        .events
-                        .push(egui::Event::PointerMoved(pos_in_points));
-                }
-            }
+            WindowEvent::CursorMoved { position, .. } => self.on_cursor_moved(*position),
             WindowEvent::CursorLeft { .. } => {
                 self.pointer_pos_in_points = None;
                 self.egui_input.events.push(egui::Event::PointerGone);
@@ -261,120 +200,15 @@ impl State {
                         .push(egui::Event::Text(ch.to_string()));
                 }
             }
-            WindowEvent::KeyboardInput { input, .. } => {
-                if let Some(keycode) = input.virtual_keycode {
-                    use winit::event::VirtualKeyCode;
-
-                    let pressed = input.state == winit::event::ElementState::Pressed;
-
-                    // We could also use `WindowEvent::ModifiersChanged` instead, I guess.
-                    if matches!(keycode, VirtualKeyCode::LAlt | VirtualKeyCode::RAlt) {
-                        self.egui_input.modifiers.alt = pressed;
-                    }
-                    if matches!(keycode, VirtualKeyCode::LControl | VirtualKeyCode::RControl) {
-                        self.egui_input.modifiers.ctrl = pressed;
-                        if !cfg!(target_os = "macos") {
-                            self.egui_input.modifiers.command = pressed;
-                        }
-                    }
-                    if matches!(keycode, VirtualKeyCode::LShift | VirtualKeyCode::RShift) {
-                        self.egui_input.modifiers.shift = pressed;
-                    }
-                    if cfg!(target_os = "macos")
-                        && matches!(keycode, VirtualKeyCode::LWin | VirtualKeyCode::RWin)
-                    {
-                        self.egui_input.modifiers.mac_cmd = pressed;
-                        self.egui_input.modifiers.command = pressed;
-                    }
-
-                    if pressed {
-                        // VirtualKeyCode::Paste etc in winit are broken/untrustworthy,
-                        // so we detect these things manually:
-                        if is_cut_command(self.egui_input.modifiers, keycode) {
-                            self.egui_input.events.push(egui::Event::Cut);
-                        } else if is_copy_command(self.egui_input.modifiers, keycode) {
-                            self.egui_input.events.push(egui::Event::Copy);
-                        } else if is_paste_command(self.egui_input.modifiers, keycode) {
-                            if let Some(contents) = self.clipboard.get() {
-                                self.egui_input.events.push(egui::Event::Text(contents));
-                            }
-                        }
-                    }
-
-                    if let Some(key) = translate_virtual_key_code(keycode) {
-                        self.egui_input.events.push(egui::Event::Key {
-                            key,
-                            pressed,
-                            modifiers: self.egui_input.modifiers,
-                        });
-                    }
-                }
-            }
+            WindowEvent::KeyboardInput { input, .. } => self.on_keyboard_input(input),
             WindowEvent::Focused(_) => {
                 // We will not be given a KeyboardInput event when the modifiers are released while
                 // the window does not have focus. Unset all modifier state to be safe.
                 self.egui_input.modifiers = egui::Modifiers::default();
             }
-            WindowEvent::MouseWheel { delta, .. } => {
-                let mut delta = match *delta {
-                    winit::event::MouseScrollDelta::LineDelta(x, y) => {
-                        let points_per_scroll_line = 50.0; // Scroll speed decided by consensus: https://github.com/emilk/egui/issues/461
-                        egui::vec2(x, y) * points_per_scroll_line
-                    }
-                    winit::event::MouseScrollDelta::PixelDelta(delta) => {
-                        egui::vec2(delta.x as f32, delta.y as f32) / self.pixels_per_point()
-                    }
-                };
-                if cfg!(target_os = "macos") {
-                    // This is still buggy in winit despite
-                    // https://github.com/rust-windowing/winit/issues/1695 being closed
-                    delta.x *= -1.0;
-                }
-
-                if self.egui_input.modifiers.ctrl || self.egui_input.modifiers.command {
-                    // Treat as zoom instead:
-                    self.egui_input.zoom_delta *= (delta.y / 200.0).exp();
-                } else {
-                    self.egui_input.scroll_delta += delta;
-                }
-            }
-            // WindowEvent::TouchpadPressure {
-            //     device_id,
-            //     pressure,
-            //     stage,
-            //     ..
-            // } => {
-            //     // TODO
-            // }
-            WindowEvent::Touch(touch) => {
-                use std::hash::{Hash as _, Hasher as _};
-                let pixels_per_point_recip = 1. / self.pixels_per_point();
-                let mut hasher = std::collections::hash_map::DefaultHasher::new();
-                touch.device_id.hash(&mut hasher);
-                self.egui_input.events.push(egui::Event::Touch {
-                    device_id: egui::TouchDeviceId(hasher.finish()),
-                    id: egui::TouchId::from(touch.id),
-                    phase: match touch.phase {
-                        winit::event::TouchPhase::Started => egui::TouchPhase::Start,
-                        winit::event::TouchPhase::Moved => egui::TouchPhase::Move,
-                        winit::event::TouchPhase::Ended => egui::TouchPhase::End,
-                        winit::event::TouchPhase::Cancelled => egui::TouchPhase::Cancel,
-                    },
-                    pos: egui::pos2(
-                        touch.location.x as f32 * pixels_per_point_recip,
-                        touch.location.y as f32 * pixels_per_point_recip,
-                    ),
-                    force: match touch.force {
-                        Some(winit::event::Force::Normalized(force)) => force as f32,
-                        Some(winit::event::Force::Calibrated {
-                            force,
-                            max_possible_force,
-                            ..
-                        }) => (force / max_possible_force) as f32,
-                        None => 0_f32,
-                    },
-                });
-            }
+            WindowEvent::MouseWheel { delta, .. } => self.on_mouse_wheel(*delta),
+            // WindowEvent::TouchpadPressure {device_id, pressure, stage, ..  } => {} // TODO
+            WindowEvent::Touch(touch) => self.on_touch(touch),
             WindowEvent::HoveredFile(path) => {
                 self.egui_input.hovered_files.push(egui::HoveredFile {
                     path: Some(path.clone()),
@@ -393,6 +227,179 @@ impl State {
             }
             _ => {
                 // dbg!(event);
+            }
+        }
+    }
+
+    fn on_mouse_button_input(
+        &mut self,
+        state: winit::event::ElementState,
+        button: winit::event::MouseButton,
+    ) {
+        if let Some(pos) = self.pointer_pos_in_points {
+            if let Some(button) = translate_mouse_button(button) {
+                let pressed = state == winit::event::ElementState::Pressed;
+
+                self.egui_input.events.push(egui::Event::PointerButton {
+                    pos,
+                    button,
+                    pressed,
+                    modifiers: self.egui_input.modifiers,
+                });
+
+                if self.simulate_touch_screen {
+                    if pressed {
+                        self.any_pointer_button_down = true;
+
+                        self.egui_input.events.push(egui::Event::Touch {
+                            device_id: egui::TouchDeviceId(0),
+                            id: egui::TouchId(0),
+                            phase: egui::TouchPhase::Start,
+                            pos,
+                            force: 0.0,
+                        });
+                    } else {
+                        self.any_pointer_button_down = false;
+
+                        self.egui_input.events.push(egui::Event::PointerGone);
+
+                        self.egui_input.events.push(egui::Event::Touch {
+                            device_id: egui::TouchDeviceId(0),
+                            id: egui::TouchId(0),
+                            phase: egui::TouchPhase::End,
+                            pos,
+                            force: 0.0,
+                        });
+                    };
+                }
+            }
+        }
+    }
+
+    fn on_cursor_moved(&mut self, pos_in_pixels: winit::dpi::PhysicalPosition<f64>) {
+        let pos_in_points = egui::pos2(
+            pos_in_pixels.x as f32 / self.pixels_per_point(),
+            pos_in_pixels.y as f32 / self.pixels_per_point(),
+        );
+        self.pointer_pos_in_points = Some(pos_in_points);
+
+        if self.simulate_touch_screen {
+            if self.any_pointer_button_down {
+                self.egui_input
+                    .events
+                    .push(egui::Event::PointerMoved(pos_in_points));
+
+                self.egui_input.events.push(egui::Event::Touch {
+                    device_id: egui::TouchDeviceId(0),
+                    id: egui::TouchId(0),
+                    phase: egui::TouchPhase::Move,
+                    pos: pos_in_points,
+                    force: 0.0,
+                });
+            }
+        } else {
+            self.egui_input
+                .events
+                .push(egui::Event::PointerMoved(pos_in_points));
+        }
+    }
+
+    fn on_touch(&mut self, touch: &winit::event::Touch) {
+        self.egui_input.events.push(egui::Event::Touch {
+            device_id: egui::TouchDeviceId(egui::epaint::util::hash(touch.device_id)),
+            id: egui::TouchId::from(touch.id),
+            phase: match touch.phase {
+                winit::event::TouchPhase::Started => egui::TouchPhase::Start,
+                winit::event::TouchPhase::Moved => egui::TouchPhase::Move,
+                winit::event::TouchPhase::Ended => egui::TouchPhase::End,
+                winit::event::TouchPhase::Cancelled => egui::TouchPhase::Cancel,
+            },
+            pos: egui::pos2(
+                touch.location.x as f32 / self.pixels_per_point(),
+                touch.location.y as f32 / self.pixels_per_point(),
+            ),
+            force: match touch.force {
+                Some(winit::event::Force::Normalized(force)) => force as f32,
+                Some(winit::event::Force::Calibrated {
+                    force,
+                    max_possible_force,
+                    ..
+                }) => (force / max_possible_force) as f32,
+                None => 0_f32,
+            },
+        });
+    }
+
+    fn on_mouse_wheel(&mut self, delta: winit::event::MouseScrollDelta) {
+        let mut delta = match delta {
+            winit::event::MouseScrollDelta::LineDelta(x, y) => {
+                let points_per_scroll_line = 50.0; // Scroll speed decided by consensus: https://github.com/emilk/egui/issues/461
+                egui::vec2(x, y) * points_per_scroll_line
+            }
+            winit::event::MouseScrollDelta::PixelDelta(delta) => {
+                egui::vec2(delta.x as f32, delta.y as f32) / self.pixels_per_point()
+            }
+        };
+        if cfg!(target_os = "macos") {
+            // This is still buggy in winit despite
+            // https://github.com/rust-windowing/winit/issues/1695 being closed
+            delta.x *= -1.0;
+        }
+
+        if self.egui_input.modifiers.ctrl || self.egui_input.modifiers.command {
+            // Treat as zoom instead:
+            self.egui_input.zoom_delta *= (delta.y / 200.0).exp();
+        } else {
+            self.egui_input.scroll_delta += delta;
+        }
+    }
+
+    fn on_keyboard_input(&mut self, input: &winit::event::KeyboardInput) {
+        if let Some(keycode) = input.virtual_keycode {
+            use winit::event::VirtualKeyCode;
+
+            let pressed = input.state == winit::event::ElementState::Pressed;
+
+            // We could also use `WindowEvent::ModifiersChanged` instead, I guess.
+            if matches!(keycode, VirtualKeyCode::LAlt | VirtualKeyCode::RAlt) {
+                self.egui_input.modifiers.alt = pressed;
+            }
+            if matches!(keycode, VirtualKeyCode::LControl | VirtualKeyCode::RControl) {
+                self.egui_input.modifiers.ctrl = pressed;
+                if !cfg!(target_os = "macos") {
+                    self.egui_input.modifiers.command = pressed;
+                }
+            }
+            if matches!(keycode, VirtualKeyCode::LShift | VirtualKeyCode::RShift) {
+                self.egui_input.modifiers.shift = pressed;
+            }
+            if cfg!(target_os = "macos")
+                && matches!(keycode, VirtualKeyCode::LWin | VirtualKeyCode::RWin)
+            {
+                self.egui_input.modifiers.mac_cmd = pressed;
+                self.egui_input.modifiers.command = pressed;
+            }
+
+            if pressed {
+                // VirtualKeyCode::Paste etc in winit are broken/untrustworthy,
+                // so we detect these things manually:
+                if is_cut_command(self.egui_input.modifiers, keycode) {
+                    self.egui_input.events.push(egui::Event::Cut);
+                } else if is_copy_command(self.egui_input.modifiers, keycode) {
+                    self.egui_input.events.push(egui::Event::Copy);
+                } else if is_paste_command(self.egui_input.modifiers, keycode) {
+                    if let Some(contents) = self.clipboard.get() {
+                        self.egui_input.events.push(egui::Event::Text(contents));
+                    }
+                }
+            }
+
+            if let Some(key) = translate_virtual_key_code(keycode) {
+                self.egui_input.events.push(egui::Event::Key {
+                    key,
+                    pressed,
+                    modifiers: self.egui_input.modifiers,
+                });
             }
         }
     }
