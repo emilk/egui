@@ -1,4 +1,4 @@
-use egui_for_winit::winit;
+use egui_winit::winit;
 
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]

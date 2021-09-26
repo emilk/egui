@@ -1,7 +1,7 @@
-# egui_for_winit
+# egui-winit
 
-[![Latest version](https://img.shields.io/crates/v/egui_for_winit.svg)](https://crates.io/crates/egui_for_winit)
-[![Documentation](https://docs.rs/egui_for_winit/badge.svg)](https://docs.rs/egui_for_winit)
+[![Latest version](https://img.shields.io/crates/v/egui-winit.svg)](https://crates.io/crates/egui-winit)
+[![Documentation](https://docs.rs/egui-winit/badge.svg)](https://docs.rs/egui-winit)
 [![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
 ![MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Apache](https://img.shields.io/badge/license-Apache-blue.svg)

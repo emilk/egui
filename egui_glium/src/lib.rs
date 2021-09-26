@@ -85,7 +85,7 @@ pub mod window_settings;
 pub use backend::*;
 pub use painter::Painter;
 
-pub use egui_for_winit;
+pub use egui_winit;
 pub use epi::NativeOptions;
 
 use glium::glutin;
@@ -120,7 +120,7 @@ pub fn native_pixels_per_point(display: &glium::Display) -> f32 {
 /// Use [`egui`] from a [`glium`] app.
 pub struct EguiGlium {
     egui_ctx: egui::CtxRef,
-    egui_for_winit: egui_for_winit::State,
+    egui_winit: egui_winit::State,
     painter: crate::Painter,
 }
 
@@ -128,7 +128,7 @@ impl EguiGlium {
     pub fn new(display: &glium::Display) -> Self {
         Self {
             egui_ctx: Default::default(),
-            egui_for_winit: egui_for_winit::State::new(display.gl_window().window()),
+            egui_winit: egui_winit::State::new(display.gl_window().window()),
             painter: crate::Painter::new(display),
         }
     }
@@ -146,20 +146,20 @@ impl EguiGlium {
     }
 
     pub fn pixels_per_point(&self) -> f32 {
-        self.egui_for_winit.pixels_per_point()
+        self.egui_winit.pixels_per_point()
     }
 
     pub fn egui_input(&self) -> &egui::RawInput {
-        self.egui_for_winit.egui_input()
+        self.egui_winit.egui_input()
     }
 
     pub fn on_event(&mut self, event: &glium::glutin::event::WindowEvent<'_>) {
-        self.egui_for_winit.on_event(event);
+        self.egui_winit.on_event(event);
     }
 
     /// Is this a close event or a Cmd-Q/Alt-F4 keyboard command?
     pub fn is_quit_event(&self, event: &glutin::event::WindowEvent<'_>) -> bool {
-        self.egui_for_winit.is_quit_event(event)
+        self.egui_winit.is_quit_event(event)
     }
 
     pub fn begin_frame(&mut self, display: &glium::Display) {
@@ -173,7 +173,7 @@ impl EguiGlium {
 
     /// Prepare for a new frame. Normally you would call [`Self::begin_frame`] instead.
     pub fn take_raw_input(&mut self, display: &glium::Display) -> egui::RawInput {
-        self.egui_for_winit
+        self.egui_winit
             .take_egui_input(display.gl_window().window())
     }
 
@@ -189,7 +189,7 @@ impl EguiGlium {
     }
 
     pub fn handle_output(&mut self, display: &glium::Display, output: egui::Output) {
-        self.egui_for_winit
+        self.egui_winit
             .handle_output(display.gl_window().window(), &self.egui_ctx, output);
     }
 
