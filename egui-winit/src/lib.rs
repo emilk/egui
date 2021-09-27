@@ -174,21 +174,52 @@ impl State {
     /// Call this when there is a new event.
     ///
     /// The result can be found in [`Self::egui_input`] and be extracted with [`Self::take_egui_input`].
-    pub fn on_event(&mut self, event: &winit::event::WindowEvent<'_>) {
+    ///
+    /// Returns `true` if egui wants exclusive use of this event
+    /// (e.g. a mouse click on an egui window, or entering text into a text field).
+    /// For instance, if you use egui for a game, you want to first call this
+    /// and only when this returns `false` pass on the events to your game.
+    ///
+    /// Note that egui uses `tab` to move focus between elements, so this will always return `true` for tabs.
+    pub fn on_event(
+        &mut self,
+        egui_ctx: &egui::Context,
+        event: &winit::event::WindowEvent<'_>,
+    ) -> bool {
         use winit::event::WindowEvent;
         match event {
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 let pixels_per_point = *scale_factor as f32;
                 self.egui_input.pixels_per_point = Some(pixels_per_point);
                 self.current_pixels_per_point = pixels_per_point;
+                false
             }
             WindowEvent::MouseInput { state, button, .. } => {
                 self.on_mouse_button_input(*state, *button);
+                egui_ctx.wants_pointer_input()
             }
-            WindowEvent::CursorMoved { position, .. } => self.on_cursor_moved(*position),
+            WindowEvent::MouseWheel { delta, .. } => {
+                self.on_mouse_wheel(*delta);
+                egui_ctx.wants_pointer_input()
+            }
+            WindowEvent::CursorMoved { position, .. } => {
+                self.on_cursor_moved(*position);
+                egui_ctx.is_using_pointer()
+            }
             WindowEvent::CursorLeft { .. } => {
                 self.pointer_pos_in_points = None;
                 self.egui_input.events.push(egui::Event::PointerGone);
+                false
+            }
+            // WindowEvent::TouchpadPressure {device_id, pressure, stage, ..  } => {} // TODO
+            WindowEvent::Touch(touch) => {
+                self.on_touch(touch);
+                match touch.phase {
+                    winit::event::TouchPhase::Started
+                    | winit::event::TouchPhase::Ended
+                    | winit::event::TouchPhase::Cancelled => egui_ctx.wants_pointer_input(),
+                    winit::event::TouchPhase::Moved => egui_ctx.is_using_pointer(),
+                }
             }
             WindowEvent::ReceivedCharacter(ch) => {
                 if is_printable_char(*ch)
@@ -198,25 +229,32 @@ impl State {
                     self.egui_input
                         .events
                         .push(egui::Event::Text(ch.to_string()));
+                    egui_ctx.wants_keyboard_input()
+                } else {
+                    false
                 }
             }
-            WindowEvent::KeyboardInput { input, .. } => self.on_keyboard_input(input),
+            WindowEvent::KeyboardInput { input, .. } => {
+                self.on_keyboard_input(input);
+                egui_ctx.wants_keyboard_input()
+                    || input.virtual_keycode == Some(winit::event::VirtualKeyCode::Tab)
+            }
             WindowEvent::Focused(_) => {
                 // We will not be given a KeyboardInput event when the modifiers are released while
                 // the window does not have focus. Unset all modifier state to be safe.
                 self.egui_input.modifiers = egui::Modifiers::default();
+                false
             }
-            WindowEvent::MouseWheel { delta, .. } => self.on_mouse_wheel(*delta),
-            // WindowEvent::TouchpadPressure {device_id, pressure, stage, ..  } => {} // TODO
-            WindowEvent::Touch(touch) => self.on_touch(touch),
             WindowEvent::HoveredFile(path) => {
                 self.egui_input.hovered_files.push(egui::HoveredFile {
                     path: Some(path.clone()),
                     ..Default::default()
                 });
+                false
             }
             WindowEvent::HoveredFileCancelled => {
                 self.egui_input.hovered_files.clear();
+                false
             }
             WindowEvent::DroppedFile(path) => {
                 self.egui_input.hovered_files.clear();
@@ -224,9 +262,11 @@ impl State {
                     path: Some(path.clone()),
                     ..Default::default()
                 });
+                false
             }
             _ => {
                 // dbg!(event);
+                false
             }
         }
     }

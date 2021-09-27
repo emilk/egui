@@ -153,8 +153,14 @@ impl EguiGlium {
         self.egui_winit.egui_input()
     }
 
-    pub fn on_event(&mut self, event: &glium::glutin::event::WindowEvent<'_>) {
-        self.egui_winit.on_event(event);
+    /// Returns `true` if egui wants exclusive use of this event
+    /// (e.g. a mouse click on an egui window, or entering text into a text field).
+    /// For instance, if you use egui for a game, you want to first call this
+    /// and only when this returns `false` pass on the events to your game.
+    ///
+    /// Note that egui uses `tab` to move focus between elements, so this will always return `true` for tabs.
+    pub fn on_event(&mut self, event: &glium::glutin::event::WindowEvent<'_>) -> bool {
+        self.egui_winit.on_event(&self.egui_ctx, event)
     }
 
     /// Is this a close event or a Cmd-Q/Alt-F4 keyboard command?
