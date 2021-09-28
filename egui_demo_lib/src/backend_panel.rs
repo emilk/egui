@@ -208,6 +208,13 @@ impl BackendPanel {
             if ui.button("Quit").clicked() {
                 frame.quit();
             }
+
+            if ui
+                .button("Drag me to drag window")
+                .is_pointer_button_down_on()
+            {
+                frame.drag_window();
+            }
         }
     }
 
