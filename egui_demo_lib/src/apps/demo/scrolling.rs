@@ -1,6 +1,6 @@
 use egui::{color::*, *};
 
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum ScrollDemo {
     ScrollTo,
@@ -14,8 +14,8 @@ impl Default for ScrollDemo {
     }
 }
 
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 #[derive(Default, PartialEq)]
 pub struct Scrolling {
     demo: ScrollDemo,
@@ -124,8 +124,8 @@ fn huge_content_painter(ui: &mut egui::Ui) {
 
 // ----------------------------------------------------------------------------
 
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 #[derive(PartialEq)]
 struct ScrollTo {
     track_item: usize,

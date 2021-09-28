@@ -42,14 +42,16 @@ criterion = { version = "0.3", default-features = false }
 
 [features]
 default = []
-http = ["ehttp", "image"]
-persistence = ["egui/persistence", "epi/persistence", "serde"]
-syntax_highlighting = ["syntect"]
 
 # Enable additional checks if debug assertions are enabled (debug builds).
 extra_debug_asserts = ["egui/extra_debug_asserts"]
 # Always enable additional checks.
 extra_asserts = ["egui/extra_asserts"]
+
+http = ["ehttp", "image"]
+persistence = ["egui/persistence", "epi/persistence", "serde"]
+serialize = ["egui/serialize",  "serde"]
+syntax_highlighting = ["syntect"]
 
 [[bench]]
 name = "benchmark"

@@ -1,5 +1,5 @@
 #[derive(Debug, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 enum Enum {
     First,
     Second,
@@ -7,7 +7,7 @@ enum Enum {
 }
 
 /// Shows off one example of each major type of widget.
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WidgetGallery {
     enabled: bool,
     visible: bool,

@@ -1,13 +1,13 @@
 use egui::*;
 
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct EasyMarkEditor {
     code: String,
     highlight_editor: bool,
     show_rendered: bool,
 
-    #[cfg_attr(feature = "persistence", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     highlighter: crate::easy_mark::MemoizedEasymarkHighlighter,
 }
 

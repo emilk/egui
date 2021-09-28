@@ -41,12 +41,12 @@ impl Default for RunMode {
 
 // ----------------------------------------------------------------------------
 
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct BackendPanel {
     pub open: bool,
 
-    #[cfg_attr(feature = "persistence", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     // go back to `Reactive` mode each time we start
     run_mode: RunMode,
 
@@ -57,10 +57,10 @@ pub struct BackendPanel {
     max_size_points_ui: egui::Vec2,
     pub max_size_points_active: egui::Vec2,
 
-    #[cfg_attr(feature = "persistence", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     frame_history: crate::frame_history::FrameHistory,
 
-    #[cfg_attr(feature = "persistence", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     output_event_history: std::collections::VecDeque<egui::output::OutputEvent>,
 
     egui_windows: EguiWindows,
@@ -286,7 +286,7 @@ impl BackendPanel {
 
 // ----------------------------------------------------------------------------
 
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct EguiWindows {
     // egui stuff:
     settings: bool,
