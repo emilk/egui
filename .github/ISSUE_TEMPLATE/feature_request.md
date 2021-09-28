@@ -1,5 +1,3 @@
-<!-- Please make sure a similar feature request does not already exist! -->
-
 ---
 name: Feature request
 about: Suggest an idea for this project
@@ -8,6 +6,8 @@ labels: enhancement
 assignees: ''
 
 ---
+
+Please make sure there is not already a similar issue!
 
 **Is your feature request related to a problem? Please describe.**
 <!-- A clear and concise description of what the problem is. Ex. I'm always frustrated when [...] -->
