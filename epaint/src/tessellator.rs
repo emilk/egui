@@ -152,12 +152,12 @@ impl Path {
     }
 
     /// Open-ended.
-    pub fn stroke_open(&self, stroke: Stroke, options: TessellationOptions, out: &mut Mesh) {
+    pub fn stroke_open(&self, stroke: Stroke, options: &TessellationOptions, out: &mut Mesh) {
         stroke_path(&self.0, PathType::Open, stroke, options, out)
     }
 
     /// A closed path (returning to the first point).
-    pub fn stroke_closed(&self, stroke: Stroke, options: TessellationOptions, out: &mut Mesh) {
+    pub fn stroke_closed(&self, stroke: Stroke, options: &TessellationOptions, out: &mut Mesh) {
         stroke_path(&self.0, PathType::Closed, stroke, options, out)
     }
 
@@ -165,14 +165,14 @@ impl Path {
         &self,
         path_type: PathType,
         stroke: Stroke,
-        options: TessellationOptions,
+        options: &TessellationOptions,
         out: &mut Mesh,
     ) {
         stroke_path(&self.0, path_type, stroke, options, out)
     }
 
     /// The path is taken to be closed (i.e. returning to the start again).
-    pub fn fill(&self, color: Color32, options: TessellationOptions, out: &mut Mesh) {
+    pub fn fill(&self, color: Color32, options: &TessellationOptions, out: &mut Mesh) {
         fill_closed_path(&self.0, color, options, out)
     }
 }
@@ -310,7 +310,7 @@ impl TessellationOptions {
 fn fill_closed_path(
     path: &[PathPoint],
     color: Color32,
-    options: TessellationOptions,
+    options: &TessellationOptions,
     out: &mut Mesh,
 ) {
     if color == Color32::TRANSPARENT {
@@ -356,7 +356,7 @@ fn stroke_path(
     path: &[PathPoint],
     path_type: PathType,
     stroke: Stroke,
-    options: TessellationOptions,
+    options: &TessellationOptions,
     out: &mut Mesh,
 ) {
     if stroke.width <= 0.0 || stroke.color == Color32::TRANSPARENT {
@@ -532,7 +532,7 @@ impl Tessellator {
     ///    many times, pass it a reference to the same `Path` to avoid excessive allocations.
     pub fn tessellate_shape(&mut self, tex_size: [usize; 2], shape: Shape, out: &mut Mesh) {
         let clip_rect = self.clip_rect;
-        let options = self.options;
+        let options = &self.options;
 
         match shape {
             Shape::Noop => {}
@@ -640,14 +640,14 @@ impl Tessellator {
                 closed,
                 "You asked to fill a path that is not closed. That makes no sense."
             );
-            self.scratchpad_path.fill(fill, self.options, out);
+            self.scratchpad_path.fill(fill, &self.options, out);
         }
         let typ = if closed {
             PathType::Closed
         } else {
             PathType::Open
         };
-        self.scratchpad_path.stroke(typ, stroke, self.options, out);
+        self.scratchpad_path.stroke(typ, stroke, &self.options, out);
     }
 
     pub(crate) fn tessellate_rect(&mut self, rect: &RectShape, out: &mut Mesh) {
@@ -676,8 +676,8 @@ impl Tessellator {
         path.clear();
         path::rounded_rectangle(&mut self.scratchpad_points, rect, corner_radius);
         path.add_line_loop(&self.scratchpad_points);
-        path.fill(fill, self.options, out);
-        path.stroke_closed(stroke, self.options, out);
+        path.fill(fill, &self.options, out);
+        path.stroke_closed(stroke, &self.options, out);
     }
 
     pub fn tessellate_text(&mut self, tex_size: [usize; 2], text_shape: TextShape, out: &mut Mesh) {
@@ -768,7 +768,7 @@ impl Tessellator {
                 self.scratchpad_path
                     .add_line_segment([row_rect.left_bottom(), row_rect.right_bottom()]);
                 self.scratchpad_path
-                    .stroke_open(underline, self.options, out);
+                    .stroke_open(underline, &self.options, out);
             }
         }
     }

@@ -567,7 +567,7 @@ fn add_hline(fonts: &Fonts, [start, stop]: [Pos2; 2], stroke: Stroke, mesh: &mut
         let options = crate::tessellator::TessellationOptions::from_pixels_per_point(
             fonts.pixels_per_point(),
         );
-        path.stroke_open(stroke, options, mesh);
+        path.stroke_open(stroke, &options, mesh);
     } else {
         // Thin lines often lost, so this is a bad idea
 
