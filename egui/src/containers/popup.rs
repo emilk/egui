@@ -240,6 +240,7 @@ fn show_tooltip_area_dyn<'c, R>(
         .order(Order::Tooltip)
         .fixed_pos(window_pos)
         .interactable(false)
+        .drag_bounds(Rect::EVERYTHING) // disable clip rect
         .show(ctx, |ui| {
             Frame::popup(&ctx.style())
                 .show(ui, |ui| {
