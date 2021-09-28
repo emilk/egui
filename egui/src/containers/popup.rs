@@ -93,17 +93,23 @@ pub fn show_tooltip_at_pointer<R>(
 /// Show a tooltip under the given area.
 ///
 /// If the tooltip does not fit under the area, it tries to place it above it instead.
-pub fn show_tooltip_under<R>(
+pub fn show_tooltip_for<R>(
     ctx: &CtxRef,
     id: Id,
     rect: &Rect,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
     let expanded_rect = rect.expand2(vec2(2.0, 4.0));
+    let (above, position) = if ctx.input().any_touches() {
+        (true, expanded_rect.left_top())
+    } else {
+        (false, expanded_rect.left_bottom())
+    };
     show_tooltip_at_avoid_dyn(
         ctx,
         id,
-        Some(expanded_rect.left_bottom()),
+        Some(position),
+        above,
         expanded_rect,
         Box::new(add_contents),
     )
@@ -118,10 +124,12 @@ pub fn show_tooltip_at<R>(
     suggested_position: Option<Pos2>,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
+    let above = false;
     show_tooltip_at_avoid_dyn(
         ctx,
         id,
         suggested_position,
+        above,
         Rect::NOTHING,
         Box::new(add_contents),
     )
@@ -131,13 +139,14 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
     ctx: &CtxRef,
     mut id: Id,
     suggested_position: Option<Pos2>,
+    above: bool,
     mut avoid_rect: Rect,
     add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
 ) -> Option<R> {
     let mut tooltip_rect = Rect::NOTHING;
     let mut count = 0;
 
-    let position = if let Some((stored_id, stored_tooltip_rect, stored_count)) =
+    let mut position = if let Some((stored_id, stored_tooltip_rect, stored_count)) =
         ctx.frame_state().tooltip_rect
     {
         // if there are multiple tooltips open they should use the same id for the `tooltip_size` caching to work.
@@ -145,11 +154,15 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
         tooltip_rect = stored_tooltip_rect;
         count = stored_count;
         avoid_rect = avoid_rect.union(tooltip_rect);
-        tooltip_rect.left_bottom()
+        if above {
+            tooltip_rect.left_top()
+        } else {
+            tooltip_rect.left_bottom()
+        }
     } else if let Some(position) = suggested_position {
         position
     } else if ctx.memory().everything_is_visible() {
-        Pos2::default()
+        Pos2::ZERO
     } else {
         return None; // No good place for a tooltip :(
     };
@@ -160,21 +173,30 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
         .get_or_default::<crate::containers::popup::MonoState>()
         .tooltip_size(id, count);
     let expected_size = expected_size.unwrap_or_else(|| vec2(64.0, 32.0));
-    let position = position.min(ctx.input().screen_rect().right_bottom() - expected_size);
-    // Place the tooltip above the avoid_rect if necessary.
-    let new_rect = Rect::from_min_size(position, expected_size);
-    // Note: We do not use Rect::intersects() since it returns true even if the rects only touch.
-    let position = if avoid_rect.min.x < new_rect.max.x
-        && new_rect.min.x < avoid_rect.max.x
-        && avoid_rect.min.y < new_rect.max.y
-        && new_rect.min.y < avoid_rect.max.y
-    {
-        Pos2::new(position.x, avoid_rect.min.y - expected_size.y)
-    } else {
-        position
-    };
 
-    let position = position.max(ctx.input().screen_rect().left_top());
+    if above {
+        position.y -= expected_size.y;
+    }
+
+    position = position.at_most(ctx.input().screen_rect().max - expected_size);
+
+    // check if we intersect the avoid_rect
+    {
+        let new_rect = Rect::from_min_size(position, expected_size);
+
+        // Note: We do not use Rect::intersects() since it returns true even if the rects only touch.
+        if new_rect.shrink(1.0).intersects(avoid_rect) {
+            if above {
+                // place below instead:
+                position = avoid_rect.left_bottom();
+            } else {
+                // place above instead:
+                position = Pos2::new(position.x, avoid_rect.min.y - expected_size.y);
+            }
+        }
+    }
+
+    let position = position.at_least(ctx.input().screen_rect().min);
 
     let InnerResponse { inner, response } = show_tooltip_area_dyn(ctx, id, position, add_contents);
     ctx.memory()

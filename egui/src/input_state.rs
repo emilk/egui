@@ -266,6 +266,11 @@ impl InputState {
         }
     }
 
+    /// True if there currently are any fingers touching egui.
+    pub fn any_touches(&self) -> bool {
+        !self.touch_states.is_empty()
+    }
+
     /// Scans `events` for device IDs of touch devices we have not seen before,
     /// and creates a new `TouchState` for each such device.
     fn create_touch_states_for_new_devices(&mut self, events: &[Event]) {

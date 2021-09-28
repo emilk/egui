@@ -314,7 +314,7 @@ impl Response {
     #[doc(alias = "tooltip")]
     pub fn on_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
         if self.should_show_hover_ui() {
-            crate::containers::show_tooltip_under(
+            crate::containers::show_tooltip_for(
                 &self.ctx,
                 self.id.with("__tooltip"),
                 &self.rect,
@@ -327,7 +327,7 @@ impl Response {
     /// Show this UI when hovering if the widget is disabled.
     pub fn on_disabled_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
         if !self.enabled && self.ctx.rect_contains_pointer(self.layer_id, self.rect) {
-            crate::containers::show_tooltip_under(
+            crate::containers::show_tooltip_for(
                 &self.ctx,
                 self.id.with("__tooltip"),
                 &self.rect,
