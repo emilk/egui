@@ -6,7 +6,7 @@ use crate::*;
 /// 2D bounding box of f64 precision.
 /// The range of data values we show.
 #[derive(Clone, Copy, PartialEq, Debug)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct Bounds {
     pub min: [f64; 2],
     pub max: [f64; 2],

@@ -8,7 +8,7 @@ use crate::*;
 
 /// State that is persisted between frames
 #[derive(Clone, Copy, Debug)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct State {
     /// Last known pos
     pub pos: Pos2,

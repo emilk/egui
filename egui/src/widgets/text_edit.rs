@@ -4,25 +4,25 @@ use std::ops::Range;
 use std::sync::Arc;
 
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub(crate) struct State {
     cursorp: Option<CursorPair>,
 
-    #[cfg_attr(feature = "persistence", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     undoer: Undoer<(CCursorPair, String)>,
 
     // If IME candidate window is shown on this text edit.
-    #[cfg_attr(feature = "persistence", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     has_ime: bool,
 
     // Visual offset when editing singleline text bigger than the width.
-    #[cfg_attr(feature = "persistence", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     singleline_offset: f32,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct CursorPair {
     /// When selecting with a mouse, this is where the mouse was released.
     /// When moving with e.g. shift+arrows, this is what moves.
@@ -86,7 +86,7 @@ impl CursorPair {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct CCursorPair {
     /// When selecting with a mouse, this is where the mouse was released.
     /// When moving with e.g. shift+arrows, this is what moves.

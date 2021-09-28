@@ -45,6 +45,10 @@ mint = ["epaint/mint"]
 # add compatibility with https://crates.io/crates/cint
 cint = ["epaint/cint"]
 
+# implement serde on most types.
+serialize = ["serde", "epaint/serialize"]
+
+# enable persistence of memory (window positions etc).
 persistence = ["serde", "epaint/serialize", "ron"]
 
 # multi_threaded is only needed if you plan to use the same egui::Context

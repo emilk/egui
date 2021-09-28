@@ -20,8 +20,8 @@ use epaint::Stroke;
 
 /// What is saved between frames.
 #[derive(Clone, Copy, Debug, Default)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub(crate) struct BarState {
     open_menu: Option<Id>,
 }

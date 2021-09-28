@@ -1,7 +1,7 @@
 use crate::*;
 
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct State {
     col_widths: Vec<f32>,
     row_heights: Vec<f32>,

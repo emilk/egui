@@ -4,8 +4,8 @@ use crate::{widgets::Label, *};
 use epaint::{Shape, TextStyle};
 
 #[derive(Clone, Copy, Debug)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub(crate) struct State {
     open: bool,
 

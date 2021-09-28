@@ -18,7 +18,7 @@ use std::ops::RangeInclusive;
 use crate::*;
 
 #[derive(Clone, Copy, Debug)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct PanelState {
     rect: Rect,
 }
