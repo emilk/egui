@@ -13,7 +13,7 @@ use emath::*;
 ///
 /// Pass this to [`Fonts::layout_job]` or [`crate::text::layout`].
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct LayoutJob {
     /// The complete text of this job, referenced by `LayoutSection`.
     pub text: String, // TODO: Cow<'static, str>
@@ -137,7 +137,7 @@ impl std::hash::Hash for LayoutJob {
 // ----------------------------------------------------------------------------
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct LayoutSection {
     /// Can be used for first row indentation.
     pub leading_space: f32,
@@ -163,7 +163,7 @@ impl std::hash::Hash for LayoutSection {
 // ----------------------------------------------------------------------------
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TextFormat {
     pub style: TextStyle,
     /// Text color

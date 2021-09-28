@@ -45,7 +45,7 @@ mint = ["epaint/mint"]
 # add compatibility with https://crates.io/crates/cint
 cint = ["epaint/cint"]
 
-persistence = ["serde", "epaint/persistence", "ron"]
+persistence = ["serde", "epaint/serialize", "ron"]
 
 # multi_threaded is only needed if you plan to use the same egui::Context
 # from multiple threads. It comes with a minor performance impact.

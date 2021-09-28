@@ -3,7 +3,7 @@ use super::*;
 /// The color and fuzziness of a fuzzy shape.
 /// Can be used for a rectangular shadow with a soft penumbra.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Shadow {
     /// The shadow extends this much outside the rect.
     /// The size of the fuzzy penumbra.

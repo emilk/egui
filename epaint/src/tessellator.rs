@@ -254,8 +254,8 @@ pub enum PathType {
 
 /// Tessellation quality options
 #[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct TessellationOptions {
     /// Size of a point in pixels, e.g. 2.0. Used to snap text to pixel boundaries.
     pub pixels_per_point: f32,

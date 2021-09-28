@@ -50,7 +50,7 @@ extra_asserts = ["emath/extra_asserts"]
 # Add compatability with https://github.com/kvark/mint
 mint = ["emath/mint"]
 
-persistence = ["serde", "emath/serde"]
+serialize = ["serde", "emath/serde"]
 
 single_threaded = ["atomic_refcell"]
 

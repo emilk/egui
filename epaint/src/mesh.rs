@@ -6,7 +6,7 @@ use emath::*;
 /// Should be friendly to send to GPU as is.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Vertex {
     /// Logical pixel coordinates (points).
     /// (0,0) is the top left corner of the screen.
@@ -23,7 +23,7 @@ pub struct Vertex {
 
 /// Textured triangles in two dimensions.
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Mesh {
     /// Draw as triangles (i.e. the length is always multiple of three).
     ///

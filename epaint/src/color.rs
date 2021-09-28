@@ -14,7 +14,7 @@
 /// Internally this uses 0-255 gamma space `sRGBA` color with premultiplied alpha.
 /// Alpha channel is in linear space.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Color32(pub(crate) [u8; 4]);
 
 impl std::ops::Index<usize> for Color32 {
@@ -184,7 +184,7 @@ impl Color32 {
 
 /// 0-1 linear space `RGBA` color with premultiplied alpha.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Rgba(pub(crate) [f32; 4]);
 
 impl std::ops::Index<usize> for Rgba {
