@@ -1,5 +1,3 @@
-<!-- Please make sure a similar feature request does not already exist! -->
-
 ---
 name: Feature request
 about: Suggest an idea for this project
