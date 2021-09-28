@@ -77,7 +77,7 @@ fn window_builder_drag_and_drop(
 fn create_display(
     app: &dyn epi::App,
     native_options: &epi::NativeOptions,
-    window_settings: Option<WindowSettings>,
+    window_settings: &Option<WindowSettings>,
     window_icon: Option<glutin::window::Icon>,
     event_loop: &glutin::event_loop::EventLoop<RequestRepaintEvent>,
 ) -> glium::Display {
@@ -95,8 +95,8 @@ fn create_display(
 
     let initial_size_points = native_options.initial_window_size;
 
-    if let Some(window_settings) = &window_settings {
-        window_builder = window_settings.initialize_size(window_builder);
+    if let Some(window_settings) = window_settings {
+        window_builder = window_settings.initialize_window(window_builder);
     } else if let Some(initial_size_points) = initial_size_points {
         window_builder = window_builder.with_inner_size(glutin::dpi::LogicalSize {
             width: initial_size_points.x as f64,
@@ -110,20 +110,7 @@ fn create_display(
         .with_stencil_buffer(0)
         .with_vsync(true);
 
-    let display = glium::Display::new(window_builder, context_builder, event_loop).unwrap();
-
-    if !cfg!(target_os = "windows") {
-        // If the app last ran on two monitors and only one is now connected, then
-        // the given position is invalid.
-        // If this happens on Mac, the window is clamped into valid area.
-        // If this happens on Windows, the window is hidden and impossible to bring to get at.
-        // So we don't restore window positions on Windows.
-        if let Some(window_settings) = &window_settings {
-            window_settings.restore_positions(&display);
-        }
-    }
-
-    display
+    glium::Display::new(window_builder, context_builder, event_loop).unwrap()
 }
 
 #[cfg(not(feature = "persistence"))]
@@ -173,14 +160,14 @@ fn load_icon(icon_data: epi::IconData) -> Option<glutin::window::Icon> {
 // ----------------------------------------------------------------------------
 
 /// Run an egui app
-pub fn run(mut app: Box<dyn epi::App>, native_options: epi::NativeOptions) {
+pub fn run(mut app: Box<dyn epi::App>, native_options: &epi::NativeOptions) {
     #[allow(unused_mut)]
     let mut storage = create_storage(app.name());
 
     let window_settings = deserialize_window_settings(&storage);
     let mut event_loop = glutin::event_loop::EventLoop::with_user_event();
     let icon = native_options.icon_data.clone().and_then(load_icon);
-    let display = create_display(&*app, &native_options, window_settings, icon, &event_loop);
+    let display = create_display(&*app, native_options, &window_settings, icon, &event_loop);
 
     let repaint_signal = std::sync::Arc::new(GliumRepaintSignal(std::sync::Mutex::new(
         event_loop.create_proxy(),
@@ -260,7 +247,7 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: epi::NativeOptions) {
                     } else {
                         // Winit uses up all the CPU of one core when returning ControlFlow::Wait.
                         // Sleeping here helps, but still uses 1-3% of CPU :(
-                        if is_focused || !egui.input_state.raw.hovered_files.is_empty() {
+                        if is_focused || !egui.egui_input().hovered_files.is_empty() {
                             std::thread::sleep(std::time::Duration::from_millis(10));
                         } else {
                             std::thread::sleep(std::time::Duration::from_millis(50));

@@ -28,7 +28,7 @@ epi = { version = "0.14.0", path = "../epi" }
 
 # For compiling natively:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui_glium = { version = "0.14.0", path = "../egui_glium", default-features = false }
+egui_glium = { version = "0.14.0", path = "../egui_glium", default-features = false, features = ["clipboard", "links"] }
 
 # For compiling to web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -43,6 +43,12 @@ default = ["default_fonts"]
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["egui/default_fonts"]
+
+# Enable saving app state to disk.
 persistence = ["epi/persistence", "egui_glium/persistence", "egui_web/persistence"]
-screen_reader = ["egui_glium/screen_reader", "egui_web/screen_reader"] # experimental
-time = ["egui_glium/time"] # for seconds_since_midnight
+
+# experimental support for a screen reader
+screen_reader = ["egui_glium/screen_reader", "egui_web/screen_reader"]
+
+# for seconds_since_midnight (used in egui_demo_lib)
+time = ["egui_glium/time"]

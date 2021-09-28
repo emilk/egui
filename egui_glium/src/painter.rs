@@ -1,4 +1,5 @@
 #![allow(deprecated)] // legacy implement_vertex macro
+#![allow(semicolon_in_expressions_from_macros)] // glium::program! macro
 
 use {
     egui::{
