@@ -1,7 +1,7 @@
 /// Hash the given value with a predictable hasher.
 #[inline]
 pub fn hash(value: impl std::hash::Hash) -> u64 {
-    hash_with(value, std::collections::hash_map::DefaultHasher::default())
+    hash_with(value, ahash::AHasher::new_with_keys(123, 456))
 }
 
 /// Hash the given value with the given hasher.

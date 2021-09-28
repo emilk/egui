@@ -1,7 +1,5 @@
 // TODO: have separate types `PositionId` and `UniqueId`. ?
 
-use std::hash::Hash;
-
 /// egui tracks widgets frame-to-frame using `Id`s.
 ///
 /// For instance, if you start dragging a slider one frame, egui stores
@@ -37,21 +35,17 @@ impl Id {
     }
 
     /// Generate a new `Id` by hashing some source (e.g. a string or integer).
-    pub fn new(source: impl Hash) -> Id {
-        // NOTE: AHasher is NOT suitable for this!
-        use std::collections::hash_map::DefaultHasher;
+    pub fn new(source: impl std::hash::Hash) -> Id {
         use std::hash::Hasher;
-        let mut hasher = DefaultHasher::default();
+        let mut hasher = epaint::ahash::AHasher::new_with_keys(123, 456);
         source.hash(&mut hasher);
         Id(hasher.finish())
     }
 
     /// Generate a new `Id` by hashing the parent `Id` and the given argument.
-    pub fn with(self, child: impl Hash) -> Id {
-        // NOTE: AHasher is NOT suitable for this!
-        use std::collections::hash_map::DefaultHasher;
+    pub fn with(self, child: impl std::hash::Hash) -> Id {
         use std::hash::Hasher;
-        let mut hasher = DefaultHasher::default();
+        let mut hasher = epaint::ahash::AHasher::new_with_keys(123, 456);
         hasher.write_u64(self.0);
         child.hash(&mut hasher);
         Id(hasher.finish())
