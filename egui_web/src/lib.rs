@@ -641,8 +641,7 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     }
 
     #[cfg(web_sys_unstable_apis)]
-    // paste is handled by IME text agent!
-    if false {
+    {
         // paste
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::ClipboardEvent| {
@@ -651,6 +650,8 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                     let mut runner_lock = runner_ref.0.lock();
                     runner_lock.input.raw.events.push(egui::Event::Text(text));
                     runner_lock.needs_repaint.set_true();
+                    event.stop_propagation();
+                    event.prevent_default();
                 }
             }
         }) as Box<dyn FnMut(_)>);
