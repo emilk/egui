@@ -228,9 +228,10 @@ fn show_menu_bar(ui: &mut Ui) {
     use egui::*;
 
     menu::bar(ui, |ui| {
-        menu::menu_button(ui, "File", |ui| {
+        ui.menu_button("File", |ui| {
             if ui.button("Organize windows").clicked() {
                 ui.ctx().memory().reset_areas();
+                ui.close_menu();
             }
             if ui
                 .button("Reset egui memory")
@@ -238,6 +239,7 @@ fn show_menu_bar(ui: &mut Ui) {
                 .clicked()
             {
                 *ui.ctx().memory() = Default::default();
+                ui.close_menu();
             }
         });
     });

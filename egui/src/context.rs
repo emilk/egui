@@ -311,7 +311,7 @@ impl CtxRef {
         add_contents: impl FnOnce(&mut Ui),
     ) {
         self.context_menu_system()
-            .context_menu(response, add_contents)
+            .context_menu(response, add_contents);
     }
 }
 
@@ -387,7 +387,7 @@ impl Context {
         self.memory.lock()
     }
 
-    pub fn context_menu_system(&self) -> MutexGuard<'_, ContextMenuSystem> {
+    pub(crate) fn context_menu_system(&self) -> MutexGuard<'_, ContextMenuSystem> {
         self.context_menu_system.lock()
     }
 

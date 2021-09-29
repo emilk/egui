@@ -27,7 +27,7 @@ use std::sync::Arc;
 /// What is saved between frames.
 #[derive(Clone, Default)]
 pub(crate) struct BarState {
-    open_menu: Option<MenuRoot>,
+    open_menu: MenuRootManager,
 }
 
 impl BarState {
@@ -41,12 +41,23 @@ impl BarState {
     fn save(self, ctx: &Context, bar_id: Id) {
         ctx.memory().id_data_temp.insert(bar_id, self);
     }
-    pub fn is_menu_open(&self, id: Id) -> bool {
-        is_menu_open(&self.open_menu, id)
+    /// Show a menu at pointer if right-clicked response.
+    /// Should be called from [`Context`] on a [`Response`]
+    pub fn bar_menu<R>(&mut self, response: &Response, add_contents: impl FnOnce(&mut Ui) -> R) -> Option<InnerResponse<R>> {
+        MenuRoot::stationary_click_interaction(response, &mut self.open_menu, response.id);
+        self.open_menu.show(response, add_contents)
     }
 }
-fn is_menu_open(menu: &Option<MenuRoot>, id: Id) -> bool {
-    menu.as_ref().map(|m| m.id) == Some(id)
+impl std::ops::Deref for BarState {
+    type Target = MenuRootManager;
+    fn deref(&self) -> &Self::Target {
+        &self.open_menu
+    }
+}
+impl std::ops::DerefMut for BarState {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.open_menu
+    }
 }
 
 /// The menu bar goes well in a [`TopBottomPanel::top`],
@@ -153,53 +164,75 @@ fn stationary_menu_impl<'c, R>(
 
     let mut button = Button::new(title);
 
-    if bar_state.is_menu_open(menu_id) {
+    if bar_state.open_menu.is_menu_open(menu_id) {
         button = button.fill(ui.visuals().widgets.open.bg_fill);
         button = button.stroke(ui.visuals().widgets.open.bg_stroke);
     }
 
     let button_response = ui.add(button);
-    MenuRoot::stationary_click_interaction(&button_response, &mut bar_state.open_menu, menu_id);
-    let inner = if bar_state.is_menu_open(menu_id) || ui.ctx().memory().everything_is_visible() {
-        let menu_state = &bar_state.open_menu.as_ref().unwrap().menu_state;
-        Some(MenuState::show(ui.ctx(), menu_state, menu_id, add_contents).inner)
-    } else {
-        None
-    };
+    let inner = bar_state.bar_menu(&button_response, add_contents);
 
     bar_state.save(ui.ctx(), bar_id);
-    InnerResponse::new(inner, button_response)
+    InnerResponse::new(inner.map(|r| r.inner), button_response)
 }
 
 /// Stores the state for the context menu.
 #[derive(Default)]
-pub struct ContextMenuSystem {
-    root: Option<MenuRoot>,
+pub(crate) struct ContextMenuSystem {
+    root: MenuRootManager,
 }
-
 impl ContextMenuSystem {
-    /// Show context menu root at element response.
-    fn show(&mut self, response: &Response, add_contents: impl FnOnce(&mut Ui)) -> MenuResponse {
-        if let Some(root) = &mut self.root {
-            if root.id == response.id {
-                let inner_response = root.show(&response.ctx, add_contents);
-                let mut menu_state = root.menu_state.write();
-                menu_state.rect = inner_response.response.rect;
-
-                if menu_state.response.is_close() {
-                    return MenuResponse::Close;
-                }
-            }
-        }
-        MenuResponse::Stay
-    }
     /// Show a menu at pointer if right-clicked response.
     /// Should be called from [`Context`] on a [`Response`]
-    pub fn context_menu(&mut self, response: &Response, add_contents: impl FnOnce(&mut Ui)) {
+    pub fn context_menu(&mut self, response: &Response, add_contents: impl FnOnce(&mut Ui)) -> Option<InnerResponse<()>> {
         MenuRoot::context_click_interaction(response, &mut self.root, response.id);
-        if let MenuResponse::Close = self.show(response, add_contents) {
-            self.root = None
+        self.root.show(response, add_contents)
+    }
+}
+impl std::ops::Deref for ContextMenuSystem {
+    type Target = MenuRootManager;
+    fn deref(&self) -> &Self::Target {
+        &self.root
+    }
+}
+impl std::ops::DerefMut for ContextMenuSystem {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.root
+    }
+}
+
+/// Stores the state for the context menu.
+#[derive(Clone, Default)]
+pub(crate) struct MenuRootManager {
+    inner: Option<MenuRoot>,
+}
+impl MenuRootManager {
+    /// Show a menu at pointer if right-clicked response.
+    /// Should be called from [`Context`] on a [`Response`]
+    pub fn show<R>(&mut self, response: &Response, add_contents: impl FnOnce(&mut Ui) -> R) -> Option<InnerResponse<R>> {
+        if let Some(root) = self.inner.as_mut() {
+            let (menu_response, inner_response) = root.show(response, add_contents);
+            if let MenuResponse::Close = menu_response {
+                self.inner = None
+            }
+            inner_response
+        } else {
+            None
         }
+    }
+    fn is_menu_open(&self, id: Id) -> bool {
+        self.inner.as_ref().map(|m| m.id) == Some(id)
+    }
+}
+impl std::ops::Deref for MenuRootManager {
+    type Target = Option<MenuRoot>;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+impl std::ops::DerefMut for MenuRootManager {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
     }
 }
 
@@ -219,24 +252,33 @@ impl MenuRoot {
     }
     pub fn show<R>(
         &mut self,
-        ctx: &CtxRef,
+        response: &Response,
         add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
-        MenuState::show(ctx, &self.menu_state, self.id, add_contents)
+    ) -> (MenuResponse, Option<InnerResponse<R>>) {
+        if self.id == response.id {
+            let inner_response = MenuState::show(&response.ctx, &self.menu_state, self.id, add_contents);
+            let mut menu_state = self.menu_state.write();
+            menu_state.rect = inner_response.response.rect;
+
+            if menu_state.response.is_close() {
+                return (MenuResponse::Close, Some(inner_response));
+            }
+        }
+        (MenuResponse::Stay, None)
     }
     /// interaction with a stationary menu, i.e. fixed in another Ui
     fn stationary_interaction(
         response: &Response,
-        root: &mut Option<MenuRoot>,
+        root: &mut MenuRootManager,
         id: Id,
     ) -> MenuResponse {
         let pointer = &response.ctx.input().pointer;
-        if (response.clicked() && is_menu_open(root, id))
+        if (response.clicked() && root.is_menu_open(id))
             || response.ctx.input().key_pressed(Key::Escape)
         {
             // menu open and button clicked or esc pressed
             return MenuResponse::Close;
-        } else if (response.clicked() && !is_menu_open(root, id))
+        } else if (response.clicked() && !root.is_menu_open(id))
             || (response.hovered() && root.is_some())
         {
             // menu not open and button clicked
@@ -245,7 +287,7 @@ impl MenuRoot {
             return MenuResponse::Create(pos, id);
         } else if pointer.any_pressed() && pointer.primary_down() {
             if let Some(pos) = pointer.interact_pos() {
-                if let Some(root) = root {
+                if let Some(root) = root.inner.as_mut() {
                     if root.id == id {
                         // pressed somewhere while this menu is open
                         let menu_state = root.menu_state.read();
@@ -289,22 +331,22 @@ impl MenuRoot {
         MenuResponse::Stay
     }
     fn handle_menu_response(
-        root: &mut Option<MenuRoot>,
+        root: &mut MenuRootManager,
         menu_response: MenuResponse,
     ) {
         match menu_response {
             MenuResponse::Create(pos, id) => {
-                *root = Some(MenuRoot::new(pos, id));
+                root.inner = Some(MenuRoot::new(pos, id));
             }
-            MenuResponse::Close => *root = None,
+            MenuResponse::Close => root.inner = None,
             MenuResponse::Stay => {}
         }
     }
-    pub fn context_click_interaction(response: &Response, root: &mut Option<MenuRoot>, id: Id) {
+    pub fn context_click_interaction(response: &Response, root: &mut MenuRootManager, id: Id) {
         let menu_response = Self::context_interaction(response, root, id);
         Self::handle_menu_response(root, menu_response)
     }
-    pub fn stationary_click_interaction(response: &Response, root: &mut Option<MenuRoot>, id: Id) {
+    pub fn stationary_click_interaction(response: &Response, root: &mut MenuRootManager, id: Id) {
         let menu_response = Self::stationary_interaction(response, root, id);
         Self::handle_menu_response(root, menu_response)
     }
