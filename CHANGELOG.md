@@ -22,6 +22,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md), [`eg
 * By default, `DragValue`:s no longer show a tooltip when hovered. Change with `Style::explanation_tooltips`.
 * `CollapsingHeader` is now opening or closing only when clicking the arrow icon
 * `CollapsingHeader` is now filling all the available horizontal space
+* Emit clicks on `CollapsingHeader`'s header only when NOT clicking the icon
 
 
 ### Fixed 🐛

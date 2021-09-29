@@ -330,6 +330,12 @@ impl CollapsingHeader {
         if header_response.clicked() {
             if icon_response.clicked() {
                 state.toggle(ui);
+
+                // If we click the icon we don't want to emit the clicked and double clicked
+                // events.
+                header_response.clicked = [false; 3];
+                header_response.double_clicked = [false; 3];
+
                 header_response.mark_changed();
             }
         }
