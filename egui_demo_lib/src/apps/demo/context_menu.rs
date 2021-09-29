@@ -1,5 +1,3 @@
-use super::drag_and_drop::DragAndDropDemo;
-
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 enum Plot {
@@ -21,7 +19,6 @@ fn sigmoid(x: f64) -> f64 {
 pub struct ContextMenus {
     title: String,
     plot: Plot,
-    drag_and_drop: DragAndDropDemo,
     show_axes: [bool; 2],
     allow_drag: bool,
     allow_zoom: bool,
@@ -57,33 +54,33 @@ impl ContextMenus {
     }
     fn nested_menus(ui: &mut egui::Ui) {
         if ui.button("Open...").clicked() {
-            ui.close();
+            ui.close_menu();
         }
-        ui.menu("SubMenu", |ui| {
-            ui.menu("SubMenu", |ui| {
+        ui.menu_button("SubMenu", |ui| {
+            ui.menu_button("SubMenu", |ui| {
                 if ui.button("Open...").clicked() {
-                    ui.close();
+                    ui.close_menu();
                 }
                 let _ = ui.button("Item");
             });
-            ui.menu("SubMenu", |ui| {
+            ui.menu_button("SubMenu", |ui| {
                 if ui.button("Open...").clicked() {
-                    ui.close();
+                    ui.close_menu();
                 }
                 let _ = ui.button("Item");
             });
             let _ = ui.button("Item");
             if ui.button("Open...").clicked() {
-                ui.close();
+                ui.close_menu();
             }
         });
-        ui.menu("SubMenu", |ui| {
+        ui.menu_button("SubMenu", |ui| {
             let _ = ui.button("Item1");
             let _ = ui.button("Item2");
             let _ = ui.button("Item3");
             let _ = ui.button("Item4");
             if ui.button("Open...").clicked() {
-                ui.close();
+                ui.close_menu();
             }
         });
         let _ = ui.button("Very long text for this item");
@@ -97,7 +94,6 @@ impl Default for ContextMenus {
         Self {
             title: DEFAULT_TITLE.to_owned(),
             plot: Plot::Sin,
-            drag_and_drop: DragAndDropDemo::default().editable(true),
             show_axes: [true, true],
             allow_drag: true,
             allow_zoom: true,
@@ -129,27 +125,24 @@ impl super::View for ContextMenus {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             ui.text_edit_singleline(&mut self.title)
-                .on_hover_text("Right click to clear")
-                .context_menu(|ui| {
-                    if ui.button("Clear").clicked() {
-                        self.title = String::new();
-                        ui.close();
-                    }
-                    if ui.button("Reset").clicked() {
-                        self.title = DEFAULT_TITLE.to_owned();
-                        ui.close();
-                    }
-                });
         });
-        // das hier setzt das hier zurück
-        // reset
-        //self.center_x_axis = false;
-        //self.center_y_axis = false;
         ui.horizontal(|ui| {
             ui.add(self.example_plot())
                 .on_hover_text("Right click for options")
                 .context_menu(|ui| {
-                    ui.horizontal(|ui| {
+                    ui.menu_button("Plot", |ui| {
+                        if ui.radio_value(&mut self.plot, Plot::Sin, "Sin").clicked()
+                            || ui
+                                .radio_value(&mut self.plot, Plot::Bell, "Gaussian")
+                                .clicked()
+                            || ui
+                                .radio_value(&mut self.plot, Plot::Sigmoid, "Sigmoid")
+                                .clicked()
+                        {
+                            ui.close_menu();
+                        }
+                    });
+                    egui::Grid::new("button_grid").show(ui, |ui| {
                         ui.add(
                             egui::DragValue::new(&mut self.width)
                                 .speed(1.0)
@@ -160,40 +153,24 @@ impl super::View for ContextMenus {
                                 .speed(1.0)
                                 .prefix("Height:"),
                         );
-                    });
-                    ui.menu("Plot", |ui| {
-                        if ui.radio_value(&mut self.plot, Plot::Sin, "Sin").clicked()
-                            || ui
-                                .radio_value(&mut self.plot, Plot::Bell, "Gaussian")
-                                .clicked()
-                            || ui
-                                .radio_value(&mut self.plot, Plot::Sigmoid, "Sigmoid")
-                                .clicked()
-                        {
-                            ui.close();
-                        }
-                    });
-                    ui.horizontal(|ui| {
+                        ui.end_row();
                         ui.checkbox(&mut self.show_axes[0], "x-Axis");
                         ui.checkbox(&mut self.show_axes[1], "y-Axis");
-                    });
-                    ui.horizontal(|ui| {
+                        ui.end_row();
                         if ui.checkbox(&mut self.allow_drag, "Drag").changed()
                             || ui.checkbox(&mut self.allow_zoom, "Zoom").changed()
                         {
-                            ui.close();
+                            ui.close_menu();
                         }
                     });
                 });
         });
+        ui.label("Right-click plot to edit it!");
         ui.separator();
         ui.horizontal(|ui| {
-            ui.button("Nested context menu")
+            ui.menu_button("Click for menu", Self::nested_menus);
+            ui.button("Right-click for menu")
                 .context_menu(Self::nested_menus);
-            ui.menu("Top level menu", Self::nested_menus);
         });
-        ui.separator();
-        ui.label("Right click to edit items");
-        self.drag_and_drop.ui(ui);
     }
 }

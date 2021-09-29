@@ -6,7 +6,7 @@
 //!     use egui::{menu, Button};
 //!
 //!     menu::bar(ui, |ui| {
-//!         menu::menu(ui, "File", |ui| {
+//!         ui.menu_button("File", |ui| {
 //!             if ui.button("Open").clicked() {
 //!                 // …
 //!             }
@@ -21,8 +21,8 @@ use super::{
     Ui, Vec2,
 };
 use crate::{widgets::*, *};
-use epaint::Stroke;
-use std::sync::{Arc, RwLock};
+use epaint::{Stroke, mutex::RwLock};
+use std::sync::Arc;
 
 /// What is saved between frames.
 #[derive(Clone, Default)]
@@ -71,10 +71,137 @@ pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResp
         add_contents(ui)
     })
 }
+/// Construct a top level menu in a menu bar. This would be e.g. "File", "Edit" etc.
+///
+/// Returns `None` if the menu is not open.
+pub fn menu_button<R>(
+    ui: &mut Ui,
+    title: impl ToString,
+    add_contents: impl FnOnce(&mut Ui) -> R,
+) -> InnerResponse<Option<R>> {
+    stationary_menu_impl(ui, title, Box::new(add_contents))
+}
+/// Construct a nested sub menu in another menu.
+///
+/// Returns `None` if the menu is not open.
+pub(crate) fn submenu_button<R>(
+    ui: &mut Ui,
+    parent_state: Arc<RwLock<MenuState>>,
+    title: impl ToString,
+    add_contents: impl FnOnce(&mut Ui) -> R,
+) -> InnerResponse<Option<R>> {
+    SubMenu::new(parent_state, title).show(ui, add_contents)
+}
 
-// trait alias
-trait InteractionFn: Fn(&Response, &mut Option<MenuRoot>, Id) -> MenuResponse {}
-impl<T: Fn(&Response, &mut Option<MenuRoot>, Id) -> MenuResponse> InteractionFn for T {}
+/// wrapper for the contents of every menu.
+#[allow(clippy::needless_pass_by_value)]
+pub(crate) fn menu_ui<'c, R>(
+    ctx: &CtxRef,
+    menu_id: impl std::hash::Hash,
+    menu_state_arc: Arc<RwLock<MenuState>>,
+    mut style: Style,
+    add_contents: impl FnOnce(&mut Ui) -> R + 'c,
+) -> InnerResponse<R> {
+    let pos = {
+        let mut menu_state = menu_state_arc.write();
+        menu_state.entry_count = 0;
+        menu_state.rect.min
+    };
+    // style.visuals.widgets.active.bg_fill = Color32::TRANSPARENT;
+    style.visuals.widgets.active.bg_stroke = Stroke::none();
+    // style.visuals.widgets.hovered.bg_fill = Color32::TRANSPARENT;
+    style.visuals.widgets.hovered.bg_stroke = Stroke::none();
+    style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
+    style.visuals.widgets.inactive.bg_stroke = Stroke::none();
+    let area = Area::new(menu_id)
+        .order(Order::Foreground)
+        .fixed_pos(pos)
+        .interactable(false)
+        .drag_bounds(Rect::EVERYTHING);
+    let frame = Frame::menu(&style);
+    let inner_response = area.show(ctx, |ui| {
+        frame
+            .show(ui, |ui| {
+                const DEFAULT_MENU_WIDTH: f32 = 150.0; // TODO: add to ui.spacing
+                ui.set_max_width(DEFAULT_MENU_WIDTH);
+                ui.set_style(style);
+                ui.set_menu_state(Some(menu_state_arc.clone()));
+                ui.with_layout(
+                    Layout::top_down_justified(Align::LEFT),
+                    add_contents,
+                )
+                .inner
+            })
+            .inner
+    });
+    menu_state_arc.write().rect = inner_response.response.rect;
+    inner_response
+}
+
+/// build a top level menu with a button
+#[allow(clippy::needless_pass_by_value)]
+fn stationary_menu_impl<'c, R>(
+    ui: &mut Ui,
+    title: impl ToString,
+    add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
+) -> InnerResponse<Option<R>> {
+    let title = title.to_string();
+    let bar_id = ui.id();
+    let menu_id = bar_id.with(&title);
+
+    let mut bar_state = BarState::load(ui.ctx(), &bar_id);
+
+    let mut button = Button::new(title);
+
+    if bar_state.is_menu_open(menu_id) {
+        button = button.fill(ui.visuals().widgets.open.bg_fill);
+        button = button.stroke(ui.visuals().widgets.open.bg_stroke);
+    }
+
+    let button_response = ui.add(button);
+    MenuRoot::stationary_click_interaction(&button_response, &mut bar_state.open_menu, menu_id);
+    let inner = if bar_state.is_menu_open(menu_id) || ui.ctx().memory().everything_is_visible() {
+        let menu_state = &bar_state.open_menu.as_ref().unwrap().menu_state;
+        Some(MenuState::show(ui.ctx(), menu_state, menu_id, add_contents).inner)
+    } else {
+        None
+    };
+
+    bar_state.save(ui.ctx(), bar_id);
+    InnerResponse::new(inner, button_response)
+}
+
+/// Stores the state for the context menu.
+#[derive(Default)]
+pub struct ContextMenuSystem {
+    root: Option<MenuRoot>,
+}
+
+impl ContextMenuSystem {
+    /// Show context menu root at element response.
+    fn show(&mut self, response: &Response, add_contents: impl FnOnce(&mut Ui)) -> MenuResponse {
+        if let Some(root) = &mut self.root {
+            if root.id == response.id {
+                let inner_response = root.show(&response.ctx, add_contents);
+                let mut menu_state = root.menu_state.write();
+                menu_state.rect = inner_response.response.rect;
+
+                if menu_state.response.is_close() {
+                    return MenuResponse::Close;
+                }
+            }
+        }
+        MenuResponse::Stay
+    }
+    /// Show a menu at pointer if right-clicked response.
+    /// Should be called from [`Context`] on a [`Response`]
+    pub fn context_menu(&mut self, response: &Response, add_contents: impl FnOnce(&mut Ui)) {
+        MenuRoot::context_click_interaction(response, &mut self.root, response.id);
+        if let MenuResponse::Close = self.show(response, add_contents) {
+            self.root = None
+        }
+    }
+}
 
 /// Menu root associated with an Id from a Response
 #[derive(Clone)]
@@ -121,7 +248,7 @@ impl MenuRoot {
                 if let Some(root) = root {
                     if root.id == id {
                         // pressed somewhere while this menu is open
-                        let menu_state = root.menu_state.read().unwrap();
+                        let menu_state = root.menu_state.read();
                         let in_menu = menu_state.area_contains(pos);
                         if !in_menu {
                             return MenuResponse::Close;
@@ -145,7 +272,7 @@ impl MenuRoot {
                 let mut destroy = false;
                 let mut in_old_menu = false;
                 if let Some(root) = root {
-                    let menu_state = root.menu_state.read().unwrap();
+                    let menu_state = root.menu_state.read();
                     in_old_menu = menu_state.area_contains(pos);
                     destroy = root.id == response.id;
                 }
@@ -161,28 +288,28 @@ impl MenuRoot {
         }
         MenuResponse::Stay
     }
-    fn click_interaction_impl(
-        response: &Response,
+    fn handle_menu_response(
         root: &mut Option<MenuRoot>,
-        id: Id,
-        interaction: impl InteractionFn,
+        menu_response: MenuResponse,
     ) {
-        match interaction(response, root, id) {
+        match menu_response {
             MenuResponse::Create(pos, id) => {
                 *root = Some(MenuRoot::new(pos, id));
             }
             MenuResponse::Close => *root = None,
             MenuResponse::Stay => {}
-        };
+        }
     }
     pub fn context_click_interaction(response: &Response, root: &mut Option<MenuRoot>, id: Id) {
-        Self::click_interaction_impl(response, root, id, Self::context_interaction)
+        let menu_response = Self::context_interaction(response, root, id);
+        Self::handle_menu_response(root, menu_response)
     }
     pub fn stationary_click_interaction(response: &Response, root: &mut Option<MenuRoot>, id: Id) {
-        Self::click_interaction_impl(response, root, id, Self::stationary_interaction)
+        let menu_response = Self::stationary_interaction(response, root, id);
+        Self::handle_menu_response(root, menu_response)
     }
 }
-#[derive(Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub(crate) enum MenuResponse {
     Close,
     Stay,
@@ -193,48 +320,31 @@ impl MenuResponse {
         *self == Self::Close
     }
 }
-pub(crate) enum EntryState {
-    /// Will not show hover visuals
-    Inactive,
-    /// Listening for hovers
-    Active,
-    /// Show open visuals
-    Open,
-}
-impl EntryState {
-    fn visuals<'a>(self, ui: &'a Ui, response: &'_ Response) -> &'a WidgetVisuals {
-        let widgets = &ui.style().visuals.widgets;
-        match self {
-            Self::Inactive => &widgets.inactive,
-            Self::Active => ui.style().interact(response),
-            Self::Open => &widgets.hovered,
-        }
-    }
-    fn submenu(menu_state: &MenuState, sub_id: Id) -> Self {
-        if menu_state.is_open(sub_id) {
-            Self::Open
-        } else if menu_state.any_open() {
-            Self::Inactive
-        } else {
-            Self::Active
-        }
-    }
-}
-pub struct MenuEntry {
+pub struct SubMenuButton {
     text: String,
     icon: String,
-    state: EntryState,
     index: usize,
 }
-impl MenuEntry {
+impl SubMenuButton {
     /// The `icon` can be an emoji (e.g. `⏵` right arrow), shown right of the label
     #[allow(clippy::needless_pass_by_value)]
-    fn new(text: impl ToString, icon: impl ToString, state: EntryState, index: usize) -> Self {
+    fn new(text: impl ToString, icon: impl ToString, index: usize) -> Self {
         Self {
             text: text.to_string(),
             icon: icon.to_string(),
-            state,
             index,
+        }
+    }
+    fn visuals<'a>(
+        ui: &'a Ui,
+        response: &'_ Response,
+        menu_state: &'_ MenuState,
+        sub_id: Id,
+    ) -> &'a WidgetVisuals {
+        if menu_state.is_open(sub_id) {
+            &ui.style().visuals.widgets.hovered
+        } else {
+            ui.style().interact(response)
         }
     }
     #[allow(clippy::needless_pass_by_value)]
@@ -242,13 +352,14 @@ impl MenuEntry {
         self.icon = icon.to_string();
         self
     }
-    fn show_with_state(mut self, ui: &mut Ui, state: EntryState) -> Response {
-        self.state = state;
-        self.show(ui)
-    }
-    pub fn show(self, ui: &mut Ui) -> Response {
-        let MenuEntry {
-            text, icon, state, ..
+    pub(crate) fn show(
+        self,
+        ui: &mut Ui,
+        menu_state: &MenuState,
+        sub_id: Id,
+    ) -> Response {
+        let SubMenuButton {
+            text, icon, ..
         } = self;
 
         let text_style = TextStyle::Button;
@@ -277,25 +388,18 @@ impl MenuEntry {
         });
 
         if ui.clip_rect().intersects(rect) {
-            response.interact(sense);
-            let visuals = state.visuals(ui, &response);
-            let text_pos = ui
-                .layout()
+            let visuals = Self::visuals(ui, &response, menu_state, sub_id);
+            let text_pos = Align2::LEFT_CENTER
                 .align_size_within_rect(text_galley.size(), rect.shrink2(button_padding))
                 .min;
-            let icon_pos = ui
-                .layout()
-                .with_cross_align(Align::RIGHT)
+            let icon_pos = Align2::RIGHT_CENTER
                 .align_size_within_rect(icon_galley.size(), rect.shrink2(button_padding))
                 .min;
 
-            let fill = visuals.bg_fill;
-            let stroke = crate::Stroke::none();
-            ui.painter().rect(
+            ui.painter().rect_filled(
                 rect.expand(visuals.expansion),
                 visuals.corner_radius,
-                fill,
-                stroke,
+                visuals.bg_fill,
             );
 
             let text_color = visuals.text_color();
@@ -306,15 +410,15 @@ impl MenuEntry {
     }
 }
 pub struct SubMenu {
-    entry: MenuEntry,
+    button: SubMenuButton,
     parent_state: Arc<RwLock<MenuState>>,
 }
 impl SubMenu {
     #[allow(clippy::needless_pass_by_value)]
-    fn new(text: impl ToString, parent_state: Arc<RwLock<MenuState>>) -> Self {
-        let index = parent_state.write().unwrap().next_entry_index();
+    fn new(parent_state: Arc<RwLock<MenuState>>, text: impl ToString) -> Self {
+        let index = parent_state.write().next_entry_index();
         Self {
-            entry: MenuEntry::new(text, "⏵", EntryState::Active, index),
+            button: SubMenuButton::new(text, "⏵", index),
             parent_state,
         }
     }
@@ -323,19 +427,18 @@ impl SubMenu {
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<Option<R>> {
-        let sub_id = ui.id().with(self.entry.index);
-        let button = self.entry.show_with_state(
+        let sub_id = ui.id().with(self.button.index);
+        let button = self.button.show(
             ui,
-            EntryState::submenu(&*self.parent_state.read().unwrap(), sub_id),
+            &*self.parent_state.read(),
+            sub_id,
         );
         self.parent_state
             .write()
-            .unwrap()
             .submenu_button_interaction(ui, sub_id, &button);
         let inner = self
             .parent_state
             .write()
-            .unwrap()
             .show_submenu(ui.ctx(), sub_id, add_contents);
         InnerResponse::new(inner, button)
     }
@@ -351,14 +454,6 @@ pub(crate) struct MenuState {
     entry_count: usize,
 }
 impl MenuState {
-    /// Close menu hierarchy.
-    pub fn close(&mut self) {
-        self.response = MenuResponse::Close;
-    }
-    /// Create a sub-menu.
-    pub fn submenu(menu_state: Arc<RwLock<Self>>, text: impl ToString) -> SubMenu {
-        SubMenu::new(text, menu_state)
-    }
     pub fn new(position: Pos2) -> Self {
         Self {
             rect: Rect::from_min_size(position, Vec2::ZERO),
@@ -366,6 +461,10 @@ impl MenuState {
             response: MenuResponse::Stay,
             entry_count: 0,
         }
+    }
+    /// Close menu hierarchy.
+    pub fn close(&mut self) {
+        self.response = MenuResponse::Close;
     }
     pub fn show<R>(
         ctx: &CtxRef,
@@ -392,9 +491,9 @@ impl MenuState {
     ) -> Option<R> {
         let (sub_response, response) = self.get_submenu(id).map(|sub| {
             let inner_response = Self::show(ctx, sub, id, add_contents);
-            (sub.read().unwrap().response.clone(), inner_response.inner)
+            (sub.read().response, inner_response.inner)
         })?;
-        self.cascade_response(sub_response);
+        self.cascade_close_response(sub_response);
         Some(response)
     }
     /// Check if position is in the menu hierarchy's area.
@@ -403,7 +502,7 @@ impl MenuState {
             || self
                 .sub_menu
                 .as_ref()
-                .map(|(_, sub)| sub.read().unwrap().area_contains(pos))
+                .map(|(_, sub)| sub.read().area_contains(pos))
                 .unwrap_or(false)
     }
     fn next_entry_index(&mut self) -> usize {
@@ -441,7 +540,7 @@ impl MenuState {
                 return Self::points_at_left_of_rect(
                     pos,
                     pointer.velocity(),
-                    sub_menu.read().unwrap().rect,
+                    sub_menu.read().rect,
                 );
             }
         }
@@ -451,19 +550,16 @@ impl MenuState {
     fn hovering_current_submenu(&self, pointer: &PointerState) -> bool {
         if let Some(sub_menu) = self.get_current_submenu() {
             if let Some(pos) = pointer.hover_pos() {
-                return sub_menu.read().unwrap().area_contains(pos);
+                return sub_menu.read().area_contains(pos);
             }
         }
         false
     }
     /// Cascade close response to menu root.
-    fn cascade_response(&mut self, response: MenuResponse) {
+    fn cascade_close_response(&mut self, response: MenuResponse) {
         if response.is_close() {
             self.response = response;
         }
-    }
-    fn any_open(&self) -> bool {
-        self.get_sub_id().is_some()
     }
     fn is_open(&self, id: Id) -> bool {
         self.get_sub_id() == Some(id)
@@ -488,89 +584,4 @@ impl MenuState {
     fn close_submenu(&mut self) {
         self.sub_menu = None;
     }
-}
-
-/// Construct a top level menu in a menu bar. This would be e.g. "File", "Edit" etc.
-///
-/// Returns `None` if the menu is not open.
-pub fn menu<R>(
-    ui: &mut Ui,
-    title: impl ToString,
-    add_contents: impl FnOnce(&mut Ui) -> R,
-) -> InnerResponse<Option<R>> {
-    menu_impl(ui, title, Box::new(add_contents))
-}
-
-pub(crate) fn menu_ui<'c, R>(
-    ctx: &CtxRef,
-    menu_id: impl std::hash::Hash,
-    menu_state_arc: Arc<RwLock<MenuState>>,
-    mut style: Style,
-    add_contents: impl FnOnce(&mut Ui) -> R + 'c,
-) -> InnerResponse<R> {
-    let mut menu_state = menu_state_arc.write().unwrap();
-    menu_state.entry_count = 0;
-    let pos = menu_state.rect.min;
-    drop(menu_state);
-
-    // style.visuals.widgets.active.bg_fill = Color32::TRANSPARENT;
-    style.visuals.widgets.active.bg_stroke = Stroke::none();
-    // style.visuals.widgets.hovered.bg_fill = Color32::TRANSPARENT;
-    style.visuals.widgets.hovered.bg_stroke = Stroke::none();
-    style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
-    style.visuals.widgets.inactive.bg_stroke = Stroke::none();
-    let area = Area::new(menu_id)
-        .order(Order::Foreground)
-        .fixed_pos(pos)
-        .interactable(false)
-        .drag_bounds(Rect::EVERYTHING);
-    let frame = Frame::menu(&style);
-    let inner_response = area.show(ctx, |ui| {
-        frame
-            .show(ui, |ui| {
-                const DEFAULT_MENU_WIDTH: f32 = 150.0; // TODO: add to ui.spacing
-                ui.set_max_width(DEFAULT_MENU_WIDTH);
-                ui.set_style(style);
-                ui.with_layout(Layout::top_down_justified(Align::LEFT), |ui| {
-                    ui.set_menu_state(menu_state_arc.clone());
-                    add_contents(ui)
-                })
-                .inner
-            })
-            .inner
-    });
-    menu_state_arc.write().unwrap().rect = inner_response.response.rect;
-    inner_response
-}
-
-#[allow(clippy::needless_pass_by_value)]
-fn menu_impl<'c, R>(
-    ui: &mut Ui,
-    title: impl ToString,
-    add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
-) -> InnerResponse<Option<R>> {
-    let title = title.to_string();
-    let bar_id = ui.id();
-    let menu_id = bar_id.with(&title);
-
-    let mut bar_state = BarState::load(ui.ctx(), &bar_id);
-
-    let mut button = Button::new(title);
-
-    if bar_state.is_menu_open(menu_id) {
-        button = button.fill(ui.visuals().widgets.open.bg_fill);
-        button = button.stroke(ui.visuals().widgets.open.bg_stroke);
-    }
-
-    let button_response = ui.add(button);
-    MenuRoot::stationary_click_interaction(&button_response, &mut bar_state.open_menu, menu_id);
-    let inner = if bar_state.is_menu_open(menu_id) || ui.ctx().memory().everything_is_visible() {
-        let menu_state = &bar_state.open_menu.as_ref().unwrap().menu_state;
-        Some(MenuState::show(ui.ctx(), menu_state, menu_id, add_contents).inner)
-    } else {
-        None
-    };
-
-    bar_state.save(ui.ctx(), bar_id);
-    InnerResponse::new(inner, button_response)
 }

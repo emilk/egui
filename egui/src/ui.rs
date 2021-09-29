@@ -1,7 +1,8 @@
 // #![warn(missing_docs)]
 
 use std::hash::Hash;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use epaint::mutex::RwLock;
 
 use crate::{
     color::*, containers::*, epaint::text::Fonts, layout::*, menu::MenuState, mutex::MutexGuard,
@@ -96,7 +97,7 @@ impl Ui {
         crate::egui_assert!(!max_rect.any_nan());
         let next_auto_id_source = Id::new(self.next_auto_id_source).with("child").value();
         self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
-
+        let menu_state = self.get_menu_state();
         Ui {
             id: self.id.with(id_source),
             next_auto_id_source,
@@ -104,7 +105,7 @@ impl Ui {
             style: self.style.clone(),
             placer: Placer::new(max_rect, layout),
             enabled: self.enabled,
-            menu_state: None,
+            menu_state,
         }
     }
 
@@ -1737,25 +1738,38 @@ impl Ui {
         result
     }
     /// Close menu (with submenus), if any.
-    pub fn close(&mut self) {
+    pub fn close_menu(&mut self) {
         if let Some(menu_state) = &mut self.menu_state {
-            menu_state.write().unwrap().close();
+            menu_state.write().close();
         }
         self.menu_state = None;
     }
-    pub(crate) fn set_menu_state(&mut self, menu_state: Arc<RwLock<MenuState>>) {
-        self.menu_state = Some(menu_state);
+    pub(crate) fn get_menu_state(&self) -> Option<Arc<RwLock<MenuState>>> {
+        self.menu_state.clone()
+    }
+    pub(crate) fn set_menu_state(&mut self, menu_state: Option<Arc<RwLock<MenuState>>>) {
+        self.menu_state = menu_state;
     }
     #[inline(always)]
-    pub fn menu<R>(
+    /// Create a menu button. Creates a button for a sub-menu when the `Ui` is inside a menu.
+    ///
+    /// ```
+    /// # let mut ui = egui::Ui::__test();
+    /// ui.menu_button("My menu", |ui| {
+    ///     ui.menu_button("My sub-menu", |ui| {
+    ///         ui.label("Item");
+    ///     });
+    /// });
+    /// ```
+    pub fn menu_button<R>(
         &mut self,
         title: impl ToString,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<Option<R>> {
         if let Some(menu_state) = self.menu_state.clone() {
-            MenuState::submenu(menu_state, title).show(self, add_contents)
+            menu::submenu_button(self, menu_state, title, add_contents)
         } else {
-            menu::menu(self, title, add_contents)
+            menu::menu_button(self, title, add_contents)
         }
     }
 }

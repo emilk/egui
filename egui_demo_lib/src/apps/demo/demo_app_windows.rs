@@ -18,6 +18,7 @@ impl Default for Demos {
         Self::from_demos(vec![
             Box::new(super::code_editor::CodeEditor::default()),
             Box::new(super::code_example::CodeExample::default()),
+            Box::new(super::context_menu::ContextMenus::default()),
             Box::new(super::dancing_strings::DancingStrings::default()),
             Box::new(super::drag_and_drop::DragAndDropDemo::default()),
             Box::new(super::font_book::FontBook::default()),
@@ -29,7 +30,6 @@ impl Default for Demos {
             Box::new(super::sliders::Sliders::default()),
             Box::new(super::widget_gallery::WidgetGallery::default()),
             Box::new(super::window_options::WindowOptions::default()),
-            Box::new(super::context_menu::ContextMenus::default()),
             Box::new(super::tests::WindowResizeTest::default()),
             Box::new(super::window_with_panels::WindowWithPanels::default()),
         ])
@@ -228,7 +228,7 @@ fn show_menu_bar(ui: &mut Ui) {
     use egui::*;
 
     menu::bar(ui, |ui| {
-        menu::menu(ui, "File", |ui| {
+        menu::menu_button(ui, "File", |ui| {
             if ui.button("Organize windows").clicked() {
                 ui.ctx().memory().reset_areas();
             }

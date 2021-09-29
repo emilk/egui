@@ -80,12 +80,7 @@ pub fn drop_target<R>(
 pub struct DragAndDropDemo {
     /// columns with items
     columns: Vec<Vec<String>>,
-    /// edit using context menu
-    editable: bool,
-    id_source: usize,
 }
-use std::sync::atomic::{AtomicUsize, Ordering};
-static COUNTER: AtomicUsize = AtomicUsize::new(0);
 impl Default for DragAndDropDemo {
     fn default() -> Self {
         Self {
@@ -97,16 +92,7 @@ impl Default for DragAndDropDemo {
             .into_iter()
             .map(|v| v.into_iter().map(ToString::to_string).collect())
             .collect(),
-            editable: false,
-            id_source: COUNTER.fetch_add(1, Ordering::Relaxed),
         }
-    }
-}
-
-impl DragAndDropDemo {
-    pub fn editable(mut self, editable: bool) -> Self {
-        self.editable = editable;
-        self
     }
 }
 
@@ -131,6 +117,7 @@ impl super::View for DragAndDropDemo {
         ui.label("This is a proof-of-concept of drag-and-drop in egui.");
         ui.label("Drag items between columns.");
 
+        let id_source = "my_drag_and_drop_demo";
         let mut source_col_row = None;
         let mut drop_col = None;
         ui.columns(self.columns.len(), |uis| {
@@ -140,17 +127,15 @@ impl super::View for DragAndDropDemo {
                 let response = drop_target(ui, can_accept_what_is_being_dragged, |ui| {
                     ui.set_min_size(vec2(64.0, 100.0));
                     for (row_idx, item) in column.iter().enumerate() {
-                        let item_id = Id::new(self.id_source).with(col_idx).with(row_idx);
+                        let item_id = Id::new(id_source).with(col_idx).with(row_idx);
                         drag_source(ui, item_id, |ui| {
                             let response = ui.add(Label::new(item).sense(Sense::click()));
-                            if self.editable {
-                                response.context_menu(|ui| {
-                                    if ui.button("Remove").clicked() {
-                                        self.columns[col_idx].remove(row_idx);
-                                        ui.close();
-                                    }
-                                });
-                            }
+                            response.context_menu(|ui| {
+                                if ui.button("Remove").clicked() {
+                                    self.columns[col_idx].remove(row_idx);
+                                    ui.close_menu();
+                                }
+                            });
                         });
 
                         if ui.memory().is_being_dragged(item_id) {
@@ -160,14 +145,12 @@ impl super::View for DragAndDropDemo {
                 })
                 .response;
 
-                if self.editable {
-                    response.context_menu(|ui| {
-                        if ui.button("New Item").clicked() {
-                            self.columns[col_idx].push("New Item".to_string());
-                            ui.close();
-                        }
-                    });
-                }
+                response.context_menu(|ui| {
+                    if ui.button("New Item").clicked() {
+                        self.columns[col_idx].push("New Item".to_string());
+                        ui.close_menu();
+                    }
+                });
 
                 let is_being_dragged = ui.memory().is_anything_being_dragged();
                 if is_being_dragged && can_accept_what_is_being_dragged && response.hovered() {
