@@ -1,7 +1,7 @@
 use egui::*;
 
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Painting {
     /// in 0-1 normalized coordinates
     lines: Vec<Vec<Pos2>>,

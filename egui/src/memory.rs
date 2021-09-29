@@ -14,8 +14,8 @@ use crate::{any, area, window, Id, InputState, LayerId, Pos2, Rect, Style};
 /// If you want to store data for your widgets, you should look at `data`/`data_temp` and
 /// `id_data`/`id_data_temp` fields, and read the documentation of [`any`] module.
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Memory {
     pub options: Options,
 
@@ -53,23 +53,23 @@ pub struct Memory {
     /// new fonts that will be applied at the start of the next frame
     pub(crate) new_font_definitions: Option<epaint::text::FontDefinitions>,
 
-    #[cfg_attr(feature = "persistence", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) interaction: Interaction,
 
-    #[cfg_attr(feature = "persistence", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) window_interaction: Option<window::WindowInteraction>,
 
-    #[cfg_attr(feature = "persistence", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) drag_value: crate::widgets::drag_value::MonoState,
 
     pub(crate) areas: Areas,
 
     /// Which popup-window is open (if any)?
     /// Could be a combo box, color picker, menu etc.
-    #[cfg_attr(feature = "persistence", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     popup: Option<Id>,
 
-    #[cfg_attr(feature = "persistence", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     everything_is_visible: bool,
 }
 
@@ -77,11 +77,11 @@ pub struct Memory {
 
 /// Some global options that you can read and write.
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Options {
     /// The default style for new `Ui`:s.
-    #[cfg_attr(feature = "persistence", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) style: std::sync::Arc<Style>,
 
     /// Controls the tessellator.
@@ -432,8 +432,8 @@ impl Memory {
 /// Keeps track of `Area`s, which are free-floating `Ui`s.
 /// These `Area`s can be in any `Order`.
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Areas {
     areas: HashMap<Id, area::State>,
     /// Back-to-front. Top is last.

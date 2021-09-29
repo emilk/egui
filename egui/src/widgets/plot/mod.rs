@@ -21,7 +21,7 @@ use color::Hsva;
 // ----------------------------------------------------------------------------
 
 /// Information about the plot that has to persist between frames.
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone)]
 struct PlotMemory {
     bounds: Bounds,

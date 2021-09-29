@@ -94,7 +94,7 @@ pub trait App {
     /// Allows you to do setup code, e.g to call `[egui::Context::set_fonts]`,
     /// `[egui::Context::set_visuals]` etc.
     ///
-    /// Also allows you to restore state, if there is a storage.
+    /// Also allows you to restore state, if there is a storage (required the "persistence" feature).
     fn setup(
         &mut self,
         _ctx: &egui::CtxRef,
@@ -112,6 +112,8 @@ pub trait App {
     }
 
     /// Called on shutdown, and perhaps at regular intervals. Allows you to save state.
+    ///
+    /// Only called when the "persistence" feature is enabled.
     ///
     /// On web the states is stored to "Local Storage".
     /// On native the path is picked using [`directories_next::ProjectDirs::data_dir`](https://docs.rs/directories-next/2.0.0/directories_next/struct.ProjectDirs.html#method.data_dir) which is:
@@ -149,6 +151,18 @@ pub trait App {
         // We use a bit of transparency so that if the user switches on the
         // `transparent()` option they get immediate results.
         egui::Color32::from_rgba_unmultiplied(12, 12, 12, 180).into()
+    }
+
+    /// Controls wether or not the native window position and size will be
+    /// persisted (only if the "persistence" feature is enabled).
+    fn persist_native_window(&self) -> bool {
+        true
+    }
+
+    /// Controls wether or not the egui memory (window positions etc) will be
+    /// persisted (only if the "persistence" feature is enabled).
+    fn persist_egui_memory(&self) -> bool {
+        true
     }
 }
 

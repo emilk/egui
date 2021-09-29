@@ -1,8 +1,8 @@
 use egui::{containers::*, *};
 
 #[derive(Default)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct DancingStrings {}
 
 impl super::Demo for DancingStrings {

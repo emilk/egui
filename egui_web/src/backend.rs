@@ -194,7 +194,9 @@ impl AppRunner {
         let time_since_last_save = now - self.last_save_time;
 
         if time_since_last_save > self.app.auto_save_interval().as_secs_f64() {
-            save_memory(&self.web_backend.egui_ctx);
+            if self.app.persist_egui_memory() {
+                save_memory(&self.web_backend.egui_ctx);
+            }
             self.app.save(&mut self.storage);
             self.last_save_time = now;
         }

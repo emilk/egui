@@ -2,8 +2,8 @@ use super::*;
 use egui::{color::*, *};
 
 /// Showcase some ui code
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct MiscDemoWindow {
     num_columns: usize,
 
@@ -115,8 +115,8 @@ impl View for MiscDemoWindow {
 
 // ----------------------------------------------------------------------------
 
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Widgets {
     angle: f32,
     password: String,
@@ -194,8 +194,8 @@ impl Widgets {
 // ----------------------------------------------------------------------------
 
 #[derive(PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 struct ColorWidgets {
     srgba_unmul: [u8; 4],
     srgba_premul: [u8; 4],
@@ -264,8 +264,8 @@ impl ColorWidgets {
 
 // ----------------------------------------------------------------------------
 
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 struct BoxPainting {
     size: Vec2,
     corner_radius: f32,
@@ -315,7 +315,7 @@ enum Action {
 }
 
 #[derive(Clone, Default)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct Tree(String, SubTree);
 
 impl Tree {
@@ -334,7 +334,7 @@ impl Tree {
 }
 
 #[derive(Clone, Default)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct SubTree(Vec<SubTree>);
 
 impl SubTree {

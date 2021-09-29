@@ -9,9 +9,9 @@ const RED: Color32 = Color32::RED;
 const TRANSPARENT: Color32 = Color32::TRANSPARENT;
 const WHITE: Color32 = Color32::WHITE;
 
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ColorTest {
-    #[cfg_attr(feature = "persistence", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     tex_mngr: TextureManager,
     vertex_gradients: bool,
     texture_gradients: bool,

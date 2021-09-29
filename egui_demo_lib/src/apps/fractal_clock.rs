@@ -2,8 +2,8 @@ use egui::{containers::*, widgets::*, *};
 use std::f32::consts::TAU;
 
 #[derive(PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct FractalClock {
     paused: bool,
     time: f64,

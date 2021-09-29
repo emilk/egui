@@ -30,6 +30,9 @@ ron = { version = "0.6.4", optional = true }
 [features]
 default = ["default_fonts", "single_threaded"]
 
+# add compatibility with https://crates.io/crates/cint
+cint = ["epaint/cint"]
+
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["epaint/default_fonts"]
@@ -42,10 +45,11 @@ extra_asserts = ["epaint/extra_asserts"]
 # Add compatability with https://github.com/kvark/mint
 mint = ["epaint/mint"]
 
-# add compatibility with https://crates.io/crates/cint
-cint = ["epaint/cint"]
+# enable persistence of memory (window positions etc).
+persistence = ["serde", "epaint/serialize", "ron"]
 
-persistence = ["serde", "epaint/persistence", "ron"]
+# implement serde on most types.
+serialize = ["serde", "epaint/serialize"]
 
 # multi_threaded is only needed if you plan to use the same egui::Context
 # from multiple threads. It comes with a minor performance impact.

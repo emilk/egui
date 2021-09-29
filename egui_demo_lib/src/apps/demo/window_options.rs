@@ -1,5 +1,5 @@
 #[derive(Clone, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WindowOptions {
     title: String,
     title_bar: bool,

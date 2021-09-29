@@ -1,5 +1,5 @@
 #[derive(Clone, PartialEq, Default)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WindowWithPanels {}
 
 impl super::Demo for WindowWithPanels {

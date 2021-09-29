@@ -11,7 +11,7 @@ use crate::emath::*;
 ///
 /// All coordinates are in points (logical pixels) with origin (0, 0) in the top left corner.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct RawInput {
     /// How many points (logical pixels) the user scrolled
     pub scroll_delta: Vec2,
@@ -132,7 +132,7 @@ impl RawInput {
 
 /// A file about to be dropped into egui.
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct HoveredFile {
     /// Set by the `egui-winit` backend.
     pub path: Option<std::path::PathBuf>,
@@ -142,7 +142,7 @@ pub struct HoveredFile {
 
 /// A file dropped into egui.
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct DroppedFile {
     /// Set by the `egui-winit` backend.
     pub path: Option<std::path::PathBuf>,
@@ -158,7 +158,7 @@ pub struct DroppedFile {
 ///
 /// This only covers events that egui cares about.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum Event {
     /// The integration detected a "copy" event (e.g. Cmd+C).
     Copy,
@@ -217,7 +217,7 @@ pub enum Event {
 
 /// Mouse button (or similar for touch input)
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum PointerButton {
     /// The primary mouse button is usually the left one.
     Primary = 0,
@@ -233,7 +233,7 @@ pub const NUM_POINTER_BUTTONS: usize = 3;
 
 /// State of the modifier keys. These must be fed to egui.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Modifiers {
     /// Either of the alt keys are down (option ⌥ on Mac).
     pub alt: bool,
@@ -276,7 +276,7 @@ impl Modifiers {
 /// Many keys are omitted because they are not always physical keys (depending on keyboard language), e.g. `;` and `§`,
 /// and are therefor unsuitable as keyboard shortcuts if you want your app to be portable.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum Key {
     ArrowDown,
     ArrowLeft,
@@ -383,19 +383,19 @@ impl RawInput {
 
 /// this is a `u64` as values of this kind can always be obtained by hashing
 #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TouchDeviceId(pub u64);
 
 /// Unique identification of a touch occurrence (finger or pen or ...).
 /// A Touch ID is valid until the finger is lifted.
 /// A new ID is used for the next touch.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TouchId(pub u64);
 
 /// In what phase a touch event is in.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum TouchPhase {
     /// User just placed a touch point on the touch surface
     Start,

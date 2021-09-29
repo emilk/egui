@@ -8,8 +8,8 @@
 use crate::*;
 
 #[derive(Clone, Copy, Debug)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub(crate) struct State {
     /// Positive offset means scrolling down/right
     offset: Vec2,
@@ -17,7 +17,7 @@ pub(crate) struct State {
     show_scroll: [bool; 2],
 
     /// Momentum, used for kinetic scrolling
-    #[cfg_attr(feature = "persistence", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub vel: Vec2,
 
     /// Mouse offset relative to the top of the handle when started moving the handle.

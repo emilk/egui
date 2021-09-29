@@ -12,8 +12,8 @@ use epaint::{Shadow, Stroke, TextStyle};
 ///
 /// If you want to change fonts, use [`crate::Context::set_fonts`] instead.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Style {
     /// Default `TextStyle` for normal text (i.e. for `Label` and `TextEdit`).
     pub body_text_style: TextStyle,
@@ -81,8 +81,8 @@ impl Style {
 
 /// Controls the sizes and distances between widgets.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Spacing {
     /// Horizontal and vertical spacing between widgets.
     ///
@@ -151,8 +151,8 @@ impl Spacing {
 
 /// How and when interaction happens.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Interaction {
     /// Mouse must be the close to the side of a window to resize
     pub resize_grab_radius_side: f32,
@@ -171,8 +171,8 @@ pub struct Interaction {
 ///
 /// If you want to change fonts, use [`crate::Context::set_fonts`] instead.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Visuals {
     /// If true, the visuals are overall dark with light text.
     /// If false, the visuals are overall light with dark text.
@@ -270,8 +270,8 @@ impl Visuals {
 
 /// Selected text, selected elements etc
 #[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Selection {
     pub bg_fill: Color32,
     pub stroke: Stroke,
@@ -279,8 +279,8 @@ pub struct Selection {
 
 /// The visuals of widgets for different states of interaction.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Widgets {
     /// The style of a widget that you cannot interact with.
     /// * `noninteractive.bg_stroke` is the outline of windows.
@@ -313,7 +313,7 @@ impl Widgets {
 
 /// bg = background, fg = foreground.
 #[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WidgetVisuals {
     /// Background color of widget.
     pub bg_fill: Color32,
@@ -342,7 +342,7 @@ impl WidgetVisuals {
 
 /// Options for help debug egui by adding extra visualization
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct DebugOptions {
     /// However over widgets to see their rectangles
     pub debug_on_hover: bool,

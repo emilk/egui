@@ -361,12 +361,16 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: &epi::NativeOptions) {
             if let Some(storage) = &mut storage {
                 let now = Instant::now();
                 if now - last_auto_save > app.auto_save_interval() {
-                    epi::set_value(
-                        storage.as_mut(),
-                        WINDOW_KEY,
-                        &WindowSettings::from_display(&display),
-                    );
-                    epi::set_value(storage.as_mut(), EGUI_MEMORY_KEY, &*egui.ctx().memory());
+                    if app.persist_native_window() {
+                        epi::set_value(
+                            storage.as_mut(),
+                            WINDOW_KEY,
+                            &WindowSettings::from_display(&display),
+                        );
+                    }
+                    if app.persist_egui_memory() {
+                        epi::set_value(storage.as_mut(), EGUI_MEMORY_KEY, &*egui.ctx().memory());
+                    }
                     app.save(storage.as_mut());
                     storage.flush();
                     last_auto_save = now;
@@ -379,12 +383,16 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: &epi::NativeOptions) {
 
     #[cfg(feature = "persistence")]
     if let Some(storage) = &mut storage {
-        epi::set_value(
-            storage.as_mut(),
-            WINDOW_KEY,
-            &WindowSettings::from_display(&display),
-        );
-        epi::set_value(storage.as_mut(), EGUI_MEMORY_KEY, &*egui.ctx().memory());
+        if app.persist_native_window() {
+            epi::set_value(
+                storage.as_mut(),
+                WINDOW_KEY,
+                &WindowSettings::from_display(&display),
+            );
+        }
+        if app.persist_egui_memory() {
+            epi::set_value(storage.as_mut(), EGUI_MEMORY_KEY, &*egui.ctx().memory());
+        }
         app.save(storage.as_mut());
         storage.flush();
     }

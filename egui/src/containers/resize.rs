@@ -1,7 +1,7 @@
 use crate::*;
 
 #[derive(Clone, Copy, Debug)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct State {
     /// This is the size that the user has picked by dragging the resize handles.
     /// This may be smaller and/or larger than the actual size.

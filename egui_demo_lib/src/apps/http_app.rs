@@ -38,13 +38,13 @@ impl Resource {
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 enum Method {
     Get,
     Post,
 }
 
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct HttpApp {
     url: String,
 
@@ -52,13 +52,13 @@ pub struct HttpApp {
 
     request_body: String,
 
-    #[cfg_attr(feature = "persistence", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     in_progress: Option<Receiver<Result<ehttp::Response, String>>>,
 
-    #[cfg_attr(feature = "persistence", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     result: Option<Result<Resource, String>>,
 
-    #[cfg_attr(feature = "persistence", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     tex_mngr: TexMngr,
 }
 
