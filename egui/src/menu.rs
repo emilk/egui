@@ -251,21 +251,21 @@ impl MenuEntry {
         let text_available_width = ui.available_width() - total_extra.x;
         let text_galley = ui
             .fonts()
-            .layout_multiline(text_style, text, text_available_width);
+            .layout_delayed_color(text, text_style, text_available_width);
 
-        let icon_available_width = text_available_width - text_galley.size.x;
+        let icon_available_width = text_available_width - text_galley.size().x;
         let icon_galley = ui
             .fonts()
-            .layout_multiline(text_style, icon, icon_available_width);
+            .layout_delayed_color(icon, text_style, icon_available_width);
         let text_and_icon_size = Vec2::new(
-            text_galley.size.x + icon_galley.size.x,
-            text_galley.size.y.max(icon_galley.size.y),
+            text_galley.size().x + icon_galley.size().x,
+            text_galley.size().y.max(icon_galley.size().y),
         );
         let desired_size = text_and_icon_size + 2.0 * button_padding;
 
         let (rect, response) = ui.allocate_at_least(desired_size, sense);
         response.widget_info(|| {
-            crate::WidgetInfo::labeled(crate::WidgetType::Button, &text_galley.text)
+            crate::WidgetInfo::labeled(crate::WidgetType::Button, &text_galley.text())
         });
 
         if ui.clip_rect().intersects(rect) {
@@ -273,12 +273,12 @@ impl MenuEntry {
             let visuals = state.visuals(ui, &response);
             let text_pos = ui
                 .layout()
-                .align_size_within_rect(text_galley.size, rect.shrink2(button_padding))
+                .align_size_within_rect(text_galley.size(), rect.shrink2(button_padding))
                 .min;
             let icon_pos = ui
                 .layout()
                 .with_cross_align(Align::RIGHT)
-                .align_size_within_rect(icon_galley.size, rect.shrink2(button_padding))
+                .align_size_within_rect(icon_galley.size(), rect.shrink2(button_padding))
                 .min;
 
             let fill = visuals.bg_fill;
@@ -291,8 +291,8 @@ impl MenuEntry {
             );
 
             let text_color = visuals.text_color();
-            ui.painter().galley(text_pos, text_galley, text_color);
-            ui.painter().galley(icon_pos, icon_galley, text_color);
+            ui.painter().galley_with_color(text_pos, text_galley, text_color);
+            ui.painter().galley_with_color(icon_pos, icon_galley, text_color);
         }
         response
     }
