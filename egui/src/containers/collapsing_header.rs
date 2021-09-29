@@ -287,32 +287,15 @@ impl CollapsingHeader {
             header_response.rect.center().y - galley.size().y / 2.0,
         );
 
-        let mut state = State::from_memory_with_default_open(ui.ctx(), id, default_open);
-        if header_response.clicked() {
-            state.toggle(ui);
-            header_response.mark_changed();
-        }
-        header_response
-            .widget_info(|| WidgetInfo::labeled(WidgetType::CollapsingHeader, galley.text()));
-
         let visuals = ui
             .style()
             .interact_selectable(&header_response, self.selected);
+
         let text_color = ui
             .style()
             .visuals
             .override_text_color
             .unwrap_or_else(|| visuals.text_color());
-
-        if ui.visuals().collapsing_header_frame || self.show_background {
-            ui.painter().add(epaint::RectShape {
-                rect: header_response.rect.expand(visuals.expansion),
-                corner_radius: visuals.corner_radius,
-                fill: visuals.bg_fill,
-                stroke: visuals.bg_stroke,
-                // stroke: Default::default(),
-            });
-        }
 
         if self.selected
             || self.selectable && (header_response.hovered() || header_response.has_focus())
@@ -324,21 +307,45 @@ impl CollapsingHeader {
                 .rect(rect, corner_radius, visuals.bg_fill, visuals.bg_stroke);
         }
 
-        {
+        let mut state = State::from_memory_with_default_open(ui.ctx(), id, default_open);
+
+        let icon_response = {
             let (mut icon_rect, _) = ui.spacing().icon_rectangles(header_response.rect);
             icon_rect.set_center(pos2(
                 header_response.rect.left() + ui.spacing().indent / 2.0,
                 header_response.rect.center().y,
             ));
-            let icon_response = Response {
-                rect: icon_rect,
-                ..header_response.clone()
-            };
+
+            let icon_response = ui.interact(icon_rect, id, Sense::click());
+
             let openness = state.openness(ui.ctx(), id);
             paint_icon(ui, openness, &icon_response);
+
+            ui.painter()
+                .galley_with_color(text_pos, galley.clone(), text_color);
+
+            icon_response
+        };
+
+        if header_response.clicked() {
+            if icon_response.clicked() {
+                state.toggle(ui);
+                header_response.mark_changed();
+            }
         }
 
-        ui.painter().galley_with_color(text_pos, galley, text_color);
+        header_response
+            .widget_info(|| WidgetInfo::labeled(WidgetType::CollapsingHeader, galley.text()));
+
+        if ui.visuals().collapsing_header_frame || self.show_background {
+            ui.painter().add(epaint::RectShape {
+                rect: header_response.rect.expand(visuals.expansion),
+                corner_radius: visuals.corner_radius,
+                fill: visuals.bg_fill,
+                stroke: visuals.bg_stroke,
+                // stroke: Default::default(),
+            });
+        }
 
         Prepared {
             id,
