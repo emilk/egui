@@ -1,6 +1,8 @@
 # Changelog for eframe
 All notable changes to the `eframe` and `epi` crates.
 
+NOTE: [`egui_web`](egui_web/CHANGELOG.md), [`egui-winit`](egui-winit/CHANGELOG.md) and [`egui_glium`](egui_glium/CHANGELOG.md) have their own changelogs!
+
 
 ## Unreleased
 * `Frame` now provides `set_decorations` to set whether to show window decorations.

@@ -61,6 +61,6 @@ pub fn start_web(canvas_id: &str, app: Box<dyn epi::App>) -> Result<(), wasm_bin
 
 /// Call from `fn main` like this: `eframe::run_native(Box::new(MyEguiApp::default()))`
 #[cfg(not(target_arch = "wasm32"))]
-pub fn run_native(app: Box<dyn epi::App>, native_options: epi::NativeOptions) {
+pub fn run_native(app: Box<dyn epi::App>, native_options: epi::NativeOptions) -> ! {
     egui_glium::run(app, &native_options)
 }
