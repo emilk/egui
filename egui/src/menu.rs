@@ -97,6 +97,7 @@ impl MenuRoot {
     ) -> InnerResponse<R> {
         MenuState::show(ctx, &self.menu_state, self.id, add_contents)
     }
+    /// interaction with a stationary menu, i.e. fixed in another Ui
     fn stationary_interaction(
         response: &Response,
         root: &mut Option<MenuRoot>,
@@ -106,25 +107,32 @@ impl MenuRoot {
         if (response.clicked() && is_menu_open(root, id))
             || response.ctx.input().key_pressed(Key::Escape)
         {
+            // menu open and button clicked or esc pressed
             return MenuResponse::Close;
         } else if (response.clicked() && !is_menu_open(root, id))
             || (response.hovered() && root.is_some())
         {
+            // menu not open and button clicked
+            // or button hovered while other menu is open
             let pos = response.rect.left_bottom();
             return MenuResponse::Create(pos, id);
-        } else if pointer.any_pressed() {
+        } else if pointer.any_pressed() && pointer.primary_down() {
             if let Some(pos) = pointer.interact_pos() {
                 if let Some(root) = root {
-                    let menu_state = root.menu_state.read().unwrap();
-                    let in_old_menu = menu_state.area_contains(pos);
-                    if (!in_old_menu && pointer.primary_down()) || root.id == id {
-                        return MenuResponse::Close;
+                    if root.id == id {
+                        // pressed somewhere while this menu is open
+                        let menu_state = root.menu_state.read().unwrap();
+                        let in_menu = menu_state.area_contains(pos);
+                        if !in_menu {
+                            return MenuResponse::Close;
+                        }
                     }
                 }
             }
         }
         MenuResponse::Stay
     }
+    /// interaction with a context menu
     fn context_interaction(
         response: &Response,
         root: &mut Option<MenuRoot>,
@@ -384,9 +392,7 @@ impl MenuState {
     ) -> Option<R> {
         let (sub_response, response) = self.get_submenu(id).map(|sub| {
             let inner_response = Self::show(ctx, sub, id, add_contents);
-            let mut sub = sub.write().unwrap();
-            sub.rect = inner_response.response.rect;
-            (sub.response.clone(), inner_response.inner)
+            (sub.read().unwrap().response.clone(), inner_response.inner)
         })?;
         self.cascade_response(sub_response);
         Some(response)
@@ -519,20 +525,22 @@ pub(crate) fn menu_ui<'c, R>(
         .interactable(false)
         .drag_bounds(Rect::EVERYTHING);
     let frame = Frame::menu(&style);
-    area.show(ctx, |ui| {
+    let inner_response = area.show(ctx, |ui| {
         frame
             .show(ui, |ui| {
                 const DEFAULT_MENU_WIDTH: f32 = 150.0; // TODO: add to ui.spacing
                 ui.set_max_width(DEFAULT_MENU_WIDTH);
                 ui.set_style(style);
                 ui.with_layout(Layout::top_down_justified(Align::LEFT), |ui| {
-                    ui.set_menu_state(menu_state_arc);
+                    ui.set_menu_state(menu_state_arc.clone());
                     add_contents(ui)
                 })
                 .inner
             })
             .inner
-    })
+    });
+    menu_state_arc.write().unwrap().rect = inner_response.response.rect;
+    inner_response
 }
 
 #[allow(clippy::needless_pass_by_value)]
