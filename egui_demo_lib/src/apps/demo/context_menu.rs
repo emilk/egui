@@ -123,9 +123,7 @@ impl super::Demo for ContextMenus {
 
 impl super::View for ContextMenus {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            ui.text_edit_singleline(&mut self.title)
-        });
+        ui.horizontal(|ui| ui.text_edit_singleline(&mut self.title));
         ui.horizontal(|ui| {
             ui.add(self.example_plot())
                 .on_hover_text("Right click for options")

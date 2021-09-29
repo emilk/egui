@@ -7,11 +7,11 @@ use std::sync::{
 
 use crate::{
     animation_manager::AnimationManager,
-    menu::ContextMenuSystem,
     data::output::Output,
     frame_state::FrameState,
     input_state::*,
     layers::GraphicLayers,
+    menu::ContextMenuSystem,
     mutex::{Mutex, MutexGuard},
     *,
 };

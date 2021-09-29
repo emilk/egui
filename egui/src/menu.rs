@@ -21,7 +21,7 @@ use super::{
     Ui, Vec2,
 };
 use crate::{widgets::*, *};
-use epaint::{Stroke, mutex::RwLock};
+use epaint::{mutex::RwLock, Stroke};
 use std::sync::Arc;
 
 /// What is saved between frames.
@@ -43,7 +43,11 @@ impl BarState {
     }
     /// Show a menu at pointer if right-clicked response.
     /// Should be called from [`Context`] on a [`Response`]
-    pub fn bar_menu<R>(&mut self, response: &Response, add_contents: impl FnOnce(&mut Ui) -> R) -> Option<InnerResponse<R>> {
+    pub fn bar_menu<R>(
+        &mut self,
+        response: &Response,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> Option<InnerResponse<R>> {
         MenuRoot::stationary_click_interaction(response, &mut self.open_menu, response.id);
         self.open_menu.show(response, add_contents)
     }
@@ -137,11 +141,8 @@ pub(crate) fn menu_ui<'c, R>(
                 ui.set_max_width(DEFAULT_MENU_WIDTH);
                 ui.set_style(style);
                 ui.set_menu_state(Some(menu_state_arc.clone()));
-                ui.with_layout(
-                    Layout::top_down_justified(Align::LEFT),
-                    add_contents,
-                )
-                .inner
+                ui.with_layout(Layout::top_down_justified(Align::LEFT), add_contents)
+                    .inner
             })
             .inner
     });
@@ -184,7 +185,11 @@ pub(crate) struct ContextMenuSystem {
 impl ContextMenuSystem {
     /// Show a menu at pointer if right-clicked response.
     /// Should be called from [`Context`] on a [`Response`]
-    pub fn context_menu(&mut self, response: &Response, add_contents: impl FnOnce(&mut Ui)) -> Option<InnerResponse<()>> {
+    pub fn context_menu(
+        &mut self,
+        response: &Response,
+        add_contents: impl FnOnce(&mut Ui),
+    ) -> Option<InnerResponse<()>> {
         MenuRoot::context_click_interaction(response, &mut self.root, response.id);
         self.root.show(response, add_contents)
     }
@@ -209,7 +214,11 @@ pub(crate) struct MenuRootManager {
 impl MenuRootManager {
     /// Show a menu at pointer if right-clicked response.
     /// Should be called from [`Context`] on a [`Response`]
-    pub fn show<R>(&mut self, response: &Response, add_contents: impl FnOnce(&mut Ui) -> R) -> Option<InnerResponse<R>> {
+    pub fn show<R>(
+        &mut self,
+        response: &Response,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> Option<InnerResponse<R>> {
         if let Some(root) = self.inner.as_mut() {
             let (menu_response, inner_response) = root.show(response, add_contents);
             if let MenuResponse::Close = menu_response {
@@ -256,7 +265,8 @@ impl MenuRoot {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> (MenuResponse, Option<InnerResponse<R>>) {
         if self.id == response.id {
-            let inner_response = MenuState::show(&response.ctx, &self.menu_state, self.id, add_contents);
+            let inner_response =
+                MenuState::show(&response.ctx, &self.menu_state, self.id, add_contents);
             let mut menu_state = self.menu_state.write();
             menu_state.rect = inner_response.response.rect;
 
@@ -330,10 +340,7 @@ impl MenuRoot {
         }
         MenuResponse::Stay
     }
-    fn handle_menu_response(
-        root: &mut MenuRootManager,
-        menu_response: MenuResponse,
-    ) {
+    fn handle_menu_response(root: &mut MenuRootManager, menu_response: MenuResponse) {
         match menu_response {
             MenuResponse::Create(pos, id) => {
                 root.inner = Some(MenuRoot::new(pos, id));
@@ -394,15 +401,8 @@ impl SubMenuButton {
         self.icon = icon.to_string();
         self
     }
-    pub(crate) fn show(
-        self,
-        ui: &mut Ui,
-        menu_state: &MenuState,
-        sub_id: Id,
-    ) -> Response {
-        let SubMenuButton {
-            text, icon, ..
-        } = self;
+    pub(crate) fn show(self, ui: &mut Ui, menu_state: &MenuState, sub_id: Id) -> Response {
+        let SubMenuButton { text, icon, .. } = self;
 
         let text_style = TextStyle::Button;
         let sense = Sense::click();
@@ -445,8 +445,10 @@ impl SubMenuButton {
             );
 
             let text_color = visuals.text_color();
-            ui.painter().galley_with_color(text_pos, text_galley, text_color);
-            ui.painter().galley_with_color(icon_pos, icon_galley, text_color);
+            ui.painter()
+                .galley_with_color(text_pos, text_galley, text_color);
+            ui.painter()
+                .galley_with_color(icon_pos, icon_galley, text_color);
         }
         response
     }
@@ -470,11 +472,7 @@ impl SubMenu {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<Option<R>> {
         let sub_id = ui.id().with(self.button.index);
-        let button = self.button.show(
-            ui,
-            &*self.parent_state.read(),
-            sub_id,
-        );
+        let button = self.button.show(ui, &*self.parent_state.read(), sub_id);
         self.parent_state
             .write()
             .submenu_button_interaction(ui, sub_id, &button);
@@ -579,11 +577,7 @@ impl MenuState {
         }
         if let Some(sub_menu) = self.get_current_submenu() {
             if let Some(pos) = pointer.hover_pos() {
-                return Self::points_at_left_of_rect(
-                    pos,
-                    pointer.velocity(),
-                    sub_menu.read().rect,
-                );
+                return Self::points_at_left_of_rect(pos, pointer.velocity(), sub_menu.read().rect);
             }
         }
         false
