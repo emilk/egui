@@ -417,7 +417,7 @@ impl<'t, S: TextBuffer> Widget for TextEdit<'t, S> {
         let frame_rect = response.rect.expand2(margin);
         ui.allocate_space(frame_rect.size());
         if enabled {
-            response = response | ui.interact(frame_rect, id, Sense::click());
+            response |= ui.interact(frame_rect, id, Sense::click())
         }
         if response.clicked() && !response.lost_focus() {
             ui.memory().request_focus(response.id);
