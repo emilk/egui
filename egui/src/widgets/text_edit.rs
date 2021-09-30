@@ -406,24 +406,26 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
 impl<'t, S: TextBuffer> Widget for TextEdit<'t, S> {
     fn ui(self, ui: &mut Ui) -> Response {
         let frame = self.frame;
+        let enabled = self.enabled;
         let where_to_put_background = ui.painter().add(Shape::Noop);
 
         let margin = Vec2::new(4.0, 2.0);
         let max_rect = ui.available_rect_before_wrap().shrink2(margin);
         let mut content_ui = ui.child_ui(max_rect, *ui.layout());
-        let response = self.content_ui(&mut content_ui);
+        let mut response = self.content_ui(&mut content_ui);
         let id = response.id;
         let frame_rect = response.rect.expand2(margin);
-        ui.allocate_rect(frame_rect, Sense::hover());
-        let frame_response = ui.interact(frame_rect, id, Sense::click());
-        let response = response | frame_response;
+        ui.allocate_space(frame_rect.size());
+        if enabled {
+            response |= ui.interact(frame_rect, id, Sense::click())
+        }
         if response.clicked() && !response.lost_focus() {
             ui.memory().request_focus(response.id);
         }
 
         if frame {
             let visuals = ui.style().interact(&response);
-            let frame_rect = response.rect.expand(visuals.expansion);
+            let frame_rect = frame_rect.expand(visuals.expansion);
             let shape = if response.has_focus() {
                 epaint::RectShape {
                     rect: frame_rect,
