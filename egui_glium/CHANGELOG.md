@@ -1,5 +1,4 @@
 # Changelog for egui_glium
-
 All notable changes to the `egui_glium` integration will be noted in this file.
 
 
@@ -10,6 +9,7 @@ All notable changes to the `egui_glium` integration will be noted in this file.
 * Increase scroll speed.
 * Restore window position on startup without flickering.
 * A lot of the code has been moved to the new library [`egui-winit`](https://github.com/emilk/egui/tree/master/egui-winit).
+* Fix reactive mode on windows.
 
 
 ## 0.14.0 - 2021-08-24
