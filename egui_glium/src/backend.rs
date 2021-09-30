@@ -1,5 +1,6 @@
-use crate::{window_settings::WindowSettings, *};
+use crate::*;
 use egui::Color32;
+use egui_winit::WindowSettings;
 #[cfg(target_os = "windows")]
 use glium::glutin::platform::windows::WindowBuilderExtWindows;
 use std::time::Instant;
@@ -309,7 +310,7 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> !
                         epi::set_value(
                             storage.as_mut(),
                             WINDOW_KEY,
-                            &WindowSettings::from_display(&display),
+                            &WindowSettings::from_display(display.gl_window().window()),
                         );
                     }
                     if app.persist_egui_memory() {
@@ -350,7 +351,7 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> !
                         epi::set_value(
                             storage.as_mut(),
                             WINDOW_KEY,
-                            &WindowSettings::from_display(&display),
+                            &WindowSettings::from_display(display.gl_window().window()),
                         );
                     }
                     if app.persist_egui_memory() {

@@ -26,6 +26,7 @@ epi = { version = "0.14.0", path = "../epi" }
 winit = "0.25"
 
 copypasta = { version = "0.7", optional = true }
+serde = { version = "1.0", optional = true, features = ["derive"] }
 webbrowser = { version = "0.5", optional = true }
 
 # feature screen_reader
@@ -43,3 +44,5 @@ links = ["webbrowser"]
 
 # experimental support for a screen reader
 screen_reader = ["tts"]
+
+serialize = ["egui/serialize", "serde"]

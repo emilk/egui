@@ -76,6 +76,9 @@ pub use winit;
 
 pub mod clipboard;
 pub mod screen_reader;
+mod window_settings;
+
+pub use window_settings::WindowSettings;
 
 pub fn native_pixels_per_point(window: &winit::window::Window) -> f32 {
     window.scale_factor() as f32

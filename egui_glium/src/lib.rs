@@ -80,7 +80,6 @@ mod backend;
 mod painter;
 #[cfg(feature = "persistence")]
 pub mod persistence;
-pub mod window_settings;
 
 pub use backend::*;
 pub use painter::Painter;

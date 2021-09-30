@@ -844,6 +844,7 @@ dependencies = [
  "copypasta",
  "egui",
  "epi",
+ "serde",
  "tts",
  "webbrowser",
  "winit",

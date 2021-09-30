@@ -54,6 +54,7 @@ links = ["egui-winit/links"]
 
 persistence = [
     "directories-next",
+    "egui-winit/serialize",
     "egui/persistence",
     "epi/persistence",
     "ron",

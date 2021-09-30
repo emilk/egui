@@ -1,7 +1,6 @@
-use egui_winit::winit;
-
+/// Can be used to store window settings (position and size).
 #[derive(Clone, Copy, Debug)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WindowSettings {
     /// outer position of window in physical pixels
     pos: Option<egui::Pos2>,
@@ -10,23 +9,11 @@ pub struct WindowSettings {
 }
 
 impl WindowSettings {
-    #[cfg(feature = "persistence")]
-    pub fn from_ron_file(settings_ron_path: impl AsRef<std::path::Path>) -> Option<WindowSettings> {
-        crate::persistence::read_ron(settings_ron_path)
-    }
-
-    pub fn from_display(display: &glium::Display) -> Self {
-        let scale_factor = display.gl_window().window().scale_factor();
-        let inner_size_points = display
-            .gl_window()
-            .window()
-            .inner_size()
-            .to_logical::<f32>(scale_factor);
+    pub fn from_display(window: &winit::window::Window) -> Self {
+        let inner_size_points = window.inner_size().to_logical::<f32>(window.scale_factor());
 
         Self {
-            pos: display
-                .gl_window()
-                .window()
+            pos: window
                 .outer_position()
                 .ok()
                 .map(|p| egui::pos2(p.x as f32, p.y as f32)),
