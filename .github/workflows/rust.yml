@@ -82,7 +82,7 @@ jobs:
           profile: minimal
           toolchain: 1.54.0
           override: true
-      - run: sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev
+      - run: sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libgtk-3-dev # libgtk-3-dev is used by rfd
       - uses: actions-rs/cargo@v1
         with:
           command: test
@@ -115,7 +115,7 @@ jobs:
           toolchain: 1.54.0
           override: true
       - run: rustup component add clippy
-      - run: sudo apt-get install libspeechd-dev
+      - run: sudo apt-get install libspeechd-dev libgtk-3-dev # libgtk-3-dev is used by rfd
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
