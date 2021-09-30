@@ -180,8 +180,9 @@ pub struct NativeOptions {
     pub decorated: bool,
 
     /// On Windows: enable drag and drop support.
-    /// Default is `false` to avoid issues with crates such as cpal which
-    /// uses that use multi-threaded COM API <https://github.com/rust-windowing/winit/pull/1524>
+    /// Default is `false` to avoid issues with crates such as [`cpal`](https://github.com/RustAudio/cpal) which
+    /// will hang when combined with drag-and-drop.
+    /// See <https://github.com/rust-windowing/winit/issues/1255>.
     pub drag_and_drop_support: bool,
 
     /// The application icon, e.g. in the Windows task bar etc.
