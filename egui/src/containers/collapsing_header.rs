@@ -327,17 +327,16 @@ impl CollapsingHeader {
             icon_response
         };
 
-        if header_response.clicked() && icon_response.clicked() {
+        if self.selectable && icon_response.clicked() {
             state.toggle(ui);
 
-            // If we click the icon we don't want to emit the clicked and double clicked
-            // events.
             header_response.clicked = [false; 3];
             header_response.double_clicked = [false; 3];
-
-            header_response.mark_changed();
+        } else if !self.selectable && (icon_response.clicked() || header_response.clicked()) {
+            state.toggle(ui);
         }
 
+        header_response.mark_changed();
         header_response
             .widget_info(|| WidgetInfo::labeled(WidgetType::CollapsingHeader, galley.text()));
 
