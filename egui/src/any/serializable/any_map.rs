@@ -17,16 +17,17 @@ impl<Key: Hash + Eq> Default for AnyMap<Key> {
 // ----------------------------------------------------------------------------
 
 impl<Key: Hash + Eq> AnyMap<Key> {
+    #[inline]
     pub fn get<T: AnyMapTrait>(&mut self, key: &Key) -> Option<&T> {
         self.get_mut(key).map(|x| &*x)
     }
 
+    #[inline]
     pub fn get_mut<T: AnyMapTrait>(&mut self, key: &Key) -> Option<&mut T> {
         self.0.get_mut(key)?.get_mut()
     }
-}
 
-impl<Key: Hash + Eq> AnyMap<Key> {
+    #[inline]
     pub fn get_or_insert_with<T: AnyMapTrait>(
         &mut self,
         key: Key,
@@ -35,8 +36,14 @@ impl<Key: Hash + Eq> AnyMap<Key> {
         &*self.get_mut_or_insert_with(key, or_insert_with)
     }
 
+    #[inline]
     pub fn get_or_default<T: AnyMapTrait + Default>(&mut self, key: Key) -> &T {
         self.get_or_insert_with(key, Default::default)
+    }
+
+    #[inline]
+    pub fn get_or<T: AnyMapTrait>(&mut self, key: Key, value: T) -> &T {
+        &*self.get_mut_or_insert_with(key, || value)
     }
 
     pub fn get_mut_or_insert_with<T: AnyMapTrait>(
@@ -57,13 +64,13 @@ impl<Key: Hash + Eq> AnyMap<Key> {
     pub fn get_mut_or_default<T: AnyMapTrait + Default>(&mut self, key: Key) -> &mut T {
         self.get_mut_or_insert_with(key, Default::default)
     }
-}
 
-impl<Key: Hash + Eq> AnyMap<Key> {
+    #[inline]
     pub fn insert<T: AnyMapTrait>(&mut self, key: Key, element: T) {
         self.0.insert(key, AnyMapElement::new(element));
     }
 
+    #[inline]
     pub fn remove(&mut self, key: &Key) {
         self.0.remove(key);
     }
@@ -74,12 +81,11 @@ impl<Key: Hash + Eq> AnyMap<Key> {
         self.0.retain(|_, v| v.type_id() != key);
     }
 
+    #[inline]
     pub fn clear(&mut self) {
         self.0.clear();
     }
-}
 
-impl<Key: Hash + Eq> AnyMap<Key> {
     /// You could use this function to find is there some leak or misusage. Note, that result of this function could break between runs, if you upgraded the Rust version or for other reasons.
     pub fn count<T: AnyMapTrait>(&mut self) -> usize {
         let key = TypeId::of::<T>();

@@ -39,10 +39,12 @@ impl AnyMapElement {
         }
     }
 
+    #[inline]
     pub(crate) fn type_id(&self) -> TypeId {
         (*self.value).type_id()
     }
 
+    #[inline]
     pub(crate) fn get_mut<T: AnyMapTrait>(&mut self) -> Option<&mut T> {
         self.value.downcast_mut()
     }
