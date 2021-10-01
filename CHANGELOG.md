@@ -21,6 +21,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md), [`eg
 * `Painter`/`Fonts`: text layout now expect a color when creating a `Galley`. You may override that color with `Painter::galley_with_color`.
 * MSRV (Minimum Supported Rust Version) is now `1.54.0`.
 * By default, `DragValue`:s no longer show a tooltip when hovered. Change with `Style::explanation_tooltips`.
+* Smaller and nicer color picker.
 
 ### Fixed 🐛
 * Fix wrongly sized multiline `TextEdit` in justified layouts.
