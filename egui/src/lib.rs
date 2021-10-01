@@ -375,6 +375,10 @@ pub use epaint::{
     ClippedMesh, Color32, Rgba, Shape, Stroke, Texture, TextureId,
 };
 
+pub mod text {
+    pub use epaint::text::{Fonts, Galley, LayoutJob, LayoutSection, TextFormat, TAB_SIZE};
+}
+
 pub use {
     containers::*,
     context::{Context, CtxRef},
@@ -392,13 +396,10 @@ pub use {
     response::{InnerResponse, Response},
     sense::Sense,
     style::{Style, Visuals},
+    text::{Galley, TextFormat},
     ui::Ui,
     widgets::*,
 };
-
-pub mod text {
-    pub use epaint::text::{Fonts, Galley, LayoutJob, LayoutSection, TextFormat, TAB_SIZE};
-}
 
 // ----------------------------------------------------------------------------
 
