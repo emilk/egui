@@ -121,3 +121,19 @@ pub(crate) fn shadow_ui(ui: &mut Ui, shadow: &mut epaint::Shadow, text: &str) {
         ui.color_edit_button_srgba(color);
     });
 }
+
+/// Show a small button to switch to/from dark/light mode (globally).
+pub fn global_dark_light_mode_switch(ui: &mut Ui) {
+    let style: crate::Style = (*ui.ctx().style()).clone();
+    let new_visuals = style.visuals.light_dark_small_toggle_button(ui);
+    if let Some(visuals) = new_visuals {
+        ui.ctx().set_visuals(visuals);
+    }
+}
+
+/// Show larger buttons for switching between light and dark mode (globally).
+pub fn global_dark_light_mode_buttons(ui: &mut Ui) {
+    let mut visuals = ui.ctx().style().visuals.clone();
+    visuals.light_dark_radio_buttons(ui);
+    ui.ctx().set_visuals(visuals);
+}
