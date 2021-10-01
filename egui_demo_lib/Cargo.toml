@@ -25,6 +25,8 @@ all-features = true
 [dependencies]
 egui = { version = "0.14.0", path = "../egui", default-features = false }
 epi = { version = "0.14.0", path = "../epi" }
+
+enum-map = { version = "1", features = ["serde"] }
 unicode_names2 = { version = "0.4.0", default-features = false }
 
 # feature "http":

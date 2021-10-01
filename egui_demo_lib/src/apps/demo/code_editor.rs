@@ -1,10 +1,128 @@
-use egui::text::LayoutJob;
+#[derive(Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[derive(enum_map::Enum)]
+enum TokenType {
+    Comment,
+    Keyword,
+    Literal,
+    StringLiteral,
+    Punctuation,
+    Whitespace,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+struct CodeTheme {
+    dark_mode: bool,
+    formats: enum_map::EnumMap<TokenType, egui::TextFormat>,
+}
+
+impl Default for CodeTheme {
+    fn default() -> Self {
+        Self::dark(egui::TextStyle::Monospace)
+    }
+}
+
+impl CodeTheme {
+    fn dark(text_style: egui::TextStyle) -> Self {
+        use egui::{Color32, TextFormat};
+        Self {
+            dark_mode: true,
+            formats: enum_map::enum_map![
+                TokenType::Comment => TextFormat::simple(text_style, Color32::from_gray(120)),
+                TokenType::Keyword => TextFormat::simple(text_style, Color32::from_rgb(255, 100, 100)),
+                TokenType::Literal => TextFormat::simple(text_style, Color32::from_rgb(178, 108, 210)),
+                TokenType::StringLiteral => TextFormat::simple(text_style, Color32::from_rgb(109, 147, 226)),
+                TokenType::Punctuation => TextFormat::simple(text_style, Color32::LIGHT_GRAY),
+                TokenType::Whitespace => TextFormat::simple(text_style, Color32::TRANSPARENT),
+            ],
+        }
+    }
+
+    fn light(text_style: egui::TextStyle) -> Self {
+        use egui::{Color32, TextFormat};
+        Self {
+            dark_mode: false,
+            formats: enum_map::enum_map![
+                TokenType::Comment => TextFormat::simple(text_style, Color32::GRAY),
+                TokenType::Keyword => TextFormat::simple(text_style, Color32::from_rgb(235, 0, 0)),
+                TokenType::Literal => TextFormat::simple(text_style, Color32::from_rgb(153, 134, 255)),
+                TokenType::StringLiteral => TextFormat::simple(text_style, Color32::from_rgb(37, 203, 105)),
+                TokenType::Punctuation => TextFormat::simple(text_style, Color32::DARK_GRAY),
+                TokenType::Whitespace => TextFormat::simple(text_style, Color32::TRANSPARENT),
+            ],
+        }
+    }
+}
+
+impl CodeTheme {
+    fn ui(&mut self, ui: &mut egui::Ui, reset_value: CodeTheme) {
+        ui.horizontal_top(|ui| {
+            let mut selected_tt: TokenType = *ui.memory().data.get_or(TokenType::Comment);
+
+            ui.vertical(|ui| {
+                egui::widgets::global_dark_light_mode_buttons(ui);
+
+                // ui.separator(); // TODO: fix forever-expand
+                ui.add_space(14.0);
+
+                ui.scope(|ui| {
+                    for (tt, tt_name) in [
+                        (TokenType::Comment, "// comment"),
+                        (TokenType::Keyword, "keyword"),
+                        (TokenType::Literal, "literal"),
+                        (TokenType::StringLiteral, "\"string literal\""),
+                        (TokenType::Punctuation, "punctuation ;"),
+                        // (TokenType::Whitespace, "whitespace"),
+                    ] {
+                        let format = &mut self.formats[tt];
+                        ui.style_mut().override_text_style = Some(format.style);
+                        ui.visuals_mut().override_text_color = Some(format.color);
+                        ui.radio_value(&mut selected_tt, tt, tt_name);
+                    }
+                });
+
+                ui.add_space(14.0);
+
+                if ui
+                    .add(egui::Button::new("Reset theme").enabled(*self != reset_value))
+                    .clicked()
+                {
+                    *self = reset_value;
+                }
+            });
+
+            ui.add_space(16.0);
+            // ui.separator(); // TODO: fix forever-expand
+
+            ui.memory().data.insert(selected_tt);
+
+            egui::Frame::group(ui.style())
+                .margin(egui::Vec2::splat(2.0))
+                .show(ui, |ui| {
+                    // ui.group(|ui| {
+                    ui.style_mut().override_text_style = Some(egui::TextStyle::Small);
+                    ui.spacing_mut().slider_width = 128.0; // Controls color picker size
+                    egui::widgets::color_picker::color_picker_color32(
+                        ui,
+                        &mut self.formats[selected_tt].color,
+                        egui::color_picker::Alpha::Opaque,
+                    );
+                });
+        });
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct CodeEditor {
-    code: String,
+    theme_dark: CodeTheme,
+    theme_light: CodeTheme,
     language: String,
+    code: String,
     #[cfg_attr(feature = "serde", serde(skip))]
     highlighter: MemoizedSyntaxHighlighter,
 }
@@ -12,13 +130,15 @@ pub struct CodeEditor {
 impl Default for CodeEditor {
     fn default() -> Self {
         Self {
+            theme_dark: CodeTheme::dark(egui::TextStyle::Monospace),
+            theme_light: CodeTheme::light(egui::TextStyle::Monospace),
+            language: "rs".into(),
             code: "// A very simple example\n\
 fn main() {\n\
 \tprintln!(\"Hello world!\");\n\
 }\n\
 "
             .into(),
-            language: "rs".into(),
             highlighter: Default::default(),
         }
     }
@@ -33,6 +153,7 @@ impl super::Demo for CodeEditor {
         use super::View;
         egui::Window::new(self.name())
             .open(open)
+            .default_height(500.0)
             .show(ctx, |ui| self.ui(ui));
     }
 }
@@ -40,8 +161,10 @@ impl super::Demo for CodeEditor {
 impl super::View for CodeEditor {
     fn ui(&mut self, ui: &mut egui::Ui) {
         let Self {
-            code,
+            theme_dark,
+            theme_light,
             language,
+            code,
             highlighter,
         } = self;
 
@@ -63,16 +186,36 @@ impl super::View for CodeEditor {
                 ui.label(".");
             });
         } else {
-            ui.horizontal_wrapped(|ui|{
+            ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;
-                ui.label("Compile the demo with the 'syntax_highlighting' feature to enable much nicer syntax highlighting using ");
+                ui.label("Compile the demo with the ");
+                ui.code("syntax_highlighting");
+                ui.label(" feature to enable more accurate syntax highlighting using ");
                 ui.hyperlink_to("syntect", "https://github.com/trishume/syntect");
                 ui.label(".");
             });
         }
 
+        ui.collapsing("Theme", |ui| {
+            ui.group(|ui| {
+                if ui.visuals().dark_mode {
+                    let reset_value = CodeTheme::dark(egui::TextStyle::Monospace);
+                    theme_dark.ui(ui, reset_value);
+                } else {
+                    let reset_value = CodeTheme::light(egui::TextStyle::Monospace);
+                    theme_light.ui(ui, reset_value);
+                }
+            });
+        });
+
+        let theme = if ui.visuals().dark_mode {
+            theme_dark
+        } else {
+            theme_light
+        };
+
         let mut layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
-            let mut layout_job = highlighter.highlight(ui.visuals().dark_mode, string, language);
+            let mut layout_job = highlighter.highlight(theme, string, language);
             layout_job.wrap_width = wrap_width;
             ui.fonts().layout_job(layout_job)
         };
@@ -82,6 +225,7 @@ impl super::View for CodeEditor {
                 egui::TextEdit::multiline(code)
                     .text_style(egui::TextStyle::Monospace) // for cursor height
                     .code_editor()
+                    .desired_rows(10)
                     .lock_focus(true)
                     .desired_width(f32::INFINITY)
                     .layouter(&mut layouter),
@@ -92,9 +236,11 @@ impl super::View for CodeEditor {
 
 // ----------------------------------------------------------------------------
 
+use egui::text::LayoutJob;
+
 #[derive(Default)]
 struct MemoizedSyntaxHighlighter {
-    is_dark_mode: bool,
+    theme: CodeTheme,
     code: String,
     language: String,
     output: LayoutJob,
@@ -102,24 +248,19 @@ struct MemoizedSyntaxHighlighter {
 }
 
 impl MemoizedSyntaxHighlighter {
-    fn highlight(&mut self, is_dark_mode: bool, code: &str, language: &str) -> LayoutJob {
-        if (
-            self.is_dark_mode,
-            self.code.as_str(),
-            self.language.as_str(),
-        ) != (is_dark_mode, code, language)
-        {
-            self.is_dark_mode = is_dark_mode;
+    fn highlight(&mut self, theme: &CodeTheme, code: &str, language: &str) -> LayoutJob {
+        if (&self.theme, self.code.as_str(), self.language.as_str()) != (theme, code, language) {
+            self.theme = *theme;
             self.code = code.to_owned();
             self.language = language.to_owned();
             self.output = self
                 .highligher
-                .highlight(is_dark_mode, code, language)
+                .highlight(theme, code, language)
                 .unwrap_or_else(|| {
                     LayoutJob::simple(
                         code.into(),
                         egui::TextStyle::Monospace,
-                        if is_dark_mode {
+                        if theme.dark_mode {
                             egui::Color32::LIGHT_GRAY
                         } else {
                             egui::Color32::DARK_GRAY
@@ -152,7 +293,7 @@ impl Default for Highligher {
 
 #[cfg(feature = "syntect")]
 impl Highligher {
-    fn highlight(&self, is_dark_mode: bool, text: &str, language: &str) -> Option<LayoutJob> {
+    fn highlight(&self, theme: &CodeTheme, text: &str, language: &str) -> Option<LayoutJob> {
         use syntect::easy::HighlightLines;
         use syntect::highlighting::FontStyle;
         use syntect::util::LinesWithEndings;
@@ -162,7 +303,7 @@ impl Highligher {
             .find_syntax_by_name(language)
             .or_else(|| self.ps.find_syntax_by_extension(language))?;
 
-        let theme = if is_dark_mode {
+        let theme = if theme.dark_mode {
             "base16-mocha.dark"
         } else {
             "base16-ocean.light"
@@ -224,54 +365,15 @@ struct Highligher {}
 #[cfg(not(feature = "syntect"))]
 impl Highligher {
     #[allow(clippy::unused_self, clippy::unnecessary_wraps)]
-    fn highlight(&self, is_dark_mode: bool, mut text: &str, _language: &str) -> Option<LayoutJob> {
+    fn highlight(&self, theme: &CodeTheme, mut text: &str, _language: &str) -> Option<LayoutJob> {
         // Extremely simple syntax highlighter for when we compile without syntect
-
-        use egui::text::TextFormat;
-        use egui::Color32;
-        let monospace = egui::TextStyle::Monospace;
-
-        let comment_format = TextFormat::simple(monospace, Color32::GRAY);
-        let quoted_string_format = TextFormat::simple(
-            monospace,
-            if is_dark_mode {
-                Color32::KHAKI
-            } else {
-                Color32::BROWN
-            },
-        );
-        let keyword_format = TextFormat::simple(
-            monospace,
-            if is_dark_mode {
-                Color32::LIGHT_RED
-            } else {
-                Color32::DARK_RED
-            },
-        );
-        let literal_format = TextFormat::simple(
-            monospace,
-            if is_dark_mode {
-                Color32::LIGHT_GREEN
-            } else {
-                Color32::DARK_GREEN
-            },
-        );
-        let whitespace_format = TextFormat::simple(monospace, Color32::WHITE);
-        let punctuation_format = TextFormat::simple(
-            monospace,
-            if is_dark_mode {
-                Color32::LIGHT_GRAY
-            } else {
-                Color32::DARK_GRAY
-            },
-        );
 
         let mut job = LayoutJob::default();
 
         while !text.is_empty() {
             if text.starts_with("//") {
                 let end = text.find('\n').unwrap_or_else(|| text.len());
-                job.append(&text[..end], 0.0, comment_format);
+                job.append(&text[..end], 0.0, theme.formats[TokenType::Comment]);
                 text = &text[end..];
             } else if text.starts_with('"') {
                 let end = text[1..]
@@ -279,7 +381,7 @@ impl Highligher {
                     .map(|i| i + 2)
                     .or_else(|| text.find('\n'))
                     .unwrap_or_else(|| text.len());
-                job.append(&text[..end], 0.0, quoted_string_format);
+                job.append(&text[..end], 0.0, theme.formats[TokenType::StringLiteral]);
                 text = &text[end..];
             } else if text.starts_with(|c: char| c.is_ascii_alphanumeric()) {
                 let end = text[1..]
@@ -287,24 +389,25 @@ impl Highligher {
                     .map(|i| i + 1)
                     .unwrap_or_else(|| text.len());
                 let word = &text[..end];
-                if is_keyword(word) {
-                    job.append(word, 0.0, keyword_format);
+                let tt = if is_keyword(word) {
+                    TokenType::Keyword
                 } else {
-                    job.append(word, 0.0, literal_format);
+                    TokenType::Literal
                 };
+                job.append(word, 0.0, theme.formats[tt]);
                 text = &text[end..];
             } else if text.starts_with(|c: char| c.is_ascii_whitespace()) {
                 let end = text[1..]
                     .find(|c: char| !c.is_ascii_whitespace())
                     .map(|i| i + 1)
                     .unwrap_or_else(|| text.len());
-                job.append(&text[..end], 0.0, whitespace_format);
+                job.append(&text[..end], 0.0, theme.formats[TokenType::Whitespace]);
                 text = &text[end..];
             } else {
                 let mut it = text.char_indices();
                 it.next();
                 let end = it.next().map_or(text.len(), |(idx, _chr)| idx);
-                job.append(&text[..end], 0.0, punctuation_format);
+                job.append(&text[..end], 0.0, theme.formats[TokenType::Punctuation]);
                 text = &text[end..];
             }
         }
