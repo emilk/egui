@@ -13,6 +13,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md), [`eg
 * `Fonts::layout_job*`: New text layout engine allowing mixing fonts, colors and styles, with underlining and strikethrough.
 * Add feature `"serialize"` separatedly from `"persistence"`.
 * Add `egui::widgets::global_dark_light_mode_buttons` to easily add buttons for switching the egui theme.
+* `TextEdit` can now be used to show text which can be selectedd and copied, but not edited.
 
 ### Changed 🔧
 * Label text will now be centered, right-aligned and/or justified based on the layout.

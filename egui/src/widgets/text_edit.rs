@@ -119,6 +119,9 @@ impl CCursorPair {
 ///
 /// Most likely you will use a `String` which implements `TextBuffer`.
 pub trait TextBuffer: AsRef<str> + Into<String> {
+    /// Can this text be edited?
+    fn is_mutable(&self) -> bool;
+
     /// Inserts text `text` into this buffer at character index `ch_idx`.
     ///
     /// # Notes
@@ -162,6 +165,10 @@ pub trait TextBuffer: AsRef<str> + Into<String> {
 }
 
 impl TextBuffer for String {
+    fn is_mutable(&self) -> bool {
+        true
+    }
+
     fn insert_text(&mut self, text: &str, ch_idx: usize) -> usize {
         // Get the byte index from the character index
         let byte_idx = self::byte_index_from_char_index(self, ch_idx);
@@ -196,6 +203,19 @@ impl TextBuffer for String {
     }
 }
 
+/// Immutable view of a &str!
+impl<'a> TextBuffer for &'a str {
+    fn is_mutable(&self) -> bool {
+        false
+    }
+
+    fn insert_text(&mut self, _text: &str, _ch_idx: usize) -> usize {
+        0
+    }
+
+    fn delete_char_range(&mut self, _ch_range: Range<usize>) {}
+}
+
 /// A text region that the user can edit the contents of.
 ///
 /// See also [`Ui::text_edit_singleline`] and  [`Ui::text_edit_multiline`].
@@ -220,6 +240,16 @@ impl TextBuffer for String {
 /// # let mut ui = egui::Ui::__test();
 /// # let mut my_string = String::new();
 /// ui.add_sized(ui.available_size(), egui::TextEdit::multiline(&mut my_string));
+/// ```
+///
+///
+/// You can also use [`TextEdit`] to show text that can be selected, but not edited.
+/// To do so, pass in a `&mut` reference to a `&str`, for instance:
+///
+/// ```
+/// fn selectable_text(ui: &mut egui::Ui, mut text: &str) {
+///     ui.add(egui::TextEdit::multiline(&mut text));
+/// }
 /// ```
 ///
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
@@ -405,6 +435,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
 
 impl<'t, S: TextBuffer> Widget for TextEdit<'t, S> {
     fn ui(self, ui: &mut Ui) -> Response {
+        let is_mutable = self.text.is_mutable();
         let frame = self.frame;
         let enabled = self.enabled;
         let where_to_put_background = ui.painter().add(Shape::Noop);
@@ -426,19 +457,31 @@ impl<'t, S: TextBuffer> Widget for TextEdit<'t, S> {
         if frame {
             let visuals = ui.style().interact(&response);
             let frame_rect = frame_rect.expand(visuals.expansion);
-            let shape = if response.has_focus() {
-                epaint::RectShape {
-                    rect: frame_rect,
-                    corner_radius: visuals.corner_radius,
-                    // fill: ui.visuals().selection.bg_fill,
-                    fill: ui.visuals().extreme_bg_color,
-                    stroke: ui.visuals().selection.stroke,
+            let shape = if is_mutable {
+                if response.has_focus() {
+                    epaint::RectShape {
+                        rect: frame_rect,
+                        corner_radius: visuals.corner_radius,
+                        // fill: ui.visuals().selection.bg_fill,
+                        fill: ui.visuals().extreme_bg_color,
+                        stroke: ui.visuals().selection.stroke,
+                    }
+                } else {
+                    epaint::RectShape {
+                        rect: frame_rect,
+                        corner_radius: visuals.corner_radius,
+                        fill: ui.visuals().extreme_bg_color,
+                        stroke: visuals.bg_stroke, // TODO: we want to show something here, or a text-edit field doesn't "pop".
+                    }
                 }
             } else {
+                let visuals = &ui.style().visuals.widgets.inactive;
                 epaint::RectShape {
                     rect: frame_rect,
                     corner_radius: visuals.corner_radius,
-                    fill: ui.visuals().extreme_bg_color,
+                    // fill: ui.visuals().extreme_bg_color,
+                    // fill: visuals.bg_fill,
+                    fill: Color32::TRANSPARENT,
                     stroke: visuals.bg_stroke, // TODO: we want to show something here, or a text-edit field doesn't "pop".
                 }
             };
