@@ -423,7 +423,7 @@ impl std::fmt::Debug for Vec2 {
 #[test]
 fn test_vec2() {
     macro_rules! almost_eq {
-        ($left:expr, $right:expr) => {
+        ($left: expr, $right: expr) => {
             let left = $left;
             let right = $right;
             assert!((left - right).abs() < 1e-6, "{} != {}", left, right);

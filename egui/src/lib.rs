@@ -425,7 +425,7 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
 /// ```
 #[macro_export]
 macro_rules! github_link_file_line {
-    ($github_url:expr, $label:expr) => {{
+    ($github_url: expr, $label: expr) => {{
         let url = format!("{}{}#L{}", $github_url, file!(), line!());
         $crate::Hyperlink::new(url).text($label)
     }};
@@ -439,7 +439,7 @@ macro_rules! github_link_file_line {
 /// ```
 #[macro_export]
 macro_rules! github_link_file {
-    ($github_url:expr, $label:expr) => {{
+    ($github_url: expr, $label: expr) => {{
         let url = format!("{}{}", $github_url, file!());
         $crate::Hyperlink::new(url).text($label)
     }};
@@ -462,10 +462,10 @@ macro_rules! github_link_file {
 /// ```
 #[macro_export]
 macro_rules! trace {
-    ($ui:expr) => {{
+    ($ui: expr) => {{
         $ui.trace_location(format!("{}:{}", file!(), line!()))
     }};
-    ($ui:expr, $label:expr) => {{
+    ($ui: expr, $label: expr) => {{
         $ui.trace_location(format!("{} - {}:{}", $label, file!(), line!()))
     }};
 }
@@ -476,7 +476,7 @@ macro_rules! trace {
 /// or with the `debug_egui_assert` feature in debug builds.
 #[macro_export]
 macro_rules! egui_assert {
-    ($($arg:tt)*) => {
+    ($($arg: tt)*) => {
         if cfg!(any(
             feature = "extra_asserts",
             all(feature = "extra_debug_asserts", debug_assertions),

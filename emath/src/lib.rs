@@ -340,7 +340,7 @@ pub fn normalized_angle(mut angle: f32) -> f32 {
 #[test]
 fn test_normalized_angle() {
     macro_rules! almost_eq {
-        ($left:expr, $right:expr) => {
+        ($left: expr, $right: expr) => {
             let left = $left;
             let right = $right;
             assert!((left - right).abs() < 1e-6, "{} != {}", left, right);
@@ -362,7 +362,7 @@ fn test_normalized_angle() {
 /// or with the `debug_egui_assert` feature in debug builds.
 #[macro_export]
 macro_rules! emath_assert {
-    ($($arg:tt)*) => {
+    ($($arg: tt)*) => {
         if cfg!(any(
             feature = "extra_asserts",
             all(feature = "extra_debug_asserts", debug_assertions),
