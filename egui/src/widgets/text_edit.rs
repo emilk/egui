@@ -523,7 +523,10 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
         let mut galley = layouter(ui, text.as_ref(), wrap_width);
 
         let desired_height = (desired_height_rows.at_least(1) as f32) * row_height;
-        let desired_size = vec2(wrap_width, galley.size().y.max(desired_height));
+        let desired_size = vec2(
+            galley.size().x.max(wrap_width),
+            galley.size().y.max(desired_height),
+        );
         let (auto_id, rect) = ui.allocate_space(desired_size);
 
         let id = id.unwrap_or_else(|| {
