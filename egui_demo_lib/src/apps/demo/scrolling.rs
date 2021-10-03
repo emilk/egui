@@ -252,7 +252,7 @@ impl Default for ScrollStickTo {
 
 impl super::View for ScrollStickTo {
     fn ui(&mut self, ui: &mut Ui) {
-        ui.label("Rows enter from the bottom, we want the scrollhandle to start and stay at bottom unless moved");
+        ui.label("Rows enter from the bottom, we want the scroll handle to start and stay at bottom unless moved");
 
         ui.add_space(4.0);
 
