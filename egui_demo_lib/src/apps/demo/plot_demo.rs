@@ -14,6 +14,8 @@ struct LineDemo {
     square: bool,
     proportional: bool,
     line_style: LineStyle,
+    mouse_coordinate: Option<Pos2>,
+    mouse_coordinate_drag_delta: Vec2,
 }
 
 impl Default for LineDemo {
@@ -26,6 +28,8 @@ impl Default for LineDemo {
             square: false,
             proportional: true,
             line_style: LineStyle::Solid,
+            mouse_coordinate: None,
+            mouse_coordinate_drag_delta: Vec2::ZERO,
         }
     }
 }
@@ -150,8 +154,20 @@ impl Widget for &mut LineDemo {
         if self.proportional {
             plot = plot.data_aspect(1.0);
         }
+        let coordinate_text = if let Some(coordinate) = self.mouse_coordinate {
+            format!("x: {:.03}, y: {:.03}", coordinate.x, coordinate.y)
+        } else {
+            "None".to_string()
+        };
+        ui.label(format!("mouse coordinate: {}", coordinate_text));
+        let coordinate_text = format!(
+            "x: {:.03}, y: {:.03}",
+            self.mouse_coordinate_drag_delta.x, self.mouse_coordinate_drag_delta.y
+        );
+        ui.label(format!("mouse coordinate drag delta: {}", coordinate_text));
         plot.build(ui, |plot_ui| {
-            dbg!(plot_ui.get_plot_mouse_position());
+            self.mouse_coordinate = plot_ui.pointer_coordinate();
+            self.mouse_coordinate_drag_delta = plot_ui.pointer_coordinate_drag_delta();
             plot_ui.line(self.circle());
             plot_ui.line(self.sin());
             plot_ui.line(self.thingy());

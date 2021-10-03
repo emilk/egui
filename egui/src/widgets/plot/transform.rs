@@ -132,7 +132,20 @@ pub(crate) struct ScreenTransform {
 }
 
 impl ScreenTransform {
-    pub fn new(frame: Rect, bounds: Bounds, x_centered: bool, y_centered: bool) -> Self {
+    pub fn new(frame: Rect, mut bounds: Bounds, x_centered: bool, y_centered: bool) -> Self {
+        // Make sure they are not empty.
+        if !bounds.is_valid() {
+            bounds = Bounds::new_symmetrical(1.0);
+        }
+
+        // Scale axes so that the origin is in the center.
+        if x_centered {
+            bounds.make_x_symmetrical();
+        };
+        if y_centered {
+            bounds.make_y_symmetrical()
+        };
+
         Self {
             frame,
             bounds,

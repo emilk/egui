@@ -46,9 +46,7 @@ struct PlotMemory {
 ///     Value::new(x, x.sin())
 /// });
 /// let line = Line::new(Values::from_values_iter(sin));
-/// ui.add(
-///     Plot::new("my_plot").line(line).view_aspect(2.0)
-/// );
+/// Plot::new("my_plot").view_aspect(2.0).build(ui, |plot_ui| plot_ui.line(line));
 /// ```
 pub struct Plot {
     id_source: Id,
@@ -298,7 +296,7 @@ impl Plot {
             items: Vec::new(),
             next_auto_color_idx: 0,
             last_screen_transform,
-            mouse_position: response.hover_pos(),
+            response: response.clone(),
         };
         build_fn(&mut plot_ui);
         let mut items = plot_ui.items;
@@ -316,7 +314,6 @@ impl Plot {
         // Legend
         let legend = legend_config
             .and_then(|config| LegendWidget::try_new(rect, config, &items, &hidden_items));
-
         // Don't show hover cursor when hovering over legend.
         if hovered_entry.is_some() {
             show_x = false;
@@ -334,6 +331,7 @@ impl Plot {
         // Move highlighted items to front.
         items.sort_by_key(|item| item.highlighted());
 
+        // Allow double clicking to reset to automatic bounds.
         auto_bounds |= response.double_clicked_by(PointerButton::Primary);
 
         // Set bounds automatically based on content.
@@ -344,18 +342,6 @@ impl Plot {
                 .for_each(|item| bounds.merge(&item.get_bounds()));
             bounds.add_relative_margin(margin_fraction);
         }
-        // Make sure they are not empty.
-        if !bounds.is_valid() {
-            bounds = Bounds::new_symmetrical(1.0);
-        }
-
-        // Scale axes so that the origin is in the center.
-        if center_x_axis {
-            bounds.make_x_symmetrical();
-        };
-        if center_y_axis {
-            bounds.make_y_symmetrical()
-        };
 
         let mut transform = ScreenTransform::new(rect, bounds, center_x_axis, center_y_axis);
 
@@ -437,7 +423,7 @@ pub struct PlotUi {
     items: Vec<Box<dyn PlotItem>>,
     next_auto_color_idx: usize,
     last_screen_transform: Option<ScreenTransform>,
-    mouse_position: Option<Pos2>,
+    response: Response,
 }
 
 impl PlotUi {
@@ -449,19 +435,36 @@ impl PlotUi {
         Hsva::new(h, 0.85, 0.5, 1.0).into() // TODO: OkLab or some other perspective color space
     }
 
-    pub fn get_plot_mouse_position(&self) -> Option<Pos2> {
+    /// The pointer position in plot coordinates, if the pointer is inside the plot area.
+    pub fn pointer_coordinate(&self) -> Option<Pos2> {
         self.last_screen_transform
             .as_ref()
-            .zip(self.mouse_position)
-            .map(|(tf, pos)| tf.value_from_position(pos))
+            .zip(self.response.hover_pos())
+            // We need to subtract the drag delta since the last frame.
+            .map(|(tf, pos)| tf.value_from_position(pos - self.response.drag_delta()))
             .map(|value| Pos2::new(value.x as f32, value.y as f32))
     }
 
+    /// The pointer drag delta in plot coordinates.
+    pub fn pointer_coordinate_drag_delta(&self) -> Vec2 {
+        self.last_screen_transform
+            .as_ref()
+            .map(|tf| {
+                let delta = self.response.drag_delta();
+                let dp_dv = tf.dpos_dvalue();
+                Vec2::new(delta.x / dp_dv[0] as f32, delta.y / dp_dv[1] as f32)
+            })
+            .unwrap_or(Vec2::ZERO)
+    }
+
+    /// Transform the screen coordinates to plot coordinates.
     pub fn screen_to_plot_coordinates(&self, position: Pos2) -> Pos2 {
         self.last_screen_transform
             .as_ref()
             .map(|tf| tf.position_from_value(&Value::new(position.x as f64, position.y as f64)))
             .unwrap_or(Pos2::ZERO)
+            // We need to subtract the drag delta since the last frame.
+            - self.response.drag_delta()
     }
 
     /// Add a data lines.
