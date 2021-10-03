@@ -29,6 +29,7 @@ struct PlotMemory {
     hovered_entry: Option<String>,
     hidden_items: HashSet<String>,
     min_auto_bounds: Bounds,
+    last_screen_transform: Option<ScreenTransform>,
 }
 
 // ----------------------------------------------------------------------------
@@ -51,9 +52,6 @@ struct PlotMemory {
 /// ```
 pub struct Plot {
     id_source: Id,
-    next_auto_color_idx: usize,
-
-    items: Vec<Box<dyn PlotItem>>,
 
     center_x_axis: bool,
     center_y_axis: bool,
@@ -80,9 +78,6 @@ impl Plot {
     pub fn new(id_source: impl std::hash::Hash) -> Self {
         Self {
             id_source: Id::new(id_source),
-            next_auto_color_idx: 0,
-
-            items: Default::default(),
 
             center_x_axis: false,
             center_y_axis: false,
@@ -103,108 +98,6 @@ impl Plot {
             show_background: true,
             show_axes: [true; 2],
         }
-    }
-
-    fn auto_color(&mut self) -> Color32 {
-        let i = self.next_auto_color_idx;
-        self.next_auto_color_idx += 1;
-        let golden_ratio = (5.0_f32.sqrt() - 1.0) / 2.0; // 0.61803398875
-        let h = i as f32 * golden_ratio;
-        Hsva::new(h, 0.85, 0.5, 1.0).into() // TODO: OkLab or some other perspective color space
-    }
-
-    /// Add a data lines.
-    pub fn line(mut self, mut line: Line) -> Self {
-        if line.series.is_empty() {
-            return self;
-        };
-
-        // Give the stroke an automatic color if no color has been assigned.
-        if line.stroke.color == Color32::TRANSPARENT {
-            line.stroke.color = self.auto_color();
-        }
-        self.items.push(Box::new(line));
-        self
-    }
-
-    /// Add a polygon. The polygon has to be convex.
-    pub fn polygon(mut self, mut polygon: Polygon) -> Self {
-        if polygon.series.is_empty() {
-            return self;
-        };
-
-        // Give the stroke an automatic color if no color has been assigned.
-        if polygon.stroke.color == Color32::TRANSPARENT {
-            polygon.stroke.color = self.auto_color();
-        }
-        self.items.push(Box::new(polygon));
-        self
-    }
-
-    /// Add a text.
-    pub fn text(mut self, text: Text) -> Self {
-        if text.text.is_empty() {
-            return self;
-        };
-
-        self.items.push(Box::new(text));
-        self
-    }
-
-    /// Add data points.
-    pub fn points(mut self, mut points: Points) -> Self {
-        if points.series.is_empty() {
-            return self;
-        };
-
-        // Give the points an automatic color if no color has been assigned.
-        if points.color == Color32::TRANSPARENT {
-            points.color = self.auto_color();
-        }
-        self.items.push(Box::new(points));
-        self
-    }
-
-    /// Add arrows.
-    pub fn arrows(mut self, mut arrows: Arrows) -> Self {
-        if arrows.origins.is_empty() || arrows.tips.is_empty() {
-            return self;
-        };
-
-        // Give the arrows an automatic color if no color has been assigned.
-        if arrows.color == Color32::TRANSPARENT {
-            arrows.color = self.auto_color();
-        }
-        self.items.push(Box::new(arrows));
-        self
-    }
-
-    /// Add an image.
-    pub fn image(mut self, image: PlotImage) -> Self {
-        self.items.push(Box::new(image));
-        self
-    }
-
-    /// Add a horizontal line.
-    /// Can be useful e.g. to show min/max bounds or similar.
-    /// Always fills the full width of the plot.
-    pub fn hline(mut self, mut hline: HLine) -> Self {
-        if hline.stroke.color == Color32::TRANSPARENT {
-            hline.stroke.color = self.auto_color();
-        }
-        self.items.push(Box::new(hline));
-        self
-    }
-
-    /// Add a vertical line.
-    /// Can be useful e.g. to show min/max bounds or similar.
-    /// Always fills the full height of the plot.
-    pub fn vline(mut self, mut vline: VLine) -> Self {
-        if vline.stroke.color == Color32::TRANSPARENT {
-            vline.stroke.color = self.auto_color();
-        }
-        self.items.push(Box::new(vline));
-        self
     }
 
     /// width / height ratio of the data.
@@ -316,14 +209,10 @@ impl Plot {
         self.show_axes = show;
         self
     }
-}
 
-impl Widget for Plot {
-    fn ui(self, ui: &mut Ui) -> Response {
+    pub fn build(self, ui: &mut Ui, build_fn: impl FnOnce(&mut PlotUi)) -> Response {
         let Self {
             id_source,
-            next_auto_color_idx: _,
-            mut items,
             center_x_axis,
             center_y_axis,
             allow_zoom,
@@ -352,6 +241,7 @@ impl Widget for Plot {
                 hovered_entry: None,
                 hidden_items: HashSet::new(),
                 min_auto_bounds,
+                last_screen_transform: None,
             })
             .clone();
 
@@ -372,6 +262,7 @@ impl Widget for Plot {
             mut auto_bounds,
             mut hovered_entry,
             mut hidden_items,
+            last_screen_transform,
             ..
         } = memory;
 
@@ -401,6 +292,16 @@ impl Widget for Plot {
 
         let (rect, response) = ui.allocate_exact_size(size, Sense::drag());
         let plot_painter = ui.painter().sub_region(rect);
+
+        // Call the plot build function.
+        let mut plot_ui = PlotUi {
+            items: Vec::new(),
+            next_auto_color_idx: 0,
+            last_screen_transform,
+            mouse_position: response.hover_pos(),
+        };
+        build_fn(&mut plot_ui);
+        let mut items = plot_ui.items;
 
         // Background
         if show_background {
@@ -497,12 +398,12 @@ impl Widget for Plot {
 
         let bounds = *transform.bounds();
 
-        let prepared = Prepared {
+        let prepared = PreparedPlot {
             items,
             show_x,
             show_y,
             show_axes,
-            transform,
+            transform: transform.clone(),
         };
         prepared.ui(ui, &response);
 
@@ -520,6 +421,7 @@ impl Widget for Plot {
                 hovered_entry,
                 hidden_items,
                 min_auto_bounds,
+                last_screen_transform: Some(transform),
             },
         );
 
@@ -531,7 +433,125 @@ impl Widget for Plot {
     }
 }
 
-struct Prepared {
+pub struct PlotUi {
+    items: Vec<Box<dyn PlotItem>>,
+    next_auto_color_idx: usize,
+    last_screen_transform: Option<ScreenTransform>,
+    mouse_position: Option<Pos2>,
+}
+
+impl PlotUi {
+    fn auto_color(&mut self) -> Color32 {
+        let i = self.next_auto_color_idx;
+        self.next_auto_color_idx += 1;
+        let golden_ratio = (5.0_f32.sqrt() - 1.0) / 2.0; // 0.61803398875
+        let h = i as f32 * golden_ratio;
+        Hsva::new(h, 0.85, 0.5, 1.0).into() // TODO: OkLab or some other perspective color space
+    }
+
+    pub fn get_plot_mouse_position(&self) -> Option<Pos2> {
+        self.last_screen_transform
+            .as_ref()
+            .zip(self.mouse_position)
+            .map(|(tf, pos)| tf.value_from_position(pos))
+            .map(|value| Pos2::new(value.x as f32, value.y as f32))
+    }
+
+    pub fn screen_to_plot_coordinates(&self, position: Pos2) -> Pos2 {
+        self.last_screen_transform
+            .as_ref()
+            .map(|tf| tf.position_from_value(&Value::new(position.x as f64, position.y as f64)))
+            .unwrap_or(Pos2::ZERO)
+    }
+
+    /// Add a data lines.
+    pub fn line(&mut self, mut line: Line) {
+        if line.series.is_empty() {
+            return;
+        };
+
+        // Give the stroke an automatic color if no color has been assigned.
+        if line.stroke.color == Color32::TRANSPARENT {
+            line.stroke.color = self.auto_color();
+        }
+        self.items.push(Box::new(line));
+    }
+
+    /// Add a polygon. The polygon has to be convex.
+    pub fn polygon(&mut self, mut polygon: Polygon) {
+        if polygon.series.is_empty() {
+            return;
+        };
+
+        // Give the stroke an automatic color if no color has been assigned.
+        if polygon.stroke.color == Color32::TRANSPARENT {
+            polygon.stroke.color = self.auto_color();
+        }
+        self.items.push(Box::new(polygon));
+    }
+
+    /// Add a text.
+    pub fn text(&mut self, text: Text) {
+        if text.text.is_empty() {
+            return;
+        };
+
+        self.items.push(Box::new(text));
+    }
+
+    /// Add data points.
+    pub fn points(&mut self, mut points: Points) {
+        if points.series.is_empty() {
+            return;
+        };
+
+        // Give the points an automatic color if no color has been assigned.
+        if points.color == Color32::TRANSPARENT {
+            points.color = self.auto_color();
+        }
+        self.items.push(Box::new(points));
+    }
+
+    /// Add arrows.
+    pub fn arrows(&mut self, mut arrows: Arrows) {
+        if arrows.origins.is_empty() || arrows.tips.is_empty() {
+            return;
+        };
+
+        // Give the arrows an automatic color if no color has been assigned.
+        if arrows.color == Color32::TRANSPARENT {
+            arrows.color = self.auto_color();
+        }
+        self.items.push(Box::new(arrows));
+    }
+
+    /// Add an image.
+    pub fn image(&mut self, image: PlotImage) {
+        self.items.push(Box::new(image));
+    }
+
+    /// Add a horizontal line.
+    /// Can be useful e.g. to show min/max bounds or similar.
+    /// Always fills the full width of the plot.
+    pub fn hline(&mut self, mut hline: HLine) {
+        if hline.stroke.color == Color32::TRANSPARENT {
+            hline.stroke.color = self.auto_color();
+        }
+        self.items.push(Box::new(hline));
+    }
+
+    /// Add a vertical line.
+    /// Can be useful e.g. to show min/max bounds or similar.
+    /// Always fills the full height of the plot.
+    pub fn vline(&mut self, mut vline: VLine) {
+        if vline.stroke.color == Color32::TRANSPARENT {
+            vline.stroke.color = self.auto_color();
+        }
+        self.items.push(Box::new(vline));
+    }
+}
+
+struct PreparedPlot {
     items: Vec<Box<dyn PlotItem>>,
     show_x: bool,
     show_y: bool,
@@ -539,7 +559,7 @@ struct Prepared {
     transform: ScreenTransform,
 }
 
-impl Prepared {
+impl PreparedPlot {
     fn ui(self, ui: &mut Ui, response: &Response) {
         let mut shapes = Vec::new();
 

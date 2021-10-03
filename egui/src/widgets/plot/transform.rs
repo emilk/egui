@@ -118,6 +118,7 @@ impl Bounds {
 }
 
 /// Contains the screen rectangle and the plot bounds and provides methods to transform them.
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone)]
 pub(crate) struct ScreenTransform {
     /// The screen rectangle.
