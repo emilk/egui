@@ -208,6 +208,7 @@ impl Plot {
         self
     }
 
+    /// Interact with and add items to the plot and finally draw it.
     pub fn build(self, ui: &mut Ui, build_fn: impl FnOnce(&mut PlotUi)) -> Response {
         let Self {
             id_source,
