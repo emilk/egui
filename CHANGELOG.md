@@ -13,6 +13,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md), [`eg
 * `Fonts::layout_job*`: New text layout engine allowing mixing fonts, colors and styles, with underlining and strikethrough.
 * Add feature `"serialize"` separatedly from `"persistence"`.
 * Add `egui::widgets::global_dark_light_mode_buttons` to easily add buttons for switching the egui theme.
+* Add interaction methods to the plot.
 
 ### Changed 🔧
 * Label text will now be centered, right-aligned and/or justified based on the layout.
@@ -23,6 +24,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md), [`eg
 * MSRV (Minimum Supported Rust Version) is now `1.54.0`.
 * By default, `DragValue`:s no longer show a tooltip when hovered. Change with `Style::explanation_tooltips`.
 * Smaller and nicer color picker.
+* Plots now provide a `build` method that has to be used to add items to and show the plot.
 
 ### Fixed 🐛
 * Fix wrongly sized multiline `TextEdit` in justified layouts.
