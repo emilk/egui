@@ -14,8 +14,6 @@ struct LineDemo {
     square: bool,
     proportional: bool,
     line_style: LineStyle,
-    mouse_coordinate: Option<Pos2>,
-    mouse_coordinate_drag_delta: Vec2,
 }
 
 impl Default for LineDemo {
@@ -28,8 +26,6 @@ impl Default for LineDemo {
             square: false,
             proportional: true,
             line_style: LineStyle::Solid,
-            mouse_coordinate: None,
-            mouse_coordinate_drag_delta: Vec2::ZERO,
         }
     }
 }
@@ -154,20 +150,7 @@ impl Widget for &mut LineDemo {
         if self.proportional {
             plot = plot.data_aspect(1.0);
         }
-        let coordinate_text = if let Some(coordinate) = self.mouse_coordinate {
-            format!("x: {:.03}, y: {:.03}", coordinate.x, coordinate.y)
-        } else {
-            "None".to_string()
-        };
-        ui.label(format!("mouse coordinate: {}", coordinate_text));
-        let coordinate_text = format!(
-            "x: {:.03}, y: {:.03}",
-            self.mouse_coordinate_drag_delta.x, self.mouse_coordinate_drag_delta.y
-        );
-        ui.label(format!("mouse coordinate drag delta: {}", coordinate_text));
         plot.build(ui, |plot_ui| {
-            self.mouse_coordinate = plot_ui.pointer_coordinate();
-            self.mouse_coordinate_drag_delta = plot_ui.pointer_coordinate_drag_delta();
             plot_ui.line(self.circle());
             plot_ui.line(self.sin());
             plot_ui.line(self.thingy());
@@ -386,12 +369,52 @@ impl Widget for &mut ItemsDemo {
     }
 }
 
+#[derive(PartialEq)]
+struct InteractionDemo {
+    pointer_coordinate: Option<Pos2>,
+    pointer_coordinate_drag_delta: Vec2,
+}
+
+impl Default for InteractionDemo {
+    fn default() -> Self {
+        Self {
+            pointer_coordinate: None,
+            pointer_coordinate_drag_delta: Vec2::ZERO,
+        }
+    }
+}
+
+impl Widget for &mut InteractionDemo {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let coordinate_text = if let Some(coordinate) = self.pointer_coordinate {
+            format!("x: {:.03}, y: {:.03}", coordinate.x, coordinate.y)
+        } else {
+            "None".to_string()
+        };
+        ui.label(format!("pointer coordinate: {}", coordinate_text));
+        let coordinate_text = format!(
+            "x: {:.03}, y: {:.03}",
+            self.pointer_coordinate_drag_delta.x, self.pointer_coordinate_drag_delta.y
+        );
+        ui.label(format!(
+            "pointer coordinate drag delta: {}",
+            coordinate_text
+        ));
+        let plot = Plot::new("interaction_demo");
+        plot.build(ui, |plot_ui| {
+            self.pointer_coordinate = plot_ui.pointer_coordinate();
+            self.pointer_coordinate_drag_delta = plot_ui.pointer_coordinate_drag_delta();
+        })
+    }
+}
+
 #[derive(PartialEq, Eq)]
 enum Panel {
     Lines,
     Markers,
     Legend,
     Items,
+    Interaction,
 }
 
 impl Default for Panel {
@@ -406,6 +429,7 @@ pub struct PlotDemo {
     marker_demo: MarkerDemo,
     legend_demo: LegendDemo,
     items_demo: ItemsDemo,
+    interaction_demo: InteractionDemo,
     open_panel: Panel,
 }
 
@@ -431,7 +455,7 @@ impl super::View for PlotDemo {
             ui.collapsing("Instructions", |ui| {
                 ui.label("Pan by dragging, or scroll (+ shift = horizontal).");
                 if cfg!(target_arch = "wasm32") {
-                    ui.label("Zoom with ctrl / ⌘ + mouse wheel, or with pinch gesture.");
+                    ui.label("Zoom with ctrl / ⌘ + pointer wheel, or with pinch gesture.");
                 } else if cfg!(target_os = "macos") {
                     ui.label("Zoom with ctrl / ⌘ + scroll.");
                 } else {
@@ -447,6 +471,7 @@ impl super::View for PlotDemo {
             ui.selectable_value(&mut self.open_panel, Panel::Markers, "Markers");
             ui.selectable_value(&mut self.open_panel, Panel::Legend, "Legend");
             ui.selectable_value(&mut self.open_panel, Panel::Items, "Items");
+            ui.selectable_value(&mut self.open_panel, Panel::Interaction, "Interaction");
         });
         ui.separator();
 
@@ -462,6 +487,9 @@ impl super::View for PlotDemo {
             }
             Panel::Items => {
                 ui.add(&mut self.items_demo);
+            }
+            Panel::Interaction => {
+                ui.add(&mut self.interaction_demo);
             }
         }
     }
