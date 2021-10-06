@@ -503,6 +503,7 @@ impl Prepared {
                     if has_bar[d] {
                         state.offset[d] -= input.pointer.delta()[d];
                         state.vel[d] = input.pointer.velocity()[d];
+                        state.scroll_stuck_to_end[d] = false;
                     } else {
                         state.vel[d] = 0.0;
                     }
@@ -539,6 +540,7 @@ impl Prepared {
                         state.offset[d] -= scroll_delta[d];
                         // Clear scroll delta so no parent scroll will use it.
                         frame_state.scroll_delta[d] = 0.0;
+                        state.scroll_stuck_to_end[d] = false;
                     }
                 }
             }
