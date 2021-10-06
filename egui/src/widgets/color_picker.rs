@@ -1,6 +1,6 @@
 //! Color picker widgets.
 
-use crate::util::Cache;
+use crate::util::fixed_cache::FixedCache;
 use crate::*;
 use epaint::{color::*, *};
 
@@ -322,7 +322,7 @@ pub fn color_picker_color32(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -> b
         .ctx()
         .memory()
         .data_temp
-        .get_or_default::<Cache<Color32, Hsva>>()
+        .get_or_default::<FixedCache<Color32, Hsva>>()
         .get(srgba)
         .cloned()
         .unwrap_or_else(|| Hsva::from(*srgba));
@@ -334,7 +334,7 @@ pub fn color_picker_color32(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -> b
     ui.ctx()
         .memory()
         .data_temp
-        .get_mut_or_default::<Cache<Color32, Hsva>>()
+        .get_mut_or_default::<FixedCache<Color32, Hsva>>()
         .set(*srgba, hsva);
 
     response
@@ -386,7 +386,7 @@ pub fn color_edit_button_srgba(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -
         .ctx()
         .memory()
         .data_temp
-        .get_or_default::<Cache<Color32, Hsva>>()
+        .get_or_default::<FixedCache<Color32, Hsva>>()
         .get(srgba)
         .cloned()
         .unwrap_or_else(|| Hsva::from(*srgba));
@@ -398,7 +398,7 @@ pub fn color_edit_button_srgba(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -
     ui.ctx()
         .memory()
         .data_temp
-        .get_mut_or_default::<Cache<Color32, Hsva>>()
+        .get_mut_or_default::<FixedCache<Color32, Hsva>>()
         .set(*srgba, hsva);
 
     response

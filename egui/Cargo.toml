@@ -24,8 +24,10 @@ all-features = true
 
 [dependencies]
 epaint = { version = "0.14.0", path = "../epaint", default-features = false }
-serde = { version = "1", features = ["derive", "rc"], optional = true }
+ahash = "0.7"
+nohash-hasher = "0.2"
 ron = { version = "0.6.4", optional = true }
+serde = { version = "1", features = ["derive", "rc"], optional = true }
 
 [features]
 default = ["default_fonts", "single_threaded"]

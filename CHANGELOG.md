@@ -14,6 +14,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md), [`eg
 * Add feature `"serialize"` separatedly from `"persistence"`.
 * Add `egui::widgets::global_dark_light_mode_buttons` to easily add buttons for switching the egui theme.
 * `TextEdit` can now be used to show text which can be selectedd and copied, but not edited.
+* Add `Memory::caches` for caching things from one frame to the next.
 
 ### Changed 🔧
 * Label text will now be centered, right-aligned and/or justified based on the layout.

@@ -19,6 +19,7 @@ use crate::{any, area, window, Id, InputState, LayerId, Pos2, Rect, Style};
 pub struct Memory {
     pub options: Options,
 
+    // ------------------------------------------
     /// This map stores current states for widgets that don't require `Id`.
     /// This will be saved between different program runs if you use the `persistence` feature.
     #[cfg(feature = "persistence")]
@@ -30,7 +31,7 @@ pub struct Memory {
     pub data: any::TypeMap,
 
     /// Same as `data`, but this data will not be saved between runs.
-    #[cfg_attr(feature = "persistence", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub data_temp: any::TypeMap,
 
     /// This map stores current states for all widgets with custom `Id`s.
@@ -44,9 +45,37 @@ pub struct Memory {
     pub id_data: any::AnyMap<Id>,
 
     /// Same as `id_data`, but this data will not be saved between runs.
-    #[cfg_attr(feature = "persistence", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub id_data_temp: any::AnyMap<Id>,
 
+    // ------------------------------------------
+    /// Can be used to cache computations from one frame to another.
+    ///
+    /// This is for saving CPU when you have something that may take 1-100ms to compute.
+    /// Things that are very slow (>100ms) should instead be done async (i.e. in another thread)
+    /// so as not to lock the UI thread.
+    ///
+    /// ```
+    /// use egui::util::cache::{ComputerMut, FrameCache};
+    ///
+    /// #[derive(Default)]
+    /// struct CharCounter {}
+    /// impl ComputerMut<&str, usize> for CharCounter {
+    ///     fn compute(&mut self, s: &str) -> usize {
+    ///         s.chars().count() // you probably want to cache something more expensive than this
+    ///     }
+    /// }
+    /// type CharCountCache<'a> = FrameCache<usize, CharCounter>;
+    ///
+    /// # let mut ctx = egui::CtxRef::default();
+    /// let mut memory = ctx.memory();
+    /// let cache = memory.caches.cache::<CharCountCache<'_>>();
+    /// assert_eq!(cache.get("hello"), 5);
+    /// ```
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub caches: crate::util::cache::CacheStorage,
+
+    // ------------------------------------------
     /// new scale that will be applied at the start of the next frame
     pub(crate) new_pixels_per_point: Option<f32>,
 
@@ -286,6 +315,7 @@ impl Memory {
         input: &InputState,
         used_ids: &epaint::ahash::AHashMap<Id, Rect>,
     ) {
+        self.caches.update();
         self.areas.end_frame();
         self.interaction.focus.end_frame(used_ids);
         self.drag_value.end_frame(input);

@@ -831,7 +831,9 @@ dependencies = [
 name = "egui"
 version = "0.14.2"
 dependencies = [
+ "ahash",
  "epaint",
+ "nohash-hasher",
  "ron",
  "serde",
  "serde_json",

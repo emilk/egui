@@ -405,7 +405,7 @@ struct GalleyCache {
 
 impl GalleyCache {
     fn layout(&mut self, fonts: &Fonts, job: LayoutJob) -> Arc<Galley> {
-        let hash = crate::util::hash_with(&job, ahash::AHasher::new_with_keys(123, 456)); // TODO: even faster hasher?
+        let hash = crate::util::hash(&job); // TODO: even faster hasher?
 
         match self.cache.entry(hash) {
             std::collections::hash_map::Entry::Occupied(entry) => {
