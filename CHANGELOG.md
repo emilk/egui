@@ -25,6 +25,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md), [`eg
 * MSRV (Minimum Supported Rust Version) is now `1.54.0`.
 * By default, `DragValue`:s no longer show a tooltip when hovered. Change with `Style::explanation_tooltips`.
 * Smaller and nicer color picker.
+* `ScrollArea` will auto-shrink to content size unless told otherwise using `ScollArea::auto_shrink`.
 
 ### Fixed 🐛
 * Fix wrongly sized multiline `TextEdit` in justified layouts.

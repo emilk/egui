@@ -32,7 +32,7 @@ impl super::Demo for Scrolling {
             .open(open)
             .resizable(false)
             .show(ctx, |ui| {
-                use super::View;
+                use super::View as _;
                 self.ui(ui);
             });
     }
@@ -77,12 +77,17 @@ fn huge_content_lines(ui: &mut egui::Ui) {
     let text_style = TextStyle::Body;
     let row_height = ui.fonts()[text_style].row_height();
     let num_rows = 10_000;
-    ScrollArea::vertical().show_rows(ui, row_height, num_rows, |ui, row_range| {
-        for row in row_range {
-            let text = format!("This is row {}/{}", row + 1, num_rows);
-            ui.label(text);
-        }
-    });
+    ScrollArea::vertical().auto_shrink([false; 2]).show_rows(
+        ui,
+        row_height,
+        num_rows,
+        |ui, row_range| {
+            for row in row_range {
+                let text = format!("This is row {}/{}", row + 1, num_rows);
+                ui.label(text);
+            }
+        },
+    );
 }
 
 fn huge_content_painter(ui: &mut egui::Ui) {
@@ -94,32 +99,39 @@ fn huge_content_painter(ui: &mut egui::Ui) {
     let row_height = ui.fonts()[text_style].row_height() + ui.spacing().item_spacing.y;
     let num_rows = 10_000;
 
-    ScrollArea::vertical().show_viewport(ui, |ui, viewport| {
-        ui.set_height(row_height * num_rows as f32);
+    ScrollArea::vertical()
+        .auto_shrink([false; 2])
+        .show_viewport(ui, |ui, viewport| {
+            ui.set_height(row_height * num_rows as f32);
 
-        let first_item = (viewport.min.y / row_height).floor().at_least(0.0) as usize;
-        let last_item = (viewport.max.y / row_height).ceil() as usize + 1;
-        let last_item = last_item.at_most(num_rows);
+            let first_item = (viewport.min.y / row_height).floor().at_least(0.0) as usize;
+            let last_item = (viewport.max.y / row_height).ceil() as usize + 1;
+            let last_item = last_item.at_most(num_rows);
 
-        for i in first_item..last_item {
-            let indentation = (i % 100) as f32;
-            let x = ui.min_rect().left() + indentation;
-            let y = ui.min_rect().top() + i as f32 * row_height;
-            let text = format!(
-                "This is row {}/{}, indented by {} pixels",
-                i + 1,
-                num_rows,
-                indentation
-            );
-            ui.painter().text(
-                pos2(x, y),
-                Align2::LEFT_TOP,
-                text,
-                text_style,
-                ui.visuals().text_color(),
-            );
-        }
-    });
+            let mut used_rect = Rect::NOTHING;
+
+            for i in first_item..last_item {
+                let indentation = (i % 100) as f32;
+                let x = ui.min_rect().left() + indentation;
+                let y = ui.min_rect().top() + i as f32 * row_height;
+                let text = format!(
+                    "This is row {}/{}, indented by {} pixels",
+                    i + 1,
+                    num_rows,
+                    indentation
+                );
+                let text_rect = ui.painter().text(
+                    pos2(x, y),
+                    Align2::LEFT_TOP,
+                    text,
+                    text_style,
+                    ui.visuals().text_color(),
+                );
+                used_rect = used_rect.union(text_rect);
+            }
+
+            ui.allocate_rect(used_rect, Sense::hover()); // make sure it is visible!
+        });
 }
 
 // ----------------------------------------------------------------------------
@@ -184,7 +196,9 @@ impl super::View for ScrollTo {
             scroll_bottom |= ui.button("Scroll to bottom").clicked();
         });
 
-        let mut scroll_area = ScrollArea::vertical().max_height(200.0);
+        let mut scroll_area = ScrollArea::vertical()
+            .max_height(200.0)
+            .auto_shrink([false; 2]);
         if go_to_scroll_offset {
             scroll_area = scroll_area.scroll_offset(self.offset);
         }

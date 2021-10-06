@@ -341,14 +341,14 @@ impl ScrollArea {
 
             let y_min = ui.max_rect().top() + min_row as f32 * row_height_with_spacing;
             let y_max = ui.max_rect().top() + max_row as f32 * row_height_with_spacing;
-            let mut viewport_ui = ui.child_ui(
-                Rect::from_x_y_ranges(ui.max_rect().x_range(), y_min..=y_max),
-                *ui.layout(),
-            );
 
-            viewport_ui.skip_ahead_auto_ids(min_row); // Make sure we get consistent IDs.
+            let rect = Rect::from_x_y_ranges(ui.max_rect().x_range(), y_min..=y_max);
 
-            add_contents(&mut viewport_ui, min_row..max_row)
+            ui.allocate_ui_at_rect(rect, |viewport_ui| {
+                viewport_ui.skip_ahead_auto_ids(min_row); // Make sure we get consistent IDs.
+                add_contents(viewport_ui, min_row..max_row)
+            })
+            .inner
         })
     }
 
@@ -389,10 +389,9 @@ impl Prepared {
 
         let content_size = content_ui.min_size();
 
-        // We take the scroll target so only this ScrollArea will use it.
-
         for d in 0..2 {
             if has_bar[d] {
+                // We take the scroll target so only this ScrollArea will use it:
                 let scroll_target = content_ui.ctx().frame_state().scroll_target[d].take();
                 if let Some((scroll, align)) = scroll_target {
                     let center_factor = align.to_factor();
@@ -412,19 +411,15 @@ impl Prepared {
         }
 
         let inner_rect = {
+            // At this point this is the available size for the inner rect.
             let mut inner_size = inner_rect.size();
 
             for d in 0..2 {
-                inner_size[d] = if has_bar[d] {
-                    if auto_shrink[d] {
-                        inner_size[d].min(content_size[d]) // shrink scroll area if content is small
-                    } else {
-                        inner_size[d] // let scroll area be larger than content; fill with blank space
-                    }
-                } else if inner_size[d].is_finite() {
-                    inner_size[d].max(content_size[d]) // Expand to fit content
-                } else {
-                    content_size[d] // ScrollArea is in an infinitely sized parent; take size of parent
+                inner_size[d] = match (has_bar[d], auto_shrink[d]) {
+                    (true, true) => inner_size[d].min(content_size[d]), // shrink scroll area if content is small
+                    (true, false) => inner_size[d], // let scroll area be larger than content; fill with blank space
+                    (false, true) => content_size[d], // Follow the content (expand/contract to fit it).
+                    (false, false) => inner_size[d].max(content_size[d]), // Expand to fit content
                 };
             }
 
