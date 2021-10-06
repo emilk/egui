@@ -258,7 +258,7 @@ impl super::View for ScrollStickTo {
 
         let text_style = TextStyle::Body;
         let row_height = ui.fonts()[text_style].row_height();
-        ScrollArea::vertical().stick_to_vertical_end().show_rows(
+        ScrollArea::vertical().stick_to_bottom().show_rows(
             ui,
             row_height,
             self.n_items,

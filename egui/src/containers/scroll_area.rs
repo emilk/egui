@@ -201,36 +201,24 @@ impl ScrollArea {
         self.has_bar[0] || self.has_bar[1]
     }
 
-    /// The scroll handle will stick to the horizontal end position even while the content size
+    /// The scroll handle will stick to the rightmost position even while the content size
     /// changes dynamically. This can be useful to simulate text scrollers coming in from right
     /// hand side. The scroll handle remains stuck until user manually changes position. Once "unstuck"
     /// it will remain focused on whatever content viewport the user left it on. If the scroll
     /// handle is dragged all the way to the right it will again become stuck and remain there
     /// until manually pulled from the end position.
-    pub fn stick_to_horizontal_end(mut self) -> Self {
+    pub fn stick_to_right(mut self) -> Self {
         self.stick_to_end[0] = true;
         self
     }
 
-    /// The scroll handle will stick to the vertical end position even while the content size
+    /// The scroll handle will stick to the bottom position even while the content size
     /// changes dynamically. This can be useful to simulate terminal UIs or log/info scrollers.
     /// The scroll handle remains stuck until user manually changes position. Once "unstuck"
     /// it will remain focused on whatever content viewport the user left it on. If the scroll
     /// handle is dragged to the bottom it will again become stuck and remain there until manually
     /// pulled from the end position.
-    pub fn stick_to_vertical_end(mut self) -> Self {
-        self.stick_to_end[1] = true;
-        self
-    }
-
-    /// The scroll handle will stick to the horizontal and vertical end positions even
-    /// while the content size changes dynamically. This can be useful to simulate terminal
-    /// UIs or log/info scrollers. The scroll handle remains stuck until user manually
-    /// changes position. Once "unstuck" it will remain focused on whatever content viewport
-    /// the user left it on. If the scroll handle is dragged to either end again, it will become
-    /// stuck and remain there until manually pulled from the end position.
-    pub fn stick_to_both(mut self) -> Self {
-        self.stick_to_end[0] = true;
+    pub fn stick_to_bottom(mut self) -> Self {
         self.stick_to_end[1] = true;
         self
     }
