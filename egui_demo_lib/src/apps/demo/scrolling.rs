@@ -264,7 +264,7 @@ impl super::View for ScrollStickTo {
             self.n_items,
             |ui, row_range| {
                 for row in row_range {
-                    let text = format!("This is row {}/{}", row + 1, self.n_items);
+                    let text = format!("This is row {}", row + 1);
                     ui.label(text);
                 }
             },
