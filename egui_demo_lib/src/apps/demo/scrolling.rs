@@ -271,5 +271,6 @@ impl super::View for ScrollStickTo {
         );
 
         self.n_items += 1;
+        ui.ctx().request_repaint();
     }
 }
