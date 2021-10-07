@@ -77,6 +77,7 @@ mod apps;
 mod backend_panel;
 pub mod easy_mark;
 pub(crate) mod frame_history;
+pub mod syntax_highlighting;
 mod wrap_app;
 
 pub use apps::ColorTest; // used for tests
