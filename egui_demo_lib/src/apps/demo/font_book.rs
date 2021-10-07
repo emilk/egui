@@ -23,7 +23,7 @@ impl super::Demo for FontBook {
 
     fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
         egui::Window::new(self.name()).open(open).show(ctx, |ui| {
-            use super::View;
+            use super::View as _;
             self.ui(ui);
         });
     }
