@@ -46,3 +46,6 @@ links = ["webbrowser"]
 screen_reader = ["tts"]
 
 serialize = ["egui/serialize", "serde"]
+
+# implement bytemuck on most types.
+convert_bytemuck = ["egui/convert_bytemuck"]

@@ -26,6 +26,7 @@ all-features = true
 # Add compatability with https://github.com/kvark/mint
 mint = { version = "0.5.6", optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
+bytemuck = { version = "1.7.2", features = ["derive"], optional = true }
 
 [features]
 default = []

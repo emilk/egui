@@ -7,6 +7,7 @@ use emath::*;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Vertex {
     /// Logical pixel coordinates (points).
     /// (0,0) is the top left corner of the screen.
