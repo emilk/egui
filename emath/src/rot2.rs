@@ -13,7 +13,10 @@ use super::Vec2;
 //
 /// Normally a `Rot2` is normalized (unit-length).
 /// If not, it will also scale vectors.
+#[repr(C)]
 #[derive(Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Rot2 {
     /// angle.sin()
     s: f32,

@@ -3,7 +3,10 @@ use crate::*;
 /// Linearly transforms positions from one [`Rect`] to another.
 ///
 /// `RectTransform` stores the rectangles, and therefore supports clamping and culling.
+#[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct RectTransform {
     from: Rect,
     to: Rect,
