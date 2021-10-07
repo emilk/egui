@@ -55,7 +55,7 @@ impl super::Demo for WindowOptions {
             ctx.request_repaint();
         }
 
-        use super::View;
+        use super::View as _;
         let mut window = egui::Window::new(title)
             .id(egui::Id::new("demo_window_options")) // required since we change the title
             .resizable(resizable)

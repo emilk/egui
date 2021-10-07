@@ -81,7 +81,7 @@ impl super::Demo for LayoutTest {
             .open(open)
             .resizable(false)
             .show(ctx, |ui| {
-                use super::View;
+                use super::View as _;
                 self.ui(ui);
             });
     }

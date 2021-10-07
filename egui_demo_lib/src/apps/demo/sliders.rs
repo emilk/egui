@@ -39,7 +39,7 @@ impl super::Demo for Sliders {
             .open(open)
             .resizable(false)
             .show(ctx, |ui| {
-                use super::View;
+                use super::View as _;
                 self.ui(ui);
             });
     }
