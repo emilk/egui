@@ -269,20 +269,22 @@ fn ui_resource(
 
     ui.separator();
 
-    egui::ScrollArea::vertical().show(ui, |ui| {
-        if let Some(image) = image {
-            if let Some(texture_id) = tex_mngr.texture(frame, &response.url, image) {
-                let size = egui::Vec2::new(image.size.0 as f32, image.size.1 as f32);
-                ui.image(texture_id, size);
+    egui::ScrollArea::vertical()
+        .auto_shrink([false; 2])
+        .show(ui, |ui| {
+            if let Some(image) = image {
+                if let Some(texture_id) = tex_mngr.texture(frame, &response.url, image) {
+                    let size = egui::Vec2::new(image.size.0 as f32, image.size.1 as f32);
+                    ui.image(texture_id, size);
+                }
+            } else if let Some(colored_text) = colored_text {
+                colored_text.ui(ui);
+            } else if let Some(text) = &text {
+                ui.monospace(text);
+            } else {
+                ui.monospace("[binary]");
             }
-        } else if let Some(colored_text) = colored_text {
-            colored_text.ui(ui);
-        } else if let Some(text) = &text {
-            ui.monospace(text);
-        } else {
-            ui.monospace("[binary]");
-        }
-    });
+        });
 }
 
 // ----------------------------------------------------------------------------
