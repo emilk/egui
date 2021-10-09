@@ -39,6 +39,9 @@ bytemuck = { version = "1.7.2", features = ["derive"], optional = true }
 [features]
 default = ["default_fonts", "multi_threaded"]
 
+# implement bytemuck on most types.
+convert_bytemuck = ["bytemuck", "emath/bytemuck"]
+
 # If set, epaint will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
 default_fonts = []
@@ -52,10 +55,7 @@ extra_asserts = ["emath/extra_asserts"]
 mint = ["emath/mint"]
 
 # implement serde on most types.
-serialize = ["serde", "emath/serde"]
-
-# implement bytemuck on most types.
-convert_bytemuck = ["bytemuck", "emath/bytemuck"]
+serialize = ["serde", "ahash/serde", "emath/serde"]
 
 single_threaded = ["atomic_refcell"]
 
