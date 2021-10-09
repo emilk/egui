@@ -6,6 +6,7 @@ enum ScrollDemo {
     ScrollTo,
     ManyLines,
     LargeCanvas,
+    StickToEnd,
 }
 
 impl Default for ScrollDemo {
@@ -20,6 +21,7 @@ impl Default for ScrollDemo {
 pub struct Scrolling {
     demo: ScrollDemo,
     scroll_to: ScrollTo,
+    scroll_stick_to: ScrollStickTo,
 }
 
 impl super::Demo for Scrolling {
@@ -52,6 +54,7 @@ impl super::View for Scrolling {
                 ScrollDemo::LargeCanvas,
                 "Scroll a large canvas",
             );
+            ui.selectable_value(&mut self.demo, ScrollDemo::StickToEnd, "Stick to end");
         });
         ui.separator();
         match self.demo {
@@ -63,6 +66,9 @@ impl super::View for Scrolling {
             }
             ScrollDemo::LargeCanvas => {
                 huge_content_painter(ui);
+            }
+            ScrollDemo::StickToEnd => {
+                self.scroll_stick_to.ui(ui);
             }
         }
     }
@@ -242,5 +248,43 @@ impl super::View for ScrollTo {
             egui::reset_button(ui, self);
             ui.add(crate::__egui_github_link_file!());
         });
+    }
+}
+
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+#[derive(PartialEq)]
+struct ScrollStickTo {
+    n_items: usize,
+}
+
+impl Default for ScrollStickTo {
+    fn default() -> Self {
+        Self { n_items: 0 }
+    }
+}
+
+impl super::View for ScrollStickTo {
+    fn ui(&mut self, ui: &mut Ui) {
+        ui.label("Rows enter from the bottom, we want the scroll handle to start and stay at bottom unless moved");
+
+        ui.add_space(4.0);
+
+        let text_style = TextStyle::Body;
+        let row_height = ui.fonts()[text_style].row_height();
+        ScrollArea::vertical().stick_to_bottom().show_rows(
+            ui,
+            row_height,
+            self.n_items,
+            |ui, row_range| {
+                for row in row_range {
+                    let text = format!("This is row {}", row + 1);
+                    ui.label(text);
+                }
+            },
+        );
+
+        self.n_items += 1;
+        ui.ctx().request_repaint();
     }
 }
