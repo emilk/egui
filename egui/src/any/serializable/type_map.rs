@@ -1,14 +1,14 @@
 use crate::any::serializable::element::{AnyMapElement, AnyMapTrait};
 use crate::any::serializable::type_id::TypeId;
+use crate::epaint::ahash::AHashMap;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// Maps types to a single instance of that type.
 ///
 /// Used to store state per widget type. In effect a sort of singleton storage.
 /// Similar to [the `typemap` crate](https://docs.rs/typemap/0.3.3/typemap/) but allows serialization.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct TypeMap(HashMap<TypeId, AnyMapElement>);
+pub struct TypeMap(AHashMap<TypeId, AnyMapElement>);
 
 // ----------------------------------------------------------------------------
 
