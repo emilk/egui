@@ -1,6 +1,6 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
-use crate::{any, area, window, Id, InputState, LayerId, Pos2, Rect, Style};
+use crate::{any, area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
 
 // ----------------------------------------------------------------------------
 
@@ -259,7 +259,7 @@ impl Focus {
         }
     }
 
-    pub(crate) fn end_frame(&mut self, used_ids: &epaint::ahash::AHashMap<Id, Rect>) {
+    pub(crate) fn end_frame(&mut self, used_ids: &IdMap<Rect>) {
         if let Some(id) = self.id {
             // Allow calling `request_focus` one frame and not using it until next frame
             let recently_gained_focus = self.id_previous_frame != Some(id);
@@ -310,11 +310,7 @@ impl Memory {
         }
     }
 
-    pub(crate) fn end_frame(
-        &mut self,
-        input: &InputState,
-        used_ids: &epaint::ahash::AHashMap<Id, Rect>,
-    ) {
+    pub(crate) fn end_frame(&mut self, input: &InputState, used_ids: &IdMap<Rect>) {
         self.caches.update();
         self.areas.end_frame();
         self.interaction.focus.end_frame(used_ids);
@@ -465,7 +461,7 @@ impl Memory {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Areas {
-    areas: HashMap<Id, area::State>,
+    areas: IdMap<area::State>,
     /// Back-to-front. Top is last.
     order: Vec<LayerId>,
     visible_last_frame: HashSet<LayerId>,

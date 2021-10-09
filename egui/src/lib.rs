@@ -387,7 +387,7 @@ pub use {
         output::{self, CursorIcon, Output, WidgetInfo},
     },
     grid::Grid,
-    id::Id,
+    id::{Id, IdMap},
     input_state::{InputState, MultiTouchInfo, PointerState},
     layers::{LayerId, Order},
     layout::*,

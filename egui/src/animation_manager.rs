@@ -1,10 +1,8 @@
-use epaint::ahash::AHashMap;
-
-use crate::{emath::remap_clamp, Id, InputState};
+use crate::{emath::remap_clamp, Id, IdMap, InputState};
 
 #[derive(Clone, Default)]
 pub(crate) struct AnimationManager {
-    bools: AHashMap<Id, BoolAnim>,
+    bools: IdMap<BoolAnim>,
 }
 
 #[derive(Clone, Debug)]
