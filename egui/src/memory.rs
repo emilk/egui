@@ -37,16 +37,16 @@ pub struct Memory {
     /// This map stores current states for all widgets with custom `Id`s.
     /// This will be saved between different program runs if you use the `persistence` feature.
     #[cfg(feature = "persistence")]
-    pub id_data: any::serializable::AnyMap<Id>,
+    pub id_data: any::serializable::IdAnyMap,
 
     /// This map stores current states for all widgets with custom `Id`s.
     /// This will be saved between different program runs if you use the `persistence` feature.
     #[cfg(not(feature = "persistence"))]
-    pub id_data: any::AnyMap<Id>,
+    pub id_data: any::AnyMap<Id, crate::id::BuilIdHasher>,
 
     /// Same as `id_data`, but this data will not be saved between runs.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub id_data_temp: any::AnyMap<Id>,
+    pub id_data_temp: any::AnyMap<Id, crate::id::BuilIdHasher>,
 
     // ------------------------------------------
     /// Can be used to cache computations from one frame to another.
