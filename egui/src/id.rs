@@ -116,7 +116,16 @@ impl std::hash::Hasher for IdHasher {
     }
 }
 
-pub type BuilIdHasher = std::hash::BuildHasherDefault<IdHasher>;
+#[derive(Copy, Clone, Debug, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct BuilIdHasher {}
+
+impl std::hash::BuildHasher for BuilIdHasher {
+    type Hasher = IdHasher;
+    fn build_hasher(&self) -> IdHasher {
+        IdHasher::default()
+    }
+}
 
 /// `IdMap<V>` is a `HashMap<Id, V>` optimized by knowing that `Id` has good entropy, and doesn't need more hashing.
 pub type IdMap<V> = std::collections::HashMap<Id, V, BuilIdHasher>;

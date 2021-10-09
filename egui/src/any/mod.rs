@@ -27,7 +27,7 @@
 //!
 //! # `serializable`
 //!
-//! [`TypeMap`] and [`serializable::TypeMap`] has exactly the same interface, but [`serializable::TypeMap`] only requires serde traits for stored object under `persistent` feature. Same thing for [`AnyMap`] and [`serializable::AnyMap`].
+//! [`TypeMap`] and [`serializable::TypeMap`] has exactly the same interface, but [`serializable::TypeMap`] only requires serde traits for stored object under `persistent` feature. Same thing for [`AnyMap`] and [`serializable::IdAnyMap`].
 //!
 //! # What could break
 //!
@@ -35,7 +35,7 @@
 //!
 //! First, serialized `TypeId` in [`serializable::TypeMap`] could broke if you updated the version of the Rust compiler between runs.
 //!
-//! Second, count and reset all instances of a type in [`serializable::AnyMap`] could return an incorrect value for the same reason.
+//! Second, count and reset all instances of a type in [`serializable::IdAnyMap`] could return an incorrect value for the same reason.
 //!
 //! Deserialization errors of loaded elements of these storages can be determined only when you call `get_...` functions, they not logged and not provided to a user, on this errors value is just replaced with `or_insert()`/default value.
 //!
