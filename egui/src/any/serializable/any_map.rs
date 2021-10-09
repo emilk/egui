@@ -1,16 +1,16 @@
 use crate::any::serializable::element::{AnyMapElement, AnyMapTrait};
 use crate::any::serializable::type_id::TypeId;
+use crate::epaint::ahash::AHashMap;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::hash::Hash;
 
 /// Stores any object by `Key`, and can be de/serialized.
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct AnyMap<Key: Hash + Eq>(HashMap<Key, AnyMapElement>);
+pub struct AnyMap<Key: Hash + Eq>(AHashMap<Key, AnyMapElement>);
 
 impl<Key: Hash + Eq> Default for AnyMap<Key> {
     fn default() -> Self {
-        AnyMap(HashMap::new())
+        AnyMap(AHashMap::new())
     }
 }
 

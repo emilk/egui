@@ -1,15 +1,15 @@
 use crate::any::element::{AnyMapElement, AnyMapTrait};
+use crate::epaint::ahash::AHashMap;
 use std::any::TypeId;
-use std::collections::HashMap;
 use std::hash::Hash;
 
 /// Stores any object by `Key`.
 #[derive(Clone, Debug)]
-pub struct AnyMap<Key: Hash + Eq>(HashMap<Key, AnyMapElement>);
+pub struct AnyMap<Key: Hash + Eq>(AHashMap<Key, AnyMapElement>);
 
 impl<Key: Hash + Eq> Default for AnyMap<Key> {
     fn default() -> Self {
-        AnyMap(HashMap::new())
+        AnyMap(AHashMap::new())
     }
 }
 
