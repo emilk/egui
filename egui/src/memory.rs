@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use epaint::ahash::AHashSet;
 
 use crate::{any, area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
 
@@ -464,15 +464,15 @@ pub struct Areas {
     areas: IdMap<area::State>,
     /// Back-to-front. Top is last.
     order: Vec<LayerId>,
-    visible_last_frame: HashSet<LayerId>,
-    visible_current_frame: HashSet<LayerId>,
+    visible_last_frame: AHashSet<LayerId>,
+    visible_current_frame: AHashSet<LayerId>,
 
     /// When an area want to be on top, it is put in here.
     /// At the end of the frame, this is used to reorder the layers.
     /// This means if several layers want to be on top, they will keep their relative order.
     /// So if you close three windows and then reopen them all in one frame,
     /// they will all be sent to the top, but keep their previous internal order.
-    wants_to_be_on_top: HashSet<LayerId>,
+    wants_to_be_on_top: AHashSet<LayerId>,
 }
 
 impl Areas {
@@ -524,7 +524,7 @@ impl Areas {
         self.visible_last_frame.contains(layer_id) || self.visible_current_frame.contains(layer_id)
     }
 
-    pub fn visible_layer_ids(&self) -> HashSet<LayerId> {
+    pub fn visible_layer_ids(&self) -> AHashSet<LayerId> {
         self.visible_last_frame
             .iter()
             .cloned()

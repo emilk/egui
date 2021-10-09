@@ -24,7 +24,7 @@ pub struct Mutex<T>(parking_lot::Mutex<T>);
 
 #[cfg(debug_assertions)]
 thread_local! {
-    static HELD_LOCKS_TLS: std::cell::RefCell<std::collections::HashSet<*const ()>> = std::cell::RefCell::new(std::collections::HashSet::new());
+    static HELD_LOCKS_TLS: std::cell::RefCell<ahash::AHashSet<*const ()>> = std::cell::RefCell::new(ahash::AHashSet::new());
 }
 
 #[cfg(feature = "multi_threaded")]
