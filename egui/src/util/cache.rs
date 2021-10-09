@@ -38,7 +38,7 @@ impl<Value, Computer> FrameCache<Value, Computer> {
         }
     }
 
-    /// Must be called once per frame to clear the [`Galley`] cache.
+    /// Must be called once per frame to clear the cache.
     pub fn evice_cache(&mut self) {
         let current_generation = self.generation;
         self.cache.retain(|_key, cached| {
