@@ -297,10 +297,14 @@ impl Plot {
             items: Vec::new(),
             next_auto_color_idx: 0,
             last_screen_transform,
-            response: response.clone(),
+            response,
         };
         build_fn(&mut plot_ui);
-        let mut items = plot_ui.items;
+        let PlotUi {
+            mut items,
+            response,
+            ..
+        } = plot_ui;
 
         // Background
         if show_background {
@@ -468,7 +472,7 @@ impl PlotUi {
             - self.response.drag_delta()
     }
 
-    /// Add a data lines.
+    /// Add a data line.
     pub fn line(&mut self, mut line: Line) {
         if line.series.is_empty() {
             return;
