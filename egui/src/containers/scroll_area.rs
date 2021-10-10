@@ -464,14 +464,18 @@ impl Prepared {
             let mut inner_rect = Rect::from_min_size(inner_rect.min, inner_size);
 
             // The window that egui sits in can't be expanded by egui, so we need to respect it:
-            let max_x =
-                ui.input().screen_rect().right() - current_bar_use.x - ui.spacing().item_spacing.x;
-            inner_rect.max.x = inner_rect.max.x.at_most(max_x);
-
-            let max_y =
-                ui.input().screen_rect().bottom() - current_bar_use.y - ui.spacing().item_spacing.y;
-            inner_rect.max.y = inner_rect.max.y.at_most(max_y);
-            // TODO: maybe auto-enable horizontal/vertical scrolling if this limit is reached
+            for d in 0..2 {
+                if !has_bar[d] {
+                    // HACK for when we have a vertical-only scroll area in a top level panel,
+                    // and that panel is not wide enough for the contents.
+                    // This code ensures we still see the scroll bar!
+                    let max = ui.input().screen_rect().max[d]
+                        - current_bar_use[d]
+                        - ui.spacing().item_spacing[d];
+                    inner_rect.max[d] = inner_rect.max[d].at_most(max);
+                    // TODO: maybe auto-enable horizontal/vertical scrolling if this limit is reached
+                }
+            }
 
             inner_rect
         };
