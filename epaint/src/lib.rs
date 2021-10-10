@@ -1,4 +1,9 @@
-//! 2D graphics/rendering. Fonts, textures, color, geometry, tessellation etc.
+//! A simple 2D graphics library for turning simple 2D shapes and text into textured triangles.
+//!
+//! Made for [`egui`](https://github.com/emilk/egui/).
+//!
+//! Create some [`Shape`]:s and pass them to [`tessellate_shapes`] to generate [`Mesh`]:es
+//! that you can then paint using some graphics API of your choice (e.g. OpenGL).
 
 // Forbid warnings in release builds:
 #![cfg_attr(not(debug_assertions), deny(warnings))]
@@ -91,8 +96,8 @@ pub use {
     shape::{CircleShape, PathShape, RectShape, Shape, TextShape},
     stats::PaintStats,
     stroke::Stroke,
-    tessellator::{TessellationOptions, Tessellator},
-    text::{Galley, TextStyle},
+    tessellator::{tessellate_shapes, TessellationOptions, Tessellator},
+    text::{Fonts, Galley, TextStyle},
     texture_atlas::{Texture, TextureAtlas},
 };
 
@@ -129,7 +134,7 @@ impl Default for TextureId {
 /// A [`Shape`] within a clip rectangle.
 ///
 /// Everything is using logical points.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ClippedShape(
     /// Clip / scissor rectangle.
     /// Only show the part of the [`Shape`] that falls within this.
@@ -153,8 +158,8 @@ pub struct ClippedMesh(
 
 // ----------------------------------------------------------------------------
 
-/// An assert that is only active when `egui` is compiled with the `egui_assert` feature
-/// or with the `debug_egui_assert` feature in debug builds.
+/// An assert that is only active when `epaint` is compiled with the `extra_asserts` feature
+/// or with the `extra_debug_asserts` feature in debug builds.
 #[macro_export]
 macro_rules! epaint_assert {
     ($($arg: tt)*) => {

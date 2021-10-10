@@ -91,8 +91,8 @@ pub trait App {
 
     /// Called once before the first frame.
     ///
-    /// Allows you to do setup code, e.g to call `[egui::Context::set_fonts]`,
-    /// `[egui::Context::set_visuals]` etc.
+    /// Allows you to do setup code, e.g to call [`egui::Context::set_fonts`],
+    /// [`egui::Context::set_visuals`] etc.
     ///
     /// Also allows you to restore state, if there is a storage (required the "persistence" feature).
     fn setup(
@@ -105,6 +105,9 @@ pub trait App {
 
     /// If `true` a warm-up call to [`Self::update`] will be issued where
     /// `ctx.memory().everything_is_visible()` will be set to `true`.
+    ///
+    /// This will help pre-caching all text, preventing stutter when
+    /// opening a window containing new glyphs.
     ///
     /// In this warm-up call, all painted shapes will be ignored.
     fn warm_up_enabled(&self) -> bool {

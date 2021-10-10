@@ -19,18 +19,22 @@ mod separator;
 mod slider;
 pub(crate) mod text_edit;
 
+pub use button::*;
+pub use drag_value::DragValue;
 pub use hyperlink::*;
+pub use image::Image;
 pub use label::*;
 pub use progress_bar::ProgressBar;
-pub use selected_label::*;
-pub use separator::*;
-pub use {button::*, drag_value::DragValue, image::Image, slider::*, text_edit::*};
+pub use selected_label::SelectableLabel;
+pub use separator::Separator;
+pub use slider::*;
+pub use text_edit::*;
 
 // ----------------------------------------------------------------------------
 
 /// Anything implementing Widget can be added to a [`Ui`] with [`Ui::add`].
 ///
-/// `[Button]`, `[Label]`, [`Slider`], etc all implement the `Widget` trait.
+/// [`Button`], [`Label`], [`Slider`], etc all implement the `Widget` trait.
 ///
 /// Note that the widgets (`Button`, `TextEdit` etc) are
 /// [builders](https://doc.rust-lang.org/1.0.0/style/ownership/builders.html),

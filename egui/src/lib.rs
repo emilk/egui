@@ -472,8 +472,8 @@ macro_rules! trace {
 
 // ----------------------------------------------------------------------------
 
-/// An assert that is only active when `egui` is compiled with the `egui_assert` feature
-/// or with the `debug_egui_assert` feature in debug builds.
+/// An assert that is only active when `egui` is compiled with the `extra_asserts` feature
+/// or with the `extra_debug_asserts` feature in debug builds.
 #[macro_export]
 macro_rules! egui_assert {
     ($($arg: tt)*) => {
