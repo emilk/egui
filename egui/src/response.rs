@@ -408,7 +408,7 @@ impl Response {
     /// Check for more interactions (e.g. sense clicks on a `Response` returned from a label).
     ///
     /// Note that this call will not add any hover-effects to the widget, so when possible
-    /// it is better to give the widget a `Sense` instead, e.g. using `[Label::sense]`.
+    /// it is better to give the widget a `Sense` instead, e.g. using [`crate::Label::sense`].
     ///
     /// ```
     /// # let mut ui = egui::Ui::__test();
