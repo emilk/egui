@@ -26,6 +26,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * By default, `DragValue`:s no longer show a tooltip when hovered. Change with `Style::explanation_tooltips`.
 * Smaller and nicer color picker.
 * `ScrollArea` will auto-shrink to content size unless told otherwise using `ScollArea::auto_shrink`.
+* By default, `Slider`'s `clamp_to_range` is set to true.
 
 ### Fixed 🐛
 * Fix wrongly sized multiline `TextEdit` in justified layouts.
