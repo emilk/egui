@@ -227,29 +227,18 @@ impl State {
             WindowEvent::ReceivedCharacter(ch) => {
                 let is_printable_char = is_printable_char(*ch);
 
-                #[cfg(taget_os = "macos")]
-                {
-                    if is_printable_char
-                        && !input_state.raw.modifiers.ctrl
-                        && !input_state.raw.modifiers.mac_cmd
-                    {
-                        self.egui_input.raw.events.push(Event::Text(ch.to_string()));
-                        egui_ctx.wants_keyboard_input()
-                    } else {
-                        false
-                    }
-                }
+                let is_printable_char_on_macos = cfg!(target_os = "macos")
+                    && is_printable_char
+                    && !self.egui_input.modifiers.ctrl
+                    && !self.egui_input.modifiers.mac_cmd;
 
-                #[cfg(not(taget_os = "macos"))]
-                {
-                    if is_printable_char {
-                        self.egui_input
-                            .events
-                            .push(egui::Event::Text(ch.to_string()));
-                        egui_ctx.wants_keyboard_input()
-                    } else {
-                        false
-                    }
+                if is_printable_char || is_printable_char_on_macos {
+                    self.egui_input
+                        .events
+                        .push(egui::Event::Text(ch.to_string()));
+                    egui_ctx.wants_keyboard_input()
+                } else {
+                    false
                 }
             }
             WindowEvent::KeyboardInput { input, .. } => {
