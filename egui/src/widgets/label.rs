@@ -175,7 +175,7 @@ impl Label {
             (Align::LEFT, false) // TODO: remove special Grid hacks like these
         } else {
             (
-                ui.layout().horizontal_align(),
+                ui.layout().horizontal_placement(),
                 ui.layout().horizontal_justify(),
             )
         };

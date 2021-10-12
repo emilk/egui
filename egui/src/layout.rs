@@ -288,6 +288,18 @@ impl Layout {
             || self.main_dir.is_vertical() && self.cross_align == Align::Max
     }
 
+    /// e.g. for adjusting the placement of something.
+    /// * in horizontal layout: left or right?
+    /// * in vertical layout: same as [`Self::horizontal_align`].
+    pub fn horizontal_placement(&self) -> Align {
+        match self.main_dir {
+            Direction::LeftToRight => Align::LEFT,
+            Direction::RightToLeft => Align::RIGHT,
+            Direction::TopDown | Direction::BottomUp => self.cross_align,
+        }
+    }
+
+    /// e.g. for when aligning text within a button.
     pub fn horizontal_align(&self) -> Align {
         if self.is_horizontal() {
             self.main_align
@@ -296,6 +308,7 @@ impl Layout {
         }
     }
 
+    /// e.g. for when aligning text within a button.
     pub fn vertical_align(&self) -> Align {
         if self.is_vertical() {
             self.main_align
@@ -304,6 +317,7 @@ impl Layout {
         }
     }
 
+    /// e.g. for when aligning text within a button.
     fn align2(&self) -> Align2 {
         Align2([self.horizontal_align(), self.vertical_align()])
     }
