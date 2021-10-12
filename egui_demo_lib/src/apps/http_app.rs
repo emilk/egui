@@ -14,7 +14,7 @@ struct Resource {
 }
 
 impl Resource {
-    fn from_response(response: ehttp::Response) -> Self {
+    fn from_response(ctx: &egui::Context, response: ehttp::Response) -> Self {
         let content_type = response.content_type().unwrap_or_default();
         let image = if content_type.starts_with("image/") {
             Image::decode(&response.bytes)
@@ -26,7 +26,7 @@ impl Resource {
 
         let colored_text = text
             .as_ref()
-            .and_then(|text| syntax_highlighting(&response, text));
+            .and_then(|text| syntax_highlighting(ctx, &response, text));
 
         Self {
             response,
@@ -87,7 +87,7 @@ impl epi::App for HttpApp {
             // Are we there yet?
             if let Ok(result) = receiver.try_recv() {
                 self.in_progress = None;
-                self.result = Some(result.map(Resource::from_response));
+                self.result = Some(result.map(|response| Resource::from_response(ctx, response)));
             }
         }
 
@@ -269,94 +269,46 @@ fn ui_resource(
 
     ui.separator();
 
-    egui::ScrollArea::vertical().show(ui, |ui| {
-        if let Some(image) = image {
-            if let Some(texture_id) = tex_mngr.texture(frame, &response.url, image) {
-                let size = egui::Vec2::new(image.size.0 as f32, image.size.1 as f32);
-                ui.image(texture_id, size);
+    egui::ScrollArea::vertical()
+        .auto_shrink([false; 2])
+        .show(ui, |ui| {
+            if let Some(image) = image {
+                if let Some(texture_id) = tex_mngr.texture(frame, &response.url, image) {
+                    let size = egui::Vec2::new(image.size.0 as f32, image.size.1 as f32);
+                    ui.image(texture_id, size);
+                }
+            } else if let Some(colored_text) = colored_text {
+                colored_text.ui(ui);
+            } else if let Some(text) = &text {
+                ui.monospace(text);
+            } else {
+                ui.monospace("[binary]");
             }
-        } else if let Some(colored_text) = colored_text {
-            colored_text.ui(ui);
-        } else if let Some(text) = &text {
-            ui.monospace(text);
-        } else {
-            ui.monospace("[binary]");
-        }
-    });
+        });
 }
 
 // ----------------------------------------------------------------------------
 // Syntax highlighting:
 
 #[cfg(feature = "syntect")]
-fn syntax_highlighting(response: &ehttp::Response, text: &str) -> Option<ColoredText> {
+fn syntax_highlighting(
+    ctx: &egui::Context,
+    response: &ehttp::Response,
+    text: &str,
+) -> Option<ColoredText> {
     let extension_and_rest: Vec<&str> = response.url.rsplitn(2, '.').collect();
     let extension = extension_and_rest.get(0)?;
-    ColoredText::text_with_extension(text, extension)
+    let theme = crate::syntax_highlighting::CodeTheme::from_style(&ctx.style());
+    Some(ColoredText(crate::syntax_highlighting::highlight(
+        ctx, &theme, text, extension,
+    )))
 }
 
 /// Lines of text fragments
-#[cfg(feature = "syntect")]
 struct ColoredText(egui::text::LayoutJob);
 
-#[cfg(feature = "syntect")]
 impl ColoredText {
-    /// e.g. `text_with_extension("fn foo() {}", "rs")`
-    pub fn text_with_extension(text: &str, extension: &str) -> Option<ColoredText> {
-        use syntect::easy::HighlightLines;
-        use syntect::highlighting::FontStyle;
-        use syntect::highlighting::ThemeSet;
-        use syntect::parsing::SyntaxSet;
-        use syntect::util::LinesWithEndings;
-
-        let ps = SyntaxSet::load_defaults_newlines(); // should be cached and reused
-        let ts = ThemeSet::load_defaults(); // should be cached and reused
-
-        let syntax = ps.find_syntax_by_extension(extension)?;
-
-        let dark_mode = true;
-        let theme = if dark_mode {
-            "base16-mocha.dark"
-        } else {
-            "base16-ocean.light"
-        };
-        let mut h = HighlightLines::new(syntax, &ts.themes[theme]);
-
-        use egui::text::{LayoutJob, LayoutSection, TextFormat};
-
-        let mut job = LayoutJob {
-            text: text.into(),
-            ..Default::default()
-        };
-
-        for line in LinesWithEndings::from(text) {
-            for (style, range) in h.highlight(line, &ps) {
-                let fg = style.foreground;
-                let text_color = egui::Color32::from_rgb(fg.r, fg.g, fg.b);
-                let italics = style.font_style.contains(FontStyle::ITALIC);
-                let underline = style.font_style.contains(FontStyle::ITALIC);
-                let underline = if underline {
-                    egui::Stroke::new(1.0, text_color)
-                } else {
-                    egui::Stroke::none()
-                };
-                job.sections.push(LayoutSection {
-                    leading_space: 0.0,
-                    byte_range: as_byte_range(text, range),
-                    format: TextFormat {
-                        style: egui::TextStyle::Monospace,
-                        color: text_color,
-                        italics,
-                        underline,
-                        ..Default::default()
-                    },
-                });
-            }
-        }
-
-        Some(ColoredText(job))
-    }
-
+    #[cfg(feature = "syntect")]
     pub fn ui(&self, ui: &mut egui::Ui) {
         let mut job = self.0.clone();
         job.wrap_width = ui.available_width();
@@ -364,27 +316,14 @@ impl ColoredText {
         let (response, painter) = ui.allocate_painter(galley.size(), egui::Sense::hover());
         painter.add(egui::Shape::galley(response.rect.min, galley));
     }
-}
 
-#[cfg(feature = "syntect")]
-fn as_byte_range(whole: &str, range: &str) -> std::ops::Range<usize> {
-    let whole_start = whole.as_ptr() as usize;
-    let range_start = range.as_ptr() as usize;
-    assert!(whole_start <= range_start);
-    assert!(range_start + range.len() <= whole_start + whole.len());
-    let offset = range_start - whole_start;
-    offset..(offset + range.len())
-}
-
-#[cfg(not(feature = "syntect"))]
-fn syntax_highlighting(_: &ehttp::Response, _: &str) -> Option<ColoredText> {
-    None
-}
-#[cfg(not(feature = "syntect"))]
-struct ColoredText();
-#[cfg(not(feature = "syntect"))]
-impl ColoredText {
+    #[cfg(not(feature = "syntect"))]
     pub fn ui(&self, _ui: &mut egui::Ui) {}
+}
+
+#[cfg(not(feature = "syntect"))]
+fn syntax_highlighting(_ctx: &egui::Context, _: &ehttp::Response, _: &str) -> Option<ColoredText> {
+    None
 }
 
 // ----------------------------------------------------------------------------

@@ -15,7 +15,7 @@ pub trait Numeric: Clone + Copy + PartialEq + PartialOrd + 'static {
 }
 
 macro_rules! impl_numeric_float {
-    ($t:ident) => {
+    ($t: ident) => {
         impl Numeric for $t {
             const INTEGRAL: bool = false;
             const MIN: Self = std::$t::MIN;
@@ -35,7 +35,7 @@ macro_rules! impl_numeric_float {
 }
 
 macro_rules! impl_numeric_integer {
-    ($t:ident) => {
+    ($t: ident) => {
         impl Numeric for $t {
             const INTEGRAL: bool = true;
             const MIN: Self = std::$t::MIN;

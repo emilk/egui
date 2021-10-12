@@ -8,8 +8,10 @@ use crate::*;
 ///
 /// Mathematically this is known as a "point", but the term position was chosen so not to
 /// conflict with the unit (one point = X physical pixels).
+#[repr(C)]
 #[derive(Clone, Copy, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Pos2 {
     pub x: f32,
     pub y: f32,

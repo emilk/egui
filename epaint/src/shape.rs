@@ -123,6 +123,57 @@ impl Shape {
     pub fn galley(pos: Pos2, galley: std::sync::Arc<Galley>) -> Self {
         TextShape::new(pos, galley).into()
     }
+
+    pub fn mesh(mesh: Mesh) -> Self {
+        crate::epaint_assert!(mesh.is_valid());
+        Self::Mesh(mesh)
+    }
+}
+
+/// ## Inspection and transforms
+impl Shape {
+    #[inline(always)]
+    pub fn texture_id(&self) -> super::TextureId {
+        if let Shape::Mesh(mesh) = self {
+            mesh.texture_id
+        } else {
+            super::TextureId::Egui
+        }
+    }
+
+    /// Move the shape by this many points, in-place.
+    pub fn translate(&mut self, delta: Vec2) {
+        match self {
+            Shape::Noop => {}
+            Shape::Vec(shapes) => {
+                for shape in shapes {
+                    shape.translate(delta);
+                }
+            }
+            Shape::Circle(circle_shape) => {
+                circle_shape.center += delta;
+            }
+            Shape::LineSegment { points, .. } => {
+                for p in points {
+                    *p += delta;
+                }
+            }
+            Shape::Path(path_shape) => {
+                for p in &mut path_shape.points {
+                    *p += delta;
+                }
+            }
+            Shape::Rect(rect_shape) => {
+                rect_shape.rect = rect_shape.rect.translate(delta);
+            }
+            Shape::Text(text_shape) => {
+                text_shape.pos += delta;
+            }
+            Shape::Mesh(mesh) => {
+                mesh.translate(delta);
+            }
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -397,55 +448,4 @@ fn dashes_from_line(
         }
         position_on_segment -= segment_length;
     });
-}
-
-/// ## Operations
-impl Shape {
-    pub fn mesh(mesh: Mesh) -> Self {
-        crate::epaint_assert!(mesh.is_valid());
-        Self::Mesh(mesh)
-    }
-
-    #[inline(always)]
-    pub fn texture_id(&self) -> super::TextureId {
-        if let Shape::Mesh(mesh) = self {
-            mesh.texture_id
-        } else {
-            super::TextureId::Egui
-        }
-    }
-
-    /// Translate location by this much, in-place
-    pub fn translate(&mut self, delta: Vec2) {
-        match self {
-            Shape::Noop => {}
-            Shape::Vec(shapes) => {
-                for shape in shapes {
-                    shape.translate(delta);
-                }
-            }
-            Shape::Circle(circle_shape) => {
-                circle_shape.center += delta;
-            }
-            Shape::LineSegment { points, .. } => {
-                for p in points {
-                    *p += delta;
-                }
-            }
-            Shape::Path(path_shape) => {
-                for p in &mut path_shape.points {
-                    *p += delta;
-                }
-            }
-            Shape::Rect(rect_shape) => {
-                rect_shape.rect = rect_shape.rect.translate(delta);
-            }
-            Shape::Text(text_shape) => {
-                text_shape.pos += delta;
-            }
-            Shape::Mesh(mesh) => {
-                mesh.translate(delta);
-            }
-        }
-    }
 }

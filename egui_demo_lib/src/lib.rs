@@ -77,6 +77,7 @@ mod apps;
 mod backend_panel;
 pub mod easy_mark;
 pub(crate) mod frame_history;
+pub mod syntax_highlighting;
 mod wrap_app;
 
 pub use apps::ColorTest; // used for tests
@@ -92,7 +93,7 @@ macro_rules! __egui_github_link_file {
     () => {
         crate::__egui_github_link_file!("(source code)")
     };
-    ($label:expr) => {
+    ($label: expr) => {
         egui::github_link_file!("https://github.com/emilk/egui/blob/master/", $label).small()
     };
 }
@@ -104,7 +105,7 @@ macro_rules! __egui_github_link_file_line {
     () => {
         crate::__egui_github_link_file_line!("(source code)")
     };
-    ($label:expr) => {
+    ($label: expr) => {
         egui::github_link_file_line!("https://github.com/emilk/egui/blob/master/", $label).small()
     };
 }

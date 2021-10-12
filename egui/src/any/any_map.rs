@@ -1,46 +1,64 @@
 use crate::any::element::{AnyMapElement, AnyMapTrait};
 use std::any::TypeId;
+use std::collections::hash_map::RandomState;
 use std::collections::HashMap;
-use std::hash::Hash;
+use std::hash::{BuildHasher, Hash};
 
-/// Stores any object by `Key`.
+/// Stores any object by `K`.
 #[derive(Clone, Debug)]
-pub struct AnyMap<Key: Hash + Eq>(HashMap<Key, AnyMapElement>);
+pub struct AnyMap<K: Hash + Eq, S: BuildHasher + Default = RandomState>(
+    HashMap<K, AnyMapElement, S>,
+);
 
-impl<Key: Hash + Eq> Default for AnyMap<Key> {
+impl<K, S> Default for AnyMap<K, S>
+where
+    K: Hash + Eq,
+    S: BuildHasher + Default,
+{
     fn default() -> Self {
-        AnyMap(HashMap::new())
+        AnyMap(HashMap::default())
     }
 }
 
 // ----------------------------------------------------------------------------
 
-impl<Key: Hash + Eq> AnyMap<Key> {
-    pub fn get<T: AnyMapTrait>(&mut self, key: &Key) -> Option<&T> {
+impl<K, S> AnyMap<K, S>
+where
+    K: Hash + Eq,
+    S: BuildHasher + Default,
+{
+    #[inline]
+    pub fn get<T: AnyMapTrait>(&mut self, key: &K) -> Option<&T> {
         self.get_mut(key).map(|x| &*x)
     }
 
-    pub fn get_mut<T: AnyMapTrait>(&mut self, key: &Key) -> Option<&mut T> {
+    #[inline]
+    pub fn get_mut<T: AnyMapTrait>(&mut self, key: &K) -> Option<&mut T> {
         self.0.get_mut(key)?.get_mut()
     }
-}
 
-impl<Key: Hash + Eq> AnyMap<Key> {
+    #[inline]
     pub fn get_or_insert_with<T: AnyMapTrait>(
         &mut self,
-        key: Key,
+        key: K,
         or_insert_with: impl FnOnce() -> T,
     ) -> &T {
         &*self.get_mut_or_insert_with(key, or_insert_with)
     }
 
-    pub fn get_or_default<T: AnyMapTrait + Default>(&mut self, key: Key) -> &T {
+    #[inline]
+    pub fn get_or_default<T: AnyMapTrait + Default>(&mut self, key: K) -> &T {
         self.get_or_insert_with(key, Default::default)
+    }
+
+    #[inline]
+    pub fn get_or<T: AnyMapTrait>(&mut self, key: K, value: T) -> &T {
+        &*self.get_mut_or_insert_with(key, || value)
     }
 
     pub fn get_mut_or_insert_with<T: AnyMapTrait>(
         &mut self,
-        key: Key,
+        key: K,
         or_insert_with: impl FnOnce() -> T,
     ) -> &mut T {
         use std::collections::hash_map::Entry;
@@ -53,31 +71,32 @@ impl<Key: Hash + Eq> AnyMap<Key> {
         }
     }
 
-    pub fn get_mut_or_default<T: AnyMapTrait + Default>(&mut self, key: Key) -> &mut T {
+    #[inline]
+    pub fn get_mut_or_default<T: AnyMapTrait + Default>(&mut self, key: K) -> &mut T {
         self.get_mut_or_insert_with(key, Default::default)
     }
-}
 
-impl<Key: Hash + Eq> AnyMap<Key> {
-    pub fn insert<T: AnyMapTrait>(&mut self, key: Key, element: T) {
+    #[inline]
+    pub fn insert<T: AnyMapTrait>(&mut self, key: K, element: T) {
         self.0.insert(key, AnyMapElement::new(element));
     }
 
-    pub fn remove(&mut self, key: &Key) {
+    #[inline]
+    pub fn remove(&mut self, key: &K) {
         self.0.remove(key);
     }
 
+    #[inline]
     pub fn remove_by_type<T: AnyMapTrait>(&mut self) {
         let key = TypeId::of::<T>();
         self.0.retain(|_, v| v.type_id() != key);
     }
 
+    #[inline]
     pub fn clear(&mut self) {
         self.0.clear();
     }
-}
 
-impl<Key: Hash + Eq> AnyMap<Key> {
     /// You could use this function to find is there some leak or misusage.
     pub fn count<T: AnyMapTrait>(&mut self) -> usize {
         let key = TypeId::of::<T>();

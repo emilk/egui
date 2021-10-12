@@ -34,7 +34,7 @@ impl super::Demo for MultiTouch {
             .default_size(vec2(512.0, 512.0))
             .resizable(true)
             .show(ctx, |ui| {
-                use super::View;
+                use super::View as _;
                 self.ui(ui);
             });
     }

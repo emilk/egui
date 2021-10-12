@@ -375,6 +375,10 @@ pub use epaint::{
     ClippedMesh, Color32, Rgba, Shape, Stroke, Texture, TextureId,
 };
 
+pub mod text {
+    pub use epaint::text::{Fonts, Galley, LayoutJob, LayoutSection, TextFormat, TAB_SIZE};
+}
+
 pub use {
     containers::*,
     context::{Context, CtxRef},
@@ -383,7 +387,7 @@ pub use {
         output::{self, CursorIcon, Output, WidgetInfo},
     },
     grid::Grid,
-    id::Id,
+    id::{Id, IdMap},
     input_state::{InputState, MultiTouchInfo, PointerState},
     layers::{LayerId, Order},
     layout::*,
@@ -392,13 +396,10 @@ pub use {
     response::{InnerResponse, Response},
     sense::Sense,
     style::{Style, Visuals},
+    text::{Galley, TextFormat},
     ui::Ui,
     widgets::*,
 };
-
-pub mod text {
-    pub use epaint::text::{Fonts, Galley, LayoutJob, LayoutSection, TextFormat, TAB_SIZE};
-}
 
 // ----------------------------------------------------------------------------
 
@@ -424,7 +425,7 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
 /// ```
 #[macro_export]
 macro_rules! github_link_file_line {
-    ($github_url:expr, $label:expr) => {{
+    ($github_url: expr, $label: expr) => {{
         let url = format!("{}{}#L{}", $github_url, file!(), line!());
         $crate::Hyperlink::new(url).text($label)
     }};
@@ -438,7 +439,7 @@ macro_rules! github_link_file_line {
 /// ```
 #[macro_export]
 macro_rules! github_link_file {
-    ($github_url:expr, $label:expr) => {{
+    ($github_url: expr, $label: expr) => {{
         let url = format!("{}{}", $github_url, file!());
         $crate::Hyperlink::new(url).text($label)
     }};
@@ -461,21 +462,21 @@ macro_rules! github_link_file {
 /// ```
 #[macro_export]
 macro_rules! trace {
-    ($ui:expr) => {{
+    ($ui: expr) => {{
         $ui.trace_location(format!("{}:{}", file!(), line!()))
     }};
-    ($ui:expr, $label:expr) => {{
+    ($ui: expr, $label: expr) => {{
         $ui.trace_location(format!("{} - {}:{}", $label, file!(), line!()))
     }};
 }
 
 // ----------------------------------------------------------------------------
 
-/// An assert that is only active when `egui` is compiled with the `egui_assert` feature
-/// or with the `debug_egui_assert` feature in debug builds.
+/// An assert that is only active when `egui` is compiled with the `extra_asserts` feature
+/// or with the `extra_debug_asserts` feature in debug builds.
 #[macro_export]
 macro_rules! egui_assert {
-    ($($arg:tt)*) => {
+    ($($arg: tt)*) => {
         if cfg!(any(
             feature = "extra_asserts",
             all(feature = "extra_debug_asserts", debug_assertions),

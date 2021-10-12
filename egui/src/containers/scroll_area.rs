@@ -22,6 +22,11 @@ pub(crate) struct State {
 
     /// Mouse offset relative to the top of the handle when started moving the handle.
     scroll_start_offset_from_top_left: [Option<f32>; 2],
+
+    /// Is the scroll sticky. This is true while scroll handle is in the end position
+    /// and remains that way until the user moves the scroll_handle. Once unstuck (false)
+    /// it remains false until the scroll touches the end position, which reenables stickiness.
+    scroll_stuck_to_end: [bool; 2],
 }
 
 impl Default for State {
@@ -31,6 +36,7 @@ impl Default for State {
             show_scroll: [false; 2],
             vel: Vec2::ZERO,
             scroll_start_offset_from_top_left: [None; 2],
+            scroll_stuck_to_end: [true; 2],
         }
     }
 }
@@ -54,6 +60,11 @@ pub struct ScrollArea {
     offset: Option<Vec2>,
     /// If false, we ignore scroll events.
     scrolling_enabled: bool,
+
+    /// If true for vertical or horizontal the scroll wheel will stick to the
+    /// end position until user manually changes position. It will become true
+    /// again once scroll handle makes contact with end.
+    stick_to_end: [bool; 2],
 }
 
 impl ScrollArea {
@@ -89,6 +100,7 @@ impl ScrollArea {
             id_source: None,
             offset: None,
             scrolling_enabled: true,
+            stick_to_end: [false; 2],
         }
     }
 
@@ -188,6 +200,28 @@ impl ScrollArea {
     pub(crate) fn has_any_bar(&self) -> bool {
         self.has_bar[0] || self.has_bar[1]
     }
+
+    /// The scroll handle will stick to the rightmost position even while the content size
+    /// changes dynamically. This can be useful to simulate text scrollers coming in from right
+    /// hand side. The scroll handle remains stuck until user manually changes position. Once "unstuck"
+    /// it will remain focused on whatever content viewport the user left it on. If the scroll
+    /// handle is dragged all the way to the right it will again become stuck and remain there
+    /// until manually pulled from the end position.
+    pub fn stick_to_right(mut self) -> Self {
+        self.stick_to_end[0] = true;
+        self
+    }
+
+    /// The scroll handle will stick to the bottom position even while the content size
+    /// changes dynamically. This can be useful to simulate terminal UIs or log/info scrollers.
+    /// The scroll handle remains stuck until user manually changes position. Once "unstuck"
+    /// it will remain focused on whatever content viewport the user left it on. If the scroll
+    /// handle is dragged to the bottom it will again become stuck and remain there until manually
+    /// pulled from the end position.
+    pub fn stick_to_bottom(mut self) -> Self {
+        self.stick_to_end[1] = true;
+        self
+    }
 }
 
 struct Prepared {
@@ -205,6 +239,7 @@ struct Prepared {
     /// `viewport.min == ZERO` means we scrolled to the top.
     viewport: Rect,
     scrolling_enabled: bool,
+    stick_to_end: [bool; 2],
 }
 
 impl ScrollArea {
@@ -217,6 +252,7 @@ impl ScrollArea {
             id_source,
             offset,
             scrolling_enabled,
+            stick_to_end,
         } = self;
 
         let ctx = ui.ctx().clone();
@@ -297,6 +333,7 @@ impl ScrollArea {
             content_ui,
             viewport,
             scrolling_enabled,
+            stick_to_end,
         }
     }
 
@@ -341,14 +378,14 @@ impl ScrollArea {
 
             let y_min = ui.max_rect().top() + min_row as f32 * row_height_with_spacing;
             let y_max = ui.max_rect().top() + max_row as f32 * row_height_with_spacing;
-            let mut viewport_ui = ui.child_ui(
-                Rect::from_x_y_ranges(ui.max_rect().x_range(), y_min..=y_max),
-                *ui.layout(),
-            );
 
-            viewport_ui.skip_ahead_auto_ids(min_row); // Make sure we get consistent IDs.
+            let rect = Rect::from_x_y_ranges(ui.max_rect().x_range(), y_min..=y_max);
 
-            add_contents(&mut viewport_ui, min_row..max_row)
+            ui.allocate_ui_at_rect(rect, |viewport_ui| {
+                viewport_ui.skip_ahead_auto_ids(min_row); // Make sure we get consistent IDs.
+                add_contents(viewport_ui, min_row..max_row)
+            })
+            .inner
         })
     }
 
@@ -385,14 +422,14 @@ impl Prepared {
             content_ui,
             viewport: _,
             scrolling_enabled,
+            stick_to_end,
         } = self;
 
         let content_size = content_ui.min_size();
 
-        // We take the scroll target so only this ScrollArea will use it.
-
         for d in 0..2 {
             if has_bar[d] {
+                // We take the scroll target so only this ScrollArea will use it:
                 let scroll_target = content_ui.ctx().frame_state().scroll_target[d].take();
                 if let Some((scroll, align)) = scroll_target {
                     let center_factor = align.to_factor();
@@ -412,33 +449,33 @@ impl Prepared {
         }
 
         let inner_rect = {
+            // At this point this is the available size for the inner rect.
             let mut inner_size = inner_rect.size();
 
             for d in 0..2 {
-                inner_size[d] = if has_bar[d] {
-                    if auto_shrink[d] {
-                        inner_size[d].min(content_size[d]) // shrink scroll area if content is small
-                    } else {
-                        inner_size[d] // let scroll area be larger than content; fill with blank space
-                    }
-                } else if inner_size[d].is_finite() {
-                    inner_size[d].max(content_size[d]) // Expand to fit content
-                } else {
-                    content_size[d] // ScrollArea is in an infinitely sized parent; take size of parent
+                inner_size[d] = match (has_bar[d], auto_shrink[d]) {
+                    (true, true) => inner_size[d].min(content_size[d]), // shrink scroll area if content is small
+                    (true, false) => inner_size[d], // let scroll area be larger than content; fill with blank space
+                    (false, true) => content_size[d], // Follow the content (expand/contract to fit it).
+                    (false, false) => inner_size[d].max(content_size[d]), // Expand to fit content
                 };
             }
 
             let mut inner_rect = Rect::from_min_size(inner_rect.min, inner_size);
 
             // The window that egui sits in can't be expanded by egui, so we need to respect it:
-            let max_x =
-                ui.input().screen_rect().right() - current_bar_use.x - ui.spacing().item_spacing.x;
-            inner_rect.max.x = inner_rect.max.x.at_most(max_x);
-
-            let max_y =
-                ui.input().screen_rect().bottom() - current_bar_use.y - ui.spacing().item_spacing.y;
-            inner_rect.max.y = inner_rect.max.y.at_most(max_y);
-            // TODO: maybe auto-enable horizontal/vertical scrolling if this limit is reached
+            for d in 0..2 {
+                if !has_bar[d] {
+                    // HACK for when we have a vertical-only scroll area in a top level panel,
+                    // and that panel is not wide enough for the contents.
+                    // This code ensures we still see the scroll bar!
+                    let max = ui.input().screen_rect().max[d]
+                        - current_bar_use[d]
+                        - ui.spacing().item_spacing[d];
+                    inner_rect.max[d] = inner_rect.max[d].at_most(max);
+                    // TODO: maybe auto-enable horizontal/vertical scrolling if this limit is reached
+                }
+            }
 
             inner_rect
         };
@@ -465,6 +502,7 @@ impl Prepared {
                     if has_bar[d] {
                         state.offset[d] -= input.pointer.delta()[d];
                         state.vel[d] = input.pointer.velocity()[d];
+                        state.scroll_stuck_to_end[d] = false;
                     } else {
                         state.vel[d] = 0.0;
                     }
@@ -501,6 +539,7 @@ impl Prepared {
                         state.offset[d] -= scroll_delta[d];
                         // Clear scroll delta so no parent scroll will use it.
                         frame_state.scroll_delta[d] = 0.0;
+                        state.scroll_stuck_to_end[d] = false;
                     }
                 }
             }
@@ -547,6 +586,11 @@ impl Prepared {
                 )
             };
 
+            // maybe force increase in offset to keep scroll stuck to end position
+            if stick_to_end[d] && state.scroll_stuck_to_end[d] {
+                state.offset[d] = content_size[d] - inner_rect.size()[d];
+            }
+
             let from_content =
                 |content| remap_clamp(content, 0.0..=content_size[d], min_main..=max_main);
 
@@ -589,6 +633,9 @@ impl Prepared {
 
                 let new_handle_top = pointer_pos[d] - *scroll_start_offset_from_top_left;
                 state.offset[d] = remap(new_handle_top, min_main..=max_main, 0.0..=content_size[d]);
+
+                // some manual action taken, scroll not stuck
+                state.scroll_stuck_to_end[d] = false;
             } else {
                 state.scroll_start_offset_from_top_left[d] = None;
             }
@@ -653,8 +700,19 @@ impl Prepared {
             ui.ctx().request_repaint();
         }
 
-        state.offset = state.offset.min(content_size - inner_rect.size());
+        let available_offset = content_size - inner_rect.size();
+        state.offset = state.offset.min(available_offset);
         state.offset = state.offset.max(Vec2::ZERO);
+
+        // Is scroll handle at end of content? If so enter sticky mode.
+        // Only has an effect if stick_to_end is enabled but we save in
+        // state anyway so that entering sticky mode at an arbitrary time
+        // has appropriate effect.
+        state.scroll_stuck_to_end = [
+            state.offset[0] == available_offset[0],
+            state.offset[1] == available_offset[1],
+        ];
+
         state.show_scroll = show_scroll_this_frame;
 
         ui.memory().id_data.insert(id, state);

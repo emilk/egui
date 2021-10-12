@@ -6,8 +6,10 @@ use crate::*;
 /// A rectangular region of space.
 ///
 /// Normally given in points, e.g. logical pixels.
+#[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Rect {
     pub min: Pos2,
     pub max: Pos2,

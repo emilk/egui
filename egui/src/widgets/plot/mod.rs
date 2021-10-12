@@ -4,8 +4,6 @@ mod items;
 mod legend;
 mod transform;
 
-use std::collections::HashSet;
-
 use items::PlotItem;
 pub use items::{
     Arrows, HLine, Line, LineStyle, MarkerShape, PlotImage, Points, Polygon, Text, VLine, Value,
@@ -17,6 +15,7 @@ use transform::{Bounds, ScreenTransform};
 
 use crate::*;
 use color::Hsva;
+use epaint::ahash::AHashSet;
 
 // ----------------------------------------------------------------------------
 
@@ -27,7 +26,7 @@ struct PlotMemory {
     bounds: Bounds,
     auto_bounds: bool,
     hovered_entry: Option<String>,
-    hidden_items: HashSet<String>,
+    hidden_items: AHashSet<String>,
     min_auto_bounds: Bounds,
 }
 
@@ -350,7 +349,7 @@ impl Widget for Plot {
                 bounds: min_auto_bounds,
                 auto_bounds: !min_auto_bounds.is_valid(),
                 hovered_entry: None,
-                hidden_items: HashSet::new(),
+                hidden_items: Default::default(),
                 min_auto_bounds,
             })
             .clone();

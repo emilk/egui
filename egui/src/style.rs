@@ -801,11 +801,9 @@ impl WidgetVisuals {
 impl Visuals {
     /// Show radio-buttons to switch between light and dark mode.
     pub fn light_dark_radio_buttons(&mut self, ui: &mut crate::Ui) {
-        ui.group(|ui| {
-            ui.horizontal(|ui| {
-                ui.radio_value(self, Self::light(), "☀ Light");
-                ui.radio_value(self, Self::dark(), "🌙 Dark");
-            });
+        ui.horizontal(|ui| {
+            ui.selectable_value(self, Self::light(), "☀ Light");
+            ui.selectable_value(self, Self::dark(), "🌙 Dark");
         });
     }
 

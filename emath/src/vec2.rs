@@ -6,8 +6,10 @@ use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub, SubAssign};
 /// emath represents positions using [`crate::Pos2`].
 ///
 /// Normally the units are points (logical pixels).
+#[repr(C)]
 #[derive(Clone, Copy, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Vec2 {
     pub x: f32,
     pub y: f32,
@@ -423,7 +425,7 @@ impl std::fmt::Debug for Vec2 {
 #[test]
 fn test_vec2() {
     macro_rules! almost_eq {
-        ($left:expr, $right:expr) => {
+        ($left: expr, $right: expr) => {
             let left = $left;
             let right = $right;
             assert!((left - right).abs() < 1e-6, "{} != {}", left, right);

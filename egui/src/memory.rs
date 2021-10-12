@@ -1,6 +1,6 @@
-use std::collections::{HashMap, HashSet};
+use epaint::ahash::AHashSet;
 
-use crate::{any, area, window, Id, InputState, LayerId, Pos2, Rect, Style};
+use crate::{any, area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
 
 // ----------------------------------------------------------------------------
 
@@ -19,6 +19,7 @@ use crate::{any, area, window, Id, InputState, LayerId, Pos2, Rect, Style};
 pub struct Memory {
     pub options: Options,
 
+    // ------------------------------------------
     /// This map stores current states for widgets that don't require `Id`.
     /// This will be saved between different program runs if you use the `persistence` feature.
     #[cfg(feature = "persistence")]
@@ -30,23 +31,51 @@ pub struct Memory {
     pub data: any::TypeMap,
 
     /// Same as `data`, but this data will not be saved between runs.
-    #[cfg_attr(feature = "persistence", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub data_temp: any::TypeMap,
 
     /// This map stores current states for all widgets with custom `Id`s.
     /// This will be saved between different program runs if you use the `persistence` feature.
     #[cfg(feature = "persistence")]
-    pub id_data: any::serializable::AnyMap<Id>,
+    pub id_data: any::serializable::IdAnyMap,
 
     /// This map stores current states for all widgets with custom `Id`s.
     /// This will be saved between different program runs if you use the `persistence` feature.
     #[cfg(not(feature = "persistence"))]
-    pub id_data: any::AnyMap<Id>,
+    pub id_data: any::AnyMap<Id, crate::id::BuilIdHasher>,
 
     /// Same as `id_data`, but this data will not be saved between runs.
-    #[cfg_attr(feature = "persistence", serde(skip))]
-    pub id_data_temp: any::AnyMap<Id>,
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub id_data_temp: any::AnyMap<Id, crate::id::BuilIdHasher>,
 
+    // ------------------------------------------
+    /// Can be used to cache computations from one frame to another.
+    ///
+    /// This is for saving CPU when you have something that may take 1-100ms to compute.
+    /// Things that are very slow (>100ms) should instead be done async (i.e. in another thread)
+    /// so as not to lock the UI thread.
+    ///
+    /// ```
+    /// use egui::util::cache::{ComputerMut, FrameCache};
+    ///
+    /// #[derive(Default)]
+    /// struct CharCounter {}
+    /// impl ComputerMut<&str, usize> for CharCounter {
+    ///     fn compute(&mut self, s: &str) -> usize {
+    ///         s.chars().count() // you probably want to cache something more expensive than this
+    ///     }
+    /// }
+    /// type CharCountCache<'a> = FrameCache<usize, CharCounter>;
+    ///
+    /// # let mut ctx = egui::CtxRef::default();
+    /// let mut memory = ctx.memory();
+    /// let cache = memory.caches.cache::<CharCountCache<'_>>();
+    /// assert_eq!(cache.get("hello"), 5);
+    /// ```
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub caches: crate::util::cache::CacheStorage,
+
+    // ------------------------------------------
     /// new scale that will be applied at the start of the next frame
     pub(crate) new_pixels_per_point: Option<f32>,
 
@@ -230,7 +259,7 @@ impl Focus {
         }
     }
 
-    pub(crate) fn end_frame(&mut self, used_ids: &epaint::ahash::AHashMap<Id, Rect>) {
+    pub(crate) fn end_frame(&mut self, used_ids: &IdMap<Rect>) {
         if let Some(id) = self.id {
             // Allow calling `request_focus` one frame and not using it until next frame
             let recently_gained_focus = self.id_previous_frame != Some(id);
@@ -281,11 +310,8 @@ impl Memory {
         }
     }
 
-    pub(crate) fn end_frame(
-        &mut self,
-        input: &InputState,
-        used_ids: &epaint::ahash::AHashMap<Id, Rect>,
-    ) {
+    pub(crate) fn end_frame(&mut self, input: &InputState, used_ids: &IdMap<Rect>) {
+        self.caches.update();
         self.areas.end_frame();
         self.interaction.focus.end_frame(used_ids);
         self.drag_value.end_frame(input);
@@ -435,18 +461,18 @@ impl Memory {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Areas {
-    areas: HashMap<Id, area::State>,
+    areas: IdMap<area::State>,
     /// Back-to-front. Top is last.
     order: Vec<LayerId>,
-    visible_last_frame: HashSet<LayerId>,
-    visible_current_frame: HashSet<LayerId>,
+    visible_last_frame: AHashSet<LayerId>,
+    visible_current_frame: AHashSet<LayerId>,
 
     /// When an area want to be on top, it is put in here.
     /// At the end of the frame, this is used to reorder the layers.
     /// This means if several layers want to be on top, they will keep their relative order.
     /// So if you close three windows and then reopen them all in one frame,
     /// they will all be sent to the top, but keep their previous internal order.
-    wants_to_be_on_top: HashSet<LayerId>,
+    wants_to_be_on_top: AHashSet<LayerId>,
 }
 
 impl Areas {
@@ -498,7 +524,7 @@ impl Areas {
         self.visible_last_frame.contains(layer_id) || self.visible_current_frame.contains(layer_id)
     }
 
-    pub fn visible_layer_ids(&self) -> HashSet<LayerId> {
+    pub fn visible_layer_ids(&self) -> AHashSet<LayerId> {
         self.visible_last_frame
             .iter()
             .cloned()

@@ -6,12 +6,14 @@ use std::any::Any;
 pub struct TypeId(u64);
 
 impl TypeId {
+    #[inline]
     pub fn of<T: Any + 'static>() -> Self {
         std::any::TypeId::of::<T>().into()
     }
 }
 
 impl From<std::any::TypeId> for TypeId {
+    #[inline]
     fn from(id: std::any::TypeId) -> Self {
         Self(epaint::util::hash(id))
     }

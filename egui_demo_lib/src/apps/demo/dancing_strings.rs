@@ -11,7 +11,7 @@ impl super::Demo for DancingStrings {
     }
 
     fn show(&mut self, ctx: &CtxRef, open: &mut bool) {
-        use super::View;
+        use super::View as _;
         Window::new(self.name())
             .open(open)
             .default_size(vec2(512.0, 256.0))

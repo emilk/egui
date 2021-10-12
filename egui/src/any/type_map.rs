@@ -1,33 +1,40 @@
 use crate::any::element::{AnyMapElement, AnyMapTrait};
+use crate::epaint::ahash::AHashMap;
 use std::any::TypeId;
-use std::collections::HashMap;
 
 /// Maps types to a single instance of that type.
 ///
 /// Used to store state per widget type. In effect a sort of singleton storage.
 /// Similar to [the `typemap` crate](https://docs.rs/typemap/0.3.3/typemap/).
 #[derive(Clone, Debug, Default)]
-pub struct TypeMap(HashMap<TypeId, AnyMapElement>);
+pub struct TypeMap(AHashMap<TypeId, AnyMapElement>);
 
 // ----------------------------------------------------------------------------
 
 impl TypeMap {
+    #[inline]
     pub fn get<T: AnyMapTrait>(&mut self) -> Option<&T> {
         self.get_mut().map(|x| &*x)
     }
 
+    #[inline]
     pub fn get_mut<T: AnyMapTrait>(&mut self) -> Option<&mut T> {
         self.0.get_mut(&TypeId::of::<T>())?.get_mut()
     }
-}
 
-impl TypeMap {
+    #[inline]
     pub fn get_or_insert_with<T: AnyMapTrait>(&mut self, or_insert_with: impl FnOnce() -> T) -> &T {
         &*self.get_mut_or_insert_with(or_insert_with)
     }
 
+    #[inline]
     pub fn get_or_default<T: AnyMapTrait + Default>(&mut self) -> &T {
         self.get_or_insert_with(Default::default)
+    }
+
+    #[inline]
+    pub fn get_or<T: AnyMapTrait>(&mut self, value: T) -> &T {
+        &*self.get_mut_or_insert_with(|| value)
     }
 
     pub fn get_mut_or_insert_with<T: AnyMapTrait>(
@@ -44,21 +51,23 @@ impl TypeMap {
         }
     }
 
+    #[inline]
     pub fn get_mut_or_default<T: AnyMapTrait + Default>(&mut self) -> &mut T {
         self.get_mut_or_insert_with(Default::default)
     }
-}
 
-impl TypeMap {
+    #[inline]
     pub fn insert<T: AnyMapTrait>(&mut self, element: T) {
         self.0
             .insert(TypeId::of::<T>(), AnyMapElement::new(element));
     }
 
+    #[inline]
     pub fn remove<T: AnyMapTrait>(&mut self) {
         self.0.remove(&TypeId::of::<T>());
     }
 
+    #[inline]
     pub fn clear(&mut self) {
         self.0.clear();
     }

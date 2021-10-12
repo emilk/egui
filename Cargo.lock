@@ -47,6 +47,7 @@ checksum = "43bb833f0bf979d8475d38fbf09ed3b8a55e1885fe93ad3f93239fc6a4f17b98"
 dependencies = [
  "getrandom",
  "once_cell",
+ "serde",
  "version_check",
 ]
 
@@ -243,6 +244,20 @@ name = "bytemuck"
 version = "1.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72957246c41db82b8ef88a5486143830adeb8227ef9837740bdec67724cf2c5b"
+dependencies = [
+ "bytemuck_derive",
+]
+
+[[package]]
+name = "bytemuck_derive"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e215f8c2f9f79cb53c8335e687ffd07d5bfcb6fe5fc80723762d0be46e7cc54"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "byteorder"
@@ -831,7 +846,9 @@ dependencies = [
 name = "egui"
 version = "0.14.2"
 dependencies = [
+ "ahash",
  "epaint",
+ "nohash-hasher",
  "ron",
  "serde",
  "serde_json",
@@ -865,6 +882,7 @@ dependencies = [
  "criterion",
  "egui",
  "ehttp",
+ "enum-map",
  "epi",
  "image",
  "serde",
@@ -925,8 +943,30 @@ checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 name = "emath"
 version = "0.14.0"
 dependencies = [
+ "bytemuck",
  "mint",
  "serde",
+]
+
+[[package]]
+name = "enum-map"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e893a7ba6116821058dec84a6fb14fb2a97cd8ce5fd0f85d5a4e760ecd7329d9"
+dependencies = [
+ "enum-map-derive",
+ "serde",
+]
+
+[[package]]
+name = "enum-map-derive"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "84278eae0af6e34ff6c1db44c11634a694aafac559ff3080e4db4e4ac35907aa"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -949,6 +989,7 @@ dependencies = [
  "ab_glyph",
  "ahash",
  "atomic_refcell",
+ "bytemuck",
  "cint",
  "emath",
  "nohash-hasher",

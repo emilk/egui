@@ -624,10 +624,14 @@ impl Context {
 
     /// Tessellate the given shapes into triangle meshes.
     pub fn tessellate(&self, shapes: Vec<ClippedShape>) -> Vec<ClippedMesh> {
+        // A tempting optimization is to reuse the tessellation from last frame if the
+        // shapes are the same, but just comparing the shapes takes about 50% of the time
+        // it takes to tessellate them, so it is not a worth optimization.
+
         let mut tessellation_options = self.memory().options.tessellation_options;
         tessellation_options.pixels_per_point = self.pixels_per_point();
         tessellation_options.aa_size = 1.0 / self.pixels_per_point();
-        let paint_stats = PaintStats::from_shapes(&shapes); // TODO: internal allocations
+        let paint_stats = PaintStats::from_shapes(&shapes);
         let clipped_meshes = tessellator::tessellate_shapes(
             shapes,
             tessellation_options,

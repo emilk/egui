@@ -201,6 +201,8 @@ impl Default for FontDefinitions {
 }
 
 /// The collection of fonts used by `epaint`.
+///
+/// Required in order to paint text.
 pub struct Fonts {
     pixels_per_point: f32,
     definitions: FontDefinitions,
@@ -214,6 +216,8 @@ pub struct Fonts {
 }
 
 impl Fonts {
+    /// Create a new [`Fonts`] for text layout.
+    /// This call is expensive, so only create on [`Fonts`] and then reuse it.
     pub fn new(pixels_per_point: f32, definitions: FontDefinitions) -> Self {
         assert!(
             0.0 < pixels_per_point && pixels_per_point < 100.0,
@@ -405,7 +409,7 @@ struct GalleyCache {
 
 impl GalleyCache {
     fn layout(&mut self, fonts: &Fonts, job: LayoutJob) -> Arc<Galley> {
-        let hash = crate::util::hash_with(&job, ahash::AHasher::new_with_keys(123, 456)); // TODO: even faster hasher?
+        let hash = crate::util::hash(&job); // TODO: even faster hasher?
 
         match self.cache.entry(hash) {
             std::collections::hash_map::Entry::Occupied(entry) => {

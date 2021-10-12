@@ -401,7 +401,7 @@ impl SubTree {
 // ----------------------------------------------------------------------------
 
 fn text_layout_ui(ui: &mut egui::Ui) {
-    use egui::epaint::text::{LayoutJob, TextFormat};
+    use egui::text::LayoutJob;
 
     let mut job = LayoutJob::default();
 
