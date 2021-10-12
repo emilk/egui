@@ -565,11 +565,14 @@ impl<'t> TextEdit<'t> {
 
         let mut galley = layouter(ui, text.as_ref(), wrap_width);
 
+        let desired_width = if multiline {
+            galley.size().x.max(wrap_width) // always show everything in multiline
+        } else {
+            wrap_width // visual clipping with scroll in singleline input. TODO: opt-in/out?
+        };
         let desired_height = (desired_height_rows.at_least(1) as f32) * row_height;
-        let desired_size = vec2(
-            galley.size().x.max(wrap_width),
-            galley.size().y.max(desired_height),
-        );
+        let desired_size = vec2(desired_width, galley.size().y.max(desired_height));
+
         let (auto_id, rect) = ui.allocate_space(desired_size);
 
         let id = id.unwrap_or_else(|| {
