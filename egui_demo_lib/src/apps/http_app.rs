@@ -48,10 +48,6 @@ enum Method {
 pub struct HttpApp {
     url: String,
 
-    method: Method,
-
-    request_body: String,
-
     #[cfg_attr(feature = "serde", serde(skip))]
     in_progress: Option<Receiver<Result<ehttp::Response, String>>>,
 
@@ -66,8 +62,6 @@ impl Default for HttpApp {
     fn default() -> Self {
         Self {
             url: "https://raw.githubusercontent.com/emilk/egui/master/README.md".to_owned(),
-            method: Method::Get,
-            request_body: r#"["posting some json", { "more_json" : true }]"#.to_owned(),
             in_progress: Default::default(),
             result: Default::default(),
             tex_mngr: Default::default(),
@@ -80,8 +74,6 @@ impl epi::App for HttpApp {
         "⬇ HTTP"
     }
 
-    /// Called each time the UI needs repainting, which may be many times per second.
-    /// Put your widgets into a `SidePanel`, `TopBottomPanel`, `CentralPanel`, `Window` or `Area`.
     fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
         if let Some(receiver) = &mut self.in_progress {
             // Are we there yet?
@@ -91,26 +83,25 @@ impl epi::App for HttpApp {
             }
         }
 
+        egui::TopBottomPanel::bottom("http_bottom").show(ctx, |ui| {
+            let layout = egui::Layout::top_down(egui::Align::Center).with_main_justify(true);
+            ui.allocate_ui_with_layout(ui.available_size(), layout, |ui| {
+                ui.add(crate::__egui_github_link_file!())
+            })
+        });
+
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("HTTP Fetch Example");
-            ui.horizontal(|ui| {
+            let trigger_fetch = ui_url(ui, frame, &mut self.url);
+
+            ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;
                 ui.label("HTTP requests made using ");
                 ui.hyperlink_to("ehttp", "https://www.github.com/emilk/ehttp");
                 ui.label(".");
             });
-            ui.add(egui::github_link_file!(
-                "https://github.com/emilk/egui/blob/master/",
-                "(demo source code)"
-            ));
 
-            if let Some(request) = ui_url(
-                ui,
-                frame,
-                &mut self.url,
-                &mut self.method,
-                &mut self.request_body,
-            ) {
+            if trigger_fetch {
+                let request = ehttp::Request::get(&self.url);
                 let repaint_signal = frame.repaint_signal();
                 let (sender, receiver) = std::sync::mpsc::channel();
                 self.in_progress = Some(receiver);
@@ -124,7 +115,7 @@ impl epi::App for HttpApp {
             ui.separator();
 
             if self.in_progress.is_some() {
-                ui.label("Please wait...");
+                ui.label("Please wait…");
             } else if let Some(result) = &self.result {
                 match result {
                     Ok(resource) => {
@@ -143,38 +134,14 @@ impl epi::App for HttpApp {
     }
 }
 
-fn ui_url(
-    ui: &mut egui::Ui,
-    frame: &mut epi::Frame<'_>,
-    url: &mut String,
-    method: &mut Method,
-    request_body: &mut String,
-) -> Option<ehttp::Request> {
+fn ui_url(ui: &mut egui::Ui, frame: &mut epi::Frame<'_>, url: &mut String) -> bool {
     let mut trigger_fetch = false;
 
-    egui::Grid::new("request_params").show(ui, |ui| {
+    ui.horizontal(|ui| {
         ui.label("URL:");
-        ui.horizontal(|ui| {
-            trigger_fetch |= ui.text_edit_singleline(url).lost_focus();
-            egui::ComboBox::from_id_source("method")
-                .selected_text(format!("{:?}", method))
-                .width(60.0)
-                .show_ui(ui, |ui| {
-                    ui.selectable_value(method, Method::Get, "GET");
-                    ui.selectable_value(method, Method::Post, "POST");
-                });
-            trigger_fetch |= ui.button("▶").clicked();
-        });
-        ui.end_row();
-        if *method == Method::Post {
-            ui.label("Body:");
-            ui.add(
-                egui::TextEdit::multiline(request_body)
-                    .code_editor()
-                    .desired_rows(1),
-            );
-            ui.end_row();
-        }
+        trigger_fetch |= ui
+            .add(egui::TextEdit::singleline(url).desired_width(f32::INFINITY))
+            .lost_focus();
     });
 
     if frame.is_web() {
@@ -187,32 +154,17 @@ fn ui_url(
                 "https://raw.githubusercontent.com/emilk/egui/master/{}",
                 file!()
             );
-            *method = Method::Get;
             trigger_fetch = true;
         }
         if ui.button("Random image").clicked() {
             let seed = ui.input().time;
-            let width = 640;
-            let height = 480;
-            *url = format!("https://picsum.photos/seed/{}/{}/{}", seed, width, height);
-            *method = Method::Get;
-            trigger_fetch = true;
-        }
-        if ui.button("Post to httpbin.org").clicked() {
-            *url = "https://httpbin.org/post".to_owned();
-            *method = Method::Post;
+            let side = 640;
+            *url = format!("https://picsum.photos/seed/{}/{}", seed, side);
             trigger_fetch = true;
         }
     });
 
-    if trigger_fetch {
-        Some(match *method {
-            Method::Get => ehttp::Request::get(url),
-            Method::Post => ehttp::Request::post(url, request_body),
-        })
-    } else {
-        None
-    }
+    trigger_fetch
 }
 
 fn ui_resource(
@@ -244,47 +196,55 @@ fn ui_resource(
 
     ui.separator();
 
-    egui::CollapsingHeader::new("Response headers")
-        .default_open(false)
-        .show(ui, |ui| {
-            egui::Grid::new("response_headers")
-                .spacing(egui::vec2(ui.spacing().item_spacing.x * 2.0, 0.0))
-                .show(ui, |ui| {
-                    for header in &response.headers {
-                        ui.label(header.0);
-                        ui.label(header.1);
-                        ui.end_row();
-                    }
-                })
-        });
-
-    ui.separator();
-
-    if let Some(text) = &text {
-        let tooltip = "Click to copy the response body";
-        if ui.button("📋").on_hover_text(tooltip).clicked() {
-            ui.output().copied_text = text.clone();
-        }
-    }
-
-    ui.separator();
-
     egui::ScrollArea::vertical()
         .auto_shrink([false; 2])
         .show(ui, |ui| {
+            egui::CollapsingHeader::new("Response headers")
+                .default_open(false)
+                .show(ui, |ui| {
+                    egui::Grid::new("response_headers")
+                        .spacing(egui::vec2(ui.spacing().item_spacing.x * 2.0, 0.0))
+                        .show(ui, |ui| {
+                            for header in &response.headers {
+                                ui.label(header.0);
+                                ui.label(header.1);
+                                ui.end_row();
+                            }
+                        })
+                });
+
+            ui.separator();
+
+            if let Some(text) = &text {
+                let tooltip = "Click to copy the response body";
+                if ui.button("📋").on_hover_text(tooltip).clicked() {
+                    ui.output().copied_text = text.clone();
+                }
+                ui.separator();
+            }
+
             if let Some(image) = image {
                 if let Some(texture_id) = tex_mngr.texture(frame, &response.url, image) {
-                    let size = egui::Vec2::new(image.size.0 as f32, image.size.1 as f32);
+                    let mut size = egui::Vec2::new(image.size.0 as f32, image.size.1 as f32);
+                    size *= (ui.available_width() / size.x).min(1.0);
                     ui.image(texture_id, size);
                 }
             } else if let Some(colored_text) = colored_text {
                 colored_text.ui(ui);
             } else if let Some(text) = &text {
-                ui.monospace(text);
+                selectable_text(ui, text);
             } else {
                 ui.monospace("[binary]");
             }
         });
+}
+
+fn selectable_text(ui: &mut egui::Ui, mut text: &str) {
+    ui.add(
+        egui::TextEdit::multiline(&mut text)
+            .desired_width(f32::INFINITY)
+            .text_style(egui::TextStyle::Monospace),
+    );
 }
 
 // ----------------------------------------------------------------------------
@@ -304,26 +264,38 @@ fn syntax_highlighting(
     )))
 }
 
-/// Lines of text fragments
-struct ColoredText(egui::text::LayoutJob);
-
-impl ColoredText {
-    #[cfg(feature = "syntect")]
-    pub fn ui(&self, ui: &mut egui::Ui) {
-        let mut job = self.0.clone();
-        job.wrap_width = ui.available_width();
-        let galley = ui.fonts().layout_job(job);
-        let (response, painter) = ui.allocate_painter(galley.size(), egui::Sense::hover());
-        painter.add(egui::Shape::galley(response.rect.min, galley));
-    }
-
-    #[cfg(not(feature = "syntect"))]
-    pub fn ui(&self, _ui: &mut egui::Ui) {}
-}
-
 #[cfg(not(feature = "syntect"))]
 fn syntax_highlighting(_ctx: &egui::Context, _: &ehttp::Response, _: &str) -> Option<ColoredText> {
     None
+}
+
+struct ColoredText(egui::text::LayoutJob);
+
+impl ColoredText {
+    pub fn ui(&self, ui: &mut egui::Ui) {
+        if true {
+            // Selectable text:
+            let mut layouter = |ui: &egui::Ui, _string: &str, wrap_width: f32| {
+                let mut layout_job = self.0.clone();
+                layout_job.wrap_width = wrap_width;
+                ui.fonts().layout_job(layout_job)
+            };
+
+            let mut text = self.0.text.as_str();
+            ui.add(
+                egui::TextEdit::multiline(&mut text)
+                    .text_style(egui::TextStyle::Monospace)
+                    .desired_width(f32::INFINITY)
+                    .layouter(&mut layouter),
+            );
+        } else {
+            let mut job = self.0.clone();
+            job.wrap_width = ui.available_width();
+            let galley = ui.fonts().layout_job(job);
+            let (response, painter) = ui.allocate_painter(galley.size(), egui::Sense::hover());
+            painter.add(egui::Shape::galley(response.rect.min, galley));
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------

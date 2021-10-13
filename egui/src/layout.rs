@@ -243,6 +243,14 @@ impl Layout {
     }
 
     #[inline(always)]
+    pub fn with_main_justify(self, main_justify: bool) -> Self {
+        Self {
+            main_justify,
+            ..self
+        }
+    }
+
+    #[inline(always)]
     pub fn with_cross_justify(self, cross_justify: bool) -> Self {
         Self {
             cross_justify,
