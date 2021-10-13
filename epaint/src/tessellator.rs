@@ -81,7 +81,7 @@ impl Path {
             for i in 1..n - 1 {
                 let mut n1 = (points[i + 1] - points[i]).normalized().rot90();
 
-                // Handle duplicated points (but not triplicated...):
+                // Handle duplicated points (but not triplicated…):
                 if n0 == Vec2::ZERO {
                     n0 = n1;
                 } else if n1 == Vec2::ZERO {
@@ -124,7 +124,7 @@ impl Path {
             let next_i = if i + 1 == n { 0 } else { i + 1 };
             let mut n1 = (points[next_i] - points[i]).normalized().rot90();
 
-            // Handle duplicated points (but not triplicated...):
+            // Handle duplicated points (but not triplicated…):
             if n0 == Vec2::ZERO {
                 n0 = n1;
             } else if n1 == Vec2::ZERO {

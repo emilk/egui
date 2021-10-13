@@ -2,7 +2,7 @@
 //!
 //! Example widget uses:
 //! * `ui.add(Label::new("Text").text_color(color::red));`
-//! * `if ui.add(Button::new("Click me")).clicked() { ... }`
+//! * `if ui.add(Button::new("Click me")).clicked() { … }`
 
 use crate::*;
 

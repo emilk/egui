@@ -301,7 +301,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 
 ### Added ⭐
 * Turn off `Window` title bars with `window.title_bar(false)`.
-* `ImageButton` - `ui.add(ImageButton::new(...))`.
+* `ImageButton` - `ui.add(ImageButton::new(…))`.
 * `ui.vertical_centered` and `ui.vertical_centered_justified`.
 * `ui.allocate_painter` helper.
 * Mouse-over explanation to duplicate ID warning.
@@ -343,11 +343,11 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 ### Added ⭐
 * Emoji support: 1216 different emojis that work in any text.
   * The Demo app comes with a Font Book to explore the available glyphs.
-* `ui.horizontal_wrapped(|ui| ...)`: Add widgets on a row but wrap at `max_size`.
+* `ui.horizontal_wrapped(|ui| …)`: Add widgets on a row but wrap at `max_size`.
 * `ui.horizontal_wrapped_for_text`: Like `ui.horizontal_wrapped`, but with spacing made for embedding text.
 * `ui.horizontal_for_text`: Like `ui.horizontal`, but with spacing made for embedding text.
 * `egui::Layout` now supports justified layouts where contents is _also_ centered, right-aligned, etc.
-* `ui.allocate_ui(size, |ui| ...)`: Easily create a child-`Ui` of a given size.
+* `ui.allocate_ui(size, |ui| …)`: Easily create a child-`Ui` of a given size.
 * `SelectableLabel` (`ui.selectable_label` and `ui.selectable_value`): A text-button that can be selected.
 * `ui.small_button`: A smaller button that looks good embedded in text.
 * `ui.drag_angle_tau`: For those who want to specify angles as fractions of τ (a full turn).
@@ -399,7 +399,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * The demo app now has a slider to scale all of egui.
 
 ### Changed 🔧
-* `ui.horizontal(...)` etc returns `Response`.
+* `ui.horizontal(…)` etc returns `Response`.
 * Refactored the interface for `egui::app::App`.
 * Windows are now constrained to the screen.
 * `Context::begin_frame()` no longer returns a `Ui`. Instead put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.

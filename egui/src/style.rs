@@ -326,7 +326,7 @@ pub struct WidgetVisuals {
     /// Button frames etc.
     pub corner_radius: f32,
 
-    /// Stroke and text color of the interactive part of a component (button text, slider grab, check-mark, ...).
+    /// Stroke and text color of the interactive part of a component (button text, slider grab, check-mark, …).
     pub fg_stroke: Stroke,
 
     /// Make the frame this much larger.

@@ -14,7 +14,7 @@ pub struct Shadow {
 }
 
 impl Shadow {
-    /// Tooltips, menus, ...
+    /// Tooltips, menus, …
     pub fn small_dark() -> Self {
         Self {
             extrusion: 16.0,
@@ -22,7 +22,7 @@ impl Shadow {
         }
     }
 
-    /// Tooltips, menus, ...
+    /// Tooltips, menus, …
     pub fn small_light() -> Self {
         Self {
             extrusion: 16.0,

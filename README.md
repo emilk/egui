@@ -158,7 +158,7 @@ egui is build to be easy to integrate into any existing game engine or platform 
 egui itself doesn't know or care on what OS it is running or how to render things to the screen - that is the job of the egui integration.
 The integration needs to do two things:
 
-* **IO**: Supply egui with input (mouse position, keyboard presses, ...) and handle egui output (cursor changes, copy-paste integration, ...).
+* **IO**: Supply egui with input (mouse position, keyboard presses, …) and handle egui output (cursor changes, copy-paste integration, …).
 * **Painting**: Render the textured triangles that egui outputs.
 
 ### Official

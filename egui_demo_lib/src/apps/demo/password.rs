@@ -54,11 +54,11 @@ pub fn password_ui(ui: &mut egui::Ui, text: &mut String) -> egui::Response {
     ui.memory().id_data_temp.insert(id, plaintext);
 
     // All done! Return the interaction response so the user can check what happened
-    // (hovered, clicked, ...) and maybe show a tooltip:
+    // (hovered, clicked, …) and maybe show a tooltip:
     result.response
 }
 
-// A wrapper that allows the more idiomatic usage pattern: `ui.add(...)`
+// A wrapper that allows the more idiomatic usage pattern: `ui.add(…)`
 /// Password entry field with ability to toggle character hiding.
 ///
 /// ## Example:

@@ -539,7 +539,7 @@ fn open_url(_url: &str) {
     }
 }
 
-/// Glium sends special keys (backspace, delete, F1, ...) as characters.
+/// Winit sends special keys (backspace, delete, F1, …) as characters.
 /// Ignore those.
 /// We also ignore '\r', '\n', '\t'.
 /// Newlines are handled by the `Key::Enter` event.

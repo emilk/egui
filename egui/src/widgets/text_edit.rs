@@ -391,7 +391,7 @@ impl<'t> TextEdit<'t> {
     }
 
     /// Set to 0.0 to keep as small as possible.
-    /// Set to [`f32::INFINITY`] to take up all available space.
+    /// Set to [`f32::INFINITY`] to take up all available space (i.e. disable automatic word wrap).
     pub fn desired_width(mut self, desired_width: f32) -> Self {
         self.desired_width = Some(desired_width);
         self

@@ -37,7 +37,7 @@
 //!
 //! Second, count and reset all instances of a type in [`serializable::IdAnyMap`] could return an incorrect value for the same reason.
 //!
-//! Deserialization errors of loaded elements of these storages can be determined only when you call `get_...` functions, they not logged and not provided to a user, on this errors value is just replaced with `or_insert()`/default value.
+//! Deserialization errors of loaded elements of these storages can be determined only when you call `get_…` functions, they not logged and not provided to a user, on this errors value is just replaced with `or_insert()`/default value.
 //!
 //! # When not to use this
 //!
