@@ -137,12 +137,9 @@ impl Default for FontDefinitions {
 
         #[cfg(feature = "default_fonts")]
         {
-            // TODO: figure out a way to make the WASM smaller despite including fonts. Zip them?
-
-            // Use size 13 for this. NOTHING ELSE:
             font_data.insert(
-                "ProggyClean".to_owned(),
-                std::borrow::Cow::Borrowed(include_bytes!("../../fonts/ProggyClean.ttf")),
+                "Hack".to_owned(),
+                std::borrow::Cow::Borrowed(include_bytes!("../../fonts/Hack-Regular.ttf")),
             );
             font_data.insert(
                 "Ubuntu-Light".to_owned(),
@@ -163,7 +160,7 @@ impl Default for FontDefinitions {
             fonts_for_family.insert(
                 FontFamily::Monospace,
                 vec![
-                    "ProggyClean".to_owned(),
+                    "Hack".to_owned(),
                     "Ubuntu-Light".to_owned(), // fallback for √ etc
                     "NotoEmoji-Regular".to_owned(),
                     "emoji-icon-font".to_owned(),
@@ -190,7 +187,7 @@ impl Default for FontDefinitions {
         family_and_size.insert(TextStyle::Body, (FontFamily::Proportional, 14.0));
         family_and_size.insert(TextStyle::Button, (FontFamily::Proportional, 14.0));
         family_and_size.insert(TextStyle::Heading, (FontFamily::Proportional, 20.0));
-        family_and_size.insert(TextStyle::Monospace, (FontFamily::Monospace, 13.0)); // 13 for `ProggyClean`
+        family_and_size.insert(TextStyle::Monospace, (FontFamily::Monospace, 14.0));
 
         Self {
             font_data,
