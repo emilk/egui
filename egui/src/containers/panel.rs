@@ -27,7 +27,7 @@ struct PanelState {
 
 /// `Left` or `Right`
 #[derive(Clone, Copy, Debug, PartialEq)]
-enum Side {
+pub enum Side {
     Left,
     Right,
 }
@@ -94,7 +94,7 @@ impl SidePanel {
     }
 
     /// `id_source`: Something unique, e.g. `"my_panel"`.
-    fn new(side: Side, id_source: impl std::hash::Hash) -> Self {
+    pub fn new(side: Side, id_source: impl std::hash::Hash) -> Self {
         Self {
             side,
             id: Id::new(id_source),
@@ -303,7 +303,7 @@ impl SidePanel {
 
 /// `Top` or `Bottom`
 #[derive(Clone, Copy, Debug, PartialEq)]
-enum TopBottomSide {
+pub enum TopBottomSide {
     Top,
     Bottom,
 }
@@ -370,7 +370,7 @@ impl TopBottomPanel {
     }
 
     /// `id_source`: Something unique, e.g. `"my_panel"`.
-    fn new(side: TopBottomSide, id_source: impl std::hash::Hash) -> Self {
+    pub fn new(side: TopBottomSide, id_source: impl std::hash::Hash) -> Self {
         Self {
             side,
             id: Id::new(id_source),
