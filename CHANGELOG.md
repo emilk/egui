@@ -27,6 +27,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Smaller and nicer color picker.
 * `ScrollArea` will auto-shrink to content size unless told otherwise using `ScollArea::auto_shrink`.
 * By default, `Slider`'s `clamp_to_range` is set to true.
+* Rename `TextEdit::enabled` to `TextEdit::interactive`.
 
 ### Fixed 🐛
 * Fix wrongly sized multiline `TextEdit` in justified layouts.

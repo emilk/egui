@@ -264,7 +264,7 @@ pub struct TextEdit<'t> {
     password: bool,
     frame: bool,
     multiline: bool,
-    enabled: bool,
+    interactive: bool,
     desired_width: Option<f32>,
     desired_height_rows: usize,
     lock_focus: bool,
@@ -294,7 +294,7 @@ impl<'t> TextEdit<'t> {
             password: false,
             frame: true,
             multiline: true,
-            enabled: true,
+            interactive: true,
             desired_width: None,
             desired_height_rows: 4,
             lock_focus: false,
@@ -378,10 +378,17 @@ impl<'t> TextEdit<'t> {
         self
     }
 
-    /// Default is `true`. If set to `false` then you cannot edit the text.
-    pub fn enabled(mut self, enabled: bool) -> Self {
-        self.enabled = enabled;
+    /// Default is `true`. If set to `false` then you cannot interact with the text (neither edit or select it).
+    ///
+    /// Consider using [`Ui::add_enabled`] instead to also give the `TextEdit` a greyed out look.
+    pub fn interactive(mut self, interactive: bool) -> Self {
+        self.interactive = interactive;
         self
+    }
+
+    #[deprecated = "Use TextEdit::interactive or ui.add_enabled instead"]
+    pub fn enabled(self, enabled: bool) -> Self {
+        self.interactive(enabled)
     }
 
     /// Default is `true`. If set to `false` there will be no frame showing that this is editable text!
@@ -437,7 +444,7 @@ impl<'t> Widget for TextEdit<'t> {
     fn ui(self, ui: &mut Ui) -> Response {
         let is_mutable = self.text.is_mutable();
         let frame = self.frame;
-        let enabled = self.enabled;
+        let interactive = self.interactive;
         let where_to_put_background = ui.painter().add(Shape::Noop);
 
         let margin = Vec2::new(4.0, 2.0);
@@ -447,7 +454,7 @@ impl<'t> Widget for TextEdit<'t> {
         let id = response.id;
         let frame_rect = response.rect.expand2(margin);
         ui.allocate_space(frame_rect.size());
-        if enabled {
+        if interactive {
             response |= ui.interact(frame_rect, id, Sense::click())
         }
         if response.clicked() && !response.lost_focus() {
@@ -520,7 +527,7 @@ impl<'t> TextEdit<'t> {
             password,
             frame: _,
             multiline,
-            enabled,
+            interactive,
             desired_width,
             desired_height_rows,
             lock_focus,
@@ -584,7 +591,7 @@ impl<'t> TextEdit<'t> {
         });
         let mut state = ui.memory().id_data.get_or_default::<State>(id).clone();
 
-        let sense = if enabled {
+        let sense = if interactive {
             Sense::click_and_drag()
         } else {
             Sense::hover()
@@ -592,7 +599,7 @@ impl<'t> TextEdit<'t> {
         let mut response = ui.interact(rect, id, sense);
         let painter = ui.painter_at(rect);
 
-        if enabled {
+        if interactive {
             if let Some(pointer_pos) = ui.input().pointer.interact_pos() {
                 // TODO: triple-click to select whole paragraph
                 // TODO: drag selected text to either move or clone (ctrl on windows, alt on mac)
@@ -642,13 +649,13 @@ impl<'t> TextEdit<'t> {
             }
         }
 
-        if response.hovered() && enabled {
+        if response.hovered() && interactive {
             ui.output().cursor_icon = CursorIcon::Text;
         }
 
         let mut text_cursor = None;
         let prev_text_cursor = state.cursorp;
-        if ui.memory().has_focus(id) && enabled {
+        if ui.memory().has_focus(id) && interactive {
             ui.memory().lock_focus(id, lock_focus);
 
             let mut cursorp = state
@@ -888,7 +895,7 @@ impl<'t> TextEdit<'t> {
                     &cursorp.primary,
                 );
 
-                if enabled {
+                if interactive {
                     ui.ctx().output().text_cursor_pos = Some(
                         galley
                             .pos_from_cursor(&cursorp.primary)
