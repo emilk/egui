@@ -6,18 +6,33 @@
 ![MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Apache](https://img.shields.io/badge/license-Apache-blue.svg)
 
+`eframe` is the official framework library for writing apps using [`egui`](https://github.com/emilk/egui). The app can be compiled both to run natively (cross platform) or be compiled to a web app (using WASM).
 
-This aims to be the entry-level crate if you want to write an `egui` app.
+To get started, go to <https://github.com/emilk/egui_template/> and follow the instructions there!
 
-`eframe` calls into your code (it is a framework) and supports web apps (via [`egui_web`](https://crates.io/crates/egui_web)) and native apps (via [`egui_glium`](https://crates.io/crates/egui_glium)).
+---
 
-`eframe` is a very thin crate that re-exports [`egui`](https://github.com/emilk/egui), [`epi`](https://github.com/emilk/egui/tree/master/epi) and thin wrappers over the backends.
+`eframe` is a very thin crate that re-exports [`egui`](https://github.com/emilk/egui) and[`epi`](https://github.com/emilk/egui/tree/master/epi) with thin wrappers over the backends.
+
+`eframe` uses [`egui_web`](https://crates.io/crates/egui_web) and [`egui_glium`](https://crates.io/crates/egui_glium).
 
 To use on Linux, first run:
 
 ```
 sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev
 ```
+
+
+## Alternatives
+`eframe` is not the only way to write an app using `egui`! You can also try [`egui-miniquad`](https://github.com/not-fl3/egui-miniquad) and [`egui_sdl2_gl`](https://github.com/ArjunNair/egui_sdl2_gl).
+
+
+## Companion crates
+Not all rust crates work when compiles to WASM, but here are some useful crates have been designed to work well both natively and as WASM:
+
+* Audio: [`cpal`](https://github.com/RustAudio/cpal)
+* HTTP client: [`ehttp`](https://github.com/emilk/ehttp).
+
 
 ## Name
 
