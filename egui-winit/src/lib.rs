@@ -106,7 +106,14 @@ pub struct State {
 
     /// If `true`, mouse inputs will be treated as touches.
     /// Useful for debugging touch support in egui.
+    ///
+    /// Creates duplicate touches, if real touch inputs are coming.
     simulate_touch_screen: bool,
+
+    /// Is Some(…) when a touch is being translated to a pointer.
+    ///
+    /// Only one touch will be interpreted as pointer at any time.
+    pointer_touch_id: Option<u64>,
 }
 
 impl State {
@@ -132,6 +139,7 @@ impl State {
             screen_reader: screen_reader::ScreenReader::default(),
 
             simulate_touch_screen: false,
+            pointer_touch_id: None,
         }
     }
 
@@ -350,6 +358,7 @@ impl State {
     }
 
     fn on_touch(&mut self, touch: &winit::event::Touch) {
+        // Emit touch event
         self.egui_input.events.push(egui::Event::Touch {
             device_id: egui::TouchDeviceId(egui::epaint::util::hash(touch.device_id)),
             id: egui::TouchId::from(touch.id),
@@ -373,6 +382,41 @@ impl State {
                 None => 0_f32,
             },
         });
+        // If we're not yet tanslating a touch or we're translating this very
+        // touch …
+        if self.pointer_touch_id.is_none() || self.pointer_touch_id.unwrap() == touch.id {
+            // … emit PointerButton resp. PointerMoved events to emulate mouse
+            match touch.phase {
+                winit::event::TouchPhase::Started => {
+                    self.pointer_touch_id = Some(touch.id);
+                    // First move the pointer to the right location
+                    self.on_cursor_moved(touch.location);
+                    self.on_mouse_button_input(
+                        winit::event::ElementState::Pressed,
+                        winit::event::MouseButton::Left,
+                    );
+                }
+                winit::event::TouchPhase::Moved => {
+                    self.on_cursor_moved(touch.location);
+                }
+                winit::event::TouchPhase::Ended => {
+                    self.pointer_touch_id = None;
+                    self.on_mouse_button_input(
+                        winit::event::ElementState::Released,
+                        winit::event::MouseButton::Left,
+                    );
+                    // The pointer should vanish completely to not get any
+                    // hover effects
+                    self.pointer_pos_in_points = None;
+                    self.egui_input.events.push(egui::Event::PointerGone);
+                }
+                winit::event::TouchPhase::Cancelled => {
+                    self.pointer_touch_id = None;
+                    self.pointer_pos_in_points = None;
+                    self.egui_input.events.push(egui::Event::PointerGone);
+                }
+            }
+        }
     }
 
     fn on_mouse_wheel(&mut self, delta: winit::event::MouseScrollDelta) {
