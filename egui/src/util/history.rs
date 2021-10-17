@@ -61,25 +61,30 @@ where
         }
     }
 
+    #[inline]
     pub fn max_len(&self) -> usize {
         self.max_len
     }
 
+    #[inline]
     pub fn max_age(&self) -> f32 {
         self.max_age
     }
 
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.values.is_empty()
     }
 
     /// Current number of values kept in history
+    #[inline]
     pub fn len(&self) -> usize {
         self.values.len()
     }
 
     /// Total number of values seen.
     /// Includes those that have been discarded due to `max_len` or `max_age`.
+    #[inline]
     pub fn total_count(&self) -> u64 {
         self.total_count
     }
@@ -112,6 +117,7 @@ where
         self.values.iter().map(|(_time, value)| *value)
     }
 
+    #[inline]
     pub fn clear(&mut self) {
         self.values.clear()
     }
@@ -145,7 +151,7 @@ where
         self.mean_time_interval().map(|time| 1.0 / time)
     }
 
-    /// Remove samples that are too old
+    /// Remove samples that are too old.
     pub fn flush(&mut self, now: f64) {
         while self.values.len() > self.max_len {
             self.values.pop_front();
@@ -170,6 +176,7 @@ where
     T: std::iter::Sum,
     T: std::ops::Div<f32, Output = T>,
 {
+    #[inline]
     pub fn sum(&self) -> T {
         self.values().sum()
     }
@@ -205,7 +212,8 @@ where
     T: std::ops::Sub<Output = Vel>,
     Vel: std::ops::Div<f32, Output = Vel>,
 {
-    /// Calculate a smooth velocity (per second) over the entire time span
+    /// Calculate a smooth velocity (per second) over the entire time span.
+    /// Calculated as the last value minus the first value over the elapsed time between them.
     pub fn velocity(&self) -> Option<Vel> {
         if let (Some(first), Some(last)) = (self.values.front(), self.values.back()) {
             let dt = (last.0 - first.0) as f32;
