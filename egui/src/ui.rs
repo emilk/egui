@@ -207,12 +207,19 @@ impl Ui {
     /// If `false`, the `Ui` does not allow any interaction and
     /// the widgets in it will draw with a gray look.
     #[inline(always)]
+    pub fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+
+    #[deprecated = "Renamed to is_enabled"]
     pub fn enabled(&self) -> bool {
         self.enabled
     }
 
     /// Calling `set_enabled(false)` will cause the `Ui` to deny all future interaction
     /// and all the widgets will draw with a gray look.
+    ///
+    /// Usually it is more convenient to use [`Self::add_enabled_ui`] or [`Self::add_enabled`].
     ///
     /// Calling `set_enabled(true)` has no effect - it will NOT re-enable the `Ui` once disabled.
     ///
@@ -924,6 +931,59 @@ impl Ui {
             ui.centered_and_justified(|ui| ui.add(widget)).inner
         })
         .inner
+    }
+
+    /// Add a  single[`Widget`] that is possibly disabled, i.e. greyed out and non-interactive.
+    ///
+    /// If you call `add_enabled` from within an already disabled UI,
+    /// the widget will always be disabled, even if the `enabled` argument is true.
+    ///
+    /// See also [`Self::add_enabled_ui`] and [`Self::is_enabled`].
+    ///
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// ui.add_enabled(false, egui::Button::new("Can't click this"));
+    /// ```
+    pub fn add_enabled(&mut self, enabled: bool, widget: impl Widget) -> Response {
+        if enabled || !self.is_enabled() {
+            self.add(widget)
+        } else {
+            let old_painter = self.painter.clone();
+            self.set_enabled(false);
+            let response = self.add(widget);
+            self.enabled = true;
+            self.painter = old_painter;
+            response
+        }
+    }
+
+    /// Add a section that is possibly disabled, i.e. greyed out and non-interactive.
+    ///
+    /// If you call `add_enabled_ui` from within an already disabled UI,
+    /// the result will always be disabled, even if the `enabled` argument is true.
+    ///
+    /// See also [`Self::add_enabled`] and [`Self::is_enabled`].
+    ///
+    /// ### Example
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// # let mut enabled = true;
+    /// ui.checkbox(&mut enabled, "Enable subsection");
+    /// ui.add_enabled_ui(enabled, |ui| {
+    ///     if ui.button("Button that is not always clickable").clicked() {
+    ///         /* … */
+    ///     }
+    /// });
+    /// ```
+    pub fn add_enabled_ui<R>(
+        &mut self,
+        enabled: bool,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
+        self.scope(|ui| {
+            ui.set_enabled(enabled);
+            add_contents(ui)
+        })
     }
 
     /// Add extra space before the next widget.

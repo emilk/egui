@@ -262,7 +262,7 @@ impl CodeTheme {
                 };
 
                 if ui
-                    .add(egui::Button::new("Reset theme").enabled(*self != reset_value))
+                    .add_enabled(*self != reset_value, egui::Button::new("Reset theme"))
                     .clicked()
                 {
                     *self = reset_value;

@@ -240,10 +240,9 @@ impl BackendPanel {
             )
             .on_hover_text("Physical pixels per point.");
             if let Some(native_pixels_per_point) = info.native_pixels_per_point {
-                let button = egui::Button::new("Reset")
-                    .enabled(*pixels_per_point != native_pixels_per_point);
+                let enabled = *pixels_per_point != native_pixels_per_point;
                 if ui
-                    .add(button)
+                    .add_enabled(enabled, egui::Button::new("Reset"))
                     .on_hover_text(format!(
                         "Reset scale to native value ({:.1})",
                         native_pixels_per_point

@@ -11,6 +11,8 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Add horizontal scrolling support to `ScrollArea` and `Window` (opt-in).
 * `TextEdit::layouter`: Add custom text layout for e.g. syntax highlighting or WYSIWYG.
 * `Fonts::layout_job`: New text layout engine allowing mixing fonts, colors and styles, with underlining and strikethrough.
+* Add `ui.add_enabled(bool, widget)` to easily add a possibly disabled widget.
+* Add `ui.add_enabled_ui(bool, |ui| …)` to create a possibly disabled UI section.
 * Add feature `"serialize"` separatedly from `"persistence"`.
 * Add `egui::widgets::global_dark_light_mode_buttons` to easily add buttons for switching the egui theme.
 * `TextEdit` can now be used to show text which can be selectedd and copied, but not edited.
@@ -34,6 +36,9 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Fix clip rectangle of windows that don't fit the central area.
 * Show tooltips above widgets on touch screens.
 * Fix popups sometimes getting clipped by panels.
+
+### Removed 🔥
+* Replace `Button::enabled` with `ui.add_enabled`.
 
 
 ## 0.14.2 - 2021-08-28 - Window resize fix

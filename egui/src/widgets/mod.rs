@@ -91,7 +91,7 @@ pub fn reset_button<T: Default + PartialEq>(ui: &mut Ui, value: &mut T) {
 /// The button is only enabled if the value does not already have its original value.
 pub fn reset_button_with<T: PartialEq>(ui: &mut Ui, value: &mut T, reset_value: T) {
     if ui
-        .add(Button::new("Reset").enabled(*value != reset_value))
+        .add_enabled(*value != reset_value, Button::new("Reset"))
         .clicked()
     {
         *value = reset_value;
