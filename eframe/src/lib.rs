@@ -9,7 +9,8 @@
 //! You write your application code for [`epi`] (implementing [`epi::App`]) and then
 //! call from [`crate::run_native`] your `main.rs`, and/or call `eframe::start_web` from your `lib.rs`.
 //!
-//! `eframe` is implemented using [`egui_web`](https://docs.rs/egui_web) and [`egui_glium`](https://docs.rs/egui_glium).
+//! `eframe` is implemented using [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web) for web and
+//! [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium) or [`egui_glow`](https://github.com/emilk/egui/tree/master/egui_glow) for native.
 
 // Forbid warnings in release builds:
 #![cfg_attr(not(debug_assertions), deny(warnings))]

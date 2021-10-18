@@ -14,7 +14,7 @@ To get started, go to <https://github.com/emilk/eframe_template/> and follow the
 
 `eframe` is a very thin crate that re-exports [`egui`](https://github.com/emilk/egui) and[`epi`](https://github.com/emilk/egui/tree/master/epi) with thin wrappers over the backends.
 
-`eframe` uses [`egui_web`](https://crates.io/crates/egui_web) and [`egui_glium`](https://crates.io/crates/egui_glium).
+`eframe` uses [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web) for web and [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium) or [`egui_glow`](https://github.com/emilk/egui/tree/master/egui_glow) for native.
 
 To use on Linux, first run:
 
