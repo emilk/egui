@@ -997,6 +997,8 @@ impl Ui {
         self.placer.advance_cursor(amount);
     }
 
+    /// Show some text.
+    ///
     /// Shortcut for `add(Label::new(text))`
     ///
     /// See also [`Label`].
@@ -1005,6 +1007,8 @@ impl Ui {
         label.into().ui(self)
     }
 
+    /// Show colored text.
+    ///
     /// Shortcut for `add(Label::new(text).text_color(color))`
     pub fn colored_label(
         &mut self,
@@ -1014,11 +1018,15 @@ impl Ui {
         label.into().text_color(color).ui(self)
     }
 
+    /// Show large text.
+    ///
     /// Shortcut for `add(Label::new(text).heading())`
     pub fn heading(&mut self, label: impl Into<Label>) -> Response {
         label.into().heading().ui(self)
     }
 
+    /// Show monospace (fixed width) text.
+    ///
     /// Shortcut for `add(Label::new(text).monospace())`
     pub fn monospace(&mut self, label: impl Into<Label>) -> Response {
         label.into().monospace().ui(self)
@@ -1031,9 +1039,18 @@ impl Ui {
         label.into().code().ui(self)
     }
 
+    /// Show small text.
+    ///
     /// Shortcut for `add(Label::new(text).small())`
     pub fn small(&mut self, label: impl Into<Label>) -> Response {
         label.into().small().ui(self)
+    }
+
+    /// Show text that stand out a bit (e.g. slightly brighter).
+    ///
+    /// Shortcut for `add(Label::new(text).strong())`
+    pub fn strong(&mut self, label: impl Into<Label>) -> Response {
+        label.into().strong().ui(self)
     }
 
     /// Shortcut for `add(Hyperlink::new(url))`
