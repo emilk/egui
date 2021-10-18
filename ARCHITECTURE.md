@@ -36,6 +36,10 @@ Puts an egui app inside the web browser by compiling to WASM and binding to the 
 ### `egui_glium`
 Puts an egui app inside a native window on your laptop. Paints the triangles that egui outputs using [glium](https://github.com/glium/glium).
 
+### `egui_glow`
+Puts an egui app inside a native window on your laptop. Paints the triangles that egui outputs using [glow](https://github.com/grovesNL/glow).
+An alternative to `egui_glium`, not used by `eframe` at this time.
+
 ### `eframe`
 A wrapper around `egui_web` + `egui_glium`, so you can compile the same app for either web or native.
 
