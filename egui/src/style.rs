@@ -949,10 +949,10 @@ fn slider_vec2<'a>(
     }
 }
 
-fn ui_color(ui: &mut Ui, srgba: &mut Color32, text: impl Into<Label>) -> Response {
+fn ui_color(ui: &mut Ui, srgba: &mut Color32, label: impl Into<Label>) -> Response {
     ui.horizontal(|ui| {
         ui.color_edit_button_srgba(srgba);
-        ui.label(text);
+        ui.add(label.into());
     })
     .response
 }

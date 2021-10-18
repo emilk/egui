@@ -1003,54 +1003,50 @@ impl Ui {
     ///
     /// See also [`Label`].
     #[inline(always)]
-    pub fn label(&mut self, label: impl Into<Label>) -> Response {
-        label.into().ui(self)
+    pub fn label(&mut self, text: impl ToString) -> Response {
+        Label::new(text).ui(self)
     }
 
     /// Show colored text.
     ///
     /// Shortcut for `add(Label::new(text).text_color(color))`
-    pub fn colored_label(
-        &mut self,
-        color: impl Into<Color32>,
-        label: impl Into<Label>,
-    ) -> Response {
-        label.into().text_color(color).ui(self)
+    pub fn colored_label(&mut self, color: impl Into<Color32>, text: impl ToString) -> Response {
+        Label::new(text).text_color(color).ui(self)
     }
 
     /// Show large text.
     ///
     /// Shortcut for `add(Label::new(text).heading())`
-    pub fn heading(&mut self, label: impl Into<Label>) -> Response {
-        label.into().heading().ui(self)
+    pub fn heading(&mut self, text: impl ToString) -> Response {
+        Label::new(text).heading().ui(self)
     }
 
     /// Show monospace (fixed width) text.
     ///
     /// Shortcut for `add(Label::new(text).monospace())`
-    pub fn monospace(&mut self, label: impl Into<Label>) -> Response {
-        label.into().monospace().ui(self)
+    pub fn monospace(&mut self, text: impl ToString) -> Response {
+        Label::new(text).monospace().ui(self)
     }
 
     /// Show text as monospace with a gray background.
     ///
     /// Shortcut for `add(Label::new(text).code())`
-    pub fn code(&mut self, label: impl Into<Label>) -> Response {
-        label.into().code().ui(self)
+    pub fn code(&mut self, text: impl ToString) -> Response {
+        Label::new(text).code().ui(self)
     }
 
     /// Show small text.
     ///
     /// Shortcut for `add(Label::new(text).small())`
-    pub fn small(&mut self, label: impl Into<Label>) -> Response {
-        label.into().small().ui(self)
+    pub fn small(&mut self, text: impl ToString) -> Response {
+        Label::new(text).small().ui(self)
     }
 
     /// Show text that stand out a bit (e.g. slightly brighter).
     ///
     /// Shortcut for `add(Label::new(text).strong())`
-    pub fn strong(&mut self, label: impl Into<Label>) -> Response {
-        label.into().strong().ui(self)
+    pub fn strong(&mut self, text: impl ToString) -> Response {
+        Label::new(text).strong().ui(self)
     }
 
     /// Shortcut for `add(Hyperlink::new(url))`

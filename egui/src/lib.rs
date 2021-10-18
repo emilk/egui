@@ -406,7 +406,7 @@ pub use {
 /// Helper function that adds a label when compiling with debug assertions enabled.
 pub fn warn_if_debug_build(ui: &mut crate::Ui) {
     if cfg!(debug_assertions) {
-        ui.label(
+        ui.add(
             crate::Label::new("‼ Debug build ‼")
                 .small()
                 .text_color(crate::Color32::RED),
