@@ -359,6 +359,10 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> !
                     is_focused = new_focused;
                 }
 
+                if let glutin::event::WindowEvent::Resized(physical_size) = event {
+                    gl_window.resize(physical_size);
+                }
+
                 egui.on_event(&event);
 
                 gl_window.window().request_redraw(); // TODO: ask egui if the events warrants a repaint instead
