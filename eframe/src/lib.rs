@@ -4,7 +4,7 @@
 //! and are happy with just using egui for all visuals,
 //! Then `eframe` is for you!
 //!
-//! To get started, look at <https://github.com/emilk/egui_template>.
+//! To get started, look at <https://github.com/emilk/eframe_template>.
 //!
 //! You write your application code for [`epi`] (implementing [`epi::App`]) and then
 //! call from [`crate::run_native`] your `main.rs`, and/or call `eframe::start_web` from your `lib.rs`.

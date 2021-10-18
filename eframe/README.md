@@ -8,7 +8,7 @@
 
 `eframe` is the official framework library for writing apps using [`egui`](https://github.com/emilk/egui). The app can be compiled both to run natively (cross platform) or be compiled to a web app (using WASM).
 
-To get started, go to <https://github.com/emilk/egui_template/> and follow the instructions there!
+To get started, go to <https://github.com/emilk/eframe_template/> and follow the instructions there!
 
 ---
 

@@ -30,7 +30,7 @@ Sections:
 
 ## Quick start
 
-If you just want to write a GUI application in Rust (for the web or for native), go to <https://github.com/emilk/egui_template/> and follow the instructions there!
+If you just want to write a GUI application in Rust (for the web or for native), go to <https://github.com/emilk/eframe_template/> and follow the instructions there!
 
 If you want to integrate egui into an existing engine, go to the [Integrations](#integrations) section.
 

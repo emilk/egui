@@ -5,7 +5,7 @@
 //! `egui` is in heavy development, with each new version having breaking changes.
 //! You need to have rust 1.54.0 or later to use `egui`.
 //!
-//! To quickly get started with egui, you can take a look at [`egui_template`](https://github.com/emilk/egui_template)
+//! To quickly get started with egui, you can take a look at [`eframe_template`](https://github.com/emilk/eframe_template)
 //! which uses [`eframe`](https://docs.rs/eframe).
 //!
 //! To create a GUI using egui you first need a [`CtxRef`] (by convention referred to by `ctx`).
@@ -16,7 +16,7 @@
 //!
 //! To see what is possible to build with egui you can check out the online demo at <https://emilk.github.io/egui/#demo>.
 //!
-//! If you like the "learning by doing" approach, clone <https://github.com/emilk/egui_template> and get started using egui right away.
+//! If you like the "learning by doing" approach, clone <https://github.com/emilk/eframe_template> and get started using egui right away.
 //!
 //! ### A simple example
 //!
