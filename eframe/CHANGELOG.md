@@ -9,6 +9,7 @@ NOTE: [`egui_web`](egui_web/CHANGELOG.md), [`egui-winit`](egui-winit/CHANGELOG.m
 * Remove "http" feature (use https://github.com/emilk/ehttp instead!).
 * Increase native scroll speed.
 * Add `App::persist_native_window` and `App::persist_egui_memory` to control what gets persisted.
+* Add new backend `egui_glow` as an alternative to `egui_glium` (not yet exposed as a feature flag)
 
 
 ## 0.14.0 - 2021-08-24
