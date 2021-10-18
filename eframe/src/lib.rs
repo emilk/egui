@@ -61,6 +61,22 @@ pub fn start_web(canvas_id: &str, app: Box<dyn epi::App>) -> Result<(), wasm_bin
 
 /// Call from `fn main` like this: `eframe::run_native(Box::new(MyEguiApp::default()))`
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "egui_glium")]
 pub fn run_native(app: Box<dyn epi::App>, native_options: epi::NativeOptions) -> ! {
     egui_glium::run(app, &native_options)
 }
+
+/// Call from `fn main` like this: `eframe::run_native(Box::new(MyEguiApp::default()))`
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "egui_glium"))] // make sure we still compile with `--all-features`
+#[cfg(feature = "egui_glow")]
+pub fn run_native(app: Box<dyn epi::App>, native_options: epi::NativeOptions) -> ! {
+    egui_glow::run(app, &native_options)
+}
+
+// disabled since we want to be able to compile with `--all-features`
+// #[cfg(all(feature = "egui_glium", feature = "egui_glow"))]
+// compile_error!("Enable either egui_glium or egui_glow, not both");
+
+#[cfg(all(not(feature = "egui_glium"), not(feature = "egui_glow")))]
+compile_error!("Enable either egui_glium or egui_glow");
