@@ -1,3 +1,6 @@
+#[cfg(target_os = "windows")]
+use winit::platform::windows::WindowBuilderExtWindows;
+
 pub fn window_builder(
     native_options: &epi::NativeOptions,
     window_settings: &Option<crate::WindowSettings>,
