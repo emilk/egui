@@ -80,3 +80,98 @@ pub fn handle_app_output(
         let _ = window.drag_window();
     }
 }
+
+// ----------------------------------------------------------------------------
+
+/// For loading/saving app state and/or egui memory to disk.
+pub struct Persistence {
+    storage: Option<Box<dyn epi::Storage>>,
+    last_auto_save: std::time::Instant,
+}
+
+#[allow(clippy::unused_self)]
+impl Persistence {
+    #[cfg(feature = "persistence")]
+    const EGUI_MEMORY_KEY: &'static str = "egui";
+    #[cfg(feature = "persistence")]
+    const WINDOW_KEY: &'static str = "window";
+
+    pub fn from_app_name(app_name: &str) -> Self {
+        fn create_storage(_app_name: &str) -> Option<Box<dyn epi::Storage>> {
+            #[cfg(feature = "persistence")]
+            if let Some(storage) = epi::file_storage::FileStorage::from_app_name(_app_name) {
+                return Some(Box::new(storage));
+            }
+            None
+        }
+
+        Self {
+            storage: create_storage(app_name),
+            last_auto_save: std::time::Instant::now(),
+        }
+    }
+
+    pub fn storage(&self) -> Option<&dyn epi::Storage> {
+        self.storage.as_deref()
+    }
+
+    #[cfg(feature = "persistence")]
+    pub fn load_window_settings(&self) -> Option<crate::WindowSettings> {
+        epi::get_value(&**self.storage.as_ref()?, Self::WINDOW_KEY)
+    }
+
+    #[cfg(not(feature = "persistence"))]
+    pub fn load_window_settings(&self) -> Option<crate::WindowSettings> {
+        None
+    }
+
+    #[cfg(feature = "persistence")]
+    pub fn load_memory(&self) -> Option<egui::Memory> {
+        epi::get_value(&**self.storage.as_ref()?, Self::EGUI_MEMORY_KEY)
+    }
+
+    #[cfg(not(feature = "persistence"))]
+    pub fn load_memory(&self) -> Option<egui::Memory> {
+        None
+    }
+
+    pub fn save(
+        &mut self,
+        _app: &mut dyn epi::App,
+        _egui_ctx: &egui::Context,
+        _window: &winit::window::Window,
+    ) {
+        #[cfg(feature = "persistence")]
+        if let Some(storage) = &mut self.storage {
+            if _app.persist_native_window() {
+                epi::set_value(
+                    storage.as_mut(),
+                    Self::WINDOW_KEY,
+                    &WindowSettings::from_display(_window),
+                );
+            }
+            if _app.persist_egui_memory() {
+                epi::set_value(
+                    storage.as_mut(),
+                    Self::EGUI_MEMORY_KEY,
+                    &*_egui_ctx.memory(),
+                );
+            }
+            _app.save(storage.as_mut());
+            storage.flush();
+        }
+    }
+
+    pub fn maybe_autosave(
+        &mut self,
+        app: &mut dyn epi::App,
+        egui_ctx: &egui::Context,
+        window: &winit::window::Window,
+    ) {
+        let now = std::time::Instant::now();
+        if now - self.last_auto_save > app.auto_save_interval() {
+            self.save(app, egui_ctx, window);
+            self.last_auto_save = now;
+        }
+    }
+}
