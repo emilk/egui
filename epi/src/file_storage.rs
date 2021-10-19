@@ -24,7 +24,7 @@ impl FileStorage {
         }
     }
 
-    /// Find a good place to put the filess that the OS likes.
+    /// Find a good place to put the files that the OS likes.
     pub fn from_app_name(app_name: &str) -> Option<Self> {
         if let Some(proj_dirs) = directories_next::ProjectDirs::from("", "", app_name) {
             let data_dir = proj_dirs.data_dir().to_path_buf();
