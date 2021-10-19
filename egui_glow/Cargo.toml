@@ -24,10 +24,11 @@ all-features = true
 [dependencies]
 egui = { version = "0.14.0", path = "../egui", default-features = false, features = ["single_threaded"] }
 egui-winit = { version = "0.14.0", path = "../egui-winit", default-features = false, features = ["epi"] }
-epi = { version = "0.14.0", path = "../epi" }
 glow = "0.11"
 glutin = "0.27"
 memoffset = "0.6"
+
+epi = { version = "0.14.0", path = "../epi", optional = true }
 
 [dev-dependencies]
 image = { version = "0.23", default-features = false, features = ["png"] }
