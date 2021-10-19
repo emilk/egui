@@ -13,11 +13,6 @@ members = [
     "epi",
 ]
 
-[patch.crates-io]
-egui = { path = 'egui' }
-egui_glium = { path = 'egui_glium' }
-egui_web = { path = 'egui_web' }
-
 [profile.dev]
 split-debuginfo = "unpacked" # faster debug builds on mac
 
