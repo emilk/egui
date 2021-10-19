@@ -24,15 +24,15 @@ all-features = true
 [dependencies]
 egui = { version = "0.14.0", path = "../egui", default-features = false, features = ["single_threaded"] }
 egui-winit = { version = "0.14.0", path = "../egui-winit", default-features = false, features = ["epi"] }
-glium = "0.30"
-
 epi = { version = "0.14.0", path = "../epi", optional = true }
+
+glium = "0.30"
 
 [dev-dependencies]
 image = { version = "0.23", default-features = false, features = ["png"] }
 
 [features]
-default = ["clipboard", "default_fonts", "links"]
+default = ["clipboard", "default_fonts", "links", "persistence"]
 
 # enable cut/copy/paste to OS clipboard.
 # if disabled a clipboard will be simulated so you can still copy/paste within the egui app.
@@ -46,10 +46,11 @@ default_fonts = ["egui/default_fonts"]
 links = ["egui-winit/links"]
 
 persistence = [
-    "egui-winit/persistence",
-    "egui/persistence",
-    "epi/file_storage",
-    "epi/persistence",
+  "egui-winit/persistence",
+  "egui/persistence",
+  "epi", # also implied by the lines below, see https://github.com/rust-lang/cargo/issues/8832
+  "epi/file_storage",
+  "epi/persistence",
 ]
 
 # experimental support for a screen reader

@@ -79,5 +79,5 @@ pub fn run_native(app: Box<dyn epi::App>, native_options: epi::NativeOptions) ->
 // #[cfg(all(feature = "egui_glium", feature = "egui_glow"))]
 // compile_error!("Enable either egui_glium or egui_glow, not both");
 
-#[cfg(all(not(feature = "egui_glium"), not(feature = "egui_glow")))]
+#[cfg(not(any(feature = "egui_glium", feature = "egui_glow")))]
 compile_error!("Enable either egui_glium or egui_glow");

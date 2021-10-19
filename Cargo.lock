@@ -837,6 +837,7 @@ name = "eframe"
 version = "0.14.0"
 dependencies = [
  "egui",
+ "egui-winit",
  "egui_glium",
  "egui_glow",
  "egui_web",
