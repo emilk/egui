@@ -23,7 +23,7 @@ all-features = true
 
 [dependencies]
 egui = { version = "0.14.0", path = "../egui", default-features = false, features = ["single_threaded"] }
-egui-winit = { version = "0.14.0", path = "../egui-winit", default-features = false }
+egui-winit = { version = "0.14.0", path = "../egui-winit", default-features = false, features = ["epi"] }
 epi = { version = "0.14.0", path = "../epi" }
 glutin = "0.27"
 glow = "0.11"

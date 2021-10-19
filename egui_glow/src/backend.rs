@@ -56,57 +56,14 @@ impl epi::RepaintSignal for GlowRepaintSignal {
     }
 }
 
-#[cfg(target_os = "windows")]
-fn window_builder_drag_and_drop(
-    window_builder: glutin::window::WindowBuilder,
-    enable: bool,
-) -> glutin::window::WindowBuilder {
-    window_builder.with_drag_and_drop(enable)
-}
-
-#[cfg(not(target_os = "windows"))]
-fn window_builder_drag_and_drop(
-    window_builder: glutin::window::WindowBuilder,
-    _enable: bool,
-) -> glutin::window::WindowBuilder {
-    // drag and drop can only be disabled on windows
-    window_builder
-}
-
 #[allow(unsafe_code)]
 fn create_display(
-    app: &dyn epi::App,
-    native_options: &epi::NativeOptions,
-    window_settings: &Option<WindowSettings>,
-    window_icon: Option<glutin::window::Icon>,
+    window_builder: glutin::window::WindowBuilder,
     event_loop: &glutin::event_loop::EventLoop<RequestRepaintEvent>,
 ) -> (
     glutin::WindowedContext<glutin::PossiblyCurrent>,
     glow::Context,
 ) {
-    let mut window_builder = glutin::window::WindowBuilder::new()
-        .with_always_on_top(native_options.always_on_top)
-        .with_maximized(native_options.maximized)
-        .with_decorations(native_options.decorated)
-        .with_resizable(native_options.resizable)
-        .with_title(app.name())
-        .with_transparent(native_options.transparent)
-        .with_window_icon(window_icon);
-
-    window_builder =
-        window_builder_drag_and_drop(window_builder, native_options.drag_and_drop_support);
-
-    let initial_size_points = native_options.initial_window_size;
-
-    if let Some(window_settings) = window_settings {
-        window_builder = window_settings.initialize_window(window_builder);
-    } else if let Some(initial_size_points) = initial_size_points {
-        window_builder = window_builder.with_inner_size(glutin::dpi::LogicalSize {
-            width: initial_size_points.x as f64,
-            height: initial_size_points.y as f64,
-        });
-    }
-
     let gl_window = unsafe {
         glutin::ContextBuilder::new()
             .with_depth_buffer(0)
@@ -182,9 +139,11 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> !
 
     let window_settings = deserialize_window_settings(&storage);
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
-    let icon = native_options.icon_data.clone().and_then(load_icon);
-    let (gl_window, gl) =
-        create_display(&*app, native_options, &window_settings, icon, &event_loop);
+    let window_icon = native_options.icon_data.clone().and_then(load_icon);
+    let window_builder =
+        egui_winit::epi::window_builder(native_options, &window_settings, window_icon)
+            .with_title(app.name());
+    let (gl_window, gl) = create_display(window_builder, &event_loop);
 
     let repaint_signal = std::sync::Arc::new(GlowRepaintSignal(std::sync::Mutex::new(
         event_loop.create_proxy(),
