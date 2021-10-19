@@ -24,6 +24,12 @@ sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev lib
 
 
 ## Alternatives
+The default native backend for `eframe` is currently [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium), but you can try out the new [`egui_glow`](https://github.com/emilk/egui/tree/master/egui_glow) backend by putting this in your `Cargo.toml`:
+
+``` toml
+eframe = { version = "*", default-features = false, features = ["default_fonts", "egui_glow"] }
+```
+
 `eframe` is not the only way to write an app using `egui`! You can also try [`egui-miniquad`](https://github.com/not-fl3/egui-miniquad) and [`egui_sdl2_gl`](https://github.com/ArjunNair/egui_sdl2_gl).
 
 
