@@ -49,3 +49,34 @@ fn window_builder_drag_and_drop(
     // drag and drop can only be disabled on windows
     window_builder
 }
+
+pub fn handle_app_output(
+    window: &winit::window::Window,
+    current_pixels_per_point: f32,
+    app_output: epi::backend::AppOutput,
+) {
+    let epi::backend::AppOutput {
+        quit: _,
+        window_size,
+        decorated,
+        drag_window,
+    } = app_output;
+
+    if let Some(decorated) = decorated {
+        window.set_decorations(decorated);
+    }
+
+    if let Some(window_size) = window_size {
+        window.set_inner_size(
+            winit::dpi::PhysicalSize {
+                width: (current_pixels_per_point * window_size.x).round(),
+                height: (current_pixels_per_point * window_size.y).round(),
+            }
+            .to_logical::<f32>(crate::native_pixels_per_point(window) as f64),
+        );
+    }
+
+    if drag_window {
+        let _ = window.drag_window();
+    }
+}

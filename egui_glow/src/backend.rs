@@ -220,34 +220,13 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> !
             }
 
             {
-                let epi::backend::AppOutput {
-                    quit,
-                    window_size,
-                    decorated,
-                    drag_window,
-                } = app_output;
+                egui_winit::epi::handle_app_output(
+                    gl_window.window(),
+                    egui.ctx().pixels_per_point(),
+                    app_output,
+                );
 
-                if let Some(decorated) = decorated {
-                    gl_window.window().set_decorations(decorated);
-                }
-
-                if let Some(window_size) = window_size {
-                    gl_window.window().set_inner_size(
-                        glutin::dpi::PhysicalSize {
-                            width: (egui.ctx().pixels_per_point() * window_size.x).round(),
-                            height: (egui.ctx().pixels_per_point() * window_size.y).round(),
-                        }
-                        .to_logical::<f32>(
-                            egui_winit::native_pixels_per_point(gl_window.window()) as f64,
-                        ),
-                    );
-                }
-
-                if drag_window {
-                    let _ = gl_window.window().drag_window();
-                }
-
-                *control_flow = if quit {
+                *control_flow = if app_output.quit {
                     glutin::event_loop::ControlFlow::Exit
                 } else if needs_repaint {
                     gl_window.window().request_redraw();
