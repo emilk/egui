@@ -29,7 +29,7 @@ fn create_display(
     let gl = unsafe { glow::Context::from_loader_function(|s| gl_window.get_proc_address(s)) };
 
     unsafe {
-        use glow::HasContext;
+        use glow::HasContext as _;
         gl.enable(glow::FRAMEBUFFER_SRGB);
     }
 
@@ -80,7 +80,7 @@ fn main() {
             {
                 let clear_color = egui::Rgba::from_rgb(0.1, 0.3, 0.2);
                 unsafe {
-                    use glow::HasContext;
+                    use glow::HasContext as _;
                     gl.clear_color(
                         clear_color[0],
                         clear_color[1],

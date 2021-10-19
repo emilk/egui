@@ -79,7 +79,7 @@ fn create_display(
     let gl = unsafe { glow::Context::from_loader_function(|s| gl_window.get_proc_address(s)) };
 
     unsafe {
-        use glow::HasContext;
+        use glow::HasContext as _;
         gl.enable(glow::FRAMEBUFFER_SRGB);
     }
 
@@ -224,7 +224,7 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> !
             {
                 let clear_color = app.clear_color();
                 unsafe {
-                    use glow::HasContext;
+                    use glow::HasContext as _;
                     gl.disable(glow::SCISSOR_TEST);
                     gl.clear_color(
                         clear_color[0],
