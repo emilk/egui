@@ -898,21 +898,17 @@ dependencies = [
 name = "egui_glium"
 version = "0.14.0"
 dependencies = [
- "directories-next",
  "egui",
  "egui-winit",
  "epi",
  "glium",
  "image",
- "ron",
- "serde",
 ]
 
 [[package]]
 name = "egui_glow"
 version = "0.14.0"
 dependencies = [
- "directories-next",
  "egui",
  "egui-winit",
  "epi",
@@ -920,8 +916,6 @@ dependencies = [
  "glutin",
  "image",
  "memoffset",
- "ron",
- "serde",
 ]
 
 [[package]]
@@ -1020,6 +1014,7 @@ dependencies = [
 name = "epi"
 version = "0.14.0"
 dependencies = [
+ "directories-next",
  "egui",
  "ron",
  "serde",

@@ -25,14 +25,9 @@ all-features = true
 egui = { version = "0.14.0", path = "../egui", default-features = false, features = ["single_threaded"] }
 egui-winit = { version = "0.14.0", path = "../egui-winit", default-features = false, features = ["epi"] }
 epi = { version = "0.14.0", path = "../epi" }
-glutin = "0.27"
 glow = "0.11"
+glutin = "0.27"
 memoffset = "0.6"
-
-# feature "persistence":
-directories-next = { version = "2", optional = true }
-ron = { version = "0.6", optional = true }
-serde = { version = "1", optional = true }
 
 [dev-dependencies]
 image = { version = "0.23", default-features = false, features = ["png"] }
@@ -52,13 +47,10 @@ default_fonts = ["egui/default_fonts"]
 links = ["egui-winit/links"]
 
 persistence = [
-    "directories-next",
     "egui-winit/serialize",
     "egui/persistence",
     "epi/file_storage",
     "epi/persistence",
-    "ron",
-    "serde",
 ]
 
 # experimental support for a screen reader

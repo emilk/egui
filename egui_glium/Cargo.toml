@@ -27,11 +27,6 @@ egui-winit = { version = "0.14.0", path = "../egui-winit", default-features = fa
 epi = { version = "0.14.0", path = "../epi" }
 glium = "0.30"
 
-# feature "persistence":
-directories-next = { version = "2", optional = true }
-ron = { version = "0.6", optional = true }
-serde = { version = "1", optional = true }
-
 [dev-dependencies]
 image = { version = "0.23", default-features = false, features = ["png"] }
 
@@ -50,13 +45,10 @@ default_fonts = ["egui/default_fonts"]
 links = ["egui-winit/links"]
 
 persistence = [
-    "directories-next",
     "egui-winit/serialize",
     "egui/persistence",
     "epi/file_storage",
     "epi/persistence",
-    "ron",
-    "serde",
 ]
 
 # experimental support for a screen reader
