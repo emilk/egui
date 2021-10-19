@@ -147,7 +147,7 @@ impl Persistence {
                 epi::set_value(
                     storage.as_mut(),
                     Self::WINDOW_KEY,
-                    &WindowSettings::from_display(_window),
+                    &crate::WindowSettings::from_display(_window),
                 );
             }
             if _app.persist_egui_memory() {

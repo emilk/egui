@@ -46,6 +46,7 @@ links = ["webbrowser"]
 # experimental support for a screen reader
 screen_reader = ["tts"]
 
+persistence = ["egui/serialize", "serde"]
 serialize = ["egui/serialize", "serde"]
 
 # implement bytemuck on most types.

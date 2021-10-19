@@ -46,7 +46,7 @@ default_fonts = ["egui/default_fonts"]
 links = ["egui-winit/links"]
 
 persistence = [
-    "egui-winit/serialize",
+    "egui-winit/persistence",
     "egui/persistence",
     "epi/file_storage",
     "epi/persistence",
