@@ -836,6 +836,7 @@ version = "0.14.0"
 dependencies = [
  "egui",
  "egui_glium",
+ "egui_glow",
  "egui_web",
  "epi",
  "image",
@@ -901,6 +902,23 @@ dependencies = [
  "epi",
  "glium",
  "image",
+ "ron",
+ "serde",
+]
+
+[[package]]
+name = "egui_glow"
+version = "0.14.0"
+dependencies = [
+ "chrono",
+ "directories-next",
+ "egui",
+ "egui-winit",
+ "epi",
+ "glow",
+ "glutin",
+ "image",
+ "memoffset",
  "ron",
  "serde",
 ]
@@ -1173,6 +1191,18 @@ name = "glob"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b919933a397b79c37e33b77bb2aa3dc8eb6e165ad809e58ff75bc7db2e34574"
+
+[[package]]
+name = "glow"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f04649123493bc2483cbef4daddb45d40bbdae5adb221a63a23efdb0cc99520"
+dependencies = [
+ "js-sys",
+ "slotmap",
+ "wasm-bindgen",
+ "web-sys",
+]
 
 [[package]]
 name = "glutin"
@@ -2299,6 +2329,15 @@ name = "shlex"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43b2853a4d09f215c24cc5489c992ce46052d359b5109343cbafbf26bc62f8a3"
+
+[[package]]
+name = "slotmap"
+version = "1.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1e08e261d0e8f5c43123b7adf3e4ca1690d655377ac93a03b2c9d3e98de1342"
+dependencies = [
+ "version_check",
+]
 
 [[package]]
 name = "smallvec"

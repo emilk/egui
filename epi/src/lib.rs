@@ -82,8 +82,8 @@ pub use egui; // Re-export for user convenience
 
 // ----------------------------------------------------------------------------
 
-/// Implement this trait to write apps that can be compiled both natively using the [`egui_glium`](https://crates.io/crates/egui_glium) crate,
-/// and deployed as a web site using the [`egui_web`](https://crates.io/crates/egui_web) crate.
+/// Implement this trait to write apps that can be compiled both natively using the [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium) crate,
+/// and deployed as a web site using the [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web) crate.
 pub trait App {
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a [`egui::SidePanel`], [`egui::TopBottomPanel`], [`egui::CentralPanel`], [`egui::Window`] or [`egui::Area`].
