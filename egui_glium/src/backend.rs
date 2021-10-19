@@ -110,10 +110,6 @@ fn integration_info(
     }
 }
 
-fn load_icon(icon_data: epi::IconData) -> Option<glutin::window::Icon> {
-    glutin::window::Icon::from_rgba(icon_data.rgba, icon_data.width, icon_data.height).ok()
-}
-
 // ----------------------------------------------------------------------------
 
 /// Run an egui app
@@ -123,10 +119,8 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> !
 
     let window_settings = deserialize_window_settings(&storage);
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
-    let window_icon = native_options.icon_data.clone().and_then(load_icon);
     let window_builder =
-        egui_winit::epi::window_builder(native_options, &window_settings, window_icon)
-            .with_title(app.name());
+        egui_winit::epi::window_builder(native_options, &window_settings).with_title(app.name());
     let display = create_display(window_builder, &event_loop);
 
     let repaint_signal = std::sync::Arc::new(GliumRepaintSignal(std::sync::Mutex::new(

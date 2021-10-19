@@ -1,8 +1,9 @@
 pub fn window_builder(
     native_options: &epi::NativeOptions,
     window_settings: &Option<crate::WindowSettings>,
-    window_icon: Option<winit::window::Icon>,
 ) -> winit::window::WindowBuilder {
+    let window_icon = native_options.icon_data.clone().and_then(load_icon);
+
     let mut window_builder = winit::window::WindowBuilder::new()
         .with_always_on_top(native_options.always_on_top)
         .with_maximized(native_options.maximized)
@@ -26,6 +27,10 @@ pub fn window_builder(
     }
 
     window_builder
+}
+
+fn load_icon(icon_data: epi::IconData) -> Option<winit::window::Icon> {
+    winit::window::Icon::from_rgba(icon_data.rgba, icon_data.width, icon_data.height).ok()
 }
 
 #[cfg(target_os = "windows")]
