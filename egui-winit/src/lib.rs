@@ -88,8 +88,6 @@ pub fn native_pixels_per_point(window: &winit::window::Window) -> f32 {
 }
 
 pub fn screen_size_in_pixels(window: &winit::window::Window) -> egui::Vec2 {
-    // let (width_in_pixels, height_in_pixels) = display.get_framebuffer_dimensions();
-    // egui::vec2(width_in_pixels as f32, height_in_pixels as f32)
     let size = window.inner_size();
     egui::vec2(size.width as f32, size.height as f32)
 }

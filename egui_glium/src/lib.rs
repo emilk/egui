@@ -89,17 +89,6 @@ use glium::glutin;
 
 // ----------------------------------------------------------------------------
 
-pub fn screen_size_in_pixels(display: &glium::Display) -> egui::Vec2 {
-    let (width_in_pixels, height_in_pixels) = display.get_framebuffer_dimensions();
-    egui::vec2(width_in_pixels as f32, height_in_pixels as f32)
-}
-
-pub fn native_pixels_per_point(display: &glium::Display) -> f32 {
-    display.gl_window().window().scale_factor() as f32
-}
-
-// ----------------------------------------------------------------------------
-
 /// Use [`egui`] from a [`glium`] app.
 pub struct EguiGlium {
     egui_ctx: egui::CtxRef,

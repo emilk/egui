@@ -107,7 +107,9 @@ fn integration_info(
         web_info: None,
         prefer_dark_mode: None, // TODO: figure out system default
         cpu_usage: previous_frame_time,
-        native_pixels_per_point: Some(native_pixels_per_point(display)),
+        native_pixels_per_point: Some(egui_winit::native_pixels_per_point(
+            display.gl_window().window(),
+        )),
     }
 }
 
@@ -238,7 +240,9 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> !
                             width: (egui.ctx().pixels_per_point() * window_size.x).round(),
                             height: (egui.ctx().pixels_per_point() * window_size.y).round(),
                         }
-                        .to_logical::<f32>(native_pixels_per_point(&display) as f64),
+                        .to_logical::<f32>(egui_winit::native_pixels_per_point(
+                            display.gl_window().window(),
+                        ) as f64),
                     );
                 }
 

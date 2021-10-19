@@ -87,17 +87,6 @@ pub use epi::NativeOptions;
 
 // ----------------------------------------------------------------------------
 
-pub fn screen_size_in_pixels(window: &glutin::window::Window) -> egui::Vec2 {
-    let glutin::dpi::PhysicalSize { width, height } = window.inner_size();
-    egui::vec2(width as f32, height as f32)
-}
-
-pub fn native_pixels_per_point(window: &glutin::window::Window) -> f32 {
-    window.scale_factor() as f32
-}
-
-// ----------------------------------------------------------------------------
-
 /// Use [`egui`] from a [`glow`] app.
 pub struct EguiGlow {
     egui_ctx: egui::CtxRef,
