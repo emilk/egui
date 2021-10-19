@@ -62,12 +62,6 @@ pub fn now_sec() -> f64 {
         / 1000.0
 }
 
-pub fn seconds_since_midnight() -> f64 {
-    let d = js_sys::Date::new_0();
-    let seconds = (d.get_hours() * 60 + d.get_minutes()) * 60 + d.get_seconds();
-    seconds as f64 + 1e-3 * (d.get_milliseconds() as f64)
-}
-
 pub fn screen_size_in_native_points() -> Option<egui::Vec2> {
     let window = web_sys::window()?;
     Some(egui::Vec2::new(

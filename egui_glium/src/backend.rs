@@ -149,7 +149,6 @@ fn integration_info(
         web_info: None,
         prefer_dark_mode: None, // TODO: figure out system default
         cpu_usage: previous_frame_time,
-        seconds_since_midnight: seconds_since_midnight(),
         native_pixels_per_point: Some(native_pixels_per_point(display)),
     }
 }

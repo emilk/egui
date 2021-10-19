@@ -227,7 +227,6 @@ impl AppRunner {
             }),
             prefer_dark_mode: self.prefer_dark_mode,
             cpu_usage: self.web_backend.previous_frame_time,
-            seconds_since_midnight: Some(seconds_since_midnight()),
             native_pixels_per_point: Some(native_pixels_per_point()),
         }
     }

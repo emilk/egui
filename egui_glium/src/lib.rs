@@ -91,20 +91,6 @@ use glium::glutin;
 
 // ----------------------------------------------------------------------------
 
-/// Time of day as seconds since midnight. Used for clock in demo app.
-pub fn seconds_since_midnight() -> Option<f64> {
-    #[cfg(feature = "time")]
-    {
-        use chrono::Timelike;
-        let time = chrono::Local::now().time();
-        let seconds_since_midnight =
-            time.num_seconds_from_midnight() as f64 + 1e-9 * (time.nanosecond() as f64);
-        Some(seconds_since_midnight)
-    }
-    #[cfg(not(feature = "time"))]
-    None
-}
-
 pub fn screen_size_in_pixels(display: &glium::Display) -> egui::Vec2 {
     let (width_in_pixels, height_in_pixels) = display.get_framebuffer_dimensions();
     egui::vec2(width_in_pixels as f32, height_in_pixels as f32)

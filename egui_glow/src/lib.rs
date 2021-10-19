@@ -89,20 +89,6 @@ pub use epi::NativeOptions;
 
 // ----------------------------------------------------------------------------
 
-/// Time of day as seconds since midnight. Used for clock in demo app.
-pub fn seconds_since_midnight() -> Option<f64> {
-    #[cfg(feature = "time")]
-    {
-        use chrono::Timelike;
-        let time = chrono::Local::now().time();
-        let seconds_since_midnight =
-            time.num_seconds_from_midnight() as f64 + 1e-9 * (time.nanosecond() as f64);
-        Some(seconds_since_midnight)
-    }
-    #[cfg(not(feature = "time"))]
-    None
-}
-
 pub fn screen_size_in_pixels(window: &glutin::window::Window) -> egui::Vec2 {
     let glutin::dpi::PhysicalSize { width, height } = window.inner_size();
     egui::vec2(width as f32, height as f32)

@@ -307,10 +307,6 @@ pub struct IntegrationInfo {
     /// `None` if this is the first frame.
     pub cpu_usage: Option<f32>,
 
-    /// Local time. Used for the clock in the demo app.
-    /// Set to `None` if you don't know.
-    pub seconds_since_midnight: Option<f64>,
-
     /// The OS native pixels-per-point
     pub native_pixels_per_point: Option<f32>,
 }

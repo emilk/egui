@@ -34,9 +34,6 @@ directories-next = { version = "2", optional = true }
 ron = { version = "0.6", optional = true }
 serde = { version = "1", optional = true }
 
-# feature "time"
-chrono = { version = "0.4", optional = true }
-
 [dev-dependencies]
 image = { version = "0.23", default-features = false, features = ["png"] }
 
@@ -65,6 +62,3 @@ persistence = [
 
 # experimental support for a screen reader
 screen_reader = ["egui-winit/screen_reader"]
-
-# for seconds_since_midnight (used in egui_demo_lib)
-time = ["chrono"]

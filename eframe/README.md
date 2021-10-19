@@ -36,8 +36,9 @@ eframe = { version = "*", default-features = false, features = ["default_fonts",
 ## Companion crates
 Not all rust crates work when compiles to WASM, but here are some useful crates have been designed to work well both natively and as WASM:
 
-* Audio: [`cpal`](https://github.com/RustAudio/cpal)
+* Audio: [`cpal`](https://github.com/RustAudio/cpal).
 * HTTP client: [`ehttp`](https://github.com/emilk/ehttp).
+* Time: [`chrono`](https://github.com/chronotope/chrono).
 
 
 ## Name

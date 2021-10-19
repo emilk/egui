@@ -133,7 +133,7 @@ impl WrapApp {
             ui.with_layout(egui::Layout::right_to_left(), |ui| {
                 if false {
                     // TODO: fix the overlap on small screens
-                    if let Some(seconds_since_midnight) = frame.info().seconds_since_midnight {
+                    if let Some(seconds_since_midnight) = crate::seconds_since_midnight() {
                         if clock_button(ui, seconds_since_midnight).clicked() {
                             self.selected_anchor = "clock".to_owned();
                             if frame.is_web() {

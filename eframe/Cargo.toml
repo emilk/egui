@@ -51,6 +51,3 @@ persistence = ["epi/persistence", "egui_glium/persistence", "egui_web/persistenc
 
 # experimental support for a screen reader
 screen_reader = ["egui_glium/screen_reader", "egui_web/screen_reader"]
-
-# for seconds_since_midnight (used in egui_demo_lib)
-time = ["egui_glium/time"]

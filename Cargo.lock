@@ -357,10 +357,12 @@ version = "0.4.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "670ad68c9088c2a963aaa298cb369688cf3f9465ce5e2d4ca10e6e0098a1ce73"
 dependencies = [
+ "js-sys",
  "libc",
  "num-integer",
  "num-traits",
  "time",
+ "wasm-bindgen",
  "winapi",
 ]
 
@@ -880,6 +882,7 @@ dependencies = [
 name = "egui_demo_lib"
 version = "0.14.0"
 dependencies = [
+ "chrono",
  "criterion",
  "egui",
  "ehttp",
@@ -895,7 +898,6 @@ dependencies = [
 name = "egui_glium"
 version = "0.14.0"
 dependencies = [
- "chrono",
  "directories-next",
  "egui",
  "egui-winit",
@@ -910,7 +912,6 @@ dependencies = [
 name = "egui_glow"
 version = "0.14.0"
 dependencies = [
- "chrono",
  "directories-next",
  "egui",
  "egui-winit",
