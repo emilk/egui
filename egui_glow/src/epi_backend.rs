@@ -1,34 +1,8 @@
 use crate::*;
 use egui::Color32;
-use egui_winit::WindowSettings;
 #[cfg(target_os = "windows")]
 use glutin::platform::windows::WindowBuilderExtWindows;
 use std::time::Instant;
-
-#[cfg(feature = "persistence")]
-const EGUI_MEMORY_KEY: &str = "egui";
-#[cfg(feature = "persistence")]
-const WINDOW_KEY: &str = "window";
-
-#[cfg(feature = "persistence")]
-fn deserialize_window_settings(storage: &Option<Box<dyn epi::Storage>>) -> Option<WindowSettings> {
-    epi::get_value(&**storage.as_ref()?, WINDOW_KEY)
-}
-
-#[cfg(not(feature = "persistence"))]
-fn deserialize_window_settings(_: &Option<Box<dyn epi::Storage>>) -> Option<WindowSettings> {
-    None
-}
-
-#[cfg(feature = "persistence")]
-fn deserialize_memory(storage: &Option<Box<dyn epi::Storage>>) -> Option<egui::Memory> {
-    epi::get_value(&**storage.as_ref()?, EGUI_MEMORY_KEY)
-}
-
-#[cfg(not(feature = "persistence"))]
-fn deserialize_memory(_: &Option<Box<dyn epi::Storage>>) -> Option<egui::Memory> {
-    None
-}
 
 impl epi::TextureAllocator for Painter {
     fn alloc_srgba_premultiplied(
@@ -56,57 +30,14 @@ impl epi::RepaintSignal for GlowRepaintSignal {
     }
 }
 
-#[cfg(target_os = "windows")]
-fn window_builder_drag_and_drop(
-    window_builder: glutin::window::WindowBuilder,
-    enable: bool,
-) -> glutin::window::WindowBuilder {
-    window_builder.with_drag_and_drop(enable)
-}
-
-#[cfg(not(target_os = "windows"))]
-fn window_builder_drag_and_drop(
-    window_builder: glutin::window::WindowBuilder,
-    _enable: bool,
-) -> glutin::window::WindowBuilder {
-    // drag and drop can only be disabled on windows
-    window_builder
-}
-
 #[allow(unsafe_code)]
 fn create_display(
-    app: &dyn epi::App,
-    native_options: &epi::NativeOptions,
-    window_settings: &Option<WindowSettings>,
-    window_icon: Option<glutin::window::Icon>,
+    window_builder: glutin::window::WindowBuilder,
     event_loop: &glutin::event_loop::EventLoop<RequestRepaintEvent>,
 ) -> (
     glutin::WindowedContext<glutin::PossiblyCurrent>,
     glow::Context,
 ) {
-    let mut window_builder = glutin::window::WindowBuilder::new()
-        .with_always_on_top(native_options.always_on_top)
-        .with_maximized(native_options.maximized)
-        .with_decorations(native_options.decorated)
-        .with_resizable(native_options.resizable)
-        .with_title(app.name())
-        .with_transparent(native_options.transparent)
-        .with_window_icon(window_icon);
-
-    window_builder =
-        window_builder_drag_and_drop(window_builder, native_options.drag_and_drop_support);
-
-    let initial_size_points = native_options.initial_window_size;
-
-    if let Some(window_settings) = window_settings {
-        window_builder = window_settings.initialize_window(window_builder);
-    } else if let Some(initial_size_points) = initial_size_points {
-        window_builder = window_builder.with_inner_size(glutin::dpi::LogicalSize {
-            width: initial_size_points.x as f64,
-            height: initial_size_points.y as f64,
-        });
-    }
-
     let gl_window = unsafe {
         glutin::ContextBuilder::new()
             .with_depth_buffer(0)
@@ -122,38 +53,11 @@ fn create_display(
     let gl = unsafe { glow::Context::from_loader_function(|s| gl_window.get_proc_address(s)) };
 
     unsafe {
-        use glow::HasContext;
+        use glow::HasContext as _;
         gl.enable(glow::FRAMEBUFFER_SRGB);
     }
 
     (gl_window, gl)
-}
-
-#[cfg(not(feature = "persistence"))]
-fn create_storage(_app_name: &str) -> Option<Box<dyn epi::Storage>> {
-    None
-}
-
-#[cfg(feature = "persistence")]
-fn create_storage(app_name: &str) -> Option<Box<dyn epi::Storage>> {
-    if let Some(proj_dirs) = directories_next::ProjectDirs::from("", "", app_name) {
-        let data_dir = proj_dirs.data_dir().to_path_buf();
-        if let Err(err) = std::fs::create_dir_all(&data_dir) {
-            eprintln!(
-                "Saving disabled: Failed to create app path at {:?}: {}",
-                data_dir, err
-            );
-            None
-        } else {
-            let mut config_dir = data_dir;
-            config_dir.push("app.ron");
-            let storage = crate::persistence::FileStorage::from_path(config_dir);
-            Some(Box::new(storage))
-        }
-    } else {
-        eprintln!("Saving disabled: Failed to find path to data_dir.");
-        None
-    }
 }
 
 fn integration_info(
@@ -161,37 +65,35 @@ fn integration_info(
     previous_frame_time: Option<f32>,
 ) -> epi::IntegrationInfo {
     epi::IntegrationInfo {
+        name: "egui_glow",
         web_info: None,
         prefer_dark_mode: None, // TODO: figure out system default
         cpu_usage: previous_frame_time,
-        native_pixels_per_point: Some(native_pixels_per_point(window)),
+        native_pixels_per_point: Some(egui_winit::native_pixels_per_point(window)),
     }
-}
-
-fn load_icon(icon_data: epi::IconData) -> Option<glutin::window::Icon> {
-    glutin::window::Icon::from_rgba(icon_data.rgba, icon_data.width, icon_data.height).ok()
 }
 
 // ----------------------------------------------------------------------------
 
+pub use epi::NativeOptions;
+
 /// Run an egui app
 #[allow(unsafe_code)]
 pub fn run(mut app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
-    #[allow(unused_mut)]
-    let mut storage = create_storage(app.name());
+    let mut persistence = egui_winit::epi::Persistence::from_app_name(app.name());
 
-    let window_settings = deserialize_window_settings(&storage);
+    let window_settings = persistence.load_window_settings();
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
-    let icon = native_options.icon_data.clone().and_then(load_icon);
-    let (gl_window, gl) =
-        create_display(&*app, native_options, &window_settings, icon, &event_loop);
+    let window_builder =
+        egui_winit::epi::window_builder(native_options, &window_settings).with_title(app.name());
+    let (gl_window, gl) = create_display(window_builder, &event_loop);
 
     let repaint_signal = std::sync::Arc::new(GlowRepaintSignal(std::sync::Mutex::new(
         event_loop.create_proxy(),
     )));
 
     let mut egui = EguiGlow::new(&gl_window, &gl);
-    *egui.ctx().memory() = deserialize_memory(&storage).unwrap_or_default();
+    *egui.ctx().memory() = persistence.load_memory().unwrap_or_default();
 
     {
         let (ctx, painter) = egui.ctx_and_painter_mut();
@@ -203,15 +105,12 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> !
             repaint_signal: repaint_signal.clone(),
         }
         .build();
-        app.setup(ctx, &mut frame, storage.as_deref());
+        app.setup(ctx, &mut frame, persistence.storage());
     }
 
     let mut previous_frame_time = None;
 
     let mut is_focused = true;
-
-    #[cfg(feature = "persistence")]
-    let mut last_auto_save = Instant::now();
 
     if app.warm_up_enabled() {
         let saved_memory = egui.ctx().memory().clone();
@@ -269,16 +168,11 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> !
             previous_frame_time = Some(frame_time);
 
             {
-                let clear_color = app.clear_color();
+                let color = app.clear_color();
                 unsafe {
-                    use glow::HasContext;
+                    use glow::HasContext as _;
                     gl.disable(glow::SCISSOR_TEST);
-                    gl.clear_color(
-                        clear_color[0],
-                        clear_color[1],
-                        clear_color[2],
-                        clear_color[3],
-                    );
+                    gl.clear_color(color[0], color[1], color[2], color[3]);
                     gl.clear(glow::COLOR_BUFFER_BIT);
                 }
                 egui.paint(&gl_window, &gl, shapes);
@@ -286,32 +180,13 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> !
             }
 
             {
-                let epi::backend::AppOutput {
-                    quit,
-                    window_size,
-                    decorated,
-                    drag_window,
-                } = app_output;
+                egui_winit::epi::handle_app_output(
+                    gl_window.window(),
+                    egui.ctx().pixels_per_point(),
+                    app_output,
+                );
 
-                if let Some(decorated) = decorated {
-                    gl_window.window().set_decorations(decorated);
-                }
-
-                if let Some(window_size) = window_size {
-                    gl_window.window().set_inner_size(
-                        glutin::dpi::PhysicalSize {
-                            width: (egui.ctx().pixels_per_point() * window_size.x).round(),
-                            height: (egui.ctx().pixels_per_point() * window_size.y).round(),
-                        }
-                        .to_logical::<f32>(native_pixels_per_point(gl_window.window()) as f64),
-                    );
-                }
-
-                if drag_window {
-                    let _ = gl_window.window().drag_window();
-                }
-
-                *control_flow = if quit {
+                *control_flow = if app_output.quit {
                     glutin::event_loop::ControlFlow::Exit
                 } else if needs_repaint {
                     gl_window.window().request_redraw();
@@ -321,25 +196,7 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> !
                 };
             }
 
-            #[cfg(feature = "persistence")]
-            if let Some(storage) = &mut storage {
-                let now = Instant::now();
-                if now - last_auto_save > app.auto_save_interval() {
-                    if app.persist_native_window() {
-                        epi::set_value(
-                            storage.as_mut(),
-                            WINDOW_KEY,
-                            &WindowSettings::from_display(gl_window.window()),
-                        );
-                    }
-                    if app.persist_egui_memory() {
-                        epi::set_value(storage.as_mut(), EGUI_MEMORY_KEY, &*egui.ctx().memory());
-                    }
-                    app.save(storage.as_mut());
-                    storage.flush();
-                    last_auto_save = now;
-                }
-            }
+            persistence.maybe_autosave(&mut *app, egui.ctx(), gl_window.window());
         };
 
         match event {
@@ -368,22 +225,7 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> !
             }
             glutin::event::Event::LoopDestroyed => {
                 app.on_exit();
-                #[cfg(feature = "persistence")]
-                if let Some(storage) = &mut storage {
-                    if app.persist_native_window() {
-                        epi::set_value(
-                            storage.as_mut(),
-                            WINDOW_KEY,
-                            &WindowSettings::from_display(gl_window.window()),
-                        );
-                    }
-                    if app.persist_egui_memory() {
-                        epi::set_value(storage.as_mut(), EGUI_MEMORY_KEY, &*egui.ctx().memory());
-                    }
-                    app.save(storage.as_mut());
-                    storage.flush();
-                }
-
+                persistence.save(&mut *app, egui.ctx(), gl_window.window());
                 egui.destroy(&gl);
             }
 

@@ -8,7 +8,7 @@ use memoffset::offset_of;
 
 use std::convert::TryInto;
 
-use glow::HasContext;
+use glow::HasContext as _;
 
 const VERT_SRC: &str = include_str!("shader/vertex.glsl");
 const FRAG_SRC: &str = include_str!("shader/fragment.glsl");

@@ -124,6 +124,8 @@ impl BackendPanel {
 
         self.frame_history.ui(ui);
 
+        show_integration_name(ui, frame.info());
+
         // For instance: `egui_web` sets `pixels_per_point` every frame to force
         // egui to use the same scale as the web zoom factor.
         let integration_controls_pixels_per_point = ui.input().raw.pixels_per_point.is_some();
@@ -281,6 +283,27 @@ impl BackendPanel {
             ui.label("Only running UI code when there are animations or input");
         }
     }
+}
+
+// ----------------------------------------------------------------------------
+
+fn show_integration_name(ui: &mut egui::Ui, integration_info: &epi::IntegrationInfo) {
+    let name = integration_info.name;
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 0.0;
+        ui.label("Integration: ");
+        match name {
+            "egui_glium" | "egui_glow" | "egui_web" => {
+                ui.hyperlink_to(
+                    name,
+                    format!("https://github.com/emilk/egui/tree/master/{}", name),
+                );
+            }
+            name => {
+                ui.label(name);
+            }
+        }
+    });
 }
 
 // ----------------------------------------------------------------------------

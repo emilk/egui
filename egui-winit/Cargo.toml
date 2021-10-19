@@ -22,8 +22,9 @@ all-features = true
 
 [dependencies]
 egui = { version = "0.14.0", path = "../egui", default-features = false }
-epi = { version = "0.14.0", path = "../epi" }
 winit = "0.25"
+
+epi = { version = "0.14.0", path = "../epi", optional = true }
 
 copypasta = { version = "0.7", optional = true }
 serde = { version = "1.0", optional = true, features = ["derive"] }
@@ -45,6 +46,7 @@ links = ["webbrowser"]
 # experimental support for a screen reader
 screen_reader = ["tts"]
 
+persistence = ["egui/serialize", "serde"]
 serialize = ["egui/serialize", "serde"]
 
 # implement bytemuck on most types.

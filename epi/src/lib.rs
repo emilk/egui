@@ -78,6 +78,10 @@
 #![allow(clippy::manual_range_contains)]
 #![warn(missing_docs)] // Let's keep `epi` well-documented.
 
+/// File storage which can be used by native backends.
+#[cfg(feature = "file_storage")]
+pub mod file_storage;
+
 pub use egui; // Re-export for user convenience
 
 // ----------------------------------------------------------------------------
@@ -296,6 +300,9 @@ pub struct WebInfo {
 /// Information about the integration passed to the use app each frame.
 #[derive(Clone, Debug)]
 pub struct IntegrationInfo {
+    /// The name of the integration, e.g. `egui_web`, `egui_glium`, `egui_glow`
+    pub name: &'static str,
+
     /// If the app is running in a Web context, this returns information about the environment.
     pub web_info: Option<WebInfo>,
 

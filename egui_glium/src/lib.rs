@@ -76,29 +76,17 @@
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
 
-mod backend;
 mod painter;
-#[cfg(feature = "persistence")]
-pub mod persistence;
-
-pub use backend::*;
 pub use painter::Painter;
 
+#[cfg(feature = "epi")]
+mod epi_backend;
+#[cfg(feature = "epi")]
+pub use epi_backend::{run, NativeOptions};
+
 pub use egui_winit;
-pub use epi::NativeOptions;
 
 use glium::glutin;
-
-// ----------------------------------------------------------------------------
-
-pub fn screen_size_in_pixels(display: &glium::Display) -> egui::Vec2 {
-    let (width_in_pixels, height_in_pixels) = display.get_framebuffer_dimensions();
-    egui::vec2(width_in_pixels as f32, height_in_pixels as f32)
-}
-
-pub fn native_pixels_per_point(display: &glium::Display) -> f32 {
-    display.gl_window().window().scale_factor() as f32
-}
 
 // ----------------------------------------------------------------------------
 
