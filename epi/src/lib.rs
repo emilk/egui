@@ -78,6 +78,10 @@
 #![allow(clippy::manual_range_contains)]
 #![warn(missing_docs)] // Let's keep `epi` well-documented.
 
+/// File storage which can be used by native backends.
+#[cfg(feature = "file_storage")]
+pub mod file_storage;
+
 pub use egui; // Re-export for user convenience
 
 // ----------------------------------------------------------------------------

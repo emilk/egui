@@ -55,6 +55,7 @@ persistence = [
     "directories-next",
     "egui-winit/serialize",
     "egui/persistence",
+    "epi/file_storage",
     "epi/persistence",
     "ron",
     "serde",

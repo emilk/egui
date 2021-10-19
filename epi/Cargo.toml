@@ -29,4 +29,5 @@ serde = { version = "1", optional = true }
 
 [features]
 default = []
+file_storage = ["ron", "serde"]
 persistence = ["ron", "serde"]

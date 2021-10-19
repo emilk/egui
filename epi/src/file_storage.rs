@@ -8,23 +8,24 @@ use std::{
 /// A key-value store backed by a [RON](https://github.com/ron-rs/ron) file on disk.
 /// Used to restore egui state, glium window position/size and app state.
 pub struct FileStorage {
-    path: PathBuf,
+    dir: PathBuf,
     kv: HashMap<String, String>,
     dirty: bool,
 }
 
 impl FileStorage {
-    pub fn from_path(path: impl Into<PathBuf>) -> Self {
-        let path: PathBuf = path.into();
+    /// Store the files in this directory.
+    pub fn from_dir(dir: impl Into<PathBuf>) -> Self {
+        let dir: PathBuf = dir.into();
         Self {
-            kv: read_ron(&path).unwrap_or_default(),
-            path,
+            kv: read_ron(&dir).unwrap_or_default(),
+            dir,
             dirty: false,
         }
     }
 }
 
-impl epi::Storage for FileStorage {
+impl crate::Storage for FileStorage {
     fn get_string(&self, key: &str) -> Option<String> {
         self.kv.get(key).cloned()
     }
@@ -39,7 +40,7 @@ impl epi::Storage for FileStorage {
     fn flush(&mut self) {
         if self.dirty {
             // eprintln!("Persisted to {}", self.path.display());
-            let file = std::fs::File::create(&self.path).unwrap();
+            let file = std::fs::File::create(&self.dir).unwrap();
             let config = Default::default();
             ron::ser::to_writer_pretty(file, &self.kv, config).unwrap();
             self.dirty = false;
@@ -49,7 +50,7 @@ impl epi::Storage for FileStorage {
 
 // ----------------------------------------------------------------------------
 
-pub fn read_ron<T>(ron_path: impl AsRef<Path>) -> Option<T>
+fn read_ron<T>(ron_path: impl AsRef<Path>) -> Option<T>
 where
     T: serde::de::DeserializeOwned,
 {
