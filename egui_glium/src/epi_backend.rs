@@ -50,6 +50,7 @@ fn integration_info(
     previous_frame_time: Option<f32>,
 ) -> epi::IntegrationInfo {
     epi::IntegrationInfo {
+        name: "egui_glium",
         web_info: None,
         prefer_dark_mode: None, // TODO: figure out system default
         cpu_usage: previous_frame_time,

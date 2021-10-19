@@ -222,6 +222,7 @@ impl AppRunner {
 
     fn integration_info(&self) -> epi::IntegrationInfo {
         epi::IntegrationInfo {
+            name: "egui_web",
             web_info: Some(epi::WebInfo {
                 web_location_hash: location_hash().unwrap_or_default(),
             }),
