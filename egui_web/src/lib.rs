@@ -15,10 +15,7 @@
 #![warn(clippy::all, missing_crate_level_docs, rust_2018_idioms)]
 
 pub mod backend;
-mod painter;
 pub mod screen_reader;
-pub mod webgl1;
-pub mod webgl2;
 
 pub use backend::*;
 
@@ -26,7 +23,6 @@ use egui::mutex::Mutex;
 pub use wasm_bindgen;
 pub use web_sys;
 
-pub use painter::Painter;
 use std::cell::Cell;
 use std::rc::Rc;
 use std::sync::Arc;

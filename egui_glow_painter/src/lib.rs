@@ -9,6 +9,7 @@ use egui::{
     emath::Rect,
     epaint::{Color32, Mesh, Vertex},
 };
+pub use glow::Context;
 use memoffset::offset_of;
 
 use std::convert::TryInto;
@@ -17,18 +18,13 @@ use glow::HasContext as _;
 
 use std::process::exit;
 
+#[cfg(target_arch = "wasm32")]
+use web_sys::HtmlCanvasElement;
+
 const VERT_SRC: &str = include_str!("shader/vertex.glsl");
 const FRAG_SRC: &str = include_str!("shader/fragment.glsl");
 #[cfg(target_arch = "wasm32")]
-pub fn init_glow_context(canvas_id: &str) -> glow::Context {
-    let canvas = web_sys::window()
-        .unwrap()
-        .document()
-        .unwrap()
-        .get_element_by_id(canvas_id)
-        .unwrap()
-        .dyn_into::<web_sys::HtmlCanvasElement>()
-        .unwrap();
+pub fn init_glow_context_from_canvas(canvas: HtmlCanvasElement) -> glow::Context {
     if let Ok(ctx) = canvas.get_context("webgl2") {
         glow_debug_print("webgl2 context selected");
         let gl_ctx = ctx
@@ -656,8 +652,31 @@ impl Painter {
     #[cfg(not(debug_assertions))]
     #[allow(clippy::unused_self)]
     fn assert_not_destroyed(&self) {}
-}
 
+}
+#[cfg(target_arch = "wasm32")]
+pub fn canvas_to_dimension(canvas:HtmlCanvasElement)->[u32;2]{
+    [canvas.width() as u32,canvas.height() as u32]
+}
+#[cfg(target_arch = "wasm32")]
+pub fn clear(canvas: HtmlCanvasElement, gl: &glow::Context, clear_color: egui::Rgba) {
+    unsafe {
+        gl.disable(glow::SCISSOR_TEST);
+
+        let width = canvas.width() as i32;
+        let height = canvas.height() as i32;
+        gl.viewport(0, 0, width, height);
+
+        let clear_color: Color32 = clear_color.into();
+        gl.clear_color(
+            clear_color[0] as f32 / 255.0,
+            clear_color[1] as f32 / 255.0,
+            clear_color[2] as f32 / 255.0,
+            clear_color[3] as f32 / 255.0,
+        );
+        gl.clear(glow::COLOR_BUFFER_BIT);
+    }
+}
 impl Drop for Painter {
     fn drop(&mut self) {
         #[cfg(debug_assertions)]

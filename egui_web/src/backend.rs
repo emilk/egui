@@ -6,35 +6,35 @@ pub use egui::{pos2, Color32};
 
 pub struct WebBackend {
     egui_ctx: egui::CtxRef,
-    painter: Box<dyn Painter>,
+    painter: egui_glow_painter::Painter,
     previous_frame_time: Option<f32>,
     frame_start: Option<f64>,
+    gl_ctx: egui_glow_painter::Context,
+    canvas_id: String,
+    canvas: HtmlCanvasElement,
 }
 
 impl WebBackend {
     pub fn new(canvas_id: &str) -> Result<Self, JsValue> {
         let ctx = egui::CtxRef::default();
-
-        let painter: Box<dyn Painter> =
-            if let Ok(webgl2_painter) = webgl2::WebGl2Painter::new(canvas_id) {
-                console_log("Using WebGL2 backend");
-                Box::new(webgl2_painter)
-            } else {
-                console_log("Falling back to WebGL1 backend");
-                Box::new(webgl1::WebGlPainter::new(canvas_id)?)
-            };
+        let canvas = canvas_element_or_die(canvas_id);
+        let gl_ctx = egui_glow_painter::init_glow_context_from_canvas(canvas.clone());
+        let painter = egui_glow_painter::Painter::new(&gl_ctx);
 
         Ok(Self {
             egui_ctx: ctx,
             painter,
             previous_frame_time: None,
             frame_start: None,
+            gl_ctx,
+            canvas_id: canvas_id.to_owned(),
+            canvas,
         })
     }
 
     /// id of the canvas html element containing the rendering
     pub fn canvas_id(&self) -> &str {
-        self.painter.canvas_id()
+        &self.canvas_id
     }
 
     pub fn begin_frame(&mut self, raw_input: egui::RawInput) {
@@ -62,14 +62,27 @@ impl WebBackend {
         clear_color: egui::Rgba,
         clipped_meshes: Vec<egui::ClippedMesh>,
     ) -> Result<(), JsValue> {
-        self.painter.upload_egui_texture(&self.egui_ctx.texture());
-        self.painter.clear(clear_color);
         self.painter
-            .paint_meshes(clipped_meshes, self.egui_ctx.pixels_per_point())
+            .upload_egui_texture(&self.gl_ctx, &self.egui_ctx.texture());
+        egui_glow_painter::clear(self.canvas.clone(),&self.gl_ctx,clear_color);
+        let dimension=egui_glow_painter::canvas_to_dimension(self.canvas.clone());
+        Ok(self.painter.paint_meshes(
+            dimension,
+            &self.gl_ctx,
+            self.egui_ctx.pixels_per_point(),
+            clipped_meshes,
+            &self.egui_ctx.texture(),
+        ))
     }
-
+    pub fn debug_info(canvas: HtmlCanvasElement) -> String {
+        format!(
+            "Stored canvas size: {} x {}\n",
+            canvas.width(),
+            canvas.height(),
+        )
+    }
     pub fn painter_debug_info(&self) -> String {
-        self.painter.debug_info()
+        Self::debug_info(self.canvas.clone())
     }
 }
 
@@ -101,6 +114,7 @@ impl WebInput {
 // ----------------------------------------------------------------------------
 
 use std::sync::atomic::Ordering::SeqCst;
+use web_sys::HtmlCanvasElement;
 
 pub struct NeedRepaint(std::sync::atomic::AtomicBool);
 
@@ -170,7 +184,7 @@ impl AppRunner {
             let mut app_output = epi::backend::AppOutput::default();
             let mut frame = epi::backend::FrameBuilder {
                 info: runner.integration_info(),
-                tex_allocator: runner.web_backend.painter.as_tex_allocator(),
+                tex_allocator: &mut runner.web_backend.painter,
                 output: &mut app_output,
                 repaint_signal: runner.needs_repaint.clone(),
             }
@@ -242,7 +256,7 @@ impl AppRunner {
         let mut app_output = epi::backend::AppOutput::default();
         let mut frame = epi::backend::FrameBuilder {
             info: self.integration_info(),
-            tex_allocator: self.web_backend.painter.as_tex_allocator(),
+            tex_allocator: &mut self.web_backend.painter,
             output: &mut app_output,
             repaint_signal: self.needs_repaint.clone(),
         }

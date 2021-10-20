@@ -28,6 +28,7 @@ crate-type = ["cdylib", "rlib"]
 egui = { version = "0.14.0", path = "../egui", default-features = false, features = [
   "single_threaded",
 ] }
+egui_glow_painter={version="0.14.0",path="../egui_glow_painter"}
 epi = { version = "0.14.0", path = "../epi" }
 js-sys = "0.3"
 ron = { version = "0.6", optional = true }
@@ -83,15 +84,6 @@ features = [
   "Touch",
   "TouchEvent",
   "TouchList",
-  "WebGl2RenderingContext",
-  "WebGlBuffer",
-  "WebGlFramebuffer",
-  "WebGlProgram",
-  "WebGlRenderingContext",
-  "WebGlShader",
-  "WebGlTexture",
-  "WebGlUniformLocation",
-  "WebGlVertexArrayObject",
   "WheelEvent",
   "Window",
 ]
