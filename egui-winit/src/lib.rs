@@ -490,7 +490,9 @@ impl State {
                     self.egui_input.events.push(egui::Event::Copy);
                 } else if is_paste_command(self.egui_input.modifiers, keycode) {
                     if let Some(contents) = self.clipboard.get() {
-                        self.egui_input.events.push(egui::Event::Text(contents));
+                        self.egui_input
+                            .events
+                            .push(egui::Event::Text(contents.replace("\r\n", "\n")));
                     }
                 }
             }
