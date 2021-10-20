@@ -38,6 +38,7 @@ fn window_builder_drag_and_drop(
     window_builder: winit::window::WindowBuilder,
     enable: bool,
 ) -> winit::window::WindowBuilder {
+    use winit::platform::windows::WindowBuilderExtWindows as _;
     window_builder.with_drag_and_drop(enable)
 }
 
