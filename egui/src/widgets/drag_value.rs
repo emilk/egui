@@ -61,7 +61,7 @@ impl<'a> DragValue<'a> {
     pub fn new<Num: emath::Numeric>(value: &'a mut Num) -> Self {
         let slf = Self::from_get_set(move |v: Option<f64>| {
             if let Some(v) = v {
-                *value = Num::from_f64(v)
+                *value = Num::from_f64(v);
             }
             value.to_f64()
         });
@@ -198,7 +198,7 @@ impl<'a> Widget for DragValue<'a> {
             );
             if let Ok(parsed_value) = value_text.parse() {
                 let parsed_value = clamp_to_range(parsed_value, clamp_range);
-                set(&mut get_set_value, parsed_value)
+                set(&mut get_set_value, parsed_value);
             }
             if ui.input().key_pressed(Key::Enter) {
                 ui.memory().surrender_focus(kb_edit_id);

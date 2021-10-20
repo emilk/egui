@@ -128,7 +128,7 @@ impl PaintList {
 
     pub fn extend(&mut self, clip_rect: Rect, mut shapes: Vec<Shape>) {
         self.0
-            .extend(shapes.drain(..).map(|shape| ClippedShape(clip_rect, shape)))
+            .extend(shapes.drain(..).map(|shape| ClippedShape(clip_rect, shape)));
     }
 
     /// Modify an existing [`Shape`].

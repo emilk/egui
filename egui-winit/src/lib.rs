@@ -536,7 +536,7 @@ impl State {
         }
 
         if let Some(egui::Pos2 { x, y }) = output.text_cursor_pos {
-            window.set_ime_position(winit::dpi::LogicalPosition { x, y })
+            window.set_ime_position(winit::dpi::LogicalPosition { x, y });
         }
     }
 

@@ -76,39 +76,39 @@ pub struct IdHasher(u64);
 
 impl std::hash::Hasher for IdHasher {
     fn write(&mut self, _: &[u8]) {
-        unreachable!("Invalid use of IdHasher")
+        unreachable!("Invalid use of IdHasher");
     }
 
     fn write_u8(&mut self, _n: u8) {
-        unreachable!("Invalid use of IdHasher")
+        unreachable!("Invalid use of IdHasher");
     }
     fn write_u16(&mut self, _n: u16) {
-        unreachable!("Invalid use of IdHasher")
+        unreachable!("Invalid use of IdHasher");
     }
     fn write_u32(&mut self, _n: u32) {
-        unreachable!("Invalid use of IdHasher")
+        unreachable!("Invalid use of IdHasher");
     }
     fn write_u64(&mut self, n: u64) {
-        self.0 = n
+        self.0 = n;
     }
     fn write_usize(&mut self, _n: usize) {
-        unreachable!("Invalid use of IdHasher")
+        unreachable!("Invalid use of IdHasher");
     }
 
     fn write_i8(&mut self, _n: i8) {
-        unreachable!("Invalid use of IdHasher")
+        unreachable!("Invalid use of IdHasher");
     }
     fn write_i16(&mut self, _n: i16) {
-        unreachable!("Invalid use of IdHasher")
+        unreachable!("Invalid use of IdHasher");
     }
     fn write_i32(&mut self, _n: i32) {
-        unreachable!("Invalid use of IdHasher")
+        unreachable!("Invalid use of IdHasher");
     }
     fn write_i64(&mut self, _n: i64) {
-        unreachable!("Invalid use of IdHasher")
+        unreachable!("Invalid use of IdHasher");
     }
     fn write_isize(&mut self, _n: isize) {
-        unreachable!("Invalid use of IdHasher")
+        unreachable!("Invalid use of IdHasher");
     }
 
     fn finish(&self) -> u64 {

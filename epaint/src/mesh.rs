@@ -170,7 +170,7 @@ impl Mesh {
     #[inline(always)]
     pub fn add_colored_rect(&mut self, rect: Rect, color: Color32) {
         crate::epaint_assert!(self.texture_id == TextureId::Egui);
-        self.add_rect_with_uv(rect, [WHITE_UV, WHITE_UV].into(), color)
+        self.add_rect_with_uv(rect, [WHITE_UV, WHITE_UV].into(), color);
     }
 
     /// This is for platforms that only support 16-bit index buffers.

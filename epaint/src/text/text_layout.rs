@@ -34,7 +34,7 @@ pub fn layout(fonts: &Fonts, job: Arc<LayoutJob>) -> Galley {
         for (i, row) in rows.iter_mut().enumerate() {
             let is_last_row = i + 1 == num_rows;
             let justify_row = justify && !row.ends_with_newline && !is_last_row;
-            halign_and_jusitfy_row(fonts, row, job.halign, job.wrap_width, justify_row)
+            halign_and_jusitfy_row(fonts, row, job.halign, job.wrap_width, justify_row);
         }
     }
 
@@ -74,7 +74,7 @@ fn layout_section(
             let (font_impl, glyph_info) = font.glyph_info_and_font_impl(chr);
             if let Some(font_impl) = font_impl {
                 if let Some(last_glyph_id) = last_glyph_id {
-                    paragraph.cursor_x += font_impl.pair_kerning(last_glyph_id, glyph_info.id)
+                    paragraph.cursor_x += font_impl.pair_kerning(last_glyph_id, glyph_info.id);
                 }
             }
 

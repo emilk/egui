@@ -200,6 +200,6 @@ impl EguiGlow {
     }
 
     pub fn destroy(&mut self, gl: &glow::Context) {
-        self.painter.destroy(gl)
+        self.painter.destroy(gl);
     }
 }

@@ -213,7 +213,7 @@ impl Area {
         if let Some((anchor, offset)) = anchor {
             if is_new {
                 // unknown size
-                ctx.request_repaint()
+                ctx.request_repaint();
             } else {
                 let screen = ctx.available_rect();
                 state.pos = anchor.align_size_within_rect(state.size, screen).min + offset;

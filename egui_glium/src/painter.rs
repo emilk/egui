@@ -109,7 +109,7 @@ impl Painter {
         self.upload_pending_user_textures(display);
 
         for egui::ClippedMesh(clip_rect, mesh) in cipped_meshes {
-            self.paint_mesh(target, display, pixels_per_point, clip_rect, &mesh)
+            self.paint_mesh(target, display, pixels_per_point, clip_rect, &mesh);
         }
     }
 

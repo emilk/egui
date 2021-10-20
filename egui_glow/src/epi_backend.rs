@@ -16,7 +16,7 @@ impl epi::TextureAllocator for Painter {
     }
 
     fn free(&mut self, id: egui::TextureId) {
-        self.free_user_texture(id)
+        self.free_user_texture(id);
     }
 }
 

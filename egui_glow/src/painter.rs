@@ -365,7 +365,7 @@ impl Painter {
 
         let size_in_pixels = unsafe { self.prepare_painting(gl_window, gl, pixels_per_point) };
         for egui::ClippedMesh(clip_rect, mesh) in clipped_meshes {
-            self.paint_mesh(gl, size_in_pixels, pixels_per_point, clip_rect, &mesh)
+            self.paint_mesh(gl, size_in_pixels, pixels_per_point, clip_rect, &mesh);
         }
 
         assert_eq!(

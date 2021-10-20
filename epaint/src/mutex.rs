@@ -44,7 +44,7 @@ impl<T> Mutex<T> {
         // Store it in thread local storage while we have a lock guard taken out
         HELD_LOCKS_TLS.with(|locks| {
             if locks.borrow().contains(&ptr) {
-                panic!("Recursively locking a Mutex in the same thread is not supported")
+                panic!("Recursively locking a Mutex in the same thread is not supported");
             } else {
                 locks.borrow_mut().insert(ptr);
             }

@@ -381,7 +381,7 @@ impl Ui {
 
     /// Used for animation, kind of hacky
     pub(crate) fn force_set_min_rect(&mut self, min_rect: Rect) {
-        self.placer.force_set_min_rect(min_rect)
+        self.placer.force_set_min_rect(min_rect);
     }
 
     // ------------------------------------------------------------------------
@@ -432,13 +432,13 @@ impl Ui {
     /// so further widgets will try not to be wider than previous widgets.
     /// Useful for normal vertical layouts.
     pub fn shrink_width_to_current(&mut self) {
-        self.set_max_width(self.min_rect().width())
+        self.set_max_width(self.min_rect().width());
     }
 
     /// Helper: shrinks the max height to the current height,
     /// so further widgets will try not to be wider than previous widgets.
     pub fn shrink_height_to_current(&mut self) {
-        self.set_max_height(self.min_rect().height())
+        self.set_max_height(self.min_rect().height());
     }
 
     /// Expand the `min_rect` and `max_rect` of this ui to include a child at the given rect.
@@ -741,7 +741,7 @@ impl Ui {
     }
 
     pub(crate) fn set_cursor(&mut self, cursor: Rect) {
-        self.placer.set_cursor(cursor)
+        self.placer.set_cursor(cursor);
     }
 
     /// Where do we expect a zero-sized widget to be placed?

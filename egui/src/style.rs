@@ -748,23 +748,23 @@ impl Widgets {
             ui.label(
                 "The style of a widget that you cannot interact with, e.g. labels and separators.",
             );
-            noninteractive.ui(ui)
+            noninteractive.ui(ui);
         });
         ui.collapsing("Interactive but inactive", |ui| {
             ui.label("The style of an interactive widget, such as a button, at rest.");
-            inactive.ui(ui)
+            inactive.ui(ui);
         });
         ui.collapsing("Interactive and hovered", |ui| {
             ui.label("The style of an interactive widget while you hover it.");
-            hovered.ui(ui)
+            hovered.ui(ui);
         });
         ui.collapsing("Interactive and active", |ui| {
             ui.label("The style of an interactive widget as you are clicking or dragging it.");
-            active.ui(ui)
+            active.ui(ui);
         });
         ui.collapsing("Open menu", |ui| {
             ui.label("The style of an open combo-box or menu button");
-            open.ui(ui)
+            open.ui(ui);
         });
 
         // ui.vertical_centered(|ui| reset_button(ui, self));

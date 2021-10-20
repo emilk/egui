@@ -15,7 +15,7 @@ impl MemoizedEasymarkHighlighter {
         if (&self.visuals, self.code.as_str()) != (visuals, code) {
             self.visuals = visuals.clone();
             self.code = code.to_owned();
-            self.output = highlight_easymark(visuals, code)
+            self.output = highlight_easymark(visuals, code);
         }
         self.output.clone()
     }

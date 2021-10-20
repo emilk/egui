@@ -687,7 +687,7 @@ impl InputState {
 
         for (device_id, touch_state) in touch_states {
             ui.collapsing(format!("Touch State [device {}]", device_id.0), |ui| {
-                touch_state.ui(ui)
+                touch_state.ui(ui);
             });
         }
 
