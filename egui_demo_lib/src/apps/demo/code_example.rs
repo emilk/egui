@@ -89,15 +89,12 @@ impl super::View for CodeExample {
 pub struct CodeExample {
     name: String,
     age: u32,
-}"
+}
+
+impl CodeExample {
+    fn ui(&mut self, ui: &mut egui::Ui) {
+"
             .trim(),
-        );
-
-        ui.add_space(12.0);
-
-        code_view_ui(
-            ui,
-            "impl CodeExample {\n    fn ui(&mut self, ui: &mut egui::Ui) {",
         );
 
         egui::ScrollArea::vertical().show(ui, |ui| {
