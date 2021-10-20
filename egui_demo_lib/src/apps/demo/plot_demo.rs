@@ -79,7 +79,7 @@ impl LineDemo {
                 ComboBox::from_label("Line style")
                     .selected_text(line_style.to_string())
                     .show_ui(ui, |ui| {
-                        [
+                        for style in [
                             LineStyle::Solid,
                             LineStyle::dashed_dense(),
                             LineStyle::dashed_loose(),
@@ -87,9 +87,9 @@ impl LineDemo {
                             LineStyle::dotted_loose(),
                         ]
                         .iter()
-                        .for_each(|style| {
+                        {
                             ui.selectable_value(line_style, *style, style.to_string());
-                        });
+                        }
                     });
             });
         });
