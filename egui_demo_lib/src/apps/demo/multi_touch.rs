@@ -49,11 +49,7 @@ impl super::View for MultiTouch {
         ui.separator();
         ui.label("Try touch gestures Pinch/Stretch, Rotation, and Pressure with 2+ fingers.");
 
-        let num_touches = ui
-            .input()
-            .multi_touch()
-            .map(|mt| mt.num_touches)
-            .unwrap_or(0);
+        let num_touches = ui.input().multi_touch().map_or(0, |mt| mt.num_touches);
         ui.label(format!("Current touches: {}", num_touches));
 
         Frame::dark_canvas(ui.style()).show(ui, |ui| {

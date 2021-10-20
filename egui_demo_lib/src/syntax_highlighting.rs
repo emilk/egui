@@ -416,8 +416,7 @@ impl Highligher {
             } else if text.starts_with(|c: char| c.is_ascii_alphanumeric()) {
                 let end = text[1..]
                     .find(|c: char| !c.is_ascii_alphanumeric())
-                    .map(|i| i + 1)
-                    .unwrap_or_else(|| text.len());
+                    .map_or_else(|| text.len(), |i| i + 1);
                 let word = &text[..end];
                 let tt = if is_keyword(word) {
                     TokenType::Keyword
@@ -429,8 +428,7 @@ impl Highligher {
             } else if text.starts_with(|c: char| c.is_ascii_whitespace()) {
                 let end = text[1..]
                     .find(|c: char| !c.is_ascii_whitespace())
-                    .map(|i| i + 1)
-                    .unwrap_or_else(|| text.len());
+                    .map_or_else(|| text.len(), |i| i + 1);
                 job.append(&text[..end], 0.0, theme.formats[TokenType::Whitespace]);
                 text = &text[end..];
             } else {

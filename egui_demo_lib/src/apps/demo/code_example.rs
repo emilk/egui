@@ -150,8 +150,7 @@ fn remove_leading_indentation(code: &str) -> String {
         let start = first_line_indent.min(indent);
         let end = code
             .find('\n')
-            .map(|endline| endline + 1)
-            .unwrap_or_else(|| code.len());
+            .map_or_else(|| code.len(), |endline| endline + 1);
         out += &code[start..end];
         code = &code[end..];
     }

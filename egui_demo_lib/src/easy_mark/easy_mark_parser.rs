@@ -319,8 +319,7 @@ impl<'a> Iterator for Parser<'a> {
             let end = self
                 .s
                 .find(&['*', '`', '~', '_', '/', '$', '^', '\\', '<', '[', '\n'][..])
-                .map(|special| special.max(1)) // make sure we swallow at least one character
-                .unwrap_or_else(|| self.s.len());
+                .map_or_else(|| self.s.len(), |special| special.max(1));
 
             let item = Item::Text(self.style, &self.s[..end]);
             self.s = &self.s[end..];
