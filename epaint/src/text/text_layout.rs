@@ -72,8 +72,10 @@ fn layout_section(
             paragraph.empty_paragraph_height = font_height; // TODO: replace this hack with actually including `\n` in the glyphs?
         } else {
             let (font_impl, glyph_info) = font.glyph_info_and_font_impl(chr);
-            if let Some(last_glyph_id) = last_glyph_id {
-                paragraph.cursor_x += font_impl.pair_kerning(last_glyph_id, glyph_info.id)
+            if let Some(font_impl) = font_impl {
+                if let Some(last_glyph_id) = last_glyph_id {
+                    paragraph.cursor_x += font_impl.pair_kerning(last_glyph_id, glyph_info.id)
+                }
             }
 
             paragraph.glyphs.push(Glyph {

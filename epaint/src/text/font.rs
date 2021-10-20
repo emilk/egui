@@ -215,7 +215,7 @@ impl Font {
                 fonts,
                 characters: RwLock::new(None),
                 replacement_glyph: Default::default(),
-                pixels_per_point: 0.0,
+                pixels_per_point: 1.0,
                 row_height: 0.0,
                 glyph_info_cache: Default::default(),
             };
@@ -318,10 +318,13 @@ impl Font {
     }
 
     #[inline]
-    pub(crate) fn glyph_info_and_font_impl(&self, c: char) -> (&FontImpl, GlyphInfo) {
+    pub(crate) fn glyph_info_and_font_impl(&self, c: char) -> (Option<&FontImpl>, GlyphInfo) {
+        if self.fonts.is_empty() {
+            return (None, self.replacement_glyph.1);
+        }
         let (font_index, glyph_info) = self.glyph_info(c);
         let font_impl = &self.fonts[font_index];
-        (font_impl, glyph_info)
+        (Some(font_impl), glyph_info)
     }
 
     fn glyph_info_no_cache_or_fallback(&self, c: char) -> Option<(FontIndex, GlyphInfo)> {
