@@ -25,25 +25,32 @@ const VERT_SRC: &str = include_str!("shader/vertex.glsl");
 const FRAG_SRC: &str = include_str!("shader/fragment.glsl");
 #[cfg(target_arch = "wasm32")]
 pub fn init_glow_context_from_canvas(canvas: HtmlCanvasElement) -> glow::Context {
-    if let Ok(ctx) = canvas.get_context("webgl2") {
-        glow_debug_print("webgl2 context selected");
-        let gl_ctx = ctx
-            .unwrap()
-            .dyn_into::<web_sys::WebGl2RenderingContext>()
-            .unwrap();
-        glow::Context::from_webgl2_context(gl_ctx)
-    } else {
-        if let Ok(ctx) = canvas.get_context("webgl") {
-            glow_debug_print("webgl1 context selected");
-            let gl_ctx = ctx
-                .unwrap()
-                .dyn_into::<web_sys::WebGlRenderingContext>()
-                .unwrap();
-            glow::Context::from_webgl1_context(gl_ctx)
+    let ctx = canvas.get_context("webgl2");
+    if let Ok(ctx) = ctx {
+        glow_debug_print("webgl found");
+        if let Some(ctx) = ctx {
+            glow_debug_print("webgl 2 selected");
+            let gl_ctx = ctx.dyn_into::<web_sys::WebGl2RenderingContext>().unwrap();
+            glow::Context::from_webgl2_context(gl_ctx)
         } else {
-            glow_debug_print("can not get webgl context");
-            exit(1);
+            let ctx = canvas.get_context("webgl");
+            if let Ok(ctx) = ctx {
+                glow_debug_print("falling back to webgl1");
+                if let Some(ctx) = ctx {
+                    let gl_ctx = ctx.dyn_into::<web_sys::WebGlRenderingContext>().unwrap();
+                    glow::Context::from_webgl1_context(gl_ctx)
+                } else {
+                    glow_debug_print("tried webgl1 but cant get context");
+                    exit(1)
+                }
+            } else {
+                glow_debug_print("tried webgl1 but cant get context");
+                exit(1)
+            }
         }
+    }else{
+        glow_debug_print("tried webgl2 but something went wrong");
+        exit(1)
     }
 }
 
@@ -652,11 +659,10 @@ impl Painter {
     #[cfg(not(debug_assertions))]
     #[allow(clippy::unused_self)]
     fn assert_not_destroyed(&self) {}
-
 }
 #[cfg(target_arch = "wasm32")]
-pub fn canvas_to_dimension(canvas:HtmlCanvasElement)->[u32;2]{
-    [canvas.width() as u32,canvas.height() as u32]
+pub fn canvas_to_dimension(canvas: HtmlCanvasElement) -> [u32; 2] {
+    [canvas.width() as u32, canvas.height() as u32]
 }
 #[cfg(target_arch = "wasm32")]
 pub fn clear(canvas: HtmlCanvasElement, gl: &glow::Context, clear_color: egui::Rgba) {

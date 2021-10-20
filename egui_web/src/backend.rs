@@ -64,8 +64,8 @@ impl WebBackend {
     ) -> Result<(), JsValue> {
         self.painter
             .upload_egui_texture(&self.gl_ctx, &self.egui_ctx.texture());
-        egui_glow_painter::clear(self.canvas.clone(),&self.gl_ctx,clear_color);
-        let dimension=egui_glow_painter::canvas_to_dimension(self.canvas.clone());
+        egui_glow_painter::clear(self.canvas.clone(), &self.gl_ctx, clear_color);
+        let dimension = egui_glow_painter::canvas_to_dimension(self.canvas.clone());
         Ok(self.painter.paint_meshes(
             dimension,
             &self.gl_ctx,

@@ -3,9 +3,15 @@ precision mediump float;
 #endif
 
 uniform sampler2D u_sampler;
-#if defined(GL_ES) || __VERSION__ < 140
+#if (defined(GL_ES) && __VERSION__ >=300)
+in vec4 v_rgba;
+in vec2 v_tc;
+out vec4 f_color;
+#define gl_FragColor f_color
+#elif defined(GL_ES) || __VERSION__ < 140
 varying vec4 v_rgba;
 varying vec2 v_tc;
+#define texture(sampler,tc) texture2D(sampler,tc)
 #else
 in vec4 v_rgba;
 in vec2 v_tc;
@@ -44,10 +50,10 @@ vec4 linear_from_srgba(vec4 srgba) {
 void main() {
 #if __VERSION__ < 300
   // We must decode the colors, since WebGL doesn't come with sRGBA textures:
-  vec4 texture_rgba = linear_from_srgba(texture2D(u_sampler, v_tc) * 255.0);
+  vec4 texture_rgba = linear_from_srgba(texture(u_sampler, v_tc) * 255.0);
 #else
   // The texture is set up with `SRGB8_ALPHA8`, so no need to decode here!
-  vec4 texture_rgba = texture2D(u_sampler, v_tc);
+  vec4 texture_rgba = texture(u_sampler, v_tc);
 #endif
 
   /// Multiply vertex color with texture color (in linear space).
@@ -65,7 +71,7 @@ void main() {
   // The texture sampler is sRGB aware, and OpenGL already expects linear rgba output
   // so no need for any sRGB conversions here:
 #if __VERSION__ < 140
-  gl_FragColor = v_rgba * texture2D(u_sampler, v_tc);
+  gl_FragColor = v_rgba * texture(u_sampler, v_tc);
 #else
   f_color = v_rgba * texture(u_sampler, v_tc);
 #endif
