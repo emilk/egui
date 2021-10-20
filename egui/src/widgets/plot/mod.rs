@@ -734,7 +734,23 @@ impl Prepared {
                 unreachable!()
             }
         };
-
+        
+        let frame = transform.frame();
+        let mut x = 0.0;
+        let mut y = 0.0;
+        let text_x_size = 70.0;
+        let text_y_size = 30.0;
+        if frame.max.x - text_x_size < pointer.x && frame.max.x > pointer.x {
+            x = -30.0;
+        } else if frame.min.x - text_x_size < pointer.x && frame.min.x > pointer.x {
+            x = 30.0;
+        }
+        if pointer.y < frame.max.y - text_y_size {
+            y = 30.0;
+        } else if frame.min.y - text_y_size < pointer.y && frame.min.y > pointer.y {
+            y = -30.0;
+        }
+        
         shapes.push(Shape::text(
             ui.fonts(),
             pointer + vec2(3.0, -2.0),
