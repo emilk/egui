@@ -88,9 +88,12 @@ impl std::hash::Hasher for IdHasher {
     fn write_u32(&mut self, _n: u32) {
         unreachable!("Invalid use of IdHasher");
     }
+
+    #[inline(always)]
     fn write_u64(&mut self, n: u64) {
         self.0 = n;
     }
+
     fn write_usize(&mut self, _n: usize) {
         unreachable!("Invalid use of IdHasher");
     }
@@ -111,6 +114,7 @@ impl std::hash::Hasher for IdHasher {
         unreachable!("Invalid use of IdHasher");
     }
 
+    #[inline(always)]
     fn finish(&self) -> u64 {
         self.0
     }
@@ -122,6 +126,8 @@ pub struct BuilIdHasher {}
 
 impl std::hash::BuildHasher for BuilIdHasher {
     type Hasher = IdHasher;
+
+    #[inline(always)]
     fn build_hasher(&self) -> IdHasher {
         IdHasher::default()
     }

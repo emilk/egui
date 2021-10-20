@@ -7,6 +7,11 @@ compile_error!("Either feature \"single_threaded\" or \"multi_threaded\" must be
 
 // ----------------------------------------------------------------------------
 
+/// Provides interior mutability. Only thread-safe if the `multi_threaded` feature is enabled.
+#[cfg(feature = "multi_threaded")]
+#[derive(Default)]
+pub struct Mutex<T>(parking_lot::Mutex<T>);
+
 /// The lock you get from [`Mutex`].
 #[cfg(feature = "multi_threaded")]
 #[cfg(not(debug_assertions))]
@@ -17,14 +22,29 @@ pub use parking_lot::MutexGuard;
 #[cfg(debug_assertions)]
 pub struct MutexGuard<'a, T>(parking_lot::MutexGuard<'a, T>, *const ());
 
-/// Provides interior mutability. Only thread-safe if the `multi_threaded` feature is enabled.
-#[cfg(feature = "multi_threaded")]
+#[cfg(all(debug_assertions, feature = "multi_threaded"))]
 #[derive(Default)]
-pub struct Mutex<T>(parking_lot::Mutex<T>);
+struct HeldLocks(Vec<*const ()>);
 
-#[cfg(debug_assertions)]
+#[cfg(all(debug_assertions, feature = "multi_threaded"))]
+impl HeldLocks {
+    fn insert(&mut self, lock: *const ()) {
+        // Very few locks will ever be held at the same time, so a linear search is fast
+        assert!(
+            !self.0.contains(&lock),
+            "Recursively locking a Mutex in the same thread is not supported"
+        );
+        self.0.push(lock);
+    }
+
+    fn remove(&mut self, lock: *const ()) {
+        self.0.retain(|&ptr| ptr != lock);
+    }
+}
+
+#[cfg(all(debug_assertions, feature = "multi_threaded"))]
 thread_local! {
-    static HELD_LOCKS_TLS: std::cell::RefCell<ahash::AHashSet<*const ()>> = std::cell::RefCell::new(ahash::AHashSet::new());
+    static HELD_LOCKS_TLS: std::cell::RefCell<HeldLocks> = Default::default();
 }
 
 #[cfg(feature = "multi_threaded")]
@@ -42,12 +62,8 @@ impl<T> Mutex<T> {
         let ptr = (&self.0 as *const parking_lot::Mutex<_>).cast::<()>();
 
         // Store it in thread local storage while we have a lock guard taken out
-        HELD_LOCKS_TLS.with(|locks| {
-            if locks.borrow().contains(&ptr) {
-                panic!("Recursively locking a Mutex in the same thread is not supported");
-            } else {
-                locks.borrow_mut().insert(ptr);
-            }
+        HELD_LOCKS_TLS.with(|held_locks| {
+            held_locks.borrow_mut().insert(ptr);
         });
 
         MutexGuard(self.0.lock(), ptr)
@@ -65,8 +81,8 @@ impl<T> Mutex<T> {
 impl<T> Drop for MutexGuard<'_, T> {
     fn drop(&mut self) {
         let ptr = self.1;
-        HELD_LOCKS_TLS.with(|locks| {
-            locks.borrow_mut().remove(&ptr);
+        HELD_LOCKS_TLS.with(|held_locks| {
+            held_locks.borrow_mut().remove(ptr);
         });
     }
 }
@@ -76,6 +92,7 @@ impl<T> Drop for MutexGuard<'_, T> {
 impl<T> std::ops::Deref for MutexGuard<'_, T> {
     type Target = T;
 
+    #[inline(always)]
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -84,6 +101,7 @@ impl<T> std::ops::Deref for MutexGuard<'_, T> {
 #[cfg(debug_assertions)]
 #[cfg(feature = "multi_threaded")]
 impl<T> std::ops::DerefMut for MutexGuard<'_, T> {
+    #[inline(always)]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
