@@ -3,7 +3,7 @@
 mod shader_emitter;
 
 #[cfg(target_arch = "wasm32")]
-use wasm_bindgen::JsValue;
+use wasm_bindgen::{JsValue,JsCast};
 
 use egui::{
     emath::Rect,
@@ -15,8 +15,39 @@ use std::convert::TryInto;
 
 use glow::HasContext as _;
 
+use std::process::exit;
+
 const VERT_SRC: &str = include_str!("shader/vertex.glsl");
 const FRAG_SRC: &str = include_str!("shader/fragment.glsl");
+#[cfg(target_arch = "wasm32")]
+pub fn init_glow_context(canvas_id:&str)->glow::Context{
+    let canvas=web_sys::window()
+        .unwrap()
+        .document()
+        .unwrap()
+        .get_element_by_id(canvas_id)
+        .unwrap()
+        .dyn_into::<web_sys::HtmlCanvasElement>()
+        .unwrap();
+    if let Ok(ctx)=canvas.get_context("webgl2"){
+        glow_debug_print("webgl2 context selected");
+        let gl_ctx= ctx.unwrap()
+            .dyn_into::<web_sys::WebGl2RenderingContext>()
+            .unwrap();
+        glow::Context::from_webgl2_context(gl_ctx)
+    }else{
+        if let Ok(ctx)=canvas.get_context("webgl") {
+            glow_debug_print("webgl1 context selected");
+            let gl_ctx= ctx.unwrap()
+                .dyn_into::<web_sys::WebGlRenderingContext>()
+                .unwrap();
+            glow::Context::from_webgl1_context(gl_ctx)
+        }else{
+            glow_debug_print("can not get webgl context");
+            exit(1);
+        }
+    }
+}
 
 fn srgbtexture2d(gl: &glow::Context, data: &[u8], w: usize, h: usize) -> glow::Texture {
     assert_eq!(data.len(), w * h * 4);
@@ -179,20 +210,16 @@ impl Painter {
             gl.shader_source(v, &v_src);
             gl.compile_shader(v);
             if !gl.get_shader_compile_status(v) {
-                panic!(
-                    "Failed to compile vertex shader: {}",
-                    gl.get_shader_info_log(v)
-                );
+                glow_debug_print(format!("Failed to compile vertex shader: {}",gl.get_shader_info_log(v)));
+                exit(1);
             }
 
             let f = gl.create_shader(glow::FRAGMENT_SHADER).unwrap();
             gl.shader_source(f, &f_src);
             gl.compile_shader(f);
             if !gl.get_shader_compile_status(f) {
-                panic!(
-                    "Failed to compile fragment shader: {}",
-                    gl.get_shader_info_log(f)
-                );
+                glow_debug_print(format!("Failed to compile fragment shader: {}",gl.get_shader_info_log(f)));
+                exit(1);
             }
 
             let program = gl.create_program().unwrap();
@@ -200,7 +227,8 @@ impl Painter {
             gl.attach_shader(program, f);
             gl.link_program(program);
             if !gl.get_program_link_status(program) {
-                panic!("{}", gl.get_program_info_log(program));
+                glow_debug_print(format!("Failed to link shader: {}",gl.get_program_info_log(program)));
+                exit(1);
             }
             gl.detach_shader(program, v);
             gl.detach_shader(program, f);
@@ -250,8 +278,11 @@ impl Painter {
                 offset_of!(Vertex, color) as i32,
             );
             gl.enable_vertex_attrib_array(a_srgba_loc);
-            assert_eq!(gl.get_error(), glow::NO_ERROR, "OpenGL error occurred!");
-
+            //assert_eq!(gl.get_error(), glow::NO_ERROR, "OpenGL error occurred!");
+            if gl.get_error() !=glow::NO_ERROR{
+                glow_debug_print("OpenGL error occurred!");
+                exit(1);
+            }
             Painter {
                 program,
                 u_screen_size,
@@ -373,12 +404,11 @@ impl Painter {
         for egui::ClippedMesh(clip_rect, mesh) in clipped_meshes {
             self.paint_mesh(gl, size_in_pixels, pixels_per_point, clip_rect, &mesh)
         }
+        if glow::NO_ERROR != unsafe{gl.get_error()}{
+            glow_debug_print("GL error occurred!");
+            exit(1);
+        }
 
-        assert_eq!(
-            unsafe { gl.get_error() },
-            glow::NO_ERROR,
-            "OpenGL error occurred!"
-        );
     }
 
     #[inline(never)] // Easier profiling
@@ -390,8 +420,12 @@ impl Painter {
         clip_rect: Rect,
         mesh: &Mesh,
     ) {
-        debug_assert!(mesh.is_valid());
-
+       // debug_assert!(mesh.is_valid());
+        #[cfg(debug_assertions)]
+        if !mesh.is_valid(){
+            glow_debug_print("invalid mesh ");
+            exit(1);
+        }
         if let Some(texture) = self.get_texture(mesh.texture_id) {
             unsafe {
                 gl.buffer_data_u8_slice(
@@ -493,12 +527,10 @@ impl Painter {
         pixels: &[Color32],
     ) {
         self.assert_not_destroyed();
-
-        assert_eq!(
-            size.0 * size.1,
-            pixels.len(),
-            "Mismatch between texture size and texel count"
-        );
+        if size.0*size.1 != pixels.len(){
+            glow_debug_print("Mismatch between size and texel count");
+            exit(1);
+        }
 
         if let egui::TextureId::User(id) = id {
             if let Some(Some(user_texture)) = self.user_textures.get_mut(id as usize) {
@@ -588,7 +620,10 @@ impl Painter {
     /// that should be deleted.
     #[cfg(debug_assertions)]
     pub fn destroy(&mut self, gl: &glow::Context) {
-        debug_assert!(!self.destroyed, "Only destroy egui once!");
+        if self.destroyed{
+            glow_debug_print("Only destroy egui once!");
+            exit(1);
+        }
         unsafe {
             self.destroy_gl(gl);
         }

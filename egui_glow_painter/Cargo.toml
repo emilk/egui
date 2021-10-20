@@ -32,5 +32,5 @@ glutin = { version = "0.24", optional = true }
 sdl2 = { version = "0.34", optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-web-sys = { version = "0.3", features=["HtmlCanvasElement", "WebGl2RenderingContext", "Window","console"] }
+web-sys = { version = "0.3", features=["HtmlCanvasElement", "WebGl2RenderingContext","WebGlRenderingContext", "Window","console"] }
 wasm-bindgen = { version = "0.2" }
