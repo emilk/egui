@@ -5,6 +5,7 @@ members = [
     "egui_demo_lib",
     "egui_glium",
     "egui_glow",
+    "egui_glow_painter",
     "egui_web",
     "egui-winit",
     "egui",
