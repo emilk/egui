@@ -42,20 +42,20 @@ impl Painter {
         let program = program! {
             facade,
             120 => {
-                vertex: include_str!("shader/vertex_120.glsl"),
-                fragment: include_str!("shader/fragment_120.glsl"),
+                vertex: concat!("#version 120\n", include_str!("../../glsl/vertex.glsl")),
+                fragment: concat!("#version 120\n", include_str!("../../glsl/fragment.glsl")),
             },
             140 => {
-                vertex: include_str!("shader/vertex_140.glsl"),
-                fragment: include_str!("shader/fragment_140.glsl"),
+                vertex: concat!("#version 140\n", include_str!("../../glsl/vertex.glsl")),
+                fragment: concat!("#version 140\n", include_str!("../../glsl/fragment.glsl")),
             },
             100 es => {
-                vertex: include_str!("shader/vertex_100es.glsl"),
-                fragment: include_str!("shader/fragment_100es.glsl"),
+                vertex: concat!("#version 100\n", include_str!("../../glsl/vertex.glsl")),
+                fragment: concat!("#version 100\n", include_str!("../../glsl/fragment.glsl")),
             },
             300 es => {
-                vertex: include_str!("shader/vertex_300es.glsl"),
-                fragment: include_str!("shader/fragment_300es.glsl"),
+                vertex: concat!("#version 300 es\n", include_str!("../../glsl/vertex.glsl")),
+                fragment: concat!("#version 300 es\n", include_str!("../../glsl/fragment.glsl")),
             },
         }
         .expect("Failed to compile shader");

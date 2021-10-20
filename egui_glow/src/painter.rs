@@ -10,8 +10,8 @@ use std::convert::TryInto;
 
 use glow::HasContext as _;
 
-const VERT_SRC: &str = include_str!("shader/vertex.glsl");
-const FRAG_SRC: &str = include_str!("shader/fragment.glsl");
+const VERT_SRC: &str = include_str!("../../glsl/vertex.glsl");
+const FRAG_SRC: &str = include_str!("../../glsl/fragment.glsl");
 
 fn srgbtexture2d(gl: &glow::Context, data: &[u8], w: usize, h: usize) -> glow::NativeTexture {
     assert_eq!(data.len(), w * h * 4);
