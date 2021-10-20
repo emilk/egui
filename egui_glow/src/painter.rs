@@ -21,6 +21,9 @@ fn srgbtexture2d(gl: &glow::Context, data: &[u8], w: usize, h: usize) -> glow::N
         let tex = gl.create_texture().unwrap();
         gl.bind_texture(glow::TEXTURE_2D, Some(tex));
 
+        // The texture coordinates for text are so that both nearest and linear should work with the egui font texture.
+        // For user textures linear sampling is more likely to be the right choice.
+
         gl.tex_parameter_i32(
             glow::TEXTURE_2D,
             glow::TEXTURE_MAG_FILTER,
@@ -79,8 +82,7 @@ pub struct Painter {
 
     // Stores outdated OpenGL textures that are yet to be deleted
     old_textures: Vec<glow::NativeTexture>,
-    // Only in debug builds, to make sure we are destroyed correctly.
-    #[cfg(debug_assertions)]
+    // Only used in debug builds, to make sure we are destroyed correctly.
     destroyed: bool,
 }
 
@@ -165,42 +167,39 @@ fn test_shader_version() {
 impl Painter {
     pub fn new(gl: &glow::Context) -> Painter {
         let header = ShaderVersion::get(gl).version();
-        let mut v_src = header.to_owned();
-        v_src.push_str(VERT_SRC);
-        let mut f_src = header.to_owned();
-        f_src.push_str(FRAG_SRC);
+
         unsafe {
-            let v = gl.create_shader(glow::VERTEX_SHADER).unwrap();
-            gl.shader_source(v, &v_src);
-            gl.compile_shader(v);
-            if !gl.get_shader_compile_status(v) {
+            let vert = gl.create_shader(glow::VERTEX_SHADER).unwrap();
+            gl.shader_source(vert, &format!("{}\n{}", header, VERT_SRC));
+            gl.compile_shader(vert);
+            if !gl.get_shader_compile_status(vert) {
                 panic!(
                     "Failed to compile vertex shader: {}",
-                    gl.get_shader_info_log(v)
+                    gl.get_shader_info_log(vert)
                 );
             }
 
-            let f = gl.create_shader(glow::FRAGMENT_SHADER).unwrap();
-            gl.shader_source(f, &f_src);
-            gl.compile_shader(f);
-            if !gl.get_shader_compile_status(f) {
+            let frag = gl.create_shader(glow::FRAGMENT_SHADER).unwrap();
+            gl.shader_source(frag, &format!("{}\n{}", header, FRAG_SRC));
+            gl.compile_shader(frag);
+            if !gl.get_shader_compile_status(frag) {
                 panic!(
                     "Failed to compile fragment shader: {}",
-                    gl.get_shader_info_log(f)
+                    gl.get_shader_info_log(frag)
                 );
             }
 
             let program = gl.create_program().unwrap();
-            gl.attach_shader(program, v);
-            gl.attach_shader(program, f);
+            gl.attach_shader(program, vert);
+            gl.attach_shader(program, frag);
             gl.link_program(program);
             if !gl.get_program_link_status(program) {
                 panic!("{}", gl.get_program_info_log(program));
             }
-            gl.detach_shader(program, v);
-            gl.detach_shader(program, f);
-            gl.delete_shader(v);
-            gl.delete_shader(f);
+            gl.detach_shader(program, vert);
+            gl.detach_shader(program, frag);
+            gl.delete_shader(vert);
+            gl.delete_shader(frag);
 
             let u_screen_size = gl.get_uniform_location(program, "u_screen_size").unwrap();
             let u_sampler = gl.get_uniform_location(program, "u_sampler").unwrap();
@@ -258,7 +257,6 @@ impl Painter {
                 vertex_buffer,
                 element_array_buffer,
                 old_textures: Vec::new(),
-                #[cfg(debug_assertions)]
                 destroyed: false,
             }
         }
@@ -295,7 +293,7 @@ impl Painter {
         pixels_per_point: f32,
     ) -> (u32, u32) {
         gl.enable(glow::SCISSOR_TEST);
-        // egui outputs mesh in both winding orders:
+        // egui outputs mesh in both winding orders
         gl.disable(glow::CULL_FACE);
 
         gl.enable(glow::BLEND);
@@ -321,8 +319,6 @@ impl Painter {
 
         gl.use_program(Some(self.program));
 
-        // The texture coordinates for text are so that both nearest and linear should work with the egui font texture.
-        // For user textures linear sampling is more likely to be the right choice.
         gl.uniform_2_f32(Some(&self.u_screen_size), width_in_points, height_in_points);
         gl.uniform_1_i32(Some(&self.u_sampler), 0);
         gl.active_texture(glow::TEXTURE0);
@@ -406,6 +402,7 @@ impl Painter {
 
                 gl.bind_texture(glow::TEXTURE_2D, Some(texture));
             }
+
             // Transform clip rect to physical pixels:
             let clip_min_x = pixels_per_point * clip_rect.min.x;
             let clip_min_y = pixels_per_point * clip_rect.min.y;
@@ -584,39 +581,29 @@ impl Painter {
 
     /// This function must be called before Painter is dropped, as Painter has some OpenGL objects
     /// that should be deleted.
-    #[cfg(debug_assertions)]
     pub fn destroy(&mut self, gl: &glow::Context) {
-        debug_assert!(!self.destroyed, "Only destroy egui once!");
+        debug_assert!(!self.destroyed, "Only destroy the egui glow painter once!");
+
         unsafe {
             self.destroy_gl(gl);
         }
+
         self.destroyed = true;
     }
 
-    #[cfg(not(debug_assertions))]
-    pub fn destroy(&self, gl: &glow::Context) {
-        unsafe {
-            self.destroy_gl(gl);
-        }
-    }
-
-    #[cfg(debug_assertions)]
     fn assert_not_destroyed(&self) {
-        assert!(!self.destroyed, "egui has already been destroyed!");
+        debug_assert!(
+            !self.destroyed,
+            "the egui glow painter has already been destroyed!"
+        );
     }
-
-    #[inline(always)]
-    #[cfg(not(debug_assertions))]
-    #[allow(clippy::unused_self)]
-    fn assert_not_destroyed(&self) {}
 }
 
 impl Drop for Painter {
     fn drop(&mut self) {
-        #[cfg(debug_assertions)]
-        assert!(
+        debug_assert!(
             self.destroyed,
-            "Make sure to destroy() rather than dropping, to avoid leaking OpenGL objects!"
+            "Make sure to call destroy() before dropping to avoid leaking OpenGL objects!"
         );
     }
 }

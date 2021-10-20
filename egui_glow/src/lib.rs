@@ -188,13 +188,7 @@ impl EguiGlow {
         );
     }
 
-    #[cfg(debug_assertions)]
     pub fn destroy(&mut self, gl: &glow::Context) {
-        self.painter.destroy(gl)
-    }
-
-    #[cfg(not(debug_assertions))]
-    pub fn destroy(&self, gl: &glow::Context) {
         self.painter.destroy(gl)
     }
 }
