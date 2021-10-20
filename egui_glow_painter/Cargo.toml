@@ -23,7 +23,7 @@ all-features = true
 
 [dependencies]
 egui = { version = "0.14.0", path = "../egui", default-features = false, features = ["single_threaded"] }
-epi = { version = "0.14.0", path = "../epi", optional = true }
+epi = { version = "0.14.0", path = "../epi"}
 glow = "0.11"
 memoffset = "0.6"
 

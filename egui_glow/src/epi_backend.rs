@@ -1,24 +1,5 @@
 use crate::*;
-use egui::Color32;
-#[cfg(target_os = "windows")]
-use glutin::platform::windows::WindowBuilderExtWindows;
 use std::time::Instant;
-
-impl epi::TextureAllocator for Painter {
-    fn alloc_srgba_premultiplied(
-        &mut self,
-        size: (usize, usize),
-        srgba_pixels: &[Color32],
-    ) -> egui::TextureId {
-        let id = self.alloc_user_texture();
-        self.set_user_texture(id, size, srgba_pixels);
-        id
-    }
-
-    fn free(&mut self, id: egui::TextureId) {
-        self.free_user_texture(id)
-    }
-}
 
 struct RequestRepaintEvent;
 

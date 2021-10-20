@@ -3,7 +3,7 @@
 mod shader_emitter;
 
 #[cfg(target_arch = "wasm32")]
-use wasm_bindgen::{JsValue,JsCast};
+use wasm_bindgen::{JsCast, JsValue};
 
 use egui::{
     emath::Rect,
@@ -20,8 +20,8 @@ use std::process::exit;
 const VERT_SRC: &str = include_str!("shader/vertex.glsl");
 const FRAG_SRC: &str = include_str!("shader/fragment.glsl");
 #[cfg(target_arch = "wasm32")]
-pub fn init_glow_context(canvas_id:&str)->glow::Context{
-    let canvas=web_sys::window()
+pub fn init_glow_context(canvas_id: &str) -> glow::Context {
+    let canvas = web_sys::window()
         .unwrap()
         .document()
         .unwrap()
@@ -29,20 +29,22 @@ pub fn init_glow_context(canvas_id:&str)->glow::Context{
         .unwrap()
         .dyn_into::<web_sys::HtmlCanvasElement>()
         .unwrap();
-    if let Ok(ctx)=canvas.get_context("webgl2"){
+    if let Ok(ctx) = canvas.get_context("webgl2") {
         glow_debug_print("webgl2 context selected");
-        let gl_ctx= ctx.unwrap()
+        let gl_ctx = ctx
+            .unwrap()
             .dyn_into::<web_sys::WebGl2RenderingContext>()
             .unwrap();
         glow::Context::from_webgl2_context(gl_ctx)
-    }else{
-        if let Ok(ctx)=canvas.get_context("webgl") {
+    } else {
+        if let Ok(ctx) = canvas.get_context("webgl") {
             glow_debug_print("webgl1 context selected");
-            let gl_ctx= ctx.unwrap()
+            let gl_ctx = ctx
+                .unwrap()
                 .dyn_into::<web_sys::WebGlRenderingContext>()
                 .unwrap();
             glow::Context::from_webgl1_context(gl_ctx)
-        }else{
+        } else {
             glow_debug_print("can not get webgl context");
             exit(1);
         }
@@ -210,7 +212,10 @@ impl Painter {
             gl.shader_source(v, &v_src);
             gl.compile_shader(v);
             if !gl.get_shader_compile_status(v) {
-                glow_debug_print(format!("Failed to compile vertex shader: {}",gl.get_shader_info_log(v)));
+                glow_debug_print(format!(
+                    "Failed to compile vertex shader: {}",
+                    gl.get_shader_info_log(v)
+                ));
                 exit(1);
             }
 
@@ -218,7 +223,10 @@ impl Painter {
             gl.shader_source(f, &f_src);
             gl.compile_shader(f);
             if !gl.get_shader_compile_status(f) {
-                glow_debug_print(format!("Failed to compile fragment shader: {}",gl.get_shader_info_log(f)));
+                glow_debug_print(format!(
+                    "Failed to compile fragment shader: {}",
+                    gl.get_shader_info_log(f)
+                ));
                 exit(1);
             }
 
@@ -227,7 +235,10 @@ impl Painter {
             gl.attach_shader(program, f);
             gl.link_program(program);
             if !gl.get_program_link_status(program) {
-                glow_debug_print(format!("Failed to link shader: {}",gl.get_program_info_log(program)));
+                glow_debug_print(format!(
+                    "Failed to link shader: {}",
+                    gl.get_program_info_log(program)
+                ));
                 exit(1);
             }
             gl.detach_shader(program, v);
@@ -279,7 +290,7 @@ impl Painter {
             );
             gl.enable_vertex_attrib_array(a_srgba_loc);
             //assert_eq!(gl.get_error(), glow::NO_ERROR, "OpenGL error occurred!");
-            if gl.get_error() !=glow::NO_ERROR{
+            if gl.get_error() != glow::NO_ERROR {
                 glow_debug_print("OpenGL error occurred!");
                 exit(1);
             }
@@ -326,7 +337,7 @@ impl Painter {
 
     unsafe fn prepare_painting(
         &mut self,
-        inner_size:[u32;2],
+        inner_size: [u32; 2],
         gl: &glow::Context,
         pixels_per_point: f32,
     ) -> (u32, u32) {
@@ -346,7 +357,7 @@ impl Painter {
             glow::ONE,
         );
 
-        let [width_in_pixels,height_in_pixels]= inner_size;
+        let [width_in_pixels, height_in_pixels] = inner_size;
         let width_in_points = width_in_pixels as f32 / pixels_per_point;
         let height_in_points = height_in_pixels as f32 / pixels_per_point;
 
@@ -389,7 +400,7 @@ impl Painter {
     /// of the effects your program might have on this code. Look at the source if in doubt.
     pub fn paint_meshes(
         &mut self,
-        inner_size:[u32;2],
+        inner_size: [u32; 2],
         gl: &glow::Context,
         pixels_per_point: f32,
         clipped_meshes: Vec<egui::ClippedMesh>,
@@ -404,11 +415,10 @@ impl Painter {
         for egui::ClippedMesh(clip_rect, mesh) in clipped_meshes {
             self.paint_mesh(gl, size_in_pixels, pixels_per_point, clip_rect, &mesh)
         }
-        if glow::NO_ERROR != unsafe{gl.get_error()}{
+        if glow::NO_ERROR != unsafe { gl.get_error() } {
             glow_debug_print("GL error occurred!");
             exit(1);
         }
-
     }
 
     #[inline(never)] // Easier profiling
@@ -420,9 +430,9 @@ impl Painter {
         clip_rect: Rect,
         mesh: &Mesh,
     ) {
-       // debug_assert!(mesh.is_valid());
+        // debug_assert!(mesh.is_valid());
         #[cfg(debug_assertions)]
-        if !mesh.is_valid(){
+        if !mesh.is_valid() {
             glow_debug_print("invalid mesh ");
             exit(1);
         }
@@ -527,7 +537,7 @@ impl Painter {
         pixels: &[Color32],
     ) {
         self.assert_not_destroyed();
-        if size.0*size.1 != pixels.len(){
+        if size.0 * size.1 != pixels.len() {
             glow_debug_print("Mismatch between size and texel count");
             exit(1);
         }
@@ -620,7 +630,7 @@ impl Painter {
     /// that should be deleted.
     #[cfg(debug_assertions)]
     pub fn destroy(&mut self, gl: &glow::Context) {
-        if self.destroyed{
+        if self.destroyed {
             glow_debug_print("Only destroy egui once!");
             exit(1);
         }
@@ -664,4 +674,19 @@ fn glow_debug_print(s: impl Into<JsValue>) {
 #[cfg(not(target_arch = "wasm32"))]
 fn glow_debug_print(s: impl std::fmt::Display) {
     println!("{}", s)
+}
+impl epi::TextureAllocator for crate::Painter {
+    fn alloc_srgba_premultiplied(
+        &mut self,
+        size: (usize, usize),
+        srgba_pixels: &[Color32],
+    ) -> egui::TextureId {
+        let id = self.alloc_user_texture();
+        self.set_user_texture(id, size, srgba_pixels);
+        id
+    }
+
+    fn free(&mut self, id: egui::TextureId) {
+        self.free_user_texture(id)
+    }
 }

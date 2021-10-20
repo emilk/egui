@@ -76,9 +76,6 @@
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
 
-mod painter;
-pub use painter::Painter;
-
 #[cfg(feature = "epi")]
 mod epi_backend;
 #[cfg(feature = "epi")]
@@ -92,7 +89,7 @@ pub use egui_winit;
 pub struct EguiGlow {
     egui_ctx: egui::CtxRef,
     egui_winit: egui_winit::State,
-    painter: crate::Painter,
+    painter: egui_glow_painter::Painter,
 }
 
 impl EguiGlow {
@@ -103,7 +100,7 @@ impl EguiGlow {
         Self {
             egui_ctx: Default::default(),
             egui_winit: egui_winit::State::new(gl_window.window()),
-            painter: crate::Painter::new(gl),
+            painter: egui_glow_painter::Painter::new(gl),
         }
     }
 
@@ -111,11 +108,11 @@ impl EguiGlow {
         &self.egui_ctx
     }
 
-    pub fn painter_mut(&mut self) -> &mut crate::Painter {
+    pub fn painter_mut(&mut self) -> &mut egui_glow_painter::Painter {
         &mut self.painter
     }
 
-    pub fn ctx_and_painter_mut(&mut self) -> (&egui::CtxRef, &mut crate::Painter) {
+    pub fn ctx_and_painter_mut(&mut self) -> (&egui::CtxRef, &mut egui_glow_painter::Painter) {
         (&self.egui_ctx, &mut self.painter)
     }
 
@@ -179,8 +176,9 @@ impl EguiGlow {
         shapes: Vec<egui::epaint::ClippedShape>,
     ) {
         let clipped_meshes = self.egui_ctx.tessellate(shapes);
+        let dimension = gl_window.window().inner_size().into();
         self.painter.paint_meshes(
-            gl_window,
+            dimension,
             gl,
             self.egui_ctx.pixels_per_point(),
             clipped_meshes,
