@@ -642,7 +642,11 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             if let Some(data) = event.clipboard_data() {
                 if let Ok(text) = data.get_data("text") {
                     let mut runner_lock = runner_ref.0.lock();
-                    runner_lock.input.raw.events.push(egui::Event::Text(text));
+                    runner_lock
+                        .input
+                        .raw
+                        .events
+                        .push(egui::Event::Text(text.replace("\r\n", "\n")));
                     runner_lock.needs_repaint.set_true();
                     event.stop_propagation();
                     event.prevent_default();
