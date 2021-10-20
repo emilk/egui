@@ -279,6 +279,11 @@ impl<'a> Frame<'a> {
         self.0.output.window_size = Some(size);
     }
 
+    /// Set the desired title of the window.
+    pub fn set_window_title(&mut self, title: &str) {
+        self.0.output.window_title = Some(title.to_owned());
+    }
+
     /// Set whether to show window decorations (i.e. a frame around you app).
     /// If false it will be difficult to move and resize the app.
     pub fn set_decorations(&mut self, decorated: bool) {
@@ -439,7 +444,7 @@ pub mod backend {
     }
 
     /// Action that can be taken by the user app.
-    #[derive(Clone, Copy, Debug, Default, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct AppOutput {
         /// Set to `true` to stop the app.
         /// This does nothing for web apps.
@@ -447,6 +452,9 @@ pub mod backend {
 
         /// Set to some size to resize the outer window (e.g. glium window) to this size.
         pub window_size: Option<egui::Vec2>,
+
+        /// Set to some string to rename the outer window (e.g. glium window) to this title.
+        pub window_title: Option<String>,
 
         /// Set to some bool to change window decorations
         pub decorated: Option<bool>,
