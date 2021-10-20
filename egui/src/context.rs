@@ -480,6 +480,10 @@ impl Context {
     /// Note that this may be overwritten by input from the integration via [`RawInput::pixels_per_point`].
     /// For instance, when using `egui_web` the browsers native zoom level will always be used.
     pub fn set_pixels_per_point(&self, pixels_per_point: f32) {
+        if pixels_per_point != self.pixels_per_point() {
+            self.request_repaint();
+        }
+
         self.memory().new_pixels_per_point = Some(pixels_per_point);
     }
 
