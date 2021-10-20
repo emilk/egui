@@ -15,7 +15,7 @@ include = [
   "../LICENSE-MIT",
   "**/*.rs",
   "Cargo.toml",
-  "src/shader/*.glsl",
+  "../glsl/*.glsl",
 ]
 
 [package.metadata.docs.rs]
