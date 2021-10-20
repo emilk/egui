@@ -1,7 +1,3 @@
-use egui::TextStyle;
-
-use crate::syntax_highlighting::code_view_ui;
-
 #[derive(Debug)]
 pub struct CodeExample {
     name: String,
@@ -85,6 +81,8 @@ impl super::Demo for CodeExample {
 
 impl super::View for CodeExample {
     fn ui(&mut self, ui: &mut egui::Ui) {
+        use crate::syntax_highlighting::code_view_ui;
+
         code_view_ui(
             ui,
             r"
@@ -104,7 +102,7 @@ pub struct CodeExample {
 
         egui::ScrollArea::vertical().show(ui, |ui| {
             ui.horizontal(|ui| {
-                let indentation = 8.0 * ui.fonts()[TextStyle::Monospace].glyph_width(' ');
+                let indentation = 8.0 * ui.fonts()[egui::TextStyle::Monospace].glyph_width(' ');
                 let item_spacing = ui.spacing_mut().item_spacing;
                 ui.add_space(indentation - item_spacing.x);
 
@@ -137,7 +135,7 @@ pub struct CodeExample {
 
 fn show_code(ui: &mut egui::Ui, code: &str) {
     let code = remove_leading_indentation(code.trim_start_matches('\n'));
-    code_view_ui(ui, &code);
+    crate::syntax_highlighting::code_view_ui(ui, &code);
 }
 
 fn remove_leading_indentation(code: &str) -> String {
