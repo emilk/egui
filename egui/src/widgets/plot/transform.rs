@@ -143,7 +143,7 @@ impl ScreenTransform {
             bounds.make_x_symmetrical();
         };
         if y_centered {
-            bounds.make_y_symmetrical()
+            bounds.make_y_symmetrical();
         };
 
         Self {
