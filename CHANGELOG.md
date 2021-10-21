@@ -15,7 +15,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Add `ui.add_enabled_ui(bool, |ui| …)` to create a possibly disabled UI section.
 * Add feature `"serialize"` separatedly from `"persistence"`.
 * Add `egui::widgets::global_dark_light_mode_buttons` to easily add buttons for switching the egui theme.
-* `TextEdit` can now be used to show text which can be selectedd and copied, but not edited.
+* `TextEdit` can now be used to show text which can be selected and copied, but not edited.
 * Add `Memory::caches` for caching things from one frame to the next.
 
 ### Changed 🔧
