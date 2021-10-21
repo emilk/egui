@@ -2,7 +2,6 @@
 //! are sometimes painted behind or in front of other things.
 
 use crate::{Id, *};
-use epaint::ahash::AHashMap;
 use epaint::mutex::Mutex;
 use epaint::{ClippedShape, Shape};
 use std::sync::Arc;
@@ -129,7 +128,7 @@ impl PaintList {
 
     pub fn extend(&mut self, clip_rect: Rect, mut shapes: Vec<Shape>) {
         self.0
-            .extend(shapes.drain(..).map(|shape| ClippedShape(clip_rect, shape)))
+            .extend(shapes.drain(..).map(|shape| ClippedShape(clip_rect, shape)));
     }
 
     /// Modify an existing [`Shape`].
@@ -154,7 +153,7 @@ impl PaintList {
 }
 
 #[derive(Clone, Default)]
-pub(crate) struct GraphicLayers([AHashMap<Id, Arc<Mutex<PaintList>>>; Order::COUNT]);
+pub(crate) struct GraphicLayers([IdMap<Arc<Mutex<PaintList>>>; Order::COUNT]);
 
 impl GraphicLayers {
     pub fn list(&mut self, layer_id: LayerId) -> &Arc<Mutex<PaintList>> {

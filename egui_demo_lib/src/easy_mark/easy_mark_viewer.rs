@@ -3,7 +3,7 @@ use egui::*;
 
 /// Parse and display a VERY simple and small subset of Markdown.
 pub fn easy_mark(ui: &mut Ui, easy_mark: &str) {
-    easy_mark_it(ui, easy_mark::Parser::new(easy_mark))
+    easy_mark_it(ui, easy_mark::Parser::new(easy_mark));
 }
 
 pub fn easy_mark_it<'em>(ui: &mut Ui, items: impl Iterator<Item = easy_mark::Item<'em>>) {

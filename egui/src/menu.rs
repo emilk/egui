@@ -8,7 +8,7 @@
 //!     menu::bar(ui, |ui| {
 //!         menu::menu(ui, "File", |ui| {
 //!             if ui.button("Open").clicked() {
-//!                 // ...
+//!                 // …
 //!             }
 //!         });
 //!     });

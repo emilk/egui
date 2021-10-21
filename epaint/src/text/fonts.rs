@@ -137,12 +137,9 @@ impl Default for FontDefinitions {
 
         #[cfg(feature = "default_fonts")]
         {
-            // TODO: figure out a way to make the WASM smaller despite including fonts. Zip them?
-
-            // Use size 13 for this. NOTHING ELSE:
             font_data.insert(
-                "ProggyClean".to_owned(),
-                std::borrow::Cow::Borrowed(include_bytes!("../../fonts/ProggyClean.ttf")),
+                "Hack".to_owned(),
+                std::borrow::Cow::Borrowed(include_bytes!("../../fonts/Hack-Regular.ttf")),
             );
             font_data.insert(
                 "Ubuntu-Light".to_owned(),
@@ -163,7 +160,7 @@ impl Default for FontDefinitions {
             fonts_for_family.insert(
                 FontFamily::Monospace,
                 vec![
-                    "ProggyClean".to_owned(),
+                    "Hack".to_owned(),
                     "Ubuntu-Light".to_owned(), // fallback for √ etc
                     "NotoEmoji-Regular".to_owned(),
                     "emoji-icon-font".to_owned(),
@@ -190,7 +187,7 @@ impl Default for FontDefinitions {
         family_and_size.insert(TextStyle::Body, (FontFamily::Proportional, 14.0));
         family_and_size.insert(TextStyle::Button, (FontFamily::Proportional, 14.0));
         family_and_size.insert(TextStyle::Heading, (FontFamily::Proportional, 20.0));
-        family_and_size.insert(TextStyle::Monospace, (FontFamily::Monospace, 13.0)); // 13 for `ProggyClean`
+        family_and_size.insert(TextStyle::Monospace, (FontFamily::Monospace, 14.0));
 
         Self {
             font_data,
@@ -201,6 +198,8 @@ impl Default for FontDefinitions {
 }
 
 /// The collection of fonts used by `epaint`.
+///
+/// Required in order to paint text.
 pub struct Fonts {
     pixels_per_point: f32,
     definitions: FontDefinitions,
@@ -214,6 +213,8 @@ pub struct Fonts {
 }
 
 impl Fonts {
+    /// Create a new [`Fonts`] for text layout.
+    /// This call is expensive, so only create on [`Fonts`] and then reuse it.
     pub fn new(pixels_per_point: f32, definitions: FontDefinitions) -> Self {
         assert!(
             0.0 < pixels_per_point && pixels_per_point < 100.0,
@@ -405,7 +406,7 @@ struct GalleyCache {
 
 impl GalleyCache {
     fn layout(&mut self, fonts: &Fonts, job: LayoutJob) -> Arc<Galley> {
-        let hash = crate::util::hash_with(&job, ahash::AHasher::new_with_keys(123, 456)); // TODO: even faster hasher?
+        let hash = crate::util::hash(&job); // TODO: even faster hasher?
 
         match self.cache.entry(hash) {
             std::collections::hash_map::Entry::Occupied(entry) => {

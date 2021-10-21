@@ -71,7 +71,7 @@ impl<'a> Slider<'a> {
         let range_f64 = range.start().to_f64()..=range.end().to_f64();
         let slf = Self::from_get_set(range_f64, move |v: Option<f64>| {
             if let Some(v) = v {
-                *value = Num::from_f64(v)
+                *value = Num::from_f64(v);
             }
             value.to_f64()
         });
@@ -95,7 +95,7 @@ impl<'a> Slider<'a> {
                 smallest_positive: 1e-6,
                 largest_finite: f64::INFINITY,
             },
-            clamp_to_range: false,
+            clamp_to_range: true,
             smart_aim: true,
             show_value: true,
             prefix: Default::default(),
@@ -163,7 +163,7 @@ impl<'a> Slider<'a> {
     }
 
     /// If set to `true`, all incoming and outgoing values will be clamped to the slider range.
-    /// Default: `false`.
+    /// Default: `true`.
     pub fn clamp_to_range(mut self, clamp_to_range: bool) -> Self {
         self.clamp_to_range = clamp_to_range;
         self

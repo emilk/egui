@@ -207,12 +207,19 @@ impl Ui {
     /// If `false`, the `Ui` does not allow any interaction and
     /// the widgets in it will draw with a gray look.
     #[inline(always)]
+    pub fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+
+    #[deprecated = "Renamed to is_enabled"]
     pub fn enabled(&self) -> bool {
         self.enabled
     }
 
     /// Calling `set_enabled(false)` will cause the `Ui` to deny all future interaction
     /// and all the widgets will draw with a gray look.
+    ///
+    /// Usually it is more convenient to use [`Self::add_enabled_ui`] or [`Self::add_enabled`].
     ///
     /// Calling `set_enabled(true)` has no effect - it will NOT re-enable the `Ui` once disabled.
     ///
@@ -374,7 +381,7 @@ impl Ui {
 
     /// Used for animation, kind of hacky
     pub(crate) fn force_set_min_rect(&mut self, min_rect: Rect) {
-        self.placer.force_set_min_rect(min_rect)
+        self.placer.force_set_min_rect(min_rect);
     }
 
     // ------------------------------------------------------------------------
@@ -425,13 +432,13 @@ impl Ui {
     /// so further widgets will try not to be wider than previous widgets.
     /// Useful for normal vertical layouts.
     pub fn shrink_width_to_current(&mut self) {
-        self.set_max_width(self.min_rect().width())
+        self.set_max_width(self.min_rect().width());
     }
 
     /// Helper: shrinks the max height to the current height,
     /// so further widgets will try not to be wider than previous widgets.
     pub fn shrink_height_to_current(&mut self) {
-        self.set_max_height(self.min_rect().height())
+        self.set_max_height(self.min_rect().height());
     }
 
     /// Expand the `min_rect` and `max_rect` of this ui to include a child at the given rect.
@@ -734,7 +741,7 @@ impl Ui {
     }
 
     pub(crate) fn set_cursor(&mut self, cursor: Rect) {
-        self.placer.set_cursor(cursor)
+        self.placer.set_cursor(cursor);
     }
 
     /// Where do we expect a zero-sized widget to be placed?
@@ -926,6 +933,59 @@ impl Ui {
         .inner
     }
 
+    /// Add a  single[`Widget`] that is possibly disabled, i.e. greyed out and non-interactive.
+    ///
+    /// If you call `add_enabled` from within an already disabled UI,
+    /// the widget will always be disabled, even if the `enabled` argument is true.
+    ///
+    /// See also [`Self::add_enabled_ui`] and [`Self::is_enabled`].
+    ///
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// ui.add_enabled(false, egui::Button::new("Can't click this"));
+    /// ```
+    pub fn add_enabled(&mut self, enabled: bool, widget: impl Widget) -> Response {
+        if enabled || !self.is_enabled() {
+            self.add(widget)
+        } else {
+            let old_painter = self.painter.clone();
+            self.set_enabled(false);
+            let response = self.add(widget);
+            self.enabled = true;
+            self.painter = old_painter;
+            response
+        }
+    }
+
+    /// Add a section that is possibly disabled, i.e. greyed out and non-interactive.
+    ///
+    /// If you call `add_enabled_ui` from within an already disabled UI,
+    /// the result will always be disabled, even if the `enabled` argument is true.
+    ///
+    /// See also [`Self::add_enabled`] and [`Self::is_enabled`].
+    ///
+    /// ### Example
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// # let mut enabled = true;
+    /// ui.checkbox(&mut enabled, "Enable subsection");
+    /// ui.add_enabled_ui(enabled, |ui| {
+    ///     if ui.button("Button that is not always clickable").clicked() {
+    ///         /* … */
+    ///     }
+    /// });
+    /// ```
+    pub fn add_enabled_ui<R>(
+        &mut self,
+        enabled: bool,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
+        self.scope(|ui| {
+            ui.set_enabled(enabled);
+            add_contents(ui)
+        })
+    }
+
     /// Add extra space before the next widget.
     ///
     /// The direction is dependent on the layout.
@@ -937,43 +997,56 @@ impl Ui {
         self.placer.advance_cursor(amount);
     }
 
+    /// Show some text.
+    ///
     /// Shortcut for `add(Label::new(text))`
     ///
     /// See also [`Label`].
     #[inline(always)]
-    pub fn label(&mut self, label: impl Into<Label>) -> Response {
-        label.into().ui(self)
+    pub fn label(&mut self, text: impl ToString) -> Response {
+        Label::new(text).ui(self)
     }
 
+    /// Show colored text.
+    ///
     /// Shortcut for `add(Label::new(text).text_color(color))`
-    pub fn colored_label(
-        &mut self,
-        color: impl Into<Color32>,
-        label: impl Into<Label>,
-    ) -> Response {
-        label.into().text_color(color).ui(self)
+    pub fn colored_label(&mut self, color: impl Into<Color32>, text: impl ToString) -> Response {
+        Label::new(text).text_color(color).ui(self)
     }
 
+    /// Show large text.
+    ///
     /// Shortcut for `add(Label::new(text).heading())`
-    pub fn heading(&mut self, label: impl Into<Label>) -> Response {
-        label.into().heading().ui(self)
+    pub fn heading(&mut self, text: impl ToString) -> Response {
+        Label::new(text).heading().ui(self)
     }
 
+    /// Show monospace (fixed width) text.
+    ///
     /// Shortcut for `add(Label::new(text).monospace())`
-    pub fn monospace(&mut self, label: impl Into<Label>) -> Response {
-        label.into().monospace().ui(self)
+    pub fn monospace(&mut self, text: impl ToString) -> Response {
+        Label::new(text).monospace().ui(self)
     }
 
     /// Show text as monospace with a gray background.
     ///
     /// Shortcut for `add(Label::new(text).code())`
-    pub fn code(&mut self, label: impl Into<Label>) -> Response {
-        label.into().code().ui(self)
+    pub fn code(&mut self, text: impl ToString) -> Response {
+        Label::new(text).code().ui(self)
     }
 
+    /// Show small text.
+    ///
     /// Shortcut for `add(Label::new(text).small())`
-    pub fn small(&mut self, label: impl Into<Label>) -> Response {
-        label.into().small().ui(self)
+    pub fn small(&mut self, text: impl ToString) -> Response {
+        Label::new(text).small().ui(self)
+    }
+
+    /// Show text that stand out a bit (e.g. slightly brighter).
+    ///
+    /// Shortcut for `add(Label::new(text).strong())`
+    pub fn strong(&mut self, text: impl ToString) -> Response {
+        Label::new(text).strong().ui(self)
     }
 
     /// Shortcut for `add(Hyperlink::new(url))`

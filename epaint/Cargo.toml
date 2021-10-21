@@ -30,6 +30,7 @@ emath = { version = "0.14.0", path = "../emath" }
 ab_glyph = "0.2.11"
 ahash = { version = "0.7", features = ["std"], default-features = false }
 atomic_refcell = { version = "0.1", optional = true } # Used instead of parking_lot when you are always using epaint in a single thread. About as fast as parking_lot. Panics on multi-threaded use.
+bytemuck = { version = "1.7.2", features = ["derive"], optional = true }
 cint = { version = "^0.2.2", optional = true }
 nohash-hasher = "0.2"
 parking_lot = { version = "0.11", optional = true } # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
@@ -37,6 +38,9 @@ serde = { version = "1", features = ["derive"], optional = true }
 
 [features]
 default = ["default_fonts", "multi_threaded"]
+
+# implement bytemuck on most types.
+convert_bytemuck = ["bytemuck", "emath/bytemuck"]
 
 # If set, epaint will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
@@ -51,7 +55,7 @@ extra_asserts = ["emath/extra_asserts"]
 mint = ["emath/mint"]
 
 # implement serde on most types.
-serialize = ["serde", "emath/serde"]
+serialize = ["serde", "ahash/serde", "emath/serde"]
 
 single_threaded = ["atomic_refcell"]
 

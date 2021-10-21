@@ -210,12 +210,12 @@ impl Response {
 
     /// Request that this widget get keyboard focus.
     pub fn request_focus(&self) {
-        self.ctx.memory().request_focus(self.id)
+        self.ctx.memory().request_focus(self.id);
     }
 
     /// Surrender keyboard focus for this widget.
     pub fn surrender_focus(&self) {
-        self.ctx.memory().surrender_focus(self.id)
+        self.ctx.memory().surrender_focus(self.id);
     }
 
     /// The widgets is being dragged.
@@ -408,7 +408,7 @@ impl Response {
     /// Check for more interactions (e.g. sense clicks on a `Response` returned from a label).
     ///
     /// Note that this call will not add any hover-effects to the widget, so when possible
-    /// it is better to give the widget a `Sense` instead, e.g. using `[Label::sense]`.
+    /// it is better to give the widget a `Sense` instead, e.g. using [`crate::Label::sense`].
     ///
     /// ```
     /// # let mut ui = egui::Ui::__test();

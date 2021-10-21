@@ -11,6 +11,7 @@
     clippy::checked_conversions,
     clippy::dbg_macro,
     clippy::debug_assert_with_mut_call,
+    clippy::disallowed_method,
     clippy::doc_markdown,
     clippy::empty_enum,
     clippy::enum_glob_use,
@@ -20,12 +21,17 @@
     clippy::explicit_into_iter_loop,
     clippy::fallible_impl_from,
     clippy::filter_map_next,
+    clippy::flat_map_option,
     clippy::float_cmp_const,
     clippy::fn_params_excessive_bools,
+    clippy::from_iter_instead_of_collect,
     clippy::if_let_mutex,
+    clippy::implicit_clone,
     clippy::imprecise_flops,
     clippy::inefficient_to_string,
     clippy::invalid_upcast_comparisons,
+    clippy::large_digit_groups,
+    clippy::large_stack_arrays,
     clippy::large_types_passed_by_value,
     clippy::let_unit_value,
     clippy::linkedlist,
@@ -34,8 +40,10 @@
     clippy::manual_ok_or,
     clippy::map_err_ignore,
     clippy::map_flatten,
+    clippy::map_unwrap_or,
     clippy::match_on_vec_items,
     clippy::match_same_arms,
+    clippy::match_wild_err_arm,
     clippy::match_wildcard_for_single_variants,
     clippy::mem_forget,
     clippy::mismatched_target_os,
@@ -45,6 +53,7 @@
     clippy::mutex_integer,
     clippy::needless_borrow,
     clippy::needless_continue,
+    clippy::needless_for_each,
     clippy::needless_pass_by_value,
     clippy::option_option,
     clippy::path_buf_push_overwrite,
@@ -52,6 +61,8 @@
     clippy::ref_option_ref,
     clippy::rest_pat_in_fully_bound_structs,
     clippy::same_functions_in_if_condition,
+    clippy::semicolon_if_nothing_returned,
+    clippy::single_match_else,
     clippy::string_add_assign,
     clippy::string_add,
     clippy::string_lit_as_bytes,
@@ -78,6 +89,9 @@ pub mod clipboard;
 pub mod screen_reader;
 mod window_settings;
 
+#[cfg(feature = "epi")]
+pub mod epi;
+
 pub use window_settings::WindowSettings;
 
 pub fn native_pixels_per_point(window: &winit::window::Window) -> f32 {
@@ -85,8 +99,6 @@ pub fn native_pixels_per_point(window: &winit::window::Window) -> f32 {
 }
 
 pub fn screen_size_in_pixels(window: &winit::window::Window) -> egui::Vec2 {
-    // let (width_in_pixels, height_in_pixels) = display.get_framebuffer_dimensions();
-    // egui::vec2(width_in_pixels as f32, height_in_pixels as f32)
     let size = window.inner_size();
     egui::vec2(size.width as f32, size.height as f32)
 }
@@ -106,7 +118,14 @@ pub struct State {
 
     /// If `true`, mouse inputs will be treated as touches.
     /// Useful for debugging touch support in egui.
+    ///
+    /// Creates duplicate touches, if real touch inputs are coming.
     simulate_touch_screen: bool,
+
+    /// Is Some(…) when a touch is being translated to a pointer.
+    ///
+    /// Only one touch will be interpreted as pointer at any time.
+    pointer_touch_id: Option<u64>,
 }
 
 impl State {
@@ -132,6 +151,7 @@ impl State {
             screen_reader: screen_reader::ScreenReader::default(),
 
             simulate_touch_screen: false,
+            pointer_touch_id: None,
         }
     }
 
@@ -225,10 +245,12 @@ impl State {
                 }
             }
             WindowEvent::ReceivedCharacter(ch) => {
-                if is_printable_char(*ch)
-                    && !self.egui_input.modifiers.ctrl
-                    && !self.egui_input.modifiers.mac_cmd
-                {
+                // On Mac we get here when the user presses Cmd-C (copy), ctrl-W, etc.
+                // We need to ignore these characters that are side-effects of commands.
+                let is_mac_cmd = cfg!(target_os = "macos")
+                    && (self.egui_input.modifiers.ctrl || self.egui_input.modifiers.mac_cmd);
+
+                if is_printable_char(*ch) && !is_mac_cmd {
                     self.egui_input
                         .events
                         .push(egui::Event::Text(ch.to_string()));
@@ -348,6 +370,7 @@ impl State {
     }
 
     fn on_touch(&mut self, touch: &winit::event::Touch) {
+        // Emit touch event
         self.egui_input.events.push(egui::Event::Touch {
             device_id: egui::TouchDeviceId(egui::epaint::util::hash(touch.device_id)),
             id: egui::TouchId::from(touch.id),
@@ -371,6 +394,41 @@ impl State {
                 None => 0_f32,
             },
         });
+        // If we're not yet tanslating a touch or we're translating this very
+        // touch …
+        if self.pointer_touch_id.is_none() || self.pointer_touch_id.unwrap() == touch.id {
+            // … emit PointerButton resp. PointerMoved events to emulate mouse
+            match touch.phase {
+                winit::event::TouchPhase::Started => {
+                    self.pointer_touch_id = Some(touch.id);
+                    // First move the pointer to the right location
+                    self.on_cursor_moved(touch.location);
+                    self.on_mouse_button_input(
+                        winit::event::ElementState::Pressed,
+                        winit::event::MouseButton::Left,
+                    );
+                }
+                winit::event::TouchPhase::Moved => {
+                    self.on_cursor_moved(touch.location);
+                }
+                winit::event::TouchPhase::Ended => {
+                    self.pointer_touch_id = None;
+                    self.on_mouse_button_input(
+                        winit::event::ElementState::Released,
+                        winit::event::MouseButton::Left,
+                    );
+                    // The pointer should vanish completely to not get any
+                    // hover effects
+                    self.pointer_pos_in_points = None;
+                    self.egui_input.events.push(egui::Event::PointerGone);
+                }
+                winit::event::TouchPhase::Cancelled => {
+                    self.pointer_touch_id = None;
+                    self.pointer_pos_in_points = None;
+                    self.egui_input.events.push(egui::Event::PointerGone);
+                }
+            }
+        }
     }
 
     fn on_mouse_wheel(&mut self, delta: winit::event::MouseScrollDelta) {
@@ -432,7 +490,9 @@ impl State {
                     self.egui_input.events.push(egui::Event::Copy);
                 } else if is_paste_command(self.egui_input.modifiers, keycode) {
                     if let Some(contents) = self.clipboard.get() {
-                        self.egui_input.events.push(egui::Event::Text(contents));
+                        self.egui_input
+                            .events
+                            .push(egui::Event::Text(contents.replace("\r\n", "\n")));
                     }
                 }
             }
@@ -478,7 +538,7 @@ impl State {
         }
 
         if let Some(egui::Pos2 { x, y }) = output.text_cursor_pos {
-            window.set_ime_position(winit::dpi::LogicalPosition { x, y })
+            window.set_ime_position(winit::dpi::LogicalPosition { x, y });
         }
     }
 
@@ -537,7 +597,7 @@ fn open_url(_url: &str) {
     }
 }
 
-/// Glium sends special keys (backspace, delete, F1, ...) as characters.
+/// Winit sends special keys (backspace, delete, F1, …) as characters.
 /// Ignore those.
 /// We also ignore '\r', '\n', '\t'.
 /// Newlines are handled by the `Key::Enter` event.

@@ -326,7 +326,7 @@ pub struct WidgetVisuals {
     /// Button frames etc.
     pub corner_radius: f32,
 
-    /// Stroke and text color of the interactive part of a component (button text, slider grab, check-mark, ...).
+    /// Stroke and text color of the interactive part of a component (button text, slider grab, check-mark, …).
     pub fg_stroke: Stroke,
 
     /// Make the frame this much larger.
@@ -748,23 +748,23 @@ impl Widgets {
             ui.label(
                 "The style of a widget that you cannot interact with, e.g. labels and separators.",
             );
-            noninteractive.ui(ui)
+            noninteractive.ui(ui);
         });
         ui.collapsing("Interactive but inactive", |ui| {
             ui.label("The style of an interactive widget, such as a button, at rest.");
-            inactive.ui(ui)
+            inactive.ui(ui);
         });
         ui.collapsing("Interactive and hovered", |ui| {
             ui.label("The style of an interactive widget while you hover it.");
-            hovered.ui(ui)
+            hovered.ui(ui);
         });
         ui.collapsing("Interactive and active", |ui| {
             ui.label("The style of an interactive widget as you are clicking or dragging it.");
-            active.ui(ui)
+            active.ui(ui);
         });
         ui.collapsing("Open menu", |ui| {
             ui.label("The style of an open combo-box or menu button");
-            open.ui(ui)
+            open.ui(ui);
         });
 
         // ui.vertical_centered(|ui| reset_button(ui, self));
@@ -949,10 +949,10 @@ fn slider_vec2<'a>(
     }
 }
 
-fn ui_color(ui: &mut Ui, srgba: &mut Color32, text: impl Into<Label>) -> Response {
+fn ui_color(ui: &mut Ui, srgba: &mut Color32, label: impl Into<Label>) -> Response {
     ui.horizontal(|ui| {
         ui.color_edit_button_srgba(srgba);
-        ui.label(text);
+        ui.add(label.into());
     })
     .response
 }

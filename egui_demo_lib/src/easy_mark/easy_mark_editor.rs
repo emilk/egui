@@ -69,7 +69,7 @@ impl EasyMarkEditor {
         } else {
             ScrollArea::vertical()
                 .id_source("source")
-                .show(ui, |ui| self.editor_ui(ui))
+                .show(ui, |ui| self.editor_ui(ui));
         }
     }
 

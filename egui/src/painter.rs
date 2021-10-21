@@ -72,7 +72,7 @@ impl Painter {
 
     /// If `false`, nothing added to the painter will be visible
     pub(crate) fn set_invisible(&mut self) {
-        self.fade_to_color = Some(Color32::TRANSPARENT)
+        self.fade_to_color = Some(Color32::TRANSPARENT);
     }
 
     /// Create a painter for a sub-region of this `Painter`.
@@ -189,7 +189,7 @@ impl Painter {
         }
         let mut shape = shape.into();
         self.transform_shape(&mut shape);
-        self.paint_list.lock().set(idx, self.clip_rect, shape)
+        self.paint_list.lock().set(idx, self.clip_rect, shape);
     }
 }
 

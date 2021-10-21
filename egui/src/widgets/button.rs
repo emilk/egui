@@ -15,10 +15,16 @@ fn select<T>(b: bool, if_true: T, if_false: T) -> T {
 ///
 /// ```
 /// # let ui = &mut egui::Ui::__test();
+/// # fn do_stuff() {}
+///
 /// if ui.add(egui::Button::new("Click mew")).clicked() {
 ///     do_stuff();
 /// }
-/// # fn do_stuff() {}
+///
+/// // A greyed-out and non-interactive button:
+/// if ui.add_enabled(false, egui::Button::new("Can't click this")).clicked() {
+///     unreachable!();
+/// }
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Button {
@@ -103,17 +109,6 @@ impl Button {
         self
     }
 
-    /// If you set this to `false`, the button will be grayed out and un-clickable.
-    /// `enabled(false)` has the same effect as calling `sense(Sense::hover())`.
-    ///
-    /// This is a convenience for [`Ui::set_enabled`].
-    pub fn enabled(mut self, enabled: bool) -> Self {
-        if !enabled {
-            self.sense = Sense::hover();
-        }
-        self
-    }
-
     /// If `true`, the text will wrap at the `max_width`.
     /// By default [`Self::wrap`] will be true in vertical layouts
     /// and horizontal layouts with wrapping,
@@ -131,8 +126,8 @@ impl Button {
     }
 }
 
-impl Button {
-    fn enabled_ui(self, ui: &mut Ui) -> Response {
+impl Widget for Button {
+    fn ui(self, ui: &mut Ui) -> Response {
         let Button {
             text,
             text_color,
@@ -198,22 +193,6 @@ impl Button {
         }
 
         response
-    }
-}
-
-impl Widget for Button {
-    fn ui(self, ui: &mut Ui) -> Response {
-        let button_enabled = self.sense != Sense::hover();
-        if button_enabled || !ui.enabled() {
-            self.enabled_ui(ui)
-        } else {
-            // We need get a temporary disabled `Ui` to get that grayed out look:
-            ui.scope(|ui| {
-                ui.set_enabled(false);
-                self.enabled_ui(ui)
-            })
-            .inner
-        }
     }
 }
 

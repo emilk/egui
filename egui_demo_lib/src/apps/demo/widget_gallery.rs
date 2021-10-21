@@ -45,7 +45,7 @@ impl super::Demo for WidgetGallery {
             .resizable(true)
             .default_width(300.0)
             .show(ctx, |ui| {
-                use super::View;
+                use super::View as _;
                 self.ui(ui);
             });
     }
@@ -53,9 +53,8 @@ impl super::Demo for WidgetGallery {
 
 impl super::View for WidgetGallery {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.scope(|ui| {
+        ui.add_enabled_ui(self.enabled, |ui| {
             ui.set_visible(self.visible);
-            ui.set_enabled(self.enabled);
 
             egui::Grid::new("my_grid")
                 .num_columns(2)

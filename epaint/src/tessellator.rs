@@ -41,7 +41,7 @@ impl Path {
 
     #[inline(always)]
     pub fn reserve(&mut self, additional: usize) {
-        self.0.reserve(additional)
+        self.0.reserve(additional);
     }
 
     #[inline(always)]
@@ -81,7 +81,7 @@ impl Path {
             for i in 1..n - 1 {
                 let mut n1 = (points[i + 1] - points[i]).normalized().rot90();
 
-                // Handle duplicated points (but not triplicated...):
+                // Handle duplicated points (but not triplicated…):
                 if n0 == Vec2::ZERO {
                     n0 = n1;
                 } else if n1 == Vec2::ZERO {
@@ -124,7 +124,7 @@ impl Path {
             let next_i = if i + 1 == n { 0 } else { i + 1 };
             let mut n1 = (points[next_i] - points[i]).normalized().rot90();
 
-            // Handle duplicated points (but not triplicated...):
+            // Handle duplicated points (but not triplicated…):
             if n0 == Vec2::ZERO {
                 n0 = n1;
             } else if n1 == Vec2::ZERO {
@@ -153,12 +153,12 @@ impl Path {
 
     /// Open-ended.
     pub fn stroke_open(&self, stroke: Stroke, options: &TessellationOptions, out: &mut Mesh) {
-        stroke_path(&self.0, PathType::Open, stroke, options, out)
+        stroke_path(&self.0, PathType::Open, stroke, options, out);
     }
 
     /// A closed path (returning to the first point).
     pub fn stroke_closed(&self, stroke: Stroke, options: &TessellationOptions, out: &mut Mesh) {
-        stroke_path(&self.0, PathType::Closed, stroke, options, out)
+        stroke_path(&self.0, PathType::Closed, stroke, options, out);
     }
 
     pub fn stroke(
@@ -168,12 +168,12 @@ impl Path {
         options: &TessellationOptions,
         out: &mut Mesh,
     ) {
-        stroke_path(&self.0, path_type, stroke, options, out)
+        stroke_path(&self.0, path_type, stroke, options, out);
     }
 
     /// The path is taken to be closed (i.e. returning to the start again).
     pub fn fill(&self, color: Color32, options: &TessellationOptions, out: &mut Mesh) {
-        fill_closed_path(&self.0, color, options, out)
+        fill_closed_path(&self.0, color, options, out);
     }
 }
 
@@ -257,21 +257,30 @@ pub enum PathType {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct TessellationOptions {
-    /// Size of a point in pixels, e.g. 2.0. Used to snap text to pixel boundaries.
+    /// Size of a point in pixels (DPI scaling), e.g. 2.0. Used to snap text to pixel boundaries.
     pub pixels_per_point: f32,
-    /// Size of a pixel in points, e.g. 0.5, or larger if you want more blurry edges.
+
+    /// The size of a pixel (in points), used for anti-aliasing (smoothing of edges).
+    /// This is normally the inverse of [`Self::pixels_per_point`],
+    /// but you can make it larger if you want more blurry edges.
     pub aa_size: f32,
+
     /// Anti-aliasing makes shapes appear smoother, but requires more triangles and is therefore slower.
     /// This setting does not affect text.
     /// Default: `true`.
     pub anti_alias: bool,
-    /// If `true` (default) cull certain primitives before tessellating them
+
+    /// If `true` (default) cull certain primitives before tessellating them.
+    /// This likely makes
     pub coarse_tessellation_culling: bool,
-    /// Output the clip rectangles to be painted?
+
+    /// Output the clip rectangles to be painted.
     pub debug_paint_clip_rects: bool,
-    /// Output the text-containing rectangles
+
+    /// Output the text-containing rectangles.
     pub debug_paint_text_rects: bool,
-    /// If true, no clipping will be done
+
+    /// If true, no clipping will be done.
     pub debug_ignore_clip_rects: bool,
 }
 
@@ -503,7 +512,11 @@ fn mul_color(color: Color32, factor: f32) -> Color32 {
 
 // ----------------------------------------------------------------------------
 
-/// Converts [`Shape`]s into [`Mesh`].
+/// Converts [`Shape`]s into triangles ([`Mesh`]).
+///
+/// For performance reasons it is smart to reuse the same `Tessellator`.
+///
+/// Se also [`tessellate_shapes`], a convenient wrapper around [`Tessellator`].
 pub struct Tessellator {
     options: TessellationOptions,
     /// Only used for culling
@@ -513,6 +526,7 @@ pub struct Tessellator {
 }
 
 impl Tessellator {
+    /// Create a new [`Tessellator`].
     pub fn from_options(options: TessellationOptions) -> Self {
         Self {
             options,
@@ -524,12 +538,9 @@ impl Tessellator {
 
     /// Tessellate a single [`Shape`] into a [`Mesh`].
     ///
-    /// * `shape`: the shape to tessellate
-    /// * `options`: tessellation quality
-    /// * `tex_size`: size of the font texture (required to normalize glyph uv rectangles)
-    /// * `out`: where the triangles are put
-    /// * `scratchpad_path`: if you plan to run `tessellate_shape`
-    ///    many times, pass it a reference to the same `Path` to avoid excessive allocations.
+    /// * `tex_size`: size of the font texture (required to normalize glyph uv rectangles).
+    /// * `shape`: the shape to tessellate.
+    /// * `out`: triangles are appended to this.
     pub fn tessellate_shape(&mut self, tex_size: [usize; 2], shape: Shape, out: &mut Mesh) {
         let clip_rect = self.clip_rect;
         let options = &self.options;
@@ -538,7 +549,7 @@ impl Tessellator {
             Shape::Noop => {}
             Shape::Vec(vec) => {
                 for shape in vec {
-                    self.tessellate_shape(tex_size, shape, out)
+                    self.tessellate_shape(tex_size, shape, out);
                 }
             }
             Shape::Circle(CircleShape {
@@ -776,12 +787,14 @@ impl Tessellator {
 
 /// Turns [`Shape`]:s into sets of triangles.
 ///
-/// The given shapes will be painted back-to-front (painters algorithm).
+/// The given shapes will tessellated in the same order as they are given.
 /// They will be batched together by clip rectangle.
 ///
-/// * `shapes`: the shape to tessellate
+/// * `shapes`: what to tessellate
 /// * `options`: tessellation quality
 /// * `tex_size`: size of the font texture (required to normalize glyph uv rectangles)
+///
+/// The implementation uses a [`Tessellator`].
 ///
 /// ## Returns
 /// A list of clip rectangles with matching [`Mesh`].
@@ -824,7 +837,7 @@ pub fn tessellate_shapes(
                     Stroke::new(2.0, Color32::from_rgb(150, 255, 150)),
                 ),
                 mesh,
-            )
+            );
         }
     }
 

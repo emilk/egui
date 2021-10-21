@@ -47,6 +47,7 @@ checksum = "43bb833f0bf979d8475d38fbf09ed3b8a55e1885fe93ad3f93239fc6a4f17b98"
 dependencies = [
  "getrandom",
  "once_cell",
+ "serde",
  "version_check",
 ]
 
@@ -243,6 +244,20 @@ name = "bytemuck"
 version = "1.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72957246c41db82b8ef88a5486143830adeb8227ef9837740bdec67724cf2c5b"
+dependencies = [
+ "bytemuck_derive",
+]
+
+[[package]]
+name = "bytemuck_derive"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e215f8c2f9f79cb53c8335e687ffd07d5bfcb6fe5fc80723762d0be46e7cc54"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "byteorder"
@@ -342,10 +357,12 @@ version = "0.4.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "670ad68c9088c2a963aaa298cb369688cf3f9465ce5e2d4ca10e6e0098a1ce73"
 dependencies = [
+ "js-sys",
  "libc",
  "num-integer",
  "num-traits",
  "time",
+ "wasm-bindgen",
  "winapi",
 ]
 
@@ -820,7 +837,9 @@ name = "eframe"
 version = "0.14.0"
 dependencies = [
  "egui",
+ "egui-winit",
  "egui_glium",
+ "egui_glow",
  "egui_web",
  "epi",
  "image",
@@ -831,7 +850,9 @@ dependencies = [
 name = "egui"
 version = "0.14.2"
 dependencies = [
+ "ahash",
  "epaint",
+ "nohash-hasher",
  "ron",
  "serde",
  "serde_json",
@@ -862,6 +883,7 @@ dependencies = [
 name = "egui_demo_lib"
 version = "0.14.0"
 dependencies = [
+ "chrono",
  "criterion",
  "egui",
  "ehttp",
@@ -877,15 +899,24 @@ dependencies = [
 name = "egui_glium"
 version = "0.14.0"
 dependencies = [
- "chrono",
- "directories-next",
  "egui",
  "egui-winit",
  "epi",
  "glium",
  "image",
- "ron",
- "serde",
+]
+
+[[package]]
+name = "egui_glow"
+version = "0.14.0"
+dependencies = [
+ "egui",
+ "egui-winit",
+ "epi",
+ "glow",
+ "glutin",
+ "image",
+ "memoffset",
 ]
 
 [[package]]
@@ -926,6 +957,7 @@ checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 name = "emath"
 version = "0.14.0"
 dependencies = [
+ "bytemuck",
  "mint",
  "serde",
 ]
@@ -971,6 +1003,7 @@ dependencies = [
  "ab_glyph",
  "ahash",
  "atomic_refcell",
+ "bytemuck",
  "cint",
  "emath",
  "nohash-hasher",
@@ -982,6 +1015,7 @@ dependencies = [
 name = "epi"
 version = "0.14.0"
 dependencies = [
+ "directories-next",
  "egui",
  "ron",
  "serde",
@@ -1154,6 +1188,18 @@ name = "glob"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b919933a397b79c37e33b77bb2aa3dc8eb6e165ad809e58ff75bc7db2e34574"
+
+[[package]]
+name = "glow"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f04649123493bc2483cbef4daddb45d40bbdae5adb221a63a23efdb0cc99520"
+dependencies = [
+ "js-sys",
+ "slotmap",
+ "wasm-bindgen",
+ "web-sys",
+]
 
 [[package]]
 name = "glutin"
@@ -2280,6 +2326,15 @@ name = "shlex"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43b2853a4d09f215c24cc5489c992ce46052d359b5109343cbafbf26bc62f8a3"
+
+[[package]]
+name = "slotmap"
+version = "1.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1e08e261d0e8f5c43123b7adf3e4ca1690d655377ac93a03b2c9d3e98de1342"
+dependencies = [
+ "version_check",
+]
 
 [[package]]
 name = "smallvec"

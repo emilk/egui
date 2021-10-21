@@ -7,6 +7,7 @@ use emath::*;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Vertex {
     /// Logical pixel coordinates (points).
     /// (0,0) is the top left corner of the screen.
@@ -169,7 +170,7 @@ impl Mesh {
     #[inline(always)]
     pub fn add_colored_rect(&mut self, rect: Rect, color: Color32) {
         crate::epaint_assert!(self.texture_id == TextureId::Egui);
-        self.add_rect_with_uv(rect, [WHITE_UV, WHITE_UV].into(), color)
+        self.add_rect_with_uv(rect, [WHITE_UV, WHITE_UV].into(), color);
     }
 
     /// This is for platforms that only support 16-bit index buffers.

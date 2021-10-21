@@ -1,7 +1,7 @@
 # Changelog for eframe
 All notable changes to the `eframe` and `epi` crates.
 
-NOTE: [`egui_web`](egui_web/CHANGELOG.md), [`egui-winit`](egui-winit/CHANGELOG.md) and [`egui_glium`](egui_glium/CHANGELOG.md) have their own changelogs!
+NOTE: [`egui_web`](egui_web/CHANGELOG.md), [`egui-winit`](egui-winit/CHANGELOG.md), [`egui_glium`](egui_glium/CHANGELOG.md), and [`egui_glow`](egui_glow/CHANGELOG.md) have their own changelogs!
 
 
 ## Unreleased
@@ -9,6 +9,7 @@ NOTE: [`egui_web`](egui_web/CHANGELOG.md), [`egui-winit`](egui-winit/CHANGELOG.m
 * Remove "http" feature (use https://github.com/emilk/ehttp instead!).
 * Increase native scroll speed.
 * Add `App::persist_native_window` and `App::persist_egui_memory` to control what gets persisted.
+* Add new backend `egui_glow` as an alternative to `egui_glium`. Enable with `default-features = false, features = ["default_fonts", "egui_glow"]`.
 
 
 ## 0.14.0 - 2021-08-24

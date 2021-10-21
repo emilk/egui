@@ -666,6 +666,8 @@ impl PostProcess {
         }
 
         gl.bind_framebuffer(Gl::FRAMEBUFFER, Some(&self.fbo));
+        gl.clear_color(0.0, 0.0, 0.0, 0.0);
+        gl.clear(Gl::COLOR_BUFFER_BIT);
 
         Ok(())
     }

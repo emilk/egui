@@ -6,6 +6,7 @@ enum ScrollDemo {
     ScrollTo,
     ManyLines,
     LargeCanvas,
+    StickToEnd,
 }
 
 impl Default for ScrollDemo {
@@ -20,6 +21,7 @@ impl Default for ScrollDemo {
 pub struct Scrolling {
     demo: ScrollDemo,
     scroll_to: ScrollTo,
+    scroll_stick_to: ScrollStickTo,
 }
 
 impl super::Demo for Scrolling {
@@ -32,7 +34,7 @@ impl super::Demo for Scrolling {
             .open(open)
             .resizable(false)
             .show(ctx, |ui| {
-                use super::View;
+                use super::View as _;
                 self.ui(ui);
             });
     }
@@ -52,6 +54,7 @@ impl super::View for Scrolling {
                 ScrollDemo::LargeCanvas,
                 "Scroll a large canvas",
             );
+            ui.selectable_value(&mut self.demo, ScrollDemo::StickToEnd, "Stick to end");
         });
         ui.separator();
         match self.demo {
@@ -63,6 +66,9 @@ impl super::View for Scrolling {
             }
             ScrollDemo::LargeCanvas => {
                 huge_content_painter(ui);
+            }
+            ScrollDemo::StickToEnd => {
+                self.scroll_stick_to.ui(ui);
             }
         }
     }
@@ -77,12 +83,17 @@ fn huge_content_lines(ui: &mut egui::Ui) {
     let text_style = TextStyle::Body;
     let row_height = ui.fonts()[text_style].row_height();
     let num_rows = 10_000;
-    ScrollArea::vertical().show_rows(ui, row_height, num_rows, |ui, row_range| {
-        for row in row_range {
-            let text = format!("This is row {}/{}", row + 1, num_rows);
-            ui.label(text);
-        }
-    });
+    ScrollArea::vertical().auto_shrink([false; 2]).show_rows(
+        ui,
+        row_height,
+        num_rows,
+        |ui, row_range| {
+            for row in row_range {
+                let text = format!("This is row {}/{}", row + 1, num_rows);
+                ui.label(text);
+            }
+        },
+    );
 }
 
 fn huge_content_painter(ui: &mut egui::Ui) {
@@ -94,32 +105,39 @@ fn huge_content_painter(ui: &mut egui::Ui) {
     let row_height = ui.fonts()[text_style].row_height() + ui.spacing().item_spacing.y;
     let num_rows = 10_000;
 
-    ScrollArea::vertical().show_viewport(ui, |ui, viewport| {
-        ui.set_height(row_height * num_rows as f32);
+    ScrollArea::vertical()
+        .auto_shrink([false; 2])
+        .show_viewport(ui, |ui, viewport| {
+            ui.set_height(row_height * num_rows as f32);
 
-        let first_item = (viewport.min.y / row_height).floor().at_least(0.0) as usize;
-        let last_item = (viewport.max.y / row_height).ceil() as usize + 1;
-        let last_item = last_item.at_most(num_rows);
+            let first_item = (viewport.min.y / row_height).floor().at_least(0.0) as usize;
+            let last_item = (viewport.max.y / row_height).ceil() as usize + 1;
+            let last_item = last_item.at_most(num_rows);
 
-        for i in first_item..last_item {
-            let indentation = (i % 100) as f32;
-            let x = ui.min_rect().left() + indentation;
-            let y = ui.min_rect().top() + i as f32 * row_height;
-            let text = format!(
-                "This is row {}/{}, indented by {} pixels",
-                i + 1,
-                num_rows,
-                indentation
-            );
-            ui.painter().text(
-                pos2(x, y),
-                Align2::LEFT_TOP,
-                text,
-                text_style,
-                ui.visuals().text_color(),
-            );
-        }
-    });
+            let mut used_rect = Rect::NOTHING;
+
+            for i in first_item..last_item {
+                let indentation = (i % 100) as f32;
+                let x = ui.min_rect().left() + indentation;
+                let y = ui.min_rect().top() + i as f32 * row_height;
+                let text = format!(
+                    "This is row {}/{}, indented by {} pixels",
+                    i + 1,
+                    num_rows,
+                    indentation
+                );
+                let text_rect = ui.painter().text(
+                    pos2(x, y),
+                    Align2::LEFT_TOP,
+                    text,
+                    text_style,
+                    ui.visuals().text_color(),
+                );
+                used_rect = used_rect.union(text_rect);
+            }
+
+            ui.allocate_rect(used_rect, Sense::hover()); // make sure it is visible!
+        });
 }
 
 // ----------------------------------------------------------------------------
@@ -184,7 +202,9 @@ impl super::View for ScrollTo {
             scroll_bottom |= ui.button("Scroll to bottom").clicked();
         });
 
-        let mut scroll_area = ScrollArea::vertical().max_height(200.0);
+        let mut scroll_area = ScrollArea::vertical()
+            .max_height(200.0)
+            .auto_shrink([false; 2]);
         if go_to_scroll_offset {
             scroll_area = scroll_area.scroll_offset(self.offset);
         }
@@ -228,5 +248,43 @@ impl super::View for ScrollTo {
             egui::reset_button(ui, self);
             ui.add(crate::__egui_github_link_file!());
         });
+    }
+}
+
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+#[derive(PartialEq)]
+struct ScrollStickTo {
+    n_items: usize,
+}
+
+impl Default for ScrollStickTo {
+    fn default() -> Self {
+        Self { n_items: 0 }
+    }
+}
+
+impl super::View for ScrollStickTo {
+    fn ui(&mut self, ui: &mut Ui) {
+        ui.label("Rows enter from the bottom, we want the scroll handle to start and stay at bottom unless moved");
+
+        ui.add_space(4.0);
+
+        let text_style = TextStyle::Body;
+        let row_height = ui.fonts()[text_style].row_height();
+        ScrollArea::vertical().stick_to_bottom().show_rows(
+            ui,
+            row_height,
+            self.n_items,
+            |ui, row_range| {
+                for row in row_range {
+                    let text = format!("This is row {}", row + 1);
+                    ui.label(text);
+                }
+            },
+        );
+
+        self.n_items += 1;
+        ui.ctx().request_repaint();
     }
 }

@@ -89,7 +89,7 @@ impl LineStyle {
                         if highlight {
                             radius *= 2f32.sqrt();
                         }
-                        shapes.extend(Shape::dotted_line(&line, stroke.color, *spacing, radius))
+                        shapes.extend(Shape::dotted_line(&line, stroke.color, *spacing, radius));
                     }
                     LineStyle::Dashed { length } => {
                         if highlight {
@@ -101,7 +101,7 @@ impl LineStyle {
                             stroke,
                             *length,
                             length * golden_ratio,
-                        ))
+                        ));
                     }
                 }
             }
@@ -308,7 +308,7 @@ impl PlotItem for VLine {
             transform.position_from_value(&Value::new(*x, transform.bounds().min[1])),
             transform.position_from_value(&Value::new(*x, transform.bounds().max[1])),
         ];
-        style.style_line(points, *stroke, *highlight, shapes)
+        style.style_line(points, *stroke, *highlight, shapes);
     }
 
     fn initialize(&mut self, _x_range: RangeInclusive<f64>) {}
@@ -1395,7 +1395,7 @@ impl PlotItem for PlotImage {
                 rect,
                 0.0,
                 Stroke::new(1.0, ui.visuals().strong_text_color()),
-            ))
+            ));
         }
     }
 

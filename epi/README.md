@@ -8,6 +8,6 @@
 
 `epi` is a backend-agnostic interface for writing apps using `egui` (a platform agnostic GUI library).
 
-This crate provides a common interface for programming an app using egui, which can then be easily plugged into [`eframe`](https://github.com/emilk/egui/tree/master/eframe) (which in a wrapper over  [`egui_web`](https://crates.io/crates/egui_web) and/or [`egui_glium`](https://crates.io/crates/egui_glium)).
+This crate provides a common interface for programming an app using egui, which can then be easily plugged into [`eframe`](https://github.com/emilk/egui/tree/master/eframe) (which is a wrapper over [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web), [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium) and [`egui_glow`](https://github.com/emilk/egui/tree/master/egui_glow)).
 
 This crate is only for those that want to write an app that can be compiled both natively and for the web.

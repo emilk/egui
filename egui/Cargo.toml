@@ -24,8 +24,11 @@ all-features = true
 
 [dependencies]
 epaint = { version = "0.14.0", path = "../epaint", default-features = false }
-serde = { version = "1", features = ["derive", "rc"], optional = true }
+
+ahash = "0.7"
+nohash-hasher = "0.2"
 ron = { version = "0.6.4", optional = true }
+serde = { version = "1", features = ["derive", "rc"], optional = true }
 
 [features]
 default = ["default_fonts", "single_threaded"]
@@ -50,6 +53,9 @@ persistence = ["serde", "epaint/serialize", "ron"]
 
 # implement serde on most types.
 serialize = ["serde", "epaint/serialize"]
+
+# implement bytemuck on most types.
+convert_bytemuck = ["epaint/convert_bytemuck"]
 
 # multi_threaded is only needed if you plan to use the same egui::Context
 # from multiple threads. It comes with a minor performance impact.

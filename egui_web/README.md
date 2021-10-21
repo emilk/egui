@@ -10,7 +10,7 @@ This crates allows you to compile GUI code written with [egui](https://crates.io
 
 [Run the web demo](https://emilk.github.io/egui/index.html) to try it now.
 
-Check out [egui_template](https://github.com/emilk/egui_template) for an example of how to set it up.
+Check out [eframe_template](https://github.com/emilk/eframe_template) for an example of how to set it up.
 
 ## Downsides with using egui on the web
 

@@ -199,22 +199,24 @@ impl CtxRef {
             changed: false, // must be set by the widget itself
         };
 
+        let mut memory = self.memory();
+
         if !enabled || !sense.focusable || !layer_id.allow_interaction() {
             // Not interested or allowed input:
-            self.memory().surrender_focus(id);
+            memory.surrender_focus(id);
             return response;
         }
 
         // We only want to focus labels if the screen reader is on.
         let interested_in_focus =
-            sense.interactive() || sense.focusable && self.memory().options.screen_reader;
+            sense.interactive() || sense.focusable && memory.options.screen_reader;
 
         if interested_in_focus {
-            self.memory().interested_in_focus(id);
+            memory.interested_in_focus(id);
         }
 
         if sense.click
-            && response.has_focus()
+            && memory.has_focus(response.id)
             && (self.input().key_pressed(Key::Space) || self.input().key_pressed(Key::Enter))
         {
             // Space/enter works like a primary click for e.g. selected buttons
@@ -224,8 +226,6 @@ impl CtxRef {
         self.register_interaction_id(id, rect);
 
         if sense.click || sense.drag {
-            let mut memory = self.memory();
-
             memory.interaction.click_interest |= hovered && sense.click;
             memory.interaction.drag_interest |= hovered && sense.drag;
 
@@ -287,8 +287,8 @@ impl CtxRef {
             response.hovered &= response.is_pointer_button_down_on; // we don't hover widgets while interacting with *other* widgets
         }
 
-        if response.has_focus() && response.clicked_elsewhere() {
-            self.memory().surrender_focus(id);
+        if memory.has_focus(response.id) && response.clicked_elsewhere() {
+            memory.surrender_focus(id);
         }
 
         response
@@ -480,6 +480,10 @@ impl Context {
     /// Note that this may be overwritten by input from the integration via [`RawInput::pixels_per_point`].
     /// For instance, when using `egui_web` the browsers native zoom level will always be used.
     pub fn set_pixels_per_point(&self, pixels_per_point: f32) {
+        if pixels_per_point != self.pixels_per_point() {
+            self.request_repaint();
+        }
+
         self.memory().new_pixels_per_point = Some(pixels_per_point);
     }
 
@@ -624,10 +628,14 @@ impl Context {
 
     /// Tessellate the given shapes into triangle meshes.
     pub fn tessellate(&self, shapes: Vec<ClippedShape>) -> Vec<ClippedMesh> {
+        // A tempting optimization is to reuse the tessellation from last frame if the
+        // shapes are the same, but just comparing the shapes takes about 50% of the time
+        // it takes to tessellate them, so it is not a worth optimization.
+
         let mut tessellation_options = self.memory().options.tessellation_options;
         tessellation_options.pixels_per_point = self.pixels_per_point();
         tessellation_options.aa_size = 1.0 / self.pixels_per_point();
-        let paint_stats = PaintStats::from_shapes(&shapes); // TODO: internal allocations
+        let paint_stats = PaintStats::from_shapes(&shapes);
         let clipped_meshes = tessellator::tessellate_shapes(
             shapes,
             tessellation_options,

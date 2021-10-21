@@ -1,8 +1,10 @@
 //! Miscellaneous tools used by the rest of egui.
 
-pub(crate) mod cache;
+pub mod cache;
+pub(crate) mod fixed_cache;
 mod history;
 pub mod undoer;
 
-pub(crate) use cache::Cache;
 pub use history::History;
+
+pub use epaint::util::{hash, hash_with};

@@ -139,8 +139,7 @@ impl InputState {
         // `raw.zoom_delta` which is based on the `ctrl-scroll` event which, in turn, may be
         // synthesized from an original touch gesture.
         self.multi_touch()
-            .map(|touch| touch.zoom_delta)
-            .unwrap_or(self.raw.zoom_delta)
+            .map_or(self.raw.zoom_delta, |touch| touch.zoom_delta)
     }
 
     /// 2D non-proportional zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).
@@ -162,9 +161,10 @@ impl InputState {
         // the distances of the finger tips.  It is therefore potentially more accurate than
         // `raw.zoom_delta` which is based on the `ctrl-scroll` event which, in turn, may be
         // synthesized from an original touch gesture.
-        self.multi_touch()
-            .map(|touch| touch.zoom_delta_2d)
-            .unwrap_or_else(|| Vec2::splat(self.raw.zoom_delta))
+        self.multi_touch().map_or_else(
+            || Vec2::splat(self.raw.zoom_delta),
+            |touch| touch.zoom_delta_2d,
+        )
     }
 
     pub fn wants_repaint(&self) -> bool {
@@ -687,7 +687,7 @@ impl InputState {
 
         for (device_id, touch_state) in touch_states {
             ui.collapsing(format!("Touch State [device {}]", device_id.0), |ui| {
-                touch_state.ui(ui)
+                touch_state.ui(ui);
             });
         }
 

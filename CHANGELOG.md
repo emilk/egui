@@ -2,7 +2,7 @@
 
 All notable changes to the egui crate will be documented in this file.
 
-NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md), [`egui-winit`](egui-winit/CHANGELOG.md) and [`egui_glium`](egui_glium/CHANGELOG.md) have their own changelogs!
+NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md), [`egui-winit`](egui-winit/CHANGELOG.md), [`egui_glium`](egui_glium/CHANGELOG.md), and [`egui_glow`](egui_glow/CHANGELOG.md) have their own changelogs!
 
 
 ## Unreleased
@@ -10,10 +10,14 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md), [`eg
 ### Added ⭐
 * Add horizontal scrolling support to `ScrollArea` and `Window` (opt-in).
 * `TextEdit::layouter`: Add custom text layout for e.g. syntax highlighting or WYSIWYG.
-* `Fonts::layout_job*`: New text layout engine allowing mixing fonts, colors and styles, with underlining and strikethrough.
+* `Fonts::layout_job`: New text layout engine allowing mixing fonts, colors and styles, with underlining and strikethrough.
+* Add `ui.add_enabled(bool, widget)` to easily add a possibly disabled widget.
+* Add `ui.add_enabled_ui(bool, |ui| …)` to create a possibly disabled UI section.
 * Add feature `"serialize"` separatedly from `"persistence"`.
 * Add `egui::widgets::global_dark_light_mode_buttons` to easily add buttons for switching the egui theme.
 * Add interaction methods to the plot.
+* `TextEdit` can now be used to show text which can be selectedd and copied, but not edited.
+* Add `Memory::caches` for caching things from one frame to the next.
 
 ### Changed 🔧
 * Label text will now be centered, right-aligned and/or justified based on the layout.
@@ -25,12 +29,19 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md), [`eg
 * By default, `DragValue`:s no longer show a tooltip when hovered. Change with `Style::explanation_tooltips`.
 * Smaller and nicer color picker.
 * Plots now provide a `build` method that has to be used to add items to and show the plot.
+* `ScrollArea` will auto-shrink to content size unless told otherwise using `ScollArea::auto_shrink`.
+* By default, `Slider`'s `clamp_to_range` is set to true.
+* Rename `TextEdit::enabled` to `TextEdit::interactive`.
+* `ui.label` (and friends) now take `impl ToString` as argument instead of `impl Into<Label>`.
 
 ### Fixed 🐛
 * Fix wrongly sized multiline `TextEdit` in justified layouts.
 * Fix clip rectangle of windows that don't fit the central area.
 * Show tooltips above widgets on touch screens.
 * Fix popups sometimes getting clipped by panels.
+
+### Removed 🔥
+* Replace `Button::enabled` with `ui.add_enabled`.
 
 
 ## 0.14.2 - 2021-08-28 - Window resize fix
@@ -299,7 +310,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md), [`eg
 
 ### Added ⭐
 * Turn off `Window` title bars with `window.title_bar(false)`.
-* `ImageButton` - `ui.add(ImageButton::new(...))`.
+* `ImageButton` - `ui.add(ImageButton::new(…))`.
 * `ui.vertical_centered` and `ui.vertical_centered_justified`.
 * `ui.allocate_painter` helper.
 * Mouse-over explanation to duplicate ID warning.
@@ -341,11 +352,11 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md), [`eg
 ### Added ⭐
 * Emoji support: 1216 different emojis that work in any text.
   * The Demo app comes with a Font Book to explore the available glyphs.
-* `ui.horizontal_wrapped(|ui| ...)`: Add widgets on a row but wrap at `max_size`.
+* `ui.horizontal_wrapped(|ui| …)`: Add widgets on a row but wrap at `max_size`.
 * `ui.horizontal_wrapped_for_text`: Like `ui.horizontal_wrapped`, but with spacing made for embedding text.
 * `ui.horizontal_for_text`: Like `ui.horizontal`, but with spacing made for embedding text.
 * `egui::Layout` now supports justified layouts where contents is _also_ centered, right-aligned, etc.
-* `ui.allocate_ui(size, |ui| ...)`: Easily create a child-`Ui` of a given size.
+* `ui.allocate_ui(size, |ui| …)`: Easily create a child-`Ui` of a given size.
 * `SelectableLabel` (`ui.selectable_label` and `ui.selectable_value`): A text-button that can be selected.
 * `ui.small_button`: A smaller button that looks good embedded in text.
 * `ui.drag_angle_tau`: For those who want to specify angles as fractions of τ (a full turn).
@@ -397,7 +408,7 @@ NOTE: [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md), [`eg
 * The demo app now has a slider to scale all of egui.
 
 ### Changed 🔧
-* `ui.horizontal(...)` etc returns `Response`.
+* `ui.horizontal(…)` etc returns `Response`.
 * Refactored the interface for `egui::app::App`.
 * Windows are now constrained to the screen.
 * `Context::begin_frame()` no longer returns a `Ui`. Instead put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.

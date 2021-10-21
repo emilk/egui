@@ -120,7 +120,7 @@ impl AnyMapElement {
         match self {
             AnyMapElement(Deserialized { value, .. }) => value.downcast_mut(),
             AnyMapElement(Serialized(s, _)) => {
-                *self = Self::new(ron::from_str::<T>(s).ok()?);
+                *self = Self::new(from_ron_str::<T>(s)?);
 
                 match self {
                     AnyMapElement(Deserialized { value, .. }) => value.downcast_mut(),
@@ -138,18 +138,35 @@ impl AnyMapElement {
             Deserialized { value, .. } => {
                 if !value.is::<T>() {
                     *self = Self::new(set_with());
-                    // TODO: log this error, because it can occurs when user used same Id or same type for different widgets
+                    eprintln!(
+                        "egui: Value stored in serialized memory was not of type {}",
+                        std::any::type_name::<T>()
+                    );
                 }
             }
             Serialized(s, _) => {
-                *self = Self::new(ron::from_str::<T>(s).unwrap_or_else(|_| set_with()));
-                // TODO: log deserialization error
+                *self = Self::new(from_ron_str::<T>(s).unwrap_or_else(|| set_with()));
             }
         }
 
         match &mut self.0 {
             Deserialized { value, .. } => value.downcast_mut().unwrap(), // This unwrap will never panic because we already converted object to required type
             Serialized(_, _) => unreachable!(),
+        }
+    }
+}
+
+fn from_ron_str<T: serde::de::DeserializeOwned>(ron: &str) -> Option<T> {
+    match ron::from_str::<T>(ron) {
+        Ok(value) => Some(value),
+        Err(err) => {
+            eprintln!(
+                "egui: Failed to deserialize {} from memory: {}, ron: {:?}",
+                std::any::type_name::<T>(),
+                err,
+                ron
+            );
+            None
         }
     }
 }

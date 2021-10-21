@@ -14,7 +14,7 @@ struct Resource {
 }
 
 impl Resource {
-    fn from_response(response: ehttp::Response) -> Self {
+    fn from_response(ctx: &egui::Context, response: ehttp::Response) -> Self {
         let content_type = response.content_type().unwrap_or_default();
         let image = if content_type.starts_with("image/") {
             Image::decode(&response.bytes)
@@ -26,7 +26,7 @@ impl Resource {
 
         let colored_text = text
             .as_ref()
-            .and_then(|text| syntax_highlighting(&response, text));
+            .and_then(|text| syntax_highlighting(ctx, &response, text));
 
         Self {
             response,
@@ -48,10 +48,6 @@ enum Method {
 pub struct HttpApp {
     url: String,
 
-    method: Method,
-
-    request_body: String,
-
     #[cfg_attr(feature = "serde", serde(skip))]
     in_progress: Option<Receiver<Result<ehttp::Response, String>>>,
 
@@ -66,8 +62,6 @@ impl Default for HttpApp {
     fn default() -> Self {
         Self {
             url: "https://raw.githubusercontent.com/emilk/egui/master/README.md".to_owned(),
-            method: Method::Get,
-            request_body: r#"["posting some json", { "more_json" : true }]"#.to_owned(),
             in_progress: Default::default(),
             result: Default::default(),
             tex_mngr: Default::default(),
@@ -80,37 +74,34 @@ impl epi::App for HttpApp {
         "⬇ HTTP"
     }
 
-    /// Called each time the UI needs repainting, which may be many times per second.
-    /// Put your widgets into a `SidePanel`, `TopBottomPanel`, `CentralPanel`, `Window` or `Area`.
     fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
         if let Some(receiver) = &mut self.in_progress {
             // Are we there yet?
             if let Ok(result) = receiver.try_recv() {
                 self.in_progress = None;
-                self.result = Some(result.map(Resource::from_response));
+                self.result = Some(result.map(|response| Resource::from_response(ctx, response)));
             }
         }
 
+        egui::TopBottomPanel::bottom("http_bottom").show(ctx, |ui| {
+            let layout = egui::Layout::top_down(egui::Align::Center).with_main_justify(true);
+            ui.allocate_ui_with_layout(ui.available_size(), layout, |ui| {
+                ui.add(crate::__egui_github_link_file!())
+            })
+        });
+
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("HTTP Fetch Example");
-            ui.horizontal(|ui| {
+            let trigger_fetch = ui_url(ui, frame, &mut self.url);
+
+            ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;
                 ui.label("HTTP requests made using ");
                 ui.hyperlink_to("ehttp", "https://www.github.com/emilk/ehttp");
                 ui.label(".");
             });
-            ui.add(egui::github_link_file!(
-                "https://github.com/emilk/egui/blob/master/",
-                "(demo source code)"
-            ));
 
-            if let Some(request) = ui_url(
-                ui,
-                frame,
-                &mut self.url,
-                &mut self.method,
-                &mut self.request_body,
-            ) {
+            if trigger_fetch {
+                let request = ehttp::Request::get(&self.url);
                 let repaint_signal = frame.repaint_signal();
                 let (sender, receiver) = std::sync::mpsc::channel();
                 self.in_progress = Some(receiver);
@@ -124,7 +115,7 @@ impl epi::App for HttpApp {
             ui.separator();
 
             if self.in_progress.is_some() {
-                ui.label("Please wait...");
+                ui.label("Please wait…");
             } else if let Some(result) = &self.result {
                 match result {
                     Ok(resource) => {
@@ -143,38 +134,14 @@ impl epi::App for HttpApp {
     }
 }
 
-fn ui_url(
-    ui: &mut egui::Ui,
-    frame: &mut epi::Frame<'_>,
-    url: &mut String,
-    method: &mut Method,
-    request_body: &mut String,
-) -> Option<ehttp::Request> {
+fn ui_url(ui: &mut egui::Ui, frame: &mut epi::Frame<'_>, url: &mut String) -> bool {
     let mut trigger_fetch = false;
 
-    egui::Grid::new("request_params").show(ui, |ui| {
+    ui.horizontal(|ui| {
         ui.label("URL:");
-        ui.horizontal(|ui| {
-            trigger_fetch |= ui.text_edit_singleline(url).lost_focus();
-            egui::ComboBox::from_id_source("method")
-                .selected_text(format!("{:?}", method))
-                .width(60.0)
-                .show_ui(ui, |ui| {
-                    ui.selectable_value(method, Method::Get, "GET");
-                    ui.selectable_value(method, Method::Post, "POST");
-                });
-            trigger_fetch |= ui.button("▶").clicked();
-        });
-        ui.end_row();
-        if *method == Method::Post {
-            ui.label("Body:");
-            ui.add(
-                egui::TextEdit::multiline(request_body)
-                    .code_editor()
-                    .desired_rows(1),
-            );
-            ui.end_row();
-        }
+        trigger_fetch |= ui
+            .add(egui::TextEdit::singleline(url).desired_width(f32::INFINITY))
+            .lost_focus();
     });
 
     if frame.is_web() {
@@ -187,32 +154,17 @@ fn ui_url(
                 "https://raw.githubusercontent.com/emilk/egui/master/{}",
                 file!()
             );
-            *method = Method::Get;
             trigger_fetch = true;
         }
         if ui.button("Random image").clicked() {
             let seed = ui.input().time;
-            let width = 640;
-            let height = 480;
-            *url = format!("https://picsum.photos/seed/{}/{}/{}", seed, width, height);
-            *method = Method::Get;
-            trigger_fetch = true;
-        }
-        if ui.button("Post to httpbin.org").clicked() {
-            *url = "https://httpbin.org/post".to_owned();
-            *method = Method::Post;
+            let side = 640;
+            *url = format!("https://picsum.photos/seed/{}/{}", seed, side);
             trigger_fetch = true;
         }
     });
 
-    if trigger_fetch {
-        Some(match *method {
-            Method::Get => ehttp::Request::get(url),
-            Method::Post => ehttp::Request::post(url, request_body),
-        })
-    } else {
-        None
-    }
+    trigger_fetch
 }
 
 fn ui_resource(
@@ -244,147 +196,106 @@ fn ui_resource(
 
     ui.separator();
 
-    egui::CollapsingHeader::new("Response headers")
-        .default_open(false)
+    egui::ScrollArea::vertical()
+        .auto_shrink([false; 2])
         .show(ui, |ui| {
-            egui::Grid::new("response_headers")
-                .spacing(egui::vec2(ui.spacing().item_spacing.x * 2.0, 0.0))
+            egui::CollapsingHeader::new("Response headers")
+                .default_open(false)
                 .show(ui, |ui| {
-                    for header in &response.headers {
-                        ui.label(header.0);
-                        ui.label(header.1);
-                        ui.end_row();
-                    }
-                })
-        });
+                    egui::Grid::new("response_headers")
+                        .spacing(egui::vec2(ui.spacing().item_spacing.x * 2.0, 0.0))
+                        .show(ui, |ui| {
+                            for header in &response.headers {
+                                ui.label(header.0);
+                                ui.label(header.1);
+                                ui.end_row();
+                            }
+                        })
+                });
 
-    ui.separator();
+            ui.separator();
 
-    if let Some(text) = &text {
-        let tooltip = "Click to copy the response body";
-        if ui.button("📋").on_hover_text(tooltip).clicked() {
-            ui.output().copied_text = text.clone();
-        }
-    }
-
-    ui.separator();
-
-    egui::ScrollArea::vertical().show(ui, |ui| {
-        if let Some(image) = image {
-            if let Some(texture_id) = tex_mngr.texture(frame, &response.url, image) {
-                let size = egui::Vec2::new(image.size.0 as f32, image.size.1 as f32);
-                ui.image(texture_id, size);
+            if let Some(text) = &text {
+                let tooltip = "Click to copy the response body";
+                if ui.button("📋").on_hover_text(tooltip).clicked() {
+                    ui.output().copied_text = text.clone();
+                }
+                ui.separator();
             }
-        } else if let Some(colored_text) = colored_text {
-            colored_text.ui(ui);
-        } else if let Some(text) = &text {
-            ui.monospace(text);
-        } else {
-            ui.monospace("[binary]");
-        }
-    });
+
+            if let Some(image) = image {
+                if let Some(texture_id) = tex_mngr.texture(frame, &response.url, image) {
+                    let mut size = egui::Vec2::new(image.size.0 as f32, image.size.1 as f32);
+                    size *= (ui.available_width() / size.x).min(1.0);
+                    ui.image(texture_id, size);
+                }
+            } else if let Some(colored_text) = colored_text {
+                colored_text.ui(ui);
+            } else if let Some(text) = &text {
+                selectable_text(ui, text);
+            } else {
+                ui.monospace("[binary]");
+            }
+        });
+}
+
+fn selectable_text(ui: &mut egui::Ui, mut text: &str) {
+    ui.add(
+        egui::TextEdit::multiline(&mut text)
+            .desired_width(f32::INFINITY)
+            .text_style(egui::TextStyle::Monospace),
+    );
 }
 
 // ----------------------------------------------------------------------------
 // Syntax highlighting:
 
 #[cfg(feature = "syntect")]
-fn syntax_highlighting(response: &ehttp::Response, text: &str) -> Option<ColoredText> {
+fn syntax_highlighting(
+    ctx: &egui::Context,
+    response: &ehttp::Response,
+    text: &str,
+) -> Option<ColoredText> {
     let extension_and_rest: Vec<&str> = response.url.rsplitn(2, '.').collect();
     let extension = extension_and_rest.get(0)?;
-    ColoredText::text_with_extension(text, extension)
-}
-
-/// Lines of text fragments
-#[cfg(feature = "syntect")]
-struct ColoredText(egui::text::LayoutJob);
-
-#[cfg(feature = "syntect")]
-impl ColoredText {
-    /// e.g. `text_with_extension("fn foo() {}", "rs")`
-    pub fn text_with_extension(text: &str, extension: &str) -> Option<ColoredText> {
-        use syntect::easy::HighlightLines;
-        use syntect::highlighting::FontStyle;
-        use syntect::highlighting::ThemeSet;
-        use syntect::parsing::SyntaxSet;
-        use syntect::util::LinesWithEndings;
-
-        let ps = SyntaxSet::load_defaults_newlines(); // should be cached and reused
-        let ts = ThemeSet::load_defaults(); // should be cached and reused
-
-        let syntax = ps.find_syntax_by_extension(extension)?;
-
-        let dark_mode = true;
-        let theme = if dark_mode {
-            "base16-mocha.dark"
-        } else {
-            "base16-ocean.light"
-        };
-        let mut h = HighlightLines::new(syntax, &ts.themes[theme]);
-
-        use egui::text::{LayoutJob, LayoutSection, TextFormat};
-
-        let mut job = LayoutJob {
-            text: text.into(),
-            ..Default::default()
-        };
-
-        for line in LinesWithEndings::from(text) {
-            for (style, range) in h.highlight(line, &ps) {
-                let fg = style.foreground;
-                let text_color = egui::Color32::from_rgb(fg.r, fg.g, fg.b);
-                let italics = style.font_style.contains(FontStyle::ITALIC);
-                let underline = style.font_style.contains(FontStyle::ITALIC);
-                let underline = if underline {
-                    egui::Stroke::new(1.0, text_color)
-                } else {
-                    egui::Stroke::none()
-                };
-                job.sections.push(LayoutSection {
-                    leading_space: 0.0,
-                    byte_range: as_byte_range(text, range),
-                    format: TextFormat {
-                        style: egui::TextStyle::Monospace,
-                        color: text_color,
-                        italics,
-                        underline,
-                        ..Default::default()
-                    },
-                });
-            }
-        }
-
-        Some(ColoredText(job))
-    }
-
-    pub fn ui(&self, ui: &mut egui::Ui) {
-        let mut job = self.0.clone();
-        job.wrap_width = ui.available_width();
-        let galley = ui.fonts().layout_job(job);
-        let (response, painter) = ui.allocate_painter(galley.size(), egui::Sense::hover());
-        painter.add(egui::Shape::galley(response.rect.min, galley));
-    }
-}
-
-#[cfg(feature = "syntect")]
-fn as_byte_range(whole: &str, range: &str) -> std::ops::Range<usize> {
-    let whole_start = whole.as_ptr() as usize;
-    let range_start = range.as_ptr() as usize;
-    assert!(whole_start <= range_start);
-    assert!(range_start + range.len() <= whole_start + whole.len());
-    let offset = range_start - whole_start;
-    offset..(offset + range.len())
+    let theme = crate::syntax_highlighting::CodeTheme::from_style(&ctx.style());
+    Some(ColoredText(crate::syntax_highlighting::highlight(
+        ctx, &theme, text, extension,
+    )))
 }
 
 #[cfg(not(feature = "syntect"))]
-fn syntax_highlighting(_: &ehttp::Response, _: &str) -> Option<ColoredText> {
+fn syntax_highlighting(_ctx: &egui::Context, _: &ehttp::Response, _: &str) -> Option<ColoredText> {
     None
 }
-#[cfg(not(feature = "syntect"))]
-struct ColoredText();
-#[cfg(not(feature = "syntect"))]
+
+struct ColoredText(egui::text::LayoutJob);
+
 impl ColoredText {
-    pub fn ui(&self, _ui: &mut egui::Ui) {}
+    pub fn ui(&self, ui: &mut egui::Ui) {
+        if true {
+            // Selectable text:
+            let mut layouter = |ui: &egui::Ui, _string: &str, wrap_width: f32| {
+                let mut layout_job = self.0.clone();
+                layout_job.wrap_width = wrap_width;
+                ui.fonts().layout_job(layout_job)
+            };
+
+            let mut text = self.0.text.as_str();
+            ui.add(
+                egui::TextEdit::multiline(&mut text)
+                    .text_style(egui::TextStyle::Monospace)
+                    .desired_width(f32::INFINITY)
+                    .layouter(&mut layouter),
+            );
+        } else {
+            let mut job = self.0.clone();
+            job.wrap_width = ui.available_width();
+            let galley = ui.fonts().layout_job(job);
+            let (response, painter) = ui.allocate_painter(galley.size(), egui::Sense::hover());
+            painter.add(egui::Shape::galley(response.rect.min, galley));
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------

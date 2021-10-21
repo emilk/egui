@@ -11,12 +11,37 @@ use emath::*;
 ///
 /// This supports mixing different fonts, color and formats (underline etc).
 ///
-/// Pass this to [`Fonts::layout_job]` or [`crate::text::layout`].
+/// Pass this to [`crate::Fonts::layout_job`] or [`crate::text::layout`].
+///
+/// ## Example:
+/// ```
+/// use epaint::{Color32, text::{LayoutJob, TextFormat}, TextStyle};
+///
+/// let mut job = LayoutJob::default();
+/// job.append(
+///     "Hello ",
+///     0.0,
+///     TextFormat {
+///         style: TextStyle::Body,
+///         color: Color32::WHITE,
+///         ..Default::default()
+///     },
+/// );
+/// job.append(
+///     "World!",
+///     0.0,
+///     TextFormat {
+///         style: TextStyle::Monospace,
+///         color: Color32::BLACK,
+///         ..Default::default()
+///     },
+/// );
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct LayoutJob {
     /// The complete text of this job, referenced by `LayoutSection`.
-    pub text: String, // TODO: Cow<'static, str>
+    pub text: String,
 
     /// The different section, which can have different fonts, colors, etc.
     pub sections: Vec<LayoutSection>,
@@ -206,6 +231,9 @@ impl TextFormat {
 
 // ----------------------------------------------------------------------------
 
+/// Text that has been layed out, ready for painting.
+///
+/// You can create a [`Galley`] using [`crate::Fonts::layout_job`];
 #[derive(Clone, Debug, PartialEq)]
 pub struct Galley {
     /// The job that this galley is the result of.

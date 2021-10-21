@@ -4,8 +4,6 @@ mod items;
 mod legend;
 mod transform;
 
-use std::collections::HashSet;
-
 use items::PlotItem;
 pub use items::{
     Arrows, HLine, Line, LineStyle, MarkerShape, PlotImage, Points, Polygon, Text, VLine, Value,
@@ -17,6 +15,7 @@ use transform::{Bounds, ScreenTransform};
 
 use crate::*;
 use color::Hsva;
+use epaint::ahash::AHashSet;
 
 // ----------------------------------------------------------------------------
 
@@ -27,7 +26,7 @@ struct PlotMemory {
     bounds: Bounds,
     auto_bounds: bool,
     hovered_entry: Option<String>,
-    hidden_items: HashSet<String>,
+    hidden_items: AHashSet<String>,
     min_auto_bounds: Bounds,
     last_screen_transform: Option<ScreenTransform>,
 }
@@ -238,7 +237,7 @@ impl Plot {
                 bounds: min_auto_bounds,
                 auto_bounds: !min_auto_bounds.is_valid(),
                 hovered_entry: None,
-                hidden_items: HashSet::new(),
+                hidden_items: Default::default(),
                 min_auto_bounds,
                 last_screen_transform: None,
             })
@@ -454,20 +453,20 @@ impl PlotUi {
     pub fn pointer_coordinate_drag_delta(&self) -> Vec2 {
         self.last_screen_transform
             .as_ref()
-            .map(|tf| {
+            .map_or(Vec2::ZERO, |tf| {
                 let delta = self.response.drag_delta();
                 let dp_dv = tf.dpos_dvalue();
                 Vec2::new(delta.x / dp_dv[0] as f32, delta.y / dp_dv[1] as f32)
             })
-            .unwrap_or(Vec2::ZERO)
     }
 
     /// Transform the screen coordinates to plot coordinates.
     pub fn screen_to_plot_coordinates(&self, position: Pos2) -> Pos2 {
         self.last_screen_transform
             .as_ref()
-            .map(|tf| tf.position_from_value(&Value::new(position.x as f64, position.y as f64)))
-            .unwrap_or(Pos2::ZERO)
+            .map_or(Pos2::ZERO, |tf| {
+                tf.position_from_value(&Value::new(position.x as f64, position.y as f64))
+            })
             // We need to subtract the drag delta since the last frame.
             - self.response.drag_delta()
     }

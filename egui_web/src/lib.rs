@@ -37,17 +37,17 @@ static AGENT_ID: &str = "egui_text_agent";
 // ----------------------------------------------------------------------------
 // Helpers to hide some of the verbosity of web_sys
 
-/// Log some text to the developer console (`console.log(...)` in JS)
+/// Log some text to the developer console (`console.log(…)` in JS)
 pub fn console_log(s: impl Into<JsValue>) {
     web_sys::console::log_1(&s.into());
 }
 
-/// Log a warning to the developer console (`console.warn(...)` in JS)
+/// Log a warning to the developer console (`console.warn(…)` in JS)
 pub fn console_warn(s: impl Into<JsValue>) {
     web_sys::console::warn_1(&s.into());
 }
 
-/// Log an error to the developer console (`console.error(...)` in JS)
+/// Log an error to the developer console (`console.error(…)` in JS)
 pub fn console_error(s: impl Into<JsValue>) {
     web_sys::console::error_1(&s.into());
 }
@@ -60,12 +60,6 @@ pub fn now_sec() -> f64 {
         .expect("should have a Performance")
         .now()
         / 1000.0
-}
-
-pub fn seconds_since_midnight() -> f64 {
-    let d = js_sys::Date::new_0();
-    let seconds = (d.get_hours() * 60 + d.get_minutes()) * 60 + d.get_seconds();
-    seconds as f64 + 1e-3 * (d.get_milliseconds() as f64)
 }
 
 pub fn screen_size_in_native_points() -> Option<egui::Vec2> {
@@ -648,7 +642,11 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             if let Some(data) = event.clipboard_data() {
                 if let Ok(text) = data.get_data("text") {
                     let mut runner_lock = runner_ref.0.lock();
-                    runner_lock.input.raw.events.push(egui::Event::Text(text));
+                    runner_lock
+                        .input
+                        .raw
+                        .events
+                        .push(egui::Event::Text(text.replace("\r\n", "\n")));
                     runner_lock.needs_repaint.set_true();
                     event.stop_propagation();
                     event.prevent_default();

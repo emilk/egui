@@ -30,7 +30,7 @@ Sections:
 
 ## Quick start
 
-If you just want to write a GUI application in Rust (for the web or for native), go to <https://github.com/emilk/egui_template/> and follow the instructions there!
+If you just want to write a GUI application in Rust (for the web or for native), go to <https://github.com/emilk/eframe_template/> and follow the instructions there!
 
 If you want to integrate egui into an existing engine, go to the [Integrations](#integrations) section.
 
@@ -158,16 +158,17 @@ egui is build to be easy to integrate into any existing game engine or platform 
 egui itself doesn't know or care on what OS it is running or how to render things to the screen - that is the job of the egui integration.
 The integration needs to do two things:
 
-* **IO**: Supply egui with input (mouse position, keyboard presses, ...) and handle egui output (cursor changes, copy-paste integration, ...).
+* **IO**: Supply egui with input (mouse position, keyboard presses, …) and handle egui output (cursor changes, copy-paste integration, …).
 * **Painting**: Render the textured triangles that egui outputs.
 
 ### Official
 
-I maintain two official egui integrations made for apps:
+There are three official egui integrations made for apps:
 
 * [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web) for making a web app. Compiles to WASM, renders with WebGL. [Click to run the egui demo](https://emilk.github.io/egui/index.html).
 * [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium) for compiling native apps with [Glium](https://github.com/glium/glium).
-* [`egui-winit`](https://github.com/emilk/egui/tree/master/egui-winit) for integrating with [`winit`](https://github.com/rust-windowing/winit). `egui-winit` is used by `egui_glium`.
+* [`egui_glow`](https://github.com/emilk/egui/tree/master/egui_glow) for compiling native apps with [Glow](https://github.com/grovesNL/glow).
+* [`egui-winit`](https://github.com/emilk/egui/tree/master/egui-winit) for integrating with [`winit`](https://github.com/rust-windowing/winit). `egui-winit` is used by `egui_glium` and `egui_glow`.
 
 If you making an app, consider using [`eframe`](https://github.com/emilk/egui/tree/master/eframe), a framework which allows you to write code that works on both the web (`egui_web`) and native (using `egui_glium`).
 
@@ -211,7 +212,7 @@ loop {
 }
 ```
 
-For a reference OpenGL backend, see [the `egui_glium` painter](https://github.com/emilk/egui/blob/master/egui_glium/src/painter.rs) or [the `egui_web` `WebGL` painter](https://github.com/emilk/egui/blob/master/egui_web/src/webgl1.rs).
+For a reference OpenGL backend, see [the `egui_glium` painter](https://github.com/emilk/egui/blob/master/egui_glium/src/painter.rs), [the `egui_glow` painter](https://github.com/emilk/egui/blob/master/egui_glow/src/painter.rs), or [the `egui_web` `WebGL` painter](https://github.com/emilk/egui/blob/master/egui_web/src/webgl1.rs).
 
 ### Debugging your integration
 
@@ -352,11 +353,11 @@ The library was originally called "Emigui", but was renamed to "egui" in 2020.
 
 egui author: Emil Ernerfeldt
 
-egui is under MIT OR Apache-2.0 license.
+egui is licensed under [MIT](LICENSE-MIT) OR [Apache-2.0](LICENSE-APACHE).
 
 Fonts:
 
 * `emoji-icon-font.ttf`: [Copyright (c) 2014 John Slegers](https://github.com/jslegers/emoji-icon-font) , MIT License
+* `Hack-Regular.ttf`: <https://github.com/source-foundry/Hack>, [MIT Licence](https://github.com/source-foundry/Hack/blob/master/LICENSE.md)
 * `NotoEmoji-Regular.ttf`: [google.com/get/noto](https://google.com/get/noto), [SIL Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL)
-* `ProggyClean.ttf`: Copyright (c) 2004, 2005 Tristan Grimmer. MIT License. <http://www.proggyfonts.net/>
 * `Ubuntu-Light.ttf` by [Dalton Maag](http://www.daltonmaag.com/): [Ubuntu font licence](https://ubuntu.com/legal/font-licence)

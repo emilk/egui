@@ -118,7 +118,10 @@ impl CCursorPair {
 /// an underlying buffer.
 ///
 /// Most likely you will use a `String` which implements `TextBuffer`.
-pub trait TextBuffer: AsRef<str> + Into<String> {
+pub trait TextBuffer: AsRef<str> {
+    /// Can this text be edited?
+    fn is_mutable(&self) -> bool;
+
     /// Inserts text `text` into this buffer at character index `ch_idx`.
     ///
     /// # Notes
@@ -162,6 +165,10 @@ pub trait TextBuffer: AsRef<str> + Into<String> {
 }
 
 impl TextBuffer for String {
+    fn is_mutable(&self) -> bool {
+        true
+    }
+
     fn insert_text(&mut self, text: &str, ch_idx: usize) -> usize {
         // Get the byte index from the character index
         let byte_idx = self::byte_index_from_char_index(self, ch_idx);
@@ -196,6 +203,19 @@ impl TextBuffer for String {
     }
 }
 
+/// Immutable view of a &str!
+impl<'a> TextBuffer for &'a str {
+    fn is_mutable(&self) -> bool {
+        false
+    }
+
+    fn insert_text(&mut self, _text: &str, _ch_idx: usize) -> usize {
+        0
+    }
+
+    fn delete_char_range(&mut self, _ch_range: Range<usize>) {}
+}
+
 /// A text region that the user can edit the contents of.
 ///
 /// See also [`Ui::text_edit_singleline`] and  [`Ui::text_edit_multiline`].
@@ -222,9 +242,19 @@ impl TextBuffer for String {
 /// ui.add_sized(ui.available_size(), egui::TextEdit::multiline(&mut my_string));
 /// ```
 ///
+///
+/// You can also use [`TextEdit`] to show text that can be selected, but not edited.
+/// To do so, pass in a `&mut` reference to a `&str`, for instance:
+///
+/// ```
+/// fn selectable_text(ui: &mut egui::Ui, mut text: &str) {
+///     ui.add(egui::TextEdit::multiline(&mut text));
+/// }
+/// ```
+///
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
-pub struct TextEdit<'t, S: TextBuffer = String> {
-    text: &'t mut S,
+pub struct TextEdit<'t> {
+    text: &'t mut dyn TextBuffer,
     hint_text: String,
     id: Option<Id>,
     id_source: Option<Id>,
@@ -234,25 +264,16 @@ pub struct TextEdit<'t, S: TextBuffer = String> {
     password: bool,
     frame: bool,
     multiline: bool,
-    enabled: bool,
+    interactive: bool,
     desired_width: Option<f32>,
     desired_height_rows: usize,
     lock_focus: bool,
     cursor_at_end: bool,
 }
 
-impl<'t, S: TextBuffer> TextEdit<'t, S> {
-    pub fn cursor(ui: &Ui, id: Id) -> Option<CursorPair> {
-        ui.memory()
-            .id_data
-            .get::<State>(&id)
-            .and_then(|state| state.cursorp)
-    }
-}
-
-impl<'t, S: TextBuffer> TextEdit<'t, S> {
+impl<'t> TextEdit<'t> {
     /// No newlines (`\n`) allowed. Pressing enter key will result in the `TextEdit` losing focus (`response.lost_focus`).
-    pub fn singleline(text: &'t mut S) -> Self {
+    pub fn singleline(text: &'t mut dyn TextBuffer) -> Self {
         Self {
             desired_height_rows: 1,
             multiline: false,
@@ -261,7 +282,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
     }
 
     /// A `TextEdit` for multiple lines. Pressing enter key will create a new line.
-    pub fn multiline(text: &'t mut S) -> Self {
+    pub fn multiline(text: &'t mut dyn TextBuffer) -> Self {
         Self {
             text,
             hint_text: Default::default(),
@@ -273,7 +294,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             password: false,
             frame: true,
             multiline: true,
-            enabled: true,
+            interactive: true,
             desired_width: None,
             desired_height_rows: 4,
             lock_focus: false,
@@ -357,10 +378,17 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
         self
     }
 
-    /// Default is `true`. If set to `false` then you cannot edit the text.
-    pub fn enabled(mut self, enabled: bool) -> Self {
-        self.enabled = enabled;
+    /// Default is `true`. If set to `false` then you cannot interact with the text (neither edit or select it).
+    ///
+    /// Consider using [`Ui::add_enabled`] instead to also give the `TextEdit` a greyed out look.
+    pub fn interactive(mut self, interactive: bool) -> Self {
+        self.interactive = interactive;
         self
+    }
+
+    #[deprecated = "Use TextEdit::interactive or ui.add_enabled instead"]
+    pub fn enabled(self, enabled: bool) -> Self {
+        self.interactive(enabled)
     }
 
     /// Default is `true`. If set to `false` there will be no frame showing that this is editable text!
@@ -370,7 +398,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
     }
 
     /// Set to 0.0 to keep as small as possible.
-    /// Set to [`f32::INFINITY`] to take up all available space.
+    /// Set to [`f32::INFINITY`] to take up all available space (i.e. disable automatic word wrap).
     pub fn desired_width(mut self, desired_width: f32) -> Self {
         self.desired_width = Some(desired_width);
         self
@@ -403,10 +431,20 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
     }
 }
 
-impl<'t, S: TextBuffer> Widget for TextEdit<'t, S> {
+impl<'t> TextEdit<'t> {
+    pub fn cursor(ui: &Ui, id: Id) -> Option<CursorPair> {
+        ui.memory()
+            .id_data
+            .get::<State>(&id)
+            .and_then(|state| state.cursorp)
+    }
+}
+
+impl<'t> Widget for TextEdit<'t> {
     fn ui(self, ui: &mut Ui) -> Response {
+        let is_mutable = self.text.is_mutable();
         let frame = self.frame;
-        let enabled = self.enabled;
+        let interactive = self.interactive;
         let where_to_put_background = ui.painter().add(Shape::Noop);
 
         let margin = Vec2::new(4.0, 2.0);
@@ -416,8 +454,8 @@ impl<'t, S: TextBuffer> Widget for TextEdit<'t, S> {
         let id = response.id;
         let frame_rect = response.rect.expand2(margin);
         ui.allocate_space(frame_rect.size());
-        if enabled {
-            response |= ui.interact(frame_rect, id, Sense::click())
+        if interactive {
+            response |= ui.interact(frame_rect, id, Sense::click());
         }
         if response.clicked() && !response.lost_focus() {
             ui.memory().request_focus(response.id);
@@ -426,19 +464,31 @@ impl<'t, S: TextBuffer> Widget for TextEdit<'t, S> {
         if frame {
             let visuals = ui.style().interact(&response);
             let frame_rect = frame_rect.expand(visuals.expansion);
-            let shape = if response.has_focus() {
-                epaint::RectShape {
-                    rect: frame_rect,
-                    corner_radius: visuals.corner_radius,
-                    // fill: ui.visuals().selection.bg_fill,
-                    fill: ui.visuals().extreme_bg_color,
-                    stroke: ui.visuals().selection.stroke,
+            let shape = if is_mutable {
+                if response.has_focus() {
+                    epaint::RectShape {
+                        rect: frame_rect,
+                        corner_radius: visuals.corner_radius,
+                        // fill: ui.visuals().selection.bg_fill,
+                        fill: ui.visuals().extreme_bg_color,
+                        stroke: ui.visuals().selection.stroke,
+                    }
+                } else {
+                    epaint::RectShape {
+                        rect: frame_rect,
+                        corner_radius: visuals.corner_radius,
+                        fill: ui.visuals().extreme_bg_color,
+                        stroke: visuals.bg_stroke, // TODO: we want to show something here, or a text-edit field doesn't "pop".
+                    }
                 }
             } else {
+                let visuals = &ui.style().visuals.widgets.inactive;
                 epaint::RectShape {
                     rect: frame_rect,
                     corner_radius: visuals.corner_radius,
-                    fill: ui.visuals().extreme_bg_color,
+                    // fill: ui.visuals().extreme_bg_color,
+                    // fill: visuals.bg_fill,
+                    fill: Color32::TRANSPARENT,
                     stroke: visuals.bg_stroke, // TODO: we want to show something here, or a text-edit field doesn't "pop".
                 }
             };
@@ -464,7 +514,7 @@ fn mask_if_password(is_password: bool, text: &str) -> String {
     }
 }
 
-impl<'t, S: TextBuffer> TextEdit<'t, S> {
+impl<'t> TextEdit<'t> {
     fn content_ui(self, ui: &mut Ui) -> Response {
         let TextEdit {
             text,
@@ -477,7 +527,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             password,
             frame: _,
             multiline,
-            enabled,
+            interactive,
             desired_width,
             desired_height_rows,
             lock_focus,
@@ -522,8 +572,14 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
 
         let mut galley = layouter(ui, text.as_ref(), wrap_width);
 
+        let desired_width = if multiline {
+            galley.size().x.max(wrap_width) // always show everything in multiline
+        } else {
+            wrap_width // visual clipping with scroll in singleline input. TODO: opt-in/out?
+        };
         let desired_height = (desired_height_rows.at_least(1) as f32) * row_height;
-        let desired_size = vec2(wrap_width, galley.size().y.max(desired_height));
+        let desired_size = vec2(desired_width, galley.size().y.max(desired_height));
+
         let (auto_id, rect) = ui.allocate_space(desired_size);
 
         let id = id.unwrap_or_else(|| {
@@ -535,7 +591,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
         });
         let mut state = ui.memory().id_data.get_or_default::<State>(id).clone();
 
-        let sense = if enabled {
+        let sense = if interactive {
             Sense::click_and_drag()
         } else {
             Sense::hover()
@@ -543,7 +599,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
         let mut response = ui.interact(rect, id, sense);
         let painter = ui.painter_at(rect);
 
-        if enabled {
+        if interactive {
             if let Some(pointer_pos) = ui.input().pointer.interact_pos() {
                 // TODO: triple-click to select whole paragraph
                 // TODO: drag selected text to either move or clone (ctrl on windows, alt on mac)
@@ -593,18 +649,24 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
             }
         }
 
-        if response.hovered() && enabled {
+        if response.hovered() && interactive {
             ui.output().cursor_icon = CursorIcon::Text;
         }
 
         let mut text_cursor = None;
         let prev_text_cursor = state.cursorp;
-        if ui.memory().has_focus(id) && enabled {
+        if ui.memory().has_focus(id) && interactive {
             ui.memory().lock_focus(id, lock_focus);
 
-            let mut cursorp = state
-                .cursorp
-                .map(|cursorp| {
+            let mut cursorp = state.cursorp.map_or_else(
+                || {
+                    if cursor_at_end {
+                        CursorPair::one(galley.end())
+                    } else {
+                        CursorPair::default()
+                    }
+                },
+                |cursorp| {
                     // We only keep the PCursor (paragraph number, and character offset within that paragraph).
                     // This is so what if we resize the `TextEdit` region, and text wrapping changes,
                     // we keep the same byte character offset from the beginning of the text,
@@ -616,14 +678,8 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                         primary: galley.from_pcursor(cursorp.primary.pcursor),
                         secondary: galley.from_pcursor(cursorp.secondary.pcursor),
                     }
-                })
-                .unwrap_or_else(|| {
-                    if cursor_at_end {
-                        CursorPair::one(galley.end())
-                    } else {
-                        CursorPair::default()
-                    }
-                });
+                },
+            );
 
             // We feed state to the undoer both before and after handling input
             // so that the undoer creates automatic saves even when there are no events for a while.
@@ -839,7 +895,7 @@ impl<'t, S: TextBuffer> TextEdit<'t, S> {
                     &cursorp.primary,
                 );
 
-                if enabled {
+                if interactive {
                     ui.ctx().output().text_cursor_pos = Some(
                         galley
                             .pos_from_cursor(&cursorp.primary)
@@ -992,18 +1048,18 @@ fn byte_index_from_char_index(s: &str, char_index: usize) -> usize {
     s.len()
 }
 
-fn insert_text<S: TextBuffer>(ccursor: &mut CCursor, text: &mut S, text_to_insert: &str) {
+fn insert_text(ccursor: &mut CCursor, text: &mut dyn TextBuffer, text_to_insert: &str) {
     ccursor.index += text.insert_text(text_to_insert, ccursor.index);
 }
 
 // ----------------------------------------------------------------------------
 
-fn delete_selected<S: TextBuffer>(text: &mut S, cursorp: &CursorPair) -> CCursor {
+fn delete_selected(text: &mut dyn TextBuffer, cursorp: &CursorPair) -> CCursor {
     let [min, max] = cursorp.sorted();
     delete_selected_ccursor_range(text, [min.ccursor, max.ccursor])
 }
 
-fn delete_selected_ccursor_range<S: TextBuffer>(text: &mut S, [min, max]: [CCursor; 2]) -> CCursor {
+fn delete_selected_ccursor_range(text: &mut dyn TextBuffer, [min, max]: [CCursor; 2]) -> CCursor {
     text.delete_char_range(min.index..max.index);
     CCursor {
         index: min.index,
@@ -1011,7 +1067,7 @@ fn delete_selected_ccursor_range<S: TextBuffer>(text: &mut S, [min, max]: [CCurs
     }
 }
 
-fn delete_previous_char<S: TextBuffer>(text: &mut S, ccursor: CCursor) -> CCursor {
+fn delete_previous_char(text: &mut dyn TextBuffer, ccursor: CCursor) -> CCursor {
     if ccursor.index > 0 {
         let max_ccursor = ccursor;
         let min_ccursor = max_ccursor - 1;
@@ -1021,22 +1077,22 @@ fn delete_previous_char<S: TextBuffer>(text: &mut S, ccursor: CCursor) -> CCurso
     }
 }
 
-fn delete_next_char<S: TextBuffer>(text: &mut S, ccursor: CCursor) -> CCursor {
+fn delete_next_char(text: &mut dyn TextBuffer, ccursor: CCursor) -> CCursor {
     delete_selected_ccursor_range(text, [ccursor, ccursor + 1])
 }
 
-fn delete_previous_word<S: TextBuffer>(text: &mut S, max_ccursor: CCursor) -> CCursor {
+fn delete_previous_word(text: &mut dyn TextBuffer, max_ccursor: CCursor) -> CCursor {
     let min_ccursor = ccursor_previous_word(text.as_ref(), max_ccursor);
     delete_selected_ccursor_range(text, [min_ccursor, max_ccursor])
 }
 
-fn delete_next_word<S: TextBuffer>(text: &mut S, min_ccursor: CCursor) -> CCursor {
+fn delete_next_word(text: &mut dyn TextBuffer, min_ccursor: CCursor) -> CCursor {
     let max_ccursor = ccursor_next_word(text.as_ref(), min_ccursor);
     delete_selected_ccursor_range(text, [min_ccursor, max_ccursor])
 }
 
-fn delete_paragraph_before_cursor<S: TextBuffer>(
-    text: &mut S,
+fn delete_paragraph_before_cursor(
+    text: &mut dyn TextBuffer,
     galley: &Galley,
     cursorp: &CursorPair,
 ) -> CCursor {
@@ -1053,8 +1109,8 @@ fn delete_paragraph_before_cursor<S: TextBuffer>(
     }
 }
 
-fn delete_paragraph_after_cursor<S: TextBuffer>(
-    text: &mut S,
+fn delete_paragraph_after_cursor(
+    text: &mut dyn TextBuffer,
     galley: &Galley,
     cursorp: &CursorPair,
 ) -> CCursor {
@@ -1074,9 +1130,9 @@ fn delete_paragraph_after_cursor<S: TextBuffer>(
 // ----------------------------------------------------------------------------
 
 /// Returns `Some(new_cursor)` if we did mutate `text`.
-fn on_key_press<S: TextBuffer>(
+fn on_key_press(
     cursorp: &mut CursorPair,
-    text: &mut S,
+    text: &mut dyn TextBuffer,
     galley: &Galley,
     key: Key,
     modifiers: &Modifiers,
@@ -1319,7 +1375,7 @@ fn find_line_start(text: &str, current_index: CCursor) -> CCursor {
     }
 }
 
-fn decrease_identation<S: TextBuffer>(ccursor: &mut CCursor, text: &mut S) {
+fn decrease_identation(ccursor: &mut CCursor, text: &mut dyn TextBuffer) {
     let line_start = find_line_start(text.as_ref(), *ccursor);
 
     let remove_len = if text.as_ref()[line_start.index..].starts_with('\t') {

@@ -79,14 +79,14 @@ impl<'open> Window<'open> {
         self
     }
 
-    /// Usage: `Window::new(...).mutate(|w| w.resize = w.resize.auto_expand_width(true))`
+    /// Usage: `Window::new(…).mutate(|w| w.resize = w.resize.auto_expand_width(true))`
     /// Not sure this is a good interface for this.
     pub fn mutate(mut self, mutate: impl Fn(&mut Self)) -> Self {
         mutate(&mut self);
         self
     }
 
-    /// Usage: `Window::new(...).resize(|r| r.auto_expand_width(true))`
+    /// Usage: `Window::new(…).resize(|r| r.auto_expand_width(true))`
     /// Not sure this is a good interface for this.
     pub fn resize(mut self, mutate: impl Fn(Resize) -> Resize) -> Self {
         self.resize = mutate(self.resize);
@@ -367,8 +367,7 @@ impl<'open> Window<'open> {
                         }
                     })
                 })
-                .map(|ir| (Some(ir.inner), Some(ir.response)))
-                .unwrap_or((None, None));
+                .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
 
             let outer_rect = frame.end(&mut area_content_ui).rect;
             paint_resize_corner(&mut area_content_ui, &possible, outer_rect, frame_stroke);
