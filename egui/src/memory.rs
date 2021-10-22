@@ -1,6 +1,6 @@
 use epaint::ahash::AHashSet;
 
-use crate::{any, area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
+use crate::{area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
 
 // ----------------------------------------------------------------------------
 
@@ -24,7 +24,7 @@ pub struct Memory {
     ///
     /// To store a state common for all your widgets (a singleton), use [`Id::null`] as the key.
     #[cfg(feature = "persistence")]
-    pub data: any::IdAnyMap,
+    pub data: crate::util::IdAnyMap,
 
     // ------------------------------------------
     /// Can be used to cache computations from one frame to another.

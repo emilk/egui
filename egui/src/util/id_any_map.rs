@@ -63,17 +63,23 @@ struct SerializedElement {
 type Serializer = fn(&Box<dyn Any + 'static + Send + Sync>) -> Option<String>;
 
 enum Element {
-    /// Serializable data
+    /// A value, possibly serializable
     Value {
+        /// The actual value.
         value: Box<dyn Any + 'static + Send + Sync>,
+
+        /// How to clone the value.
         clone_fn: fn(&Box<dyn Any + 'static + Send + Sync>) -> Box<dyn Any + 'static + Send + Sync>,
 
-        // None if non-serializable type.
+        /// How to serialize the vlaue.
+        /// None if non-serializable type.
         #[cfg(feature = "persistence")]
         serialize_fn: Option<Serializer>,
     },
     Serialized {
+        /// The type stored.
         type_id: TypeId,
+        /// The ron data we can deserialize.
         ron: String,
     },
 }
@@ -105,11 +111,11 @@ impl std::fmt::Debug for Element {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {
             Self::Value { value, .. } => f
-                .debug_struct("MaybeSerializable::Temporary")
-                .field("value_type_id", &value.type_id())
+                .debug_struct("MaybeSerializable::Value")
+                .field("type_id", &value.type_id())
                 .finish_non_exhaustive(),
             Self::Serialized { type_id, ron } => f
-                .debug_struct("MaybeSerializable::Temporary")
+                .debug_struct("MaybeSerializable::Serialized")
                 .field("type_id", &type_id)
                 .field("ron", &ron)
                 .finish(),
@@ -280,12 +286,28 @@ fn from_ron_str<T: serde::de::DeserializeOwned>(ron: &str) -> Option<T> {
 use crate::Id;
 
 // TODO: make generic over the key, instead of using hard-coded `Id`.
-/// Stores any value grouped by [`Id`] and [`TypeId`].
-/// Values can optionally be serializable.
+/// Stores any value identified by their type and a given [`Id`].
+///
+/// Values can either be "persisted" (serializable) or "temporary" (cleared when egui is shut down).
 #[derive(Clone, Debug, Default)]
 pub struct IdAnyMap(nohash_hasher::IntMap<u64, Element>);
 
 impl IdAnyMap {
+    /// Insert a value that will not be persisted.
+    #[inline]
+    pub fn insert_temp<T: 'static + Any + Clone + Send + Sync>(&mut self, id: Id, value: T) {
+        let hash = hash(TypeId::of::<T>(), id);
+        self.0.insert(hash, Element::new_temp(value));
+    }
+
+    /// Insert a value that will be persisted next time you start the app.
+    #[inline]
+    pub fn insert_persisted<T: SerializableAny>(&mut self, id: Id, value: T) {
+        let hash = hash(TypeId::of::<T>(), id);
+        self.0.insert(hash, Element::new_persisted(value));
+    }
+
+    /// Read a value without trying to deserialize a persited value.
     #[inline]
     pub fn get_temp<T: 'static + Clone>(&mut self, id: Id) -> Option<T> {
         let hash = hash(TypeId::of::<T>(), id);
@@ -295,6 +317,7 @@ impl IdAnyMap {
             .cloned()
     }
 
+    /// Read a value, optionally deserializing it if available.
     #[inline]
     pub fn get_persisted<T: SerializableAny>(&mut self, id: Id) -> Option<T> {
         let hash = hash(TypeId::of::<T>(), id);
@@ -368,18 +391,6 @@ impl IdAnyMap {
     }
 
     #[inline]
-    pub fn insert_temp<T: 'static + Any + Clone + Send + Sync>(&mut self, id: Id, value: T) {
-        let hash = hash(TypeId::of::<T>(), id);
-        self.0.insert(hash, Element::new_temp(value));
-    }
-
-    #[inline]
-    pub fn insert_persisted<T: SerializableAny>(&mut self, id: Id, value: T) {
-        let hash = hash(TypeId::of::<T>(), id);
-        self.0.insert(hash, Element::new_persisted(value));
-    }
-
-    #[inline]
     pub fn remove<T: 'static>(&mut self, id: Id) {
         let hash = hash(TypeId::of::<T>(), id);
         self.0.remove(&hash);
@@ -420,6 +431,8 @@ impl IdAnyMap {
 fn hash(type_id: TypeId, id: Id) -> u64 {
     type_id.value() ^ id.value()
 }
+
+// ----------------------------------------------------------------------------
 
 #[cfg(feature = "serde")]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
