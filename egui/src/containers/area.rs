@@ -6,7 +6,8 @@ use std::{fmt::Debug, hash::Hash};
 
 use crate::*;
 
-/// State that is persisted between frames
+/// State that is persisted between frames.
+// TODO: this is not currently stored in `memory().id_data`, but maybe it should be?
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct State {

@@ -146,21 +146,27 @@ impl CodeTheme {
 
     pub fn from_memory(ctx: &egui::Context) -> Self {
         if ctx.style().visuals.dark_mode {
-            *ctx.memory()
+            ctx.memory()
                 .id_data
-                .get_or_insert_with(egui::Id::new("dark"), CodeTheme::dark)
+                .get_persisted(egui::Id::new("dark"))
+                .unwrap_or_else(CodeTheme::dark)
         } else {
-            *ctx.memory()
+            ctx.memory()
                 .id_data
-                .get_or_insert_with(egui::Id::new("light"), CodeTheme::light)
+                .get_persisted(egui::Id::new("light"))
+                .unwrap_or_else(CodeTheme::light)
         }
     }
 
     pub fn store_in_memory(&self, ctx: &egui::Context) {
         if self.dark_mode {
-            ctx.memory().id_data.insert(egui::Id::new("dark"), *self);
+            ctx.memory()
+                .id_data
+                .insert_persisted(egui::Id::new("dark"), *self);
         } else {
-            ctx.memory().id_data.insert(egui::Id::new("light"), *self);
+            ctx.memory()
+                .id_data
+                .insert_persisted(egui::Id::new("light"), *self);
         }
     }
 }

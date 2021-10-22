@@ -385,10 +385,7 @@ impl<'open> Window<'open> {
                 );
             }
 
-            area_content_ui
-                .memory()
-                .id_data
-                .insert(collapsing_id, collapsing);
+            collapsing.store(&ctx, collapsing_id);
 
             if let Some(interaction) = interaction {
                 paint_frame_interaction(
@@ -525,11 +522,10 @@ fn interact(
     area.state_mut().pos = new_rect.min;
 
     if window_interaction.is_resize() {
-        ctx.memory()
-            .id_data
-            .get_mut::<resize::State>(&resize_id)
-            .unwrap()
-            .requested_size = Some(new_rect.size() - margins);
+        if let Some(mut state) = resize::State::load(ctx, resize_id) {
+            state.requested_size = Some(new_rect.size() - margins);
+            state.store(ctx, resize_id);
+        }
     }
 
     ctx.memory().areas.move_to_top(area_layer_id);

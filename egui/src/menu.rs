@@ -31,16 +31,17 @@ pub(crate) struct BarState {
 }
 
 impl BarState {
-    fn load(ctx: &Context, bar_id: &Id) -> Self {
+    fn load(ctx: &Context, bar_id: Id) -> Self {
         ctx.memory()
-            .id_data_temp
-            .get_or_default::<Self>(*bar_id)
-            .clone()
+            .id_data
+            .get_temp::<Self>(bar_id)
+            .unwrap_or_default()
     }
 
-    fn save(self, ctx: &Context, bar_id: Id) {
-        ctx.memory().id_data_temp.insert(bar_id, self);
+    fn store(self, ctx: &Context, bar_id: Id) {
+        ctx.memory().id_data.insert_temp(bar_id, self);
     }
+
     /// Show a menu at pointer if right-clicked response.
     /// Should be called from [`Context`] on a [`Response`]
     pub fn bar_menu<R>(
@@ -161,7 +162,7 @@ fn stationary_menu_impl<'c, R>(
     let bar_id = ui.id();
     let menu_id = bar_id.with(&title);
 
-    let mut bar_state = BarState::load(ui.ctx(), &bar_id);
+    let mut bar_state = BarState::load(ui.ctx(), bar_id);
 
     let mut button = Button::new(title);
 
@@ -173,7 +174,7 @@ fn stationary_menu_impl<'c, R>(
     let button_response = ui.add(button);
     let inner = bar_state.bar_menu(&button_response, add_contents);
 
-    bar_state.save(ui.ctx(), bar_id);
+    bar_state.store(ui.ctx(), bar_id);
     InnerResponse::new(inner.map(|r| r.inner), button_response)
 }
 

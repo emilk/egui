@@ -264,6 +264,36 @@ impl IdAnyMap {
         let hash = hash(TypeId::of::<T>(), id);
         self.0.remove(&hash);
     }
+
+    /// Note that this function could not remove all needed types between runs because if you upgraded the Rust version or for other reasons.
+    pub fn remove_by_type<T: 'static>(&mut self) {
+        let key = TypeId::of::<T>();
+        self.0.retain(|_, e| {
+            let e: &Element = e;
+            e.type_id() != key
+        });
+    }
+
+    #[inline]
+    pub fn clear(&mut self) {
+        self.0.clear();
+    }
+
+    /// You could use this function to find is there some leak or misusage. Note, that result of this function could break between runs, if you upgraded the Rust version or for other reasons.
+    pub fn count<T: 'static>(&mut self) -> usize {
+        let key = TypeId::of::<T>();
+        self.0
+            .iter()
+            .filter(|(_, e)| {
+                let e: &Element = e;
+                e.type_id() == key
+            })
+            .count()
+    }
+
+    pub fn count_all(&mut self) -> usize {
+        self.0.len()
+    }
 }
 
 #[inline(always)]

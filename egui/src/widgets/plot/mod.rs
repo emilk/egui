@@ -30,6 +30,16 @@ struct PlotMemory {
     min_auto_bounds: Bounds,
 }
 
+impl PlotMemory {
+    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
+        ctx.memory().id_data.get_persisted(id)
+    }
+
+    pub fn store(self, ctx: &Context, id: Id) {
+        ctx.memory().id_data.insert_persisted(id, self)
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// A 2D plot, e.g. a graph of a function.
@@ -342,10 +352,8 @@ impl Widget for Plot {
         } = self;
 
         let plot_id = ui.make_persistent_id(id_source);
-        let mut memory = ui
-            .memory()
-            .id_data
-            .get_mut_or_insert_with(plot_id, || PlotMemory {
+        let mut memory = PlotMemory::load(ui.ctx(), plot_id)
+            .unwrap_or_else(|| PlotMemory {
                 bounds: min_auto_bounds,
                 auto_bounds: !min_auto_bounds.is_valid(),
                 hovered_entry: None,
@@ -363,7 +371,7 @@ impl Widget for Plot {
                 min_auto_bounds,
                 ..memory
             };
-            ui.memory().id_data.insert(plot_id, memory.clone());
+            memory.clone().store(ui.ctx(), plot_id);
         }
 
         let PlotMemory {
@@ -511,16 +519,14 @@ impl Widget for Plot {
             hovered_entry = legend.get_hovered_entry_name();
         }
 
-        ui.memory().id_data.insert(
-            plot_id,
-            PlotMemory {
-                bounds,
-                auto_bounds,
-                hovered_entry,
-                hidden_items,
-                min_auto_bounds,
-            },
-        );
+        let memory = PlotMemory {
+            bounds,
+            auto_bounds,
+            hovered_entry,
+            hidden_items,
+            min_auto_bounds,
+        };
+        memory.store(ui.ctx(), plot_id);
 
         if show_x || show_y {
             response.on_hover_cursor(CursorIcon::Crosshair)

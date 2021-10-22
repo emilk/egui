@@ -10,11 +10,6 @@ impl TypeId {
     pub fn of<T: Any + 'static>() -> Self {
         std::any::TypeId::of::<T>().into()
     }
-
-    #[inline(always)]
-    pub(crate) fn value(&self) -> u64 {
-        self.0
-    }
 }
 
 impl From<std::any::TypeId> for TypeId {

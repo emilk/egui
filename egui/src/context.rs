@@ -937,12 +937,10 @@ impl Context {
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} menu bars",
-                self.memory().id_data_temp.count::<menu::BarState>()
+                self.memory().id_data.count::<menu::BarState>()
             ));
             if ui.button("Reset").clicked() {
-                self.memory()
-                    .id_data_temp
-                    .remove_by_type::<menu::BarState>();
+                self.memory().id_data.remove_by_type::<menu::BarState>();
             }
         });
 

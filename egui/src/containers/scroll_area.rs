@@ -41,6 +41,16 @@ impl Default for State {
     }
 }
 
+impl State {
+    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
+        ctx.memory().id_data.get_persisted(id)
+    }
+
+    pub fn store(self, ctx: &Context, id: Id) {
+        ctx.memory().id_data.insert_persisted(id, self)
+    }
+}
+
 /// Add vertical and/or horizontal scrolling to a contained [`Ui`].
 ///
 /// ```
@@ -262,7 +272,7 @@ impl ScrollArea {
 
         let id_source = id_source.unwrap_or_else(|| Id::new("scroll_area"));
         let id = ui.make_persistent_id(id_source);
-        let mut state = *ctx.memory().id_data.get_or_default::<State>(id);
+        let mut state = State::load(&ctx, id).unwrap_or_default();
 
         if let Some(offset) = offset {
             state.offset = offset;
@@ -718,7 +728,7 @@ impl Prepared {
 
         state.show_scroll = show_scroll_this_frame;
 
-        ui.memory().id_data.insert(id, state);
+        state.store(ui.ctx(), id);
     }
 }
 

@@ -16,6 +16,16 @@ pub(crate) struct State {
     pub(crate) requested_size: Option<Vec2>,
 }
 
+impl State {
+    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
+        ctx.memory().id_data.get_persisted(id)
+    }
+
+    pub fn store(self, ctx: &Context, id: Id) {
+        ctx.memory().id_data.insert_persisted(id, self)
+    }
+}
+
 /// A region that can be resized by dragging the bottom right corner.
 #[derive(Clone, Copy, Debug)]
 #[must_use = "You should call .show()"]
@@ -160,7 +170,7 @@ impl Resize {
             ui.make_persistent_id(id_source)
         });
 
-        let mut state = *ui.memory().id_data.get_or_insert_with(id, || {
+        let mut state = State::load(ui.ctx(), id).unwrap_or_else(|| {
             ui.ctx().request_repaint(); // counter frame delay
 
             let default_size = self
@@ -297,7 +307,7 @@ impl Resize {
             }
         }
 
-        ui.memory().id_data.insert(id, state);
+        state.store(ui.ctx(), id);
 
         if ui.ctx().style().debug.show_resize {
             ui.ctx().debug_painter().debug_rect(
