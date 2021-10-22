@@ -60,6 +60,7 @@ struct SerializedElement {
     ron: String,
 }
 
+#[cfg(feature = "persistence")]
 type Serializer = fn(&Box<dyn Any + 'static + Send + Sync>) -> Option<String>;
 
 enum Element {
