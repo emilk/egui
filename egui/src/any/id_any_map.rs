@@ -60,6 +60,8 @@ struct SerializedElement {
     ron: String,
 }
 
+type Serializer = fn(&Box<dyn Any + 'static + Send + Sync>) -> Option<String>;
+
 enum Element {
     /// Serializable data
     Value {
@@ -68,8 +70,7 @@ enum Element {
 
         // None if non-serializable type.
         #[cfg(feature = "persistence")]
-        serialize_fn:
-            Option<fn(&Box<dyn Any + 'static + Send + Sync>) -> Result<String, ron::Error>>,
+        serialize_fn: Option<Serializer>,
     },
     Serialized {
         type_id: TypeId,
@@ -141,7 +142,7 @@ impl Element {
             #[cfg(feature = "persistence")]
             serialize_fn: Some(|x| {
                 let x = x.downcast_ref::<T>().unwrap(); // This will never panic too, for same reason.
-                ron::to_string(x)
+                ron::to_string(x).ok()
             }),
         }
     }
@@ -241,7 +242,7 @@ impl Element {
                 ..
             } => {
                 if let Some(serialize_fn) = serialize_fn {
-                    let ron = serialize_fn(value).ok()?;
+                    let ron = serialize_fn(value)?;
                     Some(SerializedElement {
                         type_id: (**value).type_id().into(),
                         ron,
