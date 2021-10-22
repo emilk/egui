@@ -37,7 +37,9 @@ pub fn init_glow_context_from_canvas(canvas: HtmlCanvasElement) -> glow::Context
             if let Ok(ctx) = ctx {
                 glow_debug_print("falling back to webgl1");
                 if let Some(ctx) = ctx {
+                    glow_debug_print("webgl selected");
                     let gl_ctx = ctx.dyn_into::<web_sys::WebGlRenderingContext>().unwrap();
+                    glow_debug_print("success");
                     glow::Context::from_webgl1_context(gl_ctx)
                 } else {
                     glow_debug_print("tried webgl1 but cant get context");
@@ -48,13 +50,13 @@ pub fn init_glow_context_from_canvas(canvas: HtmlCanvasElement) -> glow::Context
                 exit(1)
             }
         }
-    }else{
+    } else {
         glow_debug_print("tried webgl2 but something went wrong");
         exit(1)
     }
 }
 
-fn srgbtexture2d(gl: &glow::Context, data: &[u8], w: usize, h: usize) -> glow::Texture {
+fn srgbtexture2d(gl: &glow::Context,compatibility_mode:bool, data: &[u8], w: usize, h: usize) -> glow::Texture {
     assert_eq!(data.len(), w * h * 4);
     assert!(w >= 1);
     assert!(h >= 1);
@@ -77,20 +79,24 @@ fn srgbtexture2d(gl: &glow::Context, data: &[u8], w: usize, h: usize) -> glow::T
             glow::TEXTURE_WRAP_T,
             glow::CLAMP_TO_EDGE as i32,
         );
-
-        gl.tex_storage_2d(glow::TEXTURE_2D, 1, glow::SRGB8_ALPHA8, w as i32, h as i32);
-        gl.tex_sub_image_2d(
-            glow::TEXTURE_2D,
-            0,
-            0,
-            0,
-            w as i32,
-            h as i32,
-            glow::RGBA,
-            glow::UNSIGNED_BYTE,
-            glow::PixelUnpackData::Slice(data),
-        );
-
+        // not supported on WebGL2 disabled firefox
+        if compatibility_mode{
+            gl.bind_texture(glow::TEXTURE_2D,Some(tex));
+            gl.tex_image_2d(glow::TEXTURE_2D, 1, glow::RGBA as i32, w as i32, h as i32, 0,glow::RGBA,glow::UNSIGNED_BYTE,Some(data))
+        }else {
+            gl.tex_storage_2d(glow::TEXTURE_2D, 1, glow::SRGB8_ALPHA8, w as i32, h as i32);
+            gl.tex_sub_image_2d(
+                glow::TEXTURE_2D,
+                0,
+                0,
+                0,
+                w as i32,
+                h as i32,
+                glow::RGBA,
+                glow::UNSIGNED_BYTE,
+                glow::PixelUnpackData::Slice(data),
+            );
+        }
         assert_eq!(gl.get_error(), glow::NO_ERROR, "OpenGL error occurred!");
         tex
     }
@@ -110,7 +116,7 @@ pub struct Painter {
     u_sampler: glow::UniformLocation,
     egui_texture: Option<glow::Texture>,
     egui_texture_version: Option<u64>,
-
+    webgl_1_compatibility_mode: bool,
     /// `None` means unallocated (freed) slot.
     user_textures: Vec<Option<UserTexture>>,
 
@@ -147,7 +153,9 @@ enum ShaderVersion {
 
 impl ShaderVersion {
     fn get(gl: &glow::Context) -> Self {
-        Self::parse(unsafe { &gl.get_parameter_string(glow::SHADING_LANGUAGE_VERSION) })
+        let shading_lang = unsafe { gl.get_parameter_string(glow::SHADING_LANGUAGE_VERSION) };
+        glow_debug_print(&shading_lang);
+        Self::parse(&shading_lang)
     }
 
     #[inline]
@@ -205,13 +213,21 @@ fn test_shader_version() {
 
 impl Painter {
     pub fn new(gl: &glow::Context) -> Painter {
-        let header = ShaderVersion::get(gl).version();
+        let shader_version = ShaderVersion::get(gl);
+        let webgl_1_compatibility_mode = if shader_version == ShaderVersion::Es100 {
+            true
+        } else {
+            false
+        };
+        let header = shader_version.version();
+        glow_debug_print(header);
         let mut v_src = header.to_owned();
         v_src.push_str(VERT_SRC);
         let mut f_src = header.to_owned();
         f_src.push_str(FRAG_SRC);
         unsafe {
             let v = gl.create_shader(glow::VERTEX_SHADER).unwrap();
+            glow_debug_print("gl::create_shader success");
             gl.shader_source(v, &v_src);
             gl.compile_shader(v);
             if !gl.get_shader_compile_status(v) {
@@ -223,6 +239,7 @@ impl Painter {
             }
 
             let f = gl.create_shader(glow::FRAGMENT_SHADER).unwrap();
+            glow_debug_print("gl::create_shader success");
             gl.shader_source(f, &f_src);
             gl.compile_shader(f);
             if !gl.get_shader_compile_status(f) {
@@ -234,6 +251,7 @@ impl Painter {
             }
 
             let program = gl.create_program().unwrap();
+            glow_debug_print("gl::create_program successs");
             gl.attach_shader(program, v);
             gl.attach_shader(program, f);
             gl.link_program(program);
@@ -251,18 +269,28 @@ impl Painter {
 
             let u_screen_size = gl.get_uniform_location(program, "u_screen_size").unwrap();
             let u_sampler = gl.get_uniform_location(program, "u_sampler").unwrap();
-
+            glow_debug_print("gl::get_uniform_location success");
+            //webgl2 and native work this function but webgl without OES_vertex_array_object don't work but my firefox support it
+            let vertex_array = if !webgl_1_compatibility_mode {
+                Some(gl.create_vertex_array().unwrap())
+            } else {
+                None
+            };
             let vertex_array = gl.create_vertex_array().unwrap();
+            glow_debug_print("gl::create_vertex_array success");
             let vertex_buffer = gl.create_buffer().unwrap();
             let element_array_buffer = gl.create_buffer().unwrap();
+            glow_debug_print("gl::create_buffer success");
 
             gl.bind_vertex_array(Some(vertex_array));
+            glow_debug_print("gl::bind_vertex_array success");
             gl.bind_buffer(glow::ARRAY_BUFFER, Some(vertex_buffer));
-
+            // webgl and webgl2 should work
             let a_pos_loc = gl.get_attrib_location(program, "a_pos").unwrap();
             let a_tc_loc = gl.get_attrib_location(program, "a_tc").unwrap();
             let a_srgba_loc = gl.get_attrib_location(program, "a_srgba").unwrap();
-
+            glow_debug_print("gl::get_attrib_location success");
+            // webgl and webgl2 should work
             gl.vertex_attrib_pointer_f32(
                 a_pos_loc,
                 2,
@@ -296,6 +324,8 @@ impl Painter {
             if gl.get_error() != glow::NO_ERROR {
                 glow_debug_print("OpenGL error occurred!");
                 exit(1);
+            } else {
+                glow_debug_print("Initialization finished");
             }
             Painter {
                 program,
@@ -303,6 +333,7 @@ impl Painter {
                 u_sampler,
                 egui_texture: None,
                 egui_texture_version: None,
+                webgl_1_compatibility_mode,
                 user_textures: Default::default(),
                 vertex_array,
                 vertex_buffer,
@@ -329,7 +360,7 @@ impl Painter {
 
         if let Some(old_tex) = std::mem::replace(
             &mut self.egui_texture,
-            Some(srgbtexture2d(gl, &pixels, texture.width, texture.height)),
+            Some(srgbtexture2d(gl, self.webgl_1_compatibility_mode,&pixels, texture.width, texture.height)),
         ) {
             unsafe {
                 gl.delete_texture(old_tex);
@@ -597,6 +628,7 @@ impl Painter {
                 let data = std::mem::take(&mut user_texture.data);
                 user_texture.gl_texture = Some(srgbtexture2d(
                     gl,
+                    self.webgl_1_compatibility_mode,
                     &data,
                     user_texture.size.0,
                     user_texture.size.1,

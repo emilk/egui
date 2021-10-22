@@ -21,7 +21,8 @@ pub use {egui, epi};
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use epi::NativeOptions;
-
+#[cfg(target_arch = "wasm32")]
+use std::panic;
 // ----------------------------------------------------------------------------
 // When compiling for web
 
@@ -53,6 +54,7 @@ pub use egui_web::wasm_bindgen;
 /// ```
 #[cfg(target_arch = "wasm32")]
 pub fn start_web(canvas_id: &str, app: Box<dyn epi::App>) -> Result<(), wasm_bindgen::JsValue> {
+    panic::set_hook(Box::new(console_error_panic_hook::hook));
     egui_web::start(canvas_id, app)?;
     Ok(())
 }

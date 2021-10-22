@@ -29,19 +29,18 @@ epi = { version = "0.14.0", path = "../epi" }
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 egui-winit = { version = "0.14.0", path = "../egui-winit", default-features = false }
-egui_glium = { version = "0.14.0", path = "../egui_glium", default-features = false, features = ["clipboard", "epi", "links"], optional = true }
 egui_glow = { version = "0.14.0", path = "../egui_glow", default-features = false, features = ["clipboard", "epi", "links"], optional = true }
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 egui_web = { version = "0.14.0", path = "../egui_web", default-features = false }
-
+console_error_panic_hook="0.1.7"
 [dev-dependencies]
 image = { version = "0.23", default-features = false, features = ["png"] }
 rfd = "0.5.0"
 
 [features]
-default = ["default_fonts", "egui_glium"]
+default = ["default_fonts", "egui_glow"]
 
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
