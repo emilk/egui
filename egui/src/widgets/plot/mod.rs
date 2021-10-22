@@ -32,11 +32,11 @@ struct PlotMemory {
 
 impl PlotMemory {
     pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.memory().id_data.get_persisted(id)
+        ctx.memory().data.get_persisted(id)
     }
 
     pub fn store(self, ctx: &Context, id: Id) {
-        ctx.memory().id_data.insert_persisted(id, self)
+        ctx.memory().data.insert_persisted(id, self);
     }
 }
 
@@ -352,15 +352,13 @@ impl Widget for Plot {
         } = self;
 
         let plot_id = ui.make_persistent_id(id_source);
-        let mut memory = PlotMemory::load(ui.ctx(), plot_id)
-            .unwrap_or_else(|| PlotMemory {
-                bounds: min_auto_bounds,
-                auto_bounds: !min_auto_bounds.is_valid(),
-                hovered_entry: None,
-                hidden_items: Default::default(),
-                min_auto_bounds,
-            })
-            .clone();
+        let mut memory = PlotMemory::load(ui.ctx(), plot_id).unwrap_or_else(|| PlotMemory {
+            bounds: min_auto_bounds,
+            auto_bounds: !min_auto_bounds.is_valid(),
+            hovered_entry: None,
+            hidden_items: Default::default(),
+            min_auto_bounds,
+        });
 
         // If the min bounds changed, recalculate everything.
         if min_auto_bounds != memory.min_auto_bounds {

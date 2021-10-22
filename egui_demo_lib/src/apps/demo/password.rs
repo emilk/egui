@@ -27,11 +27,7 @@ pub fn password_ui(ui: &mut egui::Ui, text: &mut String) -> egui::Response {
     // You can read more about available `Memory` functions in the documentation of `egui::Memory`
     // struct and `egui::any` module.
     // You should get state by value, not by reference to avoid borrowing of `Memory`.
-    let mut plaintext = ui
-        .memory()
-        .id_data
-        .get_temp::<State>(id)
-        .unwrap_or_default();
+    let mut plaintext = ui.memory().data.get_temp::<State>(id).unwrap_or_default();
 
     // 4. Process ui, change a local copy of the state
     // We want TextEdit to fill entire space, and have button after that, so in that case we can
@@ -55,7 +51,7 @@ pub fn password_ui(ui: &mut egui::Ui, text: &mut String) -> egui::Response {
     });
 
     // 5. Insert changed state back
-    ui.memory().id_data.insert_temp(id, plaintext);
+    ui.memory().data.insert_temp(id, plaintext);
 
     // All done! Return the interaction response so the user can check what happened
     // (hovered, clicked, …) and maybe show a tooltip:

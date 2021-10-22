@@ -924,12 +924,12 @@ impl Context {
             ui.label(format!(
                 "{} collapsing headers",
                 self.memory()
-                    .id_data
+                    .data
                     .count::<containers::collapsing_header::State>()
             ));
             if ui.button("Reset").clicked() {
                 self.memory()
-                    .id_data
+                    .data
                     .remove_by_type::<containers::collapsing_header::State>();
             }
         });
@@ -937,30 +937,30 @@ impl Context {
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} menu bars",
-                self.memory().id_data.count::<menu::BarState>()
+                self.memory().data.count::<menu::BarState>()
             ));
             if ui.button("Reset").clicked() {
-                self.memory().id_data.remove_by_type::<menu::BarState>();
+                self.memory().data.remove_by_type::<menu::BarState>();
             }
         });
 
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} scroll areas",
-                self.memory().id_data.count::<scroll_area::State>()
+                self.memory().data.count::<scroll_area::State>()
             ));
             if ui.button("Reset").clicked() {
-                self.memory().id_data.remove_by_type::<scroll_area::State>();
+                self.memory().data.remove_by_type::<scroll_area::State>();
             }
         });
 
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} resize areas",
-                self.memory().id_data.count::<resize::State>()
+                self.memory().data.count::<resize::State>()
             ));
             if ui.button("Reset").clicked() {
-                self.memory().id_data.remove_by_type::<resize::State>();
+                self.memory().data.remove_by_type::<resize::State>();
             }
         });
 

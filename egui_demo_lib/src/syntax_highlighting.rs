@@ -147,12 +147,12 @@ impl CodeTheme {
     pub fn from_memory(ctx: &egui::Context) -> Self {
         if ctx.style().visuals.dark_mode {
             ctx.memory()
-                .id_data
+                .data
                 .get_persisted(egui::Id::new("dark"))
                 .unwrap_or_else(CodeTheme::dark)
         } else {
             ctx.memory()
-                .id_data
+                .data
                 .get_persisted(egui::Id::new("light"))
                 .unwrap_or_else(CodeTheme::light)
         }
@@ -161,11 +161,11 @@ impl CodeTheme {
     pub fn store_in_memory(&self, ctx: &egui::Context) {
         if self.dark_mode {
             ctx.memory()
-                .id_data
+                .data
                 .insert_persisted(egui::Id::new("dark"), *self);
         } else {
             ctx.memory()
-                .id_data
+                .data
                 .insert_persisted(egui::Id::new("light"), *self);
         }
     }
@@ -235,7 +235,11 @@ impl CodeTheme {
 
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         ui.horizontal_top(|ui| {
-            let mut selected_tt: TokenType = *ui.memory().data.get_or(TokenType::Comment);
+            let selected_id = egui::Id::null();
+            let mut selected_tt: TokenType = *ui
+                .memory()
+                .data
+                .get_persisted_mut_or(selected_id, TokenType::Comment);
 
             ui.vertical(|ui| {
                 ui.set_width(150.0);
@@ -277,7 +281,7 @@ impl CodeTheme {
 
             ui.add_space(16.0);
 
-            ui.memory().data.insert(selected_tt);
+            ui.memory().data.insert_persisted(selected_id, selected_tt);
 
             egui::Frame::group(ui.style())
                 .margin(egui::Vec2::splat(2.0))

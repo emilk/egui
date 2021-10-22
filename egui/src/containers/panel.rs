@@ -25,11 +25,11 @@ struct PanelState {
 
 impl PanelState {
     fn load(ctx: &Context, bar_id: Id) -> Option<Self> {
-        ctx.memory().id_data.get_persisted(bar_id)
+        ctx.memory().data.get_persisted(bar_id)
     }
 
     fn store(self, ctx: &Context, bar_id: Id) {
-        ctx.memory().id_data.insert_persisted(bar_id, self);
+        ctx.memory().data.insert_persisted(bar_id, self);
     }
 }
 

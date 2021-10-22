@@ -385,7 +385,7 @@ impl<'open> Window<'open> {
                 );
             }
 
-            collapsing.store(&ctx, collapsing_id);
+            collapsing.store(ctx, collapsing_id);
 
             if let Some(interaction) = interaction {
                 paint_frame_interaction(

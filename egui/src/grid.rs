@@ -9,11 +9,11 @@ pub(crate) struct State {
 
 impl State {
     pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.memory().id_data.get_persisted(id)
+        ctx.memory().data.get_persisted(id)
     }
 
     pub fn store(self, ctx: &Context, id: Id) {
-        ctx.memory().id_data.insert_persisted(id, self)
+        ctx.memory().data.insert_persisted(id, self);
     }
 
     fn set_min_col_width(&mut self, col: usize, width: f32) {

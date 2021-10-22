@@ -11,33 +11,20 @@ use crate::{any, area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style
 ///
 /// If you want this to persist when closing your app you should serialize `Memory` and store it.
 ///
-/// If you want to store data for your widgets, you should look at `data`/`data_temp` and
-/// `id_data`/`id_data_temp` fields, and read the documentation of [`any`] module.
+/// If you want to store data for your widgets, you should look at [`Memory::data`]
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Memory {
     pub options: Options,
 
-    // ------------------------------------------
-    /// This map stores current states for widgets that don't require `Id`.
-    /// This will be saved between different program runs if you use the `persistence` feature.
-    #[cfg(feature = "persistence")]
-    pub data: any::serializable::TypeMap,
-
-    /// This map stores current states for widgets that don't require `Id`.
-    /// This will be saved between different program runs if you use the `persistence` feature.
-    #[cfg(not(feature = "persistence"))]
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pub data: any::TypeMap,
-
-    /// Same as `data`, but this data will not be saved between runs.
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pub data_temp: any::TypeMap,
-
     /// This map stores current states for all widgets with custom `Id`s.
+    ///
     /// This will be saved between different program runs if you use the `persistence` feature.
-    pub id_data: any::IdAnyMap,
+    ///
+    /// To store a state common for all your widgets (a singleton), use [`Id::null`] as the key.
+    #[cfg(feature = "persistence")]
+    pub data: any::IdAnyMap,
 
     // ------------------------------------------
     /// Can be used to cache computations from one frame to another.

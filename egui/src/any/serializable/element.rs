@@ -146,7 +146,7 @@ impl AnyMapElement {
                 }
             }
             Serialized(s, _) => {
-                *self = Self::new(from_ron_str::<T>(s).unwrap_or_else(|| set_with()));
+                *self = Self::new(from_ron_str::<T>(s).unwrap_or_else(set_with));
             }
         }
 

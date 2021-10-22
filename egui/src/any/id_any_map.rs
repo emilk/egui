@@ -1,3 +1,8 @@
+// TODO: it is possible we can simplify `Element` further by
+// assuming everything is "faalible" serializable, and by supplying serialize/deserialize functions for them.
+// For non-serializable types, these simply return `None`.
+// This will also allow users to pick their own serialization format per type.
+
 use std::any::Any;
 
 // -----------------------------------------------------------------------------------------------
@@ -29,22 +34,22 @@ impl From<std::any::TypeId> for TypeId {
 // -----------------------------------------------------------------------------------------------
 
 #[cfg(feature = "serde")]
-pub trait SerializableTrait:
+pub trait SerializableAny:
     'static + Any + Clone + serde::Serialize + for<'a> serde::Deserialize<'a> + Send + Sync
 {
 }
 
 #[cfg(feature = "serde")]
-impl<T> SerializableTrait for T where
+impl<T> SerializableAny for T where
     T: 'static + Any + Clone + serde::Serialize + for<'a> serde::Deserialize<'a> + Send + Sync
 {
 }
 
 #[cfg(not(feature = "serde"))]
-pub trait SerializableTrait: 'static + Any + Clone + for<'a> Send + Sync {}
+pub trait SerializableAny: 'static + Any + Clone + for<'a> Send + Sync {}
 
 #[cfg(not(feature = "serde"))]
-impl<T> SerializableTrait for T where T: 'static + Any + Clone + for<'a> Send + Sync {}
+impl<T> SerializableAny for T where T: 'static + Any + Clone + for<'a> Send + Sync {}
 
 // -----------------------------------------------------------------------------------------------
 
@@ -55,7 +60,7 @@ struct SerializedElement {
     ron: String,
 }
 
-pub(crate) enum Element {
+enum Element {
     /// Serializable data
     Value {
         value: Box<dyn Any + 'static + Send + Sync>,
@@ -126,7 +131,7 @@ impl Element {
     }
 
     #[inline]
-    pub(crate) fn new_persisted<T: SerializableTrait>(t: T) -> Self {
+    pub(crate) fn new_persisted<T: SerializableAny>(t: T) -> Self {
         Self::Value {
             value: Box::new(t),
             clone_fn: |x| {
@@ -157,7 +162,58 @@ impl Element {
         }
     }
 
-    pub(crate) fn get_mut_persisted<T: SerializableTrait>(&mut self) -> Option<&mut T> {
+    #[inline]
+    pub(crate) fn get_temp_mut_or_insert_with<T: 'static + Any + Clone + Send + Sync>(
+        &mut self,
+        insert_with: impl FnOnce() -> T,
+    ) -> &mut T {
+        match self {
+            Self::Value { value, .. } => {
+                if !value.is::<T>() {
+                    *self = Self::new_temp(insert_with());
+                }
+            }
+            Self::Serialized { .. } => {
+                *self = Self::new_temp(insert_with());
+            }
+        }
+
+        match self {
+            Self::Value { value, .. } => value.downcast_mut().unwrap(), // This unwrap will never panic because we already converted object to required type
+            Self::Serialized { .. } => unreachable!(),
+        }
+    }
+
+    #[inline]
+    pub(crate) fn get_persisted_mut_or_insert_with<T: SerializableAny>(
+        &mut self,
+        insert_with: impl FnOnce() -> T,
+    ) -> &mut T {
+        match self {
+            Self::Value { value, .. } => {
+                if !value.is::<T>() {
+                    *self = Self::new_persisted(insert_with());
+                }
+            }
+
+            #[cfg(feature = "persistence")]
+            Self::Serialized { ron, .. } => {
+                *self = Self::new_persisted(from_ron_str::<T>(ron).unwrap_or_else(insert_with));
+            }
+
+            #[cfg(not(feature = "persistence"))]
+            Self::Serialized { .. } => {
+                *self = Self::new_persisted(insert_with());
+            }
+        }
+
+        match self {
+            Self::Value { value, .. } => value.downcast_mut().unwrap(), // This unwrap will never panic because we already converted object to required type
+            Self::Serialized { .. } => unreachable!(),
+        }
+    }
+
+    pub(crate) fn get_mut_persisted<T: SerializableAny>(&mut self) -> Option<&mut T> {
         match self {
             Self::Value { value, .. } => value.downcast_mut(),
 
@@ -239,12 +295,75 @@ impl IdAnyMap {
     }
 
     #[inline]
-    pub fn get_persisted<T: SerializableTrait>(&mut self, id: Id) -> Option<T> {
+    pub fn get_persisted<T: SerializableAny>(&mut self, id: Id) -> Option<T> {
         let hash = hash(TypeId::of::<T>(), id);
         self.0
             .get_mut(&hash)
             .and_then(|x| x.get_mut_persisted())
             .cloned()
+    }
+
+    #[inline]
+    pub fn get_temp_mut_or<T: 'static + Any + Clone + Send + Sync>(
+        &mut self,
+        id: Id,
+        or_insert: T,
+    ) -> &mut T {
+        self.get_temp_mut_or_insert_with(id, || or_insert)
+    }
+
+    #[inline]
+    pub fn get_persisted_mut_or<T: SerializableAny>(&mut self, id: Id, or_insert: T) -> &mut T {
+        self.get_persisted_mut_or_insert_with(id, || or_insert)
+    }
+
+    #[inline]
+    pub fn get_temp_mut_or_default<T: 'static + Any + Clone + Send + Sync + Default>(
+        &mut self,
+        id: Id,
+    ) -> &mut T {
+        self.get_temp_mut_or_insert_with(id, Default::default)
+    }
+
+    #[inline]
+    pub fn get_persisted_mut_or_default<T: SerializableAny + Default>(&mut self, id: Id) -> &mut T {
+        self.get_persisted_mut_or_insert_with(id, Default::default)
+    }
+
+    pub fn get_temp_mut_or_insert_with<T: 'static + Any + Clone + Send + Sync>(
+        &mut self,
+        id: Id,
+        insert_with: impl FnOnce() -> T,
+    ) -> &mut T {
+        let hash = hash(TypeId::of::<T>(), id);
+        use std::collections::hash_map::Entry;
+        match self.0.entry(hash) {
+            Entry::Vacant(vacant) => vacant
+                .insert(Element::new_temp(insert_with()))
+                .get_mut_temp()
+                .unwrap(), // this unwrap will never panic, because we insert correct type right now
+            Entry::Occupied(occupied) => {
+                occupied.into_mut().get_temp_mut_or_insert_with(insert_with)
+            }
+        }
+    }
+
+    pub fn get_persisted_mut_or_insert_with<T: SerializableAny>(
+        &mut self,
+        id: Id,
+        insert_with: impl FnOnce() -> T,
+    ) -> &mut T {
+        let hash = hash(TypeId::of::<T>(), id);
+        use std::collections::hash_map::Entry;
+        match self.0.entry(hash) {
+            Entry::Vacant(vacant) => vacant
+                .insert(Element::new_persisted(insert_with()))
+                .get_mut_persisted()
+                .unwrap(), // this unwrap will never panic, because we insert correct type right now
+            Entry::Occupied(occupied) => occupied
+                .into_mut()
+                .get_persisted_mut_or_insert_with(insert_with),
+        }
     }
 
     #[inline]
@@ -254,7 +373,7 @@ impl IdAnyMap {
     }
 
     #[inline]
-    pub fn insert_persisted<T: SerializableTrait>(&mut self, id: Id, value: T) {
+    pub fn insert_persisted<T: SerializableAny>(&mut self, id: Id, value: T) {
         let hash = hash(TypeId::of::<T>(), id);
         self.0.insert(hash, Element::new_persisted(value));
     }
