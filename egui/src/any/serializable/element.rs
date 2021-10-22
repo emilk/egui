@@ -2,7 +2,6 @@ use crate::any::serializable::type_id::TypeId;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::any::Any;
 use std::fmt;
-use AnyMapElementInner::{Deserialized, Serialized};
 
 pub(crate) struct AnyMapElement(AnyMapElementInner);
 
@@ -15,6 +14,8 @@ enum AnyMapElementInner {
     },
     Serialized(String, TypeId),
 }
+
+use AnyMapElementInner::{Deserialized, Serialized};
 
 #[derive(Deserialize, Serialize)]
 struct AnyMapElementInnerSer(String, TypeId);
@@ -31,7 +32,7 @@ impl Serialize for AnyMapElement {
                 ..
             } => {
                 let s = serialize_fn(value).map_err(serde::ser::Error::custom)?;
-                AnyMapElementInnerSer(s, self.type_id())
+                AnyMapElementInnerSer(s, (**value).type_id().into())
             }
             Serialized(s, id) => AnyMapElementInnerSer(s.clone(), *id),
         };

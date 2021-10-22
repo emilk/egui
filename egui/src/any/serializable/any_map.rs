@@ -94,6 +94,30 @@ impl IdAnyMap {
 
 // ----------------------------------------------------------------------------
 
+#[test]
+fn id_any_map_mix_serialize_and_not() {
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    struct Serializable(Option<String>);
+
+    #[derive(Clone, Debug)]
+    struct NonSerializable(Option<String>);
+
+    let mut map: IdAnyMap = Default::default();
+    map.insert(Id::new("yes"), Serializable(Some("Serializable".into())));
+    // map.insert_not_persisted(Id::new("not"), NonSerializable(Some("Not".into())));
+
+    let serialized = serde_json::to_string(&map).unwrap();
+
+    let mut map: IdAnyMap = serde_json::from_str(&serialized).unwrap();
+    assert_eq!(
+        map.get::<Serializable>(&Id::new("yes")),
+        Some(&Serializable(Some("Serializable".into())))
+    );
+    // assert_eq!(map.get::<State1>(&1), Some(&State1 { a: 42 }));
+}
+
 // #[test]
 // fn discard_different_struct() {
 //     use serde::{Deserialize, Serialize};

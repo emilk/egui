@@ -31,7 +31,7 @@ pub struct Id(u64);
 
 impl Id {
     pub(crate) fn background() -> Self {
-        Self(0)
+        Self(1)
     }
 
     /// Generate a new `Id` by hashing some source (e.g. a string or integer).
@@ -64,7 +64,7 @@ impl Id {
 
 impl std::fmt::Debug for Id {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:X}", self.0)
+        write!(f, "{:016X}", self.0)
     }
 }
 

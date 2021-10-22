@@ -52,10 +52,11 @@
 
 mod any_map;
 mod element;
+mod id_any_map;
 mod type_map;
 
 /// Same structs and traits, but also can be de/serialized under `persistence` feature.
 #[cfg(feature = "persistence")]
 pub mod serializable;
 
-pub use self::{any_map::AnyMap, element::AnyMapTrait, type_map::TypeMap};
+pub use self::{any_map::AnyMap, element::AnyMapTrait, id_any_map::IdAnyMap, type_map::TypeMap};
