@@ -15,7 +15,7 @@ impl MemoizedEasymarkHighlighter {
         if (&self.visuals, self.code.as_str()) != (visuals, code) {
             self.visuals = visuals.clone();
             self.code = code.to_owned();
-            self.output = highlight_easymark(visuals, code)
+            self.output = highlight_easymark(visuals, code);
         }
         self.output.clone()
     }
@@ -28,10 +28,7 @@ pub fn highlight_easymark(visuals: &egui::Visuals, mut text: &str) -> egui::text
 
     while !text.is_empty() {
         if start_of_line && text.starts_with("```") {
-            let end = text
-                .find("\n```")
-                .map(|i| i + 4)
-                .unwrap_or_else(|| text.len());
+            let end = text.find("\n```").map_or_else(|| text.len(), |i| i + 4);
             job.append(
                 &text[..end],
                 0.0,
@@ -52,8 +49,7 @@ pub fn highlight_easymark(visuals: &egui::Visuals, mut text: &str) -> egui::text
             style.code = true;
             let end = text[1..]
                 .find(&['`', '\n'][..])
-                .map(|i| i + 2)
-                .unwrap_or_else(|| text.len());
+                .map_or_else(|| text.len(), |i| i + 2);
             job.append(&text[..end], 0.0, format_from_style(visuals, &style));
             text = &text[end..];
             style.code = false;
@@ -112,12 +108,10 @@ pub fn highlight_easymark(visuals: &egui::Visuals, mut text: &str) -> egui::text
         // Swallow everything up to the next special character:
         let line_end = text[skip..]
             .find('\n')
-            .map(|i| (skip + i + 1))
-            .unwrap_or_else(|| text.len());
+            .map_or_else(|| text.len(), |i| (skip + i + 1));
         let end = text[skip..]
             .find(&['*', '`', '~', '_', '/', '$', '^', '\\', '<', '['][..])
-            .map(|i| (skip + i).max(1)) // make sure we swallow at least one character
-            .unwrap_or_else(|| text.len());
+            .map_or_else(|| text.len(), |i| (skip + i).max(1));
 
         if line_end <= end {
             job.append(&text[..line_end], 0.0, format_from_style(visuals, &style));

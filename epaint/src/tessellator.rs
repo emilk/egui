@@ -41,7 +41,7 @@ impl Path {
 
     #[inline(always)]
     pub fn reserve(&mut self, additional: usize) {
-        self.0.reserve(additional)
+        self.0.reserve(additional);
     }
 
     #[inline(always)]
@@ -153,12 +153,12 @@ impl Path {
 
     /// Open-ended.
     pub fn stroke_open(&self, stroke: Stroke, options: &TessellationOptions, out: &mut Mesh) {
-        stroke_path(&self.0, PathType::Open, stroke, options, out)
+        stroke_path(&self.0, PathType::Open, stroke, options, out);
     }
 
     /// A closed path (returning to the first point).
     pub fn stroke_closed(&self, stroke: Stroke, options: &TessellationOptions, out: &mut Mesh) {
-        stroke_path(&self.0, PathType::Closed, stroke, options, out)
+        stroke_path(&self.0, PathType::Closed, stroke, options, out);
     }
 
     pub fn stroke(
@@ -168,12 +168,12 @@ impl Path {
         options: &TessellationOptions,
         out: &mut Mesh,
     ) {
-        stroke_path(&self.0, path_type, stroke, options, out)
+        stroke_path(&self.0, path_type, stroke, options, out);
     }
 
     /// The path is taken to be closed (i.e. returning to the start again).
     pub fn fill(&self, color: Color32, options: &TessellationOptions, out: &mut Mesh) {
-        fill_closed_path(&self.0, color, options, out)
+        fill_closed_path(&self.0, color, options, out);
     }
 }
 
@@ -549,7 +549,7 @@ impl Tessellator {
             Shape::Noop => {}
             Shape::Vec(vec) => {
                 for shape in vec {
-                    self.tessellate_shape(tex_size, shape, out)
+                    self.tessellate_shape(tex_size, shape, out);
                 }
             }
             Shape::Circle(CircleShape {
@@ -837,7 +837,7 @@ pub fn tessellate_shapes(
                     Stroke::new(2.0, Color32::from_rgb(150, 255, 150)),
                 ),
                 mesh,
-            )
+            );
         }
     }
 

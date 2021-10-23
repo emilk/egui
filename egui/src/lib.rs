@@ -5,7 +5,7 @@
 //! `egui` is in heavy development, with each new version having breaking changes.
 //! You need to have rust 1.54.0 or later to use `egui`.
 //!
-//! To quickly get started with egui, you can take a look at [`egui_template`](https://github.com/emilk/egui_template)
+//! To quickly get started with egui, you can take a look at [`eframe_template`](https://github.com/emilk/eframe_template)
 //! which uses [`eframe`](https://docs.rs/eframe).
 //!
 //! To create a GUI using egui you first need a [`CtxRef`] (by convention referred to by `ctx`).
@@ -16,7 +16,7 @@
 //!
 //! To see what is possible to build with egui you can check out the online demo at <https://emilk.github.io/egui/#demo>.
 //!
-//! If you like the "learning by doing" approach, clone <https://github.com/emilk/egui_template> and get started using egui right away.
+//! If you like the "learning by doing" approach, clone <https://github.com/emilk/eframe_template> and get started using egui right away.
 //!
 //! ### A simple example
 //!
@@ -243,20 +243,20 @@
 //! # let mut some_bool = true;
 //! // Miscellaneous tips and tricks
 //!
-//! ui.horizontal_wrapped(|ui|{
+//! ui.horizontal_wrapped(|ui| {
 //!     ui.spacing_mut().item_spacing.x = 0.0; // remove spacing between widgets
 //!     // `radio_value` also works for enums, integers, and more.
 //!     ui.radio_value(&mut some_bool, false, "Off");
 //!     ui.radio_value(&mut some_bool, true, "On");
 //! });
 //!
-//! ui.group(|ui|{
+//! ui.group(|ui| {
 //!     ui.label("Within a frame");
 //!     ui.set_min_height(200.0);
 //! });
 //!
 //! // A `scope` creates a temporary [`Ui`] in which you can change settings:
-//! ui.scope(|ui|{
+//! ui.scope(|ui| {
 //!     ui.visuals_mut().override_text_color = Some(egui::Color32::RED);
 //!     ui.style_mut().override_text_style = Some(egui::TextStyle::Monospace);
 //!     ui.style_mut().wrap = Some(false);
@@ -275,6 +275,7 @@
     clippy::checked_conversions,
     clippy::dbg_macro,
     clippy::debug_assert_with_mut_call,
+    clippy::disallowed_method,
     clippy::doc_markdown,
     clippy::empty_enum,
     clippy::enum_glob_use,
@@ -284,12 +285,17 @@
     clippy::explicit_into_iter_loop,
     clippy::fallible_impl_from,
     clippy::filter_map_next,
+    clippy::flat_map_option,
     clippy::float_cmp_const,
     clippy::fn_params_excessive_bools,
+    clippy::from_iter_instead_of_collect,
     clippy::if_let_mutex,
+    clippy::implicit_clone,
     clippy::imprecise_flops,
     clippy::inefficient_to_string,
     clippy::invalid_upcast_comparisons,
+    clippy::large_digit_groups,
+    clippy::large_stack_arrays,
     clippy::large_types_passed_by_value,
     clippy::let_unit_value,
     clippy::linkedlist,
@@ -298,8 +304,10 @@
     clippy::manual_ok_or,
     clippy::map_err_ignore,
     clippy::map_flatten,
+    clippy::map_unwrap_or,
     clippy::match_on_vec_items,
     clippy::match_same_arms,
+    clippy::match_wild_err_arm,
     clippy::match_wildcard_for_single_variants,
     clippy::mem_forget,
     clippy::mismatched_target_os,
@@ -309,6 +317,7 @@
     clippy::mutex_integer,
     clippy::needless_borrow,
     clippy::needless_continue,
+    clippy::needless_for_each,
     clippy::needless_pass_by_value,
     clippy::option_option,
     clippy::path_buf_push_overwrite,
@@ -316,6 +325,8 @@
     clippy::ref_option_ref,
     clippy::rest_pat_in_fully_bound_structs,
     clippy::same_functions_in_if_condition,
+    clippy::semicolon_if_nothing_returned,
+    clippy::single_match_else,
     clippy::string_add_assign,
     clippy::string_add,
     clippy::string_lit_as_bytes,
@@ -406,7 +417,7 @@ pub use {
 /// Helper function that adds a label when compiling with debug assertions enabled.
 pub fn warn_if_debug_build(ui: &mut crate::Ui) {
     if cfg!(debug_assertions) {
-        ui.label(
+        ui.add(
             crate::Label::new("‼ Debug build ‼")
                 .small()
                 .text_color(crate::Color32::RED),

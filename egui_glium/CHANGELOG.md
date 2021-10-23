@@ -4,8 +4,8 @@ All notable changes to the `egui_glium` integration will be noted in this file.
 
 ## Unreleased
 * Remove "http" feature (use https://github.com/emilk/ehttp instead!).
-* Add `epi::NativeTexture` trait for glium painter
-* Deprecate 'Painter::register_glium_texture'
+* Implement `epi::NativeTexture` trait for the glium painter.
+* Deprecate 'Painter::register_glium_texture'.
 * Increase scroll speed.
 * Restore window position on startup without flickering.
 * A lot of the code has been moved to the new library [`egui-winit`](https://github.com/emilk/egui/tree/master/egui-winit).

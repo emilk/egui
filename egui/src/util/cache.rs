@@ -89,7 +89,7 @@ impl<Value: 'static + Send + Sync, Computer: 'static + Send + Sync> CacheTrait
     for FrameCache<Value, Computer>
 {
     fn update(&mut self) {
-        self.evice_cache()
+        self.evice_cache();
     }
 
     fn len(&self) -> usize {

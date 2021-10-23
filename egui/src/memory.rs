@@ -28,6 +28,7 @@ pub struct Memory {
     /// This map stores current states for widgets that don't require `Id`.
     /// This will be saved between different program runs if you use the `persistence` feature.
     #[cfg(not(feature = "persistence"))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub data: any::TypeMap,
 
     /// Same as `data`, but this data will not be saved between runs.
@@ -42,6 +43,7 @@ pub struct Memory {
     /// This map stores current states for all widgets with custom `Id`s.
     /// This will be saved between different program runs if you use the `persistence` feature.
     #[cfg(not(feature = "persistence"))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub id_data: any::AnyMap<Id, crate::id::BuilIdHasher>,
 
     /// Same as `id_data`, but this data will not be saved between runs.

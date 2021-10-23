@@ -222,12 +222,12 @@ impl AppRunner {
 
     fn integration_info(&self) -> epi::IntegrationInfo {
         epi::IntegrationInfo {
+            name: "egui_web",
             web_info: Some(epi::WebInfo {
                 web_location_hash: location_hash().unwrap_or_default(),
             }),
             prefer_dark_mode: self.prefer_dark_mode,
             cpu_usage: self.web_backend.previous_frame_time,
-            seconds_since_midnight: Some(seconds_since_midnight()),
             native_pixels_per_point: Some(native_pixels_per_point()),
         }
     }
@@ -260,6 +260,7 @@ impl AppRunner {
             let epi::backend::AppOutput {
                 quit: _,        // Can't quit a web page
                 window_size: _, // Can't resize a web page
+                window_title: _,
                 decorated: _,   // Can't show decorations
                 drag_window: _, // Can't be dragged
             } = app_output;

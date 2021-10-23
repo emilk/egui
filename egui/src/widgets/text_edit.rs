@@ -455,7 +455,7 @@ impl<'t> Widget for TextEdit<'t> {
         let frame_rect = response.rect.expand2(margin);
         ui.allocate_space(frame_rect.size());
         if interactive {
-            response |= ui.interact(frame_rect, id, Sense::click())
+            response |= ui.interact(frame_rect, id, Sense::click());
         }
         if response.clicked() && !response.lost_focus() {
             ui.memory().request_focus(response.id);
@@ -658,9 +658,15 @@ impl<'t> TextEdit<'t> {
         if ui.memory().has_focus(id) && interactive {
             ui.memory().lock_focus(id, lock_focus);
 
-            let mut cursorp = state
-                .cursorp
-                .map(|cursorp| {
+            let mut cursorp = state.cursorp.map_or_else(
+                || {
+                    if cursor_at_end {
+                        CursorPair::one(galley.end())
+                    } else {
+                        CursorPair::default()
+                    }
+                },
+                |cursorp| {
                     // We only keep the PCursor (paragraph number, and character offset within that paragraph).
                     // This is so what if we resize the `TextEdit` region, and text wrapping changes,
                     // we keep the same byte character offset from the beginning of the text,
@@ -672,14 +678,8 @@ impl<'t> TextEdit<'t> {
                         primary: galley.from_pcursor(cursorp.primary.pcursor),
                         secondary: galley.from_pcursor(cursorp.secondary.pcursor),
                     }
-                })
-                .unwrap_or_else(|| {
-                    if cursor_at_end {
-                        CursorPair::one(galley.end())
-                    } else {
-                        CursorPair::default()
-                    }
-                });
+                },
+            );
 
             // We feed state to the undoer both before and after handling input
             // so that the undoer creates automatic saves even when there are no events for a while.
@@ -752,6 +752,7 @@ impl<'t> TextEdit<'t> {
                         if multiline {
                             let mut ccursor = delete_selected(text, &cursorp);
                             insert_text(&mut ccursor, text, "\n");
+                            // TODO: if code editor, auto-indent by same leading tabs, + one if the lines end on an opening bracket
                             Some(CCursorPair::one(ccursor))
                         } else {
                             ui.memory().surrender_focus(id); // End input with enter

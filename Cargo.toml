@@ -4,6 +4,7 @@ members = [
     "egui_demo_app",
     "egui_demo_lib",
     "egui_glium",
+    "egui_glow",
     "egui_web",
     "egui-winit",
     "egui",
@@ -11,11 +12,6 @@ members = [
     "epaint",
     "epi",
 ]
-
-[patch.crates-io]
-egui = { path = 'egui' }
-egui_glium = { path = 'egui_glium' }
-egui_web = { path = 'egui_web' }
 
 [profile.dev]
 split-debuginfo = "unpacked" # faster debug builds on mac

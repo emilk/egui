@@ -119,7 +119,7 @@ where
 
     #[inline]
     pub fn clear(&mut self) {
-        self.values.clear()
+        self.values.clear();
     }
 
     /// Values must be added with a monotonically increasing time, or at least not decreasing.

@@ -10,14 +10,14 @@ This crates allows you to compile GUI code written with [egui](https://crates.io
 
 [Run the web demo](https://emilk.github.io/egui/index.html) to try it now.
 
-Check out [egui_template](https://github.com/emilk/egui_template) for an example of how to set it up.
+Check out [eframe_template](https://github.com/emilk/eframe_template) for an example of how to set it up.
 
 ## Downsides with using egui on the web
 
 `egui_web` uses WebGL and WASM, and almost nothing else from the web tech stack. This has some benefits, but also produces some challanges and serious downsides.
 
-* Rendering: Getting pixel-perfect rendering right on the web is very difficult, leading to text that is hard to read on low-DPI screens (https://github.com/emilk/egui/issues/516). Additonally, WebGL does not support linear framebuffer blending.
-* Search: you cannot search a egui web page like you would a normal web page.
+* Rendering: Getting pixel-perfect rendering right on the web is very difficult.
+* Search: you cannot search an egui web page like you would a normal web page.
 * Bringing up an on-screen keyboard on mobile: there is no JS function to do this, so `egui_web` fakes it by adding some invisible DOM elements. It doesn't always work.
 * Mobile text editing is not as good as for a normal web app.
 * Accessibility: There is an experimental screen reader for `egui_web`, but it has to be enabled explicitly. There is no JS function to ask "Does the user want a screen reader?" (and there should probably not be such a function, due to user tracking/integrity conserns).

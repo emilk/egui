@@ -37,7 +37,7 @@ impl Output {
     /// Open the given url in a web browser.
     /// If egui is running in a browser, the same tab will be reused.
     pub fn open_url(&mut self, url: impl ToString) {
-        self.open_url = Some(OpenUrl::same_tab(url))
+        self.open_url = Some(OpenUrl::same_tab(url));
     }
 
     /// This can be used by a text-to-speech system to describe the events (if any).

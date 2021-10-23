@@ -7,7 +7,10 @@ assignees: ''
 
 ---
 
-Please make sure there is not already a similar issue!
+<!--
+First look if there is already a similar feature request. If there is, add a comment to it instead!
+-->
+
 
 **Is your feature request related to a problem? Please describe.**
 <!-- A clear and concise description of what the problem is. Ex. I'm always frustrated when […] -->

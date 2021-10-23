@@ -8,23 +8,43 @@ use std::{
 /// A key-value store backed by a [RON](https://github.com/ron-rs/ron) file on disk.
 /// Used to restore egui state, glium window position/size and app state.
 pub struct FileStorage {
-    path: PathBuf,
+    ron_filepath: PathBuf,
     kv: HashMap<String, String>,
     dirty: bool,
 }
 
 impl FileStorage {
-    pub fn from_path(path: impl Into<PathBuf>) -> Self {
-        let path: PathBuf = path.into();
+    /// Store the state in this .ron file.
+    pub fn from_ron_filepath(ron_filepath: impl Into<PathBuf>) -> Self {
+        let ron_filepath: PathBuf = ron_filepath.into();
         Self {
-            kv: read_ron(&path).unwrap_or_default(),
-            path,
+            kv: read_ron(&ron_filepath).unwrap_or_default(),
+            ron_filepath,
             dirty: false,
+        }
+    }
+
+    /// Find a good place to put the files that the OS likes.
+    pub fn from_app_name(app_name: &str) -> Option<Self> {
+        if let Some(proj_dirs) = directories_next::ProjectDirs::from("", "", app_name) {
+            let data_dir = proj_dirs.data_dir().to_path_buf();
+            if let Err(err) = std::fs::create_dir_all(&data_dir) {
+                eprintln!(
+                    "Saving disabled: Failed to create app path at {:?}: {}",
+                    data_dir, err
+                );
+                None
+            } else {
+                Some(Self::from_ron_filepath(data_dir.join("app.ron")))
+            }
+        } else {
+            eprintln!("Saving disabled: Failed to find path to data_dir.");
+            None
         }
     }
 }
 
-impl epi::Storage for FileStorage {
+impl crate::Storage for FileStorage {
     fn get_string(&self, key: &str) -> Option<String> {
         self.kv.get(key).cloned()
     }
@@ -39,7 +59,7 @@ impl epi::Storage for FileStorage {
     fn flush(&mut self) {
         if self.dirty {
             // eprintln!("Persisted to {}", self.path.display());
-            let file = std::fs::File::create(&self.path).unwrap();
+            let file = std::fs::File::create(&self.ron_filepath).unwrap();
             let config = Default::default();
             ron::ser::to_writer_pretty(file, &self.kv, config).unwrap();
             self.dirty = false;
@@ -49,7 +69,7 @@ impl epi::Storage for FileStorage {
 
 // ----------------------------------------------------------------------------
 
-pub fn read_ron<T>(ron_path: impl AsRef<Path>) -> Option<T>
+fn read_ron<T>(ron_path: impl AsRef<Path>) -> Option<T>
 where
     T: serde::de::DeserializeOwned,
 {
@@ -70,6 +90,7 @@ where
         }
     }
 }
+
 // ----------------------------------------------------------------------------
 
 /// Alternative to `FileStorage`

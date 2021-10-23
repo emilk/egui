@@ -1,0 +1,60 @@
+[package]
+name = "egui_glow"
+version = "0.14.0"
+authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+description = "Bindings for using egui natively using the glow library"
+edition = "2018"
+homepage = "https://github.com/emilk/egui/tree/master/egui_glow"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/emilk/egui/tree/master/egui_glow"
+categories = ["gui", "game-development"]
+keywords = ["glow", "egui", "gui", "gamedev"]
+include = [
+  "../LICENSE-APACHE",
+  "../LICENSE-MIT",
+  "**/*.rs",
+  "Cargo.toml",
+  "src/shader/*.glsl",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+
+[dependencies]
+egui = { version = "0.14.0", path = "../egui", default-features = false, features = ["single_threaded"] }
+egui-winit = { version = "0.14.0", path = "../egui-winit", default-features = false, features = ["epi"] }
+epi = { version = "0.14.0", path = "../epi", optional = true }
+
+glow = "0.11"
+glutin = "0.27"
+memoffset = "0.6"
+
+[dev-dependencies]
+image = { version = "0.23", default-features = false, features = ["png"] }
+
+[features]
+default = ["clipboard", "default_fonts", "links", "persistence"]
+
+# enable cut/copy/paste to OS clipboard.
+# if disabled a clipboard will be simulated so you can still copy/paste within the egui app.
+clipboard = ["egui-winit/clipboard"]
+
+# If set, egui will use `include_bytes!` to bundle some fonts.
+# If you plan on specifying your own fonts you may disable this feature.
+default_fonts = ["egui/default_fonts"]
+
+# enable opening links in a browser when an egui hyperlink is clicked.
+links = ["egui-winit/links"]
+
+# enable code for sabing
+persistence = [
+  "egui-winit/persistence",
+  "egui/persistence",
+  "epi", # also implied by the lines below, see https://github.com/rust-lang/cargo/issues/8832
+  "epi/file_storage",
+  "epi/persistence",
+]
+
+# experimental support for a screen reader
+screen_reader = ["egui-winit/screen_reader"]

@@ -2,7 +2,7 @@
 
 All notable changes to the egui crate will be documented in this file.
 
-NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md), [`egui-winit`](egui-winit/CHANGELOG.md) and [`egui_glium`](egui_glium/CHANGELOG.md) have their own changelogs!
+NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md), [`egui-winit`](egui-winit/CHANGELOG.md), [`egui_glium`](egui_glium/CHANGELOG.md), and [`egui_glow`](egui_glow/CHANGELOG.md) have their own changelogs!
 
 
 ## Unreleased
@@ -15,11 +15,12 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Add `ui.add_enabled_ui(bool, |ui| …)` to create a possibly disabled UI section.
 * Add feature `"serialize"` separatedly from `"persistence"`.
 * Add `egui::widgets::global_dark_light_mode_buttons` to easily add buttons for switching the egui theme.
-* `TextEdit` can now be used to show text which can be selectedd and copied, but not edited.
+* `TextEdit` can now be used to show text which can be selected and copied, but not edited.
 * Add `Memory::caches` for caching things from one frame to the next.
 
 ### Changed 🔧
-* Label text will now be centered, right-aligned and/or justified based on the layout.
+* Change the default monospace font to [Hack](https://github.com/source-foundry/Hack).
+* Label text will now be centered, right-aligned and/or justified based on the layout of the `Ui` it is in.
 * `Hyperlink` will now word-wrap just like a `Label`.
 * All `Ui`:s must now have a finite `max_rect`.
   * Deprecated: `max_rect_finite`, `available_size_before_wrap_finite` and `available_rect_before_wrap_finite`.
@@ -30,6 +31,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * `ScrollArea` will auto-shrink to content size unless told otherwise using `ScollArea::auto_shrink`.
 * By default, `Slider`'s `clamp_to_range` is set to true.
 * Rename `TextEdit::enabled` to `TextEdit::interactive`.
+* `ui.label` (and friends) now take `impl ToString` as argument instead of `impl Into<Label>`.
 
 ### Fixed 🐛
 * Fix wrongly sized multiline `TextEdit` in justified layouts.
@@ -39,6 +41,22 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 
 ### Removed 🔥
 * Replace `Button::enabled` with `ui.add_enabled`.
+
+### Contributors 🙏
+* [AlexApps99](https://github.com/AlexApps99)
+* [baysmith](https://github.com/baysmith)
+* [bpostlethwaite](https://github.com/bpostlethwaite)
+* [cwfitzgerald](https://github.com/cwfitzgerald)
+* [DrOptix](https://github.com/DrOptix)
+* [JerzySpendel](https://github.com/JerzySpendel)
+* [NiceneNerd](https://github.com/NiceneNerd)
+* [parasyte](https://github.com/parasyte)
+* [spersson](https://github.com/spersson)
+* [Stock84-dev](https://github.com/Stock84-dev)
+* [sumibi-yakitori](https://github.com/sumibi-yakitori)
+* [t18b219k](https://github.com/t18b219k)
+* [TobTobXX](https://github.com/TobTobXX)
+* [zu1k](https://github.com/zu1k)
 
 
 ## 0.14.2 - 2021-08-28 - Window resize fix

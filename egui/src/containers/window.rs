@@ -367,8 +367,7 @@ impl<'open> Window<'open> {
                         }
                     })
                 })
-                .map(|ir| (Some(ir.inner), Some(ir.response)))
-                .unwrap_or((None, None));
+                .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
 
             let outer_rect = frame.end(&mut area_content_ui).rect;
             paint_resize_corner(&mut area_content_ui, &possible, outer_rect, frame_stroke);

@@ -105,7 +105,8 @@ impl SidePanel {
         }
     }
 
-    /// Switch resizable on/off.
+    /// Can panel be resized by dragging the edge of it?
+    ///
     /// Default is `true`.
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = resizable;
@@ -381,7 +382,8 @@ impl TopBottomPanel {
         }
     }
 
-    /// Switch resizable on/off.
+    /// Can panel be resized by dragging the edge of it?
+    ///
     /// Default is `false`.
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = resizable;

@@ -71,7 +71,7 @@ impl<'a> Slider<'a> {
         let range_f64 = range.start().to_f64()..=range.end().to_f64();
         let slf = Self::from_get_set(range_f64, move |v: Option<f64>| {
             if let Some(v) = v {
-                *value = Num::from_f64(v)
+                *value = Num::from_f64(v);
             }
             value.to_f64()
         });

@@ -70,7 +70,7 @@ impl Placer {
 
     #[inline(always)]
     pub(crate) fn set_cursor(&mut self, cursor: Rect) {
-        self.region.cursor = cursor
+        self.region.cursor = cursor;
     }
 }
 
@@ -162,14 +162,14 @@ impl Placer {
         self.region.sanity_check();
 
         if let Some(grid) = &mut self.grid {
-            grid.advance(&mut self.region.cursor, frame_rect, widget_rect)
+            grid.advance(&mut self.region.cursor, frame_rect, widget_rect);
         } else {
             self.layout.advance_after_rects(
                 &mut self.region.cursor,
                 frame_rect,
                 widget_rect,
                 item_spacing,
-            )
+            );
         }
 
         self.expand_to_include_rect(frame_rect); // e.g. for centered layouts: pretend we used whole frame
@@ -181,9 +181,9 @@ impl Placer {
     /// Otherwise does nothing.
     pub(crate) fn end_row(&mut self, item_spacing: Vec2, painter: &Painter) {
         if let Some(grid) = &mut self.grid {
-            grid.end_row(&mut self.region.cursor, painter)
+            grid.end_row(&mut self.region.cursor, painter);
         } else {
-            self.layout.end_row(&mut self.region, item_spacing)
+            self.layout.end_row(&mut self.region, item_spacing);
         }
     }
 
@@ -272,7 +272,7 @@ impl Placer {
             painter.debug_text(align.pos_in_rect(&rect), align, stroke.color, text);
         } else {
             self.layout
-                .paint_text_at_cursor(painter, &self.region, stroke, text)
+                .paint_text_at_cursor(painter, &self.region, stroke, text);
         }
     }
 }

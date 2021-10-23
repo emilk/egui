@@ -26,11 +26,13 @@ all-features = true
 egui = { version = "0.14.0", path = "../egui", default-features = false }
 epi = { version = "0.14.0", path = "../epi" }
 
-# For compiling natively:
+# native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui_glium = { version = "0.14.0", path = "../egui_glium", default-features = false, features = ["clipboard", "links"] }
+egui-winit = { version = "0.14.0", path = "../egui-winit", default-features = false }
+egui_glium = { version = "0.14.0", path = "../egui_glium", default-features = false, features = ["clipboard", "epi", "links"], optional = true }
+egui_glow = { version = "0.14.0", path = "../egui_glow", default-features = false, features = ["clipboard", "epi", "links"], optional = true }
 
-# For compiling to web:
+# web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 egui_web = { version = "0.14.0", path = "../egui_web", default-features = false }
 
@@ -39,17 +41,24 @@ image = { version = "0.23", default-features = false, features = ["png"] }
 rfd = "0.5.0"
 
 [features]
-default = ["default_fonts"]
+default = ["default_fonts", "egui_glium"]
 
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["egui/default_fonts"]
 
 # Enable saving app state to disk.
-persistence = ["epi/persistence", "egui_glium/persistence", "egui_web/persistence"]
+persistence = [
+  # we cannot touch egui_glium or egui_glow here due to https://github.com/rust-lang/cargo/issues/8832
+  "egui-winit/persistence",
+  "egui/persistence",
+  "epi/file_storage",
+  "epi/persistence",
+]
 
 # experimental support for a screen reader
-screen_reader = ["egui_glium/screen_reader", "egui_web/screen_reader"]
-
-# for seconds_since_midnight (used in egui_demo_lib)
-time = ["egui_glium/time"]
+screen_reader = [
+  # we cannot touch egui_glium or egui_glow here due to https://github.com/rust-lang/cargo/issues/8832
+  "egui-winit/screen_reader",
+  "egui_web/screen_reader",
+]

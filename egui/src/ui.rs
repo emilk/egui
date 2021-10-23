@@ -227,7 +227,7 @@ impl Ui {
     /// ```
     /// # let ui = &mut egui::Ui::__test();
     /// # let mut enabled = true;
-    /// ui.group(|ui|{
+    /// ui.group(|ui| {
     ///     ui.checkbox(&mut enabled, "Enable subsection");
     ///     ui.set_enabled(enabled);
     ///     if ui.button("Button that is not always clickable").clicked() {
@@ -260,7 +260,7 @@ impl Ui {
     /// ```
     /// # let ui = &mut egui::Ui::__test();
     /// # let mut visible = true;
-    /// ui.group(|ui|{
+    /// ui.group(|ui| {
     ///     ui.checkbox(&mut visible, "Show subsection");
     ///     ui.set_visible(visible);
     ///     if ui.button("Button that is not always shown").clicked() {
@@ -381,7 +381,7 @@ impl Ui {
 
     /// Used for animation, kind of hacky
     pub(crate) fn force_set_min_rect(&mut self, min_rect: Rect) {
-        self.placer.force_set_min_rect(min_rect)
+        self.placer.force_set_min_rect(min_rect);
     }
 
     // ------------------------------------------------------------------------
@@ -432,13 +432,13 @@ impl Ui {
     /// so further widgets will try not to be wider than previous widgets.
     /// Useful for normal vertical layouts.
     pub fn shrink_width_to_current(&mut self) {
-        self.set_max_width(self.min_rect().width())
+        self.set_max_width(self.min_rect().width());
     }
 
     /// Helper: shrinks the max height to the current height,
     /// so further widgets will try not to be wider than previous widgets.
     pub fn shrink_height_to_current(&mut self) {
-        self.set_max_height(self.min_rect().height())
+        self.set_max_height(self.min_rect().height());
     }
 
     /// Expand the `min_rect` and `max_rect` of this ui to include a child at the given rect.
@@ -741,7 +741,7 @@ impl Ui {
     }
 
     pub(crate) fn set_cursor(&mut self, cursor: Rect) {
-        self.placer.set_cursor(cursor)
+        self.placer.set_cursor(cursor);
     }
 
     /// Where do we expect a zero-sized widget to be placed?
@@ -997,43 +997,56 @@ impl Ui {
         self.placer.advance_cursor(amount);
     }
 
+    /// Show some text.
+    ///
     /// Shortcut for `add(Label::new(text))`
     ///
     /// See also [`Label`].
     #[inline(always)]
-    pub fn label(&mut self, label: impl Into<Label>) -> Response {
-        label.into().ui(self)
+    pub fn label(&mut self, text: impl ToString) -> Response {
+        Label::new(text).ui(self)
     }
 
+    /// Show colored text.
+    ///
     /// Shortcut for `add(Label::new(text).text_color(color))`
-    pub fn colored_label(
-        &mut self,
-        color: impl Into<Color32>,
-        label: impl Into<Label>,
-    ) -> Response {
-        label.into().text_color(color).ui(self)
+    pub fn colored_label(&mut self, color: impl Into<Color32>, text: impl ToString) -> Response {
+        Label::new(text).text_color(color).ui(self)
     }
 
+    /// Show large text.
+    ///
     /// Shortcut for `add(Label::new(text).heading())`
-    pub fn heading(&mut self, label: impl Into<Label>) -> Response {
-        label.into().heading().ui(self)
+    pub fn heading(&mut self, text: impl ToString) -> Response {
+        Label::new(text).heading().ui(self)
     }
 
+    /// Show monospace (fixed width) text.
+    ///
     /// Shortcut for `add(Label::new(text).monospace())`
-    pub fn monospace(&mut self, label: impl Into<Label>) -> Response {
-        label.into().monospace().ui(self)
+    pub fn monospace(&mut self, text: impl ToString) -> Response {
+        Label::new(text).monospace().ui(self)
     }
 
     /// Show text as monospace with a gray background.
     ///
     /// Shortcut for `add(Label::new(text).code())`
-    pub fn code(&mut self, label: impl Into<Label>) -> Response {
-        label.into().code().ui(self)
+    pub fn code(&mut self, text: impl ToString) -> Response {
+        Label::new(text).code().ui(self)
     }
 
+    /// Show small text.
+    ///
     /// Shortcut for `add(Label::new(text).small())`
-    pub fn small(&mut self, label: impl Into<Label>) -> Response {
-        label.into().small().ui(self)
+    pub fn small(&mut self, text: impl ToString) -> Response {
+        Label::new(text).small().ui(self)
+    }
+
+    /// Show text that stand out a bit (e.g. slightly brighter).
+    ///
+    /// Shortcut for `add(Label::new(text).strong())`
+    pub fn strong(&mut self, text: impl ToString) -> Response {
+        Label::new(text).strong().ui(self)
     }
 
     /// Shortcut for `add(Hyperlink::new(url))`
@@ -1320,7 +1333,7 @@ impl Ui {
     ///
     /// ```
     /// # let ui = &mut egui::Ui::__test();
-    /// ui.group(|ui|{
+    /// ui.group(|ui| {
     ///     ui.label("Within a frame");
     /// });
     /// ```
@@ -1336,7 +1349,7 @@ impl Ui {
     ///
     /// ```
     /// # let ui = &mut egui::Ui::__test();
-    /// ui.scope(|ui|{
+    /// ui.scope(|ui| {
     ///     ui.spacing_mut().slider_width = 200.0; // Temporary change
     ///     // …
     /// });
@@ -1454,7 +1467,7 @@ impl Ui {
     ///
     /// ```
     /// # let ui = &mut egui::Ui::__test();
-    /// ui.horizontal(|ui|{
+    /// ui.horizontal(|ui| {
     ///     ui.label("Same");
     ///     ui.label("row");
     /// });
@@ -1528,7 +1541,7 @@ impl Ui {
     ///
     /// ```
     /// # let ui = &mut egui::Ui::__test();
-    /// ui.vertical(|ui|{
+    /// ui.vertical(|ui| {
     ///     ui.label("over");
     ///     ui.label("under");
     /// });
@@ -1545,7 +1558,7 @@ impl Ui {
     ///
     /// ```
     /// # let ui = &mut egui::Ui::__test();
-    /// ui.vertical_centered(|ui|{
+    /// ui.vertical_centered(|ui| {
     ///     ui.label("over");
     ///     ui.label("under");
     /// });
@@ -1563,7 +1576,7 @@ impl Ui {
     ///
     /// ```
     /// # let ui = &mut egui::Ui::__test();
-    /// ui.vertical_centered_justified(|ui|{
+    /// ui.vertical_centered_justified(|ui| {
     ///     ui.label("over");
     ///     ui.label("under");
     /// });

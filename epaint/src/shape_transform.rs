@@ -6,7 +6,7 @@ pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
         Shape::Noop => {}
         Shape::Vec(shapes) => {
             for shape in shapes {
-                adjust_colors(shape, adjust_color)
+                adjust_colors(shape, adjust_color);
             }
         }
         Shape::Circle(circle_shape) => {
