@@ -20,129 +20,165 @@ pub(crate) struct ModalMonoState {
 }
 
 impl ModalMonoState {
-  //  the modal showing? 
-  pub fn is_modal_showing(&self) -> bool { self.last_modal_id_opt.is_some() }  
+  /// The id source of the default modal
+  pub const DEFAULT_MODAL_ID_SOURCE: &'static str = "__default_modal";
+
+  /// Construct an id for the default modal 
+  pub fn get_default_modal_id() -> Id {
+      Id::new(Self::DEFAULT_MODAL_ID_SOURCE)
+  }
+  /// Construct an interceptor color  for the default modal 
+  pub fn get_default_modal_interceptor_color() -> Color32 {
+      Color32::from_rgba_unmultiplied(
+        0, 0, 0, 144
+      )
+  }
 }
 
 // ----------------------------------------------------------------------------
 
+/// Relinquish control of the modal. If the modal is showing, this must be called to show a new modal.
+/// 
+/// - No id is required to relinquish modal control – to prevent the application from entering a state where it's irrevocably stuck in a mode. In other words, the application must therefore track/manage when/whether it's allowable to relinquish control.
+/// - Does nothing if the modal was not showing.
+/// - If some id-bearing widget was previously focused, this returns the id. 
+pub fn relinquish_modal(ctx: &CtxRef) -> Option<Id> {
+    let last_modal_id_opt: Option<Id> = ctx.memory()
+        .data_temp
+        .get_or_default::<ModalMonoState>()
+        .last_modal_id_opt;
+    
+    ctx.memory()
+        .data_temp
+        .get_mut_or_default::<ModalMonoState>();
+    // try to determine whether the modal can be shown 
+    let is_modal_controlled = last_modal_id_opt.is_some();
+    is_modal_controlled.then(|| {
+        // modal control has been obtained 
+        let previous_focused_id_opt: Option<Id> = ctx.memory()
+            .data_temp
+            .get_mut_or_default::<ModalMonoState>()
+            .previous_focused_id_opt
+            .take();
+        let _  = ctx.memory()
+            .data_temp
+            .get_mut_or_default::<ModalMonoState>()
+            .last_modal_id_opt
+            .take();
+        previous_focused_id_opt
+    }).flatten()
+}
 /// Show a modal dialog that intercepts interaction with other ui elements whilst visible.
 ///
-/// - Clicking away from the caller-provided modal ui optionally dismisses modal.
+/// - The returned inner response includes the result of the provided contents ui function as well as the response from clicking the interaction interceptor.
 /// - The modal can also be dismissed using a custom close key (the default is [Key::Esc])
-/// - To dismiss the modal manually, call the [relinquish_modal] function. 
 /// - Returns `None` if a modal is already showing.
 ///
 /// ```
 /// # let mut ctx = egui::CtxRef::default();
 /// # ctx.begin_frame(Default::default());
 /// # let ctx = &ctx;
-///   let id = egui::Id::new("my_first_modal");
-///   let r_opt =  egui::modal::show_modal(
+///   let id_0 = egui::Id::new("my_0th_modal");
+///   let id_1 = egui::Id::new("my_1st_modal");
+///   let r_opt =  egui::modal::show_custom_modal(
 ///       ctx, 
-///       id,
-///       true,
-///       None, 
+///       id_0,
 ///       None, 
 ///       |ui| {
 ///           ui.label("This is a modal dialog");
 ///   });
-///   assert_eq!(r_opt, Some(()));
-///   let id = egui::Id::new("my_attempted_second_modal");
-///   let r_opt = egui::modal::show_modal(
+///   assert_eq!(r_opt, Some(()), "A modal dialog with an id may show once");
+///   let r_opt =  egui::modal::show_custom_modal(
 ///       ctx, 
-///       id,
-///       true,
-///       None, 
+///       id_0,
 ///       None, 
 ///       |ui| {
-///           ui.label("This wants to be a modal dialog");
+///           ui.label("This is the same (by id) modal dialog");
 ///   });
-///   assert_eq!(r_opt, None);
+///    assert_eq!(r_opt, Some(()), "A modal dialog with an id may show again/update");
+///   let r_opt = egui::modal::show_custom_modal(
+///       ctx, 
+///       id_1,
+///       None, 
+///       |ui| {
+///           ui.label("This wants to be a modal dialog, yet shall produce nary a ui ere the grotesque and catastrophic violation of some invariant. ");
+///   });
+///   assert_eq!(r_opt, None, "A modal dialog may not appear whilst another has control");
 ///   egui::modal::relinquish_modal(ctx);
-/// 
+/// let r_opt = egui::modal::show_custom_modal(
+///       ctx, 
+///       id_1,
+///       None, 
+///       |ui| {
+///           ui.label("This wants to be a modal dialog, and its dreams are fulfilled.");
+///   });
+///   assert_eq!(r_opt, Some(()), "A modal dialog may appear after another has relinquished control");
 /// ```
-pub fn show_modal<R>(
+pub fn show_custom_modal<R>(
     ctx: &CtxRef, 
     id: Id,
-    click_away_dismisses: bool,
     background_color_opt: Option<Color32>,
-    close_key_opt: Option<Key>,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
     use containers::*;
-    let memory = &mut ctx.memory();
     // Clone some context state
-    let previous_focused_id_opt: Option<Id> = memory.focus();
-    let modal_mono_state_ref = memory
+    let previous_focused_id_opt: Option<Id> = ctx.memory().focus().clone();
+    let last_modal_id_opt = ctx.memory()
         .data_temp
-        .get_mut_or_default::<ModalMonoState>();
+        .get_or_default::<ModalMonoState>()
+        .last_modal_id_opt;
+    
     // Enforce modality
-    let is_modal_showing = modal_mono_state_ref.is_modal_showing();
-    let have_modal_control = !is_modal_showing
-      || (is_modal_showing && modal_mono_state_ref.last_modal_id_opt == Some(id));
+    let have_modal_control = last_modal_id_opt.is_none() 
+        || last_modal_id_opt == Some(id)
+        || last_modal_id_opt == Some(ModalMonoState::get_default_modal_id());
     if have_modal_control{
-        modal_mono_state_ref
+        ctx.memory()
+            .data_temp
+            .get_mut_or_default::<ModalMonoState>()
             .last_modal_id_opt.replace(id);
-        modal_mono_state_ref
+        ctx.memory()
+            .data_temp
+            .get_mut_or_default::<ModalMonoState>()
             .previous_focused_id_opt = previous_focused_id_opt.clone();
-        drop(modal_mono_state_ref);
-        drop(memory);
         // show the modal taking up the whole screen 
         let InnerResponse {
-          inner, mut response, ..
+          inner, ..
         } = Area::new(id)
             .interactable(true)
             .fixed_pos(Pos2::ZERO)
-            .order(Order::Foreground)
+            // .order(Order::Foreground)
             .show(ctx, |ui| {
                 let background_color = background_color_opt
-                  .unwrap_or(Color32::from_rgba_unmultiplied(
-                      0, 0, 0, 144
-                  ));
-                ui
-                    .painter()
-                    .add(Shape::rect_filled(
-                        ui.ctx().input().screen_rect,
-                        0.0,
-                        background_color
-                    ));
-                // user-provided contents
-                add_contents(ui)
+                    .unwrap_or(ModalMonoState::get_default_modal_interceptor_color());
+                let interceptor_rect = ui.ctx().input().screen_rect(); 
+                // create an empty interaction interceptor 
+                // for some reason, using Sense::click() instead of Sense::hover()
+                // seems to intercept not only clicks to the unoccupied areas but also to the user-provided ui               
+                ui.allocate_response(
+                    interceptor_rect.size(), 
+                    Sense::hover() 
+                );
+                let InnerResponse{
+                    inner: user_ui_inner, ..
+                } = ui.allocate_ui_at_rect(
+                    interceptor_rect,
+                    |ui| {
+                        // create a customizable visual indicator signifying to the user that this is a modal mode
+                        ui
+                            .painter()
+                            .add(Shape::rect_filled(
+                                interceptor_rect,
+                                0.0,
+                                background_color
+                            ));
+                        add_contents(ui)
+                    }
+                );
+                user_ui_inner
             }); 
-        response = response.interact(Sense::click());
-        let close_key = close_key_opt.unwrap_or(Key::Escape);
-        if (response.clicked() && click_away_dismisses) 
-            || ctx.input().key_pressed(close_key) 
-        {
-            relinquish_modal(ctx);
-        }
         Some(inner) 
     } else {
       None
     }
-}
-
-/// Relinquish control of the modal. If the modal is showing, this must be called to show a new modal.
-/// 
-/// - Does nothing if the modal was not showing.
-/// - If some id-bearing widget was previously focused, this returns the id. 
-pub fn relinquish_modal(ctx: &CtxRef) -> Option<Id> {
-    let mut memory = ctx.memory();
-    let modal_mono_state_ref = memory
-        .data_temp
-        .get_mut_or_default::<ModalMonoState>();
-    // try to determine whether the modal can be shown 
-    let have_modal_control = modal_mono_state_ref
-        .is_modal_showing();
-    have_modal_control.then(|| {
-        // modal control has been obtained 
-        let previous_focused_id_opt = modal_mono_state_ref
-            .previous_focused_id_opt
-            .take();
-        let _  = modal_mono_state_ref
-            .last_modal_id_opt
-            .take();
-        previous_focused_id_opt
-    }).flatten()
 }

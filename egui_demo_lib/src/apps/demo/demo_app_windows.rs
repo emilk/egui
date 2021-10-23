@@ -22,6 +22,7 @@ impl Default for Demos {
             Box::new(super::font_book::FontBook::default()),
             Box::new(super::MiscDemoWindow::default()),
             Box::new(super::multi_touch::MultiTouch::default()),
+            Box::new(super::modals::ModalOptions::default()),
             Box::new(super::painting::Painting::default()),
             Box::new(super::plot_demo::PlotDemo::default()),
             Box::new(super::scrolling::Scrolling::default()),
@@ -42,7 +43,7 @@ impl Demos {
                 .name()
                 .to_owned(),
         );
-
+        
         Self { demos, open }
     }
 
