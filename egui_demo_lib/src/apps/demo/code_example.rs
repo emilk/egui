@@ -97,21 +97,19 @@ impl CodeExample {
             .trim(),
         );
 
-        egui::ScrollArea::vertical().show(ui, |ui| {
-            ui.horizontal(|ui| {
-                let indentation = 8.0 * ui.fonts()[egui::TextStyle::Monospace].glyph_width(' ');
-                let item_spacing = ui.spacing_mut().item_spacing;
-                ui.add_space(indentation - item_spacing.x);
+        ui.horizontal(|ui| {
+            let indentation = 8.0 * ui.fonts()[egui::TextStyle::Monospace].glyph_width(' ');
+            let item_spacing = ui.spacing_mut().item_spacing;
+            ui.add_space(indentation - item_spacing.x);
 
-                egui::Grid::new("code_samples")
-                    .striped(true)
-                    .num_columns(2)
-                    .min_col_width(16.0)
-                    .spacing([16.0, 8.0])
-                    .show(ui, |ui| {
-                        self.samples_in_grid(ui);
-                    });
-            });
+            egui::Grid::new("code_samples")
+                .striped(true)
+                .num_columns(2)
+                .min_col_width(16.0)
+                .spacing([16.0, 8.0])
+                .show(ui, |ui| {
+                    self.samples_in_grid(ui);
+                });
         });
 
         code_view_ui(ui, "    }\n}");
