@@ -752,6 +752,7 @@ impl<'t> TextEdit<'t> {
                         if multiline {
                             let mut ccursor = delete_selected(text, &cursorp);
                             insert_text(&mut ccursor, text, "\n");
+                            // TODO: if code editor, auto-indent by same leading tabs, + one if the lines end on an opening bracket
                             Some(CCursorPair::one(ccursor))
                         } else {
                             ui.memory().surrender_focus(id); // End input with enter

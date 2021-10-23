@@ -35,6 +35,13 @@ impl epi::App for EasyMarkEditor {
     }
 
     fn update(&mut self, ctx: &egui::CtxRef, _frame: &mut epi::Frame<'_>) {
+        egui::TopBottomPanel::bottom("easy_mark_bottom").show(ctx, |ui| {
+            let layout = egui::Layout::top_down(egui::Align::Center).with_main_justify(true);
+            ui.allocate_ui_with_layout(ui.available_size(), layout, |ui| {
+                ui.add(crate::__egui_github_link_file!())
+            })
+        });
+
         egui::CentralPanel::default().show(ctx, |ui| {
             self.ui(ui);
         });
@@ -49,7 +56,6 @@ impl EasyMarkEditor {
             ui.end_row();
 
             ui.checkbox(&mut self.show_rendered, "Show rendered");
-            ui.add(crate::__egui_github_link_file!());
         });
 
         ui.separator();

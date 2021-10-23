@@ -270,7 +270,6 @@ impl CodeTheme {
             });
 
             ui.add_space(16.0);
-            // ui.separator(); // TODO: fix forever-expand
 
             ui.memory().data.insert(selected_tt);
 

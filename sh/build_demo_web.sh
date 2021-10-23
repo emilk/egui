@@ -47,6 +47,7 @@ cargo build \
   --release \
   --lib \
   --target wasm32-unknown-unknown \
+  --no-default-features \
   --features ${FEATURES}
 
 echo "Generating JS bindings for wasm…"
