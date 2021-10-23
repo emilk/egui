@@ -81,8 +81,11 @@ fn srgbtexture2d(gl: &glow::Context,compatibility_mode:bool, data: &[u8], w: usi
         );
         // not supported on WebGL2 disabled firefox
         if compatibility_mode{
-            gl.bind_texture(glow::TEXTURE_2D,Some(tex));
-            gl.tex_image_2d(glow::TEXTURE_2D, 1, glow::RGBA as i32, w as i32, h as i32, 0,glow::RGBA,glow::UNSIGNED_BYTE,Some(data))
+            glow_debug_print(format!("w : {} h : {}",w as i32,h as i32));
+            //glow_debug_print(format!("pixels {:?}",data));
+            gl.tex_image_2d(glow::TEXTURE_2D, 0, glow::RGBA as i32, w as i32, h as i32, 0,glow::RGBA,glow::UNSIGNED_BYTE,Some(data));
+            gl.generate_mipmap(glow::TEXTURE_2D);
+            gl.bind_texture(glow::TEXTURE_2D,None);
         }else {
             gl.tex_storage_2d(glow::TEXTURE_2D, 1, glow::SRGB8_ALPHA8, w as i32, h as i32);
             gl.tex_sub_image_2d(
