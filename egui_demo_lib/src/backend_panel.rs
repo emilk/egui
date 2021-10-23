@@ -115,14 +115,6 @@ impl BackendPanel {
         ui.label("egui windows:");
         self.egui_windows.checkboxes(ui);
 
-        if ui
-            .button("Clear egui memory")
-            .on_hover_text("Forget scroll, positions, sizes etc")
-            .clicked()
-        {
-            *ui.ctx().memory() = Default::default();
-        }
-
         ui.separator();
 
         {

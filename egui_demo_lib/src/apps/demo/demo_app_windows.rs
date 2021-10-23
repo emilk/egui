@@ -232,7 +232,7 @@ fn show_menu_bar(ui: &mut Ui) {
                 ui.ctx().memory().reset_areas();
             }
             if ui
-                .button("Clear egui memory")
+                .button("Reset egui memory")
                 .on_hover_text("Forget scroll, positions, sizes etc")
                 .clicked()
             {
