@@ -548,7 +548,7 @@ fn test_mix_serialize() {
 
     // -----------
 
-    let serialized = serde_json::to_string(&map).unwrap();
+    let serialized = ron::to_string(&map).unwrap();
 
     // ------------
     // Test removal:
@@ -572,7 +572,7 @@ fn test_mix_serialize() {
     // --------------------
     // Test deserialization:
 
-    let mut map: IdAnyMap = serde_json::from_str(&serialized).unwrap();
+    let mut map: IdAnyMap = ron::from_str(&serialized).unwrap();
     assert_eq!(map.get_temp::<Serializable>(id), None);
     assert_eq!(
         map.get_persisted::<Serializable>(id),
