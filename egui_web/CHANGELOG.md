@@ -12,6 +12,7 @@ All notable changes to the `egui_web` integration will be noted in this file.
 ### Fixed 🐛
 * Fix multiline paste.
 * Fix painting with non-opaque backgrounds.
+* Improve text input on mobile and for IME.
 
 
 ## 0.14.1 - 2021-08-28

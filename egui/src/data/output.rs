@@ -29,7 +29,11 @@ pub struct Output {
     /// Events that may be useful to e.g. a screen reader.
     pub events: Vec<OutputEvent>,
 
-    /// Position of text edit cursor (used for IME).
+    /// Is there a mutable `TextEdit` under the cursor?
+    /// Use by `egui_web` to show/hide mobile keyboard and IME agent.
+    pub mutable_text_under_cursor: bool,
+
+    /// Screen-space position of text edit cursor (used for IME).
     pub text_cursor_pos: Option<crate::Pos2>,
 }
 
@@ -65,6 +69,7 @@ impl Output {
             copied_text,
             needs_repaint,
             mut events,
+            mutable_text_under_cursor,
             text_cursor_pos,
         } = newer;
 
@@ -77,6 +82,7 @@ impl Output {
         }
         self.needs_repaint = needs_repaint; // if the last frame doesn't need a repaint, then we don't need to repaint
         self.events.append(&mut events);
+        self.mutable_text_under_cursor = mutable_text_under_cursor;
         self.text_cursor_pos = text_cursor_pos.or(self.text_cursor_pos);
     }
 

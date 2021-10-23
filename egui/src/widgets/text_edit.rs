@@ -611,6 +611,10 @@ impl<'t> TextEdit<'t> {
 
         if interactive {
             if let Some(pointer_pos) = ui.input().pointer.interact_pos() {
+                if response.hovered() && text.is_mutable() {
+                    ui.output().mutable_text_under_cursor = true;
+                }
+
                 // TODO: triple-click to select whole paragraph
                 // TODO: drag selected text to either move or clone (ctrl on windows, alt on mac)
                 let singleline_offset = vec2(state.singleline_offset, 0.0);
@@ -910,7 +914,9 @@ impl<'t> TextEdit<'t> {
                     &cursorp.primary,
                 );
 
-                if interactive {
+                if interactive && text.is_mutable() {
+                    // egui_web uses `text_cursor_pos` when showing IME,
+                    // so only set it when text is editable!
                     ui.ctx().output().text_cursor_pos = Some(
                         galley
                             .pos_from_cursor(&cursorp.primary)
