@@ -227,7 +227,7 @@ impl Ui {
     /// ```
     /// # let ui = &mut egui::Ui::__test();
     /// # let mut enabled = true;
-    /// ui.group(|ui|{
+    /// ui.group(|ui| {
     ///     ui.checkbox(&mut enabled, "Enable subsection");
     ///     ui.set_enabled(enabled);
     ///     if ui.button("Button that is not always clickable").clicked() {
@@ -260,7 +260,7 @@ impl Ui {
     /// ```
     /// # let ui = &mut egui::Ui::__test();
     /// # let mut visible = true;
-    /// ui.group(|ui|{
+    /// ui.group(|ui| {
     ///     ui.checkbox(&mut visible, "Show subsection");
     ///     ui.set_visible(visible);
     ///     if ui.button("Button that is not always shown").clicked() {
@@ -1333,7 +1333,7 @@ impl Ui {
     ///
     /// ```
     /// # let ui = &mut egui::Ui::__test();
-    /// ui.group(|ui|{
+    /// ui.group(|ui| {
     ///     ui.label("Within a frame");
     /// });
     /// ```
@@ -1349,7 +1349,7 @@ impl Ui {
     ///
     /// ```
     /// # let ui = &mut egui::Ui::__test();
-    /// ui.scope(|ui|{
+    /// ui.scope(|ui| {
     ///     ui.spacing_mut().slider_width = 200.0; // Temporary change
     ///     // …
     /// });
@@ -1467,7 +1467,7 @@ impl Ui {
     ///
     /// ```
     /// # let ui = &mut egui::Ui::__test();
-    /// ui.horizontal(|ui|{
+    /// ui.horizontal(|ui| {
     ///     ui.label("Same");
     ///     ui.label("row");
     /// });
@@ -1541,7 +1541,7 @@ impl Ui {
     ///
     /// ```
     /// # let ui = &mut egui::Ui::__test();
-    /// ui.vertical(|ui|{
+    /// ui.vertical(|ui| {
     ///     ui.label("over");
     ///     ui.label("under");
     /// });
@@ -1558,7 +1558,7 @@ impl Ui {
     ///
     /// ```
     /// # let ui = &mut egui::Ui::__test();
-    /// ui.vertical_centered(|ui|{
+    /// ui.vertical_centered(|ui| {
     ///     ui.label("over");
     ///     ui.label("under");
     /// });
@@ -1576,7 +1576,7 @@ impl Ui {
     ///
     /// ```
     /// # let ui = &mut egui::Ui::__test();
-    /// ui.vertical_centered_justified(|ui|{
+    /// ui.vertical_centered_justified(|ui| {
     ///     ui.label("over");
     ///     ui.label("under");
     /// });

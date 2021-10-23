@@ -243,20 +243,20 @@
 //! # let mut some_bool = true;
 //! // Miscellaneous tips and tricks
 //!
-//! ui.horizontal_wrapped(|ui|{
+//! ui.horizontal_wrapped(|ui| {
 //!     ui.spacing_mut().item_spacing.x = 0.0; // remove spacing between widgets
 //!     // `radio_value` also works for enums, integers, and more.
 //!     ui.radio_value(&mut some_bool, false, "Off");
 //!     ui.radio_value(&mut some_bool, true, "On");
 //! });
 //!
-//! ui.group(|ui|{
+//! ui.group(|ui| {
 //!     ui.label("Within a frame");
 //!     ui.set_min_height(200.0);
 //! });
 //!
 //! // A `scope` creates a temporary [`Ui`] in which you can change settings:
-//! ui.scope(|ui|{
+//! ui.scope(|ui| {
 //!     ui.visuals_mut().override_text_color = Some(egui::Color32::RED);
 //!     ui.style_mut().override_text_style = Some(egui::TextStyle::Monospace);
 //!     ui.style_mut().wrap = Some(false);

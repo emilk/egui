@@ -101,7 +101,10 @@ pub use egui; // Re-export for user convenience
 /// and deployed as a web site using the [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web) crate.
 pub trait App {
     /// Called each time the UI needs repainting, which may be many times per second.
+    ///
     /// Put your widgets into a [`egui::SidePanel`], [`egui::TopBottomPanel`], [`egui::CentralPanel`], [`egui::Window`] or [`egui::Area`].
+    ///
+    /// To force a repaint, call either [`egui::Context::request_repaint`] or use [`Frame::repaint_signal`].
     fn update(&mut self, ctx: &egui::CtxRef, frame: &mut Frame<'_>);
 
     /// Called once before the first frame.
@@ -148,7 +151,8 @@ pub trait App {
     // ---------
     // Settings:
 
-    /// The name of your App.
+    /// The name of your App, used for the title bar of native windows
+    /// and the save location of persistence (see [`Self::save`]).
     fn name(&self) -> &str;
 
     /// Time between automatic calls to [`Self::save`]
