@@ -855,7 +855,6 @@ dependencies = [
  "nohash-hasher",
  "ron",
  "serde",
- "serde_json",
 ]
 
 [[package]]

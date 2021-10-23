@@ -61,6 +61,3 @@ convert_bytemuck = ["epaint/convert_bytemuck"]
 # from multiple threads. It comes with a minor performance impact.
 single_threaded = ["epaint/single_threaded"]
 multi_threaded = ["epaint/multi_threaded"]
-
-[dev-dependencies]
-serde_json = "1"

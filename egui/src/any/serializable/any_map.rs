@@ -111,10 +111,10 @@ impl IdAnyMap {
 //     let file_string = {
 //         let mut map: AnyMap<i32> = Default::default();
 //         map.insert(1, State1 { a: 42 });
-//         serde_json::to_string(&map).unwrap()
+//         ron::to_string(&map).unwrap()
 //     };
 
-//     let mut map: AnyMap<i32> = serde_json::from_str(&file_string).unwrap();
+//     let mut map: AnyMap<i32> = ron::from_str(&file_string).unwrap();
 //     assert!(map.get::<State2>(&1).is_none());
 //     assert_eq!(map.get::<State1>(&1), Some(&State1 { a: 42 }));
 // }
@@ -139,10 +139,10 @@ impl IdAnyMap {
 //     let file_string = {
 //         let mut map: AnyMap<i32> = Default::default();
 //         map.insert(1, State { a: 42 });
-//         serde_json::to_string(&map).unwrap()
+//         ron::to_string(&map).unwrap()
 //     };
 
-//     let mut map: AnyMap<i32> = serde_json::from_str(&file_string).unwrap();
+//     let mut map: AnyMap<i32> = ron::from_str(&file_string).unwrap();
 //     assert_eq!(
 //         map.get::<StateNew>(&1),
 //         Some(&StateNew {
