@@ -5,6 +5,9 @@ NOTE: [`egui_web`](egui_web/CHANGELOG.md), [`egui-winit`](egui-winit/CHANGELOG.m
 
 
 ## Unreleased
+
+
+## 0.15.0 - 2021-10-24
 * `Frame` now provides `set_window_title` to set window title dynamically
 * `Frame` now provides `set_decorations` to set whether to show window decorations.
 * Remove "http" feature (use https://github.com/emilk/ehttp instead!).

@@ -1,6 +1,6 @@
 [package]
 name = "egui"
-version = "0.14.2"
+version = "0.15.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Simple, portable immediate mode GUI library for Rust"
 edition = "2018"
@@ -23,7 +23,7 @@ all-features = true
 [lib]
 
 [dependencies]
-epaint = { version = "0.14.0", path = "../epaint", default-features = false }
+epaint = { version = "0.15.0", path = "../epaint", default-features = false }
 
 ahash = "0.7"
 nohash-hasher = "0.2"

@@ -7,6 +7,11 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 
 ## Unreleased
 
+
+## 0.15.0 - 2021-10-24 - Syntax highlighting and hscroll
+
+<img src="media/egui-0.15-code-editor.gif">
+
 ### Added ⭐
 * Add horizontal scrolling support to `ScrollArea` and `Window` (opt-in).
 * `TextEdit::layouter`: Add custom text layout for e.g. syntax highlighting or WYSIWYG.
