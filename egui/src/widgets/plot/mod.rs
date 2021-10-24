@@ -177,7 +177,7 @@ impl Plot {
         self.items.push(Box::new(arrows));
         self
     }
-
+2.0
     /// Add an image.
     pub fn image(mut self, image: PlotImage) -> Self {
         self.items.push(Box::new(image));
@@ -753,7 +753,7 @@ impl Prepared {
         
         shapes.push(Shape::text(
             ui.fonts(),
-            pointer + vec2(3.0, -2.0),
+            pointer + vec2(x, y),
             Align2::LEFT_BOTTOM,
             text,
             TextStyle::Body,
