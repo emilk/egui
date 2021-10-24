@@ -35,20 +35,20 @@ impl super::View for DancingStrings {
             let mut shapes = vec![];
 
             for &mode in &[2, 3, 5] {
-                let mode = mode as f32;
+                let mode = mode as f64;
                 let n = 120;
                 let speed = 1.5;
 
                 let points: Vec<Pos2> = (0..=n)
                     .map(|i| {
-                        let t = i as f32 / (n as f32);
-                        let amp = (time as f32 * speed * mode).sin() / mode;
-                        let y = amp * (t * std::f32::consts::TAU / 2.0 * mode).sin();
-                        to_screen * pos2(t, y)
+                        let t = i as f64 / (n as f64);
+                        let amp = (time * speed * mode).sin() / mode;
+                        let y = amp * (t * std::f64::consts::TAU / 2.0 * mode).sin();
+                        to_screen * pos2(t as f32, y as f32)
                     })
                     .collect();
 
-                let thickness = 10.0 / mode;
+                let thickness = 10.0 / mode as f32;
                 shapes.push(epaint::Shape::line(
                     points,
                     Stroke::new(thickness, Color32::from_additive_luminance(196)),
