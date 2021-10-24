@@ -591,8 +591,18 @@ impl<'t> TextEdit<'t> {
         });
         let mut state = ui.memory().id_data.get_or_default::<State>(id).clone();
 
+        // On touch screens (e.g. mobile in egui_web), should
+        // dragging select text, or scroll the enclosing `ScrollArea` (if any)?
+        // Since currently copying selected text in not supported on `egui_web`,
+        // we prioritize touch-scrolling:
+        let allow_drag_to_select = !ui.input().any_touches() || ui.memory().has_focus(id);
+
         let sense = if interactive {
-            Sense::click_and_drag()
+            if allow_drag_to_select {
+                Sense::click_and_drag()
+            } else {
+                Sense::click()
+            }
         } else {
             Sense::hover()
         };
@@ -630,20 +640,24 @@ impl<'t> TextEdit<'t> {
                         primary: galley.from_ccursor(ccursorp.primary),
                         secondary: galley.from_ccursor(ccursorp.secondary),
                     });
-                } else if response.hovered() && ui.input().pointer.any_pressed() {
-                    ui.memory().request_focus(id);
-                    if ui.input().modifiers.shift {
-                        if let Some(cursorp) = &mut state.cursorp {
-                            cursorp.primary = cursor_at_pointer;
+                } else if allow_drag_to_select {
+                    if response.hovered() && ui.input().pointer.any_pressed() {
+                        ui.memory().request_focus(id);
+                        if ui.input().modifiers.shift {
+                            if let Some(cursorp) = &mut state.cursorp {
+                                cursorp.primary = cursor_at_pointer;
+                            } else {
+                                state.cursorp = Some(CursorPair::one(cursor_at_pointer));
+                            }
                         } else {
                             state.cursorp = Some(CursorPair::one(cursor_at_pointer));
                         }
-                    } else {
-                        state.cursorp = Some(CursorPair::one(cursor_at_pointer));
-                    }
-                } else if ui.input().pointer.any_down() && response.is_pointer_button_down_on() {
-                    if let Some(cursorp) = &mut state.cursorp {
-                        cursorp.primary = cursor_at_pointer;
+                    } else if ui.input().pointer.any_down() && response.is_pointer_button_down_on()
+                    {
+                        // drag to select text:
+                        if let Some(cursorp) = &mut state.cursorp {
+                            cursorp.primary = cursor_at_pointer;
+                        }
                     }
                 }
             }
