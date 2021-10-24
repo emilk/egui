@@ -885,6 +885,13 @@ impl Context {
             *self.memory() = Default::default();
         }
 
+        let num_state = self.memory().data.len();
+        let num_serialized = self.memory().data.count_serialized();
+        ui.label(format!(
+            "{} widget states stored (of which {} are serialized).",
+            num_state, num_serialized
+        ));
+
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} areas (panels, windows, popups, …)",

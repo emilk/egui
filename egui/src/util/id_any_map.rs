@@ -1,5 +1,5 @@
 // TODO: it is possible we can simplify `Element` further by
-// assuming everything is "faalible" serializable, and by supplying serialize/deserialize functions for them.
+// assuming everything is possibly serializable, and by supplying serialize/deserialize functions for them.
 // For non-serializable types, these simply return `None`.
 // This will also allow users to pick their own serialization format per type.
 
@@ -7,8 +7,8 @@ use std::any::Any;
 
 // -----------------------------------------------------------------------------------------------
 
-/// We need this because `TypeId` can't be deserialized or serialized directly, but this can be done using hashing. However, there is a small possibility that different types will have intersection by hashes of their type ids.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
+/// Like [`std::any::TypeId`], but can be serialized and deserialized.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct TypeId(u64);
 
@@ -64,7 +64,7 @@ struct SerializedElement {
 type Serializer = fn(&Box<dyn Any + 'static + Send + Sync>) -> Option<String>;
 
 enum Element {
-    /// A value, possibly serializable
+    /// A value, maybe serializable.
     Value {
         /// The actual value.
         value: Box<dyn Any + 'static + Send + Sync>,
@@ -72,13 +72,14 @@ enum Element {
         /// How to clone the value.
         clone_fn: fn(&Box<dyn Any + 'static + Send + Sync>) -> Box<dyn Any + 'static + Send + Sync>,
 
-        /// How to serialize the vlaue.
+        /// How to serialize the value.
         /// None if non-serializable type.
         #[cfg(feature = "persistence")]
         serialize_fn: Option<Serializer>,
     },
+    /// A serialized value
     Serialized {
-        /// The type stored.
+        /// The type of value we are storing.
         type_id: TypeId,
         /// The ron data we can deserialize.
         ron: String,
@@ -125,6 +126,7 @@ impl std::fmt::Debug for Element {
 }
 
 impl Element {
+    /// Create a value that won't be persisted.
     #[inline]
     pub(crate) fn new_temp<T: 'static + Any + Clone + Send + Sync>(t: T) -> Self {
         Self::Value {
@@ -138,6 +140,7 @@ impl Element {
         }
     }
 
+    /// Create a value that will be persisted.
     #[inline]
     pub(crate) fn new_persisted<T: SerializableAny>(t: T) -> Self {
         Self::Value {
@@ -154,6 +157,7 @@ impl Element {
         }
     }
 
+    /// The type of the stored value.
     #[inline]
     pub(crate) fn type_id(&self) -> TypeId {
         match self {
@@ -272,7 +276,7 @@ fn from_ron_str<T: serde::de::DeserializeOwned>(ron: &str) -> Option<T> {
         Ok(value) => Some(value),
         Err(err) => {
             eprintln!(
-                "egui: Failed to deserialize {} from memory: {}, ron: {:?}",
+                "egui: Failed to deserialize {} from memory: {}, ron error: {:?}",
                 std::any::type_name::<T>(),
                 err,
                 ron
@@ -290,7 +294,10 @@ use crate::Id;
 /// Stores any value identified by their type and a given [`Id`].
 ///
 /// Values can either be "persisted" (serializable) or "temporary" (cleared when egui is shut down).
+///
+/// You can store state using the key [`Id::null`]. The state will then only be identified by its type.
 #[derive(Clone, Debug, Default)]
+// We store use `id XOR typeid` as a key, so we don't need to hash again!
 pub struct IdAnyMap(nohash_hasher::IntMap<u64, Element>);
 
 impl IdAnyMap {
@@ -308,7 +315,7 @@ impl IdAnyMap {
         self.0.insert(hash, Element::new_persisted(value));
     }
 
-    /// Read a value without trying to deserialize a persited value.
+    /// Read a value without trying to deserialize a persisted value.
     #[inline]
     pub fn get_temp<T: 'static + Clone>(&mut self, id: Id) -> Option<T> {
         let hash = hash(TypeId::of::<T>(), id);
@@ -391,13 +398,14 @@ impl IdAnyMap {
         }
     }
 
+    /// Remove the state of this type an id.
     #[inline]
     pub fn remove<T: 'static>(&mut self, id: Id) {
         let hash = hash(TypeId::of::<T>(), id);
         self.0.remove(&hash);
     }
 
-    /// Note that this function could not remove all needed types between runs because if you upgraded the Rust version or for other reasons.
+    /// Note all state of the given type.
     pub fn remove_by_type<T: 'static>(&mut self) {
         let key = TypeId::of::<T>();
         self.0.retain(|_, e| {
@@ -411,7 +419,26 @@ impl IdAnyMap {
         self.0.clear();
     }
 
-    /// You could use this function to find is there some leak or misusage. Note, that result of this function could break between runs, if you upgraded the Rust version or for other reasons.
+    #[inline]
+    pub fn is_empty(&mut self) -> bool {
+        self.0.is_empty()
+    }
+
+    #[inline]
+    pub fn len(&mut self) -> usize {
+        self.0.len()
+    }
+
+    /// Count how many values are stored but not yet deserialized.
+    #[inline]
+    pub fn count_serialized(&mut self) -> usize {
+        self.0
+            .values()
+            .filter(|e| matches!(e, Element::Serialized { .. }))
+            .count()
+    }
+
+    /// Count the number of values are stored with the given type.
     pub fn count<T: 'static>(&mut self) -> usize {
         let key = TypeId::of::<T>();
         self.0
@@ -422,10 +449,6 @@ impl IdAnyMap {
             })
             .count()
     }
-
-    pub fn count_all(&mut self) -> usize {
-        self.0.len()
-    }
 }
 
 #[inline(always)]
@@ -435,13 +458,15 @@ fn hash(type_id: TypeId, id: Id) -> u64 {
 
 // ----------------------------------------------------------------------------
 
+/// How [`IdAnyMap`] is persisted.
 #[cfg(feature = "persistence")]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-pub struct PersistedMap(Vec<(u64, SerializedElement)>);
+struct PersistedMap(Vec<(u64, SerializedElement)>);
 
 #[cfg(feature = "persistence")]
 impl PersistedMap {
     fn from_map(map: &IdAnyMap) -> Self {
+        // filter out the elements which cannot be serialized:
         Self(
             map.0
                 .iter()
