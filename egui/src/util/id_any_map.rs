@@ -9,7 +9,7 @@ use std::any::Any;
 
 /// We need this because `TypeId` can't be deserialized or serialized directly, but this can be done using hashing. However, there is a small possibility that different types will have intersection by hashes of their type ids.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct TypeId(u64);
 
 impl TypeId {
@@ -33,28 +33,28 @@ impl From<std::any::TypeId> for TypeId {
 
 // -----------------------------------------------------------------------------------------------
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "persistence")]
 pub trait SerializableAny:
     'static + Any + Clone + serde::Serialize + for<'a> serde::Deserialize<'a> + Send + Sync
 {
 }
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "persistence")]
 impl<T> SerializableAny for T where
     T: 'static + Any + Clone + serde::Serialize + for<'a> serde::Deserialize<'a> + Send + Sync
 {
 }
 
-#[cfg(not(feature = "serde"))]
+#[cfg(not(feature = "persistence"))]
 pub trait SerializableAny: 'static + Any + Clone + for<'a> Send + Sync {}
 
-#[cfg(not(feature = "serde"))]
+#[cfg(not(feature = "persistence"))]
 impl<T> SerializableAny for T where T: 'static + Any + Clone + for<'a> Send + Sync {}
 
 // -----------------------------------------------------------------------------------------------
 
 #[cfg(feature = "persistence")]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 struct SerializedElement {
     type_id: TypeId,
     ron: String,
@@ -435,11 +435,11 @@ fn hash(type_id: TypeId, id: Id) -> u64 {
 
 // ----------------------------------------------------------------------------
 
-#[cfg(feature = "serde")]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg(feature = "persistence")]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct PersistedMap(Vec<(u64, SerializedElement)>);
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "persistence")]
 impl PersistedMap {
     fn from_map(map: &IdAnyMap) -> Self {
         Self(
@@ -461,7 +461,7 @@ impl PersistedMap {
     }
 }
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "persistence")]
 impl serde::Serialize for IdAnyMap {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -471,7 +471,7 @@ impl serde::Serialize for IdAnyMap {
     }
 }
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "persistence")]
 impl<'de> serde::Deserialize<'de> for IdAnyMap {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -485,7 +485,7 @@ impl<'de> serde::Deserialize<'de> for IdAnyMap {
 
 #[test]
 fn test_mix() {
-    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
     #[derive(Clone, Debug, PartialEq)]
     struct Foo(i32);
 

@@ -10,11 +10,12 @@ use crate::{area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
 /// how far the user has scrolled in a `ScrollArea` etc.
 ///
 /// If you want this to persist when closing your app you should serialize `Memory` and store it.
+/// For this you need to enable the `persistence`.
 ///
 /// If you want to store data for your widgets, you should look at [`Memory::data`]
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 pub struct Memory {
     pub options: Options,
 
@@ -49,33 +50,35 @@ pub struct Memory {
     /// let cache = memory.caches.cache::<CharCountCache<'_>>();
     /// assert_eq!(cache.get("hello"), 5);
     /// ```
-    #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "persistence", serde(skip))]
     pub caches: crate::util::cache::CacheStorage,
 
     // ------------------------------------------
     /// new scale that will be applied at the start of the next frame
+    #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) new_pixels_per_point: Option<f32>,
 
     /// new fonts that will be applied at the start of the next frame
+    #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) new_font_definitions: Option<epaint::text::FontDefinitions>,
 
-    #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) interaction: Interaction,
 
-    #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) window_interaction: Option<window::WindowInteraction>,
 
-    #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) drag_value: crate::widgets::drag_value::MonoState,
 
     pub(crate) areas: Areas,
 
     /// Which popup-window is open (if any)?
     /// Could be a combo box, color picker, menu etc.
-    #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "persistence", serde(skip))]
     popup: Option<Id>,
 
-    #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "persistence", serde(skip))]
     everything_is_visible: bool,
 }
 
