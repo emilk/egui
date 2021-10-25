@@ -56,7 +56,7 @@ pub fn init_glow_context_from_canvas(canvas: HtmlCanvasElement) -> glow::Context
     }
 }
 
-fn srgbtexture2d(gl: &glow::Context,compatibility_mode:bool, data: &[u8], w: usize, h: usize) -> glow::Texture {
+fn srgbtexture2d(gl: &glow::Context,compatibility_mode:bool, srgb_support:bool,data: &[u8], w: usize, h: usize) -> glow::Texture {
     assert_eq!(data.len(), w * h * 4);
     assert!(w >= 1);
     assert!(h >= 1);
@@ -82,7 +82,11 @@ fn srgbtexture2d(gl: &glow::Context,compatibility_mode:bool, data: &[u8], w: usi
         // not supported on WebGL2 disabled firefox
         if compatibility_mode{
             glow_debug_print(format!("w : {} h : {}",w as i32,h as i32));
-            //glow_debug_print(format!("pixels {:?}",data));
+            let format=if srgb_support{
+                glow::SRGB_ALPHA
+            }else{
+                glow::RGBA
+            };
             gl.tex_image_2d(glow::TEXTURE_2D, 0, glow::RGBA as i32, w as i32, h as i32, 0,glow::RGBA,glow::UNSIGNED_BYTE,Some(data));
             gl.generate_mipmap(glow::TEXTURE_2D);
             gl.bind_texture(glow::TEXTURE_2D,None);
@@ -120,6 +124,7 @@ pub struct Painter {
     egui_texture: Option<glow::Texture>,
     egui_texture_version: Option<u64>,
     webgl_1_compatibility_mode: bool,
+    srgb_support:bool,
     /// `None` means unallocated (freed) slot.
     user_textures: Vec<Option<UserTexture>>,
 
@@ -222,6 +227,7 @@ impl Painter {
         } else {
             false
         };
+        let srgb_support=gl.supported_extensions().contains("EXT_sRGB");
         let header = shader_version.version();
         glow_debug_print(header);
         let mut v_src = header.to_owned();
@@ -337,6 +343,7 @@ impl Painter {
                 egui_texture: None,
                 egui_texture_version: None,
                 webgl_1_compatibility_mode,
+                srgb_support,
                 user_textures: Default::default(),
                 vertex_array,
                 vertex_buffer,
@@ -363,7 +370,7 @@ impl Painter {
 
         if let Some(old_tex) = std::mem::replace(
             &mut self.egui_texture,
-            Some(srgbtexture2d(gl, self.webgl_1_compatibility_mode,&pixels, texture.width, texture.height)),
+            Some(srgbtexture2d(gl, self.webgl_1_compatibility_mode,self.srgb_support,&pixels, texture.width, texture.height)),
         ) {
             unsafe {
                 gl.delete_texture(old_tex);
@@ -632,6 +639,7 @@ impl Painter {
                 user_texture.gl_texture = Some(srgbtexture2d(
                     gl,
                     self.webgl_1_compatibility_mode,
+                    self.srgb_support,
                     &data,
                     user_texture.size.0,
                     user_texture.size.1,
