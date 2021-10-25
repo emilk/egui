@@ -8,7 +8,7 @@ pub struct ModalOptions {
     background_color: Color32,
     close_key_opt: Option<Key>,
     is_modal_showing: bool,
-    id_error_message_opt: Option<String>
+    id_error_message_opt: Option<String>,
 }
 
 impl Default for ModalOptions {
@@ -31,8 +31,8 @@ impl super::Demo for ModalOptions {
 
     fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
         use super::View as _;
-        
-        // Create a window for controlling modal details 
+
+        // Create a window for controlling modal details
         egui::Window::new("demo_modal_options")
             .open(open)
             .show(ctx, |ui| self.ui(ui));
@@ -61,8 +61,8 @@ impl super::View for ModalOptions {
         ui.horizontal(|ui| {
             ui.group(|ui| {
                 ui.vertical(|ui| {
-                        ui.horizontal(|ui| {
-                            ui.label("Id:");
+                    ui.horizontal(|ui| {
+                        ui.label("Id:");
                         ui.text_edit_singleline(id_source)
                             .on_hover_text("Enter a custom id");
                     });
@@ -75,13 +75,11 @@ impl super::View for ModalOptions {
                         }
                     }
                     // ui.checkbox(
-                    //     click_away_dismisses, 
+                    //     click_away_dismisses,
                     //     "click_away_dismisses"
                     // );
-                    
                 });
             });
-            
         });
         let outer_ctx = ui.ctx();
         if *is_modal_showing {
@@ -122,8 +120,8 @@ impl super::View for ModalOptions {
                                     );
                                 }).response
                             }).inner
-                        }).inner                    
-                }
+                        }).inner
+                },
             ) {
                 response = response.interact(Sense::click());
                 if response.has_focus() && response.clicked_elsewhere() && *click_away_dismisses {
@@ -133,13 +131,14 @@ impl super::View for ModalOptions {
                 response.request_focus();
                 *id_error_message_opt = None;
             } else {
-                *id_error_message_opt = Some("relinquish_modal must be called to show a modal with a new id ".to_string());
+                *id_error_message_opt = Some(
+                    "relinquish_modal must be called to show a modal with a new id ".to_string(),
+                );
             }
         }
         ui.separator();
 
         ui.horizontal(|ui| {
-            
             egui::reset_button(ui, self);
             ui.add(crate::__egui_github_link_file!());
         });
