@@ -8,6 +8,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 ## Unreleased
 
 ### Added ⭐
+* Add support for modal dialogs.
 * Add horizontal scrolling support to `ScrollArea` and `Window` (opt-in).
 * `TextEdit::layouter`: Add custom text layout for e.g. syntax highlighting or WYSIWYG.
 * `Fonts::layout_job`: New text layout engine allowing mixing fonts, colors and styles, with underlining and strikethrough.

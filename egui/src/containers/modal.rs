@@ -10,7 +10,7 @@ use crate::*;
 /// 
 /// > A modal dialog is a dialog that appears on top of the main content and moves the system into a special mode requiring user interaction. This dialog disables the main content until the user explicitly interacts with the modal dialog.  
 /// > – [Modal & Nonmodal Dialogs: When (& When Not) to Use Them](https://www.nngroup.com/articles/modal-nonmodal-dialog/)
-/// For this implementation, the above suggests copying the common state approach from [MonoState]
+/// For this implementation, the above suggests copying the common state approach from [`MonoState`]
 #[derive(Clone, Debug, Default)]
 pub(crate) struct ModalMonoState {
     /// The optional id the modal took focus from 
@@ -71,7 +71,6 @@ pub fn relinquish_modal(ctx: &CtxRef) -> Option<Id> {
 /// Show a modal dialog that intercepts interaction with other ui elements whilst visible.
 ///
 /// - The returned inner response includes the result of the provided contents ui function as well as the response from clicking the interaction interceptor.
-/// - The modal can also be dismissed using a custom close key (the default is [Key::Esc])
 /// - Returns `None` if a modal is already showing.
 ///
 /// ```
@@ -122,7 +121,7 @@ pub fn show_custom_modal<R>(
 ) -> Option<R> {
     use containers::*;
     // Clone some context state
-    let previous_focused_id_opt: Option<Id> = ctx.memory().focus().clone();
+    let previous_focused_id_opt: Option<Id> = ctx.memory().focus();
     let last_modal_id_opt = ctx.memory()
         .data_temp
         .get_or_default::<ModalMonoState>()
@@ -140,7 +139,7 @@ pub fn show_custom_modal<R>(
         ctx.memory()
             .data_temp
             .get_mut_or_default::<ModalMonoState>()
-            .previous_focused_id_opt = previous_focused_id_opt.clone();
+            .previous_focused_id_opt = previous_focused_id_opt;
         // show the modal taking up the whole screen 
         let InnerResponse {
           inner, ..
@@ -150,7 +149,7 @@ pub fn show_custom_modal<R>(
             // .order(Order::Foreground)
             .show(ctx, |ui| {
                 let background_color = background_color_opt
-                    .unwrap_or(ModalMonoState::get_default_modal_interceptor_color());
+                    .unwrap_or_else(ModalMonoState::get_default_modal_interceptor_color);
                 let interceptor_rect = ui.ctx().input().screen_rect(); 
                 // create an empty interaction interceptor 
                 // for some reason, using Sense::click() instead of Sense::hover()
