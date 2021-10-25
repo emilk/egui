@@ -50,7 +50,7 @@ impl epi::App for WrapApp {
     ) {
         #[cfg(feature = "persistence")]
         if let Some(storage) = _storage {
-            *self = epi::get_value(storage, epi::APP_KEY).unwrap_or_default()
+            *self = epi::get_value(storage, epi::APP_KEY).unwrap_or_default();
         }
     }
 
@@ -93,6 +93,23 @@ impl epi::App for WrapApp {
         if self.backend_panel.open || ctx.memory().everything_is_visible() {
             egui::SidePanel::left("backend_panel").show(ctx, |ui| {
                 self.backend_panel.ui(ui, frame);
+
+                ui.separator();
+
+                ui.horizontal(|ui| {
+                    if ui
+                        .button("Reset egui")
+                        .on_hover_text("Forget scroll, positions, sizes etc")
+                        .clicked()
+                    {
+                        *ui.ctx().memory() = Default::default();
+                    }
+
+                    if ui.button("Reset everything").clicked() {
+                        *self = Default::default();
+                        *ui.ctx().memory() = Default::default();
+                    }
+                });
             });
         }
 

@@ -452,7 +452,7 @@ impl Widget for Plot {
             bounds.make_x_symmetrical();
         };
         if center_y_axis {
-            bounds.make_y_symmetrical()
+            bounds.make_y_symmetrical();
         };
 
         let mut transform = ScreenTransform::new(rect, bounds, center_x_axis, center_y_axis);

@@ -40,6 +40,7 @@ fn window_builder_drag_and_drop(
     window_builder: winit::window::WindowBuilder,
     enable: bool,
 ) -> winit::window::WindowBuilder {
+    use winit::platform::windows::WindowBuilderExtWindows as _;
     window_builder.with_drag_and_drop(enable)
 }
 
@@ -60,6 +61,7 @@ pub fn handle_app_output(
     let epi::backend::AppOutput {
         quit: _,
         window_size,
+        window_title,
         decorated,
         drag_window,
     } = app_output;
@@ -76,6 +78,10 @@ pub fn handle_app_output(
             }
             .to_logical::<f32>(crate::native_pixels_per_point(window) as f64),
         );
+    }
+
+    if let Some(window_title) = window_title {
+        window.set_title(&window_title);
     }
 
     if drag_window {

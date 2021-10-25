@@ -296,6 +296,7 @@ pub fn handle_output(output: &egui::Output, runner: &mut AppRunner) {
         copied_text,
         needs_repaint: _, // handled elsewhere
         events: _,        // we ignore these (TODO: accessibility screen reader)
+        mutable_text_under_cursor,
         text_cursor_pos,
     } = output;
 
@@ -312,9 +313,11 @@ pub fn handle_output(output: &egui::Output, runner: &mut AppRunner) {
     #[cfg(not(web_sys_unstable_apis))]
     let _ = copied_text;
 
-    if &runner.last_text_cursor_pos != text_cursor_pos {
+    runner.mutable_text_under_cursor = *mutable_text_under_cursor;
+
+    if &runner.text_cursor_pos != text_cursor_pos {
         move_text_cursor(text_cursor_pos, runner.canvas_id());
-        runner.last_text_cursor_pos = *text_cursor_pos;
+        runner.text_cursor_pos = *text_cursor_pos;
     }
 }
 
@@ -638,7 +641,11 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             if let Some(data) = event.clipboard_data() {
                 if let Ok(text) = data.get_data("text") {
                     let mut runner_lock = runner_ref.0.lock();
-                    runner_lock.input.raw.events.push(egui::Event::Text(text));
+                    runner_lock
+                        .input
+                        .raw
+                        .events
+                        .push(egui::Event::Text(text.replace("\r\n", "\n")));
                     runner_lock.needs_repaint.set_true();
                     event.stop_propagation();
                     event.prevent_default();
@@ -895,7 +902,8 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                         modifiers,
                     });
                 runner_lock.needs_repaint.set_true();
-                manipulate_agent(runner_lock.canvas_id(), runner_lock.input.latest_touch_pos);
+
+                update_text_agent(&runner_lock);
             }
             event.stop_propagation();
             event.prevent_default();
@@ -979,6 +987,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::TouchEvent| {
             let mut runner_lock = runner_ref.0.lock();
+
             if let Some(pos) = runner_lock.input.latest_touch_pos {
                 let modifiers = runner_lock.input.raw.modifiers;
                 // First release mouse to click:
@@ -999,10 +1008,10 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 runner_lock.needs_repaint.set_true();
                 event.stop_propagation();
                 event.prevent_default();
-
-                // Finally, focus or blur on agent to toggle keyboard
-                manipulate_agent(runner_lock.canvas_id(), runner_lock.input.latest_touch_pos);
             }
+
+            // Finally, focus or blur text agent to toggle mobile keyboard:
+            update_text_agent(&runner_lock);
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
         closure.forget();
@@ -1161,40 +1170,52 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     Ok(())
 }
 
-fn manipulate_agent(canvas_id: &str, latest_cursor: Option<egui::Pos2>) -> Option<()> {
+/// Focus or blur text agent to toggle mobile keyboard.
+fn update_text_agent(runner: &AppRunner) -> Option<()> {
     use wasm_bindgen::JsCast;
     use web_sys::HtmlInputElement;
     let window = web_sys::window()?;
     let document = window.document()?;
     let input: HtmlInputElement = document.get_element_by_id(AGENT_ID)?.dyn_into().unwrap();
-    let cutsor_txt = document.body()?.style().get_property_value("cursor").ok()?;
-    let style = canvas_element(canvas_id)?.style();
-    if cutsor_txt == cursor_web_name(egui::CursorIcon::Text) {
-        input.set_hidden(false);
-        input.focus().ok()?;
-        // Panning canvas so that text edit is shown at 30%
-        // Only on touch screens, when keyboard popups
-        if let Some(p) = latest_cursor {
-            let inner_height = window.inner_height().ok()?.as_f64()? as f32;
-            let current_rel = p.y / inner_height;
+    let canvas_style = canvas_element(runner.canvas_id())?.style();
 
-            if current_rel > 0.5 {
-                // probably below the keyboard
+    if runner.mutable_text_under_cursor {
+        let is_already_editing = input.hidden();
+        if is_already_editing {
+            input.set_hidden(false);
+            input.focus().ok()?;
 
-                let target_rel = 0.3;
+            // Move up canvas so that text edit is shown at ~30% of screen height.
+            // Only on touch screens, when keyboard popups.
+            if let Some(latest_touch_pos) = runner.input.latest_touch_pos {
+                let window_height = window.inner_height().ok()?.as_f64()? as f32;
+                let current_rel = latest_touch_pos.y / window_height;
 
-                let delta = target_rel - current_rel;
-                let new_pos_percent = (delta * 100.0).round().to_string() + "%";
+                // estimated amount of screen covered by keyboard
+                let keyboard_fraction = 0.5;
 
-                style.set_property("position", "absolute").ok()?;
-                style.set_property("top", &new_pos_percent).ok()?;
+                if current_rel > keyboard_fraction {
+                    // below the keyboard
+
+                    let target_rel = 0.3;
+
+                    // Note: `delta` is negative, since we are moving the canvas UP
+                    let delta = target_rel - current_rel;
+
+                    let delta = delta.max(-keyboard_fraction); // Don't move it crazy much
+
+                    let new_pos_percent = (delta * 100.0).round().to_string() + "%";
+
+                    canvas_style.set_property("position", "absolute").ok()?;
+                    canvas_style.set_property("top", &new_pos_percent).ok()?;
+                }
             }
         }
     } else {
         input.blur().ok()?;
         input.set_hidden(true);
-        style.set_property("position", "absolute").ok()?;
-        style.set_property("top", "0%").ok()?; // move back to normal position
+        canvas_style.set_property("position", "absolute").ok()?;
+        canvas_style.set_property("top", "0%").ok()?; // move back to normal position
     }
     Some(())
 }

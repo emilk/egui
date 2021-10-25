@@ -151,7 +151,8 @@ pub struct AppRunner {
     prefer_dark_mode: Option<bool>,
     last_save_time: f64,
     screen_reader: crate::screen_reader::ScreenReader,
-    pub(crate) last_text_cursor_pos: Option<egui::Pos2>,
+    pub(crate) text_cursor_pos: Option<egui::Pos2>,
+    pub(crate) mutable_text_under_cursor: bool,
 }
 
 impl AppRunner {
@@ -177,7 +178,8 @@ impl AppRunner {
             prefer_dark_mode,
             last_save_time: now_sec(),
             screen_reader: Default::default(),
-            last_text_cursor_pos: None,
+            text_cursor_pos: None,
+            mutable_text_under_cursor: false,
         };
 
         {
@@ -274,6 +276,7 @@ impl AppRunner {
             let epi::backend::AppOutput {
                 quit: _,        // Can't quit a web page
                 window_size: _, // Can't resize a web page
+                window_title: _,
                 decorated: _,   // Can't show decorations
                 drag_window: _, // Can't be dragged
             } = app_output;

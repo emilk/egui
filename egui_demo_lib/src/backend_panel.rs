@@ -60,9 +60,6 @@ pub struct BackendPanel {
     #[cfg_attr(feature = "serde", serde(skip))]
     frame_history: crate::frame_history::FrameHistory,
 
-    #[cfg_attr(feature = "serde", serde(skip))]
-    output_event_history: std::collections::VecDeque<egui::output::OutputEvent>,
-
     egui_windows: EguiWindows,
 }
 
@@ -75,7 +72,6 @@ impl Default for BackendPanel {
             max_size_points_ui: egui::Vec2::new(1024.0, 2048.0),
             max_size_points_active: egui::Vec2::new(1024.0, 2048.0),
             frame_history: Default::default(),
-            output_event_history: Default::default(),
             egui_windows: Default::default(),
         }
     }
@@ -93,13 +89,6 @@ impl BackendPanel {
     }
 
     pub fn end_of_frame(&mut self, ctx: &egui::CtxRef) {
-        for event in &ctx.output().events {
-            self.output_event_history.push_back(event.clone());
-        }
-        while self.output_event_history.len() > 10 {
-            self.output_event_history.pop_front();
-        }
-
         self.egui_windows.windows(ctx);
     }
 
@@ -108,42 +97,18 @@ impl BackendPanel {
         ui.vertical_centered(|ui| {
             ui.heading("💻 Backend");
         });
+
+        ui.separator();
+
+        self.integration_ui(ui, frame);
+
         ui.separator();
 
         self.run_mode_ui(ui);
 
-        if ui
-            .button("Clear egui memory")
-            .on_hover_text("Forget scroll, positions, sizes etc")
-            .clicked()
-        {
-            *ui.ctx().memory() = Default::default();
-        }
-
         ui.separator();
 
         self.frame_history.ui(ui);
-
-        show_integration_name(ui, frame.info());
-
-        // For instance: `egui_web` sets `pixels_per_point` every frame to force
-        // egui to use the same scale as the web zoom factor.
-        let integration_controls_pixels_per_point = ui.input().raw.pixels_per_point.is_some();
-        if !integration_controls_pixels_per_point {
-            ui.separator();
-            if let Some(new_pixels_per_point) = self.pixels_per_point_ui(ui, frame.info()) {
-                ui.ctx().set_pixels_per_point(new_pixels_per_point);
-            }
-        }
-
-        if !frame.is_web()
-            && ui
-                .button("📱 Phone Size")
-                .on_hover_text("Resize the window to be small like a phone.")
-                .clicked()
-        {
-            frame.set_window_size(egui::Vec2::new(375.0, 812.0)); // iPhone 12 mini
-        }
 
         ui.separator();
 
@@ -151,31 +116,6 @@ impl BackendPanel {
         self.egui_windows.checkboxes(ui);
 
         ui.separator();
-
-        if frame.is_web() {
-            ui.label("egui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
-            ui.label(
-                "Everything you see is rendered as textured triangles. There is no DOM. There are no HTML elements. \
-                This is not JavaScript. This is Rust, running at 60 FPS. This is the web page, reinvented with game tech.");
-            ui.label("This is also work in progress, and not ready for production… yet :)");
-            ui.horizontal_wrapped(|ui| {
-                ui.label("Project home page:");
-                ui.hyperlink("https://github.com/emilk/egui");
-            });
-
-            ui.separator();
-
-            ui.add(
-                egui::Slider::new(&mut self.max_size_points_ui.x, 512.0..=f32::INFINITY)
-                    .logarithmic(true)
-                    .largest_finite(8192.0)
-                    .text("Max width"),
-            )
-            .on_hover_text("Maximum width of the egui region of the web page.");
-            if !ui.ctx().is_using_pointer() {
-                self.max_size_points_active = self.max_size_points_ui;
-            }
-        }
 
         {
             let mut debug_on_hover = ui.ctx().debug_on_hover();
@@ -192,19 +132,6 @@ impl BackendPanel {
             ui.ctx().memory().options.screen_reader = screen_reader;
         }
 
-        ui.collapsing("Output events", |ui| {
-            ui.set_max_width(450.0);
-            ui.label(
-                "Recent output events from egui. \
-            These are emitted when you switch selected widget with tab, \
-            and can be hooked up to a screen reader on supported platforms.",
-            );
-            ui.add_space(8.0);
-            for event in &self.output_event_history {
-                ui.label(format!("{:?}", event));
-            }
-        });
-
         if !frame.is_web() {
             ui.separator();
             if ui.button("Quit").clicked() {
@@ -217,6 +144,50 @@ impl BackendPanel {
             {
                 frame.drag_window();
             }
+        }
+    }
+
+    fn integration_ui(&mut self, ui: &mut egui::Ui, frame: &mut epi::Frame<'_>) {
+        if frame.is_web() {
+            ui.label("egui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
+            ui.label(
+                    "Everything you see is rendered as textured triangles. There is no DOM and no HTML elements. \
+                    This is the web page, reinvented with game tech.");
+            ui.label("This is also work in progress, and not ready for production… yet :)");
+            ui.hyperlink("https://github.com/emilk/egui");
+
+            ui.separator();
+
+            ui.add(
+                egui::Slider::new(&mut self.max_size_points_ui.x, 512.0..=f32::INFINITY)
+                    .logarithmic(true)
+                    .largest_finite(8192.0)
+                    .text("Max width"),
+            )
+            .on_hover_text("Maximum width of the egui region of the web page.");
+            if !ui.ctx().is_using_pointer() {
+                self.max_size_points_active = self.max_size_points_ui;
+            }
+        }
+
+        show_integration_name(ui, frame.info());
+
+        // For instance: `egui_web` sets `pixels_per_point` every frame to force
+        // egui to use the same scale as the web zoom factor.
+        let integration_controls_pixels_per_point = ui.input().raw.pixels_per_point.is_some();
+        if !integration_controls_pixels_per_point {
+            if let Some(new_pixels_per_point) = self.pixels_per_point_ui(ui, frame.info()) {
+                ui.ctx().set_pixels_per_point(new_pixels_per_point);
+            }
+        }
+
+        if !frame.is_web()
+            && ui
+                .button("📱 Phone Size")
+                .on_hover_text("Resize the window to be small like a phone.")
+                .clicked()
+        {
+            frame.set_window_size(egui::Vec2::new(375.0, 812.0)); // iPhone 12 mini
         }
     }
 
@@ -268,10 +239,10 @@ impl BackendPanel {
         ui.horizontal(|ui| {
             let run_mode = &mut self.run_mode;
             ui.label("Mode:");
-            ui.radio_value(run_mode, RunMode::Continuous, "Continuous")
-                .on_hover_text("Repaint everything each frame");
             ui.radio_value(run_mode, RunMode::Reactive, "Reactive")
                 .on_hover_text("Repaint when there are animations or input (e.g. mouse movement)");
+            ui.radio_value(run_mode, RunMode::Continuous, "Continuous")
+                .on_hover_text("Repaint everything each frame");
         });
 
         if self.run_mode == RunMode::Continuous {
@@ -314,6 +285,10 @@ struct EguiWindows {
     settings: bool,
     inspection: bool,
     memory: bool,
+    output_events: bool,
+
+    #[cfg_attr(feature = "serde", serde(skip))]
+    output_event_history: std::collections::VecDeque<egui::output::OutputEvent>,
 }
 
 impl Default for EguiWindows {
@@ -328,6 +303,8 @@ impl EguiWindows {
             settings: false,
             inspection: false,
             memory: false,
+            output_events: false,
+            output_event_history: Default::default(),
         }
     }
 
@@ -336,11 +313,14 @@ impl EguiWindows {
             settings,
             inspection,
             memory,
+            output_events,
+            output_event_history: _,
         } = self;
 
         ui.checkbox(settings, "🔧 Settings");
         ui.checkbox(inspection, "🔍 Inspection");
         ui.checkbox(memory, "📝 Memory");
+        ui.checkbox(output_events, "📤 Output Events");
     }
 
     fn windows(&mut self, ctx: &egui::CtxRef) {
@@ -348,7 +328,16 @@ impl EguiWindows {
             settings,
             inspection,
             memory,
+            output_events,
+            output_event_history,
         } = self;
+
+        for event in &ctx.output().events {
+            output_event_history.push_back(event.clone());
+        }
+        while output_event_history.len() > 1000 {
+            output_event_history.pop_front();
+        }
 
         egui::Window::new("🔧 Settings")
             .open(settings)
@@ -369,6 +358,28 @@ impl EguiWindows {
             .resizable(false)
             .show(ctx, |ui| {
                 ctx.memory_ui(ui);
+            });
+
+        egui::Window::new("📤 Output Events")
+            .open(output_events)
+            .resizable(true)
+            .default_width(520.0)
+            .show(ctx, |ui| {
+                ui.label(
+                    "Recent output events from egui. \
+            These are emitted when you interact with widgets, or move focus between them with TAB. \
+            They can be hooked up to a screen reader on supported platforms.",
+                );
+
+                ui.separator();
+
+                egui::ScrollArea::vertical()
+                    .stick_to_bottom()
+                    .show(ui, |ui| {
+                        for event in output_event_history {
+                            ui.label(format!("{:?}", event));
+                        }
+                    });
             });
     }
 }

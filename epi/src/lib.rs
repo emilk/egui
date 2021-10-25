@@ -16,6 +16,7 @@
     clippy::checked_conversions,
     clippy::dbg_macro,
     clippy::debug_assert_with_mut_call,
+    clippy::disallowed_method,
     clippy::doc_markdown,
     clippy::empty_enum,
     clippy::enum_glob_use,
@@ -25,12 +26,17 @@
     clippy::explicit_into_iter_loop,
     clippy::fallible_impl_from,
     clippy::filter_map_next,
+    clippy::flat_map_option,
     clippy::float_cmp_const,
     clippy::fn_params_excessive_bools,
+    clippy::from_iter_instead_of_collect,
     clippy::if_let_mutex,
+    clippy::implicit_clone,
     clippy::imprecise_flops,
     clippy::inefficient_to_string,
     clippy::invalid_upcast_comparisons,
+    clippy::large_digit_groups,
+    clippy::large_stack_arrays,
     clippy::large_types_passed_by_value,
     clippy::let_unit_value,
     clippy::linkedlist,
@@ -39,8 +45,10 @@
     clippy::manual_ok_or,
     clippy::map_err_ignore,
     clippy::map_flatten,
+    clippy::map_unwrap_or,
     clippy::match_on_vec_items,
     clippy::match_same_arms,
+    clippy::match_wild_err_arm,
     clippy::match_wildcard_for_single_variants,
     clippy::mem_forget,
     clippy::mismatched_target_os,
@@ -50,6 +58,7 @@
     clippy::mutex_integer,
     clippy::needless_borrow,
     clippy::needless_continue,
+    clippy::needless_for_each,
     clippy::needless_pass_by_value,
     clippy::option_option,
     clippy::path_buf_push_overwrite,
@@ -57,6 +66,8 @@
     clippy::ref_option_ref,
     clippy::rest_pat_in_fully_bound_structs,
     clippy::same_functions_in_if_condition,
+    clippy::semicolon_if_nothing_returned,
+    clippy::single_match_else,
     clippy::string_add_assign,
     clippy::string_add,
     clippy::string_lit_as_bytes,
@@ -90,7 +101,10 @@ pub use egui; // Re-export for user convenience
 /// and deployed as a web site using the [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web) crate.
 pub trait App {
     /// Called each time the UI needs repainting, which may be many times per second.
+    ///
     /// Put your widgets into a [`egui::SidePanel`], [`egui::TopBottomPanel`], [`egui::CentralPanel`], [`egui::Window`] or [`egui::Area`].
+    ///
+    /// To force a repaint, call either [`egui::Context::request_repaint`] or use [`Frame::repaint_signal`].
     fn update(&mut self, ctx: &egui::CtxRef, frame: &mut Frame<'_>);
 
     /// Called once before the first frame.
@@ -137,7 +151,8 @@ pub trait App {
     // ---------
     // Settings:
 
-    /// The name of your App.
+    /// The name of your App, used for the title bar of native windows
+    /// and the save location of persistence (see [`Self::save`]).
     fn name(&self) -> &str;
 
     /// Time between automatic calls to [`Self::save`]
@@ -266,6 +281,11 @@ impl<'a> Frame<'a> {
     /// Set the desired inner size of the window (in egui points).
     pub fn set_window_size(&mut self, size: egui::Vec2) {
         self.0.output.window_size = Some(size);
+    }
+
+    /// Set the desired title of the window.
+    pub fn set_window_title(&mut self, title: &str) {
+        self.0.output.window_title = Some(title.to_owned());
     }
 
     /// Set whether to show window decorations (i.e. a frame around you app).
@@ -428,7 +448,7 @@ pub mod backend {
     }
 
     /// Action that can be taken by the user app.
-    #[derive(Clone, Copy, Debug, Default, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct AppOutput {
         /// Set to `true` to stop the app.
         /// This does nothing for web apps.
@@ -436,6 +456,9 @@ pub mod backend {
 
         /// Set to some size to resize the outer window (e.g. glium window) to this size.
         pub window_size: Option<egui::Vec2>,
+
+        /// Set to some string to rename the outer window (e.g. glium window) to this title.
+        pub window_title: Option<String>,
 
         /// Set to some bool to change window decorations
         pub decorated: Option<bool>,

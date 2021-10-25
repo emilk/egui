@@ -1,6 +1,6 @@
 [package]
 name = "egui_glow"
-version = "0.14.0"
+version = "0.15.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui natively using the glow library"
 edition = "2018"
@@ -22,10 +22,10 @@ include = [
 all-features = true
 
 [dependencies]
-egui = { version = "0.14.0", path = "../egui", default-features = false, features = ["single_threaded"] }
-egui-winit = { version = "0.14.0", path = "../egui-winit", default-features = false, features = ["epi"] }
-epi = { version = "0.14.0", path = "../epi", optional = true }
-egui_glow_painter={version ="0.14.0",path="../egui_glow_painter"}
+egui = { version = "0.15.0", path = "../egui", default-features = false, features = ["single_threaded"] }
+egui-winit = { version = "0.15.0", path = "../egui-winit", default-features = false, features = ["epi"] }
+epi = { version = "0.15.0", path = "../epi", optional = true }
+egui_glow_painter={version ="0.15.0",path="../egui_glow_painter"}
 glow = "0.11"
 glutin = "0.27"
 memoffset = "0.6"

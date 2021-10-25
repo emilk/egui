@@ -53,17 +53,6 @@ fn main() {
                 if ui.button("Quit").clicked() {
                     quit = true;
                 }
-
-                egui::ComboBox::from_label("Version")
-                    .width(150.0)
-                    .selected_text("foo")
-                    .show_ui(ui, |ui| {
-                        egui::CollapsingHeader::new("Dev")
-                            .default_open(true)
-                            .show(ui, |ui| {
-                                ui.label("contents");
-                            });
-                    });
             });
 
             let (needs_repaint, shapes) = egui.end_frame(gl_window.window());
@@ -78,15 +67,10 @@ fn main() {
             };
 
             {
-                let clear_color = egui::Rgba::from_rgb(0.1, 0.3, 0.2);
+                let color = egui::Rgba::from_rgb(0.1, 0.3, 0.2);
                 unsafe {
                     use glow::HasContext as _;
-                    gl.clear_color(
-                        clear_color[0],
-                        clear_color[1],
-                        clear_color[2],
-                        clear_color[3],
-                    );
+                    gl.clear_color(color[0], color[1], color[2], color[3]);
                     gl.clear(glow::COLOR_BUFFER_BIT);
                 }
 

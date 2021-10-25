@@ -1,6 +1,6 @@
 [package]
 name = "egui"
-version = "0.14.2"
+version = "0.15.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Simple, portable immediate mode GUI library for Rust"
 edition = "2018"
@@ -23,11 +23,11 @@ all-features = true
 [lib]
 
 [dependencies]
-epaint = { version = "0.14.0", path = "../epaint", default-features = false }
+epaint = { version = "0.15.0", path = "../epaint", default-features = false }
 
 ahash = "0.7"
 nohash-hasher = "0.2"
-ron = { version = "0.6.4", optional = true }
+ron = { version = "0.7", optional = true }
 serde = { version = "1", features = ["derive", "rc"], optional = true }
 
 [features]
@@ -61,6 +61,3 @@ convert_bytemuck = ["epaint/convert_bytemuck"]
 # from multiple threads. It comes with a minor performance impact.
 single_threaded = ["epaint/single_threaded"]
 multi_threaded = ["epaint/multi_threaded"]
-
-[dev-dependencies]
-serde_json = "1"

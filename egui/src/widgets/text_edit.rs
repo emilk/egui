@@ -455,7 +455,7 @@ impl<'t> Widget for TextEdit<'t> {
         let frame_rect = response.rect.expand2(margin);
         ui.allocate_space(frame_rect.size());
         if interactive {
-            response |= ui.interact(frame_rect, id, Sense::click())
+            response |= ui.interact(frame_rect, id, Sense::click());
         }
         if response.clicked() && !response.lost_focus() {
             ui.memory().request_focus(response.id);
@@ -591,8 +591,18 @@ impl<'t> TextEdit<'t> {
         });
         let mut state = ui.memory().id_data.get_or_default::<State>(id).clone();
 
+        // On touch screens (e.g. mobile in egui_web), should
+        // dragging select text, or scroll the enclosing `ScrollArea` (if any)?
+        // Since currently copying selected text in not supported on `egui_web`,
+        // we prioritize touch-scrolling:
+        let allow_drag_to_select = !ui.input().any_touches() || ui.memory().has_focus(id);
+
         let sense = if interactive {
-            Sense::click_and_drag()
+            if allow_drag_to_select {
+                Sense::click_and_drag()
+            } else {
+                Sense::click()
+            }
         } else {
             Sense::hover()
         };
@@ -601,6 +611,10 @@ impl<'t> TextEdit<'t> {
 
         if interactive {
             if let Some(pointer_pos) = ui.input().pointer.interact_pos() {
+                if response.hovered() && text.is_mutable() {
+                    ui.output().mutable_text_under_cursor = true;
+                }
+
                 // TODO: triple-click to select whole paragraph
                 // TODO: drag selected text to either move or clone (ctrl on windows, alt on mac)
                 let singleline_offset = vec2(state.singleline_offset, 0.0);
@@ -630,20 +644,24 @@ impl<'t> TextEdit<'t> {
                         primary: galley.from_ccursor(ccursorp.primary),
                         secondary: galley.from_ccursor(ccursorp.secondary),
                     });
-                } else if response.hovered() && ui.input().pointer.any_pressed() {
-                    ui.memory().request_focus(id);
-                    if ui.input().modifiers.shift {
-                        if let Some(cursorp) = &mut state.cursorp {
-                            cursorp.primary = cursor_at_pointer;
+                } else if allow_drag_to_select {
+                    if response.hovered() && ui.input().pointer.any_pressed() {
+                        ui.memory().request_focus(id);
+                        if ui.input().modifiers.shift {
+                            if let Some(cursorp) = &mut state.cursorp {
+                                cursorp.primary = cursor_at_pointer;
+                            } else {
+                                state.cursorp = Some(CursorPair::one(cursor_at_pointer));
+                            }
                         } else {
                             state.cursorp = Some(CursorPair::one(cursor_at_pointer));
                         }
-                    } else {
-                        state.cursorp = Some(CursorPair::one(cursor_at_pointer));
-                    }
-                } else if ui.input().pointer.any_down() && response.is_pointer_button_down_on() {
-                    if let Some(cursorp) = &mut state.cursorp {
-                        cursorp.primary = cursor_at_pointer;
+                    } else if ui.input().pointer.any_down() && response.is_pointer_button_down_on()
+                    {
+                        // drag to select text:
+                        if let Some(cursorp) = &mut state.cursorp {
+                            cursorp.primary = cursor_at_pointer;
+                        }
                     }
                 }
             }
@@ -658,9 +676,15 @@ impl<'t> TextEdit<'t> {
         if ui.memory().has_focus(id) && interactive {
             ui.memory().lock_focus(id, lock_focus);
 
-            let mut cursorp = state
-                .cursorp
-                .map(|cursorp| {
+            let mut cursorp = state.cursorp.map_or_else(
+                || {
+                    if cursor_at_end {
+                        CursorPair::one(galley.end())
+                    } else {
+                        CursorPair::default()
+                    }
+                },
+                |cursorp| {
                     // We only keep the PCursor (paragraph number, and character offset within that paragraph).
                     // This is so what if we resize the `TextEdit` region, and text wrapping changes,
                     // we keep the same byte character offset from the beginning of the text,
@@ -672,14 +696,8 @@ impl<'t> TextEdit<'t> {
                         primary: galley.from_pcursor(cursorp.primary.pcursor),
                         secondary: galley.from_pcursor(cursorp.secondary.pcursor),
                     }
-                })
-                .unwrap_or_else(|| {
-                    if cursor_at_end {
-                        CursorPair::one(galley.end())
-                    } else {
-                        CursorPair::default()
-                    }
-                });
+                },
+            );
 
             // We feed state to the undoer both before and after handling input
             // so that the undoer creates automatic saves even when there are no events for a while.
@@ -752,6 +770,7 @@ impl<'t> TextEdit<'t> {
                         if multiline {
                             let mut ccursor = delete_selected(text, &cursorp);
                             insert_text(&mut ccursor, text, "\n");
+                            // TODO: if code editor, auto-indent by same leading tabs, + one if the lines end on an opening bracket
                             Some(CCursorPair::one(ccursor))
                         } else {
                             ui.memory().surrender_focus(id); // End input with enter
@@ -895,7 +914,9 @@ impl<'t> TextEdit<'t> {
                     &cursorp.primary,
                 );
 
-                if interactive {
+                if interactive && text.is_mutable() {
+                    // egui_web uses `text_cursor_pos` when showing IME,
+                    // so only set it when text is editable!
                     ui.ctx().output().text_cursor_pos = Some(
                         galley
                             .pos_from_cursor(&cursorp.primary)

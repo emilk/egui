@@ -17,6 +17,7 @@ impl Default for Demos {
     fn default() -> Self {
         Self::from_demos(vec![
             Box::new(super::code_editor::CodeEditor::default()),
+            Box::new(super::code_example::CodeExample::default()),
             Box::new(super::dancing_strings::DancingStrings::default()),
             Box::new(super::drag_and_drop::DragAndDropDemo::default()),
             Box::new(super::font_book::FontBook::default()),
@@ -231,7 +232,7 @@ fn show_menu_bar(ui: &mut Ui) {
                 ui.ctx().memory().reset_areas();
             }
             if ui
-                .button("Clear egui memory")
+                .button("Reset egui memory")
                 .on_hover_text("Forget scroll, positions, sizes etc")
                 .clicked()
             {

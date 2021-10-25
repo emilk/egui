@@ -16,7 +16,7 @@ impl epi::TextureAllocator for Painter {
     }
 
     fn free(&mut self, id: egui::TextureId) {
-        self.free_user_texture(id)
+        self.free_user_texture(id);
     }
 }
 
@@ -166,7 +166,7 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> !
                 egui_winit::epi::handle_app_output(
                     display.gl_window().window(),
                     egui.ctx().pixels_per_point(),
-                    app_output,
+                    app_output.clone(),
                 );
 
                 *control_flow = if app_output.quit {

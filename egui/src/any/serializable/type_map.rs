@@ -90,10 +90,10 @@ fn discard_different_struct() {
     let file_string = {
         let mut map: TypeMap = Default::default();
         map.insert(State1 { a: 42 });
-        serde_json::to_string(&map).unwrap()
+        ron::to_string(&map).unwrap()
     };
 
-    let mut map: TypeMap = serde_json::from_str(&file_string).unwrap();
+    let mut map: TypeMap = ron::from_str(&file_string).unwrap();
     assert!(map.get::<State2>().is_none());
 }
 
@@ -115,10 +115,10 @@ fn new_field_between_runs() {
     let file_string = {
         let mut map: TypeMap = Default::default();
         map.insert(State { a: 42 });
-        serde_json::to_string(&map).unwrap()
+        ron::to_string(&map).unwrap()
     };
 
-    let mut map: TypeMap = serde_json::from_str(&file_string).unwrap();
+    let mut map: TypeMap = ron::from_str(&file_string).unwrap();
     assert!(map.get::<StateNew>().is_none());
 }
 

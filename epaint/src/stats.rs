@@ -196,7 +196,6 @@ impl PaintStats {
                 }
             }
             Shape::Noop | Shape::Circle { .. } | Shape::LineSegment { .. } | Shape::Rect { .. } => {
-                Default::default()
             }
             Shape::Path(path_shape) => {
                 self.shape_path += AllocInfo::from_slice(&path_shape.points);

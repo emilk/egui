@@ -116,17 +116,21 @@ impl ScrollArea {
         Self::vertical().max_height(max_height)
     }
 
-    /// The desired width of the outer frame of the scroll area.
+    /// The maximum width of the outer frame of the scroll area.
     ///
     /// Use `f32::INFINITY` if you want the scroll area to expand to fit the surrounding `Ui` (default).
+    ///
+    /// See also [`Self::auto_shrink`].
     pub fn max_width(mut self, max_width: f32) -> Self {
         self.max_size.x = max_width;
         self
     }
 
-    /// The desired height of the outer frame of the scroll area.
+    /// The maximum height of the outer frame of the scroll area.
     ///
     /// Use `f32::INFINITY` if you want the scroll area to expand to fit the surrounding `Ui` (default).
+    ///
+    /// See also [`Self::auto_shrink`].
     pub fn max_height(mut self, max_height: f32) -> Self {
         self.max_size.y = max_height;
         self
@@ -185,8 +189,7 @@ impl ScrollArea {
         self
     }
 
-    /// For each enabled axis, should the containing area shrink
-    /// if the content is small?
+    /// For each axis, should the containing area shrink if the content is small?
     ///
     /// If true, egui will add blank space outside the scroll area.
     /// If false, egui will add blank space inside the scroll area.
