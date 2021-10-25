@@ -91,27 +91,26 @@ impl epi::App for WrapApp {
         self.backend_panel.update(ctx, frame);
 
         if self.backend_panel.open || ctx.memory().everything_is_visible() {
-            egui::SidePanel::left("backend_panel")
-                .show(ctx, |ui| {
-                    self.backend_panel.ui(ui, frame);
+            egui::SidePanel::left("backend_panel").show(ctx, |ui| {
+                self.backend_panel.ui(ui, frame);
 
-                    ui.separator();
+                ui.separator();
 
-                    ui.horizontal(|ui| {
-                        if ui
-                            .button("Reset egui")
-                            .on_hover_text("Forget scroll, positions, sizes etc")
-                            .clicked()
-                        {
-                            *ui.ctx().memory() = Default::default();
-                        }
+                ui.horizontal(|ui| {
+                    if ui
+                        .button("Reset egui")
+                        .on_hover_text("Forget scroll, positions, sizes etc")
+                        .clicked()
+                    {
+                        *ui.ctx().memory() = Default::default();
+                    }
 
-                        if ui.button("Reset everything").clicked() {
-                            *self = Default::default();
-                            *ui.ctx().memory() = Default::default();
-                        }
-                    });
+                    if ui.button("Reset everything").clicked() {
+                        *self = Default::default();
+                        *ui.ctx().memory() = Default::default();
+                    }
                 });
+            });
         }
 
         for (anchor, app) in self.apps.iter_mut() {

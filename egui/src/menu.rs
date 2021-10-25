@@ -222,7 +222,7 @@ impl MenuRootManager {
         if let Some(root) = self.inner.as_mut() {
             let (menu_response, inner_response) = root.show(response, add_contents);
             if let MenuResponse::Close = menu_response {
-                self.inner = None
+                self.inner = None;
             }
             inner_response
         } else {
@@ -351,11 +351,11 @@ impl MenuRoot {
     }
     pub fn context_click_interaction(response: &Response, root: &mut MenuRootManager, id: Id) {
         let menu_response = Self::context_interaction(response, root, id);
-        Self::handle_menu_response(root, menu_response)
+        Self::handle_menu_response(root, menu_response);
     }
     pub fn stationary_click_interaction(response: &Response, root: &mut MenuRootManager, id: Id) {
         let menu_response = Self::stationary_interaction(response, root, id);
-        Self::handle_menu_response(root, menu_response)
+        Self::handle_menu_response(root, menu_response);
     }
 }
 #[derive(Copy, Clone, PartialEq)]
@@ -542,8 +542,7 @@ impl MenuState {
             || self
                 .sub_menu
                 .as_ref()
-                .map(|(_, sub)| sub.read().area_contains(pos))
-                .unwrap_or(false)
+                .map_or(false, |(_, sub)| sub.read().area_contains(pos))
     }
     fn next_entry_index(&mut self) -> usize {
         self.entry_count += 1;
