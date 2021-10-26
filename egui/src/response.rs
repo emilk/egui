@@ -176,6 +176,11 @@ impl Response {
     }
 
     /// The pointer is hovering above this widget or the widget was clicked/tapped this frame.
+    ///
+    /// Note that this is slightly different from checking `response.rect.contains(pointer_pos)`.
+    /// For one, the hover rectangle is slightly larger, by half of the current item spacing
+    /// (to make it easier to click things). But `hovered` also checks that no other area
+    /// is covering this response rectangle.
     #[inline(always)]
     pub fn hovered(&self) -> bool {
         self.hovered

@@ -329,7 +329,7 @@ impl MenuRoot {
                     destroy = root.id == response.id;
                 }
                 if !in_old_menu {
-                    let in_target = response.rect.contains(pos);
+                    let in_target = response.hovered();
                     if in_target && pointer.secondary_down() {
                         return MenuResponse::Create(pos, id);
                     } else if (in_target && pointer.primary_down()) || destroy {
