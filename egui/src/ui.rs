@@ -1,10 +1,12 @@
 // #![warn(missing_docs)]
 
+use epaint::mutex::RwLock;
 use std::hash::Hash;
+use std::sync::Arc;
 
 use crate::{
-    color::*, containers::*, epaint::text::Fonts, layout::*, mutex::MutexGuard, placer::Placer,
-    widgets::*, *,
+    color::*, containers::*, epaint::text::Fonts, layout::*, menu::MenuState, mutex::MutexGuard,
+    placer::Placer, widgets::*, *,
 };
 
 // ----------------------------------------------------------------------------
@@ -54,6 +56,9 @@ pub struct Ui {
     /// If false we are unresponsive to input,
     /// and all widgets will assume a gray style.
     enabled: bool,
+
+    /// Indicates whether this Ui belongs to a Menu.
+    menu_state: Option<Arc<RwLock<MenuState>>>,
 }
 
 impl Ui {
@@ -73,6 +78,7 @@ impl Ui {
             style,
             placer: Placer::new(max_rect, Layout::default()),
             enabled: true,
+            menu_state: None,
         }
     }
 
@@ -91,7 +97,7 @@ impl Ui {
         crate::egui_assert!(!max_rect.any_nan());
         let next_auto_id_source = Id::new(self.next_auto_id_source).with("child").value();
         self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
-
+        let menu_state = self.get_menu_state();
         Ui {
             id: self.id.with(id_source),
             next_auto_id_source,
@@ -99,6 +105,7 @@ impl Ui {
             style: self.style.clone(),
             placer: Placer::new(max_rect, layout),
             enabled: self.enabled,
+            menu_state,
         }
     }
 
@@ -1729,6 +1736,41 @@ impl Ui {
         let size = vec2(self.available_width().max(total_required_width), max_height);
         self.advance_cursor_after_rect(Rect::from_min_size(top_left, size));
         result
+    }
+    /// Close menu (with submenus), if any.
+    pub fn close_menu(&mut self) {
+        if let Some(menu_state) = &mut self.menu_state {
+            menu_state.write().close();
+        }
+        self.menu_state = None;
+    }
+    pub(crate) fn get_menu_state(&self) -> Option<Arc<RwLock<MenuState>>> {
+        self.menu_state.clone()
+    }
+    pub(crate) fn set_menu_state(&mut self, menu_state: Option<Arc<RwLock<MenuState>>>) {
+        self.menu_state = menu_state;
+    }
+    #[inline(always)]
+    /// Create a menu button. Creates a button for a sub-menu when the `Ui` is inside a menu.
+    ///
+    /// ```
+    /// # let mut ui = egui::Ui::__test();
+    /// ui.menu_button("My menu", |ui| {
+    ///     ui.menu_button("My sub-menu", |ui| {
+    ///         ui.label("Item");
+    ///     });
+    /// });
+    /// ```
+    pub fn menu_button<R>(
+        &mut self,
+        title: impl ToString,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<Option<R>> {
+        if let Some(menu_state) = self.menu_state.clone() {
+            menu::submenu_button(self, menu_state, title, add_contents)
+        } else {
+            menu::menu_button(self, title, add_contents)
+        }
     }
 }
 

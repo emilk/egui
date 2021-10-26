@@ -11,6 +11,7 @@ use crate::{
     frame_state::FrameState,
     input_state::*,
     layers::GraphicLayers,
+    menu::ContextMenuSystem,
     mutex::{Mutex, MutexGuard},
     *,
 };
@@ -303,6 +304,15 @@ impl CtxRef {
     pub fn debug_painter(&self) -> Painter {
         Self::layer_painter(self, LayerId::debug())
     }
+
+    pub(crate) fn show_context_menu(
+        &self,
+        response: &Response,
+        add_contents: impl FnOnce(&mut Ui),
+    ) {
+        self.context_menu_system()
+            .context_menu(response, add_contents);
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -329,6 +339,7 @@ pub struct Context {
     fonts: Option<Arc<Fonts>>,
     memory: Arc<Mutex<Memory>>,
     animation_manager: Arc<Mutex<AnimationManager>>,
+    context_menu_system: Arc<Mutex<ContextMenuSystem>>,
 
     input: InputState,
 
@@ -357,6 +368,7 @@ impl Clone for Context {
             output: self.output.clone(),
             paint_stats: self.paint_stats.clone(),
             repaint_requests: self.repaint_requests.load(SeqCst).into(),
+            context_menu_system: self.context_menu_system.clone(),
         }
     }
 }
@@ -373,6 +385,10 @@ impl Context {
     /// If you want to store/restore egui, serialize this.
     pub fn memory(&self) -> MutexGuard<'_, Memory> {
         self.memory.lock()
+    }
+
+    pub(crate) fn context_menu_system(&self) -> MutexGuard<'_, ContextMenuSystem> {
+        self.context_menu_system.lock()
     }
 
     pub(crate) fn graphics(&self) -> MutexGuard<'_, GraphicLayers> {
