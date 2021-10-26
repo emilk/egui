@@ -24,7 +24,7 @@ pub struct Memory {
     /// This will be saved between different program runs if you use the `persistence` feature.
     ///
     /// To store a state common for all your widgets (a singleton), use [`Id::null`] as the key.
-    pub data: crate::util::IdAnyMap,
+    pub data: crate::util::IdTypeMap,
 
     // ------------------------------------------
     /// Can be used to cache computations from one frame to another.

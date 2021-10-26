@@ -290,17 +290,46 @@ fn from_ron_str<T: serde::de::DeserializeOwned>(ron: &str) -> Option<T> {
 
 use crate::Id;
 
-// TODO: make generic over the key, instead of using hard-coded `Id`.
-/// Stores any value identified by their type and a given [`Id`].
+// TODO: make IdTypeMap generic over the key (`Id`), and make a library of IdTypeMap.
+/// Stores values identified by an [`Id`] AND a the [`std::any::TypeId`] of the value.
+///
+/// so it maps `(Id, TypeId)` to any value you want.
 ///
 /// Values can either be "persisted" (serializable) or "temporary" (cleared when egui is shut down).
 ///
 /// You can store state using the key [`Id::null`]. The state will then only be identified by its type.
+///
+/// ```
+/// # use egui::{Id, util::IdTypeMap};
+/// let a = Id::new("a");
+/// let b = Id::new("b");
+/// let mut map: IdTypeMap = Default::default();
+///
+/// // `a` associated with an f64 and an i32
+/// map.insert_persisted(a, 3.14);
+/// map.insert_temp(a, 42);
+///
+/// // `b` associated with an f64 and a `&'static str`
+/// map.insert_persisted(b, 6.28);
+/// map.insert_temp(b, "Hello World".to_string());
+///
+/// // we can retrieve all four values:
+/// assert_eq!(map.get_temp::<f64>(a), Some(3.14));
+/// assert_eq!(map.get_temp::<i32>(a), Some(42));
+/// assert_eq!(map.get_temp::<f64>(b), Some(6.28));
+/// assert_eq!(map.get_temp::<String>(b), Some("Hello World".to_string()));
+///
+/// // we can retrieve them like so also:
+/// assert_eq!(map.get_persisted::<f64>(a), Some(3.14));
+/// assert_eq!(map.get_persisted::<i32>(a), Some(42));
+/// assert_eq!(map.get_persisted::<f64>(b), Some(6.28));
+/// assert_eq!(map.get_temp::<String>(b), Some("Hello World".to_string()));
+/// ```
 #[derive(Clone, Debug, Default)]
 // We store use `id XOR typeid` as a key, so we don't need to hash again!
-pub struct IdAnyMap(nohash_hasher::IntMap<u64, Element>);
+pub struct IdTypeMap(nohash_hasher::IntMap<u64, Element>);
 
-impl IdAnyMap {
+impl IdTypeMap {
     /// Insert a value that will not be persisted.
     #[inline]
     pub fn insert_temp<T: 'static + Any + Clone + Send + Sync>(&mut self, id: Id, value: T) {
@@ -458,14 +487,14 @@ fn hash(type_id: TypeId, id: Id) -> u64 {
 
 // ----------------------------------------------------------------------------
 
-/// How [`IdAnyMap`] is persisted.
+/// How [`IdTypeMap`] is persisted.
 #[cfg(feature = "persistence")]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 struct PersistedMap(Vec<(u64, SerializedElement)>);
 
 #[cfg(feature = "persistence")]
 impl PersistedMap {
-    fn from_map(map: &IdAnyMap) -> Self {
+    fn from_map(map: &IdTypeMap) -> Self {
         // filter out the elements which cannot be serialized:
         Self(
             map.0
@@ -474,8 +503,8 @@ impl PersistedMap {
                 .collect(),
         )
     }
-    fn into_map(self) -> IdAnyMap {
-        IdAnyMap(
+    fn into_map(self) -> IdTypeMap {
+        IdTypeMap(
             self.0
                 .into_iter()
                 .map(|(hash, SerializedElement { type_id, ron })| {
@@ -487,7 +516,7 @@ impl PersistedMap {
 }
 
 #[cfg(feature = "persistence")]
-impl serde::Serialize for IdAnyMap {
+impl serde::Serialize for IdTypeMap {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -497,7 +526,7 @@ impl serde::Serialize for IdAnyMap {
 }
 
 #[cfg(feature = "persistence")]
-impl<'de> serde::Deserialize<'de> for IdAnyMap {
+impl<'de> serde::Deserialize<'de> for IdTypeMap {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -507,6 +536,78 @@ impl<'de> serde::Deserialize<'de> for IdAnyMap {
 }
 
 // ----------------------------------------------------------------------------
+
+#[test]
+fn test_two_id_two_type() {
+    let a = Id::new("a");
+    let b = Id::new("b");
+
+    let mut map: IdTypeMap = Default::default();
+    map.insert_persisted(a, 6.28);
+    map.insert_temp(b, 42);
+    assert_eq!(map.get_persisted::<f64>(a), Some(6.28));
+    assert_eq!(map.get_persisted::<i32>(b), Some(42));
+    assert_eq!(map.get_temp::<f64>(a), Some(6.28));
+    assert_eq!(map.get_temp::<i32>(b), Some(42));
+}
+
+#[test]
+fn test_two_id_x_two_types() {
+    #![allow(clippy::approx_constant)]
+
+    let a = Id::new("a");
+    let b = Id::new("b");
+    let mut map: IdTypeMap = Default::default();
+
+    // `a` associated with an f64 and an i32
+    map.insert_persisted(a, 3.14);
+    map.insert_temp(a, 42);
+
+    // `b` associated with an f64 and a `&'static str`
+    map.insert_persisted(b, 6.28);
+    map.insert_temp(b, "Hello World".to_string());
+
+    // we can retrieve all four values:
+    assert_eq!(map.get_temp::<f64>(a), Some(3.14));
+    assert_eq!(map.get_temp::<i32>(a), Some(42));
+    assert_eq!(map.get_temp::<f64>(b), Some(6.28));
+    assert_eq!(map.get_temp::<String>(b), Some("Hello World".to_string()));
+
+    // we can retrieve them like so also:
+    assert_eq!(map.get_persisted::<f64>(a), Some(3.14));
+    assert_eq!(map.get_persisted::<i32>(a), Some(42));
+    assert_eq!(map.get_persisted::<f64>(b), Some(6.28));
+    assert_eq!(map.get_temp::<String>(b), Some("Hello World".to_string()));
+}
+
+#[test]
+fn test_one_id_two_types() {
+    let id = Id::new("a");
+
+    let mut map: IdTypeMap = Default::default();
+    map.insert_persisted(id, 6.28);
+    map.insert_temp(id, 42);
+
+    assert_eq!(map.get_temp::<f64>(id), Some(6.28));
+    assert_eq!(map.get_persisted::<f64>(id), Some(6.28));
+    assert_eq!(map.get_temp::<i32>(id), Some(42));
+
+    // ------------
+    // Test removal:
+
+    // We can remove:
+    map.remove::<i32>(id);
+    assert_eq!(map.get_temp::<i32>(id), None);
+
+    // Other type is still there, even though it is the same if:
+    assert_eq!(map.get_temp::<f64>(id), Some(6.28));
+    assert_eq!(map.get_persisted::<f64>(id), Some(6.28));
+
+    // But we can still remove the last:
+    map.remove::<f64>(id);
+    assert_eq!(map.get_temp::<f64>(id), None);
+    assert_eq!(map.get_persisted::<f64>(id), None);
+}
 
 #[test]
 fn test_mix() {
@@ -519,7 +620,7 @@ fn test_mix() {
 
     let id = Id::new("a");
 
-    let mut map: IdAnyMap = Default::default();
+    let mut map: IdTypeMap = Default::default();
     map.insert_persisted(id, Foo(555));
     map.insert_temp(id, Bar(1.0));
 
@@ -557,7 +658,7 @@ fn test_mix_serialize() {
 
     let id = Id::new("a");
 
-    let mut map: IdAnyMap = Default::default();
+    let mut map: IdTypeMap = Default::default();
     map.insert_persisted(id, Serializable(555));
     map.insert_temp(id, NonSerializable(1.0));
 
@@ -597,7 +698,7 @@ fn test_mix_serialize() {
     // --------------------
     // Test deserialization:
 
-    let mut map: IdAnyMap = ron::from_str(&serialized).unwrap();
+    let mut map: IdTypeMap = ron::from_str(&serialized).unwrap();
     assert_eq!(map.get_temp::<Serializable>(id), None);
     assert_eq!(
         map.get_persisted::<Serializable>(id),

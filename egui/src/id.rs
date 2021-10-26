@@ -30,7 +30,7 @@
 pub struct Id(u64);
 
 impl Id {
-    /// A special `Id`, in particular as a key to [`crate::Memory::id_map`]
+    /// A special `Id`, in particular as a key to [`crate::Memory::data`]
     /// for when there is no particular widget to attach the data.
     ///
     /// The null `Id` is still a valid id to use in all circumstances,
