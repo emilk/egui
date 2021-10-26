@@ -17,7 +17,6 @@ fn sigmoid(x: f64) -> f64 {
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct ContextMenus {
-    title: String,
     plot: Plot,
     show_axes: [bool; 2],
     allow_drag: bool,
@@ -26,6 +25,87 @@ pub struct ContextMenus {
     center_y_axis: bool,
     width: f32,
     height: f32,
+}
+
+impl Default for ContextMenus {
+    fn default() -> Self {
+        Self {
+            plot: Plot::Sin,
+            show_axes: [true, true],
+            allow_drag: true,
+            allow_zoom: true,
+            center_x_axis: false,
+            center_y_axis: false,
+            width: 400.0,
+            height: 200.0,
+        }
+    }
+}
+
+impl super::Demo for ContextMenus {
+    fn name(&self) -> &'static str {
+        "☰ Context Menus"
+    }
+
+    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
+        use super::View;
+        egui::Window::new(self.name())
+            .vscroll(false)
+            .resizable(false)
+            .open(open)
+            .show(ctx, |ui| self.ui(ui));
+    }
+}
+
+impl super::View for ContextMenus {
+    fn ui(&mut self, ui: &mut egui::Ui) {
+        ui.horizontal(|ui| {
+            ui.menu_button("Click for menu", Self::nested_menus);
+            ui.button("Right-click for menu")
+                .context_menu(Self::nested_menus);
+        });
+
+        ui.separator();
+
+        ui.label("Right-click plot to edit it!");
+        ui.horizontal(|ui| {
+            ui.add(self.example_plot()).context_menu(|ui| {
+                ui.menu_button("Plot", |ui| {
+                    if ui.radio_value(&mut self.plot, Plot::Sin, "Sin").clicked()
+                        || ui
+                            .radio_value(&mut self.plot, Plot::Bell, "Gaussian")
+                            .clicked()
+                        || ui
+                            .radio_value(&mut self.plot, Plot::Sigmoid, "Sigmoid")
+                            .clicked()
+                    {
+                        ui.close_menu();
+                    }
+                });
+                egui::Grid::new("button_grid").show(ui, |ui| {
+                    ui.add(
+                        egui::DragValue::new(&mut self.width)
+                            .speed(1.0)
+                            .prefix("Width:"),
+                    );
+                    ui.add(
+                        egui::DragValue::new(&mut self.height)
+                            .speed(1.0)
+                            .prefix("Height:"),
+                    );
+                    ui.end_row();
+                    ui.checkbox(&mut self.show_axes[0], "x-Axis");
+                    ui.checkbox(&mut self.show_axes[1], "y-Axis");
+                    ui.end_row();
+                    if ui.checkbox(&mut self.allow_drag, "Drag").changed()
+                        || ui.checkbox(&mut self.allow_zoom, "Zoom").changed()
+                    {
+                        ui.close_menu();
+                    }
+                });
+            });
+        });
+    }
 }
 
 impl ContextMenus {
@@ -52,6 +132,7 @@ impl ContextMenus {
             .height(self.height)
             .data_aspect(1.0)
     }
+
     fn nested_menus(ui: &mut egui::Ui) {
         if ui.button("Open...").clicked() {
             ui.close_menu();
@@ -84,91 +165,5 @@ impl ContextMenus {
             }
         });
         let _ = ui.button("Very long text for this item");
-    }
-}
-
-const DEFAULT_TITLE: &str = "☰ Context Menus";
-
-impl Default for ContextMenus {
-    fn default() -> Self {
-        Self {
-            title: DEFAULT_TITLE.to_owned(),
-            plot: Plot::Sin,
-            show_axes: [true, true],
-            allow_drag: true,
-            allow_zoom: true,
-            center_x_axis: false,
-            center_y_axis: false,
-            width: 400.0,
-            height: 200.0,
-        }
-    }
-}
-impl super::Demo for ContextMenus {
-    fn name(&self) -> &'static str {
-        DEFAULT_TITLE
-    }
-
-    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
-        let Self { title, .. } = self.clone();
-
-        use super::View;
-        let window = egui::Window::new(title)
-            .id(egui::Id::new("demo_context_menus")) // required since we change the title
-            .vscroll(false)
-            .open(open);
-        window.show(ctx, |ui| self.ui(ui));
-    }
-}
-
-impl super::View for ContextMenus {
-    fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| ui.text_edit_singleline(&mut self.title));
-        ui.horizontal(|ui| {
-            ui.add(self.example_plot())
-                .on_hover_text("Right click for options")
-                .context_menu(|ui| {
-                    ui.menu_button("Plot", |ui| {
-                        if ui.radio_value(&mut self.plot, Plot::Sin, "Sin").clicked()
-                            || ui
-                                .radio_value(&mut self.plot, Plot::Bell, "Gaussian")
-                                .clicked()
-                            || ui
-                                .radio_value(&mut self.plot, Plot::Sigmoid, "Sigmoid")
-                                .clicked()
-                        {
-                            ui.close_menu();
-                        }
-                    });
-                    egui::Grid::new("button_grid").show(ui, |ui| {
-                        ui.add(
-                            egui::DragValue::new(&mut self.width)
-                                .speed(1.0)
-                                .prefix("Width:"),
-                        );
-                        ui.add(
-                            egui::DragValue::new(&mut self.height)
-                                .speed(1.0)
-                                .prefix("Height:"),
-                        );
-                        ui.end_row();
-                        ui.checkbox(&mut self.show_axes[0], "x-Axis");
-                        ui.checkbox(&mut self.show_axes[1], "y-Axis");
-                        ui.end_row();
-                        if ui.checkbox(&mut self.allow_drag, "Drag").changed()
-                            || ui.checkbox(&mut self.allow_zoom, "Zoom").changed()
-                        {
-                            ui.close_menu();
-                        }
-                    });
-                });
-        });
-        ui.label("Right-click plot to edit it!");
-        ui.separator();
-        ui.horizontal(|ui| {
-            ui.menu_button("Click for menu", Self::nested_menus);
-            ui.button("Right-click for menu")
-                .context_menu(Self::nested_menus);
-        });
     }
 }

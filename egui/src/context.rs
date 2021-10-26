@@ -305,6 +305,7 @@ impl CtxRef {
         Self::layer_painter(self, LayerId::debug())
     }
 
+    /// Respond to secondary clicks (right-clicks) by showing the given menu.
     pub(crate) fn show_context_menu(
         &self,
         response: &Response,

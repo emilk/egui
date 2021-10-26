@@ -471,6 +471,17 @@ impl Response {
         }
     }
 
+    /// Response to secondary clicks (right-clicks) by showing the given menu.
+    ///
+    /// ``` rust
+    /// # let mut ui = &mut egui::Ui::__test();
+    /// let response = ui.label("Right-click me!");
+    /// response.context_menu(|ui|{
+    ///     if ui.button("Close the menu").clicked() {
+    ///         ui.close_menu();
+    ///     }
+    /// });
+    /// ```
     pub fn context_menu(&self, add_contents: impl FnOnce(&mut Ui)) -> &Self {
         self.ctx.show_context_menu(self, add_contents);
         self

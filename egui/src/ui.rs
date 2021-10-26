@@ -1737,6 +1737,7 @@ impl Ui {
         self.advance_cursor_after_rect(Rect::from_min_size(top_left, size));
         result
     }
+
     /// Close menu (with submenus), if any.
     pub fn close_menu(&mut self) {
         if let Some(menu_state) = &mut self.menu_state {
@@ -1744,12 +1745,15 @@ impl Ui {
         }
         self.menu_state = None;
     }
+
     pub(crate) fn get_menu_state(&self) -> Option<Arc<RwLock<MenuState>>> {
         self.menu_state.clone()
     }
+
     pub(crate) fn set_menu_state(&mut self, menu_state: Option<Arc<RwLock<MenuState>>>) {
         self.menu_state = menu_state;
     }
+
     #[inline(always)]
     /// Create a menu button. Creates a button for a sub-menu when the `Ui` is inside a menu.
     ///
@@ -1757,7 +1761,9 @@ impl Ui {
     /// # let mut ui = egui::Ui::__test();
     /// ui.menu_button("My menu", |ui| {
     ///     ui.menu_button("My sub-menu", |ui| {
-    ///         ui.label("Item");
+    ///         if ui.button("Close the menu").clicked() {
+    ///             ui.close_menu();
+    ///         }
     ///     });
     /// });
     /// ```

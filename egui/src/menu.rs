@@ -349,6 +349,7 @@ impl MenuRoot {
             MenuResponse::Stay => {}
         }
     }
+    /// Respond to secondary (right) clicks.
     pub fn context_click_interaction(response: &Response, root: &mut MenuRootManager, id: Id) {
         let menu_response = Self::context_interaction(response, root, id);
         Self::handle_menu_response(root, menu_response);

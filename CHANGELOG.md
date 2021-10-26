@@ -7,6 +7,9 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 
 ## Unreleased
 
+### Added ⭐
+* Add context menus: See `Ui::menu_button` and `Response::context_menu` ([#543](https://github.com/emilk/egui/pull/543)).
+
 
 ## 0.15.0 - 2021-10-24 - Syntax highlighting and hscroll
 
