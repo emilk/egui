@@ -41,6 +41,16 @@ impl Default for State {
     }
 }
 
+impl State {
+    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
+        ctx.memory().data.get_persisted(id)
+    }
+
+    pub fn store(self, ctx: &Context, id: Id) {
+        ctx.memory().data.insert_persisted(id, self);
+    }
+}
+
 /// Add vertical and/or horizontal scrolling to a contained [`Ui`].
 ///
 /// ```
@@ -116,17 +126,21 @@ impl ScrollArea {
         Self::vertical().max_height(max_height)
     }
 
-    /// The desired width of the outer frame of the scroll area.
+    /// The maximum width of the outer frame of the scroll area.
     ///
     /// Use `f32::INFINITY` if you want the scroll area to expand to fit the surrounding `Ui` (default).
+    ///
+    /// See also [`Self::auto_shrink`].
     pub fn max_width(mut self, max_width: f32) -> Self {
         self.max_size.x = max_width;
         self
     }
 
-    /// The desired height of the outer frame of the scroll area.
+    /// The maximum height of the outer frame of the scroll area.
     ///
     /// Use `f32::INFINITY` if you want the scroll area to expand to fit the surrounding `Ui` (default).
+    ///
+    /// See also [`Self::auto_shrink`].
     pub fn max_height(mut self, max_height: f32) -> Self {
         self.max_size.y = max_height;
         self
@@ -185,8 +199,7 @@ impl ScrollArea {
         self
     }
 
-    /// For each enabled axis, should the containing area shrink
-    /// if the content is small?
+    /// For each axis, should the containing area shrink if the content is small?
     ///
     /// If true, egui will add blank space outside the scroll area.
     /// If false, egui will add blank space inside the scroll area.
@@ -259,7 +272,7 @@ impl ScrollArea {
 
         let id_source = id_source.unwrap_or_else(|| Id::new("scroll_area"));
         let id = ui.make_persistent_id(id_source);
-        let mut state = *ctx.memory().id_data.get_or_default::<State>(id);
+        let mut state = State::load(&ctx, id).unwrap_or_default();
 
         if let Some(offset) = offset {
             state.offset = offset;
@@ -715,7 +728,7 @@ impl Prepared {
 
         state.show_scroll = show_scroll_this_frame;
 
-        ui.memory().id_data.insert(id, state);
+        state.store(ui.ctx(), id);
     }
 }
 

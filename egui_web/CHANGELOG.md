@@ -4,6 +4,9 @@ All notable changes to the `egui_web` integration will be noted in this file.
 
 
 ## Unreleased
+
+
+## 0.15.0 - 2021-10-24
 ### Added
 * Remove "http" feature (use https://github.com/emilk/ehttp instead!).
 * Implement `epi::NativeTexture` trait for the WebGL painter.
@@ -12,6 +15,7 @@ All notable changes to the `egui_web` integration will be noted in this file.
 ### Fixed 🐛
 * Fix multiline paste.
 * Fix painting with non-opaque backgrounds.
+* Improve text input on mobile and for IME.
 
 
 ## 0.14.1 - 2021-08-28

@@ -1,7 +1,10 @@
 /// Hash the given value with a predictable hasher.
 #[inline]
 pub fn hash(value: impl std::hash::Hash) -> u64 {
-    hash_with(value, ahash::AHasher::new_with_keys(123, 456))
+    use std::hash::Hasher as _;
+    let mut hasher = ahash::AHasher::new_with_keys(123, 456);
+    value.hash(&mut hasher);
+    hasher.finish()
 }
 
 /// Hash the given value with the given hasher.

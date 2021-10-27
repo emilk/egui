@@ -269,6 +269,12 @@ impl Modifiers {
     pub fn shift_only(&self) -> bool {
         self.shift && !(self.alt || self.command)
     }
+
+    /// true if only [`Self::ctrl`] or only [`Self::mac_cmd`] is pressed.
+    #[inline(always)]
+    pub fn command_only(&self) -> bool {
+        !self.alt && !self.shift && self.command
+    }
 }
 
 /// Keyboard keys.

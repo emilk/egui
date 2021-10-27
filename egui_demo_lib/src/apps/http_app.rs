@@ -37,13 +37,6 @@ impl Resource {
     }
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-enum Method {
-    Get,
-    Post,
-}
-
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct HttpApp {
     url: String,

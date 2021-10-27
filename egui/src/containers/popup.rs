@@ -12,6 +12,14 @@ pub(crate) struct MonoState {
 }
 
 impl MonoState {
+    fn load(ctx: &Context) -> Option<Self> {
+        ctx.memory().data.get_temp(Id::null())
+    }
+
+    fn store(self, ctx: &Context) {
+        ctx.memory().data.insert_temp(Id::null(), self);
+    }
+
     fn tooltip_size(&self, id: Id, index: usize) -> Option<Vec2> {
         if self.last_id == Some(id) {
             self.last_size.get(index).cloned()
@@ -167,11 +175,8 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
         return None; // No good place for a tooltip :(
     };
 
-    let expected_size = ctx
-        .memory()
-        .data_temp
-        .get_or_default::<crate::containers::popup::MonoState>()
-        .tooltip_size(id, count);
+    let mut state = MonoState::load(ctx).unwrap_or_default();
+    let expected_size = state.tooltip_size(id, count);
     let expected_size = expected_size.unwrap_or_else(|| vec2(64.0, 32.0));
 
     if above {
@@ -199,10 +204,9 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
     let position = position.at_least(ctx.input().screen_rect().min);
 
     let InnerResponse { inner, response } = show_tooltip_area_dyn(ctx, id, position, add_contents);
-    ctx.memory()
-        .data_temp
-        .get_mut_or_default::<crate::containers::popup::MonoState>()
-        .set_tooltip_size(id, count, response.rect.size());
+
+    state.set_tooltip_size(id, count, response.rect.size());
+    state.store(ctx);
 
     ctx.frame_state().tooltip_rect = Some((id, tooltip_rect.union(response.rect), count + 1));
     Some(inner)

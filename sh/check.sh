@@ -23,7 +23,7 @@ cargo doc -p egui_web --target wasm32-unknown-unknown --lib --no-deps --all-feat
 (cd epaint && cargo check --no-default-features --features "multi_threaded")
 (cd epaint && cargo check --no-default-features --features "single_threaded" --release)
 (cd epaint && cargo check --no-default-features --features "multi_threaded" --release)
-(cd egui && cargo check --no-default-features --features "multi_threaded")
+(cd egui && cargo check --no-default-features --features "multi_threaded,serialize")
 (cd eframe && cargo check --no-default-features --features "egui_glow")
 (cd epi && cargo check --no-default-features)
 (cd egui_web && cargo check --no-default-features)

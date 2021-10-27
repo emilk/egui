@@ -18,6 +18,7 @@ impl Default for Demos {
         Self::from_demos(vec![
             Box::new(super::code_editor::CodeEditor::default()),
             Box::new(super::code_example::CodeExample::default()),
+            Box::new(super::context_menu::ContextMenus::default()),
             Box::new(super::dancing_strings::DancingStrings::default()),
             Box::new(super::drag_and_drop::DragAndDropDemo::default()),
             Box::new(super::font_book::FontBook::default()),
@@ -227,16 +228,18 @@ fn show_menu_bar(ui: &mut Ui) {
     use egui::*;
 
     menu::bar(ui, |ui| {
-        menu::menu(ui, "File", |ui| {
+        ui.menu_button("File", |ui| {
             if ui.button("Organize windows").clicked() {
                 ui.ctx().memory().reset_areas();
+                ui.close_menu();
             }
             if ui
-                .button("Clear egui memory")
+                .button("Reset egui memory")
                 .on_hover_text("Forget scroll, positions, sizes etc")
                 .clicked()
             {
                 *ui.ctx().memory() = Default::default();
+                ui.close_menu();
             }
         });
     });
