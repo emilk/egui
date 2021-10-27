@@ -15,6 +15,7 @@ pub struct CursorRange {
 }
 
 impl CursorRange {
+    /// The empty range.
     pub fn one(cursor: Cursor) -> Self {
         Self {
             primary: cursor,
@@ -84,6 +85,7 @@ pub struct CCursorRange {
 }
 
 impl CCursorRange {
+    /// The empty range.
     pub fn one(ccursor: CCursor) -> Self {
         Self {
             primary: ccursor,

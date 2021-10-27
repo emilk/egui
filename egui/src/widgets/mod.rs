@@ -17,7 +17,7 @@ mod progress_bar;
 mod selected_label;
 mod separator;
 mod slider;
-pub(crate) mod text_edit;
+pub mod text_edit;
 
 pub use button::*;
 pub use drag_value::DragValue;
@@ -28,7 +28,7 @@ pub use progress_bar::ProgressBar;
 pub use selected_label::SelectableLabel;
 pub use separator::Separator;
 pub use slider::*;
-pub use text_edit::*;
+pub use text_edit::{TextBuffer, TextEdit};
 
 // ----------------------------------------------------------------------------
 

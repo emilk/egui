@@ -4,6 +4,8 @@ use epaint::text::{cursor::*, Galley, LayoutJob};
 
 use crate::{output::OutputEvent, *};
 
+use super::{CCursorRange, CursorRange, State, TextEditOutput};
+
 /// A text region that the user can edit the contents of.
 ///
 /// See also [`Ui::text_edit_singleline`] and  [`Ui::text_edit_multiline`].
@@ -237,6 +239,13 @@ impl<'t> TextEdit<'t> {
 
 impl<'t> Widget for TextEdit<'t> {
     fn ui(self, ui: &mut Ui) -> Response {
+        self.show(ui).response
+    }
+}
+
+impl<'t> TextEdit<'t> {
+    /// Show the [`TextEdit`], returning a rich [`TextEditOutput`].
+    pub fn show(self, ui: &mut Ui) -> TextEditOutput {
         let is_mutable = self.text.is_mutable();
         let frame = self.frame;
         let interactive = self.interactive;
@@ -245,22 +254,22 @@ impl<'t> Widget for TextEdit<'t> {
         let margin = Vec2::new(4.0, 2.0);
         let max_rect = ui.available_rect_before_wrap().shrink2(margin);
         let mut content_ui = ui.child_ui(max_rect, *ui.layout());
-        let mut response = self.content_ui(&mut content_ui);
-        let id = response.id;
-        let frame_rect = response.rect.expand2(margin);
+        let mut output = self.show_content(&mut content_ui);
+        let id = output.response.id;
+        let frame_rect = output.response.rect.expand2(margin);
         ui.allocate_space(frame_rect.size());
         if interactive {
-            response |= ui.interact(frame_rect, id, Sense::click());
+            output.response |= ui.interact(frame_rect, id, Sense::click());
         }
-        if response.clicked() && !response.lost_focus() {
-            ui.memory().request_focus(response.id);
+        if output.response.clicked() && !output.response.lost_focus() {
+            ui.memory().request_focus(output.response.id);
         }
 
         if frame {
-            let visuals = ui.style().interact(&response);
+            let visuals = ui.style().interact(&output.response);
             let frame_rect = frame_rect.expand(visuals.expansion);
             let shape = if is_mutable {
-                if response.has_focus() {
+                if output.response.has_focus() {
                     epaint::RectShape {
                         rect: frame_rect,
                         corner_radius: visuals.corner_radius,
@@ -291,26 +300,10 @@ impl<'t> Widget for TextEdit<'t> {
             ui.painter().set(where_to_put_background, shape);
         }
 
-        response
+        output
     }
-}
 
-fn mask_massword(text: &str) -> String {
-    std::iter::repeat(epaint::text::PASSWORD_REPLACEMENT_CHAR)
-        .take(text.chars().count())
-        .collect::<String>()
-}
-
-fn mask_if_password(is_password: bool, text: &str) -> String {
-    if is_password {
-        mask_massword(text)
-    } else {
-        text.to_owned()
-    }
-}
-
-impl<'t> TextEdit<'t> {
-    fn content_ui(self, ui: &mut Ui) -> Response {
+    fn show_content(self, ui: &mut Ui) -> TextEditOutput {
         let TextEdit {
             text,
             hint_text,
@@ -462,8 +455,8 @@ impl<'t> TextEdit<'t> {
             ui.output().cursor_icon = CursorIcon::Text;
         }
 
-        let mut text_cursor = None;
-        let prev_text_cursor = state.cursor_range(&*galley);
+        let mut cursor_range = None;
+        let prev_cursor_range = state.cursor_range(&*galley);
         if ui.memory().has_focus(id) && interactive {
             ui.memory().lock_focus(id, lock_focus);
 
@@ -473,7 +466,7 @@ impl<'t> TextEdit<'t> {
                 CursorRange::default()
             };
 
-            let (changed, cursor_range) = events(
+            let (changed, new_cursor_range) = events(
                 ui,
                 &mut state,
                 text,
@@ -489,14 +482,14 @@ impl<'t> TextEdit<'t> {
             if changed {
                 response.mark_changed();
             }
-            text_cursor = Some(cursor_range);
+            cursor_range = Some(new_cursor_range);
         }
 
         let mut text_draw_pos = response.rect.min;
 
         // Visual clipping for singleline text editor with text larger than width
         if !multiline {
-            let cursor_pos = match (text_cursor, ui.memory().has_focus(id)) {
+            let cursor_pos = match (cursor_range, ui.memory().has_focus(id)) {
                 (Some(cursor_range), true) => galley.pos_from_cursor(&cursor_range.primary).min.x,
                 _ => 0.0,
             };
@@ -561,12 +554,13 @@ impl<'t> TextEdit<'t> {
 
         state.store(ui.ctx(), id);
 
-        let selection_changed =
-            if let (Some(text_cursor), Some(prev_text_cursor)) = (text_cursor, prev_text_cursor) {
-                prev_text_cursor.as_ccursor_range() != text_cursor.as_ccursor_range()
-            } else {
-                false
-            };
+        let selection_changed = if let (Some(cursor_range), Some(prev_cursor_range)) =
+            (cursor_range, prev_cursor_range)
+        {
+            prev_cursor_range.as_ccursor_range() != cursor_range.as_ccursor_range()
+        } else {
+            false
+        };
 
         if response.changed {
             response.widget_info(|| {
@@ -576,9 +570,9 @@ impl<'t> TextEdit<'t> {
                 )
             });
         } else if selection_changed {
-            let text_cursor = text_cursor.unwrap();
+            let cursor_range = cursor_range.unwrap();
             let char_range =
-                text_cursor.primary.ccursor.index..=text_cursor.secondary.ccursor.index;
+                cursor_range.primary.ccursor.index..=cursor_range.secondary.ccursor.index;
             let info = WidgetInfo::text_selection_changed(
                 char_range,
                 mask_if_password(password, text.as_str()),
@@ -596,7 +590,26 @@ impl<'t> TextEdit<'t> {
                 )
             });
         }
-        response
+
+        TextEditOutput {
+            response,
+            galley,
+            cursor_range,
+        }
+    }
+}
+
+fn mask_if_password(is_password: bool, text: &str) -> String {
+    fn mask_password(text: &str) -> String {
+        std::iter::repeat(epaint::text::PASSWORD_REPLACEMENT_CHAR)
+            .take(text.chars().count())
+            .collect::<String>()
+    }
+
+    if is_password {
+        mask_password(text)
+    } else {
+        text.to_owned()
     }
 }
 
