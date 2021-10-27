@@ -4,6 +4,7 @@
 // This will also allow users to pick their own serialization format per type.
 
 use std::any::Any;
+use std::sync::Arc;
 
 // -----------------------------------------------------------------------------------------------
 
@@ -57,7 +58,7 @@ impl<T> SerializableAny for T where T: 'static + Any + Clone + for<'a> Send + Sy
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 struct SerializedElement {
     type_id: TypeId,
-    ron: String,
+    ron: Arc<str>,
 }
 
 #[cfg(feature = "persistence")]
@@ -82,7 +83,7 @@ enum Element {
         /// The type of value we are storing.
         type_id: TypeId,
         /// The ron data we can deserialize.
-        ron: String,
+        ron: Arc<str>,
     },
 }
 
@@ -256,7 +257,7 @@ impl Element {
                     let ron = serialize_fn(value)?;
                     Some(SerializedElement {
                         type_id: (**value).type_id().into(),
-                        ron,
+                        ron: ron.into(),
                     })
                 } else {
                     None
