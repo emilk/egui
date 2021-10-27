@@ -552,7 +552,7 @@ impl<'t> TextEdit<'t> {
             }
         }
 
-        state.store(ui.ctx(), id);
+        state.clone().store(ui.ctx(), id);
 
         let selection_changed = if let (Some(cursor_range), Some(prev_cursor_range)) =
             (cursor_range, prev_cursor_range)
@@ -594,6 +594,7 @@ impl<'t> TextEdit<'t> {
         TextEditOutput {
             response,
             galley,
+            state,
             cursor_range,
         }
     }
@@ -633,7 +634,7 @@ fn events(
 
     // We feed state to the undoer both before and after handling input
     // so that the undoer creates automatic saves even when there are no events for a while.
-    state.undoer.feed_state(
+    state.undoer.lock().feed_state(
         ui.input().time,
         &(cursor_range.as_ccursor_range(), text.as_ref().to_owned()),
     );
@@ -716,6 +717,7 @@ fn events(
                 // TODO: redo
                 if let Some((undo_ccursor_range, undo_txt)) = state
                     .undoer
+                    .lock()
                     .undo(&(cursor_range.as_ccursor_range(), text.as_ref().to_owned()))
                 {
                     text.replace(undo_txt);
@@ -782,7 +784,7 @@ fn events(
 
     state.set_cursor_range(Some(cursor_range));
 
-    state.undoer.feed_state(
+    state.undoer.lock().feed_state(
         ui.input().time,
         &(cursor_range.as_ccursor_range(), text.as_ref().to_owned()),
     );

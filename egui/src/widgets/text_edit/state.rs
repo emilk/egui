@@ -1,8 +1,15 @@
-use super::{CCursorRange, CursorRange};
+use std::sync::Arc;
+
+use crate::mutex::Mutex;
+
 use crate::*;
 
+use super::{CCursorRange, CursorRange};
+
+type Undoer = crate::util::undoer::Undoer<(CCursorRange, String)>;
+
 /// The text edit state stored between frames.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct TextEditState {
@@ -12,8 +19,9 @@ pub struct TextEditState {
     /// so users are more likely to read/write this.
     ccursor_range: Option<CCursorRange>,
 
+    /// Wrapped in Arc for cheaper clones.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) undoer: crate::util::undoer::Undoer<(CCursorRange, String)>,
+    pub(crate) undoer: Arc<Mutex<Undoer>>,
 
     // If IME candidate window is shown on this text edit.
     #[cfg_attr(feature = "serde", serde(skip))]

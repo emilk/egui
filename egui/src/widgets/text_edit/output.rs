@@ -1,17 +1,16 @@
-use crate::*;
-
 use std::sync::Arc;
-
-use super::CursorRange;
 
 /// The output from a `TextEdit`.
 pub struct TextEditOutput {
     /// The interaction response.
-    pub response: Response,
+    pub response: crate::Response,
 
     /// How the text was displayed.
-    pub galley: Arc<Galley>,
+    pub galley: Arc<crate::Galley>,
+
+    /// The state we stored after the run/
+    pub state: super::TextEditState,
 
     /// Where the text cursor is.
-    pub cursor_range: Option<CursorRange>,
+    pub cursor_range: Option<super::CursorRange>,
 }
