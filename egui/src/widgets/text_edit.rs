@@ -6,8 +6,12 @@ use std::sync::Arc;
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
-pub(crate) struct State {
+pub struct State {
     cursor_range: Option<CursorRange>,
+
+    /// This is what is easiest to work with when editing text,
+    /// so users are more likely to read/write this.
+    ccursor_range: Option<CCursorRange>,
 
     #[cfg_attr(feature = "serde", serde(skip))]
     undoer: Undoer<(CCursorRange, String)>,
@@ -28,6 +32,48 @@ impl State {
 
     pub fn store(self, ctx: &Context, id: Id) {
         ctx.memory().data.insert_persisted(id, self);
+    }
+
+    /// The the currently selected range of characters.
+    pub fn ccursor_range(&self) -> Option<CCursorRange> {
+        self.ccursor_range.or_else(|| {
+            self.cursor_range
+                .map(|cursor_range| cursor_range.as_ccursor_range())
+        })
+    }
+
+    /// Sets the currently selected range of characters.
+    pub fn set_ccursor_range(&mut self, ccursor_range: Option<CCursorRange>) {
+        self.cursor_range = None;
+        self.ccursor_range = ccursor_range;
+    }
+
+    pub fn set_cursor_range(&mut self, cursor_range: Option<CursorRange>) {
+        self.cursor_range = cursor_range;
+        self.ccursor_range = None;
+    }
+
+    pub fn cursor_range(&mut self, galley: &Galley) -> Option<CursorRange> {
+        self.cursor_range
+            .map(|cursor_range| {
+                // We only use the PCursor (paragraph number, and character offset within that paragraph).
+                // This is so that if we resize the `TextEdit` region, and text wrapping changes,
+                // we keep the same byte character offset from the beginning of the text,
+                // even though the number of rows changes
+                // (each paragraph can be several rows, due to word wrapping).
+                // The column (character offset) should be able to extend beyond the last word so that we can
+                // go down and still end up on the same column when we return.
+                CursorRange {
+                    primary: galley.from_pcursor(cursor_range.primary.pcursor),
+                    secondary: galley.from_pcursor(cursor_range.secondary.pcursor),
+                }
+            })
+            .or_else(|| {
+                self.ccursor_range.map(|ccursor_range| CursorRange {
+                    primary: galley.from_ccursor(ccursor_range.primary),
+                    secondary: galley.from_ccursor(ccursor_range.secondary),
+                })
+            })
     }
 }
 
@@ -82,14 +128,15 @@ impl CursorRange {
         }
     }
 
-    fn primary_is_first(&self) -> bool {
+    pub fn is_sorted(&self) -> bool {
         let p = self.primary.ccursor;
         let s = self.secondary.ccursor;
         (p.index, p.prefer_next_row) <= (s.index, s.prefer_next_row)
     }
 
-    fn sorted(&self) -> [Cursor; 2] {
-        if self.primary_is_first() {
+    /// returns the two ends ordered
+    pub fn sorted(&self) -> [Cursor; 2] {
+        if self.is_sorted() {
             [self.primary, self.secondary]
         } else {
             [self.secondary, self.primary]
@@ -99,10 +146,10 @@ impl CursorRange {
 
 /// A selected text range (could be a range of length zero).
 ///
-/// The selection i based on character count.
+/// The selection is based on character count (NOT byte count!).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-struct CCursorRange {
+pub struct CCursorRange {
     /// When selecting with a mouse, this is where the mouse was released.
     /// When moving with e.g. shift+arrows, this is what moves.
     /// Note that the two ends can come in any order, and also be equal (no selection).
@@ -127,6 +174,34 @@ impl CCursorRange {
             secondary: min,
         }
     }
+
+    pub fn is_sorted(&self) -> bool {
+        let p = self.primary;
+        let s = self.secondary;
+        (p.index, p.prefer_next_row) <= (s.index, s.prefer_next_row)
+    }
+
+    /// returns the two ends ordered
+    pub fn sorted(&self) -> [CCursor; 2] {
+        if self.is_sorted() {
+            [self.primary, self.secondary]
+        } else {
+            [self.secondary, self.primary]
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct PCursorRange {
+    /// When selecting with a mouse, this is where the mouse was released.
+    /// When moving with e.g. shift+arrows, this is what moves.
+    /// Note that the two ends can come in any order, and also be equal (no selection).
+    pub primary: PCursor,
+
+    /// When selecting with a mouse, this is where the mouse was first pressed.
+    /// This part of the cursor does not move when shift is down.
+    pub secondary: PCursor,
 }
 
 /// Trait constraining what types [`TextEdit`] may use as
@@ -137,21 +212,6 @@ pub trait TextBuffer: AsRef<str> {
     /// Can this text be edited?
     fn is_mutable(&self) -> bool;
 
-    /// Inserts text `text` into this buffer at character index `ch_idx`.
-    ///
-    /// # Notes
-    /// `ch_idx` is a *character index*, not a byte index.
-    ///
-    /// # Return
-    /// Returns how many *characters* were successfully inserted
-    fn insert_text(&mut self, text: &str, ch_idx: usize) -> usize;
-
-    /// Deletes a range of text `ch_range` from this buffer.
-    ///
-    /// # Notes
-    /// `ch_range` is a *character range*, not a byte range.
-    fn delete_char_range(&mut self, ch_range: Range<usize>);
-
     /// Returns this buffer as a `str`.
     ///
     /// This is an utility method, as it simply relies on the `AsRef<str>`
@@ -159,6 +219,33 @@ pub trait TextBuffer: AsRef<str> {
     fn as_str(&self) -> &str {
         self.as_ref()
     }
+
+    /// Reads the given character range.
+    fn char_range(&self, char_range: Range<usize>) -> &str {
+        assert!(char_range.start <= char_range.end);
+        let start_byte = self.byte_index_from_char_index(char_range.start);
+        let end_byte = self.byte_index_from_char_index(char_range.end);
+        &self.as_str()[start_byte..end_byte]
+    }
+
+    fn byte_index_from_char_index(&self, char_index: usize) -> usize {
+        byte_index_from_char_index(self.as_str(), char_index)
+    }
+
+    /// Inserts text `text` into this buffer at character index `char_index`.
+    ///
+    /// # Notes
+    /// `char_index` is a *character index*, not a byte index.
+    ///
+    /// # Return
+    /// Returns how many *characters* were successfully inserted
+    fn insert_text(&mut self, text: &str, char_index: usize) -> usize;
+
+    /// Deletes a range of text `char_range` from this buffer.
+    ///
+    /// # Notes
+    /// `char_range` is a *character range*, not a byte range.
+    fn delete_char_range(&mut self, char_range: Range<usize>);
 
     /// Clears all characters in this buffer
     fn clear(&mut self) {
@@ -184,9 +271,9 @@ impl TextBuffer for String {
         true
     }
 
-    fn insert_text(&mut self, text: &str, ch_idx: usize) -> usize {
+    fn insert_text(&mut self, text: &str, char_index: usize) -> usize {
         // Get the byte index from the character index
-        let byte_idx = self::byte_index_from_char_index(self, ch_idx);
+        let byte_idx = self.byte_index_from_char_index(char_index);
 
         // Then insert the string
         self.insert_str(byte_idx, text);
@@ -194,12 +281,12 @@ impl TextBuffer for String {
         text.chars().count()
     }
 
-    fn delete_char_range(&mut self, ch_range: Range<usize>) {
-        assert!(ch_range.start <= ch_range.end);
+    fn delete_char_range(&mut self, char_range: Range<usize>) {
+        assert!(char_range.start <= char_range.end);
 
         // Get both byte indices
-        let byte_start = self::byte_index_from_char_index(self, ch_range.start);
-        let byte_end = self::byte_index_from_char_index(self, ch_range.end);
+        let byte_start = self.byte_index_from_char_index(char_range.start);
+        let byte_end = self.byte_index_from_char_index(char_range.end);
 
         // Then drain all characters within this range
         self.drain(byte_start..byte_end);
@@ -284,6 +371,20 @@ pub struct TextEdit<'t> {
     desired_height_rows: usize,
     lock_focus: bool,
     cursor_at_end: bool,
+}
+
+impl<'t> WidgetWithState for TextEdit<'t> {
+    type State = State;
+}
+
+impl<'t> TextEdit<'t> {
+    pub fn load_state(ctx: &Context, id: Id) -> Option<State> {
+        State::load(ctx, id)
+    }
+
+    pub fn store_state(ctx: &Context, id: Id, state: State) {
+        state.store(ctx, id);
+    }
 }
 
 impl<'t> TextEdit<'t> {
@@ -443,12 +544,6 @@ impl<'t> TextEdit<'t> {
     pub fn cursor_at_end(mut self, b: bool) -> Self {
         self.cursor_at_end = b;
         self
-    }
-}
-
-impl<'t> TextEdit<'t> {
-    pub fn cursor(ui: &Ui, id: Id) -> Option<CursorRange> {
-        State::load(ui.ctx(), id).and_then(|state| state.cursor_range)
     }
 }
 
@@ -646,10 +741,10 @@ impl<'t> TextEdit<'t> {
                     // Select word:
                     let center = cursor_at_pointer;
                     let ccursor_range = select_word_at(text.as_ref(), center.ccursor);
-                    state.cursor_range = Some(CursorRange {
+                    state.set_cursor_range(Some(CursorRange {
                         primary: galley.from_ccursor(ccursor_range.primary),
                         secondary: galley.from_ccursor(ccursor_range.secondary),
-                    });
+                    }));
                 } else if allow_drag_to_select {
                     if response.hovered() && ui.input().pointer.any_pressed() {
                         ui.memory().request_focus(id);
@@ -657,10 +752,10 @@ impl<'t> TextEdit<'t> {
                             if let Some(cursor_range) = &mut state.cursor_range {
                                 cursor_range.primary = cursor_at_pointer;
                             } else {
-                                state.cursor_range = Some(CursorRange::one(cursor_at_pointer));
+                                state.set_cursor_range(Some(CursorRange::one(cursor_at_pointer)));
                             }
                         } else {
-                            state.cursor_range = Some(CursorRange::one(cursor_at_pointer));
+                            state.set_cursor_range(Some(CursorRange::one(cursor_at_pointer)));
                         }
                     } else if ui.input().pointer.any_down() && response.is_pointer_button_down_on()
                     {
@@ -711,7 +806,7 @@ impl<'t> TextEdit<'t> {
 
         // Visual clipping for singleline text editor with text larger than width
         if !multiline {
-            let cursor_pos = match (state.cursor_range, ui.memory().has_focus(id)) {
+            let cursor_pos = match (text_cursor, ui.memory().has_focus(id)) {
                 (Some(cursor_range), true) => galley.pos_from_cursor(&cursor_range.primary).min.x,
                 _ => 0.0,
             };
@@ -748,7 +843,7 @@ impl<'t> TextEdit<'t> {
         }
 
         if ui.memory().has_focus(id) {
-            if let Some(cursor_range) = state.cursor_range {
+            if let Some(cursor_range) = state.cursor_range(&*galley) {
                 // We paint the cursor on top of the text, in case
                 // the text galley has backgrounds (as e.g. `code` snippets in markup do).
                 paint_cursor_selection(ui, &painter, text_draw_pos, &galley, &cursor_range);
@@ -817,7 +912,7 @@ impl<'t> TextEdit<'t> {
 
 // ----------------------------------------------------------------------------
 
-/// Check for (keyboard) events to edit the cursor_range and/or text.
+/// Check for (keyboard) events to edit the cursor and/or text.
 #[allow(clippy::too_many_arguments)]
 fn events(
     ui: &mut crate::Ui,
@@ -831,21 +926,7 @@ fn events(
     password: bool,
     default_cursor_range: CursorRange,
 ) -> (bool, CursorRange) {
-    let mut cursor_range = state
-        .cursor_range
-        .map_or(default_cursor_range, |cursor_range| {
-            // We only store the PCursor (paragraph number, and character offset within that paragraph).
-            // This is so what if we resize the `TextEdit` region, and text wrapping changes,
-            // we keep the same byte character offset from the beginning of the text,
-            // even though the number of rows changes
-            // (each paragraph can be several rows, due to word wrapping).
-            // The column (character offset) should be able to extend beyond the last word so that we can
-            // go down and still end up on the same column when we return.
-            CursorRange {
-                primary: galley.from_pcursor(cursor_range.primary.pcursor),
-                secondary: galley.from_pcursor(cursor_range.secondary.pcursor),
-            }
-        });
+    let mut cursor_range = state.cursor_range(&*galley).unwrap_or(default_cursor_range);
 
     // We feed state to the undoer both before and after handling input
     // so that the undoer creates automatic saves even when there are no events for a while.
@@ -996,7 +1077,7 @@ fn events(
         }
     }
 
-    state.cursor_range = Some(cursor_range);
+    state.set_cursor_range(Some(cursor_range));
 
     state.undoer.feed_state(
         ui.input().time,

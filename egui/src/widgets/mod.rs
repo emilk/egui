@@ -80,6 +80,11 @@ where
     }
 }
 
+/// Helper so that you can do `TextEdit::State::read…`
+pub trait WidgetWithState {
+    type State;
+}
+
 // ----------------------------------------------------------------------------
 
 /// Show a button to reset a value to its default.
