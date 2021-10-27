@@ -8,6 +8,14 @@ pub(crate) struct State {
 }
 
 impl State {
+    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
+        ctx.memory().data.get_persisted(id)
+    }
+
+    pub fn store(self, ctx: &Context, id: Id) {
+        ctx.memory().data.insert_persisted(id, self);
+    }
+
     fn set_min_col_width(&mut self, col: usize, width: f32) {
         self.col_widths
             .resize(self.col_widths.len().max(col + 1), 0.0);
@@ -62,7 +70,7 @@ pub(crate) struct GridLayout {
 
 impl GridLayout {
     pub(crate) fn new(ui: &Ui, id: Id) -> Self {
-        let prev_state = ui.memory().id_data.get_or_default::<State>(id).clone();
+        let prev_state = State::load(ui.ctx(), id).unwrap_or_default();
 
         // TODO: respect current layout
 
@@ -213,10 +221,7 @@ impl GridLayout {
 
     pub(crate) fn save(&self) {
         if self.curr_state != self.prev_state {
-            self.ctx
-                .memory()
-                .id_data
-                .insert(self.id, self.curr_state.clone());
+            self.curr_state.clone().store(&self.ctx, self.id);
             self.ctx.request_repaint();
         }
     }

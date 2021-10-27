@@ -23,6 +23,16 @@ struct PanelState {
     rect: Rect,
 }
 
+impl PanelState {
+    fn load(ctx: &Context, bar_id: Id) -> Option<Self> {
+        ctx.memory().data.get_persisted(bar_id)
+    }
+
+    fn store(self, ctx: &Context, bar_id: Id) {
+        ctx.memory().data.insert_persisted(bar_id, self);
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// `Left` or `Right`
@@ -171,7 +181,7 @@ impl SidePanel {
         let mut panel_rect = available_rect;
         {
             let mut width = default_width;
-            if let Some(state) = ui.memory().id_data.get::<PanelState>(&id) {
+            if let Some(state) = PanelState::load(ui.ctx(), id) {
                 width = state.rect.width();
             }
             width = clamp_to_range(width, width_range.clone()).at_most(available_rect.width());
@@ -243,7 +253,7 @@ impl SidePanel {
         }
         ui.expand_to_include_rect(rect);
 
-        ui.memory().id_data.insert(id, PanelState { rect });
+        PanelState { rect }.store(ui.ctx(), id);
 
         if resize_hover || is_resizing {
             let stroke = if is_resizing {
@@ -448,8 +458,7 @@ impl TopBottomPanel {
         let available_rect = ui.available_rect_before_wrap();
         let mut panel_rect = available_rect;
         {
-            let state = ui.memory().id_data.get::<PanelState>(&id).copied();
-            let mut height = if let Some(state) = state {
+            let mut height = if let Some(state) = PanelState::load(ui.ctx(), id) {
                 state.rect.height()
             } else {
                 default_height.unwrap_or_else(|| ui.style().spacing.interact_size.y)
@@ -523,7 +532,7 @@ impl TopBottomPanel {
         }
         ui.expand_to_include_rect(rect);
 
-        ui.memory().id_data.insert(id, PanelState { rect });
+        PanelState { rect }.store(ui.ctx(), id);
 
         if resize_hover || is_resizing {
             let stroke = if is_resizing {
