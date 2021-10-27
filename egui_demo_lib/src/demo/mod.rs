@@ -5,6 +5,7 @@
 // ----------------------------------------------------------------------------
 
 pub mod about;
+pub mod autocomplete;
 pub mod code_editor;
 pub mod code_example;
 pub mod context_menu;

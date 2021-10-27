@@ -20,6 +20,7 @@ struct Demos {
 impl Default for Demos {
     fn default() -> Self {
         Self::from_demos(vec![
+            Box::new(super::autocomplete::Autocomplete::default()),
             Box::new(super::paint_bezier::PaintBezier::default()),
             Box::new(super::code_editor::CodeEditor::default()),
             Box::new(super::code_example::CodeExample::default()),
