@@ -4,7 +4,7 @@ use epaint::text::{cursor::*, Galley, LayoutJob};
 
 use crate::{output::OutputEvent, *};
 
-use super::{CCursorRange, CursorRange, State, TextEditOutput};
+use super::{CCursorRange, CursorRange, TextEditOutput, TextEditState};
 
 /// A text region that the user can edit the contents of.
 ///
@@ -62,15 +62,15 @@ pub struct TextEdit<'t> {
 }
 
 impl<'t> WidgetWithState for TextEdit<'t> {
-    type State = State;
+    type State = TextEditState;
 }
 
 impl<'t> TextEdit<'t> {
-    pub fn load_state(ctx: &Context, id: Id) -> Option<State> {
-        State::load(ctx, id)
+    pub fn load_state(ctx: &Context, id: Id) -> Option<TextEditState> {
+        TextEditState::load(ctx, id)
     }
 
-    pub fn store_state(ctx: &Context, id: Id, state: State) {
+    pub fn store_state(ctx: &Context, id: Id, state: TextEditState) {
         state.store(ctx, id);
     }
 }
@@ -371,7 +371,7 @@ impl<'t> TextEdit<'t> {
                 auto_id // Since we are only storing the cursor a persistent Id is not super important
             }
         });
-        let mut state = State::load(ui.ctx(), id).unwrap_or_default();
+        let mut state = TextEditState::load(ui.ctx(), id).unwrap_or_default();
 
         // On touch screens (e.g. mobile in egui_web), should
         // dragging select text, or scroll the enclosing `ScrollArea` (if any)?
@@ -619,7 +619,7 @@ fn mask_if_password(is_password: bool, text: &str) -> String {
 #[allow(clippy::too_many_arguments)]
 fn events(
     ui: &mut crate::Ui,
-    state: &mut State,
+    state: &mut TextEditState,
     text: &mut dyn TextBuffer,
     galley: &mut Arc<Galley>,
     layouter: &mut dyn FnMut(&Ui, &str, f32) -> Arc<Galley>,

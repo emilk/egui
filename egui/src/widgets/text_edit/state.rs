@@ -5,7 +5,7 @@ use crate::*;
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
-pub struct State {
+pub struct TextEditState {
     cursor_range: Option<CursorRange>,
 
     /// This is what is easiest to work with when editing text,
@@ -24,7 +24,7 @@ pub struct State {
     pub(crate) singleline_offset: f32,
 }
 
-impl State {
+impl TextEditState {
     pub fn load(ctx: &Context, id: Id) -> Option<Self> {
         ctx.memory().data.get_persisted(id)
     }
