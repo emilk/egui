@@ -1,6 +1,6 @@
 use epaint::ahash::AHashSet;
 
-use crate::{any, area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
+use crate::{area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
 
 // ----------------------------------------------------------------------------
 
@@ -10,45 +10,21 @@ use crate::{any, area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style
 /// how far the user has scrolled in a `ScrollArea` etc.
 ///
 /// If you want this to persist when closing your app you should serialize `Memory` and store it.
+/// For this you need to enable the `persistence`.
 ///
-/// If you want to store data for your widgets, you should look at `data`/`data_temp` and
-/// `id_data`/`id_data_temp` fields, and read the documentation of [`any`] module.
+/// If you want to store data for your widgets, you should look at [`Memory::data`]
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 pub struct Memory {
     pub options: Options,
 
-    // ------------------------------------------
-    /// This map stores current states for widgets that don't require `Id`.
-    /// This will be saved between different program runs if you use the `persistence` feature.
-    #[cfg(feature = "persistence")]
-    pub data: any::serializable::TypeMap,
-
-    /// This map stores current states for widgets that don't require `Id`.
-    /// This will be saved between different program runs if you use the `persistence` feature.
-    #[cfg(not(feature = "persistence"))]
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pub data: any::TypeMap,
-
-    /// Same as `data`, but this data will not be saved between runs.
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pub data_temp: any::TypeMap,
-
     /// This map stores current states for all widgets with custom `Id`s.
+    ///
     /// This will be saved between different program runs if you use the `persistence` feature.
-    #[cfg(feature = "persistence")]
-    pub id_data: any::serializable::IdAnyMap,
-
-    /// This map stores current states for all widgets with custom `Id`s.
-    /// This will be saved between different program runs if you use the `persistence` feature.
-    #[cfg(not(feature = "persistence"))]
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pub id_data: any::AnyMap<Id, crate::id::BuilIdHasher>,
-
-    /// Same as `id_data`, but this data will not be saved between runs.
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pub id_data_temp: any::AnyMap<Id, crate::id::BuilIdHasher>,
+    ///
+    /// To store a state common for all your widgets (a singleton), use [`Id::null`] as the key.
+    pub data: crate::util::IdTypeMap,
 
     // ------------------------------------------
     /// Can be used to cache computations from one frame to another.
@@ -74,33 +50,35 @@ pub struct Memory {
     /// let cache = memory.caches.cache::<CharCountCache<'_>>();
     /// assert_eq!(cache.get("hello"), 5);
     /// ```
-    #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "persistence", serde(skip))]
     pub caches: crate::util::cache::CacheStorage,
 
     // ------------------------------------------
     /// new scale that will be applied at the start of the next frame
+    #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) new_pixels_per_point: Option<f32>,
 
     /// new fonts that will be applied at the start of the next frame
+    #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) new_font_definitions: Option<epaint::text::FontDefinitions>,
 
-    #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) interaction: Interaction,
 
-    #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) window_interaction: Option<window::WindowInteraction>,
 
-    #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) drag_value: crate::widgets::drag_value::MonoState,
 
     pub(crate) areas: Areas,
 
     /// Which popup-window is open (if any)?
     /// Could be a combo box, color picker, menu etc.
-    #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "persistence", serde(skip))]
     popup: Option<Id>,
 
-    #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "persistence", serde(skip))]
     everything_is_visible: bool,
 }
 

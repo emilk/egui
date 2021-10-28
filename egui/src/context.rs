@@ -11,6 +11,7 @@ use crate::{
     frame_state::FrameState,
     input_state::*,
     layers::GraphicLayers,
+    menu::ContextMenuSystem,
     mutex::{Mutex, MutexGuard},
     *,
 };
@@ -303,6 +304,16 @@ impl CtxRef {
     pub fn debug_painter(&self) -> Painter {
         Self::layer_painter(self, LayerId::debug())
     }
+
+    /// Respond to secondary clicks (right-clicks) by showing the given menu.
+    pub(crate) fn show_context_menu(
+        &self,
+        response: &Response,
+        add_contents: impl FnOnce(&mut Ui),
+    ) {
+        self.context_menu_system()
+            .context_menu(response, add_contents);
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -329,6 +340,7 @@ pub struct Context {
     fonts: Option<Arc<Fonts>>,
     memory: Arc<Mutex<Memory>>,
     animation_manager: Arc<Mutex<AnimationManager>>,
+    context_menu_system: Arc<Mutex<ContextMenuSystem>>,
 
     input: InputState,
 
@@ -357,6 +369,7 @@ impl Clone for Context {
             output: self.output.clone(),
             paint_stats: self.paint_stats.clone(),
             repaint_requests: self.repaint_requests.load(SeqCst).into(),
+            context_menu_system: self.context_menu_system.clone(),
         }
     }
 }
@@ -373,6 +386,10 @@ impl Context {
     /// If you want to store/restore egui, serialize this.
     pub fn memory(&self) -> MutexGuard<'_, Memory> {
         self.memory.lock()
+    }
+
+    pub(crate) fn context_menu_system(&self) -> MutexGuard<'_, ContextMenuSystem> {
+        self.context_menu_system.lock()
     }
 
     pub(crate) fn graphics(&self) -> MutexGuard<'_, GraphicLayers> {
@@ -868,6 +885,13 @@ impl Context {
             *self.memory() = Default::default();
         }
 
+        let num_state = self.memory().data.len();
+        let num_serialized = self.memory().data.count_serialized();
+        ui.label(format!(
+            "{} widget states stored (of which {} are serialized).",
+            num_state, num_serialized
+        ));
+
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} areas (panels, windows, popups, …)",
@@ -907,12 +931,12 @@ impl Context {
             ui.label(format!(
                 "{} collapsing headers",
                 self.memory()
-                    .id_data
+                    .data
                     .count::<containers::collapsing_header::State>()
             ));
             if ui.button("Reset").clicked() {
                 self.memory()
-                    .id_data
+                    .data
                     .remove_by_type::<containers::collapsing_header::State>();
             }
         });
@@ -920,32 +944,30 @@ impl Context {
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} menu bars",
-                self.memory().id_data_temp.count::<menu::BarState>()
+                self.memory().data.count::<menu::BarState>()
             ));
             if ui.button("Reset").clicked() {
-                self.memory()
-                    .id_data_temp
-                    .remove_by_type::<menu::BarState>();
+                self.memory().data.remove_by_type::<menu::BarState>();
             }
         });
 
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} scroll areas",
-                self.memory().id_data.count::<scroll_area::State>()
+                self.memory().data.count::<scroll_area::State>()
             ));
             if ui.button("Reset").clicked() {
-                self.memory().id_data.remove_by_type::<scroll_area::State>();
+                self.memory().data.remove_by_type::<scroll_area::State>();
             }
         });
 
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} resize areas",
-                self.memory().id_data.count::<resize::State>()
+                self.memory().data.count::<resize::State>()
             ));
             if ui.button("Reset").clicked() {
-                self.memory().id_data.remove_by_type::<resize::State>();
+                self.memory().data.remove_by_type::<resize::State>();
             }
         });
 
