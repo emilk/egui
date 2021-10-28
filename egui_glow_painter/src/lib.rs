@@ -243,6 +243,13 @@ impl Painter {
         } else {
             false
         };
+        let header = shader_version.version();
+        glow_debug_print(header);
+        let mut v_src = header.to_owned();
+        v_src.push_str(VERT_SRC);
+        let mut f_src = header.to_owned();
+
+
         let srgb_support = gl.supported_extensions().contains("EXT_sRGB");
         let post_process = match (shader_version,srgb_support) {
             //WebGL2 support sRGB default
@@ -250,19 +257,20 @@ impl Painter {
                 glow_debug_print("WebGL with sRGB enabled so turn on post process");
                 let canvas_dimension=canvas_dimension.unwrap();
                 let webgl_1= shader_version==ShaderVersion::Es100;
+                f_src.push_str("#define SRGB_SUPPORTED \n");
                 PostProcess::new(gl,webgl_1,canvas_dimension[0],canvas_dimension[1]).ok()
             },
+            (ShaderVersion::Es100,false)=>{
+                None
+            }
             _=>{
+                f_src.push_str("#define SRGB_SUPPORTED \n");
                 None
             }
         };
 
-        let header = shader_version.version();
-        glow_debug_print(header);
-        let mut v_src = header.to_owned();
-        v_src.push_str(VERT_SRC);
-        let mut f_src = header.to_owned();
         f_src.push_str(FRAG_SRC);
+
         unsafe {
             let v = gl.create_shader(glow::VERTEX_SHADER).unwrap();
             glow_debug_print("gl::create_shader success");
