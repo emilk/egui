@@ -22,7 +22,7 @@ varying vec4 v_rgba;
 varying vec2 v_tc;
 #endif
 
-#ifdef GL_ES
+#ifndef SRGB_SUPPORTED
 // 0-255 sRGB  from  0-1 linear
 vec3 srgb_from_linear(vec3 rgb) {
     bvec3 cutoff = lessThan(rgb, vec3(0.0031308));
@@ -34,8 +34,6 @@ vec3 srgb_from_linear(vec3 rgb) {
 vec4 srgba_from_linear(vec4 rgba) {
     return vec4(srgb_from_linear(rgba.rgb), 255.0 * rgba.a);
 }
-
-    #if __VERSION__ < 300
 // 0-1 linear  from  0-255 sRGB
 vec3 linear_from_srgb(vec3 srgb) {
     bvec3 cutoff = lessThan(srgb, vec3(10.31475));
@@ -47,10 +45,7 @@ vec3 linear_from_srgb(vec3 srgb) {
 vec4 linear_from_srgba(vec4 srgba) {
     return vec4(linear_from_srgb(srgba.rgb), srgba.a / 255.0);
 }
-    #endif
-    #endif
 
-    #ifndef SRGB_SUPPORTED
 void main() {
     // We must decode the colors, since WebGL doesn't come with sRGBA textures:
     vec4 texture_rgba = linear_from_srgba(texture2D(u_sampler, v_tc) * 255.0);
