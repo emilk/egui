@@ -19,7 +19,7 @@ impl WebBackend {
         let ctx = egui::CtxRef::default();
         let canvas = canvas_element_or_die(canvas_id);
         let gl_ctx = egui_glow_painter::init_glow_context_from_canvas(canvas.clone());
-        let painter = egui_glow_painter::Painter::new(&gl_ctx);
+        let painter = egui_glow_painter::Painter::new(&gl_ctx,Some([canvas.width() as i32,canvas.height() as i32]));
 
         Ok(Self {
             egui_ctx: ctx,
