@@ -111,7 +111,7 @@ impl EguiGlow {
         Self {
             egui_ctx: Default::default(),
             egui_winit: egui_winit::State::new(gl_window.window()),
-            painter: egui_glow_painter::Painter::new(gl),
+            painter: egui_glow_painter::Painter::new(gl,None),
         }
     }
 

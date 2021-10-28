@@ -41,7 +41,7 @@ image = { version = "0.23", default-features = false, features = ["png"] }
 rfd = "0.5.0"
 
 [features]
-default = ["default_fonts", "egui_glium"]
+default = ["default_fonts", "egui_glow"]
 
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.

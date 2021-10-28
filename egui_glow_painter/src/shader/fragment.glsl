@@ -3,21 +3,23 @@ precision mediump float;
 #endif
 
 uniform sampler2D u_sampler;
-
 #if defined(GL_ES) && __VERSION__ >=300
+#define USE_DESKTOP_SHADER
+#elif defined(GL_ES) || __VERSION__<140
+#else
+#define USE_DESKTOP_SHADER
+#endif
+
+#ifdef USE_DESKTOP_SHADER
 in vec4 v_rgba;
 in vec2 v_tc;
 out vec4 f_color;
 // a dirty hack applied to support webGL2
 #define gl_FragColor f_color
 #define texture2D texture
-#elif defined(GL_ES) || __VERSION__ < 140
+#else
 varying vec4 v_rgba;
 varying vec2 v_tc;
-#else
-in vec4 v_rgba;
-in vec2 v_tc;
-out vec4 f_color;
 #endif
 
 #ifdef GL_ES
@@ -48,34 +50,42 @@ vec4 linear_from_srgba(vec4 srgba) {
   #endif
   #endif
 
-  #ifdef GL_ES
+  #ifndef USE_DESKTOP_SHADER
 void main() {
-  #if __VERSION__ < 300
   // We must decode the colors, since WebGL doesn't come with sRGBA textures:
   vec4 texture_rgba = linear_from_srgba(texture2D(u_sampler, v_tc) * 255.0);
-  #else
-  // The texture is set up with `SRGB8_ALPHA8`, so no need to decode here!
-  vec4 texture_rgba = texture2D(u_sampler, v_tc);
-  #endif
+  /// Multiply vertex color with texture color (in linear space).
+  gl_FragColor = v_rgba * texture_rgba;
 
   /// Multiply vertex color with texture color (in linear space).
   gl_FragColor = v_rgba * texture_rgba;
 
-  // We must gamma-encode again since WebGL doesn't support linear blending in the framebuffer.
-  gl_FragColor = srgba_from_linear(v_rgba * texture_rgba) / 255.0;
-
   // WebGL doesn't support linear blending in the framebuffer,
-  // so we apply this hack to at least get a bit closer to the desired blending:
-  //gl_FragColor.a = pow(gl_FragColor.a, 1.6); // Empiric nonsense
+  // so we do a hack here where we change the premultiplied alpha
+  // to do the multiplication in gamma space instead:
+
+  // Unmultiply alpha:
+  if (gl_FragColor.a > 0.0) {
+    gl_FragColor.rgb /= gl_FragColor.a;
+  }
+
+    // Empiric tweak to make e.g. shadows look more like they should:
+    gl_FragColor.a *= sqrt(gl_FragColor.a);
+
+  // To gamma:
+  gl_FragColor = srgba_from_linear(gl_FragColor) / 255.0;
+
+  // Premultiply alpha, this time in gamma space:
+  if (gl_FragColor.a > 0.0) {
+    gl_FragColor.rgb *= gl_FragColor.a;
+  }
 }
   #else
 void main() {
   // The texture sampler is sRGB aware, and OpenGL already expects linear rgba output
   // so no need for any sRGB conversions here:
-  #if __VERSION__ < 140
+
   gl_FragColor = v_rgba * texture2D(u_sampler, v_tc);
-  #else
-  f_color = v_rgba * texture(u_sampler, v_tc);
-  #endif
+
 }
   #endif

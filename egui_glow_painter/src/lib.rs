@@ -90,14 +90,14 @@ fn srgbtexture2d(
         if compatibility_mode {
             glow_debug_print(format!("w : {} h : {}", w as i32, h as i32));
             let format = if srgb_support {
-                glow::SRGB_ALPHA
+                glow::SRGB8_ALPHA8
             } else {
                 glow::RGBA
             };
             gl.tex_image_2d(
                 glow::TEXTURE_2D,
                 0,
-                glow::RGBA as i32,
+                format as i32,
                 w as i32,
                 h as i32,
                 0,
@@ -145,7 +145,7 @@ pub struct Painter {
     /// `None` means unallocated (freed) slot.
     user_textures: Vec<Option<UserTexture>>,
     post_process: Option<PostProcess>,
-    // vertex_array: glow::VertexArray,
+    locations:Locations,
     vertex_buffer: glow::Buffer,
     element_array_buffer: glow::Buffer,
 
@@ -235,7 +235,11 @@ fn test_shader_version() {
         assert_eq!(ShaderVersion::parse(s), v);
     }
 }
-
+struct Locations{
+    a_pos_loc:u32,
+    a_tc_loc:u32,
+    a_srgba_loc:u32,
+}
 impl Painter {
     pub fn new(gl: &glow::Context, canvas_dimension: Option<[i32; 2]>) -> Painter {
         let shader_version = ShaderVersion::get(gl);
@@ -305,20 +309,21 @@ impl Painter {
             let u_screen_size = gl.get_uniform_location(program, "u_screen_size").unwrap();
             let u_sampler = gl.get_uniform_location(program, "u_sampler").unwrap();
             glow_debug_print("gl::get_uniform_location success");
-            //webgl2 and native work this function but webgl without OES_vertex_array_object don't work but my firefox support it
-            //let vertex_array = gl.create_vertex_array().unwrap();
-            glow_debug_print("gl::create_vertex_array success");
+
             let vertex_buffer = gl.create_buffer().unwrap();
             let element_array_buffer = gl.create_buffer().unwrap();
             glow_debug_print("gl::create_buffer success");
 
-            //gl.bind_vertex_array(Some(vertex_array));
-            //glow_debug_print("gl::bind_vertex_array success");
             gl.bind_buffer(glow::ARRAY_BUFFER, Some(vertex_buffer));
             // webgl and webgl2 should work
             let a_pos_loc = gl.get_attrib_location(program, "a_pos").unwrap();
             let a_tc_loc = gl.get_attrib_location(program, "a_tc").unwrap();
             let a_srgba_loc = gl.get_attrib_location(program, "a_srgba").unwrap();
+            let locations=Locations{
+                a_pos_loc,
+                a_tc_loc,
+                a_srgba_loc
+            };
             glow_debug_print(format!("gl::get_attrib_location success a_pos {} a_tc {} a_srgba {}",a_pos_loc,a_tc_loc,a_srgba_loc));
             // webgl and webgl2 should work
             gl.vertex_attrib_pointer_f32(
@@ -360,8 +365,8 @@ impl Painter {
                 webgl_1_compatibility_mode,
                 srgb_support,
                 user_textures: Default::default(),
-                // vertex_array,
                 post_process,
+                locations,
                 vertex_buffer,
                 element_array_buffer,
                 old_textures: Vec::new(),
@@ -441,9 +446,6 @@ impl Painter {
         gl.uniform_1_i32(Some(&self.u_sampler), 0);
         gl.active_texture(glow::TEXTURE0);
 
-        // gl.bind_vertex_array(Some(self.vertex_array));
-        gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vertex_buffer));
-        gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.element_array_buffer));
 
         (width_in_pixels, height_in_pixels)
     }
@@ -514,12 +516,43 @@ impl Painter {
         }
         if let Some(texture) = self.get_texture(mesh.texture_id) {
             unsafe {
+                let Locations{ a_pos_loc, a_tc_loc, a_srgba_loc }=self.locations;
+                gl.vertex_attrib_pointer_f32(
+                    a_pos_loc,
+                    2,
+                    glow::FLOAT,
+                    false,
+                    std::mem::size_of::<Vertex>() as i32,
+                    offset_of!(Vertex, pos) as i32,
+                );
+                gl.enable_vertex_attrib_array(a_pos_loc);
+                gl.vertex_attrib_pointer_f32(
+                    a_tc_loc,
+                    2,
+                    glow::FLOAT,
+                    false,
+                    std::mem::size_of::<Vertex>() as i32,
+                    offset_of!(Vertex, uv) as i32,
+                );
+                gl.enable_vertex_attrib_array(a_tc_loc);
+
+                gl.vertex_attrib_pointer_f32(
+                    a_srgba_loc,
+                    4,
+                    glow::UNSIGNED_BYTE,
+                    false,
+                    std::mem::size_of::<Vertex>() as i32,
+                    offset_of!(Vertex, color) as i32,
+                );
+                gl.enable_vertex_attrib_array(a_srgba_loc);
+                gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vertex_buffer));
+
                 gl.buffer_data_u8_slice(
                     glow::ARRAY_BUFFER,
                     as_u8_slice(mesh.vertices.as_slice()),
                     glow::STREAM_DRAW,
                 );
-
+                gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.element_array_buffer));
                 gl.buffer_data_u8_slice(
                     glow::ELEMENT_ARRAY_BUFFER,
                     as_u8_slice(mesh.indices.as_slice()),
@@ -696,7 +729,6 @@ impl Painter {
                 gl.delete_texture(t);
             }
         }
-        //gl.delete_vertex_array(self.vertex_array);
         gl.delete_buffer(self.vertex_buffer);
         gl.delete_buffer(self.element_array_buffer);
         for t in &self.old_textures {
@@ -796,7 +828,7 @@ impl epi::TextureAllocator for crate::Painter {
 struct PostProcess {
     pos_buffer: glow::Buffer,
     index_buffer: glow::Buffer,
-    vao: glow::VertexArray,
+    a_pos: u32,
     texture: glow::Texture,
     texture_size: (i32, i32),
     fbo: glow::Framebuffer,
@@ -856,7 +888,9 @@ impl PostProcess {
                 glow::RGBA,
                 glow::UNSIGNED_BYTE,
                 None,
-            )
+            );
+            let error_code=gl.get_error();
+            assert_eq!(error_code ,glow::NO_ERROR,"Error occurred in post process texture initialization. code : 0x{:x}",error_code);
         }
         unsafe {
             gl.framebuffer_texture_2d(
@@ -881,13 +915,7 @@ impl PostProcess {
             glow::FRAGMENT_SHADER,
             include_str!("shader/post_fragment_100es.glsl"),
         )?;
-        let program = unsafe { link_program(&gl, [vert_shader, frag_shader].into_iter()) }?;
-
-        let vao = unsafe { gl.create_vertex_array() }?;
-        unsafe {
-            gl.bind_vertex_array(Some(vao));
-        }
-
+        let program = unsafe { link_program(&gl, [vert_shader, frag_shader].iter()) }?;
         let positions = vec![0.0f32, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0];
 
         let indices = vec![0u8, 1, 2, 1, 2, 3];
@@ -909,13 +937,14 @@ impl PostProcess {
             gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(index_buffer));
             gl.buffer_data_u8_slice(glow::ELEMENT_ARRAY_BUFFER, &indices, glow::STATIC_DRAW);
 
-            gl.bind_vertex_array(None);
             gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, None);
+            let error_code=gl.get_error();
+            assert_eq!(error_code ,glow::NO_ERROR,"Error occurred in post process initialization. code : 0x{:x}",error_code);
 
             Ok(PostProcess {
                 pos_buffer,
                 index_buffer,
-                vao,
+                a_pos:a_pos_loc,
                 texture,
                 texture_size: (width, height),
                 fbo,
@@ -924,7 +953,7 @@ impl PostProcess {
         }
     }
 
-    fn begin(&mut self, gl: &glow::Context, width: i32, height: i32) -> Result<(), JsValue> {
+    fn begin(&mut self, gl: &glow::Context, width: i32, height: i32)  {
         if (width, height) != self.texture_size {
             unsafe {
                 gl.bind_texture(glow::TEXTURE_2D, Some(self.texture));
@@ -943,7 +972,7 @@ impl PostProcess {
                     glow::RGBA,
                     glow::UNSIGNED_BYTE,
                     None,
-                )
+                );
             }
             unsafe {
                 gl.bind_texture(glow::TEXTURE_2D, None);
@@ -956,7 +985,7 @@ impl PostProcess {
             gl.clear_color(0.0, 0.0, 0.0, 0.0);
             gl.clear(glow::COLOR_BUFFER_BIT);
         }
-        Ok(())
+
     }
 
     fn end(&self, gl: &glow::Context) {
@@ -970,19 +999,18 @@ impl PostProcess {
             gl.bind_texture(glow::TEXTURE_2D, Some(self.texture));
             let u_sampler_loc = gl.get_uniform_location(self.program, "u_sampler").unwrap();
             gl.uniform_1_i32(Some(&u_sampler_loc), 0);
-
-            gl.bind_vertex_array(Some(self.vao));
-
+            gl.bind_buffer(glow::ARRAY_BUFFER,Some(self.pos_buffer));
+            gl.vertex_attrib_pointer_f32(self.a_pos,2,glow::FLOAT,false,0,0);
+            gl.enable_vertex_attrib_array(self.a_pos);
+            gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER,Some(self.index_buffer));
             gl.draw_elements(glow::TRIANGLES, 6, glow::UNSIGNED_BYTE, 0);
 
             gl.bind_texture(glow::TEXTURE_2D, None);
-            gl.bind_vertex_array(None);
             gl.use_program(None);
         }
     }
     fn destroy(&mut self, gl: &glow::Context) {
         unsafe {
-            gl.delete_vertex_array(self.vao);
             gl.delete_buffer(self.pos_buffer);
             gl.delete_buffer(self.index_buffer);
             gl.delete_program(self.program);
