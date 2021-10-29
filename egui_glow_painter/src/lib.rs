@@ -21,8 +21,11 @@ use web_sys::HtmlCanvasElement;
 
 const VERT_SRC: &str = include_str!("shader/vertex.glsl");
 const FRAG_SRC: &str = include_str!("shader/fragment.glsl");
+/// Create glow context from given canvas.
+/// Automatically choose webgl or webgl2 context.
+/// first try webgl2 falling back to webgl1
 #[cfg(target_arch = "wasm32")]
-pub fn init_glow_context_from_canvas(canvas: HtmlCanvasElement) -> glow::Context {
+pub fn init_glow_context_from_canvas(canvas: &HtmlCanvasElement) -> glow::Context {
     let ctx = canvas.get_context("webgl2");
     if let Ok(ctx) = ctx {
         glow_debug_print("webgl found");
@@ -53,7 +56,10 @@ pub fn init_glow_context_from_canvas(canvas: HtmlCanvasElement) -> glow::Context
         exit(1)
     }
 }
-
+#[cfg(not(target_arch = "wasm32"))]
+pub fn init_glow_context_from_canvas<T>(_: T) -> glow::Context {
+    unimplemented!("this is only enabled wasm target")
+}
 fn srgbtexture2d(
     gl: &glow::Context,
     compatibility_mode: bool,
@@ -89,7 +95,6 @@ fn srgbtexture2d(
             glow::TEXTURE_WRAP_T,
             glow::CLAMP_TO_EDGE as i32,
         );
-        // not supported on WebGL2 disabled firefox
         if compatibility_mode {
             glow_debug_print(format!("w : {} h : {}", w as i32, h as i32));
             let format = if srgb_support {
@@ -108,10 +113,6 @@ fn srgbtexture2d(
                 glow::UNSIGNED_BYTE,
                 Some(data),
             );
-            if !srgb_support {
-                gl.generate_mipmap(glow::TEXTURE_2D);
-            }
-            //gl.bind_texture(glow::TEXTURE_2D, None);
         } else {
             gl.tex_storage_2d(glow::TEXTURE_2D, 1, glow::SRGB8_ALPHA8, w as i32, h as i32);
             gl.tex_sub_image_2d(
@@ -243,11 +244,7 @@ fn test_shader_version() {
 impl Painter {
     pub fn new(gl: &glow::Context, canvas_dimension: Option<[i32; 2]>) -> Painter {
         let shader_version = ShaderVersion::get(gl);
-        let webgl_1_compatibility_mode = if shader_version == ShaderVersion::Es100 {
-            true
-        } else {
-            false
-        };
+        let webgl_1_compatibility_mode = shader_version == ShaderVersion::Es100;
         let header = shader_version.version();
         glow_debug_print(header);
         let mut v_src = header.to_owned();
@@ -261,12 +258,13 @@ impl Painter {
                 glow_debug_print("WebGL with sRGB enabled so turn on post process");
                 let canvas_dimension = canvas_dimension.unwrap();
                 let webgl_1 = shader_version == ShaderVersion::Es100;
+                //Add sRGB support marker for fragment shader
                 f_src.push_str("#define SRGB_SUPPORTED \n");
                 PostProcess::new(gl, webgl_1, canvas_dimension[0], canvas_dimension[1]).ok()
             }
             //WebGL1 without sRGBSupport disable postprocess and use fallback shader
             (ShaderVersion::Es100, false) => None,
-            //DesktopGL always support sRGB
+            //DesktopGL always support sRGB so add sRGB support marker
             _ => {
                 f_src.push_str("#define SRGB_SUPPORTED \n");
                 None
@@ -307,22 +305,18 @@ impl Painter {
 
             let u_screen_size = gl.get_uniform_location(program, "u_screen_size").unwrap();
             let u_sampler = gl.get_uniform_location(program, "u_sampler").unwrap();
-            glow_debug_print("gl::get_uniform_location success");
+
             let vertex_array = gl.create_vertex_array().unwrap();
             let vertex_buffer = gl.create_buffer().unwrap();
             let element_array_buffer = gl.create_buffer().unwrap();
 
             gl.bind_vertex_array(Some(vertex_array));
             gl.bind_buffer(glow::ARRAY_BUFFER, Some(vertex_buffer));
-            // webgl and webgl2 should work
+
             let a_pos_loc = gl.get_attrib_location(program, "a_pos").unwrap();
             let a_tc_loc = gl.get_attrib_location(program, "a_tc").unwrap();
             let a_srgba_loc = gl.get_attrib_location(program, "a_srgba").unwrap();
-            glow_debug_print(format!(
-                "gl::get_attrib_location success a_pos {} a_tc {} a_srgba {}",
-                a_pos_loc, a_tc_loc, a_srgba_loc
-            ));
-            // webgl and webgl2 should work
+
             gl.vertex_attrib_pointer_f32(
                 a_pos_loc,
                 2,
@@ -477,6 +471,7 @@ impl Painter {
         clipped_meshes: Vec<egui::ClippedMesh>,
         egui_texture: &egui::Texture,
     ) {
+        //chimera of egui_glow and egui_web
         self.assert_not_destroyed();
 
         self.upload_egui_texture(gl, egui_texture);
@@ -507,7 +502,7 @@ impl Painter {
         clip_rect: Rect,
         mesh: &Mesh,
     ) {
-        // debug_assert!(mesh.is_valid());
+        debug_assert!(mesh.is_valid());
         #[cfg(debug_assertions)]
         if !mesh.is_valid() {
             glow_debug_print("invalid mesh ");
@@ -716,7 +711,7 @@ impl Painter {
         }
         unsafe {
             self.destroy_gl(gl);
-            if let Some(ref mut post_process) = self.post_process {
+            if let Some(ref post_process) = self.post_process {
                 post_process.destroy(gl);
             }
         }
@@ -727,6 +722,9 @@ impl Painter {
     pub fn destroy(&self, gl: &glow::Context) {
         unsafe {
             self.destroy_gl(gl);
+            if let Some(ref post_process) = self.post_process {
+                post_process.destroy(gl);
+            }
         }
     }
 
@@ -740,7 +738,7 @@ impl Painter {
     #[allow(clippy::unused_self)]
     fn assert_not_destroyed(&self) {}
 }
-
+// ported from egui_web
 pub fn clear(gl: &glow::Context, dimension: [u32; 2], clear_color: egui::Rgba) {
     unsafe {
         gl.disable(glow::SCISSOR_TEST);
@@ -796,7 +794,7 @@ struct PostProcess {
     pos_buffer: glow::Buffer,
     index_buffer: glow::Buffer,
     vertex_array: glow::VertexArray,
-    one_compatibility: bool,
+    is_webgl_1: bool,
     texture: glow::Texture,
     texture_size: (i32, i32),
     fbo: glow::Framebuffer,
@@ -890,16 +888,16 @@ impl PostProcess {
         unsafe { gl.bind_framebuffer(glow::FRAMEBUFFER, None) }
 
         let vert_shader = compile_shader(
-            &gl,
+            gl,
             glow::VERTEX_SHADER,
             include_str!("shader/post_vertex_100es.glsl"),
         )?;
         let frag_shader = compile_shader(
-            &gl,
+            gl,
             glow::FRAGMENT_SHADER,
             include_str!("shader/post_fragment_100es.glsl"),
         )?;
-        let program = link_program(&gl, [vert_shader, frag_shader].iter())?;
+        let program = link_program(gl, [vert_shader, frag_shader].iter())?;
         let vertex_array = unsafe { gl.create_vertex_array() }?;
         unsafe { gl.bind_vertex_array(Some(vertex_array)) }
 
@@ -944,7 +942,7 @@ impl PostProcess {
                 pos_buffer,
                 index_buffer,
                 vertex_array,
-                one_compatibility: is_webgl_1,
+                is_webgl_1,
                 texture,
                 texture_size: (width, height),
                 fbo,
@@ -961,7 +959,7 @@ impl PostProcess {
             unsafe {
                 gl.pixel_store_i32(glow::UNPACK_ALIGNMENT, 1);
             }
-            let (internal_format, format) = if self.one_compatibility {
+            let (internal_format, format) = if self.is_webgl_1 {
                 (glow::SRGB_ALPHA, glow::SRGB_ALPHA)
             } else {
                 (glow::SRGB8_ALPHA8, glow::RGBA)
@@ -1014,7 +1012,7 @@ impl PostProcess {
             gl.use_program(None);
         }
     }
-    fn destroy(&mut self, gl: &glow::Context) {
+    fn destroy(&self, gl: &glow::Context) {
         unsafe {
             gl.delete_vertex_array(self.vertex_array);
             gl.delete_buffer(self.pos_buffer);
@@ -1031,8 +1029,7 @@ fn compile_shader(
     shader_type: u32,
     source: &str,
 ) -> Result<glow::Shader, String> {
-    let shader = unsafe { gl.create_shader(shader_type) }
-        .map_err(|_| String::from("Unable to create shader object"))?;
+    let shader = unsafe { gl.create_shader(shader_type) }?;
     unsafe {
         gl.shader_source(shader, source);
     }
@@ -1051,8 +1048,7 @@ fn link_program<'a, T: IntoIterator<Item = &'a glow::Shader>>(
     gl: &glow::Context,
     shaders: T,
 ) -> Result<glow::Program, String> {
-    let program = unsafe { gl.create_program() }
-        .map_err(|_| String::from("Unable to create shader object"))?;
+    let program = unsafe { gl.create_program() }?;
     unsafe {
         for shader in shaders {
             gl.attach_shader(program, *shader)

@@ -14,14 +14,14 @@ pub struct WebBackend {
     canvas: HtmlCanvasElement,
 }
 
-pub fn canvas_to_dimension(canvas: HtmlCanvasElement) -> [u32; 2] {
+pub fn canvas_to_dimension(canvas: &HtmlCanvasElement) -> [u32; 2] {
     [canvas.width(), canvas.height()]
 }
 impl WebBackend {
     pub fn new(canvas_id: &str) -> Result<Self, JsValue> {
         let ctx = egui::CtxRef::default();
         let canvas = canvas_element_or_die(canvas_id);
-        let gl_ctx = egui_glow_painter::init_glow_context_from_canvas(canvas.clone());
+        let gl_ctx = egui_glow_painter::init_glow_context_from_canvas(&canvas);
         let painter = egui_glow_painter::Painter::new(
             &gl_ctx,
             Some([canvas.width() as i32, canvas.height() as i32]),
@@ -70,7 +70,7 @@ impl WebBackend {
     ) -> Result<(), JsValue> {
         self.painter
             .upload_egui_texture(&self.gl_ctx, &self.egui_ctx.texture());
-        let dimension = canvas_to_dimension(self.canvas);
+        let dimension = canvas_to_dimension(&self.canvas);
         egui_glow_painter::clear(&self.gl_ctx, dimension, clear_color);
         Ok(self.painter.paint_meshes(
             dimension,
