@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-/// Trait constraining what types [`TextEdit`] may use as
+/// Trait constraining what types [`crate::TextEdit`] may use as
 /// an underlying buffer.
 ///
 /// Most likely you will use a `String` which implements `TextBuffer`.
