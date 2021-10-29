@@ -726,7 +726,7 @@ impl Painter {
         }
         unsafe {
             self.destroy_gl(gl);
-            if let Some(ref mut post_process)=self.post_process{
+            if let Some(ref mut post_process) = self.post_process {
                 post_process.destroy(gl);
             }
         }
