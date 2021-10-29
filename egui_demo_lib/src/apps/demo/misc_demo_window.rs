@@ -365,7 +365,7 @@ impl SubTree {
     ) -> Action {
         if depth > 0
             && ui
-                .add(Button::new("delete").text_color(Color32::RED))
+                .button(RichText::new("delete").color(Color32::RED))
                 .clicked()
         {
             return Action::Delete;

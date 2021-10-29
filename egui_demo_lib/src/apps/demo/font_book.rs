@@ -90,7 +90,10 @@ impl super::View for FontBook {
 
                 for (&chr, name) in named_chars {
                     if filter.is_empty() || name.contains(filter) || *filter == chr.to_string() {
-                        let button = egui::Button::new(chr).text_style(text_style).frame(false);
+                        let button = egui::Button::new(
+                            egui::RichText::new(chr.to_string()).text_style(text_style),
+                        )
+                        .frame(false);
 
                         let tooltip_ui = |ui: &mut egui::Ui| {
                             ui.add(egui::Label::new(chr).text_style(text_style));

@@ -1089,9 +1089,21 @@ impl Ui {
     /// Shortcut for `add(Button::new(text))`
     ///
     /// See also [`Button`].
+    ///
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// if ui.button("Click me!").clicked() {
+    ///     // …
+    /// }
+    ///
+    /// # use egui::{RichText, Color32};
+    /// if ui.button(RichText::new("delete").color(Color32::RED)).clicked()
+    ///     // …
+    /// }
+    /// ```
     #[must_use = "You should check if the user clicked this with `if ui.button(…).clicked() { … } "]
     #[inline(always)]
-    pub fn button(&mut self, text: impl ToString) -> Response {
+    pub fn button(&mut self, text: impl Into<WidgetText>) -> Response {
         Button::new(text).ui(self)
     }
 
@@ -1101,7 +1113,7 @@ impl Ui {
     ///
     /// Shortcut for `add(Button::new(text).small())`
     #[must_use = "You should check if the user clicked this with `if ui.small_button(…).clicked() { … } "]
-    pub fn small_button(&mut self, text: impl ToString) -> Response {
+    pub fn small_button(&mut self, text: impl Into<WidgetText>) -> Response {
         Button::new(text).small().ui(self)
     }
 
@@ -1134,6 +1146,7 @@ impl Ui {
     /// if ui.add(egui::RadioButton::new(my_enum == Enum::First, "First")).clicked() {
     ///     my_enum = Enum::First
     /// }
+    /// ```
     pub fn radio_value<Value: PartialEq>(
         &mut self,
         current_value: &mut Value,

@@ -367,6 +367,7 @@ mod sense;
 pub mod style;
 mod ui;
 pub mod util;
+mod widget_text;
 pub mod widgets;
 
 pub use epaint;
@@ -408,6 +409,7 @@ pub use {
     style::{Style, Visuals},
     text::{Galley, TextFormat},
     ui::Ui,
+    widget_text::{RichText, WidgetText},
     widgets::*,
 };
 
