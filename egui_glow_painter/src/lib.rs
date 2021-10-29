@@ -108,7 +108,7 @@ fn srgbtexture2d(
                 glow::UNSIGNED_BYTE,
                 Some(data),
             );
-            if !srgb_support{
+            if !srgb_support {
                 gl.generate_mipmap(glow::TEXTURE_2D);
             }
             //gl.bind_texture(glow::TEXTURE_2D, None);
@@ -146,7 +146,7 @@ pub struct Painter {
     egui_texture: Option<glow::Texture>,
     egui_texture_version: Option<u64>,
     webgl_1_compatibility_mode: bool,
-    vertex_array:glow::VertexArray,
+    vertex_array: glow::VertexArray,
     srgb_support: bool,
     /// `None` means unallocated (freed) slot.
     user_textures: Vec<Option<UserTexture>>,
@@ -254,21 +254,18 @@ impl Painter {
         v_src.push_str(VERT_SRC);
         let mut f_src = header.to_owned();
 
-
         let srgb_support = gl.supported_extensions().contains("EXT_sRGB");
-        let post_process = match (shader_version,srgb_support) {
+        let post_process = match (shader_version, srgb_support) {
             //WebGL2 support sRGB default
-            (ShaderVersion::Es300,_)|(ShaderVersion::Es100,true)=>{
+            (ShaderVersion::Es300, _) | (ShaderVersion::Es100, true) => {
                 glow_debug_print("WebGL with sRGB enabled so turn on post process");
-                let canvas_dimension=canvas_dimension.unwrap();
-                let webgl_1= shader_version==ShaderVersion::Es100;
+                let canvas_dimension = canvas_dimension.unwrap();
+                let webgl_1 = shader_version == ShaderVersion::Es100;
                 f_src.push_str("#define SRGB_SUPPORTED \n");
-                PostProcess::new(gl,webgl_1,canvas_dimension[0],canvas_dimension[1]).ok()
-            },
-            (ShaderVersion::Es100,false)=>{
-                None
+                PostProcess::new(gl, webgl_1, canvas_dimension[0], canvas_dimension[1]).ok()
             }
-            _=>{
+            (ShaderVersion::Es100, false) => None,
+            _ => {
                 f_src.push_str("#define SRGB_SUPPORTED \n");
                 None
             }
@@ -331,7 +328,10 @@ impl Painter {
             let a_pos_loc = gl.get_attrib_location(program, "a_pos").unwrap();
             let a_tc_loc = gl.get_attrib_location(program, "a_tc").unwrap();
             let a_srgba_loc = gl.get_attrib_location(program, "a_srgba").unwrap();
-            glow_debug_print(format!("gl::get_attrib_location success a_pos {} a_tc {} a_srgba {}",a_pos_loc,a_tc_loc,a_srgba_loc));
+            glow_debug_print(format!(
+                "gl::get_attrib_location success a_pos {} a_tc {} a_srgba {}",
+                a_pos_loc, a_tc_loc, a_srgba_loc
+            ));
             // webgl and webgl2 should work
             gl.vertex_attrib_pointer_f32(
                 a_pos_loc,
@@ -456,7 +456,6 @@ impl Painter {
         gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vertex_buffer));
         gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.element_array_buffer));
 
-
         (width_in_pixels, height_in_pixels)
     }
 
@@ -493,7 +492,7 @@ impl Painter {
         self.upload_egui_texture(gl, egui_texture);
         self.upload_pending_user_textures(gl);
         if let Some(ref mut post_process) = self.post_process {
-            post_process.begin(gl,inner_size[0] as i32, inner_size[1] as i32);
+            post_process.begin(gl, inner_size[0] as i32, inner_size[1] as i32);
         }
         let size_in_pixels = unsafe { self.prepare_painting(inner_size, gl, pixels_per_point) };
         for egui::ClippedMesh(clip_rect, mesh) in clipped_meshes {
@@ -727,6 +726,9 @@ impl Painter {
         }
         unsafe {
             self.destroy_gl(gl);
+            if let Some(ref mut post_process)=self.post_process{
+                post_process.destroy(gl);
+            }
         }
         self.destroyed = true;
     }
@@ -810,7 +812,7 @@ struct PostProcess {
     pos_buffer: glow::Buffer,
     index_buffer: glow::Buffer,
     vertex_array: glow::VertexArray,
-    one_compatibility:bool,
+    one_compatibility: bool,
     texture: glow::Texture,
     texture_size: (i32, i32),
     fbo: glow::Framebuffer,
@@ -818,7 +820,12 @@ struct PostProcess {
 }
 
 impl PostProcess {
-    fn new(gl: &glow::Context,is_webgl_1:bool, width: i32, height: i32) -> Result<PostProcess, String> {
+    fn new(
+        gl: &glow::Context,
+        is_webgl_1: bool,
+        width: i32,
+        height: i32,
+    ) -> Result<PostProcess, String> {
         let fbo = unsafe { gl.create_framebuffer() }?;
         unsafe {
             gl.bind_framebuffer(glow::FRAMEBUFFER, Some(fbo));
@@ -859,10 +866,10 @@ impl PostProcess {
         unsafe {
             gl.pixel_store_i32(glow::UNPACK_ALIGNMENT, 1);
         }
-        let (internal_format,format)=if is_webgl_1{
-            (glow::SRGB_ALPHA,glow::SRGB_ALPHA)
-        }else{
-            (glow::SRGB8_ALPHA8,glow::RGBA)
+        let (internal_format, format) = if is_webgl_1 {
+            (glow::SRGB_ALPHA, glow::SRGB_ALPHA)
+        } else {
+            (glow::SRGB8_ALPHA8, glow::RGBA)
         };
 
         unsafe {
@@ -877,8 +884,13 @@ impl PostProcess {
                 glow::UNSIGNED_BYTE,
                 None,
             );
-            let error_code=gl.get_error();
-            assert_eq!(error_code ,glow::NO_ERROR,"Error occurred in post process texture initialization. code : 0x{:x}",error_code);
+            let error_code = gl.get_error();
+            assert_eq!(
+                error_code,
+                glow::NO_ERROR,
+                "Error occurred in post process texture initialization. code : 0x{:x}",
+                error_code
+            );
         }
         unsafe {
             gl.framebuffer_texture_2d(
@@ -903,7 +915,7 @@ impl PostProcess {
             glow::FRAGMENT_SHADER,
             include_str!("shader/post_fragment_100es.glsl"),
         )?;
-        let program = unsafe { link_program(&gl, [vert_shader, frag_shader].iter()) }?;
+        let program = link_program(&gl, [vert_shader, frag_shader].iter())?;
         let vertex_array = unsafe { gl.create_vertex_array() }?;
         unsafe { gl.bind_vertex_array(Some(vertex_array)) }
 
@@ -913,13 +925,20 @@ impl PostProcess {
         unsafe {
             let pos_buffer = gl.create_buffer()?;
             gl.bind_buffer(glow::ARRAY_BUFFER, Some(pos_buffer));
-            gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, std::slice::from_raw_parts(positions.as_ptr() as *const u8,positions.len()*std::mem::size_of::<f32>()), glow::STATIC_DRAW);
+            gl.buffer_data_u8_slice(
+                glow::ARRAY_BUFFER,
+                std::slice::from_raw_parts(
+                    positions.as_ptr() as *const u8,
+                    positions.len() * std::mem::size_of::<f32>(),
+                ),
+                glow::STATIC_DRAW,
+            );
 
             let a_pos_loc = gl
                 .get_attrib_location(program, "a_pos")
                 .ok_or_else(|| "failed to get location of a_pos".to_string())?;
-            assert!(a_pos_loc >= 0);
-            gl.vertex_attrib_pointer_f32(a_pos_loc, 2, glow::FLOAT, false,0, 0);
+
+            gl.vertex_attrib_pointer_f32(a_pos_loc, 2, glow::FLOAT, false, 0, 0);
             gl.enable_vertex_attrib_array(a_pos_loc);
 
             gl.bind_buffer(glow::ARRAY_BUFFER, None);
@@ -929,14 +948,19 @@ impl PostProcess {
             gl.buffer_data_u8_slice(glow::ELEMENT_ARRAY_BUFFER, &indices, glow::STATIC_DRAW);
 
             gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, None);
-            let error_code=gl.get_error();
-            assert_eq!(error_code ,glow::NO_ERROR,"Error occurred in post process initialization. code : 0x{:x}",error_code);
+            let error_code = gl.get_error();
+            assert_eq!(
+                error_code,
+                glow::NO_ERROR,
+                "Error occurred in post process initialization. code : 0x{:x}",
+                error_code
+            );
 
             Ok(PostProcess {
                 pos_buffer,
                 index_buffer,
                 vertex_array,
-                one_compatibility:is_webgl_1,
+                one_compatibility: is_webgl_1,
                 texture,
                 texture_size: (width, height),
                 fbo,
@@ -945,7 +969,7 @@ impl PostProcess {
         }
     }
 
-    fn begin(&mut self, gl: &glow::Context, width: i32, height: i32)  {
+    fn begin(&mut self, gl: &glow::Context, width: i32, height: i32) {
         if (width, height) != self.texture_size {
             unsafe {
                 gl.bind_texture(glow::TEXTURE_2D, Some(self.texture));
@@ -953,10 +977,10 @@ impl PostProcess {
             unsafe {
                 gl.pixel_store_i32(glow::UNPACK_ALIGNMENT, 1);
             }
-            let (internal_format,format)=if self.one_compatibility{
-                (glow::SRGB_ALPHA,glow::SRGB_ALPHA)
-            }else{
-                (glow::SRGB8_ALPHA8,glow::RGBA)
+            let (internal_format, format) = if self.one_compatibility {
+                (glow::SRGB_ALPHA, glow::SRGB_ALPHA)
+            } else {
+                (glow::SRGB8_ALPHA8, glow::RGBA)
             };
             unsafe {
                 gl.tex_image_2d(
@@ -982,7 +1006,6 @@ impl PostProcess {
             gl.clear_color(0.0, 0.0, 0.0, 0.0);
             gl.clear(glow::COLOR_BUFFER_BIT);
         }
-
     }
 
     fn end(&self, gl: &glow::Context) {
@@ -999,7 +1022,7 @@ impl PostProcess {
 
             gl.bind_vertex_array(Some(self.vertex_array));
 
-            gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER,Some(self.index_buffer));
+            gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.index_buffer));
             gl.draw_elements(glow::TRIANGLES, 6, glow::UNSIGNED_BYTE, 0);
 
             gl.bind_texture(glow::TEXTURE_2D, None);
@@ -1040,7 +1063,7 @@ fn compile_shader(
     }
 }
 
-unsafe fn link_program<'a, T: IntoIterator<Item = &'a glow::Shader>>(
+fn link_program<'a, T: IntoIterator<Item = &'a glow::Shader>>(
     gl: &glow::Context,
     shaders: T,
 ) -> Result<glow::Program, String> {
@@ -1058,6 +1081,6 @@ unsafe fn link_program<'a, T: IntoIterator<Item = &'a glow::Shader>>(
     if unsafe { gl.get_program_link_status(program) } {
         Ok(program)
     } else {
-        Err(gl.get_program_info_log(program))
+        Err(unsafe { gl.get_program_info_log(program) })
     }
 }
