@@ -1097,12 +1097,12 @@ impl Ui {
     /// }
     ///
     /// # use egui::{RichText, Color32};
-    /// if ui.button(RichText::new("delete").color(Color32::RED)).clicked()
+    /// if ui.button(RichText::new("delete").color(Color32::RED)).clicked() {
     ///     // …
     /// }
     /// ```
     #[must_use = "You should check if the user clicked this with `if ui.button(…).clicked() { … } "]
-    #[inline(always)]
+    #[inline]
     pub fn button(&mut self, text: impl Into<WidgetText>) -> Response {
         Button::new(text).ui(self)
     }
@@ -1118,14 +1118,16 @@ impl Ui {
     }
 
     /// Show a checkbox.
-    pub fn checkbox(&mut self, checked: &mut bool, text: impl ToString) -> Response {
+    #[inline]
+    pub fn checkbox(&mut self, checked: &mut bool, text: impl Into<WidgetText>) -> Response {
         Checkbox::new(checked, text).ui(self)
     }
 
     /// Show a [`RadioButton`].
     /// Often you want to use [`Self::radio_value`] instead.
     #[must_use = "You should check if the user clicked this with `if ui.radio(…).clicked() { … } "]
-    pub fn radio(&mut self, selected: bool, text: impl ToString) -> Response {
+    #[inline]
+    pub fn radio(&mut self, selected: bool, text: impl Into<WidgetText>) -> Response {
         RadioButton::new(selected, text).ui(self)
     }
 
@@ -1151,7 +1153,7 @@ impl Ui {
         &mut self,
         current_value: &mut Value,
         selected_value: Value,
-        text: impl ToString,
+        text: impl Into<WidgetText>,
     ) -> Response {
         let mut response = self.radio(*current_value == selected_value, text);
         if response.clicked() {

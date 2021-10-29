@@ -581,15 +581,8 @@ impl Style {
             ui.label("Default body text style:");
             ui.horizontal(|ui| {
                 for &style in &[TextStyle::Body, TextStyle::Monospace] {
-                    if ui
-                        .add(
-                            RadioButton::new(*body_text_style == style, format!("{:?}", style))
-                                .text_style(style),
-                        )
-                        .clicked()
-                    {
-                        *body_text_style = style;
-                    };
+                    let text = crate::RichText::new(format!("{:?}", style)).text_style(style);
+                    ui.radio_value(body_text_style, style, text);
                 }
             });
             ui.end_row();

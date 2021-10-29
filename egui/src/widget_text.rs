@@ -215,7 +215,7 @@ pub struct WidgetTextLayout {
 impl WidgetTextLayout {
     /// Size of the layed out text.
     #[inline]
-    pub fn size(&self) -> Vec2 {
+    pub fn size(&self) -> crate::Vec2 {
         self.galley.size()
     }
 
