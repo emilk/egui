@@ -72,13 +72,14 @@ impl WebBackend {
             .upload_egui_texture(&self.gl_ctx, &self.egui_ctx.texture());
         let dimension = canvas_to_dimension(&self.canvas);
         egui_glow_painter::clear(&self.gl_ctx, dimension, clear_color);
-        Ok(self.painter.paint_meshes(
+        self.painter.paint_meshes(
             dimension,
             &self.gl_ctx,
             self.egui_ctx.pixels_per_point(),
             clipped_meshes,
             &self.egui_ctx.texture(),
-        ))
+        );
+        Ok(())
     }
     pub fn debug_info(canvas: HtmlCanvasElement) -> String {
         format!(

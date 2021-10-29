@@ -1,5 +1,4 @@
 use crate::*;
-use egui::Color32;
 #[cfg(target_os = "windows")]
 use glutin::platform::windows::WindowBuilderExtWindows;
 use std::time::Instant;
