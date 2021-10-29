@@ -264,7 +264,9 @@ impl Painter {
                 f_src.push_str("#define SRGB_SUPPORTED \n");
                 PostProcess::new(gl, webgl_1, canvas_dimension[0], canvas_dimension[1]).ok()
             }
+            //WebGL1 without sRGBSupport disable postprocess and use fallback shader
             (ShaderVersion::Es100, false) => None,
+            //DesktopGL always support sRGB
             _ => {
                 f_src.push_str("#define SRGB_SUPPORTED \n");
                 None
@@ -274,42 +276,30 @@ impl Painter {
         f_src.push_str(FRAG_SRC);
 
         unsafe {
-            let v = gl.create_shader(glow::VERTEX_SHADER).unwrap();
-            glow_debug_print("gl::create_shader success");
-            gl.shader_source(v, &v_src);
-            gl.compile_shader(v);
-            if !gl.get_shader_compile_status(v) {
-                glow_debug_print(format!(
-                    "Failed to compile vertex shader: {}",
-                    gl.get_shader_info_log(v)
-                ));
-                exit(1);
-            }
-
-            let f = gl.create_shader(glow::FRAGMENT_SHADER).unwrap();
-            glow_debug_print("gl::create_shader success");
-            gl.shader_source(f, &f_src);
-            gl.compile_shader(f);
-            if !gl.get_shader_compile_status(f) {
-                glow_debug_print(format!(
-                    "Failed to compile fragment shader: {}",
-                    gl.get_shader_info_log(f)
-                ));
-                exit(1);
-            }
-
-            let program = gl.create_program().unwrap();
-            glow_debug_print("gl::create_program successs");
-            gl.attach_shader(program, v);
-            gl.attach_shader(program, f);
-            gl.link_program(program);
-            if !gl.get_program_link_status(program) {
-                glow_debug_print(format!(
-                    "Failed to link shader: {}",
-                    gl.get_program_info_log(program)
-                ));
-                exit(1);
-            }
+            let v = compile_shader(gl, glow::VERTEX_SHADER, &v_src)
+                .map_err(|problems| {
+                    glow_debug_print(format!(
+                        "failed to compile vertex shader due to errors \n {}",
+                        problems
+                    ))
+                })
+                .unwrap();
+            let f = compile_shader(gl, glow::FRAGMENT_SHADER, &f_src)
+                .map_err(|problems| {
+                    glow_debug_print(format!(
+                        "failed to compile fragment shader due to errors \n {}",
+                        problems
+                    ))
+                })
+                .unwrap();
+            let program = link_program(gl, [v, f].iter())
+                .map_err(|problems| {
+                    glow_debug_print(format!(
+                        "failed to link shaders due to errors \n {}",
+                        problems
+                    ))
+                })
+                .unwrap();
             gl.detach_shader(program, v);
             gl.detach_shader(program, f);
             gl.delete_shader(v);
@@ -370,7 +360,7 @@ impl Painter {
                 egui_texture: None,
                 egui_texture_version: None,
                 webgl_1_compatibility_mode,
-                vertex_array: vertex_array,
+                vertex_array,
                 srgb_support,
                 user_textures: Default::default(),
                 post_process,
@@ -750,18 +740,12 @@ impl Painter {
     #[allow(clippy::unused_self)]
     fn assert_not_destroyed(&self) {}
 }
-#[cfg(target_arch = "wasm32")]
-pub fn canvas_to_dimension(canvas: HtmlCanvasElement) -> [u32; 2] {
-    [canvas.width() as u32, canvas.height() as u32]
-}
-#[cfg(target_arch = "wasm32")]
-pub fn clear(canvas: HtmlCanvasElement, gl: &glow::Context, clear_color: egui::Rgba) {
+
+pub fn clear(gl: &glow::Context, dimension: [u32; 2], clear_color: egui::Rgba) {
     unsafe {
         gl.disable(glow::SCISSOR_TEST);
 
-        let width = canvas.width() as i32;
-        let height = canvas.height() as i32;
-        gl.viewport(0, 0, width, height);
+        gl.viewport(0, 0, dimension[0] as i32, dimension[1] as i32);
 
         let clear_color: Color32 = clear_color.into();
         gl.clear_color(
