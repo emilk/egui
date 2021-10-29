@@ -23,6 +23,11 @@ impl RichText {
         }
     }
 
+    #[inline]
+    pub fn text(&self) -> &str {
+        &self.text
+    }
+
     /// Override the [`TextStyle`].
     #[inline]
     pub fn text_style(mut self, text_style: TextStyle) -> Self {
@@ -119,25 +124,12 @@ pub enum WidgetText {
 }
 
 impl WidgetText {
-    pub fn layout(
-        self,
-        ui: &Ui,
-        wrap_width: f32,
-        default_text_style: TextStyle,
-    ) -> WidgetTextLayout {
+    #[inline]
+    pub fn text(&self) -> &str {
         match self {
-            Self::RichText(text) => text.layout(ui, wrap_width, default_text_style),
-            Self::LayoutJob(mut job) => {
-                job.wrap_width = wrap_width;
-                WidgetTextLayout {
-                    galley: ui.fonts().layout_job(job),
-                    galley_has_color: true,
-                }
-            }
-            Self::Galley(galley) => WidgetTextLayout {
-                galley,
-                galley_has_color: true,
-            },
+            Self::RichText(text) => text.text(),
+            Self::LayoutJob(job) => &job.text,
+            Self::Galley(galley) => galley.text(),
         }
     }
 
@@ -165,6 +157,28 @@ impl WidgetText {
         match self {
             Self::RichText(text) => Self::RichText(text.wrap(wrap)),
             Self::LayoutJob(_) | Self::Galley(_) => self,
+        }
+    }
+
+    pub fn layout(
+        self,
+        ui: &Ui,
+        wrap_width: f32,
+        default_text_style: TextStyle,
+    ) -> WidgetTextLayout {
+        match self {
+            Self::RichText(text) => text.layout(ui, wrap_width, default_text_style),
+            Self::LayoutJob(mut job) => {
+                job.wrap_width = wrap_width;
+                WidgetTextLayout {
+                    galley: ui.fonts().layout_job(job),
+                    galley_has_color: true,
+                }
+            }
+            Self::Galley(galley) => WidgetTextLayout {
+                galley,
+                galley_has_color: true,
+            },
         }
     }
 }
