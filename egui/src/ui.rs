@@ -1167,7 +1167,7 @@ impl Ui {
     ///
     /// See also [`SelectableLabel`].
     #[must_use = "You should check if the user clicked this with `if ui.selectable_label(…).clicked() { … } "]
-    pub fn selectable_label(&mut self, checked: bool, text: impl ToString) -> Response {
+    pub fn selectable_label(&mut self, checked: bool, text: impl Into<WidgetText>) -> Response {
         SelectableLabel::new(checked, text).ui(self)
     }
 
@@ -1181,7 +1181,7 @@ impl Ui {
         &mut self,
         current_value: &mut Value,
         selected_value: Value,
-        text: impl ToString,
+        text: impl Into<WidgetText>,
     ) -> Response {
         let mut response = self.selectable_label(*current_value == selected_value, text);
         if response.clicked() {

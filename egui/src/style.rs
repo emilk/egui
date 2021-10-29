@@ -596,17 +596,8 @@ impl Style {
                 .show_ui(ui, |ui| {
                     ui.selectable_value(override_text_style, None, "None");
                     for style in TextStyle::all() {
-                        // ui.selectable_value(override_text_style, Some(style), format!("{:?}", style));
-                        let selected = *override_text_style == Some(style);
-                        if ui
-                            .add(
-                                SelectableLabel::new(selected, format!("{:?}", style))
-                                    .text_style(style),
-                            )
-                            .clicked()
-                        {
-                            *override_text_style = Some(style);
-                        }
+                        let text = crate::RichText::new(format!("{:?}", style)).text_style(style);
+                        ui.selectable_value(override_text_style, Some(style), text);
                     }
                 });
             ui.end_row();
