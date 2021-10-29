@@ -35,6 +35,13 @@ impl RichText {
         self
     }
 
+    /// Set the [`TextStyle`] unless it has already been set
+    #[inline]
+    pub fn fallback_text_style(mut self, text_style: TextStyle) -> Self {
+        self.text_style.get_or_insert(text_style);
+        self
+    }
+
     /// Use [`TextStyle::Heading`].
     #[inline]
     pub fn heading(self) -> Self {
@@ -67,12 +74,20 @@ impl RichText {
         self
     }
 
+    pub fn font_height(&self, fonts: &epaint::text::Fonts, style: &crate::Style) -> f32 {
+        let text_style = self
+            .text_style
+            .or(style.override_text_style)
+            .unwrap_or(style.body_text_style);
+        fonts.row_height(text_style)
+    }
+
     pub fn layout(
         self,
         ui: &Ui,
         wrap_width: f32,
         default_text_style: TextStyle,
-    ) -> WidgetTextLayout {
+    ) -> WidgetTextGalley {
         let Self {
             text,
             text_style,
@@ -92,7 +107,7 @@ impl RichText {
         if let Some(text_color) = text_color {
             let galley = ui.fonts().layout(text, text_style, text_color, wrap_width);
 
-            WidgetTextLayout {
+            WidgetTextGalley {
                 galley,
                 galley_has_color: true,
             }
@@ -101,7 +116,7 @@ impl RichText {
                 .fonts()
                 .layout_delayed_color(text, text_style, wrap_width);
 
-            WidgetTextLayout {
+            WidgetTextGalley {
                 galley,
                 galley_has_color: false,
             }
@@ -142,6 +157,15 @@ impl WidgetText {
         }
     }
 
+    /// Set the [`TextStyle`] unless it has already been set
+    #[inline]
+    pub fn fallback_text_style(self, text_style: TextStyle) -> Self {
+        match self {
+            Self::RichText(text) => Self::RichText(text.fallback_text_style(text_style)),
+            Self::LayoutJob(_) | Self::Galley(_) => self,
+        }
+    }
+
     /// Override text color if, and only if, this is a [`RichText`].
     #[inline]
     pub fn color(self, color: impl Into<Color32>) -> Self {
@@ -160,22 +184,36 @@ impl WidgetText {
         }
     }
 
+    pub fn font_height(&self, fonts: &epaint::text::Fonts, style: &crate::Style) -> f32 {
+        match self {
+            Self::RichText(text) => text.font_height(fonts, style),
+            Self::LayoutJob(job) => job.font_height(fonts),
+            Self::Galley(galley) => {
+                if let Some(row) = galley.rows.first() {
+                    row.height()
+                } else {
+                    galley.size().y
+                }
+            }
+        }
+    }
+
     pub fn layout(
         self,
         ui: &Ui,
         wrap_width: f32,
         default_text_style: TextStyle,
-    ) -> WidgetTextLayout {
+    ) -> WidgetTextGalley {
         match self {
             Self::RichText(text) => text.layout(ui, wrap_width, default_text_style),
             Self::LayoutJob(mut job) => {
                 job.wrap_width = wrap_width;
-                WidgetTextLayout {
+                WidgetTextGalley {
                     galley: ui.fonts().layout_job(job),
                     galley_has_color: true,
                 }
             }
-            Self::Galley(galley) => WidgetTextLayout {
+            Self::Galley(galley) => WidgetTextGalley {
                 galley,
                 galley_has_color: true,
             },
@@ -221,12 +259,12 @@ impl From<Arc<Galley>> for WidgetText {
 // ----------------------------------------------------------------------------
 
 /// Text that has been layed out and ready to be painted.
-pub struct WidgetTextLayout {
+pub struct WidgetTextGalley {
     galley: Arc<Galley>,
     galley_has_color: bool,
 }
 
-impl WidgetTextLayout {
+impl WidgetTextGalley {
     /// Size of the layed out text.
     #[inline]
     pub fn size(&self) -> crate::Vec2 {
@@ -239,6 +277,11 @@ impl WidgetTextLayout {
         self.galley.text()
     }
 
+    #[inline]
+    pub fn galley(&self) -> &Arc<Galley> {
+        &self.galley
+    }
+
     pub fn paint(self, ui: &Ui, text_pos: Pos2, visuals: &WidgetVisuals) {
         if self.galley_has_color {
             ui.painter().galley(text_pos, self.galley);
@@ -246,5 +289,10 @@ impl WidgetTextLayout {
             ui.painter()
                 .galley_with_color(text_pos, self.galley, visuals.text_color());
         }
+    }
+
+    pub fn paint_with_color(self, ui: &Ui, text_pos: Pos2, text_color: Color32) {
+        ui.painter()
+            .galley_with_color(text_pos, self.galley, text_color);
     }
 }

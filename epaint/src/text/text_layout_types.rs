@@ -134,6 +134,15 @@ impl LayoutJob {
             format,
         });
     }
+
+    /// The height of the tallest used font in the job.
+    pub fn font_height(&self, fonts: &crate::Fonts) -> f32 {
+        let mut max_height = 0.0_f32;
+        for section in &self.sections {
+            max_height = max_height.max(fonts.row_height(section.format.style));
+        }
+        max_height
+    }
 }
 
 impl std::hash::Hash for LayoutJob {
