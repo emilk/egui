@@ -84,7 +84,6 @@ impl Painter {
                 //Add sRGB support marker for fragment shader
                 f_src.push_str("#define SRGB_SUPPORTED \n");
                 PostProcess::new(gl, webgl_1, canvas_dimension[0], canvas_dimension[1]).ok()
-                // None
             }
             //WebGL1 without sRGBSupport disable postprocess and use fallback shader
             (ShaderVersion::Es100, false) => None,

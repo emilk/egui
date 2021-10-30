@@ -1,3 +1,4 @@
+use crate::vao_emulate::BufferInfo;
 use crate::{compile_shader, link_program};
 use glow::HasContext;
 
@@ -6,7 +7,7 @@ use glow::HasContext;
 pub(crate) struct PostProcess {
     pos_buffer: glow::Buffer,
     index_buffer: glow::Buffer,
-    location: u32,
+    vertex_array: crate::vao_emulate::EmulatedVao,
     is_webgl_1: bool,
     texture: glow::Texture,
     texture_size: (i32, i32),
@@ -120,19 +121,23 @@ impl PostProcess {
             gl.bind_buffer(glow::ARRAY_BUFFER, Some(pos_buffer));
             gl.buffer_data_u8_slice(
                 glow::ARRAY_BUFFER,
-                std::slice::from_raw_parts(
-                    positions.as_ptr() as *const u8,
-                    positions.len() * std::mem::size_of::<f32>(),
-                ),
+                crate::as_u8_slice(&positions),
                 glow::STATIC_DRAW,
             );
 
             let a_pos_loc = gl
                 .get_attrib_location(program, "a_pos")
                 .ok_or_else(|| "failed to get location of a_pos".to_string())?;
-
-            gl.vertex_attrib_pointer_f32(a_pos_loc, 2, glow::FLOAT, false, 0, 0);
-            gl.enable_vertex_attrib_array(a_pos_loc);
+            let mut vertex_array = crate::vao_emulate::EmulatedVao::new(pos_buffer);
+            let buffer_info_a_pos = BufferInfo {
+                location: a_pos_loc,
+                vector_size: 2,
+                data_type: glow::FLOAT,
+                normalized: false,
+                stride: 0,
+                offset: 0,
+            };
+            vertex_array.add_new_attribute(buffer_info_a_pos);
 
             gl.bind_buffer(glow::ARRAY_BUFFER, None);
 
@@ -152,7 +157,7 @@ impl PostProcess {
             Ok(PostProcess {
                 pos_buffer,
                 index_buffer,
-                location: a_pos_loc,
+                vertex_array,
                 is_webgl_1,
                 texture,
                 texture_size: (width, height),
@@ -212,9 +217,7 @@ impl PostProcess {
             gl.bind_texture(glow::TEXTURE_2D, Some(self.texture));
             let u_sampler_loc = gl.get_uniform_location(self.program, "u_sampler").unwrap();
             gl.uniform_1_i32(Some(&u_sampler_loc), 0);
-            gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.pos_buffer));
-            gl.vertex_attrib_pointer_f32(self.location, 2, glow::FLOAT, false, 0, 0);
-            gl.enable_vertex_attrib_array(self.location);
+            self.vertex_array.bind_vertex_array(gl);
 
             gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.index_buffer));
             gl.draw_elements(glow::TRIANGLES, 6, glow::UNSIGNED_BYTE, 0);
