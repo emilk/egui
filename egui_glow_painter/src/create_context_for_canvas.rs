@@ -1,7 +1,5 @@
-
 #[cfg(target_arch = "wasm32")]
 use web_sys::HtmlCanvasElement;
-
 
 /// Create glow context from given canvas.
 /// Automatically choose webgl or webgl2 context.
