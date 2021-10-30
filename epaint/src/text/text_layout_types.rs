@@ -118,6 +118,21 @@ impl LayoutJob {
         }
     }
 
+    #[inline]
+    pub fn single_section(text: String, format: TextFormat) -> Self {
+        Self {
+            sections: vec![LayoutSection {
+                leading_space: 0.0,
+                byte_range: 0..text.len(),
+                format,
+            }],
+            text,
+            wrap_width: f32::INFINITY,
+            break_on_newline: true,
+            ..Default::default()
+        }
+    }
+
     #[inline(always)]
     pub fn is_empty(&self) -> bool {
         self.sections.is_empty()
