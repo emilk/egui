@@ -17,10 +17,10 @@ use std::sync::Arc;
 pub struct Label {
     // TODO: not pub
     pub(crate) text: String,
-    pub(crate) wrap: Option<bool>,
-    pub(crate) text_style: Option<TextStyle>,
-    pub(crate) background_color: Color32,
-    pub(crate) text_color: Option<Color32>,
+    wrap: Option<bool>,
+    text_style: Option<TextStyle>,
+    background_color: Color32,
+    text_color: Option<Color32>,
     code: bool,
     strong: bool,
     weak: bool,
@@ -179,20 +179,20 @@ impl Label {
                 ui.layout().horizontal_justify(),
             )
         };
-        self.layout_impl(ui, 0.0, max_width, 0.0, line_color, halign, justify)
+        let mut job = self.layout_job(ui, 0.0, max_width, line_color);
+        job.halign = halign;
+        job.justify = justify;
+        ui.fonts().layout_job(job)
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn layout_impl(
+    fn layout_job(
         &self,
         ui: &Ui,
         leading_space: f32,
         max_width: f32,
-        first_row_min_height: f32,
         line_color: Color32,
-        halign: Align,
-        justify: bool,
-    ) -> Arc<Galley> {
+    ) -> LayoutJob {
         let text_style = self.text_style_or_default(ui.style());
         let wrap_width = if self.should_wrap(ui) {
             max_width
@@ -237,13 +237,10 @@ impl Label {
                 },
             }],
             wrap_width,
-            first_row_min_height,
-            halign,
-            justify,
             ..Default::default()
         };
 
-        ui.fonts().layout_job(job)
+        job
     }
 
     /// `has_focus`: the item is selected with the keyboard, so highlight with underline.
@@ -307,14 +304,7 @@ impl Label {
     }
 
     fn should_wrap(&self, ui: &Ui) -> bool {
-        self.wrap.or(ui.style().wrap).unwrap_or_else(|| {
-            if let Some(grid) = ui.grid() {
-                grid.wrap_text()
-            } else {
-                let layout = ui.layout();
-                layout.is_vertical() || layout.is_horizontal() && layout.main_wrap()
-            }
-        })
+        self.wrap.unwrap_or_else(|| ui.wrap_text())
     }
 
     /// Do layout and place the galley in the ui, without painting it or adding widget info.
@@ -334,19 +324,12 @@ impl Label {
             let first_row_indentation = max_width - ui.available_size_before_wrap().x;
             egui_assert!(first_row_indentation.is_finite());
 
-            let first_row_min_height = cursor.height();
             let default_color = self.get_text_color(ui, ui.visuals().text_color());
-            let halign = Align::Min;
-            let justify = false;
-            let galley = self.layout_impl(
-                ui,
-                first_row_indentation,
-                max_width,
-                first_row_min_height,
-                default_color,
-                halign,
-                justify,
-            );
+            let mut job = self.layout_job(ui, first_row_indentation, max_width, default_color);
+            job.first_row_min_height = cursor.height();
+            job.halign = Align::Min;
+            job.justify = false;
+            let galley = ui.fonts().layout_job(job);
 
             let pos = pos2(ui.max_rect().left(), ui.cursor().top());
             assert!(!galley.rows.is_empty(), "Galleys are never empty");
