@@ -1,140 +1,30 @@
 #![allow(unsafe_code)]
 
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::{JsCast, JsValue};
+pub mod create_context_for_canvas;
+mod misc_util;
+mod post_process;
+mod shader_version;
 
 use egui::{
     emath::Rect,
     epaint::{Color32, Mesh, Vertex},
 };
 pub use glow::Context;
-use memoffset::offset_of;
 
-use std::convert::TryInto;
+use memoffset::offset_of;
 
 use glow::HasContext;
 
 use std::process::exit;
 
-#[cfg(target_arch = "wasm32")]
-use web_sys::HtmlCanvasElement;
+use crate::misc_util::{
+    as_u8_slice, compile_shader, glow_debug_print, link_program, srgbtexture2d,
+};
+use crate::post_process::PostProcess;
+use crate::shader_version::ShaderVersion;
 
 const VERT_SRC: &str = include_str!("shader/vertex.glsl");
 const FRAG_SRC: &str = include_str!("shader/fragment.glsl");
-/// Create glow context from given canvas.
-/// Automatically choose webgl or webgl2 context.
-/// first try webgl2 falling back to webgl1
-#[cfg(target_arch = "wasm32")]
-pub fn init_glow_context_from_canvas(canvas: &HtmlCanvasElement) -> glow::Context {
-    let ctx = canvas.get_context("webgl2");
-    if let Ok(ctx) = ctx {
-        glow_debug_print("webgl found");
-        if let Some(ctx) = ctx {
-            glow_debug_print("webgl 2 selected");
-            let gl_ctx = ctx.dyn_into::<web_sys::WebGl2RenderingContext>().unwrap();
-            glow::Context::from_webgl2_context(gl_ctx)
-        } else {
-            let ctx = canvas.get_context("webgl");
-            if let Ok(ctx) = ctx {
-                glow_debug_print("falling back to webgl1");
-                if let Some(ctx) = ctx {
-                    glow_debug_print("webgl selected");
-                    let gl_ctx = ctx.dyn_into::<web_sys::WebGlRenderingContext>().unwrap();
-                    glow_debug_print("success");
-                    glow::Context::from_webgl1_context(gl_ctx)
-                } else {
-                    glow_debug_print("tried webgl1 but cant get context");
-                    exit(1)
-                }
-            } else {
-                glow_debug_print("tried webgl1 but cant get context");
-                exit(1)
-            }
-        }
-    } else {
-        glow_debug_print("tried webgl2 but something went wrong");
-        exit(1)
-    }
-}
-#[cfg(not(target_arch = "wasm32"))]
-pub fn init_glow_context_from_canvas<T>(_: T) -> glow::Context {
-    unimplemented!("this is only enabled wasm target")
-}
-fn srgbtexture2d(
-    gl: &glow::Context,
-    compatibility_mode: bool,
-    srgb_support: bool,
-    data: &[u8],
-    w: usize,
-    h: usize,
-) -> glow::Texture {
-    assert_eq!(data.len(), w * h * 4);
-    assert!(w >= 1);
-    assert!(h >= 1);
-    unsafe {
-        let tex = gl.create_texture().unwrap();
-        gl.bind_texture(glow::TEXTURE_2D, Some(tex));
-
-        gl.tex_parameter_i32(
-            glow::TEXTURE_2D,
-            glow::TEXTURE_MAG_FILTER,
-            glow::LINEAR as i32,
-        );
-        gl.tex_parameter_i32(
-            glow::TEXTURE_2D,
-            glow::TEXTURE_MIN_FILTER,
-            glow::LINEAR as i32,
-        );
-        gl.tex_parameter_i32(
-            glow::TEXTURE_2D,
-            glow::TEXTURE_WRAP_S,
-            glow::CLAMP_TO_EDGE as i32,
-        );
-        gl.tex_parameter_i32(
-            glow::TEXTURE_2D,
-            glow::TEXTURE_WRAP_T,
-            glow::CLAMP_TO_EDGE as i32,
-        );
-        if compatibility_mode {
-            glow_debug_print(format!("w : {} h : {}", w as i32, h as i32));
-            let format = if srgb_support {
-                glow::SRGB_ALPHA
-            } else {
-                glow::RGBA
-            };
-            gl.tex_image_2d(
-                glow::TEXTURE_2D,
-                0,
-                format as i32,
-                w as i32,
-                h as i32,
-                0,
-                format,
-                glow::UNSIGNED_BYTE,
-                Some(data),
-            );
-        } else {
-            gl.tex_storage_2d(glow::TEXTURE_2D, 1, glow::SRGB8_ALPHA8, w as i32, h as i32);
-            gl.tex_sub_image_2d(
-                glow::TEXTURE_2D,
-                0,
-                0,
-                0,
-                w as i32,
-                h as i32,
-                glow::RGBA,
-                glow::UNSIGNED_BYTE,
-                glow::PixelUnpackData::Slice(data),
-            );
-        }
-        assert_eq!(gl.get_error(), glow::NO_ERROR, "OpenGL error occurred!");
-        tex
-    }
-}
-
-unsafe fn as_u8_slice<T>(s: &[T]) -> &[u8] {
-    std::slice::from_raw_parts(s.as_ptr().cast::<u8>(), s.len() * std::mem::size_of::<T>())
-}
 
 /// OpenGL painter
 ///
@@ -146,7 +36,7 @@ pub struct Painter {
     u_sampler: glow::UniformLocation,
     egui_texture: Option<glow::Texture>,
     egui_texture_version: Option<u64>,
-    webgl_1_compatibility_mode: bool,
+    is_webgl_1: bool,
     vertex_array: glow::VertexArray,
     srgb_support: bool,
     /// `None` means unallocated (freed) slot.
@@ -173,78 +63,10 @@ struct UserTexture {
     gl_texture: Option<glow::Texture>,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-#[allow(dead_code)]
-enum ShaderVersion {
-    Gl120,
-    Gl140,
-    Es100,
-    Es300,
-}
-
-impl ShaderVersion {
-    fn get(gl: &glow::Context) -> Self {
-        let shading_lang = unsafe { gl.get_parameter_string(glow::SHADING_LANGUAGE_VERSION) };
-        glow_debug_print(&shading_lang);
-        Self::parse(&shading_lang)
-    }
-
-    #[inline]
-    fn parse(glsl_ver: &str) -> Self {
-        let start = glsl_ver.find(|c| char::is_ascii_digit(&c)).unwrap();
-        let es = glsl_ver[..start].contains(" ES ");
-        let ver = glsl_ver[start..].splitn(2, ' ').next().unwrap();
-        let [maj, min]: [u8; 2] = ver
-            .splitn(3, '.')
-            .take(2)
-            .map(|x| x.parse().unwrap_or_default())
-            .collect::<Vec<u8>>()
-            .try_into()
-            .unwrap();
-        if es {
-            if maj >= 3 {
-                Self::Es300
-            } else {
-                Self::Es100
-            }
-        } else if maj > 1 || (maj == 1 && min >= 40) {
-            Self::Gl140
-        } else {
-            Self::Gl120
-        }
-    }
-
-    fn version(&self) -> &'static str {
-        match self {
-            Self::Gl120 => "#version 120\n",
-            Self::Gl140 => "#version 140\n",
-            Self::Es100 => "#version 100\n",
-            Self::Es300 => "#version 300 es\n",
-        }
-    }
-}
-
-#[test]
-fn test_shader_version() {
-    use ShaderVersion::{Es100, Es300, Gl120, Gl140};
-    for (s, v) in [
-        ("1.2 OpenGL foo bar", Gl120),
-        ("3.0", Gl140),
-        ("0.0", Gl120),
-        ("OpenGL ES GLSL 3.00 (WebGL2)", Es300),
-        ("OpenGL ES GLSL 1.00 (WebGL)", Es100),
-        ("OpenGL ES GLSL ES 1.00 foo bar", Es100),
-        ("WebGL GLSL ES 3.00 foo bar", Es300),
-        ("WebGL GLSL ES 3.00", Es300),
-        ("WebGL GLSL ES 1.0 foo bar", Es100),
-    ] {
-        assert_eq!(ShaderVersion::parse(s), v);
-    }
-}
 impl Painter {
     pub fn new(gl: &glow::Context, canvas_dimension: Option<[i32; 2]>) -> Painter {
         let shader_version = ShaderVersion::get(gl);
-        let webgl_1_compatibility_mode = shader_version == ShaderVersion::Es100;
+        let is_webgl_1 = shader_version == ShaderVersion::Es100;
         let header = shader_version.version();
         glow_debug_print(header);
         let mut v_src = header.to_owned();
@@ -353,7 +175,7 @@ impl Painter {
                 u_sampler,
                 egui_texture: None,
                 egui_texture_version: None,
-                webgl_1_compatibility_mode,
+                is_webgl_1,
                 vertex_array,
                 srgb_support,
                 user_textures: Default::default(),
@@ -387,7 +209,7 @@ impl Painter {
             &mut self.egui_texture,
             Some(srgbtexture2d(
                 gl,
-                self.webgl_1_compatibility_mode,
+                self.is_webgl_1,
                 self.srgb_support,
                 &pixels,
                 texture.width,
@@ -668,7 +490,7 @@ impl Painter {
                 let data = std::mem::take(&mut user_texture.data);
                 user_texture.gl_texture = Some(srgbtexture2d(
                     gl,
-                    self.webgl_1_compatibility_mode,
+                    self.is_webgl_1,
                     self.srgb_support,
                     &data,
                     user_texture.size.0,
@@ -764,14 +586,7 @@ impl Drop for Painter {
         );
     }
 }
-#[cfg(target_arch = "wasm32")]
-fn glow_debug_print(s: impl Into<JsValue>) {
-    web_sys::console::log_1(&s.into());
-}
-#[cfg(not(target_arch = "wasm32"))]
-fn glow_debug_print(s: impl std::fmt::Display) {
-    println!("{}", s)
-}
+
 impl epi::TextureAllocator for crate::Painter {
     fn alloc_srgba_premultiplied(
         &mut self,
@@ -785,282 +600,5 @@ impl epi::TextureAllocator for crate::Painter {
 
     fn free(&mut self, id: egui::TextureId) {
         self.free_user_texture(id)
-    }
-}
-
-/// Uses a framebuffer to render everything in linear color space and convert it back to sRGB
-/// in a separate "post processing" step
-struct PostProcess {
-    pos_buffer: glow::Buffer,
-    index_buffer: glow::Buffer,
-    vertex_array: glow::VertexArray,
-    is_webgl_1: bool,
-    texture: glow::Texture,
-    texture_size: (i32, i32),
-    fbo: glow::Framebuffer,
-    program: glow::Program,
-}
-
-impl PostProcess {
-    fn new(
-        gl: &glow::Context,
-        is_webgl_1: bool,
-        width: i32,
-        height: i32,
-    ) -> Result<PostProcess, String> {
-        let fbo = unsafe { gl.create_framebuffer() }?;
-        unsafe {
-            gl.bind_framebuffer(glow::FRAMEBUFFER, Some(fbo));
-        }
-
-        let texture = unsafe { gl.create_texture() }.unwrap();
-        unsafe {
-            gl.bind_texture(glow::TEXTURE_2D, Some(texture));
-        }
-        unsafe {
-            gl.tex_parameter_i32(
-                glow::TEXTURE_2D,
-                glow::TEXTURE_WRAP_S,
-                glow::CLAMP_TO_EDGE as i32,
-            );
-        }
-        unsafe {
-            gl.tex_parameter_i32(
-                glow::TEXTURE_2D,
-                glow::TEXTURE_WRAP_T,
-                glow::CLAMP_TO_EDGE as i32,
-            );
-        }
-        unsafe {
-            gl.tex_parameter_i32(
-                glow::TEXTURE_2D,
-                glow::TEXTURE_MIN_FILTER,
-                glow::NEAREST as i32,
-            );
-        }
-        unsafe {
-            gl.tex_parameter_i32(
-                glow::TEXTURE_2D,
-                glow::TEXTURE_MAG_FILTER,
-                glow::NEAREST as i32,
-            );
-        }
-        unsafe {
-            gl.pixel_store_i32(glow::UNPACK_ALIGNMENT, 1);
-        }
-        let (internal_format, format) = if is_webgl_1 {
-            (glow::SRGB_ALPHA, glow::SRGB_ALPHA)
-        } else {
-            (glow::SRGB8_ALPHA8, glow::RGBA)
-        };
-
-        unsafe {
-            gl.tex_image_2d(
-                glow::TEXTURE_2D,
-                0,
-                internal_format as i32,
-                width,
-                height,
-                0,
-                format,
-                glow::UNSIGNED_BYTE,
-                None,
-            );
-            let error_code = gl.get_error();
-            assert_eq!(
-                error_code,
-                glow::NO_ERROR,
-                "Error occurred in post process texture initialization. code : 0x{:x}",
-                error_code
-            );
-        }
-        unsafe {
-            gl.framebuffer_texture_2d(
-                glow::FRAMEBUFFER,
-                glow::COLOR_ATTACHMENT0,
-                glow::TEXTURE_2D,
-                Some(texture),
-                0,
-            );
-        }
-
-        unsafe { gl.bind_texture(glow::TEXTURE_2D, None) }
-        unsafe { gl.bind_framebuffer(glow::FRAMEBUFFER, None) }
-
-        let vert_shader = compile_shader(
-            gl,
-            glow::VERTEX_SHADER,
-            include_str!("shader/post_vertex_100es.glsl"),
-        )?;
-        let frag_shader = compile_shader(
-            gl,
-            glow::FRAGMENT_SHADER,
-            include_str!("shader/post_fragment_100es.glsl"),
-        )?;
-        let program = link_program(gl, [vert_shader, frag_shader].iter())?;
-        let vertex_array = unsafe { gl.create_vertex_array() }?;
-        unsafe { gl.bind_vertex_array(Some(vertex_array)) }
-
-        let positions = vec![0.0f32, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0];
-
-        let indices = vec![0u8, 1, 2, 1, 2, 3];
-        unsafe {
-            let pos_buffer = gl.create_buffer()?;
-            gl.bind_buffer(glow::ARRAY_BUFFER, Some(pos_buffer));
-            gl.buffer_data_u8_slice(
-                glow::ARRAY_BUFFER,
-                std::slice::from_raw_parts(
-                    positions.as_ptr() as *const u8,
-                    positions.len() * std::mem::size_of::<f32>(),
-                ),
-                glow::STATIC_DRAW,
-            );
-
-            let a_pos_loc = gl
-                .get_attrib_location(program, "a_pos")
-                .ok_or_else(|| "failed to get location of a_pos".to_string())?;
-
-            gl.vertex_attrib_pointer_f32(a_pos_loc, 2, glow::FLOAT, false, 0, 0);
-            gl.enable_vertex_attrib_array(a_pos_loc);
-
-            gl.bind_buffer(glow::ARRAY_BUFFER, None);
-
-            let index_buffer = gl.create_buffer()?;
-            gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(index_buffer));
-            gl.buffer_data_u8_slice(glow::ELEMENT_ARRAY_BUFFER, &indices, glow::STATIC_DRAW);
-
-            gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, None);
-            let error_code = gl.get_error();
-            assert_eq!(
-                error_code,
-                glow::NO_ERROR,
-                "Error occurred in post process initialization. code : 0x{:x}",
-                error_code
-            );
-
-            Ok(PostProcess {
-                pos_buffer,
-                index_buffer,
-                vertex_array,
-                is_webgl_1,
-                texture,
-                texture_size: (width, height),
-                fbo,
-                program,
-            })
-        }
-    }
-
-    fn begin(&mut self, gl: &glow::Context, width: i32, height: i32) {
-        if (width, height) != self.texture_size {
-            unsafe {
-                gl.bind_texture(glow::TEXTURE_2D, Some(self.texture));
-            }
-            unsafe {
-                gl.pixel_store_i32(glow::UNPACK_ALIGNMENT, 1);
-            }
-            let (internal_format, format) = if self.is_webgl_1 {
-                (glow::SRGB_ALPHA, glow::SRGB_ALPHA)
-            } else {
-                (glow::SRGB8_ALPHA8, glow::RGBA)
-            };
-            unsafe {
-                gl.tex_image_2d(
-                    glow::TEXTURE_2D,
-                    0,
-                    internal_format as i32,
-                    width,
-                    height,
-                    0,
-                    format,
-                    glow::UNSIGNED_BYTE,
-                    None,
-                );
-            }
-            unsafe {
-                gl.bind_texture(glow::TEXTURE_2D, None);
-            }
-
-            self.texture_size = (width, height);
-        }
-        unsafe {
-            gl.bind_framebuffer(glow::FRAMEBUFFER, Some(self.fbo));
-            gl.clear_color(0.0, 0.0, 0.0, 0.0);
-            gl.clear(glow::COLOR_BUFFER_BIT);
-        }
-    }
-
-    fn end(&self, gl: &glow::Context) {
-        unsafe {
-            gl.bind_framebuffer(glow::FRAMEBUFFER, None);
-            gl.disable(glow::SCISSOR_TEST);
-
-            gl.use_program(Some(self.program));
-
-            gl.active_texture(glow::TEXTURE0);
-            gl.bind_texture(glow::TEXTURE_2D, Some(self.texture));
-            let u_sampler_loc = gl.get_uniform_location(self.program, "u_sampler").unwrap();
-            gl.uniform_1_i32(Some(&u_sampler_loc), 0);
-
-            gl.bind_vertex_array(Some(self.vertex_array));
-
-            gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.index_buffer));
-            gl.draw_elements(glow::TRIANGLES, 6, glow::UNSIGNED_BYTE, 0);
-
-            gl.bind_texture(glow::TEXTURE_2D, None);
-            gl.bind_vertex_array(None);
-            gl.use_program(None);
-        }
-    }
-    fn destroy(&self, gl: &glow::Context) {
-        unsafe {
-            gl.delete_vertex_array(self.vertex_array);
-            gl.delete_buffer(self.pos_buffer);
-            gl.delete_buffer(self.index_buffer);
-            gl.delete_program(self.program);
-            gl.delete_framebuffer(self.fbo);
-            gl.delete_texture(self.texture);
-        }
-    }
-}
-
-fn compile_shader(
-    gl: &glow::Context,
-    shader_type: u32,
-    source: &str,
-) -> Result<glow::Shader, String> {
-    let shader = unsafe { gl.create_shader(shader_type) }?;
-    unsafe {
-        gl.shader_source(shader, source);
-    }
-    unsafe {
-        gl.compile_shader(shader);
-    }
-
-    if unsafe { gl.get_shader_compile_status(shader) } {
-        Ok(shader)
-    } else {
-        Err(unsafe { gl.get_shader_info_log(shader) })
-    }
-}
-
-fn link_program<'a, T: IntoIterator<Item = &'a glow::Shader>>(
-    gl: &glow::Context,
-    shaders: T,
-) -> Result<glow::Program, String> {
-    let program = unsafe { gl.create_program() }?;
-    unsafe {
-        for shader in shaders {
-            gl.attach_shader(program, *shader)
-        }
-    }
-    unsafe {
-        gl.link_program(program);
-    }
-
-    if unsafe { gl.get_program_link_status(program) } {
-        Ok(program)
-    } else {
-        Err(unsafe { gl.get_program_info_log(program) })
     }
 }
