@@ -221,7 +221,7 @@ impl Label {
             ui.layout().vertical_align()
         };
 
-        let job = LayoutJob {
+        LayoutJob {
             text: self.text.clone(), // TODO: avoid clone
             sections: vec![LayoutSection {
                 leading_space,
@@ -238,9 +238,7 @@ impl Label {
             }],
             wrap_width,
             ..Default::default()
-        };
-
-        job
+        }
     }
 
     /// `has_focus`: the item is selected with the keyboard, so highlight with underline.
