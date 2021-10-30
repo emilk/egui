@@ -42,7 +42,7 @@ pub fn item_ui(ui: &mut Ui, item: easy_mark::Item<'_>) {
             ui.add(label_from_style(text, &style));
         }
         easy_mark::Item::Hyperlink(style, text, url) => {
-            let label = label_from_style(text, &style);
+            let label = label_from_style(text, &style).sense(Sense::click());
             ui.add(Hyperlink::from_label_and_url(label, url));
         }
 
