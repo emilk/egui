@@ -6,10 +6,7 @@ mod post_process;
 mod shader_version;
 mod vao_emulate;
 
-use egui::{
-    emath::Rect,
-    epaint::{Color32, Mesh, Vertex},
-};
+use egui::{emath::Rect, epaint::{Color32, Mesh, Vertex}};
 pub use glow::Context;
 
 use memoffset::offset_of;
@@ -582,5 +579,28 @@ impl epi::TextureAllocator for crate::Painter {
 
     fn free(&mut self, id: egui::TextureId) {
         self.free_user_texture(id)
+    }
+}
+
+#[cfg(feature = "epi")]
+use egui::TextureId;
+#[cfg(feature = "epi")]
+impl epi::NativeTexture for Painter{
+    type Texture = glow::Texture;
+
+    fn register_native_texture(&mut self, native: Self::Texture) -> TextureId {
+        self.register_glow_texture(native)
+    }
+
+    fn replace_native_texture(&mut self, id: TextureId, replacing: Self::Texture) {
+        if let egui::TextureId::User(id) = id {
+            if let Some(Some(user_texture)) = self.user_textures.get_mut(id as usize) {
+                *user_texture = UserTexture {
+                    data: vec![],
+                    gl_texture: Some(replacing),
+                    size: (0, 0)
+                };
+            }
+        }
     }
 }

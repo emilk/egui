@@ -4,7 +4,7 @@ All notable changes to the `egui_web` integration will be noted in this file.
 
 
 ## Unreleased
-
+* use egui_glow_painter as painter . 
 
 ## 0.15.0 - 2021-10-24
 ### Added

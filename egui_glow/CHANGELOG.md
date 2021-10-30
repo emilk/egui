@@ -3,7 +3,7 @@ All notable changes to the `egui_glow` integration will be noted in this file.
 
 
 ## Unreleased
-
+* painter separated to new crate egui_glow_painter that support web and native.
 
 ## 0.15.0 - 2021-10-24
 `egui_glow` has been newly created, with feature parity to `egui_glium`.

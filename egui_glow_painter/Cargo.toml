@@ -2,7 +2,7 @@
 name = "egui_glow_painter"
 version = "0.15.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
-description = "Bindings for using egui natively using the glow library"
+description = "egui painting on web and native"
 edition = "2018"
 homepage = "https://github.com/emilk/egui/tree/master/egui_glow"
 license = "MIT OR Apache-2.0"

@@ -7,7 +7,6 @@ use web_sys::HtmlCanvasElement;
 #[cfg(target_arch = "wasm32")]
 pub fn init_glow_context_from_canvas(canvas: &HtmlCanvasElement) -> glow::Context {
     use crate::glow_debug_print;
-    use std::process::exit;
     use wasm_bindgen::JsCast;
     let ctx = canvas.get_context("webgl2");
     if let Ok(ctx) = ctx {
