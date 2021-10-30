@@ -16,8 +16,6 @@ use memoffset::offset_of;
 
 use glow::HasContext;
 
-use std::process::exit;
-
 use crate::misc_util::{
     as_u8_slice, compile_shader, glow_debug_print, link_program, srgbtexture2d,
 };
@@ -80,14 +78,14 @@ impl Painter {
             (ShaderVersion::Es300, _) | (ShaderVersion::Es100, true) => {
                 glow_debug_print("WebGL with sRGB enabled so turn on post process");
                 let canvas_dimension = canvas_dimension.unwrap();
-                let webgl_1 = shader_version == ShaderVersion::Es100;
                 //Add sRGB support marker for fragment shader
                 f_src.push_str("#define SRGB_SUPPORTED \n");
-                PostProcess::new(gl, webgl_1, canvas_dimension[0], canvas_dimension[1]).ok()
+                //install post process to correct sRGB color
+                PostProcess::new(gl, is_webgl_1, canvas_dimension[0], canvas_dimension[1]).ok()
             }
-            //WebGL1 without sRGBSupport disable postprocess and use fallback shader
+            //WebGL1 without sRGB support disable postprocess and use fallback shader
             (ShaderVersion::Es100, false) => None,
-            //DesktopGL always support sRGB so add sRGB support marker
+            //OpenGL 2.1 or above always support sRGB so add sRGB support marker
             _ => {
                 f_src.push_str("#define SRGB_SUPPORTED \n");
                 None
@@ -134,12 +132,13 @@ impl Painter {
             let a_tc_loc = gl.get_attrib_location(program, "a_tc").unwrap();
             let a_srgba_loc = gl.get_attrib_location(program, "a_srgba").unwrap();
             let mut vertex_array = vao_emulate::EmulatedVao::new(vertex_buffer);
+            let stride = std::mem::size_of::<Vertex>() as i32;
             let position_buffer_info = vao_emulate::BufferInfo {
                 location: a_pos_loc,
                 vector_size: 2,
                 data_type: glow::FLOAT,
                 normalized: false,
-                stride: std::mem::size_of::<Vertex>() as i32,
+                stride,
                 offset: offset_of!(Vertex, pos) as i32,
             };
             let tex_coord_buffer_info = vao_emulate::BufferInfo {
@@ -147,7 +146,7 @@ impl Painter {
                 vector_size: 2,
                 data_type: glow::FLOAT,
                 normalized: false,
-                stride: std::mem::size_of::<Vertex>() as i32,
+                stride,
                 offset: offset_of!(Vertex, uv) as i32,
             };
             let color_buffer_info = vao_emulate::BufferInfo {
@@ -155,7 +154,7 @@ impl Painter {
                 vector_size: 4,
                 data_type: glow::UNSIGNED_BYTE,
                 normalized: false,
-                stride: std::mem::size_of::<Vertex>() as i32,
+                stride,
                 offset: offset_of!(Vertex, color) as i32,
             };
             vertex_array.add_new_attribute(position_buffer_info);
@@ -302,11 +301,7 @@ impl Painter {
         if let Some(ref post_process) = self.post_process {
             post_process.end(gl);
         }
-
-        if glow::NO_ERROR != unsafe { gl.get_error() } {
-            glow_debug_print("GL error occurred!");
-            exit(1);
-        }
+        unsafe { assert_eq!(glow::NO_ERROR, gl.get_error(), "GL error occurred!") }
     }
 
     #[inline(never)] // Easier profiling
@@ -319,11 +314,6 @@ impl Painter {
         mesh: &Mesh,
     ) {
         debug_assert!(mesh.is_valid());
-        #[cfg(debug_assertions)]
-        if !mesh.is_valid() {
-            glow_debug_print("invalid mesh ");
-            exit(1);
-        }
         if let Some(texture) = self.get_texture(mesh.texture_id) {
             unsafe {
                 gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vertex_buffer));
@@ -427,10 +417,11 @@ impl Painter {
         pixels: &[Color32],
     ) {
         self.assert_not_destroyed();
-        if size.0 * size.1 != pixels.len() {
-            glow_debug_print("Mismatch between size and texel count");
-            exit(1);
-        }
+        assert_eq!(
+            size.0 * size.1,
+            pixels.len(),
+            "Mismatch between size and texel count"
+        );
 
         if let egui::TextureId::User(id) = id {
             if let Some(Some(user_texture)) = self.user_textures.get_mut(id as usize) {
@@ -521,10 +512,7 @@ impl Painter {
     /// that should be deleted.
     #[cfg(debug_assertions)]
     pub fn destroy(&mut self, gl: &glow::Context) {
-        if self.destroyed {
-            glow_debug_print("Only destroy egui once!");
-            exit(1);
-        }
+        assert!(!self.destroyed, "Only destroy once!");
         unsafe {
             self.destroy_gl(gl);
             if let Some(ref post_process) = self.post_process {

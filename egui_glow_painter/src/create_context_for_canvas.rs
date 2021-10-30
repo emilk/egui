@@ -26,19 +26,17 @@ pub fn init_glow_context_from_canvas(canvas: &HtmlCanvasElement) -> glow::Contex
                     glow_debug_print("success");
                     glow::Context::from_webgl1_context(gl_ctx)
                 } else {
-                    glow_debug_print("tried webgl1 but cant get context");
-                    exit(1)
+                    panic!("tried webgl1 but can't get context");
                 }
             } else {
-                glow_debug_print("tried webgl1 but cant get context");
-                exit(1)
+                panic!("tried webgl1 but can't get context");
             }
         }
     } else {
-        glow_debug_print("tried webgl2 but something went wrong");
-        exit(1)
+        panic!("tried webgl2 but something went wrong");
     }
 }
+/// dummy for clippy
 #[cfg(not(target_arch = "wasm32"))]
 pub fn init_glow_context_from_canvas<T>(_: T) -> glow::Context {
     unimplemented!("this is only enabled wasm target")
