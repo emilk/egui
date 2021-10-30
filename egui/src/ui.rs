@@ -218,11 +218,6 @@ impl Ui {
         self.enabled
     }
 
-    #[deprecated = "Renamed to is_enabled"]
-    pub fn enabled(&self) -> bool {
-        self.enabled
-    }
-
     /// Calling `set_enabled(false)` will cause the `Ui` to deny all future interaction
     /// and all the widgets will draw with a gray look.
     ///
@@ -381,11 +376,6 @@ impl Ui {
         self.placer.max_rect()
     }
 
-    #[deprecated = "Use .max_rect() instead"]
-    pub fn max_rect_finite(&self) -> Rect {
-        self.max_rect()
-    }
-
     /// Used for animation, kind of hacky
     pub(crate) fn force_set_min_rect(&mut self, min_rect: Rect) {
         self.placer.force_set_min_rect(min_rect);
@@ -514,18 +504,8 @@ impl Ui {
         self.placer.available_rect_before_wrap().size()
     }
 
-    #[deprecated = "Use .available_size_before_wrap() instead"]
-    pub fn available_size_before_wrap_finite(&self) -> Vec2 {
-        self.available_size_before_wrap()
-    }
-
     pub fn available_rect_before_wrap(&self) -> Rect {
         self.placer.available_rect_before_wrap()
-    }
-
-    #[deprecated = "Use .available_rect_before_wrap() instead"]
-    pub fn available_rect_before_wrap_finite(&self) -> Rect {
-        self.available_rect_before_wrap()
     }
 }
 
