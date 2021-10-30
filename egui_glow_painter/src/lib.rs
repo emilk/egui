@@ -4,6 +4,7 @@ pub mod create_context_for_canvas;
 mod misc_util;
 mod post_process;
 mod shader_version;
+mod vao_emulate;
 
 use egui::{
     emath::Rect,
@@ -37,7 +38,7 @@ pub struct Painter {
     egui_texture: Option<glow::Texture>,
     egui_texture_version: Option<u64>,
     is_webgl_1: bool,
-    vertex_array: glow::VertexArray,
+    vertex_array: vao_emulate::EmulatedVao,
     srgb_support: bool,
     /// `None` means unallocated (freed) slot.
     user_textures: Vec<Option<UserTexture>>,
@@ -83,6 +84,7 @@ impl Painter {
                 //Add sRGB support marker for fragment shader
                 f_src.push_str("#define SRGB_SUPPORTED \n");
                 PostProcess::new(gl, webgl_1, canvas_dimension[0], canvas_dimension[1]).ok()
+                // None
             }
             //WebGL1 without sRGBSupport disable postprocess and use fallback shader
             (ShaderVersion::Es100, false) => None,
@@ -124,49 +126,42 @@ impl Painter {
             gl.detach_shader(program, f);
             gl.delete_shader(v);
             gl.delete_shader(f);
-
             let u_screen_size = gl.get_uniform_location(program, "u_screen_size").unwrap();
             let u_sampler = gl.get_uniform_location(program, "u_sampler").unwrap();
-
-            let vertex_array = gl.create_vertex_array().unwrap();
             let vertex_buffer = gl.create_buffer().unwrap();
             let element_array_buffer = gl.create_buffer().unwrap();
-
-            gl.bind_vertex_array(Some(vertex_array));
             gl.bind_buffer(glow::ARRAY_BUFFER, Some(vertex_buffer));
-
             let a_pos_loc = gl.get_attrib_location(program, "a_pos").unwrap();
             let a_tc_loc = gl.get_attrib_location(program, "a_tc").unwrap();
             let a_srgba_loc = gl.get_attrib_location(program, "a_srgba").unwrap();
-
-            gl.vertex_attrib_pointer_f32(
-                a_pos_loc,
-                2,
-                glow::FLOAT,
-                false,
-                std::mem::size_of::<Vertex>() as i32,
-                offset_of!(Vertex, pos) as i32,
-            );
-            gl.enable_vertex_attrib_array(a_pos_loc);
-            gl.vertex_attrib_pointer_f32(
-                a_tc_loc,
-                2,
-                glow::FLOAT,
-                false,
-                std::mem::size_of::<Vertex>() as i32,
-                offset_of!(Vertex, uv) as i32,
-            );
-            gl.enable_vertex_attrib_array(a_tc_loc);
-
-            gl.vertex_attrib_pointer_f32(
-                a_srgba_loc,
-                4,
-                glow::UNSIGNED_BYTE,
-                false,
-                std::mem::size_of::<Vertex>() as i32,
-                offset_of!(Vertex, color) as i32,
-            );
-            gl.enable_vertex_attrib_array(a_srgba_loc);
+            let mut vertex_array = vao_emulate::EmulatedVao::new(vertex_buffer);
+            let position_buffer_info = vao_emulate::BufferInfo {
+                location: a_pos_loc,
+                vector_size: 2,
+                data_type: glow::FLOAT,
+                normalized: false,
+                stride: std::mem::size_of::<Vertex>() as i32,
+                offset: offset_of!(Vertex, pos) as i32,
+            };
+            let tex_coord_buffer_info = vao_emulate::BufferInfo {
+                location: a_tc_loc,
+                vector_size: 2,
+                data_type: glow::FLOAT,
+                normalized: false,
+                stride: std::mem::size_of::<Vertex>() as i32,
+                offset: offset_of!(Vertex, uv) as i32,
+            };
+            let color_buffer_info = vao_emulate::BufferInfo {
+                location: a_srgba_loc,
+                vector_size: 4,
+                data_type: glow::UNSIGNED_BYTE,
+                normalized: false,
+                stride: std::mem::size_of::<Vertex>() as i32,
+                offset: offset_of!(Vertex, color) as i32,
+            };
+            vertex_array.add_new_attribute(position_buffer_info);
+            vertex_array.add_new_attribute(tex_coord_buffer_info);
+            vertex_array.add_new_attribute(color_buffer_info);
             assert_eq!(gl.get_error(), glow::NO_ERROR, "OpenGL error occurred!");
 
             Painter {
@@ -258,8 +253,8 @@ impl Painter {
         gl.uniform_2_f32(Some(&self.u_screen_size), width_in_points, height_in_points);
         gl.uniform_1_i32(Some(&self.u_sampler), 0);
         gl.active_texture(glow::TEXTURE0);
-        gl.bind_vertex_array(Some(self.vertex_array));
-        gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vertex_buffer));
+        self.vertex_array.bind_vertex_array(gl);
+
         gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.element_array_buffer));
 
         (width_in_pixels, height_in_pixels)
@@ -333,12 +328,12 @@ impl Painter {
         if let Some(texture) = self.get_texture(mesh.texture_id) {
             unsafe {
                 gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vertex_buffer));
-
                 gl.buffer_data_u8_slice(
                     glow::ARRAY_BUFFER,
                     as_u8_slice(mesh.vertices.as_slice()),
                     glow::STREAM_DRAW,
                 );
+
                 gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.element_array_buffer));
                 gl.buffer_data_u8_slice(
                     glow::ELEMENT_ARRAY_BUFFER,

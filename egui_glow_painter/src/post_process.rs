@@ -6,7 +6,7 @@ use glow::HasContext;
 pub(crate) struct PostProcess {
     pos_buffer: glow::Buffer,
     index_buffer: glow::Buffer,
-    vertex_array: glow::VertexArray,
+    location: u32,
     is_webgl_1: bool,
     texture: glow::Texture,
     texture_size: (i32, i32),
@@ -111,8 +111,6 @@ impl PostProcess {
             include_str!("shader/post_fragment_100es.glsl"),
         )?;
         let program = link_program(gl, [vert_shader, frag_shader].iter())?;
-        let vertex_array = unsafe { gl.create_vertex_array() }?;
-        unsafe { gl.bind_vertex_array(Some(vertex_array)) }
 
         let positions = vec![0.0f32, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0];
 
@@ -154,7 +152,7 @@ impl PostProcess {
             Ok(PostProcess {
                 pos_buffer,
                 index_buffer,
-                vertex_array,
+                location: a_pos_loc,
                 is_webgl_1,
                 texture,
                 texture_size: (width, height),
@@ -214,20 +212,19 @@ impl PostProcess {
             gl.bind_texture(glow::TEXTURE_2D, Some(self.texture));
             let u_sampler_loc = gl.get_uniform_location(self.program, "u_sampler").unwrap();
             gl.uniform_1_i32(Some(&u_sampler_loc), 0);
-
-            gl.bind_vertex_array(Some(self.vertex_array));
+            gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.pos_buffer));
+            gl.vertex_attrib_pointer_f32(self.location, 2, glow::FLOAT, false, 0, 0);
+            gl.enable_vertex_attrib_array(self.location);
 
             gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.index_buffer));
             gl.draw_elements(glow::TRIANGLES, 6, glow::UNSIGNED_BYTE, 0);
 
             gl.bind_texture(glow::TEXTURE_2D, None);
-            gl.bind_vertex_array(None);
             gl.use_program(None);
         }
     }
     pub(crate) fn destroy(&self, gl: &glow::Context) {
         unsafe {
-            gl.delete_vertex_array(self.vertex_array);
             gl.delete_buffer(self.pos_buffer);
             gl.delete_buffer(self.index_buffer);
             gl.delete_program(self.program);
