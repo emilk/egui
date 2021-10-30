@@ -225,11 +225,6 @@ impl<'open> Window<'open> {
         self
     }
 
-    #[deprecated = "Use .vscroll(…) instead"]
-    pub fn scroll(self, scroll: bool) -> Self {
-        self.vscroll(scroll)
-    }
-
     /// Constrain the area up to which the window can be dragged.
     pub fn drag_bounds(mut self, bounds: Rect) -> Self {
         self.area = self.area.drag_bounds(bounds);

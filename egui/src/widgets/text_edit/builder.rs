@@ -190,11 +190,6 @@ impl<'t> TextEdit<'t> {
         self
     }
 
-    #[deprecated = "Use TextEdit::interactive or ui.add_enabled instead"]
-    pub fn enabled(self, enabled: bool) -> Self {
-        self.interactive(enabled)
-    }
-
     /// Default is `true`. If set to `false` there will be no frame showing that this is editable text!
     pub fn frame(mut self, frame: bool) -> Self {
         self.frame = frame;

@@ -114,18 +114,6 @@ impl ScrollArea {
         }
     }
 
-    /// Will make the area be as high as it is allowed to be (i.e. fill the [`Ui`] it is in)
-    #[deprecated = "Use pub ScrollArea::vertical() instead"]
-    pub fn auto_sized() -> Self {
-        Self::vertical()
-    }
-
-    /// Use `f32::INFINITY` if you want the scroll area to expand to fit the surrounding Ui
-    #[deprecated = "Use pub ScrollArea::vertical().max_height(…) instead"]
-    pub fn from_max_height(max_height: f32) -> Self {
-        Self::vertical().max_height(max_height)
-    }
-
     /// The maximum width of the outer frame of the scroll area.
     ///
     /// Use `f32::INFINITY` if you want the scroll area to expand to fit the surrounding `Ui` (default).

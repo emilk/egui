@@ -244,13 +244,6 @@ impl Painter {
         id
     }
 
-    #[cfg(feature = "epi")]
-    #[deprecated = "Use: `NativeTexture::register_native_texture` instead"]
-    pub fn register_glium_texture(&mut self, texture: Rc<SrgbTexture2d>) -> egui::TextureId {
-        use epi::NativeTexture as _;
-        self.register_native_texture(texture)
-    }
-
     pub fn set_user_texture(
         &mut self,
         id: egui::TextureId,
