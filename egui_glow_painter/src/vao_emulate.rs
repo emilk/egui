@@ -11,33 +11,44 @@ pub(crate) struct BufferInfo {
 pub struct EmulatedVao {
     buffer: glow::Buffer,
     buffer_infos: Vec<BufferInfo>,
+    taught: bool,
 }
 impl EmulatedVao {
     pub(crate) fn new(buffer: glow::Buffer) -> Self {
         Self {
             buffer,
             buffer_infos: vec![],
+            taught: false,
         }
     }
     pub(crate) fn add_new_attribute(&mut self, buffer_info: BufferInfo) {
         self.buffer_infos.push(buffer_info);
     }
     pub(crate) fn bind_vertex_array(&self, gl: &glow::Context) {
+        unsafe {
+            gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.buffer));
+        }
         for attribute in self.buffer_infos.iter() {
             unsafe {
-                gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.buffer));
+                if !self.taught {
+                    gl.vertex_attrib_pointer_f32(
+                        attribute.location,
+                        attribute.vector_size,
+                        attribute.data_type,
+                        attribute.normalized,
+                        attribute.stride,
+                        attribute.offset,
+                    );
+                }
+                gl.enable_vertex_attrib_array(attribute.location)
             }
+        }
+    }
+    pub(crate) fn unbind_vertex_array(&self, gl: &glow::Context) {
+        for attribute in self.buffer_infos.iter() {
             unsafe {
-                gl.vertex_attrib_pointer_f32(
-                    attribute.location,
-                    attribute.vector_size,
-                    attribute.data_type,
-                    attribute.normalized,
-                    attribute.stride,
-                    attribute.offset,
-                );
+                gl.disable_vertex_attrib_array(attribute.location);
             }
-            unsafe { gl.enable_vertex_attrib_array(attribute.location) }
         }
     }
 }

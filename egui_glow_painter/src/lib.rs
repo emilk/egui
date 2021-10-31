@@ -298,6 +298,7 @@ impl Painter {
         for egui::ClippedMesh(clip_rect, mesh) in clipped_meshes {
             self.paint_mesh(gl, size_in_pixels, pixels_per_point, clip_rect, &mesh)
         }
+        self.vertex_array.unbind_vertex_array(gl);
         if let Some(ref post_process) = self.post_process {
             post_process.end(gl);
         }
