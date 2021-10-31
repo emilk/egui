@@ -158,7 +158,7 @@ impl CollapsingHeader {
     /// but if it changes or there are several `CollapsingHeader` with the same title
     /// you need to provide a unique id source with [`Self::id_source`].
     pub fn new(text: impl Into<WidgetText>) -> Self {
-        let text = text.into().wrap(false);
+        let text = text.into();
         let id_source = Id::new(text.text());
         Self {
             text,
@@ -268,7 +268,8 @@ impl CollapsingHeader {
         let available = ui.available_rect_before_wrap();
         let text_pos = available.min + vec2(ui.spacing().indent, 0.0);
         let wrap_width = available.right() - text_pos.x;
-        let text = text.layout(ui, wrap_width, TextStyle::Button);
+        let wrap = Some(false);
+        let text = text.layout(ui, wrap, wrap_width, TextStyle::Button);
         let text_max_x = text_pos.x + text.size().x;
 
         let mut desired_width = text_max_x + button_padding.x - available.left();

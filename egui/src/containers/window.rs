@@ -38,10 +38,7 @@ impl<'open> Window<'open> {
     /// This is true even if you disable the title bar with `.title_bar(false)`.
     /// If you need a changing title, you must call `window.id(…)` with a fixed id.
     pub fn new(title: impl Into<WidgetText>) -> Self {
-        let title = title
-            .into()
-            .fallback_text_style(TextStyle::Heading)
-            .wrap(false);
+        let title = title.into().fallback_text_style(TextStyle::Heading);
         let area = Area::new(title.text());
         Self {
             title,
@@ -782,7 +779,7 @@ fn show_title_bar(
             collapsing_header::paint_icon(ui, openness, &collapse_button_response);
         }
 
-        let title_galley = title.layout(ui, f32::INFINITY, TextStyle::Heading);
+        let title_galley = title.layout(ui, Some(false), f32::INFINITY, TextStyle::Heading);
 
         let minimum_width = if collapsible || show_close_button {
             // If at least one button is shown we make room for both buttons (since title is centered):

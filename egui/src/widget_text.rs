@@ -9,7 +9,6 @@ use crate::{style::WidgetVisuals, text::LayoutJob, Color32, Galley, Pos2, TextSt
 #[derive(Default)]
 pub struct RichText {
     text: String,
-    wrap: Option<bool>,
     text_style: Option<TextStyle>,
     background_color: Color32,
     text_color: Option<Color32>,
@@ -29,19 +28,6 @@ impl RichText {
             text: text.into(),
             ..Default::default()
         }
-    }
-
-    /// If `true`, the text will wrap at the `max_width`.
-    ///
-    /// By default [`Self::wrap`] will be true in vertical layouts
-    /// and horizontal layouts with wrapping,
-    /// and false on non-wrapping horizontal layouts.
-    ///
-    /// Note that any `\n` in the text will always produce a new line.
-    #[inline]
-    pub fn wrap(mut self, wrap: bool) -> Self {
-        self.wrap = Some(wrap);
-        self
     }
 
     #[inline]
@@ -163,17 +149,11 @@ impl RichText {
         fonts.row_height(text_style)
     }
 
-    pub fn layout_job(
-        self,
-        ui: &Ui,
-        wrap_width: f32,
-        default_text_style: TextStyle,
-    ) -> WidgetTextJob {
+    fn layout_job(self, ui: &Ui, wrap_width: f32, default_text_style: TextStyle) -> WidgetTextJob {
         let text_color = self.get_text_color(ui);
 
         let Self {
             text,
-            wrap,
             text_style,
             background_color,
             text_color: _, // already used by `get_text_color`
@@ -189,9 +169,6 @@ impl RichText {
         let job_has_color = text_color.is_some();
         let line_color = text_color.unwrap_or_else(|| ui.visuals().text_color());
         let text_color = text_color.unwrap_or(crate::Color32::TEMPORARY_COLOR);
-
-        let wrap = wrap.unwrap_or_else(|| ui.wrap_text());
-        let wrap_width = if wrap { wrap_width } else { f32::INFINITY };
 
         let text_style = text_style
             .or(ui.style().override_text_style)
@@ -230,7 +207,6 @@ impl RichText {
 
         let mut job = LayoutJob::single_section(text, text_format);
         job.wrap_width = wrap_width;
-
         WidgetTextJob { job, job_has_color }
     }
 
@@ -308,15 +284,6 @@ impl WidgetText {
         }
     }
 
-    /// Override text wrapping behavior if, and only if, this is a [`RichText`].
-    #[inline]
-    pub fn wrap(self, wrap: bool) -> Self {
-        match self {
-            Self::RichText(text) => Self::RichText(text.wrap(wrap)),
-            Self::LayoutJob(_) | Self::Galley(_) => self,
-        }
-    }
-
     pub fn font_height(&self, fonts: &epaint::text::Fonts, style: &crate::Style) -> f32 {
         match self {
             Self::RichText(text) => text.font_height(fonts, style),
@@ -331,12 +298,17 @@ impl WidgetText {
         }
     }
 
+    /// wrap: override for [`Ui::wrap_text`].
     pub fn layout(
         self,
         ui: &Ui,
-        wrap_width: f32,
+        wrap: Option<bool>,
+        available_width: f32,
         default_text_style: TextStyle,
     ) -> WidgetTextGalley {
+        let wrap = wrap.unwrap_or_else(|| ui.wrap_text());
+        let wrap_width = if wrap { available_width } else { f32::INFINITY };
+
         match self {
             Self::RichText(text) => text.layout(ui, wrap_width, default_text_style),
             Self::LayoutJob(mut job) => {

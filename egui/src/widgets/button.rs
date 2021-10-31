@@ -20,6 +20,7 @@ use crate::*;
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Button {
     text: WidgetText,
+    wrap: Option<bool>,
     /// None means default for interact
     fill: Option<Color32>,
     stroke: Option<Stroke>,
@@ -33,6 +34,7 @@ impl Button {
     pub fn new(text: impl Into<WidgetText>) -> Self {
         Self {
             text: text.into(),
+            wrap: None,
             fill: None,
             stroke: None,
             sense: Sense::click(),
@@ -40,6 +42,19 @@ impl Button {
             frame: None,
             min_size: Vec2::ZERO,
         }
+    }
+
+    /// If `true`, the text will wrap to stay within the max width of the `Ui`.
+    ///
+    /// By default [`Self::wrap`] will be true in vertical layouts
+    /// and horizontal layouts with wrapping,
+    /// and false on non-wrapping horizontal layouts.
+    ///
+    /// Note that any `\n` in the text will always produce a new line.
+    #[inline]
+    pub fn wrap(mut self, wrap: bool) -> Self {
+        self.wrap = Some(wrap);
+        self
     }
 
     #[deprecated = "Replaced by: Button::new(RichText::new(text).color(…))"]
@@ -90,12 +105,6 @@ impl Button {
         self
     }
 
-    #[deprecated = "Replaced by: Button::new(RichText::new(text).wrap(…))"]
-    pub fn wrap(mut self, wrap: bool) -> Self {
-        self.text = self.text.wrap(wrap);
-        self
-    }
-
     pub(crate) fn min_size(mut self, min_size: Vec2) -> Self {
         self.min_size = min_size;
         self
@@ -106,6 +115,7 @@ impl Widget for Button {
     fn ui(self, ui: &mut Ui) -> Response {
         let Button {
             text,
+            wrap,
             fill,
             stroke,
             sense,
@@ -123,7 +133,7 @@ impl Widget for Button {
         let total_extra = button_padding + button_padding;
 
         let wrap_width = ui.available_width() - total_extra.x;
-        let text = text.layout(ui, wrap_width, TextStyle::Button);
+        let text = text.layout(ui, wrap, wrap_width, TextStyle::Button);
 
         let mut desired_size = text.size() + 2.0 * button_padding;
         if !small {
@@ -211,7 +221,7 @@ impl<'a> Widget for Checkbox<'a> {
         let total_extra = button_padding + vec2(icon_width + icon_spacing, 0.0) + button_padding;
 
         let wrap_width = ui.available_width() - total_extra.x;
-        let text = text.layout(ui, wrap_width, TextStyle::Button);
+        let text = text.layout(ui, None, wrap_width, TextStyle::Button);
 
         let mut desired_size = total_extra + text.size();
         desired_size = desired_size.at_least(spacing.interact_size);
@@ -312,7 +322,7 @@ impl Widget for RadioButton {
         let total_extra = button_padding + vec2(icon_width + icon_spacing, 0.0) + button_padding;
 
         let wrap_width = ui.available_width() - total_extra.x;
-        let text = text.layout(ui, wrap_width, TextStyle::Button);
+        let text = text.layout(ui, None, wrap_width, TextStyle::Button);
 
         let mut desired_size = total_extra + text.size();
         desired_size = desired_size.at_least(ui.spacing().interact_size);

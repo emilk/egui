@@ -55,12 +55,14 @@ impl Label {
         &self.text
     }
 
-    /// If `true`, the text will wrap at the `max_width`.
+    /// If `true`, the text will wrap to stay within the max width of the `Ui`.
+    ///
     /// By default [`Self::wrap`] will be true in vertical layouts
     /// and horizontal layouts with wrapping,
     /// and false on non-wrapping horizontal layouts.
     ///
-    /// Note that any `\n` in the text label will always produce a new line.
+    /// Note that any `\n` in the text will always produce a new line.
+    #[inline]
     pub fn wrap(mut self, wrap: bool) -> Self {
         self.wrap = Some(wrap);
         self
