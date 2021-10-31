@@ -283,6 +283,7 @@ impl Ui {
     }
 
     /// Should text wrap in this `Ui`?
+    ///
     /// This is determined first by [`Style::wrap`], and then by the layout of this `Ui`.
     pub fn wrap_text(&self) -> bool {
         if let Some(wrap) = self.style.wrap {

@@ -255,13 +255,26 @@ impl RichText {
 
 /// This is how you specify text for a widget.
 ///
-/// Often this is just a simple [`String`],
+/// A lot of widgets use `impl Into<WidgetText>` as an argument,
+/// allowing you to pass in [`String`], [`RichText`], [`LayoutJob`], and more.
+///
+/// Often a [`WidgetText`] is just a simple [`String`],
 /// but it can be a [`RichText`] (text with color, style, etc),
 /// a [`LayoutJob`] (for when you want full control of how the text looks)
 /// or text that has already been layed out in a [`Galley`].
 pub enum WidgetText {
     RichText(RichText),
+    /// Use this [`LayoutJob`] when laying out the text.
+    ///
+    /// Only [`LayoutJob::text`] and [`LayoutJob::sections`] are guaranteed to be respected.
+    ///
+    /// [`LayoutJob::wrap_width`], [`LayoutJob::halign`], [`LayoutJob::justify`]
+    /// and [`LayoutJob::first_row_min_height`] will likely be determined by the [`crate::Layout`]
+    /// of the [`Ui`] the widget is placed in.
+    /// If you want all parts of the `LayoutJob` respected, then convert it to a
+    /// [`Galley`] and use [`Self::Galley`] instead.
     LayoutJob(LayoutJob),
+    /// Use exactly this galley when painting the text.
     Galley(Arc<Galley>),
 }
 

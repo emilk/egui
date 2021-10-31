@@ -121,7 +121,7 @@ impl EguiGlium {
         &self.egui_ctx
     }
 
-    /// useful for calling e.g. [`crate::Painter::register_glium_texture`].
+    /// useful for calling e.g. [`crate::Painter::alloc_user_texture`].
     pub fn painter_mut(&mut self) -> &mut crate::Painter {
         &mut self.painter
     }

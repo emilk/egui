@@ -37,6 +37,9 @@ use emath::*;
 ///     },
 /// );
 /// ```
+///
+/// As you can see, constructing a `LayoutJob` is currently a lot of work.
+/// It would be nice to have a helper macro for it!
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct LayoutJob {
