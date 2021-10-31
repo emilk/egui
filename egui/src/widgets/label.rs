@@ -147,6 +147,21 @@ impl Label {
 impl Label {
     /// Do layout and position the galley in the ui, without painting it or adding widget info.
     pub fn layout_in_ui(self, ui: &mut Ui) -> (Pos2, WidgetTextGalley, Response) {
+        if let WidgetText::Galley(galley) = self.text {
+            // If the user said "use this specific galley", then just use it:
+            let (rect, response) = ui.allocate_exact_size(galley.size(), self.sense);
+            let pos = match galley.job.halign {
+                Align::LEFT => rect.left_top(),
+                Align::Center => rect.center_top(),
+                Align::RIGHT => rect.right_top(),
+            };
+            let text_galley = WidgetTextGalley {
+                galley,
+                galley_has_color: true,
+            };
+            return (pos, text_galley, response);
+        }
+
         let valign = ui.layout().vertical_align();
         let mut text_job = self.text.into_text_job(ui.style(), TextStyle::Body, valign);
 
