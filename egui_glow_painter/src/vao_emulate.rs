@@ -50,5 +50,8 @@ impl EmulatedVao {
                 gl.disable_vertex_attrib_array(attribute.location);
             }
         }
+        unsafe {
+            gl.bind_buffer(glow::ARRAY_BUFFER, None);
+        }
     }
 }

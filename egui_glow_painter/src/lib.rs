@@ -269,8 +269,7 @@ impl Painter {
     ///
     /// The scissor area and blend parameters will be changed.
     ///
-    /// As well as this, the following objects will be rebound:
-    /// - Vertex Array
+    /// As well as this, the following objects will be unset:
     /// - Vertex Buffer
     /// - Element Buffer
     /// - Texture (and active texture will be set to 0)
@@ -299,6 +298,9 @@ impl Painter {
             self.paint_mesh(gl, size_in_pixels, pixels_per_point, clip_rect, &mesh)
         }
         self.vertex_array.unbind_vertex_array(gl);
+        unsafe {
+            gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, None);
+        }
         if let Some(ref post_process) = self.post_process {
             post_process.end(gl);
         }
