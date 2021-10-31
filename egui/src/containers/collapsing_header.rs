@@ -269,7 +269,7 @@ impl CollapsingHeader {
         let text_pos = available.min + vec2(ui.spacing().indent, 0.0);
         let wrap_width = available.right() - text_pos.x;
         let wrap = Some(false);
-        let text = text.layout(ui, wrap, wrap_width, TextStyle::Button);
+        let text = text.into_galley(ui, wrap, wrap_width, TextStyle::Button);
         let text_max_x = text_pos.x + text.size().x;
 
         let mut desired_width = text_max_x + button_padding.x - available.left();

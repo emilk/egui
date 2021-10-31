@@ -49,7 +49,7 @@ impl Widget for SelectableLabel {
         let total_extra = button_padding + button_padding;
 
         let wrap_width = ui.available_width() - total_extra.x;
-        let text = text.layout(ui, None, wrap_width, TextStyle::Button);
+        let text = text.into_galley(ui, None, wrap_width, TextStyle::Button);
 
         let mut desired_size = total_extra + text.size();
         desired_size.y = desired_size.y.at_least(ui.spacing().interact_size.y);

@@ -133,7 +133,7 @@ impl Widget for Button {
         let total_extra = button_padding + button_padding;
 
         let wrap_width = ui.available_width() - total_extra.x;
-        let text = text.layout(ui, wrap, wrap_width, TextStyle::Button);
+        let text = text.into_galley(ui, wrap, wrap_width, TextStyle::Button);
 
         let mut desired_size = text.size() + 2.0 * button_padding;
         if !small {
@@ -221,7 +221,7 @@ impl<'a> Widget for Checkbox<'a> {
         let total_extra = button_padding + vec2(icon_width + icon_spacing, 0.0) + button_padding;
 
         let wrap_width = ui.available_width() - total_extra.x;
-        let text = text.layout(ui, None, wrap_width, TextStyle::Button);
+        let text = text.into_galley(ui, None, wrap_width, TextStyle::Button);
 
         let mut desired_size = total_extra + text.size();
         desired_size = desired_size.at_least(spacing.interact_size);
@@ -322,7 +322,7 @@ impl Widget for RadioButton {
         let total_extra = button_padding + vec2(icon_width + icon_spacing, 0.0) + button_padding;
 
         let wrap_width = ui.available_width() - total_extra.x;
-        let text = text.layout(ui, None, wrap_width, TextStyle::Button);
+        let text = text.into_galley(ui, None, wrap_width, TextStyle::Button);
 
         let mut desired_size = total_extra + text.size();
         desired_size = desired_size.at_least(ui.spacing().interact_size);

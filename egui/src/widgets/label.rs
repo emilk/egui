@@ -1,7 +1,4 @@
-use crate::{
-    widget_text::{WidgetTextGalley, WidgetTextJob},
-    *,
-};
+use crate::{widget_text::WidgetTextGalley, *};
 
 /// Static text.
 ///
@@ -148,43 +145,85 @@ impl Label {
 }
 
 impl Label {
-    fn layout(self, ui: &Ui) -> WidgetTextJob {
+    /// Do layout and position the galley in the ui, without painting it or adding widget info.
+    pub fn layout_in_ui(self, ui: &mut Ui) -> (Pos2, WidgetTextGalley, Response) {
+        let valign = ui.layout().vertical_align();
+        let mut text_job = self.text.into_text_job(ui.style(), TextStyle::Body, valign);
+
+        let should_wrap = self.wrap.unwrap_or_else(|| ui.wrap_text());
         let available_width = ui.available_width();
-        let (halign, justify) = if ui.is_grid() {
-            (Align::LEFT, false) // TODO: remove special Grid hacks like these
+
+        if should_wrap
+            && ui.layout().main_dir() == Direction::LeftToRight
+            && ui.layout().main_wrap()
+            && available_width.is_finite()
+        {
+            // On a wrapping horizontal layout we want text to start after the previous widget,
+            // then continue on the line below! This will take some extra work:
+
+            let cursor = ui.cursor();
+            let first_row_indentation = available_width - ui.available_size_before_wrap().x;
+            egui_assert!(first_row_indentation.is_finite());
+
+            text_job.job.wrap_width = available_width;
+            text_job.job.first_row_min_height = cursor.height();
+            text_job.job.halign = Align::Min;
+            text_job.job.justify = false;
+            if let Some(first_section) = text_job.job.sections.first_mut() {
+                first_section.leading_space = first_row_indentation;
+            }
+            let text_galley = text_job.into_galley(ui.fonts());
+
+            let pos = pos2(ui.max_rect().left(), ui.cursor().top());
+            assert!(
+                !text_galley.galley.rows.is_empty(),
+                "Galleys are never empty"
+            );
+            // collect a response from many rows:
+            let rect = text_galley.galley.rows[0]
+                .rect
+                .translate(vec2(pos.x, pos.y));
+            let mut response = ui.allocate_rect(rect, self.sense);
+            for row in text_galley.galley.rows.iter().skip(1) {
+                let rect = row.rect.translate(vec2(pos.x, pos.y));
+                response |= ui.allocate_rect(rect, self.sense);
+            }
+            (pos, text_galley, response)
         } else {
-            (
-                ui.layout().horizontal_placement(),
-                ui.layout().horizontal_justify(),
-            )
-        };
-        let mut text_job = self.layout_job(ui, 0.0, available_width);
-        text_job.job.halign = halign;
-        text_job.job.justify = justify;
-        text_job
-    }
+            if should_wrap {
+                text_job.job.wrap_width = available_width;
+            } else {
+                text_job.job.wrap_width = f32::INFINITY;
+            };
 
-    #[allow(clippy::too_many_arguments)]
-    fn layout_job(self, ui: &Ui, leading_space: f32, available_width: f32) -> WidgetTextJob {
-        let mut text_job = self
-            .text
-            .layout_job(ui, self.wrap, available_width, TextStyle::Body);
-        if let Some(first_section) = text_job.job.sections.first_mut() {
-            first_section.leading_space = leading_space;
+            if ui.is_grid() {
+                // TODO: remove special Grid hacks like these
+                text_job.job.halign = Align::LEFT;
+                text_job.job.justify = false;
+            } else {
+                text_job.job.halign = ui.layout().horizontal_placement();
+                text_job.job.justify = ui.layout().horizontal_justify();
+            };
+
+            let text_galley = text_job.into_galley(ui.fonts());
+            let (rect, response) = ui.allocate_exact_size(text_galley.size(), self.sense);
+            let pos = match text_galley.galley.job.halign {
+                Align::LEFT => rect.left_top(),
+                Align::Center => rect.center_top(),
+                Align::RIGHT => rect.right_top(),
+            };
+            (pos, text_galley, response)
         }
-        text_job
     }
+}
 
-    /// `has_focus`: the item is selected with the keyboard, so highlight with underline.
-    /// `response_color`: Unless we have a special color set, use this.
-    fn paint_galley(
-        ui: &mut Ui,
-        pos: Pos2,
-        text_galley: WidgetTextGalley,
-        has_focus: bool,
-        response_color: Color32,
-    ) {
-        let underline = if has_focus {
+impl Widget for Label {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let (pos, text_galley, response) = self.layout_in_ui(ui);
+        response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, text_galley.text()));
+        let response_color = ui.style().interact(&response).text_color();
+
+        let underline = if response.has_focus() {
             Stroke::new(1.0, response_color)
         } else {
             Stroke::none()
@@ -203,67 +242,7 @@ impl Label {
             underline,
             angle: 0.0,
         });
-    }
 
-    /// Do layout and place the galley in the ui, without painting it or adding widget info.
-    pub(crate) fn layout_in_ui(self, ui: &mut Ui) -> (Pos2, WidgetTextGalley, Response) {
-        let sense = self.sense;
-        let max_width = ui.available_width();
-
-        let should_wrap = self.wrap.unwrap_or_else(|| ui.wrap_text());
-
-        if should_wrap
-            && ui.layout().main_dir() == Direction::LeftToRight
-            && ui.layout().main_wrap()
-            && max_width.is_finite()
-        {
-            // On a wrapping horizontal layout we want text to start after the previous widget,
-            // then continue on the line below! This will take some extra work:
-
-            let cursor = ui.cursor();
-            let first_row_indentation = max_width - ui.available_size_before_wrap().x;
-            egui_assert!(first_row_indentation.is_finite());
-
-            let mut text_job = self.layout_job(ui, first_row_indentation, max_width);
-            text_job.job.first_row_min_height = cursor.height();
-            text_job.job.halign = Align::Min;
-            text_job.job.justify = false;
-            let text_galley = text_job.layout(ui.fonts());
-
-            let pos = pos2(ui.max_rect().left(), ui.cursor().top());
-            assert!(
-                !text_galley.galley.rows.is_empty(),
-                "Galleys are never empty"
-            );
-            // collect a response from many rows:
-            let rect = text_galley.galley.rows[0]
-                .rect
-                .translate(vec2(pos.x, pos.y));
-            let mut response = ui.allocate_rect(rect, sense);
-            for row in text_galley.galley.rows.iter().skip(1) {
-                let rect = row.rect.translate(vec2(pos.x, pos.y));
-                response |= ui.allocate_rect(rect, sense);
-            }
-            (pos, text_galley, response)
-        } else {
-            let text_galley = self.layout(ui).layout(ui.fonts());
-            let (rect, response) = ui.allocate_exact_size(text_galley.size(), sense);
-            let pos = match text_galley.galley.job.halign {
-                Align::LEFT => rect.left_top(),
-                Align::Center => rect.center_top(),
-                Align::RIGHT => rect.right_top(),
-            };
-            (pos, text_galley, response)
-        }
-    }
-}
-
-impl Widget for Label {
-    fn ui(self, ui: &mut Ui) -> Response {
-        let (pos, galley, response) = self.layout_in_ui(ui);
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, galley.text()));
-        let response_color = ui.style().interact(&response).text_color();
-        Self::paint_galley(ui, pos, galley, response.has_focus(), response_color);
         response
     }
 }

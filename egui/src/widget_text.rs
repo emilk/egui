@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use crate::{style::WidgetVisuals, text::LayoutJob, Color32, Galley, Pos2, TextStyle, Ui};
+use crate::{
+    style::WidgetVisuals, text::LayoutJob, Align, Color32, Galley, Pos2, Style, TextStyle, Ui,
+    Visuals,
+};
 
 /// Text and optional style choices for it.
 ///
@@ -170,8 +173,13 @@ impl RichText {
         fonts.row_height(text_style)
     }
 
-    fn layout_job(self, ui: &Ui, wrap_width: f32, default_text_style: TextStyle) -> WidgetTextJob {
-        let text_color = self.get_text_color(ui);
+    fn into_text_job(
+        self,
+        style: &Style,
+        default_text_style: TextStyle,
+        default_valign: Align,
+    ) -> WidgetTextJob {
+        let text_color = self.get_text_color(&style.visuals);
 
         let Self {
             text,
@@ -188,16 +196,16 @@ impl RichText {
         } = self;
 
         let job_has_color = text_color.is_some();
-        let line_color = text_color.unwrap_or_else(|| ui.visuals().text_color());
+        let line_color = text_color.unwrap_or_else(|| style.visuals.text_color());
         let text_color = text_color.unwrap_or(crate::Color32::TEMPORARY_COLOR);
 
         let text_style = text_style
-            .or(ui.style().override_text_style)
+            .or(style.override_text_style)
             .unwrap_or(default_text_style);
 
         let mut background_color = background_color;
         if code {
-            background_color = ui.visuals().code_bg_color;
+            background_color = style.visuals.code_bg_color;
         }
         let underline = if underline {
             crate::Stroke::new(1.0, line_color)
@@ -213,7 +221,7 @@ impl RichText {
         let valign = if raised {
             crate::Align::TOP
         } else {
-            ui.layout().vertical_align()
+            default_valign
         };
 
         let text_format = crate::text::TextFormat {
@@ -226,31 +234,20 @@ impl RichText {
             valign,
         };
 
-        let mut job = LayoutJob::single_section(text, text_format);
-        job.wrap_width = wrap_width;
+        let job = LayoutJob::single_section(text, text_format);
         WidgetTextJob { job, job_has_color }
     }
 
-    fn get_text_color(&self, ui: &Ui) -> Option<Color32> {
+    fn get_text_color(&self, visuals: &Visuals) -> Option<Color32> {
         if let Some(text_color) = self.text_color {
             Some(text_color)
         } else if self.strong {
-            Some(ui.visuals().strong_text_color())
+            Some(visuals.strong_text_color())
         } else if self.weak {
-            Some(ui.visuals().weak_text_color())
+            Some(visuals.weak_text_color())
         } else {
-            ui.visuals().override_text_color
+            visuals.override_text_color
         }
-    }
-
-    pub fn layout(
-        self,
-        ui: &Ui,
-        wrap_width: f32,
-        default_text_style: TextStyle,
-    ) -> WidgetTextGalley {
-        let job = self.layout_job(ui, wrap_width, default_text_style);
-        job.layout(ui.fonts())
     }
 }
 
@@ -407,7 +404,7 @@ impl WidgetText {
         }
     }
 
-    pub fn font_height(&self, fonts: &epaint::text::Fonts, style: &crate::Style) -> f32 {
+    pub(crate) fn font_height(&self, fonts: &epaint::text::Fonts, style: &crate::Style) -> f32 {
         match self {
             Self::RichText(text) => text.font_height(fonts, style),
             Self::LayoutJob(job) => job.font_height(fonts),
@@ -421,29 +418,20 @@ impl WidgetText {
         }
     }
 
-    /// wrap: override for [`Ui::wrap_text`].
-    pub fn layout_job(
+    pub fn into_text_job(
         self,
-        ui: &Ui,
-        wrap: Option<bool>,
-        available_width: f32,
+        style: &Style,
         default_text_style: TextStyle,
+        default_valign: Align,
     ) -> WidgetTextJob {
-        let wrap = wrap.unwrap_or_else(|| ui.wrap_text());
-        let wrap_width = if wrap { available_width } else { f32::INFINITY };
-
         match self {
-            Self::RichText(text) => text.layout_job(ui, wrap_width, default_text_style),
-            Self::LayoutJob(mut job) => {
-                job.wrap_width = wrap_width;
-                WidgetTextJob {
-                    job,
-                    job_has_color: true,
-                }
-            }
+            Self::RichText(text) => text.into_text_job(style, default_text_style, default_valign),
+            Self::LayoutJob(job) => WidgetTextJob {
+                job,
+                job_has_color: true,
+            },
             Self::Galley(galley) => {
-                let mut job: LayoutJob = (*galley.job).clone();
-                job.wrap_width = wrap_width;
+                let job: LayoutJob = (*galley.job).clone();
                 WidgetTextJob {
                     job,
                     job_has_color: true,
@@ -453,7 +441,7 @@ impl WidgetText {
     }
 
     /// wrap: override for [`Ui::wrap_text`].
-    pub fn layout(
+    pub fn into_galley(
         self,
         ui: &Ui,
         wrap: Option<bool>,
@@ -465,7 +453,9 @@ impl WidgetText {
 
         match self {
             Self::RichText(text) => {
-                let text_job = text.layout_job(ui, wrap_width, default_text_style);
+                let valign = ui.layout().vertical_align();
+                let mut text_job = text.into_text_job(ui.style(), default_text_style, valign);
+                text_job.job.wrap_width = wrap_width;
                 WidgetTextGalley {
                     galley: ui.fonts().layout_job(text_job.job),
                     galley_has_color: text_job.job_has_color,
@@ -536,7 +526,7 @@ pub struct WidgetTextJob {
 }
 
 impl WidgetTextJob {
-    pub fn layout(self, fonts: &crate::text::Fonts) -> WidgetTextGalley {
+    pub fn into_galley(self, fonts: &crate::text::Fonts) -> WidgetTextGalley {
         let Self { job, job_has_color } = self;
         let galley = fonts.layout_job(job);
         WidgetTextGalley {
