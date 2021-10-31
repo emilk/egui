@@ -1,9 +1,7 @@
-use crate::*;
-use epaint::{
-    text::{LayoutJob, LayoutSection, TextFormat},
-    Galley,
+use crate::{
+    widget_text::{WidgetTextGalley, WidgetTextJob},
+    *,
 };
-use std::sync::Arc;
 
 /// Static text.
 ///
@@ -15,44 +13,22 @@ use std::sync::Arc;
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Label {
-    // TODO: not pub
-    pub(crate) text: String,
+    text: WidgetText,
     wrap: Option<bool>,
-    text_style: Option<TextStyle>,
-    background_color: Color32,
-    text_color: Option<Color32>,
-    code: bool,
-    strong: bool,
-    weak: bool,
-    strikethrough: bool,
-    underline: bool,
-    italics: bool,
-    raised: bool,
     sense: Sense,
 }
 
 impl Label {
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn new(text: impl ToString) -> Self {
+    pub fn new(text: impl Into<WidgetText>) -> Self {
         Self {
-            text: text.to_string(),
+            text: text.into(),
             wrap: None,
-            text_style: None,
-            background_color: Color32::TRANSPARENT,
-            text_color: None,
-            code: false,
-            strong: false,
-            weak: false,
-            strikethrough: false,
-            underline: false,
-            italics: false,
-            raised: false,
             sense: Sense::focusable_noninteractive(),
         }
     }
 
     pub fn text(&self) -> &str {
-        &self.text
+        self.text.text()
     }
 
     /// If `true`, the text will wrap to stay within the max width of the `Ui`.
@@ -68,80 +44,87 @@ impl Label {
         self
     }
 
-    /// The default is [`Style::body_text_style`] (generally [`TextStyle::Body`]).
+    #[deprecated = "Replaced by Label::new(RichText::new(…).text_style(…))"]
     pub fn text_style(mut self, text_style: TextStyle) -> Self {
-        self.text_style = Some(text_style);
+        self.text = self.text.text_style(text_style);
         self
     }
 
-    pub fn heading(self) -> Self {
-        self.text_style(TextStyle::Heading)
+    #[deprecated = "Replaced by Label::new(RichText::new(…).heading())"]
+    pub fn heading(mut self) -> Self {
+        self.text = self.text.heading();
+        self
     }
 
-    pub fn monospace(self) -> Self {
-        self.text_style(TextStyle::Monospace)
+    #[deprecated = "Replaced by Label::new(RichText::new(…).monospace())"]
+    pub fn monospace(mut self) -> Self {
+        self.text = self.text.monospace();
+        self
     }
 
-    /// Monospace label with gray background
+    #[deprecated = "Replaced by Label::new(RichText::new(…).code())"]
     pub fn code(mut self) -> Self {
-        self.code = true;
-        self.text_style(TextStyle::Monospace)
+        self.text = self.text.code();
+        self
     }
 
-    /// Extra strong text (stronger color).
+    #[deprecated = "Replaced by Label::new(RichText::new(…).strong())"]
     pub fn strong(mut self) -> Self {
-        self.strong = true;
+        self.text = self.text.strong();
         self
     }
 
-    /// Extra weak text (fainter color).
+    #[deprecated = "Replaced by Label::new(RichText::new(…).weak())"]
     pub fn weak(mut self) -> Self {
-        self.weak = true;
+        self.text = self.text.weak();
         self
     }
 
-    /// draw a line under the text
+    #[deprecated = "Replaced by Label::new(RichText::new(…).underline())"]
     pub fn underline(mut self) -> Self {
-        self.underline = true;
+        self.text = self.text.underline();
         self
     }
 
-    /// draw a line through the text, crossing it out
+    #[deprecated = "Replaced by Label::new(RichText::new(…).strikethrough())"]
     pub fn strikethrough(mut self) -> Self {
-        self.strikethrough = true;
+        self.text = self.text.strikethrough();
         self
     }
 
-    /// tilt the characters to the right.
+    #[deprecated = "Replaced by Label::new(RichText::new(…).italics())"]
     pub fn italics(mut self) -> Self {
-        self.italics = true;
+        self.text = self.text.italics();
         self
     }
 
-    /// Smaller text
-    pub fn small(self) -> Self {
-        self.text_style(TextStyle::Small)
+    #[deprecated = "Replaced by Label::new(RichText::new(…).small())"]
+    pub fn small(mut self) -> Self {
+        self.text = self.text.small();
+        self
     }
 
-    /// For e.g. exponents
-    pub fn small_raised(self) -> Self {
-        self.text_style(TextStyle::Small).raised()
+    #[deprecated = "Replaced by Label::new(RichText::new(…).small_raised())"]
+    pub fn small_raised(mut self) -> Self {
+        self.text = self.text.small_raised();
+        self
     }
 
-    /// Align text to top. Only applicable together with [`Self::small()`].
+    #[deprecated = "Replaced by Label::new(RichText::new(…).raised())"]
     pub fn raised(mut self) -> Self {
-        self.raised = true;
+        self.text = self.text.raised();
         self
     }
 
-    /// Fill-color behind the text
+    #[deprecated = "Replaced by Label::new(RichText::new(…).background_color(…))"]
     pub fn background_color(mut self, background_color: impl Into<Color32>) -> Self {
-        self.background_color = background_color.into();
+        self.text = self.text.background_color(background_color);
         self
     }
 
+    #[deprecated = "Replaced by Label::new(RichText::new(…).text_color())"]
     pub fn text_color(mut self, text_color: impl Into<Color32>) -> Self {
-        self.text_color = Some(text_color.into());
+        self.text = self.text.color(text_color);
         self
     }
 
@@ -165,14 +148,8 @@ impl Label {
 }
 
 impl Label {
-    pub fn layout(&self, ui: &Ui) -> Arc<Galley> {
-        let max_width = ui.available_width();
-        let line_color = self.get_text_color(ui, ui.visuals().text_color());
-        self.layout_width(ui, max_width, line_color)
-    }
-
-    /// `line_color`: used for underline and strikethrough, if any.
-    pub fn layout_width(&self, ui: &Ui, max_width: f32, line_color: Color32) -> Arc<Galley> {
+    fn layout(self, ui: &Ui) -> WidgetTextJob {
+        let available_width = ui.available_width();
         let (halign, justify) = if ui.is_grid() {
             (Align::LEFT, false) // TODO: remove special Grid hacks like these
         } else {
@@ -181,138 +158,61 @@ impl Label {
                 ui.layout().horizontal_justify(),
             )
         };
-        let mut job = self.layout_job(ui, 0.0, max_width, line_color);
-        job.halign = halign;
-        job.justify = justify;
-        ui.fonts().layout_job(job)
+        let mut text_job = self.layout_job(ui, 0.0, available_width);
+        text_job.job.halign = halign;
+        text_job.job.justify = justify;
+        text_job
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn layout_job(
-        &self,
-        ui: &Ui,
-        leading_space: f32,
-        max_width: f32,
-        line_color: Color32,
-    ) -> LayoutJob {
-        let text_style = self.text_style_or_default(ui.style());
-        let wrap_width = if self.should_wrap(ui) {
-            max_width
-        } else {
-            f32::INFINITY
-        };
-
-        let mut background_color = self.background_color;
-        if self.code {
-            background_color = ui.visuals().code_bg_color;
+    fn layout_job(self, ui: &Ui, leading_space: f32, available_width: f32) -> WidgetTextJob {
+        let mut text_job = self
+            .text
+            .layout_job(ui, self.wrap, available_width, TextStyle::Body);
+        if let Some(first_section) = text_job.job.sections.first_mut() {
+            first_section.leading_space = leading_space;
         }
-        let underline = if self.underline {
-            Stroke::new(1.0, line_color)
-        } else {
-            Stroke::none()
-        };
-        let strikethrough = if self.strikethrough {
-            Stroke::new(1.0, line_color)
-        } else {
-            Stroke::none()
-        };
-
-        let valign = if self.raised {
-            Align::TOP
-        } else {
-            ui.layout().vertical_align()
-        };
-
-        LayoutJob {
-            text: self.text.clone(), // TODO: avoid clone
-            sections: vec![LayoutSection {
-                leading_space,
-                byte_range: 0..self.text.len(),
-                format: TextFormat {
-                    style: text_style,
-                    color: Color32::TEMPORARY_COLOR,
-                    background: background_color,
-                    italics: self.italics,
-                    underline,
-                    strikethrough,
-                    valign,
-                },
-            }],
-            wrap_width,
-            ..Default::default()
-        }
+        text_job
     }
 
     /// `has_focus`: the item is selected with the keyboard, so highlight with underline.
     /// `response_color`: Unless we have a special color set, use this.
-    pub(crate) fn paint_galley(
-        &self,
+    fn paint_galley(
         ui: &mut Ui,
         pos: Pos2,
-        galley: Arc<Galley>,
+        text_galley: WidgetTextGalley,
         has_focus: bool,
         response_color: Color32,
     ) {
-        let text_color = self.get_text_color(ui, response_color);
-
         let underline = if has_focus {
-            Stroke::new(1.0, text_color)
+            Stroke::new(1.0, response_color)
         } else {
             Stroke::none()
         };
 
+        let override_text_color = if text_galley.galley_has_color {
+            None
+        } else {
+            Some(response_color)
+        };
+
         ui.painter().add(epaint::TextShape {
             pos,
-            galley,
-            override_text_color: Some(text_color),
+            galley: text_galley.galley,
+            override_text_color,
             underline,
             angle: 0.0,
         });
     }
 
-    /// `response_color`: Unless we have a special color set, use this.
-    fn get_text_color(&self, ui: &Ui, response_color: Color32) -> Color32 {
-        if let Some(text_color) = self.text_color {
-            text_color
-        } else if self.strong {
-            ui.visuals().strong_text_color()
-        } else if self.weak {
-            ui.visuals().weak_text_color()
-        } else {
-            response_color
-        }
-    }
-
-    pub fn font_height(&self, fonts: &epaint::text::Fonts, style: &Style) -> f32 {
-        let text_style = self.text_style_or_default(style);
-        fonts.row_height(text_style)
-    }
-
-    // TODO: this should return a LabelLayout which has a paint method.
-    // We can then split Widget::Ui in two: layout + allocating space, and painting.
-    // this allows us to assemble labels, THEN detect interaction, THEN chose color style based on that.
-    // pub fn layout(self, ui: &mut ui) -> LabelLayout { }
-
-    // TODO: a paint method for painting anywhere in a ui.
-    // This should be the easiest method of putting text anywhere.
-
-    /// Read the text style, or get the default for the current style
-    pub fn text_style_or_default(&self, style: &Style) -> TextStyle {
-        self.text_style
-            .or(style.override_text_style)
-            .unwrap_or(style.body_text_style)
-    }
-
-    fn should_wrap(&self, ui: &Ui) -> bool {
-        self.wrap.unwrap_or_else(|| ui.wrap_text())
-    }
-
     /// Do layout and place the galley in the ui, without painting it or adding widget info.
-    pub(crate) fn layout_in_ui(&self, ui: &mut Ui) -> (Pos2, Arc<Galley>, Response) {
+    pub(crate) fn layout_in_ui(self, ui: &mut Ui) -> (Pos2, WidgetTextGalley, Response) {
         let sense = self.sense;
         let max_width = ui.available_width();
 
-        if self.should_wrap(ui)
+        let should_wrap = self.wrap.unwrap_or_else(|| ui.wrap_text());
+
+        if should_wrap
             && ui.layout().main_dir() == Direction::LeftToRight
             && ui.layout().main_wrap()
             && max_width.is_finite()
@@ -324,32 +224,36 @@ impl Label {
             let first_row_indentation = max_width - ui.available_size_before_wrap().x;
             egui_assert!(first_row_indentation.is_finite());
 
-            let default_color = self.get_text_color(ui, ui.visuals().text_color());
-            let mut job = self.layout_job(ui, first_row_indentation, max_width, default_color);
-            job.first_row_min_height = cursor.height();
-            job.halign = Align::Min;
-            job.justify = false;
-            let galley = ui.fonts().layout_job(job);
+            let mut text_job = self.layout_job(ui, first_row_indentation, max_width);
+            text_job.job.first_row_min_height = cursor.height();
+            text_job.job.halign = Align::Min;
+            text_job.job.justify = false;
+            let text_galley = text_job.layout(ui.fonts());
 
             let pos = pos2(ui.max_rect().left(), ui.cursor().top());
-            assert!(!galley.rows.is_empty(), "Galleys are never empty");
+            assert!(
+                !text_galley.galley.rows.is_empty(),
+                "Galleys are never empty"
+            );
             // collect a response from many rows:
-            let rect = galley.rows[0].rect.translate(vec2(pos.x, pos.y));
+            let rect = text_galley.galley.rows[0]
+                .rect
+                .translate(vec2(pos.x, pos.y));
             let mut response = ui.allocate_rect(rect, sense);
-            for row in galley.rows.iter().skip(1) {
+            for row in text_galley.galley.rows.iter().skip(1) {
                 let rect = row.rect.translate(vec2(pos.x, pos.y));
                 response |= ui.allocate_rect(rect, sense);
             }
-            (pos, galley, response)
+            (pos, text_galley, response)
         } else {
-            let galley = self.layout(ui);
-            let (rect, response) = ui.allocate_exact_size(galley.size(), sense);
-            let pos = match galley.job.halign {
+            let text_galley = self.layout(ui).layout(ui.fonts());
+            let (rect, response) = ui.allocate_exact_size(text_galley.size(), sense);
+            let pos = match text_galley.galley.job.halign {
                 Align::LEFT => rect.left_top(),
                 Align::Center => rect.center_top(),
                 Align::RIGHT => rect.right_top(),
             };
-            (pos, galley, response)
+            (pos, text_galley, response)
         }
     }
 }
@@ -359,25 +263,7 @@ impl Widget for Label {
         let (pos, galley, response) = self.layout_in_ui(ui);
         response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, galley.text()));
         let response_color = ui.style().interact(&response).text_color();
-        self.paint_galley(ui, pos, galley, response.has_focus(), response_color);
+        Self::paint_galley(ui, pos, galley, response.has_focus(), response_color);
         response
-    }
-}
-
-impl From<&str> for Label {
-    fn from(s: &str) -> Label {
-        Label::new(s)
-    }
-}
-
-impl From<&String> for Label {
-    fn from(s: &String) -> Label {
-        Label::new(s)
-    }
-}
-
-impl From<String> for Label {
-    fn from(s: String) -> Label {
-        Label::new(s)
     }
 }

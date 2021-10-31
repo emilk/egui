@@ -21,6 +21,27 @@ pub struct RichText {
     raised: bool,
 }
 
+impl From<&str> for RichText {
+    #[inline]
+    fn from(text: &str) -> Self {
+        RichText::new(text)
+    }
+}
+
+impl From<&String> for RichText {
+    #[inline]
+    fn from(text: &String) -> Self {
+        RichText::new(text)
+    }
+}
+
+impl From<String> for RichText {
+    #[inline]
+    fn from(text: String) -> Self {
+        RichText::new(text)
+    }
+}
+
 impl RichText {
     #[inline]
     pub fn new(text: impl Into<String>) -> Self {
@@ -258,6 +279,8 @@ impl WidgetText {
     }
 
     /// Override the [`TextStyle`] if, and only if, this is a [`RichText`].
+    ///
+    /// Prefer using [`RichText`] directly!
     #[inline]
     pub fn text_style(self, text_style: TextStyle) -> Self {
         match self {
@@ -267,6 +290,8 @@ impl WidgetText {
     }
 
     /// Set the [`TextStyle`] unless it has already been set
+    ///
+    /// Prefer using [`RichText`] directly!
     #[inline]
     pub fn fallback_text_style(self, text_style: TextStyle) -> Self {
         match self {
@@ -276,10 +301,108 @@ impl WidgetText {
     }
 
     /// Override text color if, and only if, this is a [`RichText`].
+    ///
+    /// Prefer using [`RichText`] directly!
     #[inline]
     pub fn color(self, color: impl Into<Color32>) -> Self {
         match self {
             Self::RichText(text) => Self::RichText(text.color(color)),
+            Self::LayoutJob(_) | Self::Galley(_) => self,
+        }
+    }
+
+    /// Prefer using [`RichText`] directly!
+    pub fn heading(self) -> Self {
+        match self {
+            Self::RichText(text) => Self::RichText(text.heading()),
+            Self::LayoutJob(_) | Self::Galley(_) => self,
+        }
+    }
+
+    /// Prefer using [`RichText`] directly!
+    pub fn monospace(self) -> Self {
+        match self {
+            Self::RichText(text) => Self::RichText(text.monospace()),
+            Self::LayoutJob(_) | Self::Galley(_) => self,
+        }
+    }
+
+    /// Prefer using [`RichText`] directly!
+    pub fn code(self) -> Self {
+        match self {
+            Self::RichText(text) => Self::RichText(text.code()),
+            Self::LayoutJob(_) | Self::Galley(_) => self,
+        }
+    }
+
+    /// Prefer using [`RichText`] directly!
+    pub fn strong(self) -> Self {
+        match self {
+            Self::RichText(text) => Self::RichText(text.strong()),
+            Self::LayoutJob(_) | Self::Galley(_) => self,
+        }
+    }
+
+    /// Prefer using [`RichText`] directly!
+    pub fn weak(self) -> Self {
+        match self {
+            Self::RichText(text) => Self::RichText(text.weak()),
+            Self::LayoutJob(_) | Self::Galley(_) => self,
+        }
+    }
+
+    /// Prefer using [`RichText`] directly!
+    pub fn underline(self) -> Self {
+        match self {
+            Self::RichText(text) => Self::RichText(text.underline()),
+            Self::LayoutJob(_) | Self::Galley(_) => self,
+        }
+    }
+
+    /// Prefer using [`RichText`] directly!
+    pub fn strikethrough(self) -> Self {
+        match self {
+            Self::RichText(text) => Self::RichText(text.strikethrough()),
+            Self::LayoutJob(_) | Self::Galley(_) => self,
+        }
+    }
+
+    /// Prefer using [`RichText`] directly!
+    pub fn italics(self) -> Self {
+        match self {
+            Self::RichText(text) => Self::RichText(text.italics()),
+            Self::LayoutJob(_) | Self::Galley(_) => self,
+        }
+    }
+
+    /// Prefer using [`RichText`] directly!
+    pub fn small(self) -> Self {
+        match self {
+            Self::RichText(text) => Self::RichText(text.small()),
+            Self::LayoutJob(_) | Self::Galley(_) => self,
+        }
+    }
+
+    /// Prefer using [`RichText`] directly!
+    pub fn small_raised(self) -> Self {
+        match self {
+            Self::RichText(text) => Self::RichText(text.small_raised()),
+            Self::LayoutJob(_) | Self::Galley(_) => self,
+        }
+    }
+
+    /// Prefer using [`RichText`] directly!
+    pub fn raised(self) -> Self {
+        match self {
+            Self::RichText(text) => Self::RichText(text.raised()),
+            Self::LayoutJob(_) | Self::Galley(_) => self,
+        }
+    }
+
+    /// Prefer using [`RichText`] directly!
+    pub fn background_color(self, background_color: impl Into<Color32>) -> Self {
+        match self {
+            Self::RichText(text) => Self::RichText(text.background_color(background_color)),
             Self::LayoutJob(_) | Self::Galley(_) => self,
         }
     }
@@ -299,6 +422,37 @@ impl WidgetText {
     }
 
     /// wrap: override for [`Ui::wrap_text`].
+    pub fn layout_job(
+        self,
+        ui: &Ui,
+        wrap: Option<bool>,
+        available_width: f32,
+        default_text_style: TextStyle,
+    ) -> WidgetTextJob {
+        let wrap = wrap.unwrap_or_else(|| ui.wrap_text());
+        let wrap_width = if wrap { available_width } else { f32::INFINITY };
+
+        match self {
+            Self::RichText(text) => text.layout_job(ui, wrap_width, default_text_style),
+            Self::LayoutJob(mut job) => {
+                job.wrap_width = wrap_width;
+                WidgetTextJob {
+                    job,
+                    job_has_color: true,
+                }
+            }
+            Self::Galley(galley) => {
+                let mut job: LayoutJob = (*galley.job).clone();
+                job.wrap_width = wrap_width;
+                WidgetTextJob {
+                    job,
+                    job_has_color: true,
+                }
+            }
+        }
+    }
+
+    /// wrap: override for [`Ui::wrap_text`].
     pub fn layout(
         self,
         ui: &Ui,
@@ -310,7 +464,13 @@ impl WidgetText {
         let wrap_width = if wrap { available_width } else { f32::INFINITY };
 
         match self {
-            Self::RichText(text) => text.layout(ui, wrap_width, default_text_style),
+            Self::RichText(text) => {
+                let text_job = text.layout_job(ui, wrap_width, default_text_style);
+                WidgetTextGalley {
+                    galley: ui.fonts().layout_job(text_job.job),
+                    galley_has_color: text_job.job_has_color,
+                }
+            }
             Self::LayoutJob(mut job) => {
                 job.wrap_width = wrap_width;
                 WidgetTextGalley {
@@ -329,6 +489,13 @@ impl WidgetText {
 impl From<&str> for WidgetText {
     #[inline]
     fn from(text: &str) -> Self {
+        Self::RichText(RichText::new(text))
+    }
+}
+
+impl From<&String> for WidgetText {
+    #[inline]
+    fn from(text: &String) -> Self {
         Self::RichText(RichText::new(text))
     }
 }
@@ -364,8 +531,8 @@ impl From<Arc<Galley>> for WidgetText {
 // ----------------------------------------------------------------------------
 
 pub struct WidgetTextJob {
-    job: LayoutJob,
-    job_has_color: bool,
+    pub job: LayoutJob,
+    pub job_has_color: bool,
 }
 
 impl WidgetTextJob {
@@ -383,8 +550,8 @@ impl WidgetTextJob {
 
 /// Text that has been layed out and ready to be painted.
 pub struct WidgetTextGalley {
-    galley: Arc<Galley>,
-    galley_has_color: bool,
+    pub galley: Arc<Galley>,
+    pub galley_has_color: bool,
 }
 
 impl WidgetTextGalley {

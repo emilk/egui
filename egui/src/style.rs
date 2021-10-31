@@ -2,7 +2,7 @@
 
 #![allow(clippy::if_same_then_else)]
 
-use crate::{color::*, emath::*, Response};
+use crate::{color::*, emath::*, Response, RichText, WidgetText};
 use epaint::{Shadow, Stroke, TextStyle};
 
 /// Specifies the look and feel of egui.
@@ -863,7 +863,7 @@ impl Visuals {
             &mut widgets.noninteractive.fg_stroke.color,
             "Text color",
         );
-        ui_color(ui, code_bg_color, Label::new("Code background").code()).on_hover_ui(|ui| {
+        ui_color(ui, code_bg_color, RichText::new("Code background").code()).on_hover_ui(|ui| {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;
                 ui.label("For monospaced inlined text ");
@@ -933,10 +933,10 @@ fn slider_vec2<'a>(
     }
 }
 
-fn ui_color(ui: &mut Ui, srgba: &mut Color32, label: impl Into<Label>) -> Response {
+fn ui_color(ui: &mut Ui, srgba: &mut Color32, label: impl Into<WidgetText>) -> Response {
     ui.horizontal(|ui| {
         ui.color_edit_button_srgba(srgba);
-        ui.add(label.into());
+        ui.label(label);
     })
     .response
 }

@@ -42,13 +42,10 @@ impl super::View for FontBook {
         ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
             ui.label("You can add more characters by installing additional fonts with ");
-            ui.add(
-                egui::Hyperlink::from_label_and_url(
-                    "Context::set_fonts",
-                    "https://docs.rs/egui/latest/egui/struct.Context.html#method.set_fonts",
-                )
-                .text_style(egui::TextStyle::Monospace),
-            );
+            ui.add(egui::Hyperlink::from_label_and_url(
+                egui::RichText::new("Context::set_fonts").text_style(egui::TextStyle::Monospace),
+                "https://docs.rs/egui/latest/egui/struct.Context.html#method.set_fonts",
+            ));
             ui.label(".");
         });
 
@@ -96,7 +93,7 @@ impl super::View for FontBook {
                         .frame(false);
 
                         let tooltip_ui = |ui: &mut egui::Ui| {
-                            ui.add(egui::Label::new(chr).text_style(text_style));
+                            ui.label(egui::RichText::new(chr.to_string()).text_style(text_style));
                             ui.label(format!("{}\nU+{:X}\n\nClick to copy", name, chr as u32));
                         };
 

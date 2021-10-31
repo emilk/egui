@@ -1,8 +1,6 @@
 use crate::{style::WidgetVisuals, *};
 use epaint::Shape;
 
-// TODO: this should be builder struct so we can set options like width.
-
 /// A drop-down selection menu with a descriptive label.
 ///
 /// ```
@@ -10,7 +8,7 @@ use epaint::Shape;
 /// # enum Enum { First, Second, Third }
 /// # let mut selected = Enum::First;
 /// # let mut ui = &mut egui::Ui::__test();
-/// egui::ComboBox::from_label( "Select one!")
+/// egui::ComboBox::from_label("Select one!")
 ///     .selected_text(format!("{:?}", selected))
 ///     .show_ui(ui, |ui| {
 ///         ui.selectable_value(&mut selected, Enum::First, "First");
@@ -22,14 +20,14 @@ use epaint::Shape;
 #[must_use = "You should call .show*"]
 pub struct ComboBox {
     id_source: Id,
-    label: Option<Label>,
+    label: Option<WidgetText>,
     selected_text: String,
     width: Option<f32>,
 }
 
 impl ComboBox {
     /// Label shown next to the combo box
-    pub fn from_label(label: impl Into<Label>) -> Self {
+    pub fn from_label(label: impl Into<WidgetText>) -> Self {
         let label = label.into();
         Self {
             id_source: Id::new(label.text()),
@@ -95,7 +93,7 @@ impl ComboBox {
             if let Some(label) = label {
                 ir.response
                     .widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, label.text()));
-                ir.response |= ui.add(label);
+                ir.response |= ui.label(label);
             } else {
                 ir.response
                     .widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, ""));
@@ -115,7 +113,7 @@ impl ComboBox {
     /// # let mut ui = &mut egui::Ui::__test();
     /// let alternatives = ["a", "b", "c", "d"];
     /// let mut selected = 2;
-    /// egui::ComboBox::from_label( "Select one!").show_index(
+    /// egui::ComboBox::from_label("Select one!").show_index(
     ///     ui,
     ///     &mut selected,
     ///     alternatives.len(),
