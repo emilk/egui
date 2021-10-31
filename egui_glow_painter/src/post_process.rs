@@ -222,7 +222,7 @@ impl PostProcess {
             gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.index_buffer));
             gl.draw_elements(glow::TRIANGLES, 6, glow::UNSIGNED_BYTE, 0);
             self.vertex_array.unbind_vertex_array(gl);
-            gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER,None);
+            gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, None);
             gl.bind_texture(glow::TEXTURE_2D, None);
             gl.use_program(None);
         }
