@@ -87,7 +87,6 @@ impl super::View for WindowOptions {
             anchor,
             anchor_offset,
         } = self;
-
         ui.horizontal(|ui| {
             ui.label("title:");
             ui.text_edit_singleline(title);

@@ -271,11 +271,6 @@ impl Fonts {
         }
     }
 
-    #[deprecated = "Renamed to Fonts::new"]
-    pub fn from_definitions(pixels_per_point: f32, definitions: FontDefinitions) -> Self {
-        Self::new(pixels_per_point, definitions)
-    }
-
     #[inline(always)]
     pub fn pixels_per_point(&self) -> f32 {
         self.pixels_per_point

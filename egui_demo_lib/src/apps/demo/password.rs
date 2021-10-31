@@ -6,52 +6,43 @@
 ///
 /// ## Example:
 /// ``` ignore
-/// password_ui(ui, &mut password);
+/// password_ui(ui, &mut my_password);
 /// ```
-pub fn password_ui(ui: &mut egui::Ui, text: &mut String) -> egui::Response {
-    // This widget has its own state — show or hide password characters.
-
-    // 1. Declare state struct
-    // This struct represents the state of this widget.
+pub fn password_ui(ui: &mut egui::Ui, password: &mut String) -> egui::Response {
+    // This widget has its own state — show or hide password characters (`show_plaintext`).
+    // In this case we use a simple `bool`, but you can also declare your own type.
     // It must implement at least `Clone` and be `'static`.
     // If you use the `persistence` feature, it also must implement `serde::{Deserialize, Serialize}`.
-    // You should prefer creating custom newtype structs or enums like this, to avoid `TypeId`
-    // intersection errors, especially when you use `Memory::data` without `Id`.
-    #[derive(Clone, Copy, Default)]
-    struct State(bool);
 
-    // 2. Create id
-    let id = ui.id().with("show_password");
+    // Generate an id for the state
+    let state_id = ui.id().with("show_plaintext");
 
-    // 3. Get state for this widget
-    // You can read more about available `Memory` functions in the documentation of `egui::Memory`
-    // struct and `egui::any` module.
+    // Get state for this widget.
     // You should get state by value, not by reference to avoid borrowing of `Memory`.
-    let mut plaintext = *ui.memory().id_data_temp.get_or_default::<State>(id);
+    let mut show_plaintext = ui.memory().data.get_temp::<bool>(state_id).unwrap_or(false);
 
-    // 4. Process ui, change a local copy of the state
+    // Process ui, change a local copy of the state
     // We want TextEdit to fill entire space, and have button after that, so in that case we can
     // change direction to right_to_left.
     let result = ui.with_layout(egui::Layout::right_to_left(), |ui| {
-        // Here a local copy of the state can be changed by a user.
+        // Toggle the `show_plaintext` bool with a button:
         let response = ui
-            .add(egui::SelectableLabel::new(plaintext.0, "👁"))
+            .add(egui::SelectableLabel::new(show_plaintext, "👁"))
             .on_hover_text("Show/hide password");
+
         if response.clicked() {
-            plaintext.0 = !plaintext.0;
+            show_plaintext = !show_plaintext;
         }
 
-        let text_edit_size = ui.available_size();
-
-        // Here we use this local state.
+        // Show the password field:
         ui.add_sized(
-            text_edit_size,
-            egui::TextEdit::singleline(text).password(!plaintext.0),
+            ui.available_size(),
+            egui::TextEdit::singleline(password).password(!show_plaintext),
         );
     });
 
-    // 5. Insert changed state back
-    ui.memory().id_data_temp.insert(id, plaintext);
+    // Store the (possibly changed) state:
+    ui.memory().data.insert_temp(state_id, show_plaintext);
 
     // All done! Return the interaction response so the user can check what happened
     // (hovered, clicked, …) and maybe show a tooltip:
@@ -63,10 +54,10 @@ pub fn password_ui(ui: &mut egui::Ui, text: &mut String) -> egui::Response {
 ///
 /// ## Example:
 /// ``` ignore
-/// ui.add(password(&mut password));
+/// ui.add(password(&mut my_password));
 /// ```
-pub fn password(text: &mut String) -> impl egui::Widget + '_ {
-    move |ui: &mut egui::Ui| password_ui(ui, text)
+pub fn password(password: &mut String) -> impl egui::Widget + '_ {
+    move |ui: &mut egui::Ui| password_ui(ui, password)
 }
 
 pub fn url_to_file_source_code() -> String {

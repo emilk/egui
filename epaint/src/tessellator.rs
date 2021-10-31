@@ -274,6 +274,10 @@ pub struct TessellationOptions {
     /// This likely makes
     pub coarse_tessellation_culling: bool,
 
+    /// If `true` (default) align text to mesh grid.
+    /// This makes the text sharper on most platforms.
+    pub round_text_to_pixels: bool,
+
     /// Output the clip rectangles to be painted.
     pub debug_paint_clip_rects: bool,
 
@@ -291,6 +295,7 @@ impl Default for TessellationOptions {
             aa_size: 1.0,
             anti_alias: true,
             coarse_tessellation_culling: true,
+            round_text_to_pixels: true,
             debug_paint_text_rects: false,
             debug_paint_clip_rects: false,
             debug_ignore_clip_rects: false,
@@ -311,7 +316,11 @@ impl TessellationOptions {
 impl TessellationOptions {
     #[inline(always)]
     pub fn round_to_pixel(&self, point: f32) -> f32 {
-        (point * self.pixels_per_point).round() / self.pixels_per_point
+        if self.round_text_to_pixels {
+            (point * self.pixels_per_point).round() / self.pixels_per_point
+        } else {
+            point
+        }
     }
 }
 

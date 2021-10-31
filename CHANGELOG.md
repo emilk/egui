@@ -8,6 +8,21 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 ## Unreleased
 
 ### Added ⭐
+* Add context menus: See `Ui::menu_button` and `Response::context_menu` ([#543](https://github.com/emilk/egui/pull/543)).
+* You can now read and write the cursor of a `TextEdit` ([#848](https://github.com/emilk/egui/pull/848)).
+
+### Changed 🔧
+* Unifiy the four `Memory` data buckets (`data`, `data_temp`, `id_data` and `id_data_temp`) into a single `Memory::data`, with a new interface ([#836](https://github.com/emilk/egui/pull/836)).
+
+### Contributors 🙏
+* [mankinskin](https://github.com/mankinskin) ([#543](https://github.com/emilk/egui/pull/543))
+
+
+## 0.15.0 - 2021-10-24 - Syntax highlighting and hscroll
+
+<img src="media/egui-0.15-code-editor.gif">
+
+### Added ⭐
 * Add horizontal scrolling support to `ScrollArea` and `Window` (opt-in).
 * `TextEdit::layouter`: Add custom text layout for e.g. syntax highlighting or WYSIWYG.
 * `Fonts::layout_job`: New text layout engine allowing mixing fonts, colors and styles, with underlining and strikethrough.
@@ -16,11 +31,12 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Add feature `"serialize"` separatedly from `"persistence"`.
 * Add `egui::widgets::global_dark_light_mode_buttons` to easily add buttons for switching the egui theme.
 * Add interaction methods to the plot.
-* `TextEdit` can now be used to show text which can be selectedd and copied, but not edited.
+* `TextEdit` can now be used to show text which can be selected and copied, but not edited.
 * Add `Memory::caches` for caching things from one frame to the next.
 
 ### Changed 🔧
-* Label text will now be centered, right-aligned and/or justified based on the layout.
+* Change the default monospace font to [Hack](https://github.com/source-foundry/Hack).
+* Label text will now be centered, right-aligned and/or justified based on the layout of the `Ui` it is in.
 * `Hyperlink` will now word-wrap just like a `Label`.
 * All `Ui`:s must now have a finite `max_rect`.
   * Deprecated: `max_rect_finite`, `available_size_before_wrap_finite` and `available_rect_before_wrap_finite`.
@@ -42,6 +58,22 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 
 ### Removed 🔥
 * Replace `Button::enabled` with `ui.add_enabled`.
+
+### Contributors 🙏
+* [AlexApps99](https://github.com/AlexApps99)
+* [baysmith](https://github.com/baysmith)
+* [bpostlethwaite](https://github.com/bpostlethwaite)
+* [cwfitzgerald](https://github.com/cwfitzgerald)
+* [DrOptix](https://github.com/DrOptix)
+* [JerzySpendel](https://github.com/JerzySpendel)
+* [NiceneNerd](https://github.com/NiceneNerd)
+* [parasyte](https://github.com/parasyte)
+* [spersson](https://github.com/spersson)
+* [Stock84-dev](https://github.com/Stock84-dev)
+* [sumibi-yakitori](https://github.com/sumibi-yakitori)
+* [t18b219k](https://github.com/t18b219k)
+* [TobTobXX](https://github.com/TobTobXX)
+* [zu1k](https://github.com/zu1k)
 
 
 ## 0.14.2 - 2021-08-28 - Window resize fix

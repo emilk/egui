@@ -30,8 +30,17 @@
 pub struct Id(u64);
 
 impl Id {
-    pub(crate) fn background() -> Self {
+    /// A special `Id`, in particular as a key to [`crate::Memory::data`]
+    /// for when there is no particular widget to attach the data.
+    ///
+    /// The null `Id` is still a valid id to use in all circumstances,
+    /// though obviously it will lead to a lot of collisions if you do use it!
+    pub fn null() -> Self {
         Self(0)
+    }
+
+    pub(crate) fn background() -> Self {
+        Self(1)
     }
 
     /// Generate a new `Id` by hashing some source (e.g. a string or integer).
@@ -64,7 +73,7 @@ impl Id {
 
 impl std::fmt::Debug for Id {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:X}", self.0)
+        write!(f, "{:016X}", self.0)
     }
 }
 

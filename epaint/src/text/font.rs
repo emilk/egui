@@ -137,6 +137,18 @@ impl FontImpl {
         // Add new character:
         use ab_glyph::Font as _;
         let glyph_id = self.ab_glyph_font.glyph_id(c);
+
+        if c == '\t' {
+            if let Some(space) = self.glyph_info(' ') {
+                let glyph_info = GlyphInfo {
+                    advance_width: crate::text::TAB_SIZE as f32 * space.advance_width,
+                    ..GlyphInfo::default()
+                };
+                self.glyph_info_cache.write().insert(c, glyph_info);
+                return Some(glyph_info);
+            }
+        }
+
         if glyph_id.0 == 0 {
             if invisible_char(c) {
                 // hack
@@ -147,7 +159,7 @@ impl FontImpl {
                 None
             }
         } else {
-            let mut glyph_info = allocate_glyph(
+            let glyph_info = allocate_glyph(
                 &mut self.atlas.lock(),
                 &self.ab_glyph_font,
                 glyph_id,
@@ -155,12 +167,6 @@ impl FontImpl {
                 self.y_offset,
                 self.pixels_per_point,
             );
-
-            if c == '\t' {
-                if let Some(space) = self.glyph_info(' ') {
-                    glyph_info.advance_width = crate::text::TAB_SIZE as f32 * space.advance_width;
-                }
-            }
 
             self.glyph_info_cache.write().insert(c, glyph_info);
             Some(glyph_info)

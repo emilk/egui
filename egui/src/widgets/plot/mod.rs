@@ -31,6 +31,16 @@ struct PlotMemory {
     last_screen_transform: Option<ScreenTransform>,
 }
 
+impl PlotMemory {
+    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
+        ctx.memory().data.get_persisted(id)
+    }
+
+    pub fn store(self, ctx: &Context, id: Id) {
+        ctx.memory().data.insert_persisted(id, self);
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// A 2D plot, e.g. a graph of a function.
@@ -230,18 +240,14 @@ impl Plot {
         } = self;
 
         let plot_id = ui.make_persistent_id(id_source);
-        let mut memory = ui
-            .memory()
-            .id_data
-            .get_mut_or_insert_with(plot_id, || PlotMemory {
-                bounds: min_auto_bounds,
-                auto_bounds: !min_auto_bounds.is_valid(),
-                hovered_entry: None,
-                hidden_items: Default::default(),
-                min_auto_bounds,
-                last_screen_transform: None,
-            })
-            .clone();
+        let mut memory = PlotMemory::load(ui.ctx(), plot_id).unwrap_or_else(|| PlotMemory {
+            bounds: min_auto_bounds,
+            auto_bounds: !min_auto_bounds.is_valid(),
+            hovered_entry: None,
+            hidden_items: Default::default(),
+            min_auto_bounds,
+            last_screen_transform: None,
+        });
 
         // If the min bounds changed, recalculate everything.
         if min_auto_bounds != memory.min_auto_bounds {
@@ -252,7 +258,7 @@ impl Plot {
                 min_auto_bounds,
                 ..memory
             };
-            ui.memory().id_data.insert(plot_id, memory.clone());
+            memory.clone().store(ui.ctx(), plot_id);
         }
 
         let PlotMemory {
@@ -403,17 +409,15 @@ impl Plot {
             hovered_entry = legend.get_hovered_entry_name();
         }
 
-        ui.memory().id_data.insert(
-            plot_id,
-            PlotMemory {
-                bounds,
-                auto_bounds,
-                hovered_entry,
-                hidden_items,
-                min_auto_bounds,
-                last_screen_transform: Some(transform),
-            },
-        );
+        let memory = PlotMemory {
+            bounds,
+            auto_bounds,
+            hovered_entry,
+            hidden_items,
+            min_auto_bounds,
+            last_screen_transform: Some(transform),
+        };
+        memory.store(ui.ctx(), plot_id);
 
         if show_x || show_y {
             response.on_hover_cursor(CursorIcon::Crosshair)

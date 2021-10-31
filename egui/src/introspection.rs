@@ -136,6 +136,7 @@ impl Widget for &mut epaint::TessellationOptions {
                 aa_size: _,
                 anti_alias,
                 coarse_tessellation_culling,
+                round_text_to_pixels,
                 debug_paint_clip_rects,
                 debug_paint_text_rects,
                 debug_ignore_clip_rects,
@@ -147,6 +148,9 @@ impl Widget for &mut epaint::TessellationOptions {
                     coarse_tessellation_culling,
                     "Do coarse culling in the tessellator",
                 );
+                ui.checkbox(round_text_to_pixels, "Align text positions to pixel grid")
+                    .on_hover_text("Most text already is, so don't expect to see a large change.");
+
                 ui.checkbox(debug_ignore_clip_rects, "Ignore clip rectangles");
                 ui.checkbox(debug_paint_clip_rects, "Paint clip rectangles");
                 ui.checkbox(debug_paint_text_rects, "Paint text bounds");

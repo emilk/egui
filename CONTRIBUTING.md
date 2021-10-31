@@ -11,7 +11,7 @@
 
 You can ask questions, share screenshots and more at [GitHub Discussions](https://github.com/emilk/egui/discussions).
 
-There is also an `egui` channel on the Embark discord at <https://discord.gg/vY8ZGS292W> (NOTE: I work at [Embark](https://www.embark-studios.com/), but `egui` is my hobby project).
+There is an `egui` discord at <https://discord.gg/vbuv9Xan65>.
 
 
 ## Filing an issue

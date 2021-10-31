@@ -101,7 +101,10 @@ pub use egui; // Re-export for user convenience
 /// and deployed as a web site using the [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web) crate.
 pub trait App {
     /// Called each time the UI needs repainting, which may be many times per second.
+    ///
     /// Put your widgets into a [`egui::SidePanel`], [`egui::TopBottomPanel`], [`egui::CentralPanel`], [`egui::Window`] or [`egui::Area`].
+    ///
+    /// To force a repaint, call either [`egui::Context::request_repaint`] or use [`Frame::repaint_signal`].
     fn update(&mut self, ctx: &egui::CtxRef, frame: &mut Frame<'_>);
 
     /// Called once before the first frame.
@@ -148,7 +151,8 @@ pub trait App {
     // ---------
     // Settings:
 
-    /// The name of your App.
+    /// The name of your App, used for the title bar of native windows
+    /// and the save location of persistence (see [`Self::save`]).
     fn name(&self) -> &str;
 
     /// Time between automatic calls to [`Self::save`]
@@ -277,6 +281,11 @@ impl<'a> Frame<'a> {
     /// Set the desired inner size of the window (in egui points).
     pub fn set_window_size(&mut self, size: egui::Vec2) {
         self.0.output.window_size = Some(size);
+    }
+
+    /// Set the desired title of the window.
+    pub fn set_window_title(&mut self, title: &str) {
+        self.0.output.window_title = Some(title.to_owned());
     }
 
     /// Set whether to show window decorations (i.e. a frame around you app).
@@ -439,7 +448,7 @@ pub mod backend {
     }
 
     /// Action that can be taken by the user app.
-    #[derive(Clone, Copy, Debug, Default, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct AppOutput {
         /// Set to `true` to stop the app.
         /// This does nothing for web apps.
@@ -447,6 +456,9 @@ pub mod backend {
 
         /// Set to some size to resize the outer window (e.g. glium window) to this size.
         pub window_size: Option<egui::Vec2>,
+
+        /// Set to some string to rename the outer window (e.g. glium window) to this title.
+        pub window_title: Option<String>,
 
         /// Set to some bool to change window decorations
         pub decorated: Option<bool>,

@@ -1,6 +1,6 @@
 [package]
 name = "egui_demo_app"
-version = "0.14.0"
+version = "0.15.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2018"
@@ -10,10 +10,10 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-eframe = { version = "0.14.0", path = "../eframe" }
-# eframe = { version = "0.14.0", path = "../eframe", default-features = false, features = ["default_fonts", "egui_glow"] }
+eframe = { version = "0.15.0", path = "../eframe" }
+# eframe = { version = "0.15.0", path = "../eframe", default-features = false, features = ["default_fonts", "egui_glow"] }
 
-egui_demo_lib = { version = "0.14.0", path = "../egui_demo_lib", features = ["extra_debug_asserts"] }
+egui_demo_lib = { version = "0.15.0", path = "../egui_demo_lib", features = ["extra_debug_asserts"] }
 
 [features]
 default = ["persistence"]

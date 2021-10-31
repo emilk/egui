@@ -3,6 +3,9 @@ All notable changes to the `egui_glium` integration will be noted in this file.
 
 
 ## Unreleased
+
+
+## 0.15.0 - 2021-10-24
 * Remove "http" feature (use https://github.com/emilk/ehttp instead!).
 * Implement `epi::NativeTexture` trait for the glium painter.
 * Deprecate 'Painter::register_glium_texture'.
