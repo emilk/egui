@@ -204,6 +204,9 @@ impl Area {
 
         let state = ctx.memory().areas.get(id).cloned();
         let is_new = state.is_none();
+        if is_new {
+            ctx.request_repaint(); // if we don't know the previous size we are likely drawing the area in the wrong place}
+        }
         let mut state = state.unwrap_or_else(|| State {
             pos: default_pos.unwrap_or_else(|| automatic_area_position(ctx)),
             size: Vec2::ZERO,
