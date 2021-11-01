@@ -1224,41 +1224,39 @@ fn update_text_agent(runner: &AppRunner) -> Option<()> {
     Some(())
 }
 
-// const MOBILE_DEVICE: [&str; 6] = ["Android", "iPhone", "iPad", "iPod", "webOS", "BlackBerry"];
-// /// If context is running under mobile device?
-// fn is_mobile() -> Option<bool> {
-//     let user_agent = web_sys::window()?.navigator().user_agent().ok()?;
-//     let is_mobile = MOBILE_DEVICE.iter().any(|&name| user_agent.contains(name));
-//     Some(is_mobile)
-// }
+const MOBILE_DEVICE: [&str; 6] = ["Android", "iPhone", "iPad", "iPod", "webOS", "BlackBerry"];
+/// If context is running under mobile device?
+fn is_mobile() -> Option<bool> {
+    let user_agent = web_sys::window()?.navigator().user_agent().ok()?;
+    let is_mobile = MOBILE_DEVICE.iter().any(|&name| user_agent.contains(name));
+    Some(is_mobile)
+}
 
 // Move text agent to text cursor's position, on desktop/laptop,
 // candidate window moves following text element (agent),
 // so it appears that the IME candidate window moves with text cursor.
 // On mobile devices, there is no need to do that.
-fn move_text_cursor(_cursor: &Option<egui::Pos2>, _canvas_id: &str) -> Option<()> {
+fn move_text_cursor(cursor: &Option<egui::Pos2>, canvas_id: &str) -> Option<()> {
     let style = text_agent().style();
     // Note: movint agent on mobile devices will lead to unpredictable scroll.
+    if is_mobile() == Some(false) {
+        cursor.as_ref().and_then(|&egui::Pos2 { x, y }| {
+            let canvas = canvas_element(canvas_id)?;
+            // If you enable the lines after
+            // After entering a new line so that the height of TextEdit exceeds the height of the browser window,
+            // if you enter any text, the egui screen will be driven outside the client area.
+            // let y = y + (canvas.scroll_top() + canvas.offset_top()) as f32;
+            // let x = x + (canvas.scroll_left() + canvas.offset_left()) as f32;
 
-    // Note: If you tweak the position of text_agent,
-    // After entering a new line so thatthe height of TextEdit exceeds the height of the browser window,
-    // if you enter any text, the egui screen will be driven outside the client area.
-
-    // if is_mobile() == Some(false) {
-    //     cursor.as_ref().and_then(|&egui::Pos2 { x, y }| {
-    //         let canvas = canvas_element(canvas_id)?;
-    //         let y = y + (canvas.scroll_top() + canvas.offset_top()) as f32;
-    //         let x = x + (canvas.scroll_left() + canvas.offset_left()) as f32;
-
-    //         // Canvas is translated 50% horizontally in html.
-    //         let x = x - canvas.offset_width() as f32 / 2.0;
-    //         style.set_property("position", "absolute").ok()?
-    //         style.set_property("top", &(y.to_string() + "px")).ok()?;
-    //         style.set_property("left", &(x.to_string() + "px")).ok()
-    //     })
-    // } else {
-    style.set_property("position", "absolute").ok()?;
-    style.set_property("top", "0px").ok()?;
-    style.set_property("left", "0px").ok()
-    // }
+            // Canvas is translated 50% horizontally in html.
+            let x = x - canvas.offset_width() as f32 / 2.0;
+            style.set_property("position", "absolute").ok()?;
+            style.set_property("top", &(y.to_string() + "px")).ok()?;
+            style.set_property("left", &(x.to_string() + "px")).ok()
+        })
+    } else {
+        style.set_property("position", "absolute").ok()?;
+        style.set_property("top", "0px").ok()?;
+        style.set_property("left", "0px").ok()
+    }
 }
