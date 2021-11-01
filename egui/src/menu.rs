@@ -110,11 +110,10 @@ pub(crate) fn submenu_button<R>(
 }
 
 /// wrapper for the contents of every menu.
-#[allow(clippy::needless_pass_by_value)]
 pub(crate) fn menu_ui<'c, R>(
     ctx: &CtxRef,
     menu_id: impl std::hash::Hash,
-    menu_state_arc: Arc<RwLock<MenuState>>,
+    menu_state_arc: &Arc<RwLock<MenuState>>,
     mut style: Style,
     add_contents: impl FnOnce(&mut Ui) -> R + 'c,
 ) -> InnerResponse<R> {
@@ -516,8 +515,7 @@ impl MenuState {
             },
             ..Default::default()
         };
-        let menu_state_arc = menu_state.clone();
-        crate::menu::menu_ui(ctx, id, menu_state_arc, style, add_contents)
+        crate::menu::menu_ui(ctx, id, menu_state, style, add_contents)
     }
     fn show_submenu<R>(
         &mut self,
