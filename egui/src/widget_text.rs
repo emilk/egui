@@ -583,17 +583,15 @@ impl WidgetTextGalley {
         &self.galley
     }
 
-    pub fn paint(self, ui: &Ui, text_pos: Pos2, visuals: &WidgetVisuals) {
+    pub fn paint(self, painter: &crate::Painter, text_pos: Pos2, visuals: &WidgetVisuals) {
         if self.galley_has_color {
-            ui.painter().galley(text_pos, self.galley);
+            painter.galley(text_pos, self.galley);
         } else {
-            ui.painter()
-                .galley_with_color(text_pos, self.galley, visuals.text_color());
+            painter.galley_with_color(text_pos, self.galley, visuals.text_color());
         }
     }
 
-    pub fn paint_with_color(self, ui: &Ui, text_pos: Pos2, text_color: Color32) {
-        ui.painter()
-            .galley_with_color(text_pos, self.galley, text_color);
+    pub fn paint_with_color(self, painter: &crate::Painter, text_pos: Pos2, text_color: Color32) {
+        painter.galley_with_color(text_pos, self.galley, text_color);
     }
 }

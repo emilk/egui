@@ -148,7 +148,6 @@ impl ComboBox {
     }
 }
 
-#[allow(clippy::needless_pass_by_value)]
 fn combo_box_dyn<'c, R>(
     ui: &mut Ui,
     button_id: Id,
@@ -183,7 +182,7 @@ fn combo_box_dyn<'c, R>(
         paint_icon(ui.painter(), icon_rect.expand(visuals.expansion), visuals);
 
         let text_rect = Align2::LEFT_CENTER.align_size_within_rect(galley.size(), rect);
-        galley.paint(ui, text_rect.min, visuals);
+        galley.paint(ui.painter(), text_rect.min, visuals);
     });
 
     if button_response.clicked() {

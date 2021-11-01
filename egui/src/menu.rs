@@ -442,8 +442,8 @@ impl SubMenuButton {
             );
 
             let text_color = visuals.text_color();
-            text_galley.paint_with_color(ui, text_pos, text_color);
-            icon_galley.paint_with_color(ui, icon_pos, text_color);
+            text_galley.paint_with_color(ui.painter(), text_pos, text_color);
+            icon_galley.paint_with_color(ui.painter(), icon_pos, text_color);
         }
         response
     }

@@ -6,7 +6,8 @@ use crate::{widget_text::WidgetTextGalley, *};
 /// # let ui = &mut egui::Ui::__test();
 /// ui.label("Equivalent");
 /// ui.add(egui::Label::new("Equivalent"));
-/// ui.add(egui::Label::new("With Options").text_color(egui::Color32::RED));
+/// ui.add(egui::Label::new("With Options").wrap(false));
+/// ui.label(egui::RichText::new("With formatting").underline());
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Label {
