@@ -14,9 +14,6 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 ### Changed 🔧
 * Unifiy the four `Memory` data buckets (`data`, `data_temp`, `id_data` and `id_data_temp`) into a single `Memory::data`, with a new interface ([#836](https://github.com/emilk/egui/pull/836)).
 
-### Fixed 🐛
-* Fix shift key getting stuck enabled with the X11 option `shift:both_capslock` enabled ([#849](https://github.com/emilk/egui/pull/849)).
-
 ### Contributors 🙏
 * [mankinskin](https://github.com/mankinskin) ([#543](https://github.com/emilk/egui/pull/543))
 
