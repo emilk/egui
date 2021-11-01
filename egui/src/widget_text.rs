@@ -459,6 +459,8 @@ impl WidgetText {
         }
     }
 
+    /// Layout with wrap mode based on the containing `Ui`.
+    ///
     /// wrap: override for [`Ui::wrap_text`].
     pub fn into_galley(
         self,

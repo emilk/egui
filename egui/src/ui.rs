@@ -1765,7 +1765,7 @@ impl Ui {
     /// ```
     pub fn menu_button<R>(
         &mut self,
-        title: impl ToString,
+        title: impl Into<WidgetText>,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<Option<R>> {
         if let Some(menu_state) = self.menu_state.clone() {

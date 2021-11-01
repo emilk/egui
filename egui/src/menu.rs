@@ -92,7 +92,7 @@ pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResp
 /// Returns `None` if the menu is not open.
 pub fn menu_button<R>(
     ui: &mut Ui,
-    title: impl ToString,
+    title: impl Into<WidgetText>,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> InnerResponse<Option<R>> {
     stationary_menu_impl(ui, title, Box::new(add_contents))
@@ -103,7 +103,7 @@ pub fn menu_button<R>(
 pub(crate) fn submenu_button<R>(
     ui: &mut Ui,
     parent_state: Arc<RwLock<MenuState>>,
-    title: impl ToString,
+    title: impl Into<WidgetText>,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> InnerResponse<Option<R>> {
     SubMenu::new(parent_state, title).show(ui, add_contents)
@@ -152,15 +152,14 @@ pub(crate) fn menu_ui<'c, R>(
 }
 
 /// build a top level menu with a button
-#[allow(clippy::needless_pass_by_value)]
 fn stationary_menu_impl<'c, R>(
     ui: &mut Ui,
-    title: impl ToString,
+    title: impl Into<WidgetText>,
     add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
 ) -> InnerResponse<Option<R>> {
-    let title = title.to_string();
+    let title = title.into();
     let bar_id = ui.id();
-    let menu_id = bar_id.with(&title);
+    let menu_id = bar_id.with(title.text());
 
     let mut bar_state = BarState::load(ui.ctx(), bar_id);
 
@@ -372,20 +371,20 @@ impl MenuResponse {
     }
 }
 pub struct SubMenuButton {
-    text: String,
-    icon: String,
+    text: WidgetText,
+    icon: WidgetText,
     index: usize,
 }
 impl SubMenuButton {
     /// The `icon` can be an emoji (e.g. `⏵` right arrow), shown right of the label
-    #[allow(clippy::needless_pass_by_value)]
-    fn new(text: impl ToString, icon: impl ToString, index: usize) -> Self {
+    fn new(text: impl Into<WidgetText>, icon: impl Into<WidgetText>, index: usize) -> Self {
         Self {
-            text: text.to_string(),
-            icon: icon.to_string(),
+            text: text.into(),
+            icon: icon.into(),
             index,
         }
     }
+
     fn visuals<'a>(
         ui: &'a Ui,
         response: &'_ Response,
@@ -398,11 +397,12 @@ impl SubMenuButton {
             ui.style().interact(response)
         }
     }
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn icon(mut self, icon: impl ToString) -> Self {
-        self.icon = icon.to_string();
+
+    pub fn icon(mut self, icon: impl Into<WidgetText>) -> Self {
+        self.icon = icon.into();
         self
     }
+
     pub(crate) fn show(self, ui: &mut Ui, menu_state: &MenuState, sub_id: Id) -> Response {
         let SubMenuButton { text, icon, .. } = self;
 
@@ -412,14 +412,10 @@ impl SubMenuButton {
         let button_padding = ui.spacing().button_padding;
         let total_extra = button_padding + button_padding;
         let text_available_width = ui.available_width() - total_extra.x;
-        let text_galley = ui
-            .fonts()
-            .layout_delayed_color(text, text_style, text_available_width);
+        let text_galley = text.into_galley(ui, Some(true), text_available_width, text_style);
 
         let icon_available_width = text_available_width - text_galley.size().x;
-        let icon_galley = ui
-            .fonts()
-            .layout_delayed_color(icon, text_style, icon_available_width);
+        let icon_galley = icon.into_galley(ui, Some(true), icon_available_width, text_style);
         let text_and_icon_size = Vec2::new(
             text_galley.size().x + icon_galley.size().x,
             text_galley.size().y.max(icon_galley.size().y),
@@ -447,10 +443,8 @@ impl SubMenuButton {
             );
 
             let text_color = visuals.text_color();
-            ui.painter()
-                .galley_with_color(text_pos, text_galley, text_color);
-            ui.painter()
-                .galley_with_color(icon_pos, icon_galley, text_color);
+            text_galley.paint_with_color(ui, text_pos, text_color);
+            icon_galley.paint_with_color(ui, icon_pos, text_color);
         }
         response
     }
@@ -460,14 +454,14 @@ pub struct SubMenu {
     parent_state: Arc<RwLock<MenuState>>,
 }
 impl SubMenu {
-    #[allow(clippy::needless_pass_by_value)]
-    fn new(parent_state: Arc<RwLock<MenuState>>, text: impl ToString) -> Self {
+    fn new(parent_state: Arc<RwLock<MenuState>>, text: impl Into<WidgetText>) -> Self {
         let index = parent_state.write().next_entry_index();
         Self {
             button: SubMenuButton::new(text, "⏵", index),
             parent_state,
         }
     }
+
     pub fn show<R>(
         self,
         ui: &mut Ui,
