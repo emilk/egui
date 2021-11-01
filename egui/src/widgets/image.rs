@@ -68,27 +68,29 @@ impl Image {
     }
 
     pub fn paint_at(&self, ui: &mut Ui, rect: Rect) {
-        use epaint::*;
-        let Self {
-            texture_id,
-            uv,
-            size: _,
-            bg_fill,
-            tint,
-            sense: _,
-        } = self;
+        if ui.is_rect_visible(rect) {
+            use epaint::*;
+            let Self {
+                texture_id,
+                uv,
+                size: _,
+                bg_fill,
+                tint,
+                sense: _,
+            } = self;
 
-        if *bg_fill != Default::default() {
-            let mut mesh = Mesh::default();
-            mesh.add_colored_rect(rect, *bg_fill);
-            ui.painter().add(Shape::mesh(mesh));
-        }
+            if *bg_fill != Default::default() {
+                let mut mesh = Mesh::default();
+                mesh.add_colored_rect(rect, *bg_fill);
+                ui.painter().add(Shape::mesh(mesh));
+            }
 
-        {
-            // TODO: builder pattern for Mesh
-            let mut mesh = Mesh::with_texture(*texture_id);
-            mesh.add_rect_with_uv(rect, *uv, *tint);
-            ui.painter().add(Shape::mesh(mesh));
+            {
+                // TODO: builder pattern for Mesh
+                let mut mesh = Mesh::with_texture(*texture_id);
+                mesh.add_rect_with_uv(rect, *uv, *tint);
+                ui.painter().add(Shape::mesh(mesh));
+            }
         }
     }
 }

@@ -226,9 +226,9 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
 ///     egui::show_tooltip_text(ui.ctx(), egui::Id::new("my_tooltip"), "Helpful text");
 /// }
 /// ```
-pub fn show_tooltip_text(ctx: &CtxRef, id: Id, text: impl ToString) -> Option<()> {
+pub fn show_tooltip_text(ctx: &CtxRef, id: Id, text: impl Into<WidgetText>) -> Option<()> {
     show_tooltip(ctx, id, |ui| {
-        ui.add(crate::widgets::Label::new(text));
+        crate::widgets::Label::new(text).ui(ui);
     })
 }
 

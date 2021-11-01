@@ -915,7 +915,7 @@ impl Context {
                     let text = format!("{} - {:?}", layer_id.short_debug_format(), area.rect(),);
                     // TODO: `Sense::hover_highlight()`
                     if ui
-                        .add(Label::new(text).monospace().sense(Sense::click()))
+                        .add(Label::new(RichText::new(text).monospace()).sense(Sense::click()))
                         .hovered
                         && is_visible
                     {
