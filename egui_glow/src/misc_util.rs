@@ -85,7 +85,7 @@ pub(crate) fn glow_debug_print(s: impl Into<JsValue>) {
 }
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn glow_debug_print(s: impl std::fmt::Display) {
-    println!("{}", s)
+    println!("{}", s);
 }
 
 pub(crate) fn compile_shader(
@@ -115,7 +115,7 @@ pub(crate) fn link_program<'a, T: IntoIterator<Item = &'a glow::Shader>>(
     let program = unsafe { gl.create_program() }?;
     unsafe {
         for shader in shaders {
-            gl.attach_shader(program, *shader)
+            gl.attach_shader(program, *shader);
         }
     }
     unsafe {

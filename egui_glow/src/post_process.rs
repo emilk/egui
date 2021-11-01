@@ -3,7 +3,7 @@ use crate::misc_util::{compile_shader, link_program};
 use crate::vao_emulate::BufferInfo;
 use glow::HasContext;
 
-/// Uses a framebuffer to render everything in linear color space and convert it back to sRGB
+/// Uses a framebuffer to render everything in linear color space and convert it back to `sRGB`
 /// in a separate "post processing" step
 pub(crate) struct PostProcess {
     pos_buffer: glow::Buffer,
@@ -99,8 +99,12 @@ impl PostProcess {
             );
         }
 
-        unsafe { gl.bind_texture(glow::TEXTURE_2D, None) }
-        unsafe { gl.bind_framebuffer(glow::FRAMEBUFFER, None) }
+        unsafe {
+            gl.bind_texture(glow::TEXTURE_2D, None);
+        }
+        unsafe {
+            gl.bind_framebuffer(glow::FRAMEBUFFER, None);
+        }
 
         let vert_shader = compile_shader(
             gl,

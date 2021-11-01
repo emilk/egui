@@ -41,7 +41,7 @@ impl EmulatedVao {
                         attribute.offset,
                     );
                 }
-                gl.enable_vertex_attrib_array(attribute.location)
+                gl.enable_vertex_attrib_array(attribute.location);
             }
         }
     }

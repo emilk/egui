@@ -60,10 +60,10 @@ pub(crate) struct UserTexture {
 impl Painter {
     /// create painter
     ///
-    /// if pp_fb_extent is none post process disabled .
-    /// when post process disabled sRGB invalid color appeared on OpenGL ES and WebGL .
+    /// if `pp_fb_extent` is none post process disabled .
+    /// when post process disabled `sRGB` invalid color appeared on OpenGL ES and WebGL .
     ///
-    /// to enable post process set framebuffer dimension to pp_fb_extent.
+    /// to enable post process set framebuffer dimension to `pp_fb_extent`.
     pub fn new(gl: &glow::Context, pp_fb_extent: Option<[i32; 2]>) -> Painter {
         let shader_version = ShaderVersion::get(gl);
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
@@ -105,7 +105,7 @@ impl Painter {
                     glow_debug_print(format!(
                         "failed to compile vertex shader due to errors \n {}",
                         problems
-                    ))
+                    ));
                 })
                 .unwrap();
             let f = compile_shader(gl, glow::FRAGMENT_SHADER, &f_src)
@@ -113,7 +113,7 @@ impl Painter {
                     glow_debug_print(format!(
                         "failed to compile fragment shader due to errors \n {}",
                         problems
-                    ))
+                    ));
                 })
                 .unwrap();
             let program = link_program(gl, [v, f].iter())
@@ -121,7 +121,7 @@ impl Painter {
                     glow_debug_print(format!(
                         "failed to link shaders due to errors \n {}",
                         problems
-                    ))
+                    ));
                 })
                 .unwrap();
             gl.detach_shader(program, v);
@@ -298,7 +298,7 @@ impl Painter {
         }
         let size_in_pixels = unsafe { self.prepare_painting(inner_size, gl, pixels_per_point) };
         for egui::ClippedMesh(clip_rect, mesh) in clipped_meshes {
-            self.paint_mesh(gl, size_in_pixels, pixels_per_point, clip_rect, &mesh)
+            self.paint_mesh(gl, size_in_pixels, pixels_per_point, clip_rect, &mesh);
         }
         self.vertex_array.unbind_vertex_array(gl);
         unsafe {
@@ -307,7 +307,9 @@ impl Painter {
         if let Some(ref post_process) = self.post_process {
             post_process.end(gl);
         }
-        unsafe { assert_eq!(glow::NO_ERROR, gl.get_error(), "GL error occurred!") }
+        unsafe {
+            assert_eq!(glow::NO_ERROR, gl.get_error(), "GL error occurred!");
+        }
     }
 
     #[inline(never)] // Easier profiling
