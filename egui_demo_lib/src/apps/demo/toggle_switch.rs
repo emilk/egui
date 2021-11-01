@@ -41,24 +41,27 @@ pub fn toggle_ui(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
     response.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Checkbox, *on, ""));
 
     // 4. Paint!
-    // First let's ask for a simple animation from egui.
-    // egui keeps track of changes in the boolean associated with the id and
-    // returns an animated value in the 0-1 range for how much "on" we are.
-    let how_on = ui.ctx().animate_bool(response.id, *on);
-    // We will follow the current style by asking
-    // "how should something that is being interacted with be painted?".
-    // This will, for instance, give us different colors when the widget is hovered or clicked.
-    let visuals = ui.style().interact_selectable(&response, *on);
-    // All coordinates are in absolute screen coordinates so we use `rect` to place the elements.
-    let rect = rect.expand(visuals.expansion);
-    let radius = 0.5 * rect.height();
-    ui.painter()
-        .rect(rect, radius, visuals.bg_fill, visuals.bg_stroke);
-    // Paint the circle, animating it from left to right with `how_on`:
-    let circle_x = egui::lerp((rect.left() + radius)..=(rect.right() - radius), how_on);
-    let center = egui::pos2(circle_x, rect.center().y);
-    ui.painter()
-        .circle(center, 0.75 * radius, visuals.bg_fill, visuals.fg_stroke);
+    // Make sure we need to paint:
+    if ui.is_rect_visible(rect) {
+        // Let's ask for a simple animation from egui.
+        // egui keeps track of changes in the boolean associated with the id and
+        // returns an animated value in the 0-1 range for how much "on" we are.
+        let how_on = ui.ctx().animate_bool(response.id, *on);
+        // We will follow the current style by asking
+        // "how should something that is being interacted with be painted?".
+        // This will, for instance, give us different colors when the widget is hovered or clicked.
+        let visuals = ui.style().interact_selectable(&response, *on);
+        // All coordinates are in absolute screen coordinates so we use `rect` to place the elements.
+        let rect = rect.expand(visuals.expansion);
+        let radius = 0.5 * rect.height();
+        ui.painter()
+            .rect(rect, radius, visuals.bg_fill, visuals.bg_stroke);
+        // Paint the circle, animating it from left to right with `how_on`:
+        let circle_x = egui::lerp((rect.left() + radius)..=(rect.right() - radius), how_on);
+        let center = egui::pos2(circle_x, rect.center().y);
+        ui.painter()
+            .circle(center, 0.75 * radius, visuals.bg_fill, visuals.fg_stroke);
+    }
 
     // All done! Return the interaction response so the user can check what happened
     // (hovered, clicked, ...) and maybe show a tooltip:
@@ -76,16 +79,18 @@ fn toggle_ui_compact(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
     }
     response.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Checkbox, *on, ""));
 
-    let how_on = ui.ctx().animate_bool(response.id, *on);
-    let visuals = ui.style().interact_selectable(&response, *on);
-    let rect = rect.expand(visuals.expansion);
-    let radius = 0.5 * rect.height();
-    ui.painter()
-        .rect(rect, radius, visuals.bg_fill, visuals.bg_stroke);
-    let circle_x = egui::lerp((rect.left() + radius)..=(rect.right() - radius), how_on);
-    let center = egui::pos2(circle_x, rect.center().y);
-    ui.painter()
-        .circle(center, 0.75 * radius, visuals.bg_fill, visuals.fg_stroke);
+    if ui.is_rect_visible(rect) {
+        let how_on = ui.ctx().animate_bool(response.id, *on);
+        let visuals = ui.style().interact_selectable(&response, *on);
+        let rect = rect.expand(visuals.expansion);
+        let radius = 0.5 * rect.height();
+        ui.painter()
+            .rect(rect, radius, visuals.bg_fill, visuals.bg_stroke);
+        let circle_x = egui::lerp((rect.left() + radius)..=(rect.right() - radius), how_on);
+        let center = egui::pos2(circle_x, rect.center().y);
+        ui.painter()
+            .circle(center, 0.75 * radius, visuals.bg_fill, visuals.fg_stroke);
+    }
 
     response
 }

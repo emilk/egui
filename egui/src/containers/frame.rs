@@ -209,8 +209,11 @@ impl Prepared {
             ..
         } = self;
 
-        let shape = frame.paint(outer_rect);
-        ui.painter().set(where_to_put_background, shape);
+        if ui.is_rect_visible(outer_rect) {
+            let shape = frame.paint(outer_rect);
+            ui.painter().set(where_to_put_background, shape);
+        }
+
         ui.allocate_rect(outer_rect, Sense::hover())
     }
 }

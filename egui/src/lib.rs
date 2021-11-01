@@ -367,6 +367,7 @@ mod sense;
 pub mod style;
 mod ui;
 pub mod util;
+mod widget_text;
 pub mod widgets;
 
 pub use epaint;
@@ -408,6 +409,7 @@ pub use {
     style::{Style, Visuals},
     text::{Galley, TextFormat},
     ui::Ui,
+    widget_text::{RichText, WidgetText},
     widgets::*,
 };
 
@@ -416,10 +418,10 @@ pub use {
 /// Helper function that adds a label when compiling with debug assertions enabled.
 pub fn warn_if_debug_build(ui: &mut crate::Ui) {
     if cfg!(debug_assertions) {
-        ui.add(
-            crate::Label::new("‼ Debug build ‼")
+        ui.label(
+            RichText::new("‼ Debug build ‼")
                 .small()
-                .text_color(crate::Color32::RED),
+                .color(crate::Color32::RED),
         )
         .on_hover_text("egui was compiled with debug assertions enabled.");
     }
@@ -437,7 +439,7 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
 macro_rules! github_link_file_line {
     ($github_url: expr, $label: expr) => {{
         let url = format!("{}{}#L{}", $github_url, file!(), line!());
-        $crate::Hyperlink::new(url).text($label)
+        $crate::Hyperlink::from_label_and_url($label, url)
     }};
 }
 
@@ -451,7 +453,7 @@ macro_rules! github_link_file_line {
 macro_rules! github_link_file {
     ($github_url: expr, $label: expr) => {{
         let url = format!("{}{}", $github_url, file!());
-        $crate::Hyperlink::new(url).text($label)
+        $crate::Hyperlink::from_label_and_url($label, url)
     }};
 }
 

@@ -84,7 +84,7 @@ fn lorem_ipsum(ui: &mut egui::Ui) {
     ui.with_layout(
         egui::Layout::top_down(egui::Align::LEFT).with_cross_justify(true),
         |ui| {
-            ui.add(egui::Label::new(crate::LOREM_IPSUM_LONG).small().weak());
+            ui.label(egui::RichText::new(crate::LOREM_IPSUM_LONG).small().weak());
         },
     );
 }

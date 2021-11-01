@@ -208,11 +208,12 @@ impl<'a> Widget for DragValue<'a> {
             }
             response
         } else {
-            let button = Button::new(format!("{}{}{}", prefix, value_text, suffix))
-                .sense(Sense::click_and_drag())
-                .text_style(TextStyle::Monospace)
-                .wrap(false)
-                .min_size(ui.spacing().interact_size); // TODO: find some more generic solution to this
+            let button = Button::new(
+                RichText::new(format!("{}{}{}", prefix, value_text, suffix)).monospace(),
+            )
+            .wrap(false)
+            .sense(Sense::click_and_drag())
+            .min_size(ui.spacing().interact_size); // TODO: find some more generic solution to `min_size`
 
             let response = ui.add(button);
             let mut response = response.on_hover_cursor(CursorIcon::ResizeHorizontal);

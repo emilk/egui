@@ -237,5 +237,5 @@ fn clock_button(ui: &mut egui::Ui, seconds_since_midnight: f64) -> egui::Respons
         (time % 1.0 * 100.0).floor()
     );
 
-    ui.add(egui::Button::new(time).text_style(egui::TextStyle::Monospace))
+    ui.button(egui::RichText::new(time).monospace())
 }

@@ -68,19 +68,23 @@ impl Widget for Separator {
         };
 
         let (rect, response) = ui.allocate_at_least(size, Sense::hover());
-        let points = if is_horizontal_line {
-            [
-                pos2(rect.left(), rect.center().y),
-                pos2(rect.right(), rect.center().y),
-            ]
-        } else {
-            [
-                pos2(rect.center().x, rect.top()),
-                pos2(rect.center().x, rect.bottom()),
-            ]
-        };
-        let stroke = ui.visuals().widgets.noninteractive.bg_stroke;
-        ui.painter().line_segment(points, stroke);
+
+        if ui.is_rect_visible(response.rect) {
+            let points = if is_horizontal_line {
+                [
+                    pos2(rect.left(), rect.center().y),
+                    pos2(rect.right(), rect.center().y),
+                ]
+            } else {
+                [
+                    pos2(rect.center().x, rect.top()),
+                    pos2(rect.center().x, rect.bottom()),
+                ]
+            };
+            let stroke = ui.visuals().widgets.noninteractive.bg_stroke;
+            ui.painter().line_segment(points, stroke);
+        }
+
         response
     }
 }
