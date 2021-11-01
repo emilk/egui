@@ -289,6 +289,18 @@ impl State {
                 });
                 false
             }
+            WindowEvent::ModifiersChanged(state) => {
+                self.egui_input.modifiers.alt = state.alt();
+                self.egui_input.modifiers.ctrl = state.ctrl();
+                self.egui_input.modifiers.shift = state.shift();
+                self.egui_input.modifiers.mac_cmd = cfg!(target_os = "macos") && state.logo();
+                self.egui_input.modifiers.command = if cfg!(target_os = "macos") {
+                    state.logo()
+                } else {
+                    state.ctrl()
+                };
+                false
+            }
             _ => {
                 // dbg!(event);
                 false
@@ -457,29 +469,7 @@ impl State {
 
     fn on_keyboard_input(&mut self, input: &winit::event::KeyboardInput) {
         if let Some(keycode) = input.virtual_keycode {
-            use winit::event::VirtualKeyCode;
-
             let pressed = input.state == winit::event::ElementState::Pressed;
-
-            // We could also use `WindowEvent::ModifiersChanged` instead, I guess.
-            if matches!(keycode, VirtualKeyCode::LAlt | VirtualKeyCode::RAlt) {
-                self.egui_input.modifiers.alt = pressed;
-            }
-            if matches!(keycode, VirtualKeyCode::LControl | VirtualKeyCode::RControl) {
-                self.egui_input.modifiers.ctrl = pressed;
-                if !cfg!(target_os = "macos") {
-                    self.egui_input.modifiers.command = pressed;
-                }
-            }
-            if matches!(keycode, VirtualKeyCode::LShift | VirtualKeyCode::RShift) {
-                self.egui_input.modifiers.shift = pressed;
-            }
-            if cfg!(target_os = "macos")
-                && matches!(keycode, VirtualKeyCode::LWin | VirtualKeyCode::RWin)
-            {
-                self.egui_input.modifiers.mac_cmd = pressed;
-                self.egui_input.modifiers.command = pressed;
-            }
 
             if pressed {
                 // VirtualKeyCode::Paste etc in winit are broken/untrustworthy,
