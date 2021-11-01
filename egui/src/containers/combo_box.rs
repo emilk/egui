@@ -21,7 +21,7 @@ use epaint::Shape;
 pub struct ComboBox {
     id_source: Id,
     label: Option<WidgetText>,
-    selected_text: String,
+    selected_text: WidgetText,
     width: Option<f32>,
 }
 
@@ -54,9 +54,8 @@ impl ComboBox {
     }
 
     /// What we show as the currently selected value
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn selected_text(mut self, selected_text: impl ToString) -> Self {
-        self.selected_text = selected_text.to_string();
+    pub fn selected_text(mut self, selected_text: impl Into<WidgetText>) -> Self {
+        self.selected_text = selected_text.into();
         self
     }
 
@@ -153,7 +152,7 @@ impl ComboBox {
 fn combo_box_dyn<'c, R>(
     ui: &mut Ui,
     button_id: Id,
-    selected: impl ToString,
+    selected_text: WidgetText,
     menu_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
 ) -> InnerResponse<Option<R>> {
     let popup_id = button_id.with("popup");
@@ -164,9 +163,7 @@ fn combo_box_dyn<'c, R>(
         let full_minimum_width = ui.spacing().slider_width;
         let icon_size = Vec2::splat(ui.spacing().icon_width);
 
-        let galley =
-            ui.fonts()
-                .layout_delayed_color(selected.to_string(), TextStyle::Button, f32::INFINITY);
+        let galley = selected_text.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Button);
 
         let width = galley.size().x + ui.spacing().item_spacing.x + icon_size.x;
         let width = width.at_least(full_minimum_width);
@@ -186,8 +183,7 @@ fn combo_box_dyn<'c, R>(
         paint_icon(ui.painter(), icon_rect.expand(visuals.expansion), visuals);
 
         let text_rect = Align2::LEFT_CENTER.align_size_within_rect(galley.size(), rect);
-        ui.painter()
-            .galley_with_color(text_rect.min, galley, visuals.text_color());
+        galley.paint(ui, text_rect.min, visuals);
     });
 
     if button_response.clicked() {

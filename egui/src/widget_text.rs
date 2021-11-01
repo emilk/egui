@@ -278,6 +278,12 @@ pub enum WidgetText {
     Galley(Arc<Galley>),
 }
 
+impl Default for WidgetText {
+    fn default() -> Self {
+        Self::RichText(RichText::default())
+    }
+}
+
 impl WidgetText {
     #[inline]
     pub fn text(&self) -> &str {
