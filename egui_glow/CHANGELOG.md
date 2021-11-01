@@ -3,7 +3,8 @@ All notable changes to the `egui_glow` integration will be noted in this file.
 
 
 ## Unreleased
-
+* add `painter_only` feature to reuse painter implementation.
+* no glutin dependency in painter .
 
 ## 0.15.0 - 2021-10-24
 `egui_glow` has been newly created, with feature parity to `egui_glium`.

@@ -1,7 +1,10 @@
+use crate::painter::UserTexture;
 use crate::*;
 use egui::Color32;
+use egui::TextureId;
 #[cfg(target_os = "windows")]
 use glutin::platform::windows::WindowBuilderExtWindows;
+#[cfg(not(feature = "painter_only"))]
 use std::time::Instant;
 
 impl epi::TextureAllocator for Painter {
@@ -20,16 +23,36 @@ impl epi::TextureAllocator for Painter {
     }
 }
 
+impl epi::NativeTexture for Painter {
+    type Texture = glow::Texture;
+
+    fn register_native_texture(&mut self, native: Self::Texture) -> TextureId {
+        self.register_glow_texture(native)
+    }
+
+    fn replace_native_texture(&mut self, id: TextureId, replacing: Self::Texture) {
+        if let egui::TextureId::User(id) = id {
+            if let Some(Some(user_texture)) = self.user_textures.get_mut(id as usize) {
+                *user_texture = UserTexture {
+                    data: vec![],
+                    gl_texture: Some(replacing),
+                    size: (0, 0),
+                };
+            }
+        }
+    }
+}
+#[cfg(not(feature = "painter_only"))]
 struct RequestRepaintEvent;
-
+#[cfg(not(feature = "painter_only"))]
 struct GlowRepaintSignal(std::sync::Mutex<glutin::event_loop::EventLoopProxy<RequestRepaintEvent>>);
-
+#[cfg(not(feature = "painter_only"))]
 impl epi::RepaintSignal for GlowRepaintSignal {
     fn request_repaint(&self) {
         self.0.lock().unwrap().send_event(RequestRepaintEvent).ok();
     }
 }
-
+#[cfg(not(feature = "painter_only"))]
 #[allow(unsafe_code)]
 fn create_display(
     window_builder: glutin::window::WindowBuilder,
@@ -59,7 +82,7 @@ fn create_display(
 
     (gl_window, gl)
 }
-
+#[cfg(not(feature = "painter_only"))]
 fn integration_info(
     window: &glutin::window::Window,
     previous_frame_time: Option<f32>,
@@ -74,9 +97,9 @@ fn integration_info(
 }
 
 // ----------------------------------------------------------------------------
-
+#[cfg(not(feature = "painter_only"))]
 pub use epi::NativeOptions;
-
+#[cfg(not(feature = "painter_only"))]
 /// Run an egui app
 #[allow(unsafe_code)]
 pub fn run(mut app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {

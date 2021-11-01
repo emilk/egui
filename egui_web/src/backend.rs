@@ -15,14 +15,30 @@ impl WebBackend {
     pub fn new(canvas_id: &str) -> Result<Self, JsValue> {
         let ctx = egui::CtxRef::default();
 
-        let painter: Box<dyn Painter> =
+        #[cfg(feature = "use_glow_painter")]
+        let painter: Box<dyn Painter> = {
+            let canvas = canvas_element_or_die(canvas_id);
+            let gl_ctx =
+                egui_glow::create_context_for_canvas::init_glow_context_from_canvas(&canvas);
+            let dimension = [canvas.width() as i32, canvas.height() as i32];
+            let painter = egui_glow::Painter::new(&gl_ctx, Some(dimension));
+            Box::new(crate::glow_wrapping::WrappedGlowPainter {
+                gl_ctx,
+                canvas,
+                canvas_id: canvas_id.to_owned(),
+                painter,
+            })
+        };
+        #[cfg(not(feature = "use_glow_painter"))]
+        let painter: Box<dyn Painter> = {
             if let Ok(webgl2_painter) = webgl2::WebGl2Painter::new(canvas_id) {
                 console_log("Using WebGL2 backend");
                 Box::new(webgl2_painter)
             } else {
                 console_log("Falling back to WebGL1 backend");
                 Box::new(webgl1::WebGlPainter::new(canvas_id)?)
-            };
+            }
+        };
 
         Ok(Self {
             egui_ctx: ctx,
@@ -223,8 +239,12 @@ impl AppRunner {
     }
 
     fn integration_info(&self) -> epi::IntegrationInfo {
+        #[cfg(not(feature = "use_glow_painter"))]
+        const NAME: &'static str = "egui_web";
+        #[cfg(feature = "use_glow_painter")]
+        const NAME: &'static str = "egui_web(painted by glow)";
         epi::IntegrationInfo {
-            name: "egui_web",
+            name: NAME,
             web_info: Some(epi::WebInfo {
                 web_location_hash: location_hash().unwrap_or_default(),
             }),
