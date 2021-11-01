@@ -144,7 +144,7 @@ impl Widget for Button {
         let (rect, response) = ui.allocate_at_least(desired_size, sense);
         response.widget_info(|| WidgetInfo::labeled(WidgetType::Button, text.text()));
 
-        if ui.clip_rect().intersects(rect) {
+        if ui.is_rect_visible(rect) {
             let visuals = ui.style().interact(&response);
             let text_pos = ui
                 .layout()
@@ -234,33 +234,36 @@ impl<'a> Widget for Checkbox<'a> {
         }
         response.widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, *checked, text.text()));
 
-        // let visuals = ui.style().interact_selectable(&response, *checked); // too colorful
-        let visuals = ui.style().interact(&response);
-        let text_pos = pos2(
-            rect.min.x + button_padding.x + icon_width + icon_spacing,
-            rect.center().y - 0.5 * text.size().y,
-        );
-        let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
-        ui.painter().add(epaint::RectShape {
-            rect: big_icon_rect.expand(visuals.expansion),
-            corner_radius: visuals.corner_radius,
-            fill: visuals.bg_fill,
-            stroke: visuals.bg_stroke,
-        });
+        if ui.is_rect_visible(rect) {
+            // let visuals = ui.style().interact_selectable(&response, *checked); // too colorful
+            let visuals = ui.style().interact(&response);
+            let text_pos = pos2(
+                rect.min.x + button_padding.x + icon_width + icon_spacing,
+                rect.center().y - 0.5 * text.size().y,
+            );
+            let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
+            ui.painter().add(epaint::RectShape {
+                rect: big_icon_rect.expand(visuals.expansion),
+                corner_radius: visuals.corner_radius,
+                fill: visuals.bg_fill,
+                stroke: visuals.bg_stroke,
+            });
 
-        if *checked {
-            // Check mark:
-            ui.painter().add(Shape::line(
-                vec![
-                    pos2(small_icon_rect.left(), small_icon_rect.center().y),
-                    pos2(small_icon_rect.center().x, small_icon_rect.bottom()),
-                    pos2(small_icon_rect.right(), small_icon_rect.top()),
-                ],
-                visuals.fg_stroke,
-            ));
+            if *checked {
+                // Check mark:
+                ui.painter().add(Shape::line(
+                    vec![
+                        pos2(small_icon_rect.left(), small_icon_rect.center().y),
+                        pos2(small_icon_rect.center().x, small_icon_rect.bottom()),
+                        pos2(small_icon_rect.right(), small_icon_rect.top()),
+                    ],
+                    visuals.fg_stroke,
+                ));
+            }
+
+            text.paint_with_visuals(ui.painter(), text_pos, visuals);
         }
 
-        text.paint_with_visuals(ui.painter(), text_pos, visuals);
         response
     }
 }
@@ -331,36 +334,39 @@ impl Widget for RadioButton {
         response
             .widget_info(|| WidgetInfo::selected(WidgetType::RadioButton, checked, text.text()));
 
-        let text_pos = pos2(
-            rect.min.x + button_padding.x + icon_width + icon_spacing,
-            rect.center().y - 0.5 * text.size().y,
-        );
+        if ui.is_rect_visible(rect) {
+            let text_pos = pos2(
+                rect.min.x + button_padding.x + icon_width + icon_spacing,
+                rect.center().y - 0.5 * text.size().y,
+            );
 
-        // let visuals = ui.style().interact_selectable(&response, checked); // too colorful
-        let visuals = ui.style().interact(&response);
+            // let visuals = ui.style().interact_selectable(&response, checked); // too colorful
+            let visuals = ui.style().interact(&response);
 
-        let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
+            let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
 
-        let painter = ui.painter();
+            let painter = ui.painter();
 
-        painter.add(epaint::CircleShape {
-            center: big_icon_rect.center(),
-            radius: big_icon_rect.width() / 2.0 + visuals.expansion,
-            fill: visuals.bg_fill,
-            stroke: visuals.bg_stroke,
-        });
-
-        if checked {
             painter.add(epaint::CircleShape {
-                center: small_icon_rect.center(),
-                radius: small_icon_rect.width() / 3.0,
-                fill: visuals.fg_stroke.color, // Intentional to use stroke and not fill
-                // fill: ui.visuals().selection.stroke.color, // too much color
-                stroke: Default::default(),
+                center: big_icon_rect.center(),
+                radius: big_icon_rect.width() / 2.0 + visuals.expansion,
+                fill: visuals.bg_fill,
+                stroke: visuals.bg_stroke,
             });
+
+            if checked {
+                painter.add(epaint::CircleShape {
+                    center: small_icon_rect.center(),
+                    radius: small_icon_rect.width() / 3.0,
+                    fill: visuals.fg_stroke.color, // Intentional to use stroke and not fill
+                    // fill: ui.visuals().selection.stroke.color, // too much color
+                    stroke: Default::default(),
+                });
+            }
+
+            text.paint_with_visuals(ui.painter(), text_pos, visuals);
         }
 
-        text.paint_with_visuals(ui.painter(), text_pos, visuals);
         response
     }
 }
@@ -438,7 +444,7 @@ impl Widget for ImageButton {
         let (rect, response) = ui.allocate_exact_size(padded_size, sense);
         response.widget_info(|| WidgetInfo::new(WidgetType::ImageButton));
 
-        if ui.clip_rect().intersects(rect) {
+        if ui.is_rect_visible(rect) {
             let (expansion, corner_radius, fill, stroke) = if selected {
                 let selection = ui.visuals().selection;
                 (-padding, 0.0, selection.bg_fill, selection.stroke)

@@ -173,16 +173,18 @@ fn combo_box_dyn<'c, R>(
         let response = ui.interact(button_rect, button_id, Sense::click());
         // response.active |= is_popup_open;
 
-        let icon_rect = Align2::RIGHT_CENTER.align_size_within_rect(icon_size, rect);
-        let visuals = if is_popup_open {
-            &ui.visuals().widgets.open
-        } else {
-            ui.style().interact(&response)
-        };
-        paint_icon(ui.painter(), icon_rect.expand(visuals.expansion), visuals);
+        if ui.is_rect_visible(rect) {
+            let icon_rect = Align2::RIGHT_CENTER.align_size_within_rect(icon_size, rect);
+            let visuals = if is_popup_open {
+                &ui.visuals().widgets.open
+            } else {
+                ui.style().interact(&response)
+            };
+            paint_icon(ui.painter(), icon_rect.expand(visuals.expansion), visuals);
 
-        let text_rect = Align2::LEFT_CENTER.align_size_within_rect(galley.size(), rect);
-        galley.paint_with_visuals(ui.painter(), text_rect.min, visuals);
+            let text_rect = Align2::LEFT_CENTER.align_size_within_rect(galley.size(), rect);
+            galley.paint_with_visuals(ui.painter(), text_rect.min, visuals);
+        }
     });
 
     if button_response.clicked() {
@@ -223,21 +225,24 @@ fn button_frame(
     outer_rect.set_height(outer_rect.height().at_least(interact_size.y));
 
     let response = ui.interact(outer_rect, id, sense);
-    let visuals = if is_popup_open {
-        &ui.visuals().widgets.open
-    } else {
-        ui.style().interact(&response)
-    };
 
-    ui.painter().set(
-        where_to_put_background,
-        epaint::RectShape {
-            rect: outer_rect.expand(visuals.expansion),
-            corner_radius: visuals.corner_radius,
-            fill: visuals.bg_fill,
-            stroke: visuals.bg_stroke,
-        },
-    );
+    if ui.is_rect_visible(outer_rect) {
+        let visuals = if is_popup_open {
+            &ui.visuals().widgets.open
+        } else {
+            ui.style().interact(&response)
+        };
+
+        ui.painter().set(
+            where_to_put_background,
+            epaint::RectShape {
+                rect: outer_rect.expand(visuals.expansion),
+                corner_radius: visuals.corner_radius,
+                fill: visuals.bg_fill,
+                stroke: visuals.bg_stroke,
+            },
+        );
+    }
 
     ui.advance_cursor_after_rect(outer_rect);
 

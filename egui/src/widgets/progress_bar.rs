@@ -71,72 +71,77 @@ impl Widget for ProgressBar {
         let height = ui.spacing().interact_size.y;
         let (outer_rect, response) =
             ui.allocate_exact_size(vec2(desired_width, height), Sense::hover());
-        let visuals = ui.style().visuals.clone();
-        let corner_radius = outer_rect.height() / 2.0;
-        ui.painter().rect(
-            outer_rect,
-            corner_radius,
-            visuals.extreme_bg_color,
-            Stroke::none(),
-        );
-        let inner_rect = Rect::from_min_size(
-            outer_rect.min,
-            vec2(
-                (outer_rect.width() * progress).at_least(outer_rect.height()),
-                outer_rect.height(),
-            ),
-        );
 
-        let (dark, bright) = (0.7, 1.0);
-        let color_factor = if animate {
-            lerp(dark..=bright, ui.input().time.cos().abs())
-        } else {
-            bright
-        };
-
-        ui.painter().rect(
-            inner_rect,
-            corner_radius,
-            Color32::from(Rgba::from(visuals.selection.bg_fill) * color_factor as f32),
-            Stroke::none(),
-        );
-
-        if animate {
-            let n_points = 20;
-            let start_angle = ui.input().time as f64 * 360f64.to_radians();
-            let end_angle = start_angle + 240f64.to_radians() * ui.input().time.sin();
-            let circle_radius = corner_radius - 2.0;
-            let points: Vec<Pos2> = (0..n_points)
-                .map(|i| {
-                    let angle = lerp(start_angle..=end_angle, i as f64 / n_points as f64);
-                    let (sin, cos) = angle.sin_cos();
-                    inner_rect.right_center()
-                        + circle_radius * vec2(cos as f32, sin as f32)
-                        + vec2(-corner_radius, 0.0)
-                })
-                .collect();
-            ui.painter().add(Shape::line(
-                points,
-                Stroke::new(2.0, visuals.faint_bg_color),
-            ));
-        }
-
-        if let Some(text_kind) = text {
-            let text = match text_kind {
-                ProgressBarText::Custom(text) => text,
-                ProgressBarText::Percentage => format!("{}%", (progress * 100.0) as usize).into(),
-            };
-            let galley = text.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Button);
-            let text_pos = outer_rect.left_center() - Vec2::new(0.0, galley.size().y / 2.0)
-                + vec2(ui.spacing().item_spacing.x, 0.0);
-            let text_color = visuals
-                .override_text_color
-                .unwrap_or(visuals.selection.stroke.color);
-            galley.paint_with_fallback_color(
-                &ui.painter().sub_region(outer_rect),
-                text_pos,
-                text_color,
+        if ui.is_rect_visible(response.rect) {
+            let visuals = ui.style().visuals.clone();
+            let corner_radius = outer_rect.height() / 2.0;
+            ui.painter().rect(
+                outer_rect,
+                corner_radius,
+                visuals.extreme_bg_color,
+                Stroke::none(),
             );
+            let inner_rect = Rect::from_min_size(
+                outer_rect.min,
+                vec2(
+                    (outer_rect.width() * progress).at_least(outer_rect.height()),
+                    outer_rect.height(),
+                ),
+            );
+
+            let (dark, bright) = (0.7, 1.0);
+            let color_factor = if animate {
+                lerp(dark..=bright, ui.input().time.cos().abs())
+            } else {
+                bright
+            };
+
+            ui.painter().rect(
+                inner_rect,
+                corner_radius,
+                Color32::from(Rgba::from(visuals.selection.bg_fill) * color_factor as f32),
+                Stroke::none(),
+            );
+
+            if animate {
+                let n_points = 20;
+                let start_angle = ui.input().time as f64 * 360f64.to_radians();
+                let end_angle = start_angle + 240f64.to_radians() * ui.input().time.sin();
+                let circle_radius = corner_radius - 2.0;
+                let points: Vec<Pos2> = (0..n_points)
+                    .map(|i| {
+                        let angle = lerp(start_angle..=end_angle, i as f64 / n_points as f64);
+                        let (sin, cos) = angle.sin_cos();
+                        inner_rect.right_center()
+                            + circle_radius * vec2(cos as f32, sin as f32)
+                            + vec2(-corner_radius, 0.0)
+                    })
+                    .collect();
+                ui.painter().add(Shape::line(
+                    points,
+                    Stroke::new(2.0, visuals.faint_bg_color),
+                ));
+            }
+
+            if let Some(text_kind) = text {
+                let text = match text_kind {
+                    ProgressBarText::Custom(text) => text,
+                    ProgressBarText::Percentage => {
+                        format!("{}%", (progress * 100.0) as usize).into()
+                    }
+                };
+                let galley = text.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Button);
+                let text_pos = outer_rect.left_center() - Vec2::new(0.0, galley.size().y / 2.0)
+                    + vec2(ui.spacing().item_spacing.x, 0.0);
+                let text_color = visuals
+                    .override_text_color
+                    .unwrap_or(visuals.selection.stroke.color);
+                galley.paint_with_fallback_color(
+                    &ui.painter().sub_region(outer_rect),
+                    text_pos,
+                    text_color,
+                );
+            }
         }
 
         response

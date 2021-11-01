@@ -295,45 +295,47 @@ impl CollapsingHeader {
         header_response
             .widget_info(|| WidgetInfo::labeled(WidgetType::CollapsingHeader, text.text()));
 
-        let visuals = ui
-            .style()
-            .interact_selectable(&header_response, self.selected);
+        if ui.is_rect_visible(rect) {
+            let visuals = ui
+                .style()
+                .interact_selectable(&header_response, self.selected);
 
-        if ui.visuals().collapsing_header_frame || self.show_background {
-            ui.painter().add(epaint::RectShape {
-                rect: header_response.rect.expand(visuals.expansion),
-                corner_radius: visuals.corner_radius,
-                fill: visuals.bg_fill,
-                stroke: visuals.bg_stroke,
-                // stroke: Default::default(),
-            });
+            if ui.visuals().collapsing_header_frame || self.show_background {
+                ui.painter().add(epaint::RectShape {
+                    rect: header_response.rect.expand(visuals.expansion),
+                    corner_radius: visuals.corner_radius,
+                    fill: visuals.bg_fill,
+                    stroke: visuals.bg_stroke,
+                    // stroke: Default::default(),
+                });
+            }
+
+            if self.selected
+                || self.selectable && (header_response.hovered() || header_response.has_focus())
+            {
+                let rect = rect.expand(visuals.expansion);
+
+                let corner_radius = 2.0;
+                ui.painter()
+                    .rect(rect, corner_radius, visuals.bg_fill, visuals.bg_stroke);
+            }
+
+            {
+                let (mut icon_rect, _) = ui.spacing().icon_rectangles(header_response.rect);
+                icon_rect.set_center(pos2(
+                    header_response.rect.left() + ui.spacing().indent / 2.0,
+                    header_response.rect.center().y,
+                ));
+                let icon_response = Response {
+                    rect: icon_rect,
+                    ..header_response.clone()
+                };
+                let openness = state.openness(ui.ctx(), id);
+                paint_icon(ui, openness, &icon_response);
+            }
+
+            text.paint_with_visuals(ui.painter(), text_pos, &visuals);
         }
-
-        if self.selected
-            || self.selectable && (header_response.hovered() || header_response.has_focus())
-        {
-            let rect = rect.expand(visuals.expansion);
-
-            let corner_radius = 2.0;
-            ui.painter()
-                .rect(rect, corner_radius, visuals.bg_fill, visuals.bg_stroke);
-        }
-
-        {
-            let (mut icon_rect, _) = ui.spacing().icon_rectangles(header_response.rect);
-            icon_rect.set_center(pos2(
-                header_response.rect.left() + ui.spacing().indent / 2.0,
-                header_response.rect.center().y,
-            ));
-            let icon_response = Response {
-                rect: icon_rect,
-                ..header_response.clone()
-            };
-            let openness = state.openness(ui.ctx(), id);
-            paint_icon(ui, openness, &icon_response);
-        }
-
-        text.paint_with_visuals(ui.painter(), text_pos, &visuals);
 
         Prepared {
             id,

@@ -671,50 +671,52 @@ impl Prepared {
                 state.vel[d] = 0.0;
             }
 
-            // Avoid frame-delay by calculating a new handle rect:
-            let mut handle_rect = if d == 0 {
-                Rect::from_min_max(
-                    pos2(from_content(state.offset.x), min_cross),
-                    pos2(from_content(state.offset.x + inner_rect.width()), max_cross),
-                )
-            } else {
-                Rect::from_min_max(
-                    pos2(min_cross, from_content(state.offset.y)),
-                    pos2(
-                        max_cross,
-                        from_content(state.offset.y + inner_rect.height()),
-                    ),
-                )
-            };
-            let min_handle_size = ui.spacing().scroll_bar_width;
-            if handle_rect.size()[d] < min_handle_size {
-                handle_rect = Rect::from_center_size(
-                    handle_rect.center(),
-                    if d == 0 {
-                        vec2(min_handle_size, handle_rect.size().y)
-                    } else {
-                        vec2(handle_rect.size().x, min_handle_size)
-                    },
-                );
+            if ui.is_rect_visible(outer_scroll_rect) {
+                // Avoid frame-delay by calculating a new handle rect:
+                let mut handle_rect = if d == 0 {
+                    Rect::from_min_max(
+                        pos2(from_content(state.offset.x), min_cross),
+                        pos2(from_content(state.offset.x + inner_rect.width()), max_cross),
+                    )
+                } else {
+                    Rect::from_min_max(
+                        pos2(min_cross, from_content(state.offset.y)),
+                        pos2(
+                            max_cross,
+                            from_content(state.offset.y + inner_rect.height()),
+                        ),
+                    )
+                };
+                let min_handle_size = ui.spacing().scroll_bar_width;
+                if handle_rect.size()[d] < min_handle_size {
+                    handle_rect = Rect::from_center_size(
+                        handle_rect.center(),
+                        if d == 0 {
+                            vec2(min_handle_size, handle_rect.size().y)
+                        } else {
+                            vec2(handle_rect.size().x, min_handle_size)
+                        },
+                    );
+                }
+
+                let visuals = if scrolling_enabled {
+                    ui.style().interact(&response)
+                } else {
+                    &ui.style().visuals.widgets.inactive
+                };
+
+                ui.painter().add(epaint::Shape::rect_filled(
+                    outer_scroll_rect,
+                    visuals.corner_radius,
+                    ui.visuals().extreme_bg_color,
+                ));
+
+                ui.painter().add(epaint::Shape::rect_filled(
+                    handle_rect,
+                    visuals.corner_radius,
+                    visuals.bg_fill,
+                ));
             }
-
-            let visuals = if scrolling_enabled {
-                ui.style().interact(&response)
-            } else {
-                &ui.style().visuals.widgets.inactive
-            };
-
-            ui.painter().add(epaint::Shape::rect_filled(
-                outer_scroll_rect,
-                visuals.corner_radius,
-                ui.visuals().extreme_bg_color,
-            ));
-
-            ui.painter().add(epaint::Shape::rect_filled(
-                handle_rect,
-                visuals.corner_radius,
-                visuals.bg_fill,
-            ));
         }
 
         ui.advance_cursor_after_rect(outer_rect);

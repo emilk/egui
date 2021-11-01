@@ -507,41 +507,43 @@ impl<'t> TextEdit<'t> {
             text_draw_pos -= vec2(offset_x, 0.0);
         }
 
-        painter.galley(text_draw_pos, galley.clone());
+        if ui.is_rect_visible(rect) {
+            painter.galley(text_draw_pos, galley.clone());
 
-        if text.as_ref().is_empty() && !hint_text.is_empty() {
-            let hint_text_color = ui.visuals().weak_text_color();
-            let galley = if multiline {
-                hint_text.into_galley(ui, Some(true), desired_size.x, text_style)
-            } else {
-                hint_text.into_galley(ui, Some(false), f32::INFINITY, text_style)
-            };
-            galley.paint_with_fallback_color(&painter, response.rect.min, hint_text_color);
-        }
+            if text.as_ref().is_empty() && !hint_text.is_empty() {
+                let hint_text_color = ui.visuals().weak_text_color();
+                let galley = if multiline {
+                    hint_text.into_galley(ui, Some(true), desired_size.x, text_style)
+                } else {
+                    hint_text.into_galley(ui, Some(false), f32::INFINITY, text_style)
+                };
+                galley.paint_with_fallback_color(&painter, response.rect.min, hint_text_color);
+            }
 
-        if ui.memory().has_focus(id) {
-            if let Some(cursor_range) = state.cursor_range(&*galley) {
-                // We paint the cursor on top of the text, in case
-                // the text galley has backgrounds (as e.g. `code` snippets in markup do).
-                paint_cursor_selection(ui, &painter, text_draw_pos, &galley, &cursor_range);
-                paint_cursor_end(
-                    ui,
-                    row_height,
-                    &painter,
-                    text_draw_pos,
-                    &galley,
-                    &cursor_range.primary,
-                );
-
-                if interactive && text.is_mutable() {
-                    // egui_web uses `text_cursor_pos` when showing IME,
-                    // so only set it when text is editable!
-                    ui.ctx().output().text_cursor_pos = Some(
-                        galley
-                            .pos_from_cursor(&cursor_range.primary)
-                            .translate(response.rect.min.to_vec2())
-                            .left_top(),
+            if ui.memory().has_focus(id) {
+                if let Some(cursor_range) = state.cursor_range(&*galley) {
+                    // We paint the cursor on top of the text, in case
+                    // the text galley has backgrounds (as e.g. `code` snippets in markup do).
+                    paint_cursor_selection(ui, &painter, text_draw_pos, &galley, &cursor_range);
+                    paint_cursor_end(
+                        ui,
+                        row_height,
+                        &painter,
+                        text_draw_pos,
+                        &galley,
+                        &cursor_range.primary,
                     );
+
+                    if interactive && text.is_mutable() {
+                        // egui_web uses `text_cursor_pos` when showing IME,
+                        // so only set it when text is editable and visible!
+                        ui.ctx().output().text_cursor_pos = Some(
+                            galley
+                                .pos_from_cursor(&cursor_range.primary)
+                                .translate(response.rect.min.to_vec2())
+                                .left_top(),
+                        );
+                    }
                 }
             }
         }

@@ -320,7 +320,7 @@ impl<'a> Slider<'a> {
         }
 
         // Paint it:
-        {
+        if ui.is_rect_visible(response.rect) {
             let value = self.get_value();
 
             let rail_radius = ui

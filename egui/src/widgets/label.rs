@@ -237,27 +237,30 @@ impl Widget for Label {
     fn ui(self, ui: &mut Ui) -> Response {
         let (pos, text_galley, response) = self.layout_in_ui(ui);
         response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, text_galley.text()));
-        let response_color = ui.style().interact(&response).text_color();
 
-        let underline = if response.has_focus() {
-            Stroke::new(1.0, response_color)
-        } else {
-            Stroke::none()
-        };
+        if ui.is_rect_visible(response.rect) {
+            let response_color = ui.style().interact(&response).text_color();
 
-        let override_text_color = if text_galley.galley_has_color {
-            None
-        } else {
-            Some(response_color)
-        };
+            let underline = if response.has_focus() {
+                Stroke::new(1.0, response_color)
+            } else {
+                Stroke::none()
+            };
 
-        ui.painter().add(epaint::TextShape {
-            pos,
-            galley: text_galley.galley,
-            override_text_color,
-            underline,
-            angle: 0.0,
-        });
+            let override_text_color = if text_galley.galley_has_color {
+                None
+            } else {
+                Some(response_color)
+            };
+
+            ui.painter().add(epaint::TextShape {
+                pos,
+                galley: text_galley.galley,
+                override_text_color,
+                underline,
+                angle: 0.0,
+            });
+        }
 
         response
     }

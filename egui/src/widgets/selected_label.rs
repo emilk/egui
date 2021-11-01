@@ -58,22 +58,25 @@ impl Widget for SelectableLabel {
             WidgetInfo::selected(WidgetType::SelectableLabel, selected, text.text())
         });
 
-        let text_pos = ui
-            .layout()
-            .align_size_within_rect(text.size(), rect.shrink2(button_padding))
-            .min;
+        if ui.is_rect_visible(response.rect) {
+            let text_pos = ui
+                .layout()
+                .align_size_within_rect(text.size(), rect.shrink2(button_padding))
+                .min;
 
-        let visuals = ui.style().interact_selectable(&response, selected);
+            let visuals = ui.style().interact_selectable(&response, selected);
 
-        if selected || response.hovered() || response.has_focus() {
-            let rect = rect.expand(visuals.expansion);
+            if selected || response.hovered() || response.has_focus() {
+                let rect = rect.expand(visuals.expansion);
 
-            let corner_radius = 2.0;
-            ui.painter()
-                .rect(rect, corner_radius, visuals.bg_fill, visuals.bg_stroke);
+                let corner_radius = 2.0;
+                ui.painter()
+                    .rect(rect, corner_radius, visuals.bg_fill, visuals.bg_stroke);
+            }
+
+            text.paint_with_visuals(ui.painter(), text_pos, &visuals);
         }
 
-        text.paint_with_visuals(ui.painter(), text_pos, &visuals);
         response
     }
 }

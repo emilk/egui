@@ -78,22 +78,24 @@ impl Widget for Hyperlink {
             });
         }
 
-        let color = ui.visuals().hyperlink_color;
-        let visuals = ui.style().interact(&response);
+        if ui.is_rect_visible(response.rect) {
+            let color = ui.visuals().hyperlink_color;
+            let visuals = ui.style().interact(&response);
 
-        let underline = if response.hovered() || response.has_focus() {
-            Stroke::new(visuals.fg_stroke.width, color)
-        } else {
-            Stroke::none()
-        };
+            let underline = if response.hovered() || response.has_focus() {
+                Stroke::new(visuals.fg_stroke.width, color)
+            } else {
+                Stroke::none()
+            };
 
-        ui.painter().add(epaint::TextShape {
-            pos,
-            galley: text_galley.galley,
-            override_text_color: Some(color),
-            underline,
-            angle: 0.0,
-        });
+            ui.painter().add(epaint::TextShape {
+                pos,
+                galley: text_galley.galley,
+                override_text_color: Some(color),
+                underline,
+                angle: 0.0,
+            });
+        }
 
         response.on_hover_text(url)
     }

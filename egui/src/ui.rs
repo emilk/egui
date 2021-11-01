@@ -122,13 +122,13 @@ impl Ui {
     // -------------------------------------------------
 
     /// A unique identity of this `Ui`.
-    #[inline(always)]
+    #[inline]
     pub fn id(&self) -> Id {
         self.id
     }
 
     /// Style options for this `Ui` and its children.
-    #[inline(always)]
+    #[inline]
     pub fn style(&self) -> &std::sync::Arc<Style> {
         &self.style
     }
@@ -161,7 +161,7 @@ impl Ui {
 
     /// The current spacing options for this `Ui`.
     /// Short for `ui.style().spacing`.
-    #[inline(always)]
+    #[inline]
     pub fn spacing(&self) -> &crate::style::Spacing {
         &self.style.spacing
     }
@@ -180,7 +180,7 @@ impl Ui {
 
     /// The current visuals settings of this `Ui`.
     /// Short for `ui.style().visuals`.
-    #[inline(always)]
+    #[inline]
     pub fn visuals(&self) -> &crate::Visuals {
         &self.style.visuals
     }
@@ -200,20 +200,20 @@ impl Ui {
     }
 
     /// Get a reference to the parent [`CtxRef`].
-    #[inline(always)]
+    #[inline]
     pub fn ctx(&self) -> &CtxRef {
         self.painter.ctx()
     }
 
     /// Use this to paint stuff within this `Ui`.
-    #[inline(always)]
+    #[inline]
     pub fn painter(&self) -> &Painter {
         &self.painter
     }
 
     /// If `false`, the `Ui` does not allow any interaction and
     /// the widgets in it will draw with a gray look.
-    #[inline(always)]
+    #[inline]
     pub fn is_enabled(&self) -> bool {
         self.enabled
     }
@@ -246,7 +246,7 @@ impl Ui {
     }
 
     /// If `false`, any widgets added to the `Ui` will be invisible and non-interactive.
-    #[inline(always)]
+    #[inline]
     pub fn visible(&self) -> bool {
         self.painter.visible()
     }
@@ -277,7 +277,7 @@ impl Ui {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn layout(&self) -> &Layout {
         self.placer.layout()
     }
@@ -305,37 +305,42 @@ impl Ui {
     }
 
     /// Use this to paint stuff within this `Ui`.
+    #[inline]
     pub fn layer_id(&self) -> LayerId {
         self.painter().layer_id()
     }
 
     /// The `Input` of the `Context` associated with the `Ui`.
     /// Equivalent to `.ctx().input()`.
-    #[inline(always)]
+    #[inline]
     pub fn input(&self) -> &InputState {
         self.ctx().input()
     }
 
     /// The `Memory` of the `Context` associated with the `Ui`.
     /// Equivalent to `.ctx().memory()`.
+    #[inline]
     pub fn memory(&self) -> MutexGuard<'_, Memory> {
         self.ctx().memory()
     }
 
     /// The `Output` of the `Context` associated with the `Ui`.
     /// Equivalent to `.ctx().output()`.
+    #[inline]
     pub fn output(&self) -> MutexGuard<'_, Output> {
         self.ctx().output()
     }
 
     /// The `Fonts` of the `Context` associated with the `Ui`.
     /// Equivalent to `.ctx().fonts()`.
+    #[inline]
     pub fn fonts(&self) -> &Fonts {
         self.ctx().fonts()
     }
 
     /// Screen-space rectangle for clipping what we paint in this ui.
     /// This is used, for instance, to avoid painting outside a window that is smaller than its contents.
+    #[inline]
     pub fn clip_rect(&self) -> Rect {
         self.painter.clip_rect()
     }
@@ -344,6 +349,11 @@ impl Ui {
     /// This is used, for instance, to avoid painting outside a window that is smaller than its contents.
     pub fn set_clip_rect(&mut self, clip_rect: Rect) {
         self.painter.set_clip_rect(clip_rect);
+    }
+
+    /// Can be used for culling: if `false`, then no part of `rect` will be visible on screen.
+    pub fn is_rect_visible(&self, rect: Rect) -> bool {
+        self.visible() && rect.intersects(self.clip_rect())
     }
 }
 
@@ -741,7 +751,7 @@ impl Ui {
     /// If the contents overflow, more space will be allocated.
     /// When finished, the amount of space actually used (`min_rect`) will be allocated.
     /// So you can request a lot of space and then use less.
-    #[inline(always)]
+    #[inline]
     pub fn allocate_ui<R>(
         &mut self,
         desired_size: Vec2,
@@ -754,7 +764,7 @@ impl Ui {
     /// If the contents overflow, more space will be allocated.
     /// When finished, the amount of space actually used (`min_rect`) will be allocated.
     /// So you can request a lot of space and then use less.
-    #[inline(always)]
+    #[inline]
     pub fn allocate_ui_with_layout<R>(
         &mut self,
         desired_size: Vec2,
@@ -883,7 +893,7 @@ impl Ui {
     /// let response = ui.add(egui::Slider::new(&mut my_value, 0..=100));
     /// response.on_hover_text("Drag me!");
     /// ```
-    #[inline(always)]
+    #[inline]
     pub fn add(&mut self, widget: impl Widget) -> Response {
         widget.ui(self)
     }
@@ -980,7 +990,7 @@ impl Ui {
     /// This will be in addition to the [`Spacing::item_spacing`}.
     ///
     /// [`Self::min_rect`] will expand to contain the space.
-    #[inline(always)]
+    #[inline]
     pub fn add_space(&mut self, amount: f32) {
         self.placer.advance_cursor(amount);
     }
@@ -990,7 +1000,7 @@ impl Ui {
     /// Shortcut for `add(Label::new(text))`
     ///
     /// See also [`Label`].
-    #[inline(always)]
+    #[inline]
     pub fn label(&mut self, text: impl Into<WidgetText>) -> Response {
         Label::new(text).ui(self)
     }
@@ -1197,7 +1207,7 @@ impl Ui {
     }
 
     /// Shortcut for `add(Separator::default())` (see [`Separator`]).
-    #[inline(always)]
+    #[inline]
     pub fn separator(&mut self) -> Response {
         Separator::default().ui(self)
     }
@@ -1243,7 +1253,7 @@ impl Ui {
     /// Show an image here with the given size.
     ///
     /// See also [`Image`].
-    #[inline(always)]
+    #[inline]
     pub fn image(&mut self, texture_id: TextureId, size: impl Into<Vec2>) -> Response {
         Image::new(texture_id, size).ui(self)
     }
@@ -1403,7 +1413,7 @@ impl Ui {
     ///
     /// The `id_source` here be anything at all.
     // TODO: remove `id_source` argument?
-    #[inline(always)]
+    #[inline]
     pub fn indent<R>(
         &mut self,
         id_source: impl Hash,
@@ -1555,7 +1565,7 @@ impl Ui {
     /// ```
     ///
     /// See also [`Self::with_layout`] for more options.
-    #[inline(always)]
+    #[inline]
     pub fn vertical<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         self.with_layout_dyn(Layout::top_down(Align::Min), Box::new(add_contents))
     }
@@ -1750,7 +1760,7 @@ impl Ui {
         self.menu_state = menu_state;
     }
 
-    #[inline(always)]
+    #[inline]
     /// Create a menu button. Creates a button for a sub-menu when the `Ui` is inside a menu.
     ///
     /// ```
