@@ -55,6 +55,11 @@ impl RichText {
     }
 
     #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.text.is_empty()
+    }
+
+    #[inline]
     pub fn text(&self) -> &str {
         &self.text
     }
@@ -285,6 +290,15 @@ impl Default for WidgetText {
 }
 
 impl WidgetText {
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        match self {
+            Self::RichText(text) => text.is_empty(),
+            Self::LayoutJob(job) => job.is_empty(),
+            Self::Galley(galley) => galley.is_empty(),
+        }
+    }
+
     #[inline]
     pub fn text(&self) -> &str {
         match self {
@@ -583,15 +597,39 @@ impl WidgetTextGalley {
         &self.galley
     }
 
-    pub fn paint(self, painter: &crate::Painter, text_pos: Pos2, visuals: &WidgetVisuals) {
+    /// Use the colors in the original [`WidgetText`] if any,
+    /// else fall back to the one specified by the [`WidgetVisuals`].
+    pub fn paint_with_visuals(
+        self,
+        painter: &crate::Painter,
+        text_pos: Pos2,
+        visuals: &WidgetVisuals,
+    ) {
+        self.paint_with_fallback_color(painter, text_pos, visuals.text_color());
+    }
+
+    /// Use the colors in the original [`WidgetText`] if any,
+    /// else fall back to the given color.
+    pub fn paint_with_fallback_color(
+        self,
+        painter: &crate::Painter,
+        text_pos: Pos2,
+        text_color: Color32,
+    ) {
         if self.galley_has_color {
             painter.galley(text_pos, self.galley);
         } else {
-            painter.galley_with_color(text_pos, self.galley, visuals.text_color());
+            painter.galley_with_color(text_pos, self.galley, text_color);
         }
     }
 
-    pub fn paint_with_color(self, painter: &crate::Painter, text_pos: Pos2, text_color: Color32) {
+    /// Paint with this specific color.
+    pub fn paint_with_color_override(
+        self,
+        painter: &crate::Painter,
+        text_pos: Pos2,
+        text_color: Color32,
+    ) {
         painter.galley_with_color(text_pos, self.galley, text_color);
     }
 }

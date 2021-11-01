@@ -831,8 +831,11 @@ impl TitleBar {
             emath::align::center_size_in_rect(self.title_galley.size(), full_top_rect).left_top();
         let text_pos = text_pos - self.title_galley.galley().rect.min.to_vec2();
         let text_pos = text_pos - 1.5 * Vec2::Y; // HACK: center on x-height of text (looks better)
-        self.title_galley
-            .paint_with_color(ui.painter(), text_pos, ui.visuals().text_color());
+        self.title_galley.paint_with_fallback_color(
+            ui.painter(),
+            text_pos,
+            ui.visuals().text_color(),
+        );
 
         if let Some(content_response) = &content_response {
             // paint separator between title and content:

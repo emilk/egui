@@ -162,7 +162,7 @@ impl Widget for Button {
                 );
             }
 
-            text.paint(ui.painter(), text_pos, visuals);
+            text.paint_with_visuals(ui.painter(), text_pos, visuals);
         }
 
         response
@@ -260,7 +260,7 @@ impl<'a> Widget for Checkbox<'a> {
             ));
         }
 
-        text.paint(ui.painter(), text_pos, visuals);
+        text.paint_with_visuals(ui.painter(), text_pos, visuals);
         response
     }
 }
@@ -360,7 +360,7 @@ impl Widget for RadioButton {
             });
         }
 
-        text.paint(ui.painter(), text_pos, visuals);
+        text.paint_with_visuals(ui.painter(), text_pos, visuals);
         response
     }
 }

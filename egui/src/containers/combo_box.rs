@@ -182,7 +182,7 @@ fn combo_box_dyn<'c, R>(
         paint_icon(ui.painter(), icon_rect.expand(visuals.expansion), visuals);
 
         let text_rect = Align2::LEFT_CENTER.align_size_within_rect(galley.size(), rect);
-        galley.paint(ui.painter(), text_rect.min, visuals);
+        galley.paint_with_visuals(ui.painter(), text_rect.min, visuals);
     });
 
     if button_response.clicked() {

@@ -333,7 +333,7 @@ impl CollapsingHeader {
             paint_icon(ui, openness, &icon_response);
         }
 
-        text.paint(ui.painter(), text_pos, &visuals);
+        text.paint_with_visuals(ui.painter(), text_pos, &visuals);
 
         Prepared {
             id,
