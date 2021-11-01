@@ -283,6 +283,7 @@ impl Ui {
     }
 
     /// Should text wrap in this `Ui`?
+    ///
     /// This is determined first by [`Style::wrap`], and then by the layout of this `Ui`.
     pub fn wrap_text(&self) -> bool {
         if let Some(wrap) = self.style.wrap {
@@ -290,8 +291,8 @@ impl Ui {
         } else if let Some(grid) = self.placer.grid() {
             grid.wrap_text()
         } else {
-            // In vertical layouts we wrap text, but in horizontal we keep going.
-            self.layout().is_vertical()
+            let layout = self.layout();
+            layout.is_vertical() || layout.is_horizontal() && layout.main_wrap()
         }
     }
 
@@ -990,50 +991,54 @@ impl Ui {
     ///
     /// See also [`Label`].
     #[inline(always)]
-    pub fn label(&mut self, text: impl ToString) -> Response {
+    pub fn label(&mut self, text: impl Into<WidgetText>) -> Response {
         Label::new(text).ui(self)
     }
 
     /// Show colored text.
     ///
-    /// Shortcut for `add(Label::new(text).text_color(color))`
-    pub fn colored_label(&mut self, color: impl Into<Color32>, text: impl ToString) -> Response {
-        Label::new(text).text_color(color).ui(self)
+    /// Shortcut for `ui.label(RichText::new(text).color(color))`
+    pub fn colored_label(
+        &mut self,
+        color: impl Into<Color32>,
+        text: impl Into<RichText>,
+    ) -> Response {
+        Label::new(text.into().color(color)).ui(self)
     }
 
     /// Show large text.
     ///
-    /// Shortcut for `add(Label::new(text).heading())`
-    pub fn heading(&mut self, text: impl ToString) -> Response {
-        Label::new(text).heading().ui(self)
+    /// Shortcut for `ui.label(RichText::new(text).heading())`
+    pub fn heading(&mut self, text: impl Into<RichText>) -> Response {
+        Label::new(text.into().heading()).ui(self)
     }
 
     /// Show monospace (fixed width) text.
     ///
-    /// Shortcut for `add(Label::new(text).monospace())`
-    pub fn monospace(&mut self, text: impl ToString) -> Response {
-        Label::new(text).monospace().ui(self)
+    /// Shortcut for `ui.label(RichText::new(text).monospace())`
+    pub fn monospace(&mut self, text: impl Into<RichText>) -> Response {
+        Label::new(text.into().monospace()).ui(self)
     }
 
     /// Show text as monospace with a gray background.
     ///
-    /// Shortcut for `add(Label::new(text).code())`
-    pub fn code(&mut self, text: impl ToString) -> Response {
-        Label::new(text).code().ui(self)
+    /// Shortcut for `ui.label(RichText::new(text).code())`
+    pub fn code(&mut self, text: impl Into<RichText>) -> Response {
+        Label::new(text.into().code()).ui(self)
     }
 
     /// Show small text.
     ///
-    /// Shortcut for `add(Label::new(text).small())`
-    pub fn small(&mut self, text: impl ToString) -> Response {
-        Label::new(text).small().ui(self)
+    /// Shortcut for `ui.label(RichText::new(text).small())`
+    pub fn small(&mut self, text: impl Into<RichText>) -> Response {
+        Label::new(text.into().small()).ui(self)
     }
 
     /// Show text that stand out a bit (e.g. slightly brighter).
     ///
-    /// Shortcut for `add(Label::new(text).strong())`
-    pub fn strong(&mut self, text: impl ToString) -> Response {
-        Label::new(text).strong().ui(self)
+    /// Shortcut for `ui.label(RichText::new(text).strong())`
+    pub fn strong(&mut self, text: impl Into<RichText>) -> Response {
+        Label::new(text.into().strong()).ui(self)
     }
 
     /// Shortcut for `add(Hyperlink::new(url))`
@@ -1051,8 +1056,8 @@ impl Ui {
     /// ```
     ///
     /// See also [`Hyperlink`].
-    pub fn hyperlink_to(&mut self, label: impl ToString, url: impl ToString) -> Response {
-        Hyperlink::new(url).text(label).ui(self)
+    pub fn hyperlink_to(&mut self, label: impl Into<WidgetText>, url: impl ToString) -> Response {
+        Hyperlink::from_label_and_url(label, url).ui(self)
     }
 
     /// No newlines (`\n`) allowed. Pressing enter key will result in the `TextEdit` losing focus (`response.lost_focus`).
@@ -1089,9 +1094,21 @@ impl Ui {
     /// Shortcut for `add(Button::new(text))`
     ///
     /// See also [`Button`].
+    ///
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// if ui.button("Click me!").clicked() {
+    ///     // …
+    /// }
+    ///
+    /// # use egui::{RichText, Color32};
+    /// if ui.button(RichText::new("delete").color(Color32::RED)).clicked() {
+    ///     // …
+    /// }
+    /// ```
     #[must_use = "You should check if the user clicked this with `if ui.button(…).clicked() { … } "]
-    #[inline(always)]
-    pub fn button(&mut self, text: impl ToString) -> Response {
+    #[inline]
+    pub fn button(&mut self, text: impl Into<WidgetText>) -> Response {
         Button::new(text).ui(self)
     }
 
@@ -1101,19 +1118,21 @@ impl Ui {
     ///
     /// Shortcut for `add(Button::new(text).small())`
     #[must_use = "You should check if the user clicked this with `if ui.small_button(…).clicked() { … } "]
-    pub fn small_button(&mut self, text: impl ToString) -> Response {
+    pub fn small_button(&mut self, text: impl Into<WidgetText>) -> Response {
         Button::new(text).small().ui(self)
     }
 
     /// Show a checkbox.
-    pub fn checkbox(&mut self, checked: &mut bool, text: impl ToString) -> Response {
+    #[inline]
+    pub fn checkbox(&mut self, checked: &mut bool, text: impl Into<WidgetText>) -> Response {
         Checkbox::new(checked, text).ui(self)
     }
 
     /// Show a [`RadioButton`].
     /// Often you want to use [`Self::radio_value`] instead.
     #[must_use = "You should check if the user clicked this with `if ui.radio(…).clicked() { … } "]
-    pub fn radio(&mut self, selected: bool, text: impl ToString) -> Response {
+    #[inline]
+    pub fn radio(&mut self, selected: bool, text: impl Into<WidgetText>) -> Response {
         RadioButton::new(selected, text).ui(self)
     }
 
@@ -1134,11 +1153,12 @@ impl Ui {
     /// if ui.add(egui::RadioButton::new(my_enum == Enum::First, "First")).clicked() {
     ///     my_enum = Enum::First
     /// }
+    /// ```
     pub fn radio_value<Value: PartialEq>(
         &mut self,
         current_value: &mut Value,
         selected_value: Value,
-        text: impl ToString,
+        text: impl Into<WidgetText>,
     ) -> Response {
         let mut response = self.radio(*current_value == selected_value, text);
         if response.clicked() {
@@ -1152,7 +1172,7 @@ impl Ui {
     ///
     /// See also [`SelectableLabel`].
     #[must_use = "You should check if the user clicked this with `if ui.selectable_label(…).clicked() { … } "]
-    pub fn selectable_label(&mut self, checked: bool, text: impl ToString) -> Response {
+    pub fn selectable_label(&mut self, checked: bool, text: impl Into<WidgetText>) -> Response {
         SelectableLabel::new(checked, text).ui(self)
     }
 
@@ -1166,7 +1186,7 @@ impl Ui {
         &mut self,
         current_value: &mut Value,
         selected_value: Value,
-        text: impl ToString,
+        text: impl Into<WidgetText>,
     ) -> Response {
         let mut response = self.selectable_label(*current_value == selected_value, text);
         if response.clicked() {
@@ -1373,7 +1393,7 @@ impl Ui {
     /// A [`CollapsingHeader`] that starts out collapsed.
     pub fn collapsing<R>(
         &mut self,
-        heading: impl ToString,
+        heading: impl Into<WidgetText>,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> CollapsingResponse<R> {
         CollapsingHeader::new(heading).show(self, add_contents)
@@ -1642,10 +1662,6 @@ impl Ui {
         self.placer.is_grid()
     }
 
-    pub(crate) fn grid(&self) -> Option<&grid::GridLayout> {
-        self.placer.grid()
-    }
-
     /// Move to the next row in a grid layout or wrapping layout.
     /// Otherwise does nothing.
     pub fn end_row(&mut self) {
@@ -1749,7 +1765,7 @@ impl Ui {
     /// ```
     pub fn menu_button<R>(
         &mut self,
-        title: impl ToString,
+        title: impl Into<WidgetText>,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<Option<R>> {
         if let Some(menu_state) = self.menu_state.clone() {

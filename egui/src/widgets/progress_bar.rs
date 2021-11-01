@@ -1,7 +1,7 @@
 use crate::*;
 
 enum ProgressBarText {
-    Custom(String),
+    Custom(WidgetText),
     Percentage,
 }
 
@@ -31,9 +31,8 @@ impl ProgressBar {
     }
 
     /// A custom text to display on the progress bar.
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn text(mut self, text: impl ToString) -> Self {
-        self.text = Some(ProgressBarText::Custom(text.to_string()));
+    pub fn text(mut self, text: impl Into<WidgetText>) -> Self {
+        self.text = Some(ProgressBarText::Custom(text.into()));
         self
     }
 
@@ -124,17 +123,19 @@ impl Widget for ProgressBar {
 
         if let Some(text_kind) = text {
             let text = match text_kind {
-                ProgressBarText::Custom(string) => string,
-                ProgressBarText::Percentage => format!("{}%", (progress * 100.0) as usize),
+                ProgressBarText::Custom(text) => text,
+                ProgressBarText::Percentage => format!("{}%", (progress * 100.0) as usize).into(),
             };
-            ui.painter().sub_region(outer_rect).text(
-                outer_rect.left_center() + vec2(ui.spacing().item_spacing.x, 0.0),
-                Align2::LEFT_CENTER,
-                text,
-                TextStyle::Button,
-                visuals
-                    .override_text_color
-                    .unwrap_or(visuals.selection.stroke.color),
+            let galley = text.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Button);
+            let text_pos = outer_rect.left_center() - Vec2::new(0.0, galley.size().y / 2.0)
+                + vec2(ui.spacing().item_spacing.x, 0.0);
+            let text_color = visuals
+                .override_text_color
+                .unwrap_or(visuals.selection.stroke.color);
+            galley.paint_with_fallback_color(
+                &ui.painter().sub_region(outer_rect),
+                text_pos,
+                text_color,
             );
         }
 

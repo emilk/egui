@@ -1,8 +1,6 @@
 use crate::{style::WidgetVisuals, *};
 use epaint::Shape;
 
-// TODO: this should be builder struct so we can set options like width.
-
 /// A drop-down selection menu with a descriptive label.
 ///
 /// ```
@@ -10,7 +8,7 @@ use epaint::Shape;
 /// # enum Enum { First, Second, Third }
 /// # let mut selected = Enum::First;
 /// # let mut ui = &mut egui::Ui::__test();
-/// egui::ComboBox::from_label( "Select one!")
+/// egui::ComboBox::from_label("Select one!")
 ///     .selected_text(format!("{:?}", selected))
 ///     .show_ui(ui, |ui| {
 ///         ui.selectable_value(&mut selected, Enum::First, "First");
@@ -22,14 +20,14 @@ use epaint::Shape;
 #[must_use = "You should call .show*"]
 pub struct ComboBox {
     id_source: Id,
-    label: Option<Label>,
-    selected_text: String,
+    label: Option<WidgetText>,
+    selected_text: WidgetText,
     width: Option<f32>,
 }
 
 impl ComboBox {
     /// Label shown next to the combo box
-    pub fn from_label(label: impl Into<Label>) -> Self {
+    pub fn from_label(label: impl Into<WidgetText>) -> Self {
         let label = label.into();
         Self {
             id_source: Id::new(label.text()),
@@ -56,9 +54,8 @@ impl ComboBox {
     }
 
     /// What we show as the currently selected value
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn selected_text(mut self, selected_text: impl ToString) -> Self {
-        self.selected_text = selected_text.to_string();
+    pub fn selected_text(mut self, selected_text: impl Into<WidgetText>) -> Self {
+        self.selected_text = selected_text.into();
         self
     }
 
@@ -95,7 +92,7 @@ impl ComboBox {
             if let Some(label) = label {
                 ir.response
                     .widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, label.text()));
-                ir.response |= ui.add(label);
+                ir.response |= ui.label(label);
             } else {
                 ir.response
                     .widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, ""));
@@ -115,7 +112,7 @@ impl ComboBox {
     /// # let mut ui = &mut egui::Ui::__test();
     /// let alternatives = ["a", "b", "c", "d"];
     /// let mut selected = 2;
-    /// egui::ComboBox::from_label( "Select one!").show_index(
+    /// egui::ComboBox::from_label("Select one!").show_index(
     ///     ui,
     ///     &mut selected,
     ///     alternatives.len(),
@@ -151,11 +148,10 @@ impl ComboBox {
     }
 }
 
-#[allow(clippy::needless_pass_by_value)]
 fn combo_box_dyn<'c, R>(
     ui: &mut Ui,
     button_id: Id,
-    selected: impl ToString,
+    selected_text: WidgetText,
     menu_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
 ) -> InnerResponse<Option<R>> {
     let popup_id = button_id.with("popup");
@@ -166,9 +162,7 @@ fn combo_box_dyn<'c, R>(
         let full_minimum_width = ui.spacing().slider_width;
         let icon_size = Vec2::splat(ui.spacing().icon_width);
 
-        let galley =
-            ui.fonts()
-                .layout_delayed_color(selected.to_string(), TextStyle::Button, f32::INFINITY);
+        let galley = selected_text.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Button);
 
         let width = galley.size().x + ui.spacing().item_spacing.x + icon_size.x;
         let width = width.at_least(full_minimum_width);
@@ -188,8 +182,7 @@ fn combo_box_dyn<'c, R>(
         paint_icon(ui.painter(), icon_rect.expand(visuals.expansion), visuals);
 
         let text_rect = Align2::LEFT_CENTER.align_size_within_rect(galley.size(), rect);
-        ui.painter()
-            .galley_with_color(text_rect.min, galley, visuals.text_color());
+        galley.paint_with_visuals(ui.painter(), text_rect.min, visuals);
     });
 
     if button_response.clicked() {

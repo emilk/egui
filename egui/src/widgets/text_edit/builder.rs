@@ -45,7 +45,7 @@ use super::{CCursorRange, CursorRange, TextEditOutput, TextEditState};
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct TextEdit<'t> {
     text: &'t mut dyn TextBuffer,
-    hint_text: String,
+    hint_text: WidgetText,
     id: Option<Id>,
     id_source: Option<Id>,
     text_style: Option<TextStyle>,
@@ -127,9 +127,8 @@ impl<'t> TextEdit<'t> {
     }
 
     /// Show a faint hint text when the text field is empty.
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn hint_text(mut self, hint_text: impl ToString) -> Self {
-        self.hint_text = hint_text.to_string();
+    pub fn hint_text(mut self, hint_text: impl Into<WidgetText>) -> Self {
+        self.hint_text = hint_text.into();
         self
     }
 
@@ -512,12 +511,12 @@ impl<'t> TextEdit<'t> {
 
         if text.as_ref().is_empty() && !hint_text.is_empty() {
             let hint_text_color = ui.visuals().weak_text_color();
-            let galley = ui.fonts().layout_job(if multiline {
-                LayoutJob::simple(hint_text, text_style, hint_text_color, desired_size.x)
+            let galley = if multiline {
+                hint_text.into_galley(ui, Some(true), desired_size.x, text_style)
             } else {
-                LayoutJob::simple_singleline(hint_text, text_style, hint_text_color)
-            });
-            painter.galley(response.rect.min, galley);
+                hint_text.into_galley(ui, Some(false), f32::INFINITY, text_style)
+            };
+            galley.paint_with_fallback_color(&painter, response.rect.min, hint_text_color);
         }
 
         if ui.memory().has_focus(id) {

@@ -1,6 +1,6 @@
 use std::hash::Hash;
 
-use crate::{widgets::Label, *};
+use crate::*;
 use epaint::{Shape, TextStyle};
 
 #[derive(Clone, Copy, Debug)]
@@ -141,7 +141,7 @@ pub(crate) fn paint_icon(ui: &mut Ui, openness: f32, response: &Response) {
 /// ```
 #[must_use = "You should call .show()"]
 pub struct CollapsingHeader {
-    label: Label,
+    text: WidgetText,
     default_open: bool,
     id_source: Id,
     enabled: bool,
@@ -157,11 +157,11 @@ impl CollapsingHeader {
     /// If the label is unique and static this is fine,
     /// but if it changes or there are several `CollapsingHeader` with the same title
     /// you need to provide a unique id source with [`Self::id_source`].
-    pub fn new(label: impl ToString) -> Self {
-        let label = Label::new(label).wrap(false);
-        let id_source = Id::new(label.text());
+    pub fn new(text: impl Into<WidgetText>) -> Self {
+        let text = text.into();
+        let id_source = Id::new(text.text());
         Self {
-            label,
+            text,
             default_open: false,
             id_source,
             enabled: true,
@@ -185,10 +185,9 @@ impl CollapsingHeader {
         self
     }
 
-    /// By default, the `CollapsingHeader` text style is `TextStyle::Button`.
-    /// Call `.text_style(style)` to change this.
+    #[deprecated = "Replaced by: CollapsingHeader::new(RichText::new(text).text_style(…))"]
     pub fn text_style(mut self, text_style: TextStyle) -> Self {
-        self.label = self.label.text_style(text_style);
+        self.text = self.text.text_style(text_style);
         self
     }
 
@@ -252,7 +251,7 @@ impl CollapsingHeader {
             "Horizontal collapsing is unimplemented"
         );
         let Self {
-            mut label,
+            text,
             default_open,
             id_source,
             enabled: _,
@@ -261,11 +260,6 @@ impl CollapsingHeader {
             show_background: _,
         } = self;
 
-        label.text_style = label
-            .text_style
-            .or(ui.style().override_text_style)
-            .or(Some(TextStyle::Button));
-
         // TODO: horizontal layout, with icon and text as labels. Insert background behind using Frame.
 
         let id = ui.make_persistent_id(id_source);
@@ -273,23 +267,24 @@ impl CollapsingHeader {
 
         let available = ui.available_rect_before_wrap();
         let text_pos = available.min + vec2(ui.spacing().indent, 0.0);
-        let galley =
-            label.layout_width(ui, available.right() - text_pos.x, Color32::TEMPORARY_COLOR);
-        let text_max_x = text_pos.x + galley.size().x;
+        let wrap_width = available.right() - text_pos.x;
+        let wrap = Some(false);
+        let text = text.into_galley(ui, wrap, wrap_width, TextStyle::Button);
+        let text_max_x = text_pos.x + text.size().x;
 
         let mut desired_width = text_max_x + button_padding.x - available.left();
         if ui.visuals().collapsing_header_frame {
             desired_width = desired_width.max(available.width()); // fill full width
         }
 
-        let mut desired_size = vec2(desired_width, galley.size().y + 2.0 * button_padding.y);
+        let mut desired_size = vec2(desired_width, text.size().y + 2.0 * button_padding.y);
         desired_size = desired_size.at_least(ui.spacing().interact_size);
         let (_, rect) = ui.allocate_space(desired_size);
 
         let mut header_response = ui.interact(rect, id, Sense::click());
         let text_pos = pos2(
             text_pos.x,
-            header_response.rect.center().y - galley.size().y / 2.0,
+            header_response.rect.center().y - text.size().y / 2.0,
         );
 
         let mut state = State::from_memory_with_default_open(ui.ctx(), id, default_open);
@@ -298,16 +293,11 @@ impl CollapsingHeader {
             header_response.mark_changed();
         }
         header_response
-            .widget_info(|| WidgetInfo::labeled(WidgetType::CollapsingHeader, galley.text()));
+            .widget_info(|| WidgetInfo::labeled(WidgetType::CollapsingHeader, text.text()));
 
         let visuals = ui
             .style()
             .interact_selectable(&header_response, self.selected);
-        let text_color = ui
-            .style()
-            .visuals
-            .override_text_color
-            .unwrap_or_else(|| visuals.text_color());
 
         if ui.visuals().collapsing_header_frame || self.show_background {
             ui.painter().add(epaint::RectShape {
@@ -343,7 +333,7 @@ impl CollapsingHeader {
             paint_icon(ui, openness, &icon_response);
         }
 
-        ui.painter().galley_with_color(text_pos, galley, text_color);
+        text.paint_with_visuals(ui.painter(), text_pos, &visuals);
 
         Prepared {
             id,
