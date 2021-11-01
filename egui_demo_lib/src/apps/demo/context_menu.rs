@@ -69,7 +69,7 @@ impl super::View for ContextMenus {
 
         ui.label("Right-click plot to edit it!");
         ui.horizontal(|ui| {
-            ui.add(self.example_plot()).context_menu(|ui| {
+            self.example_plot(ui).context_menu(|ui| {
                 ui.menu_button("Plot", |ui| {
                     if ui.radio_value(&mut self.plot, Plot::Sin, "Sin").clicked()
                         || ui
@@ -109,7 +109,7 @@ impl super::View for ContextMenus {
 }
 
 impl ContextMenus {
-    fn example_plot(&self) -> egui::plot::Plot {
+    fn example_plot(&self, ui: &mut egui::Ui) -> egui::Response {
         use egui::plot::{Line, Value, Values};
         let n = 128;
         let line = Line::new(Values::from_values_iter((0..=n).map(|i| {
@@ -127,10 +127,10 @@ impl ContextMenus {
             .allow_zoom(self.allow_zoom)
             .center_x_axis(self.center_x_axis)
             .center_x_axis(self.center_y_axis)
-            .line(line)
             .width(self.width)
             .height(self.height)
             .data_aspect(1.0)
+            .build(ui, |plot_ui| plot_ui.line(line))
     }
 
     fn nested_menus(ui: &mut egui::Ui) {
