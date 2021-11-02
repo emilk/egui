@@ -46,9 +46,6 @@ void main() {
     /// Multiply vertex color with texture color (in linear space).
     gl_FragColor = v_rgba * texture_rgba;
 
-    /// Multiply vertex color with texture color (in linear space).
-    gl_FragColor = v_rgba * texture_rgba;
-
     // WebGL doesn't support linear blending in the framebuffer,
     // so we do a hack here where we change the premultiplied alpha
     // to do the multiplication in gamma space instead:
