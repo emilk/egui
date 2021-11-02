@@ -28,8 +28,6 @@ use egui::mutex::Mutex;
 pub use wasm_bindgen;
 pub use web_sys;
 
-#[cfg(feature = "use_glow_painter")]
-use egui_glow;
 pub use painter::Painter;
 use std::cell::Cell;
 use std::rc::Rc;

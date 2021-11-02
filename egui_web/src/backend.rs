@@ -240,9 +240,9 @@ impl AppRunner {
 
     fn integration_info(&self) -> epi::IntegrationInfo {
         #[cfg(not(feature = "use_glow_painter"))]
-        const NAME: &'static str = "egui_web";
+        const NAME: &str = "egui_web";
         #[cfg(feature = "use_glow_painter")]
-        const NAME: &'static str = "egui_web(painted by glow)";
+        const NAME: &str = "egui_web(painted by glow)";
         epi::IntegrationInfo {
             name: NAME,
             web_info: Some(epi::WebInfo {
