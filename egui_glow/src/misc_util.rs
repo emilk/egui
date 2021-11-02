@@ -39,7 +39,6 @@ pub(crate) fn srgbtexture2d(
             glow::CLAMP_TO_EDGE as i32,
         );
         if compatibility_mode {
-            glow_debug_print(format!("w : {} h : {}", w as i32, h as i32));
             let format = if srgb_support {
                 glow::SRGB_ALPHA
             } else {

@@ -70,9 +70,11 @@ impl Painter {
         let header = shader_version.version();
         glow_debug_print(header);
         let mut v_src = header.to_owned();
+        v_src.push_str(shader_version.is_new_shader_interface());
         v_src.push_str(VERT_SRC);
-        let mut f_src = header.to_owned();
 
+        let mut f_src = header.to_owned();
+        f_src.push_str(shader_version.is_new_shader_interface());
         let srgb_support = gl.supported_extensions().contains("EXT_sRGB");
         let post_process = match (shader_version, srgb_support) {
             //WebGL2 support sRGB default

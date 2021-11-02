@@ -3,14 +3,8 @@ precision mediump float;
 #endif
 
 uniform sampler2D u_sampler;
-#if defined(GL_ES) && __VERSION__ >=300
-#define USE_NEW_SHADER
-#elif defined(GL_ES) && __VERSION__ <300
-#else
-#define USE_NEW_SHADER
-#endif
 
-#ifdef USE_NEW_SHADER
+#ifdef NEW_SHADER_INTERFACE
 in vec4 v_rgba;
 in vec2 v_tc;
 out vec4 f_color;
