@@ -394,6 +394,7 @@ impl Painter {
 
     /// register glow texture as egui texture
     /// Usable for render to image rectangle
+    #[allow(clippy::needless_pass_by_value)]
     pub fn register_glow_texture(&mut self, texture: glow::Texture) -> egui::TextureId {
         self.assert_not_destroyed();
 

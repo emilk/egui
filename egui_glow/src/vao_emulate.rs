@@ -15,6 +15,7 @@ pub struct EmulatedVao {
     taught: bool,
 }
 impl EmulatedVao {
+    #[allow(clippy::needless_pass_by_value)]
     pub(crate) fn new(buffer: glow::Buffer) -> Self {
         Self {
             buffer,

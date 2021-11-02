@@ -38,5 +38,5 @@ pub fn init_glow_context_from_canvas(canvas: &HtmlCanvasElement) -> glow::Contex
 /// dummy for clippy
 #[cfg(not(target_arch = "wasm32"))]
 pub fn init_glow_context_from_canvas<T>(_: T) -> glow::Context {
-    unimplemented!("this is only enabled wasm target")
+    panic!("this is only enabled wasm target")
 }
