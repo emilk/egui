@@ -149,8 +149,10 @@ impl VAO {
     }
     pub(crate) fn bind_buffer(&mut self, gl: &glow::Context, buffer: glow::Buffer) {
         match self {
-            VAO::Emulated(vao) => vao.bind_buffer(buffer),
-            VAO::Native(_) => unsafe { gl.bind_buffer(glow::ARRAY_BUFFER, Some(buffer)) },
+            VAO::Emulated(vao) => vao.bind_buffer(&buffer),
+            VAO::Native(_) => unsafe {
+                gl.bind_buffer(glow::ARRAY_BUFFER, Some(buffer));
+            },
         }
     }
     pub(crate) fn add_new_attribute(
@@ -169,14 +171,16 @@ impl VAO {
                     buffer_info.stride,
                     buffer_info.offset,
                 );
-                gl.enable_vertex_attrib_array(buffer_info.location)
+                gl.enable_vertex_attrib_array(buffer_info.location);
             },
         }
     }
     pub(crate) fn unbind_vertex_array(&self, gl: &glow::Context) {
         match self {
             VAO::Emulated(vao) => vao.unbind_vertex_array(gl),
-            VAO::Native(_) => unsafe { gl.bind_vertex_array(None) },
+            VAO::Native(_) => unsafe {
+                gl.bind_vertex_array(None);
+            },
         }
     }
 }

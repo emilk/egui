@@ -20,8 +20,8 @@ impl EmulatedVao {
             buffer_infos: vec![],
         }
     }
-    pub(crate) fn bind_buffer(&mut self, buffer: glow::Buffer) {
-        let _old = self.buffer.replace(buffer);
+    pub(crate) fn bind_buffer(&mut self, buffer: &glow::Buffer) {
+        let _old = self.buffer.replace(*buffer);
     }
     pub(crate) fn add_new_attribute(&mut self, buffer_info: BufferInfo) {
         self.buffer_infos.push(buffer_info);
