@@ -1242,7 +1242,10 @@ fn move_text_cursor(cursor: &Option<egui::Pos2>, canvas_id: &str) -> Option<()> 
     if is_mobile() == Some(false) {
         cursor.as_ref().and_then(|&egui::Pos2 { x, y }| {
             let canvas = canvas_element(canvas_id)?;
-            let y = y + (canvas.scroll_top() + canvas.offset_top()) as f32;
+            let y = (y + (canvas.scroll_top() + canvas.offset_top()) as f32).min(
+                canvas.client_height() as f32
+                    - text_agent().get_bounding_client_rect().height() as f32,
+            );
             let x = x + (canvas.scroll_left() + canvas.offset_left()) as f32;
             // Canvas is translated 50% horizontally in html.
             let x = x - canvas.offset_width() as f32 / 2.0;
