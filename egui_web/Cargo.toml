@@ -46,6 +46,7 @@ default_fonts = ["egui/default_fonts"]
 persistence = ["egui/persistence", "ron", "serde"]
 screen_reader = ["tts"] # experimental
 glow =["egui_glow","egui_glow/epi"]
+
 [dependencies.web-sys]
 version = "0.3.52"
 features = [
