@@ -140,7 +140,7 @@ impl Painter {
             let a_srgba_loc = gl.get_attrib_location(program, "a_srgba").unwrap();
             let mut vertex_array = crate::misc_util::VAO::new(gl, true);
             vertex_array.bind_vertex_array(gl);
-            vertex_array.bind_buffer(gl, vertex_buffer);
+            vertex_array.bind_buffer(gl, &vertex_buffer);
             let stride = std::mem::size_of::<Vertex>() as i32;
             let position_buffer_info = vao_emulate::BufferInfo {
                 location: a_pos_loc,

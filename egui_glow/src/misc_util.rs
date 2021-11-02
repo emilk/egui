@@ -147,11 +147,11 @@ impl VAO {
             VAO::Native(vao) => gl.bind_vertex_array(Some(*vao)),
         }
     }
-    pub(crate) fn bind_buffer(&mut self, gl: &glow::Context, buffer: glow::Buffer) {
+    pub(crate) fn bind_buffer(&mut self, gl: &glow::Context, buffer: &glow::Buffer) {
         match self {
-            VAO::Emulated(vao) => vao.bind_buffer(&buffer),
+            VAO::Emulated(vao) => vao.bind_buffer(buffer),
             VAO::Native(_) => unsafe {
-                gl.bind_buffer(glow::ARRAY_BUFFER, Some(buffer));
+                gl.bind_buffer(glow::ARRAY_BUFFER, Some(*buffer));
             },
         }
     }

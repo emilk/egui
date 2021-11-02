@@ -121,7 +121,7 @@ impl PostProcess {
             .ok_or_else(|| "failed to get location of a_pos".to_string())?;
         let mut vertex_array = crate::misc_util::VAO::new(gl, true);
         vertex_array.bind_vertex_array(gl);
-        vertex_array.bind_buffer(gl, pos_buffer);
+        vertex_array.bind_buffer(gl, &pos_buffer);
         let buffer_info_a_pos = BufferInfo {
             location: a_pos_loc,
             vector_size: 2,
