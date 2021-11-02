@@ -3,6 +3,7 @@
 use egui::{
     emath::Rect,
     epaint::{Color32, Mesh, Vertex},
+    TextureId,
 };
 pub use glow::Context;
 
@@ -31,7 +32,7 @@ pub struct Painter {
     egui_texture: Option<glow::Texture>,
     egui_texture_version: Option<u64>,
     is_webgl_1: bool,
-    vertex_array: vao_emulate::EmulatedVao,
+    vertex_array: crate::misc_util::VAO,
     srgb_support: bool,
     /// `None` means unallocated (freed) slot.
     pub(crate) user_textures: Vec<Option<UserTexture>>,
@@ -41,8 +42,6 @@ pub struct Painter {
 
     // Stores outdated OpenGL textures that are yet to be deleted
     old_textures: Vec<glow::Texture>,
-    // Only in debug builds, to make sure we are destroyed correctly.
-    #[cfg(debug_assertions)]
     destroyed: bool,
 }
 
@@ -69,67 +68,68 @@ impl Painter {
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
         let header = shader_version.version();
         glow_debug_print(header);
-        let mut v_src = header.to_owned();
-        v_src.push_str(shader_version.is_new_shader_interface());
-        v_src.push_str(VERT_SRC);
-
-        let mut f_src = header.to_owned();
-        f_src.push_str(shader_version.is_new_shader_interface());
         let srgb_support = gl.supported_extensions().contains("EXT_sRGB");
-        let post_process = match (shader_version, srgb_support) {
+        let (post_process, srgb_support_define) = match (shader_version, srgb_support) {
             //WebGL2 support sRGB default
             (ShaderVersion::Es300, _) | (ShaderVersion::Es100, true) => {
                 //Add sRGB support marker for fragment shader
-                f_src.push_str("#define SRGB_SUPPORTED \n");
                 if let Some([width, height]) = pp_fb_extent {
                     glow_debug_print("WebGL with sRGB enabled so turn on post process");
                     //install post process to correct sRGB color
-                    PostProcess::new(gl, is_webgl_1, width, height).ok()
+                    (
+                        unsafe { PostProcess::new(gl, is_webgl_1, width, height) }.ok(),
+                        "#define SRGB_SUPPORTED",
+                    )
                 } else {
                     glow_debug_print("WebGL or OpenGL ES detected but PostProcess disabled because dimension is None");
-                    None
+                    (None, "")
                 }
             }
             //WebGL1 without sRGB support disable postprocess and use fallback shader
-            (ShaderVersion::Es100, false) => None,
+            (ShaderVersion::Es100, false) => (None, ""),
             //OpenGL 2.1 or above always support sRGB so add sRGB support marker
-            _ => {
-                f_src.push_str("#define SRGB_SUPPORTED \n");
-                None
-            }
+            _ => (None, "#define SRGB_SUPPORTED"),
         };
 
-        f_src.push_str(FRAG_SRC);
-
         unsafe {
-            let v = compile_shader(gl, glow::VERTEX_SHADER, &v_src)
+            let vert = compile_shader(
+                gl,
+                glow::VERTEX_SHADER,
+                &format!(
+                    "{}\n{}\n{}",
+                    header,
+                    shader_version.is_new_shader_interface(),
+                    VERT_SRC
+                ),
+            )
+            .map_err(|problems| {
+                glow_debug_print(format!("failed to compile vertex shader \n {}", problems));
+            })
+            .unwrap();
+            let frag = compile_shader(
+                gl,
+                glow::FRAGMENT_SHADER,
+                &format!(
+                    "{}\n{}\n{}\n{}",
+                    header,
+                    srgb_support_define,
+                    shader_version.is_new_shader_interface(),
+                    FRAG_SRC
+                ),
+            )
+            .map_err(|problems| {
+                glow_debug_print(format!("failed to compile fragment shader \n {}", problems));
+            })
+            .unwrap();
+            let program = link_program(gl, [vert, frag].iter())
                 .map_err(|problems| {
-                    glow_debug_print(format!(
-                        "failed to compile vertex shader due to errors \n {}",
-                        problems
-                    ));
+                    glow_debug_print(format!("failed to link shaders \n {}", problems));
                 })
                 .unwrap();
-            let f = compile_shader(gl, glow::FRAGMENT_SHADER, &f_src)
-                .map_err(|problems| {
-                    glow_debug_print(format!(
-                        "failed to compile fragment shader due to errors \n {}",
-                        problems
-                    ));
-                })
-                .unwrap();
-            let program = link_program(gl, [v, f].iter())
-                .map_err(|problems| {
-                    glow_debug_print(format!(
-                        "failed to link shaders due to errors \n {}",
-                        problems
-                    ));
-                })
-                .unwrap();
-            gl.detach_shader(program, v);
-            gl.detach_shader(program, f);
-            gl.delete_shader(v);
-            gl.delete_shader(f);
+            gl.detach_shader(program, vert);
+            gl.detach_shader(program, frag);
+            gl.delete_shader(vert);
+            gl.delete_shader(frag);
             let u_screen_size = gl.get_uniform_location(program, "u_screen_size").unwrap();
             let u_sampler = gl.get_uniform_location(program, "u_sampler").unwrap();
             let vertex_buffer = gl.create_buffer().unwrap();
@@ -138,7 +138,9 @@ impl Painter {
             let a_pos_loc = gl.get_attrib_location(program, "a_pos").unwrap();
             let a_tc_loc = gl.get_attrib_location(program, "a_tc").unwrap();
             let a_srgba_loc = gl.get_attrib_location(program, "a_srgba").unwrap();
-            let mut vertex_array = vao_emulate::EmulatedVao::new(vertex_buffer);
+            let mut vertex_array = crate::misc_util::VAO::new(gl, true);
+            vertex_array.bind_vertex_array(gl);
+            vertex_array.bind_buffer(gl, vertex_buffer);
             let stride = std::mem::size_of::<Vertex>() as i32;
             let position_buffer_info = vao_emulate::BufferInfo {
                 location: a_pos_loc,
@@ -164,9 +166,9 @@ impl Painter {
                 stride,
                 offset: offset_of!(Vertex, color) as i32,
             };
-            vertex_array.add_new_attribute(position_buffer_info);
-            vertex_array.add_new_attribute(tex_coord_buffer_info);
-            vertex_array.add_new_attribute(color_buffer_info);
+            vertex_array.add_new_attribute(gl, position_buffer_info);
+            vertex_array.add_new_attribute(gl, tex_coord_buffer_info);
+            vertex_array.add_new_attribute(gl, color_buffer_info);
             assert_eq!(gl.get_error(), glow::NO_ERROR, "OpenGL error occurred!");
 
             Painter {
@@ -183,7 +185,6 @@ impl Painter {
                 vertex_buffer,
                 element_array_buffer,
                 old_textures: Vec::new(),
-                #[cfg(debug_assertions)]
                 destroyed: false,
             }
         }
@@ -196,7 +197,7 @@ impl Painter {
             return; // No change
         }
         let gamma = if self.post_process.is_none() {
-            1.0 / 2.0
+            1.0 / 2.2
         } else {
             1.0
         };
@@ -230,7 +231,7 @@ impl Painter {
         pixels_per_point: f32,
     ) -> (u32, u32) {
         gl.enable(glow::SCISSOR_TEST);
-        // egui outputs mesh in both winding orders:
+        // egui outputs mesh in both winding orders
         gl.disable(glow::CULL_FACE);
 
         gl.enable(glow::BLEND);
@@ -253,8 +254,6 @@ impl Painter {
 
         gl.use_program(Some(self.program));
 
-        // The texture coordinates for text are so that both nearest and linear should work with the egui font texture.
-        // For user textures linear sampling is more likely to be the right choice.
         gl.uniform_2_f32(Some(&self.u_screen_size), width_in_points, height_in_points);
         gl.uniform_1_i32(Some(&self.u_sampler), 0);
         gl.active_texture(glow::TEXTURE0);
@@ -296,7 +295,9 @@ impl Painter {
 
         self.upload_pending_user_textures(gl);
         if let Some(ref mut post_process) = self.post_process {
-            post_process.begin(gl, inner_size[0] as i32, inner_size[1] as i32);
+            unsafe {
+                post_process.begin(gl, inner_size[0] as i32, inner_size[1] as i32);
+            }
         }
         let size_in_pixels = unsafe { self.prepare_painting(inner_size, gl, pixels_per_point) };
         for egui::ClippedMesh(clip_rect, mesh) in clipped_meshes {
@@ -307,7 +308,9 @@ impl Painter {
             gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, None);
         }
         if let Some(ref post_process) = self.post_process {
-            post_process.end(gl);
+            unsafe {
+                post_process.end(gl);
+            }
         }
         unsafe {
             assert_eq!(glow::NO_ERROR, gl.get_error(), "GL error occurred!");
@@ -521,9 +524,9 @@ impl Painter {
 
     /// This function must be called before Painter is dropped, as Painter has some OpenGL objects
     /// that should be deleted.
-    #[cfg(debug_assertions)]
+
     pub fn destroy(&mut self, gl: &glow::Context) {
-        assert!(!self.destroyed, "Only destroy once!");
+        debug_assert!(!self.destroyed, "Only destroy once!");
         unsafe {
             self.destroy_gl(gl);
             if let Some(ref post_process) = self.post_process {
@@ -533,25 +536,9 @@ impl Painter {
         self.destroyed = true;
     }
 
-    #[cfg(not(debug_assertions))]
-    pub fn destroy(&self, gl: &glow::Context) {
-        unsafe {
-            self.destroy_gl(gl);
-            if let Some(ref post_process) = self.post_process {
-                post_process.destroy(gl);
-            }
-        }
-    }
-
-    #[cfg(debug_assertions)]
     fn assert_not_destroyed(&self) {
-        assert!(!self.destroyed, "egui has already been destroyed!");
+        debug_assert!(!self.destroyed, "the egui glow has already been destroyed!");
     }
-
-    #[inline(always)]
-    #[cfg(not(debug_assertions))]
-    #[allow(clippy::unused_self)]
-    fn assert_not_destroyed(&self) {}
 }
 // ported from egui_web
 pub fn clear(gl: &glow::Context, dimension: [u32; 2], clear_color: egui::Rgba) {
@@ -572,10 +559,45 @@ pub fn clear(gl: &glow::Context, dimension: [u32; 2], clear_color: egui::Rgba) {
 }
 impl Drop for Painter {
     fn drop(&mut self) {
-        #[cfg(debug_assertions)]
-        assert!(
+        debug_assert!(
             self.destroyed,
-            "Make sure to destroy() rather than dropping, to avoid leaking OpenGL objects!"
+            "Make sure to call destroy() before dropping to avoid leaking OpenGL objects!"
         );
+    }
+}
+
+impl epi::TextureAllocator for Painter {
+    fn alloc_srgba_premultiplied(
+        &mut self,
+        size: (usize, usize),
+        srgba_pixels: &[Color32],
+    ) -> egui::TextureId {
+        let id = self.alloc_user_texture();
+        self.set_user_texture(id, size, srgba_pixels);
+        id
+    }
+
+    fn free(&mut self, id: egui::TextureId) {
+        self.free_user_texture(id);
+    }
+}
+
+impl epi::NativeTexture for Painter {
+    type Texture = glow::Texture;
+
+    fn register_native_texture(&mut self, native: Self::Texture) -> TextureId {
+        self.register_glow_texture(native)
+    }
+
+    fn replace_native_texture(&mut self, id: TextureId, replacing: Self::Texture) {
+        if let egui::TextureId::User(id) = id {
+            if let Some(Some(user_texture)) = self.user_textures.get_mut(id as usize) {
+                *user_texture = UserTexture {
+                    data: vec![],
+                    gl_texture: Some(replacing),
+                    size: (0, 0),
+                };
+            }
+        }
     }
 }

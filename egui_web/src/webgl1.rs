@@ -538,6 +538,10 @@ impl crate::Painter for WebGlPainter {
 
         Ok(())
     }
+
+    fn name(&self) -> &'static str {
+        "egui_web(webgl1)"
+    }
 }
 
 struct PostProcess {

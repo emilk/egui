@@ -1,5 +1,5 @@
 //! Example how to use pure `egui_glow` without [`epi`].
-#[cfg(not(feature = "painter_only"))]
+
 fn create_display(
     event_loop: &glutin::event_loop::EventLoop<()>,
 ) -> (
@@ -35,7 +35,6 @@ fn create_display(
 
     (gl_window, gl)
 }
-#[cfg(not(feature = "painter_only"))]
 fn main() {
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
     let (gl_window, gl) = create_display(&event_loop);
@@ -111,9 +110,4 @@ fn main() {
             _ => (),
         }
     });
-}
-//dummy
-#[cfg(feature = "painter_only")]
-fn main() {
-    println!("painter_only feature enabled so we can't create window");
 }

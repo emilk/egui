@@ -28,7 +28,7 @@ crate-type = ["cdylib", "rlib"]
 egui = { version = "0.15.0", path = "../egui", default-features = false, features = [
   "single_threaded",
 ] }
-egui_glow = { version = "0.15.0",path = "../egui_glow", default-features = false , optional = true }
+egui_glow = { version = "0.15.0",path = "../egui_glow", default-features = false, optional = true }
 epi = { version = "0.15.0", path = "../epi" }
 js-sys = "0.3"
 ron = { version = "0.7", optional = true }
@@ -45,7 +45,7 @@ default = ["default_fonts"]
 default_fonts = ["egui/default_fonts"]
 persistence = ["egui/persistence", "ron", "serde"]
 screen_reader = ["tts"] # experimental
-use_glow_painter =["egui_glow/painter_only","egui_glow/epi"]
+glow =["egui_glow","egui_glow/epi"]
 [dependencies.web-sys]
 version = "0.3.52"
 features = [

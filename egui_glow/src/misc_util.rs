@@ -5,7 +5,7 @@ use wasm_bindgen::JsValue;
 
 pub(crate) fn srgbtexture2d(
     gl: &glow::Context,
-    compatibility_mode: bool,
+    is_webgl_1: bool,
     srgb_support: bool,
     data: &[u8],
     w: usize,
@@ -38,7 +38,7 @@ pub(crate) fn srgbtexture2d(
             glow::TEXTURE_WRAP_T,
             glow::CLAMP_TO_EDGE as i32,
         );
-        if compatibility_mode {
+        if is_webgl_1 {
             let format = if srgb_support {
                 glow::SRGB_ALPHA
             } else {
@@ -125,5 +125,58 @@ pub(crate) fn link_program<'a, T: IntoIterator<Item = &'a glow::Shader>>(
         Ok(program)
     } else {
         Err(unsafe { gl.get_program_info_log(program) })
+    }
+}
+///Wrapper around Emulated VAO and GL's VAO
+pub(crate) enum VAO {
+    Emulated(crate::vao_emulate::EmulatedVao),
+    Native(crate::glow::VertexArray),
+}
+
+impl VAO {
+    pub(crate) unsafe fn new(gl: &glow::Context, is_native_vao: bool) -> Self {
+        if is_native_vao {
+            Self::Native(gl.create_vertex_array().unwrap())
+        } else {
+            Self::Emulated(crate::vao_emulate::EmulatedVao::new())
+        }
+    }
+    pub(crate) unsafe fn bind_vertex_array(&self, gl: &glow::Context) {
+        match self {
+            VAO::Emulated(vao) => vao.bind_vertex_array(gl),
+            VAO::Native(vao) => gl.bind_vertex_array(Some(*vao)),
+        }
+    }
+    pub(crate) fn bind_buffer(&mut self, gl: &glow::Context, buffer: glow::Buffer) {
+        match self {
+            VAO::Emulated(vao) => vao.bind_buffer(buffer),
+            VAO::Native(_) => unsafe { gl.bind_buffer(glow::ARRAY_BUFFER, Some(buffer)) },
+        }
+    }
+    pub(crate) fn add_new_attribute(
+        &mut self,
+        gl: &glow::Context,
+        buffer_info: crate::vao_emulate::BufferInfo,
+    ) {
+        match self {
+            VAO::Emulated(vao) => vao.add_new_attribute(buffer_info),
+            VAO::Native(_) => unsafe {
+                gl.vertex_attrib_pointer_f32(
+                    buffer_info.location,
+                    buffer_info.vector_size,
+                    buffer_info.data_type,
+                    buffer_info.normalized,
+                    buffer_info.stride,
+                    buffer_info.offset,
+                );
+                gl.enable_vertex_attrib_array(buffer_info.location)
+            },
+        }
+    }
+    pub(crate) fn unbind_vertex_array(&self, gl: &glow::Context) {
+        match self {
+            VAO::Emulated(vao) => vao.unbind_vertex_array(gl),
+            VAO::Native(_) => unsafe { gl.bind_vertex_array(None) },
+        }
     }
 }

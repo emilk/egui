@@ -88,32 +88,31 @@
 #![allow(clippy::manual_range_contains)]
 
 pub mod painter;
-pub use glow::Context;
+pub use glow;
 pub use painter::Painter;
-#[cfg(feature = "epi")]
+#[cfg(feature = "winit")]
 mod epi_backend;
 mod misc_util;
 mod post_process;
 mod shader_version;
 mod vao_emulate;
 
-pub mod create_context_for_canvas;
-
 #[cfg(not(target_arch = "wasm32"))]
 pub use egui_winit;
-#[cfg(all(feature = "epi", not(feature = "painter_only")))]
+#[cfg(all(feature = "epi", feature = "winit"))]
 pub use epi_backend::{run, NativeOptions};
 
 // ----------------------------------------------------------------------------
 
 /// Use [`egui`] from a [`glow`] app.
-#[cfg(not(feature = "painter_only"))]
+#[cfg(feature = "winit")]
 pub struct EguiGlow {
     egui_ctx: egui::CtxRef,
     egui_winit: egui_winit::State,
     painter: crate::Painter,
 }
-#[cfg(not(feature = "painter_only"))]
+
+#[cfg(feature = "winit")]
 impl EguiGlow {
     pub fn new(
         gl_window: &glutin::WindowedContext<glutin::PossiblyCurrent>,
