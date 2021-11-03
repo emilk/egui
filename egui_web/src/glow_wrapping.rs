@@ -1,3 +1,4 @@
+use crate::web_sys::{WebGl2RenderingContext, WebGlRenderingContext};
 use crate::{canvas_element_or_die, console_error};
 use egui::{ClippedMesh, Rgba, Texture};
 use egui_glow::glow;
@@ -108,5 +109,22 @@ pub fn init_glow_context_from_canvas(canvas: &HtmlCanvasElement) -> glow::Contex
         }
     } else {
         panic!("tried webgl2 but something went wrong");
+    }
+}
+
+trait DummyWebGLConstructor {
+    fn from_webgl1_context(context: web_sys::WebGlRenderingContext) -> Self;
+
+    fn from_webgl2_context(context: web_sys::WebGl2RenderingContext) -> Self;
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl DummyWebGLConstructor for glow::Context {
+    fn from_webgl1_context(_context: WebGlRenderingContext) -> Self {
+        panic!("you cant use egui_web(glow) on native")
+    }
+
+    fn from_webgl2_context(_context: WebGl2RenderingContext) -> Self {
+        panic!("you cant use egui_web(glow) on native")
     }
 }
