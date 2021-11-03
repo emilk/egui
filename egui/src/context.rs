@@ -97,31 +97,19 @@ impl CtxRef {
     ///
     /// This will modify the internal reference to point to a new generation of [`Context`].
     /// Any old clones of this [`CtxRef`] will refer to the old [`Context`], which will not get new input.
-    ///
-    /// This is a convenience for calling [`Self::begin_frame`] and [`Context::end_frame`]
     #[must_use]
     pub fn run(
         &mut self,
         new_input: RawInput,
         run_ui: impl FnOnce(&CtxRef),
     ) -> (Output, Vec<ClippedShape>) {
-        self.begin_frame(new_input);
-        run_ui(self);
-        self.end_frame()
-    }
-
-    /// Alternative to [`Self::run`].
-    ///
-    /// Call at the start of every frame. Match with a call to [`Context::end_frame`].
-    ///
-    /// This will modify the internal reference to point to a new generation of [`Context`].
-    /// Any old clones of this [`CtxRef`] will refer to the old [`Context`], which will not get new input.
-    ///
-    /// Put your widgets into a [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`].
-    fn begin_frame(&mut self, new_input: RawInput) {
         let mut self_: Context = (*self.0).clone();
         self_.begin_frame_mut(new_input);
         *self = Self(Arc::new(self_));
+
+        run_ui(self);
+
+        self.end_frame()
     }
 
     // ---------------------------------------------------------------------
@@ -438,17 +426,17 @@ impl Context {
         &self.input
     }
 
-    /// Not valid until first call to [`CtxRef::begin_frame()`].
+    /// Not valid until first call to [`CtxRef::run()`].
     /// That's because since we don't know the proper `pixels_per_point` until then.
     pub fn fonts(&self) -> &Fonts {
         &*self
             .fonts
             .as_ref()
-            .expect("No fonts available until first call to CtxRef::begin_frame()")
+            .expect("No fonts available until first call to CtxRef::run()")
     }
 
     /// The egui texture, containing font characters etc.
-    /// Not valid until first call to [`CtxRef::begin_frame()`].
+    /// Not valid until first call to [`CtxRef::run()`].
     /// That's because since we don't know the proper `pixels_per_point` until then.
     pub fn texture(&self) -> Arc<epaint::Texture> {
         self.fonts().texture()
