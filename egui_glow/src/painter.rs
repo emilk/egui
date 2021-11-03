@@ -194,7 +194,7 @@ impl Painter {
         if self.egui_texture_version == Some(texture.version) {
             return; // No change
         }
-        let gamma = if self.post_process.is_none() {
+        let gamma = if self.is_web && self.post_process.is_none() {
             1.0 / 2.2
         } else {
             1.0
