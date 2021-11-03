@@ -52,13 +52,43 @@ pub enum FontFamily {
     Proportional,
 }
 
-/// The data of a `.ttf` or `.otf` file.
-pub type FontData = std::borrow::Cow<'static, [u8]>;
+/// A `.ttf` or `.otf` file and a font face index.
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct FontData {
+    /// The data of a `.ttf` or `.otf` file.
+    pub font: std::borrow::Cow<'static, [u8]>,
+    /// Which font face in the file to use.
+    /// When in doubt, use `0`.
+    pub index: u32,
+}
+
+impl FontData {
+    pub fn from_static(font: &'static [u8]) -> Self {
+        Self {
+            font: std::borrow::Cow::Borrowed(font.into()),
+            index: 0,
+        }
+    }
+
+    pub fn from_owned(font: Vec<u8>) -> Self {
+        Self {
+            font: std::borrow::Cow::Owned(font.into()),
+            index: 0,
+        }
+    }
+}
 
 fn ab_glyph_font_from_font_data(name: &str, data: &FontData) -> ab_glyph::FontArc {
-    match data {
-        std::borrow::Cow::Borrowed(bytes) => ab_glyph::FontArc::try_from_slice(bytes),
-        std::borrow::Cow::Owned(bytes) => ab_glyph::FontArc::try_from_vec(bytes.clone()),
+    match &data.font {
+        std::borrow::Cow::Borrowed(bytes) => {
+            ab_glyph::FontRef::try_from_slice_and_index(bytes, data.index)
+                .map(ab_glyph::FontArc::from)
+        }
+        std::borrow::Cow::Owned(bytes) => {
+            ab_glyph::FontVec::try_from_vec_and_index(bytes.clone(), data.index)
+                .map(ab_glyph::FontArc::from)
+        }
     }
     .unwrap_or_else(|err| panic!("Error parsing {:?} TTF/OTF font file: {}", name, err))
 }
@@ -110,10 +140,8 @@ fn ab_glyph_font_from_font_data(name: &str, data: &FontData) -> ab_glyph::FontAr
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct FontDefinitions {
     /// List of font names and their definitions.
-    /// The definition must be the contents of either a `.ttf` or `.otf` font file.
     ///
-    /// `epaint` has built-in-default for these,
-    /// but you can override them if you like.
+    /// `epaint` has built-in-default for these, but you can override them if you like.
     pub font_data: BTreeMap<String, FontData>,
 
     /// Which fonts (names) to use for each [`FontFamily`].
@@ -139,22 +167,22 @@ impl Default for FontDefinitions {
         {
             font_data.insert(
                 "Hack".to_owned(),
-                std::borrow::Cow::Borrowed(include_bytes!("../../fonts/Hack-Regular.ttf")),
+                FontData::from_static(include_bytes!("../../fonts/Hack-Regular.ttf")),
             );
             font_data.insert(
                 "Ubuntu-Light".to_owned(),
-                std::borrow::Cow::Borrowed(include_bytes!("../../fonts/Ubuntu-Light.ttf")),
+                FontData::from_static(include_bytes!("../../fonts/Ubuntu-Light.ttf")),
             );
 
             // Some good looking emojis. Use as first priority:
             font_data.insert(
                 "NotoEmoji-Regular".to_owned(),
-                std::borrow::Cow::Borrowed(include_bytes!("../../fonts/NotoEmoji-Regular.ttf")),
+                FontData::from_static(include_bytes!("../../fonts/NotoEmoji-Regular.ttf")),
             );
             // Bigger emojis, and more. <http://jslegers.github.io/emoji-icon-font/>:
             font_data.insert(
                 "emoji-icon-font".to_owned(),
-                std::borrow::Cow::Borrowed(include_bytes!("../../fonts/emoji-icon-font.ttf")),
+                FontData::from_static(include_bytes!("../../fonts/emoji-icon-font.ttf")),
             );
 
             fonts_for_family.insert(
