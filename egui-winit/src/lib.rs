@@ -461,9 +461,10 @@ impl State {
 
         if self.egui_input.modifiers.ctrl || self.egui_input.modifiers.command {
             // Treat as zoom instead:
-            self.egui_input.zoom_delta *= (delta.y / 200.0).exp();
+            let factor = (delta.y / 200.0).exp();
+            self.egui_input.events.push(egui::Event::Zoom(factor));
         } else {
-            self.egui_input.scroll_delta += delta;
+            self.egui_input.events.push(egui::Event::Scroll(delta));
         }
     }
 
