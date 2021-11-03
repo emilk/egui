@@ -5,7 +5,7 @@ use crate::*;
 /// See also [`Ui::button`].
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// # fn do_stuff() {}
 ///
 /// if ui.add(egui::Button::new("Click me")).clicked() {
@@ -16,6 +16,7 @@ use crate::*;
 /// if ui.add_enabled(false, egui::Button::new("Can't click this")).clicked() {
 ///     unreachable!();
 /// }
+/// # });
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Button {
@@ -177,11 +178,12 @@ impl Widget for Button {
 /// Usually you'd use [`Ui::checkbox`] instead.
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// # let mut my_bool = true;
 /// // These are equivalent:
 /// ui.checkbox(&mut my_bool, "Checked");
 /// ui.add(egui::Checkbox::new(&mut my_bool, "Checked"));
+/// # });
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Checkbox<'a> {
@@ -275,7 +277,7 @@ impl<'a> Widget for Checkbox<'a> {
 /// Usually you'd use [`Ui::radio_value`] or [`Ui::radio`] instead.
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// #[derive(PartialEq)]
 /// enum Enum { First, Second, Third }
 /// let mut my_enum = Enum::First;
@@ -287,6 +289,7 @@ impl<'a> Widget for Checkbox<'a> {
 /// if ui.add(egui::RadioButton::new(my_enum == Enum::First, "First")).clicked() {
 ///     my_enum = Enum::First
 /// }
+/// # });
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct RadioButton {

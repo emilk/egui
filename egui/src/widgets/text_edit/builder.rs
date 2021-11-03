@@ -13,7 +13,7 @@ use super::{CCursorRange, CursorRange, TextEditOutput, TextEditState};
 /// Example:
 ///
 /// ```
-/// # let mut ui = egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// # let mut my_string = String::new();
 /// let response = ui.add(egui::TextEdit::singleline(&mut my_string));
 /// if response.changed() {
@@ -22,14 +22,16 @@ use super::{CCursorRange, CursorRange, TextEditOutput, TextEditState};
 /// if response.lost_focus() && ui.input().key_pressed(egui::Key::Enter) {
 ///     // …
 /// }
+/// # });
 /// ```
 ///
 /// To fill an [`Ui`] with a [`TextEdit`] use [`Ui::add_sized`]:
 ///
 /// ```
-/// # let mut ui = egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// # let mut my_string = String::new();
 /// ui.add_sized(ui.available_size(), egui::TextEdit::multiline(&mut my_string));
+/// # });
 /// ```
 ///
 ///
@@ -165,7 +167,7 @@ impl<'t> TextEdit<'t> {
     /// the text and the wrap width.
     ///
     /// ```
-    /// # let ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// # let mut my_code = String::new();
     /// # fn my_memoized_highlighter(s: &str) -> egui::text::LayoutJob { Default::default() }
     /// let mut layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
@@ -174,6 +176,7 @@ impl<'t> TextEdit<'t> {
     ///     ui.fonts().layout_job(layout_job)
     /// };
     /// ui.add(egui::TextEdit::multiline(&mut my_code).layouter(&mut layouter));
+    /// # });
     /// ```
     pub fn layouter(mut self, layouter: &'t mut dyn FnMut(&Ui, &str, f32) -> Arc<Galley>) -> Self {
         self.layouter = Some(layouter);

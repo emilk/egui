@@ -7,7 +7,7 @@ use epaint::Shape;
 /// # #[derive(Debug, PartialEq)]
 /// # enum Enum { First, Second, Third }
 /// # let mut selected = Enum::First;
-/// # let mut ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// egui::ComboBox::from_label("Select one!")
 ///     .selected_text(format!("{:?}", selected))
 ///     .show_ui(ui, |ui| {
@@ -16,6 +16,7 @@ use epaint::Shape;
 ///         ui.selectable_value(&mut selected, Enum::Third, "Third");
 ///     }
 /// );
+/// # });
 /// ```
 #[must_use = "You should call .show*"]
 pub struct ComboBox {
@@ -109,7 +110,7 @@ impl ComboBox {
     /// # #[derive(Debug, PartialEq)]
     /// # enum Enum { First, Second, Third }
     /// # let mut selected = Enum::First;
-    /// # let mut ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// let alternatives = ["a", "b", "c", "d"];
     /// let mut selected = 2;
     /// egui::ComboBox::from_label("Select one!").show_index(
@@ -118,6 +119,7 @@ impl ComboBox {
     ///     alternatives.len(),
     ///     |i| alternatives[i].to_owned()
     /// );
+    /// # });
     /// ```
     pub fn show_index(
         self,

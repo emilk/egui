@@ -237,7 +237,7 @@ impl InputState {
     ///
     /// ```
     /// # use egui::emath::Rot2;
-    /// # let ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// let mut zoom = 1.0; // no zoom
     /// let mut rotation = 0.0; // no rotation
     /// if let Some(multi_touch) = ui.input().multi_touch() {
@@ -245,6 +245,7 @@ impl InputState {
     ///     rotation += multi_touch.rotation_delta;
     /// }
     /// let transform = zoom * Rot2::from_angle(rotation);
+    /// # });
     /// ```
     ///
     /// By far not all touch devices are supported, and the details depend on the `egui`

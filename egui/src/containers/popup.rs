@@ -58,12 +58,13 @@ impl MonoState {
 /// Returns `None` if the tooltip could not be placed.
 ///
 /// ```
-/// # let mut ui = egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// if ui.ui_contains_pointer() {
 ///     egui::show_tooltip(ui.ctx(), egui::Id::new("my_tooltip"), |ui| {
 ///         ui.label("Helpful text");
 ///     });
 /// }
+/// # });
 /// ```
 pub fn show_tooltip<R>(ctx: &CtxRef, id: Id, add_contents: impl FnOnce(&mut Ui) -> R) -> Option<R> {
     show_tooltip_at_pointer(ctx, id, add_contents)
@@ -78,12 +79,13 @@ pub fn show_tooltip<R>(ctx: &CtxRef, id: Id, add_contents: impl FnOnce(&mut Ui) 
 /// Returns `None` if the tooltip could not be placed.
 ///
 /// ```
-/// # let mut ui = egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// if ui.ui_contains_pointer() {
 ///     egui::show_tooltip_at_pointer(ui.ctx(), egui::Id::new("my_tooltip"), |ui| {
 ///         ui.label("Helpful text");
 ///     });
 /// }
+/// # });
 /// ```
 pub fn show_tooltip_at_pointer<R>(
     ctx: &CtxRef,
@@ -221,10 +223,11 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
 /// Returns `None` if the tooltip could not be placed.
 ///
 /// ```
-/// # let mut ui = egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// if ui.ui_contains_pointer() {
 ///     egui::show_tooltip_text(ui.ctx(), egui::Id::new("my_tooltip"), "Helpful text");
 /// }
+/// # });
 /// ```
 pub fn show_tooltip_text(ctx: &CtxRef, id: Id, text: impl Into<WidgetText>) -> Option<()> {
     show_tooltip(ctx, id, |ui| {
@@ -264,7 +267,7 @@ fn show_tooltip_area_dyn<'c, R>(
 /// Returns `None` if the popup is not open.
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// let response = ui.button("Open popup");
 /// let popup_id = ui.make_persistent_id("my_unique_id");
 /// if response.clicked() {
@@ -275,6 +278,7 @@ fn show_tooltip_area_dyn<'c, R>(
 ///     ui.label("Some more info, or things you can select:");
 ///     ui.label("…");
 /// });
+/// # });
 /// ```
 pub fn popup_below_widget<R>(
     ui: &Ui,

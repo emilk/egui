@@ -145,9 +145,9 @@ fn test_egui_e2e() {
 
     const NUM_FRAMES: usize = 5;
     for _ in 0..NUM_FRAMES {
-        ctx.begin_frame(raw_input.clone());
-        demo_windows.ui(&ctx);
-        let (_output, shapes) = ctx.end_frame();
+        let (_output, shapes) = ctx.run(raw_input.clone(), |ctx| {
+            demo_windows.ui(ctx);
+        });
         let clipped_meshes = ctx.tessellate(shapes);
         assert!(!clipped_meshes.is_empty());
     }
@@ -164,9 +164,9 @@ fn test_egui_zero_window_size() {
 
     const NUM_FRAMES: usize = 5;
     for _ in 0..NUM_FRAMES {
-        ctx.begin_frame(raw_input.clone());
-        demo_windows.ui(&ctx);
-        let (_output, shapes) = ctx.end_frame();
+        let (_output, shapes) = ctx.run(raw_input.clone(), |ctx| {
+            demo_windows.ui(ctx);
+        });
         let clipped_meshes = ctx.tessellate(shapes);
         assert!(clipped_meshes.is_empty(), "There should be nothing to show");
     }

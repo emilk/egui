@@ -200,13 +200,14 @@ impl Response {
     /// or (in case of a [`crate::TextEdit`]) because the user pressed enter.
     ///
     /// ```
-    /// # let mut ui = egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// # let mut my_text = String::new();
     /// # fn do_request(_: &str) {}
     /// let response = ui.text_edit_singleline(&mut my_text);
     /// if response.lost_focus() && ui.input().key_pressed(egui::Key::Enter) {
     ///     do_request(&my_text);
     /// }
+    /// # });
     /// ```
     pub fn lost_focus(&self) -> bool {
         self.ctx.memory().lost_focus(self.id)
@@ -415,11 +416,12 @@ impl Response {
     /// it is better to give the widget a `Sense` instead, e.g. using [`crate::Label::sense`].
     ///
     /// ```
-    /// # let mut ui = egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// let response = ui.label("hello");
     /// assert!(!response.clicked()); // labels don't sense clicks by default
     /// let response = response.interact(egui::Sense::click());
     /// if response.clicked() { /* … */ }
+    /// # });
     /// ```
     pub fn interact(&self, sense: Sense) -> Self {
         self.ctx.interact_with_hovered(
@@ -436,7 +438,7 @@ impl Response {
     ///
     /// ```
     /// # use egui::Align;
-    /// # let mut ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// egui::ScrollArea::vertical().show(ui, |ui| {
     ///     for i in 0..1000 {
     ///         let response = ui.button(format!("Button {}", i));
@@ -445,6 +447,7 @@ impl Response {
     ///         }
     ///     }
     /// });
+    /// # });
     /// ```
     pub fn scroll_to_me(&self, align: Align) {
         let scroll_target = lerp(self.rect.x_range(), align.to_factor());
@@ -478,13 +481,14 @@ impl Response {
     /// Response to secondary clicks (right-clicks) by showing the given menu.
     ///
     /// ``` rust
-    /// # let mut ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// let response = ui.label("Right-click me!");
-    /// response.context_menu(|ui|{
+    /// response.context_menu(|ui| {
     ///     if ui.button("Close the menu").clicked() {
     ///         ui.close_menu();
     ///     }
     /// });
+    /// # });
     /// ```
     pub fn context_menu(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
         self.ctx.show_context_menu(&self, add_contents);
@@ -549,12 +553,13 @@ impl std::ops::BitOr for Response {
 /// To summarize the response from many widgets you can use this pattern:
 ///
 /// ```
-/// # let mut ui = egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// # let (widget_a, widget_b, widget_c) = (egui::Label::new("a"), egui::Label::new("b"), egui::Label::new("c"));
 /// let mut response = ui.add(widget_a);
 /// response |= ui.add(widget_b);
 /// response |= ui.add(widget_c);
 /// if response.hovered() { ui.label("You hovered at least one of the widgets"); }
+/// # });
 /// ```
 impl std::ops::BitOrAssign for Response {
     fn bitor_assign(&mut self, rhs: Self) {
@@ -568,13 +573,14 @@ impl std::ops::BitOrAssign for Response {
 /// the results of the inner function and the ui as a whole, e.g.:
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// let inner_resp = ui.horizontal(|ui| {
 ///     ui.label("Blah blah");
 ///     42
 /// });
 /// inner_resp.response.on_hover_text("You hovered the horizontal layout");
 /// assert_eq!(inner_resp.inner, 42);
+/// # });
 /// ```
 #[derive(Debug)]
 pub struct InnerResponse<R> {

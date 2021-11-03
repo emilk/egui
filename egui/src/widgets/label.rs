@@ -3,11 +3,12 @@ use crate::{widget_text::WidgetTextGalley, *};
 /// Static text.
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// ui.label("Equivalent");
 /// ui.add(egui::Label::new("Equivalent"));
 /// ui.add(egui::Label::new("With Options").wrap(false));
 /// ui.label(egui::RichText::new("With formatting").underline());
+/// # });
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Label {
@@ -134,10 +135,11 @@ impl Label {
     ///
     /// ``` rust
     /// # use egui::{Label, Sense};
-    /// # let ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// if ui.add(Label::new("click me").sense(Sense::click())).clicked() {
     ///     /* … */
     /// }
+    /// # });
     /// ```
     pub fn sense(mut self, sense: Sense) -> Self {
         self.sense = sense;

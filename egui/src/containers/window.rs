@@ -15,12 +15,11 @@ use super::*;
 /// * if there should be a close button (none by default)
 ///
 /// ```
-/// # let mut ctx = egui::CtxRef::default();
-/// # ctx.begin_frame(Default::default());
-/// # let ctx = &ctx;
+/// # egui::__run_test_ctx(|ctx| {
 /// egui::Window::new("My Window").show(ctx, |ui| {
 ///    ui.label("Hello World!");
 /// });
+/// # });
 #[must_use = "You should call .show()"]
 pub struct Window<'open> {
     title: WidgetText,

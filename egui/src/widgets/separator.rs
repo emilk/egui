@@ -5,10 +5,11 @@ use crate::*;
 /// Usually you'd use the shorter version [`Ui::separator`].
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// // These are equivalent:
 /// ui.separator();
 /// ui.add(egui::Separator::default());
+/// # });
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Separator {

@@ -101,7 +101,7 @@ use glium::glutin;
 
 // ----------------------------------------------------------------------------
 
-/// Use [`egui`] from a [`glium`] app.
+/// Convenience wrapper for using [`egui`] from a [`glium`] app.
 pub struct EguiGlium {
     pub egui_ctx: egui::CtxRef,
     pub egui_winit: egui_winit::State,
@@ -136,16 +136,12 @@ impl EguiGlium {
     pub fn run(
         &mut self,
         display: &glium::Display,
-        mut run_ui: impl FnMut(&egui::CtxRef),
+        run_ui: impl FnMut(&egui::CtxRef),
     ) -> (bool, Vec<egui::epaint::ClippedShape>) {
         let raw_input = self
             .egui_winit
             .take_egui_input(display.gl_window().window());
-        self.egui_ctx.begin_frame(raw_input);
-
-        run_ui(&self.egui_ctx);
-
-        let (egui_output, shapes) = self.egui_ctx.end_frame();
+        let (egui_output, shapes) = self.egui_ctx.run(raw_input, run_ui);
         let needs_repaint = egui_output.needs_repaint;
         self.egui_winit
             .handle_output(display.gl_window().window(), &self.egui_ctx, egui_output);

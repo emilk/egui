@@ -36,16 +36,14 @@ use epaint::{stats::*, text::Fonts, *};
 /// // Game loop:
 /// loop {
 ///     let raw_input = egui::RawInput::default();
-///     ctx.begin_frame(raw_input);
-///
-///     egui::CentralPanel::default().show(&ctx, |ui| {
-///         ui.label("Hello world!");
-///         if ui.button("Click me").clicked() {
-///             /* take some action here */
-///         }
+///     let (output, shapes) = ctx.run(raw_input, |ctx| {
+///         egui::CentralPanel::default().show(&ctx, |ui| {
+///             ui.label("Hello world!");
+///             if ui.button("Click me").clicked() {
+///                 // take some action here
+///             }
+///         });
 ///     });
-///
-///     let (output, shapes) = ctx.end_frame();
 ///     let clipped_meshes = ctx.tessellate(shapes); // create triangles to paint
 ///     handle_output(output);
 ///     paint(clipped_meshes);
@@ -93,13 +91,34 @@ impl Default for CtxRef {
 }
 
 impl CtxRef {
+    /// Run the ui code for one frame.
+    ///
+    /// Put your widgets into a [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`].
+    ///
+    /// This will modify the internal reference to point to a new generation of [`Context`].
+    /// Any old clones of this [`CtxRef`] will refer to the old [`Context`], which will not get new input.
+    ///
+    /// This is a convenience for calling [`Self::begin_frame`] and [`Context::end_frame`]
+    #[must_use]
+    pub fn run(
+        &mut self,
+        new_input: RawInput,
+        run_ui: impl FnOnce(&CtxRef),
+    ) -> (Output, Vec<ClippedShape>) {
+        self.begin_frame(new_input);
+        run_ui(self);
+        self.end_frame()
+    }
+
+    /// Alternative to [`Self::run`].
+    ///
     /// Call at the start of every frame. Match with a call to [`Context::end_frame`].
     ///
     /// This will modify the internal reference to point to a new generation of [`Context`].
     /// Any old clones of this [`CtxRef`] will refer to the old [`Context`], which will not get new input.
     ///
     /// Put your widgets into a [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`].
-    pub fn begin_frame(&mut self, new_input: RawInput) {
+    fn begin_frame(&mut self, new_input: RawInput) {
         let mut self_: Context = (*self.0).clone();
         self_.begin_frame_mut(new_input);
         *self = Self(Arc::new(self_));
@@ -577,30 +596,7 @@ impl Context {
         self.input = input.begin_frame(new_raw_input);
         self.frame_state.lock().begin_frame(&self.input);
 
-        {
-            // Load new fonts if required:
-            let new_font_definitions = self.memory().new_font_definitions.take();
-            let pixels_per_point = self.input.pixels_per_point();
-
-            let pixels_per_point_changed = match &self.fonts {
-                None => true,
-                Some(current_fonts) => {
-                    (current_fonts.pixels_per_point() - pixels_per_point).abs() > 1e-3
-                }
-            };
-
-            if self.fonts.is_none() || new_font_definitions.is_some() || pixels_per_point_changed {
-                self.fonts = Some(Arc::new(Fonts::new(
-                    pixels_per_point,
-                    new_font_definitions.unwrap_or_else(|| {
-                        self.fonts
-                            .as_ref()
-                            .map(|font| font.definitions().clone())
-                            .unwrap_or_default()
-                    }),
-                )));
-            }
-        }
+        self.update_fonts(self.input.pixels_per_point());
 
         // Ensure we register the background area so panels and background ui can catch clicks:
         let screen_rect = self.input.screen_rect();
@@ -614,11 +610,35 @@ impl Context {
         );
     }
 
+    /// Load fonts unless already loaded.
+    fn update_fonts(&mut self, pixels_per_point: f32) {
+        let new_font_definitions = self.memory().new_font_definitions.take();
+
+        let pixels_per_point_changed = match &self.fonts {
+            None => true,
+            Some(current_fonts) => {
+                (current_fonts.pixels_per_point() - pixels_per_point).abs() > 1e-3
+            }
+        };
+
+        if self.fonts.is_none() || new_font_definitions.is_some() || pixels_per_point_changed {
+            self.fonts = Some(Arc::new(Fonts::new(
+                pixels_per_point,
+                new_font_definitions.unwrap_or_else(|| {
+                    self.fonts
+                        .as_ref()
+                        .map(|font| font.definitions().clone())
+                        .unwrap_or_default()
+                }),
+            )));
+        }
+    }
+
     /// Call at the end of each frame.
     /// Returns what has happened this frame [`crate::Output`] as well as what you need to paint.
     /// You can transform the returned shapes into triangles with a call to [`Context::tessellate`].
     #[must_use]
-    pub fn end_frame(&self) -> (Output, Vec<ClippedShape>) {
+    fn end_frame(&self) -> (Output, Vec<ClippedShape>) {
         if self.input.wants_repaint() {
             self.request_repaint();
         }

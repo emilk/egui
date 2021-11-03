@@ -238,7 +238,7 @@ impl GridLayout {
 /// [`Ui::horizontal`], [`Ui::vertical`] etc.
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// egui::Grid::new("some_unique_id").show(ui, |ui| {
 ///     ui.label("First row, first column");
 ///     ui.label("First row, second column");
@@ -253,6 +253,7 @@ impl GridLayout {
 ///     ui.label("Third row, second column");
 ///     ui.end_row();
 /// });
+/// # });
 /// ```
 #[must_use = "You should call .show()"]
 pub struct Grid {

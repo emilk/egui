@@ -13,24 +13,24 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         // The most end-to-end benchmark.
         c.bench_function("demo_with_tessellate__realistic", |b| {
             b.iter(|| {
-                ctx.begin_frame(raw_input.clone());
-                demo_windows.ui(&ctx);
-                let (_, shapes) = ctx.end_frame();
+                let (_output, shapes) = ctx.run(raw_input.clone(), |ctx| {
+                    demo_windows.ui(ctx);
+                });
                 ctx.tessellate(shapes)
             })
         });
 
         c.bench_function("demo_no_tessellate", |b| {
             b.iter(|| {
-                ctx.begin_frame(raw_input.clone());
-                demo_windows.ui(&ctx);
-                ctx.end_frame()
+                ctx.run(raw_input.clone(), |ctx| {
+                    demo_windows.ui(ctx);
+                })
             })
         });
 
-        ctx.begin_frame(raw_input.clone());
-        demo_windows.ui(&ctx);
-        let (_, shapes) = ctx.end_frame();
+        let (_output, shapes) = ctx.run(raw_input.clone(), |ctx| {
+            demo_windows.ui(ctx);
+        });
         c.bench_function("demo_only_tessellate", |b| {
             b.iter(|| ctx.tessellate(shapes.clone()))
         });
@@ -42,26 +42,28 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let mut demo_windows = egui_demo_lib::DemoWindows::default();
         c.bench_function("demo_full_no_tessellate", |b| {
             b.iter(|| {
-                ctx.begin_frame(raw_input.clone());
-                demo_windows.ui(&ctx);
-                ctx.end_frame()
+                ctx.run(raw_input.clone(), |ctx| {
+                    demo_windows.ui(ctx);
+                })
             })
         });
     }
 
     {
         let mut ctx = egui::CtxRef::default();
-        ctx.begin_frame(raw_input);
-        let mut ui = egui::Ui::__test();
-        c.bench_function("label &str", |b| {
-            b.iter(|| {
-                ui.label("the quick brown fox jumps over the lazy dog");
-            })
-        });
-        c.bench_function("label format!", |b| {
-            b.iter(|| {
-                ui.label("the quick brown fox jumps over the lazy dog".to_owned());
-            })
+        let _ = ctx.run(raw_input, |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                c.bench_function("label &str", |b| {
+                    b.iter(|| {
+                        ui.label("the quick brown fox jumps over the lazy dog");
+                    })
+                });
+                c.bench_function("label format!", |b| {
+                    b.iter(|| {
+                        ui.label("the quick brown fox jumps over the lazy dog".to_owned());
+                    })
+                });
+            });
         });
     }
 

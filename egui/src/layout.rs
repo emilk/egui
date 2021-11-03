@@ -108,11 +108,12 @@ impl Direction {
 /// The layout of a [`Ui`][`crate::Ui`], e.g. "vertical & centered".
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// ui.with_layout(egui::Layout::right_to_left(), |ui| {
 ///     ui.label("world!");
 ///     ui.label("Hello");
 /// });
+/// # });
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq)]
 // #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
