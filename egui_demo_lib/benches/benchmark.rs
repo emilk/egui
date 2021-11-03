@@ -51,7 +51,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     {
         let mut ctx = egui::CtxRef::default();
-        let _ = ctx.run(raw_input.clone(), |ctx| {
+        let _ = ctx.run(raw_input, |ctx| {
             egui::CentralPanel::default().show(ctx, |ui| {
                 c.bench_function("label &str", |b| {
                     b.iter(|| {
