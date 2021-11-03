@@ -398,8 +398,8 @@ impl Fonts {
     }
 
     /// Must be called once per frame to clear the [`Galley`] cache.
-    pub fn end_frame(&self) {
-        self.galley_cache.lock().end_frame();
+    pub fn prune_cache(&self) {
+        self.galley_cache.lock().prune();
     }
 }
 
@@ -453,8 +453,8 @@ impl GalleyCache {
         self.cache.len()
     }
 
-    /// Must be called once per frame to clear the [`Galley`] cache.
-    pub fn end_frame(&mut self) {
+    /// Must be called once per frame to prune the [`Galley`] cache.
+    pub fn prune(&mut self) {
         let current_generation = self.generation;
         self.cache.retain(|_key, cached| {
             cached.last_used == current_generation // only keep those that were used this frame

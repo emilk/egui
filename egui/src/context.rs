@@ -627,7 +627,7 @@ impl Context {
         self.memory()
             .end_frame(&self.input, &self.frame_state().used_ids);
 
-        self.fonts().end_frame();
+        self.fonts().prune_cache();
 
         let mut output: Output = std::mem::take(&mut self.output());
         if self.repaint_requests.load(SeqCst) > 0 {
