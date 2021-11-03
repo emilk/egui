@@ -68,4 +68,4 @@ screen_reader = ["egui-winit/screen_reader"]
 # enable glutin/winit integration.
 # if you want to use glow painter on web disable it.
 # if disabled reduce crate size and build time.
-winit= ["egui-winit","glutin"]
+winit = ["egui-winit", "glutin"]

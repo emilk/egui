@@ -98,7 +98,9 @@ mod shader_version;
 mod vao_emulate;
 
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "egui_winit")]
 pub use egui_winit;
+
 #[cfg(all(feature = "epi", feature = "winit"))]
 pub use epi_backend::{run, NativeOptions};
 

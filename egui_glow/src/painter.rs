@@ -3,7 +3,6 @@
 use egui::{
     emath::Rect,
     epaint::{Color32, Mesh, Vertex},
-    TextureId,
 };
 pub use glow::Context;
 
@@ -540,7 +539,7 @@ impl Painter {
         debug_assert!(!self.destroyed, "the egui glow has already been destroyed!");
     }
 }
-// ported from egui_web
+
 pub fn clear(gl: &glow::Context, dimension: [u32; 2], clear_color: egui::Rgba) {
     unsafe {
         gl.disable(glow::SCISSOR_TEST);
@@ -557,6 +556,7 @@ pub fn clear(gl: &glow::Context, dimension: [u32; 2], clear_color: egui::Rgba) {
         gl.clear(glow::COLOR_BUFFER_BIT);
     }
 }
+
 impl Drop for Painter {
     fn drop(&mut self) {
         debug_assert!(
@@ -566,6 +566,7 @@ impl Drop for Painter {
     }
 }
 
+#[cfg(feature = "epi")]
 impl epi::TextureAllocator for Painter {
     fn alloc_srgba_premultiplied(
         &mut self,
@@ -582,14 +583,15 @@ impl epi::TextureAllocator for Painter {
     }
 }
 
+#[cfg(feature = "epi")]
 impl epi::NativeTexture for Painter {
     type Texture = glow::Texture;
 
-    fn register_native_texture(&mut self, native: Self::Texture) -> TextureId {
+    fn register_native_texture(&mut self, native: Self::Texture) -> egui::TextureId {
         self.register_glow_texture(native)
     }
 
-    fn replace_native_texture(&mut self, id: TextureId, replacing: Self::Texture) {
+    fn replace_native_texture(&mut self, id: egui::TextureId, replacing: Self::Texture) {
         if let egui::TextureId::User(id) = id {
             if let Some(Some(user_texture)) = self.user_textures.get_mut(id as usize) {
                 *user_texture = UserTexture {

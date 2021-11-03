@@ -936,6 +936,8 @@ dependencies = [
  "glutin",
  "image",
  "memoffset",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]
@@ -943,6 +945,7 @@ name = "egui_web"
 version = "0.15.0"
 dependencies = [
  "egui",
+ "egui_glow",
  "epi",
  "js-sys",
  "ron",
