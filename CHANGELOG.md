@@ -18,6 +18,9 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 
 ### Contributors 🙏
 * [mankinskin](https://github.com/mankinskin) ([#543](https://github.com/emilk/egui/pull/543))
+* [sumibi-yakitori](https://github.com/sumibi-yakitori) ([#830](https://github.com/emilk/egui/pull/830))
+* [5225225](https://github.com/5225225): ([#849](https://github.com/emilk/egui/pull/849)).
+* [t18b219k](https://github.com/t18b219k): ([#868](https://github.com/emilk/egui/pull/868)).
 
 
 ## 0.15.0 - 2021-10-24 - Syntax highlighting and hscroll

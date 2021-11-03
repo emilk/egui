@@ -356,14 +356,15 @@ egui author and maintainer: Emil Ernerfeldt [(@emilk](https://github.com/emilk))
 
 Notable contributions by:
 
-* [@n2](https://github.com/n2): [Mobile web input and IME support](https://github.com/emilk/egui/pull/253)
-* [@optozorax](https://github.com/optozorax): [Arbitrary widget data storage](https://github.com/emilk/egui/pull/257)
-* [@quadruple-output](https://github.com/quadruple-output): [Multitouch](https://github.com/emilk/egui/pull/306)
-* [@EmbersArc](https://github.com/EmbersArc): [Plots](https://github.com/emilk/egui/pulls?q=+is%3Apr+author%3AEmbersArc)
-* [@AsmPrgmC3](https://github.com/AsmPrgmC3): [Proper sRGBA blending in `egui_web`](https://github.com/emilk/egui/pull/650)
-* [@AlexApps99](https://github.com/AlexApps99): [`egui_glow`](https://github.com/emilk/egui/pull/685)
-* [@mankinskin](https://github.com/mankinskin): [Context menus](https://github.com/emilk/egui/pull/543)
-* And [many more](https://github.com/emilk/egui/graphs/contributors)
+* [@n2](https://github.com/n2): [Mobile web input and IME support](https://github.com/emilk/egui/pull/253).
+* [@optozorax](https://github.com/optozorax): [Arbitrary widget data storage](https://github.com/emilk/egui/pull/257).
+* [@quadruple-output](https://github.com/quadruple-output): [Multitouch](https://github.com/emilk/egui/pull/306).
+* [@EmbersArc](https://github.com/EmbersArc): [Plots](https://github.com/emilk/egui/pulls?q=+is%3Apr+author%3AEmbersArc).
+* [@AsmPrgmC3](https://github.com/AsmPrgmC3): [Proper sRGBA blending in `egui_web`](https://github.com/emilk/egui/pull/650).
+* [@AlexApps99](https://github.com/AlexApps99): [`egui_glow`](https://github.com/emilk/egui/pull/685).
+* [@mankinskin](https://github.com/mankinskin): [Context menus](https://github.com/emilk/egui/pull/543).
+* [@t18b219k](https://github.com/t18b219k): [Port glow painter to web](https://github.com/emilk/egui/pull/868).
+* And [many more](https://github.com/emilk/egui/graphs/contributors?type=a).
 
 egui is licensed under [MIT](LICENSE-MIT) OR [Apache-2.0](LICENSE-APACHE).
 
