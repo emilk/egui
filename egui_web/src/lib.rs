@@ -15,7 +15,7 @@
 #![warn(clippy::all, missing_crate_level_docs, rust_2018_idioms)]
 
 pub mod backend;
-#[cfg(feature = "glow")]
+#[cfg(all(feature = "glow", target_arch = "wasm32"))]
 mod glow_wrapping;
 mod painter;
 pub mod screen_reader;

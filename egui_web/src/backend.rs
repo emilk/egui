@@ -5,10 +5,14 @@ pub use egui::{pos2, Color32};
 // ----------------------------------------------------------------------------
 
 fn create_painter(canvas_id: &str) -> Result<Box<dyn Painter>, JsValue> {
-    #[cfg(feature = "glow")]
+    //glow does not provide dummy from_webgl_context to native
+    //so need to disable this code
+    #[cfg(all(feature = "glow", target_arch = "wasm32"))]
     return Ok(Box::new(crate::glow_wrapping::WrappedGlowPainter::new(
         canvas_id,
     )));
+    #[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
+    return Result::Err(JsValue::from_str("something to give linter"));
     #[cfg(not(feature = "glow"))]
     if let Ok(webgl2_painter) = webgl2::WebGl2Painter::new(canvas_id) {
         console_log("Using WebGL2 backend");
