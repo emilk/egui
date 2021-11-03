@@ -118,7 +118,7 @@ impl CtxRef {
     /// Any old clones of this [`CtxRef`] will refer to the old [`Context`], which will not get new input.
     ///
     /// Put your widgets into a [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`].
-    pub fn begin_frame(&mut self, new_input: RawInput) {
+    fn begin_frame(&mut self, new_input: RawInput) {
         let mut self_: Context = (*self.0).clone();
         self_.begin_frame_mut(new_input);
         *self = Self(Arc::new(self_));
@@ -638,7 +638,7 @@ impl Context {
     /// Returns what has happened this frame [`crate::Output`] as well as what you need to paint.
     /// You can transform the returned shapes into triangles with a call to [`Context::tessellate`].
     #[must_use]
-    pub fn end_frame(&self) -> (Output, Vec<ClippedShape>) {
+    fn end_frame(&self) -> (Output, Vec<ClippedShape>) {
         if self.input.wants_repaint() {
             self.request_repaint();
         }

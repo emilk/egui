@@ -11,11 +11,11 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Add context menus: See `Ui::menu_button` and `Response::context_menu` ([#543](https://github.com/emilk/egui/pull/543)).
 * You can now read and write the cursor of a `TextEdit` ([#848](https://github.com/emilk/egui/pull/848)).
 * Most widgets containing text (`Label`, `Button` etc) now supports rich text ([#855](https://github.com/emilk/egui/pull/855)).
-* Add `CtxRef::run` as a convenicene for calling `begin_frame` and `end_frame`.
 
 ### Changed 🔧
 * Unifiy the four `Memory` data buckets (`data`, `data_temp`, `id_data` and `id_data_temp`) into a single `Memory::data`, with a new interface ([#836](https://github.com/emilk/egui/pull/836)).
 * `ui.add(Button::new("…").text_color(…))` is now `ui.button(RichText::new("…").color(…))` (same for `Label` )([#855](https://github.com/emilk/egui/pull/855)).
+* Replace `CtxRef::begin_frame` and `end_frame` with `CtxRef::run`.
 * Replace `Ui::__test` with `egui::__run_test_ui`.
 
 ### Contributors 🙏
