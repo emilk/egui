@@ -5,9 +5,10 @@ use crate::*;
 /// See also [`Ui::hyperlink`] and [`Ui::hyperlink_to`].
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// ui.hyperlink("https://github.com/emilk/egui");
 /// ui.add(egui::Hyperlink::new("https://github.com/emilk/egui").text("My favorite repo").small());
+/// # });
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Hyperlink {

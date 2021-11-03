@@ -54,10 +54,12 @@ impl State {
 /// Add vertical and/or horizontal scrolling to a contained [`Ui`].
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// egui::ScrollArea::vertical().show(ui, |ui| {
 ///     // Add a lot of widgets here.
 /// });
+/// # });
+/// ```
 #[derive(Clone, Debug)]
 #[must_use = "You should call .show()"]
 pub struct ScrollArea {
@@ -370,7 +372,7 @@ impl ScrollArea {
     /// Efficiently show only the visible part of a large number of rows.
     ///
     /// ```
-    /// # let ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// let text_style = egui::TextStyle::Body;
     /// let row_height = ui.fonts()[text_style].row_height();
     /// // let row_height = ui.spacing().interact_size.y; // if you are adding buttons instead of labels.
@@ -381,6 +383,8 @@ impl ScrollArea {
     ///         ui.label(text);
     ///     }
     /// });
+    /// # });
+    /// ```
     pub fn show_rows<R>(
         self,
         ui: &mut Ui,

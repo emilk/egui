@@ -59,7 +59,7 @@
 //! ### Quick start
 //!
 //! ``` rust
-//! # let ui = &mut egui::Ui::__test();
+//! # egui::__run_test_ui(|ui| {
 //! # let mut my_string = String::new();
 //! # let mut my_boolean = true;
 //! # let mut my_f32 = 42.0;
@@ -89,6 +89,7 @@
 //! ui.collapsing("Click to see what is hidden!", |ui| {
 //!     ui.label("Not much, as it turns out");
 //! });
+//! # });
 //! ```
 //!
 //! ## Conventions
@@ -141,10 +142,11 @@
 //! Here is an example to illustrate it:
 //!
 //! ```
-//! # let ui = &mut egui::Ui::__test();
+//! # egui::__run_test_ui(|ui| {
 //! if ui.button("click me").clicked() {
 //!     take_action()
 //! }
+//! # });
 //! # fn take_action() {}
 //! ```
 //!
@@ -166,17 +168,19 @@
 //! ## How widgets works
 //!
 //! ```
-//! # let ui = &mut egui::Ui::__test();
+//! # egui::__run_test_ui(|ui| {
 //! if ui.button("click me").clicked() { take_action() }
+//! # });
 //! # fn take_action() {}
 //! ```
 //!
 //! is short for
 //!
 //! ```
-//! # let ui = &mut egui::Ui::__test();
+//! # egui::__run_test_ui(|ui| {
 //! let button = egui::Button::new("click me");
 //! if ui.add(button).clicked() { take_action() }
+//! # });
 //! # fn take_action() {}
 //! ```
 //!
@@ -184,10 +188,11 @@
 //!
 //! ```
 //! # use egui::Widget;
-//! # let ui = &mut egui::Ui::__test();
+//! # egui::__run_test_ui(|ui| {
 //! let button = egui::Button::new("click me");
 //! let response = button.ui(ui);
 //! if response.clicked() { take_action() }
+//! # });
 //! # fn take_action() {}
 //! ```
 //!
@@ -214,32 +219,35 @@
 //! 3. Use a justified layout:
 //!
 //! ``` rust
-//! # let ui = &mut egui::Ui::__test();
+//! # egui::__run_test_ui(|ui| {
 //! ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
 //!     ui.button("I am becoming wider as needed");
 //! });
+//! # });
 //! ```
 //!
 //! 4. Fill in extra space with emptiness:
 //!
 //! ``` rust
-//! # let ui = &mut egui::Ui::__test();
+//! # egui::__run_test_ui(|ui| {
 //! ui.allocate_space(ui.available_size()); // put this LAST in your panel/window code
+//! # });
 //! ```
 //!
 //! ## Sizes
 //! You can control the size of widgets using [`Ui::add_sized`].
 //!
 //! ```
-//! # let ui = &mut egui::Ui::__test();
+//! # egui::__run_test_ui(|ui| {
 //! # let mut my_value = 0.0_f32;
 //! ui.add_sized([40.0, 20.0], egui::DragValue::new(&mut my_value));
+//! # });
 //! ```
 //!
 //! ## Code snippets
 //!
 //! ```
-//! # let ui = &mut egui::Ui::__test();
+//! # egui::__run_test_ui(|ui| {
 //! # let mut some_bool = true;
 //! // Miscellaneous tips and tricks
 //!
@@ -263,6 +271,7 @@
 //!
 //!     ui.label("This text will be red, monospace, and won't wrap to a new line");
 //! }); // the temporary settings are reverted here
+//! # });
 //! ```
 
 // Forbid warnings in release builds:
@@ -432,8 +441,9 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
 /// Create a [`Hyperlink`](crate::Hyperlink) to the current [`file!()`] (and line) on Github
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// ui.add(egui::github_link_file_line!("https://github.com/YOUR/PROJECT/blob/master/", "(source code)"));
+/// # });
 /// ```
 #[macro_export]
 macro_rules! github_link_file_line {
@@ -446,8 +456,9 @@ macro_rules! github_link_file_line {
 /// Create a [`Hyperlink`](crate::Hyperlink) to the current [`file!()`] on github.
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// ui.add(egui::github_link_file!("https://github.com/YOUR/PROJECT/blob/master/", "(source code)"));
+/// # });
 /// ```
 #[macro_export]
 macro_rules! github_link_file {
@@ -462,7 +473,7 @@ macro_rules! github_link_file {
 /// Show debug info on hover when [`Context::set_debug_on_hover`] has been turned on.
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// // Turn on tracing of widgets
 /// ui.ctx().set_debug_on_hover(true);
 ///
@@ -471,6 +482,7 @@ macro_rules! github_link_file {
 ///
 /// /// Show [`std::file`] and [`std::line`] on hover
 /// egui::trace!(ui);
+/// # });
 /// ```
 #[macro_export]
 macro_rules! trace {
@@ -560,4 +572,16 @@ pub enum WidgetType {
     ///
     /// If this is something you think should be added, file an issue.
     Other,
+}
+
+// ----------------------------------------------------------------------------
+
+/// For use in tests; especially doctests.
+pub fn __run_test_ui(mut add_contents: impl FnMut(&mut Ui)) {
+    let mut ctx = CtxRef::default();
+    let _ = ctx.run(Default::default(), |ctx| {
+        crate::CentralPanel::default().show(ctx, |ui| {
+            add_contents(ui);
+        });
+    });
 }

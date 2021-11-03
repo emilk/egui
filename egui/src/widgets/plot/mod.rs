@@ -47,7 +47,7 @@ impl PlotMemory {
 /// `Plot` supports multiple lines and points.
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// use egui::plot::{Line, Plot, Value, Values};
 /// let sin = (0..1000).map(|i| {
 ///     let x = i as f64 * 0.01;
@@ -57,6 +57,7 @@ impl PlotMemory {
 /// ui.add(
 ///     Plot::new("my_plot").line(line).view_aspect(2.0)
 /// );
+/// # });
 /// ```
 pub struct Plot {
     id_source: Id,

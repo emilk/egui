@@ -3,12 +3,13 @@ use crate::*;
 /// An widget to show an image of a given size.
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// # let my_texture_id = egui::TextureId::User(0);
 /// ui.add(egui::Image::new(my_texture_id, [640.0, 480.0]));
 ///
 /// // Shorter version:
 /// ui.image(my_texture_id, [640.0, 480.0]);
+/// # });
 /// ```
 ///
 /// Se also [`crate::ImageButton`].

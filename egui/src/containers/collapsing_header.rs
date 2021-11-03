@@ -130,7 +130,7 @@ pub(crate) fn paint_icon(ui: &mut Ui, openness: f32, response: &Response) {
 ///
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// egui::CollapsingHeader::new("Heading")
 ///     .show(ui, |ui| {
 ///         ui.label("Contents");
@@ -138,6 +138,7 @@ pub(crate) fn paint_icon(ui: &mut Ui, openness: f32, response: &Response) {
 ///
 /// // Short version:
 /// ui.collapsing("Heading", |ui| { ui.label("Contents"); });
+/// # });
 /// ```
 #[must_use = "You should call .show()"]
 pub struct CollapsingHeader {
@@ -210,7 +211,7 @@ impl CollapsingHeader {
     ///
     /// Example:
     /// ```
-    /// # let ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// let mut selected = false;
     /// let response = egui::CollapsingHeader::new("Select and open me")
     ///     .selectable(true)
@@ -219,6 +220,7 @@ impl CollapsingHeader {
     /// if response.header_response.clicked() {
     ///     selected = true;
     /// }
+    /// # });
     /// ```
     pub fn selected(mut self, selected: bool) -> Self {
         self.selected = selected;
@@ -229,8 +231,9 @@ impl CollapsingHeader {
     ///
     /// To show it behind all `CollapsingHeader` you can just use:
     /// ```
-    /// # let ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// ui.visuals_mut().collapsing_header_frame = true;
+    /// # });
     /// ```
     pub fn show_background(mut self, show_background: bool) -> Self {
         self.show_background = show_background;

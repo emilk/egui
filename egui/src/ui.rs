@@ -16,7 +16,7 @@ use crate::{
 /// Represents a region of the screen with a type of layout (horizontal or vertical).
 ///
 /// ```
-/// # let mut ui = egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// ui.add(egui::Label::new("Hello World!"));
 /// ui.label("A shorter and more convenient way to add a label.");
 /// ui.horizontal(|ui| {
@@ -25,6 +25,7 @@ use crate::{
 ///         /* … */
 ///     }
 /// });
+/// # });
 /// ```
 pub struct Ui {
     /// ID of this ui.
@@ -109,16 +110,6 @@ impl Ui {
         }
     }
 
-    /// Empty `Ui` for use in tests.
-    pub fn __test() -> Self {
-        let mut ctx = CtxRef::default();
-        ctx.begin_frame(Default::default());
-        let id = Id::new("__test");
-        let layer_id = LayerId::new(Order::Middle, id);
-        let rect = Rect::from_min_size(Pos2::new(0.0, 0.0), vec2(1000.0, 1000.0));
-        Self::new(ctx, layer_id, id, rect, rect)
-    }
-
     // -------------------------------------------------
 
     /// A unique identity of this `Ui`.
@@ -140,8 +131,9 @@ impl Ui {
     ///
     /// Example:
     /// ```
-    /// # let ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// ui.style_mut().body_text_style = egui::TextStyle::Heading;
+    /// # });
     /// ```
     pub fn style_mut(&mut self) -> &mut Style {
         std::sync::Arc::make_mut(&mut self.style) // clone-on-write
@@ -171,8 +163,9 @@ impl Ui {
     ///
     /// Example:
     /// ```
-    /// # let ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// ui.spacing_mut().item_spacing = egui::vec2(10.0, 2.0);
+    /// # });
     /// ```
     pub fn spacing_mut(&mut self) -> &mut crate::style::Spacing {
         &mut self.style_mut().spacing
@@ -192,8 +185,9 @@ impl Ui {
     ///
     /// Example:
     /// ```
-    /// # let ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// ui.visuals_mut().override_text_color = Some(egui::Color32::RED);
+    /// # });
     /// ```
     pub fn visuals_mut(&mut self) -> &mut crate::Visuals {
         &mut self.style_mut().visuals
@@ -227,7 +221,7 @@ impl Ui {
     ///
     /// ### Example
     /// ```
-    /// # let ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// # let mut enabled = true;
     /// ui.group(|ui| {
     ///     ui.checkbox(&mut enabled, "Enable subsection");
@@ -236,6 +230,7 @@ impl Ui {
     ///         /* … */
     ///     }
     /// });
+    /// # });
     /// ```
     pub fn set_enabled(&mut self, enabled: bool) {
         self.enabled &= enabled;
@@ -260,7 +255,7 @@ impl Ui {
     ///
     /// ### Example
     /// ```
-    /// # let ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// # let mut visible = true;
     /// ui.group(|ui| {
     ///     ui.checkbox(&mut visible, "Show subsection");
@@ -269,6 +264,7 @@ impl Ui {
     ///         /* … */
     ///     }
     /// });
+    /// # });
     /// ```
     pub fn set_visible(&mut self, visible: bool) {
         self.set_enabled(visible);
@@ -593,10 +589,11 @@ impl Ui {
     /// You will never get a rectangle that is smaller than the amount of space you asked for.
     ///
     /// ```
-    /// # let mut ui = egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// let response = ui.allocate_response(egui::vec2(100.0, 200.0), egui::Sense::click());
     /// if response.clicked() { /* … */ }
     /// ui.painter().rect_stroke(response.rect, 0.0, (1.0, egui::Color32::WHITE));
+    /// # });
     /// ```
     pub fn allocate_response(&mut self, desired_size: Vec2, sense: Sense) -> Response {
         let (id, rect) = self.allocate_space(desired_size);
@@ -640,9 +637,10 @@ impl Ui {
     /// Returns an automatic `Id` (which you can use for interaction) and the `Rect` of where to put your widget.
     ///
     /// ```
-    /// # let mut ui = egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// let (id, rect) = ui.allocate_space(egui::vec2(100.0, 200.0));
     /// let response = ui.interact(rect, id, egui::Sense::click());
+    /// # });
     /// ```
     pub fn allocate_space(&mut self, desired_size: Vec2) -> (Id, Rect) {
         // For debug rendering
@@ -833,8 +831,8 @@ impl Ui {
     ///
     /// ```
     /// # use egui::*;
-    /// # let mut ui = &mut egui::Ui::__test();
     /// # use std::f32::consts::TAU;
+    /// # egui::__run_test_ui(|ui| {
     /// let size = Vec2::splat(16.0);
     /// let (response, painter) = ui.allocate_painter(size, Sense::hover());
     /// let rect = response.rect;
@@ -846,6 +844,7 @@ impl Ui {
     /// painter.line_segment([c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
     /// painter.line_segment([c, c + r * Vec2::angled(TAU * 1.0 / 8.0)], stroke);
     /// painter.line_segment([c, c + r * Vec2::angled(TAU * 3.0 / 8.0)], stroke);
+    /// # });
     /// ```
     pub fn allocate_painter(&mut self, desired_size: Vec2, sense: Sense) -> (Response, Painter) {
         let response = self.allocate_response(desired_size, sense);
@@ -858,7 +857,7 @@ impl Ui {
     ///
     /// ```
     /// # use egui::Align;
-    /// # let mut ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// egui::ScrollArea::vertical().show(ui, |ui| {
     ///     let scroll_bottom = ui.button("Scroll to bottom.").clicked();
     ///     for i in 0..1000 {
@@ -869,6 +868,7 @@ impl Ui {
     ///         ui.scroll_to_cursor(Align::BOTTOM);
     ///     }
     /// });
+    /// # });
     /// ```
     pub fn scroll_to_cursor(&mut self, align: Align) {
         let target = self.next_widget_position();
@@ -888,10 +888,11 @@ impl Ui {
     /// See also [`Self::add_sized`] and [`Self::put`].
     ///
     /// ```
-    /// # let mut ui = egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// # let mut my_value = 42;
     /// let response = ui.add(egui::Slider::new(&mut my_value, 0..=100));
     /// response.on_hover_text("Drag me!");
+    /// # });
     /// ```
     #[inline]
     pub fn add(&mut self, widget: impl Widget) -> Response {
@@ -906,9 +907,10 @@ impl Ui {
     /// See also [`Self::add`] and [`Self::put`].
     ///
     /// ```
-    /// # let mut ui = egui::Ui::__test();
     /// # let mut my_value = 42;
+    /// # egui::__run_test_ui(|ui| {
     /// ui.add_sized([40.0, 20.0], egui::DragValue::new(&mut my_value));
+    /// # });
     /// ```
     pub fn add_sized(&mut self, max_size: impl Into<Vec2>, widget: impl Widget) -> Response {
         // TODO: configure to overflow to main_dir instead of centered overflow
@@ -939,8 +941,9 @@ impl Ui {
     /// See also [`Self::add_enabled_ui`] and [`Self::is_enabled`].
     ///
     /// ```
-    /// # let ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// ui.add_enabled(false, egui::Button::new("Can't click this"));
+    /// # });
     /// ```
     pub fn add_enabled(&mut self, enabled: bool, widget: impl Widget) -> Response {
         if enabled || !self.is_enabled() {
@@ -964,7 +967,7 @@ impl Ui {
     ///
     /// ### Example
     /// ```
-    /// # let ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// # let mut enabled = true;
     /// ui.checkbox(&mut enabled, "Enable subsection");
     /// ui.add_enabled_ui(enabled, |ui| {
@@ -972,6 +975,7 @@ impl Ui {
     ///         /* … */
     ///     }
     /// });
+    /// # });
     /// ```
     pub fn add_enabled_ui<R>(
         &mut self,
@@ -1061,8 +1065,9 @@ impl Ui {
     /// Shortcut for `add(Hyperlink::new(url).text(label))`
     ///
     /// ```
-    /// # let ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// ui.hyperlink_to("egui on GitHub", "https://www.github.com/emilk/egui/");
+    /// # });
     /// ```
     ///
     /// See also [`Hyperlink`].
@@ -1106,7 +1111,7 @@ impl Ui {
     /// See also [`Button`].
     ///
     /// ```
-    /// # let ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// if ui.button("Click me!").clicked() {
     ///     // …
     /// }
@@ -1115,6 +1120,7 @@ impl Ui {
     /// if ui.button(RichText::new("delete").color(Color32::RED)).clicked() {
     ///     // …
     /// }
+    /// # });
     /// ```
     #[must_use = "You should check if the user clicked this with `if ui.button(…).clicked() { … } "]
     #[inline]
@@ -1150,7 +1156,7 @@ impl Ui {
     /// If clicked, `selected_value` is assigned to `*current_value`.
     ///
     /// ```
-    /// # let ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     ///
     /// #[derive(PartialEq)]
     /// enum Enum { First, Second, Third }
@@ -1163,6 +1169,7 @@ impl Ui {
     /// if ui.add(egui::RadioButton::new(my_enum == Enum::First, "First")).clicked() {
     ///     my_enum = Enum::First
     /// }
+    /// # });
     /// ```
     pub fn radio_value<Value: PartialEq>(
         &mut self,
@@ -1349,10 +1356,11 @@ impl Ui {
     /// Put into a [`Frame::group`], visually grouping the contents together
     ///
     /// ```
-    /// # let ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// ui.group(|ui| {
     ///     ui.label("Within a frame");
     /// });
+    /// # });
     /// ```
     ///
     /// Se also [`Self::scope`].
@@ -1365,11 +1373,12 @@ impl Ui {
     /// You can use this to temporarily change the [`Style`] of a sub-region, for instance:
     ///
     /// ```
-    /// # let ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// ui.scope(|ui| {
     ///     ui.spacing_mut().slider_width = 200.0; // Temporary change
     ///     // …
     /// });
+    /// # });
     /// ```
     pub fn scope<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         self.scope_dyn(Box::new(add_contents))
@@ -1483,11 +1492,12 @@ impl Ui {
     /// It also contains the `Rect` used by the horizontal layout.
     ///
     /// ```
-    /// # let ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// ui.horizontal(|ui| {
     ///     ui.label("Same");
     ///     ui.label("row");
     /// });
+    /// # });
     /// ```
     ///
     /// See also [`Self::with_layout`] for more options.
@@ -1557,11 +1567,12 @@ impl Ui {
     /// Widgets will be left-justified.
     ///
     /// ```
-    /// # let ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// ui.vertical(|ui| {
     ///     ui.label("over");
     ///     ui.label("under");
     /// });
+    /// # });
     /// ```
     ///
     /// See also [`Self::with_layout`] for more options.
@@ -1574,11 +1585,12 @@ impl Ui {
     /// Widgets will be horizontally centered.
     ///
     /// ```
-    /// # let ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// ui.vertical_centered(|ui| {
     ///     ui.label("over");
     ///     ui.label("under");
     /// });
+    /// # });
     /// ```
     #[inline]
     pub fn vertical_centered<R>(
@@ -1592,11 +1604,12 @@ impl Ui {
     /// Widgets will be horizontally centered and justified (fill full width).
     ///
     /// ```
-    /// # let ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// ui.vertical_centered_justified(|ui| {
     ///     ui.label("over");
     ///     ui.label("under");
     /// });
+    /// # });
     /// ```
     pub fn vertical_centered_justified<R>(
         &mut self,
@@ -1611,11 +1624,12 @@ impl Ui {
     /// The new layout will take up all available space.
     ///
     /// ```
-    /// # let ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// ui.with_layout(egui::Layout::right_to_left(), |ui| {
     ///     ui.label("world!");
     ///     ui.label("Hello");
     /// });
+    /// # });
     /// ```
     ///
     /// See also [`Self::allocate_ui_with_layout`],
@@ -1687,11 +1701,12 @@ impl Ui {
     /// Temporarily split split an Ui into several columns.
     ///
     /// ```
-    /// # let mut ui = egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// ui.columns(2, |columns| {
     ///     columns[0].label("First column");
     ///     columns[1].label("Second column");
     /// });
+    /// # });
     /// ```
     #[inline]
     pub fn columns<R>(
@@ -1764,7 +1779,7 @@ impl Ui {
     /// Create a menu button. Creates a button for a sub-menu when the `Ui` is inside a menu.
     ///
     /// ```
-    /// # let mut ui = egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// ui.menu_button("My menu", |ui| {
     ///     ui.menu_button("My sub-menu", |ui| {
     ///         if ui.button("Close the menu").clicked() {
@@ -1772,6 +1787,7 @@ impl Ui {
     ///         }
     ///     });
     /// });
+    /// # });
     /// ```
     pub fn menu_button<R>(
         &mut self,

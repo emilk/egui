@@ -7,7 +7,7 @@ use crate::*;
 /// Usually you'd use [`Ui::selectable_value`] or [`Ui::selectable_label`] instead.
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// #[derive(PartialEq)]
 /// enum Enum { First, Second, Third }
 /// let mut my_enum = Enum::First;
@@ -19,6 +19,7 @@ use crate::*;
 /// if ui.add(egui::SelectableLabel::new(my_enum == Enum::First, "First")).clicked() {
 ///     my_enum = Enum::First
 /// }
+/// # });
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct SelectableLabel {
