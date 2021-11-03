@@ -40,22 +40,20 @@ fn main() {
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
     let (gl_window, gl) = create_display(&event_loop);
 
-    let mut egui = egui_glow::EguiGlow::new(&gl_window, &gl);
+    let mut egui_glow = egui_glow::EguiGlow::new(&gl_window, &gl);
 
     event_loop.run(move |event, _, control_flow| {
         let mut redraw = || {
-            egui.begin_frame(gl_window.window());
-
             let mut quit = false;
 
-            egui::SidePanel::left("my_side_panel").show(egui.ctx(), |ui| {
-                ui.heading("Hello World!");
-                if ui.button("Quit").clicked() {
-                    quit = true;
-                }
+            let (needs_repaint, shapes) = egui_glow.run(gl_window.window(), |egui_ctx| {
+                egui::SidePanel::left("my_side_panel").show(egui_ctx, |ui| {
+                    ui.heading("Hello World!");
+                    if ui.button("Quit").clicked() {
+                        quit = true;
+                    }
+                });
             });
-
-            let (needs_repaint, shapes) = egui.end_frame(gl_window.window());
 
             *control_flow = if quit {
                 glutin::event_loop::ControlFlow::Exit
@@ -76,7 +74,7 @@ fn main() {
 
                 // draw things behind egui here
 
-                egui.paint(&gl_window, &gl, shapes);
+                egui_glow.paint(&gl_window, &gl, shapes);
 
                 // draw things on top of egui here
 
@@ -92,7 +90,7 @@ fn main() {
             glutin::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
 
             glutin::event::Event::WindowEvent { event, .. } => {
-                if egui.is_quit_event(&event) {
+                if egui_glow.is_quit_event(&event) {
                     *control_flow = glutin::event_loop::ControlFlow::Exit;
                 }
 
@@ -100,12 +98,12 @@ fn main() {
                     gl_window.resize(physical_size);
                 }
 
-                egui.on_event(&event);
+                egui_glow.on_event(&event);
 
                 gl_window.window().request_redraw(); // TODO: ask egui if the events warrants a repaint instead
             }
             glutin::event::Event::LoopDestroyed => {
-                egui.destroy(&gl);
+                egui_glow.destroy(&gl);
             }
 
             _ => (),
