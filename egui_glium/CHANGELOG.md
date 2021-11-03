@@ -3,7 +3,7 @@ All notable changes to the `egui_glium` integration will be noted in this file.
 
 
 ## Unreleased
-* Simplify [`EguiGlium`] interface.
+* Simplify `EguiGlium` interface ([#871](https://github.com/emilk/egui/pull/871)).
 
 
 ## 0.15.0 - 2021-10-24
