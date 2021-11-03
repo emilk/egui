@@ -15,8 +15,8 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 ### Changed 🔧
 * Unifiy the four `Memory` data buckets (`data`, `data_temp`, `id_data` and `id_data_temp`) into a single `Memory::data`, with a new interface ([#836](https://github.com/emilk/egui/pull/836)).
 * `ui.add(Button::new("…").text_color(…))` is now `ui.button(RichText::new("…").color(…))` (same for `Label` )([#855](https://github.com/emilk/egui/pull/855)).
-* Replace `CtxRef::begin_frame` and `end_frame` with `CtxRef::run`.
-* Replace `Ui::__test` with `egui::__run_test_ui`.
+* Replace `CtxRef::begin_frame` and `end_frame` with `CtxRef::run` ([#872](https://github.com/emilk/egui/pull/872)).
+* Replace `Ui::__test` with `egui::__run_test_ui` ([#872](https://github.com/emilk/egui/pull/872)).
 
 ### Contributors 🙏
 * [mankinskin](https://github.com/mankinskin) ([#543](https://github.com/emilk/egui/pull/543))
