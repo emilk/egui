@@ -87,25 +87,32 @@
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
 
-mod painter;
+pub mod painter;
+pub use glow;
 pub use painter::Painter;
-
-#[cfg(feature = "epi")]
+#[cfg(feature = "winit")]
 mod epi_backend;
-#[cfg(feature = "epi")]
-pub use epi_backend::{run, NativeOptions};
+mod misc_util;
+mod post_process;
+mod shader_version;
+mod vao_emulate;
 
+#[cfg(not(target_arch = "wasm32"))]
 pub use egui_winit;
+#[cfg(all(feature = "epi", feature = "winit"))]
+pub use epi_backend::{run, NativeOptions};
 
 // ----------------------------------------------------------------------------
 
 /// Use [`egui`] from a [`glow`] app.
+#[cfg(feature = "winit")]
 pub struct EguiGlow {
     pub egui_ctx: egui::CtxRef,
     pub egui_winit: egui_winit::State,
     pub painter: crate::Painter,
 }
 
+#[cfg(feature = "winit")]
 impl EguiGlow {
     pub fn new(
         gl_window: &glutin::WindowedContext<glutin::PossiblyCurrent>,
@@ -114,7 +121,11 @@ impl EguiGlow {
         Self {
             egui_ctx: Default::default(),
             egui_winit: egui_winit::State::new(gl_window.window()),
-            painter: crate::Painter::new(gl),
+            painter: crate::Painter::new(gl, None)
+                .map_err(|error| {
+                    eprintln!("some error occurred in initializing painter\n{}", error);
+                })
+                .unwrap(),
         }
     }
 
@@ -158,12 +169,14 @@ impl EguiGlow {
         shapes: Vec<egui::epaint::ClippedShape>,
     ) {
         let clipped_meshes = self.egui_ctx.tessellate(shapes);
+        let dimensions: [u32; 2] = gl_window.window().inner_size().into();
+        self.painter
+            .upload_egui_texture(gl, &self.egui_ctx.texture());
         self.painter.paint_meshes(
-            gl_window,
+            dimensions,
             gl,
             self.egui_ctx.pixels_per_point(),
             clipped_meshes,
-            &self.egui_ctx.texture(),
         );
     }
 

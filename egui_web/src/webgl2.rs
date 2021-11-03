@@ -516,6 +516,10 @@ impl crate::Painter for WebGl2Painter {
 
         Ok(())
     }
+
+    fn name(&self) -> &'static str {
+        "egui_web(webgl2)"
+    }
 }
 
 /// Uses a framebuffer to render everything in linear color space and convert it back to sRGB

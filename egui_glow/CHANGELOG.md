@@ -3,6 +3,7 @@ All notable changes to the `egui_glow` integration will be noted in this file.
 
 
 ## Unreleased
+* Make winit/glutin an optional dependency ([#868](https://github.com/emilk/egui/pull/868)).
 * Simplify `EguiGlow` interface ([#871](https://github.com/emilk/egui/pull/871)).
 
 

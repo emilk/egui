@@ -1,4 +1,4 @@
-#if !defined(GL_ES) && __VERSION__ >= 140
+#ifdef NEW_SHADER_INTERFACE
 #define I in
 #define O out
 #define V(x) x

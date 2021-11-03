@@ -3,262 +3,194 @@
 use egui::{
     emath::Rect,
     epaint::{Color32, Mesh, Vertex},
+    TextureId,
 };
+pub use glow::Context;
+
 use memoffset::offset_of;
 
-use std::convert::TryInto;
+use glow::HasContext;
 
-use glow::HasContext as _;
+use crate::misc_util::{
+    as_u8_slice, compile_shader, glow_debug_print, link_program, srgbtexture2d,
+};
+use crate::post_process::PostProcess;
+use crate::shader_version::ShaderVersion;
+use crate::vao_emulate;
 
 const VERT_SRC: &str = include_str!("shader/vertex.glsl");
 const FRAG_SRC: &str = include_str!("shader/fragment.glsl");
-
-fn srgbtexture2d(gl: &glow::Context, data: &[u8], w: usize, h: usize) -> glow::NativeTexture {
-    assert_eq!(data.len(), w * h * 4);
-    assert!(w >= 1);
-    assert!(h >= 1);
-    unsafe {
-        let tex = gl.create_texture().unwrap();
-        gl.bind_texture(glow::TEXTURE_2D, Some(tex));
-
-        // The texture coordinates for text are so that both nearest and linear should work with the egui font texture.
-        // For user textures linear sampling is more likely to be the right choice.
-
-        gl.tex_parameter_i32(
-            glow::TEXTURE_2D,
-            glow::TEXTURE_MAG_FILTER,
-            glow::LINEAR as i32,
-        );
-        gl.tex_parameter_i32(
-            glow::TEXTURE_2D,
-            glow::TEXTURE_WRAP_S,
-            glow::CLAMP_TO_EDGE as i32,
-        );
-        gl.tex_parameter_i32(
-            glow::TEXTURE_2D,
-            glow::TEXTURE_WRAP_T,
-            glow::CLAMP_TO_EDGE as i32,
-        );
-
-        gl.tex_storage_2d(glow::TEXTURE_2D, 1, glow::SRGB8_ALPHA8, w as i32, h as i32);
-        gl.tex_sub_image_2d(
-            glow::TEXTURE_2D,
-            0,
-            0,
-            0,
-            w as i32,
-            h as i32,
-            glow::RGBA,
-            glow::UNSIGNED_BYTE,
-            glow::PixelUnpackData::Slice(data),
-        );
-
-        assert_eq!(gl.get_error(), glow::NO_ERROR, "OpenGL error occurred!");
-        tex
-    }
-}
-
-unsafe fn as_u8_slice<T>(s: &[T]) -> &[u8] {
-    std::slice::from_raw_parts(s.as_ptr().cast::<u8>(), s.len() * std::mem::size_of::<T>())
-}
 
 /// OpenGL painter
 ///
 /// This struct must be destroyed with [`Painter::destroy`] before dropping, to ensure OpenGL
 /// objects have been properly deleted and are not leaked.
 pub struct Painter {
-    program: glow::NativeProgram,
+    program: glow::Program,
     u_screen_size: glow::UniformLocation,
     u_sampler: glow::UniformLocation,
-    egui_texture: Option<glow::NativeTexture>,
+    egui_texture: Option<glow::Texture>,
     egui_texture_version: Option<u64>,
-
+    is_webgl_1: bool,
+    is_embedded: bool,
+    vertex_array: crate::misc_util::VAO,
+    srgb_support: bool,
     /// `None` means unallocated (freed) slot.
-    user_textures: Vec<Option<UserTexture>>,
-
-    vertex_array: glow::NativeVertexArray,
-    vertex_buffer: glow::NativeBuffer,
-    element_array_buffer: glow::NativeBuffer,
+    pub(crate) user_textures: Vec<Option<UserTexture>>,
+    post_process: Option<PostProcess>,
+    vertex_buffer: glow::Buffer,
+    element_array_buffer: glow::Buffer,
 
     // Stores outdated OpenGL textures that are yet to be deleted
-    old_textures: Vec<glow::NativeTexture>,
+    old_textures: Vec<glow::Texture>,
     // Only used in debug builds, to make sure we are destroyed correctly.
     destroyed: bool,
 }
 
 #[derive(Default)]
-struct UserTexture {
+pub(crate) struct UserTexture {
     /// Pending upload (will be emptied later).
     /// This is the format glow likes.
-    data: Vec<u8>,
-    size: (usize, usize),
+    pub(crate) data: Vec<u8>,
+    pub(crate) size: (usize, usize),
 
     /// Lazily uploaded
-    gl_texture: Option<glow::NativeTexture>,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-#[allow(dead_code)]
-enum ShaderVersion {
-    Gl120,
-    Gl140,
-    Es100,
-    Es300,
-}
-
-impl ShaderVersion {
-    fn get(gl: &glow::Context) -> Self {
-        Self::parse(unsafe { &gl.get_parameter_string(glow::SHADING_LANGUAGE_VERSION) })
-    }
-
-    #[inline]
-    fn parse(glsl_ver: &str) -> Self {
-        let start = glsl_ver.find(|c| char::is_ascii_digit(&c)).unwrap();
-        let es = glsl_ver[..start].contains(" ES ");
-        let ver = glsl_ver[start..].splitn(2, ' ').next().unwrap();
-        let [maj, min]: [u8; 2] = ver
-            .splitn(3, '.')
-            .take(2)
-            .map(|x| x.parse().unwrap_or_default())
-            .collect::<Vec<u8>>()
-            .try_into()
-            .unwrap();
-        if es {
-            if maj >= 3 {
-                Self::Es300
-            } else {
-                Self::Es100
-            }
-        } else if maj > 1 || (maj == 1 && min >= 40) {
-            Self::Gl140
-        } else {
-            Self::Gl120
-        }
-    }
-
-    fn version(&self) -> &'static str {
-        match self {
-            Self::Gl120 => "#version 120\n",
-            Self::Gl140 => "#version 140\n",
-            Self::Es100 => "#version 100\n",
-            Self::Es300 => "#version 300 es\n",
-        }
-    }
-}
-
-#[test]
-fn test_shader_version() {
-    use ShaderVersion::{Es100, Es300, Gl120, Gl140};
-    for (s, v) in [
-        ("1.2 OpenGL foo bar", Gl120),
-        ("3.0", Gl140),
-        ("0.0", Gl120),
-        ("OpenGL ES GLSL 3.00 (WebGL2)", Es300),
-        ("OpenGL ES GLSL 1.00 (WebGL)", Es100),
-        ("OpenGL ES GLSL ES 1.00 foo bar", Es100),
-        ("WebGL GLSL ES 3.00 foo bar", Es300),
-        ("WebGL GLSL ES 3.00", Es300),
-        ("WebGL GLSL ES 1.0 foo bar", Es100),
-    ] {
-        assert_eq!(ShaderVersion::parse(s), v);
-    }
+    pub(crate) gl_texture: Option<glow::Texture>,
 }
 
 impl Painter {
-    pub fn new(gl: &glow::Context) -> Painter {
-        let header = ShaderVersion::get(gl).version();
+    /// Create painter.
+    ///
+    /// Set `pp_fb_extent` to the framebuffer size to enable `sRGB` support on OpenGL ES and WebGL.
+    /// # Errors
+    /// will return `Err` below cases
+    /// * failed to compile shader
+    /// * failed to create postprocess on webgl with `sRGB` support
+    /// * failed to create buffer
+    pub fn new(gl: &glow::Context, pp_fb_extent: Option<[i32; 2]>) -> Result<Painter, String> {
+        let need_to_emulate_vao = unsafe { crate::misc_util::need_to_emulate_vao(gl) };
+        let shader_version = ShaderVersion::get(gl);
+        let is_webgl_1 = shader_version == ShaderVersion::Es100;
+        let header = shader_version.version();
+        glow_debug_print(header);
+        let srgb_support = gl.supported_extensions().contains("EXT_sRGB");
+        let (post_process, srgb_support_define) = match (shader_version, srgb_support) {
+            //WebGL2 support sRGB default
+            (ShaderVersion::Es300, _) | (ShaderVersion::Es100, true) => unsafe {
+                //Add sRGB support marker for fragment shader
+                if let Some([width, height]) = pp_fb_extent {
+                    glow_debug_print("WebGL with sRGB enabled so turn on post process");
+                    //install post process to correct sRGB color
+                    (
+                        Some(PostProcess::new(
+                            gl,
+                            need_to_emulate_vao,
+                            is_webgl_1,
+                            width,
+                            height,
+                        )?),
+                        "#define SRGB_SUPPORTED",
+                    )
+                } else {
+                    glow_debug_print("WebGL or OpenGL ES detected but PostProcess disabled because dimension is None");
+                    (None, "")
+                }
+            },
+            //WebGL1 without sRGB support disable postprocess and use fallback shader
+            (ShaderVersion::Es100, false) => (None, ""),
+            //OpenGL 2.1 or above always support sRGB so add sRGB support marker
+            _ => (None, "#define SRGB_SUPPORTED"),
+        };
 
         unsafe {
-            let vert = gl.create_shader(glow::VERTEX_SHADER).unwrap();
-            gl.shader_source(vert, &format!("{}\n{}", header, VERT_SRC));
-            gl.compile_shader(vert);
-            if !gl.get_shader_compile_status(vert) {
-                panic!(
-                    "Failed to compile vertex shader: {}",
-                    gl.get_shader_info_log(vert)
-                );
-            }
-
-            let frag = gl.create_shader(glow::FRAGMENT_SHADER).unwrap();
-            gl.shader_source(frag, &format!("{}\n{}", header, FRAG_SRC));
-            gl.compile_shader(frag);
-            if !gl.get_shader_compile_status(frag) {
-                panic!(
-                    "Failed to compile fragment shader: {}",
-                    gl.get_shader_info_log(frag)
-                );
-            }
-
-            let program = gl.create_program().unwrap();
-            gl.attach_shader(program, vert);
-            gl.attach_shader(program, frag);
-            gl.link_program(program);
-            if !gl.get_program_link_status(program) {
-                panic!("{}", gl.get_program_info_log(program));
-            }
+            let vert = compile_shader(
+                gl,
+                glow::VERTEX_SHADER,
+                &format!(
+                    "{}\n{}\n{}",
+                    header,
+                    shader_version.is_new_shader_interface(),
+                    VERT_SRC
+                ),
+            )?;
+            let frag = compile_shader(
+                gl,
+                glow::FRAGMENT_SHADER,
+                &format!(
+                    "{}\n{}\n{}\n{}",
+                    header,
+                    srgb_support_define,
+                    shader_version.is_new_shader_interface(),
+                    FRAG_SRC
+                ),
+            )?;
+            let program = link_program(gl, [vert, frag].iter())?;
             gl.detach_shader(program, vert);
             gl.detach_shader(program, frag);
             gl.delete_shader(vert);
             gl.delete_shader(frag);
-
             let u_screen_size = gl.get_uniform_location(program, "u_screen_size").unwrap();
             let u_sampler = gl.get_uniform_location(program, "u_sampler").unwrap();
-
-            let vertex_array = gl.create_vertex_array().unwrap();
-            let vertex_buffer = gl.create_buffer().unwrap();
-            let element_array_buffer = gl.create_buffer().unwrap();
-
-            gl.bind_vertex_array(Some(vertex_array));
+            let vertex_buffer = gl.create_buffer()?;
+            let element_array_buffer = gl.create_buffer()?;
             gl.bind_buffer(glow::ARRAY_BUFFER, Some(vertex_buffer));
-
             let a_pos_loc = gl.get_attrib_location(program, "a_pos").unwrap();
             let a_tc_loc = gl.get_attrib_location(program, "a_tc").unwrap();
             let a_srgba_loc = gl.get_attrib_location(program, "a_srgba").unwrap();
-
-            gl.vertex_attrib_pointer_f32(
-                a_pos_loc,
-                2,
-                glow::FLOAT,
-                false,
-                std::mem::size_of::<Vertex>() as i32,
-                offset_of!(Vertex, pos) as i32,
-            );
-            gl.enable_vertex_attrib_array(a_pos_loc);
-
-            gl.vertex_attrib_pointer_f32(
-                a_tc_loc,
-                2,
-                glow::FLOAT,
-                false,
-                std::mem::size_of::<Vertex>() as i32,
-                offset_of!(Vertex, uv) as i32,
-            );
-            gl.enable_vertex_attrib_array(a_tc_loc);
-
-            gl.vertex_attrib_pointer_f32(
-                a_srgba_loc,
-                4,
-                glow::UNSIGNED_BYTE,
-                false,
-                std::mem::size_of::<Vertex>() as i32,
-                offset_of!(Vertex, color) as i32,
-            );
-            gl.enable_vertex_attrib_array(a_srgba_loc);
+            let mut vertex_array = if need_to_emulate_vao {
+                crate::misc_util::VAO::emulated()
+            } else {
+                crate::misc_util::VAO::native(gl)
+            };
+            vertex_array.bind_vertex_array(gl);
+            vertex_array.bind_buffer(gl, &vertex_buffer);
+            let stride = std::mem::size_of::<Vertex>() as i32;
+            let position_buffer_info = vao_emulate::BufferInfo {
+                location: a_pos_loc,
+                vector_size: 2,
+                data_type: glow::FLOAT,
+                normalized: false,
+                stride,
+                offset: offset_of!(Vertex, pos) as i32,
+            };
+            let tex_coord_buffer_info = vao_emulate::BufferInfo {
+                location: a_tc_loc,
+                vector_size: 2,
+                data_type: glow::FLOAT,
+                normalized: false,
+                stride,
+                offset: offset_of!(Vertex, uv) as i32,
+            };
+            let color_buffer_info = vao_emulate::BufferInfo {
+                location: a_srgba_loc,
+                vector_size: 4,
+                data_type: glow::UNSIGNED_BYTE,
+                normalized: false,
+                stride,
+                offset: offset_of!(Vertex, color) as i32,
+            };
+            vertex_array.add_new_attribute(gl, position_buffer_info);
+            vertex_array.add_new_attribute(gl, tex_coord_buffer_info);
+            vertex_array.add_new_attribute(gl, color_buffer_info);
             assert_eq!(gl.get_error(), glow::NO_ERROR, "OpenGL error occurred!");
 
-            Painter {
+            Ok(Painter {
                 program,
                 u_screen_size,
                 u_sampler,
                 egui_texture: None,
                 egui_texture_version: None,
-                user_textures: Default::default(),
+                is_webgl_1,
+                is_embedded: matches!(shader_version, ShaderVersion::Es100 | ShaderVersion::Es300),
                 vertex_array,
+                srgb_support,
+                user_textures: Default::default(),
+                post_process,
                 vertex_buffer,
                 element_array_buffer,
                 old_textures: Vec::new(),
                 destroyed: false,
-            }
+            })
         }
     }
 
@@ -268,16 +200,26 @@ impl Painter {
         if self.egui_texture_version == Some(texture.version) {
             return; // No change
         }
-
+        let gamma = if self.is_embedded && self.post_process.is_none() {
+            1.0 / 2.2
+        } else {
+            1.0
+        };
         let pixels: Vec<u8> = texture
-            .pixels
-            .iter()
-            .flat_map(|a| Vec::from(Color32::from_white_alpha(*a).to_array()))
+            .srgba_pixels(gamma)
+            .flat_map(|a| Vec::from(a.to_array()))
             .collect();
 
         if let Some(old_tex) = std::mem::replace(
             &mut self.egui_texture,
-            Some(srgbtexture2d(gl, &pixels, texture.width, texture.height)),
+            Some(srgbtexture2d(
+                gl,
+                self.is_webgl_1,
+                self.srgb_support,
+                &pixels,
+                texture.width,
+                texture.height,
+            )),
         ) {
             unsafe {
                 gl.delete_texture(old_tex);
@@ -288,7 +230,7 @@ impl Painter {
 
     unsafe fn prepare_painting(
         &mut self,
-        gl_window: &glutin::WindowedContext<glutin::PossiblyCurrent>,
+        [width_in_pixels, height_in_pixels]: [u32; 2],
         gl: &glow::Context,
         pixels_per_point: f32,
     ) -> (u32, u32) {
@@ -308,10 +250,6 @@ impl Painter {
             glow::ONE,
         );
 
-        let glutin::dpi::PhysicalSize {
-            width: width_in_pixels,
-            height: height_in_pixels,
-        } = gl_window.window().inner_size();
         let width_in_points = width_in_pixels as f32 / pixels_per_point;
         let height_in_points = height_in_pixels as f32 / pixels_per_point;
 
@@ -322,9 +260,8 @@ impl Painter {
         gl.uniform_2_f32(Some(&self.u_screen_size), width_in_points, height_in_points);
         gl.uniform_1_i32(Some(&self.u_sampler), 0);
         gl.active_texture(glow::TEXTURE0);
+        self.vertex_array.bind_vertex_array(gl);
 
-        gl.bind_vertex_array(Some(self.vertex_array));
-        gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vertex_buffer));
         gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.element_array_buffer));
 
         (width_in_pixels, height_in_pixels)
@@ -341,8 +278,7 @@ impl Painter {
     ///
     /// The scissor area and blend parameters will be changed.
     ///
-    /// As well as this, the following objects will be rebound:
-    /// - Vertex Array
+    /// As well as this, the following objects will be unset:
     /// - Vertex Buffer
     /// - Element Buffer
     /// - Texture (and active texture will be set to 0)
@@ -352,27 +288,33 @@ impl Painter {
     /// of the effects your program might have on this code. Look at the source if in doubt.
     pub fn paint_meshes(
         &mut self,
-        gl_window: &glutin::WindowedContext<glutin::PossiblyCurrent>,
+        inner_size: [u32; 2],
         gl: &glow::Context,
         pixels_per_point: f32,
         clipped_meshes: Vec<egui::ClippedMesh>,
-        egui_texture: &egui::Texture,
     ) {
+        //chimera of egui_glow and egui_web
         self.assert_not_destroyed();
 
-        self.upload_egui_texture(gl, egui_texture);
         self.upload_pending_user_textures(gl);
-
-        let size_in_pixels = unsafe { self.prepare_painting(gl_window, gl, pixels_per_point) };
+        if let Some(ref mut post_process) = self.post_process {
+            unsafe {
+                post_process.begin(gl, inner_size[0] as i32, inner_size[1] as i32);
+            }
+        }
+        let size_in_pixels = unsafe { self.prepare_painting(inner_size, gl, pixels_per_point) };
         for egui::ClippedMesh(clip_rect, mesh) in clipped_meshes {
             self.paint_mesh(gl, size_in_pixels, pixels_per_point, clip_rect, &mesh);
         }
+        unsafe {
+            self.vertex_array.unbind_vertex_array(gl);
+            gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, None);
 
-        assert_eq!(
-            unsafe { gl.get_error() },
-            glow::NO_ERROR,
-            "OpenGL error occurred!"
-        );
+            if let Some(ref post_process) = self.post_process {
+                post_process.end(gl);
+            }
+            assert_eq!(glow::NO_ERROR, gl.get_error(), "GL error occurred!");
+        }
     }
 
     #[inline(never)] // Easier profiling
@@ -385,15 +327,16 @@ impl Painter {
         mesh: &Mesh,
     ) {
         debug_assert!(mesh.is_valid());
-
         if let Some(texture) = self.get_texture(mesh.texture_id) {
             unsafe {
+                gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vertex_buffer));
                 gl.buffer_data_u8_slice(
                     glow::ARRAY_BUFFER,
                     as_u8_slice(mesh.vertices.as_slice()),
                     glow::STREAM_DRAW,
                 );
 
+                gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.element_array_buffer));
                 gl.buffer_data_u8_slice(
                     glow::ELEMENT_ARRAY_BUFFER,
                     as_u8_slice(mesh.indices.as_slice()),
@@ -402,7 +345,6 @@ impl Painter {
 
                 gl.bind_texture(glow::TEXTURE_2D, Some(texture));
             }
-
             // Transform clip rect to physical pixels:
             let clip_min_x = pixels_per_point * clip_rect.min.x;
             let clip_min_y = pixels_per_point * clip_rect.min.y;
@@ -457,7 +399,8 @@ impl Painter {
 
     /// register glow texture as egui texture
     /// Usable for render to image rectangle
-    pub fn register_glow_texture(&mut self, texture: glow::NativeTexture) -> egui::TextureId {
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn register_glow_texture(&mut self, texture: glow::Texture) -> egui::TextureId {
         self.assert_not_destroyed();
 
         let id = self.alloc_user_texture();
@@ -488,11 +431,10 @@ impl Painter {
         pixels: &[Color32],
     ) {
         self.assert_not_destroyed();
-
         assert_eq!(
             size.0 * size.1,
             pixels.len(),
-            "Mismatch between texture size and texel count"
+            "Mismatch between size and texel count"
         );
 
         if let egui::TextureId::User(id) = id {
@@ -530,7 +472,7 @@ impl Painter {
         }
     }
 
-    pub fn get_texture(&self, texture_id: egui::TextureId) -> Option<glow::NativeTexture> {
+    pub fn get_texture(&self, texture_id: egui::TextureId) -> Option<glow::Texture> {
         self.assert_not_destroyed();
 
         match texture_id {
@@ -547,6 +489,8 @@ impl Painter {
                 let data = std::mem::take(&mut user_texture.data);
                 user_texture.gl_texture = Some(srgbtexture2d(
                     gl,
+                    self.is_webgl_1,
+                    self.srgb_support,
                     &data,
                     user_texture.size.0,
                     user_texture.size.1,
@@ -571,7 +515,6 @@ impl Painter {
                 gl.delete_texture(t);
             }
         }
-        gl.delete_vertex_array(self.vertex_array);
         gl.delete_buffer(self.vertex_buffer);
         gl.delete_buffer(self.element_array_buffer);
         for t in &self.old_textures {
@@ -581,29 +524,80 @@ impl Painter {
 
     /// This function must be called before Painter is dropped, as Painter has some OpenGL objects
     /// that should be deleted.
-    pub fn destroy(&mut self, gl: &glow::Context) {
-        debug_assert!(!self.destroyed, "Only destroy the egui glow painter once!");
 
+    pub fn destroy(&mut self, gl: &glow::Context) {
+        debug_assert!(!self.destroyed, "Only destroy once!");
         unsafe {
             self.destroy_gl(gl);
+            if let Some(ref post_process) = self.post_process {
+                post_process.destroy(gl);
+            }
         }
-
         self.destroyed = true;
     }
 
     fn assert_not_destroyed(&self) {
-        debug_assert!(
-            !self.destroyed,
-            "the egui glow painter has already been destroyed!"
-        );
+        debug_assert!(!self.destroyed, "the egui glow has already been destroyed!");
     }
 }
+// ported from egui_web
+pub fn clear(gl: &glow::Context, dimension: [u32; 2], clear_color: egui::Rgba) {
+    unsafe {
+        gl.disable(glow::SCISSOR_TEST);
 
+        gl.viewport(0, 0, dimension[0] as i32, dimension[1] as i32);
+
+        let clear_color: Color32 = clear_color.into();
+        gl.clear_color(
+            clear_color[0] as f32 / 255.0,
+            clear_color[1] as f32 / 255.0,
+            clear_color[2] as f32 / 255.0,
+            clear_color[3] as f32 / 255.0,
+        );
+        gl.clear(glow::COLOR_BUFFER_BIT);
+    }
+}
 impl Drop for Painter {
     fn drop(&mut self) {
         debug_assert!(
             self.destroyed,
             "Make sure to call destroy() before dropping to avoid leaking OpenGL objects!"
         );
+    }
+}
+
+impl epi::TextureAllocator for Painter {
+    fn alloc_srgba_premultiplied(
+        &mut self,
+        size: (usize, usize),
+        srgba_pixels: &[Color32],
+    ) -> egui::TextureId {
+        let id = self.alloc_user_texture();
+        self.set_user_texture(id, size, srgba_pixels);
+        id
+    }
+
+    fn free(&mut self, id: egui::TextureId) {
+        self.free_user_texture(id);
+    }
+}
+
+impl epi::NativeTexture for Painter {
+    type Texture = glow::Texture;
+
+    fn register_native_texture(&mut self, native: Self::Texture) -> TextureId {
+        self.register_glow_texture(native)
+    }
+
+    fn replace_native_texture(&mut self, id: TextureId, replacing: Self::Texture) {
+        if let egui::TextureId::User(id) = id {
+            if let Some(Some(user_texture)) = self.user_textures.get_mut(id as usize) {
+                *user_texture = UserTexture {
+                    data: vec![],
+                    gl_texture: Some(replacing),
+                    size: (0, 0),
+                };
+            }
+        }
     }
 }

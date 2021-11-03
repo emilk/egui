@@ -1,23 +1,6 @@
 use crate::*;
-use egui::Color32;
 #[cfg(target_os = "windows")]
 use glutin::platform::windows::WindowBuilderExtWindows;
-
-impl epi::TextureAllocator for Painter {
-    fn alloc_srgba_premultiplied(
-        &mut self,
-        size: (usize, usize),
-        srgba_pixels: &[Color32],
-    ) -> egui::TextureId {
-        let id = self.alloc_user_texture();
-        self.set_user_texture(id, size, srgba_pixels);
-        id
-    }
-
-    fn free(&mut self, id: egui::TextureId) {
-        self.free_user_texture(id);
-    }
-}
 
 struct RequestRepaintEvent;
 
@@ -77,7 +60,9 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
         event_loop.create_proxy(),
     )));
 
-    let mut painter = crate::Painter::new(&gl);
+    let mut painter = crate::Painter::new(&gl, None)
+        .map_err(|error| eprintln!("some OpenGL error occurred {}\n", error))
+        .unwrap();
     let mut integration = egui_winit::epi::EpiIntegration::new(
         "egui_glow",
         gl_window.window(),
@@ -111,13 +96,12 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
                     gl.clear_color(color[0], color[1], color[2], color[3]);
                     gl.clear(glow::COLOR_BUFFER_BIT);
                 }
-
+                painter.upload_egui_texture(&gl, &integration.egui_ctx.texture());
                 painter.paint_meshes(
-                    &gl_window,
+                    gl_window.window().inner_size().into(),
                     &gl,
                     integration.egui_ctx.pixels_per_point(),
                     clipped_meshes,
-                    &integration.egui_ctx.texture(),
                 );
 
                 gl_window.swap_buffers().unwrap();
