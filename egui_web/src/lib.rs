@@ -293,38 +293,6 @@ impl epi::Storage for LocalStorage {
 
 // ----------------------------------------------------------------------------
 
-pub fn handle_output(output: &egui::Output, runner: &mut AppRunner) {
-    let egui::Output {
-        cursor_icon,
-        open_url,
-        copied_text,
-        needs_repaint: _, // handled elsewhere
-        events: _,        // we ignore these (TODO: accessibility screen reader)
-        mutable_text_under_cursor,
-        text_cursor_pos,
-    } = output;
-
-    set_cursor_icon(*cursor_icon);
-    if let Some(open) = open_url {
-        crate::open_url(&open.url, open.new_tab);
-    }
-
-    #[cfg(web_sys_unstable_apis)]
-    if !copied_text.is_empty() {
-        set_clipboard_text(copied_text);
-    }
-
-    #[cfg(not(web_sys_unstable_apis))]
-    let _ = copied_text;
-
-    runner.mutable_text_under_cursor = *mutable_text_under_cursor;
-
-    if &runner.text_cursor_pos != text_cursor_pos {
-        move_text_cursor(text_cursor_pos, runner.canvas_id());
-        runner.text_cursor_pos = *text_cursor_pos;
-    }
-}
-
 pub fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
     let document = web_sys::window()?.document()?;
     document

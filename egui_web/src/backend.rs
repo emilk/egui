@@ -178,11 +178,12 @@ impl AppRunner {
     }
 
     pub fn logic(&mut self) -> Result<(egui::Output, Vec<egui::ClippedMesh>), JsValue> {
+        let frame_start = now_sec();
+
         resize_canvas_to_screen_size(self.canvas_id(), self.app.max_size_points());
         let canvas_size = canvas_size_in_points(self.canvas_id());
         let raw_input = self.input.new_frame(canvas_size);
 
-        let frame_start = now_sec();
         self.egui_ctx.begin_frame(raw_input);
 
         let mut app_output = epi::backend::AppOutput::default();
@@ -199,23 +200,19 @@ impl AppRunner {
         let (egui_output, shapes) = self.egui_ctx.end_frame();
         let clipped_meshes = self.egui_ctx.tessellate(shapes);
 
-        self.previous_frame_time = Some((now_sec() - frame_start) as f32);
-
-        if self.egui_ctx.memory().options.screen_reader {
-            self.screen_reader.speak(&egui_output.events_description());
-        }
-        handle_output(&egui_output, self);
+        self.handle_egui_output(&egui_output);
 
         {
             let epi::backend::AppOutput {
-                quit: _,        // Can't quit a web page
-                window_size: _, // Can't resize a web page
-                window_title: _,
-                decorated: _,   // Can't show decorations
-                drag_window: _, // Can't be dragged
+                quit: _,         // Can't quit a web page
+                window_size: _,  // Can't resize a web page
+                window_title: _, // TODO: change title of window
+                decorated: _,    // Can't toggle decorations
+                drag_window: _,  // Can't be dragged
             } = app_output;
         }
 
+        self.previous_frame_time = Some((now_sec() - frame_start) as f32);
         Ok((egui_output, clipped_meshes))
     }
 
@@ -224,6 +221,42 @@ impl AppRunner {
         self.painter.clear(self.app.clear_color());
         self.painter
             .paint_meshes(clipped_meshes, self.egui_ctx.pixels_per_point())
+    }
+
+    fn handle_egui_output(&mut self, output: &egui::Output) {
+        if self.egui_ctx.memory().options.screen_reader {
+            self.screen_reader.speak(&output.events_description());
+        }
+
+        let egui::Output {
+            cursor_icon,
+            open_url,
+            copied_text,
+            needs_repaint: _, // handled elsewhere
+            events: _,        // already handled
+            mutable_text_under_cursor,
+            text_cursor_pos,
+        } = output;
+
+        set_cursor_icon(*cursor_icon);
+        if let Some(open) = open_url {
+            crate::open_url(&open.url, open.new_tab);
+        }
+
+        #[cfg(web_sys_unstable_apis)]
+        if !copied_text.is_empty() {
+            set_clipboard_text(copied_text);
+        }
+
+        #[cfg(not(web_sys_unstable_apis))]
+        let _ = copied_text;
+
+        self.mutable_text_under_cursor = *mutable_text_under_cursor;
+
+        if &self.text_cursor_pos != text_cursor_pos {
+            move_text_cursor(text_cursor_pos, self.canvas_id());
+            self.text_cursor_pos = *text_cursor_pos;
+        }
     }
 }
 
