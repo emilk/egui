@@ -62,7 +62,7 @@ impl Painter {
     /// Create painter.
     ///
     /// Set `pp_fb_extent` to the framebuffer size to enable `sRGB` support on OpenGL ES and WebGL.
-    pub fn new(gl: &glow::Context, pp_fb_extent: Option<[i32; 2]>) -> Painter {
+    pub fn new(gl: &glow::Context, pp_fb_extent: Option<[i32; 2]>) -> Result<Painter, String> {
         let need_to_emulate_vao = unsafe { crate::misc_util::need_to_emulate_vao(gl) };
         let shader_version = ShaderVersion::get(gl);
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
@@ -104,11 +104,7 @@ impl Painter {
                     shader_version.is_new_shader_interface(),
                     VERT_SRC
                 ),
-            )
-            .map_err(|problems| {
-                glow_debug_print(format!("failed to compile vertex shader \n {}", problems));
-            })
-            .unwrap();
+            )?;
             let frag = compile_shader(
                 gl,
                 glow::FRAGMENT_SHADER,
@@ -119,16 +115,8 @@ impl Painter {
                     shader_version.is_new_shader_interface(),
                     FRAG_SRC
                 ),
-            )
-            .map_err(|problems| {
-                glow_debug_print(format!("failed to compile fragment shader \n {}", problems));
-            })
-            .unwrap();
-            let program = link_program(gl, [vert, frag].iter())
-                .map_err(|problems| {
-                    glow_debug_print(format!("failed to link shaders \n {}", problems));
-                })
-                .unwrap();
+            )?;
+            let program = link_program(gl, [vert, frag].iter())?;
             gl.detach_shader(program, vert);
             gl.detach_shader(program, frag);
             gl.delete_shader(vert);
@@ -178,7 +166,7 @@ impl Painter {
             vertex_array.add_new_attribute(gl, color_buffer_info);
             assert_eq!(gl.get_error(), glow::NO_ERROR, "OpenGL error occurred!");
 
-            Painter {
+            Ok(Painter {
                 program,
                 u_screen_size,
                 u_sampler,
@@ -194,7 +182,7 @@ impl Painter {
                 element_array_buffer,
                 old_textures: Vec::new(),
                 destroyed: false,
-            }
+            })
         }
     }
 
