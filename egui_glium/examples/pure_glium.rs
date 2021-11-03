@@ -23,22 +23,20 @@ fn main() {
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
     let display = create_display(&event_loop);
 
-    let mut egui = egui_glium::EguiGlium::new(&display);
+    let mut egui_glium = egui_glium::EguiGlium::new(&display);
 
     event_loop.run(move |event, _, control_flow| {
         let mut redraw = || {
-            egui.begin_frame(&display);
-
             let mut quit = false;
 
-            egui::SidePanel::left("my_side_panel").show(egui.ctx(), |ui| {
-                ui.heading("Hello World!");
-                if ui.button("Quit").clicked() {
-                    quit = true;
-                }
+            let (needs_repaint, shapes) = egui_glium.run(&display, |egui_ctx| {
+                egui::SidePanel::left("my_side_panel").show(egui_ctx, |ui| {
+                    ui.heading("Hello World!");
+                    if ui.button("Quit").clicked() {
+                        quit = true;
+                    }
+                });
             });
-
-            let (needs_repaint, shapes) = egui.end_frame(&display);
 
             *control_flow = if quit {
                 glutin::event_loop::ControlFlow::Exit
@@ -58,7 +56,7 @@ fn main() {
 
                 // draw things behind egui here
 
-                egui.paint(&display, &mut target, shapes);
+                egui_glium.paint(&display, &mut target, shapes);
 
                 // draw things on top of egui here
 
@@ -74,11 +72,11 @@ fn main() {
             glutin::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
 
             glutin::event::Event::WindowEvent { event, .. } => {
-                if egui.is_quit_event(&event) {
+                if egui_glium.is_quit_event(&event) {
                     *control_flow = glium::glutin::event_loop::ControlFlow::Exit;
                 }
 
-                egui.on_event(&event);
+                egui_glium.on_event(&event);
 
                 display.gl_window().window().request_redraw(); // TODO: ask egui if the events warrants a repaint instead
             }

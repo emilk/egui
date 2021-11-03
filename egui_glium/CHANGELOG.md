@@ -3,6 +3,7 @@ All notable changes to the `egui_glium` integration will be noted in this file.
 
 
 ## Unreleased
+* Simplify [`EguiGlium`] interface.
 
 
 ## 0.15.0 - 2021-10-24
