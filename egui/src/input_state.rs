@@ -94,7 +94,7 @@ impl Default for InputState {
 
 impl InputState {
     #[must_use]
-    pub fn begin_frame(mut self, new: RawInput) -> InputState {
+    pub(crate) fn begin_frame(mut self, new: RawInput) -> InputState {
         let time = new
             .time
             .unwrap_or_else(|| self.time + new.predicted_dt as f64);
