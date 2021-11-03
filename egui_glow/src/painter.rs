@@ -226,7 +226,7 @@ impl Painter {
 
     unsafe fn prepare_painting(
         &mut self,
-        inner_size: [u32; 2],
+        [width_in_pixels, height_in_pixels]: [u32; 2],
         gl: &glow::Context,
         pixels_per_point: f32,
     ) -> (u32, u32) {
