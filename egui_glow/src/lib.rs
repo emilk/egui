@@ -107,9 +107,9 @@ pub use epi_backend::{run, NativeOptions};
 /// Use [`egui`] from a [`glow`] app.
 #[cfg(feature = "winit")]
 pub struct EguiGlow {
-    egui_ctx: egui::CtxRef,
-    egui_winit: egui_winit::State,
-    painter: crate::Painter,
+    pub egui_ctx: egui::CtxRef,
+    pub egui_winit: egui_winit::State,
+    pub painter: crate::Painter,
 }
 
 #[cfg(feature = "winit")]
@@ -129,26 +129,6 @@ impl EguiGlow {
         }
     }
 
-    pub fn ctx(&self) -> &egui::CtxRef {
-        &self.egui_ctx
-    }
-
-    pub fn painter_mut(&mut self) -> &mut crate::Painter {
-        &mut self.painter
-    }
-
-    pub fn ctx_and_painter_mut(&mut self) -> (&egui::CtxRef, &mut crate::Painter) {
-        (&self.egui_ctx, &mut self.painter)
-    }
-
-    pub fn pixels_per_point(&self) -> f32 {
-        self.egui_winit.pixels_per_point()
-    }
-
-    pub fn egui_input(&self) -> &egui::RawInput {
-        self.egui_winit.egui_input()
-    }
-
     /// Returns `true` if egui wants exclusive use of this event
     /// (e.g. a mouse click on an egui window, or entering text into a text field).
     /// For instance, if you use egui for a game, you want to first call this
@@ -164,34 +144,22 @@ impl EguiGlow {
         self.egui_winit.is_quit_event(event)
     }
 
-    pub fn begin_frame(&mut self, window: &glutin::window::Window) {
-        let raw_input = self.take_raw_input(window);
-        self.begin_frame_with_input(raw_input);
-    }
-
-    pub fn begin_frame_with_input(&mut self, raw_input: egui::RawInput) {
-        self.egui_ctx.begin_frame(raw_input);
-    }
-
-    /// Prepare for a new frame. Normally you would call [`Self::begin_frame`] instead.
-    pub fn take_raw_input(&mut self, window: &glutin::window::Window) -> egui::RawInput {
-        self.egui_winit.take_egui_input(window)
-    }
-
     /// Returns `needs_repaint` and shapes to draw.
-    pub fn end_frame(
+    pub fn run(
         &mut self,
         window: &glutin::window::Window,
+        mut run_ui: impl FnMut(&egui::CtxRef),
     ) -> (bool, Vec<egui::epaint::ClippedShape>) {
+        let raw_input = self.egui_winit.take_egui_input(window);
+        self.egui_ctx.begin_frame(raw_input);
+
+        run_ui(&self.egui_ctx);
+
         let (egui_output, shapes) = self.egui_ctx.end_frame();
         let needs_repaint = egui_output.needs_repaint;
-        self.handle_output(window, egui_output);
-        (needs_repaint, shapes)
-    }
-
-    pub fn handle_output(&mut self, window: &glutin::window::Window, output: egui::Output) {
         self.egui_winit
-            .handle_output(window, &self.egui_ctx, output);
+            .handle_output(window, &self.egui_ctx, egui_output);
+        (needs_repaint, shapes)
     }
 
     pub fn paint(
@@ -212,6 +180,7 @@ impl EguiGlow {
         );
     }
 
+    /// Call to release the allocated graphics resources.
     pub fn destroy(&mut self, gl: &glow::Context) {
         self.painter.destroy(gl);
     }

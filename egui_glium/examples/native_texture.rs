@@ -41,7 +41,7 @@ fn main() {
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
     let display = create_display(&event_loop);
 
-    let mut egui = egui_glium::EguiGlium::new(&display);
+    let mut egui_glium = egui_glium::EguiGlium::new(&display);
 
     let png_data = include_bytes!("../../eframe/examples/rust-logo-256x256.png");
     let image = load_glium_image(png_data);
@@ -51,24 +51,22 @@ fn main() {
     // Allow us to share the texture with egui:
     let glium_texture = std::rc::Rc::new(glium_texture);
     // Allocate egui's texture id for GL texture
-    let texture_id = egui.painter_mut().register_native_texture(glium_texture);
+    let texture_id = egui_glium.painter.register_native_texture(glium_texture);
 
     event_loop.run(move |event, _, control_flow| {
         let mut redraw = || {
-            egui.begin_frame(&display);
-
             let mut quit = false;
 
-            egui::SidePanel::left("my_side_panel").show(egui.ctx(), |ui| {
-                ui.heading("");
-                if ui.button("Quit").clicked() {
-                    quit = true;
-                }
+            let (needs_repaint, shapes) = egui_glium.run(&display, |egui_ctx| {
+                egui::SidePanel::left("my_side_panel").show(egui_ctx, |ui| {
+                    if ui.button("Quit").clicked() {
+                        quit = true;
+                    }
+                });
+                egui::Window::new("NativeTextureDisplay").show(egui_ctx, |ui| {
+                    ui.image(texture_id, image_size);
+                });
             });
-            egui::Window::new("NativeTextureDisplay").show(egui.ctx(), |ui| {
-                ui.image(texture_id, image_size);
-            });
-            let (needs_repaint, shapes) = egui.end_frame(&display);
 
             *control_flow = if quit {
                 glutin::event_loop::ControlFlow::Exit
@@ -83,17 +81,12 @@ fn main() {
                 use glium::Surface as _;
                 let mut target = display.draw();
 
-                let clear_color = egui::Rgba::from_rgb(0.1, 0.3, 0.2);
-                target.clear_color(
-                    clear_color[0],
-                    clear_color[1],
-                    clear_color[2],
-                    clear_color[3],
-                );
+                let color = egui::Rgba::from_rgb(0.1, 0.3, 0.2);
+                target.clear_color(color[0], color[1], color[2], color[3]);
 
                 // draw things behind egui here
 
-                egui.paint(&display, &mut target, shapes);
+                egui_glium.paint(&display, &mut target, shapes);
 
                 // draw things on top of egui here
 
@@ -109,11 +102,11 @@ fn main() {
             glutin::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
 
             glutin::event::Event::WindowEvent { event, .. } => {
-                if egui.is_quit_event(&event) {
+                if egui_glium.is_quit_event(&event) {
                     *control_flow = glium::glutin::event_loop::ControlFlow::Exit;
                 }
 
-                egui.on_event(&event);
+                egui_glium.on_event(&event);
 
                 display.gl_window().window().request_redraw(); // TODO: ask egui if the events warrants a repaint instead
             }
