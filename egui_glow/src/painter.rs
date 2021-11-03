@@ -62,6 +62,11 @@ impl Painter {
     /// Create painter.
     ///
     /// Set `pp_fb_extent` to the framebuffer size to enable `sRGB` support on OpenGL ES and WebGL.
+    /// # Errors
+    /// will return `Err` below cases
+    /// * failed to compile shader
+    /// * failed to create postprocess on webgl with `sRGB` support
+    /// * failed to create buffer
     pub fn new(gl: &glow::Context, pp_fb_extent: Option<[i32; 2]>) -> Result<Painter, String> {
         let need_to_emulate_vao = unsafe { crate::misc_util::need_to_emulate_vao(gl) };
         let shader_version = ShaderVersion::get(gl);
@@ -71,23 +76,26 @@ impl Painter {
         let srgb_support = gl.supported_extensions().contains("EXT_sRGB");
         let (post_process, srgb_support_define) = match (shader_version, srgb_support) {
             //WebGL2 support sRGB default
-            (ShaderVersion::Es300, _) | (ShaderVersion::Es100, true) => {
+            (ShaderVersion::Es300, _) | (ShaderVersion::Es100, true) => unsafe {
                 //Add sRGB support marker for fragment shader
                 if let Some([width, height]) = pp_fb_extent {
                     glow_debug_print("WebGL with sRGB enabled so turn on post process");
                     //install post process to correct sRGB color
                     (
-                        unsafe {
-                            PostProcess::new(gl, need_to_emulate_vao, is_webgl_1, width, height)
-                        }
-                        .ok(),
+                        Some(PostProcess::new(
+                            gl,
+                            need_to_emulate_vao,
+                            is_webgl_1,
+                            width,
+                            height,
+                        )?),
                         "#define SRGB_SUPPORTED",
                     )
                 } else {
                     glow_debug_print("WebGL or OpenGL ES detected but PostProcess disabled because dimension is None");
                     (None, "")
                 }
-            }
+            },
             //WebGL1 without sRGB support disable postprocess and use fallback shader
             (ShaderVersion::Es100, false) => (None, ""),
             //OpenGL 2.1 or above always support sRGB so add sRGB support marker
@@ -123,8 +131,8 @@ impl Painter {
             gl.delete_shader(frag);
             let u_screen_size = gl.get_uniform_location(program, "u_screen_size").unwrap();
             let u_sampler = gl.get_uniform_location(program, "u_sampler").unwrap();
-            let vertex_buffer = gl.create_buffer().unwrap();
-            let element_array_buffer = gl.create_buffer().unwrap();
+            let vertex_buffer = gl.create_buffer()?;
+            let element_array_buffer = gl.create_buffer()?;
             gl.bind_buffer(glow::ARRAY_BUFFER, Some(vertex_buffer));
             let a_pos_loc = gl.get_attrib_location(program, "a_pos").unwrap();
             let a_tc_loc = gl.get_attrib_location(program, "a_tc").unwrap();
