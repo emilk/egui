@@ -103,9 +103,9 @@ use glium::glutin;
 
 /// Use [`egui`] from a [`glium`] app.
 pub struct EguiGlium {
-    egui_ctx: egui::CtxRef,
-    egui_winit: egui_winit::State,
-    painter: crate::Painter,
+    pub egui_ctx: egui::CtxRef,
+    pub egui_winit: egui_winit::State,
+    pub painter: crate::Painter,
 }
 
 impl EguiGlium {
@@ -115,27 +115,6 @@ impl EguiGlium {
             egui_winit: egui_winit::State::new(display.gl_window().window()),
             painter: crate::Painter::new(display),
         }
-    }
-
-    pub fn ctx(&self) -> &egui::CtxRef {
-        &self.egui_ctx
-    }
-
-    /// useful for calling e.g. [`crate::Painter::alloc_user_texture`].
-    pub fn painter_mut(&mut self) -> &mut crate::Painter {
-        &mut self.painter
-    }
-
-    pub fn ctx_and_painter_mut(&mut self) -> (&egui::CtxRef, &mut crate::Painter) {
-        (&self.egui_ctx, &mut self.painter)
-    }
-
-    pub fn pixels_per_point(&self) -> f32 {
-        self.egui_winit.pixels_per_point()
-    }
-
-    pub fn egui_input(&self) -> &egui::RawInput {
-        self.egui_winit.egui_input()
     }
 
     /// Returns `true` if egui wants exclusive use of this event
@@ -153,35 +132,24 @@ impl EguiGlium {
         self.egui_winit.is_quit_event(event)
     }
 
-    pub fn begin_frame(&mut self, display: &glium::Display) {
-        let raw_input = self.take_raw_input(display);
-        self.begin_frame_with_input(raw_input);
-    }
-
-    pub fn begin_frame_with_input(&mut self, raw_input: egui::RawInput) {
-        self.egui_ctx.begin_frame(raw_input);
-    }
-
-    /// Prepare for a new frame. Normally you would call [`Self::begin_frame`] instead.
-    pub fn take_raw_input(&mut self, display: &glium::Display) -> egui::RawInput {
-        self.egui_winit
-            .take_egui_input(display.gl_window().window())
-    }
-
     /// Returns `needs_repaint` and shapes to draw.
-    pub fn end_frame(
+    pub fn run(
         &mut self,
         display: &glium::Display,
+        mut run_ui: impl FnMut(&egui::CtxRef),
     ) -> (bool, Vec<egui::epaint::ClippedShape>) {
+        let raw_input = self
+            .egui_winit
+            .take_egui_input(display.gl_window().window());
+        self.egui_ctx.begin_frame(raw_input);
+
+        run_ui(&self.egui_ctx);
+
         let (egui_output, shapes) = self.egui_ctx.end_frame();
         let needs_repaint = egui_output.needs_repaint;
-        self.handle_output(display, egui_output);
-        (needs_repaint, shapes)
-    }
-
-    pub fn handle_output(&mut self, display: &glium::Display, output: egui::Output) {
         self.egui_winit
-            .handle_output(display.gl_window().window(), &self.egui_ctx, output);
+            .handle_output(display.gl_window().window(), &self.egui_ctx, egui_output);
+        (needs_repaint, shapes)
     }
 
     pub fn paint<T: glium::Surface>(

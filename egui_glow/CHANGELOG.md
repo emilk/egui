@@ -3,6 +3,7 @@ All notable changes to the `egui_glow` integration will be noted in this file.
 
 
 ## Unreleased
+* Simplify `EguiGlow` interface ([#871](https://github.com/emilk/egui/pull/871)).
 
 
 ## 0.15.0 - 2021-10-24
