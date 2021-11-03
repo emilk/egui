@@ -58,12 +58,9 @@ pub(crate) struct UserTexture {
 }
 
 impl Painter {
-    /// create painter
+    /// Create painter.
     ///
-    /// if `pp_fb_extent` is none post process disabled .
-    /// when post process disabled `sRGB` invalid color appeared on OpenGL ES and WebGL .
-    ///
-    /// to enable post process set framebuffer dimension to `pp_fb_extent`.
+    /// Set `pp_fb_extent` to the framebuffer size to enable `sRGB` support on OpenGL ES and WebGL.
     pub fn new(gl: &glow::Context, pp_fb_extent: Option<[i32; 2]>) -> Painter {
         let shader_version = ShaderVersion::get(gl);
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
