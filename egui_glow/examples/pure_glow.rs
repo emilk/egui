@@ -35,6 +35,7 @@ fn create_display(
 
     (gl_window, gl)
 }
+
 fn main() {
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
     let (gl_window, gl) = create_display(&event_loop);
