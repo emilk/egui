@@ -32,6 +32,7 @@ pub struct Painter {
     egui_texture: Option<glow::Texture>,
     egui_texture_version: Option<u64>,
     is_webgl_1: bool,
+    is_embedded: bool,
     vertex_array: crate::misc_util::VAO,
     srgb_support: bool,
     /// `None` means unallocated (freed) slot.
@@ -62,6 +63,7 @@ impl Painter {
     ///
     /// Set `pp_fb_extent` to the framebuffer size to enable `sRGB` support on OpenGL ES and WebGL.
     pub fn new(gl: &glow::Context, pp_fb_extent: Option<[i32; 2]>) -> Painter {
+        let need_to_emulate_vao = unsafe { crate::misc_util::need_to_emulate_vao(gl) };
         let shader_version = ShaderVersion::get(gl);
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
         let header = shader_version.version();
@@ -75,7 +77,10 @@ impl Painter {
                     glow_debug_print("WebGL with sRGB enabled so turn on post process");
                     //install post process to correct sRGB color
                     (
-                        unsafe { PostProcess::new(gl, is_webgl_1, width, height) }.ok(),
+                        unsafe {
+                            PostProcess::new(gl, need_to_emulate_vao, is_webgl_1, width, height)
+                        }
+                        .ok(),
                         "#define SRGB_SUPPORTED",
                     )
                 } else {
@@ -136,7 +141,11 @@ impl Painter {
             let a_pos_loc = gl.get_attrib_location(program, "a_pos").unwrap();
             let a_tc_loc = gl.get_attrib_location(program, "a_tc").unwrap();
             let a_srgba_loc = gl.get_attrib_location(program, "a_srgba").unwrap();
-            let mut vertex_array = crate::misc_util::VAO::new(gl, true);
+            let mut vertex_array = if need_to_emulate_vao {
+                crate::misc_util::VAO::emulated()
+            } else {
+                crate::misc_util::VAO::native(gl)
+            };
             vertex_array.bind_vertex_array(gl);
             vertex_array.bind_buffer(gl, &vertex_buffer);
             let stride = std::mem::size_of::<Vertex>() as i32;
@@ -176,6 +185,7 @@ impl Painter {
                 egui_texture: None,
                 egui_texture_version: None,
                 is_webgl_1,
+                is_embedded: matches!(shader_version, ShaderVersion::Es100 | ShaderVersion::Es300),
                 vertex_array,
                 srgb_support,
                 user_textures: Default::default(),
@@ -194,7 +204,7 @@ impl Painter {
         if self.egui_texture_version == Some(texture.version) {
             return; // No change
         }
-        let gamma = if self.is_web && self.post_process.is_none() {
+        let gamma = if self.is_embedded && self.post_process.is_none() {
             1.0 / 2.2
         } else {
             1.0
@@ -244,7 +254,6 @@ impl Painter {
             glow::ONE,
         );
 
-        let [width_in_pixels, height_in_pixels] = inner_size;
         let width_in_points = width_in_pixels as f32 / pixels_per_point;
         let height_in_points = height_in_pixels as f32 / pixels_per_point;
 
@@ -301,16 +310,13 @@ impl Painter {
         for egui::ClippedMesh(clip_rect, mesh) in clipped_meshes {
             self.paint_mesh(gl, size_in_pixels, pixels_per_point, clip_rect, &mesh);
         }
-        self.vertex_array.unbind_vertex_array(gl);
         unsafe {
+            self.vertex_array.unbind_vertex_array(gl);
             gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, None);
-        }
-        if let Some(ref post_process) = self.post_process {
-            unsafe {
+
+            if let Some(ref post_process) = self.post_process {
                 post_process.end(gl);
             }
-        }
-        unsafe {
             assert_eq!(glow::NO_ERROR, gl.get_error(), "GL error occurred!");
         }
     }

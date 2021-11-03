@@ -19,6 +19,7 @@ pub(crate) struct PostProcess {
 impl PostProcess {
     pub(crate) unsafe fn new(
         gl: &glow::Context,
+        need_to_emulate_vao: bool,
         is_webgl_1: bool,
         width: i32,
         height: i32,
@@ -119,7 +120,11 @@ impl PostProcess {
         let a_pos_loc = gl
             .get_attrib_location(program, "a_pos")
             .ok_or_else(|| "failed to get location of a_pos".to_string())?;
-        let mut vertex_array = crate::misc_util::VAO::new(gl, true);
+        let mut vertex_array = if need_to_emulate_vao {
+            crate::misc_util::VAO::emulated()
+        } else {
+            crate::misc_util::VAO::native(gl)
+        };
         vertex_array.bind_vertex_array(gl);
         vertex_array.bind_buffer(gl, &pos_buffer);
         let buffer_info_a_pos = BufferInfo {

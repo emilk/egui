@@ -15,10 +15,10 @@ impl WebBackend {
     pub fn new(canvas_id: &str) -> Result<Self, JsValue> {
         let ctx = egui::CtxRef::default();
 
-        #[cfg(feature = "use_glow_painter")]
+        #[cfg(feature = "glow")]
         let painter: Box<dyn Painter> =
             { Box::new(glow_wrapping::WrappedGlowPainter::new(canvas_id)) };
-        #[cfg(not(feature = "use_glow_painter"))]
+        #[cfg(not(feature = "glow"))]
         let painter: Box<dyn Painter> = {
             if let Ok(webgl2_painter) = webgl2::WebGl2Painter::new(canvas_id) {
                 console_log("Using WebGL2 backend");
