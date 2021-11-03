@@ -42,6 +42,7 @@ pub struct Painter {
 
     // Stores outdated OpenGL textures that are yet to be deleted
     old_textures: Vec<glow::Texture>,
+    // Only used in debug builds, to make sure we are destroyed correctly.
     destroyed: bool,
 }
 
