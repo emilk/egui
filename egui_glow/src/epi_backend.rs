@@ -60,9 +60,9 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
         event_loop.create_proxy(),
     )));
 
-    let mut painter = crate::Painter::new(&gl,None).map_err(|error|{
-        eprintln!("some OpenGL error occurred {}\n",error)
-    }).unwrap();
+    let mut painter = crate::Painter::new(&gl, None)
+        .map_err(|error| eprintln!("some OpenGL error occurred {}\n", error))
+        .unwrap();
     let mut integration = egui_winit::epi::EpiIntegration::new(
         "egui_glow",
         gl_window.window(),
@@ -96,7 +96,7 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
                     gl.clear_color(color[0], color[1], color[2], color[3]);
                     gl.clear(glow::COLOR_BUFFER_BIT);
                 }
-                painter.upload_egui_texture(&gl,&integration.egui_ctx.texture());
+                painter.upload_egui_texture(&gl, &integration.egui_ctx.texture());
                 painter.paint_meshes(
                     gl_window.window().inner_size().into(),
                     &gl,
