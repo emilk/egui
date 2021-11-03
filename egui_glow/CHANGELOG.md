@@ -3,7 +3,7 @@ All notable changes to the `egui_glow` integration will be noted in this file.
 
 
 ## Unreleased
-* no glutin dependency in painter .
+* Make winit/glutin an optional dependency ([#868](https://github.com/emilk/egui/pull/868)).
 
 ## 0.15.0 - 2021-10-24
 `egui_glow` has been newly created, with feature parity to `egui_glium`.
