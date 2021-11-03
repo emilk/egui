@@ -282,8 +282,6 @@ impl EpiIntegration {
 
         let raw_input = self.egui_winit.take_egui_input(window);
 
-        self.egui_ctx.begin_frame(raw_input);
-
         let mut app_output = epi::backend::AppOutput::default();
         let mut frame = epi::backend::FrameBuilder {
             info: integration_info(self.integration_name, window, self.latest_frame_time),
@@ -293,9 +291,11 @@ impl EpiIntegration {
         }
         .build();
 
-        self.app.update(&self.egui_ctx, &mut frame);
+        let app = &mut self.app; // TODO: remove when we update MSVR to 1.56
+        let (egui_output, shapes) = self.egui_ctx.run(raw_input, |egui_ctx| {
+            app.update(egui_ctx, &mut frame);
+        });
 
-        let (egui_output, shapes) = self.egui_ctx.end_frame();
         let needs_repaint = egui_output.needs_repaint;
         self.egui_winit
             .handle_output(window, &self.egui_ctx, egui_output);

@@ -51,7 +51,7 @@
 //!     ui.add(egui::Label::new("Hello World!"));
 //!     ui.label("A shorter and more convenient way to add a label.");
 //!     if ui.button("Click me").clicked() {
-//!         /* take some action here */
+//!         // take some action here
 //!     }
 //! });
 //! ```
@@ -117,16 +117,16 @@
 //! // Game loop:
 //! loop {
 //!     let raw_input: egui::RawInput = gather_input();
-//!     ctx.begin_frame(raw_input);
 //!
-//!     egui::CentralPanel::default().show(&ctx, |ui| {
-//!         ui.label("Hello world!");
-//!         if ui.button("Click me").clicked() {
-//!             /* take some action here */
-//!         }
+//!     let (output, shapes) = ctx.run(raw_input, |ctx| {
+//!         egui::CentralPanel::default().show(&ctx, |ui| {
+//!             ui.label("Hello world!");
+//!             if ui.button("Click me").clicked() {
+//!                 // take some action here
+//!             }
+//!         });
 //!     });
 //!
-//!     let (output, shapes) = ctx.end_frame();
 //!     let clipped_meshes = ctx.tessellate(shapes); // create triangles to paint
 //!     handle_output(output);
 //!     paint(clipped_meshes);

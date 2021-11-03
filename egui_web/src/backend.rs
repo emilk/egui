@@ -189,8 +189,6 @@ impl AppRunner {
         let canvas_size = canvas_size_in_points(self.canvas_id());
         let raw_input = self.input.new_frame(canvas_size);
 
-        self.egui_ctx.begin_frame(raw_input);
-
         let mut app_output = epi::backend::AppOutput::default();
         let mut frame = epi::backend::FrameBuilder {
             info: self.integration_info(),
@@ -200,9 +198,10 @@ impl AppRunner {
         }
         .build();
 
-        self.app.update(&self.egui_ctx, &mut frame);
-
-        let (egui_output, shapes) = self.egui_ctx.end_frame();
+        let app = &mut self.app; // TODO: remove when we bump MSRV to 1.56
+        let (egui_output, shapes) = self.egui_ctx.run(raw_input, |egui_ctx| {
+            app.update(egui_ctx, &mut frame);
+        });
         let clipped_meshes = self.egui_ctx.tessellate(shapes);
 
         self.handle_egui_output(&egui_output);

@@ -480,7 +480,7 @@ impl Response {
     /// ``` rust
     /// # let mut ui = &mut egui::Ui::__test();
     /// let response = ui.label("Right-click me!");
-    /// response.context_menu(|ui|{
+    /// response.context_menu(|ui| {
     ///     if ui.button("Close the menu").clicked() {
     ///         ui.close_menu();
     ///     }

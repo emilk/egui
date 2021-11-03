@@ -150,14 +150,10 @@ impl EguiGlow {
     pub fn run(
         &mut self,
         window: &glutin::window::Window,
-        mut run_ui: impl FnMut(&egui::CtxRef),
+        run_ui: impl FnMut(&egui::CtxRef),
     ) -> (bool, Vec<egui::epaint::ClippedShape>) {
         let raw_input = self.egui_winit.take_egui_input(window);
-        self.egui_ctx.begin_frame(raw_input);
-
-        run_ui(&self.egui_ctx);
-
-        let (egui_output, shapes) = self.egui_ctx.end_frame();
+        let (egui_output, shapes) = self.egui_ctx.run(raw_input, run_ui);
         let needs_repaint = egui_output.needs_repaint;
         self.egui_winit
             .handle_output(window, &self.egui_ctx, egui_output);

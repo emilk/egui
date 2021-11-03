@@ -198,14 +198,14 @@ Missing an integration for the thing you're working on? Create one, it is easy!
 You need to collect [`egui::RawInput`](https://docs.rs/egui/latest/egui/struct.RawInput.html), paint [`egui::ClippedMesh`](https://docs.rs/epaint/):es and handle [`egui::Output`](https://docs.rs/egui/latest/egui/struct.Output.html). The basic structure is this:
 
 ``` rust
-let mut egui_ctx = egui::Context::new();
+let mut egui_ctx = egui::CtxRef::default();
 
 // Game loop:
 loop {
     let raw_input: egui::RawInput = my_integration.gather_input();
-    egui_ctx.begin_frame(raw_input);
-    my_app.ui(&mut egui_ctx); // add panels, windows and widgets to `egui_ctx` here
-    let (output, shapes) = egui_ctx.end_frame();
+    let (output, shapes) = egui_ctx.run(raw_input, |egui_ctx| {
+        my_app.ui(egui_ctx); // add panels, windows and widgets to `egui_ctx` here
+    });
     let clipped_meshes = egui_ctx.tessellate(shapes); // create triangles to paint
     my_integration.paint(clipped_meshes);
     my_integration.set_cursor_icon(output.cursor_icon);
