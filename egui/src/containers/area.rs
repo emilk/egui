@@ -33,14 +33,13 @@ impl State {
 /// This forms the base of the [`Window`] container.
 ///
 /// ```
-/// # let mut ctx = egui::CtxRef::default();
-/// # ctx.begin_frame(Default::default());
-/// # let ctx = &ctx;
+/// # egui::__run_test_ctx(|ctx| {
 /// egui::Area::new("my_area")
 ///     .fixed_pos(egui::pos2(32.0, 32.0))
 ///     .show(ctx, |ui| {
 ///         ui.label("Floating text!");
 ///     });
+/// # });
 #[must_use = "You should call .show()"]
 #[derive(Clone, Copy, Debug)]
 pub struct Area {

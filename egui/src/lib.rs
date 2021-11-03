@@ -45,8 +45,7 @@
 //! get access to an [`Ui`] where you can put widgets. For example:
 //!
 //! ```
-//! # let mut ctx = egui::CtxRef::default();
-//! # ctx.begin_frame(Default::default());
+//! # egui::__run_test_ctx(|ctx| {
 //! egui::CentralPanel::default().show(&ctx, |ui| {
 //!     ui.add(egui::Label::new("Hello World!"));
 //!     ui.label("A shorter and more convenient way to add a label.");
@@ -54,6 +53,7 @@
 //!         // take some action here
 //!     }
 //! });
+//! # });
 //! ```
 //!
 //! ### Quick start
@@ -575,6 +575,14 @@ pub enum WidgetType {
 }
 
 // ----------------------------------------------------------------------------
+
+/// For use in tests; especially doctests.
+pub fn __run_test_ctx(mut run_ui: impl FnMut(&CtxRef)) {
+    let mut ctx = CtxRef::default();
+    let _ = ctx.run(Default::default(), |ctx| {
+        run_ui(ctx);
+    });
+}
 
 /// For use in tests; especially doctests.
 pub fn __run_test_ui(mut add_contents: impl FnMut(&mut Ui)) {
