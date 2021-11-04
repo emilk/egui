@@ -105,9 +105,9 @@ impl super::View for Sliders {
                 You can always see the full precision value by hovering the value.",
             );
 
-            // if ui.button("Assign PI").clicked() {
-            //     self.value = std::f64::consts::PI;
-            // }
+            if ui.button("Assign PI").clicked() {
+                self.value = std::f64::consts::PI;
+            }
         }
 
         ui.separator();
