@@ -32,7 +32,13 @@ struct SliderSpec {
     largest_finite: f64,
 }
 
-/// Control a number by a horizontal slider.
+/// Specifies the orientation of a [Slider].
+pub enum SliderOrientation {
+    Horizontal,
+    Vertical,
+}
+
+/// Control a number with a slider.
 ///
 /// The slider range defines the values you get when pulling the slider to the far edges.
 /// By default, the slider can still show values outside this range,
@@ -41,7 +47,7 @@ struct SliderSpec {
 ///
 /// The range can include any numbers, and go from low-to-high or from high-to-low.
 ///
-/// The slider consists of three parts: a horizontal slider, a value display, and an optional text.
+/// The slider consists of three parts: a slider, a value display, and an optional text.
 /// The user can click the value display to edit its value. It can be turned off with `.show_value(false)`.
 ///
 /// ```
@@ -60,6 +66,7 @@ pub struct Slider<'a> {
     clamp_to_range: bool,
     smart_aim: bool,
     show_value: bool,
+    orientation: SliderOrientation,
     prefix: String,
     suffix: String,
     text: String,
@@ -69,9 +76,30 @@ pub struct Slider<'a> {
 }
 
 impl<'a> Slider<'a> {
+    /// Creates a new horizontal slider.
     pub fn new<Num: emath::Numeric>(value: &'a mut Num, range: RangeInclusive<Num>) -> Self {
         let range_f64 = range.start().to_f64()..=range.end().to_f64();
         let slf = Self::from_get_set(range_f64, move |v: Option<f64>| {
+            if let Some(v) = v {
+                *value = Num::from_f64(v);
+            }
+            value.to_f64()
+        });
+
+        if Num::INTEGRAL {
+            slf.integer()
+        } else {
+            slf
+        }
+    }
+
+    /// Creates a new vertical slider.
+    pub fn new_vertical<Num: emath::Numeric>(
+        value: &'a mut Num,
+        range: RangeInclusive<Num>,
+    ) -> Self {
+        let range_f64 = range.start().to_f64()..=range.end().to_f64();
+        let slf = Self::from_get_set_vertical(range_f64, move |v: Option<f64>| {
             if let Some(v) = v {
                 *value = Num::from_f64(v);
             }
@@ -89,6 +117,21 @@ impl<'a> Slider<'a> {
         range: RangeInclusive<f64>,
         get_set_value: impl 'a + FnMut(Option<f64>) -> f64,
     ) -> Self {
+        Self::from_get_set_inner(range, get_set_value, SliderOrientation::Horizontal)
+    }
+
+    pub fn from_get_set_vertical(
+        range: RangeInclusive<f64>,
+        get_set_value: impl 'a + FnMut(Option<f64>) -> f64,
+    ) -> Self {
+        Self::from_get_set_inner(range, get_set_value, SliderOrientation::Vertical)
+    }
+
+    fn from_get_set_inner(
+        range: RangeInclusive<f64>,
+        get_set_value: impl 'a + FnMut(Option<f64>) -> f64,
+        orientation: SliderOrientation,
+    ) -> Self {
         Self {
             get_set_value: Box::new(get_set_value),
             range,
@@ -100,6 +143,7 @@ impl<'a> Slider<'a> {
             clamp_to_range: true,
             smart_aim: true,
             show_value: true,
+            orientation,
             prefix: Default::default(),
             suffix: Default::default(),
             text: Default::default(),
@@ -136,6 +180,11 @@ impl<'a> Slider<'a> {
 
     pub fn text_color(mut self, text_color: Color32) -> Self {
         self.text_color = Some(text_color);
+        self
+    }
+
+    pub fn orientation(mut self, orientation: SliderOrientation) -> Self {
+        self.orientation = orientation;
         self
     }
 
@@ -249,49 +298,43 @@ impl<'a> Slider<'a> {
         self.range.clone()
     }
 
-    /// For instance, `x` is the mouse position and `x_range` is the physical location of the slider on the screen.
-    fn value_from_x(&self, x: f32, x_range: RangeInclusive<f32>) -> f64 {
-        let normalized = remap_clamp(x, x_range, 0.0..=1.0) as f64;
+    /// For instance, `position` is the mouse position and `position_range` is the physical location of the slider on the screen.
+    fn value_from_position(&self, position: f32, position_range: RangeInclusive<f32>) -> f64 {
+        let normalized = remap_clamp(position, position_range, 0.0..=1.0) as f64;
         value_from_normalized(normalized, self.range(), &self.spec)
     }
 
-    fn x_from_value(&self, value: f64, x_range: RangeInclusive<f32>) -> f32 {
+    fn position_from_value(&self, value: f64, position_range: RangeInclusive<f32>) -> f32 {
         let normalized = normalized_from_value(value, self.range(), &self.spec);
-        lerp(x_range, normalized as f32)
+        lerp(position_range, normalized as f32)
     }
-}
-
-fn handle_radius(rect: &Rect) -> f32 {
-    rect.height() / 2.5
-}
-
-fn x_range(rect: &Rect) -> RangeInclusive<f32> {
-    let handle_radius = handle_radius(rect);
-    (rect.left() + handle_radius)..=(rect.right() - handle_radius)
 }
 
 impl<'a> Slider<'a> {
     /// Just the slider, no text
-    #[allow(clippy::unused_self)]
-    fn allocate_slider_space(&self, ui: &mut Ui, height: f32) -> Response {
-        let desired_size = vec2(ui.spacing().slider_width, height);
+    fn allocate_slider_space(&self, ui: &mut Ui, perpendicular: f32) -> Response {
+        let desired_size = match self.orientation {
+            SliderOrientation::Horizontal => vec2(ui.spacing().slider_width, perpendicular),
+            SliderOrientation::Vertical => vec2(perpendicular, ui.spacing().slider_width),
+        };
         ui.allocate_response(desired_size, Sense::click_and_drag())
     }
 
     /// Just the slider, no text
     fn slider_ui(&mut self, ui: &mut Ui, response: &Response) {
         let rect = &response.rect;
-        let x_range = x_range(rect);
+        let position_range = self.position_range(rect);
 
-        if let Some(pointer_pos) = response.interact_pointer_pos() {
+        if let Some(pointer_position_2d) = response.interact_pointer_pos() {
+            let position = self.pointer_position(pointer_position_2d);
             let new_value = if self.smart_aim {
                 let aim_radius = ui.input().aim_radius();
                 emath::smart_aim::best_in_range_f64(
-                    self.value_from_x(pointer_pos.x - aim_radius, x_range.clone()),
-                    self.value_from_x(pointer_pos.x + aim_radius, x_range.clone()),
+                    self.value_from_position(position - aim_radius, position_range.clone()),
+                    self.value_from_position(position + aim_radius, position_range.clone()),
                 )
             } else {
-                self.value_from_x(pointer_pos.x, x_range.clone())
+                self.value_from_position(position, position_range.clone())
             };
             self.set_value(new_value);
         }
@@ -300,21 +343,22 @@ impl<'a> Slider<'a> {
         response.widget_info(|| WidgetInfo::slider(value, &self.text));
 
         if response.has_focus() {
-            let kb_step = ui.input().num_presses(Key::ArrowRight) as f32
-                - ui.input().num_presses(Key::ArrowLeft) as f32;
+            let increment = ui.input().num_presses(self.key_increment());
+            let decrement = ui.input().num_presses(self.key_decrement());
+            let kb_step = increment as f32 - decrement as f32;
 
             if kb_step != 0.0 {
                 let prev_value = self.get_value();
-                let prev_x = self.x_from_value(prev_value, x_range.clone());
-                let new_x = prev_x + kb_step;
+                let prev_position = self.position_from_value(prev_value, position_range.clone());
+                let new_position = prev_position + kb_step;
                 let new_value = if self.smart_aim {
                     let aim_radius = ui.input().aim_radius();
                     emath::smart_aim::best_in_range_f64(
-                        self.value_from_x(new_x - aim_radius, x_range.clone()),
-                        self.value_from_x(new_x + aim_radius, x_range.clone()),
+                        self.value_from_position(new_position - aim_radius, position_range.clone()),
+                        self.value_from_position(new_position + aim_radius, position_range.clone()),
                     )
                 } else {
-                    self.value_from_x(new_x, x_range.clone())
+                    self.value_from_position(new_position, position_range.clone())
                 };
                 self.set_value(new_value);
             }
@@ -324,15 +368,10 @@ impl<'a> Slider<'a> {
         if ui.is_rect_visible(response.rect) {
             let value = self.get_value();
 
-            let rail_radius = ui
-                .painter()
-                .round_to_pixel((rect.height() / 4.0).at_least(2.0));
+            let rail_radius = ui.painter().round_to_pixel(self.rail_radius_limit(rect));
+            let rail_rect = self.rail_rect(rect, rail_radius);
 
-            let rail_rect = Rect::from_min_max(
-                pos2(rect.left(), rect.center().y - rail_radius),
-                pos2(rect.right(), rect.center().y + rail_radius),
-            );
-            let marker_center_x = self.x_from_value(value, x_range);
+            let position_1d = self.position_from_value(value, position_range);
 
             let visuals = ui.style().interact(response);
             ui.painter().add(epaint::RectShape {
@@ -346,12 +385,82 @@ impl<'a> Slider<'a> {
                 // stroke: ui.visuals().widgets.inactive.bg_stroke,
             });
 
+            let center = self.marker_center(position_1d, &rail_rect);
+
             ui.painter().add(epaint::CircleShape {
-                center: pos2(marker_center_x, rail_rect.center().y),
-                radius: handle_radius(rect) + visuals.expansion,
+                center,
+                radius: self.handle_radius(rect) + visuals.expansion,
                 fill: visuals.bg_fill,
                 stroke: visuals.fg_stroke,
             });
+        }
+    }
+
+    fn marker_center(&self, position_1d: f32, rail_rect: &Rect) -> Pos2 {
+        match self.orientation {
+            SliderOrientation::Horizontal => pos2(position_1d, rail_rect.center().y),
+            SliderOrientation::Vertical => pos2(rail_rect.center().x, position_1d),
+        }
+    }
+
+    fn pointer_position(&self, pointer_position_2d: Pos2) -> f32 {
+        match self.orientation {
+            SliderOrientation::Horizontal => pointer_position_2d.x,
+            SliderOrientation::Vertical => pointer_position_2d.y,
+        }
+    }
+
+    fn position_range(&self, rect: &Rect) -> RangeInclusive<f32> {
+        let handle_radius = self.handle_radius(rect);
+        match self.orientation {
+            SliderOrientation::Horizontal => {
+                (rect.left() + handle_radius)..=(rect.right() - handle_radius)
+            }
+            SliderOrientation::Vertical => {
+                (rect.top() + handle_radius)..=(rect.bottom() - handle_radius)
+            }
+        }
+    }
+
+    fn key_increment(&self) -> Key {
+        match self.orientation {
+            SliderOrientation::Horizontal => Key::ArrowRight,
+            SliderOrientation::Vertical => Key::ArrowUp,
+        }
+    }
+
+    fn key_decrement(&self) -> Key {
+        match self.orientation {
+            SliderOrientation::Horizontal => Key::ArrowLeft,
+            SliderOrientation::Vertical => Key::ArrowDown,
+        }
+    }
+
+    fn rail_rect(&self, rect: &Rect, radius: f32) -> Rect {
+        match self.orientation {
+            SliderOrientation::Horizontal => Rect::from_min_max(
+                pos2(rect.left(), rect.center().y - radius),
+                pos2(rect.right(), rect.center().y + radius),
+            ),
+            SliderOrientation::Vertical => Rect::from_min_max(
+                pos2(rect.center().x - radius, rect.top()),
+                pos2(rect.center().x + radius, rect.bottom()),
+            ),
+        }
+    }
+
+    fn handle_radius(&self, rect: &Rect) -> f32 {
+        let limit = match self.orientation {
+            SliderOrientation::Horizontal => rect.height(),
+            SliderOrientation::Vertical => rect.width(),
+        };
+        limit / 2.5
+    }
+
+    fn rail_radius_limit(&self, rect: &Rect) -> f32 {
+        match self.orientation {
+            SliderOrientation::Horizontal => (rect.height() / 4.0).at_least(2.0),
+            SliderOrientation::Vertical => (rect.width() / 4.0).at_least(2.0),
         }
     }
 
@@ -363,11 +472,11 @@ impl<'a> Slider<'a> {
         }
     }
 
-    fn value_ui(&mut self, ui: &mut Ui, x_range: RangeInclusive<f32>) {
+    fn value_ui(&mut self, ui: &mut Ui, position_range: RangeInclusive<f32>) {
         let mut value = self.get_value();
         ui.add(
             DragValue::new(&mut value)
-                .speed(self.current_gradient(&x_range))
+                .speed(self.current_gradient(&position_range))
                 .clamp_range(self.clamp_range())
                 .min_decimals(self.min_decimals)
                 .max_decimals_opt(self.max_decimals)
@@ -380,13 +489,14 @@ impl<'a> Slider<'a> {
     }
 
     /// delta(value) / delta(points)
-    fn current_gradient(&mut self, x_range: &RangeInclusive<f32>) -> f64 {
+    fn current_gradient(&mut self, position_range: &RangeInclusive<f32>) -> f64 {
         // TODO: handle clamping
         let value = self.get_value();
-        let value_from_x = |x: f32| self.value_from_x(x, x_range.clone());
-        let x_from_value = |value: f64| self.x_from_value(value, x_range.clone());
-        let left_value = value_from_x(x_from_value(value) - 0.5);
-        let right_value = value_from_x(x_from_value(value) + 0.5);
+        let value_from_pos =
+            |position: f32| self.value_from_position(position, position_range.clone());
+        let pos_from_value = |value: f64| self.position_from_value(value, position_range.clone());
+        let left_value = value_from_pos(pos_from_value(value) - 0.5);
+        let right_value = value_from_pos(pos_from_value(value) + 0.5);
         right_value - left_value
     }
 }
@@ -394,7 +504,7 @@ impl<'a> Slider<'a> {
 impl<'a> Widget for Slider<'a> {
     fn ui(mut self, ui: &mut Ui) -> Response {
         let text_style = TextStyle::Button;
-        let height = ui
+        let perpendicular = ui
             .fonts()
             .row_height(text_style)
             .at_least(ui.spacing().interact_size.y);
@@ -402,12 +512,12 @@ impl<'a> Widget for Slider<'a> {
         let old_value = self.get_value();
 
         let inner_response = ui.horizontal(|ui| {
-            let slider_response = self.allocate_slider_space(ui, height);
+            let slider_response = self.allocate_slider_space(ui, perpendicular);
             self.slider_ui(ui, &slider_response);
 
             if self.show_value {
-                let x_range = x_range(&slider_response.rect);
-                self.value_ui(ui, x_range);
+                let position_range = self.position_range(&slider_response.rect);
+                self.value_ui(ui, position_range);
             }
 
             if !self.text.is_empty() {
