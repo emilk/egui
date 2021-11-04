@@ -109,7 +109,7 @@ impl<'a> Slider<'a> {
         }
     }
 
-    /// Control wether or not the slider shows the current value.
+    /// Control whether or not the slider shows the current value.
     /// Default: `true`.
     pub fn show_value(mut self, show_value: bool) -> Self {
         self.show_value = show_value;
