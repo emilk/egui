@@ -391,12 +391,15 @@ pub use emath as math; // historical reasons
 pub use emath::{lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rect, Vec2};
 pub use epaint::{
     color, mutex,
-    text::{FontDefinitions, FontFamily, TextStyle},
+    text::{FontData, FontDefinitions, FontFamily, TextStyle},
     ClippedMesh, Color32, Rgba, Shape, Stroke, Texture, TextureId,
 };
 
 pub mod text {
-    pub use epaint::text::{Fonts, Galley, LayoutJob, LayoutSection, TextFormat, TAB_SIZE};
+    pub use epaint::text::{
+        FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob, LayoutSection, TextFormat,
+        TextStyle, TAB_SIZE,
+    };
 }
 
 pub use {
