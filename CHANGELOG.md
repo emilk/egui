@@ -19,6 +19,10 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Replace `Ui::__test` with `egui::__run_test_ui` ([#872](https://github.com/emilk/egui/pull/872)).
 * Replace `scroll_delta` and `zoom_delta` in `RawInput` with `Event::Scroll` and `Event::Zoom`.
 
+### Removed 🔥
+* Removed `egui::math` (use `egui::emath` instead).
+* Removed `egui::paint` (use `egui::epaint` instead).
+
 ### Contributors 🙏
 * [mankinskin](https://github.com/mankinskin) ([#543](https://github.com/emilk/egui/pull/543))
 * [sumibi-yakitori](https://github.com/sumibi-yakitori) ([#830](https://github.com/emilk/egui/pull/830))
