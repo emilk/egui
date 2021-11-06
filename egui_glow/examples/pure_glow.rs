@@ -90,7 +90,8 @@ fn main() {
             glutin::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
 
             glutin::event::Event::WindowEvent { event, .. } => {
-                if egui_glow.is_quit_event(&event) {
+                use glutin::event::WindowEvent;
+                if matches!(event, WindowEvent::CloseRequested | WindowEvent::Destroyed) {
                     *control_flow = glutin::event_loop::ControlFlow::Exit;
                 }
 
