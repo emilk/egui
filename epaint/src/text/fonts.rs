@@ -66,14 +66,14 @@ pub struct FontData {
 impl FontData {
     pub fn from_static(font: &'static [u8]) -> Self {
         Self {
-            font: std::borrow::Cow::Borrowed(font.into()),
+            font: std::borrow::Cow::Borrowed(font),
             index: 0,
         }
     }
 
     pub fn from_owned(font: Vec<u8>) -> Self {
         Self {
-            font: std::borrow::Cow::Owned(font.into()),
+            font: std::borrow::Cow::Owned(font),
             index: 0,
         }
     }
