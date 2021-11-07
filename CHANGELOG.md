@@ -19,6 +19,9 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Replace `Ui::__test` with `egui::__run_test_ui` ([#872](https://github.com/emilk/egui/pull/872)).
 * Replace `scroll_delta` and `zoom_delta` in `RawInput` with `Event::Scroll` and `Event::Zoom`.
 
+### Fixed 🐛
+* Fix `ComboBox` and other popups getting clipped to parent window ([#885](https://github.com/emilk/egui/pull/885)).
+
 ### Removed 🔥
 * Removed `egui::math` (use `egui::emath` instead).
 * Removed `egui::paint` (use `egui::epaint` instead).

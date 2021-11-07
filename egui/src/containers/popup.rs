@@ -287,13 +287,12 @@ pub fn popup_below_widget<R>(
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
     if ui.memory().is_popup_open(popup_id) {
-        let parent_clip_rect = ui.clip_rect();
-
         let inner = Area::new(popup_id)
             .order(Order::Foreground)
             .fixed_pos(widget_response.rect.left_bottom())
             .show(ui.ctx(), |ui| {
-                ui.set_clip_rect(parent_clip_rect); // for when the combo-box is in a scroll area.
+                // Note: we use a separate clip-rect for this area, so the popup can be outside the parent.
+                // See https://github.com/emilk/egui/issues/825
                 let frame = Frame::popup(ui.style());
                 let frame_margin = frame.margin;
                 frame
