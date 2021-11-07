@@ -1,6 +1,4 @@
 use crate::*;
-#[cfg(target_os = "windows")]
-use glutin::platform::windows::WindowBuilderExtWindows;
 
 struct RequestRepaintEvent;
 

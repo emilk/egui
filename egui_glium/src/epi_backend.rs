@@ -1,7 +1,6 @@
 use crate::*;
 use egui::Color32;
-#[cfg(target_os = "windows")]
-use glium::glutin::platform::windows::WindowBuilderExtWindows;
+use glium::glutin;
 
 impl epi::TextureAllocator for Painter {
     fn alloc_srgba_premultiplied(

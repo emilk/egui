@@ -72,8 +72,9 @@ fn main() {
             glutin::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
 
             glutin::event::Event::WindowEvent { event, .. } => {
-                if egui_glium.is_quit_event(&event) {
-                    *control_flow = glium::glutin::event_loop::ControlFlow::Exit;
+                use glutin::event::WindowEvent;
+                if matches!(event, WindowEvent::CloseRequested | WindowEvent::Destroyed) {
+                    *control_flow = glutin::event_loop::ControlFlow::Exit;
                 }
 
                 egui_glium.on_event(&event);

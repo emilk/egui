@@ -268,7 +268,8 @@ impl EpiIntegration {
     }
 
     pub fn on_event(&mut self, event: &winit::event::WindowEvent<'_>) {
-        self.quit |= self.egui_winit.is_quit_event(event);
+        use winit::event::WindowEvent;
+        self.quit |= matches!(event, WindowEvent::CloseRequested | WindowEvent::Destroyed);
         self.egui_winit.on_event(&self.egui_ctx, event);
     }
 

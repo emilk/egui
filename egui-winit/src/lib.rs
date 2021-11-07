@@ -533,29 +533,6 @@ impl State {
         }
     }
 
-    /// Returns `true` if Alt-F4 (windows/linux) or Cmd-Q (Mac)
-    pub fn is_quit_shortcut(&self, input: &winit::event::KeyboardInput) -> bool {
-        if cfg!(target_os = "macos") {
-            input.state == winit::event::ElementState::Pressed
-                && self.egui_input.modifiers.mac_cmd
-                && input.virtual_keycode == Some(winit::event::VirtualKeyCode::Q)
-        } else {
-            input.state == winit::event::ElementState::Pressed
-                && self.egui_input.modifiers.alt
-                && input.virtual_keycode == Some(winit::event::VirtualKeyCode::F4)
-        }
-    }
-
-    /// Returns `true` if this a close event or a Cmd-Q/Alt-F4 keyboard command.
-    pub fn is_quit_event(&self, event: &winit::event::WindowEvent<'_>) -> bool {
-        use winit::event::WindowEvent;
-        match event {
-            WindowEvent::CloseRequested | WindowEvent::Destroyed => true,
-            WindowEvent::KeyboardInput { input, .. } => self.is_quit_shortcut(input),
-            _ => false,
-        }
-    }
-
     fn set_cursor_icon(&mut self, window: &winit::window::Window, cursor_icon: egui::CursorIcon) {
         // prevent flickering near frame boundary when Windows OS tries to control cursor icon for window resizing
         if self.current_cursor_icon == cursor_icon {
