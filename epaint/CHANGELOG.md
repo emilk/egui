@@ -4,7 +4,7 @@ All notable changes to the epaint crate will be documented in this file.
 
 
 ## Unreleased
-* `Rgba` now implements `Hash`
+* `Rgba` now implements `Hash` ([#886](https://github.com/emilk/egui/pull/886)).
 
 
 ## 0.15.0 - 2021-10-24
