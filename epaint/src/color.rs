@@ -211,6 +211,7 @@ impl std::ops::IndexMut<usize> for Rgba {
     }
 }
 
+#[allow(clippy::derive_hash_xor_eq)]
 impl std::hash::Hash for Rgba {
     #[inline]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -232,6 +233,11 @@ impl Rgba {
     #[inline(always)]
     pub const fn from_rgba_premultiplied(r: f32, g: f32, b: f32, a: f32) -> Self {
         Self([r, g, b, a])
+    }
+
+    #[inline(always)]
+    pub fn from_rgba_unmultiplied(r: f32, g: f32, b: f32, a: f32) -> Self {
+        Self([r * a, g * a, b * a, a])
     }
 
     #[inline(always)]
@@ -360,7 +366,7 @@ impl Rgba {
             // Additive, let's assume we are black
             self.0
         } else {
-            [self.r() / a, self.b() / a, self.g() / a, a]
+            [self.r() / a, self.g() / a, self.b() / a, a]
         }
     }
 
