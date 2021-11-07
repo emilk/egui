@@ -324,18 +324,10 @@ fn color_picker_hsva_2d(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> bool {
 
 /// Returns `true` on change.
 pub fn color_picker_color32(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -> bool {
-    // To ensure we keep hue slider when `srgba` is gray we store the
-    // full `Hsva` in a cache:
-
-    let mut hsva = use_color_cache(ui.ctx(), |cc| cc.get(srgba).cloned())
-        .unwrap_or_else(|| Hsva::from(*srgba));
-
+    let mut hsva = color_cache_get(ui.ctx(), *srgba);
     let response = color_picker_hsva_2d(ui, &mut hsva, alpha);
-
     *srgba = Color32::from(hsva);
-
-    use_color_cache(ui.ctx(), |cc| cc.set(*srgba, hsva));
-
+    color_cache_set(ui.ctx(), *srgba, hsva);
     response
 }
 
@@ -378,21 +370,59 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
 /// Shows a button with the given color.
 /// If the user clicks the button, a full color picker is shown.
 pub fn color_edit_button_srgba(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -> Response {
-    // To ensure we keep hue slider when `srgba` is gray we store the
-    // full `Hsva` in a cache:
-
-    let mut hsva = use_color_cache(ui.ctx(), |cc| cc.get(srgba).cloned())
-        .unwrap_or_else(|| Hsva::from(*srgba));
-
+    let mut hsva = color_cache_get(ui.ctx(), *srgba);
     let response = color_edit_button_hsva(ui, &mut hsva, alpha);
-
     *srgba = Color32::from(hsva);
-
-    use_color_cache(ui.ctx(), |cc| cc.set(*srgba, hsva));
-
+    color_cache_set(ui.ctx(), *srgba, hsva);
     response
 }
 
-fn use_color_cache<R>(ctx: &Context, f: impl FnOnce(&mut FixedCache<Color32, Hsva>) -> R) -> R {
+/// Shows a button with the given color.
+/// If the user clicks the button, a full color picker is shown.
+/// The given color is in `sRGB` space.
+pub fn color_edit_button_srgb(ui: &mut Ui, srgb: &mut [u8; 3]) -> Response {
+    let mut srgba = Color32::from_rgb(srgb[0], srgb[1], srgb[2]);
+    let response = color_edit_button_srgba(ui, &mut srgba, Alpha::Opaque);
+    srgb[0] = srgba[0];
+    srgb[1] = srgba[1];
+    srgb[2] = srgba[2];
+    response
+}
+
+/// Shows a button with the given color.
+/// If the user clicks the button, a full color picker is shown.
+pub fn color_edit_button_rgba(ui: &mut Ui, rgba: &mut Rgba, alpha: Alpha) -> Response {
+    let mut hsva = color_cache_get(ui.ctx(), *rgba);
+    let response = color_edit_button_hsva(ui, &mut hsva, alpha);
+    *rgba = Rgba::from(hsva);
+    color_cache_set(ui.ctx(), *rgba, hsva);
+    response
+}
+
+/// Shows a button with the given color.
+/// If the user clicks the button, a full color picker is shown.
+pub fn color_edit_button_rgb(ui: &mut Ui, rgb: &mut [f32; 3]) -> Response {
+    let mut rgba = Rgba::from_rgb(rgb[0], rgb[1], rgb[2]);
+    let response = color_edit_button_rgba(ui, &mut rgba, Alpha::Opaque);
+    rgb[0] = rgba[0];
+    rgb[1] = rgba[1];
+    rgb[2] = rgba[2];
+    response
+}
+
+// To ensure we keep hue slider when `srgba` is gray we store the full `Hsva` in a cache:
+fn color_cache_get(ctx: &Context, rgba: impl Into<Rgba>) -> Hsva {
+    let rgba = rgba.into();
+    use_color_cache(ctx, |cc| cc.get(&rgba).cloned()).unwrap_or_else(|| Hsva::from(rgba))
+}
+
+// To ensure we keep hue slider when `srgba` is gray we store the full `Hsva` in a cache:
+fn color_cache_set(ctx: &Context, rgba: impl Into<Rgba>, hsva: Hsva) {
+    let rgba = rgba.into();
+    use_color_cache(ctx, |cc| cc.set(rgba, hsva));
+}
+
+// To ensure we keep hue slider when `srgba` is gray we store the full `Hsva` in a cache:
+fn use_color_cache<R>(ctx: &Context, f: impl FnOnce(&mut FixedCache<Rgba, Hsva>) -> R) -> R {
     f(ctx.memory().data.get_temp_mut_or_default(Id::null()))
 }

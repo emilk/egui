@@ -22,6 +22,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 
 ### Fixed 🐛
 * Fix `ComboBox` and other popups getting clipped to parent window ([#885](https://github.com/emilk/egui/pull/885)).
+* The color picker is now better att keeping the same hue even when saturation goes to zero ([#886](https://github.com/emilk/egui/pull/886)).
 
 ### Removed 🔥
 * Removed `egui::math` (use `egui::emath` instead).

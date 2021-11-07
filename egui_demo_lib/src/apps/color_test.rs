@@ -156,7 +156,7 @@ impl ColorTest {
             ui,
             tex_allocator,
             RED,
-            (TRANSPARENT, Color32::from_rgba_premultiplied(0, 0, 255, 0)),
+            (TRANSPARENT, Color32::from_rgb_additive(0, 0, 255)),
         );
 
         ui.separator();
