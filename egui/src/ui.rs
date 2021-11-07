@@ -1328,7 +1328,7 @@ impl Ui {
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in linear RGBA space with premultiplied alpha
     pub fn color_edit_button_rgba_premultiplied(&mut self, rgba: &mut [f32; 4]) -> Response {
-        let mut hsva = Hsva::from_rgba_premultiplied(*rgba);
+        let mut hsva = Hsva::from_rgba_premultiplied(rgba[0], rgba[1], rgba[2], rgba[3]);
         let response = color_picker::color_edit_button_hsva(
             self,
             &mut hsva,
@@ -1343,7 +1343,7 @@ impl Ui {
     /// The given color is in linear RGBA space without premultiplied alpha.
     /// If unsure, what "premultiplied alpha" is, then this is probably the function you want to use.
     pub fn color_edit_button_rgba_unmultiplied(&mut self, rgba: &mut [f32; 4]) -> Response {
-        let mut hsva = Hsva::from_rgba_unmultiplied(*rgba);
+        let mut hsva = Hsva::from_rgba_unmultiplied(rgba[0], rgba[1], rgba[2], rgba[3]);
         let response =
             color_picker::color_edit_button_hsva(self, &mut hsva, color_picker::Alpha::OnlyBlend);
         *rgba = hsva.to_rgba_unmultiplied();

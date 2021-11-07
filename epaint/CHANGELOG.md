@@ -4,6 +4,7 @@ All notable changes to the epaint crate will be documented in this file.
 
 
 ## Unreleased
+* `Rgba` now implements `Hash`
 
 
 ## 0.15.0 - 2021-10-24
