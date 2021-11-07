@@ -115,7 +115,7 @@ fn ab_glyph_font_from_font_data(name: &str, data: &FontData) -> ab_glyph::FontAr
 ///
 /// You can also install your own custom fonts:
 /// ```
-/// # use {epaint::text::{FontDefinitions, TextStyle, FontFamily}};
+/// # use {epaint::text::{FontDefinitions, TextStyle, FontFamily, FontData}};
 /// # struct FakeEguiCtx {};
 /// # impl FakeEguiCtx { fn set_fonts(&self, _: FontDefinitions) {} }
 /// # let ctx = FakeEguiCtx {};
@@ -123,7 +123,7 @@ fn ab_glyph_font_from_font_data(name: &str, data: &FontData) -> ab_glyph::FontAr
 ///
 /// // Install my own font (maybe supporting non-latin characters):
 /// fonts.font_data.insert("my_font".to_owned(),
-///    std::borrow::Cow::Borrowed(include_bytes!("../../fonts/Ubuntu-Light.ttf"))); // .ttf and .otf supported
+///    FontData::from_static(include_bytes!("../../fonts/Ubuntu-Light.ttf"))); // .ttf and .otf supported
 ///
 /// // Put my font first (highest priority):
 /// fonts.fonts_for_family.get_mut(&FontFamily::Proportional).unwrap()
