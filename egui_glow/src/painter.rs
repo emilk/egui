@@ -61,7 +61,7 @@ impl Painter {
     /// Create painter.
     ///
     /// Set `pp_fb_extent` to the framebuffer size to enable `sRGB` support on OpenGL ES and WebGL.
-    /// Set `workaround` if you want to turn on shader workaround like `&vec!["#define EPIPHANY_WORKAROUND".to_owned()]`.
+    /// Set `workaround` if you want to turn on shader workaround e.g. `&vec!["#define EPIPHANY_WORKAROUND".to_owned()]`.
     ///
     /// this fix [Everything is super dark in epiphany](https://github.com/emilk/egui/issues/794)
     /// # Errors

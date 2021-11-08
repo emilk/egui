@@ -26,7 +26,7 @@ impl WrappedGlowPainter {
         let canvas = canvas_element_or_die(canvas_id);
         let gl_ctx = init_glow_context_from_canvas(&canvas);
         let dimension = [canvas.width() as i32, canvas.height() as i32];
-        let painter = egui_glow::Painter::new(&gl_ctx, Some(dimension), epiphany_wr)
+        let painter = egui_glow::Painter::new(&gl_ctx, Some(dimension), &epiphany_wr)
             .map_err(|error| {
                 console_error(format!(
                     "some error occurred in initializing glow painter\n {}",
