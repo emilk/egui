@@ -61,7 +61,14 @@ fn main() {
 
             let (needs_repaint, shapes) = egui_glium.run(&display, |egui_ctx| {
                 egui::SidePanel::left("my_side_panel").show(egui_ctx, |ui| {
-                    if ui.add(egui::Button::image_and_text(texture_id, button_image_size, "Quit")).clicked() {
+                    if ui
+                        .add(egui::Button::image_and_text(
+                            texture_id,
+                            button_image_size,
+                            "Quit",
+                        ))
+                        .clicked()
+                    {
                         quit = true;
                     }
                 });
