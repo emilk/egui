@@ -93,55 +93,59 @@ impl Default for InputState {
 }
 
 impl InputState {
-    #[must_use]
-    pub(crate) fn begin_frame(mut self, new: RawInput) -> InputState {
-        let time = new
+    /// Only update the basics (time, screen_rect, dt, …)
+    pub(crate) fn begin_frame(&mut self, new: &RawInput) {
+        let old_time = self.time;
+        let new_time = new
             .time
             .unwrap_or_else(|| self.time + new.predicted_dt as f64);
-        let unstable_dt = (time - self.time) as f32;
-        let screen_rect = new.screen_rect.unwrap_or(self.screen_rect);
-        self.create_touch_states_for_new_devices(&new.events);
-        for touch_state in self.touch_states.values_mut() {
-            touch_state.begin_frame(time, &new, self.pointer.interact_pos);
-        }
-        let pointer = self.pointer.begin_frame(time, &new);
 
-        let mut keys_down = self.keys_down;
-        let mut scroll_delta = Vec2::ZERO;
-        let mut zoom_factor_delta = 1.0;
+        self.pixels_per_point = new.pixels_per_point.unwrap_or(self.pixels_per_point);
+        self.screen_rect = new.screen_rect.unwrap_or(self.screen_rect);
+        self.time = new_time;
+        self.pointer.time = new_time;
+        self.pointer.delta = Vec2::ZERO;
+        self.pointer.pointer_events.clear();
+        self.unstable_dt = (new_time - old_time) as f32;
+        self.predicted_dt = new.predicted_dt;
+        self.modifiers = new.modifiers;
+
+        self.scroll_delta = Vec2::ZERO;
+        self.zoom_factor_delta = 1.0;
+        self.events.clear();
+    }
+
+    /// Take all events
+    pub(crate) fn on_events(&mut self, new: RawInput) {
+        self.create_touch_states_for_new_devices(&new.events);
+        self.pointer.on_events(&new.events);
+        for touch_state in self.touch_states.values_mut() {
+            touch_state.on_events(self.time, &new.events, self.pointer.interact_pos);
+        }
+
+        self.scroll_delta = Vec2::ZERO;
+        self.zoom_factor_delta = 1.0;
         for event in &new.events {
             match event {
                 Event::Key { key, pressed, .. } => {
                     if *pressed {
-                        keys_down.insert(*key);
+                        self.keys_down.insert(*key);
                     } else {
-                        keys_down.remove(key);
+                        self.keys_down.remove(key);
                     }
                 }
                 Event::Scroll(delta) => {
-                    scroll_delta += *delta;
+                    self.scroll_delta += *delta;
                 }
                 Event::Zoom(factor) => {
-                    zoom_factor_delta *= *factor;
+                    self.zoom_factor_delta *= *factor;
                 }
                 _ => {}
             }
         }
-        InputState {
-            pointer,
-            touch_states: self.touch_states,
-            scroll_delta,
-            zoom_factor_delta,
-            screen_rect,
-            pixels_per_point: new.pixels_per_point.unwrap_or(self.pixels_per_point),
-            time,
-            unstable_dt,
-            predicted_dt: new.predicted_dt,
-            modifiers: new.modifiers,
-            keys_down,
-            events: new.events.clone(), // TODO: remove clone() and use raw.events
-            raw: new,
-        }
+
+        self.events = new.events.clone(); // TODO: remove clone() and use raw.events, or remove [`Self::raw].
+        self.raw = new;
     }
 
     #[inline(always)]
@@ -417,16 +421,13 @@ impl Default for PointerState {
 }
 
 impl PointerState {
-    #[must_use]
-    pub(crate) fn begin_frame(mut self, time: f64, new: &RawInput) -> PointerState {
-        self.time = time;
-
+    pub(crate) fn on_events(&mut self, events: &[Event]) {
         self.pointer_events.clear();
 
         let old_pos = self.latest_pos;
         self.interact_pos = self.latest_pos;
 
-        for event in &new.events {
+        for event in events {
             match event {
                 Event::PointerMoved(pos) => {
                     let pos = *pos;
@@ -463,7 +464,7 @@ impl PointerState {
 
                     if pressed {
                         self.press_origin = Some(pos);
-                        self.press_start_time = Some(time);
+                        self.press_start_time = Some(self.time);
                         self.has_moved_too_much_for_a_click = false;
                         self.pointer_events.push(PointerEvent::Pressed(pos));
                     } else {
@@ -471,10 +472,10 @@ impl PointerState {
 
                         let click = if clicked {
                             let double_click =
-                                (time - self.last_click_time) < MAX_DOUBLE_CLICK_DELAY;
+                                (self.time - self.last_click_time) < MAX_DOUBLE_CLICK_DELAY;
                             let count = if double_click { 2 } else { 1 };
 
-                            self.last_click_time = time;
+                            self.last_click_time = self.time;
 
                             Some(Click {
                                 pos,
@@ -509,22 +510,20 @@ impl PointerState {
         };
 
         if let Some(pos) = self.latest_pos {
-            self.pos_history.add(time, pos);
+            self.pos_history.add(self.time, pos);
         } else {
             // we do not clear the `pos_history` here, because it is exactly when a finger has
             // released from the touch screen that we may want to assign a velocity to whatever
             // the user tried to throw.
         }
 
-        self.pos_history.flush(time);
+        self.pos_history.flush(self.time);
 
         self.velocity = if self.pos_history.len() >= 3 && self.pos_history.duration() > 0.01 {
             self.pos_history.velocity().unwrap_or_default()
         } else {
             Vec2::default()
         };
-
-        self
     }
 
     fn wants_repaint(&self) -> bool {

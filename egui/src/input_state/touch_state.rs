@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, fmt::Debug};
 use crate::{
     data::input::TouchDeviceId,
     emath::{normalized_angle, Pos2, Vec2},
-    Event, RawInput, TouchId, TouchPhase,
+    Event, TouchId, TouchPhase,
 };
 
 /// All you probably need to know about a multi-touch gesture.
@@ -122,9 +122,9 @@ impl TouchState {
         }
     }
 
-    pub(crate) fn begin_frame(&mut self, time: f64, new: &RawInput, pointer_pos: Option<Pos2>) {
+    pub(crate) fn on_events(&mut self, time: f64, events: &[Event], pointer_pos: Option<Pos2>) {
         let mut added_or_removed_touches = false;
-        for event in &new.events {
+        for event in events {
             match *event {
                 Event::Touch {
                     device_id,

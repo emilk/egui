@@ -569,12 +569,11 @@ impl Context {
     fn begin_frame_mut(&mut self, new_raw_input: RawInput) {
         self.memory().begin_frame(&self.input, &new_raw_input);
 
-        let mut input = std::mem::take(&mut self.input);
-        if let Some(new_pixels_per_point) = self.memory().new_pixels_per_point.take() {
-            input.pixels_per_point = new_pixels_per_point;
+        if let Some(new_pixels_per_point) = self.memory.lock().new_pixels_per_point.take() {
+            self.input.pixels_per_point = new_pixels_per_point;
         }
-
-        self.input = input.begin_frame(new_raw_input);
+        self.input.begin_frame(&new_raw_input);
+        self.input.on_events(new_raw_input);
         self.frame_state.lock().begin_frame(&self.input);
 
         self.update_fonts(self.input.pixels_per_point());
