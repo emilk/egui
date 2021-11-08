@@ -84,7 +84,7 @@ impl Painter {
         let workaround = workarounds
             .iter()
             .fold("".to_owned(), |mut list_of_wr, workaround| {
-                list_of_wr.push_str(&workaround);
+                list_of_wr.push_str(workaround);
                 list_of_wr.push('\n');
                 list_of_wr
             });
