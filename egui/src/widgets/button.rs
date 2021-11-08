@@ -166,9 +166,8 @@ impl Widget for Button {
         desired_size = desired_size.at_least(min_size);
 
         if let Some(image) = image {
-            let image_padding = image.size() + 4.0 * button_padding;
-            desired_size.x += image_padding.x;
-            desired_size.y = image_padding.y;
+            desired_size.x += image.size().x + ui.spacing().icon_spacing;
+            desired_size.y = desired_size.y.max(image.size().y + 2.0 * button_padding.y);
         }
 
         let (rect, response) = ui.allocate_at_least(desired_size, sense);
