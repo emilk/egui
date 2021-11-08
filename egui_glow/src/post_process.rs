@@ -19,7 +19,7 @@ pub(crate) struct PostProcess {
 impl PostProcess {
     pub(crate) unsafe fn new(
         gl: &glow::Context,
-        workarounds: &str,
+        shader_prefix: &str,
         need_to_emulate_vao: bool,
         is_webgl_1: bool,
         width: i32,
@@ -98,8 +98,8 @@ impl PostProcess {
             gl,
             glow::VERTEX_SHADER,
             &format!(
-                "{}{}",
-                workarounds,
+                "{}\n{}",
+                shader_prefix,
                 include_str!("shader/post_vertex_100es.glsl")
             ),
         )?;
@@ -107,8 +107,8 @@ impl PostProcess {
             gl,
             glow::FRAGMENT_SHADER,
             &format!(
-                "{}{}",
-                workarounds,
+                "{}\n{}",
+                shader_prefix,
                 include_str!("shader/post_fragment_100es.glsl")
             ),
         )?;

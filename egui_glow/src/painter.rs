@@ -61,7 +61,7 @@ impl Painter {
     /// Create painter.
     ///
     /// Set `pp_fb_extent` to the framebuffer size to enable `sRGB` support on OpenGL ES and WebGL.
-    /// Set `workaround` if you want to turn on shader workaround e.g. `&vec!["#define EPIPHANY_WORKAROUND".to_owned()]`.
+    /// Set `shader_prefix` if you want to turn on shader workaround e.g. `"#define EPIPHANY_WORKAROUND\n"`.
     ///
     /// this fix [Everything is super dark in epiphany](https://github.com/emilk/egui/issues/794)
     /// # Errors
@@ -72,7 +72,7 @@ impl Painter {
     pub fn new(
         gl: &glow::Context,
         pp_fb_extent: Option<[i32; 2]>,
-        workarounds: &[String],
+        shader_prefix: &str,
     ) -> Result<Painter, String> {
         let need_to_emulate_vao = unsafe { crate::misc_util::need_to_emulate_vao(gl) };
         let shader_version = ShaderVersion::get(gl);
@@ -80,14 +80,7 @@ impl Painter {
         let header = shader_version.version();
         glow_debug_print(header);
         let srgb_support = gl.supported_extensions().contains("EXT_sRGB");
-        // format to insert to shader source.
-        let workaround = workarounds
-            .iter()
-            .fold("".to_owned(), |mut list_of_wr, workaround| {
-                list_of_wr.push_str(workaround);
-                list_of_wr.push('\n');
-                list_of_wr
-            });
+
         let (post_process, srgb_support_define) = match (shader_version, srgb_support) {
             //WebGL2 support sRGB default
             (ShaderVersion::Es300, _) | (ShaderVersion::Es100, true) => unsafe {
@@ -98,7 +91,7 @@ impl Painter {
                     (
                         Some(PostProcess::new(
                             gl,
-                            &workaround,
+                            shader_prefix,
                             need_to_emulate_vao,
                             is_webgl_1,
                             width,
@@ -124,7 +117,7 @@ impl Painter {
                 &format!(
                     "{}\n{}\n{}\n{}",
                     header,
-                    workaround,
+                    shader_prefix,
                     shader_version.is_new_shader_interface(),
                     VERT_SRC
                 ),
@@ -135,7 +128,7 @@ impl Painter {
                 &format!(
                     "{}\n{}\n{}\n{}\n{}",
                     header,
-                    workaround,
+                    shader_prefix,
                     srgb_support_define,
                     shader_version.is_new_shader_interface(),
                     FRAG_SRC
