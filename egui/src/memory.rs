@@ -100,6 +100,11 @@ pub struct Options {
     /// but is a signal to any backend that we want the [`crate::Output::events`] read out loud.
     /// Screen readers is an experimental feature of egui, and not supported on all platforms.
     pub screen_reader: bool,
+
+    /// Enable experimental two-pass layout.
+    ///
+    /// See https://github.com/emilk/egui/issues/843
+    pub multi_pass: bool,
 }
 
 // ----------------------------------------------------------------------------

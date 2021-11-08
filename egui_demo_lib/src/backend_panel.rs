@@ -132,6 +132,13 @@ impl BackendPanel {
             ui.ctx().memory().options.screen_reader = screen_reader;
         }
 
+        {
+            let mut multi_pass = ui.ctx().memory().options.multi_pass;
+            ui.checkbox(&mut multi_pass, "☯ Multipass (experimental)")
+                .on_hover_text("Experimental two-pass layout");
+            ui.ctx().memory().options.multi_pass = multi_pass;
+        }
+
         if !frame.is_web() {
             ui.separator();
             if ui.button("Quit").clicked() {
