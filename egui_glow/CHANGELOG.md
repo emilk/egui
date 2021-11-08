@@ -3,6 +3,7 @@ All notable changes to the `egui_glow` integration will be noted in this file.
 
 
 ## Unreleased
+* Add `workarounds` to `Painter::new` to pass GLSL macro to fix platform specific behavior.
 * Make winit/glutin an optional dependency ([#868](https://github.com/emilk/egui/pull/868)).
 * Simplify `EguiGlow` interface ([#871](https://github.com/emilk/egui/pull/871)).
 * Remove `EguiGlow::is_quit_event` ([#881](https://github.com/emilk/egui/pull/881)).

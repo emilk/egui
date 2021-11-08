@@ -61,7 +61,7 @@ impl Painter {
     /// Create painter.
     ///
     /// Set `pp_fb_extent` to the framebuffer size to enable `sRGB` support on OpenGL ES and WebGL.
-    /// Set `workaround` if you want to turn on shader workaround like `vec!["#define EPIPHANY_WORKAROUND".to_owned()]`.
+    /// Set `workaround` if you want to turn on shader workaround like `&vec!["#define EPIPHANY_WORKAROUND".to_owned()]`.
     ///
     /// this fix [Everything is super dark in epiphany](https://github.com/emilk/egui/issues/794)
     /// # Errors
@@ -72,7 +72,7 @@ impl Painter {
     pub fn new(
         gl: &glow::Context,
         pp_fb_extent: Option<[i32; 2]>,
-        workarounds: Vec<String>,
+        workarounds: &[String],
     ) -> Result<Painter, String> {
         let need_to_emulate_vao = unsafe { crate::misc_util::need_to_emulate_vao(gl) };
         let shader_version = ShaderVersion::get(gl);
@@ -83,8 +83,10 @@ impl Painter {
         // format to insert to shader source.
         let workaround = workarounds
             .iter()
-            .fold("".to_owned(), |list_of_wr, work_around| {
-                list_of_wr + work_around + "\n"
+            .fold("".to_owned(), |mut list_of_wr, workaround| {
+                list_of_wr.push_str(&workaround);
+                list_of_wr.push('\n');
+                list_of_wr
             });
         let (post_process, srgb_support_define) = match (shader_version, srgb_support) {
             //WebGL2 support sRGB default

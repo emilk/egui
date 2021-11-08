@@ -7,6 +7,7 @@ use {
     },
 };
 
+use crate::console_log;
 use egui::{
     emath::vec2,
     epaint::{Color32, Texture},
@@ -591,7 +592,19 @@ impl PostProcess {
 
         gl.bind_texture(Gl::TEXTURE_2D, None);
         gl.bind_framebuffer(Gl::FRAMEBUFFER, None);
-
+        // currently epiphany only support webgl1
+        let epiphany_workaround = if web_sys::window()
+            .unwrap()
+            .navigator()
+            .user_agent()
+            .unwrap()
+            .contains("Epiphany")
+        {
+            console_log("epiphany workaround enabled");
+            "#define EPIPHANY_WORKAROUND\n"
+        } else {
+            ""
+        };
         let vert_shader = compile_shader(
             &gl,
             Gl::VERTEX_SHADER,
@@ -600,7 +613,11 @@ impl PostProcess {
         let frag_shader = compile_shader(
             &gl,
             Gl::FRAGMENT_SHADER,
-            include_str!("shader/post_fragment_100es.glsl"),
+            &format!(
+                "{}{}",
+                epiphany_workaround,
+                include_str!("shader/post_fragment_100es.glsl")
+            ),
         )?;
         let program = link_program(&gl, [vert_shader, frag_shader].iter())?;
 
