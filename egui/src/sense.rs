@@ -1,11 +1,11 @@
 /// What sort of interaction is a widget sensitive to?
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-// #[cfg_attr(feature = "persistence", derive(serde::Serialize))]
+// #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Sense {
-    /// buttons, sliders, windows ...
+    /// buttons, sliders, windows, …
     pub click: bool,
 
-    /// sliders, windows, scroll bars, scroll areas ...
+    /// sliders, windows, scroll bars, scroll areas, …
     pub drag: bool,
 
     /// this widgets want focus.
@@ -32,11 +32,6 @@ impl Sense {
             drag: false,
             focusable: true,
         }
-    }
-
-    #[deprecated = "Use hover()"]
-    pub fn nothing() -> Self {
-        Sense::hover()
     }
 
     /// Sense clicks and hover, but not drags.

@@ -2,7 +2,7 @@
 
 #![allow(clippy::if_same_then_else)]
 
-use crate::{color::*, emath::*, Response};
+use crate::{color::*, emath::*, Response, RichText, WidgetText};
 use epaint::{Shadow, Stroke, TextStyle};
 
 /// Specifies the look and feel of egui.
@@ -12,8 +12,8 @@ use epaint::{Shadow, Stroke, TextStyle};
 ///
 /// If you want to change fonts, use [`crate::Context::set_fonts`] instead.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Style {
     /// Default `TextStyle` for normal text (i.e. for `Label` and `TextEdit`).
     pub body_text_style: TextStyle,
@@ -47,6 +47,11 @@ pub struct Style {
 
     /// Options to help debug why egui behaves strangely.
     pub debug: DebugOptions,
+
+    /// Show tooltips explaining `DragValue`:s etc when hovered.
+    ///
+    /// This only affects a few egui widgets.
+    pub explanation_tooltips: bool,
 }
 
 impl Style {
@@ -76,8 +81,8 @@ impl Style {
 
 /// Controls the sizes and distances between widgets.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Spacing {
     /// Horizontal and vertical spacing between widgets.
     ///
@@ -146,8 +151,8 @@ impl Spacing {
 
 /// How and when interaction happens.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Interaction {
     /// Mouse must be the close to the side of a window to resize
     pub resize_grab_radius_side: f32,
@@ -166,8 +171,8 @@ pub struct Interaction {
 ///
 /// If you want to change fonts, use [`crate::Context::set_fonts`] instead.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Visuals {
     /// If true, the visuals are overall dark with light text.
     /// If false, the visuals are overall light with dark text.
@@ -233,6 +238,7 @@ pub struct Visuals {
 }
 
 impl Visuals {
+    #[inline(always)]
     pub fn noninteractive(&self) -> &WidgetVisuals {
         &self.widgets.noninteractive
     }
@@ -246,14 +252,17 @@ impl Visuals {
         crate::color::tint_color_towards(self.text_color(), self.window_fill())
     }
 
+    #[inline(always)]
     pub fn strong_text_color(&self) -> Color32 {
         self.widgets.active.text_color()
     }
 
+    #[inline(always)]
     pub fn window_fill(&self) -> Color32 {
         self.widgets.noninteractive.bg_fill
     }
 
+    #[inline(always)]
     pub fn window_stroke(&self) -> Stroke {
         self.widgets.noninteractive.bg_stroke
     }
@@ -261,8 +270,8 @@ impl Visuals {
 
 /// Selected text, selected elements etc
 #[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Selection {
     pub bg_fill: Color32,
     pub stroke: Stroke,
@@ -270,8 +279,8 @@ pub struct Selection {
 
 /// The visuals of widgets for different states of interaction.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Widgets {
     /// The style of a widget that you cannot interact with.
     /// * `noninteractive.bg_stroke` is the outline of windows.
@@ -304,7 +313,7 @@ impl Widgets {
 
 /// bg = background, fg = foreground.
 #[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WidgetVisuals {
     /// Background color of widget.
     pub bg_fill: Color32,
@@ -317,7 +326,7 @@ pub struct WidgetVisuals {
     /// Button frames etc.
     pub corner_radius: f32,
 
-    /// Stroke and text color of the interactive part of a component (button text, slider grab, check-mark, ...).
+    /// Stroke and text color of the interactive part of a component (button text, slider grab, check-mark, …).
     pub fg_stroke: Stroke,
 
     /// Make the frame this much larger.
@@ -325,6 +334,7 @@ pub struct WidgetVisuals {
 }
 
 impl WidgetVisuals {
+    #[inline(always)]
     pub fn text_color(&self) -> Color32 {
         self.fg_stroke.color
     }
@@ -332,7 +342,7 @@ impl WidgetVisuals {
 
 /// Options for help debug egui by adding extra visualization
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct DebugOptions {
     /// However over widgets to see their rectangles
     pub debug_on_hover: bool,
@@ -356,6 +366,7 @@ impl Default for Style {
             visuals: Visuals::default(),
             animation_time: 1.0 / 12.0,
             debug: Default::default(),
+            explanation_tooltips: false,
         }
     }
 }
@@ -561,6 +572,7 @@ impl Style {
             visuals,
             animation_time,
             debug,
+            explanation_tooltips,
         } = self;
 
         visuals.light_dark_radio_buttons(ui);
@@ -569,15 +581,8 @@ impl Style {
             ui.label("Default body text style:");
             ui.horizontal(|ui| {
                 for &style in &[TextStyle::Body, TextStyle::Monospace] {
-                    if ui
-                        .add(
-                            RadioButton::new(*body_text_style == style, format!("{:?}", style))
-                                .text_style(style),
-                        )
-                        .clicked()
-                    {
-                        *body_text_style = style;
-                    };
+                    let text = crate::RichText::new(format!("{:?}", style)).text_style(style);
+                    ui.radio_value(body_text_style, style, text);
                 }
             });
             ui.end_row();
@@ -591,17 +596,8 @@ impl Style {
                 .show_ui(ui, |ui| {
                     ui.selectable_value(override_text_style, None, "None");
                     for style in TextStyle::all() {
-                        // ui.selectable_value(override_text_style, Some(style), format!("{:?}", style));
-                        let selected = *override_text_style == Some(style);
-                        if ui
-                            .add(
-                                SelectableLabel::new(selected, format!("{:?}", style))
-                                    .text_style(style),
-                            )
-                            .clicked()
-                        {
-                            *override_text_style = Some(style);
-                        }
+                        let text = crate::RichText::new(format!("{:?}", style)).text_style(style);
+                        ui.selectable_value(override_text_style, Some(style), text);
                     }
                 });
             ui.end_row();
@@ -619,6 +615,11 @@ impl Style {
         ui.collapsing("☝ Interaction", |ui| interaction.ui(ui));
         ui.collapsing("🎨 Visuals", |ui| visuals.ui(ui));
         ui.collapsing("🐛 Debug", |ui| debug.ui(ui));
+
+        ui.checkbox(explanation_tooltips, "Explanation tooltips")
+            .on_hover_text(
+                "Show explanatory text when hovering DragValue:s and other egui widgets",
+            );
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
@@ -731,23 +732,23 @@ impl Widgets {
             ui.label(
                 "The style of a widget that you cannot interact with, e.g. labels and separators.",
             );
-            noninteractive.ui(ui)
+            noninteractive.ui(ui);
         });
         ui.collapsing("Interactive but inactive", |ui| {
             ui.label("The style of an interactive widget, such as a button, at rest.");
-            inactive.ui(ui)
+            inactive.ui(ui);
         });
         ui.collapsing("Interactive and hovered", |ui| {
             ui.label("The style of an interactive widget while you hover it.");
-            hovered.ui(ui)
+            hovered.ui(ui);
         });
         ui.collapsing("Interactive and active", |ui| {
             ui.label("The style of an interactive widget as you are clicking or dragging it.");
-            active.ui(ui)
+            active.ui(ui);
         });
         ui.collapsing("Open menu", |ui| {
             ui.label("The style of an open combo-box or menu button");
-            open.ui(ui)
+            open.ui(ui);
         });
 
         // ui.vertical_centered(|ui| reset_button(ui, self));
@@ -784,11 +785,9 @@ impl WidgetVisuals {
 impl Visuals {
     /// Show radio-buttons to switch between light and dark mode.
     pub fn light_dark_radio_buttons(&mut self, ui: &mut crate::Ui) {
-        ui.group(|ui| {
-            ui.horizontal(|ui| {
-                ui.radio_value(self, Self::light(), "☀ Light");
-                ui.radio_value(self, Self::dark(), "🌙 Dark");
-            });
+        ui.horizontal(|ui| {
+            ui.selectable_value(self, Self::light(), "☀ Light");
+            ui.selectable_value(self, Self::dark(), "🌙 Dark");
         });
     }
 
@@ -864,7 +863,7 @@ impl Visuals {
             &mut widgets.noninteractive.fg_stroke.color,
             "Text color",
         );
-        ui_color(ui, code_bg_color, Label::new("Code background").code()).on_hover_ui(|ui| {
+        ui_color(ui, code_bg_color, RichText::new("Code background").code()).on_hover_ui(|ui| {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;
                 ui.label("For monospaced inlined text ");
@@ -934,10 +933,10 @@ fn slider_vec2<'a>(
     }
 }
 
-fn ui_color(ui: &mut Ui, srgba: &mut Color32, text: impl Into<Label>) -> Response {
+fn ui_color(ui: &mut Ui, srgba: &mut Color32, label: impl Into<WidgetText>) -> Response {
     ui.horizontal(|ui| {
         ui.color_edit_button_srgba(srgba);
-        ui.label(text);
+        ui.label(label);
     })
     .response
 }

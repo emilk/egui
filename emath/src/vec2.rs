@@ -6,8 +6,10 @@ use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub, SubAssign};
 /// emath represents positions using [`crate::Pos2`].
 ///
 /// Normally the units are points (logical pixels).
+#[repr(C)]
 #[derive(Clone, Copy, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Vec2 {
     pub x: f32,
     pub y: f32,
@@ -112,16 +114,6 @@ impl Vec2 {
     pub const ZERO: Self = Self { x: 0.0, y: 0.0 };
     pub const INFINITY: Self = Self::splat(f32::INFINITY);
 
-    #[deprecated = "Use Vec2::ZERO instead"]
-    pub fn zero() -> Self {
-        Self::ZERO
-    }
-
-    #[deprecated = "Use Vec2::INFINITY instead"]
-    pub fn infinity() -> Self {
-        Self::INFINITY
-    }
-
     #[inline(always)]
     pub const fn new(x: f32, y: f32) -> Self {
         Self { x, y }
@@ -131,6 +123,16 @@ impl Vec2 {
     #[inline(always)]
     pub const fn splat(v: f32) -> Self {
         Self { x: v, y: v }
+    }
+
+    /// Treat this vector as a position.
+    /// `v.to_pos2()` is equivalent to `Pos2::default() + v`.
+    #[inline(always)]
+    pub fn to_pos2(self) -> crate::Pos2 {
+        crate::Pos2 {
+            x: self.x,
+            y: self.y,
+        }
     }
 
     /// Safe normalize: returns zero if input is zero.
@@ -183,7 +185,7 @@ impl Vec2 {
         self.y.atan2(self.x)
     }
 
-    /// Create a unit vector with the given angle (in radians).
+    /// Create a unit vector with the given CW angle (in radians).
     /// * An angle of zero gives the unit X axis.
     /// * An angle of 𝞃/4 = 90° gives the unit Y axis.
     ///
@@ -423,7 +425,7 @@ impl std::fmt::Debug for Vec2 {
 #[test]
 fn test_vec2() {
     macro_rules! almost_eq {
-        ($left:expr, $right:expr) => {
+        ($left: expr, $right: expr) => {
             let left = $left;
             let right = $right;
             assert!((left - right).abs() < 1e-6, "{} != {}", left, right);

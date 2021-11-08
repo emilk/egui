@@ -5,10 +5,11 @@ use crate::*;
 /// Usually you'd use the shorter version [`Ui::separator`].
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// // These are equivalent:
 /// ui.separator();
 /// ui.add(egui::Separator::default());
+/// # });
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Separator {
@@ -26,11 +27,6 @@ impl Default for Separator {
 }
 
 impl Separator {
-    #[deprecated = "Use Separator::default() instead"]
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     /// How much space we take up. The line is painted in the middle of this.
     pub fn spacing(mut self, spacing: f32) -> Self {
         self.spacing = spacing;
@@ -64,7 +60,7 @@ impl Widget for Separator {
         let is_horizontal_line = is_horizontal_line
             .unwrap_or_else(|| ui.is_grid() || !ui.layout().main_dir().is_horizontal());
 
-        let available_space = ui.available_size_before_wrap_finite();
+        let available_space = ui.available_size_before_wrap();
 
         let size = if is_horizontal_line {
             vec2(available_space.x, spacing)
@@ -73,19 +69,23 @@ impl Widget for Separator {
         };
 
         let (rect, response) = ui.allocate_at_least(size, Sense::hover());
-        let points = if is_horizontal_line {
-            [
-                pos2(rect.left(), rect.center().y),
-                pos2(rect.right(), rect.center().y),
-            ]
-        } else {
-            [
-                pos2(rect.center().x, rect.top()),
-                pos2(rect.center().x, rect.bottom()),
-            ]
-        };
-        let stroke = ui.visuals().widgets.noninteractive.bg_stroke;
-        ui.painter().line_segment(points, stroke);
+
+        if ui.is_rect_visible(response.rect) {
+            let points = if is_horizontal_line {
+                [
+                    pos2(rect.left(), rect.center().y),
+                    pos2(rect.right(), rect.center().y),
+                ]
+            } else {
+                [
+                    pos2(rect.center().x, rect.top()),
+                    pos2(rect.center().x, rect.bottom()),
+                ]
+            };
+            let stroke = ui.visuals().widgets.noninteractive.bg_stroke;
+            ui.painter().line_segment(points, stroke);
+        }
+
         response
     }
 }

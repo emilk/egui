@@ -1,14 +1,41 @@
 # Changelog for egui_glium
-
 All notable changes to the `egui_glium` integration will be noted in this file.
 
 
 ## Unreleased
+* Simplify `EguiGlium` interface ([#871](https://github.com/emilk/egui/pull/871)).
+* Remove `EguiGlium::is_quit_event` ([#881](https://github.com/emilk/egui/pull/881)).
 
+
+## 0.15.0 - 2021-10-24
+* Remove "http" feature (use https://github.com/emilk/ehttp instead!).
+* Implement `epi::NativeTexture` trait for the glium painter.
+* Deprecate 'Painter::register_glium_texture'.
+* Increase scroll speed.
+* Restore window position on startup without flickering.
+* A lot of the code has been moved to the new library [`egui-winit`](https://github.com/emilk/egui/tree/master/egui-winit).
+* Fix reactive mode on windows.
+
+
+## 0.14.0 - 2021-08-24
+* Fix native file dialogs hanging (eg. when using [`rfd`](https://github.com/PolyMeilex/rfd)).
+* Implement drag-and-dropping files into the application.
+* [Fix minimize on Windows](https://github.com/emilk/egui/issues/518).
+* Change `drag_and_drop_support` to `false` by default (Windows only). See <https://github.com/emilk/egui/issues/598>.
+* Don't restore window position on Windows, because the position would sometimes be invalid.
+
+
+## 0.13.1 - 2021-06-24
+* Fix `http` feature flag and docs
+
+
+## 0.13.0 - 2021-06-24
+* Add `EguiGlium::is_quit_event` to replace `control_flow` arguemnt to `EguiGlium::on_event`.
 * [Fix modifier key for zoom with mouse wheel on Mac](https://github.com/emilk/egui/issues/401)
+* [Fix stuck modifier keys](https://github.com/emilk/egui/pull/479)
+
 
 ## 0.12.0 - 2021-05-10
-
 * Simplify usage with a new `EguiGlium` wrapper type.
 
 
@@ -28,14 +55,11 @@ All notable changes to the `egui_glium` integration will be noted in this file.
 
 
 ## 0.8.0 - 2021-01-17
-### Fixed 🐛
-
 * Fix a bug where key releases weren't sent to egui
 * Fix `set_window_size` for non-native `pixels_per_point`.
 
 
 ## 0.7.0 - 2021-01-04
-### Changed 🔧
 * `http` `persistence` and `time` are now optional (and opt-in) features.
 
 
@@ -55,7 +79,6 @@ All notable changes to the `egui_glium` integration will be noted in this file.
 
 
 ## 0.5.0 - 2020-12-13
-### Changed 🔧
 * FileStorage::from_path now takes `Into<Path>` instead of `String`
 
 

@@ -2,11 +2,13 @@ use std::collections::VecDeque;
 
 /// This struct tracks recent values of some time series.
 ///
-/// One use is to show a log of recent events,
-/// or show a graph over recent events.
+/// It can be used as a smoothing filter for e.g. latency, fps etc,
+/// or to show a log or graph of recent events.
 ///
-/// It has both a maximum length and a maximum storage time.
-/// Elements are dropped when either max length or max age is reached.
+/// It has a minimum and maximum length, as well as a maximum storage time.
+/// * The minimum length is to ensure you have enough data for an estimate.
+/// * The maximum length is to make sure the history doesn't take up too much space.
+/// * The maximum age is to make sure the estimate isn't outdated.
 ///
 /// Time difference between values can be zero, but never negative.
 ///
@@ -15,11 +17,15 @@ use std::collections::VecDeque;
 /// All times are in seconds.
 #[derive(Clone, Debug)]
 pub struct History<T> {
-    /// In elements, i.e. of `values.len()`
+    /// In elements, i.e. of `values.len()`.
+    /// The length is initially zero, but once past `min_len` will not shrink below it.
+    min_len: usize,
+
+    /// In elements, i.e. of `values.len()`.
     max_len: usize,
 
-    /// In seconds
-    max_age: f64, // TODO: f32
+    /// In seconds.
+    max_age: f32,
 
     /// Total number of elements seen ever
     total_count: u64,
@@ -33,38 +39,52 @@ impl<T> History<T>
 where
     T: Copy,
 {
-    pub fn new(max_len: usize, max_age: f64) -> Self {
-        Self::from_max_len_age(max_len, max_age)
-    }
-
-    pub fn from_max_len_age(max_len: usize, max_age: f64) -> Self {
+    /// Example:
+    /// ```
+    /// # use egui::util::History;
+    /// # fn now() -> f64 { 0.0 }
+    /// // Drop events that are older than one second,
+    /// // as long we keep at least two events. Never keep more than a hundred events.
+    /// let mut history = History::new(2..100, 1.0);
+    /// assert_eq!(history.average(), None);
+    /// history.add(now(), 40.0_f32);
+    /// history.add(now(), 44.0_f32);
+    /// assert_eq!(history.average(), Some(42.0));
+    /// ```
+    pub fn new(length_range: std::ops::Range<usize>, max_age: f32) -> Self {
         Self {
-            max_len,
+            min_len: length_range.start,
+            max_len: length_range.end,
             max_age,
             total_count: 0,
             values: Default::default(),
         }
     }
 
+    #[inline]
     pub fn max_len(&self) -> usize {
         self.max_len
     }
 
+    #[inline]
     pub fn max_age(&self) -> f32 {
-        self.max_age as f32
+        self.max_age
     }
 
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.values.is_empty()
     }
 
     /// Current number of values kept in history
+    #[inline]
     pub fn len(&self) -> usize {
         self.values.len()
     }
 
     /// Total number of values seen.
     /// Includes those that have been discarded due to `max_len` or `max_age`.
+    #[inline]
     pub fn total_count(&self) -> u64 {
         self.total_count
     }
@@ -97,8 +117,9 @@ where
         self.values.iter().map(|(_time, value)| *value)
     }
 
+    #[inline]
     pub fn clear(&mut self) {
-        self.values.clear()
+        self.values.clear();
     }
 
     /// Values must be added with a monotonically increasing time, or at least not decreasing.
@@ -125,14 +146,23 @@ where
         }
     }
 
-    /// Remove samples that are too old
+    // Mean number of events per second.
+    pub fn rate(&self) -> Option<f32> {
+        self.mean_time_interval().map(|time| 1.0 / time)
+    }
+
+    /// Remove samples that are too old.
     pub fn flush(&mut self, now: f64) {
         while self.values.len() > self.max_len {
             self.values.pop_front();
         }
-        while let Some((front_time, _)) = self.values.front() {
-            if *front_time < now - self.max_age {
-                self.values.pop_front();
+        while self.values.len() > self.min_len {
+            if let Some((front_time, _)) = self.values.front() {
+                if *front_time < now - (self.max_age as f64) {
+                    self.values.pop_front();
+                } else {
+                    break;
+                }
             } else {
                 break;
             }
@@ -146,6 +176,7 @@ where
     T: std::iter::Sum,
     T: std::ops::Div<f32, Output = T>,
 {
+    #[inline]
     pub fn sum(&self) -> T {
         self.values().sum()
     }
@@ -160,13 +191,29 @@ where
     }
 }
 
+impl<T> History<T>
+where
+    T: Copy,
+    T: std::iter::Sum,
+    T: std::ops::Div<f32, Output = T>,
+    T: std::ops::Mul<f32, Output = T>,
+{
+    /// Average times rate.
+    /// If you are keeping track of individual sizes of things (e.g. bytes),
+    /// this will estimate the bandwidth (bytes per second).
+    pub fn bandwidth(&self) -> Option<T> {
+        Some(self.average()? * self.rate()?)
+    }
+}
+
 impl<T, Vel> History<T>
 where
     T: Copy,
     T: std::ops::Sub<Output = Vel>,
     Vel: std::ops::Div<f32, Output = Vel>,
 {
-    /// Calculate a smooth velocity (per second) over the entire time span
+    /// Calculate a smooth velocity (per second) over the entire time span.
+    /// Calculated as the last value minus the first value over the elapsed time between them.
     pub fn velocity(&self) -> Option<Vel> {
         if let (Some(first), Some(last)) = (self.values.front(), self.values.back()) {
             let dt = (last.0 - first.0) as f32;

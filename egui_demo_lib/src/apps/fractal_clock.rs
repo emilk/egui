@@ -2,8 +2,8 @@ use egui::{containers::*, widgets::*, *};
 use std::f32::consts::TAU;
 
 #[derive(PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct FractalClock {
     paused: bool,
     time: f64,
@@ -37,10 +37,10 @@ impl epi::App for FractalClock {
         "🕑 Fractal Clock"
     }
 
-    fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
+    fn update(&mut self, ctx: &egui::CtxRef, _frame: &mut epi::Frame<'_>) {
         egui::CentralPanel::default()
             .frame(Frame::dark_canvas(&ctx.style()))
-            .show(ctx, |ui| self.ui(ui, frame.info().seconds_since_midnight));
+            .show(ctx, |ui| self.ui(ui, crate::seconds_since_midnight()));
     }
 }
 
@@ -54,7 +54,7 @@ impl FractalClock {
         let painter = Painter::new(
             ui.ctx().clone(),
             ui.layer_id(),
-            ui.available_rect_before_wrap_finite(),
+            ui.available_rect_before_wrap(),
         );
         self.paint(&painter);
         // Make sure we allocate what we used (everything)

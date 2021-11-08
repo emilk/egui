@@ -1,18 +1,13 @@
 //! Backend-agnostic interface for writing apps using [`egui`].
 //!
-//! `epi` provides interfaces for window management, serialization and http requests.
+//! `epi` provides interfaces for window management and serialization.
 //! An app written for `epi` can then be plugged into [`eframe`](https://docs.rs/eframe),
 //! the egui framework crate.
 //!
 //! Start by looking at the [`App`] trait, and implement [`App::update`].
 
-#![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
-#![deny(
-    rustdoc::broken_intra_doc_links,
-    rustdoc::invalid_codeblock_attributes,
-    rustdoc::missing_crate_level_docs,
-    rustdoc::private_intra_doc_links
-)]
+// Forbid warnings in release builds:
+#![cfg_attr(not(debug_assertions), deny(warnings))]
 #![forbid(unsafe_code)]
 #![warn(
     clippy::all,
@@ -21,6 +16,7 @@
     clippy::checked_conversions,
     clippy::dbg_macro,
     clippy::debug_assert_with_mut_call,
+    clippy::disallowed_method,
     clippy::doc_markdown,
     clippy::empty_enum,
     clippy::enum_glob_use,
@@ -30,12 +26,17 @@
     clippy::explicit_into_iter_loop,
     clippy::fallible_impl_from,
     clippy::filter_map_next,
+    clippy::flat_map_option,
     clippy::float_cmp_const,
     clippy::fn_params_excessive_bools,
+    clippy::from_iter_instead_of_collect,
     clippy::if_let_mutex,
+    clippy::implicit_clone,
     clippy::imprecise_flops,
     clippy::inefficient_to_string,
     clippy::invalid_upcast_comparisons,
+    clippy::large_digit_groups,
+    clippy::large_stack_arrays,
     clippy::large_types_passed_by_value,
     clippy::let_unit_value,
     clippy::linkedlist,
@@ -44,8 +45,10 @@
     clippy::manual_ok_or,
     clippy::map_err_ignore,
     clippy::map_flatten,
+    clippy::map_unwrap_or,
     clippy::match_on_vec_items,
     clippy::match_same_arms,
+    clippy::match_wild_err_arm,
     clippy::match_wildcard_for_single_variants,
     clippy::mem_forget,
     clippy::mismatched_target_os,
@@ -55,14 +58,16 @@
     clippy::mutex_integer,
     clippy::needless_borrow,
     clippy::needless_continue,
+    clippy::needless_for_each,
     clippy::needless_pass_by_value,
     clippy::option_option,
     clippy::path_buf_push_overwrite,
     clippy::ptr_as_ptr,
-    clippy::pub_enum_variant_names,
     clippy::ref_option_ref,
     clippy::rest_pat_in_fully_bound_structs,
     clippy::same_functions_in_if_condition,
+    clippy::semicolon_if_nothing_returned,
+    clippy::single_match_else,
     clippy::string_add_assign,
     clippy::string_add,
     clippy::string_lit_as_bytes,
@@ -74,32 +79,40 @@
     clippy::unused_self,
     clippy::useless_transmute,
     clippy::verbose_file_reads,
-    clippy::wrong_pub_self_convention,
     clippy::zero_sized_map_values,
     future_incompatible,
+    missing_crate_level_docs,
     nonstandard_style,
     rust_2018_idioms
 )]
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
+#![warn(missing_docs)] // Let's keep `epi` well-documented.
+
+/// File storage which can be used by native backends.
+#[cfg(feature = "file_storage")]
+pub mod file_storage;
 
 pub use egui; // Re-export for user convenience
 
 // ----------------------------------------------------------------------------
 
-/// Implement this trait to write apps that can be compiled both natively using the [`egui_glium`](https://crates.io/crates/egui_glium) crate,
-/// and deployed as a web site using the [`egui_web`](https://crates.io/crates/egui_web) crate.
+/// Implement this trait to write apps that can be compiled both natively using the [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium) crate,
+/// and deployed as a web site using the [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web) crate.
 pub trait App {
     /// Called each time the UI needs repainting, which may be many times per second.
+    ///
     /// Put your widgets into a [`egui::SidePanel`], [`egui::TopBottomPanel`], [`egui::CentralPanel`], [`egui::Window`] or [`egui::Area`].
+    ///
+    /// To force a repaint, call either [`egui::Context::request_repaint`] or use [`Frame::repaint_signal`].
     fn update(&mut self, ctx: &egui::CtxRef, frame: &mut Frame<'_>);
 
     /// Called once before the first frame.
     ///
-    /// Allows you to do setup code, e.g to call `[egui::Context::set_fonts]`,
-    /// `[egui::Context::set_visuals]` etc.
+    /// Allows you to do setup code, e.g to call [`egui::Context::set_fonts`],
+    /// [`egui::Context::set_visuals`] etc.
     ///
-    /// Also allows you to restore state, if there is a storage.
+    /// Also allows you to restore state, if there is a storage (required the "persistence" feature).
     fn setup(
         &mut self,
         _ctx: &egui::CtxRef,
@@ -111,12 +124,17 @@ pub trait App {
     /// If `true` a warm-up call to [`Self::update`] will be issued where
     /// `ctx.memory().everything_is_visible()` will be set to `true`.
     ///
+    /// This will help pre-caching all text, preventing stutter when
+    /// opening a window containing new glyphs.
+    ///
     /// In this warm-up call, all painted shapes will be ignored.
     fn warm_up_enabled(&self) -> bool {
         false
     }
 
     /// Called on shutdown, and perhaps at regular intervals. Allows you to save state.
+    ///
+    /// Only called when the "persistence" feature is enabled.
     ///
     /// On web the states is stored to "Local Storage".
     /// On native the path is picked using [`directories_next::ProjectDirs::data_dir`](https://docs.rs/directories-next/2.0.0/directories_next/struct.ProjectDirs.html#method.data_dir) which is:
@@ -133,7 +151,8 @@ pub trait App {
     // ---------
     // Settings:
 
-    /// The name of your App.
+    /// The name of your App, used for the title bar of native windows
+    /// and the save location of persistence (see [`Self::save`]).
     fn name(&self) -> &str;
 
     /// Time between automatic calls to [`Self::save`]
@@ -155,6 +174,18 @@ pub trait App {
         // `transparent()` option they get immediate results.
         egui::Color32::from_rgba_unmultiplied(12, 12, 12, 180).into()
     }
+
+    /// Controls wether or not the native window position and size will be
+    /// persisted (only if the "persistence" feature is enabled).
+    fn persist_native_window(&self) -> bool {
+        true
+    }
+
+    /// Controls wether or not the egui memory (window positions etc) will be
+    /// persisted (only if the "persistence" feature is enabled).
+    fn persist_egui_memory(&self) -> bool {
+        true
+    }
 }
 
 /// Options controlling the behavior of a native window
@@ -163,13 +194,17 @@ pub struct NativeOptions {
     /// Sets whether or not the window will always be on top of other windows.
     pub always_on_top: bool,
 
+    /// Show window in maximized mode
+    pub maximized: bool,
+
     /// On desktop: add window decorations (i.e. a frame around your app)?
     /// If false it will be difficult to move and resize the app.
     pub decorated: bool,
 
     /// On Windows: enable drag and drop support.
-    /// Set to false to avoid issues with crates such as cpal which
-    /// uses that use multi-threaded COM API <https://github.com/rust-windowing/winit/pull/1524>
+    /// Default is `false` to avoid issues with crates such as [`cpal`](https://github.com/RustAudio/cpal) which
+    /// will hang when combined with drag-and-drop.
+    /// See <https://github.com/rust-windowing/winit/issues/1255>.
     pub drag_and_drop_support: bool,
 
     /// The application icon, e.g. in the Windows task bar etc.
@@ -191,8 +226,9 @@ impl Default for NativeOptions {
     fn default() -> Self {
         Self {
             always_on_top: false,
+            maximized: false,
             decorated: true,
-            drag_and_drop_support: true,
+            drag_and_drop_support: false,
             icon_data: None,
             initial_window_size: None,
             resizable: true,
@@ -217,7 +253,7 @@ pub struct IconData {
 /// Represents the surroundings of your app.
 ///
 /// It provides methods to inspect the surroundings (are we on the web?),
-/// allocate textures, do http requests, and change settings (e.g. window size).
+/// allocate textures, and change settings (e.g. window size).
 pub struct Frame<'a>(backend::FrameBuilder<'a>);
 
 impl<'a> Frame<'a> {
@@ -237,7 +273,7 @@ impl<'a> Frame<'a> {
     }
 
     /// Signal the app to stop/exit/quit the app (only works for native apps, not web apps).
-    /// The framework will NOT quick immediately, but at the end of the this frame.
+    /// The framework will not quit immediately, but at the end of the this frame.
     pub fn quit(&mut self) {
         self.0.output.quit = true;
     }
@@ -247,22 +283,28 @@ impl<'a> Frame<'a> {
         self.0.output.window_size = Some(size);
     }
 
+    /// Set the desired title of the window.
+    pub fn set_window_title(&mut self, title: &str) {
+        self.0.output.window_title = Some(title.to_owned());
+    }
+
+    /// Set whether to show window decorations (i.e. a frame around you app).
+    /// If false it will be difficult to move and resize the app.
+    pub fn set_decorations(&mut self, decorated: bool) {
+        self.0.output.decorated = Some(decorated);
+    }
+
+    /// When called, the native window will follow the
+    /// movement of the cursor while the primary mouse button is down.
+    ///
+    /// Does not work on the web, and works badly on Mac.
+    pub fn drag_window(&mut self) {
+        self.0.output.drag_window = true;
+    }
+
     /// If you need to request a repaint from another thread, clone this and send it to that other thread.
     pub fn repaint_signal(&self) -> std::sync::Arc<dyn RepaintSignal> {
         self.0.repaint_signal.clone()
-    }
-
-    /// Very simple Http fetch API.
-    /// Calls the given callback when done.
-    ///
-    /// You must enable the "http" feature for this.
-    #[cfg(feature = "http")]
-    pub fn http_fetch(
-        &self,
-        request: http::Request,
-        on_done: impl 'static + Send + FnOnce(Result<http::Response, http::Error>),
-    ) {
-        self.0.http.fetch_dyn(request, Box::new(on_done))
     }
 }
 
@@ -278,6 +320,9 @@ pub struct WebInfo {
 /// Information about the integration passed to the use app each frame.
 #[derive(Clone, Debug)]
 pub struct IntegrationInfo {
+    /// The name of the integration, e.g. `egui_web`, `egui_glium`, `egui_glow`
+    pub name: &'static str,
+
     /// If the app is running in a Web context, this returns information about the environment.
     pub web_info: Option<WebInfo>,
 
@@ -288,10 +333,6 @@ pub struct IntegrationInfo {
     /// Seconds of cpu usage (in seconds) of UI code on the previous frame.
     /// `None` if this is the first frame.
     pub cpu_usage: Option<f32>,
-
-    /// Local time. Used for the clock in the demo app.
-    /// Set to `None` if you don't know.
-    pub seconds_since_midnight: Option<f64>,
 
     /// The OS native pixels-per-point
     pub native_pixels_per_point: Option<f32>,
@@ -311,6 +352,19 @@ pub trait TextureAllocator {
 
     /// Free the given texture.
     fn free(&mut self, id: egui::TextureId);
+}
+
+/// Abstraction for platform dependent texture reference
+pub trait NativeTexture {
+    /// The native texture type.
+    type Texture;
+
+    /// Bind native texture to egui texture
+    fn register_native_texture(&mut self, native: Self::Texture) -> egui::TextureId;
+
+    /// Change id's actual pointing texture
+    /// only for user texture
+    fn replace_native_texture(&mut self, id: egui::TextureId, replacing: Self::Texture);
 }
 
 /// How to signal the [`egui`] integration that a repaint is required.
@@ -370,85 +424,9 @@ pub const APP_KEY: &str = "app";
 
 // ----------------------------------------------------------------------------
 
-#[cfg(feature = "http")]
-/// `epi` supports simple HTTP requests with [`Frame::http_fetch`].
-///
-/// You must enable the "http" feature for this.
-pub mod http {
-    /// A simple http requests.
-    pub struct Request {
-        /// "GET", …
-        pub method: String,
-        /// https://…
-        pub url: String,
-        /// x-www-form-urlencoded body
-        pub body: String,
-    }
-
-    impl Request {
-        /// Create a `GET` requests with the given url.
-        #[allow(clippy::needless_pass_by_value)]
-        pub fn get(url: impl ToString) -> Self {
-            Self {
-                method: "GET".to_owned(),
-                url: url.to_string(),
-                body: "".to_string(),
-            }
-        }
-
-        /// Create a `POST` requests with the give url and body.
-        #[allow(clippy::needless_pass_by_value)]
-        pub fn post(url: impl ToString, body: impl ToString) -> Self {
-            Self {
-                method: "POST".to_owned(),
-                url: url.to_string(),
-                body: body.to_string(),
-            }
-        }
-    }
-
-    /// Response from a completed HTTP request.
-    pub struct Response {
-        /// The URL we ended up at. This can differ from the request url when we have followed redirects.
-        pub url: String,
-        /// Did we get a 2xx response code?
-        pub ok: bool,
-        /// Status code (e.g. `404` for "File not found").
-        pub status: u16,
-        /// Status text (e.g. "File not found" for status code `404`).
-        pub status_text: String,
-
-        /// Content-Type header, or empty string if missing.
-        pub header_content_type: String,
-
-        /// The raw bytes.
-        pub bytes: Vec<u8>,
-
-        /// UTF-8 decoded version of bytes.
-        /// ONLY if `header_content_type` starts with "text" and bytes is UTF-8.
-        pub text: Option<String>,
-    }
-
-    /// Possible errors does NOT include e.g. 404, which is NOT considered an error.
-    pub type Error = String;
-}
-
-// ----------------------------------------------------------------------------
-
 /// You only need to look here if you are writing a backend for `epi`.
 pub mod backend {
     use super::*;
-
-    /// Implements `Http` requests.
-    #[cfg(feature = "http")]
-    pub trait Http {
-        /// Calls the given callback when done.
-        fn fetch_dyn(
-            &self,
-            request: http::Request,
-            on_done: Box<dyn FnOnce(Result<http::Response, http::Error>) + Send>,
-        );
-    }
 
     /// The data required by [`Frame`] each frame.
     pub struct FrameBuilder<'a> {
@@ -456,9 +434,6 @@ pub mod backend {
         pub info: IntegrationInfo,
         /// A way to allocate textures (on integrations that support it).
         pub tex_allocator: &'a mut dyn TextureAllocator,
-        /// Do http requests.
-        #[cfg(feature = "http")]
-        pub http: std::sync::Arc<dyn backend::Http>,
         /// Where the app can issue commands back to the integration.
         pub output: &'a mut AppOutput,
         /// If you need to request a repaint from another thread, clone this and send it to that other thread.
@@ -473,7 +448,7 @@ pub mod backend {
     }
 
     /// Action that can be taken by the user app.
-    #[derive(Clone, Copy, Debug, Default, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct AppOutput {
         /// Set to `true` to stop the app.
         /// This does nothing for web apps.
@@ -481,5 +456,14 @@ pub mod backend {
 
         /// Set to some size to resize the outer window (e.g. glium window) to this size.
         pub window_size: Option<egui::Vec2>,
+
+        /// Set to some string to rename the outer window (e.g. glium window) to this title.
+        pub window_title: Option<String>,
+
+        /// Set to some bool to change window decorations
+        pub decorated: Option<bool>,
+
+        /// Set to true to drap window
+        pub drag_window: bool,
     }
 }

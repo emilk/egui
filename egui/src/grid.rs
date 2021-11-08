@@ -1,13 +1,21 @@
 use crate::*;
 
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct State {
     col_widths: Vec<f32>,
     row_heights: Vec<f32>,
 }
 
 impl State {
+    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
+        ctx.memory().data.get_persisted(id)
+    }
+
+    pub fn store(self, ctx: &Context, id: Id) {
+        ctx.memory().data.insert_persisted(id, self);
+    }
+
     fn set_min_col_width(&mut self, col: usize, width: f32) {
         self.col_widths
             .resize(self.col_widths.len().max(col + 1), 0.0);
@@ -46,27 +54,29 @@ pub(crate) struct GridLayout {
     prev_state: State,
     /// State accumulated during the current frame.
     curr_state: State,
+    initial_available: Rect,
 
+    // Options:
+    num_columns: Option<usize>,
     spacing: Vec2,
-
-    striped: bool,
-    initial_x: f32,
     min_cell_size: Vec2,
     max_cell_size: Vec2,
+    striped: bool,
+
+    // Cursor:
     col: usize,
     row: usize,
 }
 
 impl GridLayout {
     pub(crate) fn new(ui: &Ui, id: Id) -> Self {
-        let prev_state = ui.memory().id_data.get_or_default::<State>(id).clone();
+        let prev_state = State::load(ui.ctx(), id).unwrap_or_default();
 
         // TODO: respect current layout
 
-        let available = ui.placer().max_rect().intersect(ui.cursor());
-        let initial_x = available.min.x;
-        assert!(
-            initial_x.is_finite(),
+        let initial_available = ui.placer().max_rect().intersect(ui.cursor());
+        crate::egui_assert!(
+            initial_available.min.x.is_finite(),
             "Grid not yet available for right-to-left layouts"
         );
 
@@ -76,11 +86,14 @@ impl GridLayout {
             id,
             prev_state,
             curr_state: State::default(),
+            initial_available,
+
+            num_columns: None,
             spacing: ui.spacing().item_spacing,
-            striped: false,
-            initial_x,
             min_cell_size: ui.spacing().interact_size,
             max_cell_size: Vec2::INFINITY,
+            striped: false,
+
             col: 0,
             row: 0,
         }
@@ -104,12 +117,11 @@ impl GridLayout {
     }
 
     pub(crate) fn available_rect(&self, region: &Region) -> Rect {
-        // required for putting CollapsingHeader in anything but the last column:
-        self.available_rect_finite(region)
-    }
+        let is_last_column = Some(self.col + 1) == self.num_columns;
 
-    pub(crate) fn available_rect_finite(&self, region: &Region) -> Rect {
-        let width = if self.max_cell_size.x.is_finite() {
+        let width = if is_last_column {
+            (self.initial_available.right() - region.cursor.left()).at_most(self.max_cell_size.x)
+        } else if self.max_cell_size.x.is_finite() {
             // TODO: should probably heed `prev_state` here too
             self.max_cell_size.x
         } else {
@@ -121,9 +133,12 @@ impl GridLayout {
                 .unwrap_or(self.min_cell_size.x)
         };
 
+        // If something above was wider, we can be wider:
+        let width = width.max(self.curr_state.col_width(self.col).unwrap_or(0.0));
+
         let available = region.max_rect.intersect(region.cursor);
 
-        let height = region.max_rect_finite().max.y - available.top();
+        let height = region.max_rect.max.y - available.top();
         let height = height
             .at_least(self.min_cell_size.y)
             .at_most(self.max_cell_size.y);
@@ -148,7 +163,7 @@ impl GridLayout {
         self.align_size_within_rect(size, frame)
     }
 
-    pub(crate) fn advance(&mut self, cursor: &mut Rect, frame_rect: Rect, widget_rect: Rect) {
+    pub(crate) fn advance(&mut self, cursor: &mut Rect, _frame_rect: Rect, widget_rect: Rect) {
         let debug_expand_width = self.style.debug.show_expand_width;
         let debug_expand_height = self.style.debug.show_expand_height;
         if debug_expand_width || debug_expand_height {
@@ -172,21 +187,22 @@ impl GridLayout {
         }
 
         self.curr_state
-            .set_min_col_width(self.col, widget_rect.width().at_least(self.min_cell_size.x));
-        self.curr_state.set_min_row_height(
-            self.row,
-            widget_rect.height().at_least(self.min_cell_size.y),
-        );
+            .set_min_col_width(self.col, widget_rect.width().max(self.min_cell_size.x));
+        self.curr_state
+            .set_min_row_height(self.row, widget_rect.height().max(self.min_cell_size.y));
 
+        cursor.min.x += self.prev_col_width(self.col) + self.spacing.x;
         self.col += 1;
-        cursor.min.x += frame_rect.width() + self.spacing.x;
     }
 
     pub(crate) fn end_row(&mut self, cursor: &mut Rect, painter: &Painter) {
-        let row_height = self.prev_row_height(self.row);
+        cursor.min.x = self.initial_available.min.x;
+        cursor.min.y += self.spacing.y;
+        cursor.min.y += self
+            .curr_state
+            .row_height(self.row)
+            .unwrap_or(self.min_cell_size.y);
 
-        cursor.min.x = self.initial_x;
-        cursor.min.y += row_height + self.spacing.y;
         self.col = 0;
         self.row += 1;
 
@@ -205,10 +221,7 @@ impl GridLayout {
 
     pub(crate) fn save(&self) {
         if self.curr_state != self.prev_state {
-            self.ctx
-                .memory()
-                .id_data
-                .insert(self.id, self.curr_state.clone());
+            self.curr_state.clone().store(&self.ctx, self.id);
             self.ctx.request_repaint();
         }
     }
@@ -225,7 +238,7 @@ impl GridLayout {
 /// [`Ui::horizontal`], [`Ui::vertical`] etc.
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// egui::Grid::new("some_unique_id").show(ui, |ui| {
 ///     ui.label("First row, first column");
 ///     ui.label("First row, second column");
@@ -240,10 +253,12 @@ impl GridLayout {
 ///     ui.label("Third row, second column");
 ///     ui.end_row();
 /// });
+/// # });
 /// ```
 #[must_use = "You should call .show()"]
 pub struct Grid {
     id_source: Id,
+    num_columns: Option<usize>,
     striped: bool,
     min_col_width: Option<f32>,
     min_row_height: Option<f32>,
@@ -257,6 +272,7 @@ impl Grid {
     pub fn new(id_source: impl std::hash::Hash) -> Self {
         Self {
             id_source: Id::new(id_source),
+            num_columns: None,
             striped: false,
             min_col_width: None,
             min_row_height: None,
@@ -264,6 +280,12 @@ impl Grid {
             spacing: None,
             start_row: 0,
         }
+    }
+
+    /// Setting this will allow the last column to expand to take up the rest of the space of the parent [`Ui`].
+    pub fn num_columns(mut self, num_columns: usize) -> Self {
+        self.num_columns = Some(num_columns);
+        self
     }
 
     /// If `true`, add a subtle background color to every other row.
@@ -312,8 +334,17 @@ impl Grid {
 
 impl Grid {
     pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
+        self.show_dyn(ui, Box::new(add_contents))
+    }
+
+    fn show_dyn<'c, R>(
+        self,
+        ui: &mut Ui,
+        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
+    ) -> InnerResponse<R> {
         let Self {
             id_source,
+            num_columns,
             striped,
             min_col_width,
             min_row_height,
@@ -329,21 +360,26 @@ impl Grid {
         // If somebody wants to wrap more things inside a cell,
         // then we should pick a default layout that matches that alignment,
         // which we do here:
-        ui.horizontal(|ui| {
-            let id = ui.make_persistent_id(id_source);
-            let grid = GridLayout {
-                striped,
-                spacing,
-                min_cell_size: vec2(min_col_width, min_row_height),
-                max_cell_size,
-                row: start_row,
-                ..GridLayout::new(ui, id)
-            };
+        let max_rect = ui.cursor().intersect(ui.max_rect());
+        ui.allocate_ui_at_rect(max_rect, |ui| {
+            ui.horizontal(|ui| {
+                let id = ui.make_persistent_id(id_source);
+                let grid = GridLayout {
+                    num_columns,
+                    striped,
+                    min_cell_size: vec2(min_col_width, min_row_height),
+                    max_cell_size,
+                    spacing,
+                    row: start_row,
+                    ..GridLayout::new(ui, id)
+                };
 
-            ui.set_grid(grid);
-            let r = add_contents(ui);
-            ui.save_grid();
-            r
+                ui.set_grid(grid);
+                let r = add_contents(ui);
+                ui.save_grid();
+                r
+            })
+            .inner
         })
     }
 }

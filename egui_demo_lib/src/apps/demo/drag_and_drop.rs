@@ -65,7 +65,7 @@ pub fn drop_target<R>(
 
     ui.painter().set(
         where_to_put_background,
-        Shape::Rect {
+        epaint::RectShape {
             corner_radius: style.corner_radius,
             fill,
             stroke,
@@ -75,12 +75,12 @@ pub fn drop_target<R>(
 
     InnerResponse::new(ret, response)
 }
-
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct DragAndDropDemo {
     /// columns with items
-    columns: Vec<Vec<&'static str>>,
+    columns: Vec<Vec<String>>,
 }
-
 impl Default for DragAndDropDemo {
     fn default() -> Self {
         Self {
@@ -88,7 +88,10 @@ impl Default for DragAndDropDemo {
                 vec!["Item A", "Item B", "Item C"],
                 vec!["Item D", "Item E"],
                 vec!["Item F", "Item G", "Item H"],
-            ],
+            ]
+            .into_iter()
+            .map(|v| v.into_iter().map(ToString::to_string).collect())
+            .collect(),
         }
     }
 }
@@ -99,11 +102,11 @@ impl super::Demo for DragAndDropDemo {
     }
 
     fn show(&mut self, ctx: &CtxRef, open: &mut bool) {
-        use super::View;
+        use super::View as _;
         Window::new(self.name())
             .open(open)
             .default_size(vec2(256.0, 256.0))
-            .scroll(false)
+            .vscroll(false)
             .resizable(false)
             .show(ctx, |ui| self.ui(ui));
     }
@@ -111,23 +114,28 @@ impl super::Demo for DragAndDropDemo {
 
 impl super::View for DragAndDropDemo {
     fn ui(&mut self, ui: &mut Ui) {
-        ui.label("This is a proof-of-concept of drag-and-drop in egui");
+        ui.label("This is a proof-of-concept of drag-and-drop in egui.");
         ui.label("Drag items between columns.");
 
+        let id_source = "my_drag_and_drop_demo";
         let mut source_col_row = None;
         let mut drop_col = None;
-
         ui.columns(self.columns.len(), |uis| {
-            for (col_idx, column) in self.columns.iter().enumerate() {
+            for (col_idx, column) in self.columns.clone().into_iter().enumerate() {
                 let ui = &mut uis[col_idx];
                 let can_accept_what_is_being_dragged = true; // We accept anything being dragged (for now) ¯\_(ツ)_/¯
                 let response = drop_target(ui, can_accept_what_is_being_dragged, |ui| {
                     ui.set_min_size(vec2(64.0, 100.0));
-
-                    for (row_idx, &item) in column.iter().enumerate() {
-                        let item_id = Id::new("item").with(col_idx).with(row_idx);
+                    for (row_idx, item) in column.iter().enumerate() {
+                        let item_id = Id::new(id_source).with(col_idx).with(row_idx);
                         drag_source(ui, item_id, |ui| {
-                            ui.label(item);
+                            let response = ui.add(Label::new(item).sense(Sense::click()));
+                            response.context_menu(|ui| {
+                                if ui.button("Remove").clicked() {
+                                    self.columns[col_idx].remove(row_idx);
+                                    ui.close_menu();
+                                }
+                            });
                         });
 
                         if ui.memory().is_being_dragged(item_id) {
@@ -136,6 +144,13 @@ impl super::View for DragAndDropDemo {
                     }
                 })
                 .response;
+
+                let response = response.context_menu(|ui| {
+                    if ui.button("New Item").clicked() {
+                        self.columns[col_idx].push("New Item".to_string());
+                        ui.close_menu();
+                    }
+                });
 
                 let is_being_dragged = ui.memory().is_anything_being_dragged();
                 if is_being_dragged && can_accept_what_is_being_dragged && response.hovered() {

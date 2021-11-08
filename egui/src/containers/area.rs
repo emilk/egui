@@ -6,9 +6,10 @@ use std::{fmt::Debug, hash::Hash};
 
 use crate::*;
 
-/// State that is persisted between frames
+/// State that is persisted between frames.
+// TODO: this is not currently stored in `memory().data`, but maybe it should be?
 #[derive(Clone, Copy, Debug)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct State {
     /// Last known pos
     pub pos: Pos2,
@@ -32,14 +33,13 @@ impl State {
 /// This forms the base of the [`Window`] container.
 ///
 /// ```
-/// # let mut ctx = egui::CtxRef::default();
-/// # ctx.begin_frame(Default::default());
-/// # let ctx = &ctx;
+/// # egui::__run_test_ctx(|ctx| {
 /// egui::Area::new("my_area")
 ///     .fixed_pos(egui::pos2(32.0, 32.0))
 ///     .show(ctx, |ui| {
 ///         ui.label("Floating text!");
 ///     });
+/// # });
 #[must_use = "You should call .show()"]
 #[derive(Clone, Copy, Debug)]
 pub struct Area {
@@ -168,12 +168,24 @@ impl Area {
 pub(crate) struct Prepared {
     layer_id: LayerId,
     state: State,
-    movable: bool,
+    pub(crate) movable: bool,
     enabled: bool,
     drag_bounds: Option<Rect>,
 }
 
 impl Area {
+    pub fn show<R>(
+        self,
+        ctx: &CtxRef,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
+        let prepared = self.begin(ctx);
+        let mut content_ui = prepared.content_ui(ctx);
+        let inner = add_contents(&mut content_ui);
+        let response = prepared.end(ctx, content_ui);
+        InnerResponse { inner, response }
+    }
+
     pub(crate) fn begin(self, ctx: &CtxRef) -> Prepared {
         let Area {
             id,
@@ -191,6 +203,9 @@ impl Area {
 
         let state = ctx.memory().areas.get(id).cloned();
         let is_new = state.is_none();
+        if is_new {
+            ctx.request_repaint(); // if we don't know the previous size we are likely drawing the area in the wrong place}
+        }
         let mut state = state.unwrap_or_else(|| State {
             pos: default_pos.unwrap_or_else(|| automatic_area_position(ctx)),
             size: Vec2::ZERO,
@@ -201,7 +216,7 @@ impl Area {
         if let Some((anchor, offset)) = anchor {
             if is_new {
                 // unknown size
-                ctx.request_repaint()
+                ctx.request_repaint();
             } else {
                 let screen = ctx.available_rect();
                 state.pos = anchor.align_size_within_rect(state.size, screen).min + offset;
@@ -217,13 +232,6 @@ impl Area {
             enabled,
             drag_bounds,
         }
-    }
-
-    pub fn show(self, ctx: &CtxRef, add_contents: impl FnOnce(&mut Ui)) -> Response {
-        let prepared = self.begin(ctx);
-        let mut content_ui = prepared.content_ui(ctx);
-        add_contents(&mut content_ui);
-        prepared.end(ctx, content_ui)
     }
 
     pub fn show_open_close_animation(&self, ctx: &CtxRef, frame: &Frame, is_open: bool) {
@@ -269,23 +277,32 @@ impl Prepared {
     }
 
     pub(crate) fn content_ui(&self, ctx: &CtxRef) -> Ui {
-        let max_rect = Rect::from_min_size(self.state.pos, Vec2::INFINITY);
+        let screen_rect = ctx.input().screen_rect();
+
+        let bounds = if let Some(bounds) = self.drag_bounds {
+            bounds.intersect(screen_rect) // protect against infinite bounds
+        } else {
+            let central_area = ctx.available_rect();
+
+            let is_within_central_area = central_area.contains_rect(self.state.rect().shrink(1.0));
+            if is_within_central_area {
+                central_area // let's try to not cover side panels
+            } else {
+                screen_rect
+            }
+        };
+
+        let max_rect = Rect::from_min_max(
+            self.state.pos,
+            bounds.max.at_least(self.state.pos + Vec2::splat(32.0)),
+        );
+
         let shadow_radius = ctx.style().visuals.window_shadow.extrusion; // hacky
-        let bounds = self.drag_bounds.unwrap_or_else(|| ctx.input().screen_rect);
+        let clip_rect_margin = ctx.style().visuals.clip_rect_margin.max(shadow_radius);
 
-        let mut clip_rect = max_rect
-            .expand(ctx.style().visuals.clip_rect_margin)
-            .expand(shadow_radius)
+        let clip_rect = Rect::from_min_max(self.state.pos, bounds.max)
+            .expand(clip_rect_margin)
             .intersect(bounds);
-
-        // Windows are constrained to central area,
-        // (except in rare cases where they don't fit).
-        // Adjust clip rect so we don't cast shadows on side panels:
-        let central_area = ctx.available_rect();
-        let is_within_central_area = central_area.contains_rect(self.state.rect().shrink(1.0));
-        if is_within_central_area {
-            clip_rect = clip_rect.intersect(central_area);
-        }
 
         let mut ui = Ui::new(
             ctx.clone(),
@@ -332,10 +349,11 @@ impl Prepared {
             state.pos += ctx.input().pointer.delta();
         }
 
-        if let Some(bounds) = drag_bounds {
-            state.pos = ctx.constrain_window_rect_to_area(state.rect(), bounds).min;
-        } else {
-            state.pos = ctx.constrain_window_rect(state.rect()).min;
+        // Important check - don't try to move e.g. a combobox popup!
+        if movable {
+            state.pos = ctx
+                .constrain_window_rect_to_area(state.rect(), drag_bounds)
+                .min;
         }
 
         if (move_response.dragged() || move_response.clicked())

@@ -9,19 +9,14 @@
 //! fill the whole width of the browser.
 //! This can be changed by overriding [`epi::App::max_size_points`].
 
-#![cfg_attr(not(debug_assertions), deny(warnings))] // Forbid warnings in release builds
-#![deny(
-    rustdoc::broken_intra_doc_links,
-    rustdoc::invalid_codeblock_attributes,
-    rustdoc::missing_crate_level_docs,
-    rustdoc::private_intra_doc_links
-)]
+// Forbid warnings in release builds:
+#![cfg_attr(not(debug_assertions), deny(warnings))]
 #![forbid(unsafe_code)]
-#![warn(clippy::all, rust_2018_idioms)]
+#![warn(clippy::all, missing_crate_level_docs, rust_2018_idioms)]
 
 pub mod backend;
-#[cfg(feature = "http")]
-pub mod http;
+#[cfg(feature = "glow")]
+mod glow_wrapping;
 mod painter;
 pub mod screen_reader;
 pub mod webgl1;
@@ -44,17 +39,17 @@ static AGENT_ID: &str = "egui_text_agent";
 // ----------------------------------------------------------------------------
 // Helpers to hide some of the verbosity of web_sys
 
-/// Log some text to the developer console (`console.log(...)` in JS)
+/// Log some text to the developer console (`console.log(…)` in JS)
 pub fn console_log(s: impl Into<JsValue>) {
     web_sys::console::log_1(&s.into());
 }
 
-/// Log a warning to the developer console (`console.warn(...)` in JS)
+/// Log a warning to the developer console (`console.warn(…)` in JS)
 pub fn console_warn(s: impl Into<JsValue>) {
     web_sys::console::warn_1(&s.into());
 }
 
-/// Log an error to the developer console (`console.error(...)` in JS)
+/// Log an error to the developer console (`console.error(…)` in JS)
 pub fn console_error(s: impl Into<JsValue>) {
     web_sys::console::error_1(&s.into());
 }
@@ -67,12 +62,6 @@ pub fn now_sec() -> f64 {
         .expect("should have a Performance")
         .now()
         / 1000.0
-}
-
-pub fn seconds_since_midnight() -> f64 {
-    let d = js_sys::Date::new_0();
-    let seconds = (d.get_hours() * 60 + d.get_minutes()) * 60 + d.get_seconds();
-    seconds as f64 + 1e-3 * (d.get_milliseconds() as f64)
 }
 
 pub fn screen_size_in_native_points() -> Option<egui::Vec2> {
@@ -306,35 +295,6 @@ impl epi::Storage for LocalStorage {
 
 // ----------------------------------------------------------------------------
 
-pub fn handle_output(output: &egui::Output, runner: &mut AppRunner) {
-    let egui::Output {
-        cursor_icon,
-        open_url,
-        copied_text,
-        needs_repaint: _, // handled elsewhere
-        events: _,        // we ignore these (TODO: accessibility screen reader)
-        text_cursor_pos,
-    } = output;
-
-    set_cursor_icon(*cursor_icon);
-    if let Some(open) = open_url {
-        crate::open_url(&open.url, open.new_tab);
-    }
-
-    #[cfg(web_sys_unstable_apis)]
-    if !copied_text.is_empty() {
-        set_clipboard_text(copied_text);
-    }
-
-    #[cfg(not(web_sys_unstable_apis))]
-    let _ = copied_text;
-
-    if &runner.last_text_cursor_pos != text_cursor_pos {
-        move_text_cursor(text_cursor_pos, runner.canvas_id());
-        runner.last_text_cursor_pos = *text_cursor_pos;
-    }
-}
-
 pub fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
     let document = web_sys::window()?.document()?;
     document
@@ -347,15 +307,16 @@ pub fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
 #[cfg(web_sys_unstable_apis)]
 pub fn set_clipboard_text(s: &str) {
     if let Some(window) = web_sys::window() {
-        let clipboard = window.navigator().clipboard();
-        let promise = clipboard.write_text(s);
-        let future = wasm_bindgen_futures::JsFuture::from(promise);
-        let future = async move {
-            if let Err(err) = future.await {
-                console_error(format!("Copy/cut action denied: {:?}", err));
-            }
-        };
-        wasm_bindgen_futures::spawn_local(future);
+        if let Some(clipboard) = window.navigator().clipboard() {
+            let promise = clipboard.write_text(s);
+            let future = wasm_bindgen_futures::JsFuture::from(promise);
+            let future = async move {
+                if let Err(err) = future.await {
+                    console_error(format!("Copy/cut action denied: {:?}", err));
+                }
+            };
+            wasm_bindgen_futures::spawn_local(future);
+        }
     }
 }
 
@@ -647,16 +608,21 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     }
 
     #[cfg(web_sys_unstable_apis)]
-    // paste is handled by IME text agent!
-    if false {
+    {
         // paste
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::ClipboardEvent| {
             if let Some(data) = event.clipboard_data() {
                 if let Ok(text) = data.get_data("text") {
                     let mut runner_lock = runner_ref.0.lock();
-                    runner_lock.input.raw.events.push(egui::Event::Text(text));
+                    runner_lock
+                        .input
+                        .raw
+                        .events
+                        .push(egui::Event::Text(text.replace("\r\n", "\n")));
                     runner_lock.needs_repaint.set_true();
+                    event.stop_propagation();
+                    event.prevent_default();
                 }
             }
         }) as Box<dyn FnMut(_)>);
@@ -849,26 +815,24 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let event_name = "mousedown";
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
-            let mut runner_lock = runner_ref.0.lock();
-            if !runner_lock.input.is_touch {
-                if let Some(button) = button_from_mouse_event(&event) {
-                    let pos = pos_from_mouse_event(runner_lock.canvas_id(), &event);
-                    let modifiers = runner_lock.input.raw.modifiers;
-                    runner_lock
-                        .input
-                        .raw
-                        .events
-                        .push(egui::Event::PointerButton {
-                            pos,
-                            button,
-                            pressed: true,
-                            modifiers,
-                        });
-                    runner_lock.needs_repaint.set_true();
-                    event.stop_propagation();
-                    event.prevent_default();
-                }
+            if let Some(button) = button_from_mouse_event(&event) {
+                let mut runner_lock = runner_ref.0.lock();
+                let pos = pos_from_mouse_event(runner_lock.canvas_id(), &event);
+                let modifiers = runner_lock.input.raw.modifiers;
+                runner_lock
+                    .input
+                    .raw
+                    .events
+                    .push(egui::Event::PointerButton {
+                        pos,
+                        button,
+                        pressed: true,
+                        modifiers,
+                    });
+                runner_lock.needs_repaint.set_true();
             }
+            event.stop_propagation();
+            event.prevent_default();
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
         closure.forget();
@@ -879,17 +843,15 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
             let mut runner_lock = runner_ref.0.lock();
-            if !runner_lock.input.is_touch {
-                let pos = pos_from_mouse_event(runner_lock.canvas_id(), &event);
-                runner_lock
-                    .input
-                    .raw
-                    .events
-                    .push(egui::Event::PointerMoved(pos));
-                runner_lock.needs_repaint.set_true();
-                event.stop_propagation();
-                event.prevent_default();
-            }
+            let pos = pos_from_mouse_event(runner_lock.canvas_id(), &event);
+            runner_lock
+                .input
+                .raw
+                .events
+                .push(egui::Event::PointerMoved(pos));
+            runner_lock.needs_repaint.set_true();
+            event.stop_propagation();
+            event.prevent_default();
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
         closure.forget();
@@ -899,27 +861,26 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let event_name = "mouseup";
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
-            let mut runner_lock = runner_ref.0.lock();
-            if !runner_lock.input.is_touch {
-                if let Some(button) = button_from_mouse_event(&event) {
-                    let pos = pos_from_mouse_event(runner_lock.canvas_id(), &event);
-                    let modifiers = runner_lock.input.raw.modifiers;
-                    runner_lock
-                        .input
-                        .raw
-                        .events
-                        .push(egui::Event::PointerButton {
-                            pos,
-                            button,
-                            pressed: false,
-                            modifiers,
-                        });
-                    runner_lock.needs_repaint.set_true();
-                    event.stop_propagation();
-                    event.prevent_default();
-                }
-                manipulate_agent(runner_lock.canvas_id(), runner_lock.input.latest_touch_pos);
+            if let Some(button) = button_from_mouse_event(&event) {
+                let mut runner_lock = runner_ref.0.lock();
+                let pos = pos_from_mouse_event(runner_lock.canvas_id(), &event);
+                let modifiers = runner_lock.input.raw.modifiers;
+                runner_lock
+                    .input
+                    .raw
+                    .events
+                    .push(egui::Event::PointerButton {
+                        pos,
+                        button,
+                        pressed: false,
+                        modifiers,
+                    });
+                runner_lock.needs_repaint.set_true();
+
+                update_text_agent(&runner_lock);
             }
+            event.stop_propagation();
+            event.prevent_default();
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
         closure.forget();
@@ -930,12 +891,10 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
             let mut runner_lock = runner_ref.0.lock();
-            if !runner_lock.input.is_touch {
-                runner_lock.input.raw.events.push(egui::Event::PointerGone);
-                runner_lock.needs_repaint.set_true();
-                event.stop_propagation();
-                event.prevent_default();
-            }
+            runner_lock.input.raw.events.push(egui::Event::PointerGone);
+            runner_lock.needs_repaint.set_true();
+            event.stop_propagation();
+            event.prevent_default();
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
         closure.forget();
@@ -951,7 +910,6 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 pos_from_touch_event(runner_lock.canvas_id(), &event, &mut latest_touch_pos_id);
             runner_lock.input.latest_touch_pos_id = latest_touch_pos_id;
             runner_lock.input.latest_touch_pos = Some(pos);
-            runner_lock.input.is_touch = true;
             let modifiers = runner_lock.input.raw.modifiers;
             runner_lock
                 .input
@@ -983,7 +941,6 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 pos_from_touch_event(runner_lock.canvas_id(), &event, &mut latest_touch_pos_id);
             runner_lock.input.latest_touch_pos_id = latest_touch_pos_id;
             runner_lock.input.latest_touch_pos = Some(pos);
-            runner_lock.input.is_touch = true;
             runner_lock
                 .input
                 .raw
@@ -1004,7 +961,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::TouchEvent| {
             let mut runner_lock = runner_ref.0.lock();
-            runner_lock.input.is_touch = true;
+
             if let Some(pos) = runner_lock.input.latest_touch_pos {
                 let modifiers = runner_lock.input.raw.modifiers;
                 // First release mouse to click:
@@ -1025,10 +982,10 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 runner_lock.needs_repaint.set_true();
                 event.stop_propagation();
                 event.prevent_default();
-
-                // Finally, focus or blur on agent to toggle keyboard
-                manipulate_agent(runner_lock.canvas_id(), runner_lock.input.latest_touch_pos);
             }
+
+            // Finally, focus or blur text agent to toggle mobile keyboard:
+            update_text_agent(&runner_lock);
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
         closure.forget();
@@ -1039,7 +996,6 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let runner_ref = runner_ref.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::TouchEvent| {
             let mut runner_lock = runner_ref.0.lock();
-            runner_lock.input.is_touch = true;
             push_touches(&mut *runner_lock, egui::TouchPhase::Cancel, &event);
             event.stop_propagation();
             event.prevent_default();
@@ -1059,7 +1015,9 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                     canvas_size_in_points(runner_ref.0.lock().canvas_id()).y
                 }
                 web_sys::WheelEvent::DOM_DELTA_LINE => {
-                    8.0 // magic value!
+                    #[allow(clippy::let_and_return)]
+                    let points_per_scroll_line = 8.0; // Note that this is intentionally different from what we use in egui_glium / winit.
+                    points_per_scroll_line
                 }
                 _ => 1.0,
             };
@@ -1071,9 +1029,14 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             // This if-statement is equivalent to how `Modifiers.command` is determined in
             // `modifiers_from_event()`, but we cannot directly use that fn for a `WheelEvent`.
             if event.ctrl_key() || event.meta_key() {
-                runner_lock.input.raw.zoom_delta *= (delta.y / 200.0).exp();
+                let factor = (delta.y / 200.0).exp();
+                runner_lock.input.raw.events.push(egui::Event::Zoom(factor));
             } else {
-                runner_lock.input.raw.scroll_delta += delta;
+                runner_lock
+                    .input
+                    .raw
+                    .events
+                    .push(egui::Event::Scroll(delta));
             }
 
             runner_lock.needs_repaint.set_true();
@@ -1084,43 +1047,154 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         closure.forget();
     }
 
+    {
+        let event_name = "dragover";
+        let runner_ref = runner_ref.clone();
+        let closure = Closure::wrap(Box::new(move |event: web_sys::DragEvent| {
+            if let Some(data_transfer) = event.data_transfer() {
+                let mut runner_lock = runner_ref.0.lock();
+                runner_lock.input.raw.hovered_files.clear();
+                for i in 0..data_transfer.items().length() {
+                    if let Some(item) = data_transfer.items().get(i) {
+                        runner_lock.input.raw.hovered_files.push(egui::HoveredFile {
+                            mime: item.type_(),
+                            ..Default::default()
+                        });
+                    }
+                }
+                runner_lock.needs_repaint.set_true();
+                event.stop_propagation();
+                event.prevent_default();
+            }
+        }) as Box<dyn FnMut(_)>);
+        canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
+        closure.forget();
+    }
+
+    {
+        let event_name = "dragleave";
+        let runner_ref = runner_ref.clone();
+        let closure = Closure::wrap(Box::new(move |event: web_sys::DragEvent| {
+            let mut runner_lock = runner_ref.0.lock();
+            runner_lock.input.raw.hovered_files.clear();
+            runner_lock.needs_repaint.set_true();
+            event.stop_propagation();
+            event.prevent_default();
+        }) as Box<dyn FnMut(_)>);
+        canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
+        closure.forget();
+    }
+
+    {
+        let event_name = "drop";
+        let runner_ref = runner_ref.clone();
+        let closure = Closure::wrap(Box::new(move |event: web_sys::DragEvent| {
+            if let Some(data_transfer) = event.data_transfer() {
+                {
+                    let mut runner_lock = runner_ref.0.lock();
+                    runner_lock.input.raw.hovered_files.clear();
+                    runner_lock.needs_repaint.set_true();
+                }
+
+                if let Some(files) = data_transfer.files() {
+                    for i in 0..files.length() {
+                        if let Some(file) = files.get(i) {
+                            let name = file.name();
+                            let last_modified = std::time::UNIX_EPOCH
+                                + std::time::Duration::from_millis(file.last_modified() as u64);
+
+                            console_log(format!("Loading {:?} ({} bytes)…", name, file.size()));
+
+                            let future = wasm_bindgen_futures::JsFuture::from(file.array_buffer());
+
+                            let runner_ref = runner_ref.clone();
+                            let future = async move {
+                                match future.await {
+                                    Ok(array_buffer) => {
+                                        let bytes = js_sys::Uint8Array::new(&array_buffer).to_vec();
+                                        console_log(format!(
+                                            "Loaded {:?} ({} bytes).",
+                                            name,
+                                            bytes.len()
+                                        ));
+
+                                        let mut runner_lock = runner_ref.0.lock();
+                                        runner_lock.input.raw.dropped_files.push(
+                                            egui::DroppedFile {
+                                                name,
+                                                last_modified: Some(last_modified),
+                                                bytes: Some(bytes.into()),
+                                                ..Default::default()
+                                            },
+                                        );
+                                        runner_lock.needs_repaint.set_true();
+                                    }
+                                    Err(err) => {
+                                        console_error(format!("Failed to read file: {:?}", err));
+                                    }
+                                }
+                            };
+                            wasm_bindgen_futures::spawn_local(future);
+                        }
+                    }
+                }
+                event.stop_propagation();
+                event.prevent_default();
+            }
+        }) as Box<dyn FnMut(_)>);
+        canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
+        closure.forget();
+    }
+
     Ok(())
 }
 
-fn manipulate_agent(canvas_id: &str, latest_cursor: Option<egui::Pos2>) -> Option<()> {
+/// Focus or blur text agent to toggle mobile keyboard.
+fn update_text_agent(runner: &AppRunner) -> Option<()> {
     use wasm_bindgen::JsCast;
     use web_sys::HtmlInputElement;
     let window = web_sys::window()?;
     let document = window.document()?;
     let input: HtmlInputElement = document.get_element_by_id(AGENT_ID)?.dyn_into().unwrap();
-    let cutsor_txt = document.body()?.style().get_property_value("cursor").ok()?;
-    let style = canvas_element(canvas_id)?.style();
-    if cutsor_txt == cursor_web_name(egui::CursorIcon::Text) {
-        input.set_hidden(false);
-        input.focus().ok()?;
-        // Panning canvas so that text edit is shown at 30%
-        // Only on touch screens, when keyboard popups
-        if let Some(p) = latest_cursor {
-            let inner_height = window.inner_height().ok()?.as_f64()? as f32;
-            let current_rel = p.y / inner_height;
+    let canvas_style = canvas_element(runner.canvas_id())?.style();
 
-            if current_rel > 0.5 {
-                // probably below the keyboard
+    if runner.mutable_text_under_cursor {
+        let is_already_editing = input.hidden();
+        if is_already_editing {
+            input.set_hidden(false);
+            input.focus().ok()?;
 
-                let target_rel = 0.3;
+            // Move up canvas so that text edit is shown at ~30% of screen height.
+            // Only on touch screens, when keyboard popups.
+            if let Some(latest_touch_pos) = runner.input.latest_touch_pos {
+                let window_height = window.inner_height().ok()?.as_f64()? as f32;
+                let current_rel = latest_touch_pos.y / window_height;
 
-                let delta = target_rel - current_rel;
-                let new_pos_percent = (delta * 100.0).round().to_string() + "%";
+                // estimated amount of screen covered by keyboard
+                let keyboard_fraction = 0.5;
 
-                style.set_property("position", "absolute").ok()?;
-                style.set_property("top", &new_pos_percent).ok()?;
+                if current_rel > keyboard_fraction {
+                    // below the keyboard
+
+                    let target_rel = 0.3;
+
+                    // Note: `delta` is negative, since we are moving the canvas UP
+                    let delta = target_rel - current_rel;
+
+                    let delta = delta.max(-keyboard_fraction); // Don't move it crazy much
+
+                    let new_pos_percent = (delta * 100.0).round().to_string() + "%";
+
+                    canvas_style.set_property("position", "absolute").ok()?;
+                    canvas_style.set_property("top", &new_pos_percent).ok()?;
+                }
             }
         }
     } else {
         input.blur().ok()?;
         input.set_hidden(true);
-        style.set_property("position", "absolute").ok()?;
-        style.set_property("top", "0%").ok()?; // move back to normal position
+        canvas_style.set_property("position", "absolute").ok()?;
+        canvas_style.set_property("top", "0%").ok()?; // move back to normal position
     }
     Some(())
 }
@@ -1143,10 +1217,13 @@ fn move_text_cursor(cursor: &Option<egui::Pos2>, canvas_id: &str) -> Option<()> 
     if is_mobile() == Some(false) {
         cursor.as_ref().and_then(|&egui::Pos2 { x, y }| {
             let canvas = canvas_element(canvas_id)?;
-            let y = y + (canvas.scroll_top() + canvas.offset_top()) as f32;
+            let bounding_rect = text_agent().get_bounding_client_rect();
+            let y = (y + (canvas.scroll_top() + canvas.offset_top()) as f32)
+                .min(canvas.client_height() as f32 - bounding_rect.height() as f32);
             let x = x + (canvas.scroll_left() + canvas.offset_left()) as f32;
             // Canvas is translated 50% horizontally in html.
-            let x = x - canvas.offset_width() as f32 / 2.0;
+            let x = (x - canvas.offset_width() as f32 / 2.0)
+                .min(canvas.client_width() as f32 - bounding_rect.width() as f32);
             style.set_property("position", "absolute").ok()?;
             style.set_property("top", &(y.to_string() + "px")).ok()?;
             style.set_property("left", &(x.to_string() + "px")).ok()

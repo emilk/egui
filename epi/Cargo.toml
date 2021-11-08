@@ -1,13 +1,13 @@
 [package]
 name = "epi"
-version = "0.12.0"
+version = "0.15.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Backend-agnostic interface for writing apps using egui"
 edition = "2018"
-homepage = "https://github.com/emilk/egui"
+homepage = "https://github.com/emilk/egui/tree/master/epi"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/emilk/egui"
+repository = "https://github.com/emilk/egui/tree/master/epi"
 categories = ["gui", "game-development"]
 keywords = ["egui", "gui", "gamedev"]
 include = [
@@ -23,11 +23,13 @@ all-features = true
 [lib]
 
 [dependencies]
-egui = { version = "0.12.0", path = "../egui", default-features = false, features = ["single_threaded"] }
-ron = { version = "0.6", optional = true }
+egui = { version = "0.15.0", path = "../egui", default-features = false, features = ["single_threaded"] }
+
+directories-next = { version = "2", optional = true }
+ron = { version = "0.7", optional = true }
 serde = { version = "1", optional = true }
 
 [features]
 default = []
-http = []
+file_storage = ["directories-next", "ron", "serde"]
 persistence = ["ron", "serde"]

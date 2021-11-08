@@ -57,6 +57,19 @@ impl std::ops::AddAssign for AllocInfo {
     }
 }
 
+impl std::iter::Sum for AllocInfo {
+    fn sum<I>(iter: I) -> Self
+    where
+        I: Iterator<Item = Self>,
+    {
+        let mut sum = Self::default();
+        for value in iter {
+            sum += value;
+        }
+        sum
+    }
+}
+
 impl AllocInfo {
     // pub fn from_shape(shape: &Shape) -> Self {
     //     match shape {
@@ -72,7 +85,13 @@ impl AllocInfo {
     // }
 
     pub fn from_galley(galley: &Galley) -> Self {
-        Self::from_slice(galley.text.as_bytes()) + Self::from_slice(&galley.rows)
+        Self::from_slice(galley.text().as_bytes())
+            + Self::from_slice(&galley.rows)
+            + galley.rows.iter().map(Self::from_galley_row).sum()
+    }
+
+    fn from_galley_row(row: &crate::text::Row) -> Self {
+        Self::from_mesh(&row.visuals.mesh) + Self::from_slice(&row.glyphs)
     }
 
     pub fn from_mesh(mesh: &Mesh) -> Self {
@@ -144,6 +163,9 @@ pub struct PaintStats {
     pub shape_mesh: AllocInfo,
     pub shape_vec: AllocInfo,
 
+    pub text_shape_vertices: AllocInfo,
+    pub text_shape_indices: AllocInfo,
+
     /// Number of separate clip rectangles
     pub clipped_meshes: AllocInfo,
     pub vertices: AllocInfo,
@@ -174,13 +196,17 @@ impl PaintStats {
                 }
             }
             Shape::Noop | Shape::Circle { .. } | Shape::LineSegment { .. } | Shape::Rect { .. } => {
-                Default::default()
             }
-            Shape::Path { points, .. } => {
-                self.shape_path += AllocInfo::from_slice(points);
+            Shape::Path(path_shape) => {
+                self.shape_path += AllocInfo::from_slice(&path_shape.points);
             }
-            Shape::Text { galley, .. } => {
-                self.shape_text += AllocInfo::from_galley(galley);
+            Shape::Text(text_shape) => {
+                self.shape_text += AllocInfo::from_galley(&text_shape.galley);
+
+                for row in &text_shape.galley.rows {
+                    self.text_shape_indices += AllocInfo::from_slice(&row.visuals.mesh.indices);
+                    self.text_shape_vertices += AllocInfo::from_slice(&row.visuals.mesh.vertices);
+                }
             }
             Shape::Mesh(mesh) => {
                 self.shape_mesh += AllocInfo::from_mesh(mesh);

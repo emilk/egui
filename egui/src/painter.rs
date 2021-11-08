@@ -6,7 +6,7 @@ use crate::{
 use epaint::{
     mutex::Mutex,
     text::{Fonts, Galley, TextStyle},
-    Shape, Stroke,
+    CircleShape, RectShape, Shape, Stroke, TextShape,
 };
 
 /// Helper to paint shapes and text to a specific region on a specific layer.
@@ -72,7 +72,7 @@ impl Painter {
 
     /// If `false`, nothing added to the painter will be visible
     pub(crate) fn set_invisible(&mut self) {
-        self.fade_to_color = Some(Color32::TRANSPARENT)
+        self.fade_to_color = Some(Color32::TRANSPARENT);
     }
 
     /// Create a painter for a sub-region of this `Painter`.
@@ -154,10 +154,11 @@ impl Painter {
     /// It is up to the caller to make sure there is room for this.
     /// Can be used for free painting.
     /// NOTE: all coordinates are screen coordinates!
-    pub fn add(&self, mut shape: Shape) -> ShapeIdx {
+    pub fn add(&self, shape: impl Into<Shape>) -> ShapeIdx {
         if self.fade_to_color == Some(Color32::TRANSPARENT) {
             self.paint_list.lock().add(self.clip_rect, Shape::Noop)
         } else {
+            let mut shape = shape.into();
             self.transform_shape(&mut shape);
             self.paint_list.lock().add(self.clip_rect, shape)
         }
@@ -182,12 +183,13 @@ impl Painter {
     }
 
     /// Modify an existing [`Shape`].
-    pub fn set(&self, idx: ShapeIdx, mut shape: Shape) {
+    pub fn set(&self, idx: ShapeIdx, shape: impl Into<Shape>) {
         if self.fade_to_color == Some(Color32::TRANSPARENT) {
             return;
         }
+        let mut shape = shape.into();
         self.transform_shape(&mut shape);
-        self.paint_list.lock().set(idx, self.clip_rect, shape)
+        self.paint_list.lock().set(idx, self.clip_rect, shape);
     }
 }
 
@@ -219,19 +221,15 @@ impl Painter {
         color: Color32,
         text: impl ToString,
     ) -> Rect {
-        let galley = self
-            .fonts()
-            .layout_no_wrap(TextStyle::Monospace, text.to_string());
-        let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
+        let galley = self.layout_no_wrap(text.to_string(), TextStyle::Monospace, color);
+        let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size()));
         let frame_rect = rect.expand(2.0);
-        self.add(Shape::Rect {
-            rect: frame_rect,
-            corner_radius: 0.0,
-            fill: Color32::from_black_alpha(240),
-            // stroke: Stroke::new(1.0, color),
-            stroke: Default::default(),
-        });
-        self.galley(rect.min, galley, color);
+        self.add(Shape::rect_filled(
+            frame_rect,
+            0.0,
+            Color32::from_black_alpha(240),
+        ));
+        self.galley(rect.min, galley);
         frame_rect
     }
 }
@@ -252,7 +250,7 @@ impl Painter {
         fill_color: impl Into<Color32>,
         stroke: impl Into<Stroke>,
     ) {
-        self.add(Shape::Circle {
+        self.add(CircleShape {
             center,
             radius,
             fill: fill_color.into(),
@@ -261,7 +259,7 @@ impl Painter {
     }
 
     pub fn circle_filled(&self, center: Pos2, radius: f32, fill_color: impl Into<Color32>) {
-        self.add(Shape::Circle {
+        self.add(CircleShape {
             center,
             radius,
             fill: fill_color.into(),
@@ -270,7 +268,7 @@ impl Painter {
     }
 
     pub fn circle_stroke(&self, center: Pos2, radius: f32, stroke: impl Into<Stroke>) {
-        self.add(Shape::Circle {
+        self.add(CircleShape {
             center,
             radius,
             fill: Default::default(),
@@ -285,7 +283,7 @@ impl Painter {
         fill_color: impl Into<Color32>,
         stroke: impl Into<Stroke>,
     ) {
-        self.add(Shape::Rect {
+        self.add(RectShape {
             rect,
             corner_radius,
             fill: fill_color.into(),
@@ -294,7 +292,7 @@ impl Painter {
     }
 
     pub fn rect_filled(&self, rect: Rect, corner_radius: f32, fill_color: impl Into<Color32>) {
-        self.add(Shape::Rect {
+        self.add(RectShape {
             rect,
             corner_radius,
             fill: fill_color.into(),
@@ -303,7 +301,7 @@ impl Painter {
     }
 
     pub fn rect_stroke(&self, rect: Rect, corner_radius: f32, stroke: impl Into<Stroke>) {
-        self.add(Shape::Rect {
+        self.add(RectShape {
             rect,
             corner_radius,
             fill: Default::default(),
@@ -331,7 +329,7 @@ impl Painter {
     /// To center the text at the given position, use `anchor: (Center, Center)`.
     ///
     /// To find out the size of text before painting it, use
-    /// [`Self::layout_no_wrap`] or [`Self::layout_multiline`].
+    /// [`Self::layout`] or [`Self::layout_no_wrap`].
     ///
     /// Returns where the text ended up.
     #[allow(clippy::needless_pass_by_value)]
@@ -343,57 +341,67 @@ impl Painter {
         text_style: TextStyle,
         text_color: Color32,
     ) -> Rect {
-        let galley = self.layout_no_wrap(text_style, text.to_string());
-        let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size));
-        self.galley(rect.min, galley, text_color);
+        let galley = self.layout_no_wrap(text.to_string(), text_style, text_color);
+        let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size()));
+        self.galley(rect.min, galley);
         rect
-    }
-
-    /// Will line break at `\n`.
-    ///
-    /// Paint the results with [`Self::galley`].
-    /// Always returns at least one row.
-    #[inline(always)]
-    pub fn layout_no_wrap(&self, text_style: TextStyle, text: String) -> std::sync::Arc<Galley> {
-        self.layout_multiline(text_style, text, f32::INFINITY)
     }
 
     /// Will wrap text at the given width and line break at `\n`.
     ///
     /// Paint the results with [`Self::galley`].
-    /// Always returns at least one row.
     #[inline(always)]
-    pub fn layout_multiline(
+    pub fn layout(
         &self,
-        text_style: TextStyle,
         text: String,
-        max_width_in_points: f32,
+        text_style: TextStyle,
+        color: crate::Color32,
+        wrap_width: f32,
     ) -> std::sync::Arc<Galley> {
-        self.fonts()
-            .layout_multiline(text_style, text, max_width_in_points)
+        self.fonts().layout(text, text_style, color, wrap_width)
+    }
+
+    /// Will line break at `\n`.
+    ///
+    /// Paint the results with [`Self::galley`].
+    #[inline(always)]
+    pub fn layout_no_wrap(
+        &self,
+        text: String,
+        text_style: TextStyle,
+        color: crate::Color32,
+    ) -> std::sync::Arc<Galley> {
+        self.fonts().layout(text, text_style, color, f32::INFINITY)
     }
 
     /// Paint text that has already been layed out in a [`Galley`].
     ///
-    /// You can create the `Galley` with [`Self::layout_no_wrap`] or [`Self::layout_multiline`].
+    /// You can create the `Galley` with [`Self::layout`].
+    ///
+    /// If you want to change the color of the text, use [`Self::galley_with_color`].
     #[inline(always)]
-    pub fn galley(&self, pos: Pos2, galley: std::sync::Arc<Galley>, color: Color32) {
-        self.galley_with_italics(pos, galley, color, false)
+    pub fn galley(&self, pos: Pos2, galley: std::sync::Arc<Galley>) {
+        if !galley.is_empty() {
+            self.add(Shape::galley(pos, galley));
+        }
     }
 
-    pub fn galley_with_italics(
+    /// Paint text that has already been layed out in a [`Galley`].
+    ///
+    /// You can create the `Galley` with [`Self::layout`].
+    ///
+    /// The text color in the [`Galley`] will be replaced with the given color.
+    #[inline(always)]
+    pub fn galley_with_color(
         &self,
         pos: Pos2,
         galley: std::sync::Arc<Galley>,
-        color: Color32,
-        fake_italics: bool,
+        text_color: Color32,
     ) {
         if !galley.is_empty() {
-            self.add(Shape::Text {
-                pos,
-                galley,
-                color,
-                fake_italics,
+            self.add(TextShape {
+                override_text_color: Some(text_color),
+                ..TextShape::new(pos, galley)
             });
         }
     }

@@ -1,5 +1,3 @@
-<!-- Please make sure a similar issue does not already exist! -->
-
 ---
 name: Bug report
 about: Create a report to help us improve
@@ -9,14 +7,26 @@ assignees: ''
 
 ---
 
+<!--
+First look if there is already a similar bug report. If there is, add a comment to it instead!
+
+Please also check if the bug is still present in latest master! Do so by adding the following lines to your Cargo.toml:
+
+
+[patch.crates-io]
+egui = { git = "https://github.com/emilk/egui", branch = "master" }
+# if you're using eframe:
+eframe = { git = "https://github.com/emilk/egui", branch = "master" }
+-->
+
 **Describe the bug**
 <!-- A clear and concise description of what the bug is. -->
 
 **To Reproduce**
 Steps to reproduce the behavior:
-1. <!-- Go to '...' -->
-2. <!-- Click on '....' -->
-3. <!-- Scroll down to '....' -->
+1. <!-- Go to '…' -->
+2. <!-- Click on '…' -->
+3. <!-- Scroll down to '…' -->
 4. <!-- See error -->
 
 **Expected behavior**

@@ -1,13 +1,13 @@
 [package]
 name = "egui_glium"
-version = "0.12.0"
+version = "0.15.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui natively using the glium library"
 edition = "2018"
-homepage = "https://github.com/emilk/egui"
+homepage = "https://github.com/emilk/egui/tree/master/egui_glium"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/emilk/egui"
+repository = "https://github.com/emilk/egui/tree/master/egui_glium"
 categories = ["gui", "game-development"]
 keywords = ["glium", "egui", "gui", "gamedev"]
 include = [
@@ -22,39 +22,36 @@ include = [
 all-features = true
 
 [dependencies]
-copypasta = "0.7"
-egui = { version = "0.12.0", path = "../egui", default-features = false, features = ["single_threaded"] }
-epi = { version = "0.12.0", path = "../epi" }
-glium = "0.29"
-webbrowser = "0.5"
+egui = { version = "0.15.0", path = "../egui", default-features = false, features = ["single_threaded"] }
+egui-winit = { version = "0.15.0", path = "../egui-winit", default-features = false, features = ["epi"] }
+epi = { version = "0.15.0", path = "../epi", optional = true }
 
-# feature "http":
-ureq = { version = "2.0", optional = true }
+glium = "0.30"
 
-# feature "persistence":
-directories-next = { version = "2", optional = true }
-ron = { version = "0.6", optional = true }
-serde = { version = "1", optional = true }
-
-# feature screen_reader
-tts = { version = "0.16", optional = true }
-
-# feature "time"
-chrono = { version = "0.4", optional = true }
+[dev-dependencies]
+image = { version = "0.23", default-features = false, features = ["png"] }
 
 [features]
-default = ["default_fonts"]
+default = ["clipboard", "default_fonts", "links", "persistence"]
+
+# enable cut/copy/paste to OS clipboard.
+# if disabled a clipboard will be simulated so you can still copy/paste within the egui app.
+clipboard = ["egui-winit/clipboard"]
 
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["egui/default_fonts"]
-http = ["ureq"]
+
+# enable opening links in a browser when an egui hyperlink is clicked.
+links = ["egui-winit/links"]
+
 persistence = [
-    "directories-next",
-    "egui/persistence",
-    "epi/persistence",
-    "ron",
-    "serde",
+  "egui-winit/persistence",
+  "egui/persistence",
+  "epi", # also implied by the lines below, see https://github.com/rust-lang/cargo/issues/8832
+  "epi/file_storage",
+  "epi/persistence",
 ]
-time = ["chrono"] # for seconds_since_midnight
-screen_reader = ["tts"] # experimental
+
+# experimental support for a screen reader
+screen_reader = ["egui-winit/screen_reader"]

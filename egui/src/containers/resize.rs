@@ -1,7 +1,7 @@
 use crate::*;
 
 #[derive(Clone, Copy, Debug)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct State {
     /// This is the size that the user has picked by dragging the resize handles.
     /// This may be smaller and/or larger than the actual size.
@@ -14,6 +14,16 @@ pub(crate) struct State {
 
     /// Externally requested size (e.g. by Window) for the next frame
     pub(crate) requested_size: Option<Vec2>,
+}
+
+impl State {
+    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
+        ctx.memory().data.get_persisted(id)
+    }
+
+    pub fn store(self, ctx: &Context, id: Id) {
+        ctx.memory().data.insert_persisted(id, self);
+    }
 }
 
 /// A region that can be resized by dragging the bottom right corner.
@@ -160,7 +170,7 @@ impl Resize {
             ui.make_persistent_id(id_source)
         });
 
-        let mut state = *ui.memory().id_data.get_or_insert_with(id, || {
+        let mut state = State::load(ui.ctx(), id).unwrap_or_else(|| {
             ui.ctx().request_repaint(); // counter frame delay
 
             let default_size = self
@@ -282,12 +292,11 @@ impl Resize {
         if self.with_stroke && corner_response.is_some() {
             let rect = Rect::from_min_size(content_ui.min_rect().left_top(), state.desired_size);
             let rect = rect.expand(2.0); // breathing room for content
-            ui.painter().add(epaint::Shape::Rect {
+            ui.painter().add(Shape::rect_stroke(
                 rect,
-                corner_radius: 3.0,
-                fill: Default::default(),
-                stroke: ui.visuals().widgets.noninteractive.bg_stroke,
-            });
+                3.0,
+                ui.visuals().widgets.noninteractive.bg_stroke,
+            ));
         }
 
         if let Some(corner_response) = corner_response {
@@ -298,7 +307,7 @@ impl Resize {
             }
         }
 
-        ui.memory().id_data.insert(id, state);
+        state.store(ui.ctx(), id);
 
         if ui.ctx().style().debug.show_resize {
             ui.ctx().debug_painter().debug_rect(

@@ -2,8 +2,8 @@ use super::*;
 use egui::{color::*, *};
 
 /// Showcase some ui code
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct MiscDemoWindow {
     num_columns: usize,
 
@@ -34,17 +34,26 @@ impl Demo for MiscDemoWindow {
     fn show(&mut self, ctx: &CtxRef, open: &mut bool) {
         Window::new(self.name())
             .open(open)
-            .scroll(true)
+            .vscroll(true)
+            .hscroll(true)
             .show(ctx, |ui| self.ui(ui));
     }
 }
 
 impl View for MiscDemoWindow {
     fn ui(&mut self, ui: &mut Ui) {
+        ui.set_min_width(250.0);
+
         CollapsingHeader::new("Widgets")
             .default_open(true)
             .show(ui, |ui| {
                 self.widgets.ui(ui);
+            });
+
+        CollapsingHeader::new("Text layout")
+            .default_open(false)
+            .show(ui, |ui| {
+                text_layout_ui(ui);
             });
 
         CollapsingHeader::new("Colors")
@@ -106,13 +115,11 @@ impl View for MiscDemoWindow {
 
 // ----------------------------------------------------------------------------
 
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Widgets {
     angle: f32,
     password: String,
-    lock_focus: bool,
-    code_snippet: String,
 }
 
 impl Default for Widgets {
@@ -120,25 +127,13 @@ impl Default for Widgets {
         Self {
             angle: std::f32::consts::TAU / 3.0,
             password: "hunter2".to_owned(),
-            lock_focus: true,
-            code_snippet: "\
-fn main() {
-\tprintln!(\"Hello world!\");
-}
-"
-            .to_owned(),
         }
     }
 }
 
 impl Widgets {
     pub fn ui(&mut self, ui: &mut Ui) {
-        let Self {
-            angle,
-            password,
-            lock_focus,
-            code_snippet,
-        } = self;
+        let Self { angle, password } = self;
         ui.vertical_centered(|ui| {
             ui.add(crate::__egui_github_link_file_line!());
         });
@@ -147,7 +142,7 @@ impl Widgets {
             // Trick so we don't have to add spaces in the text below:
             ui.spacing_mut().item_spacing.x = ui.fonts()[TextStyle::Body].glyph_width(' ');
 
-            ui.add(Label::new("Text can have").text_color(Color32::from_rgb(110, 255, 110)));
+            ui.label(RichText::new("Text can have").color(Color32::from_rgb(110, 255, 110)));
             ui.colored_label(Color32::from_rgb(128, 140, 255), "color"); // Shortcut version
             ui.label("and tooltips.").on_hover_text(
                 "This is a multiline tooltip that demonstrates that you can easily add tooltips to any element.\nThis is the second line.\nThis is the third.",
@@ -168,7 +163,7 @@ impl Widgets {
             ui.heading("The name of the tooltip");
             ui.horizontal(|ui| {
                 ui.label("This tooltip was created with");
-                ui.monospace(".on_hover_ui(...)");
+                ui.monospace(".on_hover_ui(…)");
             });
             let _ = ui.button("A button you can never press");
         };
@@ -193,32 +188,14 @@ impl Widgets {
                 .on_hover_text("See the example code for how to use egui to store UI state");
             ui.add(super::password::password(password));
         });
-
-        ui.separator();
-
-        ui.horizontal(|ui| {
-            ui.label("Code editor:");
-
-            ui.separator();
-
-            ui.checkbox(lock_focus, "Lock focus").on_hover_text(
-                "When checked, pressing TAB will insert a tab instead of moving focus",
-            );
-        });
-
-        ui.add(
-            TextEdit::multiline(code_snippet)
-                .code_editor()
-                .lock_focus(*lock_focus),
-        );
     }
 }
 
 // ----------------------------------------------------------------------------
 
 #[derive(PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 struct ColorWidgets {
     srgba_unmul: [u8; 4],
     srgba_premul: [u8; 4],
@@ -287,8 +264,8 @@ impl ColorWidgets {
 
 // ----------------------------------------------------------------------------
 
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 struct BoxPainting {
     size: Vec2,
     corner_radius: f32,
@@ -338,32 +315,57 @@ enum Action {
 }
 
 #[derive(Clone, Default)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-struct Tree(Vec<Tree>);
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+struct Tree(String, SubTree);
 
 impl Tree {
     pub fn demo() -> Self {
-        Self(vec![
-            Tree(vec![Tree::default(); 4]),
-            Tree(vec![Tree(vec![Tree::default(); 2]); 3]),
-        ])
+        Self(
+            String::from("root"),
+            SubTree(vec![
+                SubTree(vec![SubTree::default(); 4]),
+                SubTree(vec![SubTree(vec![SubTree::default(); 2]); 3]),
+            ]),
+        )
     }
     pub fn ui(&mut self, ui: &mut Ui) -> Action {
-        self.ui_impl(ui, 0, "root")
+        self.1.ui(ui, 0, "root", &mut self.0)
     }
+}
 
-    fn ui_impl(&mut self, ui: &mut Ui, depth: usize, name: &str) -> Action {
-        CollapsingHeader::new(name)
+#[derive(Clone, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+struct SubTree(Vec<SubTree>);
+
+impl SubTree {
+    pub fn ui(
+        &mut self,
+        ui: &mut Ui,
+        depth: usize,
+        name: &str,
+        selected_name: &mut String,
+    ) -> Action {
+        let response = CollapsingHeader::new(name)
             .default_open(depth < 1)
-            .show(ui, |ui| self.children_ui(ui, depth))
-            .body_returned
-            .unwrap_or(Action::Keep)
+            .selectable(true)
+            .selected(selected_name.as_str() == name)
+            .show(ui, |ui| self.children_ui(ui, name, depth, selected_name));
+        if response.header_response.clicked() {
+            *selected_name = name.to_string();
+        }
+        response.body_returned.unwrap_or(Action::Keep)
     }
 
-    fn children_ui(&mut self, ui: &mut Ui, depth: usize) -> Action {
+    fn children_ui(
+        &mut self,
+        ui: &mut Ui,
+        parent_name: &str,
+        depth: usize,
+        selected_name: &mut String,
+    ) -> Action {
         if depth > 0
             && ui
-                .add(Button::new("delete").text_color(Color32::RED))
+                .button(RichText::new("delete").color(Color32::RED))
                 .clicked()
         {
             return Action::Delete;
@@ -374,7 +376,13 @@ impl Tree {
             .into_iter()
             .enumerate()
             .filter_map(|(i, mut tree)| {
-                if tree.ui_impl(ui, depth + 1, &format!("child #{}", i)) == Action::Keep {
+                if tree.ui(
+                    ui,
+                    depth + 1,
+                    &format!("{}/{}", parent_name, i),
+                    selected_name,
+                ) == Action::Keep
+                {
                     Some(tree)
                 } else {
                     None
@@ -383,9 +391,183 @@ impl Tree {
             .collect();
 
         if ui.button("+").clicked() {
-            self.0.push(Tree::default());
+            self.0.push(SubTree::default());
         }
 
         Action::Keep
     }
+}
+
+// ----------------------------------------------------------------------------
+
+fn text_layout_ui(ui: &mut egui::Ui) {
+    use egui::text::LayoutJob;
+
+    let mut job = LayoutJob::default();
+
+    let first_row_indentation = 10.0;
+
+    let (default_color, strong_color) = if ui.visuals().dark_mode {
+        (Color32::LIGHT_GRAY, Color32::WHITE)
+    } else {
+        (Color32::DARK_GRAY, Color32::BLACK)
+    };
+
+    job.append(
+        "This is a demonstration of ",
+        first_row_indentation,
+        TextFormat {
+            style: TextStyle::Body,
+            color: default_color,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "the egui text layout engine. ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: strong_color,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "It supports ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: default_color,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "different ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: Color32::from_rgb(110, 255, 110),
+            ..Default::default()
+        },
+    );
+    job.append(
+        "colors, ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: Color32::from_rgb(128, 140, 255),
+            ..Default::default()
+        },
+    );
+    job.append(
+        "backgrounds, ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: default_color,
+            background: Color32::from_rgb(128, 32, 32),
+            ..Default::default()
+        },
+    );
+    job.append(
+        "mixing ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Heading,
+            color: default_color,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "fonts, ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Monospace,
+            color: default_color,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "raised text, ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Small,
+            color: default_color,
+            valign: Align::TOP,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "with ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: default_color,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "underlining",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: default_color,
+            underline: Stroke::new(1.0, Color32::LIGHT_BLUE),
+            ..Default::default()
+        },
+    );
+    job.append(
+        " and ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: default_color,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "strikethrough",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: default_color,
+            strikethrough: Stroke::new(2.0, Color32::RED.linear_multiply(0.5)),
+            ..Default::default()
+        },
+    );
+    job.append(
+        ". Of course, ",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: default_color,
+            ..Default::default()
+        },
+    );
+    job.append(
+        "you can",
+        0.0,
+        TextFormat {
+            style: TextStyle::Body,
+            color: default_color,
+            strikethrough: Stroke::new(1.0, strong_color),
+            ..Default::default()
+        },
+    );
+    job.append(
+        " mix these!",
+        0.0,
+        TextFormat {
+            style: TextStyle::Small,
+            color: Color32::LIGHT_BLUE,
+            background: Color32::from_rgb(128, 0, 0),
+            underline: Stroke::new(1.0, strong_color),
+            ..Default::default()
+        },
+    );
+
+    ui.label(job);
+
+    ui.vertical_centered(|ui| {
+        ui.add(crate::__egui_github_link_file_line!());
+    });
 }

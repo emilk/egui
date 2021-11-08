@@ -1,5 +1,5 @@
 #[derive(Debug, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 enum Enum {
     First,
     Second,
@@ -7,7 +7,7 @@ enum Enum {
 }
 
 /// Shows off one example of each major type of widget.
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WidgetGallery {
     enabled: bool,
     visible: bool,
@@ -16,6 +16,7 @@ pub struct WidgetGallery {
     scalar: f32,
     string: String,
     color: egui::Color32,
+    animate_progress_bar: bool,
 }
 
 impl Default for WidgetGallery {
@@ -28,6 +29,7 @@ impl Default for WidgetGallery {
             scalar: 42.0,
             string: Default::default(),
             color: egui::Color32::LIGHT_BLUE.linear_multiply(0.5),
+            animate_progress_bar: false,
         }
     }
 }
@@ -40,9 +42,10 @@ impl super::Demo for WidgetGallery {
     fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
-            .resizable(false)
+            .resizable(true)
+            .default_width(300.0)
             .show(ctx, |ui| {
-                use super::View;
+                use super::View as _;
                 self.ui(ui);
             });
     }
@@ -50,13 +53,13 @@ impl super::Demo for WidgetGallery {
 
 impl super::View for WidgetGallery {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.scope(|ui| {
+        ui.add_enabled_ui(self.enabled, |ui| {
             ui.set_visible(self.visible);
-            ui.set_enabled(self.enabled);
 
             egui::Grid::new("my_grid")
-                .striped(true)
+                .num_columns(2)
                 .spacing([40.0, 4.0])
+                .striped(true)
                 .show(ui, |ui| {
                     self.gallery_grid_contents(ui);
                 });
@@ -95,6 +98,7 @@ impl WidgetGallery {
             scalar,
             string,
             color,
+            animate_progress_bar,
         } = self;
 
         ui.add(doc_link_label("Label", "label,heading"));
@@ -142,7 +146,7 @@ impl WidgetGallery {
         });
         ui.end_row();
 
-        ui.add(doc_link_label("Combo box", "ComboBox"));
+        ui.add(doc_link_label("ComboBox", "ComboBox"));
 
         egui::ComboBox::from_label("Take your pick")
             .selected_text(format!("{:?}", radio))
@@ -159,6 +163,17 @@ impl WidgetGallery {
 
         ui.add(doc_link_label("DragValue", "DragValue"));
         ui.add(egui::DragValue::new(scalar).speed(1.0));
+        ui.end_row();
+
+        ui.add(doc_link_label("ProgressBar", "ProgressBar"));
+        let progress = *scalar / 360.0;
+        let progress_bar = egui::ProgressBar::new(progress)
+            .show_percentage()
+            .animate(*animate_progress_bar);
+        *animate_progress_bar = ui
+            .add(progress_bar)
+            .on_hover_text("The progress bar can be animated!")
+            .hovered();
         ui.end_row();
 
         ui.add(doc_link_label("Color picker", "color_edit"));
@@ -197,6 +212,7 @@ impl WidgetGallery {
 
         ui.add(doc_link_label("Plot", "plot"));
         ui.add(example_plot());
+
         ui.end_row();
 
         ui.hyperlink_to(
@@ -212,14 +228,14 @@ impl WidgetGallery {
 }
 
 fn example_plot() -> egui::plot::Plot {
-    use egui::plot::{Line, Plot, Value, Values};
+    use egui::plot::{Line, Value, Values};
     let n = 128;
     let line = Line::new(Values::from_values_iter((0..=n).map(|i| {
         use std::f64::consts::TAU;
-        let x = egui::remap(i as f64, 0.0..=(n as f64), -TAU..=TAU);
+        let x = egui::remap(i as f64, 0.0..=n as f64, -TAU..=TAU);
         Value::new(x, x.sin())
     })));
-    Plot::new("Example Plot")
+    egui::plot::Plot::new("example_plot")
         .line(line)
         .height(32.0)
         .data_aspect(1.0)

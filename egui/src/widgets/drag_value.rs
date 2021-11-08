@@ -42,9 +42,10 @@ fn set(get_set_value: &mut GetSetValue<'_>, value: f64) {
 /// A numeric value that you can change by dragging the number. More compact than a [`Slider`].
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// # let mut my_f32: f32 = 0.0;
 /// ui.add(egui::DragValue::new(&mut my_f32).speed(0.1));
+/// # });
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct DragValue<'a> {
@@ -57,28 +58,11 @@ pub struct DragValue<'a> {
     max_decimals: Option<usize>,
 }
 
-macro_rules! impl_integer_constructor {
-    ($int:ident) => {
-        #[deprecated = "Use DragValue::new instead"]
-        pub fn $int(value: &'a mut $int) -> Self {
-            Self::from_get_set(move |v: Option<f64>| {
-                if let Some(v) = v {
-                    *value = v.round() as $int;
-                }
-                *value as f64
-            })
-            .max_decimals(0)
-            .clamp_range($int::MIN..=$int::MAX)
-            .speed(0.25)
-        }
-    };
-}
-
 impl<'a> DragValue<'a> {
     pub fn new<Num: emath::Numeric>(value: &'a mut Num) -> Self {
         let slf = Self::from_get_set(move |v: Option<f64>| {
             if let Some(v) = v {
-                *value = Num::from_f64(v)
+                *value = Num::from_f64(v);
             }
             value.to_f64()
         });
@@ -91,37 +75,6 @@ impl<'a> DragValue<'a> {
             slf
         }
     }
-
-    #[deprecated = "Use DragValue::new instead"]
-    pub fn f32(value: &'a mut f32) -> Self {
-        Self::from_get_set(move |v: Option<f64>| {
-            if let Some(v) = v {
-                *value = v as f32
-            }
-            *value as f64
-        })
-    }
-
-    #[deprecated = "Use DragValue::new instead"]
-    pub fn f64(value: &'a mut f64) -> Self {
-        Self::from_get_set(move |v: Option<f64>| {
-            if let Some(v) = v {
-                *value = v
-            }
-            *value
-        })
-    }
-
-    impl_integer_constructor!(i8);
-    impl_integer_constructor!(u8);
-    impl_integer_constructor!(i16);
-    impl_integer_constructor!(u16);
-    impl_integer_constructor!(i32);
-    impl_integer_constructor!(u32);
-    impl_integer_constructor!(i64);
-    impl_integer_constructor!(u64);
-    impl_integer_constructor!(isize);
-    impl_integer_constructor!(usize);
 
     pub fn from_get_set(get_set_value: impl 'a + FnMut(Option<f64>) -> f64) -> Self {
         Self {
@@ -145,17 +98,6 @@ impl<'a> DragValue<'a> {
     pub fn clamp_range<Num: emath::Numeric>(mut self, clamp_range: RangeInclusive<Num>) -> Self {
         self.clamp_range = clamp_range.start().to_f64()..=clamp_range.end().to_f64();
         self
-    }
-
-    #[deprecated = "Use clamp_range"]
-    pub fn clamp_range_f64(mut self, clamp_range: RangeInclusive<f64>) -> Self {
-        self.clamp_range = clamp_range;
-        self
-    }
-
-    #[deprecated = "Renamed clamp_range"]
-    pub fn range(self, clamp_range: RangeInclusive<f32>) -> Self {
-        self.clamp_range(clamp_range)
     }
 
     /// Show a prefix before the number, e.g. "x: "
@@ -257,7 +199,7 @@ impl<'a> Widget for DragValue<'a> {
             );
             if let Ok(parsed_value) = value_text.parse() {
                 let parsed_value = clamp_to_range(parsed_value, clamp_range);
-                set(&mut get_set_value, parsed_value)
+                set(&mut get_set_value, parsed_value);
             }
             if ui.input().key_pressed(Key::Enter) {
                 ui.memory().surrender_focus(kb_edit_id);
@@ -267,21 +209,24 @@ impl<'a> Widget for DragValue<'a> {
             }
             response
         } else {
-            let button = Button::new(format!("{}{}{}", prefix, value_text, suffix))
-                .sense(Sense::click_and_drag())
-                .text_style(TextStyle::Monospace)
-                .wrap(false)
-                .min_size(ui.spacing().interact_size); // TODO: find some more generic solution to this
+            let button = Button::new(
+                RichText::new(format!("{}{}{}", prefix, value_text, suffix)).monospace(),
+            )
+            .wrap(false)
+            .sense(Sense::click_and_drag())
+            .min_size(ui.spacing().interact_size); // TODO: find some more generic solution to `min_size`
 
             let response = ui.add(button);
-            let response = response
-                .on_hover_cursor(CursorIcon::ResizeHorizontal)
-                .on_hover_text(format!(
+            let mut response = response.on_hover_cursor(CursorIcon::ResizeHorizontal);
+
+            if ui.style().explanation_tooltips {
+                response = response .on_hover_text(format!(
                     "{}{}{}\nDrag to edit or click to enter a value.\nPress 'Shift' while dragging for better control.",
                     prefix,
                     value as f32, // Show full precision value on-hover. TODO: figure out f64 vs f32
                     suffix
                 ));
+            }
 
             if response.clicked() {
                 ui.memory().request_focus(kb_edit_id);

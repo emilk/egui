@@ -4,28 +4,40 @@ mod items;
 mod legend;
 mod transform;
 
-use std::collections::HashSet;
-
 use items::PlotItem;
-pub use items::{Bar, BarChart, Boxplot, BoxplotSeries, Line, MarkerShape, Points, Value, Values};
-pub use items::{HLine, VLine};
+pub use items::{
+    Arrows, Bar, BarChart, Boxplot, BoxplotSeries, HLine, Line, LineStyle, MarkerShape, PlotImage,
+    Points, Polygon, Text, VLine, Value, Values,
+};
 use legend::LegendWidget;
 pub use legend::{Corner, Legend};
 use transform::{Bounds, ScreenTransform};
 
 use crate::*;
 use color::Hsva;
+use epaint::ahash::AHashSet;
 
 // ----------------------------------------------------------------------------
 
 /// Information about the plot that has to persist between frames.
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone)]
 struct PlotMemory {
     bounds: Bounds,
     auto_bounds: bool,
     hovered_entry: Option<String>,
-    hidden_items: HashSet<String>,
+    hidden_items: AHashSet<String>,
+    min_auto_bounds: Bounds,
+}
+
+impl PlotMemory {
+    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
+        ctx.memory().data.get_persisted(id)
+    }
+
+    pub fn store(self, ctx: &Context, id: Id) {
+        ctx.memory().data.insert_persisted(id, self);
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -35,7 +47,7 @@ struct PlotMemory {
 /// `Plot` supports multiple lines and points.
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// use egui::plot::{Line, Plot, Value, Values};
 /// let sin = (0..1000).map(|i| {
 ///     let x = i as f64 * 0.01;
@@ -43,16 +55,15 @@ struct PlotMemory {
 /// });
 /// let line = Line::new(Values::from_values_iter(sin));
 /// ui.add(
-///     Plot::new("Test Plot").line(line).view_aspect(2.0)
+///     Plot::new("my_plot").line(line).view_aspect(2.0)
 /// );
+/// # });
 /// ```
 pub struct Plot {
-    name: String,
+    id_source: Id,
     next_auto_color_idx: usize,
 
     items: Vec<Box<dyn PlotItem>>,
-    hlines: Vec<HLine>,
-    vlines: Vec<VLine>,
 
     center_x_axis: bool,
     center_y_axis: bool,
@@ -70,18 +81,18 @@ pub struct Plot {
     show_x: bool,
     show_y: bool,
     legend_config: Option<Legend>,
+    show_background: bool,
+    show_axes: [bool; 2],
 }
 
 impl Plot {
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn new(name: impl ToString) -> Self {
+    /// Give a unique id for each plot within the same `Ui`.
+    pub fn new(id_source: impl std::hash::Hash) -> Self {
         Self {
-            name: name.to_string(),
+            id_source: Id::new(id_source),
             next_auto_color_idx: 0,
 
             items: Default::default(),
-            hlines: Default::default(),
-            vlines: Default::default(),
 
             center_x_axis: false,
             center_y_axis: false,
@@ -99,6 +110,8 @@ impl Plot {
             show_x: true,
             show_y: true,
             legend_config: None,
+            show_background: true,
+            show_axes: [true; 2],
         }
     }
 
@@ -111,7 +124,6 @@ impl Plot {
     }
 
     /// Add a data lines.
-    /// You can add multiple lines.
     pub fn line(mut self, mut line: Line) -> Self {
         if line.series.is_empty() {
             return self;
@@ -122,12 +134,34 @@ impl Plot {
             line.stroke.color = self.auto_color();
         }
         self.items.push(Box::new(line));
+        self
+    }
 
+    /// Add a polygon. The polygon has to be convex.
+    pub fn polygon(mut self, mut polygon: Polygon) -> Self {
+        if polygon.series.is_empty() {
+            return self;
+        };
+
+        // Give the stroke an automatic color if no color has been assigned.
+        if polygon.stroke.color == Color32::TRANSPARENT {
+            polygon.stroke.color = self.auto_color();
+        }
+        self.items.push(Box::new(polygon));
+        self
+    }
+
+    /// Add a text.
+    pub fn text(mut self, text: Text) -> Self {
+        if text.text.is_empty() {
+            return self;
+        };
+
+        self.items.push(Box::new(text));
         self
     }
 
     /// Add data points.
-    /// You can add multiple sets of points.
     pub fn points(mut self, mut points: Points) -> Self {
         if points.series.is_empty() {
             return self;
@@ -138,7 +172,26 @@ impl Plot {
             points.color = self.auto_color();
         }
         self.items.push(Box::new(points));
+        self
+    }
 
+    /// Add arrows.
+    pub fn arrows(mut self, mut arrows: Arrows) -> Self {
+        if arrows.origins.is_empty() || arrows.tips.is_empty() {
+            return self;
+        };
+
+        // Give the arrows an automatic color if no color has been assigned.
+        if arrows.color == Color32::TRANSPARENT {
+            arrows.color = self.auto_color();
+        }
+        self.items.push(Box::new(arrows));
+        self
+    }
+
+    /// Add an image.
+    pub fn image(mut self, image: PlotImage) -> Self {
+        self.items.push(Box::new(image));
         self
     }
 
@@ -179,7 +232,7 @@ impl Plot {
         if hline.stroke.color == Color32::TRANSPARENT {
             hline.stroke.color = self.auto_color();
         }
-        self.hlines.push(hline);
+        self.items.push(Box::new(hline));
         self
     }
 
@@ -190,7 +243,7 @@ impl Plot {
         if vline.stroke.color == Color32::TRANSPARENT {
             vline.stroke.color = self.auto_color();
         }
-        self.vlines.push(vline);
+        self.items.push(Box::new(vline));
         self
     }
 
@@ -244,18 +297,6 @@ impl Plot {
         self
     }
 
-    #[deprecated = "Renamed center_x_axis"]
-    pub fn symmetrical_x_axis(mut self, on: bool) -> Self {
-        self.center_x_axis = on;
-        self
-    }
-
-    #[deprecated = "Renamed center_y_axis"]
-    pub fn symmetrical_y_axis(mut self, on: bool) -> Self {
-        self.center_y_axis = on;
-        self
-    }
-
     /// Always keep the x-axis centered. Default: `false`.
     pub fn center_x_axis(mut self, on: bool) -> Self {
         self.center_x_axis = on;
@@ -294,16 +335,25 @@ impl Plot {
         self
     }
 
-    #[deprecated = "Use `Plot::legend` instead"]
-    /// Whether to show a legend including all named items. Default: `true`.
-    pub fn show_legend(mut self, show: bool) -> Self {
-        self.legend_config = show.then(Legend::default);
-        self
-    }
-
     /// Show a legend including all named items.
     pub fn legend(mut self, legend: Legend) -> Self {
         self.legend_config = Some(legend);
+        self
+    }
+
+    /// Whether or not to show the background `Rect`.
+    /// Can be useful to disable if the plot is overlaid over existing content.
+    /// Default: `true`.
+    pub fn show_background(mut self, show: bool) -> Self {
+        self.show_background = show;
+        self
+    }
+
+    /// Show the axes.
+    /// Can be useful to disable if the plot is overlaid over an existing grid or content.
+    /// Default: `[true; 2]`.
+    pub fn show_axes(mut self, show: [bool; 2]) -> Self {
+        self.show_axes = show;
         self
     }
 }
@@ -311,11 +361,9 @@ impl Plot {
 impl Widget for Plot {
     fn ui(self, ui: &mut Ui) -> Response {
         let Self {
-            name,
+            id_source,
             next_auto_color_idx: _,
             mut items,
-            hlines,
-            vlines,
             center_x_axis,
             center_y_axis,
             allow_zoom,
@@ -330,25 +378,37 @@ impl Widget for Plot {
             mut show_x,
             mut show_y,
             legend_config,
+            show_background,
+            show_axes,
         } = self;
 
-        let plot_id = ui.make_persistent_id(name);
-        let memory = ui
-            .memory()
-            .id_data
-            .get_mut_or_insert_with(plot_id, || PlotMemory {
+        let plot_id = ui.make_persistent_id(id_source);
+        let mut memory = PlotMemory::load(ui.ctx(), plot_id).unwrap_or_else(|| PlotMemory {
+            bounds: min_auto_bounds,
+            auto_bounds: !min_auto_bounds.is_valid(),
+            hovered_entry: None,
+            hidden_items: Default::default(),
+            min_auto_bounds,
+        });
+
+        // If the min bounds changed, recalculate everything.
+        if min_auto_bounds != memory.min_auto_bounds {
+            memory = PlotMemory {
                 bounds: min_auto_bounds,
                 auto_bounds: !min_auto_bounds.is_valid(),
                 hovered_entry: None,
-                hidden_items: HashSet::new(),
-            })
-            .clone();
+                min_auto_bounds,
+                ..memory
+            };
+            memory.clone().store(ui.ctx(), plot_id);
+        }
 
         let PlotMemory {
             mut bounds,
             mut auto_bounds,
             mut hovered_entry,
             mut hidden_items,
+            ..
         } = memory;
 
         // Determine the size of the plot in the UI
@@ -358,7 +418,7 @@ impl Widget for Plot {
                     if let (Some(height), Some(aspect)) = (height, view_aspect) {
                         height * aspect
                     } else {
-                        ui.available_size_before_wrap_finite().x
+                        ui.available_size_before_wrap().x
                     }
                 })
                 .at_least(min_size.x);
@@ -368,7 +428,7 @@ impl Widget for Plot {
                     if let Some(aspect) = view_aspect {
                         width / aspect
                     } else {
-                        ui.available_size_before_wrap_finite().y
+                        ui.available_size_before_wrap().y
                     }
                 })
                 .at_least(min_size.y);
@@ -379,16 +439,19 @@ impl Widget for Plot {
         let plot_painter = ui.painter().sub_region(rect);
 
         // Background
-        plot_painter.add(Shape::Rect {
-            rect,
-            corner_radius: 2.0,
-            fill: ui.visuals().extreme_bg_color,
-            stroke: ui.visuals().widgets.noninteractive.bg_stroke,
-        });
+        if show_background {
+            plot_painter.add(epaint::RectShape {
+                rect,
+                corner_radius: 2.0,
+                fill: ui.visuals().extreme_bg_color,
+                stroke: ui.visuals().widgets.noninteractive.bg_stroke,
+            });
+        }
 
         // Legend
         let legend = legend_config
             .and_then(|config| LegendWidget::try_new(rect, config, &items, &hidden_items));
+
         // Don't show hover cursor when hovering over legend.
         if hovered_entry.is_some() {
             show_x = false;
@@ -411,8 +474,6 @@ impl Widget for Plot {
         // Set bounds automatically based on content.
         if auto_bounds || !bounds.is_valid() {
             bounds = min_auto_bounds;
-            hlines.iter().for_each(|line| bounds.extend_with_y(line.y));
-            vlines.iter().for_each(|line| bounds.extend_with_x(line.x));
             items
                 .iter()
                 .for_each(|item| bounds.merge(&item.get_bounds()));
@@ -428,7 +489,7 @@ impl Widget for Plot {
             bounds.make_x_symmetrical();
         };
         if center_y_axis {
-            bounds.make_y_symmetrical()
+            bounds.make_y_symmetrical();
         };
 
         let mut transform = ScreenTransform::new(rect, bounds, center_x_axis, center_y_axis);
@@ -466,19 +527,17 @@ impl Widget for Plot {
         }
 
         // Initialize values from functions.
-        items.iter_mut().for_each(|item| {
-            item.series_mut()
-                .generate_points(transform.bounds().range_x())
-        });
+        items
+            .iter_mut()
+            .for_each(|item| item.initialize(transform.bounds().range_x()));
 
         let bounds = *transform.bounds();
 
         let prepared = Prepared {
             items,
-            hlines,
-            vlines,
             show_x,
             show_y,
+            show_axes,
             transform,
         };
         prepared.ui(ui, &response);
@@ -489,15 +548,14 @@ impl Widget for Plot {
             hovered_entry = legend.get_hovered_entry_name();
         }
 
-        ui.memory().id_data.insert(
-            plot_id,
-            PlotMemory {
-                bounds,
-                auto_bounds,
-                hovered_entry,
-                hidden_items,
-            },
-        );
+        let memory = PlotMemory {
+            bounds,
+            auto_bounds,
+            hovered_entry,
+            hidden_items,
+            min_auto_bounds,
+        };
+        memory.store(ui.ctx(), plot_id);
 
         if show_x || show_y {
             response.on_hover_cursor(CursorIcon::Crosshair)
@@ -509,10 +567,9 @@ impl Widget for Plot {
 
 struct Prepared {
     items: Vec<Box<dyn PlotItem>>,
-    hlines: Vec<HLine>,
-    vlines: Vec<VLine>,
     show_x: bool,
     show_y: bool,
+    show_axes: [bool; 2],
     transform: ScreenTransform,
 }
 
@@ -521,31 +578,17 @@ impl Prepared {
         let mut shapes = Vec::new();
 
         for d in 0..2 {
-            self.paint_axis(ui, d, &mut shapes);
+            if self.show_axes[d] {
+                self.paint_axis(ui, d, &mut shapes);
+            }
         }
 
         let transform = &self.transform;
 
-        for &hline in &self.hlines {
-            let HLine { y, stroke } = hline;
-            let points = [
-                transform.position_from_value(&Value::new(transform.bounds().min[0], y)),
-                transform.position_from_value(&Value::new(transform.bounds().max[0], y)),
-            ];
-            shapes.push(Shape::line_segment(points, stroke));
-        }
-
-        for &vline in &self.vlines {
-            let VLine { x, stroke } = vline;
-            let points = [
-                transform.position_from_value(&Value::new(x, transform.bounds().min[1])),
-                transform.position_from_value(&Value::new(x, transform.bounds().max[1])),
-            ];
-            shapes.push(Shape::line_segment(points, stroke));
-        }
-
+        let mut plot_ui = ui.child_ui(*transform.frame(), Layout::default());
+        plot_ui.set_clip_rect(*transform.frame());
         for item in &self.items {
-            item.get_shapes(transform, &mut shapes);
+            item.get_shapes(&mut plot_ui, transform, &mut shapes);
         }
 
         if let Some(pointer) = response.hover_pos() {
@@ -617,21 +660,16 @@ impl Prepared {
                 let color = color_from_alpha(ui, text_alpha);
                 let text = emath::round_to_decimals(value_main, 5).to_string(); // hack
 
-                let galley = ui.fonts().layout_single_line(text_style, text);
+                let galley = ui.painter().layout_no_wrap(text, text_style, color);
 
-                let mut text_pos = pos_in_gui + vec2(1.0, -galley.size.y);
+                let mut text_pos = pos_in_gui + vec2(1.0, -galley.size().y);
 
                 // Make sure we see the labels, even if the axis is off-screen:
                 text_pos[1 - axis] = text_pos[1 - axis]
-                    .at_most(transform.frame().max[1 - axis] - galley.size[1 - axis] - 2.0)
+                    .at_most(transform.frame().max[1 - axis] - galley.size()[1 - axis] - 2.0)
                     .at_least(transform.frame().min[1 - axis] + 1.0);
 
-                shapes.push(Shape::Text {
-                    pos: text_pos,
-                    galley,
-                    color,
-                    fake_italics: false,
-                });
+                shapes.push(Shape::galley(text_pos, galley));
             }
         }
 
@@ -658,22 +696,87 @@ impl Prepared {
         }
 
         let interact_radius: f32 = 16.0;
+        let mut closest_value = None;
         let mut closest_item = None;
         let mut closest_dist_sq = interact_radius.powi(2);
         for item in items {
-            if let Some(closest) = item.closest(ui, pointer, transform, *show_x, *show_y) {
-                if closest.distance_square < closest_dist_sq {
-                    closest_dist_sq = closest.distance_square;
-                    closest_item = Some(closest);
+            if let Some(values) = item.values() {
+                for value in &values.values {
+                    let pos = transform.position_from_value(value);
+                    let dist_sq = pointer.distance_sq(pos);
+                    if dist_sq < closest_dist_sq {
+                        closest_dist_sq = dist_sq;
+                        closest_value = Some(value);
+                        closest_item = Some(item.name());
+                    }
                 }
             }
         }
 
-        if let Some(ref mut closest) = closest_item {
-            (closest.hover_shapes)(shapes);
-        } else {
-            let value = transform.value_from_position(pointer);
-            items::rulers_at_value(ui, pointer, transform, *show_x, *show_y, value, "", shapes);
+        let mut prefix = String::new();
+        if let Some(name) = closest_item {
+            if !name.is_empty() {
+                prefix = format!("{}\n", name);
+            }
         }
+
+        let line_color = if ui.visuals().dark_mode {
+            Color32::from_gray(100).additive()
+        } else {
+            Color32::from_black_alpha(180)
+        };
+
+        let value = if let Some(value) = closest_value {
+            let position = transform.position_from_value(value);
+            shapes.push(Shape::circle_filled(position, 3.0, line_color));
+            *value
+        } else {
+            transform.value_from_position(pointer)
+        };
+        let pointer = transform.position_from_value(&value);
+
+        let rect = transform.frame();
+
+        if *show_x {
+            // vertical line
+            shapes.push(Shape::line_segment(
+                [pos2(pointer.x, rect.top()), pos2(pointer.x, rect.bottom())],
+                (1.0, line_color),
+            ));
+        }
+        if *show_y {
+            // horizontal line
+            shapes.push(Shape::line_segment(
+                [pos2(rect.left(), pointer.y), pos2(rect.right(), pointer.y)],
+                (1.0, line_color),
+            ));
+        }
+
+        let text = {
+            let scale = transform.dvalue_dpos();
+            let x_decimals = ((-scale[0].abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
+            let y_decimals = ((-scale[1].abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
+            if *show_x && *show_y {
+                format!(
+                    "{}x = {:.*}\ny = {:.*}",
+                    prefix, x_decimals, value.x, y_decimals, value.y
+                )
+            } else if *show_x {
+                format!("{}x = {:.*}", prefix, x_decimals, value.x)
+            } else if *show_y {
+                format!("{}y = {:.*}", prefix, y_decimals, value.y)
+            } else {
+                unreachable!()
+            }
+        };
+
+        shapes.push(Shape::text(
+            ui.fonts(),
+            pointer + vec2(3.0, -2.0),
+            Align2::LEFT_BOTTOM,
+            text,
+            TextStyle::Body,
+            ui.visuals().text_color(),
+        ));
     }
 }

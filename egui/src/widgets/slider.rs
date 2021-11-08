@@ -1,7 +1,8 @@
 #![allow(clippy::needless_pass_by_value)] // False positives with `impl ToString`
 
-use crate::{widgets::Label, *};
 use std::ops::RangeInclusive;
+
+use crate::*;
 
 // ----------------------------------------------------------------------------
 
@@ -44,9 +45,10 @@ struct SliderSpec {
 /// The user can click the value display to edit its value. It can be turned off with `.show_value(false)`.
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// # let mut my_f32: f32 = 0.0;
 /// ui.add(egui::Slider::new(&mut my_f32, 0.0..=100.0).text("My value"));
+/// # });
 /// ```
 ///
 /// The default `Slider` size is set by [`crate::style::Spacing::slider_width`].
@@ -66,28 +68,12 @@ pub struct Slider<'a> {
     max_decimals: Option<usize>,
 }
 
-macro_rules! impl_integer_constructor {
-    ($int:ident) => {
-        #[deprecated = "Use Slider::new instead"]
-        pub fn $int(value: &'a mut $int, range: RangeInclusive<$int>) -> Self {
-            let range_f64 = (*range.start() as f64)..=(*range.end() as f64);
-            Self::from_get_set(range_f64, move |v: Option<f64>| {
-                if let Some(v) = v {
-                    *value = v.round() as $int
-                }
-                *value as f64
-            })
-            .integer()
-        }
-    };
-}
-
 impl<'a> Slider<'a> {
     pub fn new<Num: emath::Numeric>(value: &'a mut Num, range: RangeInclusive<Num>) -> Self {
         let range_f64 = range.start().to_f64()..=range.end().to_f64();
         let slf = Self::from_get_set(range_f64, move |v: Option<f64>| {
             if let Some(v) = v {
-                *value = Num::from_f64(v)
+                *value = Num::from_f64(v);
             }
             value.to_f64()
         });
@@ -98,38 +84,6 @@ impl<'a> Slider<'a> {
             slf
         }
     }
-
-    #[deprecated = "Use Slider::new instead"]
-    pub fn f32(value: &'a mut f32, range: RangeInclusive<f32>) -> Self {
-        let range_f64 = (*range.start() as f64)..=(*range.end() as f64);
-        Self::from_get_set(range_f64, move |v: Option<f64>| {
-            if let Some(v) = v {
-                *value = v as f32
-            }
-            *value as f64
-        })
-    }
-
-    #[deprecated = "Use Slider::new instead"]
-    pub fn f64(value: &'a mut f64, range: RangeInclusive<f64>) -> Self {
-        Self::from_get_set(range, move |v: Option<f64>| {
-            if let Some(v) = v {
-                *value = v
-            }
-            *value
-        })
-    }
-
-    impl_integer_constructor!(i8);
-    impl_integer_constructor!(u8);
-    impl_integer_constructor!(i16);
-    impl_integer_constructor!(u16);
-    impl_integer_constructor!(i32);
-    impl_integer_constructor!(u32);
-    impl_integer_constructor!(i64);
-    impl_integer_constructor!(u64);
-    impl_integer_constructor!(isize);
-    impl_integer_constructor!(usize);
 
     pub fn from_get_set(
         range: RangeInclusive<f64>,
@@ -143,7 +97,7 @@ impl<'a> Slider<'a> {
                 smallest_positive: 1e-6,
                 largest_finite: f64::INFINITY,
             },
-            clamp_to_range: false,
+            clamp_to_range: true,
             smart_aim: true,
             show_value: true,
             prefix: Default::default(),
@@ -211,7 +165,7 @@ impl<'a> Slider<'a> {
     }
 
     /// If set to `true`, all incoming and outgoing values will be clamped to the slider range.
-    /// Default: `false`.
+    /// Default: `true`.
     pub fn clamp_to_range(mut self, clamp_to_range: bool) -> Self {
         self.clamp_to_range = clamp_to_range;
         self
@@ -222,11 +176,6 @@ impl<'a> Slider<'a> {
     pub fn smart_aim(mut self, smart_aim: bool) -> Self {
         self.smart_aim = smart_aim;
         self
-    }
-
-    #[deprecated = "Use fixed_decimals instead"]
-    pub fn precision(self, precision: usize) -> Self {
-        self.max_decimals(precision)
     }
 
     // TODO: we should also have a "min precision".
@@ -372,7 +321,7 @@ impl<'a> Slider<'a> {
         }
 
         // Paint it:
-        {
+        if ui.is_rect_visible(response.rect) {
             let value = self.get_value();
 
             let rail_radius = ui
@@ -386,7 +335,7 @@ impl<'a> Slider<'a> {
             let marker_center_x = self.x_from_value(value, x_range);
 
             let visuals = ui.style().interact(response);
-            ui.painter().add(Shape::Rect {
+            ui.painter().add(epaint::RectShape {
                 rect: rail_rect,
                 corner_radius: ui.visuals().widgets.inactive.corner_radius,
                 fill: ui.visuals().widgets.inactive.bg_fill,
@@ -397,7 +346,7 @@ impl<'a> Slider<'a> {
                 // stroke: ui.visuals().widgets.inactive.bg_stroke,
             });
 
-            ui.painter().add(Shape::Circle {
+            ui.painter().add(epaint::CircleShape {
                 center: pos2(marker_center_x, rail_rect.center().y),
                 radius: handle_radius(rect) + visuals.expansion,
                 fill: visuals.bg_fill,
@@ -409,7 +358,8 @@ impl<'a> Slider<'a> {
     fn label_ui(&mut self, ui: &mut Ui) {
         if !self.text.is_empty() {
             let text_color = self.text_color.unwrap_or_else(|| ui.visuals().text_color());
-            ui.add(Label::new(&self.text).wrap(false).text_color(text_color));
+            let text = RichText::new(&self.text).color(text_color);
+            ui.add(Label::new(text).wrap(false));
         }
     }
 

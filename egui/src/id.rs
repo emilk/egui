@@ -1,7 +1,5 @@
 // TODO: have separate types `PositionId` and `UniqueId`. ?
 
-use std::hash::Hash;
-
 /// egui tracks widgets frame-to-frame using `Id`s.
 ///
 /// For instance, if you start dragging a slider one frame, egui stores
@@ -28,36 +26,42 @@ use std::hash::Hash;
 /// Then there are widgets that need no identifiers at all, like labels,
 /// because they have no state nor are interacted with.
 #[derive(Clone, Copy, Hash, Eq, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Id(u64);
 
 impl Id {
-    pub(crate) fn background() -> Self {
+    /// A special `Id`, in particular as a key to [`crate::Memory::data`]
+    /// for when there is no particular widget to attach the data.
+    ///
+    /// The null `Id` is still a valid id to use in all circumstances,
+    /// though obviously it will lead to a lot of collisions if you do use it!
+    pub fn null() -> Self {
         Self(0)
     }
 
+    pub(crate) fn background() -> Self {
+        Self(1)
+    }
+
     /// Generate a new `Id` by hashing some source (e.g. a string or integer).
-    pub fn new(source: impl Hash) -> Id {
-        // NOTE: AHasher is NOT suitable for this!
-        use std::collections::hash_map::DefaultHasher;
+    pub fn new(source: impl std::hash::Hash) -> Id {
         use std::hash::Hasher;
-        let mut hasher = DefaultHasher::default();
+        let mut hasher = epaint::ahash::AHasher::new_with_keys(123, 456);
         source.hash(&mut hasher);
         Id(hasher.finish())
     }
 
     /// Generate a new `Id` by hashing the parent `Id` and the given argument.
-    pub fn with(self, child: impl Hash) -> Id {
-        // NOTE: AHasher is NOT suitable for this!
-        use std::collections::hash_map::DefaultHasher;
+    pub fn with(self, child: impl std::hash::Hash) -> Id {
         use std::hash::Hasher;
-        let mut hasher = DefaultHasher::default();
+        let mut hasher = epaint::ahash::AHasher::new_with_keys(123, 456);
         hasher.write_u64(self.0);
         child.hash(&mut hasher);
         Id(hasher.finish())
     }
 
-    pub(crate) fn short_debug_format(&self) -> String {
+    /// Short and readable summary
+    pub fn short_debug_format(&self) -> String {
         format!("{:04X}", self.0 as u16)
     }
 
@@ -69,6 +73,74 @@ impl Id {
 
 impl std::fmt::Debug for Id {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:X}", self.0)
+        write!(f, "{:016X}", self.0)
     }
 }
+
+// ----------------------------------------------------------------------------
+
+// Idea taken from the `nohash_hasher` crate.
+#[derive(Default)]
+pub struct IdHasher(u64);
+
+impl std::hash::Hasher for IdHasher {
+    fn write(&mut self, _: &[u8]) {
+        unreachable!("Invalid use of IdHasher");
+    }
+
+    fn write_u8(&mut self, _n: u8) {
+        unreachable!("Invalid use of IdHasher");
+    }
+    fn write_u16(&mut self, _n: u16) {
+        unreachable!("Invalid use of IdHasher");
+    }
+    fn write_u32(&mut self, _n: u32) {
+        unreachable!("Invalid use of IdHasher");
+    }
+
+    #[inline(always)]
+    fn write_u64(&mut self, n: u64) {
+        self.0 = n;
+    }
+
+    fn write_usize(&mut self, _n: usize) {
+        unreachable!("Invalid use of IdHasher");
+    }
+
+    fn write_i8(&mut self, _n: i8) {
+        unreachable!("Invalid use of IdHasher");
+    }
+    fn write_i16(&mut self, _n: i16) {
+        unreachable!("Invalid use of IdHasher");
+    }
+    fn write_i32(&mut self, _n: i32) {
+        unreachable!("Invalid use of IdHasher");
+    }
+    fn write_i64(&mut self, _n: i64) {
+        unreachable!("Invalid use of IdHasher");
+    }
+    fn write_isize(&mut self, _n: isize) {
+        unreachable!("Invalid use of IdHasher");
+    }
+
+    #[inline(always)]
+    fn finish(&self) -> u64 {
+        self.0
+    }
+}
+
+#[derive(Copy, Clone, Debug, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct BuilIdHasher {}
+
+impl std::hash::BuildHasher for BuilIdHasher {
+    type Hasher = IdHasher;
+
+    #[inline(always)]
+    fn build_hasher(&self) -> IdHasher {
+        IdHasher::default()
+    }
+}
+
+/// `IdMap<V>` is a `HashMap<Id, V>` optimized by knowing that `Id` has good entropy, and doesn't need more hashing.
+pub type IdMap<V> = std::collections::HashMap<Id, V, BuilIdHasher>;

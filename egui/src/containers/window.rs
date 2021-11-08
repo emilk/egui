@@ -1,6 +1,6 @@
 // WARNING: the code in here is horrible. It is a behemoth that needs breaking up into simpler parts.
 
-use crate::{widgets::*, *};
+use crate::{widget_text::WidgetTextGalley, *};
 use epaint::*;
 
 use super::*;
@@ -15,20 +15,19 @@ use super::*;
 /// * if there should be a close button (none by default)
 ///
 /// ```
-/// # let mut ctx = egui::CtxRef::default();
-/// # ctx.begin_frame(Default::default());
-/// # let ctx = &ctx;
+/// # egui::__run_test_ctx(|ctx| {
 /// egui::Window::new("My Window").show(ctx, |ui| {
 ///    ui.label("Hello World!");
 /// });
+/// # });
 #[must_use = "You should call .show()"]
 pub struct Window<'open> {
-    title_label: Label,
+    title: WidgetText,
     open: Option<&'open mut bool>,
     area: Area,
     frame: Option<Frame>,
     resize: Resize,
-    scroll: Option<ScrollArea>,
+    scroll: ScrollArea,
     collapsible: bool,
     with_title_bar: bool,
 }
@@ -37,13 +36,11 @@ impl<'open> Window<'open> {
     /// The window title is used as a unique [`Id`] and must be unique, and should not change.
     /// This is true even if you disable the title bar with `.title_bar(false)`.
     /// If you need a changing title, you must call `window.id(…)` with a fixed id.
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn new(title: impl ToString) -> Self {
-        let title = title.to_string();
-        let area = Area::new(&title);
-        let title_label = Label::new(title).text_style(TextStyle::Heading).wrap(false);
+    pub fn new(title: impl Into<WidgetText>) -> Self {
+        let title = title.into().fallback_text_style(TextStyle::Heading);
+        let area = Area::new(title.text());
         Self {
-            title_label,
+            title,
             open: None,
             area,
             frame: None,
@@ -51,7 +48,7 @@ impl<'open> Window<'open> {
                 .with_stroke(false)
                 .min_size([96.0, 32.0])
                 .default_size([340.0, 420.0]), // Default inner size of a window
-            scroll: None,
+            scroll: ScrollArea::neither(),
             collapsible: true,
             with_title_bar: true,
         }
@@ -79,14 +76,14 @@ impl<'open> Window<'open> {
         self
     }
 
-    /// Usage: `Window::new(...).mutate(|w| w.resize = w.resize.auto_expand_width(true))`
+    /// Usage: `Window::new(…).mutate(|w| w.resize = w.resize.auto_expand_width(true))`
     /// Not sure this is a good interface for this.
     pub fn mutate(mut self, mutate: impl Fn(&mut Self)) -> Self {
         mutate(&mut self);
         self
     }
 
-    /// Usage: `Window::new(...).resize(|r| r.auto_expand_width(true))`
+    /// Usage: `Window::new(…).resize(|r| r.auto_expand_width(true))`
     /// Not sure this is a good interface for this.
     pub fn resize(mut self, mutate: impl Fn(Resize) -> Resize) -> Self {
         self.resize = mutate(self.resize);
@@ -203,23 +200,25 @@ impl<'open> Window<'open> {
     /// Text will not wrap, but will instead make your window width expand.
     pub fn auto_sized(mut self) -> Self {
         self.resize = self.resize.auto_sized();
-        self.scroll = None;
+        self.scroll = ScrollArea::neither();
         self
     }
 
-    /// Enable/disable scrolling. `false` by default.
-    pub fn scroll(mut self, scroll: bool) -> Self {
-        if scroll {
-            if self.scroll.is_none() {
-                self.scroll = Some(ScrollArea::auto_sized());
-            }
-            crate::egui_assert!(
-                self.scroll.is_some(),
-                "Window::scroll called multiple times"
-            );
-        } else {
-            self.scroll = None;
-        }
+    /// Enable/disable horizontal/vertical scrolling. `false` by default.
+    pub fn scroll2(mut self, scroll: [bool; 2]) -> Self {
+        self.scroll = self.scroll.scroll2(scroll);
+        self
+    }
+
+    /// Enable/disable horizontal scrolling. `false` by default.
+    pub fn hscroll(mut self, hscroll: bool) -> Self {
+        self.scroll = self.scroll.hscroll(hscroll);
+        self
+    }
+
+    /// Enable/disable vertical scrolling. `false` by default.
+    pub fn vscroll(mut self, vscroll: bool) -> Self {
+        self.scroll = self.scroll.vscroll(vscroll);
         self
     }
 
@@ -231,18 +230,24 @@ impl<'open> Window<'open> {
 }
 
 impl<'open> Window<'open> {
-    /// Returns `None` if the windows is not open (if [`Window::open`] was called with `&mut false`.
-    pub fn show(self, ctx: &CtxRef, add_contents: impl FnOnce(&mut Ui)) -> Option<Response> {
-        self.show_impl(ctx, Box::new(add_contents))
-    }
-
-    fn show_impl<'c>(
+    /// Returns `None` if the window is not open (if [`Window::open`] was called with `&mut false`).
+    /// Returns `Some(InnerResponse { inner: None })` if the window is collapsed.
+    #[inline]
+    pub fn show<R>(
         self,
         ctx: &CtxRef,
-        add_contents: Box<dyn FnOnce(&mut Ui) + 'c>,
-    ) -> Option<Response> {
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> Option<InnerResponse<Option<R>>> {
+        self.show_dyn(ctx, Box::new(add_contents))
+    }
+
+    fn show_dyn<'c, R>(
+        self,
+        ctx: &CtxRef,
+        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
+    ) -> Option<InnerResponse<Option<R>>> {
         let Window {
-            title_label,
+            title,
             open,
             area,
             frame,
@@ -270,7 +275,7 @@ impl<'open> Window<'open> {
             && !collapsing_header::State::is_open(ctx, collapsing_id).unwrap_or_default();
         let possible = PossibleInteractions::new(&area, &resize, is_collapsed);
 
-        let area = area.movable(false); // We move it manually
+        let area = area.movable(false); // We move it manually, or the area will move the window when we want to resize it
         let resize = resize.resizable(false); // We move it manually
         let mut resize = resize.id(resize_id);
 
@@ -291,21 +296,19 @@ impl<'open> Window<'open> {
             .and_then(|window_interaction| {
                 // Calculate roughly how much larger the window size is compared to the inner rect
                 let title_bar_height = if with_title_bar {
-                    title_label.font_height(ctx.fonts(), &ctx.style()) + title_content_spacing
+                    title.font_height(ctx.fonts(), &ctx.style()) + title_content_spacing
                 } else {
                     0.0
                 };
                 let margins = 2.0 * frame.margin + vec2(0.0, title_bar_height);
-                let bounds = area.drag_bounds();
 
                 interact(
                     window_interaction,
                     ctx,
                     margins,
                     area_layer_id,
-                    area.state_mut(),
+                    &mut area,
                     resize_id,
-                    bounds,
                 )
             })
         } else {
@@ -315,7 +318,7 @@ impl<'open> Window<'open> {
 
         let mut area_content_ui = area.content_ui(ctx);
 
-        {
+        let content_inner = {
             // BEGIN FRAME --------------------------------
             let frame_stroke = frame.stroke;
             let mut frame = frame.begin(&mut area_content_ui);
@@ -330,7 +333,7 @@ impl<'open> Window<'open> {
             let title_bar = if with_title_bar {
                 let title_bar = show_title_bar(
                     &mut frame.content_ui,
-                    title_label,
+                    title,
                     show_close_button,
                     collapsing_id,
                     &mut collapsing,
@@ -342,21 +345,21 @@ impl<'open> Window<'open> {
                 None
             };
 
-            let content_response = collapsing
+            let (content_inner, content_response) = collapsing
                 .add_contents(&mut frame.content_ui, collapsing_id, |ui| {
                     resize.show(ui, |ui| {
                         if title_bar.is_some() {
                             ui.add_space(title_content_spacing);
                         }
 
-                        if let Some(scroll) = scroll {
-                            scroll.show(ui, add_contents);
+                        if scroll.has_any_bar() {
+                            scroll.show(ui, add_contents)
                         } else {
-                            add_contents(ui);
+                            add_contents(ui)
                         }
                     })
                 })
-                .map(|ir| ir.response);
+                .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
 
             let outer_rect = frame.end(&mut area_content_ui).rect;
             paint_resize_corner(&mut area_content_ui, &possible, outer_rect, frame_stroke);
@@ -374,10 +377,7 @@ impl<'open> Window<'open> {
                 );
             }
 
-            area_content_ui
-                .memory()
-                .id_data
-                .insert(collapsing_id, collapsing);
+            collapsing.store(ctx, collapsing_id);
 
             if let Some(interaction) = interaction {
                 paint_frame_interaction(
@@ -396,10 +396,20 @@ impl<'open> Window<'open> {
                     );
                 }
             }
-        }
+            content_inner
+        };
+
+        area.state_mut().pos = ctx
+            .constrain_window_rect_to_area(area.state().rect(), area.drag_bounds())
+            .min;
+
         let full_response = area.end(ctx, area_content_ui);
 
-        Some(full_response)
+        let inner_response = InnerResponse {
+            inner: content_inner,
+            response: full_response,
+        };
+        Some(inner_response)
     }
 }
 
@@ -492,28 +502,22 @@ fn interact(
     ctx: &Context,
     margins: Vec2,
     area_layer_id: LayerId,
-    area_state: &mut area::State,
+    area: &mut area::Prepared,
     resize_id: Id,
-    drag_bounds: Option<Rect>,
 ) -> Option<WindowInteraction> {
     let new_rect = move_and_resize_window(ctx, &window_interaction)?;
     let new_rect = ctx.round_rect_to_pixels(new_rect);
 
-    let new_rect = if let Some(bounds) = drag_bounds {
-        ctx.constrain_window_rect_to_area(new_rect, bounds)
-    } else {
-        ctx.constrain_window_rect(new_rect)
-    };
+    let new_rect = ctx.constrain_window_rect_to_area(new_rect, area.drag_bounds());
 
     // TODO: add this to a Window state instead as a command "move here next frame"
-    area_state.pos = new_rect.min;
+    area.state_mut().pos = new_rect.min;
 
     if window_interaction.is_resize() {
-        ctx.memory()
-            .id_data
-            .get_mut::<resize::State>(&resize_id)
-            .unwrap()
-            .requested_size = Some(new_rect.size() - margins);
+        if let Some(mut state) = resize::State::load(ctx, resize_id) {
+            state.requested_size = Some(new_rect.size() - margins);
+            state.store(ctx, resize_id);
+        }
     }
 
     ctx.memory().areas.move_to_top(area_layer_id);
@@ -522,6 +526,12 @@ fn interact(
 
 fn move_and_resize_window(ctx: &Context, window_interaction: &WindowInteraction) -> Option<Rect> {
     window_interaction.set_cursor(ctx);
+
+    // Only move/resize windows with primary mouse button:
+    if !ctx.input().pointer.primary_down() {
+        return None;
+    }
+
     let pointer_pos = ctx.input().pointer.interact_pos()?;
     let mut rect = window_interaction.start_rect; // prevent drift
 
@@ -575,7 +585,7 @@ fn window_interaction(
     if window_interaction.is_none() {
         if let Some(hover_window_interaction) = resize_hover(ctx, possible, area_layer_id, rect) {
             hover_window_interaction.set_cursor(ctx);
-            if ctx.input().pointer.any_pressed() && ctx.input().pointer.any_down() {
+            if ctx.input().pointer.any_pressed() && ctx.input().pointer.primary_down() {
                 ctx.memory().interaction.drag_id = Some(id);
                 ctx.memory().interaction.drag_is_window = true;
                 window_interaction = Some(hover_window_interaction);
@@ -732,22 +742,21 @@ fn paint_frame_interaction(
 
 struct TitleBar {
     id: Id,
-    title_label: Label,
-    title_galley: std::sync::Arc<Galley>,
+    title_galley: WidgetTextGalley,
     min_rect: Rect,
     rect: Rect,
 }
 
 fn show_title_bar(
     ui: &mut Ui,
-    title_label: Label,
+    title: WidgetText,
     show_close_button: bool,
     collapsing_id: Id,
     collapsing: &mut collapsing_header::State,
     collapsible: bool,
 ) -> TitleBar {
     let inner_response = ui.horizontal(|ui| {
-        let height = title_label
+        let height = title
             .font_height(ui.fonts(), ui.style())
             .max(ui.spacing().interact_size.y);
         ui.set_min_height(height);
@@ -769,20 +778,19 @@ fn show_title_bar(
             collapsing_header::paint_icon(ui, openness, &collapse_button_response);
         }
 
-        let title_galley = title_label.layout(ui);
+        let title_galley = title.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Heading);
 
         let minimum_width = if collapsible || show_close_button {
             // If at least one button is shown we make room for both buttons (since title is centered):
-            2.0 * (pad + button_size.x + item_spacing.x) + title_galley.size.x
+            2.0 * (pad + button_size.x + item_spacing.x) + title_galley.size().x
         } else {
-            pad + title_galley.size.x + pad
+            pad + title_galley.size().x + pad
         };
         let min_rect = Rect::from_min_size(ui.min_rect().min, vec2(minimum_width, height));
         let id = ui.advance_cursor_after_rect(min_rect);
 
         TitleBar {
             id,
-            title_label,
             title_galley,
             min_rect,
             rect: Rect::NAN, // Will be filled in later
@@ -817,17 +825,16 @@ impl TitleBar {
             }
         }
 
-        // Always have inactive style for the window.
-        // It is VERY annoying to e.g. change it when moving the window.
-        let style = ui.visuals().widgets.inactive;
-
-        self.title_label = self.title_label.text_color(style.fg_stroke.color);
-
         let full_top_rect = Rect::from_x_y_ranges(self.rect.x_range(), self.min_rect.y_range());
-        let text_pos = emath::align::center_size_in_rect(self.title_galley.size, full_top_rect);
-        let text_pos = text_pos.left_top() - 1.5 * Vec2::Y; // HACK: center on x-height of text (looks better)
-        self.title_label
-            .paint_galley(ui, text_pos, self.title_galley);
+        let text_pos =
+            emath::align::center_size_in_rect(self.title_galley.size(), full_top_rect).left_top();
+        let text_pos = text_pos - self.title_galley.galley().rect.min.to_vec2();
+        let text_pos = text_pos - 1.5 * Vec2::Y; // HACK: center on x-height of text (looks better)
+        self.title_galley.paint_with_fallback_color(
+            ui.painter(),
+            text_pos,
+            ui.visuals().text_color(),
+        );
 
         if let Some(content_response) = &content_response {
             // paint separator between title and content:

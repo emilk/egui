@@ -3,11 +3,20 @@ use egui::*;
 
 /// Parse and display a VERY simple and small subset of Markdown.
 pub fn easy_mark(ui: &mut Ui, easy_mark: &str) {
-    easy_mark_it(ui, easy_mark::Parser::new(easy_mark))
+    easy_mark_it(ui, easy_mark::Parser::new(easy_mark));
 }
 
 pub fn easy_mark_it<'em>(ui: &mut Ui, items: impl Iterator<Item = easy_mark::Item<'em>>) {
-    ui.horizontal_wrapped(|ui| {
+    let initial_size = vec2(
+        ui.available_width(),
+        ui.spacing().interact_size.y, // Assume there will be
+    );
+
+    let layout = Layout::left_to_right()
+        .with_main_wrap(true)
+        .with_cross_align(Align::BOTTOM);
+
+    ui.allocate_ui_with_layout(initial_size, layout, |ui| {
         ui.spacing_mut().item_spacing.x = 0.0;
         ui.set_row_height(ui.fonts()[TextStyle::Body].row_height());
 
@@ -30,10 +39,10 @@ pub fn item_ui(ui: &mut Ui, item: easy_mark::Item<'_>) {
         }
 
         easy_mark::Item::Text(style, text) => {
-            ui.add(label_from_style(text, &style));
+            ui.label(rich_text_from_style(text, &style));
         }
         easy_mark::Item::Hyperlink(style, text, url) => {
-            let label = label_from_style(text, &style);
+            let label = rich_text_from_style(text, &style);
             ui.add(Hyperlink::from_label_and_url(label, url));
         }
 
@@ -68,7 +77,7 @@ pub fn item_ui(ui: &mut Ui, item: easy_mark::Item<'_>) {
             let where_to_put_background = ui.painter().add(Shape::Noop);
             let mut rect = ui.monospace(code).rect;
             rect = rect.expand(1.0); // looks better
-            rect.max.x = ui.max_rect_finite().max.x;
+            rect.max.x = ui.max_rect().max.x;
             let code_bg_color = ui.visuals().code_bg_color;
             ui.painter().set(
                 where_to_put_background,
@@ -78,7 +87,7 @@ pub fn item_ui(ui: &mut Ui, item: easy_mark::Item<'_>) {
     };
 }
 
-fn label_from_style(text: &str, style: &easy_mark::Style) -> Label {
+fn rich_text_from_style(text: &str, style: &easy_mark::Style) -> RichText {
     let easy_mark::Style {
         heading,
         quoted,
@@ -93,34 +102,34 @@ fn label_from_style(text: &str, style: &easy_mark::Style) -> Label {
 
     let small = small || raised; // Raised text is also smaller
 
-    let mut label = Label::new(text);
+    let mut rich_text = RichText::new(text);
     if heading && !small {
-        label = label.heading().strong();
+        rich_text = rich_text.heading().strong();
     }
     if small && !heading {
-        label = label.small();
+        rich_text = rich_text.small();
     }
     if code {
-        label = label.code();
+        rich_text = rich_text.code();
     }
     if strong {
-        label = label.strong();
+        rich_text = rich_text.strong();
     } else if quoted {
-        label = label.weak();
+        rich_text = rich_text.weak();
     }
     if underline {
-        label = label.underline();
+        rich_text = rich_text.underline();
     }
     if strikethrough {
-        label = label.strikethrough();
+        rich_text = rich_text.strikethrough();
     }
     if italics {
-        label = label.italics();
+        rich_text = rich_text.italics();
     }
     if raised {
-        label = label.raised();
+        rich_text = rich_text.raised();
     }
-    label
+    rich_text
 }
 
 fn bullet_point(ui: &mut Ui, width: f32) -> Response {

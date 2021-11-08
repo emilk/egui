@@ -1,6 +1,6 @@
-use std::collections::{HashMap, HashSet};
+use epaint::ahash::AHashSet;
 
-use crate::{any, area, window, Id, InputState, LayerId, Pos2, Rect, Style};
+use crate::{area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
 
 // ----------------------------------------------------------------------------
 
@@ -10,47 +10,56 @@ use crate::{any, area, window, Id, InputState, LayerId, Pos2, Rect, Style};
 /// how far the user has scrolled in a `ScrollArea` etc.
 ///
 /// If you want this to persist when closing your app you should serialize `Memory` and store it.
+/// For this you need to enable the `persistence`.
 ///
-/// If you want to store data for your widgets, you should look at `data`/`data_temp` and
-/// `id_data`/`id_data_temp` fields, and read the documentation of [`any`] module.
+/// If you want to store data for your widgets, you should look at [`Memory::data`]
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct Memory {
     pub options: Options,
 
-    /// This map stores current states for widgets that don't require `Id`.
-    /// This will be saved between different program runs if you use the `persistence` feature.
-    #[cfg(feature = "persistence")]
-    pub data: any::serializable::TypeMap,
-
-    /// This map stores current states for widgets that don't require `Id`.
-    /// This will be saved between different program runs if you use the `persistence` feature.
-    #[cfg(not(feature = "persistence"))]
-    pub data: any::TypeMap,
-
-    /// Same as `data`, but this data will not be saved between runs.
-    #[cfg_attr(feature = "persistence", serde(skip))]
-    pub data_temp: any::TypeMap,
-
     /// This map stores current states for all widgets with custom `Id`s.
+    ///
     /// This will be saved between different program runs if you use the `persistence` feature.
-    #[cfg(feature = "persistence")]
-    pub id_data: any::serializable::AnyMap<Id>,
+    ///
+    /// To store a state common for all your widgets (a singleton), use [`Id::null`] as the key.
+    pub data: crate::util::IdTypeMap,
 
-    /// This map stores current states for all widgets with custom `Id`s.
-    /// This will be saved between different program runs if you use the `persistence` feature.
-    #[cfg(not(feature = "persistence"))]
-    pub id_data: any::AnyMap<Id>,
-
-    /// Same as `id_data`, but this data will not be saved between runs.
+    // ------------------------------------------
+    /// Can be used to cache computations from one frame to another.
+    ///
+    /// This is for saving CPU when you have something that may take 1-100ms to compute.
+    /// Things that are very slow (>100ms) should instead be done async (i.e. in another thread)
+    /// so as not to lock the UI thread.
+    ///
+    /// ```
+    /// use egui::util::cache::{ComputerMut, FrameCache};
+    ///
+    /// #[derive(Default)]
+    /// struct CharCounter {}
+    /// impl ComputerMut<&str, usize> for CharCounter {
+    ///     fn compute(&mut self, s: &str) -> usize {
+    ///         s.chars().count() // you probably want to cache something more expensive than this
+    ///     }
+    /// }
+    /// type CharCountCache<'a> = FrameCache<usize, CharCounter>;
+    ///
+    /// # let mut ctx = egui::CtxRef::default();
+    /// let mut memory = ctx.memory();
+    /// let cache = memory.caches.cache::<CharCountCache<'_>>();
+    /// assert_eq!(cache.get("hello"), 5);
+    /// ```
     #[cfg_attr(feature = "persistence", serde(skip))]
-    pub id_data_temp: any::AnyMap<Id>,
+    pub caches: crate::util::cache::CacheStorage,
 
+    // ------------------------------------------
     /// new scale that will be applied at the start of the next frame
+    #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) new_pixels_per_point: Option<f32>,
 
     /// new fonts that will be applied at the start of the next frame
+    #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) new_font_definitions: Option<epaint::text::FontDefinitions>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
@@ -77,15 +86,15 @@ pub struct Memory {
 
 /// Some global options that you can read and write.
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Options {
     /// The default style for new `Ui`:s.
-    #[cfg_attr(feature = "persistence", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) style: std::sync::Arc<Style>,
 
     /// Controls the tessellator.
-    pub(crate) tessellation_options: epaint::TessellationOptions,
+    pub tessellation_options: epaint::TessellationOptions,
 
     /// This does not at all change the behavior of egui,
     /// but is a signal to any backend that we want the [`crate::Output::events`] read out loud.
@@ -230,7 +239,7 @@ impl Focus {
         }
     }
 
-    pub(crate) fn end_frame(&mut self, used_ids: &epaint::ahash::AHashMap<Id, Pos2>) {
+    pub(crate) fn end_frame(&mut self, used_ids: &IdMap<Rect>) {
         if let Some(id) = self.id {
             // Allow calling `request_focus` one frame and not using it until next frame
             let recently_gained_focus = self.id_previous_frame != Some(id);
@@ -281,16 +290,14 @@ impl Memory {
         }
     }
 
-    pub(crate) fn end_frame(
-        &mut self,
-        input: &InputState,
-        used_ids: &epaint::ahash::AHashMap<Id, Pos2>,
-    ) {
+    pub(crate) fn end_frame(&mut self, input: &InputState, used_ids: &IdMap<Rect>) {
+        self.caches.update();
         self.areas.end_frame();
         self.interaction.focus.end_frame(used_ids);
         self.drag_value.end_frame(input);
     }
 
+    /// Top-most layer at the given position.
     pub fn layer_id_at(&self, pos: Pos2, resize_interact_radius_side: f32) -> Option<LayerId> {
         self.areas.layer_id_at(pos, resize_interact_radius_side)
     }
@@ -431,21 +438,21 @@ impl Memory {
 /// Keeps track of `Area`s, which are free-floating `Ui`s.
 /// These `Area`s can be in any `Order`.
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Areas {
-    areas: HashMap<Id, area::State>,
-    /// Top is last
+    areas: IdMap<area::State>,
+    /// Back-to-front. Top is last.
     order: Vec<LayerId>,
-    visible_last_frame: HashSet<LayerId>,
-    visible_current_frame: HashSet<LayerId>,
+    visible_last_frame: AHashSet<LayerId>,
+    visible_current_frame: AHashSet<LayerId>,
 
     /// When an area want to be on top, it is put in here.
     /// At the end of the frame, this is used to reorder the layers.
     /// This means if several layers want to be on top, they will keep their relative order.
     /// So if you close three windows and then reopen them all in one frame,
     /// they will all be sent to the top, but keep their previous internal order.
-    wants_to_be_on_top: HashSet<LayerId>,
+    wants_to_be_on_top: AHashSet<LayerId>,
 }
 
 impl Areas {
@@ -457,6 +464,7 @@ impl Areas {
         self.areas.get(&id)
     }
 
+    /// Back-to-front. Top is last.
     pub(crate) fn order(&self) -> &[LayerId] {
         &self.order
     }
@@ -464,22 +472,23 @@ impl Areas {
     pub(crate) fn set_state(&mut self, layer_id: LayerId, state: area::State) {
         self.visible_current_frame.insert(layer_id);
         self.areas.insert(layer_id.id, state);
-        if self.order.iter().find(|x| **x == layer_id).is_none() {
+        if !self.order.iter().any(|x| *x == layer_id) {
             self.order.push(layer_id);
         }
     }
 
+    /// Top-most layer at the given position.
     pub fn layer_id_at(&self, pos: Pos2, resize_interact_radius_side: f32) -> Option<LayerId> {
         for layer in self.order.iter().rev() {
             if self.is_visible(layer) {
                 if let Some(state) = self.areas.get(&layer.id) {
+                    let mut rect = state.rect();
                     if state.interactable {
-                        let rect = Rect::from_min_size(state.pos, state.size);
                         // Allow us to resize by dragging just outside the window:
-                        let rect = rect.expand(resize_interact_radius_side);
-                        if rect.contains(pos) {
-                            return Some(*layer);
-                        }
+                        rect = rect.expand(resize_interact_radius_side);
+                    }
+                    if rect.contains(pos) {
+                        return Some(*layer);
                     }
                 }
             }
@@ -495,7 +504,7 @@ impl Areas {
         self.visible_last_frame.contains(layer_id) || self.visible_current_frame.contains(layer_id)
     }
 
-    pub fn visible_layer_ids(&self) -> HashSet<LayerId> {
+    pub fn visible_layer_ids(&self) -> AHashSet<LayerId> {
         self.visible_last_frame
             .iter()
             .cloned()
@@ -515,7 +524,7 @@ impl Areas {
         self.visible_current_frame.insert(layer_id);
         self.wants_to_be_on_top.insert(layer_id);
 
-        if self.order.iter().find(|x| **x == layer_id).is_none() {
+        if !self.order.iter().any(|x| *x == layer_id) {
             self.order.push(layer_id);
         }
     }

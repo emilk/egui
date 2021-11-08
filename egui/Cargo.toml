@@ -1,6 +1,6 @@
 [package]
 name = "egui"
-version = "0.12.0"
+version = "0.15.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Simple, portable immediate mode GUI library for Rust"
 edition = "2018"
@@ -17,15 +17,24 @@ include = [
   "Cargo.toml",
 ]
 
+[package.metadata.docs.rs]
+all-features = true
+
 [lib]
 
 [dependencies]
-epaint = { version = "0.12.0", path = "../epaint", default-features = false }
+epaint = { version = "0.15.0", path = "../epaint", default-features = false }
+
+ahash = "0.7"
+nohash-hasher = "0.2"
+ron = { version = "0.7", optional = true }
 serde = { version = "1", features = ["derive", "rc"], optional = true }
-ron = { version = "0.6.4", optional = true }
 
 [features]
 default = ["default_fonts", "single_threaded"]
+
+# add compatibility with https://crates.io/crates/cint
+cint = ["epaint/cint"]
 
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
@@ -39,14 +48,16 @@ extra_asserts = ["epaint/extra_asserts"]
 # Add compatability with https://github.com/kvark/mint
 mint = ["epaint/mint"]
 
-# add compatibility with https://crates.io/crates/cint
-cint = ["epaint/cint"]
+# enable persistence of memory (window positions etc).
+persistence = ["serde", "epaint/serialize", "ron"]
 
-persistence = ["serde", "epaint/persistence", "ron"]
+# implement serde on most types.
+serialize = ["serde", "epaint/serialize"]
 
-# Only needed if you plan to use the same egui::Context from multiple threads.
+# implement bytemuck on most types.
+convert_bytemuck = ["epaint/convert_bytemuck"]
+
+# multi_threaded is only needed if you plan to use the same egui::Context
+# from multiple threads. It comes with a minor performance impact.
 single_threaded = ["epaint/single_threaded"]
 multi_threaded = ["epaint/multi_threaded"]
-
-[dev-dependencies]
-serde_json = "1"

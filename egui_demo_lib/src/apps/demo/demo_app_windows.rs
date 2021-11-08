@@ -4,10 +4,10 @@ use std::collections::BTreeSet;
 
 // ----------------------------------------------------------------------------
 
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 struct Demos {
-    #[cfg_attr(feature = "persistence", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     demos: Vec<Box<dyn Demo>>,
 
     open: BTreeSet<String>,
@@ -16,6 +16,9 @@ struct Demos {
 impl Default for Demos {
     fn default() -> Self {
         Self::from_demos(vec![
+            Box::new(super::code_editor::CodeEditor::default()),
+            Box::new(super::code_example::CodeExample::default()),
+            Box::new(super::context_menu::ContextMenus::default()),
             Box::new(super::dancing_strings::DancingStrings::default()),
             Box::new(super::drag_and_drop::DragAndDropDemo::default()),
             Box::new(super::font_book::FontBook::default()),
@@ -28,6 +31,7 @@ impl Default for Demos {
             Box::new(super::widget_gallery::WidgetGallery::default()),
             Box::new(super::window_options::WindowOptions::default()),
             Box::new(super::tests::WindowResizeTest::default()),
+            Box::new(super::window_with_panels::WindowWithPanels::default()),
         ])
     }
 }
@@ -65,10 +69,10 @@ impl Demos {
 
 // ----------------------------------------------------------------------------
 
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 struct Tests {
-    #[cfg_attr(feature = "persistence", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     demos: Vec<Box<dyn Demo>>,
 
     open: BTreeSet<String>,
@@ -134,8 +138,8 @@ fn set_open(open: &mut BTreeSet<String>, key: &'static str, is_open: bool) {
 
 /// A menu bar in which you can select different demo windows to show.
 #[derive(Default)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct DemoWindows {
     demos: Demos,
     tests: Tests,
@@ -158,17 +162,17 @@ impl DemoWindows {
 
                 ui.separator();
 
-                ScrollArea::auto_sized().show(ui, |ui| {
+                ScrollArea::vertical().show(ui, |ui| {
                     use egui::special_emojis::{GITHUB, OS_APPLE, OS_LINUX, OS_WINDOWS};
 
-                    ui.label("egui is an immediate mode GUI library written in Rust.");
-
-                    ui.label(format!(
-                        "egui runs on the web, or natively on {}{}{}",
-                        OS_APPLE, OS_LINUX, OS_WINDOWS,
-                    ));
-
                     ui.vertical_centered(|ui| {
+                        ui.label("egui is an immediate mode GUI library written in Rust.");
+
+                        ui.label(format!(
+                            "egui runs on the web, or natively on {}{}{}",
+                            OS_APPLE, OS_LINUX, OS_WINDOWS,
+                        ));
+
                         ui.hyperlink_to(
                             format!("{} egui home page", GITHUB),
                             "https://github.com/emilk/egui",
@@ -224,16 +228,18 @@ fn show_menu_bar(ui: &mut Ui) {
     use egui::*;
 
     menu::bar(ui, |ui| {
-        menu::menu(ui, "File", |ui| {
+        ui.menu_button("File", |ui| {
             if ui.button("Organize windows").clicked() {
                 ui.ctx().memory().reset_areas();
+                ui.close_menu();
             }
             if ui
-                .button("Clear egui memory")
+                .button("Reset egui memory")
                 .on_hover_text("Forget scroll, positions, sizes etc")
                 .clicked()
             {
                 *ui.ctx().memory() = Default::default();
+                ui.close_menu();
             }
         });
     });

@@ -13,7 +13,10 @@ use super::Vec2;
 //
 /// Normally a `Rot2` is normalized (unit-length).
 /// If not, it will also scale vectors.
+#[repr(C)]
 #[derive(Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Rot2 {
     /// angle.sin()
     s: f32,
@@ -33,11 +36,7 @@ impl Rot2 {
     /// The identity rotation: nothing rotates
     pub const IDENTITY: Self = Self { s: 0.0, c: 1.0 };
 
-    #[deprecated = "Use Rot2::IDENTITY"]
-    pub fn identity() -> Self {
-        Self::IDENTITY
-    }
-
+    /// Angle is clockwise in radians.
     /// A 𝞃/4 = 90° rotation means rotating the X axis to the Y axis.
     pub fn from_angle(angle: f32) -> Self {
         let (s, c) = angle.sin_cos();

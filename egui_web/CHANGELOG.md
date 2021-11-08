@@ -4,7 +4,35 @@ All notable changes to the `egui_web` integration will be noted in this file.
 
 
 ## Unreleased
+*Add feature `glow` to switch to a [`glow`](https://github.com/grovesNL/glow) based painter ([#868](https://github.com/emilk/egui/pull/868)).
 
+## 0.15.0 - 2021-10-24
+### Added
+* Remove "http" feature (use https://github.com/emilk/ehttp instead!).
+* Implement `epi::NativeTexture` trait for the WebGL painter.
+* Deprecate `Painter::register_webgl_texture.
+
+### Fixed 🐛
+* Fix multiline paste.
+* Fix painting with non-opaque backgrounds.
+* Improve text input on mobile and for IME.
+
+
+## 0.14.1 - 2021-08-28
+### Fixed 🐛
+* Fix alpha blending for WebGL2 and WebGL1 with sRGB support backends, now having identical results as egui_glium.
+* Fix use of egui on devices with both touch and mouse.
+
+
+## 0.14.0 - 2021-08-24
+### Added ⭐
+* Added support for dragging and dropping files into the browser window.
+
+### Fixed 🐛
+* Made text thicker and less pixelated.
+
+
+## 0.13.0 - 2021-06-24
 ### Changed 🔧
 * Default to light visuals unless the system reports a preference for dark mode.
 
@@ -14,18 +42,17 @@ All notable changes to the `egui_web` integration will be noted in this file.
 
 
 ## 0.12.0 - 2021-05-10
-
 ### Fixed 🐛
 * Scroll faster when scrolling with mouse wheel.
 
 
 ## 0.11.0 - 2021-04-05
-
 ### Added ⭐
 * [Fix mobile and IME text input](https://github.com/emilk/egui/pull/253)
 * Hold down a modifier key when clicking a link to open it in a new tab.
 
 Contributors: [n2](https://github.com/n2)
+
 
 ## 0.10.0 - 2021-02-28
 ### Added ⭐
@@ -66,6 +93,7 @@ Contributors: [n2](https://github.com/n2)
 ### Changed 🔧
 * Set a maximum canvas size to alleviate performance issues on some machines
 * Simplify `egui_web::start` arguments
+
 
 ## 0.4.0 - 2020-11-28
 ### Added ⭐

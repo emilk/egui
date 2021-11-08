@@ -2,14 +2,13 @@
 //! are sometimes painted behind or in front of other things.
 
 use crate::{Id, *};
-use epaint::ahash::AHashMap;
 use epaint::mutex::Mutex;
 use epaint::{ClippedShape, Shape};
 use std::sync::Arc;
 
 /// Different layer categories
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum Order {
     /// Painted behind all floating windows
     Background,
@@ -48,12 +47,24 @@ impl Order {
             Self::Tooltip => false,
         }
     }
+
+    /// Short and readable summary
+    pub fn short_debug_format(&self) -> &'static str {
+        match self {
+            Self::Background => "backg",
+            Self::PanelResizeLine => "panel",
+            Self::Middle => "middl",
+            Self::Foreground => "foreg",
+            Self::Tooltip => "toolt",
+            Self::Debug => "debug",
+        }
+    }
 }
 
 /// An identifier for a paint layer.
 /// Also acts as an identifier for [`Area`]:s.
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct LayerId {
     pub order: Order,
     pub id: Id,
@@ -82,6 +93,15 @@ impl LayerId {
     pub fn allow_interaction(&self) -> bool {
         self.order.allow_interaction()
     }
+
+    /// Short and readable summary
+    pub fn short_debug_format(&self) -> String {
+        format!(
+            "{} {}",
+            self.order.short_debug_format(),
+            self.id.short_debug_format()
+        )
+    }
 }
 
 /// A unique identifier of a specific [`Shape`] in a [`PaintList`].
@@ -108,7 +128,7 @@ impl PaintList {
 
     pub fn extend(&mut self, clip_rect: Rect, mut shapes: Vec<Shape>) {
         self.0
-            .extend(shapes.drain(..).map(|shape| ClippedShape(clip_rect, shape)))
+            .extend(shapes.drain(..).map(|shape| ClippedShape(clip_rect, shape)));
     }
 
     /// Modify an existing [`Shape`].
@@ -133,7 +153,7 @@ impl PaintList {
 }
 
 #[derive(Clone, Default)]
-pub(crate) struct GraphicLayers([AHashMap<Id, Arc<Mutex<PaintList>>>; Order::COUNT]);
+pub(crate) struct GraphicLayers([IdMap<Arc<Mutex<PaintList>>>; Order::COUNT]);
 
 impl GraphicLayers {
     pub fn list(&mut self, layer_id: LayerId) -> &Arc<Mutex<PaintList>> {
@@ -157,14 +177,14 @@ impl GraphicLayers {
             for layer_id in area_order {
                 if layer_id.order == order {
                     if let Some(list) = order_map.get_mut(&layer_id.id) {
-                        all_shapes.extend(list.lock().0.drain(..));
+                        all_shapes.append(&mut list.lock().0);
                     }
                 }
             }
 
             // Also draw areas that are missing in `area_order`:
             for shapes in order_map.values_mut() {
-                all_shapes.extend(shapes.lock().0.drain(..));
+                all_shapes.append(&mut shapes.lock().0);
             }
         }
 

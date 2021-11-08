@@ -4,6 +4,8 @@
 //! If you want to manipulate RGBA colors use [`Rgba`].
 //! If you want to manipulate colors in a way closer to how humans think about colors, use [`HsvaGamma`].
 
+#![allow(clippy::wrong_self_convention)]
+
 /// This format is used for space-efficient color representation (32 bits).
 ///
 /// Instead of manipulating this directly it is often better
@@ -11,8 +13,10 @@
 ///
 /// Internally this uses 0-255 gamma space `sRGBA` color with premultiplied alpha.
 /// Alpha channel is in linear space.
+#[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Color32(pub(crate) [u8; 4]);
 
 impl std::ops::Index<usize> for Color32 {
@@ -31,25 +35,39 @@ impl std::ops::IndexMut<usize> for Color32 {
     }
 }
 
-#[deprecated = "Replaced by Color32::from_rgb… family of functions."]
-pub const fn srgba(r: u8, g: u8, b: u8, a: u8) -> Color32 {
-    Color32::from_rgba_premultiplied(r, g, b, a)
-}
-
 impl Color32 {
+    // Mostly follows CSS names:
+
     pub const TRANSPARENT: Color32 = Color32::from_rgba_premultiplied(0, 0, 0, 0);
     pub const BLACK: Color32 = Color32::from_rgb(0, 0, 0);
-    pub const LIGHT_GRAY: Color32 = Color32::from_rgb(220, 220, 220);
+    pub const DARK_GRAY: Color32 = Color32::from_rgb(96, 96, 96);
     pub const GRAY: Color32 = Color32::from_rgb(160, 160, 160);
+    pub const LIGHT_GRAY: Color32 = Color32::from_rgb(220, 220, 220);
     pub const WHITE: Color32 = Color32::from_rgb(255, 255, 255);
+
+    pub const BROWN: Color32 = Color32::from_rgb(165, 42, 42);
+    pub const DARK_RED: Color32 = Color32::from_rgb(0x8B, 0, 0);
     pub const RED: Color32 = Color32::from_rgb(255, 0, 0);
+    pub const LIGHT_RED: Color32 = Color32::from_rgb(255, 128, 128);
+
     pub const YELLOW: Color32 = Color32::from_rgb(255, 255, 0);
+    pub const LIGHT_YELLOW: Color32 = Color32::from_rgb(255, 255, 0xE0);
+    pub const KHAKI: Color32 = Color32::from_rgb(240, 230, 140);
+
+    pub const DARK_GREEN: Color32 = Color32::from_rgb(0, 0x64, 0);
     pub const GREEN: Color32 = Color32::from_rgb(0, 255, 0);
+    pub const LIGHT_GREEN: Color32 = Color32::from_rgb(0x90, 0xEE, 0x90);
+
+    pub const DARK_BLUE: Color32 = Color32::from_rgb(0, 0, 0x8B);
     pub const BLUE: Color32 = Color32::from_rgb(0, 0, 255);
-    pub const LIGHT_BLUE: Color32 = Color32::from_rgb(140, 160, 255);
+    pub const LIGHT_BLUE: Color32 = Color32::from_rgb(0xAD, 0xD8, 0xE6);
+
     pub const GOLD: Color32 = Color32::from_rgb(255, 215, 0);
 
     pub const DEBUG_COLOR: Color32 = Color32::from_rgba_premultiplied(0, 200, 0, 128);
+
+    /// An ugly color that is planned to be replaced before making it to the screen.
+    pub const TEMPORARY_COLOR: Color32 = Color32::from_rgb(64, 254, 0);
 
     #[inline(always)]
     pub const fn from_rgb(r: u8, g: u8, b: u8) -> Self {
@@ -70,7 +88,7 @@ impl Color32 {
     /// From `sRGBA` WITHOUT premultiplied alpha.
     pub fn from_rgba_unmultiplied(r: u8, g: u8, b: u8, a: u8) -> Self {
         if a == 255 {
-            Self::from_rgba_premultiplied(r, g, b, 255) // common-case optimization
+            Self::from_rgb(r, g, b) // common-case optimization
         } else if a == 0 {
             Self::TRANSPARENT // common-case optimization
         } else {
@@ -85,11 +103,6 @@ impl Color32 {
 
             Self::from_rgba_premultiplied(r, g, b, a)
         }
-    }
-
-    #[deprecated = "Use from_rgb(..), from_rgba_premultiplied(..) or from_srgba_unmultiplied(..)"]
-    pub const fn new(r: u8, g: u8, b: u8, a: u8) -> Self {
-        Self([r, g, b, a])
     }
 
     #[inline(always)]
@@ -160,6 +173,10 @@ impl Color32 {
         (self.r(), self.g(), self.b(), self.a())
     }
 
+    pub fn to_srgba_unmultiplied(&self) -> [u8; 4] {
+        Rgba::from(*self).to_srgba_unmultiplied()
+    }
+
     /// Multiply with 0.5 to make color half as opaque.
     pub fn linear_multiply(self, factor: f32) -> Color32 {
         crate::epaint_assert!(0.0 <= factor && factor <= 1.0);
@@ -172,8 +189,10 @@ impl Color32 {
 // ----------------------------------------------------------------------------
 
 /// 0-1 linear space `RGBA` color with premultiplied alpha.
+#[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Rgba(pub(crate) [f32; 4]);
 
 impl std::ops::Index<usize> for Rgba {
@@ -192,6 +211,17 @@ impl std::ops::IndexMut<usize> for Rgba {
     }
 }
 
+#[allow(clippy::derive_hash_xor_eq)]
+impl std::hash::Hash for Rgba {
+    #[inline]
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        crate::f32_hash(state, self.0[0]);
+        crate::f32_hash(state, self.0[1]);
+        crate::f32_hash(state, self.0[2]);
+        crate::f32_hash(state, self.0[3]);
+    }
+}
+
 impl Rgba {
     pub const TRANSPARENT: Rgba = Rgba::from_rgba_premultiplied(0.0, 0.0, 0.0, 0.0);
     pub const BLACK: Rgba = Rgba::from_rgb(0.0, 0.0, 0.0);
@@ -203,6 +233,29 @@ impl Rgba {
     #[inline(always)]
     pub const fn from_rgba_premultiplied(r: f32, g: f32, b: f32, a: f32) -> Self {
         Self([r, g, b, a])
+    }
+
+    #[inline(always)]
+    pub fn from_rgba_unmultiplied(r: f32, g: f32, b: f32, a: f32) -> Self {
+        Self([r * a, g * a, b * a, a])
+    }
+
+    #[inline(always)]
+    pub fn from_srgba_premultiplied(r: u8, g: u8, b: u8, a: u8) -> Self {
+        let r = linear_f32_from_gamma_u8(r);
+        let g = linear_f32_from_gamma_u8(g);
+        let b = linear_f32_from_gamma_u8(b);
+        let a = linear_f32_from_linear_u8(a);
+        Self::from_rgba_premultiplied(r, g, b, a)
+    }
+
+    #[inline(always)]
+    pub fn from_srgba_unmultiplied(r: u8, g: u8, b: u8, a: u8) -> Self {
+        let r = linear_f32_from_gamma_u8(r);
+        let g = linear_f32_from_gamma_u8(g);
+        let b = linear_f32_from_gamma_u8(b);
+        let a = linear_f32_from_linear_u8(a);
+        Self::from_rgba_premultiplied(r * a, g * a, b * a, a)
     }
 
     #[inline(always)]
@@ -283,14 +336,13 @@ impl Rgba {
     pub fn to_opaque(&self) -> Self {
         if self.a() == 0.0 {
             // Additive or fully transparent black.
-            Self::from_rgba_premultiplied(self.r(), self.g(), self.b(), 1.0)
+            Self::from_rgb(self.r(), self.g(), self.b())
         } else {
             // un-multiply alpha:
-            Self::from_rgba_premultiplied(
+            Self::from_rgb(
                 self.r() / self.a(),
                 self.g() / self.a(),
                 self.b() / self.a(),
-                1.0,
             )
         }
     }
@@ -305,6 +357,28 @@ impl Rgba {
     #[inline(always)]
     pub fn to_tuple(&self) -> (f32, f32, f32, f32) {
         (self.r(), self.g(), self.b(), self.a())
+    }
+
+    /// unmultiply the alpha
+    pub fn to_rgba_unmultiplied(&self) -> [f32; 4] {
+        let a = self.a();
+        if a == 0.0 {
+            // Additive, let's assume we are black
+            self.0
+        } else {
+            [self.r() / a, self.g() / a, self.b() / a, a]
+        }
+    }
+
+    /// unmultiply the alpha
+    pub fn to_srgba_unmultiplied(&self) -> [u8; 4] {
+        let [r, g, b, a] = self.to_rgba_unmultiplied();
+        [
+            gamma_u8_from_linear_f32(r),
+            gamma_u8_from_linear_f32(g),
+            gamma_u8_from_linear_f32(b),
+            linear_u8_from_linear_f32(a.abs()),
+        ]
     }
 }
 
@@ -482,26 +556,26 @@ impl Hsva {
 
     /// From `sRGBA` with premultiplied alpha
     pub fn from_srgba_premultiplied(srgba: [u8; 4]) -> Self {
-        Self::from_rgba_premultiplied([
+        Self::from_rgba_premultiplied(
             linear_f32_from_gamma_u8(srgba[0]),
             linear_f32_from_gamma_u8(srgba[1]),
             linear_f32_from_gamma_u8(srgba[2]),
             linear_f32_from_linear_u8(srgba[3]),
-        ])
+        )
     }
 
     /// From `sRGBA` without premultiplied alpha
     pub fn from_srgba_unmultiplied(srgba: [u8; 4]) -> Self {
-        Self::from_rgba_unmultiplied([
+        Self::from_rgba_unmultiplied(
             linear_f32_from_gamma_u8(srgba[0]),
             linear_f32_from_gamma_u8(srgba[1]),
             linear_f32_from_gamma_u8(srgba[2]),
             linear_f32_from_linear_u8(srgba[3]),
-        ])
+        )
     }
 
     /// From linear RGBA with premultiplied alpha
-    pub fn from_rgba_premultiplied([r, g, b, a]: [f32; 4]) -> Self {
+    pub fn from_rgba_premultiplied(r: f32, g: f32, b: f32, a: f32) -> Self {
         #![allow(clippy::many_single_char_names)]
         if a == 0.0 {
             if r == 0.0 && b == 0.0 && a == 0.0 {
@@ -516,7 +590,7 @@ impl Hsva {
     }
 
     /// From linear RGBA without premultiplied alpha
-    pub fn from_rgba_unmultiplied([r, g, b, a]: [f32; 4]) -> Self {
+    pub fn from_rgba_unmultiplied(r: f32, g: f32, b: f32, a: f32) -> Self {
         #![allow(clippy::many_single_char_names)]
         let (h, s, v) = hsv_from_rgb([r, g, b]);
         Hsva { h, s, v, a }
@@ -609,7 +683,7 @@ impl From<Hsva> for Rgba {
 }
 impl From<Rgba> for Hsva {
     fn from(rgba: Rgba) -> Hsva {
-        Self::from_rgba_premultiplied(rgba.0)
+        Self::from_rgba_premultiplied(rgba.0[0], rgba.0[1], rgba.0[2], rgba.0[3])
     }
 }
 

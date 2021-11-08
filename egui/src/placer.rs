@@ -59,11 +59,6 @@ impl Placer {
     }
 
     #[inline(always)]
-    pub(crate) fn max_rect_finite(&self) -> Rect {
-        self.region.max_rect_finite()
-    }
-
-    #[inline(always)]
     pub(crate) fn force_set_min_rect(&mut self, min_rect: Rect) {
         self.region.min_rect = min_rect;
     }
@@ -71,6 +66,11 @@ impl Placer {
     #[inline(always)]
     pub(crate) fn cursor(&self) -> Rect {
         self.region.cursor
+    }
+
+    #[inline(always)]
+    pub(crate) fn set_cursor(&mut self, cursor: Rect) {
+        self.region.cursor = cursor;
     }
 }
 
@@ -91,14 +91,6 @@ impl Placer {
         }
     }
 
-    pub(crate) fn available_rect_before_wrap_finite(&self) -> Rect {
-        if let Some(grid) = &self.grid {
-            grid.available_rect_finite(&self.region)
-        } else {
-            self.layout.available_rect_before_wrap_finite(&self.region)
-        }
-    }
-
     /// Amount of space available for a widget.
     /// For wrapping layouts, this is the maximum (after wrap).
     pub(crate) fn available_size(&self) -> Vec2 {
@@ -114,6 +106,7 @@ impl Placer {
     /// This is what you then pass to `advance_after_rects`.
     /// Use `justify_and_align` to get the inner `widget_rect`.
     pub(crate) fn next_space(&self, child_size: Vec2, item_spacing: Vec2) -> Rect {
+        self.region.sanity_check();
         if let Some(grid) = &self.grid {
             grid.next_cell(self.region.cursor, child_size)
         } else {
@@ -164,27 +157,33 @@ impl Placer {
         widget_rect: Rect,
         item_spacing: Vec2,
     ) {
+        egui_assert!(!frame_rect.any_nan());
+        egui_assert!(!widget_rect.any_nan());
+        self.region.sanity_check();
+
         if let Some(grid) = &mut self.grid {
-            grid.advance(&mut self.region.cursor, frame_rect, widget_rect)
+            grid.advance(&mut self.region.cursor, frame_rect, widget_rect);
         } else {
             self.layout.advance_after_rects(
                 &mut self.region.cursor,
                 frame_rect,
                 widget_rect,
                 item_spacing,
-            )
+            );
         }
 
-        self.region.expand_to_include_rect(frame_rect); // e.g. for centered layouts: pretend we used whole frame
+        self.expand_to_include_rect(frame_rect); // e.g. for centered layouts: pretend we used whole frame
+
+        self.region.sanity_check();
     }
 
     /// Move to the next row in a grid layout or wrapping layout.
     /// Otherwise does nothing.
     pub(crate) fn end_row(&mut self, item_spacing: Vec2, painter: &Painter) {
         if let Some(grid) = &mut self.grid {
-            grid.end_row(&mut self.region.cursor, painter)
+            grid.end_row(&mut self.region.cursor, painter);
         } else {
-            self.layout.end_row(&mut self.region, item_spacing)
+            self.layout.end_row(&mut self.region, item_spacing);
         }
     }
 
@@ -205,6 +204,11 @@ impl Placer {
         self.region.expand_to_include_x(x);
     }
 
+    /// Expand the `min_rect` and `max_rect` of this ui to include a child at the given y-coordinate.
+    pub(crate) fn expand_to_include_y(&mut self, y: f32) {
+        self.region.expand_to_include_y(y);
+    }
+
     fn next_widget_space_ignore_wrap_justify(&self, size: Vec2) -> Rect {
         self.layout
             .next_widget_space_ignore_wrap_justify(&self.region, size)
@@ -218,6 +222,11 @@ impl Placer {
         region.max_rect.min.x = rect.min.x;
         region.max_rect.max.x = rect.max.x;
         region.max_rect = region.max_rect.union(region.min_rect); // make sure we didn't shrink too much
+
+        region.cursor.min.x = region.max_rect.min.x;
+        region.cursor.max.x = region.max_rect.max.x;
+
+        region.sanity_check();
     }
 
     /// Set the maximum height of the ui.
@@ -228,6 +237,11 @@ impl Placer {
         region.max_rect.min.y = rect.min.y;
         region.max_rect.max.y = rect.max.y;
         region.max_rect = region.max_rect.union(region.min_rect); // make sure we didn't shrink too much
+
+        region.cursor.min.y = region.max_rect.min.y;
+        region.cursor.max.y = region.max_rect.max.y;
+
+        region.sanity_check();
     }
 
     /// Set the minimum width of the ui.
@@ -258,7 +272,7 @@ impl Placer {
             painter.debug_text(align.pos_in_rect(&rect), align, stroke.color, text);
         } else {
             self.layout
-                .paint_text_at_cursor(painter, &self.region, stroke, text)
+                .paint_text_at_cursor(painter, &self.region, stroke, text);
         }
     }
 }

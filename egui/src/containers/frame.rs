@@ -23,7 +23,7 @@ impl Frame {
     /// For when you want to group a few widgets together within a frame.
     pub fn group(style: &Style) -> Self {
         Self {
-            margin: Vec2::new(8.0, 6.0),
+            margin: Vec2::splat(6.0), // symmetric looks best in corners when nesting
             corner_radius: style.visuals.widgets.noninteractive.corner_radius,
             stroke: style.visuals.widgets.noninteractive.bg_stroke,
             ..Default::default()
@@ -103,6 +103,22 @@ impl Frame {
         self
     }
 
+    pub fn corner_radius(mut self, corner_radius: f32) -> Self {
+        self.corner_radius = corner_radius;
+        self
+    }
+
+    /// Margin on each side of the frame.
+    pub fn margin(mut self, margin: impl Into<Vec2>) -> Self {
+        self.margin = margin.into();
+        self
+    }
+
+    pub fn shadow(mut self, shadow: Shadow) -> Self {
+        self.shadow = shadow;
+        self
+    }
+
     pub fn multiply_with_opacity(mut self, opacity: f32) -> Self {
         self.fill = self.fill.linear_multiply(opacity);
         self.stroke.color = self.stroke.color.linear_multiply(opacity);
@@ -139,6 +155,14 @@ impl Frame {
     }
 
     pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
+        self.show_dyn(ui, Box::new(add_contents))
+    }
+
+    fn show_dyn<'c, R>(
+        self,
+        ui: &mut Ui,
+        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
+    ) -> InnerResponse<R> {
         let mut prepared = self.begin(ui);
         let ret = add_contents(&mut prepared.content_ui);
         let response = prepared.end(ui);
@@ -154,12 +178,12 @@ impl Frame {
             stroke,
         } = *self;
 
-        let frame_shape = Shape::Rect {
+        let frame_shape = Shape::Rect(epaint::RectShape {
             rect: outer_rect,
             corner_radius,
             fill,
             stroke,
-        };
+        });
 
         if shadow == Default::default() {
             frame_shape
@@ -185,8 +209,11 @@ impl Prepared {
             ..
         } = self;
 
-        let shape = frame.paint(outer_rect);
-        ui.painter().set(where_to_put_background, shape);
+        if ui.is_rect_visible(outer_rect) {
+            let shape = frame.paint(outer_rect);
+            ui.painter().set(where_to_put_background, shape);
+        }
+
         ui.allocate_rect(outer_rect, Sense::hover())
     }
 }

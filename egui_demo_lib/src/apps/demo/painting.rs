@@ -1,7 +1,7 @@
 use egui::*;
 
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Painting {
     /// in 0-1 normalized coordinates
     lines: Vec<Vec<Pos2>>,
@@ -31,7 +31,7 @@ impl Painting {
 
     pub fn ui_content(&mut self, ui: &mut Ui) -> egui::Response {
         let (mut response, painter) =
-            ui.allocate_painter(ui.available_size_before_wrap_finite(), Sense::drag());
+            ui.allocate_painter(ui.available_size_before_wrap(), Sense::drag());
 
         let to_screen = emath::RectTransform::from_to(
             Rect::from_min_size(Pos2::ZERO, response.rect.square_proportions()),
@@ -75,11 +75,11 @@ impl super::Demo for Painting {
     }
 
     fn show(&mut self, ctx: &CtxRef, open: &mut bool) {
-        use super::View;
+        use super::View as _;
         Window::new(self.name())
             .open(open)
             .default_size(vec2(512.0, 512.0))
-            .scroll(false)
+            .vscroll(false)
             .show(ctx, |ui| self.ui(ui));
     }
 }

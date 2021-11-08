@@ -1,8 +1,7 @@
 use crate::{
     emath::{lerp, Align, Pos2, Rect, Vec2},
-    CursorIcon, PointerButton, NUM_POINTER_BUTTONS,
+    CtxRef, CursorIcon, Id, LayerId, PointerButton, Sense, Ui, WidgetText, NUM_POINTER_BUTTONS,
 };
-use crate::{CtxRef, Id, LayerId, Sense, Ui};
 
 // ----------------------------------------------------------------------------
 
@@ -106,6 +105,9 @@ impl std::fmt::Debug for Response {
 impl Response {
     /// Returns true if this widget was clicked this frame by the primary button.
     ///
+    /// A click is registered when the mouse or touch is released within
+    /// a certain amount of time and distance from when and where it was pressed.
+    ///
     /// Note that the widget must be sensing clicks with [`Sense::click`].
     /// [`crate::Button`] senses clicks; [`crate::Label`] does not (unless you call [`crate::Label::sense`]).
     ///
@@ -142,12 +144,23 @@ impl Response {
 
     /// `true` if there was a click *outside* this widget this frame.
     pub fn clicked_elsewhere(&self) -> bool {
-        // We do not use self.clicked(), because we want to catch all click within our frame,
-        // even if we aren't clickable. This is important for windows and such that should close
-        // then the user clicks elsewhere.
+        // We do not use self.clicked(), because we want to catch all clicks within our frame,
+        // even if we aren't clickable (or even enabled).
+        // This is important for windows and such that should close then the user clicks elsewhere.
         let pointer = &self.ctx.input().pointer;
-        if let Some(pos) = pointer.interact_pos() {
-            pointer.any_click() && !self.rect.contains(pos)
+
+        if pointer.any_click() {
+            // We detect clicks/hover on a "interact_rect" that is slightly larger than
+            // self.rect. See Context::interact.
+            // This means we can be hovered and clicked even though `!self.rect.contains(pos)` is true,
+            // hence the extra complexity here.
+            if self.hovered() {
+                false
+            } else if let Some(pos) = pointer.interact_pos() {
+                !self.rect.contains(pos)
+            } else {
+                false // clicked without a pointer, weird
+            }
         } else {
             false
         }
@@ -162,6 +175,11 @@ impl Response {
     }
 
     /// The pointer is hovering above this widget or the widget was clicked/tapped this frame.
+    ///
+    /// Note that this is slightly different from checking `response.rect.contains(pointer_pos)`.
+    /// For one, the hover rectangle is slightly larger, by half of the current item spacing
+    /// (to make it easier to click things). But `hovered` also checks that no other area
+    /// is covering this response rectangle.
     #[inline(always)]
     pub fn hovered(&self) -> bool {
         self.hovered
@@ -182,31 +200,27 @@ impl Response {
     /// or (in case of a [`crate::TextEdit`]) because the user pressed enter.
     ///
     /// ```
-    /// # let mut ui = egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// # let mut my_text = String::new();
     /// # fn do_request(_: &str) {}
     /// let response = ui.text_edit_singleline(&mut my_text);
     /// if response.lost_focus() && ui.input().key_pressed(egui::Key::Enter) {
     ///     do_request(&my_text);
     /// }
+    /// # });
     /// ```
     pub fn lost_focus(&self) -> bool {
         self.ctx.memory().lost_focus(self.id)
     }
 
-    #[deprecated = "Renamed to lost_focus()"]
-    pub fn lost_kb_focus(&self) -> bool {
-        self.lost_focus()
-    }
-
     /// Request that this widget get keyboard focus.
     pub fn request_focus(&self) {
-        self.ctx.memory().request_focus(self.id)
+        self.ctx.memory().request_focus(self.id);
     }
 
     /// Surrender keyboard focus for this widget.
     pub fn surrender_focus(&self) {
-        self.ctx.memory().surrender_focus(self.id)
+        self.ctx.memory().surrender_focus(self.id);
     }
 
     /// The widgets is being dragged.
@@ -299,10 +313,13 @@ impl Response {
     /// Show this UI if the widget was hovered (i.e. a tooltip).
     ///
     /// The text will not be visible if the widget is not enabled.
+    /// For that, use [`Self::on_disabled_hover_ui`] instead.
+    ///
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
+    #[doc(alias = "tooltip")]
     pub fn on_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
         if self.should_show_hover_ui() {
-            crate::containers::show_tooltip_under(
+            crate::containers::show_tooltip_for(
                 &self.ctx,
                 self.id.with("__tooltip"),
                 &self.rect,
@@ -315,7 +332,7 @@ impl Response {
     /// Show this UI when hovering if the widget is disabled.
     pub fn on_disabled_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
         if !self.enabled && self.ctx.rect_contains_pointer(self.layer_id, self.rect) {
-            crate::containers::show_tooltip_under(
+            crate::containers::show_tooltip_for(
                 &self.ctx,
                 self.id.with("__tooltip"),
                 &self.rect,
@@ -339,46 +356,50 @@ impl Response {
 
     fn should_show_hover_ui(&self) -> bool {
         if self.ctx.memory().everything_is_visible() {
-            true
-        } else if self.hovered && self.ctx.input().pointer.has_pointer() {
-            let show_tooltips_only_when_still =
-                self.ctx.style().interaction.show_tooltips_only_when_still;
-            if show_tooltips_only_when_still {
-                if self.ctx.input().pointer.is_still() {
-                    true
-                } else {
-                    // wait for mouse to stop
-                    self.ctx.request_repaint();
-                    false
-                }
-            } else {
-                true
-            }
-        } else {
-            false
+            return true;
         }
+
+        if !self.hovered || !self.ctx.input().pointer.has_pointer() {
+            return false;
+        }
+
+        if self.ctx.style().interaction.show_tooltips_only_when_still
+            && !self.ctx.input().pointer.is_still()
+        {
+            // wait for mouse to stop
+            self.ctx.request_repaint();
+            return false;
+        }
+
+        // We don't want tooltips of things while we are dragging them,
+        // but we do want tooltips while holding down on an item on a touch screen.
+        if self.ctx.input().pointer.any_down()
+            && self.ctx.input().pointer.has_moved_too_much_for_a_click
+        {
+            return false;
+        }
+
+        true
     }
 
     /// Show this text if the widget was hovered (i.e. a tooltip).
     ///
     /// The text will not be visible if the widget is not enabled.
+    /// For that, use [`Self::on_disabled_hover_text`] instead.
+    ///
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
-    pub fn on_hover_text(self, text: impl ToString) -> Self {
+    #[doc(alias = "tooltip")]
+    pub fn on_hover_text(self, text: impl Into<WidgetText>) -> Self {
         self.on_hover_ui(|ui| {
             ui.add(crate::widgets::Label::new(text));
         })
     }
 
     /// Show this text when hovering if the widget is disabled.
-    pub fn on_disabled_hover_text(self, text: impl ToString) -> Self {
+    pub fn on_disabled_hover_text(self, text: impl Into<WidgetText>) -> Self {
         self.on_disabled_hover_ui(|ui| {
             ui.add(crate::widgets::Label::new(text));
         })
-    }
-
-    #[deprecated = "Deprecated 2020-10-01: use `on_hover_text` instead."]
-    pub fn tooltip_text(self, text: impl ToString) -> Self {
-        self.on_hover_text(text)
     }
 
     /// When hovered, use this icon for the mouse cursor.
@@ -392,14 +413,15 @@ impl Response {
     /// Check for more interactions (e.g. sense clicks on a `Response` returned from a label).
     ///
     /// Note that this call will not add any hover-effects to the widget, so when possible
-    /// it is better to give the widget a `Sense` instead, e.g. using `[Label::sense]`.
+    /// it is better to give the widget a `Sense` instead, e.g. using [`crate::Label::sense`].
     ///
     /// ```
-    /// # let mut ui = egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// let response = ui.label("hello");
     /// assert!(!response.clicked()); // labels don't sense clicks by default
     /// let response = response.interact(egui::Sense::click());
     /// if response.clicked() { /* … */ }
+    /// # });
     /// ```
     pub fn interact(&self, sense: Sense) -> Self {
         self.ctx.interact_with_hovered(
@@ -416,8 +438,8 @@ impl Response {
     ///
     /// ```
     /// # use egui::Align;
-    /// # let mut ui = &mut egui::Ui::__test();
-    /// egui::ScrollArea::auto_sized().show(ui, |ui| {
+    /// # egui::__run_test_ui(|ui| {
+    /// egui::ScrollArea::vertical().show(ui, |ui| {
     ///     for i in 0..1000 {
     ///         let response = ui.button(format!("Button {}", i));
     ///         if response.clicked() {
@@ -425,10 +447,14 @@ impl Response {
     ///         }
     ///     }
     /// });
+    /// # });
     /// ```
     pub fn scroll_to_me(&self, align: Align) {
+        let scroll_target = lerp(self.rect.x_range(), align.to_factor());
+        self.ctx.frame_state().scroll_target[0] = Some((scroll_target, align));
+
         let scroll_target = lerp(self.rect.y_range(), align.to_factor());
-        self.ctx.frame_state().scroll_target = Some((scroll_target, align));
+        self.ctx.frame_state().scroll_target[1] = Some((scroll_target, align));
     }
 
     /// For accessibility.
@@ -450,6 +476,23 @@ impl Response {
         if let Some(event) = event {
             self.ctx.output().events.push(event);
         }
+    }
+
+    /// Response to secondary clicks (right-clicks) by showing the given menu.
+    ///
+    /// ``` rust
+    /// # egui::__run_test_ui(|ui| {
+    /// let response = ui.label("Right-click me!");
+    /// response.context_menu(|ui| {
+    ///     if ui.button("Close the menu").clicked() {
+    ///         ui.close_menu();
+    ///     }
+    /// });
+    /// # });
+    /// ```
+    pub fn context_menu(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
+        self.ctx.show_context_menu(&self, add_contents);
+        self
     }
 }
 
@@ -510,12 +553,13 @@ impl std::ops::BitOr for Response {
 /// To summarize the response from many widgets you can use this pattern:
 ///
 /// ```
-/// # let mut ui = egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// # let (widget_a, widget_b, widget_c) = (egui::Label::new("a"), egui::Label::new("b"), egui::Label::new("c"));
 /// let mut response = ui.add(widget_a);
 /// response |= ui.add(widget_b);
 /// response |= ui.add(widget_c);
 /// if response.hovered() { ui.label("You hovered at least one of the widgets"); }
+/// # });
 /// ```
 impl std::ops::BitOrAssign for Response {
     fn bitor_assign(&mut self, rhs: Self) {
@@ -529,13 +573,14 @@ impl std::ops::BitOrAssign for Response {
 /// the results of the inner function and the ui as a whole, e.g.:
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// let inner_resp = ui.horizontal(|ui| {
 ///     ui.label("Blah blah");
 ///     42
 /// });
 /// inner_resp.response.on_hover_text("You hovered the horizontal layout");
 /// assert_eq!(inner_resp.inner, 42);
+/// # });
 /// ```
 #[derive(Debug)]
 pub struct InnerResponse<R> {
@@ -544,6 +589,7 @@ pub struct InnerResponse<R> {
 }
 
 impl<R> InnerResponse<R> {
+    #[inline]
     pub fn new(inner: R, response: Response) -> Self {
         Self { inner, response }
     }

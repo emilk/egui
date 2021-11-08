@@ -1,59 +1,141 @@
+//! Coordinate system names:
+//! * content: size of contents (generally large; that's why we want scroll bars)
+//! * outer: size of scroll area including scroll bar(s)
+//! * inner: excluding scroll bar(s). The area we clip the contents to.
+
+#![allow(clippy::needless_range_loop)]
+
 use crate::*;
 
 #[derive(Clone, Copy, Debug)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub(crate) struct State {
     /// Positive offset means scrolling down/right
     offset: Vec2,
 
-    show_scroll: bool,
+    show_scroll: [bool; 2],
 
     /// Momentum, used for kinetic scrolling
-    #[cfg_attr(feature = "persistence", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub vel: Vec2,
+
     /// Mouse offset relative to the top of the handle when started moving the handle.
-    scroll_start_offset_from_top: Option<f32>,
+    scroll_start_offset_from_top_left: [Option<f32>; 2],
+
+    /// Is the scroll sticky. This is true while scroll handle is in the end position
+    /// and remains that way until the user moves the scroll_handle. Once unstuck (false)
+    /// it remains false until the scroll touches the end position, which reenables stickiness.
+    scroll_stuck_to_end: [bool; 2],
 }
 
 impl Default for State {
     fn default() -> Self {
         Self {
             offset: Vec2::ZERO,
-            show_scroll: false,
+            show_scroll: [false; 2],
             vel: Vec2::ZERO,
-            scroll_start_offset_from_top: None,
+            scroll_start_offset_from_top_left: [None; 2],
+            scroll_stuck_to_end: [true; 2],
         }
     }
 }
 
-// TODO: rename VScroll
-/// Add vertical scrolling to a contained [`Ui`].
+impl State {
+    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
+        ctx.memory().data.get_persisted(id)
+    }
+
+    pub fn store(self, ctx: &Context, id: Id) {
+        ctx.memory().data.insert_persisted(id, self);
+    }
+}
+
+/// Add vertical and/or horizontal scrolling to a contained [`Ui`].
+///
+/// ```
+/// # egui::__run_test_ui(|ui| {
+/// egui::ScrollArea::vertical().show(ui, |ui| {
+///     // Add a lot of widgets here.
+/// });
+/// # });
+/// ```
 #[derive(Clone, Debug)]
 #[must_use = "You should call .show()"]
 pub struct ScrollArea {
-    max_height: f32,
+    /// Do we have horizontal/vertical scrolling?
+    has_bar: [bool; 2],
+    auto_shrink: [bool; 2],
+    max_size: Vec2,
     always_show_scroll: bool,
     id_source: Option<Id>,
-    offset: Option<Vec2>,
+    offset_x: Option<f32>,
+    offset_y: Option<f32>,
+    /// If false, we ignore scroll events.
     scrolling_enabled: bool,
+
+    /// If true for vertical or horizontal the scroll wheel will stick to the
+    /// end position until user manually changes position. It will become true
+    /// again once scroll handle makes contact with end.
+    stick_to_end: [bool; 2],
 }
 
 impl ScrollArea {
-    /// Will make the area be as high as it is allowed to be (i.e. fill the [`Ui`] it is in)
-    pub fn auto_sized() -> Self {
-        Self::from_max_height(f32::INFINITY)
+    /// Create a horizontal scroll area.
+    pub fn horizontal() -> Self {
+        Self::new([true, false])
     }
 
-    /// Use `f32::INFINITY` if you want the scroll area to expand to fit the surrounding Ui
-    pub fn from_max_height(max_height: f32) -> Self {
+    /// Create a vertical scroll area.
+    pub fn vertical() -> Self {
+        Self::new([false, true])
+    }
+
+    /// Create a bi-directional (horizontal and vertical) scroll area.
+    pub fn both() -> Self {
+        Self::new([true, true])
+    }
+
+    /// Create a scroll area where both direction of scrolling is disabled.
+    /// It's unclear why you would want to do this.
+    pub fn neither() -> Self {
+        Self::new([false, false])
+    }
+
+    /// Create a scroll area where you decide which axis has scrolling enabled.
+    /// For instance, `ScrollAre::new([true, false])` enable horizontal scrolling.
+    pub fn new(has_bar: [bool; 2]) -> Self {
         Self {
-            max_height,
+            has_bar,
+            auto_shrink: [true; 2],
+            max_size: Vec2::INFINITY,
             always_show_scroll: false,
             id_source: None,
-            offset: None,
+            offset_x: None,
+            offset_y: None,
             scrolling_enabled: true,
+            stick_to_end: [false; 2],
         }
+    }
+
+    /// The maximum width of the outer frame of the scroll area.
+    ///
+    /// Use `f32::INFINITY` if you want the scroll area to expand to fit the surrounding `Ui` (default).
+    ///
+    /// See also [`Self::auto_shrink`].
+    pub fn max_width(mut self, max_width: f32) -> Self {
+        self.max_size.x = max_width;
+        self
+    }
+
+    /// The maximum height of the outer frame of the scroll area.
+    ///
+    /// Use `f32::INFINITY` if you want the scroll area to expand to fit the surrounding `Ui` (default).
+    ///
+    /// See also [`Self::auto_shrink`].
+    pub fn max_height(mut self, max_height: f32) -> Self {
+        self.max_size.y = max_height;
+        self
     }
 
     /// If `false` (default), the scroll bar will be hidden when not needed/
@@ -69,12 +151,50 @@ impl ScrollArea {
         self
     }
 
+    /// Set the horizontal and vertical scroll offset position.
+    ///
+    /// See also: [`Self::vertical_scroll_offset`], [`Self::horizontal_scroll_offset`],
+    /// [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
+    /// [`Response::scroll_to_me`](crate::Response::scroll_to_me)
+    pub fn scroll_offset(mut self, offset: Vec2) -> Self {
+        self.offset_x = Some(offset.x);
+        self.offset_y = Some(offset.y);
+        self
+    }
+
     /// Set the vertical scroll offset position.
     ///
-    /// See also: [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
+    /// See also: [`Self::scroll_offset`], [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
     /// [`Response::scroll_to_me`](crate::Response::scroll_to_me)
-    pub fn scroll_offset(mut self, offset: f32) -> Self {
-        self.offset = Some(Vec2::new(0.0, offset));
+    pub fn vertical_scroll_offset(mut self, offset: f32) -> Self {
+        self.offset_y = Some(offset);
+        self
+    }
+
+    /// Set the horizontal scroll offset position.
+    ///
+    /// See also: [`Self::scroll_offset`], [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
+    /// [`Response::scroll_to_me`](crate::Response::scroll_to_me)
+    pub fn horizontal_scroll_offset(mut self, offset: f32) -> Self {
+        self.offset_x = Some(offset);
+        self
+    }
+
+    /// Turn on/off scrolling on the horizontal axis.
+    pub fn hscroll(mut self, hscroll: bool) -> Self {
+        self.has_bar[0] = hscroll;
+        self
+    }
+
+    /// Turn on/off scrolling on the vertical axis.
+    pub fn vscroll(mut self, vscroll: bool) -> Self {
+        self.has_bar[1] = vscroll;
+        self
+    }
+
+    /// Turn on/off scrolling on the horizontal/vertical axes.
+    pub fn scroll2(mut self, has_bar: [bool; 2]) -> Self {
+        self.has_bar = has_bar;
         self
     }
 
@@ -83,9 +203,48 @@ impl ScrollArea {
     /// If `false`, the scroll area will not respond to user scrolling
     ///
     /// This can be used, for example, to optionally freeze scrolling while the user
-    /// is inputing text in a `TextEdit` widget contained within the scroll area
+    /// is inputing text in a `TextEdit` widget contained within the scroll area.
+    ///
+    /// This controls both scrolling directions.
     pub fn enable_scrolling(mut self, enable: bool) -> Self {
         self.scrolling_enabled = enable;
+        self
+    }
+
+    /// For each axis, should the containing area shrink if the content is small?
+    ///
+    /// If true, egui will add blank space outside the scroll area.
+    /// If false, egui will add blank space inside the scroll area.
+    ///
+    /// Default: `[true; 2]`.
+    pub fn auto_shrink(mut self, auto_shrink: [bool; 2]) -> Self {
+        self.auto_shrink = auto_shrink;
+        self
+    }
+
+    pub(crate) fn has_any_bar(&self) -> bool {
+        self.has_bar[0] || self.has_bar[1]
+    }
+
+    /// The scroll handle will stick to the rightmost position even while the content size
+    /// changes dynamically. This can be useful to simulate text scrollers coming in from right
+    /// hand side. The scroll handle remains stuck until user manually changes position. Once "unstuck"
+    /// it will remain focused on whatever content viewport the user left it on. If the scroll
+    /// handle is dragged all the way to the right it will again become stuck and remain there
+    /// until manually pulled from the end position.
+    pub fn stick_to_right(mut self) -> Self {
+        self.stick_to_end[0] = true;
+        self
+    }
+
+    /// The scroll handle will stick to the bottom position even while the content size
+    /// changes dynamically. This can be useful to simulate terminal UIs or log/info scrollers.
+    /// The scroll handle remains stuck until user manually changes position. Once "unstuck"
+    /// it will remain focused on whatever content viewport the user left it on. If the scroll
+    /// handle is dragged to the bottom it will again become stuck and remain there until manually
+    /// pulled from the end position.
+    pub fn stick_to_bottom(mut self) -> Self {
+        self.stick_to_end[1] = true;
         self
     }
 }
@@ -93,7 +252,11 @@ impl ScrollArea {
 struct Prepared {
     id: Id,
     state: State,
-    current_scroll_bar_width: f32,
+    has_bar: [bool; 2],
+    auto_shrink: [bool; 2],
+    /// How much horizontal and vertical space are used up by the
+    /// width of the vertical bar, and the height of the horizontal bar?
+    current_bar_use: Vec2,
     always_show_scroll: bool,
     inner_rect: Rect,
     content_ui: Ui,
@@ -101,60 +264,85 @@ struct Prepared {
     /// `viewport.min == ZERO` means we scrolled to the top.
     viewport: Rect,
     scrolling_enabled: bool,
+    stick_to_end: [bool; 2],
 }
 
 impl ScrollArea {
     fn begin(self, ui: &mut Ui) -> Prepared {
         let Self {
-            max_height,
+            has_bar,
+            auto_shrink,
+            max_size,
             always_show_scroll,
             id_source,
-            offset,
+            offset_x,
+            offset_y,
             scrolling_enabled,
+            stick_to_end,
         } = self;
 
         let ctx = ui.ctx().clone();
 
         let id_source = id_source.unwrap_or_else(|| Id::new("scroll_area"));
         let id = ui.make_persistent_id(id_source);
-        let mut state = *ctx.memory().id_data.get_or_default::<State>(id);
+        let mut state = State::load(&ctx, id).unwrap_or_default();
 
-        if let Some(offset) = offset {
-            state.offset = offset;
-        }
-
-        // content: size of contents (generally large; that's why we want scroll bars)
-        // outer: size of scroll area including scroll bar(s)
-        // inner: excluding scroll bar(s). The area we clip the contents to.
+        state.offset.x = offset_x.unwrap_or(state.offset.x);
+        state.offset.y = offset_y.unwrap_or(state.offset.y);
 
         let max_scroll_bar_width = max_scroll_bar_width_with_margin(ui);
 
-        let current_scroll_bar_width = if always_show_scroll {
+        let current_hscroll_bar_height = if !has_bar[0] {
+            0.0
+        } else if always_show_scroll {
             max_scroll_bar_width
         } else {
-            max_scroll_bar_width * ui.ctx().animate_bool(id, state.show_scroll)
+            max_scroll_bar_width * ui.ctx().animate_bool(id.with("h"), state.show_scroll[0])
         };
+
+        let current_vscroll_bar_width = if !has_bar[1] {
+            0.0
+        } else if always_show_scroll {
+            max_scroll_bar_width
+        } else {
+            max_scroll_bar_width * ui.ctx().animate_bool(id.with("v"), state.show_scroll[1])
+        };
+
+        let current_bar_use = vec2(current_vscroll_bar_width, current_hscroll_bar_height);
 
         let available_outer = ui.available_rect_before_wrap();
 
-        let outer_size = vec2(
-            available_outer.width(),
-            available_outer.height().at_most(max_height),
-        );
+        let outer_size = available_outer.size().at_most(max_size);
 
-        let inner_size = outer_size - vec2(current_scroll_bar_width, 0.0);
+        let inner_size = outer_size - current_bar_use;
         let inner_rect = Rect::from_min_size(available_outer.min, inner_size);
 
+        let mut inner_child_max_size = inner_size;
+
+        if true {
+            // Tell the inner Ui to *try* to fit the content without needing to scroll,
+            // i.e. better to wrap text than showing a horizontal scrollbar!
+        } else {
+            // Tell the inner Ui to use as much space as possible, we can scroll to see it!
+            for d in 0..2 {
+                if has_bar[d] {
+                    inner_child_max_size[d] = f32::INFINITY;
+                }
+            }
+        }
+
         let mut content_ui = ui.child_ui(
-            Rect::from_min_size(
-                inner_rect.min - state.offset,
-                vec2(inner_size.x, f32::INFINITY),
-            ),
+            Rect::from_min_size(inner_rect.min - state.offset, inner_child_max_size),
             *ui.layout(),
         );
         let mut content_clip_rect = inner_rect.expand(ui.visuals().clip_rect_margin);
         content_clip_rect = content_clip_rect.intersect(ui.clip_rect());
-        content_clip_rect.max.x = ui.clip_rect().max.x - current_scroll_bar_width; // Nice handling of forced resizing beyond the possible
+        // Nice handling of forced resizing beyond the possible:
+        for d in 0..2 {
+            if !has_bar[d] {
+                content_clip_rect.max[d] = ui.clip_rect().max[d] - current_bar_use[d];
+            }
+        }
         content_ui.set_clip_rect(content_clip_rect);
 
         let viewport = Rect::from_min_size(Pos2::ZERO + state.offset, inner_size);
@@ -162,12 +350,15 @@ impl ScrollArea {
         Prepared {
             id,
             state,
-            current_scroll_bar_width,
+            has_bar,
+            auto_shrink,
+            current_bar_use,
             always_show_scroll,
             inner_rect,
             content_ui,
             viewport,
             scrolling_enabled,
+            stick_to_end,
         }
     }
 
@@ -175,23 +366,25 @@ impl ScrollArea {
     ///
     /// If the inner area can be very long, consider using [`Self::show_rows`] instead.
     pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
-        self.show_viewport(ui, |ui, _viewport| add_contents(ui))
+        self.show_viewport_dyn(ui, Box::new(|ui, _viewport| add_contents(ui)))
     }
 
     /// Efficiently show only the visible part of a large number of rows.
     ///
     /// ```
-    /// # let ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// let text_style = egui::TextStyle::Body;
     /// let row_height = ui.fonts()[text_style].row_height();
     /// // let row_height = ui.spacing().interact_size.y; // if you are adding buttons instead of labels.
     /// let num_rows = 10_000;
-    /// egui::ScrollArea::auto_sized().show_rows(ui, row_height, num_rows, |ui, row_range| {
+    /// egui::ScrollArea::vertical().show_rows(ui, row_height, num_rows, |ui, row_range| {
     ///     for row in row_range {
     ///         let text = format!("Row {}/{}", row + 1, num_rows);
     ///         ui.label(text);
     ///     }
     /// });
+    /// # });
+    /// ```
     pub fn show_rows<R>(
         self,
         ui: &mut Ui,
@@ -212,14 +405,14 @@ impl ScrollArea {
 
             let y_min = ui.max_rect().top() + min_row as f32 * row_height_with_spacing;
             let y_max = ui.max_rect().top() + max_row as f32 * row_height_with_spacing;
-            let mut viewport_ui = ui.child_ui(
-                Rect::from_x_y_ranges(ui.max_rect().x_range(), y_min..=y_max),
-                *ui.layout(),
-            );
 
-            viewport_ui.skip_ahead_auto_ids(min_row); // Make sure we get consistent IDs.
+            let rect = Rect::from_x_y_ranges(ui.max_rect().x_range(), y_min..=y_max);
 
-            add_contents(&mut viewport_ui, min_row..max_row)
+            ui.allocate_ui_at_rect(rect, |viewport_ui| {
+                viewport_ui.skip_ahead_auto_ids(min_row); // Make sure we get consistent IDs.
+                add_contents(viewport_ui, min_row..max_row)
+            })
+            .inner
         })
     }
 
@@ -228,6 +421,14 @@ impl ScrollArea {
     /// `add_contents` is past the viewport, which is the relative view of the content.
     /// So if the passed rect has min = zero, then show the top left content (the user has not scrolled).
     pub fn show_viewport<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui, Rect) -> R) -> R {
+        self.show_viewport_dyn(ui, Box::new(add_contents))
+    }
+
+    fn show_viewport_dyn<'c, R>(
+        self,
+        ui: &mut Ui,
+        add_contents: Box<dyn FnOnce(&mut Ui, Rect) -> R + 'c>,
+    ) -> R {
         let mut prepared = self.begin(ui);
         let ret = add_contents(&mut prepared.content_ui, prepared.viewport);
         prepared.end(ui);
@@ -241,62 +442,79 @@ impl Prepared {
             id,
             mut state,
             inner_rect,
+            has_bar,
+            auto_shrink,
+            mut current_bar_use,
             always_show_scroll,
-            mut current_scroll_bar_width,
             content_ui,
             viewport: _,
             scrolling_enabled,
+            stick_to_end,
         } = self;
 
         let content_size = content_ui.min_size();
 
-        // We take the scroll target so only this ScrollArea will use it.
-        let scroll_target = content_ui.ctx().frame_state().scroll_target.take();
-        if let Some((scroll_y, align)) = scroll_target {
-            let center_factor = align.to_factor();
+        for d in 0..2 {
+            if has_bar[d] {
+                // We take the scroll target so only this ScrollArea will use it:
+                let scroll_target = content_ui.ctx().frame_state().scroll_target[d].take();
+                if let Some((scroll, align)) = scroll_target {
+                    let center_factor = align.to_factor();
 
-            let top = content_ui.min_rect().top();
-            let visible_range = top..=top + content_ui.clip_rect().height();
-            let offset_y = scroll_y - lerp(visible_range, center_factor);
+                    let min = content_ui.min_rect().min[d];
+                    let visible_range = min..=min + content_ui.clip_rect().size()[d];
+                    let offset = scroll - lerp(visible_range, center_factor);
 
-            let mut spacing = ui.spacing().item_spacing.y;
+                    let mut spacing = ui.spacing().item_spacing[d];
 
-            // Depending on the alignment we need to add or subtract the spacing
-            spacing *= remap(center_factor, 0.0..=1.0, -1.0..=1.0);
+                    // Depending on the alignment we need to add or subtract the spacing
+                    spacing *= remap(center_factor, 0.0..=1.0, -1.0..=1.0);
 
-            state.offset.y = offset_y + spacing;
+                    state.offset[d] = offset + spacing;
+                }
+            }
         }
 
         let inner_rect = {
-            let width = if inner_rect.width().is_finite() {
-                inner_rect.width().max(content_size.x) // Expand width to fit content
-            } else {
-                // ScrollArea is in an infinitely wide parent
-                content_size.x
-            };
+            // At this point this is the available size for the inner rect.
+            let mut inner_size = inner_rect.size();
 
-            let mut inner_rect =
-                Rect::from_min_size(inner_rect.min, vec2(width, inner_rect.height()));
+            for d in 0..2 {
+                inner_size[d] = match (has_bar[d], auto_shrink[d]) {
+                    (true, true) => inner_size[d].min(content_size[d]), // shrink scroll area if content is small
+                    (true, false) => inner_size[d], // let scroll area be larger than content; fill with blank space
+                    (false, true) => content_size[d], // Follow the content (expand/contract to fit it).
+                    (false, false) => inner_size[d].max(content_size[d]), // Expand to fit content
+                };
+            }
+
+            let mut inner_rect = Rect::from_min_size(inner_rect.min, inner_size);
 
             // The window that egui sits in can't be expanded by egui, so we need to respect it:
-            let max_x = ui.input().screen_rect().right()
-                - current_scroll_bar_width
-                - ui.spacing().item_spacing.x;
-            inner_rect.max.x = inner_rect.max.x.at_most(max_x);
-            // TODO: when we support it, we should maybe auto-enable
-            // horizontal scrolling if this limit is reached
+            for d in 0..2 {
+                if !has_bar[d] {
+                    // HACK for when we have a vertical-only scroll area in a top level panel,
+                    // and that panel is not wide enough for the contents.
+                    // This code ensures we still see the scroll bar!
+                    let max = ui.input().screen_rect().max[d]
+                        - current_bar_use[d]
+                        - ui.spacing().item_spacing[d];
+                    inner_rect.max[d] = inner_rect.max[d].at_most(max);
+                    // TODO: maybe auto-enable horizontal/vertical scrolling if this limit is reached
+                }
+            }
 
             inner_rect
         };
 
-        let outer_rect = Rect::from_min_size(
-            inner_rect.min,
-            inner_rect.size() + vec2(current_scroll_bar_width, 0.0),
-        );
+        let outer_rect = Rect::from_min_size(inner_rect.min, inner_rect.size() + current_bar_use);
 
-        let content_is_too_small = content_size.y > inner_rect.height();
+        let content_is_too_small = [
+            content_size.x > inner_rect.width(),
+            content_size.y > inner_rect.height(),
+        ];
 
-        if content_is_too_small {
+        if content_is_too_small[0] || content_is_too_small[1] {
             // Drag contents to scroll (for touch screens mostly):
             let sense = if self.scrolling_enabled {
                 Sense::drag()
@@ -307,8 +525,15 @@ impl Prepared {
 
             let input = ui.input();
             if content_response.dragged() {
-                state.offset.y -= input.pointer.delta().y;
-                state.vel = input.pointer.velocity();
+                for d in 0..2 {
+                    if has_bar[d] {
+                        state.offset[d] -= input.pointer.delta()[d];
+                        state.vel[d] = input.pointer.velocity()[d];
+                        state.scroll_stuck_to_end[d] = false;
+                    } else {
+                        state.vel[d] = 0.0;
+                    }
+                }
             } else {
                 let stop_speed = 20.0; // Pixels per second.
                 let friction_coeff = 1000.0; // Pixels per second squared.
@@ -321,59 +546,97 @@ impl Prepared {
                     state.vel -= friction * state.vel.normalized();
                     // Offset has an inverted coordinate system compared to
                     // the velocity, so we subtract it instead of adding it
-                    state.offset.y -= state.vel.y * dt;
+                    state.offset -= state.vel * dt;
                     ui.ctx().request_repaint();
                 }
             }
         }
 
-        let max_offset = content_size.y - inner_rect.height();
+        let max_offset = content_size - inner_rect.size();
         if scrolling_enabled && ui.rect_contains_pointer(outer_rect) {
-            let mut frame_state = ui.ctx().frame_state();
-            let scroll_delta = frame_state.scroll_delta;
+            for d in 0..2 {
+                if has_bar[d] {
+                    let mut frame_state = ui.ctx().frame_state();
+                    let scroll_delta = frame_state.scroll_delta;
 
-            let scrolling_up = state.offset.y > 0.0 && scroll_delta.y > 0.0;
-            let scrolling_down = state.offset.y < max_offset && scroll_delta.y < 0.0;
+                    let scrolling_up = state.offset[d] > 0.0 && scroll_delta[d] > 0.0;
+                    let scrolling_down = state.offset[d] < max_offset[d] && scroll_delta[d] < 0.0;
 
-            if scrolling_up || scrolling_down {
-                state.offset.y -= scroll_delta.y;
-                // Clear scroll delta so no parent scroll will use it.
-                frame_state.scroll_delta = Vec2::ZERO;
+                    if scrolling_up || scrolling_down {
+                        state.offset[d] -= scroll_delta[d];
+                        // Clear scroll delta so no parent scroll will use it.
+                        frame_state.scroll_delta[d] = 0.0;
+                        state.scroll_stuck_to_end[d] = false;
+                    }
+                }
             }
         }
 
-        let show_scroll_this_frame = content_is_too_small || always_show_scroll;
+        let show_scroll_this_frame = [
+            content_is_too_small[0] || always_show_scroll,
+            content_is_too_small[1] || always_show_scroll,
+        ];
 
         let max_scroll_bar_width = max_scroll_bar_width_with_margin(ui);
 
-        if show_scroll_this_frame && current_scroll_bar_width <= 0.0 {
-            // Avoid frame delay; start showing scroll bar right away:
-            current_scroll_bar_width = max_scroll_bar_width * ui.ctx().animate_bool(id, true);
+        // Avoid frame delay; start showing scroll bar right away:
+        if show_scroll_this_frame[0] && current_bar_use.y <= 0.0 {
+            current_bar_use.y = max_scroll_bar_width * ui.ctx().animate_bool(id.with("h"), true);
+        }
+        if show_scroll_this_frame[1] && current_bar_use.x <= 0.0 {
+            current_bar_use.x = max_scroll_bar_width * ui.ctx().animate_bool(id.with("v"), true);
         }
 
-        if current_scroll_bar_width > 0.0 {
-            let animation_t = current_scroll_bar_width / max_scroll_bar_width;
+        for d in 0..2 {
+            let animation_t = current_bar_use[1 - d] / max_scroll_bar_width;
+
+            if animation_t == 0.0 {
+                continue;
+            }
+
             // margin between contents and scroll bar
             let margin = animation_t * ui.spacing().item_spacing.x;
-            let left = inner_rect.right() + margin;
-            let right = outer_rect.right();
-            let top = inner_rect.top();
-            let bottom = inner_rect.bottom();
+            let min_cross = inner_rect.max[1 - d] + margin; // left of vertical scroll (d == 1)
+            let max_cross = outer_rect.max[1 - d]; // right of vertical scroll (d == 1)
+            let min_main = inner_rect.min[d]; // top of vertical scroll (d == 1)
+            let max_main = inner_rect.max[d]; // bottom of vertical scroll (d == 1)
 
-            let outer_scroll_rect = Rect::from_min_max(
-                pos2(left, inner_rect.top()),
-                pos2(right, inner_rect.bottom()),
-            );
+            let outer_scroll_rect = if d == 0 {
+                Rect::from_min_max(
+                    pos2(inner_rect.left(), min_cross),
+                    pos2(inner_rect.right(), max_cross),
+                )
+            } else {
+                Rect::from_min_max(
+                    pos2(min_cross, inner_rect.top()),
+                    pos2(max_cross, inner_rect.bottom()),
+                )
+            };
+
+            // maybe force increase in offset to keep scroll stuck to end position
+            if stick_to_end[d] && state.scroll_stuck_to_end[d] {
+                state.offset[d] = content_size[d] - inner_rect.size()[d];
+            }
 
             let from_content =
-                |content_y| remap_clamp(content_y, 0.0..=content_size.y, top..=bottom);
+                |content| remap_clamp(content, 0.0..=content_size[d], min_main..=max_main);
 
-            let handle_rect = Rect::from_min_max(
-                pos2(left, from_content(state.offset.y)),
-                pos2(right, from_content(state.offset.y + inner_rect.height())),
-            );
+            let handle_rect = if d == 0 {
+                Rect::from_min_max(
+                    pos2(from_content(state.offset.x), min_cross),
+                    pos2(from_content(state.offset.x + inner_rect.width()), max_cross),
+                )
+            } else {
+                Rect::from_min_max(
+                    pos2(min_cross, from_content(state.offset.y)),
+                    pos2(
+                        max_cross,
+                        from_content(state.offset.y + inner_rect.height()),
+                    ),
+                )
+            };
 
-            let interact_id = id.with("vertical");
+            let interact_id = id.with(d);
             let sense = if self.scrolling_enabled {
                 Sense::click_and_drag()
             } else {
@@ -382,83 +645,110 @@ impl Prepared {
             let response = ui.interact(outer_scroll_rect, interact_id, sense);
 
             if let Some(pointer_pos) = response.interact_pointer_pos() {
-                let scroll_start_offset_from_top =
-                    state.scroll_start_offset_from_top.get_or_insert_with(|| {
+                let scroll_start_offset_from_top_left = state.scroll_start_offset_from_top_left[d]
+                    .get_or_insert_with(|| {
                         if handle_rect.contains(pointer_pos) {
-                            pointer_pos.y - handle_rect.top()
+                            pointer_pos[d] - handle_rect.min[d]
                         } else {
-                            let handle_top_pos_at_bottom = bottom - handle_rect.height();
+                            let handle_top_pos_at_bottom = max_main - handle_rect.size()[d];
                             // Calculate the new handle top position, centering the handle on the mouse.
-                            let new_handle_top_pos = (pointer_pos.y - handle_rect.height() / 2.0)
-                                .clamp(top, handle_top_pos_at_bottom);
-                            pointer_pos.y - new_handle_top_pos
+                            let new_handle_top_pos = (pointer_pos[d] - handle_rect.size()[d] / 2.0)
+                                .clamp(min_main, handle_top_pos_at_bottom);
+                            pointer_pos[d] - new_handle_top_pos
                         }
                     });
 
-                let new_handle_top = pointer_pos.y - *scroll_start_offset_from_top;
-                state.offset.y = remap(new_handle_top, top..=bottom, 0.0..=content_size.y);
+                let new_handle_top = pointer_pos[d] - *scroll_start_offset_from_top_left;
+                state.offset[d] = remap(new_handle_top, min_main..=max_main, 0.0..=content_size[d]);
+
+                // some manual action taken, scroll not stuck
+                state.scroll_stuck_to_end[d] = false;
             } else {
-                state.scroll_start_offset_from_top = None;
+                state.scroll_start_offset_from_top_left[d] = None;
             }
 
-            let unbounded_offset_y = state.offset.y;
-            state.offset.y = state.offset.y.max(0.0);
-            state.offset.y = state.offset.y.min(max_offset);
+            let unbounded_offset = state.offset[d];
+            state.offset[d] = state.offset[d].max(0.0);
+            state.offset[d] = state.offset[d].min(max_offset[d]);
 
-            if state.offset.y != unbounded_offset_y {
-                state.vel = Vec2::ZERO;
+            if state.offset[d] != unbounded_offset {
+                state.vel[d] = 0.0;
             }
 
-            // Avoid frame-delay by calculating a new handle rect:
-            let mut handle_rect = Rect::from_min_max(
-                pos2(left, from_content(state.offset.y)),
-                pos2(right, from_content(state.offset.y + inner_rect.height())),
-            );
-            let min_handle_height = ui.spacing().scroll_bar_width;
-            if handle_rect.size().y < min_handle_height {
-                handle_rect = Rect::from_center_size(
-                    handle_rect.center(),
-                    vec2(handle_rect.size().x, min_handle_height),
-                );
+            if ui.is_rect_visible(outer_scroll_rect) {
+                // Avoid frame-delay by calculating a new handle rect:
+                let mut handle_rect = if d == 0 {
+                    Rect::from_min_max(
+                        pos2(from_content(state.offset.x), min_cross),
+                        pos2(from_content(state.offset.x + inner_rect.width()), max_cross),
+                    )
+                } else {
+                    Rect::from_min_max(
+                        pos2(min_cross, from_content(state.offset.y)),
+                        pos2(
+                            max_cross,
+                            from_content(state.offset.y + inner_rect.height()),
+                        ),
+                    )
+                };
+                let min_handle_size = ui.spacing().scroll_bar_width;
+                if handle_rect.size()[d] < min_handle_size {
+                    handle_rect = Rect::from_center_size(
+                        handle_rect.center(),
+                        if d == 0 {
+                            vec2(min_handle_size, handle_rect.size().y)
+                        } else {
+                            vec2(handle_rect.size().x, min_handle_size)
+                        },
+                    );
+                }
+
+                let visuals = if scrolling_enabled {
+                    ui.style().interact(&response)
+                } else {
+                    &ui.style().visuals.widgets.inactive
+                };
+
+                ui.painter().add(epaint::Shape::rect_filled(
+                    outer_scroll_rect,
+                    visuals.corner_radius,
+                    ui.visuals().extreme_bg_color,
+                ));
+
+                ui.painter().add(epaint::Shape::rect_filled(
+                    handle_rect,
+                    visuals.corner_radius,
+                    visuals.bg_fill,
+                ));
             }
-
-            let visuals = if scrolling_enabled {
-                ui.style().interact(&response)
-            } else {
-                &ui.style().visuals.widgets.inactive
-            };
-
-            ui.painter().add(epaint::Shape::rect_filled(
-                outer_scroll_rect,
-                visuals.corner_radius,
-                ui.visuals().extreme_bg_color,
-            ));
-
-            ui.painter().add(epaint::Shape::rect_filled(
-                handle_rect,
-                visuals.corner_radius,
-                visuals.bg_fill,
-            ));
         }
 
-        let size = vec2(
-            outer_rect.size().x,
-            outer_rect.size().y.min(content_size.y), // shrink if content is so small that we don't need scroll bars
-        );
-        ui.advance_cursor_after_rect(Rect::from_min_size(outer_rect.min, size));
+        ui.advance_cursor_after_rect(outer_rect);
 
         if show_scroll_this_frame != state.show_scroll {
             ui.ctx().request_repaint();
         }
 
-        state.offset.y = state.offset.y.min(content_size.y - inner_rect.height());
-        state.offset.y = state.offset.y.max(0.0);
+        let available_offset = content_size - inner_rect.size();
+        state.offset = state.offset.min(available_offset);
+        state.offset = state.offset.max(Vec2::ZERO);
+
+        // Is scroll handle at end of content? If so enter sticky mode.
+        // Only has an effect if stick_to_end is enabled but we save in
+        // state anyway so that entering sticky mode at an arbitrary time
+        // has appropriate effect.
+        state.scroll_stuck_to_end = [
+            state.offset[0] == available_offset[0],
+            state.offset[1] == available_offset[1],
+        ];
+
         state.show_scroll = show_scroll_this_frame;
 
-        ui.memory().id_data.insert(id, state);
+        state.store(ui.ctx(), id);
     }
 }
 
+/// Width of a vertical scrollbar, or height of a horizontal scroll bar
 fn max_scroll_bar_width_with_margin(ui: &Ui) -> f32 {
     ui.spacing().item_spacing.x + ui.spacing().scroll_bar_width
 }

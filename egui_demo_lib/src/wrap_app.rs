@@ -1,7 +1,7 @@
 /// All the different demo apps.
 #[derive(Default)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Apps {
     demo: crate::apps::DemoApp,
     easy_mark_editor: crate::easy_mark::EasyMarkEditor,
@@ -27,12 +27,14 @@ impl Apps {
 
 /// Wraps many demo/test apps into one.
 #[derive(Default)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct WrapApp {
     selected_anchor: String,
     apps: Apps,
     backend_panel: super::backend_panel::BackendPanel,
+    #[cfg_attr(feature = "serde", serde(skip))]
+    dropped_files: Vec<egui::DroppedFile>,
 }
 
 impl epi::App for WrapApp {
@@ -44,11 +46,11 @@ impl epi::App for WrapApp {
         &mut self,
         _ctx: &egui::CtxRef,
         _frame: &mut epi::Frame<'_>,
-        storage: Option<&dyn epi::Storage>,
+        _storage: Option<&dyn epi::Storage>,
     ) {
         #[cfg(feature = "persistence")]
-        if let Some(storage) = storage {
-            *self = epi::get_value(storage, epi::APP_KEY).unwrap_or_default()
+        if let Some(storage) = _storage {
+            *self = epi::get_value(storage, epi::APP_KEY).unwrap_or_default();
         }
     }
 
@@ -72,7 +74,7 @@ impl epi::App for WrapApp {
 
     fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
         if let Some(web_info) = frame.info().web_info.as_ref() {
-            if let Some(anchor) = web_info.web_location_hash.strip_prefix("#") {
+            if let Some(anchor) = web_info.web_location_hash.strip_prefix('#') {
                 self.selected_anchor = anchor.to_owned();
             }
         }
@@ -91,6 +93,23 @@ impl epi::App for WrapApp {
         if self.backend_panel.open || ctx.memory().everything_is_visible() {
             egui::SidePanel::left("backend_panel").show(ctx, |ui| {
                 self.backend_panel.ui(ui, frame);
+
+                ui.separator();
+
+                ui.horizontal(|ui| {
+                    if ui
+                        .button("Reset egui")
+                        .on_hover_text("Forget scroll, positions, sizes etc")
+                        .clicked()
+                    {
+                        *ui.ctx().memory() = Default::default();
+                    }
+
+                    if ui.button("Reset everything").clicked() {
+                        *self = Default::default();
+                        *ui.ctx().memory() = Default::default();
+                    }
+                });
             });
         }
 
@@ -101,6 +120,8 @@ impl epi::App for WrapApp {
         }
 
         self.backend_panel.end_of_frame(ctx);
+
+        self.ui_file_drag_and_drop(ctx);
     }
 }
 
@@ -109,7 +130,7 @@ impl WrapApp {
         // A menu-bar is a horizontal layout with some special styles applied.
         // egui::menu::bar(ui, |ui| {
         ui.horizontal_wrapped(|ui| {
-            dark_light_mode_switch(ui);
+            egui::widgets::global_dark_light_mode_switch(ui);
 
             ui.checkbox(&mut self.backend_panel.open, "💻 Backend");
             ui.separator();
@@ -129,7 +150,7 @@ impl WrapApp {
             ui.with_layout(egui::Layout::right_to_left(), |ui| {
                 if false {
                     // TODO: fix the overlap on small screens
-                    if let Some(seconds_since_midnight) = frame.info().seconds_since_midnight {
+                    if let Some(seconds_since_midnight) = crate::seconds_since_midnight() {
                         if clock_button(ui, seconds_since_midnight).clicked() {
                             self.selected_anchor = "clock".to_owned();
                             if frame.is_web() {
@@ -143,6 +164,67 @@ impl WrapApp {
             });
         });
     }
+
+    fn ui_file_drag_and_drop(&mut self, ctx: &egui::CtxRef) {
+        use egui::*;
+
+        // Preview hovering files:
+        if !ctx.input().raw.hovered_files.is_empty() {
+            let mut text = "Dropping files:\n".to_owned();
+            for file in &ctx.input().raw.hovered_files {
+                if let Some(path) = &file.path {
+                    text += &format!("\n{}", path.display());
+                } else if !file.mime.is_empty() {
+                    text += &format!("\n{}", file.mime);
+                } else {
+                    text += "\n???";
+                }
+            }
+
+            let painter =
+                ctx.layer_painter(LayerId::new(Order::Foreground, Id::new("file_drop_target")));
+
+            let screen_rect = ctx.input().screen_rect();
+            painter.rect_filled(screen_rect, 0.0, Color32::from_black_alpha(192));
+            painter.text(
+                screen_rect.center(),
+                Align2::CENTER_CENTER,
+                text,
+                TextStyle::Heading,
+                Color32::WHITE,
+            );
+        }
+
+        // Collect dropped files:
+        if !ctx.input().raw.dropped_files.is_empty() {
+            self.dropped_files = ctx.input().raw.dropped_files.clone();
+        }
+
+        // Show dropped files (if any):
+        if !self.dropped_files.is_empty() {
+            let mut open = true;
+            egui::Window::new("Dropped files")
+                .open(&mut open)
+                .show(ctx, |ui| {
+                    for file in &self.dropped_files {
+                        let mut info = if let Some(path) = &file.path {
+                            path.display().to_string()
+                        } else if !file.name.is_empty() {
+                            file.name.clone()
+                        } else {
+                            "???".to_owned()
+                        };
+                        if let Some(bytes) = &file.bytes {
+                            info += &format!(" ({} bytes)", bytes.len());
+                        }
+                        ui.label(info);
+                    }
+                });
+            if !open {
+                self.dropped_files.clear();
+            }
+        }
+    }
 }
 
 fn clock_button(ui: &mut egui::Ui, seconds_since_midnight: f64) -> egui::Response {
@@ -155,14 +237,5 @@ fn clock_button(ui: &mut egui::Ui, seconds_since_midnight: f64) -> egui::Respons
         (time % 1.0 * 100.0).floor()
     );
 
-    ui.add(egui::Button::new(time).text_style(egui::TextStyle::Monospace))
-}
-
-/// Show a button to switch to/from dark/light mode (globally).
-fn dark_light_mode_switch(ui: &mut egui::Ui) {
-    let style: egui::Style = (*ui.ctx().style()).clone();
-    let new_visuals = style.visuals.light_dark_small_toggle_button(ui);
-    if let Some(visuals) = new_visuals {
-        ui.ctx().set_visuals(visuals);
-    }
+    ui.button(egui::RichText::new(time).monospace())
 }

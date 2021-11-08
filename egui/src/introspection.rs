@@ -89,6 +89,8 @@ impl Widget for &epaint::stats::PaintStats {
                 shape_path,
                 shape_mesh,
                 shape_vec,
+                text_shape_vertices,
+                text_shape_indices,
                 clipped_meshes,
                 vertices,
                 indices,
@@ -96,13 +98,19 @@ impl Widget for &epaint::stats::PaintStats {
 
             ui.label("Intermediate:");
             label(ui, shapes, "shapes").on_hover_text("Boxes, circles, etc");
-            label(ui, shape_text, "text");
+            label(ui, shape_text, "text (mostly cached)");
             label(ui, shape_path, "paths");
             label(ui, shape_mesh, "nested meshes");
             label(ui, shape_vec, "nested shapes");
             ui.add_space(10.0);
 
-            ui.label("Tessellated:");
+            ui.label("Text shapes:");
+            label(ui, text_shape_vertices, "vertices");
+            label(ui, text_shape_indices, "indices")
+                .on_hover_text("Three 32-bit indices per triangles");
+            ui.add_space(10.0);
+
+            ui.label("Tessellated (and culled):");
             label(ui, clipped_meshes, "clipped_meshes")
                 .on_hover_text("Number of separate clip rectangles");
             label(ui, vertices, "vertices");
@@ -128,6 +136,7 @@ impl Widget for &mut epaint::TessellationOptions {
                 aa_size: _,
                 anti_alias,
                 coarse_tessellation_culling,
+                round_text_to_pixels,
                 debug_paint_clip_rects,
                 debug_paint_text_rects,
                 debug_ignore_clip_rects,
@@ -137,8 +146,11 @@ impl Widget for &mut epaint::TessellationOptions {
             ui.collapsing("debug", |ui| {
                 ui.checkbox(
                     coarse_tessellation_culling,
-                    "Do coarse culling in the tessellator)",
+                    "Do coarse culling in the tessellator",
                 );
+                ui.checkbox(round_text_to_pixels, "Align text positions to pixel grid")
+                    .on_hover_text("Most text already is, so don't expect to see a large change.");
+
                 ui.checkbox(debug_ignore_clip_rects, "Ignore clip rectangles");
                 ui.checkbox(debug_paint_clip_rects, "Paint clip rectangles");
                 ui.checkbox(debug_paint_text_rects, "Paint text bounds");
