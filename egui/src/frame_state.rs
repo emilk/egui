@@ -1,10 +1,12 @@
 use crate::*;
 
-/// State that is collected during a frame and then cleared.
-/// Short-term (single frame) memory.
+// TODO: rename `FrameState` -> `PassState` ?
+/// State that is collected during a pass and then cleared.
+///
+/// One frame consists of either one or two passes.
 #[derive(Clone)]
 pub(crate) struct FrameState {
-    /// All `Id`s that were used this frame.
+    /// All `Id`s that were used this pass.
     /// Used to debug `Id` clashes of widgets.
     pub(crate) used_ids: IdMap<Rect>,
 
@@ -20,9 +22,9 @@ pub(crate) struct FrameState {
     /// How much space is used by panels.
     pub(crate) used_by_panels: Rect,
 
-    /// If a tooltip has been shown this frame, where was it?
+    /// If a tooltip has been shown this pass, where was it?
     /// This is used to prevent multiple tooltips to cover each other.
-    /// Initialized to `None` at the start of each frame.
+    /// Initialized to `None` at the start of each pass.
     pub(crate) tooltip_rect: Option<(Id, Rect, usize)>,
 
     /// Cleared by the first `ScrollArea` that makes use of it.
@@ -46,7 +48,7 @@ impl Default for FrameState {
 }
 
 impl FrameState {
-    pub(crate) fn begin_frame(&mut self, input: &InputState) {
+    pub(crate) fn begin_pass(&mut self, input: &InputState) {
         let Self {
             used_ids,
             available_rect,

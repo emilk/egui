@@ -102,14 +102,49 @@ impl CtxRef {
     #[must_use]
     pub fn run(
         &mut self,
-        new_input: RawInput,
-        run_ui: impl FnOnce(&CtxRef),
+        new_raw_input: RawInput,
+        mut run_ui: impl FnMut(&CtxRef),
     ) -> (Output, Vec<ClippedShape>) {
+        self.memory().begin_frame(&self.input, &new_raw_input);
+
         let mut self_: Context = (*self.0).clone();
-        self_.begin_frame_mut(new_input);
+        if let Some(new_pixels_per_point) = self_.memory.lock().new_pixels_per_point.take() {
+            self_.input.pixels_per_point = new_pixels_per_point;
+        }
+        self_.input.begin_frame(&new_raw_input);
+        self_.update_fonts(self_.input.pixels_per_point());
         *self = Self(Arc::new(self_));
 
-        run_ui(self);
+        // Ensure we register the background area so panels and background ui can catch clicks:
+        let screen_rect = self.input.screen_rect();
+        self.memory().areas.set_state(
+            LayerId::background(),
+            containers::area::State {
+                pos: screen_rect.min,
+                size: screen_rect.size(),
+                interactable: true,
+            },
+        );
+
+        if self.memory().options.multi_pass {
+            self.frame_state.lock().begin_pass(&self.input);
+            run_ui(self);
+
+            self.drain_paint_lists();
+            let mut self_: Context = (*self.0).clone();
+            self_.input.on_events(new_raw_input);
+            *self = Self(Arc::new(self_));
+
+            self.frame_state.lock().begin_pass(&self.input);
+            run_ui(self);
+        } else {
+            let mut self_: Context = (*self.0).clone();
+            self_.input.on_events(new_raw_input);
+            *self = Self(Arc::new(self_));
+
+            self.frame_state.lock().begin_pass(&self.input);
+            run_ui(self);
+        }
 
         self.end_frame()
     }
@@ -565,30 +600,6 @@ impl Context {
     }
 
     // ---------------------------------------------------------------------
-
-    fn begin_frame_mut(&mut self, new_raw_input: RawInput) {
-        self.memory().begin_frame(&self.input, &new_raw_input);
-
-        if let Some(new_pixels_per_point) = self.memory.lock().new_pixels_per_point.take() {
-            self.input.pixels_per_point = new_pixels_per_point;
-        }
-        self.input.begin_frame(&new_raw_input);
-        self.input.on_events(new_raw_input);
-        self.frame_state.lock().begin_frame(&self.input);
-
-        self.update_fonts(self.input.pixels_per_point());
-
-        // Ensure we register the background area so panels and background ui can catch clicks:
-        let screen_rect = self.input.screen_rect();
-        self.memory().areas.set_state(
-            LayerId::background(),
-            containers::area::State {
-                pos: screen_rect.min,
-                size: screen_rect.size(),
-                interactable: true,
-            },
-        );
-    }
 
     /// Load fonts unless already loaded.
     fn update_fonts(&mut self, pixels_per_point: f32) {
