@@ -593,7 +593,7 @@ impl PostProcess {
         gl.bind_texture(Gl::TEXTURE_2D, None);
         gl.bind_framebuffer(Gl::FRAMEBUFFER, None);
         // currently epiphany only support webgl1
-        let epiphany_workaround = if web_sys::window()
+        let frag_shader_prefix = if web_sys::window()
             .unwrap()
             .navigator()
             .user_agent()
@@ -615,7 +615,7 @@ impl PostProcess {
             Gl::FRAGMENT_SHADER,
             &format!(
                 "{}{}",
-                epiphany_workaround,
+                frag_shader_prefix,
                 include_str!("shader/post_fragment_100es.glsl")
             ),
         )?;
