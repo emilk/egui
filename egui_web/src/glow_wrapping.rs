@@ -1,5 +1,6 @@
+#[cfg(not(target_arch = "wasm32"))]
 use crate::web_sys::{WebGl2RenderingContext, WebGlRenderingContext};
-use crate::{canvas_element_or_die, console_error};
+use crate::{canvas_element_or_die, console_error, console_log};
 use egui::{ClippedMesh, Rgba, Texture};
 use egui_glow::glow;
 use epi::TextureAllocator;
@@ -15,10 +16,17 @@ pub(crate) struct WrappedGlowPainter {
 
 impl WrappedGlowPainter {
     pub fn new(canvas_id: &str) -> Self {
+        let user_agent = web_sys::window().unwrap().navigator().user_agent().unwrap();
+        let epiphany_wr = if user_agent.contains("Epiphany") {
+            console_log("Enabling epiphany workaround");
+            vec!["#define EPIPHANY_WORKAROUND".to_owned()]
+        } else {
+            vec![]
+        };
         let canvas = canvas_element_or_die(canvas_id);
         let gl_ctx = init_glow_context_from_canvas(&canvas);
         let dimension = [canvas.width() as i32, canvas.height() as i32];
-        let painter = egui_glow::Painter::new(&gl_ctx, Some(dimension))
+        let painter = egui_glow::Painter::new(&gl_ctx, Some(dimension), epiphany_wr)
             .map_err(|error| {
                 console_error(format!(
                     "some error occurred in initializing glow painter\n {}",

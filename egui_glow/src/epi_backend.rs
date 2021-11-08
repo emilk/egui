@@ -58,7 +58,7 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
         event_loop.create_proxy(),
     )));
 
-    let mut painter = crate::Painter::new(&gl, None)
+    let mut painter = crate::Painter::new(&gl, None, vec![])
         .map_err(|error| eprintln!("some OpenGL error occurred {}\n", error))
         .unwrap();
     let mut integration = egui_winit::epi::EpiIntegration::new(

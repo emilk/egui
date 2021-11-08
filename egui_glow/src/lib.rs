@@ -123,7 +123,7 @@ impl EguiGlow {
         Self {
             egui_ctx: Default::default(),
             egui_winit: egui_winit::State::new(gl_window.window()),
-            painter: crate::Painter::new(gl, None)
+            painter: crate::Painter::new(gl, None, vec![])
                 .map_err(|error| {
                     eprintln!("some error occurred in initializing painter\n{}", error);
                 })

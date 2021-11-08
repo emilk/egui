@@ -19,4 +19,7 @@ void main() {
     gl_FragColor = texture2D(u_sampler, v_tc);
 
     gl_FragColor = srgba_from_linear(gl_FragColor) / 255.;
+    #ifdef EPIPHANY_WORKAROUND
+    gl_FragColor = srgba_from_linear(gl_FragColor) / 255.;
+    #endif
 }
