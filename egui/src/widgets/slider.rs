@@ -32,7 +32,7 @@ struct SliderSpec {
     largest_finite: f64,
 }
 
-/// Specifies the orientation of a [Slider].
+/// Specifies the orientation of a [`Slider`].
 pub enum SliderOrientation {
     Horizontal,
     Vertical,
@@ -93,44 +93,9 @@ impl<'a> Slider<'a> {
         }
     }
 
-    /// Creates a new vertical slider.
-    pub fn new_vertical<Num: emath::Numeric>(
-        value: &'a mut Num,
-        range: RangeInclusive<Num>,
-    ) -> Self {
-        let range_f64 = range.start().to_f64()..=range.end().to_f64();
-        let slf = Self::from_get_set_vertical(range_f64, move |v: Option<f64>| {
-            if let Some(v) = v {
-                *value = Num::from_f64(v);
-            }
-            value.to_f64()
-        });
-
-        if Num::INTEGRAL {
-            slf.integer()
-        } else {
-            slf
-        }
-    }
-
     pub fn from_get_set(
         range: RangeInclusive<f64>,
         get_set_value: impl 'a + FnMut(Option<f64>) -> f64,
-    ) -> Self {
-        Self::from_get_set_inner(range, get_set_value, SliderOrientation::Horizontal)
-    }
-
-    pub fn from_get_set_vertical(
-        range: RangeInclusive<f64>,
-        get_set_value: impl 'a + FnMut(Option<f64>) -> f64,
-    ) -> Self {
-        Self::from_get_set_inner(range, get_set_value, SliderOrientation::Vertical)
-    }
-
-    fn from_get_set_inner(
-        range: RangeInclusive<f64>,
-        get_set_value: impl 'a + FnMut(Option<f64>) -> f64,
-        orientation: SliderOrientation,
     ) -> Self {
         Self {
             get_set_value: Box::new(get_set_value),
@@ -143,7 +108,7 @@ impl<'a> Slider<'a> {
             clamp_to_range: true,
             smart_aim: true,
             show_value: true,
-            orientation,
+            orientation: SliderOrientation::Horizontal,
             prefix: Default::default(),
             suffix: Default::default(),
             text: Default::default(),
@@ -183,8 +148,15 @@ impl<'a> Slider<'a> {
         self
     }
 
+    /// Vertical or horizontal slider? The default is horizontal.
     pub fn orientation(mut self, orientation: SliderOrientation) -> Self {
         self.orientation = orientation;
+        self
+    }
+
+    /// Make this a vertical slider.
+    pub fn vertical(mut self) -> Self {
+        self.orientation = SliderOrientation::Vertical;
         self
     }
 
@@ -417,7 +389,7 @@ impl<'a> Slider<'a> {
                 (rect.left() + handle_radius)..=(rect.right() - handle_radius)
             }
             SliderOrientation::Vertical => {
-                (rect.top() + handle_radius)..=(rect.bottom() - handle_radius)
+                (rect.bottom() - handle_radius)..=(rect.top() + handle_radius)
             }
         }
     }
@@ -499,32 +471,36 @@ impl<'a> Slider<'a> {
         let right_value = value_from_pos(pos_from_value(value) + 0.5);
         right_value - left_value
     }
-}
 
-impl<'a> Widget for Slider<'a> {
-    fn ui(mut self, ui: &mut Ui) -> Response {
+    fn add_contents(&mut self, ui: &mut Ui) -> Response {
         let text_style = TextStyle::Button;
         let perpendicular = ui
             .fonts()
             .row_height(text_style)
             .at_least(ui.spacing().interact_size.y);
+        let slider_response = self.allocate_slider_space(ui, perpendicular);
+        self.slider_ui(ui, &slider_response);
 
+        if self.show_value {
+            let position_range = self.position_range(&slider_response.rect);
+            self.value_ui(ui, position_range);
+        }
+
+        if !self.text.is_empty() {
+            self.label_ui(ui);
+        }
+        slider_response
+    }
+}
+
+impl<'a> Widget for Slider<'a> {
+    fn ui(mut self, ui: &mut Ui) -> Response {
         let old_value = self.get_value();
 
-        let inner_response = ui.horizontal(|ui| {
-            let slider_response = self.allocate_slider_space(ui, perpendicular);
-            self.slider_ui(ui, &slider_response);
-
-            if self.show_value {
-                let position_range = self.position_range(&slider_response.rect);
-                self.value_ui(ui, position_range);
-            }
-
-            if !self.text.is_empty() {
-                self.label_ui(ui);
-            }
-            slider_response
-        });
+        let inner_response = match self.orientation {
+            SliderOrientation::Horizontal => ui.horizontal(|ui| self.add_contents(ui)),
+            SliderOrientation::Vertical => ui.vertical(|ui| self.add_contents(ui)),
+        };
 
         let mut response = inner_response.inner | inner_response.response;
         response.changed = self.get_value() != old_value;
