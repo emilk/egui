@@ -1,7 +1,7 @@
 #[cfg(not(target_arch = "wasm32"))]
 use crate::web_sys::WebGl2RenderingContext;
-use crate::web_sys::{WebGlRenderingContext, WebglDebugRendererInfo};
-use crate::{canvas_element_or_die, console_error, console_log};
+use crate::web_sys::WebGlRenderingContext;
+use crate::{canvas_element_or_die, console_error};
 use egui::{ClippedMesh, Rgba, Texture};
 use egui_glow::glow;
 use epi::TextureAllocator;
@@ -31,29 +31,10 @@ impl WrappedGlowPainter {
             .dyn_into::<WebGlRenderingContext>()
             .unwrap();
         let user_agent = web_sys::window().unwrap().navigator().user_agent().unwrap();
-        let webkit_gtk_wr = if !user_agent.contains("Mac OS X") {
-            if gl
-                .get_extension("WEBGL_debug_renderer_info")
-                .unwrap()
-                .is_some()
-            {
-                let vendor: JsValue = gl
-                    .get_parameter(WebglDebugRendererInfo::UNMASKED_VENDOR_WEBGL)
-                    .unwrap();
-                let renderer: JsValue = gl
-                    .get_parameter(WebglDebugRendererInfo::UNMASKED_RENDERER_WEBGL)
-                    .unwrap();
-                if vendor.as_string().unwrap().contains("Apple")
-                    && renderer.as_string().unwrap().contains("Apple")
-                {
-                    console_log("Enabling webkitGTK workaround");
-                    "#define WEBKITGTK_WORKAROUND"
-                } else {
-                    ""
-                }
-            } else {
-                ""
-            }
+        let webkit_gtk_wr = if !user_agent.contains("Mac OS X")
+            && crate::webgl1::detect_safari_and_webkit_gtk(&gl)
+        {
+            "#define WEBKITGTK_WORKAROUND"
         } else {
             ""
         };

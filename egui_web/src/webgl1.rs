@@ -3,7 +3,7 @@ use {
     wasm_bindgen::{prelude::*, JsCast},
     web_sys::{
         ExtSRgb, WebGlBuffer, WebGlFramebuffer, WebGlProgram, WebGlRenderingContext, WebGlShader,
-        WebGlTexture,WebglDebugRendererInfo
+        WebGlTexture, WebglDebugRendererInfo,
     },
 };
 
@@ -597,29 +597,9 @@ impl PostProcess {
         // but safari use same vendor and renderer
         // so exclude "Mac OS X " user-agent.
         let user_agent = web_sys::window().unwrap().navigator().user_agent().unwrap();
-        let webkit_gtk_wr = if !user_agent.contains("Mac OS X") {
-            if gl
-                .get_extension("WEBGL_debug_renderer_info")
-                .unwrap()
-                .is_some()
-            {
-                let vendor: JsValue = gl
-                    .get_parameter(WebglDebugRendererInfo::UNMASKED_VENDOR_WEBGL)
-                    .unwrap();
-                let renderer: JsValue = gl
-                    .get_parameter(WebglDebugRendererInfo::UNMASKED_RENDERER_WEBGL)
-                    .unwrap();
-                if vendor.as_string().unwrap().contains("Apple")
-                    && renderer.as_string().unwrap().contains("Apple")
-                {
-                    console_log("Enabling webkitGTK workaround");
-                    "#define WEBKITGTK_WORKAROUND"
-                } else {
-                    ""
-                }
-            } else {
-                ""
-            }
+        let webkit_gtk_wr = if !user_agent.contains("Mac OS X") && detect_safari_and_webkit_gtk(&gl)
+        {
+            "#define WEBKITGTK_WORKAROUND"
         } else {
             ""
         };
@@ -785,4 +765,27 @@ fn link_program<'a, T: IntoIterator<Item = &'a WebGlShader>>(
             .get_program_info_log(&program)
             .unwrap_or_else(|| "Unknown error creating program object".into()))
     }
+}
+/// detecting Safari and webkitGTK.
+///
+/// Safari and webkitGTK use unmasked renderer :Apple GPU
+///
+/// If we detect safari or webkitGTK returns true.
+///
+/// This function used to avoid displaying linear color with `sRGB` supported systems.
+pub(crate) fn detect_safari_and_webkit_gtk(gl: &web_sys::WebGlRenderingContext) -> bool {
+    if gl
+        .get_extension("WEBGL_debug_renderer_info")
+        .unwrap()
+        .is_some()
+    {
+        let renderer: JsValue = gl
+            .get_parameter(WebglDebugRendererInfo::UNMASKED_RENDERER_WEBGL)
+            .unwrap();
+        if renderer.as_string().unwrap().contains("Apple") {
+            console_log("Enabling webkitGTK workaround");
+            return true;
+        }
+    }
+    false
 }
