@@ -197,7 +197,7 @@ pub(crate) unsafe fn need_to_emulate_vao(gl: &glow::Context) -> bool {
         ));
         if version_str.contains("1.0") {
             //need to test OES_vertex_array_object .
-            gl.supported_extensions()
+            !gl.supported_extensions()
                 .contains("OES_vertex_array_object")
         } else {
             false
@@ -211,7 +211,7 @@ pub(crate) unsafe fn need_to_emulate_vao(gl: &glow::Context) -> bool {
         ));
         if version_string.contains("2.0") {
             //need to test OES_vertex_array_object .
-            gl.supported_extensions()
+            !gl.supported_extensions()
                 .contains("OES_vertex_array_object")
         } else {
             false
@@ -222,7 +222,7 @@ pub(crate) unsafe fn need_to_emulate_vao(gl: &glow::Context) -> bool {
         if version_string.starts_with('2') {
             // I found APPLE_vertex_array_object , GL_ATI_vertex_array_object ,ARB_vertex_array_object
             // but APPLE's and ATI's very old extension.
-            gl.supported_extensions()
+            !gl.supported_extensions()
                 .contains("ARB_vertex_array_object")
         } else {
             false

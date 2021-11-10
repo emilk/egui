@@ -1,9 +1,11 @@
 #[cfg(not(target_arch = "wasm32"))]
-use crate::web_sys::{WebGl2RenderingContext, WebGlRenderingContext};
+use crate::web_sys::WebGl2RenderingContext;
+use crate::web_sys::{WebGlRenderingContext, WebglDebugRendererInfo};
 use crate::{canvas_element_or_die, console_error, console_log};
 use egui::{ClippedMesh, Rgba, Texture};
 use egui_glow::glow;
 use epi::TextureAllocator;
+use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 
@@ -16,17 +18,49 @@ pub(crate) struct WrappedGlowPainter {
 
 impl WrappedGlowPainter {
     pub fn new(canvas_id: &str) -> Self {
+        let canvas = canvas_element_or_die(canvas_id);
+        // detect WebKitGTK
+        //WebKitGTK currently support only webgl,so request webgl context.
+        // WebKitGTK use WebKit default unmasked vendor and renderer
+        // but safari use same vendor and renderer
+        // so exclude "Mac OS X" user-agent.
+        let gl = canvas
+            .get_context("webgl")
+            .unwrap()
+            .unwrap()
+            .dyn_into::<WebGlRenderingContext>()
+            .unwrap();
         let user_agent = web_sys::window().unwrap().navigator().user_agent().unwrap();
-        let epiphany_wr = if user_agent.contains("Epiphany") {
-            console_log("Enabling epiphany workaround");
-            "#define EPIPHANY_WORKAROUND"
+        let webkit_gtk_wr = if !user_agent.contains("Mac OS X") {
+            if gl
+                .get_extension("WEBGL_debug_renderer_info")
+                .unwrap()
+                .is_some()
+            {
+                let vendor: JsValue = gl
+                    .get_parameter(WebglDebugRendererInfo::UNMASKED_VENDOR_WEBGL)
+                    .unwrap();
+                let renderer: JsValue = gl
+                    .get_parameter(WebglDebugRendererInfo::UNMASKED_RENDERER_WEBGL)
+                    .unwrap();
+                if vendor.as_string().unwrap().contains("Apple")
+                    && renderer.as_string().unwrap().contains("Apple")
+                {
+                    console_log("Enabling webkitGTK workaround");
+                    "#define WEBKITGTK_WORKAROUND"
+                } else {
+                    ""
+                }
+            } else {
+                ""
+            }
         } else {
             ""
         };
-        let canvas = canvas_element_or_die(canvas_id);
+
         let gl_ctx = init_glow_context_from_canvas(&canvas);
         let dimension = [canvas.width() as i32, canvas.height() as i32];
-        let painter = egui_glow::Painter::new(&gl_ctx, Some(dimension), epiphany_wr)
+        let painter = egui_glow::Painter::new(&gl_ctx, Some(dimension), webkit_gtk_wr)
             .map_err(|error| {
                 console_error(format!(
                     "some error occurred in initializing glow painter\n {}",
@@ -90,7 +124,6 @@ impl crate::Painter for WrappedGlowPainter {
 }
 
 pub fn init_glow_context_from_canvas(canvas: &HtmlCanvasElement) -> glow::Context {
-    use wasm_bindgen::JsCast;
     let ctx = canvas.get_context("webgl2");
     if let Ok(ctx) = ctx {
         crate::console_log("webgl found");

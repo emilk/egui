@@ -3,7 +3,7 @@ use {
     wasm_bindgen::{prelude::*, JsCast},
     web_sys::{
         ExtSRgb, WebGlBuffer, WebGlFramebuffer, WebGlProgram, WebGlRenderingContext, WebGlShader,
-        WebGlTexture,
+        WebGlTexture,WebglDebugRendererInfo
     },
 };
 
@@ -592,19 +592,38 @@ impl PostProcess {
 
         gl.bind_texture(Gl::TEXTURE_2D, None);
         gl.bind_framebuffer(Gl::FRAMEBUFFER, None);
-        // currently epiphany only support webgl1
-        let frag_shader_prefix = if web_sys::window()
-            .unwrap()
-            .navigator()
-            .user_agent()
-            .unwrap()
-            .contains("Epiphany")
-        {
-            console_log("epiphany workaround enabled");
-            "#define EPIPHANY_WORKAROUND\n"
+        // detect WebKitGTK
+        // WebKitGTK use WebKit default unmasked vendor and renderer
+        // but safari use same vendor and renderer
+        // so exclude "Mac OS X " user-agent.
+        let user_agent = web_sys::window().unwrap().navigator().user_agent().unwrap();
+        let webkit_gtk_wr = if !user_agent.contains("Mac OS X") {
+            if gl
+                .get_extension("WEBGL_debug_renderer_info")
+                .unwrap()
+                .is_some()
+            {
+                let vendor: JsValue = gl
+                    .get_parameter(WebglDebugRendererInfo::UNMASKED_VENDOR_WEBGL)
+                    .unwrap();
+                let renderer: JsValue = gl
+                    .get_parameter(WebglDebugRendererInfo::UNMASKED_RENDERER_WEBGL)
+                    .unwrap();
+                if vendor.as_string().unwrap().contains("Apple")
+                    && renderer.as_string().unwrap().contains("Apple")
+                {
+                    console_log("Enabling webkitGTK workaround");
+                    "#define WEBKITGTK_WORKAROUND"
+                } else {
+                    ""
+                }
+            } else {
+                ""
+            }
         } else {
             ""
         };
+
         let vert_shader = compile_shader(
             &gl,
             Gl::VERTEX_SHADER,
@@ -615,7 +634,7 @@ impl PostProcess {
             Gl::FRAGMENT_SHADER,
             &format!(
                 "{}{}",
-                frag_shader_prefix,
+                webkit_gtk_wr,
                 include_str!("shader/post_fragment_100es.glsl")
             ),
         )?;
