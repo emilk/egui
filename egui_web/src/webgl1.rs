@@ -766,6 +766,7 @@ fn link_program<'a, T: IntoIterator<Item = &'a WebGlShader>>(
             .unwrap_or_else(|| "Unknown error creating program object".into()))
     }
 }
+
 /// detecting Safari and webkitGTK.
 ///
 /// Safari and webkitGTK use unmasked renderer :Apple GPU

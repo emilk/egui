@@ -74,7 +74,7 @@ impl Painter {
         pp_fb_extent: Option<[i32; 2]>,
         shader_prefix: &str,
     ) -> Result<Painter, String> {
-        let need_to_emulate_vao = unsafe { crate::misc_util::need_to_emulate_vao(gl) };
+        let support_vao = unsafe { crate::misc_util::support_vao(gl) };
         let shader_version = ShaderVersion::get(gl);
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
         let header = shader_version.version();
@@ -92,7 +92,7 @@ impl Painter {
                         Some(PostProcess::new(
                             gl,
                             shader_prefix,
-                            need_to_emulate_vao,
+                            support_vao,
                             is_webgl_1,
                             width,
                             height,
@@ -147,10 +147,10 @@ impl Painter {
             let a_pos_loc = gl.get_attrib_location(program, "a_pos").unwrap();
             let a_tc_loc = gl.get_attrib_location(program, "a_tc").unwrap();
             let a_srgba_loc = gl.get_attrib_location(program, "a_srgba").unwrap();
-            let mut vertex_array = if need_to_emulate_vao {
-                crate::misc_util::VAO::emulated()
-            } else {
+            let mut vertex_array = if support_vao {
                 crate::misc_util::VAO::native(gl)
+            } else {
+                crate::misc_util::VAO::emulated()
             };
             vertex_array.bind_vertex_array(gl);
             vertex_array.bind_buffer(gl, &vertex_buffer);
