@@ -4,7 +4,7 @@ All notable changes to the `egui_web` integration will be noted in this file.
 
 
 ## Unreleased
-* fix [Everything super dark in epiphany](https://github.com/emilk/egui/issues/794) for webgl1 and glow based painter
+* Fix [dark rendering in epiphany](https://github.com/emilk/egui/issues/794) for WebGL1 and glow based painter ([#888](https://github.com/emilk/egui/pull/888/)).
 * Add feature `glow` to switch to a [`glow`](https://github.com/grovesNL/glow) based painter ([#868](https://github.com/emilk/egui/pull/868)).
 
 ## 0.15.0 - 2021-10-24
