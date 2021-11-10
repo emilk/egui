@@ -107,13 +107,13 @@ impl CtxRef {
     ) -> (Output, Vec<ClippedShape>) {
         self.memory().begin_frame(&self.input, &new_raw_input);
 
-        let mut self_: Context = (*self.0).clone();
-        if let Some(new_pixels_per_point) = self_.memory.lock().new_pixels_per_point.take() {
-            self_.input.pixels_per_point = new_pixels_per_point;
-        }
-        self_.input.begin_frame(&new_raw_input);
-        self_.update_fonts(self_.input.pixels_per_point());
-        *self = Self(Arc::new(self_));
+        self.mutate(|context| {
+            if let Some(new_pixels_per_point) = context.memory.lock().new_pixels_per_point.take() {
+                context.input.pixels_per_point = new_pixels_per_point;
+            }
+            context.input.begin_frame(&new_raw_input);
+            context.update_fonts(context.input.pixels_per_point());
+        });
 
         // Ensure we register the background area so panels and background ui can catch clicks:
         let screen_rect = self.input.screen_rect();
@@ -131,22 +131,24 @@ impl CtxRef {
             run_ui(self);
 
             self.drain_paint_lists();
-            let mut self_: Context = (*self.0).clone();
-            self_.input.on_events(new_raw_input);
-            *self = Self(Arc::new(self_));
+            self.mutate(|context| context.input.on_events(new_raw_input));
 
             self.frame_state.lock().begin_pass(&self.input);
             run_ui(self);
         } else {
-            let mut self_: Context = (*self.0).clone();
-            self_.input.on_events(new_raw_input);
-            *self = Self(Arc::new(self_));
+            self.mutate(|context| context.input.on_events(new_raw_input));
 
             self.frame_state.lock().begin_pass(&self.input);
             run_ui(self);
         }
 
         self.end_frame()
+    }
+
+    fn mutate(&mut self, mutate: impl FnOnce(&mut Context)) {
+        let mut self_: Context = (*self.0).clone();
+        mutate(&mut self_);
+        *self = Self(Arc::new(self_));
     }
 
     // ---------------------------------------------------------------------
@@ -398,13 +400,13 @@ impl Clone for Context {
             fonts: self.fonts.clone(),
             memory: self.memory.clone(),
             animation_manager: self.animation_manager.clone(),
+            context_menu_system: self.context_menu_system.clone(),
             input: self.input.clone(),
             frame_state: self.frame_state.clone(),
             graphics: self.graphics.clone(),
             output: self.output.clone(),
             paint_stats: self.paint_stats.clone(),
             repaint_requests: self.repaint_requests.load(SeqCst).into(),
-            context_menu_system: self.context_menu_system.clone(),
         }
     }
 }
