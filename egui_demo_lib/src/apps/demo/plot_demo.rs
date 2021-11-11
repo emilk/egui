@@ -150,7 +150,7 @@ impl Widget for &mut LineDemo {
         if self.proportional {
             plot = plot.data_aspect(1.0);
         }
-        plot.build(ui, |plot_ui| {
+        plot.show(ui, |plot_ui| {
             plot_ui.line(self.circle());
             plot_ui.line(self.sin());
             plot_ui.line(self.thingy());
@@ -225,7 +225,7 @@ impl Widget for &mut MarkerDemo {
         let markers_plot = Plot::new("markers_demo")
             .data_aspect(1.0)
             .legend(Legend::default());
-        markers_plot.build(ui, |plot_ui| {
+        markers_plot.show(ui, |plot_ui| {
             for marker in self.markers() {
                 plot_ui.points(marker);
             }
@@ -289,7 +289,7 @@ impl Widget for &mut LegendDemo {
         });
 
         let legend_plot = Plot::new("legend_demo").legend(*config).data_aspect(1.0);
-        legend_plot.build(ui, |plot_ui| {
+        legend_plot.show(ui, |plot_ui| {
             plot_ui.line(LegendDemo::line_with_slope(0.5).name("lines"));
             plot_ui.line(LegendDemo::line_with_slope(1.0).name("lines"));
             plot_ui.line(LegendDemo::line_with_slope(2.0).name("lines"));
@@ -351,7 +351,7 @@ impl Widget for &mut ItemsDemo {
             .show_x(false)
             .show_y(false)
             .data_aspect(1.0);
-        plot.build(ui, |plot_ui| {
+        plot.show(ui, |plot_ui| {
             plot_ui.hline(HLine::new(9.0).name("Lines horizontal"));
             plot_ui.hline(HLine::new(-9.0).name("Lines horizontal"));
             plot_ui.vline(VLine::new(9.0).name("Lines vertical"));
@@ -371,7 +371,7 @@ impl Widget for &mut ItemsDemo {
 
 #[derive(PartialEq)]
 struct InteractionDemo {
-    pointer_coordinate: Option<Pos2>,
+    pointer_coordinate: Option<Value>,
     pointer_coordinate_drag_delta: Vec2,
 }
 
@@ -401,7 +401,7 @@ impl Widget for &mut InteractionDemo {
             coordinate_text
         ));
         let plot = Plot::new("interaction_demo");
-        plot.build(ui, |plot_ui| {
+        plot.show(ui, |plot_ui| {
             self.pointer_coordinate = plot_ui.pointer_coordinate();
             self.pointer_coordinate_drag_delta = plot_ui.pointer_coordinate_drag_delta();
         })

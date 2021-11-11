@@ -218,7 +218,7 @@ impl Plot {
     }
 
     /// Interact with and add items to the plot and finally draw it.
-    pub fn build(self, ui: &mut Ui, build_fn: impl FnOnce(&mut PlotUi)) -> Response {
+    pub fn show(self, ui: &mut Ui, build_fn: impl FnOnce(&mut PlotUi)) -> Response {
         let Self {
             id_source,
             center_x_axis,
@@ -427,6 +427,8 @@ impl Plot {
     }
 }
 
+/// Provides methods to interact with a plot while building it. It is the single argument of the closure
+/// provided to `Plot::show`. See [`Plot`] for an example of how to use it.
 pub struct PlotUi {
     items: Vec<Box<dyn PlotItem>>,
     next_auto_color_idx: usize,
@@ -444,12 +446,12 @@ impl PlotUi {
     }
 
     /// The pointer position in plot coordinates, if the pointer is inside the plot area.
-    pub fn pointer_coordinate(&self) -> Option<Pos2> {
+    pub fn pointer_coordinate(&self) -> Option<Value> {
         let last_screen_transform = self.last_screen_transform.as_ref()?;
         // We need to subtract the drag delta to keep in sync with the frame-delayed screen transform:
         let last_pos = self.response.hover_pos()? - self.response.drag_delta();
-        let value = tf.last_screen_transform(last_pos);
-        Some(Pos2::new(value.x as f32, value.y as f32))
+        let value = last_screen_transform.value_from_position(last_pos);
+        Some(value)
     }
 
     /// The pointer drag delta in plot coordinates.
@@ -464,7 +466,7 @@ impl PlotUi {
     }
 
     /// Transform the screen coordinates to plot coordinates.
-    pub fn screen_to_plot_coordinates(&self, position: Pos2) -> Pos2 {
+    pub fn plot_from_screen(&self, position: Pos2) -> Pos2 {
         self.last_screen_transform
             .as_ref()
             .map_or(Pos2::ZERO, |tf| {

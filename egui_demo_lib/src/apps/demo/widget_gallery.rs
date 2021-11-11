@@ -237,7 +237,7 @@ fn example_plot(ui: &mut egui::Ui) -> egui::Response {
     egui::plot::Plot::new("example_plot")
         .height(32.0)
         .data_aspect(1.0)
-        .build(ui, |plot_ui| plot_ui.line(line))
+        .show(ui, |plot_ui| plot_ui.line(line))
 }
 
 fn doc_link_label<'a>(title: &'a str, search_term: &'a str) -> impl egui::Widget + 'a {

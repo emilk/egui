@@ -30,6 +30,16 @@ impl Value {
             y: y.into(),
         }
     }
+
+    #[inline(always)]
+    pub fn to_pos2(self) -> Pos2 {
+        Pos2::new(self.x as f32, self.y as f32)
+    }
+
+    #[inline(always)]
+    pub fn to_vec2(self) -> Vec2 {
+        Vec2::new(self.x as f32, self.y as f32)
+    }
 }
 
 // ----------------------------------------------------------------------------
