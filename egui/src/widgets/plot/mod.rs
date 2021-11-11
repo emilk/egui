@@ -56,6 +56,7 @@ impl PlotMemory {
 /// });
 /// let line = Line::new(Values::from_values_iter(sin));
 /// Plot::new("my_plot").view_aspect(2.0).show(ui, |plot_ui| plot_ui.line(line));
+/// # });
 /// ```
 pub struct Plot {
     id_source: Id,
