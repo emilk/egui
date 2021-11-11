@@ -5,10 +5,11 @@ use crate::*;
 /// Usually you'd use the shorter version [`Ui::separator`].
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// // These are equivalent:
 /// ui.separator();
 /// ui.add(egui::Separator::default());
+/// # });
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Separator {
@@ -68,19 +69,23 @@ impl Widget for Separator {
         };
 
         let (rect, response) = ui.allocate_at_least(size, Sense::hover());
-        let points = if is_horizontal_line {
-            [
-                pos2(rect.left(), rect.center().y),
-                pos2(rect.right(), rect.center().y),
-            ]
-        } else {
-            [
-                pos2(rect.center().x, rect.top()),
-                pos2(rect.center().x, rect.bottom()),
-            ]
-        };
-        let stroke = ui.visuals().widgets.noninteractive.bg_stroke;
-        ui.painter().line_segment(points, stroke);
+
+        if ui.is_rect_visible(response.rect) {
+            let points = if is_horizontal_line {
+                [
+                    pos2(rect.left(), rect.center().y),
+                    pos2(rect.right(), rect.center().y),
+                ]
+            } else {
+                [
+                    pos2(rect.center().x, rect.top()),
+                    pos2(rect.center().x, rect.bottom()),
+                ]
+            };
+            let stroke = ui.visuals().widgets.noninteractive.bg_stroke;
+            ui.painter().line_segment(points, stroke);
+        }
+
         response
     }
 }

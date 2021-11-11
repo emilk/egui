@@ -54,10 +54,12 @@ impl State {
 /// Add vertical and/or horizontal scrolling to a contained [`Ui`].
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// egui::ScrollArea::vertical().show(ui, |ui| {
 ///     // Add a lot of widgets here.
 /// });
+/// # });
+/// ```
 #[derive(Clone, Debug)]
 #[must_use = "You should call .show()"]
 pub struct ScrollArea {
@@ -67,7 +69,8 @@ pub struct ScrollArea {
     max_size: Vec2,
     always_show_scroll: bool,
     id_source: Option<Id>,
-    offset: Option<Vec2>,
+    offset_x: Option<f32>,
+    offset_y: Option<f32>,
     /// If false, we ignore scroll events.
     scrolling_enabled: bool,
 
@@ -108,7 +111,8 @@ impl ScrollArea {
             max_size: Vec2::INFINITY,
             always_show_scroll: false,
             id_source: None,
-            offset: None,
+            offset_x: None,
+            offset_y: None,
             scrolling_enabled: true,
             stick_to_end: [false; 2],
         }
@@ -147,12 +151,32 @@ impl ScrollArea {
         self
     }
 
+    /// Set the horizontal and vertical scroll offset position.
+    ///
+    /// See also: [`Self::vertical_scroll_offset`], [`Self::horizontal_scroll_offset`],
+    /// [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
+    /// [`Response::scroll_to_me`](crate::Response::scroll_to_me)
+    pub fn scroll_offset(mut self, offset: Vec2) -> Self {
+        self.offset_x = Some(offset.x);
+        self.offset_y = Some(offset.y);
+        self
+    }
+
     /// Set the vertical scroll offset position.
     ///
-    /// See also: [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
+    /// See also: [`Self::scroll_offset`], [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
     /// [`Response::scroll_to_me`](crate::Response::scroll_to_me)
-    pub fn scroll_offset(mut self, offset: f32) -> Self {
-        self.offset = Some(Vec2::new(0.0, offset));
+    pub fn vertical_scroll_offset(mut self, offset: f32) -> Self {
+        self.offset_y = Some(offset);
+        self
+    }
+
+    /// Set the horizontal scroll offset position.
+    ///
+    /// See also: [`Self::scroll_offset`], [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
+    /// [`Response::scroll_to_me`](crate::Response::scroll_to_me)
+    pub fn horizontal_scroll_offset(mut self, offset: f32) -> Self {
+        self.offset_x = Some(offset);
         self
     }
 
@@ -251,7 +275,8 @@ impl ScrollArea {
             max_size,
             always_show_scroll,
             id_source,
-            offset,
+            offset_x,
+            offset_y,
             scrolling_enabled,
             stick_to_end,
         } = self;
@@ -262,9 +287,8 @@ impl ScrollArea {
         let id = ui.make_persistent_id(id_source);
         let mut state = State::load(&ctx, id).unwrap_or_default();
 
-        if let Some(offset) = offset {
-            state.offset = offset;
-        }
+        state.offset.x = offset_x.unwrap_or(state.offset.x);
+        state.offset.y = offset_y.unwrap_or(state.offset.y);
 
         let max_scroll_bar_width = max_scroll_bar_width_with_margin(ui);
 
@@ -348,7 +372,7 @@ impl ScrollArea {
     /// Efficiently show only the visible part of a large number of rows.
     ///
     /// ```
-    /// # let ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// let text_style = egui::TextStyle::Body;
     /// let row_height = ui.fonts()[text_style].row_height();
     /// // let row_height = ui.spacing().interact_size.y; // if you are adding buttons instead of labels.
@@ -359,6 +383,8 @@ impl ScrollArea {
     ///         ui.label(text);
     ///     }
     /// });
+    /// # });
+    /// ```
     pub fn show_rows<R>(
         self,
         ui: &mut Ui,
@@ -649,50 +675,52 @@ impl Prepared {
                 state.vel[d] = 0.0;
             }
 
-            // Avoid frame-delay by calculating a new handle rect:
-            let mut handle_rect = if d == 0 {
-                Rect::from_min_max(
-                    pos2(from_content(state.offset.x), min_cross),
-                    pos2(from_content(state.offset.x + inner_rect.width()), max_cross),
-                )
-            } else {
-                Rect::from_min_max(
-                    pos2(min_cross, from_content(state.offset.y)),
-                    pos2(
-                        max_cross,
-                        from_content(state.offset.y + inner_rect.height()),
-                    ),
-                )
-            };
-            let min_handle_size = ui.spacing().scroll_bar_width;
-            if handle_rect.size()[d] < min_handle_size {
-                handle_rect = Rect::from_center_size(
-                    handle_rect.center(),
-                    if d == 0 {
-                        vec2(min_handle_size, handle_rect.size().y)
-                    } else {
-                        vec2(handle_rect.size().x, min_handle_size)
-                    },
-                );
+            if ui.is_rect_visible(outer_scroll_rect) {
+                // Avoid frame-delay by calculating a new handle rect:
+                let mut handle_rect = if d == 0 {
+                    Rect::from_min_max(
+                        pos2(from_content(state.offset.x), min_cross),
+                        pos2(from_content(state.offset.x + inner_rect.width()), max_cross),
+                    )
+                } else {
+                    Rect::from_min_max(
+                        pos2(min_cross, from_content(state.offset.y)),
+                        pos2(
+                            max_cross,
+                            from_content(state.offset.y + inner_rect.height()),
+                        ),
+                    )
+                };
+                let min_handle_size = ui.spacing().scroll_bar_width;
+                if handle_rect.size()[d] < min_handle_size {
+                    handle_rect = Rect::from_center_size(
+                        handle_rect.center(),
+                        if d == 0 {
+                            vec2(min_handle_size, handle_rect.size().y)
+                        } else {
+                            vec2(handle_rect.size().x, min_handle_size)
+                        },
+                    );
+                }
+
+                let visuals = if scrolling_enabled {
+                    ui.style().interact(&response)
+                } else {
+                    &ui.style().visuals.widgets.inactive
+                };
+
+                ui.painter().add(epaint::Shape::rect_filled(
+                    outer_scroll_rect,
+                    visuals.corner_radius,
+                    ui.visuals().extreme_bg_color,
+                ));
+
+                ui.painter().add(epaint::Shape::rect_filled(
+                    handle_rect,
+                    visuals.corner_radius,
+                    visuals.bg_fill,
+                ));
             }
-
-            let visuals = if scrolling_enabled {
-                ui.style().interact(&response)
-            } else {
-                &ui.style().visuals.widgets.inactive
-            };
-
-            ui.painter().add(epaint::Shape::rect_filled(
-                outer_scroll_rect,
-                visuals.corner_radius,
-                ui.visuals().extreme_bg_color,
-            ));
-
-            ui.painter().add(epaint::Shape::rect_filled(
-                handle_rect,
-                visuals.corner_radius,
-                visuals.bg_fill,
-            ));
         }
 
         ui.advance_cursor_after_rect(outer_rect);

@@ -36,6 +36,13 @@ pub struct InputState {
     /// How many pixels the user scrolled.
     pub scroll_delta: Vec2,
 
+    /// Zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).
+    ///
+    /// * `zoom = 1`: no change.
+    /// * `zoom < 1`: pinch together
+    /// * `zoom > 1`: pinch spread
+    zoom_factor_delta: f32,
+
     /// Position and size of the egui area.
     pub screen_rect: Rect,
 
@@ -71,7 +78,8 @@ impl Default for InputState {
             raw: Default::default(),
             pointer: Default::default(),
             touch_states: Default::default(),
-            scroll_delta: Default::default(),
+            scroll_delta: Vec2::ZERO,
+            zoom_factor_delta: 1.0,
             screen_rect: Rect::from_min_size(Default::default(), vec2(10_000.0, 10_000.0)),
             pixels_per_point: 1.0,
             time: 0.0,
@@ -97,20 +105,33 @@ impl InputState {
             touch_state.begin_frame(time, &new, self.pointer.interact_pos);
         }
         let pointer = self.pointer.begin_frame(time, &new);
+
         let mut keys_down = self.keys_down;
+        let mut scroll_delta = Vec2::ZERO;
+        let mut zoom_factor_delta = 1.0;
         for event in &new.events {
-            if let Event::Key { key, pressed, .. } = event {
-                if *pressed {
-                    keys_down.insert(*key);
-                } else {
-                    keys_down.remove(key);
+            match event {
+                Event::Key { key, pressed, .. } => {
+                    if *pressed {
+                        keys_down.insert(*key);
+                    } else {
+                        keys_down.remove(key);
+                    }
                 }
+                Event::Scroll(delta) => {
+                    scroll_delta += *delta;
+                }
+                Event::Zoom(factor) => {
+                    zoom_factor_delta *= *factor;
+                }
+                _ => {}
             }
         }
         InputState {
             pointer,
             touch_states: self.touch_states,
-            scroll_delta: new.scroll_delta,
+            scroll_delta,
+            zoom_factor_delta,
             screen_rect,
             pixels_per_point: new.pixels_per_point.unwrap_or(self.pixels_per_point),
             time,
@@ -136,10 +157,10 @@ impl InputState {
     pub fn zoom_delta(&self) -> f32 {
         // If a multi touch gesture is detected, it measures the exact and linear proportions of
         // the distances of the finger tips. It is therefore potentially more accurate than
-        // `raw.zoom_delta` which is based on the `ctrl-scroll` event which, in turn, may be
+        // `zoom_factor_delta` which is based on the `ctrl-scroll` event which, in turn, may be
         // synthesized from an original touch gesture.
         self.multi_touch()
-            .map_or(self.raw.zoom_delta, |touch| touch.zoom_delta)
+            .map_or(self.zoom_factor_delta, |touch| touch.zoom_delta)
     }
 
     /// 2D non-proportional zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).
@@ -159,10 +180,10 @@ impl InputState {
     pub fn zoom_delta_2d(&self) -> Vec2 {
         // If a multi touch gesture is detected, it measures the exact and linear proportions of
         // the distances of the finger tips.  It is therefore potentially more accurate than
-        // `raw.zoom_delta` which is based on the `ctrl-scroll` event which, in turn, may be
+        // `zoom_factor_delta` which is based on the `ctrl-scroll` event which, in turn, may be
         // synthesized from an original touch gesture.
         self.multi_touch().map_or_else(
-            || Vec2::splat(self.raw.zoom_delta),
+            || Vec2::splat(self.zoom_factor_delta),
             |touch| touch.zoom_delta_2d,
         )
     }
@@ -237,7 +258,7 @@ impl InputState {
     ///
     /// ```
     /// # use egui::emath::Rot2;
-    /// # let ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// let mut zoom = 1.0; // no zoom
     /// let mut rotation = 0.0; // no rotation
     /// if let Some(multi_touch) = ui.input().multi_touch() {
@@ -245,6 +266,7 @@ impl InputState {
     ///     rotation += multi_touch.rotation_delta;
     /// }
     /// let transform = zoom * Rot2::from_angle(rotation);
+    /// # });
     /// ```
     ///
     /// By far not all touch devices are supported, and the details depend on the `egui`
@@ -666,6 +688,7 @@ impl InputState {
             pointer,
             touch_states,
             scroll_delta,
+            zoom_factor_delta,
             screen_rect,
             pixels_per_point,
             time,
@@ -692,6 +715,7 @@ impl InputState {
         }
 
         ui.label(format!("scroll_delta: {:?} points", scroll_delta));
+        ui.label(format!("zoom_factor_delta: {:4.2}x", zoom_factor_delta));
         ui.label(format!("screen_rect: {:?} points", screen_rect));
         ui.label(format!(
             "{:?} physical pixels for each logical point",

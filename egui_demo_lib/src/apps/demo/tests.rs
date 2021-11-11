@@ -465,7 +465,7 @@ fn lorem_ipsum(ui: &mut egui::Ui, text: &str) {
     ui.with_layout(
         egui::Layout::top_down(egui::Align::LEFT).with_cross_justify(true),
         |ui| {
-            ui.add(egui::Label::new(text).weak());
+            ui.label(egui::RichText::new(text).weak());
         },
     );
 }

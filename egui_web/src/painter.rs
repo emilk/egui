@@ -17,4 +17,6 @@ pub trait Painter {
         clipped_meshes: Vec<egui::ClippedMesh>,
         pixels_per_point: f32,
     ) -> Result<(), JsValue>;
+
+    fn name(&self) -> &'static str;
 }

@@ -73,12 +73,11 @@ impl Side {
 /// See the [module level docs](crate::containers::panel) for more details.
 ///
 /// ```
-/// # let mut ctx = egui::CtxRef::default();
-/// # ctx.begin_frame(Default::default());
-/// # let ctx = &ctx;
+/// # egui::__run_test_ctx(|ctx| {
 /// egui::SidePanel::left("my_left_panel").show(ctx, |ui| {
 ///    ui.label("Hello World!");
 /// });
+/// # });
 /// ```
 ///
 /// See also [`TopBottomPanel`].
@@ -350,12 +349,11 @@ impl TopBottomSide {
 /// See the [module level docs](crate::containers::panel) for more details.
 ///
 /// ```
-/// # let mut ctx = egui::CtxRef::default();
-/// # ctx.begin_frame(Default::default());
-/// # let ctx = &ctx;
+/// # egui::__run_test_ctx(|ctx| {
 /// egui::TopBottomPanel::top("my_panel").show(ctx, |ui| {
 ///    ui.label("Hello World!");
 /// });
+/// # });
 /// ```
 ///
 /// See also [`SidePanel`].
@@ -605,12 +603,11 @@ impl TopBottomPanel {
 /// See the [module level docs](crate::containers::panel) for more details.
 ///
 /// ```
-/// # let mut ctx = egui::CtxRef::default();
-/// # ctx.begin_frame(Default::default());
-/// # let ctx = &ctx;
+/// # egui::__run_test_ctx(|ctx| {
 /// egui::CentralPanel::default().show(ctx, |ui| {
 ///    ui.label("Hello World!");
 /// });
+/// # });
 /// ```
 #[must_use = "You should call .show()"]
 #[derive(Default)]

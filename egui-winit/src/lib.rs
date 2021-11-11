@@ -171,7 +171,7 @@ impl State {
 
     /// Prepare for a new frame by extracting the accumulated input,
     /// as well as setting [the time](egui::RawInput::time) and [screen rectangle](egui::RawInput::screen_rect).
-    pub fn take_egui_input(&mut self, display: &winit::window::Window) -> egui::RawInput {
+    pub fn take_egui_input(&mut self, window: &winit::window::Window) -> egui::RawInput {
         let pixels_per_point = self.pixels_per_point();
 
         self.egui_input.time = Some(self.start_time.elapsed().as_secs_f64());
@@ -179,7 +179,7 @@ impl State {
         // On Windows, a minimized window will have 0 width and height.
         // See: https://github.com/rust-windowing/winit/issues/208
         // This solves an issue where egui window positions would be changed when minimizing on Windows.
-        let screen_size_in_pixels = screen_size_in_pixels(display);
+        let screen_size_in_pixels = screen_size_in_pixels(window);
         let screen_size_in_points = screen_size_in_pixels / pixels_per_point;
         self.egui_input.screen_rect =
             if screen_size_in_points.x > 0.0 && screen_size_in_points.y > 0.0 {
@@ -287,6 +287,18 @@ impl State {
                     path: Some(path.clone()),
                     ..Default::default()
                 });
+                false
+            }
+            WindowEvent::ModifiersChanged(state) => {
+                self.egui_input.modifiers.alt = state.alt();
+                self.egui_input.modifiers.ctrl = state.ctrl();
+                self.egui_input.modifiers.shift = state.shift();
+                self.egui_input.modifiers.mac_cmd = cfg!(target_os = "macos") && state.logo();
+                self.egui_input.modifiers.command = if cfg!(target_os = "macos") {
+                    state.logo()
+                } else {
+                    state.ctrl()
+                };
                 false
             }
             _ => {
@@ -449,37 +461,16 @@ impl State {
 
         if self.egui_input.modifiers.ctrl || self.egui_input.modifiers.command {
             // Treat as zoom instead:
-            self.egui_input.zoom_delta *= (delta.y / 200.0).exp();
+            let factor = (delta.y / 200.0).exp();
+            self.egui_input.events.push(egui::Event::Zoom(factor));
         } else {
-            self.egui_input.scroll_delta += delta;
+            self.egui_input.events.push(egui::Event::Scroll(delta));
         }
     }
 
     fn on_keyboard_input(&mut self, input: &winit::event::KeyboardInput) {
         if let Some(keycode) = input.virtual_keycode {
-            use winit::event::VirtualKeyCode;
-
             let pressed = input.state == winit::event::ElementState::Pressed;
-
-            // We could also use `WindowEvent::ModifiersChanged` instead, I guess.
-            if matches!(keycode, VirtualKeyCode::LAlt | VirtualKeyCode::RAlt) {
-                self.egui_input.modifiers.alt = pressed;
-            }
-            if matches!(keycode, VirtualKeyCode::LControl | VirtualKeyCode::RControl) {
-                self.egui_input.modifiers.ctrl = pressed;
-                if !cfg!(target_os = "macos") {
-                    self.egui_input.modifiers.command = pressed;
-                }
-            }
-            if matches!(keycode, VirtualKeyCode::LShift | VirtualKeyCode::RShift) {
-                self.egui_input.modifiers.shift = pressed;
-            }
-            if cfg!(target_os = "macos")
-                && matches!(keycode, VirtualKeyCode::LWin | VirtualKeyCode::RWin)
-            {
-                self.egui_input.modifiers.mac_cmd = pressed;
-                self.egui_input.modifiers.command = pressed;
-            }
 
             if pressed {
                 // VirtualKeyCode::Paste etc in winit are broken/untrustworthy,
@@ -539,29 +530,6 @@ impl State {
 
         if let Some(egui::Pos2 { x, y }) = output.text_cursor_pos {
             window.set_ime_position(winit::dpi::LogicalPosition { x, y });
-        }
-    }
-
-    /// Returns `true` if Alt-F4 (windows/linux) or Cmd-Q (Mac)
-    pub fn is_quit_shortcut(&self, input: &winit::event::KeyboardInput) -> bool {
-        if cfg!(target_os = "macos") {
-            input.state == winit::event::ElementState::Pressed
-                && self.egui_input.modifiers.mac_cmd
-                && input.virtual_keycode == Some(winit::event::VirtualKeyCode::Q)
-        } else {
-            input.state == winit::event::ElementState::Pressed
-                && self.egui_input.modifiers.alt
-                && input.virtual_keycode == Some(winit::event::VirtualKeyCode::F4)
-        }
-    }
-
-    /// Returns `true` if this a close event or a Cmd-Q/Alt-F4 keyboard command.
-    pub fn is_quit_event(&self, event: &winit::event::WindowEvent<'_>) -> bool {
-        use winit::event::WindowEvent;
-        match event {
-            WindowEvent::CloseRequested | WindowEvent::Destroyed => true,
-            WindowEvent::KeyboardInput { input, .. } => self.is_quit_shortcut(input),
-            _ => false,
         }
     }
 

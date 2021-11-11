@@ -1,7 +1,8 @@
 #![allow(clippy::needless_pass_by_value)] // False positives with `impl ToString`
 
-use crate::{widgets::Label, *};
 use std::ops::RangeInclusive;
+
+use crate::*;
 
 // ----------------------------------------------------------------------------
 
@@ -44,9 +45,10 @@ struct SliderSpec {
 /// The user can click the value display to edit its value. It can be turned off with `.show_value(false)`.
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// # let mut my_f32: f32 = 0.0;
 /// ui.add(egui::Slider::new(&mut my_f32, 0.0..=100.0).text("My value"));
+/// # });
 /// ```
 ///
 /// The default `Slider` size is set by [`crate::style::Spacing::slider_width`].
@@ -319,7 +321,7 @@ impl<'a> Slider<'a> {
         }
 
         // Paint it:
-        {
+        if ui.is_rect_visible(response.rect) {
             let value = self.get_value();
 
             let rail_radius = ui
@@ -356,7 +358,8 @@ impl<'a> Slider<'a> {
     fn label_ui(&mut self, ui: &mut Ui) {
         if !self.text.is_empty() {
             let text_color = self.text_color.unwrap_or_else(|| ui.visuals().text_color());
-            ui.add(Label::new(&self.text).wrap(false).text_color(text_color));
+            let text = RichText::new(&self.text).color(text_color);
+            ui.add(Label::new(text).wrap(false));
         }
     }
 

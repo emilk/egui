@@ -28,6 +28,7 @@ crate-type = ["cdylib", "rlib"]
 egui = { version = "0.15.0", path = "../egui", default-features = false, features = [
   "single_threaded",
 ] }
+egui_glow = { version = "0.15.0",path = "../egui_glow", default-features = false, optional = true }
 epi = { version = "0.15.0", path = "../epi" }
 js-sys = "0.3"
 ron = { version = "0.7", optional = true }
@@ -42,6 +43,8 @@ default = ["default_fonts"]
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["egui/default_fonts"]
+# Use glow as the renderer
+glow = ["egui_glow", "egui_glow/epi"]
 persistence = ["egui/persistence", "ron", "serde"]
 screen_reader = ["tts"] # experimental
 

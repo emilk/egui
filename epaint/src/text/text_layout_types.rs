@@ -37,6 +37,9 @@ use emath::*;
 ///     },
 /// );
 /// ```
+///
+/// As you can see, constructing a `LayoutJob` is currently a lot of work.
+/// It would be nice to have a helper macro for it!
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct LayoutJob {
@@ -118,6 +121,21 @@ impl LayoutJob {
         }
     }
 
+    #[inline]
+    pub fn single_section(text: String, format: TextFormat) -> Self {
+        Self {
+            sections: vec![LayoutSection {
+                leading_space: 0.0,
+                byte_range: 0..text.len(),
+                format,
+            }],
+            text,
+            wrap_width: f32::INFINITY,
+            break_on_newline: true,
+            ..Default::default()
+        }
+    }
+
     #[inline(always)]
     pub fn is_empty(&self) -> bool {
         self.sections.is_empty()
@@ -133,6 +151,15 @@ impl LayoutJob {
             byte_range,
             format,
         });
+    }
+
+    /// The height of the tallest used font in the job.
+    pub fn font_height(&self, fonts: &crate::Fonts) -> f32 {
+        let mut max_height = 0.0_f32;
+        for section in &self.sections {
+            max_height = max_height.max(fonts.row_height(section.format.style));
+        }
+        max_height
     }
 }
 

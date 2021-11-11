@@ -4,7 +4,7 @@ All notable changes to the `egui_web` integration will be noted in this file.
 
 
 ## Unreleased
-
+*Add feature `glow` to switch to a [`glow`](https://github.com/grovesNL/glow) based painter ([#868](https://github.com/emilk/egui/pull/868)).
 
 ## 0.15.0 - 2021-10-24
 ### Added

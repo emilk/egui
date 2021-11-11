@@ -206,7 +206,7 @@ impl super::View for ScrollTo {
             .max_height(200.0)
             .auto_shrink([false; 2]);
         if go_to_scroll_offset {
-            scroll_area = scroll_area.scroll_offset(self.offset);
+            scroll_area = scroll_area.vertical_scroll_offset(self.offset);
         }
 
         ui.separator();

@@ -87,25 +87,34 @@
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
 
-mod painter;
+pub mod painter;
+pub use glow;
 pub use painter::Painter;
-
-#[cfg(feature = "epi")]
+#[cfg(feature = "winit")]
 mod epi_backend;
-#[cfg(feature = "epi")]
-pub use epi_backend::{run, NativeOptions};
+mod misc_util;
+mod post_process;
+mod shader_version;
+mod vao_emulate;
 
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "egui_winit")]
 pub use egui_winit;
+
+#[cfg(all(feature = "epi", feature = "winit"))]
+pub use epi_backend::{run, NativeOptions};
 
 // ----------------------------------------------------------------------------
 
 /// Use [`egui`] from a [`glow`] app.
+#[cfg(feature = "winit")]
 pub struct EguiGlow {
-    egui_ctx: egui::CtxRef,
-    egui_winit: egui_winit::State,
-    painter: crate::Painter,
+    pub egui_ctx: egui::CtxRef,
+    pub egui_winit: egui_winit::State,
+    pub painter: crate::Painter,
 }
 
+#[cfg(feature = "winit")]
 impl EguiGlow {
     pub fn new(
         gl_window: &glutin::WindowedContext<glutin::PossiblyCurrent>,
@@ -114,28 +123,12 @@ impl EguiGlow {
         Self {
             egui_ctx: Default::default(),
             egui_winit: egui_winit::State::new(gl_window.window()),
-            painter: crate::Painter::new(gl),
+            painter: crate::Painter::new(gl, None)
+                .map_err(|error| {
+                    eprintln!("some error occurred in initializing painter\n{}", error);
+                })
+                .unwrap(),
         }
-    }
-
-    pub fn ctx(&self) -> &egui::CtxRef {
-        &self.egui_ctx
-    }
-
-    pub fn painter_mut(&mut self) -> &mut crate::Painter {
-        &mut self.painter
-    }
-
-    pub fn ctx_and_painter_mut(&mut self) -> (&egui::CtxRef, &mut crate::Painter) {
-        (&self.egui_ctx, &mut self.painter)
-    }
-
-    pub fn pixels_per_point(&self) -> f32 {
-        self.egui_winit.pixels_per_point()
-    }
-
-    pub fn egui_input(&self) -> &egui::RawInput {
-        self.egui_winit.egui_input()
     }
 
     /// Returns `true` if egui wants exclusive use of this event
@@ -148,39 +141,18 @@ impl EguiGlow {
         self.egui_winit.on_event(&self.egui_ctx, event)
     }
 
-    /// Is this a close event or a Cmd-Q/Alt-F4 keyboard command?
-    pub fn is_quit_event(&self, event: &glutin::event::WindowEvent<'_>) -> bool {
-        self.egui_winit.is_quit_event(event)
-    }
-
-    pub fn begin_frame(&mut self, window: &glutin::window::Window) {
-        let raw_input = self.take_raw_input(window);
-        self.begin_frame_with_input(raw_input);
-    }
-
-    pub fn begin_frame_with_input(&mut self, raw_input: egui::RawInput) {
-        self.egui_ctx.begin_frame(raw_input);
-    }
-
-    /// Prepare for a new frame. Normally you would call [`Self::begin_frame`] instead.
-    pub fn take_raw_input(&mut self, window: &glutin::window::Window) -> egui::RawInput {
-        self.egui_winit.take_egui_input(window)
-    }
-
     /// Returns `needs_repaint` and shapes to draw.
-    pub fn end_frame(
+    pub fn run(
         &mut self,
         window: &glutin::window::Window,
+        run_ui: impl FnMut(&egui::CtxRef),
     ) -> (bool, Vec<egui::epaint::ClippedShape>) {
-        let (egui_output, shapes) = self.egui_ctx.end_frame();
+        let raw_input = self.egui_winit.take_egui_input(window);
+        let (egui_output, shapes) = self.egui_ctx.run(raw_input, run_ui);
         let needs_repaint = egui_output.needs_repaint;
-        self.handle_output(window, egui_output);
-        (needs_repaint, shapes)
-    }
-
-    pub fn handle_output(&mut self, window: &glutin::window::Window, output: egui::Output) {
         self.egui_winit
-            .handle_output(window, &self.egui_ctx, output);
+            .handle_output(window, &self.egui_ctx, egui_output);
+        (needs_repaint, shapes)
     }
 
     pub fn paint(
@@ -190,15 +162,18 @@ impl EguiGlow {
         shapes: Vec<egui::epaint::ClippedShape>,
     ) {
         let clipped_meshes = self.egui_ctx.tessellate(shapes);
+        let dimensions: [u32; 2] = gl_window.window().inner_size().into();
+        self.painter
+            .upload_egui_texture(gl, &self.egui_ctx.texture());
         self.painter.paint_meshes(
-            gl_window,
+            dimensions,
             gl,
             self.egui_ctx.pixels_per_point(),
             clipped_meshes,
-            &self.egui_ctx.texture(),
         );
     }
 
+    /// Call to release the allocated graphics resources.
     pub fn destroy(&mut self, gl: &glow::Context) {
         self.painter.destroy(gl);
     }

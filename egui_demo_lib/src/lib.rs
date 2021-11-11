@@ -105,7 +105,10 @@ macro_rules! __egui_github_link_file {
         crate::__egui_github_link_file!("(source code)")
     };
     ($label: expr) => {
-        egui::github_link_file!("https://github.com/emilk/egui/blob/master/", $label).small()
+        egui::github_link_file!(
+            "https://github.com/emilk/egui/blob/master/",
+            egui::RichText::new($label).small()
+        )
     };
 }
 
@@ -117,7 +120,10 @@ macro_rules! __egui_github_link_file_line {
         crate::__egui_github_link_file_line!("(source code)")
     };
     ($label: expr) => {
-        egui::github_link_file_line!("https://github.com/emilk/egui/blob/master/", $label).small()
+        egui::github_link_file_line!(
+            "https://github.com/emilk/egui/blob/master/",
+            egui::RichText::new($label).small()
+        )
     };
 }
 
@@ -139,9 +145,9 @@ fn test_egui_e2e() {
 
     const NUM_FRAMES: usize = 5;
     for _ in 0..NUM_FRAMES {
-        ctx.begin_frame(raw_input.clone());
-        demo_windows.ui(&ctx);
-        let (_output, shapes) = ctx.end_frame();
+        let (_output, shapes) = ctx.run(raw_input.clone(), |ctx| {
+            demo_windows.ui(ctx);
+        });
         let clipped_meshes = ctx.tessellate(shapes);
         assert!(!clipped_meshes.is_empty());
     }
@@ -158,9 +164,9 @@ fn test_egui_zero_window_size() {
 
     const NUM_FRAMES: usize = 5;
     for _ in 0..NUM_FRAMES {
-        ctx.begin_frame(raw_input.clone());
-        demo_windows.ui(&ctx);
-        let (_output, shapes) = ctx.end_frame();
+        let (_output, shapes) = ctx.run(raw_input.clone(), |ctx| {
+            demo_windows.ui(ctx);
+        });
         let clipped_meshes = ctx.tessellate(shapes);
         assert!(clipped_meshes.is_empty(), "There should be nothing to show");
     }

@@ -1,24 +1,4 @@
 use crate::*;
-use egui::Color32;
-#[cfg(target_os = "windows")]
-use glutin::platform::windows::WindowBuilderExtWindows;
-use std::time::Instant;
-
-impl epi::TextureAllocator for Painter {
-    fn alloc_srgba_premultiplied(
-        &mut self,
-        size: (usize, usize),
-        srgba_pixels: &[Color32],
-    ) -> egui::TextureId {
-        let id = self.alloc_user_texture();
-        self.set_user_texture(id, size, srgba_pixels);
-        id
-    }
-
-    fn free(&mut self, id: egui::TextureId) {
-        self.free_user_texture(id);
-    }
-}
 
 struct RequestRepaintEvent;
 
@@ -60,83 +40,37 @@ fn create_display(
     (gl_window, gl)
 }
 
-fn integration_info(
-    window: &glutin::window::Window,
-    previous_frame_time: Option<f32>,
-) -> epi::IntegrationInfo {
-    epi::IntegrationInfo {
-        name: "egui_glow",
-        web_info: None,
-        prefer_dark_mode: None, // TODO: figure out system default
-        cpu_usage: previous_frame_time,
-        native_pixels_per_point: Some(egui_winit::native_pixels_per_point(window)),
-    }
-}
-
 // ----------------------------------------------------------------------------
 
 pub use epi::NativeOptions;
 
 /// Run an egui app
 #[allow(unsafe_code)]
-pub fn run(mut app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
-    let mut persistence = egui_winit::epi::Persistence::from_app_name(app.name());
-
+pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
+    let persistence = egui_winit::epi::Persistence::from_app_name(app.name());
     let window_settings = persistence.load_window_settings();
-    let event_loop = glutin::event_loop::EventLoop::with_user_event();
     let window_builder =
         egui_winit::epi::window_builder(native_options, &window_settings).with_title(app.name());
+    let event_loop = glutin::event_loop::EventLoop::with_user_event();
     let (gl_window, gl) = create_display(window_builder, &event_loop);
 
     let repaint_signal = std::sync::Arc::new(GlowRepaintSignal(std::sync::Mutex::new(
         event_loop.create_proxy(),
     )));
 
-    let mut egui = EguiGlow::new(&gl_window, &gl);
-    *egui.ctx().memory() = persistence.load_memory().unwrap_or_default();
-
-    {
-        let (ctx, painter) = egui.ctx_and_painter_mut();
-        let mut app_output = epi::backend::AppOutput::default();
-        let mut frame = epi::backend::FrameBuilder {
-            info: integration_info(gl_window.window(), None),
-            tex_allocator: painter,
-            output: &mut app_output,
-            repaint_signal: repaint_signal.clone(),
-        }
-        .build();
-        app.setup(ctx, &mut frame, persistence.storage());
-    }
-
-    let mut previous_frame_time = None;
+    let mut painter = crate::Painter::new(&gl, None)
+        .map_err(|error| eprintln!("some OpenGL error occurred {}\n", error))
+        .unwrap();
+    let mut integration = egui_winit::epi::EpiIntegration::new(
+        "egui_glow",
+        gl_window.window(),
+        &mut painter,
+        repaint_signal,
+        persistence,
+        app,
+    );
 
     let mut is_focused = true;
-
-    if app.warm_up_enabled() {
-        let saved_memory = egui.ctx().memory().clone();
-        egui.ctx().memory().set_everything_is_visible(true);
-
-        egui.begin_frame(gl_window.window());
-        let (ctx, painter) = egui.ctx_and_painter_mut();
-        let mut app_output = epi::backend::AppOutput::default();
-        let mut frame = epi::backend::FrameBuilder {
-            info: integration_info(gl_window.window(), None),
-            tex_allocator: painter,
-            output: &mut app_output,
-            repaint_signal: repaint_signal.clone(),
-        }
-        .build();
-
-        app.update(ctx, &mut frame);
-
-        let _ = egui.end_frame(gl_window.window());
-
-        *egui.ctx().memory() = saved_memory; // We don't want to remember that windows were huge.
-        egui.ctx().clear_animations();
-
-        // TODO: handle app_output
-        // eprintln!("Warmed up in {} ms", warm_up_start.elapsed().as_millis())
-    }
 
     event_loop.run(move |event, _, control_flow| {
         let mut redraw = || {
@@ -149,44 +83,30 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> !
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
 
-            let frame_start = std::time::Instant::now();
-
-            egui.begin_frame(gl_window.window());
-            let (ctx, painter) = egui.ctx_and_painter_mut();
-            let mut app_output = epi::backend::AppOutput::default();
-            let mut frame = epi::backend::FrameBuilder {
-                info: integration_info(gl_window.window(), previous_frame_time),
-                tex_allocator: painter,
-                output: &mut app_output,
-                repaint_signal: repaint_signal.clone(),
-            }
-            .build();
-            app.update(ctx, &mut frame);
-            let (needs_repaint, shapes) = egui.end_frame(gl_window.window());
-
-            let frame_time = (Instant::now() - frame_start).as_secs_f64() as f32;
-            previous_frame_time = Some(frame_time);
+            let (needs_repaint, shapes) = integration.update(gl_window.window(), &mut painter);
+            let clipped_meshes = integration.egui_ctx.tessellate(shapes);
 
             {
-                let color = app.clear_color();
+                let color = integration.app.clear_color();
                 unsafe {
                     use glow::HasContext as _;
                     gl.disable(glow::SCISSOR_TEST);
                     gl.clear_color(color[0], color[1], color[2], color[3]);
                     gl.clear(glow::COLOR_BUFFER_BIT);
                 }
-                egui.paint(&gl_window, &gl, shapes);
+                painter.upload_egui_texture(&gl, &integration.egui_ctx.texture());
+                painter.paint_meshes(
+                    gl_window.window().inner_size().into(),
+                    &gl,
+                    integration.egui_ctx.pixels_per_point(),
+                    clipped_meshes,
+                );
+
                 gl_window.swap_buffers().unwrap();
             }
 
             {
-                egui_winit::epi::handle_app_output(
-                    gl_window.window(),
-                    egui.ctx().pixels_per_point(),
-                    app_output.clone(),
-                );
-
-                *control_flow = if app_output.quit {
+                *control_flow = if integration.should_quit() {
                     glutin::event_loop::ControlFlow::Exit
                 } else if needs_repaint {
                     gl_window.window().request_redraw();
@@ -196,7 +116,7 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> !
                 };
             }
 
-            persistence.maybe_autosave(&mut *app, egui.ctx(), gl_window.window());
+            integration.maybe_autosave(gl_window.window());
         };
 
         match event {
@@ -207,10 +127,6 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> !
             glutin::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
 
             glutin::event::Event::WindowEvent { event, .. } => {
-                if egui.is_quit_event(&event) {
-                    *control_flow = glutin::event_loop::ControlFlow::Exit;
-                }
-
                 if let glutin::event::WindowEvent::Focused(new_focused) = event {
                     is_focused = new_focused;
                 }
@@ -219,20 +135,20 @@ pub fn run(mut app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> !
                     gl_window.resize(physical_size);
                 }
 
-                egui.on_event(&event);
+                integration.on_event(&event);
+                if integration.should_quit() {
+                    *control_flow = glutin::event_loop::ControlFlow::Exit;
+                }
 
                 gl_window.window().request_redraw(); // TODO: ask egui if the events warrants a repaint instead
             }
             glutin::event::Event::LoopDestroyed => {
-                app.on_exit();
-                persistence.save(&mut *app, egui.ctx(), gl_window.window());
-                egui.destroy(&gl);
+                integration.on_exit(gl_window.window());
+                painter.destroy(&gl);
             }
-
             glutin::event::Event::UserEvent(RequestRepaintEvent) => {
                 gl_window.window().request_redraw();
             }
-
             _ => (),
         }
     });

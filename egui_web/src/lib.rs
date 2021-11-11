@@ -15,6 +15,8 @@
 #![warn(clippy::all, missing_crate_level_docs, rust_2018_idioms)]
 
 pub mod backend;
+#[cfg(feature = "glow")]
+mod glow_wrapping;
 mod painter;
 pub mod screen_reader;
 pub mod webgl1;
@@ -292,38 +294,6 @@ impl epi::Storage for LocalStorage {
 }
 
 // ----------------------------------------------------------------------------
-
-pub fn handle_output(output: &egui::Output, runner: &mut AppRunner) {
-    let egui::Output {
-        cursor_icon,
-        open_url,
-        copied_text,
-        needs_repaint: _, // handled elsewhere
-        events: _,        // we ignore these (TODO: accessibility screen reader)
-        mutable_text_under_cursor,
-        text_cursor_pos,
-    } = output;
-
-    set_cursor_icon(*cursor_icon);
-    if let Some(open) = open_url {
-        crate::open_url(&open.url, open.new_tab);
-    }
-
-    #[cfg(web_sys_unstable_apis)]
-    if !copied_text.is_empty() {
-        set_clipboard_text(copied_text);
-    }
-
-    #[cfg(not(web_sys_unstable_apis))]
-    let _ = copied_text;
-
-    runner.mutable_text_under_cursor = *mutable_text_under_cursor;
-
-    if &runner.text_cursor_pos != text_cursor_pos {
-        move_text_cursor(text_cursor_pos, runner.canvas_id());
-        runner.text_cursor_pos = *text_cursor_pos;
-    }
-}
 
 pub fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
     let document = web_sys::window()?.document()?;
@@ -1059,9 +1029,14 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             // This if-statement is equivalent to how `Modifiers.command` is determined in
             // `modifiers_from_event()`, but we cannot directly use that fn for a `WheelEvent`.
             if event.ctrl_key() || event.meta_key() {
-                runner_lock.input.raw.zoom_delta *= (delta.y / 200.0).exp();
+                let factor = (delta.y / 200.0).exp();
+                runner_lock.input.raw.events.push(egui::Event::Zoom(factor));
             } else {
-                runner_lock.input.raw.scroll_delta += delta;
+                runner_lock
+                    .input
+                    .raw
+                    .events
+                    .push(egui::Event::Scroll(delta));
             }
 
             runner_lock.needs_repaint.set_true();
@@ -1242,10 +1217,13 @@ fn move_text_cursor(cursor: &Option<egui::Pos2>, canvas_id: &str) -> Option<()> 
     if is_mobile() == Some(false) {
         cursor.as_ref().and_then(|&egui::Pos2 { x, y }| {
             let canvas = canvas_element(canvas_id)?;
-            let y = y + (canvas.scroll_top() + canvas.offset_top()) as f32;
+            let bounding_rect = text_agent().get_bounding_client_rect();
+            let y = (y + (canvas.scroll_top() + canvas.offset_top()) as f32)
+                .min(canvas.client_height() as f32 - bounding_rect.height() as f32);
             let x = x + (canvas.scroll_left() + canvas.offset_left()) as f32;
             // Canvas is translated 50% horizontally in html.
-            let x = x - canvas.offset_width() as f32 / 2.0;
+            let x = (x - canvas.offset_width() as f32 / 2.0)
+                .min(canvas.client_width() as f32 - bounding_rect.width() as f32);
             style.set_property("position", "absolute").ok()?;
             style.set_property("top", &(y.to_string() + "px")).ok()?;
             style.set_property("left", &(x.to_string() + "px")).ok()

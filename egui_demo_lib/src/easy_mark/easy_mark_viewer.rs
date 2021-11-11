@@ -39,10 +39,10 @@ pub fn item_ui(ui: &mut Ui, item: easy_mark::Item<'_>) {
         }
 
         easy_mark::Item::Text(style, text) => {
-            ui.add(label_from_style(text, &style));
+            ui.label(rich_text_from_style(text, &style));
         }
         easy_mark::Item::Hyperlink(style, text, url) => {
-            let label = label_from_style(text, &style);
+            let label = rich_text_from_style(text, &style);
             ui.add(Hyperlink::from_label_and_url(label, url));
         }
 
@@ -87,7 +87,7 @@ pub fn item_ui(ui: &mut Ui, item: easy_mark::Item<'_>) {
     };
 }
 
-fn label_from_style(text: &str, style: &easy_mark::Style) -> Label {
+fn rich_text_from_style(text: &str, style: &easy_mark::Style) -> RichText {
     let easy_mark::Style {
         heading,
         quoted,
@@ -102,34 +102,34 @@ fn label_from_style(text: &str, style: &easy_mark::Style) -> Label {
 
     let small = small || raised; // Raised text is also smaller
 
-    let mut label = Label::new(text);
+    let mut rich_text = RichText::new(text);
     if heading && !small {
-        label = label.heading().strong();
+        rich_text = rich_text.heading().strong();
     }
     if small && !heading {
-        label = label.small();
+        rich_text = rich_text.small();
     }
     if code {
-        label = label.code();
+        rich_text = rich_text.code();
     }
     if strong {
-        label = label.strong();
+        rich_text = rich_text.strong();
     } else if quoted {
-        label = label.weak();
+        rich_text = rich_text.weak();
     }
     if underline {
-        label = label.underline();
+        rich_text = rich_text.underline();
     }
     if strikethrough {
-        label = label.strikethrough();
+        rich_text = rich_text.strikethrough();
     }
     if italics {
-        label = label.italics();
+        rich_text = rich_text.italics();
     }
     if raised {
-        label = label.raised();
+        rich_text = rich_text.raised();
     }
-    label
+    rich_text
 }
 
 fn bullet_point(ui: &mut Ui, width: f32) -> Response {

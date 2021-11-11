@@ -33,14 +33,13 @@ impl State {
 /// This forms the base of the [`Window`] container.
 ///
 /// ```
-/// # let mut ctx = egui::CtxRef::default();
-/// # ctx.begin_frame(Default::default());
-/// # let ctx = &ctx;
+/// # egui::__run_test_ctx(|ctx| {
 /// egui::Area::new("my_area")
 ///     .fixed_pos(egui::pos2(32.0, 32.0))
 ///     .show(ctx, |ui| {
 ///         ui.label("Floating text!");
 ///     });
+/// # });
 #[must_use = "You should call .show()"]
 #[derive(Clone, Copy, Debug)]
 pub struct Area {
@@ -204,6 +203,9 @@ impl Area {
 
         let state = ctx.memory().areas.get(id).cloned();
         let is_new = state.is_none();
+        if is_new {
+            ctx.request_repaint(); // if we don't know the previous size we are likely drawing the area in the wrong place}
+        }
         let mut state = state.unwrap_or_else(|| State {
             pos: default_pos.unwrap_or_else(|| automatic_area_position(ctx)),
             size: Vec2::ZERO,

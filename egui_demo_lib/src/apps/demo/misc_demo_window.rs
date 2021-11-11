@@ -142,7 +142,7 @@ impl Widgets {
             // Trick so we don't have to add spaces in the text below:
             ui.spacing_mut().item_spacing.x = ui.fonts()[TextStyle::Body].glyph_width(' ');
 
-            ui.add(Label::new("Text can have").text_color(Color32::from_rgb(110, 255, 110)));
+            ui.label(RichText::new("Text can have").color(Color32::from_rgb(110, 255, 110)));
             ui.colored_label(Color32::from_rgb(128, 140, 255), "color"); // Shortcut version
             ui.label("and tooltips.").on_hover_text(
                 "This is a multiline tooltip that demonstrates that you can easily add tooltips to any element.\nThis is the second line.\nThis is the third.",
@@ -365,7 +365,7 @@ impl SubTree {
     ) -> Action {
         if depth > 0
             && ui
-                .add(Button::new("delete").text_color(Color32::RED))
+                .button(RichText::new("delete").color(Color32::RED))
                 .clicked()
         {
             return Action::Delete;
@@ -565,12 +565,7 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         },
     );
 
-    job.wrap_width = ui.available_width();
-
-    let galley = ui.fonts().layout_job(job);
-
-    let (response, painter) = ui.allocate_painter(galley.size(), Sense::hover());
-    painter.add(Shape::galley(response.rect.min, galley));
+    ui.label(job);
 
     ui.vertical_centered(|ui| {
         ui.add(crate::__egui_github_link_file_line!());

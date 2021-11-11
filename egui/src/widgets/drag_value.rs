@@ -42,9 +42,10 @@ fn set(get_set_value: &mut GetSetValue<'_>, value: f64) {
 /// A numeric value that you can change by dragging the number. More compact than a [`Slider`].
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// # let mut my_f32: f32 = 0.0;
 /// ui.add(egui::DragValue::new(&mut my_f32).speed(0.1));
+/// # });
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct DragValue<'a> {
@@ -208,11 +209,12 @@ impl<'a> Widget for DragValue<'a> {
             }
             response
         } else {
-            let button = Button::new(format!("{}{}{}", prefix, value_text, suffix))
-                .sense(Sense::click_and_drag())
-                .text_style(TextStyle::Monospace)
-                .wrap(false)
-                .min_size(ui.spacing().interact_size); // TODO: find some more generic solution to this
+            let button = Button::new(
+                RichText::new(format!("{}{}{}", prefix, value_text, suffix)).monospace(),
+            )
+            .wrap(false)
+            .sense(Sense::click_and_drag())
+            .min_size(ui.spacing().interact_size); // TODO: find some more generic solution to `min_size`
 
             let response = ui.add(button);
             let mut response = response.on_hover_cursor(CursorIcon::ResizeHorizontal);

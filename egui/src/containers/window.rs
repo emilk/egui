@@ -1,6 +1,6 @@
 // WARNING: the code in here is horrible. It is a behemoth that needs breaking up into simpler parts.
 
-use crate::{widgets::*, *};
+use crate::{widget_text::WidgetTextGalley, *};
 use epaint::*;
 
 use super::*;
@@ -15,15 +15,14 @@ use super::*;
 /// * if there should be a close button (none by default)
 ///
 /// ```
-/// # let mut ctx = egui::CtxRef::default();
-/// # ctx.begin_frame(Default::default());
-/// # let ctx = &ctx;
+/// # egui::__run_test_ctx(|ctx| {
 /// egui::Window::new("My Window").show(ctx, |ui| {
 ///    ui.label("Hello World!");
 /// });
+/// # });
 #[must_use = "You should call .show()"]
 pub struct Window<'open> {
-    title_label: Label,
+    title: WidgetText,
     open: Option<&'open mut bool>,
     area: Area,
     frame: Option<Frame>,
@@ -37,13 +36,11 @@ impl<'open> Window<'open> {
     /// The window title is used as a unique [`Id`] and must be unique, and should not change.
     /// This is true even if you disable the title bar with `.title_bar(false)`.
     /// If you need a changing title, you must call `window.id(…)` with a fixed id.
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn new(title: impl ToString) -> Self {
-        let title = title.to_string();
-        let area = Area::new(&title);
-        let title_label = Label::new(title).text_style(TextStyle::Heading).wrap(false);
+    pub fn new(title: impl Into<WidgetText>) -> Self {
+        let title = title.into().fallback_text_style(TextStyle::Heading);
+        let area = Area::new(title.text());
         Self {
-            title_label,
+            title,
             open: None,
             area,
             frame: None,
@@ -250,7 +247,7 @@ impl<'open> Window<'open> {
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> Option<InnerResponse<Option<R>>> {
         let Window {
-            title_label,
+            title,
             open,
             area,
             frame,
@@ -299,7 +296,7 @@ impl<'open> Window<'open> {
             .and_then(|window_interaction| {
                 // Calculate roughly how much larger the window size is compared to the inner rect
                 let title_bar_height = if with_title_bar {
-                    title_label.font_height(ctx.fonts(), &ctx.style()) + title_content_spacing
+                    title.font_height(ctx.fonts(), &ctx.style()) + title_content_spacing
                 } else {
                     0.0
                 };
@@ -336,7 +333,7 @@ impl<'open> Window<'open> {
             let title_bar = if with_title_bar {
                 let title_bar = show_title_bar(
                     &mut frame.content_ui,
-                    title_label,
+                    title,
                     show_close_button,
                     collapsing_id,
                     &mut collapsing,
@@ -745,22 +742,21 @@ fn paint_frame_interaction(
 
 struct TitleBar {
     id: Id,
-    title_label: Label,
-    title_galley: std::sync::Arc<Galley>,
+    title_galley: WidgetTextGalley,
     min_rect: Rect,
     rect: Rect,
 }
 
 fn show_title_bar(
     ui: &mut Ui,
-    title_label: Label,
+    title: WidgetText,
     show_close_button: bool,
     collapsing_id: Id,
     collapsing: &mut collapsing_header::State,
     collapsible: bool,
 ) -> TitleBar {
     let inner_response = ui.horizontal(|ui| {
-        let height = title_label
+        let height = title
             .font_height(ui.fonts(), ui.style())
             .max(ui.spacing().interact_size.y);
         ui.set_min_height(height);
@@ -782,7 +778,7 @@ fn show_title_bar(
             collapsing_header::paint_icon(ui, openness, &collapse_button_response);
         }
 
-        let title_galley = title_label.layout(ui);
+        let title_galley = title.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Heading);
 
         let minimum_width = if collapsible || show_close_button {
             // If at least one button is shown we make room for both buttons (since title is centered):
@@ -795,7 +791,6 @@ fn show_title_bar(
 
         TitleBar {
             id,
-            title_label,
             title_galley,
             min_rect,
             rect: Rect::NAN, // Will be filled in later
@@ -830,20 +825,16 @@ impl TitleBar {
             }
         }
 
-        // Always have inactive style for the window.
-        // It is VERY annoying to e.g. change it when moving the window.
-        let style = ui.visuals().widgets.inactive;
-
-        self.title_label = self.title_label.text_color(style.fg_stroke.color);
-
         let full_top_rect = Rect::from_x_y_ranges(self.rect.x_range(), self.min_rect.y_range());
         let text_pos =
             emath::align::center_size_in_rect(self.title_galley.size(), full_top_rect).left_top();
-        let text_pos = text_pos - self.title_galley.rect.min.to_vec2();
+        let text_pos = text_pos - self.title_galley.galley().rect.min.to_vec2();
         let text_pos = text_pos - 1.5 * Vec2::Y; // HACK: center on x-height of text (looks better)
-        let text_color = ui.visuals().text_color();
-        self.title_label
-            .paint_galley(ui, text_pos, self.title_galley, false, text_color);
+        self.title_galley.paint_with_fallback_color(
+            ui.painter(),
+            text_pos,
+            ui.visuals().text_color(),
+        );
 
         if let Some(content_response) = &content_response {
             // paint separator between title and content:

@@ -10,12 +10,29 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 ### Added ⭐
 * Add context menus: See `Ui::menu_button` and `Response::context_menu` ([#543](https://github.com/emilk/egui/pull/543)).
 * You can now read and write the cursor of a `TextEdit` ([#848](https://github.com/emilk/egui/pull/848)).
+* Most widgets containing text (`Label`, `Button` etc) now supports rich text ([#855](https://github.com/emilk/egui/pull/855)).
+* When using a custom font you can now specify a font index ([#873](https://github.com/emilk/egui/pull/873)).
 
 ### Changed 🔧
 * Unifiy the four `Memory` data buckets (`data`, `data_temp`, `id_data` and `id_data_temp`) into a single `Memory::data`, with a new interface ([#836](https://github.com/emilk/egui/pull/836)).
+* `ui.add(Button::new("…").text_color(…))` is now `ui.button(RichText::new("…").color(…))` (same for `Label` )([#855](https://github.com/emilk/egui/pull/855)).
+* Replace `CtxRef::begin_frame` and `end_frame` with `CtxRef::run` ([#872](https://github.com/emilk/egui/pull/872)).
+* Replace `Ui::__test` with `egui::__run_test_ui` ([#872](https://github.com/emilk/egui/pull/872)).
+* Replace `scroll_delta` and `zoom_delta` in `RawInput` with `Event::Scroll` and `Event::Zoom`.
+
+### Fixed 🐛
+* Fix `ComboBox` and other popups getting clipped to parent window ([#885](https://github.com/emilk/egui/pull/885)).
+* The color picker is now better att keeping the same hue even when saturation goes to zero ([#886](https://github.com/emilk/egui/pull/886)).
+
+### Removed 🔥
+* Removed `egui::math` (use `egui::emath` instead).
+* Removed `egui::paint` (use `egui::epaint` instead).
 
 ### Contributors 🙏
 * [mankinskin](https://github.com/mankinskin) ([#543](https://github.com/emilk/egui/pull/543))
+* [sumibi-yakitori](https://github.com/sumibi-yakitori) ([#830](https://github.com/emilk/egui/pull/830))
+* [5225225](https://github.com/5225225): ([#849](https://github.com/emilk/egui/pull/849)).
+* [t18b219k](https://github.com/t18b219k): ([#868](https://github.com/emilk/egui/pull/868)).
 
 
 ## 0.15.0 - 2021-10-24 - Syntax highlighting and hscroll

@@ -13,15 +13,6 @@ use crate::emath::*;
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct RawInput {
-    /// How many points (logical pixels) the user scrolled
-    pub scroll_delta: Vec2,
-
-    /// Zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).
-    /// * `zoom = 1`: no change (default).
-    /// * `zoom < 1`: pinch together
-    /// * `zoom > 1`: pinch spread
-    pub zoom_delta: f32,
-
     /// Position and size of the area that egui should use.
     /// Usually you would set this to
     ///
@@ -69,8 +60,6 @@ pub struct RawInput {
 impl Default for RawInput {
     fn default() -> Self {
         Self {
-            scroll_delta: Vec2::ZERO,
-            zoom_delta: 1.0,
             screen_rect: None,
             pixels_per_point: None,
             time: None,
@@ -89,11 +78,7 @@ impl RawInput {
     /// * [`Self::hovered_files`] is cloned.
     /// * [`Self::dropped_files`] is moved.
     pub fn take(&mut self) -> RawInput {
-        let zoom = self.zoom_delta;
-        self.zoom_delta = 1.0;
         RawInput {
-            scroll_delta: std::mem::take(&mut self.scroll_delta),
-            zoom_delta: zoom,
             screen_rect: self.screen_rect.take(),
             pixels_per_point: self.pixels_per_point.take(),
             time: self.time.take(),
@@ -108,8 +93,6 @@ impl RawInput {
     /// Add on new input.
     pub fn append(&mut self, newer: Self) {
         let Self {
-            scroll_delta,
-            zoom_delta,
             screen_rect,
             pixels_per_point,
             time,
@@ -120,8 +103,6 @@ impl RawInput {
             mut dropped_files,
         } = newer;
 
-        self.scroll_delta += scroll_delta;
-        self.zoom_delta *= zoom_delta;
         self.screen_rect = screen_rect.or(self.screen_rect);
         self.pixels_per_point = pixels_per_point.or(self.pixels_per_point);
         self.time = time; // use latest time
@@ -191,6 +172,15 @@ pub enum Event {
     ///
     /// On touch-up first send `PointerButton{pressed: false, …}` followed by `PointerLeft`.
     PointerGone,
+
+    /// How many points (logical pixels) the user scrolled.
+    Scroll(Vec2),
+
+    /// Zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).
+    /// * `zoom = 1`: no change.
+    /// * `zoom < 1`: pinch together
+    /// * `zoom > 1`: pinch spread
+    Zoom(f32),
 
     /// IME composition start.
     CompositionStart,
@@ -357,8 +347,6 @@ pub enum Key {
 impl RawInput {
     pub fn ui(&self, ui: &mut crate::Ui) {
         let Self {
-            scroll_delta,
-            zoom_delta,
             screen_rect,
             pixels_per_point,
             time,
@@ -369,8 +357,6 @@ impl RawInput {
             dropped_files,
         } = self;
 
-        ui.label(format!("scroll_delta: {:?} points", scroll_delta));
-        ui.label(format!("zoom_delta: {:.3?} x", zoom_delta));
         ui.label(format!("screen_rect: {:?} points", screen_rect));
         ui.label(format!("pixels_per_point: {:?}", pixels_per_point))
             .on_hover_text(
