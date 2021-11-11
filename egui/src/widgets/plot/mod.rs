@@ -445,12 +445,11 @@ impl PlotUi {
 
     /// The pointer position in plot coordinates, if the pointer is inside the plot area.
     pub fn pointer_coordinate(&self) -> Option<Pos2> {
-        self.last_screen_transform
-            .as_ref()
-            .zip(self.response.hover_pos())
-            // We need to subtract the drag delta since the last frame.
-            .map(|(tf, pos)| tf.value_from_position(pos - self.response.drag_delta()))
-            .map(|value| Pos2::new(value.x as f32, value.y as f32))
+        let last_screen_transform = self.last_screen_transform.as_ref()?;
+        // We need to subtract the drag delta to keep in sync with the frame-delayed screen transform:
+        let last_pos = self.response.hover_pos()? - self.response.drag_delta();
+        let value = tf.last_screen_transform(last_pos);
+        Some(Pos2::new(value.x as f32, value.y as f32))
     }
 
     /// The pointer drag delta in plot coordinates.
