@@ -61,18 +61,26 @@ impl Painter {
     /// Create painter.
     ///
     /// Set `pp_fb_extent` to the framebuffer size to enable `sRGB` support on OpenGL ES and WebGL.
+    /// Set `shader_prefix` if you want to turn on shader workaround e.g. `"#define EPIPHANY_WORKAROUND\n"`.
+    ///
+    /// this fix [Everything is super dark in epiphany](https://github.com/emilk/egui/issues/794)
     /// # Errors
     /// will return `Err` below cases
     /// * failed to compile shader
     /// * failed to create postprocess on webgl with `sRGB` support
     /// * failed to create buffer
-    pub fn new(gl: &glow::Context, pp_fb_extent: Option<[i32; 2]>) -> Result<Painter, String> {
-        let need_to_emulate_vao = unsafe { crate::misc_util::need_to_emulate_vao(gl) };
+    pub fn new(
+        gl: &glow::Context,
+        pp_fb_extent: Option<[i32; 2]>,
+        shader_prefix: &str,
+    ) -> Result<Painter, String> {
+        let support_vao = unsafe { crate::misc_util::support_vao(gl) };
         let shader_version = ShaderVersion::get(gl);
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
         let header = shader_version.version();
         glow_debug_print(header);
         let srgb_support = gl.supported_extensions().contains("EXT_sRGB");
+
         let (post_process, srgb_support_define) = match (shader_version, srgb_support) {
             //WebGL2 support sRGB default
             (ShaderVersion::Es300, _) | (ShaderVersion::Es100, true) => unsafe {
@@ -83,7 +91,8 @@ impl Painter {
                     (
                         Some(PostProcess::new(
                             gl,
-                            need_to_emulate_vao,
+                            shader_prefix,
+                            support_vao,
                             is_webgl_1,
                             width,
                             height,
@@ -106,8 +115,9 @@ impl Painter {
                 gl,
                 glow::VERTEX_SHADER,
                 &format!(
-                    "{}\n{}\n{}",
+                    "{}\n{}\n{}\n{}",
                     header,
+                    shader_prefix,
                     shader_version.is_new_shader_interface(),
                     VERT_SRC
                 ),
@@ -116,8 +126,9 @@ impl Painter {
                 gl,
                 glow::FRAGMENT_SHADER,
                 &format!(
-                    "{}\n{}\n{}\n{}",
+                    "{}\n{}\n{}\n{}\n{}",
                     header,
+                    shader_prefix,
                     srgb_support_define,
                     shader_version.is_new_shader_interface(),
                     FRAG_SRC
@@ -136,10 +147,10 @@ impl Painter {
             let a_pos_loc = gl.get_attrib_location(program, "a_pos").unwrap();
             let a_tc_loc = gl.get_attrib_location(program, "a_tc").unwrap();
             let a_srgba_loc = gl.get_attrib_location(program, "a_srgba").unwrap();
-            let mut vertex_array = if need_to_emulate_vao {
-                crate::misc_util::VAO::emulated()
-            } else {
+            let mut vertex_array = if support_vao {
                 crate::misc_util::VAO::native(gl)
+            } else {
+                crate::misc_util::VAO::emulated()
             };
             vertex_array.bind_vertex_array(gl);
             vertex_array.bind_buffer(gl, &vertex_buffer);

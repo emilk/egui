@@ -184,7 +184,8 @@ impl VAO {
     }
 }
 
-pub(crate) unsafe fn need_to_emulate_vao(gl: &glow::Context) -> bool {
+/// If returned true no need to emulate vao
+pub(crate) unsafe fn support_vao(gl: &glow::Context) -> bool {
     let web_sig = "WebGL ";
     let es_sig = "OpenGL ES ";
     let version_string = gl.get_parameter_string(glow::VERSION);
@@ -200,7 +201,7 @@ pub(crate) unsafe fn need_to_emulate_vao(gl: &glow::Context) -> bool {
             gl.supported_extensions()
                 .contains("OES_vertex_array_object")
         } else {
-            false
+            true
         }
     } else if let Some(pos) = version_string.rfind(es_sig) {
         //glow targets es2.0+ so we don't concern about OpenGL ES-CM,OpenGL ES-CL
@@ -214,7 +215,7 @@ pub(crate) unsafe fn need_to_emulate_vao(gl: &glow::Context) -> bool {
             gl.supported_extensions()
                 .contains("OES_vertex_array_object")
         } else {
-            false
+            true
         }
     } else {
         glow_debug_print(format!("detected OpenGL:{}", version_string));
@@ -225,7 +226,7 @@ pub(crate) unsafe fn need_to_emulate_vao(gl: &glow::Context) -> bool {
             gl.supported_extensions()
                 .contains("ARB_vertex_array_object")
         } else {
-            false
+            true
         }
     }
 }
