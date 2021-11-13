@@ -108,7 +108,7 @@ impl crate::Painter for WrappedGlowPainter {
     }
 
     fn name(&self) -> &'static str {
-        "egui_web(glow)"
+        "egui_web (glow)"
     }
 }
 

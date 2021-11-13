@@ -540,7 +540,7 @@ impl crate::Painter for WebGlPainter {
     }
 
     fn name(&self) -> &'static str {
-        "egui_web(webgl1)"
+        "egui_web (WebGL1)"
     }
 }
 

@@ -518,7 +518,7 @@ impl crate::Painter for WebGl2Painter {
     }
 
     fn name(&self) -> &'static str {
-        "egui_web(webgl2)"
+        "egui_web (WebGL2)"
     }
 }
 

@@ -270,6 +270,9 @@ fn show_integration_name(ui: &mut egui::Ui, integration_info: &epi::IntegrationI
                     format!("https://github.com/emilk/egui/tree/master/{}", name),
                 );
             }
+            name if name.starts_with("egui_web") => {
+                ui.hyperlink_to(name, "https://github.com/emilk/egui/tree/master/egui_web");
+            }
             name => {
                 ui.label(name);
             }
