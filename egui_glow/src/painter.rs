@@ -79,7 +79,7 @@ impl Painter {
         let shader_version = ShaderVersion::get(gl);
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
         let header = shader_version.version();
-        glow_debug_print(header);
+        glow_debug_print(format!("Shader header: {:?}", header));
         let srgb_support = gl.supported_extensions().contains("EXT_sRGB");
 
         let (post_process, srgb_support_define) = match (shader_version, srgb_support) {

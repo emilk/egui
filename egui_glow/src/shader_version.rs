@@ -14,9 +14,14 @@ pub(crate) enum ShaderVersion {
 
 impl ShaderVersion {
     pub(crate) fn get(gl: &glow::Context) -> Self {
-        let shading_lang = unsafe { gl.get_parameter_string(glow::SHADING_LANGUAGE_VERSION) };
-        glow_debug_print(&shading_lang);
-        Self::parse(&shading_lang)
+        let shading_lang_string =
+            unsafe { gl.get_parameter_string(glow::SHADING_LANGUAGE_VERSION) };
+        let shader_version = Self::parse(&shading_lang_string);
+        glow_debug_print(format!(
+            "Shader version: {:?} ({:?})",
+            shader_version, shading_lang_string
+        ));
+        shader_version
     }
 
     #[inline]

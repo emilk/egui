@@ -80,12 +80,12 @@ pub(crate) unsafe fn as_u8_slice<T>(s: &[T]) -> &[u8] {
 }
 
 #[cfg(target_arch = "wasm32")]
-pub(crate) fn glow_debug_print(s: impl Into<JsValue>) {
-    web_sys::console::log_1(&s.into());
+pub(crate) fn glow_debug_print(s: impl std::fmt::Display) {
+    web_sys::console::log_1(&format!("egui_glow: {}", s).into());
 }
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn glow_debug_print(s: impl std::fmt::Display) {
-    println!("{}", s);
+    eprintln!("egui_glow: {}", s);
 }
 
 pub(crate) unsafe fn compile_shader(
@@ -218,7 +218,7 @@ pub(crate) fn supports_vao(gl: &glow::Context) -> bool {
             true
         }
     } else {
-        glow_debug_print(format!("detected OpenGL:{}", version_string));
+        glow_debug_print(format!("detected OpenGL: {:?}", version_string));
         //from OpenGL 3 vao into core
         if version_string.starts_with('2') {
             // I found APPLE_vertex_array_object , GL_ATI_vertex_array_object ,ARB_vertex_array_object
