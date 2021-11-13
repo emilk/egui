@@ -315,8 +315,15 @@ impl<'a> Slider<'a> {
         response.widget_info(|| WidgetInfo::slider(value, &self.text));
 
         if response.has_focus() {
-            let increment = ui.input().num_presses(self.key_increment());
-            let decrement = ui.input().num_presses(self.key_decrement());
+            let (dec_key, inc_key) = match self.orientation {
+                SliderOrientation::Horizontal => (Key::ArrowLeft, Key::ArrowRight),
+                // Note that this is for moving the slider position,
+                // so up = decrement y coordinate:
+                SliderOrientation::Vertical => (Key::ArrowUp, Key::ArrowDown),
+            };
+
+            let decrement = ui.input().num_presses(dec_key);
+            let increment = ui.input().num_presses(inc_key);
             let kb_step = increment as f32 - decrement as f32;
 
             if kb_step != 0.0 {
@@ -391,20 +398,6 @@ impl<'a> Slider<'a> {
             SliderOrientation::Vertical => {
                 (rect.bottom() - handle_radius)..=(rect.top() + handle_radius)
             }
-        }
-    }
-
-    fn key_increment(&self) -> Key {
-        match self.orientation {
-            SliderOrientation::Horizontal => Key::ArrowRight,
-            SliderOrientation::Vertical => Key::ArrowUp,
-        }
-    }
-
-    fn key_decrement(&self) -> Key {
-        match self.orientation {
-            SliderOrientation::Horizontal => Key::ArrowLeft,
-            SliderOrientation::Vertical => Key::ArrowDown,
         }
     }
 

@@ -13,6 +13,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Most widgets containing text (`Label`, `Button` etc) now supports rich text ([#855](https://github.com/emilk/egui/pull/855)).
 * When using a custom font you can now specify a font index ([#873](https://github.com/emilk/egui/pull/873)).
 * You can now read the plot coordinates of the mouse when building a `Plot` ([#766](https://github.com/emilk/egui/pull/766)).
+* Add vertical sliders with `Slider::new(…).vertical()` ([#875](https://github.com/emilk/egui/pull/875)).
 
 ### Changed 🔧
 * Unifiy the four `Memory` data buckets (`data`, `data_temp`, `id_data` and `id_data_temp`) into a single `Memory::data`, with a new interface ([#836](https://github.com/emilk/egui/pull/836)).
@@ -31,11 +32,12 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Removed `egui::paint` (use `egui::epaint` instead).
 
 ### Contributors 🙏
+* [5225225](https://github.com/5225225): ([#849](https://github.com/emilk/egui/pull/849)).
+* [B-Reif](https://github.com/B-Reif) ([#875](https://github.com/emilk/egui/pull/875)).
+* [EmbersArc](https://github.com/EmbersArc): ([#766](https://github.com/emilk/egui/pull/766)).
 * [mankinskin](https://github.com/mankinskin) ([#543](https://github.com/emilk/egui/pull/543))
 * [sumibi-yakitori](https://github.com/sumibi-yakitori) ([#830](https://github.com/emilk/egui/pull/830))
-* [5225225](https://github.com/5225225): ([#849](https://github.com/emilk/egui/pull/849)).
 * [t18b219k](https://github.com/t18b219k): ([#868](https://github.com/emilk/egui/pull/868)).
-* [EmbersArc](https://github.com/EmbersArc): ([#766](https://github.com/emilk/egui/pull/766)).
 
 
 ## 0.15.0 - 2021-10-24 - Syntax highlighting and hscroll

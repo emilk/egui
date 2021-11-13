@@ -132,13 +132,15 @@ impl super::View for Sliders {
             ui.label("Slider type:");
             ui.radio_value(integer, true, "i32");
             ui.radio_value(integer, false, "f64");
-        });
+        })
+        .response
+        .on_hover_text("All numeric types (f32, usize, …) are supported.");
+
         ui.horizontal(|ui| {
             ui.label("Slider orientation:");
             ui.radio_value(vertical, false, "Horizontal");
             ui.radio_value(vertical, true, "Vertical");
         });
-        ui.label("(f32, usize etc are also possible)");
         ui.add_space(8.0);
 
         ui.checkbox(logarithmic, "Logarithmic");
