@@ -1,6 +1,6 @@
 use egui::*;
 use plot::{
-    Arrows, Bar, BarChart, Boxplot, BoxplotSeries, Corner, HLine, Legend, Line, LineStyle,
+    Arrows, Bar, BarChart, Boxplot, BoxplotDiagram, Corner, HLine, Legend, Line, LineStyle,
     MarkerShape, Plot, PlotImage, Points, Polygon, Text, VLine, Value, Values,
 };
 use std::f64::consts::TAU;
@@ -418,7 +418,7 @@ impl ChartsDemo {
             chart = chart.horizontal();
         }
         let plot = Plot::new("Normal Distribution Demo")
-            .barchart(chart)
+            .bar_chart(chart)
             .legend(Legend::default())
             .data_aspect(1.0);
         ui.add(plot)
@@ -471,10 +471,10 @@ impl ChartsDemo {
             chart4 = chart4.horizontal();
         }
         let plot = Plot::new("Stacked Bar Chart Demo")
-            .barchart(chart1)
-            .barchart(chart2)
-            .barchart(chart3)
-            .barchart(chart4)
+            .bar_chart(chart1)
+            .bar_chart(chart2)
+            .bar_chart(chart3)
+            .bar_chart(chart4)
             .legend(Legend::default())
             .data_aspect(1.0);
         ui.add(plot)
@@ -482,13 +482,13 @@ impl ChartsDemo {
 
     fn boxplots(&self, ui: &mut Ui) -> Response {
         let yellow = Color32::from_rgb(248, 252, 168);
-        let mut box1 = BoxplotSeries::new(vec![
+        let mut box1 = BoxplotDiagram::new(vec![
             Boxplot::new(0.5, 1.5, 2.2, 2.5, 2.6, 3.1).name("Day 1"),
             Boxplot::new(2.5, 0.4, 1.0, 1.1, 1.4, 2.1).name("Day 2"),
             Boxplot::new(4.5, 1.7, 2.0, 2.2, 2.5, 2.9).name("Day 3"),
         ])
         .name("Experiment A");
-        let mut box2 = BoxplotSeries::new(vec![
+        let mut box2 = BoxplotDiagram::new(vec![
             Boxplot::new(1.0, 0.2, 0.5, 1.0, 2.0, 2.7).name("Day 1"),
             Boxplot::new(3.0, 1.5, 1.7, 2.1, 2.9, 3.3)
                 .name("Day 2: interesting")
@@ -497,7 +497,7 @@ impl ChartsDemo {
             Boxplot::new(5.0, 1.3, 2.0, 2.3, 2.9, 4.0).name("Day 3"),
         ])
         .name("Experiment B");
-        let mut box3 = BoxplotSeries::new(vec![
+        let mut box3 = BoxplotDiagram::new(vec![
             Boxplot::new(1.5, 2.1, 2.2, 2.6, 2.8, 3.0).name("Day 1"),
             Boxplot::new(3.5, 1.3, 1.5, 1.9, 2.2, 2.4).name("Day 2"),
             Boxplot::new(5.5, 0.2, 0.4, 1.0, 1.3, 1.5).name("Day 3"),

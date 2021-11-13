@@ -6,13 +6,14 @@ mod transform;
 
 use items::PlotItem;
 pub use items::{
-    Arrows, Bar, BarChart, Boxplot, BoxplotSeries, HLine, Line, LineStyle, MarkerShape, PlotImage,
+    Arrows, Bar, BarChart, Boxplot, BoxplotDiagram, HLine, Line, LineStyle, MarkerShape, PlotImage,
     Points, Polygon, Text, VLine, Value, Values,
 };
 use legend::LegendWidget;
 pub use legend::{Corner, Legend};
 use transform::{Bounds, ScreenTransform};
 
+use crate::util::float_ord::FloatOrd;
 use crate::*;
 use color::Hsva;
 use epaint::ahash::AHashSet;
@@ -197,7 +198,7 @@ impl Plot {
 
     /// Add a series of boxplots.
     /// You can add multiple such series.
-    pub fn boxplots(mut self, mut boxplots: BoxplotSeries) -> Self {
+    pub fn boxplots(mut self, mut boxplots: BoxplotDiagram) -> Self {
         if boxplots.plots.is_empty() {
             return self;
         }
@@ -213,7 +214,7 @@ impl Plot {
 
     /// Add a bar chart.
     /// You can add multiple such charts.
-    pub fn barchart(mut self, mut chart: BarChart) -> Self {
+    pub fn bar_chart(mut self, mut chart: BarChart) -> Self {
         if chart.bars.is_empty() {
             return self;
         }
@@ -695,88 +696,31 @@ impl Prepared {
             return;
         }
 
-        let interact_radius: f32 = 16.0;
-        let mut closest_value = None;
-        let mut closest_item = None;
-        let mut closest_dist_sq = interact_radius.powi(2);
-        for item in items {
-            if let Some(values) = item.values() {
-                for value in &values.values {
-                    let pos = transform.position_from_value(value);
-                    let dist_sq = pointer.distance_sq(pos);
-                    if dist_sq < closest_dist_sq {
-                        closest_dist_sq = dist_sq;
-                        closest_value = Some(value);
-                        closest_item = Some(item.name());
-                    }
-                }
-            }
-        }
+        let interact_radius_sq: f32 = (16.0f32).powi(2);
 
-        let mut prefix = String::new();
-        if let Some(name) = closest_item {
-            if !name.is_empty() {
-                prefix = format!("{}\n", name);
-            }
-        }
+        let candidates = items.iter().filter_map(|item| {
+            let item = &**item;
+            let closest = item.find_closest(pointer, transform);
 
-        let line_color = if ui.visuals().dark_mode {
-            Color32::from_gray(100).additive()
+            Some(item).zip(closest)
+        });
+
+        let closest = candidates
+            .min_by_key(|(_, elem)| elem.dist_sq.ord())
+            .filter(|(_, elem)| elem.dist_sq <= interact_radius_sq);
+
+        let plot = items::PlotConfig {
+            ui,
+            transform,
+            show_x: *show_x,
+            show_y: *show_y,
+        };
+
+        if let Some((item, elem)) = closest {
+            item.on_hover(elem, shapes, &plot);
         } else {
-            Color32::from_black_alpha(180)
-        };
-
-        let value = if let Some(value) = closest_value {
-            let position = transform.position_from_value(value);
-            shapes.push(Shape::circle_filled(position, 3.0, line_color));
-            *value
-        } else {
-            transform.value_from_position(pointer)
-        };
-        let pointer = transform.position_from_value(&value);
-
-        let rect = transform.frame();
-
-        if *show_x {
-            // vertical line
-            shapes.push(Shape::line_segment(
-                [pos2(pointer.x, rect.top()), pos2(pointer.x, rect.bottom())],
-                (1.0, line_color),
-            ));
+            let value = transform.value_from_position(pointer);
+            items::rulers_at_value(pointer, value, "", &plot, shapes);
         }
-        if *show_y {
-            // horizontal line
-            shapes.push(Shape::line_segment(
-                [pos2(rect.left(), pointer.y), pos2(rect.right(), pointer.y)],
-                (1.0, line_color),
-            ));
-        }
-
-        let text = {
-            let scale = transform.dvalue_dpos();
-            let x_decimals = ((-scale[0].abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
-            let y_decimals = ((-scale[1].abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
-            if *show_x && *show_y {
-                format!(
-                    "{}x = {:.*}\ny = {:.*}",
-                    prefix, x_decimals, value.x, y_decimals, value.y
-                )
-            } else if *show_x {
-                format!("{}x = {:.*}", prefix, x_decimals, value.x)
-            } else if *show_y {
-                format!("{}y = {:.*}", prefix, y_decimals, value.y)
-            } else {
-                unreachable!()
-            }
-        };
-
-        shapes.push(Shape::text(
-            ui.fonts(),
-            pointer + vec2(3.0, -2.0),
-            Align2::LEFT_BOTTOM,
-            text,
-            TextStyle::Body,
-            ui.visuals().text_color(),
-        ));
     }
 }

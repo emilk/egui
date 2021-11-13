@@ -45,6 +45,13 @@ impl Bounds {
         self.max[1] - self.min[1]
     }
 
+    pub fn center(&self) -> Value {
+        Value {
+            x: (self.min[0] + self.max[0]) / 2.0,
+            y: (self.min[1] + self.max[1]) / 2.0,
+        }
+    }
+
     pub fn extend_with(&mut self, value: &Value) {
         self.extend_with_x(value.x);
         self.extend_with_y(value.y);

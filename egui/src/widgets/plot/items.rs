@@ -5,6 +5,7 @@ use std::ops::{Bound, RangeBounds, RangeInclusive};
 use epaint::{Mesh, RectShape};
 
 use super::transform::{Bounds, ScreenTransform};
+use crate::util::float_ord::FloatOrd;
 use crate::*;
 
 const DEFAULT_FILL_ALPHA: f32 = 0.05;
@@ -219,8 +220,8 @@ impl PlotItem for HLine {
         self.highlight
     }
 
-    fn values(&self) -> Option<&Values> {
-        None
+    fn geometry(&self) -> PlotGeometry<'_> {
+        PlotGeometry::None
     }
 
     fn get_bounds(&self) -> Bounds {
@@ -329,8 +330,8 @@ impl PlotItem for VLine {
         self.highlight
     }
 
-    fn values(&self) -> Option<&Values> {
-        None
+    fn geometry(&self) -> PlotGeometry<'_> {
+        PlotGeometry::None
     }
 
     fn get_bounds(&self) -> Bounds {
@@ -341,6 +342,14 @@ impl PlotItem for VLine {
     }
 }
 
+pub(super) struct HoverElem {
+    /// Position of hovered-over value (or bar/box-plot/...) in PlotItem
+    index: usize,
+
+    /// Squared distance from the mouse cursor (needed to compare against other PlotItems, which might be nearer)
+    pub dist_sq: f32,
+}
+
 /// Trait shared by things that can be drawn in the plot.
 pub(super) trait PlotItem {
     fn get_shapes(&self, ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>);
@@ -349,8 +358,53 @@ pub(super) trait PlotItem {
     fn color(&self) -> Color32;
     fn highlight(&mut self);
     fn highlighted(&self) -> bool;
-    fn values(&self) -> Option<&Values>;
+    fn geometry(&self) -> PlotGeometry<'_>;
     fn get_bounds(&self) -> Bounds;
+
+    fn find_closest(&self, point: Pos2, transform: &ScreenTransform) -> Option<HoverElem> {
+        match self.geometry() {
+            PlotGeometry::None => None,
+
+            PlotGeometry::Points(points) => points
+                .iter()
+                .enumerate()
+                .map(|(index, value)| {
+                    let pos = transform.position_from_value(value);
+                    let dist_sq = point.distance_sq(pos);
+                    HoverElem { index, dist_sq }
+                })
+                .min_by_key(|e| e.dist_sq.ord()),
+
+            PlotGeometry::Rects => {
+                panic!("If the PlotItem is made of rects, it should implement find_closest()")
+            }
+        }
+    }
+
+    fn on_hover(&self, elem: HoverElem, shapes: &mut Vec<Shape>, plot: &PlotConfig<'_>) {
+        let points = match self.geometry() {
+            PlotGeometry::Points(points) => points,
+            PlotGeometry::None => {
+                panic!("If the PlotItem has no geometry, on_hover() must not be called")
+            }
+            PlotGeometry::Rects => {
+                panic!("If the PlotItem is made of rects, it should implement on_hover()")
+            }
+        };
+
+        let line_color = if plot.ui.visuals().dark_mode {
+            Color32::from_gray(100).additive()
+        } else {
+            Color32::from_black_alpha(180)
+        };
+
+        // this method is only called, if the value is in the result set of find_closest()
+        let value = points[elem.index];
+        let pointer = plot.transform.position_from_value(&value);
+        shapes.push(Shape::circle_filled(pointer, 3.0, line_color));
+
+        rulers_at_value(pointer, value, self.name(), plot, shapes);
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -360,6 +414,17 @@ struct ExplicitGenerator {
     function: Box<dyn Fn(f64) -> f64>,
     x_range: RangeInclusive<f64>,
     points: usize,
+}
+
+/// Query the values of the plot, to do e.g. closest checks
+pub(super) enum PlotGeometry<'a> {
+    None,
+
+    // note: takes the Vec inside 'Values', but already filled after generator has run
+    Points(&'a Vec<Value>),
+
+    // note: Rects currently no data, as it would require copying rects or iterating a list of pointers
+    Rects,
 }
 
 pub struct Values {
@@ -500,6 +565,54 @@ impl Values {
             .for_each(|value| bounds.extend_with(value));
         bounds
     }
+}
+
+// ----------------------------------------------------------------------------
+
+/// Trait that abstracts from rectangular 'Value'-like elements, such as bars or boxplots
+trait RectElem {
+    fn name(&self) -> &str;
+    fn bounds_min(&self) -> Value;
+    fn bounds_max(&self) -> Value;
+
+    fn bounds(&self) -> Bounds {
+        let mut bounds = Bounds::NOTHING;
+        bounds.extend_with(&self.bounds_min());
+        bounds.extend_with(&self.bounds_max());
+        bounds
+    }
+
+    /// At which argument (input; usually X) there is a ruler (usually vertical)
+    fn arguments_with_ruler(&self) -> Vec<Value> {
+        // Default: one at center
+        vec![self.bounds().center()]
+    }
+
+    /// At which value (output; usually Y) there is a ruler (usually horizontal)
+    fn values_with_ruler(&self) -> Vec<Value>;
+
+    /// The diagram's orientation (vertical/horizontal)
+    fn orientation(&self) -> Orientation;
+
+    /// Get X/Y-value for (argument, value) pair, taking into account orientation
+    fn point_at(&self, argument: f64, value: f64) -> Value {
+        match self.orientation() {
+            Orientation::Horizontal => Value::new(value, argument),
+            Orientation::Vertical => Value::new(argument, value),
+        }
+    }
+
+    /// Right top of the rectangle (position of text)
+    fn corner_value(&self) -> Value {
+        //self.point_at(self.position + self.width / 2.0, value)
+        Value {
+            x: self.bounds_max().x,
+            y: self.bounds_max().y,
+        }
+    }
+
+    /// Debug formatting for hovered-over value, if none is specified by the user
+    fn default_values_format(&self, transform: &ScreenTransform) -> String;
 }
 
 // ----------------------------------------------------------------------------
@@ -696,8 +809,8 @@ impl PlotItem for Line {
         self.highlight
     }
 
-    fn values(&self) -> Option<&Values> {
-        Some(&self.series)
+    fn geometry(&self) -> PlotGeometry<'_> {
+        PlotGeometry::Points(&self.series.values)
     }
 
     fn get_bounds(&self) -> Bounds {
@@ -826,8 +939,8 @@ impl PlotItem for Polygon {
         self.highlight
     }
 
-    fn values(&self) -> Option<&Values> {
-        Some(&self.series)
+    fn geometry(&self) -> PlotGeometry<'_> {
+        PlotGeometry::Points(&self.series.values)
     }
 
     fn get_bounds(&self) -> Bounds {
@@ -939,8 +1052,8 @@ impl PlotItem for Text {
         self.highlight
     }
 
-    fn values(&self) -> Option<&Values> {
-        None
+    fn geometry(&self) -> PlotGeometry<'_> {
+        PlotGeometry::None
     }
 
     fn get_bounds(&self) -> Bounds {
@@ -1172,8 +1285,8 @@ impl PlotItem for Points {
         self.highlight
     }
 
-    fn values(&self) -> Option<&Values> {
-        Some(&self.series)
+    fn geometry(&self) -> PlotGeometry<'_> {
+        PlotGeometry::Points(&self.series.values)
     }
 
     fn get_bounds(&self) -> Bounds {
@@ -1287,8 +1400,8 @@ impl PlotItem for Arrows {
         self.highlight
     }
 
-    fn values(&self) -> Option<&Values> {
-        Some(&self.origins)
+    fn geometry(&self) -> PlotGeometry<'_> {
+        PlotGeometry::Points(&self.origins.values)
     }
 
     fn get_bounds(&self) -> Bounds {
@@ -1417,8 +1530,8 @@ impl PlotItem for PlotImage {
         self.highlight
     }
 
-    fn values(&self) -> Option<&Values> {
-        None
+    fn geometry(&self) -> PlotGeometry<'_> {
+        PlotGeometry::None
     }
 
     fn get_bounds(&self) -> Bounds {
@@ -1437,7 +1550,7 @@ impl PlotItem for PlotImage {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Orientation {
     Horizontal,
     Vertical,
@@ -1453,38 +1566,52 @@ impl Default for Orientation {
 /// Width can be changed to allow variable width histograms.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Bar {
-    /// Position on the key axis (X if vertical, Y if horizontal)
-    pub position: f64,
-    pub orientation: Orientation,
+    /// Name of plot element in the diagram (annotated by default formatter)
     pub name: String,
-    pub height: f64,
+
+    /// Which direction the bar faces in the diagram
+    pub orientation: Orientation,
+
+    /// Position on the argument (input) axis -- X if vertical, Y if horizontal
+    pub argument: f64,
+
+    /// Position on the value (output) axis -- Y if vertical, X if horizontal
+    pub value: f64,
+
+    /// For stacked bars, this denotes where the bar starts. None if base axis
     pub base_offset: Option<f64>,
-    pub width: f64,
+
+    /// Thickness of the bar
+    pub bar_width: f64,
+
+    /// Line width and color
     pub stroke: Stroke,
+
+    /// Fill color
     pub fill: Color32,
 }
 
 impl Bar {
-    /// Create a bar. Its `orientation` is set by its [[`BarChart`]] parent.
+    /// Create a bar. Its `orientation` is set by its [`BarChart`] parent.
     ///
-    /// - `position`: Position on the key axis (X if vertical, Y if horizontal).
-    /// - `height`: Height of the bar.
+    /// - `argument`: Position on the key axis (X if vertical, Y if horizontal).
+    /// - `value`: Height of the bar (if vertical).
     ///
     /// By default the bar is vertical and its base is at zero.
-    pub fn new(position: f64, height: f64) -> Bar {
+    pub fn new(argument: f64, height: f64) -> Bar {
         Bar {
-            position,
+            argument,
+            value: height,
             orientation: Orientation::default(),
             name: Default::default(),
-            height,
             base_offset: None,
-            width: 0.5,
+            bar_width: 0.5,
             stroke: Stroke::new(1.0, Color32::TRANSPARENT),
             fill: Color32::TRANSPARENT,
         }
     }
 
-    /// Name of this bar.
+    /// Name of this bar chart element.
     #[allow(clippy::needless_pass_by_value)]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
@@ -1513,7 +1640,7 @@ impl Bar {
 
     /// Set the bar width.
     pub fn width(mut self, width: f64) -> Self {
-        self.width = width;
+        self.bar_width = width;
         self
     }
 
@@ -1529,49 +1656,23 @@ impl Bar {
         self
     }
 
-    fn point_at(&self, key: f64, value: f64) -> Value {
-        match self.orientation {
-            Orientation::Horizontal => Value::new(value, key),
-            Orientation::Vertical => Value::new(key, value),
-        }
-    }
-
     fn lower(&self) -> f64 {
-        if self.height.is_sign_positive() {
+        if self.value.is_sign_positive() {
             self.base_offset.unwrap_or(0.0)
         } else {
-            self.base_offset
-                .map(|o| o + self.height)
-                .unwrap_or(self.height)
+            self.base_offset.map_or(self.value, |o| o + self.value)
         }
     }
 
     fn upper(&self) -> f64 {
-        if self.height.is_sign_positive() {
-            self.base_offset
-                .map(|o| o + self.height)
-                .unwrap_or(self.height)
+        if self.value.is_sign_positive() {
+            self.base_offset.map_or(self.value, |o| o + self.value)
         } else {
             self.base_offset.unwrap_or(0.0)
         }
     }
 
-    fn bounds_min(&self) -> Value {
-        self.point_at(self.position - self.width / 2.0, self.lower())
-    }
-
-    fn bounds_max(&self) -> Value {
-        self.point_at(self.position + self.width / 2.0, self.upper())
-    }
-
-    fn bounds(&self) -> Bounds {
-        let mut bounds = Bounds::NOTHING;
-        bounds.extend_with(&self.bounds_min());
-        bounds.extend_with(&self.bounds_max());
-        bounds
-    }
-
-    fn shapes(&self, transform: &ScreenTransform, highlighted: bool, shapes: &mut Vec<Shape>) {
+    fn add_shapes(&self, transform: &ScreenTransform, highlighted: bool, shapes: &mut Vec<Shape>) {
         let (stroke, fill) = if highlighted {
             highlighted_color(self.stroke, self.fill)
         } else {
@@ -1589,85 +1690,130 @@ impl Bar {
         shapes.push(rect);
     }
 
+    fn add_rulers_and_text(
+        &self,
+        parent: &BarChart,
+        plot: &PlotConfig<'_>,
+        shapes: &mut Vec<Shape>,
+    ) {
+        let text: Option<String> = parent
+            .element_formatter
+            .as_ref()
+            .map(|fmt| fmt(self, parent));
+
+        add_rulers_and_text(self, plot, text, shapes);
+    }
+}
+
+pub(super) struct PlotConfig<'a> {
+    pub ui: &'a Ui,
+    pub transform: &'a ScreenTransform,
+    pub show_x: bool,
+    pub show_y: bool,
+}
+
+fn add_rulers_and_text(
+    elem: &dyn RectElem,
+    plot: &PlotConfig<'_>,
+    text: Option<String>,
+    shapes: &mut Vec<Shape>,
+) {
+    let orientation = elem.orientation();
+    let show_argument = plot.show_x && orientation == Orientation::Vertical
+        || plot.show_y && orientation == Orientation::Horizontal;
+    let show_values = plot.show_y && orientation == Orientation::Vertical
+        || plot.show_x && orientation == Orientation::Horizontal;
+
+    let line_color = rulers_color(plot.ui);
+
+    // Rulers for argument (usually vertical)
+    if show_argument {
+        let push_argument_ruler = |argument: Value, shapes: &mut Vec<Shape>| {
+            let position = plot.transform.position_from_value(&argument);
+            let line = match orientation {
+                Orientation::Horizontal => horizontal_line(position, plot.transform, line_color),
+                Orientation::Vertical => vertical_line(position, plot.transform, line_color),
+            };
+            shapes.push(line);
+        };
+
+        for pos in elem.arguments_with_ruler() {
+            push_argument_ruler(pos, shapes);
+        }
+    }
+
+    // Rulers for values (usually horizontal)
+    if show_values {
+        let push_value_ruler = |value: Value, shapes: &mut Vec<Shape>| {
+            let position = plot.transform.position_from_value(&value);
+            let line = match orientation {
+                Orientation::Horizontal => vertical_line(position, plot.transform, line_color),
+                Orientation::Vertical => horizontal_line(position, plot.transform, line_color),
+            };
+            shapes.push(line);
+        };
+
+        for pos in elem.values_with_ruler() {
+            push_value_ruler(pos, shapes);
+        }
+    }
+
+    // Text
+    let text = text.unwrap_or({
+        let mut text = elem.name().to_string(); // could be empty
+
+        if show_values {
+            text.push_str(&elem.default_values_format(plot.transform));
+        }
+
+        text
+    });
+
+    let corner_value = elem.corner_value();
+    shapes.push(Shape::text(
+        plot.ui.fonts(),
+        plot.transform.position_from_value(&corner_value) + vec2(3.0, -2.0),
+        Align2::LEFT_BOTTOM,
+        text,
+        TextStyle::Body,
+        plot.ui.visuals().text_color(),
+    ));
+}
+
+impl RectElem for Bar {
+    fn name(&self) -> &str {
+        self.name.as_str()
+    }
+
+    fn bounds_min(&self) -> Value {
+        self.point_at(self.argument - self.bar_width / 2.0, self.lower())
+    }
+
+    fn bounds_max(&self) -> Value {
+        self.point_at(self.argument + self.bar_width / 2.0, self.upper())
+    }
+
+    fn values_with_ruler(&self) -> Vec<Value> {
+        let base = self.base_offset.unwrap_or(0.0);
+        let value_center = self.point_at(self.argument, base + self.value);
+
+        let mut ruler_positions = vec![value_center];
+
+        if let Some(offset) = self.base_offset {
+            ruler_positions.push(self.point_at(self.argument, offset));
+        }
+
+        ruler_positions
+    }
+
+    fn orientation(&self) -> Orientation {
+        self.orientation
+    }
+
     fn default_values_format(&self, transform: &ScreenTransform) -> String {
         let scale = transform.dvalue_dpos();
         let y_decimals = ((-scale[1].abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
-        format!("\n{:.*}", y_decimals, self.height)
-    }
-
-    fn rulers(
-        &self,
-        parent: &BarChart,
-        ui: &Ui,
-        transform: &ScreenTransform,
-        show_x: bool,
-        show_y: bool,
-        shapes: &mut Vec<Shape>,
-    ) {
-        let value = self
-            .base_offset
-            .map(|o| o + self.height)
-            .unwrap_or(self.height);
-        let value_center = self.point_at(self.position, value);
-        let value_right_end = self.point_at(self.position + self.width / 2.0, value);
-
-        let show_position = show_x && self.orientation == Orientation::Vertical
-            || show_y && self.orientation == Orientation::Horizontal;
-        let show_values = show_y && self.orientation == Orientation::Vertical
-            || show_x && self.orientation == Orientation::Horizontal;
-
-        let line_color = rulers_color(ui);
-        if show_position {
-            let upper_pos = transform.position_from_value(&value_center);
-            let line = match self.orientation {
-                Orientation::Horizontal => horizontal_line(upper_pos, transform, line_color),
-                Orientation::Vertical => vertical_line(upper_pos, transform, line_color),
-            };
-            shapes.push(line);
-        }
-
-        let push_value_ruler = |value: Value, shapes: &mut Vec<Shape>| {
-            let position = transform.position_from_value(&value);
-            let line = match self.orientation {
-                Orientation::Horizontal => vertical_line(position, transform, line_color),
-                Orientation::Vertical => horizontal_line(position, transform, line_color),
-            };
-            shapes.push(line);
-        };
-
-        if show_values {
-            push_value_ruler(value_center, shapes);
-            if self.base_offset.is_some() {
-                push_value_ruler(
-                    self.point_at(self.position, self.base_offset.unwrap_or(0.0)),
-                    shapes,
-                );
-            }
-        }
-
-        let text = match parent.element_formatter {
-            None => {
-                let mut text = String::new();
-                if !self.name.is_empty() {
-                    text.push_str(&self.name);
-                }
-
-                if show_values {
-                    text.push_str(&self.default_values_format(transform));
-                }
-                text
-            }
-            Some(ref formatter) => formatter(self, parent),
-        };
-
-        shapes.push(Shape::text(
-            ui.fonts(),
-            transform.position_from_value(&value_right_end) + vec2(3.0, -2.0),
-            Align2::LEFT_BOTTOM,
-            text,
-            TextStyle::Body,
-            ui.visuals().text_color(),
-        ));
+        format!("\n{:.*}", y_decimals, self.value)
     }
 }
 
@@ -1679,7 +1825,6 @@ pub struct BarChart {
     /// A custom element formatter
     element_formatter: Option<Box<dyn Fn(&Bar, &BarChart) -> String>>,
     highlight: bool,
-    dummy_values: Values,
 }
 
 impl BarChart {
@@ -1691,7 +1836,6 @@ impl BarChart {
             name: String::new(),
             element_formatter: None,
             highlight: false,
-            dummy_values: Values::default(),
         }
     }
 
@@ -1739,10 +1883,10 @@ impl BarChart {
         self
     }
 
-    /// Set the width of all its elements.
+    /// Set the width (thickness) of all its elements.
     pub fn width(mut self, width: f64) -> Self {
         self.bars.iter_mut().for_each(|b| {
-            b.width = width;
+            b.bar_width = width;
         });
         self
     }
@@ -1763,9 +1907,10 @@ impl BarChart {
     /// Stacks the bars on top of another chart.
     /// Positive values are stacked on top of other positive values.
     /// Negative values are stacked below other negative values.
+    #[allow(clippy::branches_sharing_code)] // TODO simplify code, e.g. using {min,max}_by_key()
     pub fn stack_on(mut self, others: &[&BarChart]) -> Self {
         for (index, mut bar) in self.bars.iter_mut().enumerate() {
-            if bar.height.is_sign_positive() {
+            if bar.value.is_sign_positive() {
                 let mut max = 0.0;
                 for other_chart in others {
                     if let Some(other_bar) = other_chart.bars.get(index) {
@@ -1800,12 +1945,12 @@ impl BarChart {
 impl PlotItem for BarChart {
     fn get_shapes(&self, _ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
         self.bars.iter().for_each(|b| {
-            b.shapes(transform, self.highlight, shapes);
+            b.add_shapes(transform, self.highlight, shapes);
         });
     }
 
-    fn initialize(&mut self, x_range: RangeInclusive<f64>) {
-        // TODO
+    fn initialize(&mut self, _x_range: RangeInclusive<f64>) {
+        // nothing to do
     }
 
     fn name(&self) -> &str {
@@ -1824,8 +1969,8 @@ impl PlotItem for BarChart {
         self.highlight
     }
 
-    fn values(&self) -> Option<&Values> {
-        Some(&self.dummy_values)
+    fn geometry(&self) -> PlotGeometry<'_> {
+        PlotGeometry::Rects
     }
 
     fn get_bounds(&self) -> Bounds {
@@ -1835,48 +1980,80 @@ impl PlotItem for BarChart {
         });
         bounds
     }
+
+    fn find_closest(&self, point: Pos2, transform: &ScreenTransform) -> Option<HoverElem> {
+        find_closest_rect(&self.bars, point, transform)
+    }
+
+    fn on_hover(&self, elem: HoverElem, shapes: &mut Vec<Shape>, plot: &PlotConfig<'_>) {
+        let bar = &self.bars[elem.index];
+
+        bar.add_shapes(plot.transform, true, shapes);
+        bar.add_rulers_and_text(self, plot, shapes);
+    }
 }
 
 /// A boxplot. This is a low level element, it will not compute quartiles and whiskers,
 /// letting one use their preferred formula. Use [[`Points`]] to draw the outliers.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Boxplot {
-    /// Position on the key axis (X if vertical, Y if horizontal)
-    pub position: f64,
-    pub orientation: Orientation,
+    /// Name of plot element in the diagram (annotated by default formatter).
     pub name: String,
+
+    /// Which direction the boxplot faces in the diagram.
+    pub orientation: Orientation,
+
+    /// Position on the argument (input) axis -- X if vertical, Y if horizontal.
+    pub argument: f64,
+
+    /// Value of lower whisker (typically minimum).
+    ///
+    /// The whisker is not drawn if `lower_whisker >= quartile1`.
     pub lower_whisker: f64,
+
+    /// Value of lower box threshold (typically 25% quartile)
     pub quartile1: f64,
+
+    /// Value of middle line in box (typically median)
     pub median: f64,
+
+    /// Value of upper box threshold (typically 75% quartile)
     pub quartile3: f64,
+
+    /// Value of upper whisker (typically maximum)
     pub upper_whisker: f64,
+
+    /// Thickness of the box
     pub box_width: f64,
+
+    /// Width of the whisker at minimum/maximum
+    ///
+    /// The whisker is not drawn if `upper_whisker <= quartile3`.
     pub whisker_width: f64,
+
+    /// Line width and color
     pub stroke: Stroke,
+
+    /// Fill color
     pub fill: Color32,
 }
 
 impl Boxplot {
-    /// Create a boxplot. Its `orientation` is set by its [[`BoxplotSeries`]] parent.
+    /// Create a boxplot element. Its `orientation` is set by its [`BoxplotDiagram`] parent.
     ///
-    /// - `position`: Position on the key axis (X if vertical, Y if horizontal).
-    /// - `lower_whisker`: Value of the whisker with lowest value. The whisker is not drawn if `lower_whisker >= quartile1`.
-    /// - `quartile1`: Value of the side of the box with lowest value.
-    /// - `median`: Value of the middle bar inside the box.
-    /// - `quartile3`: Value of the side of the box with highest value.
-    /// - `upper_whisker`: Value of the whisker with highest value. The whisker is not drawn if `upper_whisker <= quartile3`.
+    /// Check [`Boxplot`] fields for detailed description.
     pub fn new(
-        position: f64,
+        argument: f64,
         lower_whisker: f64,
         quartile1: f64,
         median: f64,
         quartile3: f64,
         upper_whisker: f64,
-    ) -> Boxplot {
-        Boxplot {
-            position,
+    ) -> Self {
+        Self {
+            argument,
             orientation: Orientation::default(),
-            name: Default::default(),
+            name: String::default(),
             lower_whisker,
             quartile1,
             median,
@@ -1889,7 +2066,7 @@ impl Boxplot {
         }
     }
 
-    /// Name of this boxplot.
+    /// Name of this boxplot element.
     #[allow(clippy::needless_pass_by_value)]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
@@ -1932,41 +2109,16 @@ impl Boxplot {
         self
     }
 
-    fn point_at(&self, key: f64, value: f64) -> Value {
-        match self.orientation {
-            Orientation::Horizontal => Value::new(value, key),
-            Orientation::Vertical => Value::new(key, value),
-        }
-    }
-
-    fn bounds_min(&self) -> Value {
-        let key = self.position - self.box_width.max(self.whisker_width) / 2.0;
-        let value = self.lower_whisker;
-        self.point_at(key, value)
-    }
-
-    fn bounds_max(&self) -> Value {
-        let key = self.position + self.box_width.max(self.whisker_width) / 2.0;
-        let value = self.upper_whisker;
-        self.point_at(key, value)
-    }
-
-    fn bounds(&self) -> Bounds {
-        let mut bounds = Bounds::NOTHING;
-        bounds.extend_with(&self.bounds_min());
-        bounds.extend_with(&self.bounds_max());
-        bounds
-    }
-
-    fn shapes(&self, transform: &ScreenTransform, highlighted: bool, shapes: &mut Vec<Shape>) {
+    fn add_shapes(&self, transform: &ScreenTransform, highlighted: bool, shapes: &mut Vec<Shape>) {
         let (stroke, fill) = if highlighted {
             highlighted_color(self.stroke, self.fill)
         } else {
             (self.stroke, self.fill)
         };
+
         let rect = transform.rect_from_values(
-            &self.point_at(self.position - self.box_width / 2.0, self.quartile1),
-            &self.point_at(self.position + self.box_width / 2.0, self.quartile3),
+            &self.point_at(self.argument - self.box_width / 2.0, self.quartile1),
+            &self.point_at(self.argument + self.box_width / 2.0, self.quartile3),
         );
         let rect = Shape::Rect(RectShape {
             rect,
@@ -1975,6 +2127,7 @@ impl Boxplot {
             stroke,
         });
         shapes.push(rect);
+
         let line_between = |v1, v2| {
             Shape::line_segment(
                 [
@@ -1985,38 +2138,90 @@ impl Boxplot {
             )
         };
         let median = line_between(
-            self.point_at(self.position - self.box_width / 2.0, self.median),
-            self.point_at(self.position + self.box_width / 2.0, self.median),
+            self.point_at(self.argument - self.box_width / 2.0, self.median),
+            self.point_at(self.argument + self.box_width / 2.0, self.median),
         );
         shapes.push(median);
+
         if self.upper_whisker > self.quartile3 {
             let high_whisker = line_between(
-                self.point_at(self.position, self.quartile3),
-                self.point_at(self.position, self.upper_whisker),
+                self.point_at(self.argument, self.quartile3),
+                self.point_at(self.argument, self.upper_whisker),
             );
             shapes.push(high_whisker);
             if self.box_width > 0.0 {
                 let high_whisker_end = line_between(
-                    self.point_at(self.position - self.whisker_width / 2.0, self.upper_whisker),
-                    self.point_at(self.position + self.whisker_width / 2.0, self.upper_whisker),
+                    self.point_at(self.argument - self.whisker_width / 2.0, self.upper_whisker),
+                    self.point_at(self.argument + self.whisker_width / 2.0, self.upper_whisker),
                 );
                 shapes.push(high_whisker_end);
             }
         }
+
         if self.lower_whisker < self.quartile1 {
             let low_whisker = line_between(
-                self.point_at(self.position, self.quartile1),
-                self.point_at(self.position, self.lower_whisker),
+                self.point_at(self.argument, self.quartile1),
+                self.point_at(self.argument, self.lower_whisker),
             );
             shapes.push(low_whisker);
             if self.box_width > 0.0 {
                 let low_whisker_end = line_between(
-                    self.point_at(self.position - self.whisker_width / 2.0, self.lower_whisker),
-                    self.point_at(self.position + self.whisker_width / 2.0, self.lower_whisker),
+                    self.point_at(self.argument - self.whisker_width / 2.0, self.lower_whisker),
+                    self.point_at(self.argument + self.whisker_width / 2.0, self.lower_whisker),
                 );
                 shapes.push(low_whisker_end);
             }
         }
+    }
+
+    fn add_rulers_and_text(
+        &self,
+        parent: &BoxplotDiagram,
+        plot: &PlotConfig<'_>,
+        shapes: &mut Vec<Shape>,
+    ) {
+        let text: Option<String> = parent
+            .element_formatter
+            .as_ref()
+            .map(|fmt| fmt(self, parent));
+
+        add_rulers_and_text(self, plot, text, shapes);
+    }
+}
+
+impl RectElem for Boxplot {
+    fn name(&self) -> &str {
+        self.name.as_str()
+    }
+
+    fn bounds_min(&self) -> Value {
+        let key = self.argument - self.box_width.max(self.whisker_width) / 2.0;
+        let value = self.lower_whisker;
+        self.point_at(key, value)
+    }
+
+    fn bounds_max(&self) -> Value {
+        let key = self.argument + self.box_width.max(self.whisker_width) / 2.0;
+        let value = self.upper_whisker;
+        self.point_at(key, value)
+    }
+
+    fn values_with_ruler(&self) -> Vec<Value> {
+        let median = self.point_at(self.argument, self.median);
+        let q1 = self.point_at(self.argument, self.quartile1);
+        let q3 = self.point_at(self.argument, self.quartile3);
+        let upper = self.point_at(self.argument, self.upper_whisker);
+        let lower = self.point_at(self.argument, self.lower_whisker);
+
+        vec![median, q1, q3, upper, lower]
+    }
+
+    fn orientation(&self) -> Orientation {
+        self.orientation
+    }
+
+    fn corner_value(&self) -> Value {
+        self.point_at(self.argument, self.upper_whisker)
     }
 
     fn default_values_format(&self, transform: &ScreenTransform) -> String {
@@ -2036,101 +2241,29 @@ impl Boxplot {
             decimals = y_decimals
         )
     }
-
-    fn rulers(
-        &self,
-        parent: &BoxplotSeries,
-        ui: &Ui,
-        transform: &ScreenTransform,
-        show_x: bool,
-        show_y: bool,
-        shapes: &mut Vec<Shape>,
-    ) {
-        let median = self.point_at(self.position, self.median);
-        let q1 = self.point_at(self.position, self.quartile1);
-        let q3 = self.point_at(self.position, self.quartile3);
-        let upper = self.point_at(self.position, self.upper_whisker);
-        let lower = self.point_at(self.position, self.lower_whisker);
-
-        let show_position = show_x && self.orientation == Orientation::Vertical
-            || show_y && self.orientation == Orientation::Horizontal;
-        let show_values = show_y && self.orientation == Orientation::Vertical
-            || show_x && self.orientation == Orientation::Horizontal;
-
-        let line_color = rulers_color(ui);
-        if show_position {
-            let median = transform.position_from_value(&median);
-            let line = match self.orientation {
-                Orientation::Horizontal => horizontal_line(median, transform, line_color),
-                Orientation::Vertical => vertical_line(median, transform, line_color),
-            };
-            shapes.push(line);
-        }
-
-        let push_value_ruler = |value: Value, shapes: &mut Vec<Shape>| {
-            let position = transform.position_from_value(&value);
-            let line = match self.orientation {
-                Orientation::Horizontal => vertical_line(position, transform, line_color),
-                Orientation::Vertical => horizontal_line(position, transform, line_color),
-            };
-            shapes.push(line);
-        };
-
-        if show_values {
-            push_value_ruler(median, shapes);
-            push_value_ruler(q1, shapes);
-            push_value_ruler(q3, shapes);
-            push_value_ruler(upper, shapes);
-            push_value_ruler(lower, shapes);
-        }
-
-        let text = match parent.element_formatter {
-            None => {
-                let mut text = String::new();
-                if !self.name.is_empty() {
-                    text.push_str(&self.name);
-                }
-
-                if show_values {
-                    text.push_str(&self.default_values_format(transform));
-                }
-                text
-            }
-            Some(ref formatter) => formatter(self, parent),
-        };
-
-        shapes.push(Shape::text(
-            ui.fonts(),
-            transform.position_from_value(&upper) + vec2(3.0, -2.0),
-            Align2::LEFT_BOTTOM,
-            text,
-            TextStyle::Body,
-            ui.visuals().text_color(),
-        ));
-    }
 }
 
+pub type ElemFormatter = dyn Fn(&Boxplot, &BoxplotDiagram) -> String;
+
 /// A series of boxplots.
-pub struct BoxplotSeries {
+pub struct BoxplotDiagram {
     pub(super) plots: Vec<Boxplot>,
     pub(super) default_color: Color32,
     pub name: String,
     /// A custom element formatter
-    element_formatter: Option<Box<dyn Fn(&Boxplot, &BoxplotSeries) -> String>>,
+    element_formatter: Option<Box<ElemFormatter>>,
     highlight: bool,
-    dummy_values: Values,
 }
 
-impl BoxplotSeries {
+impl BoxplotDiagram {
     /// Create a series of boxplots. It defaults to vertically oriented elements.
-    pub fn new(plots: Vec<Boxplot>) -> BoxplotSeries {
-        BoxplotSeries {
+    pub fn new(plots: Vec<Boxplot>) -> Self {
+        Self {
             plots,
             default_color: Color32::TRANSPARENT,
             name: String::new(),
             element_formatter: None,
             highlight: false,
-            dummy_values: Values::default(),
         }
     }
 
@@ -2189,22 +2322,22 @@ impl BoxplotSeries {
     /// Can be used to display a set number of decimals or custom labels.
     pub fn element_formatter(
         mut self,
-        formatter: Box<dyn Fn(&Boxplot, &BoxplotSeries) -> String>,
+        formatter: Box<dyn Fn(&Boxplot, &BoxplotDiagram) -> String>,
     ) -> Self {
         self.element_formatter = Some(formatter);
         self
     }
 }
 
-impl PlotItem for BoxplotSeries {
+impl PlotItem for BoxplotDiagram {
     fn get_shapes(&self, _ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
         self.plots.iter().for_each(|b| {
-            b.shapes(transform, self.highlight, shapes);
+            b.add_shapes(transform, self.highlight, shapes);
         });
     }
 
-    fn initialize(&mut self, x_range: RangeInclusive<f64>) {
-        // TODO
+    fn initialize(&mut self, _x_range: RangeInclusive<f64>) {
+        // nothing to do
     }
 
     fn name(&self) -> &str {
@@ -2223,8 +2356,8 @@ impl PlotItem for BoxplotSeries {
         self.highlight
     }
 
-    fn values(&self) -> Option<&Values> {
-        Some(&self.dummy_values)
+    fn geometry(&self) -> PlotGeometry<'_> {
+        PlotGeometry::Rects
     }
 
     fn get_bounds(&self) -> Bounds {
@@ -2234,15 +2367,21 @@ impl PlotItem for BoxplotSeries {
         });
         bounds
     }
+
+    fn find_closest(&self, point: Pos2, transform: &ScreenTransform) -> Option<HoverElem> {
+        find_closest_rect(&self.plots, point, transform)
+    }
+
+    fn on_hover(&self, elem: HoverElem, shapes: &mut Vec<Shape>, plot: &PlotConfig<'_>) {
+        let box_plot = &self.plots[elem.index];
+
+        box_plot.add_shapes(plot.transform, true, shapes);
+        box_plot.add_rulers_and_text(self, plot, shapes);
+    }
 }
 
-pub(crate) struct HoverElement<'a> {
-    pub(crate) distance_square: f32,
-    // Note: the Box<dyn Fn> here is a compromise between an owned Vec<Shape>
-    //       (overhead of precalculating the shapes) and an impl Fn
-    //       (typing all the way up to PlotItem with trait object safety workarounds)
-    pub(crate) hover_shapes: Box<dyn Fn(&mut Vec<Shape>) + 'a>,
-}
+// ----------------------------------------------------------------------------
+// Helper functions
 
 fn highlighted_color(mut stroke: Stroke, fill: Color32) -> (Stroke, Color32) {
     stroke.width *= 2.0;
@@ -2282,23 +2421,22 @@ fn horizontal_line(pointer: Pos2, transform: &ScreenTransform, line_color: Color
     )
 }
 
+/// Draws a cross of horizontal and vertical ruler at the `pointer` position.
+/// `value` is used to for text displaying X/Y coordinates.
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn rulers_at_value(
-    ui: &Ui,
+pub(super) fn rulers_at_value(
     pointer: Pos2,
-    transform: &ScreenTransform,
-    show_x: bool,
-    show_y: bool,
     value: Value,
     name: &str,
+    plot: &PlotConfig<'_>,
     shapes: &mut Vec<Shape>,
 ) {
-    let line_color = rulers_color(ui);
-    if show_x {
-        shapes.push(vertical_line(pointer, transform, line_color));
+    let line_color = rulers_color(plot.ui);
+    if plot.show_x {
+        shapes.push(vertical_line(pointer, plot.transform, line_color));
     }
-    if show_y {
-        shapes.push(horizontal_line(pointer, transform, line_color));
+    if plot.show_y {
+        shapes.push(horizontal_line(pointer, plot.transform, line_color));
     }
 
     let mut prefix = String::new();
@@ -2308,17 +2446,17 @@ pub(crate) fn rulers_at_value(
     }
 
     let text = {
-        let scale = transform.dvalue_dpos();
+        let scale = plot.transform.dvalue_dpos();
         let x_decimals = ((-scale[0].abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
         let y_decimals = ((-scale[1].abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
-        if show_x && show_y {
+        if plot.show_x && plot.show_y {
             format!(
                 "{}x = {:.*}\ny = {:.*}",
                 prefix, x_decimals, value.x, y_decimals, value.y
             )
-        } else if show_x {
+        } else if plot.show_x {
             format!("{}x = {:.*}", prefix, x_decimals, value.x)
-        } else if show_y {
+        } else if plot.show_y {
             format!("{}y = {:.*}", prefix, y_decimals, value.y)
         } else {
             unreachable!()
@@ -2326,11 +2464,31 @@ pub(crate) fn rulers_at_value(
     };
 
     shapes.push(Shape::text(
-        ui.fonts(),
+        plot.ui.fonts(),
         pointer + vec2(3.0, -2.0),
         Align2::LEFT_BOTTOM,
         text,
         TextStyle::Body,
-        ui.visuals().text_color(),
+        plot.ui.visuals().text_color(),
     ));
+}
+
+fn find_closest_rect<'a, T>(
+    rects: impl IntoIterator<Item = &'a T>,
+    point: Pos2,
+    transform: &ScreenTransform,
+) -> Option<HoverElem>
+where
+    T: 'a + RectElem,
+{
+    rects
+        .into_iter()
+        .enumerate()
+        .map(|(index, bar)| {
+            let bar_rect: Rect = transform.rect_from_values(&bar.bounds_min(), &bar.bounds_max());
+            let dist_sq = point.distance_from_rect_sq(bar_rect);
+
+            HoverElem { index, dist_sq }
+        })
+        .min_by_key(|e| e.dist_sq.ord())
 }
