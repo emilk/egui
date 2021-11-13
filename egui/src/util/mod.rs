@@ -2,6 +2,7 @@
 
 pub mod cache;
 pub(crate) mod fixed_cache;
+pub(crate) mod float_ord;
 mod history;
 pub mod id_type_map;
 pub mod undoer;
