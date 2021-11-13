@@ -185,10 +185,10 @@ impl VAO {
 }
 
 /// If returned true no need to emulate vao
-pub(crate) unsafe fn support_vao(gl: &glow::Context) -> bool {
+pub(crate) fn supports_vao(gl: &glow::Context) -> bool {
     let web_sig = "WebGL ";
     let es_sig = "OpenGL ES ";
-    let version_string = gl.get_parameter_string(glow::VERSION);
+    let version_string = unsafe { gl.get_parameter_string(glow::VERSION) };
     if let Some(pos) = version_string.rfind(web_sig) {
         let version_str = &version_string[pos + web_sig.len()..];
         glow_debug_print(format!(

@@ -61,9 +61,10 @@ impl Painter {
     /// Create painter.
     ///
     /// Set `pp_fb_extent` to the framebuffer size to enable `sRGB` support on OpenGL ES and WebGL.
-    /// Set `shader_prefix` if you want to turn on shader workaround e.g. `"#define EPIPHANY_WORKAROUND\n"`.
     ///
-    /// this fix [Everything is super dark in epiphany](https://github.com/emilk/egui/issues/794)
+    /// Set `shader_prefix` if you want to turn on shader workaround e.g. `"#define APPLY_BRIGHTENING_GAMMA\n"`
+    /// (see <https://github.com/emilk/egui/issues/794>).
+    ///
     /// # Errors
     /// will return `Err` below cases
     /// * failed to compile shader
@@ -74,7 +75,7 @@ impl Painter {
         pp_fb_extent: Option<[i32; 2]>,
         shader_prefix: &str,
     ) -> Result<Painter, String> {
-        let support_vao = unsafe { crate::misc_util::support_vao(gl) };
+        let support_vao = crate::misc_util::supports_vao(gl);
         let shader_version = ShaderVersion::get(gl);
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
         let header = shader_version.version();

@@ -7,7 +7,6 @@ use {
     },
 };
 
-use crate::console_log;
 use egui::{
     emath::vec2,
     epaint::{Color32, Texture},
@@ -556,6 +555,13 @@ struct PostProcess {
     program: WebGlProgram,
 }
 
+fn requires_brightening(gl: &web_sys::WebGlRenderingContext) -> bool {
+    // See https://github.com/emilk/egui/issues/794
+
+    let user_agent = web_sys::window().unwrap().navigator().user_agent().unwrap();
+    crate::webgl1::is_safari_and_webkit_gtk(gl) && !user_agent.contains("Mac OS X")
+}
+
 impl PostProcess {
     fn new(gl: Gl, width: i32, height: i32) -> Result<PostProcess, JsValue> {
         let fbo = gl
@@ -592,14 +598,10 @@ impl PostProcess {
 
         gl.bind_texture(Gl::TEXTURE_2D, None);
         gl.bind_framebuffer(Gl::FRAMEBUFFER, None);
-        // detect WebKitGTK
-        // WebKitGTK use WebKit default unmasked vendor and renderer
-        // but safari use same vendor and renderer
-        // so exclude "Mac OS X " user-agent.
-        let user_agent = web_sys::window().unwrap().navigator().user_agent().unwrap();
-        let webkit_gtk_wr = if !user_agent.contains("Mac OS X") && detect_safari_and_webkit_gtk(&gl)
-        {
-            "#define WEBKITGTK_WORKAROUND"
+
+        let shader_prefix = if requires_brightening(&gl) {
+            crate::console_log("Enabling webkitGTK brightening workaround");
+            "#define APPLY_BRIGHTENING_GAMMA"
         } else {
             ""
         };
@@ -614,7 +616,7 @@ impl PostProcess {
             Gl::FRAGMENT_SHADER,
             &format!(
                 "{}{}",
-                webkit_gtk_wr,
+                shader_prefix,
                 include_str!("shader/post_fragment_100es.glsl")
             ),
         )?;
@@ -774,7 +776,7 @@ fn link_program<'a, T: IntoIterator<Item = &'a WebGlShader>>(
 /// If we detect safari or webkitGTK returns true.
 ///
 /// This function used to avoid displaying linear color with `sRGB` supported systems.
-pub(crate) fn detect_safari_and_webkit_gtk(gl: &web_sys::WebGlRenderingContext) -> bool {
+pub(crate) fn is_safari_and_webkit_gtk(gl: &web_sys::WebGlRenderingContext) -> bool {
     if gl
         .get_extension("WEBGL_debug_renderer_info")
         .unwrap()
@@ -784,7 +786,6 @@ pub(crate) fn detect_safari_and_webkit_gtk(gl: &web_sys::WebGlRenderingContext) 
             .get_parameter(WebglDebugRendererInfo::UNMASKED_RENDERER_WEBGL)
             .unwrap();
         if renderer.as_string().unwrap().contains("Apple") {
-            console_log("Enabling webkitGTK workaround");
             return true;
         }
     }

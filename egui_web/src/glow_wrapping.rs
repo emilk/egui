@@ -19,29 +19,17 @@ pub(crate) struct WrappedGlowPainter {
 impl WrappedGlowPainter {
     pub fn new(canvas_id: &str) -> Self {
         let canvas = canvas_element_or_die(canvas_id);
-        // detect WebKitGTK
-        //WebKitGTK currently support only webgl,so request webgl context.
-        // WebKitGTK use WebKit default unmasked vendor and renderer
-        // but safari use same vendor and renderer
-        // so exclude "Mac OS X" user-agent.
-        let gl = canvas
-            .get_context("webgl")
-            .unwrap()
-            .unwrap()
-            .dyn_into::<WebGlRenderingContext>()
-            .unwrap();
-        let user_agent = web_sys::window().unwrap().navigator().user_agent().unwrap();
-        let webkit_gtk_wr = if !user_agent.contains("Mac OS X")
-            && crate::webgl1::detect_safari_and_webkit_gtk(&gl)
-        {
-            "#define WEBKITGTK_WORKAROUND"
+
+        let shader_prefix = if requires_brightening(&canvas) {
+            crate::console_log("Enabling webkitGTK brightening workaround");
+            "#define APPLY_BRIGHTENING_GAMMA"
         } else {
             ""
         };
 
         let gl_ctx = init_glow_context_from_canvas(&canvas);
         let dimension = [canvas.width() as i32, canvas.height() as i32];
-        let painter = egui_glow::Painter::new(&gl_ctx, Some(dimension), webkit_gtk_wr)
+        let painter = egui_glow::Painter::new(&gl_ctx, Some(dimension), shader_prefix)
             .map_err(|error| {
                 console_error(format!(
                     "some error occurred in initializing glow painter\n {}",
@@ -58,6 +46,26 @@ impl WrappedGlowPainter {
         }
     }
 }
+
+fn requires_brightening(canvas: &web_sys::HtmlCanvasElement) -> bool {
+    // See https://github.com/emilk/egui/issues/794
+
+    // detect WebKitGTK
+
+    // WebKitGTK currently support only webgl,so request webgl context.
+    // WebKitGTK use WebKit default unmasked vendor and renderer
+    // but safari use same vendor and renderer
+    // so exclude "Mac OS X" user-agent.
+    let gl = canvas
+        .get_context("webgl")
+        .unwrap()
+        .unwrap()
+        .dyn_into::<WebGlRenderingContext>()
+        .unwrap();
+    let user_agent = web_sys::window().unwrap().navigator().user_agent().unwrap();
+    crate::webgl1::is_safari_and_webkit_gtk(&gl) && !user_agent.contains("Mac OS X")
+}
+
 impl crate::Painter for WrappedGlowPainter {
     fn as_tex_allocator(&mut self) -> &mut dyn TextureAllocator {
         &mut self.painter
