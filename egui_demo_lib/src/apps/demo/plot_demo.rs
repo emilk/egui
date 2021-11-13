@@ -143,18 +143,18 @@ impl Widget for &mut LineDemo {
             ui.ctx().request_repaint();
             self.time += ui.input().unstable_dt.at_most(1.0 / 30.0) as f64;
         };
-        let mut plot = Plot::new("lines_demo")
-            .line(self.circle())
-            .line(self.sin())
-            .line(self.thingy())
-            .legend(Legend::default());
+        let mut plot = Plot::new("lines_demo").legend(Legend::default());
         if self.square {
             plot = plot.view_aspect(1.0);
         }
         if self.proportional {
             plot = plot.data_aspect(1.0);
         }
-        ui.add(plot)
+        plot.show(ui, |plot_ui| {
+            plot_ui.line(self.circle());
+            plot_ui.line(self.sin());
+            plot_ui.line(self.thingy());
+        })
     }
 }
 
@@ -222,13 +222,14 @@ impl Widget for &mut MarkerDemo {
             }
         });
 
-        let mut markers_plot = Plot::new("markers_demo")
+        let markers_plot = Plot::new("markers_demo")
             .data_aspect(1.0)
             .legend(Legend::default());
-        for marker in self.markers() {
-            markers_plot = markers_plot.points(marker);
-        }
-        ui.add(markers_plot)
+        markers_plot.show(ui, |plot_ui| {
+            for marker in self.markers() {
+                plot_ui.points(marker);
+            }
+        })
     }
 }
 
@@ -287,15 +288,14 @@ impl Widget for &mut LegendDemo {
             ui.end_row();
         });
 
-        let legend_plot = Plot::new("legend_demo")
-            .line(LegendDemo::line_with_slope(0.5).name("lines"))
-            .line(LegendDemo::line_with_slope(1.0).name("lines"))
-            .line(LegendDemo::line_with_slope(2.0).name("lines"))
-            .line(LegendDemo::sin().name("sin(x)"))
-            .line(LegendDemo::cos().name("cos(x)"))
-            .legend(*config)
-            .data_aspect(1.0);
-        ui.add(legend_plot)
+        let legend_plot = Plot::new("legend_demo").legend(*config).data_aspect(1.0);
+        legend_plot.show(ui, |plot_ui| {
+            plot_ui.line(LegendDemo::line_with_slope(0.5).name("lines"));
+            plot_ui.line(LegendDemo::line_with_slope(1.0).name("lines"));
+            plot_ui.line(LegendDemo::line_with_slope(2.0).name("lines"));
+            plot_ui.line(LegendDemo::sin().name("sin(x)"));
+            plot_ui.line(LegendDemo::cos().name("cos(x)"));
+        })
     }
 }
 
@@ -347,24 +347,64 @@ impl Widget for &mut ItemsDemo {
         );
 
         let plot = Plot::new("items_demo")
-            .hline(HLine::new(9.0).name("Lines horizontal"))
-            .hline(HLine::new(-9.0).name("Lines horizontal"))
-            .vline(VLine::new(9.0).name("Lines vertical"))
-            .vline(VLine::new(-9.0).name("Lines vertical"))
-            .line(line.name("Line with fill"))
-            .polygon(polygon.name("Convex polygon"))
-            .points(points.name("Points with stems"))
-            .text(Text::new(Value::new(-3.0, -3.0), "wow").name("Text"))
-            .text(Text::new(Value::new(-2.0, 2.5), "so graph").name("Text"))
-            .text(Text::new(Value::new(3.0, 3.0), "much color").name("Text"))
-            .text(Text::new(Value::new(2.5, -2.0), "such plot").name("Text"))
-            .image(image.name("Image"))
-            .arrows(arrows.name("Arrows"))
             .legend(Legend::default().position(Corner::RightBottom))
             .show_x(false)
             .show_y(false)
             .data_aspect(1.0);
-        ui.add(plot)
+        plot.show(ui, |plot_ui| {
+            plot_ui.hline(HLine::new(9.0).name("Lines horizontal"));
+            plot_ui.hline(HLine::new(-9.0).name("Lines horizontal"));
+            plot_ui.vline(VLine::new(9.0).name("Lines vertical"));
+            plot_ui.vline(VLine::new(-9.0).name("Lines vertical"));
+            plot_ui.line(line.name("Line with fill"));
+            plot_ui.polygon(polygon.name("Convex polygon"));
+            plot_ui.points(points.name("Points with stems"));
+            plot_ui.text(Text::new(Value::new(-3.0, -3.0), "wow").name("Text"));
+            plot_ui.text(Text::new(Value::new(-2.0, 2.5), "so graph").name("Text"));
+            plot_ui.text(Text::new(Value::new(3.0, 3.0), "much color").name("Text"));
+            plot_ui.text(Text::new(Value::new(2.5, -2.0), "such plot").name("Text"));
+            plot_ui.image(image.name("Image"));
+            plot_ui.arrows(arrows.name("Arrows"));
+        })
+    }
+}
+
+#[derive(PartialEq)]
+struct InteractionDemo {
+    pointer_coordinate: Option<Value>,
+    pointer_coordinate_drag_delta: Vec2,
+}
+
+impl Default for InteractionDemo {
+    fn default() -> Self {
+        Self {
+            pointer_coordinate: None,
+            pointer_coordinate_drag_delta: Vec2::ZERO,
+        }
+    }
+}
+
+impl Widget for &mut InteractionDemo {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let coordinate_text = if let Some(coordinate) = self.pointer_coordinate {
+            format!("x: {:.03}, y: {:.03}", coordinate.x, coordinate.y)
+        } else {
+            "None".to_string()
+        };
+        ui.label(format!("pointer coordinate: {}", coordinate_text));
+        let coordinate_text = format!(
+            "x: {:.03}, y: {:.03}",
+            self.pointer_coordinate_drag_delta.x, self.pointer_coordinate_drag_delta.y
+        );
+        ui.label(format!(
+            "pointer coordinate drag delta: {}",
+            coordinate_text
+        ));
+        let plot = Plot::new("interaction_demo");
+        plot.show(ui, |plot_ui| {
+            self.pointer_coordinate = plot_ui.pointer_coordinate();
+            self.pointer_coordinate_drag_delta = plot_ui.pointer_coordinate_drag_delta();
+        })
     }
 }
 
@@ -374,6 +414,7 @@ enum Panel {
     Markers,
     Legend,
     Items,
+    Interaction,
 }
 
 impl Default for Panel {
@@ -388,6 +429,7 @@ pub struct PlotDemo {
     marker_demo: MarkerDemo,
     legend_demo: LegendDemo,
     items_demo: ItemsDemo,
+    interaction_demo: InteractionDemo,
     open_panel: Panel,
 }
 
@@ -413,7 +455,7 @@ impl super::View for PlotDemo {
             ui.collapsing("Instructions", |ui| {
                 ui.label("Pan by dragging, or scroll (+ shift = horizontal).");
                 if cfg!(target_arch = "wasm32") {
-                    ui.label("Zoom with ctrl / ⌘ + mouse wheel, or with pinch gesture.");
+                    ui.label("Zoom with ctrl / ⌘ + pointer wheel, or with pinch gesture.");
                 } else if cfg!(target_os = "macos") {
                     ui.label("Zoom with ctrl / ⌘ + scroll.");
                 } else {
@@ -429,6 +471,7 @@ impl super::View for PlotDemo {
             ui.selectable_value(&mut self.open_panel, Panel::Markers, "Markers");
             ui.selectable_value(&mut self.open_panel, Panel::Legend, "Legend");
             ui.selectable_value(&mut self.open_panel, Panel::Items, "Items");
+            ui.selectable_value(&mut self.open_panel, Panel::Interaction, "Interaction");
         });
         ui.separator();
 
@@ -444,6 +487,9 @@ impl super::View for PlotDemo {
             }
             Panel::Items => {
                 ui.add(&mut self.items_demo);
+            }
+            Panel::Interaction => {
+                ui.add(&mut self.interaction_demo);
             }
         }
     }
