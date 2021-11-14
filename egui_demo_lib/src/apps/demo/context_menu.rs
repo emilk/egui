@@ -131,6 +131,7 @@ impl ContextMenus {
             .height(self.height)
             .data_aspect(1.0)
             .show(ui, |plot_ui| plot_ui.line(line))
+            .response
     }
 
     fn nested_menus(ui: &mut egui::Ui) {
