@@ -12,7 +12,9 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * You can now read and write the cursor of a `TextEdit` ([#848](https://github.com/emilk/egui/pull/848)).
 * Most widgets containing text (`Label`, `Button` etc) now supports rich text ([#855](https://github.com/emilk/egui/pull/855)).
 * When using a custom font you can now specify a font index ([#873](https://github.com/emilk/egui/pull/873)).
-* You can now read the plot coordinates of the mouse when building a `Plot` ([#766](https://github.com/emilk/egui/pull/766)).
+* You can now query information about the plot (e.g. get the mouse position in plot coordinates, or the plot
+  bounds) while adding items. `Plot` ([#766](https://github.com/emilk/egui/pull/766) and
+  [#892](https://github.com/emilk/egui/pull/892)).
 * Add vertical sliders with `Slider::new(…).vertical()` ([#875](https://github.com/emilk/egui/pull/875)).
 * Add `Button::image_and_text` ([#832](https://github.com/emilk/egui/pull/832)).
 
@@ -36,7 +38,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * [5225225](https://github.com/5225225): ([#849](https://github.com/emilk/egui/pull/849)).
 * [B-Reif](https://github.com/B-Reif) ([#875](https://github.com/emilk/egui/pull/875)).
 * [d10sfan](https://github.com/d10sfan) ([#832](https://github.com/emilk/egui/pull/832)).
-* [EmbersArc](https://github.com/EmbersArc): ([#766](https://github.com/emilk/egui/pull/766)).
+* [EmbersArc](https://github.com/EmbersArc): ([#766](https://github.com/emilk/egui/pull/766), [#892](https://github.com/emilk/egui/pull/892)).
 * [mankinskin](https://github.com/mankinskin) ([#543](https://github.com/emilk/egui/pull/543)).
 * [sumibi-yakitori](https://github.com/sumibi-yakitori) ([#830](https://github.com/emilk/egui/pull/830)).
 * [t18b219k](https://github.com/t18b219k): ([#868](https://github.com/emilk/egui/pull/868), [#888](https://github.com/emilk/egui/pull/888)).
