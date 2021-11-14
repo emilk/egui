@@ -390,25 +390,27 @@ impl Widget for &mut InteractionDemo {
 
         let InnerResponse {
             response,
-            inner: (screen_pos, pointer_coordinate, pointer_coordinate_drag_delta, bounds),
+            inner: (screen_pos, pointer_coordinate, pointer_coordinate_drag_delta, bounds, hovered),
         } = plot.show(ui, |plot_ui| {
             (
                 plot_ui.screen_from_plot(Value::new(0.0, 0.0)),
                 plot_ui.pointer_coordinate(),
                 plot_ui.pointer_coordinate_drag_delta(),
                 plot_ui.plot_bounds(),
+                plot_ui.plot_hovered(),
             )
         });
 
         ui.label(format!(
-            "Plot bounds: min: {:.02?}, max: {:.02?}",
+            "plot bounds: min: {:.02?}, max: {:.02?}",
             bounds.min(),
             bounds.max()
         ));
         ui.label(format!(
-            "Origin in screen coordinates: x: {:.02}, y: {:.02}",
+            "origin in screen coordinates: x: {:.02}, y: {:.02}",
             screen_pos.x, screen_pos.y
         ));
+        ui.label(format!("plot hovered: {}", hovered));
         let coordinate_text = if let Some(coordinate) = pointer_coordinate {
             format!("x: {:.02}, y: {:.02}", coordinate.x, coordinate.y)
         } else {
