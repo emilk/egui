@@ -579,7 +579,7 @@ impl Values {
 
 // ----------------------------------------------------------------------------
 
-/// Trait that abstracts from rectangular 'Value'-like elements, such as bars or boxplots
+/// Trait that abstracts from rectangular 'Value'-like elements, such as bars or boxes
 trait RectElem {
     fn name(&self) -> &str;
     fn bounds_min(&self) -> Value;
@@ -1572,8 +1572,8 @@ impl Default for Orientation {
     }
 }
 
-/// One bar in a bar chart. Potentially floating, allowing stacked bar charts.
-/// Width can be changed to allow variable width histograms.
+/// One bar in a [`BarChart`]. Potentially floating, allowing stacked bar charts.
+/// Width can be changed to allow variable-width histograms.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Bar {
     /// Name of plot element in the diagram (annotated by default formatter)
@@ -2003,14 +2003,14 @@ impl PlotItem for BarChart {
     }
 }
 
-/// A boxplot. This is a low level element, it will not compute quartiles and whiskers,
-/// letting one use their preferred formula. Use [[`Points`]] to draw the outliers.
+/// A box in a [`BoxPlot`] diagram. This is a low level graphical element; it will not compute quartiles and whiskers,
+/// letting one use their preferred formula. Use [`Points`] to draw the outliers.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Boxplot {
+pub struct BoxElem {
     /// Name of plot element in the diagram (annotated by default formatter).
     pub name: String,
 
-    /// Which direction the boxplot faces in the diagram.
+    /// Which direction the box faces in the diagram.
     pub orientation: Orientation,
 
     /// Position on the argument (input) axis -- X if vertical, Y if horizontal.
@@ -2048,10 +2048,10 @@ pub struct Boxplot {
     pub fill: Color32,
 }
 
-impl Boxplot {
-    /// Create a boxplot element. Its `orientation` is set by its [`BoxplotDiagram`] parent.
+impl BoxElem {
+    /// Create a box element. Its `orientation` is set by its [`BoxPlot`] parent.
     ///
-    /// Check [`Boxplot`] fields for detailed description.
+    /// Check [`BoxElem`] fields for detailed description.
     pub fn new(
         argument: f64,
         lower_whisker: f64,
@@ -2076,7 +2076,7 @@ impl Boxplot {
         }
     }
 
-    /// Name of this boxplot element.
+    /// Name of this box element.
     #[allow(clippy::needless_pass_by_value)]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
@@ -2186,7 +2186,7 @@ impl Boxplot {
 
     fn add_rulers_and_text(
         &self,
-        parent: &BoxplotDiagram,
+        parent: &BoxPlot,
         plot: &PlotConfig<'_>,
         shapes: &mut Vec<Shape>,
     ) {
@@ -2199,7 +2199,7 @@ impl Boxplot {
     }
 }
 
-impl RectElem for Boxplot {
+impl RectElem for BoxElem {
     fn name(&self) -> &str {
         self.name.as_str()
     }
@@ -2253,11 +2253,11 @@ impl RectElem for Boxplot {
     }
 }
 
-pub type ElemFormatter = dyn Fn(&Boxplot, &BoxplotDiagram) -> String;
+pub type ElemFormatter = dyn Fn(&BoxElem, &BoxPlot) -> String;
 
-/// A series of boxplots.
-pub struct BoxplotDiagram {
-    pub(super) plots: Vec<Boxplot>,
+/// A diagram containing a series of [`BoxElem`] elements.
+pub struct BoxPlot {
+    pub(super) boxes: Vec<BoxElem>,
     pub(super) default_color: Color32,
     pub name: String,
     /// A custom element formatter
@@ -2265,11 +2265,11 @@ pub struct BoxplotDiagram {
     highlight: bool,
 }
 
-impl BoxplotDiagram {
-    /// Create a series of boxplots. It defaults to vertically oriented elements.
-    pub fn new(plots: Vec<Boxplot>) -> Self {
+impl BoxPlot {
+    /// Create a plot containing multiple `boxes`. It defaults to vertically oriented elements.
+    pub fn new(boxes: Vec<BoxElem>) -> Self {
         Self {
-            plots,
+            boxes,
             default_color: Color32::TRANSPARENT,
             name: String::new(),
             element_formatter: None,
@@ -2279,22 +2279,23 @@ impl BoxplotDiagram {
 
     /// Set the default color. It is set on all elements that do not already have a specific color.
     /// This is the color that shows up in the legend.
-    /// It can be overridden at the boxplot level (see [[`Boxplot`]]).
+    /// It can be overridden at the element level (see [`BoxElem`]).
     /// Default is `Color32::TRANSPARENT` which means a color will be auto-assigned.
     pub fn color(mut self, color: impl Into<Color32>) -> Self {
         let plot_color = color.into();
         self.default_color = plot_color;
-        self.plots.iter_mut().for_each(|boxplot| {
-            if boxplot.fill == Color32::TRANSPARENT && boxplot.stroke.color == Color32::TRANSPARENT
+        self.boxes.iter_mut().for_each(|box_elem| {
+            if box_elem.fill == Color32::TRANSPARENT
+                && box_elem.stroke.color == Color32::TRANSPARENT
             {
-                boxplot.fill = plot_color.linear_multiply(0.2);
-                boxplot.stroke.color = plot_color;
+                box_elem.fill = plot_color.linear_multiply(0.2);
+                box_elem.stroke.color = plot_color;
             }
         });
         self
     }
 
-    /// Name of this series of boxplots.
+    /// Name of this box plot diagram.
     ///
     /// This name will show up in the plot legend, if legends are turned on. Multiple series may
     /// share the same name, in which case they will also share an entry in the legend.
@@ -2307,8 +2308,8 @@ impl BoxplotDiagram {
     /// Set all elements to be in a vertical orientation.
     /// Key axis will be X and values will be on the Y axis.
     pub fn vertical(mut self) -> Self {
-        self.plots.iter_mut().for_each(|boxplot| {
-            boxplot.orientation = Orientation::Vertical;
+        self.boxes.iter_mut().for_each(|box_elem| {
+            box_elem.orientation = Orientation::Vertical;
         });
         self
     }
@@ -2316,8 +2317,8 @@ impl BoxplotDiagram {
     /// Set all elements to be in a horizontal orientation.
     /// Key axis will be Y and values will be on the X axis.
     pub fn horizontal(mut self) -> Self {
-        self.plots.iter_mut().for_each(|boxplot| {
-            boxplot.orientation = Orientation::Horizontal;
+        self.boxes.iter_mut().for_each(|box_elem| {
+            box_elem.orientation = Orientation::Horizontal;
         });
         self
     }
@@ -2332,16 +2333,16 @@ impl BoxplotDiagram {
     /// Can be used to display a set number of decimals or custom labels.
     pub fn element_formatter(
         mut self,
-        formatter: Box<dyn Fn(&Boxplot, &BoxplotDiagram) -> String>,
+        formatter: Box<dyn Fn(&BoxElem, &BoxPlot) -> String>,
     ) -> Self {
         self.element_formatter = Some(formatter);
         self
     }
 }
 
-impl PlotItem for BoxplotDiagram {
+impl PlotItem for BoxPlot {
     fn get_shapes(&self, _ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
-        self.plots.iter().for_each(|b| {
+        self.boxes.iter().for_each(|b| {
             b.add_shapes(transform, self.highlight, shapes);
         });
     }
@@ -2372,18 +2373,18 @@ impl PlotItem for BoxplotDiagram {
 
     fn get_bounds(&self) -> Bounds {
         let mut bounds = Bounds::NOTHING;
-        self.plots.iter().for_each(|b| {
+        self.boxes.iter().for_each(|b| {
             bounds.merge(&b.bounds());
         });
         bounds
     }
 
     fn find_closest(&self, point: Pos2, transform: &ScreenTransform) -> Option<HoverElem> {
-        find_closest_rect(&self.plots, point, transform)
+        find_closest_rect(&self.boxes, point, transform)
     }
 
     fn on_hover(&self, elem: HoverElem, shapes: &mut Vec<Shape>, plot: &PlotConfig<'_>) {
-        let box_plot = &self.plots[elem.index];
+        let box_plot = &self.boxes[elem.index];
 
         box_plot.add_shapes(plot.transform, true, shapes);
         box_plot.add_rulers_and_text(self, plot, shapes);

@@ -6,7 +6,7 @@ mod transform;
 
 use items::PlotItem;
 pub use items::{
-    Arrows, Bar, BarChart, Boxplot, BoxplotDiagram, HLine, Line, LineStyle, MarkerShape, PlotImage,
+    Arrows, Bar, BarChart, BoxElem, BoxPlot, HLine, Line, LineStyle, MarkerShape, PlotImage,
     Points, Polygon, Text, VLine, Value, Values,
 };
 use legend::LegendWidget;
@@ -564,18 +564,18 @@ impl PlotUi {
         self.items.push(Box::new(vline));
     }
 
-    /// Add a series of boxplots.
-    /// You can add multiple such series.
-    pub fn boxplots(&mut self, mut boxplots: BoxplotDiagram) {
-        if boxplots.plots.is_empty() {
+    /// Add a box plot diagram.
+    /// You can add multiple such diagrams.
+    pub fn box_plot(&mut self, mut box_plot: BoxPlot) {
+        if box_plot.boxes.is_empty() {
             return;
         }
 
         // Give the elements an automatic color if no color has been assigned.
-        if boxplots.default_color == Color32::TRANSPARENT {
-            boxplots = boxplots.color(self.auto_color());
+        if box_plot.default_color == Color32::TRANSPARENT {
+            box_plot = box_plot.color(self.auto_color());
         }
-        self.items.push(Box::new(boxplots));
+        self.items.push(Box::new(box_plot));
     }
 
     /// Add a bar chart.

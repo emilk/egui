@@ -1,7 +1,7 @@
 use egui::*;
 use plot::{
-    Arrows, Bar, BarChart, Boxplot, BoxplotDiagram, Corner, HLine, Legend, Line, LineStyle,
-    MarkerShape, Plot, PlotImage, Points, Polygon, Text, VLine, Value, Values,
+    Arrows, Bar, BarChart, BoxElem, BoxPlot, Corner, HLine, Legend, Line, LineStyle, MarkerShape,
+    Plot, PlotImage, Points, Polygon, Text, VLine, Value, Values,
 };
 use std::f64::consts::TAU;
 
@@ -412,7 +412,7 @@ impl Widget for &mut InteractionDemo {
 enum Chart {
     GaussBars,
     StackedBars,
-    Boxplots,
+    BoxPlot,
 }
 
 impl Default for Chart {
@@ -437,7 +437,7 @@ impl Default for ChartsDemo {
 }
 
 impl ChartsDemo {
-    fn gauss(&self, ui: &mut Ui) -> Response {
+    fn bar_gauss(&self, ui: &mut Ui) -> Response {
         let mut chart = BarChart::new(
             (-395..=395)
                 .step_by(10)
@@ -458,15 +458,13 @@ impl ChartsDemo {
             chart = chart.horizontal();
         }
 
-        let plot_response = Plot::new("Normal Distribution Demo")
+        Plot::new("Normal Distribution Demo")
             .legend(Legend::default())
             .data_aspect(1.0)
-            .show(ui, |plot_ui| plot_ui.bar_chart(chart));
-
-        plot_response
+            .show(ui, |plot_ui| plot_ui.bar_chart(chart))
     }
 
-    fn stacked(&self, ui: &mut Ui) -> Response {
+    fn bar_stacked(&self, ui: &mut Ui) -> Response {
         let mut chart1 = BarChart::new(vec![
             Bar::new(0.5, 1.0).name("Day 1"),
             Bar::new(1.5, 3.0).name("Day 2"),
@@ -517,41 +515,40 @@ impl ChartsDemo {
             chart4 = chart4.horizontal();
         }
 
-        let mut plot = Plot::new("Stacked Bar Chart Demo")
+        Plot::new("Stacked Bar Chart Demo")
             .legend(Legend::default())
-            .data_aspect(1.0);
-        let plot_response = plot.show(ui, |plot_ui| {
-            plot_ui.bar_chart(chart1);
-            plot_ui.bar_chart(chart2);
-            plot_ui.bar_chart(chart3);
-            plot_ui.bar_chart(chart4);
-        });
-        plot_response
+            .data_aspect(1.0)
+            .show(ui, |plot_ui| {
+                plot_ui.bar_chart(chart1);
+                plot_ui.bar_chart(chart2);
+                plot_ui.bar_chart(chart3);
+                plot_ui.bar_chart(chart4);
+            })
     }
 
-    fn boxplots(&self, ui: &mut Ui) -> Response {
+    fn box_plot(&self, ui: &mut Ui) -> Response {
         let yellow = Color32::from_rgb(248, 252, 168);
-        let mut box1 = BoxplotDiagram::new(vec![
-            Boxplot::new(0.5, 1.5, 2.2, 2.5, 2.6, 3.1).name("Day 1"),
-            Boxplot::new(2.5, 0.4, 1.0, 1.1, 1.4, 2.1).name("Day 2"),
-            Boxplot::new(4.5, 1.7, 2.0, 2.2, 2.5, 2.9).name("Day 3"),
+        let mut box1 = BoxPlot::new(vec![
+            BoxElem::new(0.5, 1.5, 2.2, 2.5, 2.6, 3.1).name("Day 1"),
+            BoxElem::new(2.5, 0.4, 1.0, 1.1, 1.4, 2.1).name("Day 2"),
+            BoxElem::new(4.5, 1.7, 2.0, 2.2, 2.5, 2.9).name("Day 3"),
         ])
         .name("Experiment A");
 
-        let mut box2 = BoxplotDiagram::new(vec![
-            Boxplot::new(1.0, 0.2, 0.5, 1.0, 2.0, 2.7).name("Day 1"),
-            Boxplot::new(3.0, 1.5, 1.7, 2.1, 2.9, 3.3)
+        let mut box2 = BoxPlot::new(vec![
+            BoxElem::new(1.0, 0.2, 0.5, 1.0, 2.0, 2.7).name("Day 1"),
+            BoxElem::new(3.0, 1.5, 1.7, 2.1, 2.9, 3.3)
                 .name("Day 2: interesting")
                 .stroke(Stroke::new(1.5, yellow))
                 .fill(yellow.linear_multiply(0.2)),
-            Boxplot::new(5.0, 1.3, 2.0, 2.3, 2.9, 4.0).name("Day 3"),
+            BoxElem::new(5.0, 1.3, 2.0, 2.3, 2.9, 4.0).name("Day 3"),
         ])
         .name("Experiment B");
 
-        let mut box3 = BoxplotDiagram::new(vec![
-            Boxplot::new(1.5, 2.1, 2.2, 2.6, 2.8, 3.0).name("Day 1"),
-            Boxplot::new(3.5, 1.3, 1.5, 1.9, 2.2, 2.4).name("Day 2"),
-            Boxplot::new(5.5, 0.2, 0.4, 1.0, 1.3, 1.5).name("Day 3"),
+        let mut box3 = BoxPlot::new(vec![
+            BoxElem::new(1.5, 2.1, 2.2, 2.6, 2.8, 3.0).name("Day 1"),
+            BoxElem::new(3.5, 1.3, 1.5, 1.9, 2.2, 2.4).name("Day 2"),
+            BoxElem::new(5.5, 0.2, 0.4, 1.0, 1.3, 1.5).name("Day 3"),
         ])
         .name("Experiment C");
 
@@ -561,15 +558,13 @@ impl ChartsDemo {
             box3 = box3.horizontal();
         }
 
-        let plot_response =
-            Plot::new("Boxplots Demo")
-                .legend(Legend::default())
-                .show(ui, |plot_ui| {
-                    plot_ui.boxplots(box1);
-                    plot_ui.boxplots(box2);
-                    plot_ui.boxplots(box3);
-                });
-        plot_response
+        Plot::new("Box Plot Demo")
+            .legend(Legend::default())
+            .show(ui, |plot_ui| {
+                plot_ui.box_plot(box1);
+                plot_ui.box_plot(box2);
+                plot_ui.box_plot(box3);
+            })
     }
 }
 
@@ -579,7 +574,7 @@ impl Widget for &mut ChartsDemo {
         ui.horizontal(|ui| {
             ui.selectable_value(&mut self.chart, Chart::GaussBars, "Histogram");
             ui.selectable_value(&mut self.chart, Chart::StackedBars, "Stacked Bar Chart");
-            ui.selectable_value(&mut self.chart, Chart::Boxplots, "Boxplots");
+            ui.selectable_value(&mut self.chart, Chart::BoxPlot, "Box Plot");
         });
         ui.label("Orientation:");
         ui.horizontal(|ui| {
@@ -587,9 +582,9 @@ impl Widget for &mut ChartsDemo {
             ui.selectable_value(&mut self.vertical, false, "Horizontal");
         });
         match self.chart {
-            Chart::GaussBars => self.gauss(ui),
-            Chart::StackedBars => self.stacked(ui),
-            Chart::Boxplots => self.boxplots(ui),
+            Chart::GaussBars => self.bar_gauss(ui),
+            Chart::StackedBars => self.bar_stacked(ui),
+            Chart::BoxPlot => self.box_plot(ui),
         }
     }
 }
