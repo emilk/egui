@@ -80,12 +80,12 @@ pub(crate) unsafe fn as_u8_slice<T>(s: &[T]) -> &[u8] {
 }
 
 #[cfg(target_arch = "wasm32")]
-pub(crate) fn glow_debug_print(s: impl Into<JsValue>) {
-    web_sys::console::log_1(&s.into());
+pub(crate) fn glow_debug_print(s: impl std::fmt::Display) {
+    web_sys::console::log_1(&format!("egui_glow: {}", s).into());
 }
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn glow_debug_print(s: impl std::fmt::Display) {
-    println!("{}", s);
+    eprintln!("egui_glow: {}", s);
 }
 
 pub(crate) unsafe fn compile_shader(
@@ -184,10 +184,11 @@ impl VAO {
     }
 }
 
-pub(crate) unsafe fn need_to_emulate_vao(gl: &glow::Context) -> bool {
+/// If returned true no need to emulate vao
+pub(crate) fn supports_vao(gl: &glow::Context) -> bool {
     let web_sig = "WebGL ";
     let es_sig = "OpenGL ES ";
-    let version_string = gl.get_parameter_string(glow::VERSION);
+    let version_string = unsafe { gl.get_parameter_string(glow::VERSION) };
     if let Some(pos) = version_string.rfind(web_sig) {
         let version_str = &version_string[pos + web_sig.len()..];
         glow_debug_print(format!(
@@ -200,7 +201,7 @@ pub(crate) unsafe fn need_to_emulate_vao(gl: &glow::Context) -> bool {
             gl.supported_extensions()
                 .contains("OES_vertex_array_object")
         } else {
-            false
+            true
         }
     } else if let Some(pos) = version_string.rfind(es_sig) {
         //glow targets es2.0+ so we don't concern about OpenGL ES-CM,OpenGL ES-CL
@@ -214,10 +215,10 @@ pub(crate) unsafe fn need_to_emulate_vao(gl: &glow::Context) -> bool {
             gl.supported_extensions()
                 .contains("OES_vertex_array_object")
         } else {
-            false
+            true
         }
     } else {
-        glow_debug_print(format!("detected OpenGL:{}", version_string));
+        glow_debug_print(format!("detected OpenGL: {:?}", version_string));
         //from OpenGL 3 vao into core
         if version_string.starts_with('2') {
             // I found APPLE_vertex_array_object , GL_ATI_vertex_array_object ,ARB_vertex_array_object
@@ -225,7 +226,7 @@ pub(crate) unsafe fn need_to_emulate_vao(gl: &glow::Context) -> bool {
             gl.supported_extensions()
                 .contains("ARB_vertex_array_object")
         } else {
-            false
+            true
         }
     }
 }

@@ -52,6 +52,8 @@ fn main() {
     let glium_texture = std::rc::Rc::new(glium_texture);
     // Allocate egui's texture id for GL texture
     let texture_id = egui_glium.painter.register_native_texture(glium_texture);
+    // Setup button image size for reasonable image size for button container.
+    let button_image_size = egui::Vec2::new(32_f32, 32_f32);
 
     event_loop.run(move |event, _, control_flow| {
         let mut redraw = || {
@@ -59,7 +61,14 @@ fn main() {
 
             let (needs_repaint, shapes) = egui_glium.run(&display, |egui_ctx| {
                 egui::SidePanel::left("my_side_panel").show(egui_ctx, |ui| {
-                    if ui.button("Quit").clicked() {
+                    if ui
+                        .add(egui::Button::image_and_text(
+                            texture_id,
+                            button_image_size,
+                            "Quit",
+                        ))
+                        .clicked()
+                    {
                         quit = true;
                     }
                 });

@@ -29,6 +29,7 @@ pub struct Button {
     small: bool,
     frame: Option<bool>,
     min_size: Vec2,
+    image: Option<widgets::Image>,
 }
 
 impl Button {
@@ -42,6 +43,27 @@ impl Button {
             small: false,
             frame: None,
             min_size: Vec2::ZERO,
+            image: None,
+        }
+    }
+
+    /// Creates a button with an image to the left of the text. The size of the image as displayed is defined by the size Vec2 provided.
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn image_and_text(
+        texture_id: TextureId,
+        size: impl Into<Vec2>,
+        text: impl Into<WidgetText>,
+    ) -> Self {
+        Self {
+            text: text.into(),
+            fill: None,
+            stroke: None,
+            sense: Sense::click(),
+            small: false,
+            frame: None,
+            wrap: None,
+            min_size: Vec2::ZERO,
+            image: Some(widgets::Image::new(texture_id, size)),
         }
     }
 
@@ -123,6 +145,7 @@ impl Widget for Button {
             small,
             frame,
             min_size,
+            image,
         } = self;
 
         let frame = frame.unwrap_or_else(|| ui.visuals().button_frame);
@@ -142,15 +165,27 @@ impl Widget for Button {
         }
         desired_size = desired_size.at_least(min_size);
 
+        if let Some(image) = image {
+            desired_size.x += image.size().x + ui.spacing().icon_spacing;
+            desired_size.y = desired_size.y.max(image.size().y + 2.0 * button_padding.y);
+        }
+
         let (rect, response) = ui.allocate_at_least(desired_size, sense);
         response.widget_info(|| WidgetInfo::labeled(WidgetType::Button, text.text()));
 
         if ui.is_rect_visible(rect) {
             let visuals = ui.style().interact(&response);
-            let text_pos = ui
-                .layout()
-                .align_size_within_rect(text.size(), rect.shrink2(button_padding))
-                .min;
+            let text_pos = if let Some(image) = image {
+                let icon_spacing = ui.spacing().icon_spacing;
+                pos2(
+                    rect.min.x + button_padding.x + image.size().x + icon_spacing,
+                    rect.center().y - 0.5 * text.size().y,
+                )
+            } else {
+                ui.layout()
+                    .align_size_within_rect(text.size(), rect.shrink2(button_padding))
+                    .min
+            };
 
             if frame {
                 let fill = fill.unwrap_or(visuals.bg_fill);
@@ -164,6 +199,14 @@ impl Widget for Button {
             }
 
             text.paint_with_visuals(ui.painter(), text_pos, visuals);
+        }
+
+        if let Some(image) = image {
+            let image_rect = Rect::from_min_size(
+                pos2(rect.min.x, rect.center().y - 0.5 - (image.size().y / 2.0)),
+                image.size(),
+            );
+            image.paint_at(ui, image_rect);
         }
 
         response

@@ -29,6 +29,7 @@ struct PlotMemory {
     hovered_entry: Option<String>,
     hidden_items: AHashSet<String>,
     min_auto_bounds: Bounds,
+    last_screen_transform: Option<ScreenTransform>,
 }
 
 impl PlotMemory {
@@ -55,16 +56,11 @@ impl PlotMemory {
 ///     Value::new(x, x.sin())
 /// });
 /// let line = Line::new(Values::from_values_iter(sin));
-/// ui.add(
-///     Plot::new("my_plot").line(line).view_aspect(2.0)
-/// );
+/// Plot::new("my_plot").view_aspect(2.0).show(ui, |plot_ui| plot_ui.line(line));
 /// # });
 /// ```
 pub struct Plot {
     id_source: Id,
-    next_auto_color_idx: usize,
-
-    items: Vec<Box<dyn PlotItem>>,
 
     center_x_axis: bool,
     center_y_axis: bool,
@@ -91,9 +87,6 @@ impl Plot {
     pub fn new(id_source: impl std::hash::Hash) -> Self {
         Self {
             id_source: Id::new(id_source),
-            next_auto_color_idx: 0,
-
-            items: Default::default(),
 
             center_x_axis: false,
             center_y_axis: false,
@@ -114,138 +107,6 @@ impl Plot {
             show_background: true,
             show_axes: [true; 2],
         }
-    }
-
-    fn auto_color(&mut self) -> Color32 {
-        let i = self.next_auto_color_idx;
-        self.next_auto_color_idx += 1;
-        let golden_ratio = (5.0_f32.sqrt() - 1.0) / 2.0; // 0.61803398875
-        let h = i as f32 * golden_ratio;
-        Hsva::new(h, 0.85, 0.5, 1.0).into() // TODO: OkLab or some other perspective color space
-    }
-
-    /// Add a data lines.
-    pub fn line(mut self, mut line: Line) -> Self {
-        if line.series.is_empty() {
-            return self;
-        };
-
-        // Give the stroke an automatic color if no color has been assigned.
-        if line.stroke.color == Color32::TRANSPARENT {
-            line.stroke.color = self.auto_color();
-        }
-        self.items.push(Box::new(line));
-        self
-    }
-
-    /// Add a polygon. The polygon has to be convex.
-    pub fn polygon(mut self, mut polygon: Polygon) -> Self {
-        if polygon.series.is_empty() {
-            return self;
-        };
-
-        // Give the stroke an automatic color if no color has been assigned.
-        if polygon.stroke.color == Color32::TRANSPARENT {
-            polygon.stroke.color = self.auto_color();
-        }
-        self.items.push(Box::new(polygon));
-        self
-    }
-
-    /// Add a text.
-    pub fn text(mut self, text: Text) -> Self {
-        if text.text.is_empty() {
-            return self;
-        };
-
-        self.items.push(Box::new(text));
-        self
-    }
-
-    /// Add data points.
-    pub fn points(mut self, mut points: Points) -> Self {
-        if points.series.is_empty() {
-            return self;
-        };
-
-        // Give the points an automatic color if no color has been assigned.
-        if points.color == Color32::TRANSPARENT {
-            points.color = self.auto_color();
-        }
-        self.items.push(Box::new(points));
-        self
-    }
-
-    /// Add arrows.
-    pub fn arrows(mut self, mut arrows: Arrows) -> Self {
-        if arrows.origins.is_empty() || arrows.tips.is_empty() {
-            return self;
-        };
-
-        // Give the arrows an automatic color if no color has been assigned.
-        if arrows.color == Color32::TRANSPARENT {
-            arrows.color = self.auto_color();
-        }
-        self.items.push(Box::new(arrows));
-        self
-    }
-
-    /// Add an image.
-    pub fn image(mut self, image: PlotImage) -> Self {
-        self.items.push(Box::new(image));
-        self
-    }
-
-    /// Add a series of boxplots.
-    /// You can add multiple such series.
-    pub fn boxplots(mut self, mut boxplots: BoxplotDiagram) -> Self {
-        if boxplots.plots.is_empty() {
-            return self;
-        }
-
-        // Give the elements an automatic color if no color has been assigned.
-        if boxplots.default_color == Color32::TRANSPARENT {
-            boxplots = boxplots.color(self.auto_color());
-        }
-        self.items.push(Box::new(boxplots));
-
-        self
-    }
-
-    /// Add a bar chart.
-    /// You can add multiple such charts.
-    pub fn bar_chart(mut self, mut chart: BarChart) -> Self {
-        if chart.bars.is_empty() {
-            return self;
-        }
-        // Give the elements an automatic color if no color has been assigned.
-        if chart.default_color == Color32::TRANSPARENT {
-            chart = chart.color(self.auto_color());
-        }
-        self.items.push(Box::new(chart));
-        self
-    }
-
-    /// Add a horizontal line.
-    /// Can be useful e.g. to show min/max bounds or similar.
-    /// Always fills the full width of the plot.
-    pub fn hline(mut self, mut hline: HLine) -> Self {
-        if hline.stroke.color == Color32::TRANSPARENT {
-            hline.stroke.color = self.auto_color();
-        }
-        self.items.push(Box::new(hline));
-        self
-    }
-
-    /// Add a vertical line.
-    /// Can be useful e.g. to show min/max bounds or similar.
-    /// Always fills the full height of the plot.
-    pub fn vline(mut self, mut vline: VLine) -> Self {
-        if vline.stroke.color == Color32::TRANSPARENT {
-            vline.stroke.color = self.auto_color();
-        }
-        self.items.push(Box::new(vline));
-        self
     }
 
     /// width / height ratio of the data.
@@ -357,14 +218,11 @@ impl Plot {
         self.show_axes = show;
         self
     }
-}
 
-impl Widget for Plot {
-    fn ui(self, ui: &mut Ui) -> Response {
+    /// Interact with and add items to the plot and finally draw it.
+    pub fn show(self, ui: &mut Ui, build_fn: impl FnOnce(&mut PlotUi)) -> Response {
         let Self {
             id_source,
-            next_auto_color_idx: _,
-            mut items,
             center_x_axis,
             center_y_axis,
             allow_zoom,
@@ -390,6 +248,7 @@ impl Widget for Plot {
             hovered_entry: None,
             hidden_items: Default::default(),
             min_auto_bounds,
+            last_screen_transform: None,
         });
 
         // If the min bounds changed, recalculate everything.
@@ -409,6 +268,7 @@ impl Widget for Plot {
             mut auto_bounds,
             mut hovered_entry,
             mut hidden_items,
+            last_screen_transform,
             ..
         } = memory;
 
@@ -439,6 +299,20 @@ impl Widget for Plot {
         let (rect, response) = ui.allocate_exact_size(size, Sense::drag());
         let plot_painter = ui.painter().sub_region(rect);
 
+        // Call the plot build function.
+        let mut plot_ui = PlotUi {
+            items: Vec::new(),
+            next_auto_color_idx: 0,
+            last_screen_transform,
+            response,
+        };
+        build_fn(&mut plot_ui);
+        let PlotUi {
+            mut items,
+            response,
+            ..
+        } = plot_ui;
+
         // Background
         if show_background {
             plot_painter.add(epaint::RectShape {
@@ -452,7 +326,6 @@ impl Widget for Plot {
         // Legend
         let legend = legend_config
             .and_then(|config| LegendWidget::try_new(rect, config, &items, &hidden_items));
-
         // Don't show hover cursor when hovering over legend.
         if hovered_entry.is_some() {
             show_x = false;
@@ -470,6 +343,7 @@ impl Widget for Plot {
         // Move highlighted items to front.
         items.sort_by_key(|item| item.highlighted());
 
+        // Allow double clicking to reset to automatic bounds.
         auto_bounds |= response.double_clicked_by(PointerButton::Primary);
 
         // Set bounds automatically based on content.
@@ -480,18 +354,6 @@ impl Widget for Plot {
                 .for_each(|item| bounds.merge(&item.get_bounds()));
             bounds.add_relative_margin(margin_fraction);
         }
-        // Make sure they are not empty.
-        if !bounds.is_valid() {
-            bounds = Bounds::new_symmetrical(1.0);
-        }
-
-        // Scale axes so that the origin is in the center.
-        if center_x_axis {
-            bounds.make_x_symmetrical();
-        };
-        if center_y_axis {
-            bounds.make_y_symmetrical();
-        };
 
         let mut transform = ScreenTransform::new(rect, bounds, center_x_axis, center_y_axis);
 
@@ -534,12 +396,12 @@ impl Widget for Plot {
 
         let bounds = *transform.bounds();
 
-        let prepared = Prepared {
+        let prepared = PreparedPlot {
             items,
             show_x,
             show_y,
             show_axes,
-            transform,
+            transform: transform.clone(),
         };
         prepared.ui(ui, &response);
 
@@ -555,6 +417,7 @@ impl Widget for Plot {
             hovered_entry,
             hidden_items,
             min_auto_bounds,
+            last_screen_transform: Some(transform),
         };
         memory.store(ui.ctx(), plot_id);
 
@@ -566,7 +429,171 @@ impl Widget for Plot {
     }
 }
 
-struct Prepared {
+/// Provides methods to interact with a plot while building it. It is the single argument of the closure
+/// provided to `Plot::show`. See [`Plot`] for an example of how to use it.
+pub struct PlotUi {
+    items: Vec<Box<dyn PlotItem>>,
+    next_auto_color_idx: usize,
+    last_screen_transform: Option<ScreenTransform>,
+    response: Response,
+}
+
+impl PlotUi {
+    fn auto_color(&mut self) -> Color32 {
+        let i = self.next_auto_color_idx;
+        self.next_auto_color_idx += 1;
+        let golden_ratio = (5.0_f32.sqrt() - 1.0) / 2.0; // 0.61803398875
+        let h = i as f32 * golden_ratio;
+        Hsva::new(h, 0.85, 0.5, 1.0).into() // TODO: OkLab or some other perspective color space
+    }
+
+    /// The pointer position in plot coordinates, if the pointer is inside the plot area.
+    pub fn pointer_coordinate(&self) -> Option<Value> {
+        let last_screen_transform = self.last_screen_transform.as_ref()?;
+        // We need to subtract the drag delta to keep in sync with the frame-delayed screen transform:
+        let last_pos = self.response.hover_pos()? - self.response.drag_delta();
+        let value = last_screen_transform.value_from_position(last_pos);
+        Some(value)
+    }
+
+    /// The pointer drag delta in plot coordinates.
+    pub fn pointer_coordinate_drag_delta(&self) -> Vec2 {
+        self.last_screen_transform
+            .as_ref()
+            .map_or(Vec2::ZERO, |tf| {
+                let delta = self.response.drag_delta();
+                let dp_dv = tf.dpos_dvalue();
+                Vec2::new(delta.x / dp_dv[0] as f32, delta.y / dp_dv[1] as f32)
+            })
+    }
+
+    /// Transform the screen coordinates to plot coordinates.
+    pub fn plot_from_screen(&self, position: Pos2) -> Pos2 {
+        self.last_screen_transform
+            .as_ref()
+            .map_or(Pos2::ZERO, |tf| {
+                tf.position_from_value(&Value::new(position.x as f64, position.y as f64))
+            })
+            // We need to subtract the drag delta since the last frame.
+            - self.response.drag_delta()
+    }
+
+    /// Add a data line.
+    pub fn line(&mut self, mut line: Line) {
+        if line.series.is_empty() {
+            return;
+        };
+
+        // Give the stroke an automatic color if no color has been assigned.
+        if line.stroke.color == Color32::TRANSPARENT {
+            line.stroke.color = self.auto_color();
+        }
+        self.items.push(Box::new(line));
+    }
+
+    /// Add a polygon. The polygon has to be convex.
+    pub fn polygon(&mut self, mut polygon: Polygon) {
+        if polygon.series.is_empty() {
+            return;
+        };
+
+        // Give the stroke an automatic color if no color has been assigned.
+        if polygon.stroke.color == Color32::TRANSPARENT {
+            polygon.stroke.color = self.auto_color();
+        }
+        self.items.push(Box::new(polygon));
+    }
+
+    /// Add a text.
+    pub fn text(&mut self, text: Text) {
+        if text.text.is_empty() {
+            return;
+        };
+
+        self.items.push(Box::new(text));
+    }
+
+    /// Add data points.
+    pub fn points(&mut self, mut points: Points) {
+        if points.series.is_empty() {
+            return;
+        };
+
+        // Give the points an automatic color if no color has been assigned.
+        if points.color == Color32::TRANSPARENT {
+            points.color = self.auto_color();
+        }
+        self.items.push(Box::new(points));
+    }
+
+    /// Add arrows.
+    pub fn arrows(&mut self, mut arrows: Arrows) {
+        if arrows.origins.is_empty() || arrows.tips.is_empty() {
+            return;
+        };
+
+        // Give the arrows an automatic color if no color has been assigned.
+        if arrows.color == Color32::TRANSPARENT {
+            arrows.color = self.auto_color();
+        }
+        self.items.push(Box::new(arrows));
+    }
+
+    /// Add an image.
+    pub fn image(&mut self, image: PlotImage) {
+        self.items.push(Box::new(image));
+    }
+
+    /// Add a horizontal line.
+    /// Can be useful e.g. to show min/max bounds or similar.
+    /// Always fills the full width of the plot.
+    pub fn hline(&mut self, mut hline: HLine) {
+        if hline.stroke.color == Color32::TRANSPARENT {
+            hline.stroke.color = self.auto_color();
+        }
+        self.items.push(Box::new(hline));
+    }
+
+    /// Add a vertical line.
+    /// Can be useful e.g. to show min/max bounds or similar.
+    /// Always fills the full height of the plot.
+    pub fn vline(&mut self, mut vline: VLine) {
+        if vline.stroke.color == Color32::TRANSPARENT {
+            vline.stroke.color = self.auto_color();
+        }
+        self.items.push(Box::new(vline));
+    }
+
+    /// Add a series of boxplots.
+    /// You can add multiple such series.
+    pub fn boxplots(&mut self, mut boxplots: BoxplotDiagram) {
+        if boxplots.plots.is_empty() {
+            return;
+        }
+
+        // Give the elements an automatic color if no color has been assigned.
+        if boxplots.default_color == Color32::TRANSPARENT {
+            boxplots = boxplots.color(self.auto_color());
+        }
+        self.items.push(Box::new(boxplots));
+    }
+
+    /// Add a bar chart.
+    /// You can add multiple such charts.
+    pub fn bar_chart(&mut self, mut chart: BarChart) {
+        if chart.bars.is_empty() {
+            return;
+        }
+
+        // Give the elements an automatic color if no color has been assigned.
+        if chart.default_color == Color32::TRANSPARENT {
+            chart = chart.color(self.auto_color());
+        }
+        self.items.push(Box::new(chart));
+    }
+}
+
+struct PreparedPlot {
     items: Vec<Box<dyn PlotItem>>,
     show_x: bool,
     show_y: bool,
@@ -574,7 +601,7 @@ struct Prepared {
     transform: ScreenTransform,
 }
 
-impl Prepared {
+impl PreparedPlot {
     fn ui(self, ui: &mut Ui, response: &Response) {
         let mut shapes = Vec::new();
 

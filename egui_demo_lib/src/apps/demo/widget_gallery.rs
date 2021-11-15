@@ -211,8 +211,7 @@ impl WidgetGallery {
         ui.end_row();
 
         ui.add(doc_link_label("Plot", "plot"));
-        ui.add(example_plot());
-
+        example_plot(ui);
         ui.end_row();
 
         ui.hyperlink_to(
@@ -227,7 +226,7 @@ impl WidgetGallery {
     }
 }
 
-fn example_plot() -> egui::plot::Plot {
+fn example_plot(ui: &mut egui::Ui) -> egui::Response {
     use egui::plot::{Line, Value, Values};
     let n = 128;
     let line = Line::new(Values::from_values_iter((0..=n).map(|i| {
@@ -236,9 +235,9 @@ fn example_plot() -> egui::plot::Plot {
         Value::new(x, x.sin())
     })));
     egui::plot::Plot::new("example_plot")
-        .line(line)
         .height(32.0)
         .data_aspect(1.0)
+        .show(ui, |plot_ui| plot_ui.line(line))
 }
 
 fn doc_link_label<'a>(title: &'a str, search_term: &'a str) -> impl egui::Widget + 'a {

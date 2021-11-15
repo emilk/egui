@@ -377,11 +377,12 @@ fn stroke_path(
     options: &TessellationOptions,
     out: &mut Mesh,
 ) {
-    if stroke.width <= 0.0 || stroke.color == Color32::TRANSPARENT {
+    let n = path.len() as u32;
+
+    if stroke.width <= 0.0 || stroke.color == Color32::TRANSPARENT || n < 2 {
         return;
     }
 
-    let n = path.len() as u32;
     let idx = out.vertices.len() as u32;
 
     if options.anti_alias {
@@ -426,8 +427,7 @@ fn stroke_path(
                 i0 = i1;
             }
         } else {
-            // thick line
-            // TODO: line caps for really thick lines?
+            // thick anti-aliased line
 
             /*
             We paint the line using four edges: outer, inner, inner, outer
@@ -439,36 +439,119 @@ fn stroke_path(
             .           |-----|            inner_rad
             */
 
-            out.reserve_triangles(6 * n as usize);
-            out.reserve_vertices(4 * n as usize);
+            let inner_rad = 0.5 * (stroke.width - options.aa_size);
+            let outer_rad = 0.5 * (stroke.width + options.aa_size);
 
-            let mut i0 = n - 1;
-            for i1 in 0..n {
-                let connect_with_previous = path_type == PathType::Closed || i1 > 0;
-                let inner_rad = 0.5 * (stroke.width - options.aa_size);
-                let outer_rad = 0.5 * (stroke.width + options.aa_size);
-                let p1 = &path[i1 as usize];
-                let p = p1.pos;
-                let n = p1.normal;
-                out.colored_vertex(p + n * outer_rad, color_outer);
-                out.colored_vertex(p + n * inner_rad, color_inner);
-                out.colored_vertex(p - n * inner_rad, color_inner);
-                out.colored_vertex(p - n * outer_rad, color_outer);
+            match path_type {
+                PathType::Closed => {
+                    out.reserve_triangles(6 * n as usize);
+                    out.reserve_vertices(4 * n as usize);
 
-                if connect_with_previous {
-                    out.add_triangle(idx + 4 * i0 + 0, idx + 4 * i0 + 1, idx + 4 * i1 + 0);
-                    out.add_triangle(idx + 4 * i0 + 1, idx + 4 * i1 + 0, idx + 4 * i1 + 1);
+                    let mut i0 = n - 1;
+                    for i1 in 0..n {
+                        let p1 = &path[i1 as usize];
+                        let p = p1.pos;
+                        let n = p1.normal;
+                        out.colored_vertex(p + n * outer_rad, color_outer);
+                        out.colored_vertex(p + n * inner_rad, color_inner);
+                        out.colored_vertex(p - n * inner_rad, color_inner);
+                        out.colored_vertex(p - n * outer_rad, color_outer);
 
-                    out.add_triangle(idx + 4 * i0 + 1, idx + 4 * i0 + 2, idx + 4 * i1 + 1);
-                    out.add_triangle(idx + 4 * i0 + 2, idx + 4 * i1 + 1, idx + 4 * i1 + 2);
+                        out.add_triangle(idx + 4 * i0 + 0, idx + 4 * i0 + 1, idx + 4 * i1 + 0);
+                        out.add_triangle(idx + 4 * i0 + 1, idx + 4 * i1 + 0, idx + 4 * i1 + 1);
 
-                    out.add_triangle(idx + 4 * i0 + 2, idx + 4 * i0 + 3, idx + 4 * i1 + 2);
-                    out.add_triangle(idx + 4 * i0 + 3, idx + 4 * i1 + 2, idx + 4 * i1 + 3);
+                        out.add_triangle(idx + 4 * i0 + 1, idx + 4 * i0 + 2, idx + 4 * i1 + 1);
+                        out.add_triangle(idx + 4 * i0 + 2, idx + 4 * i1 + 1, idx + 4 * i1 + 2);
+
+                        out.add_triangle(idx + 4 * i0 + 2, idx + 4 * i0 + 3, idx + 4 * i1 + 2);
+                        out.add_triangle(idx + 4 * i0 + 3, idx + 4 * i1 + 2, idx + 4 * i1 + 3);
+
+                        i0 = i1;
+                    }
                 }
-                i0 = i1;
+                PathType::Open => {
+                    // Anti-alias the ends by extruding the outer edge and adding
+                    // two more triangles to each end:
+
+                    //   | aa |       | aa |
+                    //    _________________   ___
+                    //   | \    added    / |  aa_size
+                    //   |   \ ___p___ /   |  ___
+                    //   |    |       |    |
+                    //   |    |  opa  |    |
+                    //   |    |  que  |    |
+                    //   |    |       |    |
+
+                    // (in the future it would be great with an option to add a circular end instead)
+
+                    out.reserve_triangles(6 * n as usize + 4);
+                    out.reserve_vertices(4 * n as usize);
+
+                    {
+                        let end = &path[0];
+                        let p = end.pos;
+                        let n = end.normal;
+                        let back_extrude = n.rot90() * options.aa_size;
+                        out.colored_vertex(p + n * outer_rad + back_extrude, color_outer);
+                        out.colored_vertex(p + n * inner_rad, color_inner);
+                        out.colored_vertex(p - n * inner_rad, color_inner);
+                        out.colored_vertex(p - n * outer_rad + back_extrude, color_outer);
+
+                        out.add_triangle(idx + 0, idx + 1, idx + 2);
+                        out.add_triangle(idx + 0, idx + 2, idx + 3);
+                    }
+
+                    let mut i0 = 0;
+                    for i1 in 1..n - 1 {
+                        let point = &path[i1 as usize];
+                        let p = point.pos;
+                        let n = point.normal;
+                        out.colored_vertex(p + n * outer_rad, color_outer);
+                        out.colored_vertex(p + n * inner_rad, color_inner);
+                        out.colored_vertex(p - n * inner_rad, color_inner);
+                        out.colored_vertex(p - n * outer_rad, color_outer);
+
+                        out.add_triangle(idx + 4 * i0 + 0, idx + 4 * i0 + 1, idx + 4 * i1 + 0);
+                        out.add_triangle(idx + 4 * i0 + 1, idx + 4 * i1 + 0, idx + 4 * i1 + 1);
+
+                        out.add_triangle(idx + 4 * i0 + 1, idx + 4 * i0 + 2, idx + 4 * i1 + 1);
+                        out.add_triangle(idx + 4 * i0 + 2, idx + 4 * i1 + 1, idx + 4 * i1 + 2);
+
+                        out.add_triangle(idx + 4 * i0 + 2, idx + 4 * i0 + 3, idx + 4 * i1 + 2);
+                        out.add_triangle(idx + 4 * i0 + 3, idx + 4 * i1 + 2, idx + 4 * i1 + 3);
+
+                        i0 = i1;
+                    }
+
+                    {
+                        let i1 = n - 1;
+                        let end = &path[i1 as usize];
+                        let p = end.pos;
+                        let n = end.normal;
+                        let back_extrude = -n.rot90() * options.aa_size;
+                        out.colored_vertex(p + n * outer_rad + back_extrude, color_outer);
+                        out.colored_vertex(p + n * inner_rad, color_inner);
+                        out.colored_vertex(p - n * inner_rad, color_inner);
+                        out.colored_vertex(p - n * outer_rad + back_extrude, color_outer);
+
+                        out.add_triangle(idx + 4 * i0 + 0, idx + 4 * i0 + 1, idx + 4 * i1 + 0);
+                        out.add_triangle(idx + 4 * i0 + 1, idx + 4 * i1 + 0, idx + 4 * i1 + 1);
+
+                        out.add_triangle(idx + 4 * i0 + 1, idx + 4 * i0 + 2, idx + 4 * i1 + 1);
+                        out.add_triangle(idx + 4 * i0 + 2, idx + 4 * i1 + 1, idx + 4 * i1 + 2);
+
+                        out.add_triangle(idx + 4 * i0 + 2, idx + 4 * i0 + 3, idx + 4 * i1 + 2);
+                        out.add_triangle(idx + 4 * i0 + 3, idx + 4 * i1 + 2, idx + 4 * i1 + 3);
+
+                        // The extension:
+                        out.add_triangle(idx + 4 * i1 + 0, idx + 4 * i1 + 1, idx + 4 * i1 + 2);
+                        out.add_triangle(idx + 4 * i1 + 0, idx + 4 * i1 + 2, idx + 4 * i1 + 3);
+                    }
+                }
             }
         }
     } else {
+        // not anti-aliased:
         out.reserve_triangles(2 * n as usize);
         out.reserve_vertices(2 * n as usize);
 

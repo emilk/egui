@@ -12,6 +12,7 @@ pub struct Sliders {
     pub clamp_to_range: bool,
     pub smart_aim: bool,
     pub integer: bool,
+    pub vertical: bool,
     pub value: f64,
 }
 
@@ -24,6 +25,7 @@ impl Default for Sliders {
             clamp_to_range: false,
             smart_aim: true,
             integer: false,
+            vertical: false,
             value: 10.0,
         }
     }
@@ -54,6 +56,7 @@ impl super::View for Sliders {
             clamp_to_range,
             smart_aim,
             integer,
+            vertical,
             value,
         } = self;
 
@@ -70,6 +73,12 @@ impl super::View for Sliders {
         *min = min.clamp(type_min, type_max);
         *max = max.clamp(type_min, type_max);
 
+        let orientation = if *vertical {
+            SliderOrientation::Vertical
+        } else {
+            SliderOrientation::Horizontal
+        };
+
         if *integer {
             let mut value_i32 = *value as i32;
             ui.add(
@@ -77,6 +86,7 @@ impl super::View for Sliders {
                     .logarithmic(*logarithmic)
                     .clamp_to_range(*clamp_to_range)
                     .smart_aim(*smart_aim)
+                    .orientation(orientation)
                     .text("i32 demo slider"),
             );
             *value = value_i32 as f64;
@@ -86,6 +96,7 @@ impl super::View for Sliders {
                     .logarithmic(*logarithmic)
                     .clamp_to_range(*clamp_to_range)
                     .smart_aim(*smart_aim)
+                    .orientation(orientation)
                     .text("f64 demo slider"),
             );
 
@@ -100,6 +111,7 @@ impl super::View for Sliders {
         }
 
         ui.separator();
+
         ui.label("Slider range:");
         ui.add(
             Slider::new(min, type_min..=type_max)
@@ -120,8 +132,15 @@ impl super::View for Sliders {
             ui.label("Slider type:");
             ui.radio_value(integer, true, "i32");
             ui.radio_value(integer, false, "f64");
+        })
+        .response
+        .on_hover_text("All numeric types (f32, usize, …) are supported.");
+
+        ui.horizontal(|ui| {
+            ui.label("Slider orientation:");
+            ui.radio_value(vertical, false, "Horizontal");
+            ui.radio_value(vertical, true, "Vertical");
         });
-        ui.label("(f32, usize etc are also possible)");
         ui.add_space(8.0);
 
         ui.checkbox(logarithmic, "Logarithmic");

@@ -18,5 +18,9 @@ vec4 srgba_from_linear(vec4 rgba) {
 void main() {
     gl_FragColor = texture2D(u_sampler, v_tc);
 
-    gl_FragColor = srgba_from_linear(gl_FragColor) / 255.;
+    gl_FragColor = srgba_from_linear(gl_FragColor) / 255.0;
+
+    #ifdef APPLY_BRIGHTENING_GAMMA
+        gl_FragColor = vec4(pow(gl_FragColor.rgb, vec3(1.0/2.2)), gl_FragColor.a);
+    #endif
 }

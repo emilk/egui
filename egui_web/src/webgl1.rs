@@ -3,7 +3,7 @@ use {
     wasm_bindgen::{prelude::*, JsCast},
     web_sys::{
         ExtSRgb, WebGlBuffer, WebGlFramebuffer, WebGlProgram, WebGlRenderingContext, WebGlShader,
-        WebGlTexture,
+        WebGlTexture, WebglDebugRendererInfo,
     },
 };
 
@@ -540,7 +540,7 @@ impl crate::Painter for WebGlPainter {
     }
 
     fn name(&self) -> &'static str {
-        "egui_web(webgl1)"
+        "egui_web (WebGL1)"
     }
 }
 
@@ -553,6 +553,13 @@ struct PostProcess {
     texture_size: (i32, i32),
     fbo: WebGlFramebuffer,
     program: WebGlProgram,
+}
+
+fn requires_brightening(gl: &web_sys::WebGlRenderingContext) -> bool {
+    // See https://github.com/emilk/egui/issues/794
+
+    let user_agent = web_sys::window().unwrap().navigator().user_agent().unwrap();
+    crate::webgl1::is_safari_and_webkit_gtk(gl) && !user_agent.contains("Mac OS X")
 }
 
 impl PostProcess {
@@ -592,6 +599,13 @@ impl PostProcess {
         gl.bind_texture(Gl::TEXTURE_2D, None);
         gl.bind_framebuffer(Gl::FRAMEBUFFER, None);
 
+        let shader_prefix = if requires_brightening(&gl) {
+            crate::console_log("Enabling webkitGTK brightening workaround");
+            "#define APPLY_BRIGHTENING_GAMMA"
+        } else {
+            ""
+        };
+
         let vert_shader = compile_shader(
             &gl,
             Gl::VERTEX_SHADER,
@@ -600,7 +614,11 @@ impl PostProcess {
         let frag_shader = compile_shader(
             &gl,
             Gl::FRAGMENT_SHADER,
-            include_str!("shader/post_fragment_100es.glsl"),
+            &format!(
+                "{}{}",
+                shader_prefix,
+                include_str!("shader/post_fragment_100es.glsl")
+            ),
         )?;
         let program = link_program(&gl, [vert_shader, frag_shader].iter())?;
 
@@ -749,4 +767,27 @@ fn link_program<'a, T: IntoIterator<Item = &'a WebGlShader>>(
             .get_program_info_log(&program)
             .unwrap_or_else(|| "Unknown error creating program object".into()))
     }
+}
+
+/// detecting Safari and webkitGTK.
+///
+/// Safari and webkitGTK use unmasked renderer :Apple GPU
+///
+/// If we detect safari or webkitGTK returns true.
+///
+/// This function used to avoid displaying linear color with `sRGB` supported systems.
+pub(crate) fn is_safari_and_webkit_gtk(gl: &web_sys::WebGlRenderingContext) -> bool {
+    if gl
+        .get_extension("WEBGL_debug_renderer_info")
+        .unwrap()
+        .is_some()
+    {
+        let renderer: JsValue = gl
+            .get_parameter(WebglDebugRendererInfo::UNMASKED_RENDERER_WEBGL)
+            .unwrap();
+        if renderer.as_string().unwrap().contains("Apple") {
+            return true;
+        }
+    }
+    false
 }
