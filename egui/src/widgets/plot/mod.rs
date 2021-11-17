@@ -1,22 +1,27 @@
 //! Simple plotting library.
 
-mod items;
-mod legend;
-mod transform;
-
-use items::PlotItem;
-pub use items::{
-    Arrows, Bar, BarChart, BoxElem, BoxPlot, HLine, Line, LineStyle, MarkerShape, PlotImage,
-    Points, Polygon, Text, VLine, Value, Values,
-};
-use legend::LegendWidget;
-pub use legend::{Corner, Legend};
-use transform::{Bounds, ScreenTransform};
-
 use crate::util::float_ord::FloatOrd;
 use crate::*;
 use color::Hsva;
 use epaint::ahash::AHashSet;
+use items::PlotItem;
+use legend::LegendWidget;
+use transform::{Bounds, ScreenTransform};
+
+pub use bar::Bar;
+pub use box_elem::{BoxElem, BoxSpread};
+pub use items::{
+    Arrows, BarChart, BoxPlot, HLine, Line, LineStyle, MarkerShape, PlotImage, Points, Polygon,
+    Text, VLine, Value, Values,
+};
+pub use legend::{Corner, Legend};
+
+mod bar;
+mod box_elem;
+mod items;
+mod legend;
+mod rect_elem;
+mod transform;
 
 // ----------------------------------------------------------------------------
 
@@ -565,7 +570,6 @@ impl PlotUi {
     }
 
     /// Add a box plot diagram.
-    /// You can add multiple such diagrams.
     pub fn box_plot(&mut self, mut box_plot: BoxPlot) {
         if box_plot.boxes.is_empty() {
             return;
@@ -579,7 +583,6 @@ impl PlotUi {
     }
 
     /// Add a bar chart.
-    /// You can add multiple such charts.
     pub fn bar_chart(&mut self, mut chart: BarChart) {
         if chart.bars.is_empty() {
             return;

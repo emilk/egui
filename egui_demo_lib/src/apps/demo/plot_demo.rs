@@ -1,9 +1,10 @@
+use std::f64::consts::TAU;
+
 use egui::*;
 use plot::{
-    Arrows, Bar, BarChart, BoxElem, BoxPlot, Corner, HLine, Legend, Line, LineStyle, MarkerShape,
-    Plot, PlotImage, Points, Polygon, Text, VLine, Value, Values,
+    Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, Corner, HLine, Legend, Line, LineStyle,
+    MarkerShape, Plot, PlotImage, Points, Polygon, Text, VLine, Value, Values,
 };
-use std::f64::consts::TAU;
 
 #[derive(PartialEq)]
 struct LineDemo {
@@ -529,26 +530,26 @@ impl ChartsDemo {
     fn box_plot(&self, ui: &mut Ui) -> Response {
         let yellow = Color32::from_rgb(248, 252, 168);
         let mut box1 = BoxPlot::new(vec![
-            BoxElem::new(0.5, 1.5, 2.2, 2.5, 2.6, 3.1).name("Day 1"),
-            BoxElem::new(2.5, 0.4, 1.0, 1.1, 1.4, 2.1).name("Day 2"),
-            BoxElem::new(4.5, 1.7, 2.0, 2.2, 2.5, 2.9).name("Day 3"),
+            BoxElem::new(0.5, BoxSpread::new(1.5, 2.2, 2.5, 2.6, 3.1)).name("Day 1"),
+            BoxElem::new(2.5, BoxSpread::new(0.4, 1.0, 1.1, 1.4, 2.1)).name("Day 2"),
+            BoxElem::new(4.5, BoxSpread::new(1.7, 2.0, 2.2, 2.5, 2.9)).name("Day 3"),
         ])
         .name("Experiment A");
 
         let mut box2 = BoxPlot::new(vec![
-            BoxElem::new(1.0, 0.2, 0.5, 1.0, 2.0, 2.7).name("Day 1"),
-            BoxElem::new(3.0, 1.5, 1.7, 2.1, 2.9, 3.3)
+            BoxElem::new(1.0, BoxSpread::new(0.2, 0.5, 1.0, 2.0, 2.7)).name("Day 1"),
+            BoxElem::new(3.0, BoxSpread::new(1.5, 1.7, 2.1, 2.9, 3.3))
                 .name("Day 2: interesting")
                 .stroke(Stroke::new(1.5, yellow))
                 .fill(yellow.linear_multiply(0.2)),
-            BoxElem::new(5.0, 1.3, 2.0, 2.3, 2.9, 4.0).name("Day 3"),
+            BoxElem::new(5.0, BoxSpread::new(1.3, 2.0, 2.3, 2.9, 4.0)).name("Day 3"),
         ])
         .name("Experiment B");
 
         let mut box3 = BoxPlot::new(vec![
-            BoxElem::new(1.5, 2.1, 2.2, 2.6, 2.8, 3.0).name("Day 1"),
-            BoxElem::new(3.5, 1.3, 1.5, 1.9, 2.2, 2.4).name("Day 2"),
-            BoxElem::new(5.5, 0.2, 0.4, 1.0, 1.3, 1.5).name("Day 3"),
+            BoxElem::new(1.5, BoxSpread::new(2.1, 2.2, 2.6, 2.8, 3.0)).name("Day 1"),
+            BoxElem::new(3.5, BoxSpread::new(1.3, 1.5, 1.9, 2.2, 2.4)).name("Day 2"),
+            BoxElem::new(5.5, BoxSpread::new(0.2, 0.4, 1.0, 1.3, 1.5)).name("Day 3"),
         ])
         .name("Experiment C");
 

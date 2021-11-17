@@ -309,6 +309,27 @@ impl Rect {
         self.width() * self.height()
     }
 
+    #[inline]
+    pub fn distance_sq_to_pos(&self, pos: Pos2) -> f32 {
+        let dx = if self.min.x > pos.x {
+            self.min.x - pos.x
+        } else if pos.x > self.max.x {
+            pos.x - self.max.x
+        } else {
+            0.0
+        };
+
+        let dy = if self.min.y > pos.y {
+            self.min.y - pos.y
+        } else if pos.y > self.max.y {
+            pos.y - self.max.y
+        } else {
+            0.0
+        };
+
+        dx * dx + dy * dy
+    }
+
     #[inline(always)]
     pub fn x_range(&self) -> RangeInclusive<f32> {
         self.min.x..=self.max.x

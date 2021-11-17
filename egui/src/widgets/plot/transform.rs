@@ -224,10 +224,14 @@ impl ScreenTransform {
         Value::new(x, y)
     }
 
+    /// Transform a rectangle of plot values to a screen-coordinate rectangle.
+    ///
+    /// This typically means that the rect is mirrored vertically (top becomes bottom and vice versa),
+    /// since the plot's coordinate system has +Y up, while egui has +Y down.
     pub fn rect_from_values(&self, value1: &Value, value2: &Value) -> Rect {
         let pos1 = self.position_from_value(value1);
         let pos2 = self.position_from_value(value2);
-        // Note that the transform mirrors rects: top becomes bottom
+
         let mut rect = Rect::NOTHING;
         rect.extend_with(pos1);
         rect.extend_with(pos2);
