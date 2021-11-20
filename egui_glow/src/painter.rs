@@ -326,7 +326,7 @@ impl Painter {
             }
 
             gl.disable(glow::SCISSOR_TEST);
-            
+
             assert_eq!(glow::NO_ERROR, gl.get_error(), "GL error occurred!");
         }
     }
