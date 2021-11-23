@@ -185,6 +185,15 @@ impl Response {
         self.hovered
     }
 
+    pub fn hovered_anyway(&self) -> bool {
+        let pointer = &self.ctx.input().pointer;
+        if let Some(pos) = pointer.interact_pos() {
+            self.rect.contains(pos)
+        } else {
+            false
+        }
+    }
+
     /// This widget has the keyboard focus (i.e. is receiving key presses).
     pub fn has_focus(&self) -> bool {
         self.ctx.memory().has_focus(self.id)
