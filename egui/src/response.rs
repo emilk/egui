@@ -185,12 +185,14 @@ impl Response {
         self.hovered
     }
 
+    /// The pointer is hovering above this widget or the widget was clicked/tapped this frame.
+    /// this can help to deal with child widgets events
     pub fn hovered_anyway(&self) -> bool {
         let pointer = &self.ctx.input().pointer;
         if let Some(pos) = pointer.interact_pos() {
             self.rect.contains(pos)
         } else {
-            false
+            self.hovered
         }
     }
 
