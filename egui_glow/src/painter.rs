@@ -265,7 +265,6 @@ impl Painter {
         let height_in_points = height_in_pixels as f32 / pixels_per_point;
 
         gl.viewport(0, 0, width_in_pixels as i32, height_in_pixels as i32);
-
         gl.use_program(Some(self.program));
 
         gl.uniform_2_f32(Some(&self.u_screen_size), width_in_points, height_in_points);
@@ -324,6 +323,9 @@ impl Painter {
             if let Some(ref post_process) = self.post_process {
                 post_process.end(gl);
             }
+
+            gl.disable(glow::SCISSOR_TEST);
+
             assert_eq!(glow::NO_ERROR, gl.get_error(), "GL error occurred!");
         }
     }
