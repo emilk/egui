@@ -460,7 +460,8 @@ impl PlotUi {
     }
 
     /// The plot bounds as they were in the last frame. If called on the first frame and the bounds were not
-    /// further specified in the plot builder, this will return bounds centered on the origin.
+    /// further specified in the plot builder, this will return bounds centered on the origin. The bounds do
+    /// not change until the plot is drawn.
     pub fn plot_bounds(&self) -> PlotBounds {
         *self.last_screen_transform.bounds()
     }
