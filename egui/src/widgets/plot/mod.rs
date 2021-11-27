@@ -219,11 +219,7 @@ impl Plot {
     }
 
     /// Interact with and add items to the plot and finally draw it.
-    pub fn show<R>(
-        self,
-        ui: &mut Ui,
-        build_fn: impl FnOnce(&mut PlotUi<'_>) -> R,
-    ) -> InnerResponse<R> {
+    pub fn show<R>(self, ui: &mut Ui, build_fn: impl FnOnce(&mut PlotUi) -> R) -> InnerResponse<R> {
         let Self {
             id_source,
             center_x_axis,
@@ -311,7 +307,7 @@ impl Plot {
             next_auto_color_idx: 0,
             last_screen_transform,
             response,
-            ctx: ui.ctx(),
+            ctx: ui.ctx().clone(),
         };
         let inner = build_fn(&mut plot_ui);
         let PlotUi {
@@ -442,15 +438,15 @@ impl Plot {
 
 /// Provides methods to interact with a plot while building it. It is the single argument of the closure
 /// provided to `Plot::show`. See [`Plot`] for an example of how to use it.
-pub struct PlotUi<'ctx> {
+pub struct PlotUi {
     items: Vec<Box<dyn PlotItem>>,
     next_auto_color_idx: usize,
     last_screen_transform: ScreenTransform,
     response: Response,
-    ctx: &'ctx CtxRef,
+    ctx: CtxRef,
 }
 
-impl PlotUi<'_> {
+impl PlotUi {
     fn auto_color(&mut self) -> Color32 {
         let i = self.next_auto_color_idx;
         self.next_auto_color_idx += 1;
@@ -460,10 +456,11 @@ impl PlotUi<'_> {
     }
 
     pub fn ctx(&self) -> &CtxRef {
-        self.ctx
+        &self.ctx
     }
 
-    /// The plot bounds as they were in the last frame.
+    /// The plot bounds as they were in the last frame. If called on the first frame and the bounds were not
+    /// further specified in the plot builder, this will return bounds centered on the origin.
     pub fn plot_bounds(&self) -> PlotBounds {
         *self.last_screen_transform.bounds()
     }
