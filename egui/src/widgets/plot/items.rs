@@ -4,7 +4,7 @@ use std::ops::{Bound, RangeBounds, RangeInclusive};
 
 use epaint::Mesh;
 
-use super::transform::{Bounds, ScreenTransform};
+use super::transform::{PlotBounds, ScreenTransform};
 use crate::*;
 
 const DEFAULT_FILL_ALPHA: f32 = 0.05;
@@ -233,8 +233,8 @@ impl PlotItem for HLine {
         None
     }
 
-    fn get_bounds(&self) -> Bounds {
-        let mut bounds = Bounds::NOTHING;
+    fn get_bounds(&self) -> PlotBounds {
+        let mut bounds = PlotBounds::NOTHING;
         bounds.min[1] = self.y;
         bounds.max[1] = self.y;
         bounds
@@ -343,8 +343,8 @@ impl PlotItem for VLine {
         None
     }
 
-    fn get_bounds(&self) -> Bounds {
-        let mut bounds = Bounds::NOTHING;
+    fn get_bounds(&self) -> PlotBounds {
+        let mut bounds = PlotBounds::NOTHING;
         bounds.min[0] = self.x;
         bounds.max[0] = self.x;
         bounds
@@ -360,7 +360,7 @@ pub(super) trait PlotItem {
     fn highlight(&mut self);
     fn highlighted(&self) -> bool;
     fn values(&self) -> Option<&Values>;
-    fn get_bounds(&self) -> Bounds;
+    fn get_bounds(&self) -> PlotBounds;
 }
 
 // ----------------------------------------------------------------------------
@@ -503,8 +503,8 @@ impl Values {
         (start < end).then(|| start..=end)
     }
 
-    pub(super) fn get_bounds(&self) -> Bounds {
-        let mut bounds = Bounds::NOTHING;
+    pub(super) fn get_bounds(&self) -> PlotBounds {
+        let mut bounds = PlotBounds::NOTHING;
         self.values
             .iter()
             .for_each(|value| bounds.extend_with(value));
@@ -710,7 +710,7 @@ impl PlotItem for Line {
         Some(&self.series)
     }
 
-    fn get_bounds(&self) -> Bounds {
+    fn get_bounds(&self) -> PlotBounds {
         self.series.get_bounds()
     }
 }
@@ -840,7 +840,7 @@ impl PlotItem for Polygon {
         Some(&self.series)
     }
 
-    fn get_bounds(&self) -> Bounds {
+    fn get_bounds(&self) -> PlotBounds {
         self.series.get_bounds()
     }
 }
@@ -953,8 +953,8 @@ impl PlotItem for Text {
         None
     }
 
-    fn get_bounds(&self) -> Bounds {
-        let mut bounds = Bounds::NOTHING;
+    fn get_bounds(&self) -> PlotBounds {
+        let mut bounds = PlotBounds::NOTHING;
         bounds.extend_with(&self.position);
         bounds
     }
@@ -1186,7 +1186,7 @@ impl PlotItem for Points {
         Some(&self.series)
     }
 
-    fn get_bounds(&self) -> Bounds {
+    fn get_bounds(&self) -> PlotBounds {
         self.series.get_bounds()
     }
 }
@@ -1301,7 +1301,7 @@ impl PlotItem for Arrows {
         Some(&self.origins)
     }
 
-    fn get_bounds(&self) -> Bounds {
+    fn get_bounds(&self) -> PlotBounds {
         self.origins.get_bounds()
     }
 }
@@ -1431,8 +1431,8 @@ impl PlotItem for PlotImage {
         None
     }
 
-    fn get_bounds(&self) -> Bounds {
-        let mut bounds = Bounds::NOTHING;
+    fn get_bounds(&self) -> PlotBounds {
+        let mut bounds = PlotBounds::NOTHING;
         let left_top = Value::new(
             self.position.x as f32 - self.size.x / 2.0,
             self.position.y as f32 - self.size.y / 2.0,

@@ -155,6 +155,7 @@ impl Widget for &mut LineDemo {
             plot_ui.line(self.sin());
             plot_ui.line(self.thingy());
         })
+        .response
     }
 }
 
@@ -225,11 +226,13 @@ impl Widget for &mut MarkerDemo {
         let markers_plot = Plot::new("markers_demo")
             .data_aspect(1.0)
             .legend(Legend::default());
-        markers_plot.show(ui, |plot_ui| {
-            for marker in self.markers() {
-                plot_ui.points(marker);
-            }
-        })
+        markers_plot
+            .show(ui, |plot_ui| {
+                for marker in self.markers() {
+                    plot_ui.points(marker);
+                }
+            })
+            .response
     }
 }
 
@@ -289,13 +292,15 @@ impl Widget for &mut LegendDemo {
         });
 
         let legend_plot = Plot::new("legend_demo").legend(*config).data_aspect(1.0);
-        legend_plot.show(ui, |plot_ui| {
-            plot_ui.line(LegendDemo::line_with_slope(0.5).name("lines"));
-            plot_ui.line(LegendDemo::line_with_slope(1.0).name("lines"));
-            plot_ui.line(LegendDemo::line_with_slope(2.0).name("lines"));
-            plot_ui.line(LegendDemo::sin().name("sin(x)"));
-            plot_ui.line(LegendDemo::cos().name("cos(x)"));
-        })
+        legend_plot
+            .show(ui, |plot_ui| {
+                plot_ui.line(LegendDemo::line_with_slope(0.5).name("lines"));
+                plot_ui.line(LegendDemo::line_with_slope(1.0).name("lines"));
+                plot_ui.line(LegendDemo::line_with_slope(2.0).name("lines"));
+                plot_ui.line(LegendDemo::sin().name("sin(x)"));
+                plot_ui.line(LegendDemo::cos().name("cos(x)"));
+            })
+            .response
     }
 }
 
@@ -366,45 +371,62 @@ impl Widget for &mut ItemsDemo {
             plot_ui.image(image.name("Image"));
             plot_ui.arrows(arrows.name("Arrows"));
         })
+        .response
     }
 }
 
 #[derive(PartialEq)]
-struct InteractionDemo {
-    pointer_coordinate: Option<Value>,
-    pointer_coordinate_drag_delta: Vec2,
-}
+struct InteractionDemo {}
 
 impl Default for InteractionDemo {
     fn default() -> Self {
-        Self {
-            pointer_coordinate: None,
-            pointer_coordinate_drag_delta: Vec2::ZERO,
-        }
+        Self {}
     }
 }
 
 impl Widget for &mut InteractionDemo {
     fn ui(self, ui: &mut Ui) -> Response {
-        let coordinate_text = if let Some(coordinate) = self.pointer_coordinate {
-            format!("x: {:.03}, y: {:.03}", coordinate.x, coordinate.y)
+        let plot = Plot::new("interaction_demo").height(300.0);
+
+        let InnerResponse {
+            response,
+            inner: (screen_pos, pointer_coordinate, pointer_coordinate_drag_delta, bounds, hovered),
+        } = plot.show(ui, |plot_ui| {
+            (
+                plot_ui.screen_from_plot(Value::new(0.0, 0.0)),
+                plot_ui.pointer_coordinate(),
+                plot_ui.pointer_coordinate_drag_delta(),
+                plot_ui.plot_bounds(),
+                plot_ui.plot_hovered(),
+            )
+        });
+
+        ui.label(format!(
+            "plot bounds: min: {:.02?}, max: {:.02?}",
+            bounds.min(),
+            bounds.max()
+        ));
+        ui.label(format!(
+            "origin in screen coordinates: x: {:.02}, y: {:.02}",
+            screen_pos.x, screen_pos.y
+        ));
+        ui.label(format!("plot hovered: {}", hovered));
+        let coordinate_text = if let Some(coordinate) = pointer_coordinate {
+            format!("x: {:.02}, y: {:.02}", coordinate.x, coordinate.y)
         } else {
             "None".to_string()
         };
         ui.label(format!("pointer coordinate: {}", coordinate_text));
         let coordinate_text = format!(
-            "x: {:.03}, y: {:.03}",
-            self.pointer_coordinate_drag_delta.x, self.pointer_coordinate_drag_delta.y
+            "x: {:.02}, y: {:.02}",
+            pointer_coordinate_drag_delta.x, pointer_coordinate_drag_delta.y
         );
         ui.label(format!(
             "pointer coordinate drag delta: {}",
             coordinate_text
         ));
-        let plot = Plot::new("interaction_demo");
-        plot.show(ui, |plot_ui| {
-            self.pointer_coordinate = plot_ui.pointer_coordinate();
-            self.pointer_coordinate_drag_delta = plot_ui.pointer_coordinate_drag_delta();
-        })
+
+        response
     }
 }
 

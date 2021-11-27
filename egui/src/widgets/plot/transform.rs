@@ -7,18 +7,26 @@ use crate::*;
 /// The range of data values we show.
 #[derive(Clone, Copy, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub(crate) struct Bounds {
-    pub min: [f64; 2],
-    pub max: [f64; 2],
+pub struct PlotBounds {
+    pub(crate) min: [f64; 2],
+    pub(crate) max: [f64; 2],
 }
 
-impl Bounds {
+impl PlotBounds {
     pub const NOTHING: Self = Self {
         min: [f64::INFINITY; 2],
         max: [-f64::INFINITY; 2],
     };
 
-    pub fn new_symmetrical(half_extent: f64) -> Self {
+    pub fn min(&self) -> [f64; 2] {
+        self.min
+    }
+
+    pub fn max(&self) -> [f64; 2] {
+        self.max
+    }
+
+    pub(crate) fn new_symmetrical(half_extent: f64) -> Self {
         Self {
             min: [-half_extent; 2],
             max: [half_extent; 2],
@@ -44,73 +52,73 @@ impl Bounds {
         self.max[1] - self.min[1]
     }
 
-    pub fn extend_with(&mut self, value: &Value) {
+    pub(crate) fn extend_with(&mut self, value: &Value) {
         self.extend_with_x(value.x);
         self.extend_with_y(value.y);
     }
 
     /// Expand to include the given x coordinate
-    pub fn extend_with_x(&mut self, x: f64) {
+    pub(crate) fn extend_with_x(&mut self, x: f64) {
         self.min[0] = self.min[0].min(x);
         self.max[0] = self.max[0].max(x);
     }
 
     /// Expand to include the given y coordinate
-    pub fn extend_with_y(&mut self, y: f64) {
+    pub(crate) fn extend_with_y(&mut self, y: f64) {
         self.min[1] = self.min[1].min(y);
         self.max[1] = self.max[1].max(y);
     }
 
-    pub fn expand_x(&mut self, pad: f64) {
+    pub(crate) fn expand_x(&mut self, pad: f64) {
         self.min[0] -= pad;
         self.max[0] += pad;
     }
 
-    pub fn expand_y(&mut self, pad: f64) {
+    pub(crate) fn expand_y(&mut self, pad: f64) {
         self.min[1] -= pad;
         self.max[1] += pad;
     }
 
-    pub fn merge(&mut self, other: &Bounds) {
+    pub(crate) fn merge(&mut self, other: &PlotBounds) {
         self.min[0] = self.min[0].min(other.min[0]);
         self.min[1] = self.min[1].min(other.min[1]);
         self.max[0] = self.max[0].max(other.max[0]);
         self.max[1] = self.max[1].max(other.max[1]);
     }
 
-    pub fn translate_x(&mut self, delta: f64) {
+    pub(crate) fn translate_x(&mut self, delta: f64) {
         self.min[0] += delta;
         self.max[0] += delta;
     }
 
-    pub fn translate_y(&mut self, delta: f64) {
+    pub(crate) fn translate_y(&mut self, delta: f64) {
         self.min[1] += delta;
         self.max[1] += delta;
     }
 
-    pub fn translate(&mut self, delta: Vec2) {
+    pub(crate) fn translate(&mut self, delta: Vec2) {
         self.translate_x(delta.x as f64);
         self.translate_y(delta.y as f64);
     }
 
-    pub fn add_relative_margin(&mut self, margin_fraction: Vec2) {
+    pub(crate) fn add_relative_margin(&mut self, margin_fraction: Vec2) {
         let width = self.width().max(0.0);
         let height = self.height().max(0.0);
         self.expand_x(margin_fraction.x as f64 * width);
         self.expand_y(margin_fraction.y as f64 * height);
     }
 
-    pub fn range_x(&self) -> RangeInclusive<f64> {
+    pub(crate) fn range_x(&self) -> RangeInclusive<f64> {
         self.min[0]..=self.max[0]
     }
 
-    pub fn make_x_symmetrical(&mut self) {
+    pub(crate) fn make_x_symmetrical(&mut self) {
         let x_abs = self.min[0].abs().max(self.max[0].abs());
         self.min[0] = -x_abs;
         self.max[0] = x_abs;
     }
 
-    pub fn make_y_symmetrical(&mut self) {
+    pub(crate) fn make_y_symmetrical(&mut self) {
         let y_abs = self.min[1].abs().max(self.max[1].abs());
         self.min[1] = -y_abs;
         self.max[1] = y_abs;
@@ -124,7 +132,7 @@ pub(crate) struct ScreenTransform {
     /// The screen rectangle.
     frame: Rect,
     /// The plot bounds.
-    bounds: Bounds,
+    bounds: PlotBounds,
     /// Whether to always center the x-range of the bounds.
     x_centered: bool,
     /// Whether to always center the y-range of the bounds.
@@ -132,10 +140,10 @@ pub(crate) struct ScreenTransform {
 }
 
 impl ScreenTransform {
-    pub fn new(frame: Rect, mut bounds: Bounds, x_centered: bool, y_centered: bool) -> Self {
+    pub fn new(frame: Rect, mut bounds: PlotBounds, x_centered: bool, y_centered: bool) -> Self {
         // Make sure they are not empty.
         if !bounds.is_valid() {
-            bounds = Bounds::new_symmetrical(1.0);
+            bounds = PlotBounds::new_symmetrical(1.0);
         }
 
         // Scale axes so that the origin is in the center.
@@ -158,7 +166,7 @@ impl ScreenTransform {
         &self.frame
     }
 
-    pub fn bounds(&self) -> &Bounds {
+    pub fn bounds(&self) -> &PlotBounds {
         &self.bounds
     }
 
