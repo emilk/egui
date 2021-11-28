@@ -8,7 +8,7 @@ use crate::util::float_ord::FloatOrd;
 use crate::*;
 
 use super::rect_elem::RectElement;
-use super::{Bar, Bounds, BoxElem, ScreenTransform};
+use super::{Bar, BoxElem, PlotBounds, ScreenTransform};
 
 const DEFAULT_FILL_ALPHA: f32 = 0.05;
 
@@ -251,8 +251,8 @@ impl PlotItem for HLine {
         PlotGeometry::None
     }
 
-    fn get_bounds(&self) -> Bounds {
-        let mut bounds = Bounds::NOTHING;
+    fn get_bounds(&self) -> PlotBounds {
+        let mut bounds = PlotBounds::NOTHING;
         bounds.min[1] = self.y;
         bounds.max[1] = self.y;
         bounds
@@ -361,8 +361,8 @@ impl PlotItem for VLine {
         PlotGeometry::None
     }
 
-    fn get_bounds(&self) -> Bounds {
-        let mut bounds = Bounds::NOTHING;
+    fn get_bounds(&self) -> PlotBounds {
+        let mut bounds = PlotBounds::NOTHING;
         bounds.min[0] = self.x;
         bounds.max[0] = self.x;
         bounds
@@ -387,7 +387,7 @@ pub(super) trait PlotItem {
     fn highlight(&mut self);
     fn highlighted(&self) -> bool;
     fn geometry(&self) -> PlotGeometry<'_>;
-    fn get_bounds(&self) -> Bounds;
+    fn get_bounds(&self) -> PlotBounds;
 
     fn find_closest(&self, point: Pos2, transform: &ScreenTransform) -> Option<HoverElement> {
         match self.geometry() {
@@ -575,8 +575,8 @@ impl Values {
         (start < end).then(|| start..=end)
     }
 
-    pub(super) fn get_bounds(&self) -> Bounds {
-        let mut bounds = Bounds::NOTHING;
+    pub(super) fn get_bounds(&self) -> PlotBounds {
+        let mut bounds = PlotBounds::NOTHING;
         self.values
             .iter()
             .for_each(|value| bounds.extend_with(value));
@@ -782,7 +782,7 @@ impl PlotItem for Line {
         PlotGeometry::Points(&self.series.values)
     }
 
-    fn get_bounds(&self) -> Bounds {
+    fn get_bounds(&self) -> PlotBounds {
         self.series.get_bounds()
     }
 }
@@ -912,7 +912,7 @@ impl PlotItem for Polygon {
         PlotGeometry::Points(&self.series.values)
     }
 
-    fn get_bounds(&self) -> Bounds {
+    fn get_bounds(&self) -> PlotBounds {
         self.series.get_bounds()
     }
 }
@@ -1025,8 +1025,8 @@ impl PlotItem for Text {
         PlotGeometry::None
     }
 
-    fn get_bounds(&self) -> Bounds {
-        let mut bounds = Bounds::NOTHING;
+    fn get_bounds(&self) -> PlotBounds {
+        let mut bounds = PlotBounds::NOTHING;
         bounds.extend_with(&self.position);
         bounds
     }
@@ -1258,7 +1258,7 @@ impl PlotItem for Points {
         PlotGeometry::Points(&self.series.values)
     }
 
-    fn get_bounds(&self) -> Bounds {
+    fn get_bounds(&self) -> PlotBounds {
         self.series.get_bounds()
     }
 }
@@ -1373,7 +1373,7 @@ impl PlotItem for Arrows {
         PlotGeometry::Points(&self.origins.values)
     }
 
-    fn get_bounds(&self) -> Bounds {
+    fn get_bounds(&self) -> PlotBounds {
         self.origins.get_bounds()
     }
 }
@@ -1503,8 +1503,8 @@ impl PlotItem for PlotImage {
         PlotGeometry::None
     }
 
-    fn get_bounds(&self) -> Bounds {
-        let mut bounds = Bounds::NOTHING;
+    fn get_bounds(&self) -> PlotBounds {
+        let mut bounds = PlotBounds::NOTHING;
         let left_top = Value::new(
             self.position.x as f32 - self.size.x / 2.0,
             self.position.y as f32 - self.size.y / 2.0,
@@ -1756,8 +1756,8 @@ impl PlotItem for BarChart {
         PlotGeometry::Rects
     }
 
-    fn get_bounds(&self) -> Bounds {
-        let mut bounds = Bounds::NOTHING;
+    fn get_bounds(&self) -> PlotBounds {
+        let mut bounds = PlotBounds::NOTHING;
         self.bars.iter().for_each(|b| {
             bounds.merge(&b.bounds());
         });
@@ -1894,8 +1894,8 @@ impl PlotItem for BoxPlot {
         PlotGeometry::Rects
     }
 
-    fn get_bounds(&self) -> Bounds {
-        let mut bounds = Bounds::NOTHING;
+    fn get_bounds(&self) -> PlotBounds {
+        let mut bounds = PlotBounds::NOTHING;
         self.boxes.iter().for_each(|b| {
             bounds.merge(&b.bounds());
         });

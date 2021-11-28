@@ -413,10 +413,7 @@ pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &st
 /// Serialize the given value as [RON](https://github.com/ron-rs/ron) and store with the given key.
 #[cfg(feature = "ron")]
 pub fn set_value<T: serde::Serialize>(storage: &mut dyn Storage, key: &str, value: &T) {
-    storage.set_string(
-        key,
-        ron::ser::to_string_pretty(value, Default::default()).unwrap(),
-    );
+    storage.set_string(key, ron::ser::to_string(value).unwrap());
 }
 
 /// [`Storage`] key used for app

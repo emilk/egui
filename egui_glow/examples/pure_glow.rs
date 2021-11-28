@@ -37,6 +37,8 @@ fn create_display(
 }
 
 fn main() {
+    let mut clear_color = [0.1, 0.1, 0.1];
+
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
     let (gl_window, gl) = create_display(&event_loop);
 
@@ -52,6 +54,7 @@ fn main() {
                     if ui.button("Quit").clicked() {
                         quit = true;
                     }
+                    ui.color_edit_button_rgb(&mut clear_color);
                 });
             });
 
@@ -65,10 +68,9 @@ fn main() {
             };
 
             {
-                let color = egui::Rgba::from_rgb(0.1, 0.3, 0.2);
                 unsafe {
                     use glow::HasContext as _;
-                    gl.clear_color(color[0], color[1], color[2], color[3]);
+                    gl.clear_color(clear_color[0], clear_color[1], clear_color[2], 1.0);
                     gl.clear(glow::COLOR_BUFFER_BIT);
                 }
 

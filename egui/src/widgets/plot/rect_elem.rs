@@ -1,7 +1,7 @@
 // ----------------------------------------------------------------------------
 
 use crate::plot::items::Orientation;
-use crate::plot::transform::{Bounds, ScreenTransform};
+use crate::plot::transform::{PlotBounds, ScreenTransform};
 use crate::plot::Value;
 use epaint::emath::NumExt;
 use epaint::{Color32, Rgba, Stroke};
@@ -12,8 +12,8 @@ pub(super) trait RectElement {
     fn bounds_min(&self) -> Value;
     fn bounds_max(&self) -> Value;
 
-    fn bounds(&self) -> Bounds {
-        let mut bounds = Bounds::NOTHING;
+    fn bounds(&self) -> PlotBounds {
+        let mut bounds = PlotBounds::NOTHING;
         bounds.extend_with(&self.bounds_min());
         bounds.extend_with(&self.bounds_max());
         bounds

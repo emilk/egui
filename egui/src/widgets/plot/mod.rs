@@ -6,7 +6,7 @@ use color::Hsva;
 use epaint::ahash::AHashSet;
 use items::PlotItem;
 use legend::LegendWidget;
-use transform::{Bounds, ScreenTransform};
+use transform::{PlotBounds, ScreenTransform};
 
 pub use bar::Bar;
 pub use box_elem::{BoxElem, BoxSpread};
@@ -29,12 +29,11 @@ mod transform;
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone)]
 struct PlotMemory {
-    bounds: Bounds,
     auto_bounds: bool,
     hovered_entry: Option<String>,
     hidden_items: AHashSet<String>,
-    min_auto_bounds: Bounds,
-    last_screen_transform: Option<ScreenTransform>,
+    min_auto_bounds: PlotBounds,
+    last_screen_transform: ScreenTransform,
 }
 
 impl PlotMemory {
@@ -71,7 +70,7 @@ pub struct Plot {
     center_y_axis: bool,
     allow_zoom: bool,
     allow_drag: bool,
-    min_auto_bounds: Bounds,
+    min_auto_bounds: PlotBounds,
     margin_fraction: Vec2,
 
     min_size: Vec2,
@@ -97,7 +96,7 @@ impl Plot {
             center_y_axis: false,
             allow_zoom: true,
             allow_drag: true,
-            min_auto_bounds: Bounds::NOTHING,
+            min_auto_bounds: PlotBounds::NOTHING,
             margin_fraction: Vec2::splat(0.05),
 
             min_size: Vec2::splat(64.0),
@@ -225,7 +224,7 @@ impl Plot {
     }
 
     /// Interact with and add items to the plot and finally draw it.
-    pub fn show(self, ui: &mut Ui, build_fn: impl FnOnce(&mut PlotUi)) -> Response {
+    pub fn show<R>(self, ui: &mut Ui, build_fn: impl FnOnce(&mut PlotUi) -> R) -> InnerResponse<R> {
         let Self {
             id_source,
             center_x_axis,
@@ -245,37 +244,6 @@ impl Plot {
             show_background,
             show_axes,
         } = self;
-
-        let plot_id = ui.make_persistent_id(id_source);
-        let mut memory = PlotMemory::load(ui.ctx(), plot_id).unwrap_or_else(|| PlotMemory {
-            bounds: min_auto_bounds,
-            auto_bounds: !min_auto_bounds.is_valid(),
-            hovered_entry: None,
-            hidden_items: Default::default(),
-            min_auto_bounds,
-            last_screen_transform: None,
-        });
-
-        // If the min bounds changed, recalculate everything.
-        if min_auto_bounds != memory.min_auto_bounds {
-            memory = PlotMemory {
-                bounds: min_auto_bounds,
-                auto_bounds: !min_auto_bounds.is_valid(),
-                hovered_entry: None,
-                min_auto_bounds,
-                ..memory
-            };
-            memory.clone().store(ui.ctx(), plot_id);
-        }
-
-        let PlotMemory {
-            mut bounds,
-            mut auto_bounds,
-            mut hovered_entry,
-            mut hidden_items,
-            last_screen_transform,
-            ..
-        } = memory;
 
         // Determine the size of the plot in the UI
         let size = {
@@ -301,8 +269,42 @@ impl Plot {
             vec2(width, height)
         };
 
+        // Allocate the space.
         let (rect, response) = ui.allocate_exact_size(size, Sense::drag());
-        let plot_painter = ui.painter().sub_region(rect);
+
+        // Load or initialize the memory.
+        let plot_id = ui.make_persistent_id(id_source);
+        let mut memory = PlotMemory::load(ui.ctx(), plot_id).unwrap_or_else(|| PlotMemory {
+            auto_bounds: !min_auto_bounds.is_valid(),
+            hovered_entry: None,
+            hidden_items: Default::default(),
+            min_auto_bounds,
+            last_screen_transform: ScreenTransform::new(
+                rect,
+                min_auto_bounds,
+                center_x_axis,
+                center_y_axis,
+            ),
+        });
+
+        // If the min bounds changed, recalculate everything.
+        if min_auto_bounds != memory.min_auto_bounds {
+            memory = PlotMemory {
+                auto_bounds: !min_auto_bounds.is_valid(),
+                hovered_entry: None,
+                min_auto_bounds,
+                ..memory
+            };
+            memory.clone().store(ui.ctx(), plot_id);
+        }
+
+        let PlotMemory {
+            mut auto_bounds,
+            mut hovered_entry,
+            mut hidden_items,
+            last_screen_transform,
+            ..
+        } = memory;
 
         // Call the plot build function.
         let mut plot_ui = PlotUi {
@@ -310,17 +312,19 @@ impl Plot {
             next_auto_color_idx: 0,
             last_screen_transform,
             response,
+            ctx: ui.ctx().clone(),
         };
-        build_fn(&mut plot_ui);
+        let inner = build_fn(&mut plot_ui);
         let PlotUi {
             mut items,
-            response,
+            mut response,
+            last_screen_transform,
             ..
         } = plot_ui;
 
         // Background
         if show_background {
-            plot_painter.add(epaint::RectShape {
+            ui.painter().sub_region(rect).add(epaint::RectShape {
                 rect,
                 corner_radius: 2.0,
                 fill: ui.visuals().extreme_bg_color,
@@ -328,7 +332,7 @@ impl Plot {
             });
         }
 
-        // Legend
+        // --- Legend ---
         let legend = legend_config
             .and_then(|config| LegendWidget::try_new(rect, config, &items, &hidden_items));
         // Don't show hover cursor when hovering over legend.
@@ -347,6 +351,9 @@ impl Plot {
         }
         // Move highlighted items to front.
         items.sort_by_key(|item| item.highlighted());
+
+        // --- Bound computation ---
+        let mut bounds = *last_screen_transform.bounds();
 
         // Allow double clicking to reset to automatic bounds.
         auto_bounds |= response.double_clicked_by(PointerButton::Primary);
@@ -369,6 +376,7 @@ impl Plot {
 
         // Dragging
         if allow_drag && response.dragged_by(PointerButton::Primary) {
+            response = response.on_hover_cursor(CursorIcon::Grabbing);
             transform.translate_bounds(-response.drag_delta());
             auto_bounds = false;
         }
@@ -399,8 +407,6 @@ impl Plot {
             .iter_mut()
             .for_each(|item| item.initialize(transform.bounds().range_x()));
 
-        let bounds = *transform.bounds();
-
         let prepared = PreparedPlot {
             items,
             show_x,
@@ -417,20 +423,21 @@ impl Plot {
         }
 
         let memory = PlotMemory {
-            bounds,
             auto_bounds,
             hovered_entry,
             hidden_items,
             min_auto_bounds,
-            last_screen_transform: Some(transform),
+            last_screen_transform: transform,
         };
         memory.store(ui.ctx(), plot_id);
 
-        if show_x || show_y {
+        let response = if show_x || show_y {
             response.on_hover_cursor(CursorIcon::Crosshair)
         } else {
             response
-        }
+        };
+
+        InnerResponse { inner, response }
     }
 }
 
@@ -439,8 +446,9 @@ impl Plot {
 pub struct PlotUi {
     items: Vec<Box<dyn PlotItem>>,
     next_auto_color_idx: usize,
-    last_screen_transform: Option<ScreenTransform>,
+    last_screen_transform: ScreenTransform,
     response: Response,
+    ctx: CtxRef,
 }
 
 impl PlotUi {
@@ -452,35 +460,45 @@ impl PlotUi {
         Hsva::new(h, 0.85, 0.5, 1.0).into() // TODO: OkLab or some other perspective color space
     }
 
-    /// The pointer position in plot coordinates, if the pointer is inside the plot area.
+    pub fn ctx(&self) -> &CtxRef {
+        &self.ctx
+    }
+
+    /// The plot bounds as they were in the last frame. If called on the first frame and the bounds were not
+    /// further specified in the plot builder, this will return bounds centered on the origin. The bounds do
+    /// not change until the plot is drawn.
+    pub fn plot_bounds(&self) -> PlotBounds {
+        *self.last_screen_transform.bounds()
+    }
+
+    /// Returns `true` if the plot area is currently hovered.
+    pub fn plot_hovered(&self) -> bool {
+        self.response.hovered()
+    }
+
+    /// The pointer position in plot coordinates. Independent of whether the pointer is in the plot area.
     pub fn pointer_coordinate(&self) -> Option<Value> {
-        let last_screen_transform = self.last_screen_transform.as_ref()?;
         // We need to subtract the drag delta to keep in sync with the frame-delayed screen transform:
-        let last_pos = self.response.hover_pos()? - self.response.drag_delta();
-        let value = last_screen_transform.value_from_position(last_pos);
+        let last_pos = self.ctx().input().pointer.latest_pos()? - self.response.drag_delta();
+        let value = self.plot_from_screen(last_pos);
         Some(value)
     }
 
     /// The pointer drag delta in plot coordinates.
     pub fn pointer_coordinate_drag_delta(&self) -> Vec2 {
-        self.last_screen_transform
-            .as_ref()
-            .map_or(Vec2::ZERO, |tf| {
-                let delta = self.response.drag_delta();
-                let dp_dv = tf.dpos_dvalue();
-                Vec2::new(delta.x / dp_dv[0] as f32, delta.y / dp_dv[1] as f32)
-            })
+        let delta = self.response.drag_delta();
+        let dp_dv = self.last_screen_transform.dpos_dvalue();
+        Vec2::new(delta.x / dp_dv[0] as f32, delta.y / dp_dv[1] as f32)
+    }
+
+    /// Transform the plot coordinates to screen coordinates.
+    pub fn screen_from_plot(&self, position: Value) -> Pos2 {
+        self.last_screen_transform.position_from_value(&position)
     }
 
     /// Transform the screen coordinates to plot coordinates.
-    pub fn plot_from_screen(&self, position: Pos2) -> Pos2 {
-        self.last_screen_transform
-            .as_ref()
-            .map_or(Pos2::ZERO, |tf| {
-                tf.position_from_value(&Value::new(position.x as f64, position.y as f64))
-            })
-            // We need to subtract the drag delta since the last frame.
-            - self.response.drag_delta()
+    pub fn plot_from_screen(&self, position: Pos2) -> Value {
+        self.last_screen_transform.value_from_position(position)
     }
 
     /// Add a data line.
