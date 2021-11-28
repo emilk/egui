@@ -1,8 +1,8 @@
-use crate::epaint::RectShape;
-use crate::plot::items::{add_rulers_and_text, Orientation, PlotConfig};
-use crate::plot::rect_elem::{highlighted_color, RectElement};
+use crate::emath::NumExt;
+use crate::epaint::{Color32, RectShape, Shape, Stroke};
+
+use super::{add_rulers_and_text, highlighted_color, Orientation, PlotConfig, RectElement};
 use crate::plot::{BoxPlot, ScreenTransform, Value};
-use crate::{Color32, NumExt, Shape, Stroke};
 
 /// Contains the values of a single box in a box plot.
 #[derive(Clone, Debug, PartialEq)]
@@ -46,7 +46,7 @@ impl BoxSpread {
 }
 
 /// A box in a [`BoxPlot`] diagram. This is a low level graphical element; it will not compute quartiles and whiskers,
-/// letting one use their preferred formula. Use [`Points`] to draw the outliers.
+/// letting one use their preferred formula. Use [`Points`][`super::Points`] to draw the outliers.
 #[derive(Clone, Debug, PartialEq)]
 pub struct BoxElem {
     /// Name of plot element in the diagram (annotated by default formatter).

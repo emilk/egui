@@ -1,8 +1,5 @@
-// ----------------------------------------------------------------------------
-
-use crate::plot::items::Orientation;
+use super::{Orientation, Value};
 use crate::plot::transform::{PlotBounds, ScreenTransform};
-use crate::plot::Value;
 use epaint::emath::NumExt;
 use epaint::{Color32, Rgba, Stroke};
 

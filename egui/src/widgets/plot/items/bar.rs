@@ -1,8 +1,7 @@
 use crate::emath::NumExt;
 use crate::epaint::{Color32, RectShape, Shape, Stroke};
 
-use crate::plot::items::{add_rulers_and_text, Orientation, PlotConfig};
-use crate::plot::rect_elem::{highlighted_color, RectElement};
+use super::{add_rulers_and_text, highlighted_color, Orientation, PlotConfig, RectElement};
 use crate::plot::{BarChart, ScreenTransform, Value};
 
 /// One bar in a [`BarChart`]. Potentially floating, allowing stacked bar charts.

@@ -53,3 +53,12 @@ impl FloatOrd for f32 {
         OrderedFloat(self)
     }
 }
+
+// TODO ordering may break down at least significant digits due to f64 -> f32 conversion
+// Possible solutions: generic OrderedFloat<T>, always OrderedFloat(f64)
+impl FloatOrd for f64 {
+    #[inline]
+    fn ord(self) -> OrderedFloat {
+        OrderedFloat(self as f32)
+    }
+}

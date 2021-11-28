@@ -8,19 +8,14 @@ use items::PlotItem;
 use legend::LegendWidget;
 use transform::{PlotBounds, ScreenTransform};
 
-pub use bar::Bar;
-pub use box_elem::{BoxElem, BoxSpread};
 pub use items::{
-    Arrows, BarChart, BoxPlot, HLine, Line, LineStyle, MarkerShape, PlotImage, Points, Polygon,
-    Text, VLine, Value, Values,
+    Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, HLine, Line, LineStyle, MarkerShape,
+    PlotImage, Points, Polygon, Text, VLine, Value, Values,
 };
 pub use legend::{Corner, Legend};
 
-mod bar;
-mod box_elem;
 mod items;
 mod legend;
-mod rect_elem;
 mod transform;
 
 // ----------------------------------------------------------------------------

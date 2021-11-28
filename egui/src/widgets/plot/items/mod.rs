@@ -1,152 +1,92 @@
 //! Contains items that can be added to a plot.
 
-use std::ops::{Bound, RangeBounds, RangeInclusive};
+use std::ops::RangeInclusive;
 
 use epaint::Mesh;
 
 use crate::util::float_ord::FloatOrd;
 use crate::*;
 
-use super::rect_elem::RectElement;
-use super::{Bar, BoxElem, PlotBounds, ScreenTransform};
+use super::{PlotBounds, ScreenTransform};
+use rect_elem::*;
+use values::*;
+
+pub use bar::Bar;
+pub use box_elem::{BoxElem, BoxSpread};
+pub use values::{LineStyle, MarkerShape, Value, Values};
+
+mod bar;
+mod box_elem;
+mod rect_elem;
+mod values;
 
 const DEFAULT_FILL_ALPHA: f32 = 0.05;
 
-/// A value in the value-space of the plot.
-///
-/// Uses f64 for improved accuracy to enable plotting
-/// large values (e.g. unix time on x axis).
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Value {
-    /// This is often something monotonically increasing, such as time, but doesn't have to be.
-    /// Goes from left to right.
-    pub x: f64,
-    /// Goes from bottom to top (inverse of everything else in egui!).
-    pub y: f64,
+/// Container to pass-through several parameters related to plot visualization
+pub(super) struct PlotConfig<'a> {
+    pub ui: &'a Ui,
+    pub transform: &'a ScreenTransform,
+    pub show_x: bool,
+    pub show_y: bool,
 }
 
-impl Value {
-    #[inline(always)]
-    pub fn new(x: impl Into<f64>, y: impl Into<f64>) -> Self {
-        Self {
-            x: x.into(),
-            y: y.into(),
-        }
-    }
+/// Trait shared by things that can be drawn in the plot.
+pub(super) trait PlotItem {
+    fn get_shapes(&self, ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>);
+    fn initialize(&mut self, x_range: RangeInclusive<f64>);
+    fn name(&self) -> &str;
+    fn color(&self) -> Color32;
+    fn highlight(&mut self);
+    fn highlighted(&self) -> bool;
+    fn geometry(&self) -> PlotGeometry<'_>;
+    fn get_bounds(&self) -> PlotBounds;
 
-    #[inline(always)]
-    pub fn to_pos2(self) -> Pos2 {
-        Pos2::new(self.x as f32, self.y as f32)
-    }
+    fn find_closest(&self, point: Pos2, transform: &ScreenTransform) -> Option<ClosestElem> {
+        match self.geometry() {
+            PlotGeometry::None => None,
 
-    #[inline(always)]
-    pub fn to_vec2(self) -> Vec2 {
-        Vec2::new(self.x as f32, self.y as f32)
-    }
-}
+            PlotGeometry::Points(points) => points
+                .iter()
+                .enumerate()
+                .map(|(index, value)| {
+                    let pos = transform.position_from_value(value);
+                    let dist_sq = point.distance_sq(pos);
+                    ClosestElem { index, dist_sq }
+                })
+                .min_by_key(|e| e.dist_sq.ord()),
 
-// ----------------------------------------------------------------------------
-
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub enum LineStyle {
-    Solid,
-    Dotted { spacing: f32 },
-    Dashed { length: f32 },
-}
-
-impl LineStyle {
-    pub fn dashed_loose() -> Self {
-        Self::Dashed { length: 10.0 }
-    }
-
-    pub fn dashed_dense() -> Self {
-        Self::Dashed { length: 5.0 }
-    }
-
-    pub fn dotted_loose() -> Self {
-        Self::Dotted { spacing: 10.0 }
-    }
-
-    pub fn dotted_dense() -> Self {
-        Self::Dotted { spacing: 5.0 }
-    }
-
-    fn style_line(
-        &self,
-        line: Vec<Pos2>,
-        mut stroke: Stroke,
-        highlight: bool,
-        shapes: &mut Vec<Shape>,
-    ) {
-        match line.len() {
-            0 => {}
-            1 => {
-                let mut radius = stroke.width / 2.0;
-                if highlight {
-                    radius *= 2f32.sqrt();
-                }
-                shapes.push(Shape::circle_filled(line[0], radius, stroke.color));
-            }
-            _ => {
-                match self {
-                    LineStyle::Solid => {
-                        if highlight {
-                            stroke.width *= 2.0;
-                        }
-                        shapes.push(Shape::line(line, stroke));
-                    }
-                    LineStyle::Dotted { spacing } => {
-                        // Take the stroke width for the radius even though it's not "correct", otherwise
-                        // the dots would become too small.
-                        let mut radius = stroke.width;
-                        if highlight {
-                            radius *= 2f32.sqrt();
-                        }
-                        shapes.extend(Shape::dotted_line(&line, stroke.color, *spacing, radius));
-                    }
-                    LineStyle::Dashed { length } => {
-                        if highlight {
-                            stroke.width *= 2.0;
-                        }
-                        let golden_ratio = (5.0_f32.sqrt() - 1.0) / 2.0; // 0.61803398875
-                        shapes.extend(Shape::dashed_line(
-                            &line,
-                            stroke,
-                            *length,
-                            length * golden_ratio,
-                        ));
-                    }
-                }
+            PlotGeometry::Rects => {
+                panic!("If the PlotItem is made of rects, it should implement find_closest()")
             }
         }
     }
-}
 
-impl ToString for LineStyle {
-    fn to_string(&self) -> String {
-        match self {
-            LineStyle::Solid => "Solid".into(),
-            LineStyle::Dotted { spacing } => format!("Dotted{}Px", spacing),
-            LineStyle::Dashed { length } => format!("Dashed{}Px", length),
-        }
+    fn on_hover(&self, elem: ClosestElem, shapes: &mut Vec<Shape>, plot: &PlotConfig<'_>) {
+        let points = match self.geometry() {
+            PlotGeometry::Points(points) => points,
+            PlotGeometry::None => {
+                panic!("If the PlotItem has no geometry, on_hover() must not be called")
+            }
+            PlotGeometry::Rects => {
+                panic!("If the PlotItem is made of rects, it should implement on_hover()")
+            }
+        };
+
+        let line_color = if plot.ui.visuals().dark_mode {
+            Color32::from_gray(100).additive()
+        } else {
+            Color32::from_black_alpha(180)
+        };
+
+        // this method is only called, if the value is in the result set of find_closest()
+        let value = points[elem.index];
+        let pointer = plot.transform.position_from_value(&value);
+        shapes.push(Shape::circle_filled(pointer, 3.0, line_color));
+
+        rulers_at_value(pointer, value, self.name(), plot, shapes);
     }
 }
 
-// ----------------------------------------------------------------------------
-
-/// Query the values of the plot, for geometric relations like closest checks
-pub(super) enum PlotGeometry<'a> {
-    /// No geometry based on single elements (examples: text, image, horizontal/vertical line)
-    None,
-
-    /// Point values (X-Y graphs)
-    Points(&'a [Value]),
-
-    /// Rectangles (examples: boxes or bars)
-    // Has currently no data, as it would require copying rects or iterating a list of pointers.
-    // Instead, geometry-based functions are directly implemented in the respective PlotItem impl.
-    Rects,
-}
 // ----------------------------------------------------------------------------
 
 /// A horizontal line in a plot, filling the full width
@@ -366,257 +306,6 @@ impl PlotItem for VLine {
         bounds.min[0] = self.x;
         bounds.max[0] = self.x;
         bounds
-    }
-}
-
-/// Result of [`PlotItem::find_closest()`] search, identifies an element inside the item for immediate use
-pub(super) struct HoverElement {
-    /// Position of hovered-over value (or bar/box-plot/...) in PlotItem
-    index: usize,
-
-    /// Squared distance from the mouse cursor (needed to compare against other PlotItems, which might be nearer)
-    pub dist_sq: f32,
-}
-
-/// Trait shared by things that can be drawn in the plot.
-pub(super) trait PlotItem {
-    fn get_shapes(&self, ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>);
-    fn initialize(&mut self, x_range: RangeInclusive<f64>);
-    fn name(&self) -> &str;
-    fn color(&self) -> Color32;
-    fn highlight(&mut self);
-    fn highlighted(&self) -> bool;
-    fn geometry(&self) -> PlotGeometry<'_>;
-    fn get_bounds(&self) -> PlotBounds;
-
-    fn find_closest(&self, point: Pos2, transform: &ScreenTransform) -> Option<HoverElement> {
-        match self.geometry() {
-            PlotGeometry::None => None,
-
-            PlotGeometry::Points(points) => points
-                .iter()
-                .enumerate()
-                .map(|(index, value)| {
-                    let pos = transform.position_from_value(value);
-                    let dist_sq = point.distance_sq(pos);
-                    HoverElement { index, dist_sq }
-                })
-                .min_by_key(|e| e.dist_sq.ord()),
-
-            PlotGeometry::Rects => {
-                panic!("If the PlotItem is made of rects, it should implement find_closest()")
-            }
-        }
-    }
-
-    fn on_hover(&self, elem: HoverElement, shapes: &mut Vec<Shape>, plot: &PlotConfig<'_>) {
-        let points = match self.geometry() {
-            PlotGeometry::Points(points) => points,
-            PlotGeometry::None => {
-                panic!("If the PlotItem has no geometry, on_hover() must not be called")
-            }
-            PlotGeometry::Rects => {
-                panic!("If the PlotItem is made of rects, it should implement on_hover()")
-            }
-        };
-
-        let line_color = if plot.ui.visuals().dark_mode {
-            Color32::from_gray(100).additive()
-        } else {
-            Color32::from_black_alpha(180)
-        };
-
-        // this method is only called, if the value is in the result set of find_closest()
-        let value = points[elem.index];
-        let pointer = plot.transform.position_from_value(&value);
-        shapes.push(Shape::circle_filled(pointer, 3.0, line_color));
-
-        rulers_at_value(pointer, value, self.name(), plot, shapes);
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-/// Describes a function y = f(x) with an optional range for x and a number of points.
-struct ExplicitGenerator {
-    function: Box<dyn Fn(f64) -> f64>,
-    x_range: RangeInclusive<f64>,
-    points: usize,
-}
-
-pub struct Values {
-    pub(super) values: Vec<Value>,
-    generator: Option<ExplicitGenerator>,
-}
-
-impl Default for Values {
-    fn default() -> Self {
-        Self {
-            values: Vec::new(),
-            generator: None,
-        }
-    }
-}
-
-impl Values {
-    pub fn from_values(values: Vec<Value>) -> Self {
-        Self {
-            values,
-            generator: None,
-        }
-    }
-
-    pub fn from_values_iter(iter: impl Iterator<Item = Value>) -> Self {
-        Self::from_values(iter.collect())
-    }
-
-    /// Draw a line based on a function `y=f(x)`, a range (which can be infinite) for x and the number of points.
-    pub fn from_explicit_callback(
-        function: impl Fn(f64) -> f64 + 'static,
-        x_range: impl RangeBounds<f64>,
-        points: usize,
-    ) -> Self {
-        let start = match x_range.start_bound() {
-            Bound::Included(x) | Bound::Excluded(x) => *x,
-            Bound::Unbounded => f64::NEG_INFINITY,
-        };
-        let end = match x_range.end_bound() {
-            Bound::Included(x) | Bound::Excluded(x) => *x,
-            Bound::Unbounded => f64::INFINITY,
-        };
-        let x_range = start..=end;
-
-        let generator = ExplicitGenerator {
-            function: Box::new(function),
-            x_range,
-            points,
-        };
-
-        Self {
-            values: Vec::new(),
-            generator: Some(generator),
-        }
-    }
-
-    /// Draw a line based on a function `(x,y)=f(t)`, a range for t and the number of points.
-    /// The range may be specified as start..end or as start..=end.
-    pub fn from_parametric_callback(
-        function: impl Fn(f64) -> (f64, f64),
-        t_range: impl RangeBounds<f64>,
-        points: usize,
-    ) -> Self {
-        let start = match t_range.start_bound() {
-            Bound::Included(x) => x,
-            Bound::Excluded(_) => unreachable!(),
-            Bound::Unbounded => panic!("The range for parametric functions must be bounded!"),
-        };
-        let end = match t_range.end_bound() {
-            Bound::Included(x) | Bound::Excluded(x) => x,
-            Bound::Unbounded => panic!("The range for parametric functions must be bounded!"),
-        };
-        let last_point_included = matches!(t_range.end_bound(), Bound::Included(_));
-        let increment = if last_point_included {
-            (end - start) / (points - 1) as f64
-        } else {
-            (end - start) / points as f64
-        };
-        let values = (0..points).map(|i| {
-            let t = start + i as f64 * increment;
-            let (x, y) = function(t);
-            Value { x, y }
-        });
-        Self::from_values_iter(values)
-    }
-
-    /// From a series of y-values.
-    /// The x-values will be the indices of these values
-    pub fn from_ys_f32(ys: &[f32]) -> Self {
-        let values: Vec<Value> = ys
-            .iter()
-            .enumerate()
-            .map(|(i, &y)| Value {
-                x: i as f64,
-                y: y as f64,
-            })
-            .collect();
-        Self::from_values(values)
-    }
-
-    /// Returns true if there are no data points available and there is no function to generate any.
-    pub(super) fn is_empty(&self) -> bool {
-        self.generator.is_none() && self.values.is_empty()
-    }
-
-    /// If initialized with a generator function, this will generate `n` evenly spaced points in the
-    /// given range.
-    pub(super) fn generate_points(&mut self, x_range: RangeInclusive<f64>) {
-        if let Some(generator) = self.generator.take() {
-            if let Some(intersection) = Self::range_intersection(&x_range, &generator.x_range) {
-                let increment =
-                    (intersection.end() - intersection.start()) / (generator.points - 1) as f64;
-                self.values = (0..generator.points)
-                    .map(|i| {
-                        let x = intersection.start() + i as f64 * increment;
-                        let y = (generator.function)(x);
-                        Value { x, y }
-                    })
-                    .collect();
-            }
-        }
-    }
-
-    /// Returns the intersection of two ranges if they intersect.
-    fn range_intersection(
-        range1: &RangeInclusive<f64>,
-        range2: &RangeInclusive<f64>,
-    ) -> Option<RangeInclusive<f64>> {
-        let start = range1.start().max(*range2.start());
-        let end = range1.end().min(*range2.end());
-        (start < end).then(|| start..=end)
-    }
-
-    pub(super) fn get_bounds(&self) -> PlotBounds {
-        let mut bounds = PlotBounds::NOTHING;
-        self.values
-            .iter()
-            .for_each(|value| bounds.extend_with(value));
-        bounds
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum MarkerShape {
-    Circle,
-    Diamond,
-    Square,
-    Cross,
-    Plus,
-    Up,
-    Down,
-    Left,
-    Right,
-    Asterisk,
-}
-
-impl MarkerShape {
-    /// Get a vector containing all marker shapes.
-    pub fn all() -> impl Iterator<Item = MarkerShape> {
-        [
-            Self::Circle,
-            Self::Diamond,
-            Self::Square,
-            Self::Cross,
-            Self::Plus,
-            Self::Up,
-            Self::Down,
-            Self::Left,
-            Self::Right,
-            Self::Asterisk,
-        ]
-        .iter()
-        .copied()
     }
 }
 
@@ -1519,92 +1208,7 @@ impl PlotItem for PlotImage {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum Orientation {
-    Horizontal,
-    Vertical,
-}
-
-impl Default for Orientation {
-    fn default() -> Self {
-        Self::Vertical
-    }
-}
-
-pub(super) struct PlotConfig<'a> {
-    pub ui: &'a Ui,
-    pub transform: &'a ScreenTransform,
-    pub show_x: bool,
-    pub show_y: bool,
-}
-
-pub(super) fn add_rulers_and_text(
-    elem: &dyn RectElement,
-    plot: &PlotConfig<'_>,
-    text: Option<String>,
-    shapes: &mut Vec<Shape>,
-) {
-    let orientation = elem.orientation();
-    let show_argument = plot.show_x && orientation == Orientation::Vertical
-        || plot.show_y && orientation == Orientation::Horizontal;
-    let show_values = plot.show_y && orientation == Orientation::Vertical
-        || plot.show_x && orientation == Orientation::Horizontal;
-
-    let line_color = rulers_color(plot.ui);
-
-    // Rulers for argument (usually vertical)
-    if show_argument {
-        let push_argument_ruler = |argument: Value, shapes: &mut Vec<Shape>| {
-            let position = plot.transform.position_from_value(&argument);
-            let line = match orientation {
-                Orientation::Horizontal => horizontal_line(position, plot.transform, line_color),
-                Orientation::Vertical => vertical_line(position, plot.transform, line_color),
-            };
-            shapes.push(line);
-        };
-
-        for pos in elem.arguments_with_ruler() {
-            push_argument_ruler(pos, shapes);
-        }
-    }
-
-    // Rulers for values (usually horizontal)
-    if show_values {
-        let push_value_ruler = |value: Value, shapes: &mut Vec<Shape>| {
-            let position = plot.transform.position_from_value(&value);
-            let line = match orientation {
-                Orientation::Horizontal => vertical_line(position, plot.transform, line_color),
-                Orientation::Vertical => horizontal_line(position, plot.transform, line_color),
-            };
-            shapes.push(line);
-        };
-
-        for pos in elem.values_with_ruler() {
-            push_value_ruler(pos, shapes);
-        }
-    }
-
-    // Text
-    let text = text.unwrap_or({
-        let mut text = elem.name().to_string(); // could be empty
-
-        if show_values {
-            text.push_str(&elem.default_values_format(plot.transform));
-        }
-
-        text
-    });
-
-    let corner_value = elem.corner_value();
-    shapes.push(Shape::text(
-        plot.ui.fonts(),
-        plot.transform.position_from_value(&corner_value) + vec2(3.0, -2.0),
-        Align2::LEFT_BOTTOM,
-        text,
-        TextStyle::Body,
-        plot.ui.visuals().text_color(),
-    ));
-}
+// ----------------------------------------------------------------------------
 
 /// A bar chart.
 pub struct BarChart {
@@ -1696,29 +1300,22 @@ impl BarChart {
     /// Stacks the bars on top of another chart.
     /// Positive values are stacked on top of other positive values.
     /// Negative values are stacked below other negative values.
-    #[allow(clippy::branches_sharing_code)] // TODO simplify code, e.g. using {min,max}_by_key()
     pub fn stack_on(mut self, others: &[&BarChart]) -> Self {
-        for (index, mut bar) in self.bars.iter_mut().enumerate() {
-            if bar.value.is_sign_positive() {
-                let mut max = 0.0;
-                for other_chart in others {
-                    if let Some(other_bar) = other_chart.bars.get(index) {
-                        max = other_bar.upper().max(max);
-                    }
-                }
-                if max > 0.0 {
-                    bar.base_offset = Some(max);
-                }
+        for (index, bar) in self.bars.iter_mut().enumerate() {
+            let new_base_offset = if bar.value.is_sign_positive() {
+                others
+                    .iter()
+                    .filter_map(|other_chart| other_chart.bars.get(index).map(|bar| bar.upper()))
+                    .max_by_key(|value| value.ord())
             } else {
-                let mut min = 0.0;
-                for other_chart in others {
-                    if let Some(other_bar) = other_chart.bars.get(index) {
-                        min = other_bar.lower().min(min);
-                    }
-                }
-                if min.abs() > 0.0 {
-                    bar.base_offset = Some(min);
-                }
+                others
+                    .iter()
+                    .filter_map(|other_chart| other_chart.bars.get(index).map(|bar| bar.lower()))
+                    .min_by_key(|value| value.ord())
+            };
+
+            if let Some(value) = new_base_offset {
+                bar.base_offset = Some(value);
             }
         }
         self
@@ -1764,11 +1361,11 @@ impl PlotItem for BarChart {
         bounds
     }
 
-    fn find_closest(&self, point: Pos2, transform: &ScreenTransform) -> Option<HoverElement> {
+    fn find_closest(&self, point: Pos2, transform: &ScreenTransform) -> Option<ClosestElem> {
         find_closest_rect(&self.bars, point, transform)
     }
 
-    fn on_hover(&self, elem: HoverElement, shapes: &mut Vec<Shape>, plot: &PlotConfig<'_>) {
+    fn on_hover(&self, elem: ClosestElem, shapes: &mut Vec<Shape>, plot: &PlotConfig<'_>) {
         let bar = &self.bars[elem.index];
 
         bar.add_shapes(plot.transform, true, shapes);
@@ -1776,15 +1373,13 @@ impl PlotItem for BarChart {
     }
 }
 
-pub type ElemFormatter = dyn Fn(&BoxElem, &BoxPlot) -> String;
-
 /// A diagram containing a series of [`BoxElem`] elements.
 pub struct BoxPlot {
     pub(super) boxes: Vec<BoxElem>,
     pub(super) default_color: Color32,
-    pub name: String,
+    pub(super) name: String,
     /// A custom element formatter
-    pub(super) element_formatter: Option<Box<ElemFormatter>>,
+    pub(super) element_formatter: Option<Box<dyn Fn(&BoxElem, &BoxPlot) -> String>>,
     highlight: bool,
 }
 
@@ -1902,11 +1497,11 @@ impl PlotItem for BoxPlot {
         bounds
     }
 
-    fn find_closest(&self, point: Pos2, transform: &ScreenTransform) -> Option<HoverElement> {
+    fn find_closest(&self, point: Pos2, transform: &ScreenTransform) -> Option<ClosestElem> {
         find_closest_rect(&self.boxes, point, transform)
     }
 
-    fn on_hover(&self, elem: HoverElement, shapes: &mut Vec<Shape>, plot: &PlotConfig<'_>) {
+    fn on_hover(&self, elem: ClosestElem, shapes: &mut Vec<Shape>, plot: &PlotConfig<'_>) {
         let box_plot = &self.boxes[elem.index];
 
         box_plot.add_shapes(plot.transform, true, shapes);
@@ -1945,6 +1540,74 @@ fn horizontal_line(pointer: Pos2, transform: &ScreenTransform, line_color: Color
         ],
         (1.0, line_color),
     )
+}
+
+fn add_rulers_and_text(
+    elem: &dyn RectElement,
+    plot: &PlotConfig<'_>,
+    text: Option<String>,
+    shapes: &mut Vec<Shape>,
+) {
+    let orientation = elem.orientation();
+    let show_argument = plot.show_x && orientation == Orientation::Vertical
+        || plot.show_y && orientation == Orientation::Horizontal;
+    let show_values = plot.show_y && orientation == Orientation::Vertical
+        || plot.show_x && orientation == Orientation::Horizontal;
+
+    let line_color = rulers_color(plot.ui);
+
+    // Rulers for argument (usually vertical)
+    if show_argument {
+        let push_argument_ruler = |argument: Value, shapes: &mut Vec<Shape>| {
+            let position = plot.transform.position_from_value(&argument);
+            let line = match orientation {
+                Orientation::Horizontal => horizontal_line(position, plot.transform, line_color),
+                Orientation::Vertical => vertical_line(position, plot.transform, line_color),
+            };
+            shapes.push(line);
+        };
+
+        for pos in elem.arguments_with_ruler() {
+            push_argument_ruler(pos, shapes);
+        }
+    }
+
+    // Rulers for values (usually horizontal)
+    if show_values {
+        let push_value_ruler = |value: Value, shapes: &mut Vec<Shape>| {
+            let position = plot.transform.position_from_value(&value);
+            let line = match orientation {
+                Orientation::Horizontal => vertical_line(position, plot.transform, line_color),
+                Orientation::Vertical => horizontal_line(position, plot.transform, line_color),
+            };
+            shapes.push(line);
+        };
+
+        for pos in elem.values_with_ruler() {
+            push_value_ruler(pos, shapes);
+        }
+    }
+
+    // Text
+    let text = text.unwrap_or({
+        let mut text = elem.name().to_string(); // could be empty
+
+        if show_values {
+            text.push_str(&elem.default_values_format(plot.transform));
+        }
+
+        text
+    });
+
+    let corner_value = elem.corner_value();
+    shapes.push(Shape::text(
+        plot.ui.fonts(),
+        plot.transform.position_from_value(&corner_value) + vec2(3.0, -2.0),
+        Align2::LEFT_BOTTOM,
+        text,
+        TextStyle::Body,
+        plot.ui.visuals().text_color(),
+    ));
 }
 
 /// Draws a cross of horizontal and vertical ruler at the `pointer` position.
@@ -2003,7 +1666,7 @@ fn find_closest_rect<'a, T>(
     rects: impl IntoIterator<Item = &'a T>,
     point: Pos2,
     transform: &ScreenTransform,
-) -> Option<HoverElement>
+) -> Option<ClosestElem>
 where
     T: 'a + RectElement,
 {
@@ -2014,7 +1677,7 @@ where
             let bar_rect: Rect = transform.rect_from_values(&bar.bounds_min(), &bar.bounds_max());
             let dist_sq = bar_rect.distance_sq_to_pos(point);
 
-            HoverElement { index, dist_sq }
+            ClosestElem { index, dist_sq }
         })
         .min_by_key(|e| e.dist_sq.ord())
 }
