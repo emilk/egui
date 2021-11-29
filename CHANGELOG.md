@@ -8,6 +8,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 ## Unreleased
 
 ### Added ⭐
+* Add bar charts and box plots ([#863](https://github.com/emilk/egui/pull/863)).
 * Add context menus: See `Ui::menu_button` and `Response::context_menu` ([#543](https://github.com/emilk/egui/pull/543)).
 * You can now read and write the cursor of a `TextEdit` ([#848](https://github.com/emilk/egui/pull/848)).
 * Most widgets containing text (`Label`, `Button` etc) now supports rich text ([#855](https://github.com/emilk/egui/pull/855)).

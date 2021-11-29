@@ -52,6 +52,14 @@ impl PlotBounds {
         self.max[1] - self.min[1]
     }
 
+    pub fn center(&self) -> Value {
+        Value {
+            x: (self.min[0] + self.max[0]) / 2.0,
+            y: (self.min[1] + self.max[1]) / 2.0,
+        }
+    }
+
+    /// Expand to include the given (x,y) value
     pub(crate) fn extend_with(&mut self, value: &Value) {
         self.extend_with_x(value.x);
         self.extend_with_y(value.y);
@@ -223,6 +231,20 @@ impl ScreenTransform {
             self.bounds.min[1]..=self.bounds.max[1],
         );
         Value::new(x, y)
+    }
+
+    /// Transform a rectangle of plot values to a screen-coordinate rectangle.
+    ///
+    /// This typically means that the rect is mirrored vertically (top becomes bottom and vice versa),
+    /// since the plot's coordinate system has +Y up, while egui has +Y down.
+    pub fn rect_from_values(&self, value1: &Value, value2: &Value) -> Rect {
+        let pos1 = self.position_from_value(value1);
+        let pos2 = self.position_from_value(value2);
+
+        let mut rect = Rect::NOTHING;
+        rect.extend_with(pos1);
+        rect.extend_with(pos2);
+        rect
     }
 
     /// delta position / delta value
