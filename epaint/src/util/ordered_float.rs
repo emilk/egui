@@ -2,6 +2,7 @@
 //! Can be used for sorting, min/max computation, and other collection algorithms.
 
 use std::cmp::Ordering;
+use std::hash::{Hash, Hasher};
 
 /// Totally orderable floating-point value
 /// For not `f32` is supported; could be made generic if necessary.
@@ -40,6 +41,14 @@ impl Ord for OrderedFloat {
         }
     }
 }
+
+impl Hash for OrderedFloat {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        crate::f32_hash(state, self.0);
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 /// Extension trait to provide `ord` method
 pub trait FloatOrd {
