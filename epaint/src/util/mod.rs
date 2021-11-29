@@ -1,3 +1,7 @@
+mod ordered_float;
+
+pub use ordered_float::*;
+
 /// Hash the given value with a predictable hasher.
 #[inline]
 pub fn hash(value: impl std::hash::Hash) -> u64 {

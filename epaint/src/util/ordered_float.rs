@@ -1,11 +1,11 @@
-//! Total order on floating point types, assuming absence of NaN.
+//! Total order on floating point types.
 //! Can be used for sorting, min/max computation, and other collection algorithms.
 
 use std::cmp::Ordering;
 
 /// Totally orderable floating-point value
 /// For not `f32` is supported; could be made generic if necessary.
-pub(crate) struct OrderedFloat(f32);
+pub struct OrderedFloat(f32);
 
 impl Eq for OrderedFloat {}
 
@@ -42,7 +42,7 @@ impl Ord for OrderedFloat {
 }
 
 /// Extension trait to provide `ord` method
-pub(crate) trait FloatOrd {
+pub trait FloatOrd {
     /// Type to provide total order, useful as key in sorted contexts.
     fn ord(self) -> OrderedFloat;
 }

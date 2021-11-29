@@ -1,9 +1,9 @@
 //! Simple plotting library.
 
-use crate::util::float_ord::FloatOrd;
 use crate::*;
-use color::Hsva;
 use epaint::ahash::AHashSet;
+use epaint::color::Hsva;
+use epaint::util::FloatOrd;
 use items::PlotItem;
 use legend::LegendWidget;
 use transform::{PlotBounds, ScreenTransform};
