@@ -18,7 +18,8 @@ mod items;
 mod legend;
 mod transform;
 
-type CustomLabelFunc = Option<Box<dyn Fn(&str, &Value) -> String>>;
+type CustomLabelFunc = dyn Fn(&str, &Value) -> String;
+type CustomLabelFuncRef = Option<Box<CustomLabelFunc>>;
 
 // ----------------------------------------------------------------------------
 
@@ -78,7 +79,7 @@ pub struct Plot {
 
     show_x: bool,
     show_y: bool,
-    custom_label_func: CustomLabelFunc,
+    custom_label_func: CustomLabelFuncRef,
     legend_config: Option<Legend>,
     show_background: bool,
     show_axes: [bool; 2],
@@ -197,18 +198,21 @@ impl Plot {
     /// });
     /// let line = Line::new(Values::from_values_iter(sin));
     /// Plot::new("my_plot").view_aspect(2.0)
-    /// .custom_label_func(Some(Box::new(|name, value| {
+    /// .custom_label_func(|name, value| {
     ///     if !name.is_empty() {
     ///         format!("{}: {:.*}%", name, 1, value.y).to_string()
     ///     } else {
     ///         "".to_string()
     ///     }
-    /// })))
+    /// })
     /// .show(ui, |plot_ui| plot_ui.line(line));
     /// # });
     /// ```
-    pub fn custom_label_func(mut self, custom_lebel_func: CustomLabelFunc) -> Self {
-        self.custom_label_func = custom_lebel_func;
+    pub fn custom_label_func<F: 'static + Fn(&str, &Value) -> String>(
+        mut self,
+        custom_lebel_func: F,
+    ) -> Self {
+        self.custom_label_func = Some(Box::new(custom_lebel_func));
         self
     }
 
@@ -645,7 +649,7 @@ struct PreparedPlot {
     items: Vec<Box<dyn PlotItem>>,
     show_x: bool,
     show_y: bool,
-    custom_label_func: CustomLabelFunc,
+    custom_label_func: CustomLabelFuncRef,
     show_axes: [bool; 2],
     transform: ScreenTransform,
 }
