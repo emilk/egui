@@ -18,7 +18,7 @@ mod items;
 mod legend;
 mod transform;
 
-type CustomLabelFunc = dyn Fn(&str, &Value) -> String;
+type CustomLabelFunc = dyn Fn(Option<&str>, &Value) -> String;
 type CustomLabelFuncRef = Option<Box<CustomLabelFunc>>;
 
 // ----------------------------------------------------------------------------
@@ -199,7 +199,7 @@ impl Plot {
     /// let line = Line::new(Values::from_values_iter(sin));
     /// Plot::new("my_plot").view_aspect(2.0)
     /// .custom_label_func(|name, value| {
-    ///     if !name.is_empty() {
+    ///     if let Some(name) = name {
     ///         format!("{}: {:.*}%", name, 1, value.y).to_string()
     ///     } else {
     ///         "".to_string()
@@ -208,7 +208,7 @@ impl Plot {
     /// .show(ui, |plot_ui| plot_ui.line(line));
     /// # });
     /// ```
-    pub fn custom_label_func<F: 'static + Fn(&str, &Value) -> String>(
+    pub fn custom_label_func<F: 'static + Fn(Option<&str>, &Value) -> String>(
         mut self,
         custom_lebel_func: F,
     ) -> Self {
