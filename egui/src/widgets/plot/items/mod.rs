@@ -2,9 +2,9 @@
 
 use std::ops::RangeInclusive;
 
+use epaint::util::FloatOrd;
 use epaint::Mesh;
 
-use crate::util::float_ord::FloatOrd;
 use crate::*;
 
 use super::{PlotBounds, ScreenTransform};
