@@ -24,6 +24,3 @@ opt-level = 2 # fast and small wasm, basically same as `opt-level = 's'`
 # opt-level = 3 # unecessarily large wasm for no performance gain
 
 # debug = true # include debug symbols, useful when profiling wasm
-
-[patch.crates-io]
-glium = { git = "https://github.com/glium/glium.git", rev = "438747a3b7a1cac807ed7df89b6538e91ba76420" }

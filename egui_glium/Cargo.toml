@@ -26,7 +26,7 @@ egui = { version = "0.15.0", path = "../egui", default-features = false, feature
 egui-winit = { version = "0.15.0", path = "../egui-winit", default-features = false, features = ["epi"] }
 epi = { version = "0.15.0", path = "../epi", optional = true }
 
-glium = "0.30"
+glium = "0.31"
 
 [dev-dependencies]
 image = { version = "0.23", default-features = false, features = ["png"] }
