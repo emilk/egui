@@ -38,7 +38,7 @@ egui_web = { version = "0.15.0", path = "../egui_web", default-features = false 
 
 [dev-dependencies]
 image = { version = "0.23", default-features = false, features = ["png"] }
-rfd = "0.5.0"
+rfd = "0.6"
 
 [features]
 default = ["default_fonts", "egui_glium"]
