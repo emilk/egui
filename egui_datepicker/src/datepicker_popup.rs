@@ -296,6 +296,8 @@ impl<'a> DatePickerPopup<'a> {
                                             );
                                         });
                                     }
+
+                                    //TODO: Locale
                                     for name in ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"] {
                                         header.col(|ui| {
                                             ui.with_layout(
