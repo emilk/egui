@@ -891,6 +891,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "egui_datepicker"
+version = "0.15.0"
+dependencies = [
+ "chrono",
+ "egui",
+ "egui_dynamic_grid",
+ "serde",
+]
+
+[[package]]
 name = "egui_demo_app"
 version = "0.15.0"
 dependencies = [
@@ -905,6 +915,7 @@ dependencies = [
  "chrono",
  "criterion",
  "egui",
+ "egui_datepicker",
  "ehttp",
  "enum-map",
  "epi",
@@ -912,6 +923,13 @@ dependencies = [
  "serde",
  "syntect",
  "unicode_names2",
+]
+
+[[package]]
+name = "egui_dynamic_grid"
+version = "0.15.0"
+dependencies = [
+ "egui",
 ]
 
 [[package]]
