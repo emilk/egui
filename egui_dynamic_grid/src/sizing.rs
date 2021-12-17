@@ -66,7 +66,7 @@ impl Sizing {
             0.0
         } else {
             let mut remainder_length = length - sum_non_remainder;
-            let avg_remainder_length = 0.0f32.max(remainder_length / remainders as f32);
+            let avg_remainder_length = 0.0f32.max(remainder_length / remainders as f32).floor();
             self.sizes.iter().for_each(|size| {
                 if let Size::RemainderMinimum(minimum) = size {
                     if *minimum > avg_remainder_length {
