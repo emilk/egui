@@ -142,7 +142,7 @@ pub struct TableBody<'b> {
 }
 
 impl<'a> TableBody<'a> {
-    pub fn rows(&mut self, height: f32, rows: usize, mut row: impl FnMut(usize, TableRow)) {
+    pub fn rows(mut self, height: f32, rows: usize, mut row: impl FnMut(usize, TableRow)) {
         let delta = self.layout.current_y() - self.start_y;
         let mut start = 0;
 
@@ -150,15 +150,14 @@ impl<'a> TableBody<'a> {
             start = (-delta / height).floor() as usize;
 
             let skip_height = start as f32 * height;
-            let mut row = TableRow {
+            TableRow {
                 layout: &mut self.layout,
                 widths: self.widths.clone(),
                 striped: self.striped && self.odd,
                 height: skip_height,
                 clicked: false,
-            };
-
-            row.col(|_| {});
+            }
+            .col(|_| ()); // advances the cursor
         }
 
         let max_height = self.end_y - self.start_y;
@@ -186,15 +185,14 @@ impl<'a> TableBody<'a> {
         if rows - end > 0 {
             let skip_height = (rows - end) as f32 * height;
 
-            let mut row = TableRow {
+            TableRow {
                 layout: &mut self.layout,
                 widths: self.widths.clone(),
                 striped: self.striped && self.odd,
                 height: skip_height,
                 clicked: false,
-            };
-
-            row.col(|_| {});
+            }
+            .col(|_| ()); // advances the cursor
         }
     }
 
