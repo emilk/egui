@@ -1,18 +1,19 @@
 #[derive(Clone, Debug)]
 pub enum Size {
-    /// in points
+    /// Absolute size in points
     Absolute(f32),
-    /// 0.0 to 1.0
+    /// Relative size relative to all available space. Values must be in range `0.0..=1.0`
     Relative(f32),
+    /// [`Size::Relative`] with a minimum size in points
     RelativeMinimum {
-        /// 0.0 to 1.0
+        /// Relative size relative to all available space. Values must be in range `0.0..=1.0`
         relative: f32,
-        /// in points
+        /// Absolute minimum size in points
         minimum: f32,
     },
-    /// multiple remainders get each the same space
+    /// Multiple remainders each get the same space
     Remainder,
-    /// multiple remainders get each the same space, at least the minimum
+    ///  [`Size::Remainder`] with a minimum size in points
     RemainderMinimum(f32),
 }
 

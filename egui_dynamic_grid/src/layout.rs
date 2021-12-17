@@ -2,7 +2,9 @@ use crate::Padding;
 use egui::{Pos2, Rect, Response, Rgba, Sense, Ui, Vec2};
 
 pub(crate) enum CellSize {
+    /// Absolute size in points
     Absolute(f32),
+    /// Take all available space
     Remainder,
 }
 

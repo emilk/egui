@@ -1,3 +1,5 @@
+/// Configure padding of grid or table
+/// TODO: Use padding settings of egui?
 #[derive(Clone, Debug)]
 pub struct Padding {
     pub(crate) inner: f32,
