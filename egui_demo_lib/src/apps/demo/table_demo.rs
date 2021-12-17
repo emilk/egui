@@ -1,3 +1,4 @@
+use egui::RichText;
 use egui_dynamic_grid::{Padding, Size, TableBuilder};
 
 /// Shows off a table with dynamic layout
@@ -24,25 +25,26 @@ impl super::Demo for TableDemo {
 
 impl super::View for TableDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        TableBuilder::new(ui, Padding::new(2.0, 5.0))
+        // TODO: Fix table as a padding smaller than 16 grows the window
+        TableBuilder::new(ui, Padding::new(3.0, 16.0))
             .striped(true)
             .column(Size::Absolute(100.0))
             .column(Size::RemainderMinimum(150.0))
             .column(Size::Absolute(50.0))
-            .header(50.0, |mut header| {
+            .header(20.0, |mut header| {
                 header.col(|ui| {
-                    ui.label("Left");
+                    ui.label(RichText::new("Left").heading());
                 });
                 header.col(|ui| {
-                    ui.label("Middle");
+                    ui.label(RichText::new("Middle").heading());
                 });
                 header.col(|ui| {
-                    ui.label("Right");
+                    ui.label(RichText::new("Right").heading());
                 });
             })
             .body(|mut body| {
-                for i in 1..100 {
-                    body.row(40.0, |mut row| {
+                for i in 0..100 {
+                    body.row(20.0, |mut row| {
                         row.col(|ui| {
                             ui.label(format!("{}", i));
                         });
