@@ -20,6 +20,7 @@ pub mod password;
 pub mod plot_demo;
 pub mod scrolling;
 pub mod sliders;
+pub mod table_demo;
 pub mod tests;
 pub mod toggle_switch;
 pub mod widget_gallery;

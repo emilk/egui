@@ -20,6 +20,7 @@ all-features = true
 [dependencies]
 egui = { version = "0.15.0", path = "../egui", default-features = false }
 epi = { version = "0.15.0", path = "../epi" }
+egui_dynamic_grid = { version = "0.15.0", path = "../egui_dynamic_grid" }
 egui_datepicker = { version = "0.15.0", path = "../egui_datepicker", optional = true }
 
 chrono = { version = "0.4", features = ["js-sys", "wasmbind"], optional = true }

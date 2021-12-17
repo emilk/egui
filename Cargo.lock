@@ -916,6 +916,7 @@ dependencies = [
  "criterion",
  "egui",
  "egui_datepicker",
+ "egui_dynamic_grid",
  "ehttp",
  "enum-map",
  "epi",
