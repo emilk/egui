@@ -10,7 +10,7 @@ pub struct TableDemo {
 
 impl super::Demo for TableDemo {
     fn name(&self) -> &'static str {
-        "☰ Table"
+        "☰ Table Demo"
     }
 
     fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
