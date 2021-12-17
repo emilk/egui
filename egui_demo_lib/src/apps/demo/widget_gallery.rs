@@ -1,5 +1,3 @@
-use egui_datepicker::DatePickerButton;
-
 #[cfg(feature = "datetime")]
 mod serde_date_format;
 
@@ -209,7 +207,7 @@ impl WidgetGallery {
         #[cfg(feature = "datetime")]
         {
             ui.add(doc_link_label("DatePickerButton", "DatePickerButton"));
-            ui.add(DatePickerButton::new(date));
+            ui.add(egui_datepicker::DatePickerButton::new(date));
             ui.end_row();
         }
 
