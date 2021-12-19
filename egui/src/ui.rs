@@ -1420,6 +1420,16 @@ impl Ui {
         CollapsingHeader::new(heading).show(self, add_contents)
     }
 
+    /// Show [`CollapsedHeader`] with a custom [`Id`] parameter.
+    pub fn collapsing_with_id<R>(
+        &mut self,
+        heading: impl Into<WidgetText>,
+        id: impl std::hash::Hash,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> CollapsingResponse<R> {
+        CollapsingHeader::with_id(heading, id).show(self, add_contents)
+    }
+
     /// Create a child ui which is indented to the right.
     ///
     /// The `id_source` here be anything at all.
