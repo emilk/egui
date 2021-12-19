@@ -171,6 +171,25 @@ impl CollapsingHeader {
             show_background: false,
         }
     }
+    
+    /// By default [`CollapsingHeader`] uses label as [`Id`], here you can set a
+    /// custom `Id` for it.
+    ///
+    /// Except the above statement, everyhthing is the same with [`Self::new` ]
+    /// constructor function.
+    pub fn with_id(text: impl Into<WidgetText>, id: impl std::hash::Hash) -> Self {
+        let text = text.into();
+        let id_source = Id::new(id);
+        Self {
+            text,
+            default_open: false,
+            id_source,
+            enabled: true,
+            selectable: false,
+            selected: false,
+            show_background: false,
+        }
+    }
 
     /// By default, the `CollapsingHeader` is collapsed.
     /// Call `.default_open(true)` to change this.
