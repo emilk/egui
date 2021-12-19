@@ -171,7 +171,7 @@ impl CollapsingHeader {
             show_background: false,
         }
     }
-    
+
     /// By default [`CollapsingHeader`] uses label as [`Id`], here you can set a
     /// custom `Id` for it.
     ///
