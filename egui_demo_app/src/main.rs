@@ -8,7 +8,7 @@ fn main() {
     let app = egui_demo_lib::WrapApp::default();
     let options = eframe::NativeOptions {
         // Let's show off that we support transparent windows
-        transparent: true,
+        // transparent: true,
         drag_and_drop_support: true,
         ..Default::default()
     };
