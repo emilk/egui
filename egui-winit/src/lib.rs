@@ -458,6 +458,9 @@ impl State {
             // https://github.com/rust-windowing/winit/issues/1695 being closed
             delta.x *= -1.0;
         }
+        if cfg!(target_os = "windows") {
+            delta.x *= -1.0; // until https://github.com/rust-windowing/winit/pull/2101 is merged
+        }
 
         if self.egui_input.modifiers.ctrl || self.egui_input.modifiers.command {
             // Treat as zoom instead:
