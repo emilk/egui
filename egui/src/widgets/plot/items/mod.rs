@@ -1658,7 +1658,6 @@ pub(super) fn rulers_at_value(
         let x_decimals = ((-scale[0].abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
         let y_decimals = ((-scale[1].abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
         if let Some(custom_label) = custom_label_func {
-            let name = (!name.is_empty()).then(|| name);
             custom_label(name, &value)
         } else if plot.show_x && plot.show_y {
             format!(
