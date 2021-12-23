@@ -35,7 +35,9 @@ If you just want to write a GUI application in Rust (for the web or for native),
 
 If you want to integrate egui into an existing engine, go to the [Integrations](#integrations) section.
 
-If you have questions, use [Discussions](https://github.com/emilk/egui/discussions). If you want to contribute to egui, please read the [Contributing Guidelines](https://github.com/emilk/egui/blob/master/CONTRIBUTING.md)
+If you have questions, use [Discussions](https://github.com/emilk/egui/discussions).
+A Discord server is available at https://discord.gg/vbuv9Xan65.
+If you want to contribute to egui, please read the [Contributing Guidelines](https://github.com/emilk/egui/blob/master/CONTRIBUTING.md).
 
 ## Demo
 
