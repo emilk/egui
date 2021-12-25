@@ -7,6 +7,7 @@
 [![Build Status](https://github.com/emilk/egui/workflows/CI/badge.svg)](https://github.com/emilk/egui/actions?workflow=CI)
 ![MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Apache](https://img.shields.io/badge/license-Apache-blue.svg)
+[![Discord](https://img.shields.io/discord/900275882684477440?label=egui%20discord)](https://discord.gg/JFcEma9bJq)
 
 
 egui is a simple, fast, and highly portable immediate mode GUI library for Rust. egui runs on the web, natively, and [in your favorite game engine](#integrations) (or will soon).
@@ -35,7 +36,7 @@ If you just want to write a GUI application in Rust (for the web or for native),
 
 If you want to integrate egui into an existing engine, go to the [Integrations](#integrations) section.
 
-If you have questions, use [Discussions](https://github.com/emilk/egui/discussions). If you want to contribute to egui, please read the [Contributing Guidelines](https://github.com/emilk/egui/blob/master/CONTRIBUTING.md)
+If you have questions, use [GitHub Discussions](https://github.com/emilk/egui/discussions). There is also [an egui discord server](https://discord.gg/JFcEma9bJq). If you want to contribute to egui, please read the [Contributing Guidelines](https://github.com/emilk/egui/blob/master/CONTRIBUTING.md)
 
 ## Demo
 
