@@ -240,7 +240,7 @@ impl Default for NativeOptions {
 /// Image data for the icon.
 #[derive(Clone)]
 pub struct IconData {
-    /// RGBA pixels.
+    /// RGBA pixels, unmultiplied.
     pub rgba: Vec<u8>,
 
     /// Image width. This should be a multiple of 4.
@@ -386,7 +386,7 @@ pub trait TextureAllocator {
 }
 
 /// A 2D color image in RAM.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct Image {
     /// width, height
     pub size: [usize; 2],

@@ -7,7 +7,7 @@ struct Resource {
     text: Option<String>,
 
     /// If set, the response was an image.
-    image: Option<Image>,
+    image: Option<epi::Image>,
 
     /// If set, the response was text with some supported syntax highlighting (e.g. ".rs" or ".md").
     colored_text: Option<ColoredText>,
@@ -17,7 +17,7 @@ impl Resource {
     fn from_response(ctx: &egui::Context, response: ehttp::Response) -> Self {
         let content_type = response.content_type().unwrap_or_default();
         let image = if content_type.starts_with("image/") {
-            Image::decode(&response.bytes)
+            decode_image(&response.bytes)
         } else {
             None
         };
@@ -95,13 +95,13 @@ impl epi::App for HttpApp {
 
             if trigger_fetch {
                 let request = ehttp::Request::get(&self.url);
-                let repaint_signal = frame.repaint_signal();
+                let frame = frame.clone();
                 let (sender, receiver) = std::sync::mpsc::channel();
                 self.in_progress = Some(receiver);
 
                 ehttp::fetch(request, move |response| {
                     sender.send(response).ok();
-                    repaint_signal.request_repaint();
+                    frame.request_repaint();
                 });
             }
 
@@ -213,7 +213,7 @@ fn ui_resource(ui: &mut egui::Ui, frame: &epi::Frame, tex_mngr: &mut TexMngr, re
 
             if let Some(image) = image {
                 if let Some(texture_id) = tex_mngr.texture(frame, &response.url, image) {
-                    let mut size = egui::Vec2::new(image.size.0 as f32, image.size.1 as f32);
+                    let mut size = egui::Vec2::new(image.size[0] as f32, image.size[1] as f32);
                     size *= (ui.available_width() / size.x).min(1.0);
                     ui.image(texture_id, size);
                 }
@@ -297,37 +297,29 @@ struct TexMngr {
 }
 
 impl TexMngr {
-    fn texture(&mut self, frame: &epi::Frame, url: &str, image: &Image) -> Option<egui::TextureId> {
+    fn texture(
+        &mut self,
+        frame: &epi::Frame,
+        url: &str,
+        image: &epi::Image,
+    ) -> Option<egui::TextureId> {
         if self.loaded_url != url {
             if let Some(texture_id) = self.texture_id.take() {
-                frame.tex_allocator().free(texture_id);
+                frame.free_texture(texture_id);
             }
 
-            self.texture_id = Some(frame.tex_allocator().alloc(image.size, &image.pixels));
+            self.texture_id = Some(frame.alloc_texture(image.clone()));
             self.loaded_url = url.to_owned();
         }
         self.texture_id
     }
 }
 
-struct Image {
-    size: (usize, usize),
-    pixels: Vec<egui::Color32>,
-}
-
-impl Image {
-    fn decode(bytes: &[u8]) -> Option<Image> {
-        use image::GenericImageView;
-        let image = image::load_from_memory(bytes).ok()?;
-        let image_buffer = image.to_rgba8();
-        let size = (image.width() as usize, image.height() as usize);
-        let pixels = image_buffer.into_vec();
-        assert_eq!(size.0 * size.1 * 4, pixels.len());
-        let pixels = pixels
-            .chunks(4)
-            .map(|p| egui::Color32::from_rgba_unmultiplied(p[0], p[1], p[2], p[3]))
-            .collect();
-
-        Some(Image { size, pixels })
-    }
+fn decode_image(bytes: &[u8]) -> Option<epi::Image> {
+    use image::GenericImageView;
+    let image = image::load_from_memory(bytes).ok()?;
+    let image_buffer = image.to_rgba8();
+    let size = [image.width() as usize, image.height() as usize];
+    let pixels = image_buffer.into_vec();
+    Some(epi::Image::from_rgba_unmultiplied(size, &pixels))
 }
