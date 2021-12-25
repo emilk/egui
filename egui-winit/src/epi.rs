@@ -51,13 +51,15 @@ fn window_builder_drag_and_drop(
     window_builder
 }
 
+#[must_use]
 pub fn handle_app_output(
     window: &winit::window::Window,
     current_pixels_per_point: f32,
     app_output: epi::backend::AppOutput,
-) {
+) -> epi::backend::TexAllocationData {
     let epi::backend::AppOutput {
         quit: _,
+        tex_allocation_data,
         window_size,
         window_title,
         decorated,
@@ -85,6 +87,8 @@ pub fn handle_app_output(
     if drag_window {
         let _ = window.drag_window();
     }
+
+    tex_allocation_data
 }
 
 // ----------------------------------------------------------------------------
@@ -186,13 +190,11 @@ impl Persistence {
 
 /// Everything needed to make a winit-based integration for [`epi`].
 pub struct EpiIntegration {
-    integration_name: &'static str,
+    frame: epi::Frame,
     persistence: crate::epi::Persistence,
-    repaint_signal: std::sync::Arc<dyn epi::RepaintSignal>,
     pub egui_ctx: egui::CtxRef,
     egui_winit: crate::State,
     pub app: Box<dyn epi::App>,
-    latest_frame_time: Option<f32>,
     /// When set, it is time to quit
     quit: bool,
 }
@@ -201,8 +203,7 @@ impl EpiIntegration {
     pub fn new(
         integration_name: &'static str,
         window: &winit::window::Window,
-        tex_allocator: &mut dyn epi::TextureAllocator,
-        repaint_signal: std::sync::Arc<dyn epi::RepaintSignal>,
+        repaint_signal: std::sync::Arc<dyn epi::backend::RepaintSignal>,
         persistence: crate::epi::Persistence,
         app: Box<dyn epi::App>,
     ) -> Self {
@@ -210,54 +211,49 @@ impl EpiIntegration {
 
         *egui_ctx.memory() = persistence.load_memory().unwrap_or_default();
 
-        let mut slf = Self {
-            integration_name,
-            persistence,
+        let frame = epi::Frame::new(epi::backend::FrameData {
+            info: epi::IntegrationInfo {
+                name: integration_name,
+                web_info: None,
+                prefer_dark_mode: None, // TODO: figure out system default
+                cpu_usage: None,
+                native_pixels_per_point: Some(crate::native_pixels_per_point(window)),
+            },
+            output: Default::default(),
             repaint_signal,
+        });
+
+        let mut slf = Self {
+            frame,
+            persistence,
             egui_ctx,
             egui_winit: crate::State::new(window),
             app,
-            latest_frame_time: None,
             quit: false,
         };
 
-        slf.setup(window, tex_allocator);
+        slf.setup(window);
         if slf.app.warm_up_enabled() {
-            slf.warm_up(window, tex_allocator);
+            slf.warm_up(window);
         }
 
         slf
     }
 
-    fn setup(
-        &mut self,
-        window: &winit::window::Window,
-        tex_allocator: &mut dyn epi::TextureAllocator,
-    ) {
-        let mut app_output = epi::backend::AppOutput::default();
-        let mut frame = epi::backend::FrameBuilder {
-            info: integration_info(self.integration_name, window, None),
-            tex_allocator,
-            output: &mut app_output,
-            repaint_signal: self.repaint_signal.clone(),
-        }
-        .build();
+    fn setup(&mut self, window: &winit::window::Window) {
         self.app
-            .setup(&self.egui_ctx, &mut frame, self.persistence.storage());
-
+            .setup(&self.egui_ctx, &self.frame, self.persistence.storage());
+        let app_output = self.frame.take_app_output();
         self.quit |= app_output.quit;
-
-        crate::epi::handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
+        let tex_alloc_data =
+            crate::epi::handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
+        self.frame.0.lock().output.tex_allocation_data = tex_alloc_data; // Do it later
     }
 
-    fn warm_up(
-        &mut self,
-        window: &winit::window::Window,
-        tex_allocator: &mut dyn epi::TextureAllocator,
-    ) {
+    fn warm_up(&mut self, window: &winit::window::Window) {
         let saved_memory = self.egui_ctx.memory().clone();
         self.egui_ctx.memory().set_everything_is_visible(true);
-        self.update(window, tex_allocator);
+        self.update(window);
         *self.egui_ctx.memory() = saved_memory; // We don't want to remember that windows were huge.
         self.egui_ctx.clear_animations();
     }
@@ -277,37 +273,31 @@ impl EpiIntegration {
     pub fn update(
         &mut self,
         window: &winit::window::Window,
-        tex_allocator: &mut dyn epi::TextureAllocator,
-    ) -> (bool, Vec<egui::epaint::ClippedShape>) {
+    ) -> (
+        bool,
+        epi::backend::TexAllocationData,
+        Vec<egui::epaint::ClippedShape>,
+    ) {
         let frame_start = std::time::Instant::now();
 
         let raw_input = self.egui_winit.take_egui_input(window);
-
-        let mut app_output = epi::backend::AppOutput::default();
-        let mut frame = epi::backend::FrameBuilder {
-            info: integration_info(self.integration_name, window, self.latest_frame_time),
-            tex_allocator,
-            output: &mut app_output,
-            repaint_signal: self.repaint_signal.clone(),
-        }
-        .build();
-
         let (egui_output, shapes) = self.egui_ctx.run(raw_input, |egui_ctx| {
-            self.app.update(egui_ctx, &mut frame);
+            self.app.update(egui_ctx, &self.frame);
         });
 
         let needs_repaint = egui_output.needs_repaint;
         self.egui_winit
             .handle_output(window, &self.egui_ctx, egui_output);
 
+        let app_output = self.frame.take_app_output();
         self.quit |= app_output.quit;
-
-        crate::epi::handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
+        let tex_allocation_data =
+            crate::epi::handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
 
         let frame_time = (std::time::Instant::now() - frame_start).as_secs_f64() as f32;
-        self.latest_frame_time = Some(frame_time);
+        self.frame.0.lock().info.cpu_usage = Some(frame_time);
 
-        (needs_repaint, shapes)
+        (needs_repaint, tex_allocation_data, shapes)
     }
 
     pub fn maybe_autosave(&mut self, window: &winit::window::Window) {
@@ -319,19 +309,5 @@ impl EpiIntegration {
         self.app.on_exit();
         self.persistence
             .save(&mut *self.app, &self.egui_ctx, window);
-    }
-}
-
-fn integration_info(
-    integration_name: &'static str,
-    window: &winit::window::Window,
-    previous_frame_time: Option<f32>,
-) -> epi::IntegrationInfo {
-    epi::IntegrationInfo {
-        name: integration_name,
-        web_info: None,
-        prefer_dark_mode: None, // TODO: figure out system default
-        cpu_usage: previous_frame_time,
-        native_pixels_per_point: Some(crate::native_pixels_per_point(window)),
     }
 }

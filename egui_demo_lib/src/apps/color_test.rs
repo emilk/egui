@@ -34,7 +34,7 @@ impl epi::App for ColorTest {
         "🎨 Color test"
     }
 
-    fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
+    fn update(&mut self, ctx: &egui::CtxRef, frame: &epi::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             if frame.is_web() {
                 ui.label(
@@ -43,18 +43,14 @@ impl epi::App for ColorTest {
                 ui.separator();
             }
             ScrollArea::both().auto_shrink([false; 2]).show(ui, |ui| {
-                self.ui(ui, &mut Some(frame.tex_allocator()));
+                self.ui(ui, Some(frame));
             });
         });
     }
 }
 
 impl ColorTest {
-    pub fn ui(
-        &mut self,
-        ui: &mut Ui,
-        mut tex_allocator: &mut Option<&mut dyn epi::TextureAllocator>,
-    ) {
+    pub fn ui(&mut self, ui: &mut Ui, tex_allocator: Option<&dyn epi::TextureAllocator>) {
         ui.set_max_width(680.0);
 
         ui.vertical_centered(|ui| {
@@ -105,10 +101,10 @@ impl ColorTest {
                 self.vertex_gradient(ui, "Ground truth (vertices)", WHITE, &g);
                 self.tex_gradient(ui, tex_allocator, "Ground truth (texture)", WHITE, &g);
             }
-            if let Some(tex_allocator) = &mut tex_allocator {
+            if let Some(tex_allocator) = tex_allocator {
                 ui.horizontal(|ui| {
                     let g = Gradient::one_color(Color32::from(tex_color));
-                    let tex = self.tex_mngr.get(*tex_allocator, &g);
+                    let tex = self.tex_mngr.get(tex_allocator, &g);
                     let texel_offset = 0.5 / (g.0.len() as f32);
                     let uv =
                         Rect::from_min_max(pos2(texel_offset, 0.0), pos2(1.0 - texel_offset, 1.0));
@@ -167,7 +163,7 @@ impl ColorTest {
     fn show_gradients(
         &mut self,
         ui: &mut Ui,
-        tex_allocator: &mut Option<&mut dyn epi::TextureAllocator>,
+        tex_allocator: Option<&dyn epi::TextureAllocator>,
         bg_fill: Color32,
         (left, right): (Color32, Color32),
     ) {
@@ -261,7 +257,7 @@ impl ColorTest {
     fn tex_gradient(
         &mut self,
         ui: &mut Ui,
-        tex_allocator: &mut Option<&mut dyn epi::TextureAllocator>,
+        tex_allocator: Option<&dyn epi::TextureAllocator>,
         label: &str,
         bg_fill: Color32,
         gradient: &Gradient,
@@ -271,7 +267,7 @@ impl ColorTest {
         }
         if let Some(tex_allocator) = tex_allocator {
             ui.horizontal(|ui| {
-                let tex = self.tex_mngr.get(*tex_allocator, gradient);
+                let tex = self.tex_mngr.get(tex_allocator, gradient);
                 let texel_offset = 0.5 / (gradient.0.len() as f32);
                 let uv = Rect::from_min_max(pos2(texel_offset, 0.0), pos2(1.0 - texel_offset, 1.0));
                 ui.add(Image::new(tex, GRADIENT_SIZE).bg_fill(bg_fill).uv(uv))
@@ -391,16 +387,15 @@ impl Gradient {
 struct TextureManager(HashMap<Gradient, TextureId>);
 
 impl TextureManager {
-    fn get(
-        &mut self,
-        tex_allocator: &mut dyn epi::TextureAllocator,
-        gradient: &Gradient,
-    ) -> TextureId {
+    fn get(&mut self, tex_allocator: &dyn epi::TextureAllocator, gradient: &Gradient) -> TextureId {
         *self.0.entry(gradient.clone()).or_insert_with(|| {
             let pixels = gradient.to_pixel_row();
             let width = pixels.len();
             let height = 1;
-            tex_allocator.alloc_srgba_premultiplied((width, height), &pixels)
+            tex_allocator.alloc(epi::Image {
+                size: [width, height],
+                pixels,
+            })
         })
     }
 }

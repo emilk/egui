@@ -10,7 +10,7 @@ impl epi::App for MyApp {
         "Show an image with eframe/egui"
     }
 
-    fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
+    fn update(&mut self, ctx: &egui::CtxRef, frame: &epi::Frame) {
         if self.texture.is_none() {
             // Load the image:
             let image_data = include_bytes!("rust-logo-256x256.png");
@@ -26,9 +26,7 @@ impl epi::App for MyApp {
                 .collect();
 
             // Allocate a texture:
-            let texture = frame
-                .tex_allocator()
-                .alloc_srgba_premultiplied(size, &pixels);
+            let texture = frame.tex_allocator().alloc(size, &pixels);
             let size = egui::Vec2::new(size.0 as f32, size.1 as f32);
             self.texture = Some((size, texture));
         }

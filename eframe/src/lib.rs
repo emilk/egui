@@ -24,7 +24,7 @@
 //!        "My egui App"
 //!    }
 //!
-//!    fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
+//!    fn update(&mut self, ctx: &egui::CtxRef, frame: &epi::Frame) {
 //!        egui::CentralPanel::default().show(ctx, |ui| {
 //!            ui.heading("Hello World!");
 //!        });
@@ -127,7 +127,7 @@ pub fn start_web(canvas_id: &str, app: Box<dyn epi::App>) -> Result<(), wasm_bin
 ///        "My egui App"
 ///    }
 ///
-///    fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
+///    fn update(&mut self, ctx: &egui::CtxRef, frame: &epi::Frame) {
 ///        egui::CentralPanel::default().show(ctx, |ui| {
 ///            ui.heading("Hello World!");
 ///        });

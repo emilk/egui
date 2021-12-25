@@ -1,22 +1,6 @@
-use crate::*;
-use egui::Color32;
 use glium::glutin;
 
-impl epi::TextureAllocator for Painter {
-    fn alloc_srgba_premultiplied(
-        &mut self,
-        size: (usize, usize),
-        srgba_pixels: &[Color32],
-    ) -> egui::TextureId {
-        let id = self.alloc_user_texture();
-        self.set_user_texture(id, size, srgba_pixels);
-        id
-    }
-
-    fn free(&mut self, id: egui::TextureId) {
-        self.free_user_texture(id);
-    }
-}
+use crate::*;
 
 struct RequestRepaintEvent;
 
@@ -24,7 +8,7 @@ struct GliumRepaintSignal(
     std::sync::Mutex<glutin::event_loop::EventLoopProxy<RequestRepaintEvent>>,
 );
 
-impl epi::RepaintSignal for GliumRepaintSignal {
+impl epi::backend::RepaintSignal for GliumRepaintSignal {
     fn request_repaint(&self) {
         self.0.lock().unwrap().send_event(RequestRepaintEvent).ok();
     }
@@ -64,7 +48,6 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
     let mut integration = egui_winit::epi::EpiIntegration::new(
         "egui_glium",
         display.gl_window().window(),
-        &mut painter,
         repaint_signal,
         persistence,
         app,
@@ -83,10 +66,15 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
 
-            let (needs_repaint, shapes) =
-                integration.update(display.gl_window().window(), &mut painter);
+            let (needs_repaint, mut tex_allocation_data, shapes) =
+                integration.update(display.gl_window().window());
             let clipped_meshes = integration.egui_ctx.tessellate(shapes);
 
+            for (id, image) in tex_allocation_data.creations {
+                painter.set_user_texture(&display, id, &image);
+            }
+
+            // paint:
             {
                 use glium::Surface as _;
                 let mut target = display.draw();
@@ -102,6 +90,10 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
                 );
 
                 target.finish().unwrap();
+            }
+
+            for id in tex_allocation_data.destructions.drain(..) {
+                painter.free_user_texture(id);
             }
 
             {

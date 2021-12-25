@@ -1,14 +1,13 @@
 #![allow(unsafe_code)]
 
+use std::collections::HashMap;
+
 use egui::{
     emath::Rect,
     epaint::{Color32, Mesh, Vertex},
 };
-pub use glow::Context;
-
-use memoffset::offset_of;
-
 use glow::HasContext;
+use memoffset::offset_of;
 
 use crate::misc_util::{
     as_u8_slice, compile_shader, glow_debug_print, link_program, srgbtexture2d,
@@ -16,6 +15,8 @@ use crate::misc_util::{
 use crate::post_process::PostProcess;
 use crate::shader_version::ShaderVersion;
 use crate::vao_emulate;
+
+pub use glow::Context;
 
 const VERT_SRC: &str = include_str!("shader/vertex.glsl");
 const FRAG_SRC: &str = include_str!("shader/fragment.glsl");
@@ -34,27 +35,19 @@ pub struct Painter {
     is_embedded: bool,
     vertex_array: crate::misc_util::VAO,
     srgb_support: bool,
-    /// `None` means unallocated (freed) slot.
-    pub(crate) user_textures: Vec<Option<UserTexture>>,
     post_process: Option<PostProcess>,
     vertex_buffer: glow::Buffer,
     element_array_buffer: glow::Buffer,
 
-    // Stores outdated OpenGL textures that are yet to be deleted
-    old_textures: Vec<glow::Texture>,
-    // Only used in debug builds, to make sure we are destroyed correctly.
+    /// Index is the same as in [`egui::TextureId::User`].
+    user_textures: HashMap<u64, glow::Texture>,
+    // TODO: 128-bit texture space?
+    next_native_tex_id: u64,
+    /// Stores outdated OpenGL textures that are yet to be deleted
+    textures_to_destroy: Vec<glow::Texture>,
+
+    /// Only used in debug builds, to make sure we are destroyed correctly.
     destroyed: bool,
-}
-
-#[derive(Default)]
-pub(crate) struct UserTexture {
-    /// Pending upload (will be emptied later).
-    /// This is the format glow likes.
-    pub(crate) data: Vec<u8>,
-    pub(crate) size: (usize, usize),
-
-    /// Lazily uploaded
-    pub(crate) gl_texture: Option<glow::Texture>,
 }
 
 impl Painter {
@@ -195,11 +188,12 @@ impl Painter {
                 is_embedded: matches!(shader_version, ShaderVersion::Es100 | ShaderVersion::Es300),
                 vertex_array,
                 srgb_support,
-                user_textures: Default::default(),
                 post_process,
                 vertex_buffer,
                 element_array_buffer,
-                old_textures: Vec::new(),
+                user_textures: Default::default(),
+                next_native_tex_id: 1 << 32,
+                textures_to_destroy: Vec::new(),
                 destroyed: false,
             })
         }
@@ -298,15 +292,14 @@ impl Painter {
     /// of the effects your program might have on this code. Look at the source if in doubt.
     pub fn paint_meshes(
         &mut self,
-        inner_size: [u32; 2],
         gl: &glow::Context,
+        inner_size: [u32; 2],
         pixels_per_point: f32,
         clipped_meshes: Vec<egui::ClippedMesh>,
     ) {
         //chimera of egui_glow and egui_web
         self.assert_not_destroyed();
 
-        self.upload_pending_user_textures(gl);
         if let Some(ref mut post_process) = self.post_process {
             unsafe {
                 post_process.begin(gl, inner_size[0] as i32, inner_size[1] as i32);
@@ -393,96 +386,39 @@ impl Painter {
     }
 
     // ------------------------------------------------------------------------
-    // user textures: this is an experimental feature.
-    // No need to implement this in your egui integration!
 
-    pub fn alloc_user_texture(&mut self) -> egui::TextureId {
+    pub fn set_user_texture(&mut self, gl: &glow::Context, tex_id: u64, image: &epi::Image) {
         self.assert_not_destroyed();
 
-        for (i, tex) in self.user_textures.iter_mut().enumerate() {
-            if tex.is_none() {
-                *tex = Some(Default::default());
-                return egui::TextureId::User(i as u64);
-            }
-        }
-        let id = egui::TextureId::User(self.user_textures.len() as u64);
-        self.user_textures.push(Some(Default::default()));
-        id
-    }
-
-    /// register glow texture as egui texture
-    /// Usable for render to image rectangle
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn register_glow_texture(&mut self, texture: glow::Texture) -> egui::TextureId {
-        self.assert_not_destroyed();
-
-        let id = self.alloc_user_texture();
-        if let egui::TextureId::User(id) = id {
-            if let Some(Some(user_texture)) = self.user_textures.get_mut(id as usize) {
-                if let UserTexture {
-                    gl_texture: Some(old_tex),
-                    ..
-                } = std::mem::replace(
-                    user_texture,
-                    UserTexture {
-                        data: vec![],
-                        size: (0, 0),
-                        gl_texture: Some(texture),
-                    },
-                ) {
-                    self.old_textures.push(old_tex);
-                }
-            }
-        }
-        id
-    }
-
-    pub fn set_user_texture(
-        &mut self,
-        id: egui::TextureId,
-        size: (usize, usize),
-        pixels: &[Color32],
-    ) {
-        self.assert_not_destroyed();
         assert_eq!(
-            size.0 * size.1,
-            pixels.len(),
-            "Mismatch between size and texel count"
+            image.size[0] * image.size[1],
+            image.pixels.len(),
+            "Mismatch between texture size and texel count"
         );
 
-        if let egui::TextureId::User(id) = id {
-            if let Some(Some(user_texture)) = self.user_textures.get_mut(id as usize) {
-                let data: Vec<u8> = pixels
-                    .iter()
-                    .flat_map(|srgba| Vec::from(srgba.to_array()))
-                    .collect();
+        // TODO: optimize
+        let pixels: Vec<u8> = image
+            .pixels
+            .iter()
+            .flat_map(|srgba| Vec::from(srgba.to_array()))
+            .collect();
 
-                if let UserTexture {
-                    gl_texture: Some(old_tex),
-                    ..
-                } = std::mem::replace(
-                    user_texture,
-                    UserTexture {
-                        data,
-                        size,
-                        gl_texture: None,
-                    },
-                ) {
-                    self.old_textures.push(old_tex);
-                }
-            }
+        let gl_texture = srgbtexture2d(
+            gl,
+            self.is_webgl_1,
+            self.srgb_support,
+            &pixels,
+            image.size[0],
+            image.size[1],
+        );
+
+        if let Some(old_tex) = self.user_textures.insert(tex_id, gl_texture) {
+            self.textures_to_destroy.push(old_tex);
         }
     }
 
-    pub fn free_user_texture(&mut self, id: egui::TextureId) {
-        self.assert_not_destroyed();
-
-        if let egui::TextureId::User(id) = id {
-            let index = id as usize;
-            if index < self.user_textures.len() {
-                self.user_textures[index] = None;
-            }
-        }
+    pub fn free_user_texture(&mut self, tex_id: u64) {
+        self.user_textures.remove(&tex_id);
     }
 
     pub fn get_texture(&self, texture_id: egui::TextureId) -> Option<glow::Texture> {
@@ -490,31 +426,7 @@ impl Painter {
 
         match texture_id {
             egui::TextureId::Egui => self.egui_texture,
-            egui::TextureId::User(id) => self.user_textures.get(id as usize)?.as_ref()?.gl_texture,
-        }
-    }
-
-    pub fn upload_pending_user_textures(&mut self, gl: &glow::Context) {
-        self.assert_not_destroyed();
-
-        for user_texture in self.user_textures.iter_mut().flatten() {
-            if user_texture.gl_texture.is_none() {
-                let data = std::mem::take(&mut user_texture.data);
-                user_texture.gl_texture = Some(srgbtexture2d(
-                    gl,
-                    self.is_webgl_1,
-                    self.srgb_support,
-                    &data,
-                    user_texture.size.0,
-                    user_texture.size.1,
-                ));
-                user_texture.size = (0, 0);
-            }
-        }
-        for t in self.old_textures.drain(..) {
-            unsafe {
-                gl.delete_texture(t);
-            }
+            egui::TextureId::User(id) => self.user_textures.get(&id).copied(),
         }
     }
 
@@ -523,14 +435,12 @@ impl Painter {
         if let Some(tex) = self.egui_texture {
             gl.delete_texture(tex);
         }
-        for tex in self.user_textures.iter().flatten() {
-            if let Some(t) = tex.gl_texture {
-                gl.delete_texture(t);
-            }
+        for tex in self.user_textures.values() {
+            gl.delete_texture(*tex);
         }
         gl.delete_buffer(self.vertex_buffer);
         gl.delete_buffer(self.element_array_buffer);
-        for t in &self.old_textures {
+        for t in &self.textures_to_destroy {
             gl.delete_texture(*t);
         }
     }
@@ -581,38 +491,25 @@ impl Drop for Painter {
 }
 
 #[cfg(feature = "epi")]
-impl epi::TextureAllocator for Painter {
-    fn alloc_srgba_premultiplied(
-        &mut self,
-        size: (usize, usize),
-        srgba_pixels: &[Color32],
-    ) -> egui::TextureId {
-        let id = self.alloc_user_texture();
-        self.set_user_texture(id, size, srgba_pixels);
-        id
-    }
-
-    fn free(&mut self, id: egui::TextureId) {
-        self.free_user_texture(id);
-    }
-}
-
-#[cfg(feature = "epi")]
 impl epi::NativeTexture for Painter {
     type Texture = glow::Texture;
 
     fn register_native_texture(&mut self, native: Self::Texture) -> egui::TextureId {
-        self.register_glow_texture(native)
+        self.assert_not_destroyed();
+
+        let id = self.next_native_tex_id;
+        self.next_native_tex_id += 1;
+
+        if let Some(old_tex) = self.user_textures.insert(id, native) {
+            self.textures_to_destroy.push(old_tex);
+        }
+        egui::TextureId::User(id as u64)
     }
 
     fn replace_native_texture(&mut self, id: egui::TextureId, replacing: Self::Texture) {
         if let egui::TextureId::User(id) = id {
-            if let Some(Some(user_texture)) = self.user_textures.get_mut(id as usize) {
-                *user_texture = UserTexture {
-                    data: vec![],
-                    gl_texture: Some(replacing),
-                    size: (0, 0),
-                };
+            if let Some(old_tex) = self.user_textures.insert(id, replacing) {
+                self.textures_to_destroy.push(old_tex);
             }
         }
     }

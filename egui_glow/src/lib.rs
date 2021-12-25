@@ -166,8 +166,8 @@ impl EguiGlow {
         self.painter
             .upload_egui_texture(gl, &self.egui_ctx.texture());
         self.painter.paint_meshes(
-            dimensions,
             gl,
+            dimensions,
             self.egui_ctx.pixels_per_point(),
             clipped_meshes,
         );

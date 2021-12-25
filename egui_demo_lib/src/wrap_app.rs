@@ -45,7 +45,7 @@ impl epi::App for WrapApp {
     fn setup(
         &mut self,
         _ctx: &egui::CtxRef,
-        _frame: &mut epi::Frame<'_>,
+        _frame: &epi::Frame,
         _storage: Option<&dyn epi::Storage>,
     ) {
         #[cfg(feature = "persistence")]
@@ -72,7 +72,7 @@ impl epi::App for WrapApp {
         cfg!(not(debug_assertions))
     }
 
-    fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
+    fn update(&mut self, ctx: &egui::CtxRef, frame: &epi::Frame) {
         if let Some(web_info) = frame.info().web_info.as_ref() {
             if let Some(anchor) = web_info.web_location_hash.strip_prefix('#') {
                 self.selected_anchor = anchor.to_owned();
@@ -126,7 +126,7 @@ impl epi::App for WrapApp {
 }
 
 impl WrapApp {
-    fn bar_contents(&mut self, ui: &mut egui::Ui, frame: &mut epi::Frame<'_>) {
+    fn bar_contents(&mut self, ui: &mut egui::Ui, frame: &epi::Frame) {
         // A menu-bar is a horizontal layout with some special styles applied.
         // egui::menu::bar(ui, |ui| {
         ui.horizontal_wrapped(|ui| {

@@ -78,7 +78,7 @@ impl Default for BackendPanel {
 }
 
 impl BackendPanel {
-    pub fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
+    pub fn update(&mut self, ctx: &egui::CtxRef, frame: &epi::Frame) {
         self.frame_history
             .on_new_frame(ctx.input().time, frame.info().cpu_usage);
 
@@ -92,7 +92,7 @@ impl BackendPanel {
         self.egui_windows.windows(ctx);
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui, frame: &mut epi::Frame<'_>) {
+    pub fn ui(&mut self, ui: &mut egui::Ui, frame: &epi::Frame) {
         egui::trace!(ui);
         ui.vertical_centered(|ui| {
             ui.heading("💻 Backend");
@@ -147,7 +147,7 @@ impl BackendPanel {
         }
     }
 
-    fn integration_ui(&mut self, ui: &mut egui::Ui, frame: &mut epi::Frame<'_>) {
+    fn integration_ui(&mut self, ui: &mut egui::Ui, frame: &epi::Frame) {
         if frame.is_web() {
             ui.label("egui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
             ui.label(
@@ -170,13 +170,13 @@ impl BackendPanel {
             }
         }
 
-        show_integration_name(ui, frame.info());
+        show_integration_name(ui, &frame.info());
 
         // For instance: `egui_web` sets `pixels_per_point` every frame to force
         // egui to use the same scale as the web zoom factor.
         let integration_controls_pixels_per_point = ui.input().raw.pixels_per_point.is_some();
         if !integration_controls_pixels_per_point {
-            if let Some(new_pixels_per_point) = self.pixels_per_point_ui(ui, frame.info()) {
+            if let Some(new_pixels_per_point) = self.pixels_per_point_ui(ui, &frame.info()) {
                 ui.ctx().set_pixels_per_point(new_pixels_per_point);
             }
         }

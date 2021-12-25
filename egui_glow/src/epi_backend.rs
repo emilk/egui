@@ -4,7 +4,7 @@ struct RequestRepaintEvent;
 
 struct GlowRepaintSignal(std::sync::Mutex<glutin::event_loop::EventLoopProxy<RequestRepaintEvent>>);
 
-impl epi::RepaintSignal for GlowRepaintSignal {
+impl epi::backend::RepaintSignal for GlowRepaintSignal {
     fn request_repaint(&self) {
         self.0.lock().unwrap().send_event(RequestRepaintEvent).ok();
     }
@@ -64,7 +64,6 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
     let mut integration = egui_winit::epi::EpiIntegration::new(
         "egui_glow",
         gl_window.window(),
-        &mut painter,
         repaint_signal,
         persistence,
         app,
@@ -83,9 +82,15 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
 
-            let (needs_repaint, shapes) = integration.update(gl_window.window(), &mut painter);
+            let (needs_repaint, mut tex_allocation_data, shapes) =
+                integration.update(gl_window.window());
             let clipped_meshes = integration.egui_ctx.tessellate(shapes);
 
+            for (id, image) in tex_allocation_data.creations {
+                painter.set_user_texture(&gl, id, &image);
+            }
+
+            // paint:
             {
                 let color = integration.app.clear_color();
                 unsafe {
@@ -96,13 +101,17 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
                 }
                 painter.upload_egui_texture(&gl, &integration.egui_ctx.texture());
                 painter.paint_meshes(
-                    gl_window.window().inner_size().into(),
                     &gl,
+                    gl_window.window().inner_size().into(),
                     integration.egui_ctx.pixels_per_point(),
                     clipped_meshes,
                 );
 
                 gl_window.swap_buffers().unwrap();
+            }
+
+            for id in tex_allocation_data.destructions.drain(..) {
+                painter.free_user_texture(id);
             }
 
             {

@@ -5,6 +5,9 @@ NOTE: [`egui_web`](egui_web/CHANGELOG.md), [`egui-winit`](egui-winit/CHANGELOG.m
 
 
 ## Unreleased
+* `Frame` can now be cloned, saved, and passed to background threads.
+* Added `Frame::request_repaint` to replace `repaint_signal`.
+* Added `Frame::alloc_texture/free_texture` to replace `tex_allocator`.
 
 
 ## 0.15.0 - 2021-10-24

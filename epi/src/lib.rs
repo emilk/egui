@@ -95,6 +95,9 @@ pub mod file_storage;
 
 pub use egui; // Re-export for user convenience
 
+use parking_lot::Mutex;
+use std::sync::Arc;
+
 // ----------------------------------------------------------------------------
 
 /// Implement this trait to write apps that can be compiled both natively using the [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium) crate,
@@ -104,8 +107,11 @@ pub trait App {
     ///
     /// Put your widgets into a [`egui::SidePanel`], [`egui::TopBottomPanel`], [`egui::CentralPanel`], [`egui::Window`] or [`egui::Area`].
     ///
-    /// To force a repaint, call either [`egui::Context::request_repaint`] or use [`Frame::repaint_signal`].
-    fn update(&mut self, ctx: &egui::CtxRef, frame: &mut Frame<'_>);
+    /// The given [`egui::CtxRef`] is only valid for the duration of this call.
+    /// The [`Frame`] however can be cloned and saved.
+    ///
+    /// To force a repaint, call either [`egui::Context::request_repaint`] or [`Frame::request_repaint`].
+    fn update(&mut self, ctx: &egui::CtxRef, frame: &Frame);
 
     /// Called once before the first frame.
     ///
@@ -113,13 +119,7 @@ pub trait App {
     /// [`egui::Context::set_visuals`] etc.
     ///
     /// Also allows you to restore state, if there is a storage (required the "persistence" feature).
-    fn setup(
-        &mut self,
-        _ctx: &egui::CtxRef,
-        _frame: &mut Frame<'_>,
-        _storage: Option<&dyn Storage>,
-    ) {
-    }
+    fn setup(&mut self, _ctx: &egui::CtxRef, _frame: &Frame, _storage: Option<&dyn Storage>) {}
 
     /// If `true` a warm-up call to [`Self::update`] will be issued where
     /// `ctx.memory().everything_is_visible()` will be set to `true`.
@@ -254,57 +254,92 @@ pub struct IconData {
 ///
 /// It provides methods to inspect the surroundings (are we on the web?),
 /// allocate textures, and change settings (e.g. window size).
-pub struct Frame<'a>(backend::FrameBuilder<'a>);
+///
+/// [`Frame`] is cheap to clone and is safe to pass to other threads.
+#[derive(Clone)]
+pub struct Frame(pub Arc<Mutex<backend::FrameData>>);
 
-impl<'a> Frame<'a> {
+impl Frame {
+    /// Create a `Frame` - called by the integration.
+    pub fn new(frame_data: backend::FrameData) -> Self {
+        Self(Arc::new(Mutex::new(frame_data)))
+    }
+
     /// True if you are in a web environment.
     pub fn is_web(&self) -> bool {
-        self.info().web_info.is_some()
+        self.0.lock().info.web_info.is_some()
     }
 
     /// Information about the integration.
-    pub fn info(&self) -> &IntegrationInfo {
-        &self.0.info
-    }
-
-    /// A way to allocate textures.
-    pub fn tex_allocator(&mut self) -> &mut dyn TextureAllocator {
-        self.0.tex_allocator
+    pub fn info(&self) -> IntegrationInfo {
+        self.0.lock().info.clone()
     }
 
     /// Signal the app to stop/exit/quit the app (only works for native apps, not web apps).
     /// The framework will not quit immediately, but at the end of the this frame.
-    pub fn quit(&mut self) {
-        self.0.output.quit = true;
+    pub fn quit(&self) {
+        self.0.lock().output.quit = true;
     }
 
     /// Set the desired inner size of the window (in egui points).
-    pub fn set_window_size(&mut self, size: egui::Vec2) {
-        self.0.output.window_size = Some(size);
+    pub fn set_window_size(&self, size: egui::Vec2) {
+        self.0.lock().output.window_size = Some(size);
     }
 
     /// Set the desired title of the window.
-    pub fn set_window_title(&mut self, title: &str) {
-        self.0.output.window_title = Some(title.to_owned());
+    pub fn set_window_title(&self, title: &str) {
+        self.0.lock().output.window_title = Some(title.to_owned());
     }
 
     /// Set whether to show window decorations (i.e. a frame around you app).
     /// If false it will be difficult to move and resize the app.
-    pub fn set_decorations(&mut self, decorated: bool) {
-        self.0.output.decorated = Some(decorated);
+    pub fn set_decorations(&self, decorated: bool) {
+        self.0.lock().output.decorated = Some(decorated);
     }
 
     /// When called, the native window will follow the
     /// movement of the cursor while the primary mouse button is down.
     ///
-    /// Does not work on the web, and works badly on Mac.
-    pub fn drag_window(&mut self) {
-        self.0.output.drag_window = true;
+    /// Does not work on the web.
+    pub fn drag_window(&self) {
+        self.0.lock().output.drag_window = true;
     }
 
-    /// If you need to request a repaint from another thread, clone this and send it to that other thread.
-    pub fn repaint_signal(&self) -> std::sync::Arc<dyn RepaintSignal> {
-        self.0.repaint_signal.clone()
+    /// This signals the [`egui`] integration that a repaint is required.
+    ///
+    /// Call this e.g. when a background process finishes in an async context and/or background thread.
+    pub fn request_repaint(&self) {
+        self.0.lock().repaint_signal.request_repaint();
+    }
+
+    /// for integrations only: call once per frame
+    #[must_use]
+    pub fn take_app_output(&self) -> crate::backend::AppOutput {
+        let mut lock = self.0.lock();
+        let next_id = lock.output.tex_allocation_data.next_id;
+        let app_output = std::mem::take(&mut lock.output);
+        lock.output.tex_allocation_data.next_id = next_id;
+        app_output
+    }
+
+    /// Allocate a texture. Free it again with [`Self::free_texture`].
+    pub fn alloc_texture(&self, image: Image) -> egui::TextureId {
+        self.0.lock().output.tex_allocation_data.alloc(image)
+    }
+
+    /// Free a texture that has been previously allocated with [`Self::alloc_texture`]. Idempotent.
+    pub fn free_texture(&self, id: egui::TextureId) {
+        self.0.lock().output.tex_allocation_data.free(id);
+    }
+}
+
+impl TextureAllocator for Frame {
+    fn alloc(&self, image: Image) -> egui::TextureId {
+        self.0.lock().output.tex_allocation_data.alloc(image)
+    }
+
+    fn free(&self, id: egui::TextureId) {
+        self.0.lock().output.tex_allocation_data.free(id);
     }
 }
 
@@ -344,14 +379,19 @@ pub trait TextureAllocator {
     ///
     /// There is no way to change a texture.
     /// Instead allocate a new texture and free the previous one with [`Self::free`].
-    fn alloc_srgba_premultiplied(
-        &mut self,
-        size: (usize, usize),
-        srgba_pixels: &[egui::Color32],
-    ) -> egui::TextureId;
+    fn alloc(&self, image: Image) -> egui::TextureId;
 
     /// Free the given texture.
-    fn free(&mut self, id: egui::TextureId);
+    fn free(&self, id: egui::TextureId);
+}
+
+/// A 2D color image in RAM.
+#[derive(Default)]
+pub struct Image {
+    /// width, height
+    pub size: [usize; 2],
+    /// The pixels, row by row, from top to bottom.
+    pub pixels: Vec<egui::Color32>,
 }
 
 /// Abstraction for platform dependent texture reference
@@ -365,13 +405,6 @@ pub trait NativeTexture {
     /// Change id's actual pointing texture
     /// only for user texture
     fn replace_native_texture(&mut self, id: egui::TextureId, replacing: Self::Texture);
-}
-
-/// How to signal the [`egui`] integration that a repaint is required.
-pub trait RepaintSignal: Send + Sync {
-    /// This signals the [`egui`] integration that a repaint is required.
-    /// This is meant to be called when a background process finishes in an async context and/or background thread.
-    fn request_repaint(&self);
 }
 
 // ----------------------------------------------------------------------------
@@ -423,29 +456,66 @@ pub const APP_KEY: &str = "app";
 
 /// You only need to look here if you are writing a backend for `epi`.
 pub mod backend {
+    use std::collections::HashMap;
+
     use super::*;
 
+    /// How to signal the [`egui`] integration that a repaint is required.
+    pub trait RepaintSignal: Send + Sync {
+        /// This signals the [`egui`] integration that a repaint is required.
+        ///
+        /// Call this e.g. when a background process finishes in an async context and/or background thread.
+        fn request_repaint(&self);
+    }
+
     /// The data required by [`Frame`] each frame.
-    pub struct FrameBuilder<'a> {
+    pub struct FrameData {
         /// Information about the integration.
         pub info: IntegrationInfo,
-        /// A way to allocate textures (on integrations that support it).
-        pub tex_allocator: &'a mut dyn TextureAllocator,
         /// Where the app can issue commands back to the integration.
-        pub output: &'a mut AppOutput,
+        pub output: AppOutput,
         /// If you need to request a repaint from another thread, clone this and send it to that other thread.
         pub repaint_signal: std::sync::Arc<dyn RepaintSignal>,
     }
 
-    impl<'a> FrameBuilder<'a> {
-        /// Wrap us in a [`Frame`] to send to [`App::update`].
-        pub fn build(self) -> Frame<'a> {
-            Frame(self)
+    /// The data needed in order to allocate and free textures/images.
+    #[derive(Default)]
+    pub struct TexAllocationData {
+        /// We allocate texture id linearly.
+        pub(crate) next_id: u64,
+        /// New creations this frame
+        pub creations: HashMap<u64, Image>,
+        /// destructions this frame.
+        pub destructions: Vec<u64>,
+    }
+
+    impl TexAllocationData {
+        /// Should only be used by integrations
+        pub fn take(&mut self) -> Self {
+            let next_id = self.next_id;
+            let ret = std::mem::take(self);
+            self.next_id = next_id;
+            ret
+        }
+
+        /// Allocate a new texture.
+        pub fn alloc(&mut self, image: Image) -> egui::TextureId {
+            let id = self.next_id;
+            self.next_id += 1;
+            self.creations.insert(id, image);
+            egui::TextureId::User(id)
+        }
+
+        /// Free an existing texture.
+        pub fn free(&mut self, id: egui::TextureId) {
+            if let egui::TextureId::User(id) = id {
+                self.destructions.push(id);
+            }
         }
     }
 
     /// Action that can be taken by the user app.
-    #[derive(Clone, Debug, Default, PartialEq)]
+    #[derive(Default)]
     pub struct AppOutput {
         /// Set to `true` to stop the app.
         /// This does nothing for web apps.
@@ -462,5 +532,8 @@ pub mod backend {
 
         /// Set to true to drap window
         pub drag_window: bool,
+
+        /// A way to allocate textures (on integrations that support it).
+        pub tex_allocation_data: TexAllocationData,
     }
 }

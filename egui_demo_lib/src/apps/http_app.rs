@@ -67,7 +67,7 @@ impl epi::App for HttpApp {
         "⬇ HTTP"
     }
 
-    fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
+    fn update(&mut self, ctx: &egui::CtxRef, frame: &epi::Frame) {
         if let Some(receiver) = &mut self.in_progress {
             // Are we there yet?
             if let Ok(result) = receiver.try_recv() {
@@ -127,7 +127,7 @@ impl epi::App for HttpApp {
     }
 }
 
-fn ui_url(ui: &mut egui::Ui, frame: &mut epi::Frame<'_>, url: &mut String) -> bool {
+fn ui_url(ui: &mut egui::Ui, frame: &epi::Frame, url: &mut String) -> bool {
     let mut trigger_fetch = false;
 
     ui.horizontal(|ui| {
@@ -160,12 +160,7 @@ fn ui_url(ui: &mut egui::Ui, frame: &mut epi::Frame<'_>, url: &mut String) -> bo
     trigger_fetch
 }
 
-fn ui_resource(
-    ui: &mut egui::Ui,
-    frame: &mut epi::Frame<'_>,
-    tex_mngr: &mut TexMngr,
-    resource: &Resource,
-) {
+fn ui_resource(ui: &mut egui::Ui, frame: &epi::Frame, tex_mngr: &mut TexMngr, resource: &Resource) {
     let Resource {
         response,
         text,
@@ -302,22 +297,13 @@ struct TexMngr {
 }
 
 impl TexMngr {
-    fn texture(
-        &mut self,
-        frame: &mut epi::Frame<'_>,
-        url: &str,
-        image: &Image,
-    ) -> Option<egui::TextureId> {
+    fn texture(&mut self, frame: &epi::Frame, url: &str, image: &Image) -> Option<egui::TextureId> {
         if self.loaded_url != url {
             if let Some(texture_id) = self.texture_id.take() {
                 frame.tex_allocator().free(texture_id);
             }
 
-            self.texture_id = Some(
-                frame
-                    .tex_allocator()
-                    .alloc_srgba_premultiplied(image.size, &image.pixels),
-            );
+            self.texture_id = Some(frame.tex_allocator().alloc(image.size, &image.pixels));
             self.loaded_url = url.to_owned();
         }
         self.texture_id

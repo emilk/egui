@@ -1002,6 +1002,7 @@ version = "0.15.0"
 dependencies = [
  "directories-next",
  "egui",
+ "parking_lot",
  "ron",
  "serde",
 ]
