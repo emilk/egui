@@ -292,9 +292,8 @@ impl EpiIntegration {
         }
         .build();
 
-        let app = &mut self.app; // TODO: remove when we update MSVR to 1.56
         let (egui_output, shapes) = self.egui_ctx.run(raw_input, |egui_ctx| {
-            app.update(egui_ctx, &mut frame);
+            self.app.update(egui_ctx, &mut frame);
         });
 
         let needs_repaint = egui_output.needs_repaint;

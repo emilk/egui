@@ -64,7 +64,6 @@ impl Mesh {
 
     /// Are all indices within the bounds of the contained vertices?
     pub fn is_valid(&self) -> bool {
-        use std::convert::TryFrom;
         if let Ok(n) = u32::try_from(self.vertices.len()) {
             self.indices.iter().all(|&i| i < n)
         } else {
@@ -223,7 +222,6 @@ impl Mesh {
                 MAX_SIZE
             );
 
-            use std::convert::TryFrom;
             let mesh = Mesh16 {
                 indices: self.indices[span_start..index_cursor]
                     .iter()
@@ -267,7 +265,6 @@ pub struct Mesh16 {
 impl Mesh16 {
     /// Are all indices within the bounds of the contained vertices?
     pub fn is_valid(&self) -> bool {
-        use std::convert::TryFrom;
         if let Ok(n) = u16::try_from(self.vertices.len()) {
             self.indices.iter().all(|&i| i < n)
         } else {
