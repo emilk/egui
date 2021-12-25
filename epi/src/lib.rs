@@ -394,6 +394,20 @@ pub struct Image {
     pub pixels: Vec<egui::Color32>,
 }
 
+impl Image {
+    /// Create an `Image` from flat RGBA data.
+    /// Panics unless `size[0] * size[1] * 4 == rgba.len()`.
+    /// This is usually what you want to use after having loaded an image.
+    pub fn from_rgba_unmultiplied(size: [usize; 2], rgba: &[u8]) -> Self {
+        assert_eq!(size[0] * size[1] * 4, rgba.len());
+        let pixels = rgba
+            .chunks_exact(4)
+            .map(|p| egui::Color32::from_rgba_unmultiplied(p[0], p[1], p[2], p[3]))
+            .collect();
+        Self { size, pixels }
+    }
+}
+
 /// Abstraction for platform dependent texture reference
 pub trait NativeTexture {
     /// The native texture type.

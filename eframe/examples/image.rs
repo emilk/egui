@@ -17,17 +17,13 @@ impl epi::App for MyApp {
             use image::GenericImageView;
             let image = image::load_from_memory(image_data).expect("Failed to load image");
             let image_buffer = image.to_rgba8();
-            let size = (image.width() as usize, image.height() as usize);
+            let size = [image.width() as usize, image.height() as usize];
             let pixels = image_buffer.into_vec();
-            assert_eq!(size.0 * size.1 * 4, pixels.len());
-            let pixels: Vec<_> = pixels
-                .chunks_exact(4)
-                .map(|p| egui::Color32::from_rgba_unmultiplied(p[0], p[1], p[2], p[3]))
-                .collect();
+            let image = epi::Image::from_rgba_unmultiplied(size, &pixels);
 
             // Allocate a texture:
-            let texture = frame.tex_allocator().alloc(size, &pixels);
-            let size = egui::Vec2::new(size.0 as f32, size.1 as f32);
+            let texture = frame.alloc_texture(image);
+            let size = egui::Vec2::new(size[0] as f32, size[1] as f32);
             self.texture = Some((size, texture));
         }
 
