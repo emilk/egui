@@ -198,9 +198,8 @@ impl AppRunner {
         }
         .build();
 
-        let app = &mut self.app; // TODO: remove when we bump MSRV to 1.56
         let (egui_output, shapes) = self.egui_ctx.run(raw_input, |egui_ctx| {
-            app.update(egui_ctx, &mut frame);
+            self.app.update(egui_ctx, &mut frame);
         });
         let clipped_meshes = self.egui_ctx.tessellate(shapes);
 
