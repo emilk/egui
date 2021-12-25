@@ -733,13 +733,16 @@ impl Prepared {
         state.offset = state.offset.min(available_offset);
         state.offset = state.offset.max(Vec2::ZERO);
 
-        // Is scroll handle at end of content? If so enter sticky mode.
+        // Is scroll handle at end of content, or is there no scrollbar
+        // yet (not enough content), but sticking is requested? If so, enter sticky mode.
         // Only has an effect if stick_to_end is enabled but we save in
         // state anyway so that entering sticky mode at an arbitrary time
         // has appropriate effect.
         state.scroll_stuck_to_end = [
-            state.offset[0] == available_offset[0],
-            state.offset[1] == available_offset[1],
+            (state.offset[0] == available_offset[0])
+                || (self.stick_to_end[0] && available_offset[0] < 0.),
+            (state.offset[1] == available_offset[1])
+                || (self.stick_to_end[1] && available_offset[1] < 0.),
         ];
 
         state.show_scroll = show_scroll_this_frame;
