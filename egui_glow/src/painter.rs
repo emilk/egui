@@ -297,7 +297,6 @@ impl Painter {
         pixels_per_point: f32,
         clipped_meshes: Vec<egui::ClippedMesh>,
     ) {
-        //chimera of egui_glow and egui_web
         self.assert_not_destroyed();
 
         if let Some(ref mut post_process) = self.post_process {

@@ -141,7 +141,6 @@ impl AppRunner {
             runner
                 .app
                 .setup(&runner.egui_ctx, &runner.frame, Some(&runner.storage));
-            // TODO: handle app output
         }
 
         Ok(runner)

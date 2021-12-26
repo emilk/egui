@@ -542,10 +542,10 @@ pub mod backend {
         /// Set to some string to rename the outer window (e.g. glium window) to this title.
         pub window_title: Option<String>,
 
-        /// Set to some bool to change window decorations
+        /// Set to some bool to change window decorations.
         pub decorated: Option<bool>,
 
-        /// Set to true to drap window
+        /// Set to true to drag window while primary mouse button is down.
         pub drag_window: bool,
 
         /// A way to allocate textures (on integrations that support it).
