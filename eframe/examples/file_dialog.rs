@@ -15,9 +15,7 @@ impl epi::App for MyApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.label("Drag-and-drop files onto the window!");
 
-            if cfg!(target_os = "macos") {
-                // Awaiting fix of winit bug: https://github.com/rust-windowing/winit/pull/2027
-            } else if ui.button("Open file…").clicked() {
+            if ui.button("Open file…").clicked() {
                 if let Some(path) = rfd::FileDialog::new().pick_file() {
                     self.picked_path = Some(path.display().to_string());
                 }
