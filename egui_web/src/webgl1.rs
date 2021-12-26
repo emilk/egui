@@ -257,7 +257,7 @@ impl epi::NativeTexture for WebGlPainter {
 }
 
 impl crate::Painter for WebGlPainter {
-    fn set_user_texture(&mut self, tex_id: u64, image: epi::Image) {
+    fn set_texture(&mut self, tex_id: u64, image: epi::Image) {
         assert_eq!(
             image.size[0] * image.size[1],
             image.pixels.len(),
@@ -304,7 +304,7 @@ impl crate::Painter for WebGlPainter {
         self.user_textures.insert(tex_id, gl_texture);
     }
 
-    fn free_user_texture(&mut self, tex_id: u64) {
+    fn free_texture(&mut self, tex_id: u64) {
         self.user_textures.remove(&tex_id);
     }
 

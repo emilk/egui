@@ -205,7 +205,7 @@ impl AppRunner {
             } = app_output;
 
             for (id, image) in tex_allocation_data.creations {
-                self.painter.set_user_texture(id, image);
+                self.painter.set_texture(id, image);
             }
             self.pending_texture_destructions = tex_allocation_data.destructions;
         }
@@ -220,7 +220,7 @@ impl AppRunner {
         self.painter
             .paint_meshes(clipped_meshes, self.egui_ctx.pixels_per_point())?;
         for id in self.pending_texture_destructions.drain(..) {
-            self.painter.free_user_texture(id);
+            self.painter.free_texture(id);
         }
         Ok(())
     }

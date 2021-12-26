@@ -222,7 +222,7 @@ impl Painter {
 
     // ------------------------------------------------------------------------
 
-    pub fn set_user_texture(
+    pub fn set_texture(
         &mut self,
         facade: &dyn glium::backend::Facade,
         tex_id: u64,
@@ -247,7 +247,7 @@ impl Painter {
         self.user_textures.insert(tex_id, gl_texture.into());
     }
 
-    pub fn free_user_texture(&mut self, tex_id: u64) {
+    pub fn free_texture(&mut self, tex_id: u64) {
         self.user_textures.remove(&tex_id);
     }
 

@@ -71,7 +71,7 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
             let clipped_meshes = integration.egui_ctx.tessellate(shapes);
 
             for (id, image) in tex_allocation_data.creations {
-                painter.set_user_texture(&display, id, &image);
+                painter.set_texture(&display, id, &image);
             }
 
             // paint:
@@ -93,7 +93,7 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
             }
 
             for id in tex_allocation_data.destructions.drain(..) {
-                painter.free_user_texture(id);
+                painter.free_texture(id);
             }
 
             {

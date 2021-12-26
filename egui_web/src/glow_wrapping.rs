@@ -66,12 +66,12 @@ fn requires_brightening(canvas: &web_sys::HtmlCanvasElement) -> bool {
 }
 
 impl crate::Painter for WrappedGlowPainter {
-    fn set_user_texture(&mut self, tex_id: u64, image: epi::Image) {
-        self.painter.set_user_texture(&self.gl_ctx, tex_id, &image);
+    fn set_texture(&mut self, tex_id: u64, image: epi::Image) {
+        self.painter.set_texture(&self.gl_ctx, tex_id, &image);
     }
 
-    fn free_user_texture(&mut self, tex_id: u64) {
-        self.painter.free_user_texture(tex_id);
+    fn free_texture(&mut self, tex_id: u64) {
+        self.painter.free_texture(tex_id);
     }
 
     fn debug_info(&self) -> String {

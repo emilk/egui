@@ -387,7 +387,7 @@ impl Painter {
 
     // ------------------------------------------------------------------------
 
-    pub fn set_user_texture(&mut self, gl: &glow::Context, tex_id: u64, image: &epi::Image) {
+    pub fn set_texture(&mut self, gl: &glow::Context, tex_id: u64, image: &epi::Image) {
         self.assert_not_destroyed();
 
         assert_eq!(
@@ -417,7 +417,7 @@ impl Painter {
         }
     }
 
-    pub fn free_user_texture(&mut self, tex_id: u64) {
+    pub fn free_texture(&mut self, tex_id: u64) {
         self.user_textures.remove(&tex_id);
     }
 

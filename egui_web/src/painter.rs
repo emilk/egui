@@ -1,9 +1,9 @@
 use wasm_bindgen::prelude::JsValue;
 
 pub trait Painter {
-    fn set_user_texture(&mut self, tex_id: u64, image: epi::Image);
+    fn set_texture(&mut self, tex_id: u64, image: epi::Image);
 
-    fn free_user_texture(&mut self, tex_id: u64);
+    fn free_texture(&mut self, tex_id: u64);
 
     fn debug_info(&self) -> String;
 
