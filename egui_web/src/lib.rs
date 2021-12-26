@@ -12,7 +12,7 @@
 // Forbid warnings in release builds:
 #![cfg_attr(not(debug_assertions), deny(warnings))]
 #![forbid(unsafe_code)]
-#![warn(clippy::all, missing_crate_level_docs, rust_2018_idioms)]
+#![warn(clippy::all, rustdoc::missing_crate_level_docs, rust_2018_idioms)]
 
 pub mod backend;
 #[cfg(feature = "glow")]
