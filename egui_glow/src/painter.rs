@@ -421,7 +421,7 @@ impl Painter {
         self.user_textures.remove(&tex_id);
     }
 
-    pub fn get_texture(&self, texture_id: egui::TextureId) -> Option<glow::Texture> {
+    fn get_texture(&self, texture_id: egui::TextureId) -> Option<glow::Texture> {
         self.assert_not_destroyed();
 
         match texture_id {
@@ -500,9 +500,8 @@ impl epi::NativeTexture for Painter {
         let id = self.next_native_tex_id;
         self.next_native_tex_id += 1;
 
-        if let Some(old_tex) = self.user_textures.insert(id, native) {
-            self.textures_to_destroy.push(old_tex);
-        }
+        self.user_textures.insert(id, native);
+
         egui::TextureId::User(id as u64)
     }
 

@@ -109,7 +109,7 @@ impl WebGlPainter {
         })
     }
 
-    pub fn get_texture(&self, texture_id: egui::TextureId) -> Option<&WebGlTexture> {
+    fn get_texture(&self, texture_id: egui::TextureId) -> Option<&WebGlTexture> {
         match texture_id {
             egui::TextureId::Egui => Some(&self.egui_texture),
             egui::TextureId::User(id) => self.user_textures.get(&id),

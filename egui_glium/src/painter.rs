@@ -106,7 +106,7 @@ impl Painter {
     }
 
     #[inline(never)] // Easier profiling
-    pub fn paint_mesh<T: glium::Surface>(
+    fn paint_mesh<T: glium::Surface>(
         &mut self,
         target: &mut T,
         display: &glium::Display,
@@ -251,7 +251,7 @@ impl Painter {
         self.user_textures.remove(&tex_id);
     }
 
-    pub fn get_texture(&self, texture_id: egui::TextureId) -> Option<&SrgbTexture2d> {
+    fn get_texture(&self, texture_id: egui::TextureId) -> Option<&SrgbTexture2d> {
         match texture_id {
             egui::TextureId::Egui => self.egui_texture.as_ref(),
             egui::TextureId::User(id) => self.user_textures.get(&id).map(|rc| rc.as_ref()),
