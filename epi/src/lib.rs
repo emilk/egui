@@ -313,7 +313,6 @@ impl Frame {
     }
 
     /// for integrations only: call once per frame
-    #[must_use]
     pub fn take_app_output(&self) -> crate::backend::AppOutput {
         let mut lock = self.0.lock();
         let next_id = lock.output.tex_allocation_data.next_id;
@@ -494,6 +493,7 @@ pub mod backend {
 
     /// The data needed in order to allocate and free textures/images.
     #[derive(Default)]
+    #[must_use]
     pub struct TexAllocationData {
         /// We allocate texture id linearly.
         pub(crate) next_id: u64,
@@ -530,6 +530,7 @@ pub mod backend {
 
     /// Action that can be taken by the user app.
     #[derive(Default)]
+    #[must_use]
     pub struct AppOutput {
         /// Set to `true` to stop the app.
         /// This does nothing for web apps.

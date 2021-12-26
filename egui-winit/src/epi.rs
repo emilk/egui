@@ -51,7 +51,6 @@ fn window_builder_drag_and_drop(
     window_builder
 }
 
-#[must_use]
 pub fn handle_app_output(
     window: &winit::window::Window,
     current_pixels_per_point: f32,
@@ -253,7 +252,8 @@ impl EpiIntegration {
     fn warm_up(&mut self, window: &winit::window::Window) {
         let saved_memory = self.egui_ctx.memory().clone();
         self.egui_ctx.memory().set_everything_is_visible(true);
-        self.update(window);
+        let (_, tex_alloc_data, _) = self.update(window);
+        self.frame.0.lock().output.tex_allocation_data = tex_alloc_data; // handle it next frame
         *self.egui_ctx.memory() = saved_memory; // We don't want to remember that windows were huge.
         self.egui_ctx.clear_animations();
     }
