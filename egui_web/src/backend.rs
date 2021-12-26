@@ -209,7 +209,7 @@ impl AppRunner {
             self.pending_texture_destructions = tex_allocation_data.destructions;
         }
 
-        self.frame.0.lock().info.cpu_usage = Some((now_sec() - frame_start) as f32);
+        self.frame.lock().info.cpu_usage = Some((now_sec() - frame_start) as f32);
         Ok((egui_output, clipped_meshes))
     }
 

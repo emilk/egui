@@ -95,8 +95,7 @@ pub mod file_storage;
 
 pub use egui; // Re-export for user convenience
 
-use parking_lot::Mutex;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 // ----------------------------------------------------------------------------
 
@@ -261,40 +260,48 @@ pub struct Frame(pub Arc<Mutex<backend::FrameData>>);
 
 impl Frame {
     /// Create a `Frame` - called by the integration.
+    #[doc(hidden)]
     pub fn new(frame_data: backend::FrameData) -> Self {
         Self(Arc::new(Mutex::new(frame_data)))
     }
 
+    /// Convenience to access the underlying `backend::FrameData`.
+    #[doc(hidden)]
+    #[inline]
+    pub fn lock(&self) -> std::sync::MutexGuard<'_, backend::FrameData> {
+        self.0.lock().unwrap()
+    }
+
     /// True if you are in a web environment.
     pub fn is_web(&self) -> bool {
-        self.0.lock().info.web_info.is_some()
+        self.lock().info.web_info.is_some()
     }
 
     /// Information about the integration.
     pub fn info(&self) -> IntegrationInfo {
-        self.0.lock().info.clone()
+        self.lock().info.clone()
     }
 
     /// Signal the app to stop/exit/quit the app (only works for native apps, not web apps).
     /// The framework will not quit immediately, but at the end of the this frame.
     pub fn quit(&self) {
-        self.0.lock().output.quit = true;
+        self.lock().output.quit = true;
     }
 
     /// Set the desired inner size of the window (in egui points).
     pub fn set_window_size(&self, size: egui::Vec2) {
-        self.0.lock().output.window_size = Some(size);
+        self.lock().output.window_size = Some(size);
     }
 
     /// Set the desired title of the window.
     pub fn set_window_title(&self, title: &str) {
-        self.0.lock().output.window_title = Some(title.to_owned());
+        self.lock().output.window_title = Some(title.to_owned());
     }
 
     /// Set whether to show window decorations (i.e. a frame around you app).
     /// If false it will be difficult to move and resize the app.
     pub fn set_decorations(&self, decorated: bool) {
-        self.0.lock().output.decorated = Some(decorated);
+        self.lock().output.decorated = Some(decorated);
     }
 
     /// When called, the native window will follow the
@@ -302,19 +309,19 @@ impl Frame {
     ///
     /// Does not work on the web.
     pub fn drag_window(&self) {
-        self.0.lock().output.drag_window = true;
+        self.lock().output.drag_window = true;
     }
 
     /// This signals the [`egui`] integration that a repaint is required.
     ///
     /// Call this e.g. when a background process finishes in an async context and/or background thread.
     pub fn request_repaint(&self) {
-        self.0.lock().repaint_signal.request_repaint();
+        self.lock().repaint_signal.request_repaint();
     }
 
     /// for integrations only: call once per frame
     pub fn take_app_output(&self) -> crate::backend::AppOutput {
-        let mut lock = self.0.lock();
+        let mut lock = self.lock();
         let next_id = lock.output.tex_allocation_data.next_id;
         let app_output = std::mem::take(&mut lock.output);
         lock.output.tex_allocation_data.next_id = next_id;
@@ -323,22 +330,22 @@ impl Frame {
 
     /// Allocate a texture. Free it again with [`Self::free_texture`].
     pub fn alloc_texture(&self, image: Image) -> egui::TextureId {
-        self.0.lock().output.tex_allocation_data.alloc(image)
+        self.lock().output.tex_allocation_data.alloc(image)
     }
 
     /// Free a texture that has been previously allocated with [`Self::alloc_texture`]. Idempotent.
     pub fn free_texture(&self, id: egui::TextureId) {
-        self.0.lock().output.tex_allocation_data.free(id);
+        self.lock().output.tex_allocation_data.free(id);
     }
 }
 
 impl TextureAllocator for Frame {
     fn alloc(&self, image: Image) -> egui::TextureId {
-        self.0.lock().output.tex_allocation_data.alloc(image)
+        self.lock().output.tex_allocation_data.alloc(image)
     }
 
     fn free(&self, id: egui::TextureId) {
-        self.0.lock().output.tex_allocation_data.free(id);
+        self.lock().output.tex_allocation_data.free(id);
     }
 }
 

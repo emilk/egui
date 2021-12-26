@@ -25,7 +25,6 @@ all-features = true
 
 [dependencies]
 egui = { version = "0.15.0", path = "../egui", default-features = false, features = ["single_threaded"] }
-parking_lot = "0.11"
 
 directories-next = { version = "2", optional = true }
 ron = { version = "0.7", optional = true }

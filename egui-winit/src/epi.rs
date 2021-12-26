@@ -246,14 +246,14 @@ impl EpiIntegration {
         self.quit |= app_output.quit;
         let tex_alloc_data =
             crate::epi::handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
-        self.frame.0.lock().output.tex_allocation_data = tex_alloc_data; // Do it later
+        self.frame.lock().output.tex_allocation_data = tex_alloc_data; // Do it later
     }
 
     fn warm_up(&mut self, window: &winit::window::Window) {
         let saved_memory = self.egui_ctx.memory().clone();
         self.egui_ctx.memory().set_everything_is_visible(true);
         let (_, tex_alloc_data, _) = self.update(window);
-        self.frame.0.lock().output.tex_allocation_data = tex_alloc_data; // handle it next frame
+        self.frame.lock().output.tex_allocation_data = tex_alloc_data; // handle it next frame
         *self.egui_ctx.memory() = saved_memory; // We don't want to remember that windows were huge.
         self.egui_ctx.clear_animations();
     }
@@ -295,7 +295,7 @@ impl EpiIntegration {
             crate::epi::handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
 
         let frame_time = (std::time::Instant::now() - frame_start).as_secs_f64() as f32;
-        self.frame.0.lock().info.cpu_usage = Some(frame_time);
+        self.frame.lock().info.cpu_usage = Some(frame_time);
 
         (needs_repaint, tex_allocation_data, shapes)
     }
