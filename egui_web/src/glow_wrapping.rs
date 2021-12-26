@@ -1,13 +1,12 @@
-#[cfg(not(target_arch = "wasm32"))]
-use crate::web_sys::WebGl2RenderingContext;
-use crate::web_sys::WebGlRenderingContext;
 use crate::{canvas_element_or_die, console_error};
 use egui::{ClippedMesh, Rgba, Texture};
 use egui_glow::glow;
-use epi::TextureAllocator;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
+#[cfg(not(target_arch = "wasm32"))]
+use web_sys::WebGl2RenderingContext;
+use web_sys::WebGlRenderingContext;
 
 pub(crate) struct WrappedGlowPainter {
     pub(crate) gl_ctx: glow::Context,
@@ -67,8 +66,12 @@ fn requires_brightening(canvas: &web_sys::HtmlCanvasElement) -> bool {
 }
 
 impl crate::Painter for WrappedGlowPainter {
-    fn as_tex_allocator(&mut self) -> &mut dyn TextureAllocator {
-        &mut self.painter
+    fn set_texture(&mut self, tex_id: u64, image: epi::Image) {
+        self.painter.set_texture(&self.gl_ctx, tex_id, &image);
+    }
+
+    fn free_texture(&mut self, tex_id: u64) {
+        self.painter.free_texture(tex_id);
     }
 
     fn debug_info(&self) -> String {
@@ -99,8 +102,8 @@ impl crate::Painter for WrappedGlowPainter {
     ) -> Result<(), JsValue> {
         let canvas_dimension = [self.canvas.width(), self.canvas.height()];
         self.painter.paint_meshes(
-            canvas_dimension,
             &self.gl_ctx,
+            canvas_dimension,
             pixels_per_point,
             clipped_meshes,
         );

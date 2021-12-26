@@ -7,6 +7,7 @@ All notable changes to the `egui_web` integration will be noted in this file.
 * Fix [dark rendering in WebKitGTK](https://github.com/emilk/egui/issues/794) ([#888](https://github.com/emilk/egui/pull/888/)).
 * Add feature `glow` to switch to a [`glow`](https://github.com/grovesNL/glow) based painter ([#868](https://github.com/emilk/egui/pull/868)).
 
+
 ## 0.15.0 - 2021-10-24
 ### Added
 * Remove "http" feature (use https://github.com/emilk/ehttp instead!).

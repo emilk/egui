@@ -7,6 +7,7 @@ All notable changes to the `egui_glow` integration will be noted in this file.
 * Simplify `EguiGlow` interface ([#871](https://github.com/emilk/egui/pull/871)).
 * Remove `EguiGlow::is_quit_event` ([#881](https://github.com/emilk/egui/pull/881)).
 * Updated `glutin` to 0.28 ([#930](https://github.com/emilk/egui/pull/930)).
+* Changed the `Painter` inteface slightly ([#999](https://github.com/emilk/egui/pull/999)).
 
 
 ## 0.15.0 - 2021-10-24

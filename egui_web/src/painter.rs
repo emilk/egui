@@ -1,7 +1,9 @@
 use wasm_bindgen::prelude::JsValue;
 
 pub trait Painter {
-    fn as_tex_allocator(&mut self) -> &mut dyn epi::TextureAllocator;
+    fn set_texture(&mut self, tex_id: u64, image: epi::Image);
+
+    fn free_texture(&mut self, tex_id: u64);
 
     fn debug_info(&self) -> String;
 

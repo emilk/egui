@@ -67,7 +67,7 @@ impl NeedRepaint {
     }
 }
 
-impl epi::RepaintSignal for NeedRepaint {
+impl epi::backend::RepaintSignal for NeedRepaint {
     fn request_repaint(&self) {
         self.0.store(true, SeqCst);
     }
@@ -76,28 +76,44 @@ impl epi::RepaintSignal for NeedRepaint {
 // ----------------------------------------------------------------------------
 
 pub struct AppRunner {
+    frame: epi::Frame,
     egui_ctx: egui::CtxRef,
     painter: Box<dyn Painter>,
-    previous_frame_time: Option<f32>,
     pub(crate) input: WebInput,
     app: Box<dyn epi::App>,
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
     storage: LocalStorage,
-    prefer_dark_mode: Option<bool>,
     last_save_time: f64,
     screen_reader: crate::screen_reader::ScreenReader,
     pub(crate) text_cursor_pos: Option<egui::Pos2>,
     pub(crate) mutable_text_under_cursor: bool,
+    pending_texture_destructions: Vec<u64>,
 }
 
 impl AppRunner {
     pub fn new(canvas_id: &str, app: Box<dyn epi::App>) -> Result<Self, JsValue> {
-        let egui_ctx = egui::CtxRef::default();
-
-        load_memory(&egui_ctx);
+        let painter = create_painter(canvas_id)?;
 
         let prefer_dark_mode = crate::prefer_dark_mode();
 
+        let needs_repaint: std::sync::Arc<NeedRepaint> = Default::default();
+
+        let frame = epi::Frame::new(epi::backend::FrameData {
+            info: epi::IntegrationInfo {
+                name: painter.name(),
+                web_info: Some(epi::WebInfo {
+                    web_location_hash: location_hash().unwrap_or_default(),
+                }),
+                prefer_dark_mode,
+                cpu_usage: None,
+                native_pixels_per_point: Some(native_pixels_per_point()),
+            },
+            output: Default::default(),
+            repaint_signal: needs_repaint.clone(),
+        });
+
+        let egui_ctx = egui::CtxRef::default();
+        load_memory(&egui_ctx);
         if prefer_dark_mode == Some(true) {
             egui_ctx.set_visuals(egui::Visuals::dark());
         } else {
@@ -107,32 +123,24 @@ impl AppRunner {
         let storage = LocalStorage::default();
 
         let mut runner = Self {
+            frame,
             egui_ctx,
-            painter: create_painter(canvas_id)?,
-            previous_frame_time: None,
+            painter,
             input: Default::default(),
             app,
-            needs_repaint: Default::default(),
+            needs_repaint,
             storage,
-            prefer_dark_mode,
             last_save_time: now_sec(),
             screen_reader: Default::default(),
             text_cursor_pos: None,
             mutable_text_under_cursor: false,
+            pending_texture_destructions: Default::default(),
         };
 
         {
-            let mut app_output = epi::backend::AppOutput::default();
-            let mut frame = epi::backend::FrameBuilder {
-                info: runner.integration_info(),
-                tex_allocator: runner.painter.as_tex_allocator(),
-                output: &mut app_output,
-                repaint_signal: runner.needs_repaint.clone(),
-            }
-            .build();
             runner
                 .app
-                .setup(&runner.egui_ctx, &mut frame, Some(&runner.storage));
+                .setup(&runner.egui_ctx, &runner.frame, Some(&runner.storage));
         }
 
         Ok(runner)
@@ -170,18 +178,6 @@ impl AppRunner {
         Ok(())
     }
 
-    fn integration_info(&self) -> epi::IntegrationInfo {
-        epi::IntegrationInfo {
-            name: self.painter.name(),
-            web_info: Some(epi::WebInfo {
-                web_location_hash: location_hash().unwrap_or_default(),
-            }),
-            prefer_dark_mode: self.prefer_dark_mode,
-            cpu_usage: self.previous_frame_time,
-            native_pixels_per_point: Some(native_pixels_per_point()),
-        }
-    }
-
     pub fn logic(&mut self) -> Result<(egui::Output, Vec<egui::ClippedMesh>), JsValue> {
         let frame_start = now_sec();
 
@@ -189,33 +185,31 @@ impl AppRunner {
         let canvas_size = canvas_size_in_points(self.canvas_id());
         let raw_input = self.input.new_frame(canvas_size);
 
-        let mut app_output = epi::backend::AppOutput::default();
-        let mut frame = epi::backend::FrameBuilder {
-            info: self.integration_info(),
-            tex_allocator: self.painter.as_tex_allocator(),
-            output: &mut app_output,
-            repaint_signal: self.needs_repaint.clone(),
-        }
-        .build();
-
         let (egui_output, shapes) = self.egui_ctx.run(raw_input, |egui_ctx| {
-            self.app.update(egui_ctx, &mut frame);
+            self.app.update(egui_ctx, &self.frame);
         });
         let clipped_meshes = self.egui_ctx.tessellate(shapes);
 
         self.handle_egui_output(&egui_output);
 
         {
+            let app_output = self.frame.take_app_output();
             let epi::backend::AppOutput {
                 quit: _,         // Can't quit a web page
                 window_size: _,  // Can't resize a web page
                 window_title: _, // TODO: change title of window
                 decorated: _,    // Can't toggle decorations
                 drag_window: _,  // Can't be dragged
+                tex_allocation_data,
             } = app_output;
+
+            for (id, image) in tex_allocation_data.creations {
+                self.painter.set_texture(id, image);
+            }
+            self.pending_texture_destructions = tex_allocation_data.destructions;
         }
 
-        self.previous_frame_time = Some((now_sec() - frame_start) as f32);
+        self.frame.lock().info.cpu_usage = Some((now_sec() - frame_start) as f32);
         Ok((egui_output, clipped_meshes))
     }
 
@@ -223,7 +217,11 @@ impl AppRunner {
         self.painter.upload_egui_texture(&self.egui_ctx.texture());
         self.painter.clear(self.app.clear_color());
         self.painter
-            .paint_meshes(clipped_meshes, self.egui_ctx.pixels_per_point())
+            .paint_meshes(clipped_meshes, self.egui_ctx.pixels_per_point())?;
+        for id in self.pending_texture_destructions.drain(..) {
+            self.painter.free_texture(id);
+        }
+        Ok(())
     }
 
     fn handle_egui_output(&mut self, output: &egui::Output) {
