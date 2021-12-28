@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"] // hide console window on Windows
+
 use eframe::{egui, epi};
 
 #[derive(Default)]

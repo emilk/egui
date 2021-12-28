@@ -1,5 +1,7 @@
 //! Example how to use pure `egui_glow` without [`epi`].
 
+#![windows_subsystem = "windows"] // hide console window on Windows
+
 fn create_display(
     event_loop: &glutin::event_loop::EventLoop<()>,
 ) -> (

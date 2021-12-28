@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"] // hide console window on Windows
+
 // Forbid warnings in release builds:
 #![cfg_attr(not(debug_assertions), deny(warnings))]
 #![forbid(unsafe_code)]

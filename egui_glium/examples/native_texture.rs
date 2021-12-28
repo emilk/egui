@@ -1,4 +1,7 @@
 //! Example how to use [epi::NativeTexture] with glium.
+
+#![windows_subsystem = "windows"] // hide console window on Windows
+
 use epi::NativeTexture;
 use glium::glutin;
 
