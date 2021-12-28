@@ -767,8 +767,15 @@ impl Context {
     /// Calling this with `value = false` will always yield a number less than one, quickly going towards zero.
     ///
     /// The function will call [`Self::request_repaint()`] when appropriate.
+    ///
+    /// The animation time is taken from [`Style::animation_time`].
     pub fn animate_bool(&self, id: Id, value: bool) -> f32 {
         let animation_time = self.style().animation_time;
+        self.animate_bool_with_time(id, value, animation_time)
+    }
+
+    /// Like [`Self::animate_bool`] but allows you to control the animation time.
+    pub fn animate_bool_with_time(&self, id: Id, value: bool, animation_time: f32) -> f32 {
         let animated_value =
             self.animation_manager
                 .lock()
