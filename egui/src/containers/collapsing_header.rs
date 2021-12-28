@@ -144,6 +144,7 @@ pub(crate) fn paint_icon(ui: &mut Ui, openness: f32, response: &Response) {
 pub struct CollapsingHeader {
     text: WidgetText,
     default_open: bool,
+    open: Option<bool>,
     id_source: Id,
     enabled: bool,
     selectable: bool,
@@ -164,6 +165,7 @@ impl CollapsingHeader {
         Self {
             text,
             default_open: false,
+            open: None,
             id_source,
             enabled: true,
             selectable: false,
@@ -176,6 +178,16 @@ impl CollapsingHeader {
     /// Call `.default_open(true)` to change this.
     pub fn default_open(mut self, open: bool) -> Self {
         self.default_open = open;
+        self
+    }
+
+    /// Calling `.open(Some(true))` will make the collapsing header open this frame (or stay open).
+    ///
+    /// Calling `.open(Some(false))` will make the collapsing header close this frame (or stay closed).
+    ///
+    /// Calling `.open(None)` has no effect (default).
+    pub fn open(mut self, open: Option<bool>) -> Self {
+        self.open = open;
         self
     }
 
@@ -256,6 +268,7 @@ impl CollapsingHeader {
         let Self {
             text,
             default_open,
+            open,
             id_source,
             enabled: _,
             selectable: _,
@@ -291,10 +304,16 @@ impl CollapsingHeader {
         );
 
         let mut state = State::from_memory_with_default_open(ui.ctx(), id, default_open);
-        if header_response.clicked() {
+        if let Some(open) = open {
+            if open != state.open {
+                state.toggle(ui);
+                header_response.mark_changed();
+            }
+        } else if header_response.clicked() {
             state.toggle(ui);
             header_response.mark_changed();
         }
+
         header_response
             .widget_info(|| WidgetInfo::labeled(WidgetType::CollapsingHeader, text.text()));
 

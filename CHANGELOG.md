@@ -19,6 +19,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * When using a custom font you can now specify a font index ([#873](https://github.com/emilk/egui/pull/873)).
 * Add vertical sliders with `Slider::new(…).vertical()` ([#875](https://github.com/emilk/egui/pull/875)).
 * Add `Button::image_and_text` ([#832](https://github.com/emilk/egui/pull/832)).
+* Add `CollapsingHeader::open` to control if it is open or collapsed ([#1006](https://github.com/emilk/egui/pull/1006)).
 
 ### Changed 🔧
 * MSRV (Minimum Supported Rust Version) is now `1.56.0`.
