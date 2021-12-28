@@ -202,10 +202,10 @@ impl Painter {
         }
     }
 
-    pub fn upload_egui_texture(&mut self, gl: &glow::Context, texture: &egui::Texture) {
+    pub fn upload_egui_texture(&mut self, gl: &glow::Context, font_image: &egui::FontImage) {
         self.assert_not_destroyed();
 
-        if self.egui_texture_version == Some(texture.version) {
+        if self.egui_texture_version == Some(font_image.version) {
             return; // No change
         }
         let gamma = if self.is_embedded && self.post_process.is_none() {
@@ -213,7 +213,7 @@ impl Painter {
         } else {
             1.0
         };
-        let pixels: Vec<u8> = texture
+        let pixels: Vec<u8> = font_image
             .srgba_pixels(gamma)
             .flat_map(|a| Vec::from(a.to_array()))
             .collect();
@@ -225,15 +225,15 @@ impl Painter {
                 self.is_webgl_1,
                 self.srgb_support,
                 &pixels,
-                texture.width,
-                texture.height,
+                font_image.width,
+                font_image.height,
             )),
         ) {
             unsafe {
                 gl.delete_texture(old_tex);
             }
         }
-        self.egui_texture_version = Some(texture.version);
+        self.egui_texture_version = Some(font_image.version);
     }
 
     unsafe fn prepare_painting(

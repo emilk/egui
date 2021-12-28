@@ -6,6 +6,7 @@ All notable changes to the epaint crate will be documented in this file.
 ## Unreleased
 * `Rgba` now implements `Hash` ([#886](https://github.com/emilk/egui/pull/886)).
 * Anti-alias path ends  ([#893](https://github.com/emilk/egui/pull/893)).
+* Rename `Texture` to `FontImage`.
 
 
 ## 0.15.0 - 2021-10-24

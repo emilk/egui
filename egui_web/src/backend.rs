@@ -214,7 +214,8 @@ impl AppRunner {
     }
 
     pub fn paint(&mut self, clipped_meshes: Vec<egui::ClippedMesh>) -> Result<(), JsValue> {
-        self.painter.upload_egui_texture(&self.egui_ctx.texture());
+        self.painter
+            .upload_egui_texture(&self.egui_ctx.font_image());
         self.painter.clear(self.app.clear_color());
         self.painter
             .paint_meshes(clipped_meshes, self.egui_ctx.pixels_per_point())?;

@@ -99,7 +99,7 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
                     gl.clear_color(color[0], color[1], color[2], color[3]);
                     gl.clear(glow::COLOR_BUFFER_BIT);
                 }
-                painter.upload_egui_texture(&gl, &integration.egui_ctx.texture());
+                painter.upload_egui_texture(&gl, &integration.egui_ctx.font_image());
                 painter.paint_meshes(
                     &gl,
                     gl_window.window().inner_size().into(),

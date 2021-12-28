@@ -6,7 +6,7 @@ use crate::{
         font::{Font, FontImpl},
         Galley, LayoutJob,
     },
-    Texture, TextureAtlas,
+    FontImage, TextureAtlas,
 };
 
 // TODO: rename
@@ -233,9 +233,10 @@ pub struct Fonts {
     definitions: FontDefinitions,
     fonts: BTreeMap<TextStyle, Font>,
     atlas: Arc<Mutex<TextureAtlas>>,
-    /// Copy of the texture in the texture atlas.
+
+    /// Copy of the font image in the texture atlas.
     /// This is so we can return a reference to it (the texture atlas is behind a lock).
-    buffered_texture: Mutex<Arc<Texture>>,
+    buffered_font_image: Mutex<Arc<FontImage>>,
 
     galley_cache: Mutex<GalleyCache>,
 }
@@ -258,7 +259,7 @@ impl Fonts {
             // Make the top left pixel fully white:
             let pos = atlas.allocate((1, 1));
             assert_eq!(pos, (0, 0));
-            atlas.texture_mut()[pos] = 255;
+            atlas.image_mut()[pos] = 255;
         }
 
         let atlas = Arc::new(Mutex::new(atlas));
@@ -284,7 +285,7 @@ impl Fonts {
 
         {
             let mut atlas = atlas.lock();
-            let texture = atlas.texture_mut();
+            let texture = atlas.image_mut();
             // Make sure we seed the texture version with something unique based on the default characters:
             texture.version = crate::util::hash(&texture.pixels);
         }
@@ -294,7 +295,7 @@ impl Fonts {
             definitions,
             fonts,
             atlas,
-            buffered_texture: Default::default(), //atlas.lock().texture().clone();
+            buffered_font_image: Default::default(), //atlas.lock().texture().clone();
             galley_cache: Default::default(),
         }
     }
@@ -319,11 +320,11 @@ impl Fonts {
     }
 
     /// Call each frame to get the latest available font texture data.
-    pub fn texture(&self) -> Arc<Texture> {
+    pub fn font_image(&self) -> Arc<FontImage> {
         let atlas = self.atlas.lock();
-        let mut buffered_texture = self.buffered_texture.lock();
-        if buffered_texture.version != atlas.texture().version {
-            *buffered_texture = Arc::new(atlas.texture().clone());
+        let mut buffered_texture = self.buffered_font_image.lock();
+        if buffered_texture.version != atlas.image().version {
+            *buffered_texture = Arc::new(atlas.image().clone());
         }
 
         buffered_texture.clone()

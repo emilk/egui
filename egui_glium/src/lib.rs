@@ -153,7 +153,7 @@ impl EguiGlium {
             target,
             self.egui_ctx.pixels_per_point(),
             clipped_meshes,
-            &self.egui_ctx.texture(),
+            &self.egui_ctx.font_image(),
         );
     }
 }

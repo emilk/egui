@@ -164,7 +164,7 @@ impl EguiGlow {
         let clipped_meshes = self.egui_ctx.tessellate(shapes);
         let dimensions: [u32; 2] = gl_window.window().inner_size().into();
         self.painter
-            .upload_egui_texture(gl, &self.egui_ctx.texture());
+            .upload_egui_texture(gl, &self.egui_ctx.font_image());
         self.painter.paint_meshes(
             gl,
             dimensions,

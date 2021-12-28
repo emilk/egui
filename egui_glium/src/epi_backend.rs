@@ -86,7 +86,7 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
                     &mut target,
                     integration.egui_ctx.pixels_per_point(),
                     clipped_meshes,
-                    &integration.egui_ctx.texture(),
+                    &integration.egui_ctx.font_image(),
                 );
 
                 target.finish().unwrap();

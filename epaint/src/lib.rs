@@ -109,7 +109,7 @@ pub use {
     stroke::Stroke,
     tessellator::{tessellate_shapes, TessellationOptions, Tessellator},
     text::{Fonts, Galley, TextStyle},
-    texture_atlas::{Texture, TextureAtlas},
+    texture_atlas::{FontImage, TextureAtlas},
 };
 
 pub use emath::{pos2, vec2, Pos2, Rect, Vec2};
