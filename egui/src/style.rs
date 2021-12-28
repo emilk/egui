@@ -154,10 +154,10 @@ impl Spacing {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Interaction {
-    /// Mouse must be the close to the side of a window to resize
+    /// Mouse must be this close to the side of a window to resize
     pub resize_grab_radius_side: f32,
 
-    /// Mouse must be the close to the corner of a window to resize
+    /// Mouse must be this close to the corner of a window to resize
     pub resize_grab_radius_corner: f32,
 
     /// If `false`, tooltips will show up anytime you hover anything, even is mouse is still moving
