@@ -313,16 +313,6 @@ impl CtxRef {
     pub fn debug_painter(&self) -> Painter {
         Self::layer_painter(self, LayerId::debug())
     }
-
-    /// Respond to secondary clicks (right-clicks) by showing the given menu.
-    pub(crate) fn show_context_menu(
-        &self,
-        response: &Response,
-        add_contents: impl FnOnce(&mut Ui),
-    ) {
-        self.context_menu_system()
-            .context_menu(response, add_contents);
-    }
 }
 
 // ----------------------------------------------------------------------------
@@ -332,7 +322,7 @@ impl CtxRef {
 /// This is the first thing you need when working with egui.
 /// Use [`CtxRef`] to create and refer to a [`Context`].
 ///
-/// Contains the [`InputState`], [`Memory`], [`Output`], and more.///
+/// Contains the [`InputState`], [`Memory`], [`Output`], and more.
 ///
 /// Almost all methods are marked `&self`, [`Context`] has interior mutability (protected by mutexes).
 /// Multi-threaded access to a [`Context`] is behind the feature flag `multi_threaded`.

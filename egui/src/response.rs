@@ -491,7 +491,9 @@ impl Response {
     /// # });
     /// ```
     pub fn context_menu(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
-        self.ctx.show_context_menu(&self, add_contents);
+        self.ctx
+            .context_menu_system()
+            .context_menu(&self, add_contents);
         self
     }
 }
