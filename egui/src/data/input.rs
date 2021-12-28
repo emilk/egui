@@ -342,6 +342,9 @@ pub enum Key {
     X,
     Y,
     Z, // Used for cmd+Z (undo)
+
+    Minus,
+    Equals,
 }
 
 impl RawInput {

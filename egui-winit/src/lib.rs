@@ -644,6 +644,9 @@ fn translate_virtual_key_code(key: winit::event::VirtualKeyCode) -> Option<egui:
         VirtualKeyCode::Key8 | VirtualKeyCode::Numpad8 => Key::Num8,
         VirtualKeyCode::Key9 | VirtualKeyCode::Numpad9 => Key::Num9,
 
+        VirtualKeyCode::Minus => Key::Minus,
+        VirtualKeyCode::Equals => Key::Equals,
+
         VirtualKeyCode::A => Key::A,
         VirtualKeyCode::B => Key::B,
         VirtualKeyCode::C => Key::C,
