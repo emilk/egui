@@ -396,6 +396,8 @@ pub mod text {
     };
 }
 
+pub(crate) use context::PassState;
+
 pub use {
     containers::*,
     context::{Context, CtxRef},

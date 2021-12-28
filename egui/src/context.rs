@@ -19,6 +19,15 @@ use epaint::{stats::*, text::Fonts, *};
 
 // ----------------------------------------------------------------------------
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum PassState {
+    SinglePass,
+    SizePass,
+    LayoutPass,
+}
+
+// ----------------------------------------------------------------------------
+
 /// A wrapper around [`Arc`](std::sync::Arc)`<`[`Context`]`>`.
 /// This is how you will normally create and access a [`Context`].
 ///
@@ -103,9 +112,51 @@ impl CtxRef {
     pub fn run(
         &mut self,
         new_raw_input: RawInput,
-        mut run_ui: impl FnMut(&CtxRef),
+        run_ui: impl Fn(&CtxRef),
     ) -> (Output, Vec<ClippedShape>) {
         self.memory().begin_frame(&self.input, &new_raw_input);
+
+        self.mutate(|context| {
+            if let Some(new_pixels_per_point) = context.memory.lock().new_pixels_per_point.take() {
+                context.input.pixels_per_point = new_pixels_per_point;
+            }
+            context.input.begin_frame(&new_raw_input);
+            context.update_fonts(context.input.pixels_per_point());
+        });
+
+        // Ensure we register the background area so panels and background ui can catch clicks:
+        let screen_rect = self.input.screen_rect();
+        self.memory().areas.set_state(
+            LayerId::background(),
+            containers::area::State {
+                pos: screen_rect.min,
+                size: screen_rect.size(),
+                interactable: true,
+            },
+        );
+
+        if self.memory().options.multi_pass {
+            self.frame_state.lock().begin_pass(&self.input);
+            self.mutate(|context| {
+                context.pass_state = Some(PassState::SizePass);
+            });
+
+            run_ui(self);
+
+            self.drain_paint_lists();
+            self.mutate(|context| {
+                context.input.on_events(new_raw_input);
+                context.pass_state = Some(PassState::LayoutPass);
+            });
+
+            self.frame_state.lock().begin_pass(&self.input);
+            run_ui(self);
+        } else {
+            self.mutate(|context| {
+                context.input.on_events(new_raw_input);
+                context.pass_state = Some(PassState::SinglePass);
+            });
+        }
 
         self.mutate(|context| {
             if let Some(new_pixels_per_point) = context.memory.lock().new_pixels_per_point.take() {
@@ -141,6 +192,10 @@ impl CtxRef {
             self.frame_state.lock().begin_pass(&self.input);
             run_ui(self);
         }
+
+        self.mutate(|context| {
+            context.pass_state = None;
+        });
 
         self.end_frame()
     }
@@ -392,6 +447,8 @@ pub struct Context {
 
     /// While positive, keep requesting repaints. Decrement at the end of each frame.
     repaint_requests: AtomicU32,
+
+    pub(crate) pass_state: Option<PassState>,
 }
 
 impl Clone for Context {
@@ -407,6 +464,7 @@ impl Clone for Context {
             output: self.output.clone(),
             paint_stats: self.paint_stats.clone(),
             repaint_requests: self.repaint_requests.load(SeqCst).into(),
+            pass_state: None,
         }
     }
 }

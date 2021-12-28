@@ -230,6 +230,18 @@ impl Layout {
         }
     }
 
+    /// change layout to one suitable for size pass
+    pub(crate) fn for_size_pass(self) -> Self {
+        Self {
+            main_dir: self.main_dir,
+            main_wrap: self.main_wrap,
+            main_align: Align::Min,
+            main_justify: false,
+            cross_align: Align::Min,
+            cross_justify: false,
+        }
+    }
+
     #[inline(always)]
     pub fn with_main_wrap(self, main_wrap: bool) -> Self {
         Self { main_wrap, ..self }

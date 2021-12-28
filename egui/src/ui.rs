@@ -92,10 +92,15 @@ impl Ui {
     pub fn child_ui_with_id_source(
         &mut self,
         max_rect: Rect,
-        layout: Layout,
+        mut layout: Layout,
         id_source: impl Hash,
     ) -> Self {
         crate::egui_assert!(!max_rect.any_nan());
+
+        if self.ctx().pass_state == Some(PassState::SizePass) {
+            layout = layout.for_size_pass();
+        }
+
         let next_auto_id_source = Id::new(self.next_auto_id_source).with("child").value();
         self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
         let menu_state = self.get_menu_state();
