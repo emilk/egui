@@ -26,6 +26,9 @@ use epaint::{stats::*, text::Fonts, *};
 ///
 /// [`CtxRef`] is cheap to clone, and any clones refers to the same mutable data.
 ///
+/// A [`CtxRef`] is only valid for the duration of a frame, and so you should not store a [`CtxRef`] between frames.
+/// A new [`CtxRef`] is created each frame by calling [`Self::run`].
+///
 /// # Example:
 ///
 /// ``` no_run
@@ -49,7 +52,6 @@ use epaint::{stats::*, text::Fonts, *};
 ///     paint(clipped_meshes);
 /// }
 /// ```
-///
 #[derive(Clone)]
 pub struct CtxRef(std::sync::Arc<Context>);
 
@@ -325,16 +327,17 @@ impl CtxRef {
 
 // ----------------------------------------------------------------------------
 
-/// This is the first thing you need when working with egui. Create using [`CtxRef`].
+/// Your handle to egui.
 ///
-/// Contains the [`InputState`], [`Memory`], [`Output`], and more.
+/// This is the first thing you need when working with egui.
+/// Use [`CtxRef`] to create and refer to a [`Context`].
 ///
-/// Your handle to Egui.
+/// Contains the [`InputState`], [`Memory`], [`Output`], and more.///
 ///
-/// Almost all methods are marked `&self`, `Context` has interior mutability (protected by mutexes).
+/// Almost all methods are marked `&self`, [`Context`] has interior mutability (protected by mutexes).
 /// Multi-threaded access to a [`Context`] is behind the feature flag `multi_threaded`.
 /// Normally you'd always do all ui work on one thread, or perhaps use multiple contexts,
-/// but if you really want to access the same Context from multiple threads, it *SHOULD* be fine,
+/// but if you really want to access the same [`Context`] from multiple threads, it *SHOULD* be fine,
 /// but you are likely the first person to try it.
 #[derive(Default)]
 pub struct Context {
@@ -343,7 +346,7 @@ pub struct Context {
     // This means everything else needs to be behind an Arc.
     // We can probably come up with a nicer design.
     //
-    /// None until first call to `begin_frame`.
+    /// `None` until the start of the first frame.
     fonts: Option<Arc<Fonts>>,
     memory: Arc<Mutex<Memory>>,
     animation_manager: Arc<Mutex<AnimationManager>>,
