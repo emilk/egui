@@ -48,7 +48,7 @@ pub struct Painter {
     /// Stores outdated OpenGL textures that are yet to be deleted
     textures_to_destroy: Vec<glow::Texture>,
 
-    /// Only used in debug builds, to make sure we are destroyed correctly.
+    /// Used to make sure we are destroyed correctly.
     destroyed: bool,
 }
 
@@ -452,18 +452,19 @@ impl Painter {
     /// that should be deleted.
 
     pub fn destroy(&mut self, gl: &glow::Context) {
-        debug_assert!(!self.destroyed, "Only destroy once!");
-        unsafe {
-            self.destroy_gl(gl);
-            if let Some(ref post_process) = self.post_process {
-                post_process.destroy(gl);
+        if !self.destroyed {
+            unsafe {
+                self.destroy_gl(gl);
+                if let Some(ref post_process) = self.post_process {
+                    post_process.destroy(gl);
+                }
             }
+            self.destroyed = true;
         }
-        self.destroyed = true;
     }
 
     fn assert_not_destroyed(&self) {
-        debug_assert!(!self.destroyed, "the egui glow has already been destroyed!");
+        assert!(!self.destroyed, "the egui glow has already been destroyed!");
     }
 }
 
@@ -486,10 +487,11 @@ pub fn clear(gl: &glow::Context, dimension: [u32; 2], clear_color: egui::Rgba) {
 
 impl Drop for Painter {
     fn drop(&mut self) {
-        debug_assert!(
-            self.destroyed,
-            "Make sure to call destroy() before dropping to avoid leaking OpenGL objects!"
-        );
+        if !self.destroyed {
+            eprintln!(
+                "You forgot to call destroy() on the egui glow painter. Resources will leak!"
+            );
+        }
     }
 }
 
