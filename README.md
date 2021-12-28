@@ -32,11 +32,11 @@ Sections:
 
 ## Quick start
 
-If you just want to write a GUI application in Rust (for the web or for native), go to <https://github.com/emilk/eframe_template/> and follow the instructions there!
+If you just want to write a GUI application in Rust (for the web or for native), go to <https://github.com/emilk/eframe_template/> and follow the instructions there! The official docs are at <https://docs.rs/egui>. For inspiration, check out the [the egui web demo](https://emilk.github.io/egui/index.html) and follow the links in it to its source code. There is also an excellent tutorial video at <https://www.youtube.com/watch?v=NtUkr_z7l84>.
 
 If you want to integrate egui into an existing engine, go to the [Integrations](#integrations) section.
 
-If you have questions, use [GitHub Discussions](https://github.com/emilk/egui/discussions). There is also [an egui discord server](https://discord.gg/JFcEma9bJq). If you want to contribute to egui, please read the [Contributing Guidelines](https://github.com/emilk/egui/blob/master/CONTRIBUTING.md)
+If you have questions, use [GitHub Discussions](https://github.com/emilk/egui/discussions). There is also [an egui discord server](https://discord.gg/JFcEma9bJq). If you want to contribute to egui, please read the [Contributing Guidelines](https://github.com/emilk/egui/blob/master/CONTRIBUTING.md).
 
 ## Demo
 

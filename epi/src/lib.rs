@@ -187,7 +187,9 @@ pub trait App {
     }
 }
 
-/// Options controlling the behavior of a native window
+/// Options controlling the behavior of a native window.
+///
+/// Only a single native window is currently supported.
 #[derive(Clone)]
 pub struct NativeOptions {
     /// Sets whether or not the window will always be on top of other windows.

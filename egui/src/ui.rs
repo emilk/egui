@@ -119,6 +119,8 @@ impl Ui {
     }
 
     /// Style options for this `Ui` and its children.
+    ///
+    /// Note that this may be a different [`Style`] than that of [`Context::style`].
     #[inline]
     pub fn style(&self) -> &std::sync::Arc<Style> {
         &self.style
