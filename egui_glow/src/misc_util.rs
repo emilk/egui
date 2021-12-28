@@ -1,8 +1,6 @@
 #![allow(unsafe_code)]
 use glow::HasContext;
 use std::option::Option::Some;
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::JsValue;
 
 pub(crate) fn srgbtexture2d(
     gl: &glow::Context,

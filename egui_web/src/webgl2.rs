@@ -34,8 +34,7 @@ pub struct WebGl2Painter {
     /// Index is the same as in [`egui::TextureId::User`].
     user_textures: HashMap<u64, WebGlTexture>,
 
-    // TODO: 128-bit texture space?
-    next_native_tex_id: u64,
+    next_native_tex_id: u64, // TODO: 128-bit texture space?
 }
 
 impl WebGl2Painter {

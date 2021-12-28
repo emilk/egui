@@ -419,11 +419,10 @@ pub trait NativeTexture {
     /// The native texture type.
     type Texture;
 
-    /// Bind native texture to egui texture
+    /// Bind native texture to an egui texture id.
     fn register_native_texture(&mut self, native: Self::Texture) -> egui::TextureId;
 
-    /// Change id's actual pointing texture
-    /// only for user texture
+    /// Change what texture the given id refers to.
     fn replace_native_texture(&mut self, id: egui::TextureId, replacing: Self::Texture);
 }
 

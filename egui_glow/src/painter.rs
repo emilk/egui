@@ -41,8 +41,10 @@ pub struct Painter {
 
     /// Index is the same as in [`egui::TextureId::User`].
     user_textures: HashMap<u64, glow::Texture>,
-    // TODO: 128-bit texture space?
-    next_native_tex_id: u64,
+
+    #[cfg(feature = "epi")]
+    next_native_tex_id: u64, // TODO: 128-bit texture space?
+
     /// Stores outdated OpenGL textures that are yet to be deleted
     textures_to_destroy: Vec<glow::Texture>,
 
@@ -192,6 +194,7 @@ impl Painter {
                 vertex_buffer,
                 element_array_buffer,
                 user_textures: Default::default(),
+                #[cfg(feature = "epi")]
                 next_native_tex_id: 1 << 32,
                 textures_to_destroy: Vec::new(),
                 destroyed: false,
@@ -386,6 +389,7 @@ impl Painter {
 
     // ------------------------------------------------------------------------
 
+    #[cfg(feature = "epi")]
     pub fn set_texture(&mut self, gl: &glow::Context, tex_id: u64, image: &epi::Image) {
         self.assert_not_destroyed();
 
