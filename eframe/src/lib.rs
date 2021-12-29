@@ -6,6 +6,8 @@
 //!
 //! To get started, look at <https://github.com/emilk/eframe_template>.
 //!
+//! You can also take a look at [the `eframe` examples folder](https://github.com/emilk/egui/tree/master/eframe/examples).
+//!
 //! You write your application code for [`epi`] (implementing [`epi::App`]) and then
 //! call from [`crate::run_native`] your `main.rs`, and/or call `eframe::start_web` from your `lib.rs`.
 //!
