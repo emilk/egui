@@ -22,7 +22,7 @@ pub fn code_view_ui(ui: &mut egui::Ui, mut code: &str) {
 }
 
 /// Memoized Code highlighting
-pub fn highlight(ctx: &egui::Context, theme: &CodeTheme, code: &str, language: &str) -> LayoutJob {
+pub fn highlight(ctx: &egui::CtxRef, theme: &CodeTheme, code: &str, language: &str) -> LayoutJob {
     impl egui::util::cache::ComputerMut<(&CodeTheme, &str, &str), LayoutJob> for Highligher {
         fn compute(&mut self, (theme, code, lang): (&CodeTheme, &str, &str)) -> LayoutJob {
             self.highlight(theme, code, lang)
@@ -144,7 +144,7 @@ impl CodeTheme {
         }
     }
 
-    pub fn from_memory(ctx: &egui::Context) -> Self {
+    pub fn from_memory(ctx: &egui::CtxRef) -> Self {
         if ctx.style().visuals.dark_mode {
             ctx.memory()
                 .data
@@ -158,7 +158,7 @@ impl CodeTheme {
         }
     }
 
-    pub fn store_in_memory(&self, ctx: &egui::Context) {
+    pub fn store_in_memory(&self, ctx: &egui::CtxRef) {
         if self.dark_mode {
             ctx.memory()
                 .data

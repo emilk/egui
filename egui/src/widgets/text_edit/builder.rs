@@ -68,11 +68,11 @@ impl<'t> WidgetWithState for TextEdit<'t> {
 }
 
 impl<'t> TextEdit<'t> {
-    pub fn load_state(ctx: &Context, id: Id) -> Option<TextEditState> {
+    pub fn load_state(ctx: &CtxRef, id: Id) -> Option<TextEditState> {
         TextEditState::load(ctx, id)
     }
 
-    pub fn store_state(ctx: &Context, id: Id, state: TextEditState) {
+    pub fn store_state(ctx: &CtxRef, id: Id, state: TextEditState) {
         state.store(ctx, id);
     }
 }
@@ -389,7 +389,7 @@ impl<'t> TextEdit<'t> {
         let painter = ui.painter_at(rect);
 
         if interactive {
-            if let Some(pointer_pos) = ui.input().pointer.interact_pos() {
+            if let Some(pointer_pos) = ui.ctx().interact_pos() {
                 if response.hovered() && text.is_mutable() {
                     ui.output().mutable_text_under_cursor = true;
                 }
@@ -646,7 +646,9 @@ fn events(
 
     let mut any_change = false;
 
-    for event in &ui.input().events {
+    // Allow layouter to access ui.input() without panicking
+    let events = ui.input().events.clone();
+    for event in &events {
         let did_mutate_text = match event {
             Event::Copy => {
                 if cursor_range.is_empty() {

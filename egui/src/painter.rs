@@ -1,10 +1,11 @@
+use std::cell::{Ref, RefMut};
+
 use crate::{
     emath::{Align2, Pos2, Rect, Vec2},
     layers::{LayerId, PaintList, ShapeIdx},
     Color32, CtxRef,
 };
 use epaint::{
-    mutex::Mutex,
     text::{Fonts, Galley, TextStyle},
     CircleShape, RectShape, Shape, Stroke, TextShape,
 };
@@ -20,8 +21,6 @@ pub struct Painter {
     /// Where we paint
     layer_id: LayerId,
 
-    paint_list: std::sync::Arc<Mutex<PaintList>>,
-
     /// Everything painted in this `Painter` will be clipped against this.
     /// This means nothing outside of this rectangle will be visible on screen.
     clip_rect: Rect,
@@ -33,11 +32,9 @@ pub struct Painter {
 
 impl Painter {
     pub fn new(ctx: CtxRef, layer_id: LayerId, clip_rect: Rect) -> Self {
-        let paint_list = ctx.graphics().list(layer_id).clone();
         Self {
             ctx,
             layer_id,
-            paint_list,
             clip_rect,
             fade_to_color: None,
         }
@@ -45,10 +42,8 @@ impl Painter {
 
     #[must_use]
     pub fn with_layer_id(self, layer_id: LayerId) -> Self {
-        let paint_list = self.ctx.graphics().list(layer_id).clone();
         Self {
             ctx: self.ctx,
-            paint_list,
             layer_id,
             clip_rect: self.clip_rect,
             fade_to_color: None,
@@ -58,7 +53,6 @@ impl Painter {
     /// redirect
     pub fn set_layer_id(&mut self, layer_id: LayerId) {
         self.layer_id = layer_id;
-        self.paint_list = self.ctx.graphics().list(self.layer_id).clone();
     }
 
     /// If set, colors will be modified to look like this
@@ -83,7 +77,6 @@ impl Painter {
         Self {
             ctx: self.ctx.clone(),
             layer_id: self.layer_id,
-            paint_list: self.paint_list.clone(),
             clip_rect: rect.intersect(self.clip_rect),
             fade_to_color: self.fade_to_color,
         }
@@ -100,7 +93,7 @@ impl Painter {
 
     /// Available fonts.
     #[inline(always)]
-    pub fn fonts(&self) -> &Fonts {
+    pub fn fonts(&self) -> Ref<'_, Fonts> {
         self.ctx.fonts()
     }
 
@@ -145,6 +138,10 @@ impl Painter {
 
 /// ## Low level
 impl Painter {
+    fn paint_list(&self) -> RefMut<'_, PaintList> {
+        RefMut::map(self.ctx.graphics(), |g| g.list(self.layer_id))
+    }
+
     fn transform_shape(&self, shape: &mut Shape) {
         if let Some(fade_to_color) = self.fade_to_color {
             tint_shape_towards(shape, fade_to_color);
@@ -156,11 +153,11 @@ impl Painter {
     /// NOTE: all coordinates are screen coordinates!
     pub fn add(&self, shape: impl Into<Shape>) -> ShapeIdx {
         if self.fade_to_color == Some(Color32::TRANSPARENT) {
-            self.paint_list.lock().add(self.clip_rect, Shape::Noop)
+            self.paint_list().add(self.clip_rect, Shape::Noop)
         } else {
             let mut shape = shape.into();
             self.transform_shape(&mut shape);
-            self.paint_list.lock().add(self.clip_rect, shape)
+            self.paint_list().add(self.clip_rect, shape)
         }
     }
 
@@ -178,7 +175,7 @@ impl Painter {
                 }
             }
 
-            self.paint_list.lock().extend(self.clip_rect, shapes);
+            self.paint_list().extend(self.clip_rect, shapes);
         }
     }
 
@@ -189,7 +186,7 @@ impl Painter {
         }
         let mut shape = shape.into();
         self.transform_shape(&mut shape);
-        self.paint_list.lock().set(idx, self.clip_rect, shape);
+        self.paint_list().set(idx, self.clip_rect, shape);
     }
 }
 

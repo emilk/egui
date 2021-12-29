@@ -12,11 +12,11 @@ pub(crate) struct MonoState {
 }
 
 impl MonoState {
-    fn load(ctx: &Context) -> Option<Self> {
+    fn load(ctx: &CtxRef) -> Option<Self> {
         ctx.memory().data.get_temp(Id::null())
     }
 
-    fn store(self, ctx: &Context) {
+    fn store(self, ctx: &CtxRef) {
         ctx.memory().data.insert_temp(Id::null(), self);
     }
 

@@ -159,8 +159,8 @@ impl<'a> Widget for DragValue<'a> {
             max_decimals,
         } = self;
 
-        let is_slow_speed =
-            ui.input().modifiers.shift_only() && ui.memory().is_being_dragged(ui.next_auto_id());
+        let shift = ui.input().modifiers.shift_only();
+        let is_slow_speed = shift && ui.memory().is_being_dragged(ui.next_auto_id());
 
         let old_value = get(&mut get_set_value);
         let value = clamp_to_range(old_value, clamp_range.clone());

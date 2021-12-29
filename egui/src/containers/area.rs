@@ -369,15 +369,16 @@ impl Prepared {
     }
 }
 
-fn pointer_pressed_on_area(ctx: &Context, layer_id: LayerId) -> bool {
-    if let Some(pointer_pos) = ctx.input().pointer.interact_pos() {
-        ctx.input().pointer.any_pressed() && ctx.layer_id_at(pointer_pos) == Some(layer_id)
+fn pointer_pressed_on_area(ctx: &CtxRef, layer_id: LayerId) -> bool {
+    if let Some(pointer_pos) = ctx.interact_pos() {
+        let any_pressed = ctx.input().pointer.any_pressed();
+        return any_pressed && ctx.layer_id_at(pointer_pos) == Some(layer_id);
     } else {
         false
     }
 }
 
-fn automatic_area_position(ctx: &Context) -> Pos2 {
+fn automatic_area_position(ctx: &CtxRef) -> Pos2 {
     let mut existing: Vec<Rect> = ctx
         .memory()
         .areas

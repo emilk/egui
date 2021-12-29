@@ -24,11 +24,11 @@ struct PanelState {
 }
 
 impl PanelState {
-    fn load(ctx: &Context, bar_id: Id) -> Option<Self> {
+    fn load(ctx: &CtxRef, bar_id: Id) -> Option<Self> {
         ctx.memory().data.get_persisted(bar_id)
     }
 
-    fn store(self, ctx: &Context, bar_id: Id) {
+    fn store(self, ctx: &CtxRef, bar_id: Id) {
         ctx.memory().data.insert_persisted(bar_id, self);
     }
 }
@@ -191,7 +191,7 @@ impl SidePanel {
         let mut is_resizing = false;
         if resizable {
             let resize_id = id.with("__resize");
-            if let Some(pointer) = ui.input().pointer.latest_pos() {
+            if let Some(pointer) = ui.ctx().latest_pos() {
                 let we_are_on_top = ui
                     .ctx()
                     .layer_id_at(pointer)
@@ -469,7 +469,8 @@ impl TopBottomPanel {
         let mut is_resizing = false;
         if resizable {
             let resize_id = id.with("__resize");
-            if let Some(pointer) = ui.input().pointer.latest_pos() {
+            let latest_pos = ui.input().pointer.latest_pos();
+            if let Some(pointer) = latest_pos {
                 let we_are_on_top = ui
                     .ctx()
                     .layer_id_at(pointer)

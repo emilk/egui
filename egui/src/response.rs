@@ -1,6 +1,7 @@
 use crate::{
     emath::{lerp, Align, Pos2, Rect, Vec2},
-    CtxRef, CursorIcon, Id, LayerId, PointerButton, Sense, Ui, WidgetText, NUM_POINTER_BUTTONS,
+    menu, CtxRef, CursorIcon, Id, LayerId, PointerButton, Sense, Ui, WidgetText,
+    NUM_POINTER_BUTTONS,
 };
 
 // ----------------------------------------------------------------------------
@@ -491,9 +492,7 @@ impl Response {
     /// # });
     /// ```
     pub fn context_menu(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
-        self.ctx
-            .context_menu_system()
-            .context_menu(&self, add_contents);
+        menu::context(&self, add_contents);
         self
     }
 }

@@ -147,7 +147,7 @@ impl Persistence {
     pub fn save(
         &mut self,
         _app: &mut dyn epi::App,
-        _egui_ctx: &egui::Context,
+        _egui_ctx: &egui::CtxRef,
         _window: &winit::window::Window,
     ) {
         #[cfg(feature = "persistence")]
@@ -174,7 +174,7 @@ impl Persistence {
     pub fn maybe_autosave(
         &mut self,
         app: &mut dyn epi::App,
-        egui_ctx: &egui::Context,
+        egui_ctx: &egui::CtxRef,
         window: &winit::window::Window,
     ) {
         let now = std::time::Instant::now();
