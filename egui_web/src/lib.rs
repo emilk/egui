@@ -466,6 +466,9 @@ pub fn translate_key(key: &str) -> Option<egui::Key> {
         "y" | "Y" => Some(egui::Key::Y),
         "z" | "Z" => Some(egui::Key::Z),
 
+        "-" => Some(egui::Key::Minus),
+        "=" => Some(egui::Key::Equals),
+
         _ => None,
     }
 }
