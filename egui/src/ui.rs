@@ -1,12 +1,13 @@
 // #![warn(missing_docs)]
 
 use epaint::mutex::RwLock;
-use std::hash::Hash;
+use std::cell::Ref;
 use std::sync::Arc;
+use std::{cell::RefMut, hash::Hash};
 
 use crate::{
-    color::*, containers::*, epaint::text::Fonts, layout::*, menu::MenuState, mutex::MutexGuard,
-    placer::Placer, widgets::*, *,
+    color::*, containers::*, epaint::text::Fonts, layout::*, menu::MenuState, placer::Placer,
+    widgets::*, *,
 };
 
 // ----------------------------------------------------------------------------
@@ -316,28 +317,28 @@ impl Ui {
     /// The `Input` of the `Context` associated with the `Ui`.
     /// Equivalent to `.ctx().input()`.
     #[inline]
-    pub fn input(&self) -> &InputState {
+    pub fn input(&self) -> Ref<'_, InputState> {
         self.ctx().input()
     }
 
     /// The `Memory` of the `Context` associated with the `Ui`.
     /// Equivalent to `.ctx().memory()`.
     #[inline]
-    pub fn memory(&self) -> MutexGuard<'_, Memory> {
+    pub fn memory(&self) -> RefMut<'_, Memory> {
         self.ctx().memory()
     }
 
     /// The `Output` of the `Context` associated with the `Ui`.
     /// Equivalent to `.ctx().output()`.
     #[inline]
-    pub fn output(&self) -> MutexGuard<'_, Output> {
+    pub fn output(&self) -> RefMut<'_, Output> {
         self.ctx().output()
     }
 
     /// The `Fonts` of the `Context` associated with the `Ui`.
     /// Equivalent to `.ctx().fonts()`.
     #[inline]
-    pub fn fonts(&self) -> &Fonts {
+    pub fn fonts(&self) -> Ref<'_, Fonts> {
         self.ctx().fonts()
     }
 

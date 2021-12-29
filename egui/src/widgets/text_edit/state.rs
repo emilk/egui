@@ -33,11 +33,11 @@ pub struct TextEditState {
 }
 
 impl TextEditState {
-    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
+    pub fn load(ctx: &CtxRef, id: Id) -> Option<Self> {
         ctx.memory().data.get_persisted(id)
     }
 
-    pub fn store(self, ctx: &Context, id: Id) {
+    pub fn store(self, ctx: &CtxRef, id: Id) {
         ctx.memory().data.insert_persisted(id, self);
     }
 

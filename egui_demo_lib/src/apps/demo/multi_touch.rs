@@ -77,7 +77,7 @@ impl super::View for MultiTouch {
             // color and width:
             let mut stroke_width = 1.;
             let color = Color32::GRAY;
-            if let Some(multi_touch) = ui.input().multi_touch() {
+            if let Some(multi_touch) = ui.ctx().multi_touch() {
                 // This adjusts the current zoom factor and rotation angle according to the dynamic
                 // change (for the current frame) of the touch gesture:
                 self.zoom *= multi_touch.zoom_delta;

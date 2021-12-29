@@ -1619,7 +1619,7 @@ fn add_rulers_and_text(
 
     let corner_value = elem.corner_value();
     shapes.push(Shape::text(
-        plot.ui.fonts(),
+        &*plot.ui.fonts(),
         plot.transform.position_from_value(&corner_value) + vec2(3.0, -2.0),
         Align2::LEFT_BOTTOM,
         text,
@@ -1674,7 +1674,7 @@ pub(super) fn rulers_at_value(
     };
 
     shapes.push(Shape::text(
-        plot.ui.fonts(),
+        &*plot.ui.fonts(),
         pointer + vec2(3.0, -2.0),
         Align2::LEFT_BOTTOM,
         text,

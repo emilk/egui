@@ -575,7 +575,7 @@ pub enum WidgetType {
 
 /// For use in tests; especially doctests.
 pub fn __run_test_ctx(mut run_ui: impl FnMut(&CtxRef)) {
-    let mut ctx = CtxRef::default();
+    let ctx = CtxRef::default();
     let _ = ctx.run(Default::default(), |ctx| {
         run_ui(ctx);
     });
@@ -583,7 +583,7 @@ pub fn __run_test_ctx(mut run_ui: impl FnMut(&CtxRef)) {
 
 /// For use in tests; especially doctests.
 pub fn __run_test_ui(mut add_contents: impl FnMut(&mut Ui)) {
-    let mut ctx = CtxRef::default();
+    let ctx = CtxRef::default();
     let _ = ctx.run(Default::default(), |ctx| {
         crate::CentralPanel::default().show(ctx, |ui| {
             add_contents(ui);

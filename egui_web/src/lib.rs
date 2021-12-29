@@ -266,10 +266,10 @@ pub fn load_memory(ctx: &egui::Context) {
 }
 
 #[cfg(not(feature = "persistence"))]
-pub fn load_memory(_: &egui::Context) {}
+pub fn load_memory(_: &egui::CtxRef) {}
 
 #[cfg(feature = "persistence")]
-pub fn save_memory(ctx: &egui::Context) {
+pub fn save_memory(ctx: &egui::CtxRef) {
     match ron::to_string(&*ctx.memory()) {
         Ok(ron) => {
             local_storage_set("egui_memory_ron", &ron);
@@ -281,7 +281,7 @@ pub fn save_memory(ctx: &egui::Context) {
 }
 
 #[cfg(not(feature = "persistence"))]
-pub fn save_memory(_: &egui::Context) {}
+pub fn save_memory(_: &egui::CtxRef) {}
 
 #[derive(Default)]
 pub struct LocalStorage {}

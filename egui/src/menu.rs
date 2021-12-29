@@ -30,14 +30,14 @@ pub(crate) struct BarState {
 }
 
 impl BarState {
-    fn load(ctx: &Context, bar_id: Id) -> Self {
+    fn load(ctx: &CtxRef, bar_id: Id) -> Self {
         ctx.memory()
             .data
             .get_temp::<Self>(bar_id)
             .unwrap_or_default()
     }
 
-    fn store(self, ctx: &Context, bar_id: Id) {
+    fn store(self, ctx: &CtxRef, bar_id: Id) {
         ctx.memory().data.insert_temp(bar_id, self);
     }
 
@@ -187,33 +187,18 @@ fn stationary_menu_impl<'c, R>(
     InnerResponse::new(inner.map(|r| r.inner), button_response)
 }
 
-/// Stores the state for the context menu.
-#[derive(Default)]
-pub(crate) struct ContextMenuSystem {
-    root: MenuRootManager,
-}
-impl ContextMenuSystem {
-    /// Show a menu at pointer if right-clicked response.
-    /// Should be called from [`Context`] on a [`Response`]
-    pub fn context_menu(
-        &mut self,
-        response: &Response,
-        add_contents: impl FnOnce(&mut Ui),
-    ) -> Option<InnerResponse<()>> {
-        MenuRoot::context_click_interaction(response, &mut self.root, response.id);
-        self.root.show(response, add_contents)
-    }
-}
-impl std::ops::Deref for ContextMenuSystem {
-    type Target = MenuRootManager;
-    fn deref(&self) -> &Self::Target {
-        &self.root
-    }
-}
-impl std::ops::DerefMut for ContextMenuSystem {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.root
-    }
+pub fn context(
+    response: &Response,
+    add_contents: impl FnOnce(&mut Ui),
+) -> Option<InnerResponse<()>> {
+    let menu_id = Id::new("context menu");
+    let mut bar_state = BarState::load(&response.ctx, menu_id);
+
+    MenuRoot::context_click_interaction(response, &mut bar_state, response.id);
+    let inner_response = bar_state.show(response, add_contents);
+
+    bar_state.store(&response.ctx, menu_id);
+    return inner_response;
 }
 
 /// Stores the state for the context menu.

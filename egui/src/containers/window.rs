@@ -296,7 +296,7 @@ impl<'open> Window<'open> {
             .and_then(|window_interaction| {
                 // Calculate roughly how much larger the window size is compared to the inner rect
                 let title_bar_height = if with_title_bar {
-                    title.font_height(ctx.fonts(), &ctx.style()) + title_content_spacing
+                    title.font_height(&ctx) + title_content_spacing
                 } else {
                     0.0
                 };
@@ -482,7 +482,7 @@ pub(crate) struct WindowInteraction {
 }
 
 impl WindowInteraction {
-    pub fn set_cursor(&self, ctx: &Context) {
+    pub fn set_cursor(&self, ctx: &CtxRef) {
         if (self.left && self.top) || (self.right && self.bottom) {
             ctx.output().cursor_icon = CursorIcon::ResizeNwSe;
         } else if (self.right && self.top) || (self.left && self.bottom) {
@@ -501,7 +501,7 @@ impl WindowInteraction {
 
 fn interact(
     window_interaction: WindowInteraction,
-    ctx: &Context,
+    ctx: &CtxRef,
     margins: Vec2,
     area_layer_id: LayerId,
     area: &mut area::Prepared,
@@ -530,7 +530,7 @@ fn interact(
     Some(window_interaction)
 }
 
-fn move_and_resize_window(ctx: &Context, window_interaction: &WindowInteraction) -> Option<Rect> {
+fn move_and_resize_window(ctx: &CtxRef, window_interaction: &WindowInteraction) -> Option<Rect> {
     window_interaction.set_cursor(ctx);
 
     // Only move/resize windows with primary mouse button:
@@ -572,7 +572,7 @@ fn move_and_resize_window(ctx: &Context, window_interaction: &WindowInteraction)
 
 /// Returns `Some` if there is a move or resize
 fn window_interaction(
-    ctx: &Context,
+    ctx: &CtxRef,
     possible: PossibleInteractions,
     area_layer_id: LayerId,
     id: Id,
@@ -612,7 +612,7 @@ fn window_interaction(
 }
 
 fn resize_hover(
-    ctx: &Context,
+    ctx: &CtxRef,
     possible: PossibleInteractions,
     area_layer_id: LayerId,
     rect: Rect,
@@ -763,7 +763,7 @@ fn show_title_bar(
 ) -> TitleBar {
     let inner_response = ui.horizontal(|ui| {
         let height = title
-            .font_height(ui.fonts(), ui.style())
+            .font_height(ui.ctx())
             .max(ui.spacing().interact_size.y);
         ui.set_min_height(height);
 

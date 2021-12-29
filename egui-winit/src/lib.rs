@@ -206,7 +206,7 @@ impl State {
     /// Note that egui uses `tab` to move focus between elements, so this will always return `true` for tabs.
     pub fn on_event(
         &mut self,
-        egui_ctx: &egui::Context,
+        egui_ctx: &egui::CtxRef,
         event: &winit::event::WindowEvent<'_>,
     ) -> bool {
         use winit::event::WindowEvent;
@@ -510,7 +510,7 @@ impl State {
     pub fn handle_output(
         &mut self,
         window: &winit::window::Window,
-        egui_ctx: &egui::Context,
+        egui_ctx: &egui::CtxRef,
         output: egui::Output,
     ) {
         self.current_pixels_per_point = egui_ctx.pixels_per_point(); // someone can have changed it to scale the UI
