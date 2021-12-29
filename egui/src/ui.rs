@@ -1763,7 +1763,9 @@ impl Ui {
         result
     }
 
-    /// Close menu (with submenus), if any.
+    /// Close the menu we are in (including submenus), if any.
+    ///
+    /// See also: [`Self::menu_button`] and [`Response::context_menu`].
     pub fn close_menu(&mut self) {
         if let Some(menu_state) = &mut self.menu_state {
             menu_state.write().close();
@@ -1780,7 +1782,9 @@ impl Ui {
     }
 
     #[inline]
-    /// Create a menu button. Creates a button for a sub-menu when the `Ui` is inside a menu.
+    /// Create a menu button that when clicked will show the given menu.
+    ///
+    /// If called from within a menu this will instead create a button for a sub-menu.
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -1793,6 +1797,8 @@ impl Ui {
     /// });
     /// # });
     /// ```
+    ///
+    /// See also: [`Self::close_menu`] and [`Response::context_menu`].
     pub fn menu_button<R>(
         &mut self,
         title: impl Into<WidgetText>,
