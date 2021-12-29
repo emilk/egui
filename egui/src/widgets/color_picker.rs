@@ -44,6 +44,7 @@ fn background_checkers(painter: &Painter, rect: Rect) {
     painter.add(Shape::mesh(mesh));
 }
 
+/// Show a color with background checkers to demonstrate transparency (if any).
 pub fn show_color(ui: &mut Ui, color: impl Into<Hsva>, desired_size: Vec2) -> Response {
     show_hsva(ui, color.into(), desired_size)
 }
@@ -322,13 +323,15 @@ fn color_picker_hsva_2d(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> bool {
     }
 }
 
+/// Shows a color picker where the user can change the given color.
+///
 /// Returns `true` on change.
 pub fn color_picker_color32(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -> bool {
     let mut hsva = color_cache_get(ui.ctx(), *srgba);
-    let response = color_picker_hsva_2d(ui, &mut hsva, alpha);
+    let changed = color_picker_hsva_2d(ui, &mut hsva, alpha);
     *srgba = Color32::from(hsva);
     color_cache_set(ui.ctx(), *srgba, hsva);
-    response
+    changed
 }
 
 pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Response {

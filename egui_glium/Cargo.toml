@@ -1,6 +1,6 @@
 [package]
 name = "egui_glium"
-version = "0.15.0"
+version = "0.16.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui natively using the glium library"
 edition = "2021"
@@ -23,9 +23,9 @@ include = [
 all-features = true
 
 [dependencies]
-egui = { version = "0.15.0", path = "../egui", default-features = false, features = ["single_threaded"] }
-egui-winit = { version = "0.15.0", path = "../egui-winit", default-features = false, features = ["epi"] }
-epi = { version = "0.15.0", path = "../epi", optional = true }
+egui = { version = "0.16.0", path = "../egui", default-features = false, features = ["single_threaded"] }
+egui-winit = { version = "0.16.0", path = "../egui-winit", default-features = false, features = ["epi"] }
+epi = { version = "0.16.0", path = "../epi", optional = true }
 
 glium = "0.31"
 
