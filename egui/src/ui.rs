@@ -236,7 +236,7 @@ impl Ui {
     /// ```
     pub fn set_enabled(&mut self, enabled: bool) {
         self.enabled &= enabled;
-        if !self.enabled && self.visible() {
+        if !self.enabled && self.is_visible() {
             self.painter
                 .set_fade_to_color(Some(self.visuals().window_fill()));
         }
@@ -244,8 +244,13 @@ impl Ui {
 
     /// If `false`, any widgets added to the `Ui` will be invisible and non-interactive.
     #[inline]
+    pub fn is_visible(&self) -> bool {
+        self.painter.is_visible()
+    }
+
+    #[deprecated = "Renamed is_visible"]
     pub fn visible(&self) -> bool {
-        self.painter.visible()
+        self.painter.is_visible()
     }
 
     /// Calling `set_visible(false)` will cause all further widgets to be invisible,
@@ -351,7 +356,7 @@ impl Ui {
 
     /// Can be used for culling: if `false`, then no part of `rect` will be visible on screen.
     pub fn is_rect_visible(&self, rect: Rect) -> bool {
-        self.visible() && rect.intersects(self.clip_rect())
+        self.is_visible() && rect.intersects(self.clip_rect())
     }
 }
 
@@ -935,9 +940,9 @@ impl Ui {
         .inner
     }
 
-    /// Add a  single[`Widget`] that is possibly disabled, i.e. greyed out and non-interactive.
+    /// Add a single[`Widget`] that is possibly disabled, i.e. greyed out and non-interactive.
     ///
-    /// If you call `add_enabled` from within an already disabled UI,
+    /// If you call `add_enabled` from within an already disabled `Ui`,
     /// the widget will always be disabled, even if the `enabled` argument is true.
     ///
     /// See also [`Self::add_enabled_ui`] and [`Self::is_enabled`].
@@ -948,21 +953,21 @@ impl Ui {
     /// # });
     /// ```
     pub fn add_enabled(&mut self, enabled: bool, widget: impl Widget) -> Response {
-        if enabled || !self.is_enabled() {
-            self.add(widget)
-        } else {
+        if self.is_enabled() && !enabled {
             let old_painter = self.painter.clone();
             self.set_enabled(false);
             let response = self.add(widget);
             self.enabled = true;
             self.painter = old_painter;
             response
+        } else {
+            self.add(widget)
         }
     }
 
     /// Add a section that is possibly disabled, i.e. greyed out and non-interactive.
     ///
-    /// If you call `add_enabled_ui` from within an already disabled UI,
+    /// If you call `add_enabled_ui` from within an already disabled `Ui`,
     /// the result will always be disabled, even if the `enabled` argument is true.
     ///
     /// See also [`Self::add_enabled`] and [`Self::is_enabled`].
@@ -986,6 +991,63 @@ impl Ui {
     ) -> InnerResponse<R> {
         self.scope(|ui| {
             ui.set_enabled(enabled);
+            add_contents(ui)
+        })
+    }
+
+    /// Add a single[`Widget`] that is possibly invisible.
+    ///
+    /// An invisible widget still takes up the same space as if it were visible.
+    ///
+    /// If you call `add_visible` from within an already invisible `Ui`,
+    /// the widget will always be invisible, even if the `visible` argument is true.
+    ///
+    /// See also [`Self::add_visible_ui`], [`Self::set_visible`] and [`Self::is_visible`].
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// ui.add_visible(false, egui::Label::new("You won't see me!"));
+    /// # });
+    /// ```
+    pub fn add_visible(&mut self, visible: bool, widget: impl Widget) -> Response {
+        if self.is_visible() && !visible {
+            // temporary make us invisible:
+            let old_painter = self.painter.clone();
+            self.set_visible(false);
+            let response = self.add(widget);
+            self.painter = old_painter;
+            response
+        } else {
+            self.add(widget)
+        }
+    }
+
+    /// Add a section that is possibly invisible, i.e. greyed out and non-interactive.
+    ///
+    /// An invisible ui still takes up the same space as if it were visible.
+    ///
+    /// If you call `add_visible_ui` from within an already invisible `Ui`,
+    /// the result will always be invisible, even if the `visible` argument is true.
+    ///
+    /// See also [`Self::add_visible`], [`Self::set_visible`] and [`Self::is_visible`].
+    ///
+    /// ### Example
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut visible = true;
+    /// ui.checkbox(&mut visible, "Show subsection");
+    /// ui.add_visible_ui(visible, |ui| {
+    ///     ui.label("Maybe you see this, maybe you don't!");
+    /// });
+    /// # });
+    /// ```
+    pub fn add_visible_ui<R>(
+        &mut self,
+        visible: bool,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
+        self.scope(|ui| {
+            ui.set_visible(visible);
             add_contents(ui)
         })
     }
@@ -1763,7 +1825,9 @@ impl Ui {
         result
     }
 
-    /// Close menu (with submenus), if any.
+    /// Close the menu we are in (including submenus), if any.
+    ///
+    /// See also: [`Self::menu_button`] and [`Response::context_menu`].
     pub fn close_menu(&mut self) {
         if let Some(menu_state) = &mut self.menu_state {
             menu_state.write().close();
@@ -1780,7 +1844,9 @@ impl Ui {
     }
 
     #[inline]
-    /// Create a menu button. Creates a button for a sub-menu when the `Ui` is inside a menu.
+    /// Create a menu button that when clicked will show the given menu.
+    ///
+    /// If called from within a menu this will instead create a button for a sub-menu.
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -1793,6 +1859,8 @@ impl Ui {
     /// });
     /// # });
     /// ```
+    ///
+    /// See also: [`Self::close_menu`] and [`Response::context_menu`].
     pub fn menu_button<R>(
         &mut self,
         title: impl Into<WidgetText>,

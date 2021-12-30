@@ -198,12 +198,6 @@ impl CollapsingHeader {
         self
     }
 
-    #[deprecated = "Replaced by: CollapsingHeader::new(RichText::new(text).text_style(…))"]
-    pub fn text_style(mut self, text_style: TextStyle) -> Self {
-        self.text = self.text.text_style(text_style);
-        self
-    }
-
     /// If you set this to `false`, the `CollapsingHeader` will be grayed out and un-clickable.
     ///
     /// This is a convenience for [`Ui::set_enabled`].

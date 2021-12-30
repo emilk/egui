@@ -428,11 +428,12 @@ impl Context {
             .expect("No fonts available until first call to CtxRef::run()")
     }
 
-    /// The egui texture, containing font characters etc.
+    /// The egui font image, containing font characters etc.
+    ///
     /// Not valid until first call to [`CtxRef::run()`].
     /// That's because since we don't know the proper `pixels_per_point` until then.
-    pub fn texture(&self) -> Arc<epaint::Texture> {
-        self.fonts().texture()
+    pub fn font_image(&self) -> Arc<epaint::FontImage> {
+        self.fonts().font_image()
     }
 
     /// Tell `egui` which fonts to use.
@@ -657,7 +658,7 @@ impl Context {
         let clipped_meshes = tessellator::tessellate_shapes(
             shapes,
             tessellation_options,
-            self.fonts().texture().size(),
+            self.fonts().font_image().size(),
         );
         *self.paint_stats.lock() = paint_stats.with_clipped_meshes(&clipped_meshes);
         clipped_meshes
@@ -808,7 +809,7 @@ impl Context {
             .show(ui, |ui| {
                 let mut font_definitions = self.fonts().definitions().clone();
                 font_definitions.ui(ui);
-                self.fonts().texture().ui(ui);
+                self.fonts().font_image().ui(ui);
                 self.set_fonts(font_definitions);
             });
 

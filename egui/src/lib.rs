@@ -386,7 +386,7 @@ pub use emath::{lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos
 pub use epaint::{
     color, mutex,
     text::{FontData, FontDefinitions, FontFamily, TextStyle},
-    ClippedMesh, Color32, Rgba, Shape, Stroke, Texture, TextureId,
+    ClippedMesh, Color32, FontImage, Rgba, Shape, Stroke, TextureId,
 };
 
 pub mod text {

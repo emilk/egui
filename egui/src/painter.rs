@@ -66,7 +66,7 @@ impl Painter {
         self.fade_to_color = fade_to_color;
     }
 
-    pub(crate) fn visible(&self) -> bool {
+    pub(crate) fn is_visible(&self) -> bool {
         self.fade_to_color != Some(Color32::TRANSPARENT)
     }
 

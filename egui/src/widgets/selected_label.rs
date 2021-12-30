@@ -34,12 +34,6 @@ impl SelectableLabel {
             text: text.into(),
         }
     }
-
-    #[deprecated = "Replaced by: Button::new(RichText::new(text).text_style(…))"]
-    pub fn text_style(mut self, text_style: TextStyle) -> Self {
-        self.text = self.text.text_style(text_style);
-        self
-    }
 }
 
 impl Widget for SelectableLabel {

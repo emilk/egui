@@ -80,18 +80,6 @@ impl Button {
         self
     }
 
-    #[deprecated = "Replaced by: Button::new(RichText::new(text).color(…))"]
-    pub fn text_color(mut self, text_color: Color32) -> Self {
-        self.text = self.text.color(text_color);
-        self
-    }
-
-    #[deprecated = "Replaced by: Button::new(RichText::new(text).text_style(…))"]
-    pub fn text_style(mut self, text_style: TextStyle) -> Self {
-        self.text = self.text.text_style(text_style);
-        self
-    }
-
     /// Override background fill color. Note that this will override any on-hover effects.
     /// Calling this will also turn on the frame.
     pub fn fill(mut self, fill: impl Into<Color32>) -> Self {
@@ -241,18 +229,6 @@ impl<'a> Checkbox<'a> {
             text: text.into(),
         }
     }
-
-    #[deprecated = "Replaced by: Checkbox::new(RichText::new(text).color(…))"]
-    pub fn text_color(mut self, text_color: Color32) -> Self {
-        self.text = self.text.color(text_color);
-        self
-    }
-
-    #[deprecated = "Replaced by: Checkbox::new(RichText::new(text).text_style(…))"]
-    pub fn text_style(mut self, text_style: TextStyle) -> Self {
-        self.text = self.text.text_style(text_style);
-        self
-    }
 }
 
 impl<'a> Widget for Checkbox<'a> {
@@ -346,18 +322,6 @@ impl RadioButton {
             checked,
             text: text.into(),
         }
-    }
-
-    #[deprecated = "Replaced by: RadioButton::new(RichText::new(text).color(…))"]
-    pub fn text_color(mut self, text_color: Color32) -> Self {
-        self.text = self.text.color(text_color);
-        self
-    }
-
-    #[deprecated = "Replaced by: RadioButton::new(RichText::new(text).text_style(…))"]
-    pub fn text_style(mut self, text_style: TextStyle) -> Self {
-        self.text = self.text.text_style(text_style);
-        self
     }
 }
 

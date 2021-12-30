@@ -347,8 +347,8 @@ impl Widget for &mut ItemsDemo {
             TextureId::Egui,
             Value::new(0.0, 10.0),
             [
-                ui.fonts().texture().width as f32 / 100.0,
-                ui.fonts().texture().height as f32 / 100.0,
+                ui.fonts().font_image().width as f32 / 100.0,
+                ui.fonts().font_image().height as f32 / 100.0,
             ],
         );
 

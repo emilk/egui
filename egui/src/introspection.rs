@@ -1,7 +1,7 @@
 //! uis for egui types.
 use crate::*;
 
-impl Widget for &epaint::Texture {
+impl Widget for &epaint::FontImage {
     fn ui(self, ui: &mut Ui) -> Response {
         use epaint::Mesh;
 

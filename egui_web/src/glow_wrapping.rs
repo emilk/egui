@@ -1,5 +1,5 @@
 use crate::{canvas_element_or_die, console_error};
-use egui::{ClippedMesh, Rgba, Texture};
+use egui::{ClippedMesh, FontImage, Rgba};
 use egui_glow::glow;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
@@ -86,8 +86,8 @@ impl crate::Painter for WrappedGlowPainter {
         &self.canvas_id
     }
 
-    fn upload_egui_texture(&mut self, texture: &Texture) {
-        self.painter.upload_egui_texture(&self.gl_ctx, texture)
+    fn upload_egui_texture(&mut self, font_image: &FontImage) {
+        self.painter.upload_egui_texture(&self.gl_ctx, font_image)
     }
 
     fn clear(&mut self, clear_color: Rgba) {

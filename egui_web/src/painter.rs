@@ -10,7 +10,7 @@ pub trait Painter {
     /// id of the canvas html element containing the rendering
     fn canvas_id(&self) -> &str;
 
-    fn upload_egui_texture(&mut self, texture: &egui::Texture);
+    fn upload_egui_texture(&mut self, font_image: &egui::FontImage);
 
     fn clear(&mut self, clear_color: egui::Rgba);
 

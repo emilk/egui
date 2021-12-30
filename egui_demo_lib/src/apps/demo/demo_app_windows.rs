@@ -153,7 +153,7 @@ impl DemoWindows {
 
         egui::SidePanel::right("egui_demo_panel")
             .min_width(150.0)
-            .default_width(190.0)
+            .default_width(180.0)
             .show(ctx, |ui| {
                 egui::trace!(ui);
                 ui.vertical_centered(|ui| {

@@ -12,7 +12,7 @@ use {
 
 use egui::{
     emath::vec2,
-    epaint::{Color32, Texture},
+    epaint::{Color32, FontImage},
 };
 
 type Gl = WebGl2RenderingContext;
@@ -307,13 +307,13 @@ impl crate::Painter for WebGl2Painter {
         &self.canvas_id
     }
 
-    fn upload_egui_texture(&mut self, texture: &Texture) {
-        if self.egui_texture_version == Some(texture.version) {
+    fn upload_egui_texture(&mut self, font_image: &FontImage) {
+        if self.egui_texture_version == Some(font_image.version) {
             return; // No change
         }
 
-        let mut pixels: Vec<u8> = Vec::with_capacity(texture.pixels.len() * 4);
-        for srgba in texture.srgba_pixels(1.0) {
+        let mut pixels: Vec<u8> = Vec::with_capacity(font_image.pixels.len() * 4);
+        for srgba in font_image.srgba_pixels(1.0) {
             pixels.push(srgba.r());
             pixels.push(srgba.g());
             pixels.push(srgba.b());
@@ -333,8 +333,8 @@ impl crate::Painter for WebGl2Painter {
             Gl::TEXTURE_2D,
             level,
             internal_format as i32,
-            texture.width as i32,
-            texture.height as i32,
+            font_image.width as i32,
+            font_image.height as i32,
             border,
             src_format,
             src_type,
@@ -342,7 +342,7 @@ impl crate::Painter for WebGl2Painter {
         )
         .unwrap();
 
-        self.egui_texture_version = Some(texture.version);
+        self.egui_texture_version = Some(font_image.version);
     }
 
     fn clear(&mut self, clear_color: egui::Rgba) {

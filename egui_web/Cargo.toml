@@ -1,6 +1,6 @@
 [package]
 name = "egui_web"
-version = "0.15.0"
+version = "0.16.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for compiling egui code to WASM for a web page"
 license = "MIT OR Apache-2.0"
@@ -26,15 +26,15 @@ all-features = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-egui = { version = "0.15.0", path = "../egui", default-features = false, features = [
+egui = { version = "0.16.0", path = "../egui", default-features = false, features = [
   "single_threaded",
 ] }
-egui_glow = { version = "0.15.0",path = "../egui_glow", default-features = false, optional = true }
-epi = { version = "0.15.0", path = "../epi" }
+egui_glow = { version = "0.16.0",path = "../egui_glow", default-features = false, optional = true }
+epi = { version = "0.16.0", path = "../epi" }
 js-sys = "0.3"
 ron = { version = "0.7", optional = true }
 serde = { version = "1", optional = true }
-tts = { version = "0.17", optional = true } # feature screen_reader
+tts = { version = "0.19", optional = true } # feature screen_reader
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 

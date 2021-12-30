@@ -1,7 +1,6 @@
-// TODO: `TextureData` or similar?
 /// An 8-bit texture containing font data.
 #[derive(Clone, Default)]
-pub struct Texture {
+pub struct FontImage {
     /// e.g. a hash of the data. Use this to detect changes!
     /// If the texture changes, this too will change.
     pub version: u64,
@@ -11,7 +10,7 @@ pub struct Texture {
     pub pixels: Vec<u8>,
 }
 
-impl Texture {
+impl FontImage {
     pub fn size(&self) -> [usize; 2] {
         [self.width, self.height]
     }
@@ -36,7 +35,7 @@ impl Texture {
     }
 }
 
-impl std::ops::Index<(usize, usize)> for Texture {
+impl std::ops::Index<(usize, usize)> for FontImage {
     type Output = u8;
 
     #[inline]
@@ -47,7 +46,7 @@ impl std::ops::Index<(usize, usize)> for Texture {
     }
 }
 
-impl std::ops::IndexMut<(usize, usize)> for Texture {
+impl std::ops::IndexMut<(usize, usize)> for FontImage {
     #[inline]
     fn index_mut(&mut self, (x, y): (usize, usize)) -> &mut u8 {
         assert!(x < self.width);
@@ -61,7 +60,7 @@ impl std::ops::IndexMut<(usize, usize)> for Texture {
 /// More characters can be added, possibly expanding the texture.
 #[derive(Clone, Default)]
 pub struct TextureAtlas {
-    texture: Texture,
+    image: FontImage,
 
     /// Used for when allocating new rectangles.
     cursor: (usize, usize),
@@ -71,7 +70,7 @@ pub struct TextureAtlas {
 impl TextureAtlas {
     pub fn new(width: usize, height: usize) -> Self {
         Self {
-            texture: Texture {
+            image: FontImage {
                 version: 0,
                 width,
                 height,
@@ -81,13 +80,13 @@ impl TextureAtlas {
         }
     }
 
-    pub fn texture(&self) -> &Texture {
-        &self.texture
+    pub fn image(&self) -> &FontImage {
+        &self.image
     }
 
-    pub fn texture_mut(&mut self) -> &mut Texture {
-        self.texture.version += 1;
-        &mut self.texture
+    pub fn image_mut(&mut self) -> &mut FontImage {
+        self.image.version += 1;
+        &mut self.image
     }
 
     /// Returns the coordinates of where the rect ended up.
@@ -98,12 +97,12 @@ impl TextureAtlas {
         const PADDING: usize = 1;
 
         assert!(
-            w <= self.texture.width,
+            w <= self.image.width,
             "Tried to allocate a {} wide glyph in a {} wide texture atlas",
             w,
-            self.texture.width
+            self.image.width
         );
-        if self.cursor.0 + w > self.texture.width {
+        if self.cursor.0 + w > self.image.width {
             // New row:
             self.cursor.0 = 0;
             self.cursor.1 += self.row_height + PADDING;
@@ -111,19 +110,19 @@ impl TextureAtlas {
         }
 
         self.row_height = self.row_height.max(h);
-        while self.cursor.1 + self.row_height >= self.texture.height {
-            self.texture.height *= 2;
+        while self.cursor.1 + self.row_height >= self.image.height {
+            self.image.height *= 2;
         }
 
-        if self.texture.width * self.texture.height > self.texture.pixels.len() {
-            self.texture
+        if self.image.width * self.image.height > self.image.pixels.len() {
+            self.image
                 .pixels
-                .resize(self.texture.width * self.texture.height, 0);
+                .resize(self.image.width * self.image.height, 0);
         }
 
         let pos = self.cursor;
         self.cursor.0 += w + PADDING;
-        self.texture.version += 1;
+        self.image.version += 1;
         (pos.0 as usize, pos.1 as usize)
     }
 }

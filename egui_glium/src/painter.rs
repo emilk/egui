@@ -65,15 +65,15 @@ impl Painter {
     pub fn upload_egui_texture(
         &mut self,
         facade: &dyn glium::backend::Facade,
-        texture: &egui::Texture,
+        font_image: &egui::FontImage,
     ) {
-        if self.egui_texture_version == Some(texture.version) {
+        if self.egui_texture_version == Some(font_image.version) {
             return; // No change
         }
 
-        let pixels: Vec<Vec<(u8, u8, u8, u8)>> = texture
+        let pixels: Vec<Vec<(u8, u8, u8, u8)>> = font_image
             .pixels
-            .chunks(texture.width as usize)
+            .chunks(font_image.width as usize)
             .map(|row| {
                 row.iter()
                     .map(|&a| Color32::from_white_alpha(a).to_tuple())
@@ -85,7 +85,7 @@ impl Painter {
         let mipmaps = texture::MipmapsOption::NoMipmap;
         self.egui_texture =
             Some(SrgbTexture2d::with_format(facade, pixels, format, mipmaps).unwrap());
-        self.egui_texture_version = Some(texture.version);
+        self.egui_texture_version = Some(font_image.version);
     }
 
     /// Main entry-point for painting a frame.
@@ -97,9 +97,9 @@ impl Painter {
         target: &mut T,
         pixels_per_point: f32,
         cipped_meshes: Vec<egui::ClippedMesh>,
-        egui_texture: &egui::Texture,
+        font_image: &egui::FontImage,
     ) {
-        self.upload_egui_texture(display, egui_texture);
+        self.upload_egui_texture(display, font_image);
 
         for egui::ClippedMesh(clip_rect, mesh) in cipped_meshes {
             self.paint_mesh(target, display, pixels_per_point, clip_rect, &mesh);

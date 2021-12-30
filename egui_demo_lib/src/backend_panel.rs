@@ -153,7 +153,6 @@ impl BackendPanel {
             ui.label(
                     "Everything you see is rendered as textured triangles. There is no DOM and no HTML elements. \
                     This is the web page, reinvented with game tech.");
-            ui.label("This is also work in progress, and not ready for production… yet :)");
             ui.hyperlink("https://github.com/emilk/egui");
 
             ui.separator();
