@@ -301,6 +301,11 @@ impl CtxRef {
             memory.surrender_focus(id);
         }
 
+        if response.dragged() && !memory.has_focus(response.id) {
+            // e.g.: remove focus from a widget when you drag something else
+            memory.stop_text_input();
+        }
+
         response
     }
 
