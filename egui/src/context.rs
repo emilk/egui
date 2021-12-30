@@ -436,11 +436,6 @@ impl Context {
         self.fonts().font_image()
     }
 
-    #[deprecated = "Renamed font_image"]
-    pub fn texture(&self) -> Arc<epaint::FontImage> {
-        self.fonts().font_image()
-    }
-
     /// Tell `egui` which fonts to use.
     ///
     /// The default `egui` fonts only support latin and cyrillic alphabets,
