@@ -100,9 +100,6 @@ impl CtxRef {
     /// This will modify the internal reference to point to a new generation of [`Context`].
     /// Any old clones of this [`CtxRef`] will refer to the old [`Context`], which will not get new input.
     ///
-    /// In the future [`Self::run`] may be extended to do multi-pass,
-    /// i.e. call the application code twice. This will make
-    ///
     /// You can alternatively run [`Self::begin_single_pass_frame`] and [`Self::end_single_pass_frame`].
     ///
     /// ``` rust
