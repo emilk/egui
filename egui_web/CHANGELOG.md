@@ -4,6 +4,7 @@ All notable changes to the `egui_web` integration will be noted in this file.
 
 
 ## Unreleased
+* The default painter is now glow instead of WebGL.
 
 
 ## 0.16.0 - 2021-12-29

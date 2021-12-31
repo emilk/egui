@@ -5,6 +5,8 @@ NOTE: [`egui_web`](egui_web/CHANGELOG.md), [`egui-winit`](egui-winit/CHANGELOG.m
 
 
 ## Unreleased
+* The default native backend is now `egui_glow` (instead of `egui_glium`).
+* The default web painter is now `egui_glow` (instead of WebGL).
 
 
 ## 0.16.0 - 2021-12-29

@@ -39,12 +39,12 @@ wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 
 [features]
-default = ["default_fonts"]
+default = ["default_fonts", "glow"]
 
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["egui/default_fonts"]
-# Use glow as the renderer
+# Use glow as the renderer instead of WebGL.
 glow = ["egui_glow", "egui_glow/epi"]
 persistence = ["egui/persistence", "ron", "serde"]
 screen_reader = ["tts"] # experimental

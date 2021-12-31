@@ -44,7 +44,7 @@ If you have questions, use [GitHub Discussions](https://github.com/emilk/egui/di
 
 To test the demo app locally, run `cargo run --release -p egui_demo_app`.
 
-The native backend is [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium) (using [`glium`](https://github.com/glium/glium)) and should work out-of-the-box on Mac and Windows, but on Linux you need to first run:
+The native backend is [`egui_glow`](https://github.com/emilk/egui/tree/master/egui_glow) (using [`glow`](https://crates.io/crates/glow)) and should work out-of-the-box on Mac and Windows, but on Linux you need to first run:
 
 `sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev`
 
@@ -322,7 +322,7 @@ On Linux and Mac, Firefox will copy the WebGL render target from GPU, to CPU and
 To alleviate the above mentioned performance issues the default max-width of an egui web app is 1024 points. You can change this by overriding the `fn max_size_points` of [`epi::App`](https://docs.rs/epi/latest/epi/trait.App.html).
 
 ### How do I render 3D stuff in an egui area?
-egui can't do 3D graphics itself, but if you use a 3D library (e.g. [`glium`](https://github.com/glium/glium) using [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium), or [`miniquad`](https://github.com/not-fl3/miniquad) using [`egui-miniquad`](https://github.com/not-fl3/egui-miniquad)) you can render your 3D content to a texture, then display it using [`ui.image(…)`](https://docs.rs/egui/latest/egui/struct.Ui.html#method.image). You first need to convert the native texture to an [`egui::TextureId`](https://docs.rs/egui/latest/egui/enum.TextureId.html), and how to do this depends on the integration you use (e.g. [`register_glium_texture`](https://docs.rs/egui_glium/latest/egui_glium/struct.Painter.html#method.register_glium_texture)).
+egui can't do 3D graphics itself, but if you use a 3D library (e.g. [`glium`](https://github.com/glium/glium) using [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium), or [`miniquad`](https://github.com/not-fl3/miniquad) using [`egui-miniquad`](https://github.com/not-fl3/egui-miniquad)) you can render your 3D content to a texture, then display it using [`ui.image(…)`](https://docs.rs/egui/latest/egui/struct.Ui.html#method.image). You first need to convert the native texture to an [`egui::TextureId`](https://docs.rs/egui/latest/egui/enum.TextureId.html), and how to do this depends on the integration you use (e.g. [`register_glium_texture`](https://docs.rs/epi/latest/epi/trait.NativeTexture.html#tymethod.register_native_texture)).
 
 There is an example for showing a native glium texture in an egui window at <https://github.com/emilk/egui/blob/master/egui_glium/examples/native_texture.rs>.
 
