@@ -5,7 +5,7 @@ use {
     wasm_bindgen::{prelude::*, JsCast},
     web_sys::{
         ExtSRgb, WebGlBuffer, WebGlFramebuffer, WebGlProgram, WebGlRenderingContext, WebGlShader,
-        WebGlTexture, WebglDebugRendererInfo,
+        WebGlTexture,
     },
 };
 
@@ -479,7 +479,7 @@ fn requires_brightening(gl: &web_sys::WebGlRenderingContext) -> bool {
     // See https://github.com/emilk/egui/issues/794
 
     let user_agent = web_sys::window().unwrap().navigator().user_agent().unwrap();
-    crate::webgl1::is_safari_and_webkit_gtk(gl) && !user_agent.contains("Mac OS X")
+    crate::is_safari_and_webkit_gtk(gl) && !user_agent.contains("Mac OS X")
 }
 
 impl PostProcess {
@@ -687,27 +687,4 @@ fn link_program<'a, T: IntoIterator<Item = &'a WebGlShader>>(
             .get_program_info_log(&program)
             .unwrap_or_else(|| "Unknown error creating program object".into()))
     }
-}
-
-/// detecting Safari and webkitGTK.
-///
-/// Safari and webkitGTK use unmasked renderer :Apple GPU
-///
-/// If we detect safari or webkitGTK returns true.
-///
-/// This function used to avoid displaying linear color with `sRGB` supported systems.
-pub(crate) fn is_safari_and_webkit_gtk(gl: &web_sys::WebGlRenderingContext) -> bool {
-    if gl
-        .get_extension("WEBGL_debug_renderer_info")
-        .unwrap()
-        .is_some()
-    {
-        let renderer: JsValue = gl
-            .get_parameter(WebglDebugRendererInfo::UNMASKED_RENDERER_WEBGL)
-            .unwrap();
-        if renderer.as_string().unwrap().contains("Apple") {
-            return true;
-        }
-    }
-    false
 }

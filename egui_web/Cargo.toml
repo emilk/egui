@@ -44,8 +44,13 @@ default = ["default_fonts", "glow"]
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["egui/default_fonts"]
-# Use glow as the renderer instead of WebGL.
+
+# Use glow as the renderer.
 glow = ["egui_glow", "egui_glow/epi"]
+
+# Alternative to the glow renderer.
+webgl = []
+
 persistence = ["egui/persistence", "ron", "serde"]
 screen_reader = ["tts"] # experimental
 

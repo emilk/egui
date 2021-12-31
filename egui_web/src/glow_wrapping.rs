@@ -62,7 +62,7 @@ fn requires_brightening(canvas: &web_sys::HtmlCanvasElement) -> bool {
         .dyn_into::<WebGlRenderingContext>()
         .unwrap();
     let user_agent = web_sys::window().unwrap().navigator().user_agent().unwrap();
-    crate::webgl1::is_safari_and_webkit_gtk(&gl) && !user_agent.contains("Mac OS X")
+    crate::is_safari_and_webkit_gtk(&gl) && !user_agent.contains("Mac OS X")
 }
 
 impl crate::Painter for WrappedGlowPainter {

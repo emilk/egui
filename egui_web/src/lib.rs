@@ -19,7 +19,10 @@ pub mod backend;
 mod glow_wrapping;
 mod painter;
 pub mod screen_reader;
+
+#[cfg(feature = "webgl")]
 pub mod webgl1;
+#[cfg(feature = "webgl")]
 pub mod webgl2;
 
 pub use backend::*;
@@ -1233,4 +1236,27 @@ fn move_text_cursor(cursor: &Option<egui::Pos2>, canvas_id: &str) -> Option<()> 
         style.set_property("top", "0px").ok()?;
         style.set_property("left", "0px").ok()
     }
+}
+
+/// detecting Safari and webkitGTK.
+///
+/// Safari and webkitGTK use unmasked renderer :Apple GPU
+///
+/// If we detect safari or webkitGTK returns true.
+///
+/// This function used to avoid displaying linear color with `sRGB` supported systems.
+pub(crate) fn is_safari_and_webkit_gtk(gl: &web_sys::WebGlRenderingContext) -> bool {
+    if gl
+        .get_extension("WEBGL_debug_renderer_info")
+        .unwrap()
+        .is_some()
+    {
+        let renderer: JsValue = gl
+            .get_parameter(web_sys::WebglDebugRendererInfo::UNMASKED_RENDERER_WEBGL)
+            .unwrap();
+        if renderer.as_string().unwrap().contains("Apple") {
+            return true;
+        }
+    }
+    false
 }
