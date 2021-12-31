@@ -56,7 +56,7 @@ pub enum FontFamily {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct FontData {
-    /// The data of a `.ttf` or `.otf` file.
+    /// The content of a `.ttf` or `.otf` file.
     pub font: std::borrow::Cow<'static, [u8]>,
     /// Which font face in the file to use.
     /// When in doubt, use `0`.

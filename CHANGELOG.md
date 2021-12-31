@@ -7,6 +7,12 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 
 ## Unreleased
 
+### Added ⭐
+* Added `Ui::add_visible` and `Ui::add_visible_ui`.
+
+### Changed 🔧
+* Renamed `Ui::visible` to `Ui::is_visible`.
+
 
 ## 0.16.0 - 2021-12-29 - Context menus and rich text
 

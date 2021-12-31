@@ -301,6 +301,11 @@ impl CtxRef {
             memory.surrender_focus(id);
         }
 
+        if response.dragged() && !memory.has_focus(response.id) {
+            // e.g.: remove focus from a widget when you drag something else
+            memory.stop_text_input();
+        }
+
         response
     }
 
@@ -433,11 +438,6 @@ impl Context {
     /// Not valid until first call to [`CtxRef::run()`].
     /// That's because since we don't know the proper `pixels_per_point` until then.
     pub fn font_image(&self) -> Arc<epaint::FontImage> {
-        self.fonts().font_image()
-    }
-
-    #[deprecated = "Renamed font_image"]
-    pub fn texture(&self) -> Arc<epaint::FontImage> {
         self.fonts().font_image()
     }
 

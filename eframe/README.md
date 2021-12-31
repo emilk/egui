@@ -10,6 +10,10 @@
 
 To get started, go to <https://github.com/emilk/eframe_template/> and follow the instructions there!
 
+You can also take a look at [the `eframe` examples folder](https://github.com/emilk/egui/tree/master/eframe/examples). There is also an excellent tutorial video at <https://www.youtube.com/watch?v=NtUkr_z7l84>.
+
+For how to use `egui`, see [the egui docs](https://docs.rs/egui).
+
 ---
 
 `eframe` is a very thin crate that re-exports [`egui`](https://github.com/emilk/egui) and[`epi`](https://github.com/emilk/egui/tree/master/epi) with thin wrappers over the backends.
@@ -34,7 +38,7 @@ eframe = { version = "*", default-features = false, features = ["default_fonts",
 
 
 ## Companion crates
-Not all rust crates work when compiles to WASM, but here are some useful crates have been designed to work well both natively and as WASM:
+Not all rust crates work when compiled to WASM, but here are some useful crates have been designed to work well both natively and as WASM:
 
 * Audio: [`cpal`](https://github.com/RustAudio/cpal).
 * HTTP client: [`ehttp`](https://github.com/emilk/ehttp).

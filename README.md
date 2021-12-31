@@ -50,7 +50,7 @@ The native backend is [`egui_glium`](https://github.com/emilk/egui/tree/master/e
 
 On Fedora Rawhide you need to run:
 
-`dnf install clang clang-devel clang-tools-extra speech-dispatcher-devel libxkbcommon-devel pkg-config openssl-devel`
+`dnf install clang clang-devel clang-tools-extra speech-dispatcher-devel libxkbcommon-devel pkg-config openssl-devel libxcb-devel`
 
 **NOTE**: This is just for the demo app - egui itself is completely platform agnostic!
 
