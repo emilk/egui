@@ -99,19 +99,57 @@ impl CtxRef {
     ///
     /// This will modify the internal reference to point to a new generation of [`Context`].
     /// Any old clones of this [`CtxRef`] will refer to the old [`Context`], which will not get new input.
+    ///
+    /// In the future [`Self::run`] may be extended to do multi-pass,
+    /// i.e. call the application code twice. This will make
+    ///
+    /// You can alternatively run [`Self::begin_single_pass_frame`] and [`Self::end_single_pass_frame`].
+    ///
+    /// ``` rust
+    /// // One egui context that you keep reusing:
+    /// let mut ctx = egui::CtxRef::default();
+    ///
+    /// // Each frame:
+    /// let input = egui::RawInput::default();
+    /// let (output, shapes) = ctx.run(input, |ctx| {
+    ///     egui::CentralPanel::default().show(&ctx, |ui| {
+    ///         ui.label("Hello egui!");
+    ///     });
+    /// });
+    /// // handle output, paint shapes
+    /// ```
     #[must_use]
     pub fn run(
         &mut self,
         new_input: RawInput,
         run_ui: impl FnOnce(&CtxRef),
     ) -> (Output, Vec<ClippedShape>) {
+        self.begin_frame(new_input);
+        run_ui(self);
+        self.end_frame()
+    }
+
+    /// An alternative to calling [`Self::run`].
+    ///
+    /// ``` rust
+    /// // One egui context that you keep reusing:
+    /// let mut ctx = egui::CtxRef::default();
+    ///
+    /// // Each frame:
+    /// let input = egui::RawInput::default();
+    /// ctx.begin_frame(input);
+    ///
+    /// egui::CentralPanel::default().show(&ctx, |ui| {
+    ///     ui.label("Hello egui!");
+    /// });
+    ///
+    /// let (output, shapes) = ctx.end_frame();
+    /// // handle output, paint shapes
+    /// ```
+    pub fn begin_frame(&mut self, new_input: RawInput) {
         let mut self_: Context = (*self.0).clone();
         self_.begin_frame_mut(new_input);
         *self = Self(Arc::new(self_));
-
-        run_ui(self);
-
-        self.end_frame()
     }
 
     // ---------------------------------------------------------------------
@@ -625,7 +663,7 @@ impl Context {
     /// Returns what has happened this frame [`crate::Output`] as well as what you need to paint.
     /// You can transform the returned shapes into triangles with a call to [`Context::tessellate`].
     #[must_use]
-    fn end_frame(&self) -> (Output, Vec<ClippedShape>) {
+    pub fn end_frame(&self) -> (Output, Vec<ClippedShape>) {
         if self.input.wants_repaint() {
             self.request_repaint();
         }
