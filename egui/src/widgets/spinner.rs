@@ -11,10 +11,9 @@ pub struct Spinner {
 }
 
 impl Spinner {
-    /// A new spinner that is shown if `enabled` is true.
-    /// Uses the style's `interact_size` unless changed.
+    /// Create a new spinner that uses the style's `interact_size` unless changed.
     pub fn new() -> Self {
-        Self { size: None }
+        Self::default()
     }
 
     /// Sets the spinner's size. The size sets both the height and width, as the spinner is always

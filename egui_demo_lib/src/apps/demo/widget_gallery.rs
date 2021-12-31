@@ -225,7 +225,7 @@ impl WidgetGallery {
         ui.end_row();
 
         ui.add(doc_link_label("Spinner", "spinner"));
-        ui.add_visible(*boolean, egui::Spinner::new());
+        ui.add(egui::Spinner::new());
         ui.end_row();
     }
 }
