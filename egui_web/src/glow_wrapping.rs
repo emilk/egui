@@ -116,32 +116,28 @@ impl crate::Painter for WrappedGlowPainter {
 }
 
 pub fn init_glow_context_from_canvas(canvas: &HtmlCanvasElement) -> glow::Context {
-    let ctx = canvas.get_context("webgl2");
-    if let Ok(ctx) = ctx {
-        crate::console_log("webgl found");
-        if let Some(ctx) = ctx {
-            crate::console_log("webgl 2 selected");
-            let gl_ctx = ctx.dyn_into::<web_sys::WebGl2RenderingContext>().unwrap();
-            glow::Context::from_webgl2_context(gl_ctx)
-        } else {
-            let ctx = canvas.get_context("webgl");
-            if let Ok(ctx) = ctx {
-                crate::console_log("falling back to webgl1");
-                if let Some(ctx) = ctx {
-                    crate::console_log("webgl1 selected");
+    let gl2_ctx = canvas
+        .get_context("webgl2")
+        .expect("Failed to query about WebGL2 context");
 
-                    let gl_ctx = ctx.dyn_into::<web_sys::WebGlRenderingContext>().unwrap();
-                    crate::console_log("success");
-                    glow::Context::from_webgl1_context(gl_ctx)
-                } else {
-                    panic!("tried webgl1 but can't get context");
-                }
-            } else {
-                panic!("tried webgl1 but can't get context");
-            }
-        }
+    if let Some(gl2_ctx) = gl2_ctx {
+        crate::console_log("WebGL2 found");
+        let gl2_ctx = gl2_ctx
+            .dyn_into::<web_sys::WebGl2RenderingContext>()
+            .unwrap();
+        glow::Context::from_webgl2_context(gl2_ctx)
     } else {
-        panic!("tried webgl2 but something went wrong");
+        let gl1 = canvas
+            .get_context("webgl")
+            .expect("Failed to query about WebGL1 context");
+
+        if let Some(gl1) = gl1 {
+            crate::console_log("WebGL2 not available - falling back to WebGL2");
+            let gl1_ctx = gl1.dyn_into::<web_sys::WebGlRenderingContext>().unwrap();
+            glow::Context::from_webgl1_context(gl1_ctx)
+        } else {
+            panic!("Failed to get WebGL context.");
+        }
     }
 }
 
