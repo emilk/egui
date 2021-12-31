@@ -35,14 +35,14 @@ egui_glow = { version = "0.16.0", path = "../egui_glow", default-features = fals
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-egui_web = { version = "0.16.0", path = "../egui_web", default-features = false }
+egui_web = { version = "0.16.0", path = "../egui_web", default-features = false, features = ["glow"] }
 
 [dev-dependencies]
 image = { version = "0.23", default-features = false, features = ["png"] }
 rfd = "0.6"
 
 [features]
-default = ["default_fonts", "egui_glium"]
+default = ["default_fonts", "egui_glow"]
 
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
