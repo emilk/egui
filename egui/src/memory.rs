@@ -91,7 +91,7 @@ pub struct Memory {
 pub struct Options {
     /// The default style for new `Ui`:s.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) style: std::sync::Arc<Style>,
+    pub(crate) style: epaint::mutex::Arc<Style>,
 
     /// Controls the tessellator.
     pub tessellation_options: epaint::TessellationOptions,

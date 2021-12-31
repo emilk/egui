@@ -1,16 +1,10 @@
 // #![warn(missing_docs)]
 
-use std::{
-    cell::{Ref, RefCell, RefMut},
-    rc::Rc,
-    sync::Arc,
-};
-
 use crate::{
     animation_manager::AnimationManager, data::output::Output, frame_state::FrameState,
     input_state::*, layers::GraphicLayers, *,
 };
-use epaint::{stats::*, text::Fonts, *};
+use epaint::{mutex::*, stats::*, text::Fonts, *};
 
 // ----------------------------------------------------------------------------
 
@@ -48,17 +42,17 @@ use epaint::{stats::*, text::Fonts, *};
 /// }
 /// ```
 #[derive(Clone)]
-pub struct CtxRef(Rc<std::cell::RefCell<Context>>);
+pub struct CtxRef(Arc<RwLock<Context>>);
 
 impl std::cmp::PartialEq for CtxRef {
     fn eq(&self, other: &CtxRef) -> bool {
-        Rc::ptr_eq(&self.0, &other.0)
+        Arc::ptr_eq(&self.0, &other.0)
     }
 }
 
 impl Default for CtxRef {
     fn default() -> Self {
-        Self(Rc::new(RefCell::new(Context {
+        Self(Arc::new(RwLock::new(Context {
             // Start with painting an extra frame to compensate for some widgets
             // that take two frames before they "settle":
             repaint_requests: 1,
@@ -68,12 +62,12 @@ impl Default for CtxRef {
 }
 
 impl CtxRef {
-    fn borrow(&self) -> Ref<'_, Context> {
-        (*self.0).borrow()
+    fn borrow(&self) -> RwLockReadGuard<'_, Context> {
+        (*self.0).read()
     }
 
-    fn borrow_mut(&self) -> RefMut<'_, Context> {
-        self.0.borrow_mut()
+    fn borrow_mut(&self) -> RwLockWriteGuard<'_, Context> {
+        self.0.write()
     }
 
     /// Run the ui code for one frame.
@@ -378,21 +372,21 @@ impl CtxRef {
 
     /// Stores all the egui state.
     /// If you want to store/restore egui, serialize this.
-    pub fn memory(&self) -> RefMut<'_, Memory> {
-        RefMut::map(self.borrow_mut(), |c| &mut c.memory)
+    pub fn memory(&self) -> RwLockWriteGuard<'_, Memory> {
+        RwLockWriteGuard::map(self.borrow_mut(), |c| &mut c.memory)
     }
 
-    pub(crate) fn graphics(&self) -> RefMut<'_, GraphicLayers> {
-        RefMut::map(self.borrow_mut(), |c| &mut c.graphics)
+    pub(crate) fn graphics(&self) -> RwLockWriteGuard<'_, GraphicLayers> {
+        RwLockWriteGuard::map(self.borrow_mut(), |c| &mut c.graphics)
     }
 
     /// What egui outputs each frame.
-    pub fn output(&self) -> RefMut<'_, Output> {
-        RefMut::map(self.borrow_mut(), |c| &mut c.output)
+    pub fn output(&self) -> RwLockWriteGuard<'_, Output> {
+        RwLockWriteGuard::map(self.borrow_mut(), |c| &mut c.output)
     }
 
-    pub(crate) fn frame_state(&self) -> RefMut<'_, FrameState> {
-        RefMut::map(self.borrow_mut(), |c| &mut c.frame_state)
+    pub(crate) fn frame_state(&self) -> RwLockWriteGuard<'_, FrameState> {
+        RwLockWriteGuard::map(self.borrow_mut(), |c| &mut c.frame_state)
     }
 
     /// Call this if there is need to repaint the UI, i.e. if you are showing an animation.
@@ -404,26 +398,26 @@ impl CtxRef {
     }
 
     #[inline(always)]
-    pub fn input(&self) -> Ref<'_, InputState> {
-        Ref::map(self.borrow(), |c| &c.input)
+    pub fn input(&self) -> RwLockReadGuard<'_, InputState> {
+        RwLockReadGuard::map(self.borrow(), |c| &c.input)
     }
 
-    pub fn input_mut(&self) -> RefMut<'_, InputState> {
-        RefMut::map(self.borrow_mut(), |c| &mut c.input)
+    pub fn input_mut(&self) -> RwLockWriteGuard<'_, InputState> {
+        RwLockWriteGuard::map(self.borrow_mut(), |c| &mut c.input)
     }
 
     /// Not valid until first call to [`CtxRef::run()`].
     /// That's because since we don't know the proper `pixels_per_point` until then.
-    pub fn fonts(&self) -> Ref<'_, Fonts> {
-        Ref::map(self.borrow(), |c| {
+    pub fn fonts(&self) -> RwLockReadGuard<'_, Fonts> {
+        RwLockReadGuard::map(self.borrow(), |c| {
             c.fonts
                 .as_ref()
                 .expect("No fonts available until first call to CtxRef::run()")
         })
     }
 
-    fn fonts_mut(&self) -> RefMut<'_, Option<Fonts>> {
-        RefMut::map(self.borrow_mut(), |c| &mut c.fonts)
+    fn fonts_mut(&self) -> RwLockWriteGuard<'_, Option<Fonts>> {
+        RwLockWriteGuard::map(self.borrow_mut(), |c| &mut c.fonts)
     }
 
     /// The egui font image, containing font characters etc.

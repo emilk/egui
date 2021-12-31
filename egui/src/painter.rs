@@ -1,11 +1,10 @@
-use std::cell::{Ref, RefMut};
-
 use crate::{
     emath::{Align2, Pos2, Rect, Vec2},
     layers::{LayerId, PaintList, ShapeIdx},
     Color32, CtxRef,
 };
 use epaint::{
+    mutex::{RwLockReadGuard, RwLockWriteGuard},
     text::{Fonts, Galley, TextStyle},
     CircleShape, RectShape, Shape, Stroke, TextShape,
 };
@@ -93,7 +92,7 @@ impl Painter {
 
     /// Available fonts.
     #[inline(always)]
-    pub fn fonts(&self) -> Ref<'_, Fonts> {
+    pub fn fonts(&self) -> RwLockReadGuard<'_, Fonts> {
         self.ctx.fonts()
     }
 
@@ -138,8 +137,8 @@ impl Painter {
 
 /// ## Low level
 impl Painter {
-    fn paint_list(&self) -> RefMut<'_, PaintList> {
-        RefMut::map(self.ctx.graphics(), |g| g.list(self.layer_id))
+    fn paint_list(&self) -> RwLockWriteGuard<'_, PaintList> {
+        RwLockWriteGuard::map(self.ctx.graphics(), |g| g.list(self.layer_id))
     }
 
     fn transform_shape(&self, shape: &mut Shape) {
@@ -354,7 +353,7 @@ impl Painter {
         text_style: TextStyle,
         color: crate::Color32,
         wrap_width: f32,
-    ) -> std::sync::Arc<Galley> {
+    ) -> epaint::mutex::Arc<Galley> {
         self.fonts().layout(text, text_style, color, wrap_width)
     }
 
@@ -367,7 +366,7 @@ impl Painter {
         text: String,
         text_style: TextStyle,
         color: crate::Color32,
-    ) -> std::sync::Arc<Galley> {
+    ) -> epaint::mutex::Arc<Galley> {
         self.fonts().layout(text, text_style, color, f32::INFINITY)
     }
 
@@ -377,7 +376,7 @@ impl Painter {
     ///
     /// If you want to change the color of the text, use [`Self::galley_with_color`].
     #[inline(always)]
-    pub fn galley(&self, pos: Pos2, galley: std::sync::Arc<Galley>) {
+    pub fn galley(&self, pos: Pos2, galley: epaint::mutex::Arc<Galley>) {
         if !galley.is_empty() {
             self.add(Shape::galley(pos, galley));
         }
@@ -392,7 +391,7 @@ impl Painter {
     pub fn galley_with_color(
         &self,
         pos: Pos2,
-        galley: std::sync::Arc<Galley>,
+        galley: epaint::mutex::Arc<Galley>,
         text_color: Color32,
     ) {
         if !galley.is_empty() {
