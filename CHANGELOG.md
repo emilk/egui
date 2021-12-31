@@ -14,6 +14,12 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Renamed `Ui::visible` to `Ui::is_visible`.
 
 
+## 0.16.1 - 2021-12-31 - Add back `CtxRef::begin_frame,end_frame`
+
+### Added ⭐
+* Add back `CtxRef::begin_frame,end_frame` as an alternative to `CtxRef::run`.
+
+
 ## 0.16.0 - 2021-12-29 - Context menus and rich text
 
 ### Added ⭐

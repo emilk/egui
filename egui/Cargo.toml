@@ -1,6 +1,6 @@
 [package]
 name = "egui"
-version = "0.16.0"
+version = "0.16.1"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Simple, portable immediate mode GUI library for Rust"
 edition = "2021"
