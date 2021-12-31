@@ -100,7 +100,7 @@ impl CtxRef {
     /// This will modify the internal reference to point to a new generation of [`Context`].
     /// Any old clones of this [`CtxRef`] will refer to the old [`Context`], which will not get new input.
     ///
-    /// You can alternatively run [`Self::begin_single_pass_frame`] and [`Self::end_single_pass_frame`].
+    /// You can alternatively run [`Self::begin_frame`] and [`Self::end_frame`].
     ///
     /// ``` rust
     /// // One egui context that you keep reusing:

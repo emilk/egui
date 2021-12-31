@@ -117,7 +117,7 @@ pub fn start_web(canvas_id: &str, app: Box<dyn epi::App>) -> Result<(), wasm_bin
 // ----------------------------------------------------------------------------
 // When compiling natively
 
-/// Call from `fn main` like this: `
+/// Call from `fn main` like this:
 /// ``` no_run
 /// use eframe::{epi, egui};
 ///
@@ -148,8 +148,25 @@ pub fn run_native(app: Box<dyn epi::App>, native_options: epi::NativeOptions) ->
     egui_glium::run(app, &native_options)
 }
 
-/// Call from `fn main` like this: `
+/// Call from `fn main` like this:
 /// ``` no_run
+/// use eframe::{epi, egui};
+///
+/// #[derive(Default)]
+/// struct MyEguiApp {}
+///
+/// impl epi::App for MyEguiApp {
+///    fn name(&self) -> &str {
+///        "My egui App"
+///    }
+///
+///    fn update(&mut self, ctx: &egui::CtxRef, frame: &epi::Frame) {
+///        egui::CentralPanel::default().show(ctx, |ui| {
+///            ui.heading("Hello World!");
+///        });
+///    }
+///}
+///
 /// fn main() {
 ///     let app = MyEguiApp::default();
 ///     let native_options = eframe::NativeOptions::default();
