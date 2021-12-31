@@ -58,7 +58,7 @@ mint = ["emath/mint"]
 # implement serde on most types.
 serialize = ["serde", "ahash/serde", "emath/serde"]
 
-single_threaded = ["atomic_refcell"]
+single_threaded = []
 
 # Only needed if you plan to use the same fonts from multiple threads.
 # It comes with a minor performance impact.

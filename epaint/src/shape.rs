@@ -120,7 +120,7 @@ impl Shape {
     }
 
     #[inline]
-    pub fn galley(pos: Pos2, galley: std::sync::Arc<Galley>) -> Self {
+    pub fn galley(pos: Pos2, galley: crate::mutex::Arc<Galley>) -> Self {
         TextShape::new(pos, galley).into()
     }
 
@@ -343,7 +343,7 @@ pub struct TextShape {
     pub pos: Pos2,
 
     /// The layed out text, from [`Fonts::layout_job`].
-    pub galley: std::sync::Arc<Galley>,
+    pub galley: crate::mutex::Arc<Galley>,
 
     /// Add this underline to the whole text.
     /// You can also set an underline when creating the galley.
@@ -361,7 +361,7 @@ pub struct TextShape {
 
 impl TextShape {
     #[inline]
-    pub fn new(pos: Pos2, galley: std::sync::Arc<Galley>) -> Self {
+    pub fn new(pos: Pos2, galley: crate::mutex::Arc<Galley>) -> Self {
         Self {
             pos,
             galley,

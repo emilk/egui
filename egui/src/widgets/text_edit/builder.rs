@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use epaint::mutex::Arc;
 
 use epaint::text::{cursor::*, Galley, LayoutJob};
 

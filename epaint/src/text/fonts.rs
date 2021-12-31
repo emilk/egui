@@ -1,7 +1,7 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::collections::BTreeMap;
 
 use crate::{
-    mutex::Mutex,
+    mutex::{Arc, Mutex},
     text::{
         font::{Font, FontImpl},
         Galley, LayoutJob,

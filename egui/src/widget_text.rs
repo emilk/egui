@@ -1,4 +1,4 @@
-use std::{sync::Arc};
+use epaint::mutex::Arc;
 
 use crate::{
     style::WidgetVisuals, text::LayoutJob, Align, Color32, CtxRef, Galley, Pos2, Style, TextStyle,

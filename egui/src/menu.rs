@@ -21,8 +21,7 @@ use super::{
     Ui, Vec2,
 };
 use crate::{widgets::*, *};
-use epaint::{mutex::RwLock, Stroke};
-use std::sync::Arc;
+use epaint::{mutex::Arc, mutex::RwLock, Stroke};
 
 /// What is saved between frames.
 #[derive(Clone, Default)]

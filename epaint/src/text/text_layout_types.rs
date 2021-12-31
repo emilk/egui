@@ -1,10 +1,9 @@
 #![allow(clippy::derive_hash_xor_eq)] // We need to impl Hash for f32, but we don't implement Eq, which is fine
 
 use std::ops::Range;
-use std::sync::Arc;
 
 use super::{cursor::*, font::UvRect};
-use crate::{Color32, Mesh, Stroke, TextStyle};
+use crate::{mutex::Arc, Color32, Mesh, Stroke, TextStyle};
 use emath::*;
 
 /// Describes the task of laying out text.
