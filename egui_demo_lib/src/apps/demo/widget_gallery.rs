@@ -223,6 +223,10 @@ impl WidgetGallery {
             This toggle switch is just 15 lines of code.",
         );
         ui.end_row();
+
+        ui.add(doc_link_label("Spinner", "spinner"));
+        ui.add(egui::Spinner::new());
+        ui.end_row();
     }
 }
 

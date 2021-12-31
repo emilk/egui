@@ -17,6 +17,7 @@ mod progress_bar;
 mod selected_label;
 mod separator;
 mod slider;
+mod spinner;
 pub mod text_edit;
 
 pub use button::*;
@@ -28,6 +29,7 @@ pub use progress_bar::ProgressBar;
 pub use selected_label::SelectableLabel;
 pub use separator::Separator;
 pub use slider::*;
+pub use spinner::*;
 pub use text_edit::{TextBuffer, TextEdit};
 
 // ----------------------------------------------------------------------------
