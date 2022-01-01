@@ -24,7 +24,7 @@ all-features = true
 [dependencies]
 egui = { version = "0.16.0", path = "../egui", default-features = false, features = ["single_threaded"] }
 winit = "0.26"
-instant = "0.1"
+instant = { version = "0.1", features = ["wasm-bindgen"] }
 
 epi = { version = "0.16.0", path = "../epi", optional = true }
 
