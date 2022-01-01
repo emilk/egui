@@ -9,10 +9,10 @@ use crate::{egui_assert, Layout, Response, Sense, Ui};
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
-/// egui::Splitter::vertical().show(ui |ui_left, ui_right| {
+/// egui::Splitter::vertical().show(ui, |ui_left, ui_right| {
 ///     ui_left.label("I'm on the left!");
 ///     ui_right.label("I'm on the right!");
-/// })
+/// });
 /// # });
 /// ```
 #[must_use = "You should call .show()"]
