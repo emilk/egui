@@ -10,6 +10,7 @@ pub mod panel;
 pub mod popup;
 pub(crate) mod resize;
 pub(crate) mod scroll_area;
+pub(crate) mod splitter;
 pub(crate) mod window;
 
 pub use {
@@ -21,5 +22,6 @@ pub use {
     popup::*,
     resize::Resize,
     scroll_area::ScrollArea,
+    splitter::{Splitter, SplitterOrientation},
     window::Window,
 };
