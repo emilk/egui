@@ -3,6 +3,8 @@ use epaint::{emath::lerp, vec2, Pos2, Shape, Stroke};
 use crate::{Response, Sense, Ui, Widget};
 
 /// A spinner widget used to indicate loading.
+///
+/// See also: [`crate::ProgressBar`].
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Default)]
 pub struct Spinner {

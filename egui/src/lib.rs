@@ -214,7 +214,7 @@
 //! when you release the panel/window shrinks again.
 //! This is an artifact of immediate mode, and here are some alternatives on how to avoid it:
 //!
-//! 1. Turn of resizing with [`Window::resizable`], [`SidePanel::resizable`], [`TopBottomPanel::resizable`].
+//! 1. Turn off resizing with [`Window::resizable`], [`SidePanel::resizable`], [`TopBottomPanel::resizable`].
 //! 2. Wrap your panel contents in a [`ScrollArea`], or use [`Window::vscroll`] and [`Window::hscroll`].
 //! 3. Use a justified layout:
 //!
