@@ -95,7 +95,7 @@ pub fn handle_app_output(
 /// For loading/saving app state and/or egui memory to disk.
 pub struct Persistence {
     storage: Option<Box<dyn epi::Storage>>,
-    last_auto_save: std::time::Instant,
+    last_auto_save: instant::Instant,
 }
 
 #[allow(clippy::unused_self)]
@@ -116,7 +116,7 @@ impl Persistence {
 
         Self {
             storage: create_storage(app_name),
-            last_auto_save: std::time::Instant::now(),
+            last_auto_save: instant::Instant::now(),
         }
     }
 
@@ -177,7 +177,7 @@ impl Persistence {
         egui_ctx: &egui::Context,
         window: &winit::window::Window,
     ) {
-        let now = std::time::Instant::now();
+        let now = instant::Instant::now();
         if now - self.last_auto_save > app.auto_save_interval() {
             self.save(app, egui_ctx, window);
             self.last_auto_save = now;
@@ -278,7 +278,7 @@ impl EpiIntegration {
         epi::backend::TexAllocationData,
         Vec<egui::epaint::ClippedShape>,
     ) {
-        let frame_start = std::time::Instant::now();
+        let frame_start = instant::Instant::now();
 
         let raw_input = self.egui_winit.take_egui_input(window);
         let (egui_output, shapes) = self.egui_ctx.run(raw_input, |egui_ctx| {
@@ -294,7 +294,7 @@ impl EpiIntegration {
         let tex_allocation_data =
             crate::epi::handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
 
-        let frame_time = (std::time::Instant::now() - frame_start).as_secs_f64() as f32;
+        let frame_time = (instant::Instant::now() - frame_start).as_secs_f64() as f32;
         self.frame.lock().info.cpu_usage = Some(frame_time);
 
         (needs_repaint, tex_allocation_data, shapes)

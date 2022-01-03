@@ -806,6 +806,7 @@ dependencies = [
  "copypasta",
  "egui",
  "epi",
+ "instant",
  "serde",
  "tts",
  "webbrowser",
