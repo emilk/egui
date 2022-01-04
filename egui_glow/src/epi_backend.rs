@@ -95,7 +95,7 @@ impl WebGLWindowedContextLike {
 fn create_gl_context(
     window_builder: egui_winit::winit::window::WindowBuilder,
     event_loop: &egui_winit::winit::event_loop::EventLoop<()>,
-) -> (WebGLWindowedContextLike, (glow::Context, bool)) {
+) -> Result<(WebGLWindowedContextLike, (glow::Context, bool)), wasm_bindgen::JsValue> {
     pub(crate) fn is_safari_and_webkit_gtk(gl: &web_sys::WebGlRenderingContext) -> bool {
         if let Ok(renderer) =
             gl.get_parameter(web_sys::WebglDebugRendererInfo::UNMASKED_RENDERER_WEBGL)
@@ -144,19 +144,30 @@ fn create_gl_context(
     use egui_winit::winit::platform::web::WindowExtWebSys;
     let window = window_builder.build(event_loop).unwrap();
     let canvas: HtmlCanvasElement = window.canvas();
+    {
+        use wasm_bindgen::closure::Closure;
+        // By default, right-clicks open a context menu.
+        // We don't want to do that (right clicks is handled by egui):
+        let event_name = "contextmenu";
+        let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
+            event.prevent_default();
+        }) as Box<dyn FnMut(_)>);
+        canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
+        closure.forget();
+    }
     let web_window = web_sys::window().unwrap();
     let document = web_window.document().unwrap();
     let body = document.body().unwrap();
     let glow_ctx = init_glow_context_from_canvas(&canvas);
     body.append_child(&canvas)
         .expect("Append canvas to HTML body");
-    (
+    Ok((
         WebGLWindowedContextLike {
             canvas,
             window: window,
         },
         glow_ctx,
-    )
+    ))
 }
 
 // ----------------------------------------------------------------------------
@@ -180,7 +191,8 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
     #[cfg(not(target_arch = "wasm32"))]
     let install_webkit_gtk_fix = false;
     #[cfg(target_arch = "wasm32")]
-    let (gl_window, (gl, install_webkit_gtk_fix)) = create_gl_context(window_builder, &event_loop);
+    let (gl_window, (gl, install_webkit_gtk_fix)) =
+        create_gl_context(window_builder, &event_loop).unwrap();
 
     let dimension = {
         if cfg!(target_arch = "wasm32") {
