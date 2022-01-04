@@ -92,6 +92,7 @@ pub use glow;
 pub use painter::Painter;
 #[cfg(feature = "winit")]
 mod epi_backend;
+mod epi_web;
 mod misc_util;
 mod post_process;
 mod shader_version;
