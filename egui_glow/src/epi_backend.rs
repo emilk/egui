@@ -1,19 +1,24 @@
 use crate::*;
-
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::JsCast;
+#[cfg(not(target_arch = "wasm32"))]
 struct RequestRepaintEvent;
-
-struct GlowRepaintSignal(std::sync::Mutex<glutin::event_loop::EventLoopProxy<RequestRepaintEvent>>);
-
+#[cfg(not(target_arch = "wasm32"))]
+struct GlowRepaintSignal(
+    std::sync::Mutex<egui_winit::winit::event_loop::EventLoopProxy<RequestRepaintEvent>>,
+);
+#[cfg(not(target_arch = "wasm32"))]
 impl epi::backend::RepaintSignal for GlowRepaintSignal {
     fn request_repaint(&self) {
         self.0.lock().unwrap().send_event(RequestRepaintEvent).ok();
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[allow(unsafe_code)]
 fn create_display(
-    window_builder: glutin::window::WindowBuilder,
-    event_loop: &glutin::event_loop::EventLoop<RequestRepaintEvent>,
+    window_builder: egui_winit::winit::window::WindowBuilder,
+    event_loop: &egui_winit::winit::event_loop::EventLoop<RequestRepaintEvent>,
 ) -> (
     glutin::WindowedContext<glutin::PossiblyCurrent>,
     glow::Context,
@@ -40,9 +45,127 @@ fn create_display(
     (gl_window, gl)
 }
 
+/*
+    repaint signal for web.
+*/
+#[cfg(target_arch = "wasm32")]
+use std::sync::atomic::Ordering::SeqCst;
+#[cfg(target_arch = "wasm32")]
+pub struct NeedRepaint(std::sync::atomic::AtomicBool);
+#[cfg(target_arch = "wasm32")]
+impl Default for NeedRepaint {
+    fn default() -> Self {
+        Self(true.into())
+    }
+}
+#[cfg(target_arch = "wasm32")]
+impl NeedRepaint {
+    #[allow(dead_code)]
+    pub fn fetch_and_clear(&self) -> bool {
+        self.0.swap(false, SeqCst)
+    }
+    #[allow(dead_code)]
+    pub fn set_true(&self) {
+        self.0.store(true, SeqCst);
+    }
+}
+#[cfg(target_arch = "wasm32")]
+impl epi::backend::RepaintSignal for NeedRepaint {
+    fn request_repaint(&self) {
+        self.0.store(true, SeqCst);
+    }
+}
+
+/* minimally emulates glutin::WindowedContext.
+*/
+#[cfg(target_arch = "wasm32")]
+#[allow(dead_code)]
+struct WebGLWindowedContextLike {
+    canvas: HtmlCanvasElement,
+    window: egui_winit::winit::window::Window,
+}
+#[cfg(target_arch = "wasm32")]
+impl WebGLWindowedContextLike {
+    pub(crate) fn window(&self) -> &egui_winit::winit::window::Window {
+        self.window.borrow()
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn create_gl_context(
+    window_builder: egui_winit::winit::window::WindowBuilder,
+    event_loop: &egui_winit::winit::event_loop::EventLoop<()>,
+) -> (WebGLWindowedContextLike, (glow::Context, bool)) {
+    pub(crate) fn is_safari_and_webkit_gtk(gl: &web_sys::WebGlRenderingContext) -> bool {
+        if let Ok(renderer) =
+            gl.get_parameter(web_sys::WebglDebugRendererInfo::UNMASKED_RENDERER_WEBGL)
+        {
+            if let Some(renderer) = renderer.as_string() {
+                if renderer.contains("Apple") {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+    // and detect WebKitGTK.
+    fn init_glow_context_from_canvas(canvas: &HtmlCanvasElement) -> (glow::Context, bool) {
+        let gl2_ctx = canvas
+            .get_context("webgl2")
+            .expect("Failed to query about WebGL2 context");
+
+        if let Some(gl2_ctx) = gl2_ctx {
+            crate::misc_util::glow_debug_print("WebGL2 found");
+            let gl2_ctx = gl2_ctx
+                .dyn_into::<web_sys::WebGl2RenderingContext>()
+                .unwrap();
+            (glow::Context::from_webgl2_context(gl2_ctx), false)
+        } else {
+            let gl1 = canvas
+                .get_context("webgl")
+                .expect("Failed to query about WebGL1 context");
+
+            if let Some(gl1) = gl1 {
+                crate::misc_util::glow_debug_print("WebGL2 not available - falling back to WebGL1");
+                let gl1_ctx = gl1.dyn_into::<web_sys::WebGlRenderingContext>().unwrap();
+                let user_agent = web_sys::window().unwrap().navigator().user_agent().unwrap();
+                let needs_gamma_collection =
+                    is_safari_and_webkit_gtk(&gl1_ctx) && !user_agent.contains("Mac OS X");
+                (
+                    glow::Context::from_webgl1_context(gl1_ctx),
+                    needs_gamma_collection,
+                )
+            } else {
+                panic!("Failed to get WebGL context.");
+            }
+        }
+    }
+    use egui_winit::winit::platform::web::WindowExtWebSys;
+    let window = window_builder.build(event_loop).unwrap();
+    let canvas: HtmlCanvasElement = window.canvas();
+    let web_window = web_sys::window().unwrap();
+    let document = web_window.document().unwrap();
+    let body = document.body().unwrap();
+    let glow_ctx = init_glow_context_from_canvas(&canvas);
+    body.append_child(&canvas)
+        .expect("Append canvas to HTML body");
+    (
+        WebGLWindowedContextLike {
+            canvas,
+            window: window,
+        },
+        glow_ctx,
+    )
+}
+
 // ----------------------------------------------------------------------------
 
 pub use epi::NativeOptions;
+#[cfg(target_arch = "wasm32")]
+use std::borrow::Borrow;
+#[cfg(target_arch = "wasm32")]
+use web_sys::HtmlCanvasElement;
 
 /// Run an egui app
 #[allow(unsafe_code)]
@@ -51,14 +174,37 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
     let window_settings = persistence.load_window_settings();
     let window_builder =
         egui_winit::epi::window_builder(native_options, &window_settings).with_title(app.name());
-    let event_loop = glutin::event_loop::EventLoop::with_user_event();
+    let event_loop = egui_winit::winit::event_loop::EventLoop::with_user_event();
+    #[cfg(not(target_arch = "wasm32"))]
     let (gl_window, gl) = create_display(window_builder, &event_loop);
+    #[cfg(not(target_arch = "wasm32"))]
+    let install_webkit_gtk_fix = false;
+    #[cfg(target_arch = "wasm32")]
+    let (gl_window, (gl, install_webkit_gtk_fix)) = create_gl_context(window_builder, &event_loop);
 
+    let dimension = {
+        if cfg!(target_arch = "wasm32") {
+            let inner_size = gl_window.window().inner_size();
+            Some([inner_size.width as i32, inner_size.height as i32])
+        } else {
+            None
+        }
+    };
+    #[cfg(not(target_arch = "wasm32"))]
     let repaint_signal = std::sync::Arc::new(GlowRepaintSignal(std::sync::Mutex::new(
         event_loop.create_proxy(),
     )));
+    #[cfg(target_arch = "wasm32")]
+    let repaint_signal = std::sync::Arc::new(NeedRepaint::default());
+    // for WebKitGTK insert shader_prefix.
+    let shader_prefix = if install_webkit_gtk_fix {
+        crate::misc_util::glow_debug_print("Enabling webkitGTK brightening workaround");
+        "#define APPLY_BRIGHTENING_GAMMA"
+    } else {
+        ""
+    };
 
-    let mut painter = crate::Painter::new(&gl, None, "")
+    let mut painter = crate::Painter::new(&gl, dimension, shader_prefix)
         .map_err(|error| eprintln!("some OpenGL error occurred {}\n", error))
         .unwrap();
     let mut integration = egui_winit::epi::EpiIntegration::new(
@@ -79,6 +225,7 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
                 // But we know if we are focused (in foreground). When minimized, we are not focused.
                 // However, a user may want an egui with an animation in the background,
                 // so we still need to repaint quite fast.
+                #[cfg(not(target_arch = "wasm32"))]
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
 
@@ -106,7 +253,7 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
                     integration.egui_ctx.pixels_per_point(),
                     clipped_meshes,
                 );
-
+                #[cfg(not(target_arch = "wasm32"))]
                 gl_window.swap_buffers().unwrap();
             }
 
@@ -116,12 +263,12 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
 
             {
                 *control_flow = if integration.should_quit() {
-                    glutin::event_loop::ControlFlow::Exit
+                    egui_winit::winit::event_loop::ControlFlow::Exit
                 } else if needs_repaint {
                     gl_window.window().request_redraw();
-                    glutin::event_loop::ControlFlow::Poll
+                    egui_winit::winit::event_loop::ControlFlow::Poll
                 } else {
-                    glutin::event_loop::ControlFlow::Wait
+                    egui_winit::winit::event_loop::ControlFlow::Wait
                 };
             }
 
@@ -132,30 +279,31 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
             // Platform-dependent event handlers to workaround a winit bug
             // See: https://github.com/rust-windowing/winit/issues/987
             // See: https://github.com/rust-windowing/winit/issues/1619
-            glutin::event::Event::RedrawEventsCleared if cfg!(windows) => redraw(),
-            glutin::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
+            egui_winit::winit::event::Event::RedrawEventsCleared if cfg!(windows) => redraw(),
+            egui_winit::winit::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
 
-            glutin::event::Event::WindowEvent { event, .. } => {
-                if let glutin::event::WindowEvent::Focused(new_focused) = event {
+            egui_winit::winit::event::Event::WindowEvent { event, .. } => {
+                if let egui_winit::winit::event::WindowEvent::Focused(new_focused) = event {
                     is_focused = new_focused;
                 }
 
-                if let glutin::event::WindowEvent::Resized(physical_size) = event {
+                #[cfg(not(target_arch = "wasm32"))]
+                if let egui_winit::winit::event::WindowEvent::Resized(physical_size) = event {
                     gl_window.resize(physical_size);
                 }
 
                 integration.on_event(&event);
                 if integration.should_quit() {
-                    *control_flow = glutin::event_loop::ControlFlow::Exit;
+                    *control_flow = egui_winit::winit::event_loop::ControlFlow::Exit;
                 }
 
                 gl_window.window().request_redraw(); // TODO: ask egui if the events warrants a repaint instead
             }
-            glutin::event::Event::LoopDestroyed => {
+            egui_winit::winit::event::Event::LoopDestroyed => {
                 integration.on_exit(gl_window.window());
                 painter.destroy(&gl);
             }
-            glutin::event::Event::UserEvent(RequestRepaintEvent) => {
+            egui_winit::winit::event::Event::UserEvent(_) => {
                 gl_window.window().request_redraw();
             }
             _ => (),

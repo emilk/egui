@@ -67,7 +67,7 @@
 
 pub use {egui, epi};
 
-#[cfg(not(target_arch = "wasm32"))]
+//#[cfg(not(target_arch = "wasm32"))]
 pub use epi::NativeOptions;
 
 // ----------------------------------------------------------------------------
@@ -173,10 +173,14 @@ pub fn run_native(app: Box<dyn epi::App>, native_options: epi::NativeOptions) ->
 ///     eframe::run_native(Box::new(app), native_options);
 /// }
 /// ```
-#[cfg(not(target_arch = "wasm32"))]
 #[cfg(not(feature = "egui_glium"))] // make sure we still compile with `--all-features`
 #[cfg(feature = "egui_glow")]
 pub fn run_native(app: Box<dyn epi::App>, native_options: epi::NativeOptions) -> ! {
+    #[cfg(target_arch = "wasm32")]
+    use std::panic;
+
+    #[cfg(target_arch = "wasm32")]
+    panic::set_hook(Box::new(console_error_panic_hook::hook));
     egui_glow::run(app, &native_options)
 }
 

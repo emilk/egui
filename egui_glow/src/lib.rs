@@ -116,13 +116,10 @@ pub struct EguiGlow {
 
 #[cfg(feature = "winit")]
 impl EguiGlow {
-    pub fn new(
-        gl_window: &glutin::WindowedContext<glutin::PossiblyCurrent>,
-        gl: &glow::Context,
-    ) -> Self {
+    pub fn new(gl_window: &egui_winit::winit::window::Window, gl: &glow::Context) -> Self {
         Self {
             egui_ctx: Default::default(),
-            egui_winit: egui_winit::State::new(gl_window.window()),
+            egui_winit: egui_winit::State::new(gl_window),
             painter: crate::Painter::new(gl, None, "")
                 .map_err(|error| {
                     eprintln!("some error occurred in initializing painter\n{}", error);
@@ -137,14 +134,14 @@ impl EguiGlow {
     /// and only when this returns `false` pass on the events to your game.
     ///
     /// Note that egui uses `tab` to move focus between elements, so this will always return `true` for tabs.
-    pub fn on_event(&mut self, event: &glutin::event::WindowEvent<'_>) -> bool {
+    pub fn on_event(&mut self, event: &egui_winit::winit::event::WindowEvent<'_>) -> bool {
         self.egui_winit.on_event(&self.egui_ctx, event)
     }
 
     /// Returns `needs_repaint` and shapes to draw.
     pub fn run(
         &mut self,
-        window: &glutin::window::Window,
+        window: &egui_winit::winit::window::Window,
         run_ui: impl FnMut(&egui::CtxRef),
     ) -> (bool, Vec<egui::epaint::ClippedShape>) {
         let raw_input = self.egui_winit.take_egui_input(window);
@@ -157,12 +154,12 @@ impl EguiGlow {
 
     pub fn paint(
         &mut self,
-        gl_window: &glutin::WindowedContext<glutin::PossiblyCurrent>,
+        gl_window: &egui_winit::winit::window::Window,
         gl: &glow::Context,
         shapes: Vec<egui::epaint::ClippedShape>,
     ) {
         let clipped_meshes = self.egui_ctx.tessellate(shapes);
-        let dimensions: [u32; 2] = gl_window.window().inner_size().into();
+        let dimensions: [u32; 2] = gl_window.inner_size().into();
         self.painter
             .upload_egui_texture(gl, &self.egui_ctx.font_image());
         self.painter.paint_meshes(
