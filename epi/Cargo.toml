@@ -1,9 +1,10 @@
 [package]
 name = "epi"
-version = "0.15.0"
+version = "0.16.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Backend-agnostic interface for writing apps using egui"
-edition = "2018"
+edition = "2021"
+rust-version = "1.56"
 homepage = "https://github.com/emilk/egui/tree/master/epi"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -23,7 +24,7 @@ all-features = true
 [lib]
 
 [dependencies]
-egui = { version = "0.15.0", path = "../egui", default-features = false, features = ["single_threaded"] }
+egui = { version = "0.16.0", path = "../egui", default-features = false, features = ["single_threaded"] }
 
 directories-next = { version = "2", optional = true }
 ron = { version = "0.7", optional = true }

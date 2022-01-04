@@ -45,12 +45,59 @@
             left: 50%;
             transform: translate(-50%, 0%);
         }
+
+        .loading {
+            margin-right: auto;
+            margin-left: auto;
+            display: block;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 24px;
+            font-family: Ubuntu-Light, Helvetica, sans-serif;
+        }
+
+        /* ---------------------------------------------- */
+        /* Loading animation from https://loading.io/css/ */
+        .lds-dual-ring {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+        }
+
+        .lds-dual-ring:after {
+            content: " ";
+            display: block;
+            width: 24px;
+            height: 24px;
+            margin: 0px;
+            border-radius: 50%;
+            border: 3px solid #fff;
+            border-color: #fff transparent #fff transparent;
+            animation: lds-dual-ring 1.2s linear infinite;
+        }
+
+        @keyframes lds-dual-ring {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
     </style>
 </head>
 
 <body>
-    <!-- The WASM code will resize this dynamically -->
+    <!-- The WASM code will resize the canvas dynamically -->
     <canvas id="the_canvas_id"></canvas>
+    <div class="loading" id="loading">
+        Loading…&nbsp;&nbsp;
+        <div class="lds-dual-ring"></div>
+    </div>
 
     <script>
         // The `--no-modules`-generated JS from `wasm-bindgen` attempts to use
@@ -77,9 +124,13 @@
             .catch(console.error);
 
         function on_wasm_loaded() {
-            // This call installs a bunch of callbacks and then returns.
-            console.log("loaded wasm, starting egui app");
+            console.log("loaded wasm, starting egui app…");
+
+            // This call installs a bunch of callbacks and then returns:
             wasm_bindgen.start("the_canvas_id");
+
+            console.log("egui app started.");
+            document.getElementById("loading").remove();
         }
     </script>
 </body>

@@ -6,6 +6,8 @@
 //!
 //! To get started, look at <https://github.com/emilk/eframe_template>.
 //!
+//! You can also take a look at [the `eframe` examples folder](https://github.com/emilk/egui/tree/master/eframe/examples).
+//!
 //! You write your application code for [`epi`] (implementing [`epi::App`]) and then
 //! call from [`crate::run_native`] your `main.rs`, and/or call `eframe::start_web` from your `lib.rs`.
 //!
@@ -24,7 +26,7 @@
 //!        "My egui App"
 //!    }
 //!
-//!    fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
+//!    fn update(&mut self, ctx: &egui::CtxRef, frame: &epi::Frame) {
 //!        egui::CentralPanel::default().show(ctx, |ui| {
 //!            ui.heading("Hello World!");
 //!        });
@@ -55,7 +57,12 @@
 // Forbid warnings in release builds:
 #![cfg_attr(not(debug_assertions), deny(warnings))]
 #![forbid(unsafe_code)]
-#![warn(clippy::all, missing_crate_level_docs, missing_docs, rust_2018_idioms)]
+#![warn(
+    clippy::all,
+    missing_docs,
+    rust_2018_idioms,
+    rustdoc::missing_crate_level_docs
+)]
 #![allow(clippy::needless_doctest_main)]
 
 pub use {egui, epi};
@@ -110,7 +117,7 @@ pub fn start_web(canvas_id: &str, app: Box<dyn epi::App>) -> Result<(), wasm_bin
 // ----------------------------------------------------------------------------
 // When compiling natively
 
-/// Call from `fn main` like this: `
+/// Call from `fn main` like this:
 /// ``` no_run
 /// use eframe::{epi, egui};
 ///
@@ -122,7 +129,7 @@ pub fn start_web(canvas_id: &str, app: Box<dyn epi::App>) -> Result<(), wasm_bin
 ///        "My egui App"
 ///    }
 ///
-///    fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
+///    fn update(&mut self, ctx: &egui::CtxRef, frame: &epi::Frame) {
 ///        egui::CentralPanel::default().show(ctx, |ui| {
 ///            ui.heading("Hello World!");
 ///        });
@@ -141,8 +148,25 @@ pub fn run_native(app: Box<dyn epi::App>, native_options: epi::NativeOptions) ->
     egui_glium::run(app, &native_options)
 }
 
-/// Call from `fn main` like this: `
+/// Call from `fn main` like this:
 /// ``` no_run
+/// use eframe::{epi, egui};
+///
+/// #[derive(Default)]
+/// struct MyEguiApp {}
+///
+/// impl epi::App for MyEguiApp {
+///    fn name(&self) -> &str {
+///        "My egui App"
+///    }
+///
+///    fn update(&mut self, ctx: &egui::CtxRef, frame: &epi::Frame) {
+///        egui::CentralPanel::default().show(ctx, |ui| {
+///            ui.heading("Hello World!");
+///        });
+///    }
+///}
+///
 /// fn main() {
 ///     let app = MyEguiApp::default();
 ///     let native_options = eframe::NativeOptions::default();

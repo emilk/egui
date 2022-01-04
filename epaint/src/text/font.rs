@@ -377,7 +377,7 @@ fn allocate_glyph(
         } else {
             let glyph_pos = atlas.allocate((glyph_width, glyph_height));
 
-            let texture = atlas.texture_mut();
+            let texture = atlas.image_mut();
             glyph.draw(|x, y, v| {
                 if v > 0.0 {
                     let px = glyph_pos.0 + x as usize;

@@ -26,6 +26,9 @@ use epaint::{stats::*, text::Fonts, *};
 ///
 /// [`CtxRef`] is cheap to clone, and any clones refers to the same mutable data.
 ///
+/// A [`CtxRef`] is only valid for the duration of a frame, and so you should not store a [`CtxRef`] between frames.
+/// A new [`CtxRef`] is created each frame by calling [`Self::run`].
+///
 /// # Example:
 ///
 /// ``` no_run
@@ -49,7 +52,6 @@ use epaint::{stats::*, text::Fonts, *};
 ///     paint(clipped_meshes);
 /// }
 /// ```
-///
 #[derive(Clone)]
 pub struct CtxRef(std::sync::Arc<Context>);
 
@@ -97,19 +99,54 @@ impl CtxRef {
     ///
     /// This will modify the internal reference to point to a new generation of [`Context`].
     /// Any old clones of this [`CtxRef`] will refer to the old [`Context`], which will not get new input.
+    ///
+    /// You can alternatively run [`Self::begin_frame`] and [`Self::end_frame`].
+    ///
+    /// ``` rust
+    /// // One egui context that you keep reusing:
+    /// let mut ctx = egui::CtxRef::default();
+    ///
+    /// // Each frame:
+    /// let input = egui::RawInput::default();
+    /// let (output, shapes) = ctx.run(input, |ctx| {
+    ///     egui::CentralPanel::default().show(&ctx, |ui| {
+    ///         ui.label("Hello egui!");
+    ///     });
+    /// });
+    /// // handle output, paint shapes
+    /// ```
     #[must_use]
     pub fn run(
         &mut self,
         new_input: RawInput,
         run_ui: impl FnOnce(&CtxRef),
     ) -> (Output, Vec<ClippedShape>) {
+        self.begin_frame(new_input);
+        run_ui(self);
+        self.end_frame()
+    }
+
+    /// An alternative to calling [`Self::run`].
+    ///
+    /// ``` rust
+    /// // One egui context that you keep reusing:
+    /// let mut ctx = egui::CtxRef::default();
+    ///
+    /// // Each frame:
+    /// let input = egui::RawInput::default();
+    /// ctx.begin_frame(input);
+    ///
+    /// egui::CentralPanel::default().show(&ctx, |ui| {
+    ///     ui.label("Hello egui!");
+    /// });
+    ///
+    /// let (output, shapes) = ctx.end_frame();
+    /// // handle output, paint shapes
+    /// ```
+    pub fn begin_frame(&mut self, new_input: RawInput) {
         let mut self_: Context = (*self.0).clone();
         self_.begin_frame_mut(new_input);
         *self = Self(Arc::new(self_));
-
-        run_ui(self);
-
-        self.end_frame()
     }
 
     // ---------------------------------------------------------------------
@@ -299,6 +336,11 @@ impl CtxRef {
             memory.surrender_focus(id);
         }
 
+        if response.dragged() && !memory.has_focus(response.id) {
+            // e.g.: remove focus from a widget when you drag something else
+            memory.stop_text_input();
+        }
+
         response
     }
 
@@ -311,30 +353,21 @@ impl CtxRef {
     pub fn debug_painter(&self) -> Painter {
         Self::layer_painter(self, LayerId::debug())
     }
-
-    /// Respond to secondary clicks (right-clicks) by showing the given menu.
-    pub(crate) fn show_context_menu(
-        &self,
-        response: &Response,
-        add_contents: impl FnOnce(&mut Ui),
-    ) {
-        self.context_menu_system()
-            .context_menu(response, add_contents);
-    }
 }
 
 // ----------------------------------------------------------------------------
 
-/// This is the first thing you need when working with egui. Create using [`CtxRef`].
+/// Your handle to egui.
+///
+/// This is the first thing you need when working with egui.
+/// Use [`CtxRef`] to create and refer to a [`Context`].
 ///
 /// Contains the [`InputState`], [`Memory`], [`Output`], and more.
 ///
-/// Your handle to Egui.
-///
-/// Almost all methods are marked `&self`, `Context` has interior mutability (protected by mutexes).
+/// Almost all methods are marked `&self`, [`Context`] has interior mutability (protected by mutexes).
 /// Multi-threaded access to a [`Context`] is behind the feature flag `multi_threaded`.
 /// Normally you'd always do all ui work on one thread, or perhaps use multiple contexts,
-/// but if you really want to access the same Context from multiple threads, it *SHOULD* be fine,
+/// but if you really want to access the same [`Context`] from multiple threads, it *SHOULD* be fine,
 /// but you are likely the first person to try it.
 #[derive(Default)]
 pub struct Context {
@@ -343,7 +376,7 @@ pub struct Context {
     // This means everything else needs to be behind an Arc.
     // We can probably come up with a nicer design.
     //
-    /// None until first call to `begin_frame`.
+    /// `None` until the start of the first frame.
     fonts: Option<Arc<Fonts>>,
     memory: Arc<Mutex<Memory>>,
     animation_manager: Arc<Mutex<AnimationManager>>,
@@ -435,11 +468,12 @@ impl Context {
             .expect("No fonts available until first call to CtxRef::run()")
     }
 
-    /// The egui texture, containing font characters etc.
+    /// The egui font image, containing font characters etc.
+    ///
     /// Not valid until first call to [`CtxRef::run()`].
     /// That's because since we don't know the proper `pixels_per_point` until then.
-    pub fn texture(&self) -> Arc<epaint::Texture> {
-        self.fonts().texture()
+    pub fn font_image(&self) -> Arc<epaint::FontImage> {
+        self.fonts().font_image()
     }
 
     /// Tell `egui` which fonts to use.
@@ -626,7 +660,7 @@ impl Context {
     /// Returns what has happened this frame [`crate::Output`] as well as what you need to paint.
     /// You can transform the returned shapes into triangles with a call to [`Context::tessellate`].
     #[must_use]
-    fn end_frame(&self) -> (Output, Vec<ClippedShape>) {
+    pub fn end_frame(&self) -> (Output, Vec<ClippedShape>) {
         if self.input.wants_repaint() {
             self.request_repaint();
         }
@@ -664,7 +698,7 @@ impl Context {
         let clipped_meshes = tessellator::tessellate_shapes(
             shapes,
             tessellation_options,
-            self.fonts().texture().size(),
+            self.fonts().font_image().size(),
         );
         *self.paint_stats.lock() = paint_stats.with_clipped_meshes(&clipped_meshes);
         clipped_meshes
@@ -774,8 +808,15 @@ impl Context {
     /// Calling this with `value = false` will always yield a number less than one, quickly going towards zero.
     ///
     /// The function will call [`Self::request_repaint()`] when appropriate.
+    ///
+    /// The animation time is taken from [`Style::animation_time`].
     pub fn animate_bool(&self, id: Id, value: bool) -> f32 {
         let animation_time = self.style().animation_time;
+        self.animate_bool_with_time(id, value, animation_time)
+    }
+
+    /// Like [`Self::animate_bool`] but allows you to control the animation time.
+    pub fn animate_bool_with_time(&self, id: Id, value: bool, animation_time: f32) -> f32 {
         let animated_value =
             self.animation_manager
                 .lock()
@@ -808,7 +849,7 @@ impl Context {
             .show(ui, |ui| {
                 let mut font_definitions = self.fonts().definitions().clone();
                 font_definitions.ui(ui);
-                self.fonts().texture().ui(ui);
+                self.fonts().font_image().ui(ui);
                 self.set_fonts(font_definitions);
             });
 

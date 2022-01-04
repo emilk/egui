@@ -1,3 +1,5 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
+
 use eframe::{egui, epi};
 
 #[derive(Default)]
@@ -11,13 +13,11 @@ impl epi::App for MyApp {
         "Native file dialogs and drag-and-drop files"
     }
 
-    fn update(&mut self, ctx: &egui::CtxRef, _frame: &mut epi::Frame<'_>) {
+    fn update(&mut self, ctx: &egui::CtxRef, _frame: &epi::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.label("Drag-and-drop files onto the window!");
 
-            if cfg!(target_os = "macos") {
-                // Awaiting fix of winit bug: https://github.com/rust-windowing/winit/pull/2027
-            } else if ui.button("Open file…").clicked() {
+            if ui.button("Open file…").clicked() {
                 if let Some(path) = rfd::FileDialog::new().pick_file() {
                     self.picked_path = Some(path.display().to_string());
                 }

@@ -77,9 +77,9 @@
     clippy::verbose_file_reads,
     clippy::zero_sized_map_values,
     future_incompatible,
-    missing_crate_level_docs,
     nonstandard_style,
-    rust_2018_idioms
+    rust_2018_idioms,
+    rustdoc::missing_crate_level_docs
 )]
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]

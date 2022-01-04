@@ -6,8 +6,13 @@ use crate::*;
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
+/// // These are equivalent:
 /// ui.hyperlink("https://github.com/emilk/egui");
-/// ui.add(egui::Hyperlink::new("https://github.com/emilk/egui").text("My favorite repo").small());
+/// ui.add(egui::Hyperlink::new("https://github.com/emilk/egui"));
+///
+/// // These are equivalent:
+/// ui.hyperlink_to("My favorite repo", "https://github.com/emilk/egui");
+/// ui.add(egui::Hyperlink::from_label_and_url("My favorite repo", "https://github.com/emilk/egui"));
 /// # });
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
@@ -32,25 +37,6 @@ impl Hyperlink {
             url: url.to_string(),
             text: text.into(),
         }
-    }
-
-    #[deprecated = "Use Hyperlink::from_label_and_url instead"]
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn text(mut self, text: impl ToString) -> Self {
-        self.text = text.to_string().into();
-        self
-    }
-
-    #[deprecated = "Use Hyperlink::from_label_and_url instead"]
-    pub fn text_style(mut self, text_style: TextStyle) -> Self {
-        self.text = self.text.text_style(text_style);
-        self
-    }
-
-    #[deprecated = "Use Hyperlink::from_label_and_url instead"]
-    pub fn small(mut self) -> Self {
-        self.text = self.text.text_style(TextStyle::Small);
-        self
     }
 }
 

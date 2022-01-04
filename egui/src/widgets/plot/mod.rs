@@ -18,6 +18,9 @@ mod items;
 mod legend;
 mod transform;
 
+type CustomLabelFunc = dyn Fn(&str, &Value) -> String;
+type CustomLabelFuncRef = Option<Box<CustomLabelFunc>>;
+
 // ----------------------------------------------------------------------------
 
 /// Information about the plot that has to persist between frames.
@@ -76,6 +79,7 @@ pub struct Plot {
 
     show_x: bool,
     show_y: bool,
+    custom_label_func: CustomLabelFuncRef,
     legend_config: Option<Legend>,
     show_background: bool,
     show_axes: [bool; 2],
@@ -102,6 +106,7 @@ impl Plot {
 
             show_x: true,
             show_y: true,
+            custom_label_func: None,
             legend_config: None,
             show_background: true,
             show_axes: [true; 2],
@@ -182,6 +187,35 @@ impl Plot {
         self
     }
 
+    /// Provide a function to customize the on-hovel label for the x and y axis
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// use egui::plot::{Line, Plot, Value, Values};
+    /// let sin = (0..1000).map(|i| {
+    ///     let x = i as f64 * 0.01;
+    ///     Value::new(x, x.sin())
+    /// });
+    /// let line = Line::new(Values::from_values_iter(sin));
+    /// Plot::new("my_plot").view_aspect(2.0)
+    /// .custom_label_func(|name, value| {
+    ///     if !name.is_empty() {
+    ///         format!("{}: {:.*}%", name, 1, value.y).to_string()
+    ///     } else {
+    ///         "".to_string()
+    ///     }
+    /// })
+    /// .show(ui, |plot_ui| plot_ui.line(line));
+    /// # });
+    /// ```
+    pub fn custom_label_func<F: 'static + Fn(&str, &Value) -> String>(
+        mut self,
+        custom_lebel_func: F,
+    ) -> Self {
+        self.custom_label_func = Some(Box::new(custom_lebel_func));
+        self
+    }
+
     /// Expand bounds to include the given x value.
     /// For instance, to always show the y axis, call `plot.include_x(0.0)`.
     pub fn include_x(mut self, x: impl Into<f64>) -> Self {
@@ -235,6 +269,7 @@ impl Plot {
             view_aspect,
             mut show_x,
             mut show_y,
+            custom_label_func,
             legend_config,
             show_background,
             show_axes,
@@ -406,6 +441,7 @@ impl Plot {
             items,
             show_x,
             show_y,
+            custom_label_func,
             show_axes,
             transform: transform.clone(),
         };
@@ -613,6 +649,7 @@ struct PreparedPlot {
     items: Vec<Box<dyn PlotItem>>,
     show_x: bool,
     show_y: bool,
+    custom_label_func: CustomLabelFuncRef,
     show_axes: [bool; 2],
     transform: ScreenTransform,
 }
@@ -731,6 +768,7 @@ impl PreparedPlot {
             transform,
             show_x,
             show_y,
+            custom_label_func,
             items,
             ..
         } = self;
@@ -760,10 +798,10 @@ impl PreparedPlot {
         };
 
         if let Some((item, elem)) = closest {
-            item.on_hover(elem, shapes, &plot);
+            item.on_hover(elem, shapes, &plot, custom_label_func);
         } else {
             let value = transform.value_from_position(pointer);
-            items::rulers_at_value(pointer, value, "", &plot, shapes);
+            items::rulers_at_value(pointer, value, "", &plot, shapes, custom_label_func);
         }
     }
 }

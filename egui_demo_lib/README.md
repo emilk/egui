@@ -8,7 +8,8 @@
 
 This crate contains example code for [`egui`](https://github.com/emilk/egui).
 
-It is in a separate crate for two reasons:
+The demo library is a separate crate for three reasons:
 
 * To ensure it only uses the public `egui` api.
 * To remove the amount of code in `egui` proper.
+* To make it easy for other integrations to use the egui demos a test.

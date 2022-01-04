@@ -26,7 +26,7 @@ cargo doc -p egui_web --target wasm32-unknown-unknown --lib --no-deps --all-feat
 (cd egui && cargo check --no-default-features --features "multi_threaded,serialize")
 (cd eframe && cargo check --no-default-features --features "egui_glow")
 (cd epi && cargo check --no-default-features)
-(cd egui_web && cargo check --no-default-features)
+# (cd egui_web && cargo check --no-default-features) # we need to pick webgl or glow backend
 # (cd egui-winit && cargo check --no-default-features) # we don't pick singlethreaded or multithreaded
 (cd egui_glium && cargo check --no-default-features)
 (cd egui_glow && cargo check --no-default-features)

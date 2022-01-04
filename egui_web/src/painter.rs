@@ -1,14 +1,16 @@
 use wasm_bindgen::prelude::JsValue;
 
 pub trait Painter {
-    fn as_tex_allocator(&mut self) -> &mut dyn epi::TextureAllocator;
+    fn set_texture(&mut self, tex_id: u64, image: epi::Image);
+
+    fn free_texture(&mut self, tex_id: u64);
 
     fn debug_info(&self) -> String;
 
     /// id of the canvas html element containing the rendering
     fn canvas_id(&self) -> &str;
 
-    fn upload_egui_texture(&mut self, texture: &egui::Texture);
+    fn upload_egui_texture(&mut self, font_image: &egui::FontImage);
 
     fn clear(&mut self, clear_color: egui::Rgba);
 

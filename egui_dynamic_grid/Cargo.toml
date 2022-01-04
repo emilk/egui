@@ -1,6 +1,6 @@
 [package]
 name = "egui_dynamic_grid"
-version = "0.15.0"
+version = "0.16.0"
 edition = "2018"
 description = "Dynamic grid and table for egui"
 authors = [
@@ -16,4 +16,4 @@ keywords = ["glium", "egui", "gui", "gamedev"]
 include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
 [dependencies]
-egui = { version = "0.15.0", path = "../egui", default-features = false }
+egui = { version = "0.16.0", path = "../egui", default-features = false }

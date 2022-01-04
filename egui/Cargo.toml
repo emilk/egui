@@ -1,9 +1,10 @@
 [package]
 name = "egui"
-version = "0.15.0"
+version = "0.16.1"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Simple, portable immediate mode GUI library for Rust"
-edition = "2018"
+edition = "2021"
+rust-version = "1.56"
 homepage = "https://github.com/emilk/egui"
 license = "MIT OR Apache-2.0"
 readme = "../README.md"
@@ -23,7 +24,7 @@ all-features = true
 [lib]
 
 [dependencies]
-epaint = { version = "0.15.0", path = "../epaint", default-features = false }
+epaint = { version = "0.16.0", path = "../epaint", default-features = false }
 
 ahash = "0.7"
 nohash-hasher = "0.2"

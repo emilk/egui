@@ -50,9 +50,12 @@ cargo build \
   --no-default-features \
   --features ${FEATURES}
 
+# Get the output directory (in the workspace it is in another location)
+TARGET=`cargo metadata --format-version=1 | jq --raw-output .target_directory`
+
 echo "Generating JS bindings for wasm…"
 TARGET_NAME="${CRATE_NAME}.wasm"
-wasm-bindgen "target/wasm32-unknown-unknown/$BUILD/$TARGET_NAME" \
+wasm-bindgen "${TARGET}/wasm32-unknown-unknown/$BUILD/$TARGET_NAME" \
   --out-dir docs --no-modules --no-typescript
 
 # to get wasm-strip:  apt/brew/dnf install wabt

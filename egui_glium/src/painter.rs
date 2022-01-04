@@ -14,7 +14,7 @@ use {
         uniform,
         uniforms::{MagnifySamplerFilter, SamplerWrapFunction},
     },
-    std::rc::Rc,
+    std::{collections::HashMap, rc::Rc},
 };
 
 pub struct Painter {
@@ -22,19 +22,11 @@ pub struct Painter {
     egui_texture: Option<SrgbTexture2d>,
     egui_texture_version: Option<u64>,
 
-    /// `None` means unallocated (freed) slot.
-    user_textures: Vec<Option<UserTexture>>,
-}
+    /// Index is the same as in [`egui::TextureId::User`].
+    user_textures: HashMap<u64, Rc<SrgbTexture2d>>,
 
-#[derive(Default)]
-struct UserTexture {
-    /// Pending upload (will be emptied later).
-    /// This is the format glium likes.
-    pixels: Vec<Vec<(u8, u8, u8, u8)>>,
-
-    /// Lazily uploaded from [`Self::pixels`],
-    /// or owned by the user via `register_native_texture`.
-    gl_texture: Option<Rc<SrgbTexture2d>>,
+    #[cfg(feature = "epi")]
+    next_native_tex_id: u64, // TODO: 128-bit texture space?
 }
 
 impl Painter {
@@ -65,21 +57,23 @@ impl Painter {
             egui_texture: None,
             egui_texture_version: None,
             user_textures: Default::default(),
+            #[cfg(feature = "epi")]
+            next_native_tex_id: 1 << 32,
         }
     }
 
     pub fn upload_egui_texture(
         &mut self,
         facade: &dyn glium::backend::Facade,
-        texture: &egui::Texture,
+        font_image: &egui::FontImage,
     ) {
-        if self.egui_texture_version == Some(texture.version) {
+        if self.egui_texture_version == Some(font_image.version) {
             return; // No change
         }
 
-        let pixels: Vec<Vec<(u8, u8, u8, u8)>> = texture
+        let pixels: Vec<Vec<(u8, u8, u8, u8)>> = font_image
             .pixels
-            .chunks(texture.width as usize)
+            .chunks(font_image.width as usize)
             .map(|row| {
                 row.iter()
                     .map(|&a| Color32::from_white_alpha(a).to_tuple())
@@ -91,7 +85,7 @@ impl Painter {
         let mipmaps = texture::MipmapsOption::NoMipmap;
         self.egui_texture =
             Some(SrgbTexture2d::with_format(facade, pixels, format, mipmaps).unwrap());
-        self.egui_texture_version = Some(texture.version);
+        self.egui_texture_version = Some(font_image.version);
     }
 
     /// Main entry-point for painting a frame.
@@ -103,10 +97,9 @@ impl Painter {
         target: &mut T,
         pixels_per_point: f32,
         cipped_meshes: Vec<egui::ClippedMesh>,
-        egui_texture: &egui::Texture,
+        font_image: &egui::FontImage,
     ) {
-        self.upload_egui_texture(display, egui_texture);
-        self.upload_pending_user_textures(display);
+        self.upload_egui_texture(display, font_image);
 
         for egui::ClippedMesh(clip_rect, mesh) in cipped_meshes {
             self.paint_mesh(target, display, pixels_per_point, clip_rect, &mesh);
@@ -114,7 +107,7 @@ impl Painter {
     }
 
     #[inline(never)] // Easier profiling
-    pub fn paint_mesh<T: glium::Surface>(
+    fn paint_mesh<T: glium::Surface>(
         &mut self,
         target: &mut T,
         display: &glium::Display,
@@ -229,82 +222,41 @@ impl Painter {
     }
 
     // ------------------------------------------------------------------------
-    // user textures: this is an experimental feature.
-    // No need to implement this in your egui integration!
 
-    pub fn alloc_user_texture(&mut self) -> egui::TextureId {
-        for (i, tex) in self.user_textures.iter_mut().enumerate() {
-            if tex.is_none() {
-                *tex = Some(Default::default());
-                return egui::TextureId::User(i as u64);
-            }
-        }
-        let id = egui::TextureId::User(self.user_textures.len() as u64);
-        self.user_textures.push(Some(Default::default()));
-        id
-    }
-
-    pub fn set_user_texture(
+    #[cfg(feature = "epi")]
+    pub fn set_texture(
         &mut self,
-        id: egui::TextureId,
-        size: (usize, usize),
-        pixels: &[Color32],
+        facade: &dyn glium::backend::Facade,
+        tex_id: u64,
+        image: &epi::Image,
     ) {
         assert_eq!(
-            size.0 * size.1,
-            pixels.len(),
+            image.size[0] * image.size[1],
+            image.pixels.len(),
             "Mismatch between texture size and texel count"
         );
 
-        if let egui::TextureId::User(id) = id {
-            if let Some(Some(user_texture)) = self.user_textures.get_mut(id as usize) {
-                let pixels: Vec<Vec<(u8, u8, u8, u8)>> = pixels
-                    .chunks(size.0 as usize)
-                    .map(|row| row.iter().map(|srgba| srgba.to_tuple()).collect())
-                    .collect();
+        let pixels: Vec<Vec<(u8, u8, u8, u8)>> = image
+            .pixels
+            .chunks(image.size[0] as usize)
+            .map(|row| row.iter().map(|srgba| srgba.to_tuple()).collect())
+            .collect();
 
-                *user_texture = UserTexture {
-                    pixels,
-                    gl_texture: None,
-                };
-            }
-        }
+        let format = texture::SrgbFormat::U8U8U8U8;
+        let mipmaps = texture::MipmapsOption::NoMipmap;
+        let gl_texture = SrgbTexture2d::with_format(facade, pixels, format, mipmaps).unwrap();
+
+        self.user_textures.insert(tex_id, gl_texture.into());
     }
 
-    pub fn free_user_texture(&mut self, id: egui::TextureId) {
-        if let egui::TextureId::User(id) = id {
-            let index = id as usize;
-            if index < self.user_textures.len() {
-                self.user_textures[index] = None;
-            }
-        }
+    pub fn free_texture(&mut self, tex_id: u64) {
+        self.user_textures.remove(&tex_id);
     }
 
-    pub fn get_texture(&self, texture_id: egui::TextureId) -> Option<&SrgbTexture2d> {
+    fn get_texture(&self, texture_id: egui::TextureId) -> Option<&SrgbTexture2d> {
         match texture_id {
             egui::TextureId::Egui => self.egui_texture.as_ref(),
-            egui::TextureId::User(id) => self
-                .user_textures
-                .get(id as usize)?
-                .as_ref()?
-                .gl_texture
-                .as_ref()
-                .map(|rc| rc.as_ref()),
-        }
-    }
-
-    pub fn upload_pending_user_textures(&mut self, facade: &dyn glium::backend::Facade) {
-        for user_texture in self.user_textures.iter_mut().flatten() {
-            if user_texture.gl_texture.is_none() {
-                let pixels = std::mem::take(&mut user_texture.pixels);
-                let format = texture::SrgbFormat::U8U8U8U8;
-                let mipmaps = texture::MipmapsOption::NoMipmap;
-                user_texture.gl_texture = Some(
-                    SrgbTexture2d::with_format(facade, pixels, format, mipmaps)
-                        .unwrap()
-                        .into(),
-                );
-            }
+            egui::TextureId::User(id) => self.user_textures.get(&id).map(|rc| rc.as_ref()),
         }
     }
 }
@@ -314,26 +266,15 @@ impl epi::NativeTexture for Painter {
     type Texture = Rc<SrgbTexture2d>;
 
     fn register_native_texture(&mut self, native: Self::Texture) -> egui::TextureId {
-        let id = self.alloc_user_texture();
-        if let egui::TextureId::User(id) = id {
-            if let Some(Some(user_texture)) = self.user_textures.get_mut(id as usize) {
-                *user_texture = UserTexture {
-                    pixels: vec![],
-                    gl_texture: Some(native),
-                }
-            }
-        }
-        id
+        let id = self.next_native_tex_id;
+        self.next_native_tex_id += 1;
+        self.user_textures.insert(id, native);
+        egui::TextureId::User(id as u64)
     }
 
     fn replace_native_texture(&mut self, id: egui::TextureId, replacing: Self::Texture) {
         if let egui::TextureId::User(id) = id {
-            if let Some(Some(user_texture)) = self.user_textures.get_mut(id as usize) {
-                *user_texture = UserTexture {
-                    pixels: vec![],
-                    gl_texture: Some(replacing),
-                };
-            }
+            self.user_textures.insert(id, replacing);
         }
     }
 }

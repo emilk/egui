@@ -8,28 +8,47 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 ## Unreleased
 
 ### Added ⭐
-* Add context menus: See `Ui::menu_button` and `Response::context_menu` ([#543](https://github.com/emilk/egui/pull/543)).
+* Added `Ui::add_visible` and `Ui::add_visible_ui`.
+
+### Changed 🔧
+* Renamed `Ui::visible` to `Ui::is_visible`.
+
+
+## 0.16.1 - 2021-12-31 - Add back `CtxRef::begin_frame,end_frame`
+
+### Added ⭐
+* Add back `CtxRef::begin_frame,end_frame` as an alternative to `CtxRef::run`.
+
+
+## 0.16.0 - 2021-12-29 - Context menus and rich text
+
+### Added ⭐
+* Added context menus: See `Ui::menu_button` and `Response::context_menu` ([#543](https://github.com/emilk/egui/pull/543)).
 * Most widgets containing text (`Label`, `Button` etc) now supports rich text ([#855](https://github.com/emilk/egui/pull/855)).
 * Plots:
-  * Add bar charts and box plots ([#863](https://github.com/emilk/egui/pull/863)).
+  * Added bar charts and box plots ([#863](https://github.com/emilk/egui/pull/863)).
   * You can now query information about the plot (e.g. get the mouse position in plot coordinates, or the plot
     bounds) while adding items. `Plot` ([#766](https://github.com/emilk/egui/pull/766) and
     [#892](https://github.com/emilk/egui/pull/892)).
 * You can now read and write the cursor of a `TextEdit` ([#848](https://github.com/emilk/egui/pull/848)).
 * When using a custom font you can now specify a font index ([#873](https://github.com/emilk/egui/pull/873)).
-* Add vertical sliders with `Slider::new(…).vertical()` ([#875](https://github.com/emilk/egui/pull/875)).
-* Add `Button::image_and_text` ([#832](https://github.com/emilk/egui/pull/832)).
+* Added vertical sliders with `Slider::new(…).vertical()` ([#875](https://github.com/emilk/egui/pull/875)).
+* Added `Button::image_and_text` ([#832](https://github.com/emilk/egui/pull/832)).
+* Added `CollapsingHeader::open` to control if it is open or collapsed ([#1006](https://github.com/emilk/egui/pull/1006)).
+* Added `egui::widgets::color_picker::color_picker_color32` to show the color picker.
 
 ### Changed 🔧
+* MSRV (Minimum Supported Rust Version) is now `1.56.0`.
 * `ui.add(Button::new("…").text_color(…))` is now `ui.button(RichText::new("…").color(…))` (same for `Label` )([#855](https://github.com/emilk/egui/pull/855)).
 * Plots now provide a `show` method that has to be used to add items to and show the plot ([#766](https://github.com/emilk/egui/pull/766)).
-* Replace `CtxRef::begin_frame` and `end_frame` with `CtxRef::run` ([#872](https://github.com/emilk/egui/pull/872)).
-* Replace `scroll_delta` and `zoom_delta` in `RawInput` with `Event::Scroll` and `Event::Zoom`.
-* Unifiy the four `Memory` data buckets (`data`, `data_temp`, `id_data` and `id_data_temp`) into a single `Memory::data`, with a new interface ([#836](https://github.com/emilk/egui/pull/836)).
-* Replace `Ui::__test` with `egui::__run_test_ui` ([#872](https://github.com/emilk/egui/pull/872)).
+* `menu::menu(ui, ...)` is now `ui.menu_button(...)` ([#543](https://github.com/emilk/egui/pull/543))
+* Replaced `CtxRef::begin_frame` and `end_frame` with `CtxRef::run` ([#872](https://github.com/emilk/egui/pull/872)).
+* Replaced `scroll_delta` and `zoom_delta` in `RawInput` with `Event::Scroll` and `Event::Zoom`.
+* Unified the four `Memory` data buckets (`data`, `data_temp`, `id_data` and `id_data_temp`) into a single `Memory::data`, with a new interface ([#836](https://github.com/emilk/egui/pull/836)).
+* Replaced `Ui::__test` with `egui::__run_test_ui` ([#872](https://github.com/emilk/egui/pull/872)).
 
 ### Fixed 🐛
-* Fix `ComboBox` and other popups getting clipped to parent window ([#885](https://github.com/emilk/egui/pull/885)).
+* Fixed `ComboBox` and other popups getting clipped to parent window ([#885](https://github.com/emilk/egui/pull/885)).
 * The color picker is now better att keeping the same hue even when saturation goes to zero ([#886](https://github.com/emilk/egui/pull/886)).
 
 ### Removed 🔥
@@ -37,16 +56,19 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Removed `egui::paint` (use `egui::epaint` instead).
 
 ### Contributors 🙏
-* [5225225](https://github.com/5225225): ([#849](https://github.com/emilk/egui/pull/849)).
-* [B-Reif](https://github.com/B-Reif) ([#875](https://github.com/emilk/egui/pull/875)).
-* [Bromeon](https://github.com/Bromeon): ([#863](https://github.com/emilk/egui/pull/863)).
-* [d10sfan](https://github.com/d10sfan) ([#832](https://github.com/emilk/egui/pull/832)).
-* [EmbersArc](https://github.com/EmbersArc): ([#766](https://github.com/emilk/egui/pull/766), [#892](https://github.com/emilk/egui/pull/892)).
-* [Hperigo](https://github.com/Hperigo): ([#905](https://github.com/emilk/egui/pull/905)).
-* [mankinskin](https://github.com/mankinskin) ([#543](https://github.com/emilk/egui/pull/543)).
-* [niladic](https://github.com/niladic): ([#499](https://github.com/emilk/egui/pull/499), [#863](https://github.com/emilk/egui/pull/863)).
-* [sumibi-yakitori](https://github.com/sumibi-yakitori) ([#830](https://github.com/emilk/egui/pull/830)).
-* [t18b219k](https://github.com/t18b219k): ([#868](https://github.com/emilk/egui/pull/868), [#888](https://github.com/emilk/egui/pull/888)).
+* [5225225](https://github.com/5225225): [#849](https://github.com/emilk/egui/pull/849).
+* [aevyrie](https://github.com/aevyrie): [#966](https://github.com/emilk/egui/pull/966).
+* [B-Reif](https://github.com/B-Reif): [#875](https://github.com/emilk/egui/pull/875).
+* [Bromeon](https://github.com/Bromeon): [#863](https://github.com/emilk/egui/pull/863), [#918](https://github.com/emilk/egui/pull/918).
+* [d10sfan](https://github.com/d10sfan): [#832](https://github.com/emilk/egui/pull/832).
+* [EmbersArc](https://github.com/EmbersArc): [#766](https://github.com/emilk/egui/pull/766), [#892](https://github.com/emilk/egui/pull/892).
+* [Hperigo](https://github.com/Hperigo): [#905](https://github.com/emilk/egui/pull/905).
+* [isegal](https://github.com/isegal): [#934](https://github.com/emilk/egui/pull/934).
+* [mankinskin](https://github.com/mankinskin): [#543](https://github.com/emilk/egui/pull/543).
+* [niladic](https://github.com/niladic): [#499](https://github.com/emilk/egui/pull/499), [#863](https://github.com/emilk/egui/pull/863).
+* [singalen](https://github.com/singalen): [#973](https://github.com/emilk/egui/pull/973).
+* [sumibi-yakitori](https://github.com/sumibi-yakitori): [#830](https://github.com/emilk/egui/pull/830), [#870](https://github.com/emilk/egui/pull/870).
+* [t18b219k](https://github.com/t18b219k): [#868](https://github.com/emilk/egui/pull/868), [#888](https://github.com/emilk/egui/pull/888).
 
 
 ## 0.15.0 - 2021-10-24 - Syntax highlighting and hscroll

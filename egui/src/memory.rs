@@ -327,13 +327,16 @@ impl Memory {
         self.interaction.focus.id
     }
 
-    pub(crate) fn lock_focus(&mut self, id: Id, lock_focus: bool) {
+    /// Prevent keyboard focus from moving away from this widget even if users presses the tab key.
+    /// You must first give focus to the widget before calling this.
+    pub fn lock_focus(&mut self, id: Id, lock_focus: bool) {
         if self.had_focus_last_frame(id) && self.has_focus(id) {
             self.interaction.focus.is_focus_locked = lock_focus;
         }
     }
 
-    pub(crate) fn has_lock_focus(&mut self, id: Id) -> bool {
+    /// Is the keyboard focus locked on this widget? If so the focus won't move even if the user presses the tab key.
+    pub fn has_lock_focus(&mut self, id: Id) -> bool {
         if self.had_focus_last_frame(id) && self.has_focus(id) {
             self.interaction.focus.is_focus_locked
         } else {

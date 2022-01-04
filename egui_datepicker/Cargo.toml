@@ -1,10 +1,10 @@
 [package]
 name = "egui_datepicker"
-version = "0.15.0"
+version = "0.16.0"
 edition = "2018"
 
 [dependencies]
 chrono = "0.4"
-egui = { version = "0.15.0", path = "../egui", default-features = false }
-egui_dynamic_grid = { version = "0.15.0", path = "../egui_dynamic_grid" }
+egui = { version = "0.16.0", path = "../egui", default-features = false }
+egui_dynamic_grid = { version = "0.16.0", path = "../egui_dynamic_grid" }
 serde = { version = "1", features = ["derive"] }

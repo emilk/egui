@@ -1,4 +1,7 @@
 //! Example how to use pure `egui_glium` without [`epi`].
+
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
+
 use glium::glutin;
 
 fn create_display(event_loop: &glutin::event_loop::EventLoop<()>) -> glium::Display {

@@ -221,6 +221,7 @@ impl PostProcess {
         gl.bind_texture(glow::TEXTURE_2D, None);
         gl.use_program(None);
     }
+
     pub(crate) unsafe fn destroy(&self, gl: &glow::Context) {
         gl.delete_buffer(self.pos_buffer);
         gl.delete_buffer(self.index_buffer);

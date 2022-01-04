@@ -80,9 +80,9 @@
     clippy::verbose_file_reads,
     clippy::zero_sized_map_values,
     future_incompatible,
-    missing_crate_level_docs,
     nonstandard_style,
-    rust_2018_idioms
+    rust_2018_idioms,
+    rustdoc::missing_crate_level_docs
 )]
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
@@ -164,10 +164,10 @@ impl EguiGlow {
         let clipped_meshes = self.egui_ctx.tessellate(shapes);
         let dimensions: [u32; 2] = gl_window.window().inner_size().into();
         self.painter
-            .upload_egui_texture(gl, &self.egui_ctx.texture());
+            .upload_egui_texture(gl, &self.egui_ctx.font_image());
         self.painter.paint_meshes(
-            dimensions,
             gl,
+            dimensions,
             self.egui_ctx.pixels_per_point(),
             clipped_meshes,
         );

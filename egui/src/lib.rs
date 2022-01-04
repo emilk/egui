@@ -3,7 +3,7 @@
 //! Try the live web demo: <https://emilk.github.io/egui/index.html>. Read more about egui at <https://github.com/emilk/egui>.
 //!
 //! `egui` is in heavy development, with each new version having breaking changes.
-//! You need to have rust 1.54.0 or later to use `egui`.
+//! You need to have rust 1.56.0 or later to use `egui`.
 //!
 //! To quickly get started with egui, you can take a look at [`eframe_template`](https://github.com/emilk/eframe_template)
 //! which uses [`eframe`](https://docs.rs/eframe).
@@ -349,9 +349,9 @@
     clippy::verbose_file_reads,
     clippy::zero_sized_map_values,
     future_incompatible,
-    missing_crate_level_docs,
     nonstandard_style,
-    rust_2018_idioms
+    rust_2018_idioms,
+    rustdoc::missing_crate_level_docs
 )]
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
@@ -386,7 +386,7 @@ pub use emath::{lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos
 pub use epaint::{
     color, mutex,
     text::{FontData, FontDefinitions, FontFamily, TextStyle},
-    ClippedMesh, Color32, Rgba, Shape, Stroke, Texture, TextureId,
+    ClippedMesh, Color32, FontImage, Rgba, Shape, Stroke, TextureId,
 };
 
 pub mod text {

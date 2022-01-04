@@ -1,3 +1,5 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
+
 use eframe::{egui, epi};
 
 struct MyApp {
@@ -19,7 +21,7 @@ impl epi::App for MyApp {
         "My egui App"
     }
 
-    fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
+    fn update(&mut self, ctx: &egui::CtxRef, frame: &epi::Frame) {
         let Self { name, age } = self;
 
         egui::CentralPanel::default().show(ctx, |ui| {

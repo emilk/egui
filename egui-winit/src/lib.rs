@@ -76,9 +76,9 @@
     clippy::verbose_file_reads,
     clippy::zero_sized_map_values,
     future_incompatible,
-    missing_crate_level_docs,
     nonstandard_style,
-    rust_2018_idioms
+    rust_2018_idioms,
+    rustdoc::missing_crate_level_docs
 )]
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
@@ -105,7 +105,7 @@ pub fn screen_size_in_pixels(window: &winit::window::Window) -> egui::Vec2 {
 
 /// Handles the integration between egui and winit.
 pub struct State {
-    start_time: std::time::Instant,
+    start_time: instant::Instant,
     egui_input: egui::RawInput,
     pointer_pos_in_points: Option<egui::Pos2>,
     any_pointer_button_down: bool,
@@ -137,7 +137,7 @@ impl State {
     /// Initialize with a given dpi scaling.
     pub fn from_pixels_per_point(pixels_per_point: f32) -> Self {
         Self {
-            start_time: std::time::Instant::now(),
+            start_time: instant::Instant::now(),
             egui_input: egui::RawInput {
                 pixels_per_point: Some(pixels_per_point),
                 ..Default::default()
@@ -457,6 +457,9 @@ impl State {
             // This is still buggy in winit despite
             // https://github.com/rust-windowing/winit/issues/1695 being closed
             delta.x *= -1.0;
+        }
+        if cfg!(target_os = "windows") {
+            delta.x *= -1.0; // until https://github.com/rust-windowing/winit/pull/2101 is merged
         }
 
         if self.egui_input.modifiers.ctrl || self.egui_input.modifiers.command {

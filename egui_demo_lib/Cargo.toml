@@ -1,9 +1,10 @@
 [package]
 name = "egui_demo_lib"
-version = "0.15.0"
+version = "0.16.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Example library for egui"
-edition = "2018"
+edition = "2021"
+rust-version = "1.56"
 homepage = "https://github.com/emilk/egui/tree/master/egui_demo_lib"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -18,10 +19,10 @@ all-features = true
 [lib]
 
 [dependencies]
-egui = { version = "0.15.0", path = "../egui", default-features = false }
-epi = { version = "0.15.0", path = "../epi" }
-egui_dynamic_grid = { version = "0.15.0", path = "../egui_dynamic_grid" }
-egui_datepicker = { version = "0.15.0", path = "../egui_datepicker", optional = true }
+egui = { version = "0.16.0", path = "../egui", default-features = false }
+epi = { version = "0.16.0", path = "../epi" }
+egui_dynamic_grid = { version = "0.16.0", path = "../egui_dynamic_grid" }
+egui_datepicker = { version = "0.16.0", path = "../egui_datepicker", optional = true }
 
 chrono = { version = "0.4", features = ["js-sys", "wasmbind"], optional = true }
 enum-map = { version = "1", features = ["serde"] }

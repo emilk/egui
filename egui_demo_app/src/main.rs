@@ -1,3 +1,5 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
+
 // Forbid warnings in release builds:
 #![cfg_attr(not(debug_assertions), deny(warnings))]
 #![forbid(unsafe_code)]
@@ -8,7 +10,7 @@ fn main() {
     let app = egui_demo_lib::WrapApp::default();
     let options = eframe::NativeOptions {
         // Let's show off that we support transparent windows
-        transparent: true,
+        // transparent: true,
         drag_and_drop_support: true,
         ..Default::default()
     };

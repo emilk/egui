@@ -7,7 +7,7 @@ use epaint::Mesh;
 
 use crate::*;
 
-use super::{PlotBounds, ScreenTransform};
+use super::{CustomLabelFuncRef, PlotBounds, ScreenTransform};
 use rect_elem::*;
 use values::*;
 
@@ -61,7 +61,13 @@ pub(super) trait PlotItem {
         }
     }
 
-    fn on_hover(&self, elem: ClosestElem, shapes: &mut Vec<Shape>, plot: &PlotConfig<'_>) {
+    fn on_hover(
+        &self,
+        elem: ClosestElem,
+        shapes: &mut Vec<Shape>,
+        plot: &PlotConfig<'_>,
+        custom_label_func: &CustomLabelFuncRef,
+    ) {
         let points = match self.geometry() {
             PlotGeometry::Points(points) => points,
             PlotGeometry::None => {
@@ -83,7 +89,7 @@ pub(super) trait PlotItem {
         let pointer = plot.transform.position_from_value(&value);
         shapes.push(Shape::circle_filled(pointer, 3.0, line_color));
 
-        rulers_at_value(pointer, value, self.name(), plot, shapes);
+        rulers_at_value(pointer, value, self.name(), plot, shapes, custom_label_func);
     }
 }
 
@@ -1365,7 +1371,13 @@ impl PlotItem for BarChart {
         find_closest_rect(&self.bars, point, transform)
     }
 
-    fn on_hover(&self, elem: ClosestElem, shapes: &mut Vec<Shape>, plot: &PlotConfig<'_>) {
+    fn on_hover(
+        &self,
+        elem: ClosestElem,
+        shapes: &mut Vec<Shape>,
+        plot: &PlotConfig<'_>,
+        _: &CustomLabelFuncRef,
+    ) {
         let bar = &self.bars[elem.index];
 
         bar.add_shapes(plot.transform, true, shapes);
@@ -1501,7 +1513,13 @@ impl PlotItem for BoxPlot {
         find_closest_rect(&self.boxes, point, transform)
     }
 
-    fn on_hover(&self, elem: ClosestElem, shapes: &mut Vec<Shape>, plot: &PlotConfig<'_>) {
+    fn on_hover(
+        &self,
+        elem: ClosestElem,
+        shapes: &mut Vec<Shape>,
+        plot: &PlotConfig<'_>,
+        _: &CustomLabelFuncRef,
+    ) {
         let box_plot = &self.boxes[elem.index];
 
         box_plot.add_shapes(plot.transform, true, shapes);
@@ -1619,6 +1637,7 @@ pub(super) fn rulers_at_value(
     name: &str,
     plot: &PlotConfig<'_>,
     shapes: &mut Vec<Shape>,
+    custom_label_func: &CustomLabelFuncRef,
 ) {
     let line_color = rulers_color(plot.ui);
     if plot.show_x {
@@ -1638,7 +1657,9 @@ pub(super) fn rulers_at_value(
         let scale = plot.transform.dvalue_dpos();
         let x_decimals = ((-scale[0].abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
         let y_decimals = ((-scale[1].abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
-        if plot.show_x && plot.show_y {
+        if let Some(custom_label) = custom_label_func {
+            custom_label(name, &value)
+        } else if plot.show_x && plot.show_y {
             format!(
                 "{}x = {:.*}\ny = {:.*}",
                 prefix, x_decimals, value.x, y_decimals, value.y

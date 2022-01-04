@@ -3,8 +3,13 @@ All notable changes to the `egui_glium` integration will be noted in this file.
 
 
 ## Unreleased
-* Simplify `EguiGlium` interface ([#871](https://github.com/emilk/egui/pull/871)).
-* Remove `EguiGlium::is_quit_event` ([#881](https://github.com/emilk/egui/pull/881)).
+
+
+## 0.16.0 - 2021-12-29
+* Simplified `EguiGlium` interface ([#871](https://github.com/emilk/egui/pull/871)).
+* Removed `EguiGlium::is_quit_event` ([#881](https://github.com/emilk/egui/pull/881)).
+* Updated `glium` to 0.31 ([#930](https://github.com/emilk/egui/pull/930)).
+* Changed the `Painter` interface slightly ([#999](https://github.com/emilk/egui/pull/999)).
 
 
 ## 0.15.0 - 2021-10-24

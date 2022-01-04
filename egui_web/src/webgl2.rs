@@ -1,4 +1,5 @@
 //! Mostly a carbon-copy of `webgl1.rs`.
+use std::collections::HashMap;
 
 use {
     js_sys::WebAssembly,
@@ -11,7 +12,7 @@ use {
 
 use egui::{
     emath::vec2,
-    epaint::{Color32, Texture},
+    epaint::{Color32, FontImage},
 };
 
 type Gl = WebGl2RenderingContext;
@@ -30,19 +31,10 @@ pub struct WebGl2Painter {
     egui_texture: WebGlTexture,
     egui_texture_version: Option<u64>,
 
-    /// `None` means unallocated (freed) slot.
-    user_textures: Vec<Option<UserTexture>>,
-}
+    /// Index is the same as in [`egui::TextureId::User`].
+    user_textures: HashMap<u64, WebGlTexture>,
 
-#[derive(Default)]
-struct UserTexture {
-    size: (usize, usize),
-
-    /// Pending upload (will be emptied later).
-    pixels: Vec<u8>,
-
-    /// Lazily uploaded
-    gl_texture: Option<WebGlTexture>,
+    next_native_tex_id: u64, // TODO: 128-bit texture space?
 }
 
 impl WebGl2Painter {
@@ -96,109 +88,14 @@ impl WebGl2Painter {
             egui_texture,
             egui_texture_version: None,
             user_textures: Default::default(),
+            next_native_tex_id: 1 << 32,
         })
     }
 
-    fn alloc_user_texture_index(&mut self) -> usize {
-        for (index, tex) in self.user_textures.iter_mut().enumerate() {
-            if tex.is_none() {
-                *tex = Some(Default::default());
-                return index;
-            }
-        }
-        let index = self.user_textures.len();
-        self.user_textures.push(Some(Default::default()));
-        index
-    }
-
-    fn alloc_user_texture(
-        &mut self,
-        size: (usize, usize),
-        srgba_pixels: &[Color32],
-    ) -> egui::TextureId {
-        let index = self.alloc_user_texture_index();
-        assert_eq!(
-            size.0 * size.1,
-            srgba_pixels.len(),
-            "Mismatch between texture size and texel count"
-        );
-
-        if let Some(Some(user_texture)) = self.user_textures.get_mut(index) {
-            let mut pixels: Vec<u8> = Vec::with_capacity(srgba_pixels.len() * 4);
-            for srgba in srgba_pixels {
-                pixels.push(srgba.r());
-                pixels.push(srgba.g());
-                pixels.push(srgba.b());
-                pixels.push(srgba.a());
-            }
-
-            *user_texture = UserTexture {
-                size,
-                pixels,
-                gl_texture: None,
-            };
-        }
-
-        egui::TextureId::User(index as u64)
-    }
-
-    fn free_user_texture(&mut self, id: egui::TextureId) {
-        if let egui::TextureId::User(id) = id {
-            let index = id as usize;
-            if index < self.user_textures.len() {
-                self.user_textures[index] = None;
-            }
-        }
-    }
-
-    pub fn get_texture(&self, texture_id: egui::TextureId) -> Option<&WebGlTexture> {
+    fn get_texture(&self, texture_id: egui::TextureId) -> Option<&WebGlTexture> {
         match texture_id {
             egui::TextureId::Egui => Some(&self.egui_texture),
-            egui::TextureId::User(id) => self
-                .user_textures
-                .get(id as usize)?
-                .as_ref()?
-                .gl_texture
-                .as_ref(),
-        }
-    }
-
-    fn upload_user_textures(&mut self) {
-        let gl = &self.gl;
-        for user_texture in self.user_textures.iter_mut().flatten() {
-            if user_texture.gl_texture.is_none() {
-                let pixels = std::mem::take(&mut user_texture.pixels);
-
-                let gl_texture = gl.create_texture().unwrap();
-                gl.bind_texture(Gl::TEXTURE_2D, Some(&gl_texture));
-                gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_S, Gl::CLAMP_TO_EDGE as i32);
-                gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_T, Gl::CLAMP_TO_EDGE as i32);
-                gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MIN_FILTER, Gl::LINEAR as i32);
-                gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MAG_FILTER, Gl::LINEAR as i32);
-
-                gl.bind_texture(Gl::TEXTURE_2D, Some(&gl_texture));
-
-                let level = 0;
-                let internal_format = Gl::SRGB8_ALPHA8;
-                let border = 0;
-                let src_format = Gl::RGBA;
-                let src_type = Gl::UNSIGNED_BYTE;
-                gl.pixel_storei(Gl::UNPACK_ALIGNMENT, 1);
-                gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
-                    Gl::TEXTURE_2D,
-                    level,
-                    internal_format as i32,
-                    user_texture.size.0 as i32,
-                    user_texture.size.1 as i32,
-                    border,
-                    src_format,
-                    src_type,
-                    Some(&pixels),
-                )
-                .unwrap();
-
-                user_texture.gl_texture = Some(gl_texture);
-            }
+            egui::TextureId::User(id) => self.user_textures.get(&id),
         }
     }
 
@@ -323,51 +220,75 @@ impl WebGl2Painter {
     }
 }
 
-impl epi::TextureAllocator for WebGl2Painter {
-    fn alloc_srgba_premultiplied(
-        &mut self,
-        size: (usize, usize),
-        srgba_pixels: &[egui::Color32],
-    ) -> egui::TextureId {
-        self.alloc_user_texture(size, srgba_pixels)
-    }
-
-    fn free(&mut self, id: egui::TextureId) {
-        self.free_user_texture(id)
-    }
-}
-
 impl epi::NativeTexture for WebGl2Painter {
     type Texture = WebGlTexture;
 
     fn register_native_texture(&mut self, native: Self::Texture) -> egui::TextureId {
-        let id = self.alloc_user_texture_index();
-        if let Some(Some(user_texture)) = self.user_textures.get_mut(id) {
-            *user_texture = UserTexture {
-                size: (0, 0),
-                pixels: vec![],
-                gl_texture: Some(native),
-            }
-        }
+        let id = self.next_native_tex_id;
+        self.next_native_tex_id += 1;
+        self.user_textures.insert(id, native);
         egui::TextureId::User(id as u64)
     }
 
     fn replace_native_texture(&mut self, id: egui::TextureId, replacing: Self::Texture) {
         if let egui::TextureId::User(id) = id {
-            if let Some(Some(user_texture)) = self.user_textures.get_mut(id as usize) {
-                *user_texture = UserTexture {
-                    size: (0, 0),
-                    pixels: vec![],
-                    gl_texture: Some(replacing),
-                }
+            if let Some(user_texture) = self.user_textures.get_mut(&id) {
+                *user_texture = replacing;
             }
         }
     }
 }
 
 impl crate::Painter for WebGl2Painter {
-    fn as_tex_allocator(&mut self) -> &mut dyn epi::TextureAllocator {
-        self
+    fn set_texture(&mut self, tex_id: u64, image: epi::Image) {
+        assert_eq!(
+            image.size[0] * image.size[1],
+            image.pixels.len(),
+            "Mismatch between texture size and texel count"
+        );
+
+        // TODO: optimize
+        let mut pixels: Vec<u8> = Vec::with_capacity(image.pixels.len() * 4);
+        for srgba in image.pixels {
+            pixels.push(srgba.r());
+            pixels.push(srgba.g());
+            pixels.push(srgba.b());
+            pixels.push(srgba.a());
+        }
+
+        let gl = &self.gl;
+        let gl_texture = gl.create_texture().unwrap();
+        gl.bind_texture(Gl::TEXTURE_2D, Some(&gl_texture));
+        gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_S, Gl::CLAMP_TO_EDGE as _);
+        gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_T, Gl::CLAMP_TO_EDGE as _);
+        gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MIN_FILTER, Gl::LINEAR as _);
+        gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MAG_FILTER, Gl::LINEAR as _);
+
+        gl.bind_texture(Gl::TEXTURE_2D, Some(&gl_texture));
+
+        let level = 0;
+        let internal_format = Gl::SRGB8_ALPHA8;
+        let border = 0;
+        let src_format = Gl::RGBA;
+        let src_type = Gl::UNSIGNED_BYTE;
+        gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
+            Gl::TEXTURE_2D,
+            level,
+            internal_format as _,
+            image.size[0] as _,
+            image.size[1] as _,
+            border,
+            src_format,
+            src_type,
+            Some(&pixels),
+        )
+        .unwrap();
+
+        self.user_textures.insert(tex_id, gl_texture);
+    }
+
+    fn free_texture(&mut self, tex_id: u64) {
+        self.user_textures.remove(&tex_id);
     }
 
     fn debug_info(&self) -> String {
@@ -386,13 +307,13 @@ impl crate::Painter for WebGl2Painter {
         &self.canvas_id
     }
 
-    fn upload_egui_texture(&mut self, texture: &Texture) {
-        if self.egui_texture_version == Some(texture.version) {
+    fn upload_egui_texture(&mut self, font_image: &FontImage) {
+        if self.egui_texture_version == Some(font_image.version) {
             return; // No change
         }
 
-        let mut pixels: Vec<u8> = Vec::with_capacity(texture.pixels.len() * 4);
-        for srgba in texture.srgba_pixels(1.0) {
+        let mut pixels: Vec<u8> = Vec::with_capacity(font_image.pixels.len() * 4);
+        for srgba in font_image.srgba_pixels(1.0) {
             pixels.push(srgba.r());
             pixels.push(srgba.g());
             pixels.push(srgba.b());
@@ -412,8 +333,8 @@ impl crate::Painter for WebGl2Painter {
             Gl::TEXTURE_2D,
             level,
             internal_format as i32,
-            texture.width as i32,
-            texture.height as i32,
+            font_image.width as i32,
+            font_image.height as i32,
             border,
             src_format,
             src_type,
@@ -421,7 +342,7 @@ impl crate::Painter for WebGl2Painter {
         )
         .unwrap();
 
-        self.egui_texture_version = Some(texture.version);
+        self.egui_texture_version = Some(font_image.version);
     }
 
     fn clear(&mut self, clear_color: egui::Rgba) {
@@ -448,8 +369,6 @@ impl crate::Painter for WebGl2Painter {
         clipped_meshes: Vec<egui::ClippedMesh>,
         pixels_per_point: f32,
     ) -> Result<(), JsValue> {
-        self.upload_user_textures();
-
         let gl = &self.gl;
 
         self.post_process

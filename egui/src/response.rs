@@ -437,13 +437,12 @@ impl Response {
     /// Move the scroll to this UI with the specified alignment.
     ///
     /// ```
-    /// # use egui::Align;
     /// # egui::__run_test_ui(|ui| {
     /// egui::ScrollArea::vertical().show(ui, |ui| {
     ///     for i in 0..1000 {
-    ///         let response = ui.button(format!("Button {}", i));
+    ///         let response = ui.button("Scroll to me");
     ///         if response.clicked() {
-    ///             response.scroll_to_me(Align::Center);
+    ///             response.scroll_to_me(egui::Align::Center);
     ///         }
     ///     }
     /// });
@@ -490,8 +489,12 @@ impl Response {
     /// });
     /// # });
     /// ```
+    ///
+    /// See also: [`Ui::menu_button`] and [`Ui::close_menu`].
     pub fn context_menu(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
-        self.ctx.show_context_menu(&self, add_contents);
+        self.ctx
+            .context_menu_system()
+            .context_menu(&self, add_contents);
         self
     }
 }

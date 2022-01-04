@@ -42,7 +42,7 @@ impl BarState {
         ctx.memory().data.insert_temp(bar_id, self);
     }
 
-    /// Show a menu at pointer if right-clicked response.
+    /// Show a menu at pointer if primary-clicked response.
     /// Should be called from [`Context`] on a [`Response`]
     pub fn bar_menu<R>(
         &mut self,
@@ -87,7 +87,10 @@ pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResp
         add_contents(ui)
     })
 }
+
 /// Construct a top level menu in a menu bar. This would be e.g. "File", "Edit" etc.
+///
+/// Responds to primary clicks.
 ///
 /// Returns `None` if the menu is not open.
 pub fn menu_button<R>(
@@ -97,7 +100,10 @@ pub fn menu_button<R>(
 ) -> InnerResponse<Option<R>> {
     stationary_menu_impl(ui, title, Box::new(add_contents))
 }
+
 /// Construct a nested sub menu in another menu.
+///
+/// Opens on hover.
 ///
 /// Returns `None` if the menu is not open.
 pub(crate) fn submenu_button<R>(
@@ -150,7 +156,9 @@ pub(crate) fn menu_ui<'c, R>(
     inner_response
 }
 
-/// build a top level menu with a button
+/// Build a top level menu with a button.
+///
+/// Responds to primary clicks.
 fn stationary_menu_impl<'c, R>(
     ui: &mut Ui,
     title: impl Into<WidgetText>,
@@ -275,7 +283,10 @@ impl MenuRoot {
         }
         (MenuResponse::Stay, None)
     }
-    /// interaction with a stationary menu, i.e. fixed in another Ui
+
+    /// Interaction with a stationary menu, i.e. fixed in another Ui.
+    ///
+    /// Responds to primary clicks.
     fn stationary_interaction(
         response: &Response,
         root: &mut MenuRootManager,
@@ -310,7 +321,8 @@ impl MenuRoot {
         }
         MenuResponse::Stay
     }
-    /// interaction with a context menu
+
+    /// Interaction with a context menu (secondary clicks).
     fn context_interaction(
         response: &Response,
         root: &mut Option<MenuRoot>,
@@ -328,10 +340,9 @@ impl MenuRoot {
                     destroy = root.id == response.id;
                 }
                 if !in_old_menu {
-                    let in_target = response.hovered();
-                    if in_target && pointer.secondary_down() {
+                    if response.hovered() && pointer.secondary_down() {
                         return MenuResponse::Create(pos, id);
-                    } else if (in_target && pointer.primary_down()) || destroy {
+                    } else if (response.hovered() && pointer.primary_down()) || destroy {
                         return MenuResponse::Close;
                     }
                 }
@@ -339,6 +350,7 @@ impl MenuRoot {
         }
         MenuResponse::Stay
     }
+
     fn handle_menu_response(root: &mut MenuRootManager, menu_response: MenuResponse) {
         match menu_response {
             MenuResponse::Create(pos, id) => {
@@ -348,11 +360,14 @@ impl MenuRoot {
             MenuResponse::Stay => {}
         }
     }
+
     /// Respond to secondary (right) clicks.
     pub fn context_click_interaction(response: &Response, root: &mut MenuRootManager, id: Id) {
         let menu_response = Self::context_interaction(response, root, id);
         Self::handle_menu_response(root, menu_response);
     }
+
+    // Responds to primary clicks.
     pub fn stationary_click_interaction(response: &Response, root: &mut MenuRootManager, id: Id) {
         let menu_response = Self::stationary_interaction(response, root, id);
         Self::handle_menu_response(root, menu_response);
