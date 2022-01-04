@@ -144,7 +144,20 @@ pub trait App {
     /// where `APPNAME` is what is returned by [`Self::name()`].
     fn save(&mut self, _storage: &mut dyn Storage) {}
 
-    /// Called once on shutdown (before or after [`Self::save`])
+    /// Called before an exit that can be aborted.
+    /// By returning `false` the exit will be aborted. To continue the exit return `true`.
+    ///
+    /// A scenario where this method will be run is after pressing the close button on a native
+    /// window, which allows you to ask the user whether they want to do something before exiting.
+    /// See the example `eframe/examples/confirm_exit.rs` for practical usage.
+    ///
+    /// It will _not_ be called on the web or when the window is forcefully closed.
+    fn on_exit_event(&mut self) -> bool {
+        true
+    }
+
+    /// Called once on shutdown (before or after [`Self::save`]). If you need to abort an exit use
+    /// [`Self::on_exit_event`]
     fn on_exit(&mut self) {}
 
     // ---------
