@@ -828,6 +828,22 @@ impl Context {
         animated_value
     }
 
+    /// Allows you to smoothly change the f32 value. 
+    /// At the first call the value is written to memory. 
+    /// When it is called with a new Value, it comes to it smoothly in a given time.
+     pub fn animate_value_with_time(&self, id: Id, value: f32, animation_time: f32) -> f32 {
+        let animated_value =
+            self.animation_manager
+                .lock()
+                .animate_value(&self.input, animation_time, id, value);
+        let animation_in_progress = animated_value != value;
+        if animation_in_progress {
+            self.request_repaint();
+        } 
+        
+        animated_value
+    }
+
     /// Clear memory of any animations.
     pub fn clear_animations(&self) {
         *self.animation_manager.lock() = Default::default();
