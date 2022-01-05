@@ -35,6 +35,7 @@ pub struct Painter {
     is_embedded: bool,
     vertex_array: crate::misc_util::VAO,
     srgb_support: bool,
+    scale_filter: u32,
     post_process: Option<PostProcess>,
     vertex_buffer: glow::Buffer,
     element_array_buffer: glow::Buffer,
@@ -50,6 +51,27 @@ pub struct Painter {
 
     /// Used to make sure we are destroyed correctly.
     destroyed: bool,
+}
+
+#[derive(Copy, Clone)]
+pub enum ScaleFilter {
+    Linear,
+    Nearest,
+}
+
+impl Default for ScaleFilter {
+    fn default() -> Self {
+        ScaleFilter::Linear
+    }
+}
+
+impl ScaleFilter {
+    fn glow_code(&self) -> u32 {
+        match self {
+            ScaleFilter::Linear => glow::LINEAR,
+            ScaleFilter::Nearest => glow::NEAREST,
+        }
+    }
 }
 
 impl Painter {
@@ -190,6 +212,7 @@ impl Painter {
                 is_embedded: matches!(shader_version, ShaderVersion::Es100 | ShaderVersion::Es300),
                 vertex_array,
                 srgb_support,
+                scale_filter: ScaleFilter::default().glow_code(),
                 post_process,
                 vertex_buffer,
                 element_array_buffer,
@@ -224,6 +247,7 @@ impl Painter {
                 gl,
                 self.is_webgl_1,
                 self.srgb_support,
+                self.scale_filter,
                 &pixels,
                 font_image.width,
                 font_image.height,
@@ -387,6 +411,12 @@ impl Painter {
         }
     }
 
+    // Set the filter to be used for any subsequent textures loaded via
+    // `set_texture`.
+    pub fn set_scale_filter(&mut self, scale_filter: ScaleFilter) {
+        self.scale_filter = scale_filter.glow_code();
+    }
+
     // ------------------------------------------------------------------------
 
     #[cfg(feature = "epi")]
@@ -410,6 +440,7 @@ impl Painter {
             gl,
             self.is_webgl_1,
             self.srgb_support,
+            self.scale_filter,
             &pixels,
             image.size[0],
             image.size[1],
