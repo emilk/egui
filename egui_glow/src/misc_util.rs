@@ -6,7 +6,7 @@ pub(crate) fn srgbtexture2d(
     gl: &glow::Context,
     is_webgl_1: bool,
     srgb_support: bool,
-    scale_filter: u32,
+    texture_filter: u32,
     data: &[u8],
     w: usize,
     h: usize,
@@ -21,12 +21,12 @@ pub(crate) fn srgbtexture2d(
         gl.tex_parameter_i32(
             glow::TEXTURE_2D,
             glow::TEXTURE_MAG_FILTER,
-            scale_filter as i32,
+            texture_filter as i32,
         );
         gl.tex_parameter_i32(
             glow::TEXTURE_2D,
             glow::TEXTURE_MIN_FILTER,
-            scale_filter as i32,
+            texture_filter as i32,
         );
         gl.tex_parameter_i32(
             glow::TEXTURE_2D,

@@ -3,7 +3,7 @@ All notable changes to the `egui_glow` integration will be noted in this file.
 
 
 ## Unreleased
-* Added `set_scale_filter` method to `Painter`.
+* Added `set_texture_filter` method to `Painter`.
 
 ## 0.16.0 - 2021-12-29
 * Made winit/glutin an optional dependency ([#868](https://github.com/emilk/egui/pull/868)).
