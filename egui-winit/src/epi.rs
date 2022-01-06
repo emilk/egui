@@ -1,3 +1,5 @@
+use epi::WebInfo;
+
 pub fn window_builder(
     native_options: &epi::NativeOptions,
     window_settings: &Option<crate::WindowSettings>,
@@ -251,11 +253,20 @@ impl EpiIntegration {
         let egui_ctx = egui::CtxRef::default();
 
         *egui_ctx.memory() = persistence.load_memory().unwrap_or_default();
-
+        #[cfg(not(target_arch = "wasm32"))]
+        let web_info = None;
+        #[cfg(target_arch = "wasm32")]
+        fn location_hash() -> Option<String> {
+            web_sys::window()?.location().hash().ok()
+        }
+        #[cfg(target_arch = "wasm32")]
+        let web_info = Some(WebInfo{
+            web_location_hash:location_hash().unwrap_or_default()
+        });
         let frame = epi::Frame::new(epi::backend::FrameData {
             info: epi::IntegrationInfo {
                 name: integration_name,
-                web_info: None,
+                web_info,
                 prefer_dark_mode: None, // TODO: figure out system default
                 cpu_usage: None,
                 native_pixels_per_point: Some(crate::native_pixels_per_point(window)),

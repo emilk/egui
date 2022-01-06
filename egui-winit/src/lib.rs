@@ -471,6 +471,7 @@ impl State {
         }
     }
 
+    /// cut copy paste will not work on web.
     fn on_keyboard_input(&mut self, input: &winit::event::KeyboardInput) {
         if let Some(keycode) = input.virtual_keycode {
             let pressed = input.state == winit::event::ElementState::Pressed;
