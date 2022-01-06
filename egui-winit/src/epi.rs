@@ -111,11 +111,6 @@ fn local_storage_set(key: &str, value: &str) {
 }
 
 #[cfg(target_arch = "wasm32")]
-fn local_storage_remove(key: &str) {
-    browser_local_storage().map(|storage| storage.remove_item(key));
-}
-
-#[cfg(target_arch = "wasm32")]
 #[derive(Default)]
 struct LocalStorage {}
 
@@ -147,17 +142,17 @@ impl Persistence {
 
     pub fn from_app_name(app_name: &str) -> Self {
         fn create_storage(_app_name: &str) -> Option<Box<dyn epi::Storage>> {
-            #[cfg(feature = "persistence")]
-            {
-                #[cfg(not(target_arch = "wasm32"))]
-                if let Some(storage) = epi::file_storage::FileStorage::from_app_name(_app_name) {
-                    return Some(Box::new(storage));
-                }
-                #[cfg(target_arch = "wasm32")]
-                {
-                    return Some(Box::new(LocalStorage {}));
-                }
+            #[cfg(all(feature = "persistence", not(target_arch = "wasm32")))]
+            if let Some(storage) = epi::file_storage::FileStorage::from_app_name(_app_name) {
+                Some(Box::new(storage))
+            } else {
+                None
             }
+            #[cfg(all(feature = "persistence", target_arch = "wasm32"))]
+            {
+                Some(Box::new(LocalStorage {}))
+            }
+            #[cfg(not(feature = "persistence"))]
             None
         }
 

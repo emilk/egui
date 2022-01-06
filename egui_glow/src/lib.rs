@@ -92,6 +92,7 @@ pub use glow;
 pub use painter::Painter;
 #[cfg(feature = "winit")]
 mod epi_backend;
+#[cfg(all(feature = "winit", target_arch = "wasm32"))]
 mod epi_web;
 mod misc_util;
 mod post_process;

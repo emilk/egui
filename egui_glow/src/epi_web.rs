@@ -1,25 +1,22 @@
 // epi related implementations here.
-#[cfg(target_arch = "wasm32")]
 use std::borrow::Borrow;
-#[cfg(target_arch = "wasm32")]
+use std::sync::atomic::Ordering::SeqCst;
+use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
-#[cfg(target_arch = "wasm32")]
 use web_sys::HtmlCanvasElement;
 
 /*
     repaint signal for web.
 */
-#[cfg(target_arch = "wasm32")]
-use std::sync::atomic::Ordering::SeqCst;
-#[cfg(target_arch = "wasm32")]
+
 pub struct NeedRepaint(std::sync::atomic::AtomicBool);
-#[cfg(target_arch = "wasm32")]
+
 impl Default for NeedRepaint {
     fn default() -> Self {
         Self(true.into())
     }
 }
-#[cfg(target_arch = "wasm32")]
+
 impl NeedRepaint {
     #[allow(dead_code)]
     pub fn fetch_and_clear(&self) -> bool {
@@ -30,34 +27,30 @@ impl NeedRepaint {
         self.0.store(true, SeqCst);
     }
 }
-#[cfg(target_arch = "wasm32")]
+
 impl epi::backend::RepaintSignal for NeedRepaint {
     fn request_repaint(&self) {
         self.0.store(true, SeqCst);
     }
 }
 
-/* minimally emulates glutin::WindowedContext.
-*/
-#[cfg(target_arch = "wasm32")]
 #[allow(dead_code)]
 pub(crate) struct WebGLWindowedContextLike {
     canvas: HtmlCanvasElement,
     window: egui_winit::winit::window::Window,
 }
-#[cfg(target_arch = "wasm32")]
+
 impl WebGLWindowedContextLike {
     pub(crate) fn window(&self) -> &egui_winit::winit::window::Window {
         self.window.borrow()
     }
 }
 
-#[cfg(target_arch = "wasm32")]
 pub(crate) fn create_gl_context(
     window_builder: egui_winit::winit::window::WindowBuilder,
     event_loop: &egui_winit::winit::event_loop::EventLoop<()>,
 ) -> Result<(WebGLWindowedContextLike, (glow::Context, bool)), wasm_bindgen::JsValue> {
-    pub(crate) fn is_safari_and_webkit_gtk(gl: &web_sys::WebGlRenderingContext) -> bool {
+    fn is_safari_and_webkit_gtk(gl: &web_sys::WebGlRenderingContext) -> bool {
         if let Ok(renderer) =
             gl.get_parameter(web_sys::WebglDebugRendererInfo::UNMASKED_RENDERER_WEBGL)
         {
@@ -106,7 +99,6 @@ pub(crate) fn create_gl_context(
     let window = window_builder.build(event_loop).unwrap();
     let canvas: HtmlCanvasElement = window.canvas();
     {
-        use wasm_bindgen::closure::Closure;
         // By default, right-clicks open a context menu.
         // We don't want to do that (right clicks is handled by egui):
         let event_name = "contextmenu";
@@ -122,19 +114,18 @@ pub(crate) fn create_gl_context(
     let glow_ctx = init_glow_context_from_canvas(&canvas);
     body.append_child(&canvas)
         .expect("Append canvas to HTML body");
-    Ok((
-        WebGLWindowedContextLike {
-            canvas,
-            window: window,
-        },
-        glow_ctx,
-    ))
+    Ok((WebGLWindowedContextLike { canvas, window }, glow_ctx))
 }
+
 /*
+use wasm_bindgen::JsValue;
+use std::cell::Cell;
+use std::rc::Rc;
+///
+static AGENT_ID: &str = "egui_text_agent";
 ///
 /// Text event handler,
 fn install_text_agent(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
-    use wasm_bindgen::JsCast;
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
     let body = document.body().expect("document should have a body");
@@ -191,7 +182,7 @@ fn install_text_agent(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 }
                 "compositionupdate" => event.data().map(egui::Event::CompositionUpdate),
                 s => {
-                    console_error(format!("Unknown composition event type: {:?}", s));
+                   web_sys::console::error_1(&format!("Unknown composition event type: {:?}", s).into());
                     None
                 }
             };

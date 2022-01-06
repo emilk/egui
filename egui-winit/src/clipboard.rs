@@ -77,7 +77,7 @@ fn init_copypasta() -> Option<ClipboardContext> {
 fn init_copypasta() -> Option<ClipboardContext> {
     Some({
         let cc = ClipboardContext::new();
-        //cc.install_event_handler();
+        cc.install_event_handler();
         // clipboard hijack test.
         ClipboardContext::set_clipboard_text("Hijacked from egui-winit on web");
         cc
@@ -112,9 +112,7 @@ impl WebSysClipboardContext {
                         let mut lock = buffer_ref.write();
                         let text = String::from(text.replace("\r\n", "\n"));
                         web_sys::console::debug_1(
-                            &format!("paste by copypasta on websys : {}", text)
-                                .into_js_result()
-                                .unwrap(),
+                            &format!("paste by copypasta on websys fired: {}", text).into(),
                         );
                         *lock = text;
                         event.stop_propagation();
@@ -133,6 +131,7 @@ impl WebSysClipboardContext {
             web_sys::console::log_1(&"installing cut event handler".into());
             // cut
             let closure = Closure::wrap(Box::new(move |_: web_sys::ClipboardEvent| {
+                web_sys::console::debug_1(&"cut by copypasta on websys fired: {}".into());
                 Self::set_clipboard_text(&buffer_ref.read())
             }) as Box<dyn FnMut(_)>);
             document
@@ -146,6 +145,7 @@ impl WebSysClipboardContext {
             web_sys::console::log_1(&"installing copy event handler".into());
             // copy
             let closure = Closure::wrap(Box::new(move |_: web_sys::ClipboardEvent| {
+                web_sys::console::debug_1(&"copy by copypasta on websys fired".into());
                 Self::set_clipboard_text(&buffer_ref.read())
             }) as Box<dyn FnMut(_)>);
             document
@@ -182,8 +182,6 @@ use egui::mutex::RwLock;
 use std::error::Error;
 #[cfg(feature = "web-sys")]
 use std::sync::Arc;
-#[cfg(feature = "web-sys")]
-use wasm_bindgen::__rt::IntoJsResult;
 #[cfg(feature = "web-sys")]
 pub type CPResult<T> = std::result::Result<T, Box<dyn Error + Send + Sync + 'static>>;
 #[cfg(feature = "web-sys")]
