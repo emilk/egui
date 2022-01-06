@@ -15,6 +15,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 
 ### Fixed 🐛
 * Context menu now respects the theme ([#1043](https://github.com/emilk/egui/pull/1043))
+* Immovable windows can no longer incorrectly move ([#1049](https://github.com/emilk/egui/pull/1049))
 
 ## 0.16.1 - 2021-12-31 - Add back `CtxRef::begin_frame,end_frame`
 
