@@ -53,6 +53,19 @@ pub use epi::NativeOptions;
 /// Run an egui app
 #[allow(unsafe_code)]
 pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
+    // when startup on web need to delete loading animation
+    // we should done in JS but winit wont return control.
+    #[cfg(target_arch = "wasm32")]
+    {
+        web_sys::window().map(|window: web_sys::Window| {
+            window.document().map(|document: web_sys::Document| {
+                document
+                    .get_element_by_id("loading")
+                    .map(|element: web_sys::Element| element.remove())
+            });
+        });
+    }
+
     let persistence = egui_winit::epi::Persistence::from_app_name(app.name());
     let window_settings = persistence.load_window_settings();
     let window_builder =

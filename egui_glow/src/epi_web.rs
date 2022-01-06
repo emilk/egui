@@ -44,7 +44,7 @@ impl WebGLWindowedContextLike {
     pub(crate) fn window(&self) -> &egui_winit::winit::window::Window {
         self.window.borrow()
     }
-    pub(crate) fn resize<S:Into<egui_winit::winit::dpi::Size>>(&self,size:S){
+    pub(crate) fn resize<S: Into<egui_winit::winit::dpi::Size>>(&self, size: S) {
         self.window.set_inner_size(size)
     }
 }
@@ -109,7 +109,11 @@ pub(crate) fn create_gl_context(
         .ok();
     //
     if let Some(canvas) = canvas {
-        if let Some(window) = window_builder.with_canvas(Some(canvas.clone())).build(event_loop).ok() {
+        if let Some(window) = window_builder
+            .with_canvas(Some(canvas.clone()))
+            .build(event_loop)
+            .ok()
+        {
             {
                 // By default, right-clicks open a context menu.
                 // We don't want to do that (right clicks is handled by egui):
@@ -129,7 +133,7 @@ pub(crate) fn create_gl_context(
         } else {
             Err("Failed to build winit::Window from canvas".into())
         }
-    }else{
+    } else {
         Err("Failed to get canvas".into())
     }
 }
