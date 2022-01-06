@@ -174,6 +174,10 @@ pub enum Event {
     PointerGone,
 
     /// How many points (logical pixels) the user scrolled.
+    ///
+    /// The direction of the vector indicates how to move the _content_ that is being viewed.
+    /// So if you get positive values, the content being viewed should move to the right and down,
+    /// revealing new things to the left and up.
     Scroll(Vec2),
 
     /// Zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).

@@ -6,6 +6,9 @@ enum ProgressBarText {
 }
 
 /// A simple progress bar.
+///
+/// See also: [`crate::Spinner`].
+#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct ProgressBar {
     progress: f32,
     desired_width: Option<f32>,
@@ -62,10 +65,6 @@ impl Widget for ProgressBar {
 
         let animate = animate && progress < 1.0;
 
-        if animate {
-            ui.ctx().request_repaint();
-        }
-
         let desired_width =
             desired_width.unwrap_or_else(|| ui.available_size_before_wrap().x.at_least(96.0));
         let height = ui.spacing().interact_size.y;
@@ -73,6 +72,10 @@ impl Widget for ProgressBar {
             ui.allocate_exact_size(vec2(desired_width, height), Sense::hover());
 
         if ui.is_rect_visible(response.rect) {
+            if animate {
+                ui.ctx().request_repaint();
+            }
+
             let visuals = ui.style().visuals.clone();
             let corner_radius = outer_rect.height() / 2.0;
             ui.painter().rect(
