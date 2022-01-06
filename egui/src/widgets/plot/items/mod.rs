@@ -1638,17 +1638,19 @@ pub(super) fn rulers_at_value(
         shapes.push(horizontal_line(pointer, plot.transform, line_color));
     }
 
-    let hover_label_func = plot.hover_label_func;
-    let text = hover_label_func(&plot.hover_config, name, &value);
+    if hover_config.show_hover_label {
+        let hover_label_func = plot.hover_label_func;
+        let text = hover_label_func(&plot.hover_config, name, &value);
 
-    shapes.push(Shape::text(
-        plot.ui.fonts(),
-        pointer + vec2(3.0, -2.0),
-        Align2::LEFT_BOTTOM,
-        text,
-        TextStyle::Body,
-        plot.ui.visuals().text_color(),
-    ));
+        shapes.push(Shape::text(
+            plot.ui.fonts(),
+            pointer + vec2(3.0, -2.0),
+            Align2::LEFT_BOTTOM,
+            text,
+            TextStyle::Body,
+            plot.ui.visuals().text_color(),
+        ));
+    }
 }
 
 fn find_closest_rect<'a, T>(

@@ -354,8 +354,8 @@ impl Widget for &mut ItemsDemo {
 
         let plot = Plot::new("items_demo")
             .legend(Legend::default().position(Corner::RightBottom))
-            .show_x(false)
-            .show_y(false)
+            .show_hover_line_x(false)
+            .show_hover_line_y(false)
             .data_aspect(1.0);
         plot.show(ui, |plot_ui| {
             plot_ui.hline(HLine::new(9.0).name("Lines horizontal"));
