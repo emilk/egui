@@ -26,8 +26,14 @@ const DEFAULT_FILL_ALPHA: f32 = 0.05;
 pub(super) struct PlotConfig<'a> {
     pub ui: &'a Ui,
     pub transform: &'a ScreenTransform,
-    pub show_x: bool,
-    pub show_y: bool,
+    pub hover_config: HoverConfig,
+    pub hover_label_func: &'a CustomLabelFuncRef,
+}
+
+pub struct HoverConfig {
+    pub show_hover_line_x: bool,
+    pub show_hover_line_y: bool,
+    pub show_hover_label: bool,
 }
 
 /// Trait shared by things that can be drawn in the plot.
@@ -61,13 +67,7 @@ pub(super) trait PlotItem {
         }
     }
 
-    fn on_hover(
-        &self,
-        elem: ClosestElem,
-        shapes: &mut Vec<Shape>,
-        plot: &PlotConfig<'_>,
-        custom_label_func: &CustomLabelFuncRef,
-    ) {
+    fn on_hover(&self, elem: ClosestElem, shapes: &mut Vec<Shape>, plot: &PlotConfig<'_>) {
         let points = match self.geometry() {
             PlotGeometry::Points(points) => points,
             PlotGeometry::None => {
@@ -89,7 +89,7 @@ pub(super) trait PlotItem {
         let pointer = plot.transform.position_from_value(&value);
         shapes.push(Shape::circle_filled(pointer, 3.0, line_color));
 
-        rulers_at_value(pointer, value, self.name(), plot, shapes, custom_label_func);
+        rulers_at_value(pointer, value, self.name(), plot, shapes);
     }
 }
 
@@ -1371,13 +1371,7 @@ impl PlotItem for BarChart {
         find_closest_rect(&self.bars, point, transform)
     }
 
-    fn on_hover(
-        &self,
-        elem: ClosestElem,
-        shapes: &mut Vec<Shape>,
-        plot: &PlotConfig<'_>,
-        _: &CustomLabelFuncRef,
-    ) {
+    fn on_hover(&self, elem: ClosestElem, shapes: &mut Vec<Shape>, plot: &PlotConfig<'_>) {
         let bar = &self.bars[elem.index];
 
         bar.add_shapes(plot.transform, true, shapes);
@@ -1513,13 +1507,7 @@ impl PlotItem for BoxPlot {
         find_closest_rect(&self.boxes, point, transform)
     }
 
-    fn on_hover(
-        &self,
-        elem: ClosestElem,
-        shapes: &mut Vec<Shape>,
-        plot: &PlotConfig<'_>,
-        _: &CustomLabelFuncRef,
-    ) {
+    fn on_hover(&self, elem: ClosestElem, shapes: &mut Vec<Shape>, plot: &PlotConfig<'_>) {
         let box_plot = &self.boxes[elem.index];
 
         box_plot.add_shapes(plot.transform, true, shapes);
@@ -1566,11 +1554,13 @@ fn add_rulers_and_text(
     text: Option<String>,
     shapes: &mut Vec<Shape>,
 ) {
+    let hover_config = &plot.hover_config;
+
     let orientation = elem.orientation();
-    let show_argument = plot.show_x && orientation == Orientation::Vertical
-        || plot.show_y && orientation == Orientation::Horizontal;
-    let show_values = plot.show_y && orientation == Orientation::Vertical
-        || plot.show_x && orientation == Orientation::Horizontal;
+    let show_argument = hover_config.show_hover_line_x && orientation == Orientation::Vertical
+        || hover_config.show_hover_line_y && orientation == Orientation::Horizontal;
+    let show_values = hover_config.show_hover_line_y && orientation == Orientation::Vertical
+        || hover_config.show_hover_line_x && orientation == Orientation::Horizontal;
 
     let line_color = rulers_color(plot.ui);
 
@@ -1637,41 +1627,19 @@ pub(super) fn rulers_at_value(
     name: &str,
     plot: &PlotConfig<'_>,
     shapes: &mut Vec<Shape>,
-    custom_label_func: &CustomLabelFuncRef,
 ) {
+    let hover_config = &plot.hover_config;
+
     let line_color = rulers_color(plot.ui);
-    if plot.show_x {
+    if hover_config.show_hover_line_x {
         shapes.push(vertical_line(pointer, plot.transform, line_color));
     }
-    if plot.show_y {
+    if hover_config.show_hover_line_y {
         shapes.push(horizontal_line(pointer, plot.transform, line_color));
     }
 
-    let mut prefix = String::new();
-
-    if !name.is_empty() {
-        prefix = format!("{}\n", name);
-    }
-
-    let text = {
-        let scale = plot.transform.dvalue_dpos();
-        let x_decimals = ((-scale[0].abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
-        let y_decimals = ((-scale[1].abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
-        if let Some(custom_label) = custom_label_func {
-            custom_label(name, &value)
-        } else if plot.show_x && plot.show_y {
-            format!(
-                "{}x = {:.*}\ny = {:.*}",
-                prefix, x_decimals, value.x, y_decimals, value.y
-            )
-        } else if plot.show_x {
-            format!("{}x = {:.*}", prefix, x_decimals, value.x)
-        } else if plot.show_y {
-            format!("{}y = {:.*}", prefix, y_decimals, value.y)
-        } else {
-            unreachable!()
-        }
-    };
+    let hover_label_func = plot.hover_label_func;
+    let text = hover_label_func(&plot.hover_config, name, &value);
 
     shapes.push(Shape::text(
         plot.ui.fonts(),
