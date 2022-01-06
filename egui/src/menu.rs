@@ -16,9 +16,8 @@
 //! ```
 
 use super::{
-    style::{Spacing, WidgetVisuals},
-    Align, CtxRef, Id, InnerResponse, PointerState, Pos2, Rect, Response, Sense, Style, TextStyle,
-    Ui, Vec2,
+    style::WidgetVisuals, Align, CtxRef, Id, InnerResponse, PointerState, Pos2, Rect, Response,
+    Sense, TextStyle, Ui, Vec2,
 };
 use crate::{widgets::*, *};
 use epaint::{mutex::RwLock, Stroke};
@@ -120,7 +119,6 @@ pub(crate) fn menu_ui<'c, R>(
     ctx: &CtxRef,
     menu_id: impl std::hash::Hash,
     menu_state_arc: &Arc<RwLock<MenuState>>,
-    mut style: Style,
     add_contents: impl FnOnce(&mut Ui) -> R + 'c,
 ) -> InnerResponse<R> {
     let pos = {
@@ -128,29 +126,34 @@ pub(crate) fn menu_ui<'c, R>(
         menu_state.entry_count = 0;
         menu_state.rect.min
     };
-    // style.visuals.widgets.active.bg_fill = Color32::TRANSPARENT;
-    style.visuals.widgets.active.bg_stroke = Stroke::none();
-    // style.visuals.widgets.hovered.bg_fill = Color32::TRANSPARENT;
-    style.visuals.widgets.hovered.bg_stroke = Stroke::none();
-    style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
-    style.visuals.widgets.inactive.bg_stroke = Stroke::none();
+
     let area = Area::new(menu_id)
         .order(Order::Foreground)
         .fixed_pos(pos)
         .interactable(false)
         .drag_bounds(Rect::EVERYTHING);
-    let frame = Frame::menu(&style);
     let inner_response = area.show(ctx, |ui| {
-        frame
-            .show(ui, |ui| {
-                const DEFAULT_MENU_WIDTH: f32 = 150.0; // TODO: add to ui.spacing
-                ui.set_max_width(DEFAULT_MENU_WIDTH);
-                ui.set_style(style);
-                ui.set_menu_state(Some(menu_state_arc.clone()));
-                ui.with_layout(Layout::top_down_justified(Align::LEFT), add_contents)
-                    .inner
-            })
-            .inner
+        ui.scope(|ui| {
+            let style = ui.style_mut();
+            style.spacing.item_spacing = Vec2::ZERO;
+            style.spacing.button_padding = crate::vec2(2.0, 0.0);
+
+            style.visuals.widgets.active.bg_stroke = Stroke::none();
+            style.visuals.widgets.hovered.bg_stroke = Stroke::none();
+            style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
+            style.visuals.widgets.inactive.bg_stroke = Stroke::none();
+
+            Frame::menu(style)
+                .show(ui, |ui| {
+                    const DEFAULT_MENU_WIDTH: f32 = 150.0; // TODO: add to ui.spacing
+                    ui.set_max_width(DEFAULT_MENU_WIDTH);
+                    ui.set_menu_state(Some(menu_state_arc.clone()));
+                    ui.with_layout(Layout::top_down_justified(Align::LEFT), add_contents)
+                        .inner
+                })
+                .inner
+        })
+        .inner
     });
     menu_state_arc.write().rect = inner_response.response.rect;
     inner_response
@@ -522,15 +525,7 @@ impl MenuState {
         id: Id,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        let style = Style {
-            spacing: Spacing {
-                item_spacing: Vec2::ZERO,
-                button_padding: crate::vec2(2.0, 0.0),
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-        crate::menu::menu_ui(ctx, id, menu_state, style, add_contents)
+        crate::menu::menu_ui(ctx, id, menu_state, add_contents)
     }
     fn show_submenu<R>(
         &mut self,
