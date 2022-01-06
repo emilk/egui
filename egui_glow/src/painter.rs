@@ -413,7 +413,7 @@ impl Painter {
     }
 
     // Set the filter to be used for any subsequent textures loaded via
-    // `set_texture`.
+    // [`Self::set_texture`].
     pub fn set_texture_filter(&mut self, texture_filter: TextureFilter) {
         self.texture_filter = texture_filter;
     }
