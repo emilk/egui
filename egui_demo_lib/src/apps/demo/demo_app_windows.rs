@@ -28,6 +28,7 @@ impl Default for Demos {
             Box::new(super::plot_demo::PlotDemo::default()),
             Box::new(super::scrolling::Scrolling::default()),
             Box::new(super::sliders::Sliders::default()),
+            Box::new(super::text_edit::TextEdit::default()),
             Box::new(super::widget_gallery::WidgetGallery::default()),
             Box::new(super::window_options::WindowOptions::default()),
             Box::new(super::tests::WindowResizeTest::default()),

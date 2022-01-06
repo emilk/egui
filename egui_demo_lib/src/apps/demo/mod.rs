@@ -21,6 +21,7 @@ pub mod plot_demo;
 pub mod scrolling;
 pub mod sliders;
 pub mod tests;
+pub mod text_edit;
 pub mod toggle_switch;
 pub mod widget_gallery;
 pub mod window_options;

@@ -37,6 +37,15 @@ impl CursorRange {
         }
     }
 
+    /// The range of selected character indices.
+    pub fn as_sorted_char_range(&self) -> std::ops::Range<usize> {
+        let [start, end] = self.sorted_cursors();
+        std::ops::Range {
+            start: start.ccursor.index,
+            end: end.ccursor.index,
+        }
+    }
+
     /// True if the selected range contains no characters.
     pub fn is_empty(&self) -> bool {
         self.primary.ccursor == self.secondary.ccursor
@@ -58,8 +67,19 @@ impl CursorRange {
         (p.index, p.prefer_next_row) <= (s.index, s.prefer_next_row)
     }
 
+    pub fn sorted(self) -> Self {
+        if self.is_sorted() {
+            self
+        } else {
+            Self {
+                primary: self.secondary,
+                secondary: self.primary,
+            }
+        }
+    }
+
     /// returns the two ends ordered
-    pub fn sorted(&self) -> [Cursor; 2] {
+    pub fn sorted_cursors(&self) -> [Cursor; 2] {
         if self.is_sorted() {
             [self.primary, self.secondary]
         } else {

@@ -376,10 +376,10 @@ impl ScrollArea {
     /// let text_style = egui::TextStyle::Body;
     /// let row_height = ui.fonts()[text_style].row_height();
     /// // let row_height = ui.spacing().interact_size.y; // if you are adding buttons instead of labels.
-    /// let num_rows = 10_000;
-    /// egui::ScrollArea::vertical().show_rows(ui, row_height, num_rows, |ui, row_range| {
+    /// let total_rows = 10_000;
+    /// egui::ScrollArea::vertical().show_rows(ui, row_height, total_rows, |ui, row_range| {
     ///     for row in row_range {
-    ///         let text = format!("Row {}/{}", row + 1, num_rows);
+    ///         let text = format!("Row {}/{}", row + 1, total_rows);
     ///         ui.label(text);
     ///     }
     /// });
@@ -389,19 +389,19 @@ impl ScrollArea {
         self,
         ui: &mut Ui,
         row_height_sans_spacing: f32,
-        num_rows: usize,
+        total_rows: usize,
         add_contents: impl FnOnce(&mut Ui, std::ops::Range<usize>) -> R,
     ) -> R {
         let spacing = ui.spacing().item_spacing;
         let row_height_with_spacing = row_height_sans_spacing + spacing.y;
         self.show_viewport(ui, |ui, viewport| {
-            ui.set_height((row_height_with_spacing * num_rows as f32 - spacing.y).at_least(0.0));
+            ui.set_height((row_height_with_spacing * total_rows as f32 - spacing.y).at_least(0.0));
 
             let min_row = (viewport.min.y / row_height_with_spacing)
                 .floor()
                 .at_least(0.0) as usize;
             let max_row = (viewport.max.y / row_height_with_spacing).ceil() as usize + 1;
-            let max_row = max_row.at_most(num_rows);
+            let max_row = max_row.at_most(total_rows);
 
             let y_min = ui.max_rect().top() + min_row as f32 * row_height_with_spacing;
             let y_max = ui.max_rect().top() + max_row as f32 * row_height_with_spacing;
