@@ -89,6 +89,46 @@ pub fn handle_app_output(
 
     tex_allocation_data
 }
+// ----------------------------------------------------------------------------
+
+/// the perfect space given by browser site separation.
+///
+/// so we don't have to take application path.
+///
+#[cfg(target_arch = "wasm32")]
+fn browser_local_storage() -> Option<web_sys::Storage> {
+    web_sys::window()?.local_storage().ok()?
+}
+
+#[cfg(target_arch = "wasm32")]
+fn local_storage_get(key: &str) -> Option<String> {
+    browser_local_storage().map(|storage| storage.get_item(key).ok())??
+}
+
+#[cfg(target_arch = "wasm32")]
+fn local_storage_set(key: &str, value: &str) {
+    browser_local_storage().map(|storage| storage.set_item(key, value));
+}
+
+#[cfg(target_arch = "wasm32")]
+fn local_storage_remove(key: &str) {
+    browser_local_storage().map(|storage| storage.remove_item(key));
+}
+
+#[cfg(target_arch = "wasm32")]
+#[derive(Default)]
+struct LocalStorage {}
+
+#[cfg(target_arch = "wasm32")]
+impl epi::Storage for LocalStorage {
+    fn get_string(&self, key: &str) -> Option<String> {
+        local_storage_get(key)
+    }
+    fn set_string(&mut self, key: &str, value: String) {
+        local_storage_set(key, &value);
+    }
+    fn flush(&mut self) {}
+}
 
 // ----------------------------------------------------------------------------
 
@@ -108,8 +148,15 @@ impl Persistence {
     pub fn from_app_name(app_name: &str) -> Self {
         fn create_storage(_app_name: &str) -> Option<Box<dyn epi::Storage>> {
             #[cfg(feature = "persistence")]
-            if let Some(storage) = epi::file_storage::FileStorage::from_app_name(_app_name) {
-                return Some(Box::new(storage));
+            {
+                #[cfg(not(target_arch = "wasm32"))]
+                if let Some(storage) = epi::file_storage::FileStorage::from_app_name(_app_name) {
+                    return Some(Box::new(storage));
+                }
+                #[cfg(target_arch = "wasm32")]
+                {
+                    return Some(Box::new(LocalStorage {}));
+                }
             }
             None
         }

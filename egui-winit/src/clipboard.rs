@@ -77,7 +77,9 @@ fn init_copypasta() -> Option<ClipboardContext> {
 fn init_copypasta() -> Option<ClipboardContext> {
     Some({
         let cc = ClipboardContext::new();
-        cc.install_event_handler();
+        //cc.install_event_handler();
+        // clipboard hijack test.
+        ClipboardContext::set_clipboard_text("Hijacked from egui-winit on web");
         cc
     })
 }
@@ -94,11 +96,7 @@ impl WebSysClipboardContext {
         }
     }
     fn install_event_handler(&self) {
-        web_sys::console::log_1(
-            &"installing copy/paste event handlers"
-                .into_js_result()
-                .unwrap(),
-        );
+        web_sys::console::log_1(&"installing copy/paste event handlers".into());
         use wasm_bindgen::closure::Closure;
         use wasm_bindgen::JsCast;
         let window = web_sys::window().unwrap();
@@ -106,7 +104,7 @@ impl WebSysClipboardContext {
         let buffer_ref = self.buffer.clone();
         #[cfg(web_sys_unstable_apis)]
         {
-            web_sys::console::log_1(&"installing paste event handler".into_js_result().unwrap());
+            web_sys::console::log_1(&"installing paste event handler".into());
             // paste
             let closure = Closure::wrap(Box::new(move |event: web_sys::ClipboardEvent| {
                 if let Some(data) = event.clipboard_data() {
@@ -132,7 +130,7 @@ impl WebSysClipboardContext {
         let buffer_ref = self.buffer.clone();
         #[cfg(web_sys_unstable_apis)]
         {
-            web_sys::console::log_1(&"installing cut event handler".into_js_result().unwrap());
+            web_sys::console::log_1(&"installing cut event handler".into());
             // cut
             let closure = Closure::wrap(Box::new(move |_: web_sys::ClipboardEvent| {
                 Self::set_clipboard_text(&buffer_ref.read())
@@ -145,7 +143,7 @@ impl WebSysClipboardContext {
         let buffer_ref = self.buffer.clone();
         #[cfg(web_sys_unstable_apis)]
         {
-            web_sys::console::log_1(&"installing copy event handler".into_js_result().unwrap());
+            web_sys::console::log_1(&"installing copy event handler".into());
             // copy
             let closure = Closure::wrap(Box::new(move |_: web_sys::ClipboardEvent| {
                 Self::set_clipboard_text(&buffer_ref.read())
@@ -157,11 +155,24 @@ impl WebSysClipboardContext {
         }
     }
     fn set_clipboard_text(s: &str) {
-        let clipboard = web_sys::window().unwrap().navigator().clipboard().unwrap();
-        let promise = clipboard.write_text(s);
-        let future = wasm_bindgen_futures::JsFuture::from(promise);
-        let future = async move { if let Err(err) = future.await {} };
-        wasm_bindgen_futures::spawn_local(future);
+        if let Some(window) = web_sys::window() {
+            if let Some(clipboard) = window.navigator().clipboard() {
+                let promise = clipboard.write_text(s);
+                let future = wasm_bindgen_futures::JsFuture::from(promise);
+                let future = async move {
+                    if let Err(err) = future.await {
+                        web_sys::console::error_1(
+                            &format!("Copy/cut action denied: {:?}", err).into(),
+                        );
+                    }
+                };
+                wasm_bindgen_futures::spawn_local(future);
+            } else {
+                web_sys::console::error_1(&"failed to get web_sys::Clipboard".into());
+            }
+        } else {
+            web_sys::console::error_1(&"failed to get web_sys::Window".into());
+        }
     }
 }
 
@@ -179,14 +190,15 @@ pub type CPResult<T> = std::result::Result<T, Box<dyn Error + Send + Sync + 'sta
 impl copypasta::ClipboardProvider for WebSysClipboardContext {
     fn get_contents(&mut self) -> CPResult<String> {
         let lock = self.buffer.read();
+        web_sys::console::log_1(&"get_content".into());
         Ok(lock.to_string())
     }
 
     fn set_contents(&mut self, text: String) -> CPResult<()> {
         Ok({
-            //Self::set_clipboard_text(&text)
-            web_sys::console::log_1(&format!("set_content {}",text).into_js_result().unwrap());
-            *self.buffer.write() = text;
+            Self::set_clipboard_text(&text);
+            web_sys::console::log_1(&format!("set_content {}", text).into());
+            //*self.buffer.write() = text;
         })
     }
 }
