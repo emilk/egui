@@ -223,17 +223,25 @@ impl EpiIntegration {
 
         *egui_ctx.memory() = persistence.load_memory().unwrap_or_default();
 
+        let prefer_dark_mode = prefer_dark_mode();
+
         let frame = epi::Frame::new(epi::backend::FrameData {
             info: epi::IntegrationInfo {
                 name: integration_name,
                 web_info: None,
-                prefer_dark_mode: None, // TODO: figure out system default
+                prefer_dark_mode,
                 cpu_usage: None,
                 native_pixels_per_point: Some(crate::native_pixels_per_point(window)),
             },
             output: Default::default(),
             repaint_signal,
         });
+
+        if prefer_dark_mode == Some(true) {
+            egui_ctx.set_visuals(egui::Visuals::dark());
+        } else {
+            egui_ctx.set_visuals(egui::Visuals::light());
+        }
 
         let mut slf = Self {
             frame,
@@ -339,4 +347,17 @@ impl EpiIntegration {
         self.persistence
             .save(&mut *self.app, &self.egui_ctx, window);
     }
+}
+
+#[cfg(feature = "dark-light")]
+fn prefer_dark_mode() -> Option<bool> {
+    match dark_light::detect() {
+        dark_light::Mode::Dark => Some(true),
+        dark_light::Mode::Light => Some(false),
+    }
+}
+
+#[cfg(not(feature = "dark-light"))]
+fn prefer_dark_mode() -> Option<bool> {
+    None
 }

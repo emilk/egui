@@ -660,6 +660,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b365fabc795046672053e29c954733ec3b05e4be654ab130fe8f1f94d7051f35"
 
 [[package]]
+name = "dark-light"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e7120c3a2b4cbef379407b56cc808304a728cadc756605ab5f0b70619b4d44b9"
+dependencies = [
+ "winreg",
+]
+
+[[package]]
 name = "darling"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -806,6 +815,7 @@ name = "egui-winit"
 version = "0.16.0"
 dependencies = [
  "copypasta",
+ "dark-light",
  "egui",
  "epi",
  "instant",
@@ -3016,6 +3026,15 @@ dependencies = [
  "web-sys",
  "winapi",
  "x11-dl",
+]
+
+[[package]]
+name = "winreg"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d107f8c6e916235c4c01cabb3e8acf7bea8ef6a63ca2e7fa0527c049badfc48c"
+dependencies = [
+ "winapi",
 ]
 
 [[package]]
