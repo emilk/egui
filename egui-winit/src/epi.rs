@@ -260,8 +260,8 @@ impl EpiIntegration {
             web_sys::window()?.location().hash().ok()
         }
         #[cfg(target_arch = "wasm32")]
-        let web_info = Some(WebInfo{
-            web_location_hash:location_hash().unwrap_or_default()
+        let web_info = Some(WebInfo {
+            web_location_hash: location_hash().unwrap_or_default(),
         });
         let frame = epi::Frame::new(epi::backend::FrameData {
             info: epi::IntegrationInfo {
