@@ -84,11 +84,11 @@ fn init_copypasta() -> Option<ClipboardContext> {
     })
 }
 
-#[cfg(feature = "web-sys")]
+#[cfg(all(feature = "web-sys", target_arch = "wasm32"))]
 pub struct WebSysClipboardContext {
     buffer: Arc<RwLock<String>>,
 }
-#[cfg(feature = "web-sys")]
+#[cfg(all(feature = "web-sys", target_arch = "wasm32"))]
 impl WebSysClipboardContext {
     pub fn new() -> WebSysClipboardContext {
         Self {
@@ -182,11 +182,12 @@ use egui::mutex::RwLock;
 use std::error::Error;
 #[cfg(feature = "web-sys")]
 use std::sync::Arc;
+#[cfg(feature = "web-sys")]
 use web_sys::HtmlCanvasElement;
 
-#[cfg(feature = "web-sys")]
+#[cfg(all(feature = "web-sys", target_arch = "wasm32"))]
 pub type CPResult<T> = std::result::Result<T, Box<dyn Error + Send + Sync + 'static>>;
-#[cfg(feature = "web-sys")]
+#[cfg(all(feature = "web-sys", target_arch = "wasm32"))]
 impl copypasta::ClipboardProvider for WebSysClipboardContext {
     fn get_contents(&mut self) -> CPResult<String> {
         let lock = self.buffer.read();

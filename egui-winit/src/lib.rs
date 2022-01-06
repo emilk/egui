@@ -91,6 +91,7 @@ mod window_settings;
 
 #[cfg(feature = "epi")]
 pub mod epi;
+mod web;
 
 pub use window_settings::WindowSettings;
 
