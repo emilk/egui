@@ -182,6 +182,8 @@ use egui::mutex::RwLock;
 use std::error::Error;
 #[cfg(feature = "web-sys")]
 use std::sync::Arc;
+use web_sys::HtmlCanvasElement;
+
 #[cfg(feature = "web-sys")]
 pub type CPResult<T> = std::result::Result<T, Box<dyn Error + Send + Sync + 'static>>;
 #[cfg(feature = "web-sys")]

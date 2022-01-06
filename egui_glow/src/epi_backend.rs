@@ -171,7 +171,7 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
                     is_focused = new_focused;
                 }
 
-                #[cfg(not(target_arch = "wasm32"))]
+                //#[cfg(not(target_arch = "wasm32"))]
                 if let egui_winit::winit::event::WindowEvent::Resized(physical_size) = event {
                     gl_window.resize(physical_size);
                 }
