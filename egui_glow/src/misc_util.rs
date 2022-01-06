@@ -2,11 +2,13 @@
 use glow::HasContext;
 use std::option::Option::Some;
 
+use crate::painter::TextureFilter;
+
 pub(crate) fn srgbtexture2d(
     gl: &glow::Context,
     is_webgl_1: bool,
     srgb_support: bool,
-    texture_filter: u32,
+    texture_filter: TextureFilter,
     data: &[u8],
     w: usize,
     h: usize,
@@ -21,12 +23,12 @@ pub(crate) fn srgbtexture2d(
         gl.tex_parameter_i32(
             glow::TEXTURE_2D,
             glow::TEXTURE_MAG_FILTER,
-            texture_filter as i32,
+            texture_filter.glow_code() as i32,
         );
         gl.tex_parameter_i32(
             glow::TEXTURE_2D,
             glow::TEXTURE_MIN_FILTER,
-            texture_filter as i32,
+            texture_filter.glow_code() as i32,
         );
         gl.tex_parameter_i32(
             glow::TEXTURE_2D,
