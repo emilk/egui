@@ -117,6 +117,14 @@ impl SidePanel {
     /// Can panel be resized by dragging the edge of it?
     ///
     /// Default is `true`.
+    ///
+    /// If you want your panel to be resizable you also need a widget in it that
+    /// takes up more space as you resize it, such as:
+    /// * Wrapping text ([`Ui::horizontal_wrapped`]).
+    /// * A [`ScrollArea`].
+    /// * A [`Separator`].
+    /// * A [`TextEdit`].
+    /// * …
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = resizable;
         self
@@ -393,6 +401,14 @@ impl TopBottomPanel {
     /// Can panel be resized by dragging the edge of it?
     ///
     /// Default is `false`.
+    ///
+    /// If you want your panel to be resizable you also need a widget in it that
+    /// takes up more space as you resize it, such as:
+    /// * Wrapping text ([`Ui::horizontal_wrapped`]).
+    /// * A [`ScrollArea`].
+    /// * A [`Separator`].
+    /// * A [`TextEdit`].
+    /// * …
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = resizable;
         self

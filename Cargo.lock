@@ -969,6 +969,7 @@ dependencies = [
  "atomic_refcell",
  "bytemuck",
  "cint",
+ "criterion",
  "emath",
  "nohash-hasher",
  "parking_lot",

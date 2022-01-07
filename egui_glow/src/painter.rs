@@ -35,6 +35,8 @@ pub struct Painter {
     is_embedded: bool,
     vertex_array: crate::misc_util::VAO,
     srgb_support: bool,
+    /// The filter used for subsequent textures.
+    texture_filter: TextureFilter,
     post_process: Option<PostProcess>,
     vertex_buffer: glow::Buffer,
     element_array_buffer: glow::Buffer,
@@ -50,6 +52,27 @@ pub struct Painter {
 
     /// Used to make sure we are destroyed correctly.
     destroyed: bool,
+}
+
+#[derive(Copy, Clone)]
+pub enum TextureFilter {
+    Linear,
+    Nearest,
+}
+
+impl Default for TextureFilter {
+    fn default() -> Self {
+        TextureFilter::Linear
+    }
+}
+
+impl TextureFilter {
+    pub(crate) fn glow_code(&self) -> u32 {
+        match self {
+            TextureFilter::Linear => glow::LINEAR,
+            TextureFilter::Nearest => glow::NEAREST,
+        }
+    }
 }
 
 impl Painter {
@@ -190,6 +213,7 @@ impl Painter {
                 is_embedded: matches!(shader_version, ShaderVersion::Es100 | ShaderVersion::Es300),
                 vertex_array,
                 srgb_support,
+                texture_filter: Default::default(),
                 post_process,
                 vertex_buffer,
                 element_array_buffer,
@@ -224,6 +248,7 @@ impl Painter {
                 gl,
                 self.is_webgl_1,
                 self.srgb_support,
+                self.texture_filter,
                 &pixels,
                 font_image.width,
                 font_image.height,
@@ -387,6 +412,12 @@ impl Painter {
         }
     }
 
+    // Set the filter to be used for any subsequent textures loaded via
+    // [`Self::set_texture`].
+    pub fn set_texture_filter(&mut self, texture_filter: TextureFilter) {
+        self.texture_filter = texture_filter;
+    }
+
     // ------------------------------------------------------------------------
 
     #[cfg(feature = "epi")]
@@ -410,6 +441,7 @@ impl Painter {
             gl,
             self.is_webgl_1,
             self.srgb_support,
+            self.texture_filter,
             &pixels,
             image.size[0],
             image.size[1],

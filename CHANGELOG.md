@@ -13,6 +13,8 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 ### Changed 🔧
 * Renamed `Ui::visible` to `Ui::is_visible`.
 
+### Fixed 🐛
+* Context menu now respects the theme ([#1043](https://github.com/emilk/egui/pull/1043))
 
 ## 0.16.1 - 2021-12-31 - Add back `CtxRef::begin_frame,end_frame`
 
@@ -49,7 +51,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 
 ### Fixed 🐛
 * Fixed `ComboBox` and other popups getting clipped to parent window ([#885](https://github.com/emilk/egui/pull/885)).
-* The color picker is now better att keeping the same hue even when saturation goes to zero ([#886](https://github.com/emilk/egui/pull/886)).
+* The color picker is now better at keeping the same hue even when saturation goes to zero ([#886](https://github.com/emilk/egui/pull/886)).
 
 ### Removed 🔥
 * Removed `egui::math` (use `egui::emath` instead).
