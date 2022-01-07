@@ -1,3 +1,6 @@
+/// Table view with (optional) fixed header and scrolling body.
+/// Cell widths are precalculated with given size hints so we can have tables like this:
+/// | fixed size | all available space/minimum | 30% of available width | fixed size |
 use crate::{
     layout::{CellSize, LineDirection},
     sizing::Sizing,
@@ -53,23 +56,22 @@ impl<'a> TableBuilder<'a> {
         self
     }
 
-    pub fn header<F>(self, height: f32, header: F) -> Table<'a>
-    where
-        F: for<'b> FnOnce(TableRow<'a, 'b>),
-    {
+    pub fn header(self, height: f32, header: impl FnOnce(TableRow<'_, '_>)) -> Table<'a> {
         let widths = self.sizing.into_lengths();
-        let mut layout = Layout::new(self.ui, self.padding.clone(), LineDirection::TopToBottom);
+        let ui = self.ui;
         {
-            let row = TableRow {
-                layout: &mut layout,
-                widths: widths.clone(),
-                striped: false,
-                height,
-                clicked: false,
-            };
-            header(row);
+            let mut layout = Layout::new(ui, self.padding.clone(), LineDirection::TopToBottom);
+            {
+                let row = TableRow {
+                    layout: &mut layout,
+                    widths: widths.clone(),
+                    striped: false,
+                    height,
+                    clicked: false,
+                };
+                header(row);
+            }
         }
-        let ui = layout.done_ui();
 
         Table {
             ui,
@@ -132,8 +134,8 @@ impl<'a> Table<'a> {
     }
 }
 
-pub struct TableBody<'b> {
-    layout: Layout<'b>,
+pub struct TableBody<'a> {
+    layout: Layout<'a>,
     widths: Vec<f32>,
     striped: bool,
     odd: bool,
@@ -196,7 +198,7 @@ impl<'a> TableBody<'a> {
         }
     }
 
-    pub fn row<'b>(&'b mut self, height: f32, row: impl FnOnce(TableRow<'a, 'b>)) {
+    pub fn row(&mut self, height: f32, row: impl FnOnce(TableRow<'_, 'a>)) {
         row(TableRow {
             layout: &mut self.layout,
             widths: self.widths.clone(),
@@ -209,14 +211,8 @@ impl<'a> TableBody<'a> {
     }
 }
 
-impl<'a> Drop for TableBody<'a> {
-    fn drop(&mut self) {
-        self.layout.done();
-    }
-}
-
 pub struct TableRow<'a, 'b> {
-    layout: &'b mut Layout<'a>,
+    layout: &'a mut Layout<'b>,
     widths: Vec<f32>,
     striped: bool,
     height: f32,

@@ -15,8 +15,9 @@ pub(crate) enum LineDirection {
     TopToBottom,
 }
 
-pub struct Layout<'a> {
-    ui: &'a mut Ui,
+/// Positions cells in [LineDirection] and starts a new line on [Layout::end_line]
+pub struct Layout<'l> {
+    ui: &'l mut Ui,
     padding: Padding,
     direction: LineDirection,
     rect: Rect,
@@ -24,8 +25,8 @@ pub struct Layout<'a> {
     max: Pos2,
 }
 
-impl<'a> Layout<'a> {
-    pub(crate) fn new(ui: &'a mut Ui, padding: Padding, direction: LineDirection) -> Self {
+impl<'l> Layout<'l> {
+    pub(crate) fn new(ui: &'l mut Ui, padding: Padding, direction: LineDirection) -> Self {
         let mut rect = ui.available_rect_before_wrap();
         rect.set_left(rect.left() + padding.outer + padding.inner);
         rect.set_top(rect.top() + padding.outer + padding.inner);
@@ -128,6 +129,7 @@ impl<'a> Layout<'a> {
         }
     }
 
+    /// Set the rect so that the scrollview knows about our size
     fn set_rect(&mut self) {
         let mut rect = self.rect;
         rect.set_right(self.max.x);
@@ -135,15 +137,6 @@ impl<'a> Layout<'a> {
 
         self.ui
             .allocate_rect(rect, Sense::focusable_noninteractive());
-    }
-
-    pub fn done(&mut self) {
-        self.set_rect();
-    }
-
-    pub fn done_ui(mut self) -> &'a mut Ui {
-        self.set_rect();
-        self.ui
     }
 
     fn cell(&mut self, rect: Rect, clip: bool, add_contents: impl FnOnce(&mut Ui)) {
@@ -161,5 +154,11 @@ impl<'a> Layout<'a> {
         }
 
         add_contents(&mut child_ui)
+    }
+}
+
+impl<'a> Drop for Layout<'a> {
+    fn drop(&mut self) {
+        self.set_rect()
     }
 }

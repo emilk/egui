@@ -51,7 +51,6 @@ impl<'a> HorizontalGridBuilder<'a> {
             widths,
         };
         horizontal_grid(grid);
-        layout.done();
     }
 }
 

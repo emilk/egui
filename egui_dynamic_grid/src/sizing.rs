@@ -1,3 +1,4 @@
+/// Size hint for table column/grid cell
 #[derive(Clone, Debug)]
 pub enum Size {
     /// Absolute size in points

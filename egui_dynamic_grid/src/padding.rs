@@ -1,5 +1,5 @@
 /// Configure padding of grid or table
-/// TODO: Use padding settings of egui?
+/// TODO: Use padding settings of egui/should we extend egui padding settings for table?
 #[derive(Clone, Debug)]
 pub struct Padding {
     pub(crate) inner: f32,

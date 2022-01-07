@@ -51,7 +51,6 @@ impl<'a> VerticalGridBuilder<'a> {
             heights,
         };
         vertical_grid(grid);
-        layout.done();
     }
 }
 
