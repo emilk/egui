@@ -198,7 +198,7 @@ impl<'a> TableBody<'a> {
         }
     }
 
-    pub fn row(&mut self, height: f32, row: impl FnOnce(TableRow<'_, 'a>)) {
+    pub fn row(&mut self, height: f32, row: impl FnOnce(TableRow<'a, '_>)) {
         row(TableRow {
             layout: &mut self.layout,
             widths: self.widths.clone(),
@@ -212,7 +212,7 @@ impl<'a> TableBody<'a> {
 }
 
 pub struct TableRow<'a, 'b> {
-    layout: &'a mut Layout<'b>,
+    layout: &'b mut Layout<'a>,
     widths: Vec<f32>,
     striped: bool,
     height: f32,
