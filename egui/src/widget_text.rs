@@ -9,7 +9,7 @@ use crate::{
 ///
 /// The style choices (font, color) are applied to the entire text.
 /// For more detailed control, use [`crate::text::LayoutJob`] instead.
-#[derive(Default)]
+#[derive(Clone, Default, PartialEq)]
 pub struct RichText {
     text: String,
     text_style: Option<TextStyle>,
@@ -555,6 +555,7 @@ impl From<Arc<Galley>> for WidgetText {
 
 // ----------------------------------------------------------------------------
 
+#[derive(Clone, PartialEq)]
 pub struct WidgetTextJob {
     pub job: LayoutJob,
     pub job_has_color: bool,
@@ -574,6 +575,7 @@ impl WidgetTextJob {
 // ----------------------------------------------------------------------------
 
 /// Text that has been layed out and ready to be painted.
+#[derive(Clone, PartialEq)]
 pub struct WidgetTextGalley {
     pub galley: Arc<Galley>,
     pub galley_has_color: bool,
