@@ -14,6 +14,8 @@ pub struct HorizontalGridBuilder<'a> {
 }
 
 impl<'a> HorizontalGridBuilder<'a> {
+    /// Create new grid builder for horizontal grid
+    /// After adding size hints with [Self::column]/[Self::columns] the grid can be build with [Self::build]
     pub(crate) fn new(ui: &'a mut Ui, padding: Padding) -> Self {
         let layouter = Sizing::new(
             ui.available_rect_before_wrap().width() - 2.0 * padding.outer,
@@ -27,11 +29,13 @@ impl<'a> HorizontalGridBuilder<'a> {
         }
     }
 
+    /// Add size hint for column
     pub fn column(mut self, size: Size) -> Self {
         self.sizing.add_size(size);
         self
     }
 
+    /// Add size hint for columns [count] times
     pub fn columns(mut self, size: Size, count: usize) -> Self {
         for _ in 0..count {
             self.sizing.add_size(size.clone());
@@ -39,6 +43,7 @@ impl<'a> HorizontalGridBuilder<'a> {
         self
     }
 
+    /// Build grid
     pub fn build<F>(self, horizontal_grid: F)
     where
         F: for<'b> FnOnce(HorizontalGrid<'a, 'b>),
@@ -61,6 +66,7 @@ pub struct HorizontalGrid<'a, 'b> {
 }
 
 impl<'a, 'b> HorizontalGrid<'a, 'b> {
+    /// Add empty cell
     pub fn empty(&mut self) {
         assert!(
             !self.widths.is_empty(),
@@ -87,10 +93,12 @@ impl<'a, 'b> HorizontalGrid<'a, 'b> {
         );
     }
 
+    /// Add cell, content is clipped
     pub fn cell(&mut self, add_contents: impl FnOnce(&mut Ui)) {
         self._cell(true, add_contents);
     }
 
+    /// Add cell, content is not clipped
     pub fn cell_noclip(&mut self, add_contents: impl FnOnce(&mut Ui)) {
         self._cell(false, add_contents);
     }
@@ -105,11 +113,12 @@ impl<'a, 'b> HorizontalGrid<'a, 'b> {
             horizontal_grid_builder(HorizontalGridBuilder::new(ui, padding));
         });
     }
-
+    /// Add horizontal grid as cell, content is clipped
     pub fn horizontal(&mut self, horizontal_grid_builder: impl FnOnce(HorizontalGridBuilder)) {
         self._horizontal(true, horizontal_grid_builder)
     }
 
+    /// Add horizontal grid as cell, content is not clipped
     pub fn horizontal_noclip(
         &mut self,
         horizontal_grid_builder: impl FnOnce(HorizontalGridBuilder),
@@ -128,10 +137,12 @@ impl<'a, 'b> HorizontalGrid<'a, 'b> {
         });
     }
 
+    /// Add vertical grid as cell, content is clipped
     pub fn vertical(&mut self, vertical_grid_builder: impl FnOnce(VerticalGridBuilder)) {
         self._vertical(true, vertical_grid_builder);
     }
 
+    /// Add vertical grid as cell, content is not clipped
     pub fn vertical_noclip(&mut self, vertical_grid_builder: impl FnOnce(VerticalGridBuilder)) {
         self._vertical(false, vertical_grid_builder);
     }

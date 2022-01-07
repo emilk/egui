@@ -34,21 +34,25 @@ impl<'a> TableBuilder<'a> {
         }
     }
 
+    /// Enable scrollview in body (default: true)
     pub fn scroll(mut self, scroll: bool) -> Self {
         self.scroll = scroll;
         self
     }
 
+    /// Enable striped row background (default: false)
     pub fn striped(mut self, striped: bool) -> Self {
         self.striped = striped;
         self
     }
 
+    /// Add size hint for column
     pub fn column(mut self, width: Size) -> Self {
         self.sizing.add_size(width);
         self
     }
 
+    /// Add size hint for column [count] times
     pub fn columns(mut self, size: Size, count: usize) -> Self {
         for _ in 0..count {
             self.sizing.add_size(size.clone());
@@ -56,6 +60,7 @@ impl<'a> TableBuilder<'a> {
         self
     }
 
+    /// Create a header row which always stays visible and at the top
     pub fn header(self, height: f32, header: impl FnOnce(TableRow<'_, '_>)) -> Table<'a> {
         let widths = self.sizing.into_lengths();
         let ui = self.ui;
@@ -82,6 +87,7 @@ impl<'a> TableBuilder<'a> {
         }
     }
 
+    /// Create table body without a header row
     pub fn body<F>(self, body: F)
     where
         F: for<'b> FnOnce(TableBody<'b>),
@@ -108,6 +114,7 @@ pub struct Table<'a> {
 }
 
 impl<'a> Table<'a> {
+    /// Create table body after adding a header row
     pub fn body<F>(self, body: F)
     where
         F: for<'b> FnOnce(TableBody<'b>),
@@ -144,6 +151,8 @@ pub struct TableBody<'a> {
 }
 
 impl<'a> TableBody<'a> {
+    /// Add rows with same height
+    /// Is a lot more performant than adding each individual row as non visible rows must not be rendered
     pub fn rows(mut self, height: f32, rows: usize, mut row: impl FnMut(usize, TableRow)) {
         let delta = self.layout.current_y() - self.start_y;
         let mut start = 0;
@@ -198,6 +207,7 @@ impl<'a> TableBody<'a> {
         }
     }
 
+    /// Add row with individual height
     pub fn row(&mut self, height: f32, row: impl FnOnce(TableRow<'a, '_>)) {
         row(TableRow {
             layout: &mut self.layout,
@@ -220,6 +230,7 @@ pub struct TableRow<'a, 'b> {
 }
 
 impl<'a, 'b> TableRow<'a, 'b> {
+    /// Check if row was clicked
     pub fn clicked(&self) -> bool {
         self.clicked
     }
@@ -248,10 +259,12 @@ impl<'a, 'b> TableRow<'a, 'b> {
         response
     }
 
+    /// Add column, content is clipped
     pub fn col(&mut self, add_contents: impl FnOnce(&mut Ui)) -> Response {
         self._col(true, add_contents)
     }
 
+    /// Add column, content is not clipped
     pub fn col_noclip(&mut self, add_contents: impl FnOnce(&mut Ui)) -> Response {
         self._col(false, add_contents)
     }
