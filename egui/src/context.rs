@@ -847,7 +847,8 @@ impl CtxRef {
             .show(ui, |ui| {
                 let mut font_definitions = self.fonts().definitions().clone();
                 font_definitions.ui(ui);
-                self.fonts().font_image().ui(ui);
+                let font_image = self.fonts().font_image();
+                font_image.ui(ui);
                 self.set_fonts(font_definitions);
             });
 

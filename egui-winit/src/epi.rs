@@ -250,7 +250,7 @@ impl EpiIntegration {
     }
 
     fn warm_up(&mut self, window: &winit::window::Window) {
-        let saved_memory = self.egui_ctx.memory().clone();
+        let saved_memory: egui::Memory = self.egui_ctx.memory().clone();
         self.egui_ctx.memory().set_everything_is_visible(true);
         let (_, tex_alloc_data, _) = self.update(window);
         self.frame.lock().output.tex_allocation_data = tex_alloc_data; // handle it next frame
