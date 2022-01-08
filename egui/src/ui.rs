@@ -1073,7 +1073,7 @@ impl Ui {
     /// Add extra space before the next widget.
     ///
     /// The direction is dependent on the layout.
-    /// This will be in addition to the [`Spacing::item_spacing`}.
+    /// This will be in addition to the [`crate::style::Spacing::item_spacing`].
     ///
     /// [`Self::min_rect`] will expand to contain the space.
     #[inline]
