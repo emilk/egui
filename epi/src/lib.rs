@@ -106,10 +106,10 @@ pub trait App {
     ///
     /// Put your widgets into a [`egui::SidePanel`], [`egui::TopBottomPanel`], [`egui::CentralPanel`], [`egui::Window`] or [`egui::Area`].
     ///
-    /// The given [`egui::Context`] is only valid for the duration of this call.
-    /// The [`Frame`] however can be cloned and saved.
+    /// The [`egui::Context`] and [`Frame`] can be cloned and saved if you like.
     ///
-    /// To force a repaint, call either [`egui::Context::request_repaint`] or [`Frame::request_repaint`].
+    /// To force a repaint, call either [`egui::Context::request_repaint`] during the call to `update`,
+    /// or call [`Frame::request_repaint`] at any time (e.g. from another thread).
     fn update(&mut self, ctx: &egui::Context, frame: &Frame);
 
     /// Called once before the first frame.
