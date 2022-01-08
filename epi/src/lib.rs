@@ -319,6 +319,11 @@ impl Frame {
         self.lock().output.drag_window = true;
     }
 
+    /// If you need to request a repaint from another thread, send it to that other thread.
+    pub fn repaint_signal(&self) -> Arc<dyn backend::RepaintSignal> {
+        self.lock().repaint_signal.clone()
+    }
+
     /// This signals the [`egui`] integration that a repaint is required.
     ///
     /// Call this e.g. when a background process finishes in an async context and/or background thread.
