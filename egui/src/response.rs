@@ -493,7 +493,7 @@ impl Response {
     ///
     /// See also: [`Ui::menu_button`] and [`Ui::close_menu`].
     pub fn context_menu(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
-        menu::context(&self, add_contents);
+        menu::context_menu(&self, add_contents);
         self
     }
 }
