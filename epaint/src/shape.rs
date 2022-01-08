@@ -15,10 +15,13 @@ pub enum Shape {
     /// For performance reasons it is better to avoid it.
     Vec(Vec<Shape>),
     Circle(CircleShape),
+    /// A line between two points.
     LineSegment {
         points: [Pos2; 2],
         stroke: Stroke,
     },
+    /// A series of lines between points.
+    /// The path can have a stroke and/or fill (if closed).
     Path(PathShape),
     Rect(RectShape),
     Text(TextShape),
