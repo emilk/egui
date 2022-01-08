@@ -37,7 +37,7 @@ impl epi::App for FractalClock {
         "🕑 Fractal Clock"
     }
 
-    fn update(&mut self, ctx: &egui::CtxRef, _frame: &epi::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &epi::Frame) {
         egui::CentralPanel::default()
             .frame(Frame::dark_canvas(&ctx.style()))
             .show(ctx, |ui| self.ui(ui, crate::seconds_since_midnight()));

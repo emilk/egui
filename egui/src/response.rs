@@ -1,6 +1,6 @@
 use crate::{
     emath::{lerp, Align, Pos2, Rect, Vec2},
-    menu, CtxRef, CursorIcon, Id, LayerId, PointerButton, Sense, Ui, WidgetText,
+    menu, Context, CursorIcon, Id, LayerId, PointerButton, Sense, Ui, WidgetText,
     NUM_POINTER_BUTTONS,
 };
 
@@ -17,7 +17,7 @@ use crate::{
 pub struct Response {
     // CONTEXT:
     /// Used for optionally showing a tooltip and checking for more interactions.
-    pub ctx: CtxRef,
+    pub ctx: Context,
 
     // IN:
     /// Which layer the widget is part of.

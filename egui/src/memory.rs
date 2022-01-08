@@ -45,7 +45,7 @@ pub struct Memory {
     /// }
     /// type CharCountCache<'a> = FrameCache<usize, CharCounter>;
     ///
-    /// # let mut ctx = egui::CtxRef::default();
+    /// # let mut ctx = egui::Context::default();
     /// let mut memory = ctx.memory();
     /// let cache = memory.caches.cache::<CharCountCache<'_>>();
     /// assert_eq!(cache.get("hello"), 5);

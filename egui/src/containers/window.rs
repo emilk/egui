@@ -235,7 +235,7 @@ impl<'open> Window<'open> {
     #[inline]
     pub fn show<R>(
         self,
-        ctx: &CtxRef,
+        ctx: &Context,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<Option<R>>> {
         self.show_dyn(ctx, Box::new(add_contents))
@@ -243,7 +243,7 @@ impl<'open> Window<'open> {
 
     fn show_dyn<'c, R>(
         self,
-        ctx: &CtxRef,
+        ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> Option<InnerResponse<Option<R>>> {
         let Window {
@@ -482,7 +482,7 @@ pub(crate) struct WindowInteraction {
 }
 
 impl WindowInteraction {
-    pub fn set_cursor(&self, ctx: &CtxRef) {
+    pub fn set_cursor(&self, ctx: &Context) {
         if (self.left && self.top) || (self.right && self.bottom) {
             ctx.output().cursor_icon = CursorIcon::ResizeNwSe;
         } else if (self.right && self.top) || (self.left && self.bottom) {
@@ -501,7 +501,7 @@ impl WindowInteraction {
 
 fn interact(
     window_interaction: WindowInteraction,
-    ctx: &CtxRef,
+    ctx: &Context,
     margins: Vec2,
     area_layer_id: LayerId,
     area: &mut area::Prepared,
@@ -530,7 +530,7 @@ fn interact(
     Some(window_interaction)
 }
 
-fn move_and_resize_window(ctx: &CtxRef, window_interaction: &WindowInteraction) -> Option<Rect> {
+fn move_and_resize_window(ctx: &Context, window_interaction: &WindowInteraction) -> Option<Rect> {
     window_interaction.set_cursor(ctx);
 
     // Only move/resize windows with primary mouse button:
@@ -572,7 +572,7 @@ fn move_and_resize_window(ctx: &CtxRef, window_interaction: &WindowInteraction) 
 
 /// Returns `Some` if there is a move or resize
 fn window_interaction(
-    ctx: &CtxRef,
+    ctx: &Context,
     possible: PossibleInteractions,
     area_layer_id: LayerId,
     id: Id,
@@ -612,7 +612,7 @@ fn window_interaction(
 }
 
 fn resize_hover(
-    ctx: &CtxRef,
+    ctx: &Context,
     possible: PossibleInteractions,
     area_layer_id: LayerId,
     rect: Rect,

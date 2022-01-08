@@ -82,7 +82,7 @@ impl epi::backend::RepaintSignal for NeedRepaint {
 
 pub struct AppRunner {
     frame: epi::Frame,
-    egui_ctx: egui::CtxRef,
+    egui_ctx: egui::Context,
     painter: Box<dyn Painter>,
     pub(crate) input: WebInput,
     app: Box<dyn epi::App>,
@@ -117,7 +117,7 @@ impl AppRunner {
             repaint_signal: needs_repaint.clone(),
         });
 
-        let egui_ctx = egui::CtxRef::default();
+        let egui_ctx = egui::Context::default();
         load_memory(&egui_ctx);
         if prefer_dark_mode == Some(true) {
             egui_ctx.set_visuals(egui::Visuals::dark());
@@ -151,7 +151,7 @@ impl AppRunner {
         Ok(runner)
     }
 
-    pub fn egui_ctx(&self) -> &egui::CtxRef {
+    pub fn egui_ctx(&self) -> &egui::Context {
         &self.egui_ctx
     }
 

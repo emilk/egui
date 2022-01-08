@@ -147,7 +147,7 @@ impl Persistence {
     pub fn save(
         &mut self,
         _app: &mut dyn epi::App,
-        _egui_ctx: &egui::CtxRef,
+        _egui_ctx: &egui::Context,
         _window: &winit::window::Window,
     ) {
         #[cfg(feature = "persistence")]
@@ -174,7 +174,7 @@ impl Persistence {
     pub fn maybe_autosave(
         &mut self,
         app: &mut dyn epi::App,
-        egui_ctx: &egui::CtxRef,
+        egui_ctx: &egui::Context,
         window: &winit::window::Window,
     ) {
         let now = instant::Instant::now();
@@ -191,7 +191,7 @@ impl Persistence {
 pub struct EpiIntegration {
     frame: epi::Frame,
     persistence: crate::epi::Persistence,
-    pub egui_ctx: egui::CtxRef,
+    pub egui_ctx: egui::Context,
     egui_winit: crate::State,
     pub app: Box<dyn epi::App>,
     /// When set, it is time to quit
@@ -206,7 +206,7 @@ impl EpiIntegration {
         persistence: crate::epi::Persistence,
         app: Box<dyn epi::App>,
     ) -> Self {
-        let egui_ctx = egui::CtxRef::default();
+        let egui_ctx = egui::Context::default();
 
         *egui_ctx.memory() = persistence.load_memory().unwrap_or_default();
 

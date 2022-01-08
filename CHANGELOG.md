@@ -11,11 +11,17 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Added `Ui::add_visible` and `Ui::add_visible_ui`.
 
 ### Changed 🔧
+* Renamed `CtxRef` to `Context` ([#1050](https://github.com/emilk/egui/pull/1050)).
+* `Context` can now be cloned and stored between frames ([#1050](https://github.com/emilk/egui/pull/1050)).
 * Renamed `Ui::visible` to `Ui::is_visible`.
 
 ### Fixed 🐛
 * Context menu now respects the theme ([#1043](https://github.com/emilk/egui/pull/1043))
 * Immovable windows can no longer incorrectly move ([#1049](https://github.com/emilk/egui/pull/1049))
+
+### Contributors 🙏
+* [danielkeller](https://github.com/danielkeller): [#1050](https://github.com/emilk/egui/pull/1050).
+
 
 ## 0.16.1 - 2021-12-31 - Add back `CtxRef::begin_frame,end_frame`
 

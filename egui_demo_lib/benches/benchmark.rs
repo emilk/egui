@@ -7,7 +7,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let raw_input = egui::RawInput::default();
 
     {
-        let ctx = egui::CtxRef::default();
+        let ctx = egui::Context::default();
         let mut demo_windows = egui_demo_lib::DemoWindows::default();
 
         // The most end-to-end benchmark.
@@ -37,7 +37,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     }
 
     if false {
-        let ctx = egui::CtxRef::default();
+        let ctx = egui::Context::default();
         ctx.memory().set_everything_is_visible(true); // give us everything
         let mut demo_windows = egui_demo_lib::DemoWindows::default();
         c.bench_function("demo_full_no_tessellate", |b| {
@@ -50,7 +50,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     }
 
     {
-        let ctx = egui::CtxRef::default();
+        let ctx = egui::Context::default();
         let _ = ctx.run(raw_input, |ctx| {
             egui::CentralPanel::default().show(ctx, |ui| {
                 c.bench_function("label &str", |b| {

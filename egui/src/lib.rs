@@ -8,7 +8,7 @@
 //! To quickly get started with egui, you can take a look at [`eframe_template`](https://github.com/emilk/eframe_template)
 //! which uses [`eframe`](https://docs.rs/eframe).
 //!
-//! To create a GUI using egui you first need a [`CtxRef`] (by convention referred to by `ctx`).
+//! To create a GUI using egui you first need a [`Context`] (by convention referred to by `ctx`).
 //! Then you add a [`Window`] or a [`SidePanel`] to get a [`Ui`], which is what you'll be using to add all the buttons and labels that you need.
 //!
 //!
@@ -113,7 +113,7 @@
 //! # fn handle_output(_: egui::Output) {}
 //! # fn paint(_: Vec<egui::ClippedMesh>) {}
 //! # fn gather_input() -> egui::RawInput { egui::RawInput::default() }
-//! let mut ctx = egui::CtxRef::default();
+//! let mut ctx = egui::Context::default();
 //!
 //! // Game loop:
 //! loop {
@@ -398,7 +398,7 @@ pub mod text {
 
 pub use {
     containers::*,
-    context::{Context, CtxRef},
+    context::Context,
     data::{
         input::*,
         output::{self, CursorIcon, Output, WidgetInfo},
@@ -574,8 +574,8 @@ pub enum WidgetType {
 // ----------------------------------------------------------------------------
 
 /// For use in tests; especially doctests.
-pub fn __run_test_ctx(mut run_ui: impl FnMut(&CtxRef)) {
-    let ctx = CtxRef::default();
+pub fn __run_test_ctx(mut run_ui: impl FnMut(&Context)) {
+    let ctx = Context::default();
     let _ = ctx.run(Default::default(), |ctx| {
         run_ui(ctx);
     });
@@ -583,7 +583,7 @@ pub fn __run_test_ctx(mut run_ui: impl FnMut(&CtxRef)) {
 
 /// For use in tests; especially doctests.
 pub fn __run_test_ui(mut add_contents: impl FnMut(&mut Ui)) {
-    let ctx = CtxRef::default();
+    let ctx = Context::default();
     let _ = ctx.run(Default::default(), |ctx| {
         crate::CentralPanel::default().show(ctx, |ui| {
             add_contents(ui);

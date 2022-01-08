@@ -14,7 +14,7 @@ struct Resource {
 }
 
 impl Resource {
-    fn from_response(ctx: &egui::CtxRef, response: ehttp::Response) -> Self {
+    fn from_response(ctx: &egui::Context, response: ehttp::Response) -> Self {
         let content_type = response.content_type().unwrap_or_default();
         let image = if content_type.starts_with("image/") {
             decode_image(&response.bytes)
@@ -67,7 +67,7 @@ impl epi::App for HttpApp {
         "⬇ HTTP"
     }
 
-    fn update(&mut self, ctx: &egui::CtxRef, frame: &epi::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
         if let Some(receiver) = &mut self.in_progress {
             // Are we there yet?
             if let Ok(result) = receiver.try_recv() {
@@ -240,7 +240,7 @@ fn selectable_text(ui: &mut egui::Ui, mut text: &str) {
 
 #[cfg(feature = "syntect")]
 fn syntax_highlighting(
-    ctx: &egui::CtxRef,
+    ctx: &egui::Context,
     response: &ehttp::Response,
     text: &str,
 ) -> Option<ColoredText> {
@@ -253,7 +253,7 @@ fn syntax_highlighting(
 }
 
 #[cfg(not(feature = "syntect"))]
-fn syntax_highlighting(_ctx: &egui::CtxRef, _: &ehttp::Response, _: &str) -> Option<ColoredText> {
+fn syntax_highlighting(_ctx: &egui::Context, _: &ehttp::Response, _: &str) -> Option<ColoredText> {
     None
 }
 

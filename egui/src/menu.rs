@@ -16,7 +16,7 @@
 //! ```
 
 use super::{
-    style::WidgetVisuals, Align, CtxRef, Id, InnerResponse, PointerState, Pos2, Rect, Response,
+    style::WidgetVisuals, Align, Context, Id, InnerResponse, PointerState, Pos2, Rect, Response,
     Sense, TextStyle, Ui, Vec2,
 };
 use crate::{widgets::*, *};
@@ -29,14 +29,14 @@ pub(crate) struct BarState {
 }
 
 impl BarState {
-    fn load(ctx: &CtxRef, bar_id: Id) -> Self {
+    fn load(ctx: &Context, bar_id: Id) -> Self {
         ctx.memory()
             .data
             .get_temp::<Self>(bar_id)
             .unwrap_or_default()
     }
 
-    fn store(self, ctx: &CtxRef, bar_id: Id) {
+    fn store(self, ctx: &Context, bar_id: Id) {
         ctx.memory().data.insert_temp(bar_id, self);
     }
 
@@ -115,7 +115,7 @@ pub(crate) fn submenu_button<R>(
 
 /// wrapper for the contents of every menu.
 pub(crate) fn menu_ui<'c, R>(
-    ctx: &CtxRef,
+    ctx: &Context,
     menu_id: impl std::hash::Hash,
     menu_state_arc: &Arc<RwLock<MenuState>>,
     add_contents: impl FnOnce(&mut Ui) -> R + 'c,
@@ -504,7 +504,7 @@ impl MenuState {
         self.response = MenuResponse::Close;
     }
     pub fn show<R>(
-        ctx: &CtxRef,
+        ctx: &Context,
         menu_state: &Arc<RwLock<Self>>,
         id: Id,
         add_contents: impl FnOnce(&mut Ui) -> R,
@@ -513,7 +513,7 @@ impl MenuState {
     }
     fn show_submenu<R>(
         &mut self,
-        ctx: &CtxRef,
+        ctx: &Context,
         id: Id,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<R> {

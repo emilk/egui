@@ -1,7 +1,7 @@
 use crate::{
     emath::{Align2, Pos2, Rect, Vec2},
     layers::{LayerId, PaintList, ShapeIdx},
-    Color32, CtxRef,
+    Color32, Context,
 };
 use epaint::{
     mutex::{RwLockReadGuard, RwLockWriteGuard},
@@ -15,7 +15,7 @@ use epaint::{
 #[derive(Clone)]
 pub struct Painter {
     /// Source of fonts and destination of shapes
-    ctx: CtxRef,
+    ctx: Context,
 
     /// Where we paint
     layer_id: LayerId,
@@ -30,7 +30,7 @@ pub struct Painter {
 }
 
 impl Painter {
-    pub fn new(ctx: CtxRef, layer_id: LayerId, clip_rect: Rect) -> Self {
+    pub fn new(ctx: Context, layer_id: LayerId, clip_rect: Rect) -> Self {
         Self {
             ctx,
             layer_id,
@@ -84,9 +84,9 @@ impl Painter {
 
 /// ## Accessors etc
 impl Painter {
-    /// Get a reference to the parent [`CtxRef`].
+    /// Get a reference to the parent [`Context`].
     #[inline(always)]
-    pub fn ctx(&self) -> &CtxRef {
+    pub fn ctx(&self) -> &Context {
         &self.ctx
     }
 

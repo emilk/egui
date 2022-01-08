@@ -140,7 +140,7 @@ Curabitur pretium tincidunt lacus. Nulla gravida orci a odio. Nullam varius, tur
 #[test]
 fn test_egui_e2e() {
     let mut demo_windows = crate::DemoWindows::default();
-    let ctx = egui::CtxRef::default();
+    let ctx = egui::Context::default();
     let raw_input = egui::RawInput::default();
 
     const NUM_FRAMES: usize = 5;
@@ -156,7 +156,7 @@ fn test_egui_e2e() {
 #[test]
 fn test_egui_zero_window_size() {
     let mut demo_windows = crate::DemoWindows::default();
-    let ctx = egui::CtxRef::default();
+    let ctx = egui::Context::default();
     let raw_input = egui::RawInput {
         screen_rect: Some(egui::Rect::from_min_max(egui::Pos2::ZERO, egui::Pos2::ZERO)),
         ..Default::default()

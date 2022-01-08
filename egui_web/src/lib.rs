@@ -252,7 +252,7 @@ pub fn local_storage_remove(key: &str) {
 }
 
 #[cfg(feature = "persistence")]
-pub fn load_memory(ctx: &egui::CtxRef) {
+pub fn load_memory(ctx: &egui::Context) {
     if let Some(memory_string) = local_storage_get("egui_memory_ron") {
         match ron::from_str(&memory_string) {
             Ok(memory) => {
@@ -266,10 +266,10 @@ pub fn load_memory(ctx: &egui::CtxRef) {
 }
 
 #[cfg(not(feature = "persistence"))]
-pub fn load_memory(_: &egui::CtxRef) {}
+pub fn load_memory(_: &egui::Context) {}
 
 #[cfg(feature = "persistence")]
-pub fn save_memory(ctx: &egui::CtxRef) {
+pub fn save_memory(ctx: &egui::Context) {
     match ron::to_string(&*ctx.memory()) {
         Ok(ron) => {
             local_storage_set("egui_memory_ron", &ron);
@@ -281,7 +281,7 @@ pub fn save_memory(ctx: &egui::CtxRef) {
 }
 
 #[cfg(not(feature = "persistence"))]
-pub fn save_memory(_: &egui::CtxRef) {}
+pub fn save_memory(_: &egui::Context) {}
 
 #[derive(Default)]
 pub struct LocalStorage {}

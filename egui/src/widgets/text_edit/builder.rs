@@ -70,11 +70,11 @@ impl<'t> WidgetWithState for TextEdit<'t> {
 }
 
 impl<'t> TextEdit<'t> {
-    pub fn load_state(ctx: &CtxRef, id: Id) -> Option<TextEditState> {
+    pub fn load_state(ctx: &Context, id: Id) -> Option<TextEditState> {
         TextEditState::load(ctx, id)
     }
 
-    pub fn store_state(ctx: &CtxRef, id: Id, state: TextEditState) {
+    pub fn store_state(ctx: &Context, id: Id, state: TextEditState) {
         state.store(ctx, id);
     }
 }

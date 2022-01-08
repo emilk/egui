@@ -69,7 +69,7 @@ impl Ui {
     ///
     /// Normally you would not use this directly, but instead use
     /// [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`].
-    pub fn new(ctx: CtxRef, layer_id: LayerId, id: Id, max_rect: Rect, clip_rect: Rect) -> Self {
+    pub fn new(ctx: Context, layer_id: LayerId, id: Id, max_rect: Rect, clip_rect: Rect) -> Self {
         let style = ctx.style();
         Ui {
             id,
@@ -194,9 +194,9 @@ impl Ui {
         &mut self.style_mut().visuals
     }
 
-    /// Get a reference to the parent [`CtxRef`].
+    /// Get a reference to the parent [`Context`].
     #[inline]
-    pub fn ctx(&self) -> &CtxRef {
+    pub fn ctx(&self) -> &Context {
         self.painter.ctx()
     }
 

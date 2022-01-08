@@ -1,5 +1,5 @@
 use super::Demo;
-use egui::{CtxRef, ScrollArea, Ui};
+use egui::{Context, ScrollArea, Ui};
 use std::collections::BTreeSet;
 
 // ----------------------------------------------------------------------------
@@ -58,7 +58,7 @@ impl Demos {
         }
     }
 
-    pub fn windows(&mut self, ctx: &CtxRef) {
+    pub fn windows(&mut self, ctx: &Context) {
         let Self { demos, open } = self;
         for demo in demos {
             let mut is_open = open.contains(demo.name());
@@ -113,7 +113,7 @@ impl Tests {
         }
     }
 
-    pub fn windows(&mut self, ctx: &CtxRef) {
+    pub fn windows(&mut self, ctx: &Context) {
         let Self { demos, open } = self;
         for demo in demos {
             let mut is_open = open.contains(demo.name());
@@ -149,7 +149,7 @@ pub struct DemoWindows {
 impl DemoWindows {
     /// Show the app ui (menu bar and windows).
     /// `sidebar_ui` can be used to optionally show some things in the sidebar
-    pub fn ui(&mut self, ctx: &CtxRef) {
+    pub fn ui(&mut self, ctx: &Context) {
         let Self { demos, tests } = self;
 
         egui::SidePanel::right("egui_demo_panel")
@@ -214,7 +214,7 @@ impl DemoWindows {
     }
 
     /// Show the open windows.
-    fn windows(&mut self, ctx: &CtxRef) {
+    fn windows(&mut self, ctx: &Context) {
         let Self { demos, tests } = self;
 
         demos.windows(ctx);

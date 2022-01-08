@@ -8,22 +8,100 @@ use epaint::{mutex::*, stats::*, text::Fonts, *};
 
 // ----------------------------------------------------------------------------
 
-/// A wrapper around [`Arc`](std::sync::Arc)`<`[`Context`]`>`.
-/// This is how you will normally create and access a [`Context`].
+#[derive(Default)]
+struct ContextImpl {
+    /// `None` until the start of the first frame.
+    fonts: Option<Fonts>,
+    memory: Memory,
+    animation_manager: AnimationManager,
+
+    input: InputState,
+
+    /// State that is collected during a frame and then cleared
+    frame_state: FrameState,
+
+    // The output of a frame:
+    graphics: GraphicLayers,
+    output: Output,
+
+    paint_stats: PaintStats,
+
+    /// While positive, keep requesting repaints. Decrement at the end of each frame.
+    repaint_requests: u32,
+}
+
+impl ContextImpl {
+    fn begin_frame_mut(&mut self, new_raw_input: RawInput) {
+        self.memory.begin_frame(&self.input, &new_raw_input);
+
+        let mut input = std::mem::take(&mut self.input);
+        if let Some(new_pixels_per_point) = self.memory.new_pixels_per_point.take() {
+            input.pixels_per_point = new_pixels_per_point;
+        }
+
+        self.input = input.begin_frame(new_raw_input);
+        self.frame_state.begin_frame(&self.input);
+
+        self.update_fonts_mut(self.input.pixels_per_point());
+
+        // Ensure we register the background area so panels and background ui can catch clicks:
+        let screen_rect = self.input.screen_rect();
+        self.memory.areas.set_state(
+            LayerId::background(),
+            containers::area::State {
+                pos: screen_rect.min,
+                size: screen_rect.size(),
+                interactable: true,
+            },
+        );
+    }
+
+    /// Load fonts unless already loaded.
+    fn update_fonts_mut(&mut self, pixels_per_point: f32) {
+        let new_font_definitions = self.memory.new_font_definitions.take();
+
+        let pixels_per_point_changed = match &self.fonts {
+            None => true,
+            Some(current_fonts) => {
+                (current_fonts.pixels_per_point() - pixels_per_point).abs() > 1e-3
+            }
+        };
+
+        if self.fonts.is_none() || new_font_definitions.is_some() || pixels_per_point_changed {
+            self.fonts = Some(Fonts::new(
+                pixels_per_point,
+                new_font_definitions.unwrap_or_else(|| {
+                    self.fonts
+                        .as_ref()
+                        .map(|font| font.definitions().clone())
+                        .unwrap_or_default()
+                }),
+            ));
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// Your handle to egui.
 ///
-/// Almost all methods are marked `&self`, `CtxRef` has interior mutability (protected by a mutex).
+/// This is the first thing you need when working with egui.
+/// Contains the [`InputState`], [`Memory`], [`Output`], and more.
 ///
-/// [`CtxRef`] is cheap to clone, and any clones refers to the same mutable data.
+/// [`Context`] is cheap to clone, and any clones refers to the same mutable data
+/// ([`Context`] uses refcounting internally).
 ///
-/// A [`CtxRef`] is only valid for the duration of a frame, and so you should not store a [`CtxRef`] between frames.
-/// A new [`CtxRef`] is created each frame by calling [`Self::run`].
+/// All methods are marked `&self`; `Context` has interior mutability (protected by a mutex).
+///
+///
+/// You can store
 ///
 /// # Example:
 ///
 /// ``` no_run
 /// # fn handle_output(_: egui::Output) {}
 /// # fn paint(_: Vec<egui::ClippedMesh>) {}
-/// let mut ctx = egui::CtxRef::default();
+/// let mut ctx = egui::Context::default();
 ///
 /// // Game loop:
 /// loop {
@@ -42,31 +120,31 @@ use epaint::{mutex::*, stats::*, text::Fonts, *};
 /// }
 /// ```
 #[derive(Clone)]
-pub struct CtxRef(Arc<RwLock<Context>>);
+pub struct Context(Arc<RwLock<ContextImpl>>);
 
-impl std::cmp::PartialEq for CtxRef {
-    fn eq(&self, other: &CtxRef) -> bool {
+impl std::cmp::PartialEq for Context {
+    fn eq(&self, other: &Context) -> bool {
         Arc::ptr_eq(&self.0, &other.0)
     }
 }
 
-impl Default for CtxRef {
+impl Default for Context {
     fn default() -> Self {
-        Self(Arc::new(RwLock::new(Context {
+        Self(Arc::new(RwLock::new(ContextImpl {
             // Start with painting an extra frame to compensate for some widgets
             // that take two frames before they "settle":
             repaint_requests: 1,
-            ..Context::default()
+            ..ContextImpl::default()
         })))
     }
 }
 
-impl CtxRef {
-    fn borrow(&self) -> RwLockReadGuard<'_, Context> {
+impl Context {
+    fn borrow(&self) -> RwLockReadGuard<'_, ContextImpl> {
         (*self.0).read()
     }
 
-    fn borrow_mut(&self) -> RwLockWriteGuard<'_, Context> {
+    fn borrow_mut(&self) -> RwLockWriteGuard<'_, ContextImpl> {
         self.0.write()
     }
 
@@ -75,13 +153,13 @@ impl CtxRef {
     /// Put your widgets into a [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`].
     ///
     /// This will modify the internal reference to point to a new generation of [`Context`].
-    /// Any old clones of this [`CtxRef`] will refer to the old [`Context`], which will not get new input.
+    /// Any old clones of this [`Context`] will refer to the old [`Context`], which will not get new input.
     ///
     /// You can alternatively run [`Self::begin_frame`] and [`Context::end_frame`].
     ///
     /// ``` rust
     /// // One egui context that you keep reusing:
-    /// let mut ctx = egui::CtxRef::default();
+    /// let mut ctx = egui::Context::default();
     ///
     /// // Each frame:
     /// let input = egui::RawInput::default();
@@ -96,7 +174,7 @@ impl CtxRef {
     pub fn run(
         &self,
         new_input: RawInput,
-        run_ui: impl FnOnce(&CtxRef),
+        run_ui: impl FnOnce(&Context),
     ) -> (Output, Vec<ClippedShape>) {
         self.begin_frame(new_input);
         run_ui(self);
@@ -107,7 +185,7 @@ impl CtxRef {
     ///
     /// ``` rust
     /// // One egui context that you keep reusing:
-    /// let mut ctx = egui::CtxRef::default();
+    /// let mut ctx = egui::Context::default();
     ///
     /// // Each frame:
     /// let input = egui::RawInput::default();
@@ -330,46 +408,17 @@ impl CtxRef {
     pub fn debug_painter(&self) -> Painter {
         Self::layer_painter(self, LayerId::debug())
     }
-}
 
-// ----------------------------------------------------------------------------
-
-/// Your handle to egui.
-///
-/// This is the first thing you need when working with egui.
-/// Use [`CtxRef`] to create and refer to a [`Context`].
-///
-/// Contains the [`InputState`], [`Memory`], [`Output`], and more.
-#[derive(Default)]
-pub struct Context {
-    /// `None` until the start of the first frame.
-    fonts: Option<Fonts>,
-    memory: Memory,
-    animation_manager: AnimationManager,
-
-    input: InputState,
-
-    /// State that is collected during a frame and then cleared
-    frame_state: FrameState,
-
-    // The output of a frame:
-    graphics: GraphicLayers,
-    output: Output,
-
-    paint_stats: PaintStats,
-
-    /// While positive, keep requesting repaints. Decrement at the end of each frame.
-    repaint_requests: u32,
-}
-
-impl CtxRef {
     /// How much space is still available after panels has been added.
     /// This is the "background" area, what egui doesn't cover with panels (but may cover with windows).
     /// This is also the area to which windows are constrained.
     pub fn available_rect(&self) -> Rect {
         self.frame_state().available_rect()
     }
+}
 
+/// ## Borrows parts of [`Context`]
+impl Context {
     /// Stores all the egui state.
     /// If you want to store/restore egui, serialize this.
     pub fn memory(&self) -> RwLockWriteGuard<'_, Memory> {
@@ -406,23 +455,25 @@ impl CtxRef {
         RwLockWriteGuard::map(self.borrow_mut(), |c| &mut c.input)
     }
 
-    /// Not valid until first call to [`CtxRef::run()`].
+    /// Not valid until first call to [`Context::run()`].
     /// That's because since we don't know the proper `pixels_per_point` until then.
     pub fn fonts(&self) -> RwLockReadGuard<'_, Fonts> {
         RwLockReadGuard::map(self.borrow(), |c| {
             c.fonts
                 .as_ref()
-                .expect("No fonts available until first call to CtxRef::run()")
+                .expect("No fonts available until first call to Context::run()")
         })
     }
 
     fn fonts_mut(&self) -> RwLockWriteGuard<'_, Option<Fonts>> {
         RwLockWriteGuard::map(self.borrow_mut(), |c| &mut c.fonts)
     }
+}
 
+impl Context {
     /// The egui font image, containing font characters etc.
     ///
-    /// Not valid until first call to [`CtxRef::run()`].
+    /// Not valid until first call to [`Context::run()`].
     /// That's because since we don't know the proper `pixels_per_point` until then.
     pub fn font_image(&self) -> Arc<epaint::FontImage> {
         self.fonts().font_image()
@@ -456,7 +507,7 @@ impl CtxRef {
     ///
     /// Example:
     /// ```
-    /// # let mut ctx = egui::CtxRef::default();
+    /// # let mut ctx = egui::Context::default();
     /// let mut style: egui::Style = (*ctx.style()).clone();
     /// style.spacing.item_spacing = egui::vec2(10.0, 20.0);
     /// ctx.set_style(style);
@@ -471,7 +522,7 @@ impl CtxRef {
     ///
     /// Example:
     /// ```
-    /// # let mut ctx = egui::CtxRef::default();
+    /// # let mut ctx = egui::Context::default();
     /// ctx.set_visuals(egui::Visuals::light()); // Switch to light mode
     /// ```
     pub fn set_visuals(&self, visuals: crate::Visuals) {
@@ -561,7 +612,7 @@ impl CtxRef {
 }
 
 // Ergonomic methods to forward some calls often used in 'if let' without holding the borrow
-impl CtxRef {
+impl Context {
     /// Latest reported pointer position.
     /// When tapping a touch screen, this will be `None`.
     #[inline(always)]
@@ -592,57 +643,6 @@ impl CtxRef {
 }
 
 impl Context {
-    fn begin_frame_mut(&mut self, new_raw_input: RawInput) {
-        self.memory.begin_frame(&self.input, &new_raw_input);
-
-        let mut input = std::mem::take(&mut self.input);
-        if let Some(new_pixels_per_point) = self.memory.new_pixels_per_point.take() {
-            input.pixels_per_point = new_pixels_per_point;
-        }
-
-        self.input = input.begin_frame(new_raw_input);
-        self.frame_state.begin_frame(&self.input);
-
-        self.update_fonts_mut(self.input.pixels_per_point());
-
-        // Ensure we register the background area so panels and background ui can catch clicks:
-        let screen_rect = self.input.screen_rect();
-        self.memory.areas.set_state(
-            LayerId::background(),
-            containers::area::State {
-                pos: screen_rect.min,
-                size: screen_rect.size(),
-                interactable: true,
-            },
-        );
-    }
-
-    /// Load fonts unless already loaded.
-    fn update_fonts_mut(&mut self, pixels_per_point: f32) {
-        let new_font_definitions = self.memory.new_font_definitions.take();
-
-        let pixels_per_point_changed = match &self.fonts {
-            None => true,
-            Some(current_fonts) => {
-                (current_fonts.pixels_per_point() - pixels_per_point).abs() > 1e-3
-            }
-        };
-
-        if self.fonts.is_none() || new_font_definitions.is_some() || pixels_per_point_changed {
-            self.fonts = Some(Fonts::new(
-                pixels_per_point,
-                new_font_definitions.unwrap_or_else(|| {
-                    self.fonts
-                        .as_ref()
-                        .map(|font| font.definitions().clone())
-                        .unwrap_or_default()
-                }),
-            ));
-        }
-    }
-}
-
-impl CtxRef {
     /// Call at the end of each frame.
     /// Returns what has happened this frame [`crate::Output`] as well as what you need to paint.
     /// You can transform the returned shapes into triangles with a call to [`Context::tessellate`].
@@ -796,7 +796,7 @@ impl CtxRef {
 }
 
 /// ## Animation
-impl CtxRef {
+impl Context {
     /// Returns a value in the range [0, 1], to indicate "how on" this thing is.
     ///
     /// The first time called it will return `if value { 1.0 } else { 0.0 }`
@@ -832,7 +832,7 @@ impl CtxRef {
     }
 }
 
-impl CtxRef {
+impl Context {
     pub fn settings_ui(&self, ui: &mut Ui) {
         use crate::containers::*;
 
@@ -1029,7 +1029,7 @@ impl CtxRef {
     }
 }
 
-impl CtxRef {
+impl Context {
     pub fn style_ui(&self, ui: &mut Ui) {
         let mut style: Style = (*self.style()).clone();
         style.ui(ui);

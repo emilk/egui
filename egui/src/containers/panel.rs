@@ -24,11 +24,11 @@ struct PanelState {
 }
 
 impl PanelState {
-    fn load(ctx: &CtxRef, bar_id: Id) -> Option<Self> {
+    fn load(ctx: &Context, bar_id: Id) -> Option<Self> {
         ctx.memory().data.get_persisted(bar_id)
     }
 
-    fn store(self, ctx: &CtxRef, bar_id: Id) {
+    fn store(self, ctx: &Context, bar_id: Id) {
         ctx.memory().data.insert_persisted(bar_id, self);
     }
 }
@@ -284,7 +284,7 @@ impl SidePanel {
     /// Show the panel at the top level.
     pub fn show<R>(
         self,
-        ctx: &CtxRef,
+        ctx: &Context,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.show_dyn(ctx, Box::new(add_contents))
@@ -293,7 +293,7 @@ impl SidePanel {
     /// Show the panel at the top level.
     fn show_dyn<'c, R>(
         self,
-        ctx: &CtxRef,
+        ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         let layer_id = LayerId::background();
@@ -571,7 +571,7 @@ impl TopBottomPanel {
     /// Show the panel at the top level.
     pub fn show<R>(
         self,
-        ctx: &CtxRef,
+        ctx: &Context,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.show_dyn(ctx, Box::new(add_contents))
@@ -580,7 +580,7 @@ impl TopBottomPanel {
     /// Show the panel at the top level.
     fn show_dyn<'c, R>(
         self,
-        ctx: &CtxRef,
+        ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         let layer_id = LayerId::background();
@@ -671,7 +671,7 @@ impl CentralPanel {
     /// Show the panel at the top level.
     pub fn show<R>(
         self,
-        ctx: &CtxRef,
+        ctx: &Context,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.show_dyn(ctx, Box::new(add_contents))
@@ -680,7 +680,7 @@ impl CentralPanel {
     /// Show the panel at the top level.
     fn show_dyn<'c, R>(
         self,
-        ctx: &CtxRef,
+        ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         let available_rect = ctx.available_rect();

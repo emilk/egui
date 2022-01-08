@@ -31,7 +31,7 @@ impl Demo for MiscDemoWindow {
         "✨ Misc Demos"
     }
 
-    fn show(&mut self, ctx: &CtxRef, open: &mut bool) {
+    fn show(&mut self, ctx: &Context, open: &mut bool) {
         Window::new(self.name())
             .open(open)
             .vscroll(true)

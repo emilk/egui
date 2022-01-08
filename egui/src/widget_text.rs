@@ -1,7 +1,7 @@
 use epaint::mutex::Arc;
 
 use crate::{
-    style::WidgetVisuals, text::LayoutJob, Align, Color32, CtxRef, Galley, Pos2, Style, TextStyle,
+    style::WidgetVisuals, text::LayoutJob, Align, Color32, Context, Galley, Pos2, Style, TextStyle,
     Ui, Visuals,
 };
 
@@ -170,7 +170,7 @@ impl RichText {
     }
 
     /// Read the font height of the selected text style.
-    pub fn font_height(&self, ctx: &CtxRef) -> f32 {
+    pub fn font_height(&self, ctx: &Context) -> f32 {
         let text_style = self
             .text_style
             .or(ctx.style().override_text_style)
@@ -437,7 +437,7 @@ impl WidgetText {
         }
     }
 
-    pub(crate) fn font_height(&self, ctx: &CtxRef) -> f32 {
+    pub(crate) fn font_height(&self, ctx: &Context) -> f32 {
         match self {
             Self::RichText(text) => text.font_height(ctx),
             Self::LayoutJob(job) => job.font_height(&*ctx.fonts()),

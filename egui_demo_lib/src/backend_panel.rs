@@ -78,7 +78,7 @@ impl Default for BackendPanel {
 }
 
 impl BackendPanel {
-    pub fn update(&mut self, ctx: &egui::CtxRef, frame: &epi::Frame) {
+    pub fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
         self.frame_history
             .on_new_frame(ctx.input().time, frame.info().cpu_usage);
 
@@ -88,7 +88,7 @@ impl BackendPanel {
         }
     }
 
-    pub fn end_of_frame(&mut self, ctx: &egui::CtxRef) {
+    pub fn end_of_frame(&mut self, ctx: &egui::Context) {
         self.egui_windows.windows(ctx);
     }
 
@@ -325,7 +325,7 @@ impl EguiWindows {
         ui.checkbox(output_events, "📤 Output Events");
     }
 
-    fn windows(&mut self, ctx: &egui::CtxRef) {
+    fn windows(&mut self, ctx: &egui::Context) {
         let Self {
             settings,
             inspection,

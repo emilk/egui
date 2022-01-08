@@ -101,7 +101,7 @@ impl super::Demo for DragAndDropDemo {
         "✋ Drag and Drop"
     }
 
-    fn show(&mut self, ctx: &CtxRef, open: &mut bool) {
+    fn show(&mut self, ctx: &Context, open: &mut bool) {
         use super::View as _;
         Window::new(self.name())
             .open(open)

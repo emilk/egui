@@ -35,11 +35,11 @@ struct PlotMemory {
 }
 
 impl PlotMemory {
-    pub fn load(ctx: &CtxRef, id: Id) -> Option<Self> {
+    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
         ctx.memory().data.get_persisted(id)
     }
 
-    pub fn store(self, ctx: &CtxRef, id: Id) {
+    pub fn store(self, ctx: &Context, id: Id) {
         ctx.memory().data.insert_persisted(id, self);
     }
 }
@@ -479,7 +479,7 @@ pub struct PlotUi {
     next_auto_color_idx: usize,
     last_screen_transform: ScreenTransform,
     response: Response,
-    ctx: CtxRef,
+    ctx: Context,
 }
 
 impl PlotUi {
@@ -491,7 +491,7 @@ impl PlotUi {
         Hsva::new(h, 0.85, 0.5, 1.0).into() // TODO: OkLab or some other perspective color space
     }
 
-    pub fn ctx(&self) -> &CtxRef {
+    pub fn ctx(&self) -> &Context {
         &self.ctx
     }
 

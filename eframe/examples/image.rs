@@ -12,7 +12,7 @@ impl epi::App for MyApp {
         "Show an image with eframe/egui"
     }
 
-    fn update(&mut self, ctx: &egui::CtxRef, frame: &epi::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
         if self.texture.is_none() {
             // Load the image:
             let image_data = include_bytes!("rust-logo-256x256.png");

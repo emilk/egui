@@ -23,15 +23,15 @@ impl Default for State {
 }
 
 impl State {
-    pub fn load(ctx: &CtxRef, id: Id) -> Option<Self> {
+    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
         ctx.memory().data.get_persisted(id)
     }
 
-    pub fn store(self, ctx: &CtxRef, id: Id) {
+    pub fn store(self, ctx: &Context, id: Id) {
         ctx.memory().data.insert_persisted(id, self);
     }
 
-    pub fn from_memory_with_default_open(ctx: &CtxRef, id: Id, default_open: bool) -> Self {
+    pub fn from_memory_with_default_open(ctx: &Context, id: Id, default_open: bool) -> Self {
         Self::load(ctx, id).unwrap_or_else(|| State {
             open: default_open,
             ..Default::default()
@@ -39,7 +39,7 @@ impl State {
     }
 
     // Helper
-    pub fn is_open(ctx: &CtxRef, id: Id) -> Option<bool> {
+    pub fn is_open(ctx: &Context, id: Id) -> Option<bool> {
         if ctx.memory().everything_is_visible() {
             Some(true)
         } else {
@@ -53,7 +53,7 @@ impl State {
     }
 
     /// 0 for closed, 1 for open, with tweening
-    pub fn openness(&self, ctx: &CtxRef, id: Id) -> f32 {
+    pub fn openness(&self, ctx: &Context, id: Id) -> f32 {
         if ctx.memory().everything_is_visible() {
             1.0
         } else {
