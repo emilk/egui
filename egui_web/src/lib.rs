@@ -252,7 +252,7 @@ pub fn local_storage_remove(key: &str) {
 }
 
 #[cfg(feature = "persistence")]
-pub fn load_memory(ctx: &egui::Context) {
+pub fn load_memory(ctx: &egui::CtxRef) {
     if let Some(memory_string) = local_storage_get("egui_memory_ron") {
         match ron::from_str(&memory_string) {
             Ok(memory) => {

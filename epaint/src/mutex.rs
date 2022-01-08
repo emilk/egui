@@ -211,7 +211,8 @@ mod rw_lock_impl {
 
 #[cfg(not(feature = "multi_threaded"))]
 mod arc_impl {
-    pub use std::rc::Rc as Arc;
+    // pub use std::rc::Rc as Arc; // TODO(emilk): optimize single threaded code by using `Rc` instead of `Arc`.
+    pub use std::sync::Arc;
 }
 
 // ----------------------------------------------------------------------------
