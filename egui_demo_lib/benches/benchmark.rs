@@ -4,7 +4,7 @@ use egui::epaint::TextShape;
 use egui_demo_lib::LOREM_IPSUM_LONG;
 
 pub fn criterion_benchmark(c: &mut Criterion) {
-    let raw_input = egui::RawInput::default();
+    use egui::RawInput;
 
     {
         let ctx = egui::Context::default();
@@ -13,7 +13,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         // The most end-to-end benchmark.
         c.bench_function("demo_with_tessellate__realistic", |b| {
             b.iter(|| {
-                let (_output, shapes) = ctx.run(raw_input.clone(), |ctx| {
+                let (_output, shapes) = ctx.run(RawInput::default(), |ctx| {
                     demo_windows.ui(ctx);
                 });
                 ctx.tessellate(shapes)
@@ -22,13 +22,13 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
         c.bench_function("demo_no_tessellate", |b| {
             b.iter(|| {
-                ctx.run(raw_input.clone(), |ctx| {
+                ctx.run(RawInput::default(), |ctx| {
                     demo_windows.ui(ctx);
                 })
             })
         });
 
-        let (_output, shapes) = ctx.run(raw_input.clone(), |ctx| {
+        let (_output, shapes) = ctx.run(RawInput::default(), |ctx| {
             demo_windows.ui(ctx);
         });
         c.bench_function("demo_only_tessellate", |b| {
@@ -42,7 +42,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let mut demo_windows = egui_demo_lib::DemoWindows::default();
         c.bench_function("demo_full_no_tessellate", |b| {
             b.iter(|| {
-                ctx.run(raw_input.clone(), |ctx| {
+                ctx.run(RawInput::default(), |ctx| {
                     demo_windows.ui(ctx);
                 })
             })
@@ -51,7 +51,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     {
         let ctx = egui::Context::default();
-        let _ = ctx.run(raw_input, |ctx| {
+        let _ = ctx.run(RawInput::default(), |ctx| {
             egui::CentralPanel::default().show(ctx, |ui| {
                 c.bench_function("label &str", |b| {
                     b.iter(|| {
@@ -65,6 +65,23 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 });
             });
         });
+    }
+
+    {
+        let ctx = egui::Context::default();
+        ctx.begin_frame(RawInput::default());
+
+        egui::CentralPanel::default().show(&ctx, |ui| {
+            c.bench_function("Painter::rect", |b| {
+                let painter = ui.painter();
+                let rect = ui.max_rect();
+                b.iter(|| {
+                    painter.rect(rect, 2.0, egui::Color32::RED, (1.0, egui::Color32::WHITE));
+                })
+            });
+        });
+
+        // Don't call `end_frame` to not have to drain the huge paint list
     }
 
     {
