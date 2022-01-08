@@ -912,7 +912,7 @@ impl CtxRef {
             .default_open(false)
             .show(ui, |ui| {
                 let input = ui.input().clone();
-                input.ui(ui)
+                input.ui(ui);
             });
 
         CollapsingHeader::new("📊 Paint stats")

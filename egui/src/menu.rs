@@ -197,7 +197,7 @@ pub fn context(
     let inner_response = bar_state.show(response, add_contents);
 
     bar_state.store(&response.ctx, menu_id);
-    return inner_response;
+    inner_response
 }
 
 /// Stores the state for the context menu.
