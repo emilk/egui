@@ -150,7 +150,7 @@ mod arc_impl {
 
 #[cfg(not(feature = "multi_threaded"))]
 mod mutex_impl {
-    use std::cell::{RefCell, RefMut};
+    use std::cell::RefCell;
     // `atomic_refcell` will panic if multiple threads try to access the same value
 
     /// Provides interior mutability. Only thread-safe if the `multi_threaded` feature is enabled.
@@ -158,7 +158,7 @@ mod mutex_impl {
     pub struct Mutex<T>(RefCell<T>);
 
     /// The lock you get from [`Mutex`].
-    pub use RefMut as MutexGuard;
+    pub use std::cell::RefMut as MutexGuard;
 
     impl<T> Mutex<T> {
         #[inline(always)]
@@ -176,15 +176,15 @@ mod mutex_impl {
 
 #[cfg(not(feature = "multi_threaded"))]
 mod rw_lock_impl {
-    use std::cell::{Ref, RefCell, RefMut};
+    use std::cell::RefCell;
 
     // `atomic_refcell` will panic if multiple threads try to access the same value
 
     /// The lock you get from [`RwLock::read`].
-    pub use Ref as RwLockReadGuard;
+    pub use std::cell::Ref as RwLockReadGuard;
 
     /// The lock you get from [`RwLock::write`].
-    pub use RefMut as RwLockWriteGuard;
+    pub use std::cell::RefMut as RwLockWriteGuard;
 
     /// Provides interior mutability. Only thread-safe if the `multi_threaded` feature is enabled.
     #[derive(Default)]
