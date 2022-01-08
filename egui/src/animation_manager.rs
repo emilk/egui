@@ -18,7 +18,6 @@ struct ValueAnim {
     from_value: f32,
     to_value: f32,
     /// when did `value` last toggle?
-   
     toggle_time: f64,
 }
 
@@ -72,7 +71,7 @@ impl AnimationManager {
         input: &InputState,
         animation_time: f32,
         id: Id,
-       value:f32
+        value: f32,
     ) -> f32 {
         match self.values.get_mut(&id) {
             None => {
@@ -91,15 +90,17 @@ impl AnimationManager {
                 // On the frame we toggle we don't want to return the old value,
                 // so we extrapolate forwards:
                 let time_since_toggle = time_since_toggle + input.predicted_dt;
-                let current_value=   remap_clamp(time_since_toggle, 0.0..=animation_time, anim.from_value..=anim.to_value);
-                if anim.to_value != value  {
-                    
-                    anim.from_value=current_value; //start new animation from current position of playing animation
-                    anim.to_value=value;
+                let current_value = remap_clamp(
+                    time_since_toggle,
+                    0.0..=animation_time,
+                    anim.from_value..=anim.to_value,
+                );
+                if anim.to_value != value {
+                    anim.from_value = current_value; //start new animation from current position of playing animation
+                    anim.to_value = value;
                     anim.toggle_time = input.time;
-                } 
-                 current_value
-              
+                }
+                current_value
             }
         }
     }
