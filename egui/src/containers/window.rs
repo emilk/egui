@@ -741,9 +741,16 @@ fn paint_frame_interaction(
 // ----------------------------------------------------------------------------
 
 struct TitleBar {
+    /// A title Id used for dragging windows
     id: Id,
+    /// Prepared text in the title
     title_galley: WidgetTextGalley,
+    /// Size of the title bar in a collapsed state (if window is collapsible),
+    /// which includes all necessary space for showing the expand button, the
+    /// title and the close button.
     min_rect: Rect,
+    /// Size of the title bar in an expanded state. This size become known only
+    /// after expanding window and painting its content
     rect: Rect,
 }
 
@@ -804,6 +811,20 @@ fn show_title_bar(
 }
 
 impl TitleBar {
+    /// Finishes painting of the title bar when the window content size already known.
+    ///
+    /// # Parameters
+    ///
+    /// - `ui`:
+    /// - `outer_rect`:
+    /// - `content_response`: if `None`, window is collapsed at this frame, otherwise contains
+    ///   a result of rendering the window content
+    /// - `open`: if `None`, no "Close" button will be rendered, otherwise renders and processes
+    ///   the "Close" button and writes a `false` if window was closed
+    /// - `collapsing`: holds the current expanding state. Can be changed by double click on the
+    ///   title if `collapsible` is `true`
+    /// - `collapsible`: if `true`, double click on the title bar will be handled for a change
+    ///   of `collapsing` state
     fn ui(
         mut self,
         ui: &mut Ui,
@@ -857,6 +878,11 @@ impl TitleBar {
         }
     }
 
+    /// Paints the "Close" button at the right side of the title bar
+    /// and processes clicks on it.
+    ///
+    /// The button is square and its size is determined by the
+    /// [`crate::style::Spacing::icon_width`] setting.
     fn close_button_ui(&self, ui: &mut Ui) -> Response {
         let button_size = Vec2::splat(ui.spacing().icon_width);
         let pad = (self.rect.height() - button_size.y) / 2.0; // calculated so that the icon is on the diagonal (if window padding is symmetrical)
@@ -872,6 +898,16 @@ impl TitleBar {
     }
 }
 
+/// Paints the "Close" button of the window and processes clicks on it.
+///
+/// The close button is just an `X` symbol painted by a current stroke
+/// for foreground elements (such as a label text).
+///
+/// # Parameters
+/// - `ui`:
+/// - `rect`: The rectangular area to fit the button in
+///
+/// Returns the result of a click on a button if it was pressed
 fn close_button(ui: &mut Ui, rect: Rect) -> Response {
     let close_id = ui.auto_id_with("window_close_button");
     let response = ui.interact(rect, close_id, Sense::click());
@@ -880,9 +916,9 @@ fn close_button(ui: &mut Ui, rect: Rect) -> Response {
     let visuals = ui.style().interact(&response);
     let rect = rect.shrink(2.0).expand(visuals.expansion);
     let stroke = visuals.fg_stroke;
-    ui.painter()
+    ui.painter() // paints \
         .line_segment([rect.left_top(), rect.right_bottom()], stroke);
-    ui.painter()
+    ui.painter() // paints /
         .line_segment([rect.right_top(), rect.left_bottom()], stroke);
     response
 }
