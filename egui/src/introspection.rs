@@ -32,7 +32,7 @@ impl Widget for &epaint::FontImage {
             response
                 .on_hover_cursor(CursorIcon::ZoomIn)
                 .on_hover_ui_at_pointer(|ui| {
-                    if let Some(pos) = ui.ctx().latest_pos() {
+                    if let Some(pos) = ui.ctx().latest_pointer_pos() {
                         let (_id, zoom_rect) = ui.allocate_space(vec2(128.0, 128.0));
                         let u = remap_clamp(pos.x, rect.x_range(), 0.0..=tex_w);
                         let v = remap_clamp(pos.y, rect.y_range(), 0.0..=tex_h);

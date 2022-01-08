@@ -25,7 +25,7 @@ pub fn drag_source(ui: &mut Ui, id: Id, body: impl FnOnce(&mut Ui)) {
         // (anything with `Order::Tooltip` always gets an empty `Response`)
         // So this is fine!
 
-        if let Some(pointer_pos) = ui.ctx().interact_pos() {
+        if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
             let delta = pointer_pos - response.rect.center();
             ui.ctx().translate_layer(layer_id, delta);
         }

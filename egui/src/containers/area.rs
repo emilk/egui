@@ -370,7 +370,7 @@ impl Prepared {
 }
 
 fn pointer_pressed_on_area(ctx: &Context, layer_id: LayerId) -> bool {
-    if let Some(pointer_pos) = ctx.interact_pos() {
+    if let Some(pointer_pos) = ctx.pointer_interact_pos() {
         let any_pressed = ctx.input().pointer.any_pressed();
         any_pressed && ctx.layer_id_at(pointer_pos) == Some(layer_id)
     } else {

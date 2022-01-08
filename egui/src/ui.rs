@@ -121,7 +121,7 @@ impl Ui {
     ///
     /// Note that this may be a different [`Style`] than that of [`Context::style`].
     #[inline]
-    pub fn style(&self) -> &epaint::mutex::Arc<Style> {
+    pub fn style(&self) -> &Arc<Style> {
         &self.style
     }
 
@@ -137,13 +137,13 @@ impl Ui {
     /// # });
     /// ```
     pub fn style_mut(&mut self) -> &mut Style {
-        epaint::mutex::Arc::make_mut(&mut self.style) // clone-on-write
+        Arc::make_mut(&mut self.style) // clone-on-write
     }
 
     /// Changes apply to this `Ui` and its subsequent children.
     ///
     /// To set the visuals of all `Ui`:s, use [`Context::set_visuals`].
-    pub fn set_style(&mut self, style: impl Into<epaint::mutex::Arc<Style>>) {
+    pub fn set_style(&mut self, style: impl Into<Arc<Style>>) {
         self.style = style.into();
     }
 
@@ -312,8 +312,27 @@ impl Ui {
         self.painter().layer_id()
     }
 
-    /// The `Input` of the `Context` associated with the `Ui`.
+    /// The [`InputState`] of the [`Context`] associated with this [`Ui`].
     /// Equivalent to `.ctx().input()`.
+    ///
+    /// Note that this locks the [`Context`], so be careful with if-let bindings:
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// if let Some(pos) = { ui.input().pointer.hover_pos() } {
+    ///     // This is fine!
+    /// }
+    ///
+    /// let pos = ui.input().pointer.hover_pos();
+    /// if let Some(pos) = pos {
+    ///     // This is also fine!
+    /// }
+    ///
+    /// if let Some(pos) = ui.input().pointer.hover_pos() {
+    ///     // ⚠️ Using `ui` again here will lead to a dead-lock!
+    /// }
+    /// # });
+    /// ```
     #[inline]
     pub fn input(&self) -> RwLockReadGuard<'_, InputState> {
         self.ctx().input()

@@ -11,6 +11,9 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Added `Ui::add_visible` and `Ui::add_visible_ui`.
 
 ### Changed 🔧
+* ⚠️ `Context::input` and `Ui::input` now locks a mutex. This can lead to a dead-lock is used in an `if let` binding!
+  * `if let Some(pos) = ui.input().pointer.latest_pos()` and similar must now be rewritten on two lines, or with added `{}` around the righ-hand-side.
+  * Search for this problem in your code using the regex `if let .*input`.
 * Renamed `CtxRef` to `Context` ([#1050](https://github.com/emilk/egui/pull/1050)).
 * `Context` can now be cloned and stored between frames ([#1050](https://github.com/emilk/egui/pull/1050)).
 * Renamed `Ui::visible` to `Ui::is_visible`.

@@ -140,11 +140,11 @@ impl Default for Context {
 }
 
 impl Context {
-    fn borrow(&self) -> RwLockReadGuard<'_, ContextImpl> {
-        (*self.0).read()
+    fn read(&self) -> RwLockReadGuard<'_, ContextImpl> {
+        self.0.read()
     }
 
-    fn borrow_mut(&self) -> RwLockWriteGuard<'_, ContextImpl> {
+    fn write(&self) -> RwLockWriteGuard<'_, ContextImpl> {
         self.0.write()
     }
 
@@ -199,7 +199,7 @@ impl Context {
     /// // handle output, paint shapes
     /// ```
     pub fn begin_frame(&self, new_input: RawInput) {
-        self.borrow_mut().begin_frame_mut(new_input);
+        self.write().begin_frame_mut(new_input);
     }
 
     // ---------------------------------------------------------------------
@@ -220,7 +220,7 @@ impl Context {
             let show_error = |pos: Pos2, text: String| {
                 let painter = self.debug_painter();
                 let rect = painter.error(pos, text);
-                if let Some(pointer_pos) = self.borrow().input.pointer.hover_pos() {
+                if let Some(pointer_pos) = self.pointer_hover_pos() {
                     if rect.contains(pointer_pos) {
                         painter.error(
                             rect.left_bottom() + vec2(2.0, 4.0),
@@ -306,8 +306,9 @@ impl Context {
         self.register_interaction_id(id, rect);
 
         let clicked_elsewhere = response.clicked_elsewhere();
-        let context = &mut *self.borrow_mut();
-        let memory = &mut context.memory;
+        let ctx_impl = &mut *self.write();
+        let memory = &mut ctx_impl.memory;
+        let input = &mut ctx_impl.input;
 
         // We only want to focus labels if the screen reader is on.
         let interested_in_focus =
@@ -319,7 +320,7 @@ impl Context {
 
         if sense.click
             && memory.has_focus(response.id)
-            && (context.input.key_pressed(Key::Space) || context.input.key_pressed(Key::Enter))
+            && (input.key_pressed(Key::Space) || input.key_pressed(Key::Enter))
         {
             // Space/enter works like a primary click for e.g. selected buttons
             response.clicked[PointerButton::Primary as usize] = true;
@@ -333,7 +334,7 @@ impl Context {
             response.is_pointer_button_down_on =
                 memory.interaction.click_id == Some(id) || response.dragged;
 
-            for pointer_event in &context.input.pointer.pointer_events {
+            for pointer_event in &input.pointer.pointer_events {
                 match pointer_event {
                     PointerEvent::Moved(_) => {}
                     PointerEvent::Pressed(_) => {
@@ -380,10 +381,10 @@ impl Context {
         }
 
         if response.is_pointer_button_down_on {
-            response.interact_pointer_pos = context.input.pointer.interact_pos();
+            response.interact_pointer_pos = input.pointer.interact_pos();
         }
 
-        if context.input.pointer.any_down() {
+        if input.pointer.any_down() {
             response.hovered &= response.is_pointer_button_down_on; // we don't hover widgets while interacting with *other* widgets
         }
 
@@ -422,43 +423,54 @@ impl Context {
     /// Stores all the egui state.
     /// If you want to store/restore egui, serialize this.
     pub fn memory(&self) -> RwLockWriteGuard<'_, Memory> {
-        RwLockWriteGuard::map(self.borrow_mut(), |c| &mut c.memory)
+        RwLockWriteGuard::map(self.write(), |c| &mut c.memory)
     }
 
     pub(crate) fn graphics(&self) -> RwLockWriteGuard<'_, GraphicLayers> {
-        RwLockWriteGuard::map(self.borrow_mut(), |c| &mut c.graphics)
+        RwLockWriteGuard::map(self.write(), |c| &mut c.graphics)
     }
 
     /// What egui outputs each frame.
     pub fn output(&self) -> RwLockWriteGuard<'_, Output> {
-        RwLockWriteGuard::map(self.borrow_mut(), |c| &mut c.output)
+        RwLockWriteGuard::map(self.write(), |c| &mut c.output)
     }
 
     pub(crate) fn frame_state(&self) -> RwLockWriteGuard<'_, FrameState> {
-        RwLockWriteGuard::map(self.borrow_mut(), |c| &mut c.frame_state)
+        RwLockWriteGuard::map(self.write(), |c| &mut c.frame_state)
     }
 
-    /// Call this if there is need to repaint the UI, i.e. if you are showing an animation.
-    /// If this is called at least once in a frame, then there will be another frame right after this.
-    /// Call as many times as you wish, only one repaint will be issued.
-    pub fn request_repaint(&self) {
-        // request two frames of repaint, just to cover some corner cases (frame delays):
-        self.borrow_mut().repaint_requests = 2;
-    }
-
+    /// Access the [`InputState`].
+    ///
+    /// Note that this locks the [`Context`], so be careful with if-let bindings:
+    ///
+    /// ```
+    /// # let mut ctx = egui::Context::default();
+    /// if let Some(pos) = ctx.input().pointer.hover_pos() {
+    ///     // ⚠️ Using `ctx` again here will lead to a dead-lock!
+    /// }
+    ///
+    /// if let Some(pos) = { ctx.input().pointer.hover_pos() } {
+    ///     // This is fine!
+    /// }
+    ///
+    /// let pos = ctx.input().pointer.hover_pos();
+    /// if let Some(pos) = pos {
+    ///     // This is fine!
+    /// }
+    /// ```
     #[inline(always)]
     pub fn input(&self) -> RwLockReadGuard<'_, InputState> {
-        RwLockReadGuard::map(self.borrow(), |c| &c.input)
+        RwLockReadGuard::map(self.read(), |c| &c.input)
     }
 
     pub fn input_mut(&self) -> RwLockWriteGuard<'_, InputState> {
-        RwLockWriteGuard::map(self.borrow_mut(), |c| &mut c.input)
+        RwLockWriteGuard::map(self.write(), |c| &mut c.input)
     }
 
     /// Not valid until first call to [`Context::run()`].
     /// That's because since we don't know the proper `pixels_per_point` until then.
     pub fn fonts(&self) -> RwLockReadGuard<'_, Fonts> {
-        RwLockReadGuard::map(self.borrow(), |c| {
+        RwLockReadGuard::map(self.read(), |c| {
             c.fonts
                 .as_ref()
                 .expect("No fonts available until first call to Context::run()")
@@ -466,11 +478,19 @@ impl Context {
     }
 
     fn fonts_mut(&self) -> RwLockWriteGuard<'_, Option<Fonts>> {
-        RwLockWriteGuard::map(self.borrow_mut(), |c| &mut c.fonts)
+        RwLockWriteGuard::map(self.write(), |c| &mut c.fonts)
     }
 }
 
 impl Context {
+    /// Call this if there is need to repaint the UI, i.e. if you are showing an animation.
+    /// If this is called at least once in a frame, then there will be another frame right after this.
+    /// Call as many times as you wish, only one repaint will be issued.
+    pub fn request_repaint(&self) {
+        // request two frames of repaint, just to cover some corner cases (frame delays):
+        self.write().repaint_requests = 2;
+    }
+
     /// The egui font image, containing font characters etc.
     ///
     /// Not valid until first call to [`Context::run()`].
@@ -607,39 +627,6 @@ impl Context {
 
         Rect::from_min_size(pos, window.size())
     }
-
-    // ---------------------------------------------------------------------
-}
-
-// Ergonomic methods to forward some calls often used in 'if let' without holding the borrow
-impl Context {
-    /// Latest reported pointer position.
-    /// When tapping a touch screen, this will be `None`.
-    #[inline(always)]
-    pub(crate) fn latest_pos(&self) -> Option<Pos2> {
-        self.input().pointer.latest_pos()
-    }
-
-    /// If it is a good idea to show a tooltip, where is pointer?
-    #[inline(always)]
-    pub fn hover_pos(&self) -> Option<Pos2> {
-        self.input().pointer.hover_pos()
-    }
-
-    /// If you detect a click or drag and wants to know where it happened, use this.
-    ///
-    /// Latest position of the mouse, but ignoring any [`Event::PointerGone`]
-    /// if there were interactions this frame.
-    /// When tapping a touch screen, this will be the location of the touch.
-    #[inline(always)]
-    pub fn interact_pos(&self) -> Option<Pos2> {
-        self.input().pointer.interact_pos()
-    }
-
-    /// Calls [`InputState::multi_touch`].
-    pub fn multi_touch(&self) -> Option<MultiTouchInfo> {
-        self.input().multi_touch()
-    }
 }
 
 impl Context {
@@ -653,17 +640,17 @@ impl Context {
         }
 
         {
-            let context = &mut *self.borrow_mut();
-            context
+            let ctx_impl = &mut *self.write();
+            ctx_impl
                 .memory
-                .end_frame(&context.input, &context.frame_state.used_ids);
+                .end_frame(&ctx_impl.input, &ctx_impl.frame_state.used_ids);
         }
 
         self.fonts().end_frame();
 
         let mut output: Output = std::mem::take(&mut self.output());
-        if self.borrow().repaint_requests > 0 {
-            self.borrow_mut().repaint_requests -= 1;
+        if self.read().repaint_requests > 0 {
+            self.write().repaint_requests -= 1;
             output.needs_repaint = true;
         }
 
@@ -672,10 +659,10 @@ impl Context {
     }
 
     fn drain_paint_lists(&self) -> Vec<ClippedShape> {
-        let context = &mut *self.borrow_mut();
-        context
+        let ctx_impl = &mut *self.write();
+        ctx_impl
             .graphics
-            .drain(context.memory.areas.order())
+            .drain(ctx_impl.memory.areas.order())
             .collect()
     }
 
@@ -694,7 +681,7 @@ impl Context {
             tessellation_options,
             self.fonts().font_image().size(),
         );
-        self.borrow_mut().paint_stats = paint_stats.with_clipped_meshes(&clipped_meshes);
+        self.write().paint_stats = paint_stats.with_clipped_meshes(&clipped_meshes);
         clipped_meshes
     }
 
@@ -754,9 +741,40 @@ impl Context {
     pub fn wants_keyboard_input(&self) -> bool {
         self.memory().interaction.focus.focused().is_some()
     }
+}
 
-    // ---------------------------------------------------------------------
+// Ergonomic methods to forward some calls often used in 'if let' without holding the borrow
+impl Context {
+    /// Latest reported pointer position.
+    /// When tapping a touch screen, this will be `None`.
+    #[inline(always)]
+    pub(crate) fn latest_pointer_pos(&self) -> Option<Pos2> {
+        self.input().pointer.latest_pos()
+    }
 
+    /// If it is a good idea to show a tooltip, where is pointer?
+    #[inline(always)]
+    pub fn pointer_hover_pos(&self) -> Option<Pos2> {
+        self.input().pointer.hover_pos()
+    }
+
+    /// If you detect a click or drag and wants to know where it happened, use this.
+    ///
+    /// Latest position of the mouse, but ignoring any [`Event::PointerGone`]
+    /// if there were interactions this frame.
+    /// When tapping a touch screen, this will be the location of the touch.
+    #[inline(always)]
+    pub fn pointer_interact_pos(&self) -> Option<Pos2> {
+        self.input().pointer.interact_pos()
+    }
+
+    /// Calls [`InputState::multi_touch`].
+    pub fn multi_touch(&self) -> Option<MultiTouchInfo> {
+        self.input().multi_touch()
+    }
+}
+
+impl Context {
     /// Move all the graphics at the given layer.
     /// Can be used to implement drag-and-drop (see relevant demo).
     pub fn translate_layer(&self, layer_id: LayerId, delta: Vec2) {
@@ -814,10 +832,10 @@ impl Context {
     /// Like [`Self::animate_bool`] but allows you to control the animation time.
     pub fn animate_bool_with_time(&self, id: Id, value: bool, animation_time: f32) -> f32 {
         let animated_value = {
-            let context = &mut *self.borrow_mut();
-            context
+            let ctx_impl = &mut *self.write();
+            ctx_impl
                 .animation_manager
-                .animate_bool(&context.input, animation_time, id, value)
+                .animate_bool(&ctx_impl.input, animation_time, id, value)
         };
         let animation_in_progress = 0.0 < animated_value && animated_value < 1.0;
         if animation_in_progress {
@@ -828,7 +846,7 @@ impl Context {
 
     /// Clear memory of any animations.
     pub fn clear_animations(&self) {
-        self.borrow_mut().animation_manager = Default::default();
+        self.write().animation_manager = Default::default();
     }
 }
 
@@ -890,12 +908,12 @@ impl Context {
         .on_hover_text("Is egui currently listening for text input?");
 
         let pointer_pos = self
-            .hover_pos()
+            .pointer_hover_pos()
             .map_or_else(String::new, |pos| format!("{:?}", pos));
         ui.label(format!("Pointer pos: {}", pointer_pos));
 
         let top_layer = self
-            .hover_pos()
+            .pointer_hover_pos()
             .and_then(|pos| self.layer_id_at(pos))
             .map_or_else(String::new, |layer| layer.short_debug_format());
         ui.label(format!("Top layer under mouse: {}", top_layer));
@@ -919,7 +937,7 @@ impl Context {
         CollapsingHeader::new("📊 Paint stats")
             .default_open(true)
             .show(ui, |ui| {
-                let paint_stats = self.borrow_mut().paint_stats;
+                let paint_stats = self.write().paint_stats;
                 paint_stats.ui(ui);
             });
     }

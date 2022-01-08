@@ -4,7 +4,7 @@ use crate::{
     Color32, Context,
 };
 use epaint::{
-    mutex::{RwLockReadGuard, RwLockWriteGuard},
+    mutex::{Arc, RwLockReadGuard, RwLockWriteGuard},
     text::{Fonts, Galley, TextStyle},
     CircleShape, RectShape, Shape, Stroke, TextShape,
 };
@@ -353,7 +353,7 @@ impl Painter {
         text_style: TextStyle,
         color: crate::Color32,
         wrap_width: f32,
-    ) -> epaint::mutex::Arc<Galley> {
+    ) -> Arc<Galley> {
         self.fonts().layout(text, text_style, color, wrap_width)
     }
 
@@ -366,7 +366,7 @@ impl Painter {
         text: String,
         text_style: TextStyle,
         color: crate::Color32,
-    ) -> epaint::mutex::Arc<Galley> {
+    ) -> Arc<Galley> {
         self.fonts().layout(text, text_style, color, f32::INFINITY)
     }
 
@@ -376,7 +376,7 @@ impl Painter {
     ///
     /// If you want to change the color of the text, use [`Self::galley_with_color`].
     #[inline(always)]
-    pub fn galley(&self, pos: Pos2, galley: epaint::mutex::Arc<Galley>) {
+    pub fn galley(&self, pos: Pos2, galley: Arc<Galley>) {
         if !galley.is_empty() {
             self.add(Shape::galley(pos, galley));
         }
@@ -388,12 +388,7 @@ impl Painter {
     ///
     /// The text color in the [`Galley`] will be replaced with the given color.
     #[inline(always)]
-    pub fn galley_with_color(
-        &self,
-        pos: Pos2,
-        galley: epaint::mutex::Arc<Galley>,
-        text_color: Color32,
-    ) {
+    pub fn galley_with_color(&self, pos: Pos2, galley: Arc<Galley>, text_color: Color32) {
         if !galley.is_empty() {
             self.add(TextShape {
                 override_text_color: Some(text_color),

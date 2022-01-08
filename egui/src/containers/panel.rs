@@ -199,7 +199,7 @@ impl SidePanel {
         let mut is_resizing = false;
         if resizable {
             let resize_id = id.with("__resize");
-            if let Some(pointer) = ui.ctx().latest_pos() {
+            if let Some(pointer) = ui.ctx().latest_pointer_pos() {
                 let we_are_on_top = ui
                     .ctx()
                     .layer_id_at(pointer)
