@@ -1,19 +1,30 @@
 [package]
-name = "egui_dynamic_grid"
+name = "egui_extras"
 version = "0.16.0"
 edition = "2018"
-description = "Dynamic grid and table for egui"
+description = "Extra widgets for egui"
 authors = [
     "René Rössler <rene@freshx.de>",
     "Dominik Rössler <dominik@freshx.de>",
 ]
 license = "MIT OR Apache-2.0"
-homepage = "https://github.com/emilk/egui/tree/master/egui_dynamic_grid"
+homepage = "https://github.com/emilk/egui/tree/master/egui_extras"
 readme = "README.md"
-repository = "https://github.com/emilk/egui/tree/master/egui_dynamic_grid"
+repository = "https://github.com/emilk/egui/tree/master/egui_extras"
 categories = ["gui", "graphics"]
 keywords = ["glium", "egui", "gui", "gamedev"]
 include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
 [dependencies]
 egui = { version = "0.16.0", path = "../egui", default-features = false }
+
+# feature "datetime":
+chrono = { version = "0.4", optional = true }
+
+# feature "persistence":
+serde = { version = "1", features = ["derive"], optional = true }
+
+[features]
+default = ["datetime"]
+datetime = ["chrono"]
+persistence = ["serde"]

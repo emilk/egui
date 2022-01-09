@@ -1,10 +1,9 @@
 [workspace]
 resolver = "2"
 members = [
-    "egui_datepicker",
     "egui_demo_app",
     "egui_demo_lib",
-    "egui_dynamic_grid",
+    "egui_extras",
     "egui_glium",
     "egui_glow",
     "egui_web",

@@ -1,11 +1,10 @@
+use super::{button::DatePickerButtonState, month_data};
+use crate::{GridBuilder, Padding, Size, TableBuilder};
 use chrono::{Date, Datelike, NaiveDate, Utc, Weekday};
 use egui::{Align, Button, Color32, ComboBox, Direction, Id, Label, Layout, RichText, Ui};
-use egui_dynamic_grid::{GridBuilder, Padding, Size, TableBuilder};
-use serde::{Deserialize, Serialize};
 
-use crate::{datepicker_button::DatePickerButtonState, month_data};
-
-#[derive(Default, Clone, Serialize, Deserialize)]
+#[derive(Default, Clone)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 struct DatePickerPopupState {
     year: i32,
     month: u32,

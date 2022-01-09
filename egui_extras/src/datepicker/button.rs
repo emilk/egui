@@ -1,10 +1,9 @@
+use super::popup::DatePickerPopup;
 use chrono::{Date, Utc};
 use egui::{Area, Button, Frame, Key, Order, RichText, Ui, Widget};
-use serde::{Deserialize, Serialize};
 
-use crate::datepicker_popup::DatePickerPopup;
-
-#[derive(Default, Clone, Serialize, Deserialize)]
+#[derive(Default, Clone)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct DatePickerButtonState {
     pub picker_visible: bool,
 }

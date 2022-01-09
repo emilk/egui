@@ -1,5 +1,5 @@
 use egui::Color32;
-use egui_dynamic_grid::{GridBuilder, Padding, Size};
+use egui_extras::{GridBuilder, Padding, Size};
 
 /// Shows off a table with dynamic layout
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]

@@ -21,8 +21,7 @@ all-features = true
 [dependencies]
 egui = { version = "0.16.0", path = "../egui", default-features = false }
 epi = { version = "0.16.0", path = "../epi" }
-egui_dynamic_grid = { version = "0.16.0", path = "../egui_dynamic_grid" }
-egui_datepicker = { version = "0.16.0", path = "../egui_datepicker", optional = true }
+egui_extras = { version = "0.16.0", path = "../egui_extras" }
 
 chrono = { version = "0.4", features = ["js-sys", "wasmbind"], optional = true }
 enum-map = { version = "1", features = ["serde"] }
@@ -48,7 +47,7 @@ criterion = { version = "0.3", default-features = false }
 
 [features]
 default = ["datetime"]
-datetime = ["egui_datepicker", "chrono"]
+datetime = ["egui_extras/datetime", "chrono"]
 
 # Enable additional checks if debug assertions are enabled (debug builds).
 extra_debug_asserts = ["egui/extra_debug_asserts"]
@@ -56,7 +55,12 @@ extra_debug_asserts = ["egui/extra_debug_asserts"]
 extra_asserts = ["egui/extra_asserts"]
 
 http = ["ehttp", "image"]
-persistence = ["egui/persistence", "epi/persistence", "serde"]
+persistence = [
+  "egui/persistence",
+  "epi/persistence",
+  "egui_extras/persistence",
+  "serde",
+]
 serialize = ["egui/serialize", "serde"]
 syntax_highlighting = ["syntect"]
 

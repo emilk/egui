@@ -1,9 +1,8 @@
-mod datepicker_button;
-mod datepicker_popup;
+mod button;
+mod popup;
 
+pub use button::DatePickerButton;
 use chrono::{Date, Datelike, Duration, NaiveDate, Utc, Weekday};
-
-pub use datepicker_button::DatePickerButton;
 
 #[derive(Debug)]
 struct Week {

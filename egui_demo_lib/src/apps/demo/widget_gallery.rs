@@ -207,7 +207,7 @@ impl WidgetGallery {
         #[cfg(feature = "datetime")]
         {
             ui.add(doc_link_label("DatePickerButton", "DatePickerButton"));
-            ui.add(egui_datepicker::DatePickerButton::new(date));
+            ui.add(egui_extras::DatePickerButton::new(date));
             ui.end_row();
         }
 

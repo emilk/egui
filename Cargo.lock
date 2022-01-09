@@ -814,16 +814,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "egui_datepicker"
-version = "0.16.0"
-dependencies = [
- "chrono",
- "egui",
- "egui_dynamic_grid",
- "serde",
-]
-
-[[package]]
 name = "egui_demo_app"
 version = "0.16.0"
 dependencies = [
@@ -838,8 +828,7 @@ dependencies = [
  "chrono",
  "criterion",
  "egui",
- "egui_datepicker",
- "egui_dynamic_grid",
+ "egui_extras",
  "ehttp",
  "enum-map",
  "epi",
@@ -850,10 +839,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "egui_dynamic_grid"
+name = "egui_extras"
 version = "0.16.0"
 dependencies = [
+ "chrono",
  "egui",
+ "serde",
 ]
 
 [[package]]

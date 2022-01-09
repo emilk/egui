@@ -1,5 +1,5 @@
 use egui::{Label, RichText};
-use egui_dynamic_grid::{Padding, Size, TableBuilder};
+use egui_extras::{Padding, Size, TableBuilder};
 
 /// Shows off a table with dynamic layout
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
