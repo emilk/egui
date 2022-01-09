@@ -622,7 +622,7 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                         .input
                         .raw
                         .events
-                        .push(egui::Event::Text(text.replace("\r\n", "\n")));
+                        .push(egui::Event::Paste(text.replace("\r\n", "\n")));
                     runner_lock.needs_repaint.set_true();
                     event.stop_propagation();
                     event.prevent_default();
