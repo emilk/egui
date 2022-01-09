@@ -160,8 +160,13 @@ pub trait App {
     }
 
     /// The size limit of the web app canvas.
+    ///
+    /// By default the size if limited to 1024x2048.
+    ///
+    /// A larger canvas can lead to bad frame rates on some browsers on some platforms.
+    /// In particular, Firefox on Mac and Linux is really bad at handling large WebGL canvases:
+    /// <https://bugzilla.mozilla.org/show_bug.cgi?id=1010527#c0> (unfixed since 2014).
     fn max_size_points(&self) -> egui::Vec2 {
-        // Some browsers get slow with huge WebGL canvases, so we limit the size:
         egui::Vec2::new(1024.0, 2048.0)
     }
 
