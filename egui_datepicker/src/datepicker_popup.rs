@@ -53,356 +53,300 @@ impl<'a> DatePickerPopup<'a> {
         let weeks = month_data(popup_state.year, popup_state.month);
         let mut close = false;
         let height = 20.0;
-        GridBuilder::new(ui, Padding::new(2.0, 0.0)).vertical(|builder| {
-            builder
-                .rows(
-                    Size::Absolute(height),
-                    match (self.combo_boxes, self.arrows) {
-                        (true, true) => 2,
-                        (true, false) | (false, true) => 1,
-                        (false, false) => 0,
-                    },
-                )
-                .rows(
-                    Size::Absolute(2.0 + (height + 2.0) * weeks.len() as f32),
-                    if self.calendar { 1 } else { 0 },
-                )
-                .row(Size::Absolute(height))
-                .build(|mut grid| {
-                    if self.combo_boxes {
-                        grid.horizontal_noclip(|builder| {
-                            builder.columns(Size::Remainder, 3).build(|mut grid| {
-                                grid.cell_noclip(|ui| {
-                                    ComboBox::from_id_source("date_picker_year")
-                                        .selected_text(format!("{}", popup_state.year))
-                                        .show_ui(ui, |ui| {
-                                            for year in today.year() - 5..today.year() + 10 {
-                                                if ui
-                                                    .selectable_value(
-                                                        &mut popup_state.year,
-                                                        year,
-                                                        format!("{}", year),
-                                                    )
-                                                    .changed()
-                                                {
-                                                    ui.memory()
-                                                        .data
-                                                        .insert_persisted(id, popup_state.clone());
-                                                }
-                                            }
-                                        });
-                                });
-                                grid.cell_noclip(|ui| {
-                                    ComboBox::from_id_source("date_picker_month")
-                                        .selected_text(format!("{}", popup_state.month))
-                                        .show_ui(ui, |ui| {
-                                            for month in 1..=12 {
-                                                if ui
-                                                    .selectable_value(
-                                                        &mut popup_state.month,
-                                                        month,
-                                                        format!("{}", month),
-                                                    )
-                                                    .changed()
-                                                {
-                                                    ui.memory()
-                                                        .data
-                                                        .insert_persisted(id, popup_state.clone());
-                                                }
-                                            }
-                                        });
-                                });
-                                grid.cell_noclip(|ui| {
-                                    ComboBox::from_id_source("date_picker_day")
-                                        .selected_text(format!("{}", popup_state.day))
-                                        .show_ui(ui, |ui| {
-                                            for day in 1..=popup_state.last_day_of_month() {
-                                                if ui
-                                                    .selectable_value(
-                                                        &mut popup_state.day,
-                                                        day,
-                                                        format!("{}", day),
-                                                    )
-                                                    .changed()
-                                                {
-                                                    ui.memory()
-                                                        .data
-                                                        .insert_persisted(id, popup_state.clone());
-                                                }
-                                            }
-                                        });
-                                });
-                            })
-                        });
-                    }
-
-                    if self.arrows {
-                        grid.horizontal(|builder| {
-                            builder.columns(Size::Remainder, 6).build(|mut grid| {
-                                grid.cell(|ui| {
-                                    ui.with_layout(
-                                        Layout::top_down_justified(Align::Center),
-                                        |ui| {
+        GridBuilder::new(ui, Padding::new(2.0, 0.0))
+            .sizes(
+                Size::Absolute(height),
+                match (self.combo_boxes, self.arrows) {
+                    (true, true) => 2,
+                    (true, false) | (false, true) => 1,
+                    (false, false) => 0,
+                },
+            )
+            .sizes(
+                Size::Absolute(2.0 + (height + 2.0) * weeks.len() as f32),
+                if self.calendar { 1 } else { 0 },
+            )
+            .size(Size::Absolute(height))
+            .vertical(|mut grid| {
+                if self.combo_boxes {
+                    grid.grid_noclip(|builder| {
+                        builder.sizes(Size::Remainder, 3).horizontal(|mut grid| {
+                            grid.cell_noclip(|ui| {
+                                ComboBox::from_id_source("date_picker_year")
+                                    .selected_text(format!("{}", popup_state.year))
+                                    .show_ui(ui, |ui| {
+                                        for year in today.year() - 5..today.year() + 10 {
                                             if ui
-                                                .button("<<<")
-                                                .on_hover_text("substract one year")
-                                                .clicked()
+                                                .selectable_value(
+                                                    &mut popup_state.year,
+                                                    year,
+                                                    format!("{}", year),
+                                                )
+                                                .changed()
                                             {
-                                                popup_state.year -= 1;
-                                                popup_state.day = popup_state
-                                                    .day
-                                                    .min(popup_state.last_day_of_month());
                                                 ui.memory()
                                                     .data
                                                     .insert_persisted(id, popup_state.clone());
                                             }
-                                        },
-                                    );
-                                });
-                                grid.cell(|ui| {
-                                    ui.with_layout(
-                                        Layout::top_down_justified(Align::Center),
-                                        |ui| {
+                                        }
+                                    });
+                            });
+                            grid.cell_noclip(|ui| {
+                                ComboBox::from_id_source("date_picker_month")
+                                    .selected_text(format!("{}", popup_state.month))
+                                    .show_ui(ui, |ui| {
+                                        for month in 1..=12 {
                                             if ui
-                                                .button("<<")
-                                                .on_hover_text("substract one month")
-                                                .clicked()
+                                                .selectable_value(
+                                                    &mut popup_state.month,
+                                                    month,
+                                                    format!("{}", month),
+                                                )
+                                                .changed()
                                             {
-                                                popup_state.month -= 1;
-                                                if popup_state.month == 0 {
-                                                    popup_state.month = 12;
-                                                    popup_state.year -= 1;
-                                                }
-                                                popup_state.day = popup_state
-                                                    .day
-                                                    .min(popup_state.last_day_of_month());
                                                 ui.memory()
                                                     .data
                                                     .insert_persisted(id, popup_state.clone());
                                             }
-                                        },
-                                    );
-                                });
-                                grid.cell(|ui| {
-                                    ui.with_layout(
-                                        Layout::top_down_justified(Align::Center),
-                                        |ui| {
+                                        }
+                                    });
+                            });
+                            grid.cell_noclip(|ui| {
+                                ComboBox::from_id_source("date_picker_day")
+                                    .selected_text(format!("{}", popup_state.day))
+                                    .show_ui(ui, |ui| {
+                                        for day in 1..=popup_state.last_day_of_month() {
                                             if ui
-                                                .button("<")
-                                                .on_hover_text("substract one day")
-                                                .clicked()
+                                                .selectable_value(
+                                                    &mut popup_state.day,
+                                                    day,
+                                                    format!("{}", day),
+                                                )
+                                                .changed()
                                             {
-                                                popup_state.day -= 1;
-                                                if popup_state.day == 0 {
-                                                    popup_state.month -= 1;
-                                                    if popup_state.month == 0 {
-                                                        popup_state.year -= 1;
-                                                        popup_state.month = 12;
-                                                    }
-                                                    popup_state.day =
-                                                        popup_state.last_day_of_month();
-                                                }
                                                 ui.memory()
                                                     .data
                                                     .insert_persisted(id, popup_state.clone());
                                             }
-                                        },
-                                    );
-                                });
-                                grid.cell(|ui| {
-                                    ui.with_layout(
-                                        Layout::top_down_justified(Align::Center),
-                                        |ui| {
-                                            if ui.button(">").on_hover_text("add one day").clicked()
-                                            {
-                                                popup_state.day += 1;
-                                                if popup_state.day > popup_state.last_day_of_month()
-                                                {
-                                                    popup_state.day = 1;
-                                                    popup_state.month += 1;
-                                                    if popup_state.month > 12 {
-                                                        popup_state.month = 1;
-                                                        popup_state.year += 1;
-                                                    }
-                                                }
-                                                ui.memory()
-                                                    .data
-                                                    .insert_persisted(id, popup_state.clone());
-                                            }
-                                        },
-                                    );
-                                });
-                                grid.cell(|ui| {
-                                    ui.with_layout(
-                                        Layout::top_down_justified(Align::Center),
-                                        |ui| {
-                                            if ui
-                                                .button(">>")
-                                                .on_hover_text("add one month")
-                                                .clicked()
-                                            {
-                                                popup_state.month += 1;
-                                                if popup_state.month > 12 {
-                                                    popup_state.month = 1;
-                                                    popup_state.year += 1;
-                                                }
-                                                popup_state.day = popup_state
-                                                    .day
-                                                    .min(popup_state.last_day_of_month());
-                                                ui.memory()
-                                                    .data
-                                                    .insert_persisted(id, popup_state.clone());
-                                            }
-                                        },
-                                    );
-                                });
-                                grid.cell(|ui| {
-                                    ui.with_layout(
-                                        Layout::top_down_justified(Align::Center),
-                                        |ui| {
-                                            if ui
-                                                .button(">>>")
-                                                .on_hover_text("add one year")
-                                                .clicked()
-                                            {
-                                                popup_state.year += 1;
-                                                popup_state.day = popup_state
-                                                    .day
-                                                    .min(popup_state.last_day_of_month());
-                                                ui.memory()
-                                                    .data
-                                                    .insert_persisted(id, popup_state.clone());
-                                            }
-                                        },
-                                    );
-                                });
-                            })
-                        });
-                    }
+                                        }
+                                    });
+                            });
+                        })
+                    });
+                }
 
-                    if self.calendar {
-                        grid.cell(|ui| {
-                            TableBuilder::new(ui, Padding::new(2.0, 0.0))
-                                .scroll(false)
-                                .columns(Size::Remainder, if self.calendar_week { 8 } else { 7 })
-                                .header(height, |mut header| {
-                                    if self.calendar_week {
-                                        header.col(|ui| {
-                                            ui.with_layout(
-                                                Layout::centered_and_justified(Direction::TopDown),
-                                                |ui| {
-                                                    ui.add(Label::new("Week"));
-                                                },
-                                            );
-                                        });
-                                    }
-
-                                    //TODO: Locale
-                                    for name in ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"] {
-                                        header.col(|ui| {
-                                            ui.with_layout(
-                                                Layout::centered_and_justified(Direction::TopDown),
-                                                |ui| {
-                                                    ui.add(Label::new(name));
-                                                },
-                                            );
-                                        });
-                                    }
-                                })
-                                .body(|mut body| {
-                                    for week in weeks {
-                                        body.row(height, |mut row| {
-                                            if self.calendar_week {
-                                                row.col(|ui| {
-                                                    ui.add(Label::new(format!("{}", week.number)));
-                                                });
-                                            }
-                                            for day in week.days {
-                                                row.col(|ui| {
-                                                    ui.with_layout(
-                                                        Layout::top_down_justified(Align::Center),
-                                                        |ui| {
-                                                            //TODO: Colors from egui style
-                                                            let fill_color = if popup_state.year
-                                                                == day.year()
-                                                                && popup_state.month == day.month()
-                                                                && popup_state.day == day.day()
-                                                            {
-                                                                Color32::DARK_BLUE
-                                                            } else if day.weekday() == Weekday::Sat
-                                                                || day.weekday() == Weekday::Sun
-                                                            {
-                                                                Color32::DARK_RED
-                                                            } else {
-                                                                Color32::BLACK
-                                                            };
-                                                            let text_color = if day == today {
-                                                                Color32::RED
-                                                            } else if day.month()
-                                                                == popup_state.month
-                                                            {
-                                                                Color32::WHITE
-                                                            } else {
-                                                                Color32::from_gray(80)
-                                                            };
-
-                                                            let button = Button::new(
-                                                                RichText::new(format!(
-                                                                    "{}",
-                                                                    day.day()
-                                                                ))
-                                                                .color(text_color),
-                                                            )
-                                                            .fill(fill_color);
-
-                                                            if ui.add(button).clicked() {
-                                                                popup_state.year = day.year();
-                                                                popup_state.month = day.month();
-                                                                popup_state.day = day.day();
-                                                                ui.memory().data.insert_persisted(
-                                                                    id,
-                                                                    popup_state.clone(),
-                                                                );
-                                                            }
-                                                        },
-                                                    );
-                                                });
-                                            }
-                                        });
-                                    }
-                                });
-                        });
-                    }
-
-                    grid.horizontal(|builder| {
-                        builder.columns(Size::Remainder, 3).build(|mut grid| {
-                            grid.empty();
+                if self.arrows {
+                    grid.grid(|builder| {
+                        builder.sizes(Size::Remainder, 6).horizontal(|mut grid| {
                             grid.cell(|ui| {
                                 ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
-                                    if ui.button("Abbrechen").clicked() {
-                                        close = true;
+                                    if ui
+                                        .button("<<<")
+                                        .on_hover_text("substract one year")
+                                        .clicked()
+                                    {
+                                        popup_state.year -= 1;
+                                        popup_state.day =
+                                            popup_state.day.min(popup_state.last_day_of_month());
+                                        ui.memory().data.insert_persisted(id, popup_state.clone());
                                     }
                                 });
                             });
                             grid.cell(|ui| {
                                 ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
-                                    if ui.button("Speichern").clicked() {
-                                        *self.selection = Date::from_utc(
-                                            NaiveDate::from_ymd(
-                                                popup_state.year,
-                                                popup_state.month,
-                                                popup_state.day,
-                                            ),
-                                            Utc,
-                                        );
-                                        close = true;
+                                    if ui
+                                        .button("<<")
+                                        .on_hover_text("substract one month")
+                                        .clicked()
+                                    {
+                                        popup_state.month -= 1;
+                                        if popup_state.month == 0 {
+                                            popup_state.month = 12;
+                                            popup_state.year -= 1;
+                                        }
+                                        popup_state.day =
+                                            popup_state.day.min(popup_state.last_day_of_month());
+                                        ui.memory().data.insert_persisted(id, popup_state.clone());
+                                    }
+                                });
+                            });
+                            grid.cell(|ui| {
+                                ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
+                                    if ui.button("<").on_hover_text("substract one day").clicked() {
+                                        popup_state.day -= 1;
+                                        if popup_state.day == 0 {
+                                            popup_state.month -= 1;
+                                            if popup_state.month == 0 {
+                                                popup_state.year -= 1;
+                                                popup_state.month = 12;
+                                            }
+                                            popup_state.day = popup_state.last_day_of_month();
+                                        }
+                                        ui.memory().data.insert_persisted(id, popup_state.clone());
+                                    }
+                                });
+                            });
+                            grid.cell(|ui| {
+                                ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
+                                    if ui.button(">").on_hover_text("add one day").clicked() {
+                                        popup_state.day += 1;
+                                        if popup_state.day > popup_state.last_day_of_month() {
+                                            popup_state.day = 1;
+                                            popup_state.month += 1;
+                                            if popup_state.month > 12 {
+                                                popup_state.month = 1;
+                                                popup_state.year += 1;
+                                            }
+                                        }
+                                        ui.memory().data.insert_persisted(id, popup_state.clone());
+                                    }
+                                });
+                            });
+                            grid.cell(|ui| {
+                                ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
+                                    if ui.button(">>").on_hover_text("add one month").clicked() {
+                                        popup_state.month += 1;
+                                        if popup_state.month > 12 {
+                                            popup_state.month = 1;
+                                            popup_state.year += 1;
+                                        }
+                                        popup_state.day =
+                                            popup_state.day.min(popup_state.last_day_of_month());
+                                        ui.memory().data.insert_persisted(id, popup_state.clone());
+                                    }
+                                });
+                            });
+                            grid.cell(|ui| {
+                                ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
+                                    if ui.button(">>>").on_hover_text("add one year").clicked() {
+                                        popup_state.year += 1;
+                                        popup_state.day =
+                                            popup_state.day.min(popup_state.last_day_of_month());
+                                        ui.memory().data.insert_persisted(id, popup_state.clone());
                                     }
                                 });
                             });
                         })
                     });
+                }
+
+                if self.calendar {
+                    grid.cell(|ui| {
+                        TableBuilder::new(ui, Padding::new(2.0, 0.0))
+                            .scroll(false)
+                            .columns(Size::Remainder, if self.calendar_week { 8 } else { 7 })
+                            .header(height, |mut header| {
+                                if self.calendar_week {
+                                    header.col(|ui| {
+                                        ui.with_layout(
+                                            Layout::centered_and_justified(Direction::TopDown),
+                                            |ui| {
+                                                ui.add(Label::new("Week"));
+                                            },
+                                        );
+                                    });
+                                }
+
+                                //TODO: Locale
+                                for name in ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"] {
+                                    header.col(|ui| {
+                                        ui.with_layout(
+                                            Layout::centered_and_justified(Direction::TopDown),
+                                            |ui| {
+                                                ui.add(Label::new(name));
+                                            },
+                                        );
+                                    });
+                                }
+                            })
+                            .body(|mut body| {
+                                for week in weeks {
+                                    body.row(height, |mut row| {
+                                        if self.calendar_week {
+                                            row.col(|ui| {
+                                                ui.add(Label::new(format!("{}", week.number)));
+                                            });
+                                        }
+                                        for day in week.days {
+                                            row.col(|ui| {
+                                                ui.with_layout(
+                                                    Layout::top_down_justified(Align::Center),
+                                                    |ui| {
+                                                        //TODO: Colors from egui style
+                                                        let fill_color = if popup_state.year
+                                                            == day.year()
+                                                            && popup_state.month == day.month()
+                                                            && popup_state.day == day.day()
+                                                        {
+                                                            Color32::DARK_BLUE
+                                                        } else if day.weekday() == Weekday::Sat
+                                                            || day.weekday() == Weekday::Sun
+                                                        {
+                                                            Color32::DARK_RED
+                                                        } else {
+                                                            Color32::BLACK
+                                                        };
+                                                        let text_color = if day == today {
+                                                            Color32::RED
+                                                        } else if day.month() == popup_state.month {
+                                                            Color32::WHITE
+                                                        } else {
+                                                            Color32::from_gray(80)
+                                                        };
+
+                                                        let button = Button::new(
+                                                            RichText::new(format!("{}", day.day()))
+                                                                .color(text_color),
+                                                        )
+                                                        .fill(fill_color);
+
+                                                        if ui.add(button).clicked() {
+                                                            popup_state.year = day.year();
+                                                            popup_state.month = day.month();
+                                                            popup_state.day = day.day();
+                                                            ui.memory().data.insert_persisted(
+                                                                id,
+                                                                popup_state.clone(),
+                                                            );
+                                                        }
+                                                    },
+                                                );
+                                            });
+                                        }
+                                    });
+                                }
+                            });
+                    });
+                }
+
+                grid.grid(|builder| {
+                    builder.sizes(Size::Remainder, 3).horizontal(|mut grid| {
+                        grid.empty();
+                        grid.cell(|ui| {
+                            ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
+                                if ui.button("Abbrechen").clicked() {
+                                    close = true;
+                                }
+                            });
+                        });
+                        grid.cell(|ui| {
+                            ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
+                                if ui.button("Speichern").clicked() {
+                                    *self.selection = Date::from_utc(
+                                        NaiveDate::from_ymd(
+                                            popup_state.year,
+                                            popup_state.month,
+                                            popup_state.day,
+                                        ),
+                                        Utc,
+                                    );
+                                    close = true;
+                                }
+                            });
+                        });
+                    })
                 });
-        });
+            });
 
         if close {
             popup_state.setup = false;

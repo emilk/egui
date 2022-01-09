@@ -19,27 +19,20 @@ pub enum Size {
 }
 
 pub struct Sizing {
-    length: f32,
-    inner_padding: f32,
     sizes: Vec<Size>,
 }
 
 impl Sizing {
-    pub fn new(length: f32, inner_padding: f32) -> Self {
-        Self {
-            length,
-            inner_padding,
-            sizes: vec![],
-        }
+    pub fn new() -> Self {
+        Self { sizes: vec![] }
     }
 
     pub fn add_size(&mut self, size: Size) {
         self.sizes.push(size);
     }
 
-    pub fn into_lengths(self) -> Vec<f32> {
+    pub fn into_lengths(self, length: f32, inner_padding: f32) -> Vec<f32> {
         let mut remainders = 0;
-        let length = self.length;
         let sum_non_remainder = self
             .sizes
             .iter()
@@ -61,7 +54,7 @@ impl Sizing {
                 }
             })
             .sum::<f32>()
-            + self.inner_padding * (self.sizes.len() + 1) as f32;
+            + inner_padding * (self.sizes.len() + 1) as f32;
 
         let avg_remainder_length = if remainders == 0 {
             0.0

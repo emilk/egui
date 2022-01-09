@@ -20,10 +20,7 @@ pub struct TableBuilder<'a> {
 
 impl<'a> TableBuilder<'a> {
     pub fn new(ui: &'a mut Ui, padding: Padding) -> Self {
-        let sizing = Sizing::new(
-            ui.available_rect_before_wrap().width() - 2.0 * padding.outer,
-            padding.inner,
-        );
+        let sizing = Sizing::new();
 
         Self {
             ui,
@@ -62,7 +59,10 @@ impl<'a> TableBuilder<'a> {
 
     /// Create a header row which always stays visible and at the top
     pub fn header(self, height: f32, header: impl FnOnce(TableRow<'_, '_>)) -> Table<'a> {
-        let widths = self.sizing.into_lengths();
+        let widths = self.sizing.into_lengths(
+            self.ui.available_rect_before_wrap().width() - 2.0 * self.padding.outer,
+            self.padding.inner,
+        );
         let ui = self.ui;
         {
             let mut layout = Layout::new(ui, self.padding.clone(), LineDirection::TopToBottom);
@@ -92,7 +92,10 @@ impl<'a> TableBuilder<'a> {
     where
         F: for<'b> FnOnce(TableBody<'b>),
     {
-        let widths = self.sizing.into_lengths();
+        let widths = self.sizing.into_lengths(
+            self.ui.available_rect_before_wrap().width() - 2.0 * self.padding.outer,
+            self.padding.inner,
+        );
 
         Table {
             ui: self.ui,

@@ -25,80 +25,75 @@ impl super::Demo for GridDemo {
 
 impl super::View for GridDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        GridBuilder::new(ui, Padding::new(0.0, 5.0)).vertical(|builder| {
-            builder
-                .row(Size::Absolute(50.0))
-                .row(Size::Remainder)
-                .row(Size::RelativeMinimum {
-                    relative: 0.5,
-                    minimum: 60.0,
-                })
-                .build(|mut grid| {
-                    grid.cell(|ui| {
-                        ui.painter().rect_filled(
-                            ui.available_rect_before_wrap(),
-                            0.0,
-                            Color32::BLUE,
-                        );
-                    });
-                    grid.horizontal(|builder| {
-                        builder.columns(Size::Remainder, 2).build(|mut grid| {
-                            grid.cell(|ui| {
-                                ui.painter().rect_filled(
-                                    ui.available_rect_before_wrap(),
-                                    0.0,
-                                    Color32::RED,
-                                );
-                            });
-                            grid.vertical(|builder| {
-                                builder.rows(Size::Remainder, 3).build(|mut grid| {
-                                    grid.empty();
-                                    grid.cell(|ui| {
-                                        ui.painter().rect_filled(
-                                            ui.available_rect_before_wrap(),
-                                            0.0,
-                                            Color32::YELLOW,
-                                        );
-                                    });
-                                });
-                            });
+        GridBuilder::new(ui, Padding::new(0.0, 5.0))
+            .size(Size::Absolute(50.0))
+            .size(Size::Remainder)
+            .size(Size::RelativeMinimum {
+                relative: 0.5,
+                minimum: 60.0,
+            })
+            .vertical(|mut grid| {
+                grid.cell(|ui| {
+                    ui.painter()
+                        .rect_filled(ui.available_rect_before_wrap(), 0.0, Color32::BLUE);
+                });
+                grid.grid(|builder| {
+                    builder.sizes(Size::Remainder, 2).horizontal(|mut grid| {
+                        grid.cell(|ui| {
+                            ui.painter().rect_filled(
+                                ui.available_rect_before_wrap(),
+                                0.0,
+                                Color32::RED,
+                            );
                         });
-                    });
-                    grid.horizontal(|builder| {
-                        builder
-                            .column(Size::Remainder)
-                            .column(Size::Absolute(50.0))
-                            .column(Size::Remainder)
-                            .column(Size::Absolute(70.0))
-                            .build(|mut grid| {
-                                grid.empty();
-                                grid.vertical(|builder| {
-                                    builder
-                                        .row(Size::Remainder)
-                                        .row(Size::Absolute(50.0))
-                                        .row(Size::Remainder)
-                                        .build(|mut grid| {
-                                            grid.empty();
-                                            grid.cell(|ui| {
-                                                ui.painter().rect_filled(
-                                                    ui.available_rect_before_wrap(),
-                                                    0.0,
-                                                    Color32::GOLD,
-                                                );
-                                            });
-                                        });
-                                });
+                        grid.grid(|builder| {
+                            builder.sizes(Size::Remainder, 3).vertical(|mut grid| {
                                 grid.empty();
                                 grid.cell(|ui| {
                                     ui.painter().rect_filled(
                                         ui.available_rect_before_wrap(),
                                         0.0,
-                                        Color32::GREEN,
+                                        Color32::YELLOW,
                                     );
                                 });
                             });
+                        });
                     });
                 });
-        });
+                grid.grid(|builder| {
+                    builder
+                        .size(Size::Remainder)
+                        .size(Size::Absolute(50.0))
+                        .size(Size::Remainder)
+                        .size(Size::Absolute(70.0))
+                        .horizontal(|mut grid| {
+                            grid.empty();
+                            grid.grid(|builder| {
+                                builder
+                                    .size(Size::Remainder)
+                                    .size(Size::Absolute(50.0))
+                                    .size(Size::Remainder)
+                                    .vertical(|mut grid| {
+                                        grid.empty();
+                                        grid.cell(|ui| {
+                                            ui.painter().rect_filled(
+                                                ui.available_rect_before_wrap(),
+                                                0.0,
+                                                Color32::GOLD,
+                                            );
+                                        });
+                                    });
+                            });
+                            grid.empty();
+                            grid.cell(|ui| {
+                                ui.painter().rect_filled(
+                                    ui.available_rect_before_wrap(),
+                                    0.0,
+                                    Color32::GREEN,
+                                );
+                            });
+                        });
+                });
+            });
     }
 }
