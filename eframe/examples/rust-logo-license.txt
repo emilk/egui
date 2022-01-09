@@ -1,1 +1,0 @@
-Rust logo by Mozilla, from https://github.com/rust-lang/rust-artwork
