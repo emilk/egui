@@ -148,7 +148,9 @@ pub enum Event {
     Copy,
     /// The integration detected a "cut" event (e.g. Cmd+X).
     Cut,
-    /// Text input, e.g. via keyboard or paste action.
+    /// The integration detected a "paste" event (e.g. Cmd+V).
+    Paste(String),
+    /// Text input, e.g. via keyboard.
     ///
     /// When the user presses enter/return, do not send a `Text` (just [`Key::Enter`]).
     Text(String),

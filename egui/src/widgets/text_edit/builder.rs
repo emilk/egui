@@ -684,6 +684,15 @@ fn events(
                     Some(CCursorRange::one(delete_selected(text, &cursor_range)))
                 }
             }
+            Event::Paste(text_to_insert) => {
+                if !text_to_insert.is_empty() {
+                    let mut ccursor = delete_selected(text, &cursor_range);
+                    insert_text(&mut ccursor, text, text_to_insert);
+                    Some(CCursorRange::one(ccursor))
+                } else {
+                    None
+                }
+            }
             Event::Text(text_to_insert) => {
                 // Newlines are handled by `Key::Enter`.
                 if !text_to_insert.is_empty() && text_to_insert != "\n" && text_to_insert != "\r" {

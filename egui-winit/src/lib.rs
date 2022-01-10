@@ -484,7 +484,7 @@ impl State {
                     if let Some(contents) = self.clipboard.get() {
                         self.egui_input
                             .events
-                            .push(egui::Event::Text(contents.replace("\r\n", "\n")));
+                            .push(egui::Event::Paste(contents.replace("\r\n", "\n")));
                     }
                 }
             }
