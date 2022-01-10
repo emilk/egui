@@ -106,11 +106,11 @@ pub trait App {
     ///
     /// Put your widgets into a [`egui::SidePanel`], [`egui::TopBottomPanel`], [`egui::CentralPanel`], [`egui::Window`] or [`egui::Area`].
     ///
-    /// The given [`egui::CtxRef`] is only valid for the duration of this call.
-    /// The [`Frame`] however can be cloned and saved.
+    /// The [`egui::Context`] and [`Frame`] can be cloned and saved if you like.
     ///
-    /// To force a repaint, call either [`egui::Context::request_repaint`] or [`Frame::request_repaint`].
-    fn update(&mut self, ctx: &egui::CtxRef, frame: &Frame);
+    /// To force a repaint, call either [`egui::Context::request_repaint`] during the call to `update`,
+    /// or call [`Frame::request_repaint`] at any time (e.g. from another thread).
+    fn update(&mut self, ctx: &egui::Context, frame: &Frame);
 
     /// Called once before the first frame.
     ///
@@ -118,7 +118,7 @@ pub trait App {
     /// [`egui::Context::set_visuals`] etc.
     ///
     /// Also allows you to restore state, if there is a storage (required the "persistence" feature).
-    fn setup(&mut self, _ctx: &egui::CtxRef, _frame: &Frame, _storage: Option<&dyn Storage>) {}
+    fn setup(&mut self, _ctx: &egui::Context, _frame: &Frame, _storage: Option<&dyn Storage>) {}
 
     /// If `true` a warm-up call to [`Self::update`] will be issued where
     /// `ctx.memory().everything_is_visible()` will be set to `true`.

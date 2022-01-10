@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use epaint::mutex::Arc;
 
 use epaint::text::{cursor::*, Galley, LayoutJob};
 
@@ -406,7 +406,7 @@ impl<'t> TextEdit<'t> {
         let painter = ui.painter_at(text_clip_rect);
 
         if interactive {
-            if let Some(pointer_pos) = ui.input().pointer.interact_pos() {
+            if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
                 if response.hovered() && text.is_mutable() {
                     ui.output().mutable_text_under_cursor = true;
                 }
@@ -665,7 +665,8 @@ fn events(
 
     let mut any_change = false;
 
-    for event in &ui.input().events {
+    let events = ui.input().events.clone(); // avoid dead-lock by cloning. TODO: optimize
+    for event in &events {
         let did_mutate_text = match event {
             Event::Copy => {
                 if cursor_range.is_empty() {

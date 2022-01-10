@@ -3,8 +3,8 @@
 // For non-serializable types, these simply return `None`.
 // This will also allow users to pick their own serialization format per type.
 
+use epaint::mutex::Arc;
 use std::any::Any;
-use std::sync::Arc;
 
 // -----------------------------------------------------------------------------------------------
 

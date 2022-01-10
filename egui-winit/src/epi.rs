@@ -191,7 +191,7 @@ impl Persistence {
 pub struct EpiIntegration {
     frame: epi::Frame,
     persistence: crate::epi::Persistence,
-    pub egui_ctx: egui::CtxRef,
+    pub egui_ctx: egui::Context,
     egui_winit: crate::State,
     pub app: Box<dyn epi::App>,
     /// When set, it is time to quit
@@ -206,7 +206,7 @@ impl EpiIntegration {
         persistence: crate::epi::Persistence,
         app: Box<dyn epi::App>,
     ) -> Self {
-        let egui_ctx = egui::CtxRef::default();
+        let egui_ctx = egui::Context::default();
 
         *egui_ctx.memory() = persistence.load_memory().unwrap_or_default();
 
@@ -250,7 +250,7 @@ impl EpiIntegration {
     }
 
     fn warm_up(&mut self, window: &winit::window::Window) {
-        let saved_memory = self.egui_ctx.memory().clone();
+        let saved_memory: egui::Memory = self.egui_ctx.memory().clone();
         self.egui_ctx.memory().set_everything_is_visible(true);
         let (_, tex_alloc_data, _) = self.update(window);
         self.frame.lock().output.tex_allocation_data = tex_alloc_data; // handle it next frame

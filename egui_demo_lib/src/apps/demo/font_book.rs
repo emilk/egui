@@ -21,7 +21,7 @@ impl super::Demo for FontBook {
         "🔤 Font Book"
     }
 
-    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name()).open(open).show(ctx, |ui| {
             use super::View as _;
             self.ui(ui);

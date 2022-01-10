@@ -31,7 +31,7 @@ impl Demo for MiscDemoWindow {
         "✨ Misc Demos"
     }
 
-    fn show(&mut self, ctx: &CtxRef, open: &mut bool) {
+    fn show(&mut self, ctx: &Context, open: &mut bool) {
         Window::new(self.name())
             .open(open)
             .vscroll(true)
@@ -140,7 +140,8 @@ impl Widgets {
 
         ui.horizontal_wrapped(|ui| {
             // Trick so we don't have to add spaces in the text below:
-            ui.spacing_mut().item_spacing.x = ui.fonts()[TextStyle::Body].glyph_width(' ');
+            let width = ui.fonts()[TextStyle::Body].glyph_width(' ');
+            ui.spacing_mut().item_spacing.x = width;
 
             ui.label(RichText::new("Text can have").color(Color32::from_rgb(110, 255, 110)));
             ui.colored_label(Color32::from_rgb(128, 140, 255), "color"); // Shortcut version

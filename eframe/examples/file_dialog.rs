@@ -13,7 +13,7 @@ impl epi::App for MyApp {
         "Native file dialogs and drag-and-drop files"
     }
 
-    fn update(&mut self, ctx: &egui::CtxRef, _frame: &epi::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &epi::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.label("Drag-and-drop files onto the window!");
 
@@ -57,7 +57,7 @@ impl epi::App for MyApp {
 }
 
 impl MyApp {
-    fn detect_files_being_dropped(&mut self, ctx: &egui::CtxRef) {
+    fn detect_files_being_dropped(&mut self, ctx: &egui::Context) {
         use egui::*;
 
         // Preview hovering files:

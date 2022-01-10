@@ -44,7 +44,7 @@ impl epi::App for WrapApp {
 
     fn setup(
         &mut self,
-        _ctx: &egui::CtxRef,
+        _ctx: &egui::Context,
         _frame: &epi::Frame,
         _storage: Option<&dyn epi::Storage>,
     ) {
@@ -72,7 +72,7 @@ impl epi::App for WrapApp {
         cfg!(not(debug_assertions))
     }
 
-    fn update(&mut self, ctx: &egui::CtxRef, frame: &epi::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
         if let Some(web_info) = frame.info().web_info.as_ref() {
             if let Some(anchor) = web_info.web_location_hash.strip_prefix('#') {
                 self.selected_anchor = anchor.to_owned();
@@ -165,7 +165,7 @@ impl WrapApp {
         });
     }
 
-    fn ui_file_drag_and_drop(&mut self, ctx: &egui::CtxRef) {
+    fn ui_file_drag_and_drop(&mut self, ctx: &egui::Context) {
         use egui::*;
 
         // Preview hovering files:

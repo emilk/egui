@@ -101,7 +101,7 @@ pub use egui_winit;
 
 /// Convenience wrapper for using [`egui`] from a [`glium`] app.
 pub struct EguiGlium {
-    pub egui_ctx: egui::CtxRef,
+    pub egui_ctx: egui::Context,
     pub egui_winit: egui_winit::State,
     pub painter: crate::Painter,
 }
@@ -129,7 +129,7 @@ impl EguiGlium {
     pub fn run(
         &mut self,
         display: &glium::Display,
-        run_ui: impl FnMut(&egui::CtxRef),
+        run_ui: impl FnMut(&egui::Context),
     ) -> (bool, Vec<egui::epaint::ClippedShape>) {
         let raw_input = self
             .egui_winit
