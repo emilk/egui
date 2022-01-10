@@ -99,16 +99,16 @@ impl Painter {
         let shader_version = ShaderVersion::get(gl);
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
         let header = shader_version.version();
-        glow_print(format!("Shader header: {:?}", header));
+        glow_print(format!("Shader header: {:?}.", header));
         let srgb_support = gl.supported_extensions().contains("EXT_sRGB");
 
         let (post_process, srgb_support_define) = match (shader_version, srgb_support) {
-            //WebGL2 support sRGB default
+            // WebGL2 support sRGB default
             (ShaderVersion::Es300, _) | (ShaderVersion::Es100, true) => unsafe {
-                //Add sRGB support marker for fragment shader
+                // Add sRGB support marker for fragment shader
                 if let Some([width, height]) = pp_fb_extent {
-                    glow_print("WebGL with sRGB enabled so turn on post process");
-                    //install post process to correct sRGB color
+                    glow_print("WebGL with sRGB enabled. Turning on post processing for linear framebuffer blending.");
+                    // install post process to correct sRGB color:
                     (
                         Some(PostProcess::new(
                             gl,
@@ -125,9 +125,11 @@ impl Painter {
                     (None, "")
                 }
             },
-            //WebGL1 without sRGB support disable postprocess and use fallback shader
+
+            // WebGL1 without sRGB support disable postprocess and use fallback shader
             (ShaderVersion::Es100, false) => (None, ""),
-            //OpenGL 2.1 or above always support sRGB so add sRGB support marker
+
+            // OpenGL 2.1 or above always support sRGB so add sRGB support marker
             _ => (None, "#define SRGB_SUPPORTED"),
         };
 
