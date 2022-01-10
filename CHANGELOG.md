@@ -12,6 +12,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 
 ### Changed 🔧
 * Renamed `Ui::visible` to `Ui::is_visible`.
+* Split `Event::Text` into `Event::Text` and `Event::Paste` ([#1057](https://github.com/emilk/egui/issues/1057).
 
 ### Fixed 🐛
 * Context menu now respects the theme ([#1043](https://github.com/emilk/egui/pull/1043))
