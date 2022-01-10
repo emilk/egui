@@ -1247,7 +1247,7 @@ pub(crate) fn webgl1_requires_brightening(gl: &web_sys::WebGlRenderingContext) -
     // but safari use same vendor and renderer
     // so exclude "Mac OS X" user-agent.
     let user_agent = web_sys::window().unwrap().navigator().user_agent().unwrap();
-    !user_agent.contains("Mac OS X") && crate::is_safari_and_webkit_gtk(&gl)
+    !user_agent.contains("Mac OS X") && crate::is_safari_and_webkit_gtk(gl)
 }
 
 /// detecting Safari and webkitGTK.

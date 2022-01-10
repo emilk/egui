@@ -223,7 +223,7 @@ pub(crate) fn supports_vao(gl: &glow::Context) -> bool {
         } else {
             true
         }
-    } else if let Some(_) = version_string.rfind(OPENGL_ES_PREFIX) {
+    } else if version_string.contains(OPENGL_ES_PREFIX) {
         // glow targets es2.0+ so we don't concern about OpenGL ES-CM,OpenGL ES-CL
         if version_string.contains("2.0") {
             // need to test OES_vertex_array_object .
