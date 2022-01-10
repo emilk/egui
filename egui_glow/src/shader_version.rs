@@ -18,7 +18,7 @@ impl ShaderVersion {
             unsafe { gl.get_parameter_string(glow::SHADING_LANGUAGE_VERSION) };
         let shader_version = Self::parse(&shading_lang_string);
         glow_print(format!(
-            "Shader version: {:?} ({:?})",
+            "Shader version: {:?} ({:?}).",
             shader_version, shading_lang_string
         ));
         shader_version
