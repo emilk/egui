@@ -748,7 +748,7 @@ impl Ui {
     }
 
     /// Where do we expect a zero-sized widget to be placed?
-    pub(crate) fn next_widget_position(&self) -> Pos2 {
+    pub fn next_widget_position(&self) -> Pos2 {
         self.placer.next_widget_position()
     }
 
