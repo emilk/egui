@@ -4,7 +4,7 @@ use std::option::Option::Some;
 
 use crate::painter::TextureFilter;
 
-pub(crate) fn srgbtexture2d(
+pub(crate) fn srgb_texture2d(
     gl: &glow::Context,
     is_webgl_1: bool,
     srgb_support: bool,
@@ -71,8 +71,18 @@ pub(crate) fn srgbtexture2d(
                 glow::PixelUnpackData::Slice(data),
             );
         }
-        assert_eq!(gl.get_error(), glow::NO_ERROR, "OpenGL error occurred!");
+        check_for_gl_error(gl, "srgb_texture2d");
         tex
+    }
+}
+
+pub fn check_for_gl_error(gl: &glow::Context, context: &str) {
+    let error_code = unsafe { gl.get_error() };
+    if error_code != glow::NO_ERROR {
+        glow_print_error(format!(
+            "GL error, at: '{}', code: {} (0x{:X})",
+            context, error_code, error_code
+        ));
     }
 }
 
@@ -80,13 +90,20 @@ pub(crate) unsafe fn as_u8_slice<T>(s: &[T]) -> &[u8] {
     std::slice::from_raw_parts(s.as_ptr().cast::<u8>(), s.len() * std::mem::size_of::<T>())
 }
 
-#[cfg(target_arch = "wasm32")]
-pub(crate) fn glow_debug_print(s: impl std::fmt::Display) {
+pub(crate) fn glow_print(s: impl std::fmt::Display) {
+    #[cfg(target_arch = "wasm32")]
     web_sys::console::log_1(&format!("egui_glow: {}", s).into());
-}
-#[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn glow_debug_print(s: impl std::fmt::Display) {
+
+    #[cfg(not(target_arch = "wasm32"))]
     eprintln!("egui_glow: {}", s);
+}
+
+pub(crate) fn glow_print_error(s: impl std::fmt::Display) {
+    #[cfg(target_arch = "wasm32")]
+    web_sys::console::error_1(&format!("egui_glow: {}", s).into());
+
+    #[cfg(not(target_arch = "wasm32"))]
+    eprintln!("egui_glow ERROR: {}", s);
 }
 
 pub(crate) unsafe fn compile_shader(
@@ -192,7 +209,7 @@ pub(crate) fn supports_vao(gl: &glow::Context) -> bool {
     let version_string = unsafe { gl.get_parameter_string(glow::VERSION) };
     if let Some(pos) = version_string.rfind(web_sig) {
         let version_str = &version_string[pos + web_sig.len()..];
-        glow_debug_print(format!(
+        glow_print(format!(
             "detected WebGL prefix at {}:{}",
             pos + web_sig.len(),
             version_str
@@ -206,7 +223,7 @@ pub(crate) fn supports_vao(gl: &glow::Context) -> bool {
         }
     } else if let Some(pos) = version_string.rfind(es_sig) {
         //glow targets es2.0+ so we don't concern about OpenGL ES-CM,OpenGL ES-CL
-        glow_debug_print(format!(
+        glow_print(format!(
             "detected OpenGL ES prefix at {}:{}",
             pos + es_sig.len(),
             &version_string[pos + es_sig.len()..]
@@ -219,7 +236,7 @@ pub(crate) fn supports_vao(gl: &glow::Context) -> bool {
             true
         }
     } else {
-        glow_debug_print(format!("detected OpenGL: {:?}", version_string));
+        glow_print(format!("detected OpenGL: {:?}", version_string));
         //from OpenGL 3 vao into core
         if version_string.starts_with('2') {
             // I found APPLE_vertex_array_object , GL_ATI_vertex_array_object ,ARB_vertex_array_object

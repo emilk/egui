@@ -399,11 +399,9 @@ impl<'open> Window<'open> {
             content_inner
         };
 
-        if area.movable {
-            area.state_mut().pos = ctx
-                .constrain_window_rect_to_area(area.state().rect(), area.drag_bounds())
-                .min;
-        }
+        area.state_mut().pos = ctx
+            .constrain_window_rect_to_area(area.state().rect(), area.drag_bounds())
+            .min;
 
         let full_response = area.end(ctx, area_content_ui);
 
@@ -510,11 +508,7 @@ fn interact(
     let new_rect = move_and_resize_window(ctx, &window_interaction)?;
     let new_rect = ctx.round_rect_to_pixels(new_rect);
 
-    let new_rect = if area.movable {
-        ctx.constrain_window_rect_to_area(new_rect, area.drag_bounds())
-    } else {
-        new_rect
-    };
+    let new_rect = ctx.constrain_window_rect_to_area(new_rect, area.drag_bounds());
 
     // TODO: add this to a Window state instead as a command "move here next frame"
     area.state_mut().pos = new_rect.min;
