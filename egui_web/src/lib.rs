@@ -1246,11 +1246,21 @@ fn move_text_cursor(cursor: &Option<egui::Pos2>, canvas_id: &str) -> Option<()> 
 ///
 /// This function used to avoid displaying linear color with `sRGB` supported systems.
 pub(crate) fn is_safari_and_webkit_gtk(gl: &web_sys::WebGlRenderingContext) -> bool {
-    if let Ok(renderer) = gl.get_parameter(web_sys::WebglDebugRendererInfo::UNMASKED_RENDERER_WEBGL)
+    // This call produces a warning in Firefox ("WEBGL_debug_renderer_info is deprecated in Firefox and will be removed.")
+    // but unless we call it we get errors in Chrome when we call `get_parameter` below.
+    // TODO: do something smart based on user agent?
+    if gl
+        .get_extension("WEBGL_debug_renderer_info")
+        .unwrap()
+        .is_some()
     {
-        if let Some(renderer) = renderer.as_string() {
-            if renderer.contains("Apple") {
-                return true;
+        if let Ok(renderer) =
+            gl.get_parameter(web_sys::WebglDebugRendererInfo::UNMASKED_RENDERER_WEBGL)
+        {
+            if let Some(renderer) = renderer.as_string() {
+                if renderer.contains("Apple") {
+                    return true;
+                }
             }
         }
     }
