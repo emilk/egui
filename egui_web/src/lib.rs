@@ -1238,6 +1238,18 @@ fn move_text_cursor(cursor: &Option<egui::Pos2>, canvas_id: &str) -> Option<()> 
     }
 }
 
+pub(crate) fn webgl1_requires_brightening(gl: &web_sys::WebGlRenderingContext) -> bool {
+    // See https://github.com/emilk/egui/issues/794
+
+    // detect WebKitGTK
+
+    // WebKitGTK use WebKit default unmasked vendor and renderer
+    // but safari use same vendor and renderer
+    // so exclude "Mac OS X" user-agent.
+    let user_agent = web_sys::window().unwrap().navigator().user_agent().unwrap();
+    !user_agent.contains("Mac OS X") && crate::is_safari_and_webkit_gtk(&gl)
+}
+
 /// detecting Safari and webkitGTK.
 ///
 /// Safari and webkitGTK use unmasked renderer :Apple GPU
@@ -1245,7 +1257,7 @@ fn move_text_cursor(cursor: &Option<egui::Pos2>, canvas_id: &str) -> Option<()> 
 /// If we detect safari or webkitGTK returns true.
 ///
 /// This function used to avoid displaying linear color with `sRGB` supported systems.
-pub(crate) fn is_safari_and_webkit_gtk(gl: &web_sys::WebGlRenderingContext) -> bool {
+fn is_safari_and_webkit_gtk(gl: &web_sys::WebGlRenderingContext) -> bool {
     // This call produces a warning in Firefox ("WEBGL_debug_renderer_info is deprecated in Firefox and will be removed.")
     // but unless we call it we get errors in Chrome when we call `get_parameter` below.
     // TODO: do something smart based on user agent?

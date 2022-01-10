@@ -475,13 +475,6 @@ struct PostProcess {
     program: WebGlProgram,
 }
 
-fn requires_brightening(gl: &web_sys::WebGlRenderingContext) -> bool {
-    // See https://github.com/emilk/egui/issues/794
-
-    let user_agent = web_sys::window().unwrap().navigator().user_agent().unwrap();
-    crate::is_safari_and_webkit_gtk(gl) && !user_agent.contains("Mac OS X")
-}
-
 impl PostProcess {
     fn new(gl: Gl, width: i32, height: i32) -> Result<PostProcess, JsValue> {
         let fbo = gl
@@ -519,7 +512,7 @@ impl PostProcess {
         gl.bind_texture(Gl::TEXTURE_2D, None);
         gl.bind_framebuffer(Gl::FRAMEBUFFER, None);
 
-        let shader_prefix = if requires_brightening(&gl) {
+        let shader_prefix = if crate::webgl1_requires_brightening(&gl) {
             crate::console_log("Enabling webkitGTK brightening workaround");
             "#define APPLY_BRIGHTENING_GAMMA"
         } else {
