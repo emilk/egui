@@ -6,7 +6,9 @@ pub struct FontImage {
     pub version: u64,
     pub width: usize,
     pub height: usize,
-    /// White color with the given alpha (linear space 0-255).
+    /// The alpha (linear space 0-255) of something white.
+    ///
+    /// One byte per pixel. Often you want to use [`Self::srgba_pixels`] instead.
     pub pixels: Vec<u8>,
 }
 

@@ -132,7 +132,7 @@ pub fn init_glow_context_from_canvas(canvas: &HtmlCanvasElement) -> glow::Contex
             .expect("Failed to query about WebGL1 context");
 
         if let Some(gl1) = gl1 {
-            crate::console_log("WebGL2 not available - falling back to WebGL2");
+            crate::console_log("WebGL2 not available - falling back to WebGL1");
             let gl1_ctx = gl1.dyn_into::<web_sys::WebGlRenderingContext>().unwrap();
             glow::Context::from_webgl1_context(gl1_ctx)
         } else {
