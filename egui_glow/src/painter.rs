@@ -434,19 +434,17 @@ impl Painter {
             "Mismatch between texture size and texel count"
         );
 
-        // TODO: optimize
-        let pixels: Vec<u8> = image
-            .pixels
-            .iter()
-            .flat_map(|srgba| Vec::from(srgba.to_array()))
-            .collect();
+        let mut data = Vec::with_capacity(image.pixels.len() * 4);
+        for srgba in &image.pixels {
+            data.extend_from_slice(&srgba.to_array());
+        }
 
         let gl_texture = srgb_texture2d(
             gl,
             self.is_webgl_1,
             self.srgb_support,
             self.texture_filter,
-            &pixels,
+            &data,
             image.size[0],
             image.size[1],
         );
