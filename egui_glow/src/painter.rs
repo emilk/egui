@@ -2,13 +2,13 @@
 
 use std::collections::HashMap;
 
+use bytemuck::cast_slice;
 use egui::{
     emath::Rect,
     epaint::{Color32, Mesh, Vertex},
 };
 use glow::HasContext;
 use memoffset::offset_of;
-use bytemuck::cast_slice;
 
 use crate::misc_util::{
     as_u8_slice, check_for_gl_error, compile_shader, glow_print, link_program, srgb_texture2d,
