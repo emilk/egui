@@ -29,6 +29,7 @@ pub struct Window<'open> {
     resize: Resize,
     scroll: ScrollArea,
     collapsible: bool,
+    fixed_pos: bool,
     with_title_bar: bool,
 }
 
@@ -50,6 +51,7 @@ impl<'open> Window<'open> {
                 .default_size([340.0, 420.0]), // Default inner size of a window
             scroll: ScrollArea::neither(),
             collapsible: true,
+            fixed_pos: false,
             with_title_bar: true,
         }
     }
@@ -117,6 +119,7 @@ impl<'open> Window<'open> {
     /// Set initial position of the window.
     pub fn default_pos(mut self, default_pos: impl Into<Pos2>) -> Self {
         self.area = self.area.default_pos(default_pos);
+        self.fixed_pos = false;
         self
     }
 
@@ -133,6 +136,7 @@ impl<'open> Window<'open> {
     /// It is an error to set both an anchor and a position.
     pub fn anchor(mut self, align: Align2, offset: impl Into<Vec2>) -> Self {
         self.area = self.area.anchor(align, offset);
+        self.fixed_pos = false;
         self
     }
 
@@ -161,6 +165,7 @@ impl<'open> Window<'open> {
     /// Sets the window position and prevents it from being dragged around.
     pub fn fixed_pos(mut self, pos: impl Into<Pos2>) -> Self {
         self.area = self.area.fixed_pos(pos);
+        self.fixed_pos = true;
         self
     }
 
@@ -254,6 +259,7 @@ impl<'open> Window<'open> {
             resize,
             scroll,
             collapsible,
+            fixed_pos,
             with_title_bar,
         } = self;
 
@@ -399,9 +405,11 @@ impl<'open> Window<'open> {
             content_inner
         };
 
-        area.state_mut().pos = ctx
-            .constrain_window_rect_to_area(area.state().rect(), area.drag_bounds())
-            .min;
+        if !fixed_pos {
+            area.state_mut().pos = ctx
+                .constrain_window_rect_to_area(area.state().rect(), area.drag_bounds())
+                .min;
+        }
 
         let full_response = area.end(ctx, area_content_ui);
 
