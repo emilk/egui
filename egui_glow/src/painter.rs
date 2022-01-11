@@ -8,6 +8,7 @@ use egui::{
 };
 use glow::HasContext;
 use memoffset::offset_of;
+use bytemuck::cast_slice;
 
 use crate::misc_util::{
     as_u8_slice, check_for_gl_error, compile_shader, glow_print, link_program, srgb_texture2d,
@@ -434,17 +435,14 @@ impl Painter {
             "Mismatch between texture size and texel count"
         );
 
-        let mut data = Vec::with_capacity(image.pixels.len() * 4);
-        for srgba in &image.pixels {
-            data.extend_from_slice(&srgba.to_array());
-        }
+        let data: &[u8] = cast_slice(image.pixels.as_ref());
 
         let gl_texture = srgb_texture2d(
             gl,
             self.is_webgl_1,
             self.srgb_support,
             self.texture_filter,
-            &data,
+            data,
             image.size[0],
             image.size[1],
         );
