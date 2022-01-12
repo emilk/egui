@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 
+use bytemuck::cast_slice;
 use egui::{
     emath::Rect,
     epaint::{Color32, Mesh, Vertex},
@@ -434,17 +435,14 @@ impl Painter {
             "Mismatch between texture size and texel count"
         );
 
-        let mut data = Vec::with_capacity(image.pixels.len() * 4);
-        for srgba in &image.pixels {
-            data.extend_from_slice(&srgba.to_array());
-        }
+        let data: &[u8] = cast_slice(image.pixels.as_ref());
 
         let gl_texture = srgb_texture2d(
             gl,
             self.is_webgl_1,
             self.srgb_support,
             self.texture_filter,
-            &data,
+            data,
             image.size[0],
             image.size[1],
         );
