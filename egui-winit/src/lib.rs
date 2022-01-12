@@ -454,12 +454,10 @@ impl State {
             }
         };
         if cfg!(target_os = "macos") {
-            // This is still buggy in winit despite
-            // https://github.com/rust-windowing/winit/issues/1695 being closed
-            delta.x *= -1.0;
+            delta.x *= -1.0; // until https://github.com/rust-windowing/winit/pull/2105 is merged and released
         }
         if cfg!(target_os = "windows") {
-            delta.x *= -1.0; // until https://github.com/rust-windowing/winit/pull/2101 is merged
+            delta.x *= -1.0; // until https://github.com/rust-windowing/winit/pull/2101 is merged and released
         }
 
         if self.egui_input.modifiers.ctrl || self.egui_input.modifiers.command {
@@ -486,7 +484,7 @@ impl State {
                     if let Some(contents) = self.clipboard.get() {
                         self.egui_input
                             .events
-                            .push(egui::Event::Text(contents.replace("\r\n", "\n")));
+                            .push(egui::Event::Paste(contents.replace("\r\n", "\n")));
                     }
                 }
             }

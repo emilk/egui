@@ -16,13 +16,11 @@
 //! ```
 
 use super::{
-    style::{Spacing, WidgetVisuals},
-    Align, CtxRef, Id, InnerResponse, PointerState, Pos2, Rect, Response, Sense, Style, TextStyle,
-    Ui, Vec2,
+    style::WidgetVisuals, Align, Context, Id, InnerResponse, PointerState, Pos2, Rect, Response,
+    Sense, TextStyle, Ui, Vec2,
 };
 use crate::{widgets::*, *};
-use epaint::{mutex::RwLock, Stroke};
-use std::sync::Arc;
+use epaint::{mutex::Arc, mutex::RwLock, Stroke};
 
 /// What is saved between frames.
 #[derive(Clone, Default)]
@@ -117,10 +115,9 @@ pub(crate) fn submenu_button<R>(
 
 /// wrapper for the contents of every menu.
 pub(crate) fn menu_ui<'c, R>(
-    ctx: &CtxRef,
+    ctx: &Context,
     menu_id: impl std::hash::Hash,
     menu_state_arc: &Arc<RwLock<MenuState>>,
-    mut style: Style,
     add_contents: impl FnOnce(&mut Ui) -> R + 'c,
 ) -> InnerResponse<R> {
     let pos = {
@@ -128,29 +125,34 @@ pub(crate) fn menu_ui<'c, R>(
         menu_state.entry_count = 0;
         menu_state.rect.min
     };
-    // style.visuals.widgets.active.bg_fill = Color32::TRANSPARENT;
-    style.visuals.widgets.active.bg_stroke = Stroke::none();
-    // style.visuals.widgets.hovered.bg_fill = Color32::TRANSPARENT;
-    style.visuals.widgets.hovered.bg_stroke = Stroke::none();
-    style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
-    style.visuals.widgets.inactive.bg_stroke = Stroke::none();
+
     let area = Area::new(menu_id)
         .order(Order::Foreground)
         .fixed_pos(pos)
         .interactable(false)
         .drag_bounds(Rect::EVERYTHING);
-    let frame = Frame::menu(&style);
     let inner_response = area.show(ctx, |ui| {
-        frame
-            .show(ui, |ui| {
-                const DEFAULT_MENU_WIDTH: f32 = 150.0; // TODO: add to ui.spacing
-                ui.set_max_width(DEFAULT_MENU_WIDTH);
-                ui.set_style(style);
-                ui.set_menu_state(Some(menu_state_arc.clone()));
-                ui.with_layout(Layout::top_down_justified(Align::LEFT), add_contents)
-                    .inner
-            })
-            .inner
+        ui.scope(|ui| {
+            let style = ui.style_mut();
+            style.spacing.item_spacing = Vec2::ZERO;
+            style.spacing.button_padding = crate::vec2(2.0, 0.0);
+
+            style.visuals.widgets.active.bg_stroke = Stroke::none();
+            style.visuals.widgets.hovered.bg_stroke = Stroke::none();
+            style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
+            style.visuals.widgets.inactive.bg_stroke = Stroke::none();
+
+            Frame::menu(style)
+                .show(ui, |ui| {
+                    const DEFAULT_MENU_WIDTH: f32 = 150.0; // TODO: add to ui.spacing
+                    ui.set_max_width(DEFAULT_MENU_WIDTH);
+                    ui.set_menu_state(Some(menu_state_arc.clone()));
+                    ui.with_layout(Layout::top_down_justified(Align::LEFT), add_contents)
+                        .inner
+                })
+                .inner
+        })
+        .inner
     });
     menu_state_arc.write().rect = inner_response.response.rect;
     inner_response
@@ -184,33 +186,19 @@ fn stationary_menu_impl<'c, R>(
     InnerResponse::new(inner.map(|r| r.inner), button_response)
 }
 
-/// Stores the state for the context menu.
-#[derive(Default)]
-pub(crate) struct ContextMenuSystem {
-    root: MenuRootManager,
-}
-impl ContextMenuSystem {
-    /// Show a menu at pointer if right-clicked response.
-    /// Should be called from [`Context`] on a [`Response`]
-    pub fn context_menu(
-        &mut self,
-        response: &Response,
-        add_contents: impl FnOnce(&mut Ui),
-    ) -> Option<InnerResponse<()>> {
-        MenuRoot::context_click_interaction(response, &mut self.root, response.id);
-        self.root.show(response, add_contents)
-    }
-}
-impl std::ops::Deref for ContextMenuSystem {
-    type Target = MenuRootManager;
-    fn deref(&self) -> &Self::Target {
-        &self.root
-    }
-}
-impl std::ops::DerefMut for ContextMenuSystem {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.root
-    }
+/// Response to secondary clicks (right-clicks) by showing the given menu.
+pub(crate) fn context_menu(
+    response: &Response,
+    add_contents: impl FnOnce(&mut Ui),
+) -> Option<InnerResponse<()>> {
+    let menu_id = Id::new("__egui::context_menu");
+    let mut bar_state = BarState::load(&response.ctx, menu_id);
+
+    MenuRoot::context_click_interaction(response, &mut bar_state, response.id);
+    let inner_response = bar_state.show(response, add_contents);
+
+    bar_state.store(&response.ctx, menu_id);
+    inner_response
 }
 
 /// Stores the state for the context menu.
@@ -517,24 +505,16 @@ impl MenuState {
         self.response = MenuResponse::Close;
     }
     pub fn show<R>(
-        ctx: &CtxRef,
+        ctx: &Context,
         menu_state: &Arc<RwLock<Self>>,
         id: Id,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        let style = Style {
-            spacing: Spacing {
-                item_spacing: Vec2::ZERO,
-                button_padding: crate::vec2(2.0, 0.0),
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-        crate::menu::menu_ui(ctx, id, menu_state, style, add_contents)
+        crate::menu::menu_ui(ctx, id, menu_state, add_contents)
     }
     fn show_submenu<R>(
         &mut self,
-        ctx: &CtxRef,
+        ctx: &Context,
         id: Id,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<R> {

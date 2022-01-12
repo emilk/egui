@@ -176,7 +176,7 @@ pub(crate) struct Prepared {
 impl Area {
     pub fn show<R>(
         self,
-        ctx: &CtxRef,
+        ctx: &Context,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         let prepared = self.begin(ctx);
@@ -186,7 +186,7 @@ impl Area {
         InnerResponse { inner, response }
     }
 
-    pub(crate) fn begin(self, ctx: &CtxRef) -> Prepared {
+    pub(crate) fn begin(self, ctx: &Context) -> Prepared {
         let Area {
             id,
             movable,
@@ -234,7 +234,7 @@ impl Area {
         }
     }
 
-    pub fn show_open_close_animation(&self, ctx: &CtxRef, frame: &Frame, is_open: bool) {
+    pub fn show_open_close_animation(&self, ctx: &Context, frame: &Frame, is_open: bool) {
         // must be called first so animation managers know the latest state
         let visibility_factor = ctx.animate_bool(self.id.with("close_animation"), is_open);
 
@@ -276,7 +276,7 @@ impl Prepared {
         self.drag_bounds
     }
 
-    pub(crate) fn content_ui(&self, ctx: &CtxRef) -> Ui {
+    pub(crate) fn content_ui(&self, ctx: &Context) -> Ui {
         let screen_rect = ctx.input().screen_rect();
 
         let bounds = if let Some(bounds) = self.drag_bounds {
@@ -317,7 +317,7 @@ impl Prepared {
     }
 
     #[allow(clippy::needless_pass_by_value)] // intentional to swallow up `content_ui`.
-    pub(crate) fn end(self, ctx: &CtxRef, content_ui: Ui) -> Response {
+    pub(crate) fn end(self, ctx: &Context, content_ui: Ui) -> Response {
         let Prepared {
             layer_id,
             mut state,
@@ -370,8 +370,9 @@ impl Prepared {
 }
 
 fn pointer_pressed_on_area(ctx: &Context, layer_id: LayerId) -> bool {
-    if let Some(pointer_pos) = ctx.input().pointer.interact_pos() {
-        ctx.input().pointer.any_pressed() && ctx.layer_id_at(pointer_pos) == Some(layer_id)
+    if let Some(pointer_pos) = ctx.pointer_interact_pos() {
+        let any_pressed = ctx.input().pointer.any_pressed();
+        any_pressed && ctx.layer_id_at(pointer_pos) == Some(layer_id)
     } else {
         false
     }

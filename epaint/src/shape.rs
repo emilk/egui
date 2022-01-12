@@ -75,6 +75,18 @@ impl Shape {
         shapes
     }
 
+    /// Turn a line into dashes. If you need to create many dashed lines use this instead of
+    /// [`Self::dashed_line`]
+    pub fn dashed_line_many(
+        points: &[Pos2],
+        stroke: impl Into<Stroke>,
+        dash_length: f32,
+        gap_length: f32,
+        shapes: &mut Vec<Shape>,
+    ) {
+        dashes_from_line(points, stroke.into(), dash_length, gap_length, shapes);
+    }
+
     /// A convex polygon with a fill and optional stroke.
     #[inline]
     pub fn convex_polygon(
@@ -120,7 +132,7 @@ impl Shape {
     }
 
     #[inline]
-    pub fn galley(pos: Pos2, galley: std::sync::Arc<Galley>) -> Self {
+    pub fn galley(pos: Pos2, galley: crate::mutex::Arc<Galley>) -> Self {
         TextShape::new(pos, galley).into()
     }
 
@@ -343,7 +355,7 @@ pub struct TextShape {
     pub pos: Pos2,
 
     /// The layed out text, from [`Fonts::layout_job`].
-    pub galley: std::sync::Arc<Galley>,
+    pub galley: crate::mutex::Arc<Galley>,
 
     /// Add this underline to the whole text.
     /// You can also set an underline when creating the galley.
@@ -361,7 +373,7 @@ pub struct TextShape {
 
 impl TextShape {
     #[inline]
-    pub fn new(pos: Pos2, galley: std::sync::Arc<Galley>) -> Self {
+    pub fn new(pos: Pos2, galley: crate::mutex::Arc<Galley>) -> Self {
         Self {
             pos,
             galley,
@@ -425,27 +437,27 @@ fn dashes_from_line(
         let end = window[1];
         let vector = end - start;
         let segment_length = vector.length();
+
+        let mut start_point = start;
         while position_on_segment < segment_length {
             let new_point = start + vector * (position_on_segment / segment_length);
             if drawing_dash {
                 // This is the end point.
-                if let Shape::Path(PathShape { points, .. }) = shapes.last_mut().unwrap() {
-                    points.push(new_point);
-                }
+                shapes.push(Shape::line_segment([start_point, new_point], stroke));
                 position_on_segment += gap_length;
             } else {
                 // Start a new dash.
-                shapes.push(Shape::line(vec![new_point], stroke));
+                start_point = new_point;
                 position_on_segment += dash_length;
             }
             drawing_dash = !drawing_dash;
         }
+
         // If the segment ends and the dash is not finished, add the segment's end point.
         if drawing_dash {
-            if let Shape::Path(PathShape { points, .. }) = shapes.last_mut().unwrap() {
-                points.push(end);
-            }
+            shapes.push(Shape::line_segment([start_point, end], stroke));
         }
+
         position_on_segment -= segment_length;
     });
 }

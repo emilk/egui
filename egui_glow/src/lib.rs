@@ -109,7 +109,7 @@ pub use epi_backend::{run, NativeOptions};
 /// Use [`egui`] from a [`glow`] app.
 #[cfg(feature = "winit")]
 pub struct EguiGlow {
-    pub egui_ctx: egui::CtxRef,
+    pub egui_ctx: egui::Context,
     pub egui_winit: egui_winit::State,
     pub painter: crate::Painter,
 }
@@ -145,7 +145,7 @@ impl EguiGlow {
     pub fn run(
         &mut self,
         window: &glutin::window::Window,
-        run_ui: impl FnMut(&egui::CtxRef),
+        run_ui: impl FnMut(&egui::Context),
     ) -> (bool, Vec<egui::epaint::ClippedShape>) {
         let raw_input = self.egui_winit.take_egui_input(window);
         let (egui_output, shapes) = self.egui_ctx.run(raw_input, run_ui);

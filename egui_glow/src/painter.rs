@@ -10,7 +10,7 @@ use glow::HasContext;
 use memoffset::offset_of;
 
 use crate::misc_util::{
-    as_u8_slice, compile_shader, glow_debug_print, link_program, srgbtexture2d,
+    as_u8_slice, check_for_gl_error, compile_shader, glow_print, link_program, srgb_texture2d,
 };
 use crate::post_process::PostProcess;
 use crate::shader_version::ShaderVersion;
@@ -35,6 +35,8 @@ pub struct Painter {
     is_embedded: bool,
     vertex_array: crate::misc_util::VAO,
     srgb_support: bool,
+    /// The filter used for subsequent textures.
+    texture_filter: TextureFilter,
     post_process: Option<PostProcess>,
     vertex_buffer: glow::Buffer,
     element_array_buffer: glow::Buffer,
@@ -50,6 +52,27 @@ pub struct Painter {
 
     /// Used to make sure we are destroyed correctly.
     destroyed: bool,
+}
+
+#[derive(Copy, Clone)]
+pub enum TextureFilter {
+    Linear,
+    Nearest,
+}
+
+impl Default for TextureFilter {
+    fn default() -> Self {
+        TextureFilter::Linear
+    }
+}
+
+impl TextureFilter {
+    pub(crate) fn glow_code(&self) -> u32 {
+        match self {
+            TextureFilter::Linear => glow::LINEAR,
+            TextureFilter::Nearest => glow::NEAREST,
+        }
+    }
 }
 
 impl Painter {
@@ -70,20 +93,22 @@ impl Painter {
         pp_fb_extent: Option<[i32; 2]>,
         shader_prefix: &str,
     ) -> Result<Painter, String> {
+        check_for_gl_error(gl, "before Painter::new");
+
         let support_vao = crate::misc_util::supports_vao(gl);
         let shader_version = ShaderVersion::get(gl);
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
         let header = shader_version.version();
-        glow_debug_print(format!("Shader header: {:?}", header));
+        glow_print(format!("Shader header: {:?}.", header));
         let srgb_support = gl.supported_extensions().contains("EXT_sRGB");
 
         let (post_process, srgb_support_define) = match (shader_version, srgb_support) {
-            //WebGL2 support sRGB default
+            // WebGL2 support sRGB default
             (ShaderVersion::Es300, _) | (ShaderVersion::Es100, true) => unsafe {
-                //Add sRGB support marker for fragment shader
+                // Add sRGB support marker for fragment shader
                 if let Some([width, height]) = pp_fb_extent {
-                    glow_debug_print("WebGL with sRGB enabled so turn on post process");
-                    //install post process to correct sRGB color
+                    glow_print("WebGL with sRGB enabled. Turning on post processing for linear framebuffer blending.");
+                    // install post process to correct sRGB color:
                     (
                         Some(PostProcess::new(
                             gl,
@@ -96,13 +121,15 @@ impl Painter {
                         "#define SRGB_SUPPORTED",
                     )
                 } else {
-                    glow_debug_print("WebGL or OpenGL ES detected but PostProcess disabled because dimension is None");
+                    glow_print("WebGL or OpenGL ES detected but PostProcess disabled because dimension is None");
                     (None, "")
                 }
             },
-            //WebGL1 without sRGB support disable postprocess and use fallback shader
+
+            // WebGL1 without sRGB support disable postprocess and use fallback shader
             (ShaderVersion::Es100, false) => (None, ""),
-            //OpenGL 2.1 or above always support sRGB so add sRGB support marker
+
+            // OpenGL 2.1 or above always support sRGB so add sRGB support marker
             _ => (None, "#define SRGB_SUPPORTED"),
         };
 
@@ -178,7 +205,7 @@ impl Painter {
             vertex_array.add_new_attribute(gl, position_buffer_info);
             vertex_array.add_new_attribute(gl, tex_coord_buffer_info);
             vertex_array.add_new_attribute(gl, color_buffer_info);
-            assert_eq!(gl.get_error(), glow::NO_ERROR, "OpenGL error occurred!");
+            check_for_gl_error(gl, "after Painter::new");
 
             Ok(Painter {
                 program,
@@ -190,6 +217,7 @@ impl Painter {
                 is_embedded: matches!(shader_version, ShaderVersion::Es100 | ShaderVersion::Es300),
                 vertex_array,
                 srgb_support,
+                texture_filter: Default::default(),
                 post_process,
                 vertex_buffer,
                 element_array_buffer,
@@ -220,10 +248,11 @@ impl Painter {
 
         if let Some(old_tex) = std::mem::replace(
             &mut self.egui_texture,
-            Some(srgbtexture2d(
+            Some(srgb_texture2d(
                 gl,
                 self.is_webgl_1,
                 self.srgb_support,
+                self.texture_filter,
                 &pixels,
                 font_image.width,
                 font_image.height,
@@ -321,7 +350,7 @@ impl Painter {
 
             gl.disable(glow::SCISSOR_TEST);
 
-            assert_eq!(glow::NO_ERROR, gl.get_error(), "GL error occurred!");
+            check_for_gl_error(gl, "painting");
         }
     }
 
@@ -387,6 +416,12 @@ impl Painter {
         }
     }
 
+    // Set the filter to be used for any subsequent textures loaded via
+    // [`Self::set_texture`].
+    pub fn set_texture_filter(&mut self, texture_filter: TextureFilter) {
+        self.texture_filter = texture_filter;
+    }
+
     // ------------------------------------------------------------------------
 
     #[cfg(feature = "epi")]
@@ -399,18 +434,17 @@ impl Painter {
             "Mismatch between texture size and texel count"
         );
 
-        // TODO: optimize
-        let pixels: Vec<u8> = image
-            .pixels
-            .iter()
-            .flat_map(|srgba| Vec::from(srgba.to_array()))
-            .collect();
+        let mut data = Vec::with_capacity(image.pixels.len() * 4);
+        for srgba in &image.pixels {
+            data.extend_from_slice(&srgba.to_array());
+        }
 
-        let gl_texture = srgbtexture2d(
+        let gl_texture = srgb_texture2d(
             gl,
             self.is_webgl_1,
             self.srgb_support,
-            &pixels,
+            self.texture_filter,
+            &data,
             image.size[0],
             image.size[1],
         );

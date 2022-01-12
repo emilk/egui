@@ -11,7 +11,19 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Added `Ui::add_visible` and `Ui::add_visible_ui`.
 
 ### Changed 🔧
+* ⚠️ `Context::input` and `Ui::input` now locks a mutex. This can lead to a dead-lock is used in an `if let` binding!
+  * `if let Some(pos) = ui.input().pointer.latest_pos()` and similar must now be rewritten on two lines, or with added `{}` around the righ-hand-side.
+  * Search for this problem in your code using the regex `if let .*input`.
+* Renamed `CtxRef` to `Context` ([#1050](https://github.com/emilk/egui/pull/1050)).
+* `Context` can now be cloned and stored between frames ([#1050](https://github.com/emilk/egui/pull/1050)).
 * Renamed `Ui::visible` to `Ui::is_visible`.
+* Split `Event::Text` into `Event::Text` and `Event::Paste` ([#1058](https://github.com/emilk/egui/pull/1058)).
+
+### Fixed 🐛
+* Context menu now respects the theme ([#1043](https://github.com/emilk/egui/pull/1043))
+
+### Contributors 🙏
+* [danielkeller](https://github.com/danielkeller): [#1050](https://github.com/emilk/egui/pull/1050).
 
 
 ## 0.16.1 - 2021-12-31 - Add back `CtxRef::begin_frame,end_frame`
@@ -49,7 +61,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 
 ### Fixed 🐛
 * Fixed `ComboBox` and other popups getting clipped to parent window ([#885](https://github.com/emilk/egui/pull/885)).
-* The color picker is now better att keeping the same hue even when saturation goes to zero ([#886](https://github.com/emilk/egui/pull/886)).
+* The color picker is now better at keeping the same hue even when saturation goes to zero ([#886](https://github.com/emilk/egui/pull/886)).
 
 ### Removed 🔥
 * Removed `egui::math` (use `egui::emath` instead).

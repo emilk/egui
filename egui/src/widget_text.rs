@@ -1,15 +1,15 @@
-use std::sync::Arc;
+use epaint::mutex::Arc;
 
 use crate::{
-    style::WidgetVisuals, text::LayoutJob, Align, Color32, Galley, Pos2, Style, TextStyle, Ui,
-    Visuals,
+    style::WidgetVisuals, text::LayoutJob, Align, Color32, Context, Galley, Pos2, Style, TextStyle,
+    Ui, Visuals,
 };
 
 /// Text and optional style choices for it.
 ///
 /// The style choices (font, color) are applied to the entire text.
 /// For more detailed control, use [`crate::text::LayoutJob`] instead.
-#[derive(Default)]
+#[derive(Clone, Default, PartialEq)]
 pub struct RichText {
     text: String,
     text_style: Option<TextStyle>,
@@ -170,12 +170,12 @@ impl RichText {
     }
 
     /// Read the font height of the selected text style.
-    pub fn font_height(&self, fonts: &epaint::text::Fonts, style: &crate::Style) -> f32 {
+    pub fn font_height(&self, ctx: &Context) -> f32 {
         let text_style = self
             .text_style
-            .or(style.override_text_style)
-            .unwrap_or(style.body_text_style);
-        fonts.row_height(text_style)
+            .or(ctx.style().override_text_style)
+            .unwrap_or(ctx.style().body_text_style);
+        ctx.fonts().row_height(text_style)
     }
 
     fn into_text_job(
@@ -437,10 +437,10 @@ impl WidgetText {
         }
     }
 
-    pub(crate) fn font_height(&self, fonts: &epaint::text::Fonts, style: &crate::Style) -> f32 {
+    pub(crate) fn font_height(&self, ctx: &Context) -> f32 {
         match self {
-            Self::RichText(text) => text.font_height(fonts, style),
-            Self::LayoutJob(job) => job.font_height(fonts),
+            Self::RichText(text) => text.font_height(ctx),
+            Self::LayoutJob(job) => job.font_height(&*ctx.fonts()),
             Self::Galley(galley) => {
                 if let Some(row) = galley.rows.first() {
                     row.height()
@@ -555,6 +555,7 @@ impl From<Arc<Galley>> for WidgetText {
 
 // ----------------------------------------------------------------------------
 
+#[derive(Clone, PartialEq)]
 pub struct WidgetTextJob {
     pub job: LayoutJob,
     pub job_has_color: bool,
@@ -574,6 +575,7 @@ impl WidgetTextJob {
 // ----------------------------------------------------------------------------
 
 /// Text that has been layed out and ready to be painted.
+#[derive(Clone, PartialEq)]
 pub struct WidgetTextGalley {
     pub galley: Arc<Galley>,
     pub galley_has_color: bool,

@@ -479,7 +479,7 @@ pub struct PlotUi {
     next_auto_color_idx: usize,
     last_screen_transform: ScreenTransform,
     response: Response,
-    ctx: CtxRef,
+    ctx: Context,
 }
 
 impl PlotUi {
@@ -491,7 +491,7 @@ impl PlotUi {
         Hsva::new(h, 0.85, 0.5, 1.0).into() // TODO: OkLab or some other perspective color space
     }
 
-    pub fn ctx(&self) -> &CtxRef {
+    pub fn ctx(&self) -> &Context {
         &self.ctx
     }
 

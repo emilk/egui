@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use epaint::mutex::Arc;
 
 use epaint::text::{cursor::*, Galley, LayoutJob};
 
@@ -44,6 +44,8 @@ use super::{CCursorRange, CursorRange, TextEditOutput, TextEditState};
 /// }
 /// ```
 ///
+/// ## Advanced usage
+/// See [`TextEdit::show`].
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct TextEdit<'t> {
     text: &'t mut dyn TextBuffer,
@@ -242,6 +244,20 @@ impl<'t> Widget for TextEdit<'t> {
 
 impl<'t> TextEdit<'t> {
     /// Show the [`TextEdit`], returning a rich [`TextEditOutput`].
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut my_string = String::new();
+    /// let output = egui::TextEdit::singleline(&mut my_string).show(ui);
+    /// if let Some(text_cursor_range) = output.cursor_range {
+    ///     use egui::TextBuffer as _;
+    ///     let selected_chars = text_cursor_range.as_sorted_char_range();
+    ///     let selected_text = my_string.char_range(selected_chars);
+    ///     ui.label("Selected text: ");
+    ///     ui.monospace(selected_text);
+    /// }
+    /// # });
+    /// ```
     pub fn show(self, ui: &mut Ui) -> TextEditOutput {
         let is_mutable = self.text.is_mutable();
         let frame = self.frame;
@@ -386,10 +402,11 @@ impl<'t> TextEdit<'t> {
             Sense::hover()
         };
         let mut response = ui.interact(rect, id, sense);
-        let painter = ui.painter_at(rect);
+        let text_clip_rect = rect;
+        let painter = ui.painter_at(text_clip_rect);
 
         if interactive {
-            if let Some(pointer_pos) = ui.input().pointer.interact_pos() {
+            if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
                 if response.hovered() && text.is_mutable() {
                     ui.output().mutable_text_under_cursor = true;
                 }
@@ -593,6 +610,8 @@ impl<'t> TextEdit<'t> {
         TextEditOutput {
             response,
             galley,
+            text_draw_pos,
+            text_clip_rect,
             state,
             cursor_range,
         }
@@ -646,7 +665,8 @@ fn events(
 
     let mut any_change = false;
 
-    for event in &ui.input().events {
+    let events = ui.input().events.clone(); // avoid dead-lock by cloning. TODO: optimize
+    for event in &events {
         let did_mutate_text = match event {
             Event::Copy => {
                 if cursor_range.is_empty() {
@@ -663,6 +683,15 @@ fn events(
                 } else {
                     copy_if_not_password(ui, selected_str(text, &cursor_range).to_owned());
                     Some(CCursorRange::one(delete_selected(text, &cursor_range)))
+                }
+            }
+            Event::Paste(text_to_insert) => {
+                if !text_to_insert.is_empty() {
+                    let mut ccursor = delete_selected(text, &cursor_range);
+                    insert_text(&mut ccursor, text, text_to_insert);
+                    Some(CCursorRange::one(ccursor))
+                } else {
+                    None
                 }
             }
             Event::Text(text_to_insert) => {
@@ -806,7 +835,7 @@ fn paint_cursor_selection(
 
     // We paint the cursor selection on top of the text, so make it transparent:
     let color = ui.visuals().selection.bg_fill.linear_multiply(0.5);
-    let [min, max] = cursor_range.sorted();
+    let [min, max] = cursor_range.sorted_cursors();
     let min = min.rcursor;
     let max = max.rcursor;
 
@@ -875,7 +904,7 @@ fn paint_cursor_end(
 // ----------------------------------------------------------------------------
 
 fn selected_str<'s>(text: &'s dyn TextBuffer, cursor_range: &CursorRange) -> &'s str {
-    let [min, max] = cursor_range.sorted();
+    let [min, max] = cursor_range.sorted_cursors();
     text.char_range(min.ccursor.index..max.ccursor.index)
 }
 
@@ -886,7 +915,7 @@ fn insert_text(ccursor: &mut CCursor, text: &mut dyn TextBuffer, text_to_insert:
 // ----------------------------------------------------------------------------
 
 fn delete_selected(text: &mut dyn TextBuffer, cursor_range: &CursorRange) -> CCursor {
-    let [min, max] = cursor_range.sorted();
+    let [min, max] = cursor_range.sorted_cursors();
     delete_selected_ccursor_range(text, [min.ccursor, max.ccursor])
 }
 
@@ -927,7 +956,7 @@ fn delete_paragraph_before_cursor(
     galley: &Galley,
     cursor_range: &CursorRange,
 ) -> CCursor {
-    let [min, max] = cursor_range.sorted();
+    let [min, max] = cursor_range.sorted_cursors();
     let min = galley.from_pcursor(PCursor {
         paragraph: min.pcursor.paragraph,
         offset: 0,
@@ -945,7 +974,7 @@ fn delete_paragraph_after_cursor(
     galley: &Galley,
     cursor_range: &CursorRange,
 ) -> CCursor {
-    let [min, max] = cursor_range.sorted();
+    let [min, max] = cursor_range.sorted_cursors();
     let max = galley.from_pcursor(PCursor {
         paragraph: max.pcursor.paragraph,
         offset: usize::MAX, // end of paragraph
@@ -984,7 +1013,7 @@ fn on_key_press(
             };
             Some(CCursorRange::one(ccursor))
         }
-        Key::Delete if !(cfg!(target_os = "windows") && modifiers.shift) => {
+        Key::Delete if !modifiers.shift || !cfg!(target_os = "windows") => {
             let ccursor = if modifiers.mac_cmd {
                 delete_paragraph_after_cursor(text, galley, cursor_range)
             } else if let Some(cursor) = cursor_range.single() {
@@ -1031,9 +1060,9 @@ fn on_key_press(
 
         Key::ArrowLeft | Key::ArrowRight if modifiers.is_none() && !cursor_range.is_empty() => {
             if key == Key::ArrowLeft {
-                *cursor_range = CursorRange::one(cursor_range.sorted()[0]);
+                *cursor_range = CursorRange::one(cursor_range.sorted_cursors()[0]);
             } else {
-                *cursor_range = CursorRange::one(cursor_range.sorted()[1]);
+                *cursor_range = CursorRange::one(cursor_range.sorted_cursors()[1]);
             }
             None
         }

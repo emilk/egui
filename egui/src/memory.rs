@@ -45,7 +45,7 @@ pub struct Memory {
     /// }
     /// type CharCountCache<'a> = FrameCache<usize, CharCounter>;
     ///
-    /// # let mut ctx = egui::CtxRef::default();
+    /// # let mut ctx = egui::Context::default();
     /// let mut memory = ctx.memory();
     /// let cache = memory.caches.cache::<CharCountCache<'_>>();
     /// assert_eq!(cache.get("hello"), 5);
@@ -91,7 +91,7 @@ pub struct Memory {
 pub struct Options {
     /// The default style for new `Ui`:s.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) style: std::sync::Arc<Style>,
+    pub(crate) style: epaint::mutex::Arc<Style>,
 
     /// Controls the tessellator.
     pub tessellation_options: epaint::TessellationOptions,

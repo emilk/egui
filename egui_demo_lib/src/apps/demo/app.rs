@@ -16,7 +16,7 @@ impl epi::App for DemoApp {
 
     fn setup(
         &mut self,
-        _ctx: &egui::CtxRef,
+        _ctx: &egui::Context,
         _frame: &epi::Frame,
         _storage: Option<&dyn epi::Storage>,
     ) {
@@ -31,7 +31,7 @@ impl epi::App for DemoApp {
         epi::set_value(storage, epi::APP_KEY, self);
     }
 
-    fn update(&mut self, ctx: &egui::CtxRef, _frame: &epi::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &epi::Frame) {
         self.demo_windows.ui(ctx);
     }
 }

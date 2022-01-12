@@ -68,7 +68,7 @@ impl super::Demo for CodeExample {
         "🖮 Code Example"
     }
 
-    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         use super::View;
         egui::Window::new(self.name())
             .open(open)

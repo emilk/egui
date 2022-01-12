@@ -21,6 +21,7 @@ pub mod plot_demo;
 pub mod scrolling;
 pub mod sliders;
 pub mod tests;
+pub mod text_edit;
 pub mod toggle_switch;
 pub mod widget_gallery;
 pub mod window_options;
@@ -44,5 +45,5 @@ pub trait Demo {
     fn name(&self) -> &'static str;
 
     /// Show windows, etc
-    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool);
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool);
 }

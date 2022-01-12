@@ -66,7 +66,11 @@ impl MonoState {
 /// }
 /// # });
 /// ```
-pub fn show_tooltip<R>(ctx: &CtxRef, id: Id, add_contents: impl FnOnce(&mut Ui) -> R) -> Option<R> {
+pub fn show_tooltip<R>(
+    ctx: &Context,
+    id: Id,
+    add_contents: impl FnOnce(&mut Ui) -> R,
+) -> Option<R> {
     show_tooltip_at_pointer(ctx, id, add_contents)
 }
 
@@ -88,7 +92,7 @@ pub fn show_tooltip<R>(ctx: &CtxRef, id: Id, add_contents: impl FnOnce(&mut Ui) 
 /// # });
 /// ```
 pub fn show_tooltip_at_pointer<R>(
-    ctx: &CtxRef,
+    ctx: &Context,
     id: Id,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
@@ -104,7 +108,7 @@ pub fn show_tooltip_at_pointer<R>(
 ///
 /// If the tooltip does not fit under the area, it tries to place it above it instead.
 pub fn show_tooltip_for<R>(
-    ctx: &CtxRef,
+    ctx: &Context,
     id: Id,
     rect: &Rect,
     add_contents: impl FnOnce(&mut Ui) -> R,
@@ -129,7 +133,7 @@ pub fn show_tooltip_for<R>(
 ///
 /// Returns `None` if the tooltip could not be placed.
 pub fn show_tooltip_at<R>(
-    ctx: &CtxRef,
+    ctx: &Context,
     id: Id,
     suggested_position: Option<Pos2>,
     add_contents: impl FnOnce(&mut Ui) -> R,
@@ -146,7 +150,7 @@ pub fn show_tooltip_at<R>(
 }
 
 fn show_tooltip_at_avoid_dyn<'c, R>(
-    ctx: &CtxRef,
+    ctx: &Context,
     mut id: Id,
     suggested_position: Option<Pos2>,
     above: bool,
@@ -229,7 +233,7 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
 /// }
 /// # });
 /// ```
-pub fn show_tooltip_text(ctx: &CtxRef, id: Id, text: impl Into<WidgetText>) -> Option<()> {
+pub fn show_tooltip_text(ctx: &Context, id: Id, text: impl Into<WidgetText>) -> Option<()> {
     show_tooltip(ctx, id, |ui| {
         crate::widgets::Label::new(text).ui(ui);
     })
@@ -237,7 +241,7 @@ pub fn show_tooltip_text(ctx: &CtxRef, id: Id, text: impl Into<WidgetText>) -> O
 
 /// Show a pop-over window.
 fn show_tooltip_area_dyn<'c, R>(
-    ctx: &CtxRef,
+    ctx: &Context,
     id: Id,
     window_pos: Pos2,
     add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,

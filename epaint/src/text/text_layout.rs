@@ -1,8 +1,7 @@
 use std::ops::RangeInclusive;
-use std::sync::Arc;
 
 use super::{Fonts, Galley, Glyph, LayoutJob, LayoutSection, Row, RowVisuals};
-use crate::{Color32, Mesh, Stroke, Vertex};
+use crate::{mutex::Arc, Color32, Mesh, Stroke, Vertex};
 use emath::*;
 
 /// Temporary storage before line-wrapping.
