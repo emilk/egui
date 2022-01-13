@@ -1343,7 +1343,7 @@ impl Ui {
     ///
     /// See also [`Image`].
     #[inline]
-    pub fn image(&mut self, texture_id: TextureId, size: impl Into<Vec2>) -> Response {
+    pub fn image(&mut self, texture_id: impl Into<TextureId>, size: impl Into<Vec2>) -> Response {
         Image::new(texture_id, size).ui(self)
     }
 }

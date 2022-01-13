@@ -10,6 +10,22 @@ pub enum ImageData {
     Alpha(AlphaImage),
 }
 
+impl ImageData {
+    pub fn size(&self) -> [usize; 2] {
+        match self {
+            Self::Color(image) => image.size,
+            Self::Alpha(image) => image.size,
+        }
+    }
+
+    pub fn bytes_per_pixel(&self) -> usize {
+        match self {
+            Self::Color(_) => 4,
+            Self::Alpha(_) => 1,
+        }
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// A 2D RGBA color image in RAM.

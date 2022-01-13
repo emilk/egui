@@ -128,15 +128,15 @@ pub use emath;
 pub const WHITE_UV: emath::Pos2 = emath::pos2(0.0, 0.0);
 
 /// What texture to use in a [`Mesh`] mesh.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+///
+/// If you don't want to use a texture, use `TextureId::Epaint(0)` and the [`WHITE_UV`] for uv-coord.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum TextureId {
     /// Textures allocated using [`TextureAllocator`].
     ///
     /// The first texture (`TextureId::Epaint(0)`) is used for the font data.
-    ///
-    /// If you don't want to use a texture, use `TextureId::Epaint(0)` and the [`WHITE_UV`] for uv-coord.
-    Epaint(u64),
+    Managed(u64),
 
     /// Your own texture, defined in any which way you want.
     /// The backend renderer will presumably use this to look up what texture to use.
@@ -146,7 +146,7 @@ pub enum TextureId {
 impl Default for TextureId {
     /// The epaint font texture.
     fn default() -> Self {
-        Self::Epaint(0)
+        Self::Managed(0)
     }
 }
 

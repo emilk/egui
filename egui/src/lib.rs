@@ -374,6 +374,7 @@ pub(crate) mod placer;
 mod response;
 mod sense;
 pub mod style;
+mod texture_handle;
 mod ui;
 pub mod util;
 mod widget_text;
@@ -387,7 +388,7 @@ pub use epaint::{
     color, mutex,
     text::{FontData, FontDefinitions, FontFamily, TextStyle},
     textures::TexturesDelta,
-    ClippedMesh, Color32, FontImage, ImageData, Rgba, Shape, Stroke, TextureId,
+    AlphaImage, ClippedMesh, Color32, ColorImage, ImageData, Rgba, Shape, Stroke, TextureId,
 };
 
 pub mod text {
@@ -415,6 +416,7 @@ pub use {
     sense::Sense,
     style::{Style, Visuals},
     text::{Galley, TextFormat},
+    texture_handle::TextureHandle,
     ui::Ui,
     widget_text::{RichText, WidgetText},
     widgets::*,

@@ -98,7 +98,7 @@ impl ColorTest {
 
             ui.horizontal(|ui| {
                 let g = Gradient::one_color(Color32::from(tex_color));
-                let tex = self.tex_mngr.get(&mut ui.ctx().tex_manager(), &g);
+                let tex = self.tex_mngr.get(ui.ctx(), &g);
                 let texel_offset = 0.5 / (g.0.len() as f32);
                 let uv = Rect::from_min_max(pos2(texel_offset, 0.0), pos2(1.0 - texel_offset, 1.0));
                 ui.add(Image::new(tex, GRADIENT_SIZE).tint(vertex_color).uv(uv))
@@ -219,7 +219,7 @@ impl ColorTest {
             return;
         }
         ui.horizontal(|ui| {
-            let tex = self.tex_mngr.get(&mut ui.ctx().tex_manager(), gradient);
+            let tex = self.tex_mngr.get(ui.ctx(), gradient);
             let texel_offset = 0.5 / (gradient.0.len() as f32);
             let uv = Rect::from_min_max(pos2(texel_offset, 0.0), pos2(1.0 - texel_offset, 1.0));
             ui.add(Image::new(tex, GRADIENT_SIZE).bg_fill(bg_fill).uv(uv))
@@ -335,18 +335,21 @@ impl Gradient {
 }
 
 #[derive(Default)]
-struct TextureManager(HashMap<Gradient, TextureId>);
+struct TextureManager(HashMap<Gradient, TextureHandle>);
 
 impl TextureManager {
-    fn get(&mut self, tex_mngr: &mut epaint::TextureManager, gradient: &Gradient) -> TextureId {
-        *self.0.entry(gradient.clone()).or_insert_with(|| {
+    fn get(&mut self, ctx: &egui::Context, gradient: &Gradient) -> &TextureHandle {
+        self.0.entry(gradient.clone()).or_insert_with(|| {
             let pixels = gradient.to_pixel_row();
             let width = pixels.len();
             let height = 1;
-            tex_mngr.alloc(epaint::ColorImage {
-                size: [width, height],
-                pixels,
-            })
+            ctx.alloc_texture(
+                "color_test_gradient",
+                epaint::ColorImage {
+                    size: [width, height],
+                    pixels,
+                },
+            )
         })
     }
 }

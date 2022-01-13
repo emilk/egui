@@ -25,9 +25,9 @@ pub struct Image {
 }
 
 impl Image {
-    pub fn new(texture_id: TextureId, size: impl Into<Vec2>) -> Self {
+    pub fn new(texture_id: impl Into<TextureId>, size: impl Into<Vec2>) -> Self {
         Self {
-            texture_id,
+            texture_id: texture_id.into(),
             uv: Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
             size: size.into(),
             bg_fill: Default::default(),

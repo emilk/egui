@@ -375,10 +375,13 @@ impl RawInput {
         }
         ui.label(format!("predicted_dt: {:.1} ms", 1e3 * predicted_dt));
         ui.label(format!("modifiers: {:#?}", modifiers));
-        ui.label(format!("events: {:?}", events))
-            .on_hover_text("key presses etc");
         ui.label(format!("hovered_files: {}", hovered_files.len()));
         ui.label(format!("dropped_files: {}", dropped_files.len()));
+        ui.scope(|ui| {
+            ui.set_min_height(150.0);
+            ui.label(format!("events: {:#?}", events))
+                .on_hover_text("key presses etc");
+        });
     }
 }
 

@@ -2,9 +2,28 @@
 
 use crate::{
     animation_manager::AnimationManager, data::output::Output, frame_state::FrameState,
-    input_state::*, layers::GraphicLayers, *,
+    input_state::*, layers::GraphicLayers, TextureHandle, *,
 };
 use epaint::{mutex::*, stats::*, text::Fonts, *};
+
+// ----------------------------------------------------------------------------
+
+struct WrappedTextureManager(Arc<Mutex<epaint::textures::TextureManager>>);
+
+impl Default for WrappedTextureManager {
+    fn default() -> Self {
+        let mut tex_mngr = epaint::textures::TextureManager::default();
+
+        // Will be filled in later
+        let font_id = tex_mngr.alloc(
+            "egui_font_texture".into(),
+            epaint::AlphaImage::new([0, 0]).into(),
+        );
+        assert_eq!(font_id, TextureId::default());
+
+        Self(Arc::new(Mutex::new(tex_mngr)))
+    }
+}
 
 // ----------------------------------------------------------------------------
 
@@ -15,7 +34,7 @@ struct ContextImpl {
     memory: Memory,
     animation_manager: AnimationManager,
     latest_font_image_version: Option<u64>,
-    tex_manager: epaint::textures::TextureManager,
+    tex_manager: WrappedTextureManager,
 
     input: InputState,
 
@@ -433,11 +452,6 @@ impl Context {
         RwLockWriteGuard::map(self.write(), |c| &mut c.graphics)
     }
 
-    /// How to allocate textures (images).
-    pub fn tex_manager(&self) -> RwLockWriteGuard<'_, epaint::textures::TextureManager> {
-        RwLockWriteGuard::map(self.write(), |c| &mut c.tex_manager)
-    }
-
     /// What egui outputs each frame.
     pub fn output(&self) -> RwLockWriteGuard<'_, Output> {
         RwLockWriteGuard::map(self.write(), |c| &mut c.output)
@@ -592,6 +606,30 @@ impl Context {
         }
     }
 
+    /// Allocate a texture.
+    ///
+    /// Make sure to only call this once for each image, i.e. NOT in your main GUI code.
+    ///
+    /// The given name can be useful for later debugging, and will be visible if you call [`Self::texture_ui`].
+    pub fn alloc_texture(
+        &self,
+        name: impl Into<String>,
+        image: impl Into<ImageData>,
+    ) -> TextureHandle {
+        let tex_mngr = self.tex_manager();
+        let tex_id = tex_mngr.lock().alloc(name.into(), image.into());
+        TextureHandle::new(tex_mngr, tex_id)
+    }
+
+    /// Low-level texture manager.
+    ///
+    /// In general it is easier to use [`Self::alloc_texture`] and [`TextureHandle`].
+    ///
+    /// You can show stats about the allocated textures using [`Self::texture_ui`].
+    pub fn tex_manager(&self) -> Arc<Mutex<epaint::textures::TextureManager>> {
+        self.read().tex_manager.0.clone()
+    }
+
     // ---------------------------------------------------------------------
 
     /// Constrain the position of a window/area so it fits within the provided boundary.
@@ -653,13 +691,15 @@ impl Context {
             if Some(font_image_version) != ctx_impl.latest_font_image_version {
                 ctx_impl
                     .tex_manager
-                    .set(TextureId::default(), font_image.image.clone());
+                    .0
+                    .lock()
+                    .set(TextureId::default(), font_image.image.clone().into());
                 ctx_impl.latest_font_image_version = Some(font_image_version);
             }
             ctx_impl
                 .output
                 .textures_delta
-                .append(ctx_impl.tex_manager.take_delta());
+                .append(ctx_impl.tex_manager.0.lock().take_delta());
         }
 
         let mut output: Output = std::mem::take(&mut self.output());
@@ -949,11 +989,59 @@ impl Context {
             });
 
         CollapsingHeader::new("📊 Paint stats")
-            .default_open(true)
+            .default_open(false)
             .show(ui, |ui| {
                 let paint_stats = self.write().paint_stats;
                 paint_stats.ui(ui);
             });
+
+        CollapsingHeader::new("🖼 Textures")
+            .default_open(false)
+            .show(ui, |ui| {
+                self.texture_ui(ui);
+            });
+    }
+
+    /// Show stats about the allocated textures.
+    pub fn texture_ui(&self, ui: &mut crate::Ui) {
+        let tex_mngr = self.tex_manager();
+        let tex_mngr = tex_mngr.lock();
+
+        let mut textures: Vec<_> = tex_mngr.allocated().collect();
+        textures.sort_by_key(|(id, _)| *id);
+
+        let mut bytes = 0;
+        for (_, tex) in &textures {
+            bytes += tex.bytes_used();
+        }
+
+        ui.label(format!(
+            "{} allocated texture(s), using {:.1} MB",
+            textures.len(),
+            bytes as f64 * 1e-6
+        ));
+
+        ui.group(|ui| {
+            ScrollArea::vertical()
+                .max_height(300.0)
+                .auto_shrink([false, true])
+                .show(ui, |ui| {
+                    ui.style_mut().override_text_style = Some(TextStyle::Monospace);
+                    Grid::new("textures")
+                        .striped(true)
+                        .num_columns(3)
+                        .spacing(Vec2::new(16.0, 2.0))
+                        .show(ui, |ui| {
+                            for (_id, texture) in &textures {
+                                let [w, h] = texture.size;
+                                ui.label(format!("{} x {}", w, h));
+                                ui.label(format!("{:.3} MB", texture.bytes_used() as f64 * 1e-6));
+                                ui.label(format!("{:?}", texture.name));
+                                ui.end_row();
+                            }
+                        });
+                });
+        });
     }
 
     pub fn memory_ui(&self, ui: &mut crate::Ui) {
