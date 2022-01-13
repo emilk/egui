@@ -7,7 +7,7 @@ struct Resource {
     text: Option<String>,
 
     /// If set, the response was an image.
-    image: Option<epi::Image>,
+    image: Option<egui::ImageData>,
 
     /// If set, the response was text with some supported syntax highlighting (e.g. ".rs" or ".md").
     colored_text: Option<ColoredText>,
@@ -301,7 +301,7 @@ impl TexMngr {
         &mut self,
         frame: &epi::Frame,
         url: &str,
-        image: &epi::Image,
+        image: &egui::ImageData,
     ) -> Option<egui::TextureId> {
         if self.loaded_url != url {
             if let Some(texture_id) = self.texture_id.take() {
@@ -315,11 +315,11 @@ impl TexMngr {
     }
 }
 
-fn decode_image(bytes: &[u8]) -> Option<epi::Image> {
+fn decode_image(bytes: &[u8]) -> Option<egui::ImageData> {
     use image::GenericImageView;
     let image = image::load_from_memory(bytes).ok()?;
     let image_buffer = image.to_rgba8();
     let size = [image.width() as usize, image.height() as usize];
     let pixels = image_buffer.into_vec();
-    Some(epi::Image::from_rgba_unmultiplied(size, &pixels))
+    Some(egui::ImageData::from_rgba_unmultiplied(size, &pixels))
 }

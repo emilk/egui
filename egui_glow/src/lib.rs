@@ -112,6 +112,9 @@ pub struct EguiGlow {
     pub egui_ctx: egui::Context,
     pub egui_winit: egui_winit::State,
     pub painter: crate::Painter,
+
+    shapes: Vec<egui::epaint::ClippedShape>,
+    textures_delta: egui::TexturesDelta,
 }
 
 #[cfg(feature = "winit")]
@@ -128,6 +131,8 @@ impl EguiGlow {
                     eprintln!("some error occurred in initializing painter\n{}", error);
                 })
                 .unwrap(),
+            shapes: Default::default(),
+            textures_delta: Default::default(),
         }
     }
 
@@ -141,36 +146,51 @@ impl EguiGlow {
         self.egui_winit.on_event(&self.egui_ctx, event)
     }
 
-    /// Returns `needs_repaint` and shapes to draw.
+    /// Returns `true` if egui requests a repaint.
+    ///
+    /// Call [`Self::paint`] later to paint.
     pub fn run(
         &mut self,
         window: &glutin::window::Window,
         run_ui: impl FnMut(&egui::Context),
-    ) -> (bool, Vec<egui::epaint::ClippedShape>) {
+    ) -> bool {
         let raw_input = self.egui_winit.take_egui_input(window);
         let (egui_output, shapes) = self.egui_ctx.run(raw_input, run_ui);
         let needs_repaint = egui_output.needs_repaint;
-        self.egui_winit
+        let textures_delta = self
+            .egui_winit
             .handle_output(window, &self.egui_ctx, egui_output);
-        (needs_repaint, shapes)
+
+        self.shapes = shapes;
+        self.textures_delta.append(textures_delta);
+        needs_repaint
     }
 
+    /// Paint the results of the last call to [`Self::run`].
     pub fn paint(
         &mut self,
         gl_window: &glutin::WindowedContext<glutin::PossiblyCurrent>,
         gl: &glow::Context,
-        shapes: Vec<egui::epaint::ClippedShape>,
     ) {
+        let shapes = std::mem::take(&mut self.shapes);
+        let mut textures_delta = std::mem::take(&mut self.textures_delta);
+
+        for (id, image) in textures_delta.set {
+            self.painter.set_texture(gl, id, &image);
+        }
+
         let clipped_meshes = self.egui_ctx.tessellate(shapes);
         let dimensions: [u32; 2] = gl_window.window().inner_size().into();
-        self.painter
-            .upload_egui_texture(gl, &self.egui_ctx.font_image());
         self.painter.paint_meshes(
             gl,
             dimensions,
             self.egui_ctx.pixels_per_point(),
             clipped_meshes,
         );
+
+        for id in textures_delta.free.drain(..) {
+            self.painter.free_texture(gl, id);
+        }
     }
 
     /// Call to release the allocated graphics resources.

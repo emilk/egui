@@ -344,11 +344,11 @@ impl Widget for &mut ItemsDemo {
             Arrows::new(arrow_origins, arrow_tips)
         };
         let image = PlotImage::new(
-            TextureId::Egui,
+            TextureId::default(), // TODO: custom image using TextureHandle
             Value::new(0.0, 10.0),
             [
-                ui.fonts().font_image().width as f32 / 100.0,
-                ui.fonts().font_image().height as f32 / 100.0,
+                ui.fonts().font_image().width() as f32 / 100.0,
+                ui.fonts().font_image().height() as f32 / 100.0,
             ],
         );
 

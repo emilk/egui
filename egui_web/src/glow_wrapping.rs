@@ -1,5 +1,5 @@
 use crate::{canvas_element_or_die, console_error};
-use egui::{ClippedMesh, FontImage, Rgba};
+use egui::{ClippedMesh, Rgba};
 use egui_glow::glow;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
@@ -40,12 +40,12 @@ impl WrappedGlowPainter {
 }
 
 impl crate::Painter for WrappedGlowPainter {
-    fn set_texture(&mut self, tex_id: u64, image: epi::Image) {
+    fn set_texture(&mut self, tex_id: egui::TextureId, image: egui::ImageData) {
         self.painter.set_texture(&self.glow_ctx, tex_id, &image);
     }
 
-    fn free_texture(&mut self, tex_id: u64) {
-        self.painter.free_texture(tex_id);
+    fn free_texture(&mut self, tex_id: egui::TextureId) {
+        self.painter.free_texture(&self.glow_ctx, tex_id);
     }
 
     fn debug_info(&self) -> String {
@@ -58,10 +58,6 @@ impl crate::Painter for WrappedGlowPainter {
 
     fn canvas_id(&self) -> &str {
         &self.canvas_id
-    }
-
-    fn upload_egui_texture(&mut self, font_image: &FontImage) {
-        self.painter.upload_egui_texture(&self.glow_ctx, font_image)
     }
 
     fn clear(&mut self, clear_color: Rgba) {

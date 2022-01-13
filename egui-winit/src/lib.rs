@@ -512,26 +512,39 @@ impl State {
         window: &winit::window::Window,
         egui_ctx: &egui::Context,
         output: egui::Output,
-    ) {
-        self.current_pixels_per_point = egui_ctx.pixels_per_point(); // someone can have changed it to scale the UI
-
+    ) -> egui::TexturesDelta {
         if egui_ctx.memory().options.screen_reader {
             self.screen_reader.speak(&output.events_description());
         }
 
-        self.set_cursor_icon(window, output.cursor_icon);
+        let egui::Output {
+            cursor_icon,
+            open_url,
+            copied_text,
+            needs_repaint: _,             // needs to be handled elsewhere
+            events: _,                    // handled above
+            mutable_text_under_cursor: _, // only used in egui_web
+            text_cursor_pos,
+            textures_delta,
+        } = output;
 
-        if let Some(open) = output.open_url {
-            open_url(&open.url);
+        self.current_pixels_per_point = egui_ctx.pixels_per_point(); // someone can have changed it to scale the UI
+
+        self.set_cursor_icon(window, cursor_icon);
+
+        if let Some(open_url) = open_url {
+            open_url_in_browser(&open_url.url);
         }
 
-        if !output.copied_text.is_empty() {
-            self.clipboard.set(output.copied_text);
+        if !copied_text.is_empty() {
+            self.clipboard.set(copied_text);
         }
 
-        if let Some(egui::Pos2 { x, y }) = output.text_cursor_pos {
+        if let Some(egui::Pos2 { x, y }) = text_cursor_pos {
             window.set_ime_position(winit::dpi::LogicalPosition { x, y });
         }
+
+        textures_delta
     }
 
     fn set_cursor_icon(&mut self, window: &winit::window::Window, cursor_icon: egui::CursorIcon) {
@@ -554,7 +567,7 @@ impl State {
     }
 }
 
-fn open_url(_url: &str) {
+fn open_url_in_browser(_url: &str) {
     #[cfg(feature = "webbrowser")]
     if let Err(err) = webbrowser::open(_url) {
         eprintln!("Failed to open url: {}", err);

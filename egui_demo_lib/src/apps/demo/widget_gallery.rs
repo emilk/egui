@@ -180,14 +180,16 @@ impl WidgetGallery {
         ui.color_edit_button_srgba(color);
         ui.end_row();
 
+        let texture = egui::TextureId::default(); // TODO: custom image using TextureHandle
+
         ui.add(doc_link_label("Image", "Image"));
-        ui.image(egui::TextureId::Egui, [24.0, 16.0])
+        ui.image(texture, [24.0, 16.0])
             .on_hover_text("The egui font texture was the convenient choice to show here.");
         ui.end_row();
 
         ui.add(doc_link_label("ImageButton", "ImageButton"));
         if ui
-            .add(egui::ImageButton::new(egui::TextureId::Egui, [24.0, 16.0]))
+            .add(egui::ImageButton::new(texture, [24.0, 16.0]))
             .on_hover_text("The egui font texture was the convenient choice to show here.")
             .clicked()
         {

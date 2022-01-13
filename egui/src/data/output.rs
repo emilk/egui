@@ -35,6 +35,9 @@ pub struct Output {
 
     /// Screen-space position of text edit cursor (used for IME).
     pub text_cursor_pos: Option<crate::Pos2>,
+
+    /// Texture changes since last frame.
+    pub textures_delta: epaint::textures::TexturesDelta,
 }
 
 impl Output {
@@ -71,6 +74,7 @@ impl Output {
             mut events,
             mutable_text_under_cursor,
             text_cursor_pos,
+            textures_delta,
         } = newer;
 
         self.cursor_icon = cursor_icon;
@@ -84,6 +88,7 @@ impl Output {
         self.events.append(&mut events);
         self.mutable_text_under_cursor = mutable_text_under_cursor;
         self.text_cursor_pos = text_cursor_pos.or(self.text_cursor_pos);
+        self.textures_delta.append(textures_delta);
     }
 
     /// Take everything ephemeral (everything except `cursor_icon` currently)

@@ -14,6 +14,8 @@ struct ContextImpl {
     fonts: Option<Fonts>,
     memory: Memory,
     animation_manager: AnimationManager,
+    latest_font_image_version: Option<u64>,
+    tex_manager: epaint::textures::TextureManager,
 
     input: InputState,
 
@@ -431,6 +433,11 @@ impl Context {
         RwLockWriteGuard::map(self.write(), |c| &mut c.graphics)
     }
 
+    /// How to allocate textures (images).
+    pub fn tex_manager(&self) -> RwLockWriteGuard<'_, epaint::textures::TextureManager> {
+        RwLockWriteGuard::map(self.write(), |c| &mut c.tex_manager)
+    }
+
     /// What egui outputs each frame.
     pub fn output(&self) -> RwLockWriteGuard<'_, Output> {
         RwLockWriteGuard::map(self.write(), |c| &mut c.output)
@@ -490,14 +497,6 @@ impl Context {
     pub fn request_repaint(&self) {
         // request two frames of repaint, just to cover some corner cases (frame delays):
         self.write().repaint_requests = 2;
-    }
-
-    /// The egui font image, containing font characters etc.
-    ///
-    /// Not valid until first call to [`Context::run()`].
-    /// That's because since we don't know the proper `pixels_per_point` until then.
-    pub fn font_image(&self) -> Arc<epaint::FontImage> {
-        self.fonts().font_image()
     }
 
     /// Tell `egui` which fonts to use.
@@ -640,14 +639,28 @@ impl Context {
             self.request_repaint();
         }
 
+        self.fonts().end_frame();
+
         {
             let ctx_impl = &mut *self.write();
             ctx_impl
                 .memory
                 .end_frame(&ctx_impl.input, &ctx_impl.frame_state.used_ids);
-        }
 
-        self.fonts().end_frame();
+            let font_image = ctx_impl.fonts.as_ref().unwrap().font_image();
+            let font_image_version = font_image.version;
+
+            if Some(font_image_version) != ctx_impl.latest_font_image_version {
+                ctx_impl
+                    .tex_manager
+                    .set(TextureId::default(), font_image.image.clone());
+                ctx_impl.latest_font_image_version = Some(font_image_version);
+            }
+            ctx_impl
+                .output
+                .textures_delta
+                .append(ctx_impl.tex_manager.take_delta());
+        }
 
         let mut output: Output = std::mem::take(&mut self.output());
         if self.read().repaint_requests > 0 {

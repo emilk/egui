@@ -841,6 +841,7 @@ dependencies = [
 name = "egui_glium"
 version = "0.16.0"
 dependencies = [
+ "ahash",
  "egui",
  "egui-winit",
  "epi",
@@ -852,6 +853,7 @@ dependencies = [
 name = "egui_glow"
 version = "0.16.0"
 dependencies = [
+ "bytemuck",
  "egui",
  "egui-winit",
  "epi",

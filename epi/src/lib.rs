@@ -328,31 +328,7 @@ impl Frame {
 
     /// for integrations only: call once per frame
     pub fn take_app_output(&self) -> crate::backend::AppOutput {
-        let mut lock = self.lock();
-        let next_id = lock.output.tex_allocation_data.next_id;
-        let app_output = std::mem::take(&mut lock.output);
-        lock.output.tex_allocation_data.next_id = next_id;
-        app_output
-    }
-
-    /// Allocate a texture. Free it again with [`Self::free_texture`].
-    pub fn alloc_texture(&self, image: Image) -> egui::TextureId {
-        self.lock().output.tex_allocation_data.alloc(image)
-    }
-
-    /// Free a texture that has been previously allocated with [`Self::alloc_texture`]. Idempotent.
-    pub fn free_texture(&self, id: egui::TextureId) {
-        self.lock().output.tex_allocation_data.free(id);
-    }
-}
-
-impl TextureAllocator for Frame {
-    fn alloc(&self, image: Image) -> egui::TextureId {
-        self.lock().output.tex_allocation_data.alloc(image)
-    }
-
-    fn free(&self, id: egui::TextureId) {
-        self.lock().output.tex_allocation_data.free(id);
+        std::mem::take(&mut self.lock().output)
     }
 }
 
@@ -384,41 +360,6 @@ pub struct IntegrationInfo {
 
     /// The OS native pixels-per-point
     pub native_pixels_per_point: Option<f32>,
-}
-
-/// How to allocate textures (images) to use in [`egui`].
-pub trait TextureAllocator {
-    /// Allocate a new user texture.
-    ///
-    /// There is no way to change a texture.
-    /// Instead allocate a new texture and free the previous one with [`Self::free`].
-    fn alloc(&self, image: Image) -> egui::TextureId;
-
-    /// Free the given texture.
-    fn free(&self, id: egui::TextureId);
-}
-
-/// A 2D color image in RAM.
-#[derive(Clone, Default)]
-pub struct Image {
-    /// width, height
-    pub size: [usize; 2],
-    /// The pixels, row by row, from top to bottom.
-    pub pixels: Vec<egui::Color32>,
-}
-
-impl Image {
-    /// Create an `Image` from flat RGBA data.
-    /// Panics unless `size[0] * size[1] * 4 == rgba.len()`.
-    /// This is usually what you want to use after having loaded an image.
-    pub fn from_rgba_unmultiplied(size: [usize; 2], rgba: &[u8]) -> Self {
-        assert_eq!(size[0] * size[1] * 4, rgba.len());
-        let pixels = rgba
-            .chunks_exact(4)
-            .map(|p| egui::Color32::from_rgba_unmultiplied(p[0], p[1], p[2], p[3]))
-            .collect();
-        Self { size, pixels }
-    }
 }
 
 /// Abstraction for platform dependent texture reference
@@ -482,8 +423,6 @@ pub const APP_KEY: &str = "app";
 
 /// You only need to look here if you are writing a backend for `epi`.
 pub mod backend {
-    use std::collections::HashMap;
-
     use super::*;
 
     /// How to signal the [`egui`] integration that a repaint is required.
@@ -498,47 +437,12 @@ pub mod backend {
     pub struct FrameData {
         /// Information about the integration.
         pub info: IntegrationInfo,
+
         /// Where the app can issue commands back to the integration.
         pub output: AppOutput,
+
         /// If you need to request a repaint from another thread, clone this and send it to that other thread.
         pub repaint_signal: std::sync::Arc<dyn RepaintSignal>,
-    }
-
-    /// The data needed in order to allocate and free textures/images.
-    #[derive(Default)]
-    #[must_use]
-    pub struct TexAllocationData {
-        /// We allocate texture id linearly.
-        pub(crate) next_id: u64,
-        /// New creations this frame
-        pub creations: HashMap<u64, Image>,
-        /// destructions this frame.
-        pub destructions: Vec<u64>,
-    }
-
-    impl TexAllocationData {
-        /// Should only be used by integrations
-        pub fn take(&mut self) -> Self {
-            let next_id = self.next_id;
-            let ret = std::mem::take(self);
-            self.next_id = next_id;
-            ret
-        }
-
-        /// Allocate a new texture.
-        pub fn alloc(&mut self, image: Image) -> egui::TextureId {
-            let id = self.next_id;
-            self.next_id += 1;
-            self.creations.insert(id, image);
-            egui::TextureId::User(id)
-        }
-
-        /// Free an existing texture.
-        pub fn free(&mut self, id: egui::TextureId) {
-            if let egui::TextureId::User(id) = id {
-                self.destructions.push(id);
-            }
-        }
     }
 
     /// Action that can be taken by the user app.
@@ -560,8 +464,5 @@ pub mod backend {
 
         /// Set to true to drag window while primary mouse button is down.
         pub drag_window: bool,
-
-        /// A way to allocate textures (on integrations that support it).
-        pub tex_allocation_data: TexAllocationData,
     }
 }

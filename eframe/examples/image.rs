@@ -21,7 +21,7 @@ impl epi::App for MyApp {
             let image_buffer = image.to_rgba8();
             let size = [image.width() as usize, image.height() as usize];
             let pixels = image_buffer.into_vec();
-            let image = epi::Image::from_rgba_unmultiplied(size, &pixels);
+            let image = egui::ImageData::from_rgba_unmultiplied(size, &pixels);
 
             // Allocate a texture:
             let texture = frame.alloc_texture(image);

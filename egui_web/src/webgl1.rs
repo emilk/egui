@@ -28,13 +28,8 @@ pub struct WebGlPainter {
     texture_format: u32,
     post_process: Option<PostProcess>,
 
-    egui_texture: WebGlTexture,
-    egui_texture_version: Option<u64>,
-
-    /// Index is the same as in [`egui::TextureId::User`].
-    user_textures: HashMap<u64, WebGlTexture>,
-
-    next_native_tex_id: u64, // TODO: 128-bit texture space?
+    textures: HashMap<egui::TextureId, WebGlTexture>,
+    next_native_tex_id: u64,
 }
 
 impl WebGlPainter {
@@ -103,16 +98,13 @@ impl WebGlPainter {
             post_process,
             egui_texture,
             egui_texture_version: None,
-            user_textures: Default::default(),
+            textures: Default::default(),
             next_native_tex_id: 1 << 32,
         })
     }
 
     fn get_texture(&self, texture_id: egui::TextureId) -> Option<&WebGlTexture> {
-        match texture_id {
-            egui::TextureId::Egui => Some(&self.egui_texture),
-            egui::TextureId::User(id) => self.user_textures.get(&id),
-        }
+        self.textures.get(&id)
     }
 
     fn paint_mesh(&self, mesh: &egui::epaint::Mesh16) -> Result<(), JsValue> {
@@ -240,23 +232,19 @@ impl epi::NativeTexture for WebGlPainter {
     type Texture = WebGlTexture;
 
     fn register_native_texture(&mut self, native: Self::Texture) -> egui::TextureId {
-        let id = self.next_native_tex_id;
+        let id = egui::TextureId::User(self.next_native_tex_id);
         self.next_native_tex_id += 1;
-        self.user_textures.insert(id, native);
-        egui::TextureId::User(id as u64)
+        self.textures.insert(id, native);
+        id
     }
 
     fn replace_native_texture(&mut self, id: egui::TextureId, replacing: Self::Texture) {
-        if let egui::TextureId::User(id) = id {
-            if let Some(user_texture) = self.user_textures.get_mut(&id) {
-                *user_texture = replacing;
-            }
-        }
+        self.textures.insert(id, native);
     }
 }
 
 impl crate::Painter for WebGlPainter {
-    fn set_texture(&mut self, tex_id: u64, image: epi::Image) {
+    fn set_texture(&mut self, tex_id: egui::TextureId, image: egui::ImageData) {
         assert_eq!(
             image.size[0] * image.size[1],
             image.pixels.len(),
@@ -300,11 +288,11 @@ impl crate::Painter for WebGlPainter {
         )
         .unwrap();
 
-        self.user_textures.insert(tex_id, gl_texture);
+        self.textures.insert(tex_id, gl_texture);
     }
 
-    fn free_texture(&mut self, tex_id: u64) {
-        self.user_textures.remove(&tex_id);
+    fn free_texture(&mut self, tex_id: egui::TextureId) {
+        self.textures.remove(&tex_id);
     }
 
     fn debug_info(&self) -> String {

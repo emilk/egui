@@ -2,6 +2,7 @@
 #![allow(semicolon_in_expressions_from_macros)] // glium::program! macro
 
 use {
+    ahash::AHashMap,
     egui::{
         emath::Rect,
         epaint::{Color32, Mesh},
@@ -14,19 +15,17 @@ use {
         uniform,
         uniforms::{MagnifySamplerFilter, SamplerWrapFunction},
     },
-    std::{collections::HashMap, rc::Rc},
+    std::rc::Rc,
 };
 
 pub struct Painter {
     program: glium::Program,
-    egui_texture: Option<SrgbTexture2d>,
-    egui_texture_version: Option<u64>,
 
-    /// Index is the same as in [`egui::TextureId::User`].
-    user_textures: HashMap<u64, Rc<SrgbTexture2d>>,
+    textures: AHashMap<egui::TextureId, Rc<SrgbTexture2d>>,
 
     #[cfg(feature = "epi")]
-    next_native_tex_id: u64, // TODO: 128-bit texture space?
+    /// [`egui::TextureId::User`] index
+    next_native_tex_id: u64,
 }
 
 impl Painter {
@@ -54,38 +53,10 @@ impl Painter {
 
         Painter {
             program,
-            egui_texture: None,
-            egui_texture_version: None,
-            user_textures: Default::default(),
+            textures: Default::default(),
             #[cfg(feature = "epi")]
-            next_native_tex_id: 1 << 32,
+            next_native_tex_id: 0,
         }
-    }
-
-    pub fn upload_egui_texture(
-        &mut self,
-        facade: &dyn glium::backend::Facade,
-        font_image: &egui::FontImage,
-    ) {
-        if self.egui_texture_version == Some(font_image.version) {
-            return; // No change
-        }
-
-        let pixels: Vec<Vec<(u8, u8, u8, u8)>> = font_image
-            .pixels
-            .chunks(font_image.width as usize)
-            .map(|row| {
-                row.iter()
-                    .map(|&a| Color32::from_white_alpha(a).to_tuple())
-                    .collect()
-            })
-            .collect();
-
-        let format = texture::SrgbFormat::U8U8U8U8;
-        let mipmaps = texture::MipmapsOption::NoMipmap;
-        self.egui_texture =
-            Some(SrgbTexture2d::with_format(facade, pixels, format, mipmaps).unwrap());
-        self.egui_texture_version = Some(font_image.version);
     }
 
     /// Main entry-point for painting a frame.
@@ -97,10 +68,7 @@ impl Painter {
         target: &mut T,
         pixels_per_point: f32,
         cipped_meshes: Vec<egui::ClippedMesh>,
-        font_image: &egui::FontImage,
     ) {
-        self.upload_egui_texture(display, font_image);
-
         for egui::ClippedMesh(clip_rect, mesh) in cipped_meshes {
             self.paint_mesh(target, display, pixels_per_point, clip_rect, &mesh);
         }
@@ -227,37 +195,45 @@ impl Painter {
     pub fn set_texture(
         &mut self,
         facade: &dyn glium::backend::Facade,
-        tex_id: u64,
-        image: &epi::Image,
+        tex_id: egui::TextureId,
+        image: &egui::ImageData,
     ) {
-        assert_eq!(
-            image.size[0] * image.size[1],
-            image.pixels.len(),
-            "Mismatch between texture size and texel count"
-        );
-
-        let pixels: Vec<Vec<(u8, u8, u8, u8)>> = image
-            .pixels
-            .chunks(image.size[0] as usize)
-            .map(|row| row.iter().map(|srgba| srgba.to_tuple()).collect())
-            .collect();
-
+        let pixels: Vec<Vec<(u8, u8, u8, u8)>> = match image {
+            egui::ImageData::Color(image) => {
+                assert_eq!(
+                    image.width() * image.height(),
+                    image.pixels.len(),
+                    "Mismatch between texture size and texel count"
+                );
+                image
+                    .pixels
+                    .chunks(image.width() as usize)
+                    .map(|row| row.iter().map(|srgba| srgba.to_tuple()).collect())
+                    .collect()
+            }
+            egui::ImageData::Alpha(image) => image
+                .pixels
+                .chunks(image.width() as usize)
+                .map(|row| {
+                    row.iter()
+                        .map(|&a| Color32::from_white_alpha(a).to_tuple())
+                        .collect()
+                })
+                .collect(),
+        };
         let format = texture::SrgbFormat::U8U8U8U8;
         let mipmaps = texture::MipmapsOption::NoMipmap;
         let gl_texture = SrgbTexture2d::with_format(facade, pixels, format, mipmaps).unwrap();
 
-        self.user_textures.insert(tex_id, gl_texture.into());
+        self.textures.insert(tex_id, gl_texture.into());
     }
 
-    pub fn free_texture(&mut self, tex_id: u64) {
-        self.user_textures.remove(&tex_id);
+    pub fn free_texture(&mut self, tex_id: egui::TextureId) {
+        self.textures.remove(&tex_id);
     }
 
     fn get_texture(&self, texture_id: egui::TextureId) -> Option<&SrgbTexture2d> {
-        match texture_id {
-            egui::TextureId::Egui => self.egui_texture.as_ref(),
-            egui::TextureId::User(id) => self.user_textures.get(&id).map(|rc| rc.as_ref()),
-        }
+        self.textures.get(&texture_id).map(|rc| rc.as_ref())
     }
 }
 
@@ -266,15 +242,13 @@ impl epi::NativeTexture for Painter {
     type Texture = Rc<SrgbTexture2d>;
 
     fn register_native_texture(&mut self, native: Self::Texture) -> egui::TextureId {
-        let id = self.next_native_tex_id;
+        let id = egui::TextureId::User(self.next_native_tex_id);
         self.next_native_tex_id += 1;
-        self.user_textures.insert(id, native);
-        egui::TextureId::User(id as u64)
+        self.textures.insert(id, native);
+        id
     }
 
     fn replace_native_texture(&mut self, id: egui::TextureId, replacing: Self::Texture) {
-        if let egui::TextureId::User(id) = id {
-            self.user_textures.insert(id, replacing);
-        }
+        self.textures.insert(id, replacing);
     }
 }

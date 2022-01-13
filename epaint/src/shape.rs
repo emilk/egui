@@ -149,7 +149,7 @@ impl Shape {
         if let Shape::Mesh(mesh) = self {
             mesh.texture_id
         } else {
-            super::TextureId::Egui
+            super::TextureId::default()
         }
     }
 

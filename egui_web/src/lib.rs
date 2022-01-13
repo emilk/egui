@@ -482,9 +482,9 @@ fn paint_and_schedule(runner_ref: AppRunnerRef) -> Result<(), JsValue> {
     fn paint_if_needed(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let mut runner_lock = runner_ref.0.lock();
         if runner_lock.needs_repaint.fetch_and_clear() {
-            let (output, clipped_meshes) = runner_lock.logic()?;
+            let (needs_repaint, clipped_meshes) = runner_lock.logic()?;
             runner_lock.paint(clipped_meshes)?;
-            if output.needs_repaint {
+            if needs_repaint {
                 runner_lock.needs_repaint.set_true();
             }
             runner_lock.auto_save();
@@ -1214,7 +1214,7 @@ fn is_mobile() -> Option<bool> {
 // candidate window moves following text element (agent),
 // so it appears that the IME candidate window moves with text cursor.
 // On mobile devices, there is no need to do that.
-fn move_text_cursor(cursor: &Option<egui::Pos2>, canvas_id: &str) -> Option<()> {
+fn move_text_cursor(cursor: Option<egui::Pos2>, canvas_id: &str) -> Option<()> {
     let style = text_agent().style();
     // Note: movint agent on mobile devices will lead to unpredictable scroll.
     if is_mobile() == Some(false) {

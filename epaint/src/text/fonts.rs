@@ -253,13 +253,13 @@ impl Fonts {
 
         // We want an atlas big enough to be able to include all the Emojis in the `TextStyle::Heading`,
         // so we can show the Emoji picker demo window.
-        let mut atlas = TextureAtlas::new(2048, 64);
+        let mut atlas = TextureAtlas::new([2048, 64]);
 
         {
             // Make the top left pixel fully white:
             let pos = atlas.allocate((1, 1));
             assert_eq!(pos, (0, 0));
-            atlas.image_mut()[pos] = 255;
+            atlas.image_mut().image[pos] = 255;
         }
 
         let atlas = Arc::new(Mutex::new(atlas));
@@ -287,7 +287,7 @@ impl Fonts {
             let mut atlas = atlas.lock();
             let texture = atlas.image_mut();
             // Make sure we seed the texture version with something unique based on the default characters:
-            texture.version = crate::util::hash(&texture.pixels);
+            texture.version = crate::util::hash(&texture.image);
         }
 
         Self {
@@ -295,7 +295,7 @@ impl Fonts {
             definitions,
             fonts,
             atlas,
-            buffered_font_image: Default::default(), //atlas.lock().texture().clone();
+            buffered_font_image: Default::default(),
             galley_cache: Default::default(),
         }
     }
