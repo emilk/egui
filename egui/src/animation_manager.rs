@@ -100,9 +100,9 @@ impl AnimationManager {
                     anim.to_value = value;
                     anim.toggle_time = input.time;
                 }
-                if animation_time==0.0 {
-                    anim.from_value=value;
-                    anim.to_value=value;
+                if animation_time == 0.0 {
+                    anim.from_value = value;
+                    anim.to_value = value;
                 }
                 current_value
             }
