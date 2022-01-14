@@ -46,6 +46,23 @@ impl ColorImage {
         }
     }
 
+    /// An example color image
+    pub fn example() -> Self {
+        let width = 128;
+        let height = 64;
+        let mut img = Self::new([width, height], Color32::TRANSPARENT);
+        for y in 0..height {
+            for x in 0..width {
+                let h = x as f32 / width as f32;
+                let s = 1.0;
+                let v = 1.0;
+                let a = y as f32 / height as f32;
+                img[(x, y)] = crate::color::Hsva { h, s, v, a }.into();
+            }
+        }
+        img
+    }
+
     #[inline]
     pub fn width(&self) -> usize {
         self.size[0]
@@ -66,6 +83,26 @@ impl ColorImage {
             .map(|p| Color32::from_rgba_unmultiplied(p[0], p[1], p[2], p[3]))
             .collect();
         Self { size, pixels }
+    }
+}
+
+impl std::ops::Index<(usize, usize)> for ColorImage {
+    type Output = Color32;
+
+    #[inline]
+    fn index(&self, (x, y): (usize, usize)) -> &Color32 {
+        let [w, h] = self.size;
+        assert!(x < w && y < h);
+        &self.pixels[y * w + x]
+    }
+}
+
+impl std::ops::IndexMut<(usize, usize)> for ColorImage {
+    #[inline]
+    fn index_mut(&mut self, (x, y): (usize, usize)) -> &mut Color32 {
+        let [w, h] = self.size;
+        assert!(x < w && y < h);
+        &mut self.pixels[y * w + x]
     }
 }
 

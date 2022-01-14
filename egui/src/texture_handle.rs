@@ -1,4 +1,5 @@
 use epaint::{
+    emath::NumExt,
     mutex::{Arc, Mutex},
     ImageData, TextureId,
 };
@@ -33,11 +34,28 @@ impl Clone for TextureHandle {
     }
 }
 
+impl PartialEq for TextureHandle {
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Eq for TextureHandle {}
+
+impl std::hash::Hash for TextureHandle {
+    #[inline]
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
+
 impl TextureHandle {
     pub(crate) fn new(tex_mngr: Arc<Mutex<epaint::TextureManager>>, id: TextureId) -> Self {
         Self { tex_mngr, id }
     }
 
+    #[inline]
     pub fn id(&self) -> TextureId {
         self.id
     }
@@ -56,6 +74,12 @@ impl TextureHandle {
     pub fn size_vec2(&self) -> crate::Vec2 {
         let [w, h] = self.size();
         crate::Vec2::new(w as f32, h as f32)
+    }
+
+    /// width / height
+    pub fn aspect_ratio(&self) -> f32 {
+        let [w, h] = self.size();
+        w as f32 / h.at_least(1) as f32
     }
 
     /// Debug-name.
