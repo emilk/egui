@@ -869,6 +869,7 @@ dependencies = [
 name = "egui_web"
 version = "0.16.0"
 dependencies = [
+ "bytemuck",
  "egui",
  "egui_glow",
  "epi",
