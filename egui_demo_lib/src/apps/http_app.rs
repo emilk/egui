@@ -112,7 +112,7 @@ impl epi::App for HttpApp {
             } else if let Some(result) = &self.result {
                 match result {
                     Ok(resource) => {
-                        ui_resource(ui, frame, &mut self.tex_mngr, resource);
+                        ui_resource(ui, &mut self.tex_mngr, resource);
                     }
                     Err(error) => {
                         // This should only happen if the fetch API isn't available or something similar.
@@ -160,7 +160,7 @@ fn ui_url(ui: &mut egui::Ui, frame: &epi::Frame, url: &mut String) -> bool {
     trigger_fetch
 }
 
-fn ui_resource(ui: &mut egui::Ui, frame: &epi::Frame, tex_mngr: &mut TexMngr, resource: &Resource) {
+fn ui_resource(ui: &mut egui::Ui, tex_mngr: &mut TexMngr, resource: &Resource) {
     let Resource {
         response,
         text,
@@ -212,11 +212,10 @@ fn ui_resource(ui: &mut egui::Ui, frame: &epi::Frame, tex_mngr: &mut TexMngr, re
             }
 
             if let Some(image) = image {
-                if let Some(texture_id) = tex_mngr.texture(frame, &response.url, image) {
-                    let mut size = egui::Vec2::new(image.size[0] as f32, image.size[1] as f32);
-                    size *= (ui.available_width() / size.x).min(1.0);
-                    ui.image(texture_id, size);
-                }
+                let texture = tex_mngr.texture(ui.ctx(), &response.url, image);
+                let mut size = texture.size_vec2();
+                size *= (ui.available_width() / size.x).min(1.0);
+                ui.image(texture, size);
             } else if let Some(colored_text) = colored_text {
                 colored_text.ui(ui);
             } else if let Some(text) = &text {
@@ -293,25 +292,21 @@ impl ColoredText {
 #[derive(Default)]
 struct TexMngr {
     loaded_url: String,
-    texture_id: Option<egui::TextureId>,
+    texture: Option<egui::TextureHandle>,
 }
 
 impl TexMngr {
     fn texture(
         &mut self,
-        frame: &epi::Frame,
+        ctx: &egui::Context,
         url: &str,
         image: &egui::ImageData,
-    ) -> Option<egui::TextureId> {
-        if self.loaded_url != url {
-            if let Some(texture_id) = self.texture_id.take() {
-                frame.free_texture(texture_id);
-            }
-
-            self.texture_id = Some(frame.alloc_texture(image.clone()));
+    ) -> &egui::TextureHandle {
+        if self.loaded_url != url || self.texture.is_none() {
+            self.texture = Some(ctx.alloc_texture(url, image.clone()));
             self.loaded_url = url.to_owned();
         }
-        self.texture_id
+        self.texture.as_ref().unwrap()
     }
 }
 
@@ -321,5 +316,5 @@ fn decode_image(bytes: &[u8]) -> Option<egui::ImageData> {
     let image_buffer = image.to_rgba8();
     let size = [image.width() as usize, image.height() as usize];
     let pixels = image_buffer.into_vec();
-    Some(egui::ImageData::from_rgba_unmultiplied(size, &pixels))
+    Some(egui::ColorImage::from_rgba_unmultiplied(size, &pixels).into())
 }
