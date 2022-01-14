@@ -196,6 +196,7 @@ pub struct EpiIntegration {
     pub app: Box<dyn epi::App>,
     /// When set, it is time to quit
     quit: bool,
+    can_drag_window: bool,
 }
 
 impl EpiIntegration {
@@ -229,6 +230,7 @@ impl EpiIntegration {
             egui_winit: crate::State::new(window),
             app,
             quit: false,
+            can_drag_window: false,
         };
 
         slf.setup(window);
@@ -264,8 +266,18 @@ impl EpiIntegration {
     }
 
     pub fn on_event(&mut self, event: &winit::event::WindowEvent<'_>) {
-        use winit::event::WindowEvent;
+        use winit::event::{ElementState, MouseButton, WindowEvent};
         self.quit |= matches!(event, WindowEvent::CloseRequested | WindowEvent::Destroyed);
+
+        if let WindowEvent::MouseInput {
+            button: MouseButton::Left,
+            state: ElementState::Pressed,
+            ..
+        } = event
+        {
+            self.can_drag_window = true;
+        }
+
         self.egui_winit.on_event(&self.egui_ctx, event);
     }
 
@@ -289,7 +301,9 @@ impl EpiIntegration {
         self.egui_winit
             .handle_output(window, &self.egui_ctx, egui_output);
 
-        let app_output = self.frame.take_app_output();
+        let mut app_output = self.frame.take_app_output();
+        app_output.drag_window &= self.can_drag_window;
+        self.can_drag_window = false;
         self.quit |= app_output.quit;
         let tex_allocation_data =
             crate::epi::handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
