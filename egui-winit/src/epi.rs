@@ -302,8 +302,11 @@ impl EpiIntegration {
             .handle_output(window, &self.egui_ctx, egui_output);
 
         let mut app_output = self.frame.take_app_output();
-        app_output.drag_window &= self.can_drag_window;
-        self.can_drag_window = false;
+        if app_output.drag_window {
+            app_output.drag_window &= self.can_drag_window;
+            self.can_drag_window = false;
+        }
+
         self.quit |= app_output.quit;
         let tex_allocation_data =
             crate::epi::handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
