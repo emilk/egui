@@ -1341,9 +1341,30 @@ impl Ui {
 
     /// Show an image here with the given size.
     ///
-    /// See also [`Image`].
+    /// In order to display an image you must first acquire a [`TextureHandle`]
+    /// using [`Context::load_texture`].
+    ///
+    /// ```
+    /// struct MyImage {
+    ///     texture: Option<egui::TextureHandle>,
+    /// }
+    ///
+    /// impl MyImage {
+    ///     fn ui(&mut self, ui: &mut egui::Ui) {
+    ///         let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
+    ///             // Load the texture only once.
+    ///             ui.ctx().load_texture("my-image", egui::ColorImage::example())
+    ///         });
+    ///
+    ///         // Show the image:
+    ///         ui.image(texture, texture.size_vec2());
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// Se also [`crate::Image`] and [`crate::ImageButton`].
     #[inline]
-    pub fn image(&mut self, texture_id: TextureId, size: impl Into<Vec2>) -> Response {
+    pub fn image(&mut self, texture_id: impl Into<TextureId>, size: impl Into<Vec2>) -> Response {
         Image::new(texture_id, size).ui(self)
     }
 }

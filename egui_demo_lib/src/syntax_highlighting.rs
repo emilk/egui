@@ -66,7 +66,7 @@ enum SyntectTheme {
 
 #[cfg(feature = "syntect")]
 impl SyntectTheme {
-    fn all() -> impl Iterator<Item = Self> {
+    fn all() -> impl ExactSizeIterator<Item = Self> {
         [
             Self::Base16EightiesDark,
             Self::Base16MochaDark,

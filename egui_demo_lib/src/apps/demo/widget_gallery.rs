@@ -17,6 +17,8 @@ pub struct WidgetGallery {
     string: String,
     color: egui::Color32,
     animate_progress_bar: bool,
+    #[cfg_attr(feature = "serde", serde(skip))]
+    texture: Option<egui::TextureHandle>,
 }
 
 impl Default for WidgetGallery {
@@ -30,6 +32,7 @@ impl Default for WidgetGallery {
             string: Default::default(),
             color: egui::Color32::LIGHT_BLUE.linear_multiply(0.5),
             animate_progress_bar: false,
+            texture: None,
         }
     }
 }
@@ -99,7 +102,13 @@ impl WidgetGallery {
             string,
             color,
             animate_progress_bar,
+            texture,
         } = self;
+
+        let texture: &egui::TextureHandle = texture.get_or_insert_with(|| {
+            ui.ctx()
+                .load_texture("example", egui::ColorImage::example())
+        });
 
         ui.add(doc_link_label("Label", "label,heading"));
         ui.label("Welcome to the widget gallery!");
@@ -180,17 +189,14 @@ impl WidgetGallery {
         ui.color_edit_button_srgba(color);
         ui.end_row();
 
+        let img_size = 16.0 * texture.size_vec2() / texture.size_vec2().y;
+
         ui.add(doc_link_label("Image", "Image"));
-        ui.image(egui::TextureId::Egui, [24.0, 16.0])
-            .on_hover_text("The egui font texture was the convenient choice to show here.");
+        ui.image(texture, img_size);
         ui.end_row();
 
         ui.add(doc_link_label("ImageButton", "ImageButton"));
-        if ui
-            .add(egui::ImageButton::new(egui::TextureId::Egui, [24.0, 16.0]))
-            .on_hover_text("The egui font texture was the convenient choice to show here.")
-            .clicked()
-        {
+        if ui.add(egui::ImageButton::new(texture, img_size)).clicked() {
             *boolean = !*boolean;
         }
         ui.end_row();

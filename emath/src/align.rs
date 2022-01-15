@@ -47,7 +47,7 @@ impl Align {
         }
     }
 
-    /// ``` rust
+    /// ```
     /// assert_eq!(emath::Align::Min.align_size_within_range(2.0, 10.0..=20.0), 10.0..=12.0);
     /// assert_eq!(emath::Align::Center.align_size_within_range(2.0, 10.0..=20.0), 14.0..=16.0);
     /// assert_eq!(emath::Align::Max.align_size_within_range(2.0, 10.0..=20.0), 18.0..=20.0);

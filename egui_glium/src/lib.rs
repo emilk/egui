@@ -104,6 +104,9 @@ pub struct EguiGlium {
     pub egui_ctx: egui::Context,
     pub egui_winit: egui_winit::State,
     pub painter: crate::Painter,
+
+    shapes: Vec<egui::epaint::ClippedShape>,
+    textures_delta: egui::TexturesDelta,
 }
 
 impl EguiGlium {
@@ -112,6 +115,8 @@ impl EguiGlium {
             egui_ctx: Default::default(),
             egui_winit: egui_winit::State::new(display.gl_window().window()),
             painter: crate::Painter::new(display),
+            shapes: Default::default(),
+            textures_delta: Default::default(),
         }
     }
 
@@ -125,35 +130,45 @@ impl EguiGlium {
         self.egui_winit.on_event(&self.egui_ctx, event)
     }
 
-    /// Returns `needs_repaint` and shapes to draw.
-    pub fn run(
-        &mut self,
-        display: &glium::Display,
-        run_ui: impl FnMut(&egui::Context),
-    ) -> (bool, Vec<egui::epaint::ClippedShape>) {
+    /// Returns `true` if egui requests a repaint.
+    ///
+    /// Call [`Self::paint`] later to paint.
+    pub fn run(&mut self, display: &glium::Display, run_ui: impl FnMut(&egui::Context)) -> bool {
         let raw_input = self
             .egui_winit
             .take_egui_input(display.gl_window().window());
         let (egui_output, shapes) = self.egui_ctx.run(raw_input, run_ui);
         let needs_repaint = egui_output.needs_repaint;
-        self.egui_winit
-            .handle_output(display.gl_window().window(), &self.egui_ctx, egui_output);
-        (needs_repaint, shapes)
+        let textures_delta = self.egui_winit.handle_output(
+            display.gl_window().window(),
+            &self.egui_ctx,
+            egui_output,
+        );
+
+        self.shapes = shapes;
+        self.textures_delta.append(textures_delta);
+        needs_repaint
     }
 
-    pub fn paint<T: glium::Surface>(
-        &mut self,
-        display: &glium::Display,
-        target: &mut T,
-        shapes: Vec<egui::epaint::ClippedShape>,
-    ) {
+    /// Paint the results of the last call to [`Self::run`].
+    pub fn paint<T: glium::Surface>(&mut self, display: &glium::Display, target: &mut T) {
+        let shapes = std::mem::take(&mut self.shapes);
+        let mut textures_delta = std::mem::take(&mut self.textures_delta);
+
+        for (id, image) in textures_delta.set {
+            self.painter.set_texture(display, id, &image);
+        }
+
         let clipped_meshes = self.egui_ctx.tessellate(shapes);
         self.painter.paint_meshes(
             display,
             target,
             self.egui_ctx.pixels_per_point(),
             clipped_meshes,
-            &self.egui_ctx.font_image(),
         );
+
+        for id in textures_delta.free.drain(..) {
+            self.painter.free_texture(id);
+        }
     }
 }

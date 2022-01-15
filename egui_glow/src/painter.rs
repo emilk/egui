@@ -2,7 +2,6 @@
 
 use std::collections::HashMap;
 
-use bytemuck::cast_slice;
 use egui::{
     emath::Rect,
     epaint::{Color32, Mesh, Vertex},
@@ -11,7 +10,7 @@ use glow::HasContext;
 use memoffset::offset_of;
 
 use crate::misc_util::{
-    as_u8_slice, check_for_gl_error, compile_shader, glow_print, link_program, srgb_texture2d,
+    check_for_gl_error, compile_shader, glow_print, link_program, srgb_texture2d,
 };
 use crate::post_process::PostProcess;
 use crate::shader_version::ShaderVersion;
@@ -30,8 +29,6 @@ pub struct Painter {
     program: glow::Program,
     u_screen_size: glow::UniformLocation,
     u_sampler: glow::UniformLocation,
-    egui_texture: Option<glow::Texture>,
-    egui_texture_version: Option<u64>,
     is_webgl_1: bool,
     is_embedded: bool,
     vertex_array: crate::misc_util::VAO,
@@ -42,8 +39,7 @@ pub struct Painter {
     vertex_buffer: glow::Buffer,
     element_array_buffer: glow::Buffer,
 
-    /// Index is the same as in [`egui::TextureId::User`].
-    user_textures: HashMap<u64, glow::Texture>,
+    textures: HashMap<egui::TextureId, glow::Texture>,
 
     #[cfg(feature = "epi")]
     next_native_tex_id: u64, // TODO: 128-bit texture space?
@@ -212,8 +208,6 @@ impl Painter {
                 program,
                 u_screen_size,
                 u_sampler,
-                egui_texture: None,
-                egui_texture_version: None,
                 is_webgl_1,
                 is_embedded: matches!(shader_version, ShaderVersion::Es100 | ShaderVersion::Es300),
                 vertex_array,
@@ -222,48 +216,13 @@ impl Painter {
                 post_process,
                 vertex_buffer,
                 element_array_buffer,
-                user_textures: Default::default(),
+                textures: Default::default(),
                 #[cfg(feature = "epi")]
                 next_native_tex_id: 1 << 32,
                 textures_to_destroy: Vec::new(),
                 destroyed: false,
             })
         }
-    }
-
-    pub fn upload_egui_texture(&mut self, gl: &glow::Context, font_image: &egui::FontImage) {
-        self.assert_not_destroyed();
-
-        if self.egui_texture_version == Some(font_image.version) {
-            return; // No change
-        }
-        let gamma = if self.is_embedded && self.post_process.is_none() {
-            1.0 / 2.2
-        } else {
-            1.0
-        };
-        let pixels: Vec<u8> = font_image
-            .srgba_pixels(gamma)
-            .flat_map(|a| Vec::from(a.to_array()))
-            .collect();
-
-        if let Some(old_tex) = std::mem::replace(
-            &mut self.egui_texture,
-            Some(srgb_texture2d(
-                gl,
-                self.is_webgl_1,
-                self.srgb_support,
-                self.texture_filter,
-                &pixels,
-                font_image.width,
-                font_image.height,
-            )),
-        ) {
-            unsafe {
-                gl.delete_texture(old_tex);
-            }
-        }
-        self.egui_texture_version = Some(font_image.version);
     }
 
     unsafe fn prepare_painting(
@@ -370,14 +329,14 @@ impl Painter {
                 gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vertex_buffer));
                 gl.buffer_data_u8_slice(
                     glow::ARRAY_BUFFER,
-                    as_u8_slice(mesh.vertices.as_slice()),
+                    bytemuck::cast_slice(&mesh.vertices),
                     glow::STREAM_DRAW,
                 );
 
                 gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.element_array_buffer));
                 gl.buffer_data_u8_slice(
                     glow::ELEMENT_ARRAY_BUFFER,
-                    as_u8_slice(mesh.indices.as_slice()),
+                    bytemuck::cast_slice(&mesh.indices),
                     glow::STREAM_DRAW,
                 );
 
@@ -425,52 +384,75 @@ impl Painter {
 
     // ------------------------------------------------------------------------
 
-    #[cfg(feature = "epi")]
-    pub fn set_texture(&mut self, gl: &glow::Context, tex_id: u64, image: &epi::Image) {
+    pub fn set_texture(
+        &mut self,
+        gl: &glow::Context,
+        tex_id: egui::TextureId,
+        image: &egui::ImageData,
+    ) {
         self.assert_not_destroyed();
 
-        assert_eq!(
-            image.size[0] * image.size[1],
-            image.pixels.len(),
-            "Mismatch between texture size and texel count"
-        );
+        let gl_texture = match image {
+            egui::ImageData::Color(image) => {
+                assert_eq!(
+                    image.width() * image.height(),
+                    image.pixels.len(),
+                    "Mismatch between texture size and texel count"
+                );
 
-        let data: &[u8] = cast_slice(image.pixels.as_ref());
+                let data: &[u8] = bytemuck::cast_slice(image.pixels.as_ref());
 
-        let gl_texture = srgb_texture2d(
-            gl,
-            self.is_webgl_1,
-            self.srgb_support,
-            self.texture_filter,
-            data,
-            image.size[0],
-            image.size[1],
-        );
+                srgb_texture2d(
+                    gl,
+                    self.is_webgl_1,
+                    self.srgb_support,
+                    self.texture_filter,
+                    data,
+                    image.size[0],
+                    image.size[1],
+                )
+            }
+            egui::ImageData::Alpha(image) => {
+                let gamma = if self.is_embedded && self.post_process.is_none() {
+                    1.0 / 2.2
+                } else {
+                    1.0
+                };
+                let data: Vec<u8> = image
+                    .srgba_pixels(gamma)
+                    .flat_map(|a| a.to_array())
+                    .collect();
 
-        if let Some(old_tex) = self.user_textures.insert(tex_id, gl_texture) {
-            self.textures_to_destroy.push(old_tex);
+                srgb_texture2d(
+                    gl,
+                    self.is_webgl_1,
+                    self.srgb_support,
+                    self.texture_filter,
+                    &data,
+                    image.size[0],
+                    image.size[1],
+                )
+            }
+        };
+
+        if let Some(old_tex) = self.textures.insert(tex_id, gl_texture) {
+            unsafe { gl.delete_texture(old_tex) };
         }
     }
 
-    pub fn free_texture(&mut self, tex_id: u64) {
-        self.user_textures.remove(&tex_id);
+    pub fn free_texture(&mut self, gl: &glow::Context, tex_id: egui::TextureId) {
+        if let Some(old_tex) = self.textures.remove(&tex_id) {
+            unsafe { gl.delete_texture(old_tex) };
+        }
     }
 
     fn get_texture(&self, texture_id: egui::TextureId) -> Option<glow::Texture> {
-        self.assert_not_destroyed();
-
-        match texture_id {
-            egui::TextureId::Egui => self.egui_texture,
-            egui::TextureId::User(id) => self.user_textures.get(&id).copied(),
-        }
+        self.textures.get(&texture_id).copied()
     }
 
     unsafe fn destroy_gl(&self, gl: &glow::Context) {
         gl.delete_program(self.program);
-        if let Some(tex) = self.egui_texture {
-            gl.delete_texture(tex);
-        }
-        for tex in self.user_textures.values() {
+        for tex in self.textures.values() {
             gl.delete_texture(*tex);
         }
         gl.delete_buffer(self.vertex_buffer);
@@ -533,20 +515,15 @@ impl epi::NativeTexture for Painter {
 
     fn register_native_texture(&mut self, native: Self::Texture) -> egui::TextureId {
         self.assert_not_destroyed();
-
-        let id = self.next_native_tex_id;
+        let id = egui::TextureId::User(self.next_native_tex_id);
         self.next_native_tex_id += 1;
-
-        self.user_textures.insert(id, native);
-
-        egui::TextureId::User(id as u64)
+        self.textures.insert(id, native);
+        id
     }
 
     fn replace_native_texture(&mut self, id: egui::TextureId, replacing: Self::Texture) {
-        if let egui::TextureId::User(id) = id {
-            if let Some(old_tex) = self.user_textures.insert(id, replacing) {
-                self.textures_to_destroy.push(old_tex);
-            }
+        if let Some(old_tex) = self.textures.insert(id, replacing) {
+            self.textures_to_destroy.push(old_tex);
         }
     }
 }

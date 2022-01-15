@@ -66,11 +66,11 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
 
-            let (needs_repaint, mut tex_allocation_data, shapes) =
+            let (needs_repaint, mut textures_delta, shapes) =
                 integration.update(display.gl_window().window());
             let clipped_meshes = integration.egui_ctx.tessellate(shapes);
 
-            for (id, image) in tex_allocation_data.creations {
+            for (id, image) in textures_delta.set {
                 painter.set_texture(&display, id, &image);
             }
 
@@ -86,13 +86,12 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
                     &mut target,
                     integration.egui_ctx.pixels_per_point(),
                     clipped_meshes,
-                    &integration.egui_ctx.font_image(),
                 );
 
                 target.finish().unwrap();
             }
 
-            for id in tex_allocation_data.destructions.drain(..) {
+            for id in textures_delta.free.drain(..) {
                 painter.free_texture(id);
             }
 

@@ -1,5 +1,6 @@
 use crate::*;
 
+use egui::TexturesDelta;
 pub use egui::{pos2, Color32};
 
 // ----------------------------------------------------------------------------
@@ -92,7 +93,7 @@ pub struct AppRunner {
     screen_reader: crate::screen_reader::ScreenReader,
     pub(crate) text_cursor_pos: Option<egui::Pos2>,
     pub(crate) mutable_text_under_cursor: bool,
-    pending_texture_destructions: Vec<u64>,
+    textures_delta: TexturesDelta,
 }
 
 impl AppRunner {
@@ -139,7 +140,7 @@ impl AppRunner {
             screen_reader: Default::default(),
             text_cursor_pos: None,
             mutable_text_under_cursor: false,
-            pending_texture_destructions: Default::default(),
+            textures_delta: Default::default(),
         };
 
         {
@@ -183,7 +184,10 @@ impl AppRunner {
         Ok(())
     }
 
-    pub fn logic(&mut self) -> Result<(egui::Output, Vec<egui::ClippedMesh>), JsValue> {
+    /// Returns `true` if egui requests a repaint.
+    ///
+    /// Call [`Self::paint`] later to paint
+    pub fn logic(&mut self) -> Result<(bool, Vec<egui::ClippedMesh>), JsValue> {
         let frame_start = now_sec();
 
         resize_canvas_to_screen_size(self.canvas_id(), self.app.max_size_points());
@@ -195,7 +199,9 @@ impl AppRunner {
         });
         let clipped_meshes = self.egui_ctx.tessellate(shapes);
 
-        self.handle_egui_output(&egui_output);
+        let needs_repaint = egui_output.needs_repaint;
+        let textures_delta = self.handle_egui_output(egui_output);
+        self.textures_delta.append(textures_delta);
 
         {
             let app_output = self.frame.take_app_output();
@@ -205,32 +211,32 @@ impl AppRunner {
                 window_title: _, // TODO: change title of window
                 decorated: _,    // Can't toggle decorations
                 drag_window: _,  // Can't be dragged
-                tex_allocation_data,
             } = app_output;
-
-            for (id, image) in tex_allocation_data.creations {
-                self.painter.set_texture(id, image);
-            }
-            self.pending_texture_destructions = tex_allocation_data.destructions;
         }
 
         self.frame.lock().info.cpu_usage = Some((now_sec() - frame_start) as f32);
-        Ok((egui_output, clipped_meshes))
+        Ok((needs_repaint, clipped_meshes))
     }
 
+    /// Paint the results of the last call to [`Self::logic`].
     pub fn paint(&mut self, clipped_meshes: Vec<egui::ClippedMesh>) -> Result<(), JsValue> {
-        self.painter
-            .upload_egui_texture(&self.egui_ctx.font_image());
+        let textures_delta = std::mem::take(&mut self.textures_delta);
+        for (id, image) in textures_delta.set {
+            self.painter.set_texture(id, image);
+        }
+
         self.painter.clear(self.app.clear_color());
         self.painter
             .paint_meshes(clipped_meshes, self.egui_ctx.pixels_per_point())?;
-        for id in self.pending_texture_destructions.drain(..) {
+
+        for id in textures_delta.free {
             self.painter.free_texture(id);
         }
+
         Ok(())
     }
 
-    fn handle_egui_output(&mut self, output: &egui::Output) {
+    fn handle_egui_output(&mut self, output: egui::Output) -> egui::TexturesDelta {
         if self.egui_ctx.memory().options.screen_reader {
             self.screen_reader.speak(&output.events_description());
         }
@@ -243,27 +249,30 @@ impl AppRunner {
             events: _,        // already handled
             mutable_text_under_cursor,
             text_cursor_pos,
+            textures_delta,
         } = output;
 
-        set_cursor_icon(*cursor_icon);
+        set_cursor_icon(cursor_icon);
         if let Some(open) = open_url {
             crate::open_url(&open.url, open.new_tab);
         }
 
         #[cfg(web_sys_unstable_apis)]
         if !copied_text.is_empty() {
-            set_clipboard_text(copied_text);
+            set_clipboard_text(&copied_text);
         }
 
         #[cfg(not(web_sys_unstable_apis))]
         let _ = copied_text;
 
-        self.mutable_text_under_cursor = *mutable_text_under_cursor;
+        self.mutable_text_under_cursor = mutable_text_under_cursor;
 
-        if &self.text_cursor_pos != text_cursor_pos {
+        if self.text_cursor_pos != text_cursor_pos {
             move_text_cursor(text_cursor_pos, self.canvas_id());
-            self.text_cursor_pos = *text_cursor_pos;
+            self.text_cursor_pos = text_cursor_pos;
         }
+
+        textures_delta
     }
 }
 

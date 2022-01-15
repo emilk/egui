@@ -4,8 +4,9 @@ All notable changes to the epaint crate will be documented in this file.
 
 
 ## Unreleased
-
 * Added `Shape::dashed_line_many` ([#1027](https://github.com/emilk/egui/pull/1027)).
+* Add `ImageData` and `TextureManager` for loading images into textures ([#1110](https://github.com/emilk/egui/pull/1110)).
+
 
 ## 0.16.0 - 2021-12-29
 * Anti-alias path ends  ([#893](https://github.com/emilk/egui/pull/893)).

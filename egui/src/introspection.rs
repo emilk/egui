@@ -7,14 +7,16 @@ impl Widget for &epaint::FontImage {
 
         ui.vertical(|ui| {
             // Show font texture in demo Ui
+            let [width, height] = self.size();
+
             ui.label(format!(
                 "Texture size: {} x {} (hover to zoom)",
-                self.width, self.height
+                width, height
             ));
-            if self.width <= 1 || self.height <= 1 {
+            if width <= 1 || height <= 1 {
                 return;
             }
-            let mut size = vec2(self.width as f32, self.height as f32);
+            let mut size = vec2(width as f32, height as f32);
             if size.x > ui.available_width() {
                 size *= ui.available_width() / size.x;
             }
@@ -27,7 +29,7 @@ impl Widget for &epaint::FontImage {
             );
             ui.painter().add(Shape::mesh(mesh));
 
-            let (tex_w, tex_h) = (self.width as f32, self.height as f32);
+            let (tex_w, tex_h) = (width as f32, height as f32);
 
             response
                 .on_hover_cursor(CursorIcon::ZoomIn)
