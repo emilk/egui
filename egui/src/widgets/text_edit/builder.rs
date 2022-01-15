@@ -390,7 +390,8 @@ impl<'t> TextEdit<'t> {
         // dragging select text, or scroll the enclosing `ScrollArea` (if any)?
         // Since currently copying selected text in not supported on `egui_web`,
         // we prioritize touch-scrolling:
-        let allow_drag_to_select = !ui.input().any_touches() || ui.memory().has_focus(id);
+        let any_touches = ui.input().any_touches(); // separate line to avoid double-locking the same mutex
+        let allow_drag_to_select = !any_touches || ui.memory().has_focus(id);
 
         let sense = if interactive {
             if allow_drag_to_select {
