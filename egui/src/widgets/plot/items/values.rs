@@ -297,7 +297,7 @@ pub enum MarkerShape {
 
 impl MarkerShape {
     /// Get a vector containing all marker shapes.
-    pub fn all() -> impl Iterator<Item = MarkerShape> {
+    pub fn all() -> impl ExactSizeIterator<Item = MarkerShape> {
         [
             Self::Circle,
             Self::Diamond,

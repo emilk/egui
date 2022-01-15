@@ -28,7 +28,7 @@ pub enum TextStyle {
 }
 
 impl TextStyle {
-    pub fn all() -> impl Iterator<Item = TextStyle> {
+    pub fn all() -> impl ExactSizeIterator<Item = TextStyle> {
         [
             TextStyle::Small,
             TextStyle::Body,

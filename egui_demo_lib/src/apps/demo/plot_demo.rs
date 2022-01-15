@@ -346,7 +346,7 @@ impl Widget for &mut ItemsDemo {
 
         let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
             ui.ctx()
-                .alloc_texture("plot_demo", egui::ColorImage::example())
+                .load_texture("plot_demo", egui::ColorImage::example())
         });
         let image = PlotImage::new(
             texture,

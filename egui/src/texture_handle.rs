@@ -7,7 +7,7 @@ use epaint::{
 /// Used to show images in egui.
 ///
 /// To show an image in egui, allocate a texture with
-/// [`crate::Context::alloc_texture`] and store the [`TextureHandle`].
+/// [`crate::Context::load_texture`] and store the [`TextureHandle`].
 /// You can then pass it to e.g. [`Ui::image`].
 ///
 /// The [`TextureHandle`] can be cloned cheaply.

@@ -15,7 +15,7 @@ impl epi::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &epi::Frame) {
         let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
             let image = load_image(include_bytes!("rust-logo-256x256.png"));
-            ctx.alloc_texture("rust-logo", image)
+            ctx.load_texture("rust-logo", image)
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {

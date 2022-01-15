@@ -608,10 +608,32 @@ impl Context {
 
     /// Allocate a texture.
     ///
+    /// In order to display an image you must convert it to a texture using this function.
+    ///
     /// Make sure to only call this once for each image, i.e. NOT in your main GUI code.
     ///
     /// The given name can be useful for later debugging, and will be visible if you call [`Self::texture_ui`].
-    pub fn alloc_texture(
+    ///
+    /// ```
+    /// struct MyImage {
+    ///     texture: Option<egui::TextureHandle>,
+    /// }
+    ///
+    /// impl MyImage {
+    ///     fn ui(&mut self, ui: &mut egui::Ui) {
+    ///         let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
+    ///             // Load the texture only once.
+    ///             ui.ctx().load_texture("my-image", egui::ColorImage::example())
+    ///         });
+    ///
+    ///         // Show the image:
+    ///         ui.image(texture, texture.size_vec2());
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// Se also [`crate::TextureData`], [`crate::Ui::image`] and [`crate::ImageButton`].
+    pub fn load_texture(
         &self,
         name: impl Into<String>,
         image: impl Into<ImageData>,
@@ -623,7 +645,7 @@ impl Context {
 
     /// Low-level texture manager.
     ///
-    /// In general it is easier to use [`Self::alloc_texture`] and [`TextureHandle`].
+    /// In general it is easier to use [`Self::load_texture`] and [`TextureHandle`].
     ///
     /// You can show stats about the allocated textures using [`Self::texture_ui`].
     pub fn tex_manager(&self) -> Arc<Mutex<epaint::textures::TextureManager>> {

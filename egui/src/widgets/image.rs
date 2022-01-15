@@ -2,17 +2,31 @@ use crate::*;
 
 /// An widget to show an image of a given size.
 ///
-/// ```
-/// # egui::__run_test_ui(|ui| {
-/// # let my_texture_id = egui::TextureId::User(0);
-/// ui.add(egui::Image::new(my_texture_id, [640.0, 480.0]));
+/// In order to display an image you must first acquire a [`TextureHandle`]
+/// using [`Context::load_texture`].
 ///
-/// // Shorter version:
-/// ui.image(my_texture_id, [640.0, 480.0]);
-/// # });
+/// ```
+/// struct MyImage {
+///     texture: Option<egui::TextureHandle>,
+/// }
+///
+/// impl MyImage {
+///     fn ui(&mut self, ui: &mut egui::Ui) {
+///         let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
+///             // Load the texture only once.
+///             ui.ctx().load_texture("my-image", egui::ColorImage::example())
+///         });
+///
+///         // Show the image:
+///         ui.add(egui::Image::new(texture, texture.size_vec2()));
+///
+///         // Shorter version:
+///         ui.image(texture, texture.size_vec2());
+///     }
+/// }
 /// ```
 ///
-/// Se also [`crate::ImageButton`].
+/// Se also [`crate::Ui::image`] and [`crate::ImageButton`].
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Clone, Copy, Debug)]
 pub struct Image {

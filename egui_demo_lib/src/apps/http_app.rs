@@ -303,7 +303,7 @@ impl TexMngr {
         image: &egui::ImageData,
     ) -> &egui::TextureHandle {
         if self.loaded_url != url || self.texture.is_none() {
-            self.texture = Some(ctx.alloc_texture(url, image.clone()));
+            self.texture = Some(ctx.load_texture(url, image.clone()));
             self.loaded_url = url.to_owned();
         }
         self.texture.as_ref().unwrap()

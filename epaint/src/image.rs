@@ -152,7 +152,10 @@ impl AlphaImage {
     /// `gamma` should normally be set to 1.0.
     /// If you are having problems with text looking skinny and pixelated, try
     /// setting a lower gamma, e.g. `0.5`.
-    pub fn srgba_pixels(&'_ self, gamma: f32) -> impl Iterator<Item = super::Color32> + '_ {
+    pub fn srgba_pixels(
+        &'_ self,
+        gamma: f32,
+    ) -> impl ExactSizeIterator<Item = super::Color32> + '_ {
         let srgba_from_alpha_lut: Vec<Color32> = (0..=255)
             .map(|a| {
                 let a = super::color::linear_f32_from_linear_u8(a).powf(gamma);

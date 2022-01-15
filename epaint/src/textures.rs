@@ -103,7 +103,7 @@ impl TextureManager {
     }
 
     /// Get meta-data about all allocated textures in some arbitrary order.
-    pub fn allocated(&self) -> impl Iterator<Item = (&TextureId, &TextureMeta)> {
+    pub fn allocated(&self) -> impl ExactSizeIterator<Item = (&TextureId, &TextureMeta)> {
         self.metas.iter()
     }
 }
