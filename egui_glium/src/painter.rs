@@ -95,7 +95,7 @@ impl Painter {
             let vertices: &[Vertex] = bytemuck::cast_slice(&mesh.vertices);
 
             // TODO: we should probably reuse the `VertexBuffer` instead of allocating a new one each frame.
-            glium::VertexBuffer::new(display, &vertices).unwrap()
+            glium::VertexBuffer::new(display, vertices).unwrap()
         };
 
         // TODO: we should probably reuse the `IndexBuffer` instead of allocating a new one each frame.
@@ -205,7 +205,7 @@ impl Painter {
             }
         };
         let glium_image = glium::texture::RawImage2d {
-            data: std::borrow::Cow::Owned(pixels.into()),
+            data: std::borrow::Cow::Owned(pixels),
             width: image.width() as _,
             height: image.height() as _,
             format: glium::texture::ClientFormat::U8U8U8U8,

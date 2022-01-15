@@ -259,7 +259,7 @@ impl AppRunner {
 
         #[cfg(web_sys_unstable_apis)]
         if !copied_text.is_empty() {
-            set_clipboard_text(copied_text);
+            set_clipboard_text(&copied_text);
         }
 
         #[cfg(not(web_sys_unstable_apis))]
