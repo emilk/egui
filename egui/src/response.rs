@@ -480,7 +480,7 @@ impl Response {
 
     /// Response to secondary clicks (right-clicks) by showing the given menu.
     ///
-    /// ``` rust
+    /// ```
     /// # egui::__run_test_ui(|ui| {
     /// let response = ui.label("Right-click me!");
     /// response.context_menu(|ui| {

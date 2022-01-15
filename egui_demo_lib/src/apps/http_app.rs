@@ -17,7 +17,7 @@ impl Resource {
     fn from_response(ctx: &egui::Context, response: ehttp::Response) -> Self {
         let content_type = response.content_type().unwrap_or_default();
         let image = if content_type.starts_with("image/") {
-            decode_image(&response.bytes)
+            load_image(&response.bytes).ok().map(|img| img.into())
         } else {
             None
         };
@@ -310,11 +310,14 @@ impl TexMngr {
     }
 }
 
-fn decode_image(bytes: &[u8]) -> Option<egui::ImageData> {
-    use image::GenericImageView;
-    let image = image::load_from_memory(bytes).ok()?;
+fn load_image(image_data: &[u8]) -> Result<egui::ColorImage, image::ImageError> {
+    use image::GenericImageView as _;
+    let image = image::load_from_memory(image_data)?;
+    let size = [image.width() as _, image.height() as _];
     let image_buffer = image.to_rgba8();
-    let size = [image.width() as usize, image.height() as usize];
-    let pixels = image_buffer.into_vec();
-    Some(egui::ColorImage::from_rgba_unmultiplied(size, &pixels).into())
+    let pixels = image_buffer.as_flat_samples();
+    Ok(egui::ColorImage::from_rgba_unmultiplied(
+        size,
+        pixels.as_slice(),
+    ))
 }

@@ -49,7 +49,7 @@ impl Label {
     /// By calling this you can turn the label into a button of sorts.
     /// This will also give the label the hover-effect of a button, but without the frame.
     ///
-    /// ``` rust
+    /// ```
     /// # use egui::{Label, Sense};
     /// # egui::__run_test_ui(|ui| {
     /// if ui.add(Label::new("click me").sense(Sense::click())).clicked() {

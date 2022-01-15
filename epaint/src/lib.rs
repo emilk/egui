@@ -99,6 +99,7 @@ mod stroke;
 pub mod tessellator;
 pub mod text;
 mod texture_atlas;
+mod texture_handle;
 pub mod textures;
 pub mod util;
 
@@ -113,6 +114,7 @@ pub use {
     tessellator::{tessellate_shapes, TessellationOptions, Tessellator},
     text::{Fonts, Galley, TextStyle},
     texture_atlas::{FontImage, TextureAtlas},
+    texture_handle::TextureHandle,
     textures::TextureManager,
 };
 

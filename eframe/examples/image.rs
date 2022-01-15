@@ -14,7 +14,7 @@ impl epi::App for MyApp {
 
     fn update(&mut self, ctx: &egui::Context, _frame: &epi::Frame) {
         let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
-            let image = load_image(include_bytes!("rust-logo-256x256.png"));
+            let image = load_image(include_bytes!("rust-logo-256x256.png")).unwrap();
             ctx.load_texture("rust-logo", image)
         });
 
@@ -33,11 +33,14 @@ fn main() {
     eframe::run_native(Box::new(MyApp::default()), options);
 }
 
-fn load_image(image_data: &[u8]) -> egui::ColorImage {
-    use image::GenericImageView;
-    let image = image::load_from_memory(image_data).expect("Failed to load image");
+fn load_image(image_data: &[u8]) -> Result<egui::ColorImage, image::ImageError> {
+    use image::GenericImageView as _;
+    let image = image::load_from_memory(image_data)?;
+    let size = [image.width() as _, image.height() as _];
     let image_buffer = image.to_rgba8();
-    let size = [image.width() as usize, image.height() as usize];
-    let pixels = image_buffer.into_vec();
-    egui::ColorImage::from_rgba_unmultiplied(size, &pixels)
+    let pixels = image_buffer.as_flat_samples();
+    Ok(egui::ColorImage::from_rgba_unmultiplied(
+        size,
+        pixels.as_slice(),
+    ))
 }

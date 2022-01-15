@@ -1,20 +1,23 @@
-use epaint::{
+use crate::{
     emath::NumExt,
     mutex::{Arc, Mutex},
-    ImageData, TextureId,
+    ImageData, TextureId, TextureManager,
 };
 
-/// Used to show images in egui.
+/// Used to paint images.
 ///
-/// To show an image in egui, allocate a texture with
-/// [`crate::Context::load_texture`] and store the [`TextureHandle`].
-/// You can then pass it to e.g. [`crate::Ui::image`].
+/// An _image_ is pixels stored in RAM, and represented using [`ImageData`].
+/// Before you can paint it however, you need to convert it to a _texture_.
+///
+/// If you are using egui, use `egui::Context::load_texture`.
 ///
 /// The [`TextureHandle`] can be cloned cheaply.
 /// When the last [`TextureHandle`] for specific texture is dropped, the texture is freed.
+///
+/// See also [`TextureManager`].
 #[must_use]
 pub struct TextureHandle {
-    tex_mngr: Arc<Mutex<epaint::TextureManager>>,
+    tex_mngr: Arc<Mutex<TextureManager>>,
     id: TextureId,
 }
 
@@ -51,7 +54,8 @@ impl std::hash::Hash for TextureHandle {
 }
 
 impl TextureHandle {
-    pub(crate) fn new(tex_mngr: Arc<Mutex<epaint::TextureManager>>, id: TextureId) -> Self {
+    /// If you are using egui, use `egui::Context::load_texture` instead.
+    pub fn new(tex_mngr: Arc<Mutex<TextureManager>>, id: TextureId) -> Self {
         Self { tex_mngr, id }
     }
 

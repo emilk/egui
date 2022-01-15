@@ -58,7 +58,7 @@
 //!
 //! ### Quick start
 //!
-//! ``` rust
+//! ```
 //! # egui::__run_test_ui(|ui| {
 //! # let mut my_string = String::new();
 //! # let mut my_boolean = true;
@@ -218,7 +218,7 @@
 //! 2. Wrap your panel contents in a [`ScrollArea`], or use [`Window::vscroll`] and [`Window::hscroll`].
 //! 3. Use a justified layout:
 //!
-//! ``` rust
+//! ```
 //! # egui::__run_test_ui(|ui| {
 //! ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
 //!     ui.button("I am becoming wider as needed");
@@ -228,7 +228,7 @@
 //!
 //! 4. Fill in extra space with emptiness:
 //!
-//! ``` rust
+//! ```
 //! # egui::__run_test_ui(|ui| {
 //! ui.allocate_space(ui.available_size()); // put this LAST in your panel/window code
 //! # });
@@ -374,7 +374,6 @@ pub(crate) mod placer;
 mod response;
 mod sense;
 pub mod style;
-mod texture_handle;
 mod ui;
 pub mod util;
 mod widget_text;
@@ -388,7 +387,8 @@ pub use epaint::{
     color, mutex,
     text::{FontData, FontDefinitions, FontFamily, TextStyle},
     textures::TexturesDelta,
-    AlphaImage, ClippedMesh, Color32, ColorImage, ImageData, Rgba, Shape, Stroke, TextureId,
+    AlphaImage, ClippedMesh, Color32, ColorImage, ImageData, Rgba, Shape, Stroke, TextureHandle,
+    TextureId,
 };
 
 pub mod text {
@@ -416,7 +416,6 @@ pub use {
     sense::Sense,
     style::{Style, Visuals},
     text::{Galley, TextFormat},
-    texture_handle::TextureHandle,
     ui::Ui,
     widget_text::{RichText, WidgetText},
     widgets::*,

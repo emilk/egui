@@ -178,7 +178,7 @@ impl Context {
     ///
     /// You can alternatively run [`Self::begin_frame`] and [`Context::end_frame`].
     ///
-    /// ``` rust
+    /// ```
     /// // One egui context that you keep reusing:
     /// let mut ctx = egui::Context::default();
     ///
@@ -204,7 +204,7 @@ impl Context {
 
     /// An alternative to calling [`Self::run`].
     ///
-    /// ``` rust
+    /// ```
     /// // One egui context that you keep reusing:
     /// let mut ctx = egui::Context::default();
     ///

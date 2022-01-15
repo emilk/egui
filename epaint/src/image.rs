@@ -2,6 +2,10 @@ use crate::Color32;
 
 /// An image stored in RAM.
 ///
+/// To load an image file, see [`ColorImage::from_rgba_unmultiplied`].
+///
+/// In order to paint the image on screen, you first need to convert it to
+///
 /// See also: [`ColorImage`], [`AlphaImage`].
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -42,13 +46,14 @@ impl ImageData {
 #[derive(Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ColorImage {
-    /// width, height
+    /// width, height.
     pub size: [usize; 2],
     /// The pixels, row by row, from top to bottom.
     pub pixels: Vec<Color32>,
 }
 
 impl ColorImage {
+    /// Create an image filled with the given color.
     pub fn new(size: [usize; 2], color: Color32) -> Self {
         Self {
             size,
@@ -56,7 +61,36 @@ impl ColorImage {
         }
     }
 
-    /// An example color image
+    /// Create an `Image` from flat un-multiplied RGBA data.
+    ///
+    /// This is usually what you want to use after having loaded an image file.
+    ///
+    /// Panics if `size[0] * size[1] * 4 != rgba.len()`.
+    ///
+    /// ## Example using the [`image`](crates.io/crates/image) crate:
+    /// ``` ignore
+    /// fn load_image(image_data: &[u8]) -> Result<ColorImage, image::ImageError> {
+    ///     use image::GenericImageView as _;
+    ///     let image = image::load_from_memory(image_data)?;
+    ///     let size = [image.width() as _, image.height() as _];
+    ///     let image_buffer = image.to_rgba8();
+    ///     let pixels = image_buffer.as_flat_samples();
+    ///     Ok(ColorImage::from_rgba_unmultiplied(
+    ///         size,
+    ///         pixels.as_slice(),
+    ///     ))
+    /// }
+    /// ```
+    pub fn from_rgba_unmultiplied(size: [usize; 2], rgba: &[u8]) -> Self {
+        assert_eq!(size[0] * size[1] * 4, rgba.len());
+        let pixels = rgba
+            .chunks_exact(4)
+            .map(|p| Color32::from_rgba_unmultiplied(p[0], p[1], p[2], p[3]))
+            .collect();
+        Self { size, pixels }
+    }
+
+    /// An example color image, useful for tests.
     pub fn example() -> Self {
         let width = 128;
         let height = 64;
@@ -81,18 +115,6 @@ impl ColorImage {
     #[inline]
     pub fn height(&self) -> usize {
         self.size[1]
-    }
-
-    /// Create an `Image` from flat RGBA data.
-    /// Panics unless `size[0] * size[1] * 4 == rgba.len()`.
-    /// This is usually what you want to use after having loaded an image.
-    pub fn from_rgba_unmultiplied(size: [usize; 2], rgba: &[u8]) -> Self {
-        assert_eq!(size[0] * size[1] * 4, rgba.len());
-        let pixels = rgba
-            .chunks_exact(4)
-            .map(|p| Color32::from_rgba_unmultiplied(p[0], p[1], p[2], p[3]))
-            .collect();
-        Self { size, pixels }
     }
 }
 
