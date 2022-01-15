@@ -23,10 +23,13 @@ include = [
 all-features = true
 
 [dependencies]
-egui = { version = "0.16.0", path = "../egui", default-features = false, features = ["single_threaded", "convert_bytemuck"] }
+egui = { version = "0.16.0", path = "../egui", default-features = false, features = [
+  "convert_bytemuck",
+  "single_threaded",
+] }
+epi = { version = "0.16.0", path = "../epi", optional = true }
 
 bytemuck = "1.7"
-epi = { version = "0.16.0", path = "../epi", optional = true }
 glow = "0.11"
 memoffset = "0.6"
 

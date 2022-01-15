@@ -842,6 +842,7 @@ name = "egui_glium"
 version = "0.16.0"
 dependencies = [
  "ahash",
+ "bytemuck",
  "egui",
  "egui-winit",
  "epi",

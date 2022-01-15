@@ -420,7 +420,7 @@ impl Painter {
                 };
                 let data: Vec<u8> = image
                     .srgba_pixels(gamma)
-                    .flat_map(|a| Vec::from(a.to_array()))
+                    .flat_map(|a| a.to_array())
                     .collect();
 
                 srgb_texture2d(

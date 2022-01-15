@@ -83,7 +83,8 @@ impl Painter {
         debug_assert!(mesh.is_valid());
 
         let vertex_buffer = {
-            #[derive(Copy, Clone)]
+            #[repr(C)]
+            #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
             struct Vertex {
                 a_pos: [f32; 2],
                 a_tc: [f32; 2],
@@ -91,15 +92,7 @@ impl Painter {
             }
             implement_vertex!(Vertex, a_pos, a_tc, a_srgba);
 
-            let vertices: Vec<Vertex> = mesh
-                .vertices
-                .iter()
-                .map(|v| Vertex {
-                    a_pos: [v.pos.x, v.pos.y],
-                    a_tc: [v.uv.x, v.uv.y],
-                    a_srgba: v.color.to_array(),
-                })
-                .collect();
+            let vertices: &[Vertex] = bytemuck::cast_slice(&mesh.vertices);
 
             // TODO: we should probably reuse the `VertexBuffer` instead of allocating a new one each frame.
             glium::VertexBuffer::new(display, &vertices).unwrap()
@@ -194,32 +187,32 @@ impl Painter {
         tex_id: egui::TextureId,
         image: &egui::ImageData,
     ) {
-        let pixels: Vec<Vec<(u8, u8, u8, u8)>> = match image {
+        let pixels: Vec<(u8, u8, u8, u8)> = match image {
             egui::ImageData::Color(image) => {
                 assert_eq!(
                     image.width() * image.height(),
                     image.pixels.len(),
                     "Mismatch between texture size and texel count"
                 );
+                image.pixels.iter().map(|color| color.to_tuple()).collect()
+            }
+            egui::ImageData::Alpha(image) => {
+                let gamma = 1.0;
                 image
-                    .pixels
-                    .chunks(image.width() as usize)
-                    .map(|row| row.iter().map(|srgba| srgba.to_tuple()).collect())
+                    .srgba_pixels(gamma)
+                    .map(|color| color.to_tuple())
                     .collect()
             }
-            egui::ImageData::Alpha(image) => image
-                .pixels
-                .chunks(image.width() as usize)
-                .map(|row| {
-                    row.iter()
-                        .map(|&a| egui::Color32::from_white_alpha(a).to_tuple())
-                        .collect()
-                })
-                .collect(),
+        };
+        let glium_image = glium::texture::RawImage2d {
+            data: std::borrow::Cow::Owned(pixels.into()),
+            width: image.width() as _,
+            height: image.height() as _,
+            format: glium::texture::ClientFormat::U8U8U8U8,
         };
         let format = texture::SrgbFormat::U8U8U8U8;
         let mipmaps = texture::MipmapsOption::NoMipmap;
-        let gl_texture = SrgbTexture2d::with_format(facade, pixels, format, mipmaps).unwrap();
+        let gl_texture = SrgbTexture2d::with_format(facade, glium_image, format, mipmaps).unwrap();
 
         self.textures.insert(tex_id, gl_texture.into());
     }

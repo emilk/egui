@@ -20,6 +20,14 @@ impl ImageData {
         }
     }
 
+    pub fn width(&self) -> usize {
+        self.size()[0]
+    }
+
+    pub fn height(&self) -> usize {
+        self.size()[1]
+    }
+
     pub fn bytes_per_pixel(&self) -> usize {
         match self {
             Self::Color(_) => 4,
