@@ -269,15 +269,12 @@ impl crate::Painter for WebGl2Painter {
                 self.set_texture_rgba(tex_id, image.size, data);
             }
             egui::ImageData::Alpha(image) => {
-                let mut pixels: Vec<u8> = Vec::with_capacity(image.pixels.len() * 4);
                 let gamma = 1.0;
-                for srgba in image.srgba_pixels(gamma) {
-                    pixels.push(srgba.r());
-                    pixels.push(srgba.g());
-                    pixels.push(srgba.b());
-                    pixels.push(srgba.a());
-                }
-                self.set_texture_rgba(tex_id, image.size, &pixels);
+                let data: Vec<u8> = image
+                    .srgba_pixels(gamma)
+                    .flat_map(|a| a.to_array())
+                    .collect();
+                self.set_texture_rgba(tex_id, image.size, &data);
             }
         };
     }
