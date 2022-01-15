@@ -8,7 +8,7 @@ use epaint::{mutex::*, stats::*, text::Fonts, *};
 
 // ----------------------------------------------------------------------------
 
-struct WrappedTextureManager(Arc<Mutex<epaint::textures::TextureManager>>);
+struct WrappedTextureManager(Arc<RwLock<epaint::TextureManager>>);
 
 impl Default for WrappedTextureManager {
     fn default() -> Self {
@@ -21,7 +21,7 @@ impl Default for WrappedTextureManager {
         );
         assert_eq!(font_id, TextureId::default());
 
-        Self(Arc::new(Mutex::new(tex_mngr)))
+        Self(Arc::new(RwLock::new(tex_mngr)))
     }
 }
 
@@ -614,6 +614,8 @@ impl Context {
     ///
     /// The given name can be useful for later debugging, and will be visible if you call [`Self::texture_ui`].
     ///
+    /// For how to load an image, see [`ImageData`] and [`ColorImage::from_rgba_unmultiplied`].
+    ///
     /// ```
     /// struct MyImage {
     ///     texture: Option<egui::TextureHandle>,
@@ -639,7 +641,7 @@ impl Context {
         image: impl Into<ImageData>,
     ) -> TextureHandle {
         let tex_mngr = self.tex_manager();
-        let tex_id = tex_mngr.lock().alloc(name.into(), image.into());
+        let tex_id = tex_mngr.write().alloc(name.into(), image.into());
         TextureHandle::new(tex_mngr, tex_id)
     }
 
@@ -648,7 +650,7 @@ impl Context {
     /// In general it is easier to use [`Self::load_texture`] and [`TextureHandle`].
     ///
     /// You can show stats about the allocated textures using [`Self::texture_ui`].
-    pub fn tex_manager(&self) -> Arc<Mutex<epaint::textures::TextureManager>> {
+    pub fn tex_manager(&self) -> Arc<RwLock<epaint::textures::TextureManager>> {
         self.read().tex_manager.0.clone()
     }
 
@@ -714,14 +716,14 @@ impl Context {
                 ctx_impl
                     .tex_manager
                     .0
-                    .lock()
+                    .write()
                     .set(TextureId::default(), font_image.image.clone().into());
                 ctx_impl.latest_font_image_version = Some(font_image_version);
             }
             ctx_impl
                 .output
                 .textures_delta
-                .append(ctx_impl.tex_manager.0.lock().take_delta());
+                .append(ctx_impl.tex_manager.0.write().take_delta());
         }
 
         let mut output: Output = std::mem::take(&mut self.output());
@@ -1027,7 +1029,7 @@ impl Context {
     /// Show stats about the allocated textures.
     pub fn texture_ui(&self, ui: &mut crate::Ui) {
         let tex_mngr = self.tex_manager();
-        let tex_mngr = tex_mngr.lock();
+        let tex_mngr = tex_mngr.read();
 
         let mut textures: Vec<_> = tex_mngr.allocated().collect();
         textures.sort_by_key(|(id, _)| *id);

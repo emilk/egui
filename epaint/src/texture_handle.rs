@@ -1,6 +1,6 @@
 use crate::{
     emath::NumExt,
-    mutex::{Arc, Mutex},
+    mutex::{Arc, RwLock},
     ImageData, TextureId, TextureManager,
 };
 
@@ -17,19 +17,19 @@ use crate::{
 /// See also [`TextureManager`].
 #[must_use]
 pub struct TextureHandle {
-    tex_mngr: Arc<Mutex<TextureManager>>,
+    tex_mngr: Arc<RwLock<TextureManager>>,
     id: TextureId,
 }
 
 impl Drop for TextureHandle {
     fn drop(&mut self) {
-        self.tex_mngr.lock().free(self.id);
+        self.tex_mngr.write().free(self.id);
     }
 }
 
 impl Clone for TextureHandle {
     fn clone(&self) -> Self {
-        self.tex_mngr.lock().retain(self.id);
+        self.tex_mngr.write().retain(self.id);
         Self {
             tex_mngr: self.tex_mngr.clone(),
             id: self.id,
@@ -55,7 +55,7 @@ impl std::hash::Hash for TextureHandle {
 
 impl TextureHandle {
     /// If you are using egui, use `egui::Context::load_texture` instead.
-    pub fn new(tex_mngr: Arc<Mutex<TextureManager>>, id: TextureId) -> Self {
+    pub fn new(tex_mngr: Arc<RwLock<TextureManager>>, id: TextureId) -> Self {
         Self { tex_mngr, id }
     }
 
@@ -66,12 +66,12 @@ impl TextureHandle {
 
     /// Assign a new image to an existing texture.
     pub fn set(&mut self, image: impl Into<ImageData>) {
-        self.tex_mngr.lock().set(self.id, image.into());
+        self.tex_mngr.write().set(self.id, image.into());
     }
 
     /// width x height
     pub fn size(&self) -> [usize; 2] {
-        self.tex_mngr.lock().meta(self.id).unwrap().size
+        self.tex_mngr.read().meta(self.id).unwrap().size
     }
 
     /// width x height
@@ -88,7 +88,7 @@ impl TextureHandle {
 
     /// Debug-name.
     pub fn name(&self) -> String {
-        self.tex_mngr.lock().meta(self.id).unwrap().name.clone()
+        self.tex_mngr.read().meta(self.id).unwrap().name.clone()
     }
 }
 
