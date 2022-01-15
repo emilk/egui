@@ -242,10 +242,16 @@ impl<'a> Widget for Checkbox<'a> {
         let total_extra = button_padding + vec2(icon_width + icon_spacing, 0.0) + button_padding;
 
         let wrap_width = ui.available_width() - total_extra.x;
-        let text = text.into_galley(ui, None, wrap_width, TextStyle::Button);
 
-        let mut desired_size = total_extra + text.size();
-        desired_size = desired_size.at_least(spacing.interact_size);
+        let mut desired_size = total_extra;
+        let text = if !text.text().is_empty() {
+            let text = text.into_galley(ui, None, wrap_width, TextStyle::Button);
+            desired_size += text.size();
+            desired_size = desired_size.at_least(spacing.interact_size); //Here I'm unsure - what is interacting size?
+            Some(text)
+        } else {
+            None
+        };
         desired_size.y = desired_size.y.max(icon_width);
         let (rect, mut response) = ui.allocate_exact_size(desired_size, Sense::click());
 
@@ -253,15 +259,17 @@ impl<'a> Widget for Checkbox<'a> {
             *checked = !*checked;
             response.mark_changed();
         }
-        response.widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, *checked, text.text()));
+        response.widget_info(|| {
+            WidgetInfo::selected(
+                WidgetType::Checkbox,
+                *checked,
+                text.as_ref().map_or("", |x| x.text()),
+            )
+        });
 
         if ui.is_rect_visible(rect) {
             // let visuals = ui.style().interact_selectable(&response, *checked); // too colorful
             let visuals = ui.style().interact(&response);
-            let text_pos = pos2(
-                rect.min.x + button_padding.x + icon_width + icon_spacing,
-                rect.center().y - 0.5 * text.size().y,
-            );
             let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
             ui.painter().add(epaint::RectShape {
                 rect: big_icon_rect.expand(visuals.expansion),
@@ -281,8 +289,13 @@ impl<'a> Widget for Checkbox<'a> {
                     visuals.fg_stroke,
                 ));
             }
-
-            text.paint_with_visuals(ui.painter(), text_pos, visuals);
+            if let Some(text) = text {
+                let text_pos = pos2(
+                    rect.min.x + button_padding.x + icon_width + icon_spacing,
+                    rect.center().y - 0.5 * text.size().y,
+                );
+                text.paint_with_visuals(ui.painter(), text_pos, visuals);
+            }
         }
 
         response
