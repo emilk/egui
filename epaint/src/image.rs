@@ -1,6 +1,8 @@
 use crate::Color32;
 
 /// An image stored in RAM.
+///
+/// See also: [`ColorImage`], [`AlphaImage`].
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ImageData {

@@ -3,10 +3,7 @@
 
 use {
     ahash::AHashMap,
-    egui::{
-        emath::Rect,
-        epaint::{Color32, Mesh},
-    },
+    egui::{emath::Rect, epaint::Mesh},
     glium::{
         implement_vertex,
         index::PrimitiveType,
@@ -191,7 +188,6 @@ impl Painter {
 
     // ------------------------------------------------------------------------
 
-    #[cfg(feature = "epi")]
     pub fn set_texture(
         &mut self,
         facade: &dyn glium::backend::Facade,
@@ -216,7 +212,7 @@ impl Painter {
                 .chunks(image.width() as usize)
                 .map(|row| {
                     row.iter()
-                        .map(|&a| Color32::from_white_alpha(a).to_tuple())
+                        .map(|&a| egui::Color32::from_white_alpha(a).to_tuple())
                         .collect()
                 })
                 .collect(),

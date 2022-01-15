@@ -218,7 +218,7 @@ impl AppRunner {
         Ok((needs_repaint, clipped_meshes))
     }
 
-    /// Paint the results of the last call to [`Self::run`].
+    /// Paint the results of the last call to [`Self::logic`].
     pub fn paint(&mut self, clipped_meshes: Vec<egui::ClippedMesh>) -> Result<(), JsValue> {
         let textures_delta = std::mem::take(&mut self.textures_delta);
         for (id, image) in textures_delta.set {

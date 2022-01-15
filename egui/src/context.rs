@@ -632,7 +632,7 @@ impl Context {
     /// }
     /// ```
     ///
-    /// Se also [`crate::TextureData`], [`crate::Ui::image`] and [`crate::ImageButton`].
+    /// Se also [`crate::ImageData`], [`crate::Ui::image`] and [`crate::ImageButton`].
     pub fn load_texture(
         &self,
         name: impl Into<String>,

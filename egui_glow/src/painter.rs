@@ -384,7 +384,6 @@ impl Painter {
 
     // ------------------------------------------------------------------------
 
-    #[cfg(feature = "epi")]
     pub fn set_texture(
         &mut self,
         gl: &glow::Context,
