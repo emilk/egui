@@ -86,10 +86,6 @@ pub fn check_for_gl_error(gl: &glow::Context, context: &str) {
     }
 }
 
-pub(crate) unsafe fn as_u8_slice<T>(s: &[T]) -> &[u8] {
-    std::slice::from_raw_parts(s.as_ptr().cast::<u8>(), s.len() * std::mem::size_of::<T>())
-}
-
 pub(crate) fn glow_print(s: impl std::fmt::Display) {
     #[cfg(target_arch = "wasm32")]
     web_sys::console::log_1(&format!("egui_glow: {}", s).into());

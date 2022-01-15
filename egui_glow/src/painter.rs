@@ -10,7 +10,7 @@ use glow::HasContext;
 use memoffset::offset_of;
 
 use crate::misc_util::{
-    as_u8_slice, check_for_gl_error, compile_shader, glow_print, link_program, srgb_texture2d,
+    check_for_gl_error, compile_shader, glow_print, link_program, srgb_texture2d,
 };
 use crate::post_process::PostProcess;
 use crate::shader_version::ShaderVersion;
@@ -329,14 +329,14 @@ impl Painter {
                 gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vertex_buffer));
                 gl.buffer_data_u8_slice(
                     glow::ARRAY_BUFFER,
-                    as_u8_slice(mesh.vertices.as_slice()),
+                    bytemuck::cast_slice(&mesh.vertices),
                     glow::STREAM_DRAW,
                 );
 
                 gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.element_array_buffer));
                 gl.buffer_data_u8_slice(
                     glow::ELEMENT_ARRAY_BUFFER,
-                    as_u8_slice(mesh.indices.as_slice()),
+                    bytemuck::cast_slice(&mesh.indices),
                     glow::STREAM_DRAW,
                 );
 
