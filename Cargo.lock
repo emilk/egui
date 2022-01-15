@@ -783,8 +783,10 @@ dependencies = [
  "egui_glium",
  "egui_glow",
  "egui_web",
+ "ehttp",
  "epi",
  "image",
+ "poll-promise",
  "rfd",
 ]
 
@@ -832,6 +834,7 @@ dependencies = [
  "enum-map",
  "epi",
  "image",
+ "poll-promise",
  "serde",
  "syntect",
  "unicode_names2",
@@ -885,9 +888,9 @@ dependencies = [
 
 [[package]]
 name = "ehttp"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b078e2305de4c998700ac152b3e7a358d7fbe77e15b3b1cd2c44a8b82176124f"
+checksum = "80b69a6f9168b96c0ae04763bec27a8b06b34343c334dd2703a4ec21f0f5e110"
 dependencies = [
  "js-sys",
  "ureq",
@@ -913,9 +916,9 @@ dependencies = [
 
 [[package]]
 name = "enum-map"
-version = "1.1.1"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e893a7ba6116821058dec84a6fb14fb2a97cd8ce5fd0f85d5a4e760ecd7329d9"
+checksum = "9ec3484df47a85c121b9d8fbf265ca7eedc26a5c4c341db7cf800876201c766f"
 dependencies = [
  "enum-map-derive",
  "serde",
@@ -923,9 +926,9 @@ dependencies = [
 
 [[package]]
 name = "enum-map-derive"
-version = "0.6.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84278eae0af6e34ff6c1db44c11634a694aafac559ff3080e4db4e4ac35907aa"
+checksum = "8182c0d26a908f001a23adc388fcef7fde884fbaf668874126cd5a3c13ca299e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1904,6 +1907,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "poll-promise"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "260817b339544e5b23d4bb66d4522d89dd64af88d16b6dcd7b2a2409ee2e095d"
+dependencies = [
+ "static_assertions",
+]
+
+[[package]]
 name = "proc-macro-crate"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2273,6 +2285,12 @@ name = "spin"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
+
+[[package]]
+name = "static_assertions"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "strsim"

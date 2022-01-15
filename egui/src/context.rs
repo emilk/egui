@@ -1044,6 +1044,7 @@ impl Context {
             textures.len(),
             bytes as f64 * 1e-6
         ));
+        let max_preview_size = Vec2::new(48.0, 32.0);
 
         ui.group(|ui| {
             ScrollArea::vertical()
@@ -1053,14 +1054,24 @@ impl Context {
                     ui.style_mut().override_text_style = Some(TextStyle::Monospace);
                     Grid::new("textures")
                         .striped(true)
-                        .num_columns(3)
+                        .num_columns(4)
                         .spacing(Vec2::new(16.0, 2.0))
+                        .min_row_height(max_preview_size.y)
                         .show(ui, |ui| {
-                            for (_id, texture) in &textures {
-                                let [w, h] = texture.size;
+                            for (&texture_id, meta) in textures {
+                                let [w, h] = meta.size;
+
+                                let mut size = Vec2::new(w as f32, h as f32);
+                                size *= (max_preview_size.x / size.x).min(1.0);
+                                size *= (max_preview_size.y / size.y).min(1.0);
+                                ui.image(texture_id, size).on_hover_ui(|ui| {
+                                    // show full size on hover
+                                    ui.image(texture_id, Vec2::new(w as f32, h as f32));
+                                });
+
                                 ui.label(format!("{} x {}", w, h));
-                                ui.label(format!("{:.3} MB", texture.bytes_used() as f64 * 1e-6));
-                                ui.label(format!("{:?}", texture.name));
+                                ui.label(format!("{:.3} MB", meta.bytes_used() as f64 * 1e-6));
+                                ui.label(format!("{:?}", meta.name));
                                 ui.end_row();
                             }
                         });
