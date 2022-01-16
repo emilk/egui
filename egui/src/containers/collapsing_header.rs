@@ -3,7 +3,7 @@ use std::hash::Hash;
 use crate::*;
 use epaint::{Shape, TextStyle};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub(crate) struct State {
@@ -11,15 +11,6 @@ pub(crate) struct State {
 
     /// Height of the region when open. Used for animations
     open_height: Option<f32>,
-}
-
-impl Default for State {
-    fn default() -> Self {
-        Self {
-            open: false,
-            open_height: None,
-        }
-    }
 }
 
 impl State {
