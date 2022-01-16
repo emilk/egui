@@ -4,6 +4,7 @@ All notable changes to the `egui-winit` integration will be noted in this file.
 
 
 ## Unreleased
+* Fix horizontal scrolling direction on Linux.
 * Replaced `std::time::Instant` with `instant::Instant` for WebAssembly compatability ([#1023](https://github.com/emilk/egui/pull/1023))
 
 

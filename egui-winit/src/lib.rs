@@ -453,12 +453,8 @@ impl State {
                 egui::vec2(delta.x as f32, delta.y as f32) / self.pixels_per_point()
             }
         };
-        if cfg!(target_os = "macos") {
-            delta.x *= -1.0; // until https://github.com/rust-windowing/winit/pull/2105 is merged and released
-        }
-        if cfg!(target_os = "windows") {
-            delta.x *= -1.0; // until https://github.com/rust-windowing/winit/pull/2101 is merged and released
-        }
+
+        delta.x *= -1.0; // Winit has inverted hscroll. Remove this line when we update winit after https://github.com/rust-windowing/winit/pull/2105 is merged and released
 
         if self.egui_input.modifiers.ctrl || self.egui_input.modifiers.command {
             // Treat as zoom instead:
