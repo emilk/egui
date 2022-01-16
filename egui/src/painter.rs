@@ -232,6 +232,8 @@ impl Painter {
 
 /// # Paint different primitives
 impl Painter {
+    /// Paints the line from the first point to the second using the `stroke`
+    /// for outlining shape.
     pub fn line_segment(&self, points: [Pos2; 2], stroke: impl Into<Stroke>) {
         self.add(Shape::LineSegment {
             points,
