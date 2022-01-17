@@ -9,11 +9,11 @@ use crate::*;
 
 use super::{CustomLabelFuncRef, PlotBounds, ScreenTransform};
 use rect_elem::*;
-use values::*;
+use values::{ClosestElem, PlotGeometry};
 
 pub use bar::Bar;
 pub use box_elem::{BoxElem, BoxSpread};
-pub use values::{LineStyle, MarkerShape, Value, Values};
+pub use values::{LineStyle, MarkerShape, Orientation, Value, Values};
 
 mod bar;
 mod box_elem;

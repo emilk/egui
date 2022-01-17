@@ -10,7 +10,7 @@ use transform::{PlotBounds, ScreenTransform};
 
 pub use items::{
     Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, HLine, Line, LineStyle, MarkerShape,
-    PlotImage, Points, Polygon, Text, VLine, Value, Values,
+    Orientation, PlotImage, Points, Polygon, Text, VLine, Value, Values,
 };
 pub use legend::{Corner, Legend};
 
