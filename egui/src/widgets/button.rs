@@ -239,7 +239,10 @@ impl<'a> Widget for Checkbox<'a> {
         let icon_width = spacing.icon_width;
         let icon_spacing = ui.spacing().icon_spacing;
         let button_padding = spacing.button_padding;
-        let total_extra = button_padding + vec2(icon_width + icon_spacing, 0.0) + button_padding;
+        let mut total_extra = button_padding;
+        if !text.is_empty() {
+            total_extra += vec2(icon_width + icon_spacing, 0.0) + button_padding;
+        }
 
         let wrap_width = ui.available_width() - total_extra.x;
 
@@ -247,11 +250,11 @@ impl<'a> Widget for Checkbox<'a> {
         let text = if !text.text().is_empty() {
             let text = text.into_galley(ui, None, wrap_width, TextStyle::Button);
             desired_size += text.size();
-            desired_size = desired_size.at_least(spacing.interact_size); //Here I'm unsure - what is interacting size?
             Some(text)
         } else {
             None
         };
+        desired_size = desired_size.at_least(Vec2::splat(spacing.interact_size.y));
         desired_size.y = desired_size.y.max(icon_width);
         let (rect, mut response) = ui.allocate_exact_size(desired_size, Sense::click());
 
