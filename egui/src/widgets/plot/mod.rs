@@ -83,8 +83,7 @@ pub struct Plot {
     show_x: bool,
     show_y: bool,
     custom_label_func: CustomLabelFuncRef,
-    x_axis_formatter: AxisFormatter,
-    y_axis_formatter: AxisFormatter,
+    axis_formatters: [AxisFormatter; 2],
     legend_config: Option<Legend>,
     show_background: bool,
     show_axes: [bool; 2],
@@ -112,8 +111,7 @@ impl Plot {
             show_x: true,
             show_y: true,
             custom_label_func: None,
-            x_axis_formatter: None,
-            y_axis_formatter: None,
+            axis_formatters: [None, None], // [None; 2] requires Copy
             legend_config: None,
             show_background: true,
             show_axes: [true; 2],
@@ -231,7 +229,7 @@ impl Plot {
     /// the formatter function can return empty strings. This is also useful if your domain is
     /// discrete (e.g. only full days in a calendar).
     pub fn x_axis_formatter<F: 'static + Fn(f64) -> String>(mut self, func: F) -> Self {
-        self.x_axis_formatter = Some(Box::new(func));
+        self.axis_formatters[0] = Some(Box::new(func));
         self
     }
 
@@ -243,7 +241,7 @@ impl Plot {
     /// the formatter function can return empty strings. This is also useful if your Y values are
     /// discrete (e.g. only integers).
     pub fn y_axis_formatter<F: 'static + Fn(f64) -> String>(mut self, func: F) -> Self {
-        self.y_axis_formatter = Some(Box::new(func));
+        self.axis_formatters[1] = Some(Box::new(func));
         self
     }
 
@@ -301,8 +299,7 @@ impl Plot {
             mut show_x,
             mut show_y,
             custom_label_func,
-            x_axis_formatter,
-            y_axis_formatter,
+            axis_formatters,
             legend_config,
             show_background,
             show_axes,
@@ -475,8 +472,7 @@ impl Plot {
             show_x,
             show_y,
             custom_label_func,
-            x_axis_formatter,
-            y_axis_formatter,
+            axis_formatters,
             show_axes,
             transform: transform.clone(),
         };
@@ -685,8 +681,7 @@ struct PreparedPlot {
     show_x: bool,
     show_y: bool,
     custom_label_func: CustomLabelFuncRef,
-    x_axis_formatter: AxisFormatter,
-    y_axis_formatter: AxisFormatter,
+    axis_formatters: [AxisFormatter; 2],
     show_axes: [bool; 2],
     transform: ScreenTransform,
 }
@@ -717,7 +712,11 @@ impl PreparedPlot {
     }
 
     fn paint_axis(&self, ui: &Ui, axis: usize, shapes: &mut Vec<Shape>) {
-        let Self { transform, .. } = self;
+        let Self {
+            transform,
+            axis_formatters,
+            ..
+        } = self;
 
         let bounds = transform.bounds();
         let text_style = TextStyle::Body;
@@ -777,13 +776,7 @@ impl PreparedPlot {
             if text_alpha > 0.0 {
                 let color = color_from_alpha(ui, text_alpha);
 
-                let relevant_formatter = if axis == 0 {
-                    &self.x_axis_formatter
-                } else {
-                    &self.y_axis_formatter
-                };
-
-                let text: String = if let Some(formatter) = relevant_formatter {
+                let text: String = if let Some(formatter) = axis_formatters[axis].as_deref() {
                     formatter(value_main)
                 } else {
                     emath::round_to_decimals(value_main, 5).to_string() // hack
