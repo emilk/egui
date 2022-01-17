@@ -537,21 +537,7 @@ impl ChartsDemo {
         .name("Set 4")
         .stack_on(&[&chart1, &chart2, &chart3]);
 
-        if !self.vertical {
-            chart1 = chart1.horizontal();
-            chart2 = chart2.horizontal();
-            chart3 = chart3.horizontal();
-            chart4 = chart4.horizontal();
-        }
-
-        fn is_approx_zero(val: f64) -> bool {
-            val.abs() < 1e-6
-        }
-        fn is_approx_integer(val: f64) -> bool {
-            val.fract().abs() < 1e-6
-        }
-
-        let x_fmt = |val: f64| {
+        let mut x_fmt: fn(f64) -> String = |val| {
             if val >= 0.0 && val <= 4.0 && is_approx_integer(val) {
                 // Only label full days from 0 to 4
                 format!("Day {}", val)
@@ -561,7 +547,7 @@ impl ChartsDemo {
             }
         };
 
-        let y_fmt = |val: f64| {
+        let mut y_fmt: fn(f64) -> String = |val| {
             let percent = 100.0 * val;
 
             if is_approx_integer(percent) && !is_approx_zero(percent) {
@@ -572,6 +558,14 @@ impl ChartsDemo {
                 String::new()
             }
         };
+
+        if !self.vertical {
+            chart1 = chart1.horizontal();
+            chart2 = chart2.horizontal();
+            chart3 = chart3.horizontal();
+            chart4 = chart4.horizontal();
+            std::mem::swap(&mut x_fmt, &mut y_fmt);
+        }
 
         Plot::new("Stacked Bar Chart Demo")
             .legend(Legend::default())
@@ -742,4 +736,12 @@ impl super::View for PlotDemo {
             }
         }
     }
+}
+
+fn is_approx_zero(val: f64) -> bool {
+    val.abs() < 1e-6
+}
+
+fn is_approx_integer(val: f64) -> bool {
+    val.fract().abs() < 1e-6
 }
