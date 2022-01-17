@@ -57,6 +57,7 @@ pub struct TextEdit<'t> {
     layouter: Option<&'t mut dyn FnMut(&Ui, &str, f32) -> Arc<Galley>>,
     password: bool,
     frame: bool,
+    margin: Vec2,
     multiline: bool,
     interactive: bool,
     desired_width: Option<f32>,
@@ -101,6 +102,7 @@ impl<'t> TextEdit<'t> {
             layouter: None,
             password: false,
             frame: true,
+            margin: vec2(4.0, 2.0),
             multiline: true,
             interactive: true,
             desired_width: None,
@@ -200,6 +202,12 @@ impl<'t> TextEdit<'t> {
         self
     }
 
+    /// Set margin of text. Default is [4.0,2.0]
+    pub fn margin(mut self, margin: Vec2) -> Self {
+        self.margin = margin;
+        self
+    }
+
     /// Set to 0.0 to keep as small as possible.
     /// Set to [`f32::INFINITY`] to take up all available space (i.e. disable automatic word wrap).
     pub fn desired_width(mut self, desired_width: f32) -> Self {
@@ -264,7 +272,7 @@ impl<'t> TextEdit<'t> {
         let interactive = self.interactive;
         let where_to_put_background = ui.painter().add(Shape::Noop);
 
-        let margin = Vec2::new(4.0, 2.0);
+        let margin = self.margin;
         let max_rect = ui.available_rect_before_wrap().shrink2(margin);
         let mut content_ui = ui.child_ui(max_rect, *ui.layout());
         let mut output = self.show_content(&mut content_ui);
@@ -327,6 +335,7 @@ impl<'t> TextEdit<'t> {
             layouter,
             password,
             frame: _,
+            margin: _,
             multiline,
             interactive,
             desired_width,
