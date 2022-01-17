@@ -74,7 +74,7 @@ impl LineDemo {
                 ui.checkbox(animate, "animate");
                 ui.checkbox(square, "square view")
                     .on_hover_text("Always keep the viewport square.");
-                ui.checkbox(proportional, "Proportional data axes")
+                ui.checkbox(proportional, "proportional data axes")
                     .on_hover_text("Tick are the same size on both axes.");
 
                 ComboBox::from_label("Line style")
@@ -544,8 +544,39 @@ impl ChartsDemo {
             chart4 = chart4.horizontal();
         }
 
+        fn is_approx_zero(val: f64) -> bool {
+            val.abs() < 1e-6
+        }
+        fn is_approx_integer(val: f64) -> bool {
+            val.fract().abs() < 1e-6
+        }
+
+        let x_fmt = |val: f64| {
+            if val >= 0.0 && val <= 4.0 && is_approx_integer(val) {
+                // Only label full days from 0 to 4
+                format!("Day {}", val)
+            } else {
+                // Otherwise return empty string (i.e. no label)
+                String::new()
+            }
+        };
+
+        let y_fmt = |val: f64| {
+            let percent = 100.0 * val;
+
+            if is_approx_integer(percent) && !is_approx_zero(percent) {
+                // Only show integer percentages,
+                // and don't show at Y=0 (label overlaps with X axis label)
+                format!("{}%", percent)
+            } else {
+                String::new()
+            }
+        };
+
         Plot::new("Stacked Bar Chart Demo")
             .legend(Legend::default())
+            .x_axis_formatter(x_fmt)
+            .y_axis_formatter(y_fmt)
             .data_aspect(1.0)
             .show(ui, |plot_ui| {
                 plot_ui.bar_chart(chart1);

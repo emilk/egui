@@ -21,6 +21,9 @@ mod transform;
 type CustomLabelFunc = dyn Fn(&str, &Value) -> String;
 type CustomLabelFuncRef = Option<Box<CustomLabelFunc>>;
 
+type AxisFormatterFn = dyn Fn(f64) -> String;
+type AxisFormatter = Option<Box<AxisFormatterFn>>;
+
 // ----------------------------------------------------------------------------
 
 /// Information about the plot that has to persist between frames.
@@ -80,6 +83,8 @@ pub struct Plot {
     show_x: bool,
     show_y: bool,
     custom_label_func: CustomLabelFuncRef,
+    x_axis_formatter: AxisFormatter,
+    y_axis_formatter: AxisFormatter,
     legend_config: Option<Legend>,
     show_background: bool,
     show_axes: [bool; 2],
@@ -107,6 +112,8 @@ impl Plot {
             show_x: true,
             show_y: true,
             custom_label_func: None,
+            x_axis_formatter: None,
+            y_axis_formatter: None,
             legend_config: None,
             show_background: true,
             show_axes: [true; 2],
@@ -216,6 +223,30 @@ impl Plot {
         self
     }
 
+    /// Provide a function to customize the labels for the X axis.
+    ///
+    /// This is useful for custom input domains, e.g. date/time.
+    ///
+    /// If axis labels should not appear for certain values or beyond a certain zoom/resolution,
+    /// the formatter function can return empty strings. This is also useful if your domain is
+    /// discrete (e.g. only full days in a calendar).
+    pub fn x_axis_formatter<F: 'static + Fn(f64) -> String>(mut self, func: F) -> Self {
+        self.x_axis_formatter = Some(Box::new(func));
+        self
+    }
+
+    /// Provide a function to customize the labels for the Y axis.
+    ///
+    /// This is useful for custom value representation, e.g. percentage or units.
+    ///
+    /// If axis labels should not appear for certain values or beyond a certain zoom/resolution,
+    /// the formatter function can return empty strings. This is also useful if your Y values are
+    /// discrete (e.g. only integers).
+    pub fn y_axis_formatter<F: 'static + Fn(f64) -> String>(mut self, func: F) -> Self {
+        self.y_axis_formatter = Some(Box::new(func));
+        self
+    }
+
     /// Expand bounds to include the given x value.
     /// For instance, to always show the y axis, call `plot.include_x(0.0)`.
     pub fn include_x(mut self, x: impl Into<f64>) -> Self {
@@ -270,6 +301,8 @@ impl Plot {
             mut show_x,
             mut show_y,
             custom_label_func,
+            x_axis_formatter,
+            y_axis_formatter,
             legend_config,
             show_background,
             show_axes,
@@ -442,6 +475,8 @@ impl Plot {
             show_x,
             show_y,
             custom_label_func,
+            x_axis_formatter,
+            y_axis_formatter,
             show_axes,
             transform: transform.clone(),
         };
@@ -650,6 +685,8 @@ struct PreparedPlot {
     show_x: bool,
     show_y: bool,
     custom_label_func: CustomLabelFuncRef,
+    x_axis_formatter: AxisFormatter,
+    y_axis_formatter: AxisFormatter,
     show_axes: [bool; 2],
     transform: ScreenTransform,
 }
@@ -739,18 +776,32 @@ impl PreparedPlot {
 
             if text_alpha > 0.0 {
                 let color = color_from_alpha(ui, text_alpha);
-                let text = emath::round_to_decimals(value_main, 5).to_string(); // hack
 
-                let galley = ui.painter().layout_no_wrap(text, text_style, color);
+                let relevant_formatter = if axis == 0 {
+                    &self.x_axis_formatter
+                } else {
+                    &self.y_axis_formatter
+                };
 
-                let mut text_pos = pos_in_gui + vec2(1.0, -galley.size().y);
+                let text: String = if let Some(formatter) = relevant_formatter {
+                    formatter(value_main)
+                } else {
+                    emath::round_to_decimals(value_main, 5).to_string() // hack
+                };
 
-                // Make sure we see the labels, even if the axis is off-screen:
-                text_pos[1 - axis] = text_pos[1 - axis]
-                    .at_most(transform.frame().max[1 - axis] - galley.size()[1 - axis] - 2.0)
-                    .at_least(transform.frame().min[1 - axis] + 1.0);
+                // Custom formatters can return empty string to signal "no label at this resolution"
+                if !text.is_empty() {
+                    let galley = ui.painter().layout_no_wrap(text, text_style, color);
 
-                shapes.push(Shape::galley(text_pos, galley));
+                    let mut text_pos = pos_in_gui + vec2(1.0, -galley.size().y);
+
+                    // Make sure we see the labels, even if the axis is off-screen:
+                    text_pos[1 - axis] = text_pos[1 - axis]
+                        .at_most(transform.frame().max[1 - axis] - galley.size()[1 - axis] - 2.0)
+                        .at_least(transform.frame().min[1 - axis] + 1.0);
+
+                    shapes.push(Shape::galley(text_pos, galley));
+                }
             }
         }
 
