@@ -922,6 +922,24 @@ impl Context {
         animated_value
     }
 
+    /// Allows you to smoothly change the f32 value.
+    /// At the first call the value is written to memory.
+    /// When it is called with a new value, it linearly interpolates to it in the given time.
+    pub fn animate_value_with_time(&self, id: Id, value: f32, animation_time: f32) -> f32 {
+        let animated_value = {
+            let ctx_impl = &mut *self.write();
+            ctx_impl
+                .animation_manager
+                .animate_value(&ctx_impl.input, animation_time, id, value)
+        };
+        let animation_in_progress = animated_value != value;
+        if animation_in_progress {
+            self.request_repaint();
+        }
+
+        animated_value
+    }
+
     /// Clear memory of any animations.
     pub fn clear_animations(&self) {
         self.write().animation_manager = Default::default();
