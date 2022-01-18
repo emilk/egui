@@ -325,7 +325,7 @@ pub fn color_picker_hsva_2d(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> bool 
     }
 }
 
-/// Shows a color picker where the user can change the given Color32 color.
+/// Shows a color picker where the user can change the given [`Color32`] color.
 ///
 /// Returns `true` on change.
 pub fn color_picker_color32(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -> bool {
