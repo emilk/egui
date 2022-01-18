@@ -308,7 +308,7 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
     color_slider_2d(ui, v, s, |v, s| HsvaGamma { s, v, ..opaque }.into());
 }
 
-//// Shows a color picker where the user can change the given Hsva color.
+//// Shows a color picker where the user can change the given [`Hsva`] color.
 ///
 /// Returns `true` on change.
 pub fn color_picker_hsva_2d(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> bool {
