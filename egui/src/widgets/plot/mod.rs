@@ -343,12 +343,14 @@ impl Plot {
             last_screen_transform,
             response,
             ctx: ui.ctx().clone(),
+            allow_drag,
         };
         let inner = build_fn(&mut plot_ui);
         let PlotUi {
             mut items,
             mut response,
             last_screen_transform,
+            allow_drag,
             ..
         } = plot_ui;
 
@@ -480,6 +482,7 @@ pub struct PlotUi {
     last_screen_transform: ScreenTransform,
     response: Response,
     ctx: Context,
+    allow_drag: bool,
 }
 
 impl PlotUi {
@@ -493,6 +496,12 @@ impl PlotUi {
 
     pub fn ctx(&self) -> &Context {
         &self.ctx
+    }
+
+    /// Whether to allow dragging in the plot to move the bounds. Default set by `allow_drag` value
+    /// of [Plot] widget (setting this value will override any value set previously on [Plot]).
+    pub fn allow_drag(&mut self, on: bool) {
+        self.allow_drag = on;
     }
 
     /// The plot bounds as they were in the last frame. If called on the first frame and the bounds were not
