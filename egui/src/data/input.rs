@@ -180,6 +180,8 @@ pub enum Event {
     /// The direction of the vector indicates how to move the _content_ that is being viewed.
     /// So if you get positive values, the content being viewed should move to the right and down,
     /// revealing new things to the left and up.
+    ///
+    /// Shift-scroll should result in horizontal scrolling (it is up to the integrations to do this).
     Scroll(Vec2),
 
     /// Zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).

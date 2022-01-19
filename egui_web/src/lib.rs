@@ -69,7 +69,7 @@ pub fn now_sec() -> f64 {
 
 pub fn screen_size_in_native_points() -> Option<egui::Vec2> {
     let window = web_sys::window()?;
-    Some(egui::Vec2::new(
+    Some(egui::vec2(
         window.inner_width().ok()?.as_f64()? as f32,
         window.inner_height().ok()?.as_f64()? as f32,
     ))
@@ -1022,11 +1022,11 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                     let points_per_scroll_line = 8.0; // Note that this is intentionally different from what we use in egui_glium / winit.
                     points_per_scroll_line
                 }
-                _ => 1.0,
+                _ => 1.0, // DOM_DELTA_PIXEL
             };
 
-            let delta = -scroll_multiplier
-                * egui::Vec2::new(event.delta_x() as f32, event.delta_y() as f32);
+            let mut delta =
+                -scroll_multiplier * egui::vec2(event.delta_x() as f32, event.delta_y() as f32);
 
             // Report a zoom event in case CTRL (on Windows or Linux) or CMD (on Mac) is pressed.
             // This if-statement is equivalent to how `Modifiers.command` is determined in
@@ -1035,6 +1035,12 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 let factor = (delta.y / 200.0).exp();
                 runner_lock.input.raw.events.push(egui::Event::Zoom(factor));
             } else {
+                if event.shift_key() {
+                    // Treat as horizontal scrolling.
+                    // Note: one Mac we already get horizontal scroll events when shift is down.
+                    delta = egui::vec2(delta.x + delta.y, 0.0);
+                }
+
                 runner_lock
                     .input
                     .raw
