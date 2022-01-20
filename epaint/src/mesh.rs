@@ -105,7 +105,7 @@ impl Mesh {
 
     #[inline(always)]
     pub fn colored_vertex(&mut self, pos: Pos2, color: Color32) {
-        crate::epaint_assert!(self.texture_id == TextureId::Egui);
+        crate::epaint_assert!(self.texture_id == TextureId::default());
         self.vertices.push(Vertex {
             pos,
             uv: WHITE_UV,
@@ -168,7 +168,7 @@ impl Mesh {
     /// Uniformly colored rectangle.
     #[inline(always)]
     pub fn add_colored_rect(&mut self, rect: Rect, color: Color32) {
-        crate::epaint_assert!(self.texture_id == TextureId::Egui);
+        crate::epaint_assert!(self.texture_id == TextureId::default());
         self.add_rect_with_uv(rect, [WHITE_UV, WHITE_UV].into(), color);
     }
 

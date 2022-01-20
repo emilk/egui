@@ -1087,12 +1087,12 @@ pub struct PlotImage {
 
 impl PlotImage {
     /// Create a new image with position and size in plot coordinates.
-    pub fn new(texture_id: TextureId, position: Value, size: impl Into<Vec2>) -> Self {
+    pub fn new(texture_id: impl Into<TextureId>, position: Value, size: impl Into<Vec2>) -> Self {
         Self {
             position,
             name: Default::default(),
             highlight: false,
-            texture_id,
+            texture_id: texture_id.into(),
             uv: Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
             size: size.into(),
             bg_fill: Default::default(),
@@ -1609,7 +1609,7 @@ fn add_rulers_and_text(
 
     let corner_value = elem.corner_value();
     shapes.push(Shape::text(
-        plot.ui.fonts(),
+        &*plot.ui.fonts(),
         plot.transform.position_from_value(&corner_value) + vec2(3.0, -2.0),
         Align2::LEFT_BOTTOM,
         text,

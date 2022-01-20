@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use epaint::mutex::Arc;
 
 use epaint::text::{cursor::*, Galley, LayoutJob};
 
@@ -57,6 +57,7 @@ pub struct TextEdit<'t> {
     layouter: Option<&'t mut dyn FnMut(&Ui, &str, f32) -> Arc<Galley>>,
     password: bool,
     frame: bool,
+    margin: Vec2,
     multiline: bool,
     interactive: bool,
     desired_width: Option<f32>,
@@ -101,6 +102,7 @@ impl<'t> TextEdit<'t> {
             layouter: None,
             password: false,
             frame: true,
+            margin: vec2(4.0, 2.0),
             multiline: true,
             interactive: true,
             desired_width: None,
@@ -200,6 +202,12 @@ impl<'t> TextEdit<'t> {
         self
     }
 
+    /// Set margin of text. Default is [4.0,2.0]
+    pub fn margin(mut self, margin: Vec2) -> Self {
+        self.margin = margin;
+        self
+    }
+
     /// Set to 0.0 to keep as small as possible.
     /// Set to [`f32::INFINITY`] to take up all available space (i.e. disable automatic word wrap).
     pub fn desired_width(mut self, desired_width: f32) -> Self {
@@ -264,7 +272,7 @@ impl<'t> TextEdit<'t> {
         let interactive = self.interactive;
         let where_to_put_background = ui.painter().add(Shape::Noop);
 
-        let margin = Vec2::new(4.0, 2.0);
+        let margin = self.margin;
         let max_rect = ui.available_rect_before_wrap().shrink2(margin);
         let mut content_ui = ui.child_ui(max_rect, *ui.layout());
         let mut output = self.show_content(&mut content_ui);
@@ -327,6 +335,7 @@ impl<'t> TextEdit<'t> {
             layouter,
             password,
             frame: _,
+            margin: _,
             multiline,
             interactive,
             desired_width,
@@ -390,7 +399,8 @@ impl<'t> TextEdit<'t> {
         // dragging select text, or scroll the enclosing `ScrollArea` (if any)?
         // Since currently copying selected text in not supported on `egui_web`,
         // we prioritize touch-scrolling:
-        let allow_drag_to_select = !ui.input().any_touches() || ui.memory().has_focus(id);
+        let any_touches = ui.input().any_touches(); // separate line to avoid double-locking the same mutex
+        let allow_drag_to_select = !any_touches || ui.memory().has_focus(id);
 
         let sense = if interactive {
             if allow_drag_to_select {
@@ -406,7 +416,7 @@ impl<'t> TextEdit<'t> {
         let painter = ui.painter_at(text_clip_rect);
 
         if interactive {
-            if let Some(pointer_pos) = ui.input().pointer.interact_pos() {
+            if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
                 if response.hovered() && text.is_mutable() {
                     ui.output().mutable_text_under_cursor = true;
                 }
@@ -665,7 +675,8 @@ fn events(
 
     let mut any_change = false;
 
-    for event in &ui.input().events {
+    let events = ui.input().events.clone(); // avoid dead-lock by cloning. TODO: optimize
+    for event in &events {
         let did_mutate_text = match event {
             Event::Copy => {
                 if cursor_range.is_empty() {
@@ -682,6 +693,15 @@ fn events(
                 } else {
                     copy_if_not_password(ui, selected_str(text, &cursor_range).to_owned());
                     Some(CCursorRange::one(delete_selected(text, &cursor_range)))
+                }
+            }
+            Event::Paste(text_to_insert) => {
+                if !text_to_insert.is_empty() {
+                    let mut ccursor = delete_selected(text, &cursor_range);
+                    insert_text(&mut ccursor, text, text_to_insert);
+                    Some(CCursorRange::one(ccursor))
+                } else {
+                    None
                 }
             }
             Event::Text(text_to_insert) => {

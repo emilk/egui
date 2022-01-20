@@ -26,7 +26,7 @@ impl super::Demo for MultiTouch {
         "👌 Multi Touch"
     }
 
-    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .default_size(vec2(512.0, 512.0))
@@ -77,7 +77,7 @@ impl super::View for MultiTouch {
             // color and width:
             let mut stroke_width = 1.;
             let color = Color32::GRAY;
-            if let Some(multi_touch) = ui.input().multi_touch() {
+            if let Some(multi_touch) = ui.ctx().multi_touch() {
                 // This adjusts the current zoom factor and rotation angle according to the dynamic
                 // change (for the current frame) of the touch gesture:
                 self.zoom *= multi_touch.zoom_delta;

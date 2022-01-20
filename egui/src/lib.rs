@@ -8,7 +8,7 @@
 //! To quickly get started with egui, you can take a look at [`eframe_template`](https://github.com/emilk/eframe_template)
 //! which uses [`eframe`](https://docs.rs/eframe).
 //!
-//! To create a GUI using egui you first need a [`CtxRef`] (by convention referred to by `ctx`).
+//! To create a GUI using egui you first need a [`Context`] (by convention referred to by `ctx`).
 //! Then you add a [`Window`] or a [`SidePanel`] to get a [`Ui`], which is what you'll be using to add all the buttons and labels that you need.
 //!
 //!
@@ -58,7 +58,7 @@
 //!
 //! ### Quick start
 //!
-//! ``` rust
+//! ```
 //! # egui::__run_test_ui(|ui| {
 //! # let mut my_string = String::new();
 //! # let mut my_boolean = true;
@@ -113,7 +113,7 @@
 //! # fn handle_output(_: egui::Output) {}
 //! # fn paint(_: Vec<egui::ClippedMesh>) {}
 //! # fn gather_input() -> egui::RawInput { egui::RawInput::default() }
-//! let mut ctx = egui::CtxRef::default();
+//! let mut ctx = egui::Context::default();
 //!
 //! // Game loop:
 //! loop {
@@ -218,7 +218,7 @@
 //! 2. Wrap your panel contents in a [`ScrollArea`], or use [`Window::vscroll`] and [`Window::hscroll`].
 //! 3. Use a justified layout:
 //!
-//! ``` rust
+//! ```
 //! # egui::__run_test_ui(|ui| {
 //! ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
 //!     ui.button("I am becoming wider as needed");
@@ -228,7 +228,7 @@
 //!
 //! 4. Fill in extra space with emptiness:
 //!
-//! ``` rust
+//! ```
 //! # egui::__run_test_ui(|ui| {
 //! ui.allocate_space(ui.available_size()); // put this LAST in your panel/window code
 //! # });
@@ -386,7 +386,9 @@ pub use emath::{lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos
 pub use epaint::{
     color, mutex,
     text::{FontData, FontDefinitions, FontFamily, TextStyle},
-    ClippedMesh, Color32, FontImage, Rgba, Shape, Stroke, TextureId,
+    textures::TexturesDelta,
+    AlphaImage, ClippedMesh, Color32, ColorImage, ImageData, Rgba, Shape, Stroke, TextureHandle,
+    TextureId,
 };
 
 pub mod text {
@@ -398,7 +400,7 @@ pub mod text {
 
 pub use {
     containers::*,
-    context::{Context, CtxRef},
+    context::Context,
     data::{
         input::*,
         output::{self, CursorIcon, Output, WidgetInfo},
@@ -574,8 +576,8 @@ pub enum WidgetType {
 // ----------------------------------------------------------------------------
 
 /// For use in tests; especially doctests.
-pub fn __run_test_ctx(mut run_ui: impl FnMut(&CtxRef)) {
-    let mut ctx = CtxRef::default();
+pub fn __run_test_ctx(mut run_ui: impl FnMut(&Context)) {
+    let ctx = Context::default();
     let _ = ctx.run(Default::default(), |ctx| {
         run_ui(ctx);
     });
@@ -583,7 +585,7 @@ pub fn __run_test_ctx(mut run_ui: impl FnMut(&CtxRef)) {
 
 /// For use in tests; especially doctests.
 pub fn __run_test_ui(mut add_contents: impl FnMut(&mut Ui)) {
-    let mut ctx = CtxRef::default();
+    let ctx = Context::default();
     let _ = ctx.run(Default::default(), |ctx| {
         crate::CentralPanel::default().show(ctx, |ui| {
             add_contents(ui);

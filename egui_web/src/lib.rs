@@ -482,9 +482,9 @@ fn paint_and_schedule(runner_ref: AppRunnerRef) -> Result<(), JsValue> {
     fn paint_if_needed(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let mut runner_lock = runner_ref.0.lock();
         if runner_lock.needs_repaint.fetch_and_clear() {
-            let (output, clipped_meshes) = runner_lock.logic()?;
+            let (needs_repaint, clipped_meshes) = runner_lock.logic()?;
             runner_lock.paint(clipped_meshes)?;
-            if output.needs_repaint {
+            if needs_repaint {
                 runner_lock.needs_repaint.set_true();
             }
             runner_lock.auto_save();
@@ -622,7 +622,7 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                         .input
                         .raw
                         .events
-                        .push(egui::Event::Text(text.replace("\r\n", "\n")));
+                        .push(egui::Event::Paste(text.replace("\r\n", "\n")));
                     runner_lock.needs_repaint.set_true();
                     event.stop_propagation();
                     event.prevent_default();
@@ -1214,7 +1214,7 @@ fn is_mobile() -> Option<bool> {
 // candidate window moves following text element (agent),
 // so it appears that the IME candidate window moves with text cursor.
 // On mobile devices, there is no need to do that.
-fn move_text_cursor(cursor: &Option<egui::Pos2>, canvas_id: &str) -> Option<()> {
+fn move_text_cursor(cursor: Option<egui::Pos2>, canvas_id: &str) -> Option<()> {
     let style = text_agent().style();
     // Note: movint agent on mobile devices will lead to unpredictable scroll.
     if is_mobile() == Some(false) {
@@ -1238,6 +1238,18 @@ fn move_text_cursor(cursor: &Option<egui::Pos2>, canvas_id: &str) -> Option<()> 
     }
 }
 
+pub(crate) fn webgl1_requires_brightening(gl: &web_sys::WebGlRenderingContext) -> bool {
+    // See https://github.com/emilk/egui/issues/794
+
+    // detect WebKitGTK
+
+    // WebKitGTK use WebKit default unmasked vendor and renderer
+    // but safari use same vendor and renderer
+    // so exclude "Mac OS X" user-agent.
+    let user_agent = web_sys::window().unwrap().navigator().user_agent().unwrap();
+    !user_agent.contains("Mac OS X") && crate::is_safari_and_webkit_gtk(gl)
+}
+
 /// detecting Safari and webkitGTK.
 ///
 /// Safari and webkitGTK use unmasked renderer :Apple GPU
@@ -1245,12 +1257,22 @@ fn move_text_cursor(cursor: &Option<egui::Pos2>, canvas_id: &str) -> Option<()> 
 /// If we detect safari or webkitGTK returns true.
 ///
 /// This function used to avoid displaying linear color with `sRGB` supported systems.
-pub(crate) fn is_safari_and_webkit_gtk(gl: &web_sys::WebGlRenderingContext) -> bool {
-    if let Ok(renderer) = gl.get_parameter(web_sys::WebglDebugRendererInfo::UNMASKED_RENDERER_WEBGL)
+fn is_safari_and_webkit_gtk(gl: &web_sys::WebGlRenderingContext) -> bool {
+    // This call produces a warning in Firefox ("WEBGL_debug_renderer_info is deprecated in Firefox and will be removed.")
+    // but unless we call it we get errors in Chrome when we call `get_parameter` below.
+    // TODO: do something smart based on user agent?
+    if gl
+        .get_extension("WEBGL_debug_renderer_info")
+        .unwrap()
+        .is_some()
     {
-        if let Some(renderer) = renderer.as_string() {
-            if renderer.contains("Apple") {
-                return true;
+        if let Ok(renderer) =
+            gl.get_parameter(web_sys::WebglDebugRendererInfo::UNMASKED_RENDERER_WEBGL)
+        {
+            if let Some(renderer) = renderer.as_string() {
+                if renderer.contains("Apple") {
+                    return true;
+                }
             }
         }
     }

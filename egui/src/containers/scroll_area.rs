@@ -523,12 +523,11 @@ impl Prepared {
             };
             let content_response = ui.interact(inner_rect, id.with("area"), sense);
 
-            let input = ui.input();
             if content_response.dragged() {
                 for d in 0..2 {
                     if has_bar[d] {
-                        state.offset[d] -= input.pointer.delta()[d];
-                        state.vel[d] = input.pointer.velocity()[d];
+                        state.offset[d] -= ui.input().pointer.delta()[d];
+                        state.vel[d] = ui.input().pointer.velocity()[d];
                         state.scroll_stuck_to_end[d] = false;
                     } else {
                         state.vel[d] = 0.0;
@@ -537,7 +536,7 @@ impl Prepared {
             } else {
                 let stop_speed = 20.0; // Pixels per second.
                 let friction_coeff = 1000.0; // Pixels per second squared.
-                let dt = input.unstable_dt;
+                let dt = ui.input().unstable_dt;
 
                 let friction = friction_coeff * dt;
                 if friction > state.vel.length() || state.vel.length() < stop_speed {

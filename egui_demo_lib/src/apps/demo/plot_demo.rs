@@ -237,17 +237,9 @@ impl Widget for &mut MarkerDemo {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(Default, PartialEq)]
 struct LegendDemo {
     config: Legend,
-}
-
-impl Default for LegendDemo {
-    fn default() -> Self {
-        Self {
-            config: Legend::default(),
-        }
-    }
 }
 
 impl LegendDemo {
@@ -306,9 +298,9 @@ impl Widget for &mut LegendDemo {
 }
 
 #[derive(PartialEq, Default)]
-struct ItemsDemo {}
-
-impl ItemsDemo {}
+struct ItemsDemo {
+    texture: Option<egui::TextureHandle>,
+}
 
 impl Widget for &mut ItemsDemo {
     fn ui(self, ui: &mut Ui) -> Response {
@@ -343,12 +335,17 @@ impl Widget for &mut ItemsDemo {
             );
             Arrows::new(arrow_origins, arrow_tips)
         };
+
+        let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
+            ui.ctx()
+                .load_texture("plot_demo", egui::ColorImage::example())
+        });
         let image = PlotImage::new(
-            TextureId::Egui,
+            texture,
             Value::new(0.0, 10.0),
             [
-                ui.fonts().font_image().width as f32 / 100.0,
-                ui.fonts().font_image().height as f32 / 100.0,
+                ui.fonts().font_image().width() as f32 / 100.0,
+                ui.fonts().font_image().height() as f32 / 100.0,
             ],
         );
 
@@ -376,14 +373,8 @@ impl Widget for &mut ItemsDemo {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(Default, PartialEq)]
 struct InteractionDemo {}
-
-impl Default for InteractionDemo {
-    fn default() -> Self {
-        Self {}
-    }
-}
 
 impl Widget for &mut InteractionDemo {
     fn ui(self, ui: &mut Ui) -> Response {
@@ -647,7 +638,7 @@ impl super::Demo for PlotDemo {
         "🗠 Plot"
     }
 
-    fn show(&mut self, ctx: &CtxRef, open: &mut bool) {
+    fn show(&mut self, ctx: &Context, open: &mut bool) {
         use super::View as _;
         Window::new(self.name())
             .open(open)

@@ -116,7 +116,7 @@ impl PostProcess {
         gl.bind_buffer(glow::ARRAY_BUFFER, Some(pos_buffer));
         gl.buffer_data_u8_slice(
             glow::ARRAY_BUFFER,
-            crate::misc_util::as_u8_slice(&positions),
+            bytemuck::cast_slice(&positions),
             glow::STATIC_DRAW,
         );
 

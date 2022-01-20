@@ -1,59 +1,30 @@
+use crate::image::AlphaImage;
+
 /// An 8-bit texture containing font data.
 #[derive(Clone, Default)]
 pub struct FontImage {
     /// e.g. a hash of the data. Use this to detect changes!
     /// If the texture changes, this too will change.
     pub version: u64,
-    pub width: usize,
-    pub height: usize,
-    /// The alpha (linear space 0-255) of something white.
-    ///
-    /// One byte per pixel. Often you want to use [`Self::srgba_pixels`] instead.
-    pub pixels: Vec<u8>,
+
+    /// The actual image data.
+    pub image: AlphaImage,
 }
 
 impl FontImage {
+    #[inline]
     pub fn size(&self) -> [usize; 2] {
-        [self.width, self.height]
+        self.image.size
     }
-
-    /// Returns the textures as `sRGBA` premultiplied pixels, row by row, top to bottom.
-    ///
-    /// `gamma` should normally be set to 1.0.
-    /// If you are having problems with egui text looking skinny and pixelated, try
-    /// setting a lower gamma, e.g. `0.5`.
-    pub fn srgba_pixels(&'_ self, gamma: f32) -> impl Iterator<Item = super::Color32> + '_ {
-        use super::Color32;
-
-        let srgba_from_luminance_lut: Vec<Color32> = (0..=255)
-            .map(|a| {
-                let a = super::color::linear_f32_from_linear_u8(a).powf(gamma);
-                super::Rgba::from_white_alpha(a).into()
-            })
-            .collect();
-        self.pixels
-            .iter()
-            .map(move |&l| srgba_from_luminance_lut[l as usize])
-    }
-}
-
-impl std::ops::Index<(usize, usize)> for FontImage {
-    type Output = u8;
 
     #[inline]
-    fn index(&self, (x, y): (usize, usize)) -> &u8 {
-        assert!(x < self.width);
-        assert!(y < self.height);
-        &self.pixels[y * self.width + x]
+    pub fn width(&self) -> usize {
+        self.image.size[0]
     }
-}
 
-impl std::ops::IndexMut<(usize, usize)> for FontImage {
     #[inline]
-    fn index_mut(&mut self, (x, y): (usize, usize)) -> &mut u8 {
-        assert!(x < self.width);
-        assert!(y < self.height);
-        &mut self.pixels[y * self.width + x]
+    pub fn height(&self) -> usize {
+        self.image.size[1]
     }
 }
 
@@ -70,13 +41,11 @@ pub struct TextureAtlas {
 }
 
 impl TextureAtlas {
-    pub fn new(width: usize, height: usize) -> Self {
+    pub fn new(size: [usize; 2]) -> Self {
         Self {
             image: FontImage {
                 version: 0,
-                width,
-                height,
-                pixels: vec![0; width * height],
+                image: AlphaImage::new(size),
             },
             ..Default::default()
         }
@@ -99,12 +68,12 @@ impl TextureAtlas {
         const PADDING: usize = 1;
 
         assert!(
-            w <= self.image.width,
+            w <= self.image.width(),
             "Tried to allocate a {} wide glyph in a {} wide texture atlas",
             w,
-            self.image.width
+            self.image.width()
         );
-        if self.cursor.0 + w > self.image.width {
+        if self.cursor.0 + w > self.image.width() {
             // New row:
             self.cursor.0 = 0;
             self.cursor.1 += self.row_height + PADDING;
@@ -112,19 +81,21 @@ impl TextureAtlas {
         }
 
         self.row_height = self.row_height.max(h);
-        while self.cursor.1 + self.row_height >= self.image.height {
-            self.image.height *= 2;
-        }
-
-        if self.image.width * self.image.height > self.image.pixels.len() {
-            self.image
-                .pixels
-                .resize(self.image.width * self.image.height, 0);
-        }
+        resize_to_min_height(&mut self.image.image, self.cursor.1 + self.row_height);
 
         let pos = self.cursor;
         self.cursor.0 += w + PADDING;
         self.image.version += 1;
         (pos.0 as usize, pos.1 as usize)
+    }
+}
+
+fn resize_to_min_height(image: &mut AlphaImage, min_height: usize) {
+    while min_height >= image.height() {
+        image.size[1] *= 2; // double the height
+    }
+
+    if image.width() * image.height() > image.pixels.len() {
+        image.pixels.resize(image.width() * image.height(), 0);
     }
 }

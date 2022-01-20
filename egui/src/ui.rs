@@ -1,12 +1,11 @@
 // #![warn(missing_docs)]
 
-use epaint::mutex::RwLock;
+use epaint::mutex::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::hash::Hash;
-use std::sync::Arc;
 
 use crate::{
-    color::*, containers::*, epaint::text::Fonts, layout::*, menu::MenuState, mutex::MutexGuard,
-    placer::Placer, widgets::*, *,
+    color::*, containers::*, epaint::text::Fonts, layout::*, menu::MenuState, placer::Placer,
+    widgets::*, *,
 };
 
 // ----------------------------------------------------------------------------
@@ -49,7 +48,7 @@ pub struct Ui {
     /// The `Style` (visuals, spacing, etc) of this ui.
     /// Commonly many `Ui`:s share the same `Style`.
     /// The `Ui` implements copy-on-write for this.
-    style: std::sync::Arc<Style>,
+    style: Arc<Style>,
 
     /// Handles the `Ui` size and the placement of new widgets.
     placer: Placer,
@@ -70,7 +69,7 @@ impl Ui {
     ///
     /// Normally you would not use this directly, but instead use
     /// [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`].
-    pub fn new(ctx: CtxRef, layer_id: LayerId, id: Id, max_rect: Rect, clip_rect: Rect) -> Self {
+    pub fn new(ctx: Context, layer_id: LayerId, id: Id, max_rect: Rect, clip_rect: Rect) -> Self {
         let style = ctx.style();
         Ui {
             id,
@@ -122,7 +121,7 @@ impl Ui {
     ///
     /// Note that this may be a different [`Style`] than that of [`Context::style`].
     #[inline]
-    pub fn style(&self) -> &std::sync::Arc<Style> {
+    pub fn style(&self) -> &Arc<Style> {
         &self.style
     }
 
@@ -138,13 +137,13 @@ impl Ui {
     /// # });
     /// ```
     pub fn style_mut(&mut self) -> &mut Style {
-        std::sync::Arc::make_mut(&mut self.style) // clone-on-write
+        Arc::make_mut(&mut self.style) // clone-on-write
     }
 
     /// Changes apply to this `Ui` and its subsequent children.
     ///
     /// To set the visuals of all `Ui`:s, use [`Context::set_visuals`].
-    pub fn set_style(&mut self, style: impl Into<std::sync::Arc<Style>>) {
+    pub fn set_style(&mut self, style: impl Into<Arc<Style>>) {
         self.style = style.into();
     }
 
@@ -195,9 +194,9 @@ impl Ui {
         &mut self.style_mut().visuals
     }
 
-    /// Get a reference to the parent [`CtxRef`].
+    /// Get a reference to the parent [`Context`].
     #[inline]
-    pub fn ctx(&self) -> &CtxRef {
+    pub fn ctx(&self) -> &Context {
         self.painter.ctx()
     }
 
@@ -313,31 +312,50 @@ impl Ui {
         self.painter().layer_id()
     }
 
-    /// The `Input` of the `Context` associated with the `Ui`.
+    /// The [`InputState`] of the [`Context`] associated with this [`Ui`].
     /// Equivalent to `.ctx().input()`.
+    ///
+    /// Note that this locks the [`Context`], so be careful with if-let bindings:
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// if let Some(pos) = { ui.input().pointer.hover_pos() } {
+    ///     // This is fine!
+    /// }
+    ///
+    /// let pos = ui.input().pointer.hover_pos();
+    /// if let Some(pos) = pos {
+    ///     // This is also fine!
+    /// }
+    ///
+    /// if let Some(pos) = ui.input().pointer.hover_pos() {
+    ///     // ⚠️ Using `ui` again here will lead to a dead-lock!
+    /// }
+    /// # });
+    /// ```
     #[inline]
-    pub fn input(&self) -> &InputState {
+    pub fn input(&self) -> RwLockReadGuard<'_, InputState> {
         self.ctx().input()
     }
 
     /// The `Memory` of the `Context` associated with the `Ui`.
     /// Equivalent to `.ctx().memory()`.
     #[inline]
-    pub fn memory(&self) -> MutexGuard<'_, Memory> {
+    pub fn memory(&self) -> RwLockWriteGuard<'_, Memory> {
         self.ctx().memory()
     }
 
     /// The `Output` of the `Context` associated with the `Ui`.
     /// Equivalent to `.ctx().output()`.
     #[inline]
-    pub fn output(&self) -> MutexGuard<'_, Output> {
+    pub fn output(&self) -> RwLockWriteGuard<'_, Output> {
         self.ctx().output()
     }
 
     /// The `Fonts` of the `Context` associated with the `Ui`.
     /// Equivalent to `.ctx().fonts()`.
     #[inline]
-    pub fn fonts(&self) -> &Fonts {
+    pub fn fonts(&self) -> RwLockReadGuard<'_, Fonts> {
         self.ctx().fonts()
     }
 
@@ -1055,7 +1073,7 @@ impl Ui {
     /// Add extra space before the next widget.
     ///
     /// The direction is dependent on the layout.
-    /// This will be in addition to the [`Spacing::item_spacing`}.
+    /// This will be in addition to the [`crate::style::Spacing::item_spacing`].
     ///
     /// [`Self::min_rect`] will expand to contain the space.
     #[inline]
@@ -1323,9 +1341,30 @@ impl Ui {
 
     /// Show an image here with the given size.
     ///
-    /// See also [`Image`].
+    /// In order to display an image you must first acquire a [`TextureHandle`]
+    /// using [`Context::load_texture`].
+    ///
+    /// ```
+    /// struct MyImage {
+    ///     texture: Option<egui::TextureHandle>,
+    /// }
+    ///
+    /// impl MyImage {
+    ///     fn ui(&mut self, ui: &mut egui::Ui) {
+    ///         let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
+    ///             // Load the texture only once.
+    ///             ui.ctx().load_texture("my-image", egui::ColorImage::example())
+    ///         });
+    ///
+    ///         // Show the image:
+    ///         ui.image(texture, texture.size_vec2());
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// Se also [`crate::Image`] and [`crate::ImageButton`].
     #[inline]
-    pub fn image(&mut self, texture_id: TextureId, size: impl Into<Vec2>) -> Response {
+    pub fn image(&mut self, texture_id: impl Into<TextureId>, size: impl Into<Vec2>) -> Response {
         Image::new(texture_id, size).ui(self)
     }
 }

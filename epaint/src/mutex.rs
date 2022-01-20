@@ -114,10 +114,10 @@ mod mutex_impl {
 #[cfg(feature = "multi_threaded")]
 mod rw_lock_impl {
     /// The lock you get from [`RwLock::read`].
-    pub use parking_lot::RwLockReadGuard;
+    pub use parking_lot::MappedRwLockReadGuard as RwLockReadGuard;
 
     /// The lock you get from [`RwLock::write`].
-    pub use parking_lot::RwLockWriteGuard;
+    pub use parking_lot::MappedRwLockWriteGuard as RwLockWriteGuard;
 
     /// Provides interior mutability. Only thread-safe if the `multi_threaded` feature is enabled.
     #[derive(Default)]
@@ -131,14 +131,19 @@ mod rw_lock_impl {
 
         #[inline(always)]
         pub fn read(&self) -> RwLockReadGuard<'_, T> {
-            self.0.read()
+            parking_lot::RwLockReadGuard::map(self.0.read(), |v| v)
         }
 
         #[inline(always)]
         pub fn write(&self) -> RwLockWriteGuard<'_, T> {
-            self.0.write()
+            parking_lot::RwLockWriteGuard::map(self.0.write(), |v| v)
         }
     }
+}
+
+#[cfg(feature = "multi_threaded")]
+mod arc_impl {
+    pub use std::sync::Arc;
 }
 
 // ----------------------------------------------------------------------------
@@ -201,8 +206,15 @@ mod rw_lock_impl {
     }
 }
 
+#[cfg(not(feature = "multi_threaded"))]
+mod arc_impl {
+    // pub use std::rc::Rc as Arc; // TODO(emilk): optimize single threaded code by using `Rc` instead of `Arc`.
+    pub use std::sync::Arc;
+}
+
 // ----------------------------------------------------------------------------
 
+pub use arc_impl::Arc;
 pub use mutex_impl::{Mutex, MutexGuard};
 pub use rw_lock_impl::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 

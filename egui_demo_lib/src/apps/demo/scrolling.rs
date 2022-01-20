@@ -29,7 +29,7 @@ impl super::Demo for Scrolling {
         "↕ Scrolling"
     }
 
-    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .resizable(false)
@@ -253,15 +253,9 @@ impl super::View for ScrollTo {
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
-#[derive(PartialEq)]
+#[derive(Default, PartialEq)]
 struct ScrollStickTo {
     n_items: usize,
-}
-
-impl Default for ScrollStickTo {
-    fn default() -> Self {
-        Self { n_items: 0 }
-    }
 }
 
 impl super::View for ScrollStickTo {

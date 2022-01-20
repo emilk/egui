@@ -5,8 +5,11 @@ NOTE: [`egui_web`](egui_web/CHANGELOG.md), [`egui-winit`](egui-winit/CHANGELOG.m
 
 
 ## Unreleased
+* Removed `Frame::alloc_texture`. Use `egui::Context::load_texture` instead ([#1110](https://github.com/emilk/egui/pull/1110)).
 * The default native backend is now `egui_glow` (instead of `egui_glium`) ([#1020](https://github.com/emilk/egui/pull/1020)).
 * The default web painter is now `egui_glow` (instead of WebGL) ([#1020](https://github.com/emilk/egui/pull/1020)).
+* Fix horizontal scrolling direction on Linux.
+* Added `App::on_exit_event` ([#1038](https://github.com/emilk/egui/pull/1038))
 
 
 ## 0.16.0 - 2021-12-29

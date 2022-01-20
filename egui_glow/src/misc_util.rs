@@ -86,10 +86,6 @@ pub fn check_for_gl_error(gl: &glow::Context, context: &str) {
     }
 }
 
-pub(crate) unsafe fn as_u8_slice<T>(s: &[T]) -> &[u8] {
-    std::slice::from_raw_parts(s.as_ptr().cast::<u8>(), s.len() * std::mem::size_of::<T>())
-}
-
 pub(crate) fn glow_print(s: impl std::fmt::Display) {
     #[cfg(target_arch = "wasm32")]
     web_sys::console::log_1(&format!("egui_glow: {}", s).into());
@@ -204,40 +200,36 @@ impl VAO {
 
 /// If returned true no need to emulate vao
 pub(crate) fn supports_vao(gl: &glow::Context) -> bool {
-    let web_sig = "WebGL ";
-    let es_sig = "OpenGL ES ";
+    const WEBGL_PREFIX: &str = "WebGL ";
+    const OPENGL_ES_PREFIX: &str = "OpenGL ES ";
+
     let version_string = unsafe { gl.get_parameter_string(glow::VERSION) };
-    if let Some(pos) = version_string.rfind(web_sig) {
-        let version_str = &version_string[pos + web_sig.len()..];
-        glow_print(format!(
-            "detected WebGL prefix at {}:{}",
-            pos + web_sig.len(),
-            version_str
-        ));
+    glow_print(format!("GL version: {:?}.", version_string));
+
+    // Examples:
+    // * "WebGL 2.0 (OpenGL ES 3.0 Chromium)"
+    // * "WebGL 2.0"
+
+    if let Some(pos) = version_string.rfind(WEBGL_PREFIX) {
+        let version_str = &version_string[pos + WEBGL_PREFIX.len()..];
         if version_str.contains("1.0") {
-            //need to test OES_vertex_array_object .
+            // need to test OES_vertex_array_object .
             gl.supported_extensions()
                 .contains("OES_vertex_array_object")
         } else {
             true
         }
-    } else if let Some(pos) = version_string.rfind(es_sig) {
-        //glow targets es2.0+ so we don't concern about OpenGL ES-CM,OpenGL ES-CL
-        glow_print(format!(
-            "detected OpenGL ES prefix at {}:{}",
-            pos + es_sig.len(),
-            &version_string[pos + es_sig.len()..]
-        ));
+    } else if version_string.contains(OPENGL_ES_PREFIX) {
+        // glow targets es2.0+ so we don't concern about OpenGL ES-CM,OpenGL ES-CL
         if version_string.contains("2.0") {
-            //need to test OES_vertex_array_object .
+            // need to test OES_vertex_array_object .
             gl.supported_extensions()
                 .contains("OES_vertex_array_object")
         } else {
             true
         }
     } else {
-        glow_print(format!("detected OpenGL: {:?}", version_string));
-        //from OpenGL 3 vao into core
+        // from OpenGL 3 vao into core
         if version_string.starts_with('2') {
             // I found APPLE_vertex_array_object , GL_ATI_vertex_array_object ,ARB_vertex_array_object
             // but APPLE's and ATI's very old extension.

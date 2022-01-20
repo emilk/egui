@@ -394,7 +394,7 @@ pub struct ImageButton {
 }
 
 impl ImageButton {
-    pub fn new(texture_id: TextureId, size: impl Into<Vec2>) -> Self {
+    pub fn new(texture_id: impl Into<TextureId>, size: impl Into<Vec2>) -> Self {
         Self {
             image: widgets::Image::new(texture_id, size),
             sense: Sense::click(),

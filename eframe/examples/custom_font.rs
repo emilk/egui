@@ -19,7 +19,7 @@ impl epi::App for MyApp {
 
     fn setup(
         &mut self,
-        ctx: &egui::CtxRef,
+        ctx: &egui::Context,
         _frame: &epi::Frame,
         _storage: Option<&dyn epi::Storage>,
     ) {
@@ -51,7 +51,7 @@ impl epi::App for MyApp {
         ctx.set_fonts(fonts);
     }
 
-    fn update(&mut self, ctx: &egui::CtxRef, _frame: &epi::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &epi::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("egui using custom fonts");
             ui.text_edit_multiline(&mut self.text);

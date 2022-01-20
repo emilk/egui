@@ -15,10 +15,13 @@ pub enum Shape {
     /// For performance reasons it is better to avoid it.
     Vec(Vec<Shape>),
     Circle(CircleShape),
+    /// A line between two points.
     LineSegment {
         points: [Pos2; 2],
         stroke: Stroke,
     },
+    /// A series of lines between points.
+    /// The path can have a stroke and/or fill (if closed).
     Path(PathShape),
     Rect(RectShape),
     Text(TextShape),
@@ -132,7 +135,7 @@ impl Shape {
     }
 
     #[inline]
-    pub fn galley(pos: Pos2, galley: std::sync::Arc<Galley>) -> Self {
+    pub fn galley(pos: Pos2, galley: crate::mutex::Arc<Galley>) -> Self {
         TextShape::new(pos, galley).into()
     }
 
@@ -149,7 +152,7 @@ impl Shape {
         if let Shape::Mesh(mesh) = self {
             mesh.texture_id
         } else {
-            super::TextureId::Egui
+            super::TextureId::default()
         }
     }
 
@@ -355,7 +358,7 @@ pub struct TextShape {
     pub pos: Pos2,
 
     /// The layed out text, from [`Fonts::layout_job`].
-    pub galley: std::sync::Arc<Galley>,
+    pub galley: crate::mutex::Arc<Galley>,
 
     /// Add this underline to the whole text.
     /// You can also set an underline when creating the galley.
@@ -373,7 +376,7 @@ pub struct TextShape {
 
 impl TextShape {
     #[inline]
-    pub fn new(pos: Pos2, galley: std::sync::Arc<Galley>) -> Self {
+    pub fn new(pos: Pos2, galley: crate::mutex::Arc<Galley>) -> Self {
         Self {
             pos,
             galley,

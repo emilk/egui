@@ -1,40 +1,128 @@
 // #![warn(missing_docs)]
 
-use std::sync::{
-    atomic::{AtomicU32, Ordering::SeqCst},
-    Arc,
-};
-
 use crate::{
-    animation_manager::AnimationManager,
-    data::output::Output,
-    frame_state::FrameState,
-    input_state::*,
-    layers::GraphicLayers,
-    menu::ContextMenuSystem,
-    mutex::{Mutex, MutexGuard},
-    *,
+    animation_manager::AnimationManager, data::output::Output, frame_state::FrameState,
+    input_state::*, layers::GraphicLayers, TextureHandle, *,
 };
-use epaint::{stats::*, text::Fonts, *};
+use epaint::{mutex::*, stats::*, text::Fonts, *};
 
 // ----------------------------------------------------------------------------
 
-/// A wrapper around [`Arc`](std::sync::Arc)`<`[`Context`]`>`.
-/// This is how you will normally create and access a [`Context`].
+struct WrappedTextureManager(Arc<RwLock<epaint::TextureManager>>);
+
+impl Default for WrappedTextureManager {
+    fn default() -> Self {
+        let mut tex_mngr = epaint::textures::TextureManager::default();
+
+        // Will be filled in later
+        let font_id = tex_mngr.alloc(
+            "egui_font_texture".into(),
+            epaint::AlphaImage::new([0, 0]).into(),
+        );
+        assert_eq!(font_id, TextureId::default());
+
+        Self(Arc::new(RwLock::new(tex_mngr)))
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+#[derive(Default)]
+struct ContextImpl {
+    /// `None` until the start of the first frame.
+    fonts: Option<Fonts>,
+    memory: Memory,
+    animation_manager: AnimationManager,
+    latest_font_image_version: Option<u64>,
+    tex_manager: WrappedTextureManager,
+
+    input: InputState,
+
+    /// State that is collected during a frame and then cleared
+    frame_state: FrameState,
+
+    // The output of a frame:
+    graphics: GraphicLayers,
+    output: Output,
+
+    paint_stats: PaintStats,
+
+    /// While positive, keep requesting repaints. Decrement at the end of each frame.
+    repaint_requests: u32,
+}
+
+impl ContextImpl {
+    fn begin_frame_mut(&mut self, new_raw_input: RawInput) {
+        self.memory.begin_frame(&self.input, &new_raw_input);
+
+        let mut input = std::mem::take(&mut self.input);
+        if let Some(new_pixels_per_point) = self.memory.new_pixels_per_point.take() {
+            input.pixels_per_point = new_pixels_per_point;
+        }
+
+        self.input = input.begin_frame(new_raw_input);
+        self.frame_state.begin_frame(&self.input);
+
+        self.update_fonts_mut(self.input.pixels_per_point());
+
+        // Ensure we register the background area so panels and background ui can catch clicks:
+        let screen_rect = self.input.screen_rect();
+        self.memory.areas.set_state(
+            LayerId::background(),
+            containers::area::State {
+                pos: screen_rect.min,
+                size: screen_rect.size(),
+                interactable: true,
+            },
+        );
+    }
+
+    /// Load fonts unless already loaded.
+    fn update_fonts_mut(&mut self, pixels_per_point: f32) {
+        let new_font_definitions = self.memory.new_font_definitions.take();
+
+        let pixels_per_point_changed = match &self.fonts {
+            None => true,
+            Some(current_fonts) => {
+                (current_fonts.pixels_per_point() - pixels_per_point).abs() > 1e-3
+            }
+        };
+
+        if self.fonts.is_none() || new_font_definitions.is_some() || pixels_per_point_changed {
+            self.fonts = Some(Fonts::new(
+                pixels_per_point,
+                new_font_definitions.unwrap_or_else(|| {
+                    self.fonts
+                        .as_ref()
+                        .map(|font| font.definitions().clone())
+                        .unwrap_or_default()
+                }),
+            ));
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// Your handle to egui.
 ///
-/// Almost all methods are marked `&self`, `Context` has interior mutability (protected by mutexes).
+/// This is the first thing you need when working with egui.
+/// Contains the [`InputState`], [`Memory`], [`Output`], and more.
 ///
-/// [`CtxRef`] is cheap to clone, and any clones refers to the same mutable data.
+/// [`Context`] is cheap to clone, and any clones refers to the same mutable data
+/// ([`Context`] uses refcounting internally).
 ///
-/// A [`CtxRef`] is only valid for the duration of a frame, and so you should not store a [`CtxRef`] between frames.
-/// A new [`CtxRef`] is created each frame by calling [`Self::run`].
+/// All methods are marked `&self`; `Context` has interior mutability (protected by a mutex).
+///
+///
+/// You can store
 ///
 /// # Example:
 ///
 /// ``` no_run
 /// # fn handle_output(_: egui::Output) {}
 /// # fn paint(_: Vec<egui::ClippedMesh>) {}
-/// let mut ctx = egui::CtxRef::default();
+/// let mut ctx = egui::Context::default();
 ///
 /// // Game loop:
 /// loop {
@@ -53,58 +141,46 @@ use epaint::{stats::*, text::Fonts, *};
 /// }
 /// ```
 #[derive(Clone)]
-pub struct CtxRef(std::sync::Arc<Context>);
+pub struct Context(Arc<RwLock<ContextImpl>>);
 
-impl std::ops::Deref for CtxRef {
-    type Target = Context;
-
-    fn deref(&self) -> &Context {
-        &*self.0
-    }
-}
-
-impl AsRef<Context> for CtxRef {
-    fn as_ref(&self) -> &Context {
-        self.0.as_ref()
-    }
-}
-
-impl std::borrow::Borrow<Context> for CtxRef {
-    fn borrow(&self) -> &Context {
-        self.0.borrow()
-    }
-}
-
-impl std::cmp::PartialEq for CtxRef {
-    fn eq(&self, other: &CtxRef) -> bool {
+impl std::cmp::PartialEq for Context {
+    fn eq(&self, other: &Context) -> bool {
         Arc::ptr_eq(&self.0, &other.0)
     }
 }
 
-impl Default for CtxRef {
+impl Default for Context {
     fn default() -> Self {
-        Self(Arc::new(Context {
+        Self(Arc::new(RwLock::new(ContextImpl {
             // Start with painting an extra frame to compensate for some widgets
             // that take two frames before they "settle":
-            repaint_requests: AtomicU32::new(1),
-            ..Context::default()
-        }))
+            repaint_requests: 1,
+            ..ContextImpl::default()
+        })))
     }
 }
 
-impl CtxRef {
+impl Context {
+    fn read(&self) -> RwLockReadGuard<'_, ContextImpl> {
+        self.0.read()
+    }
+
+    fn write(&self) -> RwLockWriteGuard<'_, ContextImpl> {
+        self.0.write()
+    }
+
     /// Run the ui code for one frame.
     ///
     /// Put your widgets into a [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`].
     ///
     /// This will modify the internal reference to point to a new generation of [`Context`].
-    /// Any old clones of this [`CtxRef`] will refer to the old [`Context`], which will not get new input.
+    /// Any old clones of this [`Context`] will refer to the old [`Context`], which will not get new input.
     ///
     /// You can alternatively run [`Self::begin_frame`] and [`Context::end_frame`].
     ///
-    /// ``` rust
+    /// ```
     /// // One egui context that you keep reusing:
-    /// let mut ctx = egui::CtxRef::default();
+    /// let mut ctx = egui::Context::default();
     ///
     /// // Each frame:
     /// let input = egui::RawInput::default();
@@ -117,9 +193,9 @@ impl CtxRef {
     /// ```
     #[must_use]
     pub fn run(
-        &mut self,
+        &self,
         new_input: RawInput,
-        run_ui: impl FnOnce(&CtxRef),
+        run_ui: impl FnOnce(&Context),
     ) -> (Output, Vec<ClippedShape>) {
         self.begin_frame(new_input);
         run_ui(self);
@@ -128,9 +204,9 @@ impl CtxRef {
 
     /// An alternative to calling [`Self::run`].
     ///
-    /// ``` rust
+    /// ```
     /// // One egui context that you keep reusing:
-    /// let mut ctx = egui::CtxRef::default();
+    /// let mut ctx = egui::Context::default();
     ///
     /// // Each frame:
     /// let input = egui::RawInput::default();
@@ -143,10 +219,8 @@ impl CtxRef {
     /// let (output, shapes) = ctx.end_frame();
     /// // handle output, paint shapes
     /// ```
-    pub fn begin_frame(&mut self, new_input: RawInput) {
-        let mut self_: Context = (*self.0).clone();
-        self_.begin_frame_mut(new_input);
-        *self = Self(Arc::new(self_));
+    pub fn begin_frame(&self, new_input: RawInput) {
+        self.write().begin_frame_mut(new_input);
     }
 
     // ---------------------------------------------------------------------
@@ -167,7 +241,7 @@ impl CtxRef {
             let show_error = |pos: Pos2, text: String| {
                 let painter = self.debug_painter();
                 let rect = painter.error(pos, text);
-                if let Some(pointer_pos) = self.input.pointer.hover_pos() {
+                if let Some(pointer_pos) = self.pointer_hover_pos() {
                     if rect.contains(pointer_pos) {
                         painter.error(
                             rect.left_bottom() + vec2(2.0, 4.0),
@@ -244,13 +318,18 @@ impl CtxRef {
             changed: false, // must be set by the widget itself
         };
 
-        let mut memory = self.memory();
-
         if !enabled || !sense.focusable || !layer_id.allow_interaction() {
             // Not interested or allowed input:
-            memory.surrender_focus(id);
+            self.memory().surrender_focus(id);
             return response;
         }
+
+        self.register_interaction_id(id, rect);
+
+        let clicked_elsewhere = response.clicked_elsewhere();
+        let ctx_impl = &mut *self.write();
+        let memory = &mut ctx_impl.memory;
+        let input = &mut ctx_impl.input;
 
         // We only want to focus labels if the screen reader is on.
         let interested_in_focus =
@@ -262,13 +341,11 @@ impl CtxRef {
 
         if sense.click
             && memory.has_focus(response.id)
-            && (self.input().key_pressed(Key::Space) || self.input().key_pressed(Key::Enter))
+            && (input.key_pressed(Key::Space) || input.key_pressed(Key::Enter))
         {
             // Space/enter works like a primary click for e.g. selected buttons
             response.clicked[PointerButton::Primary as usize] = true;
         }
-
-        self.register_interaction_id(id, rect);
 
         if sense.click || sense.drag {
             memory.interaction.click_interest |= hovered && sense.click;
@@ -278,7 +355,7 @@ impl CtxRef {
             response.is_pointer_button_down_on =
                 memory.interaction.click_id == Some(id) || response.dragged;
 
-            for pointer_event in &self.input.pointer.pointer_events {
+            for pointer_event in &input.pointer.pointer_events {
                 match pointer_event {
                     PointerEvent::Moved(_) => {}
                     PointerEvent::Pressed(_) => {
@@ -325,14 +402,14 @@ impl CtxRef {
         }
 
         if response.is_pointer_button_down_on {
-            response.interact_pointer_pos = self.input().pointer.interact_pos();
+            response.interact_pointer_pos = input.pointer.interact_pos();
         }
 
-        if self.input.pointer.any_down() {
+        if input.pointer.any_down() {
             response.hovered &= response.is_pointer_button_down_on; // we don't hover widgets while interacting with *other* widgets
         }
 
-        if memory.has_focus(response.id) && response.clicked_elsewhere() {
+        if memory.has_focus(response.id) && clicked_elsewhere {
             memory.surrender_focus(id);
         }
 
@@ -346,134 +423,94 @@ impl CtxRef {
 
     /// Get a full-screen painter for a new or existing layer
     pub fn layer_painter(&self, layer_id: LayerId) -> Painter {
-        Painter::new(self.clone(), layer_id, self.input.screen_rect())
+        let screen_rect = self.input().screen_rect();
+        Painter::new(self.clone(), layer_id, screen_rect)
     }
 
     /// Paint on top of everything else
     pub fn debug_painter(&self) -> Painter {
         Self::layer_painter(self, LayerId::debug())
     }
-}
 
-// ----------------------------------------------------------------------------
-
-/// Your handle to egui.
-///
-/// This is the first thing you need when working with egui.
-/// Use [`CtxRef`] to create and refer to a [`Context`].
-///
-/// Contains the [`InputState`], [`Memory`], [`Output`], and more.
-///
-/// Almost all methods are marked `&self`, [`Context`] has interior mutability (protected by mutexes).
-/// Multi-threaded access to a [`Context`] is behind the feature flag `multi_threaded`.
-/// Normally you'd always do all ui work on one thread, or perhaps use multiple contexts,
-/// but if you really want to access the same [`Context`] from multiple threads, it *SHOULD* be fine,
-/// but you are likely the first person to try it.
-#[derive(Default)]
-pub struct Context {
-    // We clone the Context each frame so we can set a new `input`.
-    // This is so we can avoid a mutex lock to access the `InputState`.
-    // This means everything else needs to be behind an Arc.
-    // We can probably come up with a nicer design.
-    //
-    /// `None` until the start of the first frame.
-    fonts: Option<Arc<Fonts>>,
-    memory: Arc<Mutex<Memory>>,
-    animation_manager: Arc<Mutex<AnimationManager>>,
-    context_menu_system: Arc<Mutex<ContextMenuSystem>>,
-
-    input: InputState,
-
-    /// State that is collected during a frame and then cleared
-    frame_state: Arc<Mutex<FrameState>>,
-
-    // The output of a frame:
-    graphics: Arc<Mutex<GraphicLayers>>,
-    output: Arc<Mutex<Output>>,
-
-    paint_stats: Arc<Mutex<PaintStats>>,
-
-    /// While positive, keep requesting repaints. Decrement at the end of each frame.
-    repaint_requests: AtomicU32,
-}
-
-impl Clone for Context {
-    fn clone(&self) -> Self {
-        Context {
-            fonts: self.fonts.clone(),
-            memory: self.memory.clone(),
-            animation_manager: self.animation_manager.clone(),
-            input: self.input.clone(),
-            frame_state: self.frame_state.clone(),
-            graphics: self.graphics.clone(),
-            output: self.output.clone(),
-            paint_stats: self.paint_stats.clone(),
-            repaint_requests: self.repaint_requests.load(SeqCst).into(),
-            context_menu_system: self.context_menu_system.clone(),
-        }
-    }
-}
-
-impl Context {
     /// How much space is still available after panels has been added.
     /// This is the "background" area, what egui doesn't cover with panels (but may cover with windows).
     /// This is also the area to which windows are constrained.
     pub fn available_rect(&self) -> Rect {
-        self.frame_state.lock().available_rect()
+        self.frame_state().available_rect()
     }
+}
 
+/// ## Borrows parts of [`Context`]
+impl Context {
     /// Stores all the egui state.
     /// If you want to store/restore egui, serialize this.
-    pub fn memory(&self) -> MutexGuard<'_, Memory> {
-        self.memory.lock()
+    pub fn memory(&self) -> RwLockWriteGuard<'_, Memory> {
+        RwLockWriteGuard::map(self.write(), |c| &mut c.memory)
     }
 
-    pub(crate) fn context_menu_system(&self) -> MutexGuard<'_, ContextMenuSystem> {
-        self.context_menu_system.lock()
-    }
-
-    pub(crate) fn graphics(&self) -> MutexGuard<'_, GraphicLayers> {
-        self.graphics.lock()
+    pub(crate) fn graphics(&self) -> RwLockWriteGuard<'_, GraphicLayers> {
+        RwLockWriteGuard::map(self.write(), |c| &mut c.graphics)
     }
 
     /// What egui outputs each frame.
-    pub fn output(&self) -> MutexGuard<'_, Output> {
-        self.output.lock()
+    pub fn output(&self) -> RwLockWriteGuard<'_, Output> {
+        RwLockWriteGuard::map(self.write(), |c| &mut c.output)
     }
 
-    pub(crate) fn frame_state(&self) -> MutexGuard<'_, FrameState> {
-        self.frame_state.lock()
+    pub(crate) fn frame_state(&self) -> RwLockWriteGuard<'_, FrameState> {
+        RwLockWriteGuard::map(self.write(), |c| &mut c.frame_state)
     }
 
+    /// Access the [`InputState`].
+    ///
+    /// Note that this locks the [`Context`], so be careful with if-let bindings:
+    ///
+    /// ```
+    /// # let mut ctx = egui::Context::default();
+    /// if let Some(pos) = ctx.input().pointer.hover_pos() {
+    ///     // ⚠️ Using `ctx` again here will lead to a dead-lock!
+    /// }
+    ///
+    /// if let Some(pos) = { ctx.input().pointer.hover_pos() } {
+    ///     // This is fine!
+    /// }
+    ///
+    /// let pos = ctx.input().pointer.hover_pos();
+    /// if let Some(pos) = pos {
+    ///     // This is fine!
+    /// }
+    /// ```
+    #[inline(always)]
+    pub fn input(&self) -> RwLockReadGuard<'_, InputState> {
+        RwLockReadGuard::map(self.read(), |c| &c.input)
+    }
+
+    pub fn input_mut(&self) -> RwLockWriteGuard<'_, InputState> {
+        RwLockWriteGuard::map(self.write(), |c| &mut c.input)
+    }
+
+    /// Not valid until first call to [`Context::run()`].
+    /// That's because since we don't know the proper `pixels_per_point` until then.
+    pub fn fonts(&self) -> RwLockReadGuard<'_, Fonts> {
+        RwLockReadGuard::map(self.read(), |c| {
+            c.fonts
+                .as_ref()
+                .expect("No fonts available until first call to Context::run()")
+        })
+    }
+
+    fn fonts_mut(&self) -> RwLockWriteGuard<'_, Option<Fonts>> {
+        RwLockWriteGuard::map(self.write(), |c| &mut c.fonts)
+    }
+}
+
+impl Context {
     /// Call this if there is need to repaint the UI, i.e. if you are showing an animation.
     /// If this is called at least once in a frame, then there will be another frame right after this.
     /// Call as many times as you wish, only one repaint will be issued.
     pub fn request_repaint(&self) {
         // request two frames of repaint, just to cover some corner cases (frame delays):
-        let times_to_repaint = 2;
-        self.repaint_requests.store(times_to_repaint, SeqCst);
-    }
-
-    #[inline(always)]
-    pub fn input(&self) -> &InputState {
-        &self.input
-    }
-
-    /// Not valid until first call to [`CtxRef::run()`].
-    /// That's because since we don't know the proper `pixels_per_point` until then.
-    pub fn fonts(&self) -> &Fonts {
-        &*self
-            .fonts
-            .as_ref()
-            .expect("No fonts available until first call to CtxRef::run()")
-    }
-
-    /// The egui font image, containing font characters etc.
-    ///
-    /// Not valid until first call to [`CtxRef::run()`].
-    /// That's because since we don't know the proper `pixels_per_point` until then.
-    pub fn font_image(&self) -> Arc<epaint::FontImage> {
-        self.fonts().font_image()
+        self.write().repaint_requests = 2;
     }
 
     /// Tell `egui` which fonts to use.
@@ -483,7 +520,7 @@ impl Context {
     ///
     /// The new fonts will become active at the start of the next frame.
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
-        if let Some(current_fonts) = &self.fonts {
+        if let Some(current_fonts) = &*self.fonts_mut() {
             // NOTE: this comparison is expensive since it checks TTF data for equality
             if current_fonts.definitions() == &font_definitions {
                 return; // no change - save us from reloading font textures
@@ -504,7 +541,7 @@ impl Context {
     ///
     /// Example:
     /// ```
-    /// # let mut ctx = egui::CtxRef::default();
+    /// # let mut ctx = egui::Context::default();
     /// let mut style: egui::Style = (*ctx.style()).clone();
     /// style.spacing.item_spacing = egui::vec2(10.0, 20.0);
     /// ctx.set_style(style);
@@ -519,7 +556,7 @@ impl Context {
     ///
     /// Example:
     /// ```
-    /// # let mut ctx = egui::CtxRef::default();
+    /// # let mut ctx = egui::Context::default();
     /// ctx.set_visuals(egui::Visuals::light()); // Switch to light mode
     /// ```
     pub fn set_visuals(&self, visuals: crate::Visuals) {
@@ -529,7 +566,7 @@ impl Context {
     /// The number of physical pixels for each logical point.
     #[inline(always)]
     pub fn pixels_per_point(&self) -> f32 {
-        self.input.pixels_per_point()
+        self.input().pixels_per_point()
     }
 
     /// Set the number of physical pixels for each logical point.
@@ -569,6 +606,54 @@ impl Context {
         }
     }
 
+    /// Allocate a texture.
+    ///
+    /// In order to display an image you must convert it to a texture using this function.
+    ///
+    /// Make sure to only call this once for each image, i.e. NOT in your main GUI code.
+    ///
+    /// The given name can be useful for later debugging, and will be visible if you call [`Self::texture_ui`].
+    ///
+    /// For how to load an image, see [`ImageData`] and [`ColorImage::from_rgba_unmultiplied`].
+    ///
+    /// ```
+    /// struct MyImage {
+    ///     texture: Option<egui::TextureHandle>,
+    /// }
+    ///
+    /// impl MyImage {
+    ///     fn ui(&mut self, ui: &mut egui::Ui) {
+    ///         let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
+    ///             // Load the texture only once.
+    ///             ui.ctx().load_texture("my-image", egui::ColorImage::example())
+    ///         });
+    ///
+    ///         // Show the image:
+    ///         ui.image(texture, texture.size_vec2());
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// Se also [`crate::ImageData`], [`crate::Ui::image`] and [`crate::ImageButton`].
+    pub fn load_texture(
+        &self,
+        name: impl Into<String>,
+        image: impl Into<ImageData>,
+    ) -> TextureHandle {
+        let tex_mngr = self.tex_manager();
+        let tex_id = tex_mngr.write().alloc(name.into(), image.into());
+        TextureHandle::new(tex_mngr, tex_id)
+    }
+
+    /// Low-level texture manager.
+    ///
+    /// In general it is easier to use [`Self::load_texture`] and [`TextureHandle`].
+    ///
+    /// You can show stats about the allocated textures using [`Self::texture_ui`].
+    pub fn tex_manager(&self) -> Arc<RwLock<epaint::textures::TextureManager>> {
+        self.read().tex_manager.0.clone()
+    }
+
     // ---------------------------------------------------------------------
 
     /// Constrain the position of a window/area so it fits within the provided boundary.
@@ -604,75 +689,46 @@ impl Context {
 
         Rect::from_min_size(pos, window.size())
     }
+}
 
-    // ---------------------------------------------------------------------
-
-    fn begin_frame_mut(&mut self, new_raw_input: RawInput) {
-        self.memory().begin_frame(&self.input, &new_raw_input);
-
-        let mut input = std::mem::take(&mut self.input);
-        if let Some(new_pixels_per_point) = self.memory().new_pixels_per_point.take() {
-            input.pixels_per_point = new_pixels_per_point;
-        }
-
-        self.input = input.begin_frame(new_raw_input);
-        self.frame_state.lock().begin_frame(&self.input);
-
-        self.update_fonts(self.input.pixels_per_point());
-
-        // Ensure we register the background area so panels and background ui can catch clicks:
-        let screen_rect = self.input.screen_rect();
-        self.memory().areas.set_state(
-            LayerId::background(),
-            containers::area::State {
-                pos: screen_rect.min,
-                size: screen_rect.size(),
-                interactable: true,
-            },
-        );
-    }
-
-    /// Load fonts unless already loaded.
-    fn update_fonts(&mut self, pixels_per_point: f32) {
-        let new_font_definitions = self.memory().new_font_definitions.take();
-
-        let pixels_per_point_changed = match &self.fonts {
-            None => true,
-            Some(current_fonts) => {
-                (current_fonts.pixels_per_point() - pixels_per_point).abs() > 1e-3
-            }
-        };
-
-        if self.fonts.is_none() || new_font_definitions.is_some() || pixels_per_point_changed {
-            self.fonts = Some(Arc::new(Fonts::new(
-                pixels_per_point,
-                new_font_definitions.unwrap_or_else(|| {
-                    self.fonts
-                        .as_ref()
-                        .map(|font| font.definitions().clone())
-                        .unwrap_or_default()
-                }),
-            )));
-        }
-    }
-
+impl Context {
     /// Call at the end of each frame.
     /// Returns what has happened this frame [`crate::Output`] as well as what you need to paint.
     /// You can transform the returned shapes into triangles with a call to [`Context::tessellate`].
     #[must_use]
     pub fn end_frame(&self) -> (Output, Vec<ClippedShape>) {
-        if self.input.wants_repaint() {
+        if self.input().wants_repaint() {
             self.request_repaint();
         }
 
-        self.memory()
-            .end_frame(&self.input, &self.frame_state().used_ids);
-
         self.fonts().end_frame();
 
+        {
+            let ctx_impl = &mut *self.write();
+            ctx_impl
+                .memory
+                .end_frame(&ctx_impl.input, &ctx_impl.frame_state.used_ids);
+
+            let font_image = ctx_impl.fonts.as_ref().unwrap().font_image();
+            let font_image_version = font_image.version;
+
+            if Some(font_image_version) != ctx_impl.latest_font_image_version {
+                ctx_impl
+                    .tex_manager
+                    .0
+                    .write()
+                    .set(TextureId::default(), font_image.image.clone().into());
+                ctx_impl.latest_font_image_version = Some(font_image_version);
+            }
+            ctx_impl
+                .output
+                .textures_delta
+                .append(ctx_impl.tex_manager.0.write().take_delta());
+        }
+
         let mut output: Output = std::mem::take(&mut self.output());
-        if self.repaint_requests.load(SeqCst) > 0 {
-            self.repaint_requests.fetch_sub(1, SeqCst);
+        if self.read().repaint_requests > 0 {
+            self.write().repaint_requests -= 1;
             output.needs_repaint = true;
         }
 
@@ -681,8 +737,11 @@ impl Context {
     }
 
     fn drain_paint_lists(&self) -> Vec<ClippedShape> {
-        let memory = self.memory();
-        self.graphics().drain(memory.areas.order()).collect()
+        let ctx_impl = &mut *self.write();
+        ctx_impl
+            .graphics
+            .drain(ctx_impl.memory.areas.order())
+            .collect()
     }
 
     /// Tessellate the given shapes into triangle meshes.
@@ -700,7 +759,7 @@ impl Context {
             tessellation_options,
             self.fonts().font_image().size(),
         );
-        *self.paint_stats.lock() = paint_stats.with_clipped_meshes(&clipped_meshes);
+        self.write().paint_stats = paint_stats.with_clipped_meshes(&clipped_meshes);
         clipped_meshes
     }
 
@@ -725,7 +784,8 @@ impl Context {
 
     /// Is the pointer (mouse/touch) over any egui area?
     pub fn is_pointer_over_area(&self) -> bool {
-        if let Some(pointer_pos) = self.input.pointer.interact_pos() {
+        let pointer_pos = self.input().pointer.interact_pos();
+        if let Some(pointer_pos) = pointer_pos {
             if let Some(layer) = self.layer_id_at(pointer_pos) {
                 if layer.order == Order::Background {
                     !self.frame_state().unused_rect.contains(pointer_pos)
@@ -759,14 +819,45 @@ impl Context {
     pub fn wants_keyboard_input(&self) -> bool {
         self.memory().interaction.focus.focused().is_some()
     }
+}
 
-    // ---------------------------------------------------------------------
+// Ergonomic methods to forward some calls often used in 'if let' without holding the borrow
+impl Context {
+    /// Latest reported pointer position.
+    /// When tapping a touch screen, this will be `None`.
+    #[inline(always)]
+    pub(crate) fn latest_pointer_pos(&self) -> Option<Pos2> {
+        self.input().pointer.latest_pos()
+    }
 
+    /// If it is a good idea to show a tooltip, where is pointer?
+    #[inline(always)]
+    pub fn pointer_hover_pos(&self) -> Option<Pos2> {
+        self.input().pointer.hover_pos()
+    }
+
+    /// If you detect a click or drag and wants to know where it happened, use this.
+    ///
+    /// Latest position of the mouse, but ignoring any [`Event::PointerGone`]
+    /// if there were interactions this frame.
+    /// When tapping a touch screen, this will be the location of the touch.
+    #[inline(always)]
+    pub fn pointer_interact_pos(&self) -> Option<Pos2> {
+        self.input().pointer.interact_pos()
+    }
+
+    /// Calls [`InputState::multi_touch`].
+    pub fn multi_touch(&self) -> Option<MultiTouchInfo> {
+        self.input().multi_touch()
+    }
+}
+
+impl Context {
     /// Move all the graphics at the given layer.
     /// Can be used to implement drag-and-drop (see relevant demo).
     pub fn translate_layer(&self, layer_id: LayerId, delta: Vec2) {
         if delta != Vec2::ZERO {
-            self.graphics().list(layer_id).lock().translate(delta);
+            self.graphics().list(layer_id).translate(delta);
         }
     }
 
@@ -777,7 +868,8 @@ impl Context {
     }
 
     pub(crate) fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
-        if let Some(pointer_pos) = self.input.pointer.interact_pos() {
+        let pointer_pos = self.input().pointer.interact_pos();
+        if let Some(pointer_pos) = pointer_pos {
             rect.contains(pointer_pos) && self.layer_id_at(pointer_pos) == Some(layer_id)
         } else {
             false
@@ -817,10 +909,12 @@ impl Context {
 
     /// Like [`Self::animate_bool`] but allows you to control the animation time.
     pub fn animate_bool_with_time(&self, id: Id, value: bool, animation_time: f32) -> f32 {
-        let animated_value =
-            self.animation_manager
-                .lock()
-                .animate_bool(&self.input, animation_time, id, value);
+        let animated_value = {
+            let ctx_impl = &mut *self.write();
+            ctx_impl
+                .animation_manager
+                .animate_bool(&ctx_impl.input, animation_time, id, value)
+        };
         let animation_in_progress = 0.0 < animated_value && animated_value < 1.0;
         if animation_in_progress {
             self.request_repaint();
@@ -828,9 +922,27 @@ impl Context {
         animated_value
     }
 
+    /// Allows you to smoothly change the f32 value.
+    /// At the first call the value is written to memory.
+    /// When it is called with a new value, it linearly interpolates to it in the given time.
+    pub fn animate_value_with_time(&self, id: Id, value: f32, animation_time: f32) -> f32 {
+        let animated_value = {
+            let ctx_impl = &mut *self.write();
+            ctx_impl
+                .animation_manager
+                .animate_value(&ctx_impl.input, animation_time, id, value)
+        };
+        let animation_in_progress = animated_value != value;
+        if animation_in_progress {
+            self.request_repaint();
+        }
+
+        animated_value
+    }
+
     /// Clear memory of any animations.
     pub fn clear_animations(&self) {
-        *self.animation_manager.lock() = Default::default();
+        self.write().animation_manager = Default::default();
     }
 }
 
@@ -849,7 +961,8 @@ impl Context {
             .show(ui, |ui| {
                 let mut font_definitions = self.fonts().definitions().clone();
                 font_definitions.ui(ui);
-                self.fonts().font_image().ui(ui);
+                let font_image = self.fonts().font_image();
+                font_image.ui(ui);
                 self.set_fonts(font_definitions);
             });
 
@@ -891,16 +1004,12 @@ impl Context {
         .on_hover_text("Is egui currently listening for text input?");
 
         let pointer_pos = self
-            .input()
-            .pointer
-            .hover_pos()
+            .pointer_hover_pos()
             .map_or_else(String::new, |pos| format!("{:?}", pos));
         ui.label(format!("Pointer pos: {}", pointer_pos));
 
         let top_layer = self
-            .input()
-            .pointer
-            .hover_pos()
+            .pointer_hover_pos()
             .and_then(|pos| self.layer_id_at(pos))
             .map_or_else(String::new, |layer| layer.short_debug_format());
         ui.label(format!("Top layer under mouse: {}", top_layer));
@@ -916,13 +1025,76 @@ impl Context {
 
         CollapsingHeader::new("📥 Input")
             .default_open(false)
-            .show(ui, |ui| ui.input().clone().ui(ui));
+            .show(ui, |ui| {
+                let input = ui.input().clone();
+                input.ui(ui);
+            });
 
         CollapsingHeader::new("📊 Paint stats")
-            .default_open(true)
+            .default_open(false)
             .show(ui, |ui| {
-                self.paint_stats.lock().ui(ui);
+                let paint_stats = self.write().paint_stats;
+                paint_stats.ui(ui);
             });
+
+        CollapsingHeader::new("🖼 Textures")
+            .default_open(false)
+            .show(ui, |ui| {
+                self.texture_ui(ui);
+            });
+    }
+
+    /// Show stats about the allocated textures.
+    pub fn texture_ui(&self, ui: &mut crate::Ui) {
+        let tex_mngr = self.tex_manager();
+        let tex_mngr = tex_mngr.read();
+
+        let mut textures: Vec<_> = tex_mngr.allocated().collect();
+        textures.sort_by_key(|(id, _)| *id);
+
+        let mut bytes = 0;
+        for (_, tex) in &textures {
+            bytes += tex.bytes_used();
+        }
+
+        ui.label(format!(
+            "{} allocated texture(s), using {:.1} MB",
+            textures.len(),
+            bytes as f64 * 1e-6
+        ));
+        let max_preview_size = Vec2::new(48.0, 32.0);
+
+        ui.group(|ui| {
+            ScrollArea::vertical()
+                .max_height(300.0)
+                .auto_shrink([false, true])
+                .show(ui, |ui| {
+                    ui.style_mut().override_text_style = Some(TextStyle::Monospace);
+                    Grid::new("textures")
+                        .striped(true)
+                        .num_columns(4)
+                        .spacing(Vec2::new(16.0, 2.0))
+                        .min_row_height(max_preview_size.y)
+                        .show(ui, |ui| {
+                            for (&texture_id, meta) in textures {
+                                let [w, h] = meta.size;
+
+                                let mut size = Vec2::new(w as f32, h as f32);
+                                size *= (max_preview_size.x / size.x).min(1.0);
+                                size *= (max_preview_size.y / size.y).min(1.0);
+                                ui.image(texture_id, size).on_hover_ui(|ui| {
+                                    // show full size on hover
+                                    ui.image(texture_id, Vec2::new(w as f32, h as f32));
+                                });
+
+                                ui.label(format!("{} x {}", w, h));
+                                ui.label(format!("{:.3} MB", meta.bytes_used() as f64 * 1e-6));
+                                ui.label(format!("{:?}", meta.name));
+                                ui.end_row();
+                            }
+                        });
+                });
+        });
     }
 
     pub fn memory_ui(&self, ui: &mut crate::Ui) {
