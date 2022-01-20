@@ -668,6 +668,22 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         closure.forget();
     }
 
+    {
+        // hashchange
+        let runner_ref = runner_ref.clone();
+        let closure = Closure::wrap(Box::new(move || {
+            let runner_lock = runner_ref.0.lock();
+            let mut frame_lock = runner_lock.frame.lock();
+
+            // `epi::Frame::info(&self)` clones `epi::IntegrationInfo`, but we need to modify the original here
+            if let Some(web_info) = &mut frame_lock.info.web_info {
+                web_info.web_location_hash = location_hash().unwrap_or_default();
+            }
+        }) as Box<dyn FnMut()>);
+        window.add_event_listener_with_callback("hashchange", closure.as_ref().unchecked_ref())?;
+        closure.forget();
+    }
+
     Ok(())
 }
 
