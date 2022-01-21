@@ -244,14 +244,17 @@ impl CollapsingHeader {
     ///
     /// For example:
     /// ```
-    /// fn circle_icon(ui: &mut Ui, openness: f32, response: &Response) {
+    /// 
+    /// # egui::__run_test_ui(|ui| {
+    /// fn circle_icon(ui: &mut egui::Ui, openness: f32, response: &egui::Response) {
     ///     let stroke = ui.style().interact(&response).fg_stroke;
     ///     ui.painter().circle_filled(response.rect.center(), 2.0 + openness, stroke.color);
     /// }
     ///
-    /// CollapsingHeader::new("Circles")
+    /// egui::CollapsingHeader::new("Circles")
     ///   .icon(circle_icon)
     ///   .show(ui, |ui| { ui.label("Hi!"); });
+    /// # });
     /// ```
     pub fn icon(mut self, icon_fn: impl FnOnce(&mut Ui, f32, &Response) + 'static) -> Self {
         self.icon = Some(Box::new(icon_fn));
