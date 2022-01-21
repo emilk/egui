@@ -9,9 +9,7 @@ use egui::{
 use glow::HasContext;
 use memoffset::offset_of;
 
-use crate::misc_util::{
-    check_for_gl_error, compile_shader, glow_print, link_program, srgb_texture2d,
-};
+use crate::misc_util::{check_for_gl_error, compile_shader, glow_print, link_program};
 use crate::post_process::PostProcess;
 use crate::shader_version::ShaderVersion;
 use crate::vao_emulate;
@@ -392,7 +390,15 @@ impl Painter {
     ) {
         self.assert_not_destroyed();
 
-        let gl_texture = match image {
+        let glow_texture = *self
+            .textures
+            .entry(tex_id)
+            .or_insert_with(|| unsafe { gl.create_texture().unwrap() });
+        unsafe {
+            gl.bind_texture(glow::TEXTURE_2D, Some(glow_texture));
+        }
+
+        match image {
             egui::ImageData::Color(image) => {
                 assert_eq!(
                     image.width() * image.height(),
@@ -402,17 +408,15 @@ impl Painter {
 
                 let data: &[u8] = bytemuck::cast_slice(image.pixels.as_ref());
 
-                srgb_texture2d(
-                    gl,
-                    self.is_webgl_1,
-                    self.srgb_support,
-                    self.texture_filter,
-                    data,
-                    image.size[0],
-                    image.size[1],
-                )
+                self.upload_texture_srgb(gl, image.size, data);
             }
             egui::ImageData::Alpha(image) => {
+                assert_eq!(
+                    image.width() * image.height(),
+                    image.pixels.len(),
+                    "Mismatch between texture size and texel count"
+                );
+
                 let gamma = if self.is_embedded && self.post_process.is_none() {
                     1.0 / 2.2
                 } else {
@@ -423,20 +427,68 @@ impl Painter {
                     .flat_map(|a| a.to_array())
                     .collect();
 
-                srgb_texture2d(
-                    gl,
-                    self.is_webgl_1,
-                    self.srgb_support,
-                    self.texture_filter,
-                    &data,
-                    image.size[0],
-                    image.size[1],
-                )
+                self.upload_texture_srgb(gl, image.size, &data);
             }
         };
+    }
 
-        if let Some(old_tex) = self.textures.insert(tex_id, gl_texture) {
-            unsafe { gl.delete_texture(old_tex) };
+    fn upload_texture_srgb(&mut self, gl: &glow::Context, [w, h]: [usize; 2], data: &[u8]) {
+        assert_eq!(data.len(), w * h * 4);
+        assert!(w >= 1 && h >= 1);
+        unsafe {
+            gl.tex_parameter_i32(
+                glow::TEXTURE_2D,
+                glow::TEXTURE_MAG_FILTER,
+                self.texture_filter.glow_code() as i32,
+            );
+            gl.tex_parameter_i32(
+                glow::TEXTURE_2D,
+                glow::TEXTURE_MIN_FILTER,
+                self.texture_filter.glow_code() as i32,
+            );
+
+            gl.tex_parameter_i32(
+                glow::TEXTURE_2D,
+                glow::TEXTURE_WRAP_S,
+                glow::CLAMP_TO_EDGE as i32,
+            );
+            gl.tex_parameter_i32(
+                glow::TEXTURE_2D,
+                glow::TEXTURE_WRAP_T,
+                glow::CLAMP_TO_EDGE as i32,
+            );
+
+            if self.is_webgl_1 {
+                let format = if self.srgb_support {
+                    glow::SRGB_ALPHA
+                } else {
+                    glow::RGBA
+                };
+                gl.tex_image_2d(
+                    glow::TEXTURE_2D,
+                    0,
+                    format as i32,
+                    w as i32,
+                    h as i32,
+                    0,
+                    format,
+                    glow::UNSIGNED_BYTE,
+                    Some(data),
+                );
+            } else {
+                gl.tex_image_2d(
+                    glow::TEXTURE_2D,
+                    0,
+                    glow::SRGB8_ALPHA8 as i32,
+                    w as i32,
+                    h as i32,
+                    0,
+                    glow::RGBA,
+                    glow::UNSIGNED_BYTE,
+                    Some(data),
+                );
+            }
+            check_for_gl_error(gl, "upload_texture_srgb");
         }
     }
 
