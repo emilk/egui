@@ -460,6 +460,12 @@ impl State {
             // Treat as zoom instead:
             let factor = (delta.y / 200.0).exp();
             self.egui_input.events.push(egui::Event::Zoom(factor));
+        } else if self.egui_input.modifiers.shift {
+            // Treat as horizontal scrolling.
+            // Note: one Mac we already get horizontal scroll events when shift is down.
+            self.egui_input
+                .events
+                .push(egui::Event::Scroll(egui::vec2(delta.x + delta.y, 0.0)));
         } else {
             self.egui_input.events.push(egui::Event::Scroll(delta));
         }
