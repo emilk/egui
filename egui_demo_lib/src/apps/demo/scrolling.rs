@@ -253,15 +253,9 @@ impl super::View for ScrollTo {
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
-#[derive(PartialEq)]
+#[derive(Default, PartialEq)]
 struct ScrollStickTo {
     n_items: usize,
-}
-
-impl Default for ScrollStickTo {
-    fn default() -> Self {
-        Self { n_items: 0 }
-    }
 }
 
 impl super::View for ScrollStickTo {

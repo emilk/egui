@@ -140,18 +140,10 @@ impl Default for Orientation {
 
 // ----------------------------------------------------------------------------
 
+#[derive(Default)]
 pub struct Values {
     pub(super) values: Vec<Value>,
     generator: Option<ExplicitGenerator>,
-}
-
-impl Default for Values {
-    fn default() -> Self {
-        Self {
-            values: Vec::new(),
-            generator: None,
-        }
-    }
 }
 
 impl Values {

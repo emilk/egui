@@ -237,17 +237,9 @@ impl Widget for &mut MarkerDemo {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(Default, PartialEq)]
 struct LegendDemo {
     config: Legend,
-}
-
-impl Default for LegendDemo {
-    fn default() -> Self {
-        Self {
-            config: Legend::default(),
-        }
-    }
 }
 
 impl LegendDemo {
@@ -381,14 +373,8 @@ impl Widget for &mut ItemsDemo {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(Default, PartialEq)]
 struct InteractionDemo {}
-
-impl Default for InteractionDemo {
-    fn default() -> Self {
-        Self {}
-    }
-}
 
 impl Widget for &mut InteractionDemo {
     fn ui(self, ui: &mut Ui) -> Response {

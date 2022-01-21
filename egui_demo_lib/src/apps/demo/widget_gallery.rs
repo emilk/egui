@@ -208,10 +208,11 @@ impl WidgetGallery {
         ui.add(doc_link_label("CollapsingHeader", "collapsing"));
         ui.collapsing("Click to see what is hidden!", |ui| {
             ui.horizontal_wrapped(|ui| {
-                ui.label(
-                    "Not much, as it turns out - but here is a gold star for you for checking:",
-                );
-                ui.colored_label(egui::Color32::GOLD, "☆");
+                ui.spacing_mut().item_spacing.x = 0.0;
+                ui.label("It's a ");
+                ui.add(doc_link_label("Spinner", "spinner"));
+                ui.add_space(4.0);
+                ui.add(egui::Spinner::new());
             });
         });
         ui.end_row();
@@ -228,10 +229,6 @@ impl WidgetGallery {
             "It's easy to create your own widgets!\n\
             This toggle switch is just 15 lines of code.",
         );
-        ui.end_row();
-
-        ui.add(doc_link_label("Spinner", "spinner"));
-        ui.add(egui::Spinner::new());
         ui.end_row();
     }
 }

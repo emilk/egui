@@ -240,7 +240,11 @@ impl EpiIntegration {
         self.app
             .setup(&self.egui_ctx, &self.frame, self.persistence.storage());
         let app_output = self.frame.take_app_output();
-        self.quit |= app_output.quit;
+
+        if app_output.quit {
+            self.quit = self.app.on_exit_event();
+        }
+
         crate::epi::handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
     }
 
@@ -260,7 +264,12 @@ impl EpiIntegration {
 
     pub fn on_event(&mut self, event: &winit::event::WindowEvent<'_>) {
         use winit::event::WindowEvent;
-        self.quit |= matches!(event, WindowEvent::CloseRequested | WindowEvent::Destroyed);
+        if *event == WindowEvent::CloseRequested {
+            self.quit = self.app.on_exit_event();
+        } else if *event == WindowEvent::Destroyed {
+            self.quit = true;
+        }
+
         self.egui_winit.on_event(&self.egui_ctx, event);
     }
 
@@ -282,7 +291,10 @@ impl EpiIntegration {
             .handle_output(window, &self.egui_ctx, egui_output);
 
         let app_output = self.frame.take_app_output();
-        self.quit |= app_output.quit;
+
+        if app_output.quit {
+            self.quit = self.app.on_exit_event();
+        }
 
         crate::epi::handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
 
