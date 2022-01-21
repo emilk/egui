@@ -141,6 +141,7 @@ pub struct CollapsingHeader {
     selectable: bool,
     selected: bool,
     show_background: bool,
+    icon: Option<Box<dyn FnOnce(&mut Ui, f32, &Response)>>,
 }
 
 impl CollapsingHeader {
@@ -162,6 +163,7 @@ impl CollapsingHeader {
             selectable: false,
             selected: false,
             show_background: false,
+            icon: None,
         }
     }
 
@@ -236,6 +238,25 @@ impl CollapsingHeader {
         self.show_background = show_background;
         self
     }
+
+    /// Use the provided function to render a different `CollapsingHeader` icon.
+    /// Defaults to a triangle that animates as the `CollapsingHeader` opens and closes.
+    ///
+    /// For example:
+    /// ```
+    /// fn circle_icon(ui: &mut Ui, openness: f32, response: &Response) {
+    ///     let stroke = ui.style().interact(&response).fg_stroke;
+    ///     ui.painter().circle_filled(response.rect.center(), 2.0 + openness, stroke.color);
+    /// }
+    ///
+    /// CollapsingHeader::new("Circles")
+    ///   .icon(circle_icon)
+    ///   .show(ui, |ui| { ui.label("Hi!"); });
+    /// ```
+    pub fn icon(mut self, icon_fn: impl FnOnce(&mut Ui, f32, &Response) + 'static) -> Self {
+        self.icon = Some(Box::new(icon_fn));
+        self
+    }
 }
 
 struct Prepared {
@@ -251,6 +272,7 @@ impl CollapsingHeader {
             "Horizontal collapsing is unimplemented"
         );
         let Self {
+            icon,
             text,
             default_open,
             open,
@@ -341,7 +363,11 @@ impl CollapsingHeader {
                     ..header_response.clone()
                 };
                 let openness = state.openness(ui.ctx(), id);
-                paint_icon(ui, openness, &icon_response);
+                if let Some(icon) = icon {
+                    icon(ui, openness, &icon_response);
+                } else {
+                    paint_icon(ui, openness, &icon_response);
+                }
             }
 
             text.paint_with_visuals(ui.painter(), text_pos, &visuals);
