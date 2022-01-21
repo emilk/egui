@@ -8,6 +8,7 @@ All notable changes to the `egui_web` integration will be noted in this file.
 * Made the WebGL painter opt-in ([#1020](https://github.com/emilk/egui/pull/1020)).
 * Fix glow failure Chrome ((#1092)[https://github.com/emilk/egui/pull/1092]).
 * Shift-scroll will now result in horizontal scrolling on all platforms ((#1136)[https://github.com/emilk/egui/pull/1136]).
+* Update `epi::IntegrationInfo::web_location_hash` on `hashchange` event ([#1140](https://github.com/emilk/egui/pull/1140)).
 
 
 ## 0.16.0 - 2021-12-29

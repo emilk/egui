@@ -82,7 +82,7 @@ impl epi::backend::RepaintSignal for NeedRepaint {
 // ----------------------------------------------------------------------------
 
 pub struct AppRunner {
-    frame: epi::Frame,
+    pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
     painter: Box<dyn Painter>,
     pub(crate) input: WebInput,
