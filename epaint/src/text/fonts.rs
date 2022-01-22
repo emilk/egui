@@ -503,9 +503,8 @@ struct FontImplCache {
     pixels_per_point: f32,
     ab_glyph_fonts: BTreeMap<String, ab_glyph::FontArc>,
 
-    /// Map font names and size to the cached `FontImpl`.
-    /// Can't have f32 in a HashMap or BTreeMap, so let's do a linear search
-    cache: Vec<(String, f32, Arc<FontImpl>)>,
+    /// Map font pixel sizes and names to the cached `FontImpl`.
+    cache: ahash::AHashMap<(u32, String), Arc<FontImpl>>,
 }
 
 impl FontImplCache {
@@ -528,20 +527,7 @@ impl FontImplCache {
         }
     }
 
-    pub fn ab_glyph_font(&self, font_name: &str) -> ab_glyph::FontArc {
-        self.ab_glyph_fonts
-            .get(font_name)
-            .unwrap_or_else(|| panic!("No font data found for {:?}", font_name))
-            .clone()
-    }
-
     pub fn font_impl(&mut self, font_name: &str, scale_in_points: f32) -> Arc<FontImpl> {
-        for entry in &self.cache {
-            if (entry.0.as_str(), entry.1) == (font_name, scale_in_points) {
-                return entry.2.clone();
-            }
-        }
-
         let y_offset = if font_name == "emoji-icon-font" {
             scale_in_points * 0.235 // TODO: remove font alignment hack
         } else {
@@ -555,15 +541,29 @@ impl FontImplCache {
             scale_in_points
         };
 
-        let font_impl = Arc::new(FontImpl::new(
-            self.atlas.clone(),
-            self.pixels_per_point,
-            self.ab_glyph_font(font_name),
-            scale_in_points,
-            y_offset,
-        ));
+        let scale_in_pixels = self.pixels_per_point * scale_in_points;
+
+        // Round to an even number of physical pixels to get even kerning.
+        // See https://github.com/emilk/egui/issues/382
+        let scale_in_pixels = scale_in_pixels.round() as u32;
+
         self.cache
-            .push((font_name.to_owned(), scale_in_points, font_impl.clone()));
-        font_impl
+            .entry((scale_in_pixels, font_name.to_owned()))
+            .or_insert_with(|| {
+                let ab_glyph_font = self
+                    .ab_glyph_fonts
+                    .get(font_name)
+                    .unwrap_or_else(|| panic!("No font data found for {:?}", font_name))
+                    .clone();
+
+                Arc::new(FontImpl::new(
+                    self.atlas.clone(),
+                    self.pixels_per_point,
+                    ab_glyph_font,
+                    scale_in_pixels,
+                    y_offset,
+                ))
+            })
+            .clone()
     }
 }

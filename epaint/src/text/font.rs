@@ -59,7 +59,7 @@ impl Default for GlyphInfo {
 pub struct FontImpl {
     ab_glyph_font: ab_glyph::FontArc,
     /// Maximum character height
-    scale_in_pixels: f32,
+    scale_in_pixels: u32,
     height_in_points: f32,
     // move each character by this much (hack)
     y_offset: f32,
@@ -73,20 +73,13 @@ impl FontImpl {
         atlas: Arc<Mutex<TextureAtlas>>,
         pixels_per_point: f32,
         ab_glyph_font: ab_glyph::FontArc,
-        scale_in_points: f32,
+        scale_in_pixels: u32,
         y_offset: f32,
     ) -> FontImpl {
-        assert!(scale_in_points > 0.0);
+        assert!(scale_in_pixels > 0);
         assert!(pixels_per_point > 0.0);
 
-        let scale_in_pixels = pixels_per_point * scale_in_points;
-
-        // Round to an even number of physical pixels to get even kerning.
-        // See https://github.com/emilk/egui/issues/382
-        let scale_in_pixels = scale_in_pixels.round();
-        let scale_in_points = scale_in_pixels / pixels_per_point;
-
-        let height_in_points = scale_in_points;
+        let height_in_points = scale_in_pixels as f32 / pixels_per_point;
 
         // TODO: use v_metrics for line spacing ?
         // let v = rusttype_font.v_metrics(Scale::uniform(scale_in_pixels));
@@ -162,7 +155,7 @@ impl FontImpl {
                 &mut self.atlas.lock(),
                 &self.ab_glyph_font,
                 glyph_id,
-                self.scale_in_pixels,
+                self.scale_in_pixels as f32,
                 self.y_offset,
                 self.pixels_per_point,
             );
@@ -180,7 +173,7 @@ impl FontImpl {
     ) -> f32 {
         use ab_glyph::{Font as _, ScaleFont};
         self.ab_glyph_font
-            .as_scaled(self.scale_in_pixels)
+            .as_scaled(self.scale_in_pixels as f32)
             .kern(last_glyph_id, glyph_id)
             / self.pixels_per_point
     }
@@ -375,7 +368,7 @@ fn allocate_glyph(
                 }
             });
 
-            let offset_in_pixels = vec2(bb.min.x as f32, scale_in_pixels as f32 + bb.min.y as f32);
+            let offset_in_pixels = vec2(bb.min.x as f32, scale_in_pixels + bb.min.y as f32);
             let offset = offset_in_pixels / pixels_per_point + y_offset * Vec2::Y;
             UvRect {
                 offset,
