@@ -465,7 +465,7 @@ impl Painter {
             );
             check_for_gl_error(gl, "tex_parameter");
 
-            let (internal_format, format) = if self.is_webgl_1 {
+            let (internal_format, src_format) = if self.is_webgl_1 {
                 let format = if self.srgb_support {
                     glow::SRGB_ALPHA
                 } else {
@@ -476,6 +476,8 @@ impl Painter {
                 (glow::SRGB8_ALPHA8, glow::RGBA)
             };
 
+            gl.pixel_store_i32(glow::UNPACK_ALIGNMENT, 1);
+
             let level = 0;
             if let Some([x, y]) = pos {
                 gl.tex_sub_image_2d(
@@ -485,7 +487,7 @@ impl Painter {
                     y as _,
                     w as _,
                     h as _,
-                    format,
+                    src_format,
                     glow::UNSIGNED_BYTE,
                     glow::PixelUnpackData::Slice(data),
                 );
@@ -499,7 +501,7 @@ impl Painter {
                     w as _,
                     h as _,
                     border,
-                    format,
+                    src_format,
                     glow::UNSIGNED_BYTE,
                     Some(data),
                 );
