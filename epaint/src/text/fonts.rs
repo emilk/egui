@@ -6,7 +6,7 @@ use crate::{
         font::{Font, FontImpl},
         Galley, LayoutJob,
     },
-    FontImage, TextureAtlas,
+    TextureAtlas,
 };
 
 // TODO: rename
@@ -233,11 +233,6 @@ pub struct Fonts {
     definitions: FontDefinitions,
     fonts: BTreeMap<TextStyle, Font>,
     atlas: Arc<Mutex<TextureAtlas>>,
-
-    /// Copy of the font image in the texture atlas.
-    /// This is so we can return a reference to it (the texture atlas is behind a lock).
-    buffered_font_image: Mutex<Arc<FontImage>>,
-
     galley_cache: Mutex<GalleyCache>,
 }
 
@@ -257,9 +252,9 @@ impl Fonts {
 
         {
             // Make the top left pixel fully white:
-            let pos = atlas.allocate((1, 1));
+            let (pos, image) = atlas.allocate((1, 1));
             assert_eq!(pos, (0, 0));
-            atlas.image_mut().image[pos] = 255;
+            image[pos] = 255;
         }
 
         let atlas = Arc::new(Mutex::new(atlas));
@@ -283,19 +278,11 @@ impl Fonts {
             })
             .collect();
 
-        {
-            let mut atlas = atlas.lock();
-            let texture = atlas.image_mut();
-            // Make sure we seed the texture version with something unique based on the default characters:
-            texture.version = crate::util::hash(&texture.image);
-        }
-
         Self {
             pixels_per_point,
             definitions,
             fonts,
             atlas,
-            buffered_font_image: Default::default(),
             galley_cache: Default::default(),
         }
     }
@@ -319,15 +306,14 @@ impl Fonts {
         (point * self.pixels_per_point).floor() / self.pixels_per_point
     }
 
-    /// Call each frame to get the latest available font texture data.
-    pub fn font_image(&self) -> Arc<FontImage> {
-        let atlas = self.atlas.lock();
-        let mut buffered_texture = self.buffered_font_image.lock();
-        if buffered_texture.version != atlas.image().version {
-            *buffered_texture = Arc::new(atlas.image().clone());
-        }
+    /// Call each frame to get the change to the font texture since last call.
+    pub fn font_image_delta(&self) -> Option<crate::ImageDelta> {
+        self.atlas.lock().take_delta()
+    }
 
-        buffered_texture.clone()
+    /// Current size of the font image
+    pub fn font_image_size(&self) -> [usize; 2] {
+        self.atlas.lock().size()
     }
 
     /// Width of this character in points.

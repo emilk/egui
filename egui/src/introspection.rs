@@ -1,60 +1,58 @@
 //! uis for egui types.
 use crate::*;
 
-impl Widget for &epaint::FontImage {
-    fn ui(self, ui: &mut Ui) -> Response {
-        use epaint::Mesh;
+// Show font texture in demo Ui
+pub(crate) fn font_texture_ui(ui: &mut Ui, [width, height]: [usize; 2]) -> Response {
+    use epaint::Mesh;
 
-        ui.vertical(|ui| {
-            // Show font texture in demo Ui
-            let [width, height] = self.size();
+    ui.vertical(|ui| {
+        let color = if ui.visuals().dark_mode {
+            Color32::WHITE
+        } else {
+            Color32::BLACK
+        };
 
-            ui.label(format!(
-                "Texture size: {} x {} (hover to zoom)",
-                width, height
-            ));
-            if width <= 1 || height <= 1 {
-                return;
-            }
-            let mut size = vec2(width as f32, height as f32);
-            if size.x > ui.available_width() {
-                size *= ui.available_width() / size.x;
-            }
-            let (rect, response) = ui.allocate_at_least(size, Sense::hover());
-            let mut mesh = Mesh::default();
-            mesh.add_rect_with_uv(
-                rect,
-                [pos2(0.0, 0.0), pos2(1.0, 1.0)].into(),
-                Color32::WHITE,
-            );
-            ui.painter().add(Shape::mesh(mesh));
+        ui.label(format!(
+            "Texture size: {} x {} (hover to zoom)",
+            width, height
+        ));
+        if width <= 1 || height <= 1 {
+            return;
+        }
+        let mut size = vec2(width as f32, height as f32);
+        if size.x > ui.available_width() {
+            size *= ui.available_width() / size.x;
+        }
+        let (rect, response) = ui.allocate_at_least(size, Sense::hover());
+        let mut mesh = Mesh::default();
+        mesh.add_rect_with_uv(rect, [pos2(0.0, 0.0), pos2(1.0, 1.0)].into(), color);
+        ui.painter().add(Shape::mesh(mesh));
 
-            let (tex_w, tex_h) = (width as f32, height as f32);
+        let (tex_w, tex_h) = (width as f32, height as f32);
 
-            response
-                .on_hover_cursor(CursorIcon::ZoomIn)
-                .on_hover_ui_at_pointer(|ui| {
-                    if let Some(pos) = ui.ctx().latest_pointer_pos() {
-                        let (_id, zoom_rect) = ui.allocate_space(vec2(128.0, 128.0));
-                        let u = remap_clamp(pos.x, rect.x_range(), 0.0..=tex_w);
-                        let v = remap_clamp(pos.y, rect.y_range(), 0.0..=tex_h);
+        response
+            .on_hover_cursor(CursorIcon::ZoomIn)
+            .on_hover_ui_at_pointer(|ui| {
+                if let Some(pos) = ui.ctx().latest_pointer_pos() {
+                    let (_id, zoom_rect) = ui.allocate_space(vec2(128.0, 128.0));
+                    let u = remap_clamp(pos.x, rect.x_range(), 0.0..=tex_w);
+                    let v = remap_clamp(pos.y, rect.y_range(), 0.0..=tex_h);
 
-                        let texel_radius = 32.0;
-                        let u = u.at_least(texel_radius).at_most(tex_w - texel_radius);
-                        let v = v.at_least(texel_radius).at_most(tex_h - texel_radius);
+                    let texel_radius = 32.0;
+                    let u = u.at_least(texel_radius).at_most(tex_w - texel_radius);
+                    let v = v.at_least(texel_radius).at_most(tex_h - texel_radius);
 
-                        let uv_rect = Rect::from_min_max(
-                            pos2((u - texel_radius) / tex_w, (v - texel_radius) / tex_h),
-                            pos2((u + texel_radius) / tex_w, (v + texel_radius) / tex_h),
-                        );
-                        let mut mesh = Mesh::default();
-                        mesh.add_rect_with_uv(zoom_rect, uv_rect, Color32::WHITE);
-                        ui.painter().add(Shape::mesh(mesh));
-                    }
-                });
-        })
-        .response
-    }
+                    let uv_rect = Rect::from_min_max(
+                        pos2((u - texel_radius) / tex_w, (v - texel_radius) / tex_h),
+                        pos2((u + texel_radius) / tex_w, (v + texel_radius) / tex_h),
+                    );
+                    let mut mesh = Mesh::default();
+                    mesh.add_rect_with_uv(zoom_rect, uv_rect, color);
+                    ui.painter().add(Shape::mesh(mesh));
+                }
+            });
+    })
+    .response
 }
 
 impl Widget for &mut epaint::text::FontDefinitions {

@@ -1087,9 +1087,13 @@ pub struct PlotImage {
 
 impl PlotImage {
     /// Create a new image with position and size in plot coordinates.
-    pub fn new(texture_id: impl Into<TextureId>, position: Value, size: impl Into<Vec2>) -> Self {
+    pub fn new(
+        texture_id: impl Into<TextureId>,
+        center_position: Value,
+        size: impl Into<Vec2>,
+    ) -> Self {
         Self {
-            position,
+            position: center_position,
             name: Default::default(),
             highlight: false,
             texture_id: texture_id.into(),

@@ -33,7 +33,6 @@ struct ContextImpl {
     fonts: Option<Fonts>,
     memory: Memory,
     animation_manager: AnimationManager,
-    latest_font_image_version: Option<u64>,
     tex_manager: WrappedTextureManager,
 
     input: InputState,
@@ -709,16 +708,15 @@ impl Context {
                 .memory
                 .end_frame(&ctx_impl.input, &ctx_impl.frame_state.used_ids);
 
-            let font_image = ctx_impl.fonts.as_ref().unwrap().font_image();
-            let font_image_version = font_image.version;
-
-            if Some(font_image_version) != ctx_impl.latest_font_image_version {
-                ctx_impl.tex_manager.0.write().set(
-                    TextureId::default(),
-                    epaint::textures::ImageDelta::whole(font_image.image.clone()),
-                );
-                ctx_impl.latest_font_image_version = Some(font_image_version);
+            let font_image_delta = ctx_impl.fonts.as_ref().unwrap().font_image_delta();
+            if let Some(font_image_delta) = font_image_delta {
+                ctx_impl
+                    .tex_manager
+                    .0
+                    .write()
+                    .set(TextureId::default(), font_image_delta);
             }
+
             ctx_impl
                 .output
                 .textures_delta
@@ -756,7 +754,7 @@ impl Context {
         let clipped_meshes = tessellator::tessellate_shapes(
             shapes,
             tessellation_options,
-            self.fonts().font_image().size(),
+            self.fonts().font_image_size(),
         );
         self.write().paint_stats = paint_stats.with_clipped_meshes(&clipped_meshes);
         clipped_meshes
@@ -960,8 +958,8 @@ impl Context {
             .show(ui, |ui| {
                 let mut font_definitions = self.fonts().definitions().clone();
                 font_definitions.ui(ui);
-                let font_image = self.fonts().font_image();
-                font_image.ui(ui);
+                let font_image_size = self.fonts().font_image_size();
+                crate::introspection::font_texture_ui(ui, font_image_size);
                 self.set_fonts(font_definitions);
             });
 

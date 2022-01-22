@@ -386,7 +386,7 @@ impl Painter {
         &mut self,
         gl: &glow::Context,
         tex_id: egui::TextureId,
-        delta: &egui::epaint::textures::ImageDelta,
+        delta: &egui::epaint::ImageDelta,
     ) {
         self.assert_not_destroyed();
 
@@ -463,6 +463,7 @@ impl Painter {
                 glow::TEXTURE_WRAP_T,
                 glow::CLAMP_TO_EDGE as i32,
             );
+            check_for_gl_error(gl, "tex_parameter");
 
             let (internal_format, format) = if self.is_webgl_1 {
                 let format = if self.srgb_support {
@@ -477,7 +478,6 @@ impl Painter {
 
             let level = 0;
             if let Some([x, y]) = pos {
-                gl.tex_storage_2d(glow::TEXTURE_2D, 1, internal_format, w as i32, h as i32);
                 gl.tex_sub_image_2d(
                     glow::TEXTURE_2D,
                     level,
@@ -489,6 +489,7 @@ impl Painter {
                     glow::UNSIGNED_BYTE,
                     glow::PixelUnpackData::Slice(data),
                 );
+                check_for_gl_error(gl, "tex_sub_image_2d");
             } else {
                 let border = 0;
                 gl.tex_image_2d(
@@ -502,9 +503,8 @@ impl Painter {
                     glow::UNSIGNED_BYTE,
                     Some(data),
                 );
+                check_for_gl_error(gl, "tex_image_2d");
             }
-
-            check_for_gl_error(gl, "upload_texture_srgb");
         }
     }
 

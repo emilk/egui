@@ -1,4 +1,4 @@
-use crate::{image::ImageData, TextureId};
+use crate::{ImageData, ImageDelta, TextureId};
 use ahash::AHashMap;
 
 // ----------------------------------------------------------------------------
@@ -38,7 +38,7 @@ impl TextureManager {
             retain_count: 1,
         });
 
-        self.delta.set.insert(id, ImageDelta::whole(image));
+        self.delta.set.insert(id, ImageDelta::full(image));
         id
     }
 
@@ -160,45 +160,5 @@ impl TexturesDelta {
     pub fn append(&mut self, mut newer: TexturesDelta) {
         self.set.extend(newer.set.into_iter());
         self.free.append(&mut newer.free);
-    }
-}
-
-/// A change to an image.
-///
-/// Either a whole new image,
-/// or an update to a rectangular region of it.
-#[derive(Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[must_use = "The painter must take care of this"]
-pub struct ImageDelta {
-    /// What to set the texture to.
-    pub image: ImageData,
-
-    /// If `None`, set the whole texture to [`Self::image`].
-    /// If `Some(pos)`, update a sub-region of an already allocated texture.
-    pub pos: Option<[usize; 2]>,
-}
-
-impl ImageDelta {
-    /// Update the whole texture.
-    pub fn whole(image: impl Into<ImageData>) -> Self {
-        Self {
-            image: image.into(),
-            pos: None,
-        }
-    }
-
-    /// Update a sub-region of an existing texture.
-    pub fn partial(pos: [usize; 2], image: impl Into<ImageData>) -> Self {
-        Self {
-            image: image.into(),
-            pos: Some(pos),
-        }
-    }
-
-    /// Is this affecting the whole texture?
-    /// If `false`, this is a partial (sub-region) update.
-    pub fn is_whole(&self) -> bool {
-        self.pos.is_none()
     }
 }

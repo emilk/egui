@@ -1,8 +1,7 @@
 use crate::{
     emath::NumExt,
     mutex::{Arc, RwLock},
-    textures::ImageDelta,
-    ImageData, TextureId, TextureManager,
+    ImageData, ImageDelta, TextureId, TextureManager,
 };
 
 /// Used to paint images.
@@ -69,7 +68,7 @@ impl TextureHandle {
     pub fn set(&mut self, image: impl Into<ImageData>) {
         self.tex_mngr
             .write()
-            .set(self.id, ImageDelta::whole(image.into()));
+            .set(self.id, ImageDelta::full(image.into()));
     }
 
     /// Assign a new image to a subregion of the whole texture.
