@@ -9,6 +9,26 @@ use crate::{
     TextureAtlas,
 };
 
+/// How to select a sized font.
+/// Most paint functions take `impl Into<SizedFont>`
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
+pub enum SizedFont {
+    /// ```
+    /// SizedFont::Style(TextStyle::Heading);
+    /// SizedFont::Style("footer");
+    /// ````
+    Style(TextStyle),
+
+    /// ```
+    /// SizedFont::SizedFamily(16.0, FontFamily::Monospace);
+    /// SizedFont::SizedFamily(12.0, "helvetica".into());
+    /// SizedFont::SizedFamily(12.0, "sans".into());
+    /// ````
+    SizedFamily(f32, FontFamily),
+}
+
 /// Font of unknown size.
 ///
 /// Which style of font: [`Monospace`][`FontFamily::Monospace`], [`Proportional`][`FontFamily::Proportional`],
@@ -395,7 +415,8 @@ pub struct FontsImpl {
     definitions: FontDefinitions,
     atlas: Arc<Mutex<TextureAtlas>>,
     font_impl_cache: FontImplCache,
-    styles: BTreeMap<TextStyle, Font>,
+    styles: ahash::AHashMap<TextStyle, Font>,
+    sized_family: ahash::AHashMap<(u32, FontFamily), Font>,
 }
 
 impl FontsImpl {
@@ -430,6 +451,7 @@ impl FontsImpl {
             atlas,
             font_impl_cache,
             styles: Default::default(),
+            sized_family: Default::default(),
         };
 
         // pre-cache all styles:
@@ -451,6 +473,15 @@ impl FontsImpl {
         &self.definitions
     }
 
+    pub fn font(&mut self, sized_font: &SizedFont) -> &mut Font {
+        match sized_font {
+            SizedFont::Style(style) => self.font_for_style(style),
+            SizedFont::SizedFamily(scale_in_points, family) => {
+                self.font_for_sized_family(*scale_in_points, family)
+            }
+        }
+    }
+
     pub fn font_for_style(&mut self, text_style: &TextStyle) -> &mut Font {
         self.styles.entry(text_style.clone()).or_insert_with(|| {
             let (scale_in_points, family) = self
@@ -466,22 +497,43 @@ impl FontsImpl {
                 })
                 .unwrap_or_else(|| panic!("Missing {:?} in font definitions", TextStyle::Body));
 
+            let scale_in_pixels = self.font_impl_cache.scale_as_pixels(*scale_in_points);
+
             let fonts = &self.definitions.fonts_for_family.get(family);
             let fonts = fonts
                 .unwrap_or_else(|| panic!("FontFamily::{:?} is not bound to any fonts", family));
 
             let fonts: Vec<Arc<FontImpl>> = fonts
                 .iter()
-                .map(|font_name| {
-                    let scale_in_pixels = self
-                        .font_impl_cache
-                        .scale_as_pixels(*scale_in_points, font_name);
-                    self.font_impl_cache.font_impl(scale_in_pixels, font_name)
-                })
+                .map(|font_name| self.font_impl_cache.font_impl(scale_in_pixels, font_name))
                 .collect();
 
             Font::new(fonts)
         })
+    }
+
+    pub fn font_for_sized_family(
+        &mut self,
+        scale_in_points: f32,
+        family: &FontFamily,
+    ) -> &mut Font {
+        let scale_in_pixels = self.font_impl_cache.scale_as_pixels(scale_in_points);
+
+        self.sized_family
+            .entry((scale_in_pixels, family.clone()))
+            .or_insert_with(|| {
+                let fonts = &self.definitions.fonts_for_family.get(family);
+                let fonts = fonts.unwrap_or_else(|| {
+                    panic!("FontFamily::{:?} is not bound to any fonts", family)
+                });
+
+                let fonts: Vec<Arc<FontImpl>> = fonts
+                    .iter()
+                    .map(|font_name| self.font_impl_cache.font_impl(scale_in_pixels, font_name))
+                    .collect();
+
+                Font::new(fonts)
+            })
     }
 
     /// Width of this character in points.
@@ -576,13 +628,8 @@ impl FontImplCache {
         }
     }
 
-    pub fn scale_as_pixels(&self, scale_in_points: f32, font_name: &str) -> u32 {
-        let scale_in_points = if font_name == "emoji-icon-font" {
-            scale_in_points * 0.8 // TODO: remove HACK!
-        } else {
-            scale_in_points
-        };
-
+    #[inline]
+    pub fn scale_as_pixels(&self, scale_in_points: f32) -> u32 {
         let scale_in_pixels = self.pixels_per_point * scale_in_points;
 
         // Round to an even number of physical pixels to get even kerning.
@@ -591,6 +638,12 @@ impl FontImplCache {
     }
 
     pub fn font_impl(&mut self, scale_in_pixels: u32, font_name: &str) -> Arc<FontImpl> {
+        let scale_in_pixels = if font_name == "emoji-icon-font" {
+            (scale_in_pixels as f32 * 0.8).round() as u32 // TODO: remove HACK!
+        } else {
+            scale_in_pixels
+        };
+
         let y_offset = if font_name == "emoji-icon-font" {
             let scale_in_points = scale_in_pixels as f32 / self.pixels_per_point;
             scale_in_points * 0.29375 // TODO: remove font alignment hack
