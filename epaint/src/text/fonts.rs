@@ -472,7 +472,12 @@ impl FontsImpl {
 
             let fonts: Vec<Arc<FontImpl>> = fonts
                 .iter()
-                .map(|font_name| self.font_impl_cache.font_impl(*scale_in_points, font_name))
+                .map(|font_name| {
+                    let scale_in_pixels = self
+                        .font_impl_cache
+                        .scale_as_pixels(*scale_in_points, font_name);
+                    self.font_impl_cache.font_impl(scale_in_pixels, font_name)
+                })
                 .collect();
 
             Font::new(fonts)
@@ -571,14 +576,7 @@ impl FontImplCache {
         }
     }
 
-    pub fn font_impl(&mut self, scale_in_points: f32, font_name: &str) -> Arc<FontImpl> {
-        let y_offset = if font_name == "emoji-icon-font" {
-            scale_in_points * 0.235 // TODO: remove font alignment hack
-        } else {
-            0.0
-        };
-        let y_offset = y_offset - 3.0; // Tweaked to make text look centered in buttons and text edit fields
-
+    pub fn scale_as_pixels(&self, scale_in_points: f32, font_name: &str) -> u32 {
         let scale_in_points = if font_name == "emoji-icon-font" {
             scale_in_points * 0.8 // TODO: remove HACK!
         } else {
@@ -589,7 +587,17 @@ impl FontImplCache {
 
         // Round to an even number of physical pixels to get even kerning.
         // See https://github.com/emilk/egui/issues/382
-        let scale_in_pixels = scale_in_pixels.round() as u32;
+        scale_in_pixels.round() as u32
+    }
+
+    pub fn font_impl(&mut self, scale_in_pixels: u32, font_name: &str) -> Arc<FontImpl> {
+        let y_offset = if font_name == "emoji-icon-font" {
+            let scale_in_points = scale_in_pixels as f32 / self.pixels_per_point;
+            scale_in_points * 0.29375 // TODO: remove font alignment hack
+        } else {
+            0.0
+        };
+        let y_offset = y_offset - 3.0; // Tweaked to make text look centered in buttons and text edit fields
 
         self.cache
             .entry((scale_in_pixels, font_name.to_owned()))
