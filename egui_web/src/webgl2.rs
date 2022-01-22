@@ -40,13 +40,6 @@ impl WebGl2Painter {
 
         // --------------------------------------------------------------------
 
-        let egui_texture = gl.create_texture().unwrap();
-        gl.bind_texture(Gl::TEXTURE_2D, Some(&egui_texture));
-        gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_S, Gl::CLAMP_TO_EDGE as i32);
-        gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_T, Gl::CLAMP_TO_EDGE as i32);
-        gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MIN_FILTER, Gl::LINEAR as i32);
-        gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MAG_FILTER, Gl::LINEAR as i32);
-
         let vert_shader = compile_shader(
             &gl,
             Gl::VERTEX_SHADER,
@@ -220,13 +213,11 @@ impl WebGl2Painter {
             .entry(tex_id)
             .or_insert_with(|| gl.create_texture().unwrap());
 
-        gl.bind_texture(Gl::TEXTURE_2D, Some(&gl_texture));
+        gl.bind_texture(Gl::TEXTURE_2D, Some(gl_texture));
         gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_S, Gl::CLAMP_TO_EDGE as _);
         gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_T, Gl::CLAMP_TO_EDGE as _);
         gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MIN_FILTER, Gl::LINEAR as _);
         gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MAG_FILTER, Gl::LINEAR as _);
-
-        gl.bind_texture(Gl::TEXTURE_2D, Some(&gl_texture));
 
         let level = 0;
         let internal_format = Gl::SRGB8_ALPHA8;

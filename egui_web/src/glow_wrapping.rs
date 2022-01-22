@@ -41,7 +41,7 @@ impl WrappedGlowPainter {
 
 impl crate::Painter for WrappedGlowPainter {
     fn set_texture(&mut self, tex_id: egui::TextureId, delta: &egui::epaint::ImageDelta) {
-        self.painter.set_texture(&self.glow_ctx, tex_id, &delta);
+        self.painter.set_texture(&self.glow_ctx, tex_id, delta);
     }
 
     fn free_texture(&mut self, tex_id: egui::TextureId) {

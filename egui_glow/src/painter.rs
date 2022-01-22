@@ -340,6 +340,7 @@ impl Painter {
 
                 gl.bind_texture(glow::TEXTURE_2D, Some(texture));
             }
+
             // Transform clip rect to physical pixels:
             let clip_min_x = pixels_per_point * clip_rect.min.x;
             let clip_min_y = pixels_per_point * clip_rect.min.y;

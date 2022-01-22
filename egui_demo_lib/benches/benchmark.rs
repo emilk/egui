@@ -114,11 +114,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let text_shape = TextShape::new(egui::Pos2::ZERO, galley);
         c.bench_function("tessellate_text", |b| {
             b.iter(|| {
-                tessellator.tessellate_text(
-                    fonts.font_image().size(),
-                    text_shape.clone(),
-                    &mut mesh,
-                );
+                tessellator.tessellate_text(fonts.font_image_size(), text_shape.clone(), &mut mesh);
                 mesh.clear();
             })
         });

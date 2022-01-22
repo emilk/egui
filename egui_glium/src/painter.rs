@@ -222,7 +222,7 @@ impl Painter {
                     width: glium_image.width,
                     height: glium_image.height,
                 };
-                gl_texture.main_level().write(rect, glium_image)
+                gl_texture.main_level().write(rect, glium_image);
             }
         } else {
             let gl_texture =
