@@ -298,6 +298,11 @@ impl Fonts {
         &self.definitions
     }
 
+    #[inline]
+    pub fn font(&self, text_style: TextStyle) -> &Font {
+        &self.fonts[&text_style]
+    }
+
     /// Call each frame to get the change to the font texture since last call.
     pub fn font_image_delta(&self) -> Option<crate::ImageDelta> {
         self.atlas.lock().take_delta()
@@ -379,15 +384,6 @@ impl Fonts {
     /// Must be called once per frame to clear the [`Galley`] cache.
     pub fn end_frame(&self) {
         self.galley_cache.lock().end_frame();
-    }
-}
-
-impl std::ops::Index<TextStyle> for Fonts {
-    type Output = Font;
-
-    #[inline(always)]
-    fn index(&self, text_style: TextStyle) -> &Font {
-        &self.fonts[&text_style]
     }
 }
 
