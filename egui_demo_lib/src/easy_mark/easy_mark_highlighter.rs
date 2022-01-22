@@ -66,6 +66,9 @@ pub fn highlight_easymark(visuals: &egui::Visuals, mut text: &str) -> egui::text
         } else if start_of_line && text.starts_with("# ") {
             style.heading = true;
             skip = 2;
+        } else if start_of_line && text.starts_with("## ") {
+            style.heading2 = true;
+            skip = 3;
         } else if start_of_line && text.starts_with("> ") {
             style.quoted = true;
             skip = 2;
@@ -134,7 +137,7 @@ fn format_from_style(
 ) -> egui::text::TextFormat {
     use egui::{Align, Color32, Stroke, TextStyle};
 
-    let color = if emark_style.strong || emark_style.heading {
+    let color = if emark_style.strong || emark_style.heading || emark_style.heading2 {
         visuals.strong_text_color()
     } else if emark_style.quoted {
         visuals.weak_text_color()
@@ -144,6 +147,8 @@ fn format_from_style(
 
     let text_style = if emark_style.heading {
         TextStyle::Heading
+    } else if emark_style.heading2 {
+        TextStyle::Heading2
     } else if emark_style.code {
         TextStyle::Monospace
     } else if emark_style.small | emark_style.raised {

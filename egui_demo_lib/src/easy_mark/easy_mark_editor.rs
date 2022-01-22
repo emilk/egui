@@ -212,6 +212,7 @@ and is also missing some features.
 ----------------
 
 # At a glance
+## The Syntax
 - inline text:
   - normal, `code`, *strong*, ~strikethrough~, _underline_, /italics/, ^raised^, $small$
   - `\` escapes the next character
