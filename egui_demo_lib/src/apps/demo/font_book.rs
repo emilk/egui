@@ -54,7 +54,7 @@ impl super::View for FontBook {
         egui::ComboBox::from_label("Text style")
             .selected_text(format!("{:?}", self.text_style))
             .show_ui(ui, |ui| {
-                for style in egui::TextStyle::all() {
+                for style in egui::TextStyle::built_in() {
                     ui.selectable_value(
                         &mut self.text_style,
                         style.clone(),
@@ -81,7 +81,7 @@ impl super::View for FontBook {
                 ui.fonts()
                     .lock()
                     .fonts
-                    .font_mut(&text_style)
+                    .font_for_style(&text_style)
                     .characters()
                     .iter()
                     .filter(|chr| !chr.is_whitespace() && !chr.is_ascii_control())

@@ -597,7 +597,7 @@ impl Style {
                 })
                 .show_ui(ui, |ui| {
                     ui.selectable_value(override_text_style, None, "None");
-                    for style in TextStyle::all() {
+                    for style in TextStyle::built_in() {
                         let text =
                             crate::RichText::new(format!("{:?}", style)).text_style(style.clone());
                         ui.selectable_value(override_text_style, Some(style), text);

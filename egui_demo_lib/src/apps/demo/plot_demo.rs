@@ -261,7 +261,7 @@ impl Widget for &mut LegendDemo {
         egui::Grid::new("settings").show(ui, |ui| {
             ui.label("Text style:");
             ui.horizontal(|ui| {
-                TextStyle::all().for_each(|style| {
+                TextStyle::built_in().for_each(|style| {
                     ui.selectable_value(
                         &mut config.text_style,
                         style.clone(),

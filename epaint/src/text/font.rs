@@ -1,6 +1,5 @@
 use crate::{
     mutex::{Arc, Mutex, RwLock},
-    text::TextStyle,
     TextureAtlas,
 };
 use ahash::AHashMap;
@@ -195,7 +194,6 @@ type FontIndex = usize;
 // TODO: rename?
 /// Wrapper over multiple `FontImpl` (e.g. a primary + fallbacks for emojis)
 pub struct Font {
-    text_style: TextStyle,
     fonts: Vec<Arc<FontImpl>>,
     /// Lazily calculated.
     characters: Option<std::collections::BTreeSet<char>>,
@@ -206,10 +204,9 @@ pub struct Font {
 }
 
 impl Font {
-    pub fn new(text_style: TextStyle, fonts: Vec<Arc<FontImpl>>) -> Self {
+    pub fn new(fonts: Vec<Arc<FontImpl>>) -> Self {
         if fonts.is_empty() {
             return Self {
-                text_style,
                 fonts,
                 characters: None,
                 replacement_glyph: Default::default(),
@@ -223,7 +220,6 @@ impl Font {
         let row_height = fonts[0].row_height();
 
         let mut slf = Self {
-            text_style,
             fonts,
             characters: None,
             replacement_glyph: Default::default(),
@@ -267,11 +263,6 @@ impl Font {
             }
             characters
         })
-    }
-
-    #[inline(always)]
-    pub fn text_style(&self) -> &TextStyle {
-        &self.text_style
     }
 
     #[inline(always)]
