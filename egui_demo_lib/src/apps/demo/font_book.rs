@@ -73,7 +73,7 @@ impl super::View for FontBook {
         let named_chars = self.named_chars.entry(text_style).or_insert_with(|| {
             ui.fonts()
                 .lock()
-                .font(text_style)
+                .font_mut(text_style)
                 .characters()
                 .iter()
                 .filter(|chr| !chr.is_whitespace() && !chr.is_ascii_control())

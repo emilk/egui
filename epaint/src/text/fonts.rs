@@ -417,11 +417,6 @@ impl FontsImpl {
     }
 
     #[inline]
-    pub fn font(&self, text_style: TextStyle) -> &Font {
-        &self.fonts[&text_style]
-    }
-
-    #[inline]
     pub fn font_mut(&mut self, text_style: TextStyle) -> &mut Font {
         self.fonts.get_mut(&text_style).unwrap()
     }
