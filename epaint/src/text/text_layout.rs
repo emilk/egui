@@ -50,7 +50,7 @@ struct Paragraph {
 ///
 /// In most cases you should use [`Fonts::layout_job`] instead
 /// since that memoizes the input, making subsequent layouting of the same text much faster.
-pub fn layout(fonts: &FontsImpl, job: Arc<LayoutJob>) -> Galley {
+pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
     let mut paragraphs = vec![Paragraph::default()];
     for (section_index, section) in job.sections.iter().enumerate() {
         layout_section(fonts, &job, section_index as u32, section, &mut paragraphs);
@@ -75,7 +75,7 @@ pub fn layout(fonts: &FontsImpl, job: Arc<LayoutJob>) -> Galley {
 }
 
 fn layout_section(
-    fonts: &FontsImpl,
+    fonts: &mut FontsImpl,
     job: &LayoutJob,
     section_index: u32,
     section: &LayoutSection,
@@ -86,7 +86,7 @@ fn layout_section(
         byte_range,
         format,
     } = section;
-    let font = fonts.font(format.style);
+    let font = fonts.font_mut(format.style);
     let font_height = font.row_height();
 
     let mut paragraph = out_paragraphs.last_mut().unwrap();

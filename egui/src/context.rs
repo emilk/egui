@@ -700,7 +700,7 @@ impl Context {
             self.request_repaint();
         }
 
-        self.fonts().lock().end_frame();
+        self.fonts().end_frame();
 
         {
             let ctx_impl = &mut *self.write();
@@ -1015,7 +1015,7 @@ impl Context {
 
         ui.label(format!(
             "There are {} text galleys in the layout cache",
-            self.fonts().lock().num_galleys_in_cache()
+            self.fonts().num_galleys_in_cache()
         ))
         .on_hover_text("This is approximately the number of text strings on screen");
         ui.add_space(16.0);
