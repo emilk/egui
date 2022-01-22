@@ -469,7 +469,7 @@ impl<'a> Slider<'a> {
         let text_style = TextStyle::Button;
         let perpendicular = ui
             .fonts()
-            .row_height(text_style)
+            .row_height(&text_style)
             .at_least(ui.spacing().interact_size.y);
         let slider_response = self.allocate_slider_space(ui, perpendicular);
         self.slider_ui(ui, &slider_response);

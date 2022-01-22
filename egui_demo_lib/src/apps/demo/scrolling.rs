@@ -81,7 +81,7 @@ fn huge_content_lines(ui: &mut egui::Ui) {
     ui.add_space(4.0);
 
     let text_style = TextStyle::Body;
-    let row_height = ui.fonts().row_height(text_style);
+    let row_height = ui.fonts().row_height(&text_style);
     let num_rows = 10_000;
     ScrollArea::vertical().auto_shrink([false; 2]).show_rows(
         ui,
@@ -102,7 +102,7 @@ fn huge_content_painter(ui: &mut egui::Ui) {
     ui.add_space(4.0);
 
     let text_style = TextStyle::Body;
-    let row_height = ui.fonts().row_height(text_style) + ui.spacing().item_spacing.y;
+    let row_height = ui.fonts().row_height(&text_style) + ui.spacing().item_spacing.y;
     let num_rows = 10_000;
 
     ScrollArea::vertical()
@@ -130,7 +130,7 @@ fn huge_content_painter(ui: &mut egui::Ui) {
                     pos2(x, y),
                     Align2::LEFT_TOP,
                     text,
-                    text_style,
+                    text_style.clone(),
                     ui.visuals().text_color(),
                 );
                 used_rect = used_rect.union(text_rect);
@@ -265,7 +265,7 @@ impl super::View for ScrollStickTo {
         ui.add_space(4.0);
 
         let text_style = TextStyle::Body;
-        let row_height = ui.fonts().row_height(text_style);
+        let row_height = ui.fonts().row_height(&text_style);
         ScrollArea::vertical().stick_to_bottom().show_rows(
             ui,
             row_height,

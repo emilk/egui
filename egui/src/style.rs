@@ -581,8 +581,9 @@ impl Style {
         crate::Grid::new("_options").show(ui, |ui| {
             ui.label("Default body text style:");
             ui.horizontal(|ui| {
-                for &style in &[TextStyle::Body, TextStyle::Monospace] {
-                    let text = crate::RichText::new(format!("{:?}", style)).text_style(style);
+                for style in [TextStyle::Body, TextStyle::Monospace] {
+                    let text =
+                        crate::RichText::new(format!("{:?}", style)).text_style(style.clone());
                     ui.radio_value(body_text_style, style, text);
                 }
             });
@@ -597,7 +598,8 @@ impl Style {
                 .show_ui(ui, |ui| {
                     ui.selectable_value(override_text_style, None, "None");
                     for style in TextStyle::all() {
-                        let text = crate::RichText::new(format!("{:?}", style)).text_style(style);
+                        let text =
+                            crate::RichText::new(format!("{:?}", style)).text_style(style.clone());
                         ui.selectable_value(override_text_style, Some(style), text);
                     }
                 });

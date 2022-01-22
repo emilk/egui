@@ -11,7 +11,7 @@ use crate::{
 
 // TODO: rename
 /// One of a few categories of styles of text, e.g. body, button or heading.
-#[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
 pub enum TextStyle {
@@ -37,7 +37,7 @@ impl TextStyle {
             TextStyle::Monospace,
         ]
         .iter()
-        .copied()
+        .cloned()
     }
 }
 
@@ -270,13 +270,13 @@ impl Fonts {
 
     /// Width of this character in points.
     #[inline]
-    pub fn glyph_width(&self, text_style: TextStyle, c: char) -> f32 {
+    pub fn glyph_width(&self, text_style: &TextStyle, c: char) -> f32 {
         self.lock().fonts.glyph_width(text_style, c)
     }
 
     /// Height of one row of text. In points
     #[inline]
-    pub fn row_height(&self, text_style: TextStyle) -> f32 {
+    pub fn row_height(&self, text_style: &TextStyle) -> f32 {
         self.lock().fonts.row_height(text_style)
     }
 
@@ -398,17 +398,17 @@ impl FontsImpl {
         let fonts = definitions
             .family_and_size
             .iter()
-            .map(|(&text_style, &(family, scale_in_points))| {
-                let fonts = &definitions.fonts_for_family.get(&family);
+            .map(|(text_style, (family, scale_in_points))| {
+                let fonts = &definitions.fonts_for_family.get(family);
                 let fonts = fonts.unwrap_or_else(|| {
                     panic!("FontFamily::{:?} is not bound to any fonts", family)
                 });
                 let fonts: Vec<Arc<FontImpl>> = fonts
                     .iter()
-                    .map(|font_name| font_impl_cache.font_impl(font_name, scale_in_points))
+                    .map(|font_name| font_impl_cache.font_impl(font_name, *scale_in_points))
                     .collect();
 
-                (text_style, Font::new(text_style, fonts))
+                (text_style.clone(), Font::new(text_style.clone(), fonts))
             })
             .collect();
 
@@ -430,18 +430,18 @@ impl FontsImpl {
     }
 
     #[inline]
-    pub fn font_mut(&mut self, text_style: TextStyle) -> &mut Font {
-        self.fonts.get_mut(&text_style).unwrap()
+    pub fn font_mut(&mut self, text_style: &TextStyle) -> &mut Font {
+        self.fonts.get_mut(text_style).unwrap()
     }
 
     /// Width of this character in points.
-    fn glyph_width(&mut self, text_style: TextStyle, c: char) -> f32 {
+    fn glyph_width(&mut self, text_style: &TextStyle, c: char) -> f32 {
         self.font_mut(text_style).glyph_width(c)
     }
 
     /// Height of one row of text. In points
-    fn row_height(&self, text_style: TextStyle) -> f32 {
-        self.fonts[&text_style].row_height()
+    fn row_height(&mut self, text_style: &TextStyle) -> f32 {
+        self.font_mut(text_style).row_height()
     }
 }
 

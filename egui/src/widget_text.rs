@@ -173,9 +173,10 @@ impl RichText {
     pub fn font_height(&self, ctx: &Context) -> f32 {
         let text_style = self
             .text_style
-            .or(ctx.style().override_text_style)
-            .unwrap_or(ctx.style().body_text_style);
-        ctx.fonts().row_height(text_style)
+            .clone()
+            .or_else(|| ctx.style().override_text_style.clone())
+            .unwrap_or_else(|| ctx.style().body_text_style.clone());
+        ctx.fonts().row_height(&text_style)
     }
 
     fn into_text_job(
@@ -205,7 +206,7 @@ impl RichText {
         let text_color = text_color.unwrap_or(crate::Color32::TEMPORARY_COLOR);
 
         let text_style = text_style
-            .or(style.override_text_style)
+            .or_else(|| style.override_text_style.clone())
             .unwrap_or(default_text_style);
 
         let mut background_color = background_color;

@@ -55,7 +55,11 @@ impl super::View for FontBook {
             .selected_text(format!("{:?}", self.text_style))
             .show_ui(ui, |ui| {
                 for style in egui::TextStyle::all() {
-                    ui.selectable_value(&mut self.text_style, style, format!("{:?}", style));
+                    ui.selectable_value(
+                        &mut self.text_style,
+                        style.clone(),
+                        format!("{:?}", style),
+                    );
                 }
             });
 
@@ -68,19 +72,22 @@ impl super::View for FontBook {
             }
         });
 
-        let text_style = self.text_style;
+        let text_style = self.text_style.clone();
         let filter = &self.filter;
-        let named_chars = self.named_chars.entry(text_style).or_insert_with(|| {
-            ui.fonts()
-                .lock()
-                .fonts
-                .font_mut(text_style)
-                .characters()
-                .iter()
-                .filter(|chr| !chr.is_whitespace() && !chr.is_ascii_control())
-                .map(|&chr| (chr, char_name(chr)))
-                .collect()
-        });
+        let named_chars = self
+            .named_chars
+            .entry(text_style.clone())
+            .or_insert_with(|| {
+                ui.fonts()
+                    .lock()
+                    .fonts
+                    .font_mut(&text_style)
+                    .characters()
+                    .iter()
+                    .filter(|chr| !chr.is_whitespace() && !chr.is_ascii_control())
+                    .map(|&chr| (chr, char_name(chr)))
+                    .collect()
+            });
 
         ui.separator();
 
@@ -91,12 +98,14 @@ impl super::View for FontBook {
                 for (&chr, name) in named_chars {
                     if filter.is_empty() || name.contains(filter) || *filter == chr.to_string() {
                         let button = egui::Button::new(
-                            egui::RichText::new(chr.to_string()).text_style(text_style),
+                            egui::RichText::new(chr.to_string()).text_style(text_style.clone()),
                         )
                         .frame(false);
 
                         let tooltip_ui = |ui: &mut egui::Ui| {
-                            ui.label(egui::RichText::new(chr.to_string()).text_style(text_style));
+                            ui.label(
+                                egui::RichText::new(chr.to_string()).text_style(text_style.clone()),
+                            );
                             ui.label(format!("{}\nU+{:X}\n\nClick to copy", name, chr as u32));
                         };
 
