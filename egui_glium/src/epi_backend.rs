@@ -70,8 +70,8 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
                 integration.update(display.gl_window().window());
             let clipped_meshes = integration.egui_ctx.tessellate(shapes);
 
-            for (id, image) in textures_delta.set {
-                painter.set_texture(&display, id, &image);
+            for (id, image_delta) in textures_delta.set {
+                painter.set_texture(&display, id, &image_delta);
             }
 
             // paint:

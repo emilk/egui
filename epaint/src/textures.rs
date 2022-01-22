@@ -38,16 +38,19 @@ impl TextureManager {
             retain_count: 1,
         });
 
-        self.delta.set.insert(id, image);
+        self.delta.set.insert(id, ImageDelta::whole(image));
         id
     }
 
-    /// Assign a new image to an existing texture.
-    pub fn set(&mut self, id: TextureId, image: ImageData) {
+    /// Assign a new image to an existing texture,
+    /// or update a region of it.
+    pub fn set(&mut self, id: TextureId, delta: ImageDelta) {
         if let Some(meta) = self.metas.get_mut(&id) {
-            meta.size = image.size();
-            meta.bytes_per_pixel = image.bytes_per_pixel();
-            self.delta.set.insert(id, image);
+            if delta.is_whole() {
+                meta.size = delta.image.size();
+                meta.bytes_per_pixel = delta.image.bytes_per_pixel();
+            }
+            self.delta.set.insert(id, delta);
         } else {
             crate::epaint_assert!(
                 false,
@@ -147,7 +150,7 @@ impl TextureMeta {
 #[must_use = "The painter must take care of this"]
 pub struct TexturesDelta {
     /// New or changed textures. Apply before painting.
-    pub set: AHashMap<TextureId, ImageData>,
+    pub set: AHashMap<TextureId, ImageDelta>,
 
     /// Texture to free after painting.
     pub free: Vec<TextureId>,
@@ -157,5 +160,45 @@ impl TexturesDelta {
     pub fn append(&mut self, mut newer: TexturesDelta) {
         self.set.extend(newer.set.into_iter());
         self.free.append(&mut newer.free);
+    }
+}
+
+/// A change to an image.
+///
+/// Either a whole new image,
+/// or an update to a rectangular region of it.
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[must_use = "The painter must take care of this"]
+pub struct ImageDelta {
+    /// What to set the texture to.
+    pub image: ImageData,
+
+    /// If `None`, set the whole texture to [`Self::image`].
+    /// If `Some(pos)`, update a sub-region of an already allocated texture.
+    pub pos: Option<[usize; 2]>,
+}
+
+impl ImageDelta {
+    /// Update the whole texture.
+    pub fn whole(image: impl Into<ImageData>) -> Self {
+        Self {
+            image: image.into(),
+            pos: None,
+        }
+    }
+
+    /// Update a sub-region of an existing texture.
+    pub fn partial(pos: [usize; 2], image: impl Into<ImageData>) -> Self {
+        Self {
+            image: image.into(),
+            pos: Some(pos),
+        }
+    }
+
+    /// Is this affecting the whole texture?
+    /// If `false`, this is a partial (sub-region) update.
+    pub fn is_whole(&self) -> bool {
+        self.pos.is_none()
     }
 }

@@ -1,6 +1,7 @@
 use crate::{
     emath::NumExt,
     mutex::{Arc, RwLock},
+    textures::ImageDelta,
     ImageData, TextureId, TextureManager,
 };
 
@@ -66,7 +67,16 @@ impl TextureHandle {
 
     /// Assign a new image to an existing texture.
     pub fn set(&mut self, image: impl Into<ImageData>) {
-        self.tex_mngr.write().set(self.id, image.into());
+        self.tex_mngr
+            .write()
+            .set(self.id, ImageDelta::whole(image.into()));
+    }
+
+    /// Assign a new image to a subregion of the whole texture.
+    pub fn set_partial(&mut self, pos: [usize; 2], image: impl Into<ImageData>) {
+        self.tex_mngr
+            .write()
+            .set(self.id, ImageDelta::partial(pos, image.into()));
     }
 
     /// width x height

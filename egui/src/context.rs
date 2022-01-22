@@ -713,11 +713,10 @@ impl Context {
             let font_image_version = font_image.version;
 
             if Some(font_image_version) != ctx_impl.latest_font_image_version {
-                ctx_impl
-                    .tex_manager
-                    .0
-                    .write()
-                    .set(TextureId::default(), font_image.image.clone().into());
+                ctx_impl.tex_manager.0.write().set(
+                    TextureId::default(),
+                    epaint::textures::ImageDelta::whole(font_image.image.clone()),
+                );
                 ctx_impl.latest_font_image_version = Some(font_image_version);
             }
             ctx_impl
