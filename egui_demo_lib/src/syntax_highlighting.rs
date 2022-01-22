@@ -116,7 +116,7 @@ impl SyntectTheme {
     }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq)]
+#[derive(Clone, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct CodeTheme {
@@ -158,15 +158,15 @@ impl CodeTheme {
         }
     }
 
-    pub fn store_in_memory(&self, ctx: &egui::Context) {
+    pub fn store_in_memory(self, ctx: &egui::Context) {
         if self.dark_mode {
             ctx.memory()
                 .data
-                .insert_persisted(egui::Id::new("dark"), *self);
+                .insert_persisted(egui::Id::new("dark"), self);
         } else {
             ctx.memory()
                 .data
-                .insert_persisted(egui::Id::new("light"), *self);
+                .insert_persisted(egui::Id::new("light"), self);
         }
     }
 }
@@ -206,12 +206,12 @@ impl CodeTheme {
         Self {
             dark_mode: true,
             formats: enum_map::enum_map![
-                TokenType::Comment => TextFormat::simple(text_style, Color32::from_gray(120)),
-                TokenType::Keyword => TextFormat::simple(text_style, Color32::from_rgb(255, 100, 100)),
-                TokenType::Literal => TextFormat::simple(text_style, Color32::from_rgb(87, 165, 171)),
-                TokenType::StringLiteral => TextFormat::simple(text_style, Color32::from_rgb(109, 147, 226)),
-                TokenType::Punctuation => TextFormat::simple(text_style, Color32::LIGHT_GRAY),
-                TokenType::Whitespace => TextFormat::simple(text_style, Color32::TRANSPARENT),
+                TokenType::Comment => TextFormat::simple(text_style.clone(), Color32::from_gray(120)),
+                TokenType::Keyword => TextFormat::simple(text_style.clone(), Color32::from_rgb(255, 100, 100)),
+                TokenType::Literal => TextFormat::simple(text_style.clone(), Color32::from_rgb(87, 165, 171)),
+                TokenType::StringLiteral => TextFormat::simple(text_style.clone(), Color32::from_rgb(109, 147, 226)),
+                TokenType::Punctuation => TextFormat::simple(text_style.clone(), Color32::LIGHT_GRAY),
+                TokenType::Whitespace => TextFormat::simple(text_style.clone(), Color32::TRANSPARENT),
             ],
         }
     }
@@ -223,12 +223,12 @@ impl CodeTheme {
             dark_mode: false,
             #[cfg(not(feature = "syntect"))]
             formats: enum_map::enum_map![
-                TokenType::Comment => TextFormat::simple(text_style, Color32::GRAY),
-                TokenType::Keyword => TextFormat::simple(text_style, Color32::from_rgb(235, 0, 0)),
-                TokenType::Literal => TextFormat::simple(text_style, Color32::from_rgb(153, 134, 255)),
-                TokenType::StringLiteral => TextFormat::simple(text_style, Color32::from_rgb(37, 203, 105)),
-                TokenType::Punctuation => TextFormat::simple(text_style, Color32::DARK_GRAY),
-                TokenType::Whitespace => TextFormat::simple(text_style, Color32::TRANSPARENT),
+                TokenType::Comment => TextFormat::simple(text_style.clone(), Color32::GRAY),
+                TokenType::Keyword => TextFormat::simple(text_style.clone(), Color32::from_rgb(235, 0, 0)),
+                TokenType::Literal => TextFormat::simple(text_style.clone(), Color32::from_rgb(153, 134, 255)),
+                TokenType::StringLiteral => TextFormat::simple(text_style.clone(), Color32::from_rgb(37, 203, 105)),
+                TokenType::Punctuation => TextFormat::simple(text_style.clone(), Color32::DARK_GRAY),
+                TokenType::Whitespace => TextFormat::simple(text_style.clone(), Color32::TRANSPARENT),
             ],
         }
     }
@@ -259,7 +259,7 @@ impl CodeTheme {
                         // (TokenType::Whitespace, "whitespace"),
                     ] {
                         let format = &mut self.formats[tt];
-                        ui.style_mut().override_text_style = Some(format.style);
+                        ui.style_mut().override_text_style = Some(format.style.clone());
                         ui.visuals_mut().override_text_color = Some(format.color);
                         ui.radio_value(&mut selected_tt, tt, tt_name);
                     }
@@ -412,7 +412,7 @@ impl Highligher {
         while !text.is_empty() {
             if text.starts_with("//") {
                 let end = text.find('\n').unwrap_or_else(|| text.len());
-                job.append(&text[..end], 0.0, theme.formats[TokenType::Comment]);
+                job.append(&text[..end], 0.0, theme.formats[TokenType::Comment].clone());
                 text = &text[end..];
             } else if text.starts_with('"') {
                 let end = text[1..]
@@ -420,7 +420,11 @@ impl Highligher {
                     .map(|i| i + 2)
                     .or_else(|| text.find('\n'))
                     .unwrap_or_else(|| text.len());
-                job.append(&text[..end], 0.0, theme.formats[TokenType::StringLiteral]);
+                job.append(
+                    &text[..end],
+                    0.0,
+                    theme.formats[TokenType::StringLiteral].clone(),
+                );
                 text = &text[end..];
             } else if text.starts_with(|c: char| c.is_ascii_alphanumeric()) {
                 let end = text[1..]
@@ -432,19 +436,27 @@ impl Highligher {
                 } else {
                     TokenType::Literal
                 };
-                job.append(word, 0.0, theme.formats[tt]);
+                job.append(word, 0.0, theme.formats[tt].clone());
                 text = &text[end..];
             } else if text.starts_with(|c: char| c.is_ascii_whitespace()) {
                 let end = text[1..]
                     .find(|c: char| !c.is_ascii_whitespace())
                     .map_or_else(|| text.len(), |i| i + 1);
-                job.append(&text[..end], 0.0, theme.formats[TokenType::Whitespace]);
+                job.append(
+                    &text[..end],
+                    0.0,
+                    theme.formats[TokenType::Whitespace].clone(),
+                );
                 text = &text[end..];
             } else {
                 let mut it = text.char_indices();
                 it.next();
                 let end = it.next().map_or(text.len(), |(idx, _chr)| idx);
-                job.append(&text[..end], 0.0, theme.formats[TokenType::Punctuation]);
+                job.append(
+                    &text[..end],
+                    0.0,
+                    theme.formats[TokenType::Punctuation].clone(),
+                );
                 text = &text[end..];
             }
         }

@@ -71,7 +71,7 @@ impl super::View for CodeEditor {
         ui.collapsing("Theme", |ui| {
             ui.group(|ui| {
                 theme.ui(ui);
-                theme.store_in_memory(ui.ctx());
+                theme.clone().store_in_memory(ui.ctx());
             });
         });
 

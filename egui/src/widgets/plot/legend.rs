@@ -29,7 +29,7 @@ impl Corner {
 }
 
 /// The configuration for a plot legend.
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Legend {
     pub text_style: TextStyle,
     pub background_alpha: f32,
@@ -89,9 +89,11 @@ impl LegendEntry {
             hovered,
         } = self;
 
-        let galley =
-            ui.fonts()
-                .layout_delayed_color(text, ui.style().body_text_style, f32::INFINITY);
+        let galley = ui.fonts().layout_delayed_color(
+            text,
+            ui.style().body_text_style.clone(),
+            f32::INFINITY,
+        );
 
         let icon_size = galley.size().y;
         let icon_spacing = icon_size / 5.0;
@@ -236,7 +238,7 @@ impl Widget for &mut LegendWidget {
         let mut legend_ui = ui.child_ui(legend_rect, layout);
         legend_ui
             .scope(|ui| {
-                ui.style_mut().body_text_style = config.text_style;
+                ui.style_mut().body_text_style = config.text_style.clone();
                 let background_frame = Frame {
                     margin: vec2(8.0, 4.0),
                     corner_radius: ui.style().visuals.window_corner_radius,

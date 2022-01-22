@@ -156,7 +156,7 @@ impl LayoutJob {
     pub fn font_height(&self, fonts: &crate::Fonts) -> f32 {
         let mut max_height = 0.0_f32;
         for section in &self.sections {
-            max_height = max_height.max(fonts.row_height(section.format.style));
+            max_height = max_height.max(fonts.row_height(&section.format.style));
         }
         max_height
     }
@@ -213,7 +213,7 @@ impl std::hash::Hash for LayoutSection {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Copy, Clone, Debug, Hash, PartialEq)]
+#[derive(Clone, Debug, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TextFormat {
     pub style: TextStyle,

@@ -270,8 +270,8 @@ impl Font {
     }
 
     #[inline(always)]
-    pub fn text_style(&self) -> TextStyle {
-        self.text_style
+    pub fn text_style(&self) -> &TextStyle {
+        &self.text_style
     }
 
     #[inline(always)]

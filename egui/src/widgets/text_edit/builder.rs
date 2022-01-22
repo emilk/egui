@@ -351,9 +351,9 @@ impl<'t> TextEdit<'t> {
 
         let prev_text = text.as_ref().to_owned();
         let text_style = text_style
-            .or(ui.style().override_text_style)
-            .unwrap_or_else(|| ui.style().body_text_style);
-        let row_height = ui.fonts().row_height(text_style);
+            .or_else(|| ui.style().override_text_style.clone())
+            .unwrap_or_else(|| ui.style().body_text_style.clone());
+        let row_height = ui.fonts().row_height(&text_style);
         const MIN_WIDTH: f32 = 24.0; // Never make a `TextEdit` more narrow than this.
         let available_width = ui.available_width().at_least(MIN_WIDTH);
         let desired_width = desired_width.unwrap_or_else(|| ui.spacing().text_edit_width);
@@ -363,12 +363,13 @@ impl<'t> TextEdit<'t> {
             desired_width.min(available_width)
         };
 
+        let text_style_clone = text_style.clone();
         let mut default_layouter = move |ui: &Ui, text: &str, wrap_width: f32| {
             let text = mask_if_password(password, text);
             ui.fonts().layout_job(if multiline {
-                LayoutJob::simple(text, text_style, text_color, wrap_width)
+                LayoutJob::simple(text, text_style_clone.clone(), text_color, wrap_width)
             } else {
-                LayoutJob::simple_singleline(text, text_style, text_color)
+                LayoutJob::simple_singleline(text, text_style_clone.clone(), text_color)
             })
         };
 

@@ -140,7 +140,7 @@ impl Widgets {
 
         ui.horizontal_wrapped(|ui| {
             // Trick so we don't have to add spaces in the text below:
-            let width = ui.fonts().glyph_width(TextStyle::Body, ' ');
+            let width = ui.fonts().glyph_width(&TextStyle::Body, ' ');
             ui.spacing_mut().item_spacing.x = width;
 
             ui.label(RichText::new("Text can have").color(Color32::from_rgb(110, 255, 110)));
