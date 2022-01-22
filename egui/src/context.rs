@@ -93,7 +93,7 @@ impl ContextImpl {
                 new_font_definitions.unwrap_or_else(|| {
                     self.fonts
                         .as_ref()
-                        .map(|font| font.definitions().clone())
+                        .map(|font| font.lock().definitions().clone())
                         .unwrap_or_default()
                 }),
             ));
@@ -521,7 +521,7 @@ impl Context {
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
         if let Some(current_fonts) = &*self.fonts_mut() {
             // NOTE: this comparison is expensive since it checks TTF data for equality
-            if current_fonts.definitions() == &font_definitions {
+            if current_fonts.lock().definitions() == &font_definitions {
                 return; // no change - save us from reloading font textures
             }
         }
@@ -700,7 +700,7 @@ impl Context {
             self.request_repaint();
         }
 
-        self.fonts().end_frame();
+        self.fonts().lock().end_frame();
 
         {
             let ctx_impl = &mut *self.write();
@@ -708,7 +708,7 @@ impl Context {
                 .memory
                 .end_frame(&ctx_impl.input, &ctx_impl.frame_state.used_ids);
 
-            let font_image_delta = ctx_impl.fonts.as_ref().unwrap().font_image_delta();
+            let font_image_delta = ctx_impl.fonts.as_ref().unwrap().lock().font_image_delta();
             if let Some(font_image_delta) = font_image_delta {
                 ctx_impl
                     .tex_manager
@@ -754,7 +754,7 @@ impl Context {
         let clipped_meshes = tessellator::tessellate_shapes(
             shapes,
             tessellation_options,
-            self.fonts().font_image_size(),
+            self.fonts().lock().font_image_size(),
         );
         self.write().paint_stats = paint_stats.with_clipped_meshes(&clipped_meshes);
         clipped_meshes
@@ -956,9 +956,9 @@ impl Context {
         CollapsingHeader::new("🔠 Fonts")
             .default_open(false)
             .show(ui, |ui| {
-                let mut font_definitions = self.fonts().definitions().clone();
+                let mut font_definitions = self.fonts().lock().definitions().clone();
                 font_definitions.ui(ui);
-                let font_image_size = self.fonts().font_image_size();
+                let font_image_size = self.fonts().lock().font_image_size();
                 crate::introspection::font_texture_ui(ui, font_image_size);
                 self.set_fonts(font_definitions);
             });
@@ -1015,7 +1015,7 @@ impl Context {
 
         ui.label(format!(
             "There are {} text galleys in the layout cache",
-            self.fonts().num_galleys_in_cache()
+            self.fonts().lock().num_galleys_in_cache()
         ))
         .on_hover_text("This is approximately the number of text strings on screen");
         ui.add_space(16.0);

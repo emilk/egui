@@ -91,19 +91,22 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let color = egui::Color32::WHITE;
         let fonts =
             egui::epaint::text::Fonts::new(pixels_per_point, egui::FontDefinitions::default());
-        c.bench_function("text_layout_uncached", |b| {
-            b.iter(|| {
-                use egui::epaint::text::{layout, LayoutJob};
+        {
+            let mut fonts_impl = fonts.lock();
+            c.bench_function("text_layout_uncached", |b| {
+                b.iter(|| {
+                    use egui::epaint::text::{layout, LayoutJob};
 
-                let job = LayoutJob::simple(
-                    LOREM_IPSUM_LONG.to_owned(),
-                    egui::TextStyle::Body,
-                    color,
-                    wrap_width,
-                );
-                layout(&fonts, job.into())
-            })
-        });
+                    let job = LayoutJob::simple(
+                        LOREM_IPSUM_LONG.to_owned(),
+                        egui::TextStyle::Body,
+                        color,
+                        wrap_width,
+                    );
+                    layout(&mut fonts_impl, job.into())
+                })
+            });
+        }
         c.bench_function("text_layout_cached", |b| {
             b.iter(|| fonts.layout(LOREM_IPSUM_LONG.to_owned(), text_style, color, wrap_width))
         });
@@ -112,9 +115,10 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let mut tessellator = egui::epaint::Tessellator::from_options(Default::default());
         let mut mesh = egui::epaint::Mesh::default();
         let text_shape = TextShape::new(egui::Pos2::ZERO, galley);
+        let font_image_size = fonts.lock().font_image_size();
         c.bench_function("tessellate_text", |b| {
             b.iter(|| {
-                tessellator.tessellate_text(fonts.font_image_size(), text_shape.clone(), &mut mesh);
+                tessellator.tessellate_text(font_image_size, text_shape.clone(), &mut mesh);
                 mesh.clear();
             })
         });

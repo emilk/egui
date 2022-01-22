@@ -72,6 +72,7 @@ impl super::View for FontBook {
         let filter = &self.filter;
         let named_chars = self.named_chars.entry(text_style).or_insert_with(|| {
             ui.fonts()
+                .lock()
                 .font(text_style)
                 .characters()
                 .iter()

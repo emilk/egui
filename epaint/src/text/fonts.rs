@@ -230,7 +230,106 @@ impl Default for FontDefinitions {
 /// The collection of fonts used by `epaint`.
 ///
 /// Required in order to paint text.
-pub struct Fonts {
+/// Create one and reuse. Cheap to clone.
+///
+/// Wrapper for `Arc<Mutex<FontsImpl>>`.
+pub struct Fonts(Arc<Mutex<FontsImpl>>);
+
+impl Fonts {
+    /// Create a new [`Fonts`] for text layout.
+    /// This call is expensive, so only create one [`Fonts`] and then reuse it.
+    pub fn new(pixels_per_point: f32, definitions: FontDefinitions) -> Self {
+        Self(Arc::new(Mutex::new(FontsImpl::new(
+            pixels_per_point,
+            definitions,
+        ))))
+    }
+
+    /// Access the underlying [`FontsImpl`].
+    #[doc(hidden)]
+    #[inline]
+    pub fn lock(&self) -> crate::mutex::MutexGuard<'_, FontsImpl> {
+        self.0.lock()
+    }
+
+    #[inline]
+    pub fn pixels_per_point(&self) -> f32 {
+        self.lock().pixels_per_point
+    }
+
+    /// Width of this character in points.
+    #[inline]
+    pub fn glyph_width(&self, text_style: TextStyle, c: char) -> f32 {
+        self.lock().glyph_width(text_style, c)
+    }
+
+    /// Height of one row of text. In points
+    #[inline]
+    pub fn row_height(&self, text_style: TextStyle) -> f32 {
+        self.lock().row_height(text_style)
+    }
+
+    /// Layout some text.
+    /// This is the most advanced layout function.
+    /// See also [`Self::layout`], [`Self::layout_no_wrap`] and
+    /// [`Self::layout_delayed_color`].
+    ///
+    /// The implementation uses memoization so repeated calls are cheap.
+    /// #[inline]
+    pub fn layout_job(&self, job: LayoutJob) -> Arc<Galley> {
+        self.lock().layout_job(job)
+    }
+
+    /// Will wrap text at the given width and line break at `\n`.
+    ///
+    /// The implementation uses memoization so repeated calls are cheap.
+    pub fn layout(
+        &self,
+        text: String,
+        text_style: TextStyle,
+        color: crate::Color32,
+        wrap_width: f32,
+    ) -> Arc<Galley> {
+        let job = LayoutJob::simple(text, text_style, color, wrap_width);
+        self.layout_job(job)
+    }
+
+    /// Will line break at `\n`.
+    ///
+    /// The implementation uses memoization so repeated calls are cheap.
+    pub fn layout_no_wrap(
+        &self,
+        text: String,
+        text_style: TextStyle,
+        color: crate::Color32,
+    ) -> Arc<Galley> {
+        let job = LayoutJob::simple(text, text_style, color, f32::INFINITY);
+        self.layout_job(job)
+    }
+
+    /// Like [`Self::layout`], made for when you want to pick a color for the text later.
+    ///
+    /// The implementation uses memoization so repeated calls are cheap.
+    pub fn layout_delayed_color(
+        &self,
+        text: String,
+        text_style: TextStyle,
+        wrap_width: f32,
+    ) -> Arc<Galley> {
+        self.layout_job(LayoutJob::simple(
+            text,
+            text_style,
+            crate::Color32::TEMPORARY_COLOR,
+            wrap_width,
+        ))
+    }
+}
+// ----------------------------------------------------------------------------
+
+/// The collection of fonts used by `epaint`.
+///
+/// Required in order to paint text.
+pub struct FontsImpl {
     pixels_per_point: f32,
     definitions: FontDefinitions,
     fonts: BTreeMap<TextStyle, Font>,
@@ -238,9 +337,9 @@ pub struct Fonts {
     galley_cache: Mutex<GalleyCache>,
 }
 
-impl Fonts {
-    /// Create a new [`Fonts`] for text layout.
-    /// This call is expensive, so only create one [`Fonts`] and then reuse it.
+impl FontsImpl {
+    /// Create a new [`FontsImpl`] for text layout.
+    /// This call is expensive, so only create one [`FontsImpl`] and then reuse it.
     pub fn new(pixels_per_point: f32, definitions: FontDefinitions) -> Self {
         assert!(
             0.0 < pixels_per_point && pixels_per_point < 100.0,
@@ -332,51 +431,6 @@ impl Fonts {
     pub fn layout_job(&self, job: LayoutJob) -> Arc<Galley> {
         self.galley_cache.lock().layout(self, job)
     }
-
-    /// Will wrap text at the given width and line break at `\n`.
-    ///
-    /// The implementation uses memoization so repeated calls are cheap.
-    pub fn layout(
-        &self,
-        text: String,
-        text_style: TextStyle,
-        color: crate::Color32,
-        wrap_width: f32,
-    ) -> Arc<Galley> {
-        let job = LayoutJob::simple(text, text_style, color, wrap_width);
-        self.layout_job(job)
-    }
-
-    /// Will line break at `\n`.
-    ///
-    /// The implementation uses memoization so repeated calls are cheap.
-    pub fn layout_no_wrap(
-        &self,
-        text: String,
-        text_style: TextStyle,
-        color: crate::Color32,
-    ) -> Arc<Galley> {
-        let job = LayoutJob::simple(text, text_style, color, f32::INFINITY);
-        self.layout_job(job)
-    }
-
-    /// Like [`Self::layout`], made for when you want to pick a color for the text later.
-    ///
-    /// The implementation uses memoization so repeated calls are cheap.
-    pub fn layout_delayed_color(
-        &self,
-        text: String,
-        text_style: TextStyle,
-        wrap_width: f32,
-    ) -> Arc<Galley> {
-        self.layout_job(LayoutJob::simple(
-            text,
-            text_style,
-            crate::Color32::TEMPORARY_COLOR,
-            wrap_width,
-        ))
-    }
-
     pub fn num_galleys_in_cache(&self) -> usize {
         self.galley_cache.lock().num_galleys_in_cache()
     }
@@ -403,7 +457,7 @@ struct GalleyCache {
 }
 
 impl GalleyCache {
-    fn layout(&mut self, fonts: &Fonts, job: LayoutJob) -> Arc<Galley> {
+    fn layout(&mut self, fonts: &FontsImpl, job: LayoutJob) -> Arc<Galley> {
         let hash = crate::util::hash(&job); // TODO: even faster hasher?
 
         match self.cache.entry(hash) {
