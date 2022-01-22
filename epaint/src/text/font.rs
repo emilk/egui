@@ -260,7 +260,7 @@ impl Font {
             slf.glyph_info(c);
         }
         slf.glyph_info('°');
-        slf.glyph_info(crate::text::PASSWORD_REPLACEMENT_CHAR); // password replacement character
+        slf.glyph_info(crate::text::PASSWORD_REPLACEMENT_CHAR);
 
         slf
     }

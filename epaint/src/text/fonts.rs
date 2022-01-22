@@ -225,6 +225,8 @@ impl Default for FontDefinitions {
     }
 }
 
+// ----------------------------------------------------------------------------
+
 /// The collection of fonts used by `epaint`.
 ///
 /// Required in order to paint text.
@@ -294,16 +296,6 @@ impl Fonts {
 
     pub fn definitions(&self) -> &FontDefinitions {
         &self.definitions
-    }
-
-    #[inline(always)]
-    pub fn round_to_pixel(&self, point: f32) -> f32 {
-        (point * self.pixels_per_point).round() / self.pixels_per_point
-    }
-
-    #[inline(always)]
-    pub fn floor_to_pixel(&self, point: f32) -> f32 {
-        (point * self.pixels_per_point).floor() / self.pixels_per_point
     }
 
     /// Call each frame to get the change to the font texture since last call.

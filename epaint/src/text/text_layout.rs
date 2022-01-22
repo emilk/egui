@@ -4,6 +4,38 @@ use super::{Fonts, Galley, Glyph, LayoutJob, LayoutSection, Row, RowVisuals};
 use crate::{mutex::Arc, Color32, Mesh, Stroke, Vertex};
 use emath::*;
 
+// ----------------------------------------------------------------------------
+
+/// Represents GUI scale and convenience methods for rounding to pixels.
+#[derive(Clone, Copy)]
+struct PointScale {
+    pub pixels_per_point: f32,
+}
+
+impl PointScale {
+    #[inline(always)]
+    pub fn new(pixels_per_point: f32) -> Self {
+        Self { pixels_per_point }
+    }
+
+    #[inline(always)]
+    pub fn pixels_per_point(&self) -> f32 {
+        self.pixels_per_point
+    }
+
+    #[inline(always)]
+    pub fn round_to_pixel(&self, point: f32) -> f32 {
+        (point * self.pixels_per_point).round() / self.pixels_per_point
+    }
+
+    #[inline(always)]
+    pub fn floor_to_pixel(&self, point: f32) -> f32 {
+        (point * self.pixels_per_point).floor() / self.pixels_per_point
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// Temporary storage before line-wrapping.
 #[derive(Default, Clone)]
 struct Paragraph {
@@ -24,6 +56,8 @@ pub fn layout(fonts: &Fonts, job: Arc<LayoutJob>) -> Galley {
         layout_section(fonts, &job, section_index as u32, section, &mut paragraphs);
     }
 
+    let point_scale = PointScale::new(fonts.pixels_per_point());
+
     let mut rows = rows_from_paragraphs(paragraphs, job.wrap_width);
 
     let justify = job.justify && job.wrap_width.is_finite();
@@ -33,11 +67,11 @@ pub fn layout(fonts: &Fonts, job: Arc<LayoutJob>) -> Galley {
         for (i, row) in rows.iter_mut().enumerate() {
             let is_last_row = i + 1 == num_rows;
             let justify_row = justify && !row.ends_with_newline && !is_last_row;
-            halign_and_jusitfy_row(fonts, row, job.halign, job.wrap_width, justify_row);
+            halign_and_jusitfy_row(point_scale, row, job.halign, job.wrap_width, justify_row);
         }
     }
 
-    galley_from_rows(fonts, job, rows)
+    galley_from_rows(point_scale, job, rows)
 }
 
 fn layout_section(
@@ -213,7 +247,7 @@ fn line_break(paragraph: &Paragraph, wrap_width: f32, out_rows: &mut Vec<Row>) {
 }
 
 fn halign_and_jusitfy_row(
-    fonts: &Fonts,
+    point_scale: PointScale,
     row: &mut Row,
     halign: Align,
     wrap_width: f32,
@@ -278,7 +312,7 @@ fn halign_and_jusitfy_row(
         // Add an integral number of pixels between each glyph,
         // and add the balance to the spaces:
 
-        extra_x_per_glyph = fonts.floor_to_pixel(extra_x_per_glyph);
+        extra_x_per_glyph = point_scale.floor_to_pixel(extra_x_per_glyph);
 
         extra_x_per_space = (target_width
             - original_width
@@ -290,7 +324,7 @@ fn halign_and_jusitfy_row(
 
     for glyph in &mut row.glyphs {
         glyph.pos.x += translate_x;
-        glyph.pos.x = fonts.round_to_pixel(glyph.pos.x);
+        glyph.pos.x = point_scale.round_to_pixel(glyph.pos.x);
         translate_x += extra_x_per_glyph;
         if glyph.chr.is_whitespace() {
             translate_x += extra_x_per_space;
@@ -303,7 +337,7 @@ fn halign_and_jusitfy_row(
 }
 
 /// Calculate the Y positions and tessellate the text.
-fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob>, mut rows: Vec<Row>) -> Galley {
+fn galley_from_rows(point_scale: PointScale, job: Arc<LayoutJob>, mut rows: Vec<Row>) -> Galley {
     let mut first_row_min_height = job.first_row_min_height;
     let mut cursor_y = 0.0;
     let mut min_x: f32 = 0.0;
@@ -314,13 +348,13 @@ fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob>, mut rows: Vec<Row>) -> G
         for glyph in &row.glyphs {
             row_height = row_height.max(glyph.size.y);
         }
-        row_height = fonts.round_to_pixel(row_height);
+        row_height = point_scale.round_to_pixel(row_height);
 
         // Now positions each glyph:
         for glyph in &mut row.glyphs {
             let format = &job.sections[glyph.section_index as usize].format;
             glyph.pos.y = cursor_y + format.valign.to_factor() * (row_height - glyph.size.y);
-            glyph.pos.y = fonts.round_to_pixel(glyph.pos.y);
+            glyph.pos.y = point_scale.round_to_pixel(glyph.pos.y);
         }
 
         row.rect.min.y = cursor_y;
@@ -329,7 +363,7 @@ fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob>, mut rows: Vec<Row>) -> G
         min_x = min_x.min(row.rect.min.x);
         max_x = max_x.max(row.rect.max.x);
         cursor_y += row_height;
-        cursor_y = fonts.round_to_pixel(cursor_y);
+        cursor_y = point_scale.round_to_pixel(cursor_y);
     }
 
     let format_summary = format_summary(&job);
@@ -339,7 +373,7 @@ fn galley_from_rows(fonts: &Fonts, job: Arc<LayoutJob>, mut rows: Vec<Row>) -> G
     let mut num_indices = 0;
 
     for row in &mut rows {
-        row.visuals = tessellate_row(fonts, &job, &format_summary, row);
+        row.visuals = tessellate_row(point_scale, &job, &format_summary, row);
         mesh_bounds = mesh_bounds.union(row.visuals.mesh_bounds);
         num_vertices += row.visuals.mesh.vertices.len();
         num_indices += row.visuals.mesh.indices.len();
@@ -375,7 +409,7 @@ fn format_summary(job: &LayoutJob) -> FormatSummary {
 }
 
 fn tessellate_row(
-    fonts: &Fonts,
+    point_scale: PointScale,
     job: &LayoutJob,
     format_summary: &FormatSummary,
     row: &mut Row,
@@ -394,11 +428,11 @@ fn tessellate_row(
     }
 
     let glyph_vertex_start = mesh.vertices.len();
-    tessellate_glyphs(fonts, job, row, &mut mesh);
+    tessellate_glyphs(point_scale, job, row, &mut mesh);
     let glyph_vertex_end = mesh.vertices.len();
 
     if format_summary.any_underline {
-        add_row_hline(fonts, row, &mut mesh, |glyph| {
+        add_row_hline(point_scale, row, &mut mesh, |glyph| {
             let format = &job.sections[glyph.section_index as usize].format;
             let stroke = format.underline;
             let y = glyph.logical_rect().bottom();
@@ -407,7 +441,7 @@ fn tessellate_row(
     }
 
     if format_summary.any_strikethrough {
-        add_row_hline(fonts, row, &mut mesh, |glyph| {
+        add_row_hline(point_scale, row, &mut mesh, |glyph| {
             let format = &job.sections[glyph.section_index as usize].format;
             let stroke = format.strikethrough;
             let y = glyph.logical_rect().center().y;
@@ -469,13 +503,13 @@ fn add_row_backgrounds(job: &LayoutJob, row: &Row, mesh: &mut Mesh) {
     end_run(run_start.take(), last_rect.right());
 }
 
-fn tessellate_glyphs(fonts: &Fonts, job: &LayoutJob, row: &Row, mesh: &mut Mesh) {
+fn tessellate_glyphs(point_scale: PointScale, job: &LayoutJob, row: &Row, mesh: &mut Mesh) {
     for glyph in &row.glyphs {
         let uv_rect = glyph.uv_rect;
         if !uv_rect.is_nothing() {
             let mut left_top = glyph.pos + uv_rect.offset;
-            left_top.x = fonts.round_to_pixel(left_top.x);
-            left_top.y = fonts.round_to_pixel(left_top.y);
+            left_top.x = point_scale.round_to_pixel(left_top.x);
+            left_top.y = point_scale.round_to_pixel(left_top.y);
 
             let rect = Rect::from_min_max(left_top, left_top + uv_rect.size);
             let uv = Rect::from_min_max(
@@ -523,14 +557,14 @@ fn tessellate_glyphs(fonts: &Fonts, job: &LayoutJob, row: &Row, mesh: &mut Mesh)
 
 /// Add a horizontal line over a row of glyphs with a stroke and y decided by a callback.
 fn add_row_hline(
-    fonts: &Fonts,
+    point_scale: PointScale,
     row: &Row,
     mesh: &mut Mesh,
     stroke_and_y: impl Fn(&Glyph) -> (Stroke, f32),
 ) {
     let mut end_line = |start: Option<(Stroke, Pos2)>, stop_x: f32| {
         if let Some((stroke, start)) = start {
-            add_hline(fonts, [start, pos2(stop_x, start.y)], stroke, mesh);
+            add_hline(point_scale, [start, pos2(stop_x, start.y)], stroke, mesh);
         }
     };
 
@@ -559,14 +593,14 @@ fn add_row_hline(
     end_line(line_start.take(), last_right_x);
 }
 
-fn add_hline(fonts: &Fonts, [start, stop]: [Pos2; 2], stroke: Stroke, mesh: &mut Mesh) {
+fn add_hline(point_scale: PointScale, [start, stop]: [Pos2; 2], stroke: Stroke, mesh: &mut Mesh) {
     let antialiased = true;
 
     if antialiased {
         let mut path = crate::tessellator::Path::default(); // TODO: reuse this to avoid re-allocations.
         path.add_line_segment([start, stop]);
         let options = crate::tessellator::TessellationOptions::from_pixels_per_point(
-            fonts.pixels_per_point(),
+            point_scale.pixels_per_point(),
         );
         path.stroke_open(stroke, &options, mesh);
     } else {
@@ -574,12 +608,12 @@ fn add_hline(fonts: &Fonts, [start, stop]: [Pos2; 2], stroke: Stroke, mesh: &mut
 
         assert_eq!(start.y, stop.y);
 
-        let min_y = fonts.round_to_pixel(start.y - 0.5 * stroke.width);
-        let max_y = fonts.round_to_pixel(min_y + stroke.width);
+        let min_y = point_scale.round_to_pixel(start.y - 0.5 * stroke.width);
+        let max_y = point_scale.round_to_pixel(min_y + stroke.width);
 
         let rect = Rect::from_min_max(
-            pos2(fonts.round_to_pixel(start.x), min_y),
-            pos2(fonts.round_to_pixel(stop.x), max_y),
+            pos2(point_scale.round_to_pixel(start.x), min_y),
+            pos2(point_scale.round_to_pixel(stop.x), max_y),
         );
 
         mesh.add_colored_rect(rect, stroke.color);
