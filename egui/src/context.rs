@@ -93,7 +93,7 @@ impl ContextImpl {
                 new_font_definitions.unwrap_or_else(|| {
                     self.fonts
                         .as_ref()
-                        .map(|font| font.lock().definitions().clone())
+                        .map(|font| font.lock().fonts.definitions().clone())
                         .unwrap_or_default()
                 }),
             ));
@@ -521,7 +521,7 @@ impl Context {
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
         if let Some(current_fonts) = &*self.fonts_mut() {
             // NOTE: this comparison is expensive since it checks TTF data for equality
-            if current_fonts.lock().definitions() == &font_definitions {
+            if current_fonts.lock().fonts.definitions() == &font_definitions {
                 return; // no change - save us from reloading font textures
             }
         }
@@ -708,7 +708,7 @@ impl Context {
                 .memory
                 .end_frame(&ctx_impl.input, &ctx_impl.frame_state.used_ids);
 
-            let font_image_delta = ctx_impl.fonts.as_ref().unwrap().lock().font_image_delta();
+            let font_image_delta = ctx_impl.fonts.as_ref().unwrap().font_image_delta();
             if let Some(font_image_delta) = font_image_delta {
                 ctx_impl
                     .tex_manager
@@ -754,7 +754,7 @@ impl Context {
         let clipped_meshes = tessellator::tessellate_shapes(
             shapes,
             tessellation_options,
-            self.fonts().lock().font_image_size(),
+            self.fonts().font_image_size(),
         );
         self.write().paint_stats = paint_stats.with_clipped_meshes(&clipped_meshes);
         clipped_meshes
@@ -956,9 +956,9 @@ impl Context {
         CollapsingHeader::new("🔠 Fonts")
             .default_open(false)
             .show(ui, |ui| {
-                let mut font_definitions = self.fonts().lock().definitions().clone();
+                let mut font_definitions = self.fonts().lock().fonts.definitions().clone();
                 font_definitions.ui(ui);
-                let font_image_size = self.fonts().lock().font_image_size();
+                let font_image_size = self.fonts().font_image_size();
                 crate::introspection::font_texture_ui(ui, font_image_size);
                 self.set_fonts(font_definitions);
             });
