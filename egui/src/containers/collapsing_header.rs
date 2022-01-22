@@ -98,7 +98,7 @@ impl State {
 }
 
 /// Paint the arrow icon that indicated if the region is open or not
-pub(crate) fn paint_icon(ui: &mut Ui, openness: f32, response: &Response) {
+pub(crate) fn paint_default_icon(ui: &mut Ui, openness: f32, response: &Response) {
     let visuals = ui.style().interact(response);
     let stroke = visuals.fg_stroke;
 
@@ -116,6 +116,9 @@ pub(crate) fn paint_icon(ui: &mut Ui, openness: f32, response: &Response) {
 
     ui.painter().add(Shape::closed_line(points, stroke));
 }
+
+/// A function that paints an icon indicating if the region is open or not
+pub type IconPainter = Box<dyn FnOnce(&mut Ui, f32, &Response)>;
 
 /// A header which can be collapsed/expanded, revealing a contained [`Ui`] region.
 ///
@@ -141,7 +144,7 @@ pub struct CollapsingHeader {
     selectable: bool,
     selected: bool,
     show_background: bool,
-    icon: Option<Box<dyn FnOnce(&mut Ui, f32, &Response)>>,
+    icon: Option<IconPainter>,
 }
 
 impl CollapsingHeader {
@@ -244,11 +247,11 @@ impl CollapsingHeader {
     ///
     /// For example:
     /// ```
-    /// 
     /// # egui::__run_test_ui(|ui| {
     /// fn circle_icon(ui: &mut egui::Ui, openness: f32, response: &egui::Response) {
     ///     let stroke = ui.style().interact(&response).fg_stroke;
-    ///     ui.painter().circle_filled(response.rect.center(), 2.0 + openness, stroke.color);
+    ///     let radius = egui::lerp(2.0..=3.0, openness);
+    ///     ui.painter().circle_filled(response.rect.center(), radius, stroke.color);
     /// }
     ///
     /// egui::CollapsingHeader::new("Circles")
@@ -369,7 +372,7 @@ impl CollapsingHeader {
                 if let Some(icon) = icon {
                     icon(ui, openness, &icon_response);
                 } else {
-                    paint_icon(ui, openness, &icon_response);
+                    paint_default_icon(ui, openness, &icon_response);
                 }
             }
 

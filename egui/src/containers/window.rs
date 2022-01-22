@@ -782,7 +782,7 @@ fn show_title_bar(
                 collapsing.toggle(ui);
             }
             let openness = collapsing.openness(ui.ctx(), collapsing_id);
-            collapsing_header::paint_icon(ui, openness, &collapse_button_response);
+            collapsing_header::paint_default_icon(ui, openness, &collapse_button_response);
         }
 
         let title_galley = title.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Heading);
