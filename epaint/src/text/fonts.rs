@@ -243,7 +243,7 @@ pub struct Fonts {
 
 impl Fonts {
     /// Create a new [`Fonts`] for text layout.
-    /// This call is expensive, so only create on [`Fonts`] and then reuse it.
+    /// This call is expensive, so only create one [`Fonts`] and then reuse it.
     pub fn new(pixels_per_point: f32, definitions: FontDefinitions) -> Self {
         assert!(
             0.0 < pixels_per_point && pixels_per_point < 100.0,

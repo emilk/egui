@@ -294,7 +294,10 @@ use crate::Id;
 // TODO: make IdTypeMap generic over the key (`Id`), and make a library of IdTypeMap.
 /// Stores values identified by an [`Id`] AND a the [`std::any::TypeId`] of the value.
 ///
-/// so it maps `(Id, TypeId)` to any value you want.
+/// In other words, it maps `(Id, TypeId)` to any value you want.
+///
+/// Values are cloned when read, so keep them small and light.
+/// If you want to store something bigger, wrap them in `Arc<Mutex<…>>`.
 ///
 /// Values can either be "persisted" (serializable) or "temporary" (cleared when egui is shut down).
 ///
@@ -346,6 +349,8 @@ impl IdTypeMap {
     }
 
     /// Read a value without trying to deserialize a persisted value.
+    ///
+    /// The call clones the value (if found), so make sure it is cheap to clone!
     #[inline]
     pub fn get_temp<T: 'static + Clone>(&mut self, id: Id) -> Option<T> {
         let hash = hash(TypeId::of::<T>(), id);
@@ -356,6 +361,8 @@ impl IdTypeMap {
     }
 
     /// Read a value, optionally deserializing it if available.
+    ///
+    /// The call clones the value (if found), so make sure it is cheap to clone!
     #[inline]
     pub fn get_persisted<T: SerializableAny>(&mut self, id: Id) -> Option<T> {
         let hash = hash(TypeId::of::<T>(), id);

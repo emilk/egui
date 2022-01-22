@@ -19,7 +19,15 @@ use crate::{area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
 pub struct Memory {
     pub options: Options,
 
-    /// This map stores current states for all widgets with custom `Id`s.
+    /// This map stores some superficial state for all widgets with custom `Id`s.
+    ///
+    /// This includes storing if a [`crate::CollapsingHeader`] is open, how far scrolled a
+    /// [`crate::ScrollArea`] is, where the cursor in a [`crate::TextEdit`] is, etc.
+    ///
+    /// This is NOT meant to store any important data. Store that in your own structures!
+    ///
+    /// Each read clones the data, so keep your values cheap to clone.
+    /// If you want to store a lot of data you should wrap it in `Arc<Mutex<…>>` so it is cheap to clone.
     ///
     /// This will be saved between different program runs if you use the `persistence` feature.
     ///

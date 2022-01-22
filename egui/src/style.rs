@@ -257,6 +257,7 @@ impl Visuals {
         self.widgets.active.text_color()
     }
 
+    /// Window background color.
     #[inline(always)]
     pub fn window_fill(&self) -> Color32 {
         self.widgets.noninteractive.bg_fill

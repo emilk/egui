@@ -8,6 +8,12 @@
 //! * X+ is right and Y+ is down.
 //! * (0,0) is left top.
 //! * Dimension order is always `x y`
+//!
+//! ## Integrating with other math libraries.
+//! `emath` does not strive to become a general purpose or all-powerful math library.
+//!
+//! For that, use something else ([`glam`](https://docs.rs/glam), [`nalgebra`](https://docs.rs/nalgebra), …)
+//! and enable the `mint` feature flag in `emath` to enable implicit conversion to/from `emath`.
 
 // Forbid warnings in release builds:
 #![cfg_attr(not(debug_assertions), deny(warnings))]

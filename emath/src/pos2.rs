@@ -13,12 +13,14 @@ use crate::*;
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Pos2 {
+    /// How far to the right.
     pub x: f32,
+    /// How far down.
     pub y: f32,
     // implicit w = 1
 }
 
-/// `pos2(x,y) == Pos2::new(x, y)`
+/// `pos2(x, y) == Pos2::new(x, y)`
 #[inline(always)]
 pub const fn pos2(x: f32, y: f32) -> Pos2 {
     Pos2 { x, y }
@@ -91,6 +93,7 @@ impl From<&Pos2> for (f32, f32) {
 
 #[cfg(feature = "mint")]
 impl From<mint::Point2<f32>> for Pos2 {
+    #[inline(always)]
     fn from(v: mint::Point2<f32>) -> Self {
         Self::new(v.x, v.y)
     }
@@ -98,6 +101,7 @@ impl From<mint::Point2<f32>> for Pos2 {
 
 #[cfg(feature = "mint")]
 impl From<Pos2> for mint::Point2<f32> {
+    #[inline(always)]
     fn from(v: Pos2) -> Self {
         Self { x: v.x, y: v.y }
     }
