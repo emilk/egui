@@ -209,7 +209,7 @@ pub struct Font {
     replacement_glyph: (FontIndex, GlyphInfo),
     pixels_per_point: f32,
     row_height: f32,
-    glyph_info_cache: RwLock<AHashMap<char, (FontIndex, GlyphInfo)>>,
+    glyph_info_cache: AHashMap<char, (FontIndex, GlyphInfo)>,
 }
 
 impl Font {
@@ -295,35 +295,30 @@ impl Font {
 
     pub fn uv_rect(&self, c: char) -> UvRect {
         self.glyph_info_cache
-            .read()
             .get(&c)
             .map(|gi| gi.1.uv_rect)
             .unwrap_or_default()
     }
 
     /// Width of this character in points.
-    pub fn glyph_width(&self, c: char) -> f32 {
+    pub fn glyph_width(&mut self, c: char) -> f32 {
         self.glyph_info(c).1.advance_width
     }
 
     /// `\n` will (intentionally) show up as the replacement character.
-    fn glyph_info(&self, c: char) -> (FontIndex, GlyphInfo) {
-        {
-            if let Some(font_index_glyph_info) = self.glyph_info_cache.read().get(&c) {
-                return *font_index_glyph_info;
-            }
+    fn glyph_info(&mut self, c: char) -> (FontIndex, GlyphInfo) {
+        if let Some(font_index_glyph_info) = self.glyph_info_cache.get(&c) {
+            return *font_index_glyph_info;
         }
 
         let font_index_glyph_info = self.glyph_info_no_cache_or_fallback(c);
         let font_index_glyph_info = font_index_glyph_info.unwrap_or(self.replacement_glyph);
-        self.glyph_info_cache
-            .write()
-            .insert(c, font_index_glyph_info);
+        self.glyph_info_cache.insert(c, font_index_glyph_info);
         font_index_glyph_info
     }
 
     #[inline]
-    pub(crate) fn glyph_info_and_font_impl(&self, c: char) -> (Option<&FontImpl>, GlyphInfo) {
+    pub(crate) fn glyph_info_and_font_impl(&mut self, c: char) -> (Option<&FontImpl>, GlyphInfo) {
         if self.fonts.is_empty() {
             return (None, self.replacement_glyph.1);
         }
@@ -332,12 +327,10 @@ impl Font {
         (Some(font_impl), glyph_info)
     }
 
-    fn glyph_info_no_cache_or_fallback(&self, c: char) -> Option<(FontIndex, GlyphInfo)> {
+    fn glyph_info_no_cache_or_fallback(&mut self, c: char) -> Option<(FontIndex, GlyphInfo)> {
         for (font_index, font_impl) in self.fonts.iter().enumerate() {
             if let Some(glyph_info) = font_impl.glyph_info(c) {
-                self.glyph_info_cache
-                    .write()
-                    .insert(c, (font_index, glyph_info));
+                self.glyph_info_cache.insert(c, (font_index, glyph_info));
                 return Some((font_index, glyph_info));
             }
         }

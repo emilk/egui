@@ -233,23 +233,27 @@ impl Default for FontDefinitions {
 /// Create one and reuse. Cheap to clone.
 ///
 /// Wrapper for `Arc<Mutex<FontsImpl>>`.
-pub struct Fonts(Arc<Mutex<FontsImpl>>);
+pub struct Fonts {
+    fonts: Arc<Mutex<FontsImpl>>,
+    galley_cache: Arc<Mutex<GalleyCache>>,
+}
 
 impl Fonts {
     /// Create a new [`Fonts`] for text layout.
     /// This call is expensive, so only create one [`Fonts`] and then reuse it.
     pub fn new(pixels_per_point: f32, definitions: FontDefinitions) -> Self {
-        Self(Arc::new(Mutex::new(FontsImpl::new(
-            pixels_per_point,
-            definitions,
-        ))))
+        let fonts = Arc::new(Mutex::new(FontsImpl::new(pixels_per_point, definitions)));
+        Self {
+            fonts,
+            galley_cache: Default::default(),
+        }
     }
 
     /// Access the underlying [`FontsImpl`].
     #[doc(hidden)]
     #[inline]
     pub fn lock(&self) -> crate::mutex::MutexGuard<'_, FontsImpl> {
-        self.0.lock()
+        self.fonts.lock()
     }
 
     #[inline]
@@ -277,7 +281,16 @@ impl Fonts {
     /// The implementation uses memoization so repeated calls are cheap.
     /// #[inline]
     pub fn layout_job(&self, job: LayoutJob) -> Arc<Galley> {
-        self.lock().layout_job(job)
+        self.galley_cache.lock().layout(&mut self.fonts.lock(), job)
+    }
+
+    pub fn num_galleys_in_cache(&self) -> usize {
+        self.galley_cache.lock().num_galleys_in_cache()
+    }
+
+    /// Must be called once per frame to clear the [`Galley`] cache.
+    pub fn end_frame(&self) {
+        self.galley_cache.lock().end_frame();
     }
 
     /// Will wrap text at the given width and line break at `\n`.
@@ -324,6 +337,14 @@ impl Fonts {
         ))
     }
 }
+
+// ----------------------------------------------------------------------------
+
+// pub struct CachedFonts {
+//     fonts: Arc<Mutex<FontsImpl>>,
+//     galley_cache: Arc<Mutex<GalleyCache>>,
+// }
+
 // ----------------------------------------------------------------------------
 
 /// The collection of fonts used by `epaint`.
@@ -334,7 +355,6 @@ pub struct FontsImpl {
     definitions: FontDefinitions,
     fonts: BTreeMap<TextStyle, Font>,
     atlas: Arc<Mutex<TextureAtlas>>,
-    galley_cache: Mutex<GalleyCache>,
 }
 
 impl FontsImpl {
@@ -384,7 +404,6 @@ impl FontsImpl {
             definitions,
             fonts,
             atlas,
-            galley_cache: Default::default(),
         }
     }
 
@@ -402,6 +421,11 @@ impl FontsImpl {
         &self.fonts[&text_style]
     }
 
+    #[inline]
+    pub fn font_mut(&mut self, text_style: TextStyle) -> &mut Font {
+        self.fonts.get_mut(&text_style).unwrap()
+    }
+
     /// Call each frame to get the change to the font texture since last call.
     pub fn font_image_delta(&self) -> Option<crate::ImageDelta> {
         self.atlas.lock().take_delta()
@@ -413,31 +437,13 @@ impl FontsImpl {
     }
 
     /// Width of this character in points.
-    pub fn glyph_width(&self, text_style: TextStyle, c: char) -> f32 {
-        self.fonts[&text_style].glyph_width(c)
+    pub fn glyph_width(&mut self, text_style: TextStyle, c: char) -> f32 {
+        self.font_mut(text_style).glyph_width(c)
     }
 
     /// Height of one row of text. In points
     pub fn row_height(&self, text_style: TextStyle) -> f32 {
         self.fonts[&text_style].row_height()
-    }
-
-    /// Layout some text.
-    /// This is the most advanced layout function.
-    /// See also [`Self::layout`], [`Self::layout_no_wrap`] and
-    /// [`Self::layout_delayed_color`].
-    ///
-    /// The implementation uses memoization so repeated calls are cheap.
-    pub fn layout_job(&self, job: LayoutJob) -> Arc<Galley> {
-        self.galley_cache.lock().layout(self, job)
-    }
-    pub fn num_galleys_in_cache(&self) -> usize {
-        self.galley_cache.lock().num_galleys_in_cache()
-    }
-
-    /// Must be called once per frame to clear the [`Galley`] cache.
-    pub fn end_frame(&self) {
-        self.galley_cache.lock().end_frame();
     }
 }
 
@@ -457,7 +463,7 @@ struct GalleyCache {
 }
 
 impl GalleyCache {
-    fn layout(&mut self, fonts: &FontsImpl, job: LayoutJob) -> Arc<Galley> {
+    fn layout(&mut self, fonts: &mut FontsImpl, job: LayoutJob) -> Arc<Galley> {
         let hash = crate::util::hash(&job); // TODO: even faster hasher?
 
         match self.cache.entry(hash) {
