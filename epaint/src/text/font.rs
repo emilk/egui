@@ -374,14 +374,12 @@ fn allocate_glyph(
         if glyph_width == 0 || glyph_height == 0 {
             UvRect::default()
         } else {
-            let glyph_pos = atlas.allocate((glyph_width, glyph_height));
-
-            let image = atlas.image_mut();
+            let (glyph_pos, image) = atlas.allocate((glyph_width, glyph_height));
             glyph.draw(|x, y, v| {
                 if v > 0.0 {
                     let px = glyph_pos.0 + x as usize;
                     let py = glyph_pos.1 + y as usize;
-                    image.image[(px, py)] = (v * 255.0).round() as u8;
+                    image[(px, py)] = (v * 255.0).round() as u8;
                 }
             });
 

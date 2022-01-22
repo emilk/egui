@@ -40,13 +40,6 @@ impl WebGl2Painter {
 
         // --------------------------------------------------------------------
 
-        let egui_texture = gl.create_texture().unwrap();
-        gl.bind_texture(Gl::TEXTURE_2D, Some(&egui_texture));
-        gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_S, Gl::CLAMP_TO_EDGE as i32);
-        gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_T, Gl::CLAMP_TO_EDGE as i32);
-        gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MIN_FILTER, Gl::LINEAR as i32);
-        gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MAG_FILTER, Gl::LINEAR as i32);
-
         let vert_shader = compile_shader(
             &gl,
             Gl::VERTEX_SHADER,
@@ -206,37 +199,61 @@ impl WebGl2Painter {
         Ok(())
     }
 
-    fn set_texture_rgba(&mut self, tex_id: egui::TextureId, size: [usize; 2], pixels: &[u8]) {
+    fn set_texture_rgba(
+        &mut self,
+        tex_id: egui::TextureId,
+        pos: Option<[usize; 2]>,
+        [w, h]: [usize; 2],
+        pixels: &[u8],
+    ) {
         let gl = &self.gl;
-        let gl_texture = gl.create_texture().unwrap();
-        gl.bind_texture(Gl::TEXTURE_2D, Some(&gl_texture));
+
+        let gl_texture = self
+            .textures
+            .entry(tex_id)
+            .or_insert_with(|| gl.create_texture().unwrap());
+
+        gl.bind_texture(Gl::TEXTURE_2D, Some(gl_texture));
         gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_S, Gl::CLAMP_TO_EDGE as _);
         gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_T, Gl::CLAMP_TO_EDGE as _);
         gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MIN_FILTER, Gl::LINEAR as _);
         gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MAG_FILTER, Gl::LINEAR as _);
-
-        gl.bind_texture(Gl::TEXTURE_2D, Some(&gl_texture));
 
         let level = 0;
         let internal_format = Gl::SRGB8_ALPHA8;
         let border = 0;
         let src_format = Gl::RGBA;
         let src_type = Gl::UNSIGNED_BYTE;
-        gl.pixel_storei(Gl::UNPACK_ALIGNMENT, 1);
-        gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
-            Gl::TEXTURE_2D,
-            level,
-            internal_format as i32,
-            size[0] as i32,
-            size[1] as i32,
-            border,
-            src_format,
-            src_type,
-            Some(pixels),
-        )
-        .unwrap();
 
-        self.textures.insert(tex_id, gl_texture);
+        gl.pixel_storei(Gl::UNPACK_ALIGNMENT, 1);
+
+        if let Some([x, y]) = pos {
+            gl.tex_sub_image_2d_with_i32_and_i32_and_u32_and_type_and_opt_u8_array(
+                Gl::TEXTURE_2D,
+                level,
+                x as _,
+                y as _,
+                w as _,
+                h as _,
+                src_format,
+                src_type,
+                Some(pixels),
+            )
+            .unwrap();
+        } else {
+            gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
+                Gl::TEXTURE_2D,
+                level,
+                internal_format as _,
+                w as _,
+                h as _,
+                border,
+                src_format,
+                src_type,
+                Some(pixels),
+            )
+            .unwrap();
+        }
     }
 }
 
@@ -256,8 +273,8 @@ impl epi::NativeTexture for WebGl2Painter {
 }
 
 impl crate::Painter for WebGl2Painter {
-    fn set_texture(&mut self, tex_id: egui::TextureId, image: egui::ImageData) {
-        match image {
+    fn set_texture(&mut self, tex_id: egui::TextureId, delta: &egui::epaint::ImageDelta) {
+        match &delta.image {
             egui::ImageData::Color(image) => {
                 assert_eq!(
                     image.width() * image.height(),
@@ -266,7 +283,7 @@ impl crate::Painter for WebGl2Painter {
                 );
 
                 let data: &[u8] = bytemuck::cast_slice(image.pixels.as_ref());
-                self.set_texture_rgba(tex_id, image.size, data);
+                self.set_texture_rgba(tex_id, delta.pos, image.size, data);
             }
             egui::ImageData::Alpha(image) => {
                 let gamma = 1.0;
@@ -274,7 +291,7 @@ impl crate::Painter for WebGl2Painter {
                     .srgba_pixels(gamma)
                     .flat_map(|a| a.to_array())
                     .collect();
-                self.set_texture_rgba(tex_id, image.size, &data);
+                self.set_texture_rgba(tex_id, delta.pos, image.size, &data);
             }
         };
     }

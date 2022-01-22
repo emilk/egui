@@ -20,7 +20,9 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * `Context` can now be cloned and stored between frames ([#1050](https://github.com/emilk/egui/pull/1050)).
 * Renamed `Ui::visible` to `Ui::is_visible`.
 * Split `Event::Text` into `Event::Text` and `Event::Paste` ([#1058](https://github.com/emilk/egui/pull/1058)).
-* For integrations: `FontImage` has been replaced by `TexturesDelta` (found in `Output`), describing what textures were loaded and freed each frame ([#1110](https://github.com/emilk/egui/pull/1110)).
+* For integrations:
+  * `FontImage` has been replaced by `TexturesDelta` (found in `Output`), describing what textures were loaded and freed each frame ([#1110](https://github.com/emilk/egui/pull/1110)).
+  * The painter must support partial texture updates ([#1149](https://github.com/emilk/egui/pull/1149)).
 
 ### Fixed 🐛
 * Context menu now respects the theme ([#1043](https://github.com/emilk/egui/pull/1043))

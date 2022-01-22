@@ -343,10 +343,7 @@ impl Widget for &mut ItemsDemo {
         let image = PlotImage::new(
             texture,
             Value::new(0.0, 10.0),
-            [
-                ui.fonts().font_image().width() as f32 / 100.0,
-                ui.fonts().font_image().height() as f32 / 100.0,
-            ],
+            5.0 * vec2(texture.aspect_ratio(), 1.0),
         );
 
         let plot = Plot::new("items_demo")

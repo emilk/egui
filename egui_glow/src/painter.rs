@@ -340,6 +340,7 @@ impl Painter {
 
                 gl.bind_texture(glow::TEXTURE_2D, Some(texture));
             }
+
             // Transform clip rect to physical pixels:
             let clip_min_x = pixels_per_point * clip_rect.min.x;
             let clip_min_y = pixels_per_point * clip_rect.min.y;
@@ -386,7 +387,7 @@ impl Painter {
         &mut self,
         gl: &glow::Context,
         tex_id: egui::TextureId,
-        image: &egui::ImageData,
+        delta: &egui::epaint::ImageDelta,
     ) {
         self.assert_not_destroyed();
 
@@ -398,7 +399,7 @@ impl Painter {
             gl.bind_texture(glow::TEXTURE_2D, Some(glow_texture));
         }
 
-        match image {
+        match &delta.image {
             egui::ImageData::Color(image) => {
                 assert_eq!(
                     image.width() * image.height(),
@@ -408,7 +409,7 @@ impl Painter {
 
                 let data: &[u8] = bytemuck::cast_slice(image.pixels.as_ref());
 
-                self.upload_texture_srgb(gl, image.size, data);
+                self.upload_texture_srgb(gl, delta.pos, image.size, data);
             }
             egui::ImageData::Alpha(image) => {
                 assert_eq!(
@@ -427,12 +428,18 @@ impl Painter {
                     .flat_map(|a| a.to_array())
                     .collect();
 
-                self.upload_texture_srgb(gl, image.size, &data);
+                self.upload_texture_srgb(gl, delta.pos, image.size, &data);
             }
         };
     }
 
-    fn upload_texture_srgb(&mut self, gl: &glow::Context, [w, h]: [usize; 2], data: &[u8]) {
+    fn upload_texture_srgb(
+        &mut self,
+        gl: &glow::Context,
+        pos: Option<[usize; 2]>,
+        [w, h]: [usize; 2],
+        data: &[u8],
+    ) {
         assert_eq!(data.len(), w * h * 4);
         assert!(w >= 1 && h >= 1);
         unsafe {
@@ -457,38 +464,50 @@ impl Painter {
                 glow::TEXTURE_WRAP_T,
                 glow::CLAMP_TO_EDGE as i32,
             );
+            check_for_gl_error(gl, "tex_parameter");
 
-            if self.is_webgl_1 {
+            let (internal_format, src_format) = if self.is_webgl_1 {
                 let format = if self.srgb_support {
                     glow::SRGB_ALPHA
                 } else {
                     glow::RGBA
                 };
-                gl.tex_image_2d(
-                    glow::TEXTURE_2D,
-                    0,
-                    format as i32,
-                    w as i32,
-                    h as i32,
-                    0,
-                    format,
-                    glow::UNSIGNED_BYTE,
-                    Some(data),
-                );
+                (format, format)
             } else {
+                (glow::SRGB8_ALPHA8, glow::RGBA)
+            };
+
+            gl.pixel_store_i32(glow::UNPACK_ALIGNMENT, 1);
+
+            let level = 0;
+            if let Some([x, y]) = pos {
+                gl.tex_sub_image_2d(
+                    glow::TEXTURE_2D,
+                    level,
+                    x as _,
+                    y as _,
+                    w as _,
+                    h as _,
+                    src_format,
+                    glow::UNSIGNED_BYTE,
+                    glow::PixelUnpackData::Slice(data),
+                );
+                check_for_gl_error(gl, "tex_sub_image_2d");
+            } else {
+                let border = 0;
                 gl.tex_image_2d(
                     glow::TEXTURE_2D,
-                    0,
-                    glow::SRGB8_ALPHA8 as i32,
-                    w as i32,
-                    h as i32,
-                    0,
-                    glow::RGBA,
+                    level,
+                    internal_format as _,
+                    w as _,
+                    h as _,
+                    border,
+                    src_format,
                     glow::UNSIGNED_BYTE,
                     Some(data),
                 );
+                check_for_gl_error(gl, "tex_image_2d");
             }
-            check_for_gl_error(gl, "upload_texture_srgb");
         }
     }
 
