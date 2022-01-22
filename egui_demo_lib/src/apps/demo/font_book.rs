@@ -73,6 +73,7 @@ impl super::View for FontBook {
         let named_chars = self.named_chars.entry(text_style).or_insert_with(|| {
             ui.fonts()
                 .lock()
+                .fonts
                 .font_mut(text_style)
                 .characters()
                 .iter()

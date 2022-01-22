@@ -92,7 +92,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let fonts =
             egui::epaint::text::Fonts::new(pixels_per_point, egui::FontDefinitions::default());
         {
-            let mut fonts_impl = fonts.lock();
+            let mut locked_fonts = fonts.lock();
             c.bench_function("text_layout_uncached", |b| {
                 b.iter(|| {
                     use egui::epaint::text::{layout, LayoutJob};
@@ -103,7 +103,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                         color,
                         wrap_width,
                     );
-                    layout(&mut fonts_impl, job.into())
+                    layout(&mut locked_fonts.fonts, job.into())
                 })
             });
         }
@@ -115,7 +115,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let mut tessellator = egui::epaint::Tessellator::from_options(Default::default());
         let mut mesh = egui::epaint::Mesh::default();
         let text_shape = TextShape::new(egui::Pos2::ZERO, galley);
-        let font_image_size = fonts.lock().font_image_size();
+        let font_image_size = fonts.font_image_size();
         c.bench_function("tessellate_text", |b| {
             b.iter(|| {
                 tessellator.tessellate_text(font_image_size, text_shape.clone(), &mut mesh);

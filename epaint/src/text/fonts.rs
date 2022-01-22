@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use crate::{
-    mutex::{Arc, Mutex},
+    mutex::{Arc, Mutex, MutexGuard},
     text::{
         font::{Font, FontImpl},
         Galley, LayoutJob,
@@ -232,45 +232,52 @@ impl Default for FontDefinitions {
 /// Required in order to paint text.
 /// Create one and reuse. Cheap to clone.
 ///
-/// Wrapper for `Arc<Mutex<FontsImpl>>`.
-pub struct Fonts {
-    fonts: Arc<Mutex<FontsImpl>>,
-    galley_cache: Arc<Mutex<GalleyCache>>,
-}
+/// Wrapper for `Arc<Mutex<FontsAndCache>>`.
+pub struct Fonts(Arc<Mutex<FontsAndCache>>);
 
 impl Fonts {
     /// Create a new [`Fonts`] for text layout.
     /// This call is expensive, so only create one [`Fonts`] and then reuse it.
     pub fn new(pixels_per_point: f32, definitions: FontDefinitions) -> Self {
-        let fonts = Arc::new(Mutex::new(FontsImpl::new(pixels_per_point, definitions)));
-        Self {
-            fonts,
+        let fonts_and_cache = FontsAndCache {
+            fonts: FontsImpl::new(pixels_per_point, definitions),
             galley_cache: Default::default(),
-        }
+        };
+        Self(Arc::new(Mutex::new(fonts_and_cache)))
     }
 
-    /// Access the underlying [`FontsImpl`].
+    /// Access the underlying [`FontsAndCache`].
     #[doc(hidden)]
     #[inline]
-    pub fn lock(&self) -> crate::mutex::MutexGuard<'_, FontsImpl> {
-        self.fonts.lock()
+    pub fn lock(&self) -> MutexGuard<'_, FontsAndCache> {
+        self.0.lock()
     }
 
     #[inline]
     pub fn pixels_per_point(&self) -> f32 {
-        self.lock().pixels_per_point
+        self.lock().fonts.pixels_per_point
+    }
+
+    /// Call each frame to get the change to the font texture since last call.
+    pub fn font_image_delta(&self) -> Option<crate::ImageDelta> {
+        self.lock().fonts.atlas.lock().take_delta()
+    }
+
+    /// Current size of the font image
+    pub fn font_image_size(&self) -> [usize; 2] {
+        self.lock().fonts.atlas.lock().size()
     }
 
     /// Width of this character in points.
     #[inline]
     pub fn glyph_width(&self, text_style: TextStyle, c: char) -> f32 {
-        self.lock().glyph_width(text_style, c)
+        self.lock().fonts.glyph_width(text_style, c)
     }
 
     /// Height of one row of text. In points
     #[inline]
     pub fn row_height(&self, text_style: TextStyle) -> f32 {
-        self.lock().row_height(text_style)
+        self.lock().fonts.row_height(text_style)
     }
 
     /// Layout some text.
@@ -281,16 +288,16 @@ impl Fonts {
     /// The implementation uses memoization so repeated calls are cheap.
     /// #[inline]
     pub fn layout_job(&self, job: LayoutJob) -> Arc<Galley> {
-        self.galley_cache.lock().layout(&mut self.fonts.lock(), job)
+        self.lock().layout_job(job)
     }
 
     pub fn num_galleys_in_cache(&self) -> usize {
-        self.galley_cache.lock().num_galleys_in_cache()
+        self.lock().galley_cache.num_galleys_in_cache()
     }
 
     /// Must be called once per frame to clear the [`Galley`] cache.
     pub fn end_frame(&self) {
-        self.galley_cache.lock().end_frame();
+        self.lock().galley_cache.end_frame();
     }
 
     /// Will wrap text at the given width and line break at `\n`.
@@ -340,10 +347,16 @@ impl Fonts {
 
 // ----------------------------------------------------------------------------
 
-// pub struct CachedFonts {
-//     fonts: Arc<Mutex<FontsImpl>>,
-//     galley_cache: Arc<Mutex<GalleyCache>>,
-// }
+pub struct FontsAndCache {
+    pub fonts: FontsImpl,
+    galley_cache: GalleyCache,
+}
+
+impl FontsAndCache {
+    fn layout_job(&mut self, job: LayoutJob) -> Arc<Galley> {
+        self.galley_cache.layout(&mut self.fonts, job)
+    }
+}
 
 // ----------------------------------------------------------------------------
 
@@ -421,23 +434,13 @@ impl FontsImpl {
         self.fonts.get_mut(&text_style).unwrap()
     }
 
-    /// Call each frame to get the change to the font texture since last call.
-    pub fn font_image_delta(&self) -> Option<crate::ImageDelta> {
-        self.atlas.lock().take_delta()
-    }
-
-    /// Current size of the font image
-    pub fn font_image_size(&self) -> [usize; 2] {
-        self.atlas.lock().size()
-    }
-
     /// Width of this character in points.
-    pub fn glyph_width(&mut self, text_style: TextStyle, c: char) -> f32 {
+    fn glyph_width(&mut self, text_style: TextStyle, c: char) -> f32 {
         self.font_mut(text_style).glyph_width(c)
     }
 
     /// Height of one row of text. In points
-    pub fn row_height(&self, text_style: TextStyle) -> f32 {
+    fn row_height(&self, text_style: TextStyle) -> f32 {
         self.fonts[&text_style].row_height()
     }
 }
