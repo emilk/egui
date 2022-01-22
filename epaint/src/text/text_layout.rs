@@ -86,7 +86,7 @@ fn layout_section(
         byte_range,
         format,
     } = section;
-    let font = &fonts[format.style];
+    let font = fonts.font(format.style);
     let font_height = font.row_height();
 
     let mut paragraph = out_paragraphs.last_mut().unwrap();
