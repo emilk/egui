@@ -1,6 +1,6 @@
 use std::ops::RangeInclusive;
 
-use super::{Fonts, Galley, Glyph, LayoutJob, LayoutSection, Row, RowVisuals};
+use super::{FontsImpl, Galley, Glyph, LayoutJob, LayoutSection, Row, RowVisuals};
 use crate::{mutex::Arc, Color32, Mesh, Stroke, Vertex};
 use emath::*;
 
@@ -50,7 +50,7 @@ struct Paragraph {
 ///
 /// In most cases you should use [`Fonts::layout_job`] instead
 /// since that memoizes the input, making subsequent layouting of the same text much faster.
-pub fn layout(fonts: &Fonts, job: Arc<LayoutJob>) -> Galley {
+pub fn layout(fonts: &FontsImpl, job: Arc<LayoutJob>) -> Galley {
     let mut paragraphs = vec![Paragraph::default()];
     for (section_index, section) in job.sections.iter().enumerate() {
         layout_section(fonts, &job, section_index as u32, section, &mut paragraphs);
@@ -75,7 +75,7 @@ pub fn layout(fonts: &Fonts, job: Arc<LayoutJob>) -> Galley {
 }
 
 fn layout_section(
-    fonts: &Fonts,
+    fonts: &FontsImpl,
     job: &LayoutJob,
     section_index: u32,
     section: &LayoutSection,
