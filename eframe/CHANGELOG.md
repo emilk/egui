@@ -1,7 +1,7 @@
 # Changelog for eframe
 All notable changes to the `eframe` and `epi` crates.
 
-NOTE: [`egui_web`](egui_web/CHANGELOG.md), [`egui-winit`](egui-winit/CHANGELOG.md), [`egui_glium`](egui_glium/CHANGELOG.md), and [`egui_glow`](egui_glow/CHANGELOG.md) have their own changelogs!
+NOTE: [`egui_web`](../egui_web/CHANGELOG.md), [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/CHANGELOG.md), and [`egui_glow`](../egui_glow/CHANGELOG.md) have their own changelogs!
 
 
 ## Unreleased
