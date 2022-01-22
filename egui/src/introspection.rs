@@ -58,7 +58,7 @@ pub(crate) fn font_texture_ui(ui: &mut Ui, [width, height]: [usize; 2]) -> Respo
 impl Widget for &mut epaint::text::FontDefinitions {
     fn ui(self, ui: &mut Ui) -> Response {
         ui.vertical(|ui| {
-            for (text_style, (_family, size)) in self.family_and_size.iter_mut() {
+            for (text_style, (size, _family)) in self.styles.iter_mut() {
                 // TODO: radio button for family
                 ui.add(
                     Slider::new(size, 4.0..=40.0)
