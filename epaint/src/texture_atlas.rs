@@ -119,10 +119,8 @@ impl TextureAtlas {
             eprintln!("epaint texture atlas overflowed!");
             self.cursor = (0, self.image.height() / 3); // Restart a bit down - the top of the atlas has too many important things in it
             self.overflowed = true; // this will signal the user that we need to recreate the texture atlas next frame.
-        } else {
-            if resize_to_min_height(&mut self.image, required_height) {
-                self.dirty = Rectu::EVERYTHING;
-            }
+        } else if resize_to_min_height(&mut self.image, required_height) {
+            self.dirty = Rectu::EVERYTHING;
         }
 
         let pos = self.cursor;

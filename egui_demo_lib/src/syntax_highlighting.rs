@@ -325,7 +325,7 @@ impl Highligher {
             // Fallback:
             LayoutJob::simple(
                 code.into(),
-                egui::TextStyle::Monospace,
+                egui::FontId::monospace(14.0),
                 if theme.dark_mode {
                     egui::Color32::LIGHT_GRAY
                 } else {
@@ -371,7 +371,7 @@ impl Highligher {
                     leading_space: 0.0,
                     byte_range: as_byte_range(text, range),
                     format: TextFormat {
-                        style: egui::TextStyle::Monospace,
+                        font_id: egui::FontId::monospace(14.0),
                         color: text_color,
                         italics,
                         underline,

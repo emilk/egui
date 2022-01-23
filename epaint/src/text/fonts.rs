@@ -50,6 +50,7 @@ impl FontId {
     }
 }
 
+#[allow(clippy::derive_hash_xor_eq)]
 impl std::hash::Hash for FontId {
     #[inline(always)]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -77,6 +78,7 @@ pub enum FontFamily {
     /// One of the names in [`FontDefinitions::families`].
     ///
     /// ```
+    /// # use epaint::FontFamily;
     /// // User-chosen names:
     /// FontFamily::Name("arial".into());
     /// FontFamily::Name("serif".into());
@@ -148,28 +150,12 @@ fn ab_glyph_font_from_font_data(name: &str, data: &FontData) -> ab_glyph::FontAr
 ///
 /// Often you would start with [`FontDefinitions::default()`] and then add/change the contents.
 ///
+/// This is how you install your own custom fonts:
 /// ```
-/// # use {epaint::text::{FontDefinitions, TextStyle, FontFamily}};
+/// # use {epaint::text::{FontDefinitions, FontFamily, FontData}};
 /// # struct FakeEguiCtx {};
 /// # impl FakeEguiCtx { fn set_fonts(&self, _: FontDefinitions) {} }
-/// # let ctx = FakeEguiCtx {};
-/// let mut fonts = FontDefinitions::default();
-///
-/// // Large button text:
-/// fonts.styles.insert(
-///     TextStyle::Button,
-///     (FontFamily::Proportional, 32.0)
-/// );
-///
-/// ctx.set_fonts(fonts);
-/// ```
-///
-/// You can also install your own custom fonts:
-/// ```
-/// # use {epaint::text::{FontDefinitions, TextStyle, FontFamily, FontData}};
-/// # struct FakeEguiCtx {};
-/// # impl FakeEguiCtx { fn set_fonts(&self, _: FontDefinitions) {} }
-/// # let ctx = FakeEguiCtx {};
+/// # let egui_ctx = FakeEguiCtx {};
 /// let mut fonts = FontDefinitions::default();
 ///
 /// // Install my own font (maybe supporting non-latin characters):
@@ -184,7 +170,7 @@ fn ab_glyph_font_from_font_data(name: &str, data: &FontData) -> ab_glyph::FontAr
 /// fonts.families.get_mut(&FontFamily::Monospace).unwrap()
 ///     .push("my_font".to_owned());
 ///
-/// ctx.set_fonts(fonts);
+/// egui_ctx.set_fonts(fonts);
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]

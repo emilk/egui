@@ -10,7 +10,7 @@ use std::collections::BTreeMap;
 
 /// Alias for a [`FontId`] (font of a certain size).
 ///
-/// The font is found via look-up in [`Style;:text_styles`].
+/// The font is found via look-up in [`Style::text_styles`].
 ///
 /// One of a few categories of styles of text, e.g. body, button or heading.
 /// Useful in GUI:s.
@@ -33,9 +33,9 @@ pub enum TextStyle {
     /// Heading. Probably larger than [`Self::Body]`.
     Heading,
 
+    /// A user-chosen style, found in [`Style::text_styles`].
     /// ```
-    /// // A user-chosen name of a style:
-    /// TextStyle::Name("footing".into());
+    /// egui::TextStyle::Name("footing".into());
     /// ````
     Name(Arc<str>),
 }
@@ -788,13 +788,13 @@ impl Style {
 
 fn text_styles_ui(ui: &mut Ui, text_styles: &mut BTreeMap<TextStyle, FontId>) -> Response {
     ui.vertical(|ui| {
-        for (text_style, font_id) in text_styles.iter_mut() {
-            ui.horizontal(|ui| {
-                ui.style_mut().override_font_id = Some(font_id.clone());
-                ui.label(format!("{:?}:", text_style));
+        crate::Grid::new("text_styles").show(ui, |ui| {
+            for (text_style, font_id) in text_styles.iter_mut() {
+                ui.label(RichText::new(format!("{:?}:", text_style)).font_id(font_id.clone()));
                 crate::introspection::font_id_ui(ui, font_id);
-            });
-        }
+                ui.end_row();
+            }
+        });
         crate::reset_button_with(ui, text_styles, default_text_styles());
     })
     .response

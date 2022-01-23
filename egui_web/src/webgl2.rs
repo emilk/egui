@@ -274,7 +274,18 @@ impl epi::NativeTexture for WebGl2Painter {
 
 impl crate::Painter for WebGl2Painter {
     fn max_texture_side(&self) -> usize {
-        self.gl.get_parameter_i32(self.gl.MAX_TEXTURE_SIZE) as _
+        if let Ok(max_texture_side) = self
+            .gl
+            .get_parameter(web_sys::WebGl2RenderingContext::MAX_TEXTURE_SIZE)
+        {
+            if let Some(max_texture_side) = max_texture_side.as_f64() {
+                return max_texture_side as usize;
+            }
+        }
+
+        crate::console_error("Failed to query max texture size");
+
+        2048
     }
 
     fn set_texture(&mut self, tex_id: egui::TextureId, delta: &egui::epaint::ImageDelta) {

@@ -199,11 +199,10 @@ impl RichText {
 
     /// Read the font height of the selected text style.
     pub fn font_height(&self, ctx: &Context) -> f32 {
-        let mut font_id = self
-            .text_style
-            .as_ref()
-            .map(|text_style| text_style.resolve(&ctx.style()))
-            .unwrap_or_else(|| FontSelection::Default.resolve(&ctx.style()));
+        let mut font_id = self.text_style.as_ref().map_or_else(
+            || FontSelection::Default.resolve(&ctx.style()),
+            |text_style| text_style.resolve(&ctx.style()),
+        );
 
         if let Some(size) = self.size {
             font_id.size = size;
@@ -245,8 +244,10 @@ impl RichText {
         let font_id = {
             let mut font_id = text_style
                 .or_else(|| style.override_text_style.clone())
-                .map(|text_style| text_style.resolve(style))
-                .unwrap_or_else(|| fallback_font.resolve(style));
+                .map_or_else(
+                    || fallback_font.resolve(style),
+                    |text_style| text_style.resolve(style),
+                );
             if let Some(size) = size {
                 font_id.size = size;
             }
