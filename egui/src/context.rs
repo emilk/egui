@@ -88,7 +88,8 @@ impl ContextImpl {
                 let pixels_per_point_changed =
                     (current_fonts.pixels_per_point() - pixels_per_point).abs() > 1e-3;
                 let max_texture_size_changed = current_fonts.max_texture_side() != max_texture_side;
-                pixels_per_point_changed || max_texture_size_changed
+                let font_atlas_full = current_fonts.font_atlas_fill_ratio() > 0.8;
+                pixels_per_point_changed || max_texture_size_changed || font_atlas_full
             }
         };
 

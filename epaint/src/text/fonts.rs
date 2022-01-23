@@ -356,6 +356,10 @@ impl Fonts {
         self.lock().galley_cache.num_galleys_in_cache()
     }
 
+    pub fn font_atlas_fill_ratio(&self) -> f32 {
+        self.lock().fonts.atlas.lock().fill_ratio()
+    }
+
     /// Must be called once per frame to clear the [`Galley`] cache.
     pub fn end_frame(&self) {
         self.lock().galley_cache.end_frame();
