@@ -1087,8 +1087,12 @@ impl Context {
                                 size *= (max_preview_size.x / size.x).min(1.0);
                                 size *= (max_preview_size.y / size.y).min(1.0);
                                 ui.image(texture_id, size).on_hover_ui(|ui| {
-                                    // show full size on hover
-                                    ui.image(texture_id, Vec2::new(w as f32, h as f32));
+                                    // show larger on hover
+                                    let max_size = 0.5 * ui.ctx().input().screen_rect().size();
+                                    let mut size = Vec2::new(w as f32, h as f32);
+                                    size *= max_size.x / size.x.max(max_size.x);
+                                    size *= max_size.y / size.y.max(max_size.y);
+                                    ui.image(texture_id, size);
                                 });
 
                                 ui.label(format!("{} x {}", w, h));

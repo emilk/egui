@@ -451,10 +451,9 @@ impl FontsImpl {
             pixels_per_point
         );
 
-        // We want an atlas big enough to be able to include all the Emojis in the `TextStyle::Heading`,
-        // so we can show the Emoji picker demo window.
         let texture_width = max_texture_side.at_most(16 * 1024);
-        let mut atlas = TextureAtlas::new([texture_width, 128]);
+        let initial_height = 512;
+        let mut atlas = TextureAtlas::new([texture_width, initial_height]);
 
         {
             // Make the top left pixel fully white:
