@@ -614,8 +614,7 @@ impl PlotItem for Polygon {
 
 /// Text inside the plot.
 pub struct Text {
-    pub(super) text: String,
-    pub(super) style: TextStyle,
+    pub(super) text: WidgetText,
     pub(super) position: Value,
     pub(super) name: String,
     pub(super) highlight: bool,
@@ -624,11 +623,9 @@ pub struct Text {
 }
 
 impl Text {
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn new(position: Value, text: impl ToString) -> Self {
+    pub fn new(position: Value, text: impl Into<WidgetText>) -> Self {
         Self {
-            text: text.to_string(),
-            style: TextStyle::Small,
+            text: text.into(),
             position,
             name: Default::default(),
             highlight: false,
@@ -643,13 +640,7 @@ impl Text {
         self
     }
 
-    /// Text style. Default is `TextStyle::Small`.
-    pub fn style(mut self, style: TextStyle) -> Self {
-        self.style = style;
-        self
-    }
-
-    /// Text color. Default is `Color32::TRANSPARENT` which means a color will be auto-assigned.
+    /// Text color.
     pub fn color(mut self, color: impl Into<Color32>) -> Self {
         self.color = color.into();
         self
@@ -681,14 +672,23 @@ impl PlotItem for Text {
         } else {
             self.color
         };
+
+        let galley =
+            self.text
+                .clone()
+                .into_galley(ui, Some(false), f32::INFINITY, TextStyle::Small);
+
         let pos = transform.position_from_value(&self.position);
-        let galley = ui
-            .fonts()
-            .layout_no_wrap(self.text.clone(), self.style, color);
         let rect = self
             .anchor
             .anchor_rect(Rect::from_min_size(pos, galley.size()));
-        shapes.push(Shape::galley(rect.min, galley));
+
+        let mut text_shape = epaint::TextShape::new(rect.min, galley.galley);
+        if !galley.galley_has_color {
+            text_shape.override_text_color = Some(color);
+        }
+        shapes.push(text_shape.into());
+
         if self.highlight {
             shapes.push(Shape::rect_stroke(
                 rect.expand(2.0),

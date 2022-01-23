@@ -267,6 +267,7 @@ impl RichText {
 /// but it can be a [`RichText`] (text with color, style, etc),
 /// a [`LayoutJob`] (for when you want full control of how the text looks)
 /// or text that has already been layed out in a [`Galley`].
+#[derive(Clone)]
 pub enum WidgetText {
     RichText(RichText),
     /// Use this [`LayoutJob`] when laying out the text.
