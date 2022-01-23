@@ -2,7 +2,9 @@ use crate::*;
 
 struct RequestRepaintEvent;
 
-struct GlowRepaintSignal(std::sync::Mutex<egui_winit::winit::event_loop::EventLoopProxy<RequestRepaintEvent>>, );
+struct GlowRepaintSignal(
+    std::sync::Mutex<egui_winit::winit::event_loop::EventLoopProxy<RequestRepaintEvent>>,
+);
 
 impl epi::backend::RepaintSignal for GlowRepaintSignal {
     fn request_repaint(&self) {
