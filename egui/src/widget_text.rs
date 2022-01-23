@@ -1,8 +1,8 @@
 use epaint::mutex::Arc;
 
 use crate::{
-    style::WidgetVisuals, text::LayoutJob, Align, Color32, Context, FontFamily, FontSelection,
-    Galley, Pos2, Style, TextStyle, Ui, Visuals,
+    style::WidgetVisuals, text::LayoutJob, Align, Color32, FontFamily, FontSelection, Galley, Pos2,
+    Style, TextStyle, Ui, Visuals,
 };
 
 /// Text and optional style choices for it.
@@ -198,10 +198,10 @@ impl RichText {
     }
 
     /// Read the font height of the selected text style.
-    pub fn font_height(&self, ctx: &Context) -> f32 {
+    pub fn font_height(&self, fonts: &epaint::Fonts, style: &Style) -> f32 {
         let mut font_id = self.text_style.as_ref().map_or_else(
-            || FontSelection::Default.resolve(&ctx.style()),
-            |text_style| text_style.resolve(&ctx.style()),
+            || FontSelection::Default.resolve(style),
+            |text_style| text_style.resolve(style),
         );
 
         if let Some(size) = self.size {
@@ -210,7 +210,7 @@ impl RichText {
         if let Some(family) = &self.family {
             font_id.family = family.clone();
         }
-        ctx.fonts().row_height(&font_id)
+        fonts.row_height(&font_id)
     }
 
     fn into_text_job(
@@ -489,10 +489,10 @@ impl WidgetText {
         }
     }
 
-    pub(crate) fn font_height(&self, ctx: &Context) -> f32 {
+    pub(crate) fn font_height(&self, fonts: &epaint::Fonts, style: &Style) -> f32 {
         match self {
-            Self::RichText(text) => text.font_height(ctx),
-            Self::LayoutJob(job) => job.font_height(&*ctx.fonts()),
+            Self::RichText(text) => text.font_height(fonts, style),
+            Self::LayoutJob(job) => job.font_height(fonts),
             Self::Galley(galley) => {
                 if let Some(row) = galley.rows.first() {
                     row.height()
