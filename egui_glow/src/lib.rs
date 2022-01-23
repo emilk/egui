@@ -119,10 +119,7 @@ pub struct EguiGlow {
 
 #[cfg(feature = "winit")]
 impl EguiGlow {
-    pub fn new(
-        window: &egui_winit::winit::window::Window,
-        gl: &glow::Context,
-    ) -> Self {
+    pub fn new(window: &egui_winit::winit::window::Window, gl: &glow::Context) -> Self {
         Self {
             egui_ctx: Default::default(),
             egui_winit: egui_winit::State::new(window),
@@ -167,11 +164,7 @@ impl EguiGlow {
     }
 
     /// Paint the results of the last call to [`Self::run`].
-    pub fn paint(
-        &mut self,
-        window: &egui_winit::winit::window::Window,
-        gl: &glow::Context,
-    ) {
+    pub fn paint(&mut self, window: &egui_winit::winit::window::Window, gl: &glow::Context) {
         let shapes = std::mem::take(&mut self.shapes);
         let mut textures_delta = std::mem::take(&mut self.textures_delta);
 
