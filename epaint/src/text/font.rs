@@ -355,7 +355,7 @@ fn allocate_glyph(
                 if v > 0.0 {
                     let px = glyph_pos.0 + x as usize;
                     let py = glyph_pos.1 + y as usize;
-                    image[(px, py)] = (v * 255.0).round() as u8;
+                    image[(px, py)] = fast_round(v * 255.0);
                 }
             });
 
@@ -382,4 +382,8 @@ fn allocate_glyph(
         advance_width: advance_width_in_points,
         uv_rect,
     }
+}
+
+fn fast_round(r: f32) -> u8 {
+    (r + 0.5).floor() as _ // rust does a saturating cast since 1.45
 }

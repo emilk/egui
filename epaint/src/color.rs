@@ -485,9 +485,9 @@ pub fn gamma_u8_from_linear_f32(l: f32) -> u8 {
     if l <= 0.0 {
         0
     } else if l <= 0.0031308 {
-        (3294.6 * l).round() as u8
+        fast_round(3294.6 * l)
     } else if l <= 1.0 {
-        (269.025 * l.powf(1.0 / 2.4) - 14.025).round() as u8
+        fast_round(269.025 * l.powf(1.0 / 2.4) - 14.025)
     } else {
         255
     }
@@ -497,7 +497,11 @@ pub fn gamma_u8_from_linear_f32(l: f32) -> u8 {
 /// Useful for alpha-channel.
 #[inline(always)]
 pub fn linear_u8_from_linear_f32(a: f32) -> u8 {
-    (a * 255.0).round() as u8 // rust does a saturating cast since 1.45
+    fast_round(a * 255.0)
+}
+
+fn fast_round(r: f32) -> u8 {
+    (r + 0.5).floor() as _ // rust does a saturating cast since 1.45
 }
 
 #[test]
