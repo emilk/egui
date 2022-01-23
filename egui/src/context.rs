@@ -62,7 +62,7 @@ impl ContextImpl {
         self.input = input.begin_frame(new_raw_input);
         self.frame_state.begin_frame(&self.input);
 
-        self.update_fonts_mut(self.input.pixels_per_point());
+        self.update_fonts_mut();
 
         // Ensure we register the background area so panels and background ui can catch clicks:
         let screen_rect = self.input.screen_rect();
@@ -77,25 +77,34 @@ impl ContextImpl {
     }
 
     /// Load fonts unless already loaded.
-    fn update_fonts_mut(&mut self, pixels_per_point: f32) {
+    fn update_fonts_mut(&mut self) {
+        let pixels_per_point = self.input.pixels_per_point();
+        let max_texture_side = self.input.raw.max_texture_side;
         let new_font_definitions = self.memory.new_font_definitions.take();
 
-        let pixels_per_point_changed = match &self.fonts {
+        let needs_recreate = match &self.fonts {
             None => true,
             Some(current_fonts) => {
-                (current_fonts.pixels_per_point() - pixels_per_point).abs() > 1e-3
+                let pixels_per_point_changed =
+                    (current_fonts.pixels_per_point() - pixels_per_point).abs() > 1e-3;
+                let max_texture_size_changed = current_fonts.max_texture_side() != max_texture_side;
+                pixels_per_point_changed || max_texture_size_changed
             }
         };
 
-        if self.fonts.is_none() || new_font_definitions.is_some() || pixels_per_point_changed {
-            self.fonts = Some(Fonts::new(
-                pixels_per_point,
-                new_font_definitions.unwrap_or_else(|| {
+        if needs_recreate || new_font_definitions.is_some() {
+            let new_font_definitions = new_font_definitions
+                .or_else(|| {
                     self.fonts
                         .as_ref()
                         .map(|font| font.lock().fonts.definitions().clone())
-                        .unwrap_or_default()
-                }),
+                })
+                .unwrap_or_default();
+
+            self.fonts = Some(Fonts::new(
+                pixels_per_point,
+                max_texture_side,
+                new_font_definitions,
             ));
         }
     }

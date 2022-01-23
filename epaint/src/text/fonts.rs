@@ -8,6 +8,7 @@ use crate::{
     },
     TextureAtlas,
 };
+use emath::NumExt as _;
 
 // ----------------------------------------------------------------------------
 
@@ -67,11 +68,11 @@ impl std::hash::Hash for FontId {
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum FontFamily {
-    /// A font where each character is the same width (`w` is the same width as `i`).
-    Monospace,
-
     /// A font where some characters are wider than other (e.g. 'w' is wider than 'i').
     Proportional,
+
+    /// A font where each character is the same width (`w` is the same width as `i`).
+    Monospace,
 
     /// One of the names in [`FontDefinitions::families`].
     ///
@@ -81,6 +82,12 @@ pub enum FontFamily {
     /// FontFamily::Name("serif".into());
     /// ```
     Name(Arc<str>),
+}
+
+impl Default for FontFamily {
+    fn default() -> Self {
+        FontFamily::Proportional
+    }
 }
 
 impl std::fmt::Display for FontFamily {
@@ -272,9 +279,13 @@ pub struct Fonts(Arc<Mutex<FontsAndCache>>);
 impl Fonts {
     /// Create a new [`Fonts`] for text layout.
     /// This call is expensive, so only create one [`Fonts`] and then reuse it.
-    pub fn new(pixels_per_point: f32, definitions: FontDefinitions) -> Self {
+    pub fn new(
+        pixels_per_point: f32,
+        max_texture_side: usize,
+        definitions: FontDefinitions,
+    ) -> Self {
         let fonts_and_cache = FontsAndCache {
-            fonts: FontsImpl::new(pixels_per_point, definitions),
+            fonts: FontsImpl::new(pixels_per_point, max_texture_side, definitions),
             galley_cache: Default::default(),
         };
         Self(Arc::new(Mutex::new(fonts_and_cache)))
@@ -290,6 +301,11 @@ impl Fonts {
     #[inline]
     pub fn pixels_per_point(&self) -> f32 {
         self.lock().fonts.pixels_per_point
+    }
+
+    #[inline]
+    pub fn max_texture_side(&self) -> usize {
+        self.lock().fonts.max_texture_side
     }
 
     /// Call each frame to get the change to the font texture since last call.
@@ -410,6 +426,7 @@ impl FontsAndCache {
 /// Required in order to paint text.
 pub struct FontsImpl {
     pixels_per_point: f32,
+    max_texture_side: usize,
     definitions: FontDefinitions,
     atlas: Arc<Mutex<TextureAtlas>>,
     font_impl_cache: FontImplCache,
@@ -419,7 +436,11 @@ pub struct FontsImpl {
 impl FontsImpl {
     /// Create a new [`FontsImpl`] for text layout.
     /// This call is expensive, so only create one [`FontsImpl`] and then reuse it.
-    pub fn new(pixels_per_point: f32, definitions: FontDefinitions) -> Self {
+    pub fn new(
+        pixels_per_point: f32,
+        max_texture_side: usize,
+        definitions: FontDefinitions,
+    ) -> Self {
         assert!(
             0.0 < pixels_per_point && pixels_per_point < 100.0,
             "pixels_per_point out of range: {}",
@@ -428,7 +449,8 @@ impl FontsImpl {
 
         // We want an atlas big enough to be able to include all the Emojis in the `TextStyle::Heading`,
         // so we can show the Emoji picker demo window.
-        let mut atlas = TextureAtlas::new([2048, 64]);
+        let texture_width = max_texture_side.at_most(16 * 1024);
+        let mut atlas = TextureAtlas::new([texture_width, 128]);
 
         {
             // Make the top left pixel fully white:
@@ -444,6 +466,7 @@ impl FontsImpl {
 
         Self {
             pixels_per_point,
+            max_texture_side,
             definitions,
             atlas,
             font_impl_cache,

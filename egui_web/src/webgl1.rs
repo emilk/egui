@@ -289,6 +289,10 @@ impl epi::NativeTexture for WebGlPainter {
 }
 
 impl crate::Painter for WebGlPainter {
+    fn max_texture_side(&self) -> usize {
+        self.gl.get_parameter_i32(self.gl.MAX_TEXTURE_SIZE) as _
+    }
+
     fn set_texture(&mut self, tex_id: egui::TextureId, delta: &egui::epaint::ImageDelta) {
         match &delta.image {
             egui::ImageData::Color(image) => {

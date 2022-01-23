@@ -47,6 +47,7 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
     let mut painter = crate::Painter::new(&display);
     let mut integration = egui_winit::epi::EpiIntegration::new(
         "egui_glium",
+        painter.max_texture_side(),
         display.gl_window().window(),
         repaint_signal,
         persistence,
