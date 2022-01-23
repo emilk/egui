@@ -81,11 +81,11 @@ impl Widget for &epaint::stats::PaintStats {
         ui.vertical(|ui| {
             ui.label(
                 "egui generates intermediate level shapes like circles and text. \
-            These are later tessellated into triangles.",
+                These are later tessellated into triangles.",
             );
             ui.add_space(10.0);
 
-            ui.style_mut().body_text_style = TextStyle::Monospace;
+            ui.style_mut().override_text_style = Some(TextStyle::Monospace);
 
             let epaint::stats::PaintStats {
                 shapes,

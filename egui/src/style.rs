@@ -80,7 +80,7 @@ impl TextStyle {
 
 /// Either a [`FontId`] or as [`TextStyle`].
 pub enum FontSelection {
-    /// Follow [`Style::body_text_style`] and [`Style::override_text_style`].
+    /// Follow [`Style::override_text_style`].
     Default,
 
     /// Directly select size and font family
@@ -102,12 +102,10 @@ impl FontSelection {
             Self::Default => {
                 if let Some(override_font_id) = &style.override_font_id {
                     override_font_id.clone()
-                } else {
-                    let text_style = style
-                        .override_text_style
-                        .as_ref()
-                        .unwrap_or_else(|| &style.body_text_style);
+                } else if let Some(text_style) = &style.override_text_style {
                     text_style.resolve(style)
+                } else {
+                    TextStyle::Body.resolve(style)
                 }
             }
             Self::FontId(font_id) => font_id,
@@ -142,9 +140,6 @@ impl From<TextStyle> for FontSelection {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Style {
-    /// Default `TextStyle` for normal text (i.e. for `Label` and `TextEdit`).
-    pub body_text_style: TextStyle,
-
     /// If set this will change the default [`TextStyle`] for all widgets.
     ///
     /// On most widgets you can also set an explicit text style,
@@ -517,7 +512,6 @@ fn default_text_styles() -> BTreeMap<TextStyle, FontId> {
 impl Default for Style {
     fn default() -> Self {
         Self {
-            body_text_style: TextStyle::Body,
             override_font_id: None,
             override_text_style: None,
             text_styles: default_text_styles(),
@@ -725,7 +719,6 @@ use crate::{widgets::*, Ui};
 impl Style {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
-            body_text_style,
             override_font_id,
             override_text_style,
             text_styles,
@@ -741,16 +734,6 @@ impl Style {
         visuals.light_dark_radio_buttons(ui);
 
         crate::Grid::new("_options").show(ui, |ui| {
-            ui.label("Default body text style:");
-            ui.horizontal(|ui| {
-                for style in [TextStyle::Body, TextStyle::Monospace] {
-                    let text =
-                        crate::RichText::new(format!("{:?}", style)).text_style(style.clone());
-                    ui.radio_value(body_text_style, style, text);
-                }
-            });
-            ui.end_row();
-
             ui.label("Override font id:");
             ui.horizontal(|ui| {
                 ui.radio_value(override_font_id, None, "None");

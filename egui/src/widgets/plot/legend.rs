@@ -82,19 +82,14 @@ impl LegendEntry {
         }
     }
 
-    fn ui(&mut self, ui: &mut Ui, text: String) -> Response {
+    fn ui(&mut self, ui: &mut Ui, text: String, text_style: &TextStyle) -> Response {
         let Self {
             color,
             checked,
             hovered,
         } = self;
 
-        let font_id = ui
-            .style()
-            .text_styles
-            .get(&TextStyle::Body)
-            .cloned()
-            .unwrap_or_default();
+        let font_id = text_style.resolve(ui.style());
 
         let galley = ui
             .fonts()
@@ -243,7 +238,6 @@ impl Widget for &mut LegendWidget {
         let mut legend_ui = ui.child_ui(legend_rect, layout);
         legend_ui
             .scope(|ui| {
-                ui.style_mut().body_text_style = config.text_style.clone();
                 let background_frame = Frame {
                     margin: vec2(8.0, 4.0),
                     corner_radius: ui.style().visuals.window_corner_radius,
@@ -256,7 +250,7 @@ impl Widget for &mut LegendWidget {
                     .show(ui, |ui| {
                         entries
                             .iter_mut()
-                            .map(|(name, entry)| entry.ui(ui, name.clone()))
+                            .map(|(name, entry)| entry.ui(ui, name.clone(), &config.text_style))
                             .reduce(|r1, r2| r1.union(r2))
                             .unwrap()
                     })

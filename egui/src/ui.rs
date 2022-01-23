@@ -133,7 +133,7 @@ impl Ui {
     /// Example:
     /// ```
     /// # egui::__run_test_ui(|ui| {
-    /// ui.style_mut().body_text_style = egui::TextStyle::Heading;
+    /// ui.style_mut().override_text_style = Some(egui::TextStyle::Heading);
     /// # });
     /// ```
     pub fn style_mut(&mut self) -> &mut Style {
