@@ -953,16 +953,6 @@ impl Context {
                 self.style_ui(ui);
             });
 
-        CollapsingHeader::new("🔠 Fonts")
-            .default_open(false)
-            .show(ui, |ui| {
-                let mut font_definitions = self.fonts().lock().fonts.definitions().clone();
-                font_definitions.ui(ui);
-                let font_image_size = self.fonts().font_image_size();
-                crate::introspection::font_texture_ui(ui, font_image_size);
-                self.set_fonts(font_definitions);
-            });
-
         CollapsingHeader::new("✒ Painting")
             .default_open(true)
             .show(ui, |ui| {
@@ -1038,6 +1028,13 @@ impl Context {
             .default_open(false)
             .show(ui, |ui| {
                 self.texture_ui(ui);
+            });
+
+        CollapsingHeader::new("🔠 Font texture")
+            .default_open(false)
+            .show(ui, |ui| {
+                let font_image_size = self.fonts().font_image_size();
+                crate::introspection::font_texture_ui(ui, font_image_size);
             });
     }
 

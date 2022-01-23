@@ -364,7 +364,7 @@ mod frame_state;
 pub(crate) mod grid;
 mod id;
 mod input_state;
-mod introspection;
+pub mod introspection;
 pub mod layers;
 mod layout;
 mod memory;
@@ -385,7 +385,7 @@ pub use epaint::emath;
 pub use emath::{lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rect, Vec2};
 pub use epaint::{
     color, mutex,
-    text::{FontData, FontDefinitions, FontFamily, TextStyle},
+    text::{FontData, FontDefinitions, FontFamily, FontId},
     textures::TexturesDelta,
     AlphaImage, ClippedMesh, Color32, ColorImage, ImageData, Rgba, Shape, Stroke, TextureHandle,
     TextureId,
@@ -394,7 +394,7 @@ pub use epaint::{
 pub mod text {
     pub use epaint::text::{
         FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob, LayoutSection, TextFormat,
-        TextStyle, TAB_SIZE,
+        TAB_SIZE,
     };
 }
 
@@ -414,7 +414,7 @@ pub use {
     painter::Painter,
     response::{InnerResponse, Response},
     sense::Sense,
-    style::{Style, Visuals},
+    style::{FontSelection, Style, TextStyle, Visuals},
     text::{Galley, TextFormat},
     ui::Ui,
     widget_text::{RichText, WidgetText},
@@ -511,7 +511,7 @@ macro_rules! egui_assert {
 
 // ----------------------------------------------------------------------------
 
-/// egui supports around 1216 emojis in total.
+/// The default egui fonts supports around 1216 emojis in total.
 /// Here are some of the most useful:
 /// ∞⊗⎗⎘⎙⏏⏴⏵⏶⏷
 /// ⏩⏪⏭⏮⏸⏹⏺■▶📾🔀🔁🔃

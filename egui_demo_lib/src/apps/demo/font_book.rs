@@ -2,15 +2,15 @@ use std::collections::BTreeMap;
 
 pub struct FontBook {
     filter: String,
-    text_style: egui::TextStyle,
-    named_chars: BTreeMap<egui::TextStyle, BTreeMap<char, String>>,
+    font_id: egui::FontId,
+    named_chars: BTreeMap<egui::FontFamily, BTreeMap<char, String>>,
 }
 
 impl Default for FontBook {
     fn default() -> Self {
         Self {
             filter: Default::default(),
-            text_style: egui::TextStyle::Button,
+            font_id: egui::FontId::proportional(20.0),
             named_chars: Default::default(),
         }
     }
@@ -34,7 +34,7 @@ impl super::View for FontBook {
         ui.label(format!(
             "The selected font supports {} characters.",
             self.named_chars
-                .get(&self.text_style)
+                .get(&self.font_id.family)
                 .map(|map| map.len())
                 .unwrap_or_default()
         ));
@@ -51,17 +51,7 @@ impl super::View for FontBook {
 
         ui.separator();
 
-        egui::ComboBox::from_label("Text style")
-            .selected_text(format!("{:?}", self.text_style))
-            .show_ui(ui, |ui| {
-                for style in egui::TextStyle::built_in() {
-                    ui.selectable_value(
-                        &mut self.text_style,
-                        style.clone(),
-                        format!("{:?}", style),
-                    );
-                }
-            });
+        egui::introspection::font_id_ui(ui, &mut self.font_id);
 
         ui.horizontal(|ui| {
             ui.label("Filter:");
@@ -72,16 +62,15 @@ impl super::View for FontBook {
             }
         });
 
-        let text_style = self.text_style.clone();
         let filter = &self.filter;
         let named_chars = self
             .named_chars
-            .entry(text_style.clone())
+            .entry(self.font_id.family.clone())
             .or_insert_with(|| {
                 ui.fonts()
                     .lock()
                     .fonts
-                    .font_for_style(&text_style)
+                    .font(&egui::FontId::new(10.0, self.font_id.family.clone())) // size is arbitrary for getting the characters
                     .characters()
                     .iter()
                     .filter(|chr| !chr.is_whitespace() && !chr.is_ascii_control())
@@ -98,13 +87,13 @@ impl super::View for FontBook {
                 for (&chr, name) in named_chars {
                     if filter.is_empty() || name.contains(filter) || *filter == chr.to_string() {
                         let button = egui::Button::new(
-                            egui::RichText::new(chr.to_string()).text_style(text_style.clone()),
+                            egui::RichText::new(chr.to_string()).font_id(self.font_id.clone()),
                         )
                         .frame(false);
 
                         let tooltip_ui = |ui: &mut egui::Ui| {
                             ui.label(
-                                egui::RichText::new(chr.to_string()).text_style(text_style.clone()),
+                                egui::RichText::new(chr.to_string()).font_id(self.font_id.clone()),
                             );
                             ui.label(format!("{}\nU+{:X}\n\nClick to copy", name, chr as u32));
                         };

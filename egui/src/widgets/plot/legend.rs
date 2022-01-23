@@ -89,11 +89,16 @@ impl LegendEntry {
             hovered,
         } = self;
 
-        let galley = ui.fonts().layout_delayed_color(
-            text,
-            ui.style().body_text_style.clone(),
-            f32::INFINITY,
-        );
+        let font_id = ui
+            .style()
+            .text_styles
+            .get(&TextStyle::Body)
+            .cloned()
+            .unwrap_or_default();
+
+        let galley = ui
+            .fonts()
+            .layout_delayed_color(text, font_id, f32::INFINITY);
 
         let icon_size = galley.size().y;
         let icon_spacing = icon_size / 5.0;

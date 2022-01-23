@@ -466,10 +466,10 @@ impl<'a> Slider<'a> {
     }
 
     fn add_contents(&mut self, ui: &mut Ui) -> Response {
-        let text_style = TextStyle::Button;
+        let font_id = ui.style().text_styles.get(&TextStyle::Body).unwrap();
         let perpendicular = ui
             .fonts()
-            .row_height(&text_style)
+            .row_height(font_id)
             .at_least(ui.spacing().interact_size.y);
         let slider_response = self.allocate_slider_space(ui, perpendicular);
         self.slider_ui(ui, &slider_response);

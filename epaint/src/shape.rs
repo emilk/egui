@@ -1,5 +1,5 @@
 use crate::{
-    text::{Fonts, Galley, TextStyle},
+    text::{FontId, Fonts, Galley},
     Color32, Mesh, Stroke,
 };
 use emath::*;
@@ -126,10 +126,10 @@ impl Shape {
         pos: Pos2,
         anchor: Align2,
         text: impl ToString,
-        text_style: TextStyle,
+        font_id: FontId,
         color: Color32,
     ) -> Self {
-        let galley = fonts.layout_no_wrap(text.to_string(), text_style, color);
+        let galley = fonts.layout_no_wrap(text.to_string(), font_id, color);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size()));
         Self::galley(rect.min, galley)
     }

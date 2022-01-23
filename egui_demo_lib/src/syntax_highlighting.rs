@@ -13,7 +13,7 @@ pub fn code_view_ui(ui: &mut egui::Ui, mut code: &str) {
 
     ui.add(
         egui::TextEdit::multiline(&mut code)
-            .text_style(egui::TextStyle::Monospace) // for cursor height
+            .font(egui::TextStyle::Monospace) // for cursor height
             .code_editor()
             .desired_rows(1)
             .lock_focus(true)
@@ -201,34 +201,34 @@ impl CodeTheme {
 #[cfg(not(feature = "syntect"))]
 impl CodeTheme {
     pub fn dark() -> Self {
-        let text_style = egui::TextStyle::Monospace;
+        let font_id = egui::FontId::monospace(12.0);
         use egui::{Color32, TextFormat};
         Self {
             dark_mode: true,
             formats: enum_map::enum_map![
-                TokenType::Comment => TextFormat::simple(text_style.clone(), Color32::from_gray(120)),
-                TokenType::Keyword => TextFormat::simple(text_style.clone(), Color32::from_rgb(255, 100, 100)),
-                TokenType::Literal => TextFormat::simple(text_style.clone(), Color32::from_rgb(87, 165, 171)),
-                TokenType::StringLiteral => TextFormat::simple(text_style.clone(), Color32::from_rgb(109, 147, 226)),
-                TokenType::Punctuation => TextFormat::simple(text_style.clone(), Color32::LIGHT_GRAY),
-                TokenType::Whitespace => TextFormat::simple(text_style.clone(), Color32::TRANSPARENT),
+                TokenType::Comment => TextFormat::simple(font_id.clone(), Color32::from_gray(120)),
+                TokenType::Keyword => TextFormat::simple(font_id.clone(), Color32::from_rgb(255, 100, 100)),
+                TokenType::Literal => TextFormat::simple(font_id.clone(), Color32::from_rgb(87, 165, 171)),
+                TokenType::StringLiteral => TextFormat::simple(font_id.clone(), Color32::from_rgb(109, 147, 226)),
+                TokenType::Punctuation => TextFormat::simple(font_id.clone(), Color32::LIGHT_GRAY),
+                TokenType::Whitespace => TextFormat::simple(font_id.clone(), Color32::TRANSPARENT),
             ],
         }
     }
 
     pub fn light() -> Self {
-        let text_style = egui::TextStyle::Monospace;
+        let font_id = egui::FontId::monospace(12.0);
         use egui::{Color32, TextFormat};
         Self {
             dark_mode: false,
             #[cfg(not(feature = "syntect"))]
             formats: enum_map::enum_map![
-                TokenType::Comment => TextFormat::simple(text_style.clone(), Color32::GRAY),
-                TokenType::Keyword => TextFormat::simple(text_style.clone(), Color32::from_rgb(235, 0, 0)),
-                TokenType::Literal => TextFormat::simple(text_style.clone(), Color32::from_rgb(153, 134, 255)),
-                TokenType::StringLiteral => TextFormat::simple(text_style.clone(), Color32::from_rgb(37, 203, 105)),
-                TokenType::Punctuation => TextFormat::simple(text_style.clone(), Color32::DARK_GRAY),
-                TokenType::Whitespace => TextFormat::simple(text_style.clone(), Color32::TRANSPARENT),
+                TokenType::Comment => TextFormat::simple(font_id.clone(), Color32::GRAY),
+                TokenType::Keyword => TextFormat::simple(font_id.clone(), Color32::from_rgb(235, 0, 0)),
+                TokenType::Literal => TextFormat::simple(font_id.clone(), Color32::from_rgb(153, 134, 255)),
+                TokenType::StringLiteral => TextFormat::simple(font_id.clone(), Color32::from_rgb(37, 203, 105)),
+                TokenType::Punctuation => TextFormat::simple(font_id.clone(), Color32::DARK_GRAY),
+                TokenType::Whitespace => TextFormat::simple(font_id.clone(), Color32::TRANSPARENT),
             ],
         }
     }
@@ -259,7 +259,7 @@ impl CodeTheme {
                         // (TokenType::Whitespace, "whitespace"),
                     ] {
                         let format = &mut self.formats[tt];
-                        ui.style_mut().override_text_style = Some(format.style.clone());
+                        ui.style_mut().override_font_id = Some(format.font_id.clone());
                         ui.visuals_mut().override_text_color = Some(format.color);
                         ui.radio_value(&mut selected_tt, tt, tt_name);
                     }

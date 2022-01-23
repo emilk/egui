@@ -1,11 +1,11 @@
 use crate::{
     emath::{Align2, Pos2, Rect, Vec2},
     layers::{LayerId, PaintList, ShapeIdx},
-    Color32, Context,
+    Color32, Context, FontId,
 };
 use epaint::{
     mutex::{Arc, RwLockReadGuard, RwLockWriteGuard},
-    text::{Fonts, Galley, TextStyle},
+    text::{Fonts, Galley},
     CircleShape, RectShape, Shape, Stroke, TextShape,
 };
 
@@ -194,12 +194,11 @@ impl Painter {
     #[allow(clippy::needless_pass_by_value)]
     pub fn debug_rect(&mut self, rect: Rect, color: Color32, text: impl ToString) {
         self.rect_stroke(rect, 0.0, (1.0, color));
-        let text_style = TextStyle::Monospace;
         self.text(
             rect.min,
             Align2::LEFT_TOP,
             text.to_string(),
-            text_style,
+            FontId::monospace(14.0),
             color,
         );
     }
@@ -217,7 +216,7 @@ impl Painter {
         color: Color32,
         text: impl ToString,
     ) -> Rect {
-        let galley = self.layout_no_wrap(text.to_string(), TextStyle::Monospace, color);
+        let galley = self.layout_no_wrap(text.to_string(), FontId::monospace(14.0), color);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size()));
         let frame_rect = rect.expand(2.0);
         self.add(Shape::rect_filled(
@@ -336,10 +335,10 @@ impl Painter {
         pos: Pos2,
         anchor: Align2,
         text: impl ToString,
-        text_style: TextStyle,
+        font_id: FontId,
         text_color: Color32,
     ) -> Rect {
-        let galley = self.layout_no_wrap(text.to_string(), text_style, text_color);
+        let galley = self.layout_no_wrap(text.to_string(), font_id, text_color);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size()));
         self.galley(rect.min, galley);
         rect
@@ -352,11 +351,11 @@ impl Painter {
     pub fn layout(
         &self,
         text: String,
-        text_style: TextStyle,
+        font_id: FontId,
         color: crate::Color32,
         wrap_width: f32,
     ) -> Arc<Galley> {
-        self.fonts().layout(text, text_style, color, wrap_width)
+        self.fonts().layout(text, font_id, color, wrap_width)
     }
 
     /// Will line break at `\n`.
@@ -366,10 +365,10 @@ impl Painter {
     pub fn layout_no_wrap(
         &self,
         text: String,
-        text_style: TextStyle,
+        font_id: FontId,
         color: crate::Color32,
     ) -> Arc<Galley> {
-        self.fonts().layout(text, text_style, color, f32::INFINITY)
+        self.fonts().layout(text, font_id, color, f32::INFINITY)
     }
 
     /// Paint text that has already been layed out in a [`Galley`].

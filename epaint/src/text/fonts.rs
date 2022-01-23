@@ -9,25 +9,56 @@ use crate::{
     TextureAtlas,
 };
 
-/// How to select a sized font.
-/// Most paint functions take `impl Into<SizedFont>`
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
-pub enum SizedFont {
-    /// ```
-    /// SizedFont::Style(TextStyle::Heading);
-    /// SizedFont::Style("footer");
-    /// ````
-    Style(TextStyle),
+// ----------------------------------------------------------------------------
 
-    /// ```
-    /// SizedFont::SizedFamily(16.0, FontFamily::Monospace);
-    /// SizedFont::SizedFamily(12.0, "helvetica".into());
-    /// SizedFont::SizedFamily(12.0, "sans".into());
-    /// ````
-    SizedFamily(f32, FontFamily),
+/// How to select a sized font.
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct FontId {
+    /// Height in points.
+    pub size: f32,
+
+    /// What font family to use.
+    pub family: FontFamily,
+    // TODO: weight (bold), italics, …
 }
+
+impl Default for FontId {
+    fn default() -> Self {
+        Self {
+            size: 14.0,
+            family: FontFamily::Proportional,
+        }
+    }
+}
+
+impl FontId {
+    #[inline]
+    pub fn new(size: f32, family: FontFamily) -> Self {
+        Self { size, family }
+    }
+
+    #[inline]
+    pub fn proportional(size: f32) -> Self {
+        Self::new(size, FontFamily::Proportional)
+    }
+
+    #[inline]
+    pub fn monospace(size: f32) -> Self {
+        Self::new(size, FontFamily::Monospace)
+    }
+}
+
+impl std::hash::Hash for FontId {
+    #[inline(always)]
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let Self { size, family } = self;
+        crate::f32_hash(state, *size);
+        family.hash(state);
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 /// Font of unknown size.
 ///
@@ -35,7 +66,6 @@ pub enum SizedFont {
 /// or by user-chosen name.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
 pub enum FontFamily {
     /// A font where each character is the same width (`w` is the same width as `i`).
     Monospace,
@@ -43,6 +73,8 @@ pub enum FontFamily {
     /// A font where some characters are wider than other (e.g. 'w' is wider than 'i').
     Proportional,
 
+    /// One of the names in [`FontDefinitions::families`].
+    ///
     /// ```
     /// // User-chosen names:
     /// FontFamily::Name("arial".into());
@@ -51,51 +83,17 @@ pub enum FontFamily {
     Name(Arc<str>),
 }
 
-/// Alias for a font of known size.
-///
-/// One of a few categories of styles of text, e.g. body, button or heading.
-/// Useful in GUI:s.
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
-pub enum TextStyle {
-    /// Used when small text is needed.
-    Small,
-
-    /// Normal labels. Easily readable, doesn't take up too much space.
-    Body,
-
-    /// Same size as [`Self::Body]`, but used when monospace is important (for aligning number, code snippets, etc).
-    Monospace,
-
-    /// Buttons. Maybe slightly bigger than [`Self::Body]`.
-    /// Signifies that he item is interactive.
-    Button,
-
-    /// Heading. Probably larger than [`Self::Body]`.
-    Heading,
-
-    /// ```
-    /// // A user-chosen name of a style:
-    /// TextStyle::Name("footing".into());
-    /// ````
-    Name(Arc<str>),
-}
-
-impl TextStyle {
-    /// All default (un-named) `TextStyle`:s.
-    pub fn built_in() -> impl ExactSizeIterator<Item = TextStyle> {
-        [
-            TextStyle::Small,
-            TextStyle::Body,
-            TextStyle::Monospace,
-            TextStyle::Button,
-            TextStyle::Heading,
-        ]
-        .iter()
-        .cloned()
+impl std::fmt::Display for FontFamily {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Monospace => "Monospace".fmt(f),
+            Self::Proportional => "Proportional".fmt(f),
+            Self::Name(name) => (*name).fmt(f),
+        }
     }
 }
+
+// ----------------------------------------------------------------------------
 
 /// A `.ttf` or `.otf` file and a font face index.
 #[derive(Clone, Debug, PartialEq)]
@@ -172,11 +170,11 @@ fn ab_glyph_font_from_font_data(name: &str, data: &FontData) -> ab_glyph::FontAr
 ///    FontData::from_static(include_bytes!("../../fonts/Ubuntu-Light.ttf"))); // .ttf and .otf supported
 ///
 /// // Put my font first (highest priority):
-/// fonts.fonts_for_family.get_mut(&FontFamily::Proportional).unwrap()
+/// fonts.families.get_mut(&FontFamily::Proportional).unwrap()
 ///     .insert(0, "my_font".to_owned());
 ///
 /// // Put my font as last fallback for monospace:
-/// fonts.fonts_for_family.get_mut(&FontFamily::Monospace).unwrap()
+/// fonts.families.get_mut(&FontFamily::Monospace).unwrap()
 ///     .push("my_font".to_owned());
 ///
 /// ctx.set_fonts(fonts);
@@ -197,10 +195,7 @@ pub struct FontDefinitions {
     /// the first font and then move to the second, and so on.
     /// So the first font is the primary, and then comes a list of fallbacks in order of priority.
     // TODO: per font size-modifier.
-    pub fonts_for_family: BTreeMap<FontFamily, Vec<String>>,
-
-    /// The [`FontFamily`] and size you want to use for a specific [`TextStyle`].
-    pub styles: BTreeMap<TextStyle, (f32, FontFamily)>,
+    pub families: BTreeMap<FontFamily, Vec<String>>,
 }
 
 impl Default for FontDefinitions {
@@ -208,7 +203,7 @@ impl Default for FontDefinitions {
         #[allow(unused)]
         let mut font_data: BTreeMap<String, FontData> = BTreeMap::new();
 
-        let mut fonts_for_family = BTreeMap::new();
+        let mut families = BTreeMap::new();
 
         #[cfg(feature = "default_fonts")]
         {
@@ -232,7 +227,7 @@ impl Default for FontDefinitions {
                 FontData::from_static(include_bytes!("../../fonts/emoji-icon-font.ttf")),
             );
 
-            fonts_for_family.insert(
+            families.insert(
                 FontFamily::Monospace,
                 vec![
                     "Hack".to_owned(),
@@ -241,7 +236,7 @@ impl Default for FontDefinitions {
                     "emoji-icon-font".to_owned(),
                 ],
             );
-            fonts_for_family.insert(
+            families.insert(
                 FontFamily::Proportional,
                 vec![
                     "Ubuntu-Light".to_owned(),
@@ -253,21 +248,13 @@ impl Default for FontDefinitions {
 
         #[cfg(not(feature = "default_fonts"))]
         {
-            fonts_for_family.insert(FontFamily::Monospace, vec![]);
-            fonts_for_family.insert(FontFamily::Proportional, vec![]);
+            families.insert(FontFamily::Monospace, vec![]);
+            families.insert(FontFamily::Proportional, vec![]);
         }
-
-        let mut styles = BTreeMap::new();
-        styles.insert(TextStyle::Small, (10.0, FontFamily::Proportional));
-        styles.insert(TextStyle::Body, (14.0, FontFamily::Proportional));
-        styles.insert(TextStyle::Button, (14.0, FontFamily::Proportional));
-        styles.insert(TextStyle::Heading, (20.0, FontFamily::Proportional));
-        styles.insert(TextStyle::Monospace, (14.0, FontFamily::Monospace));
 
         Self {
             font_data,
-            fonts_for_family,
-            styles,
+            families,
         }
     }
 }
@@ -317,14 +304,25 @@ impl Fonts {
 
     /// Width of this character in points.
     #[inline]
-    pub fn glyph_width(&self, text_style: &TextStyle, c: char) -> f32 {
-        self.lock().fonts.glyph_width(text_style, c)
+    pub fn glyph_width(&self, font_id: &FontId, c: char) -> f32 {
+        self.lock().fonts.glyph_width(font_id, c)
     }
 
     /// Height of one row of text. In points
     #[inline]
-    pub fn row_height(&self, text_style: &TextStyle) -> f32 {
-        self.lock().fonts.row_height(text_style)
+    pub fn row_height(&self, font_id: &FontId) -> f32 {
+        self.lock().fonts.row_height(font_id)
+    }
+
+    /// List of all known font families.
+    pub fn families(&self) -> Vec<FontFamily> {
+        self.lock()
+            .fonts
+            .definitions
+            .families
+            .keys()
+            .cloned()
+            .collect()
     }
 
     /// Layout some text.
@@ -333,7 +331,7 @@ impl Fonts {
     /// [`Self::layout_delayed_color`].
     ///
     /// The implementation uses memoization so repeated calls are cheap.
-    /// #[inline]
+    #[inline]
     pub fn layout_job(&self, job: LayoutJob) -> Arc<Galley> {
         self.lock().layout_job(job)
     }
@@ -353,11 +351,11 @@ impl Fonts {
     pub fn layout(
         &self,
         text: String,
-        text_style: TextStyle,
+        font_id: FontId,
         color: crate::Color32,
         wrap_width: f32,
     ) -> Arc<Galley> {
-        let job = LayoutJob::simple(text, text_style, color, wrap_width);
+        let job = LayoutJob::simple(text, font_id, color, wrap_width);
         self.layout_job(job)
     }
 
@@ -367,10 +365,10 @@ impl Fonts {
     pub fn layout_no_wrap(
         &self,
         text: String,
-        text_style: TextStyle,
+        font_id: FontId,
         color: crate::Color32,
     ) -> Arc<Galley> {
-        let job = LayoutJob::simple(text, text_style, color, f32::INFINITY);
+        let job = LayoutJob::simple(text, font_id, color, f32::INFINITY);
         self.layout_job(job)
     }
 
@@ -380,12 +378,12 @@ impl Fonts {
     pub fn layout_delayed_color(
         &self,
         text: String,
-        text_style: TextStyle,
+        font_id: FontId,
         wrap_width: f32,
     ) -> Arc<Galley> {
         self.layout_job(LayoutJob::simple(
             text,
-            text_style,
+            font_id,
             crate::Color32::TEMPORARY_COLOR,
             wrap_width,
         ))
@@ -415,7 +413,6 @@ pub struct FontsImpl {
     definitions: FontDefinitions,
     atlas: Arc<Mutex<TextureAtlas>>,
     font_impl_cache: FontImplCache,
-    styles: ahash::AHashMap<TextStyle, Font>,
     sized_family: ahash::AHashMap<(u32, FontFamily), Font>,
 }
 
@@ -445,22 +442,13 @@ impl FontsImpl {
         let font_impl_cache =
             FontImplCache::new(atlas.clone(), pixels_per_point, &definitions.font_data);
 
-        let mut slf = Self {
+        Self {
             pixels_per_point,
             definitions,
             atlas,
             font_impl_cache,
-            styles: Default::default(),
             sized_family: Default::default(),
-        };
-
-        // pre-cache all styles:
-        let styles: Vec<TextStyle> = slf.definitions.styles.keys().cloned().collect();
-        for style in styles {
-            slf.font_for_style(&style);
         }
-
-        slf
     }
 
     #[inline(always)]
@@ -473,56 +461,15 @@ impl FontsImpl {
         &self.definitions
     }
 
-    pub fn font(&mut self, sized_font: &SizedFont) -> &mut Font {
-        match sized_font {
-            SizedFont::Style(style) => self.font_for_style(style),
-            SizedFont::SizedFamily(scale_in_points, family) => {
-                self.font_for_sized_family(*scale_in_points, family)
-            }
-        }
-    }
-
-    pub fn font_for_style(&mut self, text_style: &TextStyle) -> &mut Font {
-        self.styles.entry(text_style.clone()).or_insert_with(|| {
-            let (scale_in_points, family) = self
-                .definitions
-                .styles
-                .get(text_style)
-                .or_else(|| {
-                    eprintln!(
-                        "Missing TextStyle {:?} in font definitions; falling back to Body",
-                        text_style
-                    );
-                    self.definitions.styles.get(&TextStyle::Body)
-                })
-                .unwrap_or_else(|| panic!("Missing {:?} in font definitions", TextStyle::Body));
-
-            let scale_in_pixels = self.font_impl_cache.scale_as_pixels(*scale_in_points);
-
-            let fonts = &self.definitions.fonts_for_family.get(family);
-            let fonts = fonts
-                .unwrap_or_else(|| panic!("FontFamily::{:?} is not bound to any fonts", family));
-
-            let fonts: Vec<Arc<FontImpl>> = fonts
-                .iter()
-                .map(|font_name| self.font_impl_cache.font_impl(scale_in_pixels, font_name))
-                .collect();
-
-            Font::new(fonts)
-        })
-    }
-
-    pub fn font_for_sized_family(
-        &mut self,
-        scale_in_points: f32,
-        family: &FontFamily,
-    ) -> &mut Font {
-        let scale_in_pixels = self.font_impl_cache.scale_as_pixels(scale_in_points);
+    /// Get the right font implementation from size and [`FontFamily`].
+    pub fn font(&mut self, font_id: &FontId) -> &mut Font {
+        let FontId { size, family } = font_id;
+        let scale_in_pixels = self.font_impl_cache.scale_as_pixels(*size);
 
         self.sized_family
             .entry((scale_in_pixels, family.clone()))
             .or_insert_with(|| {
-                let fonts = &self.definitions.fonts_for_family.get(family);
+                let fonts = &self.definitions.families.get(family);
                 let fonts = fonts.unwrap_or_else(|| {
                     panic!("FontFamily::{:?} is not bound to any fonts", family)
                 });
@@ -537,13 +484,13 @@ impl FontsImpl {
     }
 
     /// Width of this character in points.
-    fn glyph_width(&mut self, text_style: &TextStyle, c: char) -> f32 {
-        self.font_for_style(text_style).glyph_width(c)
+    fn glyph_width(&mut self, font_id: &FontId, c: char) -> f32 {
+        self.font(font_id).glyph_width(c)
     }
 
     /// Height of one row of text. In points
-    fn row_height(&mut self, text_style: &TextStyle) -> f32 {
-        self.font_for_style(text_style).row_height()
+    fn row_height(&mut self, font_id: &FontId) -> f32 {
+        self.font(font_id).row_height()
     }
 }
 
@@ -639,7 +586,7 @@ impl FontImplCache {
 
     pub fn font_impl(&mut self, scale_in_pixels: u32, font_name: &str) -> Arc<FontImpl> {
         let scale_in_pixels = if font_name == "emoji-icon-font" {
-            (scale_in_pixels as f32 * 0.8).round() as u32 // TODO: remove HACK!
+            (scale_in_pixels as f32 * 0.8).round() as u32 // TODO: remove font scale HACK!
         } else {
             scale_in_pixels
         };

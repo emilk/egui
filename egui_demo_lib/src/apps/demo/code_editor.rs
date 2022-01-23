@@ -85,7 +85,7 @@ impl super::View for CodeEditor {
         egui::ScrollArea::vertical().show(ui, |ui| {
             ui.add(
                 egui::TextEdit::multiline(code)
-                    .text_style(egui::TextStyle::Monospace) // for cursor height
+                    .font(egui::TextStyle::Monospace) // for cursor height
                     .code_editor()
                     .desired_rows(10)
                     .lock_focus(true)

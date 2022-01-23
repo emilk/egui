@@ -683,7 +683,13 @@ impl PreparedPlot {
         let Self { transform, .. } = self;
 
         let bounds = transform.bounds();
-        let text_style = TextStyle::Body;
+
+        let font_id = ui
+            .style()
+            .text_styles
+            .get(&TextStyle::Body)
+            .cloned()
+            .unwrap_or_default();
 
         let base: i64 = 10;
         let basef = base as f64;
@@ -741,7 +747,7 @@ impl PreparedPlot {
                 let color = color_from_alpha(ui, text_alpha);
                 let text = emath::round_to_decimals(value_main, 5).to_string(); // hack
 
-                let galley = ui.painter().layout_no_wrap(text, text_style.clone(), color);
+                let galley = ui.painter().layout_no_wrap(text, font_id.clone(), color);
 
                 let mut text_pos = pos_in_gui + vec2(1.0, -galley.size().y);
 

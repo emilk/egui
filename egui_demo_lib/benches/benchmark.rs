@@ -87,7 +87,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     {
         let pixels_per_point = 1.0;
         let wrap_width = 512.0;
-        let text_style = egui::TextStyle::Body;
+        let font_id = egui::FontId::default();
         let color = egui::Color32::WHITE;
         let fonts =
             egui::epaint::text::Fonts::new(pixels_per_point, egui::FontDefinitions::default());
@@ -99,7 +99,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
                     let job = LayoutJob::simple(
                         LOREM_IPSUM_LONG.to_owned(),
-                        egui::TextStyle::Body,
+                        font_id.clone(),
                         color,
                         wrap_width,
                     );
@@ -108,10 +108,17 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             });
         }
         c.bench_function("text_layout_cached", |b| {
-            b.iter(|| fonts.layout(LOREM_IPSUM_LONG.to_owned(), text_style, color, wrap_width))
+            b.iter(|| {
+                fonts.layout(
+                    LOREM_IPSUM_LONG.to_owned(),
+                    font_id.clone(),
+                    color,
+                    wrap_width,
+                )
+            })
         });
 
-        let galley = fonts.layout(LOREM_IPSUM_LONG.to_owned(), text_style, color, wrap_width);
+        let galley = fonts.layout(LOREM_IPSUM_LONG.to_owned(), font_id, color, wrap_width);
         let mut tessellator = egui::epaint::Tessellator::from_options(Default::default());
         let mut mesh = egui::epaint::Mesh::default();
         let text_shape = TextShape::new(egui::Pos2::ZERO, galley);

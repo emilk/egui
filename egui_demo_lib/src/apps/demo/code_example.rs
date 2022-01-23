@@ -98,7 +98,9 @@ impl CodeExample {
         );
 
         ui.horizontal(|ui| {
-            let indentation = 8.0 * ui.fonts().glyph_width(&egui::TextStyle::Monospace, ' ');
+            let indentation = 8.0
+                * ui.fonts()
+                    .glyph_width(&egui::TextStyle::Monospace.resolve(ui.style()), ' ');
             let item_spacing = ui.spacing_mut().item_spacing;
             ui.add_space(indentation - item_spacing.x);
 

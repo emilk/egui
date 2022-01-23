@@ -1,5 +1,26 @@
-//! uis for egui types.
+//! Showing UI:s for egui/epaint types.
 use crate::*;
+
+pub fn font_family_ui(ui: &mut Ui, font_family: &mut FontFamily) {
+    let families = ui.fonts().families();
+    ui.horizontal(|ui| {
+        for alternative in families {
+            let text = alternative.to_string();
+            ui.radio_value(font_family, alternative, text);
+        }
+    });
+}
+
+pub fn font_id_ui(ui: &mut Ui, font_id: &mut FontId) {
+    let families = ui.fonts().families();
+    ui.horizontal(|ui| {
+        ui.add(Slider::new(&mut font_id.size, 4.0..=40.0).max_decimals(0));
+        for alternative in families {
+            let text = alternative.to_string();
+            ui.radio_value(&mut font_id.family, alternative, text);
+        }
+    });
+}
 
 // Show font texture in demo Ui
 pub(crate) fn font_texture_ui(ui: &mut Ui, [width, height]: [usize; 2]) -> Response {
@@ -55,23 +76,6 @@ pub(crate) fn font_texture_ui(ui: &mut Ui, [width, height]: [usize; 2]) -> Respo
     .response
 }
 
-impl Widget for &mut epaint::text::FontDefinitions {
-    fn ui(self, ui: &mut Ui) -> Response {
-        ui.vertical(|ui| {
-            for (text_style, (size, _family)) in self.styles.iter_mut() {
-                // TODO: radio button for family
-                ui.add(
-                    Slider::new(size, 4.0..=40.0)
-                        .max_decimals(0)
-                        .text(format!("{:?}", text_style)),
-                );
-            }
-            crate::reset_button(ui, self);
-        })
-        .response
-    }
-}
-
 impl Widget for &epaint::stats::PaintStats {
     fn ui(self, ui: &mut Ui) -> Response {
         ui.vertical(|ui| {
@@ -124,7 +128,7 @@ impl Widget for &epaint::stats::PaintStats {
     }
 }
 
-pub fn label(ui: &mut Ui, alloc_info: &epaint::stats::AllocInfo, what: &str) -> Response {
+fn label(ui: &mut Ui, alloc_info: &epaint::stats::AllocInfo, what: &str) -> Response {
     ui.add(Label::new(alloc_info.format(what)).wrap(false))
 }
 

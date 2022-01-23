@@ -359,6 +359,11 @@ impl Ui {
         self.ctx().fonts()
     }
 
+    /// The height of text of this text style
+    pub fn text_style_height(&self, style: &TextStyle) -> f32 {
+        self.fonts().row_height(&style.resolve(self.style()))
+    }
+
     /// Screen-space rectangle for clipping what we paint in this ui.
     /// This is used, for instance, to avoid painting outside a window that is smaller than its contents.
     #[inline]
@@ -1256,12 +1261,12 @@ impl Ui {
     pub fn radio_value<Value: PartialEq>(
         &mut self,
         current_value: &mut Value,
-        selected_value: Value,
+        alternative: Value,
         text: impl Into<WidgetText>,
     ) -> Response {
-        let mut response = self.radio(*current_value == selected_value, text);
+        let mut response = self.radio(*current_value == alternative, text);
         if response.clicked() {
-            *current_value = selected_value;
+            *current_value = alternative;
             response.mark_changed();
         }
         response
