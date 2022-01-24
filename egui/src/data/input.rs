@@ -30,8 +30,9 @@ pub struct RawInput {
 
     /// Maximum size of one side of the font texture.
     ///
-    /// Ask your graphics drivers about that.
-    /// The default is a very small, but very safe, 2048.
+    /// Ask your graphics drivers about this. This corresponds to `GL_MAX_TEXTURE_SIZE`.
+    ///
+    /// The default is a very small (but very portable) 2048.
     pub max_texture_side: usize,
 
     /// Monotonically increasing time, in seconds. Relative to whatever. Used for animations.
