@@ -24,6 +24,8 @@ const FRAG_SRC: &str = include_str!("shader/fragment.glsl");
 /// This struct must be destroyed with [`Painter::destroy`] before dropping, to ensure OpenGL
 /// objects have been properly deleted and are not leaked.
 pub struct Painter {
+    max_texture_side: usize,
+
     program: glow::Program,
     u_screen_size: glow::UniformLocation,
     u_sampler: glow::UniformLocation,
@@ -89,6 +91,8 @@ impl Painter {
         shader_prefix: &str,
     ) -> Result<Painter, String> {
         check_for_gl_error(gl, "before Painter::new");
+
+        let max_texture_side = unsafe { gl.get_parameter_i32(glow::MAX_TEXTURE_SIZE) } as usize;
 
         let support_vao = crate::misc_util::supports_vao(gl);
         let shader_version = ShaderVersion::get(gl);
@@ -203,6 +207,7 @@ impl Painter {
             check_for_gl_error(gl, "after Painter::new");
 
             Ok(Painter {
+                max_texture_side,
                 program,
                 u_screen_size,
                 u_sampler,
@@ -221,6 +226,10 @@ impl Painter {
                 destroyed: false,
             })
         }
+    }
+
+    pub fn max_texture_side(&self) -> usize {
+        self.max_texture_side
     }
 
     unsafe fn prepare_painting(

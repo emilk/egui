@@ -285,7 +285,7 @@ impl Frame {
         Self(Arc::new(Mutex::new(frame_data)))
     }
 
-    /// Convenience to access the underlying `backend::FrameData`.
+    /// Access the underlying [`backend::FrameData`].
     #[doc(hidden)]
     #[inline]
     pub fn lock(&self) -> std::sync::MutexGuard<'_, backend::FrameData> {

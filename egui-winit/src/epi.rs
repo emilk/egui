@@ -198,6 +198,7 @@ pub struct EpiIntegration {
 impl EpiIntegration {
     pub fn new(
         integration_name: &'static str,
+        max_texture_side: usize,
         window: &winit::window::Window,
         repaint_signal: std::sync::Arc<dyn epi::backend::RepaintSignal>,
         persistence: crate::epi::Persistence,
@@ -223,7 +224,7 @@ impl EpiIntegration {
             frame,
             persistence,
             egui_ctx,
-            egui_winit: crate::State::new(window),
+            egui_winit: crate::State::new(max_texture_side, window),
             app,
             quit: false,
         };

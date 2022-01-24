@@ -62,7 +62,7 @@ impl ContextImpl {
         self.input = input.begin_frame(new_raw_input);
         self.frame_state.begin_frame(&self.input);
 
-        self.update_fonts_mut(self.input.pixels_per_point());
+        self.update_fonts_mut();
 
         // Ensure we register the background area so panels and background ui can catch clicks:
         let screen_rect = self.input.screen_rect();
@@ -77,27 +77,21 @@ impl ContextImpl {
     }
 
     /// Load fonts unless already loaded.
-    fn update_fonts_mut(&mut self, pixels_per_point: f32) {
-        let new_font_definitions = self.memory.new_font_definitions.take();
+    fn update_fonts_mut(&mut self) {
+        let pixels_per_point = self.input.pixels_per_point();
+        let max_texture_side = self.input.raw.max_texture_side;
 
-        let pixels_per_point_changed = match &self.fonts {
-            None => true,
-            Some(current_fonts) => {
-                (current_fonts.pixels_per_point() - pixels_per_point).abs() > 1e-3
-            }
-        };
-
-        if self.fonts.is_none() || new_font_definitions.is_some() || pixels_per_point_changed {
-            self.fonts = Some(Fonts::new(
-                pixels_per_point,
-                new_font_definitions.unwrap_or_else(|| {
-                    self.fonts
-                        .as_ref()
-                        .map(|font| font.definitions().clone())
-                        .unwrap_or_default()
-                }),
-            ));
+        if let Some(font_definitions) = self.memory.new_font_definitions.take() {
+            let fonts = Fonts::new(pixels_per_point, max_texture_side, font_definitions);
+            self.fonts = Some(fonts);
         }
+
+        let fonts = self.fonts.get_or_insert_with(|| {
+            let font_definitions = FontDefinitions::default();
+            Fonts::new(pixels_per_point, max_texture_side, font_definitions)
+        });
+
+        fonts.begin_frame(pixels_per_point, max_texture_side);
     }
 }
 
@@ -521,7 +515,7 @@ impl Context {
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
         if let Some(current_fonts) = &*self.fonts_mut() {
             // NOTE: this comparison is expensive since it checks TTF data for equality
-            if current_fonts.definitions() == &font_definitions {
+            if current_fonts.lock().fonts.definitions() == &font_definitions {
                 return; // no change - save us from reloading font textures
             }
         }
@@ -699,8 +693,6 @@ impl Context {
         if self.input().wants_repaint() {
             self.request_repaint();
         }
-
-        self.fonts().end_frame();
 
         {
             let ctx_impl = &mut *self.write();
@@ -953,16 +945,6 @@ impl Context {
                 self.style_ui(ui);
             });
 
-        CollapsingHeader::new("🔠 Fonts")
-            .default_open(false)
-            .show(ui, |ui| {
-                let mut font_definitions = self.fonts().definitions().clone();
-                font_definitions.ui(ui);
-                let font_image_size = self.fonts().font_image_size();
-                crate::introspection::font_texture_ui(ui, font_image_size);
-                self.set_fonts(font_definitions);
-            });
-
         CollapsingHeader::new("✒ Painting")
             .default_open(true)
             .show(ui, |ui| {
@@ -1039,6 +1021,13 @@ impl Context {
             .show(ui, |ui| {
                 self.texture_ui(ui);
             });
+
+        CollapsingHeader::new("🔠 Font texture")
+            .default_open(false)
+            .show(ui, |ui| {
+                let font_image_size = self.fonts().font_image_size();
+                crate::introspection::font_texture_ui(ui, font_image_size);
+            });
     }
 
     /// Show stats about the allocated textures.
@@ -1080,8 +1069,12 @@ impl Context {
                                 size *= (max_preview_size.x / size.x).min(1.0);
                                 size *= (max_preview_size.y / size.y).min(1.0);
                                 ui.image(texture_id, size).on_hover_ui(|ui| {
-                                    // show full size on hover
-                                    ui.image(texture_id, Vec2::new(w as f32, h as f32));
+                                    // show larger on hover
+                                    let max_size = 0.5 * ui.ctx().input().screen_rect().size();
+                                    let mut size = Vec2::new(w as f32, h as f32);
+                                    size *= max_size.x / size.x.max(max_size.x);
+                                    size *= max_size.y / size.y.max(max_size.y);
+                                    ui.image(texture_id, size);
                                 });
 
                                 ui.label(format!("{} x {}", w, h));

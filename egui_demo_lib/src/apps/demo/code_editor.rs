@@ -1,5 +1,7 @@
 // ----------------------------------------------------------------------------
 
+use crate::apps::demo::Demo;
+
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct CodeEditor {
@@ -71,7 +73,7 @@ impl super::View for CodeEditor {
         ui.collapsing("Theme", |ui| {
             ui.group(|ui| {
                 theme.ui(ui);
-                theme.store_in_memory(ui.ctx());
+                theme.clone().store_in_memory(ui.ctx());
             });
         });
 
@@ -85,7 +87,7 @@ impl super::View for CodeEditor {
         egui::ScrollArea::vertical().show(ui, |ui| {
             ui.add(
                 egui::TextEdit::multiline(code)
-                    .text_style(egui::TextStyle::Monospace) // for cursor height
+                    .font(egui::TextStyle::Monospace) // for cursor height
                     .code_editor()
                     .desired_rows(10)
                     .lock_focus(true)

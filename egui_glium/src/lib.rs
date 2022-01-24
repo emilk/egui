@@ -111,10 +111,14 @@ pub struct EguiGlium {
 
 impl EguiGlium {
     pub fn new(display: &glium::Display) -> Self {
+        let painter = crate::Painter::new(display);
         Self {
             egui_ctx: Default::default(),
-            egui_winit: egui_winit::State::new(display.gl_window().window()),
-            painter: crate::Painter::new(display),
+            egui_winit: egui_winit::State::new(
+                painter.max_texture_side(),
+                display.gl_window().window(),
+            ),
+            painter,
             shapes: Default::default(),
             textures_delta: Default::default(),
         }

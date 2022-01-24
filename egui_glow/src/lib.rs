@@ -119,15 +119,23 @@ pub struct EguiGlow {
 
 #[cfg(feature = "winit")]
 impl EguiGlow {
-    pub fn new(window: &egui_winit::winit::window::Window, gl: &glow::Context) -> Self {
+    pub fn new(
+        gl_window: &glutin::WindowedContext<glutin::PossiblyCurrent>,
+        gl: &glow::Context,
+    ) -> Self {
+        let painter = crate::Painter::new(gl, None, "")
+            .map_err(|error| {
+                crate::misc_util::glow_print_error(format!(
+                    "error occurred in initializing painter:\n{}",
+                    error
+                ));
+            })
+            .unwrap();
+
         Self {
             egui_ctx: Default::default(),
-            egui_winit: egui_winit::State::new(window),
-            painter: crate::Painter::new(gl, None, "")
-                .map_err(|error| {
-                    eprintln!("some error occurred in initializing painter\n{}", error);
-                })
-                .unwrap(),
+            egui_winit: egui_winit::State::new(painter.max_texture_side(), gl_window.window()),
+            painter,
             shapes: Default::default(),
             textures_delta: Default::default(),
         }
@@ -139,7 +147,7 @@ impl EguiGlow {
     /// and only when this returns `false` pass on the events to your game.
     ///
     /// Note that egui uses `tab` to move focus between elements, so this will always return `true` for tabs.
-    pub fn on_event(&mut self, event: &egui_winit::winit::event::WindowEvent<'_>) -> bool {
+    pub fn on_event(&mut self, event: &glutin::event::WindowEvent<'_>) -> bool {
         self.egui_winit.on_event(&self.egui_ctx, event)
     }
 
@@ -148,7 +156,7 @@ impl EguiGlow {
     /// Call [`Self::paint`] later to paint.
     pub fn run(
         &mut self,
-        window: &egui_winit::winit::window::Window,
+        window: &glutin::window::Window,
         run_ui: impl FnMut(&egui::Context),
     ) -> bool {
         let raw_input = self.egui_winit.take_egui_input(window);
@@ -164,7 +172,11 @@ impl EguiGlow {
     }
 
     /// Paint the results of the last call to [`Self::run`].
-    pub fn paint(&mut self, window: &egui_winit::winit::window::Window, gl: &glow::Context) {
+    pub fn paint(
+        &mut self,
+        gl_window: &glutin::WindowedContext<glutin::PossiblyCurrent>,
+        gl: &glow::Context,
+    ) {
         let shapes = std::mem::take(&mut self.shapes);
         let mut textures_delta = std::mem::take(&mut self.textures_delta);
 
@@ -173,7 +185,7 @@ impl EguiGlow {
         }
 
         let clipped_meshes = self.egui_ctx.tessellate(shapes);
-        let dimensions: [u32; 2] = window.inner_size().into();
+        let dimensions: [u32; 2] = gl_window.window().inner_size().into();
         self.painter.paint_meshes(
             gl,
             dimensions,

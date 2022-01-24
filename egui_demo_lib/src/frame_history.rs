@@ -98,7 +98,7 @@ impl FrameHistory {
                 pos2(rect.left(), y),
                 egui::Align2::LEFT_BOTTOM,
                 text,
-                TextStyle::Monospace,
+                TextStyle::Monospace.resolve(ui.style()),
                 color,
             ));
         }
