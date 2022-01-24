@@ -1,5 +1,6 @@
 use crate::*;
 use egui_winit::winit;
+
 struct RequestRepaintEvent;
 
 struct GlowRepaintSignal(std::sync::Mutex<winit::event_loop::EventLoopProxy<RequestRepaintEvent>>);
