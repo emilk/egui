@@ -4,6 +4,7 @@ use crate::*;
 use epaint::ahash::AHashSet;
 use epaint::color::Hsva;
 use epaint::util::FloatOrd;
+
 use items::PlotItem;
 use legend::LegendWidget;
 use transform::{PlotBounds, ScreenTransform};
@@ -25,6 +26,8 @@ type AxisFormatterFn = dyn Fn(f64) -> String;
 type AxisFormatter = Option<Box<AxisFormatterFn>>;
 
 // ----------------------------------------------------------------------------
+
+const MIN_LINE_SPACING_IN_POINTS: f64 = 6.0; // TODO: large enough for a wide label
 
 /// Information about the plot that has to persist between frames.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -87,6 +90,7 @@ pub struct Plot {
     legend_config: Option<Legend>,
     show_background: bool,
     show_axes: [bool; 2],
+    grid_spacers: [Box<dyn GridSpacer>; 2],
 }
 
 impl Plot {
@@ -115,6 +119,7 @@ impl Plot {
             legend_config: None,
             show_background: true,
             show_axes: [true; 2],
+            grid_spacers: [LogGridSpacer::new_boxed(10), LogGridSpacer::new_boxed(10)],
         }
     }
 
@@ -281,6 +286,22 @@ impl Plot {
         self
     }
 
+    /// Configure how the grid in the background is spaced apart along the X axis.
+    ///
+    /// Default is a log-10 grid, i.e. every plot unit is divided into 10 other units. This is represented by [`LogGridSpacer`].
+    pub fn x_grid_spacer(mut self, spacer: Box<dyn GridSpacer>) -> Self {
+        self.grid_spacers[0] = spacer;
+        self
+    }
+
+    /// Configure how the grid in the background is spaced apart along the Y axis.
+    ///
+    /// Default is a log-10 grid, i.e. every plot unit is divided into 10 other units. This is represented by [`LogGridSpacer`].
+    pub fn y_grid_spacer(mut self, spacer: Box<dyn GridSpacer>) -> Self {
+        self.grid_spacers[1] = spacer;
+        self
+    }
+
     /// Interact with and add items to the plot and finally draw it.
     pub fn show<R>(self, ui: &mut Ui, build_fn: impl FnOnce(&mut PlotUi) -> R) -> InnerResponse<R> {
         let Self {
@@ -303,6 +324,7 @@ impl Plot {
             legend_config,
             show_background,
             show_axes,
+            grid_spacers,
         } = self;
 
         // Determine the size of the plot in the UI
@@ -475,6 +497,7 @@ impl Plot {
             axis_formatters,
             show_axes,
             transform: transform.clone(),
+            grid_spacers,
         };
         prepared.ui(ui, &response);
 
@@ -676,6 +699,65 @@ impl PlotUi {
     }
 }
 
+// ----------------------------------------------------------------------------
+// Grid
+
+/// One step (horizontal or vertical line) in the background grid
+struct GridStep {
+    /// X or Y value in the plot
+    value: f64,
+
+    /// The step size for that value, determines how thick the grid line is painted at that point
+    step_size: f64,
+}
+
+/// Determines how the background grid in a plot is spaced apart.
+pub trait GridSpacer {
+    /// Generate steps on the grid.
+    ///
+    /// `bounds` are min/max of the visible data range (the values at the two edges of the plot,
+    /// for the current axis).
+    ///
+    /// `bounds_frame_ratio` is the ratio between the diagram's bounds (in plot coordinates) and
+    /// the viewport (in frame/window coordinates).
+    ///
+    /// This function should return 3 "units", designating where
+    ///
+    fn get_step_sizes(&self, bounds: (f64, f64), bounds_frame_ratio: f64) -> [f64; 3];
+}
+
+/// Built in configuration for grid spacing, using a logarithmic spacing which automatically adjusts
+/// according to zoom level.
+pub struct LogGridSpacer {
+    base: f64,
+}
+
+impl LogGridSpacer {
+    /// The logarithmic base, expressing how many times each grid unit is subdivided.
+    /// 10 is a typical value, others are possible though.
+    pub fn new_boxed(base: i64) -> Box<Self> {
+        Box::new(Self { base: base as f64 })
+    }
+}
+
+impl GridSpacer for LogGridSpacer {
+    fn get_step_sizes(&self, _bounds: (f64, f64), dvalue_dpos: f64) -> [f64; 3] {
+        let Self { base } = *self;
+
+        // The distance between two of the thinnest grid lines is "rounded" up
+        // to the next-bigger power of base
+        let smallest_visible_unit = next_power(dvalue_dpos, base);
+
+        [
+            smallest_visible_unit,
+            smallest_visible_unit * base,
+            smallest_visible_unit * base * base,
+        ]
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 struct PreparedPlot {
     items: Vec<Box<dyn PlotItem>>,
     show_x: bool,
@@ -684,6 +766,7 @@ struct PreparedPlot {
     axis_formatters: [AxisFormatter; 2],
     show_axes: [bool; 2],
     transform: ScreenTransform,
+    grid_spacers: [Box<dyn GridSpacer>; 2],
 }
 
 impl PreparedPlot {
@@ -715,50 +798,40 @@ impl PreparedPlot {
         let Self {
             transform,
             axis_formatters,
+            grid_spacers,
             ..
         } = self;
 
-        let bounds = transform.bounds();
-
         let font_id = TextStyle::Body.resolve(ui.style());
 
-        let base: i64 = 10;
-        let basef = base as f64;
-
-        let min_line_spacing_in_points = 6.0; // TODO: large enough for a wide label
-        let step_size = transform.dvalue_dpos()[axis] * min_line_spacing_in_points;
-        let step_size = basef.powi(step_size.abs().log(basef).ceil() as i32);
-
-        let step_size_in_points = (transform.dpos_dvalue()[axis] * step_size).abs() as f32;
-
         // Where on the cross-dimension to show the label values
+        let bounds = transform.bounds();
         let value_cross = 0.0_f64.clamp(bounds.min[1 - axis], bounds.max[1 - axis]);
 
-        for i in 0.. {
-            let value_main = step_size * (bounds.min[axis] / step_size + i as f64).floor();
-            if value_main > bounds.max[axis] {
-                break;
-            }
+        let bounds = (bounds.min[axis], bounds.max[axis]);
+        let bounds_frame_ratio = transform.dvalue_dpos()[axis] * MIN_LINE_SPACING_IN_POINTS;
+        let step_sizes = grid_spacers[axis].get_step_sizes(bounds, bounds_frame_ratio);
+
+        let mut steps = vec![];
+        fill_steps_between(&mut steps, step_sizes[0], bounds);
+        fill_steps_between(&mut steps, step_sizes[1], bounds);
+        fill_steps_between(&mut steps, step_sizes[2], bounds);
+
+        for step in steps {
+            let value_main = step.value;
 
             let value = if axis == 0 {
                 Value::new(value_main, value_cross)
             } else {
                 Value::new(value_cross, value_main)
             };
-            let pos_in_gui = transform.position_from_value(&value);
 
-            let n = (value_main / step_size).round() as i64;
-            let spacing_in_points = if n % (base * base) == 0 {
-                step_size_in_points * (basef * basef) as f32 // think line (multiple of 100)
-            } else if n % base == 0 {
-                step_size_in_points * basef as f32 // medium line (multiple of 10)
-            } else {
-                step_size_in_points // thin line
-            };
+            let pos_in_gui = transform.position_from_value(&value);
+            let spacing_in_points = (transform.dpos_dvalue()[axis] * step.step_size).abs() as f32;
 
             let line_alpha = remap_clamp(
                 spacing_in_points,
-                (min_line_spacing_in_points as f32)..=300.0,
+                (MIN_LINE_SPACING_IN_POINTS as f32)..=300.0,
                 0.0..=0.15,
             );
 
@@ -848,5 +921,29 @@ impl PreparedPlot {
             let value = transform.value_from_position(pointer);
             items::rulers_at_value(pointer, value, "", &plot, shapes, custom_label_func);
         }
+    }
+}
+
+/// Returns next bigger power in given base
+/// e.g.
+/// ```ignore
+/// next_power(0.01, 10) == 0.01
+/// next_power(0.02, 10) == 0.1
+/// next_power(0.2,  10) == 1
+/// ```
+fn next_power(value: f64, base: f64) -> f64 {
+    assert_ne!(value, 0.0); // can be negative (typical for Y axis)
+    base.powi(value.abs().log(base).ceil() as i32)
+}
+
+/// Fill in all values between [min, max] which are a multiple of `step_size`
+fn fill_steps_between(out: &mut Vec<GridStep>, step_size: f64, (min, max): (f64, f64)) {
+    assert!(max > min);
+    let first = (min / step_size).ceil() as i64;
+    let last = (max / step_size).ceil() as i64;
+
+    for i in first..last {
+        let value = (i as f64) * step_size;
+        out.push(GridStep { value, step_size });
     }
 }
