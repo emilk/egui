@@ -80,34 +80,18 @@ impl ContextImpl {
     fn update_fonts_mut(&mut self) {
         let pixels_per_point = self.input.pixels_per_point();
         let max_texture_side = self.input.raw.max_texture_side;
-        let new_font_definitions = self.memory.new_font_definitions.take();
 
-        let needs_recreate = match &self.fonts {
-            None => true,
-            Some(current_fonts) => {
-                let pixels_per_point_changed =
-                    (current_fonts.pixels_per_point() - pixels_per_point).abs() > 1e-3;
-                let max_texture_size_changed = current_fonts.max_texture_side() != max_texture_side;
-                let font_atlas_full = current_fonts.font_atlas_fill_ratio() > 0.8;
-                pixels_per_point_changed || max_texture_size_changed || font_atlas_full
-            }
-        };
-
-        if needs_recreate || new_font_definitions.is_some() {
-            let new_font_definitions = new_font_definitions
-                .or_else(|| {
-                    self.fonts
-                        .as_ref()
-                        .map(|font| font.lock().fonts.definitions().clone())
-                })
-                .unwrap_or_default();
-
-            self.fonts = Some(Fonts::new(
-                pixels_per_point,
-                max_texture_side,
-                new_font_definitions,
-            ));
+        if let Some(font_definitions) = self.memory.new_font_definitions.take() {
+            let fonts = Fonts::new(pixels_per_point, max_texture_side, font_definitions);
+            self.fonts = Some(fonts);
         }
+
+        let fonts = self.fonts.get_or_insert_with(|| {
+            let font_definitions = FontDefinitions::default();
+            Fonts::new(pixels_per_point, max_texture_side, font_definitions)
+        });
+
+        fonts.begin_frame(pixels_per_point, max_texture_side);
     }
 }
 
@@ -709,8 +693,6 @@ impl Context {
         if self.input().wants_repaint() {
             self.request_repaint();
         }
-
-        self.fonts().end_frame();
 
         {
             let ctx_impl = &mut *self.write();

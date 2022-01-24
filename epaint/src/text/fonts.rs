@@ -259,12 +259,17 @@ impl Default for FontDefinitions {
 /// Required in order to paint text.
 /// Create one and reuse. Cheap to clone.
 ///
+/// You need to call [`Self::begin_frame`] and [`Self::font_image_delta`] once every frame.
+///
 /// Wrapper for `Arc<Mutex<FontsAndCache>>`.
 pub struct Fonts(Arc<Mutex<FontsAndCache>>);
 
 impl Fonts {
     /// Create a new [`Fonts`] for text layout.
     /// This call is expensive, so only create one [`Fonts`] and then reuse it.
+    ///
+    /// * `pixels_per_point`: how many physical pixels per logical "point".
+    /// * `max_texture_side`: largest supported texture size (one side).
     pub fn new(
         pixels_per_point: f32,
         max_texture_side: usize,
@@ -275,6 +280,40 @@ impl Fonts {
             galley_cache: Default::default(),
         };
         Self(Arc::new(Mutex::new(fonts_and_cache)))
+    }
+
+    /// Call at the start of each frame with the latest known
+    /// `pixels_per_point` and `max_texture_side`.
+    ///
+    /// Call after painting the previous frame, but before using [`Fonts`] for the new frame.
+    ///
+    /// This function will react to changes in `pixels_per_point` and `max_texture_side`,
+    /// as well as notice when the font atlas is getting full, and handle that.
+    pub fn begin_frame(&self, pixels_per_point: f32, max_texture_side: usize) {
+        let mut fonts_and_cache = self.0.lock();
+
+        let pixels_per_point_changed =
+            (fonts_and_cache.fonts.pixels_per_point - pixels_per_point).abs() > 1e-3;
+        let max_texture_side_changed = fonts_and_cache.fonts.max_texture_side != max_texture_side;
+        let font_atlas_almost_full = fonts_and_cache.fonts.atlas.lock().fill_ratio() > 0.8;
+        let needs_recreate =
+            pixels_per_point_changed || max_texture_side_changed || font_atlas_almost_full;
+
+        if needs_recreate {
+            let definitions = fonts_and_cache.fonts.definitions.clone();
+
+            *fonts_and_cache = FontsAndCache {
+                fonts: FontsImpl::new(pixels_per_point, max_texture_side, definitions),
+                galley_cache: Default::default(),
+            };
+        }
+
+        fonts_and_cache.galley_cache.flush_cache();
+    }
+
+    /// Call at the end of each frame (before painting) to get the change to the font texture since last call.
+    pub fn font_image_delta(&self) -> Option<crate::ImageDelta> {
+        self.lock().fonts.atlas.lock().take_delta()
     }
 
     /// Access the underlying [`FontsAndCache`].
@@ -294,12 +333,8 @@ impl Fonts {
         self.lock().fonts.max_texture_side
     }
 
-    /// Call each frame to get the change to the font texture since last call.
-    pub fn font_image_delta(&self) -> Option<crate::ImageDelta> {
-        self.lock().fonts.atlas.lock().take_delta()
-    }
-
-    /// Current size of the font image
+    /// Current size of the font image.
+    /// Pass this to [`crate::Tessellator`].
     pub fn font_image_size(&self) -> [usize; 2] {
         self.lock().fonts.atlas.lock().size()
     }
@@ -310,7 +345,7 @@ impl Fonts {
         self.lock().fonts.glyph_width(font_id, c)
     }
 
-    /// Height of one row of text. In points
+    /// Height of one row of text in points
     #[inline]
     pub fn row_height(&self, font_id: &FontId) -> f32 {
         self.lock().fonts.row_height(font_id)
@@ -328,6 +363,7 @@ impl Fonts {
     }
 
     /// Layout some text.
+    ///
     /// This is the most advanced layout function.
     /// See also [`Self::layout`], [`Self::layout_no_wrap`] and
     /// [`Self::layout_delayed_color`].
@@ -342,13 +378,12 @@ impl Fonts {
         self.lock().galley_cache.num_galleys_in_cache()
     }
 
+    /// How full is the font atlas?
+    ///
+    /// This increases as new fonts and/or glyphs are used,
+    /// but can also decrease in a call to [`Self::begin_frame`].
     pub fn font_atlas_fill_ratio(&self) -> f32 {
         self.lock().fonts.atlas.lock().fill_ratio()
-    }
-
-    /// Must be called once per frame to clear the [`Galley`] cache.
-    pub fn end_frame(&self) {
-        self.lock().galley_cache.end_frame();
     }
 
     /// Will wrap text at the given width and line break at `\n`.
@@ -548,7 +583,7 @@ impl GalleyCache {
     }
 
     /// Must be called once per frame to clear the [`Galley`] cache.
-    pub fn end_frame(&mut self) {
+    pub fn flush_cache(&mut self) {
         let current_generation = self.generation;
         self.cache.retain(|_key, cached| {
             cached.last_used == current_generation // only keep those that were used this frame
