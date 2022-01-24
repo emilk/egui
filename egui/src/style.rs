@@ -10,10 +10,11 @@ use std::collections::BTreeMap;
 
 /// Alias for a [`FontId`] (font of a certain size).
 ///
-/// The font is found via look-up in [`Style::text_styles`].
-///
 /// One of a few categories of styles of text, e.g. body, button or heading.
 /// Useful in GUI:s.
+///
+/// The font is found via look-up in [`Style::text_styles`].
+/// You can use [`TextStyle::resolve`] to do this lookup.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum TextStyle {
@@ -54,25 +55,13 @@ impl std::fmt::Display for TextStyle {
 }
 
 impl TextStyle {
+    /// Look up this [`TextStyle`] in [`Style::text_styles`].
     pub fn resolve(&self, style: &Style) -> FontId {
         style
             .text_styles
             .get(self)
             .cloned()
             .unwrap_or_else(|| panic!("Failed to find {:?} in Style::text_styles", self))
-    }
-
-    /// All default (un-named) `TextStyle`:s.
-    pub fn built_in() -> impl ExactSizeIterator<Item = TextStyle> {
-        [
-            TextStyle::Small,
-            TextStyle::Body,
-            TextStyle::Monospace,
-            TextStyle::Button,
-            TextStyle::Heading,
-        ]
-        .iter()
-        .cloned()
     }
 }
 
@@ -207,6 +196,11 @@ impl Style {
     /// Style to use for non-interactive widgets.
     pub fn noninteractive(&self) -> &WidgetVisuals {
         &self.visuals.widgets.noninteractive
+    }
+
+    /// All known text styles.
+    pub fn text_styles(&self) -> Vec<TextStyle> {
+        self.text_styles.keys().cloned().collect()
     }
 }
 
@@ -750,13 +744,14 @@ impl Style {
             crate::ComboBox::from_id_source("Override text style")
                 .selected_text(match override_text_style {
                     None => "None".to_owned(),
-                    Some(override_text_style) => format!("{:?}", override_text_style),
+                    Some(override_text_style) => override_text_style.to_string(),
                 })
                 .show_ui(ui, |ui| {
                     ui.selectable_value(override_text_style, None, "None");
-                    for style in TextStyle::built_in() {
+                    let all_text_styles = ui.style().text_styles();
+                    for style in all_text_styles {
                         let text =
-                            crate::RichText::new(format!("{:?}", style)).text_style(style.clone());
+                            crate::RichText::new(style.to_string()).text_style(style.clone());
                         ui.selectable_value(override_text_style, Some(style), text);
                     }
                 });
@@ -790,7 +785,7 @@ fn text_styles_ui(ui: &mut Ui, text_styles: &mut BTreeMap<TextStyle, FontId>) ->
     ui.vertical(|ui| {
         crate::Grid::new("text_styles").show(ui, |ui| {
             for (text_style, font_id) in text_styles.iter_mut() {
-                ui.label(RichText::new(format!("{:?}:", text_style)).font_id(font_id.clone()));
+                ui.label(RichText::new(text_style.to_string()).font_id(font_id.clone()));
                 crate::introspection::font_id_ui(ui, font_id);
                 ui.end_row();
             }
