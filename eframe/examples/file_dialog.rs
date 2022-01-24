@@ -82,7 +82,7 @@ impl MyApp {
                 screen_rect.center(),
                 Align2::CENTER_CENTER,
                 text,
-                TextStyle::Heading,
+                TextStyle::Heading.resolve(&ctx.style()),
                 Color32::WHITE,
             );
         }

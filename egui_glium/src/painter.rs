@@ -16,6 +16,7 @@ use {
 };
 
 pub struct Painter {
+    max_texture_side: usize,
     program: glium::Program,
 
     textures: AHashMap<egui::TextureId, Rc<SrgbTexture2d>>,
@@ -27,6 +28,9 @@ pub struct Painter {
 
 impl Painter {
     pub fn new(facade: &dyn glium::backend::Facade) -> Painter {
+        use glium::CapabilitiesSource as _;
+        let max_texture_side = facade.get_capabilities().max_texture_size as _;
+
         let program = program! {
             facade,
             120 => {
@@ -49,11 +53,16 @@ impl Painter {
         .expect("Failed to compile shader");
 
         Painter {
+            max_texture_side,
             program,
             textures: Default::default(),
             #[cfg(feature = "epi")]
             next_native_tex_id: 0,
         }
+    }
+
+    pub fn max_texture_side(&self) -> usize {
+        self.max_texture_side
     }
 
     /// Main entry-point for painting a frame.

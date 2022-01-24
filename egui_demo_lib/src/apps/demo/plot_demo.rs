@@ -261,9 +261,10 @@ impl Widget for &mut LegendDemo {
         egui::Grid::new("settings").show(ui, |ui| {
             ui.label("Text style:");
             ui.horizontal(|ui| {
-                TextStyle::all().for_each(|style| {
-                    ui.selectable_value(&mut config.text_style, style, format!("{:?}", style));
-                });
+                let all_text_styles = ui.style().text_styles();
+                for style in all_text_styles {
+                    ui.selectable_value(&mut config.text_style, style.clone(), style.to_string());
+                }
             });
             ui.end_row();
 
@@ -284,7 +285,9 @@ impl Widget for &mut LegendDemo {
             ui.end_row();
         });
 
-        let legend_plot = Plot::new("legend_demo").legend(*config).data_aspect(1.0);
+        let legend_plot = Plot::new("legend_demo")
+            .legend(config.clone())
+            .data_aspect(1.0);
         legend_plot
             .show(ui, |plot_ui| {
                 plot_ui.line(LegendDemo::line_with_slope(0.5).name("lines"));

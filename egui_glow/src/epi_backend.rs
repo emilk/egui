@@ -63,6 +63,7 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
         .unwrap();
     let mut integration = egui_winit::epi::EpiIntegration::new(
         "egui_glow",
+        painter.max_texture_side(),
         gl_window.window(),
         repaint_signal,
         persistence,

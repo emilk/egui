@@ -86,35 +86,50 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     {
         let pixels_per_point = 1.0;
+        let max_texture_side = 8 * 1024;
         let wrap_width = 512.0;
-        let text_style = egui::TextStyle::Body;
+        let font_id = egui::FontId::default();
         let color = egui::Color32::WHITE;
-        let fonts =
-            egui::epaint::text::Fonts::new(pixels_per_point, egui::FontDefinitions::default());
-        c.bench_function("text_layout_uncached", |b| {
-            b.iter(|| {
-                use egui::epaint::text::{layout, LayoutJob};
+        let fonts = egui::epaint::text::Fonts::new(
+            pixels_per_point,
+            max_texture_side,
+            egui::FontDefinitions::default(),
+        );
+        {
+            let mut locked_fonts = fonts.lock();
+            c.bench_function("text_layout_uncached", |b| {
+                b.iter(|| {
+                    use egui::epaint::text::{layout, LayoutJob};
 
-                let job = LayoutJob::simple(
+                    let job = LayoutJob::simple(
+                        LOREM_IPSUM_LONG.to_owned(),
+                        font_id.clone(),
+                        color,
+                        wrap_width,
+                    );
+                    layout(&mut locked_fonts.fonts, job.into())
+                })
+            });
+        }
+        c.bench_function("text_layout_cached", |b| {
+            b.iter(|| {
+                fonts.layout(
                     LOREM_IPSUM_LONG.to_owned(),
-                    egui::TextStyle::Body,
+                    font_id.clone(),
                     color,
                     wrap_width,
-                );
-                layout(&fonts, job.into())
+                )
             })
         });
-        c.bench_function("text_layout_cached", |b| {
-            b.iter(|| fonts.layout(LOREM_IPSUM_LONG.to_owned(), text_style, color, wrap_width))
-        });
 
-        let galley = fonts.layout(LOREM_IPSUM_LONG.to_owned(), text_style, color, wrap_width);
+        let galley = fonts.layout(LOREM_IPSUM_LONG.to_owned(), font_id, color, wrap_width);
         let mut tessellator = egui::epaint::Tessellator::from_options(Default::default());
         let mut mesh = egui::epaint::Mesh::default();
         let text_shape = TextShape::new(egui::Pos2::ZERO, galley);
+        let font_image_size = fonts.font_image_size();
         c.bench_function("tessellate_text", |b| {
             b.iter(|| {
-                tessellator.tessellate_text(fonts.font_image_size(), text_shape.clone(), &mut mesh);
+                tessellator.tessellate_text(font_image_size, text_shape.clone(), &mut mesh);
                 mesh.clear();
             })
         });

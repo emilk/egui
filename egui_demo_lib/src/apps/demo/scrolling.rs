@@ -81,7 +81,7 @@ fn huge_content_lines(ui: &mut egui::Ui) {
     ui.add_space(4.0);
 
     let text_style = TextStyle::Body;
-    let row_height = ui.fonts()[text_style].row_height();
+    let row_height = ui.text_style_height(&text_style);
     let num_rows = 10_000;
     ScrollArea::vertical().auto_shrink([false; 2]).show_rows(
         ui,
@@ -101,8 +101,8 @@ fn huge_content_painter(ui: &mut egui::Ui) {
     ui.label("A lot of rows, but only the visible ones are painted, so performance is still good:");
     ui.add_space(4.0);
 
-    let text_style = TextStyle::Body;
-    let row_height = ui.fonts()[text_style].row_height() + ui.spacing().item_spacing.y;
+    let font_id = TextStyle::Body.resolve(ui.style());
+    let row_height = ui.fonts().row_height(&font_id) + ui.spacing().item_spacing.y;
     let num_rows = 10_000;
 
     ScrollArea::vertical()
@@ -130,7 +130,7 @@ fn huge_content_painter(ui: &mut egui::Ui) {
                     pos2(x, y),
                     Align2::LEFT_TOP,
                     text,
-                    text_style,
+                    font_id.clone(),
                     ui.visuals().text_color(),
                 );
                 used_rect = used_rect.union(text_rect);
@@ -265,7 +265,7 @@ impl super::View for ScrollStickTo {
         ui.add_space(4.0);
 
         let text_style = TextStyle::Body;
-        let row_height = ui.fonts()[text_style].row_height();
+        let row_height = ui.text_style_height(&text_style);
         ScrollArea::vertical().stick_to_bottom().show_rows(
             ui,
             row_height,

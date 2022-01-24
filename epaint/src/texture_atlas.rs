@@ -39,20 +39,39 @@ pub struct TextureAtlas {
     /// Used for when allocating new rectangles.
     cursor: (usize, usize),
     row_height: usize,
+
+    /// Set when someone requested more space than was available.
+    overflowed: bool,
 }
 
 impl TextureAtlas {
     pub fn new(size: [usize; 2]) -> Self {
+        assert!(size[0] >= 1024, "Tiny texture atlas");
         Self {
             image: AlphaImage::new(size),
             dirty: Rectu::EVERYTHING,
             cursor: (0, 0),
             row_height: 0,
+            overflowed: false,
         }
     }
 
     pub fn size(&self) -> [usize; 2] {
         self.image.size
+    }
+
+    fn max_height(&self) -> usize {
+        // the initial width is likely the max texture side size
+        self.image.width()
+    }
+
+    /// When this get high, it might be time to clear and start over!
+    pub fn fill_ratio(&self) -> f32 {
+        if self.overflowed {
+            1.0
+        } else {
+            (self.cursor.1 + self.row_height) as f32 / self.max_height() as f32
+        }
     }
 
     /// Call to get the change to the image since last call.
@@ -92,7 +111,15 @@ impl TextureAtlas {
         }
 
         self.row_height = self.row_height.max(h);
-        if resize_to_min_height(&mut self.image, self.cursor.1 + self.row_height) {
+
+        let required_height = self.cursor.1 + self.row_height;
+
+        if required_height > self.max_height() {
+            // This is a bad place to be - we need to start reusing space :/
+            eprintln!("epaint texture atlas overflowed!");
+            self.cursor = (0, self.image.height() / 3); // Restart a bit down - the top of the atlas has too many important things in it
+            self.overflowed = true; // this will signal the user that we need to recreate the texture atlas next frame.
+        } else if resize_to_min_height(&mut self.image, required_height) {
             self.dirty = Rectu::EVERYTHING;
         }
 
@@ -108,8 +135,8 @@ impl TextureAtlas {
     }
 }
 
-fn resize_to_min_height(image: &mut AlphaImage, min_height: usize) -> bool {
-    while min_height >= image.height() {
+fn resize_to_min_height(image: &mut AlphaImage, required_height: usize) -> bool {
+    while required_height >= image.height() {
         image.size[1] *= 2; // double the height
     }
 

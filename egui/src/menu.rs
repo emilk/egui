@@ -414,7 +414,8 @@ impl SubMenuButton {
         let button_padding = ui.spacing().button_padding;
         let total_extra = button_padding + button_padding;
         let text_available_width = ui.available_width() - total_extra.x;
-        let text_galley = text.into_galley(ui, Some(true), text_available_width, text_style);
+        let text_galley =
+            text.into_galley(ui, Some(true), text_available_width, text_style.clone());
 
         let icon_available_width = text_available_width - text_galley.size().x;
         let icon_galley = icon.into_galley(ui, Some(true), icon_available_width, text_style);

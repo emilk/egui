@@ -1,7 +1,7 @@
 use std::hash::Hash;
 
 use crate::*;
-use epaint::{Shape, TextStyle};
+use epaint::Shape;
 
 #[derive(Clone, Copy, Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]

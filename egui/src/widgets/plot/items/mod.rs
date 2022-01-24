@@ -1621,13 +1621,15 @@ fn add_rulers_and_text(
         text
     });
 
+    let font_id = TextStyle::Body.resolve(plot.ui.style());
+
     let corner_value = elem.corner_value();
     shapes.push(Shape::text(
         &*plot.ui.fonts(),
         plot.transform.position_from_value(&corner_value) + vec2(3.0, -2.0),
         Align2::LEFT_BOTTOM,
         text,
-        TextStyle::Body,
+        font_id,
         plot.ui.visuals().text_color(),
     ));
 }
@@ -1677,12 +1679,14 @@ pub(super) fn rulers_at_value(
         }
     };
 
+    let font_id = TextStyle::Body.resolve(plot.ui.style());
+
     shapes.push(Shape::text(
         &*plot.ui.fonts(),
         pointer + vec2(3.0, -2.0),
         Align2::LEFT_BOTTOM,
         text,
-        TextStyle::Body,
+        font_id,
         plot.ui.visuals().text_color(),
     ));
 }

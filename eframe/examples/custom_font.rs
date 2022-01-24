@@ -35,14 +35,14 @@ impl epi::App for MyApp {
 
         // Put my font first (highest priority) for proportional text:
         fonts
-            .fonts_for_family
+            .families
             .entry(egui::FontFamily::Proportional)
             .or_default()
             .insert(0, "my_font".to_owned());
 
         // Put my font as last fallback for monospace:
         fonts
-            .fonts_for_family
+            .families
             .entry(egui::FontFamily::Monospace)
             .or_default()
             .push("my_font".to_owned());

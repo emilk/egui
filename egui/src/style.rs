@@ -2,8 +2,123 @@
 
 #![allow(clippy::if_same_then_else)]
 
-use crate::{color::*, emath::*, Response, RichText, WidgetText};
-use epaint::{Shadow, Stroke, TextStyle};
+use crate::{color::*, emath::*, FontFamily, FontId, Response, RichText, WidgetText};
+use epaint::{mutex::Arc, Shadow, Stroke};
+use std::collections::BTreeMap;
+
+// ----------------------------------------------------------------------------
+
+/// Alias for a [`FontId`] (font of a certain size).
+///
+/// The font is found via look-up in [`Style::text_styles`].
+/// You can use [`TextStyle::resolve`] to do this lookup.
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum TextStyle {
+    /// Used when small text is needed.
+    Small,
+
+    /// Normal labels. Easily readable, doesn't take up too much space.
+    Body,
+
+    /// Same size as [`Self::Body]`, but used when monospace is important (for aligning number, code snippets, etc).
+    Monospace,
+
+    /// Buttons. Maybe slightly bigger than [`Self::Body]`.
+    /// Signifies that he item is interactive.
+    Button,
+
+    /// Heading. Probably larger than [`Self::Body]`.
+    Heading,
+
+    /// A user-chosen style, found in [`Style::text_styles`].
+    /// ```
+    /// egui::TextStyle::Name("footing".into());
+    /// ````
+    Name(Arc<str>),
+}
+
+impl std::fmt::Display for TextStyle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Small => "Small".fmt(f),
+            Self::Body => "Body".fmt(f),
+            Self::Monospace => "Monospace".fmt(f),
+            Self::Button => "Button".fmt(f),
+            Self::Heading => "Heading".fmt(f),
+            Self::Name(name) => (*name).fmt(f),
+        }
+    }
+}
+
+impl TextStyle {
+    /// Look up this [`TextStyle`] in [`Style::text_styles`].
+    pub fn resolve(&self, style: &Style) -> FontId {
+        style.text_styles.get(self).cloned().unwrap_or_else(|| {
+            panic!(
+                "Failed to find {:?} in Style::text_styles. Available styles:\n{:#?}",
+                self,
+                style.text_styles()
+            )
+        })
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// A way to select [`FontId`], either by picking one directly or by using a [`TextStyle`].
+pub enum FontSelection {
+    /// Default text style - will use [`TextStyle::Body`], unless
+    /// [`Style::override_font_id`] or [`Style::override_text_style`] is set.
+    Default,
+
+    /// Directly select size and font family
+    FontId(FontId),
+
+    /// Use a [`TextStyle`] to look up the [`FontId`] in [`Style::text_styles`].
+    Style(TextStyle),
+}
+
+impl Default for FontSelection {
+    #[inline]
+    fn default() -> Self {
+        Self::Default
+    }
+}
+
+impl FontSelection {
+    pub fn resolve(self, style: &Style) -> FontId {
+        match self {
+            Self::Default => {
+                if let Some(override_font_id) = &style.override_font_id {
+                    override_font_id.clone()
+                } else if let Some(text_style) = &style.override_text_style {
+                    text_style.resolve(style)
+                } else {
+                    TextStyle::Body.resolve(style)
+                }
+            }
+            Self::FontId(font_id) => font_id,
+            Self::Style(text_style) => text_style.resolve(style),
+        }
+    }
+}
+
+impl From<FontId> for FontSelection {
+    #[inline(always)]
+    fn from(font_id: FontId) -> Self {
+        Self::FontId(font_id)
+    }
+}
+
+impl From<TextStyle> for FontSelection {
+    #[inline(always)]
+    fn from(text_style: TextStyle) -> Self {
+        Self::Style(text_style)
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 /// Specifies the look and feel of egui.
 ///
@@ -15,14 +130,22 @@ use epaint::{Shadow, Stroke, TextStyle};
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Style {
-    /// Default `TextStyle` for normal text (i.e. for `Label` and `TextEdit`).
-    pub body_text_style: TextStyle,
-
     /// If set this will change the default [`TextStyle`] for all widgets.
     ///
     /// On most widgets you can also set an explicit text style,
     /// which will take precedence over this.
     pub override_text_style: Option<TextStyle>,
+
+    /// If set this will change the font family and size for all widgets.
+    ///
+    /// On most widgets you can also set an explicit text style,
+    /// which will take precedence over this.
+    pub override_font_id: Option<FontId>,
+
+    /// The [`FontFamily`] and size you want to use for a specific [`TextStyle`].
+    ///
+    /// The most convenient way to look something up in this is to use [`TextStyle::resolve`].
+    pub text_styles: BTreeMap<TextStyle, FontId>,
 
     /// If set, labels buttons wtc will use this to determine whether or not
     /// to wrap the text at the right edge of the `Ui` they are in.
@@ -76,6 +199,11 @@ impl Style {
     /// Style to use for non-interactive widgets.
     pub fn noninteractive(&self) -> &WidgetVisuals {
         &self.visuals.widgets.noninteractive
+    }
+
+    /// All known text styles.
+    pub fn text_styles(&self) -> Vec<TextStyle> {
+        self.text_styles.keys().cloned().collect()
     }
 }
 
@@ -356,11 +484,35 @@ pub struct DebugOptions {
 
 // ----------------------------------------------------------------------------
 
+/// The default text styles of the default egui theme.
+pub fn default_text_styles() -> BTreeMap<TextStyle, FontId> {
+    let mut text_styles = BTreeMap::new();
+    text_styles.insert(
+        TextStyle::Small,
+        FontId::new(10.0, FontFamily::Proportional),
+    );
+    text_styles.insert(TextStyle::Body, FontId::new(14.0, FontFamily::Proportional));
+    text_styles.insert(
+        TextStyle::Button,
+        FontId::new(14.0, FontFamily::Proportional),
+    );
+    text_styles.insert(
+        TextStyle::Heading,
+        FontId::new(20.0, FontFamily::Proportional),
+    );
+    text_styles.insert(
+        TextStyle::Monospace,
+        FontId::new(14.0, FontFamily::Monospace),
+    );
+    text_styles
+}
+
 impl Default for Style {
     fn default() -> Self {
         Self {
-            body_text_style: TextStyle::Body,
+            override_font_id: None,
             override_text_style: None,
+            text_styles: default_text_styles(),
             wrap: None,
             spacing: Spacing::default(),
             interaction: Interaction::default(),
@@ -565,8 +717,9 @@ use crate::{widgets::*, Ui};
 impl Style {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
-            body_text_style,
+            override_font_id,
             override_text_style,
+            text_styles,
             wrap: _,
             spacing,
             interaction,
@@ -579,11 +732,14 @@ impl Style {
         visuals.light_dark_radio_buttons(ui);
 
         crate::Grid::new("_options").show(ui, |ui| {
-            ui.label("Default body text style:");
+            ui.label("Override font id:");
             ui.horizontal(|ui| {
-                for &style in &[TextStyle::Body, TextStyle::Monospace] {
-                    let text = crate::RichText::new(format!("{:?}", style)).text_style(style);
-                    ui.radio_value(body_text_style, style, text);
+                ui.radio_value(override_font_id, None, "None");
+                if ui.radio(override_font_id.is_some(), "override").clicked() {
+                    *override_font_id = Some(FontId::default());
+                }
+                if let Some(override_font_id) = override_font_id {
+                    crate::introspection::font_id_ui(ui, override_font_id);
                 }
             });
             ui.end_row();
@@ -592,12 +748,14 @@ impl Style {
             crate::ComboBox::from_id_source("Override text style")
                 .selected_text(match override_text_style {
                     None => "None".to_owned(),
-                    Some(override_text_style) => format!("{:?}", override_text_style),
+                    Some(override_text_style) => override_text_style.to_string(),
                 })
                 .show_ui(ui, |ui| {
                     ui.selectable_value(override_text_style, None, "None");
-                    for style in TextStyle::all() {
-                        let text = crate::RichText::new(format!("{:?}", style)).text_style(style);
+                    let all_text_styles = ui.style().text_styles();
+                    for style in all_text_styles {
+                        let text =
+                            crate::RichText::new(style.to_string()).text_style(style.clone());
                         ui.selectable_value(override_text_style, Some(style), text);
                     }
                 });
@@ -612,6 +770,7 @@ impl Style {
             ui.end_row();
         });
 
+        ui.collapsing("🔠 Text Styles", |ui| text_styles_ui(ui, text_styles));
         ui.collapsing("📏 Spacing", |ui| spacing.ui(ui));
         ui.collapsing("☝ Interaction", |ui| interaction.ui(ui));
         ui.collapsing("🎨 Visuals", |ui| visuals.ui(ui));
@@ -624,6 +783,20 @@ impl Style {
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
+}
+
+fn text_styles_ui(ui: &mut Ui, text_styles: &mut BTreeMap<TextStyle, FontId>) -> Response {
+    ui.vertical(|ui| {
+        crate::Grid::new("text_styles").show(ui, |ui| {
+            for (text_style, font_id) in text_styles.iter_mut() {
+                ui.label(RichText::new(text_style.to_string()).font(font_id.clone()));
+                crate::introspection::font_id_ui(ui, font_id);
+                ui.end_row();
+            }
+        });
+        crate::reset_button_with(ui, text_styles, default_text_styles());
+    })
+    .response
 }
 
 impl Spacing {
