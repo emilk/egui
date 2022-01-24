@@ -108,7 +108,9 @@ pub use {
     image::{AlphaImage, ColorImage, ImageData},
     mesh::{Mesh, Mesh16, Vertex},
     shadow::Shadow,
-    shape::{CircleShape, PathShape, RectShape, Shape, TextShape},
+    shape::{
+        CircleShape, CubicBezierShape, PathShape, QuadraticBezierShape, RectShape, Shape, TextShape,
+    },
     stats::PaintStats,
     stroke::Stroke,
     tessellator::{tessellate_shapes, TessellationOptions, Tessellator},

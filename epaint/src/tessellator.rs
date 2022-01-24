@@ -286,6 +286,9 @@ pub struct TessellationOptions {
 
     /// If true, no clipping will be done.
     pub debug_ignore_clip_rects: bool,
+
+    //to add this since it will cause a lot of breaking changes.
+    pub bezier_flattern_tolerence: f32,
 }
 
 impl Default for TessellationOptions {
@@ -299,6 +302,8 @@ impl Default for TessellationOptions {
             debug_paint_text_rects: false,
             debug_paint_clip_rects: false,
             debug_ignore_clip_rects: false,
+
+            bezier_flattern_tolerence: 0.1, //need a helper function to determine the best value automatically
         }
     }
 }
@@ -710,9 +715,89 @@ impl Tessellator {
                 }
                 self.tessellate_text(tex_size, text_shape, out);
             }
+            Shape::QuadraticBezier(quadratic_shape) => {
+                self.tessellate_quadratic_bezier(quadratic_shape, out);
+            }
+            Shape::CubicBezier(cubic_shape) => self.tessellate_cubic_bezier(cubic_shape, out),
         }
     }
 
+    pub(crate) fn tessellate_quadratic_bezier(
+        &mut self,
+        quadratic_shape: QuadraticBezierShape,
+        out: &mut Mesh,
+    ) {
+        let options = &self.options;
+        let clip_rect = self.clip_rect;
+        
+        if options.coarse_tessellation_culling
+            && !quadratic_shape.bounding_rect().intersects(clip_rect)
+        {
+            return;
+        }
+
+        let points = quadratic_shape.flatten(Some(options.bezier_flattern_tolerence));
+        
+        self.scratchpad_path.clear();
+        if quadratic_shape.closed {
+            self.scratchpad_path.add_line_loop(&points);
+        } else {
+            self.scratchpad_path.add_open_points(&points);
+        }
+        if quadratic_shape.fill != Color32::TRANSPARENT {
+            crate::epaint_assert!(
+                quadratic_shape.closed,
+                "You asked to fill a path that is not closed. That makes no sense."
+            );
+            self.scratchpad_path
+                .fill(quadratic_shape.fill, &self.options, out);
+        }
+        let typ = if quadratic_shape.closed {
+            PathType::Closed
+        } else {
+            PathType::Open
+        };
+        self.scratchpad_path
+            .stroke(typ, quadratic_shape.stroke, &self.options, out);
+    }
+
+    pub(crate) fn tessellate_cubic_bezier(
+        &mut self,
+        bezier_shape: CubicBezierShape,
+        out: &mut Mesh,
+    ) {
+        let options = &self.options;
+        let clip_rect = self.clip_rect;
+        if options.coarse_tessellation_culling
+            && !bezier_shape.bounding_rect().intersects(clip_rect)
+        {
+            return;
+        }
+
+        let points = bezier_shape.flatten(Some(options.bezier_flattern_tolerence));
+        
+        self.scratchpad_path.clear();
+        if bezier_shape.closed {
+            self.scratchpad_path.add_line_loop(&points);
+        } else {
+            self.scratchpad_path.add_open_points(&points);
+        }
+        if bezier_shape.fill != Color32::TRANSPARENT {
+            crate::epaint_assert!(
+                bezier_shape.closed,
+                "You asked to fill a path that is not closed. That makes no sense."
+            );
+            self.scratchpad_path
+                .fill(bezier_shape.fill, &self.options, out);
+        }
+        let typ = if bezier_shape.closed {
+            PathType::Closed
+        } else {
+            PathType::Open
+        };
+        self.scratchpad_path
+            .stroke(typ, bezier_shape.stroke, &self.options, out);
+    }
     pub(crate) fn tessellate_path(&mut self, path_shape: PathShape, out: &mut Mesh) {
         if path_shape.points.len() < 2 {
             return;

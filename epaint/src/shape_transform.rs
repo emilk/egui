@@ -43,5 +43,13 @@ pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
                 adjust_color(&mut v.color);
             }
         }
+        Shape::QuadraticBezier(quatratic) => {
+            adjust_color(&mut quatratic.fill);
+            adjust_color(&mut quatratic.stroke.color);
+        }
+        Shape::CubicBezier(bezier) => {
+            adjust_color(&mut bezier.fill);
+            adjust_color(&mut bezier.stroke.color);
+        }
     }
 }

@@ -211,6 +211,13 @@ impl PaintStats {
             Shape::Mesh(mesh) => {
                 self.shape_mesh += AllocInfo::from_mesh(mesh);
             }
+            Shape::CubicBezier(_) => {
+                // todo!("CubicBezier");
+                // panic!("CubicBezier");
+            }
+            Shape::QuadraticBezier(_) => {
+                // todo!("QuadraticBezier");
+            }
         }
     }
 
