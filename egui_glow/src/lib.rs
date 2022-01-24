@@ -123,14 +123,19 @@ impl EguiGlow {
         gl_window: &glutin::WindowedContext<glutin::PossiblyCurrent>,
         gl: &glow::Context,
     ) -> Self {
+        let painter = crate::Painter::new(gl, None, "")
+            .map_err(|error| {
+                crate::misc_util::glow_print_error(format!(
+                    "error occurred in initializing painter:\n{}",
+                    error
+                ));
+            })
+            .unwrap();
+
         Self {
             egui_ctx: Default::default(),
-            egui_winit: egui_winit::State::new(gl_window.window()),
-            painter: crate::Painter::new(gl, None, "")
-                .map_err(|error| {
-                    eprintln!("some error occurred in initializing painter\n{}", error);
-                })
-                .unwrap(),
+            egui_winit: egui_winit::State::new(painter.max_texture_side(), gl_window.window()),
+            painter,
             shapes: Default::default(),
             textures_delta: Default::default(),
         }
@@ -175,8 +180,8 @@ impl EguiGlow {
         let shapes = std::mem::take(&mut self.shapes);
         let mut textures_delta = std::mem::take(&mut self.textures_delta);
 
-        for (id, image) in textures_delta.set {
-            self.painter.set_texture(gl, id, &image);
+        for (id, image_delta) in textures_delta.set {
+            self.painter.set_texture(gl, id, &image_delta);
         }
 
         let clipped_meshes = self.egui_ctx.tessellate(shapes);

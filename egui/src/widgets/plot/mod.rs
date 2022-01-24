@@ -719,7 +719,8 @@ impl PreparedPlot {
         } = self;
 
         let bounds = transform.bounds();
-        let text_style = TextStyle::Body;
+
+        let font_id = TextStyle::Body.resolve(ui.style());
 
         let base: i64 = 10;
         let basef = base as f64;
@@ -784,7 +785,7 @@ impl PreparedPlot {
 
                 // Custom formatters can return empty string to signal "no label at this resolution"
                 if !text.is_empty() {
-                    let galley = ui.painter().layout_no_wrap(text, text_style, color);
+                    let galley = ui.painter().layout_no_wrap(text, font_id.clone(), color);
 
                     let mut text_pos = pos_in_gui + vec2(1.0, -galley.size().y);
 

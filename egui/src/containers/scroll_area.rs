@@ -374,7 +374,7 @@ impl ScrollArea {
     /// ```
     /// # egui::__run_test_ui(|ui| {
     /// let text_style = egui::TextStyle::Body;
-    /// let row_height = ui.fonts()[text_style].row_height();
+    /// let row_height = ui.text_style_height(&text_style);
     /// // let row_height = ui.spacing().interact_size.y; // if you are adding buttons instead of labels.
     /// let total_rows = 10_000;
     /// egui::ScrollArea::vertical().show_rows(ui, row_height, total_rows, |ui, row_range| {

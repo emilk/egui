@@ -17,7 +17,7 @@ cargo fmt --all -- --check
 
 cargo doc -p emath -p epaint -p egui -p eframe -p epi -p egui_web -p egui-winit -p egui_glium -p egui_glow --lib --no-deps --all-features
 cargo doc -p egui_web --target wasm32-unknown-unknown --lib --no-deps --all-features
-cargo doc --document-private-items --no-deps --all-features --  -D warnings
+cargo doc --document-private-items --no-deps --all-features
 
 (cd emath && cargo check --no-default-features)
 (cd epaint && cargo check --no-default-features --features "single_threaded")

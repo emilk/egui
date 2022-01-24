@@ -8,8 +8,14 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 ## Unreleased
 
 ### Added ⭐
+* Much improved font selection ([#1154](https://github.com/emilk/egui/pull/1154)):
+  * You can now select any font size and family using `RichText::size` amd `RichText::family` and the new `FontId`.
+  * Easily change text styles with `Style::text_styles`.
+  * Added `Ui::text_style_height`.
+  * Added `TextStyle::resolve`.
 * `Context::load_texture` to convert an image into a texture which can be displayed using e.g. `ui.image(texture, size)` ([#1110](https://github.com/emilk/egui/pull/1110)).
 * Added `Ui::add_visible` and `Ui::add_visible_ui`.
+* Added `CollapsingHeader::icon` to override the default open/close icon using a custom function. ([1147](https://github.com/emilk/egui/pull/1147))
 * Added `Plot::x_axis_formatter` and `Plot::y_axis_formatter` for custom axis labels ([#1130](https://github.com/emilk/egui/pull/1130))
 
 ### Changed 🔧
@@ -20,7 +26,13 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * `Context` can now be cloned and stored between frames ([#1050](https://github.com/emilk/egui/pull/1050)).
 * Renamed `Ui::visible` to `Ui::is_visible`.
 * Split `Event::Text` into `Event::Text` and `Event::Paste` ([#1058](https://github.com/emilk/egui/pull/1058)).
-* For integrations: `FontImage` has been replaced by `TexturesDelta` (found in `Output`), describing what textures were loaded and freed each frame ([#1110](https://github.com/emilk/egui/pull/1110)).
+* For integrations:
+  * `FontImage` has been replaced by `TexturesDelta` (found in `Output`), describing what textures were loaded and freed each frame ([#1110](https://github.com/emilk/egui/pull/1110)).
+  * The painter must support partial texture updates ([#1149](https://github.com/emilk/egui/pull/1149)).
+  * Added `RawInput::max_texture_side` which should be filled in with e.g. `GL_MAX_TEXTURE_SIZE` ([#1154](https://github.com/emilk/egui/pull/1154)).
+* Replaced `Style::body_text_style` with more generic `Style::text_styles` ([#1154](https://github.com/emilk/egui/pull/1154)).
+* `TextStyle` is no longer `Copy` ([#1154](https://github.com/emilk/egui/pull/1154)).
+* Replaced `TextEdit::text_style` with `TextEdit::font` ([#1154](https://github.com/emilk/egui/pull/1154)).
 
 ### Fixed 🐛
 * Context menu now respects the theme ([#1043](https://github.com/emilk/egui/pull/1043))
@@ -28,6 +40,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 
 ### Contributors 🙏
 * [danielkeller](https://github.com/danielkeller): [#1050](https://github.com/emilk/egui/pull/1050).
+* [juancampa](https://github.com/juancampa): [#1147](https://github.com/emilk/egui/pull/1147).
 
 
 ## 0.16.1 - 2021-12-31 - Add back `CtxRef::begin_frame,end_frame`
@@ -530,6 +543,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Logarithmic sliders
 * Optimization: coarse culling in the tessellator
 * CHANGED: switch argument order of `ui.checkbox` and `ui.radio`
+
 
 ## 0.1.4 - 2020-09-08
 

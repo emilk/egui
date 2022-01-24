@@ -143,6 +143,8 @@ impl AppRunner {
             textures_delta: Default::default(),
         };
 
+        runner.input.raw.max_texture_side = runner.painter.max_texture_side();
+
         {
             runner
                 .app
@@ -221,8 +223,8 @@ impl AppRunner {
     /// Paint the results of the last call to [`Self::logic`].
     pub fn paint(&mut self, clipped_meshes: Vec<egui::ClippedMesh>) -> Result<(), JsValue> {
         let textures_delta = std::mem::take(&mut self.textures_delta);
-        for (id, image) in textures_delta.set {
-            self.painter.set_texture(id, image);
+        for (id, image_delta) in textures_delta.set {
+            self.painter.set_texture(id, &image_delta);
         }
 
         self.painter.clear(self.app.clear_color());

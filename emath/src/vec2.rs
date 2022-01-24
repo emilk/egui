@@ -11,11 +11,13 @@ use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub, SubAssign};
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Vec2 {
+    /// Rightwards. Width.
     pub x: f32,
+    /// Downwards. Height.
     pub y: f32,
 }
 
-/// `vec2(x,y) == Vec2::new(x, y)`
+/// `vec2(x, y) == Vec2::new(x, y)`
 #[inline(always)]
 pub const fn vec2(x: f32, y: f32) -> Vec2 {
     Vec2 { x, y }
@@ -88,6 +90,7 @@ impl From<&Vec2> for (f32, f32) {
 
 #[cfg(feature = "mint")]
 impl From<mint::Vector2<f32>> for Vec2 {
+    #[inline]
     fn from(v: mint::Vector2<f32>) -> Self {
         Self::new(v.x, v.y)
     }
@@ -95,6 +98,7 @@ impl From<mint::Vector2<f32>> for Vec2 {
 
 #[cfg(feature = "mint")]
 impl From<Vec2> for mint::Vector2<f32> {
+    #[inline]
     fn from(v: Vec2) -> Self {
         Self { x: v.x, y: v.y }
     }
