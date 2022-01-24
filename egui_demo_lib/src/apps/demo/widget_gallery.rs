@@ -171,7 +171,7 @@ impl WidgetGallery {
         ui.end_row();
 
         ui.add(doc_link_label("DragValue", "DragValue"));
-        ui.add(egui::DragValue::new(scalar).speed(1.0));
+        ui.add(egui::DragValue::new(scalar).speed(1.0).step_buttons(1.0));
         ui.end_row();
 
         ui.add(doc_link_label("ProgressBar", "ProgressBar"));

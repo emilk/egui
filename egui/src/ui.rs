@@ -556,10 +556,6 @@ impl Ui {
         self.id.with(&id_source)
     }
 
-    pub(crate) fn next_auto_id(&self) -> Id {
-        Id::new(self.next_auto_id_source)
-    }
-
     pub(crate) fn auto_id_with<IdSource>(&self, id_source: IdSource) -> Id
     where
         IdSource: Hash + std::fmt::Debug,
