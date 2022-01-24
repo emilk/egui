@@ -71,10 +71,10 @@ impl LineDemo {
 
             ui.vertical(|ui| {
                 ui.style_mut().wrap = Some(false);
-                ui.checkbox(animate, "animate");
-                ui.checkbox(square, "square view")
+                ui.checkbox(animate, "Animate");
+                ui.checkbox(square, "Square view")
                     .on_hover_text("Always keep the viewport square.");
-                ui.checkbox(proportional, "proportional data axes")
+                ui.checkbox(proportional, "Proportional data axes")
                     .on_hover_text("Tick are the same size on both axes.");
 
                 ComboBox::from_label("Line style")

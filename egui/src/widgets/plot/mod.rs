@@ -213,11 +213,11 @@ impl Plot {
     /// .show(ui, |plot_ui| plot_ui.line(line));
     /// # });
     /// ```
-    pub fn custom_label_func<F: 'static + Fn(&str, &Value) -> String>(
+    pub fn custom_label_func(
         mut self,
-        custom_lebel_func: F,
+        custom_label_func: impl Fn(&str, &Value) -> String + 'static,
     ) -> Self {
-        self.custom_label_func = Some(Box::new(custom_lebel_func));
+        self.custom_label_func = Some(Box::new(custom_label_func));
         self
     }
 
@@ -228,7 +228,7 @@ impl Plot {
     /// If axis labels should not appear for certain values or beyond a certain zoom/resolution,
     /// the formatter function can return empty strings. This is also useful if your domain is
     /// discrete (e.g. only full days in a calendar).
-    pub fn x_axis_formatter<F: 'static + Fn(f64) -> String>(mut self, func: F) -> Self {
+    pub fn x_axis_formatter(mut self, func: impl Fn(f64) -> String + 'static) -> Self {
         self.axis_formatters[0] = Some(Box::new(func));
         self
     }
@@ -240,7 +240,7 @@ impl Plot {
     /// If axis labels should not appear for certain values or beyond a certain zoom/resolution,
     /// the formatter function can return empty strings. This is also useful if your Y values are
     /// discrete (e.g. only integers).
-    pub fn y_axis_formatter<F: 'static + Fn(f64) -> String>(mut self, func: F) -> Self {
+    pub fn y_axis_formatter(mut self, func: impl Fn(f64) -> String + 'static) -> Self {
         self.axis_formatters[1] = Some(Box::new(func));
         self
     }
