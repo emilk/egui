@@ -9,6 +9,17 @@ use crate::{
 ///
 /// The style choices (font, color) are applied to the entire text.
 /// For more detailed control, use [`crate::text::LayoutJob`] instead.
+///
+/// A `RichText` can be used in most widgets and helper functions, e.g. [`Ui::label`] and [`Ui::button`].
+///
+/// ### Example
+/// ```
+/// use egui::{RichText, Color32};
+///
+/// RichText::new("Plain");
+/// RichText::new("colored").color(Color32::RED);
+/// RichText::new("Large and underlined").size(20.0).underline();
+/// ```
 #[derive(Clone, Default, PartialEq)]
 pub struct RichText {
     text: String,
@@ -75,7 +86,10 @@ impl RichText {
     }
 
     /// Select the font family.
+    ///
     /// This overrides the value from [`Self::text_style`].
+    ///
+    /// Only the families available in [`crate::FontDefinitions::families`] may be used.
     #[inline]
     pub fn family(mut self, family: FontFamily) -> Self {
         self.family = Some(family);
