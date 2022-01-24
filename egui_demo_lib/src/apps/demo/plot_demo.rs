@@ -5,7 +5,6 @@ use plot::{
     Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, Corner, HLine, Legend, Line, LineStyle,
     MarkerShape, Plot, PlotImage, Points, Polygon, Text, VLine, Value, Values,
 };
-use crate::apps::demo::Demo;
 
 #[derive(PartialEq)]
 struct LineDemo {

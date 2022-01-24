@@ -1,10 +1,8 @@
 use crate::*;
-
+use egui_winit::winit;
 struct RequestRepaintEvent;
 
-struct GlowRepaintSignal(
-    std::sync::Mutex<egui_winit::winit::event_loop::EventLoopProxy<RequestRepaintEvent>>,
-);
+struct GlowRepaintSignal(std::sync::Mutex<winit::event_loop::EventLoopProxy<RequestRepaintEvent>>);
 
 impl epi::backend::RepaintSignal for GlowRepaintSignal {
     fn request_repaint(&self) {
@@ -14,8 +12,8 @@ impl epi::backend::RepaintSignal for GlowRepaintSignal {
 
 #[allow(unsafe_code)]
 fn create_display(
-    window_builder: egui_winit::winit::window::WindowBuilder,
-    event_loop: &egui_winit::winit::event_loop::EventLoop<RequestRepaintEvent>,
+    window_builder: winit::window::WindowBuilder,
+    event_loop: &winit::event_loop::EventLoop<RequestRepaintEvent>,
 ) -> (
     glutin::WindowedContext<glutin::PossiblyCurrent>,
     glow::Context,
@@ -53,7 +51,7 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
     let window_settings = persistence.load_window_settings();
     let window_builder =
         egui_winit::epi::window_builder(native_options, &window_settings).with_title(app.name());
-    let event_loop = egui_winit::winit::event_loop::EventLoop::with_user_event();
+    let event_loop = winit::event_loop::EventLoop::with_user_event();
     let (gl_window, gl) = create_display(window_builder, &event_loop);
 
     let repaint_signal = std::sync::Arc::new(GlowRepaintSignal(std::sync::Mutex::new(
@@ -118,12 +116,12 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
 
             {
                 *control_flow = if integration.should_quit() {
-                    egui_winit::winit::event_loop::ControlFlow::Exit
+                    winit::event_loop::ControlFlow::Exit
                 } else if needs_repaint {
                     gl_window.window().request_redraw();
-                    egui_winit::winit::event_loop::ControlFlow::Poll
+                    winit::event_loop::ControlFlow::Poll
                 } else {
-                    egui_winit::winit::event_loop::ControlFlow::Wait
+                    winit::event_loop::ControlFlow::Wait
                 };
             }
 
@@ -134,30 +132,30 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
             // Platform-dependent event handlers to workaround a winit bug
             // See: https://github.com/rust-windowing/winit/issues/987
             // See: https://github.com/rust-windowing/winit/issues/1619
-            egui_winit::winit::event::Event::RedrawEventsCleared if cfg!(windows) => redraw(),
-            egui_winit::winit::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
+            winit::event::Event::RedrawEventsCleared if cfg!(windows) => redraw(),
+            winit::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
 
-            egui_winit::winit::event::Event::WindowEvent { event, .. } => {
-                if let egui_winit::winit::event::WindowEvent::Focused(new_focused) = event {
+            winit::event::Event::WindowEvent { event, .. } => {
+                if let winit::event::WindowEvent::Focused(new_focused) = event {
                     is_focused = new_focused;
                 }
 
-                if let egui_winit::winit::event::WindowEvent::Resized(physical_size) = event {
+                if let winit::event::WindowEvent::Resized(physical_size) = event {
                     gl_window.resize(physical_size);
                 }
 
                 integration.on_event(&event);
                 if integration.should_quit() {
-                    *control_flow = egui_winit::winit::event_loop::ControlFlow::Exit;
+                    *control_flow = winit::event_loop::ControlFlow::Exit;
                 }
 
                 gl_window.window().request_redraw(); // TODO: ask egui if the events warrants a repaint instead
             }
-            egui_winit::winit::event::Event::LoopDestroyed => {
+            winit::event::Event::LoopDestroyed => {
                 integration.on_exit(gl_window.window());
                 painter.destroy(&gl);
             }
-            egui_winit::winit::event::Event::UserEvent(RequestRepaintEvent) => {
+            winit::event::Event::UserEvent(RequestRepaintEvent) => {
                 gl_window.window().request_redraw();
             }
             _ => (),
