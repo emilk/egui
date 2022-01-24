@@ -117,8 +117,8 @@ impl HLine {
     }
 
     /// Highlight this line in the plot by scaling up the line.
-    pub fn highlight(mut self) -> Self {
-        self.highlight = true;
+    pub fn highlight(mut self, highlight: bool) -> Self {
+        self.highlight = highlight;
         self
     }
 
@@ -227,8 +227,8 @@ impl VLine {
     }
 
     /// Highlight this line in the plot by scaling up the line.
-    pub fn highlight(mut self) -> Self {
-        self.highlight = true;
+    pub fn highlight(mut self, highlight: bool) -> Self {
+        self.highlight = highlight;
         self
     }
 
@@ -338,8 +338,8 @@ impl Line {
     }
 
     /// Highlight this line in the plot by scaling up the line.
-    pub fn highlight(mut self) -> Self {
-        self.highlight = true;
+    pub fn highlight(mut self, highlight: bool) -> Self {
+        self.highlight = highlight;
         self
     }
 
@@ -506,8 +506,8 @@ impl Polygon {
 
     /// Highlight this polygon in the plot by scaling up the stroke and reducing the fill
     /// transparency.
-    pub fn highlight(mut self) -> Self {
-        self.highlight = true;
+    pub fn highlight(mut self, highlight: bool) -> Self {
+        self.highlight = highlight;
         self
     }
 
@@ -635,8 +635,8 @@ impl Text {
     }
 
     /// Highlight this text in the plot by drawing a rectangle around it.
-    pub fn highlight(mut self) -> Self {
-        self.highlight = true;
+    pub fn highlight(mut self, highlight: bool) -> Self {
+        self.highlight = highlight;
         self
     }
 
@@ -763,8 +763,8 @@ impl Points {
     }
 
     /// Highlight these points in the plot by scaling up their markers.
-    pub fn highlight(mut self) -> Self {
-        self.highlight = true;
+    pub fn highlight(mut self, highlight: bool) -> Self {
+        self.highlight = highlight;
         self
     }
 
@@ -979,8 +979,8 @@ impl Arrows {
     }
 
     /// Highlight these arrows in the plot.
-    pub fn highlight(mut self) -> Self {
-        self.highlight = true;
+    pub fn highlight(mut self, highlight: bool) -> Self {
+        self.highlight = highlight;
         self
     }
 
@@ -1105,8 +1105,8 @@ impl PlotImage {
     }
 
     /// Highlight this image in the plot.
-    pub fn highlight(mut self) -> Self {
-        self.highlight = true;
+    pub fn highlight(mut self, highlight: bool) -> Self {
+        self.highlight = highlight;
         self
     }
 
@@ -1295,8 +1295,8 @@ impl BarChart {
     }
 
     /// Highlight all plot elements.
-    pub fn highlight(mut self) -> Self {
-        self.highlight = true;
+    pub fn highlight(mut self, highlight: bool) -> Self {
+        self.highlight = highlight;
         self
     }
 
@@ -1458,8 +1458,8 @@ impl BoxPlot {
     }
 
     /// Highlight all plot elements.
-    pub fn highlight(mut self) -> Self {
-        self.highlight = true;
+    pub fn highlight(mut self, highlight: bool) -> Self {
+        self.highlight = highlight;
         self
     }
 
