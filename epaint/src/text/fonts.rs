@@ -478,8 +478,8 @@ impl FontsImpl {
             pixels_per_point
         );
 
-        let texture_width = max_texture_side.at_most(16 * 1024);
-        let initial_height = 512;
+        let texture_width = max_texture_side.at_most(8 * 1024);
+        let initial_height = 64;
         let mut atlas = TextureAtlas::new([texture_width, initial_height]);
 
         {
