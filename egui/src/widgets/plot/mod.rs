@@ -684,12 +684,7 @@ impl PreparedPlot {
 
         let bounds = transform.bounds();
 
-        let font_id = ui
-            .style()
-            .text_styles
-            .get(&TextStyle::Body)
-            .cloned()
-            .unwrap_or_default();
+        let font_id = TextStyle::Body.resolve(ui.style());
 
         let base: i64 = 10;
         let basef = base as f64;

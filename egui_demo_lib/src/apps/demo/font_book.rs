@@ -66,17 +66,7 @@ impl super::View for FontBook {
         let named_chars = self
             .named_chars
             .entry(self.font_id.family.clone())
-            .or_insert_with(|| {
-                ui.fonts()
-                    .lock()
-                    .fonts
-                    .font(&egui::FontId::new(10.0, self.font_id.family.clone())) // size is arbitrary for getting the characters
-                    .characters()
-                    .iter()
-                    .filter(|chr| !chr.is_whitespace() && !chr.is_ascii_control())
-                    .map(|&chr| (chr, char_name(chr)))
-                    .collect()
-            });
+            .or_insert_with(|| available_characters(ui, self.font_id.family.clone()));
 
         ui.separator();
 
@@ -106,6 +96,18 @@ impl super::View for FontBook {
             });
         });
     }
+}
+
+fn available_characters(ui: &egui::Ui, family: egui::FontFamily) -> BTreeMap<char, String> {
+    ui.fonts()
+        .lock()
+        .fonts
+        .font(&egui::FontId::new(10.0, family)) // size is arbitrary for getting the characters
+        .characters()
+        .iter()
+        .filter(|chr| !chr.is_whitespace() && !chr.is_ascii_control())
+        .map(|&chr| (chr, char_name(chr)))
+        .collect()
 }
 
 fn char_name(chr: char) -> String {

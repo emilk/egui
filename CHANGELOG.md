@@ -9,7 +9,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 
 ### Added ⭐
 * Much improved font selection ([#1154](https://github.com/emilk/egui/pull/1154)):
-  * You can now select any font size and family using `FontId`.
+  * You can now select any font size and family using `RichText::size` amd `RichText::family` and the new `FontId`.
   * Easily change text styles with `Style::text_styles`.
   * Added `Ui::text_style_height`.
   * Added `TextStyle::resolve`.
@@ -30,6 +30,8 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
   * The painter must support partial texture updates ([#1149](https://github.com/emilk/egui/pull/1149)).
   * Added `RawInput::max_texture_side` which should be filled in with e.g. `GL_MAX_TEXTURE_SIZE` ([#1154](https://github.com/emilk/egui/pull/1154)).
 * Replaced `Style::body_text_style` with more generic `Style::text_styles` ([#1154](https://github.com/emilk/egui/pull/1154)).
+* `TextStyle` is no longer `Copy` ([#1154](https://github.com/emilk/egui/pull/1154)).
+* Replaced `TextEdit::text_style` with `TextEdit::font` ([#1154](https://github.com/emilk/egui/pull/1154)).
 
 ### Fixed 🐛
 * Context menu now respects the theme ([#1043](https://github.com/emilk/egui/pull/1043))

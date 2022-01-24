@@ -10,9 +10,6 @@ use std::collections::BTreeMap;
 
 /// Alias for a [`FontId`] (font of a certain size).
 ///
-/// One of a few categories of styles of text, e.g. body, button or heading.
-/// Useful in GUI:s.
-///
 /// The font is found via look-up in [`Style::text_styles`].
 /// You can use [`TextStyle::resolve`] to do this lookup.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -57,17 +54,19 @@ impl std::fmt::Display for TextStyle {
 impl TextStyle {
     /// Look up this [`TextStyle`] in [`Style::text_styles`].
     pub fn resolve(&self, style: &Style) -> FontId {
-        style
-            .text_styles
-            .get(self)
-            .cloned()
-            .unwrap_or_else(|| panic!("Failed to find {:?} in Style::text_styles", self))
+        style.text_styles.get(self).cloned().unwrap_or_else(|| {
+            panic!(
+                "Failed to find {:?} in Style::text_styles. Available styles:\n{:#?}",
+                self,
+                style.text_styles()
+            )
+        })
     }
 }
 
 // ----------------------------------------------------------------------------
 
-/// A way to select [`FontId`], either by picking on directly or by using a [`TextStyle`].
+/// A way to select [`FontId`], either by picking one directly or by using a [`TextStyle`].
 pub enum FontSelection {
     /// Default text style - will use [`TextStyle::Body`], unless
     /// [`Style::override_font_id`] or [`Style::override_text_style`] is set.
@@ -144,6 +143,8 @@ pub struct Style {
     pub override_font_id: Option<FontId>,
 
     /// The [`FontFamily`] and size you want to use for a specific [`TextStyle`].
+    ///
+    /// The most convenient way to look something up in this is to use [`TextStyle::resolve`].
     pub text_styles: BTreeMap<TextStyle, FontId>,
 
     /// If set, labels buttons wtc will use this to determine whether or not
@@ -483,7 +484,8 @@ pub struct DebugOptions {
 
 // ----------------------------------------------------------------------------
 
-fn default_text_styles() -> BTreeMap<TextStyle, FontId> {
+/// The default text styles of the default egui theme.
+pub fn default_text_styles() -> BTreeMap<TextStyle, FontId> {
     let mut text_styles = BTreeMap::new();
     text_styles.insert(
         TextStyle::Small,

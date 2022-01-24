@@ -11,11 +11,11 @@ pub struct MemoizedEasymarkHighlighter {
 }
 
 impl MemoizedEasymarkHighlighter {
-    pub fn highlight(&mut self, style: &egui::Style, code: &str) -> egui::text::LayoutJob {
-        if (&self.style, self.code.as_str()) != (style, code) {
-            self.style = style.clone();
+    pub fn highlight(&mut self, egui_style: &egui::Style, code: &str) -> egui::text::LayoutJob {
+        if (&self.style, self.code.as_str()) != (egui_style, code) {
+            self.style = egui_style.clone();
             self.code = code.to_owned();
-            self.output = highlight_easymark(style, code);
+            self.output = highlight_easymark(egui_style, code);
         }
         self.output.clone()
     }
@@ -23,7 +23,7 @@ impl MemoizedEasymarkHighlighter {
 
 pub fn highlight_easymark(egui_style: &egui::Style, mut text: &str) -> egui::text::LayoutJob {
     let mut job = egui::text::LayoutJob::default();
-    let mut easy_style = easy_mark_parser::Style::default();
+    let mut style = easy_mark_parser::Style::default();
     let mut start_of_line = true;
 
     while !text.is_empty() {
@@ -41,22 +41,18 @@ pub fn highlight_easymark(egui_style: &egui::Style, mut text: &str) -> egui::tex
                 ),
             );
             text = &text[end..];
-            easy_style = Default::default();
+            style = Default::default();
             continue;
         }
 
         if text.starts_with('`') {
-            easy_style.code = true;
+            style.code = true;
             let end = text[1..]
                 .find(&['`', '\n'][..])
                 .map_or_else(|| text.len(), |i| i + 2);
-            job.append(
-                &text[..end],
-                0.0,
-                format_from_style(egui_style, &easy_style),
-            );
+            job.append(&text[..end], 0.0, format_from_style(egui_style, &style));
             text = &text[end..];
-            easy_style.code = false;
+            style.code = false;
             continue;
         }
 
@@ -68,10 +64,10 @@ pub fn highlight_easymark(egui_style: &egui::Style, mut text: &str) -> egui::tex
             // indentation we don't preview indentation, because it is confusing
             skip = 1;
         } else if start_of_line && text.starts_with("# ") {
-            easy_style.heading = true;
+            style.heading = true;
             skip = 2;
         } else if start_of_line && text.starts_with("> ") {
-            easy_style.quoted = true;
+            style.quoted = true;
             skip = 2;
             // indentation we don't preview indentation, because it is confusing
         } else if start_of_line && text.starts_with("- ") {
@@ -79,43 +75,31 @@ pub fn highlight_easymark(egui_style: &egui::Style, mut text: &str) -> egui::tex
             // indentation we don't preview indentation, because it is confusing
         } else if text.starts_with('*') {
             skip = 1;
-            if easy_style.strong {
+            if style.strong {
                 // Include the character that i ending ths style:
-                job.append(
-                    &text[..skip],
-                    0.0,
-                    format_from_style(egui_style, &easy_style),
-                );
+                job.append(&text[..skip], 0.0, format_from_style(egui_style, &style));
                 text = &text[skip..];
                 skip = 0;
             }
-            easy_style.strong ^= true;
+            style.strong ^= true;
         } else if text.starts_with('$') {
             skip = 1;
-            if easy_style.small {
+            if style.small {
                 // Include the character that i ending ths style:
-                job.append(
-                    &text[..skip],
-                    0.0,
-                    format_from_style(egui_style, &easy_style),
-                );
+                job.append(&text[..skip], 0.0, format_from_style(egui_style, &style));
                 text = &text[skip..];
                 skip = 0;
             }
-            easy_style.small ^= true;
+            style.small ^= true;
         } else if text.starts_with('^') {
             skip = 1;
-            if easy_style.raised {
+            if style.raised {
                 // Include the character that i ending ths style:
-                job.append(
-                    &text[..skip],
-                    0.0,
-                    format_from_style(egui_style, &easy_style),
-                );
+                job.append(&text[..skip], 0.0, format_from_style(egui_style, &style));
                 text = &text[skip..];
                 skip = 0;
             }
-            easy_style.raised ^= true;
+            style.raised ^= true;
         } else {
             skip = 0;
         }
@@ -133,17 +117,13 @@ pub fn highlight_easymark(egui_style: &egui::Style, mut text: &str) -> egui::tex
             job.append(
                 &text[..line_end],
                 0.0,
-                format_from_style(egui_style, &easy_style),
+                format_from_style(egui_style, &style),
             );
             text = &text[line_end..];
             start_of_line = true;
-            easy_style = Default::default();
+            style = Default::default();
         } else {
-            job.append(
-                &text[..end],
-                0.0,
-                format_from_style(egui_style, &easy_style),
-            );
+            job.append(&text[..end], 0.0, format_from_style(egui_style, &style));
             text = &text[end..];
             start_of_line = false;
         }
@@ -153,17 +133,17 @@ pub fn highlight_easymark(egui_style: &egui::Style, mut text: &str) -> egui::tex
 }
 
 fn format_from_style(
-    style: &egui::Style,
+    egui_style: &egui::Style,
     emark_style: &easy_mark_parser::Style,
 ) -> egui::text::TextFormat {
     use egui::{Align, Color32, Stroke, TextStyle};
 
     let color = if emark_style.strong || emark_style.heading {
-        style.visuals.strong_text_color()
+        egui_style.visuals.strong_text_color()
     } else if emark_style.quoted {
-        style.visuals.weak_text_color()
+        egui_style.visuals.weak_text_color()
     } else {
-        style.visuals.text_color()
+        egui_style.visuals.text_color()
     };
 
     let text_style = if emark_style.heading {
@@ -177,7 +157,7 @@ fn format_from_style(
     };
 
     let background = if emark_style.code {
-        style.visuals.code_bg_color
+        egui_style.visuals.code_bg_color
     } else {
         Color32::TRANSPARENT
     };
@@ -201,7 +181,7 @@ fn format_from_style(
     };
 
     egui::text::TextFormat {
-        font_id: text_style.resolve(style),
+        font_id: text_style.resolve(egui_style),
         color,
         background,
         italics: emark_style.italics,

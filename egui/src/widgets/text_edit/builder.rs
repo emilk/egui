@@ -144,15 +144,15 @@ impl<'t> TextEdit<'t> {
         self
     }
 
-    #[deprecated = "Use .font(…) instead"]
-    pub fn text_style(self, text_style: TextStyle) -> Self {
-        self.font(text_style)
-    }
-
     /// Pick a [`FontId`] or [`TextStyle`].
     pub fn font(mut self, font_selection: impl Into<FontSelection>) -> Self {
         self.font_selection = font_selection.into();
         self
+    }
+
+    #[deprecated = "Use .font(…) instead"]
+    pub fn text_style(self, text_style: TextStyle) -> Self {
+        self.font(text_style)
     }
 
     pub fn text_color(mut self, text_color: Color32) -> Self {
