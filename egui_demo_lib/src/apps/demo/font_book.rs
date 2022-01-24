@@ -87,13 +87,13 @@ impl super::View for FontBook {
                 for (&chr, name) in named_chars {
                     if filter.is_empty() || name.contains(filter) || *filter == chr.to_string() {
                         let button = egui::Button::new(
-                            egui::RichText::new(chr.to_string()).font_id(self.font_id.clone()),
+                            egui::RichText::new(chr.to_string()).font(self.font_id.clone()),
                         )
                         .frame(false);
 
                         let tooltip_ui = |ui: &mut egui::Ui| {
                             ui.label(
-                                egui::RichText::new(chr.to_string()).font_id(self.font_id.clone()),
+                                egui::RichText::new(chr.to_string()).font(self.font_id.clone()),
                             );
                             ui.label(format!("{}\nU+{:X}\n\nClick to copy", name, chr as u32));
                         };

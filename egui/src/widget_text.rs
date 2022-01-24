@@ -85,7 +85,7 @@ impl RichText {
     /// Select the font and size.
     /// This overrides the value from [`Self::text_style`].
     #[inline]
-    pub fn font_id(mut self, font_id: crate::FontId) -> Self {
+    pub fn font(mut self, font_id: crate::FontId) -> Self {
         let crate::FontId { size, family } = font_id;
         self.size = Some(size);
         self.family = Some(family);

@@ -1091,6 +1091,16 @@ impl Ui {
     /// Shortcut for `add(Label::new(text))`
     ///
     /// See also [`Label`].
+    ///
+    /// ### Example
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// use egui::{RichText, FontId, Color32};
+    /// ui.label("Normal text");
+    /// ui.label(RichText::new("Large text").font(FontId::proportional(40.0)));
+    /// ui.label(RichText::new("Red text").color(Color32::RED));
+    /// # });
+    /// ```
     #[inline]
     pub fn label(&mut self, text: impl Into<WidgetText>) -> Response {
         Label::new(text).ui(self)
