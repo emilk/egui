@@ -30,6 +30,7 @@ pub struct Painter {
 }
 
 impl Painter {
+    /// Create a painter to a specific layer within a certain clip rectangle.
     pub fn new(ctx: Context, layer_id: LayerId, clip_rect: Rect) -> Self {
         Self {
             ctx,
@@ -39,6 +40,7 @@ impl Painter {
         }
     }
 
+    /// Redirect where you are painting.
     #[must_use]
     pub fn with_layer_id(self, layer_id: LayerId) -> Self {
         Self {
@@ -49,7 +51,7 @@ impl Painter {
         }
     }
 
-    /// redirect
+    /// Redirect where you are painting.
     pub fn set_layer_id(&mut self, layer_id: LayerId) {
         self.layer_id = layer_id;
     }
@@ -323,7 +325,7 @@ impl Painter {
 impl Painter {
     /// Lay out and paint some text.
     ///
-    /// To center the text at the given position, use `anchor: (Center, Center)`.
+    /// To center the text at the given position, use `Align2::CENTER_CENTER`.
     ///
     /// To find out the size of text before painting it, use
     /// [`Self::layout`] or [`Self::layout_no_wrap`].

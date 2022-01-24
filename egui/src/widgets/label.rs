@@ -2,6 +2,8 @@ use crate::{widget_text::WidgetTextGalley, *};
 
 /// Static text.
 ///
+/// Usually it is more convenient to use [`Ui::label`].
+///
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// ui.label("Equivalent");

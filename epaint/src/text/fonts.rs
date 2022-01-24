@@ -25,6 +25,7 @@ pub struct FontId {
 }
 
 impl Default for FontId {
+    #[inline]
     fn default() -> Self {
         Self {
             size: 14.0,
@@ -70,9 +71,13 @@ impl std::hash::Hash for FontId {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum FontFamily {
     /// A font where some characters are wider than other (e.g. 'w' is wider than 'i').
+    ///
+    /// Proportional fonts are easier to read and should be the preferred choice in most situations.
     Proportional,
 
     /// A font where each character is the same width (`w` is the same width as `i`).
+    ///
+    /// Useful for code snippets, or when you need to align numbers or text.
     Monospace,
 
     /// One of the names in [`FontDefinitions::families`].
@@ -87,6 +92,7 @@ pub enum FontFamily {
 }
 
 impl Default for FontFamily {
+    #[inline]
     fn default() -> Self {
         FontFamily::Proportional
     }

@@ -48,7 +48,7 @@ struct Paragraph {
 
 /// Layout text into a [`Galley`].
 ///
-/// In most cases you should use [`Fonts::layout_job`] instead
+/// In most cases you should use [`crate::Fonts::layout_job`] instead
 /// since that memoizes the input, making subsequent layouting of the same text much faster.
 pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
     let mut paragraphs = vec![Paragraph::default()];

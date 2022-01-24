@@ -67,9 +67,10 @@ impl TextStyle {
 
 // ----------------------------------------------------------------------------
 
-/// Either a [`FontId`] or as [`TextStyle`].
+/// A way to select [`FontId`], either by picking on directly or by using a [`TextStyle`].
 pub enum FontSelection {
-    /// Follow [`Style::override_text_style`].
+    /// Default text style - will use [`TextStyle::Body`], unless
+    /// [`Style::override_font_id`] or [`Style::override_text_style`] is set.
     Default,
 
     /// Directly select size and font family
@@ -80,6 +81,7 @@ pub enum FontSelection {
 }
 
 impl Default for FontSelection {
+    #[inline]
     fn default() -> Self {
         Self::Default
     }
