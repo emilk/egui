@@ -120,17 +120,6 @@ pub trait App {
     /// Also allows you to restore state, if there is a storage (required the "persistence" feature).
     fn setup(&mut self, _ctx: &egui::Context, _frame: &Frame, _storage: Option<&dyn Storage>) {}
 
-    /// If `true` a warm-up call to [`Self::update`] will be issued where
-    /// `ctx.memory().everything_is_visible()` will be set to `true`.
-    ///
-    /// This will help pre-caching all text, preventing stutter when
-    /// opening a window containing new glyphs.
-    ///
-    /// In this warm-up call, all painted shapes will be ignored.
-    fn warm_up_enabled(&self) -> bool {
-        false
-    }
-
     /// Called on shutdown, and perhaps at regular intervals. Allows you to save state.
     ///
     /// Only called when the "persistence" feature is enabled.
@@ -202,6 +191,18 @@ pub trait App {
     /// persisted (only if the "persistence" feature is enabled).
     fn persist_egui_memory(&self) -> bool {
         true
+    }
+
+    /// If `true` a warm-up call to [`Self::update`] will be issued where
+    /// `ctx.memory().everything_is_visible()` will be set to `true`.
+    ///
+    /// This can help pre-caching resources loaded by different parts of the UI, preventing stutter later on.
+    ///
+    /// In this warm-up call, all painted shapes will be ignored.
+    ///
+    /// The default is `false`, and it is unlikely you will want to change this.
+    fn warm_up_enabled(&self) -> bool {
+        false
     }
 }
 
