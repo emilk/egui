@@ -2,9 +2,28 @@
 
 use crate::{
     animation_manager::AnimationManager, data::output::Output, frame_state::FrameState,
-    input_state::*, layers::GraphicLayers, *,
+    input_state::*, layers::GraphicLayers, TextureHandle, *,
 };
 use epaint::{mutex::*, stats::*, text::Fonts, *};
+
+// ----------------------------------------------------------------------------
+
+struct WrappedTextureManager(Arc<RwLock<epaint::TextureManager>>);
+
+impl Default for WrappedTextureManager {
+    fn default() -> Self {
+        let mut tex_mngr = epaint::textures::TextureManager::default();
+
+        // Will be filled in later
+        let font_id = tex_mngr.alloc(
+            "egui_font_texture".into(),
+            epaint::AlphaImage::new([0, 0]).into(),
+        );
+        assert_eq!(font_id, TextureId::default());
+
+        Self(Arc::new(RwLock::new(tex_mngr)))
+    }
+}
 
 // ----------------------------------------------------------------------------
 
@@ -14,6 +33,7 @@ struct ContextImpl {
     fonts: Option<Fonts>,
     memory: Memory,
     animation_manager: AnimationManager,
+    tex_manager: WrappedTextureManager,
 
     input: InputState,
 
@@ -42,7 +62,7 @@ impl ContextImpl {
         self.input = input.begin_frame(new_raw_input);
         self.frame_state.begin_frame(&self.input);
 
-        self.update_fonts_mut(self.input.pixels_per_point());
+        self.update_fonts_mut();
 
         // Ensure we register the background area so panels and background ui can catch clicks:
         let screen_rect = self.input.screen_rect();
@@ -57,27 +77,21 @@ impl ContextImpl {
     }
 
     /// Load fonts unless already loaded.
-    fn update_fonts_mut(&mut self, pixels_per_point: f32) {
-        let new_font_definitions = self.memory.new_font_definitions.take();
+    fn update_fonts_mut(&mut self) {
+        let pixels_per_point = self.input.pixels_per_point();
+        let max_texture_side = self.input.raw.max_texture_side;
 
-        let pixels_per_point_changed = match &self.fonts {
-            None => true,
-            Some(current_fonts) => {
-                (current_fonts.pixels_per_point() - pixels_per_point).abs() > 1e-3
-            }
-        };
-
-        if self.fonts.is_none() || new_font_definitions.is_some() || pixels_per_point_changed {
-            self.fonts = Some(Fonts::new(
-                pixels_per_point,
-                new_font_definitions.unwrap_or_else(|| {
-                    self.fonts
-                        .as_ref()
-                        .map(|font| font.definitions().clone())
-                        .unwrap_or_default()
-                }),
-            ));
+        if let Some(font_definitions) = self.memory.new_font_definitions.take() {
+            let fonts = Fonts::new(pixels_per_point, max_texture_side, font_definitions);
+            self.fonts = Some(fonts);
         }
+
+        let fonts = self.fonts.get_or_insert_with(|| {
+            let font_definitions = FontDefinitions::default();
+            Fonts::new(pixels_per_point, max_texture_side, font_definitions)
+        });
+
+        fonts.begin_frame(pixels_per_point, max_texture_side);
     }
 }
 
@@ -157,7 +171,7 @@ impl Context {
     ///
     /// You can alternatively run [`Self::begin_frame`] and [`Context::end_frame`].
     ///
-    /// ``` rust
+    /// ```
     /// // One egui context that you keep reusing:
     /// let mut ctx = egui::Context::default();
     ///
@@ -183,7 +197,7 @@ impl Context {
 
     /// An alternative to calling [`Self::run`].
     ///
-    /// ``` rust
+    /// ```
     /// // One egui context that you keep reusing:
     /// let mut ctx = egui::Context::default();
     ///
@@ -492,14 +506,6 @@ impl Context {
         self.write().repaint_requests = 2;
     }
 
-    /// The egui font image, containing font characters etc.
-    ///
-    /// Not valid until first call to [`Context::run()`].
-    /// That's because since we don't know the proper `pixels_per_point` until then.
-    pub fn font_image(&self) -> Arc<epaint::FontImage> {
-        self.fonts().font_image()
-    }
-
     /// Tell `egui` which fonts to use.
     ///
     /// The default `egui` fonts only support latin and cyrillic alphabets,
@@ -509,7 +515,7 @@ impl Context {
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
         if let Some(current_fonts) = &*self.fonts_mut() {
             // NOTE: this comparison is expensive since it checks TTF data for equality
-            if current_fonts.definitions() == &font_definitions {
+            if current_fonts.lock().fonts.definitions() == &font_definitions {
                 return; // no change - save us from reloading font textures
             }
         }
@@ -593,6 +599,54 @@ impl Context {
         }
     }
 
+    /// Allocate a texture.
+    ///
+    /// In order to display an image you must convert it to a texture using this function.
+    ///
+    /// Make sure to only call this once for each image, i.e. NOT in your main GUI code.
+    ///
+    /// The given name can be useful for later debugging, and will be visible if you call [`Self::texture_ui`].
+    ///
+    /// For how to load an image, see [`ImageData`] and [`ColorImage::from_rgba_unmultiplied`].
+    ///
+    /// ```
+    /// struct MyImage {
+    ///     texture: Option<egui::TextureHandle>,
+    /// }
+    ///
+    /// impl MyImage {
+    ///     fn ui(&mut self, ui: &mut egui::Ui) {
+    ///         let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
+    ///             // Load the texture only once.
+    ///             ui.ctx().load_texture("my-image", egui::ColorImage::example())
+    ///         });
+    ///
+    ///         // Show the image:
+    ///         ui.image(texture, texture.size_vec2());
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// Se also [`crate::ImageData`], [`crate::Ui::image`] and [`crate::ImageButton`].
+    pub fn load_texture(
+        &self,
+        name: impl Into<String>,
+        image: impl Into<ImageData>,
+    ) -> TextureHandle {
+        let tex_mngr = self.tex_manager();
+        let tex_id = tex_mngr.write().alloc(name.into(), image.into());
+        TextureHandle::new(tex_mngr, tex_id)
+    }
+
+    /// Low-level texture manager.
+    ///
+    /// In general it is easier to use [`Self::load_texture`] and [`TextureHandle`].
+    ///
+    /// You can show stats about the allocated textures using [`Self::texture_ui`].
+    pub fn tex_manager(&self) -> Arc<RwLock<epaint::textures::TextureManager>> {
+        self.read().tex_manager.0.clone()
+    }
+
     // ---------------------------------------------------------------------
 
     /// Constrain the position of a window/area so it fits within the provided boundary.
@@ -645,9 +699,21 @@ impl Context {
             ctx_impl
                 .memory
                 .end_frame(&ctx_impl.input, &ctx_impl.frame_state.used_ids);
-        }
 
-        self.fonts().end_frame();
+            let font_image_delta = ctx_impl.fonts.as_ref().unwrap().font_image_delta();
+            if let Some(font_image_delta) = font_image_delta {
+                ctx_impl
+                    .tex_manager
+                    .0
+                    .write()
+                    .set(TextureId::default(), font_image_delta);
+            }
+
+            ctx_impl
+                .output
+                .textures_delta
+                .append(ctx_impl.tex_manager.0.write().take_delta());
+        }
 
         let mut output: Output = std::mem::take(&mut self.output());
         if self.read().repaint_requests > 0 {
@@ -680,7 +746,7 @@ impl Context {
         let clipped_meshes = tessellator::tessellate_shapes(
             shapes,
             tessellation_options,
-            self.fonts().font_image().size(),
+            self.fonts().font_image_size(),
         );
         self.write().paint_stats = paint_stats.with_clipped_meshes(&clipped_meshes);
         clipped_meshes
@@ -845,6 +911,24 @@ impl Context {
         animated_value
     }
 
+    /// Allows you to smoothly change the f32 value.
+    /// At the first call the value is written to memory.
+    /// When it is called with a new value, it linearly interpolates to it in the given time.
+    pub fn animate_value_with_time(&self, id: Id, value: f32, animation_time: f32) -> f32 {
+        let animated_value = {
+            let ctx_impl = &mut *self.write();
+            ctx_impl
+                .animation_manager
+                .animate_value(&ctx_impl.input, animation_time, id, value)
+        };
+        let animation_in_progress = animated_value != value;
+        if animation_in_progress {
+            self.request_repaint();
+        }
+
+        animated_value
+    }
+
     /// Clear memory of any animations.
     pub fn clear_animations(&self) {
         self.write().animation_manager = Default::default();
@@ -859,16 +943,6 @@ impl Context {
             .default_open(true)
             .show(ui, |ui| {
                 self.style_ui(ui);
-            });
-
-        CollapsingHeader::new("🔠 Fonts")
-            .default_open(false)
-            .show(ui, |ui| {
-                let mut font_definitions = self.fonts().definitions().clone();
-                font_definitions.ui(ui);
-                let font_image = self.fonts().font_image();
-                font_image.ui(ui);
-                self.set_fonts(font_definitions);
             });
 
         CollapsingHeader::new("✒ Painting")
@@ -936,11 +1010,81 @@ impl Context {
             });
 
         CollapsingHeader::new("📊 Paint stats")
-            .default_open(true)
+            .default_open(false)
             .show(ui, |ui| {
                 let paint_stats = self.write().paint_stats;
                 paint_stats.ui(ui);
             });
+
+        CollapsingHeader::new("🖼 Textures")
+            .default_open(false)
+            .show(ui, |ui| {
+                self.texture_ui(ui);
+            });
+
+        CollapsingHeader::new("🔠 Font texture")
+            .default_open(false)
+            .show(ui, |ui| {
+                let font_image_size = self.fonts().font_image_size();
+                crate::introspection::font_texture_ui(ui, font_image_size);
+            });
+    }
+
+    /// Show stats about the allocated textures.
+    pub fn texture_ui(&self, ui: &mut crate::Ui) {
+        let tex_mngr = self.tex_manager();
+        let tex_mngr = tex_mngr.read();
+
+        let mut textures: Vec<_> = tex_mngr.allocated().collect();
+        textures.sort_by_key(|(id, _)| *id);
+
+        let mut bytes = 0;
+        for (_, tex) in &textures {
+            bytes += tex.bytes_used();
+        }
+
+        ui.label(format!(
+            "{} allocated texture(s), using {:.1} MB",
+            textures.len(),
+            bytes as f64 * 1e-6
+        ));
+        let max_preview_size = Vec2::new(48.0, 32.0);
+
+        ui.group(|ui| {
+            ScrollArea::vertical()
+                .max_height(300.0)
+                .auto_shrink([false, true])
+                .show(ui, |ui| {
+                    ui.style_mut().override_text_style = Some(TextStyle::Monospace);
+                    Grid::new("textures")
+                        .striped(true)
+                        .num_columns(4)
+                        .spacing(Vec2::new(16.0, 2.0))
+                        .min_row_height(max_preview_size.y)
+                        .show(ui, |ui| {
+                            for (&texture_id, meta) in textures {
+                                let [w, h] = meta.size;
+
+                                let mut size = Vec2::new(w as f32, h as f32);
+                                size *= (max_preview_size.x / size.x).min(1.0);
+                                size *= (max_preview_size.y / size.y).min(1.0);
+                                ui.image(texture_id, size).on_hover_ui(|ui| {
+                                    // show larger on hover
+                                    let max_size = 0.5 * ui.ctx().input().screen_rect().size();
+                                    let mut size = Vec2::new(w as f32, h as f32);
+                                    size *= max_size.x / size.x.max(max_size.x);
+                                    size *= max_size.y / size.y.max(max_size.y);
+                                    ui.image(texture_id, size);
+                                });
+
+                                ui.label(format!("{} x {}", w, h));
+                                ui.label(format!("{:.3} MB", meta.bytes_used() as f64 * 1e-6));
+                                ui.label(format!("{:?}", meta.name));
+                                ui.end_row();
+                            }
+                        });
+                });
+        });
     }
 
     pub fn memory_ui(&self, ui: &mut crate::Ui) {

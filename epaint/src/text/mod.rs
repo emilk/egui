@@ -10,7 +10,7 @@ mod text_layout_types;
 pub const TAB_SIZE: usize = 4;
 
 pub use {
-    fonts::{FontData, FontDefinitions, FontFamily, Fonts, TextStyle},
+    fonts::{FontData, FontDefinitions, FontFamily, FontId, Fonts, FontsImpl},
     text_layout::layout,
     text_layout_types::*,
 };

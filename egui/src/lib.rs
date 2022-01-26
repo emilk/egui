@@ -58,7 +58,7 @@
 //!
 //! ### Quick start
 //!
-//! ``` rust
+//! ```
 //! # egui::__run_test_ui(|ui| {
 //! # let mut my_string = String::new();
 //! # let mut my_boolean = true;
@@ -218,7 +218,7 @@
 //! 2. Wrap your panel contents in a [`ScrollArea`], or use [`Window::vscroll`] and [`Window::hscroll`].
 //! 3. Use a justified layout:
 //!
-//! ``` rust
+//! ```
 //! # egui::__run_test_ui(|ui| {
 //! ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
 //!     ui.button("I am becoming wider as needed");
@@ -228,7 +228,7 @@
 //!
 //! 4. Fill in extra space with emptiness:
 //!
-//! ``` rust
+//! ```
 //! # egui::__run_test_ui(|ui| {
 //! ui.allocate_space(ui.available_size()); // put this LAST in your panel/window code
 //! # });
@@ -364,7 +364,7 @@ mod frame_state;
 pub(crate) mod grid;
 mod id;
 mod input_state;
-mod introspection;
+pub mod introspection;
 pub mod layers;
 mod layout;
 mod memory;
@@ -385,14 +385,16 @@ pub use epaint::emath;
 pub use emath::{lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rect, Vec2};
 pub use epaint::{
     color, mutex,
-    text::{FontData, FontDefinitions, FontFamily, TextStyle},
-    ClippedMesh, Color32, FontImage, Rgba, Shape, Stroke, TextureId,
+    text::{FontData, FontDefinitions, FontFamily, FontId},
+    textures::TexturesDelta,
+    AlphaImage, ClippedMesh, Color32, ColorImage, ImageData, Rgba, Shape, Stroke, TextureHandle,
+    TextureId,
 };
 
 pub mod text {
     pub use epaint::text::{
         FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob, LayoutSection, TextFormat,
-        TextStyle, TAB_SIZE,
+        TAB_SIZE,
     };
 }
 
@@ -412,7 +414,7 @@ pub use {
     painter::Painter,
     response::{InnerResponse, Response},
     sense::Sense,
-    style::{Style, Visuals},
+    style::{FontSelection, Style, TextStyle, Visuals},
     text::{Galley, TextFormat},
     ui::Ui,
     widget_text::{RichText, WidgetText},
@@ -509,7 +511,7 @@ macro_rules! egui_assert {
 
 // ----------------------------------------------------------------------------
 
-/// egui supports around 1216 emojis in total.
+/// The default egui fonts supports around 1216 emojis in total.
 /// Here are some of the most useful:
 /// ∞⊗⎗⎘⎙⏏⏴⏵⏶⏷
 /// ⏩⏪⏭⏮⏸⏹⏺■▶📾🔀🔁🔃

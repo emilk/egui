@@ -2,6 +2,8 @@ use crate::{widget_text::WidgetTextGalley, *};
 
 /// Static text.
 ///
+/// Usually it is more convenient to use [`Ui::label`].
+///
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// ui.label("Equivalent");
@@ -49,7 +51,7 @@ impl Label {
     /// By calling this you can turn the label into a button of sorts.
     /// This will also give the label the hover-effect of a button, but without the frame.
     ///
-    /// ``` rust
+    /// ```
     /// # use egui::{Label, Sense};
     /// # egui::__run_test_ui(|ui| {
     /// if ui.add(Label::new("click me").sense(Sense::click())).clicked() {
@@ -82,7 +84,9 @@ impl Label {
         }
 
         let valign = ui.layout().vertical_align();
-        let mut text_job = self.text.into_text_job(ui.style(), TextStyle::Body, valign);
+        let mut text_job = self
+            .text
+            .into_text_job(ui.style(), FontSelection::Default, valign);
 
         let should_wrap = self.wrap.unwrap_or_else(|| ui.wrap_text());
         let available_width = ui.available_width();

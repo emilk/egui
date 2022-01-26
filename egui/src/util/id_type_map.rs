@@ -294,7 +294,10 @@ use crate::Id;
 // TODO: make IdTypeMap generic over the key (`Id`), and make a library of IdTypeMap.
 /// Stores values identified by an [`Id`] AND a the [`std::any::TypeId`] of the value.
 ///
-/// so it maps `(Id, TypeId)` to any value you want.
+/// In other words, it maps `(Id, TypeId)` to any value you want.
+///
+/// Values are cloned when read, so keep them small and light.
+/// If you want to store something bigger, wrap them in `Arc<Mutex<…>>`.
 ///
 /// Values can either be "persisted" (serializable) or "temporary" (cleared when egui is shut down).
 ///
@@ -311,19 +314,19 @@ use crate::Id;
 /// map.insert_temp(a, 42);
 ///
 /// // `b` associated with an f64 and a `&'static str`
-/// map.insert_persisted(b, 6.28);
+/// map.insert_persisted(b, 13.37);
 /// map.insert_temp(b, "Hello World".to_string());
 ///
 /// // we can retrieve all four values:
 /// assert_eq!(map.get_temp::<f64>(a), Some(3.14));
 /// assert_eq!(map.get_temp::<i32>(a), Some(42));
-/// assert_eq!(map.get_temp::<f64>(b), Some(6.28));
+/// assert_eq!(map.get_temp::<f64>(b), Some(13.37));
 /// assert_eq!(map.get_temp::<String>(b), Some("Hello World".to_string()));
 ///
 /// // we can retrieve them like so also:
 /// assert_eq!(map.get_persisted::<f64>(a), Some(3.14));
 /// assert_eq!(map.get_persisted::<i32>(a), Some(42));
-/// assert_eq!(map.get_persisted::<f64>(b), Some(6.28));
+/// assert_eq!(map.get_persisted::<f64>(b), Some(13.37));
 /// assert_eq!(map.get_temp::<String>(b), Some("Hello World".to_string()));
 /// ```
 #[derive(Clone, Debug, Default)]
@@ -346,6 +349,8 @@ impl IdTypeMap {
     }
 
     /// Read a value without trying to deserialize a persisted value.
+    ///
+    /// The call clones the value (if found), so make sure it is cheap to clone!
     #[inline]
     pub fn get_temp<T: 'static + Clone>(&mut self, id: Id) -> Option<T> {
         let hash = hash(TypeId::of::<T>(), id);
@@ -356,6 +361,8 @@ impl IdTypeMap {
     }
 
     /// Read a value, optionally deserializing it if available.
+    ///
+    /// The call clones the value (if found), so make sure it is cheap to clone!
     #[inline]
     pub fn get_persisted<T: SerializableAny>(&mut self, id: Id) -> Option<T> {
         let hash = hash(TypeId::of::<T>(), id);
@@ -544,11 +551,11 @@ fn test_two_id_two_type() {
     let b = Id::new("b");
 
     let mut map: IdTypeMap = Default::default();
-    map.insert_persisted(a, 6.28);
+    map.insert_persisted(a, 13.37);
     map.insert_temp(b, 42);
-    assert_eq!(map.get_persisted::<f64>(a), Some(6.28));
+    assert_eq!(map.get_persisted::<f64>(a), Some(13.37));
     assert_eq!(map.get_persisted::<i32>(b), Some(42));
-    assert_eq!(map.get_temp::<f64>(a), Some(6.28));
+    assert_eq!(map.get_temp::<f64>(a), Some(13.37));
     assert_eq!(map.get_temp::<i32>(b), Some(42));
 }
 
@@ -565,19 +572,19 @@ fn test_two_id_x_two_types() {
     map.insert_temp(a, 42);
 
     // `b` associated with an f64 and a `&'static str`
-    map.insert_persisted(b, 6.28);
+    map.insert_persisted(b, 13.37);
     map.insert_temp(b, "Hello World".to_string());
 
     // we can retrieve all four values:
     assert_eq!(map.get_temp::<f64>(a), Some(3.14));
     assert_eq!(map.get_temp::<i32>(a), Some(42));
-    assert_eq!(map.get_temp::<f64>(b), Some(6.28));
+    assert_eq!(map.get_temp::<f64>(b), Some(13.37));
     assert_eq!(map.get_temp::<String>(b), Some("Hello World".to_string()));
 
     // we can retrieve them like so also:
     assert_eq!(map.get_persisted::<f64>(a), Some(3.14));
     assert_eq!(map.get_persisted::<i32>(a), Some(42));
-    assert_eq!(map.get_persisted::<f64>(b), Some(6.28));
+    assert_eq!(map.get_persisted::<f64>(b), Some(13.37));
     assert_eq!(map.get_temp::<String>(b), Some("Hello World".to_string()));
 }
 
@@ -586,11 +593,11 @@ fn test_one_id_two_types() {
     let id = Id::new("a");
 
     let mut map: IdTypeMap = Default::default();
-    map.insert_persisted(id, 6.28);
+    map.insert_persisted(id, 13.37);
     map.insert_temp(id, 42);
 
-    assert_eq!(map.get_temp::<f64>(id), Some(6.28));
-    assert_eq!(map.get_persisted::<f64>(id), Some(6.28));
+    assert_eq!(map.get_temp::<f64>(id), Some(13.37));
+    assert_eq!(map.get_persisted::<f64>(id), Some(13.37));
     assert_eq!(map.get_temp::<i32>(id), Some(42));
 
     // ------------
@@ -601,8 +608,8 @@ fn test_one_id_two_types() {
     assert_eq!(map.get_temp::<i32>(id), None);
 
     // Other type is still there, even though it is the same if:
-    assert_eq!(map.get_temp::<f64>(id), Some(6.28));
-    assert_eq!(map.get_persisted::<f64>(id), Some(6.28));
+    assert_eq!(map.get_temp::<f64>(id), Some(13.37));
+    assert_eq!(map.get_persisted::<f64>(id), Some(13.37));
 
     // But we can still remove the last:
     map.remove::<f64>(id);

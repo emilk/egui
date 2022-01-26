@@ -1,4 +1,4 @@
-use std::sync::mpsc::Receiver;
+use poll_promise::Promise;
 
 struct Resource {
     /// HTTP response
@@ -7,7 +7,7 @@ struct Resource {
     text: Option<String>,
 
     /// If set, the response was an image.
-    image: Option<epi::Image>,
+    texture: Option<egui::TextureHandle>,
 
     /// If set, the response was text with some supported syntax highlighting (e.g. ".rs" or ".md").
     colored_text: Option<ColoredText>,
@@ -17,21 +17,21 @@ impl Resource {
     fn from_response(ctx: &egui::Context, response: ehttp::Response) -> Self {
         let content_type = response.content_type().unwrap_or_default();
         let image = if content_type.starts_with("image/") {
-            decode_image(&response.bytes)
+            load_image(&response.bytes).ok()
         } else {
             None
         };
 
-        let text = response.text();
+        let texture = image.map(|image| ctx.load_texture(&response.url, image));
 
-        let colored_text = text
-            .as_ref()
-            .and_then(|text| syntax_highlighting(ctx, &response, text));
+        let text = response.text();
+        let colored_text = text.and_then(|text| syntax_highlighting(ctx, &response, text));
+        let text = text.map(|text| text.to_owned());
 
         Self {
             response,
             text,
-            image,
+            texture,
             colored_text,
         }
     }
@@ -42,22 +42,14 @@ pub struct HttpApp {
     url: String,
 
     #[cfg_attr(feature = "serde", serde(skip))]
-    in_progress: Option<Receiver<Result<ehttp::Response, String>>>,
-
-    #[cfg_attr(feature = "serde", serde(skip))]
-    result: Option<Result<Resource, String>>,
-
-    #[cfg_attr(feature = "serde", serde(skip))]
-    tex_mngr: TexMngr,
+    promise: Option<Promise<ehttp::Result<Resource>>>,
 }
 
 impl Default for HttpApp {
     fn default() -> Self {
         Self {
             url: "https://raw.githubusercontent.com/emilk/egui/master/README.md".to_owned(),
-            in_progress: Default::default(),
-            result: Default::default(),
-            tex_mngr: Default::default(),
+            promise: Default::default(),
         }
     }
 }
@@ -68,14 +60,6 @@ impl epi::App for HttpApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
-        if let Some(receiver) = &mut self.in_progress {
-            // Are we there yet?
-            if let Ok(result) = receiver.try_recv() {
-                self.in_progress = None;
-                self.result = Some(result.map(|response| Resource::from_response(ctx, response)));
-            }
-        }
-
         egui::TopBottomPanel::bottom("http_bottom").show(ctx, |ui| {
             let layout = egui::Layout::top_down(egui::Align::Center).with_main_justify(true);
             ui.allocate_ui_with_layout(ui.available_size(), layout, |ui| {
@@ -94,33 +78,36 @@ impl epi::App for HttpApp {
             });
 
             if trigger_fetch {
-                let request = ehttp::Request::get(&self.url);
+                let ctx = ctx.clone();
                 let frame = frame.clone();
-                let (sender, receiver) = std::sync::mpsc::channel();
-                self.in_progress = Some(receiver);
-
+                let (sender, promise) = Promise::new();
+                let request = ehttp::Request::get(&self.url);
                 ehttp::fetch(request, move |response| {
-                    sender.send(response).ok();
-                    frame.request_repaint();
+                    frame.request_repaint(); // wake up UI thread
+                    let resource = response.map(|response| Resource::from_response(&ctx, response));
+                    sender.send(resource);
                 });
+                self.promise = Some(promise);
             }
 
             ui.separator();
 
-            if self.in_progress.is_some() {
-                ui.label("Please wait…");
-            } else if let Some(result) = &self.result {
-                match result {
-                    Ok(resource) => {
-                        ui_resource(ui, frame, &mut self.tex_mngr, resource);
+            if let Some(promise) = &self.promise {
+                if let Some(result) = promise.ready() {
+                    match result {
+                        Ok(resource) => {
+                            ui_resource(ui, resource);
+                        }
+                        Err(error) => {
+                            // This should only happen if the fetch API isn't available or something similar.
+                            ui.colored_label(
+                                egui::Color32::RED,
+                                if error.is_empty() { "Error" } else { error },
+                            );
+                        }
                     }
-                    Err(error) => {
-                        // This should only happen if the fetch API isn't available or something similar.
-                        ui.colored_label(
-                            egui::Color32::RED,
-                            if error.is_empty() { "Error" } else { error },
-                        );
-                    }
+                } else {
+                    ui.add(egui::Spinner::new());
                 }
             }
         });
@@ -160,11 +147,11 @@ fn ui_url(ui: &mut egui::Ui, frame: &epi::Frame, url: &mut String) -> bool {
     trigger_fetch
 }
 
-fn ui_resource(ui: &mut egui::Ui, frame: &epi::Frame, tex_mngr: &mut TexMngr, resource: &Resource) {
+fn ui_resource(ui: &mut egui::Ui, resource: &Resource) {
     let Resource {
         response,
         text,
-        image,
+        texture,
         colored_text,
     } = resource;
 
@@ -211,12 +198,10 @@ fn ui_resource(ui: &mut egui::Ui, frame: &epi::Frame, tex_mngr: &mut TexMngr, re
                 ui.separator();
             }
 
-            if let Some(image) = image {
-                if let Some(texture_id) = tex_mngr.texture(frame, &response.url, image) {
-                    let mut size = egui::Vec2::new(image.size[0] as f32, image.size[1] as f32);
-                    size *= (ui.available_width() / size.x).min(1.0);
-                    ui.image(texture_id, size);
-                }
+            if let Some(texture) = texture {
+                let mut size = texture.size_vec2();
+                size *= (ui.available_width() / size.x).min(1.0);
+                ui.image(texture, size);
             } else if let Some(colored_text) = colored_text {
                 colored_text.ui(ui);
             } else if let Some(text) = &text {
@@ -231,7 +216,7 @@ fn selectable_text(ui: &mut egui::Ui, mut text: &str) {
     ui.add(
         egui::TextEdit::multiline(&mut text)
             .desired_width(f32::INFINITY)
-            .text_style(egui::TextStyle::Monospace),
+            .font(egui::TextStyle::Monospace),
     );
 }
 
@@ -272,7 +257,7 @@ impl ColoredText {
             let mut text = self.0.text.as_str();
             ui.add(
                 egui::TextEdit::multiline(&mut text)
-                    .text_style(egui::TextStyle::Monospace)
+                    .font(egui::TextStyle::Monospace)
                     .desired_width(f32::INFINITY)
                     .layouter(&mut layouter),
             );
@@ -287,39 +272,15 @@ impl ColoredText {
 }
 
 // ----------------------------------------------------------------------------
-// Texture/image handling is very manual at the moment.
 
-/// Immediate mode texture manager that supports at most one texture at the time :)
-#[derive(Default)]
-struct TexMngr {
-    loaded_url: String,
-    texture_id: Option<egui::TextureId>,
-}
-
-impl TexMngr {
-    fn texture(
-        &mut self,
-        frame: &epi::Frame,
-        url: &str,
-        image: &epi::Image,
-    ) -> Option<egui::TextureId> {
-        if self.loaded_url != url {
-            if let Some(texture_id) = self.texture_id.take() {
-                frame.free_texture(texture_id);
-            }
-
-            self.texture_id = Some(frame.alloc_texture(image.clone()));
-            self.loaded_url = url.to_owned();
-        }
-        self.texture_id
-    }
-}
-
-fn decode_image(bytes: &[u8]) -> Option<epi::Image> {
-    use image::GenericImageView;
-    let image = image::load_from_memory(bytes).ok()?;
+fn load_image(image_data: &[u8]) -> Result<egui::ColorImage, image::ImageError> {
+    use image::GenericImageView as _;
+    let image = image::load_from_memory(image_data)?;
+    let size = [image.width() as _, image.height() as _];
     let image_buffer = image.to_rgba8();
-    let size = [image.width() as usize, image.height() as usize];
-    let pixels = image_buffer.into_vec();
-    Some(epi::Image::from_rgba_unmultiplied(size, &pixels))
+    let pixels = image_buffer.as_flat_samples();
+    Ok(egui::ColorImage::from_rgba_unmultiplied(
+        size,
+        pixels.as_slice(),
+    ))
 }

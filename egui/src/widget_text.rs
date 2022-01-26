@@ -1,17 +1,30 @@
 use epaint::mutex::Arc;
 
 use crate::{
-    style::WidgetVisuals, text::LayoutJob, Align, Color32, Context, Galley, Pos2, Style, TextStyle,
-    Ui, Visuals,
+    style::WidgetVisuals, text::LayoutJob, Align, Color32, FontFamily, FontSelection, Galley, Pos2,
+    Style, TextStyle, Ui, Visuals,
 };
 
 /// Text and optional style choices for it.
 ///
 /// The style choices (font, color) are applied to the entire text.
 /// For more detailed control, use [`crate::text::LayoutJob`] instead.
+///
+/// A `RichText` can be used in most widgets and helper functions, e.g. [`Ui::label`] and [`Ui::button`].
+///
+/// ### Example
+/// ```
+/// use egui::{RichText, Color32};
+///
+/// RichText::new("Plain");
+/// RichText::new("colored").color(Color32::RED);
+/// RichText::new("Large and underlined").size(20.0).underline();
+/// ```
 #[derive(Clone, Default, PartialEq)]
 pub struct RichText {
     text: String,
+    size: Option<f32>,
+    family: Option<FontFamily>,
     text_style: Option<TextStyle>,
     background_color: Color32,
     text_color: Option<Color32>,
@@ -62,6 +75,35 @@ impl RichText {
     #[inline]
     pub fn text(&self) -> &str {
         &self.text
+    }
+
+    /// Select the font size (in points).
+    /// This overrides the value from [`Self::text_style`].
+    #[inline]
+    pub fn size(mut self, size: f32) -> Self {
+        self.size = Some(size);
+        self
+    }
+
+    /// Select the font family.
+    ///
+    /// This overrides the value from [`Self::text_style`].
+    ///
+    /// Only the families available in [`crate::FontDefinitions::families`] may be used.
+    #[inline]
+    pub fn family(mut self, family: FontFamily) -> Self {
+        self.family = Some(family);
+        self
+    }
+
+    /// Select the font and size.
+    /// This overrides the value from [`Self::text_style`].
+    #[inline]
+    pub fn font(mut self, font_id: crate::FontId) -> Self {
+        let crate::FontId { size, family } = font_id;
+        self.size = Some(size);
+        self.family = Some(family);
+        self
     }
 
     /// Override the [`TextStyle`].
@@ -170,24 +212,33 @@ impl RichText {
     }
 
     /// Read the font height of the selected text style.
-    pub fn font_height(&self, ctx: &Context) -> f32 {
-        let text_style = self
-            .text_style
-            .or(ctx.style().override_text_style)
-            .unwrap_or(ctx.style().body_text_style);
-        ctx.fonts().row_height(text_style)
+    pub fn font_height(&self, fonts: &epaint::Fonts, style: &Style) -> f32 {
+        let mut font_id = self.text_style.as_ref().map_or_else(
+            || FontSelection::Default.resolve(style),
+            |text_style| text_style.resolve(style),
+        );
+
+        if let Some(size) = self.size {
+            font_id.size = size;
+        }
+        if let Some(family) = &self.family {
+            font_id.family = family.clone();
+        }
+        fonts.row_height(&font_id)
     }
 
     fn into_text_job(
         self,
         style: &Style,
-        default_text_style: TextStyle,
+        fallback_font: FontSelection,
         default_valign: Align,
     ) -> WidgetTextJob {
         let text_color = self.get_text_color(&style.visuals);
 
         let Self {
             text,
+            size,
+            family,
             text_style,
             background_color,
             text_color: _, // already used by `get_text_color`
@@ -204,9 +255,21 @@ impl RichText {
         let line_color = text_color.unwrap_or_else(|| style.visuals.text_color());
         let text_color = text_color.unwrap_or(crate::Color32::TEMPORARY_COLOR);
 
-        let text_style = text_style
-            .or(style.override_text_style)
-            .unwrap_or(default_text_style);
+        let font_id = {
+            let mut font_id = text_style
+                .or_else(|| style.override_text_style.clone())
+                .map_or_else(
+                    || fallback_font.resolve(style),
+                    |text_style| text_style.resolve(style),
+                );
+            if let Some(size) = size {
+                font_id.size = size;
+            }
+            if let Some(family) = family {
+                font_id.family = family;
+            }
+            font_id
+        };
 
         let mut background_color = background_color;
         if code {
@@ -230,7 +293,7 @@ impl RichText {
         };
 
         let text_format = crate::text::TextFormat {
-            style: text_style,
+            font_id,
             color: text_color,
             background: background_color,
             italics,
@@ -267,8 +330,10 @@ impl RichText {
 /// but it can be a [`RichText`] (text with color, style, etc),
 /// a [`LayoutJob`] (for when you want full control of how the text looks)
 /// or text that has already been layed out in a [`Galley`].
+#[derive(Clone)]
 pub enum WidgetText {
     RichText(RichText),
+
     /// Use this [`LayoutJob`] when laying out the text.
     ///
     /// Only [`LayoutJob::text`] and [`LayoutJob::sections`] are guaranteed to be respected.
@@ -279,6 +344,7 @@ pub enum WidgetText {
     /// If you want all parts of the `LayoutJob` respected, then convert it to a
     /// [`Galley`] and use [`Self::Galley`] instead.
     LayoutJob(LayoutJob),
+
     /// Use exactly this galley when painting the text.
     Galley(Arc<Galley>),
 }
@@ -437,10 +503,10 @@ impl WidgetText {
         }
     }
 
-    pub(crate) fn font_height(&self, ctx: &Context) -> f32 {
+    pub(crate) fn font_height(&self, fonts: &epaint::Fonts, style: &Style) -> f32 {
         match self {
-            Self::RichText(text) => text.font_height(ctx),
-            Self::LayoutJob(job) => job.font_height(&*ctx.fonts()),
+            Self::RichText(text) => text.font_height(fonts, style),
+            Self::LayoutJob(job) => job.font_height(fonts),
             Self::Galley(galley) => {
                 if let Some(row) = galley.rows.first() {
                     row.height()
@@ -454,11 +520,11 @@ impl WidgetText {
     pub fn into_text_job(
         self,
         style: &Style,
-        default_text_style: TextStyle,
+        fallback_font: FontSelection,
         default_valign: Align,
     ) -> WidgetTextJob {
         match self {
-            Self::RichText(text) => text.into_text_job(style, default_text_style, default_valign),
+            Self::RichText(text) => text.into_text_job(style, fallback_font, default_valign),
             Self::LayoutJob(job) => WidgetTextJob {
                 job,
                 job_has_color: true,
@@ -481,7 +547,7 @@ impl WidgetText {
         ui: &Ui,
         wrap: Option<bool>,
         available_width: f32,
-        default_text_style: TextStyle,
+        fallback_font: impl Into<FontSelection>,
     ) -> WidgetTextGalley {
         let wrap = wrap.unwrap_or_else(|| ui.wrap_text());
         let wrap_width = if wrap { available_width } else { f32::INFINITY };
@@ -489,7 +555,7 @@ impl WidgetText {
         match self {
             Self::RichText(text) => {
                 let valign = ui.layout().vertical_align();
-                let mut text_job = text.into_text_job(ui.style(), default_text_style, valign);
+                let mut text_job = text.into_text_job(ui.style(), fallback_font.into(), valign);
                 text_job.job.wrap_width = wrap_width;
                 WidgetTextGalley {
                     galley: ui.fonts().layout_job(text_job.job),

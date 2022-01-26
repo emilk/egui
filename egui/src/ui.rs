@@ -133,7 +133,7 @@ impl Ui {
     /// Example:
     /// ```
     /// # egui::__run_test_ui(|ui| {
-    /// ui.style_mut().body_text_style = egui::TextStyle::Heading;
+    /// ui.style_mut().override_text_style = Some(egui::TextStyle::Heading);
     /// # });
     /// ```
     pub fn style_mut(&mut self) -> &mut Style {
@@ -357,6 +357,11 @@ impl Ui {
     #[inline]
     pub fn fonts(&self) -> RwLockReadGuard<'_, Fonts> {
         self.ctx().fonts()
+    }
+
+    /// The height of text of this text style
+    pub fn text_style_height(&self, style: &TextStyle) -> f32 {
+        self.fonts().row_height(&style.resolve(self.style()))
     }
 
     /// Screen-space rectangle for clipping what we paint in this ui.
@@ -1073,7 +1078,7 @@ impl Ui {
     /// Add extra space before the next widget.
     ///
     /// The direction is dependent on the layout.
-    /// This will be in addition to the [`Spacing::item_spacing`}.
+    /// This will be in addition to the [`crate::style::Spacing::item_spacing`].
     ///
     /// [`Self::min_rect`] will expand to contain the space.
     #[inline]
@@ -1086,6 +1091,16 @@ impl Ui {
     /// Shortcut for `add(Label::new(text))`
     ///
     /// See also [`Label`].
+    ///
+    /// ### Example
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// use egui::{RichText, FontId, Color32};
+    /// ui.label("Normal text");
+    /// ui.label(RichText::new("Large text").font(FontId::proportional(40.0)));
+    /// ui.label(RichText::new("Red text").color(Color32::RED));
+    /// # });
+    /// ```
     #[inline]
     pub fn label(&mut self, text: impl Into<WidgetText>) -> Response {
         Label::new(text).ui(self)
@@ -1256,12 +1271,12 @@ impl Ui {
     pub fn radio_value<Value: PartialEq>(
         &mut self,
         current_value: &mut Value,
-        selected_value: Value,
+        alternative: Value,
         text: impl Into<WidgetText>,
     ) -> Response {
-        let mut response = self.radio(*current_value == selected_value, text);
+        let mut response = self.radio(*current_value == alternative, text);
         if response.clicked() {
-            *current_value = selected_value;
+            *current_value = alternative;
             response.mark_changed();
         }
         response
@@ -1341,9 +1356,30 @@ impl Ui {
 
     /// Show an image here with the given size.
     ///
-    /// See also [`Image`].
+    /// In order to display an image you must first acquire a [`TextureHandle`]
+    /// using [`Context::load_texture`].
+    ///
+    /// ```
+    /// struct MyImage {
+    ///     texture: Option<egui::TextureHandle>,
+    /// }
+    ///
+    /// impl MyImage {
+    ///     fn ui(&mut self, ui: &mut egui::Ui) {
+    ///         let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
+    ///             // Load the texture only once.
+    ///             ui.ctx().load_texture("my-image", egui::ColorImage::example())
+    ///         });
+    ///
+    ///         // Show the image:
+    ///         ui.image(texture, texture.size_vec2());
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// Se also [`crate::Image`] and [`crate::ImageButton`].
     #[inline]
-    pub fn image(&mut self, texture_id: TextureId, size: impl Into<Vec2>) -> Response {
+    pub fn image(&mut self, texture_id: impl Into<TextureId>, size: impl Into<Vec2>) -> Response {
         Image::new(texture_id, size).ui(self)
     }
 }

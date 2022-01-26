@@ -1,5 +1,5 @@
 use crate::{
-    text::{Fonts, Galley, TextStyle},
+    text::{FontId, Fonts, Galley},
     Color32, Mesh, Stroke,
 };
 use emath::*;
@@ -15,10 +15,13 @@ pub enum Shape {
     /// For performance reasons it is better to avoid it.
     Vec(Vec<Shape>),
     Circle(CircleShape),
+    /// A line between two points.
     LineSegment {
         points: [Pos2; 2],
         stroke: Stroke,
     },
+    /// A series of lines between points.
+    /// The path can have a stroke and/or fill (if closed).
     Path(PathShape),
     Rect(RectShape),
     Text(TextShape),
@@ -123,10 +126,10 @@ impl Shape {
         pos: Pos2,
         anchor: Align2,
         text: impl ToString,
-        text_style: TextStyle,
+        font_id: FontId,
         color: Color32,
     ) -> Self {
-        let galley = fonts.layout_no_wrap(text.to_string(), text_style, color);
+        let galley = fonts.layout_no_wrap(text.to_string(), font_id, color);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size()));
         Self::galley(rect.min, galley)
     }
@@ -149,7 +152,7 @@ impl Shape {
         if let Shape::Mesh(mesh) = self {
             mesh.texture_id
         } else {
-            super::TextureId::Egui
+            super::TextureId::default()
         }
     }
 

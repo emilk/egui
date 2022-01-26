@@ -195,7 +195,7 @@ impl<'a> Widget for DragValue<'a> {
                 TextEdit::singleline(&mut value_text)
                     .id(kb_edit_id)
                     .desired_width(button_width)
-                    .text_style(TextStyle::Monospace),
+                    .font(TextStyle::Monospace),
             );
             if let Ok(parsed_value) = value_text.parse() {
                 let parsed_value = clamp_to_range(parsed_value, clamp_range);

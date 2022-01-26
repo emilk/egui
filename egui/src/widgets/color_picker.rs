@@ -308,8 +308,10 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
     color_slider_2d(ui, v, s, |v, s| HsvaGamma { s, v, ..opaque }.into());
 }
 
+//// Shows a color picker where the user can change the given [`Hsva`] color.
+///
 /// Returns `true` on change.
-fn color_picker_hsva_2d(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> bool {
+pub fn color_picker_hsva_2d(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> bool {
     let mut hsvag = HsvaGamma::from(*hsva);
     ui.vertical(|ui| {
         color_picker_hsvag_2d(ui, &mut hsvag, alpha);
@@ -323,7 +325,7 @@ fn color_picker_hsva_2d(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> bool {
     }
 }
 
-/// Shows a color picker where the user can change the given color.
+/// Shows a color picker where the user can change the given [`Color32`] color.
 ///
 /// Returns `true` on change.
 pub fn color_picker_color32(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -> bool {
@@ -335,19 +337,19 @@ pub fn color_picker_color32(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -> b
 }
 
 pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Response {
-    let pupup_id = ui.auto_id_with("popup");
-    let open = ui.memory().is_popup_open(pupup_id);
+    let popup_id = ui.auto_id_with("popup");
+    let open = ui.memory().is_popup_open(popup_id);
     let mut button_response = color_button(ui, (*hsva).into(), open);
     if ui.style().explanation_tooltips {
         button_response = button_response.on_hover_text("Click to edit color");
     }
 
     if button_response.clicked() {
-        ui.memory().toggle_popup(pupup_id);
+        ui.memory().toggle_popup(popup_id);
     }
     // TODO: make it easier to show a temporary popup that closes when you click outside it
-    if ui.memory().is_popup_open(pupup_id) {
-        let area_response = Area::new(pupup_id)
+    if ui.memory().is_popup_open(popup_id) {
+        let area_response = Area::new(popup_id)
             .order(Order::Foreground)
             .default_pos(button_response.rect.max)
             .show(ui.ctx(), |ui| {

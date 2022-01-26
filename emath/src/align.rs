@@ -5,7 +5,6 @@ use crate::*;
 /// left/center/right or top/center/bottom alignment for e.g. anchors and layouts.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
 pub enum Align {
     /// Left or top.
     Min,
@@ -47,20 +46,64 @@ impl Align {
         }
     }
 
-    /// ``` rust
-    /// assert_eq!(emath::Align::Min.align_size_within_range(2.0, 10.0..=20.0), 10.0..=12.0);
-    /// assert_eq!(emath::Align::Center.align_size_within_range(2.0, 10.0..=20.0), 14.0..=16.0);
-    /// assert_eq!(emath::Align::Max.align_size_within_range(2.0, 10.0..=20.0), 18.0..=20.0);
-    /// assert_eq!(emath::Align::Min.align_size_within_range(f32::INFINITY, 10.0..=20.0), 10.0..=f32::INFINITY);
-    /// assert_eq!(emath::Align::Center.align_size_within_range(f32::INFINITY, 10.0..=20.0), f32::NEG_INFINITY..=f32::INFINITY);
-    /// assert_eq!(emath::Align::Max.align_size_within_range(f32::INFINITY, 10.0..=20.0), f32::NEG_INFINITY..=20.0);
+    /// Returns a range of given size within a specified range.
     ///
-    /// assert_eq!(emath::Align::Min.align_size_within_range(f32::INFINITY, 10.0..=f32::INFINITY), 10.0..=f32::INFINITY);
-    /// assert_eq!(emath::Align::Min.align_size_within_range(f32::INFINITY, f32::NEG_INFINITY..=10.0), f32::NEG_INFINITY..=10.0);
-    /// assert_eq!(emath::Align::Center.align_size_within_range(f32::INFINITY, 10.0..=f32::INFINITY), 10.0..=f32::INFINITY);
-    /// assert_eq!(emath::Align::Center.align_size_within_range(f32::INFINITY, f32::NEG_INFINITY..=10.0), f32::NEG_INFINITY..=10.0);
-    /// assert_eq!(emath::Align::Max.align_size_within_range(f32::INFINITY, 10.0..=f32::INFINITY), 10.0..=f32::INFINITY);
-    /// assert_eq!(emath::Align::Max.align_size_within_range(f32::INFINITY, f32::NEG_INFINITY..=10.0), f32::NEG_INFINITY..=10.0);
+    /// If the requested `size` is bigger than the size of `range`, then the returned
+    /// range will not fit into the available `range`. The extra space will be allocated
+    /// from:
+    ///
+    /// |Align |Side        |
+    /// |------|------------|
+    /// |Min   |right (end) |
+    /// |Center|both        |
+    /// |Max   |left (start)|
+    ///
+    /// # Examples
+    /// ```
+    /// use std::f32::{INFINITY, NEG_INFINITY};
+    /// use emath::Align::*;
+    ///
+    /// // The size is smaller than a range
+    /// assert_eq!(Min   .align_size_within_range(2.0, 10.0..=20.0), 10.0..=12.0);
+    /// assert_eq!(Center.align_size_within_range(2.0, 10.0..=20.0), 14.0..=16.0);
+    /// assert_eq!(Max   .align_size_within_range(2.0, 10.0..=20.0), 18.0..=20.0);
+    ///
+    /// // The size is bigger than a range
+    /// assert_eq!(Min   .align_size_within_range(20.0, 10.0..=20.0), 10.0..=30.0);
+    /// assert_eq!(Center.align_size_within_range(20.0, 10.0..=20.0),  5.0..=25.0);
+    /// assert_eq!(Max   .align_size_within_range(20.0, 10.0..=20.0),  0.0..=20.0);
+    ///
+    /// // The size is infinity, but range is finite - a special case of a previous example
+    /// assert_eq!(Min   .align_size_within_range(INFINITY, 10.0..=20.0),         10.0..=INFINITY);
+    /// assert_eq!(Center.align_size_within_range(INFINITY, 10.0..=20.0), NEG_INFINITY..=INFINITY);
+    /// assert_eq!(Max   .align_size_within_range(INFINITY, 10.0..=20.0), NEG_INFINITY..=20.0);
+    /// ```
+    ///
+    /// The infinity-sized ranges can produce a surprising results, if the size is also infinity,
+    /// use such ranges with carefully!
+    ///
+    /// ```
+    /// use std::f32::{INFINITY, NEG_INFINITY};
+    /// use emath::Align::*;
+    ///
+    /// // Allocating a size aligned for infinity bound will lead to empty ranges!
+    /// assert_eq!(Min   .align_size_within_range(2.0, 10.0..=INFINITY),     10.0..=12.0);
+    /// assert_eq!(Center.align_size_within_range(2.0, 10.0..=INFINITY), INFINITY..=INFINITY);// (!)
+    /// assert_eq!(Max   .align_size_within_range(2.0, 10.0..=INFINITY), INFINITY..=INFINITY);// (!)
+    ///
+    /// assert_eq!(Min   .align_size_within_range(2.0, NEG_INFINITY..=20.0), NEG_INFINITY..=NEG_INFINITY);// (!)
+    /// assert_eq!(Center.align_size_within_range(2.0, NEG_INFINITY..=20.0), NEG_INFINITY..=NEG_INFINITY);// (!)
+    /// assert_eq!(Max   .align_size_within_range(2.0, NEG_INFINITY..=20.0),         18.0..=20.0);
+    ///
+    ///
+    /// // The infinity size will always return the given range if it has at least one infinity bound
+    /// assert_eq!(Min   .align_size_within_range(INFINITY, 10.0..=INFINITY), 10.0..=INFINITY);
+    /// assert_eq!(Center.align_size_within_range(INFINITY, 10.0..=INFINITY), 10.0..=INFINITY);
+    /// assert_eq!(Max   .align_size_within_range(INFINITY, 10.0..=INFINITY), 10.0..=INFINITY);
+    ///
+    /// assert_eq!(Min   .align_size_within_range(INFINITY, NEG_INFINITY..=20.0), NEG_INFINITY..=20.0);
+    /// assert_eq!(Center.align_size_within_range(INFINITY, NEG_INFINITY..=20.0), NEG_INFINITY..=20.0);
+    /// assert_eq!(Max   .align_size_within_range(INFINITY, NEG_INFINITY..=20.0), NEG_INFINITY..=20.0);
     /// ```
     #[inline]
     pub fn align_size_within_range(
@@ -102,7 +145,6 @@ impl Default for Align {
 /// Two-dimension alignment, e.g. [`Align2::LEFT_TOP`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
 pub struct Align2(pub [Align; 2]);
 
 impl Align2 {
@@ -118,11 +160,13 @@ impl Align2 {
 }
 
 impl Align2 {
+    /// Returns an alignment by the X (horizontal) axis
     #[inline(always)]
     pub fn x(self) -> Align {
         self.0[0]
     }
 
+    /// Returns an alignment by the Y (vertical) axis
     #[inline(always)]
     pub fn y(self) -> Align {
         self.0[1]
@@ -156,6 +200,26 @@ impl Align2 {
         Rect::from_x_y_ranges(x_range, y_range)
     }
 
+    /// Returns the point on the rect's frame or in the center of a rect according
+    /// to the alignments of this object.
+    ///
+    /// ```text
+    /// (*)-----------+------(*)------+-----------(*)--> X
+    ///  |            |               |            |
+    ///  |  Min, Min  |  Center, Min  |  Max, Min  |
+    ///  |            |               |            |
+    ///  +------------+---------------+------------+
+    ///  |            |               |            |
+    /// (*)Min, Center|Center(*)Center|Max, Center(*)
+    ///  |            |               |            |
+    ///  +------------+---------------+------------+
+    ///  |            |               |            |
+    ///  |  Min, Max  | Center, Max   |  Max, Max  |
+    ///  |            |               |            |
+    /// (*)-----------+------(*)------+-----------(*)
+    ///  |
+    ///  Y
+    /// ```
     pub fn pos_in_rect(self, frame: &Rect) -> Pos2 {
         let x = match self.x() {
             Align::Min => frame.left(),
@@ -188,6 +252,11 @@ impl std::ops::IndexMut<usize> for Align2 {
     }
 }
 
+/// Allocates a rectangle of the specified `size` inside the `frame` rectangle
+/// around of its center.
+///
+/// If `size` is bigger than the `frame`s size the returned rect will bounce out
+/// of the `frame`.
 pub fn center_size_in_rect(size: Vec2, frame: Rect) -> Rect {
     Align2::CENTER_CENTER.align_size_within_rect(size, frame)
 }

@@ -55,10 +55,9 @@ pub fn handle_app_output(
     window: &winit::window::Window,
     current_pixels_per_point: f32,
     app_output: epi::backend::AppOutput,
-) -> epi::backend::TexAllocationData {
+) {
     let epi::backend::AppOutput {
         quit: _,
-        tex_allocation_data,
         window_size,
         window_title,
         decorated,
@@ -86,8 +85,6 @@ pub fn handle_app_output(
     if drag_window {
         let _ = window.drag_window();
     }
-
-    tex_allocation_data
 }
 
 // ----------------------------------------------------------------------------
@@ -202,6 +199,7 @@ pub struct EpiIntegration {
 impl EpiIntegration {
     pub fn new(
         integration_name: &'static str,
+        max_texture_side: usize,
         window: &winit::window::Window,
         repaint_signal: std::sync::Arc<dyn epi::backend::RepaintSignal>,
         persistence: crate::epi::Persistence,
@@ -227,7 +225,7 @@ impl EpiIntegration {
             frame,
             persistence,
             egui_ctx,
-            egui_winit: crate::State::new(window),
+            egui_winit: crate::State::new(max_texture_side, window),
             app,
             quit: false,
             can_drag_window: false,
@@ -245,17 +243,19 @@ impl EpiIntegration {
         self.app
             .setup(&self.egui_ctx, &self.frame, self.persistence.storage());
         let app_output = self.frame.take_app_output();
-        self.quit |= app_output.quit;
-        let tex_alloc_data =
-            crate::epi::handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
-        self.frame.lock().output.tex_allocation_data = tex_alloc_data; // Do it later
+
+        if app_output.quit {
+            self.quit = self.app.on_exit_event();
+        }
+
+        crate::epi::handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
     }
 
     fn warm_up(&mut self, window: &winit::window::Window) {
         let saved_memory: egui::Memory = self.egui_ctx.memory().clone();
         self.egui_ctx.memory().set_everything_is_visible(true);
-        let (_, tex_alloc_data, _) = self.update(window);
-        self.frame.lock().output.tex_allocation_data = tex_alloc_data; // handle it next frame
+        let (_, textures_delta, _) = self.update(window);
+        self.egui_ctx.output().textures_delta = textures_delta; // Handle it next frame
         *self.egui_ctx.memory() = saved_memory; // We don't want to remember that windows were huge.
         self.egui_ctx.clear_animations();
     }
@@ -267,15 +267,16 @@ impl EpiIntegration {
 
     pub fn on_event(&mut self, event: &winit::event::WindowEvent<'_>) {
         use winit::event::{ElementState, MouseButton, WindowEvent};
-        self.quit |= matches!(event, WindowEvent::CloseRequested | WindowEvent::Destroyed);
 
-        if let WindowEvent::MouseInput {
-            button: MouseButton::Left,
-            state: ElementState::Pressed,
-            ..
-        } = event
-        {
-            self.can_drag_window = true;
+        match event {
+            WindowEvent::CloseRequested => self.quit = self.app.on_exit_event(),
+            WindowEvent::Destroyed => self.quit = true,
+            WindowEvent::MouseInput {
+                button: MouseButton::Left,
+                state: ElementState::Pressed,
+                ..
+            } => self.can_drag_window = true,
+            _ => {}
         }
 
         self.egui_winit.on_event(&self.egui_ctx, event);
@@ -285,11 +286,7 @@ impl EpiIntegration {
     pub fn update(
         &mut self,
         window: &winit::window::Window,
-    ) -> (
-        bool,
-        epi::backend::TexAllocationData,
-        Vec<egui::epaint::ClippedShape>,
-    ) {
+    ) -> (bool, egui::TexturesDelta, Vec<egui::epaint::ClippedShape>) {
         let frame_start = instant::Instant::now();
 
         let raw_input = self.egui_winit.take_egui_input(window);
@@ -298,21 +295,24 @@ impl EpiIntegration {
         });
 
         let needs_repaint = egui_output.needs_repaint;
-        self.egui_winit
+        let textures_delta = self
+            .egui_winit
             .handle_output(window, &self.egui_ctx, egui_output);
 
         let mut app_output = self.frame.take_app_output();
         app_output.drag_window &= self.can_drag_window;
         self.can_drag_window = false;
 
-        self.quit |= app_output.quit;
-        let tex_allocation_data =
-            crate::epi::handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
+        if app_output.quit {
+            self.quit = self.app.on_exit_event();
+        }
+
+        crate::epi::handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
 
         let frame_time = (instant::Instant::now() - frame_start).as_secs_f64() as f32;
         self.frame.lock().info.cpu_usage = Some(frame_time);
 
-        (needs_repaint, tex_allocation_data, shapes)
+        (needs_repaint, textures_delta, shapes)
     }
 
     pub fn maybe_autosave(&mut self, window: &winit::window::Window) {

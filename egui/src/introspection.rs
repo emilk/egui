@@ -1,75 +1,79 @@
-//! uis for egui types.
+//! Showing UI:s for egui/epaint types.
 use crate::*;
 
-impl Widget for &epaint::FontImage {
-    fn ui(self, ui: &mut Ui) -> Response {
-        use epaint::Mesh;
-
-        ui.vertical(|ui| {
-            // Show font texture in demo Ui
-            ui.label(format!(
-                "Texture size: {} x {} (hover to zoom)",
-                self.width, self.height
-            ));
-            if self.width <= 1 || self.height <= 1 {
-                return;
-            }
-            let mut size = vec2(self.width as f32, self.height as f32);
-            if size.x > ui.available_width() {
-                size *= ui.available_width() / size.x;
-            }
-            let (rect, response) = ui.allocate_at_least(size, Sense::hover());
-            let mut mesh = Mesh::default();
-            mesh.add_rect_with_uv(
-                rect,
-                [pos2(0.0, 0.0), pos2(1.0, 1.0)].into(),
-                Color32::WHITE,
-            );
-            ui.painter().add(Shape::mesh(mesh));
-
-            let (tex_w, tex_h) = (self.width as f32, self.height as f32);
-
-            response
-                .on_hover_cursor(CursorIcon::ZoomIn)
-                .on_hover_ui_at_pointer(|ui| {
-                    if let Some(pos) = ui.ctx().latest_pointer_pos() {
-                        let (_id, zoom_rect) = ui.allocate_space(vec2(128.0, 128.0));
-                        let u = remap_clamp(pos.x, rect.x_range(), 0.0..=tex_w);
-                        let v = remap_clamp(pos.y, rect.y_range(), 0.0..=tex_h);
-
-                        let texel_radius = 32.0;
-                        let u = u.at_least(texel_radius).at_most(tex_w - texel_radius);
-                        let v = v.at_least(texel_radius).at_most(tex_h - texel_radius);
-
-                        let uv_rect = Rect::from_min_max(
-                            pos2((u - texel_radius) / tex_w, (v - texel_radius) / tex_h),
-                            pos2((u + texel_radius) / tex_w, (v + texel_radius) / tex_h),
-                        );
-                        let mut mesh = Mesh::default();
-                        mesh.add_rect_with_uv(zoom_rect, uv_rect, Color32::WHITE);
-                        ui.painter().add(Shape::mesh(mesh));
-                    }
-                });
-        })
-        .response
-    }
+pub fn font_family_ui(ui: &mut Ui, font_family: &mut FontFamily) {
+    let families = ui.fonts().families();
+    ui.horizontal(|ui| {
+        for alternative in families {
+            let text = alternative.to_string();
+            ui.radio_value(font_family, alternative, text);
+        }
+    });
 }
 
-impl Widget for &mut epaint::text::FontDefinitions {
-    fn ui(self, ui: &mut Ui) -> Response {
-        ui.vertical(|ui| {
-            for (text_style, (_family, size)) in self.family_and_size.iter_mut() {
-                // TODO: radio button for family
-                ui.add(
-                    Slider::new(size, 4.0..=40.0)
-                        .max_decimals(0)
-                        .text(format!("{:?}", text_style)),
-                );
-            }
-            crate::reset_button(ui, self);
-        })
-        .response
-    }
+pub fn font_id_ui(ui: &mut Ui, font_id: &mut FontId) {
+    let families = ui.fonts().families();
+    ui.horizontal(|ui| {
+        ui.add(Slider::new(&mut font_id.size, 4.0..=40.0).max_decimals(0));
+        for alternative in families {
+            let text = alternative.to_string();
+            ui.radio_value(&mut font_id.family, alternative, text);
+        }
+    });
+}
+
+// Show font texture in demo Ui
+pub(crate) fn font_texture_ui(ui: &mut Ui, [width, height]: [usize; 2]) -> Response {
+    use epaint::Mesh;
+
+    ui.vertical(|ui| {
+        let color = if ui.visuals().dark_mode {
+            Color32::WHITE
+        } else {
+            Color32::BLACK
+        };
+
+        ui.label(format!(
+            "Texture size: {} x {} (hover to zoom)",
+            width, height
+        ));
+        if width <= 1 || height <= 1 {
+            return;
+        }
+        let mut size = vec2(width as f32, height as f32);
+        if size.x > ui.available_width() {
+            size *= ui.available_width() / size.x;
+        }
+        let (rect, response) = ui.allocate_at_least(size, Sense::hover());
+        let mut mesh = Mesh::default();
+        mesh.add_rect_with_uv(rect, [pos2(0.0, 0.0), pos2(1.0, 1.0)].into(), color);
+        ui.painter().add(Shape::mesh(mesh));
+
+        let (tex_w, tex_h) = (width as f32, height as f32);
+
+        response
+            .on_hover_cursor(CursorIcon::ZoomIn)
+            .on_hover_ui_at_pointer(|ui| {
+                if let Some(pos) = ui.ctx().latest_pointer_pos() {
+                    let (_id, zoom_rect) = ui.allocate_space(vec2(128.0, 128.0));
+                    let u = remap_clamp(pos.x, rect.x_range(), 0.0..=tex_w);
+                    let v = remap_clamp(pos.y, rect.y_range(), 0.0..=tex_h);
+
+                    let texel_radius = 32.0;
+                    let u = u.at_least(texel_radius).at_most(tex_w - texel_radius);
+                    let v = v.at_least(texel_radius).at_most(tex_h - texel_radius);
+
+                    let uv_rect = Rect::from_min_max(
+                        pos2((u - texel_radius) / tex_w, (v - texel_radius) / tex_h),
+                        pos2((u + texel_radius) / tex_w, (v + texel_radius) / tex_h),
+                    );
+                    let mut mesh = Mesh::default();
+                    mesh.add_rect_with_uv(zoom_rect, uv_rect, color);
+                    ui.painter().add(Shape::mesh(mesh));
+                }
+            });
+    })
+    .response
 }
 
 impl Widget for &epaint::stats::PaintStats {
@@ -77,11 +81,11 @@ impl Widget for &epaint::stats::PaintStats {
         ui.vertical(|ui| {
             ui.label(
                 "egui generates intermediate level shapes like circles and text. \
-            These are later tessellated into triangles.",
+                These are later tessellated into triangles.",
             );
             ui.add_space(10.0);
 
-            ui.style_mut().body_text_style = TextStyle::Monospace;
+            ui.style_mut().override_text_style = Some(TextStyle::Monospace);
 
             let epaint::stats::PaintStats {
                 shapes,
@@ -124,7 +128,7 @@ impl Widget for &epaint::stats::PaintStats {
     }
 }
 
-pub fn label(ui: &mut Ui, alloc_info: &epaint::stats::AllocInfo, what: &str) -> Response {
+fn label(ui: &mut Ui, alloc_info: &epaint::stats::AllocInfo, what: &str) -> Response {
     ui.add(Label::new(alloc_info.format(what)).wrap(false))
 }
 

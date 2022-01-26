@@ -4,7 +4,10 @@ All notable changes to the `egui-winit` integration will be noted in this file.
 
 
 ## Unreleased
+* Fixed horizontal scrolling direction on Linux.
 * Replaced `std::time::Instant` with `instant::Instant` for WebAssembly compatability ([#1023](https://github.com/emilk/egui/pull/1023))
+* Shift-scroll will now result in horizontal scrolling on all platforms ([#1136](https://github.com/emilk/egui/pull/1136)).
+* Require knowledge about max texture side (e.g. `GL_MAX_TEXTURE_SIZE`)) ([#1154](https://github.com/emilk/egui/pull/1154)).
 
 
 ## 0.16.0 - 2021-12-29

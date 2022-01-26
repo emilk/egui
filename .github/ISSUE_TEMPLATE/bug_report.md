@@ -20,7 +20,7 @@ eframe = { git = "https://github.com/emilk/egui", branch = "master" }
 -->
 
 **Describe the bug**
-<!-- A clear and concise description of what the bug is. -->
+<!-- A clear and concise description of what the bug is. An image is good, a gif or movie is better! -->
 
 **To Reproduce**
 Steps to reproduce the behavior:

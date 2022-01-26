@@ -88,6 +88,7 @@
 #![allow(clippy::manual_range_contains)]
 
 pub mod color;
+pub mod image;
 mod mesh;
 pub mod mutex;
 mod shadow;
@@ -98,18 +99,23 @@ mod stroke;
 pub mod tessellator;
 pub mod text;
 mod texture_atlas;
+mod texture_handle;
+pub mod textures;
 pub mod util;
 
 pub use {
     color::{Color32, Rgba},
+    image::{AlphaImage, ColorImage, ImageData, ImageDelta},
     mesh::{Mesh, Mesh16, Vertex},
     shadow::Shadow,
     shape::{CircleShape, PathShape, RectShape, Shape, TextShape},
     stats::PaintStats,
     stroke::Stroke,
     tessellator::{tessellate_shapes, TessellationOptions, Tessellator},
-    text::{Fonts, Galley, TextStyle},
-    texture_atlas::{FontImage, TextureAtlas},
+    text::{FontFamily, FontId, Fonts, Galley},
+    texture_atlas::TextureAtlas,
+    texture_handle::TextureHandle,
+    textures::TextureManager,
 };
 
 pub use emath::{pos2, vec2, Pos2, Rect, Vec2};
@@ -124,21 +130,25 @@ pub use emath;
 pub const WHITE_UV: emath::Pos2 = emath::pos2(0.0, 0.0);
 
 /// What texture to use in a [`Mesh`] mesh.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+///
+/// If you don't want to use a texture, use `TextureId::Epaint(0)` and the [`WHITE_UV`] for uv-coord.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum TextureId {
-    /// The egui font texture.
-    /// If you don't want to use a texture, pick this and the [`WHITE_UV`] for uv-coord.
-    Egui,
+    /// Textures allocated using [`TextureManager`].
+    ///
+    /// The first texture (`TextureId::Epaint(0)`) is used for the font data.
+    Managed(u64),
 
     /// Your own texture, defined in any which way you want.
-    /// egui won't care. The backend renderer will presumably use this to look up what texture to use.
+    /// The backend renderer will presumably use this to look up what texture to use.
     User(u64),
 }
 
 impl Default for TextureId {
+    /// The epaint font texture.
     fn default() -> Self {
-        Self::Egui
+        Self::Managed(0)
     }
 }
 

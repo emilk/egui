@@ -28,12 +28,13 @@ egui = { version = "0.16.0", path = "../egui", default-features = false }
 epi = { version = "0.16.0", path = "../epi" }
 
 chrono = { version = "0.4", features = ["js-sys", "wasmbind"], optional = true }
-enum-map = { version = "1", features = ["serde"] }
+enum-map = { version = "2", features = ["serde"] }
 unicode_names2 = { version = "0.4.0", default-features = false }
 
 # feature "http":
-ehttp = { version = "0.1.0", optional = true }
+ehttp = { version = "0.2.0", optional = true }
 image = { version = "0.23", default-features = false, features = ["jpeg", "png"], optional = true }
+poll-promise = { version = "0.1", default-features = false, optional = true }
 
 # feature "syntax_highlighting":
 syntect = { version = "4", default-features = false, features = ["default-fancy"], optional = true }
@@ -52,7 +53,7 @@ extra_debug_asserts = ["egui/extra_debug_asserts"]
 # Always enable additional checks.
 extra_asserts = ["egui/extra_asserts"]
 
-http = ["ehttp", "image"]
+http = ["ehttp", "image", "poll-promise"]
 persistence = ["egui/persistence", "epi/persistence", "serde"]
 serialize = ["egui/serialize",  "serde"]
 syntax_highlighting = ["syntect"]

@@ -43,14 +43,14 @@ impl epi::App for ColorTest {
                 ui.separator();
             }
             ScrollArea::both().auto_shrink([false; 2]).show(ui, |ui| {
-                self.ui(ui, Some(frame));
+                self.ui(ui);
             });
         });
     }
 }
 
 impl ColorTest {
-    pub fn ui(&mut self, ui: &mut Ui, tex_allocator: Option<&dyn epi::TextureAllocator>) {
+    pub fn ui(&mut self, ui: &mut Ui) {
         ui.set_max_width(680.0);
 
         ui.vertical_centered(|ui| {
@@ -70,13 +70,7 @@ impl ColorTest {
             ui.spacing_mut().item_spacing.y = 0.0; // No spacing between gradients
             let g = Gradient::one_color(Color32::from_rgb(255, 165, 0));
             self.vertex_gradient(ui, "orange rgb(255, 165, 0) - vertex", WHITE, &g);
-            self.tex_gradient(
-                ui,
-                tex_allocator,
-                "orange rgb(255, 165, 0) - texture",
-                WHITE,
-                &g,
-            );
+            self.tex_gradient(ui, "orange rgb(255, 165, 0) - texture", WHITE, &g);
         });
 
         ui.separator();
@@ -99,20 +93,18 @@ impl ColorTest {
             {
                 let g = Gradient::one_color(Color32::from(tex_color * vertex_color));
                 self.vertex_gradient(ui, "Ground truth (vertices)", WHITE, &g);
-                self.tex_gradient(ui, tex_allocator, "Ground truth (texture)", WHITE, &g);
+                self.tex_gradient(ui, "Ground truth (texture)", WHITE, &g);
             }
-            if let Some(tex_allocator) = tex_allocator {
-                ui.horizontal(|ui| {
-                    let g = Gradient::one_color(Color32::from(tex_color));
-                    let tex = self.tex_mngr.get(tex_allocator, &g);
-                    let texel_offset = 0.5 / (g.0.len() as f32);
-                    let uv =
-                        Rect::from_min_max(pos2(texel_offset, 0.0), pos2(1.0 - texel_offset, 1.0));
-                    ui.add(Image::new(tex, GRADIENT_SIZE).tint(vertex_color).uv(uv))
-                        .on_hover_text(format!("A texture that is {} texels wide", g.0.len()));
-                    ui.label("GPU result");
-                });
-            }
+
+            ui.horizontal(|ui| {
+                let g = Gradient::one_color(Color32::from(tex_color));
+                let tex = self.tex_mngr.get(ui.ctx(), &g);
+                let texel_offset = 0.5 / (g.0.len() as f32);
+                let uv = Rect::from_min_max(pos2(texel_offset, 0.0), pos2(1.0 - texel_offset, 1.0));
+                ui.add(Image::new(tex, GRADIENT_SIZE).tint(vertex_color).uv(uv))
+                    .on_hover_text(format!("A texture that is {} texels wide", g.0.len()));
+                ui.label("GPU result");
+            });
         });
 
         ui.separator();
@@ -120,18 +112,18 @@ impl ColorTest {
         // TODO: test color multiplication (image tint),
         // to make sure vertex and texture color multiplication is done in linear space.
 
-        self.show_gradients(ui, tex_allocator, WHITE, (RED, GREEN));
+        self.show_gradients(ui, WHITE, (RED, GREEN));
         if self.srgb {
             ui.label("Notice the darkening in the center of the naive sRGB interpolation.");
         }
 
         ui.separator();
 
-        self.show_gradients(ui, tex_allocator, RED, (TRANSPARENT, GREEN));
+        self.show_gradients(ui, RED, (TRANSPARENT, GREEN));
 
         ui.separator();
 
-        self.show_gradients(ui, tex_allocator, WHITE, (TRANSPARENT, GREEN));
+        self.show_gradients(ui, WHITE, (TRANSPARENT, GREEN));
         if self.srgb {
             ui.label(
             "Notice how the linear blend stays green while the naive sRGBA interpolation looks gray in the middle.",
@@ -142,15 +134,14 @@ impl ColorTest {
 
         // TODO: another ground truth where we do the alpha-blending against the background also.
         // TODO: exactly the same thing, but with vertex colors (no textures)
-        self.show_gradients(ui, tex_allocator, WHITE, (TRANSPARENT, BLACK));
+        self.show_gradients(ui, WHITE, (TRANSPARENT, BLACK));
         ui.separator();
-        self.show_gradients(ui, tex_allocator, BLACK, (TRANSPARENT, WHITE));
+        self.show_gradients(ui, BLACK, (TRANSPARENT, WHITE));
         ui.separator();
 
         ui.label("Additive blending: add more and more blue to the red background:");
         self.show_gradients(
             ui,
-            tex_allocator,
             RED,
             (TRANSPARENT, Color32::from_rgb_additive(0, 0, 255)),
         );
@@ -160,13 +151,7 @@ impl ColorTest {
         pixel_test(ui);
     }
 
-    fn show_gradients(
-        &mut self,
-        ui: &mut Ui,
-        tex_allocator: Option<&dyn epi::TextureAllocator>,
-        bg_fill: Color32,
-        (left, right): (Color32, Color32),
-    ) {
+    fn show_gradients(&mut self, ui: &mut Ui, bg_fill: Color32, (left, right): (Color32, Color32)) {
         let is_opaque = left.is_opaque() && right.is_opaque();
 
         ui.horizontal(|ui| {
@@ -186,13 +171,7 @@ impl ColorTest {
             if is_opaque {
                 let g = Gradient::ground_truth_linear_gradient(left, right);
                 self.vertex_gradient(ui, "Ground Truth (CPU gradient) - vertices", bg_fill, &g);
-                self.tex_gradient(
-                    ui,
-                    tex_allocator,
-                    "Ground Truth (CPU gradient) - texture",
-                    bg_fill,
-                    &g,
-                );
+                self.tex_gradient(ui, "Ground Truth (CPU gradient) - texture", bg_fill, &g);
             } else {
                 let g = Gradient::ground_truth_linear_gradient(left, right).with_bg_fill(bg_fill);
                 self.vertex_gradient(
@@ -203,20 +182,13 @@ impl ColorTest {
                 );
                 self.tex_gradient(
                     ui,
-                    tex_allocator,
                     "Ground Truth (CPU gradient, CPU blending) - texture",
                     bg_fill,
                     &g,
                 );
                 let g = Gradient::ground_truth_linear_gradient(left, right);
                 self.vertex_gradient(ui, "CPU gradient, GPU blending - vertices", bg_fill, &g);
-                self.tex_gradient(
-                    ui,
-                    tex_allocator,
-                    "CPU gradient, GPU blending - texture",
-                    bg_fill,
-                    &g,
-                );
+                self.tex_gradient(ui, "CPU gradient, GPU blending - texture", bg_fill, &g);
             }
 
             let g = Gradient::texture_gradient(left, right);
@@ -226,13 +198,7 @@ impl ColorTest {
                 bg_fill,
                 &g,
             );
-            self.tex_gradient(
-                ui,
-                tex_allocator,
-                "Texture of width 2 (test texture sampler)",
-                bg_fill,
-                &g,
-            );
+            self.tex_gradient(ui, "Texture of width 2 (test texture sampler)", bg_fill, &g);
 
             if self.srgb {
                 let g =
@@ -243,41 +209,26 @@ impl ColorTest {
                     bg_fill,
                     &g,
                 );
-                self.tex_gradient(
-                    ui,
-                    tex_allocator,
-                    "Naive sRGBA interpolation (WRONG)",
-                    bg_fill,
-                    &g,
-                );
+                self.tex_gradient(ui, "Naive sRGBA interpolation (WRONG)", bg_fill, &g);
             }
         });
     }
 
-    fn tex_gradient(
-        &mut self,
-        ui: &mut Ui,
-        tex_allocator: Option<&dyn epi::TextureAllocator>,
-        label: &str,
-        bg_fill: Color32,
-        gradient: &Gradient,
-    ) {
+    fn tex_gradient(&mut self, ui: &mut Ui, label: &str, bg_fill: Color32, gradient: &Gradient) {
         if !self.texture_gradients {
             return;
         }
-        if let Some(tex_allocator) = tex_allocator {
-            ui.horizontal(|ui| {
-                let tex = self.tex_mngr.get(tex_allocator, gradient);
-                let texel_offset = 0.5 / (gradient.0.len() as f32);
-                let uv = Rect::from_min_max(pos2(texel_offset, 0.0), pos2(1.0 - texel_offset, 1.0));
-                ui.add(Image::new(tex, GRADIENT_SIZE).bg_fill(bg_fill).uv(uv))
-                    .on_hover_text(format!(
-                        "A texture that is {} texels wide",
-                        gradient.0.len()
-                    ));
-                ui.label(label);
-            });
-        }
+        ui.horizontal(|ui| {
+            let tex = self.tex_mngr.get(ui.ctx(), gradient);
+            let texel_offset = 0.5 / (gradient.0.len() as f32);
+            let uv = Rect::from_min_max(pos2(texel_offset, 0.0), pos2(1.0 - texel_offset, 1.0));
+            ui.add(Image::new(tex, GRADIENT_SIZE).bg_fill(bg_fill).uv(uv))
+                .on_hover_text(format!(
+                    "A texture that is {} texels wide",
+                    gradient.0.len()
+                ));
+            ui.label(label);
+        });
     }
 
     fn vertex_gradient(&mut self, ui: &mut Ui, label: &str, bg_fill: Color32, gradient: &Gradient) {
@@ -384,18 +335,21 @@ impl Gradient {
 }
 
 #[derive(Default)]
-struct TextureManager(HashMap<Gradient, TextureId>);
+struct TextureManager(HashMap<Gradient, TextureHandle>);
 
 impl TextureManager {
-    fn get(&mut self, tex_allocator: &dyn epi::TextureAllocator, gradient: &Gradient) -> TextureId {
-        *self.0.entry(gradient.clone()).or_insert_with(|| {
+    fn get(&mut self, ctx: &egui::Context, gradient: &Gradient) -> &TextureHandle {
+        self.0.entry(gradient.clone()).or_insert_with(|| {
             let pixels = gradient.to_pixel_row();
             let width = pixels.len();
             let height = 1;
-            tex_allocator.alloc(epi::Image {
-                size: [width, height],
-                pixels,
-            })
+            ctx.load_texture(
+                "color_test_gradient",
+                epaint::ColorImage {
+                    size: [width, height],
+                    pixels,
+                },
+            )
         })
     }
 }
