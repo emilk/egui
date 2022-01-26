@@ -92,6 +92,14 @@ impl ContextImpl {
         });
 
         fonts.begin_frame(pixels_per_point, max_texture_side);
+
+        if self.memory.options.preload_font_glyphs {
+            // Preload the most common characters for the most common fonts.
+            // This is not very important to do, but may a few GPU operations.
+            for font_id in self.memory.options.style.text_styles.values() {
+                fonts.lock().fonts.font(font_id).preload_common_characters();
+            }
+        }
     }
 }
 

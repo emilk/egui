@@ -93,7 +93,7 @@ pub struct Memory {
 // ----------------------------------------------------------------------------
 
 /// Some global options that you can read and write.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Options {
@@ -108,6 +108,25 @@ pub struct Options {
     /// but is a signal to any backend that we want the [`crate::Output::events`] read out loud.
     /// Screen readers is an experimental feature of egui, and not supported on all platforms.
     pub screen_reader: bool,
+
+    /// If true, the most common glyphs (ASCII) are pre-rendered to the texture atlas.
+    ///
+    /// Only the fonts in [`Style::text_styles`] will be pre-cached.
+    ///
+    /// This can lead to fewer texture operations, but may use up the texture atlas quicker
+    /// if you are changing [`Style::text_styles`], of have a lot of text styles.
+    pub preload_font_glyphs: bool,
+}
+
+impl Default for Options {
+    fn default() -> Self {
+        Self {
+            style: Default::default(),
+            tessellation_options: Default::default(),
+            screen_reader: false,
+            preload_font_glyphs: true,
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
