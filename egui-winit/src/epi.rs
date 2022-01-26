@@ -300,7 +300,7 @@ impl EpiIntegration {
             .handle_output(window, &self.egui_ctx, egui_output);
 
         let mut app_output = self.frame.take_app_output();
-        app_output.drag_window &= self.can_drag_window;
+        app_output.drag_window &= self.can_drag_window; // Necessary on Windows; see https://github.com/emilk/egui/pull/1108
         self.can_drag_window = false;
 
         if app_output.quit {
