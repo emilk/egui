@@ -568,7 +568,8 @@ impl Areas {
             ..
         } = self;
 
-        *visible_last_frame = std::mem::take(visible_current_frame);
+        std::mem::swap(visible_last_frame, visible_current_frame);
+        visible_current_frame.clear();
         order.sort_by_key(|layer| (layer.order, wants_to_be_on_top.contains(layer)));
         wants_to_be_on_top.clear();
     }
