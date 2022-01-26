@@ -38,10 +38,12 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 ### Fixed 🐛
 * Context menu now respects the theme ([#1043](https://github.com/emilk/egui/pull/1043))
 * Plot `Orientation` was not public, although fields using this type were ([#1130](https://github.com/emilk/egui/pull/1130))
+* Fixed `enable_drag` for Windows ([#1108](https://github.com/emilk/egui/pull/1108)).
 
 ### Contributors 🙏
 * [danielkeller](https://github.com/danielkeller): [#1050](https://github.com/emilk/egui/pull/1050).
 * [juancampa](https://github.com/juancampa): [#1147](https://github.com/emilk/egui/pull/1147).
+* [AlexxxRu](https://github.com/alexxxru): [#1108](https://github.com/emilk/egui/pull/1108).
 
 
 ## 0.16.1 - 2021-12-31 - Add back `CtxRef::begin_frame,end_frame`
