@@ -210,32 +210,34 @@ impl super::View for ScrollTo {
         }
 
         ui.separator();
-        let (current_scroll, max_scroll) = scroll_area.show(ui, |ui| {
-            if scroll_top {
-                ui.scroll_to_cursor(Align::TOP);
-            }
-            ui.vertical(|ui| {
-                for item in 1..=50 {
-                    if track_item && item == self.track_item {
-                        let response =
-                            ui.colored_label(Color32::YELLOW, format!("This is item {}", item));
-                        response.scroll_to_me(self.tack_item_align);
-                    } else {
-                        ui.label(format!("This is item {}", item));
-                    }
+        let (current_scroll, max_scroll) = scroll_area
+            .show(ui, |ui| {
+                if scroll_top {
+                    ui.scroll_to_cursor(Align::TOP);
                 }
-            });
+                ui.vertical(|ui| {
+                    for item in 1..=50 {
+                        if track_item && item == self.track_item {
+                            let response =
+                                ui.colored_label(Color32::YELLOW, format!("This is item {}", item));
+                            response.scroll_to_me(self.tack_item_align);
+                        } else {
+                            ui.label(format!("This is item {}", item));
+                        }
+                    }
+                });
 
-            if scroll_bottom {
-                ui.scroll_to_cursor(Align::BOTTOM);
-            }
+                if scroll_bottom {
+                    ui.scroll_to_cursor(Align::BOTTOM);
+                }
 
-            let margin = ui.visuals().clip_rect_margin;
+                let margin = ui.visuals().clip_rect_margin;
 
-            let current_scroll = ui.clip_rect().top() - ui.min_rect().top() + margin;
-            let max_scroll = ui.min_rect().height() - ui.clip_rect().height() + 2.0 * margin;
-            (current_scroll, max_scroll)
-        });
+                let current_scroll = ui.clip_rect().top() - ui.min_rect().top() + margin;
+                let max_scroll = ui.min_rect().height() - ui.clip_rect().height() + 2.0 * margin;
+                (current_scroll, max_scroll)
+            })
+            .inner;
         ui.separator();
 
         ui.label(format!(

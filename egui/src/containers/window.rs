@@ -354,7 +354,7 @@ impl<'open> Window<'open> {
                         }
 
                         if scroll.has_any_bar() {
-                            scroll.show(ui, add_contents)
+                            scroll.show(ui, add_contents).inner
                         } else {
                             add_contents(ui)
                         }

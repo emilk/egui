@@ -10,9 +10,9 @@ use crate::*;
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
-pub(crate) struct State {
+pub struct State {
     /// Positive offset means scrolling down/right
-    offset: Vec2,
+    pub offset: Vec2,
 
     show_scroll: [bool; 2],
 
@@ -49,6 +49,20 @@ impl State {
     pub fn store(self, ctx: &Context, id: Id) {
         ctx.memory().data.insert_persisted(id, self);
     }
+}
+
+pub struct ScrollAreaOutput<R> {
+    /// What the user closure returned.
+    pub inner: R,
+
+    /// `Id` of the `ScrollArea`.
+    pub id: Id,
+
+    /// The current state of the scroll area.
+    pub state: State,
+
+    /// Where on the screen the content is (excludes scroll bars).
+    pub inner_rect: Rect,
 }
 
 /// Add vertical and/or horizontal scrolling to a contained [`Ui`].
@@ -258,6 +272,7 @@ struct Prepared {
     /// width of the vertical bar, and the height of the horizontal bar?
     current_bar_use: Vec2,
     always_show_scroll: bool,
+    /// Where on the screen the content is (excludes scroll bars).
     inner_rect: Rect,
     content_ui: Ui,
     /// Relative coordinates: the offset and size of the view of the inner UI.
@@ -365,7 +380,11 @@ impl ScrollArea {
     /// Show the `ScrollArea`, and add the contents to the viewport.
     ///
     /// If the inner area can be very long, consider using [`Self::show_rows`] instead.
-    pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+    pub fn show<R>(
+        self,
+        ui: &mut Ui,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> ScrollAreaOutput<R> {
         self.show_viewport_dyn(ui, Box::new(|ui, _viewport| add_contents(ui)))
     }
 
@@ -391,7 +410,7 @@ impl ScrollArea {
         row_height_sans_spacing: f32,
         total_rows: usize,
         add_contents: impl FnOnce(&mut Ui, std::ops::Range<usize>) -> R,
-    ) -> R {
+    ) -> ScrollAreaOutput<R> {
         let spacing = ui.spacing().item_spacing;
         let row_height_with_spacing = row_height_sans_spacing + spacing.y;
         self.show_viewport(ui, |ui, viewport| {
@@ -420,7 +439,11 @@ impl ScrollArea {
     ///
     /// `add_contents` is past the viewport, which is the relative view of the content.
     /// So if the passed rect has min = zero, then show the top left content (the user has not scrolled).
-    pub fn show_viewport<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui, Rect) -> R) -> R {
+    pub fn show_viewport<R>(
+        self,
+        ui: &mut Ui,
+        add_contents: impl FnOnce(&mut Ui, Rect) -> R,
+    ) -> ScrollAreaOutput<R> {
         self.show_viewport_dyn(ui, Box::new(add_contents))
     }
 
@@ -428,16 +451,23 @@ impl ScrollArea {
         self,
         ui: &mut Ui,
         add_contents: Box<dyn FnOnce(&mut Ui, Rect) -> R + 'c>,
-    ) -> R {
+    ) -> ScrollAreaOutput<R> {
         let mut prepared = self.begin(ui);
-        let ret = add_contents(&mut prepared.content_ui, prepared.viewport);
-        prepared.end(ui);
-        ret
+        let id = prepared.id;
+        let inner_rect = prepared.inner_rect;
+        let inner = add_contents(&mut prepared.content_ui, prepared.viewport);
+        let state = prepared.end(ui);
+        ScrollAreaOutput {
+            inner,
+            id,
+            state,
+            inner_rect,
+        }
     }
 }
 
 impl Prepared {
-    fn end(self, ui: &mut Ui) {
+    fn end(self, ui: &mut Ui) -> State {
         let Prepared {
             id,
             mut state,
@@ -747,6 +777,8 @@ impl Prepared {
         state.show_scroll = show_scroll_this_frame;
 
         state.store(ui.ctx(), id);
+
+        state
     }
 }
 
