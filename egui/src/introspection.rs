@@ -143,6 +143,7 @@ impl Widget for &mut epaint::TessellationOptions {
                 debug_paint_text_rects,
                 debug_ignore_clip_rects,
                 bezier_flattern_tolerence:_,
+                epsilon: _,
             } = self;
             ui.checkbox(anti_alias, "Antialias")
                 .on_hover_text("Turn off for small performance gain.");

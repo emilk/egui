@@ -93,6 +93,7 @@ mod mesh;
 pub mod mutex;
 mod shadow;
 mod shape;
+mod bezier;
 pub mod shape_transform;
 pub mod stats;
 mod stroke;
@@ -108,8 +109,9 @@ pub use {
     image::{AlphaImage, ColorImage, ImageData},
     mesh::{Mesh, Mesh16, Vertex},
     shadow::Shadow,
+    bezier:: {CubicBezierShape,QuadraticBezierShape},
     shape::{
-        CircleShape, CubicBezierShape, PathShape, QuadraticBezierShape, RectShape, Shape, TextShape,
+        CircleShape, PathShape, RectShape, Shape, TextShape,
     },
     stats::PaintStats,
     stroke::Stroke,

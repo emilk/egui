@@ -563,6 +563,29 @@ impl Context {
         std::sync::Arc::make_mut(&mut self.memory().options.style).visuals = visuals;
     }
 
+    /// The `tolerance` will be used in Cubic Bezier Curve, Quadratic Bezier Curve flattening.
+    /// It is the maximum distance between the original curve and the flattened curve.
+    /// The larger the tolerance, the less points will be generated.
+    /// The default value is 0.1.
+    /// The smaller the tolerance, the more points will be generated.
+    /// But practically, it should be kept in the range of [0.001, 2.0].
+    /// Example:
+    /// ```
+    /// let (mut response, painter) =
+    ///     ui.allocate_painter(ui.available_size_before_wrap(), Sense::click());
+    /// painter.ctx().set_tolerance(1.0);
+    /// ```
+    pub fn set_tolerance(&self, tolerance:f32){
+        (&mut self.memory().options.tessellation_options).bezier_flattern_tolerence = tolerance;
+    }
+
+    /// The `epsilon` will be used when comparing two floats.
+    /// For example, when checking the curve crossed the base line or not, the `epsilon` is used.
+    /// The default value is 1.0e-5 for f32.
+    pub fn set_epsilon(&self, epsilon:f32){
+        (&mut self.memory().options.tessellation_options).epsilon = epsilon;
+    }
+    
     /// The number of physical pixels for each logical point.
     #[inline(always)]
     pub fn pixels_per_point(&self) -> f32 {

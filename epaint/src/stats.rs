@@ -195,7 +195,8 @@ impl PaintStats {
                     self.add(shape);
                 }
             }
-            Shape::Noop | Shape::Circle { .. } | Shape::LineSegment { .. } | Shape::Rect { .. } => {
+            Shape::Noop | Shape::Circle { .. } | Shape::LineSegment { .. } | Shape::Rect { .. }
+                | Shape::CubicBezier(_) | Shape::QuadraticBezier(_) => {
             }
             Shape::Path(path_shape) => {
                 self.shape_path += AllocInfo::from_slice(&path_shape.points);
@@ -210,13 +211,6 @@ impl PaintStats {
             }
             Shape::Mesh(mesh) => {
                 self.shape_mesh += AllocInfo::from_mesh(mesh);
-            }
-            Shape::CubicBezier(_) => {
-                // todo!("CubicBezier");
-                // panic!("CubicBezier");
-            }
-            Shape::QuadraticBezier(_) => {
-                // todo!("QuadraticBezier");
             }
         }
     }

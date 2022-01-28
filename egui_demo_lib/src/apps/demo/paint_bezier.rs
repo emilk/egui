@@ -6,26 +6,36 @@ use egui::{epaint::{QuadraticBezierShape, CubicBezierShape,CircleShape}};
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct PaintBezier {
     bezier: usize, // current bezier curve degree, it can be 3,4,
+    tolerance: f32, // the tolerance for the bezier curve
     bezier_backup: usize, //track the bezier degree before change in order to clean the remaining points.
     points: Vec<Pos2>, //points already clicked. once it reaches the 'bezier' degree, it will be pushed into the 'shapes'
     backup_points:Vec<Pos2>, //track last points set in order to draw auxiliary lines.
-    quadratic_shapes: Vec<QuadraticBezierShape>, //shapes already drawn. once it reaches the 'bezier' degree, it will be pushed into the 'shapes'
-    cubic_shapes: Vec<CubicBezierShape>,
+    q_shapes: Vec<QuadraticBezierShape>, //shapes already drawn. once it reaches the 'bezier' degree, it will be pushed into the 'shapes'
+    c_shapes: Vec<CubicBezierShape>, // since `Shape` can't be 'serilized', we can't use Shape as variable type.
     aux_stroke: Stroke,
     stroke: Stroke,
+    fill: Color32,
+    closed: bool,
+    show_bounding_box: bool,
+    bounding_box_stroke: Stroke,
 }
 
 impl Default for PaintBezier {
     fn default() -> Self {
         Self {
             bezier: 4, // default bezier degree, a cubic bezier curve
+            tolerance: 1.0, // default tolerance 1.0
             bezier_backup: 4,
             points: Default::default(),
             backup_points: Default::default(),
-            quadratic_shapes: Default::default(),
-            cubic_shapes: Default::default(),
+            q_shapes: Default::default(),
+            c_shapes: Default::default(),
             aux_stroke: Stroke::new(1.0, Color32::RED),
             stroke: Stroke::new(1.0, Color32::LIGHT_BLUE),
+            fill: Default::default(),
+            closed: false,
+            show_bounding_box: false,
+            bounding_box_stroke: Stroke::new(1.0, Color32::LIGHT_GREEN),
         }
     }
 }
@@ -36,10 +46,34 @@ impl PaintBezier {
             ui.vertical(|ui| {
                 egui::stroke_ui(ui, &mut self.stroke, "Curve Stroke");
                 egui::stroke_ui(ui, &mut self.aux_stroke, "Auxiliary Stroke");
+                ui.horizontal(|ui|{
+                    ui.label("Fill Color:");
+                    if ui.color_edit_button_srgba(&mut self.fill).changed(){
+                        if self.fill != Color32::TRANSPARENT{
+                            self.closed = true;
+                        }
+                    }
+                    if ui.checkbox(&mut self.closed, "Closed").clicked() {
+                        if !self.closed{
+                            self.fill=Color32::TRANSPARENT;
+                        }
+                    }
+                })
             });
             
             ui.separator();
             ui.vertical(|ui|{
+                ui.add(egui::Slider::new(&mut self.tolerance, 0.0001..=10.0)
+                        .logarithmic(true)
+                        .show_value(true)
+                        .text("Tolerance:"));
+                ui.checkbox(&mut self.show_bounding_box, "Bounding Box");
+                
+                egui::stroke_ui(ui, &mut self.bounding_box_stroke, "Bounding Box Stroke");
+            });
+            ui.separator();
+            ui.vertical(|ui|{
+                
                 if ui.radio_value(&mut self.bezier, 3, "Quadratic").clicked(){
                     if self.bezier_backup != self.bezier{
                         self.points.clear();
@@ -52,18 +86,14 @@ impl PaintBezier {
                         self.bezier_backup = self.bezier;
                     }
                 };
-                
                 // ui.radio_value(self.bezier, 5, "Quintic");
-            });
-            ui.separator();
-            ui.vertical(|ui|{
+                ui.label("Click 3 or 4 points to build a bezier curve!");
                 if ui.button("Clear Painting").clicked() {
                     self.points.clear();
                     self.backup_points.clear();
-                    self.quadratic_shapes.clear();
-                    self.cubic_shapes.clear();
+                    self.q_shapes.clear();
+                    self.c_shapes.clear();
                 }
-                ui.label("Click 3 or 4 points to build a bezier curve!");
             })
             
         })
@@ -98,6 +128,7 @@ impl PaintBezier {
         let (mut response, painter) =
             ui.allocate_painter(ui.available_size_before_wrap(), Sense::click());
 
+        painter.ctx().set_tolerance(self.tolerance);
         let to_screen = emath::RectTransform::from_to(
             Rect::from_min_size(Pos2::ZERO, response.rect.square_proportions()),
             response.rect,
@@ -113,36 +144,47 @@ impl PaintBezier {
                     let points = self.points.drain(..).collect::<Vec<_>>();
                     match points.len(){
                         3 => {
-                            let points: Vec<Pos2> = points.iter().map(|p| to_screen * *p).collect();
-                            let stroke = self.stroke.clone();
-                            let quadratic = QuadraticBezierShape::from_points_stroke(points, stroke);
-                            self.quadratic_shapes.push(quadratic);
+                            let quadratic = QuadraticBezierShape::from_points_stroke(
+                                    points, 
+                                    self.closed,
+                                    self.fill.clone(),
+                                    self.stroke.clone()
+                                );
+                            self.q_shapes.push(quadratic);
                         },
                         4 => {
-                            let points: Vec<Pos2> = points.iter().map(|p| to_screen * *p).collect();
-                            let stroke = self.stroke.clone();
-                            let cubic = CubicBezierShape::from_points_stroke(points, stroke);
-                            self.cubic_shapes.push(cubic);
+                            let cubic = CubicBezierShape::from_points_stroke(
+                                points, 
+                                self.closed,
+                                self.fill.clone(),
+                                self.stroke.clone()
+                            );
+                            self.c_shapes.push(cubic);
                         },
                         _ => {
                             todo!();
                         }
                     }
-                    
-                    // self.points.clear();
                 }
                 
                 response.mark_changed();
             } 
         }
         let mut shapes = Vec::new();
-        for shape in self.quadratic_shapes.iter() {
-            shapes.push(shape.clone().into());
+        for shape in self.q_shapes.iter(){
+            shapes.push(shape.to_screen(&to_screen).into());
+            if self.show_bounding_box{
+                shapes.push(self.build_bounding_box(shape.bounding_rect(),&to_screen));
+            }
         }
-        for shape in self.cubic_shapes.iter() {
-            shapes.push(shape.clone().into());
+        for shape in self.c_shapes.iter(){
+            shapes.push(shape.to_screen(&to_screen).into());
+            if self.show_bounding_box{
+                shapes.push(self.build_bounding_box(shape.bounding_rect(),&to_screen));
+            }
         }
         painter.extend(shapes);
+
         if self.points.len()>0{
             painter.extend(self.build_auxiliary_line(&self.points,&to_screen,&self.aux_stroke));
         }else if self.backup_points.len()>0{
@@ -151,11 +193,20 @@ impl PaintBezier {
 
         response
     }
+
+    pub fn build_bounding_box(&self, bbox:Rect, to_screen:&RectTransform)->Shape{
+        let bbox = Rect{
+            min: to_screen * bbox.min,
+            max: to_screen * bbox.max,
+        };
+        let bbox_shape = epaint::RectShape::stroke(bbox, 0.0,self.bounding_box_stroke.clone());
+        bbox_shape.into()
+    }
 }
 
 impl super::Demo for PaintBezier {
     fn name(&self) -> &'static str {
-        "🖊 Bezier Curve"
+        "✔ Bezier Curve"
     }
 
     fn show(&mut self, ctx: &Context, open: &mut bool) {

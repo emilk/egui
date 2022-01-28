@@ -287,8 +287,11 @@ pub struct TessellationOptions {
     /// If true, no clipping will be done.
     pub debug_ignore_clip_rects: bool,
 
-    //to add this since it will cause a lot of breaking changes.
+    /// The maximum distance between the original curve and the flattened curve.
     pub bezier_flattern_tolerence: f32,
+
+    /// The default value will be 1.0e-5, it will be used during float compare.
+    pub epsilon:f32,
 }
 
 impl Default for TessellationOptions {
@@ -304,6 +307,7 @@ impl Default for TessellationOptions {
             debug_ignore_clip_rects: false,
 
             bezier_flattern_tolerence: 0.1, //need a helper function to determine the best value automatically
+            epsilon: 1.0e-5,
         }
     }
 }
@@ -738,66 +742,67 @@ impl Tessellator {
 
         let points = quadratic_shape.flatten(Some(options.bezier_flattern_tolerence));
         
-        self.scratchpad_path.clear();
-        if quadratic_shape.closed {
-            self.scratchpad_path.add_line_loop(&points);
-        } else {
-            self.scratchpad_path.add_open_points(&points);
-        }
-        if quadratic_shape.fill != Color32::TRANSPARENT {
-            crate::epaint_assert!(
-                quadratic_shape.closed,
-                "You asked to fill a path that is not closed. That makes no sense."
-            );
-            self.scratchpad_path
-                .fill(quadratic_shape.fill, &self.options, out);
-        }
-        let typ = if quadratic_shape.closed {
-            PathType::Closed
-        } else {
-            PathType::Open
-        };
-        self.scratchpad_path
-            .stroke(typ, quadratic_shape.stroke, &self.options, out);
+        self.tessellate_bezier_complete(
+            points,
+            quadratic_shape.fill,
+            quadratic_shape.closed,
+            quadratic_shape.stroke,
+            out,
+        );
+        
     }
 
     pub(crate) fn tessellate_cubic_bezier(
         &mut self,
-        bezier_shape: CubicBezierShape,
+        cubic_shape: CubicBezierShape,
         out: &mut Mesh,
     ) {
         let options = &self.options;
         let clip_rect = self.clip_rect;
         if options.coarse_tessellation_culling
-            && !bezier_shape.bounding_rect().intersects(clip_rect)
+            && !cubic_shape.bounding_rect().intersects(clip_rect)
         {
             return;
         }
 
-        let points = bezier_shape.flatten(Some(options.bezier_flattern_tolerence));
+        let points_vec = cubic_shape.flatten_closed(Some(options.bezier_flattern_tolerence),
+            Some(options.epsilon));
         
+        for points in points_vec {
+            self.tessellate_bezier_complete(
+                points,
+                cubic_shape.fill,
+                cubic_shape.closed,
+                cubic_shape.stroke,
+                out,
+            );
+        }
+    }
+
+    fn tessellate_bezier_complete(&mut self, points:Vec<Pos2>, fill:Color32, closed: bool,stroke:Stroke, out: &mut Mesh) {
         self.scratchpad_path.clear();
-        if bezier_shape.closed {
+        if closed {
             self.scratchpad_path.add_line_loop(&points);
         } else {
             self.scratchpad_path.add_open_points(&points);
         }
-        if bezier_shape.fill != Color32::TRANSPARENT {
+        if fill != Color32::TRANSPARENT {
             crate::epaint_assert!(
-                bezier_shape.closed,
+                closed,
                 "You asked to fill a path that is not closed. That makes no sense."
             );
             self.scratchpad_path
-                .fill(bezier_shape.fill, &self.options, out);
+                .fill(fill, &self.options, out);
         }
-        let typ = if bezier_shape.closed {
+        let typ = if closed {
             PathType::Closed
         } else {
             PathType::Open
         };
         self.scratchpad_path
-            .stroke(typ, bezier_shape.stroke, &self.options, out);
+            .stroke(typ, stroke, &self.options, out);
     }
+
     pub(crate) fn tessellate_path(&mut self, path_shape: PathShape, out: &mut Mesh) {
         if path_shape.points.len() < 2 {
             return;

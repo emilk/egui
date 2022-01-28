@@ -25,10 +25,7 @@ impl Default for Demos {
             Box::new(super::MiscDemoWindow::default()),
             Box::new(super::multi_touch::MultiTouch::default()),
             Box::new(super::painting::Painting::default()),
-
             Box::new(super::paint_bezier::PaintBezier::default()),
-
-
             Box::new(super::plot_demo::PlotDemo::default()),
             Box::new(super::scrolling::Scrolling::default()),
             Box::new(super::sliders::Sliders::default()),
