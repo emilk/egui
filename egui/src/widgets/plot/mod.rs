@@ -90,7 +90,7 @@ pub struct Plot {
     legend_config: Option<Legend>,
     show_background: bool,
     show_axes: [bool; 2],
-    grid_spacers: [Box<dyn GridSpacer>; 2],
+    grid_spacers: [Box<GridSpacer>; 2],
 }
 
 impl Plot {
@@ -119,7 +119,7 @@ impl Plot {
             legend_config: None,
             show_background: true,
             show_axes: [true; 2],
-            grid_spacers: [LogGridSpacer::new_boxed(10), LogGridSpacer::new_boxed(10)],
+            grid_spacers: [log_grid_spacer(10), log_grid_spacer(10)],
         }
     }
 
@@ -288,16 +288,18 @@ impl Plot {
 
     /// Configure how the grid in the background is spaced apart along the X axis.
     ///
-    /// Default is a log-10 grid, i.e. every plot unit is divided into 10 other units. This is represented by [`LogGridSpacer`].
-    pub fn x_grid_spacer(mut self, spacer: Box<dyn GridSpacer>) -> Self {
+    /// Default is a log-10 grid, i.e. every plot unit is divided into 10 other units.
+    /// See [`GridSpacer`] for explanation of the function signature.
+    pub fn x_grid_spacer(mut self, spacer: Box<GridSpacer>) -> Self {
         self.grid_spacers[0] = spacer;
         self
     }
 
     /// Configure how the grid in the background is spaced apart along the Y axis.
     ///
-    /// Default is a log-10 grid, i.e. every plot unit is divided into 10 other units. This is represented by [`LogGridSpacer`].
-    pub fn y_grid_spacer(mut self, spacer: Box<dyn GridSpacer>) -> Self {
+    /// Default is a log-10 grid, i.e. every plot unit is divided into 10 other units.
+    /// See [`GridSpacer`] for explanation of the function signature.
+    pub fn y_grid_spacer(mut self, spacer: Box<GridSpacer>) -> Self {
         self.grid_spacers[1] = spacer;
         self
     }
@@ -712,48 +714,49 @@ struct GridStep {
 }
 
 /// Determines how the background grid in a plot is spaced apart.
-pub trait GridSpacer {
-    /// Generate steps on the grid.
-    ///
-    /// `bounds` are min/max of the visible data range (the values at the two edges of the plot,
-    /// for the current axis).
-    ///
-    /// `bounds_frame_ratio` is the ratio between the diagram's bounds (in plot coordinates) and
-    /// the viewport (in frame/window coordinates).
-    ///
-    /// This function should return 3 "units", designating where
-    ///
-    fn get_step_sizes(&self, bounds: (f64, f64), bounds_frame_ratio: f64) -> [f64; 3];
-}
+///
+/// The function has this signature:
+/// ```no_run
+/// fn get_step_sizes(
+///     bounds: (f64, f64),
+///     bounds_frame_ratio: f64
+/// ) -> [f64; 3]
+/// # { todo!() }
+/// ```
+///
+/// `bounds` are min/max of the visible data range (the values at the two edges of the plot,
+/// for the current axis).
+///
+/// `bounds_frame_ratio` is the ratio between the diagram's bounds (in plot coordinates) and
+/// the viewport (in frame/window coordinates), scaled up to represent the minimal possible step.
+/// This is a good value to be used as the smallest of the returned steps.
+///
+/// This function should return 3 positive step sizes, designating where the lines in the grid are drawn.
+/// Lines are thicker for larger values.
+/// An example return values is `[bounds_frame_ratio, 10 * bounds_frame_ratio, 100 * bounds_frame_ratio]`.
+///
+/// See also [`log_grid_spacer`].
+pub type GridSpacer = dyn Fn((f64, f64), f64) -> [f64; 3];
 
-/// Built in configuration for grid spacing, using a logarithmic spacing which automatically adjusts
-/// according to zoom level.
-pub struct LogGridSpacer {
-    base: f64,
-}
-
-impl LogGridSpacer {
-    /// The logarithmic base, expressing how many times each grid unit is subdivided.
-    /// 10 is a typical value, others are possible though.
-    pub fn new_boxed(base: i64) -> Box<Self> {
-        Box::new(Self { base: base as f64 })
-    }
-}
-
-impl GridSpacer for LogGridSpacer {
-    fn get_step_sizes(&self, _bounds: (f64, f64), dvalue_dpos: f64) -> [f64; 3] {
-        let Self { base } = *self;
-
+/// A function splitting the grid into `base` subdivisions.
+///
+/// The logarithmic base, expressing how many times each grid unit is subdivided.
+/// 10 is a typical value, others are possible though.
+pub fn log_grid_spacer(base: i64) -> Box<GridSpacer> {
+    let base = base as f64;
+    let get_step_sizes = move |_bounds: (f64, f64), bounds_frame_ratio: f64| -> [f64; 3] {
         // The distance between two of the thinnest grid lines is "rounded" up
         // to the next-bigger power of base
-        let smallest_visible_unit = next_power(dvalue_dpos, base);
+        let smallest_visible_unit = next_power(bounds_frame_ratio, base);
 
         [
             smallest_visible_unit,
             smallest_visible_unit * base,
             smallest_visible_unit * base * base,
         ]
-    }
+    };
+
+    Box::new(get_step_sizes)
 }
 
 // ----------------------------------------------------------------------------
@@ -766,7 +769,7 @@ struct PreparedPlot {
     axis_formatters: [AxisFormatter; 2],
     show_axes: [bool; 2],
     transform: ScreenTransform,
-    grid_spacers: [Box<dyn GridSpacer>; 2],
+    grid_spacers: [Box<GridSpacer>; 2],
 }
 
 impl PreparedPlot {
@@ -810,7 +813,7 @@ impl PreparedPlot {
 
         let bounds = (bounds.min[axis], bounds.max[axis]);
         let bounds_frame_ratio = transform.dvalue_dpos()[axis] * MIN_LINE_SPACING_IN_POINTS;
-        let step_sizes = grid_spacers[axis].get_step_sizes(bounds, bounds_frame_ratio);
+        let step_sizes = (grid_spacers[axis])(bounds, bounds_frame_ratio);
 
         let mut steps = vec![];
         fill_steps_between(&mut steps, step_sizes[0], bounds);
