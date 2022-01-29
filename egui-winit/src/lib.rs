@@ -520,7 +520,7 @@ impl State {
         egui_ctx: &egui::Context,
         output: egui::Output,
     ) -> egui::TexturesDelta {
-        if egui_ctx.memory().options.screen_reader {
+        if egui_ctx.options().screen_reader {
             self.screen_reader.speak(&output.events_description());
         }
 

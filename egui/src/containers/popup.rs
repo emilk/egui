@@ -13,11 +13,11 @@ pub(crate) struct MonoState {
 
 impl MonoState {
     fn load(ctx: &Context) -> Option<Self> {
-        ctx.memory().data.get_temp(Id::null())
+        ctx.data().get_temp(Id::null())
     }
 
     fn store(self, ctx: &Context) {
-        ctx.memory().data.insert_temp(Id::null(), self);
+        ctx.data().insert_temp(Id::null(), self);
     }
 
     fn tooltip_size(&self, id: Id, index: usize) -> Option<Vec2> {

@@ -127,9 +127,9 @@ impl BackendPanel {
         ui.separator();
 
         {
-            let mut screen_reader = ui.ctx().memory().options.screen_reader;
+            let mut screen_reader = ui.ctx().options().screen_reader;
             ui.checkbox(&mut screen_reader, "🔈 Screen reader").on_hover_text("Experimental feature: checking this will turn on the screen reader on supported platforms");
-            ui.ctx().memory().options.screen_reader = screen_reader;
+            ui.ctx().options().screen_reader = screen_reader;
         }
 
         if !frame.is_web() {

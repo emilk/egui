@@ -239,7 +239,7 @@ impl AppRunner {
     }
 
     fn handle_egui_output(&mut self, output: egui::Output) -> egui::TexturesDelta {
-        if self.egui_ctx.memory().options.screen_reader {
+        if self.egui_ctx.options().screen_reader {
             self.screen_reader.speak(&output.events_description());
         }
 
