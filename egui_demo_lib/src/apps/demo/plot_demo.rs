@@ -523,7 +523,7 @@ impl ChartsDemo {
         .name("Set 4")
         .stack_on(&[&chart1, &chart2, &chart3]);
 
-        let mut x_fmt: fn(f64) -> String = |val| {
+        let x_fmt: fn(f64) -> String = |val| {
             if val >= 0.0 && val <= 4.0 && is_approx_integer(val) {
                 // Only label full days from 0 to 4
                 format!("Day {}", val)
@@ -533,7 +533,7 @@ impl ChartsDemo {
             }
         };
 
-        let mut y_fmt: fn(f64) -> String = |val| {
+        let y_fmt: fn(f64) -> String = |val| {
             let percent = 100.0 * val;
 
             if is_approx_integer(percent) && !is_approx_zero(percent) {
@@ -545,26 +545,40 @@ impl ChartsDemo {
             }
         };
 
+        let grid: fn((f64, f64), f64) -> [f64; 3] =
+            // statically return 1, 5 and 30 days (just when zooming out)
+            |_bounds, _bounds_frame_ratio| {
+            [1.0, 5.0, 30.0]
+        };
+
         if !self.vertical {
             chart1 = chart1.horizontal();
             chart2 = chart2.horizontal();
             chart3 = chart3.horizontal();
             chart4 = chart4.horizontal();
-            std::mem::swap(&mut x_fmt, &mut y_fmt);
-        }
+        };
 
-        Plot::new("Stacked Bar Chart Demo")
+        let plot = Plot::new("Stacked Bar Chart Demo")
             .legend(Legend::default())
-            .x_axis_formatter(x_fmt)
-            .y_axis_formatter(y_fmt)
-            .data_aspect(1.0)
-            .show(ui, |plot_ui| {
-                plot_ui.bar_chart(chart1);
-                plot_ui.bar_chart(chart2);
-                plot_ui.bar_chart(chart3);
-                plot_ui.bar_chart(chart4);
-            })
-            .response
+            .data_aspect(1.0);
+
+        let plot = if self.vertical {
+            plot.x_axis_formatter(x_fmt)
+                .y_axis_formatter(y_fmt)
+                .x_grid_spacer(grid)
+        } else {
+            plot.x_axis_formatter(y_fmt)
+                .y_axis_formatter(x_fmt)
+                .y_grid_spacer(grid)
+        };
+
+        plot.show(ui, |plot_ui| {
+            plot_ui.bar_chart(chart1);
+            plot_ui.bar_chart(chart2);
+            plot_ui.bar_chart(chart3);
+            plot_ui.bar_chart(chart4);
+        })
+        .response
     }
 
     fn box_plot(&self, ui: &mut Ui) -> Response {

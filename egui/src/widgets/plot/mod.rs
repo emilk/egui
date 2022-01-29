@@ -25,6 +25,9 @@ type CustomLabelFuncRef = Option<Box<CustomLabelFunc>>;
 type AxisFormatterFn = dyn Fn(f64) -> String;
 type AxisFormatter = Option<Box<AxisFormatterFn>>;
 
+type GridSpacerFn = dyn Fn((f64, f64), f64) -> [f64; 3];
+type GridSpacer = Box<GridSpacerFn>;
+
 // ----------------------------------------------------------------------------
 
 const MIN_LINE_SPACING_IN_POINTS: f64 = 6.0; // TODO: large enough for a wide label
@@ -90,7 +93,7 @@ pub struct Plot {
     legend_config: Option<Legend>,
     show_background: bool,
     show_axes: [bool; 2],
-    grid_spacers: [Box<GridSpacer>; 2],
+    grid_spacers: [GridSpacer; 2],
 }
 
 impl Plot {
@@ -250,6 +253,48 @@ impl Plot {
         self
     }
 
+    /// Configure how the grid in the background is spaced apart along the X axis.
+    ///
+    /// Default is a log-10 grid, i.e. every plot unit is divided into 10 other units.
+    ///
+    /// The function has this signature:
+    /// ```no_run
+    /// fn get_step_sizes(
+    ///     bounds: (f64, f64),
+    ///     bounds_frame_ratio: f64
+    /// ) -> [f64; 3]
+    /// # { todo!() }
+    /// ```
+    ///
+    /// `bounds` are min/max of the visible data range (the values at the two edges of the plot,
+    /// for the current axis).
+    ///
+    /// `bounds_frame_ratio` is the ratio between the diagram's bounds (in plot coordinates) and
+    /// the viewport (in frame/window coordinates), scaled up to represent the minimal possible step.
+    /// This is a good value to be used as the smallest of the returned steps.
+    ///
+    /// This function should return 3 positive step sizes, designating where the lines in the grid are drawn.
+    /// Lines are thicker for larger values.
+    /// An example return values is `[bounds_frame_ratio, 10 * bounds_frame_ratio, 100 * bounds_frame_ratio]`.
+    ///
+    /// Why only 3 step sizes? The idea is that you compute the units dynamically, depending on the currently
+    /// displayed value range.
+    ///
+    /// See also [`log_grid_spacer`].
+    pub fn x_grid_spacer(mut self, spacer: impl Fn((f64, f64), f64) -> [f64; 3] + 'static) -> Self {
+        self.grid_spacers[0] = Box::new(spacer);
+        self
+    }
+
+    /// Configure how the grid in the background is spaced apart along the Y axis.
+    ///
+    /// Default is a log-10 grid, i.e. every plot unit is divided into 10 other units.
+    /// See [`x_grid_spacer()`] for explanation of the function signature.
+    pub fn y_grid_spacer(mut self, spacer: impl Fn((f64, f64), f64) -> [f64; 3] + 'static) -> Self {
+        self.grid_spacers[1] = Box::new(spacer);
+        self
+    }
+
     /// Expand bounds to include the given x value.
     /// For instance, to always show the y axis, call `plot.include_x(0.0)`.
     pub fn include_x(mut self, x: impl Into<f64>) -> Self {
@@ -283,24 +328,6 @@ impl Plot {
     /// Default: `[true; 2]`.
     pub fn show_axes(mut self, show: [bool; 2]) -> Self {
         self.show_axes = show;
-        self
-    }
-
-    /// Configure how the grid in the background is spaced apart along the X axis.
-    ///
-    /// Default is a log-10 grid, i.e. every plot unit is divided into 10 other units.
-    /// See [`GridSpacer`] for explanation of the function signature.
-    pub fn x_grid_spacer(mut self, spacer: Box<GridSpacer>) -> Self {
-        self.grid_spacers[0] = spacer;
-        self
-    }
-
-    /// Configure how the grid in the background is spaced apart along the Y axis.
-    ///
-    /// Default is a log-10 grid, i.e. every plot unit is divided into 10 other units.
-    /// See [`GridSpacer`] for explanation of the function signature.
-    pub fn y_grid_spacer(mut self, spacer: Box<GridSpacer>) -> Self {
-        self.grid_spacers[1] = spacer;
         self
     }
 
@@ -713,36 +740,11 @@ struct GridStep {
     step_size: f64,
 }
 
-/// Determines how the background grid in a plot is spaced apart.
-///
-/// The function has this signature:
-/// ```no_run
-/// fn get_step_sizes(
-///     bounds: (f64, f64),
-///     bounds_frame_ratio: f64
-/// ) -> [f64; 3]
-/// # { todo!() }
-/// ```
-///
-/// `bounds` are min/max of the visible data range (the values at the two edges of the plot,
-/// for the current axis).
-///
-/// `bounds_frame_ratio` is the ratio between the diagram's bounds (in plot coordinates) and
-/// the viewport (in frame/window coordinates), scaled up to represent the minimal possible step.
-/// This is a good value to be used as the smallest of the returned steps.
-///
-/// This function should return 3 positive step sizes, designating where the lines in the grid are drawn.
-/// Lines are thicker for larger values.
-/// An example return values is `[bounds_frame_ratio, 10 * bounds_frame_ratio, 100 * bounds_frame_ratio]`.
-///
-/// See also [`log_grid_spacer`].
-pub type GridSpacer = dyn Fn((f64, f64), f64) -> [f64; 3];
-
 /// A function splitting the grid into `base` subdivisions.
 ///
 /// The logarithmic base, expressing how many times each grid unit is subdivided.
 /// 10 is a typical value, others are possible though.
-pub fn log_grid_spacer(base: i64) -> Box<GridSpacer> {
+pub fn log_grid_spacer(base: i64) -> GridSpacer {
     let base = base as f64;
     let get_step_sizes = move |_bounds: (f64, f64), bounds_frame_ratio: f64| -> [f64; 3] {
         // The distance between two of the thinnest grid lines is "rounded" up
@@ -769,7 +771,7 @@ struct PreparedPlot {
     axis_formatters: [AxisFormatter; 2],
     show_axes: [bool; 2],
     transform: ScreenTransform,
-    grid_spacers: [Box<GridSpacer>; 2],
+    grid_spacers: [GridSpacer; 2],
 }
 
 impl PreparedPlot {
