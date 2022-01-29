@@ -11,6 +11,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * `Context::load_texture` to convert an image into a texture which can be displayed using e.g. `ui.image(texture, size)` ([#1110](https://github.com/emilk/egui/pull/1110)).
 * Added `Ui::add_visible` and `Ui::add_visible_ui`.
 * Added `CollapsingHeader::icon` to override the default open/close icon using a custom function. ([1147](https://github.com/emilk/egui/pull/1147))
+* Added `Response::on_hover_text_at_pointer` as a convenience akin to `Response::on_hover_text`. ([1179](https://github.com/emilk/egui/pull/1179))
 
 ### Changed 🔧
 * ⚠️ `Context::input` and `Ui::input` now locks a mutex. This can lead to a dead-lock is used in an `if let` binding!
