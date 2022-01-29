@@ -111,10 +111,14 @@ pub struct EguiGlium {
 
 impl EguiGlium {
     pub fn new(display: &glium::Display) -> Self {
+        let painter = crate::Painter::new(display);
         Self {
             egui_ctx: Default::default(),
-            egui_winit: egui_winit::State::new(display.gl_window().window()),
-            painter: crate::Painter::new(display),
+            egui_winit: egui_winit::State::new(
+                painter.max_texture_side(),
+                display.gl_window().window(),
+            ),
+            painter,
             shapes: Default::default(),
             textures_delta: Default::default(),
         }
@@ -155,8 +159,8 @@ impl EguiGlium {
         let shapes = std::mem::take(&mut self.shapes);
         let mut textures_delta = std::mem::take(&mut self.textures_delta);
 
-        for (id, image) in textures_delta.set {
-            self.painter.set_texture(display, id, &image);
+        for (id, image_delta) in textures_delta.set {
+            self.painter.set_texture(display, id, &image_delta);
         }
 
         let clipped_meshes = self.egui_ctx.tessellate(shapes);

@@ -216,7 +216,7 @@ fn selectable_text(ui: &mut egui::Ui, mut text: &str) {
     ui.add(
         egui::TextEdit::multiline(&mut text)
             .desired_width(f32::INFINITY)
-            .text_style(egui::TextStyle::Monospace),
+            .font(egui::TextStyle::Monospace),
     );
 }
 
@@ -257,7 +257,7 @@ impl ColoredText {
             let mut text = self.0.text.as_str();
             ui.add(
                 egui::TextEdit::multiline(&mut text)
-                    .text_style(egui::TextStyle::Monospace)
+                    .font(egui::TextStyle::Monospace)
                     .desired_width(f32::INFINITY)
                     .layouter(&mut layouter),
             );

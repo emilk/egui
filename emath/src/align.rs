@@ -5,7 +5,6 @@ use crate::*;
 /// left/center/right or top/center/bottom alignment for e.g. anchors and layouts.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
 pub enum Align {
     /// Left or top.
     Min,
@@ -146,7 +145,6 @@ impl Default for Align {
 /// Two-dimension alignment, e.g. [`Align2::LEFT_TOP`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
 pub struct Align2(pub [Align; 2]);
 
 impl Align2 {

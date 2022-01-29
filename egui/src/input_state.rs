@@ -700,7 +700,12 @@ impl InputState {
             events,
         } = self;
 
-        ui.style_mut().body_text_style = epaint::TextStyle::Monospace;
+        ui.style_mut()
+            .text_styles
+            .get_mut(&crate::TextStyle::Body)
+            .unwrap()
+            .family = crate::FontFamily::Monospace;
+
         ui.collapsing("Raw Input", |ui| raw.ui(ui));
 
         crate::containers::CollapsingHeader::new("🖱 Pointer")

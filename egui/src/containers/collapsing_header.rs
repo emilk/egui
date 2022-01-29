@@ -1,7 +1,7 @@
 use std::hash::Hash;
 
 use crate::*;
-use epaint::{Shape, TextStyle};
+use epaint::Shape;
 
 #[derive(Clone, Copy, Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -15,11 +15,11 @@ pub(crate) struct State {
 
 impl State {
     pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.memory().data.get_persisted(id)
+        ctx.data().get_persisted(id)
     }
 
     pub fn store(self, ctx: &Context, id: Id) {
-        ctx.memory().data.insert_persisted(id, self);
+        ctx.data().insert_persisted(id, self);
     }
 
     pub fn from_memory_with_default_open(ctx: &Context, id: Id, default_open: bool) -> Self {

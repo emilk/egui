@@ -8,9 +8,16 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 ## Unreleased
 
 ### Added ⭐
+* Much improved font selection ([#1154](https://github.com/emilk/egui/pull/1154)):
+  * You can now select any font size and family using `RichText::size` amd `RichText::family` and the new `FontId`.
+  * Easily change text styles with `Style::text_styles`.
+  * Added `Ui::text_style_height`.
+  * Added `TextStyle::resolve`.
 * `Context::load_texture` to convert an image into a texture which can be displayed using e.g. `ui.image(texture, size)` ([#1110](https://github.com/emilk/egui/pull/1110)).
 * Added `Ui::add_visible` and `Ui::add_visible_ui`.
-* Added `CollapsingHeader::icon` to override the default open/close icon using a custom function. ([1147](https://github.com/emilk/egui/pull/1147))
+* Added `CollapsingHeader::icon` to override the default open/close icon using a custom function. ([1147](https://github.com/emilk/egui/pull/1147)).
+* Added `Plot::x_axis_formatter` and `Plot::y_axis_formatter` for custom axis labels ([#1130](https://github.com/emilk/egui/pull/1130)).
+* Added `ui.data()`, `ctx.data()`, `ctx.options()` and `ctx.tessellation_options()` ([#1175](https://github.com/emilk/egui/pull/1175)).
 * Added `Response::on_hover_text_at_pointer` as a convenience akin to `Response::on_hover_text`. ([1179](https://github.com/emilk/egui/pull/1179))
 
 ### Changed 🔧
@@ -21,12 +28,23 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * `Context` can now be cloned and stored between frames ([#1050](https://github.com/emilk/egui/pull/1050)).
 * Renamed `Ui::visible` to `Ui::is_visible`.
 * Split `Event::Text` into `Event::Text` and `Event::Paste` ([#1058](https://github.com/emilk/egui/pull/1058)).
-* For integrations: `FontImage` has been replaced by `TexturesDelta` (found in `Output`), describing what textures were loaded and freed each frame ([#1110](https://github.com/emilk/egui/pull/1110)).
+* For integrations:
+  * `FontImage` has been replaced by `TexturesDelta` (found in `Output`), describing what textures were loaded and freed each frame ([#1110](https://github.com/emilk/egui/pull/1110)).
+  * The painter must support partial texture updates ([#1149](https://github.com/emilk/egui/pull/1149)).
+  * Added `RawInput::max_texture_side` which should be filled in with e.g. `GL_MAX_TEXTURE_SIZE` ([#1154](https://github.com/emilk/egui/pull/1154)).
+* Replaced `Style::body_text_style` with more generic `Style::text_styles` ([#1154](https://github.com/emilk/egui/pull/1154)).
+* `TextStyle` is no longer `Copy` ([#1154](https://github.com/emilk/egui/pull/1154)).
+* Replaced `TextEdit::text_style` with `TextEdit::font` ([#1154](https://github.com/emilk/egui/pull/1154)).
+* `Plot::highlight` now takes a `bool` argument ([#1159](https://github.com/emilk/egui/pull/1159)).
+* `ScrollArea::show` now returns a `ScrollAreaOutput`, so you might need to add `.inner` after the call to it ([#1166](https://github.com/emilk/egui/pull/1166)).
 
 ### Fixed 🐛
 * Context menu now respects the theme ([#1043](https://github.com/emilk/egui/pull/1043))
+* Plot `Orientation` was not public, although fields using this type were ([#1130](https://github.com/emilk/egui/pull/1130))
+* Fixed `enable_drag` for Windows ([#1108](https://github.com/emilk/egui/pull/1108)).
 
 ### Contributors 🙏
+* [AlexxxRu](https://github.com/alexxxru): [#1108](https://github.com/emilk/egui/pull/1108).
 * [danielkeller](https://github.com/danielkeller): [#1050](https://github.com/emilk/egui/pull/1050).
 * [juancampa](https://github.com/juancampa): [#1147](https://github.com/emilk/egui/pull/1147).
 
@@ -531,6 +549,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Logarithmic sliders
 * Optimization: coarse culling in the tessellator
 * CHANGED: switch argument order of `ui.checkbox` and `ui.radio`
+
 
 ## 0.1.4 - 2020-09-08
 

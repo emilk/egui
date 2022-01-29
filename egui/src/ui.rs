@@ -133,7 +133,7 @@ impl Ui {
     /// Example:
     /// ```
     /// # egui::__run_test_ui(|ui| {
-    /// ui.style_mut().body_text_style = egui::TextStyle::Heading;
+    /// ui.style_mut().override_text_style = Some(egui::TextStyle::Heading);
     /// # });
     /// ```
     pub fn style_mut(&mut self) -> &mut Style {
@@ -338,25 +338,36 @@ impl Ui {
         self.ctx().input()
     }
 
-    /// The `Memory` of the `Context` associated with the `Ui`.
+    /// The [`Memory`] of the [`Context`] associated with this ui.
     /// Equivalent to `.ctx().memory()`.
     #[inline]
     pub fn memory(&self) -> RwLockWriteGuard<'_, Memory> {
         self.ctx().memory()
     }
 
-    /// The `Output` of the `Context` associated with the `Ui`.
+    /// Stores superficial widget state.
+    #[inline]
+    pub fn data(&self) -> RwLockWriteGuard<'_, crate::util::IdTypeMap> {
+        self.ctx().data()
+    }
+
+    /// The [`Output`] of the [`Context`] associated with this ui.
     /// Equivalent to `.ctx().output()`.
     #[inline]
     pub fn output(&self) -> RwLockWriteGuard<'_, Output> {
         self.ctx().output()
     }
 
-    /// The `Fonts` of the `Context` associated with the `Ui`.
+    /// The [`Fonts`] of the [`Context`] associated with this ui.
     /// Equivalent to `.ctx().fonts()`.
     #[inline]
     pub fn fonts(&self) -> RwLockReadGuard<'_, Fonts> {
         self.ctx().fonts()
+    }
+
+    /// The height of text of this text style
+    pub fn text_style_height(&self, style: &TextStyle) -> f32 {
+        self.fonts().row_height(&style.resolve(self.style()))
     }
 
     /// Screen-space rectangle for clipping what we paint in this ui.
@@ -1086,6 +1097,16 @@ impl Ui {
     /// Shortcut for `add(Label::new(text))`
     ///
     /// See also [`Label`].
+    ///
+    /// ### Example
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// use egui::{RichText, FontId, Color32};
+    /// ui.label("Normal text");
+    /// ui.label(RichText::new("Large text").font(FontId::proportional(40.0)));
+    /// ui.label(RichText::new("Red text").color(Color32::RED));
+    /// # });
+    /// ```
     #[inline]
     pub fn label(&mut self, text: impl Into<WidgetText>) -> Response {
         Label::new(text).ui(self)
@@ -1256,12 +1277,12 @@ impl Ui {
     pub fn radio_value<Value: PartialEq>(
         &mut self,
         current_value: &mut Value,
-        selected_value: Value,
+        alternative: Value,
         text: impl Into<WidgetText>,
     ) -> Response {
-        let mut response = self.radio(*current_value == selected_value, text);
+        let mut response = self.radio(*current_value == alternative, text);
         if response.clicked() {
-            *current_value = selected_value;
+            *current_value = alternative;
             response.mark_changed();
         }
         response

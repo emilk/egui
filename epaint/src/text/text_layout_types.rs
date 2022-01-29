@@ -3,7 +3,7 @@
 use std::ops::Range;
 
 use super::{cursor::*, font::UvRect};
-use crate::{mutex::Arc, Color32, Mesh, Stroke, TextStyle};
+use crate::{mutex::Arc, Color32, FontId, Mesh, Stroke};
 use emath::*;
 
 /// Describes the task of laying out text.
@@ -14,14 +14,14 @@ use emath::*;
 ///
 /// ## Example:
 /// ```
-/// use epaint::{Color32, text::{LayoutJob, TextFormat}, TextStyle};
+/// use epaint::{Color32, text::{LayoutJob, TextFormat}, FontFamily, FontId};
 ///
 /// let mut job = LayoutJob::default();
 /// job.append(
 ///     "Hello ",
 ///     0.0,
 ///     TextFormat {
-///         style: TextStyle::Body,
+///         font_id: FontId::new(14.0, FontFamily::Proportional),
 ///         color: Color32::WHITE,
 ///         ..Default::default()
 ///     },
@@ -30,7 +30,7 @@ use emath::*;
 ///     "World!",
 ///     0.0,
 ///     TextFormat {
-///         style: TextStyle::Monospace,
+///         font_id: FontId::new(14.0, FontFamily::Monospace),
 ///         color: Color32::BLACK,
 ///         ..Default::default()
 ///     },
@@ -90,12 +90,12 @@ impl Default for LayoutJob {
 impl LayoutJob {
     /// Break on `\n` and at the given wrap width.
     #[inline]
-    pub fn simple(text: String, text_style: TextStyle, color: Color32, wrap_width: f32) -> Self {
+    pub fn simple(text: String, font_id: FontId, color: Color32, wrap_width: f32) -> Self {
         Self {
             sections: vec![LayoutSection {
                 leading_space: 0.0,
                 byte_range: 0..text.len(),
-                format: TextFormat::simple(text_style, color),
+                format: TextFormat::simple(font_id, color),
             }],
             text,
             wrap_width,
@@ -106,12 +106,12 @@ impl LayoutJob {
 
     /// Does not break on `\n`, but shows the replacement character instead.
     #[inline]
-    pub fn simple_singleline(text: String, text_style: TextStyle, color: Color32) -> Self {
+    pub fn simple_singleline(text: String, font_id: FontId, color: Color32) -> Self {
         Self {
             sections: vec![LayoutSection {
                 leading_space: 0.0,
                 byte_range: 0..text.len(),
-                format: TextFormat::simple(text_style, color),
+                format: TextFormat::simple(font_id, color),
             }],
             text,
             wrap_width: f32::INFINITY,
@@ -156,7 +156,7 @@ impl LayoutJob {
     pub fn font_height(&self, fonts: &crate::Fonts) -> f32 {
         let mut max_height = 0.0_f32;
         for section in &self.sections {
-            max_height = max_height.max(fonts.row_height(section.format.style));
+            max_height = max_height.max(fonts.row_height(&section.format.font_id));
         }
         max_height
     }
@@ -213,10 +213,10 @@ impl std::hash::Hash for LayoutSection {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Copy, Clone, Debug, Hash, PartialEq)]
+#[derive(Clone, Debug, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TextFormat {
-    pub style: TextStyle,
+    pub font_id: FontId,
     /// Text color
     pub color: Color32,
     pub background: Color32,
@@ -233,7 +233,7 @@ impl Default for TextFormat {
     #[inline]
     fn default() -> Self {
         Self {
-            style: TextStyle::Body,
+            font_id: FontId::default(),
             color: Color32::GRAY,
             background: Color32::TRANSPARENT,
             italics: false,
@@ -246,9 +246,9 @@ impl Default for TextFormat {
 
 impl TextFormat {
     #[inline]
-    pub fn simple(style: TextStyle, color: Color32) -> Self {
+    pub fn simple(font_id: FontId, color: Color32) -> Self {
         Self {
-            style,
+            font_id,
             color,
             ..Default::default()
         }

@@ -1,8 +1,9 @@
 use crate::*;
+use egui_winit::winit;
 
 struct RequestRepaintEvent;
 
-struct GlowRepaintSignal(std::sync::Mutex<glutin::event_loop::EventLoopProxy<RequestRepaintEvent>>);
+struct GlowRepaintSignal(std::sync::Mutex<winit::event_loop::EventLoopProxy<RequestRepaintEvent>>);
 
 impl epi::backend::RepaintSignal for GlowRepaintSignal {
     fn request_repaint(&self) {
@@ -12,8 +13,8 @@ impl epi::backend::RepaintSignal for GlowRepaintSignal {
 
 #[allow(unsafe_code)]
 fn create_display(
-    window_builder: glutin::window::WindowBuilder,
-    event_loop: &glutin::event_loop::EventLoop<RequestRepaintEvent>,
+    window_builder: winit::window::WindowBuilder,
+    event_loop: &winit::event_loop::EventLoop<RequestRepaintEvent>,
 ) -> (
     glutin::WindowedContext<glutin::PossiblyCurrent>,
     glow::Context,
@@ -51,7 +52,7 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
     let window_settings = persistence.load_window_settings();
     let window_builder =
         egui_winit::epi::window_builder(native_options, &window_settings).with_title(app.name());
-    let event_loop = glutin::event_loop::EventLoop::with_user_event();
+    let event_loop = winit::event_loop::EventLoop::with_user_event();
     let (gl_window, gl) = create_display(window_builder, &event_loop);
 
     let repaint_signal = std::sync::Arc::new(GlowRepaintSignal(std::sync::Mutex::new(
@@ -63,6 +64,7 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
         .unwrap();
     let mut integration = egui_winit::epi::EpiIntegration::new(
         "egui_glow",
+        painter.max_texture_side(),
         gl_window.window(),
         repaint_signal,
         persistence,
@@ -86,8 +88,8 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
                 integration.update(gl_window.window());
             let clipped_meshes = integration.egui_ctx.tessellate(shapes);
 
-            for (id, image) in textures_delta.set {
-                painter.set_texture(&gl, id, &image);
+            for (id, image_delta) in textures_delta.set {
+                painter.set_texture(&gl, id, &image_delta);
             }
 
             // paint:
@@ -115,12 +117,12 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
 
             {
                 *control_flow = if integration.should_quit() {
-                    glutin::event_loop::ControlFlow::Exit
+                    winit::event_loop::ControlFlow::Exit
                 } else if needs_repaint {
                     gl_window.window().request_redraw();
-                    glutin::event_loop::ControlFlow::Poll
+                    winit::event_loop::ControlFlow::Poll
                 } else {
-                    glutin::event_loop::ControlFlow::Wait
+                    winit::event_loop::ControlFlow::Wait
                 };
             }
 
@@ -131,30 +133,30 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
             // Platform-dependent event handlers to workaround a winit bug
             // See: https://github.com/rust-windowing/winit/issues/987
             // See: https://github.com/rust-windowing/winit/issues/1619
-            glutin::event::Event::RedrawEventsCleared if cfg!(windows) => redraw(),
-            glutin::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
+            winit::event::Event::RedrawEventsCleared if cfg!(windows) => redraw(),
+            winit::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
 
-            glutin::event::Event::WindowEvent { event, .. } => {
-                if let glutin::event::WindowEvent::Focused(new_focused) = event {
+            winit::event::Event::WindowEvent { event, .. } => {
+                if let winit::event::WindowEvent::Focused(new_focused) = event {
                     is_focused = new_focused;
                 }
 
-                if let glutin::event::WindowEvent::Resized(physical_size) = event {
+                if let winit::event::WindowEvent::Resized(physical_size) = event {
                     gl_window.resize(physical_size);
                 }
 
                 integration.on_event(&event);
                 if integration.should_quit() {
-                    *control_flow = glutin::event_loop::ControlFlow::Exit;
+                    *control_flow = winit::event_loop::ControlFlow::Exit;
                 }
 
                 gl_window.window().request_redraw(); // TODO: ask egui if the events warrants a repaint instead
             }
-            glutin::event::Event::LoopDestroyed => {
+            winit::event::Event::LoopDestroyed => {
                 integration.on_exit(gl_window.window());
                 painter.destroy(&gl);
             }
-            glutin::event::Event::UserEvent(RequestRepaintEvent) => {
+            winit::event::Event::UserEvent(RequestRepaintEvent) => {
                 gl_window.window().request_redraw();
             }
             _ => (),

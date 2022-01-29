@@ -129,17 +129,22 @@ pub struct State {
 }
 
 impl State {
-    /// Initialize with the native `pixels_per_point` (dpi scaling).
-    pub fn new(window: &winit::window::Window) -> Self {
-        Self::from_pixels_per_point(native_pixels_per_point(window))
+    /// Initialize with:
+    /// * `max_texture_side`: e.g. `GL_MAX_TEXTURE_SIZE`
+    /// * the native `pixels_per_point` (dpi scaling).
+    pub fn new(max_texture_side: usize, window: &winit::window::Window) -> Self {
+        Self::from_pixels_per_point(max_texture_side, native_pixels_per_point(window))
     }
 
-    /// Initialize with a given dpi scaling.
-    pub fn from_pixels_per_point(pixels_per_point: f32) -> Self {
+    /// Initialize with:
+    /// * `max_texture_side`: e.g. `GL_MAX_TEXTURE_SIZE`
+    /// * the given `pixels_per_point` (dpi scaling).
+    pub fn from_pixels_per_point(max_texture_side: usize, pixels_per_point: f32) -> Self {
         Self {
             start_time: instant::Instant::now(),
             egui_input: egui::RawInput {
                 pixels_per_point: Some(pixels_per_point),
+                max_texture_side,
                 ..Default::default()
             },
             pointer_pos_in_points: None,
@@ -515,7 +520,7 @@ impl State {
         egui_ctx: &egui::Context,
         output: egui::Output,
     ) -> egui::TexturesDelta {
-        if egui_ctx.memory().options.screen_reader {
+        if egui_ctx.options().screen_reader {
             self.screen_reader.speak(&output.events_description());
         }
 

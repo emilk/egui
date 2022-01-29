@@ -196,6 +196,7 @@ fn combo_box_dyn<'c, R>(
         ScrollArea::vertical()
             .max_height(ui.spacing().combo_height)
             .show(ui, menu_contents)
+            .inner
     });
 
     InnerResponse {

@@ -62,6 +62,7 @@ While using an immediate mode gui is simple, implementing one is a lot more tric
 * read some code before writing your own
 * follow the `egui` code style
 * add blank lines around all `fn`, `struct`, `enum`, etc.
+* `// Comment like this`, not `//like this`
 * write idiomatic rust
 * avoid `unsafe`
 * avoid code that can cause panics

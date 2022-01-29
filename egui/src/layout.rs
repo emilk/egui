@@ -77,7 +77,6 @@ impl Region {
 /// Layout direction, one of `LeftToRight`, `RightToLeft`, `TopDown`, `BottomUp`.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
 pub enum Direction {
     LeftToRight,
     RightToLeft,

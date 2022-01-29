@@ -105,15 +105,15 @@ pub mod util;
 
 pub use {
     color::{Color32, Rgba},
-    image::{AlphaImage, ColorImage, ImageData},
+    image::{AlphaImage, ColorImage, ImageData, ImageDelta},
     mesh::{Mesh, Mesh16, Vertex},
     shadow::Shadow,
     shape::{CircleShape, PathShape, RectShape, Shape, TextShape},
     stats::PaintStats,
     stroke::Stroke,
     tessellator::{tessellate_shapes, TessellationOptions, Tessellator},
-    text::{Fonts, Galley, TextStyle},
-    texture_atlas::{FontImage, TextureAtlas},
+    text::{FontFamily, FontId, Fonts, Galley},
+    texture_atlas::TextureAtlas,
     texture_handle::TextureHandle,
     textures::TextureManager,
 };
