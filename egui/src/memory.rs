@@ -423,7 +423,7 @@ impl Memory {
 /// Popups are things like combo-boxes, color pickers, menus etc.
 /// Only one can be be open at a time.
 impl Memory {
-    pub fn is_popup_open(&mut self, popup_id: Id) -> bool {
+    pub fn is_popup_open(&self, popup_id: Id) -> bool {
         self.popup == Some(popup_id) || self.everything_is_visible()
     }
 
