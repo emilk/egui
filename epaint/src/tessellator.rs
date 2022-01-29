@@ -286,6 +286,12 @@ pub struct TessellationOptions {
 
     /// If true, no clipping will be done.
     pub debug_ignore_clip_rects: bool,
+
+    /// The maximum distance between the original curve and the flattened curve.
+    pub bezier_tolerence: f32,
+
+    /// The default value will be 1.0e-5, it will be used during float compare.
+    pub epsilon: f32,
 }
 
 impl Default for TessellationOptions {
@@ -299,6 +305,8 @@ impl Default for TessellationOptions {
             debug_paint_text_rects: false,
             debug_paint_clip_rects: false,
             debug_ignore_clip_rects: false,
+            bezier_tolerence: 0.1,
+            epsilon: 1.0e-5,
         }
     }
 }
@@ -710,7 +718,91 @@ impl Tessellator {
                 }
                 self.tessellate_text(tex_size, text_shape, out);
             }
+            Shape::QuadraticBezier(quadratic_shape) => {
+                self.tessellate_quadratic_bezier(quadratic_shape, out);
+            }
+            Shape::CubicBezier(cubic_shape) => self.tessellate_cubic_bezier(cubic_shape, out),
         }
+    }
+
+    pub(crate) fn tessellate_quadratic_bezier(
+        &mut self,
+        quadratic_shape: QuadraticBezierShape,
+        out: &mut Mesh,
+    ) {
+        let options = &self.options;
+        let clip_rect = self.clip_rect;
+
+        if options.coarse_tessellation_culling
+            && !quadratic_shape.bounding_rect().intersects(clip_rect)
+        {
+            return;
+        }
+
+        let points = quadratic_shape.flatten(Some(options.bezier_tolerence));
+
+        self.tessellate_bezier_complete(
+            points,
+            quadratic_shape.fill,
+            quadratic_shape.closed,
+            quadratic_shape.stroke,
+            out,
+        );
+    }
+
+    pub(crate) fn tessellate_cubic_bezier(
+        &mut self,
+        cubic_shape: CubicBezierShape,
+        out: &mut Mesh,
+    ) {
+        let options = &self.options;
+        let clip_rect = self.clip_rect;
+        if options.coarse_tessellation_culling && !cubic_shape.bounding_rect().intersects(clip_rect)
+        {
+            return;
+        }
+
+        let points_vec =
+            cubic_shape.flatten_closed(Some(options.bezier_tolerence), Some(options.epsilon));
+
+        for points in points_vec {
+            self.tessellate_bezier_complete(
+                points,
+                cubic_shape.fill,
+                cubic_shape.closed,
+                cubic_shape.stroke,
+                out,
+            );
+        }
+    }
+
+    fn tessellate_bezier_complete(
+        &mut self,
+        points: Vec<Pos2>,
+        fill: Color32,
+        closed: bool,
+        stroke: Stroke,
+        out: &mut Mesh,
+    ) {
+        self.scratchpad_path.clear();
+        if closed {
+            self.scratchpad_path.add_line_loop(&points);
+        } else {
+            self.scratchpad_path.add_open_points(&points);
+        }
+        if fill != Color32::TRANSPARENT {
+            crate::epaint_assert!(
+                closed,
+                "You asked to fill a path that is not closed. That makes no sense."
+            );
+            self.scratchpad_path.fill(fill, &self.options, out);
+        }
+        let typ = if closed {
+            PathType::Closed
+        } else {
+            PathType::Open
+        };
+        self.scratchpad_path.stroke(typ, stroke, &self.options, out);
     }
 
     pub(crate) fn tessellate_path(&mut self, path_shape: PathShape, out: &mut Mesh) {

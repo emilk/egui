@@ -144,6 +144,8 @@ impl Widget for &mut epaint::TessellationOptions {
                 debug_paint_clip_rects,
                 debug_paint_text_rects,
                 debug_ignore_clip_rects,
+                bezier_tolerence,
+                epsilon: _,
             } = self;
             ui.checkbox(anti_alias, "Antialias")
                 .on_hover_text("Turn off for small performance gain.");
@@ -158,6 +160,10 @@ impl Widget for &mut epaint::TessellationOptions {
                 ui.checkbox(debug_ignore_clip_rects, "Ignore clip rectangles");
                 ui.checkbox(debug_paint_clip_rects, "Paint clip rectangles");
                 ui.checkbox(debug_paint_text_rects, "Paint text bounds");
+                crate::widgets::Slider::new(bezier_tolerence, 0.0001..=10.0)
+                    .logarithmic(true)
+                    .show_value(true)
+                    .text("Tolerance")
             });
         })
         .response
