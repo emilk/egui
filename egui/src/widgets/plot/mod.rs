@@ -25,7 +25,7 @@ type CustomLabelFuncRef = Option<Box<CustomLabelFunc>>;
 type AxisFormatterFn = dyn Fn(f64) -> String;
 type AxisFormatter = Option<Box<AxisFormatterFn>>;
 
-type GridSpacerFn = dyn Fn((f64, f64), f64) -> [f64; 3];
+type GridSpacerFn = dyn Fn(GridInput) -> Vec<GridMark>;
 type GridSpacer = Box<GridSpacerFn>;
 
 // ----------------------------------------------------------------------------
@@ -258,39 +258,39 @@ impl Plot {
     /// Default is a log-10 grid, i.e. every plot unit is divided into 10 other units.
     ///
     /// The function has this signature:
-    /// ```no_run
-    /// fn get_step_sizes(
-    ///     bounds: (f64, f64),
-    ///     bounds_frame_ratio: f64
-    /// ) -> [f64; 3]
-    /// # { todo!() }
+    /// ```ignore
+    /// fn get_step_sizes(input: GridInput) -> Vec<GridMark>;
     /// ```
     ///
-    /// `bounds` are min/max of the visible data range (the values at the two edges of the plot,
-    /// for the current axis).
+    /// This function should return all marks along the visible range of the X axis.
+    /// For example, if x = 80..=230 is visible and you want big marks at steps of
+    /// 100 and small ones at 25, you can return:
+    /// ```no_run
+    /// # use egui::plot::GridMark;
+    /// vec![
+    ///    // 100s
+    ///    GridMark { value: 100.0, step_size: 100.0 },
+    ///    GridMark { value: 200.0, step_size: 100.0 },
     ///
-    /// `bounds_frame_ratio` is the ratio between the diagram's bounds (in plot coordinates) and
-    /// the viewport (in frame/window coordinates), scaled up to represent the minimal possible step.
-    /// This is a good value to be used as the smallest of the returned steps.
+    ///    // 25s
+    ///    GridMark { value: 125.0, step_size: 25.0 },
+    ///    GridMark { value: 150.0, step_size: 25.0 },
+    ///    GridMark { value: 175.0, step_size: 25.0 },
+    ///    GridMark { value: 225.0, step_size: 25.0 },
+    /// ];
+    /// # ()
+    /// ```
     ///
-    /// This function should return 3 positive step sizes, designating where the lines in the grid are drawn.
-    /// Lines are thicker for larger values.
-    /// An example return values is `[bounds_frame_ratio, 10 * bounds_frame_ratio, 100 * bounds_frame_ratio]`.
-    ///
-    /// Why only 3 step sizes? The idea is that you compute the units dynamically, depending on the currently
-    /// displayed value range.
-    ///
-    /// See also [`log_grid_spacer`].
-    pub fn x_grid_spacer(mut self, spacer: impl Fn((f64, f64), f64) -> [f64; 3] + 'static) -> Self {
+    /// There are helpers for common cases, see [`log_grid_spacer`] and [`uniform_grid_spacer`].
+    pub fn x_grid_spacer(mut self, spacer: impl Fn(GridInput) -> Vec<GridMark> + 'static) -> Self {
         self.grid_spacers[0] = Box::new(spacer);
         self
     }
 
-    /// Configure how the grid in the background is spaced apart along the Y axis.
-    ///
     /// Default is a log-10 grid, i.e. every plot unit is divided into 10 other units.
-    /// See [`x_grid_spacer()`] for explanation of the function signature.
-    pub fn y_grid_spacer(mut self, spacer: impl Fn((f64, f64), f64) -> [f64; 3] + 'static) -> Self {
+    ///
+    /// See [`Self::x_grid_spacer`] for explanation.
+    pub fn y_grid_spacer(mut self, spacer: impl Fn(GridInput) -> Vec<GridMark> + 'static) -> Self {
         self.grid_spacers[1] = Box::new(spacer);
         self
     }
@@ -731,34 +731,72 @@ impl PlotUi {
 // ----------------------------------------------------------------------------
 // Grid
 
-/// One step (horizontal or vertical line) in the background grid
-struct GridStep {
-    /// X or Y value in the plot
-    value: f64,
+/// Input for "grid spacer" functions.
+///
+/// See [`Plot::x_grid_spacer()`] and [`Plot::y_grid_spacer()`].
+pub struct GridInput {
+    /// Min/max of the visible data range (the values at the two edges of the plot,
+    /// for the current axis).
+    pub bounds: (f64, f64),
 
-    /// The step size for that value, determines how thick the grid line is painted at that point
-    step_size: f64,
+    /// Ratio between the diagram's bounds (in plot coordinates) and the viewport
+    /// (in frame/window coordinates), scaled up to represent the minimal possible step.
+    /// This is a good value to be used as the smallest of the returned steps.
+    pub bounds_frame_ratio: f64,
 }
 
-/// A function splitting the grid into `base` subdivisions.
+/// One mark (horizontal or vertical line) in the background grid of a plot.
+pub struct GridMark {
+    /// X or Y value in the plot.
+    pub value: f64,
+
+    /// The (approximate) distance to the next value of same thickness.
+    ///
+    /// Determines how thick the grid line is painted. It's not important that `step_size`
+    /// matches the difference between two `value`s precisely, but rather that grid marks of
+    /// same thickness have same `step_size`. For example, months can have a different number
+    /// of days, but consistently using a `step_size` of 30 days is a valid approximation.
+    pub step_size: f64,
+}
+
+/// Recursively splits the grid into `base` subdivisions (e.g. 100, 10, 1).
 ///
 /// The logarithmic base, expressing how many times each grid unit is subdivided.
 /// 10 is a typical value, others are possible though.
 pub fn log_grid_spacer(base: i64) -> GridSpacer {
     let base = base as f64;
-    let get_step_sizes = move |_bounds: (f64, f64), bounds_frame_ratio: f64| -> [f64; 3] {
+    let get_step_sizes = move |input: GridInput| -> Vec<GridMark> {
         // The distance between two of the thinnest grid lines is "rounded" up
         // to the next-bigger power of base
-        let smallest_visible_unit = next_power(bounds_frame_ratio, base);
+        let smallest_visible_unit = next_power(input.bounds_frame_ratio, base);
 
-        [
+        let step_sizes = [
             smallest_visible_unit,
             smallest_visible_unit * base,
             smallest_visible_unit * base * base,
-        ]
+        ];
+
+        generate_marks(step_sizes, input.bounds)
     };
 
     Box::new(get_step_sizes)
+}
+
+/// Splits the grid into uniform-sized spacings (e.g. 100, 25, 1).
+///
+/// This function should return 3 positive step sizes, designating where the lines in the grid are drawn.
+/// Lines are thicker for larger step sizes. Ordering of returned value is irrelevant.
+///
+/// Why only 3 step sizes? Three is the number of different line thicknesses that egui typically uses in the grid.
+/// Ideally, those 3 are not hardcoded values, but depend on the visible range (accessible through `GridInput`).
+pub fn uniform_grid_spacer(spacer: impl Fn(GridInput) -> [f64; 3] + 'static) -> GridSpacer {
+    let get_marks = move |input: GridInput| -> Vec<GridMark> {
+        let bounds = input.bounds;
+        let step_sizes = spacer(input);
+        generate_marks(step_sizes, bounds)
+    };
+
+    Box::new(get_marks)
 }
 
 // ----------------------------------------------------------------------------
@@ -815,12 +853,12 @@ impl PreparedPlot {
 
         let bounds = (bounds.min[axis], bounds.max[axis]);
         let bounds_frame_ratio = transform.dvalue_dpos()[axis] * MIN_LINE_SPACING_IN_POINTS;
-        let step_sizes = (grid_spacers[axis])(bounds, bounds_frame_ratio);
 
-        let mut steps = vec![];
-        fill_steps_between(&mut steps, step_sizes[0], bounds);
-        fill_steps_between(&mut steps, step_sizes[1], bounds);
-        fill_steps_between(&mut steps, step_sizes[2], bounds);
+        let input = GridInput {
+            bounds,
+            bounds_frame_ratio,
+        };
+        let steps = (grid_spacers[axis])(input);
 
         for step in steps {
             let value_main = step.value;
@@ -942,13 +980,22 @@ fn next_power(value: f64, base: f64) -> f64 {
 }
 
 /// Fill in all values between [min, max] which are a multiple of `step_size`
-fn fill_steps_between(out: &mut Vec<GridStep>, step_size: f64, (min, max): (f64, f64)) {
+fn generate_marks(step_sizes: [f64; 3], bounds: (f64, f64)) -> Vec<GridMark> {
+    let mut steps = vec![];
+    fill_marks_between(&mut steps, step_sizes[0], bounds);
+    fill_marks_between(&mut steps, step_sizes[1], bounds);
+    fill_marks_between(&mut steps, step_sizes[2], bounds);
+    steps
+}
+
+/// Fill in all values between [min, max] which are a multiple of `step_size`
+fn fill_marks_between(out: &mut Vec<GridMark>, step_size: f64, (min, max): (f64, f64)) {
     assert!(max > min);
     let first = (min / step_size).ceil() as i64;
     let last = (max / step_size).ceil() as i64;
 
     for i in first..last {
         let value = (i as f64) * step_size;
-        out.push(GridStep { value, step_size });
+        out.push(GridMark { value, step_size });
     }
 }

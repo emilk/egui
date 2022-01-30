@@ -545,11 +545,7 @@ impl ChartsDemo {
             }
         };
 
-        let grid: fn((f64, f64), f64) -> [f64; 3] =
-            // statically return 1, 5 and 30 days (just when zooming out)
-            |_bounds, _bounds_frame_ratio| {
-            [1.0, 5.0, 30.0]
-        };
+        let grid = plot::uniform_grid_spacer(|_input| -> [f64; 3] { [1.0, 5.0, 30.0] });
 
         if !self.vertical {
             chart1 = chart1.horizontal();
