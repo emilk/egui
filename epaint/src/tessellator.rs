@@ -742,7 +742,7 @@ impl Tessellator {
         let points = quadratic_shape.flatten(Some(options.bezier_tolerence));
 
         self.tessellate_bezier_complete(
-            points,
+            &points,
             quadratic_shape.fill,
             quadratic_shape.closed,
             quadratic_shape.stroke,
@@ -767,7 +767,7 @@ impl Tessellator {
 
         for points in points_vec {
             self.tessellate_bezier_complete(
-                points,
+                &points,
                 cubic_shape.fill,
                 cubic_shape.closed,
                 cubic_shape.stroke,
@@ -778,7 +778,7 @@ impl Tessellator {
 
     fn tessellate_bezier_complete(
         &mut self,
-        points: Vec<Pos2>,
+        points: &[Pos2],
         fill: Color32,
         closed: bool,
         stroke: Stroke,
@@ -786,9 +786,9 @@ impl Tessellator {
     ) {
         self.scratchpad_path.clear();
         if closed {
-            self.scratchpad_path.add_line_loop(&points);
+            self.scratchpad_path.add_line_loop(points);
         } else {
-            self.scratchpad_path.add_open_points(&points);
+            self.scratchpad_path.add_open_points(points);
         }
         if fill != Color32::TRANSPARENT {
             crate::epaint_assert!(

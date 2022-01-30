@@ -6,7 +6,6 @@ use egui::*;
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct PaintBezier {
     bezier: usize,                       // current bezier curve degree, it can be 3,4,
-    tolerance: f32,                      // the tolerance for the bezier curve
     bezier_backup: usize, //track the bezier degree before change in order to clean the remaining points.
     points: Vec<Pos2>, //points already clicked. once it reaches the 'bezier' degree, it will be pushed into the 'shapes'
     backup_points: Vec<Pos2>, //track last points set in order to draw auxiliary lines.
@@ -23,8 +22,7 @@ pub struct PaintBezier {
 impl Default for PaintBezier {
     fn default() -> Self {
         Self {
-            bezier: 4,      // default bezier degree, a cubic bezier curve
-            tolerance: 1.0, // default tolerance 1.0
+            bezier: 4, // default bezier degree, a cubic bezier curve
             bezier_backup: 4,
             points: Default::default(),
             backup_points: Default::default(),
@@ -48,44 +46,43 @@ impl PaintBezier {
                 egui::stroke_ui(ui, &mut self.aux_stroke, "Auxiliary Stroke");
                 ui.horizontal(|ui| {
                     ui.label("Fill Color:");
-                    if ui.color_edit_button_srgba(&mut self.fill).changed() {
-                        if self.fill != Color32::TRANSPARENT {
-                            self.closed = true;
-                        }
+                    if ui.color_edit_button_srgba(&mut self.fill).changed()
+                        && self.fill != Color32::TRANSPARENT
+                    {
+                        self.closed = true;
                     }
-                    if ui.checkbox(&mut self.closed, "Closed").clicked() {
-                        if !self.closed {
-                            self.fill = Color32::TRANSPARENT;
-                        }
+                    if ui.checkbox(&mut self.closed, "Closed").clicked() && !self.closed {
+                        self.fill = Color32::TRANSPARENT;
                     }
-                })
-            });
-
-            ui.separator();
-            ui.vertical(|ui| {
-                ui.add(
-                    egui::Slider::new(&mut self.tolerance, 0.0001..=10.0)
-                        .logarithmic(true)
-                        .show_value(true)
-                        .text("Tolerance:"),
-                );
-                ui.checkbox(&mut self.show_bounding_box, "Bounding Box");
-
+                });
                 egui::stroke_ui(ui, &mut self.bounding_box_stroke, "Bounding Box Stroke");
             });
+
             ui.separator();
             ui.vertical(|ui| {
-                if ui.radio_value(&mut self.bezier, 3, "Quadratic").clicked() {
-                    if self.bezier_backup != self.bezier {
-                        self.points.clear();
-                        self.bezier_backup = self.bezier;
-                    }
+                {
+                    let mut tessellation_options = *(ui.ctx().tessellation_options());
+                    let tessellation_options = &mut tessellation_options;
+                    tessellation_options.ui(ui);
+                    let mut new_tessellation_options = ui.ctx().tessellation_options();
+                    *new_tessellation_options = *tessellation_options;
+                }
+
+                ui.checkbox(&mut self.show_bounding_box, "Bounding Box");
+            });
+            ui.separator();
+            ui.vertical(|ui| {
+                if ui.radio_value(&mut self.bezier, 3, "Quadratic").clicked()
+                    && self.bezier_backup != self.bezier
+                {
+                    self.points.clear();
+                    self.bezier_backup = self.bezier;
                 };
-                if ui.radio_value(&mut self.bezier, 4, "Cubic").clicked() {
-                    if self.bezier_backup != self.bezier {
-                        self.points.clear();
-                        self.bezier_backup = self.bezier;
-                    }
+                if ui.radio_value(&mut self.bezier, 4, "Cubic").clicked()
+                    && self.bezier_backup != self.bezier
+                {
+                    self.points.clear();
+                    self.bezier_backup = self.bezier;
                 };
                 // ui.radio_value(self.bezier, 5, "Quintic");
                 ui.label("Click 3 or 4 points to build a bezier curve!");
@@ -100,42 +97,7 @@ impl PaintBezier {
         .response
     }
 
-    // an internal function to create auxiliary lines around the current bezier curve
-    // or to auxiliary lines (points) before the points meet the bezier curve requirements.
-    fn build_auxiliary_line(
-        &self,
-        points: &[Pos2],
-        to_screen: &RectTransform,
-        aux_stroke: &Stroke,
-    ) -> Vec<Shape> {
-        let mut shapes = Vec::new();
-        if points.len() >= 2 {
-            let points: Vec<Pos2> = points.iter().map(|p| to_screen * *p).collect();
-            shapes.push(egui::Shape::line(points, aux_stroke.clone()));
-        }
-        for point in points.iter() {
-            let center = to_screen * *point;
-            let radius = aux_stroke.width * 3.0;
-            let circle = CircleShape {
-                center,
-                radius,
-                fill: aux_stroke.color,
-                stroke: aux_stroke.clone(),
-            };
-
-            shapes.push(circle.into());
-        }
-
-        shapes
-    }
-
     pub fn ui_content(&mut self, ui: &mut Ui) -> egui::Response {
-        {
-            // using a block here to avoid the borrow checker conflict with the next painter borrow.
-            let mut t_options = ui.ctx().tessellation_options();
-            t_options.bezier_tolerence = self.tolerance;
-        }
-
         let (mut response, painter) =
             ui.allocate_painter(ui.available_size_before_wrap(), Sense::click());
 
@@ -157,8 +119,8 @@ impl PaintBezier {
                             let quadratic = QuadraticBezierShape::from_points_stroke(
                                 points,
                                 self.closed,
-                                self.fill.clone(),
-                                self.stroke.clone(),
+                                self.fill,
+                                self.stroke,
                             );
                             self.q_shapes.push(quadratic);
                         }
@@ -166,13 +128,13 @@ impl PaintBezier {
                             let cubic = CubicBezierShape::from_points_stroke(
                                 points,
                                 self.closed,
-                                self.fill.clone(),
-                                self.stroke.clone(),
+                                self.fill,
+                                self.stroke,
                             );
                             self.c_shapes.push(cubic);
                         }
                         _ => {
-                            todo!();
+                            unreachable!();
                         }
                     }
                 }
@@ -195,10 +157,14 @@ impl PaintBezier {
         }
         painter.extend(shapes);
 
-        if self.points.len() > 0 {
-            painter.extend(self.build_auxiliary_line(&self.points, &to_screen, &self.aux_stroke));
-        } else if self.backup_points.len() > 0 {
-            painter.extend(self.build_auxiliary_line(
+        if !self.points.is_empty() {
+            painter.extend(build_auxiliary_line(
+                &self.points,
+                &to_screen,
+                &self.aux_stroke,
+            ));
+        } else if !self.backup_points.is_empty() {
+            painter.extend(build_auxiliary_line(
                 &self.backup_points,
                 &to_screen,
                 &self.aux_stroke,
@@ -213,9 +179,37 @@ impl PaintBezier {
             min: to_screen * bbox.min,
             max: to_screen * bbox.max,
         };
-        let bbox_shape = epaint::RectShape::stroke(bbox, 0.0, self.bounding_box_stroke.clone());
+        let bbox_shape = epaint::RectShape::stroke(bbox, 0.0, self.bounding_box_stroke);
         bbox_shape.into()
     }
+}
+
+// an internal function to create auxiliary lines around the current bezier curve
+// or to auxiliary lines (points) before the points meet the bezier curve requirements.
+fn build_auxiliary_line(
+    points: &[Pos2],
+    to_screen: &RectTransform,
+    aux_stroke: &Stroke,
+) -> Vec<Shape> {
+    let mut shapes = Vec::new();
+    if points.len() >= 2 {
+        let points: Vec<Pos2> = points.iter().map(|p| to_screen * *p).collect();
+        shapes.push(egui::Shape::line(points, *aux_stroke));
+    }
+    for point in points.iter() {
+        let center = to_screen * *point;
+        let radius = aux_stroke.width * 3.0;
+        let circle = CircleShape {
+            center,
+            radius,
+            fill: aux_stroke.color,
+            stroke: *aux_stroke,
+        };
+
+        shapes.push(circle.into());
+    }
+
+    shapes
 }
 
 impl super::Demo for PaintBezier {

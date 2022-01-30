@@ -149,6 +149,12 @@ impl Widget for &mut epaint::TessellationOptions {
             } = self;
             ui.checkbox(anti_alias, "Antialias")
                 .on_hover_text("Turn off for small performance gain.");
+            ui.add(
+                crate::widgets::Slider::new(bezier_tolerence, 0.0001..=10.0)
+                    .logarithmic(true)
+                    .show_value(true)
+                    .text("Spline Tolerance"),
+            );
             ui.collapsing("debug", |ui| {
                 ui.checkbox(
                     coarse_tessellation_culling,
@@ -160,10 +166,6 @@ impl Widget for &mut epaint::TessellationOptions {
                 ui.checkbox(debug_ignore_clip_rects, "Ignore clip rectangles");
                 ui.checkbox(debug_paint_clip_rects, "Paint clip rectangles");
                 ui.checkbox(debug_paint_text_rects, "Paint text bounds");
-                crate::widgets::Slider::new(bezier_tolerence, 0.0001..=10.0)
-                    .logarithmic(true)
-                    .show_value(true)
-                    .text("Tolerance")
             });
         })
         .response

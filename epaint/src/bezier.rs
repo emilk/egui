@@ -1,15 +1,13 @@
+#![allow(clippy::many_single_char_names)]
 use std::ops::Range;
 
-use crate::{
-    Color32,  Stroke,
-    shape::Shape, PathShape,
-};
+use crate::{shape::Shape, Color32, PathShape, Stroke};
 use emath::*;
 
 // ----------------------------------------------------------------------------
 
 /// How to paint a cubic Bezier curve on screen.
-/// The definition: https://en.wikipedia.org/wiki/B%C3%A9zier_curve
+/// The definition: [Bezier Curve](https://en.wikipedia.org/wiki/B%C3%A9zier_curve).
 /// This implementation is only for cubic Bezier curve, or the Bezier curve of degree 3.
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -28,47 +26,49 @@ impl CubicBezierShape {
     /// The first point is the starting point and the last one is the ending point of the curve.
     /// The middle points are the control points.
     /// The number of points must be 4.
-    pub fn from_points_stroke(points: Vec<Pos2>,closed:bool,fill:Color32, stroke: impl Into<Stroke>) -> Self {
-        crate::epaint_assert!(
-            points.len() == 4,
-            "Cubic needs 4 points"
-        );
+    pub fn from_points_stroke(
+        points: Vec<Pos2>,
+        closed: bool,
+        fill: Color32,
+        stroke: impl Into<Stroke>,
+    ) -> Self {
+        crate::epaint_assert!(points.len() == 4, "Cubic needs 4 points");
         Self {
-            points:points.try_into().unwrap(),
+            points: points.try_into().unwrap(),
             closed,
             fill,
             stroke: stroke.into(),
         }
     }
-    
+
     /// Creates a cubic Bezier curve based on the screen coordinates for the 4 points.
-    pub fn to_screen(&self, to_screen:&RectTransform)->Self{
-        let mut points = [Pos2::default();4];
-        for i in 0..4{
-            points[i] = to_screen * self.points[i];
+    pub fn to_screen(&self, to_screen: &RectTransform) -> Self {
+        let mut points = [Pos2::default(); 4];
+        for (i, origin_point) in self.points.iter().enumerate() {
+            points[i] = to_screen * *origin_point;
         }
         CubicBezierShape {
             points,
             closed: self.closed,
-            fill: self.fill.clone(),
-            stroke: self.stroke.clone(),
+            fill: self.fill,
+            stroke: self.stroke,
         }
     }
 
-    /// Convert the cubic Bezier curve to one or two PathShapes.
-    /// When the curve is closed and it will cross the base line, it will be converted into two shapes.
+    /// Convert the cubic Bezier curve to one or two `PathShapes`.
+    /// When the curve is closed and it has to intersect with the base line, it will be converted into two shapes.
     /// Otherwise, it will be converted into one shape.
     /// The `tolerance` will be used to control the max distance between the curve and the base line.
     /// The `epsilon` is used when comparing two floats.
-    pub fn to_pathshapes(&self,tolerance:Option<f32>,epsilon:Option<f32>)->Vec<PathShape>{
+    pub fn to_pathshapes(&self, tolerance: Option<f32>, epsilon: Option<f32>) -> Vec<PathShape> {
         let mut pathshapes = Vec::new();
         let mut points_vec = self.flatten_closed(tolerance, epsilon);
-        for points in points_vec.drain(..){
-            let pathshape = PathShape{
+        for points in points_vec.drain(..) {
+            let pathshape = PathShape {
                 points,
                 closed: self.closed,
-                fill: self.fill.clone(),
-                stroke: self.stroke.clone(),
+                fill: self.fill,
+                stroke: self.stroke,
             };
             pathshapes.push(pathshape);
         }
@@ -77,26 +77,51 @@ impl CubicBezierShape {
     /// Screen-space bounding rectangle.
     pub fn bounding_rect(&self) -> Rect {
         //temporary solution
-        let (mut min_x,mut max_x) = if self.points[0].x < self.points[3].x {
-            (self.points[0].x,self.points[3].x)}else{(self.points[3].x,self.points[0].x)};
-        let (mut min_y,mut max_y) = if self.points[0].y < self.points[3].y {
-            (self.points[0].y,self.points[3].y)}else{(self.points[3].y,self.points[0].y)};
-        
+        let (mut min_x, mut max_x) = if self.points[0].x < self.points[3].x {
+            (self.points[0].x, self.points[3].x)
+        } else {
+            (self.points[3].x, self.points[0].x)
+        };
+        let (mut min_y, mut max_y) = if self.points[0].y < self.points[3].y {
+            (self.points[0].y, self.points[3].y)
+        } else {
+            (self.points[3].y, self.points[0].y)
+        };
+
         // find the inflection points and get the x value
-        cubic_for_each_local_extremum(self.points[0].x,self.points[1].x,self.points[2].x,self.points[3].x,&mut |t|{
-            let x = self.sample(t).x;
-            if x < min_x {min_x = x}
-            if x > max_x {max_x = x}
-        });
+        cubic_for_each_local_extremum(
+            self.points[0].x,
+            self.points[1].x,
+            self.points[2].x,
+            self.points[3].x,
+            &mut |t| {
+                let x = self.sample(t).x;
+                if x < min_x {
+                    min_x = x;
+                }
+                if x > max_x {
+                    max_x = x;
+                }
+            },
+        );
 
         // find the inflection points and get the y value
-        cubic_for_each_local_extremum(self.points[0].y,self.points[1].y,self.points[2].y,self.points[3].y,&mut |t|{
-            let y = self.sample(t).y;
-            if y < min_y {min_y = y}
-            if y > max_y {max_y = y}
-        });
+        cubic_for_each_local_extremum(
+            self.points[0].y,
+            self.points[1].y,
+            self.points[2].y,
+            self.points[3].y,
+            &mut |t| {
+                let y = self.sample(t).y;
+                if y < min_y {
+                    min_y = y;
+                }
+                if y > max_y {
+                    max_y = y;
+                }
+            },
+        );
 
-        
         Rect {
             min: Pos2 { x: min_x, y: min_y },
             max: Pos2 { x: max_x, y: max_y },
@@ -158,7 +183,7 @@ impl CubicBezierShape {
     /// Find out the t value for the point where the curve is intersected with the base line.
     /// The base line is the line from P0 to P3.
     /// If the curve only has two intersection points with the base line, they should be 0.0 and 1.0.
-    /// In this case, the "fill" will be simple since the curve is a contour line.
+    /// In this case, the "fill" will be simple since the curve is a convex line.
     /// If the curve has more than two intersection points with the base line, the "fill" will be a problem.
     /// We need to find out where is the 3rd t value (0<t<1)
     /// And the original cubic curve will be split into two curves (0.0..t and t..1.0).
@@ -176,63 +201,65 @@ impl CubicBezierShape {
     /// + (P0.x * (P3.y - P0.y) - P0.y * (P3.x - P0.x)) + P0.x * (P0.y - P3.y) + P0.y * (P3.x - P0.x)
     /// = 0
     /// or a * t^3 + b * t^2 + c * t + d = 0
-    /// 
+    ///
     /// let x = t - b / (3 * a), then we have:
     /// x^3 + p * x + q = 0, where:
     /// p = (3.0 * a * c - b^2) / (3.0 * a^2)
     /// q = (2.0 * b^3 - 9.0 * a * b * c + 27.0 * a^2 * d) / (27.0 * a^3)
-    /// 
+    ///
     /// when p > 0, there will be one real root, two complex roots
     /// when p = 0, there will be two real roots, when p=q=0, there will be three real roots but all 0.
     /// when p < 0, there will be three unique real roots. this is what we need. (x1, x2, x3)
     ///  t = x + b / (3 * a), then we have: t1, t2, t3.
     /// the one between 0.0 and 1.0 is what we need.
-    /// https://baike.baidu.com/item/%E4%B8%80%E5%85%83%E4%B8%89%E6%AC%A1%E6%96%B9%E7%A8%8B/8388473
-    /// 
-    pub fn find_cross_t(&self,epsilon:f32) -> Option<f32>{
+    /// <`https://baike.baidu.com/item/%E4%B8%80%E5%85%83%E4%B8%89%E6%AC%A1%E6%96%B9%E7%A8%8B/8388473 /`>
+    ///
+    pub fn find_cross_t(&self, epsilon: f32) -> Option<f32> {
         let p0 = self.points[0];
         let p1 = self.points[1];
         let p2 = self.points[2];
         let p3 = self.points[3];
 
-        let a = (p3.x-3.0*p2.x+3.0*p1.x-p0.x)*(p3.y-p0.y)-(p3.y-3.0*p2.y+3.0*p1.y-p0.y)*(p3.x-p0.x) ;
-        let b = (3.0*p2.x-6.0*p1.x+3.0*p0.x)*(p3.y-p0.y)-(3.0*p2.y-6.0*p1.y+3.0*p0.y)*(p3.x-p0.x);
-        let c = (3.0*p1.x-3.0*p0.x)*(p3.y-p0.y)-(3.0*p1.y-3.0*p0.y)*(p3.x-p0.x) ;
-        let d = p0.x*(p3.y-p0.y)-p0.y*(p3.x-p0.x)+p0.x*(p0.y-p3.y)+p0.y*(p3.x-p0.x) ;
+        let a = (p3.x - 3.0 * p2.x + 3.0 * p1.x - p0.x) * (p3.y - p0.y)
+            - (p3.y - 3.0 * p2.y + 3.0 * p1.y - p0.y) * (p3.x - p0.x);
+        let b = (3.0 * p2.x - 6.0 * p1.x + 3.0 * p0.x) * (p3.y - p0.y)
+            - (3.0 * p2.y - 6.0 * p1.y + 3.0 * p0.y) * (p3.x - p0.x);
+        let c =
+            (3.0 * p1.x - 3.0 * p0.x) * (p3.y - p0.y) - (3.0 * p1.y - 3.0 * p0.y) * (p3.x - p0.x);
+        let d = p0.x * (p3.y - p0.y) - p0.y * (p3.x - p0.x)
+            + p0.x * (p0.y - p3.y)
+            + p0.y * (p3.x - p0.x);
 
         let h = -b / (3.0 * a);
         let p = (3.0 * a * c - b * b) / (3.0 * a * a);
         let q = (2.0 * b * b * b - 9.0 * a * b * c + 27.0 * a * a * d) / (27.0 * a * a * a);
-        // println!("a:{},b:{},c:{},d:{},h:{},p:{},q:{}",a,b,c,d,h,p,q);
 
         if p > 0.0 {
             return None;
         }
-        let r = (-1.0 * (p/3.0).powi(3)).sqrt();
-        let theta = (-1.0 * q / (2.0 * r)).acos()/3.0;
-        // let discriminant = (q/2.0).powi(2) + (p/3.0).powi(3); // discriminant
-        // println!("discriminant: {},r:{},theta:{}",discriminant,r,theta);
-        
-        let t1 = 2.0 * r.powf(1.0/3.0) * theta.cos() + h;
-        let t2 = 2.0 * r.powf(1.0/3.0) * (theta+ 120.0 * std::f32::consts::PI / 180.0).cos() + h;
-        let t3 = 2.0 * r.powf(1.0/3.0) * (theta+ 240.0 * std::f32::consts::PI / 180.0).cos() + h;
-        
-        if t1 > epsilon && t1 < 1.0 - epsilon{
+        let r = (-1.0 * (p / 3.0).powi(3)).sqrt();
+        let theta = (-1.0 * q / (2.0 * r)).acos() / 3.0;
+
+        let t1 = 2.0 * r.cbrt() * theta.cos() + h;
+        let t2 = 2.0 * r.cbrt() * (theta + 120.0 * std::f32::consts::PI / 180.0).cos() + h;
+        let t3 = 2.0 * r.cbrt() * (theta + 240.0 * std::f32::consts::PI / 180.0).cos() + h;
+
+        if t1 > epsilon && t1 < 1.0 - epsilon {
             return Some(t1);
         }
-        if t2 > epsilon && t2 < 1.0 - epsilon{
+        if t2 > epsilon && t2 < 1.0 - epsilon {
             return Some(t2);
         }
-        if t3 > epsilon && t3 < 1.0 - epsilon{
+        if t3 > epsilon && t3 < 1.0 - epsilon {
             return Some(t3);
         }
-        return None;
+        None
     }
 
     /// Calculate the point (x,y) at t based on the cubic bezier curve equation.
     /// t is in [0.0,1.0]
-    /// https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Cubic_B.C3.A9zier_curves
-    /// 
+    /// [Bezier Curve](https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Cubic_B.C3.A9zier_curves)
+    ///
     pub fn sample(&self, t: f32) -> Pos2 {
         crate::epaint_assert!(
             t >= 0.0 && t <= 1.0,
@@ -254,11 +281,10 @@ impl CubicBezierShape {
     /// find a set of points that approximate the cubic bezier curve.
     /// the number of points is determined by the tolerance.
     /// the points may not be evenly distributed in the range [0.0,1.0] (t value)
-    pub fn flatten(&self, tolerance:Option<f32>)->Vec<Pos2>{
-        let tolerance =tolerance.unwrap_or( (self.points[0].x-self.points[3].x).abs()*0.001);
-        let mut result = Vec::new();
-        result.push(self.points[0]);
-        self.for_each_flattened_with_t(tolerance, &mut |p,_t|{
+    pub fn flatten(&self, tolerance: Option<f32>) -> Vec<Pos2> {
+        let tolerance = tolerance.unwrap_or((self.points[0].x - self.points[3].x).abs() * 0.001);
+        let mut result = vec![self.points[0]];
+        self.for_each_flattened_with_t(tolerance, &mut |p, _t| {
             result.push(p);
         });
         result
@@ -270,8 +296,8 @@ impl CubicBezierShape {
     /// this api will check whether the curve will cross the base line or not when closed = true.
     /// The result will be a vec of vec of Pos2. it will store two closed aren in different vec.
     /// The epsilon is used to compare a float value.
-    pub fn flatten_closed(&self, tolerance:Option<f32>, epsilon:Option<f32>)->Vec<Vec<Pos2>>{
-        let tolerance =tolerance.unwrap_or( (self.points[0].x-self.points[3].x).abs()*0.001);
+    pub fn flatten_closed(&self, tolerance: Option<f32>, epsilon: Option<f32>) -> Vec<Vec<Pos2>> {
+        let tolerance = tolerance.unwrap_or((self.points[0].x - self.points[3].x).abs() * 0.001);
         let epsilon = epsilon.unwrap_or(1.0e-5);
         let mut result = Vec::new();
         let mut first_half = Vec::new();
@@ -280,32 +306,40 @@ impl CubicBezierShape {
         first_half.push(self.points[0]);
 
         let cross = self.find_cross_t(epsilon);
-        if self.closed && cross.is_some() {
-            let cross = cross.unwrap();
-            self.for_each_flattened_with_t(tolerance, &mut |p,t|{
-                if t < cross {
-                    first_half.push(p);
-                }else{
-                    if !flipped{
-                        // when just crossed the base line, flip the order of the points
-                        // add the cross point to the first half as the last point
-                        // and add the cross point to the second half as the first point
-                        flipped = true;
-                        let cross_point = self.sample(cross);
-                        first_half.push(cross_point.clone());
-                        second_half.push(cross_point);
-                    }
-                    second_half.push(p);
+        match cross {
+            Some(cross) => {
+                if self.closed {
+                    self.for_each_flattened_with_t(tolerance, &mut |p, t| {
+                        if t < cross {
+                            first_half.push(p);
+                        } else {
+                            if !flipped {
+                                // when just crossed the base line, flip the order of the points
+                                // add the cross point to the first half as the last point
+                                // and add the cross point to the second half as the first point
+                                flipped = true;
+                                let cross_point = self.sample(cross);
+                                first_half.push(cross_point);
+                                second_half.push(cross_point);
+                            }
+                            second_half.push(p);
+                        }
+                    });
+                } else {
+                    self.for_each_flattened_with_t(tolerance, &mut |p, _t| {
+                        first_half.push(p);
+                    });
                 }
-                
-            });
-        }else{
-            self.for_each_flattened_with_t(tolerance, &mut |p,_t|{
-                first_half.push(p);
-            });
+            }
+            None => {
+                self.for_each_flattened_with_t(tolerance, &mut |p, _t| {
+                    first_half.push(p);
+                });
+            }
         }
+
         result.push(first_half);
-        if second_half.len() > 0{
+        if !second_half.is_empty() {
             result.push(second_half);
         }
         result
@@ -341,12 +375,14 @@ impl QuadraticBezierShape {
     /// the first point is the starting point and the last one is the ending point of the curve.
     /// the middle point is the control points.
     /// the points should be in the order [start, control, end]
-    /// 
-    pub fn from_points_stroke(points: Vec<Pos2>,closed:bool,fill:Color32, stroke: impl Into<Stroke>) -> Self {
-        crate::epaint_assert!(
-            points.len() == 3,
-            "Quadratic needs 3 points"
-        );
+    ///
+    pub fn from_points_stroke(
+        points: Vec<Pos2>,
+        closed: bool,
+        fill: Color32,
+        stroke: impl Into<Stroke>,
+    ) -> Self {
+        crate::epaint_assert!(points.len() == 3, "Quadratic needs 3 points");
 
         QuadraticBezierShape {
             points: points.try_into().unwrap(), // it's safe to unwrap because we just checked
@@ -355,30 +391,30 @@ impl QuadraticBezierShape {
             stroke: stroke.into(),
         }
     }
-    
+
     /// create a new quadratic bezier shape based on the screen coordination for the 3 points.
-    pub fn to_screen(&self, to_screen:&RectTransform)->Self{
-        let mut points = [Pos2::default();3];
-        for i in 0..3{
-            points[i] = to_screen * self.points[i];
+    pub fn to_screen(&self, to_screen: &RectTransform) -> Self {
+        let mut points = [Pos2::default(); 3];
+        for (i, origin_point) in self.points.iter().enumerate() {
+            points[i] = to_screen * *origin_point;
         }
         QuadraticBezierShape {
             points,
             closed: self.closed,
-            fill: self.fill.clone(),
-            stroke: self.stroke.clone(),
+            fill: self.fill,
+            stroke: self.stroke,
         }
     }
 
-    /// Convert the quadratic Bezier curve to one PathShape.
+    /// Convert the quadratic Bezier curve to one `PathShape`.
     /// The `tolerance` will be used to control the max distance between the curve and the base line.
-    pub fn to_pathshape(&self,tolerance:Option<f32>)->PathShape{
+    pub fn to_pathshape(&self, tolerance: Option<f32>) -> PathShape {
         let points = self.flatten(tolerance);
-        PathShape{
+        PathShape {
             points,
             closed: self.closed,
-            fill: self.fill.clone(),
-            stroke: self.stroke.clone(),
+            fill: self.fill,
+            stroke: self.stroke,
         }
     }
     /// bounding box of the quadratic bezier shape
@@ -394,26 +430,36 @@ impl QuadraticBezierShape {
             (self.points[2].y, self.points[0].y)
         };
 
-        quadratic_for_each_local_extremum(self.points[0].x, self.points[1].x, self.points[2].x, &mut |t|{
-            let x = self.sample(t).x;
-            if x < min_x {
-                min_x = x;
-            }
-            if x > max_x {
-                max_x = x;
-            }
-        });
+        quadratic_for_each_local_extremum(
+            self.points[0].x,
+            self.points[1].x,
+            self.points[2].x,
+            &mut |t| {
+                let x = self.sample(t).x;
+                if x < min_x {
+                    min_x = x;
+                }
+                if x > max_x {
+                    max_x = x;
+                }
+            },
+        );
 
-        quadratic_for_each_local_extremum(self.points[0].y, self.points[1].y, self.points[2].y, &mut |t|{
-            let y = self.sample(t).y;
-            if y < min_y {
-                min_y = y;
-            }
-            if y > max_y {
-                max_y = y;
-            }
-        });
-        
+        quadratic_for_each_local_extremum(
+            self.points[0].y,
+            self.points[1].y,
+            self.points[2].y,
+            &mut |t| {
+                let y = self.sample(t).y;
+                if y < min_y {
+                    min_y = y;
+                }
+                if y > max_y {
+                    max_y = y;
+                }
+            },
+        );
+
         Rect {
             min: Pos2 { x: min_x, y: min_y },
             max: Pos2 { x: max_x, y: max_y },
@@ -422,8 +468,8 @@ impl QuadraticBezierShape {
 
     /// Calculate the point (x,y) at t based on the quadratic bezier curve equation.
     /// t is in [0.0,1.0]
-    /// https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Quadratic_B.C3.A9zier_curves
-    /// 
+    /// [Bezier Curve](https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Quadratic_B.C3.A9zier_curves)
+    ///
     pub fn sample(&self, t: f32) -> Pos2 {
         crate::epaint_assert!(
             t >= 0.0 && t <= 1.0,
@@ -443,11 +489,10 @@ impl QuadraticBezierShape {
     /// find a set of points that approximate the quadratic bezier curve.
     /// the number of points is determined by the tolerance.
     /// the points may not be evenly distributed in the range [0.0,1.0] (t value)
-    pub fn flatten(&self, tolerance:Option<f32>)->Vec<Pos2>{
-        let tolerance =tolerance.unwrap_or( (self.points[0].x-self.points[2].x).abs()*0.001);
-        let mut result = Vec::new();
-        result.push(self.points[0]);
-        self.for_each_flattened_with_t(tolerance, &mut |p,_t|{
+    pub fn flatten(&self, tolerance: Option<f32>) -> Vec<Pos2> {
+        let tolerance = tolerance.unwrap_or((self.points[0].x - self.points[2].x).abs() * 0.001);
+        let mut result = vec![self.points[0]];
+        self.for_each_flattened_with_t(tolerance, &mut |p, _t| {
             result.push(p);
         });
         result
@@ -473,11 +518,11 @@ impl QuadraticBezierShape {
         let count = params.count as u32;
         for index in 1..count {
             let t = params.t_at_iteration(index as f32);
-            
-            callback(self.sample(t),t);
+
+            callback(self.sample(t), t);
         }
 
-        callback(self.sample(1.0),1.0);
+        callback(self.sample(1.0), 1.0);
     }
 }
 
@@ -490,17 +535,16 @@ impl From<QuadraticBezierShape> for Shape {
 
 // lyon_geom::flatten_cubic.rs
 // copied from https://docs.rs/lyon_geom/latest/lyon_geom/
-fn flatten_cubic_bezier_with_t<F: FnMut(Pos2,f32)>(
+fn flatten_cubic_bezier_with_t<F: FnMut(Pos2, f32)>(
     curve: &CubicBezierShape,
     tolerance: f32,
     callback: &mut F,
-) 
-{
+) {
     // debug_assert!(tolerance >= S::EPSILON * S::EPSILON);
     let quadratics_tolerance = tolerance * 0.2;
     let flattening_tolerance = tolerance * 0.8;
 
-    let num_quadratics = curve.num_quadratics( quadratics_tolerance);
+    let num_quadratics = curve.num_quadratics(quadratics_tolerance);
     let step = 1.0 / num_quadratics as f32;
     let n = num_quadratics;
     let mut t0 = 0.0;
@@ -551,8 +595,7 @@ impl FlatteningParameters {
         // Note, scale can be NaN, for example with straight lines. When it happens the NaN will
         // propagate to other parameters. We catch it all by setting the iteration count to zero
         // and leave the rest as garbage.
-        let scale =
-            cross.abs() / ((ddx * ddx + ddy * ddy).sqrt() * (parabola_to - parabola_from).abs());
+        let scale = cross.abs() / (ddx.hypot(ddy) * (parabola_to - parabola_from).abs());
 
         let integral_from = approx_parabola_integral(parabola_from);
         let integral_to = approx_parabola_integral(parabola_to);
@@ -569,9 +612,7 @@ impl FlatteningParameters {
         // If count is NaN the curve can be approximated by a single straight line or a point.
         if !count.is_finite() {
             count = 0.0;
-            is_point = ((to.x - from.x) * (to.x - from.x) + (to.y - from.y) * (to.y - from.y))
-                .sqrt()
-                < tolerance * tolerance;
+            is_point = (to.x - from.x).hypot(to.y - from.y) < tolerance * tolerance;
         }
 
         let integral_step = integral_diff / count;
@@ -588,9 +629,7 @@ impl FlatteningParameters {
 
     fn t_at_iteration(&self, iteration: f32) -> f32 {
         let u = approx_parabola_inv_integral(self.integral_from + self.integral_step * iteration);
-        let t = (u - self.inv_integral_from) * self.div_inv_integral_diff;
-
-        t
+        (u - self.inv_integral_from) * self.div_inv_integral_diff
     }
 }
 
@@ -608,7 +647,7 @@ fn approx_parabola_inv_integral(x: f32) -> f32 {
     x * (1.0 - b + (b * b + quarter * x * x).sqrt())
 }
 
-fn single_curve_approximation(curve:&CubicBezierShape) -> QuadraticBezierShape {
+fn single_curve_approximation(curve: &CubicBezierShape) -> QuadraticBezierShape {
     let c1_x = (curve.points[1].x * 3.0 - curve.points[0].x) * 0.5;
     let c1_y = (curve.points[1].y * 3.0 - curve.points[0].y) * 0.5;
     let c2_x = (curve.points[2].x * 3.0 - curve.points[3].x) * 0.5;
@@ -625,7 +664,7 @@ fn single_curve_approximation(curve:&CubicBezierShape) -> QuadraticBezierShape {
     }
 }
 
-fn quadratic_for_each_local_extremum<F:FnMut(f32)>(p0:f32,p1:f32,p2:f32, cb:&mut F){
+fn quadratic_for_each_local_extremum<F: FnMut(f32)>(p0: f32, p1: f32, p2: f32, cb: &mut F) {
     // A quadratic bezier curve can be derived by a linear function:
     // p(t) = p0 + t(p1 - p0) + t^2(p2 - 2p1 + p0)
     // The derivative is:
@@ -642,24 +681,23 @@ fn quadratic_for_each_local_extremum<F:FnMut(f32)>(p0:f32,p1:f32,p2:f32, cb:&mut
     if t > 0.0 && t < 1.0 {
         cb(t);
     }
-
 }
 
-fn cubic_for_each_local_extremum<F: FnMut(f32)>(p0:f32,p1:f32,p2:f32,p3:f32, cb:&mut F){
+fn cubic_for_each_local_extremum<F: FnMut(f32)>(p0: f32, p1: f32, p2: f32, p3: f32, cb: &mut F) {
     // See www.faculty.idc.ac.il/arik/quality/appendixa.html for an explanation
     // A cubic bezier curve can be derivated by the following equation:
     // B'(t) = 3(1-t)^2(p1-p0) + 6(1-t)t(p2-p1) + 3t^2(p3-p2) or
     // f(x) = a * x² + b * x + c
-    let a = 3.0 * (p3 + 3.0 * (p1-p2) - p0);
+    let a = 3.0 * (p3 + 3.0 * (p1 - p2) - p0);
     let b = 6.0 * (p2 - 2.0 * p1 + p0);
-    let c = 3.0 * (p1-p0);
+    let c = 3.0 * (p1 - p0);
 
-    let in_range = |t:f32| t<=1.0 && t>=0.0;
+    let in_range = |t: f32| t <= 1.0 && t >= 0.0;
 
     // linear situation
     if a == 0.0 {
         if b != 0.0 {
-            let t =  - c / b;
+            let t = -c / b;
             if in_range(t) {
                 cb(t);
             }
@@ -699,7 +737,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_quadratic_bounding_box(){
+    fn test_quadratic_bounding_box() {
         let curve = QuadraticBezierShape {
             points: [
                 Pos2 { x: 110.0, y: 170.0 },
@@ -711,18 +749,18 @@ mod tests {
             stroke: Default::default(),
         };
         let bbox = curve.bounding_rect();
-        assert!( (bbox.min.x-72.96).abs()<0.01);
-        assert!( (bbox.min.y-27.78).abs()<0.01);
-        
-        assert!( (bbox.max.x-180.0).abs() < 0.01);
-        assert!( (bbox.max.y-170.0).abs() < 0.01);
+        assert!((bbox.min.x - 72.96).abs() < 0.01);
+        assert!((bbox.min.y - 27.78).abs() < 0.01);
+
+        assert!((bbox.max.x - 180.0).abs() < 0.01);
+        assert!((bbox.max.y - 170.0).abs() < 0.01);
 
         let mut result = Vec::new();
         result.push(curve.points[0]); //add the start point
-        curve.for_each_flattened_with_t(0.1, &mut |pos,_t| {
+        curve.for_each_flattened_with_t(0.1, &mut |pos, _t| {
             result.push(pos);
         });
-        
+
         assert_eq!(result.len(), 26);
 
         let curve = QuadraticBezierShape {
@@ -736,23 +774,23 @@ mod tests {
             stroke: Default::default(),
         };
         let bbox = curve.bounding_rect();
-        assert!( (bbox.min.x-10.0).abs()<0.01);
-        assert!( (bbox.min.y-10.0).abs()<0.01);
-        
-        assert!( (bbox.max.x-130.42).abs() < 0.01);
-        assert!( (bbox.max.y-170.0).abs() < 0.01);
+        assert!((bbox.min.x - 10.0).abs() < 0.01);
+        assert!((bbox.min.y - 10.0).abs() < 0.01);
+
+        assert!((bbox.max.x - 130.42).abs() < 0.01);
+        assert!((bbox.max.y - 170.0).abs() < 0.01);
 
         let mut result = Vec::new();
         result.push(curve.points[0]); //add the start point
-        curve.for_each_flattened_with_t(0.1, &mut |pos,_t| {
+        curve.for_each_flattened_with_t(0.1, &mut |pos, _t| {
             result.push(pos);
         });
-        
+
         assert_eq!(result.len(), 25);
     }
 
     #[test]
-    fn test_quadratic_dfferent_tolerance(){
+    fn test_quadratic_dfferent_tolerance() {
         let curve = QuadraticBezierShape {
             points: [
                 Pos2 { x: 110.0, y: 170.0 },
@@ -765,38 +803,38 @@ mod tests {
         };
         let mut result = Vec::new();
         result.push(curve.points[0]); //add the start point
-        curve.for_each_flattened_with_t(1.0, &mut |pos,_t| {
+        curve.for_each_flattened_with_t(1.0, &mut |pos, _t| {
             result.push(pos);
         });
-        
+
         assert_eq!(result.len(), 9);
 
         let mut result = Vec::new();
         result.push(curve.points[0]); //add the start point
-        curve.for_each_flattened_with_t(0.1, &mut |pos,_t| {
+        curve.for_each_flattened_with_t(0.1, &mut |pos, _t| {
             result.push(pos);
         });
-        
+
         assert_eq!(result.len(), 25);
 
         let mut result = Vec::new();
         result.push(curve.points[0]); //add the start point
-        curve.for_each_flattened_with_t(0.01, &mut |pos,_t| {
+        curve.for_each_flattened_with_t(0.01, &mut |pos, _t| {
             result.push(pos);
         });
-        
+
         assert_eq!(result.len(), 77);
 
         let mut result = Vec::new();
         result.push(curve.points[0]); //add the start point
-        curve.for_each_flattened_with_t(0.001, &mut |pos,_t| {
+        curve.for_each_flattened_with_t(0.001, &mut |pos, _t| {
             result.push(pos);
         });
-        
+
         assert_eq!(result.len(), 240);
     }
     #[test]
-    fn test_cubic_bounding_box(){
+    fn test_cubic_bounding_box() {
         let curve = CubicBezierShape {
             points: [
                 Pos2::new(10.0, 10.0),
@@ -830,9 +868,9 @@ mod tests {
         let bbox = curve.bounding_rect();
         assert_eq!(bbox.min.x, 10.0);
         assert_eq!(bbox.min.y, 10.0);
-        assert!( (bbox.max.x-206.50).abs() < 0.01);
-        assert!( (bbox.max.y-148.48).abs() < 0.01);
-        
+        assert!((bbox.max.x - 206.50).abs() < 0.01);
+        assert!((bbox.max.y - 148.48).abs() < 0.01);
+
         let curve = CubicBezierShape {
             points: [
                 Pos2::new(110.0, 170.0),
@@ -846,11 +884,11 @@ mod tests {
         };
 
         let bbox = curve.bounding_rect();
-        assert!( (bbox.min.x-86.71).abs()<0.01);
-        assert!( (bbox.min.y-30.0).abs()<0.01);
-        
-        assert!( (bbox.max.x-199.27).abs() < 0.01);
-        assert!( (bbox.max.y-170.0).abs() < 0.01);
+        assert!((bbox.min.x - 86.71).abs() < 0.01);
+        assert!((bbox.min.y - 30.0).abs() < 0.01);
+
+        assert!((bbox.max.x - 199.27).abs() < 0.01);
+        assert!((bbox.max.y - 170.0).abs() < 0.01);
     }
     #[test]
     fn test_cubic_different_tolerance_flattening() {
@@ -868,42 +906,42 @@ mod tests {
 
         let mut result = Vec::new();
         result.push(curve.points[0]); //add the start point
-        curve.for_each_flattened_with_t(1.0, &mut |pos,_t| {
+        curve.for_each_flattened_with_t(1.0, &mut |pos, _t| {
             result.push(pos);
         });
-        
+
         assert_eq!(result.len(), 10);
 
         let mut result = Vec::new();
         result.push(curve.points[0]); //add the start point
-        curve.for_each_flattened_with_t(0.5, &mut |pos,_t| {
+        curve.for_each_flattened_with_t(0.5, &mut |pos, _t| {
             result.push(pos);
         });
-        
+
         assert_eq!(result.len(), 13);
 
         let mut result = Vec::new();
         result.push(curve.points[0]); //add the start point
-        curve.for_each_flattened_with_t(0.1, &mut |pos,_t| {
+        curve.for_each_flattened_with_t(0.1, &mut |pos, _t| {
             result.push(pos);
         });
-        
+
         assert_eq!(result.len(), 28);
 
         let mut result = Vec::new();
         result.push(curve.points[0]); //add the start point
-        curve.for_each_flattened_with_t(0.01, &mut |pos,_t| {
+        curve.for_each_flattened_with_t(0.01, &mut |pos, _t| {
             result.push(pos);
         });
-        
+
         assert_eq!(result.len(), 83);
 
         let mut result = Vec::new();
         result.push(curve.points[0]); //add the start point
-        curve.for_each_flattened_with_t(0.001, &mut |pos,_t| {
+        curve.for_each_flattened_with_t(0.001, &mut |pos, _t| {
             result.push(pos);
         });
-        
+
         assert_eq!(result.len(), 248);
     }
 
@@ -923,10 +961,10 @@ mod tests {
 
         let mut result = Vec::new();
         result.push(curve.points[0]); //add the start point
-        curve.for_each_flattened_with_t(0.01, &mut |pos,_t| {
+        curve.for_each_flattened_with_t(0.01, &mut |pos, _t| {
             result.push(pos);
         });
-        
+
         assert_eq!(result.len(), 117);
 
         let curve = CubicBezierShape {
@@ -943,10 +981,10 @@ mod tests {
 
         let mut result = Vec::new();
         result.push(curve.points[0]); //add the start point
-        curve.for_each_flattened_with_t(0.01, &mut |pos,_t| {
+        curve.for_each_flattened_with_t(0.01, &mut |pos, _t| {
             result.push(pos);
         });
-        
+
         assert_eq!(result.len(), 91);
 
         let curve = CubicBezierShape {
@@ -963,10 +1001,10 @@ mod tests {
 
         let mut result = Vec::new();
         result.push(curve.points[0]); //add the start point
-        curve.for_each_flattened_with_t(0.01, &mut |pos,_t| {
+        curve.for_each_flattened_with_t(0.01, &mut |pos, _t| {
             result.push(pos);
         });
-        
+
         assert_eq!(result.len(), 75);
 
         let curve = CubicBezierShape {
@@ -983,10 +1021,10 @@ mod tests {
 
         let mut result = Vec::new();
         result.push(curve.points[0]); //add the start point
-        curve.for_each_flattened_with_t(0.01, &mut |pos,_t| {
+        curve.for_each_flattened_with_t(0.01, &mut |pos, _t| {
             result.push(pos);
         });
-        
+
         assert_eq!(result.len(), 100);
 
         let curve = CubicBezierShape {
@@ -1003,10 +1041,10 @@ mod tests {
 
         let mut result = Vec::new();
         result.push(curve.points[0]); //add the start point
-        curve.for_each_flattened_with_t(0.01, &mut |pos,_t| {
+        curve.for_each_flattened_with_t(0.01, &mut |pos, _t| {
             result.push(pos);
         });
-        
+
         assert_eq!(result.len(), 71);
 
         let curve = CubicBezierShape {
@@ -1023,10 +1061,10 @@ mod tests {
 
         let mut result = Vec::new();
         result.push(curve.points[0]); //add the start point
-        curve.for_each_flattened_with_t(0.01, &mut |pos,_t| {
+        curve.for_each_flattened_with_t(0.01, &mut |pos, _t| {
             result.push(pos);
         });
-        
+
         assert_eq!(result.len(), 88);
     }
 
@@ -1045,42 +1083,42 @@ mod tests {
 
         let mut result = Vec::new();
         result.push(curve.points[0]); //add the start point
-        curve.for_each_flattened_with_t(1.0, &mut |pos,_t| {
+        curve.for_each_flattened_with_t(1.0, &mut |pos, _t| {
             result.push(pos);
         });
-        
+
         assert_eq!(result.len(), 9);
 
         let mut result = Vec::new();
         result.push(curve.points[0]); //add the start point
-        curve.for_each_flattened_with_t(0.5, &mut |pos,_t| {
+        curve.for_each_flattened_with_t(0.5, &mut |pos, _t| {
             result.push(pos);
         });
-        
+
         assert_eq!(result.len(), 11);
 
         let mut result = Vec::new();
         result.push(curve.points[0]); //add the start point
-        curve.for_each_flattened_with_t(0.1, &mut |pos,_t| {
+        curve.for_each_flattened_with_t(0.1, &mut |pos, _t| {
             result.push(pos);
         });
-        
+
         assert_eq!(result.len(), 24);
 
         let mut result = Vec::new();
         result.push(curve.points[0]); //add the start point
-        curve.for_each_flattened_with_t(0.01, &mut |pos,_t| {
+        curve.for_each_flattened_with_t(0.01, &mut |pos, _t| {
             result.push(pos);
         });
-        
+
         assert_eq!(result.len(), 72);
 
         let mut result = Vec::new();
         result.push(curve.points[0]); //add the start point
-        curve.for_each_flattened_with_t(0.001, &mut |pos,_t| {
+        curve.for_each_flattened_with_t(0.001, &mut |pos, _t| {
             result.push(pos);
         });
-        
+
         assert_eq!(result.len(), 223);
     }
 }
