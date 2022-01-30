@@ -9,7 +9,7 @@
 ![Apache](https://img.shields.io/badge/license-Apache-blue.svg)
 [![Discord](https://img.shields.io/discord/900275882684477440?label=egui%20discord)](https://discord.gg/JFcEma9bJq)
 
-👉 [Click to run the web demo](https://emilk.github.io/egui/index.html) 👈
+👉 [Click to run the web demo](https://www.egui.rs/#demo) 👈
 
 egui is a simple, fast, and highly portable immediate mode GUI library for Rust. egui runs on the web, natively, and [in your favorite game engine](#integrations) (or will soon).
 
@@ -50,7 +50,7 @@ ui.label(format!("Hello '{}', age {}", name, age));
 
 ## Quick start
 
-If you just want to write a GUI application in Rust (for the web or for native), go to <https://github.com/emilk/eframe_template/> and follow the instructions there! The official docs are at <https://docs.rs/egui>. For inspiration, check out the [the egui web demo](https://emilk.github.io/egui/index.html) and follow the links in it to its source code. There is also an excellent tutorial video at <https://www.youtube.com/watch?v=NtUkr_z7l84>.
+If you just want to write a GUI application in Rust (for the web or for native), go to <https://github.com/emilk/eframe_template/> and follow the instructions there! The official docs are at <https://docs.rs/egui>. For inspiration, check out the [the egui web demo](https://www.egui.rs/#demo) and follow the links in it to its source code. There is also an excellent tutorial video at <https://www.youtube.com/watch?v=NtUkr_z7l84>.
 
 If you want to integrate egui into an existing engine, go to the [Integrations](#integrations) section.
 
@@ -58,7 +58,7 @@ If you have questions, use [GitHub Discussions](https://github.com/emilk/egui/di
 
 ## Demo
 
-[Click to run egui web demo](https://emilk.github.io/egui/index.html) (works in any browser with WASM and WebGL support). Uses [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web).
+[Click to run egui web demo](https://www.egui.rs/#demo) (works in any browser with WASM and WebGL support). Uses [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web).
 
 To test the demo app locally, run `cargo run --release -p egui_demo_app`.
 
@@ -166,7 +166,7 @@ These are the official egui integrations:
 
 * [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium) for compiling native apps with [Glium](https://github.com/glium/glium).
 * [`egui_glow`](https://github.com/emilk/egui/tree/master/egui_glow) for compiling native apps with [Glow](https://github.com/grovesNL/glow).
-* [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web) for making a web app. Compiles to WASM, renders with WebGL. [Click to run the egui demo](https://emilk.github.io/egui/index.html).
+* [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web) for making a web app. Compiles to WASM, renders with WebGL. [Click to run the egui demo](https://www.egui.rs/#demo).
 * [`egui-winit`](https://github.com/emilk/egui/tree/master/egui-winit) for integrating with [`winit`](https://github.com/rust-windowing/winit). `egui-winit` is used by `egui_glium` and `egui_glow`.
 
 ### 3rd party integrations
@@ -305,7 +305,7 @@ Yes! But you need to install your own font (`.ttf` or `.otf`) using `Context::se
 Yes! You can customize the colors, spacing and sizes of everything. By default egui comes with a dark and a light theme.
 
 ### What about accessibility, such as screen readers?
-There is experimental support for a screen reader. In [the web demo](https://emilk.github.io/egui/index.html) you can enable it in the "Backend" tab.
+There is experimental support for a screen reader. In [the web demo](https://www.egui.rs/#demo) you can enable it in the "Backend" tab.
 
 Read more at <https://github.com/emilk/egui/issues/167>.
 
