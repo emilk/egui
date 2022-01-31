@@ -76,7 +76,7 @@ pub struct Plot {
     min_auto_bounds: PlotBounds,
     margin_fraction: Vec2,
     allow_boxed_zoom: bool,
-    boxed_zoom_pointer: PointerButton,
+    boxed_zoom_pointer_button: PointerButton,
 
     min_size: Vec2,
     width: Option<f32>,
@@ -106,7 +106,7 @@ impl Plot {
             min_auto_bounds: PlotBounds::NOTHING,
             margin_fraction: Vec2::splat(0.05),
             allow_boxed_zoom: true,
-            boxed_zoom_pointer:  PointerButton::Secondary,
+            boxed_zoom_pointer_button: PointerButton::Secondary,
 
             min_size: Vec2::splat(64.0),
             width: None,
@@ -201,8 +201,8 @@ impl Plot {
     }
 
     /// Config the pointer to use for boxed_zoom. Default: `Secondary`
-    pub fn boxed_zoom_pointer(mut self, boxed_zoom_pointer: PointerButton) -> Self {
-        self.boxed_zoom_pointer = boxed_zoom_pointer;
+    pub fn boxed_zoom_pointer_button(mut self, boxed_zoom_pointer_button: PointerButton) -> Self {
+        self.boxed_zoom_pointer_button = boxed_zoom_pointer_button;
         self
     }
 
@@ -310,7 +310,7 @@ impl Plot {
             allow_zoom,
             allow_drag,
             allow_boxed_zoom,
-            boxed_zoom_pointer,
+            boxed_zoom_pointer_button: boxed_zoom_pointer,
             min_auto_bounds,
             margin_fraction,
             width,
@@ -367,7 +367,7 @@ impl Plot {
                 center_x_axis,
                 center_y_axis,
             ),
-            last_click_pos_for_zoom: None
+            last_click_pos_for_zoom: None,
         });
 
         // If the min bounds changed, recalculate everything.
@@ -472,7 +472,7 @@ impl Plot {
             if response.drag_started() && response.dragged_by(boxed_zoom_pointer) {
                 // it would be best for egui that input has a memory of the last click pos because it's a common pattern
                 last_click_pos_for_zoom = response.hover_pos()
-            } 
+            }
             let box_start_pos = last_click_pos_for_zoom;
             let box_end_pos = response.hover_pos();
             if let (Some(box_start_pos), Some(box_end_pos)) = (box_start_pos, box_end_pos) {
@@ -481,17 +481,25 @@ impl Plot {
                     response = response.on_hover_cursor(CursorIcon::ZoomIn);
                     let rect = epaint::Rect::from_two_pos(box_start_pos, box_end_pos);
                     boxed_zoom_rect = Some((
-                            epaint::RectShape::stroke(rect, 0.0, epaint::Stroke::new(4., Color32::DARK_BLUE)), // Outer stroke
-                            epaint::RectShape::stroke(rect, 0.0, epaint::Stroke::new(2., Color32::WHITE)) // Inner stroke
+                        epaint::RectShape::stroke(
+                            rect,
+                            0.0,
+                            epaint::Stroke::new(4., Color32::DARK_BLUE),
+                        ), // Outer stroke
+                        epaint::RectShape::stroke(
+                            rect,
+                            0.0,
+                            epaint::Stroke::new(2., Color32::WHITE),
+                        ), // Inner stroke
                     ));
                 }
                 // when the click is release perform the zoom
                 if response.drag_released() {
                     let box_start_pos = transform.value_from_position(box_start_pos);
                     let box_end_pos = transform.value_from_position(box_end_pos);
-                    let new_bounds = PlotBounds{
+                    let new_bounds = PlotBounds {
                         min: [box_start_pos.x, box_end_pos.y],
-                        max: [box_end_pos.x, box_start_pos.y]
+                        max: [box_end_pos.x, box_start_pos.y],
                     };
                     if new_bounds.is_valid() {
                         *transform.bounds_mut() = new_bounds;
@@ -558,7 +566,7 @@ impl Plot {
             hidden_items,
             min_auto_bounds,
             last_screen_transform: transform,
-            last_click_pos_for_zoom
+            last_click_pos_for_zoom,
         };
         memory.store(ui.ctx(), plot_id);
 
