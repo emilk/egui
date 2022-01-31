@@ -58,7 +58,7 @@ default_fonts = ["egui/default_fonts"]
 # enable opening links in a browser when an egui hyperlink is clicked.
 links = ["egui-winit/links"]
 
-# enable code for sabing
+# enable code for saving state
 persistence = [
   "egui-winit/persistence",
   "egui/persistence",
@@ -71,6 +71,5 @@ persistence = [
 screen_reader = ["egui-winit/screen_reader"]
 
 # enable glutin/winit integration.
-# if you want to use glow painter on web disable it.
-# if disabled reduce crate size and build time.
+# if you want to use glow painter on web disable this feature.
 winit = ["egui-winit", "glutin"]

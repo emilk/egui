@@ -42,13 +42,14 @@ rm -f docs/${CRATE_NAME}_bg.wasm
 echo "Building rust…"
 BUILD=release
 
-cargo build \
-  -p ${CRATE_NAME} \
-  --release \
-  --lib \
-  --target wasm32-unknown-unknown \
-  --no-default-features \
-  --features ${FEATURES}
+(cd $CRATE_NAME &&
+  cargo build \
+    --release \
+    --lib \
+    --target wasm32-unknown-unknown \
+    --no-default-features \
+    --features ${FEATURES}
+)
 
 # Get the output directory (in the workspace it is in another location)
 TARGET=`cargo metadata --format-version=1 | jq --raw-output .target_directory`
