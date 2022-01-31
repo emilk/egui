@@ -87,6 +87,7 @@
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
 
+mod bezier;
 pub mod color;
 pub mod image;
 mod mesh;
@@ -104,6 +105,7 @@ pub mod textures;
 pub mod util;
 
 pub use {
+    bezier::{CubicBezierShape, QuadraticBezierShape},
     color::{Color32, Rgba},
     image::{AlphaImage, ColorImage, ImageData, ImageDelta},
     mesh::{Mesh, Mesh16, Vertex},
