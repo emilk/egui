@@ -18,6 +18,7 @@ mod selected_label;
 mod separator;
 mod slider;
 mod spinner;
+mod step_buttons;
 pub mod text_edit;
 
 pub use button::*;
@@ -30,6 +31,7 @@ pub use selected_label::SelectableLabel;
 pub use separator::Separator;
 pub use slider::*;
 pub use spinner::*;
+pub use step_buttons::StepButtons;
 pub use text_edit::{TextBuffer, TextEdit};
 
 // ----------------------------------------------------------------------------

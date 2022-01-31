@@ -566,6 +566,7 @@ pub enum WidgetType {
     ColorButton,
     ImageButton,
     CollapsingHeader,
+    StepButtons,
 
     /// If you cannot fit any of the above slots.
     ///

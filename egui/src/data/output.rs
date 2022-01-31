@@ -383,6 +383,13 @@ impl WidgetInfo {
         }
     }
 
+    pub fn step_buttons(value: f64) -> Self {
+        Self {
+            value: Some(value),
+            ..Self::new(WidgetType::StepButtons)
+        }
+    }
+
     #[allow(clippy::needless_pass_by_value)]
     pub fn slider(value: f64, label: impl ToString) -> Self {
         let label = label.to_string();
@@ -448,6 +455,7 @@ impl WidgetInfo {
             WidgetType::ColorButton => "color button",
             WidgetType::ImageButton => "image button",
             WidgetType::CollapsingHeader => "collapsing header",
+            WidgetType::StepButtons => "step buttons",
             WidgetType::Label | WidgetType::Other => "",
         };
 
