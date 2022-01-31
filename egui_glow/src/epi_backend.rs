@@ -3,11 +3,12 @@ use egui_winit::winit;
 
 struct RequestRepaintEvent;
 
-struct GlowRepaintSignal(std::sync::Mutex<winit::event_loop::EventLoopProxy<RequestRepaintEvent>>);
+#[derive(Clone)]
+struct GlowRepaintSignal(winit::event_loop::EventLoopProxy<RequestRepaintEvent>);
 
 impl epi::backend::RepaintSignal for GlowRepaintSignal {
     fn request_repaint(&self) {
-        self.0.lock().unwrap().send_event(RequestRepaintEvent).ok();
+        self.0.send_event(RequestRepaintEvent).ok();
     }
 }
 
@@ -55,9 +56,7 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
     let event_loop = winit::event_loop::EventLoop::with_user_event();
     let (gl_window, gl) = create_display(window_builder, &event_loop);
 
-    let repaint_signal = std::sync::Arc::new(GlowRepaintSignal(std::sync::Mutex::new(
-        event_loop.create_proxy(),
-    )));
+    let repaint_signal = GlowRepaintSignal(event_loop.create_proxy());
 
     let mut painter = crate::Painter::new(&gl, None, "")
         .map_err(|error| eprintln!("some OpenGL error occurred {}\n", error))

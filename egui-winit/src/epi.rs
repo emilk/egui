@@ -197,14 +197,17 @@ pub struct EpiIntegration {
 }
 
 impl EpiIntegration {
-    pub fn new(
+    pub fn new<S>(
         integration_name: &'static str,
         max_texture_side: usize,
         window: &winit::window::Window,
-        repaint_signal: std::sync::Arc<dyn epi::backend::RepaintSignal>,
+        repaint_signal: S,
         persistence: crate::epi::Persistence,
         app: Box<dyn epi::App>,
-    ) -> Self {
+    ) -> Self
+    where
+        S: epi::backend::RepaintSignal + 'static,
+    {
         let egui_ctx = egui::Context::default();
 
         *egui_ctx.memory() = persistence.load_memory().unwrap_or_default();

@@ -4,13 +4,12 @@ use crate::*;
 
 struct RequestRepaintEvent;
 
-struct GliumRepaintSignal(
-    std::sync::Mutex<glutin::event_loop::EventLoopProxy<RequestRepaintEvent>>,
-);
+#[derive(Clone)]
+struct GliumRepaintSignal(glutin::event_loop::EventLoopProxy<RequestRepaintEvent>);
 
 impl epi::backend::RepaintSignal for GliumRepaintSignal {
     fn request_repaint(&self) {
-        self.0.lock().unwrap().send_event(RequestRepaintEvent).ok();
+        self.0.send_event(RequestRepaintEvent).ok();
     }
 }
 
@@ -40,9 +39,7 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
     let display = create_display(window_builder, &event_loop);
 
-    let repaint_signal = std::sync::Arc::new(GliumRepaintSignal(std::sync::Mutex::new(
-        event_loop.create_proxy(),
-    )));
+    let repaint_signal = GliumRepaintSignal(event_loop.create_proxy());
 
     let mut painter = crate::Painter::new(&display);
     let mut integration = egui_winit::epi::EpiIntegration::new(

@@ -55,11 +55,12 @@ impl WebInput {
 
 use std::sync::atomic::Ordering::SeqCst;
 
-pub struct NeedRepaint(std::sync::atomic::AtomicBool);
+#[derive(Clone)]
+pub struct NeedRepaint(std::sync::Arc<std::sync::atomic::AtomicBool>);
 
 impl Default for NeedRepaint {
     fn default() -> Self {
-        Self(true.into())
+        Self(std::sync::Arc::new(true.into()))
     }
 }
 
@@ -87,7 +88,7 @@ pub struct AppRunner {
     painter: Box<dyn Painter>,
     pub(crate) input: WebInput,
     app: Box<dyn epi::App>,
-    pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
+    pub(crate) needs_repaint: NeedRepaint,
     storage: LocalStorage,
     last_save_time: f64,
     screen_reader: crate::screen_reader::ScreenReader,
@@ -102,7 +103,7 @@ impl AppRunner {
 
         let prefer_dark_mode = crate::prefer_dark_mode();
 
-        let needs_repaint: std::sync::Arc<NeedRepaint> = Default::default();
+        let needs_repaint: NeedRepaint = Default::default();
 
         let frame = epi::Frame::new(epi::backend::FrameData {
             info: epi::IntegrationInfo {

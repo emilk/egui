@@ -277,19 +277,24 @@ pub struct IconData {
 ///
 /// [`Frame`] is cheap to clone and is safe to pass to other threads.
 #[derive(Clone)]
-pub struct Frame(pub Arc<Mutex<backend::FrameData>>);
+pub struct Frame(pub Arc<Mutex<backend::FrameData<dyn backend::RepaintSignal + 'static>>>);
 
 impl Frame {
     /// Create a `Frame` - called by the integration.
     #[doc(hidden)]
-    pub fn new(frame_data: backend::FrameData) -> Self {
+    pub fn new<S: 'static>(frame_data: backend::FrameData<S>) -> Self
+    where
+        S: backend::RepaintSignal,
+    {
         Self(Arc::new(Mutex::new(frame_data)))
     }
 
     /// Access the underlying [`backend::FrameData`].
     #[doc(hidden)]
     #[inline]
-    pub fn lock(&self) -> std::sync::MutexGuard<'_, backend::FrameData> {
+    pub fn lock(
+        &self,
+    ) -> std::sync::MutexGuard<'_, backend::FrameData<dyn backend::RepaintSignal>> {
         self.0.lock().unwrap()
     }
 
@@ -440,7 +445,7 @@ pub mod backend {
     use super::*;
 
     /// How to signal the [`egui`] integration that a repaint is required.
-    pub trait RepaintSignal: Send + Sync {
+    pub trait RepaintSignal: Send {
         /// This signals the [`egui`] integration that a repaint is required.
         ///
         /// Call this e.g. when a background process finishes in an async context and/or background thread.
@@ -448,7 +453,7 @@ pub mod backend {
     }
 
     /// The data required by [`Frame`] each frame.
-    pub struct FrameData {
+    pub struct FrameData<S: ?Sized> {
         /// Information about the integration.
         pub info: IntegrationInfo,
 
@@ -456,7 +461,7 @@ pub mod backend {
         pub output: AppOutput,
 
         /// If you need to request a repaint from another thread, clone this and send it to that other thread.
-        pub repaint_signal: std::sync::Arc<dyn RepaintSignal>,
+        pub repaint_signal: S,
     }
 
     /// Action that can be taken by the user app.
