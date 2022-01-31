@@ -35,7 +35,7 @@ impl WebGlPainter {
 
         let gl = canvas
             .get_context("webgl")?
-            .ok_or_else(|| JsValue::from("Failed to get WebGl context"))?
+            .ok_or_else(|| JsValue::from("Failed to get WebGL context"))?
             .dyn_into::<WebGlRenderingContext>()?;
 
         // --------------------------------------------------------------------

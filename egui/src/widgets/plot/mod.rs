@@ -1,5 +1,7 @@
 //! Simple plotting library.
 
+use std::{cell::RefCell, rc::Rc};
+
 use crate::*;
 use epaint::ahash::AHashSet;
 use epaint::color::Hsva;
@@ -55,6 +57,63 @@ impl PlotMemory {
 
 // ----------------------------------------------------------------------------
 
+/// Defines how multiple plots share the same range for one or both of their axes. Can be added while building
+/// a plot with [`Plot::link_axis`]. Contains an internal state, meaning that this object should be stored by
+/// the user between frames.
+#[derive(Clone, PartialEq)]
+pub struct LinkedAxisGroup {
+    pub(crate) link_x: bool,
+    pub(crate) link_y: bool,
+    pub(crate) bounds: Rc<RefCell<Option<PlotBounds>>>,
+}
+
+impl LinkedAxisGroup {
+    pub fn new(link_x: bool, link_y: bool) -> Self {
+        Self {
+            link_x,
+            link_y,
+            bounds: Rc::new(RefCell::new(None)),
+        }
+    }
+
+    /// Only link the x-axis.
+    pub fn x() -> Self {
+        Self::new(true, false)
+    }
+
+    /// Only link the y-axis.
+    pub fn y() -> Self {
+        Self::new(false, true)
+    }
+
+    /// Link both axes. Note that this still respects the aspect ratio of the individual plots.
+    pub fn both() -> Self {
+        Self::new(true, true)
+    }
+
+    /// Change whether the x-axis is linked for this group. Using this after plots in this group have been
+    /// drawn in this frame already may lead to unexpected results.
+    pub fn set_link_x(&mut self, link: bool) {
+        self.link_x = link;
+    }
+
+    /// Change whether the y-axis is linked for this group. Using this after plots in this group have been
+    /// drawn in this frame already may lead to unexpected results.
+    pub fn set_link_y(&mut self, link: bool) {
+        self.link_y = link;
+    }
+
+    fn get(&self) -> Option<PlotBounds> {
+        *self.bounds.borrow()
+    }
+
+    fn set(&self, bounds: PlotBounds) {
+        *self.bounds.borrow_mut() = Some(bounds);
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// A 2D plot, e.g. a graph of a function.
 ///
 /// `Plot` supports multiple lines and points.
@@ -79,6 +138,7 @@ pub struct Plot {
     allow_drag: bool,
     min_auto_bounds: PlotBounds,
     margin_fraction: Vec2,
+    linked_axes: Option<LinkedAxisGroup>,
 
     min_size: Vec2,
     width: Option<f32>,
@@ -108,6 +168,7 @@ impl Plot {
             allow_drag: true,
             min_auto_bounds: PlotBounds::NOTHING,
             margin_fraction: Vec2::splat(0.05),
+            linked_axes: None,
 
             min_size: Vec2::splat(64.0),
             width: None,
@@ -331,6 +392,13 @@ impl Plot {
         self
     }
 
+    /// Add a [`LinkedAxisGroup`] so that this plot will share the bounds with other plots that have this
+    /// group assigned. A plot cannot belong to more than one group.
+    pub fn link_axis(mut self, group: LinkedAxisGroup) -> Self {
+        self.linked_axes = Some(group);
+        self
+    }
+
     /// Interact with and add items to the plot and finally draw it.
     pub fn show<R>(self, ui: &mut Ui, build_fn: impl FnOnce(&mut PlotUi) -> R) -> InnerResponse<R> {
         let Self {
@@ -353,6 +421,7 @@ impl Plot {
             legend_config,
             show_background,
             show_axes,
+            linked_axes,
             grid_spacers,
         } = self;
 
@@ -466,6 +535,22 @@ impl Plot {
         // --- Bound computation ---
         let mut bounds = *last_screen_transform.bounds();
 
+        // Transfer the bounds from a link group.
+        if let Some(axes) = linked_axes.as_ref() {
+            if let Some(linked_bounds) = axes.get() {
+                if axes.link_x {
+                    bounds.min[0] = linked_bounds.min[0];
+                    bounds.max[0] = linked_bounds.max[0];
+                }
+                if axes.link_y {
+                    bounds.min[1] = linked_bounds.min[1];
+                    bounds.max[1] = linked_bounds.max[1];
+                }
+                // Turn off auto bounds to keep it from overriding what we just set.
+                auto_bounds = false;
+            }
+        }
+
         // Allow double clicking to reset to automatic bounds.
         auto_bounds |= response.double_clicked_by(PointerButton::Primary);
 
@@ -482,7 +567,10 @@ impl Plot {
 
         // Enforce equal aspect ratio.
         if let Some(data_aspect) = data_aspect {
-            transform.set_aspect(data_aspect as f64);
+            let preserve_y = linked_axes
+                .as_ref()
+                .map_or(false, |group| group.link_y && !group.link_x);
+            transform.set_aspect(data_aspect as f64, preserve_y);
         }
 
         // Dragging
@@ -536,6 +624,10 @@ impl Plot {
             hovered_entry = legend.get_hovered_entry_name();
         }
 
+        if let Some(group) = linked_axes.as_ref() {
+            group.set(*transform.bounds());
+        }
+
         let memory = PlotMemory {
             auto_bounds,
             hovered_entry,
@@ -556,7 +648,7 @@ impl Plot {
 }
 
 /// Provides methods to interact with a plot while building it. It is the single argument of the closure
-/// provided to `Plot::show`. See [`Plot`] for an example of how to use it.
+/// provided to [`Plot::show`]. See [`Plot`] for an example of how to use it.
 pub struct PlotUi {
     items: Vec<Box<dyn PlotItem>>,
     next_auto_color_idx: usize,

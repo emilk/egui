@@ -1,6 +1,6 @@
 //! `egui`:  an easy-to-use GUI in pure Rust!
 //!
-//! Try the live web demo: <https://emilk.github.io/egui/index.html>. Read more about egui at <https://github.com/emilk/egui>.
+//! Try the live web demo: <https://www.egui.rs/#demo>. Read more about egui at <https://github.com/emilk/egui>.
 //!
 //! `egui` is in heavy development, with each new version having breaking changes.
 //! You need to have rust 1.56.0 or later to use `egui`.
@@ -14,7 +14,7 @@
 //!
 //! # Using egui
 //!
-//! To see what is possible to build with egui you can check out the online demo at <https://emilk.github.io/egui/#demo>.
+//! To see what is possible to build with egui you can check out the online demo at <https://www.egui.rs/#demo>.
 //!
 //! If you like the "learning by doing" approach, clone <https://github.com/emilk/eframe_template> and get started using egui right away.
 //!
@@ -526,7 +526,7 @@ macro_rules! egui_assert {
 ///
 /// NOTE: In egui all emojis are monochrome!
 ///
-/// You can explore them all in the Font Book in [the online demo](https://emilk.github.io/egui/).
+/// You can explore them all in the Font Book in [the online demo](https://www.egui.rs/#demo).
 ///
 /// In addition, egui supports a few special emojis that are not part of the unicode standard.
 /// This module contains some of them:
