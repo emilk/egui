@@ -15,11 +15,11 @@ impl Default for ScreenReader {
     fn default() -> Self {
         let tts = match tts::Tts::default() {
             Ok(screen_reader) => {
-                crate::console_log("Initialized screen reader.");
+                crate::console_log!("Initialized screen reader.");
                 Some(screen_reader)
             }
             Err(err) => {
-                crate::console_warn(format!("Failed to load screen reader: {}", err));
+                crate::console_warn!("Failed to load screen reader: {}", err);
                 None
             }
         };
@@ -37,10 +37,10 @@ impl ScreenReader {
             return;
         }
         if let Some(tts) = &mut self.tts {
-            crate::console_log(format!("Speaking: {:?}", text));
+            crate::console_log!("Speaking: {:?}", text);
             let interrupt = true;
             if let Err(err) = tts.speak(text, interrupt) {
-                crate::console_warn(format!("Failed to read: {}", err));
+                crate::console_warn!("Failed to read: {}", err);
             }
         }
     }

@@ -42,20 +42,30 @@ static AGENT_ID: &str = "egui_text_agent";
 // ----------------------------------------------------------------------------
 // Helpers to hide some of the verbosity of web_sys
 
-/// Log some text to the developer console (`console.log(…)` in JS)
-pub fn console_log(s: impl Into<JsValue>) {
-    web_sys::console::log_1(&s.into());
+#[macro_export]
+macro_rules! console_log {
+    ($($t:tt)*) => (web_sys::console::log_1(&format!($($t)*).into()))
 }
 
-/// Log a warning to the developer console (`console.warn(…)` in JS)
-pub fn console_warn(s: impl Into<JsValue>) {
-    web_sys::console::warn_1(&s.into());
+#[macro_export]
+macro_rules! console_warn {
+    ($($t:tt)*) => (web_sys::console::warn_1(&format!($($t)*).into()))
 }
 
-/// Log an error to the developer console (`console.error(…)` in JS)
-pub fn console_error(s: impl Into<JsValue>) {
-    web_sys::console::error_1(&s.into());
+#[macro_export]
+macro_rules! console_error {
+    ($($t:tt)*) => (web_sys::console::error_1(&format!($($t)*).into()))
 }
+
+pub fn string_from_js_value(s: wasm_bindgen::JsValue) -> String {
+    s.as_string().unwrap_or(format!("{:#?}", s))
+}
+
+pub fn string_from_js_string(s: js_sys::JsString) -> String {
+    s.as_string().unwrap_or(format!("{:#?}", s))
+}
+
+// ----------------------------------------------------------------------------
 
 /// Current time in seconds (since undefined point in time)
 pub fn now_sec() -> f64 {
@@ -259,7 +269,7 @@ pub fn load_memory(ctx: &egui::Context) {
                 *ctx.memory() = memory;
             }
             Err(err) => {
-                console_error(format!("Failed to parse memory RON: {}", err));
+                console_error!("Failed to parse memory RON: {}", err);
             }
         }
     }
@@ -275,7 +285,7 @@ pub fn save_memory(ctx: &egui::Context) {
             local_storage_set("egui_memory_ron", &ron);
         }
         Err(err) => {
-            console_error(format!("Failed to serialize memory as RON: {}", err));
+            console_error!("Failed to serialize memory as RON: {}", err);
         }
     }
 }
@@ -315,7 +325,7 @@ pub fn set_clipboard_text(s: &str) {
             let future = wasm_bindgen_futures::JsFuture::from(promise);
             let future = async move {
                 if let Err(err) = future.await {
-                    console_error(format!("Copy/cut action denied: {:?}", err));
+                    console_error!("Copy/cut action denied: {:?}", err);
                 }
             };
             wasm_bindgen_futures::spawn_local(future);
@@ -575,12 +585,12 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 false
             };
 
-            // console_log(format!(
+            // console_log!(
             //     "On key-down {:?}, egui_wants_keyboard: {}, prevent_default: {}",
             //     event.key().as_str(),
             //     egui_wants_keyboard,
             //     prevent_default
-            // ));
+            // );
 
             if prevent_default {
                 event.prevent_default();
@@ -780,7 +790,7 @@ fn install_text_agent(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 }
                 "compositionupdate" => event.data().map(egui::Event::CompositionUpdate),
                 s => {
-                    console_error(format!("Unknown composition event type: {:?}", s));
+                    console_error!("Unknown composition event type: {:?}", s);
                     None
                 }
             };
@@ -1128,7 +1138,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                             let last_modified = std::time::UNIX_EPOCH
                                 + std::time::Duration::from_millis(file.last_modified() as u64);
 
-                            console_log(format!("Loading {:?} ({} bytes)…", name, file.size()));
+                            console_log!("Loading {:?} ({} bytes)…", name, file.size());
 
                             let future = wasm_bindgen_futures::JsFuture::from(file.array_buffer());
 
@@ -1137,11 +1147,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                                 match future.await {
                                     Ok(array_buffer) => {
                                         let bytes = js_sys::Uint8Array::new(&array_buffer).to_vec();
-                                        console_log(format!(
-                                            "Loaded {:?} ({} bytes).",
-                                            name,
-                                            bytes.len()
-                                        ));
+                                        console_log!("Loaded {:?} ({} bytes).", name, bytes.len());
 
                                         let mut runner_lock = runner_ref.0.lock();
                                         runner_lock.input.raw.dropped_files.push(
@@ -1155,7 +1161,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                                         runner_lock.needs_repaint.set_true();
                                     }
                                     Err(err) => {
-                                        console_error(format!("Failed to read file: {:?}", err));
+                                        console_error!("Failed to read file: {:?}", err);
                                     }
                                 }
                             };
