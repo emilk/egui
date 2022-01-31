@@ -35,7 +35,7 @@ bytemuck = { version = "1.7.2", features = ["derive"], optional = true }
 cint = { version = "^0.2.2", optional = true }
 nohash-hasher = "0.2"
 parking_lot = { version = "0.11", optional = true } # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
-serde = { version = "1", features = ["derive"], optional = true }
+serde = { version = "1", features = ["derive", "rc"], optional = true }
 
 [features]
 default = ["default_fonts", "multi_threaded"]

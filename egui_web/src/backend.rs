@@ -8,9 +8,9 @@ pub use egui::{pos2, Color32};
 fn create_painter(canvas_id: &str) -> Result<Box<dyn Painter>, JsValue> {
     // Glow takes precedence:
     #[cfg(all(feature = "glow"))]
-    return Ok(Box::new(crate::glow_wrapping::WrappedGlowPainter::new(
-        canvas_id,
-    )));
+    return Ok(Box::new(
+        crate::glow_wrapping::WrappedGlowPainter::new(canvas_id).map_err(JsValue::from)?,
+    ));
 
     #[cfg(all(feature = "webgl", not(feature = "glow")))]
     if let Ok(webgl2_painter) = webgl2::WebGl2Painter::new(canvas_id) {
@@ -286,6 +286,9 @@ impl AppRunner {
 /// Install event listeners to register different input events
 /// and start running the given app.
 pub fn start(canvas_id: &str, app: Box<dyn epi::App>) -> Result<AppRunnerRef, JsValue> {
+    // Make sure panics are logged using `console.error`.
+    console_error_panic_hook::set_once();
+
     let mut runner = AppRunner::new(canvas_id, app)?;
     runner.warm_up()?;
     start_runner(runner)
