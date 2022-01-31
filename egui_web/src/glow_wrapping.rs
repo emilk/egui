@@ -1,4 +1,3 @@
-use crate::{canvas_element_or_die, console_error};
 use egui::{ClippedMesh, Rgba};
 use egui_glow::glow;
 use wasm_bindgen::JsCast;
@@ -15,27 +14,21 @@ pub(crate) struct WrappedGlowPainter {
 }
 
 impl WrappedGlowPainter {
-    pub fn new(canvas_id: &str) -> Self {
-        let canvas = canvas_element_or_die(canvas_id);
+    pub fn new(canvas_id: &str) -> Result<Self, String> {
+        let canvas = crate::canvas_element_or_die(canvas_id);
 
-        let (glow_ctx, shader_prefix) = init_glow_context_from_canvas(&canvas);
+        let (glow_ctx, shader_prefix) = init_glow_context_from_canvas(&canvas)?;
 
         let dimension = [canvas.width() as i32, canvas.height() as i32];
         let painter = egui_glow::Painter::new(&glow_ctx, Some(dimension), shader_prefix)
-            .map_err(|error| {
-                console_error(format!(
-                    "some error occurred in initializing glow painter\n {}",
-                    error
-                ))
-            })
-            .unwrap();
+            .map_err(|error| format!("Error starting glow painter: {}", error))?;
 
-        Self {
+        Ok(Self {
             glow_ctx,
             canvas,
             canvas_id: canvas_id.to_owned(),
             painter,
-        }
+        })
     }
 }
 
@@ -90,7 +83,9 @@ impl crate::Painter for WrappedGlowPainter {
 }
 
 /// Returns glow context and shader prefix.
-fn init_glow_context_from_canvas(canvas: &HtmlCanvasElement) -> (glow::Context, &'static str) {
+fn init_glow_context_from_canvas(
+    canvas: &HtmlCanvasElement,
+) -> Result<(glow::Context, &'static str), String> {
     const BEST_FIRST: bool = true;
 
     let result = if BEST_FIRST {
@@ -103,9 +98,9 @@ fn init_glow_context_from_canvas(canvas: &HtmlCanvasElement) -> (glow::Context, 
     };
 
     if let Some(result) = result {
-        result
+        Ok(result)
     } else {
-        panic!("WebGL isn't supported");
+        Err("WebGL isn't supported".into())
     }
 }
 

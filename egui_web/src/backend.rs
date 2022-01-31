@@ -8,9 +8,9 @@ pub use egui::{pos2, Color32};
 fn create_painter(canvas_id: &str) -> Result<Box<dyn Painter>, JsValue> {
     // Glow takes precedence:
     #[cfg(all(feature = "glow"))]
-    return Ok(Box::new(crate::glow_wrapping::WrappedGlowPainter::new(
-        canvas_id,
-    )));
+    return Ok(Box::new(
+        crate::glow_wrapping::WrappedGlowPainter::new(canvas_id).map_err(JsValue::from)?,
+    ));
 
     #[cfg(all(feature = "webgl", not(feature = "glow")))]
     if let Ok(webgl2_painter) = webgl2::WebGl2Painter::new(canvas_id) {
