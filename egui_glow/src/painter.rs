@@ -98,7 +98,7 @@ impl Painter {
         let shader_version = ShaderVersion::get(gl);
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
         let header = shader_version.version();
-        tracing::info!("Shader header: {:?}.", header);
+        tracing::debug!("Shader header: {:?}.", header);
         let srgb_support = gl.supported_extensions().contains("EXT_sRGB");
 
         let (post_process, srgb_support_define) = match (shader_version, srgb_support) {
@@ -106,7 +106,7 @@ impl Painter {
             (ShaderVersion::Es300, _) | (ShaderVersion::Es100, true) => unsafe {
                 // Add sRGB support marker for fragment shader
                 if let Some([width, height]) = pp_fb_extent {
-                    tracing::info!("WebGL with sRGB enabled. Turning on post processing for linear framebuffer blending.");
+                    tracing::debug!("WebGL with sRGB enabled. Turning on post processing for linear framebuffer blending.");
                     // install post process to correct sRGB color:
                     (
                         Some(PostProcess::new(
@@ -120,7 +120,7 @@ impl Painter {
                         "#define SRGB_SUPPORTED",
                     )
                 } else {
-                    tracing::info!("WebGL or OpenGL ES detected but PostProcess disabled because dimension is None");
+                    tracing::debug!("WebGL or OpenGL ES detected but PostProcess disabled because dimension is None");
                     (None, "")
                 }
             },

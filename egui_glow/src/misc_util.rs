@@ -116,7 +116,7 @@ pub(crate) fn supports_vao(gl: &glow::Context) -> bool {
     const OPENGL_ES_PREFIX: &str = "OpenGL ES ";
 
     let version_string = unsafe { gl.get_parameter_string(glow::VERSION) };
-    tracing::info!("GL version: {:?}.", version_string);
+    tracing::debug!("GL version: {:?}.", version_string);
 
     // Examples:
     // * "WebGL 2.0 (OpenGL ES 3.0 Chromium)"

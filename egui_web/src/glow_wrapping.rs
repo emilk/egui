@@ -110,14 +110,14 @@ fn init_webgl1(canvas: &HtmlCanvasElement) -> Option<(glow::Context, &'static st
         .expect("Failed to query about WebGL2 context");
 
     let gl1_ctx = gl1_ctx?;
-    tracing::info!("WebGL1 selected.");
+    tracing::debug!("WebGL1 selected.");
 
     let gl1_ctx = gl1_ctx
         .dyn_into::<web_sys::WebGlRenderingContext>()
         .unwrap();
 
     let shader_prefix = if crate::webgl1_requires_brightening(&gl1_ctx) {
-        tracing::info!("Enabling webkitGTK brightening workaround.");
+        tracing::debug!("Enabling webkitGTK brightening workaround.");
         "#define APPLY_BRIGHTENING_GAMMA"
     } else {
         ""
@@ -134,7 +134,7 @@ fn init_webgl2(canvas: &HtmlCanvasElement) -> Option<(glow::Context, &'static st
         .expect("Failed to query about WebGL2 context");
 
     let gl2_ctx = gl2_ctx?;
-    tracing::info!("WebGL2 selected.");
+    tracing::debug!("WebGL2 selected.");
 
     let gl2_ctx = gl2_ctx
         .dyn_into::<web_sys::WebGl2RenderingContext>()

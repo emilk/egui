@@ -14,10 +14,10 @@ fn create_painter(canvas_id: &str) -> Result<Box<dyn Painter>, JsValue> {
 
     #[cfg(all(feature = "webgl", not(feature = "glow")))]
     if let Ok(webgl2_painter) = webgl2::WebGl2Painter::new(canvas_id) {
-        tracing::info!("Using WebGL2 backend");
+        tracing::debug!("Using WebGL2 backend");
         Ok(Box::new(webgl2_painter))
     } else {
-        tracing::info!("Falling back to WebGL1 backend");
+        tracing::debug!("Falling back to WebGL1 backend");
         let webgl1_painter = webgl1::WebGlPainter::new(canvas_id)?;
         Ok(Box::new(webgl1_painter))
     }

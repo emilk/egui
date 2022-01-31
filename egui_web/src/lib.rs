@@ -569,7 +569,7 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 false
             };
 
-            // tracing::info!(
+            // tracing::debug!(
             //     "On key-down {:?}, egui_wants_keyboard: {}, prevent_default: {}",
             //     event.key().as_str(),
             //     egui_wants_keyboard,
@@ -1122,7 +1122,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                             let last_modified = std::time::UNIX_EPOCH
                                 + std::time::Duration::from_millis(file.last_modified() as u64);
 
-                            tracing::info!("Loading {:?} ({} bytes)…", name, file.size());
+                            tracing::debug!("Loading {:?} ({} bytes)…", name, file.size());
 
                             let future = wasm_bindgen_futures::JsFuture::from(file.array_buffer());
 
@@ -1131,7 +1131,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                                 match future.await {
                                     Ok(array_buffer) => {
                                         let bytes = js_sys::Uint8Array::new(&array_buffer).to_vec();
-                                        tracing::info!(
+                                        tracing::debug!(
                                             "Loaded {:?} ({} bytes).",
                                             name,
                                             bytes.len()

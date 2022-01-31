@@ -496,7 +496,7 @@ impl PostProcess {
         gl.bind_framebuffer(Gl::FRAMEBUFFER, None);
 
         let shader_prefix = if crate::webgl1_requires_brightening(&gl) {
-            tracing::info!("Enabling webkitGTK brightening workaround");
+            tracing::debug!("Enabling webkitGTK brightening workaround");
             "#define APPLY_BRIGHTENING_GAMMA"
         } else {
             ""

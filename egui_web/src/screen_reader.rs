@@ -15,7 +15,7 @@ impl Default for ScreenReader {
     fn default() -> Self {
         let tts = match tts::Tts::default() {
             Ok(screen_reader) => {
-                tracing::info!("Initialized screen reader.");
+                tracing::debug!("Initialized screen reader.");
                 Some(screen_reader)
             }
             Err(err) => {
@@ -37,7 +37,7 @@ impl ScreenReader {
             return;
         }
         if let Some(tts) = &mut self.tts {
-            tracing::info!("Speaking: {:?}", text);
+            tracing::debug!("Speaking: {:?}", text);
             let interrupt = true;
             if let Err(err) = tts.speak(text, interrupt) {
                 tracing::warn!("Failed to read: {}", err);
