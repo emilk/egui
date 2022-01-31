@@ -93,7 +93,7 @@ fn init_glow_context_from_canvas(
         init_webgl2(canvas).or_else(|| init_webgl1(canvas))
     } else {
         // Trying WebGl1 first (useful for testing).
-        crate::console_warn!("Looking for WebGL1 first");
+        tracing::warn!("Looking for WebGL1 first");
         init_webgl1(canvas).or_else(|| init_webgl2(canvas))
     };
 
@@ -110,14 +110,14 @@ fn init_webgl1(canvas: &HtmlCanvasElement) -> Option<(glow::Context, &'static st
         .expect("Failed to query about WebGL2 context");
 
     let gl1_ctx = gl1_ctx?;
-    crate::console_log!("WebGL1 selected.");
+    tracing::info!("WebGL1 selected.");
 
     let gl1_ctx = gl1_ctx
         .dyn_into::<web_sys::WebGlRenderingContext>()
         .unwrap();
 
     let shader_prefix = if crate::webgl1_requires_brightening(&gl1_ctx) {
-        crate::console_log!("Enabling webkitGTK brightening workaround.");
+        tracing::info!("Enabling webkitGTK brightening workaround.");
         "#define APPLY_BRIGHTENING_GAMMA"
     } else {
         ""
@@ -134,7 +134,7 @@ fn init_webgl2(canvas: &HtmlCanvasElement) -> Option<(glow::Context, &'static st
         .expect("Failed to query about WebGL2 context");
 
     let gl2_ctx = gl2_ctx?;
-    crate::console_log!("WebGL2 selected.");
+    tracing::info!("WebGL2 selected.");
 
     let gl2_ctx = gl2_ctx
         .dyn_into::<web_sys::WebGl2RenderingContext>()

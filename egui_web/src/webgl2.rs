@@ -410,10 +410,7 @@ impl crate::Painter for WebGl2Painter {
                     self.paint_mesh(&mesh)?;
                 }
             } else {
-                crate::console_warn(format!(
-                    "WebGL: Failed to find texture {:?}",
-                    mesh.texture_id
-                ));
+                tracing::warn!("WebGL: Failed to find texture {:?}", mesh.texture_id);
             }
         }
 

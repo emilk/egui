@@ -40,22 +40,6 @@ use wasm_bindgen::prelude::*;
 static AGENT_ID: &str = "egui_text_agent";
 
 // ----------------------------------------------------------------------------
-// Helpers to hide some of the verbosity of web_sys
-
-#[macro_export]
-macro_rules! console_log {
-    ($($t:tt)*) => (web_sys::console::log_1(&format!($($t)*).into()))
-}
-
-#[macro_export]
-macro_rules! console_warn {
-    ($($t:tt)*) => (web_sys::console::warn_1(&format!($($t)*).into()))
-}
-
-#[macro_export]
-macro_rules! console_error {
-    ($($t:tt)*) => (web_sys::console::error_1(&format!($($t)*).into()))
-}
 
 pub fn string_from_js_value(s: wasm_bindgen::JsValue) -> String {
     s.as_string().unwrap_or(format!("{:#?}", s))
@@ -269,7 +253,7 @@ pub fn load_memory(ctx: &egui::Context) {
                 *ctx.memory() = memory;
             }
             Err(err) => {
-                console_error!("Failed to parse memory RON: {}", err);
+                tracing::error!("Failed to parse memory RON: {}", err);
             }
         }
     }
@@ -285,7 +269,7 @@ pub fn save_memory(ctx: &egui::Context) {
             local_storage_set("egui_memory_ron", &ron);
         }
         Err(err) => {
-            console_error!("Failed to serialize memory as RON: {}", err);
+            tracing::error!("Failed to serialize memory as RON: {}", err);
         }
     }
 }
@@ -325,7 +309,7 @@ pub fn set_clipboard_text(s: &str) {
             let future = wasm_bindgen_futures::JsFuture::from(promise);
             let future = async move {
                 if let Err(err) = future.await {
-                    console_error!("Copy/cut action denied: {:?}", err);
+                    tracing::error!("Copy/cut action denied: {:?}", err);
                 }
             };
             wasm_bindgen_futures::spawn_local(future);
@@ -585,7 +569,7 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 false
             };
 
-            // console_log!(
+            // tracing::info!(
             //     "On key-down {:?}, egui_wants_keyboard: {}, prevent_default: {}",
             //     event.key().as_str(),
             //     egui_wants_keyboard,
@@ -790,7 +774,7 @@ fn install_text_agent(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 }
                 "compositionupdate" => event.data().map(egui::Event::CompositionUpdate),
                 s => {
-                    console_error!("Unknown composition event type: {:?}", s);
+                    tracing::error!("Unknown composition event type: {:?}", s);
                     None
                 }
             };
@@ -1138,7 +1122,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                             let last_modified = std::time::UNIX_EPOCH
                                 + std::time::Duration::from_millis(file.last_modified() as u64);
 
-                            console_log!("Loading {:?} ({} bytes)…", name, file.size());
+                            tracing::info!("Loading {:?} ({} bytes)…", name, file.size());
 
                             let future = wasm_bindgen_futures::JsFuture::from(file.array_buffer());
 
@@ -1147,7 +1131,11 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                                 match future.await {
                                     Ok(array_buffer) => {
                                         let bytes = js_sys::Uint8Array::new(&array_buffer).to_vec();
-                                        console_log!("Loaded {:?} ({} bytes).", name, bytes.len());
+                                        tracing::info!(
+                                            "Loaded {:?} ({} bytes).",
+                                            name,
+                                            bytes.len()
+                                        );
 
                                         let mut runner_lock = runner_ref.0.lock();
                                         runner_lock.input.raw.dropped_files.push(
@@ -1161,7 +1149,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                                         runner_lock.needs_repaint.set_true();
                                     }
                                     Err(err) => {
-                                        console_error!("Failed to read file: {:?}", err);
+                                        tracing::error!("Failed to read file: {:?}", err);
                                     }
                                 }
                             };

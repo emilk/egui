@@ -431,10 +431,7 @@ impl crate::Painter for WebGlPainter {
                     self.paint_mesh(&mesh)?;
                 }
             } else {
-                crate::console_warn(format!(
-                    "WebGL: Failed to find texture {:?}",
-                    mesh.texture_id
-                ));
+                tracing::warn!("WebGL: Failed to find texture {:?}", mesh.texture_id);
             }
         }
 
@@ -499,7 +496,7 @@ impl PostProcess {
         gl.bind_framebuffer(Gl::FRAMEBUFFER, None);
 
         let shader_prefix = if crate::webgl1_requires_brightening(&gl) {
-            crate::console_log!("Enabling webkitGTK brightening workaround");
+            tracing::info!("Enabling webkitGTK brightening workaround");
             "#define APPLY_BRIGHTENING_GAMMA"
         } else {
             ""
