@@ -277,12 +277,12 @@ pub struct IconData {
 ///
 /// [`Frame`] is cheap to clone and is safe to pass to other threads.
 #[derive(Clone)]
-pub struct Frame(pub Arc<Mutex<backend::FrameData<dyn backend::RepaintSignal + 'static>>>);
+pub struct Frame(pub Arc<Mutex<backend::FrameData<dyn backend::RepaintSignal>>>);
 
 impl Frame {
     /// Create a `Frame` - called by the integration.
     #[doc(hidden)]
-    pub fn new<S: 'static>(frame_data: backend::FrameData<S>) -> Self
+    pub fn new<S>(frame_data: backend::FrameData<S>) -> Self
     where
         S: backend::RepaintSignal,
     {
@@ -442,10 +442,12 @@ pub const APP_KEY: &str = "app";
 
 /// You only need to look here if you are writing a backend for `epi`.
 pub mod backend {
+    use std::any::Any;
+
     use super::*;
 
     /// How to signal the [`egui`] integration that a repaint is required.
-    pub trait RepaintSignal: Send {
+    pub trait RepaintSignal: Send + Any {
         /// This signals the [`egui`] integration that a repaint is required.
         ///
         /// Call this e.g. when a background process finishes in an async context and/or background thread.
