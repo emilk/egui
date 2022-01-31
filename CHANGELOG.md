@@ -15,8 +15,8 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
   * Added `TextStyle::resolve`.
 * `Context::load_texture` to convert an image into a texture which can be displayed using e.g. `ui.image(texture, size)` ([#1110](https://github.com/emilk/egui/pull/1110)).
 * Added `Ui::add_visible` and `Ui::add_visible_ui`.
-* Added `CollapsingHeader::icon` to override the default open/close icon using a custom function. ([#1147](https://github.com/emilk/egui/pull/1147))
-* Added `DragValue::step_buttons` to add decrement [-] and increment [+] buttons with a customn step value. ([#1157](https://github.com/emilk/egui/pull/1157))
+* Added `CollapsingHeader::icon` to override the default open/close icon using a custom function. ([1147](https://github.com/emilk/egui/pull/1147))
+* Added `DragValue::step_buttons` to add decrement [-] and increment [+] buttons with a customn step value.
 
 ### Changed 🔧
 * ⚠️ `Context::input` and `Ui::input` now locks a mutex. This can lead to a dead-lock is used in an `if let` binding!
