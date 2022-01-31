@@ -192,7 +192,9 @@ impl Plot {
         self
     }
 
-    /// Whether to allow zooming in the plot. Default: `true`.
+    /// Whether to allow zooming in the plot by dragging out a box with the secondary mouse button.
+    ///
+    /// Default: `true`.
     pub fn allow_boxed_zoom(mut self, on: bool) -> Self {
         self.allow_boxed_zoom = on;
         self
