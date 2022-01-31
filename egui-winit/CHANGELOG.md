@@ -11,6 +11,7 @@ All notable changes to the `egui-winit` integration will be noted in this file.
 * Fixed `enable_drag` for Windows. Now called only once just after left click ([#1108](https://github.com/emilk/egui/pull/1108)).
 * Updated `EpiIntegration::new` signature ([#1187](https://github.com/emilk/egui/pull/1187)).
 
+
 ## 0.16.0 - 2021-12-29
 * Added helper `EpiIntegration` ([#871](https://github.com/emilk/egui/pull/871)).
 * Fixed shift key getting stuck enabled with the X11 option `shift:both_capslock` enabled ([#849](https://github.com/emilk/egui/pull/849)).
