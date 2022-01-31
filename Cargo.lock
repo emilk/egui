@@ -809,6 +809,7 @@ dependencies = [
  "epi",
  "instant",
  "serde",
+ "tracing",
  "tts",
  "webbrowser",
  "winit",

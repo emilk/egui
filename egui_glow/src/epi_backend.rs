@@ -60,8 +60,7 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
     )));
 
     let mut painter = crate::Painter::new(&gl, None, "")
-        .map_err(|error| eprintln!("some OpenGL error occurred {}\n", error))
-        .unwrap();
+        .unwrap_or_else(|error| panic!("some OpenGL error occurred {}\n", error));
     let mut integration = egui_winit::epi::EpiIntegration::new(
         "egui_glow",
         painter.max_texture_side(),

@@ -582,7 +582,7 @@ pub fn clear(gl: &glow::Context, dimension: [u32; 2], clear_color: egui::Rgba) {
 impl Drop for Painter {
     fn drop(&mut self) {
         if !self.destroyed {
-            eprintln!(
+            tracing::warn!(
                 "You forgot to call destroy() on the egui glow painter. Resources will leak!"
             );
         }

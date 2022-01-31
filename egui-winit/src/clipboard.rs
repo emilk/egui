@@ -29,7 +29,7 @@ impl Clipboard {
             match clipboard.get_contents() {
                 Ok(contents) => Some(contents),
                 Err(err) => {
-                    eprintln!("Paste error: {}", err);
+                    tracing::error!("Paste error: {}", err);
                     None
                 }
             }
@@ -46,7 +46,7 @@ impl Clipboard {
         if let Some(clipboard) = &mut self.copypasta {
             use copypasta::ClipboardProvider as _;
             if let Err(err) = clipboard.set_contents(text) {
-                eprintln!("Copy/Cut error: {}", err);
+                tracing::error!("Copy/Cut error: {}", err);
             }
         }
 
@@ -62,7 +62,7 @@ fn init_copypasta() -> Option<copypasta::ClipboardContext> {
     match copypasta::ClipboardContext::new() {
         Ok(clipboard) => Some(clipboard),
         Err(err) => {
-            eprintln!("Failed to initialize clipboard: {}", err);
+            tracing::error!("Failed to initialize clipboard: {}", err);
             None
         }
     }
