@@ -5,17 +5,30 @@ use egui::*;
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct PaintBezier {
-    bezier: usize,                       // current bezier curve degree, it can be 3,4,
-    bezier_backup: usize, //track the bezier degree before change in order to clean the remaining points.
-    points: Vec<Pos2>, //points already clicked. once it reaches the 'bezier' degree, it will be pushed into the 'shapes'
-    backup_points: Vec<Pos2>, //track last points set in order to draw auxiliary lines.
-    q_shapes: Vec<QuadraticBezierShape>, //shapes already drawn. once it reaches the 'bezier' degree, it will be pushed into the 'shapes'
-    c_shapes: Vec<CubicBezierShape>, // since `Shape` can't be 'serilized', we can't use Shape as variable type.
+    /// Current bezier curve degree, it can be 3, 4.
+    bezier: usize,
+    /// Track the bezier degree before change in order to clean the remaining points.
+    degree_backup: usize,
+    /// Points already clicked. once it reaches the 'bezier' degree, it will be pushed into the 'shapes'
+    points: Vec<Pos2>,
+    /// Track last points set in order to draw auxiliary lines.
+    backup_points: Vec<Pos2>,
+    /// Quadratic shapes already drawn.
+    q_shapes: Vec<QuadraticBezierShape>,
+    /// Cubic shapes already drawn.
+    /// Since `Shape` can't be 'serialized', we can't use Shape as variable type.
+    c_shapes: Vec<CubicBezierShape>,
+    /// Stroke for auxiliary lines.
     aux_stroke: Stroke,
+    /// Stroke for bezier curve.
     stroke: Stroke,
+    /// Fill for bezier curve.
     fill: Color32,
+    /// The curve should be closed or not.
     closed: bool,
+    /// Display the bounding box or not.
     show_bounding_box: bool,
+    /// Storke for the bounding box.
     bounding_box_stroke: Stroke,
 }
 
@@ -23,7 +36,7 @@ impl Default for PaintBezier {
     fn default() -> Self {
         Self {
             bezier: 4, // default bezier degree, a cubic bezier curve
-            bezier_backup: 4,
+            degree_backup: 4,
             points: Default::default(),
             backup_points: Default::default(),
             q_shapes: Default::default(),
@@ -73,16 +86,16 @@ impl PaintBezier {
             ui.separator();
             ui.vertical(|ui| {
                 if ui.radio_value(&mut self.bezier, 3, "Quadratic").clicked()
-                    && self.bezier_backup != self.bezier
+                    && self.degree_backup != self.bezier
                 {
                     self.points.clear();
-                    self.bezier_backup = self.bezier;
+                    self.degree_backup = self.bezier;
                 };
                 if ui.radio_value(&mut self.bezier, 4, "Cubic").clicked()
-                    && self.bezier_backup != self.bezier
+                    && self.degree_backup != self.bezier
                 {
                     self.points.clear();
-                    self.bezier_backup = self.bezier;
+                    self.degree_backup = self.bezier;
                 };
                 // ui.radio_value(self.bezier, 5, "Quintic");
                 ui.label("Click 3 or 4 points to build a bezier curve!");
@@ -184,8 +197,8 @@ impl PaintBezier {
     }
 }
 
-// an internal function to create auxiliary lines around the current bezier curve
-// or to auxiliary lines (points) before the points meet the bezier curve requirements.
+/// An internal function to create auxiliary lines around the current bezier curve
+/// or to auxiliary lines (points) before the points meet the bezier curve requirements.
 fn build_auxiliary_line(
     points: &[Pos2],
     to_screen: &RectTransform,
