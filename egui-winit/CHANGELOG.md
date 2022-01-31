@@ -9,7 +9,7 @@ All notable changes to the `egui-winit` integration will be noted in this file.
 * Shift-scroll will now result in horizontal scrolling on all platforms ([#1136](https://github.com/emilk/egui/pull/1136)).
 * Require knowledge about max texture side (e.g. `GL_MAX_TEXTURE_SIZE`)) ([#1154](https://github.com/emilk/egui/pull/1154)).
 * Fixed `enable_drag` for Windows. Now called only once just after left click ([#1108](https://github.com/emilk/egui/pull/1108)).
-
+* Updated `EpiIntegration::new` signature ([#1187](https://github.com/emilk/egui/pull/1187)).
 
 ## 0.16.0 - 2021-12-29
 * Added helper `EpiIntegration` ([#871](https://github.com/emilk/egui/pull/871)).
