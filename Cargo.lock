@@ -821,7 +821,6 @@ version = "0.16.0"
 dependencies = [
  "eframe",
  "egui_demo_lib",
- "tracing",
  "tracing-subscriber",
 ]
 
@@ -2507,7 +2506,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "375a639232caf30edfc78e8d89b2d4c375515393e7af7e16f01cd96917fb2105"
 dependencies = [
  "cfg-if 1.0.0",
- "log",
  "pin-project-lite",
  "tracing-attributes",
  "tracing-core",

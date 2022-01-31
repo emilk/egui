@@ -18,7 +18,6 @@ eframe = { version = "0.16.0", path = "../eframe" }
 
 egui_demo_lib = { version = "0.16.0", path = "../egui_demo_lib", features = ["extra_debug_asserts"] }
 tracing-subscriber = "0.3"
-tracing = { version = "0.1", features = ["log"] }
 
 [features]
 default = ["persistence"]
