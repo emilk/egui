@@ -277,7 +277,7 @@ pub struct IconData {
 ///
 /// [`Frame`] is cheap to clone and is safe to pass to other threads.
 #[derive(Clone)]
-pub struct Frame(pub Arc<Mutex<backend::FrameData<dyn backend::RepaintSignal>>>);
+pub struct Frame(pub Arc<Mutex<backend::FrameData>>);
 
 impl Frame {
     /// Create a `Frame` - called by the integration.
@@ -292,9 +292,7 @@ impl Frame {
     /// Access the underlying [`backend::FrameData`].
     #[doc(hidden)]
     #[inline]
-    pub fn lock(
-        &self,
-    ) -> std::sync::MutexGuard<'_, backend::FrameData<dyn backend::RepaintSignal>> {
+    pub fn lock(&self) -> std::sync::MutexGuard<'_, backend::FrameData> {
         self.0.lock().unwrap()
     }
 
@@ -442,27 +440,29 @@ pub const APP_KEY: &str = "app";
 
 /// You only need to look here if you are writing a backend for `epi`.
 pub mod backend {
-    use std::any::Any;
-
     use super::*;
 
     /// How to signal the [`egui`] integration that a repaint is required.
-    pub trait RepaintSignal: Send + Any {
+    pub trait RepaintSignal: Send + std::any::Any {
         /// This signals the [`egui`] integration that a repaint is required.
         ///
         /// Call this e.g. when a background process finishes in an async context and/or background thread.
         fn request_repaint(&self);
+
+        /// Method to dynamically clone self. Calling [`RepaintSignal::request_repaint`] on a clone should
+        /// be equivalent to a call on the original value. You may use [`Box::downcast`] to get a concrete type.
+        fn dyn_clone(&self) -> Box<dyn RepaintSignal>;
     }
 
     /// The data required by [`Frame`] each frame.
-    pub struct FrameData<S: ?Sized> {
+    pub struct FrameData<S: ?Sized + RepaintSignal = dyn RepaintSignal> {
         /// Information about the integration.
         pub info: IntegrationInfo,
 
         /// Where the app can issue commands back to the integration.
         pub output: AppOutput,
 
-        /// If you need to request a repaint from another thread, clone this and send it to that other thread.
+        /// If you need to request a repaint from another thread, [`RepaintSignal::dyn_clone`] this and send it to that other thread.
         pub repaint_signal: S,
     }
 

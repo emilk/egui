@@ -78,6 +78,10 @@ impl epi::backend::RepaintSignal for NeedRepaint {
     fn request_repaint(&self) {
         self.0.store(true, SeqCst);
     }
+
+    fn dyn_clone(&self) -> Box<dyn epi::backend::RepaintSignal> {
+        Box::new(self.clone())
+    }
 }
 
 // ----------------------------------------------------------------------------

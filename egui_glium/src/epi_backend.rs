@@ -11,6 +11,10 @@ impl epi::backend::RepaintSignal for GliumRepaintSignal {
     fn request_repaint(&self) {
         self.0.send_event(RequestRepaintEvent).ok();
     }
+
+    fn dyn_clone(&self) -> Box<dyn epi::backend::RepaintSignal> {
+        Box::new(self.clone())
+    }
 }
 
 fn create_display(

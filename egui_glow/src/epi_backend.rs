@@ -10,6 +10,10 @@ impl epi::backend::RepaintSignal for GlowRepaintSignal {
     fn request_repaint(&self) {
         self.0.send_event(RequestRepaintEvent).ok();
     }
+
+    fn dyn_clone(&self) -> Box<dyn epi::backend::RepaintSignal> {
+        Box::new(self.clone())
+    }
 }
 
 #[allow(unsafe_code)]
