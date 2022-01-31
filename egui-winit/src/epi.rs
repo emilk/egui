@@ -206,7 +206,7 @@ impl EpiIntegration {
         app: Box<dyn epi::App>,
     ) -> Self
     where
-        S: epi::backend::RepaintSignal + 'static,
+        S: epi::backend::RepaintSignal,
     {
         let egui_ctx = egui::Context::default();
 
