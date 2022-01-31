@@ -281,6 +281,9 @@ impl AppRunner {
 /// Install event listeners to register different input events
 /// and start running the given app.
 pub fn start(canvas_id: &str, app: Box<dyn epi::App>) -> Result<AppRunnerRef, JsValue> {
+    // Make sure panics are logged using `console.error`.
+    console_error_panic_hook::set_once();
+
     let mut runner = AppRunner::new(canvas_id, app)?;
     runner.warm_up()?;
     start_runner(runner)
