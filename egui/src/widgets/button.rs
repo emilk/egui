@@ -20,7 +20,6 @@ use crate::*;
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Button {
-    id: Option<Id>,
     text: WidgetText,
     wrap: Option<bool>,
     /// None means default for interact
@@ -36,7 +35,6 @@ pub struct Button {
 impl Button {
     pub fn new(text: impl Into<WidgetText>) -> Self {
         Self {
-            id: None,
             text: text.into(),
             wrap: None,
             fill: None,
@@ -57,7 +55,6 @@ impl Button {
         text: impl Into<WidgetText>,
     ) -> Self {
         Self {
-            id: None,
             text: text.into(),
             fill: None,
             stroke: None,
@@ -80,12 +77,6 @@ impl Button {
     #[inline]
     pub fn wrap(mut self, wrap: bool) -> Self {
         self.wrap = Some(wrap);
-        self
-    }
-
-    /// Use if you want to set an explicit `Id` for this widget.
-    pub fn id(mut self, id: Id) -> Self {
-        self.id = Some(id);
         self
     }
 
@@ -134,7 +125,6 @@ impl Button {
 impl Widget for Button {
     fn ui(self, ui: &mut Ui) -> Response {
         let Button {
-            id,
             text,
             wrap,
             fill,
@@ -168,7 +158,7 @@ impl Widget for Button {
             desired_size.y = desired_size.y.max(image.size().y + 2.0 * button_padding.y);
         }
 
-        let (rect, mut response) = ui.allocate_at_least(desired_size, sense);
+        let (rect, response) = ui.allocate_at_least(desired_size, sense);
         response.widget_info(|| WidgetInfo::labeled(WidgetType::Button, text.text()));
 
         if ui.is_rect_visible(rect) {
@@ -205,10 +195,6 @@ impl Widget for Button {
                 image.size(),
             );
             image.paint_at(ui, image_rect);
-        }
-
-        if let Some(id) = id {
-            response.id = id;
         }
 
         response
