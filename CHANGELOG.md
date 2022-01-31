@@ -38,7 +38,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * `ScrollArea::show` now returns a `ScrollAreaOutput`, so you might need to add `.inner` after the call to it ([#1166](https://github.com/emilk/egui/pull/1166)).
 
 ### Fixed 🐛
-* Context menu now respects the theme ([#1043](https://github.com/emilk/egui/pull/1043))
+* Context menus now respects the theme ([#1043](https://github.com/emilk/egui/pull/1043))
 * Plot `Orientation` was not public, although fields using this type were ([#1130](https://github.com/emilk/egui/pull/1130))
 * Fixed `enable_drag` for Windows ([#1108](https://github.com/emilk/egui/pull/1108)).
 
@@ -561,3 +561,13 @@ This is when I started the CHANGELOG.md, after almost two years of development. 
 * Regions: resizing, vertical scrolling, collapsing headers (sections)
 * Rendering: Anti-aliased rendering of lines, circles, text and convex polygons.
 * Tooltips on hover
+
+
+## Earlier:
+
+* 2020-08-10: renamed the project to "egui"
+* 2020-05-30: first release on crates.io (0.1.0)
+* 2020-05-01: serious work starts (pandemic project)
+* 2019-03-12: gave a talk about what would later become egui: https://www.youtube.com/watch?v=-pmwLHw5Gbs
+* 2018-12-23: [initial commit](https://github.com/emilk/egui/commit/856bbf4dae4a69693a0324da34e8b0dd3754dfdf)
+* 2018-11-04: started tinkering on a train
