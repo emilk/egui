@@ -864,6 +864,7 @@ dependencies = [
  "glutin",
  "image",
  "memoffset",
+ "tracing",
  "wasm-bindgen",
  "web-sys",
 ]
