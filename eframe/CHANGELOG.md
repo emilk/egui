@@ -11,6 +11,7 @@ NOTE: [`egui_web`](../egui_web/CHANGELOG.md), [`egui-winit`](../egui-winit/CHANG
 * Fix horizontal scrolling direction on Linux.
 * Added `App::on_exit_event` ([#1038](https://github.com/emilk/egui/pull/1038))
 * Shift-scroll will now result in horizontal scrolling on all platforms ([#1136](https://github.com/emilk/egui/pull/1136)).
+* `backend::RepaintSignal` no longer requires `Sync`, but now requires new method `dyn_clone` ([#1187](https://github.com/emilk/egui/pull/1187)).
 
 
 ## 0.16.0 - 2021-12-29

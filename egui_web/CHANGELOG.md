@@ -9,6 +9,7 @@ All notable changes to the `egui_web` integration will be noted in this file.
 * Fixed glow failure on Chromium ([#1092](https://github.com/emilk/egui/pull/1092)).
 * Shift-scroll will now result in horizontal scrolling on all platforms ([#1136](https://github.com/emilk/egui/pull/1136)).
 * Updated `epi::IntegrationInfo::web_location_hash` on `hashchange` event ([#1140](https://github.com/emilk/egui/pull/1140)).
+* Updated `NeedRepaint` implementation ([#1187](https://github.com/emilk/egui/pull/1187)).
 
 
 ## 0.16.0 - 2021-12-29
