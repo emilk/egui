@@ -30,14 +30,11 @@ pub(crate) struct BarState {
 
 impl BarState {
     fn load(ctx: &Context, bar_id: Id) -> Self {
-        ctx.memory()
-            .data
-            .get_temp::<Self>(bar_id)
-            .unwrap_or_default()
+        ctx.data().get_temp::<Self>(bar_id).unwrap_or_default()
     }
 
     fn store(self, ctx: &Context, bar_id: Id) {
-        ctx.memory().data.insert_temp(bar_id, self);
+        ctx.data().insert_temp(bar_id, self);
     }
 
     /// Show a menu at pointer if primary-clicked response.

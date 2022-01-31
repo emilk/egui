@@ -242,16 +242,18 @@ impl Font {
             });
         slf.replacement_glyph = replacement_glyph;
 
+        slf
+    }
+
+    pub fn preload_common_characters(&mut self) {
         // Preload the printable ASCII characters [32, 126] (which excludes control codes):
         const FIRST_ASCII: usize = 32; // 32 == space
         const LAST_ASCII: usize = 126;
         for c in (FIRST_ASCII..=LAST_ASCII).map(|c| c as u8 as char) {
-            slf.glyph_info(c);
+            self.glyph_info(c);
         }
-        slf.glyph_info('°');
-        slf.glyph_info(crate::text::PASSWORD_REPLACEMENT_CHAR);
-
-        slf
+        self.glyph_info('°');
+        self.glyph_info(crate::text::PASSWORD_REPLACEMENT_CHAR);
     }
 
     /// All supported characters

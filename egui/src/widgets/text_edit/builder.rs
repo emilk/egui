@@ -8,7 +8,7 @@ use super::{CCursorRange, CursorRange, TextEditOutput, TextEditState};
 
 /// A text region that the user can edit the contents of.
 ///
-/// See also [`Ui::text_edit_singleline`] and  [`Ui::text_edit_multiline`].
+/// See also [`Ui::text_edit_singleline`] and [`Ui::text_edit_multiline`].
 ///
 /// Example:
 ///

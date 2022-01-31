@@ -61,7 +61,7 @@ pub fn highlight_easymark(egui_style: &egui::Style, mut text: &str) -> egui::tex
         if text.starts_with('\\') && text.len() >= 2 {
             skip = 2;
         } else if start_of_line && text.starts_with(' ') {
-            // indentation we don't preview indentation, because it is confusing
+            // we don't preview indentation, because it is confusing
             skip = 1;
         } else if start_of_line && text.starts_with("# ") {
             style.heading = true;
@@ -69,14 +69,14 @@ pub fn highlight_easymark(egui_style: &egui::Style, mut text: &str) -> egui::tex
         } else if start_of_line && text.starts_with("> ") {
             style.quoted = true;
             skip = 2;
-            // indentation we don't preview indentation, because it is confusing
+            // we don't preview indentation, because it is confusing
         } else if start_of_line && text.starts_with("- ") {
             skip = 2;
-            // indentation we don't preview indentation, because it is confusing
+            // we don't preview indentation, because it is confusing
         } else if text.starts_with('*') {
             skip = 1;
             if style.strong {
-                // Include the character that i ending ths style:
+                // Include the character that is ending this style:
                 job.append(&text[..skip], 0.0, format_from_style(egui_style, &style));
                 text = &text[skip..];
                 skip = 0;
@@ -85,7 +85,7 @@ pub fn highlight_easymark(egui_style: &egui::Style, mut text: &str) -> egui::tex
         } else if text.starts_with('$') {
             skip = 1;
             if style.small {
-                // Include the character that i ending ths style:
+                // Include the character that is ending this style:
                 job.append(&text[..skip], 0.0, format_from_style(egui_style, &style));
                 text = &text[skip..];
                 skip = 0;
@@ -94,7 +94,7 @@ pub fn highlight_easymark(egui_style: &egui::Style, mut text: &str) -> egui::tex
         } else if text.starts_with('^') {
             skip = 1;
             if style.raised {
-                // Include the character that i ending ths style:
+                // Include the character that is ending this style:
                 job.append(&text[..skip], 0.0, format_from_style(egui_style, &style));
                 text = &text[skip..];
                 skip = 0;

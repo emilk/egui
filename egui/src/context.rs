@@ -2,9 +2,9 @@
 
 use crate::{
     animation_manager::AnimationManager, data::output::Output, frame_state::FrameState,
-    input_state::*, layers::GraphicLayers, TextureHandle, *,
+    input_state::*, layers::GraphicLayers, memory::Options, TextureHandle, *,
 };
-use epaint::{mutex::*, stats::*, text::Fonts, *};
+use epaint::{mutex::*, stats::*, text::Fonts, TessellationOptions, *};
 
 // ----------------------------------------------------------------------------
 
@@ -92,6 +92,14 @@ impl ContextImpl {
         });
 
         fonts.begin_frame(pixels_per_point, max_texture_side);
+
+        if self.memory.options.preload_font_glyphs {
+            // Preload the most common characters for the most common fonts.
+            // This is not very important to do, but may a few GPU operations.
+            for font_id in self.memory.options.style.text_styles.values() {
+                fonts.lock().fonts.font(font_id).preload_common_characters();
+            }
+        }
     }
 }
 
@@ -436,20 +444,31 @@ impl Context {
 /// ## Borrows parts of [`Context`]
 impl Context {
     /// Stores all the egui state.
+    ///
     /// If you want to store/restore egui, serialize this.
+    #[inline]
     pub fn memory(&self) -> RwLockWriteGuard<'_, Memory> {
         RwLockWriteGuard::map(self.write(), |c| &mut c.memory)
     }
 
+    /// Stores superficial widget state.
+    #[inline]
+    pub fn data(&self) -> RwLockWriteGuard<'_, crate::util::IdTypeMap> {
+        RwLockWriteGuard::map(self.write(), |c| &mut c.memory.data)
+    }
+
+    #[inline]
     pub(crate) fn graphics(&self) -> RwLockWriteGuard<'_, GraphicLayers> {
         RwLockWriteGuard::map(self.write(), |c| &mut c.graphics)
     }
 
     /// What egui outputs each frame.
+    #[inline]
     pub fn output(&self) -> RwLockWriteGuard<'_, Output> {
         RwLockWriteGuard::map(self.write(), |c| &mut c.output)
     }
 
+    #[inline]
     pub(crate) fn frame_state(&self) -> RwLockWriteGuard<'_, FrameState> {
         RwLockWriteGuard::map(self.write(), |c| &mut c.frame_state)
     }
@@ -473,17 +492,19 @@ impl Context {
     ///     // This is fine!
     /// }
     /// ```
-    #[inline(always)]
+    #[inline]
     pub fn input(&self) -> RwLockReadGuard<'_, InputState> {
         RwLockReadGuard::map(self.read(), |c| &c.input)
     }
 
+    #[inline]
     pub fn input_mut(&self) -> RwLockWriteGuard<'_, InputState> {
         RwLockWriteGuard::map(self.write(), |c| &mut c.input)
     }
 
     /// Not valid until first call to [`Context::run()`].
     /// That's because since we don't know the proper `pixels_per_point` until then.
+    #[inline]
     pub fn fonts(&self) -> RwLockReadGuard<'_, Fonts> {
         RwLockReadGuard::map(self.read(), |c| {
             c.fonts
@@ -492,8 +513,20 @@ impl Context {
         })
     }
 
+    #[inline]
     fn fonts_mut(&self) -> RwLockWriteGuard<'_, Option<Fonts>> {
         RwLockWriteGuard::map(self.write(), |c| &mut c.fonts)
+    }
+
+    #[inline]
+    pub fn options(&self) -> RwLockWriteGuard<'_, Options> {
+        RwLockWriteGuard::map(self.write(), |c| &mut c.memory.options)
+    }
+
+    /// Change the options used by the tessellator.
+    #[inline]
+    pub fn tessellation_options(&self) -> RwLockWriteGuard<'_, TessellationOptions> {
+        RwLockWriteGuard::map(self.write(), |c| &mut c.memory.options.tessellation_options)
     }
 }
 
@@ -525,7 +558,7 @@ impl Context {
 
     /// The [`Style`] used by all subsequent windows, panels etc.
     pub fn style(&self) -> Arc<Style> {
-        self.memory().options.style.clone()
+        self.options().style.clone()
     }
 
     /// The [`Style`] used by all new windows, panels etc.
@@ -540,7 +573,7 @@ impl Context {
     /// ctx.set_style(style);
     /// ```
     pub fn set_style(&self, style: impl Into<Arc<Style>>) {
-        self.memory().options.style = style.into();
+        self.options().style = style.into();
     }
 
     /// The [`Visuals`] used by all subsequent windows, panels etc.
@@ -553,7 +586,7 @@ impl Context {
     /// ctx.set_visuals(egui::Visuals::light()); // Switch to light mode
     /// ```
     pub fn set_visuals(&self, visuals: crate::Visuals) {
-        std::sync::Arc::make_mut(&mut self.memory().options.style).visuals = visuals;
+        std::sync::Arc::make_mut(&mut self.options().style).visuals = visuals;
     }
 
     /// The number of physical pixels for each logical point.
@@ -739,7 +772,7 @@ impl Context {
         // shapes are the same, but just comparing the shapes takes about 50% of the time
         // it takes to tessellate them, so it is not a worth optimization.
 
-        let mut tessellation_options = self.memory().options.tessellation_options;
+        let mut tessellation_options = *self.tessellation_options();
         tessellation_options.pixels_per_point = self.pixels_per_point();
         tessellation_options.aa_size = 1.0 / self.pixels_per_point();
         let paint_stats = PaintStats::from_shapes(&shapes);
@@ -869,12 +902,12 @@ impl Context {
 
     /// Wether or not to debug widget layout on hover.
     pub fn debug_on_hover(&self) -> bool {
-        self.memory().options.style.debug.debug_on_hover
+        self.options().style.debug.debug_on_hover
     }
 
     /// Turn on/off wether or not to debug widget layout on hover.
     pub fn set_debug_on_hover(&self, debug_on_hover: bool) {
-        let mut style = (*self.memory().options.style).clone();
+        let mut style = (*self.options().style).clone();
         style.debug.debug_on_hover = debug_on_hover;
         self.set_style(style);
     }
@@ -948,10 +981,10 @@ impl Context {
         CollapsingHeader::new("✒ Painting")
             .default_open(true)
             .show(ui, |ui| {
-                let mut tessellation_options = self.memory().options.tessellation_options;
+                let mut tessellation_options = self.options().tessellation_options;
                 tessellation_options.ui(ui);
                 ui.vertical_centered(|ui| reset_button(ui, &mut tessellation_options));
-                self.memory().options.tessellation_options = tessellation_options;
+                *self.tessellation_options() = tessellation_options;
             });
     }
 
@@ -1096,8 +1129,8 @@ impl Context {
             *self.memory() = Default::default();
         }
 
-        let num_state = self.memory().data.len();
-        let num_serialized = self.memory().data.count_serialized();
+        let num_state = self.data().len();
+        let num_serialized = self.data().count_serialized();
         ui.label(format!(
             "{} widget states stored (of which {} are serialized).",
             num_state, num_serialized
@@ -1141,13 +1174,10 @@ impl Context {
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} collapsing headers",
-                self.memory()
-                    .data
-                    .count::<containers::collapsing_header::State>()
+                self.data().count::<containers::collapsing_header::State>()
             ));
             if ui.button("Reset").clicked() {
-                self.memory()
-                    .data
+                self.data()
                     .remove_by_type::<containers::collapsing_header::State>();
             }
         });
@@ -1155,30 +1185,30 @@ impl Context {
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} menu bars",
-                self.memory().data.count::<menu::BarState>()
+                self.data().count::<menu::BarState>()
             ));
             if ui.button("Reset").clicked() {
-                self.memory().data.remove_by_type::<menu::BarState>();
+                self.data().remove_by_type::<menu::BarState>();
             }
         });
 
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} scroll areas",
-                self.memory().data.count::<scroll_area::State>()
+                self.data().count::<scroll_area::State>()
             ));
             if ui.button("Reset").clicked() {
-                self.memory().data.remove_by_type::<scroll_area::State>();
+                self.data().remove_by_type::<scroll_area::State>();
             }
         });
 
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} resize areas",
-                self.memory().data.count::<resize::State>()
+                self.data().count::<resize::State>()
             ));
             if ui.button("Reset").clicked() {
-                self.memory().data.remove_by_type::<resize::State>();
+                self.data().remove_by_type::<resize::State>();
             }
         });
 

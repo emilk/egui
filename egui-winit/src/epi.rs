@@ -193,6 +193,7 @@ pub struct EpiIntegration {
     pub app: Box<dyn epi::App>,
     /// When set, it is time to quit
     quit: bool,
+    can_drag_window: bool,
 }
 
 impl EpiIntegration {
@@ -227,6 +228,7 @@ impl EpiIntegration {
             egui_winit: crate::State::new(max_texture_side, window),
             app,
             quit: false,
+            can_drag_window: false,
         };
 
         slf.setup(window);
@@ -264,11 +266,17 @@ impl EpiIntegration {
     }
 
     pub fn on_event(&mut self, event: &winit::event::WindowEvent<'_>) {
-        use winit::event::WindowEvent;
-        if *event == WindowEvent::CloseRequested {
-            self.quit = self.app.on_exit_event();
-        } else if *event == WindowEvent::Destroyed {
-            self.quit = true;
+        use winit::event::{ElementState, MouseButton, WindowEvent};
+
+        match event {
+            WindowEvent::CloseRequested => self.quit = self.app.on_exit_event(),
+            WindowEvent::Destroyed => self.quit = true,
+            WindowEvent::MouseInput {
+                button: MouseButton::Left,
+                state: ElementState::Pressed,
+                ..
+            } => self.can_drag_window = true,
+            _ => {}
         }
 
         self.egui_winit.on_event(&self.egui_ctx, event);
@@ -291,7 +299,9 @@ impl EpiIntegration {
             .egui_winit
             .handle_output(window, &self.egui_ctx, egui_output);
 
-        let app_output = self.frame.take_app_output();
+        let mut app_output = self.frame.take_app_output();
+        app_output.drag_window &= self.can_drag_window; // Necessary on Windows; see https://github.com/emilk/egui/pull/1108
+        self.can_drag_window = false;
 
         if app_output.quit {
             self.quit = self.app.on_exit_event();

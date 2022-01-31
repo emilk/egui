@@ -338,21 +338,27 @@ impl Ui {
         self.ctx().input()
     }
 
-    /// The `Memory` of the `Context` associated with the `Ui`.
+    /// The [`Memory`] of the [`Context`] associated with this ui.
     /// Equivalent to `.ctx().memory()`.
     #[inline]
     pub fn memory(&self) -> RwLockWriteGuard<'_, Memory> {
         self.ctx().memory()
     }
 
-    /// The `Output` of the `Context` associated with the `Ui`.
+    /// Stores superficial widget state.
+    #[inline]
+    pub fn data(&self) -> RwLockWriteGuard<'_, crate::util::IdTypeMap> {
+        self.ctx().data()
+    }
+
+    /// The [`Output`] of the [`Context`] associated with this ui.
     /// Equivalent to `.ctx().output()`.
     #[inline]
     pub fn output(&self) -> RwLockWriteGuard<'_, Output> {
         self.ctx().output()
     }
 
-    /// The `Fonts` of the `Context` associated with the `Ui`.
+    /// The [`Fonts`] of the [`Context`] associated with this ui.
     /// Equivalent to `.ctx().fonts()`.
     #[inline]
     pub fn fonts(&self) -> RwLockReadGuard<'_, Fonts> {
