@@ -107,7 +107,7 @@ impl AppRunner {
 
         let prefer_dark_mode = crate::prefer_dark_mode();
 
-        let needs_repaint: NeedRepaint = Default::default();
+        let needs_repaint = NeedRepaint::default();
 
         let frame = epi::Frame::new(epi::backend::FrameData {
             info: epi::IntegrationInfo {
