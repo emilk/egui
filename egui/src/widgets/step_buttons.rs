@@ -81,7 +81,6 @@ impl<'a> Widget for StepButtons<'a> {
         let mut response = ui
             .horizontal(|ui| {
                 let step = if is_slow_speed { step / 10.0 } else { step };
-
                 let minus_button_response = ui.add_enabled(
                     value > *clamp_range.start() && step > 0.0,
                     Button::new("➖"),
