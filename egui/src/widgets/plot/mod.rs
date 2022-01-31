@@ -200,7 +200,7 @@ impl Plot {
         self
     }
 
-    /// Config the pointer to use for boxed_zoom. Default: `Secondary`
+    /// Config the button pointer to use for boxed zooming. Default: `Secondary`
     pub fn boxed_zoom_pointer_button(mut self, boxed_zoom_pointer_button: PointerButton) -> Self {
         self.boxed_zoom_pointer_button = boxed_zoom_pointer_button;
         self
@@ -471,7 +471,7 @@ impl Plot {
             // Save last click to allow boxed zooming
             if response.drag_started() && response.dragged_by(boxed_zoom_pointer) {
                 // it would be best for egui that input has a memory of the last click pos because it's a common pattern
-                last_click_pos_for_zoom = response.hover_pos()
+                last_click_pos_for_zoom = response.hover_pos();
             }
             let box_start_pos = last_click_pos_for_zoom;
             let box_end_pos = response.hover_pos();
