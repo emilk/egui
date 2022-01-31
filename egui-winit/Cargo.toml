@@ -48,7 +48,7 @@ links = ["webbrowser"]
 # experimental support for a screen reader
 screen_reader = ["tts"]
 
-persistence = ["egui/serialize", "serde"]
+persistence = ["egui/serialize", "serde"] # can't add epi/persistence here because of https://github.com/rust-lang/cargo/issues/8832
 serialize = ["egui/serialize", "serde"]
 
 # implement bytemuck on most types.
