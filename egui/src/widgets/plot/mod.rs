@@ -35,6 +35,8 @@ struct PlotMemory {
     hidden_items: AHashSet<String>,
     min_auto_bounds: PlotBounds,
     last_screen_transform: ScreenTransform,
+    /// Allows to remember the first click position when performing a boxed zoom
+    last_click_pos_for_zoom: Option<Pos2>,
 }
 
 impl PlotMemory {
@@ -73,6 +75,8 @@ pub struct Plot {
     allow_drag: bool,
     min_auto_bounds: PlotBounds,
     margin_fraction: Vec2,
+    allow_boxed_zoom: bool,
+    boxed_zoom_pointer: PointerButton,
 
     min_size: Vec2,
     width: Option<f32>,
@@ -101,6 +105,8 @@ impl Plot {
             allow_drag: true,
             min_auto_bounds: PlotBounds::NOTHING,
             margin_fraction: Vec2::splat(0.05),
+            allow_boxed_zoom: true,
+            boxed_zoom_pointer:  PointerButton::Secondary,
 
             min_size: Vec2::splat(64.0),
             width: None,
@@ -183,6 +189,18 @@ impl Plot {
     /// Whether to allow zooming in the plot. Default: `true`.
     pub fn allow_zoom(mut self, on: bool) -> Self {
         self.allow_zoom = on;
+        self
+    }
+
+    /// Whether to allow zooming in the plot. Default: `true`.
+    pub fn allow_boxed_zoom(mut self, on: bool) -> Self {
+        self.allow_boxed_zoom = on;
+        self
+    }
+
+    /// Config the pointer to use for boxed_zoom. Default: `Secondary`
+    pub fn boxed_zoom_pointer(mut self, boxed_zoom_pointer: PointerButton) -> Self {
+        self.boxed_zoom_pointer = boxed_zoom_pointer;
         self
     }
 
@@ -289,6 +307,8 @@ impl Plot {
             center_y_axis,
             allow_zoom,
             allow_drag,
+            allow_boxed_zoom,
+            boxed_zoom_pointer,
             min_auto_bounds,
             margin_fraction,
             width,
@@ -345,6 +365,7 @@ impl Plot {
                 center_x_axis,
                 center_y_axis,
             ),
+            last_click_pos_for_zoom: None
         });
 
         // If the min bounds changed, recalculate everything.
@@ -363,6 +384,7 @@ impl Plot {
             mut hovered_entry,
             mut hidden_items,
             last_screen_transform,
+            mut last_click_pos_for_zoom,
             ..
         } = memory;
 
@@ -442,6 +464,45 @@ impl Plot {
         }
 
         // Zooming
+        let mut boxed_zoom_rect = None;
+        if allow_boxed_zoom {
+            // Save last click to allow boxed zooming
+            if response.drag_started() && response.dragged_by(boxed_zoom_pointer) {
+                // it would be best for egui that input has a memory of the last click pos because it's a common pattern
+                last_click_pos_for_zoom = response.hover_pos()
+            } 
+            let box_start_pos = last_click_pos_for_zoom;
+            let box_end_pos = response.hover_pos();
+            if let (Some(box_start_pos), Some(box_end_pos)) = (box_start_pos, box_end_pos) {
+                // while dragging prepare a Shape and draw it later on top of the plot
+                if response.dragged_by(boxed_zoom_pointer) {
+                    response = response.on_hover_cursor(CursorIcon::ZoomIn);
+                    let rect = epaint::Rect::from_two_pos(box_start_pos, box_end_pos);
+                    boxed_zoom_rect = Some((
+                            epaint::RectShape::stroke(rect, 0.0, epaint::Stroke::new(4., Color32::DARK_BLUE)), // Outer stroke
+                            epaint::RectShape::stroke(rect, 0.0, epaint::Stroke::new(2., Color32::WHITE)) // Inner stroke
+                    ));
+                }
+                // when the click is release perform the zoom
+                if response.drag_released() {
+                    let box_start_pos = transform.value_from_position(box_start_pos);
+                    let box_end_pos = transform.value_from_position(box_end_pos);
+                    let new_bounds = PlotBounds{
+                        min: [box_start_pos.x, box_end_pos.y],
+                        max: [box_end_pos.x, box_start_pos.y]
+                    };
+                    if new_bounds.is_valid() {
+                        *transform.bounds_mut() = new_bounds;
+                        auto_bounds = false;
+                    } else {
+                        auto_bounds = true;
+                    }
+                    // reset the boxed zoom state
+                    last_click_pos_for_zoom = None;
+                }
+            }
+        }
+
         if allow_zoom {
             if let Some(hover_pos) = response.hover_pos() {
                 let zoom_factor = if data_aspect.is_some() {
@@ -478,6 +539,11 @@ impl Plot {
         };
         prepared.ui(ui, &response);
 
+        if let Some(boxed_zoom_rect) = boxed_zoom_rect {
+            ui.painter().sub_region(rect).add(boxed_zoom_rect.0);
+            ui.painter().sub_region(rect).add(boxed_zoom_rect.1);
+        }
+
         if let Some(mut legend) = legend {
             ui.add(&mut legend);
             hidden_items = legend.get_hidden_items();
@@ -490,6 +556,7 @@ impl Plot {
             hidden_items,
             min_auto_bounds,
             last_screen_transform: transform,
+            last_click_pos_for_zoom
         };
         memory.store(ui.ctx(), plot_id);
 
