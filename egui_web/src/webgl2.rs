@@ -283,7 +283,7 @@ impl crate::Painter for WebGl2Painter {
             }
         }
 
-        crate::console_error("Failed to query max texture size");
+        tracing::error!("Failed to query max texture size");
 
         2048
     }

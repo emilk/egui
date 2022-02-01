@@ -29,6 +29,7 @@ crate-type = ["cdylib", "rlib"]
 egui = { version = "0.16.0", path = "../egui", default-features = false, features = [
   "convert_bytemuck",
   "single_threaded",
+  "tracing",
 ] }
 egui_glow = { version = "0.16.0",path = "../egui_glow", default-features = false, optional = true }
 epi = { version = "0.16.0", path = "../epi" }

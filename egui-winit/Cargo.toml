@@ -22,7 +22,7 @@ include = [
 all-features = true
 
 [dependencies]
-egui = { version = "0.16.0", path = "../egui", default-features = false, features = ["single_threaded"] }
+egui = { version = "0.16.0", path = "../egui", default-features = false, features = ["single_threaded", "tracing"] }
 instant = { version = "0.1", features = ["wasm-bindgen"] }
 tracing = "0.1"
 winit = "0.26.1"

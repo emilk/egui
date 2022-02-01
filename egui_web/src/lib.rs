@@ -41,16 +41,6 @@ static AGENT_ID: &str = "egui_text_agent";
 
 // ----------------------------------------------------------------------------
 
-pub fn string_from_js_value(s: wasm_bindgen::JsValue) -> String {
-    s.as_string().unwrap_or(format!("{:#?}", s))
-}
-
-pub fn string_from_js_string(s: js_sys::JsString) -> String {
-    s.as_string().unwrap_or(format!("{:#?}", s))
-}
-
-// ----------------------------------------------------------------------------
-
 /// Current time in seconds (since undefined point in time)
 pub fn now_sec() -> f64 {
     web_sys::window()

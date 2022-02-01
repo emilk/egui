@@ -284,7 +284,7 @@ pub fn start(canvas_id: &str, app: Box<dyn epi::App>) -> Result<AppRunnerRef, Js
     // Make sure panics are logged using `console.error`.
     console_error_panic_hook::set_once();
 
-    // Redirect tracing to console.log and friends
+    // Redirect tracing to console.log and friends:
     tracing_wasm::set_as_global_default();
 
     let mut runner = AppRunner::new(canvas_id, app)?;
