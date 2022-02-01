@@ -149,7 +149,7 @@ Light Theme:
 ## Integrations
 
 egui is build to be easy to integrate into any existing game engine or platform you are working on.
-egui itself doesn't know or care on what OS it is running or how to render things to the screen - that is the job of the egui integration.
+egui itself doesn't know or care on what OS it is running or how to render things to the screen,that is the job of the egui integration.
 
 An integration needs to do the following each frame:
 
@@ -253,6 +253,7 @@ There are advantages and disadvantages to both systems.
 The short of it is this: immediate mode GUI libraries are easier to use, but less powerful.
 
 ### Advantages of immediate mode
+
 #### Usability
 The main advantage of immediate mode is that the application code becomes vastly simpler:
 
