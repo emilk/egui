@@ -178,6 +178,10 @@ impl ScreenTransform {
         &self.bounds
     }
 
+    pub fn bounds_mut(&mut self) -> &mut PlotBounds {
+        &mut self.bounds
+    }
+
     pub fn translate_bounds(&mut self, mut delta_pos: Vec2) {
         if self.x_centered {
             delta_pos.x = 0.;

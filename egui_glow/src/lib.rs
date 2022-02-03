@@ -124,10 +124,7 @@ impl EguiGlow {
     pub fn new(window: &winit::window::Window, gl: &glow::Context) -> Self {
         let painter = crate::Painter::new(gl, None, "")
             .map_err(|error| {
-                crate::misc_util::glow_print_error(format!(
-                    "error occurred in initializing painter:\n{}",
-                    error
-                ));
+                tracing::error!("error occurred in initializing painter:\n{}", error);
             })
             .unwrap();
 

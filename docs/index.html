@@ -122,17 +122,18 @@
         // We'll defer our execution until the wasm is ready to go.
         // Here we tell bindgen the path to the wasm file so it can start
         // initialization and return to us a promise when it's done.
+        console.debug("loading wasm…");
         wasm_bindgen("./egui_demo_app_bg.wasm")
             .then(on_wasm_loaded)
             .catch(on_wasm_error);
 
         function on_wasm_loaded() {
-            console.log("loaded wasm, starting egui app…");
+            console.debug("wasm loaded. starting egui app…");
 
             // This call installs a bunch of callbacks and then returns:
             wasm_bindgen.start("the_canvas_id");
 
-            console.log("egui app started.");
+            console.debug("egui app started.");
             document.getElementById("center_text").remove();
         }
 

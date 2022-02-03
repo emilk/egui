@@ -577,12 +577,12 @@ impl State {
 fn open_url_in_browser(_url: &str) {
     #[cfg(feature = "webbrowser")]
     if let Err(err) = webbrowser::open(_url) {
-        eprintln!("Failed to open url: {}", err);
+        tracing::warn!("Failed to open url: {}", err);
     }
 
     #[cfg(not(feature = "webbrowser"))]
     {
-        eprintln!("Cannot open url - feature \"links\" not enabled.");
+        tracing::warn!("Cannot open url - feature \"links\" not enabled.");
     }
 }
 
