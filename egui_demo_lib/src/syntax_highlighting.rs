@@ -7,7 +7,7 @@ pub fn code_view_ui(ui: &mut egui::Ui, mut code: &str) {
 
     let mut layouter = |ui: &egui::Ui, string: &str, _wrap_width: f32| {
         let layout_job = highlight(ui.ctx(), &theme, string, language);
-        // layout_job.wrap_width = wrap_width; // no wrapping
+        // layout_job.wrap.max_width = wrap_width; // no wrapping
         ui.fonts().layout_job(layout_job)
     };
 
