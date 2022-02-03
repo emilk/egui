@@ -17,7 +17,7 @@ cargo fmt --all -- --check
 
 cargo doc -p emath -p epaint -p egui -p eframe -p epi -p egui_web -p egui-winit -p egui_glium -p egui_glow --lib --no-deps --all-features
 cargo doc -p egui_web --target wasm32-unknown-unknown --lib --no-deps --all-features
-cargo doc --document-private-items --no-deps --all-features --  -D warnings
+cargo doc --document-private-items --no-deps --all-features
 
 (cd emath && cargo check --no-default-features)
 (cd epaint && cargo check --no-default-features --features "single_threaded")
@@ -32,6 +32,18 @@ cargo doc --document-private-items --no-deps --all-features --  -D warnings
 # (cd egui-winit && cargo check --no-default-features) # we don't pick singlethreaded or multithreaded
 (cd egui_glium && cargo check --no-default-features)
 (cd egui_glow && cargo check --no-default-features)
+
+
+(cd eframe && cargo check --all-features)
+(cd egui && cargo check --all-features)
+(cd egui_glium && cargo check --all-features)
+(cd egui_glow && cargo check --all-features)
+(cd egui_web && cargo check --all-features)
+# (cd egui-winit && cargo check --all-features) can't do, beacause of https://github.com/rust-lang/cargo/issues/8832
+(cd emath && cargo check --all-features)
+(cd epaint && cargo check --all-features)
+(cd epi && cargo check --all-features)
+
 
 # ------------------------------------------------------------
 #

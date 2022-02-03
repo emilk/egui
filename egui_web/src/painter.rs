@@ -1,7 +1,10 @@
 use wasm_bindgen::prelude::JsValue;
 
 pub trait Painter {
-    fn set_texture(&mut self, tex_id: egui::TextureId, image: egui::ImageData);
+    /// Max size of one side of a texture.
+    fn max_texture_side(&self) -> usize;
+
+    fn set_texture(&mut self, tex_id: egui::TextureId, delta: &egui::epaint::ImageDelta);
 
     fn free_texture(&mut self, tex_id: egui::TextureId);
 

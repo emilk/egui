@@ -8,16 +8,16 @@ pub use egui::{pos2, Color32};
 fn create_painter(canvas_id: &str) -> Result<Box<dyn Painter>, JsValue> {
     // Glow takes precedence:
     #[cfg(all(feature = "glow"))]
-    return Ok(Box::new(crate::glow_wrapping::WrappedGlowPainter::new(
-        canvas_id,
-    )));
+    return Ok(Box::new(
+        crate::glow_wrapping::WrappedGlowPainter::new(canvas_id).map_err(JsValue::from)?,
+    ));
 
     #[cfg(all(feature = "webgl", not(feature = "glow")))]
     if let Ok(webgl2_painter) = webgl2::WebGl2Painter::new(canvas_id) {
-        console_log("Using WebGL2 backend");
+        tracing::debug!("Using WebGL2 backend");
         Ok(Box::new(webgl2_painter))
     } else {
-        console_log("Falling back to WebGL1 backend");
+        tracing::debug!("Falling back to WebGL1 backend");
         let webgl1_painter = webgl1::WebGlPainter::new(canvas_id)?;
         Ok(Box::new(webgl1_painter))
     }
@@ -82,7 +82,7 @@ impl epi::backend::RepaintSignal for NeedRepaint {
 // ----------------------------------------------------------------------------
 
 pub struct AppRunner {
-    frame: epi::Frame,
+    pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
     painter: Box<dyn Painter>,
     pub(crate) input: WebInput,
@@ -142,6 +142,8 @@ impl AppRunner {
             mutable_text_under_cursor: false,
             textures_delta: Default::default(),
         };
+
+        runner.input.raw.max_texture_side = runner.painter.max_texture_side();
 
         {
             runner
@@ -221,8 +223,8 @@ impl AppRunner {
     /// Paint the results of the last call to [`Self::logic`].
     pub fn paint(&mut self, clipped_meshes: Vec<egui::ClippedMesh>) -> Result<(), JsValue> {
         let textures_delta = std::mem::take(&mut self.textures_delta);
-        for (id, image) in textures_delta.set {
-            self.painter.set_texture(id, image);
+        for (id, image_delta) in textures_delta.set {
+            self.painter.set_texture(id, &image_delta);
         }
 
         self.painter.clear(self.app.clear_color());
@@ -237,7 +239,7 @@ impl AppRunner {
     }
 
     fn handle_egui_output(&mut self, output: egui::Output) -> egui::TexturesDelta {
-        if self.egui_ctx.memory().options.screen_reader {
+        if self.egui_ctx.options().screen_reader {
             self.screen_reader.speak(&output.events_description());
         }
 
@@ -279,6 +281,12 @@ impl AppRunner {
 /// Install event listeners to register different input events
 /// and start running the given app.
 pub fn start(canvas_id: &str, app: Box<dyn epi::App>) -> Result<AppRunnerRef, JsValue> {
+    // Make sure panics are logged using `console.error`.
+    console_error_panic_hook::set_once();
+
+    // Redirect tracing to console.log and friends:
+    tracing_wasm::set_as_global_default();
+
     let mut runner = AppRunner::new(canvas_id, app)?;
     runner.warm_up()?;
     start_runner(runner)

@@ -1,5 +1,7 @@
 //! Simple plotting library.
 
+use std::{cell::RefCell, rc::Rc};
+
 use crate::*;
 use epaint::ahash::AHashSet;
 use epaint::color::Hsva;
@@ -10,7 +12,7 @@ use transform::{PlotBounds, ScreenTransform};
 
 pub use items::{
     Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, HLine, Line, LineStyle, MarkerShape,
-    PlotImage, Points, Polygon, Text, VLine, Value, Values,
+    Orientation, PlotImage, Points, Polygon, Text, VLine, Value, Values,
 };
 pub use legend::{Corner, Legend};
 
@@ -23,6 +25,9 @@ mod transform;
 type CustomLabelFunc = dyn Fn(&HoverConfig, &str, &Value) -> String;
 type CustomLabelFuncRef = Box<CustomLabelFunc>;
 
+type AxisFormatterFn = dyn Fn(f64) -> String;
+type AxisFormatter = Option<Box<AxisFormatterFn>>;
+
 // ----------------------------------------------------------------------------
 
 /// Information about the plot that has to persist between frames.
@@ -34,15 +39,74 @@ struct PlotMemory {
     hidden_items: AHashSet<String>,
     min_auto_bounds: PlotBounds,
     last_screen_transform: ScreenTransform,
+    /// Allows to remember the first click position when performing a boxed zoom
+    last_click_pos_for_zoom: Option<Pos2>,
 }
 
 impl PlotMemory {
     pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.memory().data.get_persisted(id)
+        ctx.data().get_persisted(id)
     }
 
     pub fn store(self, ctx: &Context, id: Id) {
-        ctx.memory().data.insert_persisted(id, self);
+        ctx.data().insert_persisted(id, self);
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// Defines how multiple plots share the same range for one or both of their axes. Can be added while building
+/// a plot with [`Plot::link_axis`]. Contains an internal state, meaning that this object should be stored by
+/// the user between frames.
+#[derive(Clone, PartialEq)]
+pub struct LinkedAxisGroup {
+    pub(crate) link_x: bool,
+    pub(crate) link_y: bool,
+    pub(crate) bounds: Rc<RefCell<Option<PlotBounds>>>,
+}
+
+impl LinkedAxisGroup {
+    pub fn new(link_x: bool, link_y: bool) -> Self {
+        Self {
+            link_x,
+            link_y,
+            bounds: Rc::new(RefCell::new(None)),
+        }
+    }
+
+    /// Only link the x-axis.
+    pub fn x() -> Self {
+        Self::new(true, false)
+    }
+
+    /// Only link the y-axis.
+    pub fn y() -> Self {
+        Self::new(false, true)
+    }
+
+    /// Link both axes. Note that this still respects the aspect ratio of the individual plots.
+    pub fn both() -> Self {
+        Self::new(true, true)
+    }
+
+    /// Change whether the x-axis is linked for this group. Using this after plots in this group have been
+    /// drawn in this frame already may lead to unexpected results.
+    pub fn set_link_x(&mut self, link: bool) {
+        self.link_x = link;
+    }
+
+    /// Change whether the y-axis is linked for this group. Using this after plots in this group have been
+    /// drawn in this frame already may lead to unexpected results.
+    pub fn set_link_y(&mut self, link: bool) {
+        self.link_y = link;
+    }
+
+    fn get(&self) -> Option<PlotBounds> {
+        *self.bounds.borrow()
+    }
+
+    fn set(&self, bounds: PlotBounds) {
+        *self.bounds.borrow_mut() = Some(bounds);
     }
 }
 
@@ -72,6 +136,9 @@ pub struct Plot {
     allow_drag: bool,
     min_auto_bounds: PlotBounds,
     margin_fraction: Vec2,
+    allow_boxed_zoom: bool,
+    boxed_zoom_pointer_button: PointerButton,
+    linked_axes: Option<LinkedAxisGroup>,
 
     min_size: Vec2,
     width: Option<f32>,
@@ -83,6 +150,7 @@ pub struct Plot {
     show_hover_line_y: bool,
     show_hover_label: bool,
     hover_label_func: CustomLabelFuncRef,
+    axis_formatters: [AxisFormatter; 2],
     legend_config: Option<Legend>,
     show_background: bool,
     show_axes: [bool; 2],
@@ -100,6 +168,9 @@ impl Plot {
             allow_drag: true,
             min_auto_bounds: PlotBounds::NOTHING,
             margin_fraction: Vec2::splat(0.05),
+            allow_boxed_zoom: true,
+            boxed_zoom_pointer_button: PointerButton::Secondary,
+            linked_axes: None,
 
             min_size: Vec2::splat(64.0),
             width: None,
@@ -112,6 +183,7 @@ impl Plot {
             show_hover_label: true,
             hover_label_func: Plot::default_hover_label_func(),
 
+            axis_formatters: [None, None], // [None; 2] requires Copy
             legend_config: None,
             show_background: true,
             show_axes: [true; 2],
@@ -186,6 +258,20 @@ impl Plot {
         self
     }
 
+    /// Whether to allow zooming in the plot by dragging out a box with the secondary mouse button.
+    ///
+    /// Default: `true`.
+    pub fn allow_boxed_zoom(mut self, on: bool) -> Self {
+        self.allow_boxed_zoom = on;
+        self
+    }
+
+    /// Config the button pointer to use for boxed zooming. Default: `Secondary`
+    pub fn boxed_zoom_pointer_button(mut self, boxed_zoom_pointer_button: PointerButton) -> Self {
+        self.boxed_zoom_pointer_button = boxed_zoom_pointer_button;
+        self
+    }
+
     /// Whether to allow dragging in the plot to move the bounds. Default: `true`.
     pub fn allow_drag(mut self, on: bool) -> Self {
         self.allow_drag = on;
@@ -253,6 +339,30 @@ impl Plot {
         self
     }
 
+    /// Provide a function to customize the labels for the X axis.
+    ///
+    /// This is useful for custom input domains, e.g. date/time.
+    ///
+    /// If axis labels should not appear for certain values or beyond a certain zoom/resolution,
+    /// the formatter function can return empty strings. This is also useful if your domain is
+    /// discrete (e.g. only full days in a calendar).
+    pub fn x_axis_formatter(mut self, func: impl Fn(f64) -> String + 'static) -> Self {
+        self.axis_formatters[0] = Some(Box::new(func));
+        self
+    }
+
+    /// Provide a function to customize the labels for the Y axis.
+    ///
+    /// This is useful for custom value representation, e.g. percentage or units.
+    ///
+    /// If axis labels should not appear for certain values or beyond a certain zoom/resolution,
+    /// the formatter function can return empty strings. This is also useful if your Y values are
+    /// discrete (e.g. only integers).
+    pub fn y_axis_formatter(mut self, func: impl Fn(f64) -> String + 'static) -> Self {
+        self.axis_formatters[1] = Some(Box::new(func));
+        self
+    }
+
     /// Expand bounds to include the given x value.
     /// For instance, to always show the y axis, call `plot.include_x(0.0)`.
     pub fn include_x(mut self, x: impl Into<f64>) -> Self {
@@ -289,6 +399,13 @@ impl Plot {
         self
     }
 
+    /// Add a [`LinkedAxisGroup`] so that this plot will share the bounds with other plots that have this
+    /// group assigned. A plot cannot belong to more than one group.
+    pub fn link_axis(mut self, group: LinkedAxisGroup) -> Self {
+        self.linked_axes = Some(group);
+        self
+    }
+
     /// Interact with and add items to the plot and finally draw it.
     pub fn show<R>(self, ui: &mut Ui, build_fn: impl FnOnce(&mut PlotUi) -> R) -> InnerResponse<R> {
         let Self {
@@ -297,6 +414,8 @@ impl Plot {
             center_y_axis,
             allow_zoom,
             allow_drag,
+            allow_boxed_zoom,
+            boxed_zoom_pointer_button: boxed_zoom_pointer,
             min_auto_bounds,
             margin_fraction,
             width,
@@ -308,9 +427,11 @@ impl Plot {
             mut show_hover_line_y,
             show_hover_label,
             hover_label_func,
+            axis_formatters,
             legend_config,
             show_background,
             show_axes,
+            linked_axes,
         } = self;
 
         // Determine the size of the plot in the UI
@@ -353,6 +474,7 @@ impl Plot {
                 center_x_axis,
                 center_y_axis,
             ),
+            last_click_pos_for_zoom: None,
         });
 
         // If the min bounds changed, recalculate everything.
@@ -371,6 +493,7 @@ impl Plot {
             mut hovered_entry,
             mut hidden_items,
             last_screen_transform,
+            mut last_click_pos_for_zoom,
             ..
         } = memory;
 
@@ -423,6 +546,22 @@ impl Plot {
         // --- Bound computation ---
         let mut bounds = *last_screen_transform.bounds();
 
+        // Transfer the bounds from a link group.
+        if let Some(axes) = linked_axes.as_ref() {
+            if let Some(linked_bounds) = axes.get() {
+                if axes.link_x {
+                    bounds.min[0] = linked_bounds.min[0];
+                    bounds.max[0] = linked_bounds.max[0];
+                }
+                if axes.link_y {
+                    bounds.min[1] = linked_bounds.min[1];
+                    bounds.max[1] = linked_bounds.max[1];
+                }
+                // Turn off auto bounds to keep it from overriding what we just set.
+                auto_bounds = false;
+            }
+        }
+
         // Allow double clicking to reset to automatic bounds.
         auto_bounds |= response.double_clicked_by(PointerButton::Primary);
 
@@ -439,7 +578,10 @@ impl Plot {
 
         // Enforce equal aspect ratio.
         if let Some(data_aspect) = data_aspect {
-            transform.set_aspect(data_aspect as f64);
+            let preserve_y = linked_axes
+                .as_ref()
+                .map_or(false, |group| group.link_y && !group.link_x);
+            transform.set_aspect(data_aspect as f64, preserve_y);
         }
 
         // Dragging
@@ -450,6 +592,53 @@ impl Plot {
         }
 
         // Zooming
+        let mut boxed_zoom_rect = None;
+        if allow_boxed_zoom {
+            // Save last click to allow boxed zooming
+            if response.drag_started() && response.dragged_by(boxed_zoom_pointer) {
+                // it would be best for egui that input has a memory of the last click pos because it's a common pattern
+                last_click_pos_for_zoom = response.hover_pos();
+            }
+            let box_start_pos = last_click_pos_for_zoom;
+            let box_end_pos = response.hover_pos();
+            if let (Some(box_start_pos), Some(box_end_pos)) = (box_start_pos, box_end_pos) {
+                // while dragging prepare a Shape and draw it later on top of the plot
+                if response.dragged_by(boxed_zoom_pointer) {
+                    response = response.on_hover_cursor(CursorIcon::ZoomIn);
+                    let rect = epaint::Rect::from_two_pos(box_start_pos, box_end_pos);
+                    boxed_zoom_rect = Some((
+                        epaint::RectShape::stroke(
+                            rect,
+                            0.0,
+                            epaint::Stroke::new(4., Color32::DARK_BLUE),
+                        ), // Outer stroke
+                        epaint::RectShape::stroke(
+                            rect,
+                            0.0,
+                            epaint::Stroke::new(2., Color32::WHITE),
+                        ), // Inner stroke
+                    ));
+                }
+                // when the click is release perform the zoom
+                if response.drag_released() {
+                    let box_start_pos = transform.value_from_position(box_start_pos);
+                    let box_end_pos = transform.value_from_position(box_end_pos);
+                    let new_bounds = PlotBounds {
+                        min: [box_start_pos.x, box_end_pos.y],
+                        max: [box_end_pos.x, box_start_pos.y],
+                    };
+                    if new_bounds.is_valid() {
+                        *transform.bounds_mut() = new_bounds;
+                        auto_bounds = false;
+                    } else {
+                        auto_bounds = true;
+                    }
+                    // reset the boxed zoom state
+                    last_click_pos_for_zoom = None;
+                }
+            }
+        }
+
         if allow_zoom {
             if let Some(hover_pos) = response.hover_pos() {
                 let zoom_factor = if data_aspect.is_some() {
@@ -481,15 +670,25 @@ impl Plot {
             show_hover_line_y,
             show_hover_label,
             hover_label_func,
+            axis_formatters,
             show_axes,
             transform: transform.clone(),
         };
         prepared.ui(ui, &response);
 
+        if let Some(boxed_zoom_rect) = boxed_zoom_rect {
+            ui.painter().sub_region(rect).add(boxed_zoom_rect.0);
+            ui.painter().sub_region(rect).add(boxed_zoom_rect.1);
+        }
+
         if let Some(mut legend) = legend {
             ui.add(&mut legend);
             hidden_items = legend.get_hidden_items();
             hovered_entry = legend.get_hovered_entry_name();
+        }
+
+        if let Some(group) = linked_axes.as_ref() {
+            group.set(*transform.bounds());
         }
 
         let memory = PlotMemory {
@@ -498,6 +697,7 @@ impl Plot {
             hidden_items,
             min_auto_bounds,
             last_screen_transform: transform,
+            last_click_pos_for_zoom,
         };
         memory.store(ui.ctx(), plot_id);
 
@@ -512,7 +712,7 @@ impl Plot {
 }
 
 /// Provides methods to interact with a plot while building it. It is the single argument of the closure
-/// provided to `Plot::show`. See [`Plot`] for an example of how to use it.
+/// provided to [`Plot::show`]. See [`Plot`] for an example of how to use it.
 pub struct PlotUi {
     items: Vec<Box<dyn PlotItem>>,
     next_auto_color_idx: usize,
@@ -690,6 +890,7 @@ struct PreparedPlot {
     show_hover_line_y: bool,
     show_hover_label: bool,
     hover_label_func: CustomLabelFuncRef,
+    axis_formatters: [AxisFormatter; 2],
     show_axes: [bool; 2],
     transform: ScreenTransform,
 }
@@ -720,10 +921,15 @@ impl PreparedPlot {
     }
 
     fn paint_axis(&self, ui: &Ui, axis: usize, shapes: &mut Vec<Shape>) {
-        let Self { transform, .. } = self;
+        let Self {
+            transform,
+            axis_formatters,
+            ..
+        } = self;
 
         let bounds = transform.bounds();
-        let text_style = TextStyle::Body;
+
+        let font_id = TextStyle::Body.resolve(ui.style());
 
         let base: i64 = 10;
         let basef = base as f64;
@@ -779,18 +985,26 @@ impl PreparedPlot {
 
             if text_alpha > 0.0 {
                 let color = color_from_alpha(ui, text_alpha);
-                let text = emath::round_to_decimals(value_main, 5).to_string(); // hack
 
-                let galley = ui.painter().layout_no_wrap(text, text_style, color);
+                let text: String = if let Some(formatter) = axis_formatters[axis].as_deref() {
+                    formatter(value_main)
+                } else {
+                    emath::round_to_decimals(value_main, 5).to_string() // hack
+                };
 
-                let mut text_pos = pos_in_gui + vec2(1.0, -galley.size().y);
+                // Custom formatters can return empty string to signal "no label at this resolution"
+                if !text.is_empty() {
+                    let galley = ui.painter().layout_no_wrap(text, font_id.clone(), color);
 
-                // Make sure we see the labels, even if the axis is off-screen:
-                text_pos[1 - axis] = text_pos[1 - axis]
-                    .at_most(transform.frame().max[1 - axis] - galley.size()[1 - axis] - 2.0)
-                    .at_least(transform.frame().min[1 - axis] + 1.0);
+                    let mut text_pos = pos_in_gui + vec2(1.0, -galley.size().y);
 
-                shapes.push(Shape::galley(text_pos, galley));
+                    // Make sure we see the labels, even if the axis is off-screen:
+                    text_pos[1 - axis] = text_pos[1 - axis]
+                        .at_most(transform.frame().max[1 - axis] - galley.size()[1 - axis] - 2.0)
+                        .at_least(transform.frame().min[1 - axis] + 1.0);
+
+                    shapes.push(Shape::galley(text_pos, galley));
+                }
             }
         }
 

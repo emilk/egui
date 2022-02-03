@@ -28,14 +28,21 @@ epaint = { version = "0.16.0", path = "../epaint", default-features = false }
 
 ahash = "0.7"
 nohash-hasher = "0.2"
+
+# Optional:
 ron = { version = "0.7", optional = true }
 serde = { version = "1", features = ["derive", "rc"], optional = true }
+# egui doesn't log much, but when it does, it uses `tracing`
+tracing = { version = "0.1", optional = true }
 
 [features]
 default = ["default_fonts", "single_threaded"]
 
 # add compatibility with https://crates.io/crates/cint
 cint = ["epaint/cint"]
+
+# implement bytemuck on most types.
+convert_bytemuck = ["epaint/convert_bytemuck"]
 
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
@@ -54,9 +61,6 @@ persistence = ["serde", "epaint/serialize", "ron"]
 
 # implement serde on most types.
 serialize = ["serde", "epaint/serialize"]
-
-# implement bytemuck on most types.
-convert_bytemuck = ["epaint/convert_bytemuck"]
 
 # multi_threaded is only needed if you plan to use the same egui::Context
 # from multiple threads. It comes with a minor performance impact.

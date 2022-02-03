@@ -18,11 +18,11 @@ pub(crate) struct State {
 
 impl State {
     pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.memory().data.get_persisted(id)
+        ctx.data().get_persisted(id)
     }
 
     pub fn store(self, ctx: &Context, id: Id) {
-        ctx.memory().data.insert_persisted(id, self);
+        ctx.data().insert_persisted(id, self);
     }
 }
 

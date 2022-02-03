@@ -125,6 +125,7 @@ impl ToString for LineStyle {
 
 // ----------------------------------------------------------------------------
 
+/// Determines whether a plot element is vertically or horizontally oriented.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Orientation {
     Horizontal,

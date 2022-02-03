@@ -9,9 +9,7 @@ use egui::{
 use glow::HasContext;
 use memoffset::offset_of;
 
-use crate::misc_util::{
-    check_for_gl_error, compile_shader, glow_print, link_program, srgb_texture2d,
-};
+use crate::misc_util::{check_for_gl_error, compile_shader, link_program};
 use crate::post_process::PostProcess;
 use crate::shader_version::ShaderVersion;
 use crate::vao_emulate;
@@ -26,6 +24,8 @@ const FRAG_SRC: &str = include_str!("shader/fragment.glsl");
 /// This struct must be destroyed with [`Painter::destroy`] before dropping, to ensure OpenGL
 /// objects have been properly deleted and are not leaked.
 pub struct Painter {
+    max_texture_side: usize,
+
     program: glow::Program,
     u_screen_size: glow::UniformLocation,
     u_sampler: glow::UniformLocation,
@@ -92,11 +92,13 @@ impl Painter {
     ) -> Result<Painter, String> {
         check_for_gl_error(gl, "before Painter::new");
 
+        let max_texture_side = unsafe { gl.get_parameter_i32(glow::MAX_TEXTURE_SIZE) } as usize;
+
         let support_vao = crate::misc_util::supports_vao(gl);
         let shader_version = ShaderVersion::get(gl);
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
         let header = shader_version.version();
-        glow_print(format!("Shader header: {:?}.", header));
+        tracing::debug!("Shader header: {:?}.", header);
         let srgb_support = gl.supported_extensions().contains("EXT_sRGB");
 
         let (post_process, srgb_support_define) = match (shader_version, srgb_support) {
@@ -104,7 +106,7 @@ impl Painter {
             (ShaderVersion::Es300, _) | (ShaderVersion::Es100, true) => unsafe {
                 // Add sRGB support marker for fragment shader
                 if let Some([width, height]) = pp_fb_extent {
-                    glow_print("WebGL with sRGB enabled. Turning on post processing for linear framebuffer blending.");
+                    tracing::debug!("WebGL with sRGB enabled. Turning on post processing for linear framebuffer blending.");
                     // install post process to correct sRGB color:
                     (
                         Some(PostProcess::new(
@@ -118,7 +120,7 @@ impl Painter {
                         "#define SRGB_SUPPORTED",
                     )
                 } else {
-                    glow_print("WebGL or OpenGL ES detected but PostProcess disabled because dimension is None");
+                    tracing::debug!("WebGL or OpenGL ES detected but PostProcess disabled because dimension is None");
                     (None, "")
                 }
             },
@@ -205,6 +207,7 @@ impl Painter {
             check_for_gl_error(gl, "after Painter::new");
 
             Ok(Painter {
+                max_texture_side,
                 program,
                 u_screen_size,
                 u_sampler,
@@ -223,6 +226,10 @@ impl Painter {
                 destroyed: false,
             })
         }
+    }
+
+    pub fn max_texture_side(&self) -> usize {
+        self.max_texture_side
     }
 
     unsafe fn prepare_painting(
@@ -342,6 +349,7 @@ impl Painter {
 
                 gl.bind_texture(glow::TEXTURE_2D, Some(texture));
             }
+
             // Transform clip rect to physical pixels:
             let clip_min_x = pixels_per_point * clip_rect.min.x;
             let clip_min_y = pixels_per_point * clip_rect.min.y;
@@ -388,11 +396,19 @@ impl Painter {
         &mut self,
         gl: &glow::Context,
         tex_id: egui::TextureId,
-        image: &egui::ImageData,
+        delta: &egui::epaint::ImageDelta,
     ) {
         self.assert_not_destroyed();
 
-        let gl_texture = match image {
+        let glow_texture = *self
+            .textures
+            .entry(tex_id)
+            .or_insert_with(|| unsafe { gl.create_texture().unwrap() });
+        unsafe {
+            gl.bind_texture(glow::TEXTURE_2D, Some(glow_texture));
+        }
+
+        match &delta.image {
             egui::ImageData::Color(image) => {
                 assert_eq!(
                     image.width() * image.height(),
@@ -402,17 +418,15 @@ impl Painter {
 
                 let data: &[u8] = bytemuck::cast_slice(image.pixels.as_ref());
 
-                srgb_texture2d(
-                    gl,
-                    self.is_webgl_1,
-                    self.srgb_support,
-                    self.texture_filter,
-                    data,
-                    image.size[0],
-                    image.size[1],
-                )
+                self.upload_texture_srgb(gl, delta.pos, image.size, data);
             }
             egui::ImageData::Alpha(image) => {
+                assert_eq!(
+                    image.width() * image.height(),
+                    image.pixels.len(),
+                    "Mismatch between texture size and texel count"
+                );
+
                 let gamma = if self.is_embedded && self.post_process.is_none() {
                     1.0 / 2.2
                 } else {
@@ -423,20 +437,86 @@ impl Painter {
                     .flat_map(|a| a.to_array())
                     .collect();
 
-                srgb_texture2d(
-                    gl,
-                    self.is_webgl_1,
-                    self.srgb_support,
-                    self.texture_filter,
-                    &data,
-                    image.size[0],
-                    image.size[1],
-                )
+                self.upload_texture_srgb(gl, delta.pos, image.size, &data);
             }
         };
+    }
 
-        if let Some(old_tex) = self.textures.insert(tex_id, gl_texture) {
-            unsafe { gl.delete_texture(old_tex) };
+    fn upload_texture_srgb(
+        &mut self,
+        gl: &glow::Context,
+        pos: Option<[usize; 2]>,
+        [w, h]: [usize; 2],
+        data: &[u8],
+    ) {
+        assert_eq!(data.len(), w * h * 4);
+        assert!(w >= 1 && h >= 1);
+        unsafe {
+            gl.tex_parameter_i32(
+                glow::TEXTURE_2D,
+                glow::TEXTURE_MAG_FILTER,
+                self.texture_filter.glow_code() as i32,
+            );
+            gl.tex_parameter_i32(
+                glow::TEXTURE_2D,
+                glow::TEXTURE_MIN_FILTER,
+                self.texture_filter.glow_code() as i32,
+            );
+
+            gl.tex_parameter_i32(
+                glow::TEXTURE_2D,
+                glow::TEXTURE_WRAP_S,
+                glow::CLAMP_TO_EDGE as i32,
+            );
+            gl.tex_parameter_i32(
+                glow::TEXTURE_2D,
+                glow::TEXTURE_WRAP_T,
+                glow::CLAMP_TO_EDGE as i32,
+            );
+            check_for_gl_error(gl, "tex_parameter");
+
+            let (internal_format, src_format) = if self.is_webgl_1 {
+                let format = if self.srgb_support {
+                    glow::SRGB_ALPHA
+                } else {
+                    glow::RGBA
+                };
+                (format, format)
+            } else {
+                (glow::SRGB8_ALPHA8, glow::RGBA)
+            };
+
+            gl.pixel_store_i32(glow::UNPACK_ALIGNMENT, 1);
+
+            let level = 0;
+            if let Some([x, y]) = pos {
+                gl.tex_sub_image_2d(
+                    glow::TEXTURE_2D,
+                    level,
+                    x as _,
+                    y as _,
+                    w as _,
+                    h as _,
+                    src_format,
+                    glow::UNSIGNED_BYTE,
+                    glow::PixelUnpackData::Slice(data),
+                );
+                check_for_gl_error(gl, "tex_sub_image_2d");
+            } else {
+                let border = 0;
+                gl.tex_image_2d(
+                    glow::TEXTURE_2D,
+                    level,
+                    internal_format as _,
+                    w as _,
+                    h as _,
+                    border,
+                    src_format,
+                    glow::UNSIGNED_BYTE,
+                    Some(data),
+                );
+                check_for_gl_error(gl, "tex_image_2d");
+            }
         }
     }
 
@@ -502,7 +582,7 @@ pub fn clear(gl: &glow::Context, dimension: [u32; 2], clear_color: egui::Rgba) {
 impl Drop for Painter {
     fn drop(&mut self) {
         if !self.destroyed {
-            eprintln!(
+            tracing::warn!(
                 "You forgot to call destroy() on the egui glow painter. Resources will leak!"
             );
         }

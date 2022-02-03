@@ -28,6 +28,13 @@ pub struct RawInput {
     /// Set this the first frame, whenever it changes, or just on every frame.
     pub pixels_per_point: Option<f32>,
 
+    /// Maximum size of one side of the font texture.
+    ///
+    /// Ask your graphics drivers about this. This corresponds to `GL_MAX_TEXTURE_SIZE`.
+    ///
+    /// The default is a very small (but very portable) 2048.
+    pub max_texture_side: usize,
+
     /// Monotonically increasing time, in seconds. Relative to whatever. Used for animations.
     /// If `None` is provided, egui will assume a time delta of `predicted_dt` (default 1/60 seconds).
     pub time: Option<f64>,
@@ -62,6 +69,7 @@ impl Default for RawInput {
         Self {
             screen_rect: None,
             pixels_per_point: None,
+            max_texture_side: 2048,
             time: None,
             predicted_dt: 1.0 / 60.0,
             modifiers: Modifiers::default(),
@@ -81,6 +89,7 @@ impl RawInput {
         RawInput {
             screen_rect: self.screen_rect.take(),
             pixels_per_point: self.pixels_per_point.take(),
+            max_texture_side: self.max_texture_side,
             time: self.time.take(),
             predicted_dt: self.predicted_dt,
             modifiers: self.modifiers,
@@ -95,6 +104,7 @@ impl RawInput {
         let Self {
             screen_rect,
             pixels_per_point,
+            max_texture_side,
             time,
             predicted_dt,
             modifiers,
@@ -105,6 +115,7 @@ impl RawInput {
 
         self.screen_rect = screen_rect.or(self.screen_rect);
         self.pixels_per_point = pixels_per_point.or(self.pixels_per_point);
+        self.max_texture_side = max_texture_side; // use latest
         self.time = time; // use latest time
         self.predicted_dt = predicted_dt; // use latest dt
         self.modifiers = modifiers; // use latest
@@ -180,6 +191,8 @@ pub enum Event {
     /// The direction of the vector indicates how to move the _content_ that is being viewed.
     /// So if you get positive values, the content being viewed should move to the right and down,
     /// revealing new things to the left and up.
+    ///
+    /// Shift-scroll should result in horizontal scrolling (it is up to the integrations to do this).
     Scroll(Vec2),
 
     /// Zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).
@@ -355,6 +368,7 @@ impl RawInput {
         let Self {
             screen_rect,
             pixels_per_point,
+            max_texture_side,
             time,
             predicted_dt,
             modifiers,
@@ -368,6 +382,7 @@ impl RawInput {
             .on_hover_text(
                 "Also called HDPI factor.\nNumber of physical pixels per each logical pixel.",
             );
+        ui.label(format!("max_texture_side: {}", max_texture_side));
         if let Some(time) = time {
             ui.label(format!("time: {:.3} s", time));
         } else {

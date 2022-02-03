@@ -2,6 +2,8 @@ use crate::{widget_text::WidgetTextGalley, *};
 
 /// Static text.
 ///
+/// Usually it is more convenient to use [`Ui::label`].
+///
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// ui.label("Equivalent");
@@ -84,7 +86,7 @@ impl Label {
         let valign = ui.layout().vertical_align();
         let mut text_job = self
             .text
-            .into_text_job(ui.style(), ui.style().body_text_style, valign);
+            .into_text_job(ui.style(), FontSelection::Default, valign);
 
         let should_wrap = self.wrap.unwrap_or_else(|| ui.wrap_text());
         let available_width = ui.available_width();

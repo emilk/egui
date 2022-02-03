@@ -30,14 +30,11 @@ pub(crate) struct BarState {
 
 impl BarState {
     fn load(ctx: &Context, bar_id: Id) -> Self {
-        ctx.memory()
-            .data
-            .get_temp::<Self>(bar_id)
-            .unwrap_or_default()
+        ctx.data().get_temp::<Self>(bar_id).unwrap_or_default()
     }
 
     fn store(self, ctx: &Context, bar_id: Id) {
-        ctx.memory().data.insert_temp(bar_id, self);
+        ctx.data().insert_temp(bar_id, self);
     }
 
     /// Show a menu at pointer if primary-clicked response.
@@ -414,7 +411,8 @@ impl SubMenuButton {
         let button_padding = ui.spacing().button_padding;
         let total_extra = button_padding + button_padding;
         let text_available_width = ui.available_width() - total_extra.x;
-        let text_galley = text.into_galley(ui, Some(true), text_available_width, text_style);
+        let text_galley =
+            text.into_galley(ui, Some(true), text_available_width, text_style.clone());
 
         let icon_available_width = text_available_width - text_galley.size().x;
         let icon_galley = icon.into_galley(ui, Some(true), icon_available_width, text_style);

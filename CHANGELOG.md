@@ -8,8 +8,19 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 ## Unreleased
 
 ### Added ⭐
+* Much improved font selection ([#1154](https://github.com/emilk/egui/pull/1154)):
+  * You can now select any font size and family using `RichText::size` amd `RichText::family` and the new `FontId`.
+  * Easily change text styles with `Style::text_styles`.
+  * Added `Ui::text_style_height`.
+  * Added `TextStyle::resolve`.
 * `Context::load_texture` to convert an image into a texture which can be displayed using e.g. `ui.image(texture, size)` ([#1110](https://github.com/emilk/egui/pull/1110)).
 * Added `Ui::add_visible` and `Ui::add_visible_ui`.
+* Opt-in dependency on `tracing` crate for logging warnings ([#1192](https://github.com/emilk/egui/pull/1192)).
+* Added `CollapsingHeader::icon` to override the default open/close icon using a custom function. ([1147](https://github.com/emilk/egui/pull/1147)).
+* Added `Plot::x_axis_formatter` and `Plot::y_axis_formatter` for custom axis labels ([#1130](https://github.com/emilk/egui/pull/1130)).
+* Added `ui.data()`, `ctx.data()`, `ctx.options()` and `ctx.tessellation_options()` ([#1175](https://github.com/emilk/egui/pull/1175)).
+* Added `Plot::allow_boxed_zoom()`, `Plot::boxed_zoom_pointer()` for boxed zooming on plots ([#1188](https://github.com/emilk/egui/pull/1188)).
+* Added linked axis support for plots via `plot::LinkedAxisGroup` ([#1184](https://github.com/emilk/egui/pull/1184)).
 
 ### Changed 🔧
 * ⚠️ `Context::input` and `Ui::input` now locks a mutex. This can lead to a dead-lock is used in an `if let` binding!
@@ -19,13 +30,25 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * `Context` can now be cloned and stored between frames ([#1050](https://github.com/emilk/egui/pull/1050)).
 * Renamed `Ui::visible` to `Ui::is_visible`.
 * Split `Event::Text` into `Event::Text` and `Event::Paste` ([#1058](https://github.com/emilk/egui/pull/1058)).
-* For integrations: `FontImage` has been replaced by `TexturesDelta` (found in `Output`), describing what textures were loaded and freed each frame ([#1110](https://github.com/emilk/egui/pull/1110)).
+* For integrations:
+  * `FontImage` has been replaced by `TexturesDelta` (found in `Output`), describing what textures were loaded and freed each frame ([#1110](https://github.com/emilk/egui/pull/1110)).
+  * The painter must support partial texture updates ([#1149](https://github.com/emilk/egui/pull/1149)).
+  * Added `RawInput::max_texture_side` which should be filled in with e.g. `GL_MAX_TEXTURE_SIZE` ([#1154](https://github.com/emilk/egui/pull/1154)).
+* Replaced `Style::body_text_style` with more generic `Style::text_styles` ([#1154](https://github.com/emilk/egui/pull/1154)).
+* `TextStyle` is no longer `Copy` ([#1154](https://github.com/emilk/egui/pull/1154)).
+* Replaced `TextEdit::text_style` with `TextEdit::font` ([#1154](https://github.com/emilk/egui/pull/1154)).
+* `Plot::highlight` now takes a `bool` argument ([#1159](https://github.com/emilk/egui/pull/1159)).
+* `ScrollArea::show` now returns a `ScrollAreaOutput`, so you might need to add `.inner` after the call to it ([#1166](https://github.com/emilk/egui/pull/1166)).
 
 ### Fixed 🐛
-* Context menu now respects the theme ([#1043](https://github.com/emilk/egui/pull/1043))
+* Context menus now respects the theme ([#1043](https://github.com/emilk/egui/pull/1043))
+* Plot `Orientation` was not public, although fields using this type were ([#1130](https://github.com/emilk/egui/pull/1130))
+* Fixed `enable_drag` for Windows ([#1108](https://github.com/emilk/egui/pull/1108)).
 
 ### Contributors 🙏
+* [AlexxxRu](https://github.com/alexxxru): [#1108](https://github.com/emilk/egui/pull/1108).
 * [danielkeller](https://github.com/danielkeller): [#1050](https://github.com/emilk/egui/pull/1050).
+* [juancampa](https://github.com/juancampa): [#1147](https://github.com/emilk/egui/pull/1147).
 
 
 ## 0.16.1 - 2021-12-31 - Add back `CtxRef::begin_frame,end_frame`
@@ -529,6 +552,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Optimization: coarse culling in the tessellator
 * CHANGED: switch argument order of `ui.checkbox` and `ui.radio`
 
+
 ## 0.1.4 - 2020-09-08
 
 This is when I started the CHANGELOG.md, after almost two years of development. Better late than never.
@@ -540,3 +564,13 @@ This is when I started the CHANGELOG.md, after almost two years of development. 
 * Regions: resizing, vertical scrolling, collapsing headers (sections)
 * Rendering: Anti-aliased rendering of lines, circles, text and convex polygons.
 * Tooltips on hover
+
+
+## Earlier:
+
+* 2020-08-10: renamed the project to "egui"
+* 2020-05-30: first release on crates.io (0.1.0)
+* 2020-05-01: serious work starts (pandemic project)
+* 2019-03-12: gave a talk about what would later become egui: https://www.youtube.com/watch?v=-pmwLHw5Gbs
+* 2018-12-23: [initial commit](https://github.com/emilk/egui/commit/856bbf4dae4a69693a0324da34e8b0dd3754dfdf)
+* 2018-11-04: started tinkering on a train

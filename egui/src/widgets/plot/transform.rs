@@ -178,6 +178,10 @@ impl ScreenTransform {
         &self.bounds
     }
 
+    pub fn bounds_mut(&mut self) -> &mut PlotBounds {
+        &mut self.bounds
+    }
+
     pub fn translate_bounds(&mut self, mut delta_pos: Vec2) {
         if self.x_centered {
             delta_pos.x = 0.;
@@ -273,13 +277,20 @@ impl ScreenTransform {
         (self.bounds.width() / rw) / (self.bounds.height() / rh)
     }
 
-    pub fn set_aspect(&mut self, aspect: f64) {
-        let epsilon = 1e-5;
+    /// Sets the aspect ratio by either expanding the x-axis or contracting the y-axis.
+    pub fn set_aspect(&mut self, aspect: f64, preserve_y: bool) {
         let current_aspect = self.get_aspect();
-        if current_aspect < aspect - epsilon {
+
+        let epsilon = 1e-5;
+        if (current_aspect - aspect).abs() < epsilon {
+            // Don't make any changes when the aspect is already almost correct.
+            return;
+        }
+
+        if preserve_y {
             self.bounds
                 .expand_x((aspect / current_aspect - 1.0) * self.bounds.width() * 0.5);
-        } else if current_aspect > aspect + epsilon {
+        } else {
             self.bounds
                 .expand_y((current_aspect / aspect - 1.0) * self.bounds.height() * 0.5);
         }

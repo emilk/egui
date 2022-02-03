@@ -8,7 +8,7 @@ use super::{CCursorRange, CursorRange, TextEditOutput, TextEditState};
 
 /// A text region that the user can edit the contents of.
 ///
-/// See also [`Ui::text_edit_singleline`] and  [`Ui::text_edit_multiline`].
+/// See also [`Ui::text_edit_singleline`] and [`Ui::text_edit_multiline`].
 ///
 /// Example:
 ///
@@ -52,7 +52,7 @@ pub struct TextEdit<'t> {
     hint_text: WidgetText,
     id: Option<Id>,
     id_source: Option<Id>,
-    text_style: Option<TextStyle>,
+    font_selection: FontSelection,
     text_color: Option<Color32>,
     layouter: Option<&'t mut dyn FnMut(&Ui, &str, f32) -> Arc<Galley>>,
     password: bool,
@@ -97,7 +97,7 @@ impl<'t> TextEdit<'t> {
             hint_text: Default::default(),
             id: None,
             id_source: None,
-            text_style: None,
+            font_selection: Default::default(),
             text_color: None,
             layouter: None,
             password: false,
@@ -117,7 +117,7 @@ impl<'t> TextEdit<'t> {
     /// - monospaced font
     /// - focus lock
     pub fn code_editor(self) -> Self {
-        self.text_style(TextStyle::Monospace).lock_focus(true)
+        self.font(TextStyle::Monospace).lock_focus(true)
     }
 
     /// Use if you want to set an explicit `Id` for this widget.
@@ -144,9 +144,15 @@ impl<'t> TextEdit<'t> {
         self
     }
 
-    pub fn text_style(mut self, text_style: TextStyle) -> Self {
-        self.text_style = Some(text_style);
+    /// Pick a [`FontId`] or [`TextStyle`].
+    pub fn font(mut self, font_selection: impl Into<FontSelection>) -> Self {
+        self.font_selection = font_selection.into();
         self
+    }
+
+    #[deprecated = "Use .font(…) instead"]
+    pub fn text_style(self, text_style: TextStyle) -> Self {
+        self.font(text_style)
     }
 
     pub fn text_color(mut self, text_color: Color32) -> Self {
@@ -330,7 +336,7 @@ impl<'t> TextEdit<'t> {
             hint_text,
             id,
             id_source,
-            text_style,
+            font_selection,
             text_color,
             layouter,
             password,
@@ -350,10 +356,9 @@ impl<'t> TextEdit<'t> {
             .unwrap_or_else(|| ui.visuals().widgets.inactive.text_color());
 
         let prev_text = text.as_ref().to_owned();
-        let text_style = text_style
-            .or(ui.style().override_text_style)
-            .unwrap_or_else(|| ui.style().body_text_style);
-        let row_height = ui.fonts().row_height(text_style);
+
+        let font_id = font_selection.resolve(ui.style());
+        let row_height = ui.fonts().row_height(&font_id);
         const MIN_WIDTH: f32 = 24.0; // Never make a `TextEdit` more narrow than this.
         let available_width = ui.available_width().at_least(MIN_WIDTH);
         let desired_width = desired_width.unwrap_or_else(|| ui.spacing().text_edit_width);
@@ -363,12 +368,13 @@ impl<'t> TextEdit<'t> {
             desired_width.min(available_width)
         };
 
+        let font_id_clone = font_id.clone();
         let mut default_layouter = move |ui: &Ui, text: &str, wrap_width: f32| {
             let text = mask_if_password(password, text);
             ui.fonts().layout_job(if multiline {
-                LayoutJob::simple(text, text_style, text_color, wrap_width)
+                LayoutJob::simple(text, font_id_clone.clone(), text_color, wrap_width)
             } else {
-                LayoutJob::simple_singleline(text, text_style, text_color)
+                LayoutJob::simple_singleline(text, font_id_clone.clone(), text_color)
             })
         };
 
@@ -543,9 +549,9 @@ impl<'t> TextEdit<'t> {
             if text.as_ref().is_empty() && !hint_text.is_empty() {
                 let hint_text_color = ui.visuals().weak_text_color();
                 let galley = if multiline {
-                    hint_text.into_galley(ui, Some(true), desired_size.x, text_style)
+                    hint_text.into_galley(ui, Some(true), desired_size.x, font_id)
                 } else {
-                    hint_text.into_galley(ui, Some(false), f32::INFINITY, text_style)
+                    hint_text.into_galley(ui, Some(false), f32::INFINITY, font_id)
                 };
                 galley.paint_with_fallback_color(&painter, response.rect.min, hint_text_color);
             }

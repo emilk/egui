@@ -211,6 +211,23 @@ impl AlphaImage {
             .iter()
             .map(move |&a| srgba_from_alpha_lut[a as usize])
     }
+
+    /// Clone a sub-region as a new image
+    pub fn region(&self, [x, y]: [usize; 2], [w, h]: [usize; 2]) -> AlphaImage {
+        assert!(x + w <= self.width());
+        assert!(y + h <= self.height());
+
+        let mut pixels = Vec::with_capacity(w * h);
+        for y in y..y + h {
+            let offset = y * self.width() + x;
+            pixels.extend(&self.pixels[offset..(offset + w)]);
+        }
+        assert_eq!(pixels.len(), w * h);
+        AlphaImage {
+            size: [w, h],
+            pixels,
+        }
+    }
 }
 
 impl std::ops::Index<(usize, usize)> for AlphaImage {
@@ -237,5 +254,47 @@ impl From<AlphaImage> for ImageData {
     #[inline(always)]
     fn from(image: AlphaImage) -> Self {
         Self::Alpha(image)
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// A change to an image.
+///
+/// Either a whole new image,
+/// or an update to a rectangular region of it.
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[must_use = "The painter must take care of this"]
+pub struct ImageDelta {
+    /// What to set the texture to.
+    pub image: ImageData,
+
+    /// If `None`, set the whole texture to [`Self::image`].
+    /// If `Some(pos)`, update a sub-region of an already allocated texture.
+    pub pos: Option<[usize; 2]>,
+}
+
+impl ImageDelta {
+    /// Update the whole texture.
+    pub fn full(image: impl Into<ImageData>) -> Self {
+        Self {
+            image: image.into(),
+            pos: None,
+        }
+    }
+
+    /// Update a sub-region of an existing texture.
+    pub fn partial(pos: [usize; 2], image: impl Into<ImageData>) -> Self {
+        Self {
+            image: image.into(),
+            pos: Some(pos),
+        }
+    }
+
+    /// Is this affecting the whole texture?
+    /// If `false`, this is a partial (sub-region) update.
+    pub fn is_whole(&self) -> bool {
+        self.pos.is_none()
     }
 }

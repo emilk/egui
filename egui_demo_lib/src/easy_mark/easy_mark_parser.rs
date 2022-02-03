@@ -1,9 +1,6 @@
 //! A parser for `EasyMark`: a very simple markup language.
 //!
 //! WARNING: `EasyMark` is subject to change.
-//!
-//! This module does not depend on anything else in egui
-//! and should perhaps be its own crate.
 //
 //! # `EasyMark` design goals:
 //! 1. easy to parse

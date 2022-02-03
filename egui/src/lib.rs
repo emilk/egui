@@ -1,6 +1,6 @@
 //! `egui`:  an easy-to-use GUI in pure Rust!
 //!
-//! Try the live web demo: <https://emilk.github.io/egui/index.html>. Read more about egui at <https://github.com/emilk/egui>.
+//! Try the live web demo: <https://www.egui.rs/#demo>. Read more about egui at <https://github.com/emilk/egui>.
 //!
 //! `egui` is in heavy development, with each new version having breaking changes.
 //! You need to have rust 1.56.0 or later to use `egui`.
@@ -14,7 +14,7 @@
 //!
 //! # Using egui
 //!
-//! To see what is possible to build with egui you can check out the online demo at <https://emilk.github.io/egui/#demo>.
+//! To see what is possible to build with egui you can check out the online demo at <https://www.egui.rs/#demo>.
 //!
 //! If you like the "learning by doing" approach, clone <https://github.com/emilk/eframe_template> and get started using egui right away.
 //!
@@ -364,7 +364,7 @@ mod frame_state;
 pub(crate) mod grid;
 mod id;
 mod input_state;
-mod introspection;
+pub mod introspection;
 pub mod layers;
 mod layout;
 mod memory;
@@ -385,7 +385,7 @@ pub use epaint::emath;
 pub use emath::{lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rect, Vec2};
 pub use epaint::{
     color, mutex,
-    text::{FontData, FontDefinitions, FontFamily, TextStyle},
+    text::{FontData, FontDefinitions, FontFamily, FontId},
     textures::TexturesDelta,
     AlphaImage, ClippedMesh, Color32, ColorImage, ImageData, Rgba, Shape, Stroke, TextureHandle,
     TextureId,
@@ -394,7 +394,7 @@ pub use epaint::{
 pub mod text {
     pub use epaint::text::{
         FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob, LayoutSection, TextFormat,
-        TextStyle, TAB_SIZE,
+        TAB_SIZE,
     };
 }
 
@@ -414,7 +414,7 @@ pub use {
     painter::Painter,
     response::{InnerResponse, Response},
     sense::Sense,
-    style::{Style, Visuals},
+    style::{FontSelection, Style, TextStyle, Visuals},
     text::{Galley, TextFormat},
     ui::Ui,
     widget_text::{RichText, WidgetText},
@@ -511,7 +511,7 @@ macro_rules! egui_assert {
 
 // ----------------------------------------------------------------------------
 
-/// egui supports around 1216 emojis in total.
+/// The default egui fonts supports around 1216 emojis in total.
 /// Here are some of the most useful:
 /// ∞⊗⎗⎘⎙⏏⏴⏵⏶⏷
 /// ⏩⏪⏭⏮⏸⏹⏺■▶📾🔀🔁🔃
@@ -526,7 +526,7 @@ macro_rules! egui_assert {
 ///
 /// NOTE: In egui all emojis are monochrome!
 ///
-/// You can explore them all in the Font Book in [the online demo](https://emilk.github.io/egui/).
+/// You can explore them all in the Font Book in [the online demo](https://www.egui.rs/#demo).
 ///
 /// In addition, egui supports a few special emojis that are not part of the unicode standard.
 /// This module contains some of them:

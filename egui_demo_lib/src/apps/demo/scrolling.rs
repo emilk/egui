@@ -81,7 +81,7 @@ fn huge_content_lines(ui: &mut egui::Ui) {
     ui.add_space(4.0);
 
     let text_style = TextStyle::Body;
-    let row_height = ui.fonts()[text_style].row_height();
+    let row_height = ui.text_style_height(&text_style);
     let num_rows = 10_000;
     ScrollArea::vertical().auto_shrink([false; 2]).show_rows(
         ui,
@@ -101,8 +101,8 @@ fn huge_content_painter(ui: &mut egui::Ui) {
     ui.label("A lot of rows, but only the visible ones are painted, so performance is still good:");
     ui.add_space(4.0);
 
-    let text_style = TextStyle::Body;
-    let row_height = ui.fonts()[text_style].row_height() + ui.spacing().item_spacing.y;
+    let font_id = TextStyle::Body.resolve(ui.style());
+    let row_height = ui.fonts().row_height(&font_id) + ui.spacing().item_spacing.y;
     let num_rows = 10_000;
 
     ScrollArea::vertical()
@@ -130,7 +130,7 @@ fn huge_content_painter(ui: &mut egui::Ui) {
                     pos2(x, y),
                     Align2::LEFT_TOP,
                     text,
-                    text_style,
+                    font_id.clone(),
                     ui.visuals().text_color(),
                 );
                 used_rect = used_rect.union(text_rect);
@@ -210,32 +210,34 @@ impl super::View for ScrollTo {
         }
 
         ui.separator();
-        let (current_scroll, max_scroll) = scroll_area.show(ui, |ui| {
-            if scroll_top {
-                ui.scroll_to_cursor(Align::TOP);
-            }
-            ui.vertical(|ui| {
-                for item in 1..=50 {
-                    if track_item && item == self.track_item {
-                        let response =
-                            ui.colored_label(Color32::YELLOW, format!("This is item {}", item));
-                        response.scroll_to_me(self.tack_item_align);
-                    } else {
-                        ui.label(format!("This is item {}", item));
-                    }
+        let (current_scroll, max_scroll) = scroll_area
+            .show(ui, |ui| {
+                if scroll_top {
+                    ui.scroll_to_cursor(Align::TOP);
                 }
-            });
+                ui.vertical(|ui| {
+                    for item in 1..=50 {
+                        if track_item && item == self.track_item {
+                            let response =
+                                ui.colored_label(Color32::YELLOW, format!("This is item {}", item));
+                            response.scroll_to_me(self.tack_item_align);
+                        } else {
+                            ui.label(format!("This is item {}", item));
+                        }
+                    }
+                });
 
-            if scroll_bottom {
-                ui.scroll_to_cursor(Align::BOTTOM);
-            }
+                if scroll_bottom {
+                    ui.scroll_to_cursor(Align::BOTTOM);
+                }
 
-            let margin = ui.visuals().clip_rect_margin;
+                let margin = ui.visuals().clip_rect_margin;
 
-            let current_scroll = ui.clip_rect().top() - ui.min_rect().top() + margin;
-            let max_scroll = ui.min_rect().height() - ui.clip_rect().height() + 2.0 * margin;
-            (current_scroll, max_scroll)
-        });
+                let current_scroll = ui.clip_rect().top() - ui.min_rect().top() + margin;
+                let max_scroll = ui.min_rect().height() - ui.clip_rect().height() + 2.0 * margin;
+                (current_scroll, max_scroll)
+            })
+            .inner;
         ui.separator();
 
         ui.label(format!(
@@ -265,7 +267,7 @@ impl super::View for ScrollStickTo {
         ui.add_space(4.0);
 
         let text_style = TextStyle::Body;
-        let row_height = ui.fonts()[text_style].row_height();
+        let row_height = ui.text_style_height(&text_style);
         ScrollArea::vertical().stick_to_bottom().show_rows(
             ui,
             row_height,

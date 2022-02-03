@@ -120,17 +120,6 @@ pub trait App {
     /// Also allows you to restore state, if there is a storage (required the "persistence" feature).
     fn setup(&mut self, _ctx: &egui::Context, _frame: &Frame, _storage: Option<&dyn Storage>) {}
 
-    /// If `true` a warm-up call to [`Self::update`] will be issued where
-    /// `ctx.memory().everything_is_visible()` will be set to `true`.
-    ///
-    /// This will help pre-caching all text, preventing stutter when
-    /// opening a window containing new glyphs.
-    ///
-    /// In this warm-up call, all painted shapes will be ignored.
-    fn warm_up_enabled(&self) -> bool {
-        false
-    }
-
     /// Called on shutdown, and perhaps at regular intervals. Allows you to save state.
     ///
     /// Only called when the "persistence" feature is enabled.
@@ -203,6 +192,18 @@ pub trait App {
     fn persist_egui_memory(&self) -> bool {
         true
     }
+
+    /// If `true` a warm-up call to [`Self::update`] will be issued where
+    /// `ctx.memory().everything_is_visible()` will be set to `true`.
+    ///
+    /// This can help pre-caching resources loaded by different parts of the UI, preventing stutter later on.
+    ///
+    /// In this warm-up call, all painted shapes will be ignored.
+    ///
+    /// The default is `false`, and it is unlikely you will want to change this.
+    fn warm_up_enabled(&self) -> bool {
+        false
+    }
 }
 
 /// Options controlling the behavior of a native window.
@@ -232,6 +233,12 @@ pub struct NativeOptions {
     /// The initial size of the native window in points (logical pixels).
     pub initial_window_size: Option<egui::Vec2>,
 
+    /// The minimum window size
+    pub min_window_size: Option<egui::Vec2>,
+
+    /// The maximum window size
+    pub max_window_size: Option<egui::Vec2>,
+
     /// Should the app window be resizable?
     pub resizable: bool,
 
@@ -250,6 +257,8 @@ impl Default for NativeOptions {
             drag_and_drop_support: false,
             icon_data: None,
             initial_window_size: None,
+            min_window_size: None,
+            max_window_size: None,
             resizable: true,
             transparent: false,
         }
@@ -285,7 +294,7 @@ impl Frame {
         Self(Arc::new(Mutex::new(frame_data)))
     }
 
-    /// Convenience to access the underlying `backend::FrameData`.
+    /// Access the underlying [`backend::FrameData`].
     #[doc(hidden)]
     #[inline]
     pub fn lock(&self) -> std::sync::MutexGuard<'_, backend::FrameData> {

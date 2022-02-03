@@ -296,7 +296,8 @@ impl<'open> Window<'open> {
             .and_then(|window_interaction| {
                 // Calculate roughly how much larger the window size is compared to the inner rect
                 let title_bar_height = if with_title_bar {
-                    title.font_height(ctx) + title_content_spacing
+                    let style = ctx.style();
+                    title.font_height(&ctx.fonts(), &style) + title_content_spacing
                 } else {
                     0.0
                 };
@@ -353,7 +354,7 @@ impl<'open> Window<'open> {
                         }
 
                         if scroll.has_any_bar() {
-                            scroll.show(ui, add_contents)
+                            scroll.show(ui, add_contents).inner
                         } else {
                             add_contents(ui)
                         }
@@ -764,7 +765,7 @@ fn show_title_bar(
 ) -> TitleBar {
     let inner_response = ui.horizontal(|ui| {
         let height = title
-            .font_height(ui.ctx())
+            .font_height(&ui.fonts(), ui.style())
             .max(ui.spacing().interact_size.y);
         ui.set_min_height(height);
 
@@ -782,7 +783,7 @@ fn show_title_bar(
                 collapsing.toggle(ui);
             }
             let openness = collapsing.openness(ui.ctx(), collapsing_id);
-            collapsing_header::paint_icon(ui, openness, &collapse_button_response);
+            collapsing_header::paint_default_icon(ui, openness, &collapse_button_response);
         }
 
         let title_galley = title.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Heading);

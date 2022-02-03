@@ -46,7 +46,7 @@
             transform: translate(-50%, 0%);
         }
 
-        .loading {
+        .centered {
             margin-right: auto;
             margin-left: auto;
             display: block;
@@ -54,9 +54,10 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            color: white;
+            color: #f0f0f0;
             font-size: 24px;
             font-family: Ubuntu-Light, Helvetica, sans-serif;
+            text-align: center;
         }
 
         /* ---------------------------------------------- */
@@ -94,8 +95,10 @@
 <body>
     <!-- The WASM code will resize the canvas dynamically -->
     <canvas id="the_canvas_id"></canvas>
-    <div class="loading" id="loading">
-        Loading…&nbsp;&nbsp;
+    <div class="centered" id="center_text">
+        <p style="font-size:16px">
+            Loading…
+        </p>
         <div class="lds-dual-ring"></div>
     </div>
 
@@ -119,18 +122,33 @@
         // We'll defer our execution until the wasm is ready to go.
         // Here we tell bindgen the path to the wasm file so it can start
         // initialization and return to us a promise when it's done.
+        console.debug("loading wasm…");
         wasm_bindgen("./egui_demo_app_bg.wasm")
             .then(on_wasm_loaded)
-            .catch(console.error);
+            .catch(on_wasm_error);
 
         function on_wasm_loaded() {
-            console.log("loaded wasm, starting egui app…");
+            console.debug("wasm loaded. starting egui app…");
 
             // This call installs a bunch of callbacks and then returns:
             wasm_bindgen.start("the_canvas_id");
 
-            console.log("egui app started.");
-            document.getElementById("loading").remove();
+            console.debug("egui app started.");
+            document.getElementById("center_text").remove();
+        }
+
+        function on_wasm_error(error) {
+            console.error("Failed to start egui: " + error);
+            document.getElementById("center_text").innerHTML = `
+                <p>
+                    An error occurred loading egui
+                </p>
+                <p style="font-family:Courier New">
+                    ${error}
+                </p>
+                <p style="font-size:14px">
+                    Make sure you use a modern browser with WebGL and WASM enabled.
+                </p>`;
         }
     </script>
 </body>

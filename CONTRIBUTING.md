@@ -16,7 +16,7 @@ There is an `egui` discord at <https://discord.gg/vbuv9Xan65>.
 
 ## Filing an issue
 
-[Issues](https://github.com/emilk/egui/issues) are for bug reports and feature requests. Issues are not for asking questions (use [Discussions](https://github.com/emilk/egui/discussions) for that).
+[Issues](https://github.com/emilk/egui/issues) are for bug reports and feature requests. Issues are not for asking questions (use [Discussions](https://github.com/emilk/egui/discussions) or [Discord](https://discord.gg/vbuv9Xan65) for that).
 
 Always make sure there is not already a similar issue to the one you are creating.
 
@@ -35,6 +35,8 @@ When you have something that works, open a draft PR. You may get some helpful fe
 When you feel the PR is ready to go, do a self-review of the code, and then open it for review.
 
 Please keep pull requests small and focused.
+
+Don't worry about having many small commits in the PR - they will be squashed to one commit once merged.
 
 Do not include the `.js` and `.wasm` build artifacts generated for building for web.
 `git` is not great at storing large files like these, so we only commit a new web demo after a new egui release.
@@ -59,6 +61,8 @@ While using an immediate mode gui is simple, implementing one is a lot more tric
 
 * read some code before writing your own
 * follow the `egui` code style
+* add blank lines around all `fn`, `struct`, `enum`, etc.
+* `// Comment like this`, not `//like this`
 * write idiomatic rust
 * avoid `unsafe`
 * avoid code that can cause panics

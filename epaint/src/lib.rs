@@ -87,6 +87,7 @@
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
 
+mod bezier;
 pub mod color;
 pub mod image;
 mod mesh;
@@ -104,16 +105,17 @@ pub mod textures;
 pub mod util;
 
 pub use {
+    bezier::{CubicBezierShape, QuadraticBezierShape},
     color::{Color32, Rgba},
-    image::{AlphaImage, ColorImage, ImageData},
+    image::{AlphaImage, ColorImage, ImageData, ImageDelta},
     mesh::{Mesh, Mesh16, Vertex},
     shadow::Shadow,
     shape::{CircleShape, PathShape, RectShape, Shape, TextShape},
     stats::PaintStats,
     stroke::Stroke,
     tessellator::{tessellate_shapes, TessellationOptions, Tessellator},
-    text::{Fonts, Galley, TextStyle},
-    texture_atlas::{FontImage, TextureAtlas},
+    text::{FontFamily, FontId, Fonts, Galley},
+    texture_atlas::TextureAtlas,
     texture_handle::TextureHandle,
     textures::TextureManager,
 };

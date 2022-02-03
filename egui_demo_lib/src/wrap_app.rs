@@ -67,11 +67,6 @@ impl epi::App for WrapApp {
         egui::Rgba::TRANSPARENT // we set a `CentralPanel` fill color in `demo_windows.rs`
     }
 
-    fn warm_up_enabled(&self) -> bool {
-        // The example windows use a lot of emojis. Pre-cache them by running one frame where everything is open
-        cfg!(not(debug_assertions))
-    }
-
     fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
         if let Some(web_info) = frame.info().web_info.as_ref() {
             if let Some(anchor) = web_info.web_location_hash.strip_prefix('#') {
@@ -190,7 +185,7 @@ impl WrapApp {
                 screen_rect.center(),
                 Align2::CENTER_CENTER,
                 text,
-                TextStyle::Heading,
+                TextStyle::Heading.resolve(&ctx.style()),
                 Color32::WHITE,
             );
         }

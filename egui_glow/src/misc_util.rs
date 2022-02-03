@@ -2,104 +2,16 @@
 use glow::HasContext;
 use std::option::Option::Some;
 
-use crate::painter::TextureFilter;
-
-pub(crate) fn srgb_texture2d(
-    gl: &glow::Context,
-    is_webgl_1: bool,
-    srgb_support: bool,
-    texture_filter: TextureFilter,
-    data: &[u8],
-    w: usize,
-    h: usize,
-) -> glow::Texture {
-    assert_eq!(data.len(), w * h * 4);
-    assert!(w >= 1);
-    assert!(h >= 1);
-    unsafe {
-        let tex = gl.create_texture().unwrap();
-        gl.bind_texture(glow::TEXTURE_2D, Some(tex));
-
-        gl.tex_parameter_i32(
-            glow::TEXTURE_2D,
-            glow::TEXTURE_MAG_FILTER,
-            texture_filter.glow_code() as i32,
-        );
-        gl.tex_parameter_i32(
-            glow::TEXTURE_2D,
-            glow::TEXTURE_MIN_FILTER,
-            texture_filter.glow_code() as i32,
-        );
-        gl.tex_parameter_i32(
-            glow::TEXTURE_2D,
-            glow::TEXTURE_WRAP_S,
-            glow::CLAMP_TO_EDGE as i32,
-        );
-        gl.tex_parameter_i32(
-            glow::TEXTURE_2D,
-            glow::TEXTURE_WRAP_T,
-            glow::CLAMP_TO_EDGE as i32,
-        );
-        if is_webgl_1 {
-            let format = if srgb_support {
-                glow::SRGB_ALPHA
-            } else {
-                glow::RGBA
-            };
-            gl.tex_image_2d(
-                glow::TEXTURE_2D,
-                0,
-                format as i32,
-                w as i32,
-                h as i32,
-                0,
-                format,
-                glow::UNSIGNED_BYTE,
-                Some(data),
-            );
-        } else {
-            gl.tex_storage_2d(glow::TEXTURE_2D, 1, glow::SRGB8_ALPHA8, w as i32, h as i32);
-            gl.tex_sub_image_2d(
-                glow::TEXTURE_2D,
-                0,
-                0,
-                0,
-                w as i32,
-                h as i32,
-                glow::RGBA,
-                glow::UNSIGNED_BYTE,
-                glow::PixelUnpackData::Slice(data),
-            );
-        }
-        check_for_gl_error(gl, "srgb_texture2d");
-        tex
-    }
-}
-
 pub fn check_for_gl_error(gl: &glow::Context, context: &str) {
     let error_code = unsafe { gl.get_error() };
     if error_code != glow::NO_ERROR {
-        glow_print_error(format!(
+        tracing::error!(
             "GL error, at: '{}', code: {} (0x{:X})",
-            context, error_code, error_code
-        ));
+            context,
+            error_code,
+            error_code
+        );
     }
-}
-
-pub(crate) fn glow_print(s: impl std::fmt::Display) {
-    #[cfg(target_arch = "wasm32")]
-    web_sys::console::log_1(&format!("egui_glow: {}", s).into());
-
-    #[cfg(not(target_arch = "wasm32"))]
-    eprintln!("egui_glow: {}", s);
-}
-
-pub(crate) fn glow_print_error(s: impl std::fmt::Display) {
-    #[cfg(target_arch = "wasm32")]
-    web_sys::console::error_1(&format!("egui_glow: {}", s).into());
-
-    #[cfg(not(target_arch = "wasm32"))]
-    eprintln!("egui_glow ERROR: {}", s);
 }
 
 pub(crate) unsafe fn compile_shader(
@@ -204,7 +116,7 @@ pub(crate) fn supports_vao(gl: &glow::Context) -> bool {
     const OPENGL_ES_PREFIX: &str = "OpenGL ES ";
 
     let version_string = unsafe { gl.get_parameter_string(glow::VERSION) };
-    glow_print(format!("GL version: {:?}.", version_string));
+    tracing::debug!("GL version: {:?}.", version_string);
 
     // Examples:
     // * "WebGL 2.0 (OpenGL ES 3.0 Chromium)"

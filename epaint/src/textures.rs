@@ -1,4 +1,4 @@
-use crate::{image::ImageData, TextureId};
+use crate::{ImageData, ImageDelta, TextureId};
 use ahash::AHashMap;
 
 // ----------------------------------------------------------------------------
@@ -38,16 +38,19 @@ impl TextureManager {
             retain_count: 1,
         });
 
-        self.delta.set.insert(id, image);
+        self.delta.set.insert(id, ImageDelta::full(image));
         id
     }
 
-    /// Assign a new image to an existing texture.
-    pub fn set(&mut self, id: TextureId, image: ImageData) {
+    /// Assign a new image to an existing texture,
+    /// or update a region of it.
+    pub fn set(&mut self, id: TextureId, delta: ImageDelta) {
         if let Some(meta) = self.metas.get_mut(&id) {
-            meta.size = image.size();
-            meta.bytes_per_pixel = image.bytes_per_pixel();
-            self.delta.set.insert(id, image);
+            if delta.is_whole() {
+                meta.size = delta.image.size();
+                meta.bytes_per_pixel = delta.image.bytes_per_pixel();
+            }
+            self.delta.set.insert(id, delta);
         } else {
             crate::epaint_assert!(
                 false,
@@ -147,7 +150,7 @@ impl TextureMeta {
 #[must_use = "The painter must take care of this"]
 pub struct TexturesDelta {
     /// New or changed textures. Apply before painting.
-    pub set: AHashMap<TextureId, ImageData>,
+    pub set: AHashMap<TextureId, ImageDelta>,
 
     /// Texture to free after painting.
     pub free: Vec<TextureId>,

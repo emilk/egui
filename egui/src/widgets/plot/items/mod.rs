@@ -9,11 +9,11 @@ use crate::*;
 
 use super::{CustomLabelFuncRef, PlotBounds, ScreenTransform};
 use rect_elem::*;
-use values::*;
+use values::{ClosestElem, PlotGeometry};
 
 pub use bar::Bar;
 pub use box_elem::{BoxElem, BoxSpread};
-pub use values::{LineStyle, MarkerShape, Value, Values};
+pub use values::{LineStyle, MarkerShape, Orientation, Value, Values};
 
 mod bar;
 mod box_elem;
@@ -117,8 +117,8 @@ impl HLine {
     }
 
     /// Highlight this line in the plot by scaling up the line.
-    pub fn highlight(mut self) -> Self {
-        self.highlight = true;
+    pub fn highlight(mut self, highlight: bool) -> Self {
+        self.highlight = highlight;
         self
     }
 
@@ -227,8 +227,8 @@ impl VLine {
     }
 
     /// Highlight this line in the plot by scaling up the line.
-    pub fn highlight(mut self) -> Self {
-        self.highlight = true;
+    pub fn highlight(mut self, highlight: bool) -> Self {
+        self.highlight = highlight;
         self
     }
 
@@ -338,8 +338,8 @@ impl Line {
     }
 
     /// Highlight this line in the plot by scaling up the line.
-    pub fn highlight(mut self) -> Self {
-        self.highlight = true;
+    pub fn highlight(mut self, highlight: bool) -> Self {
+        self.highlight = highlight;
         self
     }
 
@@ -506,8 +506,8 @@ impl Polygon {
 
     /// Highlight this polygon in the plot by scaling up the stroke and reducing the fill
     /// transparency.
-    pub fn highlight(mut self) -> Self {
-        self.highlight = true;
+    pub fn highlight(mut self, highlight: bool) -> Self {
+        self.highlight = highlight;
         self
     }
 
@@ -614,8 +614,7 @@ impl PlotItem for Polygon {
 
 /// Text inside the plot.
 pub struct Text {
-    pub(super) text: String,
-    pub(super) style: TextStyle,
+    pub(super) text: WidgetText,
     pub(super) position: Value,
     pub(super) name: String,
     pub(super) highlight: bool,
@@ -624,11 +623,9 @@ pub struct Text {
 }
 
 impl Text {
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn new(position: Value, text: impl ToString) -> Self {
+    pub fn new(position: Value, text: impl Into<WidgetText>) -> Self {
         Self {
-            text: text.to_string(),
-            style: TextStyle::Small,
+            text: text.into(),
             position,
             name: Default::default(),
             highlight: false,
@@ -638,18 +635,12 @@ impl Text {
     }
 
     /// Highlight this text in the plot by drawing a rectangle around it.
-    pub fn highlight(mut self) -> Self {
-        self.highlight = true;
+    pub fn highlight(mut self, highlight: bool) -> Self {
+        self.highlight = highlight;
         self
     }
 
-    /// Text style. Default is `TextStyle::Small`.
-    pub fn style(mut self, style: TextStyle) -> Self {
-        self.style = style;
-        self
-    }
-
-    /// Text color. Default is `Color32::TRANSPARENT` which means a color will be auto-assigned.
+    /// Text color.
     pub fn color(mut self, color: impl Into<Color32>) -> Self {
         self.color = color.into();
         self
@@ -681,14 +672,23 @@ impl PlotItem for Text {
         } else {
             self.color
         };
+
+        let galley =
+            self.text
+                .clone()
+                .into_galley(ui, Some(false), f32::INFINITY, TextStyle::Small);
+
         let pos = transform.position_from_value(&self.position);
-        let galley = ui
-            .fonts()
-            .layout_no_wrap(self.text.clone(), self.style, color);
         let rect = self
             .anchor
             .anchor_rect(Rect::from_min_size(pos, galley.size()));
-        shapes.push(Shape::galley(rect.min, galley));
+
+        let mut text_shape = epaint::TextShape::new(rect.min, galley.galley);
+        if !galley.galley_has_color {
+            text_shape.override_text_color = Some(color);
+        }
+        shapes.push(text_shape.into());
+
         if self.highlight {
             shapes.push(Shape::rect_stroke(
                 rect.expand(2.0),
@@ -763,8 +763,8 @@ impl Points {
     }
 
     /// Highlight these points in the plot by scaling up their markers.
-    pub fn highlight(mut self) -> Self {
-        self.highlight = true;
+    pub fn highlight(mut self, highlight: bool) -> Self {
+        self.highlight = highlight;
         self
     }
 
@@ -979,8 +979,8 @@ impl Arrows {
     }
 
     /// Highlight these arrows in the plot.
-    pub fn highlight(mut self) -> Self {
-        self.highlight = true;
+    pub fn highlight(mut self, highlight: bool) -> Self {
+        self.highlight = highlight;
         self
     }
 
@@ -1087,9 +1087,13 @@ pub struct PlotImage {
 
 impl PlotImage {
     /// Create a new image with position and size in plot coordinates.
-    pub fn new(texture_id: impl Into<TextureId>, position: Value, size: impl Into<Vec2>) -> Self {
+    pub fn new(
+        texture_id: impl Into<TextureId>,
+        center_position: Value,
+        size: impl Into<Vec2>,
+    ) -> Self {
         Self {
-            position,
+            position: center_position,
             name: Default::default(),
             highlight: false,
             texture_id: texture_id.into(),
@@ -1101,8 +1105,8 @@ impl PlotImage {
     }
 
     /// Highlight this image in the plot.
-    pub fn highlight(mut self) -> Self {
-        self.highlight = true;
+    pub fn highlight(mut self, highlight: bool) -> Self {
+        self.highlight = highlight;
         self
     }
 
@@ -1291,8 +1295,8 @@ impl BarChart {
     }
 
     /// Highlight all plot elements.
-    pub fn highlight(mut self) -> Self {
-        self.highlight = true;
+    pub fn highlight(mut self, highlight: bool) -> Self {
+        self.highlight = highlight;
         self
     }
 
@@ -1448,8 +1452,8 @@ impl BoxPlot {
     }
 
     /// Highlight all plot elements.
-    pub fn highlight(mut self) -> Self {
-        self.highlight = true;
+    pub fn highlight(mut self, highlight: bool) -> Self {
+        self.highlight = highlight;
         self
     }
 
@@ -1607,13 +1611,15 @@ fn add_rulers_and_text(
         text
     });
 
+    let font_id = TextStyle::Body.resolve(plot.ui.style());
+
     let corner_value = elem.corner_value();
     shapes.push(Shape::text(
         &*plot.ui.fonts(),
         plot.transform.position_from_value(&corner_value) + vec2(3.0, -2.0),
         Align2::LEFT_BOTTOM,
         text,
-        TextStyle::Body,
+        font_id,
         plot.ui.visuals().text_color(),
     ));
 }
@@ -1642,12 +1648,14 @@ pub(super) fn rulers_at_value(
         let hover_label_func = plot.hover_label_func;
         let text = hover_label_func(&plot.hover_config, name, &value);
 
+        let font_id = TextStyle::Body.resolve(plot.ui.style());
+
         shapes.push(Shape::text(
-            plot.ui.fonts(),
+            &*plot.ui.fonts(),
             pointer + vec2(3.0, -2.0),
             Align2::LEFT_BOTTOM,
             text,
-            TextStyle::Body,
+            font_id,
             plot.ui.visuals().text_color(),
         ));
     }
