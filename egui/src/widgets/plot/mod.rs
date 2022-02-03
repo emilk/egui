@@ -16,7 +16,7 @@ pub use items::{
 };
 pub use legend::{Corner, Legend};
 
-use self::items::HoverConfig;
+use self::items::{num_decimals_with_max_digits, HoverConfig};
 
 mod items;
 mod legend;
@@ -315,8 +315,8 @@ impl Plot {
                 prefix = format!("{}\n", name);
             }
 
-            let x_decimals = 6 - ((value.x.abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
-            let y_decimals = 6 - ((value.y.abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
+            let x_decimals = num_decimals_with_max_digits(value.x, 6);
+            let y_decimals = num_decimals_with_max_digits(value.y, 6);
 
             if config.show_hover_line_x && config.show_hover_line_y {
                 format!(

@@ -1680,3 +1680,8 @@ where
         })
         .min_by_key(|e| e.dist_sq.ord())
 }
+
+/// Returns the number of decimals required to show the specified maximum number of digits
+pub(super) fn num_decimals_with_max_digits(value: f64, max_digits: usize) -> usize {
+    max_digits - ((value.abs().log10()).ceil().at_least(0.0) as usize).at_most(max_digits)
+}
