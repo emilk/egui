@@ -7,7 +7,7 @@ use epaint::Mesh;
 
 use crate::*;
 
-use super::{CustomLabelFuncRef, PlotBounds, ScreenTransform};
+use super::{HoverFormatter, PlotBounds, ScreenTransform};
 use rect_elem::*;
 use values::{ClosestElem, PlotGeometry};
 
@@ -27,7 +27,7 @@ pub(super) struct PlotConfig<'a> {
     pub ui: &'a Ui,
     pub transform: &'a ScreenTransform,
     pub hover_config: HoverConfig,
-    pub hover_label_func: &'a CustomLabelFuncRef,
+    pub hover_formatter: &'a HoverFormatter,
 }
 
 pub struct HoverConfig {
@@ -1645,7 +1645,7 @@ pub(super) fn rulers_at_value(
     }
 
     if hover_config.show_hover_label {
-        let hover_label_func = plot.hover_label_func;
+        let hover_label_func = plot.hover_formatter;
         let text = hover_label_func(&plot.hover_config, name, &value);
 
         let font_id = TextStyle::Body.resolve(plot.ui.style());

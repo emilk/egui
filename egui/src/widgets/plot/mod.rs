@@ -22,8 +22,8 @@ mod items;
 mod legend;
 mod transform;
 
-type CustomLabelFunc = dyn Fn(&HoverConfig, &str, &Value) -> String;
-type CustomLabelFuncRef = Box<CustomLabelFunc>;
+type HoverFormatterFn = dyn Fn(&HoverConfig, &str, &Value) -> String;
+type HoverFormatter = Box<HoverFormatterFn>;
 
 type AxisFormatterFn = dyn Fn(f64) -> String;
 type AxisFormatter = Option<Box<AxisFormatterFn>>;
@@ -149,7 +149,7 @@ pub struct Plot {
     show_hover_line_x: bool,
     show_hover_line_y: bool,
     show_hover_label: bool,
-    hover_label_func: CustomLabelFuncRef,
+    hover_formatter: HoverFormatter,
     axis_formatters: [AxisFormatter; 2],
     legend_config: Option<Legend>,
     show_background: bool,
@@ -181,7 +181,7 @@ impl Plot {
             show_hover_line_x: true,
             show_hover_line_y: true,
             show_hover_label: true,
-            hover_label_func: Plot::default_hover_label_func(),
+            hover_formatter: Plot::default_hover_formatter(),
 
             axis_formatters: [None, None], // [None; 2] requires Copy
             legend_config: None,
@@ -299,15 +299,15 @@ impl Plot {
     /// .show(ui, |plot_ui| plot_ui.line(line));
     /// # });
     /// ```
-    pub fn hover_label_func<F: 'static + Fn(&HoverConfig, &str, &Value) -> String>(
+    pub fn hover_formatter<F: 'static + Fn(&HoverConfig, &str, &Value) -> String>(
         mut self,
-        hover_label_func: F,
+        hover_formatter: F,
     ) -> Self {
-        self.hover_label_func = Box::new(hover_label_func);
+        self.hover_formatter = Box::new(hover_formatter);
         self
     }
 
-    pub fn default_hover_label_func() -> Box<dyn Fn(&HoverConfig, &str, &Value) -> String> {
+    fn default_hover_formatter() -> Box<dyn Fn(&HoverConfig, &str, &Value) -> String> {
         Box::new(|config, name, value| {
             let mut prefix = String::new();
 
@@ -426,7 +426,7 @@ impl Plot {
             mut show_hover_line_x,
             mut show_hover_line_y,
             show_hover_label,
-            hover_label_func,
+            hover_formatter,
             axis_formatters,
             legend_config,
             show_background,
@@ -669,7 +669,7 @@ impl Plot {
             show_hover_line_x,
             show_hover_line_y,
             show_hover_label,
-            hover_label_func,
+            hover_formatter,
             axis_formatters,
             show_axes,
             transform: transform.clone(),
@@ -889,7 +889,7 @@ struct PreparedPlot {
     show_hover_line_x: bool,
     show_hover_line_y: bool,
     show_hover_label: bool,
-    hover_label_func: CustomLabelFuncRef,
+    hover_formatter: HoverFormatter,
     axis_formatters: [AxisFormatter; 2],
     show_axes: [bool; 2],
     transform: ScreenTransform,
@@ -1023,7 +1023,7 @@ impl PreparedPlot {
             show_hover_line_x,
             show_hover_line_y,
             show_hover_label,
-            hover_label_func,
+            hover_formatter,
             items,
             ..
         } = self;
@@ -1053,7 +1053,7 @@ impl PreparedPlot {
                 show_hover_line_y: *show_hover_line_y,
                 show_hover_label: *show_hover_label,
             },
-            hover_label_func,
+            hover_formatter,
         };
 
         if let Some((item, elem)) = closest {
