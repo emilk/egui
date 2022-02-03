@@ -2,8 +2,8 @@ use std::f64::consts::TAU;
 
 use egui::*;
 use plot::{
-    Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, Corner, HLine, Legend, Line, LineStyle,
-    MarkerShape, Plot, PlotImage, Points, Polygon, Text, VLine, Value, Values,
+    Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, Corner, HLine, HoverLine, Legend, Line,
+    LineStyle, MarkerShape, Plot, PlotImage, Points, Polygon, Text, VLine, Value, Values,
 };
 
 #[derive(PartialEq)]
@@ -423,8 +423,7 @@ impl Widget for &mut ItemsDemo {
 
         let plot = Plot::new("items_demo")
             .legend(Legend::default().position(Corner::RightBottom))
-            .show_hover_line_x(false)
-            .show_hover_line_y(false)
+            .hover_line(HoverLine::None)
             .data_aspect(1.0);
         plot.show(ui, |plot_ui| {
             plot_ui.hline(HLine::new(9.0).name("Lines horizontal"));
@@ -703,6 +702,93 @@ impl Widget for &mut ChartsDemo {
     }
 }
 
+#[derive(Default, PartialEq)]
+struct HoverDemo {
+    config: HoverConfig,
+}
+
+impl HoverDemo {
+    fn sin() -> Line {
+        Line::new(Values::from_explicit_callback(move |x| x.sin(), .., 100))
+    }
+    fn cos() -> Line {
+        Line::new(Values::from_explicit_callback(move |x| x.cos(), .., 100))
+    }
+}
+
+#[derive(Default, PartialEq)]
+struct HoverConfig {
+    hover_line: HoverLine,
+    hover_function: Option<HoverFormatter>,
+}
+
+#[derive(PartialEq)]
+enum HoverFormatter {
+    Simple,
+    Full,
+}
+
+impl Widget for &mut HoverDemo {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let HoverDemo { config } = self;
+
+        egui::Grid::new("settings").show(ui, |ui| {
+            ui.label("Hover line:");
+            ui.horizontal(|ui| {
+                HoverLine::all().for_each(|h_line| {
+                    ui.selectable_value(&mut config.hover_line, h_line, format!("{:?}", h_line));
+                });
+            });
+            ui.end_row();
+
+            ui.label("Hover formatter:");
+            ui.horizontal(|ui| {
+                ui.selectable_value(&mut config.hover_function, None, "Default");
+                ui.selectable_value(
+                    &mut config.hover_function,
+                    Some(HoverFormatter::Simple),
+                    "Simple",
+                );
+                ui.selectable_value(
+                    &mut config.hover_function,
+                    Some(HoverFormatter::Full),
+                    "Full",
+                );
+            });
+            ui.end_row();
+        });
+
+        let legend_plot = match &config.hover_function {
+            Some(hover_function) => {
+                let legend_plot = Plot::new("hover_demo");
+
+                match hover_function {
+                    HoverFormatter::Simple => {
+                        legend_plot.hover_formatter(|_config, _name, value| {
+                            format!("{},{}", value.x, value.y)
+                        })
+                    }
+                    HoverFormatter::Full => {
+                        legend_plot.hover_formatter(|config, name, value| {
+                            format!("Config:\n\tHover line: {:?}\n\tHover label: {}\nName: {}\nValue:\n\tx: {}\n\ty: {}", config.hover_line, config.show_hover_label, name, value.x, value.y)
+                        })
+                    }
+                }
+            }
+            None => Plot::new("hover_demo"),
+        };
+
+        legend_plot
+            .data_aspect(0.5)
+            .hover_line(config.hover_line)
+            .show(ui, |plot_ui| {
+                plot_ui.line(HoverDemo::sin().name("sin(x)"));
+                plot_ui.line(HoverDemo::cos().name("cos(x)"));
+            })
+            .response
+    }
+}
+
 #[derive(PartialEq, Eq)]
 enum Panel {
     Lines,
@@ -712,6 +798,7 @@ enum Panel {
     Items,
     Interaction,
     LinkedAxes,
+    Hover,
 }
 
 impl Default for Panel {
@@ -729,6 +816,7 @@ pub struct PlotDemo {
     items_demo: ItemsDemo,
     interaction_demo: InteractionDemo,
     linked_axes_demo: LinkedAxisDemo,
+    hover_demo: HoverDemo,
     open_panel: Panel,
 }
 
@@ -774,6 +862,7 @@ impl super::View for PlotDemo {
             ui.selectable_value(&mut self.open_panel, Panel::Items, "Items");
             ui.selectable_value(&mut self.open_panel, Panel::Interaction, "Interaction");
             ui.selectable_value(&mut self.open_panel, Panel::LinkedAxes, "Linked Axes");
+            ui.selectable_value(&mut self.open_panel, Panel::Hover, "Hover");
         });
         ui.separator();
 
@@ -798,6 +887,9 @@ impl super::View for PlotDemo {
             }
             Panel::LinkedAxes => {
                 ui.add(&mut self.linked_axes_demo);
+            }
+            Panel::Hover => {
+                ui.add(&mut self.hover_demo);
             }
         }
     }

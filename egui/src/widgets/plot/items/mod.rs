@@ -7,7 +7,7 @@ use epaint::Mesh;
 
 use crate::*;
 
-use super::{HoverFormatter, PlotBounds, ScreenTransform};
+use super::{HoverFormatter, HoverLine, PlotBounds, ScreenTransform};
 use rect_elem::*;
 use values::{ClosestElem, PlotGeometry};
 
@@ -31,8 +31,7 @@ pub(super) struct PlotConfig<'a> {
 }
 
 pub struct HoverConfig {
-    pub show_hover_line_x: bool,
-    pub show_hover_line_y: bool,
+    pub hover_line: HoverLine,
     pub show_hover_label: bool,
 }
 
@@ -1561,10 +1560,11 @@ fn add_rulers_and_text(
     let hover_config = &plot.hover_config;
 
     let orientation = elem.orientation();
-    let show_argument = hover_config.show_hover_line_x && orientation == Orientation::Vertical
-        || hover_config.show_hover_line_y && orientation == Orientation::Horizontal;
-    let show_values = hover_config.show_hover_line_y && orientation == Orientation::Vertical
-        || hover_config.show_hover_line_x && orientation == Orientation::Horizontal;
+    let show_argument = hover_config.hover_line.show_x_line()
+        && orientation == Orientation::Vertical
+        || hover_config.hover_line.show_y_line() && orientation == Orientation::Horizontal;
+    let show_values = hover_config.hover_line.show_y_line() && orientation == Orientation::Vertical
+        || hover_config.hover_line.show_x_line() && orientation == Orientation::Horizontal;
 
     let line_color = rulers_color(plot.ui);
 
@@ -1637,10 +1637,10 @@ pub(super) fn rulers_at_value(
     let hover_config = &plot.hover_config;
 
     let line_color = rulers_color(plot.ui);
-    if hover_config.show_hover_line_x {
+    if hover_config.hover_line.show_x_line() {
         shapes.push(vertical_line(pointer, plot.transform, line_color));
     }
-    if hover_config.show_hover_line_y {
+    if hover_config.hover_line.show_y_line() {
         shapes.push(horizontal_line(pointer, plot.transform, line_color));
     }
 
