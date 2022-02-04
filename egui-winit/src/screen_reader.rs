@@ -1,16 +1,16 @@
 pub struct ScreenReader {
-    #[cfg(all(feature = "screen_reader", not(target_os = "linux")))]
+    #[cfg(feature = "screen_reader")]
     tts: Option<tts::Tts>,
 }
 
-#[cfg(any(target_os = "linux", not(feature = "screen_reader")))]
+#[cfg(not(feature = "screen_reader"))]
 impl Default for ScreenReader {
     fn default() -> Self {
         Self {}
     }
 }
 
-#[cfg(all(feature = "screen_reader", not(target_os = "linux")))]
+#[cfg(feature = "screen_reader")]
 impl Default for ScreenReader {
     fn default() -> Self {
         let tts = match tts::Tts::default() {
@@ -28,11 +28,11 @@ impl Default for ScreenReader {
 }
 
 impl ScreenReader {
-    #[cfg(any(target_os = "linux", not(feature = "screen_reader")))]
+    #[cfg(not(feature = "screen_reader"))]
     #[allow(clippy::unused_self)]
     pub fn speak(&mut self, _text: &str) {}
 
-    #[cfg(all(feature = "screen_reader", not(target_os = "linux")))]
+    #[cfg(feature = "screen_reader")]
     pub fn speak(&mut self, text: &str) {
         if text.is_empty() {
             return;
