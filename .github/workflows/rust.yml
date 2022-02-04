@@ -147,3 +147,9 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install libspeechd-dev
       - run: rustup target add wasm32-unknown-unknown
       - run: cargo doc -p egui_web --target wasm32-unknown-unknown --lib --no-deps --all-features
+
+  cargo-deny:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: EmbarkStudios/cargo-deny-action@v1
