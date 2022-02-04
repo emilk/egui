@@ -7,6 +7,9 @@
 
 // When compiling natively:
 fn main() {
+    // Log to stdout (if you run with `RUST_LOG=debug`).
+    tracing_subscriber::fmt::init();
+
     let app = egui_demo_lib::WrapApp::default();
     let options = eframe::NativeOptions {
         // Let's show off that we support transparent windows

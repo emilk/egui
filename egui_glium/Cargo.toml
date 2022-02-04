@@ -35,7 +35,7 @@ bytemuck = "1.7"
 glium = "0.31"
 
 [dev-dependencies]
-image = { version = "0.23", default-features = false, features = ["png"] }
+image = { version = "0.24", default-features = false, features = ["png"] }
 
 [features]
 default = ["clipboard", "default_fonts", "links", "persistence"]

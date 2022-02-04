@@ -300,6 +300,78 @@ impl Widget for &mut LegendDemo {
     }
 }
 
+#[derive(PartialEq)]
+struct LinkedAxisDemo {
+    link_x: bool,
+    link_y: bool,
+    group: plot::LinkedAxisGroup,
+}
+
+impl Default for LinkedAxisDemo {
+    fn default() -> Self {
+        let link_x = true;
+        let link_y = false;
+        Self {
+            link_x,
+            link_y,
+            group: plot::LinkedAxisGroup::new(link_x, link_y),
+        }
+    }
+}
+
+impl LinkedAxisDemo {
+    fn line_with_slope(slope: f64) -> Line {
+        Line::new(Values::from_explicit_callback(move |x| slope * x, .., 100))
+    }
+    fn sin() -> Line {
+        Line::new(Values::from_explicit_callback(move |x| x.sin(), .., 100))
+    }
+    fn cos() -> Line {
+        Line::new(Values::from_explicit_callback(move |x| x.cos(), .., 100))
+    }
+
+    fn configure_plot(plot_ui: &mut plot::PlotUi) {
+        plot_ui.line(LinkedAxisDemo::line_with_slope(0.5));
+        plot_ui.line(LinkedAxisDemo::line_with_slope(1.0));
+        plot_ui.line(LinkedAxisDemo::line_with_slope(2.0));
+        plot_ui.line(LinkedAxisDemo::sin());
+        plot_ui.line(LinkedAxisDemo::cos());
+    }
+}
+
+impl Widget for &mut LinkedAxisDemo {
+    fn ui(self, ui: &mut Ui) -> Response {
+        ui.horizontal(|ui| {
+            ui.label("Linked axes:");
+            ui.checkbox(&mut self.link_x, "X");
+            ui.checkbox(&mut self.link_y, "Y");
+        });
+        self.group.set_link_x(self.link_x);
+        self.group.set_link_y(self.link_y);
+        ui.horizontal(|ui| {
+            Plot::new("linked_axis_1")
+                .data_aspect(1.0)
+                .width(250.0)
+                .height(250.0)
+                .link_axis(self.group.clone())
+                .show(ui, LinkedAxisDemo::configure_plot);
+            Plot::new("linked_axis_2")
+                .data_aspect(2.0)
+                .width(150.0)
+                .height(250.0)
+                .link_axis(self.group.clone())
+                .show(ui, LinkedAxisDemo::configure_plot);
+        });
+        Plot::new("linked_axis_3")
+            .data_aspect(0.5)
+            .width(250.0)
+            .height(150.0)
+            .link_axis(self.group.clone())
+            .show(ui, LinkedAxisDemo::configure_plot)
+            .response
+    }
+}
+
 #[derive(PartialEq, Default)]
 struct ItemsDemo {
     texture: Option<egui::TextureHandle>,
@@ -639,11 +711,12 @@ enum Panel {
     Charts,
     Items,
     Interaction,
+    LinkedAxes,
 }
 
 impl Default for Panel {
     fn default() -> Self {
-        Self::Charts
+        Self::Lines
     }
 }
 
@@ -655,6 +728,7 @@ pub struct PlotDemo {
     charts_demo: ChartsDemo,
     items_demo: ItemsDemo,
     interaction_demo: InteractionDemo,
+    linked_axes_demo: LinkedAxisDemo,
     open_panel: Panel,
 }
 
@@ -679,6 +753,7 @@ impl super::View for PlotDemo {
             egui::reset_button(ui, self);
             ui.collapsing("Instructions", |ui| {
                 ui.label("Pan by dragging, or scroll (+ shift = horizontal).");
+                ui.label("Box zooming: Right click to zoom in and zoom out using a selection.");
                 if cfg!(target_arch = "wasm32") {
                     ui.label("Zoom with ctrl / ⌘ + pointer wheel, or with pinch gesture.");
                 } else if cfg!(target_os = "macos") {
@@ -698,6 +773,7 @@ impl super::View for PlotDemo {
             ui.selectable_value(&mut self.open_panel, Panel::Charts, "Charts");
             ui.selectable_value(&mut self.open_panel, Panel::Items, "Items");
             ui.selectable_value(&mut self.open_panel, Panel::Interaction, "Interaction");
+            ui.selectable_value(&mut self.open_panel, Panel::LinkedAxes, "Linked Axes");
         });
         ui.separator();
 
@@ -719,6 +795,9 @@ impl super::View for PlotDemo {
             }
             Panel::Interaction => {
                 ui.add(&mut self.interaction_demo);
+            }
+            Panel::LinkedAxes => {
+                ui.add(&mut self.linked_axes_demo);
             }
         }
     }

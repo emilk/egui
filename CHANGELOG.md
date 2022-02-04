@@ -15,9 +15,12 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
   * Added `TextStyle::resolve`.
 * `Context::load_texture` to convert an image into a texture which can be displayed using e.g. `ui.image(texture, size)` ([#1110](https://github.com/emilk/egui/pull/1110)).
 * Added `Ui::add_visible` and `Ui::add_visible_ui`.
+* Opt-in dependency on `tracing` crate for logging warnings ([#1192](https://github.com/emilk/egui/pull/1192)).
 * Added `CollapsingHeader::icon` to override the default open/close icon using a custom function. ([1147](https://github.com/emilk/egui/pull/1147)).
 * Added `Plot::x_axis_formatter` and `Plot::y_axis_formatter` for custom axis labels ([#1130](https://github.com/emilk/egui/pull/1130)).
 * Added `ui.data()`, `ctx.data()`, `ctx.options()` and `ctx.tessellation_options()` ([#1175](https://github.com/emilk/egui/pull/1175)).
+* Added `Plot::allow_boxed_zoom()`, `Plot::boxed_zoom_pointer()` for boxed zooming on plots ([#1188](https://github.com/emilk/egui/pull/1188)).
+* Added linked axis support for plots via `plot::LinkedAxisGroup` ([#1184](https://github.com/emilk/egui/pull/1184)).
 * Added `Response::on_hover_text_at_pointer` as a convenience akin to `Response::on_hover_text`. ([1179](https://github.com/emilk/egui/pull/1179))
 
 ### Changed 🔧
@@ -39,7 +42,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * `ScrollArea::show` now returns a `ScrollAreaOutput`, so you might need to add `.inner` after the call to it ([#1166](https://github.com/emilk/egui/pull/1166)).
 
 ### Fixed 🐛
-* Context menu now respects the theme ([#1043](https://github.com/emilk/egui/pull/1043))
+* Context menus now respects the theme ([#1043](https://github.com/emilk/egui/pull/1043))
 * Plot `Orientation` was not public, although fields using this type were ([#1130](https://github.com/emilk/egui/pull/1130))
 * Fixed `enable_drag` for Windows ([#1108](https://github.com/emilk/egui/pull/1108)).
 
@@ -562,3 +565,13 @@ This is when I started the CHANGELOG.md, after almost two years of development. 
 * Regions: resizing, vertical scrolling, collapsing headers (sections)
 * Rendering: Anti-aliased rendering of lines, circles, text and convex polygons.
 * Tooltips on hover
+
+
+## Earlier:
+
+* 2020-08-10: renamed the project to "egui"
+* 2020-05-30: first release on crates.io (0.1.0)
+* 2020-05-01: serious work starts (pandemic project)
+* 2019-03-12: gave a talk about what would later become egui: https://www.youtube.com/watch?v=-pmwLHw5Gbs
+* 2018-12-23: [initial commit](https://github.com/emilk/egui/commit/856bbf4dae4a69693a0324da34e8b0dd3754dfdf)
+* 2018-11-04: started tinkering on a train

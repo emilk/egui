@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env sh
 script_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 cd "$script_path/.."
 set -eux
@@ -32,6 +32,20 @@ cargo doc --document-private-items --no-deps --all-features
 # (cd egui-winit && cargo check --no-default-features) # we don't pick singlethreaded or multithreaded
 (cd egui_glium && cargo check --no-default-features)
 (cd egui_glow && cargo check --no-default-features)
+
+
+(cd eframe && cargo check --all-features)
+(cd egui && cargo check --all-features)
+(cd egui_glium && cargo check --all-features)
+(cd egui_glow && cargo check --all-features)
+(cd egui_web && cargo check --all-features)
+# (cd egui-winit && cargo check --all-features) can't do, beacause of https://github.com/rust-lang/cargo/issues/8832
+(cd emath && cargo check --all-features)
+(cd epaint && cargo check --all-features)
+(cd epi && cargo check --all-features)
+
+# cargo install cargo-deny
+# cargo deny check
 
 # ------------------------------------------------------------
 #

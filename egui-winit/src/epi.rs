@@ -1,3 +1,13 @@
+use egui::Vec2;
+use winit::dpi::LogicalSize;
+
+pub fn points_to_size(points: Vec2) -> LogicalSize<f64> {
+    winit::dpi::LogicalSize {
+        width: points.x as f64,
+        height: points.y as f64,
+    }
+}
+
 pub fn window_builder(
     native_options: &epi::NativeOptions,
     window_settings: &Option<crate::WindowSettings>,
@@ -12,6 +22,13 @@ pub fn window_builder(
         .with_transparent(native_options.transparent)
         .with_window_icon(window_icon);
 
+    if let Some(min_size) = native_options.min_window_size {
+        window_builder = window_builder.with_min_inner_size(points_to_size(min_size));
+    }
+    if let Some(max_size) = native_options.max_window_size {
+        window_builder = window_builder.with_max_inner_size(points_to_size(max_size));
+    }
+
     window_builder =
         window_builder_drag_and_drop(window_builder, native_options.drag_and_drop_support);
 
@@ -20,10 +37,7 @@ pub fn window_builder(
     if let Some(window_settings) = window_settings {
         window_builder = window_settings.initialize_window(window_builder);
     } else if let Some(initial_size_points) = initial_size_points {
-        window_builder = window_builder.with_inner_size(winit::dpi::LogicalSize {
-            width: initial_size_points.x as f64,
-            height: initial_size_points.y as f64,
-        });
+        window_builder = window_builder.with_inner_size(points_to_size(initial_size_points));
     }
 
     window_builder
@@ -209,17 +223,25 @@ impl EpiIntegration {
 
         *egui_ctx.memory() = persistence.load_memory().unwrap_or_default();
 
+        let prefer_dark_mode = prefer_dark_mode();
+
         let frame = epi::Frame::new(epi::backend::FrameData {
             info: epi::IntegrationInfo {
                 name: integration_name,
                 web_info: None,
-                prefer_dark_mode: None, // TODO: figure out system default
+                prefer_dark_mode,
                 cpu_usage: None,
                 native_pixels_per_point: Some(crate::native_pixels_per_point(window)),
             },
             output: Default::default(),
             repaint_signal,
         });
+
+        if prefer_dark_mode == Some(true) {
+            egui_ctx.set_visuals(egui::Visuals::dark());
+        } else {
+            egui_ctx.set_visuals(egui::Visuals::light());
+        }
 
         let mut slf = Self {
             frame,
@@ -325,4 +347,17 @@ impl EpiIntegration {
         self.persistence
             .save(&mut *self.app, &self.egui_ctx, window);
     }
+}
+
+#[cfg(feature = "dark-light")]
+fn prefer_dark_mode() -> Option<bool> {
+    match dark_light::detect() {
+        dark_light::Mode::Dark => Some(true),
+        dark_light::Mode::Light => Some(false),
+    }
+}
+
+#[cfg(not(feature = "dark-light"))]
+fn prefer_dark_mode() -> Option<bool> {
+    None
 }

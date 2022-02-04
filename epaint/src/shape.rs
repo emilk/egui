@@ -2,6 +2,7 @@ use crate::{
     text::{FontId, Fonts, Galley},
     Color32, Mesh, Stroke,
 };
+use crate::{CubicBezierShape, QuadraticBezierShape};
 use emath::*;
 
 /// A paint primitive such as a circle or a piece of text.
@@ -26,6 +27,8 @@ pub enum Shape {
     Rect(RectShape),
     Text(TextShape),
     Mesh(Mesh),
+    QuadraticBezier(QuadraticBezierShape),
+    CubicBezier(CubicBezierShape),
 }
 
 /// ## Constructors
@@ -186,6 +189,16 @@ impl Shape {
             }
             Shape::Mesh(mesh) => {
                 mesh.translate(delta);
+            }
+            Shape::QuadraticBezier(bezier_shape) => {
+                bezier_shape.points[0] += delta;
+                bezier_shape.points[1] += delta;
+                bezier_shape.points[2] += delta;
+            }
+            Shape::CubicBezier(cubie_curve) => {
+                for p in &mut cubie_curve.points {
+                    *p += delta;
+                }
             }
         }
     }

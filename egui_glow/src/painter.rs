@@ -9,7 +9,7 @@ use egui::{
 use glow::HasContext;
 use memoffset::offset_of;
 
-use crate::misc_util::{check_for_gl_error, compile_shader, glow_print, link_program};
+use crate::misc_util::{check_for_gl_error, compile_shader, link_program};
 use crate::post_process::PostProcess;
 use crate::shader_version::ShaderVersion;
 use crate::vao_emulate;
@@ -98,7 +98,7 @@ impl Painter {
         let shader_version = ShaderVersion::get(gl);
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
         let header = shader_version.version();
-        glow_print(format!("Shader header: {:?}.", header));
+        tracing::debug!("Shader header: {:?}.", header);
         let srgb_support = gl.supported_extensions().contains("EXT_sRGB");
 
         let (post_process, srgb_support_define) = match (shader_version, srgb_support) {
@@ -106,7 +106,7 @@ impl Painter {
             (ShaderVersion::Es300, _) | (ShaderVersion::Es100, true) => unsafe {
                 // Add sRGB support marker for fragment shader
                 if let Some([width, height]) = pp_fb_extent {
-                    glow_print("WebGL with sRGB enabled. Turning on post processing for linear framebuffer blending.");
+                    tracing::debug!("WebGL with sRGB enabled. Turning on post processing for linear framebuffer blending.");
                     // install post process to correct sRGB color:
                     (
                         Some(PostProcess::new(
@@ -120,7 +120,7 @@ impl Painter {
                         "#define SRGB_SUPPORTED",
                     )
                 } else {
-                    glow_print("WebGL or OpenGL ES detected but PostProcess disabled because dimension is None");
+                    tracing::debug!("WebGL or OpenGL ES detected but PostProcess disabled because dimension is None");
                     (None, "")
                 }
             },
@@ -582,7 +582,7 @@ pub fn clear(gl: &glow::Context, dimension: [u32; 2], clear_color: egui::Rgba) {
 impl Drop for Painter {
     fn drop(&mut self) {
         if !self.destroyed {
-            eprintln!(
+            tracing::warn!(
                 "You forgot to call destroy() on the egui glow painter. Resources will leak!"
             );
         }

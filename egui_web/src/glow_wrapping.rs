@@ -1,4 +1,3 @@
-use crate::{canvas_element_or_die, console_error};
 use egui::{ClippedMesh, Rgba};
 use egui_glow::glow;
 use wasm_bindgen::JsCast;
@@ -15,27 +14,21 @@ pub(crate) struct WrappedGlowPainter {
 }
 
 impl WrappedGlowPainter {
-    pub fn new(canvas_id: &str) -> Self {
-        let canvas = canvas_element_or_die(canvas_id);
+    pub fn new(canvas_id: &str) -> Result<Self, String> {
+        let canvas = crate::canvas_element_or_die(canvas_id);
 
-        let (glow_ctx, shader_prefix) = init_glow_context_from_canvas(&canvas);
+        let (glow_ctx, shader_prefix) = init_glow_context_from_canvas(&canvas)?;
 
         let dimension = [canvas.width() as i32, canvas.height() as i32];
         let painter = egui_glow::Painter::new(&glow_ctx, Some(dimension), shader_prefix)
-            .map_err(|error| {
-                console_error(format!(
-                    "some error occurred in initializing glow painter\n {}",
-                    error
-                ))
-            })
-            .unwrap();
+            .map_err(|error| format!("Error starting glow painter: {}", error))?;
 
-        Self {
+        Ok(Self {
             glow_ctx,
             canvas,
             canvas_id: canvas_id.to_owned(),
             painter,
-        }
+        })
     }
 }
 
@@ -90,7 +83,9 @@ impl crate::Painter for WrappedGlowPainter {
 }
 
 /// Returns glow context and shader prefix.
-fn init_glow_context_from_canvas(canvas: &HtmlCanvasElement) -> (glow::Context, &'static str) {
+fn init_glow_context_from_canvas(
+    canvas: &HtmlCanvasElement,
+) -> Result<(glow::Context, &'static str), String> {
     const BEST_FIRST: bool = true;
 
     let result = if BEST_FIRST {
@@ -98,14 +93,14 @@ fn init_glow_context_from_canvas(canvas: &HtmlCanvasElement) -> (glow::Context, 
         init_webgl2(canvas).or_else(|| init_webgl1(canvas))
     } else {
         // Trying WebGl1 first (useful for testing).
-        crate::console_warn("Looking for WebGL1 first");
+        tracing::warn!("Looking for WebGL1 first");
         init_webgl1(canvas).or_else(|| init_webgl2(canvas))
     };
 
     if let Some(result) = result {
-        result
+        Ok(result)
     } else {
-        panic!("WebGL isn't supported");
+        Err("WebGL isn't supported".into())
     }
 }
 
@@ -115,14 +110,14 @@ fn init_webgl1(canvas: &HtmlCanvasElement) -> Option<(glow::Context, &'static st
         .expect("Failed to query about WebGL2 context");
 
     let gl1_ctx = gl1_ctx?;
-    crate::console_log("WebGL1 selected.");
+    tracing::debug!("WebGL1 selected.");
 
     let gl1_ctx = gl1_ctx
         .dyn_into::<web_sys::WebGlRenderingContext>()
         .unwrap();
 
     let shader_prefix = if crate::webgl1_requires_brightening(&gl1_ctx) {
-        crate::console_log("Enabling webkitGTK brightening workaround.");
+        tracing::debug!("Enabling webkitGTK brightening workaround.");
         "#define APPLY_BRIGHTENING_GAMMA"
     } else {
         ""
@@ -139,7 +134,7 @@ fn init_webgl2(canvas: &HtmlCanvasElement) -> Option<(glow::Context, &'static st
         .expect("Failed to query about WebGL2 context");
 
     let gl2_ctx = gl2_ctx?;
-    crate::console_log("WebGL2 selected.");
+    tracing::debug!("WebGL2 selected.");
 
     let gl2_ctx = gl2_ctx
         .dyn_into::<web_sys::WebGl2RenderingContext>()
