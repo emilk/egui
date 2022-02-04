@@ -1,3 +1,5 @@
+# https://embarkstudios.github.io/cargo-deny/
+
 targets = [
     { triple = "aarch64-apple-darwin" },
     { triple = "aarch64-linux-android" },
@@ -26,6 +28,7 @@ deny = [
 ]
 
 skip = [
+    { name = "time" }, # old version pulled in by unmaintianed crate 'chrono'
 ]
 skip-tree = [
     { name = "eframe", version = "0.16.0" },
