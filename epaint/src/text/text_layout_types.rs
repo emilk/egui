@@ -270,6 +270,9 @@ pub struct TextWrapping {
 
     /// Don't try to break text at an appropriate place.
     pub break_anywhere: bool,
+
+    /// Character to use to represent clipped text.
+    pub overflow_character: Option<char>,
 }
 
 impl std::hash::Hash for TextWrapping {
@@ -279,10 +282,12 @@ impl std::hash::Hash for TextWrapping {
             max_width,
             max_lines,
             break_anywhere,
+            overflow_character,
         } = self;
         crate::f32_hash(state, *max_width);
         max_lines.hash(state);
         break_anywhere.hash(state);
+        overflow_character.hash(state);
     }
 }
 
@@ -292,6 +297,7 @@ impl Default for TextWrapping {
             max_width: f32::INFINITY,
             max_lines: usize::MAX,
             break_anywhere: false,
+            overflow_character: None,
         }
     }
 }
