@@ -41,7 +41,7 @@ egui_web = { version = "0.16.0", path = "../egui_web", default-features = false,
 ehttp = "0.2"
 image = { version = "0.24", default-features = false, features = ["jpeg", "png"] }
 poll-promise = "0.1"
-rfd = "0.6"
+rfd = "0.7"
 
 [features]
 default = ["default_fonts", "egui_glow"]
