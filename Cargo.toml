@@ -26,5 +26,5 @@ opt-level = 2 # fast and small wasm, basically same as `opt-level = 's'`
 # debug = true # include debug symbols, useful when profiling wasm
 
 [patch.crates-io]
-tts = { git = "https://github.com/emilk/tts-rs/", branch = "optional-speech-dispatcher" } # Avoid LGPL in crate speech-dispatcher
+tts = { git = "https://github.com/emilk/tts-rs/", branch = "optional-speech-dispatcher" } # See https://github.com/ndarilek/tts-rs/pull/21
 ureq = { git = "https://github.com/emilk/ureq/", branch = "opt-in-webpki-roots" } # See https://github.com/algesten/ureq/pull/479 / https://github.com/algesten/ureq/issues/478
