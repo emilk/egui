@@ -43,7 +43,7 @@ web-sys = { version = "0.3", features=["console"] }
 wasm-bindgen = { version = "0.2" }
 
 [dev-dependencies]
-image = { version = "0.23", default-features = false, features = ["png"] }
+image = { version = "0.24", default-features = false, features = ["png"] }
 
 [features]
 default = ["clipboard", "default_fonts", "links", "persistence", "winit"]
