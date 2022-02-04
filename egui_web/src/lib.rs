@@ -835,7 +835,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 runner_lock.needs_repaint.set_true();
             }
             event.stop_propagation();
-            event.prevent_default();
+            // Note: prevent_default breaks VSCode tab focusing, hence why we don't call it here.
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
         closure.forget();
