@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env sh
 script_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 cd "$script_path/.."
 set -eux
