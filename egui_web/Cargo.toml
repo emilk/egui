@@ -45,7 +45,7 @@ wasm-bindgen-futures = "0.4"
 # Optional:
 ron = { version = "0.7", optional = true }
 serde = { version = "1", optional = true }
-tts = { version = "0.19", optional = true } # feature screen_reader
+tts = { version = "0.20", optional = true } # feature screen_reader
 
 [features]
 default = ["default_fonts", "glow"]
