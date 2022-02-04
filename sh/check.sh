@@ -44,6 +44,8 @@ cargo doc --document-private-items --no-deps --all-features
 (cd epaint && cargo check --all-features)
 (cd epi && cargo check --all-features)
 
+# cargo install cargo-deny
+# cargo deny check
 
 # ------------------------------------------------------------
 #
