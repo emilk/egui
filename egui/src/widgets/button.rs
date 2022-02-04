@@ -457,7 +457,12 @@ impl Widget for ImageButton {
         if ui.is_rect_visible(rect) {
             let (expansion, corner_radius, fill, stroke) = if selected {
                 let selection = ui.visuals().selection;
-                (-padding, 0.0, selection.bg_fill, selection.stroke)
+                (
+                    -padding,
+                    Rounding::none(),
+                    selection.bg_fill,
+                    selection.stroke,
+                )
             } else if frame {
                 let visuals = ui.style().interact(&response);
                 let expansion = if response.hovered {

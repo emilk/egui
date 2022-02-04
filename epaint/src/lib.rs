@@ -110,7 +110,7 @@ pub use {
     image::{AlphaImage, ColorImage, ImageData, ImageDelta},
     mesh::{Mesh, Mesh16, Vertex},
     shadow::Shadow,
-    shape::{CircleShape, PathShape, RectShape, Shape, TextShape},
+    shape::{CircleShape, PathShape, RectShape, Rounding, Shape, TextShape},
     stats::PaintStats,
     stroke::Stroke,
     tessellator::{tessellate_shapes, TessellationOptions, Tessellator},

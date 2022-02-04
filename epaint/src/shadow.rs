@@ -46,17 +46,23 @@ impl Shadow {
         }
     }
 
-    pub fn tessellate(&self, rect: emath::Rect, corner_radius: f32) -> Mesh {
+    pub fn tessellate(&self, rect: emath::Rect, corner_radius: impl Into<Rounding>) -> Mesh {
         // tessellator.clip_rect = clip_rect; // TODO: culling
 
         let Self { extrusion, color } = *self;
 
+        let cr: Rounding = corner_radius.into();
+        let half_ext = 0.5 * extrusion;
+
+        let ext_corner_radius = Rounding {
+            nw: cr.nw + half_ext,
+            ne: cr.ne + half_ext,
+            sw: cr.sw + half_ext,
+            se: cr.se + half_ext,
+        };
+
         use crate::tessellator::*;
-        let rect = RectShape::filled(
-            rect.expand(0.5 * extrusion),
-            corner_radius + 0.5 * extrusion,
-            color,
-        );
+        let rect = RectShape::filled(rect.expand(half_ext), ext_corner_radius, color);
         let mut tessellator = Tessellator::from_options(TessellationOptions {
             aa_size: extrusion,
             anti_alias: true,
