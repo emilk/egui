@@ -54,12 +54,12 @@ impl ContextImpl {
     fn begin_frame_mut(&mut self, new_raw_input: RawInput) {
         self.memory.begin_frame(&self.input, &new_raw_input);
 
-        let mut input = std::mem::take(&mut self.input);
+        self.input = std::mem::take(&mut self.input).begin_frame(new_raw_input);
+
         if let Some(new_pixels_per_point) = self.memory.new_pixels_per_point.take() {
-            input.pixels_per_point = new_pixels_per_point;
+            self.input.pixels_per_point = new_pixels_per_point;
         }
 
-        self.input = input.begin_frame(new_raw_input);
         self.frame_state.begin_frame(&self.input);
 
         self.update_fonts_mut();

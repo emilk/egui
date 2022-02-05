@@ -46,6 +46,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Context menus now respects the theme ([#1043](https://github.com/emilk/egui/pull/1043))
 * Plot `Orientation` was not public, although fields using this type were ([#1130](https://github.com/emilk/egui/pull/1130))
 * Fixed `enable_drag` for Windows ([#1108](https://github.com/emilk/egui/pull/1108)).
+* Calling `Context::set_pixels_per_point` before the first frame will now work.
 
 ### Contributors 🙏
 * [AlexxxRu](https://github.com/alexxxru): [#1108](https://github.com/emilk/egui/pull/1108).
