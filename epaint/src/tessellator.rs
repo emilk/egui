@@ -192,10 +192,20 @@ pub mod path {
 
         let cr = clamp_radius(corner_radius, rect);
 
-        add_circle_quadrant(path, pos2(max.x - cr.se, max.y - cr.se), cr.se, 0.0);
-        add_circle_quadrant(path, pos2(min.x + cr.sw, max.y - cr.sw), cr.sw, 1.0);
-        add_circle_quadrant(path, pos2(min.x + cr.nw, min.y + cr.nw), cr.nw, 2.0);
-        add_circle_quadrant(path, pos2(max.x - cr.ne, min.y + cr.ne), cr.ne, 3.0);
+        if cr == Rounding::none() {
+            let min = rect.min;
+            let max = rect.max;
+            path.reserve(4);
+            path.push(pos2(min.x, min.y));
+            path.push(pos2(max.x, min.y));
+            path.push(pos2(max.x, max.y));
+            path.push(pos2(min.x, max.y));
+        } else {
+            add_circle_quadrant(path, pos2(max.x - cr.se, max.y - cr.se), cr.se, 0.0);
+            add_circle_quadrant(path, pos2(min.x + cr.sw, max.y - cr.sw), cr.sw, 1.0);
+            add_circle_quadrant(path, pos2(min.x + cr.nw, min.y + cr.nw), cr.nw, 2.0);
+            add_circle_quadrant(path, pos2(max.x - cr.ne, min.y + cr.ne), cr.ne, 3.0);
+        }
     }
 
     /// Add one quadrant of a circle
@@ -237,28 +247,13 @@ pub mod path {
     fn clamp_radius(corner_radius: Rounding, rect: Rect) -> Rounding {
         let half_width = rect.width() * 0.5;
         let half_height = rect.height() * 0.5;
+        let max_cr = half_width.min(half_height);
 
         Rounding {
-            nw: corner_radius
-                .nw
-                .min(half_width)
-                .min(half_height)
-                .at_least(0.0),
-            ne: corner_radius
-                .ne
-                .min(half_width)
-                .min(half_height)
-                .at_least(0.0),
-            sw: corner_radius
-                .sw
-                .min(half_width)
-                .min(half_height)
-                .at_least(0.0),
-            se: corner_radius
-                .se
-                .min(half_width)
-                .min(half_height)
-                .at_least(0.0),
+            nw: corner_radius.nw.min(max_cr),
+            ne: corner_radius.ne.min(max_cr),
+            sw: corner_radius.sw.min(max_cr),
+            se: corner_radius.se.min(max_cr),
         }
     }
 }
