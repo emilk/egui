@@ -61,7 +61,7 @@ fn show_hsva(ui: &mut Ui, color: Hsva, desired_size: Vec2) -> Response {
         } else {
             ui.painter().add(RectShape {
                 rect,
-                corner_radius: 2.0,
+                corner_radius: Rounding::same(2.0),
                 fill: color.into(),
                 stroke: Stroke::new(3.0, color.to_opaque()),
             });
@@ -90,7 +90,13 @@ fn color_button(ui: &mut Ui, color: Color32, open: bool) -> Response {
         ui.painter().rect_filled(left_half, 0.0, color);
         ui.painter().rect_filled(right_half, 0.0, color.to_opaque());
 
-        let corner_radius = visuals.corner_radius.at_most(2.0);
+        let corner_radius = Rounding {
+            nw: visuals.corner_radius.nw.at_most(2.0),
+            ne: visuals.corner_radius.ne.at_most(2.0),
+            sw: visuals.corner_radius.sw.at_most(2.0),
+            se: visuals.corner_radius.se.at_most(2.0),
+        };
+
         ui.painter()
             .rect_stroke(rect, corner_radius, (2.0, visuals.bg_fill)); // fill is intentional, because default style has no border
     }

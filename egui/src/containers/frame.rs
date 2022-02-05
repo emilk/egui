@@ -9,7 +9,7 @@ use epaint::*;
 pub struct Frame {
     /// On each side
     pub margin: Vec2,
-    pub corner_radius: f32,
+    pub corner_radius: Rounding,
     pub shadow: Shadow,
     pub fill: Color32,
     pub stroke: Stroke,
@@ -33,7 +33,7 @@ impl Frame {
     pub(crate) fn side_top_panel(style: &Style) -> Self {
         Self {
             margin: Vec2::new(8.0, 2.0),
-            corner_radius: 0.0,
+            corner_radius: Rounding::none(),
             fill: style.visuals.window_fill(),
             stroke: style.visuals.window_stroke(),
             ..Default::default()
@@ -43,7 +43,7 @@ impl Frame {
     pub(crate) fn central_panel(style: &Style) -> Self {
         Self {
             margin: Vec2::new(8.0, 8.0),
-            corner_radius: 0.0,
+            corner_radius: Rounding::none(),
             fill: style.visuals.window_fill(),
             stroke: Default::default(),
             ..Default::default()
@@ -103,8 +103,8 @@ impl Frame {
         self
     }
 
-    pub fn corner_radius(mut self, corner_radius: f32) -> Self {
-        self.corner_radius = corner_radius;
+    pub fn corner_radius(mut self, corner_radius: impl Into<Rounding>) -> Self {
+        self.corner_radius = corner_radius.into();
         self
     }
 

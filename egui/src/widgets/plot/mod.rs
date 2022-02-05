@@ -479,7 +479,7 @@ impl Plot {
         if show_background {
             ui.painter().sub_region(rect).add(epaint::RectShape {
                 rect,
-                corner_radius: 2.0,
+                corner_radius: Rounding::same(2.0),
                 fill: ui.visuals().extreme_bg_color,
                 stroke: ui.visuals().widgets.noninteractive.bg_stroke,
             });

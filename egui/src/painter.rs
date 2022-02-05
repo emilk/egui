@@ -6,7 +6,7 @@ use crate::{
 use epaint::{
     mutex::{Arc, RwLockReadGuard, RwLockWriteGuard},
     text::{Fonts, Galley},
-    CircleShape, RectShape, Shape, Stroke, TextShape,
+    CircleShape, RectShape, Rounding, Shape, Stroke, TextShape,
 };
 
 /// Helper to paint shapes and text to a specific region on a specific layer.
@@ -278,31 +278,41 @@ impl Painter {
     pub fn rect(
         &self,
         rect: Rect,
-        corner_radius: f32,
+        corner_radius: impl Into<Rounding>,
         fill_color: impl Into<Color32>,
         stroke: impl Into<Stroke>,
     ) {
         self.add(RectShape {
             rect,
-            corner_radius,
+            corner_radius: corner_radius.into(),
             fill: fill_color.into(),
             stroke: stroke.into(),
         });
     }
 
-    pub fn rect_filled(&self, rect: Rect, corner_radius: f32, fill_color: impl Into<Color32>) {
+    pub fn rect_filled(
+        &self,
+        rect: Rect,
+        corner_radius: impl Into<Rounding>,
+        fill_color: impl Into<Color32>,
+    ) {
         self.add(RectShape {
             rect,
-            corner_radius,
+            corner_radius: corner_radius.into(),
             fill: fill_color.into(),
             stroke: Default::default(),
         });
     }
 
-    pub fn rect_stroke(&self, rect: Rect, corner_radius: f32, stroke: impl Into<Stroke>) {
+    pub fn rect_stroke(
+        &self,
+        rect: Rect,
+        corner_radius: impl Into<Rounding>,
+        stroke: impl Into<Stroke>,
+    ) {
         self.add(RectShape {
             rect,
-            corner_radius,
+            corner_radius: corner_radius.into(),
             fill: Default::default(),
             stroke: stroke.into(),
         });

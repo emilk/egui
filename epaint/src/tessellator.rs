@@ -179,20 +179,20 @@ impl Path {
 
 pub mod path {
     //! Helpers for constructing paths
+    use crate::shape::Rounding;
+
     use super::*;
 
     /// overwrites existing points
-    pub fn rounded_rectangle(path: &mut Vec<Pos2>, rect: Rect, corner_radius: f32) {
+    pub fn rounded_rectangle(path: &mut Vec<Pos2>, rect: Rect, corner_radius: Rounding) {
         path.clear();
 
         let min = rect.min;
         let max = rect.max;
 
-        let cr = corner_radius
-            .min(rect.width() * 0.5)
-            .min(rect.height() * 0.5);
+        let cr = clamp_radius(corner_radius, rect);
 
-        if cr <= 0.0 {
+        if cr == Rounding::none() {
             let min = rect.min;
             let max = rect.max;
             path.reserve(4);
@@ -201,10 +201,10 @@ pub mod path {
             path.push(pos2(max.x, max.y));
             path.push(pos2(min.x, max.y));
         } else {
-            add_circle_quadrant(path, pos2(max.x - cr, max.y - cr), cr, 0.0);
-            add_circle_quadrant(path, pos2(min.x + cr, max.y - cr), cr, 1.0);
-            add_circle_quadrant(path, pos2(min.x + cr, min.y + cr), cr, 2.0);
-            add_circle_quadrant(path, pos2(max.x - cr, min.y + cr), cr, 3.0);
+            add_circle_quadrant(path, pos2(max.x - cr.se, max.y - cr.se), cr.se, 0.0);
+            add_circle_quadrant(path, pos2(min.x + cr.sw, max.y - cr.sw), cr.sw, 1.0);
+            add_circle_quadrant(path, pos2(min.x + cr.nw, min.y + cr.nw), cr.nw, 2.0);
+            add_circle_quadrant(path, pos2(max.x - cr.ne, min.y + cr.ne), cr.ne, 3.0);
         }
     }
 
@@ -240,6 +240,20 @@ pub mod path {
                 quadrant * RIGHT_ANGLE..=(quadrant + 1.0) * RIGHT_ANGLE,
             );
             path.push(center + radius * Vec2::angled(angle));
+        }
+    }
+
+    // Ensures the radius of each corner is within a valid range
+    fn clamp_radius(corner_radius: Rounding, rect: Rect) -> Rounding {
+        let half_width = rect.width() * 0.5;
+        let half_height = rect.height() * 0.5;
+        let max_cr = half_width.min(half_height);
+
+        Rounding {
+            nw: corner_radius.nw.at_most(max_cr),
+            ne: corner_radius.ne.at_most(max_cr),
+            sw: corner_radius.sw.at_most(max_cr),
+            se: corner_radius.se.at_most(max_cr),
         }
     }
 }
