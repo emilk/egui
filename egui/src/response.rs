@@ -383,6 +383,14 @@ impl Response {
         true
     }
 
+    /// Like `on_hover_text`, but show the text next to cursor.
+    #[doc(alias = "tooltip")]
+    pub fn on_hover_text_at_pointer(self, text: impl Into<WidgetText>) -> Self {
+        self.on_hover_ui_at_pointer(|ui| {
+            ui.add(crate::widgets::Label::new(text));
+        })
+    }
+
     /// Show this text if the widget was hovered (i.e. a tooltip).
     ///
     /// The text will not be visible if the widget is not enabled.
