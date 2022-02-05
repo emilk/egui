@@ -118,11 +118,12 @@ impl EasyMarkEditor {
 fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRange) -> bool {
     let mut any_change = false;
     for (key, surrounding) in [
-        (Key::B, "*"),
-        (Key::C, "`"),
-        (Key::I, "/"),
-        (Key::R, "~"),
-        (Key::U, "_"),
+        (Key::B, "*"), // *bold*
+        (Key::C, "`"), // `code`
+        (Key::I, "/"), // /italics/
+        (Key::R, "^"), // ^superscript^
+        (Key::S, "~"), // ~strikethrough~
+        (Key::U, "_"), // _underline_
     ] {
         if ui.input_mut().consume_key(
             key,
