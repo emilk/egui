@@ -194,19 +194,19 @@ impl InputState {
 
     // Ignore a key if it was pressed or released this frame. Useful for hotkeys.
     // Returns if the key was pressed this frame
-    pub fn ignore_key(&mut self, ignore_key: Key, modifiers: Modifiers) -> bool {
-        self.events = std::mem::take(&mut self.events).into_iter().filter(|event| {
+    pub fn consume_key(&mut self, key: Key, modifiers: Modifiers) -> bool {
+        self.events.retain(|event| {
             !matches!(
                 event,
                 Event::Key {
-                    key,
-                    modifiers: mods,
+                    key: ev_key,
+                    modifiers: ev_mods,
                     ..
-                } if *key == ignore_key && *mods == modifiers
+                } if *ev_key == key && *ev_mods == modifiers
             )
-        }).collect();
+        });
 
-        self.keys_down.remove(&ignore_key)
+        self.keys_down.remove(&key)
     }
 
     /// Was the given key pressed this frame?

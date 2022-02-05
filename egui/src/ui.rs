@@ -346,7 +346,7 @@ impl Ui {
     /// like for [`Self::input()`].
     /// ```
     /// # egui::__run_test_ui(|ui| {
-    /// ui.input_mut().time = 0.0;
+    /// ui.input_mut().consume_key(egui::Key::Enter, egui::Modifiers::default());
     /// # });
     /// ```
     #[inline]
