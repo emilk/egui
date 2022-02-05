@@ -200,9 +200,9 @@ impl InputState {
                 event,
                 Event::Key {
                     key,
-                    modifiers: _mods,
+                    modifiers: mods,
                     ..
-                } if *key == ignore_key && *_mods == modifiers
+                } if *key == ignore_key && *mods == modifiers
             )
         }).collect();
 
