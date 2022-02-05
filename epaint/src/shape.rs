@@ -408,10 +408,6 @@ impl From<f32> for Rounding {
 }
 
 impl Rounding {
-    pub fn new(nw: f32, ne: f32, sw: f32, se: f32) -> Self {
-        Self { nw, ne, sw, se }
-    }
-
     #[inline]
     pub fn same(radius: f32) -> Self {
         Self {
