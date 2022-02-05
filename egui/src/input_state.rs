@@ -192,6 +192,23 @@ impl InputState {
         self.pointer.wants_repaint() || self.scroll_delta != Vec2::ZERO || !self.events.is_empty()
     }
 
+    // Ignore a key if it was pressed or released this frame. Useful for hotkeys.
+    // Returns if the key was pressed this frame
+    pub fn ignore_key(&mut self, ignore_key: Key, modifiers: Modifiers) -> bool {
+        self.events = std::mem::take(&mut self.events).into_iter().filter(|event| {
+            !matches!(
+                event,
+                Event::Key {
+                    key,
+                    modifiers: _mods,
+                    ..
+                } if *key == ignore_key && *_mods == modifiers
+            )
+        }).collect();
+
+        self.keys_down.remove(&ignore_key)
+    }
+
     /// Was the given key pressed this frame?
     pub fn key_pressed(&self, desired_key: Key) -> bool {
         self.num_presses(desired_key) > 0
