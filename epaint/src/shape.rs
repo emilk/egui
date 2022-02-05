@@ -389,12 +389,14 @@ pub struct Rounding {
 }
 
 impl Default for Rounding {
+    #[inline]
     fn default() -> Self {
         Self::none()
     }
 }
 
 impl From<f32> for Rounding {
+    #[inline]
     fn from(radius: f32) -> Self {
         Self {
             nw: radius,
@@ -410,6 +412,7 @@ impl Rounding {
         Self { nw, ne, sw, se }
     }
 
+    #[inline]
     pub fn same(radius: f32) -> Self {
         Self {
             nw: radius,
@@ -419,6 +422,7 @@ impl Rounding {
         }
     }
 
+    #[inline]
     pub fn none() -> Self {
         Self {
             nw: 0.0,
