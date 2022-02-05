@@ -23,6 +23,15 @@ all-features = true
 
 [lib]
 
+
+[features]
+default = []
+# Enable the file_storage module for storing data to disk.
+file_storage = ["directories-next", "ron", "serde"]
+# Persist native window options and egui memory
+persistence = ["ron", "serde", "egui/persistence"]
+
+
 [dependencies]
 egui = { version = "0.16.0", path = "../egui", default-features = false, features = ["single_threaded"] }
 tracing = "0.1"
@@ -30,8 +39,3 @@ tracing = "0.1"
 directories-next = { version = "2", optional = true }
 ron = { version = "0.7", optional = true }
 serde = { version = "1", optional = true }
-
-[features]
-default = []
-file_storage = ["directories-next", "ron", "serde"]
-persistence = ["ron", "serde", "egui/persistence"]

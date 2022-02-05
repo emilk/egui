@@ -25,6 +25,27 @@ all-features = true
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+
+[features]
+default = ["default_fonts", "glow"]
+
+# If set, egui will use `include_bytes!` to bundle some fonts.
+# If you plan on specifying your own fonts you may disable this feature.
+default_fonts = ["egui/default_fonts"]
+
+# Use glow as the renderer.
+glow = ["egui_glow", "egui_glow/epi"]
+
+# Alternative to the glow renderer.
+webgl = []
+
+# enable persisting egui memory
+persistence = ["egui/persistence", "ron", "serde"]
+
+# enable screen reader support (requires `ctx.options().screen_reader = true;`)
+screen_reader = ["tts"]
+
+
 [dependencies]
 egui = { version = "0.16.0", path = "../egui", default-features = false, features = [
   "convert_bytemuck",
@@ -46,22 +67,6 @@ wasm-bindgen-futures = "0.4"
 ron = { version = "0.7", optional = true }
 serde = { version = "1", optional = true }
 tts = { version = "0.20", optional = true } # feature screen_reader
-
-[features]
-default = ["default_fonts", "glow"]
-
-# If set, egui will use `include_bytes!` to bundle some fonts.
-# If you plan on specifying your own fonts you may disable this feature.
-default_fonts = ["egui/default_fonts"]
-
-# Use glow as the renderer.
-glow = ["egui_glow", "egui_glow/epi"]
-
-# Alternative to the glow renderer.
-webgl = []
-
-persistence = ["egui/persistence", "ron", "serde"]
-screen_reader = ["tts"] # experimental
 
 [dependencies.web-sys]
 version = "0.3.52"

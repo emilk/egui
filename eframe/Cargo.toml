@@ -23,6 +23,31 @@ all-features = true
 
 [lib]
 
+
+[features]
+default = ["default_fonts", "egui_glow"]
+
+# If set, egui will use `include_bytes!` to bundle some fonts.
+# If you plan on specifying your own fonts you may disable this feature.
+default_fonts = ["egui/default_fonts"]
+
+# Enable saving app state to disk.
+persistence = [
+  # we cannot touch egui_glium or egui_glow here due to https://github.com/rust-lang/cargo/issues/8832
+  "egui-winit/persistence",
+  "egui/persistence",
+  "epi/file_storage",
+  "epi/persistence",
+]
+
+# enable screen reader support (requires `ctx.options().screen_reader = true;`)
+screen_reader = [
+  # we cannot touch egui_glium or egui_glow here due to https://github.com/rust-lang/cargo/issues/8832
+  "egui-winit/screen_reader",
+  "egui_web/screen_reader",
+]
+
+
 [dependencies]
 egui = { version = "0.16.0", path = "../egui", default-features = false }
 epi = { version = "0.16.0", path = "../epi" }
@@ -43,25 +68,3 @@ image = { version = "0.24", default-features = false, features = ["jpeg", "png"]
 poll-promise = "0.1"
 rfd = "0.7"
 
-[features]
-default = ["default_fonts", "egui_glow"]
-
-# If set, egui will use `include_bytes!` to bundle some fonts.
-# If you plan on specifying your own fonts you may disable this feature.
-default_fonts = ["egui/default_fonts"]
-
-# Enable saving app state to disk.
-persistence = [
-  # we cannot touch egui_glium or egui_glow here due to https://github.com/rust-lang/cargo/issues/8832
-  "egui-winit/persistence",
-  "egui/persistence",
-  "epi/file_storage",
-  "epi/persistence",
-]
-
-# experimental support for a screen reader
-screen_reader = [
-  # we cannot touch egui_glium or egui_glow here due to https://github.com/rust-lang/cargo/issues/8832
-  "egui-winit/screen_reader",
-  "egui_web/screen_reader",
-]

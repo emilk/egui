@@ -7,8 +7,20 @@ edition = "2021"
 rust-version = "1.56"
 publish = false
 
+[package.metadata.docs.rs]
+all-features = true
+
 [lib]
 crate-type = ["cdylib", "rlib"]
+
+
+[features]
+default = ["persistence"]
+http = ["egui_demo_lib/http"]
+persistence = ["eframe/persistence", "egui_demo_lib/persistence"]
+screen_reader = ["eframe/screen_reader"] # experimental
+syntax_highlighting = ["egui_demo_lib/syntax_highlighting"]
+
 
 [dependencies]
 eframe = { version = "0.16.0", path = "../eframe" }
@@ -18,10 +30,3 @@ eframe = { version = "0.16.0", path = "../eframe" }
 
 egui_demo_lib = { version = "0.16.0", path = "../egui_demo_lib", features = ["extra_debug_asserts"] }
 tracing-subscriber = "0.3"
-
-[features]
-default = ["persistence"]
-http = ["egui_demo_lib/http"]
-persistence = ["eframe/persistence", "egui_demo_lib/persistence"]
-screen_reader = ["eframe/screen_reader"] # experimental
-syntax_highlighting = ["egui_demo_lib/syntax_highlighting"]

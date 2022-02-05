@@ -23,17 +23,6 @@ all-features = true
 
 [lib]
 
-[dependencies]
-epaint = { version = "0.16.0", path = "../epaint", default-features = false }
-
-ahash = "0.7"
-nohash-hasher = "0.2"
-
-# Optional:
-ron = { version = "0.7", optional = true }
-serde = { version = "1", features = ["derive", "rc"], optional = true }
-# egui doesn't log much, but when it does, it uses `tracing`
-tracing = { version = "0.1", optional = true }
 
 [features]
 default = ["default_fonts", "single_threaded"]
@@ -66,3 +55,16 @@ serialize = ["serde", "epaint/serialize"]
 # from multiple threads. It comes with a minor performance impact.
 single_threaded = ["epaint/single_threaded"]
 multi_threaded = ["epaint/multi_threaded"]
+
+
+[dependencies]
+epaint = { version = "0.16.0", path = "../epaint", default-features = false }
+
+ahash = "0.7"
+nohash-hasher = "0.2"
+
+# Optional:
+ron = { version = "0.7", optional = true }
+serde = { version = "1", features = ["derive", "rc"], optional = true }
+# egui doesn't log much, but when it does, it uses `tracing`
+tracing = { version = "0.1", optional = true }

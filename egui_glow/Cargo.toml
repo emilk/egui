@@ -22,6 +22,38 @@ include = [
 [package.metadata.docs.rs]
 all-features = true
 
+
+[features]
+default = ["clipboard", "default_fonts", "links", "persistence", "winit"]
+
+# enable cut/copy/paste to OS clipboard.
+# if disabled a clipboard will be simulated so you can still copy/paste within the egui app.
+clipboard = ["egui-winit/clipboard"]
+
+# If set, egui will use `include_bytes!` to bundle some fonts.
+# If you plan on specifying your own fonts you may disable this feature.
+default_fonts = ["egui/default_fonts"]
+
+# enable opening links in a browser when an egui hyperlink is clicked.
+links = ["egui-winit/links"]
+
+# enable persisting native window options and egui memory
+persistence = [
+  "egui-winit/persistence",
+  "egui/persistence",
+  "epi", # also implied by the lines below, see https://github.com/rust-lang/cargo/issues/8832
+  "epi/file_storage",
+  "epi/persistence",
+]
+
+# experimental support for a screen reader
+screen_reader = ["egui-winit/screen_reader"]
+
+# enable glutin/winit integration.
+# if you want to use glow painter on web disable this feature.
+winit = ["egui-winit", "glutin"]
+
+
 [dependencies]
 egui = { version = "0.16.0", path = "../egui", default-features = false, features = [
   "convert_bytemuck",
@@ -44,33 +76,3 @@ wasm-bindgen = { version = "0.2" }
 
 [dev-dependencies]
 image = { version = "0.24", default-features = false, features = ["png"] }
-
-[features]
-default = ["clipboard", "default_fonts", "links", "persistence", "winit"]
-
-# enable cut/copy/paste to OS clipboard.
-# if disabled a clipboard will be simulated so you can still copy/paste within the egui app.
-clipboard = ["egui-winit/clipboard"]
-
-# If set, egui will use `include_bytes!` to bundle some fonts.
-# If you plan on specifying your own fonts you may disable this feature.
-default_fonts = ["egui/default_fonts"]
-
-# enable opening links in a browser when an egui hyperlink is clicked.
-links = ["egui-winit/links"]
-
-# enable code for saving state
-persistence = [
-  "egui-winit/persistence",
-  "egui/persistence",
-  "epi", # also implied by the lines below, see https://github.com/rust-lang/cargo/issues/8832
-  "epi/file_storage",
-  "epi/persistence",
-]
-
-# experimental support for a screen reader
-screen_reader = ["egui-winit/screen_reader"]
-
-# enable glutin/winit integration.
-# if you want to use glow painter on web disable this feature.
-winit = ["egui-winit", "glutin"]
