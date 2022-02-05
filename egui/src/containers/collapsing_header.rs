@@ -338,7 +338,7 @@ impl CollapsingHeader {
             if ui.visuals().collapsing_header_frame || self.show_background {
                 ui.painter().add(epaint::RectShape {
                     rect: header_response.rect.expand(visuals.expansion),
-                    corner_radius: visuals.corner_radius,
+                    rounding: visuals.rounding,
                     fill: visuals.bg_fill,
                     stroke: visuals.bg_stroke,
                     // stroke: Default::default(),
@@ -350,12 +350,8 @@ impl CollapsingHeader {
             {
                 let rect = rect.expand(visuals.expansion);
 
-                ui.painter().rect(
-                    rect,
-                    visuals.corner_radius,
-                    visuals.bg_fill,
-                    visuals.bg_stroke,
-                );
+                ui.painter()
+                    .rect(rect, visuals.rounding, visuals.bg_fill, visuals.bg_stroke);
             }
 
             {

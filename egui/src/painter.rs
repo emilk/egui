@@ -278,13 +278,13 @@ impl Painter {
     pub fn rect(
         &self,
         rect: Rect,
-        corner_radius: impl Into<Rounding>,
+        rounding: impl Into<Rounding>,
         fill_color: impl Into<Color32>,
         stroke: impl Into<Stroke>,
     ) {
         self.add(RectShape {
             rect,
-            corner_radius: corner_radius.into(),
+            rounding: rounding.into(),
             fill: fill_color.into(),
             stroke: stroke.into(),
         });
@@ -293,12 +293,12 @@ impl Painter {
     pub fn rect_filled(
         &self,
         rect: Rect,
-        corner_radius: impl Into<Rounding>,
+        rounding: impl Into<Rounding>,
         fill_color: impl Into<Color32>,
     ) {
         self.add(RectShape {
             rect,
-            corner_radius: corner_radius.into(),
+            rounding: rounding.into(),
             fill: fill_color.into(),
             stroke: Default::default(),
         });
@@ -307,12 +307,12 @@ impl Painter {
     pub fn rect_stroke(
         &self,
         rect: Rect,
-        corner_radius: impl Into<Rounding>,
+        rounding: impl Into<Rounding>,
         stroke: impl Into<Stroke>,
     ) {
         self.add(RectShape {
             rect,
-            corner_radius: corner_radius.into(),
+            rounding: rounding.into(),
             fill: Default::default(),
             stroke: stroke.into(),
         });

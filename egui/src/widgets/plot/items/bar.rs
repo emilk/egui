@@ -129,7 +129,7 @@ impl Bar {
         let rect = transform.rect_from_values(&self.bounds_min(), &self.bounds_max());
         let rect = Shape::Rect(RectShape {
             rect,
-            corner_radius: Rounding::none(),
+            rounding: Rounding::none(),
             fill,
             stroke,
         });

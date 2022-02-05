@@ -152,7 +152,7 @@ impl BoxElem {
         );
         let rect = Shape::Rect(RectShape {
             rect,
-            corner_radius: Rounding::none(),
+            rounding: Rounding::none(),
             fill,
             stroke,
         });

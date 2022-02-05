@@ -299,7 +299,7 @@ impl<'t> TextEdit<'t> {
                 if output.response.has_focus() {
                     epaint::RectShape {
                         rect: frame_rect,
-                        corner_radius: visuals.corner_radius,
+                        rounding: visuals.rounding,
                         // fill: ui.visuals().selection.bg_fill,
                         fill: ui.visuals().extreme_bg_color,
                         stroke: ui.visuals().selection.stroke,
@@ -307,7 +307,7 @@ impl<'t> TextEdit<'t> {
                 } else {
                     epaint::RectShape {
                         rect: frame_rect,
-                        corner_radius: visuals.corner_radius,
+                        rounding: visuals.rounding,
                         fill: ui.visuals().extreme_bg_color,
                         stroke: visuals.bg_stroke, // TODO: we want to show something here, or a text-edit field doesn't "pop".
                     }
@@ -316,7 +316,7 @@ impl<'t> TextEdit<'t> {
                 let visuals = &ui.style().visuals.widgets.inactive;
                 epaint::RectShape {
                     rect: frame_rect,
-                    corner_radius: visuals.corner_radius,
+                    rounding: visuals.rounding,
                     // fill: ui.visuals().extreme_bg_color,
                     // fill: visuals.bg_fill,
                     fill: Color32::TRANSPARENT,

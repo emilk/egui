@@ -740,13 +740,13 @@ impl Prepared {
 
                 ui.painter().add(epaint::Shape::rect_filled(
                     outer_scroll_rect,
-                    visuals.corner_radius,
+                    visuals.rounding,
                     ui.visuals().extreme_bg_color,
                 ));
 
                 ui.painter().add(epaint::Shape::rect_filled(
                     handle_rect,
-                    visuals.corner_radius,
+                    visuals.rounding,
                     visuals.bg_fill,
                 ));
             }

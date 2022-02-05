@@ -250,7 +250,7 @@ fn button_frame(
             where_to_put_background,
             epaint::RectShape {
                 rect: outer_rect.expand(visuals.expansion),
-                corner_radius: visuals.corner_radius,
+                rounding: visuals.rounding,
                 fill: visuals.bg_fill,
                 stroke: visuals.bg_stroke,
             },

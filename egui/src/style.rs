@@ -344,7 +344,7 @@ pub struct Visuals {
     /// Background color behind code-styled monospaced labels.
     pub code_bg_color: Color32,
 
-    pub window_corner_radius: Rounding,
+    pub window_rounding: Rounding,
     pub window_shadow: Shadow,
 
     pub popup_shadow: Shadow,
@@ -453,7 +453,7 @@ pub struct WidgetVisuals {
     pub bg_stroke: Stroke,
 
     /// Button frames etc.
-    pub corner_radius: Rounding,
+    pub rounding: Rounding,
 
     /// Stroke and text color of the interactive part of a component (button text, slider grab, check-mark, …).
     pub fg_stroke: Stroke,
@@ -566,7 +566,7 @@ impl Visuals {
             faint_bg_color: Color32::from_gray(24),
             extreme_bg_color: Color32::from_gray(10),
             code_bg_color: Color32::from_gray(64),
-            window_corner_radius: Rounding::same(6.0),
+            window_rounding: Rounding::same(6.0),
             window_shadow: Shadow::big_dark(),
             popup_shadow: Shadow::small_dark(),
             resize_corner_size: 12.0,
@@ -629,35 +629,35 @@ impl Widgets {
                 bg_fill: Color32::from_gray(27), // window background
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // separators, indentation lines, windows outlines
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(140)), // normal text color
-                corner_radius: Rounding::same(2.0),
+                rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
             inactive: WidgetVisuals {
                 bg_fill: Color32::from_gray(60), // button background
                 bg_stroke: Default::default(),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(180)), // button text
-                corner_radius: Rounding::same(2.0),
+                rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
             hovered: WidgetVisuals {
                 bg_fill: Color32::from_gray(70),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(150)), // e.g. hover over window edge or button
                 fg_stroke: Stroke::new(1.5, Color32::from_gray(240)),
-                corner_radius: Rounding::same(3.0),
+                rounding: Rounding::same(3.0),
                 expansion: 1.0,
             },
             active: WidgetVisuals {
                 bg_fill: Color32::from_gray(55),
                 bg_stroke: Stroke::new(1.0, Color32::WHITE),
                 fg_stroke: Stroke::new(2.0, Color32::WHITE),
-                corner_radius: Rounding::same(2.0),
+                rounding: Rounding::same(2.0),
                 expansion: 1.0,
             },
             open: WidgetVisuals {
                 bg_fill: Color32::from_gray(27),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(60)),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(210)),
-                corner_radius: Rounding::same(2.0),
+                rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
         }
@@ -669,35 +669,35 @@ impl Widgets {
                 bg_fill: Color32::from_gray(235), // window background
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(190)), // separators, indentation lines, windows outlines
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(100)), // normal text color
-                corner_radius: Rounding::same(2.0),
+                rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
             inactive: WidgetVisuals {
                 bg_fill: Color32::from_gray(215), // button background
                 bg_stroke: Default::default(),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(80)), // button text
-                corner_radius: Rounding::same(2.0),
+                rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
             hovered: WidgetVisuals {
                 bg_fill: Color32::from_gray(210),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(105)), // e.g. hover over window edge or button
                 fg_stroke: Stroke::new(1.5, Color32::BLACK),
-                corner_radius: Rounding::same(3.0),
+                rounding: Rounding::same(3.0),
                 expansion: 1.0,
             },
             active: WidgetVisuals {
                 bg_fill: Color32::from_gray(165),
                 bg_stroke: Stroke::new(1.0, Color32::BLACK),
                 fg_stroke: Stroke::new(2.0, Color32::BLACK),
-                corner_radius: Rounding::same(2.0),
+                rounding: Rounding::same(2.0),
                 expansion: 1.0,
             },
             open: WidgetVisuals {
                 bg_fill: Color32::from_gray(220),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(160)),
                 fg_stroke: Stroke::new(1.0, Color32::BLACK),
-                corner_radius: Rounding::same(2.0),
+                rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
         }
@@ -933,7 +933,7 @@ impl Selection {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self { bg_fill, stroke } = self;
         ui.label("Selectable labels");
-        ui_color(ui, bg_fill, "bg_fill");
+        ui_color(ui, bg_fill, "background fill");
         stroke_ui(ui, stroke, "stroke");
     }
 }
@@ -943,19 +943,16 @@ impl WidgetVisuals {
         let Self {
             bg_fill,
             bg_stroke,
-            corner_radius,
+            rounding,
             fg_stroke,
             expansion,
         } = self;
-        ui_color(ui, bg_fill, "bg_fill");
-        stroke_ui(ui, bg_stroke, "bg_stroke");
+        ui_color(ui, bg_fill, "background fill");
+        stroke_ui(ui, bg_stroke, "background stroke");
 
-        ui.add(Slider::new(&mut corner_radius.nw, 0.0..=10.0).text("corner_radius_nw"));
-        ui.add(Slider::new(&mut corner_radius.ne, 0.0..=10.0).text("corner_radius_ne"));
-        ui.add(Slider::new(&mut corner_radius.sw, 0.0..=10.0).text("corner_radius_sw"));
-        ui.add(Slider::new(&mut corner_radius.se, 0.0..=10.0).text("corner_radius_se"));
+        rounding_ui(ui, rounding);
 
-        stroke_ui(ui, fg_stroke, "fg_stroke (text)");
+        stroke_ui(ui, fg_stroke, "foreground stroke (text)");
         ui.add(Slider::new(expansion, -5.0..=5.0).text("expansion"))
             .on_hover_text("make shapes this much larger");
     }
@@ -1004,7 +1001,7 @@ impl Visuals {
             faint_bg_color,
             extreme_bg_color,
             code_bg_color,
-            window_corner_radius,
+            window_rounding,
             window_shadow,
             popup_shadow,
             resize_corner_size,
@@ -1030,11 +1027,7 @@ impl Visuals {
             ui_color(ui, &mut widgets.noninteractive.bg_fill, "Fill");
             stroke_ui(ui, &mut widgets.noninteractive.bg_stroke, "Outline");
 
-            ui.label("Rounding");
-            ui.add(Slider::new(&mut window_corner_radius.nw, 0.0..=20.0).text("Top Left"));
-            ui.add(Slider::new(&mut window_corner_radius.ne, 0.0..=20.0).text("Top Right"));
-            ui.add(Slider::new(&mut window_corner_radius.sw, 0.0..=20.0).text("Bottom Left"));
-            ui.add(Slider::new(&mut window_corner_radius.se, 0.0..=20.0).text("Bottom Right"));
+            rounding_ui(ui, window_rounding);
 
             shadow_ui(ui, window_shadow, "Shadow");
             shadow_ui(ui, popup_shadow, "Shadow (small menus and popups)");
@@ -1124,4 +1117,30 @@ fn ui_color(ui: &mut Ui, srgba: &mut Color32, label: impl Into<WidgetText>) -> R
         ui.label(label);
     })
     .response
+}
+
+fn rounding_ui(ui: &mut Ui, rounding: &mut Rounding) {
+    const MAX: f32 = 20.0;
+    let mut same = rounding.is_same();
+    ui.group(|ui| {
+        ui.horizontal(|ui| {
+            ui.label("Rounding: ");
+            ui.radio_value(&mut same, true, "Same");
+            ui.radio_value(&mut same, false, "Separate");
+        });
+
+        if same {
+            let mut cr = rounding.nw;
+            ui.add(Slider::new(&mut cr, 0.0..=MAX));
+            *rounding = Rounding::same(cr);
+        } else {
+            ui.add(Slider::new(&mut rounding.nw, 0.0..=MAX).text("North-West"));
+            ui.add(Slider::new(&mut rounding.ne, 0.0..=MAX).text("North-East"));
+            ui.add(Slider::new(&mut rounding.sw, 0.0..=MAX).text("South-West"));
+            ui.add(Slider::new(&mut rounding.se, 0.0..=MAX).text("South-East"));
+            if rounding.is_same() {
+                rounding.se *= 1.00001;
+            }
+        }
+    });
 }

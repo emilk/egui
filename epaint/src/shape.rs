@@ -116,19 +116,19 @@ impl Shape {
     #[inline]
     pub fn rect_filled(
         rect: Rect,
-        corner_radius: impl Into<Rounding>,
+        rounding: impl Into<Rounding>,
         fill_color: impl Into<Color32>,
     ) -> Self {
-        Self::Rect(RectShape::filled(rect, corner_radius, fill_color))
+        Self::Rect(RectShape::filled(rect, rounding, fill_color))
     }
 
     #[inline]
     pub fn rect_stroke(
         rect: Rect,
-        corner_radius: impl Into<Rounding>,
+        rounding: impl Into<Rounding>,
         stroke: impl Into<Stroke>,
     ) -> Self {
-        Self::Rect(RectShape::stroke(rect, corner_radius, stroke))
+        Self::Rect(RectShape::stroke(rect, rounding, stroke))
     }
 
     #[allow(clippy::needless_pass_by_value)]
@@ -330,7 +330,7 @@ impl From<PathShape> for Shape {
 pub struct RectShape {
     pub rect: Rect,
     /// How rounded the corners are. Use `Rounding::none()` for no rounding.
-    pub corner_radius: Rounding,
+    pub rounding: Rounding,
     pub fill: Color32,
     pub stroke: Stroke,
 }
@@ -339,26 +339,22 @@ impl RectShape {
     #[inline]
     pub fn filled(
         rect: Rect,
-        corner_radius: impl Into<Rounding>,
+        rounding: impl Into<Rounding>,
         fill_color: impl Into<Color32>,
     ) -> Self {
         Self {
             rect,
-            corner_radius: corner_radius.into(),
+            rounding: rounding.into(),
             fill: fill_color.into(),
             stroke: Default::default(),
         }
     }
 
     #[inline]
-    pub fn stroke(
-        rect: Rect,
-        corner_radius: impl Into<Rounding>,
-        stroke: impl Into<Stroke>,
-    ) -> Self {
+    pub fn stroke(rect: Rect, rounding: impl Into<Rounding>, stroke: impl Into<Stroke>) -> Self {
         Self {
             rect,
-            corner_radius: corner_radius.into(),
+            rounding: rounding.into(),
             fill: Default::default(),
             stroke: stroke.into(),
         }
@@ -382,9 +378,13 @@ impl From<RectShape> for Shape {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 /// How rounded the corners of things should be
 pub struct Rounding {
+    /// Radius of the rounding of the North-West (left top) corner.
     pub nw: f32,
+    /// Radius of the rounding of the North-East (right top) corner.
     pub ne: f32,
+    /// Radius of the rounding of the South-West (left bottom) corner.
     pub sw: f32,
+    /// Radius of the rounding of the South-East (right bottom) corner.
     pub se: f32,
 }
 
@@ -426,6 +426,12 @@ impl Rounding {
             sw: 0.0,
             se: 0.0,
         }
+    }
+
+    /// Do all corners have the same rounding?
+    #[inline]
+    pub fn is_same(&self) -> bool {
+        self.nw == self.ne && self.nw == self.sw && self.nw == self.se
     }
 }
 

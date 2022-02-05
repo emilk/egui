@@ -9,7 +9,7 @@ use epaint::*;
 pub struct Frame {
     /// On each side
     pub margin: Vec2,
-    pub corner_radius: Rounding,
+    pub rounding: Rounding,
     pub shadow: Shadow,
     pub fill: Color32,
     pub stroke: Stroke,
@@ -24,7 +24,7 @@ impl Frame {
     pub fn group(style: &Style) -> Self {
         Self {
             margin: Vec2::splat(6.0), // symmetric looks best in corners when nesting
-            corner_radius: style.visuals.widgets.noninteractive.corner_radius,
+            rounding: style.visuals.widgets.noninteractive.rounding,
             stroke: style.visuals.widgets.noninteractive.bg_stroke,
             ..Default::default()
         }
@@ -33,7 +33,7 @@ impl Frame {
     pub(crate) fn side_top_panel(style: &Style) -> Self {
         Self {
             margin: Vec2::new(8.0, 2.0),
-            corner_radius: Rounding::none(),
+            rounding: Rounding::none(),
             fill: style.visuals.window_fill(),
             stroke: style.visuals.window_stroke(),
             ..Default::default()
@@ -43,7 +43,7 @@ impl Frame {
     pub(crate) fn central_panel(style: &Style) -> Self {
         Self {
             margin: Vec2::new(8.0, 8.0),
-            corner_radius: Rounding::none(),
+            rounding: Rounding::none(),
             fill: style.visuals.window_fill(),
             stroke: Default::default(),
             ..Default::default()
@@ -53,7 +53,7 @@ impl Frame {
     pub fn window(style: &Style) -> Self {
         Self {
             margin: style.spacing.window_padding,
-            corner_radius: style.visuals.window_corner_radius,
+            rounding: style.visuals.window_rounding,
             shadow: style.visuals.window_shadow,
             fill: style.visuals.window_fill(),
             stroke: style.visuals.window_stroke(),
@@ -63,7 +63,7 @@ impl Frame {
     pub fn menu(style: &Style) -> Self {
         Self {
             margin: Vec2::splat(1.0),
-            corner_radius: style.visuals.widgets.noninteractive.corner_radius,
+            rounding: style.visuals.widgets.noninteractive.rounding,
             shadow: style.visuals.popup_shadow,
             fill: style.visuals.window_fill(),
             stroke: style.visuals.window_stroke(),
@@ -73,7 +73,7 @@ impl Frame {
     pub fn popup(style: &Style) -> Self {
         Self {
             margin: style.spacing.window_padding,
-            corner_radius: style.visuals.widgets.noninteractive.corner_radius,
+            rounding: style.visuals.widgets.noninteractive.rounding,
             shadow: style.visuals.popup_shadow,
             fill: style.visuals.window_fill(),
             stroke: style.visuals.window_stroke(),
@@ -84,7 +84,7 @@ impl Frame {
     pub fn dark_canvas(style: &Style) -> Self {
         Self {
             margin: Vec2::new(10.0, 10.0),
-            corner_radius: style.visuals.widgets.noninteractive.corner_radius,
+            rounding: style.visuals.widgets.noninteractive.rounding,
             fill: Color32::from_black_alpha(250),
             stroke: style.visuals.window_stroke(),
             ..Default::default()
@@ -103,8 +103,8 @@ impl Frame {
         self
     }
 
-    pub fn corner_radius(mut self, corner_radius: impl Into<Rounding>) -> Self {
-        self.corner_radius = corner_radius.into();
+    pub fn rounding(mut self, rounding: impl Into<Rounding>) -> Self {
+        self.rounding = rounding.into();
         self
     }
 
@@ -172,7 +172,7 @@ impl Frame {
     pub fn paint(&self, outer_rect: Rect) -> Shape {
         let Self {
             margin: _,
-            corner_radius,
+            rounding,
             shadow,
             fill,
             stroke,
@@ -180,7 +180,7 @@ impl Frame {
 
         let frame_shape = Shape::Rect(epaint::RectShape {
             rect: outer_rect,
-            corner_radius,
+            rounding,
             fill,
             stroke,
         });
@@ -188,7 +188,7 @@ impl Frame {
         if shadow == Default::default() {
             frame_shape
         } else {
-            let shadow = shadow.tessellate(outer_rect, corner_radius);
+            let shadow = shadow.tessellate(outer_rect, rounding);
             let shadow = Shape::Mesh(shadow);
             Shape::Vec(vec![shadow, frame_shape])
         }

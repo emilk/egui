@@ -184,15 +184,15 @@ pub mod path {
     use super::*;
 
     /// overwrites existing points
-    pub fn rounded_rectangle(path: &mut Vec<Pos2>, rect: Rect, corner_radius: Rounding) {
+    pub fn rounded_rectangle(path: &mut Vec<Pos2>, rect: Rect, rounding: Rounding) {
         path.clear();
 
         let min = rect.min;
         let max = rect.max;
 
-        let cr = clamp_radius(corner_radius, rect);
+        let r = clamp_radius(rounding, rect);
 
-        if cr == Rounding::none() {
+        if r == Rounding::none() {
             let min = rect.min;
             let max = rect.max;
             path.reserve(4);
@@ -201,10 +201,10 @@ pub mod path {
             path.push(pos2(max.x, max.y));
             path.push(pos2(min.x, max.y));
         } else {
-            add_circle_quadrant(path, pos2(max.x - cr.se, max.y - cr.se), cr.se, 0.0);
-            add_circle_quadrant(path, pos2(min.x + cr.sw, max.y - cr.sw), cr.sw, 1.0);
-            add_circle_quadrant(path, pos2(min.x + cr.nw, min.y + cr.nw), cr.nw, 2.0);
-            add_circle_quadrant(path, pos2(max.x - cr.ne, min.y + cr.ne), cr.ne, 3.0);
+            add_circle_quadrant(path, pos2(max.x - r.se, max.y - r.se), r.se, 0.0);
+            add_circle_quadrant(path, pos2(min.x + r.sw, max.y - r.sw), r.sw, 1.0);
+            add_circle_quadrant(path, pos2(min.x + r.nw, min.y + r.nw), r.nw, 2.0);
+            add_circle_quadrant(path, pos2(max.x - r.ne, min.y + r.ne), r.ne, 3.0);
         }
     }
 
@@ -244,16 +244,16 @@ pub mod path {
     }
 
     // Ensures the radius of each corner is within a valid range
-    fn clamp_radius(corner_radius: Rounding, rect: Rect) -> Rounding {
+    fn clamp_radius(rounding: Rounding, rect: Rect) -> Rounding {
         let half_width = rect.width() * 0.5;
         let half_height = rect.height() * 0.5;
         let max_cr = half_width.min(half_height);
 
         Rounding {
-            nw: corner_radius.nw.at_most(max_cr),
-            ne: corner_radius.ne.at_most(max_cr),
-            sw: corner_radius.sw.at_most(max_cr),
-            se: corner_radius.se.at_most(max_cr),
+            nw: rounding.nw.at_most(max_cr).at_least(0.0),
+            ne: rounding.ne.at_most(max_cr).at_least(0.0),
+            sw: rounding.sw.at_most(max_cr).at_least(0.0),
+            se: rounding.se.at_most(max_cr).at_least(0.0),
         }
     }
 }
@@ -862,7 +862,7 @@ impl Tessellator {
     pub(crate) fn tessellate_rect(&mut self, rect: &RectShape, out: &mut Mesh) {
         let RectShape {
             mut rect,
-            corner_radius,
+            rounding,
             fill,
             stroke,
         } = *rect;
@@ -883,7 +883,7 @@ impl Tessellator {
 
         let path = &mut self.scratchpad_path;
         path.clear();
-        path::rounded_rectangle(&mut self.scratchpad_points, rect, corner_radius);
+        path::rounded_rectangle(&mut self.scratchpad_points, rect, rounding);
         path.add_line_loop(&self.scratchpad_points);
         path.fill(fill, &self.options, out);
         path.stroke_closed(stroke, &self.options, out);
