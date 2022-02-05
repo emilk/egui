@@ -51,6 +51,7 @@ pub struct BackendPanel {
     run_mode: RunMode,
 
     /// current slider value for current gui scale
+    #[cfg_attr(feature = "serde", serde(skip))]
     pixels_per_point: Option<f32>,
 
     /// maximum size of the web browser canvas
@@ -195,12 +196,10 @@ impl BackendPanel {
         ui: &mut egui::Ui,
         info: &epi::IntegrationInfo,
     ) -> Option<f32> {
-        self.pixels_per_point = self
-            .pixels_per_point
-            .or(info.native_pixels_per_point)
-            .or_else(|| Some(ui.ctx().pixels_per_point()));
-
-        let pixels_per_point = self.pixels_per_point.as_mut()?;
+        let pixels_per_point = self.pixels_per_point.get_or_insert_with(|| {
+            info.native_pixels_per_point
+                .unwrap_or_else(|| ui.ctx().pixels_per_point())
+        });
 
         ui.horizontal(|ui| {
             ui.spacing_mut().slider_width = 90.0;
