@@ -52,7 +52,7 @@ impl super::View for IdTest {
 
         ui.label("\
             Widgets that store state require unique and persisting identifiers so we can track their state between frames.\n\
-            For instance, collapsable headers needs to store wether or not they are open. \
+            For instance, collapsable headers needs to store whether or not they are open. \
             Their Id:s are derived from their names. \
             If you fail to give them unique names then clicking one will open both. \
             To help you debug this, an error message is printed on screen:");

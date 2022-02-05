@@ -900,12 +900,12 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
-    /// Wether or not to debug widget layout on hover.
+    /// Whether or not to debug widget layout on hover.
     pub fn debug_on_hover(&self) -> bool {
         self.options().style.debug.debug_on_hover
     }
 
-    /// Turn on/off wether or not to debug widget layout on hover.
+    /// Turn on/off whether or not to debug widget layout on hover.
     pub fn set_debug_on_hover(&self, debug_on_hover: bool) {
         let mut style = (*self.options().style).clone();
         style.debug.debug_on_hover = debug_on_hover;

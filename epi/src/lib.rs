@@ -181,13 +181,13 @@ pub trait App {
         egui::Color32::from_rgba_unmultiplied(12, 12, 12, 180).into()
     }
 
-    /// Controls wether or not the native window position and size will be
+    /// Controls whether or not the native window position and size will be
     /// persisted (only if the "persistence" feature is enabled).
     fn persist_native_window(&self) -> bool {
         true
     }
 
-    /// Controls wether or not the egui memory (window positions etc) will be
+    /// Controls whether or not the egui memory (window positions etc) will be
     /// persisted (only if the "persistence" feature is enabled).
     fn persist_egui_memory(&self) -> bool {
         true
