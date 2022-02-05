@@ -117,59 +117,28 @@ impl EasyMarkEditor {
 
 fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRange) -> bool {
     let mut any_change = false;
-    for event in &ui.input().events {
-        if let Event::Key {
+    for (key, surrounding) in [
+        (Key::B, "*"),
+        (Key::C, "`"),
+        (Key::I, "/"),
+        (Key::R, "~"),
+        (Key::U, "_"),
+    ] {
+        if ui.input_mut().consume_key(
             key,
-            pressed: true,
-            modifiers,
-        } = event
-        {
-            if modifiers.command_only() {
-                match &key {
-                    // toggle *bold*
-                    Key::B => {
-                        toggle_surrounding(code, ccursor_range, "*");
-                        any_change = true;
-                    }
-                    // toggle `code`
-                    Key::C => {
-                        toggle_surrounding(code, ccursor_range, "`");
-                        any_change = true;
-                    }
-                    // toggle /italics/
-                    Key::I => {
-                        toggle_surrounding(code, ccursor_range, "/");
-                        any_change = true;
-                    }
-                    // toggle $lowered$
-                    Key::L => {
-                        toggle_surrounding(code, ccursor_range, "$");
-                        any_change = true;
-                    }
-                    // toggle ^raised^
-                    Key::R => {
-                        toggle_surrounding(code, ccursor_range, "^");
-                        any_change = true;
-                    }
-                    // toggle ~strikethrough~
-                    Key::S => {
-                        toggle_surrounding(code, ccursor_range, "~");
-                        any_change = true;
-                    }
-                    // toggle _underline_
-                    Key::U => {
-                        toggle_surrounding(code, ccursor_range, "_");
-                        any_change = true;
-                    }
-                    _ => {}
-                }
-            }
-        }
+            egui::Modifiers {
+                command: true,
+                ..Default::default()
+            },
+        ) {
+            toggle_surrounding(code, ccursor_range, surrounding);
+            any_change = true;
+        };
     }
     any_change
 }
 
-/// E.g. toggle *strong* with `toggle(&mut text, &mut cursor, "*")`
+/// E.g. toggle *strong* with `toggle_surrounding(&mut text, &mut cursor, "*")`
 fn toggle_surrounding(
     code: &mut dyn TextBuffer,
     ccursor_range: &mut CCursorRange,
