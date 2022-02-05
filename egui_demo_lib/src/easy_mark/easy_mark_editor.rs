@@ -121,6 +121,7 @@ fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRang
         (Key::B, "*"), // *bold*
         (Key::C, "`"), // `code`
         (Key::I, "/"), // /italics/
+        (Key::L, "$"), // $subscript$
         (Key::R, "^"), // ^superscript^
         (Key::S, "~"), // ~strikethrough~
         (Key::U, "_"), // _underline_
