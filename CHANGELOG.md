@@ -8,7 +8,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 ## Unreleased
 
 ### Added ⭐
-*  `Ui::input_mut` to modify how subsequent widgets see the `InputState` and a convenience method `InputState::ignore_key` for shortcuts or hotkeys ([#1212](https://github.com/emilk/egui/pull/1212)). 
+*  `Ui::input_mut` to modify how subsequent widgets see the `InputState` and a convenience method `InputState::consume_key` for shortcuts or hotkeys ([#1212](https://github.com/emilk/egui/pull/1212)). 
 * Much improved font selection ([#1154](https://github.com/emilk/egui/pull/1154)):
   * You can now select any font size and family using `RichText::size` amd `RichText::family` and the new `FontId`.
   * Easily change text styles with `Style::text_styles`.
