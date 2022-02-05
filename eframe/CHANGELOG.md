@@ -11,6 +11,7 @@ NOTE: [`egui_web`](../egui_web/CHANGELOG.md), [`egui-winit`](../egui-winit/CHANG
 * Automatically detect and apply dark or light mode from system ([#1045](https://github.com/emilk/egui/pull/1045)).
 * Fix horizontal scrolling direction on Linux.
 * Added `App::on_exit_event` ([#1038](https://github.com/emilk/egui/pull/1038))
+* Added `NativeOptions::initial_window_pos`.
 * Shift-scroll will now result in horizontal scrolling on all platforms ([#1136](https://github.com/emilk/egui/pull/1136)).
 * Log using the `tracing` crate. Log to stdout by adding `tracing_subscriber::fmt::init();` to your `main` ([#1192](https://github.com/emilk/egui/pull/1192)).
 

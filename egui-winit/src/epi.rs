@@ -12,32 +12,51 @@ pub fn window_builder(
     native_options: &epi::NativeOptions,
     window_settings: &Option<crate::WindowSettings>,
 ) -> winit::window::WindowBuilder {
-    let window_icon = native_options.icon_data.clone().and_then(load_icon);
+    let epi::NativeOptions {
+        always_on_top,
+        maximized,
+        decorated,
+        drag_and_drop_support,
+        icon_data,
+        initial_window_pos,
+        initial_window_size,
+        min_window_size,
+        max_window_size,
+        resizable,
+        transparent,
+    } = native_options;
+
+    let window_icon = icon_data.clone().and_then(load_icon);
 
     let mut window_builder = winit::window::WindowBuilder::new()
-        .with_always_on_top(native_options.always_on_top)
-        .with_maximized(native_options.maximized)
-        .with_decorations(native_options.decorated)
-        .with_resizable(native_options.resizable)
-        .with_transparent(native_options.transparent)
+        .with_always_on_top(*always_on_top)
+        .with_maximized(*maximized)
+        .with_decorations(*decorated)
+        .with_resizable(*resizable)
+        .with_transparent(*transparent)
         .with_window_icon(window_icon);
 
-    if let Some(min_size) = native_options.min_window_size {
+    if let Some(min_size) = *min_window_size {
         window_builder = window_builder.with_min_inner_size(points_to_size(min_size));
     }
-    if let Some(max_size) = native_options.max_window_size {
+    if let Some(max_size) = *max_window_size {
         window_builder = window_builder.with_max_inner_size(points_to_size(max_size));
     }
 
-    window_builder =
-        window_builder_drag_and_drop(window_builder, native_options.drag_and_drop_support);
-
-    let initial_size_points = native_options.initial_window_size;
+    window_builder = window_builder_drag_and_drop(window_builder, *drag_and_drop_support);
 
     if let Some(window_settings) = window_settings {
         window_builder = window_settings.initialize_window(window_builder);
-    } else if let Some(initial_size_points) = initial_size_points {
-        window_builder = window_builder.with_inner_size(points_to_size(initial_size_points));
+    } else {
+        if let Some(pos) = *initial_window_pos {
+            window_builder = window_builder.with_position(winit::dpi::PhysicalPosition {
+                x: pos.x as f64,
+                y: pos.y as f64,
+            });
+        }
+        if let Some(initial_window_size) = *initial_window_size {
+            window_builder = window_builder.with_inner_size(points_to_size(initial_window_size));
+        }
     }
 
     window_builder

@@ -230,13 +230,16 @@ pub struct NativeOptions {
     /// The application icon, e.g. in the Windows task bar etc.
     pub icon_data: Option<IconData>,
 
-    /// The initial size of the native window in points (logical pixels).
+    /// The initial (inner) position of the native window in points (logical pixels).
+    pub initial_window_pos: Option<egui::Pos2>,
+
+    /// The initial inner size of the native window in points (logical pixels).
     pub initial_window_size: Option<egui::Vec2>,
 
-    /// The minimum window size
+    /// The minimum inner window size
     pub min_window_size: Option<egui::Vec2>,
 
-    /// The maximum window size
+    /// The maximum inner window size
     pub max_window_size: Option<egui::Vec2>,
 
     /// Should the app window be resizable?
@@ -256,6 +259,7 @@ impl Default for NativeOptions {
             decorated: true,
             drag_and_drop_support: false,
             icon_data: None,
+            initial_window_pos: None,
             initial_window_size: None,
             min_window_size: None,
             max_window_size: None,
