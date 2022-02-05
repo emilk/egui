@@ -250,10 +250,10 @@ pub mod path {
         let max_cr = half_width.min(half_height);
 
         Rounding {
-            nw: corner_radius.nw.min(max_cr),
-            ne: corner_radius.ne.min(max_cr),
-            sw: corner_radius.sw.min(max_cr),
-            se: corner_radius.se.min(max_cr),
+            nw: corner_radius.nw.at_most(max_cr),
+            ne: corner_radius.ne.at_most(max_cr),
+            sw: corner_radius.sw.at_most(max_cr),
+            se: corner_radius.se.at_most(max_cr),
         }
     }
 }
