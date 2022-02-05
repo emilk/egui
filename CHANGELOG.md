@@ -370,7 +370,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 ### Changed 🔧
 * Text will now wrap at newlines, spaces, dashes, punctuation or in the middle of a words if necessary, in that order of priority.
 * Widgets will now always line break at `\n` characters.
-* Widgets will now more intelligently choose wether or not to wrap text.
+* Widgets will now more intelligently choose whether or not to wrap text.
 * `mouse` has been renamed `pointer` everywhere (to make it clear it includes touches too).
 * Most parts of `Response` are now methods, so `if ui.button("…").clicked {` is now `if ui.button("…").clicked() {`.
 * `Response::active` is now gone. You can use `response.dragged()` or `response.clicked()` instead.

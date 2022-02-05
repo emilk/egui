@@ -315,10 +315,10 @@ pub struct Visuals {
     ///
     /// If `text_color` is `None` (default), then the text color will be the same as the
     /// foreground stroke color (`WidgetVisuals::fg_stroke`)
-    /// and will depend on wether or not the widget is being interacted with.
+    /// and will depend on whether or not the widget is being interacted with.
     ///
     /// In the future we may instead modulate
-    /// the `text_color` based on wether or not it is interacted with
+    /// the `text_color` based on whether or not it is interacted with
     /// so that `visuals.text_color` is always used,
     /// but its alpha may be different based on whether or not
     /// it is disabled, non-interactive, hovered etc.
