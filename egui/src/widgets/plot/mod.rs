@@ -16,12 +16,14 @@ pub use items::{
 };
 pub use legend::{Corner, Legend};
 
+use self::items::{num_decimals_with_max_digits, HoverConfig};
+
 mod items;
 mod legend;
 mod transform;
 
-type CustomLabelFunc = dyn Fn(&str, &Value) -> String;
-type CustomLabelFuncRef = Option<Box<CustomLabelFunc>>;
+type HoverFormatterFn = dyn Fn(&HoverConfig, &str, &Value) -> String;
+type HoverFormatter = Box<HoverFormatterFn>;
 
 type AxisFormatterFn = dyn Fn(f64) -> String;
 type AxisFormatter = Option<Box<AxisFormatterFn>>;
@@ -108,6 +110,35 @@ impl LinkedAxisGroup {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum HoverLine {
+    None,
+    X,
+    Y,
+    XY,
+}
+
+impl HoverLine {
+    pub fn all() -> impl Iterator<Item = HoverLine> {
+        [HoverLine::None, HoverLine::X, HoverLine::Y, HoverLine::XY]
+            .iter()
+            .copied()
+    }
+
+    pub fn show_x_line(&self) -> bool {
+        matches!(self, &HoverLine::X) || matches!(self, &HoverLine::XY)
+    }
+    pub fn show_y_line(&self) -> bool {
+        matches!(self, &HoverLine::Y) || matches!(self, &HoverLine::XY)
+    }
+}
+
+impl Default for HoverLine {
+    fn default() -> Self {
+        HoverLine::XY
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// A 2D plot, e.g. a graph of a function.
@@ -144,9 +175,9 @@ pub struct Plot {
     data_aspect: Option<f32>,
     view_aspect: Option<f32>,
 
-    show_x: bool,
-    show_y: bool,
-    custom_label_func: CustomLabelFuncRef,
+    hover_line: HoverLine,
+    show_hover_label: bool,
+    hover_formatter: HoverFormatter,
     axis_formatters: [AxisFormatter; 2],
     legend_config: Option<Legend>,
     show_background: bool,
@@ -175,9 +206,10 @@ impl Plot {
             data_aspect: None,
             view_aspect: None,
 
-            show_x: true,
-            show_y: true,
-            custom_label_func: None,
+            hover_line: HoverLine::XY,
+            show_hover_label: true,
+            hover_formatter: Plot::default_hover_formatter(),
+
             axis_formatters: [None, None], // [None; 2] requires Copy
             legend_config: None,
             show_background: true,
@@ -223,15 +255,9 @@ impl Plot {
         self
     }
 
-    /// Show the x-value (e.g. when hovering). Default: `true`.
-    pub fn show_x(mut self, show_x: bool) -> Self {
-        self.show_x = show_x;
-        self
-    }
-
-    /// Show the y-value (e.g. when hovering). Default: `true`.
-    pub fn show_y(mut self, show_y: bool) -> Self {
-        self.show_y = show_y;
+    /// Whether to display hover line(s) or not (lines marking cursor location).
+    pub fn hover_line(mut self, hover_line: HoverLine) -> Self {
+        self.hover_line = hover_line;
         self
     }
 
@@ -284,7 +310,7 @@ impl Plot {
     /// });
     /// let line = Line::new(Values::from_values_iter(sin));
     /// Plot::new("my_plot").view_aspect(2.0)
-    /// .custom_label_func(|name, value| {
+    /// .hover_formatter(|config, name, value| {
     ///     if !name.is_empty() {
     ///         format!("{}: {:.*}%", name, 1, value.y).to_string()
     ///     } else {
@@ -294,11 +320,40 @@ impl Plot {
     /// .show(ui, |plot_ui| plot_ui.line(line));
     /// # });
     /// ```
-    pub fn custom_label_func(
+    pub fn hover_formatter<F: 'static + Fn(&HoverConfig, &str, &Value) -> String>(
         mut self,
-        custom_label_func: impl Fn(&str, &Value) -> String + 'static,
+        hover_formatter: F,
     ) -> Self {
-        self.custom_label_func = Some(Box::new(custom_label_func));
+        self.hover_formatter = Box::new(hover_formatter);
+        self
+    }
+
+    fn default_hover_formatter() -> Box<dyn Fn(&HoverConfig, &str, &Value) -> String> {
+        Box::new(|config, name, value| {
+            let mut prefix = String::new();
+
+            if !name.is_empty() {
+                prefix = format!("{}\n", name);
+            }
+
+            let x_decimals = num_decimals_with_max_digits(value.x, 6);
+            let y_decimals = num_decimals_with_max_digits(value.y, 6);
+
+            match config.hover_line {
+                HoverLine::None => format!(""),
+                HoverLine::X => format!("{}x = {:.*}", prefix, x_decimals, value.x),
+                HoverLine::Y => format!("{}y = {:.*}", prefix, y_decimals, value.y),
+                HoverLine::XY => format!(
+                    "{}x = {:.*}\ny = {:.*}",
+                    prefix, x_decimals, value.x, y_decimals, value.y
+                ),
+            }
+        })
+    }
+
+    /// Whether to show a label when hovering on axis
+    pub fn show_hover_label(mut self, show_hover_label: bool) -> Self {
+        self.show_hover_label = show_hover_label;
         self
     }
 
@@ -386,9 +441,9 @@ impl Plot {
             min_size,
             data_aspect,
             view_aspect,
-            mut show_x,
-            mut show_y,
-            custom_label_func,
+            mut hover_line,
+            show_hover_label,
+            hover_formatter,
             axis_formatters,
             legend_config,
             show_background,
@@ -490,8 +545,7 @@ impl Plot {
             .and_then(|config| LegendWidget::try_new(rect, config, &items, &hidden_items));
         // Don't show hover cursor when hovering over legend.
         if hovered_entry.is_some() {
-            show_x = false;
-            show_y = false;
+            hover_line = HoverLine::None;
         }
         // Remove the deselected items.
         items.retain(|item| !hidden_items.contains(item.name()));
@@ -628,9 +682,9 @@ impl Plot {
 
         let prepared = PreparedPlot {
             items,
-            show_x,
-            show_y,
-            custom_label_func,
+            hover_line,
+            show_hover_label,
+            hover_formatter,
             axis_formatters,
             show_axes,
             transform: transform.clone(),
@@ -662,7 +716,7 @@ impl Plot {
         };
         memory.store(ui.ctx(), plot_id);
 
-        let response = if show_x || show_y {
+        let response = if !matches!(hover_line, HoverLine::None) {
             response.on_hover_cursor(CursorIcon::Crosshair)
         } else {
             response
@@ -847,9 +901,9 @@ impl PlotUi {
 
 struct PreparedPlot {
     items: Vec<Box<dyn PlotItem>>,
-    show_x: bool,
-    show_y: bool,
-    custom_label_func: CustomLabelFuncRef,
+    hover_line: HoverLine,
+    show_hover_label: bool,
+    hover_formatter: HoverFormatter,
     axis_formatters: [AxisFormatter; 2],
     show_axes: [bool; 2],
     transform: ScreenTransform,
@@ -980,14 +1034,14 @@ impl PreparedPlot {
     fn hover(&self, ui: &Ui, pointer: Pos2, shapes: &mut Vec<Shape>) {
         let Self {
             transform,
-            show_x,
-            show_y,
-            custom_label_func,
+            hover_line,
+            show_hover_label,
+            hover_formatter,
             items,
             ..
         } = self;
 
-        if !show_x && !show_y {
+        if matches!(hover_line, HoverLine::None) && !show_hover_label {
             return;
         }
 
@@ -1007,15 +1061,18 @@ impl PreparedPlot {
         let plot = items::PlotConfig {
             ui,
             transform,
-            show_x: *show_x,
-            show_y: *show_y,
+            hover_config: HoverConfig {
+                hover_line: *hover_line,
+                show_hover_label: *show_hover_label,
+            },
+            hover_formatter,
         };
 
         if let Some((item, elem)) = closest {
-            item.on_hover(elem, shapes, &plot, custom_label_func);
+            item.on_hover(elem, shapes, &plot);
         } else {
             let value = transform.value_from_position(pointer);
-            items::rulers_at_value(pointer, value, "", &plot, shapes, custom_label_func);
+            items::rulers_at_value(pointer, value, "", &plot, shapes);
         }
     }
 }

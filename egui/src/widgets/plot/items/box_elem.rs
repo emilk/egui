@@ -1,5 +1,5 @@
-use crate::emath::NumExt;
 use crate::epaint::{Color32, RectShape, Shape, Stroke};
+use crate::plot::items::num_decimals_with_max_digits;
 
 use super::{add_rulers_and_text, highlighted_color, Orientation, PlotConfig, RectElement};
 use crate::plot::{BoxPlot, ScreenTransform, Value};
@@ -268,7 +268,7 @@ impl RectElement for BoxElem {
 
     fn default_values_format(&self, transform: &ScreenTransform) -> String {
         let scale = transform.dvalue_dpos();
-        let y_decimals = ((-scale[1].abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
+        let y_decimals = num_decimals_with_max_digits(scale[1], 6);
         format!(
             "\nMax = {max:.decimals$}\
              \nQuartile 3 = {q3:.decimals$}\
