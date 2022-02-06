@@ -302,7 +302,7 @@ pub struct TessellationOptions {
     pub debug_ignore_clip_rects: bool,
 
     /// The maximum distance between the original curve and the flattened curve.
-    pub bezier_tolerence: f32,
+    pub bezier_tolerance: f32,
 
     /// The default value will be 1.0e-5, it will be used during float compare.
     pub epsilon: f32,
@@ -319,7 +319,7 @@ impl Default for TessellationOptions {
             debug_paint_text_rects: false,
             debug_paint_clip_rects: false,
             debug_ignore_clip_rects: false,
-            bezier_tolerence: 0.1,
+            bezier_tolerance: 0.1,
             epsilon: 1.0e-5,
         }
     }
@@ -753,7 +753,7 @@ impl Tessellator {
             return;
         }
 
-        let points = quadratic_shape.flatten(Some(options.bezier_tolerence));
+        let points = quadratic_shape.flatten(Some(options.bezier_tolerance));
 
         self.tessellate_bezier_complete(
             &points,
@@ -777,7 +777,7 @@ impl Tessellator {
         }
 
         let points_vec =
-            cubic_shape.flatten_closed(Some(options.bezier_tolerence), Some(options.epsilon));
+            cubic_shape.flatten_closed(Some(options.bezier_tolerance), Some(options.epsilon));
 
         for points in points_vec {
             self.tessellate_bezier_complete(
