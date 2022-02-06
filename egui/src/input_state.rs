@@ -194,7 +194,7 @@ impl InputState {
 
     // Ignore a key if it was pressed or released this frame. Useful for hotkeys.
     // Returns if the key was pressed this frame
-    pub fn consume_key(&mut self, key: Key, modifiers: Modifiers) -> bool {
+    pub fn consume_key(&mut self, modifiers: Modifiers, key: Key) -> bool {
         self.events.retain(|event| {
             !matches!(
                 event,

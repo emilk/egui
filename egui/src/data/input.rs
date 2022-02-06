@@ -264,6 +264,46 @@ pub struct Modifiers {
 }
 
 impl Modifiers {
+
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    pub fn alt(self, value: bool) -> Self {
+        Self {
+            alt: value,
+            ..self
+        }
+    }
+
+    pub fn ctrl(self, value: bool) -> Self {
+        Self {
+            ctrl: value,
+            ..self
+        }
+    }
+
+    pub fn shift(self, value: bool) -> Self {
+        Self {
+            shift: value,
+            ..self
+        }
+    }
+
+    pub fn mac_cmd(self, value: bool) -> Self {
+        Self {
+            mac_cmd: value,
+            ..self
+        }
+    }
+
+    pub fn command(self, value: bool) -> Self {
+        Self {
+            command: value,
+            ..self
+        }
+    }
+
     #[inline(always)]
     pub fn is_none(&self) -> bool {
         self == &Self::default()
