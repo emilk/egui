@@ -301,7 +301,7 @@ impl<'open> Window<'open> {
                 } else {
                     0.0
                 };
-                let margins = 2.0 * frame.margin + vec2(0.0, title_bar_height);
+                let margins = frame.margin.sum() + vec2(0.0, title_bar_height);
 
                 interact(
                     window_interaction,

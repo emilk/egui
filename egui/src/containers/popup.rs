@@ -302,7 +302,7 @@ pub fn popup_below_widget<R>(
                 frame
                     .show(ui, |ui| {
                         ui.with_layout(Layout::top_down_justified(Align::LEFT), |ui| {
-                            ui.set_width(widget_response.rect.width() - 2.0 * frame_margin.x);
+                            ui.set_width(widget_response.rect.width() - frame_margin.sum().x);
                             add_contents(ui)
                         })
                         .inner

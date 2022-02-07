@@ -3,12 +3,55 @@
 use crate::{layers::ShapeIdx, *};
 use epaint::*;
 
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct Margin {
+    pub left: f32,
+    pub right: f32,
+    pub top: f32,
+    pub bottom: f32,
+}
+
+impl Margin {
+    #[inline]
+    pub fn same(margin: f32) -> Self {
+        Self {
+            left: margin,
+            right: margin,
+            top: margin,
+            bottom: margin,
+        }
+    }
+
+    /// Margins with the same size on opposing sides
+    #[inline]
+    pub fn symmetric(x: f32, y: f32) -> Self {
+        Self {
+            left: x,
+            right: x,
+            top: y,
+            bottom: y,
+        }
+    }
+
+    /// Total margins on both sides
+    pub fn sum(&self) -> Vec2 {
+        Vec2::new(self.left + self.right, self.top + self.bottom)
+    }
+}
+
+impl From<Vec2> for Margin {
+    fn from(v: Vec2) -> Self {
+        Self::symmetric(v.x, v.y)
+    }
+}
+
 /// Color and margin of a rectangular background of a [`Ui`].
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[must_use = "You should call .show()"]
 pub struct Frame {
     /// On each side
-    pub margin: Vec2,
+    pub margin: Margin,
     pub rounding: Rounding,
     pub shadow: Shadow,
     pub fill: Color32,
@@ -23,7 +66,7 @@ impl Frame {
     /// For when you want to group a few widgets together within a frame.
     pub fn group(style: &Style) -> Self {
         Self {
-            margin: Vec2::splat(6.0), // symmetric looks best in corners when nesting
+            margin: Margin::same(6.0), // symmetric looks best in corners when nesting
             rounding: style.visuals.widgets.noninteractive.rounding,
             stroke: style.visuals.widgets.noninteractive.bg_stroke,
             ..Default::default()
@@ -32,7 +75,7 @@ impl Frame {
 
     pub(crate) fn side_top_panel(style: &Style) -> Self {
         Self {
-            margin: Vec2::new(8.0, 2.0),
+            margin: Margin::symmetric(8.0, 2.0),
             rounding: Rounding::none(),
             fill: style.visuals.window_fill(),
             stroke: style.visuals.window_stroke(),
@@ -42,7 +85,7 @@ impl Frame {
 
     pub(crate) fn central_panel(style: &Style) -> Self {
         Self {
-            margin: Vec2::new(8.0, 8.0),
+            margin: Margin::symmetric(8.0, 8.0),
             rounding: Rounding::none(),
             fill: style.visuals.window_fill(),
             stroke: Default::default(),
@@ -52,7 +95,7 @@ impl Frame {
 
     pub fn window(style: &Style) -> Self {
         Self {
-            margin: style.spacing.window_padding,
+            margin: style.spacing.window_margin,
             rounding: style.visuals.window_rounding,
             shadow: style.visuals.window_shadow,
             fill: style.visuals.window_fill(),
@@ -62,7 +105,7 @@ impl Frame {
 
     pub fn menu(style: &Style) -> Self {
         Self {
-            margin: Vec2::splat(1.0),
+            margin: Margin::same(1.0),
             rounding: style.visuals.widgets.noninteractive.rounding,
             shadow: style.visuals.popup_shadow,
             fill: style.visuals.window_fill(),
@@ -72,7 +115,7 @@ impl Frame {
 
     pub fn popup(style: &Style) -> Self {
         Self {
-            margin: style.spacing.window_padding,
+            margin: style.spacing.window_margin,
             rounding: style.visuals.widgets.noninteractive.rounding,
             shadow: style.visuals.popup_shadow,
             fill: style.visuals.window_fill(),
@@ -83,7 +126,7 @@ impl Frame {
     /// dark canvas to draw on
     pub fn dark_canvas(style: &Style) -> Self {
         Self {
-            margin: Vec2::new(10.0, 10.0),
+            margin: Margin::symmetric(10.0, 10.0),
             rounding: style.visuals.widgets.noninteractive.rounding,
             fill: Color32::from_black_alpha(250),
             stroke: style.visuals.window_stroke(),
@@ -109,7 +152,7 @@ impl Frame {
     }
 
     /// Margin on each side of the frame.
-    pub fn margin(mut self, margin: impl Into<Vec2>) -> Self {
+    pub fn margin(mut self, margin: impl Into<Margin>) -> Self {
         self.margin = margin.into();
         self
     }
@@ -137,7 +180,10 @@ impl Frame {
     pub fn begin(self, ui: &mut Ui) -> Prepared {
         let where_to_put_background = ui.painter().add(Shape::Noop);
         let outer_rect_bounds = ui.available_rect_before_wrap();
-        let mut inner_rect = outer_rect_bounds.shrink2(self.margin);
+
+        let mut inner_rect = outer_rect_bounds;
+        inner_rect.min += Vec2::new(self.margin.left, self.margin.top);
+        inner_rect.max -= Vec2::new(self.margin.right, self.margin.bottom);
 
         // Make sure we don't shrink to the negative:
         inner_rect.max.x = inner_rect.max.x.max(inner_rect.min.x);
@@ -197,7 +243,10 @@ impl Frame {
 
 impl Prepared {
     pub fn outer_rect(&self) -> Rect {
-        self.content_ui.min_rect().expand2(self.frame.margin)
+        let mut rect = self.content_ui.min_rect();
+        rect.min -= Vec2::new(self.frame.margin.left, self.frame.margin.top);
+        rect.max += Vec2::new(self.frame.margin.right, self.frame.margin.bottom);
+        rect
     }
 
     pub fn end(self, ui: &mut Ui) -> Response {
