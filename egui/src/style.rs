@@ -2,7 +2,7 @@
 
 #![allow(clippy::if_same_then_else)]
 
-use crate::{color::*, emath::*, FontFamily, FontId, Response, RichText, WidgetText};
+use crate::{color::*, emath::*, FontFamily, FontId, Margin, Response, RichText, WidgetText};
 use epaint::{mutex::Arc, Rounding, Shadow, Stroke};
 use std::collections::BTreeMap;
 
@@ -220,8 +220,8 @@ pub struct Spacing {
     /// widgets `A` and `B` you need to change `item_spacing` before adding `A`.
     pub item_spacing: Vec2,
 
-    /// Horizontal and vertical padding within a window frame.
-    pub window_padding: Vec2,
+    /// Horizontal and vertical margins within a window frame.
+    pub window_margin: Margin,
 
     /// Button size is text size plus this on each side
     pub button_padding: Vec2,
@@ -528,7 +528,7 @@ impl Default for Spacing {
     fn default() -> Self {
         Self {
             item_spacing: vec2(8.0, 3.0),
-            window_padding: Vec2::splat(6.0),
+            window_margin: Margin::same(6.0),
             button_padding: vec2(4.0, 1.0),
             indent: 18.0, // match checkbox/radio-button with `button_padding.x + icon_width + icon_spacing`
             interact_size: vec2(40.0, 18.0),
@@ -803,7 +803,7 @@ impl Spacing {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             item_spacing,
-            window_padding,
+            window_margin,
             button_padding,
             indent,
             interact_size,
@@ -818,7 +818,37 @@ impl Spacing {
         } = self;
 
         ui.add(slider_vec2(item_spacing, 0.0..=20.0, "Item spacing"));
-        ui.add(slider_vec2(window_padding, 0.0..=20.0, "Window padding"));
+
+        let margin_range = 0.0..=20.0;
+        ui.horizontal(|ui| {
+            ui.add(
+                DragValue::new(&mut window_margin.left)
+                    .clamp_range(margin_range.clone())
+                    .prefix("left: "),
+            );
+            ui.add(
+                DragValue::new(&mut window_margin.right)
+                    .clamp_range(margin_range.clone())
+                    .prefix("right: "),
+            );
+
+            ui.label("Window margins x");
+        });
+
+        ui.horizontal(|ui| {
+            ui.add(
+                DragValue::new(&mut window_margin.top)
+                    .clamp_range(margin_range.clone())
+                    .prefix("top: "),
+            );
+            ui.add(
+                DragValue::new(&mut window_margin.bottom)
+                    .clamp_range(margin_range)
+                    .prefix("bottom: "),
+            );
+            ui.label("Window margins y");
+        });
+
         ui.add(slider_vec2(button_padding, 0.0..=20.0, "Button padding"));
         ui.add(slider_vec2(interact_size, 4.0..=60.0, "Interact size"))
             .on_hover_text("Minimum size of an interactive widget");
