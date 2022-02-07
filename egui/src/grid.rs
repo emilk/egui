@@ -9,11 +9,11 @@ pub(crate) struct State {
 
 impl State {
     pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.memory().data.get_persisted(id)
+        ctx.data().get_persisted(id)
     }
 
     pub fn store(self, ctx: &Context, id: Id) {
-        ctx.memory().data.insert_persisted(id, self);
+        ctx.data().insert_persisted(id, self);
     }
 
     fn set_min_col_width(&mut self, col: usize, width: f32) {
@@ -45,8 +45,8 @@ impl State {
 // ----------------------------------------------------------------------------
 
 pub(crate) struct GridLayout {
-    ctx: CtxRef,
-    style: std::sync::Arc<Style>,
+    ctx: Context,
+    style: epaint::mutex::Arc<Style>,
     id: Id,
 
     /// State previous frame (if any).

@@ -16,12 +16,11 @@
 //! ```
 
 use super::{
-    style::WidgetVisuals, Align, CtxRef, Id, InnerResponse, PointerState, Pos2, Rect, Response,
+    style::WidgetVisuals, Align, Context, Id, InnerResponse, PointerState, Pos2, Rect, Response,
     Sense, TextStyle, Ui, Vec2,
 };
 use crate::{widgets::*, *};
-use epaint::{mutex::RwLock, Stroke};
-use std::sync::Arc;
+use epaint::{mutex::Arc, mutex::RwLock, Stroke};
 
 /// What is saved between frames.
 #[derive(Clone, Default)]
@@ -31,14 +30,11 @@ pub(crate) struct BarState {
 
 impl BarState {
     fn load(ctx: &Context, bar_id: Id) -> Self {
-        ctx.memory()
-            .data
-            .get_temp::<Self>(bar_id)
-            .unwrap_or_default()
+        ctx.data().get_temp::<Self>(bar_id).unwrap_or_default()
     }
 
     fn store(self, ctx: &Context, bar_id: Id) {
-        ctx.memory().data.insert_temp(bar_id, self);
+        ctx.data().insert_temp(bar_id, self);
     }
 
     /// Show a menu at pointer if primary-clicked response.
@@ -116,7 +112,7 @@ pub(crate) fn submenu_button<R>(
 
 /// wrapper for the contents of every menu.
 pub(crate) fn menu_ui<'c, R>(
-    ctx: &CtxRef,
+    ctx: &Context,
     menu_id: impl std::hash::Hash,
     menu_state_arc: &Arc<RwLock<MenuState>>,
     add_contents: impl FnOnce(&mut Ui) -> R + 'c,
@@ -187,33 +183,19 @@ fn stationary_menu_impl<'c, R>(
     InnerResponse::new(inner.map(|r| r.inner), button_response)
 }
 
-/// Stores the state for the context menu.
-#[derive(Default)]
-pub(crate) struct ContextMenuSystem {
-    root: MenuRootManager,
-}
-impl ContextMenuSystem {
-    /// Show a menu at pointer if right-clicked response.
-    /// Should be called from [`Context`] on a [`Response`]
-    pub fn context_menu(
-        &mut self,
-        response: &Response,
-        add_contents: impl FnOnce(&mut Ui),
-    ) -> Option<InnerResponse<()>> {
-        MenuRoot::context_click_interaction(response, &mut self.root, response.id);
-        self.root.show(response, add_contents)
-    }
-}
-impl std::ops::Deref for ContextMenuSystem {
-    type Target = MenuRootManager;
-    fn deref(&self) -> &Self::Target {
-        &self.root
-    }
-}
-impl std::ops::DerefMut for ContextMenuSystem {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.root
-    }
+/// Response to secondary clicks (right-clicks) by showing the given menu.
+pub(crate) fn context_menu(
+    response: &Response,
+    add_contents: impl FnOnce(&mut Ui),
+) -> Option<InnerResponse<()>> {
+    let menu_id = Id::new("__egui::context_menu");
+    let mut bar_state = BarState::load(&response.ctx, menu_id);
+
+    MenuRoot::context_click_interaction(response, &mut bar_state, response.id);
+    let inner_response = bar_state.show(response, add_contents);
+
+    bar_state.store(&response.ctx, menu_id);
+    inner_response
 }
 
 /// Stores the state for the context menu.
@@ -429,7 +411,8 @@ impl SubMenuButton {
         let button_padding = ui.spacing().button_padding;
         let total_extra = button_padding + button_padding;
         let text_available_width = ui.available_width() - total_extra.x;
-        let text_galley = text.into_galley(ui, Some(true), text_available_width, text_style);
+        let text_galley =
+            text.into_galley(ui, Some(true), text_available_width, text_style.clone());
 
         let icon_available_width = text_available_width - text_galley.size().x;
         let icon_galley = icon.into_galley(ui, Some(true), icon_available_width, text_style);
@@ -455,7 +438,7 @@ impl SubMenuButton {
 
             ui.painter().rect_filled(
                 rect.expand(visuals.expansion),
-                visuals.corner_radius,
+                visuals.rounding,
                 visuals.bg_fill,
             );
 
@@ -520,7 +503,7 @@ impl MenuState {
         self.response = MenuResponse::Close;
     }
     pub fn show<R>(
-        ctx: &CtxRef,
+        ctx: &Context,
         menu_state: &Arc<RwLock<Self>>,
         id: Id,
         add_contents: impl FnOnce(&mut Ui) -> R,
@@ -529,7 +512,7 @@ impl MenuState {
     }
     fn show_submenu<R>(
         &mut self,
-        ctx: &CtxRef,
+        ctx: &Context,
         id: Id,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<R> {

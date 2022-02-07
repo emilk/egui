@@ -2,6 +2,8 @@ use crate::{widget_text::WidgetTextGalley, *};
 
 /// Static text.
 ///
+/// Usually it is more convenient to use [`Ui::label`].
+///
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// ui.label("Equivalent");
@@ -49,7 +51,7 @@ impl Label {
     /// By calling this you can turn the label into a button of sorts.
     /// This will also give the label the hover-effect of a button, but without the frame.
     ///
-    /// ``` rust
+    /// ```
     /// # use egui::{Label, Sense};
     /// # egui::__run_test_ui(|ui| {
     /// if ui.add(Label::new("click me").sense(Sense::click())).clicked() {
@@ -82,7 +84,9 @@ impl Label {
         }
 
         let valign = ui.layout().vertical_align();
-        let mut text_job = self.text.into_text_job(ui.style(), TextStyle::Body, valign);
+        let mut text_job = self
+            .text
+            .into_text_job(ui.style(), FontSelection::Default, valign);
 
         let should_wrap = self.wrap.unwrap_or_else(|| ui.wrap_text());
         let available_width = ui.available_width();
@@ -106,7 +110,7 @@ impl Label {
             if let Some(first_section) = text_job.job.sections.first_mut() {
                 first_section.leading_space = first_row_indentation;
             }
-            let text_galley = text_job.into_galley(ui.fonts());
+            let text_galley = text_job.into_galley(&*ui.fonts());
 
             let pos = pos2(ui.max_rect().left(), ui.cursor().top());
             assert!(
@@ -139,7 +143,7 @@ impl Label {
                 text_job.job.justify = ui.layout().horizontal_justify();
             };
 
-            let text_galley = text_job.into_galley(ui.fonts());
+            let text_galley = text_job.into_galley(&*ui.fonts());
             let (rect, response) = ui.allocate_exact_size(text_galley.size(), self.sense);
             let pos = match text_galley.galley.job.halign {
                 Align::LEFT => rect.left_top(),

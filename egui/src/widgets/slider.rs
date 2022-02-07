@@ -355,7 +355,7 @@ impl<'a> Slider<'a> {
             let visuals = ui.style().interact(response);
             ui.painter().add(epaint::RectShape {
                 rect: rail_rect,
-                corner_radius: ui.visuals().widgets.inactive.corner_radius,
+                rounding: ui.visuals().widgets.inactive.rounding,
                 fill: ui.visuals().widgets.inactive.bg_fill,
                 // fill: visuals.bg_fill,
                 // fill: ui.visuals().extreme_bg_color,
@@ -466,10 +466,8 @@ impl<'a> Slider<'a> {
     }
 
     fn add_contents(&mut self, ui: &mut Ui) -> Response {
-        let text_style = TextStyle::Button;
         let perpendicular = ui
-            .fonts()
-            .row_height(text_style)
+            .text_style_height(&TextStyle::Body)
             .at_least(ui.spacing().interact_size.y);
         let slider_response = self.allocate_slider_space(ui, perpendicular);
         self.slider_ui(ui, &slider_response);

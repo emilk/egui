@@ -25,17 +25,6 @@ all-features = true
 
 [lib]
 
-[dependencies]
-emath = { version = "0.16.0", path = "../emath" }
-
-ab_glyph = "0.2.11"
-ahash = { version = "0.7", features = ["std"], default-features = false }
-atomic_refcell = { version = "0.1", optional = true } # Used instead of parking_lot when you are always using epaint in a single thread. About as fast as parking_lot. Panics on multi-threaded use.
-bytemuck = { version = "1.7.2", features = ["derive"], optional = true }
-cint = { version = "^0.2.2", optional = true }
-nohash-hasher = "0.2"
-parking_lot = { version = "0.11", optional = true } # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
-serde = { version = "1", features = ["derive"], optional = true }
 
 [features]
 default = ["default_fonts", "multi_threaded"]
@@ -64,8 +53,22 @@ single_threaded = ["atomic_refcell"]
 # It comes with a minor performance impact.
 multi_threaded = ["parking_lot"]
 
+
+[dependencies]
+emath = { version = "0.16.0", path = "../emath" }
+
+ab_glyph = "0.2.11"
+ahash = { version = "0.7", features = ["std"], default-features = false }
+atomic_refcell = { version = "0.1", optional = true } # Used instead of parking_lot when you are always using epaint in a single thread. About as fast as parking_lot. Panics on multi-threaded use.
+bytemuck = { version = "1.7.2", features = ["derive"], optional = true }
+cint = { version = "^0.2.2", optional = true }
+nohash-hasher = "0.2"
+parking_lot = { version = "0.11", optional = true } # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
+serde = { version = "1", features = ["derive", "rc"], optional = true }
+
 [dev-dependencies]
 criterion = { version = "0.3", default-features = false }
+
 
 [[bench]]
 name = "benchmark"

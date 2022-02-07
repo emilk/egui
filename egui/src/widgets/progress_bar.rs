@@ -77,10 +77,10 @@ impl Widget for ProgressBar {
             }
 
             let visuals = ui.style().visuals.clone();
-            let corner_radius = outer_rect.height() / 2.0;
+            let rounding = outer_rect.height() / 2.0;
             ui.painter().rect(
                 outer_rect,
-                corner_radius,
+                rounding,
                 visuals.extreme_bg_color,
                 Stroke::none(),
             );
@@ -101,7 +101,7 @@ impl Widget for ProgressBar {
 
             ui.painter().rect(
                 inner_rect,
-                corner_radius,
+                rounding,
                 Color32::from(Rgba::from(visuals.selection.bg_fill) * color_factor as f32),
                 Stroke::none(),
             );
@@ -110,14 +110,14 @@ impl Widget for ProgressBar {
                 let n_points = 20;
                 let start_angle = ui.input().time as f64 * 360f64.to_radians();
                 let end_angle = start_angle + 240f64.to_radians() * ui.input().time.sin();
-                let circle_radius = corner_radius - 2.0;
+                let circle_radius = rounding - 2.0;
                 let points: Vec<Pos2> = (0..n_points)
                     .map(|i| {
                         let angle = lerp(start_angle..=end_angle, i as f64 / n_points as f64);
                         let (sin, cos) = angle.sin_cos();
                         inner_rect.right_center()
                             + circle_radius * vec2(cos as f32, sin as f32)
-                            + vec2(-corner_radius, 0.0)
+                            + vec2(-rounding, 0.0)
                     })
                     .collect();
                 ui.painter().add(Shape::line(

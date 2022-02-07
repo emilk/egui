@@ -42,7 +42,7 @@ Puts an egui app inside a native window on your laptop. Paints the triangles tha
 ### `eframe`
 A wrapper around `egui_web` + `egui_glium`, so you can compile the same app for either web or native.
 
-The demo that you can see at <https://emilk.github.io/egui/index.html> is using `eframe` to host the `egui`. The demo code is found in:
+The demo that you can see at <https://www.egui.rs> is using `eframe` to host the `egui`. The demo code is found in:
 
 ### `egui_demo_lib`
 Depends on `egui` + `epi`.

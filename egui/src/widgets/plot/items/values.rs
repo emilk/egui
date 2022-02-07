@@ -125,6 +125,7 @@ impl ToString for LineStyle {
 
 // ----------------------------------------------------------------------------
 
+/// Determines whether a plot element is vertically or horizontally oriented.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Orientation {
     Horizontal,
@@ -139,18 +140,10 @@ impl Default for Orientation {
 
 // ----------------------------------------------------------------------------
 
+#[derive(Default)]
 pub struct Values {
     pub(super) values: Vec<Value>,
     generator: Option<ExplicitGenerator>,
-}
-
-impl Default for Values {
-    fn default() -> Self {
-        Self {
-            values: Vec::new(),
-            generator: None,
-        }
-    }
 }
 
 impl Values {
@@ -297,7 +290,7 @@ pub enum MarkerShape {
 
 impl MarkerShape {
     /// Get a vector containing all marker shapes.
-    pub fn all() -> impl Iterator<Item = MarkerShape> {
+    pub fn all() -> impl ExactSizeIterator<Item = MarkerShape> {
         [
             Self::Circle,
             Self::Diamond,
@@ -342,7 +335,7 @@ struct ExplicitGenerator {
 
 // ----------------------------------------------------------------------------
 
-/// Result of [`PlotItem::find_closest()`] search, identifies an element inside the item for immediate use
+/// Result of [`super::PlotItem::find_closest()`] search, identifies an element inside the item for immediate use
 pub(crate) struct ClosestElem {
     /// Position of hovered-over value (or bar/box-plot/...) in PlotItem
     pub index: usize,

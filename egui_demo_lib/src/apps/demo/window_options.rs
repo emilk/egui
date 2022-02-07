@@ -36,7 +36,7 @@ impl super::Demo for WindowOptions {
         "🗖 Window Options"
     }
 
-    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         let Self {
             title,
             title_bar,

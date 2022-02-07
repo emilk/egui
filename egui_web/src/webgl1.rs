@@ -9,10 +9,7 @@ use {
     },
 };
 
-use egui::{
-    emath::vec2,
-    epaint::{Color32, FontImage},
-};
+use egui::{emath::vec2, epaint::Color32};
 
 type Gl = WebGlRenderingContext;
 
@@ -28,13 +25,8 @@ pub struct WebGlPainter {
     texture_format: u32,
     post_process: Option<PostProcess>,
 
-    egui_texture: WebGlTexture,
-    egui_texture_version: Option<u64>,
-
-    /// Index is the same as in [`egui::TextureId::User`].
-    user_textures: HashMap<u64, WebGlTexture>,
-
-    next_native_tex_id: u64, // TODO: 128-bit texture space?
+    textures: HashMap<egui::TextureId, WebGlTexture>,
+    next_native_tex_id: u64,
 }
 
 impl WebGlPainter {
@@ -43,17 +35,10 @@ impl WebGlPainter {
 
         let gl = canvas
             .get_context("webgl")?
-            .ok_or_else(|| JsValue::from("Failed to get WebGl context"))?
+            .ok_or_else(|| JsValue::from("Failed to get WebGL context"))?
             .dyn_into::<WebGlRenderingContext>()?;
 
         // --------------------------------------------------------------------
-
-        let egui_texture = gl.create_texture().unwrap();
-        gl.bind_texture(Gl::TEXTURE_2D, Some(&egui_texture));
-        gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_S, Gl::CLAMP_TO_EDGE as i32);
-        gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_T, Gl::CLAMP_TO_EDGE as i32);
-        gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MIN_FILTER, Gl::LINEAR as i32);
-        gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MAG_FILTER, Gl::LINEAR as i32);
 
         let srgb_supported = matches!(gl.get_extension("EXT_sRGB"), Ok(Some(_)));
 
@@ -101,18 +86,13 @@ impl WebGlPainter {
             color_buffer,
             texture_format,
             post_process,
-            egui_texture,
-            egui_texture_version: None,
-            user_textures: Default::default(),
+            textures: Default::default(),
             next_native_tex_id: 1 << 32,
         })
     }
 
     fn get_texture(&self, texture_id: egui::TextureId) -> Option<&WebGlTexture> {
-        match texture_id {
-            egui::TextureId::Egui => Some(&self.egui_texture),
-            egui::TextureId::User(id) => self.user_textures.get(&id),
-        }
+        self.textures.get(&texture_id)
     }
 
     fn paint_mesh(&self, mesh: &egui::epaint::Mesh16) -> Result<(), JsValue> {
@@ -234,77 +214,125 @@ impl WebGlPainter {
 
         Ok(())
     }
-}
 
-impl epi::NativeTexture for WebGlPainter {
-    type Texture = WebGlTexture;
-
-    fn register_native_texture(&mut self, native: Self::Texture) -> egui::TextureId {
-        let id = self.next_native_tex_id;
-        self.next_native_tex_id += 1;
-        self.user_textures.insert(id, native);
-        egui::TextureId::User(id as u64)
-    }
-
-    fn replace_native_texture(&mut self, id: egui::TextureId, replacing: Self::Texture) {
-        if let egui::TextureId::User(id) = id {
-            if let Some(user_texture) = self.user_textures.get_mut(&id) {
-                *user_texture = replacing;
-            }
-        }
-    }
-}
-
-impl crate::Painter for WebGlPainter {
-    fn set_texture(&mut self, tex_id: u64, image: epi::Image) {
-        assert_eq!(
-            image.size[0] * image.size[1],
-            image.pixels.len(),
-            "Mismatch between texture size and texel count"
-        );
-
-        // TODO: optimize
-        let mut pixels: Vec<u8> = Vec::with_capacity(image.pixels.len() * 4);
-        for srgba in image.pixels {
-            pixels.push(srgba.r());
-            pixels.push(srgba.g());
-            pixels.push(srgba.b());
-            pixels.push(srgba.a());
-        }
-
+    fn set_texture_rgba(
+        &mut self,
+        tex_id: egui::TextureId,
+        pos: Option<[usize; 2]>,
+        [w, h]: [usize; 2],
+        pixels: &[u8],
+    ) {
         let gl = &self.gl;
-        let gl_texture = gl.create_texture().unwrap();
-        gl.bind_texture(Gl::TEXTURE_2D, Some(&gl_texture));
+
+        let gl_texture = self
+            .textures
+            .entry(tex_id)
+            .or_insert_with(|| gl.create_texture().unwrap());
+
+        gl.bind_texture(Gl::TEXTURE_2D, Some(gl_texture));
         gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_S, Gl::CLAMP_TO_EDGE as _);
         gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_T, Gl::CLAMP_TO_EDGE as _);
         gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MIN_FILTER, Gl::LINEAR as _);
         gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MAG_FILTER, Gl::LINEAR as _);
-
-        gl.bind_texture(Gl::TEXTURE_2D, Some(&gl_texture));
 
         let level = 0;
         let internal_format = self.texture_format;
         let border = 0;
         let src_format = self.texture_format;
         let src_type = Gl::UNSIGNED_BYTE;
-        gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
-            Gl::TEXTURE_2D,
-            level,
-            internal_format as _,
-            image.size[0] as _,
-            image.size[1] as _,
-            border,
-            src_format,
-            src_type,
-            Some(&pixels),
-        )
-        .unwrap();
 
-        self.user_textures.insert(tex_id, gl_texture);
+        gl.pixel_storei(Gl::UNPACK_ALIGNMENT, 1);
+
+        if let Some([x, y]) = pos {
+            gl.tex_sub_image_2d_with_i32_and_i32_and_u32_and_type_and_opt_u8_array(
+                Gl::TEXTURE_2D,
+                level,
+                x as _,
+                y as _,
+                w as _,
+                h as _,
+                src_format,
+                src_type,
+                Some(pixels),
+            )
+            .unwrap();
+        } else {
+            gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
+                Gl::TEXTURE_2D,
+                level,
+                internal_format as _,
+                w as _,
+                h as _,
+                border,
+                src_format,
+                src_type,
+                Some(pixels),
+            )
+            .unwrap();
+        }
+    }
+}
+
+impl epi::NativeTexture for WebGlPainter {
+    type Texture = WebGlTexture;
+
+    fn register_native_texture(&mut self, texture: Self::Texture) -> egui::TextureId {
+        let id = egui::TextureId::User(self.next_native_tex_id);
+        self.next_native_tex_id += 1;
+        self.textures.insert(id, texture);
+        id
     }
 
-    fn free_texture(&mut self, tex_id: u64) {
-        self.user_textures.remove(&tex_id);
+    fn replace_native_texture(&mut self, id: egui::TextureId, texture: Self::Texture) {
+        self.textures.insert(id, texture);
+    }
+}
+
+impl crate::Painter for WebGlPainter {
+    fn max_texture_side(&self) -> usize {
+        if let Ok(max_texture_side) = self
+            .gl
+            .get_parameter(web_sys::WebGlRenderingContext::MAX_TEXTURE_SIZE)
+        {
+            if let Some(max_texture_side) = max_texture_side.as_f64() {
+                return max_texture_side as usize;
+            }
+        }
+
+        tracing::error!("Failed to query max texture size");
+
+        2048
+    }
+
+    fn set_texture(&mut self, tex_id: egui::TextureId, delta: &egui::epaint::ImageDelta) {
+        match &delta.image {
+            egui::ImageData::Color(image) => {
+                assert_eq!(
+                    image.width() * image.height(),
+                    image.pixels.len(),
+                    "Mismatch between texture size and texel count"
+                );
+
+                let data: &[u8] = bytemuck::cast_slice(image.pixels.as_ref());
+                self.set_texture_rgba(tex_id, delta.pos, image.size, data);
+            }
+            egui::ImageData::Alpha(image) => {
+                let gamma = if self.post_process.is_none() {
+                    1.0 / 2.2 // HACK due to non-linear framebuffer blending.
+                } else {
+                    1.0 // post process enables linear blending
+                };
+                let data: Vec<u8> = image
+                    .srgba_pixels(gamma)
+                    .flat_map(|a| a.to_array())
+                    .collect();
+                self.set_texture_rgba(tex_id, delta.pos, image.size, &data);
+            }
+        };
+    }
+
+    fn free_texture(&mut self, tex_id: egui::TextureId) {
+        self.textures.remove(&tex_id);
     }
 
     fn debug_info(&self) -> String {
@@ -321,48 +349,6 @@ impl crate::Painter for WebGlPainter {
     /// id of the canvas html element containing the rendering
     fn canvas_id(&self) -> &str {
         &self.canvas_id
-    }
-
-    fn upload_egui_texture(&mut self, font_image: &FontImage) {
-        if self.egui_texture_version == Some(font_image.version) {
-            return; // No change
-        }
-
-        let gamma = if self.post_process.is_none() {
-            1.0 / 2.2 // HACK due to non-linear framebuffer blending.
-        } else {
-            1.0 // post process enables linear blending
-        };
-        let mut pixels: Vec<u8> = Vec::with_capacity(font_image.pixels.len() * 4);
-        for srgba in font_image.srgba_pixels(gamma) {
-            pixels.push(srgba.r());
-            pixels.push(srgba.g());
-            pixels.push(srgba.b());
-            pixels.push(srgba.a());
-        }
-
-        let gl = &self.gl;
-        gl.bind_texture(Gl::TEXTURE_2D, Some(&self.egui_texture));
-
-        let level = 0;
-        let internal_format = self.texture_format;
-        let border = 0;
-        let src_format = self.texture_format;
-        let src_type = Gl::UNSIGNED_BYTE;
-        gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
-            Gl::TEXTURE_2D,
-            level,
-            internal_format as i32,
-            font_image.width as i32,
-            font_image.height as i32,
-            border,
-            src_format,
-            src_type,
-            Some(&pixels),
-        )
-        .unwrap();
-
-        self.egui_texture_version = Some(font_image.version);
     }
 
     fn clear(&mut self, clear_color: egui::Rgba) {
@@ -445,10 +431,7 @@ impl crate::Painter for WebGlPainter {
                     self.paint_mesh(&mesh)?;
                 }
             } else {
-                crate::console_warn(format!(
-                    "WebGL: Failed to find texture {:?}",
-                    mesh.texture_id
-                ));
+                tracing::warn!("WebGL: Failed to find texture {:?}", mesh.texture_id);
             }
         }
 
@@ -473,13 +456,6 @@ struct PostProcess {
     texture_size: (i32, i32),
     fbo: WebGlFramebuffer,
     program: WebGlProgram,
-}
-
-fn requires_brightening(gl: &web_sys::WebGlRenderingContext) -> bool {
-    // See https://github.com/emilk/egui/issues/794
-
-    let user_agent = web_sys::window().unwrap().navigator().user_agent().unwrap();
-    crate::is_safari_and_webkit_gtk(gl) && !user_agent.contains("Mac OS X")
 }
 
 impl PostProcess {
@@ -519,8 +495,8 @@ impl PostProcess {
         gl.bind_texture(Gl::TEXTURE_2D, None);
         gl.bind_framebuffer(Gl::FRAMEBUFFER, None);
 
-        let shader_prefix = if requires_brightening(&gl) {
-            crate::console_log("Enabling webkitGTK brightening workaround");
+        let shader_prefix = if crate::webgl1_requires_brightening(&gl) {
+            tracing::debug!("Enabling webkitGTK brightening workaround");
             "#define APPLY_BRIGHTENING_GAMMA"
         } else {
             ""

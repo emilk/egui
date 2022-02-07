@@ -1,6 +1,7 @@
 use crate::{
     emath::{lerp, Align, Pos2, Rect, Vec2},
-    CtxRef, CursorIcon, Id, LayerId, PointerButton, Sense, Ui, WidgetText, NUM_POINTER_BUTTONS,
+    menu, Context, CursorIcon, Id, LayerId, PointerButton, Sense, Ui, WidgetText,
+    NUM_POINTER_BUTTONS,
 };
 
 // ----------------------------------------------------------------------------
@@ -16,7 +17,7 @@ use crate::{
 pub struct Response {
     // CONTEXT:
     /// Used for optionally showing a tooltip and checking for more interactions.
-    pub ctx: CtxRef,
+    pub ctx: Context,
 
     // IN:
     /// Which layer the widget is part of.
@@ -382,6 +383,14 @@ impl Response {
         true
     }
 
+    /// Like `on_hover_text`, but show the text next to cursor.
+    #[doc(alias = "tooltip")]
+    pub fn on_hover_text_at_pointer(self, text: impl Into<WidgetText>) -> Self {
+        self.on_hover_ui_at_pointer(|ui| {
+            ui.add(crate::widgets::Label::new(text));
+        })
+    }
+
     /// Show this text if the widget was hovered (i.e. a tooltip).
     ///
     /// The text will not be visible if the widget is not enabled.
@@ -479,7 +488,7 @@ impl Response {
 
     /// Response to secondary clicks (right-clicks) by showing the given menu.
     ///
-    /// ``` rust
+    /// ```
     /// # egui::__run_test_ui(|ui| {
     /// let response = ui.label("Right-click me!");
     /// response.context_menu(|ui| {
@@ -492,9 +501,7 @@ impl Response {
     ///
     /// See also: [`Ui::menu_button`] and [`Ui::close_menu`].
     pub fn context_menu(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
-        self.ctx
-            .context_menu_system()
-            .context_menu(&self, add_contents);
+        menu::context_menu(&self, add_contents);
         self
     }
 }
@@ -587,7 +594,9 @@ impl std::ops::BitOrAssign for Response {
 /// ```
 #[derive(Debug)]
 pub struct InnerResponse<R> {
+    /// What the user closure returned.
     pub inner: R,
+    /// The response of the area.
     pub response: Response,
 }
 

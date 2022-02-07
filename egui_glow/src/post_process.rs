@@ -1,5 +1,5 @@
 #![allow(unsafe_code)]
-use crate::misc_util::{compile_shader, link_program};
+use crate::misc_util::{check_for_gl_error, compile_shader, link_program};
 use crate::vao_emulate::BufferInfo;
 use glow::HasContext;
 
@@ -76,13 +76,7 @@ impl PostProcess {
             glow::UNSIGNED_BYTE,
             None,
         );
-        let error_code = gl.get_error();
-        assert_eq!(
-            error_code,
-            glow::NO_ERROR,
-            "Error occurred in post process texture initialization. code : 0x{:x}",
-            error_code
-        );
+        check_for_gl_error(gl, "post process texture initialization");
 
         gl.framebuffer_texture_2d(
             glow::FRAMEBUFFER,
@@ -122,7 +116,7 @@ impl PostProcess {
         gl.bind_buffer(glow::ARRAY_BUFFER, Some(pos_buffer));
         gl.buffer_data_u8_slice(
             glow::ARRAY_BUFFER,
-            crate::misc_util::as_u8_slice(&positions),
+            bytemuck::cast_slice(&positions),
             glow::STATIC_DRAW,
         );
 
@@ -151,13 +145,7 @@ impl PostProcess {
         gl.buffer_data_u8_slice(glow::ELEMENT_ARRAY_BUFFER, &indices, glow::STATIC_DRAW);
 
         gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, None);
-        let error_code = gl.get_error();
-        assert_eq!(
-            error_code,
-            glow::NO_ERROR,
-            "Error occurred in post process initialization. code : 0x{:x}",
-            error_code
-        );
+        check_for_gl_error(gl, "post process initialization");
 
         Ok(PostProcess {
             pos_buffer,

@@ -64,9 +64,8 @@ impl Widget for SelectableLabel {
             if selected || response.hovered() || response.has_focus() {
                 let rect = rect.expand(visuals.expansion);
 
-                let corner_radius = 2.0;
                 ui.painter()
-                    .rect(rect, corner_radius, visuals.bg_fill, visuals.bg_stroke);
+                    .rect(rect, visuals.rounding, visuals.bg_fill, visuals.bg_stroke);
             }
 
             text.paint_with_visuals(ui.painter(), text_pos, &visuals);

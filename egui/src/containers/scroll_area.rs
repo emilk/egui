@@ -10,9 +10,9 @@ use crate::*;
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
-pub(crate) struct State {
+pub struct State {
     /// Positive offset means scrolling down/right
-    offset: Vec2,
+    pub offset: Vec2,
 
     show_scroll: [bool; 2],
 
@@ -43,12 +43,26 @@ impl Default for State {
 
 impl State {
     pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.memory().data.get_persisted(id)
+        ctx.data().get_persisted(id)
     }
 
     pub fn store(self, ctx: &Context, id: Id) {
-        ctx.memory().data.insert_persisted(id, self);
+        ctx.data().insert_persisted(id, self);
     }
+}
+
+pub struct ScrollAreaOutput<R> {
+    /// What the user closure returned.
+    pub inner: R,
+
+    /// `Id` of the `ScrollArea`.
+    pub id: Id,
+
+    /// The current state of the scroll area.
+    pub state: State,
+
+    /// Where on the screen the content is (excludes scroll bars).
+    pub inner_rect: Rect,
 }
 
 /// Add vertical and/or horizontal scrolling to a contained [`Ui`].
@@ -258,6 +272,7 @@ struct Prepared {
     /// width of the vertical bar, and the height of the horizontal bar?
     current_bar_use: Vec2,
     always_show_scroll: bool,
+    /// Where on the screen the content is (excludes scroll bars).
     inner_rect: Rect,
     content_ui: Ui,
     /// Relative coordinates: the offset and size of the view of the inner UI.
@@ -365,7 +380,11 @@ impl ScrollArea {
     /// Show the `ScrollArea`, and add the contents to the viewport.
     ///
     /// If the inner area can be very long, consider using [`Self::show_rows`] instead.
-    pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+    pub fn show<R>(
+        self,
+        ui: &mut Ui,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> ScrollAreaOutput<R> {
         self.show_viewport_dyn(ui, Box::new(|ui, _viewport| add_contents(ui)))
     }
 
@@ -374,7 +393,7 @@ impl ScrollArea {
     /// ```
     /// # egui::__run_test_ui(|ui| {
     /// let text_style = egui::TextStyle::Body;
-    /// let row_height = ui.fonts()[text_style].row_height();
+    /// let row_height = ui.text_style_height(&text_style);
     /// // let row_height = ui.spacing().interact_size.y; // if you are adding buttons instead of labels.
     /// let total_rows = 10_000;
     /// egui::ScrollArea::vertical().show_rows(ui, row_height, total_rows, |ui, row_range| {
@@ -391,7 +410,7 @@ impl ScrollArea {
         row_height_sans_spacing: f32,
         total_rows: usize,
         add_contents: impl FnOnce(&mut Ui, std::ops::Range<usize>) -> R,
-    ) -> R {
+    ) -> ScrollAreaOutput<R> {
         let spacing = ui.spacing().item_spacing;
         let row_height_with_spacing = row_height_sans_spacing + spacing.y;
         self.show_viewport(ui, |ui, viewport| {
@@ -420,7 +439,11 @@ impl ScrollArea {
     ///
     /// `add_contents` is past the viewport, which is the relative view of the content.
     /// So if the passed rect has min = zero, then show the top left content (the user has not scrolled).
-    pub fn show_viewport<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui, Rect) -> R) -> R {
+    pub fn show_viewport<R>(
+        self,
+        ui: &mut Ui,
+        add_contents: impl FnOnce(&mut Ui, Rect) -> R,
+    ) -> ScrollAreaOutput<R> {
         self.show_viewport_dyn(ui, Box::new(add_contents))
     }
 
@@ -428,16 +451,23 @@ impl ScrollArea {
         self,
         ui: &mut Ui,
         add_contents: Box<dyn FnOnce(&mut Ui, Rect) -> R + 'c>,
-    ) -> R {
+    ) -> ScrollAreaOutput<R> {
         let mut prepared = self.begin(ui);
-        let ret = add_contents(&mut prepared.content_ui, prepared.viewport);
-        prepared.end(ui);
-        ret
+        let id = prepared.id;
+        let inner_rect = prepared.inner_rect;
+        let inner = add_contents(&mut prepared.content_ui, prepared.viewport);
+        let state = prepared.end(ui);
+        ScrollAreaOutput {
+            inner,
+            id,
+            state,
+            inner_rect,
+        }
     }
 }
 
 impl Prepared {
-    fn end(self, ui: &mut Ui) {
+    fn end(self, ui: &mut Ui) -> State {
         let Prepared {
             id,
             mut state,
@@ -523,12 +553,11 @@ impl Prepared {
             };
             let content_response = ui.interact(inner_rect, id.with("area"), sense);
 
-            let input = ui.input();
             if content_response.dragged() {
                 for d in 0..2 {
                     if has_bar[d] {
-                        state.offset[d] -= input.pointer.delta()[d];
-                        state.vel[d] = input.pointer.velocity()[d];
+                        state.offset[d] -= ui.input().pointer.delta()[d];
+                        state.vel[d] = ui.input().pointer.velocity()[d];
                         state.scroll_stuck_to_end[d] = false;
                     } else {
                         state.vel[d] = 0.0;
@@ -537,7 +566,7 @@ impl Prepared {
             } else {
                 let stop_speed = 20.0; // Pixels per second.
                 let friction_coeff = 1000.0; // Pixels per second squared.
-                let dt = input.unstable_dt;
+                let dt = ui.input().unstable_dt;
 
                 let friction = friction_coeff * dt;
                 if friction > state.vel.length() || state.vel.length() < stop_speed {
@@ -711,13 +740,13 @@ impl Prepared {
 
                 ui.painter().add(epaint::Shape::rect_filled(
                     outer_scroll_rect,
-                    visuals.corner_radius,
+                    visuals.rounding,
                     ui.visuals().extreme_bg_color,
                 ));
 
                 ui.painter().add(epaint::Shape::rect_filled(
                     handle_rect,
-                    visuals.corner_radius,
+                    visuals.rounding,
                     visuals.bg_fill,
                 ));
             }
@@ -748,6 +777,8 @@ impl Prepared {
         state.show_scroll = show_scroll_this_frame;
 
         state.store(ui.ctx(), id);
+
+        state
     }
 }
 

@@ -31,7 +31,7 @@ impl Demo for MiscDemoWindow {
         "✨ Misc Demos"
     }
 
-    fn show(&mut self, ctx: &CtxRef, open: &mut bool) {
+    fn show(&mut self, ctx: &Context, open: &mut bool) {
         Window::new(self.name())
             .open(open)
             .vscroll(true)
@@ -140,7 +140,8 @@ impl Widgets {
 
         ui.horizontal_wrapped(|ui| {
             // Trick so we don't have to add spaces in the text below:
-            ui.spacing_mut().item_spacing.x = ui.fonts()[TextStyle::Body].glyph_width(' ');
+            let width = ui.fonts().glyph_width(&TextStyle::Body.resolve(ui.style()), ' ');
+            ui.spacing_mut().item_spacing.x = width;
 
             ui.label(RichText::new("Text can have").color(Color32::from_rgb(110, 255, 110)));
             ui.colored_label(Color32::from_rgb(128, 140, 255), "color"); // Shortcut version
@@ -268,7 +269,7 @@ impl ColorWidgets {
 #[cfg_attr(feature = "serde", serde(default))]
 struct BoxPainting {
     size: Vec2,
-    corner_radius: f32,
+    rounding: f32,
     stroke_width: f32,
     num_boxes: usize,
 }
@@ -277,7 +278,7 @@ impl Default for BoxPainting {
     fn default() -> Self {
         Self {
             size: vec2(64.0, 32.0),
-            corner_radius: 5.0,
+            rounding: 5.0,
             stroke_width: 2.0,
             num_boxes: 1,
         }
@@ -288,7 +289,7 @@ impl BoxPainting {
     pub fn ui(&mut self, ui: &mut Ui) {
         ui.add(Slider::new(&mut self.size.x, 0.0..=500.0).text("width"));
         ui.add(Slider::new(&mut self.size.y, 0.0..=500.0).text("height"));
-        ui.add(Slider::new(&mut self.corner_radius, 0.0..=50.0).text("corner_radius"));
+        ui.add(Slider::new(&mut self.rounding, 0.0..=50.0).text("rounding"));
         ui.add(Slider::new(&mut self.stroke_width, 0.0..=10.0).text("stroke_width"));
         ui.add(Slider::new(&mut self.num_boxes, 0..=8).text("num_boxes"));
 
@@ -297,7 +298,7 @@ impl BoxPainting {
                 let (rect, _response) = ui.allocate_at_least(self.size, Sense::hover());
                 ui.painter().rect(
                     rect,
-                    self.corner_radius,
+                    self.rounding,
                     Color32::from_gray(64),
                     Stroke::new(self.stroke_width, Color32::WHITE),
                 );
@@ -417,7 +418,6 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         "This is a demonstration of ",
         first_row_indentation,
         TextFormat {
-            style: TextStyle::Body,
             color: default_color,
             ..Default::default()
         },
@@ -426,7 +426,6 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         "the egui text layout engine. ",
         0.0,
         TextFormat {
-            style: TextStyle::Body,
             color: strong_color,
             ..Default::default()
         },
@@ -435,7 +434,6 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         "It supports ",
         0.0,
         TextFormat {
-            style: TextStyle::Body,
             color: default_color,
             ..Default::default()
         },
@@ -444,7 +442,6 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         "different ",
         0.0,
         TextFormat {
-            style: TextStyle::Body,
             color: Color32::from_rgb(110, 255, 110),
             ..Default::default()
         },
@@ -453,7 +450,6 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         "colors, ",
         0.0,
         TextFormat {
-            style: TextStyle::Body,
             color: Color32::from_rgb(128, 140, 255),
             ..Default::default()
         },
@@ -462,7 +458,6 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         "backgrounds, ",
         0.0,
         TextFormat {
-            style: TextStyle::Body,
             color: default_color,
             background: Color32::from_rgb(128, 32, 32),
             ..Default::default()
@@ -472,7 +467,7 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         "mixing ",
         0.0,
         TextFormat {
-            style: TextStyle::Heading,
+            font_id: FontId::proportional(20.0),
             color: default_color,
             ..Default::default()
         },
@@ -481,7 +476,7 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         "fonts, ",
         0.0,
         TextFormat {
-            style: TextStyle::Monospace,
+            font_id: FontId::monospace(14.0),
             color: default_color,
             ..Default::default()
         },
@@ -490,7 +485,7 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         "raised text, ",
         0.0,
         TextFormat {
-            style: TextStyle::Small,
+            font_id: FontId::proportional(8.0),
             color: default_color,
             valign: Align::TOP,
             ..Default::default()
@@ -500,7 +495,6 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         "with ",
         0.0,
         TextFormat {
-            style: TextStyle::Body,
             color: default_color,
             ..Default::default()
         },
@@ -509,7 +503,6 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         "underlining",
         0.0,
         TextFormat {
-            style: TextStyle::Body,
             color: default_color,
             underline: Stroke::new(1.0, Color32::LIGHT_BLUE),
             ..Default::default()
@@ -519,7 +512,6 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         " and ",
         0.0,
         TextFormat {
-            style: TextStyle::Body,
             color: default_color,
             ..Default::default()
         },
@@ -528,7 +520,6 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         "strikethrough",
         0.0,
         TextFormat {
-            style: TextStyle::Body,
             color: default_color,
             strikethrough: Stroke::new(2.0, Color32::RED.linear_multiply(0.5)),
             ..Default::default()
@@ -538,7 +529,6 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         ". Of course, ",
         0.0,
         TextFormat {
-            style: TextStyle::Body,
             color: default_color,
             ..Default::default()
         },
@@ -547,7 +537,6 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         "you can",
         0.0,
         TextFormat {
-            style: TextStyle::Body,
             color: default_color,
             strikethrough: Stroke::new(1.0, strong_color),
             ..Default::default()
@@ -557,7 +546,7 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         " mix these!",
         0.0,
         TextFormat {
-            style: TextStyle::Small,
+            font_id: FontId::proportional(8.0),
             color: Color32::LIGHT_BLUE,
             background: Color32::from_rgb(128, 0, 0),
             underline: Stroke::new(1.0, strong_color),

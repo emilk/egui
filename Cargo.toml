@@ -25,3 +25,6 @@ opt-level = 2 # fast and small wasm, basically same as `opt-level = 's'`
 # opt-level = 3 # unecessarily large wasm for no performance gain
 
 # debug = true # include debug symbols, useful when profiling wasm
+
+[patch.crates-io]
+ureq = { git = "https://github.com/emilk/ureq/", branch = "opt-in-webpki-roots" } # See https://github.com/algesten/ureq/pull/479 / https://github.com/algesten/ureq/issues/478

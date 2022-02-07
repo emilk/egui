@@ -18,13 +18,11 @@ include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 [dependencies]
 egui = { version = "0.16.0", path = "../egui", default-features = false }
 
-# feature "datetime":
 chrono = { version = "0.4", optional = true }
 
 # feature "persistence":
 serde = { version = "1", features = ["derive"], optional = true }
 
 [features]
-default = ["datetime"]
-datetime = ["chrono"]
+default = ["chrono"]
 persistence = ["serde"]

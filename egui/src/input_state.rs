@@ -261,7 +261,8 @@ impl InputState {
     /// # egui::__run_test_ui(|ui| {
     /// let mut zoom = 1.0; // no zoom
     /// let mut rotation = 0.0; // no rotation
-    /// if let Some(multi_touch) = ui.input().multi_touch() {
+    /// let multi_touch = ui.input().multi_touch();
+    /// if let Some(multi_touch) = multi_touch {
     ///     zoom *= multi_touch.zoom_delta;
     ///     rotation += multi_touch.rotation_delta;
     /// }
@@ -699,7 +700,12 @@ impl InputState {
             events,
         } = self;
 
-        ui.style_mut().body_text_style = epaint::TextStyle::Monospace;
+        ui.style_mut()
+            .text_styles
+            .get_mut(&crate::TextStyle::Body)
+            .unwrap()
+            .family = crate::FontFamily::Monospace;
+
         ui.collapsing("Raw Input", |ui| raw.ui(ui));
 
         crate::containers::CollapsingHeader::new("🖱 Pointer")
@@ -729,8 +735,11 @@ impl InputState {
         ui.label(format!("predicted_dt: {:.1} ms", 1e3 * predicted_dt));
         ui.label(format!("modifiers: {:#?}", modifiers));
         ui.label(format!("keys_down: {:?}", keys_down));
-        ui.label(format!("events: {:?}", events))
-            .on_hover_text("key presses etc");
+        ui.scope(|ui| {
+            ui.set_min_height(150.0);
+            ui.label(format!("events: {:#?}", events))
+                .on_hover_text("key presses etc");
+        });
     }
 }
 

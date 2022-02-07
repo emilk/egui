@@ -72,7 +72,7 @@ impl FrameState {
     pub(crate) fn available_rect(&self) -> Rect {
         crate::egui_assert!(
             self.available_rect.is_finite(),
-            "Called `available_rect()` before `CtxRef::run()`"
+            "Called `available_rect()` before `Context::run()`"
         );
         self.available_rect
     }

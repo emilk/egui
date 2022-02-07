@@ -180,7 +180,7 @@ impl Widget for Button {
                 let stroke = stroke.unwrap_or(visuals.bg_stroke);
                 ui.painter().rect(
                     rect.expand(visuals.expansion),
-                    visuals.corner_radius,
+                    visuals.rounding,
                     fill,
                     stroke,
                 );
@@ -265,7 +265,7 @@ impl<'a> Widget for Checkbox<'a> {
             let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
             ui.painter().add(epaint::RectShape {
                 rect: big_icon_rect.expand(visuals.expansion),
-                corner_radius: visuals.corner_radius,
+                rounding: visuals.rounding,
                 fill: visuals.bg_fill,
                 stroke: visuals.bg_stroke,
             });
@@ -394,7 +394,7 @@ pub struct ImageButton {
 }
 
 impl ImageButton {
-    pub fn new(texture_id: TextureId, size: impl Into<Vec2>) -> Self {
+    pub fn new(texture_id: impl Into<TextureId>, size: impl Into<Vec2>) -> Self {
         Self {
             image: widgets::Image::new(texture_id, size),
             sense: Sense::click(),
@@ -455,9 +455,14 @@ impl Widget for ImageButton {
         response.widget_info(|| WidgetInfo::new(WidgetType::ImageButton));
 
         if ui.is_rect_visible(rect) {
-            let (expansion, corner_radius, fill, stroke) = if selected {
+            let (expansion, rounding, fill, stroke) = if selected {
                 let selection = ui.visuals().selection;
-                (-padding, 0.0, selection.bg_fill, selection.stroke)
+                (
+                    -padding,
+                    Rounding::none(),
+                    selection.bg_fill,
+                    selection.stroke,
+                )
             } else if frame {
                 let visuals = ui.style().interact(&response);
                 let expansion = if response.hovered {
@@ -467,7 +472,7 @@ impl Widget for ImageButton {
                 };
                 (
                     expansion,
-                    visuals.corner_radius,
+                    visuals.rounding,
                     visuals.bg_fill,
                     visuals.bg_stroke,
                 )
@@ -477,7 +482,7 @@ impl Widget for ImageButton {
 
             // Draw frame background (for transparent images):
             ui.painter()
-                .rect_filled(rect.expand2(expansion), corner_radius, fill);
+                .rect_filled(rect.expand2(expansion), rounding, fill);
 
             let image_rect = ui
                 .layout()
@@ -487,7 +492,7 @@ impl Widget for ImageButton {
 
             // Draw frame outline:
             ui.painter()
-                .rect_stroke(rect.expand2(expansion), corner_radius, stroke);
+                .rect_stroke(rect.expand2(expansion), rounding, stroke);
         }
 
         response

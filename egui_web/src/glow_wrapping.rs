@@ -1,77 +1,48 @@
-use crate::{canvas_element_or_die, console_error};
-use egui::{ClippedMesh, FontImage, Rgba};
+use egui::{ClippedMesh, Rgba};
 use egui_glow::glow;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 #[cfg(not(target_arch = "wasm32"))]
-use web_sys::WebGl2RenderingContext;
-use web_sys::WebGlRenderingContext;
+use web_sys::{WebGl2RenderingContext, WebGlRenderingContext};
 
 pub(crate) struct WrappedGlowPainter {
-    pub(crate) gl_ctx: glow::Context,
+    pub(crate) glow_ctx: glow::Context,
     pub(crate) canvas: HtmlCanvasElement,
     pub(crate) canvas_id: String,
     pub(crate) painter: egui_glow::Painter,
 }
 
 impl WrappedGlowPainter {
-    pub fn new(canvas_id: &str) -> Self {
-        let canvas = canvas_element_or_die(canvas_id);
+    pub fn new(canvas_id: &str) -> Result<Self, String> {
+        let canvas = crate::canvas_element_or_die(canvas_id);
 
-        let shader_prefix = if requires_brightening(&canvas) {
-            crate::console_log("Enabling webkitGTK brightening workaround");
-            "#define APPLY_BRIGHTENING_GAMMA"
-        } else {
-            ""
-        };
+        let (glow_ctx, shader_prefix) = init_glow_context_from_canvas(&canvas)?;
 
-        let gl_ctx = init_glow_context_from_canvas(&canvas);
         let dimension = [canvas.width() as i32, canvas.height() as i32];
-        let painter = egui_glow::Painter::new(&gl_ctx, Some(dimension), shader_prefix)
-            .map_err(|error| {
-                console_error(format!(
-                    "some error occurred in initializing glow painter\n {}",
-                    error
-                ))
-            })
-            .unwrap();
+        let painter = egui_glow::Painter::new(&glow_ctx, Some(dimension), shader_prefix)
+            .map_err(|error| format!("Error starting glow painter: {}", error))?;
 
-        Self {
-            gl_ctx,
+        Ok(Self {
+            glow_ctx,
             canvas,
             canvas_id: canvas_id.to_owned(),
             painter,
-        }
+        })
     }
-}
-
-fn requires_brightening(canvas: &web_sys::HtmlCanvasElement) -> bool {
-    // See https://github.com/emilk/egui/issues/794
-
-    // detect WebKitGTK
-
-    // WebKitGTK currently support only webgl,so request webgl context.
-    // WebKitGTK use WebKit default unmasked vendor and renderer
-    // but safari use same vendor and renderer
-    // so exclude "Mac OS X" user-agent.
-    let gl = canvas
-        .get_context("webgl")
-        .unwrap()
-        .unwrap()
-        .dyn_into::<WebGlRenderingContext>()
-        .unwrap();
-    let user_agent = web_sys::window().unwrap().navigator().user_agent().unwrap();
-    crate::is_safari_and_webkit_gtk(&gl) && !user_agent.contains("Mac OS X")
 }
 
 impl crate::Painter for WrappedGlowPainter {
-    fn set_texture(&mut self, tex_id: u64, image: epi::Image) {
-        self.painter.set_texture(&self.gl_ctx, tex_id, &image);
+    fn max_texture_side(&self) -> usize {
+        self.painter.max_texture_side()
     }
 
-    fn free_texture(&mut self, tex_id: u64) {
-        self.painter.free_texture(tex_id);
+    fn set_texture(&mut self, tex_id: egui::TextureId, delta: &egui::epaint::ImageDelta) {
+        self.painter.set_texture(&self.glow_ctx, tex_id, delta);
+    }
+
+    fn free_texture(&mut self, tex_id: egui::TextureId) {
+        self.painter.free_texture(&self.glow_ctx, tex_id);
     }
 
     fn debug_info(&self) -> String {
@@ -86,13 +57,9 @@ impl crate::Painter for WrappedGlowPainter {
         &self.canvas_id
     }
 
-    fn upload_egui_texture(&mut self, font_image: &FontImage) {
-        self.painter.upload_egui_texture(&self.gl_ctx, font_image)
-    }
-
     fn clear(&mut self, clear_color: Rgba) {
         let canvas_dimension = [self.canvas.width(), self.canvas.height()];
-        egui_glow::painter::clear(&self.gl_ctx, canvas_dimension, clear_color)
+        egui_glow::painter::clear(&self.glow_ctx, canvas_dimension, clear_color)
     }
 
     fn paint_meshes(
@@ -102,7 +69,7 @@ impl crate::Painter for WrappedGlowPainter {
     ) -> Result<(), JsValue> {
         let canvas_dimension = [self.canvas.width(), self.canvas.height()];
         self.painter.paint_meshes(
-            &self.gl_ctx,
+            &self.glow_ctx,
             canvas_dimension,
             pixels_per_point,
             clipped_meshes,
@@ -115,30 +82,67 @@ impl crate::Painter for WrappedGlowPainter {
     }
 }
 
-pub fn init_glow_context_from_canvas(canvas: &HtmlCanvasElement) -> glow::Context {
+/// Returns glow context and shader prefix.
+fn init_glow_context_from_canvas(
+    canvas: &HtmlCanvasElement,
+) -> Result<(glow::Context, &'static str), String> {
+    const BEST_FIRST: bool = true;
+
+    let result = if BEST_FIRST {
+        // Trying WebGl2 first
+        init_webgl2(canvas).or_else(|| init_webgl1(canvas))
+    } else {
+        // Trying WebGl1 first (useful for testing).
+        tracing::warn!("Looking for WebGL1 first");
+        init_webgl1(canvas).or_else(|| init_webgl2(canvas))
+    };
+
+    if let Some(result) = result {
+        Ok(result)
+    } else {
+        Err("WebGL isn't supported".into())
+    }
+}
+
+fn init_webgl1(canvas: &HtmlCanvasElement) -> Option<(glow::Context, &'static str)> {
+    let gl1_ctx = canvas
+        .get_context("webgl")
+        .expect("Failed to query about WebGL2 context");
+
+    let gl1_ctx = gl1_ctx?;
+    tracing::debug!("WebGL1 selected.");
+
+    let gl1_ctx = gl1_ctx
+        .dyn_into::<web_sys::WebGlRenderingContext>()
+        .unwrap();
+
+    let shader_prefix = if crate::webgl1_requires_brightening(&gl1_ctx) {
+        tracing::debug!("Enabling webkitGTK brightening workaround.");
+        "#define APPLY_BRIGHTENING_GAMMA"
+    } else {
+        ""
+    };
+
+    let glow_ctx = glow::Context::from_webgl1_context(gl1_ctx);
+
+    Some((glow_ctx, shader_prefix))
+}
+
+fn init_webgl2(canvas: &HtmlCanvasElement) -> Option<(glow::Context, &'static str)> {
     let gl2_ctx = canvas
         .get_context("webgl2")
         .expect("Failed to query about WebGL2 context");
 
-    if let Some(gl2_ctx) = gl2_ctx {
-        crate::console_log("WebGL2 found");
-        let gl2_ctx = gl2_ctx
-            .dyn_into::<web_sys::WebGl2RenderingContext>()
-            .unwrap();
-        glow::Context::from_webgl2_context(gl2_ctx)
-    } else {
-        let gl1 = canvas
-            .get_context("webgl")
-            .expect("Failed to query about WebGL1 context");
+    let gl2_ctx = gl2_ctx?;
+    tracing::debug!("WebGL2 selected.");
 
-        if let Some(gl1) = gl1 {
-            crate::console_log("WebGL2 not available - falling back to WebGL2");
-            let gl1_ctx = gl1.dyn_into::<web_sys::WebGlRenderingContext>().unwrap();
-            glow::Context::from_webgl1_context(gl1_ctx)
-        } else {
-            panic!("Failed to get WebGL context.");
-        }
-    }
+    let gl2_ctx = gl2_ctx
+        .dyn_into::<web_sys::WebGl2RenderingContext>()
+        .unwrap();
+    let glow_ctx = glow::Context::from_webgl2_context(gl2_ctx);
+    let shader_prefix = "";
+
+    Some((glow_ctx, shader_prefix))
 }
 
 trait DummyWebGLConstructor {
@@ -150,10 +154,10 @@ trait DummyWebGLConstructor {
 #[cfg(not(target_arch = "wasm32"))]
 impl DummyWebGLConstructor for glow::Context {
     fn from_webgl1_context(_context: WebGlRenderingContext) -> Self {
-        panic!("you cant use egui_web(glow) on native")
+        panic!("you can't use egui_web(glow) on native")
     }
 
     fn from_webgl2_context(_context: WebGl2RenderingContext) -> Self {
-        panic!("you cant use egui_web(glow) on native")
+        panic!("you can't use egui_web(glow) on native")
     }
 }

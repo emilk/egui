@@ -6,7 +6,7 @@ impl super::Demo for CursorTest {
         "Cursor Test"
     }
 
-    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name()).open(open).show(ctx, |ui| {
             use super::View as _;
             self.ui(ui);
@@ -38,7 +38,7 @@ impl super::Demo for IdTest {
         "ID Test"
     }
 
-    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name()).open(open).show(ctx, |ui| {
             use super::View as _;
             self.ui(ui);
@@ -52,7 +52,7 @@ impl super::View for IdTest {
 
         ui.label("\
             Widgets that store state require unique and persisting identifiers so we can track their state between frames.\n\
-            For instance, collapsable headers needs to store wether or not they are open. \
+            For instance, collapsable headers needs to store whether or not they are open. \
             Their Id:s are derived from their names. \
             If you fail to give them unique names then clicking one will open both. \
             To help you debug this, an error message is printed on screen:");
@@ -115,7 +115,7 @@ impl super::Demo for ManualLayoutTest {
         "Manual Layout Test"
     }
 
-    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .resizable(false)
             .open(open)
@@ -202,7 +202,7 @@ impl super::Demo for TableTest {
         "Table Test"
     }
 
-    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name()).open(open).show(ctx, |ui| {
             use super::View as _;
             self.ui(ui);
@@ -314,7 +314,7 @@ impl super::Demo for InputTest {
         "Input Test"
     }
 
-    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .resizable(false)
@@ -383,7 +383,7 @@ impl super::Demo for WindowResizeTest {
         "↔ Window Resize"
     }
 
-    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         use egui::*;
 
         Window::new("↔ auto-sized")

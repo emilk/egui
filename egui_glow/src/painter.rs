@@ -9,9 +9,7 @@ use egui::{
 use glow::HasContext;
 use memoffset::offset_of;
 
-use crate::misc_util::{
-    as_u8_slice, compile_shader, glow_debug_print, link_program, srgbtexture2d,
-};
+use crate::misc_util::{check_for_gl_error, compile_shader, link_program};
 use crate::post_process::PostProcess;
 use crate::shader_version::ShaderVersion;
 use crate::vao_emulate;
@@ -26,11 +24,11 @@ const FRAG_SRC: &str = include_str!("shader/fragment.glsl");
 /// This struct must be destroyed with [`Painter::destroy`] before dropping, to ensure OpenGL
 /// objects have been properly deleted and are not leaked.
 pub struct Painter {
+    max_texture_side: usize,
+
     program: glow::Program,
     u_screen_size: glow::UniformLocation,
     u_sampler: glow::UniformLocation,
-    egui_texture: Option<glow::Texture>,
-    egui_texture_version: Option<u64>,
     is_webgl_1: bool,
     is_embedded: bool,
     vertex_array: crate::misc_util::VAO,
@@ -41,8 +39,7 @@ pub struct Painter {
     vertex_buffer: glow::Buffer,
     element_array_buffer: glow::Buffer,
 
-    /// Index is the same as in [`egui::TextureId::User`].
-    user_textures: HashMap<u64, glow::Texture>,
+    textures: HashMap<egui::TextureId, glow::Texture>,
 
     #[cfg(feature = "epi")]
     next_native_tex_id: u64, // TODO: 128-bit texture space?
@@ -93,20 +90,24 @@ impl Painter {
         pp_fb_extent: Option<[i32; 2]>,
         shader_prefix: &str,
     ) -> Result<Painter, String> {
+        check_for_gl_error(gl, "before Painter::new");
+
+        let max_texture_side = unsafe { gl.get_parameter_i32(glow::MAX_TEXTURE_SIZE) } as usize;
+
         let support_vao = crate::misc_util::supports_vao(gl);
         let shader_version = ShaderVersion::get(gl);
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
         let header = shader_version.version();
-        glow_debug_print(format!("Shader header: {:?}", header));
+        tracing::debug!("Shader header: {:?}.", header);
         let srgb_support = gl.supported_extensions().contains("EXT_sRGB");
 
         let (post_process, srgb_support_define) = match (shader_version, srgb_support) {
-            //WebGL2 support sRGB default
+            // WebGL2 support sRGB default
             (ShaderVersion::Es300, _) | (ShaderVersion::Es100, true) => unsafe {
-                //Add sRGB support marker for fragment shader
+                // Add sRGB support marker for fragment shader
                 if let Some([width, height]) = pp_fb_extent {
-                    glow_debug_print("WebGL with sRGB enabled so turn on post process");
-                    //install post process to correct sRGB color
+                    tracing::debug!("WebGL with sRGB enabled. Turning on post processing for linear framebuffer blending.");
+                    // install post process to correct sRGB color:
                     (
                         Some(PostProcess::new(
                             gl,
@@ -119,13 +120,15 @@ impl Painter {
                         "#define SRGB_SUPPORTED",
                     )
                 } else {
-                    glow_debug_print("WebGL or OpenGL ES detected but PostProcess disabled because dimension is None");
+                    tracing::debug!("WebGL or OpenGL ES detected but PostProcess disabled because dimension is None");
                     (None, "")
                 }
             },
-            //WebGL1 without sRGB support disable postprocess and use fallback shader
+
+            // WebGL1 without sRGB support disable postprocess and use fallback shader
             (ShaderVersion::Es100, false) => (None, ""),
-            //OpenGL 2.1 or above always support sRGB so add sRGB support marker
+
+            // OpenGL 2.1 or above always support sRGB so add sRGB support marker
             _ => (None, "#define SRGB_SUPPORTED"),
         };
 
@@ -201,14 +204,13 @@ impl Painter {
             vertex_array.add_new_attribute(gl, position_buffer_info);
             vertex_array.add_new_attribute(gl, tex_coord_buffer_info);
             vertex_array.add_new_attribute(gl, color_buffer_info);
-            assert_eq!(gl.get_error(), glow::NO_ERROR, "OpenGL error occurred!");
+            check_for_gl_error(gl, "after Painter::new");
 
             Ok(Painter {
+                max_texture_side,
                 program,
                 u_screen_size,
                 u_sampler,
-                egui_texture: None,
-                egui_texture_version: None,
                 is_webgl_1,
                 is_embedded: matches!(shader_version, ShaderVersion::Es100 | ShaderVersion::Es300),
                 vertex_array,
@@ -217,7 +219,7 @@ impl Painter {
                 post_process,
                 vertex_buffer,
                 element_array_buffer,
-                user_textures: Default::default(),
+                textures: Default::default(),
                 #[cfg(feature = "epi")]
                 next_native_tex_id: 1 << 32,
                 textures_to_destroy: Vec::new(),
@@ -226,39 +228,8 @@ impl Painter {
         }
     }
 
-    pub fn upload_egui_texture(&mut self, gl: &glow::Context, font_image: &egui::FontImage) {
-        self.assert_not_destroyed();
-
-        if self.egui_texture_version == Some(font_image.version) {
-            return; // No change
-        }
-        let gamma = if self.is_embedded && self.post_process.is_none() {
-            1.0 / 2.2
-        } else {
-            1.0
-        };
-        let pixels: Vec<u8> = font_image
-            .srgba_pixels(gamma)
-            .flat_map(|a| Vec::from(a.to_array()))
-            .collect();
-
-        if let Some(old_tex) = std::mem::replace(
-            &mut self.egui_texture,
-            Some(srgbtexture2d(
-                gl,
-                self.is_webgl_1,
-                self.srgb_support,
-                self.texture_filter,
-                &pixels,
-                font_image.width,
-                font_image.height,
-            )),
-        ) {
-            unsafe {
-                gl.delete_texture(old_tex);
-            }
-        }
-        self.egui_texture_version = Some(font_image.version);
+    pub fn max_texture_side(&self) -> usize {
+        self.max_texture_side
     }
 
     unsafe fn prepare_painting(
@@ -346,7 +317,7 @@ impl Painter {
 
             gl.disable(glow::SCISSOR_TEST);
 
-            assert_eq!(glow::NO_ERROR, gl.get_error(), "GL error occurred!");
+            check_for_gl_error(gl, "painting");
         }
     }
 
@@ -365,19 +336,20 @@ impl Painter {
                 gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vertex_buffer));
                 gl.buffer_data_u8_slice(
                     glow::ARRAY_BUFFER,
-                    as_u8_slice(mesh.vertices.as_slice()),
+                    bytemuck::cast_slice(&mesh.vertices),
                     glow::STREAM_DRAW,
                 );
 
                 gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.element_array_buffer));
                 gl.buffer_data_u8_slice(
                     glow::ELEMENT_ARRAY_BUFFER,
-                    as_u8_slice(mesh.indices.as_slice()),
+                    bytemuck::cast_slice(&mesh.indices),
                     glow::STREAM_DRAW,
                 );
 
                 gl.bind_texture(glow::TEXTURE_2D, Some(texture));
             }
+
             // Transform clip rect to physical pixels:
             let clip_min_x = pixels_per_point * clip_rect.min.x;
             let clip_min_y = pixels_per_point * clip_rect.min.y;
@@ -420,57 +392,147 @@ impl Painter {
 
     // ------------------------------------------------------------------------
 
-    #[cfg(feature = "epi")]
-    pub fn set_texture(&mut self, gl: &glow::Context, tex_id: u64, image: &epi::Image) {
+    pub fn set_texture(
+        &mut self,
+        gl: &glow::Context,
+        tex_id: egui::TextureId,
+        delta: &egui::epaint::ImageDelta,
+    ) {
         self.assert_not_destroyed();
 
-        assert_eq!(
-            image.size[0] * image.size[1],
-            image.pixels.len(),
-            "Mismatch between texture size and texel count"
-        );
+        let glow_texture = *self
+            .textures
+            .entry(tex_id)
+            .or_insert_with(|| unsafe { gl.create_texture().unwrap() });
+        unsafe {
+            gl.bind_texture(glow::TEXTURE_2D, Some(glow_texture));
+        }
 
-        // TODO: optimize
-        let pixels: Vec<u8> = image
-            .pixels
-            .iter()
-            .flat_map(|srgba| Vec::from(srgba.to_array()))
-            .collect();
+        match &delta.image {
+            egui::ImageData::Color(image) => {
+                assert_eq!(
+                    image.width() * image.height(),
+                    image.pixels.len(),
+                    "Mismatch between texture size and texel count"
+                );
 
-        let gl_texture = srgbtexture2d(
-            gl,
-            self.is_webgl_1,
-            self.srgb_support,
-            self.texture_filter,
-            &pixels,
-            image.size[0],
-            image.size[1],
-        );
+                let data: &[u8] = bytemuck::cast_slice(image.pixels.as_ref());
 
-        if let Some(old_tex) = self.user_textures.insert(tex_id, gl_texture) {
-            self.textures_to_destroy.push(old_tex);
+                self.upload_texture_srgb(gl, delta.pos, image.size, data);
+            }
+            egui::ImageData::Alpha(image) => {
+                assert_eq!(
+                    image.width() * image.height(),
+                    image.pixels.len(),
+                    "Mismatch between texture size and texel count"
+                );
+
+                let gamma = if self.is_embedded && self.post_process.is_none() {
+                    1.0 / 2.2
+                } else {
+                    1.0
+                };
+                let data: Vec<u8> = image
+                    .srgba_pixels(gamma)
+                    .flat_map(|a| a.to_array())
+                    .collect();
+
+                self.upload_texture_srgb(gl, delta.pos, image.size, &data);
+            }
+        };
+    }
+
+    fn upload_texture_srgb(
+        &mut self,
+        gl: &glow::Context,
+        pos: Option<[usize; 2]>,
+        [w, h]: [usize; 2],
+        data: &[u8],
+    ) {
+        assert_eq!(data.len(), w * h * 4);
+        assert!(w >= 1 && h >= 1);
+        unsafe {
+            gl.tex_parameter_i32(
+                glow::TEXTURE_2D,
+                glow::TEXTURE_MAG_FILTER,
+                self.texture_filter.glow_code() as i32,
+            );
+            gl.tex_parameter_i32(
+                glow::TEXTURE_2D,
+                glow::TEXTURE_MIN_FILTER,
+                self.texture_filter.glow_code() as i32,
+            );
+
+            gl.tex_parameter_i32(
+                glow::TEXTURE_2D,
+                glow::TEXTURE_WRAP_S,
+                glow::CLAMP_TO_EDGE as i32,
+            );
+            gl.tex_parameter_i32(
+                glow::TEXTURE_2D,
+                glow::TEXTURE_WRAP_T,
+                glow::CLAMP_TO_EDGE as i32,
+            );
+            check_for_gl_error(gl, "tex_parameter");
+
+            let (internal_format, src_format) = if self.is_webgl_1 {
+                let format = if self.srgb_support {
+                    glow::SRGB_ALPHA
+                } else {
+                    glow::RGBA
+                };
+                (format, format)
+            } else {
+                (glow::SRGB8_ALPHA8, glow::RGBA)
+            };
+
+            gl.pixel_store_i32(glow::UNPACK_ALIGNMENT, 1);
+
+            let level = 0;
+            if let Some([x, y]) = pos {
+                gl.tex_sub_image_2d(
+                    glow::TEXTURE_2D,
+                    level,
+                    x as _,
+                    y as _,
+                    w as _,
+                    h as _,
+                    src_format,
+                    glow::UNSIGNED_BYTE,
+                    glow::PixelUnpackData::Slice(data),
+                );
+                check_for_gl_error(gl, "tex_sub_image_2d");
+            } else {
+                let border = 0;
+                gl.tex_image_2d(
+                    glow::TEXTURE_2D,
+                    level,
+                    internal_format as _,
+                    w as _,
+                    h as _,
+                    border,
+                    src_format,
+                    glow::UNSIGNED_BYTE,
+                    Some(data),
+                );
+                check_for_gl_error(gl, "tex_image_2d");
+            }
         }
     }
 
-    pub fn free_texture(&mut self, tex_id: u64) {
-        self.user_textures.remove(&tex_id);
+    pub fn free_texture(&mut self, gl: &glow::Context, tex_id: egui::TextureId) {
+        if let Some(old_tex) = self.textures.remove(&tex_id) {
+            unsafe { gl.delete_texture(old_tex) };
+        }
     }
 
     fn get_texture(&self, texture_id: egui::TextureId) -> Option<glow::Texture> {
-        self.assert_not_destroyed();
-
-        match texture_id {
-            egui::TextureId::Egui => self.egui_texture,
-            egui::TextureId::User(id) => self.user_textures.get(&id).copied(),
-        }
+        self.textures.get(&texture_id).copied()
     }
 
     unsafe fn destroy_gl(&self, gl: &glow::Context) {
         gl.delete_program(self.program);
-        if let Some(tex) = self.egui_texture {
-            gl.delete_texture(tex);
-        }
-        for tex in self.user_textures.values() {
+        for tex in self.textures.values() {
             gl.delete_texture(*tex);
         }
         gl.delete_buffer(self.vertex_buffer);
@@ -520,7 +582,7 @@ pub fn clear(gl: &glow::Context, dimension: [u32; 2], clear_color: egui::Rgba) {
 impl Drop for Painter {
     fn drop(&mut self) {
         if !self.destroyed {
-            eprintln!(
+            tracing::warn!(
                 "You forgot to call destroy() on the egui glow painter. Resources will leak!"
             );
         }
@@ -533,20 +595,15 @@ impl epi::NativeTexture for Painter {
 
     fn register_native_texture(&mut self, native: Self::Texture) -> egui::TextureId {
         self.assert_not_destroyed();
-
-        let id = self.next_native_tex_id;
+        let id = egui::TextureId::User(self.next_native_tex_id);
         self.next_native_tex_id += 1;
-
-        self.user_textures.insert(id, native);
-
-        egui::TextureId::User(id as u64)
+        self.textures.insert(id, native);
+        id
     }
 
     fn replace_native_texture(&mut self, id: egui::TextureId, replacing: Self::Texture) {
-        if let egui::TextureId::User(id) = id {
-            if let Some(old_tex) = self.user_textures.insert(id, replacing) {
-                self.textures_to_destroy.push(old_tex);
-            }
+        if let Some(old_tex) = self.textures.insert(id, replacing) {
+            self.textures_to_destroy.push(old_tex);
         }
     }
 }

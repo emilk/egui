@@ -7,7 +7,7 @@ impl super::Demo for WindowWithPanels {
         "🗖 Window With Panels"
     }
 
-    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool) {
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         use super::View as _;
         let window = egui::Window::new("Window with Panels")
             .default_width(600.0)

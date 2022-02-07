@@ -1,7 +1,8 @@
 use crate::{
-    text::{Fonts, Galley, TextStyle},
+    text::{FontId, Fonts, Galley},
     Color32, Mesh, Stroke,
 };
+use crate::{CubicBezierShape, QuadraticBezierShape};
 use emath::*;
 
 /// A paint primitive such as a circle or a piece of text.
@@ -15,14 +16,19 @@ pub enum Shape {
     /// For performance reasons it is better to avoid it.
     Vec(Vec<Shape>),
     Circle(CircleShape),
+    /// A line between two points.
     LineSegment {
         points: [Pos2; 2],
         stroke: Stroke,
     },
+    /// A series of lines between points.
+    /// The path can have a stroke and/or fill (if closed).
     Path(PathShape),
     Rect(RectShape),
     Text(TextShape),
     Mesh(Mesh),
+    QuadraticBezier(QuadraticBezierShape),
+    CubicBezier(CubicBezierShape),
 }
 
 /// ## Constructors
@@ -108,13 +114,21 @@ impl Shape {
     }
 
     #[inline]
-    pub fn rect_filled(rect: Rect, corner_radius: f32, fill_color: impl Into<Color32>) -> Self {
-        Self::Rect(RectShape::filled(rect, corner_radius, fill_color))
+    pub fn rect_filled(
+        rect: Rect,
+        rounding: impl Into<Rounding>,
+        fill_color: impl Into<Color32>,
+    ) -> Self {
+        Self::Rect(RectShape::filled(rect, rounding, fill_color))
     }
 
     #[inline]
-    pub fn rect_stroke(rect: Rect, corner_radius: f32, stroke: impl Into<Stroke>) -> Self {
-        Self::Rect(RectShape::stroke(rect, corner_radius, stroke))
+    pub fn rect_stroke(
+        rect: Rect,
+        rounding: impl Into<Rounding>,
+        stroke: impl Into<Stroke>,
+    ) -> Self {
+        Self::Rect(RectShape::stroke(rect, rounding, stroke))
     }
 
     #[allow(clippy::needless_pass_by_value)]
@@ -123,16 +137,16 @@ impl Shape {
         pos: Pos2,
         anchor: Align2,
         text: impl ToString,
-        text_style: TextStyle,
+        font_id: FontId,
         color: Color32,
     ) -> Self {
-        let galley = fonts.layout_no_wrap(text.to_string(), text_style, color);
+        let galley = fonts.layout_no_wrap(text.to_string(), font_id, color);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size()));
         Self::galley(rect.min, galley)
     }
 
     #[inline]
-    pub fn galley(pos: Pos2, galley: std::sync::Arc<Galley>) -> Self {
+    pub fn galley(pos: Pos2, galley: crate::mutex::Arc<Galley>) -> Self {
         TextShape::new(pos, galley).into()
     }
 
@@ -149,7 +163,7 @@ impl Shape {
         if let Shape::Mesh(mesh) = self {
             mesh.texture_id
         } else {
-            super::TextureId::Egui
+            super::TextureId::default()
         }
     }
 
@@ -183,6 +197,16 @@ impl Shape {
             }
             Shape::Mesh(mesh) => {
                 mesh.translate(delta);
+            }
+            Shape::QuadraticBezier(bezier_shape) => {
+                bezier_shape.points[0] += delta;
+                bezier_shape.points[1] += delta;
+                bezier_shape.points[2] += delta;
+            }
+            Shape::CubicBezier(cubie_curve) => {
+                for p in &mut cubie_curve.points {
+                    *p += delta;
+                }
             }
         }
     }
@@ -305,28 +329,32 @@ impl From<PathShape> for Shape {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct RectShape {
     pub rect: Rect,
-    /// How rounded the corners are. Use `0.0` for no rounding.
-    pub corner_radius: f32,
+    /// How rounded the corners are. Use `Rounding::none()` for no rounding.
+    pub rounding: Rounding,
     pub fill: Color32,
     pub stroke: Stroke,
 }
 
 impl RectShape {
     #[inline]
-    pub fn filled(rect: Rect, corner_radius: f32, fill_color: impl Into<Color32>) -> Self {
+    pub fn filled(
+        rect: Rect,
+        rounding: impl Into<Rounding>,
+        fill_color: impl Into<Color32>,
+    ) -> Self {
         Self {
             rect,
-            corner_radius,
+            rounding: rounding.into(),
             fill: fill_color.into(),
             stroke: Default::default(),
         }
     }
 
     #[inline]
-    pub fn stroke(rect: Rect, corner_radius: f32, stroke: impl Into<Stroke>) -> Self {
+    pub fn stroke(rect: Rect, rounding: impl Into<Rounding>, stroke: impl Into<Stroke>) -> Self {
         Self {
             rect,
-            corner_radius,
+            rounding: rounding.into(),
             fill: Default::default(),
             stroke: stroke.into(),
         }
@@ -346,6 +374,67 @@ impl From<RectShape> for Shape {
     }
 }
 
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+/// How rounded the corners of things should be
+pub struct Rounding {
+    /// Radius of the rounding of the North-West (left top) corner.
+    pub nw: f32,
+    /// Radius of the rounding of the North-East (right top) corner.
+    pub ne: f32,
+    /// Radius of the rounding of the South-West (left bottom) corner.
+    pub sw: f32,
+    /// Radius of the rounding of the South-East (right bottom) corner.
+    pub se: f32,
+}
+
+impl Default for Rounding {
+    #[inline]
+    fn default() -> Self {
+        Self::none()
+    }
+}
+
+impl From<f32> for Rounding {
+    #[inline]
+    fn from(radius: f32) -> Self {
+        Self {
+            nw: radius,
+            ne: radius,
+            sw: radius,
+            se: radius,
+        }
+    }
+}
+
+impl Rounding {
+    #[inline]
+    pub fn same(radius: f32) -> Self {
+        Self {
+            nw: radius,
+            ne: radius,
+            sw: radius,
+            se: radius,
+        }
+    }
+
+    #[inline]
+    pub fn none() -> Self {
+        Self {
+            nw: 0.0,
+            ne: 0.0,
+            sw: 0.0,
+            se: 0.0,
+        }
+    }
+
+    /// Do all corners have the same rounding?
+    #[inline]
+    pub fn is_same(&self) -> bool {
+        self.nw == self.ne && self.nw == self.sw && self.nw == self.se
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// How to paint some text on screen.
@@ -355,7 +444,7 @@ pub struct TextShape {
     pub pos: Pos2,
 
     /// The layed out text, from [`Fonts::layout_job`].
-    pub galley: std::sync::Arc<Galley>,
+    pub galley: crate::mutex::Arc<Galley>,
 
     /// Add this underline to the whole text.
     /// You can also set an underline when creating the galley.
@@ -373,7 +462,7 @@ pub struct TextShape {
 
 impl TextShape {
     #[inline]
-    pub fn new(pos: Pos2, galley: std::sync::Arc<Galley>) -> Self {
+    pub fn new(pos: Pos2, galley: crate::mutex::Arc<Galley>) -> Self {
         Self {
             pos,
             galley,

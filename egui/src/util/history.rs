@@ -109,11 +109,11 @@ where
     /// `(time, value)` pairs
     /// Time difference between values can be zero, but never negative.
     // TODO: impl IntoIter
-    pub fn iter(&'_ self) -> impl Iterator<Item = (f64, T)> + '_ {
+    pub fn iter(&'_ self) -> impl ExactSizeIterator<Item = (f64, T)> + '_ {
         self.values.iter().map(|(time, value)| (*time, *value))
     }
 
-    pub fn values(&'_ self) -> impl Iterator<Item = T> + '_ {
+    pub fn values(&'_ self) -> impl ExactSizeIterator<Item = T> + '_ {
         self.values.iter().map(|(_time, value)| *value)
     }
 

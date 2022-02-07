@@ -40,22 +40,6 @@ use wasm_bindgen::prelude::*;
 static AGENT_ID: &str = "egui_text_agent";
 
 // ----------------------------------------------------------------------------
-// Helpers to hide some of the verbosity of web_sys
-
-/// Log some text to the developer console (`console.log(…)` in JS)
-pub fn console_log(s: impl Into<JsValue>) {
-    web_sys::console::log_1(&s.into());
-}
-
-/// Log a warning to the developer console (`console.warn(…)` in JS)
-pub fn console_warn(s: impl Into<JsValue>) {
-    web_sys::console::warn_1(&s.into());
-}
-
-/// Log an error to the developer console (`console.error(…)` in JS)
-pub fn console_error(s: impl Into<JsValue>) {
-    web_sys::console::error_1(&s.into());
-}
 
 /// Current time in seconds (since undefined point in time)
 pub fn now_sec() -> f64 {
@@ -69,7 +53,7 @@ pub fn now_sec() -> f64 {
 
 pub fn screen_size_in_native_points() -> Option<egui::Vec2> {
     let window = web_sys::window()?;
-    Some(egui::Vec2::new(
+    Some(egui::vec2(
         window.inner_width().ok()?.as_f64()? as f32,
         window.inner_height().ok()?.as_f64()? as f32,
     ))
@@ -259,7 +243,7 @@ pub fn load_memory(ctx: &egui::Context) {
                 *ctx.memory() = memory;
             }
             Err(err) => {
-                console_error(format!("Failed to parse memory RON: {}", err));
+                tracing::error!("Failed to parse memory RON: {}", err);
             }
         }
     }
@@ -275,7 +259,7 @@ pub fn save_memory(ctx: &egui::Context) {
             local_storage_set("egui_memory_ron", &ron);
         }
         Err(err) => {
-            console_error(format!("Failed to serialize memory as RON: {}", err));
+            tracing::error!("Failed to serialize memory as RON: {}", err);
         }
     }
 }
@@ -315,7 +299,7 @@ pub fn set_clipboard_text(s: &str) {
             let future = wasm_bindgen_futures::JsFuture::from(promise);
             let future = async move {
                 if let Err(err) = future.await {
-                    console_error(format!("Copy/cut action denied: {:?}", err));
+                    tracing::error!("Copy/cut action denied: {:?}", err);
                 }
             };
             wasm_bindgen_futures::spawn_local(future);
@@ -482,9 +466,9 @@ fn paint_and_schedule(runner_ref: AppRunnerRef) -> Result<(), JsValue> {
     fn paint_if_needed(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let mut runner_lock = runner_ref.0.lock();
         if runner_lock.needs_repaint.fetch_and_clear() {
-            let (output, clipped_meshes) = runner_lock.logic()?;
+            let (needs_repaint, clipped_meshes) = runner_lock.logic()?;
             runner_lock.paint(clipped_meshes)?;
-            if output.needs_repaint {
+            if needs_repaint {
                 runner_lock.needs_repaint.set_true();
             }
             runner_lock.auto_save();
@@ -575,12 +559,12 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 false
             };
 
-            // console_log(format!(
+            // tracing::debug!(
             //     "On key-down {:?}, egui_wants_keyboard: {}, prevent_default: {}",
             //     event.key().as_str(),
             //     egui_wants_keyboard,
             //     prevent_default
-            // ));
+            // );
 
             if prevent_default {
                 event.prevent_default();
@@ -622,7 +606,7 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                         .input
                         .raw
                         .events
-                        .push(egui::Event::Text(text.replace("\r\n", "\n")));
+                        .push(egui::Event::Paste(text.replace("\r\n", "\n")));
                     runner_lock.needs_repaint.set_true();
                     event.stop_propagation();
                     event.prevent_default();
@@ -665,6 +649,22 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             runner_ref.0.lock().needs_repaint.set_true();
         }) as Box<dyn FnMut()>);
         window.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
+        closure.forget();
+    }
+
+    {
+        // hashchange
+        let runner_ref = runner_ref.clone();
+        let closure = Closure::wrap(Box::new(move || {
+            let runner_lock = runner_ref.0.lock();
+            let mut frame_lock = runner_lock.frame.lock();
+
+            // `epi::Frame::info(&self)` clones `epi::IntegrationInfo`, but we need to modify the original here
+            if let Some(web_info) = &mut frame_lock.info.web_info {
+                web_info.web_location_hash = location_hash().unwrap_or_default();
+            }
+        }) as Box<dyn FnMut()>);
+        window.add_event_listener_with_callback("hashchange", closure.as_ref().unchecked_ref())?;
         closure.forget();
     }
 
@@ -764,7 +764,7 @@ fn install_text_agent(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 }
                 "compositionupdate" => event.data().map(egui::Event::CompositionUpdate),
                 s => {
-                    console_error(format!("Unknown composition event type: {:?}", s));
+                    tracing::error!("Unknown composition event type: {:?}", s);
                     None
                 }
             };
@@ -835,7 +835,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 runner_lock.needs_repaint.set_true();
             }
             event.stop_propagation();
-            event.prevent_default();
+            // Note: prevent_default breaks VSCode tab focusing, hence why we don't call it here.
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
         closure.forget();
@@ -1022,11 +1022,11 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                     let points_per_scroll_line = 8.0; // Note that this is intentionally different from what we use in egui_glium / winit.
                     points_per_scroll_line
                 }
-                _ => 1.0,
+                _ => 1.0, // DOM_DELTA_PIXEL
             };
 
-            let delta = -scroll_multiplier
-                * egui::Vec2::new(event.delta_x() as f32, event.delta_y() as f32);
+            let mut delta =
+                -scroll_multiplier * egui::vec2(event.delta_x() as f32, event.delta_y() as f32);
 
             // Report a zoom event in case CTRL (on Windows or Linux) or CMD (on Mac) is pressed.
             // This if-statement is equivalent to how `Modifiers.command` is determined in
@@ -1035,6 +1035,12 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 let factor = (delta.y / 200.0).exp();
                 runner_lock.input.raw.events.push(egui::Event::Zoom(factor));
             } else {
+                if event.shift_key() {
+                    // Treat as horizontal scrolling.
+                    // Note: one Mac we already get horizontal scroll events when shift is down.
+                    delta = egui::vec2(delta.x + delta.y, 0.0);
+                }
+
                 runner_lock
                     .input
                     .raw
@@ -1106,7 +1112,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                             let last_modified = std::time::UNIX_EPOCH
                                 + std::time::Duration::from_millis(file.last_modified() as u64);
 
-                            console_log(format!("Loading {:?} ({} bytes)…", name, file.size()));
+                            tracing::debug!("Loading {:?} ({} bytes)…", name, file.size());
 
                             let future = wasm_bindgen_futures::JsFuture::from(file.array_buffer());
 
@@ -1115,11 +1121,11 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                                 match future.await {
                                     Ok(array_buffer) => {
                                         let bytes = js_sys::Uint8Array::new(&array_buffer).to_vec();
-                                        console_log(format!(
+                                        tracing::debug!(
                                             "Loaded {:?} ({} bytes).",
                                             name,
                                             bytes.len()
-                                        ));
+                                        );
 
                                         let mut runner_lock = runner_ref.0.lock();
                                         runner_lock.input.raw.dropped_files.push(
@@ -1133,7 +1139,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                                         runner_lock.needs_repaint.set_true();
                                     }
                                     Err(err) => {
-                                        console_error(format!("Failed to read file: {:?}", err));
+                                        tracing::error!("Failed to read file: {:?}", err);
                                     }
                                 }
                             };
@@ -1214,7 +1220,7 @@ fn is_mobile() -> Option<bool> {
 // candidate window moves following text element (agent),
 // so it appears that the IME candidate window moves with text cursor.
 // On mobile devices, there is no need to do that.
-fn move_text_cursor(cursor: &Option<egui::Pos2>, canvas_id: &str) -> Option<()> {
+fn move_text_cursor(cursor: Option<egui::Pos2>, canvas_id: &str) -> Option<()> {
     let style = text_agent().style();
     // Note: movint agent on mobile devices will lead to unpredictable scroll.
     if is_mobile() == Some(false) {
@@ -1238,6 +1244,18 @@ fn move_text_cursor(cursor: &Option<egui::Pos2>, canvas_id: &str) -> Option<()> 
     }
 }
 
+pub(crate) fn webgl1_requires_brightening(gl: &web_sys::WebGlRenderingContext) -> bool {
+    // See https://github.com/emilk/egui/issues/794
+
+    // detect WebKitGTK
+
+    // WebKitGTK use WebKit default unmasked vendor and renderer
+    // but safari use same vendor and renderer
+    // so exclude "Mac OS X" user-agent.
+    let user_agent = web_sys::window().unwrap().navigator().user_agent().unwrap();
+    !user_agent.contains("Mac OS X") && crate::is_safari_and_webkit_gtk(gl)
+}
+
 /// detecting Safari and webkitGTK.
 ///
 /// Safari and webkitGTK use unmasked renderer :Apple GPU
@@ -1245,12 +1263,22 @@ fn move_text_cursor(cursor: &Option<egui::Pos2>, canvas_id: &str) -> Option<()> 
 /// If we detect safari or webkitGTK returns true.
 ///
 /// This function used to avoid displaying linear color with `sRGB` supported systems.
-pub(crate) fn is_safari_and_webkit_gtk(gl: &web_sys::WebGlRenderingContext) -> bool {
-    if let Ok(renderer) = gl.get_parameter(web_sys::WebglDebugRendererInfo::UNMASKED_RENDERER_WEBGL)
+fn is_safari_and_webkit_gtk(gl: &web_sys::WebGlRenderingContext) -> bool {
+    // This call produces a warning in Firefox ("WEBGL_debug_renderer_info is deprecated in Firefox and will be removed.")
+    // but unless we call it we get errors in Chrome when we call `get_parameter` below.
+    // TODO: do something smart based on user agent?
+    if gl
+        .get_extension("WEBGL_debug_renderer_info")
+        .unwrap()
+        .is_some()
     {
-        if let Some(renderer) = renderer.as_string() {
-            if renderer.contains("Apple") {
-                return true;
+        if let Ok(renderer) =
+            gl.get_parameter(web_sys::WebglDebugRendererInfo::UNMASKED_RENDERER_WEBGL)
+        {
+            if let Some(renderer) = renderer.as_string() {
+                if renderer.contains("Apple") {
+                    return true;
+                }
             }
         }
     }

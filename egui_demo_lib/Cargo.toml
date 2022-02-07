@@ -18,22 +18,43 @@ all-features = true
 
 [lib]
 
+
+[features]
+default = ["datetime"]
+
+# Enable additional checks if debug assertions are enabled (debug builds).
+extra_debug_asserts = ["egui/extra_debug_asserts"]
+# Always enable additional checks.
+extra_asserts = ["egui/extra_asserts"]
+
+datetime = ["egui_extras/chrono", "chrono"]
+http = ["ehttp", "image", "poll-promise"]
+persistence = [
+  "egui/persistence",
+  "epi/persistence",
+  "egui_extras/persistence",
+  "serde",
+]
+serialize = ["egui/serialize", "serde"]
+syntax_highlighting = ["syntect"]
+
+
 [dependencies]
 egui = { version = "0.16.0", path = "../egui", default-features = false }
 epi = { version = "0.16.0", path = "../epi" }
 egui_extras = { version = "0.16.0", path = "../egui_extras" }
 
 chrono = { version = "0.4", features = ["js-sys", "wasmbind"], optional = true }
-enum-map = { version = "1", features = ["serde"] }
+enum-map = { version = "2", features = ["serde"] }
 unicode_names2 = { version = "0.4.0", default-features = false }
 
 # feature "http":
-ehttp = { version = "0.1.0", optional = true }
-image = { version = "0.23", default-features = false, features = [
+ehttp = { version = "0.2.0", optional = true }
+image = { version = "0.24", default-features = false, features = [
   "jpeg",
   "png",
 ], optional = true }
-
+poll-promise = { version = "0.1", default-features = false, optional = true }
 # feature "syntax_highlighting":
 syntect = { version = "4", default-features = false, features = [
   "default-fancy",
@@ -44,25 +65,6 @@ serde = { version = "1", features = ["derive"], optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.3", default-features = false }
-
-[features]
-default = ["datetime"]
-datetime = ["egui_extras/datetime", "chrono"]
-
-# Enable additional checks if debug assertions are enabled (debug builds).
-extra_debug_asserts = ["egui/extra_debug_asserts"]
-# Always enable additional checks.
-extra_asserts = ["egui/extra_asserts"]
-
-http = ["ehttp", "image"]
-persistence = [
-  "egui/persistence",
-  "epi/persistence",
-  "egui_extras/persistence",
-  "serde",
-]
-serialize = ["egui/serialize", "serde"]
-syntax_highlighting = ["syntect"]
 
 [[bench]]
 name = "benchmark"

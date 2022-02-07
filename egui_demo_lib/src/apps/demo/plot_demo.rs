@@ -71,8 +71,8 @@ impl LineDemo {
 
             ui.vertical(|ui| {
                 ui.style_mut().wrap = Some(false);
-                ui.checkbox(animate, "animate");
-                ui.checkbox(square, "square view")
+                ui.checkbox(animate, "Animate");
+                ui.checkbox(square, "Square view")
                     .on_hover_text("Always keep the viewport square.");
                 ui.checkbox(proportional, "Proportional data axes")
                     .on_hover_text("Tick are the same size on both axes.");
@@ -237,17 +237,9 @@ impl Widget for &mut MarkerDemo {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(Default, PartialEq)]
 struct LegendDemo {
     config: Legend,
-}
-
-impl Default for LegendDemo {
-    fn default() -> Self {
-        Self {
-            config: Legend::default(),
-        }
-    }
 }
 
 impl LegendDemo {
@@ -269,9 +261,10 @@ impl Widget for &mut LegendDemo {
         egui::Grid::new("settings").show(ui, |ui| {
             ui.label("Text style:");
             ui.horizontal(|ui| {
-                TextStyle::all().for_each(|style| {
-                    ui.selectable_value(&mut config.text_style, style, format!("{:?}", style));
-                });
+                let all_text_styles = ui.style().text_styles();
+                for style in all_text_styles {
+                    ui.selectable_value(&mut config.text_style, style.clone(), style.to_string());
+                }
             });
             ui.end_row();
 
@@ -292,7 +285,9 @@ impl Widget for &mut LegendDemo {
             ui.end_row();
         });
 
-        let legend_plot = Plot::new("legend_demo").legend(*config).data_aspect(1.0);
+        let legend_plot = Plot::new("legend_demo")
+            .legend(config.clone())
+            .data_aspect(1.0);
         legend_plot
             .show(ui, |plot_ui| {
                 plot_ui.line(LegendDemo::line_with_slope(0.5).name("lines"));
@@ -305,10 +300,82 @@ impl Widget for &mut LegendDemo {
     }
 }
 
-#[derive(PartialEq, Default)]
-struct ItemsDemo {}
+#[derive(PartialEq)]
+struct LinkedAxisDemo {
+    link_x: bool,
+    link_y: bool,
+    group: plot::LinkedAxisGroup,
+}
 
-impl ItemsDemo {}
+impl Default for LinkedAxisDemo {
+    fn default() -> Self {
+        let link_x = true;
+        let link_y = false;
+        Self {
+            link_x,
+            link_y,
+            group: plot::LinkedAxisGroup::new(link_x, link_y),
+        }
+    }
+}
+
+impl LinkedAxisDemo {
+    fn line_with_slope(slope: f64) -> Line {
+        Line::new(Values::from_explicit_callback(move |x| slope * x, .., 100))
+    }
+    fn sin() -> Line {
+        Line::new(Values::from_explicit_callback(move |x| x.sin(), .., 100))
+    }
+    fn cos() -> Line {
+        Line::new(Values::from_explicit_callback(move |x| x.cos(), .., 100))
+    }
+
+    fn configure_plot(plot_ui: &mut plot::PlotUi) {
+        plot_ui.line(LinkedAxisDemo::line_with_slope(0.5));
+        plot_ui.line(LinkedAxisDemo::line_with_slope(1.0));
+        plot_ui.line(LinkedAxisDemo::line_with_slope(2.0));
+        plot_ui.line(LinkedAxisDemo::sin());
+        plot_ui.line(LinkedAxisDemo::cos());
+    }
+}
+
+impl Widget for &mut LinkedAxisDemo {
+    fn ui(self, ui: &mut Ui) -> Response {
+        ui.horizontal(|ui| {
+            ui.label("Linked axes:");
+            ui.checkbox(&mut self.link_x, "X");
+            ui.checkbox(&mut self.link_y, "Y");
+        });
+        self.group.set_link_x(self.link_x);
+        self.group.set_link_y(self.link_y);
+        ui.horizontal(|ui| {
+            Plot::new("linked_axis_1")
+                .data_aspect(1.0)
+                .width(250.0)
+                .height(250.0)
+                .link_axis(self.group.clone())
+                .show(ui, LinkedAxisDemo::configure_plot);
+            Plot::new("linked_axis_2")
+                .data_aspect(2.0)
+                .width(150.0)
+                .height(250.0)
+                .link_axis(self.group.clone())
+                .show(ui, LinkedAxisDemo::configure_plot);
+        });
+        Plot::new("linked_axis_3")
+            .data_aspect(0.5)
+            .width(250.0)
+            .height(150.0)
+            .link_axis(self.group.clone())
+            .show(ui, LinkedAxisDemo::configure_plot)
+            .response
+    }
+}
+
+#[derive(PartialEq, Default)]
+struct ItemsDemo {
+    texture: Option<egui::TextureHandle>,
+}
 
 impl Widget for &mut ItemsDemo {
     fn ui(self, ui: &mut Ui) -> Response {
@@ -343,13 +410,15 @@ impl Widget for &mut ItemsDemo {
             );
             Arrows::new(arrow_origins, arrow_tips)
         };
+
+        let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
+            ui.ctx()
+                .load_texture("plot_demo", egui::ColorImage::example())
+        });
         let image = PlotImage::new(
-            TextureId::Egui,
+            texture,
             Value::new(0.0, 10.0),
-            [
-                ui.fonts().font_image().width as f32 / 100.0,
-                ui.fonts().font_image().height as f32 / 100.0,
-            ],
+            5.0 * vec2(texture.aspect_ratio(), 1.0),
         );
 
         let plot = Plot::new("items_demo")
@@ -376,14 +445,8 @@ impl Widget for &mut ItemsDemo {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(Default, PartialEq)]
 struct InteractionDemo {}
-
-impl Default for InteractionDemo {
-    fn default() -> Self {
-        Self {}
-    }
-}
 
 impl Widget for &mut InteractionDemo {
     fn ui(self, ui: &mut Ui) -> Response {
@@ -532,15 +595,40 @@ impl ChartsDemo {
         .name("Set 4")
         .stack_on(&[&chart1, &chart2, &chart3]);
 
+        let mut x_fmt: fn(f64) -> String = |val| {
+            if val >= 0.0 && val <= 4.0 && is_approx_integer(val) {
+                // Only label full days from 0 to 4
+                format!("Day {}", val)
+            } else {
+                // Otherwise return empty string (i.e. no label)
+                String::new()
+            }
+        };
+
+        let mut y_fmt: fn(f64) -> String = |val| {
+            let percent = 100.0 * val;
+
+            if is_approx_integer(percent) && !is_approx_zero(percent) {
+                // Only show integer percentages,
+                // and don't show at Y=0 (label overlaps with X axis label)
+                format!("{}%", percent)
+            } else {
+                String::new()
+            }
+        };
+
         if !self.vertical {
             chart1 = chart1.horizontal();
             chart2 = chart2.horizontal();
             chart3 = chart3.horizontal();
             chart4 = chart4.horizontal();
+            std::mem::swap(&mut x_fmt, &mut y_fmt);
         }
 
         Plot::new("Stacked Bar Chart Demo")
             .legend(Legend::default())
+            .x_axis_formatter(x_fmt)
+            .y_axis_formatter(y_fmt)
             .data_aspect(1.0)
             .show(ui, |plot_ui| {
                 plot_ui.bar_chart(chart1);
@@ -623,11 +711,12 @@ enum Panel {
     Charts,
     Items,
     Interaction,
+    LinkedAxes,
 }
 
 impl Default for Panel {
     fn default() -> Self {
-        Self::Charts
+        Self::Lines
     }
 }
 
@@ -639,6 +728,7 @@ pub struct PlotDemo {
     charts_demo: ChartsDemo,
     items_demo: ItemsDemo,
     interaction_demo: InteractionDemo,
+    linked_axes_demo: LinkedAxisDemo,
     open_panel: Panel,
 }
 
@@ -647,7 +737,7 @@ impl super::Demo for PlotDemo {
         "🗠 Plot"
     }
 
-    fn show(&mut self, ctx: &CtxRef, open: &mut bool) {
+    fn show(&mut self, ctx: &Context, open: &mut bool) {
         use super::View as _;
         Window::new(self.name())
             .open(open)
@@ -663,6 +753,7 @@ impl super::View for PlotDemo {
             egui::reset_button(ui, self);
             ui.collapsing("Instructions", |ui| {
                 ui.label("Pan by dragging, or scroll (+ shift = horizontal).");
+                ui.label("Box zooming: Right click to zoom in and zoom out using a selection.");
                 if cfg!(target_arch = "wasm32") {
                     ui.label("Zoom with ctrl / ⌘ + pointer wheel, or with pinch gesture.");
                 } else if cfg!(target_os = "macos") {
@@ -682,6 +773,7 @@ impl super::View for PlotDemo {
             ui.selectable_value(&mut self.open_panel, Panel::Charts, "Charts");
             ui.selectable_value(&mut self.open_panel, Panel::Items, "Items");
             ui.selectable_value(&mut self.open_panel, Panel::Interaction, "Interaction");
+            ui.selectable_value(&mut self.open_panel, Panel::LinkedAxes, "Linked Axes");
         });
         ui.separator();
 
@@ -704,6 +796,17 @@ impl super::View for PlotDemo {
             Panel::Interaction => {
                 ui.add(&mut self.interaction_demo);
             }
+            Panel::LinkedAxes => {
+                ui.add(&mut self.linked_axes_demo);
+            }
         }
     }
+}
+
+fn is_approx_zero(val: f64) -> bool {
+    val.abs() < 1e-6
+}
+
+fn is_approx_integer(val: f64) -> bool {
+    val.fract().abs() < 1e-6
 }

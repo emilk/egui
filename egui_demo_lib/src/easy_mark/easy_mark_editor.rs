@@ -34,7 +34,7 @@ impl epi::App for EasyMarkEditor {
         "🖹 EasyMark editor"
     }
 
-    fn update(&mut self, ctx: &egui::CtxRef, _frame: &epi::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &epi::Frame) {
         egui::TopBottomPanel::bottom("easy_mark_bottom").show(ctx, |ui| {
             let layout = egui::Layout::top_down(egui::Align::Center).with_main_justify(true);
             ui.allocate_ui_with_layout(ui.available_size(), layout, |ui| {
@@ -88,7 +88,7 @@ impl EasyMarkEditor {
 
         let response = if self.highlight_editor {
             let mut layouter = |ui: &egui::Ui, easymark: &str, wrap_width: f32| {
-                let mut layout_job = highlighter.highlight(ui.visuals(), easymark);
+                let mut layout_job = highlighter.highlight(ui.style(), easymark);
                 layout_job.wrap_width = wrap_width;
                 ui.fonts().layout_job(layout_job)
             };
@@ -96,7 +96,7 @@ impl EasyMarkEditor {
             ui.add(
                 egui::TextEdit::multiline(code)
                     .desired_width(f32::INFINITY)
-                    .text_style(egui::TextStyle::Monospace) // for cursor height
+                    .font(egui::TextStyle::Monospace) // for cursor height
                     .layouter(&mut layouter),
             )
         } else {

@@ -1,5 +1,5 @@
 use crate::emath::NumExt;
-use crate::epaint::{Color32, RectShape, Shape, Stroke};
+use crate::epaint::{Color32, RectShape, Rounding, Shape, Stroke};
 
 use super::{add_rulers_and_text, highlighted_color, Orientation, PlotConfig, RectElement};
 use crate::plot::{BarChart, ScreenTransform, Value};
@@ -129,7 +129,7 @@ impl Bar {
         let rect = transform.rect_from_values(&self.bounds_min(), &self.bounds_max());
         let rect = Shape::Rect(RectShape {
             rect,
-            corner_radius: 0.0,
+            rounding: Rounding::none(),
             fill,
             stroke,
         });

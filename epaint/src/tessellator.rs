@@ -179,20 +179,20 @@ impl Path {
 
 pub mod path {
     //! Helpers for constructing paths
+    use crate::shape::Rounding;
+
     use super::*;
 
     /// overwrites existing points
-    pub fn rounded_rectangle(path: &mut Vec<Pos2>, rect: Rect, corner_radius: f32) {
+    pub fn rounded_rectangle(path: &mut Vec<Pos2>, rect: Rect, rounding: Rounding) {
         path.clear();
 
         let min = rect.min;
         let max = rect.max;
 
-        let cr = corner_radius
-            .min(rect.width() * 0.5)
-            .min(rect.height() * 0.5);
+        let r = clamp_radius(rounding, rect);
 
-        if cr <= 0.0 {
+        if r == Rounding::none() {
             let min = rect.min;
             let max = rect.max;
             path.reserve(4);
@@ -201,10 +201,10 @@ pub mod path {
             path.push(pos2(max.x, max.y));
             path.push(pos2(min.x, max.y));
         } else {
-            add_circle_quadrant(path, pos2(max.x - cr, max.y - cr), cr, 0.0);
-            add_circle_quadrant(path, pos2(min.x + cr, max.y - cr), cr, 1.0);
-            add_circle_quadrant(path, pos2(min.x + cr, min.y + cr), cr, 2.0);
-            add_circle_quadrant(path, pos2(max.x - cr, min.y + cr), cr, 3.0);
+            add_circle_quadrant(path, pos2(max.x - r.se, max.y - r.se), r.se, 0.0);
+            add_circle_quadrant(path, pos2(min.x + r.sw, max.y - r.sw), r.sw, 1.0);
+            add_circle_quadrant(path, pos2(min.x + r.nw, min.y + r.nw), r.nw, 2.0);
+            add_circle_quadrant(path, pos2(max.x - r.ne, min.y + r.ne), r.ne, 3.0);
         }
     }
 
@@ -240,6 +240,20 @@ pub mod path {
                 quadrant * RIGHT_ANGLE..=(quadrant + 1.0) * RIGHT_ANGLE,
             );
             path.push(center + radius * Vec2::angled(angle));
+        }
+    }
+
+    // Ensures the radius of each corner is within a valid range
+    fn clamp_radius(rounding: Rounding, rect: Rect) -> Rounding {
+        let half_width = rect.width() * 0.5;
+        let half_height = rect.height() * 0.5;
+        let max_cr = half_width.min(half_height);
+
+        Rounding {
+            nw: rounding.nw.at_most(max_cr).at_least(0.0),
+            ne: rounding.ne.at_most(max_cr).at_least(0.0),
+            sw: rounding.sw.at_most(max_cr).at_least(0.0),
+            se: rounding.se.at_most(max_cr).at_least(0.0),
         }
     }
 }
@@ -286,6 +300,12 @@ pub struct TessellationOptions {
 
     /// If true, no clipping will be done.
     pub debug_ignore_clip_rects: bool,
+
+    /// The maximum distance between the original curve and the flattened curve.
+    pub bezier_tolerance: f32,
+
+    /// The default value will be 1.0e-5, it will be used during float compare.
+    pub epsilon: f32,
 }
 
 impl Default for TessellationOptions {
@@ -299,6 +319,8 @@ impl Default for TessellationOptions {
             debug_paint_text_rects: false,
             debug_paint_clip_rects: false,
             debug_ignore_clip_rects: false,
+            bezier_tolerance: 0.1,
+            epsilon: 1.0e-5,
         }
     }
 }
@@ -710,7 +732,91 @@ impl Tessellator {
                 }
                 self.tessellate_text(tex_size, text_shape, out);
             }
+            Shape::QuadraticBezier(quadratic_shape) => {
+                self.tessellate_quadratic_bezier(quadratic_shape, out);
+            }
+            Shape::CubicBezier(cubic_shape) => self.tessellate_cubic_bezier(cubic_shape, out),
         }
+    }
+
+    pub(crate) fn tessellate_quadratic_bezier(
+        &mut self,
+        quadratic_shape: QuadraticBezierShape,
+        out: &mut Mesh,
+    ) {
+        let options = &self.options;
+        let clip_rect = self.clip_rect;
+
+        if options.coarse_tessellation_culling
+            && !quadratic_shape.bounding_rect().intersects(clip_rect)
+        {
+            return;
+        }
+
+        let points = quadratic_shape.flatten(Some(options.bezier_tolerance));
+
+        self.tessellate_bezier_complete(
+            &points,
+            quadratic_shape.fill,
+            quadratic_shape.closed,
+            quadratic_shape.stroke,
+            out,
+        );
+    }
+
+    pub(crate) fn tessellate_cubic_bezier(
+        &mut self,
+        cubic_shape: CubicBezierShape,
+        out: &mut Mesh,
+    ) {
+        let options = &self.options;
+        let clip_rect = self.clip_rect;
+        if options.coarse_tessellation_culling && !cubic_shape.bounding_rect().intersects(clip_rect)
+        {
+            return;
+        }
+
+        let points_vec =
+            cubic_shape.flatten_closed(Some(options.bezier_tolerance), Some(options.epsilon));
+
+        for points in points_vec {
+            self.tessellate_bezier_complete(
+                &points,
+                cubic_shape.fill,
+                cubic_shape.closed,
+                cubic_shape.stroke,
+                out,
+            );
+        }
+    }
+
+    fn tessellate_bezier_complete(
+        &mut self,
+        points: &[Pos2],
+        fill: Color32,
+        closed: bool,
+        stroke: Stroke,
+        out: &mut Mesh,
+    ) {
+        self.scratchpad_path.clear();
+        if closed {
+            self.scratchpad_path.add_line_loop(points);
+        } else {
+            self.scratchpad_path.add_open_points(points);
+        }
+        if fill != Color32::TRANSPARENT {
+            crate::epaint_assert!(
+                closed,
+                "You asked to fill a path that is not closed. That makes no sense."
+            );
+            self.scratchpad_path.fill(fill, &self.options, out);
+        }
+        let typ = if closed {
+            PathType::Closed
+        } else {
+            PathType::Open
+        };
+        self.scratchpad_path.stroke(typ, stroke, &self.options, out);
     }
 
     pub(crate) fn tessellate_path(&mut self, path_shape: PathShape, out: &mut Mesh) {
@@ -756,7 +862,7 @@ impl Tessellator {
     pub(crate) fn tessellate_rect(&mut self, rect: &RectShape, out: &mut Mesh) {
         let RectShape {
             mut rect,
-            corner_radius,
+            rounding,
             fill,
             stroke,
         } = *rect;
@@ -777,7 +883,7 @@ impl Tessellator {
 
         let path = &mut self.scratchpad_path;
         path.clear();
-        path::rounded_rectangle(&mut self.scratchpad_points, rect, corner_radius);
+        path::rounded_rectangle(&mut self.scratchpad_points, rect, rounding);
         path.add_line_loop(&self.scratchpad_points);
         path.fill(fill, &self.options, out);
         path.stroke_closed(stroke, &self.options, out);

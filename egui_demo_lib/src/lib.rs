@@ -140,7 +140,7 @@ Curabitur pretium tincidunt lacus. Nulla gravida orci a odio. Nullam varius, tur
 #[test]
 fn test_egui_e2e() {
     let mut demo_windows = crate::DemoWindows::default();
-    let mut ctx = egui::CtxRef::default();
+    let ctx = egui::Context::default();
     let raw_input = egui::RawInput::default();
 
     const NUM_FRAMES: usize = 5;
@@ -156,7 +156,7 @@ fn test_egui_e2e() {
 #[test]
 fn test_egui_zero_window_size() {
     let mut demo_windows = crate::DemoWindows::default();
-    let mut ctx = egui::CtxRef::default();
+    let ctx = egui::Context::default();
     let raw_input = egui::RawInput {
         screen_rect: Some(egui::Rect::from_min_max(egui::Pos2::ZERO, egui::Pos2::ZERO)),
         ..Default::default()
@@ -176,7 +176,7 @@ fn test_egui_zero_window_size() {
 
 /// Time of day as seconds since midnight. Used for clock in demo app.
 pub(crate) fn seconds_since_midnight() -> Option<f64> {
-    #[cfg(feature = "chrono")]
+    #[cfg(feature = "datetime")]
     {
         use chrono::Timelike;
         let time = chrono::Local::now().time();
@@ -184,6 +184,6 @@ pub(crate) fn seconds_since_midnight() -> Option<f64> {
             time.num_seconds_from_midnight() as f64 + 1e-9 * (time.nanosecond() as f64);
         Some(seconds_since_midnight)
     }
-    #[cfg(not(feature = "chrono"))]
+    #[cfg(not(feature = "datetime"))]
     None
 }

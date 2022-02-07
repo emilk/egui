@@ -61,7 +61,7 @@ fn show_hsva(ui: &mut Ui, color: Hsva, desired_size: Vec2) -> Response {
         } else {
             ui.painter().add(RectShape {
                 rect,
-                corner_radius: 2.0,
+                rounding: Rounding::same(2.0),
                 fill: color.into(),
                 stroke: Stroke::new(3.0, color.to_opaque()),
             });
@@ -90,9 +90,15 @@ fn color_button(ui: &mut Ui, color: Color32, open: bool) -> Response {
         ui.painter().rect_filled(left_half, 0.0, color);
         ui.painter().rect_filled(right_half, 0.0, color.to_opaque());
 
-        let corner_radius = visuals.corner_radius.at_most(2.0);
+        let rounding = Rounding {
+            nw: visuals.rounding.nw.at_most(2.0),
+            ne: visuals.rounding.ne.at_most(2.0),
+            sw: visuals.rounding.sw.at_most(2.0),
+            se: visuals.rounding.se.at_most(2.0),
+        };
+
         ui.painter()
-            .rect_stroke(rect, corner_radius, (2.0, visuals.bg_fill)); // fill is intentional, because default style has no border
+            .rect_stroke(rect, rounding, (2.0, visuals.bg_fill)); // fill is intentional, because default style has no border
     }
 
     response
@@ -308,8 +314,10 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
     color_slider_2d(ui, v, s, |v, s| HsvaGamma { s, v, ..opaque }.into());
 }
 
+//// Shows a color picker where the user can change the given [`Hsva`] color.
+///
 /// Returns `true` on change.
-fn color_picker_hsva_2d(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> bool {
+pub fn color_picker_hsva_2d(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> bool {
     let mut hsvag = HsvaGamma::from(*hsva);
     ui.vertical(|ui| {
         color_picker_hsvag_2d(ui, &mut hsvag, alpha);
@@ -323,7 +331,7 @@ fn color_picker_hsva_2d(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> bool {
     }
 }
 
-/// Shows a color picker where the user can change the given color.
+/// Shows a color picker where the user can change the given [`Color32`] color.
 ///
 /// Returns `true` on change.
 pub fn color_picker_color32(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -> bool {
@@ -335,19 +343,19 @@ pub fn color_picker_color32(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -> b
 }
 
 pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Response {
-    let pupup_id = ui.auto_id_with("popup");
-    let open = ui.memory().is_popup_open(pupup_id);
+    let popup_id = ui.auto_id_with("popup");
+    let open = ui.memory().is_popup_open(popup_id);
     let mut button_response = color_button(ui, (*hsva).into(), open);
     if ui.style().explanation_tooltips {
         button_response = button_response.on_hover_text("Click to edit color");
     }
 
     if button_response.clicked() {
-        ui.memory().toggle_popup(pupup_id);
+        ui.memory().toggle_popup(popup_id);
     }
     // TODO: make it easier to show a temporary popup that closes when you click outside it
-    if ui.memory().is_popup_open(pupup_id) {
-        let area_response = Area::new(pupup_id)
+    if ui.memory().is_popup_open(popup_id) {
+        let area_response = Area::new(popup_id)
             .order(Order::Foreground)
             .default_pos(button_response.rect.max)
             .show(ui.ctx(), |ui| {
@@ -427,5 +435,5 @@ fn color_cache_set(ctx: &Context, rgba: impl Into<Rgba>, hsva: Hsva) {
 
 // To ensure we keep hue slider when `srgba` is gray we store the full `Hsva` in a cache:
 fn use_color_cache<R>(ctx: &Context, f: impl FnOnce(&mut FixedCache<Rgba, Hsva>) -> R) -> R {
-    f(ctx.memory().data.get_temp_mut_or_default(Id::null()))
+    f(ctx.data().get_temp_mut_or_default(Id::null()))
 }

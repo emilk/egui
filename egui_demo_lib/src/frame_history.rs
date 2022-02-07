@@ -76,7 +76,7 @@ impl FrameHistory {
         let mut shapes = Vec::with_capacity(3 + 2 * history.len());
         shapes.push(Shape::Rect(epaint::RectShape {
             rect,
-            corner_radius: style.corner_radius,
+            rounding: style.rounding,
             fill: ui.visuals().extreme_bg_color,
             stroke: ui.style().noninteractive().bg_stroke,
         }));
@@ -94,11 +94,11 @@ impl FrameHistory {
             let cpu_usage = to_screen.inverse().transform_pos(pointer_pos).y;
             let text = format!("{:.1} ms", 1e3 * cpu_usage);
             shapes.push(Shape::text(
-                ui.fonts(),
+                &*ui.fonts(),
                 pos2(rect.left(), y),
                 egui::Align2::LEFT_BOTTOM,
                 text,
-                TextStyle::Monospace,
+                TextStyle::Monospace.resolve(ui.style()),
                 color,
             ));
         }

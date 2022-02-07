@@ -29,7 +29,7 @@ impl Corner {
 }
 
 /// The configuration for a plot legend.
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Legend {
     pub text_style: TextStyle,
     pub background_alpha: f32,
@@ -82,16 +82,18 @@ impl LegendEntry {
         }
     }
 
-    fn ui(&mut self, ui: &mut Ui, text: String) -> Response {
+    fn ui(&mut self, ui: &mut Ui, text: String, text_style: &TextStyle) -> Response {
         let Self {
             color,
             checked,
             hovered,
         } = self;
 
-        let galley =
-            ui.fonts()
-                .layout_delayed_color(text, ui.style().body_text_style, f32::INFINITY);
+        let font_id = text_style.resolve(ui.style());
+
+        let galley = ui
+            .fonts()
+            .layout_delayed_color(text, font_id, f32::INFINITY);
 
         let icon_size = galley.size().y;
         let icon_spacing = icon_size / 5.0;
@@ -236,10 +238,9 @@ impl Widget for &mut LegendWidget {
         let mut legend_ui = ui.child_ui(legend_rect, layout);
         legend_ui
             .scope(|ui| {
-                ui.style_mut().body_text_style = config.text_style;
                 let background_frame = Frame {
                     margin: vec2(8.0, 4.0),
-                    corner_radius: ui.style().visuals.window_corner_radius,
+                    rounding: ui.style().visuals.window_rounding,
                     shadow: epaint::Shadow::default(),
                     fill: ui.style().visuals.extreme_bg_color,
                     stroke: ui.style().visuals.window_stroke(),
@@ -249,7 +250,7 @@ impl Widget for &mut LegendWidget {
                     .show(ui, |ui| {
                         entries
                             .iter_mut()
-                            .map(|(name, entry)| entry.ui(ui, name.clone()))
+                            .map(|(name, entry)| entry.ui(ui, name.clone(), &config.text_style))
                             .reduce(|r1, r2| r1.union(r2))
                             .unwrap()
                     })

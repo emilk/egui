@@ -7,6 +7,7 @@ use crate::{
 };
 
 /// All you probably need to know about a multi-touch gesture.
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MultiTouchInfo {
     /// Point in time when the gesture started.
     pub start_time: f64,

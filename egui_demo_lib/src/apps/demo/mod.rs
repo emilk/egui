@@ -16,6 +16,7 @@ pub mod grid_demo;
 pub mod layout_test;
 pub mod misc_demo_window;
 pub mod multi_touch;
+pub mod paint_bezier;
 pub mod painting;
 pub mod password;
 pub mod plot_demo;
@@ -47,5 +48,5 @@ pub trait Demo {
     fn name(&self) -> &'static str;
 
     /// Show windows, etc
-    fn show(&mut self, ctx: &egui::CtxRef, open: &mut bool);
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool);
 }

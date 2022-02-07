@@ -129,17 +129,22 @@ pub struct State {
 }
 
 impl State {
-    /// Initialize with the native `pixels_per_point` (dpi scaling).
-    pub fn new(window: &winit::window::Window) -> Self {
-        Self::from_pixels_per_point(native_pixels_per_point(window))
+    /// Initialize with:
+    /// * `max_texture_side`: e.g. `GL_MAX_TEXTURE_SIZE`
+    /// * the native `pixels_per_point` (dpi scaling).
+    pub fn new(max_texture_side: usize, window: &winit::window::Window) -> Self {
+        Self::from_pixels_per_point(max_texture_side, native_pixels_per_point(window))
     }
 
-    /// Initialize with a given dpi scaling.
-    pub fn from_pixels_per_point(pixels_per_point: f32) -> Self {
+    /// Initialize with:
+    /// * `max_texture_side`: e.g. `GL_MAX_TEXTURE_SIZE`
+    /// * the given `pixels_per_point` (dpi scaling).
+    pub fn from_pixels_per_point(max_texture_side: usize, pixels_per_point: f32) -> Self {
         Self {
             start_time: instant::Instant::now(),
             egui_input: egui::RawInput {
                 pixels_per_point: Some(pixels_per_point),
+                max_texture_side,
                 ..Default::default()
             },
             pointer_pos_in_points: None,
@@ -453,17 +458,19 @@ impl State {
                 egui::vec2(delta.x as f32, delta.y as f32) / self.pixels_per_point()
             }
         };
-        if cfg!(target_os = "macos") {
-            delta.x *= -1.0; // until https://github.com/rust-windowing/winit/pull/2105 is merged and released
-        }
-        if cfg!(target_os = "windows") {
-            delta.x *= -1.0; // until https://github.com/rust-windowing/winit/pull/2101 is merged and released
-        }
+
+        delta.x *= -1.0; // Winit has inverted hscroll. Remove this line when we update winit after https://github.com/rust-windowing/winit/pull/2105 is merged and released
 
         if self.egui_input.modifiers.ctrl || self.egui_input.modifiers.command {
             // Treat as zoom instead:
             let factor = (delta.y / 200.0).exp();
             self.egui_input.events.push(egui::Event::Zoom(factor));
+        } else if self.egui_input.modifiers.shift {
+            // Treat as horizontal scrolling.
+            // Note: one Mac we already get horizontal scroll events when shift is down.
+            self.egui_input
+                .events
+                .push(egui::Event::Scroll(egui::vec2(delta.x + delta.y, 0.0)));
         } else {
             self.egui_input.events.push(egui::Event::Scroll(delta));
         }
@@ -484,7 +491,7 @@ impl State {
                     if let Some(contents) = self.clipboard.get() {
                         self.egui_input
                             .events
-                            .push(egui::Event::Text(contents.replace("\r\n", "\n")));
+                            .push(egui::Event::Paste(contents.replace("\r\n", "\n")));
                     }
                 }
             }
@@ -512,26 +519,39 @@ impl State {
         window: &winit::window::Window,
         egui_ctx: &egui::Context,
         output: egui::Output,
-    ) {
-        self.current_pixels_per_point = egui_ctx.pixels_per_point(); // someone can have changed it to scale the UI
-
-        if egui_ctx.memory().options.screen_reader {
+    ) -> egui::TexturesDelta {
+        if egui_ctx.options().screen_reader {
             self.screen_reader.speak(&output.events_description());
         }
 
-        self.set_cursor_icon(window, output.cursor_icon);
+        let egui::Output {
+            cursor_icon,
+            open_url,
+            copied_text,
+            needs_repaint: _,             // needs to be handled elsewhere
+            events: _,                    // handled above
+            mutable_text_under_cursor: _, // only used in egui_web
+            text_cursor_pos,
+            textures_delta,
+        } = output;
 
-        if let Some(open) = output.open_url {
-            open_url(&open.url);
+        self.current_pixels_per_point = egui_ctx.pixels_per_point(); // someone can have changed it to scale the UI
+
+        self.set_cursor_icon(window, cursor_icon);
+
+        if let Some(open_url) = open_url {
+            open_url_in_browser(&open_url.url);
         }
 
-        if !output.copied_text.is_empty() {
-            self.clipboard.set(output.copied_text);
+        if !copied_text.is_empty() {
+            self.clipboard.set(copied_text);
         }
 
-        if let Some(egui::Pos2 { x, y }) = output.text_cursor_pos {
+        if let Some(egui::Pos2 { x, y }) = text_cursor_pos {
             window.set_ime_position(winit::dpi::LogicalPosition { x, y });
         }
+
+        textures_delta
     }
 
     fn set_cursor_icon(&mut self, window: &winit::window::Window, cursor_icon: egui::CursorIcon) {
@@ -554,15 +574,15 @@ impl State {
     }
 }
 
-fn open_url(_url: &str) {
+fn open_url_in_browser(_url: &str) {
     #[cfg(feature = "webbrowser")]
     if let Err(err) = webbrowser::open(_url) {
-        eprintln!("Failed to open url: {}", err);
+        tracing::warn!("Failed to open url: {}", err);
     }
 
     #[cfg(not(feature = "webbrowser"))]
     {
-        eprintln!("Cannot open url - feature \"links\" not enabled.");
+        tracing::warn!("Cannot open url - feature \"links\" not enabled.");
     }
 }
 

@@ -8,7 +8,7 @@
 /// moved outside the slider.
 ///
 /// For some widgets `Id`s are also used to persist some state about the
-/// widgets, such as Window position or wether not a collapsing header region is open.
+/// widgets, such as Window position or whether not a collapsing header region is open.
 ///
 /// This implies that the `Id`s must be unique.
 ///
@@ -19,7 +19,7 @@
 ///
 /// For things that need to persist state even after moving (windows, collapsing headers)
 /// the location of the widgets is obviously not good enough. For instance,
-/// a collapsing region needs to remember wether or not it is open even
+/// a collapsing region needs to remember whether or not it is open even
 /// if the layout next frame is different and the collapsing is not lower down
 /// on the screen.
 ///

@@ -8,7 +8,7 @@
 
 This crates allows you to compile GUI code written with [egui](https://crates.io/crates/egui) to [WASM](https://en.wikipedia.org/wiki/WebAssembly) to run on a web page.
 
-[Run the web demo](https://emilk.github.io/egui/index.html) to try it now.
+[Run the web demo](https://www.egui.rs/#demo) to try it now.
 
 Check out [eframe_template](https://github.com/emilk/eframe_template) for an example of how to set it up.
 

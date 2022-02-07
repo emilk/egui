@@ -51,6 +51,7 @@ pub struct BackendPanel {
     run_mode: RunMode,
 
     /// current slider value for current gui scale
+    #[cfg_attr(feature = "serde", serde(skip))]
     pixels_per_point: Option<f32>,
 
     /// maximum size of the web browser canvas
@@ -78,7 +79,7 @@ impl Default for BackendPanel {
 }
 
 impl BackendPanel {
-    pub fn update(&mut self, ctx: &egui::CtxRef, frame: &epi::Frame) {
+    pub fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
         self.frame_history
             .on_new_frame(ctx.input().time, frame.info().cpu_usage);
 
@@ -88,7 +89,7 @@ impl BackendPanel {
         }
     }
 
-    pub fn end_of_frame(&mut self, ctx: &egui::CtxRef) {
+    pub fn end_of_frame(&mut self, ctx: &egui::Context) {
         self.egui_windows.windows(ctx);
     }
 
@@ -127,9 +128,9 @@ impl BackendPanel {
         ui.separator();
 
         {
-            let mut screen_reader = ui.ctx().memory().options.screen_reader;
+            let mut screen_reader = ui.ctx().options().screen_reader;
             ui.checkbox(&mut screen_reader, "🔈 Screen reader").on_hover_text("Experimental feature: checking this will turn on the screen reader on supported platforms");
-            ui.ctx().memory().options.screen_reader = screen_reader;
+            ui.ctx().options().screen_reader = screen_reader;
         }
 
         if !frame.is_web() {
@@ -195,12 +196,10 @@ impl BackendPanel {
         ui: &mut egui::Ui,
         info: &epi::IntegrationInfo,
     ) -> Option<f32> {
-        self.pixels_per_point = self
-            .pixels_per_point
-            .or(info.native_pixels_per_point)
-            .or_else(|| Some(ui.ctx().pixels_per_point()));
-
-        let pixels_per_point = self.pixels_per_point.as_mut()?;
+        let pixels_per_point = self.pixels_per_point.get_or_insert_with(|| {
+            info.native_pixels_per_point
+                .unwrap_or_else(|| ui.ctx().pixels_per_point())
+        });
 
         ui.horizontal(|ui| {
             ui.spacing_mut().slider_width = 90.0;
@@ -325,7 +324,7 @@ impl EguiWindows {
         ui.checkbox(output_events, "📤 Output Events");
     }
 
-    fn windows(&mut self, ctx: &egui::CtxRef) {
+    fn windows(&mut self, ctx: &egui::Context) {
         let Self {
             settings,
             inspection,

@@ -23,23 +23,6 @@ all-features = true
 
 [lib]
 
-[dependencies]
-egui = { version = "0.16.0", path = "../egui", default-features = false }
-epi = { version = "0.16.0", path = "../epi" }
-
-# native:
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { version = "0.16.0", path = "../egui-winit", default-features = false }
-egui_glium = { version = "0.16.0", path = "../egui_glium", default-features = false, features = ["clipboard", "epi", "links"], optional = true }
-egui_glow = { version = "0.16.0", path = "../egui_glow", default-features = false, features = ["clipboard", "epi", "links", "winit"], optional = true }
-
-# web:
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-egui_web = { version = "0.16.0", path = "../egui_web", default-features = false, features = ["glow"] }
-
-[dev-dependencies]
-image = { version = "0.23", default-features = false, features = ["png"] }
-rfd = "0.6"
 
 [features]
 default = ["default_fonts", "egui_glow"]
@@ -57,9 +40,31 @@ persistence = [
   "epi/persistence",
 ]
 
-# experimental support for a screen reader
+# enable screen reader support (requires `ctx.options().screen_reader = true;`)
 screen_reader = [
   # we cannot touch egui_glium or egui_glow here due to https://github.com/rust-lang/cargo/issues/8832
   "egui-winit/screen_reader",
   "egui_web/screen_reader",
 ]
+
+
+[dependencies]
+egui = { version = "0.16.0", path = "../egui", default-features = false }
+epi = { version = "0.16.0", path = "../epi" }
+
+# native:
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+egui-winit = { version = "0.16.0", path = "../egui-winit", default-features = false }
+egui_glium = { version = "0.16.0", path = "../egui_glium", default-features = false, features = ["clipboard", "epi", "links"], optional = true }
+egui_glow = { version = "0.16.0", path = "../egui_glow", default-features = false, features = ["clipboard", "epi", "links", "winit"], optional = true }
+
+# web:
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+egui_web = { version = "0.16.0", path = "../egui_web", default-features = false, features = ["glow"] }
+
+[dev-dependencies]
+ehttp = "0.2"
+image = { version = "0.24", default-features = false, features = ["jpeg", "png"] }
+poll-promise = "0.1"
+rfd = "0.7"
+

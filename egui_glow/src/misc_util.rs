@@ -2,91 +2,16 @@
 use glow::HasContext;
 use std::option::Option::Some;
 
-use crate::painter::TextureFilter;
-
-pub(crate) fn srgbtexture2d(
-    gl: &glow::Context,
-    is_webgl_1: bool,
-    srgb_support: bool,
-    texture_filter: TextureFilter,
-    data: &[u8],
-    w: usize,
-    h: usize,
-) -> glow::Texture {
-    assert_eq!(data.len(), w * h * 4);
-    assert!(w >= 1);
-    assert!(h >= 1);
-    unsafe {
-        let tex = gl.create_texture().unwrap();
-        gl.bind_texture(glow::TEXTURE_2D, Some(tex));
-
-        gl.tex_parameter_i32(
-            glow::TEXTURE_2D,
-            glow::TEXTURE_MAG_FILTER,
-            texture_filter.glow_code() as i32,
+pub fn check_for_gl_error(gl: &glow::Context, context: &str) {
+    let error_code = unsafe { gl.get_error() };
+    if error_code != glow::NO_ERROR {
+        tracing::error!(
+            "GL error, at: '{}', code: {} (0x{:X})",
+            context,
+            error_code,
+            error_code
         );
-        gl.tex_parameter_i32(
-            glow::TEXTURE_2D,
-            glow::TEXTURE_MIN_FILTER,
-            texture_filter.glow_code() as i32,
-        );
-        gl.tex_parameter_i32(
-            glow::TEXTURE_2D,
-            glow::TEXTURE_WRAP_S,
-            glow::CLAMP_TO_EDGE as i32,
-        );
-        gl.tex_parameter_i32(
-            glow::TEXTURE_2D,
-            glow::TEXTURE_WRAP_T,
-            glow::CLAMP_TO_EDGE as i32,
-        );
-        if is_webgl_1 {
-            let format = if srgb_support {
-                glow::SRGB_ALPHA
-            } else {
-                glow::RGBA
-            };
-            gl.tex_image_2d(
-                glow::TEXTURE_2D,
-                0,
-                format as i32,
-                w as i32,
-                h as i32,
-                0,
-                format,
-                glow::UNSIGNED_BYTE,
-                Some(data),
-            );
-        } else {
-            gl.tex_storage_2d(glow::TEXTURE_2D, 1, glow::SRGB8_ALPHA8, w as i32, h as i32);
-            gl.tex_sub_image_2d(
-                glow::TEXTURE_2D,
-                0,
-                0,
-                0,
-                w as i32,
-                h as i32,
-                glow::RGBA,
-                glow::UNSIGNED_BYTE,
-                glow::PixelUnpackData::Slice(data),
-            );
-        }
-        assert_eq!(gl.get_error(), glow::NO_ERROR, "OpenGL error occurred!");
-        tex
     }
-}
-
-pub(crate) unsafe fn as_u8_slice<T>(s: &[T]) -> &[u8] {
-    std::slice::from_raw_parts(s.as_ptr().cast::<u8>(), s.len() * std::mem::size_of::<T>())
-}
-
-#[cfg(target_arch = "wasm32")]
-pub(crate) fn glow_debug_print(s: impl std::fmt::Display) {
-    web_sys::console::log_1(&format!("egui_glow: {}", s).into());
-}
-#[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn glow_debug_print(s: impl std::fmt::Display) {
-    eprintln!("egui_glow: {}", s);
 }
 
 pub(crate) unsafe fn compile_shader(
@@ -187,40 +112,36 @@ impl VAO {
 
 /// If returned true no need to emulate vao
 pub(crate) fn supports_vao(gl: &glow::Context) -> bool {
-    let web_sig = "WebGL ";
-    let es_sig = "OpenGL ES ";
+    const WEBGL_PREFIX: &str = "WebGL ";
+    const OPENGL_ES_PREFIX: &str = "OpenGL ES ";
+
     let version_string = unsafe { gl.get_parameter_string(glow::VERSION) };
-    if let Some(pos) = version_string.rfind(web_sig) {
-        let version_str = &version_string[pos + web_sig.len()..];
-        glow_debug_print(format!(
-            "detected WebGL prefix at {}:{}",
-            pos + web_sig.len(),
-            version_str
-        ));
+    tracing::debug!("GL version: {:?}.", version_string);
+
+    // Examples:
+    // * "WebGL 2.0 (OpenGL ES 3.0 Chromium)"
+    // * "WebGL 2.0"
+
+    if let Some(pos) = version_string.rfind(WEBGL_PREFIX) {
+        let version_str = &version_string[pos + WEBGL_PREFIX.len()..];
         if version_str.contains("1.0") {
-            //need to test OES_vertex_array_object .
+            // need to test OES_vertex_array_object .
             gl.supported_extensions()
                 .contains("OES_vertex_array_object")
         } else {
             true
         }
-    } else if let Some(pos) = version_string.rfind(es_sig) {
-        //glow targets es2.0+ so we don't concern about OpenGL ES-CM,OpenGL ES-CL
-        glow_debug_print(format!(
-            "detected OpenGL ES prefix at {}:{}",
-            pos + es_sig.len(),
-            &version_string[pos + es_sig.len()..]
-        ));
+    } else if version_string.contains(OPENGL_ES_PREFIX) {
+        // glow targets es2.0+ so we don't concern about OpenGL ES-CM,OpenGL ES-CL
         if version_string.contains("2.0") {
-            //need to test OES_vertex_array_object .
+            // need to test OES_vertex_array_object .
             gl.supported_extensions()
                 .contains("OES_vertex_array_object")
         } else {
             true
         }
     } else {
-        glow_debug_print(format!("detected OpenGL: {:?}", version_string));
-        //from OpenGL 3 vao into core
+        // from OpenGL 3 vao into core
         if version_string.starts_with('2') {
             // I found APPLE_vertex_array_object , GL_ATI_vertex_array_object ,ARB_vertex_array_object
             // but APPLE's and ATI's very old extension.

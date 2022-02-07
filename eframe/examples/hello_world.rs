@@ -21,7 +21,7 @@ impl epi::App for MyApp {
         "My egui App"
     }
 
-    fn update(&mut self, ctx: &egui::CtxRef, frame: &epi::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
         let Self { name, age } = self;
 
         egui::CentralPanel::default().show(ctx, |ui| {

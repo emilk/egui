@@ -25,11 +25,11 @@ struct PanelState {
 
 impl PanelState {
     fn load(ctx: &Context, bar_id: Id) -> Option<Self> {
-        ctx.memory().data.get_persisted(bar_id)
+        ctx.data().get_persisted(bar_id)
     }
 
     fn store(self, ctx: &Context, bar_id: Id) {
-        ctx.memory().data.insert_persisted(bar_id, self);
+        ctx.data().insert_persisted(bar_id, self);
     }
 }
 
@@ -199,7 +199,7 @@ impl SidePanel {
         let mut is_resizing = false;
         if resizable {
             let resize_id = id.with("__resize");
-            if let Some(pointer) = ui.input().pointer.latest_pos() {
+            if let Some(pointer) = ui.ctx().latest_pointer_pos() {
                 let we_are_on_top = ui
                     .ctx()
                     .layer_id_at(pointer)
@@ -284,7 +284,7 @@ impl SidePanel {
     /// Show the panel at the top level.
     pub fn show<R>(
         self,
-        ctx: &CtxRef,
+        ctx: &Context,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.show_dyn(ctx, Box::new(add_contents))
@@ -293,7 +293,7 @@ impl SidePanel {
     /// Show the panel at the top level.
     fn show_dyn<'c, R>(
         self,
-        ctx: &CtxRef,
+        ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         let layer_id = LayerId::background();
@@ -485,7 +485,8 @@ impl TopBottomPanel {
         let mut is_resizing = false;
         if resizable {
             let resize_id = id.with("__resize");
-            if let Some(pointer) = ui.input().pointer.latest_pos() {
+            let latest_pos = ui.input().pointer.latest_pos();
+            if let Some(pointer) = latest_pos {
                 let we_are_on_top = ui
                     .ctx()
                     .layer_id_at(pointer)
@@ -570,7 +571,7 @@ impl TopBottomPanel {
     /// Show the panel at the top level.
     pub fn show<R>(
         self,
-        ctx: &CtxRef,
+        ctx: &Context,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.show_dyn(ctx, Box::new(add_contents))
@@ -579,7 +580,7 @@ impl TopBottomPanel {
     /// Show the panel at the top level.
     fn show_dyn<'c, R>(
         self,
-        ctx: &CtxRef,
+        ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         let layer_id = LayerId::background();
@@ -670,7 +671,7 @@ impl CentralPanel {
     /// Show the panel at the top level.
     pub fn show<R>(
         self,
-        ctx: &CtxRef,
+        ctx: &Context,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.show_dyn(ctx, Box::new(add_contents))
@@ -679,7 +680,7 @@ impl CentralPanel {
     /// Show the panel at the top level.
     fn show_dyn<'c, R>(
         self,
-        ctx: &CtxRef,
+        ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         let available_rect = ctx.available_rect();

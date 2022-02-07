@@ -19,7 +19,15 @@ use crate::{area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
 pub struct Memory {
     pub options: Options,
 
-    /// This map stores current states for all widgets with custom `Id`s.
+    /// This map stores some superficial state for all widgets with custom `Id`s.
+    ///
+    /// This includes storing if a [`crate::CollapsingHeader`] is open, how far scrolled a
+    /// [`crate::ScrollArea`] is, where the cursor in a [`crate::TextEdit`] is, etc.
+    ///
+    /// This is NOT meant to store any important data. Store that in your own structures!
+    ///
+    /// Each read clones the data, so keep your values cheap to clone.
+    /// If you want to store a lot of data you should wrap it in `Arc<Mutex<…>>` so it is cheap to clone.
     ///
     /// This will be saved between different program runs if you use the `persistence` feature.
     ///
@@ -45,7 +53,7 @@ pub struct Memory {
     /// }
     /// type CharCountCache<'a> = FrameCache<usize, CharCounter>;
     ///
-    /// # let mut ctx = egui::CtxRef::default();
+    /// # let mut ctx = egui::Context::default();
     /// let mut memory = ctx.memory();
     /// let cache = memory.caches.cache::<CharCountCache<'_>>();
     /// assert_eq!(cache.get("hello"), 5);
@@ -85,13 +93,13 @@ pub struct Memory {
 // ----------------------------------------------------------------------------
 
 /// Some global options that you can read and write.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Options {
     /// The default style for new `Ui`:s.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) style: std::sync::Arc<Style>,
+    pub(crate) style: epaint::mutex::Arc<Style>,
 
     /// Controls the tessellator.
     pub tessellation_options: epaint::TessellationOptions,
@@ -100,6 +108,25 @@ pub struct Options {
     /// but is a signal to any backend that we want the [`crate::Output::events`] read out loud.
     /// Screen readers is an experimental feature of egui, and not supported on all platforms.
     pub screen_reader: bool,
+
+    /// If true, the most common glyphs (ASCII) are pre-rendered to the texture atlas.
+    ///
+    /// Only the fonts in [`Style::text_styles`] will be pre-cached.
+    ///
+    /// This can lead to fewer texture operations, but may use up the texture atlas quicker
+    /// if you are changing [`Style::text_styles`], of have a lot of text styles.
+    pub preload_font_glyphs: bool,
+}
+
+impl Default for Options {
+    fn default() -> Self {
+        Self {
+            style: Default::default(),
+            tessellation_options: Default::default(),
+            screen_reader: false,
+            preload_font_glyphs: true,
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -396,7 +423,7 @@ impl Memory {
 /// Popups are things like combo-boxes, color pickers, menus etc.
 /// Only one can be be open at a time.
 impl Memory {
-    pub fn is_popup_open(&mut self, popup_id: Id) -> bool {
+    pub fn is_popup_open(&self, popup_id: Id) -> bool {
         self.popup == Some(popup_id) || self.everything_is_visible()
     }
 
@@ -541,7 +568,8 @@ impl Areas {
             ..
         } = self;
 
-        *visible_last_frame = std::mem::take(visible_current_frame);
+        std::mem::swap(visible_last_frame, visible_current_frame);
+        visible_current_frame.clear();
         order.sort_by_key(|layer| (layer.order, wants_to_be_on_top.contains(layer)));
         wants_to_be_on_top.clear();
     }
