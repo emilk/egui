@@ -264,16 +264,12 @@ pub struct Modifiers {
 }
 
 impl Modifiers {
-
     pub fn new() -> Self {
         Default::default()
     }
 
     pub fn alt(self, value: bool) -> Self {
-        Self {
-            alt: value,
-            ..self
-        }
+        Self { alt: value, ..self }
     }
 
     pub fn ctrl(self, value: bool) -> Self {

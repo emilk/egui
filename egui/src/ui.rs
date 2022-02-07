@@ -338,7 +338,6 @@ impl Ui {
         self.ctx().input()
     }
 
-
     /// The [`InputState`] of the [`Context`] associated with this [`Ui`].
     /// Equivalent to `.ctx().input_mut()`.
     ///
@@ -346,14 +345,13 @@ impl Ui {
     /// like for [`Self::input()`].
     /// ```
     /// # egui::__run_test_ui(|ui| {
-    /// ui.input_mut().consume_key(egui::Key::Enter, egui::Modifiers::default());
+    /// ui.input_mut().consume_key(egui::Modifiers::default(), egui::Key::Enter);
     /// # });
     /// ```
     #[inline]
     pub fn input_mut(&self) -> RwLockWriteGuard<'_, InputState> {
         self.ctx().input_mut()
     }
-
 
     /// The [`Memory`] of the [`Context`] associated with this ui.
     /// Equivalent to `.ctx().memory()`.
