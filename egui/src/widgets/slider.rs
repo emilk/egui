@@ -71,6 +71,7 @@ pub struct Slider<'a> {
     suffix: String,
     text: String,
     text_color: Option<Color32>,
+    /// Sets the minimal step of the widget value
     step: Option<f64>,
     min_decimals: usize,
     max_decimals: Option<usize>,
@@ -205,6 +206,8 @@ impl<'a> Slider<'a> {
     /// If `clamp_to_range` is enabled, `step` must be less than a maximum between the start and
     /// the end of the range; otherwise, the step would be left unchanged.
     /// Without `clamp_to_range` enabled, `step` can be any value.
+    ///
+    /// Default: `None`.
     pub fn step_by(mut self, step: f64) -> Self {
         let max = self.range.end().abs().max(self.range.start().abs());
         let step = match self.clamp_to_range {
