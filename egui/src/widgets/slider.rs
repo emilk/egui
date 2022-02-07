@@ -206,14 +206,12 @@ impl<'a> Slider<'a> {
     /// the end of the range; otherwise, the step would be left unchanged.
     /// Without `clamp_to_range` enabled, `step` can be any value.
     pub fn step_by(mut self, step: f64) -> Self {
-        if self.clamp_to_range {
-            let max = self.range.end().abs().max(self.range.start().abs());
-            if step.abs() <= max {
-                self.step = Some(step);
-            }
-        } else {
-            self.step = Some(step);
-        }
+        let max = self.range.end().abs().max(self.range.start().abs());
+        let step = match self.clamp_to_range {
+            true if (step.abs() > max) => None,
+            _ => Some(step),
+        };
+        self.step = step;
         self
     }
 
@@ -361,16 +359,22 @@ impl<'a> Slider<'a> {
                 let prev_value = self.get_value();
                 let prev_position = self.position_from_value(prev_value, position_range.clone());
                 let new_position = prev_position + kb_step;
-                let new_value = if let Some(step) = self.step {
-                    prev_value + (kb_step as f64 * step)
-                } else if self.smart_aim {
-                    let aim_radius = ui.input().aim_radius();
-                    emath::smart_aim::best_in_range_f64(
-                        self.value_from_position(new_position - aim_radius, position_range.clone()),
-                        self.value_from_position(new_position + aim_radius, position_range.clone()),
-                    )
-                } else {
-                    self.value_from_position(new_position, position_range.clone())
+                let new_value = match self.step {
+                    Some(step) => prev_value + (kb_step as f64 * step),
+                    None if self.smart_aim => {
+                        let aim_radius = ui.input().aim_radius();
+                        emath::smart_aim::best_in_range_f64(
+                            self.value_from_position(
+                                new_position - aim_radius,
+                                position_range.clone(),
+                            ),
+                            self.value_from_position(
+                                new_position + aim_radius,
+                                position_range.clone(),
+                            ),
+                        )
+                    }
+                    _ => self.value_from_position(new_position, position_range.clone()),
                 };
                 self.set_value(new_value);
             }
