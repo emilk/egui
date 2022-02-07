@@ -472,13 +472,13 @@ impl<'a> Slider<'a> {
 
     fn value_ui(&mut self, ui: &mut Ui, position_range: RangeInclusive<f32>) {
         // If `DragValue` is controlled from the keyboard and `step` is defined, set speed to `step`
-        let change = ui.input().num_presses(Key::ArrowUp) + ui.input().num_presses(Key::ArrowRight)
-            - ui.input().num_presses(Key::ArrowDown)
-            - ui.input().num_presses(Key::ArrowLeft);
-        let speed = if self.step.is_some() && change != 0 {
-            self.step.unwrap()
-        } else {
-            self.current_gradient(&position_range)
+        let change = ui.input().num_presses(Key::ArrowUp) as i32
+            + ui.input().num_presses(Key::ArrowRight) as i32
+            - ui.input().num_presses(Key::ArrowDown) as i32
+            - ui.input().num_presses(Key::ArrowLeft) as i32;
+        let speed = match self.step {
+            Some(step) if change != 0 => step,
+            _ => self.current_gradient(&position_range),
         };
         let mut value = self.get_value();
         ui.add(
