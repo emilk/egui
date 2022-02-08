@@ -14,7 +14,6 @@ pub struct WidgetGallery {
     boolean: bool,
     radio: Enum,
     scalar: f32,
-    step: f64,
     string: String,
     color: egui::Color32,
     animate_progress_bar: bool,
@@ -30,7 +29,6 @@ impl Default for WidgetGallery {
             boolean: false,
             radio: Enum::First,
             scalar: 42.0,
-            step: 0.0,
             string: Default::default(),
             color: egui::Color32::LIGHT_BLUE.linear_multiply(0.5),
             animate_progress_bar: false,
@@ -101,7 +99,6 @@ impl WidgetGallery {
             boolean,
             radio,
             scalar,
-            step,
             string,
             color,
             animate_progress_bar,
@@ -169,20 +166,8 @@ impl WidgetGallery {
             });
         ui.end_row();
 
-        ui.add(doc_link_label("Slider step", "Slider"));
-        ui.add(egui::Slider::new(step, 0.0..=90.0));
-        ui.end_row();
-
         ui.add(doc_link_label("Slider", "Slider"));
-        if *step != 0.0 {
-            ui.add(
-                egui::Slider::new(scalar, 0.0..=360.0)
-                    .suffix("°")
-                    .step_by(*step),
-            );
-        } else {
-            ui.add(egui::Slider::new(scalar, 0.0..=360.0).suffix("°"));
-        }
+        ui.add(egui::Slider::new(scalar, 0.0..=360.0).suffix("°"));
         ui.end_row();
 
         ui.add(doc_link_label("DragValue", "DragValue"));

@@ -203,24 +203,17 @@ impl<'a> Slider<'a> {
     }
 
     /// Sets the minimal change of the value.
-    /// If `clamp_to_range` is enabled, `step` must be less than a maximum between the start and
-    /// the end of the range; otherwise, the step would be left unchanged.
-    /// Without `clamp_to_range` enabled, `step` can be any value.
+    /// Value `0.0` effectively disables the feature. If the new value is out of range 
+    /// and `clamp_to_range` is enabled, you would not have the ability to change the value.
     ///
-    /// Default: `None`.
+    /// Default: `0.0` (disabled).
     pub fn step_by(mut self, step: f64) -> Self {
-        let max = self.range.end().abs().max(self.range.start().abs());
-        let step = match self.clamp_to_range {
-            true if (step.abs() > max) => None,
-            _ => Some(step),
+        let step = if step != 0.0 {
+            Some(step)
+        } else {
+            None
         };
         self.step = step;
-        self
-    }
-
-    /// Disable the `step_by` feature
-    pub fn disable_step(mut self) -> Self {
-        self.step = None;
         self
     }
 
@@ -272,20 +265,19 @@ impl<'a> Slider<'a> {
     }
 
     fn set_value(&mut self, mut value: f64) {
+        if self.clamp_to_range {
+            let start = *self.range.start();
+            let end = *self.range.end();
+            value = value.clamp(start.min(end), start.max(end));
+        }
+        if let Some(max_decimals) = self.max_decimals {
+            value = emath::round_to_decimals(value, max_decimals);
+        }
         if let Some(step) = self.step {
             let remainer = value % step;
             if remainer != 0.0 {
                 value -= remainer;
             };
-        } else {
-            if self.clamp_to_range {
-                let start = *self.range.start();
-                let end = *self.range.end();
-                value = value.clamp(start.min(end), start.max(end));
-            }
-            if let Some(max_decimals) = self.max_decimals {
-                value = emath::round_to_decimals(value, max_decimals);
-            }
         }
         set(&mut self.get_set_value, value);
     }
