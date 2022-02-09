@@ -46,14 +46,14 @@ impl<'a> TableBuilder<'a> {
 
     /// Add size hint for column
     pub fn column(mut self, width: Size) -> Self {
-        self.sizing.add_size(width);
+        self.sizing.add(width);
         self
     }
 
     /// Add size hint for column [count] times
     pub fn columns(mut self, size: Size, count: usize) -> Self {
         for _ in 0..count {
-            self.sizing.add_size(size);
+            self.sizing.add(size);
         }
         self
     }

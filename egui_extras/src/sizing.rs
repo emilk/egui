@@ -27,7 +27,7 @@ impl Sizing {
         Self { sizes: vec![] }
     }
 
-    pub fn add_size(&mut self, size: Size) {
+    pub fn add(&mut self, size: Size) {
         self.sizes.push(size);
     }
 

@@ -31,14 +31,14 @@ impl<'a> GridBuilder<'a> {
 
     /// Add size hint for column/row
     pub fn size(mut self, size: Size) -> Self {
-        self.sizing.add_size(size);
+        self.sizing.add(size);
         self
     }
 
     /// Add size hint for columns/rows [count] times
     pub fn sizes(mut self, size: Size, count: usize) -> Self {
         for _ in 0..count {
-            self.sizing.add_size(size);
+            self.sizing.add(size);
         }
         self
     }
