@@ -72,14 +72,14 @@ impl<'a> DatePickerPopup<'a> {
                         builder.sizes(Size::Remainder, 3).horizontal(|mut grid| {
                             grid.cell_noclip(|ui| {
                                 ComboBox::from_id_source("date_picker_year")
-                                    .selected_text(format!("{}", popup_state.year))
+                                    .selected_text(popup_state.year.to_string())
                                     .show_ui(ui, |ui| {
                                         for year in today.year() - 5..today.year() + 10 {
                                             if ui
                                                 .selectable_value(
                                                     &mut popup_state.year,
                                                     year,
-                                                    format!("{}", year),
+                                                    year.to_string(),
                                                 )
                                                 .changed()
                                             {
@@ -92,14 +92,14 @@ impl<'a> DatePickerPopup<'a> {
                             });
                             grid.cell_noclip(|ui| {
                                 ComboBox::from_id_source("date_picker_month")
-                                    .selected_text(format!("{}", popup_state.month))
+                                    .selected_text(popup_state.month.to_string())
                                     .show_ui(ui, |ui| {
                                         for month in 1..=12 {
                                             if ui
                                                 .selectable_value(
                                                     &mut popup_state.month,
                                                     month,
-                                                    format!("{}", month),
+                                                    month.to_string(),
                                                 )
                                                 .changed()
                                             {
@@ -112,14 +112,14 @@ impl<'a> DatePickerPopup<'a> {
                             });
                             grid.cell_noclip(|ui| {
                                 ComboBox::from_id_source("date_picker_day")
-                                    .selected_text(format!("{}", popup_state.day))
+                                    .selected_text(popup_state.day.to_string())
                                     .show_ui(ui, |ui| {
                                         for day in 1..=popup_state.last_day_of_month() {
                                             if ui
                                                 .selectable_value(
                                                     &mut popup_state.day,
                                                     day,
-                                                    format!("{}", day),
+                                                    day.to_string(),
                                                 )
                                                 .changed()
                                             {
@@ -263,7 +263,7 @@ impl<'a> DatePickerPopup<'a> {
                                     body.row(height, |mut row| {
                                         if self.calendar_week {
                                             row.col(|ui| {
-                                                ui.add(Label::new(format!("{}", week.number)));
+                                                ui.add(Label::new(week.number.to_string()));
                                             });
                                         }
                                         for day in week.days {
@@ -294,7 +294,7 @@ impl<'a> DatePickerPopup<'a> {
                                                         };
 
                                                         let button = Button::new(
-                                                            RichText::new(format!("{}", day.day()))
+                                                            RichText::new(day.day().to_string())
                                                                 .color(text_color),
                                                         )
                                                         .fill(fill_color);

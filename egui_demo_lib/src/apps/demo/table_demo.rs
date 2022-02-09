@@ -56,7 +56,7 @@ impl super::View for TableDemo {
                     if self.virtual_scrool {
                         body.rows(20.0, 100_000, |index, mut row| {
                             row.col(|ui| {
-                                ui.label(format!("{}", index));
+                                ui.label(index.to_string());
                             });
                             row.col(|ui| {
                                 ui.add(
@@ -65,7 +65,7 @@ impl super::View for TableDemo {
                                 );
                             });
                             row.col(|ui| {
-                                ui.label(format!("{}", index));
+                                ui.label(index.to_string());
                             });
                         });
                     } else {
@@ -77,7 +77,7 @@ impl super::View for TableDemo {
                             };
                             body.row(height, |mut row| {
                                 row.col(|ui| {
-                                    ui.label(format!("{}", i));
+                                    ui.label(i.to_string());
                                 });
                                 row.col(|ui| {
                                     ui.add(
@@ -88,7 +88,7 @@ impl super::View for TableDemo {
                                     );
                                 });
                                 row.col(|ui| {
-                                    ui.label(format!("{}", i));
+                                    ui.label(i.to_string());
                                 });
                             });
                         }

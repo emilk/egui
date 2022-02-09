@@ -7,7 +7,7 @@ pub fn serialize<S>(date: &Date<Utc>, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    let s = format!("{}", date.format(FORMAT));
+    let s = date.format(FORMAT).to_string();
     serializer.serialize_str(&s)
 }
 
