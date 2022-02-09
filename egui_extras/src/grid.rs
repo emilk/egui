@@ -44,6 +44,7 @@ impl<'a> GridBuilder<'a> {
     }
 
     /// Build horizontal grid
+    /// Takes the available horizontal width, so there can't be anything right of the grid or the container will grow slowly!
     pub fn horizontal<F>(self, grid: F)
     where
         F: for<'b> FnOnce(Grid<'a, 'b>),
@@ -62,6 +63,7 @@ impl<'a> GridBuilder<'a> {
     }
 
     /// Build vertical grid
+    /// Takes the full available vertical height, so there can't be anything below of the grid or the container will grow slowly!
     pub fn vertical<F>(self, grid: F)
     where
         F: for<'b> FnOnce(Grid<'a, 'b>),

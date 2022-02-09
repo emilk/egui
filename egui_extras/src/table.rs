@@ -1,6 +1,7 @@
 /// Table view with (optional) fixed header and scrolling body.
 /// Cell widths are precalculated with given size hints so we can have tables like this:
 /// | fixed size | all available space/minimum | 30% of available width | fixed size |
+/// Takes all available height, so if you want something below the table, put it in a grid.
 use crate::{
     layout::{CellSize, LineDirection},
     sizing::Sizing,

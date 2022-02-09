@@ -32,6 +32,7 @@ impl super::View for GridDemo {
                 relative: 0.5,
                 minimum: 60.0,
             })
+            .size(Size::Absolute(14.0))
             .vertical(|mut grid| {
                 grid.cell(|ui| {
                     ui.painter()
@@ -98,6 +99,11 @@ impl super::View for GridDemo {
                                 ui.label("height: half the available - at least 60px, width: 70px");
                             });
                         });
+                });
+                grid.cell(|ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.add(crate::__egui_github_link_file!());
+                    });
                 });
             });
     }
