@@ -147,8 +147,7 @@ impl<'l> Layout<'l> {
         rect.set_right(self.max.x);
         rect.set_bottom(self.max.y);
 
-        self.ui
-            .allocate_rect(rect, Sense::focusable_noninteractive());
+        self.ui.allocate_rect(rect, Sense::hover());
     }
 
     fn cell(&mut self, rect: Rect, clip: bool, add_contents: impl FnOnce(&mut Ui)) {
