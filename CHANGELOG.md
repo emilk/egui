@@ -21,8 +21,9 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Added `ui.data()`, `ctx.data()`, `ctx.options()` and `ctx.tessellation_options()` ([#1175](https://github.com/emilk/egui/pull/1175)).
 * Added `Plot::allow_boxed_zoom()`, `Plot::boxed_zoom_pointer()` for boxed zooming on plots ([#1188](https://github.com/emilk/egui/pull/1188)).
 * Added linked axis support for plots via `plot::LinkedAxisGroup` ([#1184](https://github.com/emilk/egui/pull/1184)).
-* Added `Response::on_hover_text_at_pointer` as a convenience akin to `Response::on_hover_text`. ([1179](https://github.com/emilk/egui/pull/1179))
-* Added `Slider::step_by` ([1255](https://github.com/emilk/egui/pull/1225))
+* Added `Response::on_hover_text_at_pointer` as a convenience akin to `Response::on_hover_text` ([1179](https://github.com/emilk/egui/pull/1179)).
+* Added `ui.weak(text)`.
+* Added `Slider::step_by` ([1255](https://github.com/emilk/egui/pull/1225)).
 
 ### Changed 🔧
 * ⚠️ `Context::input` and `Ui::input` now locks a mutex. This can lead to a dead-lock is used in an `if let` binding!
@@ -45,8 +46,8 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * `ScrollArea::show` now returns a `ScrollAreaOutput`, so you might need to add `.inner` after the call to it ([#1166](https://github.com/emilk/egui/pull/1166)).
 
 ### Fixed 🐛
-* Context menus now respects the theme ([#1043](https://github.com/emilk/egui/pull/1043))
-* Plot `Orientation` was not public, although fields using this type were ([#1130](https://github.com/emilk/egui/pull/1130))
+* Context menus now respects the theme ([#1043](https://github.com/emilk/egui/pull/1043)).
+* Plot `Orientation` was not public, although fields using this type were ([#1130](https://github.com/emilk/egui/pull/1130)).
 * Fixed `enable_drag` for Windows ([#1108](https://github.com/emilk/egui/pull/1108)).
 * Calling `Context::set_pixels_per_point` before the first frame will now work.
 

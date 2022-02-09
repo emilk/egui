@@ -1158,6 +1158,13 @@ impl Ui {
         Label::new(text.into().strong()).ui(self)
     }
 
+    /// Show text that is waker (fainter color).
+    ///
+    /// Shortcut for `ui.label(RichText::new(text).weak())`
+    pub fn weak(&mut self, text: impl Into<RichText>) -> Response {
+        Label::new(text.into().weak()).ui(self)
+    }
+
     /// Shortcut for `add(Hyperlink::new(url))`
     ///
     /// See also [`Hyperlink`].

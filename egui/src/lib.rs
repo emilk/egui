@@ -387,7 +387,7 @@ pub use epaint::{
     color, mutex,
     text::{FontData, FontDefinitions, FontFamily, FontId},
     textures::TexturesDelta,
-    AlphaImage, ClippedMesh, Color32, ColorImage, ImageData, Rgba, Rounding, Shape, Stroke,
+    AlphaImage, ClippedMesh, Color32, ColorImage, ImageData, Mesh, Rgba, Rounding, Shape, Stroke,
     TextureHandle, TextureId,
 };
 
