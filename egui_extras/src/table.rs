@@ -81,6 +81,7 @@ impl<'a> TableBuilder<'a> {
                 };
                 header(row);
             }
+            layout.set_rect();
         }
 
         Table {
@@ -218,6 +219,12 @@ impl<'a> TableBody<'a> {
         });
 
         self.row_nr += 1;
+    }
+}
+
+impl<'a> Drop for TableBody<'a> {
+    fn drop(&mut self) {
+        self.layout.set_rect();
     }
 }
 

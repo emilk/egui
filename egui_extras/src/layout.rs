@@ -141,15 +141,6 @@ impl<'l> Layout<'l> {
         }
     }
 
-    /// Set the rect so that the scrollview knows about our size
-    fn set_rect(&mut self) {
-        let mut rect = self.rect;
-        rect.set_right(self.max.x);
-        rect.set_bottom(self.max.y);
-
-        self.ui.allocate_rect(rect, Sense::hover());
-    }
-
     fn cell(&mut self, rect: Rect, clip: bool, add_contents: impl FnOnce(&mut Ui)) {
         let mut child_ui = self.ui.child_ui(rect, *self.ui.layout());
 
@@ -162,10 +153,13 @@ impl<'l> Layout<'l> {
 
         add_contents(&mut child_ui);
     }
-}
 
-impl<'a> Drop for Layout<'a> {
-    fn drop(&mut self) {
-        self.set_rect();
+    /// Set the rect so that the scrollview knows about our size
+    pub fn set_rect(&mut self) -> Response {
+        let mut rect = self.rect;
+        rect.set_right(self.max.x);
+        rect.set_bottom(self.max.y);
+
+        self.ui.allocate_rect(rect, Sense::hover())
     }
 }

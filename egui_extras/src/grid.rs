@@ -3,7 +3,7 @@ use crate::{
     sizing::Sizing,
     Size,
 };
-use egui::Ui;
+use egui::{Response, Ui};
 
 /// The direction in which cells are positioned in the grid.
 ///
@@ -44,7 +44,9 @@ impl<'a> GridBuilder<'a> {
 
     /// Build horizontal grid: Cells are positions from left to right.
     /// Takes the available horizontal width, so there can't be anything right of the grid or the container will grow slowly!
-    pub fn horizontal<F>(self, grid: F)
+    ///
+    /// Returns a `[egui::Response]` for hover events.
+    pub fn horizontal<F>(self, grid: F) -> Response
     where
         F: for<'b> FnOnce(Grid<'a, 'b>),
     {
@@ -58,11 +60,14 @@ impl<'a> GridBuilder<'a> {
             direction: GridDirection::Horizontal,
             sizes: widths,
         });
+        layout.set_rect()
     }
 
     /// Build vertical grid: Cells are positions from top to bottom.
     /// Takes the full available vertical height, so there can't be anything below of the grid or the container will grow slowly!
-    pub fn vertical<F>(self, grid: F)
+    ///
+    /// Returns a `[egui::Response]` for hover events.
+    pub fn vertical<F>(self, grid: F) -> Response
     where
         F: for<'b> FnOnce(Grid<'a, 'b>),
     {
@@ -76,6 +81,7 @@ impl<'a> GridBuilder<'a> {
             direction: GridDirection::Vertical,
             sizes: heights,
         });
+        layout.set_rect()
     }
 }
 
