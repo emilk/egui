@@ -114,7 +114,7 @@ impl<'a, 'b> Grid<'a, 'b> {
         self.layout.empty(width, height);
     }
 
-    pub fn _cell(&mut self, clip: bool, add_contents: impl FnOnce(&mut Ui)) {
+    fn _cell(&mut self, clip: bool, add_contents: impl FnOnce(&mut Ui)) {
         assert!(
             !self.widths.is_empty(),
             "Tried using more grid cells then available."
@@ -134,7 +134,7 @@ impl<'a, 'b> Grid<'a, 'b> {
         self._cell(false, add_contents);
     }
 
-    pub fn _grid(&mut self, clip: bool, grid_builder: impl FnOnce(GridBuilder<'_>)) {
+    fn _grid(&mut self, clip: bool, grid_builder: impl FnOnce(GridBuilder<'_>)) {
         let padding = self.padding.clone();
         self._cell(clip, |ui| {
             grid_builder(GridBuilder::new(ui, padding));
