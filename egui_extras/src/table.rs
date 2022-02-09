@@ -179,9 +179,7 @@ impl<'a> TableBody<'a> {
         let count = (max_height / height).ceil() as usize;
         let end = cmp::min(start + count, rows);
 
-        if start % 2 != 0 {
-            self.odd = false;
-        }
+        self.odd = start % 2 == 0;
 
         for idx in start..end {
             row(
