@@ -317,7 +317,7 @@ impl Plot {
     /// });
     /// let line = Line::new(Values::from_values_iter(sin));
     /// Plot::new("my_plot").view_aspect(2.0)
-    /// .custom_label_func(|name, value| {
+    /// .label_formatter(|name, value| {
     ///     if !name.is_empty() {
     ///         format!("{}: {:.*}%", name, 1, value.y).to_string()
     ///     } else {

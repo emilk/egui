@@ -66,7 +66,7 @@ pub(super) trait PlotItem {
         elem: ClosestElem,
         shapes: &mut Vec<Shape>,
         plot: &PlotConfig<'_>,
-        custom_label_func: &LabelFormatter,
+        label_formatter: &LabelFormatter,
     ) {
         let points = match self.geometry() {
             PlotGeometry::Points(points) => points,
@@ -89,7 +89,7 @@ pub(super) trait PlotItem {
         let pointer = plot.transform.position_from_value(&value);
         shapes.push(Shape::circle_filled(pointer, 3.0, line_color));
 
-        rulers_at_value(pointer, value, self.name(), plot, shapes, custom_label_func);
+        rulers_at_value(pointer, value, self.name(), plot, shapes, label_formatter);
     }
 }
 
@@ -1643,7 +1643,7 @@ pub(super) fn rulers_at_value(
     name: &str,
     plot: &PlotConfig<'_>,
     shapes: &mut Vec<Shape>,
-    custom_label_func: &LabelFormatter,
+    label_formatter: &LabelFormatter,
 ) {
     let line_color = rulers_color(plot.ui);
     if plot.show_x {
@@ -1663,7 +1663,7 @@ pub(super) fn rulers_at_value(
         let scale = plot.transform.dvalue_dpos();
         let x_decimals = ((-scale[0].abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
         let y_decimals = ((-scale[1].abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
-        if let Some(custom_label) = custom_label_func {
+        if let Some(custom_label) = label_formatter {
             custom_label(name, &value)
         } else if plot.show_x && plot.show_y {
             format!(
