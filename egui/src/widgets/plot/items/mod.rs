@@ -7,7 +7,7 @@ use epaint::Mesh;
 
 use crate::*;
 
-use super::{CustomLabelFuncRef, PlotBounds, ScreenTransform};
+use super::{LabelFormatter, PlotBounds, ScreenTransform};
 use rect_elem::*;
 use values::{ClosestElem, PlotGeometry};
 
@@ -66,7 +66,7 @@ pub(super) trait PlotItem {
         elem: ClosestElem,
         shapes: &mut Vec<Shape>,
         plot: &PlotConfig<'_>,
-        custom_label_func: &CustomLabelFuncRef,
+        custom_label_func: &LabelFormatter,
     ) {
         let points = match self.geometry() {
             PlotGeometry::Points(points) => points,
@@ -1380,7 +1380,7 @@ impl PlotItem for BarChart {
         elem: ClosestElem,
         shapes: &mut Vec<Shape>,
         plot: &PlotConfig<'_>,
-        _: &CustomLabelFuncRef,
+        _: &LabelFormatter,
     ) {
         let bar = &self.bars[elem.index];
 
@@ -1522,7 +1522,7 @@ impl PlotItem for BoxPlot {
         elem: ClosestElem,
         shapes: &mut Vec<Shape>,
         plot: &PlotConfig<'_>,
-        _: &CustomLabelFuncRef,
+        _: &LabelFormatter,
     ) {
         let box_plot = &self.boxes[elem.index];
 
@@ -1643,7 +1643,7 @@ pub(super) fn rulers_at_value(
     name: &str,
     plot: &PlotConfig<'_>,
     shapes: &mut Vec<Shape>,
-    custom_label_func: &CustomLabelFuncRef,
+    custom_label_func: &LabelFormatter,
 ) {
     let line_color = rulers_color(plot.ui);
     if plot.show_x {

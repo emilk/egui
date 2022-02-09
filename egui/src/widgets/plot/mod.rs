@@ -1,6 +1,6 @@
 //! Simple plotting library.
 
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, ops::RangeInclusive, rc::Rc};
 
 use crate::*;
 use epaint::ahash::AHashSet;
@@ -20,11 +20,42 @@ mod items;
 mod legend;
 mod transform;
 
-type CustomLabelFunc = dyn Fn(&str, &Value) -> String;
-type CustomLabelFuncRef = Option<Box<CustomLabelFunc>>;
-
-type AxisFormatterFn = dyn Fn(f64) -> String;
+type LabelFormatterFn = dyn Fn(&str, &Value) -> String;
+type LabelFormatter = Option<Box<LabelFormatterFn>>;
+type AxisFormatterFn = dyn Fn(f64, &RangeInclusive<f64>) -> String;
 type AxisFormatter = Option<Box<AxisFormatterFn>>;
+
+/// Specifies the coordinates formatting when passed to [`Plot::coordinates_formatter`].
+pub struct CoordinatesFormatter {
+    function: Box<dyn Fn(&Value) -> String>,
+}
+
+impl CoordinatesFormatter {
+    pub fn new(function: impl Fn(&Value) -> String + 'static) -> Self {
+        Self {
+            function: Box::new(function),
+        }
+    }
+
+    /// Show a fixed number of decimal places.
+    pub fn with_precision(precision: usize) -> Self {
+        Self {
+            function: Box::new(move |value| {
+                format!("x: {:.p$}\ny: {:.p$}", value.x, value.y, p = precision)
+            }),
+        }
+    }
+
+    fn format(&self, value: &Value) -> String {
+        (self.function)(value)
+    }
+}
+
+impl Default for CoordinatesFormatter {
+    fn default() -> Self {
+        Self::with_precision(3)
+    }
+}
 
 // ----------------------------------------------------------------------------
 
@@ -146,7 +177,8 @@ pub struct Plot {
 
     show_x: bool,
     show_y: bool,
-    custom_label_func: CustomLabelFuncRef,
+    label_formatter: LabelFormatter,
+    coordinates_formatter: Option<(Corner, CoordinatesFormatter)>,
     axis_formatters: [AxisFormatter; 2],
     legend_config: Option<Legend>,
     show_background: bool,
@@ -177,7 +209,8 @@ impl Plot {
 
             show_x: true,
             show_y: true,
-            custom_label_func: None,
+            label_formatter: None,
+            coordinates_formatter: None,
             axis_formatters: [None, None], // [None; 2] requires Copy
             legend_config: None,
             show_background: true,
@@ -294,34 +327,50 @@ impl Plot {
     /// .show(ui, |plot_ui| plot_ui.line(line));
     /// # });
     /// ```
-    pub fn custom_label_func(
+    pub fn label_formatter(
         mut self,
-        custom_label_func: impl Fn(&str, &Value) -> String + 'static,
+        label_formatter: impl Fn(&str, &Value) -> String + 'static,
     ) -> Self {
-        self.custom_label_func = Some(Box::new(custom_label_func));
+        self.label_formatter = Some(Box::new(label_formatter));
         self
     }
 
-    /// Provide a function to customize the labels for the X axis.
+    /// Show the pointer coordinates in the plot.
+    pub fn coordinates_formatter(
+        mut self,
+        position: Corner,
+        formatter: CoordinatesFormatter,
+    ) -> Self {
+        self.coordinates_formatter = Some((position, formatter));
+        self
+    }
+
+    /// Provide a function to customize the labels for the X axis based on the current value range.
     ///
     /// This is useful for custom input domains, e.g. date/time.
     ///
     /// If axis labels should not appear for certain values or beyond a certain zoom/resolution,
     /// the formatter function can return empty strings. This is also useful if your domain is
     /// discrete (e.g. only full days in a calendar).
-    pub fn x_axis_formatter(mut self, func: impl Fn(f64) -> String + 'static) -> Self {
+    pub fn x_axis_formatter(
+        mut self,
+        func: impl Fn(f64, &RangeInclusive<f64>) -> String + 'static,
+    ) -> Self {
         self.axis_formatters[0] = Some(Box::new(func));
         self
     }
 
-    /// Provide a function to customize the labels for the Y axis.
+    /// Provide a function to customize the labels for the Y axis based on the current value range.
     ///
     /// This is useful for custom value representation, e.g. percentage or units.
     ///
     /// If axis labels should not appear for certain values or beyond a certain zoom/resolution,
     /// the formatter function can return empty strings. This is also useful if your Y values are
     /// discrete (e.g. only integers).
-    pub fn y_axis_formatter(mut self, func: impl Fn(f64) -> String + 'static) -> Self {
+    pub fn y_axis_formatter(
+        mut self,
+        func: impl Fn(f64, &RangeInclusive<f64>) -> String + 'static,
+    ) -> Self {
         self.axis_formatters[1] = Some(Box::new(func));
         self
     }
@@ -388,7 +437,8 @@ impl Plot {
             view_aspect,
             mut show_x,
             mut show_y,
-            custom_label_func,
+            label_formatter,
+            coordinates_formatter,
             axis_formatters,
             legend_config,
             show_background,
@@ -630,7 +680,8 @@ impl Plot {
             items,
             show_x,
             show_y,
-            custom_label_func,
+            label_formatter,
+            coordinates_formatter,
             axis_formatters,
             show_axes,
             transform: transform.clone(),
@@ -849,7 +900,8 @@ struct PreparedPlot {
     items: Vec<Box<dyn PlotItem>>,
     show_x: bool,
     show_y: bool,
-    custom_label_func: CustomLabelFuncRef,
+    label_formatter: LabelFormatter,
+    coordinates_formatter: Option<(Corner, CoordinatesFormatter)>,
     axis_formatters: [AxisFormatter; 2],
     show_axes: [bool; 2],
     transform: ScreenTransform,
@@ -877,7 +929,24 @@ impl PreparedPlot {
             self.hover(ui, pointer, &mut shapes);
         }
 
-        ui.painter().sub_region(*transform.frame()).extend(shapes);
+        let painter = ui.painter().sub_region(*transform.frame());
+        painter.extend(shapes);
+
+        if let Some((corner, formatter)) = self.coordinates_formatter.as_ref() {
+            if let Some(pointer) = response.hover_pos() {
+                let font_id = TextStyle::Monospace.resolve(ui.style());
+                let coordinate = transform.value_from_position(pointer);
+                let text = formatter.format(&coordinate);
+                let padded_frame = transform.frame().shrink(4.0);
+                let (anchor, position) = match corner {
+                    Corner::LeftTop => (Align2::LEFT_TOP, padded_frame.left_top()),
+                    Corner::RightTop => (Align2::RIGHT_TOP, padded_frame.right_top()),
+                    Corner::LeftBottom => (Align2::LEFT_BOTTOM, padded_frame.left_bottom()),
+                    Corner::RightBottom => (Align2::RIGHT_BOTTOM, padded_frame.right_bottom()),
+                };
+                painter.text(position, anchor, text, font_id, ui.visuals().text_color());
+            }
+        }
     }
 
     fn paint_axis(&self, ui: &Ui, axis: usize, shapes: &mut Vec<Shape>) {
@@ -888,6 +957,11 @@ impl PreparedPlot {
         } = self;
 
         let bounds = transform.bounds();
+        let axis_range = match axis {
+            0 => bounds.range_x(),
+            1 => bounds.range_y(),
+            _ => panic!("Axis {} does not exist.", axis),
+        };
 
         let font_id = TextStyle::Body.resolve(ui.style());
 
@@ -947,7 +1021,7 @@ impl PreparedPlot {
                 let color = color_from_alpha(ui, text_alpha);
 
                 let text: String = if let Some(formatter) = axis_formatters[axis].as_deref() {
-                    formatter(value_main)
+                    formatter(value_main, &axis_range)
                 } else {
                     emath::round_to_decimals(value_main, 5).to_string() // hack
                 };
@@ -982,7 +1056,7 @@ impl PreparedPlot {
             transform,
             show_x,
             show_y,
-            custom_label_func,
+            label_formatter,
             items,
             ..
         } = self;
@@ -1012,10 +1086,10 @@ impl PreparedPlot {
         };
 
         if let Some((item, elem)) = closest {
-            item.on_hover(elem, shapes, &plot, custom_label_func);
+            item.on_hover(elem, shapes, &plot, label_formatter);
         } else {
             let value = transform.value_from_position(pointer);
-            items::rulers_at_value(pointer, value, "", &plot, shapes, custom_label_func);
+            items::rulers_at_value(pointer, value, "", &plot, shapes, label_formatter);
         }
     }
 }
