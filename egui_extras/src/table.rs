@@ -1,7 +1,8 @@
 //! Table view with (optional) fixed header and scrolling body.
 //! Cell widths are precalculated with given size hints so we can have tables like this:
 //! | fixed size | all available space/minimum | 30% of available width | fixed size |
-/// Takes all available height, so if you want something below the table, put it in a grid.
+//! Takes all available height, so if you want something below the table, put it in a grid.
+
 use crate::{
     layout::{CellSize, LineDirection},
     sizing::Sizing,
@@ -19,6 +20,41 @@ pub struct TableBuilder<'a> {
 }
 
 impl<'a> TableBuilder<'a> {
+    /// Build a table with (optional) fixed header and scrolling body.
+    ///
+    /// Cell widths are precalculated with given size hints so we can have tables like this:
+    ///
+    /// | fixed size | all available space/minimum | 30% of available width | fixed size |
+    ///
+    /// Takes all available height, so if you want something below the table, put it in a grid.
+    ///
+    /// ### Example
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// use egui_extras::{TableBuilder, Size};
+    /// TableBuilder::new(ui)
+    ///     .column(Size::RemainderMinimum(100.0))
+    ///     .column(Size::Absolute(40.0))
+    ///     .header(20.0, |mut header| {
+    ///         header.col(|ui| {
+    ///             ui.heading("Growing");
+    ///         });
+    ///         header.col(|ui| {
+    ///             ui.heading("Fixed");
+    ///         });
+    ///     })
+    ///     .body(|mut body| {
+    ///         body.row(30.0, |mut row| {
+    ///             row.col(|ui| {
+    ///                 ui.label("first row growing cell");
+    ///             });
+    ///             row.col_clip(|ui| {
+    ///                 ui.button("action");
+    ///             });
+    ///         });
+    ///     });
+    /// # });
+    /// ```
     pub fn new(ui: &'a mut Ui) -> Self {
         let sizing = Sizing::new();
 

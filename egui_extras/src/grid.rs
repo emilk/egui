@@ -21,7 +21,33 @@ pub struct GridBuilder<'a> {
 
 impl<'a> GridBuilder<'a> {
     /// Create new grid builder
-    /// After adding size hints with `[Self::column]`/`[Self::columns]` the grid can be build with `[Self::horizontal]`/`[Self::vertical]`
+    ///
+    /// After adding size hints with `[Self::column]`/`[Self::columns]` the grid can be build with `[Self::horizontal]`/`[Self::vertical]`.
+    ///
+    /// ### Example
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// use egui_extras::{GridBuilder, Size};
+    /// GridBuilder::new(ui)
+    ///     .column(Size::RemainderMinimum(100.0))
+    ///     .column(Size::Absolute(40.0))
+    ///     .vertical(|mut grid| {
+    ///         grid.grid(|builder| {
+    ///             builder.sizes(Size::Remainder, 2).horizontal(|mut grid| {
+    ///                 grid.cell(|ui| {
+    ///                     ui.label("Top Left");
+    ///                 });
+    ///                 grid.cell(|ui| {
+    ///                     ui.label("Top Right");
+    ///                 });
+    ///             });
+    ///         });
+    ///         grid.cell(|ui| {
+    ///             ui.label("Fixed");
+    ///         });
+    ///     });
+    /// # });
+    /// ```
     pub fn new(ui: &'a mut Ui) -> Self {
         let sizing = Sizing::new();
 
