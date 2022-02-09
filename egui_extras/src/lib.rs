@@ -1,3 +1,5 @@
+//! `egui_extras`:  Widgets for egui which are not in the main egui crate
+
 #![forbid(unsafe_code)]
 #![warn(
     clippy::all,
