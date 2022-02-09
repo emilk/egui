@@ -1,7 +1,8 @@
 [package]
 name = "egui_extras"
 version = "0.16.0"
-edition = "2018"
+edition = "2021"
+rust-version = "1.56"
 description = "Extra widgets for egui"
 authors = [
     "René Rössler <rene@freshx.de>",
