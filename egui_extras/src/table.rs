@@ -53,7 +53,7 @@ impl<'a> TableBuilder<'a> {
     /// Add size hint for column [count] times
     pub fn columns(mut self, size: Size, count: usize) -> Self {
         for _ in 0..count {
-            self.sizing.add_size(size.clone());
+            self.sizing.add_size(size);
         }
         self
     }
@@ -105,7 +105,7 @@ impl<'a> TableBuilder<'a> {
             scroll: self.scroll,
             striped: self.striped,
         }
-        .body(body)
+        .body(body);
     }
 }
 
@@ -157,7 +157,7 @@ pub struct TableBody<'a> {
 impl<'a> TableBody<'a> {
     /// Add rows with same height
     /// Is a lot more performant than adding each individual row as non visible rows must not be rendered
-    pub fn rows(mut self, height: f32, rows: usize, mut row: impl FnMut(usize, TableRow)) {
+    pub fn rows(mut self, height: f32, rows: usize, mut row: impl FnMut(usize, TableRow<'_, '_>)) {
         let delta = self.layout.current_y() - self.start_y;
         let mut start = 0;
 

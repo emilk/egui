@@ -114,7 +114,7 @@ impl<'a> Widget for DatePickerButton<'a> {
                             calendar: self.calendar,
                             calendar_week: self.calendar_week,
                         }
-                        .draw(ui)
+                        .draw(ui);
                     })
                 })
                 .response;

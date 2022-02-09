@@ -18,7 +18,7 @@ pub struct GridBuilder<'a> {
 
 impl<'a> GridBuilder<'a> {
     /// Create new grid builder
-    /// After adding size hints with [Self::column]/[Self::columns] the grid can be build with [Self::horizontal]/[Self::vertical]
+    /// After adding size hints with `[Self::column]`/`[Self::columns]` the grid can be build with `[Self::horizontal]`/`[Self::vertical]`
     pub fn new(ui: &'a mut Ui, padding: Padding) -> Self {
         let sizing = Sizing::new();
 
@@ -38,7 +38,7 @@ impl<'a> GridBuilder<'a> {
     /// Add size hint for columns/rows [count] times
     pub fn sizes(mut self, size: Size, count: usize) -> Self {
         for _ in 0..count {
-            self.sizing.add_size(size.clone());
+            self.sizing.add_size(size);
         }
         self
     }
@@ -134,20 +134,20 @@ impl<'a, 'b> Grid<'a, 'b> {
         self._cell(false, add_contents);
     }
 
-    pub fn _grid(&mut self, clip: bool, grid_builder: impl FnOnce(GridBuilder)) {
+    pub fn _grid(&mut self, clip: bool, grid_builder: impl FnOnce(GridBuilder<'_>)) {
         let padding = self.padding.clone();
         self._cell(clip, |ui| {
             grid_builder(GridBuilder::new(ui, padding));
         });
     }
     /// Add grid as cell, content is clipped
-    pub fn grid(&mut self, grid_builder: impl FnOnce(GridBuilder)) {
-        self._grid(true, grid_builder)
+    pub fn grid(&mut self, grid_builder: impl FnOnce(GridBuilder<'_>)) {
+        self._grid(true, grid_builder);
     }
 
     /// Add grid as cell, content is not clipped
-    pub fn grid_noclip(&mut self, grid_builder: impl FnOnce(GridBuilder)) {
-        self._grid(false, grid_builder)
+    pub fn grid_noclip(&mut self, grid_builder: impl FnOnce(GridBuilder<'_>)) {
+        self._grid(false, grid_builder);
     }
 }
 

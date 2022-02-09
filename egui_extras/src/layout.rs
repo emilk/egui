@@ -1,6 +1,7 @@
 use crate::Padding;
 use egui::{Pos2, Rect, Response, Rgba, Sense, Ui, Vec2};
 
+#[derive(Clone, Copy)]
 pub(crate) enum CellSize {
     /// Absolute size in points
     Absolute(f32),
@@ -15,7 +16,7 @@ pub(crate) enum LineDirection {
     TopToBottom,
 }
 
-/// Positions cells in [LineDirection] and starts a new line on [Layout::end_line]
+/// Positions cells in `[LineDirection]` and starts a new line on `[Layout::end_line]`
 pub struct Layout<'l> {
     ui: &'l mut Ui,
     padding: Padding,
@@ -153,12 +154,12 @@ impl<'l> Layout<'l> {
             child_ui.set_clip_rect(clip_rect);
         }
 
-        add_contents(&mut child_ui)
+        add_contents(&mut child_ui);
     }
 }
 
 impl<'a> Drop for Layout<'a> {
     fn drop(&mut self) {
-        self.set_rect()
+        self.set_rect();
     }
 }

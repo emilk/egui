@@ -130,7 +130,7 @@ impl<'a> DatePickerPopup<'a> {
                                         }
                                     });
                             });
-                        })
+                        });
                     });
                 }
 
@@ -225,7 +225,7 @@ impl<'a> DatePickerPopup<'a> {
                                     }
                                 });
                             });
-                        })
+                        });
                     });
                 }
 
@@ -343,7 +343,7 @@ impl<'a> DatePickerPopup<'a> {
                                 }
                             });
                         });
-                    })
+                    });
                 });
             });
 
