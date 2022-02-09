@@ -9,6 +9,15 @@ pub(crate) enum CellSize {
     Remainder,
 }
 
+/// Cells are positioned in two dimensions
+///
+/// In a grid there's only one line which goes into the orthogonal direction of the grid:
+///
+/// In a horizontal grid, a `[Layout]` with vertical `[LineDirection]` is used.
+/// Its cells go from left to right inside this `[Layout]`.
+///
+/// In a table there's a `[Layout]` for each table row with a horizontal `[LineDirection]`.
+/// Its cells go from left to right.
 pub(crate) enum LineDirection {
     /// Cells go from top to bottom on each line
     /// Lines go from left to right
