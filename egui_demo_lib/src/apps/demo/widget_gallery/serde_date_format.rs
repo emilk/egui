@@ -1,13 +1,11 @@
-use chrono::{Date, NaiveDate, Utc};
+use chrono::{Date, DateTime, Utc};
 use serde::{self, Deserialize, Deserializer, Serializer};
-
-const FORMAT: &str = "%d.%m.%Y";
 
 pub fn serialize<S>(date: &Date<Utc>, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    let s = format!("{}", date.format(FORMAT));
+    let s = date.and_hms(0, 0, 0).to_rfc3339();
     serializer.serialize_str(&s)
 }
 
@@ -17,7 +15,7 @@ where
 {
     let s = String::deserialize(deserializer)?;
 
-    NaiveDate::parse_from_str(&s, FORMAT)
-        .map(|naive_date| Date::from_utc(naive_date, Utc))
+    DateTime::parse_from_rfc3339(&s)
+        .map(|date_time| date_time.date().with_timezone(&Utc))
         .map_err(serde::de::Error::custom)
 }
