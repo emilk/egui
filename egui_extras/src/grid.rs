@@ -5,6 +5,10 @@ use crate::{
 };
 use egui::Ui;
 
+/// The direction in which cells are positioned in the grid.
+///
+/// In a horizontal grid cells are positions from left to right.
+/// In a vertical grid cells are positions from top to bottom.
 enum GridDirection {
     Horizontal,
     Vertical,
