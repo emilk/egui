@@ -43,13 +43,13 @@ impl super::View for TableDemo {
                 .column(Size::Absolute(100.0))
                 .header(20.0, |mut header| {
                     header.col(|ui| {
-                        ui.label(RichText::new("Left").heading());
+                        ui.heading("Left");
                     });
                     header.col(|ui| {
-                        ui.label(RichText::new("Middle").heading());
+                        ui.heading("Middle");
                     });
                     header.col(|ui| {
-                        ui.label(RichText::new("Right").heading());
+                        ui.heading("Right");
                     });
                 })
                 .body(|mut body| {
