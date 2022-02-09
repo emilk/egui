@@ -247,7 +247,7 @@ impl<'a> DatePickerPopup<'a> {
                                 }
 
                                 //TODO: Locale
-                                for name in ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"] {
+                                for name in ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"] {
                                     header.col(|ui| {
                                         ui.with_layout(
                                             Layout::centered_and_justified(Direction::TopDown),
