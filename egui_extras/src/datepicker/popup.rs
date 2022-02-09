@@ -277,7 +277,7 @@ impl<'a> DatePickerPopup<'a> {
                                                             && popup_state.month == day.month()
                                                             && popup_state.day == day.day()
                                                         {
-                                                            Color32::DARK_BLUE
+                                                            ui.visuals().selection.bg_fill
                                                         } else if day.weekday() == Weekday::Sat
                                                             || day.weekday() == Weekday::Sun
                                                         {
