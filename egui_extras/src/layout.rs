@@ -39,11 +39,9 @@ pub struct Layout<'l> {
 
 impl<'l> Layout<'l> {
     pub(crate) fn new(ui: &'l mut Ui, padding: Padding, direction: LineDirection) -> Self {
-        let mut rect = ui.available_rect_before_wrap();
-        rect.set_left(rect.left() + padding.outer + padding.inner);
-        rect.set_top(rect.top() + padding.outer + padding.inner);
-        rect.set_width(rect.width() - 2.0 * padding.outer);
-        rect.set_height(rect.height() - 2.0 * padding.outer);
+        let rect = ui
+            .available_rect_before_wrap()
+            .shrink(padding.inner + padding.outer);
         let pos = rect.left_top();
 
         Self {
