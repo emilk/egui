@@ -124,14 +124,14 @@ impl<'a, 'b> Grid<'a, 'b> {
         self.layout.add(width, height, clip, add_contents);
     }
 
-    /// Add cell, content is clipped
+    /// Add cell
     pub fn cell(&mut self, add_contents: impl FnOnce(&mut Ui)) {
-        self._cell(true, add_contents);
+        self._cell(false, add_contents);
     }
 
-    /// Add cell, content is not clipped
+    /// Add cell, content is clipped
     pub fn cell_noclip(&mut self, add_contents: impl FnOnce(&mut Ui)) {
-        self._cell(false, add_contents);
+        self._cell(true, add_contents);
     }
 
     fn _grid(&mut self, clip: bool, grid_builder: impl FnOnce(GridBuilder<'_>)) {
@@ -140,14 +140,14 @@ impl<'a, 'b> Grid<'a, 'b> {
             grid_builder(GridBuilder::new(ui, padding));
         });
     }
-    /// Add grid as cell, content is clipped
+    /// Add grid as cell
     pub fn grid(&mut self, grid_builder: impl FnOnce(GridBuilder<'_>)) {
-        self._grid(true, grid_builder);
+        self._grid(false, grid_builder);
     }
 
-    /// Add grid as cell, content is not clipped
+    /// Add grid as cell, content is clipped
     pub fn grid_noclip(&mut self, grid_builder: impl FnOnce(GridBuilder<'_>)) {
-        self._grid(false, grid_builder);
+        self._grid(true, grid_builder);
     }
 }
 

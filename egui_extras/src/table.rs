@@ -263,14 +263,14 @@ impl<'a, 'b> TableRow<'a, 'b> {
         response
     }
 
-    /// Add column, content is clipped
+    /// Add column
     pub fn col(&mut self, add_contents: impl FnOnce(&mut Ui)) -> Response {
-        self._col(true, add_contents)
+        self._col(false, add_contents)
     }
 
-    /// Add column, content is not clipped
-    pub fn col_noclip(&mut self, add_contents: impl FnOnce(&mut Ui)) -> Response {
-        self._col(false, add_contents)
+    /// Add column, content is clipped
+    pub fn col_clip(&mut self, add_contents: impl FnOnce(&mut Ui)) -> Response {
+        self._col(true, add_contents)
     }
 }
 
