@@ -20,7 +20,9 @@ pub struct GridBuilder<'a> {
 }
 
 impl<'a> GridBuilder<'a> {
-    /// Create new grid builder
+    /// Create new grid builder.
+    ///
+    /// In contrast to normal egui behavior, cells do *not* grow with its children!
     ///
     /// After adding size hints with `[Self::column]`/`[Self::columns]` the grid can be build with `[Self::horizontal]`/`[Self::vertical]`.
     ///

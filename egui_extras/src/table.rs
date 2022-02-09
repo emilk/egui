@@ -26,6 +26,7 @@ impl<'a> TableBuilder<'a> {
     ///
     /// | fixed size | all available space/minimum | 30% of available width | fixed size |
     ///
+    /// In contrast to normal egui behavior, cells do *not* grow with its children!
     /// Takes all available height, so if you want something below the table, put it in a grid.
     ///
     /// ### Example
