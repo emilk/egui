@@ -1,5 +1,5 @@
-use egui::Label;
-use egui_extras::{GridBuilder, Padding, Size, TableBuilder};
+use egui::{Label, Vec2};
+use egui_extras::{GridBuilder, Size, TableBuilder};
 
 /// Shows off a table with dynamic layout
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -30,13 +30,15 @@ impl super::View for TableDemo {
         ui.checkbox(&mut self.virtual_scrool, "Virtual scroll demo");
 
         // The table is inside a grid as its container would otherwise grow slowly as it takes all available height
-        GridBuilder::new(ui, Padding::new(0.0, 0.0))
+        ui.spacing_mut().item_spacing = Vec2::splat(4.0);
+        GridBuilder::new(ui)
         .size(Size::Remainder)
-        .size(Size::Absolute(14.0))
+        .size(Size::Absolute(10.0))
         .vertical(|mut grid| {
-            grid.cell(|ui| {
-                // TODO: Fix table as a padding smaller than 16 grows the window
-                TableBuilder::new(ui, Padding::new(3.0, 16.0))
+            grid.cell_clip(|ui| {
+                ui.spacing_mut().item_spacing = Vec2::splat(3.0);
+
+                TableBuilder::new(ui)
                 .striped(true)
                 .column(Size::Absolute(120.0))
                 .column(Size::RemainderMinimum(180.0))
@@ -58,7 +60,7 @@ impl super::View for TableDemo {
                             row.col(|ui| {
                                 ui.label(index.to_string());
                             });
-                            row.col(|ui| {
+                            row.col_clip(|ui| {
                                 ui.add(
                                     Label::new("virtual scroll, easily with thousands of rows!")
                                         .wrap(false),
@@ -79,7 +81,7 @@ impl super::View for TableDemo {
                                 row.col(|ui| {
                                     ui.label(i.to_string());
                                 });
-                                row.col(|ui| {
+                                row.col_clip(|ui| {
                                     ui.add(
                                         Label::new(
                                             format!("Normal scroll, each row can have a different height. Height: {}", height),

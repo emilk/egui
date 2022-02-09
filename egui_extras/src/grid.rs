@@ -1,7 +1,7 @@
 use crate::{
     layout::{CellSize, Layout, LineDirection},
     sizing::Sizing,
-    Padding, Size,
+    Size,
 };
 use egui::Ui;
 
@@ -13,20 +13,15 @@ enum GridDirection {
 pub struct GridBuilder<'a> {
     ui: &'a mut Ui,
     sizing: Sizing,
-    padding: Padding,
 }
 
 impl<'a> GridBuilder<'a> {
     /// Create new grid builder
     /// After adding size hints with `[Self::column]`/`[Self::columns]` the grid can be build with `[Self::horizontal]`/`[Self::vertical]`
-    pub fn new(ui: &'a mut Ui, padding: Padding) -> Self {
+    pub fn new(ui: &'a mut Ui) -> Self {
         let sizing = Sizing::new();
 
-        Self {
-            ui,
-            sizing,
-            padding,
-        }
+        Self { ui, sizing }
     }
 
     /// Add size hint for column/row
@@ -50,15 +45,14 @@ impl<'a> GridBuilder<'a> {
         F: for<'b> FnOnce(Grid<'a, 'b>),
     {
         let widths = self.sizing.into_lengths(
-            self.ui.available_rect_before_wrap().width() - 2.0 * self.padding.outer,
-            self.padding.inner,
+            self.ui.available_rect_before_wrap().width() - self.ui.spacing().item_spacing.x,
+            self.ui.spacing().item_spacing.x,
         );
-        let mut layout = Layout::new(self.ui, self.padding.clone(), LineDirection::Vertical);
+        let mut layout = Layout::new(self.ui, LineDirection::Vertical);
         grid(Grid {
             layout: &mut layout,
             direction: GridDirection::Horizontal,
-            padding: self.padding.clone(),
-            widths,
+            sizes: widths,
         });
     }
 
@@ -68,16 +62,15 @@ impl<'a> GridBuilder<'a> {
     where
         F: for<'b> FnOnce(Grid<'a, 'b>),
     {
-        let widths = self.sizing.into_lengths(
-            self.ui.available_rect_before_wrap().height() - 2.0 * self.padding.outer,
-            self.padding.inner,
+        let heights = self.sizing.into_lengths(
+            self.ui.available_rect_before_wrap().height() - self.ui.spacing().item_spacing.y,
+            self.ui.spacing().item_spacing.y,
         );
-        let mut layout = Layout::new(self.ui, self.padding.clone(), LineDirection::Horizontal);
+        let mut layout = Layout::new(self.ui, LineDirection::Horizontal);
         grid(Grid {
             layout: &mut layout,
             direction: GridDirection::Vertical,
-            padding: self.padding.clone(),
-            widths,
+            sizes: heights,
         });
     }
 }
@@ -85,20 +78,19 @@ impl<'a> GridBuilder<'a> {
 pub struct Grid<'a, 'b> {
     layout: &'b mut Layout<'a>,
     direction: GridDirection,
-    padding: Padding,
-    widths: Vec<f32>,
+    sizes: Vec<f32>,
 }
 
 impl<'a, 'b> Grid<'a, 'b> {
     fn size(&mut self) -> (CellSize, CellSize) {
         match self.direction {
             GridDirection::Horizontal => (
-                CellSize::Absolute(self.widths.remove(0)),
+                CellSize::Absolute(self.sizes.remove(0)),
                 CellSize::Remainder,
             ),
             GridDirection::Vertical => (
                 CellSize::Remainder,
-                CellSize::Absolute(self.widths.remove(0)),
+                CellSize::Absolute(self.sizes.remove(0)),
             ),
         }
     }
@@ -106,7 +98,7 @@ impl<'a, 'b> Grid<'a, 'b> {
     /// Add empty cell
     pub fn empty(&mut self) {
         assert!(
-            !self.widths.is_empty(),
+            !self.sizes.is_empty(),
             "Tried using more grid cells then available."
         );
 
@@ -116,7 +108,7 @@ impl<'a, 'b> Grid<'a, 'b> {
 
     fn _cell(&mut self, clip: bool, add_contents: impl FnOnce(&mut Ui)) {
         assert!(
-            !self.widths.is_empty(),
+            !self.sizes.is_empty(),
             "Tried using more grid cells then available."
         );
 
@@ -130,14 +122,13 @@ impl<'a, 'b> Grid<'a, 'b> {
     }
 
     /// Add cell, content is clipped
-    pub fn cell_noclip(&mut self, add_contents: impl FnOnce(&mut Ui)) {
+    pub fn cell_clip(&mut self, add_contents: impl FnOnce(&mut Ui)) {
         self._cell(true, add_contents);
     }
 
     fn _grid(&mut self, clip: bool, grid_builder: impl FnOnce(GridBuilder<'_>)) {
-        let padding = self.padding.clone();
         self._cell(clip, |ui| {
-            grid_builder(GridBuilder::new(ui, padding));
+            grid_builder(GridBuilder::new(ui));
         });
     }
     /// Add grid as cell
@@ -153,7 +144,7 @@ impl<'a, 'b> Grid<'a, 'b> {
 
 impl<'a, 'b> Drop for Grid<'a, 'b> {
     fn drop(&mut self) {
-        while !self.widths.is_empty() {
+        while !self.sizes.is_empty() {
             self.empty();
         }
     }

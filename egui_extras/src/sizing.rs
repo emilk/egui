@@ -32,7 +32,7 @@ impl Sizing {
         self.sizes.push(size);
     }
 
-    pub fn into_lengths(self, length: f32, inner_padding: f32) -> Vec<f32> {
+    pub fn into_lengths(self, length: f32, spacing: f32) -> Vec<f32> {
         let mut remainders = 0;
         let sum_non_remainder = self
             .sizes
@@ -55,7 +55,7 @@ impl Sizing {
                 }
             })
             .sum::<f32>()
-            + inner_padding * (self.sizes.len() + 1) as f32;
+            + spacing * (self.sizes.len() - 1) as f32;
 
         let avg_remainder_length = if remainders == 0 {
             0.0

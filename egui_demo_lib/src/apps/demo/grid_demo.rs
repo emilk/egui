@@ -1,5 +1,5 @@
 use egui::Color32;
-use egui_extras::{GridBuilder, Padding, Size};
+use egui_extras::{GridBuilder, Size};
 
 /// Shows off a table with dynamic layout
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -25,14 +25,14 @@ impl super::Demo for GridDemo {
 
 impl super::View for GridDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        GridBuilder::new(ui, Padding::new(0.0, 0.0))
+        GridBuilder::new(ui)
             .size(Size::Absolute(50.0))
             .size(Size::Remainder)
             .size(Size::RelativeMinimum {
                 relative: 0.5,
                 minimum: 60.0,
             })
-            .size(Size::Absolute(14.0))
+            .size(Size::Absolute(10.0))
             .vertical(|mut grid| {
                 grid.cell(|ui| {
                     ui.painter()

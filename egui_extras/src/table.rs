@@ -5,7 +5,7 @@
 use crate::{
     layout::{CellSize, LineDirection},
     sizing::Sizing,
-    Layout, Padding, Size,
+    Layout, Size,
 };
 
 use egui::{Response, Ui};
@@ -13,19 +13,17 @@ use std::cmp;
 
 pub struct TableBuilder<'a> {
     ui: &'a mut Ui,
-    padding: Padding,
     sizing: Sizing,
     scroll: bool,
     striped: bool,
 }
 
 impl<'a> TableBuilder<'a> {
-    pub fn new(ui: &'a mut Ui, padding: Padding) -> Self {
+    pub fn new(ui: &'a mut Ui) -> Self {
         let sizing = Sizing::new();
 
         Self {
             ui,
-            padding,
             sizing,
             scroll: true,
             striped: false,
@@ -61,12 +59,18 @@ impl<'a> TableBuilder<'a> {
     /// Create a header row which always stays visible and at the top
     pub fn header(self, height: f32, header: impl FnOnce(TableRow<'_, '_>)) -> Table<'a> {
         let widths = self.sizing.into_lengths(
-            self.ui.available_rect_before_wrap().width() - 2.0 * self.padding.outer,
-            self.padding.inner,
+            self.ui.available_rect_before_wrap().width()
+                - self.ui.spacing().item_spacing.x
+                - if self.scroll {
+                    self.ui.spacing().scroll_bar_width
+                } else {
+                    0.0
+                },
+            self.ui.spacing().item_spacing.x,
         );
         let ui = self.ui;
         {
-            let mut layout = Layout::new(ui, self.padding.clone(), LineDirection::Vertical);
+            let mut layout = Layout::new(ui, LineDirection::Vertical);
             {
                 let row = TableRow {
                     layout: &mut layout,
@@ -81,7 +85,6 @@ impl<'a> TableBuilder<'a> {
 
         Table {
             ui,
-            padding: self.padding,
             widths,
             scroll: self.scroll,
             striped: self.striped,
@@ -94,13 +97,12 @@ impl<'a> TableBuilder<'a> {
         F: for<'b> FnOnce(TableBody<'b>),
     {
         let widths = self.sizing.into_lengths(
-            self.ui.available_rect_before_wrap().width() - 2.0 * self.padding.outer,
-            self.padding.inner,
+            self.ui.available_rect_before_wrap().width(),
+            self.ui.spacing().item_spacing.x,
         );
 
         Table {
             ui: self.ui,
-            padding: self.padding,
             widths,
             scroll: self.scroll,
             striped: self.striped,
@@ -111,7 +113,6 @@ impl<'a> TableBuilder<'a> {
 
 pub struct Table<'a> {
     ui: &'a mut Ui,
-    padding: Padding,
     widths: Vec<f32>,
     scroll: bool,
     striped: bool,
@@ -123,7 +124,6 @@ impl<'a> Table<'a> {
     where
         F: for<'b> FnOnce(TableBody<'b>),
     {
-        let padding = self.padding;
         let ui = self.ui;
         let widths = self.widths;
         let striped = self.striped;
@@ -131,7 +131,7 @@ impl<'a> Table<'a> {
         let end_y = ui.available_rect_before_wrap().bottom();
 
         egui::ScrollArea::new([false, self.scroll]).show(ui, move |ui| {
-            let layout = Layout::new(ui, padding, LineDirection::Vertical);
+            let layout = Layout::new(ui, LineDirection::Vertical);
 
             body(TableBody {
                 layout,

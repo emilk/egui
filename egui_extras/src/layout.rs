@@ -1,5 +1,4 @@
-use crate::Padding;
-use egui::{Pos2, Rect, Response, Rgba, Sense, Ui, Vec2};
+use egui::{Pos2, Rect, Response, Rgba, Sense, Ui};
 
 #[derive(Clone, Copy)]
 pub(crate) enum CellSize {
@@ -30,7 +29,6 @@ pub(crate) enum LineDirection {
 /// Positions cells in `[LineDirection]` and starts a new line on `[Layout::end_line]`
 pub struct Layout<'l> {
     ui: &'l mut Ui,
-    padding: Padding,
     direction: LineDirection,
     rect: Rect,
     pos: Pos2,
@@ -38,15 +36,12 @@ pub struct Layout<'l> {
 }
 
 impl<'l> Layout<'l> {
-    pub(crate) fn new(ui: &'l mut Ui, padding: Padding, direction: LineDirection) -> Self {
-        let rect = ui
-            .available_rect_before_wrap()
-            .shrink(padding.inner + padding.outer);
+    pub(crate) fn new(ui: &'l mut Ui, direction: LineDirection) -> Self {
+        let rect = ui.available_rect_before_wrap();
         let pos = rect.left_top();
 
         Self {
             ui,
-            padding,
             rect,
             pos,
             max: pos,
@@ -64,11 +59,11 @@ impl<'l> Layout<'l> {
             max: Pos2 {
                 x: match width {
                     CellSize::Absolute(width) => self.pos.x + width,
-                    CellSize::Remainder => self.rect.right(),
+                    CellSize::Remainder => self.rect.right() - self.ui.spacing().item_spacing.x,
                 },
                 y: match height {
                     CellSize::Absolute(height) => self.pos.y + height,
-                    CellSize::Remainder => self.rect.bottom(),
+                    CellSize::Remainder => self.rect.bottom() - self.ui.spacing().item_spacing.y,
                 },
             },
         }
@@ -77,15 +72,21 @@ impl<'l> Layout<'l> {
     fn set_pos(&mut self, rect: Rect) {
         match self.direction {
             LineDirection::Horizontal => {
-                self.pos.y = rect.bottom() + self.padding.inner;
+                self.pos.y = rect.bottom() + self.ui.spacing().item_spacing.y;
             }
             LineDirection::Vertical => {
-                self.pos.x = rect.right() + self.padding.inner;
+                self.pos.x = rect.right() + self.ui.spacing().item_spacing.x;
             }
         }
 
-        self.max.x = self.max.x.max(rect.right() + self.padding.inner);
-        self.max.y = self.max.y.max(rect.bottom() + self.padding.inner);
+        self.max.x = self
+            .max
+            .x
+            .max(rect.right() + self.ui.spacing().item_spacing.x);
+        self.max.y = self
+            .max
+            .y
+            .max(rect.bottom() + self.ui.spacing().item_spacing.y);
     }
 
     pub(crate) fn empty(&mut self, width: CellSize, height: CellSize) {
@@ -114,8 +115,9 @@ impl<'l> Layout<'l> {
         add_contents: impl FnOnce(&mut Ui),
     ) -> Response {
         let mut rect = self.cell_rect(&width, &height);
-        *rect.top_mut() -= self.padding.inner;
-        *rect.left_mut() -= self.padding.inner;
+        // Make sure we don't have a gap in the stripe background
+        *rect.top_mut() -= self.ui.spacing().item_spacing.y;
+        *rect.left_mut() -= self.ui.spacing().item_spacing.x;
 
         let text_color: Rgba = self.ui.visuals().text_color().into();
         self.ui
@@ -154,12 +156,8 @@ impl<'l> Layout<'l> {
 
         if clip {
             let mut clip_rect = child_ui.clip_rect();
-            clip_rect.min = clip_rect
-                .min
-                .max(rect.min - Vec2::new(self.padding.inner, self.padding.inner));
-            clip_rect.max = clip_rect
-                .max
-                .min(rect.max + Vec2::new(self.padding.inner, self.padding.inner));
+            clip_rect.min = clip_rect.min.max(rect.min);
+            clip_rect.max = clip_rect.max.min(rect.max);
             child_ui.set_clip_rect(clip_rect);
         }
 

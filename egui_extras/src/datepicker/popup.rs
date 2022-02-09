@@ -1,7 +1,7 @@
 use super::{button::DatePickerButtonState, month_data};
-use crate::{GridBuilder, Padding, Size, TableBuilder};
+use crate::{GridBuilder, Size, TableBuilder};
 use chrono::{Date, Datelike, NaiveDate, Utc, Weekday};
-use egui::{Align, Button, Color32, ComboBox, Direction, Id, Label, Layout, RichText, Ui};
+use egui::{Align, Button, Color32, ComboBox, Direction, Id, Label, Layout, RichText, Ui, Vec2};
 
 #[derive(Default, Clone)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
@@ -52,7 +52,9 @@ impl<'a> DatePickerPopup<'a> {
         let weeks = month_data(popup_state.year, popup_state.month);
         let mut close = false;
         let height = 20.0;
-        GridBuilder::new(ui, Padding::new(2.0, 0.0))
+        let spacing = 2.0;
+        ui.spacing_mut().item_spacing = Vec2::splat(spacing);
+        GridBuilder::new(ui)
             .sizes(
                 Size::Absolute(height),
                 match (self.combo_boxes, self.arrows) {
@@ -62,7 +64,7 @@ impl<'a> DatePickerPopup<'a> {
                 },
             )
             .sizes(
-                Size::Absolute(2.0 + (height + 2.0) * weeks.len() as f32),
+                Size::Absolute((spacing + height) * (weeks.len() + 1) as f32),
                 if self.calendar { 1 } else { 0 },
             )
             .size(Size::Absolute(height))
@@ -70,7 +72,7 @@ impl<'a> DatePickerPopup<'a> {
                 if self.combo_boxes {
                     grid.grid_noclip(|builder| {
                         builder.sizes(Size::Remainder, 3).horizontal(|mut grid| {
-                            grid.cell_noclip(|ui| {
+                            grid.cell(|ui| {
                                 ComboBox::from_id_source("date_picker_year")
                                     .selected_text(popup_state.year.to_string())
                                     .show_ui(ui, |ui| {
@@ -90,7 +92,7 @@ impl<'a> DatePickerPopup<'a> {
                                         }
                                     });
                             });
-                            grid.cell_noclip(|ui| {
+                            grid.cell(|ui| {
                                 ComboBox::from_id_source("date_picker_month")
                                     .selected_text(popup_state.month.to_string())
                                     .show_ui(ui, |ui| {
@@ -110,7 +112,7 @@ impl<'a> DatePickerPopup<'a> {
                                         }
                                     });
                             });
-                            grid.cell_noclip(|ui| {
+                            grid.cell(|ui| {
                                 ComboBox::from_id_source("date_picker_day")
                                     .selected_text(popup_state.day.to_string())
                                     .show_ui(ui, |ui| {
@@ -231,7 +233,8 @@ impl<'a> DatePickerPopup<'a> {
 
                 if self.calendar {
                     grid.cell(|ui| {
-                        TableBuilder::new(ui, Padding::new(2.0, 0.0))
+                        ui.spacing_mut().item_spacing = Vec2::new(1.0, 2.0);
+                        TableBuilder::new(ui)
                             .scroll(false)
                             .columns(Size::Remainder, if self.calendar_week { 8 } else { 7 })
                             .header(height, |mut header| {
