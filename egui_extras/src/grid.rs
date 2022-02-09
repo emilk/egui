@@ -124,7 +124,7 @@ impl<'a, 'b> Grid<'a, 'b> {
         self.layout.add(width, height, clip, add_contents);
     }
 
-    /// Add cell
+    /// Add cell, content is wrapped
     pub fn cell(&mut self, add_contents: impl FnOnce(&mut Ui)) {
         self._cell(false, add_contents);
     }

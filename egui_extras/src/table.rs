@@ -263,7 +263,7 @@ impl<'a, 'b> TableRow<'a, 'b> {
         response
     }
 
-    /// Add column
+    /// Add column, content is wrapped
     pub fn col(&mut self, add_contents: impl FnOnce(&mut Ui)) -> Response {
         self._col(false, add_contents)
     }
