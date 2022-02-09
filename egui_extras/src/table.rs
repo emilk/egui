@@ -155,7 +155,8 @@ pub struct TableBody<'a> {
 }
 
 impl<'a> TableBody<'a> {
-    /// Add rows with same height
+    /// Add rows with same height.
+    ///
     /// Is a lot more performant than adding each individual row as non visible rows must not be rendered
     pub fn rows(mut self, height: f32, rows: usize, mut row: impl FnMut(usize, TableRow<'_, '_>)) {
         let delta = self.layout.current_y() - self.start_y;
