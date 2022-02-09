@@ -29,8 +29,8 @@ impl<'a> GridBuilder<'a> {
     /// # egui::__run_test_ui(|ui| {
     /// use egui_extras::{GridBuilder, Size};
     /// GridBuilder::new(ui)
-    ///     .column(Size::RemainderMinimum(100.0))
-    ///     .column(Size::Absolute(40.0))
+    ///     .size(Size::RemainderMinimum(100.0))
+    ///     .size(Size::Absolute(40.0))
     ///     .vertical(|mut grid| {
     ///         grid.grid(|builder| {
     ///             builder.sizes(Size::Remainder, 2).horizontal(|mut grid| {
