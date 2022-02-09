@@ -323,14 +323,14 @@ impl<'a> DatePickerPopup<'a> {
                         grid.empty();
                         grid.cell(|ui| {
                             ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
-                                if ui.button("Abbrechen").clicked() {
+                                if ui.button("Cancel").clicked() {
                                     close = true;
                                 }
                             });
                         });
                         grid.cell(|ui| {
                             ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
-                                if ui.button("Speichern").clicked() {
+                                if ui.button("Save").clicked() {
                                     *self.selection = Date::from_utc(
                                         NaiveDate::from_ymd(
                                             popup_state.year,
