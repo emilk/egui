@@ -1,4 +1,4 @@
-use egui::{Label, RichText};
+use egui::Label;
 use egui_extras::{GridBuilder, Padding, Size, TableBuilder};
 
 /// Shows off a table with dynamic layout
