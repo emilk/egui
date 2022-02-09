@@ -137,7 +137,7 @@ impl<'a> Table<'a> {
                 layout,
                 widths,
                 striped,
-                odd: true,
+                row_nr: 0,
                 start_y,
                 end_y,
             });
@@ -149,7 +149,7 @@ pub struct TableBody<'a> {
     layout: Layout<'a>,
     widths: Vec<f32>,
     striped: bool,
-    odd: bool,
+    row_nr: usize,
     start_y: f32,
     end_y: f32,
 }
@@ -168,7 +168,7 @@ impl<'a> TableBody<'a> {
             TableRow {
                 layout: &mut self.layout,
                 widths: self.widths.clone(),
-                striped: self.striped && self.odd,
+                striped: false,
                 height: skip_height,
                 clicked: false,
             }
@@ -179,20 +179,17 @@ impl<'a> TableBody<'a> {
         let count = (max_height / height).ceil() as usize;
         let end = cmp::min(start + count, rows);
 
-        self.odd = start % 2 == 0;
-
         for idx in start..end {
             row(
                 idx,
                 TableRow {
                     layout: &mut self.layout,
                     widths: self.widths.clone(),
-                    striped: self.striped && self.odd,
+                    striped: self.striped && idx % 2 == 0,
                     height,
                     clicked: false,
                 },
             );
-            self.odd = !self.odd;
         }
 
         if rows - end > 0 {
@@ -201,7 +198,7 @@ impl<'a> TableBody<'a> {
             TableRow {
                 layout: &mut self.layout,
                 widths: self.widths.clone(),
-                striped: self.striped && self.odd,
+                striped: false,
                 height: skip_height,
                 clicked: false,
             }
@@ -214,12 +211,12 @@ impl<'a> TableBody<'a> {
         row(TableRow {
             layout: &mut self.layout,
             widths: self.widths.clone(),
-            striped: self.striped && self.odd,
+            striped: self.striped && self.row_nr % 2 == 0,
             height,
             clicked: false,
         });
 
-        self.odd = !self.odd;
+        self.row_nr += 1;
     }
 }
 
