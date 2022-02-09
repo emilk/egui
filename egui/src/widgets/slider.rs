@@ -274,10 +274,7 @@ impl<'a> Slider<'a> {
             value = emath::round_to_decimals(value, max_decimals);
         }
         if let Some(step) = self.step {
-            let remainer = value % step;
-            if remainer != 0.0 {
-                value -= remainer;
-            };
+            value = (value / step).round() * step;
         }
         set(&mut self.get_set_value, value);
     }
