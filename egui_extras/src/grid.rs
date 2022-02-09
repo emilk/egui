@@ -82,7 +82,7 @@ pub struct Grid<'a, 'b> {
 }
 
 impl<'a, 'b> Grid<'a, 'b> {
-    fn size(&mut self) -> (CellSize, CellSize) {
+    fn next_cell_size(&mut self) -> (CellSize, CellSize) {
         match self.direction {
             GridDirection::Horizontal => (
                 CellSize::Absolute(self.sizes.remove(0)),
@@ -102,7 +102,7 @@ impl<'a, 'b> Grid<'a, 'b> {
             "Tried using more grid cells then available."
         );
 
-        let (width, height) = self.size();
+        let (width, height) = self.next_cell_size();
         self.layout.empty(width, height);
     }
 
@@ -112,7 +112,7 @@ impl<'a, 'b> Grid<'a, 'b> {
             "Tried using more grid cells then available."
         );
 
-        let (width, height) = self.size();
+        let (width, height) = self.next_cell_size();
         self.layout.add(width, height, clip, add_contents);
     }
 
