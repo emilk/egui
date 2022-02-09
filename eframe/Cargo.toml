@@ -62,9 +62,14 @@ egui_glow = { version = "0.16.0", path = "../egui_glow", default-features = fals
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 egui_web = { version = "0.16.0", path = "../egui_web", default-features = false, features = ["glow"] }
 
+
 [dev-dependencies]
 ehttp = "0.2"
 image = { version = "0.24", default-features = false, features = ["jpeg", "png"] }
 poll-promise = "0.1"
 rfd = "0.7"
 
+# svg.rs example:
+resvg = "0.20"
+tiny-skia = "0.6"
+usvg = "0.20"

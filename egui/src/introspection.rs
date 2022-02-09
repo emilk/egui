@@ -24,8 +24,6 @@ pub fn font_id_ui(ui: &mut Ui, font_id: &mut FontId) {
 
 // Show font texture in demo Ui
 pub(crate) fn font_texture_ui(ui: &mut Ui, [width, height]: [usize; 2]) -> Response {
-    use epaint::Mesh;
-
     ui.vertical(|ui| {
         let color = if ui.visuals().dark_mode {
             Color32::WHITE
