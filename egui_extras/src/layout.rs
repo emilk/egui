@@ -10,10 +10,12 @@ pub(crate) enum CellSize {
 }
 
 pub(crate) enum LineDirection {
-    /// Cells go from top to bottom
-    LeftToRight,
+    /// Cells go from top to bottom on each line
+    /// Lines go from left to right
+    Horizontal,
     /// Cells go from left to right
-    TopToBottom,
+    /// Lines go from top to bottom
+    Vertical,
 }
 
 /// Positions cells in `[LineDirection]` and starts a new line on `[Layout::end_line]`
@@ -67,10 +69,10 @@ impl<'l> Layout<'l> {
 
     fn set_pos(&mut self, rect: Rect) {
         match self.direction {
-            LineDirection::LeftToRight => {
+            LineDirection::Horizontal => {
                 self.pos.y = rect.bottom() + self.padding.inner;
             }
-            LineDirection::TopToBottom => {
+            LineDirection::Vertical => {
                 self.pos.x = rect.right() + self.padding.inner;
             }
         }
@@ -119,11 +121,11 @@ impl<'l> Layout<'l> {
     /// only needed for layouts with multiple lines, like Table
     pub fn end_line(&mut self) {
         match self.direction {
-            LineDirection::LeftToRight => {
+            LineDirection::Horizontal => {
                 self.pos.x = self.max.x;
                 self.pos.y = self.rect.top();
             }
-            LineDirection::TopToBottom => {
+            LineDirection::Vertical => {
                 self.pos.y = self.max.y;
                 self.pos.x = self.rect.left();
             }

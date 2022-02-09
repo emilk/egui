@@ -66,7 +66,7 @@ impl<'a> TableBuilder<'a> {
         );
         let ui = self.ui;
         {
-            let mut layout = Layout::new(ui, self.padding.clone(), LineDirection::TopToBottom);
+            let mut layout = Layout::new(ui, self.padding.clone(), LineDirection::Vertical);
             {
                 let row = TableRow {
                     layout: &mut layout,
@@ -131,7 +131,7 @@ impl<'a> Table<'a> {
         let end_y = ui.available_rect_before_wrap().bottom();
 
         egui::ScrollArea::new([false, self.scroll]).show(ui, move |ui| {
-            let layout = Layout::new(ui, padding, LineDirection::TopToBottom);
+            let layout = Layout::new(ui, padding, LineDirection::Vertical);
 
             body(TableBody {
                 layout,

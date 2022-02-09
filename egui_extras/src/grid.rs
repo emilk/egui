@@ -53,7 +53,7 @@ impl<'a> GridBuilder<'a> {
             self.ui.available_rect_before_wrap().width() - 2.0 * self.padding.outer,
             self.padding.inner,
         );
-        let mut layout = Layout::new(self.ui, self.padding.clone(), LineDirection::TopToBottom);
+        let mut layout = Layout::new(self.ui, self.padding.clone(), LineDirection::Vertical);
         grid(Grid {
             layout: &mut layout,
             direction: GridDirection::Horizontal,
@@ -72,7 +72,7 @@ impl<'a> GridBuilder<'a> {
             self.ui.available_rect_before_wrap().height() - 2.0 * self.padding.outer,
             self.padding.inner,
         );
-        let mut layout = Layout::new(self.ui, self.padding.clone(), LineDirection::LeftToRight);
+        let mut layout = Layout::new(self.ui, self.padding.clone(), LineDirection::Horizontal);
         grid(Grid {
             layout: &mut layout,
             direction: GridDirection::Vertical,
