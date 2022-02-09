@@ -70,8 +70,7 @@ impl<'a> Widget for DatePickerButton<'a> {
             .get_persisted::<DatePickerButtonState>(id)
             .unwrap_or_default();
 
-        //TODO: Internationalization
-        let mut text = RichText::new(format!("{} 📆", self.selection.format("%d.%m.%Y")));
+        let mut text = RichText::new(format!("{} 📆", self.selection.format("%Y-%m-%d")));
         let visuals = ui.visuals().widgets.open;
         if button_state.picker_visible {
             text = text.color(visuals.text_color());
