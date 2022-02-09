@@ -42,7 +42,7 @@ impl<'a> GridBuilder<'a> {
         self
     }
 
-    /// Build horizontal grid
+    /// Build horizontal grid: Cells are positions from left to right.
     /// Takes the available horizontal width, so there can't be anything right of the grid or the container will grow slowly!
     pub fn horizontal<F>(self, grid: F)
     where
@@ -60,7 +60,7 @@ impl<'a> GridBuilder<'a> {
         });
     }
 
-    /// Build vertical grid
+    /// Build vertical grid: Cells are positions from top to bottom.
     /// Takes the full available vertical height, so there can't be anything below of the grid or the container will grow slowly!
     pub fn vertical<F>(self, grid: F)
     where
