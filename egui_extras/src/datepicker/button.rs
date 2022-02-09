@@ -89,8 +89,10 @@ impl<'a> Widget for DatePickerButton<'a> {
         if button_state.picker_visible {
             let width = 333.0;
             let mut pos = button_response.rect.left_bottom();
-            let width_with_padding =
-                width + ui.style().spacing.item_spacing.x + ui.style().spacing.window_padding.x;
+            let width_with_padding = width
+                + ui.style().spacing.item_spacing.x
+                + ui.style().spacing.window_margin.left
+                + ui.style().spacing.window_margin.right;
             if pos.x + width_with_padding > ui.clip_rect().right() {
                 pos.x = button_response.rect.right() - width_with_padding;
             }
