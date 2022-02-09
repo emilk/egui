@@ -18,6 +18,7 @@ pub enum Size {
     RemainderMinimum(f32),
 }
 
+#[derive(Clone)]
 pub struct Sizing {
     sizes: Vec<Size>,
 }
@@ -64,11 +65,16 @@ impl Sizing {
             self.sizes.iter().for_each(|size| {
                 if let Size::RemainderMinimum(minimum) = size {
                     if *minimum > avg_remainder_length {
-                        remainder_length -= minimum - avg_remainder_length;
+                        remainder_length -= minimum;
+                        remainders -= 1;
                     }
                 }
             });
-            0.0f32.max(remainder_length / remainders as f32)
+            if remainders > 0 {
+                0.0f32.max(remainder_length / remainders as f32)
+            } else {
+                0.0
+            }
         };
 
         self.sizes
@@ -82,4 +88,33 @@ impl Sizing {
             })
             .collect()
     }
+}
+
+impl From<Vec<Size>> for Sizing {
+    fn from(sizes: Vec<Size>) -> Self {
+        Self { sizes }
+    }
+}
+
+#[test]
+fn test_sizing() {
+    let sizing: Sizing = vec![Size::RemainderMinimum(20.0), Size::Remainder].into();
+    assert_eq!(sizing.clone().into_lengths(50.0, 0.0), vec![25.0, 25.0]);
+    assert_eq!(sizing.clone().into_lengths(30.0, 0.0), vec![20.0, 10.0]);
+    assert_eq!(sizing.clone().into_lengths(20.0, 0.0), vec![20.0, 0.0]);
+    assert_eq!(sizing.clone().into_lengths(10.0, 0.0), vec![20.0, 0.0]);
+    assert_eq!(sizing.into_lengths(20.0, 10.0), vec![20.0, 0.0]);
+
+    let sizing: Sizing = vec![
+        Size::RelativeMinimum {
+            relative: 0.5,
+            minimum: 10.0,
+        },
+        Size::Absolute(10.0),
+    ]
+    .into();
+    assert_eq!(sizing.clone().into_lengths(50.0, 0.0), vec![25.0, 10.0]);
+    assert_eq!(sizing.clone().into_lengths(30.0, 0.0), vec![15.0, 10.0]);
+    assert_eq!(sizing.clone().into_lengths(20.0, 0.0), vec![10.0, 10.0]);
+    assert_eq!(sizing.into_lengths(10.0, 0.0), vec![10.0, 10.0]);
 }
