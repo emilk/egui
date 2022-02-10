@@ -2,7 +2,7 @@
 
 #![allow(clippy::if_same_then_else)]
 
-use crate::{color::*, emath::*, FontFamily, FontId, Margin, Response, RichText, WidgetText};
+use crate::{color::*, emath::*, FontFamily, FontId, Response, RichText, WidgetText};
 use epaint::{mutex::Arc, Rounding, Shadow, Stroke};
 use std::collections::BTreeMap;
 
@@ -274,6 +274,49 @@ impl Spacing {
             Rect::from_center_size(big_icon_rect.center(), Vec2::splat(small_rect_side));
 
         (small_icon_rect, big_icon_rect)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct Margin {
+    pub left: f32,
+    pub right: f32,
+    pub top: f32,
+    pub bottom: f32,
+}
+
+impl Margin {
+    #[inline]
+    pub fn same(margin: f32) -> Self {
+        Self {
+            left: margin,
+            right: margin,
+            top: margin,
+            bottom: margin,
+        }
+    }
+
+    /// Margins with the same size on opposing sides
+    #[inline]
+    pub fn symmetric(x: f32, y: f32) -> Self {
+        Self {
+            left: x,
+            right: x,
+            top: y,
+            bottom: y,
+        }
+    }
+
+    /// Total margins on both sides
+    pub fn sum(&self) -> Vec2 {
+        Vec2::new(self.left + self.right, self.top + self.bottom)
+    }
+}
+
+impl From<Vec2> for Margin {
+    fn from(v: Vec2) -> Self {
+        Self::symmetric(v.x, v.y)
     }
 }
 
