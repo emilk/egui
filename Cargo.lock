@@ -1039,9 +1039,11 @@ dependencies = [
 name = "egui_demo_app"
 version = "0.16.0"
 dependencies = [
+ "console_error_panic_hook",
  "eframe",
  "egui_demo_lib",
  "tracing-subscriber",
+ "tracing-wasm",
 ]
 
 [[package]]
@@ -1095,7 +1097,6 @@ name = "egui_web"
 version = "0.16.0"
 dependencies = [
  "bytemuck",
- "console_error_panic_hook",
  "egui",
  "egui_glow",
  "epi",
@@ -1103,7 +1104,6 @@ dependencies = [
  "ron",
  "serde",
  "tracing",
- "tracing-wasm",
  "tts",
  "wasm-bindgen",
  "wasm-bindgen-futures",
