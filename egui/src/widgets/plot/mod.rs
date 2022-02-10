@@ -39,7 +39,7 @@ impl CoordinatesFormatter {
     }
 
     /// Show a fixed number of decimal places.
-    pub fn with_precision(precision: usize) -> Self {
+    pub fn with_decimals(num_decimals: usize) -> Self {
         Self {
             function: Box::new(move |value, _| {
                 format!(
