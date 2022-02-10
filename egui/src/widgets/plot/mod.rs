@@ -27,11 +27,12 @@ type AxisFormatter = Option<Box<AxisFormatterFn>>;
 
 /// Specifies the coordinates formatting when passed to [`Plot::coordinates_formatter`].
 pub struct CoordinatesFormatter {
-    function: Box<dyn Fn(&Value) -> String>,
+    function: Box<dyn Fn(&Value, &PlotBounds) -> String>,
 }
 
 impl CoordinatesFormatter {
-    pub fn new(function: impl Fn(&Value) -> String + 'static) -> Self {
+    /// Create a new formatter based on the pointer coordinate and the plot bounds.
+    pub fn new(function: impl Fn(&Value, &PlotBounds) -> String + 'static) -> Self {
         Self {
             function: Box::new(function),
         }
@@ -40,14 +41,18 @@ impl CoordinatesFormatter {
     /// Show a fixed number of decimal places.
     pub fn with_precision(precision: usize) -> Self {
         Self {
-            function: Box::new(move |value| {
-                format!("x: {:.p$}\ny: {:.p$}", value.x, value.y, p = precision)
+            function: Box::new(move |value, _| {
+                format!(
+                    "x: {}\ny: {}",
+                    emath::round_to_decimals(value.x, precision).to_string(),
+                    emath::round_to_decimals(value.y, precision).to_string(),
+                )
             }),
         }
     }
 
-    fn format(&self, value: &Value) -> String {
-        (self.function)(value)
+    fn format(&self, value: &Value, bounds: &PlotBounds) -> String {
+        (self.function)(value, bounds)
     }
 }
 
@@ -936,7 +941,7 @@ impl PreparedPlot {
             if let Some(pointer) = response.hover_pos() {
                 let font_id = TextStyle::Monospace.resolve(ui.style());
                 let coordinate = transform.value_from_position(pointer);
-                let text = formatter.format(&coordinate);
+                let text = formatter.format(&coordinate, transform.bounds());
                 let padded_frame = transform.frame().shrink(4.0);
                 let (anchor, position) = match corner {
                     Corner::LeftTop => (Align2::LEFT_TOP, padded_frame.left_top()),
