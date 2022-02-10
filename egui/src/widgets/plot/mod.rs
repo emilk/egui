@@ -42,11 +42,7 @@ impl CoordinatesFormatter {
     pub fn with_decimals(num_decimals: usize) -> Self {
         Self {
             function: Box::new(move |value, _| {
-                format!(
-                    "x: {}\ny: {}",
-                    emath::round_to_decimals(value.x, precision).to_string(),
-                    emath::round_to_decimals(value.y, precision).to_string(),
-                )
+                format!("x: {:.d$}\ny: {:.d$}", value.x, value.y, d = num_decimals)
             }),
         }
     }
@@ -58,7 +54,7 @@ impl CoordinatesFormatter {
 
 impl Default for CoordinatesFormatter {
     fn default() -> Self {
-        Self::with_precision(3)
+        Self::with_decimals(3)
     }
 }
 
