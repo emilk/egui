@@ -350,7 +350,7 @@ impl Plot {
         self
     }
 
-    /// Provide a function to customize the labels for the X axis based on the current value range.
+    /// Provide a function to customize the labels for the X axis based on the current visible value range.
     ///
     /// This is useful for custom input domains, e.g. date/time.
     ///
