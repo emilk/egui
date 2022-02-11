@@ -28,6 +28,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * ⚠️ `Context::input` and `Ui::input` now locks a mutex. This can lead to a dead-lock is used in an `if let` binding!
   * `if let Some(pos) = ui.input().pointer.latest_pos()` and similar must now be rewritten on two lines.
   * Search for this problem in your code using the regex `if let .*input`.
+* Better contrast in the default light mode style ([#1238](https://github.com/emilk/egui/pull/1238)).
 * Renamed `CtxRef` to `Context` ([#1050](https://github.com/emilk/egui/pull/1050)).
 * `Context` can now be cloned and stored between frames ([#1050](https://github.com/emilk/egui/pull/1050)).
 * Renamed `Ui::visible` to `Ui::is_visible`.
