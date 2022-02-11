@@ -607,7 +607,7 @@ impl Visuals {
             selection: Selection::default(),
             hyperlink_color: Color32::from_rgb(90, 170, 255),
             faint_bg_color: Color32::from_gray(24),
-            extreme_bg_color: Color32::from_gray(10),
+            extreme_bg_color: Color32::from_gray(10), // e.g. TextEdit background
             code_bg_color: Color32::from_gray(64),
             window_rounding: Rounding::same(6.0),
             window_shadow: Shadow::big_dark(),
@@ -628,9 +628,9 @@ impl Visuals {
             widgets: Widgets::light(),
             selection: Selection::light(),
             hyperlink_color: Color32::from_rgb(0, 155, 255),
-            faint_bg_color: Color32::from_gray(240),
-            extreme_bg_color: Color32::from_gray(250),
-            code_bg_color: Color32::from_gray(200),
+            faint_bg_color: Color32::from_gray(245),
+            extreme_bg_color: Color32::from_gray(255), // e.g. TextEdit background
+            code_bg_color: Color32::from_gray(230),
             window_shadow: Shadow::big_light(),
             popup_shadow: Shadow::small_light(),
             ..Self::dark()
@@ -709,21 +709,21 @@ impl Widgets {
     pub fn light() -> Self {
         Self {
             noninteractive: WidgetVisuals {
-                bg_fill: Color32::from_gray(235), // window background
+                bg_fill: Color32::from_gray(248), // window background - should be distinct from TextEdit background
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(190)), // separators, indentation lines, windows outlines
-                fg_stroke: Stroke::new(1.0, Color32::from_gray(100)), // normal text color
+                fg_stroke: Stroke::new(1.0, Color32::from_gray(80)),  // normal text color
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
             inactive: WidgetVisuals {
-                bg_fill: Color32::from_gray(215), // button background
+                bg_fill: Color32::from_gray(230), // button background
                 bg_stroke: Default::default(),
-                fg_stroke: Stroke::new(1.0, Color32::from_gray(80)), // button text
+                fg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // button text
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
             hovered: WidgetVisuals {
-                bg_fill: Color32::from_gray(210),
+                bg_fill: Color32::from_gray(220),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(105)), // e.g. hover over window edge or button
                 fg_stroke: Stroke::new(1.5, Color32::BLACK),
                 rounding: Rounding::same(3.0),
