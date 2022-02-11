@@ -203,17 +203,12 @@ impl<'a> Slider<'a> {
     }
 
     /// Sets the minimal change of the value.
-    /// Value `0.0` effectively disables the feature. If the new value is out of range 
+    /// Value `0.0` effectively disables the feature. If the new value is out of range
     /// and `clamp_to_range` is enabled, you would not have the ability to change the value.
     ///
     /// Default: `0.0` (disabled).
     pub fn step_by(mut self, step: f64) -> Self {
-        let step = if step != 0.0 {
-            Some(step)
-        } else {
-            None
-        };
-        self.step = step;
+        self.step = if step != 0.0 { Some(step) } else { None };
         self
     }
 
