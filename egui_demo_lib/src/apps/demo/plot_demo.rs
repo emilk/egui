@@ -762,6 +762,7 @@ impl super::View for PlotDemo {
             egui::reset_button(ui, self);
             ui.collapsing("Instructions", |ui| {
                 ui.label("Pan by dragging, or scroll (+ shift = horizontal).");
+                ui.label("Box zooming: Right click to zoom in and zoom out using a selection.");
                 if cfg!(target_arch = "wasm32") {
                     ui.label("Zoom with ctrl / ⌘ + pointer wheel, or with pinch gesture.");
                 } else if cfg!(target_os = "macos") {
