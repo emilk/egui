@@ -120,6 +120,9 @@ pub struct FontData {
     /// Which font face in the file to use.
     /// When in doubt, use `0`.
     pub index: u32,
+
+    /// Extra scale and vertical tweak to apply to all text of this font.
+    pub tweak: FontTweak,
 }
 
 impl FontData {
@@ -127,6 +130,7 @@ impl FontData {
         Self {
             font: std::borrow::Cow::Borrowed(font),
             index: 0,
+            tweak: Default::default(),
         }
     }
 
@@ -134,9 +138,47 @@ impl FontData {
         Self {
             font: std::borrow::Cow::Owned(font),
             index: 0,
+            tweak: Default::default(),
+        }
+    }
+
+    pub fn tweak(self, tweak: FontTweak) -> Self {
+        Self { tweak, ..self }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// Extra scale and vertical tweak to apply to all text of a certain font.
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct FontTweak {
+    /// Scale the font by this much.
+    ///
+    /// Default: `1.0`
+    pub scale: f32,
+
+    /// Shift font downwards by this fraction of the font size.
+    ///
+    /// If you load a custom font and it looks like it is too high up,
+    /// set this to e.g. `0.3`.
+    pub y_offset_factor: f32,
+
+    /// Shift font downwards by this absolute amount.
+    pub y_offset: f32,
+}
+
+impl Default for FontTweak {
+    fn default() -> Self {
+        Self {
+            scale: 1.0,
+            y_offset_factor: 0.0,
+            y_offset: -3.0, // makes most fonts look more centered in buttons and such
         }
     }
 }
+
+// ----------------------------------------------------------------------------
 
 fn ab_glyph_font_from_font_data(name: &str, data: &FontData) -> ab_glyph::FontArc {
     match &data.font {
@@ -220,10 +262,17 @@ impl Default for FontDefinitions {
                 "NotoEmoji-Regular".to_owned(),
                 FontData::from_static(include_bytes!("../../fonts/NotoEmoji-Regular.ttf")),
             );
+
             // Bigger emojis, and more. <http://jslegers.github.io/emoji-icon-font/>:
             font_data.insert(
                 "emoji-icon-font".to_owned(),
-                FontData::from_static(include_bytes!("../../fonts/emoji-icon-font.ttf")),
+                FontData::from_static(include_bytes!("../../fonts/emoji-icon-font.ttf")).tweak(
+                    FontTweak {
+                        scale: 0.8,
+                        y_offset_factor: 0.29,
+                        y_offset: -3.0,
+                    },
+                ),
             );
 
             families.insert(
@@ -603,7 +652,7 @@ impl GalleyCache {
 struct FontImplCache {
     atlas: Arc<Mutex<TextureAtlas>>,
     pixels_per_point: f32,
-    ab_glyph_fonts: BTreeMap<String, ab_glyph::FontArc>,
+    ab_glyph_fonts: BTreeMap<String, (FontTweak, ab_glyph::FontArc)>,
 
     /// Map font pixel sizes and names to the cached `FontImpl`.
     cache: ahash::AHashMap<(u32, String), Arc<FontImpl>>,
@@ -617,7 +666,11 @@ impl FontImplCache {
     ) -> Self {
         let ab_glyph_fonts = font_data
             .iter()
-            .map(|(name, font_data)| (name.clone(), ab_glyph_font_from_font_data(name, font_data)))
+            .map(|(name, font_data)| {
+                let tweak = font_data.tweak;
+                let ab_glyph = ab_glyph_font_from_font_data(name, font_data);
+                (name.clone(), (tweak, ab_glyph))
+            })
             .collect();
 
         Self {
@@ -638,29 +691,22 @@ impl FontImplCache {
     }
 
     pub fn font_impl(&mut self, scale_in_pixels: u32, font_name: &str) -> Arc<FontImpl> {
-        let scale_in_pixels = if font_name == "emoji-icon-font" {
-            (scale_in_pixels as f32 * 0.8).round() as u32 // TODO: remove font scale HACK!
-        } else {
-            scale_in_pixels
-        };
+        let (tweak, ab_glyph_font) = self
+            .ab_glyph_fonts
+            .get(font_name)
+            .unwrap_or_else(|| panic!("No font data found for {:?}", font_name))
+            .clone();
 
-        let y_offset = if font_name == "emoji-icon-font" {
+        let scale_in_pixels = (scale_in_pixels as f32 * tweak.scale).round() as u32;
+
+        let y_offset = {
             let scale_in_points = scale_in_pixels as f32 / self.pixels_per_point;
-            scale_in_points * 0.29375 // TODO: remove font alignment hack
-        } else {
-            0.0
-        };
-        let y_offset = y_offset - 3.0; // Tweaked to make text look centered in buttons and text edit fields
+            scale_in_points * tweak.y_offset_factor
+        } + tweak.y_offset;
 
         self.cache
             .entry((scale_in_pixels, font_name.to_owned()))
             .or_insert_with(|| {
-                let ab_glyph_font = self
-                    .ab_glyph_fonts
-                    .get(font_name)
-                    .unwrap_or_else(|| panic!("No font data found for {:?}", font_name))
-                    .clone();
-
                 Arc::new(FontImpl::new(
                     self.atlas.clone(),
                     self.pixels_per_point,
