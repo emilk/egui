@@ -155,16 +155,20 @@ impl FontData {
 pub struct FontTweak {
     /// Scale the font by this much.
     ///
-    /// Default: `1.0`
+    /// Default: `1.0` (no scaling).
     pub scale: f32,
 
-    /// Shift font downwards by this fraction of the font size.
+    /// Shift font downwards by this fraction of the font size (in points).
     ///
-    /// If you load a custom font and it looks like it is too high up,
-    /// set this to e.g. `0.3`.
+    /// A positive value shifts the text upwards.
+    /// A negative value shifts it downwards.
+    ///
+    /// Example value: `-0.2`.
     pub y_offset_factor: f32,
 
-    /// Shift font downwards by this absolute amount.
+    /// Shift font downwards by this absolute amount of logical points.
+    ///
+    /// Example value: `-1.0`.
     pub y_offset: f32,
 }
 
@@ -172,8 +176,8 @@ impl Default for FontTweak {
     fn default() -> Self {
         Self {
             scale: 1.0,
-            y_offset_factor: 0.0,
-            y_offset: -3.0, // makes most fonts look more centered in buttons and such
+            y_offset_factor: -0.2, // makes the default fonts look more centered in buttons and such
+            y_offset: 0.0,
         }
     }
 }
@@ -269,8 +273,8 @@ impl Default for FontDefinitions {
                 FontData::from_static(include_bytes!("../../fonts/emoji-icon-font.ttf")).tweak(
                     FontTweak {
                         scale: 0.8,
-                        y_offset_factor: 0.29,
-                        y_offset: -3.0,
+                        y_offset_factor: 0.1,
+                        y_offset: 0.0,
                     },
                 ),
             );
@@ -699,7 +703,7 @@ impl FontImplCache {
 
         let scale_in_pixels = (scale_in_pixels as f32 * tweak.scale).round() as u32;
 
-        let y_offset = {
+        let y_offset_points = {
             let scale_in_points = scale_in_pixels as f32 / self.pixels_per_point;
             scale_in_points * tweak.y_offset_factor
         } + tweak.y_offset;
@@ -712,7 +716,7 @@ impl FontImplCache {
                     self.pixels_per_point,
                     ab_glyph_font,
                     scale_in_pixels,
-                    y_offset,
+                    y_offset_points,
                 ))
             })
             .clone()
