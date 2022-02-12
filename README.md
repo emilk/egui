@@ -148,7 +148,7 @@ Light Theme:
 
 ## Integrations
 
-egui is build to be easy to integrate into any existing game engine or platform you are working on.
+egui is built to be easy to integrate into any existing game engine or platform you are working on.
 egui itself doesn't know or care on what OS it is running or how to render things to the screen - that is the job of the egui integration.
 
 An integration needs to do the following each frame:
@@ -160,7 +160,7 @@ An integration needs to do the following each frame:
 
 ### Official integrations
 
-If you making an app, your best bet is using [`eframe`](https://github.com/emilk/egui/tree/master/eframe), the official egui framework. It lets you write apps that works on both the web and native. `eframe` is just a thin wrapper over `egui_web` and `egui_glium` (see below).
+If you're making an app, your best bet is using [`eframe`](https://github.com/emilk/egui/tree/master/eframe), the official egui framework. It lets you write apps that work on both the web and native. `eframe` is just a thin wrapper over `egui_web` and `egui_glium` (see below).
 
 These are the official egui integrations:
 
