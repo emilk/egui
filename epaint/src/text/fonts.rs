@@ -272,8 +272,8 @@ impl Default for FontDefinitions {
                 "emoji-icon-font".to_owned(),
                 FontData::from_static(include_bytes!("../../fonts/emoji-icon-font.ttf")).tweak(
                     FontTweak {
-                        scale: 0.8,           // make it smaller
-                        y_offset_factor: 0.1, // move it down slightly
+                        scale: 0.8,            // make it smaller
+                        y_offset_factor: 0.07, // move it down slightly
                         y_offset: 0.0,
                     },
                 ),
