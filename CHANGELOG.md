@@ -13,6 +13,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
   * Easily change text styles with `Style::text_styles`.
   * Added `Ui::text_style_height`.
   * Added `TextStyle::resolve`.
+* Made v-align and scale of user fonts tweakable ([#1241](https://github.com/emilk/egui/pull/1027)).
 * `Context::load_texture` to convert an image into a texture which can be displayed using e.g. `ui.image(texture, size)` ([#1110](https://github.com/emilk/egui/pull/1110)).
 * Added `Ui::add_visible` and `Ui::add_visible_ui`.
 * Opt-in dependency on `tracing` crate for logging warnings ([#1192](https://github.com/emilk/egui/pull/1192)).

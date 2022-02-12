@@ -166,7 +166,7 @@ pub struct FontTweak {
     /// Example value: `-0.2`.
     pub y_offset_factor: f32,
 
-    /// Shift font downwards by this absolute amount of logical points.
+    /// Shift font downwards by this amount of logical points.
     ///
     /// Example value: `-1.0`.
     pub y_offset: f32,
@@ -272,8 +272,8 @@ impl Default for FontDefinitions {
                 "emoji-icon-font".to_owned(),
                 FontData::from_static(include_bytes!("../../fonts/emoji-icon-font.ttf")).tweak(
                     FontTweak {
-                        scale: 0.8,
-                        y_offset_factor: 0.1,
+                        scale: 0.8,           // make it smaller
+                        y_offset_factor: 0.1, // move it down slightly
                         y_offset: 0.0,
                     },
                 ),
