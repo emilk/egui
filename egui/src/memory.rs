@@ -329,6 +329,11 @@ impl Memory {
         self.areas.layer_id_at(pos, resize_interact_radius_side)
     }
 
+    /// Top-most layer.
+    pub fn top_most_layer(&self) -> Option<LayerId> {
+        self.areas.order().last().copied()
+    }
+
     pub(crate) fn had_focus_last_frame(&self, id: Id) -> bool {
         self.interaction.focus.id_previous_frame == Some(id)
     }

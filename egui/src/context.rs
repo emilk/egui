@@ -889,6 +889,16 @@ impl Context {
         self.memory().layer_id_at(pos, resize_grab_radius_side)
     }
 
+    /// Top-most layer.
+    pub fn top_most_layer(&self) -> Option<LayerId> {
+        self.memory().top_most_layer()
+    }
+
+    /// Moves the given area to the top.
+    pub fn move_to_top(&self, layer_id: LayerId) {
+        self.memory().areas.move_to_top(layer_id);
+    }
+
     pub(crate) fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
         let pointer_pos = self.input().pointer.interact_pos();
         if let Some(pointer_pos) = pointer_pos {
