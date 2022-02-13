@@ -45,12 +45,15 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Replaced Frame's `margin: Vec2` with `margin: Margin`, allowing for different margins on opposing sides ([#1219](https://github.com/emilk/egui/pull/1219)).
 * `Plot::highlight` now takes a `bool` argument ([#1159](https://github.com/emilk/egui/pull/1159)).
 * `ScrollArea::show` now returns a `ScrollAreaOutput`, so you might need to add `.inner` after the call to it ([#1166](https://github.com/emilk/egui/pull/1166)).
+* Tooltips that don't fit the window don't flicker anymore ([#1240](https://github.com/emilk/egui/pull/1240)).
+* `Areas::layer_id_at` ignores non interatable layers (i.e. Tooltips) ([#1240](https://github.com/emilk/egui/pull/1240)).
 
 ### Fixed 🐛
 * Context menus now respects the theme ([#1043](https://github.com/emilk/egui/pull/1043)).
 * Plot `Orientation` was not public, although fields using this type were ([#1130](https://github.com/emilk/egui/pull/1130)).
 * Fixed `enable_drag` for Windows ([#1108](https://github.com/emilk/egui/pull/1108)).
 * Calling `Context::set_pixels_per_point` before the first frame will now work.
+* Tooltips that don't fit the window don't flicker anymore ([#1240](https://github.com/emilk/egui/pull/1240)).
 
 ### Contributors 🙏
 * [AlexxxRu](https://github.com/alexxxru): [#1108](https://github.com/emilk/egui/pull/1108).

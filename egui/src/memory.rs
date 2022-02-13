@@ -516,9 +516,9 @@ impl Areas {
                     if state.interactable {
                         // Allow us to resize by dragging just outside the window:
                         rect = rect.expand(resize_interact_radius_side);
-                    }
-                    if rect.contains(pos) {
-                        return Some(*layer);
+                        if rect.contains(pos) {
+                            return Some(*layer);
+                        }
                     }
                 }
             }
