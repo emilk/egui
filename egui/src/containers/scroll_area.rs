@@ -493,14 +493,17 @@ impl Prepared {
                     let clip_rect = content_ui.clip_rect();
                     let visible_range = min..=min + clip_rect.size()[d];
 
+                    // if the ui is too big to completely fit in the scroll view, align it to the left/top
+                    let too_big = (scroll.end() - scroll.start()) > clip_rect.size()[d];
+
                     let center_factor = if let Some(align) = align {
                         align.to_factor()
-                    } else if *scroll.start() < clip_rect.min[d] {
+                    } else if too_big || *scroll.start() < clip_rect.min[d] {
                         0.0
                     } else if *scroll.end() > clip_rect.max[d] {
                         1.0
                     } else {
-                        // Ui os already in view, no need to adjust scroll offset.
+                        // Ui is already in view, no need to adjust scroll.
                         continue;
                     };
 
