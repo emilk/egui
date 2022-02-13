@@ -495,15 +495,13 @@ impl Prepared {
 
                     let center_factor = if let Some(align) = align {
                         align.to_factor()
+                    } else if *scroll.start() < clip_rect.min[d] {
+                        0.0
+                    } else if *scroll.end() > clip_rect.max[d] {
+                        1.0
                     } else {
-                        if *scroll.start() < clip_rect.min[d] {
-                            0.0
-                        } else if *scroll.end() > clip_rect.max[d] {
-                            1.0
-                        } else {
-                            // Ui os already in view, no need to adjust scroll offset.
-                            continue;
-                        }
+                        // Ui os already in view, no need to adjust scroll offset.
+                        continue;
                     };
 
                     let offset = lerp(scroll, center_factor) - lerp(visible_range, center_factor);
