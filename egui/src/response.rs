@@ -446,6 +446,8 @@ impl Response {
     /// Adjust the scroll position until this UI becomes visible. If `align` is not provided, it'll scroll enough to
     /// bring the UI into view.
     ///
+    /// See also [`Ui::scroll_to_cursor`]
+    ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
     /// egui::ScrollArea::vertical().show(ui, |ui| {

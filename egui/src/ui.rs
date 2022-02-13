@@ -889,7 +889,10 @@ impl Ui {
         (response, painter)
     }
 
-    /// Move the scroll to this cursor position with the specified alignment.
+    /// Adjust the scroll position until the cursor becomes visible. If `align` is not provided, it'll scroll enough to
+    /// bring the cursor into view.
+    ///
+    /// See also [`Response::scroll_to_me`]
     ///
     /// ```
     /// # use egui::Align;
