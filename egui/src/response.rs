@@ -443,7 +443,8 @@ impl Response {
         )
     }
 
-    /// Move the scroll to this UI with the specified alignment.
+    /// Adjust the scroll position until this UI becomes visible. If `align` is not provided, it'll scroll enough to
+    /// bring the UI into view.
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -451,18 +452,15 @@ impl Response {
     ///     for i in 0..1000 {
     ///         let response = ui.button("Scroll to me");
     ///         if response.clicked() {
-    ///             response.scroll_to_me(egui::Align::Center);
+    ///             response.scroll_to_me(Some(egui::Align::Center));
     ///         }
     ///     }
     /// });
     /// # });
     /// ```
-    pub fn scroll_to_me(&self, align: Align) {
-        let scroll_target = lerp(self.rect.x_range(), align.to_factor());
-        self.ctx.frame_state().scroll_target[0] = Some((scroll_target, align));
-
-        let scroll_target = lerp(self.rect.y_range(), align.to_factor());
-        self.ctx.frame_state().scroll_target[1] = Some((scroll_target, align));
+    pub fn scroll_to_me(&self, align: Option<Align>) {
+        self.ctx.frame_state().scroll_target[0] = Some((self.rect.x_range(), align));
+        self.ctx.frame_state().scroll_target[1] = Some((self.rect.y_range(), align));
     }
 
     /// For accessibility.

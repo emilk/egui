@@ -906,10 +906,11 @@ impl Ui {
     /// });
     /// # });
     /// ```
-    pub fn scroll_to_cursor(&mut self, align: Align) {
+    pub fn scroll_to_cursor(&mut self, align: Option<Align>) {
         let target = self.next_widget_position();
         for d in 0..2 {
-            self.ctx().frame_state().scroll_target[d] = Some((target[d], align));
+            let target = target[d];
+            self.ctx().frame_state().scroll_target[d] = Some((target..=target, align));
         }
     }
 }

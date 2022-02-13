@@ -489,11 +489,24 @@ impl Prepared {
                 // We take the scroll target so only this ScrollArea will use it:
                 let scroll_target = content_ui.ctx().frame_state().scroll_target[d].take();
                 if let Some((scroll, align)) = scroll_target {
-                    let center_factor = align.to_factor();
-
                     let min = content_ui.min_rect().min[d];
-                    let visible_range = min..=min + content_ui.clip_rect().size()[d];
-                    let offset = scroll - lerp(visible_range, center_factor);
+                    let clip_rect = content_ui.clip_rect();
+                    let visible_range = min..=min + clip_rect.size()[d];
+
+                    let center_factor = if let Some(align) = align {
+                        align.to_factor()
+                    } else {
+                        if *scroll.start() < clip_rect.min[d] {
+                            0.0
+                        } else if *scroll.end() > clip_rect.max[d] {
+                            1.0
+                        } else {
+                            // Ui os already in view, no need to adjust scroll offset.
+                            continue;
+                        }
+                    };
+
+                    let offset = lerp(scroll, center_factor) - lerp(visible_range, center_factor);
 
                     let mut spacing = ui.spacing().item_spacing[d];
 
