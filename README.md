@@ -303,7 +303,11 @@ Also see [GitHub Discussions](https://github.com/emilk/egui/discussions/categori
 Yes! But you need to install your own font (`.ttf` or `.otf`) using `Context::set_fonts`.
 
 ### Can I customize the look of egui?
-Yes! You can customize the colors, spacing and sizes of everything. By default egui comes with a dark and a light theme.
+Yes! You can customize the colors, spacing, fonts and sizes of everything using `Context::set_style`.
+
+Here is an example (from https://github.com/AlexxxRu/TinyPomodoro):
+
+<img src="media/pompodoro-skin.png" width="50%">
 
 ### What about accessibility, such as screen readers?
 There is experimental support for a screen reader. In [the web demo](https://www.egui.rs/#demo) you can enable it in the "Backend" tab.
