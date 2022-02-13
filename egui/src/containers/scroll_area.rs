@@ -492,29 +492,34 @@ impl Prepared {
                     let min = content_ui.min_rect().min[d];
                     let clip_rect = content_ui.clip_rect();
                     let visible_range = min..=min + clip_rect.size()[d];
+                    let start = *scroll.start();
+                    let end = *scroll.end();
+                    let clip_start = clip_rect.min[d];
+                    let clip_end = clip_rect.max[d];
+                    let mut spacing = ui.spacing().item_spacing[d];
 
-                    // if the ui is too big to completely fit in the scroll view, align it to the left/top
-                    let too_big = (scroll.end() - scroll.start()) > clip_rect.size()[d];
+                    if let Some(align) = align {
+                        let center_factor = align.to_factor();
 
-                    let center_factor = if let Some(align) = align {
-                        align.to_factor()
-                    } else if too_big || *scroll.start() < clip_rect.min[d] {
-                        0.0
-                    } else if *scroll.end() > clip_rect.max[d] {
-                        1.0
+                        let offset =
+                            lerp(scroll, center_factor) - lerp(visible_range, center_factor);
+
+                        // Depending on the alignment we need to add or subtract the spacing
+                        spacing *= remap(center_factor, 0.0..=1.0, -1.0..=1.0);
+
+                        state.offset[d] = offset + spacing;
+                    } else if start < clip_start && end < clip_end {
+                        let min_adjust =
+                            (clip_start - start + spacing).min(clip_end - end - spacing);
+                        state.offset[d] -= min_adjust;
+                    } else if end > clip_end && start > clip_start {
+                        let min_adjust =
+                            (end - clip_end + spacing).min(start - clip_start - spacing);
+                        state.offset[d] += min_adjust;
                     } else {
                         // Ui is already in view, no need to adjust scroll.
                         continue;
                     };
-
-                    let offset = lerp(scroll, center_factor) - lerp(visible_range, center_factor);
-
-                    let mut spacing = ui.spacing().item_spacing[d];
-
-                    // Depending on the alignment we need to add or subtract the spacing
-                    spacing *= remap(center_factor, 0.0..=1.0, -1.0..=1.0);
-
-                    state.offset[d] = offset + spacing;
                 }
             }
         }
