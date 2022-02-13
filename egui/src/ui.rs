@@ -901,7 +901,7 @@ impl Ui {
     ///     }
     ///
     ///     if scroll_bottom {
-    ///         ui.scroll_to_cursor(Align::BOTTOM);
+    ///         ui.scroll_to_cursor(Some(Align::BOTTOM));
     ///     }
     /// });
     /// # });
