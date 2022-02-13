@@ -329,7 +329,8 @@ impl Memory {
         self.areas.layer_id_at(pos, resize_interact_radius_side)
     }
 
-    /// Top-most layer.
+    /// The overall top-most layer. When an area is clicked on or interacted
+    /// with, it is moved above all other areas.
     pub fn top_most_layer(&self) -> Option<LayerId> {
         self.areas.order().last().copied()
     }
