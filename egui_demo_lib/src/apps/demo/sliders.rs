@@ -11,6 +11,8 @@ pub struct Sliders {
     pub logarithmic: bool,
     pub clamp_to_range: bool,
     pub smart_aim: bool,
+    pub step: f64,
+    pub use_steps: bool,
     pub integer: bool,
     pub vertical: bool,
     pub value: f64,
@@ -24,6 +26,8 @@ impl Default for Sliders {
             logarithmic: true,
             clamp_to_range: false,
             smart_aim: true,
+            step: 10.0,
+            use_steps: false,
             integer: false,
             vertical: false,
             value: 10.0,
@@ -55,6 +59,8 @@ impl super::View for Sliders {
             logarithmic,
             clamp_to_range,
             smart_aim,
+            step,
+            use_steps,
             integer,
             vertical,
             value,
@@ -79,6 +85,7 @@ impl super::View for Sliders {
             SliderOrientation::Horizontal
         };
 
+        let istep = if *use_steps { *step } else { 0.0 };
         if *integer {
             let mut value_i32 = *value as i32;
             ui.add(
@@ -87,7 +94,8 @@ impl super::View for Sliders {
                     .clamp_to_range(*clamp_to_range)
                     .smart_aim(*smart_aim)
                     .orientation(orientation)
-                    .text("i32 demo slider"),
+                    .text("i32 demo slider")
+                    .step_by(istep),
             );
             *value = value_i32 as f64;
         } else {
@@ -97,7 +105,8 @@ impl super::View for Sliders {
                     .clamp_to_range(*clamp_to_range)
                     .smart_aim(*smart_aim)
                     .orientation(orientation)
-                    .text("f64 demo slider"),
+                    .text("f64 demo slider")
+                    .step_by(istep),
             );
 
             ui.label(
@@ -125,6 +134,14 @@ impl super::View for Sliders {
                 .smart_aim(*smart_aim)
                 .text("right"),
         );
+
+        ui.separator();
+
+        ui.checkbox(use_steps, "Use steps");
+        ui.label("When enabled, the minimal value change would be restricted to a given step.");
+        if *use_steps {
+            ui.add(egui::DragValue::new(step).speed(1.0));
+        }
 
         ui.separator();
 
