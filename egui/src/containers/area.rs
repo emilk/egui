@@ -204,7 +204,7 @@ impl Area {
         let state = ctx.memory().areas.get(id).cloned();
         let is_new = state.is_none();
         if is_new {
-            ctx.request_repaint(); // if we don't know the previous size we are likely drawing the area in the wrong place}
+            ctx.request_repaint(); // if we don't know the previous size we are likely drawing the area in the wrong place
         }
         let mut state = state.unwrap_or_else(|| State {
             pos: default_pos.unwrap_or_else(|| automatic_area_position(ctx)),
@@ -212,6 +212,7 @@ impl Area {
             interactable,
         });
         state.pos = new_pos.unwrap_or(state.pos);
+        state.interactable = interactable;
 
         if let Some((anchor, offset)) = anchor {
             if is_new {
