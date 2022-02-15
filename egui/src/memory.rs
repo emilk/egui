@@ -329,6 +329,12 @@ impl Memory {
         self.areas.layer_id_at(pos, resize_interact_radius_side)
     }
 
+    /// The overall top-most layer. When an area is clicked on or interacted
+    /// with, it is moved above all other areas.
+    pub fn top_most_layer(&self) -> Option<LayerId> {
+        self.areas.order().last().copied()
+    }
+
     pub(crate) fn had_focus_last_frame(&self, id: Id) -> bool {
         self.interaction.focus.id_previous_frame == Some(id)
     }
