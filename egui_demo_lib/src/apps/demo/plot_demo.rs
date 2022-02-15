@@ -2,8 +2,9 @@ use std::f64::consts::TAU;
 
 use egui::*;
 use plot::{
-    Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, Corner, HLine, Legend, Line, LineStyle,
-    MarkerShape, Plot, PlotImage, Points, Polygon, Text, VLine, Value, Values,
+    Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, CoordinatesFormatter, Corner, HLine,
+    Legend, Line, LineStyle, MarkerShape, Plot, PlotImage, Points, Polygon, Text, VLine, Value,
+    Values,
 };
 
 #[derive(PartialEq)]
@@ -14,6 +15,7 @@ struct LineDemo {
     circle_center: Pos2,
     square: bool,
     proportional: bool,
+    coordinates: bool,
     line_style: LineStyle,
 }
 
@@ -26,6 +28,7 @@ impl Default for LineDemo {
             circle_center: Pos2::new(0.0, 0.0),
             square: false,
             proportional: true,
+            coordinates: true,
             line_style: LineStyle::Solid,
         }
     }
@@ -41,6 +44,7 @@ impl LineDemo {
             square,
             proportional,
             line_style,
+            coordinates,
             ..
         } = self;
 
@@ -76,6 +80,8 @@ impl LineDemo {
                     .on_hover_text("Always keep the viewport square.");
                 ui.checkbox(proportional, "Proportional data axes")
                     .on_hover_text("Tick are the same size on both axes.");
+                ui.checkbox(coordinates, "Show coordinates")
+                    .on_hover_text("Can take a custom formatting function.");
 
                 ComboBox::from_label("Line style")
                     .selected_text(line_style.to_string())
@@ -150,6 +156,9 @@ impl Widget for &mut LineDemo {
         }
         if self.proportional {
             plot = plot.data_aspect(1.0);
+        }
+        if self.coordinates {
+            plot = plot.coordinates_formatter(Corner::LeftBottom, CoordinatesFormatter::default());
         }
         plot.show(ui, |plot_ui| {
             plot_ui.line(self.circle());
@@ -595,7 +604,7 @@ impl ChartsDemo {
         .name("Set 4")
         .stack_on(&[&chart1, &chart2, &chart3]);
 
-        let mut x_fmt: fn(f64) -> String = |val| {
+        let mut x_fmt: fn(f64, &std::ops::RangeInclusive<f64>) -> String = |val, _range| {
             if val >= 0.0 && val <= 4.0 && is_approx_integer(val) {
                 // Only label full days from 0 to 4
                 format!("Day {}", val)
@@ -605,7 +614,7 @@ impl ChartsDemo {
             }
         };
 
-        let mut y_fmt: fn(f64) -> String = |val| {
+        let mut y_fmt: fn(f64, &std::ops::RangeInclusive<f64>) -> String = |val, _range| {
             let percent = 100.0 * val;
 
             if is_approx_integer(percent) && !is_approx_zero(percent) {
