@@ -915,9 +915,9 @@ impl Ui {
     /// # egui::__run_test_ui(|ui| {
     /// egui::ScrollArea::vertical().show(ui, |ui| {
     ///     // …
-    ///     let response = ui.button("Center on me.").clicked();
+    ///     let response = ui.button("Center on me.");
     ///     if response.clicked() {
-    ///         ui.scroll_to_rect(response.rect, Some(Align::CENTER));
+    ///         ui.scroll_to_rect(response.rect, Some(Align::Center));
     ///     }
     /// });
     /// # });
