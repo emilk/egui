@@ -192,6 +192,24 @@ impl InputState {
         self.pointer.wants_repaint() || self.scroll_delta != Vec2::ZERO || !self.events.is_empty()
     }
 
+    /// Ignore a key if it was pressed or released this frame. Useful for hotkeys.
+    /// Matches on both key press and key release, consuming them and removing them from `self.events`.
+    /// Returns true if the key was pressed this frame (even if the key release was consumed).
+    pub fn consume_key(&mut self, modifiers: Modifiers, key: Key) -> bool {
+        self.events.retain(|event| {
+            !matches!(
+                event,
+                Event::Key {
+                    key: ev_key,
+                    modifiers: ev_mods,
+                    ..
+                } if *ev_key == key && *ev_mods == modifiers
+            )
+        });
+
+        self.keys_down.remove(&key)
+    }
+
     /// Was the given key pressed this frame?
     pub fn key_pressed(&self, desired_key: Key) -> bool {
         self.num_presses(desired_key) > 0

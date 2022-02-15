@@ -338,6 +338,21 @@ impl Ui {
         self.ctx().input()
     }
 
+    /// The [`InputState`] of the [`Context`] associated with this [`Ui`].
+    /// Equivalent to `.ctx().input_mut()`.
+    ///
+    /// Note that this locks the [`Context`], so be careful with if-let bindings
+    /// like for [`Self::input()`].
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// ui.input_mut().consume_key(egui::Modifiers::default(), egui::Key::Enter);
+    /// # });
+    /// ```
+    #[inline]
+    pub fn input_mut(&self) -> RwLockWriteGuard<'_, InputState> {
+        self.ctx().input_mut()
+    }
+
     /// The [`Memory`] of the [`Context`] associated with this ui.
     /// Equivalent to `.ctx().memory()`.
     #[inline]
