@@ -71,6 +71,8 @@ pub struct Slider<'a> {
     suffix: String,
     text: String,
     text_color: Option<Color32>,
+    /// Sets the minimal step of the widget value
+    step: Option<f64>,
     min_decimals: usize,
     max_decimals: Option<usize>,
 }
@@ -113,6 +115,7 @@ impl<'a> Slider<'a> {
             suffix: Default::default(),
             text: Default::default(),
             text_color: None,
+            step: None,
             min_decimals: 0,
             max_decimals: None,
         }
@@ -199,6 +202,16 @@ impl<'a> Slider<'a> {
         self
     }
 
+    /// Sets the minimal change of the value.
+    /// Value `0.0` effectively disables the feature. If the new value is out of range
+    /// and `clamp_to_range` is enabled, you would not have the ability to change the value.
+    ///
+    /// Default: `0.0` (disabled).
+    pub fn step_by(mut self, step: f64) -> Self {
+        self.step = if step != 0.0 { Some(step) } else { None };
+        self
+    }
+
     // TODO: we should also have a "min precision".
     /// Set a minimum number of decimals to display.
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
@@ -254,6 +267,9 @@ impl<'a> Slider<'a> {
         }
         if let Some(max_decimals) = self.max_decimals {
             value = emath::round_to_decimals(value, max_decimals);
+        }
+        if let Some(step) = self.step {
+            value = (value / step).round() * step;
         }
         set(&mut self.get_set_value, value);
     }
@@ -330,14 +346,22 @@ impl<'a> Slider<'a> {
                 let prev_value = self.get_value();
                 let prev_position = self.position_from_value(prev_value, position_range.clone());
                 let new_position = prev_position + kb_step;
-                let new_value = if self.smart_aim {
-                    let aim_radius = ui.input().aim_radius();
-                    emath::smart_aim::best_in_range_f64(
-                        self.value_from_position(new_position - aim_radius, position_range.clone()),
-                        self.value_from_position(new_position + aim_radius, position_range.clone()),
-                    )
-                } else {
-                    self.value_from_position(new_position, position_range.clone())
+                let new_value = match self.step {
+                    Some(step) => prev_value + (kb_step as f64 * step),
+                    None if self.smart_aim => {
+                        let aim_radius = ui.input().aim_radius();
+                        emath::smart_aim::best_in_range_f64(
+                            self.value_from_position(
+                                new_position - aim_radius,
+                                position_range.clone(),
+                            ),
+                            self.value_from_position(
+                                new_position + aim_radius,
+                                position_range.clone(),
+                            ),
+                        )
+                    }
+                    _ => self.value_from_position(new_position, position_range.clone()),
                 };
                 self.set_value(new_value);
             }
@@ -438,10 +462,19 @@ impl<'a> Slider<'a> {
     }
 
     fn value_ui(&mut self, ui: &mut Ui, position_range: RangeInclusive<f32>) {
+        // If `DragValue` is controlled from the keyboard and `step` is defined, set speed to `step`
+        let change = ui.input().num_presses(Key::ArrowUp) as i32
+            + ui.input().num_presses(Key::ArrowRight) as i32
+            - ui.input().num_presses(Key::ArrowDown) as i32
+            - ui.input().num_presses(Key::ArrowLeft) as i32;
+        let speed = match self.step {
+            Some(step) if change != 0 => step,
+            _ => self.current_gradient(&position_range),
+        };
         let mut value = self.get_value();
         ui.add(
             DragValue::new(&mut value)
-                .speed(self.current_gradient(&position_range))
+                .speed(speed)
                 .clamp_range(self.clamp_range())
                 .min_decimals(self.min_decimals)
                 .max_decimals_opt(self.max_decimals)

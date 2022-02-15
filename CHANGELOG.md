@@ -13,6 +13,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
   * Easily change text styles with `Style::text_styles`.
   * Added `Ui::text_style_height`.
   * Added `TextStyle::resolve`.
+* Made v-align and scale of user fonts tweakable ([#1241](https://github.com/emilk/egui/pull/1027)).
 * `Context::load_texture` to convert an image into a texture which can be displayed using e.g. `ui.image(texture, size)` ([#1110](https://github.com/emilk/egui/pull/1110)).
 * Added `Ui::add_visible` and `Ui::add_visible_ui`.
 * Opt-in dependency on `tracing` crate for logging warnings ([#1192](https://github.com/emilk/egui/pull/1192)).
@@ -23,12 +24,14 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Added linked axis support for plots via `plot::LinkedAxisGroup` ([#1184](https://github.com/emilk/egui/pull/1184)).
 * Added `Response::on_hover_text_at_pointer` as a convenience akin to `Response::on_hover_text` ([1179](https://github.com/emilk/egui/pull/1179)).
 * Added `ui.weak(text)`.
-* Added plot pointer coordinates with `Plot::coordinates_formatter`. ([#1235](https://github.com/emilk/egui/pull/1235))
+* Added plot pointer coordinates with `Plot::coordinates_formatter`. ([#1235](https://github.com/emilk/egui/pull/1235)).
+* Added `Slider::step_by` ([1255](https://github.com/emilk/egui/pull/1225)).
 
 ### Changed 🔧
 * ⚠️ `Context::input` and `Ui::input` now locks a mutex. This can lead to a dead-lock is used in an `if let` binding!
   * `if let Some(pos) = ui.input().pointer.latest_pos()` and similar must now be rewritten on two lines.
   * Search for this problem in your code using the regex `if let .*input`.
+* Better contrast in the default light mode style ([#1238](https://github.com/emilk/egui/pull/1238)).
 * Renamed `CtxRef` to `Context` ([#1050](https://github.com/emilk/egui/pull/1050)).
 * `Context` can now be cloned and stored between frames ([#1050](https://github.com/emilk/egui/pull/1050)).
 * Renamed `Ui::visible` to `Ui::is_visible`.
@@ -44,13 +47,16 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Replaced Frame's `margin: Vec2` with `margin: Margin`, allowing for different margins on opposing sides ([#1219](https://github.com/emilk/egui/pull/1219)).
 * `Plot::highlight` now takes a `bool` argument ([#1159](https://github.com/emilk/egui/pull/1159)).
 * `ScrollArea::show` now returns a `ScrollAreaOutput`, so you might need to add `.inner` after the call to it ([#1166](https://github.com/emilk/egui/pull/1166)).
-* Renamed `Plot::custom_label_func` to `Plot::label_formatter` ([#1235](https://github.com/emilk/egui/pull/1235))
+* Renamed `Plot::custom_label_func` to `Plot::label_formatter` ([#1235](https://github.com/emilk/egui/pull/1235)).
+* Tooltips that don't fit the window don't flicker anymore ([#1240](https://github.com/emilk/egui/pull/1240)).
+* `Areas::layer_id_at` ignores non interatable layers (i.e. Tooltips) ([#1240](https://github.com/emilk/egui/pull/1240)).
 
 ### Fixed 🐛
 * Context menus now respects the theme ([#1043](https://github.com/emilk/egui/pull/1043)).
 * Plot `Orientation` was not public, although fields using this type were ([#1130](https://github.com/emilk/egui/pull/1130)).
 * Fixed `enable_drag` for Windows ([#1108](https://github.com/emilk/egui/pull/1108)).
 * Calling `Context::set_pixels_per_point` before the first frame will now work.
+* Tooltips that don't fit the window don't flicker anymore ([#1240](https://github.com/emilk/egui/pull/1240)).
 
 ### Contributors 🙏
 * [AlexxxRu](https://github.com/alexxxru): [#1108](https://github.com/emilk/egui/pull/1108).

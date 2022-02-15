@@ -73,20 +73,22 @@ impl FontImpl {
         pixels_per_point: f32,
         ab_glyph_font: ab_glyph::FontArc,
         scale_in_pixels: u32,
-        y_offset: f32,
+        y_offset_points: f32,
     ) -> FontImpl {
         assert!(scale_in_pixels > 0);
         assert!(pixels_per_point > 0.0);
 
         let height_in_points = scale_in_pixels as f32 / pixels_per_point;
 
-        // TODO: use v_metrics for line spacing ?
-        // let v = rusttype_font.v_metrics(Scale::uniform(scale_in_pixels));
-        // let height_in_pixels = v.ascent - v.descent + v.line_gap;
-        // let height_in_points = height_in_pixels / pixels_per_point;
+        // TODO: use these font metrics?
+        // use ab_glyph::ScaleFont as _;
+        // let scaled = ab_glyph_font.as_scaled(scale_in_pixels as f32);
+        // dbg!(scaled.ascent());
+        // dbg!(scaled.descent());
+        // dbg!(scaled.line_gap());
 
         // Round to closest pixel:
-        let y_offset = (y_offset * pixels_per_point).round() / pixels_per_point;
+        let y_offset = (y_offset_points * pixels_per_point).round() / pixels_per_point;
 
         Self {
             ab_glyph_font,
