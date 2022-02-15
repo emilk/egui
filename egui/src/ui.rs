@@ -904,10 +904,36 @@ impl Ui {
         (response, painter)
     }
 
-    /// Adjust the scroll position until the cursor becomes visible. If `align` is not provided, it'll scroll enough to
-    /// bring the cursor into view.
+    /// Adjust the scroll position of any parent [`ScrollArea`] so that the given `Rect` becomes visible.
     ///
-    /// See also [`Response::scroll_to_me`]
+    /// If `align` is `None`, it'll scroll enough to bring the cursor into view.
+    ///
+    /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to`].
+    ///
+    /// ```
+    /// # use egui::Align;
+    /// # egui::__run_test_ui(|ui| {
+    /// egui::ScrollArea::vertical().show(ui, |ui| {
+    ///     // …
+    ///     let response = ui.button("Center on me.").clicked();
+    ///     if response.clicked() {
+    ///         ui.scroll_to_rect(response.rect, Some(Align::CENTER));
+    ///     }
+    /// });
+    /// # });
+    /// ```
+    pub fn scroll_to_rect(&self, rect: Rect, align: Option<Align>) {
+        for d in 0..2 {
+            let range = rect.min[d]..=rect.max[d];
+            self.ctx().frame_state().scroll_target[d] = Some((range, align));
+        }
+    }
+
+    /// Adjust the scroll position of any parent [`ScrollArea`] so that the cursor (where the next widget goes) becomes visible.
+    ///
+    /// If `align` is not provided, it'll scroll enough to bring the cursor into view.
+    ///
+    /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to`].
     ///
     /// ```
     /// # use egui::Align;
@@ -924,7 +950,7 @@ impl Ui {
     /// });
     /// # });
     /// ```
-    pub fn scroll_to_cursor(&mut self, align: Option<Align>) {
+    pub fn scroll_to_cursor(&self, align: Option<Align>) {
         let target = self.next_widget_position();
         for d in 0..2 {
             let target = target[d];

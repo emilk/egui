@@ -443,10 +443,11 @@ impl Response {
         )
     }
 
-    /// Adjust the scroll position until this UI becomes visible. If `align` is not provided, it'll scroll enough to
-    /// bring the UI into view.
+    /// Adjust the scroll position until this UI becomes visible.
     ///
-    /// See also [`Ui::scroll_to_cursor`]
+    /// If `align` is `None`, it'll scroll enough to bring the UI into view.
+    ///
+    /// See also: [`Ui::scroll_to_cursor`], [`Ui::scroll_to`].
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
