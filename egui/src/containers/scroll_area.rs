@@ -81,6 +81,7 @@ pub struct ScrollArea {
     has_bar: [bool; 2],
     auto_shrink: [bool; 2],
     max_size: Vec2,
+    min_scrolled_size: Vec2,
     always_show_scroll: bool,
     id_source: Option<Id>,
     offset_x: Option<f32>,
@@ -123,6 +124,7 @@ impl ScrollArea {
             has_bar,
             auto_shrink: [true; 2],
             max_size: Vec2::INFINITY,
+            min_scrolled_size: Vec2::splat(100.0),
             always_show_scroll: false,
             id_source: None,
             offset_x: None,
@@ -149,6 +151,28 @@ impl ScrollArea {
     /// See also [`Self::auto_shrink`].
     pub fn max_height(mut self, max_height: f32) -> Self {
         self.max_size.y = max_height;
+        self
+    }
+
+    /// The minimum width of a horizontal scroll area which requires scroll bars.
+    ///
+    /// The `ScrollArea` will only become smaller than this if the content is smaller than this
+    /// (and so we don't require scroll bars).
+    ///
+    /// Default: `100.0`.
+    pub fn min_scrolled_width(mut self, min_scrolled_width: f32) -> Self {
+        self.min_scrolled_size.x = min_scrolled_width;
+        self
+    }
+
+    /// The minimum height of a vertical scroll area which requires scroll bars.
+    ///
+    /// The `ScrollArea` will only become smaller than this if the content is smaller than this
+    /// (and so we don't require scroll bars).
+    ///
+    /// Default: `100.0`.
+    pub fn min_scrolled_height(mut self, min_scrolled_height: f32) -> Self {
+        self.min_scrolled_size.y = min_scrolled_height;
         self
     }
 
@@ -288,6 +312,7 @@ impl ScrollArea {
             has_bar,
             auto_shrink,
             max_size,
+            min_scrolled_size,
             always_show_scroll,
             id_source,
             offset_x,
@@ -329,27 +354,39 @@ impl ScrollArea {
 
         let outer_size = available_outer.size().at_most(max_size);
 
-        let inner_size = outer_size - current_bar_use;
+        let inner_size = {
+            let mut inner_size = outer_size - current_bar_use;
+
+            // Don't go so far that we shrink to zero.
+            // In particular, if we put a `ScrollArea` inside of a `ScrollArea`, the inner
+            // one shouldn't collapse into nothingness.
+            // See https://github.com/emilk/egui/issues/1097
+            for d in 0..2 {
+                if has_bar[d] {
+                    inner_size[d] = inner_size[d].max(min_scrolled_size[d]);
+                }
+            }
+            inner_size
+        };
+
         let inner_rect = Rect::from_min_size(available_outer.min, inner_size);
 
-        let mut inner_child_max_size = inner_size;
+        let mut content_max_size = inner_size;
 
         if true {
             // Tell the inner Ui to *try* to fit the content without needing to scroll,
-            // i.e. better to wrap text than showing a horizontal scrollbar!
+            // i.e. better to wrap text and shrink images than showing a horizontal scrollbar!
         } else {
             // Tell the inner Ui to use as much space as possible, we can scroll to see it!
             for d in 0..2 {
                 if has_bar[d] {
-                    inner_child_max_size[d] = f32::INFINITY;
+                    content_max_size[d] = f32::INFINITY;
                 }
             }
         }
 
-        let mut content_ui = ui.child_ui(
-            Rect::from_min_size(inner_rect.min - state.offset, inner_child_max_size),
-            *ui.layout(),
-        );
+        let content_max_rect = Rect::from_min_size(inner_rect.min - state.offset, content_max_size);
+        let mut content_ui = ui.child_ui(content_max_rect, *ui.layout());
         let mut content_clip_rect = inner_rect.expand(ui.visuals().clip_rect_margin);
         content_clip_rect = content_clip_rect.intersect(ui.clip_rect());
         // Nice handling of forced resizing beyond the possible:
