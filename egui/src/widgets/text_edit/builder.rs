@@ -543,6 +543,14 @@ impl<'t> TextEdit<'t> {
             text_draw_pos -= vec2(offset_x, 0.0);
         }
 
+        let selection_changed = if let (Some(cursor_range), Some(prev_cursor_range)) =
+            (cursor_range, prev_cursor_range)
+        {
+            prev_cursor_range.as_ccursor_range() != cursor_range.as_ccursor_range()
+        } else {
+            false
+        };
+
         if ui.is_rect_visible(rect) {
             painter.galley(text_draw_pos, galley.clone());
 
@@ -561,7 +569,7 @@ impl<'t> TextEdit<'t> {
                     // We paint the cursor on top of the text, in case
                     // the text galley has backgrounds (as e.g. `code` snippets in markup do).
                     paint_cursor_selection(ui, &painter, text_draw_pos, &galley, &cursor_range);
-                    paint_cursor_end(
+                    let cursor_pos = paint_cursor_end(
                         ui,
                         row_height,
                         &painter,
@@ -570,29 +578,20 @@ impl<'t> TextEdit<'t> {
                         &cursor_range.primary,
                     );
 
+                    if response.changed || selection_changed {
+                        ui.scroll_to_rect(cursor_pos, None); // keep cursor in view
+                    }
+
                     if interactive && text.is_mutable() {
                         // egui_web uses `text_cursor_pos` when showing IME,
                         // so only set it when text is editable and visible!
-                        ui.ctx().output().text_cursor_pos = Some(
-                            galley
-                                .pos_from_cursor(&cursor_range.primary)
-                                .translate(response.rect.min.to_vec2())
-                                .left_top(),
-                        );
+                        ui.ctx().output().text_cursor_pos = Some(cursor_pos.left_top());
                     }
                 }
             }
         }
 
         state.clone().store(ui.ctx(), id);
-
-        let selection_changed = if let (Some(cursor_range), Some(prev_cursor_range)) =
-            (cursor_range, prev_cursor_range)
-        {
-            prev_cursor_range.as_ccursor_range() != cursor_range.as_ccursor_range()
-        } else {
-            false
-        };
 
         if response.changed {
             response.widget_info(|| {
@@ -887,7 +886,7 @@ fn paint_cursor_end(
     pos: Pos2,
     galley: &Galley,
     cursor: &Cursor,
-) {
+) -> Rect {
     let stroke = ui.visuals().selection.stroke;
 
     let mut cursor_pos = galley.pos_from_cursor(cursor).translate(pos.to_vec2());
@@ -915,6 +914,8 @@ fn paint_cursor_end(
             (width, stroke.color),
         );
     }
+
+    cursor_pos
 }
 
 // ----------------------------------------------------------------------------

@@ -8,27 +8,29 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 ## Unreleased
 
 ### Added ⭐
-*  `Ui::input_mut` to modify how subsequent widgets see the `InputState` and a convenience method `InputState::consume_key` for shortcuts or hotkeys ([#1212](https://github.com/emilk/egui/pull/1212)). 
 * Much improved font selection ([#1154](https://github.com/emilk/egui/pull/1154)):
   * You can now select any font size and family using `RichText::size` amd `RichText::family` and the new `FontId`.
   * Easily change text styles with `Style::text_styles`.
   * Added `Ui::text_style_height`.
   * Added `TextStyle::resolve`.
-* Made v-align and scale of user fonts tweakable ([#1241](https://github.com/emilk/egui/pull/1027)).
+  * Made v-align and scale of user fonts tweakable ([#1241](https://github.com/emilk/egui/pull/1027)).
+* Plot:
+  * Added `Plot::x_axis_formatter` and `Plot::y_axis_formatter` for custom axis labels ([#1130](https://github.com/emilk/egui/pull/1130)).
+  * Added `Plot::allow_boxed_zoom()`, `Plot::boxed_zoom_pointer()` for boxed zooming on plots ([#1188](https://github.com/emilk/egui/pull/1188)).
+  * Added plot pointer coordinates with `Plot::coordinates_formatter`. ([#1235](https://github.com/emilk/egui/pull/1235)).
+  * Added linked axis support for plots via `plot::LinkedAxisGroup` ([#1184](https://github.com/emilk/egui/pull/1184)).
 * `Context::load_texture` to convert an image into a texture which can be displayed using e.g. `ui.image(texture, size)` ([#1110](https://github.com/emilk/egui/pull/1110)).
+* `Ui::input_mut` to modify how subsequent widgets see the `InputState` and a convenience method `InputState::consume_key` for shortcuts or hotkeys ([#1212](https://github.com/emilk/egui/pull/1212)).
 * Added `Ui::add_visible` and `Ui::add_visible_ui`.
 * Opt-in dependency on `tracing` crate for logging warnings ([#1192](https://github.com/emilk/egui/pull/1192)).
 * Added `CollapsingHeader::icon` to override the default open/close icon using a custom function. ([1147](https://github.com/emilk/egui/pull/1147)).
-* Added `Plot::x_axis_formatter` and `Plot::y_axis_formatter` for custom axis labels ([#1130](https://github.com/emilk/egui/pull/1130)).
 * Added `ui.data()`, `ctx.data()`, `ctx.options()` and `ctx.tessellation_options()` ([#1175](https://github.com/emilk/egui/pull/1175)).
-* Added `Plot::allow_boxed_zoom()`, `Plot::boxed_zoom_pointer()` for boxed zooming on plots ([#1188](https://github.com/emilk/egui/pull/1188)).
-* Added linked axis support for plots via `plot::LinkedAxisGroup` ([#1184](https://github.com/emilk/egui/pull/1184)).
 * Added `Response::on_hover_text_at_pointer` as a convenience akin to `Response::on_hover_text` ([1179](https://github.com/emilk/egui/pull/1179)).
 * Added `ui.weak(text)`.
 * Added `Context::move_to_top` and `Context::top_most_layer` for managing the layer on the top ([#1242](https://github.com/emilk/egui/pull/1242)).
-* Added plot pointer coordinates with `Plot::coordinates_formatter`. ([#1235](https://github.com/emilk/egui/pull/1235)).
-* Added `Slider::step_by` ([1255](https://github.com/emilk/egui/pull/1225)).
+* Added `Slider::step_by` ([1225](https://github.com/emilk/egui/pull/1225)).
 * Added ability to scroll an UI into view without specifying an alignment ([1247](https://github.com/emilk/egui/pull/1247)).
+* Added `Ui::scroll_to_rect` ([1252](https://github.com/emilk/egui/pull/1252)).
 
 ### Changed 🔧
 * ⚠️ `Context::input` and `Ui::input` now locks a mutex. This can lead to a dead-lock is used in an `if let` binding!
@@ -60,6 +62,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Fixed `enable_drag` for Windows ([#1108](https://github.com/emilk/egui/pull/1108)).
 * Calling `Context::set_pixels_per_point` before the first frame will now work.
 * Tooltips that don't fit the window don't flicker anymore ([#1240](https://github.com/emilk/egui/pull/1240)).
+* Scroll areas now follow text cursor ([1252](https://github.com/emilk/egui/pull/1252)).
 
 ### Contributors 🙏
 * [AlexxxRu](https://github.com/alexxxru): [#1108](https://github.com/emilk/egui/pull/1108).

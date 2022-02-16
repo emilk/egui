@@ -498,7 +498,7 @@ impl Prepared {
                     let clip_end = clip_rect.max[d];
                     let mut spacing = ui.spacing().item_spacing[d];
 
-                    if let Some(align) = align {
+                    let delta = if let Some(align) = align {
                         let center_factor = align.to_factor();
 
                         let offset =
@@ -507,19 +507,20 @@ impl Prepared {
                         // Depending on the alignment we need to add or subtract the spacing
                         spacing *= remap(center_factor, 0.0..=1.0, -1.0..=1.0);
 
-                        state.offset[d] = offset + spacing;
+                        offset + spacing
                     } else if start < clip_start && end < clip_end {
-                        let min_adjust =
-                            (clip_start - start + spacing).min(clip_end - end - spacing);
-                        state.offset[d] -= min_adjust;
+                        -(clip_start - start + spacing).min(clip_end - end - spacing)
                     } else if end > clip_end && start > clip_start {
-                        let min_adjust =
-                            (end - clip_end + spacing).min(start - clip_start - spacing);
-                        state.offset[d] += min_adjust;
+                        (end - clip_end + spacing).min(start - clip_start - spacing)
                     } else {
                         // Ui is already in view, no need to adjust scroll.
-                        continue;
+                        0.0
                     };
+
+                    if delta != 0.0 {
+                        state.offset[d] += delta;
+                        ui.ctx().request_repaint();
+                    }
                 }
             }
         }
