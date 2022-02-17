@@ -83,6 +83,10 @@ impl super::View for CodeExample {
     fn ui(&mut self, ui: &mut egui::Ui) {
         use crate::syntax_highlighting::code_view_ui;
 
+        ui.vertical_centered(|ui| {
+            ui.add(crate::__egui_github_link_file!());
+        });
+
         code_view_ui(
             ui,
             r"

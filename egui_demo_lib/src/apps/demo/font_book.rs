@@ -31,6 +31,10 @@ impl super::Demo for FontBook {
 
 impl super::View for FontBook {
     fn ui(&mut self, ui: &mut egui::Ui) {
+        ui.vertical_centered(|ui| {
+            ui.add(crate::__egui_github_link_file!());
+        });
+
         ui.label(format!(
             "The selected font supports {} characters.",
             self.named_chars
