@@ -361,10 +361,23 @@ impl Frame {
 /// Information about the web environment (if applicable).
 #[derive(Clone, Debug)]
 pub struct WebInfo {
-    /// e.g. "#fragment" part of "www.example.com/index.html#fragment".
+    /// The "#fragment" part of "www.example.com/index.html?query#fragment".
+    ///
     /// Note that the leading `#` is included in the string.
     /// Also known as "hash-link" or "anchor".
     pub web_location_hash: String,
+
+    /// The "query" part of "www.example.com/index.html?query#fragment".
+    ///
+    /// Note that the leading `?` is NOT included in the string.
+    ///
+    /// Use [`Self::web_location_query_map]` to get the parsed version of it.
+    pub web_location_query_string: String,
+
+    /// The parsed "query" part of "www.example.com/index.html?query#fragment".
+    ///
+    /// "foo=42&bar" is parsed as `{"foo": "42",  "bar": ""}`
+    pub web_location_query_map: std::collections::BTreeMap<String, String>,
 }
 
 /// Information about the integration passed to the use app each frame.

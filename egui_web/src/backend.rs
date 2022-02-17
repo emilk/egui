@@ -109,6 +109,8 @@ impl AppRunner {
                 name: painter.name(),
                 web_info: Some(epi::WebInfo {
                     web_location_hash: location_hash().unwrap_or_default(),
+                    web_location_query_string: location_query_string().unwrap_or_default(),
+                    web_location_query_map: location_query_map(),
                 }),
                 prefer_dark_mode,
                 cpu_usage: None,
