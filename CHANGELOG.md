@@ -55,11 +55,11 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Renamed `Plot::custom_label_func` to `Plot::label_formatter` ([#1235](https://github.com/emilk/egui/pull/1235)).
 * Tooltips that don't fit the window don't flicker anymore ([#1240](https://github.com/emilk/egui/pull/1240)).
 * `Areas::layer_id_at` ignores non interatable layers (i.e. Tooltips) ([#1240](https://github.com/emilk/egui/pull/1240)).
+* `ScrollArea`:s will not shrink below a certain minimum size, set by `min_scrolled_width/min_scrolled_height` ([1255](https://github.com/emilk/egui/pull/1255)).
 
 ### Fixed 🐛
 * Context menus now respects the theme ([#1043](https://github.com/emilk/egui/pull/1043)).
 * Plot `Orientation` was not public, although fields using this type were ([#1130](https://github.com/emilk/egui/pull/1130)).
-* Fixed `enable_drag` for Windows ([#1108](https://github.com/emilk/egui/pull/1108)).
 * Calling `Context::set_pixels_per_point` before the first frame will now work.
 * Tooltips that don't fit the window don't flicker anymore ([#1240](https://github.com/emilk/egui/pull/1240)).
 * Scroll areas now follow text cursor ([1252](https://github.com/emilk/egui/pull/1252)).
