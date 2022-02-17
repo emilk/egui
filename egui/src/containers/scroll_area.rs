@@ -507,7 +507,7 @@ impl Prepared {
                         // Depending on the alignment we need to add or subtract the spacing
                         spacing *= remap(center_factor, 0.0..=1.0, -1.0..=1.0);
 
-                        offset + spacing
+                        offset + spacing - state.offset[d]
                     } else if start < clip_start && end < clip_end {
                         -(clip_start - start + spacing).min(clip_end - end - spacing)
                     } else if end > clip_end && start > clip_start {
