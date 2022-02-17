@@ -124,7 +124,7 @@ impl ScrollArea {
             has_bar,
             auto_shrink: [true; 2],
             max_size: Vec2::INFINITY,
-            min_scrolled_size: Vec2::splat(100.0),
+            min_scrolled_size: Vec2::splat(64.0),
             always_show_scroll: false,
             id_source: None,
             offset_x: None,
@@ -159,7 +159,7 @@ impl ScrollArea {
     /// The `ScrollArea` will only become smaller than this if the content is smaller than this
     /// (and so we don't require scroll bars).
     ///
-    /// Default: `100.0`.
+    /// Default: `64.0`.
     pub fn min_scrolled_width(mut self, min_scrolled_width: f32) -> Self {
         self.min_scrolled_size.x = min_scrolled_width;
         self
@@ -170,7 +170,7 @@ impl ScrollArea {
     /// The `ScrollArea` will only become smaller than this if the content is smaller than this
     /// (and so we don't require scroll bars).
     ///
-    /// Default: `100.0`.
+    /// Default: `64.0`.
     pub fn min_scrolled_height(mut self, min_scrolled_height: f32) -> Self {
         self.min_scrolled_size.y = min_scrolled_height;
         self
