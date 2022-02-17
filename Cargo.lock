@@ -1101,6 +1101,7 @@ dependencies = [
  "egui_glow",
  "epi",
  "js-sys",
+ "percent-encoding",
  "ron",
  "serde",
  "tracing",

@@ -33,6 +33,7 @@ pub use web_sys;
 
 pub use painter::Painter;
 use std::cell::Cell;
+use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
@@ -353,9 +354,23 @@ pub fn open_url(url: &str, new_tab: bool) -> Option<()> {
     Some(())
 }
 
-/// e.g. "#fragment" part of "www.example.com/index.html#fragment"
-pub fn location_hash() -> Option<String> {
-    web_sys::window()?.location().hash().ok()
+/// e.g. "#fragment" part of "www.example.com/index.html#fragment",
+///
+/// Percent decoded
+pub fn location_hash() -> String {
+    percent_decode(
+        &web_sys::window()
+            .unwrap()
+            .location()
+            .hash()
+            .unwrap_or_default(),
+    )
+}
+
+pub fn percent_decode(s: &str) -> String {
+    percent_encoding::percent_decode_str(s)
+        .decode_utf8_lossy()
+        .to_string()
 }
 
 /// Web sends all keys as strings, so it is up to us to figure out if it is
@@ -661,7 +676,7 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
 
             // `epi::Frame::info(&self)` clones `epi::IntegrationInfo`, but we need to modify the original here
             if let Some(web_info) = &mut frame_lock.info.web_info {
-                web_info.web_location_hash = location_hash().unwrap_or_default();
+                web_info.location.hash = location_hash();
             }
         }) as Box<dyn FnMut()>);
         window.add_event_listener_with_callback("hashchange", closure.as_ref().unchecked_ref())?;
