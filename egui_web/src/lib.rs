@@ -354,66 +354,23 @@ pub fn open_url(url: &str, new_tab: bool) -> Option<()> {
     Some(())
 }
 
-/// e.g. "#fragment" part of "www.example.com/index.html#fragment"
-pub fn location_hash() -> Option<String> {
-    web_sys::window()?.location().hash().ok()
+/// e.g. "#fragment" part of "www.example.com/index.html#fragment",
+///
+/// Percent decoded
+pub fn location_hash() -> String {
+    percent_decode(
+        &web_sys::window()
+            .unwrap()
+            .location()
+            .hash()
+            .unwrap_or_default(),
+    )
 }
 
-/// e.g. "query" part of "www.example.com/index.html?query", _excluding_ the initial `?`
-pub fn location_query_string() -> Option<String> {
-    let search = web_sys::window()?.location().search().ok()?;
-    search.strip_prefix('?').map(|suffix| suffix.to_owned())
-}
-
-/// e.g. `{foo: "bar", baz: "42"}` for "www.example.com/index.html?foo=bar&baz=42"
-pub fn location_query_map() -> BTreeMap<String, String> {
-    if let Some(q) = location_query_string() {
-        parse_query_map(&q)
-            .iter()
-            .map(|(k, v)| (k.to_string(), v.to_string()))
-            .collect()
-    } else {
-        Default::default()
-    }
-}
-
-fn parse_query_map(query: &str) -> BTreeMap<&str, &str> {
-    query
-        .split('&')
-        .filter_map(|pair| {
-            if pair.is_empty() {
-                None
-            } else {
-                Some(if let Some((key, value)) = pair.split_once('=') {
-                    (key, value)
-                } else {
-                    (pair, "")
-                })
-            }
-        })
-        .collect()
-}
-
-#[test]
-fn test_parse_query() {
-    assert_eq!(parse_query_map(""), BTreeMap::default());
-    assert_eq!(parse_query_map("foo"), BTreeMap::from_iter([("foo", "")]));
-    assert_eq!(
-        parse_query_map("foo=bar"),
-        BTreeMap::from_iter([("foo", "bar")])
-    );
-    assert_eq!(
-        parse_query_map("foo=bar&baz=42"),
-        BTreeMap::from_iter([("foo", "bar"), ("baz", "42")])
-    );
-    assert_eq!(
-        parse_query_map("foo&baz=42"),
-        BTreeMap::from_iter([("foo", ""), ("baz", "42")])
-    );
-    assert_eq!(
-        parse_query_map("foo&baz&&"),
-        BTreeMap::from_iter([("foo", ""), ("baz", "")])
-    );
+pub fn percent_decode(s: &str) -> String {
+    percent_encoding::percent_decode_str(s)
+        .decode_utf8_lossy()
+        .to_string()
 }
 
 /// Web sends all keys as strings, so it is up to us to figure out if it is
@@ -719,7 +676,7 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
 
             // `epi::Frame::info(&self)` clones `epi::IntegrationInfo`, but we need to modify the original here
             if let Some(web_info) = &mut frame_lock.info.web_info {
-                web_info.web_location_hash = location_hash().unwrap_or_default();
+                web_info.location.hash = location_hash();
             }
         }) as Box<dyn FnMut()>);
         window.add_event_listener_with_callback("hashchange", closure.as_ref().unchecked_ref())?;

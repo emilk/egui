@@ -81,6 +81,77 @@ impl epi::backend::RepaintSignal for NeedRepaint {
 
 // ----------------------------------------------------------------------------
 
+fn web_location() -> epi::Location {
+    let location = web_sys::window().unwrap().location();
+
+    let hash = percent_decode(&location.hash().unwrap_or_default());
+
+    let query = location
+        .search()
+        .unwrap_or_default()
+        .strip_prefix('?')
+        .map(percent_decode)
+        .unwrap_or_default();
+
+    let query_map = parse_query_map(&query)
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+
+    epi::Location {
+        url: percent_decode(&location.href().unwrap_or_default()),
+        protocol: percent_decode(&location.protocol().unwrap_or_default()),
+        host: percent_decode(&location.host().unwrap_or_default()),
+        hostname: percent_decode(&location.hostname().unwrap_or_default()),
+        port: percent_decode(&location.port().unwrap_or_default()),
+        hash,
+        query,
+        query_map,
+        origin: percent_decode(&location.origin().unwrap_or_default()),
+    }
+}
+
+fn parse_query_map(query: &str) -> BTreeMap<&str, &str> {
+    query
+        .split('&')
+        .filter_map(|pair| {
+            if pair.is_empty() {
+                None
+            } else {
+                Some(if let Some((key, value)) = pair.split_once('=') {
+                    (key, value)
+                } else {
+                    (pair, "")
+                })
+            }
+        })
+        .collect()
+}
+
+#[test]
+fn test_parse_query() {
+    assert_eq!(parse_query_map(""), BTreeMap::default());
+    assert_eq!(parse_query_map("foo"), BTreeMap::from_iter([("foo", "")]));
+    assert_eq!(
+        parse_query_map("foo=bar"),
+        BTreeMap::from_iter([("foo", "bar")])
+    );
+    assert_eq!(
+        parse_query_map("foo=bar&baz=42"),
+        BTreeMap::from_iter([("foo", "bar"), ("baz", "42")])
+    );
+    assert_eq!(
+        parse_query_map("foo&baz=42"),
+        BTreeMap::from_iter([("foo", ""), ("baz", "42")])
+    );
+    assert_eq!(
+        parse_query_map("foo&baz&&"),
+        BTreeMap::from_iter([("foo", ""), ("baz", "")])
+    );
+}
+
+// ----------------------------------------------------------------------------
+
 pub struct AppRunner {
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
@@ -108,9 +179,7 @@ impl AppRunner {
             info: epi::IntegrationInfo {
                 name: painter.name(),
                 web_info: Some(epi::WebInfo {
-                    web_location_hash: location_hash().unwrap_or_default(),
-                    web_location_query_string: location_query_string().unwrap_or_default(),
-                    web_location_query_map: location_query_map(),
+                    location: web_location(),
                 }),
                 prefer_dark_mode,
                 cpu_usage: None,

@@ -361,23 +361,62 @@ impl Frame {
 /// Information about the web environment (if applicable).
 #[derive(Clone, Debug)]
 pub struct WebInfo {
+    /// Information about the URL.
+    pub location: Location,
+}
+
+/// Information about the URL.
+///
+/// Everything has been percent decoded (`%20` -> ` ` etc).
+#[derive(Clone, Debug)]
+pub struct Location {
+    /// The full URL (`location.href`) without the hash.
+    ///
+    /// Example: "http://www.example.com:80/index.html?foo=bar".
+    pub url: String,
+
+    /// `location.protocol`
+    ///
+    /// Example: "http:".
+    pub protocol: String,
+
+    /// `location.host`
+    ///
+    /// Example: "example.com:80".
+    pub host: String,
+
+    /// `location.hostname`
+    ///
+    /// Example: "example.com".
+    pub hostname: String,
+
+    /// `location.port`
+    ///
+    /// Example: "80".
+    pub port: String,
+
     /// The "#fragment" part of "www.example.com/index.html?query#fragment".
     ///
     /// Note that the leading `#` is included in the string.
     /// Also known as "hash-link" or "anchor".
-    pub web_location_hash: String,
+    pub hash: String,
 
     /// The "query" part of "www.example.com/index.html?query#fragment".
     ///
     /// Note that the leading `?` is NOT included in the string.
     ///
-    /// Use [`Self::web_location_query_map]` to get the parsed version of it.
-    pub web_location_query_string: String,
+    /// Use [`Self::web_query_map]` to get the parsed version of it.
+    pub query: String,
 
     /// The parsed "query" part of "www.example.com/index.html?query#fragment".
     ///
-    /// "foo=42&bar" is parsed as `{"foo": "42",  "bar": ""}`
-    pub web_location_query_map: std::collections::BTreeMap<String, String>,
+    /// "foo=42&bar%20" is parsed as `{"foo": "42",  "bar ": ""}`
+    pub query_map: std::collections::BTreeMap<String, String>,
+
+    /// `location.origin`
+    ///
+    /// Example: "http://www.example.com:80"
+    pub origin: String,
 }
 
 /// Information about the integration passed to the use app each frame.
