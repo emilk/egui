@@ -1,6 +1,6 @@
 //! Simple plotting library.
 
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, ops::RangeInclusive, rc::Rc};
 
 use crate::*;
 use epaint::ahash::AHashSet;
@@ -21,14 +21,46 @@ mod items;
 mod legend;
 mod transform;
 
-type CustomLabelFunc = dyn Fn(&str, &Value) -> String;
-type CustomLabelFuncRef = Option<Box<CustomLabelFunc>>;
-
-type AxisFormatterFn = dyn Fn(f64) -> String;
+type LabelFormatterFn = dyn Fn(&str, &Value) -> String;
+type LabelFormatter = Option<Box<LabelFormatterFn>>;
+type AxisFormatterFn = dyn Fn(f64, &RangeInclusive<f64>) -> String;
 type AxisFormatter = Option<Box<AxisFormatterFn>>;
 
 type GridSpacerFn = dyn Fn(GridInput) -> Vec<GridMark>;
 type GridSpacer = Box<GridSpacerFn>;
+
+/// Specifies the coordinates formatting when passed to [`Plot::coordinates_formatter`].
+pub struct CoordinatesFormatter {
+    function: Box<dyn Fn(&Value, &PlotBounds) -> String>,
+}
+
+impl CoordinatesFormatter {
+    /// Create a new formatter based on the pointer coordinate and the plot bounds.
+    pub fn new(function: impl Fn(&Value, &PlotBounds) -> String + 'static) -> Self {
+        Self {
+            function: Box::new(function),
+        }
+    }
+
+    /// Show a fixed number of decimal places.
+    pub fn with_decimals(num_decimals: usize) -> Self {
+        Self {
+            function: Box::new(move |value, _| {
+                format!("x: {:.d$}\ny: {:.d$}", value.x, value.y, d = num_decimals)
+            }),
+        }
+    }
+
+    fn format(&self, value: &Value, bounds: &PlotBounds) -> String {
+        (self.function)(value, bounds)
+    }
+}
+
+impl Default for CoordinatesFormatter {
+    fn default() -> Self {
+        Self::with_decimals(3)
+    }
+}
 
 // ----------------------------------------------------------------------------
 
@@ -43,6 +75,8 @@ struct PlotMemory {
     hidden_items: AHashSet<String>,
     min_auto_bounds: PlotBounds,
     last_screen_transform: ScreenTransform,
+    /// Allows to remember the first click position when performing a boxed zoom
+    last_click_pos_for_zoom: Option<Pos2>,
 }
 
 impl PlotMemory {
@@ -138,6 +172,8 @@ pub struct Plot {
     allow_drag: bool,
     min_auto_bounds: PlotBounds,
     margin_fraction: Vec2,
+    allow_boxed_zoom: bool,
+    boxed_zoom_pointer_button: PointerButton,
     linked_axes: Option<LinkedAxisGroup>,
 
     min_size: Vec2,
@@ -148,7 +184,8 @@ pub struct Plot {
 
     show_x: bool,
     show_y: bool,
-    custom_label_func: CustomLabelFuncRef,
+    label_formatter: LabelFormatter,
+    coordinates_formatter: Option<(Corner, CoordinatesFormatter)>,
     axis_formatters: [AxisFormatter; 2],
     legend_config: Option<Legend>,
     show_background: bool,
@@ -168,6 +205,8 @@ impl Plot {
             allow_drag: true,
             min_auto_bounds: PlotBounds::NOTHING,
             margin_fraction: Vec2::splat(0.05),
+            allow_boxed_zoom: true,
+            boxed_zoom_pointer_button: PointerButton::Secondary,
             linked_axes: None,
 
             min_size: Vec2::splat(64.0),
@@ -178,7 +217,8 @@ impl Plot {
 
             show_x: true,
             show_y: true,
-            custom_label_func: None,
+            label_formatter: None,
+            coordinates_formatter: None,
             axis_formatters: [None, None], // [None; 2] requires Copy
             legend_config: None,
             show_background: true,
@@ -255,6 +295,20 @@ impl Plot {
         self
     }
 
+    /// Whether to allow zooming in the plot by dragging out a box with the secondary mouse button.
+    ///
+    /// Default: `true`.
+    pub fn allow_boxed_zoom(mut self, on: bool) -> Self {
+        self.allow_boxed_zoom = on;
+        self
+    }
+
+    /// Config the button pointer to use for boxed zooming. Default: `Secondary`
+    pub fn boxed_zoom_pointer_button(mut self, boxed_zoom_pointer_button: PointerButton) -> Self {
+        self.boxed_zoom_pointer_button = boxed_zoom_pointer_button;
+        self
+    }
+
     /// Whether to allow dragging in the plot to move the bounds. Default: `true`.
     pub fn allow_drag(mut self, on: bool) -> Self {
         self.allow_drag = on;
@@ -272,7 +326,7 @@ impl Plot {
     /// });
     /// let line = Line::new(Values::from_values_iter(sin));
     /// Plot::new("my_plot").view_aspect(2.0)
-    /// .custom_label_func(|name, value| {
+    /// .label_formatter(|name, value| {
     ///     if !name.is_empty() {
     ///         format!("{}: {:.*}%", name, 1, value.y).to_string()
     ///     } else {
@@ -282,34 +336,50 @@ impl Plot {
     /// .show(ui, |plot_ui| plot_ui.line(line));
     /// # });
     /// ```
-    pub fn custom_label_func(
+    pub fn label_formatter(
         mut self,
-        custom_label_func: impl Fn(&str, &Value) -> String + 'static,
+        label_formatter: impl Fn(&str, &Value) -> String + 'static,
     ) -> Self {
-        self.custom_label_func = Some(Box::new(custom_label_func));
+        self.label_formatter = Some(Box::new(label_formatter));
         self
     }
 
-    /// Provide a function to customize the labels for the X axis.
+    /// Show the pointer coordinates in the plot.
+    pub fn coordinates_formatter(
+        mut self,
+        position: Corner,
+        formatter: CoordinatesFormatter,
+    ) -> Self {
+        self.coordinates_formatter = Some((position, formatter));
+        self
+    }
+
+    /// Provide a function to customize the labels for the X axis based on the current visible value range.
     ///
     /// This is useful for custom input domains, e.g. date/time.
     ///
     /// If axis labels should not appear for certain values or beyond a certain zoom/resolution,
     /// the formatter function can return empty strings. This is also useful if your domain is
     /// discrete (e.g. only full days in a calendar).
-    pub fn x_axis_formatter(mut self, func: impl Fn(f64) -> String + 'static) -> Self {
+    pub fn x_axis_formatter(
+        mut self,
+        func: impl Fn(f64, &RangeInclusive<f64>) -> String + 'static,
+    ) -> Self {
         self.axis_formatters[0] = Some(Box::new(func));
         self
     }
 
-    /// Provide a function to customize the labels for the Y axis.
+    /// Provide a function to customize the labels for the Y axis based on the current value range.
     ///
     /// This is useful for custom value representation, e.g. percentage or units.
     ///
     /// If axis labels should not appear for certain values or beyond a certain zoom/resolution,
     /// the formatter function can return empty strings. This is also useful if your Y values are
     /// discrete (e.g. only integers).
-    pub fn y_axis_formatter(mut self, func: impl Fn(f64) -> String + 'static) -> Self {
+    pub fn y_axis_formatter(
+        mut self,
+        func: impl Fn(f64, &RangeInclusive<f64>) -> String + 'static,
+    ) -> Self {
         self.axis_formatters[1] = Some(Box::new(func));
         self
     }
@@ -407,6 +477,8 @@ impl Plot {
             center_y_axis,
             allow_zoom,
             allow_drag,
+            allow_boxed_zoom,
+            boxed_zoom_pointer_button: boxed_zoom_pointer,
             min_auto_bounds,
             margin_fraction,
             width,
@@ -416,7 +488,8 @@ impl Plot {
             view_aspect,
             mut show_x,
             mut show_y,
-            custom_label_func,
+            label_formatter,
+            coordinates_formatter,
             axis_formatters,
             legend_config,
             show_background,
@@ -465,6 +538,7 @@ impl Plot {
                 center_x_axis,
                 center_y_axis,
             ),
+            last_click_pos_for_zoom: None,
         });
 
         // If the min bounds changed, recalculate everything.
@@ -483,6 +557,7 @@ impl Plot {
             mut hovered_entry,
             mut hidden_items,
             last_screen_transform,
+            mut last_click_pos_for_zoom,
             ..
         } = memory;
 
@@ -506,7 +581,7 @@ impl Plot {
         if show_background {
             ui.painter().sub_region(rect).add(epaint::RectShape {
                 rect,
-                corner_radius: 2.0,
+                rounding: Rounding::same(2.0),
                 fill: ui.visuals().extreme_bg_color,
                 stroke: ui.visuals().widgets.noninteractive.bg_stroke,
             });
@@ -581,6 +656,53 @@ impl Plot {
         }
 
         // Zooming
+        let mut boxed_zoom_rect = None;
+        if allow_boxed_zoom {
+            // Save last click to allow boxed zooming
+            if response.drag_started() && response.dragged_by(boxed_zoom_pointer) {
+                // it would be best for egui that input has a memory of the last click pos because it's a common pattern
+                last_click_pos_for_zoom = response.hover_pos();
+            }
+            let box_start_pos = last_click_pos_for_zoom;
+            let box_end_pos = response.hover_pos();
+            if let (Some(box_start_pos), Some(box_end_pos)) = (box_start_pos, box_end_pos) {
+                // while dragging prepare a Shape and draw it later on top of the plot
+                if response.dragged_by(boxed_zoom_pointer) {
+                    response = response.on_hover_cursor(CursorIcon::ZoomIn);
+                    let rect = epaint::Rect::from_two_pos(box_start_pos, box_end_pos);
+                    boxed_zoom_rect = Some((
+                        epaint::RectShape::stroke(
+                            rect,
+                            0.0,
+                            epaint::Stroke::new(4., Color32::DARK_BLUE),
+                        ), // Outer stroke
+                        epaint::RectShape::stroke(
+                            rect,
+                            0.0,
+                            epaint::Stroke::new(2., Color32::WHITE),
+                        ), // Inner stroke
+                    ));
+                }
+                // when the click is release perform the zoom
+                if response.drag_released() {
+                    let box_start_pos = transform.value_from_position(box_start_pos);
+                    let box_end_pos = transform.value_from_position(box_end_pos);
+                    let new_bounds = PlotBounds {
+                        min: [box_start_pos.x, box_end_pos.y],
+                        max: [box_end_pos.x, box_start_pos.y],
+                    };
+                    if new_bounds.is_valid() {
+                        *transform.bounds_mut() = new_bounds;
+                        auto_bounds = false;
+                    } else {
+                        auto_bounds = true;
+                    }
+                    // reset the boxed zoom state
+                    last_click_pos_for_zoom = None;
+                }
+            }
+        }
+
         if allow_zoom {
             if let Some(hover_pos) = response.hover_pos() {
                 let zoom_factor = if data_aspect.is_some() {
@@ -610,13 +732,19 @@ impl Plot {
             items,
             show_x,
             show_y,
-            custom_label_func,
+            label_formatter,
+            coordinates_formatter,
             axis_formatters,
             show_axes,
             transform: transform.clone(),
             grid_spacers,
         };
         prepared.ui(ui, &response);
+
+        if let Some(boxed_zoom_rect) = boxed_zoom_rect {
+            ui.painter().sub_region(rect).add(boxed_zoom_rect.0);
+            ui.painter().sub_region(rect).add(boxed_zoom_rect.1);
+        }
 
         if let Some(mut legend) = legend {
             ui.add(&mut legend);
@@ -634,6 +762,7 @@ impl Plot {
             hidden_items,
             min_auto_bounds,
             last_screen_transform: transform,
+            last_click_pos_for_zoom,
         };
         memory.store(ui.ctx(), plot_id);
 
@@ -897,7 +1026,8 @@ struct PreparedPlot {
     items: Vec<Box<dyn PlotItem>>,
     show_x: bool,
     show_y: bool,
-    custom_label_func: CustomLabelFuncRef,
+    label_formatter: LabelFormatter,
+    coordinates_formatter: Option<(Corner, CoordinatesFormatter)>,
     axis_formatters: [AxisFormatter; 2],
     show_axes: [bool; 2],
     transform: ScreenTransform,
@@ -926,7 +1056,24 @@ impl PreparedPlot {
             self.hover(ui, pointer, &mut shapes);
         }
 
-        ui.painter().sub_region(*transform.frame()).extend(shapes);
+        let painter = ui.painter().sub_region(*transform.frame());
+        painter.extend(shapes);
+
+        if let Some((corner, formatter)) = self.coordinates_formatter.as_ref() {
+            if let Some(pointer) = response.hover_pos() {
+                let font_id = TextStyle::Monospace.resolve(ui.style());
+                let coordinate = transform.value_from_position(pointer);
+                let text = formatter.format(&coordinate, transform.bounds());
+                let padded_frame = transform.frame().shrink(4.0);
+                let (anchor, position) = match corner {
+                    Corner::LeftTop => (Align2::LEFT_TOP, padded_frame.left_top()),
+                    Corner::RightTop => (Align2::RIGHT_TOP, padded_frame.right_top()),
+                    Corner::LeftBottom => (Align2::LEFT_BOTTOM, padded_frame.left_bottom()),
+                    Corner::RightBottom => (Align2::RIGHT_BOTTOM, padded_frame.right_bottom()),
+                };
+                painter.text(position, anchor, text, font_id, ui.visuals().text_color());
+            }
+        }
     }
 
     fn paint_axis(&self, ui: &Ui, axis: usize, shapes: &mut Vec<Shape>) {
@@ -936,6 +1083,13 @@ impl PreparedPlot {
             grid_spacers,
             ..
         } = self;
+
+        let bounds = transform.bounds();
+        let axis_range = match axis {
+            0 => bounds.range_x(),
+            1 => bounds.range_y(),
+            _ => panic!("Axis {} does not exist.", axis),
+        };
 
         let font_id = TextStyle::Body.resolve(ui.style());
 
@@ -986,7 +1140,7 @@ impl PreparedPlot {
                 let color = color_from_alpha(ui, text_alpha);
 
                 let text: String = if let Some(formatter) = axis_formatters[axis].as_deref() {
-                    formatter(value_main)
+                    formatter(value_main, &axis_range)
                 } else {
                     emath::round_to_decimals(value_main, 5).to_string() // hack
                 };
@@ -1021,7 +1175,7 @@ impl PreparedPlot {
             transform,
             show_x,
             show_y,
-            custom_label_func,
+            label_formatter,
             items,
             ..
         } = self;
@@ -1051,10 +1205,10 @@ impl PreparedPlot {
         };
 
         if let Some((item, elem)) = closest {
-            item.on_hover(elem, shapes, &plot, custom_label_func);
+            item.on_hover(elem, shapes, &plot, label_formatter);
         } else {
             let value = transform.value_from_position(pointer);
-            items::rulers_at_value(pointer, value, "", &plot, shapes, custom_label_func);
+            items::rulers_at_value(pointer, value, "", &plot, shapes, label_formatter);
         }
     }
 }

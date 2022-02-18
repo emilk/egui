@@ -65,7 +65,7 @@
 )]
 #![allow(clippy::needless_doctest_main)]
 
-pub use {egui, epi};
+pub use {egui, egui::emath, egui::epaint, epi};
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use epi::NativeOptions;

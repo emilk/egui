@@ -120,6 +120,10 @@ impl PlotBounds {
         self.min[0]..=self.max[0]
     }
 
+    pub(crate) fn range_y(&self) -> RangeInclusive<f64> {
+        self.min[1]..=self.max[1]
+    }
+
     pub(crate) fn make_x_symmetrical(&mut self) {
         let x_abs = self.min[0].abs().max(self.max[0].abs());
         self.min[0] = -x_abs;
@@ -176,6 +180,10 @@ impl ScreenTransform {
 
     pub fn bounds(&self) -> &PlotBounds {
         &self.bounds
+    }
+
+    pub fn bounds_mut(&mut self) -> &mut PlotBounds {
+        &mut self.bounds
     }
 
     pub fn translate_bounds(&mut self, mut delta_pos: Vec2) {

@@ -1,3 +1,5 @@
+use std::ops::RangeInclusive;
+
 use crate::*;
 
 /// State that is collected during a frame and then cleared.
@@ -28,7 +30,7 @@ pub(crate) struct FrameState {
     /// Cleared by the first `ScrollArea` that makes use of it.
     pub(crate) scroll_delta: Vec2, // TODO: move to a Mutex inside of `InputState` ?
     /// horizontal, vertical
-    pub(crate) scroll_target: [Option<(f32, Align)>; 2],
+    pub(crate) scroll_target: [Option<(RangeInclusive<f32>, Option<Align>)>; 2],
 }
 
 impl Default for FrameState {
@@ -40,7 +42,7 @@ impl Default for FrameState {
             used_by_panels: Rect::NAN,
             tooltip_rect: None,
             scroll_delta: Vec2::ZERO,
-            scroll_target: [None; 2],
+            scroll_target: [None, None],
         }
     }
 }
@@ -63,7 +65,7 @@ impl FrameState {
         *used_by_panels = Rect::NOTHING;
         *tooltip_rect = None;
         *scroll_delta = input.scroll_delta;
-        *scroll_target = [None; 2];
+        *scroll_target = [None, None];
     }
 
     /// How much space is still available after panels has been added.

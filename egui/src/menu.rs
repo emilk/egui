@@ -126,7 +126,7 @@ pub(crate) fn menu_ui<'c, R>(
     let area = Area::new(menu_id)
         .order(Order::Foreground)
         .fixed_pos(pos)
-        .interactable(false)
+        .interactable(true)
         .drag_bounds(Rect::EVERYTHING);
     let inner_response = area.show(ctx, |ui| {
         ui.scope(|ui| {
@@ -438,7 +438,7 @@ impl SubMenuButton {
 
             ui.painter().rect_filled(
                 rect.expand(visuals.expansion),
-                visuals.corner_radius,
+                visuals.rounding,
                 visuals.bg_fill,
             );
 

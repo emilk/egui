@@ -1,0 +1,69 @@
+# https://embarkstudios.github.io/cargo-deny/
+
+targets = [
+    { triple = "aarch64-apple-darwin" },
+    { triple = "aarch64-linux-android" },
+    { triple = "x86_64-apple-darwin" },
+    { triple = "x86_64-pc-windows-msvc" },
+    { triple = "x86_64-unknown-linux-gnu" },
+    { triple = "x86_64-unknown-linux-musl" },
+]
+
+[advisories]
+vulnerability = "deny"
+unmaintained = "warn"
+yanked = "deny"
+ignore = [
+    "RUSTSEC-2020-0071", # https://rustsec.org/advisories/RUSTSEC-2020-0071 - chrono/time: Potential segfault in the time crate
+    "RUSTSEC-2020-0159", # https://rustsec.org/advisories/RUSTSEC-2020-0159 - chrono/time: Potential segfault in localtime_r invocations
+    "RUSTSEC-2021-0019", # https://rustsec.org/advisories/RUSTSEC-2021-0019 - xcb - is being worked on: https://github.com/rust-x-bindings/rust-xcb/issues/107
+]
+
+[bans]
+multiple-versions = "deny"
+wildcards = "allow" # at least until https://github.com/EmbarkStudios/cargo-deny/issues/241 is fixed
+deny = [
+    { name = "openssl" },           # prefer rustls
+    { name = "openssl-sys" },       # prefer rustls
+]
+
+skip = [
+    { name = "time" }, # old version pulled in by unmaintianed crate 'chrono'
+]
+skip-tree = [
+    { name = "eframe", version = "0.16.0" },
+]
+
+
+[licenses]
+unlicensed = "deny"
+allow-osi-fsf-free = "neither"
+confidence-threshold = 0.92 # We want really high confidence when inferring licenses from text
+copyleft = "deny"
+allow = [
+    "Apache-2.0 WITH LLVM-exception", # https://spdx.org/licenses/LLVM-exception.html
+    "Apache-2.0",                     # https://tldrlegal.com/license/apache-license-2.0-(apache-2.0)
+    "BSD-2-Clause",                   # https://tldrlegal.com/license/bsd-2-clause-license-(freebsd)
+    "BSD-3-Clause",                   # https://tldrlegal.com/license/bsd-3-clause-license-(revised)
+    "BSL-1.0",                        # https://tldrlegal.com/license/boost-software-license-1.0-explained
+    "CC0-1.0",                        # https://creativecommons.org/publicdomain/zero/1.0/
+    "ISC",                            # https://tldrlegal.com/license/-isc-license
+    "MIT",                            # https://tldrlegal.com/license/mit-license
+    "MPL-2.0",                        # https://www.mozilla.org/en-US/MPL/2.0/FAQ/ - see Q11
+    "OpenSSL",                        # https://www.openssl.org/source/license.html
+    "Zlib",                           # https://tldrlegal.com/license/zlib-libpng-license-(zlib)
+]
+
+[[licenses.clarify]]
+name = "webpki"
+expression = "ISC"
+license-files = [
+    { path = "LICENSE", hash = 0x001c7e6c }
+]
+
+[[licenses.clarify]]
+name = "ring"
+expression = "MIT AND ISC AND OpenSSL"
+license-files = [
+    { path = "LICENSE", hash = 0xbd0eed23 }
+]

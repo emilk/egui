@@ -54,12 +54,12 @@ impl ContextImpl {
     fn begin_frame_mut(&mut self, new_raw_input: RawInput) {
         self.memory.begin_frame(&self.input, &new_raw_input);
 
-        let mut input = std::mem::take(&mut self.input);
+        self.input = std::mem::take(&mut self.input).begin_frame(new_raw_input);
+
         if let Some(new_pixels_per_point) = self.memory.new_pixels_per_point.take() {
-            input.pixels_per_point = new_pixels_per_point;
+            self.input.pixels_per_point = new_pixels_per_point;
         }
 
-        self.input = input.begin_frame(new_raw_input);
         self.frame_state.begin_frame(&self.input);
 
         self.update_fonts_mut();
@@ -889,6 +889,17 @@ impl Context {
         self.memory().layer_id_at(pos, resize_grab_radius_side)
     }
 
+    /// The overall top-most layer. When an area is clicked on or interacted
+    /// with, it is moved above all other areas.
+    pub fn top_most_layer(&self) -> Option<LayerId> {
+        self.memory().top_most_layer()
+    }
+
+    /// Moves the given area to the top.
+    pub fn move_to_top(&self, layer_id: LayerId) {
+        self.memory().areas.move_to_top(layer_id);
+    }
+
     pub(crate) fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
         let pointer_pos = self.input().pointer.interact_pos();
         if let Some(pointer_pos) = pointer_pos {
@@ -900,12 +911,12 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
-    /// Wether or not to debug widget layout on hover.
+    /// Whether or not to debug widget layout on hover.
     pub fn debug_on_hover(&self) -> bool {
         self.options().style.debug.debug_on_hover
     }
 
-    /// Turn on/off wether or not to debug widget layout on hover.
+    /// Turn on/off whether or not to debug widget layout on hover.
     pub fn set_debug_on_hover(&self, debug_on_hover: bool) {
         let mut style = (*self.options().style).clone();
         style.debug.debug_on_hover = debug_on_hover;

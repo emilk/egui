@@ -181,13 +181,13 @@ pub trait App {
         egui::Color32::from_rgba_unmultiplied(12, 12, 12, 180).into()
     }
 
-    /// Controls wether or not the native window position and size will be
+    /// Controls whether or not the native window position and size will be
     /// persisted (only if the "persistence" feature is enabled).
     fn persist_native_window(&self) -> bool {
         true
     }
 
-    /// Controls wether or not the egui memory (window positions etc) will be
+    /// Controls whether or not the egui memory (window positions etc) will be
     /// persisted (only if the "persistence" feature is enabled).
     fn persist_egui_memory(&self) -> bool {
         true
@@ -230,8 +230,17 @@ pub struct NativeOptions {
     /// The application icon, e.g. in the Windows task bar etc.
     pub icon_data: Option<IconData>,
 
-    /// The initial size of the native window in points (logical pixels).
+    /// The initial (inner) position of the native window in points (logical pixels).
+    pub initial_window_pos: Option<egui::Pos2>,
+
+    /// The initial inner size of the native window in points (logical pixels).
     pub initial_window_size: Option<egui::Vec2>,
+
+    /// The minimum inner window size
+    pub min_window_size: Option<egui::Vec2>,
+
+    /// The maximum inner window size
+    pub max_window_size: Option<egui::Vec2>,
 
     /// Should the app window be resizable?
     pub resizable: bool,
@@ -250,7 +259,10 @@ impl Default for NativeOptions {
             decorated: true,
             drag_and_drop_support: false,
             icon_data: None,
+            initial_window_pos: None,
             initial_window_size: None,
+            min_window_size: None,
+            max_window_size: None,
             resizable: true,
             transparent: false,
         }
@@ -349,10 +361,62 @@ impl Frame {
 /// Information about the web environment (if applicable).
 #[derive(Clone, Debug)]
 pub struct WebInfo {
-    /// e.g. "#fragment" part of "www.example.com/index.html#fragment".
+    /// Information about the URL.
+    pub location: Location,
+}
+
+/// Information about the URL.
+///
+/// Everything has been percent decoded (`%20` -> ` ` etc).
+#[derive(Clone, Debug)]
+pub struct Location {
+    /// The full URL (`location.href`) without the hash.
+    ///
+    /// Example: "http://www.example.com:80/index.html?foo=bar".
+    pub url: String,
+
+    /// `location.protocol`
+    ///
+    /// Example: "http:".
+    pub protocol: String,
+
+    /// `location.host`
+    ///
+    /// Example: "example.com:80".
+    pub host: String,
+
+    /// `location.hostname`
+    ///
+    /// Example: "example.com".
+    pub hostname: String,
+
+    /// `location.port`
+    ///
+    /// Example: "80".
+    pub port: String,
+
+    /// The "#fragment" part of "www.example.com/index.html?query#fragment".
+    ///
     /// Note that the leading `#` is included in the string.
     /// Also known as "hash-link" or "anchor".
-    pub web_location_hash: String,
+    pub hash: String,
+
+    /// The "query" part of "www.example.com/index.html?query#fragment".
+    ///
+    /// Note that the leading `?` is NOT included in the string.
+    ///
+    /// Use [`Self::web_query_map]` to get the parsed version of it.
+    pub query: String,
+
+    /// The parsed "query" part of "www.example.com/index.html?query#fragment".
+    ///
+    /// "foo=42&bar%20" is parsed as `{"foo": "42",  "bar ": ""}`
+    pub query_map: std::collections::BTreeMap<String, String>,
+
+    /// `location.origin`
+    ///
+    /// Example: "http://www.example.com:80"
+    pub origin: String,
 }
 
 /// Information about the integration passed to the use app each frame.

@@ -3,7 +3,7 @@
 #![allow(clippy::if_same_then_else)]
 
 use crate::{color::*, emath::*, FontFamily, FontId, Response, RichText, WidgetText};
-use epaint::{mutex::Arc, Shadow, Stroke};
+use epaint::{mutex::Arc, Rounding, Shadow, Stroke};
 use std::collections::BTreeMap;
 
 // ----------------------------------------------------------------------------
@@ -220,8 +220,8 @@ pub struct Spacing {
     /// widgets `A` and `B` you need to change `item_spacing` before adding `A`.
     pub item_spacing: Vec2,
 
-    /// Horizontal and vertical padding within a window frame.
-    pub window_padding: Vec2,
+    /// Horizontal and vertical margins within a window frame.
+    pub window_margin: Margin,
 
     /// Button size is text size plus this on each side
     pub button_padding: Vec2,
@@ -277,6 +277,49 @@ impl Spacing {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct Margin {
+    pub left: f32,
+    pub right: f32,
+    pub top: f32,
+    pub bottom: f32,
+}
+
+impl Margin {
+    #[inline]
+    pub fn same(margin: f32) -> Self {
+        Self {
+            left: margin,
+            right: margin,
+            top: margin,
+            bottom: margin,
+        }
+    }
+
+    /// Margins with the same size on opposing sides
+    #[inline]
+    pub fn symmetric(x: f32, y: f32) -> Self {
+        Self {
+            left: x,
+            right: x,
+            top: y,
+            bottom: y,
+        }
+    }
+
+    /// Total margins on both sides
+    pub fn sum(&self) -> Vec2 {
+        Vec2::new(self.left + self.right, self.top + self.bottom)
+    }
+}
+
+impl From<Vec2> for Margin {
+    fn from(v: Vec2) -> Self {
+        Self::symmetric(v.x, v.y)
+    }
+}
+
 /// How and when interaction happens.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -315,10 +358,10 @@ pub struct Visuals {
     ///
     /// If `text_color` is `None` (default), then the text color will be the same as the
     /// foreground stroke color (`WidgetVisuals::fg_stroke`)
-    /// and will depend on wether or not the widget is being interacted with.
+    /// and will depend on whether or not the widget is being interacted with.
     ///
     /// In the future we may instead modulate
-    /// the `text_color` based on wether or not it is interacted with
+    /// the `text_color` based on whether or not it is interacted with
     /// so that `visuals.text_color` is always used,
     /// but its alpha may be different based on whether or not
     /// it is disabled, non-interactive, hovered etc.
@@ -344,7 +387,7 @@ pub struct Visuals {
     /// Background color behind code-styled monospaced labels.
     pub code_bg_color: Color32,
 
-    pub window_corner_radius: f32,
+    pub window_rounding: Rounding,
     pub window_shadow: Shadow,
 
     pub popup_shadow: Shadow,
@@ -453,7 +496,7 @@ pub struct WidgetVisuals {
     pub bg_stroke: Stroke,
 
     /// Button frames etc.
-    pub corner_radius: f32,
+    pub rounding: Rounding,
 
     /// Stroke and text color of the interactive part of a component (button text, slider grab, check-mark, …).
     pub fg_stroke: Stroke,
@@ -528,7 +571,7 @@ impl Default for Spacing {
     fn default() -> Self {
         Self {
             item_spacing: vec2(8.0, 3.0),
-            window_padding: Vec2::splat(6.0),
+            window_margin: Margin::same(6.0),
             button_padding: vec2(4.0, 1.0),
             indent: 18.0, // match checkbox/radio-button with `button_padding.x + icon_width + icon_spacing`
             interact_size: vec2(40.0, 18.0),
@@ -564,9 +607,9 @@ impl Visuals {
             selection: Selection::default(),
             hyperlink_color: Color32::from_rgb(90, 170, 255),
             faint_bg_color: Color32::from_gray(24),
-            extreme_bg_color: Color32::from_gray(10),
+            extreme_bg_color: Color32::from_gray(10), // e.g. TextEdit background
             code_bg_color: Color32::from_gray(64),
-            window_corner_radius: 6.0,
+            window_rounding: Rounding::same(6.0),
             window_shadow: Shadow::big_dark(),
             popup_shadow: Shadow::small_dark(),
             resize_corner_size: 12.0,
@@ -585,9 +628,9 @@ impl Visuals {
             widgets: Widgets::light(),
             selection: Selection::light(),
             hyperlink_color: Color32::from_rgb(0, 155, 255),
-            faint_bg_color: Color32::from_gray(240),
-            extreme_bg_color: Color32::from_gray(250),
-            code_bg_color: Color32::from_gray(200),
+            faint_bg_color: Color32::from_gray(245),
+            extreme_bg_color: Color32::from_gray(255), // e.g. TextEdit background
+            code_bg_color: Color32::from_gray(230),
             window_shadow: Shadow::big_light(),
             popup_shadow: Shadow::small_light(),
             ..Self::dark()
@@ -629,35 +672,35 @@ impl Widgets {
                 bg_fill: Color32::from_gray(27), // window background
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // separators, indentation lines, windows outlines
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(140)), // normal text color
-                corner_radius: 2.0,
+                rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
             inactive: WidgetVisuals {
                 bg_fill: Color32::from_gray(60), // button background
                 bg_stroke: Default::default(),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(180)), // button text
-                corner_radius: 2.0,
+                rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
             hovered: WidgetVisuals {
                 bg_fill: Color32::from_gray(70),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(150)), // e.g. hover over window edge or button
                 fg_stroke: Stroke::new(1.5, Color32::from_gray(240)),
-                corner_radius: 3.0,
+                rounding: Rounding::same(3.0),
                 expansion: 1.0,
             },
             active: WidgetVisuals {
                 bg_fill: Color32::from_gray(55),
                 bg_stroke: Stroke::new(1.0, Color32::WHITE),
                 fg_stroke: Stroke::new(2.0, Color32::WHITE),
-                corner_radius: 2.0,
+                rounding: Rounding::same(2.0),
                 expansion: 1.0,
             },
             open: WidgetVisuals {
                 bg_fill: Color32::from_gray(27),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(60)),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(210)),
-                corner_radius: 2.0,
+                rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
         }
@@ -666,38 +709,38 @@ impl Widgets {
     pub fn light() -> Self {
         Self {
             noninteractive: WidgetVisuals {
-                bg_fill: Color32::from_gray(235), // window background
+                bg_fill: Color32::from_gray(248), // window background - should be distinct from TextEdit background
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(190)), // separators, indentation lines, windows outlines
-                fg_stroke: Stroke::new(1.0, Color32::from_gray(100)), // normal text color
-                corner_radius: 2.0,
+                fg_stroke: Stroke::new(1.0, Color32::from_gray(80)),  // normal text color
+                rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
             inactive: WidgetVisuals {
-                bg_fill: Color32::from_gray(215), // button background
+                bg_fill: Color32::from_gray(230), // button background
                 bg_stroke: Default::default(),
-                fg_stroke: Stroke::new(1.0, Color32::from_gray(80)), // button text
-                corner_radius: 2.0,
+                fg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // button text
+                rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
             hovered: WidgetVisuals {
-                bg_fill: Color32::from_gray(210),
+                bg_fill: Color32::from_gray(220),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(105)), // e.g. hover over window edge or button
                 fg_stroke: Stroke::new(1.5, Color32::BLACK),
-                corner_radius: 3.0,
+                rounding: Rounding::same(3.0),
                 expansion: 1.0,
             },
             active: WidgetVisuals {
                 bg_fill: Color32::from_gray(165),
                 bg_stroke: Stroke::new(1.0, Color32::BLACK),
                 fg_stroke: Stroke::new(2.0, Color32::BLACK),
-                corner_radius: 2.0,
+                rounding: Rounding::same(2.0),
                 expansion: 1.0,
             },
             open: WidgetVisuals {
                 bg_fill: Color32::from_gray(220),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(160)),
                 fg_stroke: Stroke::new(1.0, Color32::BLACK),
-                corner_radius: 2.0,
+                rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
         }
@@ -803,7 +846,7 @@ impl Spacing {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             item_spacing,
-            window_padding,
+            window_margin,
             button_padding,
             indent,
             interact_size,
@@ -818,7 +861,37 @@ impl Spacing {
         } = self;
 
         ui.add(slider_vec2(item_spacing, 0.0..=20.0, "Item spacing"));
-        ui.add(slider_vec2(window_padding, 0.0..=20.0, "Window padding"));
+
+        let margin_range = 0.0..=20.0;
+        ui.horizontal(|ui| {
+            ui.add(
+                DragValue::new(&mut window_margin.left)
+                    .clamp_range(margin_range.clone())
+                    .prefix("left: "),
+            );
+            ui.add(
+                DragValue::new(&mut window_margin.right)
+                    .clamp_range(margin_range.clone())
+                    .prefix("right: "),
+            );
+
+            ui.label("Window margins x");
+        });
+
+        ui.horizontal(|ui| {
+            ui.add(
+                DragValue::new(&mut window_margin.top)
+                    .clamp_range(margin_range.clone())
+                    .prefix("top: "),
+            );
+            ui.add(
+                DragValue::new(&mut window_margin.bottom)
+                    .clamp_range(margin_range)
+                    .prefix("bottom: "),
+            );
+            ui.label("Window margins y");
+        });
+
         ui.add(slider_vec2(button_padding, 0.0..=20.0, "Button padding"));
         ui.add(slider_vec2(interact_size, 4.0..=60.0, "Interact size"))
             .on_hover_text("Minimum size of an interactive widget");
@@ -933,7 +1006,7 @@ impl Selection {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self { bg_fill, stroke } = self;
         ui.label("Selectable labels");
-        ui_color(ui, bg_fill, "bg_fill");
+        ui_color(ui, bg_fill, "background fill");
         stroke_ui(ui, stroke, "stroke");
     }
 }
@@ -943,14 +1016,16 @@ impl WidgetVisuals {
         let Self {
             bg_fill,
             bg_stroke,
-            corner_radius,
+            rounding,
             fg_stroke,
             expansion,
         } = self;
-        ui_color(ui, bg_fill, "bg_fill");
-        stroke_ui(ui, bg_stroke, "bg_stroke");
-        ui.add(Slider::new(corner_radius, 0.0..=10.0).text("corner_radius"));
-        stroke_ui(ui, fg_stroke, "fg_stroke (text)");
+        ui_color(ui, bg_fill, "background fill");
+        stroke_ui(ui, bg_stroke, "background stroke");
+
+        rounding_ui(ui, rounding);
+
+        stroke_ui(ui, fg_stroke, "foreground stroke (text)");
         ui.add(Slider::new(expansion, -5.0..=5.0).text("expansion"))
             .on_hover_text("make shapes this much larger");
     }
@@ -999,7 +1074,7 @@ impl Visuals {
             faint_bg_color,
             extreme_bg_color,
             code_bg_color,
-            window_corner_radius,
+            window_rounding,
             window_shadow,
             popup_shadow,
             resize_corner_size,
@@ -1024,7 +1099,9 @@ impl Visuals {
             // Common shortcuts
             ui_color(ui, &mut widgets.noninteractive.bg_fill, "Fill");
             stroke_ui(ui, &mut widgets.noninteractive.bg_stroke, "Outline");
-            ui.add(Slider::new(window_corner_radius, 0.0..=20.0).text("Rounding"));
+
+            rounding_ui(ui, window_rounding);
+
             shadow_ui(ui, window_shadow, "Shadow");
             shadow_ui(ui, popup_shadow, "Shadow (small menus and popups)");
         });
@@ -1113,4 +1190,30 @@ fn ui_color(ui: &mut Ui, srgba: &mut Color32, label: impl Into<WidgetText>) -> R
         ui.label(label);
     })
     .response
+}
+
+fn rounding_ui(ui: &mut Ui, rounding: &mut Rounding) {
+    const MAX: f32 = 20.0;
+    let mut same = rounding.is_same();
+    ui.group(|ui| {
+        ui.horizontal(|ui| {
+            ui.label("Rounding: ");
+            ui.radio_value(&mut same, true, "Same");
+            ui.radio_value(&mut same, false, "Separate");
+        });
+
+        if same {
+            let mut cr = rounding.nw;
+            ui.add(Slider::new(&mut cr, 0.0..=MAX));
+            *rounding = Rounding::same(cr);
+        } else {
+            ui.add(Slider::new(&mut rounding.nw, 0.0..=MAX).text("North-West"));
+            ui.add(Slider::new(&mut rounding.ne, 0.0..=MAX).text("North-East"));
+            ui.add(Slider::new(&mut rounding.sw, 0.0..=MAX).text("South-West"));
+            ui.add(Slider::new(&mut rounding.se, 0.0..=MAX).text("South-East"));
+            if rounding.is_same() {
+                rounding.se *= 1.00001;
+            }
+        }
+    });
 }

@@ -69,7 +69,7 @@ impl epi::App for WrapApp {
 
     fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
         if let Some(web_info) = frame.info().web_info.as_ref() {
-            if let Some(anchor) = web_info.web_location_hash.strip_prefix('#') {
+            if let Some(anchor) = web_info.location.hash.strip_prefix('#') {
                 self.selected_anchor = anchor.to_owned();
             }
         }

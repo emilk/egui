@@ -61,7 +61,7 @@ fn show_hsva(ui: &mut Ui, color: Hsva, desired_size: Vec2) -> Response {
         } else {
             ui.painter().add(RectShape {
                 rect,
-                corner_radius: 2.0,
+                rounding: Rounding::same(2.0),
                 fill: color.into(),
                 stroke: Stroke::new(3.0, color.to_opaque()),
             });
@@ -90,9 +90,15 @@ fn color_button(ui: &mut Ui, color: Color32, open: bool) -> Response {
         ui.painter().rect_filled(left_half, 0.0, color);
         ui.painter().rect_filled(right_half, 0.0, color.to_opaque());
 
-        let corner_radius = visuals.corner_radius.at_most(2.0);
+        let rounding = Rounding {
+            nw: visuals.rounding.nw.at_most(2.0),
+            ne: visuals.rounding.ne.at_most(2.0),
+            sw: visuals.rounding.sw.at_most(2.0),
+            se: visuals.rounding.se.at_most(2.0),
+        };
+
         ui.painter()
-            .rect_stroke(rect, corner_radius, (2.0, visuals.bg_fill)); // fill is intentional, because default style has no border
+            .rect_stroke(rect, rounding, (2.0, visuals.bg_fill)); // fill is intentional, because default style has no border
     }
 
     response
@@ -351,7 +357,7 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
     if ui.memory().is_popup_open(popup_id) {
         let area_response = Area::new(popup_id)
             .order(Order::Foreground)
-            .default_pos(button_response.rect.max)
+            .current_pos(button_response.rect.max)
             .show(ui.ctx(), |ui| {
                 ui.spacing_mut().slider_width = 210.0;
                 Frame::popup(ui.style()).show(ui, |ui| {

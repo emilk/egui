@@ -24,8 +24,6 @@ pub fn font_id_ui(ui: &mut Ui, font_id: &mut FontId) {
 
 // Show font texture in demo Ui
 pub(crate) fn font_texture_ui(ui: &mut Ui, [width, height]: [usize; 2]) -> Response {
-    use epaint::Mesh;
-
     ui.vertical(|ui| {
         let color = if ui.visuals().dark_mode {
             Color32::WHITE
@@ -144,13 +142,13 @@ impl Widget for &mut epaint::TessellationOptions {
                 debug_paint_clip_rects,
                 debug_paint_text_rects,
                 debug_ignore_clip_rects,
-                bezier_tolerence,
+                bezier_tolerance,
                 epsilon: _,
             } = self;
             ui.checkbox(anti_alias, "Antialias")
                 .on_hover_text("Turn off for small performance gain.");
             ui.add(
-                crate::widgets::Slider::new(bezier_tolerence, 0.0001..=10.0)
+                crate::widgets::Slider::new(bezier_tolerance, 0.0001..=10.0)
                     .logarithmic(true)
                     .show_value(true)
                     .text("Spline Tolerance"),

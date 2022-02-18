@@ -301,7 +301,7 @@ impl<'open> Window<'open> {
                 } else {
                     0.0
                 };
-                let margins = 2.0 * frame.margin + vec2(0.0, title_bar_height);
+                let margins = frame.margin.sum() + vec2(0.0, title_bar_height);
 
                 interact(
                     window_interaction,
@@ -699,42 +699,62 @@ fn paint_frame_interaction(
 ) {
     use epaint::tessellator::path::add_circle_quadrant;
 
-    let cr = ui.visuals().window_corner_radius;
+    let rounding = ui.visuals().window_rounding;
     let Rect { min, max } = rect;
 
     let mut points = Vec::new();
 
     if interaction.right && !interaction.bottom && !interaction.top {
-        points.push(pos2(max.x, min.y + cr));
-        points.push(pos2(max.x, max.y - cr));
+        points.push(pos2(max.x, min.y + rounding.ne));
+        points.push(pos2(max.x, max.y - rounding.se));
     }
     if interaction.right && interaction.bottom {
-        points.push(pos2(max.x, min.y + cr));
-        points.push(pos2(max.x, max.y - cr));
-        add_circle_quadrant(&mut points, pos2(max.x - cr, max.y - cr), cr, 0.0);
+        points.push(pos2(max.x, min.y + rounding.ne));
+        points.push(pos2(max.x, max.y - rounding.se));
+        add_circle_quadrant(
+            &mut points,
+            pos2(max.x - rounding.se, max.y - rounding.se),
+            rounding.se,
+            0.0,
+        );
     }
     if interaction.bottom {
-        points.push(pos2(max.x - cr, max.y));
-        points.push(pos2(min.x + cr, max.y));
+        points.push(pos2(max.x - rounding.se, max.y));
+        points.push(pos2(min.x + rounding.sw, max.y));
     }
     if interaction.left && interaction.bottom {
-        add_circle_quadrant(&mut points, pos2(min.x + cr, max.y - cr), cr, 1.0);
+        add_circle_quadrant(
+            &mut points,
+            pos2(min.x + rounding.sw, max.y - rounding.sw),
+            rounding.sw,
+            1.0,
+        );
     }
     if interaction.left {
-        points.push(pos2(min.x, max.y - cr));
-        points.push(pos2(min.x, min.y + cr));
+        points.push(pos2(min.x, max.y - rounding.sw));
+        points.push(pos2(min.x, min.y + rounding.nw));
     }
     if interaction.left && interaction.top {
-        add_circle_quadrant(&mut points, pos2(min.x + cr, min.y + cr), cr, 2.0);
+        add_circle_quadrant(
+            &mut points,
+            pos2(min.x + rounding.nw, min.y + rounding.nw),
+            rounding.nw,
+            2.0,
+        );
     }
     if interaction.top {
-        points.push(pos2(min.x + cr, min.y));
-        points.push(pos2(max.x - cr, min.y));
+        points.push(pos2(min.x + rounding.nw, min.y));
+        points.push(pos2(max.x - rounding.ne, min.y));
     }
     if interaction.right && interaction.top {
-        add_circle_quadrant(&mut points, pos2(max.x - cr, min.y + cr), cr, 3.0);
-        points.push(pos2(max.x, min.y + cr));
-        points.push(pos2(max.x, max.y - cr));
+        add_circle_quadrant(
+            &mut points,
+            pos2(max.x - rounding.ne, min.y + rounding.ne),
+            rounding.ne,
+            3.0,
+        );
+        points.push(pos2(max.x, min.y + rounding.ne));
+        points.push(pos2(max.x, max.y - rounding.se));
     }
     ui.painter().add(Shape::line(points, visuals.bg_stroke));
 }

@@ -147,7 +147,7 @@ fn huge_content_painter(ui: &mut egui::Ui) {
 #[derive(PartialEq)]
 struct ScrollTo {
     track_item: usize,
-    tack_item_align: Align,
+    tack_item_align: Option<Align>,
     offset: f32,
 }
 
@@ -155,7 +155,7 @@ impl Default for ScrollTo {
     fn default() -> Self {
         Self {
             track_item: 25,
-            tack_item_align: Align::Center,
+            tack_item_align: Some(Align::Center),
             offset: 0.0,
         }
     }
@@ -180,13 +180,16 @@ impl super::View for ScrollTo {
         ui.horizontal(|ui| {
             ui.label("Item align:");
             track_item |= ui
-                .radio_value(&mut self.tack_item_align, Align::Min, "Top")
+                .radio_value(&mut self.tack_item_align, Some(Align::Min), "Top")
                 .clicked();
             track_item |= ui
-                .radio_value(&mut self.tack_item_align, Align::Center, "Center")
+                .radio_value(&mut self.tack_item_align, Some(Align::Center), "Center")
                 .clicked();
             track_item |= ui
-                .radio_value(&mut self.tack_item_align, Align::Max, "Bottom")
+                .radio_value(&mut self.tack_item_align, Some(Align::Max), "Bottom")
+                .clicked();
+            track_item |= ui
+                .radio_value(&mut self.tack_item_align, None, "None (Bring into view)")
                 .clicked();
         });
 
@@ -213,7 +216,7 @@ impl super::View for ScrollTo {
         let (current_scroll, max_scroll) = scroll_area
             .show(ui, |ui| {
                 if scroll_top {
-                    ui.scroll_to_cursor(Align::TOP);
+                    ui.scroll_to_cursor(Some(Align::TOP));
                 }
                 ui.vertical(|ui| {
                     for item in 1..=50 {
@@ -228,7 +231,7 @@ impl super::View for ScrollTo {
                 });
 
                 if scroll_bottom {
-                    ui.scroll_to_cursor(Align::BOTTOM);
+                    ui.scroll_to_cursor(Some(Align::BOTTOM));
                 }
 
                 let margin = ui.visuals().clip_rect_margin;

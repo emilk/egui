@@ -1,5 +1,5 @@
 use crate::{
-    emath::{lerp, Align, Pos2, Rect, Vec2},
+    emath::{Align, Pos2, Rect, Vec2},
     menu, Context, CursorIcon, Id, LayerId, PointerButton, Sense, Ui, WidgetText,
     NUM_POINTER_BUTTONS,
 };
@@ -383,6 +383,14 @@ impl Response {
         true
     }
 
+    /// Like `on_hover_text`, but show the text next to cursor.
+    #[doc(alias = "tooltip")]
+    pub fn on_hover_text_at_pointer(self, text: impl Into<WidgetText>) -> Self {
+        self.on_hover_ui_at_pointer(|ui| {
+            ui.add(crate::widgets::Label::new(text));
+        })
+    }
+
     /// Show this text if the widget was hovered (i.e. a tooltip).
     ///
     /// The text will not be visible if the widget is not enabled.
@@ -435,7 +443,11 @@ impl Response {
         )
     }
 
-    /// Move the scroll to this UI with the specified alignment.
+    /// Adjust the scroll position until this UI becomes visible.
+    ///
+    /// If `align` is `None`, it'll scroll enough to bring the UI into view.
+    ///
+    /// See also: [`Ui::scroll_to_cursor`], [`Ui::scroll_to`].
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -443,18 +455,15 @@ impl Response {
     ///     for i in 0..1000 {
     ///         let response = ui.button("Scroll to me");
     ///         if response.clicked() {
-    ///             response.scroll_to_me(egui::Align::Center);
+    ///             response.scroll_to_me(Some(egui::Align::Center));
     ///         }
     ///     }
     /// });
     /// # });
     /// ```
-    pub fn scroll_to_me(&self, align: Align) {
-        let scroll_target = lerp(self.rect.x_range(), align.to_factor());
-        self.ctx.frame_state().scroll_target[0] = Some((scroll_target, align));
-
-        let scroll_target = lerp(self.rect.y_range(), align.to_factor());
-        self.ctx.frame_state().scroll_target[1] = Some((scroll_target, align));
+    pub fn scroll_to_me(&self, align: Option<Align>) {
+        self.ctx.frame_state().scroll_target[0] = Some((self.rect.x_range(), align));
+        self.ctx.frame_state().scroll_target[1] = Some((self.rect.y_range(), align));
     }
 
     /// For accessibility.

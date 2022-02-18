@@ -29,16 +29,17 @@ impl FileStorage {
         if let Some(proj_dirs) = directories_next::ProjectDirs::from("", "", app_name) {
             let data_dir = proj_dirs.data_dir().to_path_buf();
             if let Err(err) = std::fs::create_dir_all(&data_dir) {
-                eprintln!(
+                tracing::warn!(
                     "Saving disabled: Failed to create app path at {:?}: {}",
-                    data_dir, err
+                    data_dir,
+                    err
                 );
                 None
             } else {
                 Some(Self::from_ron_filepath(data_dir.join("app.ron")))
             }
         } else {
-            eprintln!("Saving disabled: Failed to find path to data_dir.");
+            tracing::warn!("Saving disabled: Failed to find path to data_dir.");
             None
         }
     }
@@ -79,7 +80,7 @@ where
             match ron::de::from_reader(reader) {
                 Ok(value) => Some(value),
                 Err(err) => {
-                    eprintln!("ERROR: Failed to parse RON: {}", err);
+                    tracing::warn!("Failed to parse RON: {}", err);
                     None
                 }
             }

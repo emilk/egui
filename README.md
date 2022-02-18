@@ -167,7 +167,7 @@ These are the official egui integrations:
 * [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium) for compiling native apps with [Glium](https://github.com/glium/glium).
 * [`egui_glow`](https://github.com/emilk/egui/tree/master/egui_glow) for compiling native apps with [Glow](https://github.com/grovesNL/glow).
 * [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web) for making a web app. Compiles to WASM, renders with WebGL. [Click to run the egui demo](https://www.egui.rs/#demo).
-* [`egui-winit`](https://github.com/emilk/egui/tree/master/egui-winit) for integrating with [`winit`](https://github.com/rust-windowing/winit). `egui-winit` is used by `egui_glium` and `egui_glow`.
+* [`egui-winit`](https://github.com/emilk/egui/tree/master/egui-winit) for integrating with [winit](https://github.com/rust-windowing/winit). `egui-winit` is used by `egui_glium` and `egui_glow`.
 
 ### 3rd party integrations
 
@@ -176,7 +176,7 @@ These are the official egui integrations:
 * [`egui_glfw_gl`](https://github.com/cohaereo/egui_glfw_gl) for [GLFW](https://crates.io/crates/glfw).
 * [`egui_sdl2_gl`](https://crates.io/crates/egui_sdl2_gl) for [SDL2](https://crates.io/crates/sdl2).
 * [`egui_vulkano`](https://github.com/derivator/egui_vulkano) for [Vulkano](https://github.com/vulkano-rs/vulkano).
-* [`egui_wgpu_backend`](https://crates.io/crates/egui_wgpu_backend) for [`wgpu`](https://crates.io/crates/wgpu) (WebGPU API).
+* [`egui_wgpu_backend`](https://crates.io/crates/egui_wgpu_backend) for [wgpu](https://crates.io/crates/wgpu) (WebGPU API).
 * [`egui_winit_vulkano`](https://github.com/hakolao/egui_winit_vulkano) for [Vulkano](https://github.com/vulkano-rs/vulkano).
 * [`egui-macroquad`](https://github.com/optozorax/egui-macroquad) for [macroquad](https://github.com/not-fl3/macroquad).
 * [`egui-miniquad`](https://github.com/not-fl3/egui-miniquad) for [Miniquad](https://github.com/not-fl3/miniquad).
@@ -184,8 +184,9 @@ These are the official egui integrations:
 * [`egui-winit-ash-integration`](https://github.com/MatchaChoco010/egui-winit-ash-integration) for [winit](https://github.com/rust-windowing/winit) and [ash](https://github.com/MaikKlein/ash).
 * [`fltk-egui`](https://crates.io/crates/fltk-egui) for [fltk-rs](https://github.com/fltk-rs/fltk-rs).
 * [`ggez-egui`](https://github.com/NemuiSen/ggez-egui) for the [ggez](https://ggez.rs/) game framework.
-* [`godot-egui`](https://github.com/setzer22/godot-egui) for [`godot-rust`](https://github.com/godot-rust/godot-rust).
+* [`godot-egui`](https://github.com/setzer22/godot-egui) for [godot-rust](https://github.com/godot-rust/godot-rust).
 * [`nannou_egui`](https://github.com/AlexEne/nannou_egui) for [nannou](https://nannou.cc).
+* [`smithay-egui`](https://github.com/Smithay/smithay-egui) for [smithay](https://github.com/Smithay/smithay/).
 
 Missing an integration for the thing you're working on? Create one, it's easy!
 
@@ -302,7 +303,19 @@ Also see [GitHub Discussions](https://github.com/emilk/egui/discussions/categori
 Yes! But you need to install your own font (`.ttf` or `.otf`) using `Context::set_fonts`.
 
 ### Can I customize the look of egui?
-Yes! You can customize the colors, spacing and sizes of everything. By default egui comes with a dark and a light theme.
+Yes! You can customize the colors, spacing, fonts and sizes of everything using `Context::set_style`.
+
+Here is an example (from https://github.com/AlexxxRu/TinyPomodoro):
+
+<img src="media/pompodoro-skin.png" width="50%">
+
+### How do I use egui with `async`?
+If you call `.await` in your GUI code, the UI will freeze, with is very bad UX. Instead, keep the GUI thread non-blocking and communicate with any concurrent tasks (`async` tasks or other threads) with something like:
+* Channels (e.g. [`std::sync::mpsc::channel`](https://doc.rust-lang.org/std/sync/mpsc/fn.channel.html)). Make sure to use [`try_recv`](https://doc.rust-lang.org/std/sync/mpsc/struct.Receiver.html#method.try_recv) so you don't block the gui thread!
+* `Arc<Mutex<Value>>` (background thread sets a value; GUI thread reads it)
+* [`poll_promise::Promise`](https://docs.rs/poll-promise) (example: [`eframe/examples/download_image.rs`](https://github.com/emilk/egui/blob/master/eframe/examples/download_image.rs))
+* [`eventuals::Eventual`](https://docs.rs/eventuals/latest/eventuals/struct.Eventual.html)
+* [`tokio::sync::watch::channel`](https://docs.rs/tokio/latest/tokio/sync/watch/fn.channel.html)
 
 ### What about accessibility, such as screen readers?
 There is experimental support for a screen reader. In [the web demo](https://www.egui.rs/#demo) you can enable it in the "Backend" tab.

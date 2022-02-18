@@ -7,8 +7,10 @@ All notable changes to the epaint crate will be documented in this file.
 * Much improved font selection ([#1154](https://github.com/emilk/egui/pull/1154)):
   * Replaced `TextStyle` with `FontId` which lets you pick any font size and font family.
   * Replaced `Fonts::font_image` with `font_image_delta` for partial font atlas updates.
+* Made v-align and scale of user fonts tweakable ([#1241](https://github.com/emilk/egui/pull/1027)).
 * Added `ImageData` and `TextureManager` for loading images into textures ([#1110](https://github.com/emilk/egui/pull/1110)).
 * Added `Shape::dashed_line_many` ([#1027](https://github.com/emilk/egui/pull/1027)).
+* Replaced `corner_radius: f32` with `rounding: Rounding`, allowing per-corner rounding settings ([#1206](https://github.com/emilk/egui/pull/1206)).
 
 
 ## 0.16.0 - 2021-12-29

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env sh
 script_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 cd "$script_path/.."
 set -eux
@@ -44,6 +44,8 @@ cargo doc --document-private-items --no-deps --all-features
 (cd epaint && cargo check --all-features)
 (cd epi && cargo check --all-features)
 
+# cargo install cargo-deny
+# cargo deny check
 
 # ------------------------------------------------------------
 #

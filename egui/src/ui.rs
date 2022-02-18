@@ -338,6 +338,21 @@ impl Ui {
         self.ctx().input()
     }
 
+    /// The [`InputState`] of the [`Context`] associated with this [`Ui`].
+    /// Equivalent to `.ctx().input_mut()`.
+    ///
+    /// Note that this locks the [`Context`], so be careful with if-let bindings
+    /// like for [`Self::input()`].
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// ui.input_mut().consume_key(egui::Modifiers::default(), egui::Key::Enter);
+    /// # });
+    /// ```
+    #[inline]
+    pub fn input_mut(&self) -> RwLockWriteGuard<'_, InputState> {
+        self.ctx().input_mut()
+    }
+
     /// The [`Memory`] of the [`Context`] associated with this ui.
     /// Equivalent to `.ctx().memory()`.
     #[inline]
@@ -889,7 +904,36 @@ impl Ui {
         (response, painter)
     }
 
-    /// Move the scroll to this cursor position with the specified alignment.
+    /// Adjust the scroll position of any parent [`ScrollArea`] so that the given `Rect` becomes visible.
+    ///
+    /// If `align` is `None`, it'll scroll enough to bring the cursor into view.
+    ///
+    /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to`].
+    ///
+    /// ```
+    /// # use egui::Align;
+    /// # egui::__run_test_ui(|ui| {
+    /// egui::ScrollArea::vertical().show(ui, |ui| {
+    ///     // …
+    ///     let response = ui.button("Center on me.");
+    ///     if response.clicked() {
+    ///         ui.scroll_to_rect(response.rect, Some(Align::Center));
+    ///     }
+    /// });
+    /// # });
+    /// ```
+    pub fn scroll_to_rect(&self, rect: Rect, align: Option<Align>) {
+        for d in 0..2 {
+            let range = rect.min[d]..=rect.max[d];
+            self.ctx().frame_state().scroll_target[d] = Some((range, align));
+        }
+    }
+
+    /// Adjust the scroll position of any parent [`ScrollArea`] so that the cursor (where the next widget goes) becomes visible.
+    ///
+    /// If `align` is not provided, it'll scroll enough to bring the cursor into view.
+    ///
+    /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to`].
     ///
     /// ```
     /// # use egui::Align;
@@ -901,15 +945,16 @@ impl Ui {
     ///     }
     ///
     ///     if scroll_bottom {
-    ///         ui.scroll_to_cursor(Align::BOTTOM);
+    ///         ui.scroll_to_cursor(Some(Align::BOTTOM));
     ///     }
     /// });
     /// # });
     /// ```
-    pub fn scroll_to_cursor(&mut self, align: Align) {
+    pub fn scroll_to_cursor(&self, align: Option<Align>) {
         let target = self.next_widget_position();
         for d in 0..2 {
-            self.ctx().frame_state().scroll_target[d] = Some((target[d], align));
+            let target = target[d];
+            self.ctx().frame_state().scroll_target[d] = Some((target..=target, align));
         }
     }
 }
@@ -1156,6 +1201,13 @@ impl Ui {
     /// Shortcut for `ui.label(RichText::new(text).strong())`
     pub fn strong(&mut self, text: impl Into<RichText>) -> Response {
         Label::new(text.into().strong()).ui(self)
+    }
+
+    /// Show text that is waker (fainter color).
+    ///
+    /// Shortcut for `ui.label(RichText::new(text).weak())`
+    pub fn weak(&mut self, text: impl Into<RichText>) -> Response {
+        Label::new(text.into().weak()).ui(self)
     }
 
     /// Shortcut for `add(Hyperlink::new(url))`

@@ -242,9 +242,9 @@ impl super::Demo for PaintBezier {
 
 impl super::View for PaintBezier {
     fn ui(&mut self, ui: &mut Ui) {
-        // ui.vertical_centered(|ui| {
-        //     ui.add(crate::__egui_github_link_file!());
-        // });
+        ui.vertical_centered(|ui| {
+            ui.add(crate::__egui_github_link_file!());
+        });
         self.ui_control(ui);
 
         Frame::dark_canvas(ui.style()).show(ui, |ui| {

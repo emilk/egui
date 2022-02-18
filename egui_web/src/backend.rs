@@ -14,10 +14,10 @@ fn create_painter(canvas_id: &str) -> Result<Box<dyn Painter>, JsValue> {
 
     #[cfg(all(feature = "webgl", not(feature = "glow")))]
     if let Ok(webgl2_painter) = webgl2::WebGl2Painter::new(canvas_id) {
-        console_log("Using WebGL2 backend");
+        tracing::debug!("Using WebGL2 backend");
         Ok(Box::new(webgl2_painter))
     } else {
-        console_log("Falling back to WebGL1 backend");
+        tracing::debug!("Falling back to WebGL1 backend");
         let webgl1_painter = webgl1::WebGlPainter::new(canvas_id)?;
         Ok(Box::new(webgl1_painter))
     }
@@ -81,6 +81,77 @@ impl epi::backend::RepaintSignal for NeedRepaint {
 
 // ----------------------------------------------------------------------------
 
+fn web_location() -> epi::Location {
+    let location = web_sys::window().unwrap().location();
+
+    let hash = percent_decode(&location.hash().unwrap_or_default());
+
+    let query = location
+        .search()
+        .unwrap_or_default()
+        .strip_prefix('?')
+        .map(percent_decode)
+        .unwrap_or_default();
+
+    let query_map = parse_query_map(&query)
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+
+    epi::Location {
+        url: percent_decode(&location.href().unwrap_or_default()),
+        protocol: percent_decode(&location.protocol().unwrap_or_default()),
+        host: percent_decode(&location.host().unwrap_or_default()),
+        hostname: percent_decode(&location.hostname().unwrap_or_default()),
+        port: percent_decode(&location.port().unwrap_or_default()),
+        hash,
+        query,
+        query_map,
+        origin: percent_decode(&location.origin().unwrap_or_default()),
+    }
+}
+
+fn parse_query_map(query: &str) -> BTreeMap<&str, &str> {
+    query
+        .split('&')
+        .filter_map(|pair| {
+            if pair.is_empty() {
+                None
+            } else {
+                Some(if let Some((key, value)) = pair.split_once('=') {
+                    (key, value)
+                } else {
+                    (pair, "")
+                })
+            }
+        })
+        .collect()
+}
+
+#[test]
+fn test_parse_query() {
+    assert_eq!(parse_query_map(""), BTreeMap::default());
+    assert_eq!(parse_query_map("foo"), BTreeMap::from_iter([("foo", "")]));
+    assert_eq!(
+        parse_query_map("foo=bar"),
+        BTreeMap::from_iter([("foo", "bar")])
+    );
+    assert_eq!(
+        parse_query_map("foo=bar&baz=42"),
+        BTreeMap::from_iter([("foo", "bar"), ("baz", "42")])
+    );
+    assert_eq!(
+        parse_query_map("foo&baz=42"),
+        BTreeMap::from_iter([("foo", ""), ("baz", "42")])
+    );
+    assert_eq!(
+        parse_query_map("foo&baz&&"),
+        BTreeMap::from_iter([("foo", ""), ("baz", "")])
+    );
+}
+
+// ----------------------------------------------------------------------------
+
 pub struct AppRunner {
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
@@ -108,7 +179,7 @@ impl AppRunner {
             info: epi::IntegrationInfo {
                 name: painter.name(),
                 web_info: Some(epi::WebInfo {
-                    web_location_hash: location_hash().unwrap_or_default(),
+                    location: web_location(),
                 }),
                 prefer_dark_mode,
                 cpu_usage: None,
@@ -281,9 +352,6 @@ impl AppRunner {
 /// Install event listeners to register different input events
 /// and start running the given app.
 pub fn start(canvas_id: &str, app: Box<dyn epi::App>) -> Result<AppRunnerRef, JsValue> {
-    // Make sure panics are logged using `console.error`.
-    console_error_panic_hook::set_once();
-
     let mut runner = AppRunner::new(canvas_id, app)?;
     runner.warm_up()?;
     start_runner(runner)
