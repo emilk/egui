@@ -807,9 +807,9 @@ impl Points {
 
 impl PlotItem for Points {
     fn get_shapes(&self, _ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
-        let sqrt_3 = 3f32.sqrt();
-        let frac_sqrt_3_2 = 3f32.sqrt() / 2.0;
-        let frac_1_sqrt_2 = 1.0 / 2f32.sqrt();
+        let sqrt_3 = 3_f32.sqrt();
+        let frac_sqrt_3_2 = 3_f32.sqrt() / 2.0;
+        let frac_1_sqrt_2 = 1.0 / 2_f32.sqrt();
 
         let Self {
             series,
@@ -861,15 +861,20 @@ impl PlotItem for Points {
                         }));
                     }
                     MarkerShape::Diamond => {
-                        let points = vec![tf(1.0, 0.0), tf(0.0, -1.0), tf(-1.0, 0.0), tf(0.0, 1.0)];
+                        let points = vec![
+                            tf(0.0, 1.0),  // bottom
+                            tf(-1.0, 0.0), // left
+                            tf(0.0, -1.0), // top
+                            tf(1.0, 0.0),  // right
+                        ];
                         shapes.push(Shape::convex_polygon(points, fill, stroke));
                     }
                     MarkerShape::Square => {
                         let points = vec![
-                            tf(frac_1_sqrt_2, frac_1_sqrt_2),
-                            tf(frac_1_sqrt_2, -frac_1_sqrt_2),
-                            tf(-frac_1_sqrt_2, -frac_1_sqrt_2),
                             tf(-frac_1_sqrt_2, frac_1_sqrt_2),
+                            tf(-frac_1_sqrt_2, -frac_1_sqrt_2),
+                            tf(frac_1_sqrt_2, -frac_1_sqrt_2),
+                            tf(frac_1_sqrt_2, frac_1_sqrt_2),
                         ];
                         shapes.push(Shape::convex_polygon(points, fill, stroke));
                     }
@@ -893,7 +898,7 @@ impl PlotItem for Points {
                     }
                     MarkerShape::Up => {
                         let points =
-                            vec![tf(0.0, -1.0), tf(-0.5 * sqrt_3, 0.5), tf(0.5 * sqrt_3, 0.5)];
+                            vec![tf(0.0, -1.0), tf(0.5 * sqrt_3, 0.5), tf(-0.5 * sqrt_3, 0.5)];
                         shapes.push(Shape::convex_polygon(points, fill, stroke));
                     }
                     MarkerShape::Down => {
@@ -912,8 +917,8 @@ impl PlotItem for Points {
                     MarkerShape::Right => {
                         let points = vec![
                             tf(1.0, 0.0),
-                            tf(-0.5, -0.5 * sqrt_3),
                             tf(-0.5, 0.5 * sqrt_3),
+                            tf(-0.5, -0.5 * sqrt_3),
                         ];
                         shapes.push(Shape::convex_polygon(points, fill, stroke));
                     }

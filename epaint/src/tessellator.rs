@@ -172,8 +172,12 @@ impl Path {
     }
 
     /// The path is taken to be closed (i.e. returning to the start again).
-    pub fn fill(&self, color: Color32, options: &TessellationOptions, out: &mut Mesh) {
-        fill_closed_path(&self.0, color, options, out);
+    ///
+    /// Calling this may reverse the vertices in the path if they are wrong winding order.
+    ///
+    /// The preferred winding order is clockwise.
+    pub fn fill(&mut self, color: Color32, options: &TessellationOptions, out: &mut Mesh) {
+        fill_closed_path(&mut self.0, color, options, out);
     }
 }
 
@@ -196,10 +200,10 @@ pub mod path {
             let min = rect.min;
             let max = rect.max;
             path.reserve(4);
-            path.push(pos2(min.x, min.y));
-            path.push(pos2(max.x, min.y));
-            path.push(pos2(max.x, max.y));
-            path.push(pos2(min.x, max.y));
+            path.push(pos2(min.x, min.y)); // left top
+            path.push(pos2(max.x, min.y)); // right top
+            path.push(pos2(max.x, max.y)); // right bottom
+            path.push(pos2(min.x, max.y)); // left bottom
         } else {
             add_circle_quadrant(path, pos2(max.x - r.se, max.y - r.se), r.se, 0.0);
             add_circle_quadrant(path, pos2(min.x + r.sw, max.y - r.sw), r.sw, 1.0);
@@ -346,9 +350,27 @@ impl TessellationOptions {
     }
 }
 
+fn cw_signed_area(path: &[PathPoint]) -> f64 {
+    if let Some(last) = path.last() {
+        let mut previous = last.pos;
+        let mut area = 0.0;
+        for p in path {
+            area += (previous.x * p.pos.y - p.pos.x * previous.y) as f64;
+            previous = p.pos;
+        }
+        area
+    } else {
+        0.0
+    }
+}
+
 /// Tessellate the given convex area into a polygon.
+///
+/// Calling this may reverse the vertices in the path if they are wrong winding order.
+///
+/// The preferred winding order is clockwise.
 fn fill_closed_path(
-    path: &[PathPoint],
+    path: &mut [PathPoint],
     color: Color32,
     options: &TessellationOptions,
     out: &mut Mesh,
@@ -359,6 +381,14 @@ fn fill_closed_path(
 
     let n = path.len() as u32;
     if options.anti_alias {
+        if cw_signed_area(path) < 0.0 {
+            // Wrong winding order - fix:
+            path.reverse();
+            for point in path.iter_mut() {
+                point.normal = -point.normal;
+            }
+        }
+
         out.reserve_triangles(3 * n as usize);
         out.reserve_vertices(2 * n as usize);
         let color_outer = Color32::TRANSPARENT;

@@ -11,6 +11,7 @@ All notable changes to the epaint crate will be documented in this file.
 * Added `ImageData` and `TextureManager` for loading images into textures ([#1110](https://github.com/emilk/egui/pull/1110)).
 * Added `Shape::dashed_line_many` ([#1027](https://github.com/emilk/egui/pull/1027)).
 * Replaced `corner_radius: f32` with `rounding: Rounding`, allowing per-corner rounding settings ([#1206](https://github.com/emilk/egui/pull/1206)).
+* Fix anti-aliasing of filled paths with counter-clockwise winding order.
 
 
 ## 0.16.0 - 2021-12-29

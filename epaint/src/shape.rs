@@ -94,6 +94,8 @@ impl Shape {
     }
 
     /// A convex polygon with a fill and optional stroke.
+    ///
+    /// The most performant winding order is clockwise.
     #[inline]
     pub fn convex_polygon(
         points: Vec<Pos2>,
@@ -259,6 +261,7 @@ impl From<CircleShape> for Shape {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PathShape {
+    /// Filled paths should prefer clockwise order.
     pub points: Vec<Pos2>,
     /// If true, connect the first and last of the points together.
     /// This is required if `fill != TRANSPARENT`.
@@ -294,6 +297,8 @@ impl PathShape {
     }
 
     /// A convex polygon with a fill and optional stroke.
+    ///
+    /// The most performant winding order is clockwise.
     #[inline]
     pub fn convex_polygon(
         points: Vec<Pos2>,
@@ -455,7 +460,7 @@ pub struct TextShape {
     /// This will NOT replace background color nor strikethrough/underline color.
     pub override_text_color: Option<Color32>,
 
-    /// Rotate text by this many radians clock-wise.
+    /// Rotate text by this many radians clockwise.
     /// The pivot is `pos` (the upper left corner of the text).
     pub angle: f32,
 }
