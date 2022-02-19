@@ -500,7 +500,18 @@ impl<'a> Slider<'a> {
 
         if self.show_value {
             let position_range = self.position_range(&response.rect);
-            response |= self.value_ui(ui, position_range);
+            let value_response = self.value_ui(ui, position_range);
+            if value_response.gained_focus()
+                || value_response.has_focus()
+                || value_response.lost_focus()
+            {
+                // Use the `DragValue` id as the id of the whole widget,
+                // so that the focus events work as expected.
+                response = value_response | response;
+            } else {
+                // Use the slider id as the id for the whole widget
+                response = response | value_response;
+            }
         }
 
         if !self.text.is_empty() {
