@@ -64,6 +64,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Calling `Context::set_pixels_per_point` before the first frame will now work.
 * Tooltips that don't fit the window don't flicker anymore ([#1240](https://github.com/emilk/egui/pull/1240)).
 * Scroll areas now follow text cursor ([1252](https://github.com/emilk/egui/pull/1252)).
+* Slider: correctly respond with drag and focus events when interacting with the value directly ([1270](https://github.com/emilk/egui/pull/1270)).
 
 ### Contributors 🙏
 * [AlexxxRu](https://github.com/alexxxru): [#1108](https://github.com/emilk/egui/pull/1108).
