@@ -133,9 +133,20 @@ impl Path {
 
             let normal = (n0 + n1) / 2.0;
             let length_sq = normal.length_sq();
+
+            // We can't just cut off corners for filled shapes like this,
+            // because the feather will both expand and contract the corner along the provided normals
+            // to make sure it doesn't grow, and the shrinking will make the inner points cross each other.
+            //
+            // A better approach is to shrink the vertices in by half the feather-width here
+            // and then only expand during feathering.
+            //
+            // See https://github.com/emilk/egui/issues/1226
+            const CUT_OFF_SHARP_CORNERS: bool = false;
+
             let right_angle_length_sq = 0.5;
             let sharper_than_a_right_angle = length_sq < right_angle_length_sq;
-            if sharper_than_a_right_angle {
+            if CUT_OFF_SHARP_CORNERS && sharper_than_a_right_angle {
                 // cut off the sharp corner
                 let center_normal = normal.normalized();
                 let n0c = (n0 + center_normal) / 2.0;
@@ -394,9 +405,13 @@ fn fill_closed_path(
         let color_outer = Color32::TRANSPARENT;
         let idx_inner = out.vertices.len() as u32;
         let idx_outer = idx_inner + 1;
+
+        // The fill:
         for i in 2..n {
             out.add_triangle(idx_inner + 2 * (i - 1), idx_inner, idx_inner + 2 * i);
         }
+
+        // The feathering:
         let mut i0 = n - 1;
         for i1 in 0..n {
             let p1 = &path[i1 as usize];
