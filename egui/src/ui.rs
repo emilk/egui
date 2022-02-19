@@ -1014,7 +1014,7 @@ impl Ui {
         .inner
     }
 
-    /// Add a single[`Widget`] that is possibly disabled, i.e. greyed out and non-interactive.
+    /// Add a single [`Widget`] that is possibly disabled, i.e. greyed out and non-interactive.
     ///
     /// If you call `add_enabled` from within an already disabled `Ui`,
     /// the widget will always be disabled, even if the `enabled` argument is true.
