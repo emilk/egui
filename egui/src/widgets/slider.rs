@@ -300,10 +300,10 @@ impl<'a> Slider<'a> {
 
 impl<'a> Slider<'a> {
     /// Just the slider, no text
-    fn allocate_slider_space(&self, ui: &mut Ui, perpendicular: f32) -> Response {
+    fn allocate_slider_space(&self, ui: &mut Ui, thickness: f32) -> Response {
         let desired_size = match self.orientation {
-            SliderOrientation::Horizontal => vec2(ui.spacing().slider_width, perpendicular),
-            SliderOrientation::Vertical => vec2(perpendicular, ui.spacing().slider_width),
+            SliderOrientation::Horizontal => vec2(ui.spacing().slider_width, thickness),
+            SliderOrientation::Vertical => vec2(thickness, ui.spacing().slider_width),
         };
         ui.allocate_response(desired_size, Sense::click_and_drag())
     }
@@ -453,15 +453,7 @@ impl<'a> Slider<'a> {
         }
     }
 
-    fn label_ui(&mut self, ui: &mut Ui) {
-        if !self.text.is_empty() {
-            let text_color = self.text_color.unwrap_or_else(|| ui.visuals().text_color());
-            let text = RichText::new(&self.text).color(text_color);
-            ui.add(Label::new(text).wrap(false));
-        }
-    }
-
-    fn value_ui(&mut self, ui: &mut Ui, position_range: RangeInclusive<f32>) {
+    fn value_ui(&mut self, ui: &mut Ui, position_range: RangeInclusive<f32>) -> Response {
         // If `DragValue` is controlled from the keyboard and `step` is defined, set speed to `step`
         let change = ui.input().num_presses(Key::ArrowUp) as i32
             + ui.input().num_presses(Key::ArrowRight) as i32
@@ -472,7 +464,7 @@ impl<'a> Slider<'a> {
             _ => self.current_gradient(&position_range),
         };
         let mut value = self.get_value();
-        ui.add(
+        let response = ui.add(
             DragValue::new(&mut value)
                 .speed(speed)
                 .clamp_range(self.clamp_range())
@@ -484,6 +476,7 @@ impl<'a> Slider<'a> {
         if value != self.get_value() {
             self.set_value(value);
         }
+        response
     }
 
     /// delta(value) / delta(points)
@@ -499,21 +492,24 @@ impl<'a> Slider<'a> {
     }
 
     fn add_contents(&mut self, ui: &mut Ui) -> Response {
-        let perpendicular = ui
+        let thickness = ui
             .text_style_height(&TextStyle::Body)
             .at_least(ui.spacing().interact_size.y);
-        let slider_response = self.allocate_slider_space(ui, perpendicular);
-        self.slider_ui(ui, &slider_response);
+        let mut response = self.allocate_slider_space(ui, thickness);
+        self.slider_ui(ui, &response);
 
         if self.show_value {
-            let position_range = self.position_range(&slider_response.rect);
-            self.value_ui(ui, position_range);
+            let position_range = self.position_range(&response.rect);
+            response |= self.value_ui(ui, position_range);
         }
 
         if !self.text.is_empty() {
-            self.label_ui(ui);
+            let text_color = self.text_color.unwrap_or_else(|| ui.visuals().text_color());
+            let text = RichText::new(&self.text).color(text_color);
+            ui.add(Label::new(text).wrap(false));
         }
-        slider_response
+
+        response
     }
 }
 
