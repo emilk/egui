@@ -447,7 +447,7 @@ impl Response {
     ///
     /// If `align` is `None`, it'll scroll enough to bring the UI into view.
     ///
-    /// See also: [`Ui::scroll_to_cursor`], [`Ui::scroll_to`].
+    /// See also: [`Ui::scroll_to_cursor`], [`Ui::scroll_to_rect`].
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {

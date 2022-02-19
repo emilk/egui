@@ -372,27 +372,27 @@ pub struct WebInfo {
 pub struct Location {
     /// The full URL (`location.href`) without the hash.
     ///
-    /// Example: "http://www.example.com:80/index.html?foo=bar".
+    /// Example: `"http://www.example.com:80/index.html?foo=bar"`.
     pub url: String,
 
     /// `location.protocol`
     ///
-    /// Example: "http:".
+    /// Example: `"http:"`.
     pub protocol: String,
 
     /// `location.host`
     ///
-    /// Example: "example.com:80".
+    /// Example: `"example.com:80"`.
     pub host: String,
 
     /// `location.hostname`
     ///
-    /// Example: "example.com".
+    /// Example: `"example.com"`.
     pub hostname: String,
 
     /// `location.port`
     ///
-    /// Example: "80".
+    /// Example: `"80"`.
     pub port: String,
 
     /// The "#fragment" part of "www.example.com/index.html?query#fragment".
@@ -415,7 +415,7 @@ pub struct Location {
 
     /// `location.origin`
     ///
-    /// Example: "http://www.example.com:80"
+    /// Example: `"http://www.example.com:80"`.
     pub origin: String,
 }
 

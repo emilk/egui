@@ -52,6 +52,7 @@ cargo doc --document-private-items --no-deps --all-features
 
 # For finding bloat:
 # cargo bloat --release --bin demo_glium -n 200 | rg egui
+# Also try https://github.com/google/bloaty
 
 # what compiles slowly?
 # https://fasterthanli.me/articles/why-is-my-rust-build-so-slow

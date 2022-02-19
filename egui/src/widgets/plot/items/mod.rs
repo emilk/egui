@@ -613,6 +613,7 @@ impl PlotItem for Polygon {
 }
 
 /// Text inside the plot.
+#[derive(Clone)]
 pub struct Text {
     pub(super) text: WidgetText,
     pub(super) position: Value,
@@ -1079,6 +1080,7 @@ impl PlotItem for Arrows {
 }
 
 /// An image in the plot.
+#[derive(Clone)]
 pub struct PlotImage {
     pub(super) position: Value,
     pub(super) texture_id: TextureId,

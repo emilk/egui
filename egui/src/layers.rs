@@ -23,6 +23,7 @@ pub enum Order {
     /// Debug layer, always painted last / on top
     Debug,
 }
+
 impl Order {
     const COUNT: usize = 6;
     const ALL: [Order; Self::COUNT] = [

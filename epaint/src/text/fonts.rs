@@ -160,15 +160,15 @@ pub struct FontTweak {
 
     /// Shift font downwards by this fraction of the font size (in points).
     ///
-    /// A positive value shifts the text upwards.
-    /// A negative value shifts it downwards.
+    /// A positive value shifts the text downwards.
+    /// A negative value shifts it upwards.
     ///
     /// Example value: `-0.2`.
     pub y_offset_factor: f32,
 
     /// Shift font downwards by this amount of logical points.
     ///
-    /// Example value: `-1.0`.
+    /// Example value: `2.0`.
     pub y_offset: f32,
 }
 

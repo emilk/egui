@@ -24,6 +24,6 @@ Check out [eframe_template](https://github.com/emilk/eframe_template) for an exa
 * No integration with browser settings for colors and fonts.
 * On Linux and Mac, Firefox will copy the WebGL render target from GPU, to CPU and then back again (https://bugzilla.mozilla.org/show_bug.cgi?id=1010527#c0), slowing down egui.
 
-The suggested use for `egui_web` is for experiments, personal projects and web games. Using egui for a serious web page is probably a bad idea.
-
 In many ways, `egui_web` is trying to make the browser do something it wasn't designed to do (though there are many things browser vendors could do to improve how well libraries like egui work).
+
+The suggested use for `egui_web` are for web apps where performance and responsiveness are more important than accessability and mobile text editing.

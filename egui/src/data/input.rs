@@ -165,18 +165,27 @@ pub enum Event {
     ///
     /// When the user presses enter/return, do not send a `Text` (just [`Key::Enter`]).
     Text(String),
+    /// A key was pressed or released.
     Key {
         key: Key,
+        /// Was it pressed or released?
         pressed: bool,
+        /// The state of the modifier keys at the time of the event.
         modifiers: Modifiers,
     },
 
+    /// The mouse or touch moved to a new place.
     PointerMoved(Pos2),
+
+    /// A mouse button was pressed or released (or a touch started or stopped).
     PointerButton {
+        /// Where is the pointer?
         pos: Pos2,
+        /// What mouse button? For touches, use [`PointerButton::Primary`].
         button: PointerButton,
+        /// Was it the button/touch pressed this frame, or released?
         pressed: bool,
-        /// The state of the modifier keys at the time of the event
+        /// The state of the modifier keys at the time of the event.
         modifiers: Modifiers,
     },
     /// The mouse left the screen, or the last/primary touch input disappeared.
@@ -217,6 +226,7 @@ pub enum Event {
         /// Unique identifier of a finger/pen. Value is stable from touch down
         /// to lift-up
         id: TouchId,
+        /// One of: start move end cancel.
         phase: TouchPhase,
         /// Position of the touch (or where the touch was last detected)
         pos: Pos2,

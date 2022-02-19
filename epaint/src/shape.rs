@@ -31,6 +31,20 @@ pub enum Shape {
     CubicBezier(CubicBezierShape),
 }
 
+impl From<Vec<Shape>> for Shape {
+    #[inline(always)]
+    fn from(shapes: Vec<Shape>) -> Self {
+        Self::Vec(shapes)
+    }
+}
+
+impl From<Mesh> for Shape {
+    #[inline(always)]
+    fn from(mesh: Mesh) -> Self {
+        Self::Mesh(mesh)
+    }
+}
+
 /// ## Constructors
 impl Shape {
     /// A line between two points.
@@ -59,25 +73,25 @@ impl Shape {
 
     /// Turn a line into equally spaced dots.
     pub fn dotted_line(
-        points: &[Pos2],
+        path: &[Pos2],
         color: impl Into<Color32>,
         spacing: f32,
         radius: f32,
     ) -> Vec<Self> {
         let mut shapes = Vec::new();
-        points_from_line(points, spacing, radius, color.into(), &mut shapes);
+        points_from_line(path, spacing, radius, color.into(), &mut shapes);
         shapes
     }
 
     /// Turn a line into dashes.
     pub fn dashed_line(
-        points: &[Pos2],
+        path: &[Pos2],
         stroke: impl Into<Stroke>,
         dash_length: f32,
         gap_length: f32,
     ) -> Vec<Self> {
         let mut shapes = Vec::new();
-        dashes_from_line(points, stroke.into(), dash_length, gap_length, &mut shapes);
+        dashes_from_line(path, stroke.into(), dash_length, gap_length, &mut shapes);
         shapes
     }
 
@@ -495,16 +509,15 @@ impl From<TextShape> for Shape {
 
 /// Creates equally spaced filled circles from a line.
 fn points_from_line(
-    line: &[Pos2],
+    path: &[Pos2],
     spacing: f32,
     radius: f32,
     color: Color32,
     shapes: &mut Vec<Shape>,
 ) {
     let mut position_on_segment = 0.0;
-    line.windows(2).for_each(|window| {
-        let start = window[0];
-        let end = window[1];
+    path.windows(2).for_each(|window| {
+        let (start, end) = (window[0], window[1]);
         let vector = end - start;
         let segment_length = vector.length();
         while position_on_segment < segment_length {
@@ -518,7 +531,7 @@ fn points_from_line(
 
 /// Creates dashes from a line.
 fn dashes_from_line(
-    line: &[Pos2],
+    path: &[Pos2],
     stroke: Stroke,
     dash_length: f32,
     gap_length: f32,
@@ -526,9 +539,8 @@ fn dashes_from_line(
 ) {
     let mut position_on_segment = 0.0;
     let mut drawing_dash = false;
-    line.windows(2).for_each(|window| {
-        let start = window[0];
-        let end = window[1];
+    path.windows(2).for_each(|window| {
+        let (start, end) = (window[0], window[1]);
         let vector = end - start;
         let segment_length = vector.length();
 
