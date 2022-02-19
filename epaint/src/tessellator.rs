@@ -1026,16 +1026,20 @@ pub fn tessellate_shapes(
 
     if options.debug_paint_clip_rects {
         for ClippedMesh(clip_rect, mesh) in &mut clipped_meshes {
-            tessellator.clip_rect = Rect::EVERYTHING;
-            tessellator.tessellate_shape(
-                tex_size,
-                Shape::rect_stroke(
-                    *clip_rect,
-                    0.0,
-                    Stroke::new(2.0, Color32::from_rgb(150, 255, 150)),
-                ),
-                mesh,
-            );
+            if mesh.texture_id == TextureId::default() {
+                tessellator.clip_rect = Rect::EVERYTHING;
+                tessellator.tessellate_shape(
+                    tex_size,
+                    Shape::rect_stroke(
+                        *clip_rect,
+                        0.0,
+                        Stroke::new(2.0, Color32::from_rgb(150, 255, 150)),
+                    ),
+                    mesh,
+                );
+            } else {
+                // TODO: create a new `ClippedMesh` just for the painted clip rectangle
+            }
         }
     }
 
