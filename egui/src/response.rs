@@ -510,6 +510,8 @@ impl Response {
 impl Response {
     /// A logical "or" operation.
     /// For instance `a.union(b).hovered` means "was either a or b hovered?".
+    ///
+    /// The resulting [`Self::id`] will come from the first (`self`) argument.
     pub fn union(&self, other: Self) -> Self {
         assert!(self.ctx == other.ctx);
         crate::egui_assert!(
