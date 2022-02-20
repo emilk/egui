@@ -73,6 +73,7 @@ pub struct Slider<'a> {
     text_color: Option<Color32>,
     /// Sets the minimal step of the widget value
     step: Option<f64>,
+    scroll_step: Option<f64>,
     min_decimals: usize,
     max_decimals: Option<usize>,
 }
@@ -116,6 +117,7 @@ impl<'a> Slider<'a> {
             text: Default::default(),
             text_color: None,
             step: None,
+            scroll_step: None,
             min_decimals: 0,
             max_decimals: None,
         }
@@ -203,12 +205,41 @@ impl<'a> Slider<'a> {
     }
 
     /// Sets the minimal change of the value.
-    /// Value `0.0` effectively disables the feature. If the new value is out of range
+    /// Value `0.0` (or less) effectively disables the feature. If the new value is out of range
     /// and `clamp_to_range` is enabled, you would not have the ability to change the value.
-    ///
+    /// Using this parameter overrides the `scroll_step` value
     /// Default: `0.0` (disabled).
     pub fn step_by(mut self, step: f64) -> Self {
-        self.step = if step != 0.0 { Some(step) } else { None };
+        self.step = if step > 0.0 {
+            self.scroll_step = Some(step);
+            Some(step)
+        } else {
+            None
+        };
+        self
+    }
+
+    /// Sets the step by which the value changes when scrolling the mouse wheel
+    /// Value `0.0` (or less) effectively disables the feature. If `step_by` is used,
+    /// then this function will take its value.
+    /// Default: `0.0` (disabled).
+    pub fn scroll_step(mut self, scroll_step: f64) -> Self {
+        if scroll_step <= 0_f64 {
+            self.scroll_step = None;
+            return self;
+        }
+
+        match self.step {
+            Some(step) => {
+                if step == 0_f64 {
+                    self.scroll_step = Some(scroll_step);
+                } else {
+                    self.scroll_step = self.step;
+                }
+            }
+            None => self.scroll_step = Some(scroll_step),
+        }
+
         self
     }
 
@@ -324,7 +355,18 @@ impl<'a> Slider<'a> {
             } else {
                 self.value_from_position(position, position_range.clone())
             };
+
             self.set_value(new_value);
+        }
+
+        if response.hover_pos().is_some() {
+            let prev_value = self.get_value();
+            let input = ui.input();
+            let delta = (input.scroll_delta.x + input.scroll_delta.y) as f64;
+            if let Some(scroll_step) = self.scroll_step {
+                // Scroll speed decided by consensus: https://github.com/emilk/egui/issues/461
+                self.set_value(prev_value + (delta / 50_f64) * scroll_step);
+            }
         }
 
         let value = self.get_value();
