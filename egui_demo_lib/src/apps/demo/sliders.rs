@@ -13,6 +13,8 @@ pub struct Sliders {
     pub smart_aim: bool,
     pub step: f64,
     pub use_steps: bool,
+    pub scroll_step: f64,
+    pub use_scroll_step: bool,
     pub integer: bool,
     pub vertical: bool,
     pub value: f64,
@@ -28,6 +30,8 @@ impl Default for Sliders {
             smart_aim: true,
             step: 10.0,
             use_steps: false,
+            scroll_step: 10.0,
+            use_scroll_step: false,
             integer: false,
             vertical: false,
             value: 10.0,
@@ -61,6 +65,8 @@ impl super::View for Sliders {
             smart_aim,
             step,
             use_steps,
+            scroll_step,
+            use_scroll_step,
             integer,
             vertical,
             value,
@@ -86,6 +92,13 @@ impl super::View for Sliders {
         };
 
         let istep = if *use_steps { *step } else { 0.0 };
+
+        let scroll_step_new_val = if *use_scroll_step {
+            *scroll_step
+        } else {
+            0_f64
+        };
+
         if *integer {
             let mut value_i32 = *value as i32;
             ui.add(
@@ -95,7 +108,8 @@ impl super::View for Sliders {
                     .smart_aim(*smart_aim)
                     .orientation(orientation)
                     .text("i32 demo slider")
-                    .step_by(istep),
+                    .step_by(istep)
+                    .scroll_step(scroll_step_new_val),
             );
             *value = value_i32 as f64;
         } else {
@@ -106,7 +120,8 @@ impl super::View for Sliders {
                     .smart_aim(*smart_aim)
                     .orientation(orientation)
                     .text("f64 demo slider")
-                    .step_by(istep),
+                    .step_by(istep)
+                    .scroll_step(scroll_step_new_val),
             );
 
             ui.label(
@@ -141,6 +156,14 @@ impl super::View for Sliders {
         ui.label("When enabled, the minimal value change would be restricted to a given step.");
         if *use_steps {
             ui.add(egui::DragValue::new(step).speed(1.0));
+        }
+
+        ui.separator();
+
+        ui.checkbox(use_scroll_step, "Use scroll steps");
+        ui.label("When enabled, scrolling will change the slider value by the specified amount");
+        if *use_scroll_step {
+            ui.add(egui::DragValue::new(scroll_step).speed(1.0));
         }
 
         ui.separator();
