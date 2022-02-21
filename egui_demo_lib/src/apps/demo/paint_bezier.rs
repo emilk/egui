@@ -122,7 +122,7 @@ impl PaintBezier {
                 let shape =
                     QuadraticBezierShape::from_points_stroke(points, true, self.fill, self.stroke);
                 painter.add(epaint::RectShape::stroke(
-                    shape.bounding_rect(),
+                    shape.visual_bounding_rect(),
                     0.0,
                     self.bounding_box_stroke,
                 ));
@@ -133,7 +133,7 @@ impl PaintBezier {
                 let shape =
                     CubicBezierShape::from_points_stroke(points, true, self.fill, self.stroke);
                 painter.add(epaint::RectShape::stroke(
-                    shape.bounding_rect(),
+                    shape.visual_bounding_rect(),
                     0.0,
                     self.bounding_box_stroke,
                 ));

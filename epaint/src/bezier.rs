@@ -74,8 +74,17 @@ impl CubicBezierShape {
         pathshapes
     }
 
-    /// Screen-space bounding rectangle.
-    pub fn bounding_rect(&self) -> Rect {
+    /// The visual bounding rectangle (includes stroke width)
+    pub fn visual_bounding_rect(&self) -> Rect {
+        if self.fill == Color32::TRANSPARENT && self.stroke.is_empty() {
+            Rect::NOTHING
+        } else {
+            self.logical_bounding_rect().expand(self.stroke.width / 2.0)
+        }
+    }
+
+    /// Logical bounding rectangle (ignoring stroke width)
+    pub fn logical_bounding_rect(&self) -> Rect {
         //temporary solution
         let (mut min_x, mut max_x) = if self.points[0].x < self.points[3].x {
             (self.points[0].x, self.points[3].x)
@@ -421,8 +430,17 @@ impl QuadraticBezierShape {
         }
     }
 
-    /// bounding box of the quadratic Bézier shape
-    pub fn bounding_rect(&self) -> Rect {
+    /// The visual bounding rectangle (includes stroke width)
+    pub fn visual_bounding_rect(&self) -> Rect {
+        if self.fill == Color32::TRANSPARENT && self.stroke.is_empty() {
+            Rect::NOTHING
+        } else {
+            self.logical_bounding_rect().expand(self.stroke.width / 2.0)
+        }
+    }
+
+    /// Logical bounding rectangle (ignoring stroke width)
+    pub fn logical_bounding_rect(&self) -> Rect {
         let (mut min_x, mut max_x) = if self.points[0].x < self.points[2].x {
             (self.points[0].x, self.points[2].x)
         } else {
@@ -755,7 +773,7 @@ mod tests {
             fill: Default::default(),
             stroke: Default::default(),
         };
-        let bbox = curve.bounding_rect();
+        let bbox = curve.logical_bounding_rect();
         assert!((bbox.min.x - 72.96).abs() < 0.01);
         assert!((bbox.min.y - 27.78).abs() < 0.01);
 
@@ -779,7 +797,7 @@ mod tests {
             fill: Default::default(),
             stroke: Default::default(),
         };
-        let bbox = curve.bounding_rect();
+        let bbox = curve.logical_bounding_rect();
         assert!((bbox.min.x - 10.0).abs() < 0.01);
         assert!((bbox.min.y - 10.0).abs() < 0.01);
 
@@ -848,7 +866,7 @@ mod tests {
             stroke: Default::default(),
         };
 
-        let bbox = curve.bounding_rect();
+        let bbox = curve.logical_bounding_rect();
         assert_eq!(bbox.min.x, 10.0);
         assert_eq!(bbox.min.y, 10.0);
         assert_eq!(bbox.max.x, 270.0);
@@ -866,7 +884,7 @@ mod tests {
             stroke: Default::default(),
         };
 
-        let bbox = curve.bounding_rect();
+        let bbox = curve.logical_bounding_rect();
         assert_eq!(bbox.min.x, 10.0);
         assert_eq!(bbox.min.y, 10.0);
         assert!((bbox.max.x - 206.50).abs() < 0.01);
@@ -884,7 +902,7 @@ mod tests {
             stroke: Default::default(),
         };
 
-        let bbox = curve.bounding_rect();
+        let bbox = curve.logical_bounding_rect();
         assert!((bbox.min.x - 86.71).abs() < 0.01);
         assert!((bbox.min.y - 30.0).abs() < 0.01);
 

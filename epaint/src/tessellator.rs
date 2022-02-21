@@ -793,7 +793,7 @@ impl Tessellator {
         let clip_rect = self.clip_rect;
 
         if options.coarse_tessellation_culling
-            && !quadratic_shape.bounding_rect().intersects(clip_rect)
+            && !quadratic_shape.visual_bounding_rect().intersects(clip_rect)
         {
             return;
         }
@@ -816,7 +816,8 @@ impl Tessellator {
     ) {
         let options = &self.options;
         let clip_rect = self.clip_rect;
-        if options.coarse_tessellation_culling && !cubic_shape.bounding_rect().intersects(clip_rect)
+        if options.coarse_tessellation_culling
+            && !cubic_shape.visual_bounding_rect().intersects(clip_rect)
         {
             return;
         }
@@ -870,7 +871,7 @@ impl Tessellator {
         }
 
         if self.options.coarse_tessellation_culling
-            && !path_shape.bounding_rect().intersects(self.clip_rect)
+            && !path_shape.visual_bounding_rect().intersects(self.clip_rect)
         {
             return;
         }

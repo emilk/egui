@@ -170,6 +170,34 @@ impl Shape {
         crate::epaint_assert!(mesh.is_valid());
         Self::Mesh(mesh)
     }
+
+    /// The visual bounding rectangle (includes stroke widths)
+    pub fn visual_bounding_rect(&self) -> Rect {
+        match self {
+            Self::Noop => Rect::NOTHING,
+            Self::Vec(shapes) => {
+                let mut rect = Rect::NOTHING;
+                for shape in shapes {
+                    rect = rect.union(shape.visual_bounding_rect());
+                }
+                rect
+            }
+            Self::Circle(circle_shape) => circle_shape.visual_bounding_rect(),
+            Self::LineSegment { points, stroke } => {
+                if stroke.is_empty() {
+                    Rect::NOTHING
+                } else {
+                    Rect::from_two_pos(points[0], points[1]).expand(stroke.width / 2.0)
+                }
+            }
+            Self::Path(path_shape) => path_shape.visual_bounding_rect(),
+            Self::Rect(rect_shape) => rect_shape.visual_bounding_rect(),
+            Self::Text(text_shape) => text_shape.visual_bounding_rect(),
+            Self::Mesh(mesh) => mesh.calc_bounds(),
+            Self::QuadraticBezier(bezier) => bezier.visual_bounding_rect(),
+            Self::CubicBezier(bezier) => bezier.visual_bounding_rect(),
+        }
+    }
 }
 
 /// ## Inspection and transforms
@@ -260,6 +288,18 @@ impl CircleShape {
             stroke: stroke.into(),
         }
     }
+
+    /// The visual bounding rectangle (includes stroke width)
+    pub fn visual_bounding_rect(&self) -> Rect {
+        if self.fill == Color32::TRANSPARENT && self.stroke.is_empty() {
+            Rect::NOTHING
+        } else {
+            Rect::from_center_size(
+                self.center,
+                Vec2::splat(self.radius + self.stroke.width / 2.0),
+            )
+        }
+    }
 }
 
 impl From<CircleShape> for Shape {
@@ -327,10 +367,14 @@ impl PathShape {
         }
     }
 
-    /// Screen-space bounding rectangle.
+    /// The visual bounding rectangle (includes stroke width)
     #[inline]
-    pub fn bounding_rect(&self) -> Rect {
-        Rect::from_points(&self.points).expand(self.stroke.width)
+    pub fn visual_bounding_rect(&self) -> Rect {
+        if self.fill == Color32::TRANSPARENT && self.stroke.is_empty() {
+            Rect::NOTHING
+        } else {
+            Rect::from_points(&self.points).expand(self.stroke.width / 2.0)
+        }
     }
 }
 
@@ -379,10 +423,14 @@ impl RectShape {
         }
     }
 
-    /// Screen-space bounding rectangle.
+    /// The visual bounding rectangle (includes stroke width)
     #[inline]
-    pub fn bounding_rect(&self) -> Rect {
-        self.rect.expand(self.stroke.width)
+    pub fn visual_bounding_rect(&self) -> Rect {
+        if self.fill == Color32::TRANSPARENT && self.stroke.is_empty() {
+            Rect::NOTHING
+        } else {
+            self.rect.expand(self.stroke.width / 2.0)
+        }
     }
 }
 
@@ -491,9 +539,9 @@ impl TextShape {
         }
     }
 
-    /// Screen-space bounding rectangle.
+    /// The visual bounding rectangle
     #[inline]
-    pub fn bounding_rect(&self) -> Rect {
+    pub fn visual_bounding_rect(&self) -> Rect {
         self.galley.mesh_bounds.translate(self.pos.to_vec2())
     }
 }
