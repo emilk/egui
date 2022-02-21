@@ -126,10 +126,7 @@ fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRang
         (Key::S, "~"), // ~strikethrough~
         (Key::U, "_"), // _underline_
     ] {
-        if ui
-            .input_mut()
-            .consume_key(egui::Modifiers::new().command(true), key)
-        {
+        if ui.input_mut().consume_key(egui::Modifiers::COMMAND, key) {
             toggle_surrounding(code, ccursor_range, surrounding);
             any_change = true;
         };
