@@ -108,10 +108,17 @@ impl epi::App for WrapApp {
             });
         }
 
+        let mut found_anchor = false;
+
         for (anchor, app) in self.apps.iter_mut() {
             if anchor == self.selected_anchor || ctx.memory().everything_is_visible() {
                 app.update(ctx, frame);
+                found_anchor = true;
             }
+        }
+
+        if !found_anchor {
+            self.selected_anchor = "demo".into();
         }
 
         self.backend_panel.end_of_frame(ctx);
