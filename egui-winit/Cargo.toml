@@ -53,7 +53,7 @@ epi = { version = "0.16.0", path = "../epi", optional = true }
 copypasta = { version = "0.7", optional = true }
 dark-light = { version = "0.2.1", optional = true } # detect dark mode system preference
 serde = { version = "1.0", optional = true, features = ["derive"] }
-webbrowser = { version = "0.5", optional = true }
+webbrowser = { version = "0.6", optional = true }
 
 # feature screen_reader
 tts = { version = "0.20", optional = true }

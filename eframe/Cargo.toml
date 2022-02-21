@@ -69,4 +69,4 @@ egui_extras = { path = "../egui_extras", features = ["image", "svg"] }
 ehttp = "0.2"
 image = { version = "0.24", default-features = false, features = ["jpeg", "png"] }
 poll-promise = "0.1"
-rfd = "0.7"
+rfd = "0.8"
