@@ -8,13 +8,12 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 ## Unreleased
 
 ### Added ⭐
-* Support a subset of macOS' emacs input field keybindings in `TextEdit` ([#1243](https://github.com/emilk/egui/pull/1243).
 * Much improved font selection ([#1154](https://github.com/emilk/egui/pull/1154)):
   * You can now select any font size and family using `RichText::size` amd `RichText::family` and the new `FontId`.
   * Easily change text styles with `Style::text_styles`.
   * Added `Ui::text_style_height`.
   * Added `TextStyle::resolve`.
-  * Made v-align and scale of user fonts tweakable ([#1241](https://github.com/emilk/egui/pull/1027)).
+  * Made the v-align and scale of user fonts tweakable ([#1241](https://github.com/emilk/egui/pull/1027)).
 * Plot:
   * Added `Plot::x_axis_formatter` and `Plot::y_axis_formatter` for custom axis labels ([#1130](https://github.com/emilk/egui/pull/1130)).
   * Added `Plot::allow_boxed_zoom()`, `Plot::boxed_zoom_pointer()` for boxed zooming on plots ([#1188](https://github.com/emilk/egui/pull/1188)).
@@ -23,13 +22,14 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * `Context::load_texture` to convert an image into a texture which can be displayed using e.g. `ui.image(texture, size)` ([#1110](https://github.com/emilk/egui/pull/1110)).
 * `Ui::input_mut` to modify how subsequent widgets see the `InputState` and a convenience method `InputState::consume_key` for shortcuts or hotkeys ([#1212](https://github.com/emilk/egui/pull/1212)).
 * Added `Ui::add_visible` and `Ui::add_visible_ui`.
-* Opt-in dependency on `tracing` crate for logging warnings ([#1192](https://github.com/emilk/egui/pull/1192)).
 * Added `CollapsingHeader::icon` to override the default open/close icon using a custom function. ([1147](https://github.com/emilk/egui/pull/1147)).
 * Added `ui.data()`, `ctx.data()`, `ctx.options()` and `ctx.tessellation_options()` ([#1175](https://github.com/emilk/egui/pull/1175)).
 * Added `Response::on_hover_text_at_pointer` as a convenience akin to `Response::on_hover_text` ([1179](https://github.com/emilk/egui/pull/1179)).
+* Opt-in dependency on `tracing` crate for logging warnings ([#1192](https://github.com/emilk/egui/pull/1192)).
 * Added `ui.weak(text)`.
-* Added `Context::move_to_top` and `Context::top_most_layer` for managing the layer on the top ([#1242](https://github.com/emilk/egui/pull/1242)).
 * Added `Slider::step_by` ([1225](https://github.com/emilk/egui/pull/1225)).
+* Added `Context::move_to_top` and `Context::top_most_layer` for managing the layer on the top ([#1242](https://github.com/emilk/egui/pull/1242)).
+* Support a subset of macOS' emacs input field keybindings in `TextEdit` ([#1243](https://github.com/emilk/egui/pull/1243)).
 * Added ability to scroll an UI into view without specifying an alignment ([1247](https://github.com/emilk/egui/pull/1247)).
 * Added `Ui::scroll_to_rect` ([1252](https://github.com/emilk/egui/pull/1252)).
 
@@ -49,28 +49,52 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Replaced `Style::body_text_style` with more generic `Style::text_styles` ([#1154](https://github.com/emilk/egui/pull/1154)).
 * `TextStyle` is no longer `Copy` ([#1154](https://github.com/emilk/egui/pull/1154)).
 * Replaced `TextEdit::text_style` with `TextEdit::font` ([#1154](https://github.com/emilk/egui/pull/1154)).
-* Replaced `corner_radius: f32` with `rounding: Rounding`, allowing per-corner rounding settings ([#1206](https://github.com/emilk/egui/pull/1206)).
-* Replaced Frame's `margin: Vec2` with `margin: Margin`, allowing for different margins on opposing sides ([#1219](https://github.com/emilk/egui/pull/1219)).
 * `Plot::highlight` now takes a `bool` argument ([#1159](https://github.com/emilk/egui/pull/1159)).
 * `ScrollArea::show` now returns a `ScrollAreaOutput`, so you might need to add `.inner` after the call to it ([#1166](https://github.com/emilk/egui/pull/1166)).
+* Replaced `corner_radius: f32` with `rounding: Rounding`, allowing per-corner rounding settings ([#1206](https://github.com/emilk/egui/pull/1206)).
+* Replaced Frame's `margin: Vec2` with `margin: Margin`, allowing for different margins on opposing sides ([#1219](https://github.com/emilk/egui/pull/1219)).
 * Renamed `Plot::custom_label_func` to `Plot::label_formatter` ([#1235](https://github.com/emilk/egui/pull/1235)).
 * Tooltips that don't fit the window don't flicker anymore ([#1240](https://github.com/emilk/egui/pull/1240)).
 * `Areas::layer_id_at` ignores non interatable layers (i.e. Tooltips) ([#1240](https://github.com/emilk/egui/pull/1240)).
 * `ScrollArea`:s will not shrink below a certain minimum size, set by `min_scrolled_width/min_scrolled_height` ([1255](https://github.com/emilk/egui/pull/1255)).
 
 ### Fixed 🐛
-* Context menus now respects the theme ([#1043](https://github.com/emilk/egui/pull/1043)).
 * Plot `Orientation` was not public, although fields using this type were ([#1130](https://github.com/emilk/egui/pull/1130)).
+* Context menus now respects the theme ([#1043](https://github.com/emilk/egui/pull/1043)).
 * Calling `Context::set_pixels_per_point` before the first frame will now work.
 * Tooltips that don't fit the window don't flicker anymore ([#1240](https://github.com/emilk/egui/pull/1240)).
-* Scroll areas now follow text cursor ([1252](https://github.com/emilk/egui/pull/1252)).
+* Scroll areas now follow text cursor ([#1252](https://github.com/emilk/egui/pull/1252)).
 * Slider: correctly respond with drag and focus events when interacting with the value directly ([1270](https://github.com/emilk/egui/pull/1270)).
 
 ### Contributors 🙏
-* [AlexxxRu](https://github.com/alexxxru): [#1108](https://github.com/emilk/egui/pull/1108).
-* [danielkeller](https://github.com/danielkeller): [#1050](https://github.com/emilk/egui/pull/1050).
-* [juancampa](https://github.com/juancampa): [#1147](https://github.com/emilk/egui/pull/1147).
-
+* [4JX](https://github.com/4JX)
+* [55nknown](https://github.com/55nknown)
+* [AlanRace](https://github.com/AlanRace)
+* [AlexxxRu](https://github.com/AlexxxRu)
+* [awaken1ng](https://github.com/awaken1ng)
+* [BctfN0HUK7Yg](https://github.com/BctfN0HUK7Yg)
+* [Bromeon](https://github.com/Bromeon)
+* [cat-state](https://github.com/cat)
+* [danielkeller](https://github.com/danielkeller)
+* [dvec](https://github.com/dvec)
+* [Friz64](https://github.com/Friz64)
+* [Gordon01](https://github.com/Gordon01)
+* [HackerFoo](https://github.com/HackerFoo)
+* [juancampa](https://github.com/juancampa)
+* [justinj](https://github.com/justinj)
+* [lampsitter](https://github.com/lampsitter)
+* [LordMZTE](https://github.com/LordMZTE)
+* [manuel-i](https://github.com/manuel)
+* [Mingun](https://github.com/Mingun)
+* [niklaskorz](https://github.com/niklaskorz)
+* [nongiach](https://github.com/nongiach)
+* [parasyte](https://github.com/parasyte)
+* [psiphi75](https://github.com/psiphi75)
+* [s-nie](https://github.com/s)
+* [t18b219k](https://github.com/t18b219k)
+* [terhechte](https://github.com/terhechte)
+* [xudesheng](https://github.com/xudesheng)
+* [yusdacra](https://github.com/yusdacra)
 
 ## 0.16.1 - 2021-12-31 - Add back `CtxRef::begin_frame,end_frame`
 
@@ -591,7 +615,7 @@ This is when I started the CHANGELOG.md, after almost two years of development. 
 
 * 2020-08-10: renamed the project to "egui"
 * 2020-05-30: first release on crates.io (0.1.0)
-* 2020-05-01: serious work starts (pandemic project)
+* 2020-04-01: serious work starts (pandemic project)
 * 2019-03-12: gave a talk about what would later become egui: https://www.youtube.com/watch?v=-pmwLHw5Gbs
 * 2018-12-23: [initial commit](https://github.com/emilk/egui/commit/856bbf4dae4a69693a0324da34e8b0dd3754dfdf)
 * 2018-11-04: started tinkering on a train

@@ -9,7 +9,6 @@ All notable changes to the `egui_web` integration will be noted in this file.
 * Fixed glow failure on Chromium ([#1092](https://github.com/emilk/egui/pull/1092)).
 * Shift-scroll will now result in horizontal scrolling ([#1136](https://github.com/emilk/egui/pull/1136)).
 * Updated `epi::IntegrationInfo::web_location_hash` on `hashchange` event ([#1140](https://github.com/emilk/egui/pull/1140)).
-* Panics will now be logged using `console.error`.
 * Parse and percent-decode the web location query string ([#1258](https://github.com/emilk/egui/pull/1258)).
 
 

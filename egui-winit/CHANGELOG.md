@@ -5,11 +5,11 @@ All notable changes to the `egui-winit` integration will be noted in this file.
 
 ## Unreleased
 * Fixed horizontal scrolling direction on Linux.
-* Automatically detect and apply dark or light mode from system ([#1045](https://github.com/emilk/egui/pull/1045)).
 * Replaced `std::time::Instant` with `instant::Instant` for WebAssembly compatability ([#1023](https://github.com/emilk/egui/pull/1023))
+* Automatically detect and apply dark or light mode from system ([#1045](https://github.com/emilk/egui/pull/1045)).
+* Fixed `enable_drag` on Windows OS ([#1108](https://github.com/emilk/egui/pull/1108)).
 * Shift-scroll will now result in horizontal scrolling on all platforms ([#1136](https://github.com/emilk/egui/pull/1136)).
 * Require knowledge about max texture side (e.g. `GL_MAX_TEXTURE_SIZE`)) ([#1154](https://github.com/emilk/egui/pull/1154)).
-* Fixed `enable_drag` for Windows. Now called only once just after left click ([#1108](https://github.com/emilk/egui/pull/1108)).
 
 
 ## 0.16.0 - 2021-12-29
