@@ -40,6 +40,7 @@ syntax_highlighting = ["syntect"]
 
 [dependencies]
 egui = { version = "0.16.0", path = "../egui", default-features = false }
+egui_extras = { version = "0.16.0", path = "../egui_extras", features = ["image"] }
 epi = { version = "0.16.0", path = "../epi" }
 
 chrono = { version = "0.4", features = ["js-sys", "wasmbind"], optional = true }

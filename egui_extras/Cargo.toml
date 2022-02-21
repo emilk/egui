@@ -1,0 +1,48 @@
+[package]
+name = "egui_extras"
+version = "0.16.0"
+authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+description = "Extra functionality and widgets for the egui GUI library"
+edition = "2021"
+rust-version = "1.56"
+homepage = "https://github.com/emilk/egui"
+license = "MIT OR Apache-2.0"
+readme = "../README.md"
+repository = "https://github.com/emilk/egui"
+categories = ["gui", "game-development"]
+keywords = ["gui", "imgui", "immediate", "portable", "gamedev"]
+include = [
+  "../LICENSE-APACHE",
+  "../LICENSE-MIT",
+  "**/*.rs",
+  "Cargo.toml",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+
+[lib]
+
+
+[features]
+default = []
+
+# Support loading svg images
+svg = ["resvg", "tiny-skia", "usvg"]
+
+
+[dependencies]
+egui = { version = "0.16.1", path = "../egui", default-features = false, features = ["single_threaded"] }
+parking_lot = "0.11"
+
+# Optional dependencies:
+
+# Add support for loading images with the `image` crate.
+# You also need to ALSO opt-in to the image formats you want to support, like so:
+#     image = { version = "0.24", features = ["jpeg", "png"] }
+image = { version = "0.24", optional = true, default-features = false, features = [] }
+
+# svg feature
+resvg = { version = "0.22", optional = true }
+tiny-skia = { version = "0.6", optional = true }
+usvg = { version = "0.22", optional = true }

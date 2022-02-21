@@ -64,12 +64,9 @@ egui_web = { version = "0.16.0", path = "../egui_web", default-features = false,
 
 
 [dev-dependencies]
+# For examples:
+egui_extras = { path = "../egui_extras", features = ["image", "svg"] }
 ehttp = "0.2"
 image = { version = "0.24", default-features = false, features = ["jpeg", "png"] }
 poll-promise = "0.1"
 rfd = "0.7"
-
-# svg.rs example:
-resvg = "0.20"
-tiny-skia = "0.6"
-usvg = "0.20"
