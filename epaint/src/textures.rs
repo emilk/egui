@@ -161,4 +161,9 @@ impl TexturesDelta {
         self.set.extend(newer.set.into_iter());
         self.free.append(&mut newer.free);
     }
+
+    pub fn clear(&mut self) {
+        self.set.clear();
+        self.free.clear();
+    }
 }
