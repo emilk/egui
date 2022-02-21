@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 use eframe::{egui, epi};
+use egui_extras::RetainedImage;
 use poll_promise::Promise;
 
 fn main() {
@@ -11,7 +12,7 @@ fn main() {
 #[derive(Default)]
 struct MyApp {
     /// `None` when download hasn't started yet.
-    promise: Option<Promise<ehttp::Result<egui::TextureHandle>>>,
+    promise: Option<Promise<ehttp::Result<RetainedImage>>>,
 }
 
 impl epi::App for MyApp {
@@ -24,14 +25,13 @@ impl epi::App for MyApp {
             // Begin download.
             // We download the image using `ehttp`, a library that works both in WASM and on native.
             // We use the `poll-promise` library to communicate with the UI thread.
-            let ctx = ctx.clone();
             let frame = frame.clone();
             let (sender, promise) = Promise::new();
             let request = ehttp::Request::get("https://picsum.photos/seed/1.759706314/1024");
             ehttp::fetch(request, move |response| {
+                let image = response.and_then(parse_response);
+                sender.send(image); // send the results back to the UI thread.
                 frame.request_repaint(); // wake up UI thread
-                let texture = response.and_then(|response| parse_response(&ctx, response));
-                sender.send(texture); // send the results back to the UI thread.
             });
             promise
         });
@@ -43,39 +43,21 @@ impl epi::App for MyApp {
             Some(Err(err)) => {
                 ui.colored_label(egui::Color32::RED, err); // something went wrong
             }
-            Some(Ok(texture)) => {
-                let mut size = texture.size_vec2();
-                size *= (ui.available_width() / size.x).min(1.0);
-                size *= (ui.available_height() / size.y).min(1.0);
-                ui.image(texture, size);
+            Some(Ok(image)) => {
+                image.show_max_size(ui, ui.available_size());
             }
         });
     }
 }
 
-fn parse_response(
-    ctx: &egui::Context,
-    response: ehttp::Response,
-) -> Result<egui::TextureHandle, String> {
+fn parse_response(response: ehttp::Response) -> Result<RetainedImage, String> {
     let content_type = response.content_type().unwrap_or_default();
     if content_type.starts_with("image/") {
-        let image = load_image(&response.bytes).map_err(|err| err.to_string())?;
-        Ok(ctx.load_texture("my-image", image))
+        RetainedImage::from_image_bytes(&response.url, &response.bytes)
     } else {
         Err(format!(
             "Expected image, found content-type {:?}",
             content_type
         ))
     }
-}
-
-fn load_image(image_data: &[u8]) -> Result<egui::ColorImage, image::ImageError> {
-    let image = image::load_from_memory(image_data)?;
-    let size = [image.width() as _, image.height() as _];
-    let image_buffer = image.to_rgba8();
-    let pixels = image_buffer.as_flat_samples();
-    Ok(egui::ColorImage::from_rgba_unmultiplied(
-        size,
-        pixels.as_slice(),
-    ))
 }
