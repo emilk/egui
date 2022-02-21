@@ -197,7 +197,7 @@ fn line_break(
     for (i, glyph) in paragraph.glyphs.iter().enumerate() {
         let potential_row_width = glyph.max_x() - row_start_x;
 
-        if non_empty_rows >= job.wrap.max_lines {
+        if job.wrap.max_lines > 0 && non_empty_rows >= job.wrap.max_lines {
             break;
         }
 

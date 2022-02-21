@@ -266,6 +266,7 @@ pub struct TextWrapping {
     pub max_width: f32,
 
     /// Maximum amount of rows the text should have.
+    /// Set to `0` to disable this.
     pub max_lines: usize,
 
     /// Don't try to break text at an appropriate place.
@@ -295,7 +296,7 @@ impl Default for TextWrapping {
     fn default() -> Self {
         Self {
             max_width: f32::INFINITY,
-            max_lines: usize::MAX,
+            max_lines: 0,
             break_anywhere: false,
             overflow_character: None,
         }
