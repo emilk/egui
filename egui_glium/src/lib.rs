@@ -157,22 +157,14 @@ impl EguiGlium {
     /// Paint the results of the last call to [`Self::run`].
     pub fn paint<T: glium::Surface>(&mut self, display: &glium::Display, target: &mut T) {
         let shapes = std::mem::take(&mut self.shapes);
-        let mut textures_delta = std::mem::take(&mut self.textures_delta);
-
-        for (id, image_delta) in textures_delta.set {
-            self.painter.set_texture(display, id, &image_delta);
-        }
-
+        let textures_delta = std::mem::take(&mut self.textures_delta);
         let clipped_meshes = self.egui_ctx.tessellate(shapes);
-        self.painter.paint_meshes(
+        self.painter.paint_and_update_textures(
             display,
             target,
             self.egui_ctx.pixels_per_point(),
             clipped_meshes,
+            &textures_delta,
         );
-
-        for id in textures_delta.free.drain(..) {
-            self.painter.free_texture(id);
-        }
     }
 }

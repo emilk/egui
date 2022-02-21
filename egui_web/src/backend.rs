@@ -294,17 +294,14 @@ impl AppRunner {
     /// Paint the results of the last call to [`Self::logic`].
     pub fn paint(&mut self, clipped_meshes: Vec<egui::ClippedMesh>) -> Result<(), JsValue> {
         let textures_delta = std::mem::take(&mut self.textures_delta);
-        for (id, image_delta) in textures_delta.set {
-            self.painter.set_texture(id, &image_delta);
-        }
 
         self.painter.clear(self.app.clear_color());
-        self.painter
-            .paint_meshes(clipped_meshes, self.egui_ctx.pixels_per_point())?;
 
-        for id in textures_delta.free {
-            self.painter.free_texture(id);
-        }
+        self.painter.paint_and_update_textures(
+            clipped_meshes,
+            self.egui_ctx.pixels_per_point(),
+            &textures_delta,
+        )?;
 
         Ok(())
     }

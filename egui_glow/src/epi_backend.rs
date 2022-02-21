@@ -83,13 +83,8 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
 
-            let (needs_repaint, mut textures_delta, shapes) =
-                integration.update(gl_window.window());
+            let (needs_repaint, textures_delta, shapes) = integration.update(gl_window.window());
             let clipped_meshes = integration.egui_ctx.tessellate(shapes);
-
-            for (id, image_delta) in textures_delta.set {
-                painter.set_texture(&gl, id, &image_delta);
-            }
 
             // paint:
             {
@@ -100,18 +95,15 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
                     gl.clear_color(color[0], color[1], color[2], color[3]);
                     gl.clear(glow::COLOR_BUFFER_BIT);
                 }
-                painter.paint_meshes(
+                painter.paint_and_update_textures(
                     &gl,
                     gl_window.window().inner_size().into(),
                     integration.egui_ctx.pixels_per_point(),
                     clipped_meshes,
+                    &textures_delta,
                 );
 
                 gl_window.swap_buffers().unwrap();
-            }
-
-            for id in textures_delta.free.drain(..) {
-                painter.free_texture(&gl, id);
             }
 
             {
