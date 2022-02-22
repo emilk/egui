@@ -1,7 +1,4 @@
-use egui::Vec2;
-use winit::dpi::LogicalSize;
-
-pub fn points_to_size(points: Vec2) -> LogicalSize<f64> {
+pub fn points_to_size(points: egui::Vec2) -> winit::dpi::LogicalSize<f64> {
     winit::dpi::LogicalSize {
         width: points.x as f64,
         height: points.y as f64,
@@ -222,6 +219,7 @@ pub struct EpiIntegration {
     frame: epi::Frame,
     persistence: crate::epi::Persistence,
     pub egui_ctx: egui::Context,
+    pending_full_output: egui::FullOutput,
     egui_winit: crate::State,
     pub app: Box<dyn epi::App>,
     /// When set, it is time to quit
@@ -267,6 +265,7 @@ impl EpiIntegration {
             persistence,
             egui_ctx,
             egui_winit: crate::State::new(max_texture_side, window),
+            pending_full_output: Default::default(),
             app,
             quit: false,
             can_drag_window: false,
@@ -295,8 +294,8 @@ impl EpiIntegration {
     fn warm_up(&mut self, window: &winit::window::Window) {
         let saved_memory: egui::Memory = self.egui_ctx.memory().clone();
         self.egui_ctx.memory().set_everything_is_visible(true);
-        let (_, textures_delta, _) = self.update(window);
-        self.egui_ctx.output().textures_delta = textures_delta; // Handle it next frame
+        let full_output = self.update(window);
+        self.pending_full_output.append(full_output); // Handle it next frame
         *self.egui_ctx.memory() = saved_memory; // We don't want to remember that windows were huge.
         self.egui_ctx.clear_animations();
     }
@@ -323,37 +322,39 @@ impl EpiIntegration {
         self.egui_winit.on_event(&self.egui_ctx, event);
     }
 
-    /// Returns `needs_repaint` and shapes to paint.
-    pub fn update(
-        &mut self,
-        window: &winit::window::Window,
-    ) -> (bool, egui::TexturesDelta, Vec<egui::epaint::ClippedShape>) {
+    pub fn update(&mut self, window: &winit::window::Window) -> egui::FullOutput {
         let frame_start = instant::Instant::now();
 
         let raw_input = self.egui_winit.take_egui_input(window);
-        let (egui_output, shapes) = self.egui_ctx.run(raw_input, |egui_ctx| {
+        let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
             self.app.update(egui_ctx, &self.frame);
         });
+        self.pending_full_output.append(full_output);
+        let full_output = std::mem::take(&mut self.pending_full_output);
 
-        let needs_repaint = egui_output.needs_repaint;
-        let textures_delta = self
-            .egui_winit
-            .handle_output(window, &self.egui_ctx, egui_output);
-
-        let mut app_output = self.frame.take_app_output();
-        app_output.drag_window &= self.can_drag_window; // Necessary on Windows; see https://github.com/emilk/egui/pull/1108
-        self.can_drag_window = false;
-
-        if app_output.quit {
-            self.quit = self.app.on_exit_event();
+        {
+            let mut app_output = self.frame.take_app_output();
+            app_output.drag_window &= self.can_drag_window; // Necessary on Windows; see https://github.com/emilk/egui/pull/1108
+            self.can_drag_window = false;
+            if app_output.quit {
+                self.quit = self.app.on_exit_event();
+            }
+            crate::epi::handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
         }
-
-        crate::epi::handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
 
         let frame_time = (instant::Instant::now() - frame_start).as_secs_f64() as f32;
         self.frame.lock().info.cpu_usage = Some(frame_time);
 
-        (needs_repaint, textures_delta, shapes)
+        full_output
+    }
+
+    pub fn handle_egui_output(
+        &mut self,
+        window: &winit::window::Window,
+        egui_output: egui::Output,
+    ) {
+        self.egui_winit
+            .handle_egui_output(window, &self.egui_ctx, egui_output);
     }
 
     pub fn maybe_autosave(&mut self, window: &winit::window::Window) {

@@ -514,12 +514,12 @@ impl State {
     /// * open any clicked urls
     /// * update the IME
     /// *
-    pub fn handle_output(
+    pub fn handle_egui_output(
         &mut self,
         window: &winit::window::Window,
         egui_ctx: &egui::Context,
         output: egui::Output,
-    ) -> egui::TexturesDelta {
+    ) {
         if egui_ctx.options().screen_reader {
             self.screen_reader.speak(&output.events_description());
         }
@@ -528,11 +528,9 @@ impl State {
             cursor_icon,
             open_url,
             copied_text,
-            needs_repaint: _,             // needs to be handled elsewhere
             events: _,                    // handled above
             mutable_text_under_cursor: _, // only used in egui_web
             text_cursor_pos,
-            textures_delta,
         } = output;
 
         self.current_pixels_per_point = egui_ctx.pixels_per_point(); // someone can have changed it to scale the UI
@@ -550,8 +548,6 @@ impl State {
         if let Some(egui::Pos2 { x, y }) = text_cursor_pos {
             window.set_ime_position(winit::dpi::LogicalPosition { x, y });
         }
-
-        textures_delta
     }
 
     fn set_cursor_icon(&mut self, window: &winit::window::Window, cursor_icon: egui::CursorIcon) {

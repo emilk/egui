@@ -192,7 +192,7 @@ Missing an integration for the thing you're working on? Create one, it's easy!
 
 ### Writing your own egui integration
 
-You need to collect [`egui::RawInput`](https://docs.rs/egui/latest/egui/struct.RawInput.html), paint [`egui::ClippedMesh`](https://docs.rs/epaint/latest/epaint/struct.ClippedMesh.html):es and handle [`egui::Output`](https://docs.rs/egui/latest/egui/struct.Output.html). The basic structure is this:
+You need to collect [`egui::RawInput`](https://docs.rs/egui/latest/egui/struct.RawInput.html) and handle [`egui::FullOutput`](https://docs.rs/egui/latest/egui/struct.FullOutput.html). The basic structure is this:
 
 ``` rust
 let mut egui_ctx = egui::CtxRef::default();
@@ -201,20 +201,19 @@ let mut egui_ctx = egui::CtxRef::default();
 loop {
     // Gather input (mouse, touches, keyboard, screen size, etc):
     let raw_input: egui::RawInput = my_integration.gather_input();
-    let (output, shapes) = egui_ctx.run(raw_input, |egui_ctx| {
+    let full_output = egui_ctx.run(raw_input, |egui_ctx| {
         my_app.ui(egui_ctx); // add panels, windows and widgets to `egui_ctx` here
     });
-    let clipped_meshes = egui_ctx.tessellate(shapes); // creates triangles to paint
+    let clipped_meshes = egui_ctx.tessellate(full_output.shapes); // creates triangles to paint
 
-    my_integration.set_egui_textures(&output.textures_delta.set);
-    my_integration.paint(clipped_meshes);
-    my_integration.free_egui_textures(&output.textures_delta.free);
+    my_integration.paint(&full_output.textures_delta, clipped_meshes);
 
+    let output = full_output.output;
     my_integration.set_cursor_icon(output.cursor_icon);
     if !output.copied_text.is_empty() {
         my_integration.set_clipboard_text(output.copied_text);
     }
-    // See `egui::Output` for more
+    // See `egui::FullOutput` for more
 }
 ```
 
