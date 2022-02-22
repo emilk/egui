@@ -714,6 +714,7 @@ impl FontImplCache {
                 Arc::new(FontImpl::new(
                     self.atlas.clone(),
                     self.pixels_per_point,
+                    font_name.to_owned(),
                     ab_glyph_font,
                     scale_in_pixels,
                     y_offset_points,
