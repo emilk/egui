@@ -366,10 +366,10 @@ impl Ui {
         self.ctx().data()
     }
 
-    /// The [`Output`] of the [`Context`] associated with this ui.
+    /// The [`PlatformOutput`] of the [`Context`] associated with this ui.
     /// Equivalent to `.ctx().output()`.
     #[inline]
-    pub fn output(&self) -> RwLockWriteGuard<'_, Output> {
+    pub fn output(&self) -> RwLockWriteGuard<'_, PlatformOutput> {
         self.ctx().output()
     }
 

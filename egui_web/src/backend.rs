@@ -271,13 +271,13 @@ impl AppRunner {
             self.app.update(egui_ctx, &self.frame);
         });
         let egui::FullOutput {
-            output,
+            platform_output,
             needs_repaint,
             textures_delta,
             shapes,
         } = full_output;
 
-        self.handle_egui_output(output);
+        self.handle_platform_output(platform_output);
         self.textures_delta.append(textures_delta);
         let clipped_meshes = self.egui_ctx.tessellate(shapes);
 
@@ -311,19 +311,20 @@ impl AppRunner {
         Ok(())
     }
 
-    fn handle_egui_output(&mut self, output: egui::Output) {
+    fn handle_platform_output(&mut self, platform_output: egui::PlatformOutput) {
         if self.egui_ctx.options().screen_reader {
-            self.screen_reader.speak(&output.events_description());
+            self.screen_reader
+                .speak(&platform_output.events_description());
         }
 
-        let egui::Output {
+        let egui::PlatformOutput {
             cursor_icon,
             open_url,
             copied_text,
             events: _, // already handled
             mutable_text_under_cursor,
             text_cursor_pos,
-        } = output;
+        } = platform_output;
 
         set_cursor_icon(cursor_icon);
         if let Some(open) = open_url {

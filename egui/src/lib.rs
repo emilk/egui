@@ -110,7 +110,7 @@
 //! To write your own integration for egui you need to do this:
 //!
 //! ``` no_run
-//! # fn handle_output(_: egui::Output) {}
+//! # fn handle_platform_output(_: egui::PlatformOutput) {}
 //! # fn gather_input() -> egui::RawInput { egui::RawInput::default() }
 //! # fn paint(textures_detla: egui::TexturesDelta, _: Vec<egui::ClippedMesh>) {}
 //! let mut ctx = egui::Context::default();
@@ -127,7 +127,7 @@
 //!             }
 //!         });
 //!     });
-//!     handle_output(full_output.output);
+//!     handle_platform_output(full_output.platform_output);
 //!     let clipped_meshes = ctx.tessellate(full_output.shapes); // create triangles to paint
 //!     paint(full_output.textures_delta, clipped_meshes);
 //! }
@@ -402,7 +402,7 @@ pub use {
     context::Context,
     data::{
         input::*,
-        output::{self, CursorIcon, FullOutput, Output, WidgetInfo},
+        output::{self, CursorIcon, FullOutput, PlatformOutput, WidgetInfo},
     },
     grid::Grid,
     id::{Id, IdMap},

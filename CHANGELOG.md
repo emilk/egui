@@ -43,7 +43,8 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Renamed `Ui::visible` to `Ui::is_visible`.
 * Split `Event::Text` into `Event::Text` and `Event::Paste` ([#1058](https://github.com/emilk/egui/pull/1058)).
 * For integrations:
-  * `FontImage` has been replaced by `TexturesDelta` (found in `Output`), describing what textures were loaded and freed each frame ([#1110](https://github.com/emilk/egui/pull/1110)).
+  * `Output` has now been renamed `PlatformOutput` and `Context::run` now returns the new `FullOutput` ([#1292](https://github.com/emilk/egui/pull/1292)).
+  * `FontImage` has been replaced by `TexturesDelta` (found in `FullOutput`), describing what textures were loaded and freed each frame ([#1110](https://github.com/emilk/egui/pull/1110)).
   * The painter must support partial texture updates ([#1149](https://github.com/emilk/egui/pull/1149)).
   * Added `RawInput::max_texture_side` which should be filled in with e.g. `GL_MAX_TEXTURE_SIZE` ([#1154](https://github.com/emilk/egui/pull/1154)).
 * Replaced `Style::body_text_style` with more generic `Style::text_styles` ([#1154](https://github.com/emilk/egui/pull/1154)).

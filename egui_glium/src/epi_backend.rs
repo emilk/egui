@@ -68,13 +68,13 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
             }
 
             let egui::FullOutput {
-                output,
+                platform_output,
                 needs_repaint,
                 textures_delta,
                 shapes,
             } = integration.update(display.gl_window().window());
 
-            integration.handle_egui_output(display.gl_window().window(), output);
+            integration.handle_platform_output(display.gl_window().window(), platform_output);
 
             let clipped_meshes = integration.egui_ctx.tessellate(shapes);
 

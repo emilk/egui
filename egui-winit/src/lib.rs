@@ -514,24 +514,25 @@ impl State {
     /// * open any clicked urls
     /// * update the IME
     /// *
-    pub fn handle_egui_output(
+    pub fn handle_platform_output(
         &mut self,
         window: &winit::window::Window,
         egui_ctx: &egui::Context,
-        output: egui::Output,
+        platform_output: egui::PlatformOutput,
     ) {
         if egui_ctx.options().screen_reader {
-            self.screen_reader.speak(&output.events_description());
+            self.screen_reader
+                .speak(&platform_output.events_description());
         }
 
-        let egui::Output {
+        let egui::PlatformOutput {
             cursor_icon,
             open_url,
             copied_text,
             events: _,                    // handled above
             mutable_text_under_cursor: _, // only used in egui_web
             text_cursor_pos,
-        } = output;
+        } = platform_output;
 
         self.current_pixels_per_point = egui_ctx.pixels_per_point(); // someone can have changed it to scale the UI
 

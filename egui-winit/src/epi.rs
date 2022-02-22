@@ -348,13 +348,13 @@ impl EpiIntegration {
         full_output
     }
 
-    pub fn handle_egui_output(
+    pub fn handle_platform_output(
         &mut self,
         window: &winit::window::Window,
-        egui_output: egui::Output,
+        platform_output: egui::PlatformOutput,
     ) {
         self.egui_winit
-            .handle_egui_output(window, &self.egui_ctx, egui_output);
+            .handle_platform_output(window, &self.egui_ctx, platform_output);
     }
 
     pub fn maybe_autosave(&mut self, window: &winit::window::Window) {

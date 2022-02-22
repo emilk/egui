@@ -1,7 +1,7 @@
 // #![warn(missing_docs)]
 
 use crate::{
-    animation_manager::AnimationManager, data::output::Output, frame_state::FrameState,
+    animation_manager::AnimationManager, data::output::PlatformOutput, frame_state::FrameState,
     input_state::*, layers::GraphicLayers, memory::Options, output::FullOutput, TextureHandle, *,
 };
 use epaint::{mutex::*, stats::*, text::Fonts, TessellationOptions, *};
@@ -42,7 +42,7 @@ struct ContextImpl {
 
     // The output of a frame:
     graphics: GraphicLayers,
-    output: Output,
+    output: PlatformOutput,
 
     paint_stats: PaintStats,
 
@@ -108,7 +108,7 @@ impl ContextImpl {
 /// Your handle to egui.
 ///
 /// This is the first thing you need when working with egui.
-/// Contains the [`InputState`], [`Memory`], [`Output`], and more.
+/// Contains the [`InputState`], [`Memory`], [`PlatformOutput`], and more.
 ///
 /// [`Context`] is cheap to clone, and any clones refers to the same mutable data
 /// ([`Context`] uses refcounting internally).
@@ -121,7 +121,7 @@ impl ContextImpl {
 /// # Example:
 ///
 /// ``` no_run
-/// # fn handle_output(_: egui::Output) {}
+/// # fn handle_platform_output(_: egui::PlatformOutput) {}
 /// # fn paint(textures_detla: egui::TexturesDelta, _: Vec<egui::ClippedMesh>) {}
 /// let mut ctx = egui::Context::default();
 ///
@@ -136,7 +136,7 @@ impl ContextImpl {
 ///             }
 ///         });
 ///     });
-///     handle_output(full_output.output);
+///     handle_platform_output(full_output.platform_output);
 ///     let clipped_meshes = ctx.tessellate(full_output.shapes); // create triangles to paint
 ///     paint(full_output.textures_delta, clipped_meshes);
 /// }
@@ -459,8 +459,13 @@ impl Context {
     }
 
     /// What egui outputs each frame.
+    ///
+    /// ```
+    /// # let mut ctx = egui::Context::default();
+    /// ctx.output().cursor_icon = egui::CursorIcon::Progress;
+    /// ```
     #[inline]
-    pub fn output(&self) -> RwLockWriteGuard<'_, Output> {
+    pub fn output(&self) -> RwLockWriteGuard<'_, PlatformOutput> {
         RwLockWriteGuard::map(self.write(), |c| &mut c.output)
     }
 
@@ -740,7 +745,7 @@ impl Context {
             textures_delta = ctx_impl.tex_manager.0.write().take_delta();
         };
 
-        let output: Output = std::mem::take(&mut self.output());
+        let platform_output: PlatformOutput = std::mem::take(&mut self.output());
 
         let needs_repaint = if self.read().repaint_requests > 0 {
             self.write().repaint_requests -= 1;
@@ -752,7 +757,7 @@ impl Context {
         let shapes = self.drain_paint_lists();
 
         FullOutput {
-            output,
+            platform_output,
             needs_repaint,
             textures_delta,
             shapes,

@@ -2,13 +2,13 @@
 
 use crate::WidgetType;
 
-/// What egui emits each frame.
+/// What egui emits each frame from [`crate::Context::run`].
 ///
 /// The backend should use this.
 #[derive(Clone, Default, PartialEq)]
 pub struct FullOutput {
     /// Non-rendering related output.
-    pub output: Output,
+    pub platform_output: PlatformOutput,
 
     /// If `true`, egui is requesting immediate repaint (i.e. on the next frame).
     ///
@@ -31,13 +31,13 @@ impl FullOutput {
     /// Add on new output.
     pub fn append(&mut self, newer: Self) {
         let Self {
-            output,
+            platform_output,
             needs_repaint,
             textures_delta,
             shapes,
         } = newer;
 
-        self.output.append(output);
+        self.platform_output.append(platform_output);
         self.needs_repaint = needs_repaint; // if the last frame doesn't need a repaint, then we don't need to repaint
         self.textures_delta.append(textures_delta);
         self.shapes = shapes; // Only paint the latest
@@ -46,10 +46,12 @@ impl FullOutput {
 
 /// The non-rendering part of what egui emits each frame.
 ///
+/// You can access (and modify) this with [`crate::Context::output`].
+///
 /// The backend should use this.
 #[derive(Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct Output {
+pub struct PlatformOutput {
     /// Set the cursor to this icon.
     pub cursor_icon: CursorIcon,
 
@@ -72,7 +74,7 @@ pub struct Output {
     pub text_cursor_pos: Option<crate::Pos2>,
 }
 
-impl Output {
+impl PlatformOutput {
     /// Open the given url in a web browser.
     /// If egui is running in a browser, the same tab will be reused.
     pub fn open_url(&mut self, url: impl ToString) {
@@ -157,7 +159,7 @@ impl OpenUrl {
 
 /// A mouse cursor icon.
 ///
-/// egui emits a [`CursorIcon`] in [`Output`] each frame as a request to the integration.
+/// egui emits a [`CursorIcon`] in [`PlatformOutput`] each frame as a request to the integration.
 ///
 /// Loosely based on <https://developer.mozilla.org/en-US/docs/Web/CSS/cursor>.
 #[derive(Clone, Copy, Debug, PartialEq)]

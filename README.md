@@ -208,12 +208,12 @@ loop {
 
     my_integration.paint(&full_output.textures_delta, clipped_meshes);
 
-    let output = full_output.output;
-    my_integration.set_cursor_icon(output.cursor_icon);
-    if !output.copied_text.is_empty() {
-        my_integration.set_clipboard_text(output.copied_text);
+    let platform_output = full_output.platform_output;
+    my_integration.set_cursor_icon(platform_output.cursor_icon);
+    if !platform_output.copied_text.is_empty() {
+        my_integration.set_clipboard_text(platform_output.copied_text);
     }
-    // See `egui::FullOutput` for more
+    // See `egui::FullOutput` and `egui::PlatformOutput` for more
 }
 ```
 

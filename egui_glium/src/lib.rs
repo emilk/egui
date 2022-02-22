@@ -142,14 +142,17 @@ impl EguiGlium {
             .egui_winit
             .take_egui_input(display.gl_window().window());
         let egui::FullOutput {
-            output,
+            platform_output,
             needs_repaint,
             textures_delta,
             shapes,
         } = self.egui_ctx.run(raw_input, run_ui);
 
-        self.egui_winit
-            .handle_egui_output(display.gl_window().window(), &self.egui_ctx, output);
+        self.egui_winit.handle_platform_output(
+            display.gl_window().window(),
+            &self.egui_ctx,
+            platform_output,
+        );
 
         self.shapes = shapes;
         self.textures_delta.append(textures_delta);
