@@ -1,8 +1,8 @@
 // #![warn(missing_docs)]
 
 use crate::{
-    animation_manager::AnimationManager, data::output::Output, frame_state::FrameState,
-    input_state::*, layers::GraphicLayers, memory::Options, TextureHandle, *,
+    animation_manager::AnimationManager, data::output::PlatformOutput, frame_state::FrameState,
+    input_state::*, layers::GraphicLayers, memory::Options, output::FullOutput, TextureHandle, *,
 };
 use epaint::{mutex::*, stats::*, text::Fonts, TessellationOptions, *};
 
@@ -42,7 +42,7 @@ struct ContextImpl {
 
     // The output of a frame:
     graphics: GraphicLayers,
-    output: Output,
+    output: PlatformOutput,
 
     paint_stats: PaintStats,
 
@@ -108,7 +108,7 @@ impl ContextImpl {
 /// Your handle to egui.
 ///
 /// This is the first thing you need when working with egui.
-/// Contains the [`InputState`], [`Memory`], [`Output`], and more.
+/// Contains the [`InputState`], [`Memory`], [`PlatformOutput`], and more.
 ///
 /// [`Context`] is cheap to clone, and any clones refers to the same mutable data
 /// ([`Context`] uses refcounting internally).
@@ -121,14 +121,14 @@ impl ContextImpl {
 /// # Example:
 ///
 /// ``` no_run
-/// # fn handle_output(_: egui::Output) {}
-/// # fn paint(_: Vec<egui::ClippedMesh>) {}
+/// # fn handle_platform_output(_: egui::PlatformOutput) {}
+/// # fn paint(textures_detla: egui::TexturesDelta, _: Vec<egui::ClippedMesh>) {}
 /// let mut ctx = egui::Context::default();
 ///
 /// // Game loop:
 /// loop {
 ///     let raw_input = egui::RawInput::default();
-///     let (output, shapes) = ctx.run(raw_input, |ctx| {
+///     let full_output = ctx.run(raw_input, |ctx| {
 ///         egui::CentralPanel::default().show(&ctx, |ui| {
 ///             ui.label("Hello world!");
 ///             if ui.button("Click me").clicked() {
@@ -136,9 +136,9 @@ impl ContextImpl {
 ///             }
 ///         });
 ///     });
-///     let clipped_meshes = ctx.tessellate(shapes); // create triangles to paint
-///     handle_output(output);
-///     paint(clipped_meshes);
+///     handle_platform_output(full_output.platform_output);
+///     let clipped_meshes = ctx.tessellate(full_output.shapes); // create triangles to paint
+///     paint(full_output.textures_delta, clipped_meshes);
 /// }
 /// ```
 #[derive(Clone)]
@@ -185,19 +185,15 @@ impl Context {
     ///
     /// // Each frame:
     /// let input = egui::RawInput::default();
-    /// let (output, shapes) = ctx.run(input, |ctx| {
+    /// let full_output = ctx.run(input, |ctx| {
     ///     egui::CentralPanel::default().show(&ctx, |ui| {
     ///         ui.label("Hello egui!");
     ///     });
     /// });
-    /// // handle output, paint shapes
+    /// // handle full_output
     /// ```
     #[must_use]
-    pub fn run(
-        &self,
-        new_input: RawInput,
-        run_ui: impl FnOnce(&Context),
-    ) -> (Output, Vec<ClippedShape>) {
+    pub fn run(&self, new_input: RawInput, run_ui: impl FnOnce(&Context)) -> FullOutput {
         self.begin_frame(new_input);
         run_ui(self);
         self.end_frame()
@@ -217,8 +213,8 @@ impl Context {
     ///     ui.label("Hello egui!");
     /// });
     ///
-    /// let (output, shapes) = ctx.end_frame();
-    /// // handle output, paint shapes
+    /// let full_output = ctx.end_frame();
+    /// // handle full_output
     /// ```
     pub fn begin_frame(&self, new_input: RawInput) {
         self.write().begin_frame_mut(new_input);
@@ -463,8 +459,13 @@ impl Context {
     }
 
     /// What egui outputs each frame.
+    ///
+    /// ```
+    /// # let mut ctx = egui::Context::default();
+    /// ctx.output().cursor_icon = egui::CursorIcon::Progress;
+    /// ```
     #[inline]
-    pub fn output(&self) -> RwLockWriteGuard<'_, Output> {
+    pub fn output(&self) -> RwLockWriteGuard<'_, PlatformOutput> {
         RwLockWriteGuard::map(self.write(), |c| &mut c.output)
     }
 
@@ -719,14 +720,13 @@ impl Context {
 
 impl Context {
     /// Call at the end of each frame.
-    /// Returns what has happened this frame [`crate::Output`] as well as what you need to paint.
-    /// You can transform the returned shapes into triangles with a call to [`Context::tessellate`].
     #[must_use]
-    pub fn end_frame(&self) -> (Output, Vec<ClippedShape>) {
+    pub fn end_frame(&self) -> FullOutput {
         if self.input().wants_repaint() {
             self.request_repaint();
         }
 
+        let textures_delta;
         {
             let ctx_impl = &mut *self.write();
             ctx_impl
@@ -742,20 +742,26 @@ impl Context {
                     .set(TextureId::default(), font_image_delta);
             }
 
-            ctx_impl
-                .output
-                .textures_delta
-                .append(ctx_impl.tex_manager.0.write().take_delta());
-        }
+            textures_delta = ctx_impl.tex_manager.0.write().take_delta();
+        };
 
-        let mut output: Output = std::mem::take(&mut self.output());
-        if self.read().repaint_requests > 0 {
+        let platform_output: PlatformOutput = std::mem::take(&mut self.output());
+
+        let needs_repaint = if self.read().repaint_requests > 0 {
             self.write().repaint_requests -= 1;
-            output.needs_repaint = true;
-        }
+            true
+        } else {
+            false
+        };
 
         let shapes = self.drain_paint_lists();
-        (output, shapes)
+
+        FullOutput {
+            platform_output,
+            needs_repaint,
+            textures_delta,
+            shapes,
+        }
     }
 
     fn drain_paint_lists(&self) -> Vec<ClippedShape> {

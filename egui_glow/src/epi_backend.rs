@@ -83,7 +83,15 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
 
-            let (needs_repaint, textures_delta, shapes) = integration.update(gl_window.window());
+            let egui::FullOutput {
+                platform_output,
+                needs_repaint,
+                textures_delta,
+                shapes,
+            } = integration.update(gl_window.window());
+
+            integration.handle_platform_output(gl_window.window(), platform_output);
+
             let clipped_meshes = integration.egui_ctx.tessellate(shapes);
 
             // paint:

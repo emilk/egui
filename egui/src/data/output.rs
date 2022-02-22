@@ -2,11 +2,56 @@
 
 use crate::WidgetType;
 
-/// What egui emits each frame.
+/// What egui emits each frame from [`crate::Context::run`].
+///
+/// The backend should use this.
+#[derive(Clone, Default, PartialEq)]
+pub struct FullOutput {
+    /// Non-rendering related output.
+    pub platform_output: PlatformOutput,
+
+    /// If `true`, egui is requesting immediate repaint (i.e. on the next frame).
+    ///
+    /// This happens for instance when there is an animation, or if a user has called `Context::request_repaint()`.
+    pub needs_repaint: bool,
+
+    /// Texture changes since last frame (including the font texture).
+    ///
+    /// The backend needs to apply [`crate::TexturesDelta::set`] _before_ painting,
+    /// and free any texture in [`crate::TexturesDelta::free`] _after_ painting.
+    pub textures_delta: epaint::textures::TexturesDelta,
+
+    /// What to paint.
+    ///
+    /// You can use [`crate::Context::tessellate`] to turn this into triangles.
+    pub shapes: Vec<epaint::ClippedShape>,
+}
+
+impl FullOutput {
+    /// Add on new output.
+    pub fn append(&mut self, newer: Self) {
+        let Self {
+            platform_output,
+            needs_repaint,
+            textures_delta,
+            shapes,
+        } = newer;
+
+        self.platform_output.append(platform_output);
+        self.needs_repaint = needs_repaint; // if the last frame doesn't need a repaint, then we don't need to repaint
+        self.textures_delta.append(textures_delta);
+        self.shapes = shapes; // Only paint the latest
+    }
+}
+
+/// The non-rendering part of what egui emits each frame.
+///
+/// You can access (and modify) this with [`crate::Context::output`].
+///
 /// The backend should use this.
 #[derive(Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct Output {
+pub struct PlatformOutput {
     /// Set the cursor to this icon.
     pub cursor_icon: CursorIcon,
 
@@ -18,14 +63,6 @@ pub struct Output {
     /// This is often a response to [`crate::Event::Copy`] or [`crate::Event::Cut`].
     pub copied_text: String,
 
-    /// If `true`, egui is requesting immediate repaint (i.e. on the next frame).
-    ///
-    /// This happens for instance when there is an animation, or if a user has called `Context::request_repaint()`.
-    ///
-    /// As an egui user: don't set this value directly.
-    /// Call `Context::request_repaint()` instead and it will do so for you.
-    pub needs_repaint: bool,
-
     /// Events that may be useful to e.g. a screen reader.
     pub events: Vec<OutputEvent>,
 
@@ -35,12 +72,9 @@ pub struct Output {
 
     /// Screen-space position of text edit cursor (used for IME).
     pub text_cursor_pos: Option<crate::Pos2>,
-
-    /// Texture changes since last frame.
-    pub textures_delta: epaint::textures::TexturesDelta,
 }
 
-impl Output {
+impl PlatformOutput {
     /// Open the given url in a web browser.
     /// If egui is running in a browser, the same tab will be reused.
     pub fn open_url(&mut self, url: impl ToString) {
@@ -70,11 +104,9 @@ impl Output {
             cursor_icon,
             open_url,
             copied_text,
-            needs_repaint,
             mut events,
             mutable_text_under_cursor,
             text_cursor_pos,
-            textures_delta,
         } = newer;
 
         self.cursor_icon = cursor_icon;
@@ -84,11 +116,9 @@ impl Output {
         if !copied_text.is_empty() {
             self.copied_text = copied_text;
         }
-        self.needs_repaint = needs_repaint; // if the last frame doesn't need a repaint, then we don't need to repaint
         self.events.append(&mut events);
         self.mutable_text_under_cursor = mutable_text_under_cursor;
         self.text_cursor_pos = text_cursor_pos.or(self.text_cursor_pos);
-        self.textures_delta.append(textures_delta);
     }
 
     /// Take everything ephemeral (everything except `cursor_icon` currently)
@@ -129,7 +159,7 @@ impl OpenUrl {
 
 /// A mouse cursor icon.
 ///
-/// egui emits a [`CursorIcon`] in [`Output`] each frame as a request to the integration.
+/// egui emits a [`CursorIcon`] in [`PlatformOutput`] each frame as a request to the integration.
 ///
 /// Loosely based on <https://developer.mozilla.org/en-US/docs/Web/CSS/cursor>.
 #[derive(Clone, Copy, Debug, PartialEq)]

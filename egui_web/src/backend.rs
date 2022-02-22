@@ -267,14 +267,19 @@ impl AppRunner {
         let canvas_size = canvas_size_in_points(self.canvas_id());
         let raw_input = self.input.new_frame(canvas_size);
 
-        let (egui_output, shapes) = self.egui_ctx.run(raw_input, |egui_ctx| {
+        let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
             self.app.update(egui_ctx, &self.frame);
         });
-        let clipped_meshes = self.egui_ctx.tessellate(shapes);
+        let egui::FullOutput {
+            platform_output,
+            needs_repaint,
+            textures_delta,
+            shapes,
+        } = full_output;
 
-        let needs_repaint = egui_output.needs_repaint;
-        let textures_delta = self.handle_egui_output(egui_output);
+        self.handle_platform_output(platform_output);
         self.textures_delta.append(textures_delta);
+        let clipped_meshes = self.egui_ctx.tessellate(shapes);
 
         {
             let app_output = self.frame.take_app_output();
@@ -306,21 +311,20 @@ impl AppRunner {
         Ok(())
     }
 
-    fn handle_egui_output(&mut self, output: egui::Output) -> egui::TexturesDelta {
+    fn handle_platform_output(&mut self, platform_output: egui::PlatformOutput) {
         if self.egui_ctx.options().screen_reader {
-            self.screen_reader.speak(&output.events_description());
+            self.screen_reader
+                .speak(&platform_output.events_description());
         }
 
-        let egui::Output {
+        let egui::PlatformOutput {
             cursor_icon,
             open_url,
             copied_text,
-            needs_repaint: _, // handled elsewhere
-            events: _,        // already handled
+            events: _, // already handled
             mutable_text_under_cursor,
             text_cursor_pos,
-            textures_delta,
-        } = output;
+        } = platform_output;
 
         set_cursor_icon(cursor_icon);
         if let Some(open) = open_url {
@@ -341,8 +345,6 @@ impl AppRunner {
             text_agent::move_text_cursor(text_cursor_pos, self.canvas_id());
             self.text_cursor_pos = text_cursor_pos;
         }
-
-        textures_delta
     }
 }
 

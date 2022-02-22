@@ -156,11 +156,15 @@ impl EguiGlow {
         run_ui: impl FnMut(&egui::Context),
     ) -> bool {
         let raw_input = self.egui_winit.take_egui_input(window);
-        let (egui_output, shapes) = self.egui_ctx.run(raw_input, run_ui);
-        let needs_repaint = egui_output.needs_repaint;
-        let textures_delta = self
-            .egui_winit
-            .handle_output(window, &self.egui_ctx, egui_output);
+        let egui::FullOutput {
+            platform_output,
+            needs_repaint,
+            textures_delta,
+            shapes,
+        } = self.egui_ctx.run(raw_input, run_ui);
+
+        self.egui_winit
+            .handle_platform_output(window, &self.egui_ctx, platform_output);
 
         self.shapes = shapes;
         self.textures_delta.append(textures_delta);

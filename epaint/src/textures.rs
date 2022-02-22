@@ -152,7 +152,7 @@ pub struct TexturesDelta {
     /// New or changed textures. Apply before painting.
     pub set: AHashMap<TextureId, ImageDelta>,
 
-    /// Texture to free after painting.
+    /// Textures to free after painting.
     pub free: Vec<TextureId>,
 }
 
