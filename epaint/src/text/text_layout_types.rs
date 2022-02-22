@@ -272,7 +272,7 @@ pub struct TextWrapping {
     /// Don't try to break text at an appropriate place.
     pub break_anywhere: bool,
 
-    /// Character to use to represent clipped text.
+    /// Character to use to represent clipped text, `…` for example.
     pub overflow_character: Option<char>,
 }
 
