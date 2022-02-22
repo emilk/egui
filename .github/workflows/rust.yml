@@ -155,7 +155,7 @@ jobs:
       - uses: EmbarkStudios/cargo-deny-action@v1
 
   wasm_bindgen:
-    name: cargo doc web
+    name: wasm-bindgen
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -166,4 +166,4 @@ jobs:
           override: true
       - run: rustup target add wasm32-unknown-unknown
       - run: cargo install wasm-bindgen-cli
-      - run: ./sh/build_demo_web.sh --fast
+      - run: ./sh/wasm_bindgen_check.sh
