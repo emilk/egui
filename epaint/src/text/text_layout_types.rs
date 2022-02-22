@@ -261,6 +261,7 @@ impl TextFormat {
 ///
 /// You can create a [`Galley`] using [`crate::Fonts::layout_job`];
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Galley {
     /// The job that this galley is the result of.
     /// Contains the original string and style sections.
@@ -294,6 +295,7 @@ pub struct Galley {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Row {
     /// One for each `char`.
     pub glyphs: Vec<Glyph>,
@@ -316,6 +318,7 @@ pub struct Row {
 
 /// The tessellated output of a row.
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct RowVisuals {
     /// The tessellated text, using non-normalized (texel) UV coordinates.
     /// That is, you need to divide the uv coordinates by the texture size.
@@ -341,6 +344,7 @@ impl Default for RowVisuals {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Glyph {
     pub chr: char,
     /// Relative to the galley position.
