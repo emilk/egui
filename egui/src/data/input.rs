@@ -33,7 +33,7 @@ pub struct RawInput {
     /// Ask your graphics drivers about this. This corresponds to `GL_MAX_TEXTURE_SIZE`.
     ///
     /// The default is a very small (but very portable) 2048.
-    pub max_texture_side: usize,
+    pub max_texture_side: Option<usize>,
 
     /// Monotonically increasing time, in seconds. Relative to whatever. Used for animations.
     /// If `None` is provided, egui will assume a time delta of `predicted_dt` (default 1/60 seconds).
@@ -69,7 +69,7 @@ impl Default for RawInput {
         Self {
             screen_rect: None,
             pixels_per_point: None,
-            max_texture_side: 2048,
+            max_texture_side: None,
             time: None,
             predicted_dt: 1.0 / 60.0,
             modifiers: Modifiers::default(),
@@ -89,7 +89,7 @@ impl RawInput {
         RawInput {
             screen_rect: self.screen_rect.take(),
             pixels_per_point: self.pixels_per_point.take(),
-            max_texture_side: self.max_texture_side,
+            max_texture_side: self.max_texture_side.take(),
             time: self.time.take(),
             predicted_dt: self.predicted_dt,
             modifiers: self.modifiers,
@@ -115,7 +115,7 @@ impl RawInput {
 
         self.screen_rect = screen_rect.or(self.screen_rect);
         self.pixels_per_point = pixels_per_point.or(self.pixels_per_point);
-        self.max_texture_side = max_texture_side; // use latest
+        self.max_texture_side = max_texture_side.or(self.max_texture_side);
         self.time = time; // use latest time
         self.predicted_dt = predicted_dt; // use latest dt
         self.modifiers = modifiers; // use latest
@@ -509,7 +509,7 @@ impl RawInput {
             .on_hover_text(
                 "Also called HDPI factor.\nNumber of physical pixels per each logical pixel.",
             );
-        ui.label(format!("max_texture_side: {}", max_texture_side));
+        ui.label(format!("max_texture_side: {:?}", max_texture_side));
         if let Some(time) = time {
             ui.label(format!("time: {:.3} s", time));
         } else {

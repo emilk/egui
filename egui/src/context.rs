@@ -79,7 +79,7 @@ impl ContextImpl {
     /// Load fonts unless already loaded.
     fn update_fonts_mut(&mut self) {
         let pixels_per_point = self.input.pixels_per_point();
-        let max_texture_side = self.input.raw.max_texture_side;
+        let max_texture_side = self.input.max_texture_side;
 
         if let Some(font_definitions) = self.memory.new_font_definitions.take() {
             let fonts = Fonts::new(pixels_per_point, max_texture_side, font_definitions);

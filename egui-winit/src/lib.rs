@@ -144,7 +144,7 @@ impl State {
             start_time: instant::Instant::now(),
             egui_input: egui::RawInput {
                 pixels_per_point: Some(pixels_per_point),
-                max_texture_side,
+                max_texture_side: Some(max_texture_side),
                 ..Default::default()
             },
             pointer_pos_in_points: None,

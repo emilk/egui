@@ -214,7 +214,7 @@ impl AppRunner {
             textures_delta: Default::default(),
         };
 
-        runner.input.raw.max_texture_side = runner.painter.max_texture_side();
+        runner.input.raw.max_texture_side = Some(runner.painter.max_texture_side());
 
         {
             runner
