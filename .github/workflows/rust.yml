@@ -153,3 +153,17 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: EmbarkStudios/cargo-deny-action@v1
+
+  wasm_bindgen:
+    name: wasm-bindgen
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.56.0
+          override: true
+      - run: rustup target add wasm32-unknown-unknown
+      - run: cargo install wasm-bindgen-cli
+      - run: ./sh/wasm_bindgen_check.sh
