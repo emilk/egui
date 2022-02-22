@@ -1,9 +1,11 @@
 # Changelog for egui_web
-
 All notable changes to the `egui_web` integration will be noted in this file.
 
 
 ## Unreleased
+
+
+## 0.17.0 - 2022-02-22
 * The default painter is now glow instead of WebGL ([#1020](https://github.com/emilk/egui/pull/1020)).
 * Made the WebGL painter opt-in ([#1020](https://github.com/emilk/egui/pull/1020)).
 * Fixed glow failure on Chromium ([#1092](https://github.com/emilk/egui/pull/1092)).

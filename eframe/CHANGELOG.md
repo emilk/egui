@@ -5,6 +5,9 @@ NOTE: [`egui_web`](../egui_web/CHANGELOG.md), [`egui-winit`](../egui-winit/CHANG
 
 
 ## Unreleased
+
+
+## 0.17.0 - 2022-02-22
 * Removed `Frame::alloc_texture`. Use `egui::Context::load_texture` instead ([#1110](https://github.com/emilk/egui/pull/1110)).
 * The default native backend is now `egui_glow` (instead of `egui_glium`) ([#1020](https://github.com/emilk/egui/pull/1020)).
 * The default web painter is now `egui_glow` (instead of WebGL) ([#1020](https://github.com/emilk/egui/pull/1020)).

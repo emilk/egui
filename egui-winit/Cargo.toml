@@ -1,6 +1,6 @@
 [package]
 name = "egui-winit"
-version = "0.16.0"
+version = "0.17.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui with winit"
 edition = "2021"
@@ -43,12 +43,12 @@ convert_bytemuck = ["egui/convert_bytemuck"]
 
 
 [dependencies]
-egui = { version = "0.16.0", path = "../egui", default-features = false, features = ["single_threaded", "tracing"] }
+egui = { version = "0.17.0", path = "../egui", default-features = false, features = ["single_threaded", "tracing"] }
 instant = { version = "0.1", features = ["wasm-bindgen"] }
 tracing = "0.1"
 winit = "0.26.1"
 
-epi = { version = "0.16.0", path = "../epi", optional = true }
+epi = { version = "0.17.0", path = "../epi", optional = true }
 
 copypasta = { version = "0.7", optional = true }
 dark-light = { version = "0.2.1", optional = true } # detect dark mode system preference

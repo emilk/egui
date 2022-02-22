@@ -1,6 +1,6 @@
 [package]
 name = "egui_extras"
-version = "0.16.0"
+version = "0.17.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Extra functionality and widgets for the egui GUI library"
 edition = "2021"
@@ -32,7 +32,7 @@ svg = ["resvg", "tiny-skia", "usvg"]
 
 
 [dependencies]
-egui = { version = "0.16.1", path = "../egui", default-features = false, features = ["single_threaded"] }
+egui = { version = "0.17.0", path = "../egui", default-features = false, features = ["single_threaded"] }
 parking_lot = "0.12"
 
 # Optional dependencies:

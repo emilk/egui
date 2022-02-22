@@ -28,10 +28,15 @@ deny = [
 ]
 
 skip = [
-    { name = "time" }, # old version pulled in by unmaintianed crate 'chrono'
+    { name = "ahash"      }, # old version via dark-light
+    { name = "arrayvec"   }, # old version via tiny-skia
+    { name = "time"       }, # old version pulled in by unmaintianed crate 'chrono'
+    { name = "ttf-parser" }, # different versions pulled in by ab_glyph and usvg
 ]
 skip-tree = [
-    { name = "eframe", version = "0.16.0" },
+    { name = "criterion" }, # dev-dependnecy
+    { name = "glium"     }, # legacy crate, lots of old dependencies
+    { name = "glutin"    }, # legacy crate, lots of old dependencies
 ]
 
 

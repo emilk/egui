@@ -1,11 +1,13 @@
 # egui changelog
-
-All notable changes to the egui crate will be documented in this file.
+All notable changes to the `egui` crate will be documented in this file.
 
 NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md), [`egui-winit`](egui-winit/CHANGELOG.md), [`egui_glium`](egui_glium/CHANGELOG.md), and [`egui_glow`](egui_glow/CHANGELOG.md) have their own changelogs!
 
 
 ## Unreleased
+
+
+## 0.17.0 - 2022-02-22 - Improved font selection and image handling
 
 ### Added ⭐
 * Much improved font selection ([#1154](https://github.com/emilk/egui/pull/1154)):
@@ -42,11 +44,6 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * `Context` can now be cloned and stored between frames ([#1050](https://github.com/emilk/egui/pull/1050)).
 * Renamed `Ui::visible` to `Ui::is_visible`.
 * Split `Event::Text` into `Event::Text` and `Event::Paste` ([#1058](https://github.com/emilk/egui/pull/1058)).
-* For integrations:
-  * `Output` has now been renamed `PlatformOutput` and `Context::run` now returns the new `FullOutput` ([#1292](https://github.com/emilk/egui/pull/1292)).
-  * `FontImage` has been replaced by `TexturesDelta` (found in `FullOutput`), describing what textures were loaded and freed each frame ([#1110](https://github.com/emilk/egui/pull/1110)).
-  * The painter must support partial texture updates ([#1149](https://github.com/emilk/egui/pull/1149)).
-  * Added `RawInput::max_texture_side` which should be filled in with e.g. `GL_MAX_TEXTURE_SIZE` ([#1154](https://github.com/emilk/egui/pull/1154)).
 * Replaced `Style::body_text_style` with more generic `Style::text_styles` ([#1154](https://github.com/emilk/egui/pull/1154)).
 * `TextStyle` is no longer `Copy` ([#1154](https://github.com/emilk/egui/pull/1154)).
 * Replaced `TextEdit::text_style` with `TextEdit::font` ([#1154](https://github.com/emilk/egui/pull/1154)).
@@ -55,9 +52,13 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Replaced `corner_radius: f32` with `rounding: Rounding`, allowing per-corner rounding settings ([#1206](https://github.com/emilk/egui/pull/1206)).
 * Replaced Frame's `margin: Vec2` with `margin: Margin`, allowing for different margins on opposing sides ([#1219](https://github.com/emilk/egui/pull/1219)).
 * Renamed `Plot::custom_label_func` to `Plot::label_formatter` ([#1235](https://github.com/emilk/egui/pull/1235)).
-* Tooltips that don't fit the window don't flicker anymore ([#1240](https://github.com/emilk/egui/pull/1240)).
-* `Areas::layer_id_at` ignores non interatable layers (i.e. Tooltips) ([#1240](https://github.com/emilk/egui/pull/1240)).
+* `Areas::layer_id_at` ignores non-interatable layers (i.e. Tooltips) ([#1240](https://github.com/emilk/egui/pull/1240)).
 * `ScrollArea`:s will not shrink below a certain minimum size, set by `min_scrolled_width/min_scrolled_height` ([1255](https://github.com/emilk/egui/pull/1255)).
+* For integrations:
+  * `Output` has now been renamed `PlatformOutput` and `Context::run` now returns the new `FullOutput` ([#1292](https://github.com/emilk/egui/pull/1292)).
+  * `FontImage` has been replaced by `TexturesDelta` (found in `FullOutput`), describing what textures were loaded and freed each frame ([#1110](https://github.com/emilk/egui/pull/1110)).
+  * The painter must support partial texture updates ([#1149](https://github.com/emilk/egui/pull/1149)).
+  * Added `RawInput::max_texture_side` which should be filled in with e.g. `GL_MAX_TEXTURE_SIZE` ([#1154](https://github.com/emilk/egui/pull/1154)).
 
 ### Fixed 🐛
 * Plot `Orientation` was not public, although fields using this type were ([#1130](https://github.com/emilk/egui/pull/1130)).
@@ -96,6 +97,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * [terhechte](https://github.com/terhechte)
 * [xudesheng](https://github.com/xudesheng)
 * [yusdacra](https://github.com/yusdacra)
+
 
 ## 0.16.1 - 2021-12-31 - Add back `CtxRef::begin_frame,end_frame`
 

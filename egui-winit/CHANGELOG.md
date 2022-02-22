@@ -1,9 +1,11 @@
 # Changelog for egui-winit
-
 All notable changes to the `egui-winit` integration will be noted in this file.
 
 
 ## Unreleased
+
+
+## 0.17.0 - 2022-02-22
 * Fixed horizontal scrolling direction on Linux.
 * Replaced `std::time::Instant` with `instant::Instant` for WebAssembly compatability ([#1023](https://github.com/emilk/egui/pull/1023))
 * Automatically detect and apply dark or light mode from system ([#1045](https://github.com/emilk/egui/pull/1045)).

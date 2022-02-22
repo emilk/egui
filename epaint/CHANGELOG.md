@@ -1,9 +1,11 @@
 # epaint changelog
-
 All notable changes to the epaint crate will be documented in this file.
 
 
 ## Unreleased
+
+
+## 0.17.0 - 2022-02-22
 * Much improved font selection ([#1154](https://github.com/emilk/egui/pull/1154)):
   * Replaced `TextStyle` with `FontId` which lets you pick any font size and font family.
   * Replaced `Fonts::font_image` with `font_image_delta` for partial font atlas updates.
