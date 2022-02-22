@@ -27,9 +27,9 @@ impl Default for PaintBezier {
             degree: 4,
             control_points: [
                 pos2(50.0, 50.0),
-                pos2(60.0, 150.0),
-                pos2(140.0, 150.0),
-                pos2(150.0, 50.0),
+                pos2(60.0, 250.0),
+                pos2(200.0, 200.0),
+                pos2(250.0, 50.0),
             ],
             stroke: Stroke::new(1.0, Color32::LIGHT_BLUE),
             fill: Color32::from_rgb(50, 100, 150).linear_multiply(0.25),
@@ -40,39 +40,29 @@ impl Default for PaintBezier {
 }
 
 impl PaintBezier {
-    pub fn ui_control(&mut self, ui: &mut egui::Ui) -> egui::Response {
-        ui.horizontal(|ui| {
-            ui.vertical(|ui| {
-                ui.radio_value(&mut self.degree, 3, "Quadratic Bézier");
-                ui.radio_value(&mut self.degree, 4, "Cubic Bézier");
-                ui.label("Move the points by dragging them.");
-                ui.label("Only convex curves can be accurately filled.")
+    pub fn ui_control(&mut self, ui: &mut egui::Ui) {
+        ui.collapsing("Colors", |ui| {
+            ui.horizontal(|ui| {
+                ui.label("Fill color:");
+                ui.color_edit_button_srgba(&mut self.fill);
             });
+            egui::stroke_ui(ui, &mut self.stroke, "Curve Stroke");
+            egui::stroke_ui(ui, &mut self.aux_stroke, "Auxiliary Stroke");
+            egui::stroke_ui(ui, &mut self.bounding_box_stroke, "Bounding Box Stroke");
+        });
 
-            ui.separator();
+        ui.collapsing("Global tessellation options", |ui| {
+            let mut tessellation_options = *(ui.ctx().tessellation_options());
+            let tessellation_options = &mut tessellation_options;
+            tessellation_options.ui(ui);
+            let mut new_tessellation_options = ui.ctx().tessellation_options();
+            *new_tessellation_options = *tessellation_options;
+        });
 
-            ui.vertical(|ui| {
-                ui.horizontal(|ui| {
-                    ui.label("Fill color:");
-                    ui.color_edit_button_srgba(&mut self.fill);
-                });
-                egui::stroke_ui(ui, &mut self.stroke, "Curve Stroke");
-                egui::stroke_ui(ui, &mut self.aux_stroke, "Auxiliary Stroke");
-                egui::stroke_ui(ui, &mut self.bounding_box_stroke, "Bounding Box Stroke");
-            });
-
-            ui.separator();
-
-            ui.vertical(|ui| {
-                ui.label("Global tessellation options:");
-                let mut tessellation_options = *(ui.ctx().tessellation_options());
-                let tessellation_options = &mut tessellation_options;
-                tessellation_options.ui(ui);
-                let mut new_tessellation_options = ui.ctx().tessellation_options();
-                *new_tessellation_options = *tessellation_options;
-            });
-        })
-        .response
+        ui.radio_value(&mut self.degree, 3, "Quadratic Bézier");
+        ui.radio_value(&mut self.degree, 4, "Cubic Bézier");
+        ui.label("Move the points by dragging them.");
+        ui.small("Only convex curves can be accurately filled.");
     }
 
     pub fn ui_content(&mut self, ui: &mut Ui) -> egui::Response {
@@ -162,6 +152,7 @@ impl super::Demo for PaintBezier {
             .open(open)
             .vscroll(false)
             .resizable(false)
+            .default_size([300.0, 350.0])
             .show(ctx, |ui| self.ui(ui));
     }
 }
