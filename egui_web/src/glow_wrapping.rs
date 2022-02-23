@@ -37,7 +37,7 @@ impl crate::Painter for WrappedGlowPainter {
         self.painter.max_texture_side()
     }
 
-    fn set_texture(&mut self, tex_id: egui::TextureId, delta: &egui::epaint::ImageDelta) {
+    fn set_texture(&mut self, tex_id: egui::TextureId, delta: &egui::TextureDelta) {
         self.painter.set_texture(&self.glow_ctx, tex_id, delta);
     }
 

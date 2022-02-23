@@ -349,6 +349,7 @@ impl TextureManager {
                     size: [width, height],
                     pixels,
                 },
+                TextureFilter::default(),
             )
         })
     }

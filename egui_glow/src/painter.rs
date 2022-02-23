@@ -33,8 +33,6 @@ pub struct Painter {
     is_embedded: bool,
     vertex_array: crate::misc_util::VAO,
     srgb_support: bool,
-    /// The filter used for subsequent textures.
-    texture_filter: TextureFilter,
     post_process: Option<PostProcess>,
     vertex_buffer: glow::Buffer,
     element_array_buffer: glow::Buffer,
@@ -49,27 +47,6 @@ pub struct Painter {
 
     /// Used to make sure we are destroyed correctly.
     destroyed: bool,
-}
-
-#[derive(Copy, Clone)]
-pub enum TextureFilter {
-    Linear,
-    Nearest,
-}
-
-impl Default for TextureFilter {
-    fn default() -> Self {
-        TextureFilter::Linear
-    }
-}
-
-impl TextureFilter {
-    pub(crate) fn glow_code(&self) -> u32 {
-        match self {
-            TextureFilter::Linear => glow::LINEAR,
-            TextureFilter::Nearest => glow::NEAREST,
-        }
-    }
 }
 
 impl Painter {
@@ -215,7 +192,6 @@ impl Painter {
                 is_embedded: matches!(shader_version, ShaderVersion::Es100 | ShaderVersion::Es300),
                 vertex_array,
                 srgb_support,
-                texture_filter: Default::default(),
                 post_process,
                 vertex_buffer,
                 element_array_buffer,
@@ -278,8 +254,8 @@ impl Painter {
         clipped_meshes: Vec<egui::ClippedMesh>,
         textures_delta: &egui::TexturesDelta,
     ) {
-        for (id, image_delta) in &textures_delta.set {
-            self.set_texture(gl, *id, image_delta);
+        for (id, delta) in &textures_delta.set {
+            self.set_texture(gl, *id, delta);
         }
 
         self.paint_meshes(gl, inner_size, pixels_per_point, clipped_meshes);
@@ -403,21 +379,20 @@ impl Painter {
         }
     }
 
-    // Set the filter to be used for any subsequent textures loaded via
-    // [`Self::set_texture`].
-    pub fn set_texture_filter(&mut self, texture_filter: TextureFilter) {
-        self.texture_filter = texture_filter;
-    }
-
     // ------------------------------------------------------------------------
 
     pub fn set_texture(
         &mut self,
         gl: &glow::Context,
         tex_id: egui::TextureId,
-        delta: &egui::epaint::ImageDelta,
+        delta: &egui::TextureDelta,
     ) {
         self.assert_not_destroyed();
+
+        let egui::TextureDelta {
+            filter,
+            image: image_delta,
+        } = delta;
 
         let glow_texture = *self
             .textures
@@ -427,7 +402,7 @@ impl Painter {
             gl.bind_texture(glow::TEXTURE_2D, Some(glow_texture));
         }
 
-        match &delta.image {
+        match &image_delta.image {
             egui::ImageData::Color(image) => {
                 assert_eq!(
                     image.width() * image.height(),
@@ -437,7 +412,7 @@ impl Painter {
 
                 let data: &[u8] = bytemuck::cast_slice(image.pixels.as_ref());
 
-                self.upload_texture_srgb(gl, delta.pos, image.size, data);
+                self.upload_texture_srgb(gl, image_delta.pos, image.size, data, *filter);
             }
             egui::ImageData::Alpha(image) => {
                 assert_eq!(
@@ -456,7 +431,7 @@ impl Painter {
                     .flat_map(|a| a.to_array())
                     .collect();
 
-                self.upload_texture_srgb(gl, delta.pos, image.size, &data);
+                self.upload_texture_srgb(gl, image_delta.pos, image.size, &data, *filter);
             }
         };
     }
@@ -467,19 +442,24 @@ impl Painter {
         pos: Option<[usize; 2]>,
         [w, h]: [usize; 2],
         data: &[u8],
+        filter: egui::TextureFilter,
     ) {
+        let glow_filter = match filter {
+            egui::TextureFilter::Linear => glow::LINEAR,
+            egui::TextureFilter::Nearest => glow::NEAREST,
+        };
         assert_eq!(data.len(), w * h * 4);
         assert!(w >= 1 && h >= 1);
         unsafe {
             gl.tex_parameter_i32(
                 glow::TEXTURE_2D,
                 glow::TEXTURE_MAG_FILTER,
-                self.texture_filter.glow_code() as i32,
+                glow_filter as i32,
             );
             gl.tex_parameter_i32(
                 glow::TEXTURE_2D,
                 glow::TEXTURE_MIN_FILTER,
-                self.texture_filter.glow_code() as i32,
+                glow_filter as i32,
             );
 
             gl.tex_parameter_i32(

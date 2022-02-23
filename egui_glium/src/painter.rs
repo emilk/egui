@@ -19,7 +19,7 @@ pub struct Painter {
     max_texture_side: usize,
     program: glium::Program,
 
-    textures: AHashMap<egui::TextureId, Rc<SrgbTexture2d>>,
+    textures: AHashMap<egui::TextureId, (Rc<SrgbTexture2d>, egui::TextureFilter)>,
 
     #[cfg(feature = "epi")]
     /// [`egui::TextureId::User`] index
@@ -73,8 +73,8 @@ impl Painter {
         clipped_meshes: Vec<egui::ClippedMesh>,
         textures_delta: &egui::TexturesDelta,
     ) {
-        for (id, image_delta) in &textures_delta.set {
-            self.set_texture(display, *id, image_delta);
+        for (id, delta) in &textures_delta.set {
+            self.set_texture(display, *id, delta);
         }
 
         self.paint_meshes(display, target, pixels_per_point, clipped_meshes);
@@ -134,10 +134,13 @@ impl Painter {
         let width_in_points = width_in_pixels as f32 / pixels_per_point;
         let height_in_points = height_in_pixels as f32 / pixels_per_point;
 
-        if let Some(texture) = self.get_texture(mesh.texture_id) {
+        if let Some((texture, stored_filter)) = self.get_texture(mesh.texture_id) {
             // The texture coordinates for text are so that both nearest and linear should work with the egui font texture.
             // For user textures linear sampling is more likely to be the right choice.
-            let filter = MagnifySamplerFilter::Linear;
+            let filter = match stored_filter {
+                egui::TextureFilter::Linear => MagnifySamplerFilter::Linear,
+                egui::TextureFilter::Nearest => MagnifySamplerFilter::Nearest,
+            };
 
             let uniforms = uniform! {
                 u_screen_size: [width_in_points, height_in_points],
@@ -213,9 +216,14 @@ impl Painter {
         &mut self,
         facade: &dyn glium::backend::Facade,
         tex_id: egui::TextureId,
-        delta: &egui::epaint::ImageDelta,
+        delta: &egui::TextureDelta,
     ) {
-        let pixels: Vec<(u8, u8, u8, u8)> = match &delta.image {
+        let egui::TextureDelta {
+            image: image_delta,
+            filter,
+        } = delta;
+
+        let pixels: Vec<(u8, u8, u8, u8)> = match &image_delta.image {
             egui::ImageData::Color(image) => {
                 assert_eq!(
                     image.width() * image.height(),
@@ -234,28 +242,29 @@ impl Painter {
         };
         let glium_image = glium::texture::RawImage2d {
             data: std::borrow::Cow::Owned(pixels),
-            width: delta.image.width() as _,
-            height: delta.image.height() as _,
+            width: image_delta.image.width() as _,
+            height: image_delta.image.height() as _,
             format: glium::texture::ClientFormat::U8U8U8U8,
         };
         let format = texture::SrgbFormat::U8U8U8U8;
         let mipmaps = texture::MipmapsOption::NoMipmap;
 
-        if let Some(pos) = delta.pos {
+        if let Some(pos) = image_delta.pos {
             // update a sub-region
-            if let Some(gl_texture) = self.textures.get(&tex_id) {
+            if let Some((gl_texture, stored_filter)) = self.textures.get_mut(&tex_id) {
                 let rect = glium::Rect {
                     left: pos[0] as _,
                     bottom: pos[1] as _,
                     width: glium_image.width,
                     height: glium_image.height,
                 };
+                *stored_filter = *filter;
                 gl_texture.main_level().write(rect, glium_image);
             }
         } else {
             let gl_texture =
                 SrgbTexture2d::with_format(facade, glium_image, format, mipmaps).unwrap();
-            self.textures.insert(tex_id, gl_texture.into());
+            self.textures.insert(tex_id, (gl_texture.into(), *filter));
         }
     }
 
@@ -263,8 +272,13 @@ impl Painter {
         self.textures.remove(&tex_id);
     }
 
-    fn get_texture(&self, texture_id: egui::TextureId) -> Option<&SrgbTexture2d> {
-        self.textures.get(&texture_id).map(|rc| rc.as_ref())
+    fn get_texture(
+        &self,
+        texture_id: egui::TextureId,
+    ) -> Option<(&SrgbTexture2d, egui::TextureFilter)> {
+        self.textures
+            .get(&texture_id)
+            .map(|(rc, filter)| (rc.as_ref(), *filter))
     }
 }
 
@@ -275,11 +289,11 @@ impl epi::NativeTexture for Painter {
     fn register_native_texture(&mut self, native: Self::Texture) -> egui::TextureId {
         let id = egui::TextureId::User(self.next_native_tex_id);
         self.next_native_tex_id += 1;
-        self.textures.insert(id, native);
+        self.textures.insert(id, (native, Default::default()));
         id
     }
 
     fn replace_native_texture(&mut self, id: egui::TextureId, replacing: Self::Texture) {
-        self.textures.insert(id, replacing);
+        self.textures.insert(id, (replacing, Default::default()));
     }
 }

@@ -4,7 +4,7 @@ pub trait Painter {
     /// Max size of one side of a texture.
     fn max_texture_side(&self) -> usize;
 
-    fn set_texture(&mut self, tex_id: egui::TextureId, delta: &egui::epaint::ImageDelta);
+    fn set_texture(&mut self, tex_id: egui::TextureId, delta: &egui::TextureDelta);
 
     fn free_texture(&mut self, tex_id: egui::TextureId);
 
@@ -29,8 +29,8 @@ pub trait Painter {
         pixels_per_point: f32,
         textures_delta: &egui::TexturesDelta,
     ) -> Result<(), JsValue> {
-        for (id, image_delta) in &textures_delta.set {
-            self.set_texture(*id, image_delta);
+        for (id, delta) in &textures_delta.set {
+            self.set_texture(*id, delta);
         }
 
         self.paint_meshes(clipped_meshes, pixels_per_point)?;

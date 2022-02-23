@@ -221,6 +221,7 @@ impl WebGlPainter {
         pos: Option<[usize; 2]>,
         [w, h]: [usize; 2],
         pixels: &[u8],
+        filter: egui::TextureFilter,
     ) {
         let gl = &self.gl;
 
@@ -229,11 +230,15 @@ impl WebGlPainter {
             .entry(tex_id)
             .or_insert_with(|| gl.create_texture().unwrap());
 
+        let gl_filter = match filter {
+            egui::TextureFilter::Linear => Gl::LINEAR,
+            egui::TextureFilter::Nearest => Gl::NEAREST,
+        };
         gl.bind_texture(Gl::TEXTURE_2D, Some(gl_texture));
         gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_S, Gl::CLAMP_TO_EDGE as _);
         gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_WRAP_T, Gl::CLAMP_TO_EDGE as _);
-        gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MIN_FILTER, Gl::LINEAR as _);
-        gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MAG_FILTER, Gl::LINEAR as _);
+        gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MIN_FILTER, gl_filter as _);
+        gl.tex_parameteri(Gl::TEXTURE_2D, Gl::TEXTURE_MAG_FILTER, gl_filter as _);
 
         let level = 0;
         let internal_format = self.texture_format;
@@ -304,8 +309,13 @@ impl crate::Painter for WebGlPainter {
         2048
     }
 
-    fn set_texture(&mut self, tex_id: egui::TextureId, delta: &egui::epaint::ImageDelta) {
-        match &delta.image {
+    fn set_texture(&mut self, tex_id: egui::TextureId, delta: &egui::TextureDelta) {
+        let egui::TextureDelta {
+            filter,
+            image: image_delta,
+        } = delta;
+
+        match &image_delta.image {
             egui::ImageData::Color(image) => {
                 assert_eq!(
                     image.width() * image.height(),
@@ -314,7 +324,7 @@ impl crate::Painter for WebGlPainter {
                 );
 
                 let data: &[u8] = bytemuck::cast_slice(image.pixels.as_ref());
-                self.set_texture_rgba(tex_id, delta.pos, image.size, data);
+                self.set_texture_rgba(tex_id, image_delta.pos, image.size, data, *filter);
             }
             egui::ImageData::Alpha(image) => {
                 let gamma = if self.post_process.is_none() {
@@ -326,7 +336,7 @@ impl crate::Painter for WebGlPainter {
                     .srgba_pixels(gamma)
                     .flat_map(|a| a.to_array())
                     .collect();
-                self.set_texture_rgba(tex_id, delta.pos, image.size, &data);
+                self.set_texture_rgba(tex_id, image_delta.pos, image.size, &data, *filter);
             }
         };
     }

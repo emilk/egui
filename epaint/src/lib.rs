@@ -117,7 +117,7 @@ pub use {
     text::{FontFamily, FontId, Fonts, Galley},
     texture_atlas::TextureAtlas,
     texture_handle::TextureHandle,
-    textures::TextureManager,
+    textures::{TextureFilter, TextureManager},
 };
 
 pub use emath::{pos2, vec2, Pos2, Rect, Vec2};

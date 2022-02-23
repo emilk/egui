@@ -3,6 +3,20 @@ use ahash::AHashMap;
 
 // ----------------------------------------------------------------------------
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum TextureFilter {
+    Linear,
+    Nearest,
+}
+
+impl Default for TextureFilter {
+    fn default() -> Self {
+        Self::Linear
+    }
+}
+
+// ----------------------------------------------------------------------------
 /// Low-level manager for allocating textures.
 ///
 /// Communicates with the painting subsystem using [`Self::take_delta`].
@@ -27,18 +41,29 @@ impl TextureManager {
     /// MUST have a white pixel at (0,0) ([`crate::WHITE_UV`]).
     ///
     /// The texture is given a retain-count of `1`, requiring one call to [`Self::free`] to free it.
-    pub fn alloc(&mut self, name: String, image: ImageData) -> TextureId {
+    pub fn alloc(&mut self, name: String, image: ImageData, filter: TextureFilter) -> TextureId {
         let id = TextureId::Managed(self.next_id);
         self.next_id += 1;
 
-        self.metas.entry(id).or_insert_with(|| TextureMeta {
-            name,
-            size: image.size(),
-            bytes_per_pixel: image.bytes_per_pixel(),
-            retain_count: 1,
-        });
+        let filter = self
+            .metas
+            .entry(id)
+            .or_insert_with(|| TextureMeta {
+                name,
+                filter,
+                size: image.size(),
+                bytes_per_pixel: image.bytes_per_pixel(),
+                retain_count: 1,
+            })
+            .filter;
 
-        self.delta.set.insert(id, ImageDelta::full(image));
+        self.delta.set.insert(
+            id,
+            TextureDelta {
+                filter,
+                image: ImageDelta::full(image),
+            },
+        );
         id
     }
 
@@ -50,7 +75,13 @@ impl TextureManager {
                 meta.size = delta.image.size();
                 meta.bytes_per_pixel = delta.image.bytes_per_pixel();
             }
-            self.delta.set.insert(id, delta);
+            self.delta.set.insert(
+                id,
+                TextureDelta {
+                    filter: meta.filter,
+                    image: delta,
+                },
+            );
         } else {
             crate::epaint_assert!(
                 false,
@@ -130,6 +161,9 @@ pub struct TextureMeta {
 
     /// Free when this reaches zero.
     pub retain_count: usize,
+
+    /// The texture filter used by this texture
+    pub filter: TextureFilter,
 }
 
 impl TextureMeta {
@@ -142,6 +176,14 @@ impl TextureMeta {
 
 // ----------------------------------------------------------------------------
 
+/// The changes to an individual texture during the last period.
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct TextureDelta {
+    pub image: ImageDelta,
+    pub filter: TextureFilter,
+}
+
 /// What has been allocated and freed during the last period.
 ///
 /// These are commands given to the integration painter.
@@ -150,7 +192,7 @@ impl TextureMeta {
 #[must_use = "The painter must take care of this"]
 pub struct TexturesDelta {
     /// New or changed textures. Apply before painting.
-    pub set: AHashMap<TextureId, ImageDelta>,
+    pub set: AHashMap<TextureId, TextureDelta>,
 
     /// Textures to free after painting.
     pub free: Vec<TextureId>,
@@ -178,8 +220,8 @@ impl std::fmt::Debug for TexturesDelta {
         if !self.set.is_empty() {
             let mut string = String::new();
             for (tex_id, delta) in &self.set {
-                let size = delta.image.size();
-                if let Some(pos) = delta.pos {
+                let size = delta.image.image.size();
+                if let Some(pos) = delta.image.pos {
                     string += &format!(
                         "{:?} partial ([{} {}] - [{} {}]), ",
                         tex_id,

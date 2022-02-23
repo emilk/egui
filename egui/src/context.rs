@@ -18,6 +18,7 @@ impl Default for WrappedTextureManager {
         let font_id = tex_mngr.alloc(
             "egui_font_texture".into(),
             epaint::AlphaImage::new([0, 0]).into(),
+            epaint::TextureFilter::Linear,
         );
         assert_eq!(font_id, TextureId::default());
 
@@ -652,7 +653,7 @@ impl Context {
     ///     fn ui(&mut self, ui: &mut egui::Ui) {
     ///         let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
     ///             // Load the texture only once.
-    ///             ui.ctx().load_texture("my-image", egui::ColorImage::example())
+    ///             ui.ctx().load_texture("my-image", egui::ColorImage::example(), Default::default())
     ///         });
     ///
     ///         // Show the image:
@@ -666,9 +667,10 @@ impl Context {
         &self,
         name: impl Into<String>,
         image: impl Into<ImageData>,
+        filter: TextureFilter,
     ) -> TextureHandle {
         let tex_mngr = self.tex_manager();
-        let tex_id = tex_mngr.write().alloc(name.into(), image.into());
+        let tex_id = tex_mngr.write().alloc(name.into(), image.into(), filter);
         TextureHandle::new(tex_mngr, tex_id)
     }
 
