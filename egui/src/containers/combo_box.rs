@@ -95,19 +95,22 @@ impl ComboBox {
 
         let button_id = ui.make_persistent_id(id_source);
 
-        if let Some(width) = width {
-            ui.spacing_mut().slider_width = width; // yes, this is ugly. Will remove later.
-        }
-        let mut ir = combo_box_dyn(ui, button_id, selected_text, menu_contents);
-        if let Some(label) = label {
-            ir.response
-                .widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, label.text()));
-            ir.response |= ui.label(label);
-        } else {
-            ir.response
-                .widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, ""));
-        }
-        ir
+        ui.horizontal(|ui| {
+            if let Some(width) = width {
+                ui.spacing_mut().slider_width = width; // yes, this is ugly. Will remove later.
+            }
+            let mut ir = combo_box_dyn(ui, button_id, selected_text, menu_contents);
+            if let Some(label) = label {
+                ir.response
+                    .widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, label.text()));
+                ir.response |= ui.label(label);
+            } else {
+                ir.response
+                    .widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, ""));
+            }
+            ir
+        })
+        .inner
     }
 
     /// Show a list of items with the given selected index.
