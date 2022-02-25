@@ -287,6 +287,12 @@ impl Plot {
         self
     }
 
+    /// Sets the `margin_fraction` field used to determine the margin of the Plot
+    pub fn set_margin_fraction(mut self, margin_fraction: Vec2) -> Self {
+        self.margin_fraction = margin_fraction;
+        self
+    }
+
     /// Whether to allow zooming in the plot by dragging out a box with the secondary mouse button.
     ///
     /// Default: `true`.
