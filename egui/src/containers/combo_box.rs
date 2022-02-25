@@ -95,22 +95,19 @@ impl ComboBox {
 
         let button_id = ui.make_persistent_id(id_source);
 
-        ui.horizontal(|ui| {
-            if let Some(width) = width {
-                ui.spacing_mut().slider_width = width; // yes, this is ugly. Will remove later.
-            }
-            let mut ir = combo_box_dyn(ui, button_id, selected_text, menu_contents);
-            if let Some(label) = label {
-                ir.response
-                    .widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, label.text()));
-                ir.response |= ui.label(label);
-            } else {
-                ir.response
-                    .widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, ""));
-            }
-            ir
-        })
-        .inner
+        if let Some(width) = width {
+            ui.spacing_mut().slider_width = width; // yes, this is ugly. Will remove later.
+        }
+        let mut ir = combo_box_dyn(ui, button_id, selected_text, menu_contents);
+        if let Some(label) = label {
+            ir.response
+                .widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, label.text()));
+            ir.response |= ui.label(label);
+        } else {
+            ir.response
+                .widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, ""));
+        }
+        ir
     }
 
     /// Show a list of items with the given selected index.
@@ -231,7 +228,7 @@ fn button_frame(
     outer_rect.set_height(outer_rect.height().at_least(interact_size.y));
 
     let inner_rect = outer_rect.shrink2(margin);
-    let mut content_ui = ui.child_ui(inner_rect, Layout::left_to_right());
+    let mut content_ui = ui.child_ui(inner_rect, *ui.layout());
     add_contents(&mut content_ui);
 
     let mut outer_rect = content_ui.min_rect().expand2(margin);
