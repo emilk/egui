@@ -100,7 +100,15 @@ pub mod winit;
 #[cfg(all(not(target_arch = "wasm32"), feature = "winit"))]
 pub use winit::*;
 
-#[cfg(all(not(target_arch = "wasm32"), feature = "persistence"))]
+#[cfg(all(
+    not(target_arch = "wasm32"),
+    feature = "persistence",
+    feature = "winit"
+))]
 mod epi_backend;
-#[cfg(all(not(target_arch = "wasm32"), feature = "persistence"))]
+#[cfg(all(
+    not(target_arch = "wasm32"),
+    feature = "persistence",
+    feature = "winit"
+))]
 pub use epi_backend::{run, NativeOptions};
