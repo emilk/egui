@@ -359,11 +359,37 @@ pub fn start(canvas_id: &str, app: Box<dyn epi::App>) -> Result<AppRunnerRef, Js
 /// Install event listeners to register different input events
 /// and starts running the given `AppRunner`.
 fn start_runner(app_runner: AppRunner) -> Result<AppRunnerRef, JsValue> {
-    let runner_ref = AppRunnerRef(Arc::new(Mutex::new(app_runner)));
-    install_canvas_events(&runner_ref)?;
-    install_document_events(&runner_ref)?;
-    text_agent::install_text_agent(&runner_ref)?;
-    repaint_every_ms(&runner_ref, 1000)?; // just in case. TODO: make it a parameter
-    paint_and_schedule(runner_ref.clone())?;
-    Ok(runner_ref)
+    let runner_container = AppRunnerContainer {
+        runner: Arc::new(Mutex::new(app_runner)),
+        panicked: Arc::new(AtomicBool::new(false)),
+    };
+
+    install_canvas_events(&runner_container)?;
+    install_document_events(&runner_container)?;
+    text_agent::install_text_agent(&runner_container)?;
+    repaint_every_ms(&runner_container, 1000)?; // just in case. TODO: make it a parameter
+
+    paint_and_schedule(&runner_container.runner, runner_container.panicked.clone())?;
+
+    // Disable all event handlers on panic
+    std::panic::set_hook(Box::new({
+        let previous_hook = std::panic::take_hook();
+
+        let panicked = runner_container.panicked;
+
+        move |panic_info| {
+            tracing::info_span!("egui_panic_handler").in_scope(|| {
+                tracing::trace!("setting panicked flag");
+
+                panicked.store(true, SeqCst);
+
+                tracing::info!("egui disabled all event handlers due to panic");
+            });
+
+            // Propagate panic info to the previously registered panic hook
+            previous_hook(panic_info);
+        }
+    }));
+
+    Ok(runner_container.runner)
 }
