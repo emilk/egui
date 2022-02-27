@@ -1,5 +1,5 @@
 use crate::{
-    emath::{lerp, Align, Pos2, Rect, Vec2},
+    emath::{Align, Pos2, Rect, Vec2},
     menu, Context, CursorIcon, Id, LayerId, PointerButton, Sense, Ui, WidgetText,
     NUM_POINTER_BUTTONS,
 };
@@ -443,7 +443,11 @@ impl Response {
         )
     }
 
-    /// Move the scroll to this UI with the specified alignment.
+    /// Adjust the scroll position until this UI becomes visible.
+    ///
+    /// If `align` is `None`, it'll scroll enough to bring the UI into view.
+    ///
+    /// See also: [`Ui::scroll_to_cursor`], [`Ui::scroll_to_rect`].
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -451,18 +455,15 @@ impl Response {
     ///     for i in 0..1000 {
     ///         let response = ui.button("Scroll to me");
     ///         if response.clicked() {
-    ///             response.scroll_to_me(egui::Align::Center);
+    ///             response.scroll_to_me(Some(egui::Align::Center));
     ///         }
     ///     }
     /// });
     /// # });
     /// ```
-    pub fn scroll_to_me(&self, align: Align) {
-        let scroll_target = lerp(self.rect.x_range(), align.to_factor());
-        self.ctx.frame_state().scroll_target[0] = Some((scroll_target, align));
-
-        let scroll_target = lerp(self.rect.y_range(), align.to_factor());
-        self.ctx.frame_state().scroll_target[1] = Some((scroll_target, align));
+    pub fn scroll_to_me(&self, align: Option<Align>) {
+        self.ctx.frame_state().scroll_target[0] = Some((self.rect.x_range(), align));
+        self.ctx.frame_state().scroll_target[1] = Some((self.rect.y_range(), align));
     }
 
     /// For accessibility.
@@ -509,6 +510,8 @@ impl Response {
 impl Response {
     /// A logical "or" operation.
     /// For instance `a.union(b).hovered` means "was either a or b hovered?".
+    ///
+    /// The resulting [`Self::id`] will come from the first (`self`) argument.
     pub fn union(&self, other: Self) -> Self {
         assert!(self.ctx == other.ctx);
         crate::egui_assert!(

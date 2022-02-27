@@ -543,6 +543,14 @@ impl<'t> TextEdit<'t> {
             text_draw_pos -= vec2(offset_x, 0.0);
         }
 
+        let selection_changed = if let (Some(cursor_range), Some(prev_cursor_range)) =
+            (cursor_range, prev_cursor_range)
+        {
+            prev_cursor_range.as_ccursor_range() != cursor_range.as_ccursor_range()
+        } else {
+            false
+        };
+
         if ui.is_rect_visible(rect) {
             painter.galley(text_draw_pos, galley.clone());
 
@@ -561,7 +569,7 @@ impl<'t> TextEdit<'t> {
                     // We paint the cursor on top of the text, in case
                     // the text galley has backgrounds (as e.g. `code` snippets in markup do).
                     paint_cursor_selection(ui, &painter, text_draw_pos, &galley, &cursor_range);
-                    paint_cursor_end(
+                    let cursor_pos = paint_cursor_end(
                         ui,
                         row_height,
                         &painter,
@@ -570,29 +578,20 @@ impl<'t> TextEdit<'t> {
                         &cursor_range.primary,
                     );
 
+                    if response.changed || selection_changed {
+                        ui.scroll_to_rect(cursor_pos, None); // keep cursor in view
+                    }
+
                     if interactive && text.is_mutable() {
                         // egui_web uses `text_cursor_pos` when showing IME,
                         // so only set it when text is editable and visible!
-                        ui.ctx().output().text_cursor_pos = Some(
-                            galley
-                                .pos_from_cursor(&cursor_range.primary)
-                                .translate(response.rect.min.to_vec2())
-                                .left_top(),
-                        );
+                        ui.ctx().output().text_cursor_pos = Some(cursor_pos.left_top());
                     }
                 }
             }
         }
 
         state.clone().store(ui.ctx(), id);
-
-        let selection_changed = if let (Some(cursor_range), Some(prev_cursor_range)) =
-            (cursor_range, prev_cursor_range)
-        {
-            prev_cursor_range.as_ccursor_range() != cursor_range.as_ccursor_range()
-        } else {
-            false
-        };
 
         if response.changed {
             response.widget_info(|| {
@@ -887,7 +886,7 @@ fn paint_cursor_end(
     pos: Pos2,
     galley: &Galley,
     cursor: &Cursor,
-) {
+) -> Rect {
     let stroke = ui.visuals().selection.stroke;
 
     let mut cursor_pos = galley.pos_from_cursor(cursor).translate(pos.to_vec2());
@@ -915,6 +914,8 @@ fn paint_cursor_end(
             (width, stroke.color),
         );
     }
+
+    cursor_pos
 }
 
 // ----------------------------------------------------------------------------
@@ -1091,11 +1092,31 @@ fn on_key_press(
             None
         }
 
+        Key::P | Key::N | Key::B | Key::F | Key::A | Key::E
+            if cfg!(target_os = "macos") && modifiers.ctrl && !modifiers.shift =>
+        {
+            move_single_cursor(&mut cursor_range.primary, galley, key, modifiers);
+            cursor_range.secondary = cursor_range.primary;
+            None
+        }
+
         _ => None,
     }
 }
 
 fn move_single_cursor(cursor: &mut Cursor, galley: &Galley, key: Key, modifiers: &Modifiers) {
+    if cfg!(target_os = "macos") && modifiers.ctrl && !modifiers.shift {
+        match key {
+            Key::A => *cursor = galley.cursor_begin_of_row(cursor),
+            Key::E => *cursor = galley.cursor_end_of_row(cursor),
+            Key::P => *cursor = galley.cursor_up_one_row(cursor),
+            Key::N => *cursor = galley.cursor_down_one_row(cursor),
+            Key::B => *cursor = galley.cursor_left_one_character(cursor),
+            Key::F => *cursor = galley.cursor_right_one_character(cursor),
+            _ => (),
+        }
+        return;
+    }
     match key {
         Key::ArrowLeft => {
             if modifiers.alt || modifiers.ctrl {

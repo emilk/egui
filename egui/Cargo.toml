@@ -1,8 +1,8 @@
 [package]
 name = "egui"
-version = "0.16.1"
+version = "0.17.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
-description = "Simple, portable immediate mode GUI library for Rust"
+description = "An easy-to-use immediate mode GUI that runs on both web and native"
 edition = "2021"
 rust-version = "1.56"
 homepage = "https://github.com/emilk/egui"
@@ -58,7 +58,7 @@ multi_threaded = ["epaint/multi_threaded"]
 
 
 [dependencies]
-epaint = { version = "0.16.0", path = "../epaint", default-features = false }
+epaint = { version = "0.17.0", path = "../epaint", default-features = false }
 
 ahash = "0.7"
 nohash-hasher = "0.2"

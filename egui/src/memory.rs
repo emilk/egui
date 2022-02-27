@@ -105,7 +105,7 @@ pub struct Options {
     pub tessellation_options: epaint::TessellationOptions,
 
     /// This does not at all change the behavior of egui,
-    /// but is a signal to any backend that we want the [`crate::Output::events`] read out loud.
+    /// but is a signal to any backend that we want the [`crate::PlatformOutput::events`] read out loud.
     /// Screen readers is an experimental feature of egui, and not supported on all platforms.
     pub screen_reader: bool,
 
@@ -329,6 +329,12 @@ impl Memory {
         self.areas.layer_id_at(pos, resize_interact_radius_side)
     }
 
+    /// The overall top-most layer. When an area is clicked on or interacted
+    /// with, it is moved above all other areas.
+    pub fn top_most_layer(&self) -> Option<LayerId> {
+        self.areas.order().last().copied()
+    }
+
     pub(crate) fn had_focus_last_frame(&self, id: Id) -> bool {
         self.interaction.focus.id_previous_frame == Some(id)
     }
@@ -516,9 +522,9 @@ impl Areas {
                     if state.interactable {
                         // Allow us to resize by dragging just outside the window:
                         rect = rect.expand(resize_interact_radius_side);
-                    }
-                    if rect.contains(pos) {
-                        return Some(*layer);
+                        if rect.contains(pos) {
+                            return Some(*layer);
+                        }
                     }
                 }
             }

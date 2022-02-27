@@ -1,5 +1,7 @@
-//! `egui_extras`:  Widgets for egui which are not in the main egui crate
+//! This is a crate that adds some features on top top of [`egui`](https://github.com/emilk/egui). This crate are for experimental features, and features that require big dependencies that does not belong in `egui`.
 
+// Forbid warnings in release builds:
+#![cfg_attr(not(debug_assertions), deny(warnings))]
 #![forbid(unsafe_code)]
 #![warn(
     clippy::all,
@@ -84,14 +86,16 @@
 mod datepicker;
 
 mod grid;
+pub mod image;
 mod layout;
 mod sizing;
 mod table;
 
 #[cfg(feature = "chrono")]
-pub use datepicker::DatePickerButton;
+pub use crate::datepicker::DatePickerButton;
 
-pub use grid::*;
-pub(crate) use layout::Layout;
-pub use sizing::Size;
-pub use table::*;
+pub use crate::grid::*;
+pub use crate::image::RetainedImage;
+pub(crate) use crate::layout::Layout;
+pub use crate::sizing::Size;
+pub use crate::table::*;

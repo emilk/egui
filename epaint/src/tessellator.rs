@@ -133,9 +133,20 @@ impl Path {
 
             let normal = (n0 + n1) / 2.0;
             let length_sq = normal.length_sq();
+
+            // We can't just cut off corners for filled shapes like this,
+            // because the feather will both expand and contract the corner along the provided normals
+            // to make sure it doesn't grow, and the shrinking will make the inner points cross each other.
+            //
+            // A better approach is to shrink the vertices in by half the feather-width here
+            // and then only expand during feathering.
+            //
+            // See https://github.com/emilk/egui/issues/1226
+            const CUT_OFF_SHARP_CORNERS: bool = false;
+
             let right_angle_length_sq = 0.5;
             let sharper_than_a_right_angle = length_sq < right_angle_length_sq;
-            if sharper_than_a_right_angle {
+            if CUT_OFF_SHARP_CORNERS && sharper_than_a_right_angle {
                 // cut off the sharp corner
                 let center_normal = normal.normalized();
                 let n0c = (n0 + center_normal) / 2.0;
@@ -172,8 +183,12 @@ impl Path {
     }
 
     /// The path is taken to be closed (i.e. returning to the start again).
-    pub fn fill(&self, color: Color32, options: &TessellationOptions, out: &mut Mesh) {
-        fill_closed_path(&self.0, color, options, out);
+    ///
+    /// Calling this may reverse the vertices in the path if they are wrong winding order.
+    ///
+    /// The preferred winding order is clockwise.
+    pub fn fill(&mut self, color: Color32, options: &TessellationOptions, out: &mut Mesh) {
+        fill_closed_path(&mut self.0, color, options, out);
     }
 }
 
@@ -196,10 +211,10 @@ pub mod path {
             let min = rect.min;
             let max = rect.max;
             path.reserve(4);
-            path.push(pos2(min.x, min.y));
-            path.push(pos2(max.x, min.y));
-            path.push(pos2(max.x, max.y));
-            path.push(pos2(min.x, max.y));
+            path.push(pos2(min.x, min.y)); // left top
+            path.push(pos2(max.x, min.y)); // right top
+            path.push(pos2(max.x, max.y)); // right bottom
+            path.push(pos2(min.x, max.y)); // left bottom
         } else {
             add_circle_quadrant(path, pos2(max.x - r.se, max.y - r.se), r.se, 0.0);
             add_circle_quadrant(path, pos2(min.x + r.sw, max.y - r.sw), r.sw, 1.0);
@@ -346,9 +361,27 @@ impl TessellationOptions {
     }
 }
 
+fn cw_signed_area(path: &[PathPoint]) -> f64 {
+    if let Some(last) = path.last() {
+        let mut previous = last.pos;
+        let mut area = 0.0;
+        for p in path {
+            area += (previous.x * p.pos.y - p.pos.x * previous.y) as f64;
+            previous = p.pos;
+        }
+        area
+    } else {
+        0.0
+    }
+}
+
 /// Tessellate the given convex area into a polygon.
+///
+/// Calling this may reverse the vertices in the path if they are wrong winding order.
+///
+/// The preferred winding order is clockwise.
 fn fill_closed_path(
-    path: &[PathPoint],
+    path: &mut [PathPoint],
     color: Color32,
     options: &TessellationOptions,
     out: &mut Mesh,
@@ -359,14 +392,26 @@ fn fill_closed_path(
 
     let n = path.len() as u32;
     if options.anti_alias {
+        if cw_signed_area(path) < 0.0 {
+            // Wrong winding order - fix:
+            path.reverse();
+            for point in path.iter_mut() {
+                point.normal = -point.normal;
+            }
+        }
+
         out.reserve_triangles(3 * n as usize);
         out.reserve_vertices(2 * n as usize);
         let color_outer = Color32::TRANSPARENT;
         let idx_inner = out.vertices.len() as u32;
         let idx_outer = idx_inner + 1;
+
+        // The fill:
         for i in 2..n {
             out.add_triangle(idx_inner + 2 * (i - 1), idx_inner, idx_inner + 2 * i);
         }
+
+        // The feathering:
         let mut i0 = n - 1;
         for i1 in 0..n {
             let p1 = &path[i1 as usize];
@@ -748,7 +793,7 @@ impl Tessellator {
         let clip_rect = self.clip_rect;
 
         if options.coarse_tessellation_culling
-            && !quadratic_shape.bounding_rect().intersects(clip_rect)
+            && !quadratic_shape.visual_bounding_rect().intersects(clip_rect)
         {
             return;
         }
@@ -771,7 +816,8 @@ impl Tessellator {
     ) {
         let options = &self.options;
         let clip_rect = self.clip_rect;
-        if options.coarse_tessellation_culling && !cubic_shape.bounding_rect().intersects(clip_rect)
+        if options.coarse_tessellation_culling
+            && !cubic_shape.visual_bounding_rect().intersects(clip_rect)
         {
             return;
         }
@@ -825,7 +871,7 @@ impl Tessellator {
         }
 
         if self.options.coarse_tessellation_culling
-            && !path_shape.bounding_rect().intersects(self.clip_rect)
+            && !path_shape.visual_bounding_rect().intersects(self.clip_rect)
         {
             return;
         }
@@ -1026,16 +1072,20 @@ pub fn tessellate_shapes(
 
     if options.debug_paint_clip_rects {
         for ClippedMesh(clip_rect, mesh) in &mut clipped_meshes {
-            tessellator.clip_rect = Rect::EVERYTHING;
-            tessellator.tessellate_shape(
-                tex_size,
-                Shape::rect_stroke(
-                    *clip_rect,
-                    0.0,
-                    Stroke::new(2.0, Color32::from_rgb(150, 255, 150)),
-                ),
-                mesh,
-            );
+            if mesh.texture_id == TextureId::default() {
+                tessellator.clip_rect = Rect::EVERYTHING;
+                tessellator.tessellate_shape(
+                    tex_size,
+                    Shape::rect_stroke(
+                        *clip_rect,
+                        0.0,
+                        Stroke::new(2.0, Color32::from_rgb(150, 255, 150)),
+                    ),
+                    mesh,
+                );
+            } else {
+                // TODO: create a new `ClippedMesh` just for the painted clip rectangle
+            }
         }
     }
 

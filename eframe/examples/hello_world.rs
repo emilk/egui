@@ -22,19 +22,17 @@ impl epi::App for MyApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
-        let Self { name, age } = self;
-
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("My egui Application");
             ui.horizontal(|ui| {
                 ui.label("Your name: ");
-                ui.text_edit_singleline(name);
+                ui.text_edit_singleline(&mut self.name);
             });
-            ui.add(egui::Slider::new(age, 0..=120).text("age"));
+            ui.add(egui::Slider::new(&mut self.age, 0..=120).text("age"));
             if ui.button("Click each year").clicked() {
-                *age += 1;
+                self.age += 1;
             }
-            ui.label(format!("Hello '{}', age {}", name, age));
+            ui.label(format!("Hello '{}', age {}", self.name, self.age));
         });
 
         // Resize the native window to be just the size we need it to be:

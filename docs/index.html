@@ -128,20 +128,20 @@
             .catch(on_wasm_error);
 
         function on_wasm_loaded() {
-            console.debug("wasm loaded. starting egui app…");
+            console.debug("wasm loaded. starting app…");
 
             // This call installs a bunch of callbacks and then returns:
             wasm_bindgen.start("the_canvas_id");
 
-            console.debug("egui app started.");
+            console.debug("app started.");
             document.getElementById("center_text").remove();
         }
 
         function on_wasm_error(error) {
-            console.error("Failed to start egui: " + error);
+            console.error("Failed to start: " + error);
             document.getElementById("center_text").innerHTML = `
                 <p>
-                    An error occurred loading egui
+                    An error occurred during loading:
                 </p>
                 <p style="font-family:Courier New">
                     ${error}

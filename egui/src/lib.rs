@@ -110,16 +110,16 @@
 //! To write your own integration for egui you need to do this:
 //!
 //! ``` no_run
-//! # fn handle_output(_: egui::Output) {}
-//! # fn paint(_: Vec<egui::ClippedMesh>) {}
+//! # fn handle_platform_output(_: egui::PlatformOutput) {}
 //! # fn gather_input() -> egui::RawInput { egui::RawInput::default() }
+//! # fn paint(textures_detla: egui::TexturesDelta, _: Vec<egui::ClippedMesh>) {}
 //! let mut ctx = egui::Context::default();
 //!
 //! // Game loop:
 //! loop {
 //!     let raw_input: egui::RawInput = gather_input();
 //!
-//!     let (output, shapes) = ctx.run(raw_input, |ctx| {
+//!     let full_output = ctx.run(raw_input, |ctx| {
 //!         egui::CentralPanel::default().show(&ctx, |ui| {
 //!             ui.label("Hello world!");
 //!             if ui.button("Click me").clicked() {
@@ -127,10 +127,9 @@
 //!             }
 //!         });
 //!     });
-//!
-//!     let clipped_meshes = ctx.tessellate(shapes); // create triangles to paint
-//!     handle_output(output);
-//!     paint(clipped_meshes);
+//!     handle_platform_output(full_output.platform_output);
+//!     let clipped_meshes = ctx.tessellate(full_output.shapes); // create triangles to paint
+//!     paint(full_output.textures_delta, clipped_meshes);
 //! }
 //! ```
 //!
@@ -385,7 +384,7 @@ pub use epaint::emath;
 pub use emath::{lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rect, Vec2};
 pub use epaint::{
     color, mutex,
-    text::{FontData, FontDefinitions, FontFamily, FontId},
+    text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
     textures::TexturesDelta,
     AlphaImage, ClippedMesh, Color32, ColorImage, ImageData, Mesh, Rgba, Rounding, Shape, Stroke,
     TextureHandle, TextureId,
@@ -403,7 +402,7 @@ pub use {
     context::Context,
     data::{
         input::*,
-        output::{self, CursorIcon, Output, WidgetInfo},
+        output::{self, CursorIcon, FullOutput, PlatformOutput, WidgetInfo},
     },
     grid::Grid,
     id::{Id, IdMap},

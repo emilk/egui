@@ -69,7 +69,7 @@ impl epi::App for WrapApp {
 
     fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
         if let Some(web_info) = frame.info().web_info.as_ref() {
-            if let Some(anchor) = web_info.web_location_hash.strip_prefix('#') {
+            if let Some(anchor) = web_info.location.hash.strip_prefix('#') {
                 self.selected_anchor = anchor.to_owned();
             }
         }
@@ -108,10 +108,17 @@ impl epi::App for WrapApp {
             });
         }
 
+        let mut found_anchor = false;
+
         for (anchor, app) in self.apps.iter_mut() {
             if anchor == self.selected_anchor || ctx.memory().everything_is_visible() {
                 app.update(ctx, frame);
+                found_anchor = true;
             }
+        }
+
+        if !found_anchor {
+            self.selected_anchor = "demo".into();
         }
 
         self.backend_panel.end_of_frame(ctx);

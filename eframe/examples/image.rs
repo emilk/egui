@@ -1,10 +1,22 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 use eframe::{egui, epi};
+use egui_extras::RetainedImage;
 
-#[derive(Default)]
 struct MyApp {
-    texture: Option<egui::TextureHandle>,
+    image: RetainedImage,
+}
+
+impl Default for MyApp {
+    fn default() -> Self {
+        Self {
+            image: RetainedImage::from_image_bytes(
+                "rust-logo-256x256.png",
+                include_bytes!("rust-logo-256x256.png"),
+            )
+            .unwrap(),
+        }
+    }
 }
 
 impl epi::App for MyApp {
@@ -13,17 +25,15 @@ impl epi::App for MyApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &epi::Frame) {
-        let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
-            let image = load_image(include_bytes!("rust-logo-256x256.png")).unwrap();
-            ctx.load_texture("rust-logo", image)
-        });
-
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("This is an image:");
-            ui.image(texture, texture.size_vec2());
+            self.image.show(ui);
 
             ui.heading("This is an image you can click:");
-            ui.add(egui::ImageButton::new(texture, texture.size_vec2()));
+            ui.add(egui::ImageButton::new(
+                self.image.texture_id(ctx),
+                self.image.size_vec2(),
+            ));
         });
     }
 }
@@ -31,15 +41,4 @@ impl epi::App for MyApp {
 fn main() {
     let options = eframe::NativeOptions::default();
     eframe::run_native(Box::new(MyApp::default()), options);
-}
-
-fn load_image(image_data: &[u8]) -> Result<egui::ColorImage, image::ImageError> {
-    let image = image::load_from_memory(image_data)?;
-    let size = [image.width() as _, image.height() as _];
-    let image_buffer = image.to_rgba8();
-    let pixels = image_buffer.as_flat_samples();
-    Ok(egui::ColorImage::from_rgba_unmultiplied(
-        size,
-        pixels.as_slice(),
-    ))
 }

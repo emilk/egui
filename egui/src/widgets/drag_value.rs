@@ -180,7 +180,7 @@ impl<'a> Widget for DragValue<'a> {
             emath::format_with_decimals_in_range(value, auto_decimals..=max_decimals)
         };
 
-        let kb_edit_id = ui.auto_id_with("edit");
+        let kb_edit_id = ui.next_auto_id();
         let is_kb_editing = ui.memory().has_focus(kb_edit_id);
 
         let mut response = if is_kb_editing {

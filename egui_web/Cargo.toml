@@ -1,6 +1,6 @@
 [package]
 name = "egui_web"
-version = "0.16.0"
+version = "0.17.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for compiling egui code to WASM for a web page"
 license = "MIT OR Apache-2.0"
@@ -47,19 +47,18 @@ screen_reader = ["tts"]
 
 
 [dependencies]
-egui = { version = "0.16.0", path = "../egui", default-features = false, features = [
+egui = { version = "0.17.0", path = "../egui", default-features = false, features = [
   "convert_bytemuck",
   "single_threaded",
   "tracing",
 ] }
-egui_glow = { version = "0.16.0",path = "../egui_glow", default-features = false, optional = true }
-epi = { version = "0.16.0", path = "../epi" }
+egui_glow = { version = "0.17.0",path = "../egui_glow", default-features = false, optional = true }
+epi = { version = "0.17.0", path = "../epi" }
 
 bytemuck = "1.7"
-console_error_panic_hook = "0.1.6"
 js-sys = "0.3"
+percent-encoding = "2.1"
 tracing = "0.1"
-tracing-wasm = "0.2"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 

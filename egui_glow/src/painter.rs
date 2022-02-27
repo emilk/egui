@@ -270,6 +270,25 @@ impl Painter {
         (width_in_pixels, height_in_pixels)
     }
 
+    pub fn paint_and_update_textures(
+        &mut self,
+        gl: &glow::Context,
+        inner_size: [u32; 2],
+        pixels_per_point: f32,
+        clipped_meshes: Vec<egui::ClippedMesh>,
+        textures_delta: &egui::TexturesDelta,
+    ) {
+        for (id, image_delta) in &textures_delta.set {
+            self.set_texture(gl, *id, image_delta);
+        }
+
+        self.paint_meshes(gl, inner_size, pixels_per_point, clipped_meshes);
+
+        for &id in &textures_delta.free {
+            self.free_texture(gl, id);
+        }
+    }
+
     /// Main entry-point for painting a frame.
     /// You should call `target.clear_color(..)` before
     /// and `target.finish()` after this.

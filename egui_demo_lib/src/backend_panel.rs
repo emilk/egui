@@ -172,6 +172,12 @@ impl BackendPanel {
 
         show_integration_name(ui, &frame.info());
 
+        if let Some(web_info) = &frame.info().web_info {
+            ui.collapsing("Web info (location)", |ui| {
+                ui.monospace(format!("{:#?}", web_info.location));
+            });
+        }
+
         // For instance: `egui_web` sets `pixels_per_point` every frame to force
         // egui to use the same scale as the web zoom factor.
         let integration_controls_pixels_per_point = ui.input().raw.pixels_per_point.is_some();

@@ -71,6 +71,8 @@ pub struct Slider<'a> {
     suffix: String,
     text: String,
     text_color: Option<Color32>,
+    /// Sets the minimal step of the widget value
+    step: Option<f64>,
     min_decimals: usize,
     max_decimals: Option<usize>,
 }
@@ -113,6 +115,7 @@ impl<'a> Slider<'a> {
             suffix: Default::default(),
             text: Default::default(),
             text_color: None,
+            step: None,
             min_decimals: 0,
             max_decimals: None,
         }
@@ -199,6 +202,16 @@ impl<'a> Slider<'a> {
         self
     }
 
+    /// Sets the minimal change of the value.
+    /// Value `0.0` effectively disables the feature. If the new value is out of range
+    /// and `clamp_to_range` is enabled, you would not have the ability to change the value.
+    ///
+    /// Default: `0.0` (disabled).
+    pub fn step_by(mut self, step: f64) -> Self {
+        self.step = if step != 0.0 { Some(step) } else { None };
+        self
+    }
+
     // TODO: we should also have a "min precision".
     /// Set a minimum number of decimals to display.
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
@@ -255,6 +268,9 @@ impl<'a> Slider<'a> {
         if let Some(max_decimals) = self.max_decimals {
             value = emath::round_to_decimals(value, max_decimals);
         }
+        if let Some(step) = self.step {
+            value = (value / step).round() * step;
+        }
         set(&mut self.get_set_value, value);
     }
 
@@ -284,10 +300,10 @@ impl<'a> Slider<'a> {
 
 impl<'a> Slider<'a> {
     /// Just the slider, no text
-    fn allocate_slider_space(&self, ui: &mut Ui, perpendicular: f32) -> Response {
+    fn allocate_slider_space(&self, ui: &mut Ui, thickness: f32) -> Response {
         let desired_size = match self.orientation {
-            SliderOrientation::Horizontal => vec2(ui.spacing().slider_width, perpendicular),
-            SliderOrientation::Vertical => vec2(perpendicular, ui.spacing().slider_width),
+            SliderOrientation::Horizontal => vec2(ui.spacing().slider_width, thickness),
+            SliderOrientation::Vertical => vec2(thickness, ui.spacing().slider_width),
         };
         ui.allocate_response(desired_size, Sense::click_and_drag())
     }
@@ -330,14 +346,22 @@ impl<'a> Slider<'a> {
                 let prev_value = self.get_value();
                 let prev_position = self.position_from_value(prev_value, position_range.clone());
                 let new_position = prev_position + kb_step;
-                let new_value = if self.smart_aim {
-                    let aim_radius = ui.input().aim_radius();
-                    emath::smart_aim::best_in_range_f64(
-                        self.value_from_position(new_position - aim_radius, position_range.clone()),
-                        self.value_from_position(new_position + aim_radius, position_range.clone()),
-                    )
-                } else {
-                    self.value_from_position(new_position, position_range.clone())
+                let new_value = match self.step {
+                    Some(step) => prev_value + (kb_step as f64 * step),
+                    None if self.smart_aim => {
+                        let aim_radius = ui.input().aim_radius();
+                        emath::smart_aim::best_in_range_f64(
+                            self.value_from_position(
+                                new_position - aim_radius,
+                                position_range.clone(),
+                            ),
+                            self.value_from_position(
+                                new_position + aim_radius,
+                                position_range.clone(),
+                            ),
+                        )
+                    }
+                    _ => self.value_from_position(new_position, position_range.clone()),
                 };
                 self.set_value(new_value);
             }
@@ -429,19 +453,20 @@ impl<'a> Slider<'a> {
         }
     }
 
-    fn label_ui(&mut self, ui: &mut Ui) {
-        if !self.text.is_empty() {
-            let text_color = self.text_color.unwrap_or_else(|| ui.visuals().text_color());
-            let text = RichText::new(&self.text).color(text_color);
-            ui.add(Label::new(text).wrap(false));
-        }
-    }
-
-    fn value_ui(&mut self, ui: &mut Ui, position_range: RangeInclusive<f32>) {
+    fn value_ui(&mut self, ui: &mut Ui, position_range: RangeInclusive<f32>) -> Response {
+        // If `DragValue` is controlled from the keyboard and `step` is defined, set speed to `step`
+        let change = ui.input().num_presses(Key::ArrowUp) as i32
+            + ui.input().num_presses(Key::ArrowRight) as i32
+            - ui.input().num_presses(Key::ArrowDown) as i32
+            - ui.input().num_presses(Key::ArrowLeft) as i32;
+        let speed = match self.step {
+            Some(step) if change != 0 => step,
+            _ => self.current_gradient(&position_range),
+        };
         let mut value = self.get_value();
-        ui.add(
+        let response = ui.add(
             DragValue::new(&mut value)
-                .speed(self.current_gradient(&position_range))
+                .speed(speed)
                 .clamp_range(self.clamp_range())
                 .min_decimals(self.min_decimals)
                 .max_decimals_opt(self.max_decimals)
@@ -451,6 +476,7 @@ impl<'a> Slider<'a> {
         if value != self.get_value() {
             self.set_value(value);
         }
+        response
     }
 
     /// delta(value) / delta(points)
@@ -466,21 +492,35 @@ impl<'a> Slider<'a> {
     }
 
     fn add_contents(&mut self, ui: &mut Ui) -> Response {
-        let perpendicular = ui
+        let thickness = ui
             .text_style_height(&TextStyle::Body)
             .at_least(ui.spacing().interact_size.y);
-        let slider_response = self.allocate_slider_space(ui, perpendicular);
-        self.slider_ui(ui, &slider_response);
+        let mut response = self.allocate_slider_space(ui, thickness);
+        self.slider_ui(ui, &response);
 
         if self.show_value {
-            let position_range = self.position_range(&slider_response.rect);
-            self.value_ui(ui, position_range);
+            let position_range = self.position_range(&response.rect);
+            let value_response = self.value_ui(ui, position_range);
+            if value_response.gained_focus()
+                || value_response.has_focus()
+                || value_response.lost_focus()
+            {
+                // Use the `DragValue` id as the id of the whole widget,
+                // so that the focus events work as expected.
+                response = value_response.union(response);
+            } else {
+                // Use the slider id as the id for the whole widget
+                response = response.union(value_response);
+            }
         }
 
         if !self.text.is_empty() {
-            self.label_ui(ui);
+            let text_color = self.text_color.unwrap_or_else(|| ui.visuals().text_color());
+            let text = RichText::new(&self.text).color(text_color);
+            ui.add(Label::new(text).wrap(false));
         }
-        slider_response
+
+        response
     }
 }
 

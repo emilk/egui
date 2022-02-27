@@ -49,6 +49,11 @@ pub struct InputState {
     /// Also known as device pixel ratio, > 1 for high resolution screens.
     pub pixels_per_point: f32,
 
+    /// Maximum size of one side of a texture.
+    ///
+    /// This depends on the backend.
+    pub max_texture_side: usize,
+
     /// Time in seconds. Relative to whatever. Used for animation.
     pub time: f64,
 
@@ -82,6 +87,7 @@ impl Default for InputState {
             zoom_factor_delta: 1.0,
             screen_rect: Rect::from_min_size(Default::default(), vec2(10_000.0, 10_000.0)),
             pixels_per_point: 1.0,
+            max_texture_side: 2048,
             time: 0.0,
             unstable_dt: 1.0 / 6.0,
             predicted_dt: 1.0 / 6.0,
@@ -134,6 +140,7 @@ impl InputState {
             zoom_factor_delta,
             screen_rect,
             pixels_per_point: new.pixels_per_point.unwrap_or(self.pixels_per_point),
+            max_texture_side: new.max_texture_side.unwrap_or(self.max_texture_side),
             time,
             unstable_dt,
             predicted_dt: new.predicted_dt,
@@ -190,6 +197,28 @@ impl InputState {
 
     pub fn wants_repaint(&self) -> bool {
         self.pointer.wants_repaint() || self.scroll_delta != Vec2::ZERO || !self.events.is_empty()
+    }
+
+    /// Check for a key press. If found, `true` is returned and the key pressed is consumed, so that this will only return `true` once.
+    pub fn consume_key(&mut self, modifiers: Modifiers, key: Key) -> bool {
+        let mut match_found = false;
+
+        self.events.retain(|event| {
+            let is_match = matches!(
+                event,
+                Event::Key {
+                    key: ev_key,
+                    modifiers: ev_mods,
+                    pressed: true
+                } if *ev_key == key && ev_mods.matches(modifiers)
+            );
+
+            match_found |= is_match;
+
+            !is_match
+        });
+
+        match_found
     }
 
     /// Was the given key pressed this frame?
@@ -692,6 +721,7 @@ impl InputState {
             zoom_factor_delta,
             screen_rect,
             pixels_per_point,
+            max_texture_side,
             time,
             unstable_dt,
             predicted_dt,
@@ -724,8 +754,12 @@ impl InputState {
         ui.label(format!("zoom_factor_delta: {:4.2}x", zoom_factor_delta));
         ui.label(format!("screen_rect: {:?} points", screen_rect));
         ui.label(format!(
-            "{:?} physical pixels for each logical point",
+            "{} physical pixels for each logical point",
             pixels_per_point
+        ));
+        ui.label(format!(
+            "max texture size (on each side): {}",
+            max_texture_side
         ));
         ui.label(format!("time: {:.3} s", time));
         ui.label(format!(

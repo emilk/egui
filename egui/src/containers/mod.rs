@@ -16,7 +16,7 @@ pub use {
     area::Area,
     collapsing_header::{CollapsingHeader, CollapsingResponse},
     combo_box::*,
-    frame::{Frame, Margin},
+    frame::Frame,
     panel::{CentralPanel, SidePanel, TopBottomPanel},
     popup::*,
     resize::Resize,

@@ -145,9 +145,9 @@ fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Color
             let picked_color = color_at(*value);
             ui.painter().add(Shape::convex_polygon(
                 vec![
-                    pos2(x - r, rect.bottom()),
-                    pos2(x + r, rect.bottom()),
-                    pos2(x, rect.center().y),
+                    pos2(x, rect.center().y),   // tip
+                    pos2(x + r, rect.bottom()), // right bottom
+                    pos2(x - r, rect.bottom()), // left bottom
                 ],
                 picked_color,
                 Stroke::new(visuals.fg_stroke.width, contrast_color(picked_color)),
@@ -357,7 +357,7 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
     if ui.memory().is_popup_open(popup_id) {
         let area_response = Area::new(popup_id)
             .order(Order::Foreground)
-            .default_pos(button_response.rect.max)
+            .current_pos(button_response.rect.max)
             .show(ui.ctx(), |ui| {
                 ui.spacing_mut().slider_width = 210.0;
                 Frame::popup(ui.style()).show(ui, |ui| {

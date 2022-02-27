@@ -65,6 +65,25 @@ impl Painter {
         self.max_texture_side
     }
 
+    pub fn paint_and_update_textures<T: glium::Surface>(
+        &mut self,
+        display: &glium::Display,
+        target: &mut T,
+        pixels_per_point: f32,
+        clipped_meshes: Vec<egui::ClippedMesh>,
+        textures_delta: &egui::TexturesDelta,
+    ) {
+        for (id, image_delta) in &textures_delta.set {
+            self.set_texture(display, *id, image_delta);
+        }
+
+        self.paint_meshes(display, target, pixels_per_point, clipped_meshes);
+
+        for &id in &textures_delta.free {
+            self.free_texture(id);
+        }
+    }
+
     /// Main entry-point for painting a frame.
     /// You should call `target.clear_color(..)` before
     /// and `target.finish()` after this.
@@ -73,9 +92,9 @@ impl Painter {
         display: &glium::Display,
         target: &mut T,
         pixels_per_point: f32,
-        cipped_meshes: Vec<egui::ClippedMesh>,
+        clipped_meshes: Vec<egui::ClippedMesh>,
     ) {
-        for egui::ClippedMesh(clip_rect, mesh) in cipped_meshes {
+        for egui::ClippedMesh(clip_rect, mesh) in clipped_meshes {
             self.paint_mesh(target, display, pixels_per_point, clip_rect, &mesh);
         }
     }

@@ -51,6 +51,13 @@ impl From<&String> for RichText {
     }
 }
 
+impl From<&mut String> for RichText {
+    #[inline]
+    fn from(text: &mut String) -> Self {
+        RichText::new(text.clone())
+    }
+}
+
 impl From<String> for RichText {
     #[inline]
     fn from(text: String) -> Self {

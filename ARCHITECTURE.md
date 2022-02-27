@@ -5,7 +5,7 @@ Also see [`CONTRIBUTING.md`](https://github.com/emilk/egui/blob/master/CONTRIBUT
 
 
 ## Crate overview
-The crates in this repository are: `egui, emath, epaint, egui, epi, egui-winit, egui_web, egui_glium, egui_glow, egui_demo_lib, egui_demo_app`.
+The crates in this repository are: `egui, emath, epaint, egui_extras, epi, egui-winit, egui_web, egui_glium, egui_glow, egui_demo_lib, egui_demo_app`.
 
 ### `egui`: The main GUI library.
 Example code: `if ui.button("Click me").clicked() { … }`
@@ -20,6 +20,9 @@ Examples: `Vec2, Pos2, Rect, lerp, remap`
 Example: `Shape::Circle { center, radius, fill, stroke }`
 
 Depends on `emath`, [`ab_glyph`](https://crates.io/crates/ab_glyph), [`atomic_refcell`](https://crates.io/crates/atomic_refcell), [`ahash`](https://crates.io/crates/ahash).
+
+### `egui_extras`
+This adds additional features on top of `egui`.
 
 ### `epi`
 Depends only on `egui`.

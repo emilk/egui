@@ -22,4 +22,23 @@ pub trait Painter {
     ) -> Result<(), JsValue>;
 
     fn name(&self) -> &'static str;
+
+    fn paint_and_update_textures(
+        &mut self,
+        clipped_meshes: Vec<egui::ClippedMesh>,
+        pixels_per_point: f32,
+        textures_delta: &egui::TexturesDelta,
+    ) -> Result<(), JsValue> {
+        for (id, image_delta) in &textures_delta.set {
+            self.set_texture(*id, image_delta);
+        }
+
+        self.paint_meshes(clipped_meshes, pixels_per_point)?;
+
+        for &id in &textures_delta.free {
+            self.free_texture(id);
+        }
+
+        Ok(())
+    }
 }
