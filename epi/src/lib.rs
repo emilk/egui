@@ -260,7 +260,7 @@ impl Default for NativeOptions {
             always_on_top: false,
             maximized: false,
             decorated: true,
-            drag_and_drop_support: false,
+            drag_and_drop_support: true,
             icon_data: None,
             initial_window_pos: None,
             initial_window_size: None,
