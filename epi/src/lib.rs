@@ -221,10 +221,13 @@ pub struct NativeOptions {
     /// If false it will be difficult to move and resize the app.
     pub decorated: bool,
 
-    /// On Windows: enable drag and drop support.
-    /// Default is `false` to avoid issues with crates such as [`cpal`](https://github.com/RustAudio/cpal) which
-    /// will hang when combined with drag-and-drop.
-    /// See <https://github.com/rust-windowing/winit/issues/1255>.
+    /// On Windows: enable drag and drop support. Drag and drop can
+    /// not be disabled on other platforms.
+    ///
+    /// See [winit's documentation][drag_and_drop] for information on why you
+    /// might want to disable this on windows.
+    ///
+    /// [drag_and_drop]: https://docs.rs/winit/latest/x86_64-pc-windows-msvc/winit/platform/windows/trait.WindowBuilderExtWindows.html#tymethod.with_drag_and_drop
     pub drag_and_drop_support: bool,
 
     /// The application icon, e.g. in the Windows task bar etc.
