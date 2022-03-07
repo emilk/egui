@@ -5,4 +5,4 @@
 ![MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Apache](https://img.shields.io/badge/license-Apache-blue.svg)
 
-This is a crate that adds some features on top top of [`egui`](https://github.com/emilk/egui). This crate are for experimental features, and features that require big dependencies that does not belong in `egui`.
+This is a crate that adds some features on top top of [`egui`](https://github.com/emilk/egui). This crate is for experimental features, and features that require big dependencies that do not belong in `egui`.
