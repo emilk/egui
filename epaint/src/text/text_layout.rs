@@ -248,59 +248,7 @@ fn line_break(
 
     if row_start_idx < paragraph.glyphs.len() {
         if non_empty_rows == job.wrap.max_rows {
-            if let (Some(overflow_character), Some(row)) =
-                (job.wrap.overflow_character, out_rows.last_mut())
-            {
-                loop {
-                    let (prev_glyph, last_glyph) = match row.glyphs.as_mut_slice() {
-                        [.., prev, last] => (Some(prev), last),
-                        [.., last] => (None, last),
-                        _ => break,
-                    };
-
-                    let section = &job.sections[last_glyph.section_index as usize];
-                    let font = fonts.font(&section.format.font_id);
-                    let font_height = font.row_height();
-
-                    let prev_glyph_id = prev_glyph.map(|prev_glyph| {
-                        let (_, prev_glyph_info) = font.glyph_info_and_font_impl(prev_glyph.chr);
-                        prev_glyph_info.id
-                    });
-
-                    // undo kerning with previous glyph
-                    let (font_impl, glyph_info) = font.glyph_info_and_font_impl(last_glyph.chr);
-                    last_glyph.pos.x -= font_impl
-                        .zip(prev_glyph_id)
-                        .map(|(font_impl, prev_glyph_id)| {
-                            font_impl.pair_kerning(prev_glyph_id, glyph_info.id)
-                        })
-                        .unwrap_or_default();
-
-                    // replace the glyph
-                    last_glyph.chr = overflow_character;
-                    let (font_impl, glyph_info) = font.glyph_info_and_font_impl(last_glyph.chr);
-                    last_glyph.size = vec2(glyph_info.advance_width, font_height);
-                    last_glyph.uv_rect = glyph_info.uv_rect;
-
-                    // reapply kerning
-                    last_glyph.pos.x += font_impl
-                        .zip(prev_glyph_id)
-                        .map(|(font_impl, prev_glyph_id)| {
-                            font_impl.pair_kerning(prev_glyph_id, glyph_info.id)
-                        })
-                        .unwrap_or_default();
-
-                    // check if we're still within width budget
-                    let row_end_x = last_glyph.max_x();
-                    let row_start_x = row.glyphs.first().unwrap().pos.x; // if `last_mut()` returned `Some`, then so will `first()`
-                    let row_width = row_end_x - row_start_x;
-                    if row_width <= job.wrap.max_width {
-                        break;
-                    }
-
-                    row.glyphs.pop();
-                }
-            }
+            replace_last_glyph_with_overflow_character(fonts, job, out_rows);
         } else {
             let glyphs: Vec<Glyph> = paragraph.glyphs[row_start_idx..]
                 .iter()
@@ -321,6 +269,68 @@ fn line_break(
                 ends_with_newline: false,
             });
         }
+    }
+}
+
+fn replace_last_glyph_with_overflow_character(
+    fonts: &mut FontsImpl,
+    job: &LayoutJob,
+    out_rows: &mut Vec<Row>,
+) {
+    let overflow_character = match job.wrap.overflow_character {
+        Some(c) => c,
+        None => return,
+    };
+
+    let row = match out_rows.last_mut() {
+        Some(r) => r,
+        None => return,
+    };
+
+    loop {
+        let (prev_glyph, last_glyph) = match row.glyphs.as_mut_slice() {
+            [.., prev, last] => (Some(prev), last),
+            [.., last] => (None, last),
+            _ => break,
+        };
+
+        let section = &job.sections[last_glyph.section_index as usize];
+        let font = fonts.font(&section.format.font_id);
+        let font_height = font.row_height();
+
+        let prev_glyph_id = prev_glyph.map(|prev_glyph| {
+            let (_, prev_glyph_info) = font.glyph_info_and_font_impl(prev_glyph.chr);
+            prev_glyph_info.id
+        });
+
+        // undo kerning with previous glyph
+        let (font_impl, glyph_info) = font.glyph_info_and_font_impl(last_glyph.chr);
+        last_glyph.pos.x -= font_impl
+            .zip(prev_glyph_id)
+            .map(|(font_impl, prev_glyph_id)| font_impl.pair_kerning(prev_glyph_id, glyph_info.id))
+            .unwrap_or_default();
+
+        // replace the glyph
+        last_glyph.chr = overflow_character;
+        let (font_impl, glyph_info) = font.glyph_info_and_font_impl(last_glyph.chr);
+        last_glyph.size = vec2(glyph_info.advance_width, font_height);
+        last_glyph.uv_rect = glyph_info.uv_rect;
+
+        // reapply kerning
+        last_glyph.pos.x += font_impl
+            .zip(prev_glyph_id)
+            .map(|(font_impl, prev_glyph_id)| font_impl.pair_kerning(prev_glyph_id, glyph_info.id))
+            .unwrap_or_default();
+
+        // check if we're still within width budget
+        let row_end_x = last_glyph.max_x();
+        let row_start_x = row.glyphs.first().unwrap().pos.x; // if `last_mut()` returned `Some`, then so will `first()`
+        let row_width = row_end_x - row_start_x;
+        if row_width <= job.wrap.max_width {
+            break;
+        }
+
+        row.glyphs.pop();
     }
 }
 
