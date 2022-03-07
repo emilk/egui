@@ -8,7 +8,7 @@ All notable changes to the epaint crate will be documented in this file.
   * Added `TextWrapping` struct containing all wrapping options.
   * Added `LayoutJob::wrap` field containing these options.
   * Moved `LayoutJob::wrap_width` to `TextWrapping::max_width`.
-  * Added `TextWrapping::max_lines` to limit amount of lines the text should have.
+  * Added `TextWrapping::max_rows` to limit amount of rows the text should have.
   * Added `TextWrapping::break_anywhere` to control should the text break at appropriate places or not.
   * Added `TextWrapping::overflow_character` to specify what character should be used to represent clipped text.
 

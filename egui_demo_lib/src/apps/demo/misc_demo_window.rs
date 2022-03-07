@@ -9,7 +9,7 @@ pub struct MiscDemoWindow {
     num_columns: usize,
 
     break_anywhere: bool,
-    max_lines: usize,
+    max_rows: usize,
     overflow_character: char,
 
     widgets: Widgets,
@@ -23,7 +23,7 @@ impl Default for MiscDemoWindow {
         MiscDemoWindow {
             num_columns: 2,
 
-            max_lines: 2,
+            max_rows: 2,
             break_anywhere: false,
             overflow_character: '…',
 
@@ -64,7 +64,7 @@ impl View for MiscDemoWindow {
             .show(ui, |ui| {
                 text_layout_ui(
                     ui,
-                    &mut self.max_lines,
+                    &mut self.max_rows,
                     &mut self.break_anywhere,
                     &mut self.overflow_character,
                 );
@@ -417,7 +417,7 @@ impl SubTree {
 
 fn text_layout_ui(
     ui: &mut egui::Ui,
-    max_lines: &mut usize,
+    max_rows: &mut usize,
     break_anywhere: &mut bool,
     overflow_character: &mut char,
 ) {
@@ -578,8 +578,8 @@ fn text_layout_ui(
     ui.separator();
 
     ui.horizontal(|ui| {
-        ui.add(DragValue::new(max_lines));
-        ui.label("Max lines");
+        ui.add(DragValue::new(max_rows));
+        ui.label("Max rows");
     });
     ui.checkbox(break_anywhere, "Break anywhere");
     ui.horizontal(|ui| {
@@ -591,7 +591,7 @@ fn text_layout_ui(
 
     let mut job = LayoutJob::single_section(LOREM_IPSUM.to_string(), TextFormat::default());
     job.wrap = TextWrapping {
-        max_lines: *max_lines,
+        max_rows: *max_rows,
         break_anywhere: *break_anywhere,
         overflow_character: Some(*overflow_character),
         ..Default::default()

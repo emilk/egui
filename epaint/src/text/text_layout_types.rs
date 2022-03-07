@@ -267,7 +267,7 @@ pub struct TextWrapping {
 
     /// Maximum amount of rows the text should have.
     /// Set to `0` to disable this.
-    pub max_lines: usize,
+    pub max_rows: usize,
 
     /// Don't try to break text at an appropriate place.
     pub break_anywhere: bool,
@@ -281,12 +281,12 @@ impl std::hash::Hash for TextWrapping {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         let Self {
             max_width,
-            max_lines,
+            max_rows,
             break_anywhere,
             overflow_character,
         } = self;
         crate::f32_hash(state, *max_width);
-        max_lines.hash(state);
+        max_rows.hash(state);
         break_anywhere.hash(state);
         overflow_character.hash(state);
     }
@@ -296,7 +296,7 @@ impl Default for TextWrapping {
     fn default() -> Self {
         Self {
             max_width: f32::INFINITY,
-            max_lines: 0,
+            max_rows: 0,
             break_anywhere: false,
             overflow_character: None,
         }

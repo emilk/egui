@@ -197,7 +197,7 @@ fn line_break(
     for (i, glyph) in paragraph.glyphs.iter().enumerate() {
         let potential_row_width = glyph.max_x() - row_start_x;
 
-        if job.wrap.max_lines > 0 && non_empty_rows >= job.wrap.max_lines {
+        if job.wrap.max_rows > 0 && non_empty_rows >= job.wrap.max_rows {
             break;
         }
 
@@ -247,7 +247,7 @@ fn line_break(
     }
 
     if row_start_idx < paragraph.glyphs.len() {
-        if non_empty_rows == job.wrap.max_lines {
+        if non_empty_rows == job.wrap.max_rows {
             if let (Some(overflow_character), Some(row)) =
                 (job.wrap.overflow_character, out_rows.last_mut())
             {
