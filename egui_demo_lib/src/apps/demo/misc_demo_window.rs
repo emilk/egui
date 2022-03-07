@@ -10,7 +10,7 @@ pub struct MiscDemoWindow {
 
     break_anywhere: bool,
     max_lines: usize,
-    overflow_character: String,
+    overflow_character: char,
 
     widgets: Widgets,
     colors: ColorWidgets,
@@ -25,7 +25,7 @@ impl Default for MiscDemoWindow {
 
             max_lines: 2,
             break_anywhere: false,
-            overflow_character: String::from("…"),
+            overflow_character: '…',
 
             widgets: Default::default(),
             colors: Default::default(),
@@ -419,7 +419,7 @@ fn text_layout_ui(
     ui: &mut egui::Ui,
     max_lines: &mut usize,
     break_anywhere: &mut bool,
-    overflow_character: &mut String,
+    overflow_character: &mut char,
 ) {
     use egui::text::LayoutJob;
 
@@ -583,9 +583,9 @@ fn text_layout_ui(
     });
     ui.checkbox(break_anywhere, "Break anywhere");
     ui.horizontal(|ui| {
-        ui.selectable_value(overflow_character, String::from("…"), "…");
-        ui.selectable_value(overflow_character, String::from("—"), "—");
-        ui.selectable_value(overflow_character, String::from("-"), "  -  ");
+        ui.selectable_value(overflow_character, '…', "…");
+        ui.selectable_value(overflow_character, '—', "—");
+        ui.selectable_value(overflow_character, '-', "  -  ");
         ui.label("Overflow character");
     });
 
@@ -593,7 +593,7 @@ fn text_layout_ui(
     job.wrap = TextWrapping {
         max_lines: *max_lines,
         break_anywhere: *break_anywhere,
-        overflow_character: overflow_character.chars().next(),
+        overflow_character: Some(*overflow_character),
         ..Default::default()
     };
     ui.label(job);
