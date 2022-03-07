@@ -5,6 +5,7 @@ NOTE: [`egui_web`](../egui_web/CHANGELOG.md), [`egui-winit`](../egui-winit/CHANG
 
 
 ## Unreleased
+* Change default for `NativeOptions::drag_and_drop_support` to `true` ([#1329](https://github.com/emilk/egui/pull/1329))
 
 
 ## 0.17.0 - 2022-02-22
