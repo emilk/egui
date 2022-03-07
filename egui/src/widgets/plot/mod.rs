@@ -287,7 +287,9 @@ impl Plot {
         self
     }
 
-    /// Sets the `margin_fraction` field used to determine the margin of the Plot
+    /// Set the side margin as a fraction of the plot size.
+    ///
+    /// For instance, a value of `0.1` will add 10% space on both sides.
     pub fn set_margin_fraction(mut self, margin_fraction: Vec2) -> Self {
         self.margin_fraction = margin_fraction;
         self
