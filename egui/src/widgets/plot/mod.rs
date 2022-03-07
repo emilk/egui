@@ -402,6 +402,7 @@ impl Plot {
     /// ```
     ///
     /// This function should return all marks along the visible range of the X axis.
+    /// `step_size` also determines how thick/faint each line is drawn.
     /// For example, if x = 80..=230 is visible and you want big marks at steps of
     /// 100 and small ones at 25, you can return:
     /// ```no_run
@@ -968,10 +969,11 @@ pub struct GridInput {
     /// for the current axis).
     pub bounds: (f64, f64),
 
-    /// Ratio between the diagram's bounds (in plot coordinates) and the viewport
+    /// Recommended (but not required) lower-bound on the step size returned by custom grid spacers.
+    ///
+    /// Computed as the ratio between the diagram's bounds (in plot coordinates) and the viewport
     /// (in frame/window coordinates), scaled up to represent the minimal possible step.
-    /// This is a good value to be used as the smallest of the returned steps.
-    pub bounds_frame_ratio: f64,
+    pub min_step_size: f64,
 }
 
 /// One mark (horizontal or vertical line) in the background grid of a plot.
@@ -997,7 +999,7 @@ pub fn log_grid_spacer(base: i64) -> GridSpacer {
     let get_step_sizes = move |input: GridInput| -> Vec<GridMark> {
         // The distance between two of the thinnest grid lines is "rounded" up
         // to the next-bigger power of base
-        let smallest_visible_unit = next_power(input.bounds_frame_ratio, base);
+        let smallest_visible_unit = next_power(input.min_step_size, base);
 
         let step_sizes = [
             smallest_visible_unit,
@@ -1105,12 +1107,9 @@ impl PreparedPlot {
         let bounds = transform.bounds();
         let value_cross = 0.0_f64.clamp(bounds.min[1 - axis], bounds.max[1 - axis]);
 
-        let bounds = (bounds.min[axis], bounds.max[axis]);
-        let bounds_frame_ratio = transform.dvalue_dpos()[axis] * MIN_LINE_SPACING_IN_POINTS;
-
         let input = GridInput {
-            bounds,
-            bounds_frame_ratio,
+            bounds: (bounds.min[axis], bounds.max[axis]),
+            min_step_size: transform.dvalue_dpos()[axis] * MIN_LINE_SPACING_IN_POINTS,
         };
         let steps = (grid_spacers[axis])(input);
 
@@ -1223,12 +1222,13 @@ impl PreparedPlot {
 
 /// Returns next bigger power in given base
 /// e.g.
-/// ```ignore
-/// next_power(0.01, 10) == 0.01
-/// next_power(0.02, 10) == 0.1
-/// next_power(0.2,  10) == 1
 /// ```
-fn next_power(value: f64, base: f64) -> f64 {
+/// use egui::plot::next_power;
+/// assert_eq!(next_power(0.01, 10.0), 0.01);
+/// assert_eq!(next_power(0.02, 10.0), 0.1);
+/// assert_eq!(next_power(0.2,  10.0), 1);
+/// ```
+pub(crate) fn next_power(value: f64, base: f64) -> f64 {
     assert_ne!(value, 0.0); // can be negative (typical for Y axis)
     base.powi(value.abs().log(base).ceil() as i32)
 }
@@ -1248,8 +1248,9 @@ fn fill_marks_between(out: &mut Vec<GridMark>, step_size: f64, (min, max): (f64,
     let first = (min / step_size).ceil() as i64;
     let last = (max / step_size).ceil() as i64;
 
-    for i in first..last {
+    let marks_iter = (first..last).map(|i| {
         let value = (i as f64) * step_size;
-        out.push(GridMark { value, step_size });
-    }
+        GridMark { value, step_size }
+    });
+    out.extend(marks_iter);
 }
