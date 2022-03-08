@@ -37,6 +37,7 @@ cargo doc --document-private-items --no-deps --all-features
 
 (cd eframe && cargo check --all-features)
 (cd egui && cargo check --all-features)
+(cd egui_demo_app && cargo check --all-features)
 (cd egui_extras && cargo check --all-features)
 (cd egui_glium && cargo check --all-features)
 (cd egui_glow && cargo check --all-features)

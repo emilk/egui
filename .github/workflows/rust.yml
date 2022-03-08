@@ -56,6 +56,19 @@ jobs:
           command: check
           args: -p egui_demo_app --lib --target wasm32-unknown-unknown
 
+  check_egui_demo_app:
+    name: cargo check -p egui_demo_app
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.56.0
+          override: true
+      - name: check
+        run: cargo check -p egui_demo_app
+
   check_wasm_eframe_with_features:
     name: cargo check wasm eframe
     runs-on: ubuntu-20.04
