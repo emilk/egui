@@ -1,6 +1,6 @@
 [package]
 name = "eframe"
-version = "0.16.0"
+version = "0.17.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "egui framework - write GUI apps that compiles to web and/or natively"
 edition = "2021"
@@ -49,27 +49,24 @@ screen_reader = [
 
 
 [dependencies]
-egui = { version = "0.16.0", path = "../egui", default-features = false }
-epi = { version = "0.16.0", path = "../epi" }
+egui = { version = "0.17.0", path = "../egui", default-features = false }
+epi = { version = "0.17.0", path = "../epi" }
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { version = "0.16.0", path = "../egui-winit", default-features = false }
-egui_glium = { version = "0.16.0", path = "../egui_glium", default-features = false, features = ["clipboard", "epi", "links"], optional = true }
-egui_glow = { version = "0.16.0", path = "../egui_glow", default-features = false, features = ["clipboard", "epi", "links", "winit"], optional = true }
+egui-winit = { version = "0.17.0", path = "../egui-winit", default-features = false }
+egui_glium = { version = "0.17.0", path = "../egui_glium", default-features = false, features = ["clipboard", "epi", "links"], optional = true }
+egui_glow = { version = "0.17.0", path = "../egui_glow", default-features = false, features = ["clipboard", "epi", "links", "winit"], optional = true }
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-egui_web = { version = "0.16.0", path = "../egui_web", default-features = false, features = ["glow"] }
+egui_web = { version = "0.17.0", path = "../egui_web", default-features = false, features = ["glow"] }
 
 
 [dev-dependencies]
+# For examples:
+egui_extras = { path = "../egui_extras", features = ["image", "svg"] }
 ehttp = "0.2"
 image = { version = "0.24", default-features = false, features = ["jpeg", "png"] }
 poll-promise = "0.1"
-rfd = "0.7"
-
-# svg.rs example:
-resvg = "0.20"
-tiny-skia = "0.6"
-usvg = "0.20"
+rfd = "0.8"

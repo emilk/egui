@@ -145,9 +145,9 @@ fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Color
             let picked_color = color_at(*value);
             ui.painter().add(Shape::convex_polygon(
                 vec![
-                    pos2(x - r, rect.bottom()),
-                    pos2(x + r, rect.bottom()),
-                    pos2(x, rect.center().y),
+                    pos2(x, rect.center().y),   // tip
+                    pos2(x + r, rect.bottom()), // right bottom
+                    pos2(x - r, rect.bottom()), // left bottom
                 ],
                 picked_color,
                 Stroke::new(visuals.fg_stroke.width, contrast_color(picked_color)),

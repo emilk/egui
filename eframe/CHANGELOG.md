@@ -5,6 +5,10 @@ NOTE: [`egui_web`](../egui_web/CHANGELOG.md), [`egui-winit`](../egui-winit/CHANG
 
 
 ## Unreleased
+* Change default for `NativeOptions::drag_and_drop_support` to `true` ([#1329](https://github.com/emilk/egui/pull/1329))
+
+
+## 0.17.0 - 2022-02-22
 * Removed `Frame::alloc_texture`. Use `egui::Context::load_texture` instead ([#1110](https://github.com/emilk/egui/pull/1110)).
 * The default native backend is now `egui_glow` (instead of `egui_glium`) ([#1020](https://github.com/emilk/egui/pull/1020)).
 * The default web painter is now `egui_glow` (instead of WebGL) ([#1020](https://github.com/emilk/egui/pull/1020)).
@@ -12,7 +16,7 @@ NOTE: [`egui_web`](../egui_web/CHANGELOG.md), [`egui-winit`](../egui-winit/CHANG
 * Fix horizontal scrolling direction on Linux.
 * Added `App::on_exit_event` ([#1038](https://github.com/emilk/egui/pull/1038))
 * Added `NativeOptions::initial_window_pos`.
-* Fixed `enable_drag` for Windows ([#1108](https://github.com/emilk/egui/pull/1108)).
+* Fixed `enable_drag` for Windows OS ([#1108](https://github.com/emilk/egui/pull/1108)).
 * Shift-scroll will now result in horizontal scrolling on all platforms ([#1136](https://github.com/emilk/egui/pull/1136)).
 * Log using the `tracing` crate. Log to stdout by adding `tracing_subscriber::fmt::init();` to your `main` ([#1192](https://github.com/emilk/egui/pull/1192)).
 * Expose all parts of the location/url in `frame.info().web_info` ([#1258](https://github.com/emilk/egui/pull/1258)).

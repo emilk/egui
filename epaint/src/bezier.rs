@@ -6,9 +6,9 @@ use emath::*;
 
 // ----------------------------------------------------------------------------
 
-/// How to paint a cubic Bezier curve on screen.
-/// The definition: [Bezier Curve](https://en.wikipedia.org/wiki/B%C3%A9zier_curve).
-/// This implementation is only for cubic Bezier curve, or the Bezier curve of degree 3.
+/// A cubic [Bézier Curve](https://en.wikipedia.org/wiki/B%C3%A9zier_curve).
+///
+/// See also [`QuadraticBezierShape`].
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct CubicBezierShape {
@@ -22,30 +22,29 @@ pub struct CubicBezierShape {
 }
 
 impl CubicBezierShape {
-    /// Creates a cubic Bezier curve based on 4 points and stroke.
+    /// Creates a cubic Bézier curve based on 4 points and stroke.
+    ///
     /// The first point is the starting point and the last one is the ending point of the curve.
     /// The middle points are the control points.
-    /// The number of points must be 4.
     pub fn from_points_stroke(
-        points: Vec<Pos2>,
+        points: [Pos2; 4],
         closed: bool,
         fill: Color32,
         stroke: impl Into<Stroke>,
     ) -> Self {
-        crate::epaint_assert!(points.len() == 4, "Cubic needs 4 points");
         Self {
-            points: points.try_into().unwrap(),
+            points,
             closed,
             fill,
             stroke: stroke.into(),
         }
     }
 
-    /// Creates a cubic Bezier curve based on the screen coordinates for the 4 points.
-    pub fn to_screen(&self, to_screen: &RectTransform) -> Self {
+    /// Transform the curve with the given transform.
+    pub fn transform(&self, transform: &RectTransform) -> Self {
         let mut points = [Pos2::default(); 4];
         for (i, origin_point) in self.points.iter().enumerate() {
-            points[i] = to_screen * *origin_point;
+            points[i] = transform * *origin_point;
         }
         CubicBezierShape {
             points,
@@ -55,12 +54,12 @@ impl CubicBezierShape {
         }
     }
 
-    /// Convert the cubic Bezier curve to one or two `PathShapes`.
+    /// Convert the cubic Bézier curve to one or two `PathShapes`.
     /// When the curve is closed and it has to intersect with the base line, it will be converted into two shapes.
     /// Otherwise, it will be converted into one shape.
     /// The `tolerance` will be used to control the max distance between the curve and the base line.
     /// The `epsilon` is used when comparing two floats.
-    pub fn to_pathshapes(&self, tolerance: Option<f32>, epsilon: Option<f32>) -> Vec<PathShape> {
+    pub fn to_path_shapes(&self, tolerance: Option<f32>, epsilon: Option<f32>) -> Vec<PathShape> {
         let mut pathshapes = Vec::new();
         let mut points_vec = self.flatten_closed(tolerance, epsilon);
         for points in points_vec.drain(..) {
@@ -74,8 +73,18 @@ impl CubicBezierShape {
         }
         pathshapes
     }
-    /// Screen-space bounding rectangle.
-    pub fn bounding_rect(&self) -> Rect {
+
+    /// The visual bounding rectangle (includes stroke width)
+    pub fn visual_bounding_rect(&self) -> Rect {
+        if self.fill == Color32::TRANSPARENT && self.stroke.is_empty() {
+            Rect::NOTHING
+        } else {
+            self.logical_bounding_rect().expand(self.stroke.width / 2.0)
+        }
+    }
+
+    /// Logical bounding rectangle (ignoring stroke width)
+    pub fn logical_bounding_rect(&self) -> Rect {
         //temporary solution
         let (mut min_x, mut max_x) = if self.points[0].x < self.points[3].x {
             (self.points[0].x, self.points[3].x)
@@ -256,9 +265,9 @@ impl CubicBezierShape {
         None
     }
 
-    /// Calculate the point (x,y) at t based on the cubic bezier curve equation.
+    /// Calculate the point (x,y) at t based on the cubic Bézier curve equation.
     /// t is in [0.0,1.0]
-    /// [Bezier Curve](https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Cubic_B.C3.A9zier_curves)
+    /// [Bézier Curve](https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Cubic_B.C3.A9zier_curves)
     ///
     pub fn sample(&self, t: f32) -> Pos2 {
         crate::epaint_assert!(
@@ -278,7 +287,7 @@ impl CubicBezierShape {
         result.to_pos2()
     }
 
-    /// find a set of points that approximate the cubic bezier curve.
+    /// find a set of points that approximate the cubic Bézier curve.
     /// the number of points is determined by the tolerance.
     /// the points may not be evenly distributed in the range [0.0,1.0] (t value)
     pub fn flatten(&self, tolerance: Option<f32>) -> Vec<Pos2> {
@@ -290,7 +299,7 @@ impl CubicBezierShape {
         result
     }
 
-    /// find a set of points that approximate the cubic bezier curve.
+    /// find a set of points that approximate the cubic Bézier curve.
     /// the number of points is determined by the tolerance.
     /// the points may not be evenly distributed in the range [0.0,1.0] (t value)
     /// this api will check whether the curve will cross the base line or not when closed = true.
@@ -358,6 +367,11 @@ impl From<CubicBezierShape> for Shape {
     }
 }
 
+// ----------------------------------------------------------------------------
+
+/// A quadratic [Bézier Curve](https://en.wikipedia.org/wiki/B%C3%A9zier_curve).
+///
+/// See also [`CubicBezierShape`].
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct QuadraticBezierShape {
@@ -371,32 +385,30 @@ pub struct QuadraticBezierShape {
 }
 
 impl QuadraticBezierShape {
-    /// create a new quadratic bezier shape based on the 3 points and stroke.
-    /// the first point is the starting point and the last one is the ending point of the curve.
-    /// the middle point is the control points.
-    /// the points should be in the order [start, control, end]
+    /// Create a new quadratic Bézier shape based on the 3 points and stroke.
     ///
+    /// The first point is the starting point and the last one is the ending point of the curve.
+    /// The middle point is the control points.
+    /// The points should be in the order [start, control, end]
     pub fn from_points_stroke(
-        points: Vec<Pos2>,
+        points: [Pos2; 3],
         closed: bool,
         fill: Color32,
         stroke: impl Into<Stroke>,
     ) -> Self {
-        crate::epaint_assert!(points.len() == 3, "Quadratic needs 3 points");
-
         QuadraticBezierShape {
-            points: points.try_into().unwrap(), // it's safe to unwrap because we just checked
+            points,
             closed,
             fill,
             stroke: stroke.into(),
         }
     }
 
-    /// create a new quadratic bezier shape based on the screen coordination for the 3 points.
-    pub fn to_screen(&self, to_screen: &RectTransform) -> Self {
+    /// Transform the curve with the given transform.
+    pub fn transform(&self, transform: &RectTransform) -> Self {
         let mut points = [Pos2::default(); 3];
         for (i, origin_point) in self.points.iter().enumerate() {
-            points[i] = to_screen * *origin_point;
+            points[i] = transform * *origin_point;
         }
         QuadraticBezierShape {
             points,
@@ -406,9 +418,9 @@ impl QuadraticBezierShape {
         }
     }
 
-    /// Convert the quadratic Bezier curve to one `PathShape`.
+    /// Convert the quadratic Bézier curve to one `PathShape`.
     /// The `tolerance` will be used to control the max distance between the curve and the base line.
-    pub fn to_pathshape(&self, tolerance: Option<f32>) -> PathShape {
+    pub fn to_path_shape(&self, tolerance: Option<f32>) -> PathShape {
         let points = self.flatten(tolerance);
         PathShape {
             points,
@@ -417,8 +429,18 @@ impl QuadraticBezierShape {
             stroke: self.stroke,
         }
     }
-    /// bounding box of the quadratic bezier shape
-    pub fn bounding_rect(&self) -> Rect {
+
+    /// The visual bounding rectangle (includes stroke width)
+    pub fn visual_bounding_rect(&self) -> Rect {
+        if self.fill == Color32::TRANSPARENT && self.stroke.is_empty() {
+            Rect::NOTHING
+        } else {
+            self.logical_bounding_rect().expand(self.stroke.width / 2.0)
+        }
+    }
+
+    /// Logical bounding rectangle (ignoring stroke width)
+    pub fn logical_bounding_rect(&self) -> Rect {
         let (mut min_x, mut max_x) = if self.points[0].x < self.points[2].x {
             (self.points[0].x, self.points[2].x)
         } else {
@@ -466,9 +488,9 @@ impl QuadraticBezierShape {
         }
     }
 
-    /// Calculate the point (x,y) at t based on the quadratic bezier curve equation.
+    /// Calculate the point (x,y) at t based on the quadratic Bézier curve equation.
     /// t is in [0.0,1.0]
-    /// [Bezier Curve](https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Quadratic_B.C3.A9zier_curves)
+    /// [Bézier Curve](https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Quadratic_B.C3.A9zier_curves)
     ///
     pub fn sample(&self, t: f32) -> Pos2 {
         crate::epaint_assert!(
@@ -486,7 +508,7 @@ impl QuadraticBezierShape {
         result.to_pos2()
     }
 
-    /// find a set of points that approximate the quadratic bezier curve.
+    /// find a set of points that approximate the quadratic Bézier curve.
     /// the number of points is determined by the tolerance.
     /// the points may not be evenly distributed in the range [0.0,1.0] (t value)
     pub fn flatten(&self, tolerance: Option<f32>) -> Vec<Pos2> {
@@ -533,6 +555,8 @@ impl From<QuadraticBezierShape> for Shape {
     }
 }
 
+// ----------------------------------------------------------------------------
+
 // lyon_geom::flatten_cubic.rs
 // copied from https://docs.rs/lyon_geom/latest/lyon_geom/
 fn flatten_cubic_bezier_with_t<F: FnMut(Pos2, f32)>(
@@ -567,6 +591,7 @@ fn flatten_cubic_bezier_with_t<F: FnMut(Pos2, f32)>(
         callback(point, t);
     });
 }
+
 // from lyon_geom::quadratic_bezier.rs
 // copied from https://docs.rs/lyon_geom/latest/lyon_geom/
 struct FlatteningParameters {
@@ -665,7 +690,7 @@ fn single_curve_approximation(curve: &CubicBezierShape) -> QuadraticBezierShape 
 }
 
 fn quadratic_for_each_local_extremum<F: FnMut(f32)>(p0: f32, p1: f32, p2: f32, cb: &mut F) {
-    // A quadratic bezier curve can be derived by a linear function:
+    // A quadratic Bézier curve can be derived by a linear function:
     // p(t) = p0 + t(p1 - p0) + t^2(p2 - 2p1 + p0)
     // The derivative is:
     // p'(t) = (p1 - p0) + 2(p2 - 2p1 + p0)t or:
@@ -685,7 +710,7 @@ fn quadratic_for_each_local_extremum<F: FnMut(f32)>(p0: f32, p1: f32, p2: f32, c
 
 fn cubic_for_each_local_extremum<F: FnMut(f32)>(p0: f32, p1: f32, p2: f32, p3: f32, cb: &mut F) {
     // See www.faculty.idc.ac.il/arik/quality/appendixa.html for an explanation
-    // A cubic bezier curve can be derivated by the following equation:
+    // A cubic Bézier curve can be derivated by the following equation:
     // B'(t) = 3(1-t)^2(p1-p0) + 6(1-t)t(p2-p1) + 3t^2(p3-p2) or
     // f(x) = a * x² + b * x + c
     let a = 3.0 * (p3 + 3.0 * (p1 - p2) - p0);
@@ -748,7 +773,7 @@ mod tests {
             fill: Default::default(),
             stroke: Default::default(),
         };
-        let bbox = curve.bounding_rect();
+        let bbox = curve.logical_bounding_rect();
         assert!((bbox.min.x - 72.96).abs() < 0.01);
         assert!((bbox.min.y - 27.78).abs() < 0.01);
 
@@ -772,7 +797,7 @@ mod tests {
             fill: Default::default(),
             stroke: Default::default(),
         };
-        let bbox = curve.bounding_rect();
+        let bbox = curve.logical_bounding_rect();
         assert!((bbox.min.x - 10.0).abs() < 0.01);
         assert!((bbox.min.y - 10.0).abs() < 0.01);
 
@@ -841,7 +866,7 @@ mod tests {
             stroke: Default::default(),
         };
 
-        let bbox = curve.bounding_rect();
+        let bbox = curve.logical_bounding_rect();
         assert_eq!(bbox.min.x, 10.0);
         assert_eq!(bbox.min.y, 10.0);
         assert_eq!(bbox.max.x, 270.0);
@@ -859,7 +884,7 @@ mod tests {
             stroke: Default::default(),
         };
 
-        let bbox = curve.bounding_rect();
+        let bbox = curve.logical_bounding_rect();
         assert_eq!(bbox.min.x, 10.0);
         assert_eq!(bbox.min.y, 10.0);
         assert!((bbox.max.x - 206.50).abs() < 0.01);
@@ -877,7 +902,7 @@ mod tests {
             stroke: Default::default(),
         };
 
-        let bbox = curve.bounding_rect();
+        let bbox = curve.logical_bounding_rect();
         assert!((bbox.min.x - 86.71).abs() < 0.01);
         assert!((bbox.min.y - 30.0).abs() < 0.01);
 

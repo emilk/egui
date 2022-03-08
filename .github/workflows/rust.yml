@@ -56,6 +56,33 @@ jobs:
           command: check
           args: -p egui_demo_app --lib --target wasm32-unknown-unknown
 
+  check_egui_demo_app:
+    name: cargo check -p egui_demo_app
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.56.0
+          override: true
+      - name: check
+        run: cargo check -p egui_demo_app
+
+  check_wasm_eframe_with_features:
+    name: cargo check wasm eframe
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.56.0
+          override: true
+      - run: rustup target add wasm32-unknown-unknown
+      - name: check
+        run: cargo check -p eframe --lib --no-default-features --features egui_glow,persistence --target wasm32-unknown-unknown
+
   check_web_all_features:
     name: cargo check web --all-features
     runs-on: ubuntu-latest
@@ -132,7 +159,7 @@ jobs:
           toolchain: 1.56.0
           override: true
       - run: sudo apt-get update && sudo apt-get install libspeechd-dev
-      - run: cargo doc -p emath -p epaint -p egui -p eframe -p epi -p egui_web -p egui-winit -p egui_glium -p egui_glow --lib --no-deps --all-features
+      - run: cargo doc -p emath -p epaint -p egui -p eframe -p epi -p egui_web -p egui-winit -p egui_extras -p egui_glium -p egui_glow --lib --no-deps --all-features
 
   doc_web:
     name: cargo doc web
@@ -153,3 +180,17 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: EmbarkStudios/cargo-deny-action@v1
+
+  wasm_bindgen:
+    name: wasm-bindgen
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.56.0
+          override: true
+      - run: rustup target add wasm32-unknown-unknown
+      - run: cargo install wasm-bindgen-cli
+      - run: ./sh/wasm_bindgen_check.sh

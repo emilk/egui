@@ -28,6 +28,7 @@ cargo doc --document-private-items --no-deps --all-features
 (cd eframe && cargo check --no-default-features --features "egui_glow")
 (cd epi && cargo check --no-default-features)
 (cd egui_demo_lib && cargo check --no-default-features)
+(cd egui_extras && cargo check --no-default-features)
 # (cd egui_web && cargo check --no-default-features) # we need to pick webgl or glow backend
 # (cd egui-winit && cargo check --no-default-features) # we don't pick singlethreaded or multithreaded
 (cd egui_glium && cargo check --no-default-features)
@@ -36,6 +37,8 @@ cargo doc --document-private-items --no-deps --all-features
 
 (cd eframe && cargo check --all-features)
 (cd egui && cargo check --all-features)
+(cd egui_demo_app && cargo check --all-features)
+(cd egui_extras && cargo check --all-features)
 (cd egui_glium && cargo check --all-features)
 (cd egui_glow && cargo check --all-features)
 (cd egui_web && cargo check --all-features)
@@ -44,14 +47,17 @@ cargo doc --document-private-items --no-deps --all-features
 (cd epaint && cargo check --all-features)
 (cd epi && cargo check --all-features)
 
+./sh/wasm_bindgen_check.sh
+
 # cargo install cargo-deny
-# cargo deny check
+cargo deny check
 
 # ------------------------------------------------------------
 #
 
 # For finding bloat:
 # cargo bloat --release --bin demo_glium -n 200 | rg egui
+# Also try https://github.com/google/bloaty
 
 # what compiles slowly?
 # https://fasterthanli.me/articles/why-is-my-rust-build-so-slow

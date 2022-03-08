@@ -447,7 +447,7 @@ impl Response {
     ///
     /// If `align` is `None`, it'll scroll enough to bring the UI into view.
     ///
-    /// See also: [`Ui::scroll_to_cursor`], [`Ui::scroll_to`].
+    /// See also: [`Ui::scroll_to_cursor`], [`Ui::scroll_to_rect`].
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -510,6 +510,8 @@ impl Response {
 impl Response {
     /// A logical "or" operation.
     /// For instance `a.union(b).hovered` means "was either a or b hovered?".
+    ///
+    /// The resulting [`Self::id`] will come from the first (`self`) argument.
     pub fn union(&self, other: Self) -> Self {
         assert!(self.ctx == other.ctx);
         crate::egui_assert!(

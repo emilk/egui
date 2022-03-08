@@ -13,10 +13,10 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         // The most end-to-end benchmark.
         c.bench_function("demo_with_tessellate__realistic", |b| {
             b.iter(|| {
-                let (_output, shapes) = ctx.run(RawInput::default(), |ctx| {
+                let full_output = ctx.run(RawInput::default(), |ctx| {
                     demo_windows.ui(ctx);
                 });
-                ctx.tessellate(shapes)
+                ctx.tessellate(full_output.shapes)
             })
         });
 
@@ -28,11 +28,11 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             })
         });
 
-        let (_output, shapes) = ctx.run(RawInput::default(), |ctx| {
+        let full_output = ctx.run(RawInput::default(), |ctx| {
             demo_windows.ui(ctx);
         });
         c.bench_function("demo_only_tessellate", |b| {
-            b.iter(|| ctx.tessellate(shapes.clone()))
+            b.iter(|| ctx.tessellate(full_output.shapes.clone()))
         });
     }
 

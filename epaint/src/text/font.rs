@@ -9,6 +9,7 @@ use std::collections::BTreeSet;
 // ----------------------------------------------------------------------------
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct UvRect {
     /// X/Y offset for nice rendering (unit: points).
     pub offset: Vec2,
@@ -56,6 +57,7 @@ impl Default for GlyphInfo {
 /// A specific font with a size.
 /// The interface uses points as the unit for everything.
 pub struct FontImpl {
+    name: String,
     ab_glyph_font: ab_glyph::FontArc,
     /// Maximum character height
     scale_in_pixels: u32,
@@ -71,6 +73,7 @@ impl FontImpl {
     pub fn new(
         atlas: Arc<Mutex<TextureAtlas>>,
         pixels_per_point: f32,
+        name: String,
         ab_glyph_font: ab_glyph::FontArc,
         scale_in_pixels: u32,
         y_offset_points: f32,
@@ -91,6 +94,7 @@ impl FontImpl {
         let y_offset = (y_offset_points * pixels_per_point).round() / pixels_per_point;
 
         Self {
+            name,
             ab_glyph_font,
             scale_in_pixels,
             height_in_points,
@@ -101,22 +105,32 @@ impl FontImpl {
         }
     }
 
+    fn ignore_character(&self, chr: char) -> bool {
+        if self.name == "emoji-icon-font" {
+            // HACK: https://github.com/emilk/egui/issues/1284 https://github.com/jslegers/emoji-icon-font/issues/18
+            // Don't show the wrong fullwidth capital letters:
+            if 'Ｓ' <= chr && chr <= 'Ｙ' {
+                return true;
+            }
+        }
+
+        matches!(
+            chr,
+            // Strip out a religious symbol with secondary nefarious interpretation:
+            '\u{534d}' | '\u{5350}' |
+
+            // Ignore ubuntu-specific stuff in `Ubuntu-Light.ttf`:
+            '\u{E0FF}' | '\u{EFFD}' | '\u{F0FF}' | '\u{F200}'
+        )
+    }
+
     /// An un-ordered iterator over all supported characters.
     fn characters(&self) -> impl Iterator<Item = char> + '_ {
         use ab_glyph::Font as _;
         self.ab_glyph_font
             .codepoint_ids()
             .map(|(_, chr)| chr)
-            .filter(|chr| {
-                !matches!(
-                    chr,
-                    // Strip out a religious symbol with secondary nefarious interpretation:
-                    '\u{534d}' | '\u{5350}' |
-
-                    // Ignore ubuntu-specific stuff in `Ubuntu-Light.ttf`:
-                    '\u{E0FF}' | '\u{EFFD}' | '\u{F0FF}' | '\u{F200}'
-                )
-            })
+            .filter(|&chr| !self.ignore_character(chr))
     }
 
     /// `\n` will result in `None`
@@ -127,9 +141,9 @@ impl FontImpl {
             }
         }
 
-        // Add new character:
-        use ab_glyph::Font as _;
-        let glyph_id = self.ab_glyph_font.glyph_id(c);
+        if self.ignore_character(c) {
+            return None;
+        }
 
         if c == '\t' {
             if let Some(space) = self.glyph_info(' ') {
@@ -142,6 +156,10 @@ impl FontImpl {
             }
         }
 
+        // Add new character:
+        use ab_glyph::Font as _;
+        let glyph_id = self.ab_glyph_font.glyph_id(c);
+
         if glyph_id.0 == 0 {
             if invisible_char(c) {
                 // hack
@@ -149,7 +167,7 @@ impl FontImpl {
                 self.glyph_info_cache.write().insert(c, glyph_info);
                 Some(glyph_info)
             } else {
-                None
+                None // unsupported character
             }
         } else {
             let glyph_info = allocate_glyph(

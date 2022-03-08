@@ -1,6 +1,6 @@
 [package]
 name = "epi"
-version = "0.16.0"
+version = "0.17.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Backend-agnostic interface for writing apps using egui"
 edition = "2021"
@@ -33,7 +33,7 @@ persistence = ["ron", "serde", "egui/persistence"]
 
 
 [dependencies]
-egui = { version = "0.16.0", path = "../egui", default-features = false, features = ["single_threaded"] }
+egui = { version = "0.17.0", path = "../egui", default-features = false, features = ["single_threaded"] }
 tracing = "0.1"
 
 directories-next = { version = "2", optional = true }

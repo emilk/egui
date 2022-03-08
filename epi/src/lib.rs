@@ -221,10 +221,13 @@ pub struct NativeOptions {
     /// If false it will be difficult to move and resize the app.
     pub decorated: bool,
 
-    /// On Windows: enable drag and drop support.
-    /// Default is `false` to avoid issues with crates such as [`cpal`](https://github.com/RustAudio/cpal) which
-    /// will hang when combined with drag-and-drop.
-    /// See <https://github.com/rust-windowing/winit/issues/1255>.
+    /// On Windows: enable drag and drop support. Drag and drop can
+    /// not be disabled on other platforms.
+    ///
+    /// See [winit's documentation][drag_and_drop] for information on why you
+    /// might want to disable this on windows.
+    ///
+    /// [drag_and_drop]: https://docs.rs/winit/latest/x86_64-pc-windows-msvc/winit/platform/windows/trait.WindowBuilderExtWindows.html#tymethod.with_drag_and_drop
     pub drag_and_drop_support: bool,
 
     /// The application icon, e.g. in the Windows task bar etc.
@@ -257,7 +260,7 @@ impl Default for NativeOptions {
             always_on_top: false,
             maximized: false,
             decorated: true,
-            drag_and_drop_support: false,
+            drag_and_drop_support: true,
             icon_data: None,
             initial_window_pos: None,
             initial_window_size: None,
@@ -372,27 +375,27 @@ pub struct WebInfo {
 pub struct Location {
     /// The full URL (`location.href`) without the hash.
     ///
-    /// Example: "http://www.example.com:80/index.html?foo=bar".
+    /// Example: `"http://www.example.com:80/index.html?foo=bar"`.
     pub url: String,
 
     /// `location.protocol`
     ///
-    /// Example: "http:".
+    /// Example: `"http:"`.
     pub protocol: String,
 
     /// `location.host`
     ///
-    /// Example: "example.com:80".
+    /// Example: `"example.com:80"`.
     pub host: String,
 
     /// `location.hostname`
     ///
-    /// Example: "example.com".
+    /// Example: `"example.com"`.
     pub hostname: String,
 
     /// `location.port`
     ///
-    /// Example: "80".
+    /// Example: `"80"`.
     pub port: String,
 
     /// The "#fragment" part of "www.example.com/index.html?query#fragment".
@@ -415,7 +418,7 @@ pub struct Location {
 
     /// `location.origin`
     ///
-    /// Example: "http://www.example.com:80"
+    /// Example: `"http://www.example.com:80"`.
     pub origin: String,
 }
 

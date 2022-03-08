@@ -31,6 +31,20 @@ pub enum Shape {
     CubicBezier(CubicBezierShape),
 }
 
+impl From<Vec<Shape>> for Shape {
+    #[inline(always)]
+    fn from(shapes: Vec<Shape>) -> Self {
+        Self::Vec(shapes)
+    }
+}
+
+impl From<Mesh> for Shape {
+    #[inline(always)]
+    fn from(mesh: Mesh) -> Self {
+        Self::Mesh(mesh)
+    }
+}
+
 /// ## Constructors
 impl Shape {
     /// A line between two points.
@@ -59,25 +73,25 @@ impl Shape {
 
     /// Turn a line into equally spaced dots.
     pub fn dotted_line(
-        points: &[Pos2],
+        path: &[Pos2],
         color: impl Into<Color32>,
         spacing: f32,
         radius: f32,
     ) -> Vec<Self> {
         let mut shapes = Vec::new();
-        points_from_line(points, spacing, radius, color.into(), &mut shapes);
+        points_from_line(path, spacing, radius, color.into(), &mut shapes);
         shapes
     }
 
     /// Turn a line into dashes.
     pub fn dashed_line(
-        points: &[Pos2],
+        path: &[Pos2],
         stroke: impl Into<Stroke>,
         dash_length: f32,
         gap_length: f32,
     ) -> Vec<Self> {
         let mut shapes = Vec::new();
-        dashes_from_line(points, stroke.into(), dash_length, gap_length, &mut shapes);
+        dashes_from_line(path, stroke.into(), dash_length, gap_length, &mut shapes);
         shapes
     }
 
@@ -94,6 +108,8 @@ impl Shape {
     }
 
     /// A convex polygon with a fill and optional stroke.
+    ///
+    /// The most performant winding order is clockwise.
     #[inline]
     pub fn convex_polygon(
         points: Vec<Pos2>,
@@ -153,6 +169,34 @@ impl Shape {
     pub fn mesh(mesh: Mesh) -> Self {
         crate::epaint_assert!(mesh.is_valid());
         Self::Mesh(mesh)
+    }
+
+    /// The visual bounding rectangle (includes stroke widths)
+    pub fn visual_bounding_rect(&self) -> Rect {
+        match self {
+            Self::Noop => Rect::NOTHING,
+            Self::Vec(shapes) => {
+                let mut rect = Rect::NOTHING;
+                for shape in shapes {
+                    rect = rect.union(shape.visual_bounding_rect());
+                }
+                rect
+            }
+            Self::Circle(circle_shape) => circle_shape.visual_bounding_rect(),
+            Self::LineSegment { points, stroke } => {
+                if stroke.is_empty() {
+                    Rect::NOTHING
+                } else {
+                    Rect::from_two_pos(points[0], points[1]).expand(stroke.width / 2.0)
+                }
+            }
+            Self::Path(path_shape) => path_shape.visual_bounding_rect(),
+            Self::Rect(rect_shape) => rect_shape.visual_bounding_rect(),
+            Self::Text(text_shape) => text_shape.visual_bounding_rect(),
+            Self::Mesh(mesh) => mesh.calc_bounds(),
+            Self::QuadraticBezier(bezier) => bezier.visual_bounding_rect(),
+            Self::CubicBezier(bezier) => bezier.visual_bounding_rect(),
+        }
     }
 }
 
@@ -244,6 +288,18 @@ impl CircleShape {
             stroke: stroke.into(),
         }
     }
+
+    /// The visual bounding rectangle (includes stroke width)
+    pub fn visual_bounding_rect(&self) -> Rect {
+        if self.fill == Color32::TRANSPARENT && self.stroke.is_empty() {
+            Rect::NOTHING
+        } else {
+            Rect::from_center_size(
+                self.center,
+                Vec2::splat(self.radius + self.stroke.width / 2.0),
+            )
+        }
+    }
 }
 
 impl From<CircleShape> for Shape {
@@ -259,6 +315,7 @@ impl From<CircleShape> for Shape {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PathShape {
+    /// Filled paths should prefer clockwise order.
     pub points: Vec<Pos2>,
     /// If true, connect the first and last of the points together.
     /// This is required if `fill != TRANSPARENT`.
@@ -294,6 +351,8 @@ impl PathShape {
     }
 
     /// A convex polygon with a fill and optional stroke.
+    ///
+    /// The most performant winding order is clockwise.
     #[inline]
     pub fn convex_polygon(
         points: Vec<Pos2>,
@@ -308,10 +367,14 @@ impl PathShape {
         }
     }
 
-    /// Screen-space bounding rectangle.
+    /// The visual bounding rectangle (includes stroke width)
     #[inline]
-    pub fn bounding_rect(&self) -> Rect {
-        Rect::from_points(&self.points).expand(self.stroke.width)
+    pub fn visual_bounding_rect(&self) -> Rect {
+        if self.fill == Color32::TRANSPARENT && self.stroke.is_empty() {
+            Rect::NOTHING
+        } else {
+            Rect::from_points(&self.points).expand(self.stroke.width / 2.0)
+        }
     }
 }
 
@@ -360,10 +423,14 @@ impl RectShape {
         }
     }
 
-    /// Screen-space bounding rectangle.
+    /// The visual bounding rectangle (includes stroke width)
     #[inline]
-    pub fn bounding_rect(&self) -> Rect {
-        self.rect.expand(self.stroke.width)
+    pub fn visual_bounding_rect(&self) -> Rect {
+        if self.fill == Color32::TRANSPARENT && self.stroke.is_empty() {
+            Rect::NOTHING
+        } else {
+            self.rect.expand(self.stroke.width / 2.0)
+        }
     }
 }
 
@@ -439,6 +506,7 @@ impl Rounding {
 
 /// How to paint some text on screen.
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TextShape {
     /// Top left corner of the first character.
     pub pos: Pos2,
@@ -455,7 +523,7 @@ pub struct TextShape {
     /// This will NOT replace background color nor strikethrough/underline color.
     pub override_text_color: Option<Color32>,
 
-    /// Rotate text by this many radians clock-wise.
+    /// Rotate text by this many radians clockwise.
     /// The pivot is `pos` (the upper left corner of the text).
     pub angle: f32,
 }
@@ -472,9 +540,9 @@ impl TextShape {
         }
     }
 
-    /// Screen-space bounding rectangle.
+    /// The visual bounding rectangle
     #[inline]
-    pub fn bounding_rect(&self) -> Rect {
+    pub fn visual_bounding_rect(&self) -> Rect {
         self.galley.mesh_bounds.translate(self.pos.to_vec2())
     }
 }
@@ -490,16 +558,15 @@ impl From<TextShape> for Shape {
 
 /// Creates equally spaced filled circles from a line.
 fn points_from_line(
-    line: &[Pos2],
+    path: &[Pos2],
     spacing: f32,
     radius: f32,
     color: Color32,
     shapes: &mut Vec<Shape>,
 ) {
     let mut position_on_segment = 0.0;
-    line.windows(2).for_each(|window| {
-        let start = window[0];
-        let end = window[1];
+    path.windows(2).for_each(|window| {
+        let (start, end) = (window[0], window[1]);
         let vector = end - start;
         let segment_length = vector.length();
         while position_on_segment < segment_length {
@@ -513,7 +580,7 @@ fn points_from_line(
 
 /// Creates dashes from a line.
 fn dashes_from_line(
-    line: &[Pos2],
+    path: &[Pos2],
     stroke: Stroke,
     dash_length: f32,
     gap_length: f32,
@@ -521,9 +588,8 @@ fn dashes_from_line(
 ) {
     let mut position_on_segment = 0.0;
     let mut drawing_dash = false;
-    line.windows(2).for_each(|window| {
-        let start = window[0];
-        let end = window[1];
+    path.windows(2).for_each(|window| {
+        let (start, end) = (window[0], window[1]);
         let vector = end - start;
         let segment_length = vector.length();
 

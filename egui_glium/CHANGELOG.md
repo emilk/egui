@@ -3,6 +3,9 @@ All notable changes to the `egui_glium` integration will be noted in this file.
 
 
 ## Unreleased
+
+
+## 0.17.0 - 2022-02-22
 * `EguiGlium::run` no longer returns the shapes to paint, but stores them internally until you call `EguiGlium::paint` ([#1110](https://github.com/emilk/egui/pull/1110)).
 * Optimize the painter and texture uploading ([#1110](https://github.com/emilk/egui/pull/1110)).
 * Automatically detect and apply dark or light mode from system ([#1045](https://github.com/emilk/egui/pull/1045)).

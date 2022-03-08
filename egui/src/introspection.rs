@@ -146,7 +146,7 @@ impl Widget for &mut epaint::TessellationOptions {
                 epsilon: _,
             } = self;
             ui.checkbox(anti_alias, "Antialias")
-                .on_hover_text("Turn off for small performance gain.");
+                .on_hover_text("Apply feathering to smooth out the edges of shapes. Turn off for small performance gain.");
             ui.add(
                 crate::widgets::Slider::new(bezier_tolerance, 0.0001..=10.0)
                     .logarithmic(true)

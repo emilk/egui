@@ -148,7 +148,7 @@ Light Theme:
 
 ## Integrations
 
-egui is build to be easy to integrate into any existing game engine or platform you are working on.
+egui is built to be easy to integrate into any existing game engine or platform you are working on.
 egui itself doesn't know or care on what OS it is running or how to render things to the screen - that is the job of the egui integration.
 
 An integration needs to do the following each frame:
@@ -160,7 +160,7 @@ An integration needs to do the following each frame:
 
 ### Official integrations
 
-If you making an app, your best bet is using [`eframe`](https://github.com/emilk/egui/tree/master/eframe), the official egui framework. It lets you write apps that works on both the web and native. `eframe` is just a thin wrapper over `egui_web` and `egui_glium` (see below).
+If you're making an app, your best bet is using [`eframe`](https://github.com/emilk/egui/tree/master/eframe), the official egui framework. It lets you write apps that work on both the web and native. `eframe` is just a thin wrapper over `egui_web` and `egui_glium` (see below).
 
 These are the official egui integrations:
 
@@ -192,7 +192,7 @@ Missing an integration for the thing you're working on? Create one, it's easy!
 
 ### Writing your own egui integration
 
-You need to collect [`egui::RawInput`](https://docs.rs/egui/latest/egui/struct.RawInput.html), paint [`egui::ClippedMesh`](https://docs.rs/epaint/latest/epaint/struct.ClippedMesh.html):es and handle [`egui::Output`](https://docs.rs/egui/latest/egui/struct.Output.html). The basic structure is this:
+You need to collect [`egui::RawInput`](https://docs.rs/egui/latest/egui/struct.RawInput.html) and handle [`egui::FullOutput`](https://docs.rs/egui/latest/egui/struct.FullOutput.html). The basic structure is this:
 
 ``` rust
 let mut egui_ctx = egui::CtxRef::default();
@@ -201,20 +201,19 @@ let mut egui_ctx = egui::CtxRef::default();
 loop {
     // Gather input (mouse, touches, keyboard, screen size, etc):
     let raw_input: egui::RawInput = my_integration.gather_input();
-    let (output, shapes) = egui_ctx.run(raw_input, |egui_ctx| {
+    let full_output = egui_ctx.run(raw_input, |egui_ctx| {
         my_app.ui(egui_ctx); // add panels, windows and widgets to `egui_ctx` here
     });
-    let clipped_meshes = egui_ctx.tessellate(shapes); // creates triangles to paint
+    let clipped_meshes = egui_ctx.tessellate(full_output.shapes); // creates triangles to paint
 
-    my_integration.set_egui_textures(&output.textures_delta.set);
-    my_integration.paint(clipped_meshes);
-    my_integration.free_egui_textures(&output.textures_delta.free);
+    my_integration.paint(&full_output.textures_delta, clipped_meshes);
 
-    my_integration.set_cursor_icon(output.cursor_icon);
-    if !output.copied_text.is_empty() {
-        my_integration.set_clipboard_text(output.copied_text);
+    let platform_output = full_output.platform_output;
+    my_integration.set_cursor_icon(platform_output.cursor_icon);
+    if !platform_output.copied_text.is_empty() {
+        my_integration.set_clipboard_text(platform_output.copied_text);
     }
-    // See `egui::Output` for more
+    // See `egui::FullOutput` and `egui::PlatformOutput` for more
 }
 ```
 

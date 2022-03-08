@@ -1,3 +1,4 @@
+use egui_extras::RetainedImage;
 use poll_promise::Promise;
 
 struct Resource {
@@ -7,7 +8,7 @@ struct Resource {
     text: Option<String>,
 
     /// If set, the response was an image.
-    texture: Option<egui::TextureHandle>,
+    image: Option<RetainedImage>,
 
     /// If set, the response was text with some supported syntax highlighting (e.g. ".rs" or ".md").
     colored_text: Option<ColoredText>,
@@ -17,12 +18,10 @@ impl Resource {
     fn from_response(ctx: &egui::Context, response: ehttp::Response) -> Self {
         let content_type = response.content_type().unwrap_or_default();
         let image = if content_type.starts_with("image/") {
-            load_image(&response.bytes).ok()
+            RetainedImage::from_image_bytes(&response.url, &response.bytes).ok()
         } else {
             None
         };
-
-        let texture = image.map(|image| ctx.load_texture(&response.url, image));
 
         let text = response.text();
         let colored_text = text.and_then(|text| syntax_highlighting(ctx, &response, text));
@@ -31,7 +30,7 @@ impl Resource {
         Self {
             response,
             text,
-            texture,
+            image,
             colored_text,
         }
     }
@@ -151,7 +150,7 @@ fn ui_resource(ui: &mut egui::Ui, resource: &Resource) {
     let Resource {
         response,
         text,
-        texture,
+        image,
         colored_text,
     } = resource;
 
@@ -198,10 +197,10 @@ fn ui_resource(ui: &mut egui::Ui, resource: &Resource) {
                 ui.separator();
             }
 
-            if let Some(texture) = texture {
-                let mut size = texture.size_vec2();
+            if let Some(image) = image {
+                let mut size = image.size_vec2();
                 size *= (ui.available_width() / size.x).min(1.0);
-                ui.image(texture, size);
+                image.show_size(ui, size);
             } else if let Some(colored_text) = colored_text {
                 colored_text.ui(ui);
             } else if let Some(text) = &text {
@@ -269,17 +268,4 @@ impl ColoredText {
             painter.add(egui::Shape::galley(response.rect.min, galley));
         }
     }
-}
-
-// ----------------------------------------------------------------------------
-
-fn load_image(image_data: &[u8]) -> Result<egui::ColorImage, image::ImageError> {
-    let image = image::load_from_memory(image_data)?;
-    let size = [image.width() as _, image.height() as _];
-    let image_buffer = image.to_rgba8();
-    let pixels = image_buffer.as_flat_samples();
-    Ok(egui::ColorImage::from_rgba_unmultiplied(
-        size,
-        pixels.as_slice(),
-    ))
 }

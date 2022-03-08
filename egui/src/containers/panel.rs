@@ -9,6 +9,8 @@
 //! The order in which you add panels matter!
 //! The first panel you add will always be the outermost, and the last you add will always be the innermost.
 //!
+//! You must never open one top-level panel from within another panel. Add one panel, then the next.
+//!
 //! Always add any [`CentralPanel`] last.
 //!
 //! Add your [`Window`]:s after any top-level panels.

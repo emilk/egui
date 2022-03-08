@@ -1092,11 +1092,31 @@ fn on_key_press(
             None
         }
 
+        Key::P | Key::N | Key::B | Key::F | Key::A | Key::E
+            if cfg!(target_os = "macos") && modifiers.ctrl && !modifiers.shift =>
+        {
+            move_single_cursor(&mut cursor_range.primary, galley, key, modifiers);
+            cursor_range.secondary = cursor_range.primary;
+            None
+        }
+
         _ => None,
     }
 }
 
 fn move_single_cursor(cursor: &mut Cursor, galley: &Galley, key: Key, modifiers: &Modifiers) {
+    if cfg!(target_os = "macos") && modifiers.ctrl && !modifiers.shift {
+        match key {
+            Key::A => *cursor = galley.cursor_begin_of_row(cursor),
+            Key::E => *cursor = galley.cursor_end_of_row(cursor),
+            Key::P => *cursor = galley.cursor_up_one_row(cursor),
+            Key::N => *cursor = galley.cursor_down_one_row(cursor),
+            Key::B => *cursor = galley.cursor_left_one_character(cursor),
+            Key::F => *cursor = galley.cursor_right_one_character(cursor),
+            _ => (),
+        }
+        return;
+    }
     match key {
         Key::ArrowLeft => {
             if modifiers.alt || modifiers.ctrl {

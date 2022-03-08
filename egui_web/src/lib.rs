@@ -17,8 +17,10 @@
 pub mod backend;
 #[cfg(feature = "glow")]
 mod glow_wrapping;
+mod input;
 mod painter;
 pub mod screen_reader;
+mod text_agent;
 
 #[cfg(feature = "webgl")]
 pub mod webgl1;
@@ -31,14 +33,12 @@ use egui::mutex::Mutex;
 pub use wasm_bindgen;
 pub use web_sys;
 
+use input::*;
 pub use painter::Painter;
-use std::cell::Cell;
+
 use std::collections::BTreeMap;
-use std::rc::Rc;
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
-
-static AGENT_ID: &str = "egui_text_agent";
 
 // ----------------------------------------------------------------------------
 
@@ -90,84 +90,11 @@ pub fn canvas_element_or_die(canvas_id: &str) -> web_sys::HtmlCanvasElement {
         .unwrap_or_else(|| panic!("Failed to find canvas with id '{}'", canvas_id))
 }
 
-pub fn pos_from_mouse_event(canvas_id: &str, event: &web_sys::MouseEvent) -> egui::Pos2 {
-    let canvas = canvas_element(canvas_id).unwrap();
-    let rect = canvas.get_bounding_client_rect();
-    egui::Pos2 {
-        x: event.client_x() as f32 - rect.left() as f32,
-        y: event.client_y() as f32 - rect.top() as f32,
-    }
-}
-
-pub fn button_from_mouse_event(event: &web_sys::MouseEvent) -> Option<egui::PointerButton> {
-    match event.button() {
-        0 => Some(egui::PointerButton::Primary),
-        1 => Some(egui::PointerButton::Middle),
-        2 => Some(egui::PointerButton::Secondary),
-        _ => None,
-    }
-}
-
-/// A single touch is translated to a pointer movement. When a second touch is added, the pointer
-/// should not jump to a different position. Therefore, we do not calculate the average position
-/// of all touches, but we keep using the same touch as long as it is available.
-///
-/// `touch_id_for_pos` is the `TouchId` of the `Touch` we previously used to determine the
-/// pointer position.
-pub fn pos_from_touch_event(
-    canvas_id: &str,
-    event: &web_sys::TouchEvent,
-    touch_id_for_pos: &mut Option<egui::TouchId>,
-) -> egui::Pos2 {
-    let touch_for_pos;
-    if let Some(touch_id_for_pos) = touch_id_for_pos {
-        // search for the touch we previously used for the position
-        // (unfortunately, `event.touches()` is not a rust collection):
-        touch_for_pos = (0..event.touches().length())
-            .into_iter()
-            .map(|i| event.touches().get(i).unwrap())
-            .find(|touch| egui::TouchId::from(touch.identifier()) == *touch_id_for_pos);
-    } else {
-        touch_for_pos = None;
-    }
-    // Use the touch found above or pick the first, or return a default position if there is no
-    // touch at all. (The latter is not expected as the current method is only called when there is
-    // at least one touch.)
-    touch_for_pos
-        .or_else(|| event.touches().get(0))
-        .map_or(Default::default(), |touch| {
-            *touch_id_for_pos = Some(egui::TouchId::from(touch.identifier()));
-            pos_from_touch(canvas_origin(canvas_id), &touch)
-        })
-}
-
-fn pos_from_touch(canvas_origin: egui::Pos2, touch: &web_sys::Touch) -> egui::Pos2 {
-    egui::Pos2 {
-        x: touch.page_x() as f32 - canvas_origin.x as f32,
-        y: touch.page_y() as f32 - canvas_origin.y as f32,
-    }
-}
-
 fn canvas_origin(canvas_id: &str) -> egui::Pos2 {
     let rect = canvas_element(canvas_id)
         .unwrap()
         .get_bounding_client_rect();
     egui::Pos2::new(rect.left() as f32, rect.top() as f32)
-}
-
-fn push_touches(runner: &mut AppRunner, phase: egui::TouchPhase, event: &web_sys::TouchEvent) {
-    let canvas_origin = canvas_origin(runner.canvas_id());
-    for touch_idx in 0..event.changed_touches().length() {
-        if let Some(touch) = event.changed_touches().item(touch_idx) {
-            runner.input.raw.events.push(egui::Event::Touch {
-                device_id: egui::TouchDeviceId(0),
-                id: egui::TouchId::from(touch.identifier()),
-                phase,
-                pos: pos_from_touch(canvas_origin, &touch),
-                force: touch.force(),
-            });
-        }
-    }
 }
 
 pub fn canvas_size_in_points(canvas_id: &str) -> egui::Vec2 {
@@ -373,105 +300,6 @@ pub fn percent_decode(s: &str) -> String {
         .to_string()
 }
 
-/// Web sends all keys as strings, so it is up to us to figure out if it is
-/// a real text input or the name of a key.
-fn should_ignore_key(key: &str) -> bool {
-    let is_function_key = key.starts_with('F') && key.len() > 1;
-    is_function_key
-        || matches!(
-            key,
-            "Alt"
-                | "ArrowDown"
-                | "ArrowLeft"
-                | "ArrowRight"
-                | "ArrowUp"
-                | "Backspace"
-                | "CapsLock"
-                | "ContextMenu"
-                | "Control"
-                | "Delete"
-                | "End"
-                | "Enter"
-                | "Esc"
-                | "Escape"
-                | "Help"
-                | "Home"
-                | "Insert"
-                | "Meta"
-                | "NumLock"
-                | "PageDown"
-                | "PageUp"
-                | "Pause"
-                | "ScrollLock"
-                | "Shift"
-                | "Tab"
-        )
-}
-
-/// Web sends all all keys as strings, so it is up to us to figure out if it is
-/// a real text input or the name of a key.
-pub fn translate_key(key: &str) -> Option<egui::Key> {
-    match key {
-        "ArrowDown" => Some(egui::Key::ArrowDown),
-        "ArrowLeft" => Some(egui::Key::ArrowLeft),
-        "ArrowRight" => Some(egui::Key::ArrowRight),
-        "ArrowUp" => Some(egui::Key::ArrowUp),
-
-        "Esc" | "Escape" => Some(egui::Key::Escape),
-        "Tab" => Some(egui::Key::Tab),
-        "Backspace" => Some(egui::Key::Backspace),
-        "Enter" => Some(egui::Key::Enter),
-        "Space" | " " => Some(egui::Key::Space),
-
-        "Help" | "Insert" => Some(egui::Key::Insert),
-        "Delete" => Some(egui::Key::Delete),
-        "Home" => Some(egui::Key::Home),
-        "End" => Some(egui::Key::End),
-        "PageUp" => Some(egui::Key::PageUp),
-        "PageDown" => Some(egui::Key::PageDown),
-
-        "0" => Some(egui::Key::Num0),
-        "1" => Some(egui::Key::Num1),
-        "2" => Some(egui::Key::Num2),
-        "3" => Some(egui::Key::Num3),
-        "4" => Some(egui::Key::Num4),
-        "5" => Some(egui::Key::Num5),
-        "6" => Some(egui::Key::Num6),
-        "7" => Some(egui::Key::Num7),
-        "8" => Some(egui::Key::Num8),
-        "9" => Some(egui::Key::Num9),
-
-        "a" | "A" => Some(egui::Key::A),
-        "b" | "B" => Some(egui::Key::B),
-        "c" | "C" => Some(egui::Key::C),
-        "d" | "D" => Some(egui::Key::D),
-        "e" | "E" => Some(egui::Key::E),
-        "f" | "F" => Some(egui::Key::F),
-        "g" | "G" => Some(egui::Key::G),
-        "h" | "H" => Some(egui::Key::H),
-        "i" | "I" => Some(egui::Key::I),
-        "j" | "J" => Some(egui::Key::J),
-        "k" | "K" => Some(egui::Key::K),
-        "l" | "L" => Some(egui::Key::L),
-        "m" | "M" => Some(egui::Key::M),
-        "n" | "N" => Some(egui::Key::N),
-        "o" | "O" => Some(egui::Key::O),
-        "p" | "P" => Some(egui::Key::P),
-        "q" | "Q" => Some(egui::Key::Q),
-        "r" | "R" => Some(egui::Key::R),
-        "s" | "S" => Some(egui::Key::S),
-        "t" | "T" => Some(egui::Key::T),
-        "u" | "U" => Some(egui::Key::U),
-        "v" | "V" => Some(egui::Key::V),
-        "w" | "W" => Some(egui::Key::W),
-        "x" | "X" => Some(egui::Key::X),
-        "y" | "Y" => Some(egui::Key::Y),
-        "z" | "Z" => Some(egui::Key::Z),
-
-        _ => None,
-    }
-}
-
 // ----------------------------------------------------------------------------
 
 #[derive(Clone)]
@@ -505,18 +333,6 @@ fn paint_and_schedule(runner_ref: AppRunnerRef) -> Result<(), JsValue> {
     request_animation_frame(runner_ref)
 }
 
-fn text_agent() -> web_sys::HtmlInputElement {
-    use wasm_bindgen::JsCast;
-    web_sys::window()
-        .unwrap()
-        .document()
-        .unwrap()
-        .get_element_by_id(AGENT_ID)
-        .unwrap()
-        .dyn_into()
-        .unwrap()
-}
-
 fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     use wasm_bindgen::JsCast;
     let window = web_sys::window().unwrap();
@@ -548,7 +364,7 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 && !modifiers.command
                 && !should_ignore_key(&key)
                 // When text agent is shown, it sends text event instead.
-                && text_agent().hidden()
+                && text_agent::text_agent().hidden()
             {
                 runner_lock.input.raw.events.push(egui::Event::Text(key));
             }
@@ -703,117 +519,6 @@ fn repaint_every_ms(runner_ref: &AppRunnerRef, milliseconds: i32) -> Result<(), 
     Ok(())
 }
 
-fn modifiers_from_event(event: &web_sys::KeyboardEvent) -> egui::Modifiers {
-    egui::Modifiers {
-        alt: event.alt_key(),
-        ctrl: event.ctrl_key(),
-        shift: event.shift_key(),
-
-        // Ideally we should know if we are running or mac or not,
-        // but this works good enough for now.
-        mac_cmd: event.meta_key(),
-
-        // Ideally we should know if we are running or mac or not,
-        // but this works good enough for now.
-        command: event.ctrl_key() || event.meta_key(),
-    }
-}
-
-///
-/// Text event handler,
-fn install_text_agent(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
-    use wasm_bindgen::JsCast;
-    let window = web_sys::window().unwrap();
-    let document = window.document().unwrap();
-    let body = document.body().expect("document should have a body");
-    let input = document
-        .create_element("input")?
-        .dyn_into::<web_sys::HtmlInputElement>()?;
-    let input = std::rc::Rc::new(input);
-    input.set_id(AGENT_ID);
-    let is_composing = Rc::new(Cell::new(false));
-    {
-        let style = input.style();
-        // Transparent
-        style.set_property("opacity", "0").unwrap();
-        // Hide under canvas
-        style.set_property("z-index", "-1").unwrap();
-    }
-    // Set size as small as possible, in case user may click on it.
-    input.set_size(1);
-    input.set_autofocus(true);
-    input.set_hidden(true);
-    {
-        // When IME is off
-        let input_clone = input.clone();
-        let runner_ref = runner_ref.clone();
-        let is_composing = is_composing.clone();
-        let on_input = Closure::wrap(Box::new(move |_event: web_sys::InputEvent| {
-            let text = input_clone.value();
-            if !text.is_empty() && !is_composing.get() {
-                input_clone.set_value("");
-                let mut runner_lock = runner_ref.0.lock();
-                runner_lock.input.raw.events.push(egui::Event::Text(text));
-                runner_lock.needs_repaint.set_true();
-            }
-        }) as Box<dyn FnMut(_)>);
-        input.add_event_listener_with_callback("input", on_input.as_ref().unchecked_ref())?;
-        on_input.forget();
-    }
-    {
-        // When IME is on, handle composition event
-        let input_clone = input.clone();
-        let runner_ref = runner_ref.clone();
-        let on_compositionend = Closure::wrap(Box::new(move |event: web_sys::CompositionEvent| {
-            let mut runner_lock = runner_ref.0.lock();
-            let opt_event = match event.type_().as_ref() {
-                "compositionstart" => {
-                    is_composing.set(true);
-                    input_clone.set_value("");
-                    Some(egui::Event::CompositionStart)
-                }
-                "compositionend" => {
-                    is_composing.set(false);
-                    input_clone.set_value("");
-                    event.data().map(egui::Event::CompositionEnd)
-                }
-                "compositionupdate" => event.data().map(egui::Event::CompositionUpdate),
-                s => {
-                    tracing::error!("Unknown composition event type: {:?}", s);
-                    None
-                }
-            };
-            if let Some(event) = opt_event {
-                runner_lock.input.raw.events.push(event);
-                runner_lock.needs_repaint.set_true();
-            }
-        }) as Box<dyn FnMut(_)>);
-        let f = on_compositionend.as_ref().unchecked_ref();
-        input.add_event_listener_with_callback("compositionstart", f)?;
-        input.add_event_listener_with_callback("compositionupdate", f)?;
-        input.add_event_listener_with_callback("compositionend", f)?;
-        on_compositionend.forget();
-    }
-    {
-        // When input lost focus, focus on it again.
-        // It is useful when user click somewhere outside canvas.
-        let on_focusout = Closure::wrap(Box::new(move |_event: web_sys::MouseEvent| {
-            // Delay 10 ms, and focus again.
-            let func = js_sys::Function::new_no_args(&format!(
-                "document.getElementById('{}').focus()",
-                AGENT_ID
-            ));
-            window
-                .set_timeout_with_callback_and_timeout_and_arguments_0(&func, 10)
-                .unwrap();
-        }) as Box<dyn FnMut(_)>);
-        input.add_event_listener_with_callback("focusout", on_focusout.as_ref().unchecked_ref())?;
-        on_focusout.forget();
-    }
-    body.append_child(&input)?;
-    Ok(())
-}
-
 fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     use wasm_bindgen::JsCast;
     let canvas = canvas_element(runner_ref.0.lock().canvas_id()).unwrap();
@@ -895,7 +600,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                     });
                 runner_lock.needs_repaint.set_true();
 
-                update_text_agent(&runner_lock);
+                text_agent::update_text_agent(&runner_lock);
             }
             event.stop_propagation();
             event.prevent_default();
@@ -1003,7 +708,7 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             }
 
             // Finally, focus or blur text agent to toggle mobile keyboard:
-            update_text_agent(&runner_lock);
+            text_agent::update_text_agent(&runner_lock);
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
         closure.forget();
@@ -1171,92 +876,6 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     }
 
     Ok(())
-}
-
-/// Focus or blur text agent to toggle mobile keyboard.
-fn update_text_agent(runner: &AppRunner) -> Option<()> {
-    use wasm_bindgen::JsCast;
-    use web_sys::HtmlInputElement;
-    let window = web_sys::window()?;
-    let document = window.document()?;
-    let input: HtmlInputElement = document.get_element_by_id(AGENT_ID)?.dyn_into().unwrap();
-    let canvas_style = canvas_element(runner.canvas_id())?.style();
-
-    if runner.mutable_text_under_cursor {
-        let is_already_editing = input.hidden();
-        if is_already_editing {
-            input.set_hidden(false);
-            input.focus().ok()?;
-
-            // Move up canvas so that text edit is shown at ~30% of screen height.
-            // Only on touch screens, when keyboard popups.
-            if let Some(latest_touch_pos) = runner.input.latest_touch_pos {
-                let window_height = window.inner_height().ok()?.as_f64()? as f32;
-                let current_rel = latest_touch_pos.y / window_height;
-
-                // estimated amount of screen covered by keyboard
-                let keyboard_fraction = 0.5;
-
-                if current_rel > keyboard_fraction {
-                    // below the keyboard
-
-                    let target_rel = 0.3;
-
-                    // Note: `delta` is negative, since we are moving the canvas UP
-                    let delta = target_rel - current_rel;
-
-                    let delta = delta.max(-keyboard_fraction); // Don't move it crazy much
-
-                    let new_pos_percent = (delta * 100.0).round().to_string() + "%";
-
-                    canvas_style.set_property("position", "absolute").ok()?;
-                    canvas_style.set_property("top", &new_pos_percent).ok()?;
-                }
-            }
-        }
-    } else {
-        input.blur().ok()?;
-        input.set_hidden(true);
-        canvas_style.set_property("position", "absolute").ok()?;
-        canvas_style.set_property("top", "0%").ok()?; // move back to normal position
-    }
-    Some(())
-}
-
-const MOBILE_DEVICE: [&str; 6] = ["Android", "iPhone", "iPad", "iPod", "webOS", "BlackBerry"];
-/// If context is running under mobile device?
-fn is_mobile() -> Option<bool> {
-    let user_agent = web_sys::window()?.navigator().user_agent().ok()?;
-    let is_mobile = MOBILE_DEVICE.iter().any(|&name| user_agent.contains(name));
-    Some(is_mobile)
-}
-
-// Move text agent to text cursor's position, on desktop/laptop,
-// candidate window moves following text element (agent),
-// so it appears that the IME candidate window moves with text cursor.
-// On mobile devices, there is no need to do that.
-fn move_text_cursor(cursor: Option<egui::Pos2>, canvas_id: &str) -> Option<()> {
-    let style = text_agent().style();
-    // Note: movint agent on mobile devices will lead to unpredictable scroll.
-    if is_mobile() == Some(false) {
-        cursor.as_ref().and_then(|&egui::Pos2 { x, y }| {
-            let canvas = canvas_element(canvas_id)?;
-            let bounding_rect = text_agent().get_bounding_client_rect();
-            let y = (y + (canvas.scroll_top() + canvas.offset_top()) as f32)
-                .min(canvas.client_height() as f32 - bounding_rect.height() as f32);
-            let x = x + (canvas.scroll_left() + canvas.offset_left()) as f32;
-            // Canvas is translated 50% horizontally in html.
-            let x = (x - canvas.offset_width() as f32 / 2.0)
-                .min(canvas.client_width() as f32 - bounding_rect.width() as f32);
-            style.set_property("position", "absolute").ok()?;
-            style.set_property("top", &(y.to_string() + "px")).ok()?;
-            style.set_property("left", &(x.to_string() + "px")).ok()
-        })
-    } else {
-        style.set_property("position", "absolute").ok()?;
-        style.set_property("top", "0px").ok()?;
-        style.set_property("left", "0px").ok()
-    }
 }
 
 pub(crate) fn webgl1_requires_brightening(gl: &web_sys::WebGlRenderingContext) -> bool {

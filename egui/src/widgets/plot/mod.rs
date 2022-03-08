@@ -295,6 +295,14 @@ impl Plot {
         self
     }
 
+    /// Set the side margin as a fraction of the plot size.
+    ///
+    /// For instance, a value of `0.1` will add 10% space on both sides.
+    pub fn set_margin_fraction(mut self, margin_fraction: Vec2) -> Self {
+        self.margin_fraction = margin_fraction;
+        self
+    }
+
     /// Whether to allow zooming in the plot by dragging out a box with the secondary mouse button.
     ///
     /// Default: `true`.

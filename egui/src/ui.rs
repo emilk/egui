@@ -366,10 +366,10 @@ impl Ui {
         self.ctx().data()
     }
 
-    /// The [`Output`] of the [`Context`] associated with this ui.
+    /// The [`PlatformOutput`] of the [`Context`] associated with this ui.
     /// Equivalent to `.ctx().output()`.
     #[inline]
-    pub fn output(&self) -> RwLockWriteGuard<'_, Output> {
+    pub fn output(&self) -> RwLockWriteGuard<'_, PlatformOutput> {
         self.ctx().output()
     }
 
@@ -908,7 +908,7 @@ impl Ui {
     ///
     /// If `align` is `None`, it'll scroll enough to bring the cursor into view.
     ///
-    /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to`].
+    /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to_rect`].
     ///
     /// ```
     /// # use egui::Align;
@@ -933,7 +933,7 @@ impl Ui {
     ///
     /// If `align` is not provided, it'll scroll enough to bring the cursor into view.
     ///
-    /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to`].
+    /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to_rect`].
     ///
     /// ```
     /// # use egui::Align;
@@ -1014,7 +1014,7 @@ impl Ui {
         .inner
     }
 
-    /// Add a single[`Widget`] that is possibly disabled, i.e. greyed out and non-interactive.
+    /// Add a single [`Widget`] that is possibly disabled, i.e. greyed out and non-interactive.
     ///
     /// If you call `add_enabled` from within an already disabled `Ui`,
     /// the widget will always be disabled, even if the `enabled` argument is true.
@@ -1069,7 +1069,7 @@ impl Ui {
         })
     }
 
-    /// Add a single[`Widget`] that is possibly invisible.
+    /// Add a single [`Widget`] that is possibly invisible.
     ///
     /// An invisible widget still takes up the same space as if it were visible.
     ///
