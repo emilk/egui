@@ -174,8 +174,8 @@ pub fn update_text_agent(runner: MutexGuard<'_, AppRunner>) -> Option<()> {
 
         // Holding the runner lock while calling input.blur() causes a panic.
         // This is most probably caused by the browser running the event handler
-        // synchronously, meaning that the runner does not get dropped when another
-        // event handler is called.
+        // for the triggered blur event synchronously, meaning that the mutex
+        // lock does not get dropped by the time another event handler is called.
         //
         // Why this didn't exist before #1290 is a mystery to me, but it exists now
         // and this apparently is the fix for it
