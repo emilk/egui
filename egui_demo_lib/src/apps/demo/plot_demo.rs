@@ -626,8 +626,6 @@ impl ChartsDemo {
             }
         };
 
-        let grid = plot::uniform_grid_spacer(|_input| -> [f64; 3] { [1.0, 5.0, 30.0] });
-
         if !self.vertical {
             chart1 = chart1.horizontal();
             chart2 = chart2.horizontal();
@@ -636,27 +634,18 @@ impl ChartsDemo {
             std::mem::swap(&mut x_fmt, &mut y_fmt);
         }
 
-        let plot = Plot::new("Stacked Bar Chart Demo")
+        Plot::new("Stacked Bar Chart Demo")
             .legend(Legend::default())
-            .data_aspect(1.0);
-
-        let plot = if self.vertical {
-            plot.x_axis_formatter(x_fmt)
-                .y_axis_formatter(y_fmt)
-                .x_grid_spacer(grid)
-        } else {
-            plot.x_axis_formatter(y_fmt)
-                .y_axis_formatter(x_fmt)
-                .y_grid_spacer(grid)
-        };
-
-        plot.show(ui, |plot_ui| {
-            plot_ui.bar_chart(chart1);
-            plot_ui.bar_chart(chart2);
-            plot_ui.bar_chart(chart3);
-            plot_ui.bar_chart(chart4);
-        })
-        .response
+            .x_axis_formatter(x_fmt)
+            .y_axis_formatter(y_fmt)
+            .data_aspect(1.0)
+            .show(ui, |plot_ui| {
+                plot_ui.bar_chart(chart1);
+                plot_ui.bar_chart(chart2);
+                plot_ui.bar_chart(chart3);
+                plot_ui.bar_chart(chart4);
+            })
+            .response
     }
 
     fn box_plot(&self, ui: &mut Ui) -> Response {
