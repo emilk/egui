@@ -128,7 +128,7 @@ pub fn install_text_agent(runner_container: &AppRunnerContainer) -> Result<(), J
 }
 
 /// Focus or blur text agent to toggle mobile keyboard.
-pub fn update_text_agent(runner: &AppRunner) -> Option<()> {
+pub fn update_text_agent(runner: MutexGuard<'_, AppRunner>) -> Option<()> {
     use wasm_bindgen::JsCast;
     use web_sys::HtmlInputElement;
     let window = web_sys::window()?;
@@ -169,7 +169,20 @@ pub fn update_text_agent(runner: &AppRunner) -> Option<()> {
             }
         }
     } else {
+        // Drop runner lock
+        drop(runner);
+
+        // Holding the runner lock while calling input.blur() causes a panic.
+        // This is most probably caused by the browser running the event handler
+        // synchronously, meaning that the runner does not get dropped when another
+        // event handler is called.
+        //
+        // Why this didn't exist before #1290 is a mystery to me, but it exists now
+        // and this apparently is the fix for it
+        //
+        // ¯\_(ツ)_/¯ - @DusterTheFirst
         input.blur().ok()?;
+
         input.set_hidden(true);
         canvas_style.set_property("position", "absolute").ok()?;
         canvas_style.set_property("top", "0%").ok()?; // move back to normal position

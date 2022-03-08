@@ -325,23 +325,21 @@ impl AppRunnerContainer {
         use wasm_bindgen::JsCast;
 
         // Create a JS closure based on the FnMut provided
-        let closure = Closure::wrap(Box::new({
+        let closure = Closure::wrap({
             // Clone atomics
             let runner_ref = self.runner.clone();
             let panicked = self.panicked.clone();
 
-            move |event: web_sys::Event| {
+            Box::new(move |event: web_sys::Event| {
                 // Only call the wrapped closure if the egui code has not panicked
                 if !panicked.load(Ordering::SeqCst) {
                     // Cast the event to the expected event type
                     let event = event.unchecked_into::<E>();
 
-                    let lock = runner_ref.lock();
-
-                    closure(event, lock);
+                    closure(event, runner_ref.lock());
                 }
-            }
-        }) as Box<dyn FnMut(_)>);
+            }) as Box<dyn FnMut(_)>
+        });
 
         // Add the event listener to the target
         target.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
@@ -646,7 +644,7 @@ fn install_canvas_events(runner_container: &AppRunnerContainer) -> Result<(), Js
                     });
                 runner_lock.needs_repaint.set_true();
 
-                text_agent::update_text_agent(&runner_lock);
+                text_agent::update_text_agent(runner_lock);
             }
             event.stop_propagation();
             event.prevent_default();
@@ -741,7 +739,7 @@ fn install_canvas_events(runner_container: &AppRunnerContainer) -> Result<(), Js
             }
 
             // Finally, focus or blur text agent to toggle mobile keyboard:
-            text_agent::update_text_agent(&runner_lock);
+            text_agent::update_text_agent(runner_lock);
         },
     )?;
 
@@ -749,7 +747,7 @@ fn install_canvas_events(runner_container: &AppRunnerContainer) -> Result<(), Js
         &canvas,
         "touchcancel",
         |event: web_sys::TouchEvent, mut runner_lock| {
-            push_touches(&mut *runner_lock, egui::TouchPhase::Cancel, &event);
+            push_touches(&mut runner_lock, egui::TouchPhase::Cancel, &event);
             event.stop_propagation();
             event.prevent_default();
         },
@@ -839,6 +837,7 @@ fn install_canvas_events(runner_container: &AppRunnerContainer) -> Result<(), Js
             if let Some(data_transfer) = event.data_transfer() {
                 runner_lock.input.raw.hovered_files.clear();
                 runner_lock.needs_repaint.set_true();
+                // Unlock the runner so it can be locked after a future await point
                 drop(runner_lock);
 
                 if let Some(files) = data_transfer.files() {
@@ -863,6 +862,7 @@ fn install_canvas_events(runner_container: &AppRunnerContainer) -> Result<(), Js
                                             bytes.len()
                                         );
 
+                                        // Re-lock the mutex on the other side of the await point
                                         let mut runner_lock = runner_ref.lock();
                                         runner_lock.input.raw.dropped_files.push(
                                             egui::DroppedFile {
