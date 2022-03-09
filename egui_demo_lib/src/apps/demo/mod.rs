@@ -12,6 +12,7 @@ pub mod dancing_strings;
 pub mod demo_app_windows;
 pub mod drag_and_drop;
 pub mod font_book;
+pub mod input_validation;
 pub mod layout_test;
 pub mod misc_demo_window;
 pub mod multi_touch;

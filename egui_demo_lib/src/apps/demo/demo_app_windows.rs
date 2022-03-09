@@ -34,6 +34,7 @@ impl Default for Demos {
             Box::new(super::window_options::WindowOptions::default()),
             Box::new(super::tests::WindowResizeTest::default()),
             Box::new(super::window_with_panels::WindowWithPanels::default()),
+            Box::new(super::input_validation::InputValidationWindow::default()),
         ])
     }
 }

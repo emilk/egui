@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use epaint::mutex::Arc;
 
 use epaint::text::{cursor::*, Galley, LayoutJob};
@@ -47,7 +49,7 @@ use super::{CCursorRange, CursorRange, TextEditOutput, TextEditState};
 /// ## Advanced usage
 /// See [`TextEdit::show`].
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
-pub struct TextEdit<'t> {
+pub struct TextEdit<'t, 'v> {
     text: &'t mut dyn TextBuffer,
     hint_text: WidgetText,
     id: Option<Id>,
@@ -64,13 +66,14 @@ pub struct TextEdit<'t> {
     desired_height_rows: usize,
     lock_focus: bool,
     cursor_at_end: bool,
+    validator: Option<&'v mut dyn FnMut(InputData<'_>) -> Action>,
 }
 
-impl<'t> WidgetWithState for TextEdit<'t> {
+impl<'t, 'v> WidgetWithState for TextEdit<'t, 'v> {
     type State = TextEditState;
 }
 
-impl<'t> TextEdit<'t> {
+impl<'t, 'v> TextEdit<'t, 'v> {
     pub fn load_state(ctx: &Context, id: Id) -> Option<TextEditState> {
         TextEditState::load(ctx, id)
     }
@@ -80,7 +83,7 @@ impl<'t> TextEdit<'t> {
     }
 }
 
-impl<'t> TextEdit<'t> {
+impl<'t, 'v> TextEdit<'t, 'v> {
     /// No newlines (`\n`) allowed. Pressing enter key will result in the `TextEdit` losing focus (`response.lost_focus`).
     pub fn singleline(text: &'t mut dyn TextBuffer) -> Self {
         Self {
@@ -109,6 +112,7 @@ impl<'t> TextEdit<'t> {
             desired_height_rows: 4,
             lock_focus: false,
             cursor_at_end: true,
+            validator: None,
         }
     }
 
@@ -248,15 +252,53 @@ impl<'t> TextEdit<'t> {
     }
 }
 
+/// Instructions on how the user input should be processed.
+pub enum Action {
+    /// Insert the string at the cursor.
+    ///
+    /// Note that inserting an empty string does nothing.
+    Insert(String),
+
+    /// Overwrite the entire buffer with the given string.
+    ///
+    /// This can be used for instance, to automatically fill in the
+    /// minimum or maximum value possible, if it is exceeded.
+    Overwrite(Cow<'static, str>),
+}
+
+/// The information required to validate text input.
+pub struct InputData<'a> {
+    /// The text that was input by the user.
+    pub input: String,
+
+    /// The current text in the text box buffer.
+    pub buffer: &'a str,
+
+    /// The current position of the start of the cursor.
+    ///
+    /// This represents where the data will be inserted.
+    pub cursor_start: usize,
+}
+
+impl<'t, 'v> TextEdit<'t, 'v> {
+    /// Set the function to use for input validation.
+    ///
+    /// Defaults to no input validation.
+    pub fn validator(mut self, validator: &'v mut dyn FnMut(InputData<'_>) -> Action) -> Self {
+        self.validator.replace(validator);
+        self
+    }
+}
+
 // ----------------------------------------------------------------------------
 
-impl<'t> Widget for TextEdit<'t> {
+impl<'t, 'v> Widget for TextEdit<'t, 'v> {
     fn ui(self, ui: &mut Ui) -> Response {
         self.show(ui).response
     }
 }
 
-impl<'t> TextEdit<'t> {
+impl<'t, 'v> TextEdit<'t, 'v> {
     /// Show the [`TextEdit`], returning a rich [`TextEditOutput`].
     ///
     /// ```
@@ -348,6 +390,7 @@ impl<'t> TextEdit<'t> {
             desired_height_rows,
             lock_focus,
             cursor_at_end,
+            validator,
         } = self;
 
         let text_color = text_color
@@ -496,6 +539,11 @@ impl<'t> TextEdit<'t> {
                 CursorRange::default()
             };
 
+            let mut default_validator = |data: InputData<'_>| Action::Insert(data.input);
+            let validator = match validator {
+                Some(validator) => validator,
+                None => &mut default_validator,
+            };
             let (changed, new_cursor_range) = events(
                 ui,
                 &mut state,
@@ -507,6 +555,7 @@ impl<'t> TextEdit<'t> {
                 multiline,
                 password,
                 default_cursor_range,
+                validator,
             );
 
             if changed {
@@ -662,6 +711,7 @@ fn events(
     multiline: bool,
     password: bool,
     default_cursor_range: CursorRange,
+    validator: &mut dyn FnMut(InputData<'_>) -> Action,
 ) -> (bool, CursorRange) {
     let mut cursor_range = state.cursor_range(&*galley).unwrap_or(default_cursor_range);
 
@@ -681,7 +731,7 @@ fn events(
     let mut any_change = false;
 
     let events = ui.input().events.clone(); // avoid dead-lock by cloning. TODO: optimize
-    for event in &events {
+    for event in events {
         let did_mutate_text = match event {
             Event::Copy => {
                 if cursor_range.is_empty() {
@@ -700,23 +750,50 @@ fn events(
                     Some(CCursorRange::one(delete_selected(text, &cursor_range)))
                 }
             }
-            Event::Paste(text_to_insert) => {
-                if !text_to_insert.is_empty() {
-                    let mut ccursor = delete_selected(text, &cursor_range);
-                    insert_text(&mut ccursor, text, text_to_insert);
-                    Some(CCursorRange::one(ccursor))
-                } else {
-                    None
+            Event::Paste(input) => {
+                match validator(InputData {
+                    input,
+                    buffer: text.as_str(),
+                    cursor_start: cursor_range.primary.ccursor.index,
+                }) {
+                    Action::Insert(text_to_insert) => {
+                        if !text_to_insert.is_empty() {
+                            let mut ccursor = delete_selected(text, &cursor_range);
+                            insert_text(&mut ccursor, text, &text_to_insert);
+                            Some(CCursorRange::one(ccursor))
+                        } else {
+                            None
+                        }
+                    }
+                    Action::Overwrite(replacement) => {
+                        text.replace(&replacement);
+                        Some(CCursorRange::one(CCursor::new(replacement.len())))
+                    }
                 }
             }
-            Event::Text(text_to_insert) => {
-                // Newlines are handled by `Key::Enter`.
-                if !text_to_insert.is_empty() && text_to_insert != "\n" && text_to_insert != "\r" {
-                    let mut ccursor = delete_selected(text, &cursor_range);
-                    insert_text(&mut ccursor, text, text_to_insert);
-                    Some(CCursorRange::one(ccursor))
-                } else {
-                    None
+            Event::Text(input) => {
+                match validator(InputData {
+                    input,
+                    buffer: text.as_str(),
+                    cursor_start: cursor_range.primary.ccursor.index,
+                }) {
+                    Action::Insert(text_to_insert) => {
+                        // Newlines are handled by `Key::Enter`.
+                        if !text_to_insert.is_empty()
+                            && text_to_insert != "\n"
+                            && text_to_insert != "\r"
+                        {
+                            let mut ccursor = delete_selected(text, &cursor_range);
+                            insert_text(&mut ccursor, text, &text_to_insert);
+                            Some(CCursorRange::one(ccursor))
+                        } else {
+                            None
+                        }
+                    }
+                    Action::Overwrite(replacement) => {
+                        text.replace(&replacement);
+                        Some(CCursorRange::one(CCursor::new(replacement.len())))
+                    }
                 }
             }
             Event::Key {
@@ -774,7 +851,7 @@ fn events(
                 key,
                 pressed: true,
                 modifiers,
-            } => on_key_press(&mut cursor_range, text, galley, *key, modifiers),
+            } => on_key_press(&mut cursor_range, text, galley, key, &modifiers),
 
             Event::CompositionStart => {
                 state.has_ime = true;
@@ -786,7 +863,7 @@ fn events(
                 {
                     let mut ccursor = delete_selected(text, &cursor_range);
                     let start_cursor = ccursor;
-                    insert_text(&mut ccursor, text, text_mark);
+                    insert_text(&mut ccursor, text, &text_mark);
                     Some(CCursorRange::two(start_cursor, ccursor))
                 } else {
                     None
@@ -801,7 +878,7 @@ fn events(
                 {
                     state.has_ime = false;
                     let mut ccursor = delete_selected(text, &cursor_range);
-                    insert_text(&mut ccursor, text, prediction);
+                    insert_text(&mut ccursor, text, &prediction);
                     Some(CCursorRange::one(ccursor))
                 } else {
                     None
