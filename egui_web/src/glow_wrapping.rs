@@ -1,4 +1,4 @@
-use egui::{ClippedMesh, Rgba};
+use egui::{ClippedPrimitive, Rgba};
 use egui_glow::glow;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
@@ -58,17 +58,17 @@ impl crate::WebPainter for WrappedGlowPainter {
         egui_glow::painter::clear(&self.glow_ctx, canvas_dimension, clear_color)
     }
 
-    fn paint_meshes(
+    fn paint_primitives(
         &mut self,
-        clipped_meshes: Vec<ClippedMesh>,
+        clipped_primitives: Vec<ClippedPrimitive>,
         pixels_per_point: f32,
     ) -> Result<(), JsValue> {
         let canvas_dimension = [self.canvas.width(), self.canvas.height()];
-        self.painter.paint_meshes(
+        self.painter.paint_primitives(
             &self.glow_ctx,
             canvas_dimension,
             pixels_per_point,
-            clipped_meshes,
+            clipped_primitives,
         );
         Ok(())
     }

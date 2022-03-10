@@ -66,9 +66,11 @@ egui_web = { version = "0.17.0", path = "../egui_web", default-features = false 
 # For examples:
 egui_extras = { path = "../egui_extras", features = ["image", "svg"] }
 ehttp = "0.2"
+glow = "0.11"
 image = { version = "0.24", default-features = false, features = [
   "jpeg",
   "png",
 ] }
+parking_lot = "0.12"
 poll-promise = "0.1"
 rfd = "0.8"

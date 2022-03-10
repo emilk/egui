@@ -204,9 +204,9 @@ loop {
     let full_output = egui_ctx.run(raw_input, |egui_ctx| {
         my_app.ui(egui_ctx); // add panels, windows and widgets to `egui_ctx` here
     });
-    let clipped_meshes = egui_ctx.tessellate(full_output.shapes); // creates triangles to paint
+    let clipped_primitives = egui_ctx.tessellate(full_output.shapes); // creates triangles to paint
 
-    my_integration.paint(&full_output.textures_delta, clipped_meshes);
+    my_integration.paint(&full_output.textures_delta, clipped_primitives);
 
     let platform_output = full_output.platform_output;
     my_integration.set_cursor_icon(platform_output.cursor_icon);

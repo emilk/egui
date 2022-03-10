@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use egui::{
     emath::Rect,
-    epaint::{Color32, Mesh, Vertex},
+    epaint::{Color32, Mesh, Primitive, Vertex},
 };
 use glow::HasContext;
 use memoffset::offset_of;
@@ -275,14 +275,14 @@ impl Painter {
         gl: &glow::Context,
         inner_size: [u32; 2],
         pixels_per_point: f32,
-        clipped_meshes: Vec<egui::ClippedMesh>,
+        clipped_primitives: Vec<egui::ClippedPrimitive>,
         textures_delta: &egui::TexturesDelta,
     ) {
         for (id, image_delta) in &textures_delta.set {
             self.set_texture(gl, *id, image_delta);
         }
 
-        self.paint_meshes(gl, inner_size, pixels_per_point, clipped_meshes);
+        self.paint_primitives(gl, inner_size, pixels_per_point, clipped_primitives);
 
         for &id in &textures_delta.free {
             self.free_texture(gl, id);
@@ -308,12 +308,12 @@ impl Painter {
     ///
     /// Please be mindful of these effects when integrating into your program, and also be mindful
     /// of the effects your program might have on this code. Look at the source if in doubt.
-    pub fn paint_meshes(
+    pub fn paint_primitives(
         &mut self,
         gl: &glow::Context,
         inner_size: [u32; 2],
         pixels_per_point: f32,
-        clipped_meshes: Vec<egui::ClippedMesh>,
+        clipped_primitives: Vec<egui::ClippedPrimitive>,
     ) {
         self.assert_not_destroyed();
 
@@ -323,8 +323,52 @@ impl Painter {
             }
         }
         let size_in_pixels = unsafe { self.prepare_painting(inner_size, gl, pixels_per_point) };
-        for egui::ClippedMesh(clip_rect, mesh) in clipped_meshes {
-            self.paint_mesh(gl, size_in_pixels, pixels_per_point, clip_rect, &mesh);
+
+        for egui::ClippedPrimitive {
+            clip_rect,
+            primitive,
+        } in clipped_primitives
+        {
+            set_clip_rect(gl, size_in_pixels, pixels_per_point, clip_rect);
+
+            match primitive {
+                Primitive::Mesh(mesh) => {
+                    self.paint_mesh(gl, &mesh);
+                }
+                Primitive::Callback(callback) => {
+                    if callback.rect.is_positive() {
+                        // Transform callback rect to physical pixels:
+                        let rect_min_x = pixels_per_point * callback.rect.min.x;
+                        let rect_min_y = pixels_per_point * callback.rect.min.y;
+                        let rect_max_x = pixels_per_point * callback.rect.max.x;
+                        let rect_max_y = pixels_per_point * callback.rect.max.y;
+
+                        let rect_min_x = rect_min_x.round() as i32;
+                        let rect_min_y = rect_min_y.round() as i32;
+                        let rect_max_x = rect_max_x.round() as i32;
+                        let rect_max_y = rect_max_y.round() as i32;
+
+                        unsafe {
+                            gl.viewport(
+                                rect_min_x,
+                                size_in_pixels.1 as i32 - rect_max_y,
+                                rect_max_x - rect_min_x,
+                                rect_max_y - rect_min_y,
+                            );
+                        }
+
+                        callback.call(gl);
+
+                        // Restore state:
+                        unsafe {
+                            if let Some(ref mut post_process) = self.post_process {
+                                post_process.bind(gl);
+                            }
+                            self.prepare_painting(inner_size, gl, pixels_per_point)
+                        };
+                    }
+                }
+            }
         }
         unsafe {
             self.vertex_array.unbind_vertex_array(gl);
@@ -341,14 +385,7 @@ impl Painter {
     }
 
     #[inline(never)] // Easier profiling
-    fn paint_mesh(
-        &mut self,
-        gl: &glow::Context,
-        size_in_pixels: (u32, u32),
-        pixels_per_point: f32,
-        clip_rect: Rect,
-        mesh: &Mesh,
-    ) {
+    fn paint_mesh(&mut self, gl: &glow::Context, mesh: &Mesh) {
         debug_assert!(mesh.is_valid());
         if let Some(texture) = self.get_texture(mesh.texture_id) {
             unsafe {
@@ -369,30 +406,7 @@ impl Painter {
                 gl.bind_texture(glow::TEXTURE_2D, Some(texture));
             }
 
-            // Transform clip rect to physical pixels:
-            let clip_min_x = pixels_per_point * clip_rect.min.x;
-            let clip_min_y = pixels_per_point * clip_rect.min.y;
-            let clip_max_x = pixels_per_point * clip_rect.max.x;
-            let clip_max_y = pixels_per_point * clip_rect.max.y;
-
-            // Make sure clip rect can fit within a `u32`:
-            let clip_min_x = clip_min_x.clamp(0.0, size_in_pixels.0 as f32);
-            let clip_min_y = clip_min_y.clamp(0.0, size_in_pixels.1 as f32);
-            let clip_max_x = clip_max_x.clamp(clip_min_x, size_in_pixels.0 as f32);
-            let clip_max_y = clip_max_y.clamp(clip_min_y, size_in_pixels.1 as f32);
-
-            let clip_min_x = clip_min_x.round() as i32;
-            let clip_min_y = clip_min_y.round() as i32;
-            let clip_max_x = clip_max_x.round() as i32;
-            let clip_max_y = clip_max_y.round() as i32;
-
             unsafe {
-                gl.scissor(
-                    clip_min_x,
-                    size_in_pixels.1 as i32 - clip_max_y,
-                    clip_max_x - clip_min_x,
-                    clip_max_y - clip_min_y,
-                );
                 gl.draw_elements(
                     glow::TRIANGLES,
                     mesh.indices.len() as i32,
@@ -624,5 +638,38 @@ impl epi::NativeTexture for Painter {
         if let Some(old_tex) = self.textures.insert(id, replacing) {
             self.textures_to_destroy.push(old_tex);
         }
+    }
+}
+
+fn set_clip_rect(
+    gl: &glow::Context,
+    size_in_pixels: (u32, u32),
+    pixels_per_point: f32,
+    clip_rect: Rect,
+) {
+    // Transform clip rect to physical pixels:
+    let clip_min_x = pixels_per_point * clip_rect.min.x;
+    let clip_min_y = pixels_per_point * clip_rect.min.y;
+    let clip_max_x = pixels_per_point * clip_rect.max.x;
+    let clip_max_y = pixels_per_point * clip_rect.max.y;
+
+    // Make sure clip rect can fit within a `u32`:
+    let clip_min_x = clip_min_x.clamp(0.0, size_in_pixels.0 as f32);
+    let clip_min_y = clip_min_y.clamp(0.0, size_in_pixels.1 as f32);
+    let clip_max_x = clip_max_x.clamp(clip_min_x, size_in_pixels.0 as f32);
+    let clip_max_y = clip_max_y.clamp(clip_min_y, size_in_pixels.1 as f32);
+
+    let clip_min_x = clip_min_x.round() as i32;
+    let clip_min_y = clip_min_y.round() as i32;
+    let clip_max_x = clip_max_x.round() as i32;
+    let clip_max_y = clip_max_y.round() as i32;
+
+    unsafe {
+        gl.scissor(
+            clip_min_x,
+            size_in_pixels.1 as i32 - clip_max_y,
+            clip_max_x - clip_min_x,
+            clip_max_y - clip_min_y,
+        );
     }
 }

@@ -51,5 +51,8 @@ pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
             adjust_color(&mut bezier.fill);
             adjust_color(&mut bezier.stroke.color);
         }
+        Shape::Callback(_) => {
+            // Can't tint user callback code
+        }
     }
 }

@@ -781,6 +781,9 @@ impl Tessellator {
                 self.tessellate_quadratic_bezier(quadratic_shape, out);
             }
             Shape::CubicBezier(cubic_shape) => self.tessellate_cubic_bezier(cubic_shape, out),
+            Shape::Callback(_) => {
+                panic!("Shape::Callback passed to Tessellator");
+            }
         }
     }
 
@@ -1046,58 +1049,97 @@ pub fn tessellate_shapes(
     shapes: Vec<ClippedShape>,
     options: TessellationOptions,
     tex_size: [usize; 2],
-) -> Vec<ClippedMesh> {
+) -> Vec<ClippedPrimitive> {
     let mut tessellator = Tessellator::from_options(options);
 
-    let mut clipped_meshes: Vec<ClippedMesh> = Vec::default();
+    let mut clipped_primitives: Vec<ClippedPrimitive> = Vec::default();
 
-    for ClippedShape(clip_rect, shape) in shapes {
-        if !clip_rect.is_positive() {
+    for ClippedShape(new_clip_rect, new_shape) in shapes {
+        if !new_clip_rect.is_positive() {
             continue; // skip empty clip rectangles
         }
 
-        let start_new_mesh = match clipped_meshes.last() {
-            None => true,
-            Some(cm) => cm.0 != clip_rect || cm.1.texture_id != shape.texture_id(),
-        };
+        if let Shape::Callback(callback) = new_shape {
+            clipped_primitives.push(ClippedPrimitive {
+                clip_rect: new_clip_rect,
+                primitive: Primitive::Callback(callback),
+            });
+        } else {
+            let start_new_mesh = match clipped_primitives.last() {
+                None => true,
+                Some(output_clipped_primitive) => {
+                    output_clipped_primitive.clip_rect != new_clip_rect
+                        || if let Primitive::Mesh(output_mesh) = &output_clipped_primitive.primitive
+                        {
+                            output_mesh.texture_id != new_shape.texture_id()
+                        } else {
+                            true
+                        }
+                }
+            };
 
-        if start_new_mesh {
-            clipped_meshes.push(ClippedMesh(clip_rect, Mesh::default()));
-        }
+            if start_new_mesh {
+                clipped_primitives.push(ClippedPrimitive {
+                    clip_rect: new_clip_rect,
+                    primitive: Primitive::Mesh(Mesh::default()),
+                });
+            }
 
-        let out = &mut clipped_meshes.last_mut().unwrap().1;
-        tessellator.clip_rect = clip_rect;
-        tessellator.tessellate_shape(tex_size, shape, out);
-    }
+            let out = clipped_primitives.last_mut().unwrap();
 
-    if options.debug_paint_clip_rects {
-        for ClippedMesh(clip_rect, mesh) in &mut clipped_meshes {
-            if mesh.texture_id == TextureId::default() {
-                tessellator.clip_rect = Rect::EVERYTHING;
-                tessellator.tessellate_shape(
-                    tex_size,
-                    Shape::rect_stroke(
-                        *clip_rect,
-                        0.0,
-                        Stroke::new(2.0, Color32::from_rgb(150, 255, 150)),
-                    ),
-                    mesh,
-                );
+            if let Primitive::Mesh(out_mesh) = &mut out.primitive {
+                tessellator.clip_rect = new_clip_rect;
+                tessellator.tessellate_shape(tex_size, new_shape, out_mesh);
             } else {
-                // TODO: create a new `ClippedMesh` just for the painted clip rectangle
+                unreachable!();
             }
         }
     }
 
+    if options.debug_paint_clip_rects {
+        clipped_primitives = add_clip_rects(&mut tessellator, tex_size, clipped_primitives);
+    }
+
     if options.debug_ignore_clip_rects {
-        for ClippedMesh(clip_rect, _) in &mut clipped_meshes {
-            *clip_rect = Rect::EVERYTHING;
+        for clipped_primitive in &mut clipped_primitives {
+            clipped_primitive.clip_rect = Rect::EVERYTHING;
         }
     }
 
-    for ClippedMesh(_, mesh) in &clipped_meshes {
-        crate::epaint_assert!(mesh.is_valid(), "Tessellator generated invalid Mesh");
+    for clipped_primitive in &clipped_primitives {
+        if let Primitive::Mesh(mesh) = &clipped_primitive.primitive {
+            crate::epaint_assert!(mesh.is_valid(), "Tessellator generated invalid Mesh");
+        }
     }
 
-    clipped_meshes
+    clipped_primitives
+}
+
+fn add_clip_rects(
+    tessellator: &mut Tessellator,
+    tex_size: [usize; 2],
+    clipped_primitives: Vec<ClippedPrimitive>,
+) -> Vec<ClippedPrimitive> {
+    tessellator.clip_rect = Rect::EVERYTHING;
+    let stroke = Stroke::new(2.0, Color32::from_rgb(150, 255, 150));
+
+    clipped_primitives
+        .into_iter()
+        .flat_map(|clipped_primitive| {
+            let mut clip_rect_mesh = Mesh::default();
+            tessellator.tessellate_shape(
+                tex_size,
+                Shape::rect_stroke(clipped_primitive.clip_rect, 0.0, stroke),
+                &mut clip_rect_mesh,
+            );
+
+            [
+                clipped_primitive,
+                ClippedPrimitive {
+                    clip_rect: Rect::EVERYTHING, // whatever
+                    primitive: Primitive::Mesh(clip_rect_mesh),
+                },
+            ]
+        })
+        .collect()
 }

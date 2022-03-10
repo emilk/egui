@@ -190,6 +190,10 @@ impl PostProcess {
         gl.clear(glow::COLOR_BUFFER_BIT);
     }
 
+    pub(crate) unsafe fn bind(&self, gl: &glow::Context) {
+        gl.bind_framebuffer(glow::FRAMEBUFFER, Some(self.fbo));
+    }
+
     pub(crate) unsafe fn end(&self, gl: &glow::Context) {
         gl.bind_framebuffer(glow::FRAMEBUFFER, None);
         gl.disable(glow::SCISSOR_TEST);

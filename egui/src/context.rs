@@ -122,7 +122,7 @@ impl ContextImpl {
 ///
 /// ``` no_run
 /// # fn handle_platform_output(_: egui::PlatformOutput) {}
-/// # fn paint(textures_detla: egui::TexturesDelta, _: Vec<egui::ClippedMesh>) {}
+/// # fn paint(textures_detla: egui::TexturesDelta, _: Vec<egui::ClippedPrimitive>) {}
 /// let mut ctx = egui::Context::default();
 ///
 /// // Game loop:
@@ -137,8 +137,8 @@ impl ContextImpl {
 ///         });
 ///     });
 ///     handle_platform_output(full_output.platform_output);
-///     let clipped_meshes = ctx.tessellate(full_output.shapes); // create triangles to paint
-///     paint(full_output.textures_delta, clipped_meshes);
+///     let clipped_primitives = ctx.tessellate(full_output.shapes); // create triangles to paint
+///     paint(full_output.textures_delta, clipped_primitives);
 /// }
 /// ```
 #[derive(Clone)]
@@ -773,7 +773,7 @@ impl Context {
     }
 
     /// Tessellate the given shapes into triangle meshes.
-    pub fn tessellate(&self, shapes: Vec<ClippedShape>) -> Vec<ClippedMesh> {
+    pub fn tessellate(&self, shapes: Vec<ClippedShape>) -> Vec<ClippedPrimitive> {
         // A tempting optimization is to reuse the tessellation from last frame if the
         // shapes are the same, but just comparing the shapes takes about 50% of the time
         // it takes to tessellate them, so it is not a worth optimization.
@@ -782,13 +782,13 @@ impl Context {
         tessellation_options.pixels_per_point = self.pixels_per_point();
         tessellation_options.aa_size = 1.0 / self.pixels_per_point();
         let paint_stats = PaintStats::from_shapes(&shapes);
-        let clipped_meshes = tessellator::tessellate_shapes(
+        let clipped_primitives = tessellator::tessellate_shapes(
             shapes,
             tessellation_options,
             self.fonts().font_image_size(),
         );
-        self.write().paint_stats = paint_stats.with_clipped_meshes(&clipped_meshes);
-        clipped_meshes
+        self.write().paint_stats = paint_stats.with_clipped_primitives(&clipped_primitives);
+        clipped_primitives
     }
 
     // ---------------------------------------------------------------------
@@ -1245,4 +1245,11 @@ impl Context {
         style.ui(ui);
         self.set_style(style);
     }
+}
+
+#[cfg(test)]
+#[test]
+fn context_impl_send_sync() {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<Context>();
 }

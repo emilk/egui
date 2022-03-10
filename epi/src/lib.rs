@@ -361,6 +361,13 @@ impl Frame {
     }
 }
 
+#[cfg(test)]
+#[test]
+fn frame_impl_send_sync() {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<Frame>();
+}
+
 /// Information about the web environment (if applicable).
 #[derive(Clone, Debug)]
 pub struct WebInfo {

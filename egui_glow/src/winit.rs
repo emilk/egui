@@ -71,13 +71,13 @@ impl EguiGlow {
             self.painter.set_texture(gl, id, &image_delta);
         }
 
-        let clipped_meshes = self.egui_ctx.tessellate(shapes);
+        let clipped_primitives = self.egui_ctx.tessellate(shapes);
         let dimensions: [u32; 2] = window.inner_size().into();
-        self.painter.paint_meshes(
+        self.painter.paint_primitives(
             gl,
             dimensions,
             self.egui_ctx.pixels_per_point(),
-            clipped_meshes,
+            clipped_primitives,
         );
 
         for id in textures_delta.free.drain(..) {

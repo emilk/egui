@@ -245,7 +245,7 @@ impl AppRunner {
     /// Returns `true` if egui requests a repaint.
     ///
     /// Call [`Self::paint`] later to paint
-    pub fn logic(&mut self) -> Result<(bool, Vec<egui::ClippedMesh>), JsValue> {
+    pub fn logic(&mut self) -> Result<(bool, Vec<egui::ClippedPrimitive>), JsValue> {
         let frame_start = now_sec();
 
         resize_canvas_to_screen_size(self.canvas_id(), self.app.max_size_points());
@@ -264,7 +264,7 @@ impl AppRunner {
 
         self.handle_platform_output(platform_output);
         self.textures_delta.append(textures_delta);
-        let clipped_meshes = self.egui_ctx.tessellate(shapes);
+        let clipped_primitives = self.egui_ctx.tessellate(shapes);
 
         {
             let app_output = self.frame.take_app_output();
@@ -278,17 +278,20 @@ impl AppRunner {
         }
 
         self.frame.lock().info.cpu_usage = Some((now_sec() - frame_start) as f32);
-        Ok((needs_repaint, clipped_meshes))
+        Ok((needs_repaint, clipped_primitives))
     }
 
     /// Paint the results of the last call to [`Self::logic`].
-    pub fn paint(&mut self, clipped_meshes: Vec<egui::ClippedMesh>) -> Result<(), JsValue> {
+    pub fn paint(
+        &mut self,
+        clipped_primitives: Vec<egui::ClippedPrimitive>,
+    ) -> Result<(), JsValue> {
         let textures_delta = std::mem::take(&mut self.textures_delta);
 
         self.painter.clear(self.app.clear_color());
 
         self.painter.paint_and_update_textures(
-            clipped_meshes,
+            clipped_primitives,
             self.egui_ctx.pixels_per_point(),
             &textures_delta,
         )?;

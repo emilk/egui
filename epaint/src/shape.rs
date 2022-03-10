@@ -1,9 +1,12 @@
+//! The different shapes that can be painted.
+
 use crate::{
     text::{FontId, Fonts, Galley},
     Color32, Mesh, Stroke,
 };
-use crate::{CubicBezierShape, QuadraticBezierShape};
 use emath::*;
+
+pub use crate::{CubicBezierShape, QuadraticBezierShape};
 
 /// A paint primitive such as a circle or a piece of text.
 /// Coordinates are all screen space points (not physical pixels).
@@ -29,6 +32,16 @@ pub enum Shape {
     Mesh(Mesh),
     QuadraticBezier(QuadraticBezierShape),
     CubicBezier(CubicBezierShape),
+
+    /// Backend-specific painting.
+    Callback(PaintCallback),
+}
+
+#[cfg(test)]
+#[test]
+fn shape_impl_send_sync() {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<Shape>();
 }
 
 impl From<Vec<Shape>> for Shape {
@@ -196,6 +209,7 @@ impl Shape {
             Self::Mesh(mesh) => mesh.calc_bounds(),
             Self::QuadraticBezier(bezier) => bezier.visual_bounding_rect(),
             Self::CubicBezier(bezier) => bezier.visual_bounding_rect(),
+            Self::Callback(custom) => custom.rect,
         }
     }
 }
@@ -251,6 +265,9 @@ impl Shape {
                 for p in &mut cubie_curve.points {
                     *p += delta;
                 }
+            }
+            Shape::Callback(shape) => {
+                shape.rect = shape.rect.translate(delta);
             }
         }
     }
@@ -615,4 +632,58 @@ fn dashes_from_line(
 
         position_on_segment -= segment_length;
     });
+}
+
+// ----------------------------------------------------------------------------
+
+/// If you want to paint some 3D shapes inside an egui region, you can use this.
+///
+/// This is advanced usage, and is backend specific.
+#[derive(Clone)]
+pub struct PaintCallback {
+    /// Where to paint.
+    pub rect: Rect,
+
+    /// Paint something custom using.
+    ///
+    /// The argument is the render context, and what it contains depends on the backend.
+    /// In `eframe` it will be a `glow::Context`.
+    ///
+    /// The rendering backend is responsible for first setting the active viewport to [`Self::rect`].
+    /// The rendering backend is also responsible for restoring any state it needs,
+    /// such as the bound shader program and vertex array.
+    pub callback: std::sync::Arc<dyn Fn(&dyn std::any::Any) + Send + Sync>,
+}
+
+impl PaintCallback {
+    #[inline]
+    pub fn call(&self, render_ctx: &dyn std::any::Any) {
+        (self.callback)(render_ctx);
+    }
+}
+
+impl std::fmt::Debug for PaintCallback {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CustomShape")
+            .field("rect", &self.rect)
+            .finish_non_exhaustive()
+    }
+}
+
+impl std::cmp::PartialEq for PaintCallback {
+    fn eq(&self, other: &Self) -> bool {
+        // As I understand it, the problem this clippy tried to protect against can only happen
+        // if we do dynamic casts back and forth on the pointers, and we don't do that.
+        #[allow(clippy::vtable_address_comparisons)]
+        {
+            self.rect.eq(&other.rect) && std::sync::Arc::ptr_eq(&self.callback, &other.callback)
+        }
+    }
+}
+
+impl From<PaintCallback> for Shape {
+    #[inline(always)]
+    fn from(shape: PaintCallback) -> Self {
+        Self::Callback(shape)
+    }
 }

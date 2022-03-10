@@ -92,7 +92,7 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
 
             integration.handle_platform_output(gl_window.window(), platform_output);
 
-            let clipped_meshes = integration.egui_ctx.tessellate(shapes);
+            let clipped_primitives = integration.egui_ctx.tessellate(shapes);
 
             // paint:
             {
@@ -107,7 +107,7 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
                     &gl,
                     gl_window.window().inner_size().into(),
                     integration.egui_ctx.pixels_per_point(),
-                    clipped_meshes,
+                    clipped_primitives,
                     &textures_delta,
                 );
 
