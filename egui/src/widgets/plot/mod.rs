@@ -973,7 +973,7 @@ pub struct GridInput {
     ///
     /// Computed as the ratio between the diagram's bounds (in plot coordinates) and the viewport
     /// (in frame/window coordinates), scaled up to represent the minimal possible step.
-    pub min_step_size: f64,
+    pub base_step_size: f64,
 }
 
 /// One mark (horizontal or vertical line) in the background grid of a plot.
@@ -994,17 +994,17 @@ pub struct GridMark {
 ///
 /// The logarithmic base, expressing how many times each grid unit is subdivided.
 /// 10 is a typical value, others are possible though.
-pub fn log_grid_spacer(base: i64) -> GridSpacer {
-    let base = base as f64;
+pub fn log_grid_spacer(log_base: i64) -> GridSpacer {
+    let log_base = log_base as f64;
     let get_step_sizes = move |input: GridInput| -> Vec<GridMark> {
         // The distance between two of the thinnest grid lines is "rounded" up
         // to the next-bigger power of base
-        let smallest_visible_unit = next_power(input.min_step_size, base);
+        let smallest_visible_unit = next_power(input.base_step_size, log_base);
 
         let step_sizes = [
             smallest_visible_unit,
-            smallest_visible_unit * base,
-            smallest_visible_unit * base * base,
+            smallest_visible_unit * log_base,
+            smallest_visible_unit * log_base * log_base,
         ];
 
         generate_marks(step_sizes, input.bounds)
@@ -1109,7 +1109,7 @@ impl PreparedPlot {
 
         let input = GridInput {
             bounds: (bounds.min[axis], bounds.max[axis]),
-            min_step_size: transform.dvalue_dpos()[axis] * MIN_LINE_SPACING_IN_POINTS,
+            base_step_size: transform.dvalue_dpos()[axis] * MIN_LINE_SPACING_IN_POINTS,
         };
         let steps = (grid_spacers[axis])(input);
 
@@ -1222,13 +1222,13 @@ impl PreparedPlot {
 
 /// Returns next bigger power in given base
 /// e.g.
-/// ```
+/// ```ignore
 /// use egui::plot::next_power;
 /// assert_eq!(next_power(0.01, 10.0), 0.01);
 /// assert_eq!(next_power(0.02, 10.0), 0.1);
 /// assert_eq!(next_power(0.2,  10.0), 1);
 /// ```
-pub(crate) fn next_power(value: f64, base: f64) -> f64 {
+fn next_power(value: f64, base: f64) -> f64 {
     assert_ne!(value, 0.0); // can be negative (typical for Y axis)
     base.powi(value.abs().log(base).ceil() as i32)
 }

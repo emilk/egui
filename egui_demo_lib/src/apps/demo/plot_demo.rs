@@ -311,14 +311,8 @@ impl Widget for &mut LegendDemo {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Default)]
 struct CustomAxisDemo {}
-
-impl Default for CustomAxisDemo {
-    fn default() -> Self {
-        Self {}
-    }
-}
 
 impl CustomAxisDemo {
     fn logistic_fn() -> Line {
@@ -330,19 +324,17 @@ impl CustomAxisDemo {
         Line::new(values)
     }
 
-    fn configure_plot(plot_ui: &mut plot::PlotUi) {
-        plot_ui.line(Self::logistic_fn());
-    }
-
+    #[allow(clippy::needless_pass_by_value)]
     fn x_grid(input: GridInput) -> Vec<GridMark> {
+        // Note: this always fills all possible marks. For optimization, `input.bounds`
+        // could be used to decide when the low-interval grids (minutes) should be added.
+
         let mut marks = vec![];
 
-        let (min, max) = input.bounds;
-
-        //let step = 1.0 / (24.0 * 12.0); // 5min intervals
         let steps_per_day = 24 * 12;
         let fsteps_per_day = steps_per_day as f64;
 
+        let (min, max) = input.bounds;
         let min = (min * fsteps_per_day).floor() as i32;
         let max = (max * fsteps_per_day).ceil() as i32;
 
@@ -369,11 +361,21 @@ impl CustomAxisDemo {
 
 impl Widget for &mut CustomAxisDemo {
     fn ui(self, ui: &mut Ui) -> Response {
-        ui.horizontal(|ui| {
-            ui.label("Custom axes:");
-            //ui.checkbox(&mut self.link_x, "X");
-            //ui.checkbox(&mut self.link_y, "Y");
-        });
+        // Make sure floor() still rounds down, even in presence of arithmetic imprecision
+        const EPS: f64 = 1e-6;
+
+        fn get_day(x: f64) -> f64 {
+            x.floor()
+        }
+        fn get_hour(x: f64) -> f64 {
+            (24.0 * x.fract() + EPS).floor()
+        }
+        fn get_minute(x: f64) -> f64 {
+            ((24.0 * x).fract() * 60.0 + EPS).floor()
+        }
+        fn get_percent(y: f64) -> f64 {
+            (100.0 * y + EPS).floor()
+        }
 
         let x_fmt = |x, _range: &RangeInclusive<f64>| {
             if x < 0.0 || x >= 5.0 {
@@ -381,24 +383,30 @@ impl Widget for &mut CustomAxisDemo {
                 String::new()
             } else if is_approx_integer(x) {
                 // Days
-                format!("Day {}", x.round())
+                format!("Day {}", get_day(x))
             } else {
                 // Hours and minutes
-                format!(
-                    "{h}:{m:02}",
-                    h = (24.0 * x.fract()).round(),
-                    m = ((24.0 * x).fract() * 60.0).round()
-                )
+                format!("{h}:{m:02}", h = get_hour(x), m = get_minute(x))
             }
         };
 
         let y_fmt = |y, _range: &RangeInclusive<f64>| {
             // Display only integer percentages
             if !is_approx_zero(y) && is_approx_integer(100.0 * y) {
-                format!("{}%", (100.0 * y).round())
+                format!("{}%", get_percent(y))
             } else {
                 String::new()
             }
+        };
+
+        let label_fmt = |_s: &str, val: &Value| {
+            format!(
+                "Day {d}, {h}:{m:02}\n{p}%",
+                d = get_day(val.x),
+                h = get_hour(val.x),
+                m = get_minute(val.x),
+                p = get_percent(val.y)
+            )
         };
 
         Plot::new("custom_axes")
@@ -406,7 +414,10 @@ impl Widget for &mut CustomAxisDemo {
             .x_axis_formatter(x_fmt)
             .y_axis_formatter(y_fmt)
             .x_grid_spacer(CustomAxisDemo::x_grid)
-            .show(ui, CustomAxisDemo::configure_plot)
+            .label_formatter(label_fmt)
+            .show(ui, |plot_ui| {
+                plot_ui.line(CustomAxisDemo::logistic_fn());
+            })
             .response
     }
 }
@@ -803,7 +814,7 @@ enum Panel {
 
 impl Default for Panel {
     fn default() -> Self {
-        Self::CustomAxes
+        Self::Lines
     }
 }
 
