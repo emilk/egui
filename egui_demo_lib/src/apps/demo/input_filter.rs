@@ -9,11 +9,11 @@ use egui::{
     *,
 };
 
-/// Showcase text input validation.
+/// Showcase text input filtering.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 #[derive(Default)]
-pub struct InputValidationWindow {
+pub struct InputFilterWindow {
     u8_buffer: String,
     u16_buffer: String,
     u32_buffer: String,
@@ -93,9 +93,9 @@ fn filter_ascii_string(data: InputData<'_>) -> Action {
     }
 }
 
-impl Demo for InputValidationWindow {
+impl Demo for InputFilterWindow {
     fn name(&self) -> &'static str {
-        "🔤 Input Validation"
+        "🔣 Input Filter"
     }
 
     fn show(&mut self, ctx: &Context, open: &mut bool) {
@@ -107,7 +107,7 @@ impl Demo for InputValidationWindow {
     }
 }
 
-impl View for InputValidationWindow {
+impl View for InputFilterWindow {
     fn ui(&mut self, ui: &mut Ui) {
         ui.set_min_width(250.0);
 
