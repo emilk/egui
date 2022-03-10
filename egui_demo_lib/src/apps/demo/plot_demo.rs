@@ -1,5 +1,7 @@
 use std::f64::consts::TAU;
+use std::ops::RangeInclusive;
 
+use egui::plot::{GridInput, GridMark};
 use egui::*;
 use plot::{
     Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, CoordinatesFormatter, Corner, HLine,
@@ -305,6 +307,106 @@ impl Widget for &mut LegendDemo {
                 plot_ui.line(LegendDemo::sin().name("sin(x)"));
                 plot_ui.line(LegendDemo::cos().name("cos(x)"));
             })
+            .response
+    }
+}
+
+#[derive(PartialEq)]
+struct CustomAxisDemo {}
+
+impl Default for CustomAxisDemo {
+    fn default() -> Self {
+        Self {}
+    }
+}
+
+impl CustomAxisDemo {
+    fn logistic_fn() -> Line {
+        let values = Values::from_explicit_callback(
+            move |x| 1.0 / (1.0 + (-2.5 * (x - 2.0)).exp()),
+            0.0..5.0,
+            100,
+        );
+        Line::new(values)
+    }
+
+    fn configure_plot(plot_ui: &mut plot::PlotUi) {
+        plot_ui.line(Self::logistic_fn());
+    }
+
+    fn x_grid(input: GridInput) -> Vec<GridMark> {
+        let mut marks = vec![];
+
+        let (min, max) = input.bounds;
+
+        //let step = 1.0 / (24.0 * 12.0); // 5min intervals
+        let steps_per_day = 24 * 12;
+        let fsteps_per_day = steps_per_day as f64;
+
+        let min = (min * fsteps_per_day).floor() as i32;
+        let max = (max * fsteps_per_day).ceil() as i32;
+
+        for i in min..=max {
+            let step_size = if i % steps_per_day == 0 {
+                // 1 day
+                1.0
+            } else if i % 12 == 0 {
+                // 1 hour
+                1.0 / 24.0
+            } else {
+                // 5min
+                1.0 / fsteps_per_day
+            };
+
+            let value = i as f64 / fsteps_per_day;
+
+            marks.push(GridMark { value, step_size });
+        }
+
+        marks
+    }
+}
+
+impl Widget for &mut CustomAxisDemo {
+    fn ui(self, ui: &mut Ui) -> Response {
+        ui.horizontal(|ui| {
+            ui.label("Custom axes:");
+            //ui.checkbox(&mut self.link_x, "X");
+            //ui.checkbox(&mut self.link_y, "Y");
+        });
+
+        let x_fmt = |x, _range: &RangeInclusive<f64>| {
+            if x < 0.0 || x >= 5.0 {
+                // No labels outside value bounds
+                String::new()
+            } else if is_approx_integer(x) {
+                // Days
+                format!("Day {}", x.round())
+            } else {
+                // Hours and minutes
+                format!(
+                    "{h}:{m:02}",
+                    h = (24.0 * x.fract()).round(),
+                    m = ((24.0 * x).fract() * 60.0).round()
+                )
+            }
+        };
+
+        let y_fmt = |y, _range: &RangeInclusive<f64>| {
+            // Display only integer percentages
+            if !is_approx_zero(y) && is_approx_integer(100.0 * y) {
+                format!("{}%", (100.0 * y).round())
+            } else {
+                String::new()
+            }
+        };
+
+        Plot::new("custom_axes")
+            .data_aspect(2.0)
+            .x_axis_formatter(x_fmt)
+            .y_axis_formatter(y_fmt)
+            .x_grid_spacer(CustomAxisDemo::x_grid)
+            .show(ui, CustomAxisDemo::configure_plot)
             .response
     }
 }
@@ -720,12 +822,13 @@ enum Panel {
     Charts,
     Items,
     Interaction,
+    CustomAxes,
     LinkedAxes,
 }
 
 impl Default for Panel {
     fn default() -> Self {
-        Self::Lines
+        Self::CustomAxes
     }
 }
 
@@ -737,6 +840,7 @@ pub struct PlotDemo {
     charts_demo: ChartsDemo,
     items_demo: ItemsDemo,
     interaction_demo: InteractionDemo,
+    custom_axes_demo: CustomAxisDemo,
     linked_axes_demo: LinkedAxisDemo,
     open_panel: Panel,
 }
@@ -782,6 +886,7 @@ impl super::View for PlotDemo {
             ui.selectable_value(&mut self.open_panel, Panel::Charts, "Charts");
             ui.selectable_value(&mut self.open_panel, Panel::Items, "Items");
             ui.selectable_value(&mut self.open_panel, Panel::Interaction, "Interaction");
+            ui.selectable_value(&mut self.open_panel, Panel::CustomAxes, "Custom Axes");
             ui.selectable_value(&mut self.open_panel, Panel::LinkedAxes, "Linked Axes");
         });
         ui.separator();
@@ -804,6 +909,9 @@ impl super::View for PlotDemo {
             }
             Panel::Interaction => {
                 ui.add(&mut self.interaction_demo);
+            }
+            Panel::CustomAxes => {
+                ui.add(&mut self.custom_axes_demo);
             }
             Panel::LinkedAxes => {
                 ui.add(&mut self.linked_axes_demo);
