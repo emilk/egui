@@ -23,6 +23,10 @@ pub struct InputValidationWindow {
     a_buffer: String,
 }
 
+// Clippy being annoying since it does not consider whether a function
+// is used as a function pointer.
+// https://github.com/rust-lang/rust-clippy/issues/2434
+#[allow(clippy::needless_pass_by_value)]
 fn custom_validator(data: InputData<'_>) -> Action {
     Action::Insert(data.input.as_str().replace(|c: char| c != 'a', ""))
 }

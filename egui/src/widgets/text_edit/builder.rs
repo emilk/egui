@@ -253,6 +253,7 @@ impl<'t, 'v> TextEdit<'t, 'v> {
 }
 
 /// Instructions on how the user input should be processed.
+#[non_exhaustive]
 pub enum Action {
     /// Insert the string at the cursor.
     ///
@@ -267,6 +268,7 @@ pub enum Action {
 }
 
 /// The information required to validate text input.
+#[non_exhaustive]
 pub struct InputData<'a> {
     /// The text that was input by the user.
     pub input: String,
