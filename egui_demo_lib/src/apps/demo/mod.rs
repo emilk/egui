@@ -14,6 +14,7 @@ pub mod drag_and_drop;
 pub mod font_book;
 pub mod layout_test;
 pub mod misc_demo_window;
+pub mod modals;
 pub mod multi_touch;
 pub mod paint_bezier;
 pub mod painting;
