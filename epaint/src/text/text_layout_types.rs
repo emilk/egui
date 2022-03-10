@@ -272,7 +272,7 @@ pub struct TextWrapping {
     /// Don't try to break text at an appropriate place.
     pub break_anywhere: bool,
 
-    /// Character to use to represent clipped text, `…` for example.
+    /// Character to use to represent clipped text, `…` for example, which is the default.
     pub overflow_character: Option<char>,
 }
 
@@ -298,7 +298,7 @@ impl Default for TextWrapping {
             max_width: f32::INFINITY,
             max_rows: 0,
             break_anywhere: false,
-            overflow_character: None,
+            overflow_character: Some('…'),
         }
     }
 }
