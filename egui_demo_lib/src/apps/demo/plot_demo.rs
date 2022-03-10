@@ -706,40 +706,15 @@ impl ChartsDemo {
         .name("Set 4")
         .stack_on(&[&chart1, &chart2, &chart3]);
 
-        let mut x_fmt: fn(f64, &std::ops::RangeInclusive<f64>) -> String = |val, _range| {
-            if val >= 0.0 && val <= 4.0 && is_approx_integer(val) {
-                // Only label full days from 0 to 4
-                format!("Day {}", val)
-            } else {
-                // Otherwise return empty string (i.e. no label)
-                String::new()
-            }
-        };
-
-        let mut y_fmt: fn(f64, &std::ops::RangeInclusive<f64>) -> String = |val, _range| {
-            let percent = 100.0 * val;
-
-            if is_approx_integer(percent) && !is_approx_zero(percent) {
-                // Only show integer percentages,
-                // and don't show at Y=0 (label overlaps with X axis label)
-                format!("{}%", percent)
-            } else {
-                String::new()
-            }
-        };
-
         if !self.vertical {
             chart1 = chart1.horizontal();
             chart2 = chart2.horizontal();
             chart3 = chart3.horizontal();
             chart4 = chart4.horizontal();
-            std::mem::swap(&mut x_fmt, &mut y_fmt);
         }
 
         Plot::new("Stacked Bar Chart Demo")
             .legend(Legend::default())
-            .x_axis_formatter(x_fmt)
-            .y_axis_formatter(y_fmt)
             .data_aspect(1.0)
             .show(ui, |plot_ui| {
                 plot_ui.bar_chart(chart1);
