@@ -11,12 +11,7 @@ readme = "../README.md"
 repository = "https://github.com/emilk/egui"
 categories = ["gui", "game-development"]
 keywords = ["gui", "imgui", "immediate", "portable", "gamedev"]
-include = [
-  "../LICENSE-APACHE",
-  "../LICENSE-MIT",
-  "**/*.rs",
-  "Cargo.toml",
-]
+include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -32,7 +27,9 @@ svg = ["resvg", "tiny-skia", "usvg"]
 
 
 [dependencies]
-egui = { version = "0.17.0", path = "../egui", default-features = false, features = ["single_threaded"] }
+egui = { version = "0.17.0", path = "../egui", default-features = false, features = [
+  "single_threaded",
+] }
 parking_lot = "0.12"
 
 # Optional dependencies:

@@ -41,7 +41,7 @@ links = ["egui-winit/links"]
 persistence = [
   "egui-winit/persistence",
   "egui/persistence",
-  "epi", # also implied by the lines below, see https://github.com/rust-lang/cargo/issues/8832
+  "epi",                    # also implied by the lines below, see https://github.com/rust-lang/cargo/issues/8832
   "epi/file_storage",
   "epi/persistence",
 ]
@@ -55,7 +55,9 @@ egui = { version = "0.17.0", path = "../egui", default-features = false, feature
   "convert_bytemuck",
   "single_threaded",
 ] }
-egui-winit = { version = "0.17.0", path = "../egui-winit", default-features = false, features = ["epi"] }
+egui-winit = { version = "0.17.0", path = "../egui-winit", default-features = false, features = [
+  "epi",
+] }
 epi = { version = "0.17.0", path = "../epi", optional = true }
 
 ahash = "0.7"

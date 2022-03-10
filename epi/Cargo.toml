@@ -11,12 +11,7 @@ readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/master/epi"
 categories = ["gui", "game-development"]
 keywords = ["egui", "gui", "gamedev"]
-include = [
-  "../LICENSE-APACHE",
-  "../LICENSE-MIT",
-  "**/*.rs",
-  "Cargo.toml",
-]
+include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -33,7 +28,9 @@ persistence = ["ron", "serde", "egui/persistence"]
 
 
 [dependencies]
-egui = { version = "0.17.0", path = "../egui", default-features = false, features = ["single_threaded"] }
+egui = { version = "0.17.0", path = "../egui", default-features = false, features = [
+  "single_threaded",
+] }
 tracing = "0.1"
 
 directories-next = { version = "2", optional = true }
