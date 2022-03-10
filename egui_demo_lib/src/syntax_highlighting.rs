@@ -1,6 +1,6 @@
 use egui::text::LayoutJob;
 
-/// View some code with syntax highlighing and selection.
+/// View some code with syntax highlighting and selection.
 pub fn code_view_ui(ui: &mut egui::Ui, mut code: &str) {
     let language = "rs";
     let theme = CodeTheme::from_memory(ui.ctx());
@@ -23,13 +23,13 @@ pub fn code_view_ui(ui: &mut egui::Ui, mut code: &str) {
 
 /// Memoized Code highlighting
 pub fn highlight(ctx: &egui::Context, theme: &CodeTheme, code: &str, language: &str) -> LayoutJob {
-    impl egui::util::cache::ComputerMut<(&CodeTheme, &str, &str), LayoutJob> for Highligher {
+    impl egui::util::cache::ComputerMut<(&CodeTheme, &str, &str), LayoutJob> for Highlighter {
         fn compute(&mut self, (theme, code, lang): (&CodeTheme, &str, &str)) -> LayoutJob {
             self.highlight(theme, code, lang)
         }
     }
 
-    type HighlightCache<'a> = egui::util::cache::FrameCache<LayoutJob, Highligher>;
+    type HighlightCache<'a> = egui::util::cache::FrameCache<LayoutJob, Highlighter>;
 
     let mut memory = ctx.memory();
     let highlight_cache = memory.caches.cache::<HighlightCache<'_>>();
@@ -295,13 +295,13 @@ impl CodeTheme {
 // ----------------------------------------------------------------------------
 
 #[cfg(feature = "syntect")]
-struct Highligher {
+struct Highlighter {
     ps: syntect::parsing::SyntaxSet,
     ts: syntect::highlighting::ThemeSet,
 }
 
 #[cfg(feature = "syntect")]
-impl Default for Highligher {
+impl Default for Highlighter {
     fn default() -> Self {
         Self {
             ps: syntect::parsing::SyntaxSet::load_defaults_newlines(),
@@ -311,7 +311,7 @@ impl Default for Highligher {
 }
 
 #[cfg(feature = "syntect")]
-impl Highligher {
+impl Highlighter {
     #[allow(clippy::unused_self, clippy::unnecessary_wraps)]
     fn highlight(&self, theme: &CodeTheme, code: &str, lang: &str) -> LayoutJob {
         self.highlight_impl(theme, code, lang).unwrap_or_else(|| {
@@ -392,10 +392,10 @@ fn as_byte_range(whole: &str, range: &str) -> std::ops::Range<usize> {
 
 #[cfg(not(feature = "syntect"))]
 #[derive(Default)]
-struct Highligher {}
+struct Highlighter {}
 
 #[cfg(not(feature = "syntect"))]
-impl Highligher {
+impl Highlighter {
     #[allow(clippy::unused_self, clippy::unnecessary_wraps)]
     fn highlight(&self, theme: &CodeTheme, mut text: &str, _language: &str) -> LayoutJob {
         // Extremely simple syntax highlighter for when we compile without syntect

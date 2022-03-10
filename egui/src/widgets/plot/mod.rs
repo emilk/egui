@@ -1,6 +1,6 @@
 //! Simple plotting library.
 
-use std::{cell::RefCell, ops::RangeInclusive, rc::Rc};
+use std::{cell::Cell, ops::RangeInclusive, rc::Rc};
 
 use crate::*;
 use epaint::ahash::AHashSet;
@@ -98,7 +98,7 @@ impl PlotMemory {
 pub struct LinkedAxisGroup {
     pub(crate) link_x: bool,
     pub(crate) link_y: bool,
-    pub(crate) bounds: Rc<RefCell<Option<PlotBounds>>>,
+    pub(crate) bounds: Rc<Cell<Option<PlotBounds>>>,
 }
 
 impl LinkedAxisGroup {
@@ -106,7 +106,7 @@ impl LinkedAxisGroup {
         Self {
             link_x,
             link_y,
-            bounds: Rc::new(RefCell::new(None)),
+            bounds: Rc::new(Cell::new(None)),
         }
     }
 
@@ -138,11 +138,11 @@ impl LinkedAxisGroup {
     }
 
     fn get(&self) -> Option<PlotBounds> {
-        *self.bounds.borrow()
+        self.bounds.get()
     }
 
     fn set(&self, bounds: PlotBounds) {
-        *self.bounds.borrow_mut() = Some(bounds);
+        self.bounds.set(Some(bounds));
     }
 }
 
@@ -336,7 +336,7 @@ impl Plot {
     /// Plot::new("my_plot").view_aspect(2.0)
     /// .label_formatter(|name, value| {
     ///     if !name.is_empty() {
-    ///         format!("{}: {:.*}%", name, 1, value.y).to_string()
+    ///         format!("{}: {:.*}%", name, 1, value.y)
     ///     } else {
     ///         "".to_string()
     ///     }

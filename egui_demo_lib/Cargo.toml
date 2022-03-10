@@ -11,12 +11,7 @@ readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/master/egui_demo_lib"
 categories = ["gui", "graphics"]
 keywords = ["glium", "egui", "gui", "gamedev"]
-include = [
-  "../LICENSE-APACHE",
-  "../LICENSE-MIT",
-  "**/*.rs",
-  "Cargo.toml",
-]
+include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -34,7 +29,7 @@ extra_asserts = ["egui/extra_asserts"]
 
 http = ["egui_extras", "ehttp", "image", "poll-promise"]
 persistence = ["egui/persistence", "epi/persistence", "serde"]
-serialize = ["egui/serialize",  "serde"]
+serialize = ["egui/serialize", "serde"]
 syntax_highlighting = ["syntect"]
 
 
@@ -42,21 +37,28 @@ syntax_highlighting = ["syntect"]
 egui = { version = "0.17.0", path = "../egui", default-features = false }
 epi = { version = "0.17.0", path = "../epi" }
 
-chrono = { version = "0.4", features = ["js-sys", "wasmbind"], optional = true }
+chrono = { version = "0.4", optional = true, features = ["js-sys", "wasmbind"] }
 enum-map = { version = "2", features = ["serde"] }
 unicode_names2 = { version = "0.5.0", default-features = false }
 
 # feature "http":
-egui_extras = { version = "0.17.0", path = "../egui_extras", features = ["image"], optional = true }
+egui_extras = { version = "0.17.0", path = "../egui_extras", optional = true, features = [
+  "image",
+] }
 ehttp = { version = "0.2.0", optional = true }
-image = { version = "0.24", default-features = false, features = ["jpeg", "png"], optional = true }
-poll-promise = { version = "0.1", default-features = false, optional = true }
+image = { version = "0.24", optional = true, default-features = false, features = [
+  "jpeg",
+  "png",
+] }
+poll-promise = { version = "0.1", optional = true, default-features = false }
 
 # feature "syntax_highlighting":
-syntect = { version = "4", default-features = false, features = ["default-fancy"], optional = true }
+syntect = { version = "4", optional = true, default-features = false, features = [
+  "default-fancy",
+] }
 
 # feature "persistence":
-serde = { version = "1", features = ["derive"], optional = true }
+serde = { version = "1", optional = true, features = ["derive"] }
 
 [dev-dependencies]
 criterion = { version = "0.3", default-features = false }

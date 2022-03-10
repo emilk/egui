@@ -11,12 +11,7 @@ readme = "../README.md"
 repository = "https://github.com/emilk/egui"
 categories = ["gui", "game-development"]
 keywords = ["gui", "imgui", "immediate", "portable", "gamedev"]
-include = [
-  "../LICENSE-APACHE",
-  "../LICENSE-MIT",
-  "**/*.rs",
-  "Cargo.toml",
-]
+include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -65,6 +60,6 @@ nohash-hasher = "0.2"
 
 # Optional:
 ron = { version = "0.7", optional = true }
-serde = { version = "1", features = ["derive", "rc"], optional = true }
+serde = { version = "1", optional = true, features = ["derive", "rc"] }
 # egui doesn't log much, but when it does, it uses `tracing`
 tracing = { version = "0.1", optional = true }
