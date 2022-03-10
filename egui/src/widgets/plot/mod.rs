@@ -328,7 +328,7 @@ impl Plot {
     /// Plot::new("my_plot").view_aspect(2.0)
     /// .label_formatter(|name, value| {
     ///     if !name.is_empty() {
-    ///         format!("{}: {:.*}%", name, 1, value.y).to_string()
+    ///         format!("{}: {:.*}%", name, 1, value.y)
     ///     } else {
     ///         "".to_string()
     ///     }
