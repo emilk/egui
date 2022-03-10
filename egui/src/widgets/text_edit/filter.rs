@@ -2,29 +2,29 @@ use super::{Action, InputData};
 
 use std::{borrow::Cow, cmp};
 
-/// A type that implement user input validation.
-pub trait ValidateInput {
+/// A type that filters user text input.
+pub trait FilterInput {
     /// Determine how to treat the user `input` based on the current
-    /// value of the `buffer`.
-    fn validate_input(data: InputData<'_>) -> Action;
+    /// value of `InputData`.
+    fn filter_input(data: InputData<'_>) -> Action;
 }
 
-impl ValidateInput for String {
-    fn validate_input(data: InputData<'_>) -> Action {
+impl FilterInput for String {
+    fn filter_input(data: InputData<'_>) -> Action {
         Action::Insert(data.input)
     }
 }
 
-impl ValidateInput for str {
-    fn validate_input(data: InputData<'_>) -> Action {
+impl FilterInput for str {
+    fn filter_input(data: InputData<'_>) -> Action {
         Action::Insert(data.input)
     }
 }
 
-macro_rules! impl_validate_input_unsigned {
+macro_rules! impl_filter_input_unsigned {
     ($type: ty, $max_str: expr) => {
-        impl ValidateInput for $type {
-            fn validate_input(data: InputData<'_>) -> Action {
+        impl FilterInput for $type {
+            fn filter_input(data: InputData<'_>) -> Action {
                 let InputData { buffer, input, .. } = data;
                 let max_str = $max_str;
                 let max_str_len = max_str.len();
@@ -68,15 +68,15 @@ macro_rules! impl_validate_input_unsigned {
     };
 }
 
-impl_validate_input_unsigned!(u8, "255");
-impl_validate_input_unsigned!(u16, "65535");
-impl_validate_input_unsigned!(u32, "4294967295");
-impl_validate_input_unsigned!(u64, "18446744073709551615");
+impl_filter_input_unsigned!(u8, "255");
+impl_filter_input_unsigned!(u16, "65535");
+impl_filter_input_unsigned!(u32, "4294967295");
+impl_filter_input_unsigned!(u64, "18446744073709551615");
 
-macro_rules! impl_validate_input_signed {
+macro_rules! impl_filter_input_signed {
     ($type: ty, $min_str: expr, $max_str: expr) => {
-        impl ValidateInput for $type {
-            fn validate_input(data: InputData<'_>) -> Action {
+        impl FilterInput for $type {
+            fn filter_input(data: InputData<'_>) -> Action {
                 let InputData {
                     buffer,
                     input,
@@ -172,7 +172,7 @@ macro_rules! impl_validate_input_signed {
     };
 }
 
-impl_validate_input_signed!(i8, "-128", "127");
-impl_validate_input_signed!(i16, "-32768", "32767");
-impl_validate_input_signed!(i32, "-2147483648", "2147483647");
-impl_validate_input_signed!(i64, "-9223372036854775808", "9223372036854775807");
+impl_filter_input_signed!(i8, "-128", "127");
+impl_filter_input_signed!(i16, "-32768", "32767");
+impl_filter_input_signed!(i32, "-2147483648", "2147483647");
+impl_filter_input_signed!(i64, "-9223372036854775808", "9223372036854775807");

@@ -49,7 +49,7 @@ use super::{CCursorRange, CursorRange, TextEditOutput, TextEditState};
 /// ## Advanced usage
 /// See [`TextEdit::show`].
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
-pub struct TextEdit<'t, 'v> {
+pub struct TextEdit<'t> {
     text: &'t mut dyn TextBuffer,
     hint_text: WidgetText,
     id: Option<Id>,
@@ -66,14 +66,14 @@ pub struct TextEdit<'t, 'v> {
     desired_height_rows: usize,
     lock_focus: bool,
     cursor_at_end: bool,
-    validator: Option<&'v mut dyn FnMut(InputData<'_>) -> Action>,
+    filter: Option<&'t mut dyn FnMut(InputData<'_>) -> Action>,
 }
 
-impl<'t, 'v> WidgetWithState for TextEdit<'t, 'v> {
+impl<'t> WidgetWithState for TextEdit<'t> {
     type State = TextEditState;
 }
 
-impl<'t, 'v> TextEdit<'t, 'v> {
+impl<'t> TextEdit<'t> {
     pub fn load_state(ctx: &Context, id: Id) -> Option<TextEditState> {
         TextEditState::load(ctx, id)
     }
@@ -83,7 +83,7 @@ impl<'t, 'v> TextEdit<'t, 'v> {
     }
 }
 
-impl<'t, 'v> TextEdit<'t, 'v> {
+impl<'t> TextEdit<'t> {
     /// No newlines (`\n`) allowed. Pressing enter key will result in the `TextEdit` losing focus (`response.lost_focus`).
     pub fn singleline(text: &'t mut dyn TextBuffer) -> Self {
         Self {
@@ -112,7 +112,7 @@ impl<'t, 'v> TextEdit<'t, 'v> {
             desired_height_rows: 4,
             lock_focus: false,
             cursor_at_end: true,
-            validator: None,
+            filter: None,
         }
     }
 
@@ -282,25 +282,63 @@ pub struct InputData<'a> {
     pub cursor_start: usize,
 }
 
-impl<'t, 'v> TextEdit<'t, 'v> {
-    /// Set the function to use for input validation.
+impl<'t> TextEdit<'t> {
+    /// Set the function to use for input filtering.
     ///
-    /// Defaults to no input validation.
-    pub fn validator(mut self, validator: &'v mut dyn FnMut(InputData<'_>) -> Action) -> Self {
-        self.validator.replace(validator);
+    /// An input filter can be used to force the user to enter a valid
+    /// value in the `TextEdit`. This can be used to do type checking
+    /// directly in the widget.
+    ///
+    /// Defaults to no filtering.
+    ///
+    /// ```
+    /// use egui::widgets::text_edit::{Action, InputData, FilterInput};
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut u16_buffer = String::new();
+    /// # let mut alpha_buffer = String::new();
+    ///
+    /// // Force the user to enter a valid `u16` value.
+    /// let _ = egui::TextEdit::singleline(&mut u16_buffer)
+    ///     .hint_text("enter a valid number")
+    ///     .filter(&mut u16::filter_input)
+    ///     .show(ui);
+    ///
+    /// if !u16_buffer.is_empty() {
+    ///     // We can now safely parse the value from the buffer
+    ///     // without having to do any additionnal type checking.
+    ///     let value: u16 = u16_buffer.parse().unwrap();
+    /// }
+    ///
+    /// // You can also easily implement your own filter.
+    /// fn alphabetic_filter(data: InputData<'_>) -> Action {
+    ///     let filtered = data
+    ///         .input
+    ///         .as_str()
+    ///         .replace(|c: char| !c.is_alphabetic(), "");
+    ///     Action::Insert(filtered)
+    /// }
+    ///
+    /// let _ = egui::TextEdit::singleline(&mut alpha_buffer)
+    ///     .hint_text("enter alphabetic characters")
+    ///     .filter(&mut alphabetic_filter)
+    ///     .show(ui);
+    /// # });
+    /// ```
+    pub fn filter(mut self, filter: &'t mut dyn FnMut(InputData<'_>) -> Action) -> Self {
+        self.filter.replace(filter);
         self
     }
 }
 
 // ----------------------------------------------------------------------------
 
-impl<'t, 'v> Widget for TextEdit<'t, 'v> {
+impl<'t> Widget for TextEdit<'t> {
     fn ui(self, ui: &mut Ui) -> Response {
         self.show(ui).response
     }
 }
 
-impl<'t, 'v> TextEdit<'t, 'v> {
+impl<'t> TextEdit<'t> {
     /// Show the [`TextEdit`], returning a rich [`TextEditOutput`].
     ///
     /// ```
@@ -392,7 +430,7 @@ impl<'t, 'v> TextEdit<'t, 'v> {
             desired_height_rows,
             lock_focus,
             cursor_at_end,
-            validator,
+            filter,
         } = self;
 
         let text_color = text_color
@@ -541,10 +579,10 @@ impl<'t, 'v> TextEdit<'t, 'v> {
                 CursorRange::default()
             };
 
-            let mut default_validator = |data: InputData<'_>| Action::Insert(data.input);
-            let validator = match validator {
-                Some(validator) => validator,
-                None => &mut default_validator,
+            let mut default_filter = |data: InputData<'_>| Action::Insert(data.input);
+            let filter = match filter {
+                Some(filter) => filter,
+                None => &mut default_filter,
             };
             let (changed, new_cursor_range) = events(
                 ui,
@@ -557,7 +595,7 @@ impl<'t, 'v> TextEdit<'t, 'v> {
                 multiline,
                 password,
                 default_cursor_range,
-                validator,
+                filter,
             );
 
             if changed {
@@ -713,7 +751,7 @@ fn events(
     multiline: bool,
     password: bool,
     default_cursor_range: CursorRange,
-    validator: &mut dyn FnMut(InputData<'_>) -> Action,
+    filter: &mut dyn FnMut(InputData<'_>) -> Action,
 ) -> (bool, CursorRange) {
     let mut cursor_range = state.cursor_range(&*galley).unwrap_or(default_cursor_range);
 
@@ -753,7 +791,7 @@ fn events(
                 }
             }
             Event::Paste(input) => {
-                match validator(InputData {
+                match filter(InputData {
                     input,
                     buffer: text.as_str(),
                     cursor_start: cursor_range.primary.ccursor.index,
@@ -774,7 +812,7 @@ fn events(
                 }
             }
             Event::Text(input) => {
-                match validator(InputData {
+                match filter(InputData {
                     input,
                     buffer: text.as_str(),
                     cursor_start: cursor_range.primary.ccursor.index,
