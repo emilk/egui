@@ -286,7 +286,7 @@ impl<'t> TextEdit<'t> {
     /// Set the function to use for input filtering.
     ///
     /// An input filter can be used to force the user to enter a valid
-    /// value in the `TextEdit`. This can be used to do type checking
+    /// value in the [`TextEdit`]. This can be used to do type checking
     /// directly in the widget.
     ///
     /// Defaults to no filtering.
