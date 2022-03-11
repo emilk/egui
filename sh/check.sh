@@ -29,7 +29,7 @@ cargo doc --document-private-items --no-deps --all-features
 (cd epi && cargo check --no-default-features)
 (cd egui_demo_lib && cargo check --no-default-features)
 (cd egui_extras && cargo check --no-default-features)
-# (cd egui_web && cargo check --no-default-features) # we need to pick webgl or glow backend
+(cd egui_web && cargo check --no-default-features)
 # (cd egui-winit && cargo check --no-default-features) # we don't pick singlethreaded or multithreaded
 (cd egui_glium && cargo check --no-default-features)
 (cd egui_glow && cargo check --no-default-features)
