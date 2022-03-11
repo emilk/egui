@@ -25,7 +25,7 @@ cargo doc --document-private-items --no-deps --all-features
 (cd epaint && cargo check --no-default-features --features "single_threaded" --release)
 (cd epaint && cargo check --no-default-features --features "multi_threaded" --release)
 (cd egui && cargo check --no-default-features --features "multi_threaded,serialize")
-(cd eframe && cargo check --no-default-features --features "egui_glow")
+(cd eframe && cargo check --no-default-features)
 (cd epi && cargo check --no-default-features)
 (cd egui_demo_lib && cargo check --no-default-features)
 (cd egui_extras && cargo check --no-default-features)

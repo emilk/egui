@@ -20,7 +20,7 @@ all-features = true
 
 
 [features]
-default = ["default_fonts", "egui_glow"]
+default = ["default_fonts"]
 
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
@@ -49,18 +49,13 @@ epi = { version = "0.17.0", path = "../epi" }
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { version = "0.17.0", path = "../egui-winit", default-features = false }
-egui_glium = { version = "0.17.0", path = "../egui_glium", optional = true, default-features = false, features = [
-  "clipboard",
-  "epi",
-  "links",
-] }
-egui_glow = { version = "0.17.0", path = "../egui_glow", optional = true, default-features = false, features = [
+egui_glow = { version = "0.17.0", path = "../egui_glow", default-features = false, features = [
   "clipboard",
   "epi",
   "links",
   "winit",
 ] }
+egui-winit = { version = "0.17.0", path = "../egui-winit", default-features = false }
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
