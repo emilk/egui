@@ -5,7 +5,7 @@ pub use egui::{pos2, Color32};
 
 // ----------------------------------------------------------------------------
 
-fn create_painter(canvas_id: &str) -> Result<Box<dyn Painter>, JsValue> {
+fn create_painter(canvas_id: &str) -> Result<Box<dyn WebPainter>, JsValue> {
     Ok(Box::new(
         crate::glow_wrapping::WrappedGlowPainter::new(canvas_id).map_err(JsValue::from)?,
     ))
@@ -140,7 +140,7 @@ fn test_parse_query() {
 pub struct AppRunner {
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
-    painter: Box<dyn Painter>,
+    painter: Box<dyn WebPainter>,
     pub(crate) input: WebInput,
     app: Box<dyn epi::App>,
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,

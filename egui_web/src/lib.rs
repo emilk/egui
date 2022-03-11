@@ -28,7 +28,7 @@ pub use wasm_bindgen;
 pub use web_sys;
 
 use input::*;
-pub use painter::Painter;
+pub use painter::WebPainter;
 use web_sys::EventTarget;
 
 use std::collections::BTreeMap;

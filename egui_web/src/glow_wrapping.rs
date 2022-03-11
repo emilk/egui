@@ -32,9 +32,17 @@ impl WrappedGlowPainter {
     }
 }
 
-impl crate::Painter for WrappedGlowPainter {
+impl crate::WebPainter for WrappedGlowPainter {
+    fn name(&self) -> &'static str {
+        "egui_web"
+    }
+
     fn max_texture_side(&self) -> usize {
         self.painter.max_texture_side()
+    }
+
+    fn canvas_id(&self) -> &str {
+        &self.canvas_id
     }
 
     fn set_texture(&mut self, tex_id: egui::TextureId, delta: &egui::epaint::ImageDelta) {
@@ -43,18 +51,6 @@ impl crate::Painter for WrappedGlowPainter {
 
     fn free_texture(&mut self, tex_id: egui::TextureId) {
         self.painter.free_texture(&self.glow_ctx, tex_id);
-    }
-
-    fn debug_info(&self) -> String {
-        format!(
-            "Stored canvas size: {} x {}",
-            self.canvas.width(),
-            self.canvas.height(),
-        )
-    }
-
-    fn canvas_id(&self) -> &str {
-        &self.canvas_id
     }
 
     fn clear(&mut self, clear_color: Rgba) {
@@ -75,10 +71,6 @@ impl crate::Painter for WrappedGlowPainter {
             clipped_meshes,
         );
         Ok(())
-    }
-
-    fn name(&self) -> &'static str {
-        "egui_web (glow)"
     }
 }
 
