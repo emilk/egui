@@ -14,7 +14,7 @@ Check out [eframe_template](https://github.com/emilk/eframe_template) for an exa
 
 ## Downsides with using egui on the web
 
-`egui_web` uses WebGL and WASM, and almost nothing else from the web tech stack. This has some benefits, but also produces some challanges and serious downsides.
+`egui_web` uses WebGL (via [`glow`](https://crates.io/crates/glow)) and WASM, and almost nothing else from the web tech stack. This has some benefits, but also produces some challanges and serious downsides.
 
 * Rendering: Getting pixel-perfect rendering right on the web is very difficult.
 * Search: you cannot search an egui web page like you would a normal web page.

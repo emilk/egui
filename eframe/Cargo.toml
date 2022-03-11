@@ -64,9 +64,7 @@ egui_glow = { version = "0.17.0", path = "../egui_glow", optional = true, defaul
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-egui_web = { version = "0.17.0", path = "../egui_web", default-features = false, features = [
-  "glow",
-] }
+egui_web = { version = "0.17.0", path = "../egui_web", default-features = false }
 
 
 [dev-dependencies]

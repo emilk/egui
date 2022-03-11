@@ -27,17 +27,11 @@ crate-type = ["cdylib", "rlib"]
 
 
 [features]
-default = ["default_fonts", "glow"]
+default = ["default_fonts"]
 
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["egui/default_fonts"]
-
-# Use glow as the renderer.
-glow = ["egui_glow", "egui_glow/epi"]
-
-# Alternative to the glow renderer.
-webgl = []
 
 # enable persisting egui memory
 persistence = ["egui/persistence", "ron", "serde"]
@@ -52,7 +46,7 @@ egui = { version = "0.17.0", path = "../egui", default-features = false, feature
   "single_threaded",
   "tracing",
 ] }
-egui_glow = { version = "0.17.0", path = "../egui_glow", optional = true, default-features = false }
+egui_glow = { version = "0.17.0", path = "../egui_glow", default-features = false }
 epi = { version = "0.17.0", path = "../epi" }
 
 bytemuck = "1.7"
@@ -106,15 +100,8 @@ features = [
   "TouchEvent",
   "TouchList",
   "WebGl2RenderingContext",
-  "WebGlBuffer",
   "WebglDebugRendererInfo",
-  "WebGlFramebuffer",
-  "WebGlProgram",
   "WebGlRenderingContext",
-  "WebGlShader",
-  "WebGlTexture",
-  "WebGlUniformLocation",
-  "WebGlVertexArrayObject",
   "WheelEvent",
   "Window",
 ]

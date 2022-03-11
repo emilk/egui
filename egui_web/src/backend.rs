@@ -6,24 +6,9 @@ pub use egui::{pos2, Color32};
 // ----------------------------------------------------------------------------
 
 fn create_painter(canvas_id: &str) -> Result<Box<dyn Painter>, JsValue> {
-    // Glow takes precedence:
-    #[cfg(all(feature = "glow"))]
-    return Ok(Box::new(
+    Ok(Box::new(
         crate::glow_wrapping::WrappedGlowPainter::new(canvas_id).map_err(JsValue::from)?,
-    ));
-
-    #[cfg(all(feature = "webgl", not(feature = "glow")))]
-    if let Ok(webgl2_painter) = webgl2::WebGl2Painter::new(canvas_id) {
-        tracing::debug!("Using WebGL2 backend");
-        Ok(Box::new(webgl2_painter))
-    } else {
-        tracing::debug!("Falling back to WebGL1 backend");
-        let webgl1_painter = webgl1::WebGlPainter::new(canvas_id)?;
-        Ok(Box::new(webgl1_painter))
-    }
-
-    #[cfg(all(not(feature = "webgl"), not(feature = "glow")))]
-    compile_error!("Either the 'glow' or 'webgl' feature of egui_web must be enabled!");
+    ))
 }
 
 // ----------------------------------------------------------------------------
