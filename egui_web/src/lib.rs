@@ -15,17 +15,11 @@
 #![warn(clippy::all, rustdoc::missing_crate_level_docs, rust_2018_idioms)]
 
 pub mod backend;
-#[cfg(feature = "glow")]
 mod glow_wrapping;
 mod input;
 mod painter;
 pub mod screen_reader;
 mod text_agent;
-
-#[cfg(feature = "webgl")]
-pub mod webgl1;
-#[cfg(feature = "webgl")]
-pub mod webgl2;
 
 pub use backend::*;
 
@@ -34,7 +28,7 @@ pub use wasm_bindgen;
 pub use web_sys;
 
 use input::*;
-pub use painter::Painter;
+pub use painter::WebPainter;
 use web_sys::EventTarget;
 
 use std::collections::BTreeMap;

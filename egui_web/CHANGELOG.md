@@ -4,6 +4,7 @@ All notable changes to the `egui_web` integration will be noted in this file.
 
 ## Unreleased
 * egui code will no longer be called after panic ([#1306](https://github.com/emilk/egui/pull/1306))
+* Remove the "webgl" feature. `egui_web` now always use `glow` (which in turn wraps WebGL) ([#1356](https://github.com/emilk/egui/pull/1356)).
 
 
 ## 0.17.0 - 2022-02-22

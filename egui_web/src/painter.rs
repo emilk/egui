@@ -1,17 +1,18 @@
 use wasm_bindgen::prelude::JsValue;
 
-pub trait Painter {
+/// What is needed to paint egui.
+pub trait WebPainter {
+    fn name(&self) -> &'static str;
+
     /// Max size of one side of a texture.
     fn max_texture_side(&self) -> usize;
+
+    /// id of the canvas html element containing the rendering
+    fn canvas_id(&self) -> &str;
 
     fn set_texture(&mut self, tex_id: egui::TextureId, delta: &egui::epaint::ImageDelta);
 
     fn free_texture(&mut self, tex_id: egui::TextureId);
-
-    fn debug_info(&self) -> String;
-
-    /// id of the canvas html element containing the rendering
-    fn canvas_id(&self) -> &str;
 
     fn clear(&mut self, clear_color: egui::Rgba);
 
@@ -20,8 +21,6 @@ pub trait Painter {
         clipped_meshes: Vec<egui::ClippedMesh>,
         pixels_per_point: f32,
     ) -> Result<(), JsValue>;
-
-    fn name(&self) -> &'static str;
 
     fn paint_and_update_textures(
         &mut self,
