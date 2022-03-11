@@ -579,11 +579,8 @@ impl<'t> TextEdit<'t> {
                 CursorRange::default()
             };
 
-            let mut default_filter = |data: InputData<'_>| Action::Insert(data.input);
-            let filter = match filter {
-                Some(filter) => filter,
-                None => &mut default_filter,
-            };
+            let mut no_filter = |data: InputData<'_>| Action::Insert(data.input);
+            let filter = filter.unwrap_or(&mut no_filter);
             let (changed, new_cursor_range) = events(
                 ui,
                 &mut state,
