@@ -807,14 +807,16 @@ impl Context {
         // shapes are the same, but just comparing the shapes takes about 50% of the time
         // it takes to tessellate them, so it is not a worth optimization.
 
-        let mut tessellation_options = *self.tessellation_options();
-        tessellation_options.pixels_per_point = self.pixels_per_point();
-        tessellation_options.aa_size = 1.0 / self.pixels_per_point();
+        let pixels_per_point = self.pixels_per_point();
+        let tessellation_options = *self.tessellation_options();
+        let font_image_size = self.fonts().font_image_size();
+
         let paint_stats = PaintStats::from_shapes(&shapes);
         let clipped_primitives = tessellator::tessellate_shapes(
-            shapes,
+            pixels_per_point,
             tessellation_options,
-            self.fonts().font_image_size(),
+            shapes,
+            font_image_size,
         );
         self.write().paint_stats = paint_stats.with_clipped_primitives(&clipped_primitives);
         clipped_primitives

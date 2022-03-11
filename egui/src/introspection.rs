@@ -139,9 +139,8 @@ impl Widget for &mut epaint::TessellationOptions {
     fn ui(self, ui: &mut Ui) -> Response {
         ui.vertical(|ui| {
             let epaint::TessellationOptions {
-                pixels_per_point: _,
-                aa_size: _,
-                anti_alias,
+                feathering,
+                feathering_size_in_pixels,
                 coarse_tessellation_culling,
                 round_text_to_pixels,
                 debug_paint_clip_rects,
@@ -150,8 +149,15 @@ impl Widget for &mut epaint::TessellationOptions {
                 bezier_tolerance,
                 epsilon: _,
             } = self;
-            ui.checkbox(anti_alias, "Antialias")
+
+            ui.checkbox(feathering, "Feathering (antialias)")
                 .on_hover_text("Apply feathering to smooth out the edges of shapes. Turn off for small performance gain.");
+            let feathering_slider = crate::Slider::new(feathering_size_in_pixels, 0.0..=10.0)
+                .smallest_positive(0.1)
+                .logarithmic(true)
+                .text("Feathering size in pixels");
+            ui.add_enabled(*feathering, feathering_slider);
+
             ui.add(
                 crate::widgets::Slider::new(bezier_tolerance, 0.0001..=10.0)
                     .logarithmic(true)
