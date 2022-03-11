@@ -276,7 +276,7 @@ pub struct InputData<'a> {
     /// The current text in the text box buffer.
     pub buffer: &'a str,
 
-    /// The current position of the start of the cursor.
+    /// The current position of the start of the cursor, in characters (not bytes!).
     ///
     /// This represents where the data will be inserted.
     pub cursor_start: usize,
