@@ -987,7 +987,6 @@ dependencies = [
  "egui",
  "egui-winit",
  "egui_extras",
- "egui_glium",
  "egui_glow",
  "egui_web",
  "ehttp",
