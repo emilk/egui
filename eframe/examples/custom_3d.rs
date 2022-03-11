@@ -59,11 +59,11 @@ impl MyApp {
         let callback = egui::epaint::PaintCallback {
             rect,
             callback: std::sync::Arc::new(move |render_ctx| {
-                if let Some(gl) = render_ctx.downcast_ref::<glow::Context>() {
+                if let Some(painter) = render_ctx.downcast_ref::<egui_glow::Painter>() {
                     let mut rotating_triangle = rotating_triangle.lock();
-                    let rotating_triangle =
-                        rotating_triangle.get_or_insert_with(|| RotatingTriangle::new(gl));
-                    rotating_triangle.paint(gl, angle);
+                    let rotating_triangle = rotating_triangle
+                        .get_or_insert_with(|| RotatingTriangle::new(painter.gl()));
+                    rotating_triangle.paint(painter.gl(), angle);
                 } else {
                     eprintln!("Can't do custom painting because we are not using a glow context");
                 }

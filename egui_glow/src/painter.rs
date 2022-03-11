@@ -19,7 +19,10 @@ pub use glow::Context;
 const VERT_SRC: &str = include_str!("shader/vertex.glsl");
 const FRAG_SRC: &str = include_str!("shader/fragment.glsl");
 
-/// OpenGL painter
+/// An OpenGL painter using [`glow`].
+///
+/// This is responsible for painting egui and managing egui textures.
+/// You can access the underlying [`glow::Context`] with [`Self::gl`].
 ///
 /// This struct must be destroyed with [`Painter::destroy`] before dropping, to ensure OpenGL
 /// objects have been properly deleted and are not leaked.
@@ -365,7 +368,7 @@ impl Painter {
                             );
                         }
 
-                        callback.call(&self.gl);
+                        callback.call(self);
 
                         // Restore state:
                         unsafe {
@@ -558,7 +561,8 @@ impl Painter {
         }
     }
 
-    fn get_texture(&self, texture_id: egui::TextureId) -> Option<glow::Texture> {
+    /// Get the [`glow::Texture`] bound to a [`egui::TextureId`].
+    pub fn get_texture(&self, texture_id: egui::TextureId) -> Option<glow::Texture> {
         self.textures.get(&texture_id).copied()
     }
 
@@ -574,9 +578,8 @@ impl Painter {
         }
     }
 
-    /// This function must be called before Painter is dropped, as Painter has some OpenGL objects
+    /// This function must be called before [`Painter`] is dropped, as [`Painter`] has some OpenGL objects
     /// that should be deleted.
-
     pub fn destroy(&mut self) {
         if !self.destroyed {
             unsafe {

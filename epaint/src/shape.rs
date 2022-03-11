@@ -647,7 +647,7 @@ pub struct PaintCallback {
     /// Paint something custom using.
     ///
     /// The argument is the render context, and what it contains depends on the backend.
-    /// In `eframe` it will be a `glow::Context`.
+    /// In `eframe` it will be `egui_glow::Painter`.
     ///
     /// The rendering backend is responsible for first setting the active viewport to [`Self::rect`].
     /// The rendering backend is also responsible for restoring any state it needs,
