@@ -43,8 +43,9 @@ fn main() {
 
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
     let (gl_window, gl) = create_display(&event_loop);
+    let gl = std::rc::Rc::new(gl);
 
-    let mut egui_glow = egui_glow::EguiGlow::new(gl_window.window(), &gl);
+    let mut egui_glow = egui_glow::EguiGlow::new(gl_window.window(), gl.clone());
 
     event_loop.run(move |event, _, control_flow| {
         let mut redraw = || {
@@ -78,7 +79,7 @@ fn main() {
 
                 // draw things behind egui here
 
-                egui_glow.paint(gl_window.window(), &gl);
+                egui_glow.paint(gl_window.window());
 
                 // draw things on top of egui here
 
@@ -108,7 +109,7 @@ fn main() {
                 gl_window.window().request_redraw(); // TODO: ask egui if the events warrants a repaint instead
             }
             glutin::event::Event::LoopDestroyed => {
-                egui_glow.destroy(&gl);
+                egui_glow.destroy();
             }
 
             _ => (),

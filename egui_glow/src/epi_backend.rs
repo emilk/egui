@@ -54,12 +54,13 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
         egui_winit::epi::window_builder(native_options, &window_settings).with_title(app.name());
     let event_loop = winit::event_loop::EventLoop::with_user_event();
     let (gl_window, gl) = create_display(window_builder, &event_loop);
+    let gl = std::rc::Rc::new(gl);
 
     let repaint_signal = std::sync::Arc::new(GlowRepaintSignal(std::sync::Mutex::new(
         event_loop.create_proxy(),
     )));
 
-    let mut painter = crate::Painter::new(&gl, None, "")
+    let mut painter = crate::Painter::new(gl.clone(), None, "")
         .unwrap_or_else(|error| panic!("some OpenGL error occurred {}\n", error));
     let mut integration = egui_winit::epi::EpiIntegration::new(
         "egui_glow",
@@ -104,7 +105,6 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
                     gl.clear(glow::COLOR_BUFFER_BIT);
                 }
                 painter.paint_and_update_textures(
-                    &gl,
                     gl_window.window().inner_size().into(),
                     integration.egui_ctx.pixels_per_point(),
                     clipped_primitives,
@@ -153,7 +153,7 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
             }
             winit::event::Event::LoopDestroyed => {
                 integration.on_exit(gl_window.window());
-                painter.destroy(&gl);
+                painter.destroy();
             }
             winit::event::Event::UserEvent(RequestRepaintEvent) => {
                 gl_window.window().request_redraw();
