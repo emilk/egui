@@ -81,7 +81,7 @@ jobs:
           override: true
       - run: rustup target add wasm32-unknown-unknown
       - name: check
-        run: cargo check -p eframe --lib --no-default-features --features egui_glow,persistence --target wasm32-unknown-unknown
+        run: cargo check -p eframe --lib --no-default-features --features persistence --target wasm32-unknown-unknown
 
   check_web_all_features:
     name: cargo check web --all-features
