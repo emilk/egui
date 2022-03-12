@@ -1,6 +1,5 @@
 use std::collections::BTreeSet;
 
-use ab_glyph::GlyphId;
 use ahash::AHashMap;
 
 use emath::{vec2, Vec2};
@@ -37,7 +36,7 @@ impl UvRect {
 
 #[derive(Clone, Copy, Debug)]
 pub struct GlyphInfo {
-    pub(crate) id: ab_glyph::GlyphId,
+    pub(crate) index: u16,
 
     /// Unit: points.
     pub advance_width: f32,
@@ -49,7 +48,7 @@ pub struct GlyphInfo {
 impl Default for GlyphInfo {
     fn default() -> Self {
         Self {
-            id: ab_glyph::GlyphId(0),
+            index: 0,
             advance_width: 0.0,
             uv_rect: Default::default(),
         }
@@ -63,7 +62,6 @@ impl Default for GlyphInfo {
 pub struct FontImpl {
     name: String,
     font: fontdue::Font,
-    ab_glyph_font: ab_glyph::FontArc,
     /// Maximum character height
     scale_in_pixels: u32,
     height_in_points: f32,
@@ -80,7 +78,6 @@ impl FontImpl {
         atlas: Arc<Mutex<TextureAtlas>>,
         pixels_per_point: f32,
         name: String,
-        ab_glyph_font: ab_glyph::FontArc,
         font: fontdue::Font,
         scale_in_pixels: u32,
         y_offset_points: f32,
@@ -102,7 +99,6 @@ impl FontImpl {
 
         Self {
             name,
-            ab_glyph_font,
             font,
             scale_in_pixels,
             height_in_points,
@@ -134,11 +130,7 @@ impl FontImpl {
 
     /// An un-ordered iterator over all supported characters.
     fn characters(&self) -> impl Iterator<Item=char> + '_ {
-        use ab_glyph::Font as _;
-        self.ab_glyph_font
-            .codepoint_ids()
-            .map(|(_, chr)| chr)
-            .filter(|&chr| !self.ignore_character(chr))
+        self.font.chars().keys().filter(|&&chr| !self.ignore_character(chr)).map(|&char| char)
     }
 
     /// `\n` will result in `None`
@@ -166,10 +158,9 @@ impl FontImpl {
 
         // Add new character:
 
-        use ab_glyph::Font as _;
-        let glyph_id = self.ab_glyph_font.glyph_id(c);
+        let glyph_index = self.font.lookup_glyph_index(c);
 
-        if glyph_id.0 == 0 {
+        if glyph_index == 0 {
             if invisible_char(c) {
                 // hack
                 let glyph_info = GlyphInfo::default();
@@ -181,37 +172,24 @@ impl FontImpl {
         } else {
             let glyph_info = allocate_glyph(
                 &mut self.atlas.lock(),
-                &self.ab_glyph_font,
-                glyph_id,
-                self.scale_in_pixels as f32,
-                self.y_offset,
-                self.pixels_per_point,
-            );
-
-            self.glyph_info_cache.write().insert(c, glyph_info);
-            let glyph_info2 = allocate_glyph2(
-                &mut self.atlas.lock(),
                 &self.font,
-                glyph_id.0,
+                glyph_index,
                 self.scale_in_pixels as f32,
                 self.y_offset,
                 self.pixels_per_point,
             );
-            Some(glyph_info2)
+            self.glyph_info_cache.write().insert(c, glyph_info);
+            Some(glyph_info)
         }
     }
 
     #[inline]
     pub fn pair_kerning(
         &self,
-        last_glyph_id: ab_glyph::GlyphId,
-        glyph_id: ab_glyph::GlyphId,
+        last_glyph_index: u16,
+        glyph_index: u16,
     ) -> f32 {
-        use ab_glyph::{Font as _, ScaleFont};
-        self.ab_glyph_font
-            .as_scaled(self.scale_in_pixels as f32)
-            .kern(last_glyph_id, glyph_id)
-            / self.pixels_per_point
+        self.font.horizontal_kern_indexed(last_glyph_index, glyph_index, self.scale_in_pixels as f32).unwrap_or_default() / self.pixels_per_point
     }
 
     /// Height of one row of text. In points
@@ -367,7 +345,7 @@ fn invisible_char(c: char) -> bool {
     // From https://www.fileformat.info/info/unicode/category/Cf/list.htm
     ('\u{200B}'..='\u{206F}').contains(&c) // TODO: heed bidi characters
 }
-
+/*
 fn allocate_glyph(
     atlas: &mut TextureAtlas,
     font: &ab_glyph::FontArc,
@@ -422,20 +400,17 @@ fn allocate_glyph(
         uv_rect,
     }
 }
-
-fn allocate_glyph2(
+*/
+fn allocate_glyph(
     atlas: &mut TextureAtlas,
     font: &fontdue::Font,
-    glyph_id: u16,
+    glyph_index: u16,
     scale_in_pixels: f32,
     y_offset: f32,
     pixels_per_point: f32,
 ) -> GlyphInfo {
-    assert!(glyph_id != 0);
-    let (metrics, bitmap) = font.rasterize_indexed(glyph_id, scale_in_pixels);
-    /*    let glyph =
-            glyph_id.with_scale_and_position(scale_in_pixels, ab_glyph::Point { x: 0.0, y: 0.0 });
-    */
+    assert_ne!(glyph_index, 0);
+    let (metrics, bitmap) = font.rasterize_indexed(glyph_index, scale_in_pixels);
     let glyph_width = metrics.width;
     let glyph_height = metrics.height;
     let uv_rect = if glyph_width == 0 || glyph_height == 0 {
@@ -449,7 +424,7 @@ fn allocate_glyph2(
                 i += 1;
             }
         }
-        let offset_in_pixels = vec2(metrics.bounds.xmin as f32,  scale_in_pixels-metrics.ymin as f32-metrics.height as f32);
+        let offset_in_pixels = vec2(metrics.bounds.xmin as f32, scale_in_pixels - metrics.ymin as f32 - metrics.height as f32);
         let offset = offset_in_pixels / pixels_per_point + y_offset * Vec2::Y;
         UvRect {
             offset,
@@ -462,17 +437,11 @@ fn allocate_glyph2(
         }
     };
 
-    let advance_width_in_points = metrics.advance_width/pixels_per_point;
-//        font.as_scaled(scale_in_pixels).h_advance(glyph_id) / pixels_per_point;
+    let advance_width_in_points = metrics.advance_width / pixels_per_point;
 
     GlyphInfo {
-        id: GlyphId(glyph_id),
+        index: glyph_index,
         advance_width: advance_width_in_points,
         uv_rect,
     }
-}
-
-
-fn fast_round(r: f32) -> u8 {
-    (r + 0.5).floor() as _ // rust does a saturating cast since 1.45
 }

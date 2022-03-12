@@ -107,7 +107,7 @@ fn layout_section(
             let (font_impl, glyph_info) = font.glyph_info_and_font_impl(chr);
             if let Some(font_impl) = font_impl {
                 if let Some(last_glyph_id) = last_glyph_id {
-                    paragraph.cursor_x += font_impl.pair_kerning(last_glyph_id, glyph_info.id);
+                    paragraph.cursor_x += font_impl.pair_kerning(last_glyph_id, glyph_info.index);
                 }
             }
 
@@ -121,7 +121,7 @@ fn layout_section(
 
             paragraph.cursor_x += glyph_info.advance_width;
             paragraph.cursor_x = font.round_to_pixel(paragraph.cursor_x);
-            last_glyph_id = Some(glyph_info.id);
+            last_glyph_id = Some(glyph_info.index);
         }
     }
 }

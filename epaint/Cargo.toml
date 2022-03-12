@@ -57,7 +57,6 @@ multi_threaded = ["parking_lot"]
 [dependencies]
 emath = { version = "0.17.0", path = "../emath" }
 fontdue = "0.7.2"
-ab_glyph = "0.2.11"
 ahash = { version = "0.7", default-features = false, features = ["std"] }
 atomic_refcell = { version = "0.1", optional = true }                     # Used instead of parking_lot when you are always using epaint in a single thread. About as fast as parking_lot. Panics on multi-threaded use.
 bytemuck = { version = "1.7.2", optional = true, features = ["derive"] }
