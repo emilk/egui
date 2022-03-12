@@ -17,7 +17,6 @@
 pub mod backend;
 mod glow_wrapping;
 mod input;
-mod painter;
 pub mod screen_reader;
 mod text_agent;
 
@@ -28,7 +27,6 @@ pub use wasm_bindgen;
 pub use web_sys;
 
 use input::*;
-pub use painter::WebPainter;
 use web_sys::EventTarget;
 
 use std::collections::BTreeMap;

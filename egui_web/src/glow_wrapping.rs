@@ -31,33 +31,29 @@ impl WrappedGlowPainter {
     }
 }
 
-impl crate::WebPainter for WrappedGlowPainter {
-    fn name(&self) -> &'static str {
-        "egui_web"
-    }
-
-    fn max_texture_side(&self) -> usize {
+impl WrappedGlowPainter {
+    pub fn max_texture_side(&self) -> usize {
         self.painter.max_texture_side()
     }
 
-    fn canvas_id(&self) -> &str {
+    pub fn canvas_id(&self) -> &str {
         &self.canvas_id
     }
 
-    fn set_texture(&mut self, tex_id: egui::TextureId, delta: &egui::epaint::ImageDelta) {
+    pub fn set_texture(&mut self, tex_id: egui::TextureId, delta: &egui::epaint::ImageDelta) {
         self.painter.set_texture(tex_id, delta);
     }
 
-    fn free_texture(&mut self, tex_id: egui::TextureId) {
+    pub fn free_texture(&mut self, tex_id: egui::TextureId) {
         self.painter.free_texture(tex_id);
     }
 
-    fn clear(&mut self, clear_color: Rgba) {
+    pub fn clear(&mut self, clear_color: Rgba) {
         let canvas_dimension = [self.canvas.width(), self.canvas.height()];
         egui_glow::painter::clear(self.painter.gl(), canvas_dimension, clear_color)
     }
 
-    fn paint_primitives(
+    pub fn paint_primitives(
         &mut self,
         clipped_primitives: Vec<ClippedPrimitive>,
         pixels_per_point: f32,
@@ -65,6 +61,25 @@ impl crate::WebPainter for WrappedGlowPainter {
         let canvas_dimension = [self.canvas.width(), self.canvas.height()];
         self.painter
             .paint_primitives(canvas_dimension, pixels_per_point, clipped_primitives);
+        Ok(())
+    }
+
+    pub fn paint_and_update_textures(
+        &mut self,
+        clipped_primitives: Vec<egui::ClippedPrimitive>,
+        pixels_per_point: f32,
+        textures_delta: &egui::TexturesDelta,
+    ) -> Result<(), JsValue> {
+        for (id, image_delta) in &textures_delta.set {
+            self.set_texture(*id, image_delta);
+        }
+
+        self.paint_primitives(clipped_primitives, pixels_per_point)?;
+
+        for &id in &textures_delta.free {
+            self.free_texture(id);
+        }
+
         Ok(())
     }
 }
