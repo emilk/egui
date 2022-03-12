@@ -1,4 +1,6 @@
+use std::borrow::Borrow;
 use std::collections::BTreeMap;
+use fontdue::FontSettings;
 
 use crate::{
     mutex::{Arc, Mutex, MutexGuard},
@@ -196,6 +198,11 @@ fn ab_glyph_font_from_font_data(name: &str, data: &FontData) -> ab_glyph::FontAr
         }
     }
     .unwrap_or_else(|err| panic!("Error parsing {:?} TTF/OTF font file: {}", name, err))
+}
+
+fn font_from_font_data(name: &str, data: &FontData) -> fontdue::Font {
+    fontdue::Font::from_bytes(data.font.borrow(), FontSettings {collection_index: data.index, scale: data.tweak.scale})
+        .unwrap_or_else(|err| panic!("Error parsing {:?} TTF/OTF font file: {}", name, err))
 }
 
 /// Describes the font data and the sizes to use.
@@ -657,6 +664,7 @@ struct FontImplCache {
     atlas: Arc<Mutex<TextureAtlas>>,
     pixels_per_point: f32,
     ab_glyph_fonts: BTreeMap<String, (FontTweak, ab_glyph::FontArc)>,
+    fonts: BTreeMap<String, (FontTweak, fontdue::Font)>,
 
     /// Map font pixel sizes and names to the cached `FontImpl`.
     cache: ahash::AHashMap<(u32, String), Arc<FontImpl>>,
@@ -677,10 +685,20 @@ impl FontImplCache {
             })
             .collect();
 
+        let fonts = font_data
+            .iter()
+            .map(|(name, font_data)| {
+                let tweak = font_data.tweak;
+                let font = font_from_font_data(name, font_data);
+                (name.clone(), (tweak, font))
+            })
+            .collect();
+
         Self {
             atlas,
             pixels_per_point,
             ab_glyph_fonts,
+            fonts,
             cache: Default::default(),
         }
     }
@@ -700,6 +718,11 @@ impl FontImplCache {
             .get(font_name)
             .unwrap_or_else(|| panic!("No font data found for {:?}", font_name))
             .clone();
+        let (tweak, font) = self
+            .fonts
+            .get(font_name)
+            .unwrap_or_else(|| panic!("No font data found for {:?}", font_name))
+            .clone();
 
         let scale_in_pixels = (scale_in_pixels as f32 * tweak.scale).round() as u32;
 
@@ -716,6 +739,7 @@ impl FontImplCache {
                     self.pixels_per_point,
                     font_name.to_owned(),
                     ab_glyph_font,
+                    font,
                     scale_in_pixels,
                     y_offset_points,
                 ))

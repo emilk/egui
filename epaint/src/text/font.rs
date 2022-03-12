@@ -1,10 +1,14 @@
+use std::collections::BTreeSet;
+
+use ab_glyph::GlyphId;
+use ahash::AHashMap;
+
+use emath::{vec2, Vec2};
+
 use crate::{
     mutex::{Arc, Mutex, RwLock},
     TextureAtlas,
 };
-use ahash::AHashMap;
-use emath::{vec2, Vec2};
-use std::collections::BTreeSet;
 
 // ----------------------------------------------------------------------------
 
@@ -58,6 +62,7 @@ impl Default for GlyphInfo {
 /// The interface uses points as the unit for everything.
 pub struct FontImpl {
     name: String,
+    font: fontdue::Font,
     ab_glyph_font: ab_glyph::FontArc,
     /// Maximum character height
     scale_in_pixels: u32,
@@ -65,7 +70,8 @@ pub struct FontImpl {
     // move each character by this much (hack)
     y_offset: f32,
     pixels_per_point: f32,
-    glyph_info_cache: RwLock<AHashMap<char, GlyphInfo>>, // TODO: standard Mutex
+    glyph_info_cache: RwLock<AHashMap<char, GlyphInfo>>,
+    // TODO: standard Mutex
     atlas: Arc<Mutex<TextureAtlas>>,
 }
 
@@ -75,6 +81,7 @@ impl FontImpl {
         pixels_per_point: f32,
         name: String,
         ab_glyph_font: ab_glyph::FontArc,
+        font: fontdue::Font,
         scale_in_pixels: u32,
         y_offset_points: f32,
     ) -> FontImpl {
@@ -96,6 +103,7 @@ impl FontImpl {
         Self {
             name,
             ab_glyph_font,
+            font,
             scale_in_pixels,
             height_in_points,
             y_offset,
@@ -125,7 +133,7 @@ impl FontImpl {
     }
 
     /// An un-ordered iterator over all supported characters.
-    fn characters(&self) -> impl Iterator<Item = char> + '_ {
+    fn characters(&self) -> impl Iterator<Item=char> + '_ {
         use ab_glyph::Font as _;
         self.ab_glyph_font
             .codepoint_ids()
@@ -157,6 +165,7 @@ impl FontImpl {
         }
 
         // Add new character:
+
         use ab_glyph::Font as _;
         let glyph_id = self.ab_glyph_font.glyph_id(c);
 
@@ -180,7 +189,15 @@ impl FontImpl {
             );
 
             self.glyph_info_cache.write().insert(c, glyph_info);
-            Some(glyph_info)
+            let glyph_info2 = allocate_glyph2(
+                &mut self.atlas.lock(),
+                &self.font,
+                glyph_id.0,
+                self.scale_in_pixels as f32,
+                self.y_offset,
+                self.pixels_per_point,
+            );
+            Some(glyph_info2)
         }
     }
 
@@ -405,6 +422,56 @@ fn allocate_glyph(
         uv_rect,
     }
 }
+
+fn allocate_glyph2(
+    atlas: &mut TextureAtlas,
+    font: &fontdue::Font,
+    glyph_id: u16,
+    scale_in_pixels: f32,
+    y_offset: f32,
+    pixels_per_point: f32,
+) -> GlyphInfo {
+    assert!(glyph_id != 0);
+    let (metrics, bitmap) = font.rasterize_indexed(glyph_id, scale_in_pixels);
+    /*    let glyph =
+            glyph_id.with_scale_and_position(scale_in_pixels, ab_glyph::Point { x: 0.0, y: 0.0 });
+    */
+    let glyph_width = metrics.width;
+    let glyph_height = metrics.height;
+    let uv_rect = if glyph_width == 0 || glyph_height == 0 {
+        UvRect::default()
+    } else {
+        let (glyph_pos, image) = atlas.allocate((glyph_width, glyph_height));
+        let mut i = 0;
+        for py in glyph_pos.1..glyph_pos.1 + metrics.height {
+            for px in glyph_pos.0..glyph_pos.0 + metrics.width {
+                image[(px, py)] = bitmap[i];
+                i += 1;
+            }
+        }
+        let offset_in_pixels = vec2(metrics.bounds.xmin as f32,  scale_in_pixels-metrics.ymin as f32-metrics.height as f32);
+        let offset = offset_in_pixels / pixels_per_point + y_offset * Vec2::Y;
+        UvRect {
+            offset,
+            size: vec2(glyph_width as f32, glyph_height as f32) / pixels_per_point,
+            min: [glyph_pos.0 as u16, glyph_pos.1 as u16],
+            max: [
+                (glyph_pos.0 + glyph_width) as u16,
+                (glyph_pos.1 + glyph_height) as u16,
+            ],
+        }
+    };
+
+    let advance_width_in_points = metrics.advance_width/pixels_per_point;
+//        font.as_scaled(scale_in_pixels).h_advance(glyph_id) / pixels_per_point;
+
+    GlyphInfo {
+        id: GlyphId(glyph_id),
+        advance_width: advance_width_in_points,
+        uv_rect,
+    }
+}
+
 
 fn fast_round(r: f32) -> u8 {
     (r + 0.5).floor() as _ // rust does a saturating cast since 1.45

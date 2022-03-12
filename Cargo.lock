@@ -1207,6 +1207,7 @@ dependencies = [
  "cint",
  "criterion",
  "emath",
+ "fontdue",
  "nohash-hasher",
  "parking_lot 0.12.0",
  "serde",
@@ -1290,6 +1291,16 @@ dependencies = [
  "fontconfig-parser",
  "log",
  "memmap2 0.5.3",
+ "ttf-parser 0.15.0",
+]
+
+[[package]]
+name = "fontdue"
+version = "0.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a62391ecb864cf12ed06b2af4eda2e609b97657950d6a8f06841b17726ab253"
+dependencies = [
+ "hashbrown 0.11.2",
  "ttf-parser 0.15.0",
 ]
 
@@ -1617,6 +1628,9 @@ name = "hashbrown"
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab5ef0d4909ef3724cc8cce6ccc8572c5c817592e9285f5464f8e86f8bd3726e"
+dependencies = [
+ "ahash 0.7.6",
+]
 
 [[package]]
 name = "heck"
