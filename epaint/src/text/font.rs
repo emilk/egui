@@ -129,8 +129,12 @@ impl FontImpl {
     }
 
     /// An un-ordered iterator over all supported characters.
-    fn characters(&self) -> impl Iterator<Item=char> + '_ {
-        self.font.chars().keys().filter(|&&chr| !self.ignore_character(chr)).map(|&char| char)
+    fn characters(&self) -> impl Iterator<Item = char> + '_ {
+        self.font
+            .chars()
+            .keys()
+            .filter(|&&chr| !self.ignore_character(chr))
+            .copied()
     }
 
     /// `\n` will result in `None`
@@ -184,12 +188,11 @@ impl FontImpl {
     }
 
     #[inline]
-    pub fn pair_kerning(
-        &self,
-        last_glyph_index: u16,
-        glyph_index: u16,
-    ) -> f32 {
-        self.font.horizontal_kern_indexed(last_glyph_index, glyph_index, self.scale_in_pixels as f32).unwrap_or_default() / self.pixels_per_point
+    pub fn pair_kerning(&self, last_glyph_index: u16, glyph_index: u16) -> f32 {
+        self.font
+            .horizontal_kern_indexed(last_glyph_index, glyph_index, self.scale_in_pixels as f32)
+            .unwrap_or_default()
+            / self.pixels_per_point
     }
 
     /// Height of one row of text. In points
@@ -424,7 +427,10 @@ fn allocate_glyph(
                 i += 1;
             }
         }
-        let offset_in_pixels = vec2(metrics.bounds.xmin as f32, scale_in_pixels - metrics.ymin as f32 - metrics.height as f32);
+        let offset_in_pixels = vec2(
+            metrics.bounds.xmin as f32,
+            scale_in_pixels - metrics.ymin as f32 - metrics.height as f32,
+        );
         let offset = offset_in_pixels / pixels_per_point + y_offset * Vec2::Y;
         UvRect {
             offset,

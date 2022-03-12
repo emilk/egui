@@ -1,6 +1,6 @@
+use fontdue::FontSettings;
 use std::borrow::Borrow;
 use std::collections::BTreeMap;
-use fontdue::FontSettings;
 
 use crate::{
     mutex::{Arc, Mutex, MutexGuard},
@@ -187,8 +187,14 @@ impl Default for FontTweak {
 // ----------------------------------------------------------------------------
 
 fn font_from_font_data(name: &str, data: &FontData) -> fontdue::Font {
-    fontdue::Font::from_bytes(data.font.borrow(), FontSettings {collection_index: data.index, scale: data.tweak.scale})
-        .unwrap_or_else(|err| panic!("Error parsing {:?} TTF/OTF font file: {}", name, err))
+    fontdue::Font::from_bytes(
+        data.font.borrow(),
+        FontSettings {
+            collection_index: data.index,
+            scale: data.tweak.scale,
+        },
+    )
+    .unwrap_or_else(|err| panic!("Error parsing {:?} TTF/OTF font file: {}", name, err))
 }
 
 /// Describes the font data and the sizes to use.
