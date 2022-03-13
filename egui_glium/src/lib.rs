@@ -90,11 +90,6 @@
 mod painter;
 pub use painter::Painter;
 
-#[cfg(feature = "epi")]
-mod epi_backend;
-#[cfg(feature = "epi")]
-pub use epi_backend::{run, NativeOptions};
-
 pub use egui_winit;
 
 // ----------------------------------------------------------------------------

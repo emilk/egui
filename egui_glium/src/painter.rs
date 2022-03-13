@@ -21,7 +21,6 @@ pub struct Painter {
 
     textures: AHashMap<egui::TextureId, Rc<SrgbTexture2d>>,
 
-    #[cfg(feature = "epi")]
     /// [`egui::TextureId::User`] index
     next_native_tex_id: u64,
 }
@@ -56,7 +55,6 @@ impl Painter {
             max_texture_side,
             program,
             textures: Default::default(),
-            #[cfg(feature = "epi")]
             next_native_tex_id: 0,
         }
     }
@@ -266,20 +264,15 @@ impl Painter {
     fn get_texture(&self, texture_id: egui::TextureId) -> Option<&SrgbTexture2d> {
         self.textures.get(&texture_id).map(|rc| rc.as_ref())
     }
-}
 
-#[cfg(feature = "epi")]
-impl epi::NativeTexture for Painter {
-    type Texture = Rc<SrgbTexture2d>;
-
-    fn register_native_texture(&mut self, native: Self::Texture) -> egui::TextureId {
+    pub fn register_native_texture(&mut self, native: Rc<SrgbTexture2d>) -> egui::TextureId {
         let id = egui::TextureId::User(self.next_native_tex_id);
         self.next_native_tex_id += 1;
         self.textures.insert(id, native);
         id
     }
 
-    fn replace_native_texture(&mut self, id: egui::TextureId, replacing: Self::Texture) {
+    pub fn replace_native_texture(&mut self, id: egui::TextureId, replacing: Rc<SrgbTexture2d>) {
         self.textures.insert(id, replacing);
     }
 }
