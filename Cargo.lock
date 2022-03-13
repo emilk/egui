@@ -1073,7 +1073,6 @@ dependencies = [
  "bytemuck",
  "egui",
  "egui-winit",
- "epi",
  "glium",
  "image",
 ]
