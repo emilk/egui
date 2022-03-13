@@ -22,6 +22,7 @@ impl epi::App for MyApp {
         ctx: &egui::Context,
         _frame: &epi::Frame,
         _storage: Option<&dyn epi::Storage>,
+        _gl: &std::rc::Rc<epi::glow::Context>,
     ) {
         // Start with the default fonts (we will be adding to them rather than replacing them).
         let mut fonts = egui::FontDefinitions::default();

@@ -66,6 +66,7 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
         "egui_glow",
         painter.max_texture_side(),
         gl_window.window(),
+        &gl,
         repaint_signal,
         persistence,
         app,

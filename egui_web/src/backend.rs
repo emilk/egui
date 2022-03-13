@@ -193,11 +193,10 @@ impl AppRunner {
 
         runner.input.raw.max_texture_side = Some(runner.painter.max_texture_side());
 
-        {
-            runner
-                .app
-                .setup(&runner.egui_ctx, &runner.frame, Some(&runner.storage));
-        }
+        let gl = runner.painter.painter.gl();
+        runner
+            .app
+            .setup(&runner.egui_ctx, &runner.frame, Some(&runner.storage), gl);
 
         Ok(runner)
     }
