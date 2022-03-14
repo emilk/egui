@@ -5,7 +5,15 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 
 
 ## Unreleased
-* Fixed ComboBoxes always being rendered left-aligned ([1304](https://github.com/emilk/egui/pull/1304))
+
+### Added ⭐
+* Added `Frame::canvas` ([1362](https://github.com/emilk/egui/pull/1362)).
+
+### Changed 🔧
+
+### Fixed 🐛
+* Fixed ComboBoxes always being rendered left-aligned ([1304](https://github.com/emilk/egui/pull/1304)).
+
 
 ## 0.17.0 - 2022-02-22 - Improved font selection and image handling
 

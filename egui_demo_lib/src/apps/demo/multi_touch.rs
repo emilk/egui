@@ -52,7 +52,13 @@ impl super::View for MultiTouch {
         let num_touches = ui.input().multi_touch().map_or(0, |mt| mt.num_touches);
         ui.label(format!("Current touches: {}", num_touches));
 
-        Frame::dark_canvas(ui.style()).show(ui, |ui| {
+        let color = if ui.visuals().dark_mode {
+            Color32::WHITE
+        } else {
+            Color32::BLACK
+        };
+
+        Frame::canvas(ui.style()).show(ui, |ui| {
             // Note that we use `Sense::drag()` although we do not use any pointer events. With
             // the current implementation, the fact that a touch event of two or more fingers is
             // recognized, does not mean that the pointer events are suppressed, which are always
@@ -76,7 +82,6 @@ impl super::View for MultiTouch {
             // check for touch input (or the lack thereof) and update zoom and scale factors, plus
             // color and width:
             let mut stroke_width = 1.;
-            let color = Color32::GRAY;
             if let Some(multi_touch) = ui.ctx().multi_touch() {
                 // This adjusts the current zoom factor and rotation angle according to the dynamic
                 // change (for the current frame) of the touch gesture:
