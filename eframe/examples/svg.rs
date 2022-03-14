@@ -41,7 +41,5 @@ fn main() {
         initial_window_size: Some(egui::vec2(1000.0, 700.0)),
         ..Default::default()
     };
-    eframe::run_native("svg example", options, |_, _, _, _| {
-        Box::new(MyApp::default())
-    });
+    eframe::run_native("svg example", options, |_cc| Box::new(MyApp::default()));
 }

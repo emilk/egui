@@ -9,7 +9,7 @@ fn main() {
     eframe::run_native(
         "Download and show an image with eframe/egui",
         options,
-        |_, _, _, _| Box::new(MyApp::default()),
+        |_cc| Box::new(MyApp::default()),
     );
 }
 

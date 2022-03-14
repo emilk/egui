@@ -21,22 +21,28 @@
 //! #[derive(Default)]
 //! struct MyEguiApp {}
 //!
-//! impl epi::App for MyEguiApp {
-//!    fn name(&self) -> &str {
-//!        "My egui App"
-//!    }
+//! impl MyEguiApp {
+//!     fn new(cc: epi::CreationContext<'_>) -> Self {
+//!         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
+//!         // Restore app state using cc.storage (requires the "persistence" feature).
+//!         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
+//!         // for e.g. egui::PaintCallback.
+//!         Self::default()
+//!     }
+//! }
 //!
+//! impl epi::App for MyEguiApp {
 //!    fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
 //!        egui::CentralPanel::default().show(ctx, |ui| {
 //!            ui.heading("Hello World!");
 //!        });
 //!    }
-//!}
+//! }
 //!
 //! fn main() {
 //!     let app = MyEguiApp::default();
 //!     let native_options = eframe::NativeOptions::default();
-//!     eframe::run_native(Box::new(app), native_options);
+//!     eframe::run_native("My egui App", native_options, |cc| Box::new(MyEguiApp::new(cc)));
 //! }
 //! ```
 //!
@@ -50,7 +56,7 @@
 //! #[wasm_bindgen]
 //! pub fn start(canvas_id: &str) -> Result<(), eframe::wasm_bindgen::JsValue> {
 //!     let app = MyEguiApp::default();
-//!     eframe::start_web(canvas_id, Box::new(app))
+//!     eframe::start_web(canvas_id, |cc| Box::new(MyApp::new(cc)))
 //! }
 //! ```
 
@@ -83,16 +89,6 @@ pub use egui_web::wasm_bindgen;
 /// fill the whole width of the browser.
 /// This can be changed by overriding [`epi::Frame::max_size_points`].
 ///
-/// ### Usage, native:
-/// ``` no_run
-/// fn main() {
-///     let app = MyEguiApp::default();
-///     let native_options = eframe::NativeOptions::default();
-///     eframe::run_native(Box::new(app), native_options);
-/// }
-/// ```
-///
-/// ### Web
 /// ``` no_run
 /// #[cfg(target_arch = "wasm32")]
 /// use wasm_bindgen::prelude::*;
@@ -104,8 +100,7 @@ pub use egui_web::wasm_bindgen;
 /// #[cfg(target_arch = "wasm32")]
 /// #[wasm_bindgen]
 /// pub fn start(canvas_id: &str) -> Result<(), eframe::wasm_bindgen::JsValue> {
-///     let app = MyEguiApp::default();
-///     eframe::start_web(canvas_id, Box::new(app))
+///     eframe::start_web(canvas_id, |cc| Box::new(MyEguiApp::new(cc)))
 /// }
 /// ```
 #[cfg(target_arch = "wasm32")]
@@ -133,17 +128,12 @@ pub fn start_web(
 /// struct MyEguiApp {}
 ///
 /// impl MyEguiApp {
-///     fn new(
-///         _ctx: &egui::Context,
-///         _frame: &epi::Frame,
-///         _storage: Option<&dyn epi::Storage>,
-///         _gl: &std::rc::Rc<glow::Context>
-///     ) -> Box<dyn epi::App> {
-///         // Customize egui here with ctx.set_fonts and ctx.set_visuals.
-///         // Restore app state using the storage (requires the "persistence" feature).
-///         // Use the glow::Context to create graphics shaders and buffers that you can use
-///         // for e.g. egui::PaintCallback
-///         Box::new(MyEguiApp::default())
+///     fn new(cc: epi::CreationContext<'_>) -> Self {
+///         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
+///         // Restore app state using cc.storage (requires the "persistence" feature).
+///         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
+///         // for e.g. egui::PaintCallback.
+///         Self::default()
 ///     }
 /// }
 ///
@@ -153,12 +143,12 @@ pub fn start_web(
 ///            ui.heading("Hello World!");
 ///        });
 ///    }
-///}
+/// }
 ///
 /// fn main() {
 ///     let app = MyEguiApp::default();
 ///     let native_options = eframe::NativeOptions::default();
-///     eframe::run_native("MyApp", native_options, MyEguiApp::new);
+///     eframe::run_native("MyApp", native_options, |cc| Box::new(MyEguiApp::new(cc)));
 /// }
 /// ```
 #[cfg(not(target_arch = "wasm32"))]

@@ -13,29 +13,36 @@ use eframe::{egui, epi};
 use parking_lot::Mutex;
 use std::sync::Arc;
 
+fn main() {
+    let options = eframe::NativeOptions::default();
+    eframe::run_native("Custom 3D painting in eframe", options, |cc| {
+        Box::new(MyApp::new(cc))
+    });
+}
+
 struct MyApp {
     rotating_triangle: Arc<Mutex<RotatingTriangle>>,
     angle: f32,
 }
 
 impl MyApp {
-    fn new(
-        _ctx: &egui::Context,
-        _frame: &epi::Frame,
-        _storage: Option<&dyn epi::Storage>,
-        gl: &std::rc::Rc<glow::Context>,
-    ) -> Box<dyn epi::App> {
-        Box::new(MyApp {
-            rotating_triangle: Arc::new(Mutex::new(RotatingTriangle::new(gl))),
+    fn new(cc: epi::CreationContext<'_>) -> Self {
+        Self {
+            rotating_triangle: Arc::new(Mutex::new(RotatingTriangle::new(&cc.gl))),
             angle: 0.0,
-        })
+        }
     }
 }
 
 impl epi::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &epi::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Here is some 3D stuff:");
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = 0.0;
+                ui.label("The triangle is being painted using ");
+                ui.hyperlink_to("glow", "https://github.com/grovesNL/glow");
+                ui.label(" (OpenGL).");
+            });
 
             egui::ScrollArea::both().show(ui, |ui| {
                 egui::Frame::dark_canvas(ui.style()).show(ui, |ui| {
@@ -44,14 +51,6 @@ impl epi::App for MyApp {
                 ui.label("Drag to rotate!");
             });
         });
-
-        let mut frame = egui::Frame::window(&*ctx.style());
-        frame.fill = frame.fill.linear_multiply(0.5); // transparent
-        egui::Window::new("3D stuff in a window")
-            .frame(frame)
-            .show(ctx, |ui| {
-                self.custom_painting(ui);
-            });
     }
 
     fn on_exit(&mut self, gl: &glow::Context) {
@@ -195,9 +194,4 @@ impl RotatingTriangle {
             gl.draw_arrays(glow::TRIANGLES, 0, 3);
         }
     }
-}
-
-fn main() {
-    let options = eframe::NativeOptions::default();
-    eframe::run_native("Custom 3D painting in eframe", options, MyApp::new);
 }

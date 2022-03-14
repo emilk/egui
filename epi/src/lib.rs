@@ -109,8 +109,27 @@ use std::sync::{Arc, Mutex};
 ///
 /// The [`glow::Context`] allows you to initialize OpenGL resources (e.g. shaders) that
 /// you might want to use later from a [`egui::PaintCallback`].
-pub type AppCreator =
-    fn(&egui::Context, &Frame, Option<&dyn Storage>, &std::rc::Rc<glow::Context>) -> Box<dyn App>;
+pub type AppCreator = fn(CreationContext<'_>) -> Box<dyn App>;
+
+/// Data that is passed to [`AppCreator`] that can be used to setup and initialize your app.
+pub struct CreationContext<'s> {
+    /// The egui Context.
+    ///
+    /// You can use this to customize the look of egui, e.g to call [`egui::Context::set_fonts`],
+    /// [`egui::Context::set_visuals`] etc.
+    pub egui_ctx: egui::Context,
+
+    /// Information about the surrounding environment.
+    pub integration_info: IntegrationInfo,
+
+    /// You can use the storage to restore app state state (requires the "persistence" feature).
+    #[cfg(feature = "persistence")]
+    pub storage: Option<&'s dyn Storage>,
+
+    /// The [`glow::Context`] allows you to initialize OpenGL resources (e.g. shaders) that
+    /// you might want to use later from a [`egui::PaintCallback`].
+    pub gl: std::rc::Rc<glow::Context>,
+}
 
 // ----------------------------------------------------------------------------
 

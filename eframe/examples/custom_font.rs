@@ -34,17 +34,11 @@ struct MyApp {
 }
 
 impl MyApp {
-    fn new(
-        ctx: &egui::Context,
-        _frame: &epi::Frame,
-        _storage: Option<&dyn epi::Storage>,
-        _gl: &std::rc::Rc<epi::glow::Context>,
-    ) -> Box<dyn epi::App> {
-        setup_custom_fonts(ctx);
-
-        Box::new(MyApp {
+    fn new(cc: epi::CreationContext<'_>) -> Self {
+        setup_custom_fonts(&cc.egui_ctx);
+        Self {
             text: "Edit this text field if you want".to_owned(),
-        })
+        }
     }
 }
 
@@ -59,5 +53,7 @@ impl epi::App for MyApp {
 
 fn main() {
     let options = eframe::NativeOptions::default();
-    eframe::run_native("egui example: custom font", options, MyApp::new);
+    eframe::run_native("egui example: custom font", options, |cc| {
+        Box::new(MyApp::new(cc))
+    });
 }

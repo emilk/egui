@@ -98,6 +98,6 @@ fn main() {
     eframe::run_native(
         "Native file dialogs and drag-and-drop files",
         options,
-        |_, _, _, _| Box::new(MyApp::default()),
+        |_cc| Box::new(MyApp::default()),
     );
 }

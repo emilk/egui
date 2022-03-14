@@ -50,19 +50,12 @@ pub struct WrapApp {
 }
 
 impl WrapApp {
-    pub fn new(
-        _ctx: &egui::Context,
-        _frame: &epi::Frame,
-        _storage: Option<&dyn epi::Storage>,
-        _gl: &std::rc::Rc<epi::glow::Context>,
-    ) -> Box<dyn epi::App> {
+    pub fn new(cc: epi::CreationContext<'_>) -> Self {
         #[cfg(feature = "persistence")]
-        if let Some(storage) = _storage {
-            let app: Self = epi::get_value(storage, epi::APP_KEY).unwrap_or_default();
-            return Box::new(app);
+        if let Some(storage) = cc.storage {
+            return epi::get_value(storage, epi::APP_KEY).unwrap_or_default();
         }
-
-        Box::new(WrapApp::default())
+        Self::default()
     }
 }
 

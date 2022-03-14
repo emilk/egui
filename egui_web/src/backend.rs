@@ -177,7 +177,12 @@ impl AppRunner {
 
         let storage = LocalStorage::default();
 
-        let app = app_creator(&egui_ctx, &frame, Some(&storage), painter.painter.gl());
+        let app = app_creator(epi::CreationContext {
+            egui_ctx: egui_ctx.clone(),
+            integration_info: frame.info(),
+            storage: Some(&storage),
+            gl: painter.painter.gl().clone(),
+        });
 
         let mut runner = Self {
             frame,

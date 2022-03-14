@@ -38,7 +38,5 @@ impl epi::App for MyApp {
 
 fn main() {
     let options = eframe::NativeOptions::default();
-    eframe::run_native("My egui App", options, |_, _, _, _| {
-        Box::new(MyApp::default())
-    });
+    eframe::run_native("My egui App", options, |_cc| Box::new(MyApp::default()));
 }
