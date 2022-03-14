@@ -26,7 +26,7 @@ struct MyApp {
 }
 
 impl MyApp {
-    fn new(cc: epi::CreationContext<'_>) -> Self {
+    fn new(cc: &epi::CreationContext<'_>) -> Self {
         Self {
             rotating_triangle: Arc::new(Mutex::new(RotatingTriangle::new(&cc.gl))),
             angle: 0.0,

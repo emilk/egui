@@ -109,7 +109,7 @@ use std::sync::{Arc, Mutex};
 ///
 /// The [`glow::Context`] allows you to initialize OpenGL resources (e.g. shaders) that
 /// you might want to use later from a [`egui::PaintCallback`].
-pub type AppCreator = fn(CreationContext<'_>) -> Box<dyn App>;
+pub type AppCreator = fn(&CreationContext<'_>) -> Box<dyn App>;
 
 /// Data that is passed to [`AppCreator`] that can be used to setup and initialize your app.
 pub struct CreationContext<'s> {

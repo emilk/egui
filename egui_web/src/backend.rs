@@ -177,7 +177,7 @@ impl AppRunner {
 
         let storage = LocalStorage::default();
 
-        let app = app_creator(epi::CreationContext {
+        let app = app_creator(&epi::CreationContext {
             egui_ctx: egui_ctx.clone(),
             integration_info: frame.info(),
             storage: Some(&storage),

@@ -50,7 +50,7 @@ pub struct WrapApp {
 }
 
 impl WrapApp {
-    pub fn new(cc: epi::CreationContext<'_>) -> Self {
+    pub fn new(cc: &epi::CreationContext<'_>) -> Self {
         #[cfg(feature = "persistence")]
         if let Some(storage) = cc.storage {
             return epi::get_value(storage, epi::APP_KEY).unwrap_or_default();

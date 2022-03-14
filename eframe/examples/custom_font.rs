@@ -34,7 +34,7 @@ struct MyApp {
 }
 
 impl MyApp {
-    fn new(cc: epi::CreationContext<'_>) -> Self {
+    fn new(cc: &epi::CreationContext<'_>) -> Self {
         setup_custom_fonts(&cc.egui_ctx);
         Self {
             text: "Edit this text field if you want".to_owned(),
