@@ -16,7 +16,7 @@
 //!
 //! ## Usage, native:
 //! ``` no_run
-//! use eframe::{epi, egui};
+//! use eframe::egui;
 //!
 //! fn main() {
 //!     let native_options = eframe::NativeOptions::default();
@@ -27,7 +27,7 @@
 //! struct MyEguiApp {}
 //!
 //! impl MyEguiApp {
-//!     fn new(cc: &epi::CreationContext<'_>) -> Self {
+//!     fn new(cc: &eframe::CreationContext<'_>) -> Self {
 //!         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
 //!         // Restore app state using cc.storage (requires the "persistence" feature).
 //!         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
@@ -36,8 +36,8 @@
 //!     }
 //! }
 //!
-//! impl epi::App for MyEguiApp {
-//!    fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
+//! impl eframe::App for MyEguiApp {
+//!    fn update(&mut self, ctx: &egui::Context, frame: &eframe::Frame) {
 //!        egui::CentralPanel::default().show(ctx, |ui| {
 //!            ui.heading("Hello World!");
 //!        });
@@ -69,10 +69,11 @@
 )]
 #![allow(clippy::needless_doctest_main)]
 
+// Re-export all useful libraries:
 pub use {egui, egui::emath, egui::epaint, epi};
 
-#[cfg(not(target_arch = "wasm32"))]
-pub use epi::NativeOptions;
+// Re-export everything in `epi` so `eframe` users don't have to care about what `epi` is:
+pub use epi::*;
 
 // ----------------------------------------------------------------------------
 // When compiling for web
@@ -102,10 +103,7 @@ pub use egui_web::wasm_bindgen;
 /// }
 /// ```
 #[cfg(target_arch = "wasm32")]
-pub fn start_web(
-    canvas_id: &str,
-    app_creator: epi::AppCreator,
-) -> Result<(), wasm_bindgen::JsValue> {
+pub fn start_web(canvas_id: &str, app_creator: AppCreator) -> Result<(), wasm_bindgen::JsValue> {
     egui_web::start(canvas_id, app_creator)?;
     Ok(())
 }
@@ -120,7 +118,7 @@ pub fn start_web(
 ///
 /// Call from `fn main` like this:
 /// ``` no_run
-/// use eframe::{epi, egui};
+/// use eframe::egui;
 ///
 /// fn main() {
 ///     let native_options = eframe::NativeOptions::default();
@@ -131,7 +129,7 @@ pub fn start_web(
 /// struct MyEguiApp {}
 ///
 /// impl MyEguiApp {
-///     fn new(cc: &epi::CreationContext<'_>) -> Self {
+///     fn new(cc: &eframe::CreationContext<'_>) -> Self {
 ///         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
 ///         // Restore app state using cc.storage (requires the "persistence" feature).
 ///         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
@@ -140,8 +138,8 @@ pub fn start_web(
 ///     }
 /// }
 ///
-/// impl epi::App for MyEguiApp {
-///    fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
+/// impl eframe::App for MyEguiApp {
+///    fn update(&mut self, ctx: &egui::Context, frame: &eframe::Frame) {
 ///        egui::CentralPanel::default().show(ctx, |ui| {
 ///            ui.heading("Hello World!");
 ///        });
@@ -149,10 +147,6 @@ pub fn start_web(
 /// }
 /// ```
 #[cfg(not(target_arch = "wasm32"))]
-pub fn run_native(
-    app_name: &str,
-    native_options: epi::NativeOptions,
-    app_creator: epi::AppCreator,
-) -> ! {
+pub fn run_native(app_name: &str, native_options: NativeOptions, app_creator: AppCreator) -> ! {
     egui_glow::run(app_name, &native_options, app_creator)
 }

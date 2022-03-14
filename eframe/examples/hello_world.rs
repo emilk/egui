@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use eframe::{egui, epi};
+use eframe::egui;
 
 fn main() {
     let options = eframe::NativeOptions::default();
@@ -21,8 +21,8 @@ impl Default for MyApp {
     }
 }
 
-impl epi::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
+impl eframe::App for MyApp {
+    fn update(&mut self, ctx: &egui::Context, frame: &eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("My egui Application");
             ui.horizontal(|ui| {

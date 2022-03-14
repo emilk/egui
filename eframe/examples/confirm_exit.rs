@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use eframe::{egui, epi};
+use eframe::egui;
 
 fn main() {
     let options = eframe::NativeOptions::default();
@@ -13,13 +13,13 @@ struct MyApp {
     is_exiting: bool,
 }
 
-impl epi::App for MyApp {
+impl eframe::App for MyApp {
     fn on_exit_event(&mut self) -> bool {
         self.is_exiting = true;
         self.can_exit
     }
 
-    fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Try to close the window");
         });

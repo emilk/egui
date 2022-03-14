@@ -8,7 +8,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use eframe::{egui, epi};
+use eframe::egui;
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -27,7 +27,7 @@ struct MyApp {
 }
 
 impl MyApp {
-    fn new(cc: &epi::CreationContext<'_>) -> Self {
+    fn new(cc: &eframe::CreationContext<'_>) -> Self {
         Self {
             rotating_triangle: Arc::new(Mutex::new(RotatingTriangle::new(&cc.gl))),
             angle: 0.0,
@@ -35,8 +35,8 @@ impl MyApp {
     }
 }
 
-impl epi::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &epi::Frame) {
+impl eframe::App for MyApp {
+    fn update(&mut self, ctx: &egui::Context, _frame: &eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;

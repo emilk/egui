@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use eframe::{egui, epi};
+use eframe::egui;
 use egui_extras::RetainedImage;
 use poll_promise::Promise;
 
@@ -19,8 +19,8 @@ struct MyApp {
     promise: Option<Promise<ehttp::Result<RetainedImage>>>,
 }
 
-impl epi::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &epi::Frame) {
+impl eframe::App for MyApp {
+    fn update(&mut self, ctx: &egui::Context, _frame: &eframe::Frame) {
         let promise = self.promise.get_or_insert_with(|| {
             // Begin download.
             // We download the image using `ehttp`, a library that works both in WASM and on native.
