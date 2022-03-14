@@ -21,6 +21,7 @@ fn main() {
 }
 
 struct MyApp {
+    /// Behind an `Arc<Mutex<…>>` so we can pass it to [`egui::PaintCallback`] and paint later.
     rotating_triangle: Arc<Mutex<RotatingTriangle>>,
     angle: f32,
 }
@@ -73,8 +74,7 @@ impl MyApp {
             rect,
             callback: std::sync::Arc::new(move |render_ctx| {
                 if let Some(painter) = render_ctx.downcast_ref::<egui_glow::Painter>() {
-                    let rotating_triangle = rotating_triangle.lock();
-                    rotating_triangle.paint(painter.gl(), angle);
+                    rotating_triangle.lock().paint(painter.gl(), angle);
                 } else {
                     eprintln!("Can't do custom painting because we are not using a glow context");
                 }

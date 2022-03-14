@@ -73,19 +73,6 @@ pub fn run(app_name: &str, native_options: &epi::NativeOptions, app_creator: epi
         gl: gl.clone(),
     });
 
-    {
-        // things that happened during app creation:
-        let app_output = integration.frame.take_app_output();
-        if app_output.quit {
-            integration.quit = app.on_exit_event();
-        }
-        egui_winit::epi::handle_app_output(
-            gl_window.window(),
-            integration.egui_ctx.pixels_per_point(),
-            app_output,
-        );
-    }
-
     if app.warm_up_enabled() {
         integration.warm_up(app.as_mut(), gl_window.window());
     }

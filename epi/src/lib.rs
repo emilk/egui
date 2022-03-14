@@ -100,15 +100,7 @@ use std::sync::{Arc, Mutex};
 
 /// The is is how your app is created.
 ///
-/// You need to define a function with this signature.
-///
-/// You can use this to customize the look of egui, e.g to call [`egui::Context::set_fonts`],
-/// [`egui::Context::set_visuals`] etc.
-///
-/// You can use the storage to restore app state state (requires the "persistence" feature).
-///
-/// The [`glow::Context`] allows you to initialize OpenGL resources (e.g. shaders) that
-/// you might want to use later from a [`egui::PaintCallback`].
+/// You can use the [`CreationContext`] to setup egui, restore state, setup OpenGL things, etc.
 pub type AppCreator = fn(&CreationContext<'_>) -> Box<dyn App>;
 
 /// Data that is passed to [`AppCreator`] that can be used to setup and initialize your app.
@@ -122,7 +114,7 @@ pub struct CreationContext<'s> {
     /// Information about the surrounding environment.
     pub integration_info: IntegrationInfo,
 
-    /// You can use the storage to restore app state state (requires the "persistence" feature).
+    /// You can use the storage to restore app state(requires the "persistence" feature).
     #[cfg(feature = "persistence")]
     pub storage: Option<&'s dyn Storage>,
 
