@@ -287,7 +287,7 @@ impl Painter {
         &mut self,
         inner_size: [u32; 2],
         pixels_per_point: f32,
-        clipped_primitives: Vec<egui::ClippedPrimitive>,
+        clipped_primitives: &[egui::ClippedPrimitive],
         textures_delta: &egui::TexturesDelta,
     ) {
         for (id, image_delta) in &textures_delta.set {
@@ -324,7 +324,7 @@ impl Painter {
         &mut self,
         inner_size: [u32; 2],
         pixels_per_point: f32,
-        clipped_primitives: Vec<egui::ClippedPrimitive>,
+        clipped_primitives: &[egui::ClippedPrimitive],
     ) {
         self.assert_not_destroyed();
 
@@ -340,7 +340,7 @@ impl Painter {
             primitive,
         } in clipped_primitives
         {
-            set_clip_rect(&self.gl, size_in_pixels, pixels_per_point, clip_rect);
+            set_clip_rect(&self.gl, size_in_pixels, pixels_per_point, *clip_rect);
 
             match primitive {
                 Primitive::Mesh(mesh) => {

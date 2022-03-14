@@ -70,7 +70,7 @@ impl Painter {
         display: &glium::Display,
         target: &mut T,
         pixels_per_point: f32,
-        clipped_primitives: Vec<egui::ClippedPrimitive>,
+        clipped_primitives: &[egui::ClippedPrimitive],
         textures_delta: &egui::TexturesDelta,
     ) {
         for (id, image_delta) in &textures_delta.set {
@@ -92,7 +92,7 @@ impl Painter {
         display: &glium::Display,
         target: &mut T,
         pixels_per_point: f32,
-        clipped_primitives: Vec<egui::ClippedPrimitive>,
+        clipped_primitives: &[egui::ClippedPrimitive],
     ) {
         for egui::ClippedPrimitive {
             clip_rect,
@@ -116,7 +116,7 @@ impl Painter {
         target: &mut T,
         display: &glium::Display,
         pixels_per_point: f32,
-        clip_rect: Rect,
+        clip_rect: &Rect,
         mesh: &Mesh,
     ) {
         debug_assert!(mesh.is_valid());

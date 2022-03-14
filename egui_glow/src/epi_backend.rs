@@ -108,7 +108,7 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
                 painter.paint_and_update_textures(
                     gl_window.window().inner_size().into(),
                     integration.egui_ctx.pixels_per_point(),
-                    clipped_primitives,
+                    &clipped_primitives,
                     &textures_delta,
                 );
 

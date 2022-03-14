@@ -164,7 +164,7 @@ impl EguiGlium {
             display,
             target,
             self.egui_ctx.pixels_per_point(),
-            clipped_primitives,
+            &clipped_primitives,
             &textures_delta,
         );
     }

@@ -55,7 +55,7 @@ impl WrappedGlowPainter {
 
     pub fn paint_primitives(
         &mut self,
-        clipped_primitives: Vec<ClippedPrimitive>,
+        clipped_primitives: &[ClippedPrimitive],
         pixels_per_point: f32,
     ) -> Result<(), JsValue> {
         let canvas_dimension = [self.canvas.width(), self.canvas.height()];
@@ -66,7 +66,7 @@ impl WrappedGlowPainter {
 
     pub fn paint_and_update_textures(
         &mut self,
-        clipped_primitives: Vec<egui::ClippedPrimitive>,
+        clipped_primitives: &[egui::ClippedPrimitive],
         pixels_per_point: f32,
         textures_delta: &egui::TexturesDelta,
     ) -> Result<(), JsValue> {
