@@ -344,7 +344,7 @@ impl Painter {
 
             match primitive {
                 Primitive::Mesh(mesh) => {
-                    self.paint_mesh(&mesh);
+                    self.paint_mesh(mesh);
                 }
                 Primitive::Callback(callback) => {
                     if callback.rect.is_positive() {
