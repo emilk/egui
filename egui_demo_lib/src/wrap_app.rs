@@ -12,14 +12,26 @@ pub struct Apps {
 }
 
 impl Apps {
-    fn iter_mut(&mut self) -> impl Iterator<Item = (&str, &mut dyn epi::App)> {
+    fn iter_mut(&mut self) -> impl Iterator<Item = (&str, &str, &mut dyn epi::App)> {
         vec![
-            ("demo", &mut self.demo as &mut dyn epi::App),
-            ("easymark", &mut self.easy_mark_editor as &mut dyn epi::App),
+            ("✨ Demos", "demo", &mut self.demo as &mut dyn epi::App),
+            (
+                "🖹 EasyMark editor",
+                "easymark",
+                &mut self.easy_mark_editor as &mut dyn epi::App,
+            ),
             #[cfg(feature = "http")]
-            ("http", &mut self.http as &mut dyn epi::App),
-            ("clock", &mut self.clock as &mut dyn epi::App),
-            ("colors", &mut self.color_test as &mut dyn epi::App),
+            ("⬇ HTTP", "http", &mut self.http as &mut dyn epi::App),
+            (
+                "🕑 Fractal Clock",
+                "clock",
+                &mut self.clock as &mut dyn epi::App,
+            ),
+            (
+                "🎨 Color test",
+                "colors",
+                &mut self.color_test as &mut dyn epi::App,
+            ),
         ]
         .into_iter()
     }
@@ -37,24 +49,24 @@ pub struct WrapApp {
     dropped_files: Vec<egui::DroppedFile>,
 }
 
-impl epi::App for WrapApp {
-    fn name(&self) -> &str {
-        "egui demo apps"
-    }
-
-    fn setup(
-        &mut self,
+impl WrapApp {
+    pub fn new(
         _ctx: &egui::Context,
         _frame: &epi::Frame,
         _storage: Option<&dyn epi::Storage>,
         _gl: &std::rc::Rc<epi::glow::Context>,
-    ) {
+    ) -> Box<dyn epi::App> {
         #[cfg(feature = "persistence")]
         if let Some(storage) = _storage {
-            *self = epi::get_value(storage, epi::APP_KEY).unwrap_or_default();
+            let app: Self = epi::get_value(storage, epi::APP_KEY).unwrap_or_default();
+            return Box::new(app);
         }
-    }
 
+        Box::new(WrapApp::default())
+    }
+}
+
+impl epi::App for WrapApp {
     #[cfg(feature = "persistence")]
     fn save(&mut self, storage: &mut dyn epi::Storage) {
         epi::set_value(storage, epi::APP_KEY, self);
@@ -111,7 +123,7 @@ impl epi::App for WrapApp {
 
         let mut found_anchor = false;
 
-        for (anchor, app) in self.apps.iter_mut() {
+        for (_name, anchor, app) in self.apps.iter_mut() {
             if anchor == self.selected_anchor || ctx.memory().everything_is_visible() {
                 app.update(ctx, frame);
                 found_anchor = true;
@@ -138,9 +150,9 @@ impl WrapApp {
             ui.checkbox(&mut self.backend_panel.open, "💻 Backend");
             ui.separator();
 
-            for (anchor, app) in self.apps.iter_mut() {
+            for (name, anchor, _app) in self.apps.iter_mut() {
                 if ui
-                    .selectable_label(self.selected_anchor == anchor, app.name())
+                    .selectable_label(self.selected_anchor == anchor, name)
                     .clicked()
                 {
                     self.selected_anchor = anchor.to_owned();

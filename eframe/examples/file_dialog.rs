@@ -9,10 +9,6 @@ struct MyApp {
 }
 
 impl epi::App for MyApp {
-    fn name(&self) -> &str {
-        "Native file dialogs and drag-and-drop files"
-    }
-
     fn update(&mut self, ctx: &egui::Context, _frame: &epi::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.label("Drag-and-drop files onto the window!");
@@ -99,5 +95,9 @@ fn main() {
         drag_and_drop_support: true,
         ..Default::default()
     };
-    eframe::run_native(Box::new(MyApp::default()), options);
+    eframe::run_native(
+        "Native file dialogs and drag-and-drop files",
+        options,
+        |_, _, _, _| Box::new(MyApp::default()),
+    );
 }

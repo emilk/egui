@@ -9,10 +9,6 @@ struct MyApp {
 }
 
 impl epi::App for MyApp {
-    fn name(&self) -> &str {
-        "Confirm exit"
-    }
-
     fn on_exit_event(&mut self) -> bool {
         self.is_exiting = true;
         self.can_exit
@@ -45,5 +41,7 @@ impl epi::App for MyApp {
 
 fn main() {
     let options = eframe::NativeOptions::default();
-    eframe::run_native(Box::new(MyApp::default()), options);
+    eframe::run_native("Confirm exit", options, |_, _, _, _| {
+        Box::new(MyApp::default())
+    });
 }

@@ -55,7 +55,6 @@ pub fn run(app_name: &str, native_options: &epi::NativeOptions, app_creator: epi
         "egui_glow",
         painter.max_texture_side(),
         gl_window.window(),
-        &gl,
         persistence,
     );
 
@@ -88,7 +87,6 @@ pub fn run(app_name: &str, native_options: &epi::NativeOptions, app_creator: epi
 
     if app.warm_up_enabled() {
         integration.warm_up(app.as_mut(), gl_window.window());
->>>>>>> d870c2f1 (Change how eframe apps are created)
     }
 
     let mut is_focused = true;

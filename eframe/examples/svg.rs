@@ -23,10 +23,6 @@ impl Default for MyApp {
 }
 
 impl epi::App for MyApp {
-    fn name(&self) -> &str {
-        "svg example"
-    }
-
     fn update(&mut self, ctx: &egui::Context, _frame: &epi::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("SVG example");
@@ -45,5 +41,7 @@ fn main() {
         initial_window_size: Some(egui::vec2(1000.0, 700.0)),
         ..Default::default()
     };
-    eframe::run_native(Box::new(MyApp::default()), options);
+    eframe::run_native("svg example", options, |_, _, _, _| {
+        Box::new(MyApp::default())
+    });
 }

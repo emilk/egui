@@ -17,10 +17,6 @@ impl Default for MyApp {
 }
 
 impl epi::App for MyApp {
-    fn name(&self) -> &str {
-        "My egui App"
-    }
-
     fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("My egui Application");
@@ -42,5 +38,7 @@ impl epi::App for MyApp {
 
 fn main() {
     let options = eframe::NativeOptions::default();
-    eframe::run_native(Box::new(MyApp::default()), options);
+    eframe::run_native("My egui App", options, |_, _, _, _| {
+        Box::new(MyApp::default())
+    });
 }

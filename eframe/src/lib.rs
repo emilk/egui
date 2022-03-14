@@ -109,8 +109,11 @@ pub use egui_web::wasm_bindgen;
 /// }
 /// ```
 #[cfg(target_arch = "wasm32")]
-pub fn start_web(canvas_id: &str, app: Box<dyn epi::App>) -> Result<(), wasm_bindgen::JsValue> {
-    egui_web::start(canvas_id, app)?;
+pub fn start_web(
+    canvas_id: &str,
+    app_creator: epi::AppCreator,
+) -> Result<(), wasm_bindgen::JsValue> {
+    egui_web::start(canvas_id, app_creator)?;
     Ok(())
 }
 

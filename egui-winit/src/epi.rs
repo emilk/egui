@@ -231,7 +231,6 @@ impl EpiIntegration {
         integration_name: &'static str,
         max_texture_side: usize,
         window: &winit::window::Window,
-        gl: &std::rc::Rc<glow::Context>,
         persistence: crate::epi::Persistence,
     ) -> Self {
         let egui_ctx = egui::Context::default();

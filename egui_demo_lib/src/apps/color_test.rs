@@ -30,10 +30,6 @@ impl Default for ColorTest {
 }
 
 impl epi::App for ColorTest {
-    fn name(&self) -> &str {
-        "🎨 Color test"
-    }
-
     fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             if frame.is_web() {

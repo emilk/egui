@@ -20,10 +20,6 @@ impl Default for MyApp {
 }
 
 impl epi::App for MyApp {
-    fn name(&self) -> &str {
-        "Show an image with eframe/egui"
-    }
-
     fn update(&mut self, ctx: &egui::Context, _frame: &epi::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("This is an image:");
@@ -40,5 +36,7 @@ impl epi::App for MyApp {
 
 fn main() {
     let options = eframe::NativeOptions::default();
-    eframe::run_native(Box::new(MyApp::default()), options);
+    eframe::run_native("Show an image with eframe/egui", options, |_, _, _, _| {
+        Box::new(MyApp::default())
+    });
 }
