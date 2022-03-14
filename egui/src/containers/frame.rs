@@ -80,14 +80,25 @@ impl Frame {
         }
     }
 
-    /// dark canvas to draw on
-    pub fn dark_canvas(style: &Style) -> Self {
+    /// A canvas to draw on.
+    ///
+    /// In bright mode this will be very bright,
+    /// and in dark mode this will be very dark.
+    pub fn canvas(style: &Style) -> Self {
         Self {
             margin: Margin::symmetric(10.0, 10.0),
             rounding: style.visuals.widgets.noninteractive.rounding,
-            fill: Color32::from_black_alpha(250),
+            fill: style.visuals.extreme_bg_color,
             stroke: style.visuals.window_stroke(),
             ..Default::default()
+        }
+    }
+
+    /// A dark canvas to draw on.
+    pub fn dark_canvas(style: &Style) -> Self {
+        Self {
+            fill: Color32::from_black_alpha(250),
+            ..Self::canvas(style)
         }
     }
 }
