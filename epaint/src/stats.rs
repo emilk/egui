@@ -162,12 +162,13 @@ pub struct PaintStats {
     pub shape_path: AllocInfo,
     pub shape_mesh: AllocInfo,
     pub shape_vec: AllocInfo,
+    pub num_callbacks: usize,
 
     pub text_shape_vertices: AllocInfo,
     pub text_shape_indices: AllocInfo,
 
     /// Number of separate clip rectangles
-    pub clipped_meshes: AllocInfo,
+    pub clipped_primitives: AllocInfo,
     pub vertices: AllocInfo,
     pub indices: AllocInfo,
 }
@@ -215,27 +216,25 @@ impl PaintStats {
             Shape::Mesh(mesh) => {
                 self.shape_mesh += AllocInfo::from_mesh(mesh);
             }
+            Shape::Callback(_) => {
+                self.num_callbacks += 1;
+            }
         }
     }
 
-    pub fn with_clipped_meshes(mut self, clipped_meshes: &[crate::ClippedMesh]) -> Self {
-        self.clipped_meshes += AllocInfo::from_slice(clipped_meshes);
-        for ClippedMesh(_, indices) in clipped_meshes {
-            self.vertices += AllocInfo::from_slice(&indices.vertices);
-            self.indices += AllocInfo::from_slice(&indices.indices);
+    pub fn with_clipped_primitives(
+        mut self,
+        clipped_primitives: &[crate::ClippedPrimitive],
+    ) -> Self {
+        self.clipped_primitives += AllocInfo::from_slice(clipped_primitives);
+        for clipped_primitive in clipped_primitives {
+            if let Primitive::Mesh(mesh) = &clipped_primitive.primitive {
+                self.vertices += AllocInfo::from_slice(&mesh.vertices);
+                self.indices += AllocInfo::from_slice(&mesh.indices);
+            }
         }
         self
     }
-
-    // pub fn total(&self) -> AllocInfo {
-    //     self.shapes
-    //         + self.shape_text
-    //         + self.shape_path
-    //         + self.shape_mesh
-    //         + self.clipped_meshes
-    //         + self.vertices
-    //         + self.indices
-    // }
 }
 
 fn megabytes(size: usize) -> String {

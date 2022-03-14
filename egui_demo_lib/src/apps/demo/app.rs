@@ -19,6 +19,7 @@ impl epi::App for DemoApp {
         _ctx: &egui::Context,
         _frame: &epi::Frame,
         _storage: Option<&dyn epi::Storage>,
+        _gl: &std::rc::Rc<epi::glow::Context>,
     ) {
         #[cfg(feature = "persistence")]
         if let Some(storage) = _storage {

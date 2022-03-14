@@ -1,15 +1,7 @@
-use crate::*;
+use crate::{glow_wrapping::WrappedGlowPainter, *};
 
 use egui::TexturesDelta;
 pub use egui::{pos2, Color32};
-
-// ----------------------------------------------------------------------------
-
-fn create_painter(canvas_id: &str) -> Result<Box<dyn WebPainter>, JsValue> {
-    Ok(Box::new(
-        crate::glow_wrapping::WrappedGlowPainter::new(canvas_id).map_err(JsValue::from)?,
-    ))
-}
 
 // ----------------------------------------------------------------------------
 
@@ -140,7 +132,7 @@ fn test_parse_query() {
 pub struct AppRunner {
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
-    painter: Box<dyn WebPainter>,
+    painter: WrappedGlowPainter,
     pub(crate) input: WebInput,
     app: Box<dyn epi::App>,
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
@@ -154,7 +146,7 @@ pub struct AppRunner {
 
 impl AppRunner {
     pub fn new(canvas_id: &str, app: Box<dyn epi::App>) -> Result<Self, JsValue> {
-        let painter = create_painter(canvas_id)?;
+        let painter = WrappedGlowPainter::new(canvas_id).map_err(JsValue::from)?;
 
         let prefer_dark_mode = crate::prefer_dark_mode();
 
@@ -162,7 +154,7 @@ impl AppRunner {
 
         let frame = epi::Frame::new(epi::backend::FrameData {
             info: epi::IntegrationInfo {
-                name: painter.name(),
+                name: "egui_web",
                 web_info: Some(epi::WebInfo {
                     location: web_location(),
                 }),
@@ -201,11 +193,10 @@ impl AppRunner {
 
         runner.input.raw.max_texture_side = Some(runner.painter.max_texture_side());
 
-        {
-            runner
-                .app
-                .setup(&runner.egui_ctx, &runner.frame, Some(&runner.storage));
-        }
+        let gl = runner.painter.painter.gl();
+        runner
+            .app
+            .setup(&runner.egui_ctx, &runner.frame, Some(&runner.storage), gl);
 
         Ok(runner)
     }
@@ -245,7 +236,7 @@ impl AppRunner {
     /// Returns `true` if egui requests a repaint.
     ///
     /// Call [`Self::paint`] later to paint
-    pub fn logic(&mut self) -> Result<(bool, Vec<egui::ClippedMesh>), JsValue> {
+    pub fn logic(&mut self) -> Result<(bool, Vec<egui::ClippedPrimitive>), JsValue> {
         let frame_start = now_sec();
 
         resize_canvas_to_screen_size(self.canvas_id(), self.app.max_size_points());
@@ -264,7 +255,7 @@ impl AppRunner {
 
         self.handle_platform_output(platform_output);
         self.textures_delta.append(textures_delta);
-        let clipped_meshes = self.egui_ctx.tessellate(shapes);
+        let clipped_primitives = self.egui_ctx.tessellate(shapes);
 
         {
             let app_output = self.frame.take_app_output();
@@ -278,17 +269,17 @@ impl AppRunner {
         }
 
         self.frame.lock().info.cpu_usage = Some((now_sec() - frame_start) as f32);
-        Ok((needs_repaint, clipped_meshes))
+        Ok((needs_repaint, clipped_primitives))
     }
 
     /// Paint the results of the last call to [`Self::logic`].
-    pub fn paint(&mut self, clipped_meshes: Vec<egui::ClippedMesh>) -> Result<(), JsValue> {
+    pub fn paint(&mut self, clipped_primitives: &[egui::ClippedPrimitive]) -> Result<(), JsValue> {
         let textures_delta = std::mem::take(&mut self.textures_delta);
 
         self.painter.clear(self.app.clear_color());
 
         self.painter.paint_and_update_textures(
-            clipped_meshes,
+            clipped_primitives,
             self.egui_ctx.pixels_per_point(),
             &textures_delta,
         )?;

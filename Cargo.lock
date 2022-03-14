@@ -991,7 +991,9 @@ dependencies = [
  "egui_web",
  "ehttp",
  "epi",
+ "glow",
  "image",
+ "parking_lot 0.12.0",
  "poll-promise",
  "rfd",
 ]
@@ -1016,6 +1018,7 @@ dependencies = [
  "dark-light",
  "egui",
  "epi",
+ "glow",
  "instant",
  "serde",
  "tracing",
@@ -1217,6 +1220,7 @@ version = "0.17.0"
 dependencies = [
  "directories-next",
  "egui",
+ "glow",
  "ron",
  "serde",
  "tracing",

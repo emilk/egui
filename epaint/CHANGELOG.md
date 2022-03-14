@@ -3,6 +3,7 @@ All notable changes to the epaint crate will be documented in this file.
 
 
 ## Unreleased
+* Add `Shape::Callback` for backend-specific painting ([#1351](https://github.com/emilk/egui/pull/1351)).
 
 
 ## 0.17.0 - 2022-02-22

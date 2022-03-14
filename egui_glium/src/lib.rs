@@ -159,12 +159,12 @@ impl EguiGlium {
     pub fn paint<T: glium::Surface>(&mut self, display: &glium::Display, target: &mut T) {
         let shapes = std::mem::take(&mut self.shapes);
         let textures_delta = std::mem::take(&mut self.textures_delta);
-        let clipped_meshes = self.egui_ctx.tessellate(shapes);
+        let clipped_primitives = self.egui_ctx.tessellate(shapes);
         self.painter.paint_and_update_textures(
             display,
             target,
             self.egui_ctx.pixels_per_point(),
-            clipped_meshes,
+            &clipped_primitives,
             &textures_delta,
         );
     }

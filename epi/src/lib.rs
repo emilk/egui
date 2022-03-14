@@ -94,6 +94,7 @@
 pub mod file_storage;
 
 pub use egui; // Re-export for user convenience
+pub use glow; // Re-export for user convenience
 
 use std::sync::{Arc, Mutex};
 
@@ -112,13 +113,23 @@ pub trait App {
     /// or call [`Frame::request_repaint`] at any time (e.g. from another thread).
     fn update(&mut self, ctx: &egui::Context, frame: &Frame);
 
-    /// Called once before the first frame.
+    /// Called exactly once at startup, before any call to [`Self::update`].
     ///
     /// Allows you to do setup code, e.g to call [`egui::Context::set_fonts`],
     /// [`egui::Context::set_visuals`] etc.
     ///
-    /// Also allows you to restore state, if there is a storage (required the "persistence" feature).
-    fn setup(&mut self, _ctx: &egui::Context, _frame: &Frame, _storage: Option<&dyn Storage>) {}
+    /// Also allows you to restore state, if there is a storage (requires the "persistence" feature).
+    ///
+    /// The [`glow::Context`] allows you to initialize OpenGL resources (e.g. shaders) that
+    /// you might want to use later from a [`egui::PaintCallback`].
+    fn setup(
+        &mut self,
+        _ctx: &egui::Context,
+        _frame: &Frame,
+        _storage: Option<&dyn Storage>,
+        _gl: &std::rc::Rc<glow::Context>,
+    ) {
+    }
 
     /// Called on shutdown, and perhaps at regular intervals. Allows you to save state.
     ///
@@ -359,6 +370,13 @@ impl Frame {
     pub fn take_app_output(&self) -> crate::backend::AppOutput {
         std::mem::take(&mut self.lock().output)
     }
+}
+
+#[cfg(test)]
+#[test]
+fn frame_impl_send_sync() {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<Frame>();
 }
 
 /// Information about the web environment (if applicable).

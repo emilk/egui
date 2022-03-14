@@ -1,6 +1,8 @@
 #![allow(deprecated)] // legacy implement_vertex macro
 #![allow(semicolon_in_expressions_from_macros)] // glium::program! macro
 
+use egui::epaint::Primitive;
+
 use {
     ahash::AHashMap,
     egui::{emath::Rect, epaint::Mesh},
@@ -68,14 +70,14 @@ impl Painter {
         display: &glium::Display,
         target: &mut T,
         pixels_per_point: f32,
-        clipped_meshes: Vec<egui::ClippedMesh>,
+        clipped_primitives: &[egui::ClippedPrimitive],
         textures_delta: &egui::TexturesDelta,
     ) {
         for (id, image_delta) in &textures_delta.set {
             self.set_texture(display, *id, image_delta);
         }
 
-        self.paint_meshes(display, target, pixels_per_point, clipped_meshes);
+        self.paint_primitives(display, target, pixels_per_point, clipped_primitives);
 
         for &id in &textures_delta.free {
             self.free_texture(id);
@@ -85,15 +87,26 @@ impl Painter {
     /// Main entry-point for painting a frame.
     /// You should call `target.clear_color(..)` before
     /// and `target.finish()` after this.
-    pub fn paint_meshes<T: glium::Surface>(
+    pub fn paint_primitives<T: glium::Surface>(
         &mut self,
         display: &glium::Display,
         target: &mut T,
         pixels_per_point: f32,
-        clipped_meshes: Vec<egui::ClippedMesh>,
+        clipped_primitives: &[egui::ClippedPrimitive],
     ) {
-        for egui::ClippedMesh(clip_rect, mesh) in clipped_meshes {
-            self.paint_mesh(target, display, pixels_per_point, clip_rect, &mesh);
+        for egui::ClippedPrimitive {
+            clip_rect,
+            primitive,
+        } in clipped_primitives
+        {
+            match primitive {
+                Primitive::Mesh(mesh) => {
+                    self.paint_mesh(target, display, pixels_per_point, clip_rect, mesh);
+                }
+                Primitive::Callback(_) => {
+                    panic!("Custom rendering callbacks are not implemented in egui_glium");
+                }
+            }
         }
     }
 
@@ -103,7 +116,7 @@ impl Painter {
         target: &mut T,
         display: &glium::Display,
         pixels_per_point: f32,
-        clip_rect: Rect,
+        clip_rect: &Rect,
         mesh: &Mesh,
     ) {
         debug_assert!(mesh.is_valid());

@@ -112,7 +112,7 @@
 //! ``` no_run
 //! # fn handle_platform_output(_: egui::PlatformOutput) {}
 //! # fn gather_input() -> egui::RawInput { egui::RawInput::default() }
-//! # fn paint(textures_detla: egui::TexturesDelta, _: Vec<egui::ClippedMesh>) {}
+//! # fn paint(textures_detla: egui::TexturesDelta, _: Vec<egui::ClippedPrimitive>) {}
 //! let mut ctx = egui::Context::default();
 //!
 //! // Game loop:
@@ -128,8 +128,8 @@
 //!         });
 //!     });
 //!     handle_platform_output(full_output.platform_output);
-//!     let clipped_meshes = ctx.tessellate(full_output.shapes); // create triangles to paint
-//!     paint(full_output.textures_delta, clipped_meshes);
+//!     let clipped_primitives = ctx.tessellate(full_output.shapes); // create triangles to paint
+//!     paint(full_output.textures_delta, clipped_primitives);
 //! }
 //! ```
 //!
@@ -386,8 +386,8 @@ pub use epaint::{
     color, mutex,
     text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
     textures::TexturesDelta,
-    AlphaImage, ClippedMesh, Color32, ColorImage, ImageData, Mesh, Rgba, Rounding, Shape, Stroke,
-    TextureHandle, TextureId,
+    AlphaImage, ClippedPrimitive, Color32, ColorImage, ImageData, Mesh, Rgba, Rounding, Shape,
+    Stroke, TextureHandle, TextureId,
 };
 
 pub mod text {

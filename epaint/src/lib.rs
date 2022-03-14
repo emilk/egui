@@ -110,7 +110,7 @@ pub use {
     image::{AlphaImage, ColorImage, ImageData, ImageDelta},
     mesh::{Mesh, Mesh16, Vertex},
     shadow::Shadow,
-    shape::{CircleShape, PathShape, RectShape, Rounding, Shape, TextShape},
+    shape::{CircleShape, PaintCallback, PathShape, RectShape, Rounding, Shape, TextShape},
     stats::PaintStats,
     stroke::Stroke,
     tessellator::{tessellate_shapes, TessellationOptions, Tessellator},
@@ -166,18 +166,24 @@ pub struct ClippedShape(
     pub Shape,
 );
 
-/// A [`Mesh`] within a clip rectangle.
+/// A [`Mesh`] or [`PaintCallback`] within a clip rectangle.
 ///
 /// Everything is using logical points.
 #[derive(Clone, Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct ClippedMesh(
+pub struct ClippedPrimitive {
     /// Clip / scissor rectangle.
     /// Only show the part of the [`Mesh`] that falls within this.
-    pub emath::Rect,
-    /// The shape
-    pub Mesh,
-);
+    pub clip_rect: emath::Rect,
+    /// What to paint - either a [`Mesh`] or a [`PaintCallback`].
+    pub primitive: Primitive,
+}
+
+/// A rendering primitive - either a [`Mesh`] or a [`PaintCallback`].
+#[derive(Clone, Debug)]
+pub enum Primitive {
+    Mesh(Mesh),
+    Callback(PaintCallback),
+}
 
 // ----------------------------------------------------------------------------
 
