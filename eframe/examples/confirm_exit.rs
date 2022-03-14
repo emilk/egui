@@ -2,6 +2,11 @@
 
 use eframe::{egui, epi};
 
+fn main() {
+    let options = eframe::NativeOptions::default();
+    eframe::run_native("Confirm exit", options, |_cc| Box::new(MyApp::default()));
+}
+
 #[derive(Default)]
 struct MyApp {
     can_exit: bool,
@@ -37,9 +42,4 @@ impl epi::App for MyApp {
                 });
         }
     }
-}
-
-fn main() {
-    let options = eframe::NativeOptions::default();
-    eframe::run_native("Confirm exit", options, |_cc| Box::new(MyApp::default()));
 }

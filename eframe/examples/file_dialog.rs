@@ -2,6 +2,18 @@
 
 use eframe::{egui, epi};
 
+fn main() {
+    let options = eframe::NativeOptions {
+        drag_and_drop_support: true,
+        ..Default::default()
+    };
+    eframe::run_native(
+        "Native file dialogs and drag-and-drop files",
+        options,
+        |_cc| Box::new(MyApp::default()),
+    );
+}
+
 #[derive(Default)]
 struct MyApp {
     dropped_files: Vec<egui::DroppedFile>,
@@ -88,16 +100,4 @@ impl MyApp {
             self.dropped_files = ctx.input().raw.dropped_files.clone();
         }
     }
-}
-
-fn main() {
-    let options = eframe::NativeOptions {
-        drag_and_drop_support: true,
-        ..Default::default()
-    };
-    eframe::run_native(
-        "Native file dialogs and drag-and-drop files",
-        options,
-        |_cc| Box::new(MyApp::default()),
-    );
 }

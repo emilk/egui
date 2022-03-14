@@ -18,6 +18,11 @@
 //! ``` no_run
 //! use eframe::{epi, egui};
 //!
+//! fn main() {
+//!     let native_options = eframe::NativeOptions::default();
+//!     eframe::run_native("My egui App", native_options, |cc| Box::new(MyEguiApp::new(cc)));
+//! }
+//!
 //! #[derive(Default)]
 //! struct MyEguiApp {}
 //!
@@ -38,12 +43,6 @@
 //!        });
 //!    }
 //! }
-//!
-//! fn main() {
-//!     let app = MyEguiApp::default();
-//!     let native_options = eframe::NativeOptions::default();
-//!     eframe::run_native("My egui App", native_options, |cc| Box::new(MyEguiApp::new(cc)));
-//! }
 //! ```
 //!
 //! ## Usage, web:
@@ -55,7 +54,6 @@
 //! #[cfg(target_arch = "wasm32")]
 //! #[wasm_bindgen]
 //! pub fn start(canvas_id: &str) -> Result<(), eframe::wasm_bindgen::JsValue> {
-//!     let app = MyEguiApp::default();
 //!     eframe::start_web(canvas_id, |cc| Box::new(MyApp::new(cc)))
 //! }
 //! ```
@@ -124,6 +122,11 @@ pub fn start_web(
 /// ``` no_run
 /// use eframe::{epi, egui};
 ///
+/// fn main() {
+///     let native_options = eframe::NativeOptions::default();
+///     eframe::run_native("MyApp", native_options, |cc| Box::new(MyEguiApp::new(cc)));
+/// }
+///
 /// #[derive(Default)]
 /// struct MyEguiApp {}
 ///
@@ -143,12 +146,6 @@ pub fn start_web(
 ///            ui.heading("Hello World!");
 ///        });
 ///    }
-/// }
-///
-/// fn main() {
-///     let app = MyEguiApp::default();
-///     let native_options = eframe::NativeOptions::default();
-///     eframe::run_native("MyApp", native_options, |cc| Box::new(MyEguiApp::new(cc)));
 /// }
 /// ```
 #[cfg(not(target_arch = "wasm32"))]

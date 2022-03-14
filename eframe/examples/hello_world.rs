@@ -2,6 +2,11 @@
 
 use eframe::{egui, epi};
 
+fn main() {
+    let options = eframe::NativeOptions::default();
+    eframe::run_native("My egui App", options, |_cc| Box::new(MyApp::default()));
+}
+
 struct MyApp {
     name: String,
     age: u32,
@@ -34,9 +39,4 @@ impl epi::App for MyApp {
         // Resize the native window to be just the size we need it to be:
         frame.set_window_size(ctx.used_size());
     }
-}
-
-fn main() {
-    let options = eframe::NativeOptions::default();
-    eframe::run_native("My egui App", options, |_cc| Box::new(MyApp::default()));
 }

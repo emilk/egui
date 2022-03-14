@@ -6,6 +6,14 @@
 
 use eframe::{egui, epi};
 
+fn main() {
+    let options = eframe::NativeOptions {
+        initial_window_size: Some(egui::vec2(1000.0, 700.0)),
+        ..Default::default()
+    };
+    eframe::run_native("svg example", options, |_cc| Box::new(MyApp::default()));
+}
+
 struct MyApp {
     svg_image: egui_extras::RetainedImage,
 }
@@ -34,12 +42,4 @@ impl epi::App for MyApp {
             self.svg_image.show_max_size(ui, max_size);
         });
     }
-}
-
-fn main() {
-    let options = eframe::NativeOptions {
-        initial_window_size: Some(egui::vec2(1000.0, 700.0)),
-        ..Default::default()
-    };
-    eframe::run_native("svg example", options, |_cc| Box::new(MyApp::default()));
 }

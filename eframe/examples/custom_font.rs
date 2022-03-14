@@ -1,4 +1,13 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
+
 use eframe::{egui, epi};
+
+fn main() {
+    let options = eframe::NativeOptions::default();
+    eframe::run_native("egui example: custom font", options, |cc| {
+        Box::new(MyApp::new(cc))
+    });
+}
 
 fn setup_custom_fonts(ctx: &egui::Context) {
     // Start with the default fonts (we will be adding to them rather than replacing them).
@@ -49,11 +58,4 @@ impl epi::App for MyApp {
             ui.text_edit_multiline(&mut self.text);
         });
     }
-}
-
-fn main() {
-    let options = eframe::NativeOptions::default();
-    eframe::run_native("egui example: custom font", options, |cc| {
-        Box::new(MyApp::new(cc))
-    });
 }
