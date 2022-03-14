@@ -68,7 +68,6 @@ pub fn run(app_name: &str, native_options: &epi::NativeOptions, app_creator: epi
     let mut app = app_creator(&epi::CreationContext {
         egui_ctx: integration.egui_ctx.clone(),
         integration_info: integration.frame.info(),
-        #[cfg(feature = "persistence")]
         storage: integration.persistence.storage(),
         gl: gl.clone(),
     });

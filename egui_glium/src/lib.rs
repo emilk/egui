@@ -2,7 +2,6 @@
 //!
 //! The main type you want to use is [`EguiGlium`].
 //!
-//! This library is an [`epi`] backend.
 //! If you are writing an app, you may want to look at [`eframe`](https://docs.rs/eframe) instead.
 
 // Forbid warnings in release builds:

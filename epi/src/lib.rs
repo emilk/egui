@@ -115,7 +115,6 @@ pub struct CreationContext<'s> {
     pub integration_info: IntegrationInfo,
 
     /// You can use the storage to restore app state(requires the "persistence" feature).
-    #[cfg(feature = "persistence")]
     pub storage: Option<&'s dyn Storage>,
 
     /// The [`glow::Context`] allows you to initialize OpenGL resources (e.g. shaders) that
