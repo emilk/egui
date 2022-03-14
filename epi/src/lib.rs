@@ -98,6 +98,20 @@ pub use glow; // Re-export for user convenience
 
 use std::sync::{Arc, Mutex};
 
+/// The is is how your app is created.
+///
+/// You need to define a function with this signature.
+///
+/// You can use this to customize the look of egui, e.g to call [`egui::Context::set_fonts`],
+/// [`egui::Context::set_visuals`] etc.
+///
+/// You can use the storage to restore app state state (requires the "persistence" feature).
+///
+/// The [`glow::Context`] allows you to initialize OpenGL resources (e.g. shaders) that
+/// you might want to use later from a [`egui::PaintCallback`].
+pub type AppCreator =
+    fn(&egui::Context, &Frame, Option<&dyn Storage>, &std::rc::Rc<glow::Context>) -> Box<dyn App>;
+
 // ----------------------------------------------------------------------------
 
 /// Implement this trait to write apps that can be compiled both natively using the [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium) crate,
@@ -113,35 +127,17 @@ pub trait App {
     /// or call [`Frame::request_repaint`] at any time (e.g. from another thread).
     fn update(&mut self, ctx: &egui::Context, frame: &Frame);
 
-    /// Called exactly once at startup, before any call to [`Self::update`].
-    ///
-    /// Allows you to do setup code, e.g to call [`egui::Context::set_fonts`],
-    /// [`egui::Context::set_visuals`] etc.
-    ///
-    /// Also allows you to restore state, if there is a storage (requires the "persistence" feature).
-    ///
-    /// The [`glow::Context`] allows you to initialize OpenGL resources (e.g. shaders) that
-    /// you might want to use later from a [`egui::PaintCallback`].
-    fn setup(
-        &mut self,
-        _ctx: &egui::Context,
-        _frame: &Frame,
-        _storage: Option<&dyn Storage>,
-        _gl: &std::rc::Rc<glow::Context>,
-    ) {
-    }
-
     /// Called on shutdown, and perhaps at regular intervals. Allows you to save state.
     ///
     /// Only called when the "persistence" feature is enabled.
     ///
-    /// On web the states is stored to "Local Storage".
+    /// On web the state is stored to "Local Storage".
     /// On native the path is picked using [`directories_next::ProjectDirs::data_dir`](https://docs.rs/directories-next/2.0.0/directories_next/struct.ProjectDirs.html#method.data_dir) which is:
     /// * Linux:   `/home/UserName/.local/share/APPNAME`
     /// * macOS:   `/Users/UserName/Library/Application Support/APPNAME`
     /// * Windows: `C:\Users\UserName\AppData\Roaming\APPNAME`
     ///
-    /// where `APPNAME` is what is returned by [`Self::name()`].
+    /// where `APPNAME` is what is given to `eframe::run_native`.
     fn save(&mut self, _storage: &mut dyn Storage) {}
 
     /// Called before an exit that can be aborted.
@@ -156,16 +152,13 @@ pub trait App {
         true
     }
 
-    /// Called once on shutdown (before or after [`Self::save`]). If you need to abort an exit use
-    /// [`Self::on_exit_event`]
-    fn on_exit(&mut self) {}
+    /// Called once on shutdown, after [`Self::save`].
+    ///
+    /// If you need to abort an exit use [`Self::on_exit_event`].
+    fn on_exit(&mut self, _gl: &glow::Context) {}
 
     // ---------
     // Settings:
-
-    /// The name of your App, used for the title bar of native windows
-    /// and the save location of persistence (see [`Self::save`]).
-    fn name(&self) -> &str;
 
     /// Time between automatic calls to [`Self::save`]
     fn auto_save_interval(&self) -> std::time::Duration {

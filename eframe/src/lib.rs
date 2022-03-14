@@ -117,6 +117,11 @@ pub fn start_web(canvas_id: &str, app: Box<dyn epi::App>) -> Result<(), wasm_bin
 // ----------------------------------------------------------------------------
 // When compiling natively
 
+/// This is how you start a native (desktop) app.
+///
+/// The first argument is name of your app, used for the title bar of the native window
+/// and the save location of persistence (see [`epi::App::save`]).
+///
 /// Call from `fn main` like this:
 /// ``` no_run
 /// use eframe::{epi, egui};
@@ -124,11 +129,22 @@ pub fn start_web(canvas_id: &str, app: Box<dyn epi::App>) -> Result<(), wasm_bin
 /// #[derive(Default)]
 /// struct MyEguiApp {}
 ///
-/// impl epi::App for MyEguiApp {
-///    fn name(&self) -> &str {
-///        "My egui App"
-///    }
+/// impl MyEguiApp {
+///     fn new(
+///         _ctx: &egui::Context,
+///         _frame: &epi::Frame,
+///         _storage: Option<&dyn epi::Storage>,
+///         _gl: &std::rc::Rc<glow::Context>
+///     ) -> Box<dyn epi::App> {
+///         // Customize egui here with ctx.set_fonts and ctx.set_visuals.
+///         // Restore app state using the storage (requires the "persistence" feature).
+///         // Use the glow::Context to create graphics shaders and buffers that you can use
+///         // for e.g. egui::PaintCallback
+///         Box::new(MyEguiApp::default())
+///     }
+/// }
 ///
+/// impl epi::App for MyEguiApp {
 ///    fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
 ///        egui::CentralPanel::default().show(ctx, |ui| {
 ///            ui.heading("Hello World!");
@@ -139,10 +155,14 @@ pub fn start_web(canvas_id: &str, app: Box<dyn epi::App>) -> Result<(), wasm_bin
 /// fn main() {
 ///     let app = MyEguiApp::default();
 ///     let native_options = eframe::NativeOptions::default();
-///     eframe::run_native(Box::new(app), native_options);
+///     eframe::run_native("MyApp", native_options, MyEguiApp::new);
 /// }
 /// ```
 #[cfg(not(target_arch = "wasm32"))]
-pub fn run_native(app: Box<dyn epi::App>, native_options: epi::NativeOptions) -> ! {
-    egui_glow::run(app, &native_options)
+pub fn run_native(
+    app_name: &str,
+    native_options: epi::NativeOptions,
+    app_creator: epi::AppCreator,
+) -> ! {
+    egui_glow::run(app_name, &native_options, app_creator)
 }

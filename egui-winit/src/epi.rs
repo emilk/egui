@@ -216,14 +216,13 @@ impl Persistence {
 
 /// Everything needed to make a winit-based integration for [`epi`].
 pub struct EpiIntegration {
-    frame: epi::Frame,
-    persistence: crate::epi::Persistence,
+    pub frame: epi::Frame,
+    pub persistence: crate::epi::Persistence,
     pub egui_ctx: egui::Context,
     pending_full_output: egui::FullOutput,
     egui_winit: crate::State,
-    pub app: Box<dyn epi::App>,
     /// When set, it is time to quit
-    quit: bool,
+    pub quit: bool,
     can_drag_window: bool,
 }
 
@@ -234,7 +233,6 @@ impl EpiIntegration {
         window: &winit::window::Window,
         gl: &std::rc::Rc<glow::Context>,
         persistence: crate::epi::Persistence,
-        app: Box<dyn epi::App>,
     ) -> Self {
         let egui_ctx = egui::Context::default();
 
@@ -259,41 +257,21 @@ impl EpiIntegration {
             egui_ctx.set_visuals(egui::Visuals::light());
         }
 
-        let mut slf = Self {
+        Self {
             frame,
             persistence,
             egui_ctx,
             egui_winit: crate::State::new(max_texture_side, window),
             pending_full_output: Default::default(),
-            app,
             quit: false,
             can_drag_window: false,
-        };
-
-        slf.setup(window, gl);
-        if slf.app.warm_up_enabled() {
-            slf.warm_up(window);
         }
-
-        slf
     }
 
-    fn setup(&mut self, window: &winit::window::Window, gl: &std::rc::Rc<glow::Context>) {
-        self.app
-            .setup(&self.egui_ctx, &self.frame, self.persistence.storage(), gl);
-        let app_output = self.frame.take_app_output();
-
-        if app_output.quit {
-            self.quit = self.app.on_exit_event();
-        }
-
-        crate::epi::handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
-    }
-
-    fn warm_up(&mut self, window: &winit::window::Window) {
+    pub fn warm_up(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {
         let saved_memory: egui::Memory = self.egui_ctx.memory().clone();
         self.egui_ctx.memory().set_everything_is_visible(true);
-        let full_output = self.update(window);
+        let full_output = self.update(app, window);
         self.pending_full_output.append(full_output); // Handle it next frame
         *self.egui_ctx.memory() = saved_memory; // We don't want to remember that windows were huge.
         self.egui_ctx.clear_animations();
@@ -304,11 +282,11 @@ impl EpiIntegration {
         self.quit
     }
 
-    pub fn on_event(&mut self, event: &winit::event::WindowEvent<'_>) {
+    pub fn on_event(&mut self, app: &mut dyn epi::App, event: &winit::event::WindowEvent<'_>) {
         use winit::event::{ElementState, MouseButton, WindowEvent};
 
         match event {
-            WindowEvent::CloseRequested => self.quit = self.app.on_exit_event(),
+            WindowEvent::CloseRequested => self.quit = app.on_exit_event(),
             WindowEvent::Destroyed => self.quit = true,
             WindowEvent::MouseInput {
                 button: MouseButton::Left,
@@ -321,12 +299,16 @@ impl EpiIntegration {
         self.egui_winit.on_event(&self.egui_ctx, event);
     }
 
-    pub fn update(&mut self, window: &winit::window::Window) -> egui::FullOutput {
+    pub fn update(
+        &mut self,
+        app: &mut dyn epi::App,
+        window: &winit::window::Window,
+    ) -> egui::FullOutput {
         let frame_start = instant::Instant::now();
 
         let raw_input = self.egui_winit.take_egui_input(window);
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
-            self.app.update(egui_ctx, &self.frame);
+            app.update(egui_ctx, &self.frame);
         });
         self.pending_full_output.append(full_output);
         let full_output = std::mem::take(&mut self.pending_full_output);
@@ -336,7 +318,7 @@ impl EpiIntegration {
             app_output.drag_window &= self.can_drag_window; // Necessary on Windows; see https://github.com/emilk/egui/pull/1108
             self.can_drag_window = false;
             if app_output.quit {
-                self.quit = self.app.on_exit_event();
+                self.quit = app.on_exit_event();
             }
             crate::epi::handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
         }
@@ -356,15 +338,9 @@ impl EpiIntegration {
             .handle_platform_output(window, &self.egui_ctx, platform_output);
     }
 
-    pub fn maybe_autosave(&mut self, window: &winit::window::Window) {
+    pub fn maybe_autosave(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {
         self.persistence
-            .maybe_autosave(&mut *self.app, &self.egui_ctx, window);
-    }
-
-    pub fn on_exit(&mut self, window: &winit::window::Window) {
-        self.app.on_exit();
-        self.persistence
-            .save(&mut *self.app, &self.egui_ctx, window);
+            .maybe_autosave(&mut *app, &self.egui_ctx, window);
     }
 }
 
