@@ -85,17 +85,17 @@
 #[cfg(feature = "chrono")]
 mod datepicker;
 
-mod grid;
 pub mod image;
 mod layout;
 mod sizing;
+mod strip;
 mod table;
 
 #[cfg(feature = "chrono")]
 pub use crate::datepicker::DatePickerButton;
 
-pub use crate::grid::*;
 pub use crate::image::RetainedImage;
 pub(crate) use crate::layout::Layout;
 pub use crate::sizing::Size;
+pub use crate::strip::*;
 pub use crate::table::*;

@@ -1,5 +1,5 @@
 use egui::{Label, Vec2};
-use egui_extras::{GridBuilder, Size, TableBuilder};
+use egui_extras::{Size, StripBuilder, TableBuilder};
 
 /// Shows off a table with dynamic layout
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -31,7 +31,7 @@ impl super::View for TableDemo {
 
         // The table is inside a grid as its container would otherwise grow slowly as it takes all available height
         ui.spacing_mut().item_spacing = Vec2::splat(4.0);
-        GridBuilder::new(ui)
+        StripBuilder::new(ui)
         .size(Size::Remainder)
         .size(Size::Absolute(10.0))
         .vertical(|mut grid| {

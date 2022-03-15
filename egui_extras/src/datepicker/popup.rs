@@ -1,5 +1,5 @@
 use super::{button::DatePickerButtonState, month_data};
-use crate::{GridBuilder, Size, TableBuilder};
+use crate::{Size, StripBuilder, TableBuilder};
 use chrono::{Date, Datelike, NaiveDate, Utc, Weekday};
 use egui::{Align, Button, Color32, ComboBox, Direction, Id, Label, Layout, RichText, Ui, Vec2};
 
@@ -54,7 +54,7 @@ impl<'a> DatePickerPopup<'a> {
         let height = 20.0;
         let spacing = 2.0;
         ui.spacing_mut().item_spacing = Vec2::splat(spacing);
-        GridBuilder::new(ui)
+        StripBuilder::new(ui)
             .sizes(
                 Size::Absolute(height),
                 match (self.combo_boxes, self.arrows) {
@@ -68,11 +68,11 @@ impl<'a> DatePickerPopup<'a> {
                 if self.calendar { 1 } else { 0 },
             )
             .size(Size::Absolute(height))
-            .vertical(|mut grid| {
+            .vertical(|mut strip| {
                 if self.combo_boxes {
-                    grid.grid_noclip(|builder| {
-                        builder.sizes(Size::Remainder, 3).horizontal(|mut grid| {
-                            grid.cell(|ui| {
+                    strip.strip_noclip(|builder| {
+                        builder.sizes(Size::Remainder, 3).horizontal(|mut strip| {
+                            strip.cell(|ui| {
                                 ComboBox::from_id_source("date_picker_year")
                                     .selected_text(popup_state.year.to_string())
                                     .show_ui(ui, |ui| {
@@ -92,7 +92,7 @@ impl<'a> DatePickerPopup<'a> {
                                         }
                                     });
                             });
-                            grid.cell(|ui| {
+                            strip.cell(|ui| {
                                 ComboBox::from_id_source("date_picker_month")
                                     .selected_text(popup_state.month.to_string())
                                     .show_ui(ui, |ui| {
@@ -112,7 +112,7 @@ impl<'a> DatePickerPopup<'a> {
                                         }
                                     });
                             });
-                            grid.cell(|ui| {
+                            strip.cell(|ui| {
                                 ComboBox::from_id_source("date_picker_day")
                                     .selected_text(popup_state.day.to_string())
                                     .show_ui(ui, |ui| {
@@ -137,9 +137,9 @@ impl<'a> DatePickerPopup<'a> {
                 }
 
                 if self.arrows {
-                    grid.grid(|builder| {
-                        builder.sizes(Size::Remainder, 6).horizontal(|mut grid| {
-                            grid.cell(|ui| {
+                    strip.strip(|builder| {
+                        builder.sizes(Size::Remainder, 6).horizontal(|mut strip| {
+                            strip.cell(|ui| {
                                 ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
                                     if ui
                                         .button("<<<")
@@ -153,7 +153,7 @@ impl<'a> DatePickerPopup<'a> {
                                     }
                                 });
                             });
-                            grid.cell(|ui| {
+                            strip.cell(|ui| {
                                 ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
                                     if ui
                                         .button("<<")
@@ -171,7 +171,7 @@ impl<'a> DatePickerPopup<'a> {
                                     }
                                 });
                             });
-                            grid.cell(|ui| {
+                            strip.cell(|ui| {
                                 ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
                                     if ui.button("<").on_hover_text("substract one day").clicked() {
                                         popup_state.day -= 1;
@@ -187,7 +187,7 @@ impl<'a> DatePickerPopup<'a> {
                                     }
                                 });
                             });
-                            grid.cell(|ui| {
+                            strip.cell(|ui| {
                                 ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
                                     if ui.button(">").on_hover_text("add one day").clicked() {
                                         popup_state.day += 1;
@@ -203,7 +203,7 @@ impl<'a> DatePickerPopup<'a> {
                                     }
                                 });
                             });
-                            grid.cell(|ui| {
+                            strip.cell(|ui| {
                                 ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
                                     if ui.button(">>").on_hover_text("add one month").clicked() {
                                         popup_state.month += 1;
@@ -217,7 +217,7 @@ impl<'a> DatePickerPopup<'a> {
                                     }
                                 });
                             });
-                            grid.cell(|ui| {
+                            strip.cell(|ui| {
                                 ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
                                     if ui.button(">>>").on_hover_text("add one year").clicked() {
                                         popup_state.year += 1;
@@ -232,7 +232,7 @@ impl<'a> DatePickerPopup<'a> {
                 }
 
                 if self.calendar {
-                    grid.cell(|ui| {
+                    strip.cell(|ui| {
                         ui.spacing_mut().item_spacing = Vec2::new(1.0, 2.0);
                         TableBuilder::new(ui)
                             .scroll(false)
@@ -321,17 +321,17 @@ impl<'a> DatePickerPopup<'a> {
                     });
                 }
 
-                grid.grid(|builder| {
-                    builder.sizes(Size::Remainder, 3).horizontal(|mut grid| {
-                        grid.empty();
-                        grid.cell(|ui| {
+                strip.strip(|builder| {
+                    builder.sizes(Size::Remainder, 3).horizontal(|mut strip| {
+                        strip.empty();
+                        strip.cell(|ui| {
                             ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
                                 if ui.button("Cancel").clicked() {
                                     close = true;
                                 }
                             });
                         });
-                        grid.cell(|ui| {
+                        strip.cell(|ui| {
                             ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
                                 if ui.button("Save").clicked() {
                                     *self.selection = Date::from_utc(

@@ -8,35 +8,33 @@ pub(crate) enum CellSize {
     Remainder,
 }
 
-/// Cells are positioned in two dimensions
+/// Cells are positioned in two dimensions, cells go in one direction and form lines.
 ///
-/// In a grid there's only one line which goes into the orthogonal direction of the grid:
+/// In a strip there's only one line which goes in the direction of the strip:
 ///
-/// In a horizontal grid, a `[Layout]` with vertical `[LineDirection]` is used.
+/// In a horizontal strip, a `[Layout]` with horizontal `[CellDirection]` is used.
 /// Its cells go from left to right inside this `[Layout]`.
 ///
-/// In a table there's a `[Layout]` for each table row with a horizontal `[LineDirection]`.
-/// Its cells go from left to right.
-pub(crate) enum LineDirection {
-    /// Cells go from top to bottom on each line
-    /// Lines go from left to right
-    Horizontal,
+/// In a table there's a `[Layout]` for each table row with a horizonal `[CellDirection]`.
+/// Its cells go from left to right. And the lines go from top to bottom.
+pub(crate) enum CellDirection {
     /// Cells go from left to right
-    /// Lines go from top to bottom
+    Horizontal,
+    /// Cells go fromtop to bottom
     Vertical,
 }
 
-/// Positions cells in `[LineDirection]` and starts a new line on `[Layout::end_line]`
+/// Positions cells in `[CellDirection]` and starts a new line on `[Layout::end_line]`
 pub struct Layout<'l> {
     ui: &'l mut Ui,
-    direction: LineDirection,
+    direction: CellDirection,
     rect: Rect,
     pos: Pos2,
     max: Pos2,
 }
 
 impl<'l> Layout<'l> {
-    pub(crate) fn new(ui: &'l mut Ui, direction: LineDirection) -> Self {
+    pub(crate) fn new(ui: &'l mut Ui, direction: CellDirection) -> Self {
         let rect = ui.available_rect_before_wrap();
         let pos = rect.left_top();
 
@@ -71,11 +69,11 @@ impl<'l> Layout<'l> {
 
     fn set_pos(&mut self, rect: Rect) {
         match self.direction {
-            LineDirection::Horizontal => {
-                self.pos.y = rect.bottom() + self.ui.spacing().item_spacing.y;
-            }
-            LineDirection::Vertical => {
+            CellDirection::Horizontal => {
                 self.pos.x = rect.right() + self.ui.spacing().item_spacing.x;
+            }
+            CellDirection::Vertical => {
+                self.pos.y = rect.bottom() + self.ui.spacing().item_spacing.y;
             }
         }
 
@@ -130,13 +128,13 @@ impl<'l> Layout<'l> {
     /// only needed for layouts with multiple lines, like Table
     pub fn end_line(&mut self) {
         match self.direction {
-            LineDirection::Horizontal => {
-                self.pos.x = self.max.x;
-                self.pos.y = self.rect.top();
-            }
-            LineDirection::Vertical => {
+            CellDirection::Horizontal => {
                 self.pos.y = self.max.y;
                 self.pos.x = self.rect.left();
+            }
+            CellDirection::Vertical => {
+                self.pos.x = self.max.x;
+                self.pos.y = self.rect.top();
             }
         }
     }

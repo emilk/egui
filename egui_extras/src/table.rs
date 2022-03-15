@@ -1,10 +1,10 @@
 //! Table view with (optional) fixed header and scrolling body.
 //! Cell widths are precalculated with given size hints so we can have tables like this:
 //! | fixed size | all available space/minimum | 30% of available width | fixed size |
-//! Takes all available height, so if you want something below the table, put it in a grid.
+//! Takes all available height, so if you want something below the table, put it in a strip.
 
 use crate::{
-    layout::{CellSize, LineDirection},
+    layout::{CellDirection, CellSize},
     sizing::Sizing,
     Layout, Size,
 };
@@ -12,6 +12,7 @@ use crate::{
 use egui::{Response, Ui};
 use std::cmp;
 
+/// Builder for creating a new [`Table`].
 pub struct TableBuilder<'a> {
     ui: &'a mut Ui,
     sizing: Sizing,
@@ -27,7 +28,7 @@ impl<'a> TableBuilder<'a> {
     /// | fixed size | all available space/minimum | 30% of available width | fixed size |
     ///
     /// In contrast to normal egui behavior, columns/rows do *not* grow with its children!
-    /// Takes all available height, so if you want something below the table, put it in a grid.
+    /// Takes all available height, so if you want something below the table, put it in a strip.
     ///
     /// ### Example
     /// ```
@@ -85,7 +86,7 @@ impl<'a> TableBuilder<'a> {
         self
     }
 
-    /// Add size hint for column [count] times
+    /// Add size hint for column `count` times
     pub fn columns(mut self, size: Size, count: usize) -> Self {
         for _ in 0..count {
             self.sizing.add(size);
@@ -107,7 +108,7 @@ impl<'a> TableBuilder<'a> {
         );
         let ui = self.ui;
         {
-            let mut layout = Layout::new(ui, LineDirection::Vertical);
+            let mut layout = Layout::new(ui, CellDirection::Horizontal);
             {
                 let row = TableRow {
                     layout: &mut layout,
@@ -149,6 +150,8 @@ impl<'a> TableBuilder<'a> {
     }
 }
 
+/// Table struct which can construct a [`TableBody`].
+/// Is created by [`TableBuilder`] by either calling `body` or after creating a header row with `header`.
 pub struct Table<'a> {
     ui: &'a mut Ui,
     widths: Vec<f32>,
@@ -169,7 +172,7 @@ impl<'a> Table<'a> {
         let end_y = ui.available_rect_before_wrap().bottom();
 
         egui::ScrollArea::new([false, self.scroll]).show(ui, move |ui| {
-            let layout = Layout::new(ui, LineDirection::Vertical);
+            let layout = Layout::new(ui, CellDirection::Horizontal);
 
             body(TableBody {
                 layout,
@@ -183,6 +186,8 @@ impl<'a> Table<'a> {
     }
 }
 
+/// The body of a table.
+/// Is created by calling `body` on a [`Table`] (after adding a header row) or [`TableBuilder`] (without a header row).
 pub struct TableBody<'a> {
     layout: Layout<'a>,
     widths: Vec<f32>,
@@ -265,6 +270,8 @@ impl<'a> Drop for TableBody<'a> {
     }
 }
 
+/// The row of a table.
+/// Is created by [`TableRow`] for each created [`TableBody::row`] or each visible row in rows created by calling [`TableBody::rows`].
 pub struct TableRow<'a, 'b> {
     layout: &'b mut Layout<'a>,
     widths: Vec<f32>,
