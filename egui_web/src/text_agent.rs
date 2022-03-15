@@ -1,7 +1,8 @@
 //! The text agent is an `<input>` element used to trigger
 //! mobile keyboard and IME input.
 
-use crate::{canvas_element, AppRunner, AppRunnerRef};
+use crate::{canvas_element, AppRunner, AppRunnerContainer};
+use egui::mutex::MutexGuard;
 use std::cell::Cell;
 use std::rc::Rc;
 use wasm_bindgen::prelude::*;
@@ -21,7 +22,7 @@ pub fn text_agent() -> web_sys::HtmlInputElement {
 }
 
 /// Text event handler,
-pub fn install_text_agent(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
+pub fn install_text_agent(runner_container: &AppRunnerContainer) -> Result<(), JsValue> {
     use wasm_bindgen::JsCast;
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
@@ -43,61 +44,73 @@ pub fn install_text_agent(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     input.set_size(1);
     input.set_autofocus(true);
     input.set_hidden(true);
-    {
-        // When IME is off
+
+    // When IME is off
+    runner_container.add_event_listener(&input, "input", {
         let input_clone = input.clone();
-        let runner_ref = runner_ref.clone();
         let is_composing = is_composing.clone();
-        let on_input = Closure::wrap(Box::new(move |_event: web_sys::InputEvent| {
+
+        move |_event: web_sys::InputEvent, mut runner_lock| {
             let text = input_clone.value();
             if !text.is_empty() && !is_composing.get() {
                 input_clone.set_value("");
-                let mut runner_lock = runner_ref.0.lock();
                 runner_lock.input.raw.events.push(egui::Event::Text(text));
                 runner_lock.needs_repaint.set_true();
             }
-        }) as Box<dyn FnMut(_)>);
-        input.add_event_listener_with_callback("input", on_input.as_ref().unchecked_ref())?;
-        on_input.forget();
-    }
+        }
+    })?;
+
     {
         // When IME is on, handle composition event
-        let input_clone = input.clone();
-        let runner_ref = runner_ref.clone();
-        let on_compositionend = Closure::wrap(Box::new(move |event: web_sys::CompositionEvent| {
-            let mut runner_lock = runner_ref.0.lock();
-            let opt_event = match event.type_().as_ref() {
-                "compositionstart" => {
-                    is_composing.set(true);
-                    input_clone.set_value("");
-                    Some(egui::Event::CompositionStart)
-                }
-                "compositionend" => {
-                    is_composing.set(false);
-                    input_clone.set_value("");
-                    event.data().map(egui::Event::CompositionEnd)
-                }
-                "compositionupdate" => event.data().map(egui::Event::CompositionUpdate),
-                s => {
-                    tracing::error!("Unknown composition event type: {:?}", s);
-                    None
-                }
-            };
-            if let Some(event) = opt_event {
-                runner_lock.input.raw.events.push(event);
+        runner_container.add_event_listener(&input, "compositionstart", {
+            let input_clone = input.clone();
+            let is_composing = is_composing.clone();
+
+            move |_event: web_sys::CompositionEvent, mut runner_lock: MutexGuard<'_, AppRunner>| {
+                is_composing.set(true);
+                input_clone.set_value("");
+
+                runner_lock
+                    .input
+                    .raw
+                    .events
+                    .push(egui::Event::CompositionStart);
                 runner_lock.needs_repaint.set_true();
             }
-        }) as Box<dyn FnMut(_)>);
-        let f = on_compositionend.as_ref().unchecked_ref();
-        input.add_event_listener_with_callback("compositionstart", f)?;
-        input.add_event_listener_with_callback("compositionupdate", f)?;
-        input.add_event_listener_with_callback("compositionend", f)?;
-        on_compositionend.forget();
+        })?;
+
+        runner_container.add_event_listener(
+            &input,
+            "compositionupdate",
+            move |event: web_sys::CompositionEvent, mut runner_lock: MutexGuard<'_, AppRunner>| {
+                if let Some(event) = event.data().map(egui::Event::CompositionUpdate) {
+                    runner_lock.input.raw.events.push(event);
+                    runner_lock.needs_repaint.set_true();
+                }
+            },
+        )?;
+
+        runner_container.add_event_listener(&input, "compositionend", {
+            let input_clone = input.clone();
+
+            move |event: web_sys::CompositionEvent, mut runner_lock: MutexGuard<'_, AppRunner>| {
+                is_composing.set(false);
+                input_clone.set_value("");
+
+                if let Some(event) = event.data().map(egui::Event::CompositionEnd) {
+                    runner_lock.input.raw.events.push(event);
+                    runner_lock.needs_repaint.set_true();
+                }
+            }
+        })?;
     }
-    {
-        // When input lost focus, focus on it again.
-        // It is useful when user click somewhere outside canvas.
-        let on_focusout = Closure::wrap(Box::new(move |_event: web_sys::MouseEvent| {
+
+    // When input lost focus, focus on it again.
+    // It is useful when user click somewhere outside canvas.
+    runner_container.add_event_listener(
+        &input,
+        "focusout",
+        move |_event: web_sys::MouseEvent, _| {
             // Delay 10 ms, and focus again.
             let func = js_sys::Function::new_no_args(&format!(
                 "document.getElementById('{}').focus()",
@@ -106,16 +119,16 @@ pub fn install_text_agent(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             window
                 .set_timeout_with_callback_and_timeout_and_arguments_0(&func, 10)
                 .unwrap();
-        }) as Box<dyn FnMut(_)>);
-        input.add_event_listener_with_callback("focusout", on_focusout.as_ref().unchecked_ref())?;
-        on_focusout.forget();
-    }
+        },
+    )?;
+
     body.append_child(&input)?;
+
     Ok(())
 }
 
 /// Focus or blur text agent to toggle mobile keyboard.
-pub fn update_text_agent(runner: &AppRunner) -> Option<()> {
+pub fn update_text_agent(runner: MutexGuard<'_, AppRunner>) -> Option<()> {
     use wasm_bindgen::JsCast;
     use web_sys::HtmlInputElement;
     let window = web_sys::window()?;
@@ -156,7 +169,20 @@ pub fn update_text_agent(runner: &AppRunner) -> Option<()> {
             }
         }
     } else {
+        // Drop runner lock
+        drop(runner);
+
+        // Holding the runner lock while calling input.blur() causes a panic.
+        // This is most probably caused by the browser running the event handler
+        // for the triggered blur event synchronously, meaning that the mutex
+        // lock does not get dropped by the time another event handler is called.
+        //
+        // Why this didn't exist before #1290 is a mystery to me, but it exists now
+        // and this apparently is the fix for it
+        //
+        // ¯\_(ツ)_/¯ - @DusterTheFirst
         input.blur().ok()?;
+
         input.set_hidden(true);
         canvas_style.set_property("position", "absolute").ok()?;
         canvas_style.set_property("top", "0%").ok()?; // move back to normal position

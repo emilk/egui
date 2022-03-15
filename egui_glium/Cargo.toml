@@ -38,13 +38,7 @@ default_fonts = ["egui/default_fonts"]
 links = ["egui-winit/links"]
 
 # enable persisting native window options and egui memory
-persistence = [
-  "egui-winit/persistence",
-  "egui/persistence",
-  "epi", # also implied by the lines below, see https://github.com/rust-lang/cargo/issues/8832
-  "epi/file_storage",
-  "epi/persistence",
-]
+persistence = ["egui-winit/persistence", "egui/persistence"]
 
 # experimental support for a screen reader
 screen_reader = ["egui-winit/screen_reader"]
@@ -55,8 +49,7 @@ egui = { version = "0.17.0", path = "../egui", default-features = false, feature
   "convert_bytemuck",
   "single_threaded",
 ] }
-egui-winit = { version = "0.17.0", path = "../egui-winit", default-features = false, features = ["epi"] }
-epi = { version = "0.17.0", path = "../epi", optional = true }
+egui-winit = { version = "0.17.0", path = "../egui-winit", default-features = false }
 
 ahash = "0.7"
 bytemuck = "1.7"

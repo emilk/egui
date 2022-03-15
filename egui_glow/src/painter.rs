@@ -1,10 +1,10 @@
 #![allow(unsafe_code)]
 
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc};
 
 use egui::{
     emath::Rect,
-    epaint::{Color32, Mesh, Vertex},
+    epaint::{Color32, Mesh, Primitive, Vertex},
 };
 use glow::HasContext;
 use memoffset::offset_of;
@@ -19,11 +19,16 @@ pub use glow::Context;
 const VERT_SRC: &str = include_str!("shader/vertex.glsl");
 const FRAG_SRC: &str = include_str!("shader/fragment.glsl");
 
-/// OpenGL painter
+/// An OpenGL painter using [`glow`].
+///
+/// This is responsible for painting egui and managing egui textures.
+/// You can access the underlying [`glow::Context`] with [`Self::gl`].
 ///
 /// This struct must be destroyed with [`Painter::destroy`] before dropping, to ensure OpenGL
 /// objects have been properly deleted and are not leaked.
 pub struct Painter {
+    gl: Rc<glow::Context>,
+
     max_texture_side: usize,
 
     program: glow::Program,
@@ -86,16 +91,16 @@ impl Painter {
     /// * failed to create postprocess on webgl with `sRGB` support
     /// * failed to create buffer
     pub fn new(
-        gl: &glow::Context,
+        gl: Rc<glow::Context>,
         pp_fb_extent: Option<[i32; 2]>,
         shader_prefix: &str,
     ) -> Result<Painter, String> {
-        check_for_gl_error(gl, "before Painter::new");
+        check_for_gl_error(&gl, "before Painter::new");
 
         let max_texture_side = unsafe { gl.get_parameter_i32(glow::MAX_TEXTURE_SIZE) } as usize;
 
-        let support_vao = crate::misc_util::supports_vao(gl);
-        let shader_version = ShaderVersion::get(gl);
+        let support_vao = crate::misc_util::supports_vao(&gl);
+        let shader_version = ShaderVersion::get(&gl);
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
         let header = shader_version.version();
         tracing::debug!("Shader header: {:?}.", header);
@@ -110,7 +115,7 @@ impl Painter {
                     // install post process to correct sRGB color:
                     (
                         Some(PostProcess::new(
-                            gl,
+                            gl.clone(),
                             shader_prefix,
                             support_vao,
                             is_webgl_1,
@@ -134,7 +139,7 @@ impl Painter {
 
         unsafe {
             let vert = compile_shader(
-                gl,
+                &gl,
                 glow::VERTEX_SHADER,
                 &format!(
                     "{}\n{}\n{}\n{}",
@@ -145,7 +150,7 @@ impl Painter {
                 ),
             )?;
             let frag = compile_shader(
-                gl,
+                &gl,
                 glow::FRAGMENT_SHADER,
                 &format!(
                     "{}\n{}\n{}\n{}\n{}",
@@ -156,7 +161,7 @@ impl Painter {
                     FRAG_SRC
                 ),
             )?;
-            let program = link_program(gl, [vert, frag].iter())?;
+            let program = link_program(&gl, [vert, frag].iter())?;
             gl.detach_shader(program, vert);
             gl.detach_shader(program, frag);
             gl.delete_shader(vert);
@@ -170,12 +175,12 @@ impl Painter {
             let a_tc_loc = gl.get_attrib_location(program, "a_tc").unwrap();
             let a_srgba_loc = gl.get_attrib_location(program, "a_srgba").unwrap();
             let mut vertex_array = if support_vao {
-                crate::misc_util::VAO::native(gl)
+                crate::misc_util::VAO::native(&gl)
             } else {
                 crate::misc_util::VAO::emulated()
             };
-            vertex_array.bind_vertex_array(gl);
-            vertex_array.bind_buffer(gl, &vertex_buffer);
+            vertex_array.bind_vertex_array(&gl);
+            vertex_array.bind_buffer(&gl, &vertex_buffer);
             let stride = std::mem::size_of::<Vertex>() as i32;
             let position_buffer_info = vao_emulate::BufferInfo {
                 location: a_pos_loc,
@@ -201,12 +206,13 @@ impl Painter {
                 stride,
                 offset: offset_of!(Vertex, color) as i32,
             };
-            vertex_array.add_new_attribute(gl, position_buffer_info);
-            vertex_array.add_new_attribute(gl, tex_coord_buffer_info);
-            vertex_array.add_new_attribute(gl, color_buffer_info);
-            check_for_gl_error(gl, "after Painter::new");
+            vertex_array.add_new_attribute(&gl, position_buffer_info);
+            vertex_array.add_new_attribute(&gl, tex_coord_buffer_info);
+            vertex_array.add_new_attribute(&gl, color_buffer_info);
+            check_for_gl_error(&gl, "after Painter::new");
 
             Ok(Painter {
+                gl,
                 max_texture_side,
                 program,
                 u_screen_size,
@@ -228,6 +234,11 @@ impl Painter {
         }
     }
 
+    /// Access the shared glow context.
+    pub fn gl(&self) -> &std::rc::Rc<glow::Context> {
+        &self.gl
+    }
+
     pub fn max_texture_side(&self) -> usize {
         self.max_texture_side
     }
@@ -235,16 +246,15 @@ impl Painter {
     unsafe fn prepare_painting(
         &mut self,
         [width_in_pixels, height_in_pixels]: [u32; 2],
-        gl: &glow::Context,
         pixels_per_point: f32,
     ) -> (u32, u32) {
-        gl.enable(glow::SCISSOR_TEST);
+        self.gl.enable(glow::SCISSOR_TEST);
         // egui outputs mesh in both winding orders
-        gl.disable(glow::CULL_FACE);
+        self.gl.disable(glow::CULL_FACE);
 
-        gl.enable(glow::BLEND);
-        gl.blend_equation(glow::FUNC_ADD);
-        gl.blend_func_separate(
+        self.gl.enable(glow::BLEND);
+        self.gl.blend_equation(glow::FUNC_ADD);
+        self.gl.blend_func_separate(
             // egui outputs colors with premultiplied alpha:
             glow::ONE,
             glow::ONE_MINUS_SRC_ALPHA,
@@ -257,35 +267,37 @@ impl Painter {
         let width_in_points = width_in_pixels as f32 / pixels_per_point;
         let height_in_points = height_in_pixels as f32 / pixels_per_point;
 
-        gl.viewport(0, 0, width_in_pixels as i32, height_in_pixels as i32);
-        gl.use_program(Some(self.program));
+        self.gl
+            .viewport(0, 0, width_in_pixels as i32, height_in_pixels as i32);
+        self.gl.use_program(Some(self.program));
 
-        gl.uniform_2_f32(Some(&self.u_screen_size), width_in_points, height_in_points);
-        gl.uniform_1_i32(Some(&self.u_sampler), 0);
-        gl.active_texture(glow::TEXTURE0);
-        self.vertex_array.bind_vertex_array(gl);
+        self.gl
+            .uniform_2_f32(Some(&self.u_screen_size), width_in_points, height_in_points);
+        self.gl.uniform_1_i32(Some(&self.u_sampler), 0);
+        self.gl.active_texture(glow::TEXTURE0);
+        self.vertex_array.bind_vertex_array(&self.gl);
 
-        gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.element_array_buffer));
+        self.gl
+            .bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.element_array_buffer));
 
         (width_in_pixels, height_in_pixels)
     }
 
     pub fn paint_and_update_textures(
         &mut self,
-        gl: &glow::Context,
         inner_size: [u32; 2],
         pixels_per_point: f32,
-        clipped_meshes: Vec<egui::ClippedMesh>,
+        clipped_primitives: &[egui::ClippedPrimitive],
         textures_delta: &egui::TexturesDelta,
     ) {
         for (id, image_delta) in &textures_delta.set {
-            self.set_texture(gl, *id, image_delta);
+            self.set_texture(*id, image_delta);
         }
 
-        self.paint_meshes(gl, inner_size, pixels_per_point, clipped_meshes);
+        self.paint_primitives(inner_size, pixels_per_point, clipped_primitives);
 
         for &id in &textures_delta.free {
-            self.free_texture(gl, id);
+            self.free_texture(id);
         }
     }
 
@@ -308,92 +320,107 @@ impl Painter {
     ///
     /// Please be mindful of these effects when integrating into your program, and also be mindful
     /// of the effects your program might have on this code. Look at the source if in doubt.
-    pub fn paint_meshes(
+    pub fn paint_primitives(
         &mut self,
-        gl: &glow::Context,
         inner_size: [u32; 2],
         pixels_per_point: f32,
-        clipped_meshes: Vec<egui::ClippedMesh>,
+        clipped_primitives: &[egui::ClippedPrimitive],
     ) {
         self.assert_not_destroyed();
 
         if let Some(ref mut post_process) = self.post_process {
             unsafe {
-                post_process.begin(gl, inner_size[0] as i32, inner_size[1] as i32);
+                post_process.begin(inner_size[0] as i32, inner_size[1] as i32);
             }
         }
-        let size_in_pixels = unsafe { self.prepare_painting(inner_size, gl, pixels_per_point) };
-        for egui::ClippedMesh(clip_rect, mesh) in clipped_meshes {
-            self.paint_mesh(gl, size_in_pixels, pixels_per_point, clip_rect, &mesh);
+        let size_in_pixels = unsafe { self.prepare_painting(inner_size, pixels_per_point) };
+
+        for egui::ClippedPrimitive {
+            clip_rect,
+            primitive,
+        } in clipped_primitives
+        {
+            set_clip_rect(&self.gl, size_in_pixels, pixels_per_point, *clip_rect);
+
+            match primitive {
+                Primitive::Mesh(mesh) => {
+                    self.paint_mesh(mesh);
+                }
+                Primitive::Callback(callback) => {
+                    if callback.rect.is_positive() {
+                        // Transform callback rect to physical pixels:
+                        let rect_min_x = pixels_per_point * callback.rect.min.x;
+                        let rect_min_y = pixels_per_point * callback.rect.min.y;
+                        let rect_max_x = pixels_per_point * callback.rect.max.x;
+                        let rect_max_y = pixels_per_point * callback.rect.max.y;
+
+                        let rect_min_x = rect_min_x.round() as i32;
+                        let rect_min_y = rect_min_y.round() as i32;
+                        let rect_max_x = rect_max_x.round() as i32;
+                        let rect_max_y = rect_max_y.round() as i32;
+
+                        unsafe {
+                            self.gl.viewport(
+                                rect_min_x,
+                                size_in_pixels.1 as i32 - rect_max_y,
+                                rect_max_x - rect_min_x,
+                                rect_max_y - rect_min_y,
+                            );
+                        }
+
+                        callback.call(self);
+
+                        // Restore state:
+                        unsafe {
+                            if let Some(ref mut post_process) = self.post_process {
+                                post_process.bind();
+                            }
+                            self.prepare_painting(inner_size, pixels_per_point)
+                        };
+                    }
+                }
+            }
         }
         unsafe {
-            self.vertex_array.unbind_vertex_array(gl);
-            gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, None);
+            self.vertex_array.unbind_vertex_array(&self.gl);
+            self.gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, None);
 
             if let Some(ref post_process) = self.post_process {
-                post_process.end(gl);
+                post_process.end();
             }
 
-            gl.disable(glow::SCISSOR_TEST);
+            self.gl.disable(glow::SCISSOR_TEST);
 
-            check_for_gl_error(gl, "painting");
+            check_for_gl_error(&self.gl, "painting");
         }
     }
 
     #[inline(never)] // Easier profiling
-    fn paint_mesh(
-        &mut self,
-        gl: &glow::Context,
-        size_in_pixels: (u32, u32),
-        pixels_per_point: f32,
-        clip_rect: Rect,
-        mesh: &Mesh,
-    ) {
+    fn paint_mesh(&mut self, mesh: &Mesh) {
         debug_assert!(mesh.is_valid());
         if let Some(texture) = self.get_texture(mesh.texture_id) {
             unsafe {
-                gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vertex_buffer));
-                gl.buffer_data_u8_slice(
+                self.gl
+                    .bind_buffer(glow::ARRAY_BUFFER, Some(self.vertex_buffer));
+                self.gl.buffer_data_u8_slice(
                     glow::ARRAY_BUFFER,
                     bytemuck::cast_slice(&mesh.vertices),
                     glow::STREAM_DRAW,
                 );
 
-                gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.element_array_buffer));
-                gl.buffer_data_u8_slice(
+                self.gl
+                    .bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.element_array_buffer));
+                self.gl.buffer_data_u8_slice(
                     glow::ELEMENT_ARRAY_BUFFER,
                     bytemuck::cast_slice(&mesh.indices),
                     glow::STREAM_DRAW,
                 );
 
-                gl.bind_texture(glow::TEXTURE_2D, Some(texture));
+                self.gl.bind_texture(glow::TEXTURE_2D, Some(texture));
             }
 
-            // Transform clip rect to physical pixels:
-            let clip_min_x = pixels_per_point * clip_rect.min.x;
-            let clip_min_y = pixels_per_point * clip_rect.min.y;
-            let clip_max_x = pixels_per_point * clip_rect.max.x;
-            let clip_max_y = pixels_per_point * clip_rect.max.y;
-
-            // Make sure clip rect can fit within a `u32`:
-            let clip_min_x = clip_min_x.clamp(0.0, size_in_pixels.0 as f32);
-            let clip_min_y = clip_min_y.clamp(0.0, size_in_pixels.1 as f32);
-            let clip_max_x = clip_max_x.clamp(clip_min_x, size_in_pixels.0 as f32);
-            let clip_max_y = clip_max_y.clamp(clip_min_y, size_in_pixels.1 as f32);
-
-            let clip_min_x = clip_min_x.round() as i32;
-            let clip_min_y = clip_min_y.round() as i32;
-            let clip_max_x = clip_max_x.round() as i32;
-            let clip_max_y = clip_max_y.round() as i32;
-
             unsafe {
-                gl.scissor(
-                    clip_min_x,
-                    size_in_pixels.1 as i32 - clip_max_y,
-                    clip_max_x - clip_min_x,
-                    clip_max_y - clip_min_y,
-                );
-                gl.draw_elements(
+                self.gl.draw_elements(
                     glow::TRIANGLES,
                     mesh.indices.len() as i32,
                     glow::UNSIGNED_INT,
@@ -411,20 +438,15 @@ impl Painter {
 
     // ------------------------------------------------------------------------
 
-    pub fn set_texture(
-        &mut self,
-        gl: &glow::Context,
-        tex_id: egui::TextureId,
-        delta: &egui::epaint::ImageDelta,
-    ) {
+    pub fn set_texture(&mut self, tex_id: egui::TextureId, delta: &egui::epaint::ImageDelta) {
         self.assert_not_destroyed();
 
         let glow_texture = *self
             .textures
             .entry(tex_id)
-            .or_insert_with(|| unsafe { gl.create_texture().unwrap() });
+            .or_insert_with(|| unsafe { self.gl.create_texture().unwrap() });
         unsafe {
-            gl.bind_texture(glow::TEXTURE_2D, Some(glow_texture));
+            self.gl.bind_texture(glow::TEXTURE_2D, Some(glow_texture));
         }
 
         match &delta.image {
@@ -437,7 +459,7 @@ impl Painter {
 
                 let data: &[u8] = bytemuck::cast_slice(image.pixels.as_ref());
 
-                self.upload_texture_srgb(gl, delta.pos, image.size, data);
+                self.upload_texture_srgb(delta.pos, image.size, data);
             }
             egui::ImageData::Alpha(image) => {
                 assert_eq!(
@@ -456,43 +478,37 @@ impl Painter {
                     .flat_map(|a| a.to_array())
                     .collect();
 
-                self.upload_texture_srgb(gl, delta.pos, image.size, &data);
+                self.upload_texture_srgb(delta.pos, image.size, &data);
             }
         };
     }
 
-    fn upload_texture_srgb(
-        &mut self,
-        gl: &glow::Context,
-        pos: Option<[usize; 2]>,
-        [w, h]: [usize; 2],
-        data: &[u8],
-    ) {
+    fn upload_texture_srgb(&mut self, pos: Option<[usize; 2]>, [w, h]: [usize; 2], data: &[u8]) {
         assert_eq!(data.len(), w * h * 4);
         assert!(w >= 1 && h >= 1);
         unsafe {
-            gl.tex_parameter_i32(
+            self.gl.tex_parameter_i32(
                 glow::TEXTURE_2D,
                 glow::TEXTURE_MAG_FILTER,
                 self.texture_filter.glow_code() as i32,
             );
-            gl.tex_parameter_i32(
+            self.gl.tex_parameter_i32(
                 glow::TEXTURE_2D,
                 glow::TEXTURE_MIN_FILTER,
                 self.texture_filter.glow_code() as i32,
             );
 
-            gl.tex_parameter_i32(
+            self.gl.tex_parameter_i32(
                 glow::TEXTURE_2D,
                 glow::TEXTURE_WRAP_S,
                 glow::CLAMP_TO_EDGE as i32,
             );
-            gl.tex_parameter_i32(
+            self.gl.tex_parameter_i32(
                 glow::TEXTURE_2D,
                 glow::TEXTURE_WRAP_T,
                 glow::CLAMP_TO_EDGE as i32,
             );
-            check_for_gl_error(gl, "tex_parameter");
+            check_for_gl_error(&self.gl, "tex_parameter");
 
             let (internal_format, src_format) = if self.is_webgl_1 {
                 let format = if self.srgb_support {
@@ -505,11 +521,11 @@ impl Painter {
                 (glow::SRGB8_ALPHA8, glow::RGBA)
             };
 
-            gl.pixel_store_i32(glow::UNPACK_ALIGNMENT, 1);
+            self.gl.pixel_store_i32(glow::UNPACK_ALIGNMENT, 1);
 
             let level = 0;
             if let Some([x, y]) = pos {
-                gl.tex_sub_image_2d(
+                self.gl.tex_sub_image_2d(
                     glow::TEXTURE_2D,
                     level,
                     x as _,
@@ -520,10 +536,10 @@ impl Painter {
                     glow::UNSIGNED_BYTE,
                     glow::PixelUnpackData::Slice(data),
                 );
-                check_for_gl_error(gl, "tex_sub_image_2d");
+                check_for_gl_error(&self.gl, "tex_sub_image_2d");
             } else {
                 let border = 0;
-                gl.tex_image_2d(
+                self.gl.tex_image_2d(
                     glow::TEXTURE_2D,
                     level,
                     internal_format as _,
@@ -534,42 +550,42 @@ impl Painter {
                     glow::UNSIGNED_BYTE,
                     Some(data),
                 );
-                check_for_gl_error(gl, "tex_image_2d");
+                check_for_gl_error(&self.gl, "tex_image_2d");
             }
         }
     }
 
-    pub fn free_texture(&mut self, gl: &glow::Context, tex_id: egui::TextureId) {
+    pub fn free_texture(&mut self, tex_id: egui::TextureId) {
         if let Some(old_tex) = self.textures.remove(&tex_id) {
-            unsafe { gl.delete_texture(old_tex) };
+            unsafe { self.gl.delete_texture(old_tex) };
         }
     }
 
-    fn get_texture(&self, texture_id: egui::TextureId) -> Option<glow::Texture> {
+    /// Get the [`glow::Texture`] bound to a [`egui::TextureId`].
+    pub fn get_texture(&self, texture_id: egui::TextureId) -> Option<glow::Texture> {
         self.textures.get(&texture_id).copied()
     }
 
-    unsafe fn destroy_gl(&self, gl: &glow::Context) {
-        gl.delete_program(self.program);
+    unsafe fn destroy_gl(&self) {
+        self.gl.delete_program(self.program);
         for tex in self.textures.values() {
-            gl.delete_texture(*tex);
+            self.gl.delete_texture(*tex);
         }
-        gl.delete_buffer(self.vertex_buffer);
-        gl.delete_buffer(self.element_array_buffer);
+        self.gl.delete_buffer(self.vertex_buffer);
+        self.gl.delete_buffer(self.element_array_buffer);
         for t in &self.textures_to_destroy {
-            gl.delete_texture(*t);
+            self.gl.delete_texture(*t);
         }
     }
 
-    /// This function must be called before Painter is dropped, as Painter has some OpenGL objects
+    /// This function must be called before [`Painter`] is dropped, as [`Painter`] has some OpenGL objects
     /// that should be deleted.
-
-    pub fn destroy(&mut self, gl: &glow::Context) {
+    pub fn destroy(&mut self) {
         if !self.destroyed {
             unsafe {
-                self.destroy_gl(gl);
+                self.destroy_gl();
                 if let Some(ref post_process) = self.post_process {
-                    post_process.destroy(gl);
+                    post_process.destroy();
                 }
             }
             self.destroyed = true;
@@ -624,5 +640,38 @@ impl epi::NativeTexture for Painter {
         if let Some(old_tex) = self.textures.insert(id, replacing) {
             self.textures_to_destroy.push(old_tex);
         }
+    }
+}
+
+fn set_clip_rect(
+    gl: &glow::Context,
+    size_in_pixels: (u32, u32),
+    pixels_per_point: f32,
+    clip_rect: Rect,
+) {
+    // Transform clip rect to physical pixels:
+    let clip_min_x = pixels_per_point * clip_rect.min.x;
+    let clip_min_y = pixels_per_point * clip_rect.min.y;
+    let clip_max_x = pixels_per_point * clip_rect.max.x;
+    let clip_max_y = pixels_per_point * clip_rect.max.y;
+
+    // Make sure clip rect can fit within a `u32`:
+    let clip_min_x = clip_min_x.clamp(0.0, size_in_pixels.0 as f32);
+    let clip_min_y = clip_min_y.clamp(0.0, size_in_pixels.1 as f32);
+    let clip_max_x = clip_max_x.clamp(clip_min_x, size_in_pixels.0 as f32);
+    let clip_max_y = clip_max_y.clamp(clip_min_y, size_in_pixels.1 as f32);
+
+    let clip_min_x = clip_min_x.round() as i32;
+    let clip_min_y = clip_min_y.round() as i32;
+    let clip_max_x = clip_max_x.round() as i32;
+    let clip_max_y = clip_max_y.round() as i32;
+
+    unsafe {
+        gl.scissor(
+            clip_min_x,
+            size_in_pixels.1 as i32 - clip_max_y,
+            clip_max_x - clip_min_x,
+            clip_max_y - clip_min_y,
+        );
     }
 }

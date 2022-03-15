@@ -25,11 +25,11 @@ cargo doc --document-private-items --no-deps --all-features
 (cd epaint && cargo check --no-default-features --features "single_threaded" --release)
 (cd epaint && cargo check --no-default-features --features "multi_threaded" --release)
 (cd egui && cargo check --no-default-features --features "multi_threaded,serialize")
-(cd eframe && cargo check --no-default-features --features "egui_glow")
+(cd eframe && cargo check --no-default-features)
 (cd epi && cargo check --no-default-features)
 (cd egui_demo_lib && cargo check --no-default-features)
 (cd egui_extras && cargo check --no-default-features)
-# (cd egui_web && cargo check --no-default-features) # we need to pick webgl or glow backend
+(cd egui_web && cargo check --no-default-features)
 # (cd egui-winit && cargo check --no-default-features) # we don't pick singlethreaded or multithreaded
 (cd egui_glium && cargo check --no-default-features)
 (cd egui_glow && cargo check --no-default-features)
@@ -37,6 +37,7 @@ cargo doc --document-private-items --no-deps --all-features
 
 (cd eframe && cargo check --all-features)
 (cd egui && cargo check --all-features)
+(cd egui_demo_app && cargo check --all-features)
 (cd egui_extras && cargo check --all-features)
 (cd egui_glium && cargo check --all-features)
 (cd egui_glow && cargo check --all-features)

@@ -232,6 +232,7 @@ impl EpiIntegration {
         integration_name: &'static str,
         max_texture_side: usize,
         window: &winit::window::Window,
+        gl: &std::rc::Rc<glow::Context>,
         repaint_signal: std::sync::Arc<dyn epi::backend::RepaintSignal>,
         persistence: crate::epi::Persistence,
         app: Box<dyn epi::App>,
@@ -271,7 +272,7 @@ impl EpiIntegration {
             can_drag_window: false,
         };
 
-        slf.setup(window);
+        slf.setup(window, gl);
         if slf.app.warm_up_enabled() {
             slf.warm_up(window);
         }
@@ -279,9 +280,9 @@ impl EpiIntegration {
         slf
     }
 
-    fn setup(&mut self, window: &winit::window::Window) {
+    fn setup(&mut self, window: &winit::window::Window, gl: &std::rc::Rc<glow::Context>) {
         self.app
-            .setup(&self.egui_ctx, &self.frame, self.persistence.storage());
+            .setup(&self.egui_ctx, &self.frame, self.persistence.storage(), gl);
         let app_output = self.frame.take_app_output();
 
         if app_output.quit {

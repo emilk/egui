@@ -11,12 +11,7 @@ readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/master/eframe"
 categories = ["gui", "game-development"]
 keywords = ["egui", "gui", "gamedev"]
-include = [
-  "../LICENSE-APACHE",
-  "../LICENSE-MIT",
-  "**/*.rs",
-  "Cargo.toml",
-]
+include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -25,7 +20,7 @@ all-features = true
 
 
 [features]
-default = ["default_fonts", "egui_glow"]
+default = ["default_fonts"]
 
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
@@ -54,19 +49,28 @@ epi = { version = "0.17.0", path = "../epi" }
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+egui_glow = { version = "0.17.0", path = "../egui_glow", default-features = false, features = [
+  "clipboard",
+  "epi",
+  "links",
+  "winit",
+] }
 egui-winit = { version = "0.17.0", path = "../egui-winit", default-features = false }
-egui_glium = { version = "0.17.0", path = "../egui_glium", default-features = false, features = ["clipboard", "epi", "links"], optional = true }
-egui_glow = { version = "0.17.0", path = "../egui_glow", default-features = false, features = ["clipboard", "epi", "links", "winit"], optional = true }
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-egui_web = { version = "0.17.0", path = "../egui_web", default-features = false, features = ["glow"] }
+egui_web = { version = "0.17.0", path = "../egui_web", default-features = false }
 
 
 [dev-dependencies]
 # For examples:
 egui_extras = { path = "../egui_extras", features = ["image", "svg"] }
 ehttp = "0.2"
-image = { version = "0.24", default-features = false, features = ["jpeg", "png"] }
+glow = "0.11"
+image = { version = "0.24", default-features = false, features = [
+  "jpeg",
+  "png",
+] }
+parking_lot = "0.12"
 poll-promise = "0.1"
 rfd = "0.8"

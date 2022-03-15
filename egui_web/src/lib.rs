@@ -15,28 +15,22 @@
 #![warn(clippy::all, rustdoc::missing_crate_level_docs, rust_2018_idioms)]
 
 pub mod backend;
-#[cfg(feature = "glow")]
 mod glow_wrapping;
 mod input;
-mod painter;
 pub mod screen_reader;
 mod text_agent;
 
-#[cfg(feature = "webgl")]
-pub mod webgl1;
-#[cfg(feature = "webgl")]
-pub mod webgl2;
-
 pub use backend::*;
 
-use egui::mutex::Mutex;
+use egui::mutex::{Mutex, MutexGuard};
 pub use wasm_bindgen;
 pub use web_sys;
 
 use input::*;
-pub use painter::Painter;
+use web_sys::EventTarget;
 
 use std::collections::BTreeMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 
@@ -302,15 +296,59 @@ pub fn percent_decode(s: &str) -> String {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Clone)]
-pub struct AppRunnerRef(Arc<Mutex<AppRunner>>);
+pub type AppRunnerRef = Arc<Mutex<AppRunner>>;
 
-fn paint_and_schedule(runner_ref: AppRunnerRef) -> Result<(), JsValue> {
+pub struct AppRunnerContainer {
+    runner: AppRunnerRef,
+    /// Set to `true` if there is a panic.
+    /// Used to ignore callbacks after a panic.
+    panicked: Arc<AtomicBool>,
+}
+
+impl AppRunnerContainer {
+    /// Convenience function to reduce boilerplate and ensure that all event handlers
+    /// are dealt with in the same way
+    pub fn add_event_listener<E: wasm_bindgen::JsCast>(
+        &self,
+        target: &EventTarget,
+        event_name: &'static str,
+        mut closure: impl FnMut(E, MutexGuard<'_, AppRunner>) + 'static,
+    ) -> Result<(), JsValue> {
+        use wasm_bindgen::JsCast;
+
+        // Create a JS closure based on the FnMut provided
+        let closure = Closure::wrap({
+            // Clone atomics
+            let runner_ref = self.runner.clone();
+            let panicked = self.panicked.clone();
+
+            Box::new(move |event: web_sys::Event| {
+                // Only call the wrapped closure if the egui code has not panicked
+                if !panicked.load(Ordering::SeqCst) {
+                    // Cast the event to the expected event type
+                    let event = event.unchecked_into::<E>();
+
+                    closure(event, runner_ref.lock());
+                }
+            }) as Box<dyn FnMut(_)>
+        });
+
+        // Add the event listener to the target
+        target.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
+
+        // Bypass closure drop so that event handler can call the closure
+        closure.forget();
+
+        Ok(())
+    }
+}
+
+fn paint_and_schedule(runner_ref: &AppRunnerRef, panicked: Arc<AtomicBool>) -> Result<(), JsValue> {
     fn paint_if_needed(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
-        let mut runner_lock = runner_ref.0.lock();
+        let mut runner_lock = runner_ref.lock();
         if runner_lock.needs_repaint.fetch_and_clear() {
-            let (needs_repaint, clipped_meshes) = runner_lock.logic()?;
-            runner_lock.paint(clipped_meshes)?;
+            let (needs_repaint, clipped_primitives) = runner_lock.logic()?;
+            runner_lock.paint(&clipped_primitives)?;
             if needs_repaint {
                 runner_lock.needs_repaint.set_true();
             }
@@ -320,34 +358,40 @@ fn paint_and_schedule(runner_ref: AppRunnerRef) -> Result<(), JsValue> {
         Ok(())
     }
 
-    fn request_animation_frame(runner_ref: AppRunnerRef) -> Result<(), JsValue> {
+    fn request_animation_frame(
+        runner_ref: AppRunnerRef,
+        panicked: Arc<AtomicBool>,
+    ) -> Result<(), JsValue> {
         use wasm_bindgen::JsCast;
         let window = web_sys::window().unwrap();
-        let closure = Closure::once(move || paint_and_schedule(runner_ref));
+        let closure = Closure::once(move || paint_and_schedule(&runner_ref, panicked));
         window.request_animation_frame(closure.as_ref().unchecked_ref())?;
         closure.forget(); // We must forget it, or else the callback is canceled on drop
         Ok(())
     }
 
-    paint_if_needed(&runner_ref)?;
-    request_animation_frame(runner_ref)
+    // Only paint and schedule if there has been no panic
+    if !panicked.load(Ordering::SeqCst) {
+        paint_if_needed(runner_ref)?;
+        request_animation_frame(runner_ref.clone(), panicked)?;
+    }
+
+    Ok(())
 }
 
-fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
-    use wasm_bindgen::JsCast;
+fn install_document_events(runner_container: &AppRunnerContainer) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
 
-    {
-        // keydown
-        let runner_ref = runner_ref.clone();
-        let closure = Closure::wrap(Box::new(move |event: web_sys::KeyboardEvent| {
+    runner_container.add_event_listener(
+        &document,
+        "keydown",
+        |event: web_sys::KeyboardEvent, mut runner_lock| {
             if event.is_composing() || event.key_code() == 229 {
                 // https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
                 return;
             }
 
-            let mut runner_lock = runner_ref.0.lock();
             let modifiers = modifiers_from_event(&event);
             runner_lock.input.raw.modifiers = modifiers;
 
@@ -400,16 +444,13 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             if prevent_default {
                 event.prevent_default();
             }
-        }) as Box<dyn FnMut(_)>);
-        document.add_event_listener_with_callback("keydown", closure.as_ref().unchecked_ref())?;
-        closure.forget();
-    }
+        },
+    )?;
 
-    {
-        // keyup
-        let runner_ref = runner_ref.clone();
-        let closure = Closure::wrap(Box::new(move |event: web_sys::KeyboardEvent| {
-            let mut runner_lock = runner_ref.0.lock();
+    runner_container.add_event_listener(
+        &document,
+        "keyup",
+        |event: web_sys::KeyboardEvent, mut runner_lock| {
             let modifiers = modifiers_from_event(&event);
             runner_lock.input.raw.modifiers = modifiers;
             if let Some(key) = translate_key(&event.key()) {
@@ -420,19 +461,16 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 });
             }
             runner_lock.needs_repaint.set_true();
-        }) as Box<dyn FnMut(_)>);
-        document.add_event_listener_with_callback("keyup", closure.as_ref().unchecked_ref())?;
-        closure.forget();
-    }
+        },
+    )?;
 
     #[cfg(web_sys_unstable_apis)]
-    {
-        // paste
-        let runner_ref = runner_ref.clone();
-        let closure = Closure::wrap(Box::new(move |event: web_sys::ClipboardEvent| {
+    runner_container.add_event_listener(
+        &document,
+        "paste",
+        |event: web_sys::ClipboardEvent, mut runner_lock| {
             if let Some(data) = event.clipboard_data() {
                 if let Ok(text) = data.get_data("text") {
-                    let mut runner_lock = runner_ref.0.lock();
                     runner_lock
                         .input
                         .raw
@@ -443,85 +481,90 @@ fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                     event.prevent_default();
                 }
             }
-        }) as Box<dyn FnMut(_)>);
-        document.add_event_listener_with_callback("paste", closure.as_ref().unchecked_ref())?;
-        closure.forget();
-    }
+        },
+    )?;
 
     #[cfg(web_sys_unstable_apis)]
-    {
-        // cut
-        let runner_ref = runner_ref.clone();
-        let closure = Closure::wrap(Box::new(move |_: web_sys::ClipboardEvent| {
-            let mut runner_lock = runner_ref.0.lock();
+    runner_container.add_event_listener(
+        &document,
+        "cut",
+        |_: web_sys::ClipboardEvent, mut runner_lock| {
             runner_lock.input.raw.events.push(egui::Event::Cut);
             runner_lock.needs_repaint.set_true();
-        }) as Box<dyn FnMut(_)>);
-        document.add_event_listener_with_callback("cut", closure.as_ref().unchecked_ref())?;
-        closure.forget();
-    }
+        },
+    )?;
 
     #[cfg(web_sys_unstable_apis)]
-    {
-        // copy
-        let runner_ref = runner_ref.clone();
-        let closure = Closure::wrap(Box::new(move |_: web_sys::ClipboardEvent| {
-            let mut runner_lock = runner_ref.0.lock();
+    runner_container.add_event_listener(
+        &document,
+        "copy",
+        |_: web_sys::ClipboardEvent, mut runner_lock| {
             runner_lock.input.raw.events.push(egui::Event::Copy);
             runner_lock.needs_repaint.set_true();
-        }) as Box<dyn FnMut(_)>);
-        document.add_event_listener_with_callback("copy", closure.as_ref().unchecked_ref())?;
-        closure.forget();
-    }
+        },
+    )?;
 
     for event_name in &["load", "pagehide", "pageshow", "resize"] {
-        let runner_ref = runner_ref.clone();
-        let closure = Closure::wrap(Box::new(move || {
-            runner_ref.0.lock().needs_repaint.set_true();
-        }) as Box<dyn FnMut()>);
-        window.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
-        closure.forget();
+        runner_container.add_event_listener(
+            &document,
+            event_name,
+            |_: web_sys::Event, runner_lock| {
+                runner_lock.needs_repaint.set_true();
+            },
+        )?;
     }
 
-    {
-        // hashchange
-        let runner_ref = runner_ref.clone();
-        let closure = Closure::wrap(Box::new(move || {
-            let runner_lock = runner_ref.0.lock();
+    runner_container.add_event_listener(
+        &document,
+        "hashchange",
+        |_: web_sys::Event, runner_lock| {
             let mut frame_lock = runner_lock.frame.lock();
 
             // `epi::Frame::info(&self)` clones `epi::IntegrationInfo`, but we need to modify the original here
             if let Some(web_info) = &mut frame_lock.info.web_info {
                 web_info.location.hash = location_hash();
             }
-        }) as Box<dyn FnMut()>);
-        window.add_event_listener_with_callback("hashchange", closure.as_ref().unchecked_ref())?;
-        closure.forget();
-    }
+        },
+    )?;
 
     Ok(())
 }
 
 /// Repaint at least every `ms` milliseconds.
-fn repaint_every_ms(runner_ref: &AppRunnerRef, milliseconds: i32) -> Result<(), JsValue> {
+pub fn repaint_every_ms(
+    runner_container: &AppRunnerContainer,
+    milliseconds: i32,
+) -> Result<(), JsValue> {
     assert!(milliseconds >= 0);
+
     use wasm_bindgen::JsCast;
+
     let window = web_sys::window().unwrap();
-    let runner_ref = runner_ref.clone();
-    let closure = Closure::wrap(Box::new(move || {
-        runner_ref.0.lock().needs_repaint.set_true();
+
+    let closure = Closure::wrap(Box::new({
+        let runner = runner_container.runner.clone();
+        let panicked = runner_container.panicked.clone();
+
+        move || {
+            // Do not lock the runner if the code has panicked
+            if !panicked.load(Ordering::SeqCst) {
+                runner.lock().needs_repaint.set_true();
+            }
+        }
     }) as Box<dyn FnMut()>);
+
     window.set_interval_with_callback_and_timeout_and_arguments_0(
         closure.as_ref().unchecked_ref(),
         milliseconds,
     )?;
+
     closure.forget();
     Ok(())
 }
 
-fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
+fn install_canvas_events(runner_container: &AppRunnerContainer) -> Result<(), JsValue> {
     use wasm_bindgen::JsCast;
-    let canvas = canvas_element(runner_ref.0.lock().canvas_id()).unwrap();
+    let canvas = canvas_element(runner_container.runner.lock().canvas_id()).unwrap();
 
     {
         // By default, right-clicks open a context menu.
@@ -534,12 +577,11 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         closure.forget();
     }
 
-    {
-        let event_name = "mousedown";
-        let runner_ref = runner_ref.clone();
-        let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
+    runner_container.add_event_listener(
+        &canvas,
+        "mousedown",
+        |event: web_sys::MouseEvent, mut runner_lock| {
             if let Some(button) = button_from_mouse_event(&event) {
-                let mut runner_lock = runner_ref.0.lock();
                 let pos = pos_from_mouse_event(runner_lock.canvas_id(), &event);
                 let modifiers = runner_lock.input.raw.modifiers;
                 runner_lock
@@ -556,16 +598,13 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             }
             event.stop_propagation();
             // Note: prevent_default breaks VSCode tab focusing, hence why we don't call it here.
-        }) as Box<dyn FnMut(_)>);
-        canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
-        closure.forget();
-    }
+        },
+    )?;
 
-    {
-        let event_name = "mousemove";
-        let runner_ref = runner_ref.clone();
-        let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
-            let mut runner_lock = runner_ref.0.lock();
+    runner_container.add_event_listener(
+        &canvas,
+        "mousemove",
+        |event: web_sys::MouseEvent, mut runner_lock| {
             let pos = pos_from_mouse_event(runner_lock.canvas_id(), &event);
             runner_lock
                 .input
@@ -575,17 +614,14 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             runner_lock.needs_repaint.set_true();
             event.stop_propagation();
             event.prevent_default();
-        }) as Box<dyn FnMut(_)>);
-        canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
-        closure.forget();
-    }
+        },
+    )?;
 
-    {
-        let event_name = "mouseup";
-        let runner_ref = runner_ref.clone();
-        let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
+    runner_container.add_event_listener(
+        &canvas,
+        "mouseup",
+        |event: web_sys::MouseEvent, mut runner_lock| {
             if let Some(button) = button_from_mouse_event(&event) {
-                let mut runner_lock = runner_ref.0.lock();
                 let pos = pos_from_mouse_event(runner_lock.canvas_id(), &event);
                 let modifiers = runner_lock.input.raw.modifiers;
                 runner_lock
@@ -600,34 +636,28 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                     });
                 runner_lock.needs_repaint.set_true();
 
-                text_agent::update_text_agent(&runner_lock);
+                text_agent::update_text_agent(runner_lock);
             }
             event.stop_propagation();
             event.prevent_default();
-        }) as Box<dyn FnMut(_)>);
-        canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
-        closure.forget();
-    }
+        },
+    )?;
 
-    {
-        let event_name = "mouseleave";
-        let runner_ref = runner_ref.clone();
-        let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
-            let mut runner_lock = runner_ref.0.lock();
+    runner_container.add_event_listener(
+        &canvas,
+        "mouseleave",
+        |event: web_sys::MouseEvent, mut runner_lock| {
             runner_lock.input.raw.events.push(egui::Event::PointerGone);
             runner_lock.needs_repaint.set_true();
             event.stop_propagation();
             event.prevent_default();
-        }) as Box<dyn FnMut(_)>);
-        canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
-        closure.forget();
-    }
+        },
+    )?;
 
-    {
-        let event_name = "touchstart";
-        let runner_ref = runner_ref.clone();
-        let closure = Closure::wrap(Box::new(move |event: web_sys::TouchEvent| {
-            let mut runner_lock = runner_ref.0.lock();
+    runner_container.add_event_listener(
+        &canvas,
+        "touchstart",
+        |event: web_sys::TouchEvent, mut runner_lock| {
             let mut latest_touch_pos_id = runner_lock.input.latest_touch_pos_id;
             let pos =
                 pos_from_touch_event(runner_lock.canvas_id(), &event, &mut latest_touch_pos_id);
@@ -649,16 +679,13 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             runner_lock.needs_repaint.set_true();
             event.stop_propagation();
             event.prevent_default();
-        }) as Box<dyn FnMut(_)>);
-        canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
-        closure.forget();
-    }
+        },
+    )?;
 
-    {
-        let event_name = "touchmove";
-        let runner_ref = runner_ref.clone();
-        let closure = Closure::wrap(Box::new(move |event: web_sys::TouchEvent| {
-            let mut runner_lock = runner_ref.0.lock();
+    runner_container.add_event_listener(
+        &canvas,
+        "touchmove",
+        |event: web_sys::TouchEvent, mut runner_lock| {
             let mut latest_touch_pos_id = runner_lock.input.latest_touch_pos_id;
             let pos =
                 pos_from_touch_event(runner_lock.canvas_id(), &event, &mut latest_touch_pos_id);
@@ -674,17 +701,13 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             runner_lock.needs_repaint.set_true();
             event.stop_propagation();
             event.prevent_default();
-        }) as Box<dyn FnMut(_)>);
-        canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
-        closure.forget();
-    }
+        },
+    )?;
 
-    {
-        let event_name = "touchend";
-        let runner_ref = runner_ref.clone();
-        let closure = Closure::wrap(Box::new(move |event: web_sys::TouchEvent| {
-            let mut runner_lock = runner_ref.0.lock();
-
+    runner_container.add_event_listener(
+        &canvas,
+        "touchend",
+        |event: web_sys::TouchEvent, mut runner_lock| {
             if let Some(pos) = runner_lock.input.latest_touch_pos {
                 let modifiers = runner_lock.input.raw.modifiers;
                 // First release mouse to click:
@@ -708,34 +731,27 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             }
 
             // Finally, focus or blur text agent to toggle mobile keyboard:
-            text_agent::update_text_agent(&runner_lock);
-        }) as Box<dyn FnMut(_)>);
-        canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
-        closure.forget();
-    }
+            text_agent::update_text_agent(runner_lock);
+        },
+    )?;
 
-    {
-        let event_name = "touchcancel";
-        let runner_ref = runner_ref.clone();
-        let closure = Closure::wrap(Box::new(move |event: web_sys::TouchEvent| {
-            let mut runner_lock = runner_ref.0.lock();
-            push_touches(&mut *runner_lock, egui::TouchPhase::Cancel, &event);
+    runner_container.add_event_listener(
+        &canvas,
+        "touchcancel",
+        |event: web_sys::TouchEvent, mut runner_lock| {
+            push_touches(&mut runner_lock, egui::TouchPhase::Cancel, &event);
             event.stop_propagation();
             event.prevent_default();
-        }) as Box<dyn FnMut(_)>);
-        canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
-        closure.forget();
-    }
+        },
+    )?;
 
-    {
-        let event_name = "wheel";
-        let runner_ref = runner_ref.clone();
-        let closure = Closure::wrap(Box::new(move |event: web_sys::WheelEvent| {
-            let mut runner_lock = runner_ref.0.lock();
-
+    runner_container.add_event_listener(
+        &canvas,
+        "wheel",
+        |event: web_sys::WheelEvent, mut runner_lock| {
             let scroll_multiplier = match event.delta_mode() {
                 web_sys::WheelEvent::DOM_DELTA_PAGE => {
-                    canvas_size_in_points(runner_ref.0.lock().canvas_id()).y
+                    canvas_size_in_points(runner_lock.canvas_id()).y
                 }
                 web_sys::WheelEvent::DOM_DELTA_LINE => {
                     #[allow(clippy::let_and_return)]
@@ -771,17 +787,14 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
             runner_lock.needs_repaint.set_true();
             event.stop_propagation();
             event.prevent_default();
-        }) as Box<dyn FnMut(_)>);
-        canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
-        closure.forget();
-    }
+        },
+    )?;
 
-    {
-        let event_name = "dragover";
-        let runner_ref = runner_ref.clone();
-        let closure = Closure::wrap(Box::new(move |event: web_sys::DragEvent| {
+    runner_container.add_event_listener(
+        &canvas,
+        "dragover",
+        |event: web_sys::DragEvent, mut runner_lock| {
             if let Some(data_transfer) = event.data_transfer() {
-                let mut runner_lock = runner_ref.0.lock();
                 runner_lock.input.raw.hovered_files.clear();
                 for i in 0..data_transfer.items().length() {
                     if let Some(item) = data_transfer.items().get(i) {
@@ -795,35 +808,29 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 event.stop_propagation();
                 event.prevent_default();
             }
-        }) as Box<dyn FnMut(_)>);
-        canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
-        closure.forget();
-    }
+        },
+    )?;
 
-    {
-        let event_name = "dragleave";
-        let runner_ref = runner_ref.clone();
-        let closure = Closure::wrap(Box::new(move |event: web_sys::DragEvent| {
-            let mut runner_lock = runner_ref.0.lock();
+    runner_container.add_event_listener(
+        &canvas,
+        "dragleave",
+        |event: web_sys::DragEvent, mut runner_lock| {
             runner_lock.input.raw.hovered_files.clear();
             runner_lock.needs_repaint.set_true();
             event.stop_propagation();
             event.prevent_default();
-        }) as Box<dyn FnMut(_)>);
-        canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
-        closure.forget();
-    }
+        },
+    )?;
 
-    {
-        let event_name = "drop";
-        let runner_ref = runner_ref.clone();
-        let closure = Closure::wrap(Box::new(move |event: web_sys::DragEvent| {
+    runner_container.add_event_listener(&canvas, "drop", {
+        let runner_ref = runner_container.runner.clone();
+
+        move |event: web_sys::DragEvent, mut runner_lock| {
             if let Some(data_transfer) = event.data_transfer() {
-                {
-                    let mut runner_lock = runner_ref.0.lock();
-                    runner_lock.input.raw.hovered_files.clear();
-                    runner_lock.needs_repaint.set_true();
-                }
+                runner_lock.input.raw.hovered_files.clear();
+                runner_lock.needs_repaint.set_true();
+                // Unlock the runner so it can be locked after a future await point
+                drop(runner_lock);
 
                 if let Some(files) = data_transfer.files() {
                     for i in 0..files.length() {
@@ -847,7 +854,8 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                                             bytes.len()
                                         );
 
-                                        let mut runner_lock = runner_ref.0.lock();
+                                        // Re-lock the mutex on the other side of the await point
+                                        let mut runner_lock = runner_ref.lock();
                                         runner_lock.input.raw.dropped_files.push(
                                             egui::DroppedFile {
                                                 name,
@@ -870,10 +878,8 @@ fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 event.stop_propagation();
                 event.prevent_default();
             }
-        }) as Box<dyn FnMut(_)>);
-        canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
-        closure.forget();
-    }
+        }
+    })?;
 
     Ok(())
 }

@@ -38,7 +38,7 @@ impl epi::App for ColorTest {
         egui::CentralPanel::default().show(ctx, |ui| {
             if frame.is_web() {
                 ui.label(
-                    "NOTE: The WebGL1 backend without sRGB support does NOT pass the color test.",
+                    "NOTE: Some old browsers stuck on WebGL1 without sRGB support will not pass the color test.",
                 );
                 ui.separator();
             }

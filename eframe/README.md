@@ -18,7 +18,7 @@ For how to use `egui`, see [the egui docs](https://docs.rs/egui).
 
 `eframe` is a very thin crate that re-exports [`egui`](https://github.com/emilk/egui) and[`epi`](https://github.com/emilk/egui/tree/master/epi) with thin wrappers over the backends.
 
-`eframe` uses [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web) for web and [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium) or [`egui_glow`](https://github.com/emilk/egui/tree/master/egui_glow) for native.
+`eframe` uses [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web) for web and [`egui_glow`](https://github.com/emilk/egui/tree/master/egui_glow) for native.
 
 To use on Linux, first run:
 
@@ -28,13 +28,7 @@ sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev lib
 
 
 ## Alternatives
-The default native backend for `eframe` is currently [`egui_glow`](https://github.com/emilk/egui/tree/master/egui_glow), but you can switch to the previous [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium) backend by putting this in your `Cargo.toml`:
-
-``` toml
-eframe = { version = "*", default-features = false, features = ["default_fonts", "egui_glium"] }
-```
-
-`eframe` is not the only way to write an app using `egui`! You can also try [`egui-miniquad`](https://github.com/not-fl3/egui-miniquad) and [`egui_sdl2_gl`](https://github.com/ArjunNair/egui_sdl2_gl).
+`eframe` is not the only way to write an app using `egui`! You can also try [`egui-miniquad`](https://github.com/not-fl3/egui-miniquad), [`bevy_egui`](https://github.com/mvlabat/bevy_egui), [`egui_sdl2_gl`](https://github.com/ArjunNair/egui_sdl2_gl), and others.
 
 
 ## Companion crates
