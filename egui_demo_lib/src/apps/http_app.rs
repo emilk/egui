@@ -78,11 +78,10 @@ impl epi::App for HttpApp {
 
             if trigger_fetch {
                 let ctx = ctx.clone();
-                let frame = frame.clone();
                 let (sender, promise) = Promise::new();
                 let request = ehttp::Request::get(&self.url);
                 ehttp::fetch(request, move |response| {
-                    frame.request_repaint(); // wake up UI thread
+                    ctx.request_repaint(); // wake up UI thread
                     let resource = response.map(|response| Resource::from_response(&ctx, response));
                     sender.send(resource);
                 });

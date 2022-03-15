@@ -20,18 +20,18 @@ impl epi::App for MyApp {
         "Download and show an image with eframe/egui"
     }
 
-    fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &epi::Frame) {
         let promise = self.promise.get_or_insert_with(|| {
             // Begin download.
             // We download the image using `ehttp`, a library that works both in WASM and on native.
             // We use the `poll-promise` library to communicate with the UI thread.
-            let frame = frame.clone();
+            let ctx = ctx.clone();
             let (sender, promise) = Promise::new();
             let request = ehttp::Request::get("https://picsum.photos/seed/1.759706314/1024");
             ehttp::fetch(request, move |response| {
                 let image = response.and_then(parse_response);
                 sender.send(image); // send the results back to the UI thread.
-                frame.request_repaint(); // wake up UI thread
+                ctx.request_repaint(); // wake up UI thread
             });
             promise
         });

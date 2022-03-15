@@ -1053,6 +1053,7 @@ dependencies = [
  "poll-promise",
  "serde",
  "syntect",
+ "tracing",
  "unicode_names2",
 ]
 
@@ -1091,6 +1092,7 @@ dependencies = [
  "glow",
  "glutin",
  "memoffset",
+ "parking_lot 0.12.0",
  "tracing",
  "wasm-bindgen",
  "web-sys",

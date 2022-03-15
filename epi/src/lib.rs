@@ -359,13 +359,6 @@ impl Frame {
         self.lock().output.drag_window = true;
     }
 
-    /// This signals the [`egui`] integration that a repaint is required.
-    ///
-    /// Call this e.g. when a background process finishes in an async context and/or background thread.
-    pub fn request_repaint(&self) {
-        self.lock().repaint_signal.request_repaint();
-    }
-
     /// for integrations only: call once per frame
     pub fn take_app_output(&self) -> crate::backend::AppOutput {
         std::mem::take(&mut self.lock().output)
@@ -524,14 +517,6 @@ pub const APP_KEY: &str = "app";
 pub mod backend {
     use super::*;
 
-    /// How to signal the [`egui`] integration that a repaint is required.
-    pub trait RepaintSignal: Send + Sync {
-        /// This signals the [`egui`] integration that a repaint is required.
-        ///
-        /// Call this e.g. when a background process finishes in an async context and/or background thread.
-        fn request_repaint(&self);
-    }
-
     /// The data required by [`Frame`] each frame.
     pub struct FrameData {
         /// Information about the integration.
@@ -539,9 +524,6 @@ pub mod backend {
 
         /// Where the app can issue commands back to the integration.
         pub output: AppOutput,
-
-        /// If you need to request a repaint from another thread, clone this and send it to that other thread.
-        pub repaint_signal: std::sync::Arc<dyn RepaintSignal>,
     }
 
     /// Action that can be taken by the user app.

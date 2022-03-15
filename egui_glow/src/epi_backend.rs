@@ -3,14 +3,6 @@ use egui_winit::winit;
 
 struct RequestRepaintEvent;
 
-struct GlowRepaintSignal(std::sync::Mutex<winit::event_loop::EventLoopProxy<RequestRepaintEvent>>);
-
-impl epi::backend::RepaintSignal for GlowRepaintSignal {
-    fn request_repaint(&self) {
-        self.0.lock().unwrap().send_event(RequestRepaintEvent).ok();
-    }
-}
-
 #[allow(unsafe_code)]
 fn create_display(
     window_builder: winit::window::WindowBuilder,
@@ -56,10 +48,6 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
     let (gl_window, gl) = create_display(window_builder, &event_loop);
     let gl = std::rc::Rc::new(gl);
 
-    let repaint_signal = std::sync::Arc::new(GlowRepaintSignal(std::sync::Mutex::new(
-        event_loop.create_proxy(),
-    )));
-
     let mut painter = crate::Painter::new(gl.clone(), None, "")
         .unwrap_or_else(|error| panic!("some OpenGL error occurred {}\n", error));
     let mut integration = egui_winit::epi::EpiIntegration::new(
@@ -67,10 +55,16 @@ pub fn run(app: Box<dyn epi::App>, native_options: &epi::NativeOptions) -> ! {
         painter.max_texture_side(),
         gl_window.window(),
         &gl,
-        repaint_signal,
         persistence,
         app,
     );
+
+    {
+        let event_loop_proxy = parking_lot::Mutex::new(event_loop.create_proxy());
+        integration.egui_ctx.set_request_repaint_callback(move || {
+            event_loop_proxy.lock().send_event(RequestRepaintEvent).ok();
+        });
+    }
 
     let mut is_focused = true;
 
