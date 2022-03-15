@@ -48,6 +48,7 @@ struct ContextImpl {
 
     /// While positive, keep requesting repaints. Decrement at the end of each frame.
     repaint_requests: u32,
+    request_repaint_callbacks: Option<Box<dyn Fn() + Send + Sync>>,
 }
 
 impl ContextImpl {
@@ -533,11 +534,28 @@ impl Context {
 
 impl Context {
     /// Call this if there is need to repaint the UI, i.e. if you are showing an animation.
+    ///
     /// If this is called at least once in a frame, then there will be another frame right after this.
     /// Call as many times as you wish, only one repaint will be issued.
+    ///
+    /// If called from outside the UI thread, the UI thread will wake up and run,
+    /// provided the egui integration has set that up via [`Self::set_request_repaint_callback`]
+    /// (this will work on `eframe`).
     pub fn request_repaint(&self) {
         // request two frames of repaint, just to cover some corner cases (frame delays):
-        self.write().repaint_requests = 2;
+        let mut ctx = self.write();
+        ctx.repaint_requests = 2;
+        if let Some(callback) = &ctx.request_repaint_callbacks {
+            (callback)();
+        }
+    }
+
+    /// For integrations: this callback will be called when an egui user calls [`Self::request_repaint`].
+    ///
+    /// This lets you wake up a sleeping UI thread.
+    pub fn set_request_repaint_callback(&self, callback: impl Fn() + Send + Sync + 'static) {
+        let callback = Box::new(callback);
+        self.write().request_repaint_callbacks = Some(callback);
     }
 
     /// Tell `egui` which fonts to use.

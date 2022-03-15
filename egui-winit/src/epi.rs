@@ -233,7 +233,6 @@ impl EpiIntegration {
         max_texture_side: usize,
         window: &winit::window::Window,
         gl: &std::rc::Rc<glow::Context>,
-        repaint_signal: std::sync::Arc<dyn epi::backend::RepaintSignal>,
         persistence: crate::epi::Persistence,
         app: Box<dyn epi::App>,
     ) -> Self {
@@ -252,7 +251,6 @@ impl EpiIntegration {
                 native_pixels_per_point: Some(crate::native_pixels_per_point(window)),
             },
             output: Default::default(),
-            repaint_signal,
         });
 
         if prefer_dark_mode == Some(true) {

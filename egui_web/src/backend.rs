@@ -50,12 +50,6 @@ impl NeedRepaint {
     }
 }
 
-impl epi::backend::RepaintSignal for NeedRepaint {
-    fn request_repaint(&self) {
-        self.0.store(true, SeqCst);
-    }
-}
-
 // ----------------------------------------------------------------------------
 
 fn web_location() -> epi::Location {
@@ -150,8 +144,6 @@ impl AppRunner {
 
         let prefer_dark_mode = crate::prefer_dark_mode();
 
-        let needs_repaint: std::sync::Arc<NeedRepaint> = Default::default();
-
         let frame = epi::Frame::new(epi::backend::FrameData {
             info: epi::IntegrationInfo {
                 name: "egui_web",
@@ -163,10 +155,19 @@ impl AppRunner {
                 native_pixels_per_point: Some(native_pixels_per_point()),
             },
             output: Default::default(),
-            repaint_signal: needs_repaint.clone(),
         });
 
+        let needs_repaint: std::sync::Arc<NeedRepaint> = Default::default();
+
         let egui_ctx = egui::Context::default();
+
+        {
+            let needs_repaint = needs_repaint.clone();
+            egui_ctx.set_request_repaint_callback(move || {
+                needs_repaint.0.store(true, SeqCst);
+            });
+        }
+
         load_memory(&egui_ctx);
         if prefer_dark_mode == Some(true) {
             egui_ctx.set_visuals(egui::Visuals::dark());
