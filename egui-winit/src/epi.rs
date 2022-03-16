@@ -222,7 +222,7 @@ pub struct EpiIntegration {
     pending_full_output: egui::FullOutput,
     egui_winit: crate::State,
     /// When set, it is time to quit
-    pub quit: bool,
+    quit: bool,
     can_drag_window: bool,
 }
 
