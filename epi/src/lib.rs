@@ -133,8 +133,7 @@ pub trait App {
     ///
     /// The [`egui::Context`] and [`Frame`] can be cloned and saved if you like.
     ///
-    /// To force a repaint, call either [`egui::Context::request_repaint`] during the call to `update`,
-    /// or call [`Frame::request_repaint`] at any time (e.g. from another thread).
+    /// To force a repaint, call [`egui::Context::request_repaint`] at any time (e.g. from another thread).
     fn update(&mut self, ctx: &egui::Context, frame: &Frame);
 
     /// Called on shutdown, and perhaps at regular intervals. Allows you to save state.
