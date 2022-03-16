@@ -139,7 +139,7 @@ pub struct AppRunner {
 }
 
 impl AppRunner {
-    pub fn new(canvas_id: &str, app: Box<dyn epi::App>) -> Result<Self, JsValue> {
+    pub fn new(canvas_id: &str, app_creator: epi::AppCreator) -> Result<Self, JsValue> {
         let painter = WrappedGlowPainter::new(canvas_id).map_err(JsValue::from)?;
 
         let prefer_dark_mode = crate::prefer_dark_mode();
@@ -177,6 +177,13 @@ impl AppRunner {
 
         let storage = LocalStorage::default();
 
+        let app = app_creator(&epi::CreationContext {
+            egui_ctx: egui_ctx.clone(),
+            integration_info: frame.info(),
+            storage: Some(&storage),
+            gl: painter.painter.gl().clone(),
+        });
+
         let mut runner = Self {
             frame,
             egui_ctx,
@@ -193,11 +200,6 @@ impl AppRunner {
         };
 
         runner.input.raw.max_texture_side = Some(runner.painter.max_texture_side());
-
-        let gl = runner.painter.painter.gl();
-        runner
-            .app
-            .setup(&runner.egui_ctx, &runner.frame, Some(&runner.storage), gl);
 
         Ok(runner)
     }
@@ -327,8 +329,8 @@ impl AppRunner {
 
 /// Install event listeners to register different input events
 /// and start running the given app.
-pub fn start(canvas_id: &str, app: Box<dyn epi::App>) -> Result<AppRunnerRef, JsValue> {
-    let mut runner = AppRunner::new(canvas_id, app)?;
+pub fn start(canvas_id: &str, app_creator: epi::AppCreator) -> Result<AppRunnerRef, JsValue> {
+    let mut runner = AppRunner::new(canvas_id, app_creator)?;
     runner.warm_up()?;
     start_runner(runner)
 }

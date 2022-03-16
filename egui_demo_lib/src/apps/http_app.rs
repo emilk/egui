@@ -54,10 +54,6 @@ impl Default for HttpApp {
 }
 
 impl epi::App for HttpApp {
-    fn name(&self) -> &str {
-        "⬇ HTTP"
-    }
-
     fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
         egui::TopBottomPanel::bottom("http_bottom").show(ctx, |ui| {
             let layout = egui::Layout::top_down(egui::Align::Center).with_main_justify(true);

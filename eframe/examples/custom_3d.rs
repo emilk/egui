@@ -8,25 +8,42 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use eframe::{egui, epi};
+use eframe::egui;
 
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-#[derive(Default)]
+fn main() {
+    let options = eframe::NativeOptions::default();
+    eframe::run_native("Custom 3D painting in eframe", options, |cc| {
+        Box::new(MyApp::new(cc))
+    });
+}
+
 struct MyApp {
-    rotating_triangle: Arc<Mutex<Option<RotatingTriangle>>>,
+    /// Behind an `Arc<Mutex<…>>` so we can pass it to [`egui::PaintCallback`] and paint later.
+    rotating_triangle: Arc<Mutex<RotatingTriangle>>,
     angle: f32,
 }
 
-impl epi::App for MyApp {
-    fn name(&self) -> &str {
-        "Custom 3D painting inside an egui window"
+impl MyApp {
+    fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        Self {
+            rotating_triangle: Arc::new(Mutex::new(RotatingTriangle::new(&cc.gl))),
+            angle: 0.0,
+        }
     }
+}
 
-    fn update(&mut self, ctx: &egui::Context, _frame: &epi::Frame) {
+impl eframe::App for MyApp {
+    fn update(&mut self, ctx: &egui::Context, _frame: &eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Here is some 3D stuff:");
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = 0.0;
+                ui.label("The triangle is being painted using ");
+                ui.hyperlink_to("glow", "https://github.com/grovesNL/glow");
+                ui.label(" (OpenGL).");
+            });
 
             egui::ScrollArea::both().show(ui, |ui| {
                 egui::Frame::dark_canvas(ui.style()).show(ui, |ui| {
@@ -35,14 +52,10 @@ impl epi::App for MyApp {
                 ui.label("Drag to rotate!");
             });
         });
+    }
 
-        let mut frame = egui::Frame::window(&*ctx.style());
-        frame.fill = frame.fill.linear_multiply(0.5); // transparent
-        egui::Window::new("3D stuff in a window")
-            .frame(frame)
-            .show(ctx, |ui| {
-                self.custom_painting(ui);
-            });
+    fn on_exit(&mut self, gl: &glow::Context) {
+        self.rotating_triangle.lock().destroy(gl)
     }
 }
 
@@ -53,17 +66,15 @@ impl MyApp {
 
         self.angle += response.drag_delta().x * 0.01;
 
+        // Clone locals so we can move them into the paint callback:
         let angle = self.angle;
         let rotating_triangle = self.rotating_triangle.clone();
 
-        let callback = egui::epaint::PaintCallback {
+        let callback = egui::PaintCallback {
             rect,
             callback: std::sync::Arc::new(move |render_ctx| {
                 if let Some(painter) = render_ctx.downcast_ref::<egui_glow::Painter>() {
-                    let mut rotating_triangle = rotating_triangle.lock();
-                    let rotating_triangle = rotating_triangle
-                        .get_or_insert_with(|| RotatingTriangle::new(painter.gl()));
-                    rotating_triangle.paint(painter.gl(), angle);
+                    rotating_triangle.lock().paint(painter.gl(), angle);
                 } else {
                     eprintln!("Can't do custom painting because we are not using a glow context");
                 }
@@ -163,9 +174,7 @@ impl RotatingTriangle {
         }
     }
 
-    // TODO: figure out how to call this in a nice way
-    #[allow(unused)]
-    fn destroy(self, gl: &glow::Context) {
+    fn destroy(&self, gl: &glow::Context) {
         use glow::HasContext as _;
         unsafe {
             gl.delete_program(self.program);
@@ -185,9 +194,4 @@ impl RotatingTriangle {
             gl.draw_arrays(glow::TRIANGLES, 0, 3);
         }
     }
-}
-
-fn main() {
-    let options = eframe::NativeOptions::default();
-    eframe::run_native(Box::new(MyApp::default()), options);
 }
