@@ -242,6 +242,17 @@ impl Mesh {
             v.pos += delta;
         }
     }
+
+    /// Rotate by some angle about an origin, in-place.
+    ///
+    /// Origin is relative to the top left corner of the screen.
+    pub fn rotate(&mut self, rot: Rot2, origin: Vec2) {
+        self.translate(-origin);
+        for v in &mut self.vertices {
+            v.pos = (rot * v.pos.to_vec2()).to_pos2();
+        }
+        self.translate(origin);
+    }
 }
 
 // ----------------------------------------------------------------------------

@@ -4,11 +4,12 @@ use eframe::egui;
 use egui_extras::RetainedImage;
 
 fn main() {
-    let options = eframe::NativeOptions::default();
-    eframe::run_native(
-        "Show an image with eframe/egui",
-        options,
-        Box::new(|_cc| Box::new(MyApp::default())),
+    let options = eframe::NativeOptions {
+        initial_window_size: Some(egui::vec2(500.0, 900.0)),
+        ..Default::default()
+    };
+    eframe::run_native("Show an image with eframe/egui", options,
+        Box::new(|_cc| Box::new(MyApp::default()))
     );
 }
 
@@ -33,6 +34,12 @@ impl eframe::App for MyApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("This is an image:");
             self.image.show(ui);
+
+            ui.heading("This is a rotated image:");
+            ui.add(
+                egui::Image::new(self.image.texture_id(ctx), self.image.size_vec2())
+                    .rotate(45.0_f32.to_radians(), self.image.size_vec2() / 2.0),
+            );
 
             ui.heading("This is an image you can click:");
             ui.add(egui::ImageButton::new(

@@ -1,4 +1,5 @@
 use crate::*;
+use emath::Rot2;
 
 /// An widget to show an image of a given size.
 ///
@@ -36,6 +37,7 @@ pub struct Image {
     bg_fill: Color32,
     tint: Color32,
     sense: Sense,
+    rotation: Option<(Rot2, Vec2)>,
 }
 
 impl Image {
@@ -47,6 +49,7 @@ impl Image {
             bg_fill: Default::default(),
             tint: Color32::WHITE,
             sense: Sense::hover(),
+            rotation: None,
         }
     }
 
@@ -75,6 +78,15 @@ impl Image {
         self.sense = sense;
         self
     }
+
+    /// Rotate the image about an origin by some angle
+    ///
+    /// Positive angle is clockwise.
+    /// Origin is a vector relative to the top-left corner of the image.
+    pub fn rotate(mut self, angle: f32, origin: Vec2) -> Self {
+        self.rotation = Some((Rot2::from_angle(angle), origin));
+        self
+    }
 }
 
 impl Image {
@@ -92,6 +104,7 @@ impl Image {
                 bg_fill,
                 tint,
                 sense: _,
+                rotation,
             } = self;
 
             if *bg_fill != Default::default() {
@@ -104,6 +117,10 @@ impl Image {
                 // TODO: builder pattern for Mesh
                 let mut mesh = Mesh::with_texture(*texture_id);
                 mesh.add_rect_with_uv(rect, *uv, *tint);
+                if let Some((rot, origin)) = rotation {
+                    let origin_abs = rect.min.to_vec2() + *origin;
+                    mesh.rotate(*rot, origin_abs);
+                }
                 ui.painter().add(Shape::mesh(mesh));
             }
         }
