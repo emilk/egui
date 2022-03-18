@@ -38,7 +38,7 @@ impl eframe::App for MyApp {
             ui.heading("This is a rotated image:");
             ui.add(
                 egui::Image::new(self.image.texture_id(ctx), self.image.size_vec2())
-                    .rotate(45.0_f32.to_radians(), self.image.size_vec2() / 2.0),
+                    .rotate(45.0_f32.to_radians(), egui::Vec2::splat(0.5)),
             );
 
             ui.heading("This is an image you can click:");
