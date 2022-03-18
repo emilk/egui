@@ -15,9 +15,11 @@ use std::sync::Arc;
 
 fn main() {
     let options = eframe::NativeOptions::default();
-    eframe::run_native("Custom 3D painting in eframe", options, |cc| {
-        Box::new(MyApp::new(cc))
-    });
+    eframe::run_native(
+        "Custom 3D painting in eframe",
+        options,
+        Box::new(|cc| Box::new(MyApp::new(cc))),
+    );
 }
 
 struct MyApp {

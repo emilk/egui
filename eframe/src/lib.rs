@@ -20,7 +20,7 @@
 //!
 //! fn main() {
 //!     let native_options = eframe::NativeOptions::default();
-//!     eframe::run_native("My egui App", native_options, |cc| Box::new(MyEguiApp::new(cc)));
+//!     eframe::run_native("My egui App", native_options, Box::new(|cc| Box::new(MyEguiApp::new(cc))));
 //! }
 //!
 //! #[derive(Default)]
@@ -54,7 +54,7 @@
 //! #[cfg(target_arch = "wasm32")]
 //! #[wasm_bindgen]
 //! pub fn start(canvas_id: &str) -> Result<(), eframe::wasm_bindgen::JsValue> {
-//!     eframe::start_web(canvas_id, |cc| Box::new(MyApp::new(cc)))
+//!     eframe::start_web(canvas_id, Box::new(|cc| Box::new(MyApp::new(cc))))
 //! }
 //! ```
 
@@ -99,7 +99,7 @@ pub use egui_web::wasm_bindgen;
 /// #[cfg(target_arch = "wasm32")]
 /// #[wasm_bindgen]
 /// pub fn start(canvas_id: &str) -> Result<(), eframe::wasm_bindgen::JsValue> {
-///     eframe::start_web(canvas_id, |cc| Box::new(MyEguiApp::new(cc)))
+///     eframe::start_web(canvas_id, Box::new(|cc| Box::new(MyEguiApp::new(cc))))
 /// }
 /// ```
 #[cfg(target_arch = "wasm32")]
@@ -122,7 +122,7 @@ pub fn start_web(canvas_id: &str, app_creator: AppCreator) -> Result<(), wasm_bi
 ///
 /// fn main() {
 ///     let native_options = eframe::NativeOptions::default();
-///     eframe::run_native("MyApp", native_options, |cc| Box::new(MyEguiApp::new(cc)));
+///     eframe::run_native("MyApp", native_options, Box::new(|cc| Box::new(MyEguiApp::new(cc))));
 /// }
 ///
 /// #[derive(Default)]

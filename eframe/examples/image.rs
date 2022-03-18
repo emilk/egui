@@ -5,9 +5,11 @@ use egui_extras::RetainedImage;
 
 fn main() {
     let options = eframe::NativeOptions::default();
-    eframe::run_native("Show an image with eframe/egui", options, |_cc| {
-        Box::new(MyApp::default())
-    });
+    eframe::run_native(
+        "Show an image with eframe/egui",
+        options,
+        Box::new(|_cc| Box::new(MyApp::default())),
+    );
 }
 
 struct MyApp {
