@@ -4,9 +4,11 @@ use eframe::egui;
 
 fn main() {
     let options = eframe::NativeOptions::default();
-    eframe::run_native("egui example: custom font", options, |cc| {
-        Box::new(MyApp::new(cc))
-    });
+    eframe::run_native(
+        "egui example: custom font",
+        options,
+        Box::new(|cc| Box::new(MyApp::new(cc))),
+    );
 }
 
 fn setup_custom_fonts(ctx: &egui::Context) {

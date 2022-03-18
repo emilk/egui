@@ -16,7 +16,9 @@ fn main() {
         drag_and_drop_support: true,
         ..Default::default()
     };
-    eframe::run_native("egui demo app", options, |cc| {
-        Box::new(egui_demo_lib::WrapApp::new(cc))
-    });
+    eframe::run_native(
+        "egui demo app",
+        options,
+        Box::new(|cc| Box::new(egui_demo_lib::WrapApp::new(cc))),
+    );
 }

@@ -4,7 +4,11 @@ use eframe::egui;
 
 fn main() {
     let options = eframe::NativeOptions::default();
-    eframe::run_native("Confirm exit", options, |_cc| Box::new(MyApp::default()));
+    eframe::run_native(
+        "Confirm exit",
+        options,
+        Box::new(|_cc| Box::new(MyApp::default())),
+    );
 }
 
 #[derive(Default)]
