@@ -485,7 +485,20 @@ impl Painter {
 
     fn upload_texture_srgb(&mut self, pos: Option<[usize; 2]>, [w, h]: [usize; 2], data: &[u8]) {
         assert_eq!(data.len(), w * h * 4);
-        assert!(w >= 1 && h >= 1);
+        assert!(
+            w >= 1 && h >= 1,
+            "Got a texture image of size {}x{}. A texture must at least be one texel wide.",
+            w,
+            h
+        );
+        assert!(
+            w <= self.max_texture_side && h <= self.max_texture_side,
+            "Got a texture image of size {}x{}, but the maximum supported texture side is only {}",
+            w,
+            h,
+            self.max_texture_side
+        );
+
         unsafe {
             self.gl.tex_parameter_i32(
                 glow::TEXTURE_2D,
