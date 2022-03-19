@@ -695,6 +695,11 @@ impl Tessellator {
         }
     }
 
+    /// Set the `Rect` to use for culling.
+    pub fn set_clip_rect(&mut self, clip_rect: Rect) {
+        self.clip_rect = clip_rect;
+    }
+
     /// Tessellate a single [`Shape`] into a [`Mesh`].
     ///
     /// * `tex_size`: size of the font texture (required to normalize glyph uv rectangles).
