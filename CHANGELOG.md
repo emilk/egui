@@ -17,7 +17,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 
 ### Fixed 🐛
 * Fixed ComboBoxes always being rendered left-aligned ([#1304](https://github.com/emilk/egui/pull/1304)).
-
+* Fixed ui code that could lead to a deadlock ([#1380](https://github.com/emilk/egui/pull/1380))
 
 ## 0.17.0 - 2022-02-22 - Improved font selection and image handling
 
