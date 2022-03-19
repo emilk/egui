@@ -65,10 +65,6 @@ impl epi::App for WrapApp {
         epi::set_value(storage, epi::APP_KEY, self);
     }
 
-    fn max_size_points(&self) -> egui::Vec2 {
-        self.backend_panel.max_size_points_active
-    }
-
     fn clear_color(&self) -> egui::Rgba {
         egui::Rgba::TRANSPARENT // we set a `CentralPanel` fill color in `demo_windows.rs`
     }
