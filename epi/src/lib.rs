@@ -176,13 +176,12 @@ pub trait App {
 
     /// The size limit of the web app canvas.
     ///
-    /// By default the size if limited to 1024x2048.
+    /// By default the max size is [`egui::Vec2::INFINITY`], i.e. unlimited.
     ///
-    /// A larger canvas can lead to bad frame rates on some browsers on some platforms.
-    /// In particular, Firefox on Mac and Linux is really bad at handling large WebGL canvases:
-    /// <https://bugzilla.mozilla.org/show_bug.cgi?id=1010527#c0> (unfixed since 2014).
+    /// A large canvas can lead to bad frame rates on some older browsers on some platforms
+    /// (see https://bugzilla.mozilla.org/show_bug.cgi?id=1010527#c0).
     fn max_size_points(&self) -> egui::Vec2 {
-        egui::Vec2::new(1024.0, 2048.0)
+        egui::Vec2::INFINITY
     }
 
     /// Background color for the app, e.g. what is sent to `gl.clearColor`.

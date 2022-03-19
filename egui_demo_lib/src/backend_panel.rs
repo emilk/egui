@@ -70,8 +70,8 @@ impl Default for BackendPanel {
             open: false,
             run_mode: Default::default(),
             pixels_per_point: Default::default(),
-            max_size_points_ui: egui::Vec2::new(1024.0, 2048.0),
-            max_size_points_active: egui::Vec2::new(1024.0, 2048.0),
+            max_size_points_ui: egui::Vec2::INFINITY,
+            max_size_points_active: egui::Vec2::INFINITY,
             frame_history: Default::default(),
             egui_windows: Default::default(),
         }
