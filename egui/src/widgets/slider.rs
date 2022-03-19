@@ -456,6 +456,7 @@ impl<'a> Slider<'a> {
     fn value_ui(&mut self, ui: &mut Ui, position_range: RangeInclusive<f32>) -> Response {
         // If `DragValue` is controlled from the keyboard and `step` is defined, set speed to `step`
         let change = {
+            // Hold one lock rather than 4 (see #1380)
             let input = ui.input();
 
             input.num_presses(Key::ArrowUp) as i32 + input.num_presses(Key::ArrowRight) as i32

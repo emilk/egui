@@ -277,7 +277,7 @@ impl MenuRoot {
         root: &mut MenuRootManager,
         id: Id,
     ) -> MenuResponse {
-        // Lock the input once for the whole function call
+        // Lock the input once for the whole function call (see #1380)
         let input = response.ctx.input();
 
         if (response.clicked() && root.is_menu_open(id)) || input.key_pressed(Key::Escape) {
