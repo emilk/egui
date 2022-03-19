@@ -54,10 +54,6 @@ pub struct BackendPanel {
     #[cfg_attr(feature = "serde", serde(skip))]
     pixels_per_point: Option<f32>,
 
-    /// maximum size of the web browser canvas
-    max_size_points_ui: egui::Vec2,
-    pub max_size_points_active: egui::Vec2,
-
     #[cfg_attr(feature = "serde", serde(skip))]
     frame_history: crate::frame_history::FrameHistory,
 
@@ -70,8 +66,6 @@ impl Default for BackendPanel {
             open: false,
             run_mode: Default::default(),
             pixels_per_point: Default::default(),
-            max_size_points_ui: egui::Vec2::new(1024.0, 2048.0),
-            max_size_points_active: egui::Vec2::new(1024.0, 2048.0),
             frame_history: Default::default(),
             egui_windows: Default::default(),
         }
@@ -157,17 +151,6 @@ impl BackendPanel {
             ui.hyperlink("https://github.com/emilk/egui");
 
             ui.separator();
-
-            ui.add(
-                egui::Slider::new(&mut self.max_size_points_ui.x, 512.0..=f32::INFINITY)
-                    .logarithmic(true)
-                    .largest_finite(8192.0)
-                    .text("Max width"),
-            )
-            .on_hover_text("Maximum width of the egui region of the web page.");
-            if !ui.ctx().is_using_pointer() {
-                self.max_size_points_active = self.max_size_points_ui;
-            }
         }
 
         show_integration_name(ui, &frame.info());

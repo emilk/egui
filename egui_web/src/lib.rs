@@ -3,11 +3,6 @@
 //! This library is an [`epi`] backend.
 //!
 //! If you are writing an app, you may want to look at [`eframe`](https://docs.rs/eframe) instead.
-//!
-//! ## Specifying the size of the egui canvas
-//! For performance reasons (on some browsers) the egui canvas does not, by default,
-//! fill the whole width of the browser.
-//! This can be changed by overriding [`epi::App::max_size_points`].
 
 // Forbid warnings in release builds:
 #![cfg_attr(not(debug_assertions), deny(warnings))]
