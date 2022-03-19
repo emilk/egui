@@ -8,8 +8,10 @@ fn main() {
         initial_window_size: Some(egui::vec2(500.0, 900.0)),
         ..Default::default()
     };
-    eframe::run_native("Show an image with eframe/egui", options,
-        Box::new(|_cc| Box::new(MyApp::default()))
+    eframe::run_native(
+        "Show an image with eframe/egui",
+        options,
+        Box::new(|_cc| Box::new(MyApp::default())),
     );
 }
 
