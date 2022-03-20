@@ -1,7 +1,6 @@
 use crate::{glow_wrapping::WrappedGlowPainter, *};
-
 use egui::TexturesDelta;
-pub use egui::{pos2, Color32};
+use epi::Renderer as _;
 
 // ----------------------------------------------------------------------------
 

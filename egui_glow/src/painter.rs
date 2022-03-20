@@ -6,6 +6,7 @@ use egui::{
     emath::Rect,
     epaint::{Color32, Mesh, Primitive, Vertex},
 };
+use epi::Renderer as _;
 use glow::HasContext;
 use memoffset::offset_of;
 
@@ -18,6 +19,31 @@ pub use glow::Context;
 
 const VERT_SRC: &str = include_str!("shader/vertex.glsl");
 const FRAG_SRC: &str = include_str!("shader/fragment.glsl");
+
+// ----------------------------------------------------------------------------
+
+#[derive(Copy, Clone)]
+pub enum TextureFilter {
+    Linear,
+    Nearest,
+}
+
+impl Default for TextureFilter {
+    fn default() -> Self {
+        TextureFilter::Linear
+    }
+}
+
+impl TextureFilter {
+    pub(crate) fn glow_code(&self) -> u32 {
+        match self {
+            TextureFilter::Linear => glow::LINEAR,
+            TextureFilter::Nearest => glow::NEAREST,
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 /// An OpenGL painter using [`glow`].
 ///
@@ -46,7 +72,6 @@ pub struct Painter {
 
     textures: HashMap<egui::TextureId, glow::Texture>,
 
-    #[cfg(feature = "epi")]
     next_native_tex_id: u64, // TODO: 128-bit texture space?
 
     /// Stores outdated OpenGL textures that are yet to be deleted
@@ -56,23 +81,28 @@ pub struct Painter {
     destroyed: bool,
 }
 
-#[derive(Copy, Clone)]
-pub enum TextureFilter {
-    Linear,
-    Nearest,
-}
-
-impl Default for TextureFilter {
-    fn default() -> Self {
-        TextureFilter::Linear
+impl epi::Renderer for Painter {
+    /// Access the shared glow context.
+    fn gl(&self) -> &std::rc::Rc<glow::Context> {
+        &self.gl
     }
-}
 
-impl TextureFilter {
-    pub(crate) fn glow_code(&self) -> u32 {
-        match self {
-            TextureFilter::Linear => glow::LINEAR,
-            TextureFilter::Nearest => glow::NEAREST,
+    /// Get the [`glow::Texture`] bound to a [`egui::TextureId`].
+    fn texture(&self, texture_id: egui::TextureId) -> Option<glow::Texture> {
+        self.textures.get(&texture_id).copied()
+    }
+
+    fn register_native_texture(&mut self, native: glow::Texture) -> egui::TextureId {
+        self.assert_not_destroyed();
+        let id = egui::TextureId::User(self.next_native_tex_id);
+        self.next_native_tex_id += 1;
+        self.textures.insert(id, native);
+        id
+    }
+
+    fn replace_native_texture(&mut self, id: egui::TextureId, replacing: glow::Texture) {
+        if let Some(old_tex) = self.textures.insert(id, replacing) {
+            self.textures_to_destroy.push(old_tex);
         }
     }
 }
@@ -226,17 +256,11 @@ impl Painter {
                 vertex_buffer,
                 element_array_buffer,
                 textures: Default::default(),
-                #[cfg(feature = "epi")]
                 next_native_tex_id: 1 << 32,
                 textures_to_destroy: Vec::new(),
                 destroyed: false,
             })
         }
-    }
-
-    /// Access the shared glow context.
-    pub fn gl(&self) -> &std::rc::Rc<glow::Context> {
-        &self.gl
     }
 
     pub fn max_texture_side(&self) -> usize {
@@ -403,7 +427,7 @@ impl Painter {
     #[inline(never)] // Easier profiling
     fn paint_mesh(&mut self, mesh: &Mesh) {
         debug_assert!(mesh.is_valid());
-        if let Some(texture) = self.get_texture(mesh.texture_id) {
+        if let Some(texture) = self.texture(mesh.texture_id) {
             unsafe {
                 self.gl
                     .bind_buffer(glow::ARRAY_BUFFER, Some(self.vertex_buffer));
@@ -579,11 +603,6 @@ impl Painter {
         }
     }
 
-    /// Get the [`glow::Texture`] bound to a [`egui::TextureId`].
-    pub fn get_texture(&self, texture_id: egui::TextureId) -> Option<glow::Texture> {
-        self.textures.get(&texture_id).copied()
-    }
-
     unsafe fn destroy_gl(&self) {
         self.gl.delete_program(self.program);
         for tex in self.textures.values() {
@@ -638,25 +657,6 @@ impl Drop for Painter {
             tracing::warn!(
                 "You forgot to call destroy() on the egui glow painter. Resources will leak!"
             );
-        }
-    }
-}
-
-#[cfg(feature = "epi")]
-impl epi::NativeTexture for Painter {
-    type Texture = glow::Texture;
-
-    fn register_native_texture(&mut self, native: Self::Texture) -> egui::TextureId {
-        self.assert_not_destroyed();
-        let id = egui::TextureId::User(self.next_native_tex_id);
-        self.next_native_tex_id += 1;
-        self.textures.insert(id, native);
-        id
-    }
-
-    fn replace_native_texture(&mut self, id: egui::TextureId, replacing: Self::Texture) {
-        if let Some(old_tex) = self.textures.insert(id, replacing) {
-            self.textures_to_destroy.push(old_tex);
         }
     }
 }

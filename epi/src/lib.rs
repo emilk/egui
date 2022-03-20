@@ -374,16 +374,22 @@ pub struct IntegrationInfo {
     pub native_pixels_per_point: Option<f32>,
 }
 
-/// Abstraction for platform dependent texture reference
-pub trait NativeTexture {
-    /// The native texture type.
-    type Texture;
+/// The rendering backend of `eframe`.
+///
+/// This is a wrapper around [`glow`](https://github.com/grovesNL/glow)
+/// that also handles texture allocations.
+pub trait Renderer {
+    /// Access the shared glow context.
+    fn gl(&self) -> &std::rc::Rc<glow::Context>;
+
+    /// Get the [`glow::Texture`] bound to a [`egui::TextureId`].
+    fn texture(&self, texture_id: egui::TextureId) -> Option<glow::Texture>;
 
     /// Bind native texture to an egui texture id.
-    fn register_native_texture(&mut self, native: Self::Texture) -> egui::TextureId;
+    fn register_native_texture(&mut self, native: glow::Texture) -> egui::TextureId;
 
     /// Change what texture the given id refers to.
-    fn replace_native_texture(&mut self, id: egui::TextureId, replacing: Self::Texture);
+    fn replace_native_texture(&mut self, id: egui::TextureId, replacing: glow::Texture);
 }
 
 // ----------------------------------------------------------------------------

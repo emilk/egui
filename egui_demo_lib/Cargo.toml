@@ -36,10 +36,12 @@ syntax_highlighting = ["syntect"]
 [dependencies]
 egui = { version = "0.17.0", path = "../egui", default-features = false }
 epi = { version = "0.17.0", path = "../epi" }
+egui_glow = { version = "0.17.0", path = "../egui_glow" }                 # for custom_3d app
 
 chrono = { version = "0.4", optional = true, features = ["js-sys", "wasmbind"] }
 enum-map = { version = "2", features = ["serde"] }
 tracing = "0.1"
+parking_lot = "0.12"
 unicode_names2 = { version = "0.5.0", default-features = false }
 
 # feature "http":

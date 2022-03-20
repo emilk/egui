@@ -52,6 +52,7 @@ winit = ["egui-winit", "glutin"]
 egui = { version = "0.17.0", path = "../egui", default-features = false, features = [
   "convert_bytemuck",
 ] }
+epi = { version = "0.17.0", path = "../epi" }
 
 bytemuck = "1.7"
 glow = "0.11"

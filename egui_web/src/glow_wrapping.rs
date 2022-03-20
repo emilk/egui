@@ -1,5 +1,6 @@
 use egui::{ClippedPrimitive, Rgba};
 use egui_glow::glow;
+use epi::Renderer as _;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
