@@ -25,11 +25,6 @@ fn create_display(
 
     let gl = unsafe { glow::Context::from_loader_function(|s| gl_window.get_proc_address(s)) };
 
-    unsafe {
-        use glow::HasContext as _;
-        gl.enable(glow::FRAMEBUFFER_SRGB);
-    }
-
     (gl_window, gl)
 }
 
