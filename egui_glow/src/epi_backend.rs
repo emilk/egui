@@ -46,19 +46,20 @@ pub fn run(app_name: &str, native_options: &epi::NativeOptions, app_creator: epi
     let mut painter = crate::Painter::new(gl.clone(), None, "")
         .unwrap_or_else(|error| panic!("some OpenGL error occurred {}\n", error));
 
+    let event_loop_proxy = parking_lot::Mutex::new(event_loop.create_proxy());
+    let egui_ctx = egui::Context::with_repaint_callback({
+        move || {
+            event_loop_proxy.lock().send_event(RequestRepaintEvent).ok();
+        }
+    });
+
     let mut integration = egui_winit::epi::EpiIntegration::new(
         "egui_glow",
+        egui_ctx,
         painter.max_texture_side(),
         gl_window.window(),
         persistence,
     );
-
-    {
-        let event_loop_proxy = parking_lot::Mutex::new(event_loop.create_proxy());
-        integration.egui_ctx.set_request_repaint_callback(move || {
-            event_loop_proxy.lock().send_event(RequestRepaintEvent).ok();
-        });
-    }
 
     let mut app = app_creator(&epi::CreationContext {
         egui_ctx: integration.egui_ctx.clone(),

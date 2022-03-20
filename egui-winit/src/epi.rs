@@ -229,12 +229,11 @@ pub struct EpiIntegration {
 impl EpiIntegration {
     pub fn new(
         integration_name: &'static str,
+        egui_ctx: egui::Context,
         max_texture_side: usize,
         window: &winit::window::Window,
         persistence: crate::epi::Persistence,
     ) -> Self {
-        let egui_ctx = egui::Context::default();
-
         *egui_ctx.memory() = persistence.load_memory().unwrap_or_default();
 
         let prefer_dark_mode = prefer_dark_mode();

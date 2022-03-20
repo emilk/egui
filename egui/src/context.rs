@@ -1,5 +1,8 @@
 // #![warn(missing_docs)]
 
+use std::sync::atomic::AtomicU32;
+use std::sync::atomic::Ordering::SeqCst;
+
 use crate::{
     animation_manager::AnimationManager, data::output::PlatformOutput, frame_state::FrameState,
     input_state::*, layers::GraphicLayers, memory::Options, output::FullOutput, TextureHandle, *,
@@ -27,6 +30,25 @@ impl Default for WrappedTextureManager {
 
 // ----------------------------------------------------------------------------
 
+struct RepaintInfo {
+    /// While positive, keep requesting repaints. Decrement at the end of each frame.
+    repaint_requests: AtomicU32,
+    request_repaint_callbacks: Option<Box<dyn Fn() + Send + Sync>>,
+}
+
+impl Default for RepaintInfo {
+    fn default() -> Self {
+        Self {
+            // Start with painting an extra frame to compensate for some widgets
+            // that take two frames before they "settle":
+            repaint_requests: 1.into(),
+            request_repaint_callbacks: None,
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 #[derive(Default)]
 struct ContextImpl {
     /// `None` until the start of the first frame.
@@ -45,10 +67,6 @@ struct ContextImpl {
     output: PlatformOutput,
 
     paint_stats: PaintStats,
-
-    /// While positive, keep requesting repaints. Decrement at the end of each frame.
-    repaint_requests: u32,
-    request_repaint_callbacks: Option<Box<dyn Fn() + Send + Sync>>,
 }
 
 impl ContextImpl {
@@ -142,33 +160,41 @@ impl ContextImpl {
 ///     paint(full_output.textures_delta, clipped_primitives);
 /// }
 /// ```
-#[derive(Clone)]
-pub struct Context(Arc<RwLock<ContextImpl>>);
+#[derive(Clone, Default)]
+pub struct Context {
+    ctx: Arc<RwLock<ContextImpl>>,
+    repaint_info: Arc<RepaintInfo>,
+}
 
 impl std::cmp::PartialEq for Context {
     fn eq(&self, other: &Context) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
-    }
-}
-
-impl Default for Context {
-    fn default() -> Self {
-        Self(Arc::new(RwLock::new(ContextImpl {
-            // Start with painting an extra frame to compensate for some widgets
-            // that take two frames before they "settle":
-            repaint_requests: 1,
-            ..ContextImpl::default()
-        })))
+        Arc::ptr_eq(&self.ctx, &other.ctx)
     }
 }
 
 impl Context {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Construct a [`Context`] with a callback that is called when the user calls
+    /// [`Context::request_repaint`].
+    pub fn with_repaint_callback(callback: impl Fn() + Send + Sync + 'static) -> Self {
+        Self {
+            ctx: Default::default(),
+            repaint_info: Arc::new(RepaintInfo {
+                request_repaint_callbacks: Some(Box::new(callback)),
+                ..Default::default()
+            }),
+        }
+    }
+
     fn read(&self) -> RwLockReadGuard<'_, ContextImpl> {
-        self.0.read()
+        self.ctx.read()
     }
 
     fn write(&self) -> RwLockWriteGuard<'_, ContextImpl> {
-        self.0.write()
+        self.ctx.write()
     }
 
     /// Run the ui code for one frame.
@@ -539,23 +565,14 @@ impl Context {
     /// Call as many times as you wish, only one repaint will be issued.
     ///
     /// If called from outside the UI thread, the UI thread will wake up and run,
-    /// provided the egui integration has set that up via [`Self::set_request_repaint_callback`]
+    /// provided the egui integration has set that up via [`Self::with_repaint_callback`]
     /// (this will work on `eframe`).
     pub fn request_repaint(&self) {
         // request two frames of repaint, just to cover some corner cases (frame delays):
-        let mut ctx = self.write();
-        ctx.repaint_requests = 2;
-        if let Some(callback) = &ctx.request_repaint_callbacks {
+        self.repaint_info.repaint_requests.store(2, SeqCst);
+        if let Some(callback) = &self.repaint_info.request_repaint_callbacks {
             (callback)();
         }
-    }
-
-    /// For integrations: this callback will be called when an egui user calls [`Self::request_repaint`].
-    ///
-    /// This lets you wake up a sleeping UI thread.
-    pub fn set_request_repaint_callback(&self, callback: impl Fn() + Send + Sync + 'static) {
-        let callback = Box::new(callback);
-        self.write().request_repaint_callbacks = Some(callback);
     }
 
     /// Tell `egui` which fonts to use.
@@ -776,8 +793,8 @@ impl Context {
 
         let platform_output: PlatformOutput = std::mem::take(&mut self.output());
 
-        let needs_repaint = if self.read().repaint_requests > 0 {
-            self.write().repaint_requests -= 1;
+        let needs_repaint = if self.repaint_info.repaint_requests.load(SeqCst) > 0 {
+            self.repaint_info.repaint_requests.fetch_sub(1, SeqCst);
             true
         } else {
             false

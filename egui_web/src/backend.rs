@@ -159,14 +159,12 @@ impl AppRunner {
 
         let needs_repaint: std::sync::Arc<NeedRepaint> = Default::default();
 
-        let egui_ctx = egui::Context::default();
-
-        {
+        let egui_ctx = egui::Context::with_repaint_callback({
             let needs_repaint = needs_repaint.clone();
-            egui_ctx.set_request_repaint_callback(move || {
+            move || {
                 needs_repaint.0.store(true, SeqCst);
-            });
-        }
+            }
+        });
 
         load_memory(&egui_ctx);
         if prefer_dark_mode == Some(true) {
