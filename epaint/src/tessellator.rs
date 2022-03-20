@@ -744,7 +744,7 @@ impl Tessellator {
                         out,
                     );
                 }
-                self.tessellate_text(tex_size, text_shape, out);
+                self.tessellate_text(tex_size, &text_shape, out);
             }
             Shape::QuadraticBezier(quadratic_shape) => {
                 self.tessellate_quadratic_bezier(quadratic_shape, out);
@@ -913,7 +913,12 @@ impl Tessellator {
     /// * `tex_size`: size of the font texture (required to normalize glyph uv rectangles).
     /// * `text_shape`: the text to tessellate.
     /// * `out`: triangles are appended to this.
-    pub fn tessellate_text(&mut self, tex_size: [usize; 2], text_shape: TextShape, out: &mut Mesh) {
+    pub fn tessellate_text(
+        &mut self,
+        tex_size: [usize; 2],
+        text_shape: &TextShape,
+        out: &mut Mesh,
+    ) {
         let TextShape {
             pos: galley_pos,
             galley,
@@ -938,7 +943,7 @@ impl Tessellator {
 
         let uv_normalizer = vec2(1.0 / tex_size[0] as f32, 1.0 / tex_size[1] as f32);
 
-        let rotator = Rot2::from_angle(angle);
+        let rotator = Rot2::from_angle(*angle);
 
         for row in &galley.rows {
             if row.visuals.mesh.is_empty() {
@@ -946,7 +951,7 @@ impl Tessellator {
             }
 
             let mut row_rect = row.visuals.mesh_bounds;
-            if angle != 0.0 {
+            if *angle != 0.0 {
                 row_rect = row_rect.rotate_bb(rotator);
             }
             row_rect = row_rect.translate(galley_pos.to_vec2());
@@ -978,11 +983,11 @@ impl Tessellator {
 
                         if let Some(override_text_color) = override_text_color {
                             if row.visuals.glyph_vertex_range.contains(&i) {
-                                color = override_text_color;
+                                color = *override_text_color;
                             }
                         }
 
-                        let offset = if angle == 0.0 {
+                        let offset = if *angle == 0.0 {
                             pos.to_vec2()
                         } else {
                             rotator * pos.to_vec2()
@@ -996,12 +1001,12 @@ impl Tessellator {
                     }),
             );
 
-            if underline != Stroke::none() {
+            if *underline != Stroke::none() {
                 self.scratchpad_path.clear();
                 self.scratchpad_path
                     .add_line_segment([row_rect.left_bottom(), row_rect.right_bottom()]);
                 self.scratchpad_path
-                    .stroke_open(underline, &self.options, out);
+                    .stroke_open(*underline, &self.options, out);
             }
         }
     }
