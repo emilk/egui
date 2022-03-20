@@ -2,7 +2,7 @@
 
 use crate::{
     text::{FontId, Fonts, Galley},
-    Color32, Mesh, Stroke,
+    Color32, Mesh, Stroke, TextureId,
 };
 use emath::*;
 
@@ -182,6 +182,12 @@ impl Shape {
     pub fn mesh(mesh: Mesh) -> Self {
         crate::epaint_assert!(mesh.is_valid());
         Self::Mesh(mesh)
+    }
+
+    pub fn image(texture_id: TextureId, rect: Rect, uv: Rect, tint: Color32) -> Self {
+        let mut mesh = Mesh::with_texture(texture_id);
+        mesh.add_rect_with_uv(rect, uv, tint);
+        Shape::mesh(mesh)
     }
 
     /// The visual bounding rectangle (includes stroke widths)
