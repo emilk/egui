@@ -129,7 +129,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let font_image_size = fonts.font_image_size();
         c.bench_function("tessellate_text", |b| {
             b.iter(|| {
-                tessellator.tessellate_text(font_image_size, text_shape.clone(), &mut mesh);
+                tessellator.tessellate_text(font_image_size, &text_shape, &mut mesh);
                 mesh.clear();
             })
         });
