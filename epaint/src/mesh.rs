@@ -91,16 +91,28 @@ impl Mesh {
         if self.is_empty() {
             *self = other;
         } else {
+            self.append_ref(&other);
+        }
+    }
+
+    /// Append all the indices and vertices of `other` to `self` without
+    /// taking ownership.
+    pub fn append_ref(&mut self, other: &Mesh) {
+        crate::epaint_assert!(other.is_valid());
+
+        if !self.is_empty() {
             assert_eq!(
                 self.texture_id, other.texture_id,
                 "Can't merge Mesh using different textures"
             );
-
-            let index_offset = self.vertices.len() as u32;
-            self.indices
-                .extend(other.indices.iter().map(|index| index + index_offset));
-            self.vertices.extend(other.vertices.iter());
+        } else {
+            self.texture_id = other.texture_id;
         }
+
+        let index_offset = self.vertices.len() as u32;
+        self.indices
+            .extend(other.indices.iter().map(|index| index + index_offset));
+        self.vertices.extend(other.vertices.iter());
     }
 
     #[inline(always)]
