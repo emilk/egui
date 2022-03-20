@@ -11,6 +11,7 @@ use epaint::{mutex::*, stats::*, text::Fonts, TessellationOptions, *};
 
 // ----------------------------------------------------------------------------
 
+#[derive(Clone)]
 struct WrappedTextureManager(Arc<RwLock<epaint::TextureManager>>);
 
 impl Default for WrappedTextureManager {
@@ -55,7 +56,6 @@ struct ContextImpl {
     fonts: Option<Fonts>,
     memory: Memory,
     animation_manager: AnimationManager,
-    tex_manager: WrappedTextureManager,
 
     input: InputState,
 
@@ -164,6 +164,7 @@ impl ContextImpl {
 pub struct Context {
     ctx: Arc<RwLock<ContextImpl>>,
     repaint_info: Arc<RepaintInfo>,
+    tex_manager: WrappedTextureManager,
 }
 
 impl std::cmp::PartialEq for Context {
@@ -186,6 +187,7 @@ impl Context {
                 request_repaint_callbacks: Some(Box::new(callback)),
                 ..Default::default()
             }),
+            tex_manager: Default::default(),
         }
     }
 
@@ -564,6 +566,8 @@ impl Context {
     /// If this is called at least once in a frame, then there will be another frame right after this.
     /// Call as many times as you wish, only one repaint will be issued.
     ///
+    /// It is safe to call this from any thread at any time.
+    ///
     /// If called from outside the UI thread, the UI thread will wake up and run,
     /// provided the egui integration has set that up via [`Self::with_repaint_callback`]
     /// (this will work on `eframe`).
@@ -678,6 +682,8 @@ impl Context {
     ///
     /// For how to load an image, see [`ImageData`] and [`ColorImage::from_rgba_unmultiplied`].
     ///
+    /// This is safe to call from any thread at any time.
+    ///
     /// ```
     /// struct MyImage {
     ///     texture: Option<egui::TextureHandle>,
@@ -723,8 +729,10 @@ impl Context {
     /// In general it is easier to use [`Self::load_texture`] and [`TextureHandle`].
     ///
     /// You can show stats about the allocated textures using [`Self::texture_ui`].
+    ///
+    /// This is safe to call from any thread at any time.
     pub fn tex_manager(&self) -> Arc<RwLock<epaint::textures::TextureManager>> {
-        self.read().tex_manager.0.clone()
+        self.tex_manager.0.clone()
     }
 
     // ---------------------------------------------------------------------
@@ -781,14 +789,13 @@ impl Context {
 
             let font_image_delta = ctx_impl.fonts.as_ref().unwrap().font_image_delta();
             if let Some(font_image_delta) = font_image_delta {
-                ctx_impl
-                    .tex_manager
+                self.tex_manager
                     .0
                     .write()
                     .set(TextureId::default(), font_image_delta);
             }
 
-            textures_delta = ctx_impl.tex_manager.0.write().take_delta();
+            textures_delta = self.tex_manager.0.write().take_delta();
         };
 
         let platform_output: PlatformOutput = std::mem::take(&mut self.output());
