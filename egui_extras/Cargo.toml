@@ -27,9 +27,7 @@ svg = ["resvg", "tiny-skia", "usvg"]
 
 
 [dependencies]
-egui = { version = "0.17.0", path = "../egui", default-features = false, features = [
-  "single_threaded",
-] }
+egui = { version = "0.17.0", path = "../egui", default-features = false }
 parking_lot = "0.12"
 
 # Optional dependencies:
@@ -37,7 +35,7 @@ parking_lot = "0.12"
 # Add support for loading images with the `image` crate.
 # You also need to ALSO opt-in to the image formats you want to support, like so:
 #     image = { version = "0.24", features = ["jpeg", "png"] }
-image = { version = "0.24", optional = true, default-features = false, features = [] }
+image = { version = "0.24", optional = true, default-features = false }
 
 # svg feature
 resvg = { version = "0.22", optional = true }
