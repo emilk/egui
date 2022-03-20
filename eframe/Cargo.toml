@@ -46,16 +46,18 @@ screen_reader = [
 [dependencies]
 egui = { version = "0.17.0", path = "../egui", default-features = false }
 epi = { version = "0.17.0", path = "../epi" }
+glow = "0.11"
+parking_lot = "0.12"
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 egui_glow = { version = "0.17.0", path = "../egui_glow", default-features = false, features = [
   "clipboard",
-  "epi",
   "links",
   "winit",
 ] }
 egui-winit = { version = "0.17.0", path = "../egui-winit", default-features = false }
+glutin = "0.28.0"
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]

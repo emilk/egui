@@ -32,18 +32,56 @@ fn create_display(
 
 pub use epi::NativeOptions;
 
-/// Run an egui app
+/// This is how you start a native (desktop) app.
+///
+/// The first argument is name of your app, used for the title bar of the native window
+/// and the save location of persistence (see [`epi::App::save`]).
+///
+/// Call from `fn main` like this:
+/// ``` no_run
+/// use eframe::egui;
+///
+/// fn main() {
+///     let native_options = eframe::NativeOptions::default();
+///     eframe::run_native("MyApp", native_options, |cc| Box::new(MyEguiApp::new(cc)));
+/// }
+///
+/// #[derive(Default)]
+/// struct MyEguiApp {}
+///
+/// impl MyEguiApp {
+///     fn new(cc: &eframe::CreationContext<'_>) -> Self {
+///         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
+///         // Restore app state using cc.storage (requires the "persistence" feature).
+///         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
+///         // for e.g. egui::PaintCallback.
+///         Self::default()
+///     }
+/// }
+///
+/// impl eframe::App for MyEguiApp {
+///    fn update(&mut self, ctx: &egui::Context, frame: &eframe::Frame) {
+///        egui::CentralPanel::default().show(ctx, |ui| {
+///            ui.heading("Hello World!");
+///        });
+///    }
+/// }
+/// ```
 #[allow(unsafe_code)]
-pub fn run(app_name: &str, native_options: &epi::NativeOptions, app_creator: epi::AppCreator) -> ! {
+pub fn run_native(
+    app_name: &str,
+    native_options: epi::NativeOptions,
+    app_creator: epi::AppCreator,
+) -> ! {
     let persistence = egui_winit::epi::Persistence::from_app_name(app_name);
     let window_settings = persistence.load_window_settings();
     let window_builder =
-        egui_winit::epi::window_builder(native_options, &window_settings).with_title(app_name);
+        egui_winit::epi::window_builder(&native_options, &window_settings).with_title(app_name);
     let event_loop = winit::event_loop::EventLoop::with_user_event();
     let (gl_window, gl) = create_display(window_builder, &event_loop);
     let gl = std::rc::Rc::new(gl);
 
-    let mut painter = crate::Painter::new(gl.clone(), None, "")
+    let mut painter = egui_glow::Painter::new(gl.clone(), None, "")
         .unwrap_or_else(|error| panic!("some OpenGL error occurred {}\n", error));
 
     let mut integration = egui_winit::epi::EpiIntegration::new(

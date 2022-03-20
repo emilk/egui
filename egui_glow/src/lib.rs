@@ -2,7 +2,6 @@
 //!
 //! The main type you want to use is [`EguiGlow`].
 //!
-//! This library is an [`epi`] backend.
 //! If you are writing an app, you may want to look at [`eframe`](https://docs.rs/eframe) instead.
 
 // Forbid warnings in release builds:
@@ -99,9 +98,3 @@ mod vao_emulate;
 pub mod winit;
 #[cfg(all(not(target_arch = "wasm32"), feature = "winit"))]
 pub use winit::*;
-
-#[cfg(all(not(target_arch = "wasm32"), feature = "winit"))]
-mod epi_backend;
-
-#[cfg(all(not(target_arch = "wasm32"), feature = "winit"))]
-pub use epi_backend::{run, NativeOptions};
