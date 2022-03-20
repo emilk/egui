@@ -1005,6 +1005,7 @@ dependencies = [
  "ahash 0.7.6",
  "epaint",
  "nohash-hasher",
+ "parking_lot 0.12.0",
  "ron",
  "serde",
  "tracing",

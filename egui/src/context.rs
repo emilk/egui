@@ -11,8 +11,10 @@ use epaint::{mutex::*, stats::*, text::Fonts, TessellationOptions, *};
 
 // ----------------------------------------------------------------------------
 
+// NOTE: we always use `parking_lot` here so we can
+// use `WrappedTextureManager` from any thread.
 #[derive(Clone)]
-struct WrappedTextureManager(Arc<RwLock<epaint::TextureManager>>);
+struct WrappedTextureManager(Arc<parking_lot::RwLock<epaint::TextureManager>>);
 
 impl Default for WrappedTextureManager {
     fn default() -> Self {
@@ -25,7 +27,7 @@ impl Default for WrappedTextureManager {
         );
         assert_eq!(font_id, TextureId::default());
 
-        Self(Arc::new(RwLock::new(tex_mngr)))
+        Self(Arc::new(parking_lot::RwLock::new(tex_mngr)))
     }
 }
 
@@ -163,6 +165,9 @@ impl ContextImpl {
 #[derive(Clone, Default)]
 pub struct Context {
     ctx: Arc<RwLock<ContextImpl>>,
+    // These are not inside of `ContextImpl` because we want to have thread-safe access to them
+    // even without running with the multi_threaded feature flag.
+    // See https://github.com/emilk/egui/issues/1379.
     repaint_info: Arc<RepaintInfo>,
     tex_manager: WrappedTextureManager,
 }
@@ -731,7 +736,7 @@ impl Context {
     /// You can show stats about the allocated textures using [`Self::texture_ui`].
     ///
     /// This is safe to call from any thread at any time.
-    pub fn tex_manager(&self) -> Arc<RwLock<epaint::textures::TextureManager>> {
+    pub fn tex_manager(&self) -> Arc<parking_lot::RwLock<epaint::textures::TextureManager>> {
         self.tex_manager.0.clone()
     }
 

@@ -57,6 +57,7 @@ epaint = { version = "0.17.0", path = "../epaint", default-features = false }
 
 ahash = "0.7"
 nohash-hasher = "0.2"
+parking_lot = "0.12"
 
 # Optional:
 ron = { version = "0.7", optional = true }

@@ -1,8 +1,6 @@
-use crate::{
-    emath::NumExt,
-    mutex::{Arc, RwLock},
-    ImageData, ImageDelta, TextureId, TextureManager,
-};
+use crate::{emath::NumExt, mutex::Arc, ImageData, ImageDelta, TextureId, TextureManager};
+
+use parking_lot::RwLock;
 
 /// Used to paint images.
 ///
