@@ -50,7 +50,7 @@ impl WrappedGlowPainter {
 
     pub fn clear(&mut self, clear_color: Rgba) {
         let canvas_dimension = [self.canvas.width(), self.canvas.height()];
-        egui_glow::painter::clear(self.painter.gl(), canvas_dimension, clear_color)
+        egui_glow::painter::clear(self.painter.gl(), canvas_dimension, clear_color);
     }
 
     pub fn paint_primitives(

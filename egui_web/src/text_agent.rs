@@ -161,7 +161,7 @@ pub fn update_text_agent(runner: MutexGuard<'_, AppRunner>) -> Option<()> {
 
                     let delta = delta.max(-keyboard_fraction); // Don't move it crazy much
 
-                    let new_pos_percent = (delta * 100.0).round().to_string() + "%";
+                    let new_pos_percent = format!("{}%", (delta * 100.0).round());
 
                     canvas_style.set_property("position", "absolute").ok()?;
                     canvas_style.set_property("top", &new_pos_percent).ok()?;
@@ -217,8 +217,8 @@ pub fn move_text_cursor(cursor: Option<egui::Pos2>, canvas_id: &str) -> Option<(
             let x = (x - canvas.offset_width() as f32 / 2.0)
                 .min(canvas.client_width() as f32 - bounding_rect.width() as f32);
             style.set_property("position", "absolute").ok()?;
-            style.set_property("top", &(y.to_string() + "px")).ok()?;
-            style.set_property("left", &(x.to_string() + "px")).ok()
+            style.set_property("top", &format!("{}px", y)).ok()?;
+            style.set_property("left", &format!("{}px", x)).ok()
         })
     } else {
         style.set_property("position", "absolute").ok()?;

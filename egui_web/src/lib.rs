@@ -4,10 +4,7 @@
 //!
 //! If you are writing an app, you may want to look at [`eframe`](https://docs.rs/eframe) instead.
 
-// Forbid warnings in release builds:
-#![cfg_attr(not(debug_assertions), deny(warnings))]
-#![forbid(unsafe_code)]
-#![warn(clippy::all, rustdoc::missing_crate_level_docs, rust_2018_idioms)]
+#![allow(clippy::missing_errors_doc)] // So many `-> Result<_, JsValue>`
 
 pub mod backend;
 mod glow_wrapping;
@@ -891,11 +888,11 @@ pub(crate) fn webgl1_requires_brightening(gl: &web_sys::WebGlRenderingContext) -
     !user_agent.contains("Mac OS X") && crate::is_safari_and_webkit_gtk(gl)
 }
 
-/// detecting Safari and webkitGTK.
+/// detecting Safari and `webkitGTK`.
 ///
-/// Safari and webkitGTK use unmasked renderer :Apple GPU
+/// Safari and `webkitGTK` use unmasked renderer :Apple GPU
 ///
-/// If we detect safari or webkitGTK returns true.
+/// If we detect safari or `webkitGTKs` returns true.
 ///
 /// This function used to avoid displaying linear color with `sRGB` supported systems.
 fn is_safari_and_webkit_gtk(gl: &web_sys::WebGlRenderingContext) -> bool {

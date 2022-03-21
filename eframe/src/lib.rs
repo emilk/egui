@@ -58,15 +58,6 @@
 //! }
 //! ```
 
-// Forbid warnings in release builds:
-#![cfg_attr(not(debug_assertions), deny(warnings))]
-#![forbid(unsafe_code)]
-#![warn(
-    clippy::all,
-    missing_docs,
-    rust_2018_idioms,
-    rustdoc::missing_crate_level_docs
-)]
 #![allow(clippy::needless_doctest_main)]
 
 // Re-export all useful libraries:
@@ -143,6 +134,7 @@ pub fn start_web(canvas_id: &str, app_creator: AppCreator) -> Result<(), wasm_bi
 /// }
 /// ```
 #[cfg(not(target_arch = "wasm32"))]
+#[allow(clippy::needless_pass_by_value)]
 pub fn run_native(app_name: &str, native_options: NativeOptions, app_creator: AppCreator) -> ! {
     egui_glow::run(app_name, &native_options, app_creator)
 }
