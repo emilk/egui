@@ -66,7 +66,7 @@ fn web_location() -> epi::Location {
 
     let query_map = parse_query_map(&query)
         .iter()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
         .collect();
 
     epi::Location {
