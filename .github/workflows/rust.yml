@@ -23,6 +23,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: check
+          args: --all-targets
 
   check_all_features:
     name: cargo check --all-features
@@ -38,7 +39,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --all-features
+          args: --all-targets --all-features
 
   check_web_default:
     name: cargo check web (default features)
