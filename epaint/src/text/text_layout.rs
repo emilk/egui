@@ -202,7 +202,9 @@ fn line_break(
         }
 
         if potential_row_width > job.wrap.max_width {
-            if first_row_indentation > 0.0 && !row_break_candidates.has_word_boundary() {
+            if first_row_indentation > 0.0
+                && !row_break_candidates.has_good_candidate(job.wrap.break_anywhere)
+            {
                 // Allow the first row to be completely empty, because we know there will be more space on the next row:
                 // TODO: this records the height of this first row as zero, though that is probably fine since first_row_indentation usually comes with a first_row_min_height.
                 out_rows.push(Row {
@@ -747,6 +749,14 @@ impl RowBreakCandidates {
 
     fn has_word_boundary(&self) -> bool {
         self.space.is_some() || self.logogram.is_some()
+    }
+
+    fn has_good_candidate(&self, break_anywhere: bool) -> bool {
+        if break_anywhere {
+            self.any.is_some()
+        } else {
+            self.has_word_boundary()
+        }
     }
 
     fn get(&self, break_anywhere: bool) -> Option<usize> {
