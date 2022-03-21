@@ -57,7 +57,6 @@ winit = ["egui-winit", "glutin"]
 [dependencies]
 egui = { version = "0.17.0", path = "../egui", default-features = false, features = [
   "convert_bytemuck",
-  "single_threaded",
 ] }
 epi = { version = "0.17.0", path = "../epi", optional = true }
 

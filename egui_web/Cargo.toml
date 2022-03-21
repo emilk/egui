@@ -43,7 +43,6 @@ screen_reader = ["tts"]
 [dependencies]
 egui = { version = "0.17.0", path = "../egui", default-features = false, features = [
   "convert_bytemuck",
-  "single_threaded",
   "tracing",
 ] }
 egui_glow = { version = "0.17.0", path = "../egui_glow", default-features = false }

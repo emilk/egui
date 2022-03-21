@@ -4,6 +4,7 @@ All notable changes to the epaint crate will be documented in this file.
 
 ## Unreleased
 * Add `Shape::Callback` for backend-specific painting ([#1351](https://github.com/emilk/egui/pull/1351)).
+* Removed the `single_threaded/multi_threaded` flags - epaint is now always thread-safe ([#1390](https://github.com/emilk/egui/pull/1390)).
 
 
 ## 0.17.0 - 2022-02-22

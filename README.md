@@ -85,7 +85,7 @@ On Fedora Rawhide you need to run:
 * Extensible: [easy to write your own widgets for egui](https://github.com/emilk/egui/blob/master/egui_demo_lib/src/apps/demo/toggle_switch.rs)
 * Modular: You should be able to use small parts of egui and combine them in new ways
 * Safe: there is no `unsafe` code in egui
-* Minimal dependencies: [`ab_glyph`](https://crates.io/crates/ab_glyph) [`ahash`](https://crates.io/crates/ahash) [`atomic_refcell`](https://crates.io/crates/atomic_refcell), [`nohash-hasher`](https://crates.io/crates/nohash-hasher)
+* Minimal dependencies: [`ab_glyph`](https://crates.io/crates/ab_glyph) [`ahash`](https://crates.io/crates/ahash) [`nohash-hasher`](https://crates.io/crates/nohash-hasher) [`parking_lot`](https://crates.io/crates/parking_lot)
 
 egui is *not* a framework. egui is a library you call into, not an environment you program for.
 
