@@ -277,6 +277,8 @@ impl Spacing {
     }
 }
 
+// ----------------------------------------------------------------------------
+
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Margin {
@@ -312,6 +314,20 @@ impl Margin {
     pub fn sum(&self) -> Vec2 {
         Vec2::new(self.left + self.right, self.top + self.bottom)
     }
+
+    pub fn left_top(&self) -> Vec2 {
+        Vec2::new(self.left, self.top)
+    }
+
+    pub fn right_bottom(&self) -> Vec2 {
+        Vec2::new(self.right, self.bottom)
+    }
+}
+
+impl From<f32> for Margin {
+    fn from(v: f32) -> Self {
+        Self::same(v)
+    }
 }
 
 impl From<Vec2> for Margin {
@@ -319,6 +335,20 @@ impl From<Vec2> for Margin {
         Self::symmetric(v.x, v.y)
     }
 }
+
+impl std::ops::Add for Margin {
+    type Output = Self;
+    fn add(self, other: Self) -> Self {
+        Self {
+            left: self.left + other.left,
+            right: self.right + other.right,
+            top: self.top + other.top,
+            bottom: self.bottom + other.bottom,
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 /// How and when interaction happens.
 #[derive(Clone, Debug, PartialEq)]
