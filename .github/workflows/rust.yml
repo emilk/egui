@@ -19,7 +19,7 @@ jobs:
           profile: minimal
           toolchain: 1.56.0
           override: true
-      - run: sudo apt-get update && sudo apt-get install libspeechd-dev
+      - run: sudo apt-get update && sudo apt-get install libspeechd-dev atk
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -35,7 +35,7 @@ jobs:
           profile: minimal
           toolchain: 1.56.0
           override: true
-      - run: sudo apt-get update && sudo apt-get install libspeechd-dev
+      - run: sudo apt-get update && sudo apt-get install libspeechd-dev atk
       - uses: actions-rs/cargo@v1
         with:
           command: check
