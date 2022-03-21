@@ -245,10 +245,10 @@ impl Mesh {
 
     /// Rotate by some angle about an origin, in-place.
     ///
-    /// Origin is a vector in screen space.
-    pub fn rotate(&mut self, rot: Rot2, origin: Vec2) {
+    /// Origin is a position in screen space.
+    pub fn rotate(&mut self, rot: Rot2, origin: Pos2) {
         for v in &mut self.vertices {
-            v.pos = (rot * (v.pos - origin).to_vec2()).to_pos2() + origin;
+            v.pos = origin + rot * (v.pos - origin);
         }
     }
 }

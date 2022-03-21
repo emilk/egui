@@ -82,11 +82,11 @@ impl Image {
     /// Rotate the image about an origin by some angle
     ///
     /// Positive angle is clockwise.
-    /// Origin is a vector in UV space (normalized space by default unless set by [`Image::uv`])
+    /// Origin is a vector in normalized UV space ((0,0) in top-left, (1,1) bottom right).
     ///
     /// To rotate about the center you can pass `Vec2::splat(0.5)` as the origin.
     pub fn rotate(mut self, angle: f32, origin: Vec2) -> Self {
-        self.rotation = Some((Rot2::from_angle(angle), origin / self.uv.size()));
+        self.rotation = Some((Rot2::from_angle(angle), origin));
         self
     }
 }
@@ -120,8 +120,7 @@ impl Image {
                 let mut mesh = Mesh::with_texture(*texture_id);
                 mesh.add_rect_with_uv(rect, *uv, *tint);
                 if let Some((rot, origin)) = rotation {
-                    let origin_abs = rect.min.to_vec2() + (*origin * *size);
-                    mesh.rotate(*rot, origin_abs);
+                    mesh.rotate(*rot, rect.min + *origin * *size);
                 }
                 ui.painter().add(Shape::mesh(mesh));
             }
