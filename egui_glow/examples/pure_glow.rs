@@ -1,6 +1,7 @@
 //! Example how to use pure `egui_glow` without [`epi`].
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
+#![allow(unsafe_code)]
 
 fn main() {
     let mut clear_color = [0.1, 0.1, 0.1];

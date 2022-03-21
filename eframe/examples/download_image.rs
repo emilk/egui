@@ -50,6 +50,7 @@ impl eframe::App for MyApp {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn parse_response(response: ehttp::Response) -> Result<RetainedImage, String> {
     let content_type = response.content_type().unwrap_or_default();
     if content_type.starts_with("image/") {

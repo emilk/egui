@@ -1,4 +1,4 @@
-//! Example how to use [epi::NativeTexture] with glium.
+//! Example how to use [`epi::NativeTexture`] with glium.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
@@ -111,7 +111,7 @@ fn create_display(event_loop: &glutin::event_loop::EventLoop<()>) -> glium::Disp
     glium::Display::new(window_builder, context_builder, event_loop).unwrap()
 }
 
-fn load_glium_image(png_data: &[u8]) -> glium::texture::RawImage2d<u8> {
+fn load_glium_image(png_data: &[u8]) -> glium::texture::RawImage2d<'_, u8> {
     // Load image using the image crate:
     let image = image::load_from_memory(png_data).unwrap().to_rgba8();
     let image_dimensions = image.dimensions();
