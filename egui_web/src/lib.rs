@@ -4,11 +4,7 @@
 //!
 //! If you are writing an app, you may want to look at [`eframe`](https://docs.rs/eframe) instead.
 
-// Forbid warnings in release builds:
-#![cfg_attr(not(debug_assertions), deny(warnings))]
-#![forbid(unsafe_code)]
-#![warn(clippy::all, rustdoc::missing_crate_level_docs, rust_2018_idioms)]
-#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::missing_errors_doc)] // So many `-> Result<_, JsValue>`
 
 pub mod backend;
 mod glow_wrapping;

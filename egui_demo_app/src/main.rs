@@ -1,10 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-// Forbid warnings in release builds:
-#![cfg_attr(not(debug_assertions), deny(warnings))]
-#![forbid(unsafe_code)]
-#![warn(clippy::all, rust_2018_idioms)]
-
 // When compiling natively:
 fn main() {
     // Log to stdout (if you run with `RUST_LOG=debug`).

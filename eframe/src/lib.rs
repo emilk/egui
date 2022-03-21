@@ -58,15 +58,6 @@
 //! }
 //! ```
 
-// Forbid warnings in release builds:
-#![cfg_attr(not(debug_assertions), deny(warnings))]
-#![forbid(unsafe_code)]
-#![warn(
-    clippy::all,
-    missing_docs,
-    rust_2018_idioms,
-    rustdoc::missing_crate_level_docs
-)]
 #![allow(clippy::needless_doctest_main)]
 
 // Re-export all useful libraries:
