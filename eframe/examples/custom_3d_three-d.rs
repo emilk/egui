@@ -55,7 +55,7 @@ impl eframe::App for MyApp {
 impl MyApp {
     fn custom_painting(&mut self, ui: &mut egui::Ui) {
         let (rect, response) =
-            ui.allocate_exact_size(egui::Vec2::splat(256.0), egui::Sense::drag());
+            ui.allocate_exact_size(egui::Vec2::splat(512.0), egui::Sense::drag());
 
         self.angle += response.drag_delta().x * 0.01;
 
@@ -66,16 +66,16 @@ impl MyApp {
 
         let callback = egui::PaintCallback {
             rect,
-            callback: std::sync::Arc::new(move |render_ctx| {
+            callback: std::sync::Arc::new(move |info, render_ctx| {
                 if let Some(painter) = render_ctx.downcast_ref::<egui_glow::Painter>() {
                     if reuse_three_d {
                         with_three_d_context(painter.gl(), |three_d| {
-                            paint_with_three_d(three_d, rect, angle);
+                            paint_with_three_d(three_d, info, angle);
                         });
                     } else {
                         let three_d =
                             three_d::Context::from_gl_context(painter.gl().clone()).unwrap();
-                        paint_with_three_d(&three_d, rect, angle);
+                        paint_with_three_d(&three_d, info, angle);
                     }
                 } else {
                     eprintln!("Can't do custom painting because we are not using a glow context");
@@ -105,20 +105,20 @@ fn with_three_d_context<R>(
     })
 }
 
-fn paint_with_three_d(three_d: &three_d::Context, rect: egui::Rect, angle: f32) {
+fn paint_with_three_d(three_d: &three_d::Context, info: &egui::PaintCallbackInfo, angle: f32) {
     // Based on https://github.com/asny/three-d/blob/master/examples/triangle/src/main.rs
     use three_d::*;
 
     let viewport = Viewport {
-        x: rect.left() as _,
-        y: rect.top() as _,
-        width: rect.width() as _,
-        height: rect.height() as _,
+        x: info.viewport_left_px().round() as _,
+        y: info.viewport_from_bottom_px().round() as _,
+        width: info.viewport_width_px().round() as _,
+        height: info.viewport_height_px().round() as _,
     };
 
     // Create a camera
     let mut camera = Camera::new_perspective(
-        &three_d,
+        three_d,
         viewport,
         vec3(0.0, 0.0, 2.0),
         vec3(0.0, 0.0, 0.0),
@@ -147,7 +147,7 @@ fn paint_with_three_d(three_d: &three_d::Context, rect: egui::Rect, angle: f32) 
     };
 
     // Construct a model, with a default color material, thereby transferring the mesh data to the GPU
-    let mut model = Model::new(&three_d, &cpu_mesh).unwrap();
+    let mut model = Model::new(three_d, &cpu_mesh).unwrap();
 
     // Ensure the viewport matches the current window viewport which changes if the window is resized
     camera.set_viewport(viewport).unwrap();
