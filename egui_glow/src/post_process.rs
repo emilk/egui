@@ -10,7 +10,7 @@ pub(crate) struct PostProcess {
     gl: std::rc::Rc<glow::Context>,
     pos_buffer: glow::Buffer,
     index_buffer: glow::Buffer,
-    vertex_array: crate::vao::VAO,
+    vao: crate::vao::VertexArrayObject,
     is_webgl_1: bool,
     texture: glow::Texture,
     texture_size: (i32, i32),
@@ -22,7 +22,6 @@ impl PostProcess {
     pub(crate) unsafe fn new(
         gl: std::rc::Rc<glow::Context>,
         shader_prefix: &str,
-        need_to_emulate_vao: bool,
         is_webgl_1: bool,
         width: i32,
         height: i32,
@@ -125,22 +124,18 @@ impl PostProcess {
         let a_pos_loc = gl
             .get_attrib_location(program, "a_pos")
             .ok_or_else(|| "failed to get location of a_pos".to_string())?;
-        let mut vertex_array = if need_to_emulate_vao {
-            crate::vao::VAO::emulated()
-        } else {
-            crate::vao::VAO::native(&gl)
-        };
-        vertex_array.bind_vertex_array(&gl);
-        vertex_array.bind_buffer(&gl, &pos_buffer);
-        let buffer_info_a_pos = BufferInfo {
-            location: a_pos_loc,
-            vector_size: 2,
-            data_type: glow::FLOAT,
-            normalized: false,
-            stride: 0,
-            offset: 0,
-        };
-        vertex_array.add_new_attribute(&gl, buffer_info_a_pos);
+        let vao = crate::vao::VertexArrayObject::new(
+            &gl,
+            pos_buffer,
+            vec![BufferInfo {
+                location: a_pos_loc,
+                vector_size: 2,
+                data_type: glow::FLOAT,
+                normalized: false,
+                stride: 0,
+                offset: 0,
+            }],
+        );
 
         let index_buffer = gl.create_buffer()?;
         gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(index_buffer));
@@ -153,7 +148,7 @@ impl PostProcess {
             gl,
             pos_buffer,
             index_buffer,
-            vertex_array,
+            vao,
             is_webgl_1,
             texture,
             texture_size: (width, height),
@@ -212,13 +207,13 @@ impl PostProcess {
             .get_uniform_location(self.program, "u_sampler")
             .unwrap();
         self.gl.uniform_1_i32(Some(&u_sampler_loc), 0);
-        self.vertex_array.bind_vertex_array(&self.gl);
+        self.vao.bind(&self.gl);
 
         self.gl
             .bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.index_buffer));
         self.gl
             .draw_elements(glow::TRIANGLES, 6, glow::UNSIGNED_BYTE, 0);
-        self.vertex_array.unbind_vertex_array(&self.gl);
+        self.vao.unbind(&self.gl);
         self.gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, None);
         self.gl.bind_texture(glow::TEXTURE_2D, None);
         self.gl.use_program(None);

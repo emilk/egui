@@ -18,35 +18,67 @@ pub(crate) struct BufferInfo {
 
 // ----------------------------------------------------------------------------
 
-pub struct EmulatedVao {
-    buffer: Option<glow::Buffer>,
+/// Wrapper around either Emulated VAO or GL's VAO.
+pub(crate) struct VertexArrayObject {
+    // If `None`, we emulate VAO:s.
+    vao: Option<crate::glow::VertexArray>,
+    vbo: glow::Buffer,
     buffer_infos: Vec<BufferInfo>,
 }
 
-impl EmulatedVao {
-    pub(crate) fn new() -> Self {
+impl VertexArrayObject {
+    #[allow(clippy::needless_pass_by_value)] // false positive
+    pub(crate) unsafe fn new(
+        gl: &glow::Context,
+        vbo: glow::Buffer,
+        buffer_infos: Vec<BufferInfo>,
+    ) -> Self {
+        let vao = if supports_vao(gl) {
+            let vao = gl.create_vertex_array().unwrap();
+            check_for_gl_error!(gl, "create_vertex_array");
+
+            // Store state in the VAO:
+            gl.bind_vertex_array(Some(vao));
+            gl.bind_buffer(glow::ARRAY_BUFFER, Some(vbo));
+
+            for attribute in &buffer_infos {
+                gl.vertex_attrib_pointer_f32(
+                    attribute.location,
+                    attribute.vector_size,
+                    attribute.data_type,
+                    attribute.normalized,
+                    attribute.stride,
+                    attribute.offset,
+                );
+                check_for_gl_error!(gl, "vertex_attrib_pointer_f32");
+                gl.enable_vertex_attrib_array(attribute.location);
+                check_for_gl_error!(gl, "enable_vertex_attrib_array");
+            }
+
+            gl.bind_vertex_array(None);
+
+            Some(vao)
+        } else {
+            tracing::debug!("VAO not supported");
+            None
+        };
+
         Self {
-            buffer: None,
-            buffer_infos: vec![],
+            vao,
+            vbo,
+            buffer_infos,
         }
     }
 
-    pub(crate) fn bind_buffer(&mut self, buffer: &glow::Buffer) {
-        let _old = self.buffer.replace(*buffer);
-    }
-
-    pub(crate) fn add_new_attribute(&mut self, buffer_info: BufferInfo) {
-        self.buffer_infos.push(buffer_info);
-    }
-
-    pub(crate) fn bind_vertex_array(&self, gl: &glow::Context) {
-        unsafe {
-            gl.bind_buffer(glow::ARRAY_BUFFER, self.buffer);
+    pub(crate) unsafe fn bind(&self, gl: &glow::Context) {
+        if let Some(vao) = self.vao {
+            gl.bind_vertex_array(Some(vao));
+            check_for_gl_error!(gl, "bind_vertex_array");
+        } else {
+            gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vbo));
             check_for_gl_error!(gl, "bind_buffer");
-        }
-        for attribute in &self.buffer_infos {
-            dbg!(attribute);
-            unsafe {
+
+            for attribute in &self.buffer_infos {
                 gl.vertex_attrib_pointer_f32(
                     attribute.location,
                     attribute.vector_size,
@@ -62,87 +94,21 @@ impl EmulatedVao {
         }
     }
 
-    pub(crate) fn unbind_vertex_array(&self, gl: &glow::Context) {
-        for attribute in &self.buffer_infos {
-            unsafe {
+    pub(crate) unsafe fn unbind(&self, gl: &glow::Context) {
+        if self.vao.is_some() {
+            gl.bind_vertex_array(None);
+        } else {
+            gl.bind_buffer(glow::ARRAY_BUFFER, None);
+            for attribute in &self.buffer_infos {
                 gl.disable_vertex_attrib_array(attribute.location);
             }
         }
-        unsafe {
-            gl.bind_buffer(glow::ARRAY_BUFFER, None);
-        }
     }
 }
 
 // ----------------------------------------------------------------------------
 
-/// Wrapper around either Emulated VAO and GL's VAO
-pub(crate) enum VAO {
-    Emulated(crate::vao::EmulatedVao),
-    Native(crate::glow::VertexArray),
-}
-
-impl VAO {
-    pub(crate) unsafe fn native(gl: &glow::Context) -> Self {
-        Self::Native(gl.create_vertex_array().unwrap())
-    }
-
-    pub(crate) unsafe fn emulated() -> Self {
-        Self::Emulated(crate::vao::EmulatedVao::new())
-    }
-
-    pub(crate) unsafe fn bind_vertex_array(&self, gl: &glow::Context) {
-        match self {
-            VAO::Emulated(emulated_vao) => emulated_vao.bind_vertex_array(gl),
-            VAO::Native(vao) => {
-                gl.bind_vertex_array(Some(*vao));
-                check_for_gl_error!(gl, "bind_vertex_array");
-            }
-        }
-    }
-
-    pub(crate) unsafe fn bind_buffer(&mut self, gl: &glow::Context, buffer: &glow::Buffer) {
-        match self {
-            VAO::Emulated(emulated_vao) => emulated_vao.bind_buffer(buffer),
-            VAO::Native(_) => gl.bind_buffer(glow::ARRAY_BUFFER, Some(*buffer)),
-        }
-    }
-
-    pub(crate) unsafe fn add_new_attribute(
-        &mut self,
-        gl: &glow::Context,
-        buffer_info: crate::vao::BufferInfo,
-    ) {
-        match self {
-            VAO::Emulated(emulated_vao) => emulated_vao.add_new_attribute(buffer_info),
-            VAO::Native(_) => {
-                gl.vertex_attrib_pointer_f32(
-                    buffer_info.location,
-                    buffer_info.vector_size,
-                    buffer_info.data_type,
-                    buffer_info.normalized,
-                    buffer_info.stride,
-                    buffer_info.offset,
-                );
-                gl.enable_vertex_attrib_array(buffer_info.location);
-            }
-        }
-    }
-
-    pub(crate) unsafe fn unbind_vertex_array(&self, gl: &glow::Context) {
-        match self {
-            VAO::Emulated(emulated_vao) => emulated_vao.unbind_vertex_array(gl),
-            VAO::Native(_) => {
-                gl.bind_vertex_array(None);
-            }
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-/// If returned true no need to emulate vao
-pub(crate) fn supports_vao(gl: &glow::Context) -> bool {
+fn supports_vao(gl: &glow::Context) -> bool {
     const WEBGL_PREFIX: &str = "WebGL ";
     const OPENGL_ES_PREFIX: &str = "OpenGL ES ";
 
