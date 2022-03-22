@@ -8,13 +8,14 @@ use epaint::color::Hsva;
 use epaint::util::FloatOrd;
 use items::PlotItem;
 use legend::LegendWidget;
-use transform::{PlotBounds, ScreenTransform};
+use transform::ScreenTransform;
 
 pub use items::{
     Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, HLine, Line, LineStyle, MarkerShape,
     Orientation, PlotImage, Points, Polygon, Text, VLine, Value, Values,
 };
 pub use legend::{Corner, Legend};
+pub use transform::PlotBounds;
 
 mod items;
 mod legend;
