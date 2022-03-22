@@ -63,7 +63,6 @@ epi = { version = "0.17.0", path = "../epi", optional = true }
 bytemuck = "1.7"
 glow = "0.11"
 memoffset = "0.6"
-parking_lot = "0.12"
 tracing = "0.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

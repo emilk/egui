@@ -54,7 +54,7 @@ pub fn run(app_name: &str, native_options: &epi::NativeOptions, app_creator: epi
     );
 
     {
-        let event_loop_proxy = parking_lot::Mutex::new(event_loop.create_proxy());
+        let event_loop_proxy = egui::mutex::Mutex::new(event_loop.create_proxy());
         integration.egui_ctx.set_request_repaint_callback(move || {
             event_loop_proxy.lock().send_event(RequestRepaintEvent).ok();
         });

@@ -1,4 +1,4 @@
-use parking_lot::Mutex;
+use egui::mutex::Mutex;
 
 /// An image to be shown in egui.
 ///
