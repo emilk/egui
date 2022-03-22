@@ -49,7 +49,7 @@ impl eframe::App for MyApp {
             });
 
             egui::ScrollArea::both().show(ui, |ui| {
-                egui::Frame::dark_canvas(ui.style()).show(ui, |ui| {
+                egui::Frame::canvas(ui.style()).show(ui, |ui| {
                     self.custom_painting(ui);
                 });
                 ui.label("Drag to rotate!");
@@ -75,7 +75,7 @@ impl MyApp {
 
         let callback = egui::PaintCallback {
             rect,
-            callback: std::sync::Arc::new(move |render_ctx| {
+            callback: std::sync::Arc::new(move |_info, render_ctx| {
                 if let Some(painter) = render_ctx.downcast_ref::<egui_glow::Painter>() {
                     rotating_triangle.lock().paint(painter.gl(), angle);
                 } else {

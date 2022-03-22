@@ -25,12 +25,16 @@ impl MyApp {
         Self {
             // three_d: three_d::Context::from_gl_context(cc.gl.clone()).unwrap(),
             angle: 0.0,
-            reuse_three_d: false,
+            reuse_three_d: true,
         }
     }
 }
 
 impl eframe::App for MyApp {
+    fn clear_color(&self) -> egui::Rgba {
+        egui::Color32::from_rgba_unmultiplied(200, 12, 200, 180).into()
+    }
+
     fn update(&mut self, ctx: &egui::Context, _frame: &eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.horizontal(|ui| {
@@ -43,7 +47,7 @@ impl eframe::App for MyApp {
             ui.checkbox(&mut self.reuse_three_d, "Reuse three-d context");
 
             egui::ScrollArea::both().show(ui, |ui| {
-                egui::Frame::dark_canvas(ui.style()).show(ui, |ui| {
+                egui::Frame::canvas(ui.style()).show(ui, |ui| {
                     self.custom_painting(ui);
                 });
                 ui.label("Drag to rotate!");
@@ -117,7 +121,7 @@ fn paint_with_three_d(three_d: &three_d::Context, info: &egui::PaintCallbackInfo
     };
 
     // Create a camera
-    let mut camera = Camera::new_perspective(
+    let camera = Camera::new_perspective(
         three_d,
         viewport,
         vec3(0.0, 0.0, 2.0),
@@ -148,9 +152,6 @@ fn paint_with_three_d(three_d: &three_d::Context, info: &egui::PaintCallbackInfo
 
     // Construct a model, with a default color material, thereby transferring the mesh data to the GPU
     let mut model = Model::new(three_d, &cpu_mesh).unwrap();
-
-    // Ensure the viewport matches the current window viewport which changes if the window is resized
-    camera.set_viewport(viewport).unwrap();
 
     // Set the current transformation of the triangle
     model.set_transformation(Mat4::from_angle_y(radians(angle)));
