@@ -13,7 +13,7 @@ use crate::check_for_gl_error;
 use crate::misc_util::{compile_shader, link_program};
 use crate::post_process::PostProcess;
 use crate::shader_version::ShaderVersion;
-use crate::vao_emulate;
+use crate::vao;
 
 pub use glow::Context;
 
@@ -37,7 +37,7 @@ pub struct Painter {
     u_sampler: glow::UniformLocation,
     is_webgl_1: bool,
     is_embedded: bool,
-    vertex_array: crate::misc_util::VAO,
+    vertex_array: crate::vao::VAO,
     srgb_support: bool,
     /// The filter used for subsequent textures.
     texture_filter: TextureFilter,
@@ -100,7 +100,7 @@ impl Painter {
 
         let max_texture_side = unsafe { gl.get_parameter_i32(glow::MAX_TEXTURE_SIZE) } as usize;
 
-        let support_vao = crate::misc_util::supports_vao(&gl);
+        let support_vao = crate::vao::supports_vao(&gl);
         if !support_vao {
             tracing::debug!("VAO not supported");
         }
@@ -180,14 +180,14 @@ impl Painter {
             let a_tc_loc = gl.get_attrib_location(program, "a_tc").unwrap();
             let a_srgba_loc = gl.get_attrib_location(program, "a_srgba").unwrap();
             let mut vertex_array = if support_vao {
-                crate::misc_util::VAO::native(&gl)
+                crate::vao::VAO::native(&gl)
             } else {
-                crate::misc_util::VAO::emulated()
+                crate::vao::VAO::emulated()
             };
             vertex_array.bind_vertex_array(&gl);
             vertex_array.bind_buffer(&gl, &vertex_buffer);
             let stride = std::mem::size_of::<Vertex>() as i32;
-            let position_buffer_info = vao_emulate::BufferInfo {
+            let position_buffer_info = vao::BufferInfo {
                 location: a_pos_loc,
                 vector_size: 2,
                 data_type: glow::FLOAT,
@@ -195,7 +195,7 @@ impl Painter {
                 stride,
                 offset: offset_of!(Vertex, pos) as i32,
             };
-            let tex_coord_buffer_info = vao_emulate::BufferInfo {
+            let tex_coord_buffer_info = vao::BufferInfo {
                 location: a_tc_loc,
                 vector_size: 2,
                 data_type: glow::FLOAT,
@@ -203,7 +203,7 @@ impl Painter {
                 stride,
                 offset: offset_of!(Vertex, uv) as i32,
             };
-            let color_buffer_info = vao_emulate::BufferInfo {
+            let color_buffer_info = vao::BufferInfo {
                 location: a_srgba_loc,
                 vector_size: 4,
                 data_type: glow::UNSIGNED_BYTE,

@@ -1,7 +1,7 @@
 #![allow(unsafe_code)]
 use crate::check_for_gl_error;
 use crate::misc_util::{compile_shader, link_program};
-use crate::vao_emulate::BufferInfo;
+use crate::vao::BufferInfo;
 use glow::HasContext;
 
 /// Uses a framebuffer to render everything in linear color space and convert it back to `sRGB`
@@ -10,7 +10,7 @@ pub(crate) struct PostProcess {
     gl: std::rc::Rc<glow::Context>,
     pos_buffer: glow::Buffer,
     index_buffer: glow::Buffer,
-    vertex_array: crate::misc_util::VAO,
+    vertex_array: crate::vao::VAO,
     is_webgl_1: bool,
     texture: glow::Texture,
     texture_size: (i32, i32),
@@ -126,9 +126,9 @@ impl PostProcess {
             .get_attrib_location(program, "a_pos")
             .ok_or_else(|| "failed to get location of a_pos".to_string())?;
         let mut vertex_array = if need_to_emulate_vao {
-            crate::misc_util::VAO::emulated()
+            crate::vao::VAO::emulated()
         } else {
-            crate::misc_util::VAO::native(&gl)
+            crate::vao::VAO::native(&gl)
         };
         vertex_array.bind_vertex_array(&gl);
         vertex_array.bind_buffer(&gl, &pos_buffer);
