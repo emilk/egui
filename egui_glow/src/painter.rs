@@ -384,7 +384,13 @@ impl Painter {
                             );
                         }
 
-                        callback.call(self);
+                        let info = egui::PaintCallbackInfo {
+                            rect: callback.rect,
+                            pixels_per_point,
+                            screen_size_px: inner_size,
+                        };
+
+                        callback.call(&info, self);
 
                         check_for_gl_error!(&self.gl, "callback");
 
