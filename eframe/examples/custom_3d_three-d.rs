@@ -1,7 +1,6 @@
 //! This demo shows how to embed 3D rendering using [`three-d`](https://github.com/asny/three-d) in `eframe`.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(unsafe_code)]
 
 use eframe::egui;
 

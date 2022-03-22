@@ -18,7 +18,7 @@ pub(crate) struct BufferInfo {
 
 // ----------------------------------------------------------------------------
 
-/// Wrapper around either Emulated VAO and GL's VAO
+/// Wrapper around either Emulated VAO or GL's VAO.
 pub(crate) struct VertexArrayObject {
     // If `None`, we emulate VAO:s.
     vao: Option<crate::glow::VertexArray>,

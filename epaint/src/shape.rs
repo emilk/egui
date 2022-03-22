@@ -642,6 +642,7 @@ fn dashes_from_line(
 
 // ----------------------------------------------------------------------------
 
+/// Information passed along with [`PaintCallback`] ([`Shape::Callback`]).
 pub struct PaintCallbackInfo {
     /// Viewport in points.
     pub rect: Rect,
@@ -654,27 +655,33 @@ pub struct PaintCallbackInfo {
 }
 
 impl PaintCallbackInfo {
+    /// Physical pixel offset for left side of the viewport.
     #[inline]
     pub fn viewport_left_px(&self) -> f32 {
         self.rect.min.x * self.pixels_per_point
     }
 
+    /// Physical pixel offset for top side of the viewport.
     #[inline]
     pub fn viewport_top_px(&self) -> f32 {
         self.rect.min.y * self.pixels_per_point
     }
 
-    // This is what `glViewport` etc expects.
+    /// Physical pixel offset for bottom side of the viewport.
+    ///
+    /// This is what `glViewport` etc expects for the y axis.
     #[inline]
     pub fn viewport_from_bottom_px(&self) -> f32 {
         self.screen_size_px[1] as f32 - self.rect.max.y * self.pixels_per_point
     }
 
+    /// Viewport width in physical pixels.
     #[inline]
     pub fn viewport_width_px(&self) -> f32 {
         self.rect.width() * self.pixels_per_point
     }
 
+    /// Viewport width in physical pixels.
     #[inline]
     pub fn viewport_height_px(&self) -> f32 {
         self.rect.height() * self.pixels_per_point
