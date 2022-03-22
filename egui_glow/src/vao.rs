@@ -19,14 +19,14 @@ pub(crate) struct BufferInfo {
 // ----------------------------------------------------------------------------
 
 /// Wrapper around either Emulated VAO and GL's VAO
-pub(crate) struct VAO {
+pub(crate) struct VertexArrayObject {
     // If `None`, we emulate VAO:s.
     vao: Option<crate::glow::VertexArray>,
     vbo: glow::Buffer,
     buffer_infos: Vec<BufferInfo>,
 }
 
-impl VAO {
+impl VertexArrayObject {
     pub(crate) unsafe fn new(
         gl: &glow::Context,
         vbo: glow::Buffer,

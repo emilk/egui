@@ -37,7 +37,7 @@ pub struct Painter {
     u_sampler: glow::UniformLocation,
     is_webgl_1: bool,
     is_embedded: bool,
-    vao: crate::vao::VAO,
+    vao: crate::vao::VertexArrayObject,
     srgb_support: bool,
     /// The filter used for subsequent textures.
     texture_filter: TextureFilter,
@@ -201,7 +201,7 @@ impl Painter {
                     offset: offset_of!(Vertex, color) as i32,
                 },
             ];
-            let vao = crate::vao::VAO::new(&gl, vbo, buffer_infos);
+            let vao = crate::vao::VertexArrayObject::new(&gl, vbo, buffer_infos);
 
             let element_array_buffer = gl.create_buffer()?;
 

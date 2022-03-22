@@ -10,7 +10,7 @@ pub(crate) struct PostProcess {
     gl: std::rc::Rc<glow::Context>,
     pos_buffer: glow::Buffer,
     index_buffer: glow::Buffer,
-    vao: crate::vao::VAO,
+    vao: crate::vao::VertexArrayObject,
     is_webgl_1: bool,
     texture: glow::Texture,
     texture_size: (i32, i32),
@@ -124,7 +124,7 @@ impl PostProcess {
         let a_pos_loc = gl
             .get_attrib_location(program, "a_pos")
             .ok_or_else(|| "failed to get location of a_pos".to_string())?;
-        let vao = crate::vao::VAO::new(
+        let vao = crate::vao::VertexArrayObject::new(
             &gl,
             pos_buffer,
             vec![BufferInfo {
