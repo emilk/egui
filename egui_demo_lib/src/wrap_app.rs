@@ -1,4 +1,5 @@
 /// All the different demo apps.
+#[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Apps {
     demo: crate::apps::DemoApp,
@@ -11,18 +12,6 @@ pub struct Apps {
 }
 
 impl Apps {
-    fn new(cc: &epi::CreationContext<'_>) -> Self {
-        Self {
-            demo: Default::default(),
-            easy_mark_editor: Default::default(),
-            #[cfg(feature = "http")]
-            http: Default::default(),
-            clock: Default::default(),
-            color_test: Default::default(),
-            custom_3d: crate::apps::Custom3dApp::new(cc),
-        }
-    }
-
     fn iter_mut(&mut self) -> impl Iterator<Item = (&str, &str, &mut dyn epi::App)> {
         vec![
             ("✨ Demos", "demo", &mut self.demo as &mut dyn epi::App),

@@ -7,24 +7,22 @@
 //! * [`three-d`](https://github.com/asny/three-d)
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
+#![allow(unsafe_code)]
 
 use epi::{glow, Renderer as _};
 use parking_lot::Mutex;
 use std::sync::Arc;
 
+#[derive(Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Custom3dApp {
-    /// Behind an `Arc<Mutex<…>>` so we can pass it to [`egui::PaintCallback`] and paint later.
-    rotating_triangle: Arc<Mutex<RotatingTriangle>>,
     angle: f32,
-}
 
-impl Custom3dApp {
-    pub fn new(cc: &epi::CreationContext<'_>) -> Self {
-        Self {
-            rotating_triangle: Arc::new(Mutex::new(RotatingTriangle::new(&cc.gl))),
-            angle: 0.0,
-        }
-    }
+    /// Behind an `Arc<Mutex<…>>` so we can pass it to [`egui::PaintCallback`] and paint later.
+    /// Behind an `Option` so we can implement `serde::Deserialize.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    rotating_triangle: Arc<Mutex<Option<RotatingTriangle>>>,
 }
 
 impl epi::App for Custom3dApp {
@@ -65,7 +63,10 @@ impl Custom3dApp {
             rect,
             callback: std::sync::Arc::new(move |render_ctx| {
                 if let Some(painter) = render_ctx.downcast_ref::<egui_glow::Painter>() {
-                    rotating_triangle.lock().paint(painter.gl(), angle);
+                    let mut rotating_triangle = rotating_triangle.lock();
+                    let rotating_triangle = rotating_triangle
+                        .get_or_insert_with(|| RotatingTriangle::new(painter.gl()));
+                    rotating_triangle.paint(painter.gl(), angle);
                 } else {
                     eprintln!("Can't do custom painting because we are not using a glow context");
                 }
