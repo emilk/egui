@@ -112,7 +112,10 @@ impl VAO {
     pub(crate) unsafe fn bind_vertex_array(&self, gl: &glow::Context) {
         match self {
             VAO::Emulated(vao) => vao.bind_vertex_array(gl),
-            VAO::Native(vao) => gl.bind_vertex_array(Some(*vao)),
+            VAO::Native(vao) => {
+                gl.bind_vertex_array(Some(*vao));
+                check_for_gl_error!(gl, "bind_vertex_array");
+            }
         }
     }
 

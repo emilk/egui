@@ -101,6 +101,10 @@ impl Painter {
         let max_texture_side = unsafe { gl.get_parameter_i32(glow::MAX_TEXTURE_SIZE) } as usize;
 
         let support_vao = crate::misc_util::supports_vao(&gl);
+        if !support_vao {
+            tracing::debug!("VAO not supported");
+        }
+
         let shader_version = ShaderVersion::get(&gl);
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
         let header = shader_version.version();

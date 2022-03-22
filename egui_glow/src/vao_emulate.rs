@@ -1,5 +1,8 @@
 #![allow(unsafe_code)]
+
 use glow::HasContext;
+
+use crate::check_for_gl_error;
 
 pub(crate) struct BufferInfo {
     pub location: u32, //
@@ -29,6 +32,7 @@ impl EmulatedVao {
     pub(crate) fn bind_vertex_array(&self, gl: &glow::Context) {
         unsafe {
             gl.bind_buffer(glow::ARRAY_BUFFER, self.buffer);
+            check_for_gl_error!(gl, "bind_buffer");
         }
         for attribute in self.buffer_infos.iter() {
             unsafe {
@@ -40,7 +44,9 @@ impl EmulatedVao {
                     attribute.stride,
                     attribute.offset,
                 );
+                check_for_gl_error!(gl, "vertex_attrib_pointer_f32");
                 gl.enable_vertex_attrib_array(attribute.location);
+                check_for_gl_error!(gl, "enable_vertex_attrib_array");
             }
         }
     }
