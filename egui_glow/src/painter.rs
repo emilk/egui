@@ -9,7 +9,8 @@ use egui::{
 use glow::HasContext;
 use memoffset::offset_of;
 
-use crate::misc_util::{check_for_gl_error, compile_shader, link_program};
+use crate::check_for_gl_error;
+use crate::misc_util::{compile_shader, link_program};
 use crate::post_process::PostProcess;
 use crate::shader_version::ShaderVersion;
 use crate::vao_emulate;
@@ -95,7 +96,7 @@ impl Painter {
         pp_fb_extent: Option<[i32; 2]>,
         shader_prefix: &str,
     ) -> Result<Painter, String> {
-        check_for_gl_error(&gl, "before Painter::new");
+        check_for_gl_error!(&gl, "before Painter::new");
 
         let max_texture_side = unsafe { gl.get_parameter_i32(glow::MAX_TEXTURE_SIZE) } as usize;
 
@@ -209,7 +210,7 @@ impl Painter {
             vertex_array.add_new_attribute(&gl, position_buffer_info);
             vertex_array.add_new_attribute(&gl, tex_coord_buffer_info);
             vertex_array.add_new_attribute(&gl, color_buffer_info);
-            check_for_gl_error(&gl, "after Painter::new");
+            check_for_gl_error!(&gl, "after Painter::new");
 
             Ok(Painter {
                 gl,
@@ -266,7 +267,7 @@ impl Painter {
 
         if !cfg!(target_arch = "wasm32") {
             self.gl.enable(glow::FRAMEBUFFER_SRGB);
-            check_for_gl_error(&self.gl, "FRAMEBUFFER_SRGB");
+            check_for_gl_error!(&self.gl, "FRAMEBUFFER_SRGB");
         }
 
         let width_in_points = width_in_pixels as f32 / pixels_per_point;
@@ -284,6 +285,8 @@ impl Painter {
 
         self.gl
             .bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.element_array_buffer));
+
+        check_for_gl_error!(&self.gl, "prepare_painting");
 
         (width_in_pixels, height_in_pixels)
     }
@@ -375,6 +378,8 @@ impl Painter {
 
                         callback.call(self);
 
+                        check_for_gl_error!(&self.gl, "callback");
+
                         // Restore state:
                         unsafe {
                             if let Some(ref mut post_process) = self.post_process {
@@ -396,7 +401,7 @@ impl Painter {
 
             self.gl.disable(glow::SCISSOR_TEST);
 
-            check_for_gl_error(&self.gl, "painting");
+            check_for_gl_error!(&self.gl, "painting");
         }
     }
 
@@ -432,6 +437,8 @@ impl Painter {
                     0,
                 );
             }
+
+            check_for_gl_error!(&self.gl, "paint_mesh");
         }
     }
 
@@ -526,7 +533,7 @@ impl Painter {
                 glow::TEXTURE_WRAP_T,
                 glow::CLAMP_TO_EDGE as i32,
             );
-            check_for_gl_error(&self.gl, "tex_parameter");
+            check_for_gl_error!(&self.gl, "tex_parameter");
 
             let (internal_format, src_format) = if self.is_webgl_1 {
                 let format = if self.srgb_support {
@@ -554,7 +561,7 @@ impl Painter {
                     glow::UNSIGNED_BYTE,
                     glow::PixelUnpackData::Slice(data),
                 );
-                check_for_gl_error(&self.gl, "tex_sub_image_2d");
+                check_for_gl_error!(&self.gl, "tex_sub_image_2d");
             } else {
                 let border = 0;
                 self.gl.tex_image_2d(
@@ -568,7 +575,7 @@ impl Painter {
                     glow::UNSIGNED_BYTE,
                     Some(data),
                 );
-                check_for_gl_error(&self.gl, "tex_image_2d");
+                check_for_gl_error!(&self.gl, "tex_image_2d");
             }
         }
     }
