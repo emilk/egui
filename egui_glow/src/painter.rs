@@ -256,9 +256,13 @@ impl Painter {
         self.gl.enable(glow::SCISSOR_TEST);
         // egui outputs mesh in both winding orders
         self.gl.disable(glow::CULL_FACE);
+        self.gl.disable(glow::DEPTH_TEST);
+
+        self.gl.color_mask(true, true, true, true);
 
         self.gl.enable(glow::BLEND);
-        self.gl.blend_equation(glow::FUNC_ADD);
+        self.gl
+            .blend_equation_separate(glow::FUNC_ADD, glow::FUNC_ADD);
         self.gl.blend_func_separate(
             // egui outputs colors with premultiplied alpha:
             glow::ONE,
