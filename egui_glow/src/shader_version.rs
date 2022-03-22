@@ -1,6 +1,5 @@
 #![allow(unsafe_code)]
 
-use glow::HasContext;
 use std::convert::TryInto;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -14,6 +13,7 @@ pub(crate) enum ShaderVersion {
 
 impl ShaderVersion {
     pub(crate) fn get(gl: &glow::Context) -> Self {
+        use glow::HasContext as _;
         let shading_lang_string =
             unsafe { gl.get_parameter_string(glow::SHADING_LANGUAGE_VERSION) };
         let shader_version = Self::parse(&shading_lang_string);

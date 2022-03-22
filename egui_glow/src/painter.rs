@@ -6,13 +6,14 @@ use egui::{
     emath::Rect,
     epaint::{Color32, Mesh, Primitive, Vertex},
 };
-use glow::HasContext;
+use glow::HasContext as _;
 use memoffset::offset_of;
 
-use crate::misc_util::{check_for_gl_error, compile_shader, link_program};
+use crate::check_for_gl_error;
+use crate::misc_util::{compile_shader, link_program};
 use crate::post_process::PostProcess;
 use crate::shader_version::ShaderVersion;
-use crate::vao_emulate;
+use crate::vao;
 
 pub use glow::Context;
 
@@ -36,7 +37,7 @@ pub struct Painter {
     u_sampler: glow::UniformLocation,
     is_webgl_1: bool,
     is_embedded: bool,
-    vertex_array: crate::misc_util::VAO,
+    vertex_array: crate::vao::VAO,
     srgb_support: bool,
     /// The filter used for subsequent textures.
     texture_filter: TextureFilter,
@@ -95,11 +96,15 @@ impl Painter {
         pp_fb_extent: Option<[i32; 2]>,
         shader_prefix: &str,
     ) -> Result<Painter, String> {
-        check_for_gl_error(&gl, "before Painter::new");
+        check_for_gl_error!(&gl, "before Painter::new");
 
         let max_texture_side = unsafe { gl.get_parameter_i32(glow::MAX_TEXTURE_SIZE) } as usize;
 
-        let support_vao = crate::misc_util::supports_vao(&gl);
+        let support_vao = crate::vao::supports_vao(&gl);
+        if !support_vao {
+            tracing::debug!("VAO not supported");
+        }
+
         let shader_version = ShaderVersion::get(&gl);
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
         let header = shader_version.version();
@@ -175,14 +180,14 @@ impl Painter {
             let a_tc_loc = gl.get_attrib_location(program, "a_tc").unwrap();
             let a_srgba_loc = gl.get_attrib_location(program, "a_srgba").unwrap();
             let mut vertex_array = if support_vao {
-                crate::misc_util::VAO::native(&gl)
+                crate::vao::VAO::native(&gl)
             } else {
-                crate::misc_util::VAO::emulated()
+                crate::vao::VAO::emulated()
             };
             vertex_array.bind_vertex_array(&gl);
             vertex_array.bind_buffer(&gl, &vertex_buffer);
             let stride = std::mem::size_of::<Vertex>() as i32;
-            let position_buffer_info = vao_emulate::BufferInfo {
+            let position_buffer_info = vao::BufferInfo {
                 location: a_pos_loc,
                 vector_size: 2,
                 data_type: glow::FLOAT,
@@ -190,7 +195,7 @@ impl Painter {
                 stride,
                 offset: offset_of!(Vertex, pos) as i32,
             };
-            let tex_coord_buffer_info = vao_emulate::BufferInfo {
+            let tex_coord_buffer_info = vao::BufferInfo {
                 location: a_tc_loc,
                 vector_size: 2,
                 data_type: glow::FLOAT,
@@ -198,7 +203,7 @@ impl Painter {
                 stride,
                 offset: offset_of!(Vertex, uv) as i32,
             };
-            let color_buffer_info = vao_emulate::BufferInfo {
+            let color_buffer_info = vao::BufferInfo {
                 location: a_srgba_loc,
                 vector_size: 4,
                 data_type: glow::UNSIGNED_BYTE,
@@ -209,7 +214,7 @@ impl Painter {
             vertex_array.add_new_attribute(&gl, position_buffer_info);
             vertex_array.add_new_attribute(&gl, tex_coord_buffer_info);
             vertex_array.add_new_attribute(&gl, color_buffer_info);
-            check_for_gl_error(&gl, "after Painter::new");
+            check_for_gl_error!(&gl, "after Painter::new");
 
             Ok(Painter {
                 gl,
@@ -266,7 +271,7 @@ impl Painter {
 
         if !cfg!(target_arch = "wasm32") {
             self.gl.enable(glow::FRAMEBUFFER_SRGB);
-            check_for_gl_error(&self.gl, "FRAMEBUFFER_SRGB");
+            check_for_gl_error!(&self.gl, "FRAMEBUFFER_SRGB");
         }
 
         let width_in_points = width_in_pixels as f32 / pixels_per_point;
@@ -284,6 +289,8 @@ impl Painter {
 
         self.gl
             .bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.element_array_buffer));
+
+        check_for_gl_error!(&self.gl, "prepare_painting");
 
         (width_in_pixels, height_in_pixels)
     }
@@ -375,6 +382,8 @@ impl Painter {
 
                         callback.call(self);
 
+                        check_for_gl_error!(&self.gl, "callback");
+
                         // Restore state:
                         unsafe {
                             if let Some(ref mut post_process) = self.post_process {
@@ -396,7 +405,7 @@ impl Painter {
 
             self.gl.disable(glow::SCISSOR_TEST);
 
-            check_for_gl_error(&self.gl, "painting");
+            check_for_gl_error!(&self.gl, "painting");
         }
     }
 
@@ -432,6 +441,8 @@ impl Painter {
                     0,
                 );
             }
+
+            check_for_gl_error!(&self.gl, "paint_mesh");
         }
     }
 
@@ -526,7 +537,7 @@ impl Painter {
                 glow::TEXTURE_WRAP_T,
                 glow::CLAMP_TO_EDGE as i32,
             );
-            check_for_gl_error(&self.gl, "tex_parameter");
+            check_for_gl_error!(&self.gl, "tex_parameter");
 
             let (internal_format, src_format) = if self.is_webgl_1 {
                 let format = if self.srgb_support {
@@ -554,7 +565,7 @@ impl Painter {
                     glow::UNSIGNED_BYTE,
                     glow::PixelUnpackData::Slice(data),
                 );
-                check_for_gl_error(&self.gl, "tex_sub_image_2d");
+                check_for_gl_error!(&self.gl, "tex_sub_image_2d");
             } else {
                 let border = 0;
                 self.gl.tex_image_2d(
@@ -568,7 +579,7 @@ impl Painter {
                     glow::UNSIGNED_BYTE,
                     Some(data),
                 );
-                check_for_gl_error(&self.gl, "tex_image_2d");
+                check_for_gl_error!(&self.gl, "tex_image_2d");
             }
         }
     }

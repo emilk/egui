@@ -5,85 +5,6 @@
 //! This library is an [`epi`] backend.
 //! If you are writing an app, you may want to look at [`eframe`](https://docs.rs/eframe) instead.
 
-// Forbid warnings in release builds:
-#![cfg_attr(not(debug_assertions), deny(warnings))]
-#![deny(unsafe_code)]
-#![warn(
-    clippy::all,
-    clippy::await_holding_lock,
-    clippy::char_lit_as_u8,
-    clippy::checked_conversions,
-    clippy::dbg_macro,
-    clippy::debug_assert_with_mut_call,
-    clippy::disallowed_method,
-    clippy::doc_markdown,
-    clippy::empty_enum,
-    clippy::enum_glob_use,
-    clippy::exit,
-    clippy::expl_impl_clone_on_copy,
-    clippy::explicit_deref_methods,
-    clippy::explicit_into_iter_loop,
-    clippy::fallible_impl_from,
-    clippy::filter_map_next,
-    clippy::flat_map_option,
-    clippy::float_cmp_const,
-    clippy::fn_params_excessive_bools,
-    clippy::from_iter_instead_of_collect,
-    clippy::if_let_mutex,
-    clippy::implicit_clone,
-    clippy::imprecise_flops,
-    clippy::inefficient_to_string,
-    clippy::invalid_upcast_comparisons,
-    clippy::large_digit_groups,
-    clippy::large_stack_arrays,
-    clippy::large_types_passed_by_value,
-    clippy::let_unit_value,
-    clippy::linkedlist,
-    clippy::lossy_float_literal,
-    clippy::macro_use_imports,
-    clippy::manual_ok_or,
-    clippy::map_err_ignore,
-    clippy::map_flatten,
-    clippy::map_unwrap_or,
-    clippy::match_on_vec_items,
-    clippy::match_same_arms,
-    clippy::match_wild_err_arm,
-    clippy::match_wildcard_for_single_variants,
-    clippy::mem_forget,
-    clippy::mismatched_target_os,
-    clippy::missing_errors_doc,
-    clippy::missing_safety_doc,
-    clippy::mut_mut,
-    clippy::mutex_integer,
-    clippy::needless_borrow,
-    clippy::needless_continue,
-    clippy::needless_for_each,
-    clippy::needless_pass_by_value,
-    clippy::option_option,
-    clippy::path_buf_push_overwrite,
-    clippy::ptr_as_ptr,
-    clippy::ref_option_ref,
-    clippy::rest_pat_in_fully_bound_structs,
-    clippy::same_functions_in_if_condition,
-    clippy::semicolon_if_nothing_returned,
-    clippy::single_match_else,
-    clippy::string_add_assign,
-    clippy::string_add,
-    clippy::string_lit_as_bytes,
-    clippy::string_to_string,
-    clippy::todo,
-    clippy::trait_duplication_in_bounds,
-    clippy::unimplemented,
-    clippy::unnested_or_patterns,
-    clippy::unused_self,
-    clippy::useless_transmute,
-    clippy::verbose_file_reads,
-    clippy::zero_sized_map_values,
-    future_incompatible,
-    nonstandard_style,
-    rust_2018_idioms,
-    rustdoc::missing_crate_level_docs
-)]
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
 
@@ -93,7 +14,7 @@ pub use painter::Painter;
 mod misc_util;
 mod post_process;
 mod shader_version;
-mod vao_emulate;
+mod vao;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "winit"))]
 pub mod winit;
@@ -105,3 +26,62 @@ mod epi_backend;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "winit"))]
 pub use epi_backend::{run, NativeOptions};
+
+/// Check for OpenGL error and report it using `tracing::error`.
+///
+/// ``` no_run
+/// # let glow_context = todo!();
+/// use egui_glow::check_for_gl_error;
+/// check_for_gl_error!(glow_context);
+/// check_for_gl_error!(glow_context, "during painting");
+/// ```
+#[macro_export]
+macro_rules! check_for_gl_error {
+    ($gl: expr) => {{
+        $crate::check_for_gl_error_impl($gl, file!(), line!(), "")
+    }};
+    ($gl: expr, $context: literal) => {{
+        $crate::check_for_gl_error_impl($gl, file!(), line!(), $context)
+    }};
+}
+
+#[doc(hidden)]
+pub fn check_for_gl_error_impl(gl: &glow::Context, file: &str, line: u32, context: &str) {
+    use glow::HasContext as _;
+    #[allow(unsafe_code)]
+    let error_code = unsafe { gl.get_error() };
+    if error_code != glow::NO_ERROR {
+        let error_str = match error_code {
+            glow::INVALID_ENUM => "GL_INVALID_ENUM",
+            glow::INVALID_VALUE => "GL_INVALID_VALUE",
+            glow::INVALID_OPERATION => "GL_INVALID_OPERATION",
+            glow::STACK_OVERFLOW => "GL_STACK_OVERFLOW",
+            glow::STACK_UNDERFLOW => "GL_STACK_UNDERFLOW",
+            glow::OUT_OF_MEMORY => "GL_OUT_OF_MEMORY",
+            glow::INVALID_FRAMEBUFFER_OPERATION => "GL_INVALID_FRAMEBUFFER_OPERATION",
+            glow::CONTEXT_LOST => "GL_CONTEXT_LOST",
+            0x8031 => "GL_TABLE_TOO_LARGE1",
+            0x9242 => "CONTEXT_LOST_WEBGL",
+            _ => "<unknown>",
+        };
+
+        if context.is_empty() {
+            tracing::error!(
+                "GL error, at {}:{}: {} (0x{:X}). Please file a bug at https://github.com/emilk/egui/issues",
+                file,
+                line,
+                error_str,
+                error_code,
+            );
+        } else {
+            tracing::error!(
+                "GL error, at {}:{} ({}): {} (0x{:X}). Please file a bug at https://github.com/emilk/egui/issues",
+                file,
+                line,
+                context,
+                error_str,
+                error_code,
+            );
+        }
+    }
+}

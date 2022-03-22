@@ -1,7 +1,8 @@
 #![allow(unsafe_code)]
-use crate::misc_util::{check_for_gl_error, compile_shader, link_program};
-use crate::vao_emulate::BufferInfo;
-use glow::HasContext;
+use crate::check_for_gl_error;
+use crate::misc_util::{compile_shader, link_program};
+use crate::vao::BufferInfo;
+use glow::HasContext as _;
 
 /// Uses a framebuffer to render everything in linear color space and convert it back to `sRGB`
 /// in a separate "post processing" step
@@ -9,7 +10,7 @@ pub(crate) struct PostProcess {
     gl: std::rc::Rc<glow::Context>,
     pos_buffer: glow::Buffer,
     index_buffer: glow::Buffer,
-    vertex_array: crate::misc_util::VAO,
+    vertex_array: crate::vao::VAO,
     is_webgl_1: bool,
     texture: glow::Texture,
     texture_size: (i32, i32),
@@ -77,7 +78,7 @@ impl PostProcess {
             glow::UNSIGNED_BYTE,
             None,
         );
-        check_for_gl_error(&gl, "post process texture initialization");
+        check_for_gl_error!(&gl, "post process texture initialization");
 
         gl.framebuffer_texture_2d(
             glow::FRAMEBUFFER,
@@ -125,9 +126,9 @@ impl PostProcess {
             .get_attrib_location(program, "a_pos")
             .ok_or_else(|| "failed to get location of a_pos".to_string())?;
         let mut vertex_array = if need_to_emulate_vao {
-            crate::misc_util::VAO::emulated()
+            crate::vao::VAO::emulated()
         } else {
-            crate::misc_util::VAO::native(&gl)
+            crate::vao::VAO::native(&gl)
         };
         vertex_array.bind_vertex_array(&gl);
         vertex_array.bind_buffer(&gl, &pos_buffer);
@@ -146,7 +147,7 @@ impl PostProcess {
         gl.buffer_data_u8_slice(glow::ELEMENT_ARRAY_BUFFER, &indices, glow::STATIC_DRAW);
 
         gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, None);
-        check_for_gl_error(&gl, "post process initialization");
+        check_for_gl_error!(&gl, "post process initialization");
 
         Ok(PostProcess {
             gl,
@@ -190,6 +191,8 @@ impl PostProcess {
         self.gl.bind_framebuffer(glow::FRAMEBUFFER, Some(self.fbo));
         self.gl.clear_color(0.0, 0.0, 0.0, 0.0);
         self.gl.clear(glow::COLOR_BUFFER_BIT);
+
+        check_for_gl_error!(&self.gl, "PostProcess::begin");
     }
 
     pub(crate) unsafe fn bind(&self) {
@@ -219,6 +222,8 @@ impl PostProcess {
         self.gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, None);
         self.gl.bind_texture(glow::TEXTURE_2D, None);
         self.gl.use_program(None);
+
+        check_for_gl_error!(&self.gl, "PostProcess::end");
     }
 
     pub(crate) unsafe fn destroy(&self) {
