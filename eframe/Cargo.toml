@@ -71,6 +71,5 @@ image = { version = "0.24", default-features = false, features = [
   "jpeg",
   "png",
 ] }
-parking_lot = "0.12"
 poll-promise = "0.1"
 rfd = "0.8"

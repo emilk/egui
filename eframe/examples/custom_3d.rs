@@ -11,7 +11,7 @@
 
 use eframe::egui;
 
-use parking_lot::Mutex;
+use egui::mutex::Mutex;
 use std::sync::Arc;
 
 fn main() {
