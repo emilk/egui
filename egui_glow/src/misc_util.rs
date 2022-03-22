@@ -37,7 +37,7 @@ pub fn check_for_gl_error_impl(gl: &glow::Context, file: &str, line: u32, contex
             _ => "<unknown>",
         };
 
-        if context == "" {
+        if context.is_empty() {
             tracing::error!(
                 "GL error, at {}:{}: {} (0x{:X}). Please file a bug at https://github.com/emilk/egui/issues",
                 file,
