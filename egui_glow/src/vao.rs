@@ -1,6 +1,6 @@
 #![allow(unsafe_code)]
 
-use glow::HasContext;
+use glow::HasContext as _;
 
 use crate::check_for_gl_error;
 

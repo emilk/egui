@@ -6,7 +6,7 @@ use egui::{
     emath::Rect,
     epaint::{Color32, Mesh, Primitive, Vertex},
 };
-use glow::HasContext;
+use glow::HasContext as _;
 use memoffset::offset_of;
 
 use crate::check_for_gl_error;

@@ -1,6 +1,6 @@
 #![allow(unsafe_code)]
 
-use glow::HasContext;
+use glow::HasContext as _;
 
 pub(crate) unsafe fn compile_shader(
     gl: &glow::Context,

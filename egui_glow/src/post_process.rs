@@ -2,7 +2,7 @@
 use crate::check_for_gl_error;
 use crate::misc_util::{compile_shader, link_program};
 use crate::vao::BufferInfo;
-use glow::HasContext;
+use glow::HasContext as _;
 
 /// Uses a framebuffer to render everything in linear color space and convert it back to `sRGB`
 /// in a separate "post processing" step
