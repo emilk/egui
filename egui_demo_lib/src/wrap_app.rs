@@ -132,6 +132,15 @@ impl epi::App for WrapApp {
 
         self.ui_file_drag_and_drop(ctx);
     }
+
+    fn on_exit(&mut self, gl: &glow::Context) {
+        self.apps.demo.on_exit(gl);
+        self.apps.easy_mark_editor.on_exit(gl);
+        self.apps.http.on_exit(gl);
+        self.apps.clock.on_exit(gl);
+        self.apps.color_test.on_exit(gl);
+        self.apps.custom_3d.on_exit(gl);
+    }
 }
 
 impl WrapApp {

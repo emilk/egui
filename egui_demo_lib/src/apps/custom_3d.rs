@@ -47,6 +47,10 @@ impl epi::App for Custom3dApp {
             });
         });
     }
+
+    fn on_exit(&mut self, gl: &glow::Context) {
+        self.rotating_triangle.lock().destroy(gl);
+    }
 }
 
 impl Custom3dApp {
@@ -166,8 +170,6 @@ impl RotatingTriangle {
         }
     }
 
-    // TODO: figure out how to call this in a nice way
-    #[allow(unused)]
     fn destroy(self, gl: &glow::Context) {
         use glow::HasContext as _;
         unsafe {
