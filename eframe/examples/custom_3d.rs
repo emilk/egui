@@ -49,7 +49,7 @@ impl eframe::App for MyApp {
             });
 
             egui::ScrollArea::both().show(ui, |ui| {
-                egui::Frame::dark_canvas(ui.style()).show(ui, |ui| {
+                egui::Frame::canvas(ui.style()).show(ui, |ui| {
                     self.custom_painting(ui);
                 });
                 ui.label("Drag to rotate!");
