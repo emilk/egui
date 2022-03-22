@@ -75,7 +75,7 @@ impl MyApp {
 
         let callback = egui::PaintCallback {
             rect,
-            callback: std::sync::Arc::new(move |render_ctx| {
+            callback: std::sync::Arc::new(move |_info, render_ctx| {
                 if let Some(painter) = render_ctx.downcast_ref::<egui_glow::Painter>() {
                     rotating_triangle.lock().paint(painter.gl(), angle);
                 } else {

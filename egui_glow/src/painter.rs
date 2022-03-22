@@ -37,12 +37,12 @@ pub struct Painter {
     u_sampler: glow::UniformLocation,
     is_webgl_1: bool,
     is_embedded: bool,
-    vertex_array: crate::vao::VAO,
+    vao: crate::vao::VertexArrayObject,
     srgb_support: bool,
     /// The filter used for subsequent textures.
     texture_filter: TextureFilter,
     post_process: Option<PostProcess>,
-    vertex_buffer: glow::Buffer,
+    vbo: glow::Buffer,
     element_array_buffer: glow::Buffer,
 
     textures: HashMap<egui::TextureId, glow::Texture>,
@@ -100,11 +100,6 @@ impl Painter {
 
         let max_texture_side = unsafe { gl.get_parameter_i32(glow::MAX_TEXTURE_SIZE) } as usize;
 
-        let support_vao = crate::vao::supports_vao(&gl);
-        if !support_vao {
-            tracing::debug!("VAO not supported");
-        }
-
         let shader_version = ShaderVersion::get(&gl);
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
         let header = shader_version.version();
@@ -122,7 +117,6 @@ impl Painter {
                         Some(PostProcess::new(
                             gl.clone(),
                             shader_prefix,
-                            support_vao,
                             is_webgl_1,
                             width,
                             height,
@@ -173,47 +167,44 @@ impl Painter {
             gl.delete_shader(frag);
             let u_screen_size = gl.get_uniform_location(program, "u_screen_size").unwrap();
             let u_sampler = gl.get_uniform_location(program, "u_sampler").unwrap();
-            let vertex_buffer = gl.create_buffer()?;
-            let element_array_buffer = gl.create_buffer()?;
-            gl.bind_buffer(glow::ARRAY_BUFFER, Some(vertex_buffer));
+
+            let vbo = gl.create_buffer()?;
+
             let a_pos_loc = gl.get_attrib_location(program, "a_pos").unwrap();
             let a_tc_loc = gl.get_attrib_location(program, "a_tc").unwrap();
             let a_srgba_loc = gl.get_attrib_location(program, "a_srgba").unwrap();
-            let mut vertex_array = if support_vao {
-                crate::vao::VAO::native(&gl)
-            } else {
-                crate::vao::VAO::emulated()
-            };
-            vertex_array.bind_vertex_array(&gl);
-            vertex_array.bind_buffer(&gl, &vertex_buffer);
+
             let stride = std::mem::size_of::<Vertex>() as i32;
-            let position_buffer_info = vao::BufferInfo {
-                location: a_pos_loc,
-                vector_size: 2,
-                data_type: glow::FLOAT,
-                normalized: false,
-                stride,
-                offset: offset_of!(Vertex, pos) as i32,
-            };
-            let tex_coord_buffer_info = vao::BufferInfo {
-                location: a_tc_loc,
-                vector_size: 2,
-                data_type: glow::FLOAT,
-                normalized: false,
-                stride,
-                offset: offset_of!(Vertex, uv) as i32,
-            };
-            let color_buffer_info = vao::BufferInfo {
-                location: a_srgba_loc,
-                vector_size: 4,
-                data_type: glow::UNSIGNED_BYTE,
-                normalized: false,
-                stride,
-                offset: offset_of!(Vertex, color) as i32,
-            };
-            vertex_array.add_new_attribute(&gl, position_buffer_info);
-            vertex_array.add_new_attribute(&gl, tex_coord_buffer_info);
-            vertex_array.add_new_attribute(&gl, color_buffer_info);
+            let buffer_infos = vec![
+                vao::BufferInfo {
+                    location: a_pos_loc,
+                    vector_size: 2,
+                    data_type: glow::FLOAT,
+                    normalized: false,
+                    stride,
+                    offset: offset_of!(Vertex, pos) as i32,
+                },
+                vao::BufferInfo {
+                    location: a_tc_loc,
+                    vector_size: 2,
+                    data_type: glow::FLOAT,
+                    normalized: false,
+                    stride,
+                    offset: offset_of!(Vertex, uv) as i32,
+                },
+                vao::BufferInfo {
+                    location: a_srgba_loc,
+                    vector_size: 4,
+                    data_type: glow::UNSIGNED_BYTE,
+                    normalized: false,
+                    stride,
+                    offset: offset_of!(Vertex, color) as i32,
+                },
+            ];
+            let vao = crate::vao::VertexArrayObject::new(&gl, vbo, buffer_infos);
+
+            let element_array_buffer = gl.create_buffer()?;
+
             check_for_gl_error!(&gl, "after Painter::new");
 
             Ok(Painter {
@@ -224,11 +215,11 @@ impl Painter {
                 u_sampler,
                 is_webgl_1,
                 is_embedded: matches!(shader_version, ShaderVersion::Es100 | ShaderVersion::Es300),
-                vertex_array,
+                vao,
                 srgb_support,
                 texture_filter: Default::default(),
                 post_process,
-                vertex_buffer,
+                vbo,
                 element_array_buffer,
                 textures: Default::default(),
                 #[cfg(feature = "epi")]
@@ -256,9 +247,13 @@ impl Painter {
         self.gl.enable(glow::SCISSOR_TEST);
         // egui outputs mesh in both winding orders
         self.gl.disable(glow::CULL_FACE);
+        self.gl.disable(glow::DEPTH_TEST);
+
+        self.gl.color_mask(true, true, true, true);
 
         self.gl.enable(glow::BLEND);
-        self.gl.blend_equation(glow::FUNC_ADD);
+        self.gl
+            .blend_equation_separate(glow::FUNC_ADD, glow::FUNC_ADD);
         self.gl.blend_func_separate(
             // egui outputs colors with premultiplied alpha:
             glow::ONE,
@@ -285,8 +280,8 @@ impl Painter {
             .uniform_2_f32(Some(&self.u_screen_size), width_in_points, height_in_points);
         self.gl.uniform_1_i32(Some(&self.u_sampler), 0);
         self.gl.active_texture(glow::TEXTURE0);
-        self.vertex_array.bind_vertex_array(&self.gl);
 
+        self.vao.bind(&self.gl);
         self.gl
             .bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.element_array_buffer));
 
@@ -380,7 +375,13 @@ impl Painter {
                             );
                         }
 
-                        callback.call(self);
+                        let info = egui::PaintCallbackInfo {
+                            rect: callback.rect,
+                            pixels_per_point,
+                            screen_size_px: inner_size,
+                        };
+
+                        callback.call(&info, self);
 
                         check_for_gl_error!(&self.gl, "callback");
 
@@ -395,8 +396,9 @@ impl Painter {
                 }
             }
         }
+
         unsafe {
-            self.vertex_array.unbind_vertex_array(&self.gl);
+            self.vao.unbind(&self.gl);
             self.gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, None);
 
             if let Some(ref post_process) = self.post_process {
@@ -414,8 +416,7 @@ impl Painter {
         debug_assert!(mesh.is_valid());
         if let Some(texture) = self.get_texture(mesh.texture_id) {
             unsafe {
-                self.gl
-                    .bind_buffer(glow::ARRAY_BUFFER, Some(self.vertex_buffer));
+                self.gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vbo));
                 self.gl.buffer_data_u8_slice(
                     glow::ARRAY_BUFFER,
                     bytemuck::cast_slice(&mesh.vertices),
@@ -600,7 +601,7 @@ impl Painter {
         for tex in self.textures.values() {
             self.gl.delete_texture(*tex);
         }
-        self.gl.delete_buffer(self.vertex_buffer);
+        self.gl.delete_buffer(self.vbo);
         self.gl.delete_buffer(self.element_array_buffer);
         for t in &self.textures_to_destroy {
             self.gl.delete_texture(*t);
