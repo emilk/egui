@@ -27,6 +27,7 @@ pub(crate) struct VertexArrayObject {
 }
 
 impl VertexArrayObject {
+    #[allow(clippy::needless_pass_by_value)] // false positive
     pub(crate) unsafe fn new(
         gl: &glow::Context,
         vbo: glow::Buffer,
