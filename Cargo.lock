@@ -3458,7 +3458,7 @@ dependencies = [
 [[package]]
 name = "three-d"
 version = "0.11.0"
-source = "git+https://github.com/asny/three-d?rev=d9e613d209e45b214fdb96e06ea9907e7a03d4dc#d9e613d209e45b214fdb96e06ea9907e7a03d4dc"
+source = "git+https://github.com/asny/three-d?rev=07bbf3b6e3336b758d7dbdfcc14c72f95f361376#07bbf3b6e3336b758d7dbdfcc14c72f95f361376"
 dependencies = [
  "cgmath",
  "gl_generator",

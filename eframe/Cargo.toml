@@ -73,4 +73,4 @@ image = { version = "0.24", default-features = false, features = [
 ] }
 poll-promise = "0.1"
 rfd = "0.8"
-three-d = { git = "https://github.com/asny/three-d", rev = "d9e613d209e45b214fdb96e06ea9907e7a03d4dc", default-features = false } # 2022-03-22
+three-d = { git = "https://github.com/asny/three-d", rev = "07bbf3b6e3336b758d7dbdfcc14c72f95f361376", default-features = false } # 2022-03-22
