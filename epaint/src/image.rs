@@ -160,7 +160,7 @@ impl From<ColorImage> for ImageData {
 /// An 8-bit image, representing difference levels of transparent white.
 ///
 /// Used for the font texture
-#[derive(Clone, Default, Eq, Hash, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct AlphaImage {
     /// width, height
@@ -168,14 +168,14 @@ pub struct AlphaImage {
     /// The alpha (linear space 0-255) of something white.
     ///
     /// One byte per pixel. Often you want to use [`Self::srgba_pixels`] instead.
-    pub pixels: Vec<u8>,
+    pub pixels: Vec<f32>,
 }
 
 impl AlphaImage {
     pub fn new(size: [usize; 2]) -> Self {
         Self {
             size,
-            pixels: vec![0; size[0] * size[1]],
+            pixels: vec![0.0; size[0] * size[1]],
         }
     }
 
@@ -198,17 +198,10 @@ impl AlphaImage {
         &'_ self,
         gamma: f32,
     ) -> impl ExactSizeIterator<Item = super::Color32> + '_ {
-        let srgba_from_alpha_lut: Vec<Color32> = (0..=255)
-            .map(|a| {
-                // let a = super::color::linear_f32_from_linear_u8(a).powf(gamma);
-                // super::Rgba::from_white_alpha(a).into()
-                super::Color32::from_rgba_premultiplied(a, a, a, a) // this makes no sense, but works
-            })
-            .collect();
-
-        self.pixels
-            .iter()
-            .map(move |&a| srgba_from_alpha_lut[a as usize])
+        self.pixels.iter().map(move |coverage| {
+            let a = fast_round(coverage.powf(gamma / 2.2) * 255.0);
+            super::Color32::from_rgba_premultiplied(a, a, a, a) // this makes no sense, but works
+        })
     }
 
     /// Clone a sub-region as a new image
@@ -230,10 +223,10 @@ impl AlphaImage {
 }
 
 impl std::ops::Index<(usize, usize)> for AlphaImage {
-    type Output = u8;
+    type Output = f32;
 
     #[inline]
-    fn index(&self, (x, y): (usize, usize)) -> &u8 {
+    fn index(&self, (x, y): (usize, usize)) -> &f32 {
         let [w, h] = self.size;
         assert!(x < w && y < h);
         &self.pixels[y * w + x]
@@ -242,7 +235,7 @@ impl std::ops::Index<(usize, usize)> for AlphaImage {
 
 impl std::ops::IndexMut<(usize, usize)> for AlphaImage {
     #[inline]
-    fn index_mut(&mut self, (x, y): (usize, usize)) -> &mut u8 {
+    fn index_mut(&mut self, (x, y): (usize, usize)) -> &mut f32 {
         let [w, h] = self.size;
         assert!(x < w && y < h);
         &mut self.pixels[y * w + x]
@@ -254,6 +247,10 @@ impl From<AlphaImage> for ImageData {
     fn from(image: AlphaImage) -> Self {
         Self::Alpha(image)
     }
+}
+
+fn fast_round(r: f32) -> u8 {
+    (r + 0.5).floor() as _ // rust does a saturating cast since 1.45
 }
 
 // ----------------------------------------------------------------------------

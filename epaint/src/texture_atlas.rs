@@ -144,7 +144,7 @@ fn resize_to_min_height(image: &mut AlphaImage, required_height: usize) -> bool 
     }
 
     if image.width() * image.height() > image.pixels.len() {
-        image.pixels.resize(image.width() * image.height(), 0);
+        image.pixels.resize(image.width() * image.height(), 0.0);
         true
     } else {
         false
