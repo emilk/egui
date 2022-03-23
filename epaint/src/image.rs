@@ -157,17 +157,20 @@ impl From<ColorImage> for ImageData {
 
 // ----------------------------------------------------------------------------
 
-/// An 8-bit image, representing difference levels of transparent white.
+/// A single-channel image designed for the font texture.
 ///
-/// Used for the font texture
+/// Each value represents "coverage", i.e. how much a texel is covered by a character.
+///
+/// This is roughly interpreted as the opacity of a white image.
 #[derive(Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct AlphaImage {
     /// width, height
     pub size: [usize; 2],
-    /// The alpha (linear space 0-255) of something white.
+
+    /// The coverage value.
     ///
-    /// One byte per pixel. Often you want to use [`Self::srgba_pixels`] instead.
+    /// Often you want to use [`Self::srgba_pixels`] instead.
     pub pixels: Vec<f32>,
 }
 
@@ -194,17 +197,18 @@ impl AlphaImage {
     /// `gamma` should normally be set to 1.0.
     /// If you are having problems with text looking skinny and pixelated, try
     /// setting a lower gamma, e.g. `0.5`.
-    pub fn srgba_pixels(
-        &'_ self,
-        gamma: f32,
-    ) -> impl ExactSizeIterator<Item = super::Color32> + '_ {
+    pub fn srgba_pixels(&'_ self, gamma: f32) -> impl ExactSizeIterator<Item = Color32> + '_ {
         self.pixels.iter().map(move |coverage| {
+            // This is arbitrarily chosen to make text look as good as possible.
+            // In particular, it looks good with gamma=1 and the default eframe backend,
+            // which uses linear blending.
+            // See https://github.com/emilk/egui/issues/1410
             let a = fast_round(coverage.powf(gamma / 2.2) * 255.0);
-            super::Color32::from_rgba_premultiplied(a, a, a, a) // this makes no sense, but works
+            Color32::from_rgba_premultiplied(a, a, a, a) // this makes no sense, but works
         })
     }
 
-    /// Clone a sub-region as a new image
+    /// Clone a sub-region as a new image.
     pub fn region(&self, [x, y]: [usize; 2], [w, h]: [usize; 2]) -> AlphaImage {
         assert!(x + w <= self.width());
         assert!(y + h <= self.height());
