@@ -338,9 +338,23 @@ On Linux and Mac, Firefox will copy the WebGL render target from GPU, to CPU and
 To alleviate the above mentioned performance issues the default max-width of an egui web app is 1024 points. You can change this by overriding the `fn max_size_points` of [`epi::App`](https://docs.rs/epi/latest/epi/trait.App.html).
 
 ### How do I render 3D stuff in an egui area?
-egui can't do 3D graphics itself, but if you use a 3D library (e.g. [`glium`](https://github.com/glium/glium) using [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium), or [`miniquad`](https://github.com/not-fl3/miniquad) using [`egui-miniquad`](https://github.com/not-fl3/egui-miniquad)) you can render your 3D content to a texture, then display it using [`ui.image(…)`](https://docs.rs/egui/latest/egui/struct.Ui.html#method.image). You first need to convert the native texture to an [`egui::TextureId`](https://docs.rs/egui/latest/egui/enum.TextureId.html), and how to do this depends on the integration you use (e.g. [`register_glium_texture`](https://docs.rs/epi/latest/epi/trait.NativeTexture.html#tymethod.register_native_texture)).
+There are multiple ways to combine egui with 3D. The simplest way is to use a 3D library and have egui sit on top of the 3D view. See for instance [`bevy_egui`](https://github.com/mvlabat/bevy_egui) or [`three-d`](https://github.com/asny/three-d).
 
-There is an example for showing a native glium texture in an egui window at <https://github.com/emilk/egui/blob/master/egui_glium/examples/native_texture.rs>.
+If you want to embed 3D into an egui view there are two options.
+
+#### `Shape::Callback`
+Examples:
+* <https://github.com/emilk/egui/blob/master/eframe/examples/custom_3d_three-d.rs>
+* <https://github.com/emilk/egui/blob/master/eframe/examples/custom_3d_glow.rs>
+
+`Shape::Callback` will call your code when egui gets painted, to show anything using whatever the background rendering context is. When using [`eframe`](https://github.com/emilk/egui/tree/master/eframe) this will be [`glow`](https://github.com/grovesNL/glow). Other integrations will give you other rendering contexts, if they support `Shape::Callback` at all.
+
+#### Render-to-texture
+You can also render your 3D scene to a texture and display it using [`ui.image(…)`](https://docs.rs/egui/latest/egui/struct.Ui.html#method.image). You first need to convert the native texture to an [`egui::TextureId`](https://docs.rs/egui/latest/egui/enum.TextureId.html), and how to do this depends on the integration you use.
+
+Examples:
+* Using [`egui-miniquad`]( https://github.com/not-fl3/egui-miniquad): https://github.com/not-fl3/egui-miniquad/blob/master/examples/render_to_egui_image.rs
+* Using [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium): <https://github.com/emilk/egui/blob/master/egui_glium/examples/native_texture.rs>.
 
 
 ## Other

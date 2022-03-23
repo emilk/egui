@@ -1,13 +1,25 @@
 //! This demo shows how to embed 3D rendering using [`three-d`](https://github.com/asny/three-d) in `eframe`.
+//!
+//! Any 3D library built on top of [`glow`](https://github.com/grovesNL/glow) can be used in `eframe`.
+//!
+//! Alternatively you can render 3D stuff to a texture and display it using [`egui::Ui::image`].
+//!
+//! If you are content of having egui sit on top of a 3D background, take a look at:
+//!
+//! * [`bevy_egui`](https://github.com/mvlabat/bevy_egui)
+//! * [`three-d`](https://github.com/asny/three-d)
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 use eframe::egui;
 
 fn main() {
-    let options = eframe::NativeOptions::default();
+    let options = eframe::NativeOptions {
+        initial_window_size: Some(egui::vec2(550.0, 610.0)),
+        ..Default::default()
+    };
     eframe::run_native(
-        "Custom 3D painting in eframe",
+        "Custom 3D painting in eframe!",
         options,
         Box::new(|cc| Box::new(MyApp::new(cc))),
     );
@@ -26,6 +38,8 @@ impl MyApp {
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
+            egui::widgets::global_dark_light_mode_buttons(ui);
+
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;
                 ui.label("The triangle is being painted using ");
