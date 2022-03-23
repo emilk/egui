@@ -377,7 +377,7 @@ fn allocate_glyph(
                 if v > 0.0 {
                     let px = glyph_pos.0 + x as usize;
                     let py = glyph_pos.1 + y as usize;
-                    image[(px, py)] = fast_round(v * 255.0);
+                    image[(px, py)] = fast_round(v.powf(1.0 / 2.2) * 255.0);
                 }
             });
 

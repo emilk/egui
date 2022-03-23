@@ -200,8 +200,9 @@ impl AlphaImage {
     ) -> impl ExactSizeIterator<Item = super::Color32> + '_ {
         let srgba_from_alpha_lut: Vec<Color32> = (0..=255)
             .map(|a| {
-                let a = super::color::linear_f32_from_linear_u8(a).powf(gamma);
-                super::Rgba::from_white_alpha(a).into()
+                // let a = super::color::linear_f32_from_linear_u8(a).powf(gamma);
+                // super::Rgba::from_white_alpha(a).into()
+                super::Color32::from_rgba_premultiplied(a, a, a, a) // this makes no sense, but works
             })
             .collect();
 
