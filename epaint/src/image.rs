@@ -6,7 +6,7 @@ use crate::Color32;
 ///
 /// In order to paint the image on screen, you first need to convert it to
 ///
-/// See also: [`ColorImage`], [`AlphaImage`].
+/// See also: [`ColorImage`], [`FontImage`].
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ImageData {
