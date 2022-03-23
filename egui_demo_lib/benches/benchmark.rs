@@ -123,7 +123,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         });
 
         let galley = fonts.layout(LOREM_IPSUM_LONG.to_owned(), font_id, color, wrap_width);
-        let mut tessellator = egui::epaint::Tessellator::from_options(Default::default());
+        let mut tessellator = egui::epaint::Tessellator::new(1.0, Default::default());
         let mut mesh = egui::epaint::Mesh::default();
         let text_shape = TextShape::new(egui::Pos2::ZERO, galley);
         let font_image_size = fonts.font_image_size();
