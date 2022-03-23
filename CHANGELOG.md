@@ -16,10 +16,12 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 ### Changed 🔧
 * `ClippedMesh` has been replaced with `ClippedPrimitive` ([#1351](https://github.com/emilk/egui/pull/1351)).
 * Renamed `Frame::margin` to `Frame::inner_margin`.
+* Renamed `AlphaImage` to `FontImage` to discourage any other use for it ([#1412](https://github.com/emilk/egui/pull/1412)).
 
 ### Fixed 🐛
 * Fixed ComboBoxes always being rendered left-aligned ([#1304](https://github.com/emilk/egui/pull/1304)).
 * Fixed ui code that could lead to a deadlock ([#1380](https://github.com/emilk/egui/pull/1380)).
+* Text is darker and more readable in bright mode ([#1412](https://github.com/emilk/egui/pull/1412)).
 
 ### Removed 🔥
 * Removed the `single_threaded/multi_threaded` flags - egui is now always thread-safe ([#1390](https://github.com/emilk/egui/pull/1390)).
