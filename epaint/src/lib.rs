@@ -28,7 +28,7 @@ pub mod util;
 pub use {
     bezier::{CubicBezierShape, QuadraticBezierShape},
     color::{Color32, Rgba},
-    image::{AlphaImage, ColorImage, ImageData, ImageDelta},
+    image::{ColorImage, FontImage, ImageData, ImageDelta},
     mesh::{Mesh, Mesh16, Vertex},
     shadow::Shadow,
     shape::{

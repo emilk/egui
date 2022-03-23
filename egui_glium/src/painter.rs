@@ -235,7 +235,7 @@ impl Painter {
                 );
                 image.pixels.iter().map(|color| color.to_tuple()).collect()
             }
-            egui::ImageData::Alpha(image) => {
+            egui::ImageData::Font(image) => {
                 let gamma = 1.0;
                 image
                     .srgba_pixels(gamma)

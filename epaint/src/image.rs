@@ -13,14 +13,14 @@ pub enum ImageData {
     /// RGBA image.
     Color(ColorImage),
     /// Used for the font texture.
-    Alpha(AlphaImage),
+    Font(FontImage),
 }
 
 impl ImageData {
     pub fn size(&self) -> [usize; 2] {
         match self {
             Self::Color(image) => image.size,
-            Self::Alpha(image) => image.size,
+            Self::Font(image) => image.size,
         }
     }
 
@@ -35,7 +35,7 @@ impl ImageData {
     pub fn bytes_per_pixel(&self) -> usize {
         match self {
             Self::Color(_) => 4,
-            Self::Alpha(_) => 4,
+            Self::Font(_) => 4,
         }
     }
 }
@@ -164,7 +164,7 @@ impl From<ColorImage> for ImageData {
 /// This is roughly interpreted as the opacity of a white image.
 #[derive(Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct AlphaImage {
+pub struct FontImage {
     /// width, height
     pub size: [usize; 2],
 
@@ -174,7 +174,7 @@ pub struct AlphaImage {
     pub pixels: Vec<f32>,
 }
 
-impl AlphaImage {
+impl FontImage {
     pub fn new(size: [usize; 2]) -> Self {
         Self {
             size,
@@ -209,7 +209,7 @@ impl AlphaImage {
     }
 
     /// Clone a sub-region as a new image.
-    pub fn region(&self, [x, y]: [usize; 2], [w, h]: [usize; 2]) -> AlphaImage {
+    pub fn region(&self, [x, y]: [usize; 2], [w, h]: [usize; 2]) -> FontImage {
         assert!(x + w <= self.width());
         assert!(y + h <= self.height());
 
@@ -219,14 +219,14 @@ impl AlphaImage {
             pixels.extend(&self.pixels[offset..(offset + w)]);
         }
         assert_eq!(pixels.len(), w * h);
-        AlphaImage {
+        FontImage {
             size: [w, h],
             pixels,
         }
     }
 }
 
-impl std::ops::Index<(usize, usize)> for AlphaImage {
+impl std::ops::Index<(usize, usize)> for FontImage {
     type Output = f32;
 
     #[inline]
@@ -237,7 +237,7 @@ impl std::ops::Index<(usize, usize)> for AlphaImage {
     }
 }
 
-impl std::ops::IndexMut<(usize, usize)> for AlphaImage {
+impl std::ops::IndexMut<(usize, usize)> for FontImage {
     #[inline]
     fn index_mut(&mut self, (x, y): (usize, usize)) -> &mut f32 {
         let [w, h] = self.size;
@@ -246,10 +246,10 @@ impl std::ops::IndexMut<(usize, usize)> for AlphaImage {
     }
 }
 
-impl From<AlphaImage> for ImageData {
+impl From<FontImage> for ImageData {
     #[inline(always)]
-    fn from(image: AlphaImage) -> Self {
-        Self::Alpha(image)
+    fn from(image: FontImage) -> Self {
+        Self::Font(image)
     }
 }
 

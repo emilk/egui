@@ -17,7 +17,7 @@ impl Default for WrappedTextureManager {
         // Will be filled in later
         let font_id = tex_mngr.alloc(
             "egui_font_texture".into(),
-            epaint::AlphaImage::new([0, 0]).into(),
+            epaint::FontImage::new([0, 0]).into(),
         );
         assert_eq!(font_id, TextureId::default());
 
