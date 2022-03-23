@@ -2,7 +2,7 @@ use crate::{style::WidgetVisuals, *};
 use epaint::Shape;
 
 /// A function that paints the `ComboBox` icon
-pub type IconPainter = Box<dyn FnOnce(&Ui, Rect, &WidgetVisuals)>;
+pub type IconPainter = Box<dyn FnOnce(&Ui, Rect, &WidgetVisuals, bool)>;
 
 /// A drop-down selection menu with a descriptive label.
 ///
@@ -84,25 +84,30 @@ impl ComboBox {
     /// ```
     /// # egui::__run_test_ui(|ui| {
     /// # let text = "Selected text";
-    /// pub fn filled_triangle(ui: &egui::Ui, rect: egui::Rect, visuals: &egui::style::WidgetVisuals) {
-    /// let rect = egui::Rect::from_center_size(
-    ///    rect.center(),
-    ///    egui::Vec2::new(rect.width() * 0.6, rect.height() * 0.4),
-    ///  );
-    ///    ui.painter().add(egui::Shape::convex_polygon(
-    ///       vec![rect.left_top(), rect.right_top(), rect.center_bottom()],
-    ///      visuals.fg_stroke.color,
-    ///      visuals.fg_stroke,
-    ///   ));
+    /// pub fn filled_triangle(
+    ///     ui: &egui::Ui,
+    ///     rect: egui::Rect,
+    ///     visuals: &egui::style::WidgetVisuals,
+    ///     _is_open: bool,
+    /// ) {
+    ///     let rect = egui::Rect::from_center_size(
+    ///         rect.center(),
+    ///         egui::Vec2::new(rect.width() * 0.6, rect.height() * 0.4),
+    ///     );
+    ///     ui.painter().add(egui::Shape::convex_polygon(
+    ///         vec![rect.left_top(), rect.right_top(), rect.center_bottom()],
+    ///         visuals.fg_stroke.color,
+    ///         visuals.fg_stroke,
+    ///     ));
     /// }
     ///
     /// egui::ComboBox::from_id_source("my-combobox")
-    /// .selected_text(text)
-    /// .icon(filled_triangle)
-    /// .show_ui(ui, |ui| {});
+    ///     .selected_text(text)
+    ///     .icon(filled_triangle)
+    ///     .show_ui(ui, |_ui| {});
     /// # });
     /// ```
-    pub fn icon(mut self, icon_fn: impl FnOnce(&Ui, Rect, &WidgetVisuals) + 'static) -> Self {
+    pub fn icon(mut self, icon_fn: impl FnOnce(&Ui, Rect, &WidgetVisuals, bool) + 'static) -> Self {
         self.icon = Some(Box::new(icon_fn));
         self
     }
@@ -233,7 +238,12 @@ fn combo_box_dyn<'c, R>(
             };
 
             if let Some(icon) = icon {
-                icon(ui, icon_rect.expand(visuals.expansion), visuals);
+                icon(
+                    ui,
+                    icon_rect.expand(visuals.expansion),
+                    visuals,
+                    is_popup_open,
+                );
             } else {
                 paint_default_icon(ui.painter(), icon_rect.expand(visuals.expansion), visuals);
             }
