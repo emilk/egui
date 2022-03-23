@@ -311,22 +311,22 @@ impl Rgba {
     }
 
     pub fn from_luminance_alpha(l: f32, a: f32) -> Self {
-        crate::epaint_assert!(0.0 <= l && l <= 1.0);
-        crate::epaint_assert!(0.0 <= a && a <= 1.0);
+        crate::epaint_assert!(0.0 <= l && l <= 1.0, "l: {}", l);
+        crate::epaint_assert!(0.0 <= a && a <= 1.0, "a: {}", a);
         Self([l * a, l * a, l * a, a])
     }
 
     /// Transparent black
     #[inline(always)]
     pub fn from_black_alpha(a: f32) -> Self {
-        crate::epaint_assert!(0.0 <= a && a <= 1.0);
+        crate::epaint_assert!(0.0 <= a && a <= 1.0, "a: {}", a);
         Self([0.0, 0.0, 0.0, a])
     }
 
     /// Transparent white
     #[inline(always)]
     pub fn from_white_alpha(a: f32) -> Self {
-        crate::epaint_assert!(0.0 <= a && a <= 1.0);
+        crate::epaint_assert!(0.0 <= a && a <= 1.0, "a: {}", a);
         Self([a, a, a, a])
     }
 

@@ -197,13 +197,10 @@ impl FontImage {
     /// If you are having problems with text looking skinny and pixelated, try
     /// setting a lower gamma, e.g. `0.5`.
     pub fn srgba_pixels(&'_ self, gamma: f32) -> impl ExactSizeIterator<Item = Color32> + '_ {
-        self.pixels.iter().map(move |coverage| {
-            // This is arbitrarily chosen to make text look as good as possible.
-            // In particular, it looks good with gamma=1 and the default eframe backend,
-            // which uses linear blending.
-            // See https://github.com/emilk/egui/issues/1410
-            let a = fast_round(coverage.powf(gamma / 2.2) * 255.0);
-            Color32::from_rgba_premultiplied(a, a, a, a) // this makes no sense, but works
+        self.pixels.iter().map(move |&coverage| {
+            Color32::from(crate::Rgba::from_white_alpha(
+                coverage.clamp(0.0, 1.0).powf(gamma),
+            ))
         })
     }
 
@@ -250,10 +247,6 @@ impl From<FontImage> for ImageData {
     fn from(image: FontImage) -> Self {
         Self::Font(image)
     }
-}
-
-fn fast_round(r: f32) -> u8 {
-    (r + 0.5).floor() as _ // rust does a saturating cast since 1.45
 }
 
 // ----------------------------------------------------------------------------
