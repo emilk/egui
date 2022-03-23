@@ -45,6 +45,7 @@ epi = { version = "0.17.0", path = "../epi" }
 
 chrono = { version = "0.4", optional = true, features = ["js-sys", "wasmbind"] }
 enum-map = { version = "2", features = ["serde"] }
+tracing = "0.1"
 unicode_names2 = { version = "0.5.0", default-features = false }
 
 # feature "http":

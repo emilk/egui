@@ -91,16 +91,28 @@ impl Mesh {
         if self.is_empty() {
             *self = other;
         } else {
+            self.append_ref(&other);
+        }
+    }
+
+    /// Append all the indices and vertices of `other` to `self` without
+    /// taking ownership.
+    pub fn append_ref(&mut self, other: &Mesh) {
+        crate::epaint_assert!(other.is_valid());
+
+        if !self.is_empty() {
             assert_eq!(
                 self.texture_id, other.texture_id,
                 "Can't merge Mesh using different textures"
             );
-
-            let index_offset = self.vertices.len() as u32;
-            self.indices
-                .extend(other.indices.iter().map(|index| index + index_offset));
-            self.vertices.extend(other.vertices.iter());
+        } else {
+            self.texture_id = other.texture_id;
         }
+
+        let index_offset = self.vertices.len() as u32;
+        self.indices
+            .extend(other.indices.iter().map(|index| index + index_offset));
+        self.vertices.extend(other.vertices.iter());
     }
 
     #[inline(always)]
@@ -240,6 +252,15 @@ impl Mesh {
     pub fn translate(&mut self, delta: Vec2) {
         for v in &mut self.vertices {
             v.pos += delta;
+        }
+    }
+
+    /// Rotate by some angle about an origin, in-place.
+    ///
+    /// Origin is a position in screen space.
+    pub fn rotate(&mut self, rot: Rot2, origin: Pos2) {
+        for v in &mut self.vertices {
+            v.pos = origin + rot * (v.pos - origin);
         }
     }
 }

@@ -27,7 +27,7 @@ all-features = true
 
 
 [features]
-default = ["default_fonts", "multi_threaded"]
+default = ["default_fonts"]
 
 # implement bytemuck on most types.
 convert_bytemuck = ["bytemuck", "emath/bytemuck"]
@@ -47,24 +47,25 @@ mint = ["emath/mint"]
 # implement serde on most types.
 serialize = ["serde", "ahash/serde", "emath/serde"]
 
-single_threaded = ["atomic_refcell"]
-
-# Only needed if you plan to use the same fonts from multiple threads.
-# It comes with a minor performance impact.
-multi_threaded = ["parking_lot"]
-
 
 [dependencies]
 emath = { version = "0.17.0", path = "../emath" }
 
 ab_glyph = "0.2.11"
 ahash = { version = "0.7", default-features = false, features = ["std"] }
-atomic_refcell = { version = "0.1", optional = true }                     # Used instead of parking_lot when you are always using epaint in a single thread. About as fast as parking_lot. Panics on multi-threaded use.
 bytemuck = { version = "1.7.2", optional = true, features = ["derive"] }
 cint = { version = "^0.2.2", optional = true }
 nohash-hasher = "0.2"
-parking_lot = { version = "0.12", optional = true }                       # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
 serde = { version = "1", optional = true, features = ["derive", "rc"] }
+
+# native:
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+parking_lot = "0.12" # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
+
+# web:
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+atomic_refcell = "0.1" # Used instead of parking_lot on on wasm. See https://github.com/emilk/egui/issues/1401
+
 
 [dev-dependencies]
 criterion = { version = "0.3", default-features = false }

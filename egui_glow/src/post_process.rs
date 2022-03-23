@@ -1,7 +1,8 @@
 #![allow(unsafe_code)]
-use crate::misc_util::{check_for_gl_error, compile_shader, link_program};
-use crate::vao_emulate::BufferInfo;
-use glow::HasContext;
+use crate::check_for_gl_error;
+use crate::misc_util::{compile_shader, link_program};
+use crate::vao::BufferInfo;
+use glow::HasContext as _;
 
 /// Uses a framebuffer to render everything in linear color space and convert it back to `sRGB`
 /// in a separate "post processing" step
@@ -9,7 +10,7 @@ pub(crate) struct PostProcess {
     gl: std::rc::Rc<glow::Context>,
     pos_buffer: glow::Buffer,
     index_buffer: glow::Buffer,
-    vertex_array: crate::misc_util::VAO,
+    vao: crate::vao::VertexArrayObject,
     is_webgl_1: bool,
     texture: glow::Texture,
     texture_size: (i32, i32),
@@ -21,7 +22,6 @@ impl PostProcess {
     pub(crate) unsafe fn new(
         gl: std::rc::Rc<glow::Context>,
         shader_prefix: &str,
-        need_to_emulate_vao: bool,
         is_webgl_1: bool,
         width: i32,
         height: i32,
@@ -77,7 +77,7 @@ impl PostProcess {
             glow::UNSIGNED_BYTE,
             None,
         );
-        check_for_gl_error(&gl, "post process texture initialization");
+        check_for_gl_error!(&gl, "post process texture initialization");
 
         gl.framebuffer_texture_2d(
             glow::FRAMEBUFFER,
@@ -124,35 +124,31 @@ impl PostProcess {
         let a_pos_loc = gl
             .get_attrib_location(program, "a_pos")
             .ok_or_else(|| "failed to get location of a_pos".to_string())?;
-        let mut vertex_array = if need_to_emulate_vao {
-            crate::misc_util::VAO::emulated()
-        } else {
-            crate::misc_util::VAO::native(&gl)
-        };
-        vertex_array.bind_vertex_array(&gl);
-        vertex_array.bind_buffer(&gl, &pos_buffer);
-        let buffer_info_a_pos = BufferInfo {
-            location: a_pos_loc,
-            vector_size: 2,
-            data_type: glow::FLOAT,
-            normalized: false,
-            stride: 0,
-            offset: 0,
-        };
-        vertex_array.add_new_attribute(&gl, buffer_info_a_pos);
+        let vao = crate::vao::VertexArrayObject::new(
+            &gl,
+            pos_buffer,
+            vec![BufferInfo {
+                location: a_pos_loc,
+                vector_size: 2,
+                data_type: glow::FLOAT,
+                normalized: false,
+                stride: 0,
+                offset: 0,
+            }],
+        );
 
         let index_buffer = gl.create_buffer()?;
         gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(index_buffer));
         gl.buffer_data_u8_slice(glow::ELEMENT_ARRAY_BUFFER, &indices, glow::STATIC_DRAW);
 
         gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, None);
-        check_for_gl_error(&gl, "post process initialization");
+        check_for_gl_error!(&gl, "post process initialization");
 
         Ok(PostProcess {
             gl,
             pos_buffer,
             index_buffer,
-            vertex_array,
+            vao,
             is_webgl_1,
             texture,
             texture_size: (width, height),
@@ -190,6 +186,8 @@ impl PostProcess {
         self.gl.bind_framebuffer(glow::FRAMEBUFFER, Some(self.fbo));
         self.gl.clear_color(0.0, 0.0, 0.0, 0.0);
         self.gl.clear(glow::COLOR_BUFFER_BIT);
+
+        check_for_gl_error!(&self.gl, "PostProcess::begin");
     }
 
     pub(crate) unsafe fn bind(&self) {
@@ -209,16 +207,18 @@ impl PostProcess {
             .get_uniform_location(self.program, "u_sampler")
             .unwrap();
         self.gl.uniform_1_i32(Some(&u_sampler_loc), 0);
-        self.vertex_array.bind_vertex_array(&self.gl);
+        self.vao.bind(&self.gl);
 
         self.gl
             .bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.index_buffer));
         self.gl
             .draw_elements(glow::TRIANGLES, 6, glow::UNSIGNED_BYTE, 0);
-        self.vertex_array.unbind_vertex_array(&self.gl);
+        self.vao.unbind(&self.gl);
         self.gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, None);
         self.gl.bind_texture(glow::TEXTURE_2D, None);
         self.gl.use_program(None);
+
+        check_for_gl_error!(&self.gl, "PostProcess::end");
     }
 
     pub(crate) unsafe fn destroy(&self) {

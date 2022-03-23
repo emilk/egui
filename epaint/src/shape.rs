@@ -2,7 +2,7 @@
 
 use crate::{
     text::{FontId, Fonts, Galley},
-    Color32, Mesh, Stroke,
+    Color32, Mesh, Stroke, TextureId,
 };
 use emath::*;
 
@@ -182,6 +182,12 @@ impl Shape {
     pub fn mesh(mesh: Mesh) -> Self {
         crate::epaint_assert!(mesh.is_valid());
         Self::Mesh(mesh)
+    }
+
+    pub fn image(texture_id: TextureId, rect: Rect, uv: Rect, tint: Color32) -> Self {
+        let mut mesh = Mesh::with_texture(texture_id);
+        mesh.add_rect_with_uv(rect, uv, tint);
+        Shape::mesh(mesh)
     }
 
     /// The visual bounding rectangle (includes stroke widths)
@@ -636,6 +642,52 @@ fn dashes_from_line(
 
 // ----------------------------------------------------------------------------
 
+/// Information passed along with [`PaintCallback`] ([`Shape::Callback`]).
+pub struct PaintCallbackInfo {
+    /// Viewport in points.
+    pub rect: Rect,
+
+    /// Pixels per point.
+    pub pixels_per_point: f32,
+
+    /// Full size of the screen, in pixels.
+    pub screen_size_px: [u32; 2],
+}
+
+impl PaintCallbackInfo {
+    /// Physical pixel offset for left side of the viewport.
+    #[inline]
+    pub fn viewport_left_px(&self) -> f32 {
+        self.rect.min.x * self.pixels_per_point
+    }
+
+    /// Physical pixel offset for top side of the viewport.
+    #[inline]
+    pub fn viewport_top_px(&self) -> f32 {
+        self.rect.min.y * self.pixels_per_point
+    }
+
+    /// Physical pixel offset for bottom side of the viewport.
+    ///
+    /// This is what `glViewport` etc expects for the y axis.
+    #[inline]
+    pub fn viewport_from_bottom_px(&self) -> f32 {
+        self.screen_size_px[1] as f32 - self.rect.max.y * self.pixels_per_point
+    }
+
+    /// Viewport width in physical pixels.
+    #[inline]
+    pub fn viewport_width_px(&self) -> f32 {
+        self.rect.width() * self.pixels_per_point
+    }
+
+    /// Viewport width in physical pixels.
+    #[inline]
+    pub fn viewport_height_px(&self) -> f32 {
+        self.rect.height() * self.pixels_per_point
+    }
+}
+
 /// If you want to paint some 3D shapes inside an egui region, you can use this.
 ///
 /// This is advanced usage, and is backend specific.
@@ -644,21 +696,22 @@ pub struct PaintCallback {
     /// Where to paint.
     pub rect: Rect,
 
-    /// Paint something custom using.
+    /// Paint something custom (e.g. 3D stuff).
     ///
     /// The argument is the render context, and what it contains depends on the backend.
     /// In `eframe` it will be `egui_glow::Painter`.
     ///
     /// The rendering backend is responsible for first setting the active viewport to [`Self::rect`].
-    /// The rendering backend is also responsible for restoring any state it needs,
+    ///
+    /// The rendering backend is also responsible for restoring any state,
     /// such as the bound shader program and vertex array.
-    pub callback: std::sync::Arc<dyn Fn(&dyn std::any::Any) + Send + Sync>,
+    pub callback: std::sync::Arc<dyn Fn(&PaintCallbackInfo, &dyn std::any::Any) + Send + Sync>,
 }
 
 impl PaintCallback {
     #[inline]
-    pub fn call(&self, render_ctx: &dyn std::any::Any) {
-        (self.callback)(render_ctx);
+    pub fn call(&self, info: &PaintCallbackInfo, render_ctx: &dyn std::any::Any) {
+        (self.callback)(info, render_ctx);
     }
 }
 

@@ -6,87 +6,6 @@
 //!
 //! Start by looking at the [`App`] trait, and implement [`App::update`].
 
-// Forbid warnings in release builds:
-#![cfg_attr(not(debug_assertions), deny(warnings))]
-#![forbid(unsafe_code)]
-#![warn(
-    clippy::all,
-    clippy::await_holding_lock,
-    clippy::char_lit_as_u8,
-    clippy::checked_conversions,
-    clippy::dbg_macro,
-    clippy::debug_assert_with_mut_call,
-    clippy::disallowed_method,
-    clippy::doc_markdown,
-    clippy::empty_enum,
-    clippy::enum_glob_use,
-    clippy::exit,
-    clippy::expl_impl_clone_on_copy,
-    clippy::explicit_deref_methods,
-    clippy::explicit_into_iter_loop,
-    clippy::fallible_impl_from,
-    clippy::filter_map_next,
-    clippy::flat_map_option,
-    clippy::float_cmp_const,
-    clippy::fn_params_excessive_bools,
-    clippy::from_iter_instead_of_collect,
-    clippy::if_let_mutex,
-    clippy::implicit_clone,
-    clippy::imprecise_flops,
-    clippy::inefficient_to_string,
-    clippy::invalid_upcast_comparisons,
-    clippy::large_digit_groups,
-    clippy::large_stack_arrays,
-    clippy::large_types_passed_by_value,
-    clippy::let_unit_value,
-    clippy::linkedlist,
-    clippy::lossy_float_literal,
-    clippy::macro_use_imports,
-    clippy::manual_ok_or,
-    clippy::map_err_ignore,
-    clippy::map_flatten,
-    clippy::map_unwrap_or,
-    clippy::match_on_vec_items,
-    clippy::match_same_arms,
-    clippy::match_wild_err_arm,
-    clippy::match_wildcard_for_single_variants,
-    clippy::mem_forget,
-    clippy::mismatched_target_os,
-    clippy::missing_errors_doc,
-    clippy::missing_safety_doc,
-    clippy::mut_mut,
-    clippy::mutex_integer,
-    clippy::needless_borrow,
-    clippy::needless_continue,
-    clippy::needless_for_each,
-    clippy::needless_pass_by_value,
-    clippy::option_option,
-    clippy::path_buf_push_overwrite,
-    clippy::ptr_as_ptr,
-    clippy::ref_option_ref,
-    clippy::rest_pat_in_fully_bound_structs,
-    clippy::same_functions_in_if_condition,
-    clippy::semicolon_if_nothing_returned,
-    clippy::single_match_else,
-    clippy::string_add_assign,
-    clippy::string_add,
-    clippy::string_lit_as_bytes,
-    clippy::string_to_string,
-    clippy::todo,
-    clippy::trait_duplication_in_bounds,
-    clippy::unimplemented,
-    clippy::unnested_or_patterns,
-    clippy::unused_self,
-    clippy::useless_transmute,
-    clippy::verbose_file_reads,
-    clippy::zero_sized_map_values,
-    future_incompatible,
-    nonstandard_style,
-    rust_2018_idioms,
-    rustdoc::missing_crate_level_docs
-)]
-#![allow(clippy::float_cmp)]
-#![allow(clippy::manual_range_contains)]
 #![warn(missing_docs)] // Let's keep `epi` well-documented.
 
 /// File storage which can be used by native backends.
@@ -97,6 +16,30 @@ pub use egui; // Re-export for user convenience
 pub use glow; // Re-export for user convenience
 
 use std::sync::{Arc, Mutex};
+
+/// The is is how your app is created.
+///
+/// You can use the [`CreationContext`] to setup egui, restore state, setup OpenGL things, etc.
+pub type AppCreator = Box<dyn FnOnce(&CreationContext<'_>) -> Box<dyn App>>;
+
+/// Data that is passed to [`AppCreator`] that can be used to setup and initialize your app.
+pub struct CreationContext<'s> {
+    /// The egui Context.
+    ///
+    /// You can use this to customize the look of egui, e.g to call [`egui::Context::set_fonts`],
+    /// [`egui::Context::set_visuals`] etc.
+    pub egui_ctx: egui::Context,
+
+    /// Information about the surrounding environment.
+    pub integration_info: IntegrationInfo,
+
+    /// You can use the storage to restore app state(requires the "persistence" feature).
+    pub storage: Option<&'s dyn Storage>,
+
+    /// The [`glow::Context`] allows you to initialize OpenGL resources (e.g. shaders) that
+    /// you might want to use later from a [`egui::PaintCallback`].
+    pub gl: std::rc::Rc<glow::Context>,
+}
 
 // ----------------------------------------------------------------------------
 
@@ -109,39 +52,20 @@ pub trait App {
     ///
     /// The [`egui::Context`] and [`Frame`] can be cloned and saved if you like.
     ///
-    /// To force a repaint, call either [`egui::Context::request_repaint`] during the call to `update`,
-    /// or call [`Frame::request_repaint`] at any time (e.g. from another thread).
+    /// To force a repaint, call [`egui::Context::request_repaint`] at any time (e.g. from another thread).
     fn update(&mut self, ctx: &egui::Context, frame: &Frame);
-
-    /// Called exactly once at startup, before any call to [`Self::update`].
-    ///
-    /// Allows you to do setup code, e.g to call [`egui::Context::set_fonts`],
-    /// [`egui::Context::set_visuals`] etc.
-    ///
-    /// Also allows you to restore state, if there is a storage (requires the "persistence" feature).
-    ///
-    /// The [`glow::Context`] allows you to initialize OpenGL resources (e.g. shaders) that
-    /// you might want to use later from a [`egui::PaintCallback`].
-    fn setup(
-        &mut self,
-        _ctx: &egui::Context,
-        _frame: &Frame,
-        _storage: Option<&dyn Storage>,
-        _gl: &std::rc::Rc<glow::Context>,
-    ) {
-    }
 
     /// Called on shutdown, and perhaps at regular intervals. Allows you to save state.
     ///
     /// Only called when the "persistence" feature is enabled.
     ///
-    /// On web the states is stored to "Local Storage".
+    /// On web the state is stored to "Local Storage".
     /// On native the path is picked using [`directories_next::ProjectDirs::data_dir`](https://docs.rs/directories-next/2.0.0/directories_next/struct.ProjectDirs.html#method.data_dir) which is:
     /// * Linux:   `/home/UserName/.local/share/APPNAME`
     /// * macOS:   `/Users/UserName/Library/Application Support/APPNAME`
     /// * Windows: `C:\Users\UserName\AppData\Roaming\APPNAME`
     ///
-    /// where `APPNAME` is what is returned by [`Self::name()`].
+    /// where `APPNAME` is what is given to `eframe::run_native`.
     fn save(&mut self, _storage: &mut dyn Storage) {}
 
     /// Called before an exit that can be aborted.
@@ -156,16 +80,13 @@ pub trait App {
         true
     }
 
-    /// Called once on shutdown (before or after [`Self::save`]). If you need to abort an exit use
-    /// [`Self::on_exit_event`]
-    fn on_exit(&mut self) {}
+    /// Called once on shutdown, after [`Self::save`].
+    ///
+    /// If you need to abort an exit use [`Self::on_exit_event`].
+    fn on_exit(&mut self, _gl: &glow::Context) {}
 
     // ---------
     // Settings:
-
-    /// The name of your App, used for the title bar of native windows
-    /// and the save location of persistence (see [`Self::save`]).
-    fn name(&self) -> &str;
 
     /// Time between automatic calls to [`Self::save`]
     fn auto_save_interval(&self) -> std::time::Duration {
@@ -174,13 +95,12 @@ pub trait App {
 
     /// The size limit of the web app canvas.
     ///
-    /// By default the size if limited to 1024x2048.
+    /// By default the max size is [`egui::Vec2::INFINITY`], i.e. unlimited.
     ///
-    /// A larger canvas can lead to bad frame rates on some browsers on some platforms.
-    /// In particular, Firefox on Mac and Linux is really bad at handling large WebGL canvases:
-    /// <https://bugzilla.mozilla.org/show_bug.cgi?id=1010527#c0> (unfixed since 2014).
+    /// A large canvas can lead to bad frame rates on some older browsers on some platforms
+    /// (see <https://bugzilla.mozilla.org/show_bug.cgi?id=1010527#c0>).
     fn max_size_points(&self) -> egui::Vec2 {
-        egui::Vec2::new(1024.0, 2048.0)
+        egui::Vec2::INFINITY
     }
 
     /// Background color for the app, e.g. what is sent to `gl.clearColor`.
@@ -263,6 +183,32 @@ pub struct NativeOptions {
     /// You control the transparency with [`App::clear_color()`].
     /// You should avoid having a [`egui::CentralPanel`], or make sure its frame is also transparent.
     pub transparent: bool,
+
+    /// Turn on vertical syncing, limiting the FPS to the display refresh rate.
+    ///
+    /// The default is `true`.
+    pub vsync: bool,
+
+    /// Set the level of the multisampling anti-aliasing (MSAA).
+    ///
+    /// Must be a power-of-two. Higher = more smooth 3D.
+    ///
+    /// A value of `0` turns it off (default).
+    ///
+    /// `egui` already performs anti-aliasing via "feathering"
+    /// (controlled by [`egui::epaint::TessellationOptions`]),
+    /// but if you are embedding 3D in egui you may want to turn on multisampling.
+    pub multisampling: u16,
+
+    /// Sets the number of bits in the depth buffer.
+    ///
+    /// `egui` doesn't need the depth buffer, so the default value is 0.
+    pub depth_buffer: u8,
+
+    /// Sets the number of bits in the stencil buffer.
+    ///
+    /// `egui` doesn't need the stencil buffer, so the default value is 0.
+    pub stencil_buffer: u8,
 }
 
 impl Default for NativeOptions {
@@ -279,6 +225,10 @@ impl Default for NativeOptions {
             max_window_size: None,
             resizable: true,
             transparent: false,
+            vsync: true,
+            multisampling: 0,
+            depth_buffer: 0,
+            stencil_buffer: 0,
         }
     }
 }
@@ -357,13 +307,6 @@ impl Frame {
     /// Does not work on the web.
     pub fn drag_window(&self) {
         self.lock().output.drag_window = true;
-    }
-
-    /// This signals the [`egui`] integration that a repaint is required.
-    ///
-    /// Call this e.g. when a background process finishes in an async context and/or background thread.
-    pub fn request_repaint(&self) {
-        self.lock().repaint_signal.request_repaint();
     }
 
     /// for integrations only: call once per frame
@@ -524,14 +467,6 @@ pub const APP_KEY: &str = "app";
 pub mod backend {
     use super::*;
 
-    /// How to signal the [`egui`] integration that a repaint is required.
-    pub trait RepaintSignal: Send + Sync {
-        /// This signals the [`egui`] integration that a repaint is required.
-        ///
-        /// Call this e.g. when a background process finishes in an async context and/or background thread.
-        fn request_repaint(&self);
-    }
-
     /// The data required by [`Frame`] each frame.
     pub struct FrameData {
         /// Information about the integration.
@@ -539,9 +474,6 @@ pub mod backend {
 
         /// Where the app can issue commands back to the integration.
         pub output: AppOutput,
-
-        /// If you need to request a repaint from another thread, clone this and send it to that other thread.
-        pub repaint_signal: std::sync::Arc<dyn RepaintSignal>,
     }
 
     /// Action that can be taken by the user app.

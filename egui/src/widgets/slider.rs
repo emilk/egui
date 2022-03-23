@@ -455,10 +455,14 @@ impl<'a> Slider<'a> {
 
     fn value_ui(&mut self, ui: &mut Ui, position_range: RangeInclusive<f32>) -> Response {
         // If `DragValue` is controlled from the keyboard and `step` is defined, set speed to `step`
-        let change = ui.input().num_presses(Key::ArrowUp) as i32
-            + ui.input().num_presses(Key::ArrowRight) as i32
-            - ui.input().num_presses(Key::ArrowDown) as i32
-            - ui.input().num_presses(Key::ArrowLeft) as i32;
+        let change = {
+            // Hold one lock rather than 4 (see https://github.com/emilk/egui/pull/1380).
+            let input = ui.input();
+
+            input.num_presses(Key::ArrowUp) as i32 + input.num_presses(Key::ArrowRight) as i32
+                - input.num_presses(Key::ArrowDown) as i32
+                - input.num_presses(Key::ArrowLeft) as i32
+        };
         let speed = match self.step {
             Some(step) if change != 0 => step,
             _ => self.current_gradient(&position_range),

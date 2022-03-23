@@ -28,9 +28,7 @@ persistence = ["ron", "serde", "egui/persistence"]
 
 
 [dependencies]
-egui = { version = "0.17.0", path = "../egui", default-features = false, features = [
-  "single_threaded",
-] }
+egui = { version = "0.17.0", path = "../egui", default-features = false }
 glow = "0.11"
 tracing = "0.1"
 

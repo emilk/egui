@@ -277,7 +277,7 @@ impl CodeTheme {
             ui.data().insert_persisted(selected_id, selected_tt);
 
             egui::Frame::group(ui.style())
-                .margin(egui::Vec2::splat(2.0))
+                .inner_margin(egui::Vec2::splat(2.0))
                 .show(ui, |ui| {
                     // ui.group(|ui| {
                     ui.style_mut().override_text_style = Some(egui::TextStyle::Small);

@@ -126,17 +126,17 @@ impl AllocInfo {
 
     pub fn format(&self, what: &str) -> String {
         if self.num_allocs() == 0 {
-            format!("{:6} {:14}", 0, what)
+            format!("{:6} {:16}", 0, what)
         } else if self.num_allocs() == 1 {
             format!(
-                "{:6} {:14}  {}       1 allocation",
+                "{:6} {:16}  {}       1 allocation",
                 self.num_elements,
                 what,
                 self.megabytes()
             )
         } else if self.element_size != ElementSize::Heterogenous {
             format!(
-                "{:6} {:14}  {}     {:3} allocations",
+                "{:6} {:16}  {}     {:3} allocations",
                 self.num_elements(),
                 what,
                 self.megabytes(),
@@ -144,7 +144,7 @@ impl AllocInfo {
             )
         } else {
             format!(
-                "{:6} {:14}  {}     {:3} allocations",
+                "{:6} {:16}  {}     {:3} allocations",
                 "",
                 what,
                 self.megabytes(),

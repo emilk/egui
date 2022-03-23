@@ -8,13 +8,14 @@ use epaint::color::Hsva;
 use epaint::util::FloatOrd;
 use items::PlotItem;
 use legend::LegendWidget;
-use transform::{PlotBounds, ScreenTransform};
+use transform::ScreenTransform;
 
 pub use items::{
     Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, HLine, Line, LineStyle, MarkerShape,
     Orientation, PlotImage, Points, Polygon, Text, VLine, Value, Values,
 };
 pub use legend::{Corner, Legend};
+pub use transform::PlotBounds;
 
 mod items;
 mod legend;
@@ -765,6 +766,11 @@ impl PlotUi {
     /// Returns `true` if the plot area is currently hovered.
     pub fn plot_hovered(&self) -> bool {
         self.response.hovered()
+    }
+
+    /// Returns `true` if the plot was clicked by the primary button.
+    pub fn plot_clicked(&self) -> bool {
+        self.response.clicked()
     }
 
     /// The pointer position in plot coordinates. Independent of whether the pointer is in the plot area.

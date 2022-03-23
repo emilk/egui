@@ -277,10 +277,10 @@ impl MenuRoot {
         root: &mut MenuRootManager,
         id: Id,
     ) -> MenuResponse {
-        let pointer = &response.ctx.input().pointer;
-        if (response.clicked() && root.is_menu_open(id))
-            || response.ctx.input().key_pressed(Key::Escape)
-        {
+        // Lock the input once for the whole function call (see https://github.com/emilk/egui/pull/1380).
+        let input = response.ctx.input();
+
+        if (response.clicked() && root.is_menu_open(id)) || input.key_pressed(Key::Escape) {
             // menu open and button clicked or esc pressed
             return MenuResponse::Close;
         } else if (response.clicked() && !root.is_menu_open(id))
@@ -290,8 +290,8 @@ impl MenuRoot {
             // or button hovered while other menu is open
             let pos = response.rect.left_bottom();
             return MenuResponse::Create(pos, id);
-        } else if pointer.any_pressed() && pointer.primary_down() {
-            if let Some(pos) = pointer.interact_pos() {
+        } else if input.pointer.any_pressed() && input.pointer.primary_down() {
+            if let Some(pos) = input.pointer.interact_pos() {
                 if let Some(root) = root.inner.as_mut() {
                     if root.id == id {
                         // pressed somewhere while this menu is open

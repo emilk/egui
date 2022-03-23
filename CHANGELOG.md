@@ -7,14 +7,22 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 ## Unreleased
 
 ### Added ⭐
-* Add `Shape::Callback` for backend-specific painting ([#1351](https://github.com/emilk/egui/pull/1351)).
+* Added `Shape::Callback` for backend-specific painting, [with an example](https://github.com/emilk/egui/blob/master/eframe/examples/custom_3d_three-d.rs) ([#1351](https://github.com/emilk/egui/pull/1351)).
 * Added `Frame::canvas` ([#1362](https://github.com/emilk/egui/pull/1362)).
+* `Context::request_repaint` will wake up UI thread, if integrations has called `Context::set_request_repaint_callback` ([#1366](https://github.com/emilk/egui/pull/1366)).
+* Added `Ui::push_id` ([#1374](https://github.com/emilk/egui/pull/1374)).
+* Added `Frame::outer_margin`.
 
 ### Changed 🔧
 * `ClippedMesh` has been replaced with `ClippedPrimitive` ([#1351](https://github.com/emilk/egui/pull/1351)).
+* Renamed `Frame::margin` to `Frame::inner_margin`.
 
 ### Fixed 🐛
 * Fixed ComboBoxes always being rendered left-aligned ([#1304](https://github.com/emilk/egui/pull/1304)).
+* Fixed ui code that could lead to a deadlock ([#1380](https://github.com/emilk/egui/pull/1380)).
+
+### Removed 🔥
+* Removed the `single_threaded/multi_threaded` flags - egui is now always thread-safe ([#1390](https://github.com/emilk/egui/pull/1390)).
 
 
 ## 0.17.0 - 2022-02-22 - Improved font selection and image handling

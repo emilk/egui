@@ -20,7 +20,7 @@ all-features = true
 
 
 [features]
-default = ["default_fonts", "single_threaded"]
+default = ["default_fonts"]
 
 # add compatibility with https://crates.io/crates/cint
 cint = ["epaint/cint"]
@@ -45,11 +45,6 @@ persistence = ["serde", "epaint/serialize", "ron"]
 
 # implement serde on most types.
 serialize = ["serde", "epaint/serialize"]
-
-# multi_threaded is only needed if you plan to use the same egui::Context
-# from multiple threads. It comes with a minor performance impact.
-single_threaded = ["epaint/single_threaded"]
-multi_threaded = ["epaint/multi_threaded"]
 
 
 [dependencies]

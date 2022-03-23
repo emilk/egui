@@ -3,6 +3,8 @@ All notable changes to the `egui_glow` integration will be noted in this file.
 
 
 ## Unreleased
+* Improved logging on rendering failures.
+* Add new `NativeOptions`: `vsync`, `multisampling`, `depth_buffer`, `stencil_buffer`.
 
 
 ## 0.17.0 - 2022-02-22

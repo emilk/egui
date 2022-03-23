@@ -1546,6 +1546,26 @@ impl Ui {
         crate::Frame::group(self.style()).show(self, add_contents)
     }
 
+    /// Create a child Ui with an explicit [`Id`].
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// for i in 0..10 {
+    ///     // `ui.make_persistent_id("foo")` here will produce the same id each loop.
+    ///     ui.push_id(i, |ui| {
+    ///         // `ui.make_persistent_id("foo")` here will produce different id:s
+    ///     });
+    /// }
+    /// # });
+    /// ```
+    pub fn push_id<R>(
+        &mut self,
+        id_source: impl Hash,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
+        self.scope_dyn(Box::new(add_contents), Id::new(id_source))
+    }
+
     /// Create a scoped child ui.
     ///
     /// You can use this to temporarily change the [`Style`] of a sub-region, for instance:
@@ -1559,16 +1579,17 @@ impl Ui {
     /// # });
     /// ```
     pub fn scope<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
-        self.scope_dyn(Box::new(add_contents))
+        self.scope_dyn(Box::new(add_contents), Id::new("child"))
     }
 
     fn scope_dyn<'c, R>(
         &mut self,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
+        id_source: Id,
     ) -> InnerResponse<R> {
         let child_rect = self.available_rect_before_wrap();
         let next_auto_id_source = self.next_auto_id_source;
-        let mut child_ui = self.child_ui(child_rect, *self.layout());
+        let mut child_ui = self.child_ui_with_id_source(child_rect, *self.layout(), id_source);
         self.next_auto_id_source = next_auto_id_source; // HACK: we want `scope` to only increment this once, so that `ui.scope` is equivalent to `ui.allocate_space`.
         let ret = add_contents(&mut child_ui);
         let response = self.allocate_rect(child_ui.min_rect(), Sense::hover());
