@@ -2,7 +2,10 @@
 //!
 //! This is very advanced usage, and you need to be careful.
 //!
-//! If you want an easier way to show 3D graphics with egui, take a look at:
+//! If you want an easier way to show 3D graphics with egui, take a look at the `custom_3d_three-d.rs` example.
+//!
+//! If you are content of having egui sit on top of a 3D background, take a look at:
+//!
 //! * [`bevy_egui`](https://github.com/mvlabat/bevy_egui)
 //! * [`three-d`](https://github.com/asny/three-d)
 
@@ -49,7 +52,7 @@ impl eframe::App for MyApp {
             });
 
             egui::ScrollArea::both().show(ui, |ui| {
-                egui::Frame::dark_canvas(ui.style()).show(ui, |ui| {
+                egui::Frame::canvas(ui.style()).show(ui, |ui| {
                     self.custom_painting(ui);
                 });
                 ui.label("Drag to rotate!");
