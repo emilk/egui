@@ -16,7 +16,7 @@ fn create_display(
         glutin::ContextBuilder::new()
             .with_depth_buffer(native_options.depth_buffer)
             .with_multisampling(native_options.multisampling)
-            .with_srgb(native_options.vsync)
+            .with_srgb(true)
             .with_stencil_buffer(native_options.stencil_buffer)
             .with_vsync(native_options.vsync)
             .build_windowed(window_builder, event_loop)
