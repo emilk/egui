@@ -35,7 +35,7 @@ impl ImageData {
     pub fn bytes_per_pixel(&self) -> usize {
         match self {
             Self::Color(_) => 4,
-            Self::Alpha(_) => 1,
+            Self::Alpha(_) => 4,
         }
     }
 }
