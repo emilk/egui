@@ -6,21 +6,21 @@ use crate::Color32;
 ///
 /// In order to paint the image on screen, you first need to convert it to
 ///
-/// See also: [`ColorImage`], [`AlphaImage`].
+/// See also: [`ColorImage`], [`FontImage`].
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ImageData {
     /// RGBA image.
     Color(ColorImage),
     /// Used for the font texture.
-    Alpha(AlphaImage),
+    Font(FontImage),
 }
 
 impl ImageData {
     pub fn size(&self) -> [usize; 2] {
         match self {
             Self::Color(image) => image.size,
-            Self::Alpha(image) => image.size,
+            Self::Font(image) => image.size,
         }
     }
 
@@ -35,7 +35,7 @@ impl ImageData {
     pub fn bytes_per_pixel(&self) -> usize {
         match self {
             Self::Color(_) => 4,
-            Self::Alpha(_) => 1,
+            Self::Font(_) => 4,
         }
     }
 }
@@ -157,25 +157,28 @@ impl From<ColorImage> for ImageData {
 
 // ----------------------------------------------------------------------------
 
-/// An 8-bit image, representing difference levels of transparent white.
+/// A single-channel image designed for the font texture.
 ///
-/// Used for the font texture
-#[derive(Clone, Default, Eq, Hash, PartialEq)]
+/// Each value represents "coverage", i.e. how much a texel is covered by a character.
+///
+/// This is roughly interpreted as the opacity of a white image.
+#[derive(Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct AlphaImage {
+pub struct FontImage {
     /// width, height
     pub size: [usize; 2],
-    /// The alpha (linear space 0-255) of something white.
+
+    /// The coverage value.
     ///
-    /// One byte per pixel. Often you want to use [`Self::srgba_pixels`] instead.
-    pub pixels: Vec<u8>,
+    /// Often you want to use [`Self::srgba_pixels`] instead.
+    pub pixels: Vec<f32>,
 }
 
-impl AlphaImage {
+impl FontImage {
     pub fn new(size: [usize; 2]) -> Self {
         Self {
             size,
-            pixels: vec![0; size[0] * size[1]],
+            pixels: vec![0.0; size[0] * size[1]],
         }
     }
 
@@ -194,24 +197,19 @@ impl AlphaImage {
     /// `gamma` should normally be set to 1.0.
     /// If you are having problems with text looking skinny and pixelated, try
     /// setting a lower gamma, e.g. `0.5`.
-    pub fn srgba_pixels(
-        &'_ self,
-        gamma: f32,
-    ) -> impl ExactSizeIterator<Item = super::Color32> + '_ {
-        let srgba_from_alpha_lut: Vec<Color32> = (0..=255)
-            .map(|a| {
-                let a = super::color::linear_f32_from_linear_u8(a).powf(gamma);
-                super::Rgba::from_white_alpha(a).into()
-            })
-            .collect();
-
-        self.pixels
-            .iter()
-            .map(move |&a| srgba_from_alpha_lut[a as usize])
+    pub fn srgba_pixels(&'_ self, gamma: f32) -> impl ExactSizeIterator<Item = Color32> + '_ {
+        self.pixels.iter().map(move |coverage| {
+            // This is arbitrarily chosen to make text look as good as possible.
+            // In particular, it looks good with gamma=1 and the default eframe backend,
+            // which uses linear blending.
+            // See https://github.com/emilk/egui/issues/1410
+            let a = fast_round(coverage.powf(gamma / 2.2) * 255.0);
+            Color32::from_rgba_premultiplied(a, a, a, a) // this makes no sense, but works
+        })
     }
 
-    /// Clone a sub-region as a new image
-    pub fn region(&self, [x, y]: [usize; 2], [w, h]: [usize; 2]) -> AlphaImage {
+    /// Clone a sub-region as a new image.
+    pub fn region(&self, [x, y]: [usize; 2], [w, h]: [usize; 2]) -> FontImage {
         assert!(x + w <= self.width());
         assert!(y + h <= self.height());
 
@@ -221,38 +219,42 @@ impl AlphaImage {
             pixels.extend(&self.pixels[offset..(offset + w)]);
         }
         assert_eq!(pixels.len(), w * h);
-        AlphaImage {
+        FontImage {
             size: [w, h],
             pixels,
         }
     }
 }
 
-impl std::ops::Index<(usize, usize)> for AlphaImage {
-    type Output = u8;
+impl std::ops::Index<(usize, usize)> for FontImage {
+    type Output = f32;
 
     #[inline]
-    fn index(&self, (x, y): (usize, usize)) -> &u8 {
+    fn index(&self, (x, y): (usize, usize)) -> &f32 {
         let [w, h] = self.size;
         assert!(x < w && y < h);
         &self.pixels[y * w + x]
     }
 }
 
-impl std::ops::IndexMut<(usize, usize)> for AlphaImage {
+impl std::ops::IndexMut<(usize, usize)> for FontImage {
     #[inline]
-    fn index_mut(&mut self, (x, y): (usize, usize)) -> &mut u8 {
+    fn index_mut(&mut self, (x, y): (usize, usize)) -> &mut f32 {
         let [w, h] = self.size;
         assert!(x < w && y < h);
         &mut self.pixels[y * w + x]
     }
 }
 
-impl From<AlphaImage> for ImageData {
+impl From<FontImage> for ImageData {
     #[inline(always)]
-    fn from(image: AlphaImage) -> Self {
-        Self::Alpha(image)
+    fn from(image: FontImage) -> Self {
+        Self::Font(image)
     }
+}
+
+fn fast_round(r: f32) -> u8 {
+    (r + 0.5).floor() as _ // rust does a saturating cast since 1.45
 }
 
 // ----------------------------------------------------------------------------

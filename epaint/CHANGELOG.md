@@ -7,6 +7,8 @@ All notable changes to the epaint crate will be documented in this file.
 * Removed the `single_threaded/multi_threaded` flags - epaint is now always thread-safe ([#1390](https://github.com/emilk/egui/pull/1390)).
 * `Tessellator::from_options` is now `Tessellator::new` ([#1408](https://github.com/emilk/egui/pull/1408)).
 * Renamed `TessellationOptions::anti_alias` to `feathering` ([#1408](https://github.com/emilk/egui/pull/1408)).
+* Renamed `AlphaImage` to `FontImage` to discourage any other use for it ([#1412](https://github.com/emilk/egui/pull/1412)).
+* Dark text is darker and more readable on bright backgrounds ([#1412](https://github.com/emilk/egui/pull/1412)).
 
 
 ## 0.17.0 - 2022-02-22

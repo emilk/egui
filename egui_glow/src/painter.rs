@@ -478,7 +478,7 @@ impl Painter {
 
                 self.upload_texture_srgb(delta.pos, image.size, data);
             }
-            egui::ImageData::Alpha(image) => {
+            egui::ImageData::Font(image) => {
                 assert_eq!(
                     image.width() * image.height(),
                     image.pixels.len(),
