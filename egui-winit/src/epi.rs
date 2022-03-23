@@ -21,6 +21,10 @@ pub fn window_builder(
         max_window_size,
         resizable,
         transparent,
+        vsync: _,          // used in `fn create_display`
+        multisampling: _,  // used in `fn create_display`
+        depth_buffer: _,   // used in `fn create_display`
+        stencil_buffer: _, // used in `fn create_display`
     } = native_options;
 
     let window_icon = icon_data.clone().and_then(load_icon);

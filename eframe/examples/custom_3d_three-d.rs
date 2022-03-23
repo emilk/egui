@@ -16,6 +16,7 @@ use eframe::egui;
 fn main() {
     let options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(550.0, 610.0)),
+        multisampling: 8,
         ..Default::default()
     };
     eframe::run_native(
@@ -31,7 +32,7 @@ struct MyApp {
 
 impl MyApp {
     fn new(_cc: &eframe::CreationContext<'_>) -> Self {
-        Self { angle: 0.0 }
+        Self { angle: 0.2 }
     }
 }
 

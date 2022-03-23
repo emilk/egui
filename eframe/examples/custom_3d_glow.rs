@@ -18,9 +18,13 @@ use egui::mutex::Mutex;
 use std::sync::Arc;
 
 fn main() {
-    let options = eframe::NativeOptions::default();
+    let options = eframe::NativeOptions {
+        initial_window_size: Some(egui::vec2(350.0, 380.0)),
+        multisampling: 8,
+        ..Default::default()
+    };
     eframe::run_native(
-        "Custom 3D painting in eframe",
+        "Custom 3D painting in eframe using glow",
         options,
         Box::new(|cc| Box::new(MyApp::new(cc))),
     );
@@ -51,12 +55,10 @@ impl eframe::App for MyApp {
                 ui.label(" (OpenGL).");
             });
 
-            egui::ScrollArea::both().show(ui, |ui| {
-                egui::Frame::canvas(ui.style()).show(ui, |ui| {
-                    self.custom_painting(ui);
-                });
-                ui.label("Drag to rotate!");
+            egui::Frame::canvas(ui.style()).show(ui, |ui| {
+                self.custom_painting(ui);
             });
+            ui.label("Drag to rotate!");
         });
     }
 
@@ -68,7 +70,7 @@ impl eframe::App for MyApp {
 impl MyApp {
     fn custom_painting(&mut self, ui: &mut egui::Ui) {
         let (rect, response) =
-            ui.allocate_exact_size(egui::Vec2::splat(256.0), egui::Sense::drag());
+            ui.allocate_exact_size(egui::Vec2::splat(300.0), egui::Sense::drag());
 
         self.angle += response.drag_delta().x * 0.01;
 

@@ -5,6 +5,7 @@ struct RequestRepaintEvent;
 
 #[allow(unsafe_code)]
 fn create_display(
+    native_options: &NativeOptions,
     window_builder: winit::window::WindowBuilder,
     event_loop: &winit::event_loop::EventLoop<RequestRepaintEvent>,
 ) -> (
@@ -13,10 +14,11 @@ fn create_display(
 ) {
     let gl_window = unsafe {
         glutin::ContextBuilder::new()
-            .with_depth_buffer(0)
-            .with_srgb(true)
-            .with_stencil_buffer(0)
-            .with_vsync(true)
+            .with_depth_buffer(native_options.depth_buffer)
+            .with_multisampling(native_options.multisampling)
+            .with_srgb(native_options.vsync)
+            .with_stencil_buffer(native_options.stencil_buffer)
+            .with_vsync(native_options.vsync)
             .build_windowed(window_builder, event_loop)
             .unwrap()
             .make_current()
@@ -40,7 +42,7 @@ pub fn run(app_name: &str, native_options: &epi::NativeOptions, app_creator: epi
     let window_builder =
         egui_winit::epi::window_builder(native_options, &window_settings).with_title(app_name);
     let event_loop = winit::event_loop::EventLoop::with_user_event();
-    let (gl_window, gl) = create_display(window_builder, &event_loop);
+    let (gl_window, gl) = create_display(native_options, window_builder, &event_loop);
     let gl = std::rc::Rc::new(gl);
 
     let mut painter = crate::Painter::new(gl.clone(), None, "")

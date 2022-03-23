@@ -183,6 +183,32 @@ pub struct NativeOptions {
     /// You control the transparency with [`App::clear_color()`].
     /// You should avoid having a [`egui::CentralPanel`], or make sure its frame is also transparent.
     pub transparent: bool,
+
+    /// Turn on vertical syncing, limiting the FPS to the display refresh rate.
+    ///
+    /// The default is `true`.
+    pub vsync: bool,
+
+    /// Set the level of the multisampling anti-aliasing (MSAA).
+    ///
+    /// Must be a power-of-two. Higher = more smooth 3D.
+    ///
+    /// A value of `0` turns it off (default).
+    ///
+    /// `egui` already performs anti-aliasing via "feathering"
+    /// (controlled by [`egui::epaint::TessellationOptions`]),
+    /// but if you are embedding 3D in egui you may want to turn on multisampling.
+    pub multisampling: u16,
+
+    /// Sets the number of bits in the depth buffer.
+    ///
+    /// `egui` doesn't need the depth buffer, so the default value is 0.
+    pub depth_buffer: u8,
+
+    /// Sets the number of bits in the stencil buffer.
+    ///
+    /// `egui` doesn't need the stencil buffer, so the default value is 0.
+    pub stencil_buffer: u8,
 }
 
 impl Default for NativeOptions {
@@ -199,6 +225,10 @@ impl Default for NativeOptions {
             max_window_size: None,
             resizable: true,
             transparent: false,
+            vsync: true,
+            multisampling: 0,
+            depth_buffer: 0,
+            stencil_buffer: 0,
         }
     }
 }
