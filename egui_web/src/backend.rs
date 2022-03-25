@@ -143,7 +143,7 @@ impl AppRunner {
 
         let prefer_dark_mode = crate::prefer_dark_mode();
 
-        let frame = epi::Frame::new(epi::backend::FrameData {
+        let frame = epi::Frame {
             info: epi::IntegrationInfo {
                 name: "egui_web",
                 web_info: Some(epi::WebInfo {
@@ -155,7 +155,7 @@ impl AppRunner {
             },
             output: Default::default(),
             storage: Some(Box::new(LocalStorage::default())),
-        });
+        };
 
         let needs_repaint: std::sync::Arc<NeedRepaint> = Default::default();
 
@@ -270,7 +270,7 @@ impl AppRunner {
             } = app_output;
         }
 
-        self.frame.0.info.cpu_usage = Some((now_sec() - frame_start) as f32);
+        self.frame.info.cpu_usage = Some((now_sec() - frame_start) as f32);
         Ok((needs_repaint, clipped_primitives))
     }
 

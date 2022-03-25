@@ -248,7 +248,7 @@ impl EpiIntegration {
 
         let prefer_dark_mode = prefer_dark_mode();
 
-        let frame = epi::Frame::new(epi::backend::FrameData {
+        let frame = epi::Frame {
             info: epi::IntegrationInfo {
                 name: integration_name,
                 web_info: None,
@@ -258,7 +258,7 @@ impl EpiIntegration {
             },
             output: Default::default(),
             storage,
-        });
+        };
 
         if prefer_dark_mode == Some(true) {
             egui_ctx.set_visuals(egui::Visuals::dark());
@@ -333,7 +333,7 @@ impl EpiIntegration {
         }
 
         let frame_time = (instant::Instant::now() - frame_start).as_secs_f64() as f32;
-        self.frame.0.info.cpu_usage = Some(frame_time);
+        self.frame.info.cpu_usage = Some(frame_time);
 
         full_output
     }
@@ -348,7 +348,7 @@ impl EpiIntegration {
     }
 
     pub fn maybe_autosave(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {
-        let storage = self.frame.0.storage.as_deref_mut();
+        let storage = self.frame.storage.as_deref_mut();
         if let Some(storage) = storage {
             self.persistence
                 .maybe_autosave(Some(storage), &mut *app, &self.egui_ctx, window);

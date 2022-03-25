@@ -250,55 +250,61 @@ pub struct IconData {
 /// allocate textures, and change settings (e.g. window size).
 ///
 /// [`Frame`] is cheap to clone and is safe to pass to other threads.
-pub struct Frame(pub backend::FrameData);
+pub struct Frame {
+    /// Information about the integration.
+    #[doc(hidden)]
+    pub info: IntegrationInfo,
+
+    /// Where the app can issue commands back to the integration.
+    #[doc(hidden)]
+    pub output: backend::AppOutput,
+
+    /// A place where you can store custom data in a way that persists when you restart the app.
+    #[doc(hidden)]
+    pub storage: Option<Box<dyn Storage>>,
+}
 
 impl Frame {
-    /// Create a `Frame` - called by the integration.
-    #[doc(hidden)]
-    pub fn new(frame_data: backend::FrameData) -> Self {
-        Self(frame_data)
-    }
-
     /// True if you are in a web environment.
     pub fn is_web(&self) -> bool {
-        self.0.info.web_info.is_some()
+        self.info.web_info.is_some()
     }
 
     /// Information about the integration.
     pub fn info(&self) -> IntegrationInfo {
-        self.0.info.clone()
+        self.info.clone()
     }
 
     /// A place where you can store custom data in a way that persists when you restart the app.
     pub fn storage(&self) -> Option<&dyn Storage> {
-        self.0.storage.as_deref()
+        self.storage.as_deref()
     }
 
     /// A place where you can store custom data in a way that persists when you restart the app.
     pub fn storage_mut(&mut self) -> Option<&mut (dyn Storage + 'static)> {
-        self.0.storage.as_deref_mut()
+        self.storage.as_deref_mut()
     }
 
     /// Signal the app to stop/exit/quit the app (only works for native apps, not web apps).
     /// The framework will not quit immediately, but at the end of the this frame.
     pub fn quit(&mut self) {
-        self.0.output.quit = true;
+        self.output.quit = true;
     }
 
     /// Set the desired inner size of the window (in egui points).
     pub fn set_window_size(&mut self, size: egui::Vec2) {
-        self.0.output.window_size = Some(size);
+        self.output.window_size = Some(size);
     }
 
     /// Set the desired title of the window.
     pub fn set_window_title(&mut self, title: &str) {
-        self.0.output.window_title = Some(title.to_owned());
+        self.output.window_title = Some(title.to_owned());
     }
 
     /// Set whether to show window decorations (i.e. a frame around you app).
     /// If false it will be difficult to move and resize the app.
     pub fn set_decorations(&mut self, decorated: bool) {
-        self.0.output.decorated = Some(decorated);
+        self.output.decorated = Some(decorated);
     }
 
     /// When called, the native window will follow the
@@ -306,13 +312,13 @@ impl Frame {
     ///
     /// Does not work on the web.
     pub fn drag_window(&mut self) {
-        self.0.output.drag_window = true;
+        self.output.drag_window = true;
     }
 
     /// for integrations only: call once per frame
     #[doc(hidden)]
     pub fn take_app_output(&mut self) -> crate::backend::AppOutput {
-        std::mem::take(&mut self.0.output)
+        std::mem::take(&mut self.output)
     }
 }
 
@@ -458,20 +464,9 @@ pub const APP_KEY: &str = "app";
 // ----------------------------------------------------------------------------
 
 /// You only need to look here if you are writing a backend for `epi`.
+#[doc(hidden)]
 pub mod backend {
     use super::*;
-
-    /// The data required by [`Frame`] each frame.
-    pub struct FrameData {
-        /// Information about the integration.
-        pub info: IntegrationInfo,
-
-        /// Where the app can issue commands back to the integration.
-        pub output: AppOutput,
-
-        /// A place where you can store custom data in a way that persists when you restart the app.
-        pub storage: Option<Box<dyn Storage>>,
-    }
 
     /// Action that can be taken by the user app.
     #[derive(Clone, Debug, Default)]
