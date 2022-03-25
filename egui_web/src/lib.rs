@@ -509,11 +509,9 @@ fn install_document_events(runner_container: &AppRunnerContainer) -> Result<(), 
     runner_container.add_event_listener(
         &document,
         "hashchange",
-        |_: web_sys::Event, runner_lock| {
-            let mut frame_lock = runner_lock.frame.lock();
-
+        |_: web_sys::Event, mut runner_lock| {
             // `epi::Frame::info(&self)` clones `epi::IntegrationInfo`, but we need to modify the original here
-            if let Some(web_info) = &mut frame_lock.info.web_info {
+            if let Some(web_info) = &mut runner_lock.frame.info.web_info {
                 web_info.location.hash = location_hash();
             }
         },

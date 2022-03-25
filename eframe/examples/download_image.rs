@@ -20,7 +20,7 @@ struct MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let promise = self.promise.get_or_insert_with(|| {
             // Begin download.
             // We download the image using `ehttp`, a library that works both in WASM and on native.

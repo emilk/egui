@@ -54,7 +54,7 @@ impl Default for HttpApp {
 }
 
 impl epi::App for HttpApp {
-    fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut epi::Frame) {
         egui::TopBottomPanel::bottom("http_bottom").show(ctx, |ui| {
             let layout = egui::Layout::top_down(egui::Align::Center).with_main_justify(true);
             ui.allocate_ui_with_layout(ui.available_size(), layout, |ui| {
@@ -108,7 +108,7 @@ impl epi::App for HttpApp {
     }
 }
 
-fn ui_url(ui: &mut egui::Ui, frame: &epi::Frame, url: &mut String) -> bool {
+fn ui_url(ui: &mut egui::Ui, frame: &mut epi::Frame, url: &mut String) -> bool {
     let mut trigger_fetch = false;
 
     ui.horizontal(|ui| {

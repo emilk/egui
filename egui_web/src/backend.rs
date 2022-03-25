@@ -130,7 +130,6 @@ pub struct AppRunner {
     pub(crate) input: WebInput,
     app: Box<dyn epi::App>,
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
-    storage: LocalStorage,
     last_save_time: f64,
     screen_reader: crate::screen_reader::ScreenReader,
     pub(crate) text_cursor_pos: Option<egui::Pos2>,
@@ -144,7 +143,7 @@ impl AppRunner {
 
         let prefer_dark_mode = crate::prefer_dark_mode();
 
-        let frame = epi::Frame::new(epi::backend::FrameData {
+        let frame = epi::Frame {
             info: epi::IntegrationInfo {
                 name: "egui_web",
                 web_info: Some(epi::WebInfo {
@@ -155,7 +154,8 @@ impl AppRunner {
                 native_pixels_per_point: Some(native_pixels_per_point()),
             },
             output: Default::default(),
-        });
+            storage: Some(Box::new(LocalStorage::default())),
+        };
 
         let needs_repaint: std::sync::Arc<NeedRepaint> = Default::default();
 
@@ -175,12 +175,10 @@ impl AppRunner {
             egui_ctx.set_visuals(egui::Visuals::light());
         }
 
-        let storage = LocalStorage::default();
-
         let app = app_creator(&epi::CreationContext {
             egui_ctx: egui_ctx.clone(),
             integration_info: frame.info(),
-            storage: Some(&storage),
+            storage: frame.storage(),
             gl: painter.painter.gl().clone(),
         });
 
@@ -191,7 +189,6 @@ impl AppRunner {
             input: Default::default(),
             app,
             needs_repaint,
-            storage,
             last_save_time: now_sec(),
             screen_reader: Default::default(),
             text_cursor_pos: None,
@@ -216,7 +213,9 @@ impl AppRunner {
             if self.app.persist_egui_memory() {
                 save_memory(&self.egui_ctx);
             }
-            self.app.save(&mut self.storage);
+            if let Some(storage) = self.frame.storage_mut() {
+                self.app.save(storage);
+            }
             self.last_save_time = now;
         }
     }
@@ -247,7 +246,7 @@ impl AppRunner {
         let raw_input = self.input.new_frame(canvas_size);
 
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
-            self.app.update(egui_ctx, &self.frame);
+            self.app.update(egui_ctx, &mut self.frame);
         });
         let egui::FullOutput {
             platform_output,
@@ -271,7 +270,7 @@ impl AppRunner {
             } = app_output;
         }
 
-        self.frame.lock().info.cpu_usage = Some((now_sec() - frame_start) as f32);
+        self.frame.info.cpu_usage = Some((now_sec() - frame_start) as f32);
         Ok((needs_repaint, clipped_primitives))
     }
 

@@ -6,7 +6,7 @@ pub struct DemoApp {
 }
 
 impl epi::App for DemoApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &epi::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut epi::Frame) {
         self.demo_windows.ui(ctx);
     }
 }
