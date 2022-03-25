@@ -155,7 +155,7 @@ impl EpiIntegration {
     ) -> Self {
         let egui_ctx = egui::Context::default();
 
-        *egui_ctx.memory() = load_memory(storage.as_deref()).unwrap_or_default();
+        *egui_ctx.memory() = load_egui_memory(storage.as_deref()).unwrap_or_default();
 
         let prefer_dark_mode = prefer_dark_mode();
 
@@ -302,7 +302,7 @@ pub fn load_window_settings(_storage: Option<&dyn epi::Storage>) -> Option<crate
     None
 }
 
-pub fn load_memory(_storage: Option<&dyn epi::Storage>) -> Option<egui::Memory> {
+pub fn load_egui_memory(_storage: Option<&dyn epi::Storage>) -> Option<egui::Memory> {
     #[cfg(feature = "persistence")]
     {
         epi::get_value(_storage?, STORAGE_EGUI_MEMORY_KEY)

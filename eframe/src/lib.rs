@@ -37,7 +37,7 @@
 //! }
 //!
 //! impl eframe::App for MyEguiApp {
-//!    fn update(&mut self, ctx: &egui::Context, frame: &eframe::Frame) {
+//!    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
 //!        egui::CentralPanel::default().show(ctx, |ui| {
 //!            ui.heading("Hello World!");
 //!        });
@@ -126,7 +126,7 @@ pub fn start_web(canvas_id: &str, app_creator: AppCreator) -> Result<(), wasm_bi
 /// }
 ///
 /// impl eframe::App for MyEguiApp {
-///    fn update(&mut self, ctx: &egui::Context, frame: &eframe::Frame) {
+///    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
 ///        egui::CentralPanel::default().show(ctx, |ui| {
 ///            ui.heading("Hello World!");
 ///        });

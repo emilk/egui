@@ -28,7 +28,7 @@ impl eframe::App for MyApp {
         egui::Rgba::TRANSPARENT // Make sure we don't paint anything behind the rounded corners
     }
 
-    fn update(&mut self, ctx: &egui::Context, frame: &eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         custon_window_frame(ctx, frame, "egui with custom frame", |ui| {
             ui.label("This is just the contents of the window");
             ui.horizontal(|ui| {
@@ -41,7 +41,7 @@ impl eframe::App for MyApp {
 
 fn custon_window_frame(
     ctx: &egui::Context,
-    frame: &eframe::Frame,
+    frame: &mut eframe::Frame,
     title: &str,
     add_contents: impl FnOnce(&mut egui::Ui),
 ) {
