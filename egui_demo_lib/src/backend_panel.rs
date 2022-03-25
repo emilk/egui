@@ -73,7 +73,7 @@ impl Default for BackendPanel {
 }
 
 impl BackendPanel {
-    pub fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
+    pub fn update(&mut self, ctx: &egui::Context, frame: &mut epi::Frame) {
         self.frame_history
             .on_new_frame(ctx.input().time, frame.info().cpu_usage);
 
@@ -87,7 +87,7 @@ impl BackendPanel {
         self.egui_windows.windows(ctx);
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui, frame: &epi::Frame) {
+    pub fn ui(&mut self, ui: &mut egui::Ui, frame: &mut epi::Frame) {
         egui::trace!(ui);
         ui.vertical_centered(|ui| {
             ui.heading("💻 Backend");
@@ -142,7 +142,7 @@ impl BackendPanel {
         }
     }
 
-    fn integration_ui(&mut self, ui: &mut egui::Ui, frame: &epi::Frame) {
+    fn integration_ui(&mut self, ui: &mut egui::Ui, frame: &mut epi::Frame) {
         if frame.is_web() {
             ui.label("egui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
             ui.label(
