@@ -289,9 +289,9 @@ impl EpiIntegration {
 }
 
 #[cfg(feature = "persistence")]
-const STORAGE_EGUI_MEMORY_KEY: &'static str = "egui";
+const STORAGE_EGUI_MEMORY_KEY: &str = "egui";
 #[cfg(feature = "persistence")]
-const STORAGE_WINDOW_KEY: &'static str = "window";
+const STORAGE_WINDOW_KEY: &str = "window";
 
 pub fn load_window_settings(_storage: Option<&dyn epi::Storage>) -> Option<crate::WindowSettings> {
     #[cfg(feature = "persistence")]
