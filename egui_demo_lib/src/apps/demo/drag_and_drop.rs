@@ -22,7 +22,7 @@ pub fn drag_source(ui: &mut Ui, id: Id, body: impl FnOnce(&mut Ui)) {
         // Normally you need to decide a location for a widget first,
         // because otherwise that widget cannot interact with the mouse.
         // However, a dragged component cannot be interacted with anyway
-        // (anything with `Order::Tooltip` always gets an empty `Response`)
+        // (anything with `Order::Tooltip` always gets an empty [`Response`])
         // So this is fine!
 
         if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {

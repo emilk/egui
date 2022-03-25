@@ -61,7 +61,7 @@ impl Sense {
         }
     }
 
-    /// The logical "or" of two `Sense`s.
+    /// The logical "or" of two [`Sense`]s.
     #[must_use]
     pub fn union(self, other: Self) -> Self {
         Self {

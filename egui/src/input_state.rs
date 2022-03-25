@@ -30,7 +30,7 @@ pub struct InputState {
     pub pointer: PointerState,
 
     /// State of touches, except those covered by PointerState (like clicks and drags).
-    /// (We keep a separate `TouchState` for each encountered touch device.)
+    /// (We keep a separate [`TouchState`] for each encountered touch device.)
     touch_states: BTreeMap<TouchDeviceId, TouchState>,
 
     /// How many pixels the user scrolled.
@@ -324,7 +324,7 @@ impl InputState {
     }
 
     /// Scans `events` for device IDs of touch devices we have not seen before,
-    /// and creates a new `TouchState` for each such device.
+    /// and creates a new [`TouchState`] for each such device.
     fn create_touch_states_for_new_devices(&mut self, events: &[Event]) {
         for event in events {
             if let Event::Touch { device_id, .. } = event {

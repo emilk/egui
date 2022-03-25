@@ -32,7 +32,7 @@ impl Label {
         self.text.text()
     }
 
-    /// If `true`, the text will wrap to stay within the max width of the `Ui`.
+    /// If `true`, the text will wrap to stay within the max width of the [`Ui`].
     ///
     /// By default [`Self::wrap`] will be true in vertical layouts
     /// and horizontal layouts with wrapping,

@@ -22,7 +22,7 @@ pub fn button_from_mouse_event(event: &web_sys::MouseEvent) -> Option<egui::Poin
 /// should not jump to a different position. Therefore, we do not calculate the average position
 /// of all touches, but we keep using the same touch as long as it is available.
 ///
-/// `touch_id_for_pos` is the `TouchId` of the `Touch` we previously used to determine the
+/// `touch_id_for_pos` is the [`TouchId`] of the [`Touch`] we previously used to determine the
 /// pointer position.
 pub fn pos_from_touch_event(
     canvas_id: &str,

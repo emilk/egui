@@ -148,7 +148,7 @@ pub struct Style {
     pub text_styles: BTreeMap<TextStyle, FontId>,
 
     /// If set, labels buttons wtc will use this to determine whether or not
-    /// to wrap the text at the right edge of the `Ui` they are in.
+    /// to wrap the text at the right edge of the [`Ui`] they are in.
     /// By default this is `None`.
     ///
     /// * `None`: follow layout
@@ -171,7 +171,7 @@ pub struct Style {
     /// Options to help debug why egui behaves strangely.
     pub debug: DebugOptions,
 
-    /// Show tooltips explaining `DragValue`:s etc when hovered.
+    /// Show tooltips explaining [`DragValue`]:s etc when hovered.
     ///
     /// This only affects a few egui widgets.
     pub explanation_tooltips: bool,
@@ -229,15 +229,15 @@ pub struct Spacing {
     /// Indent collapsing regions etc by this much.
     pub indent: f32,
 
-    /// Minimum size of a `DragValue`, color picker button, and other small widgets.
+    /// Minimum size of a [`DragValue`], color picker button, and other small widgets.
     /// `interact_size.y` is the default height of button, slider, etc.
     /// Anything clickable should be (at least) this size.
     pub interact_size: Vec2, // TODO: rename min_interact_size ?
 
-    /// Default width of a `Slider` and `ComboBox`.
+    /// Default width of a [`Slider`] and [`ComboBox`].
     pub slider_width: f32, // TODO: rename big_interact_size ?
 
-    /// Default width of a `TextEdit`.
+    /// Default width of a [`TextEdit`].
     pub text_edit_width: f32,
 
     /// Checkboxes, radio button and collapsing headers have an icon at the start.
@@ -402,7 +402,7 @@ pub struct Visuals {
 
     pub selection: Selection,
 
-    /// The color used for `Hyperlink`,
+    /// The color used for [`Hyperlink`],
     pub hyperlink_color: Color32,
 
     /// Something just barely different from the background color.

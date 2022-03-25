@@ -231,7 +231,7 @@ fn test_remap() {
 
 // ----------------------------------------------------------------------------
 
-/// Extends `f32`, `Vec2` etc with `at_least` and `at_most` as aliases for `max` and `min`.
+/// Extends `f32`, [`Vec2`] etc with `at_least` and `at_most` as aliases for `max` and `min`.
 pub trait NumExt {
     /// More readable version of `self.max(lower_limit)`
     fn at_least(self, lower_limit: Self) -> Self;

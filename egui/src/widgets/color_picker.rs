@@ -421,19 +421,19 @@ pub fn color_edit_button_rgb(ui: &mut Ui, rgb: &mut [f32; 3]) -> Response {
     response
 }
 
-// To ensure we keep hue slider when `srgba` is gray we store the full `Hsva` in a cache:
+// To ensure we keep hue slider when `srgba` is gray we store the full [`Hsva`] in a cache:
 fn color_cache_get(ctx: &Context, rgba: impl Into<Rgba>) -> Hsva {
     let rgba = rgba.into();
     use_color_cache(ctx, |cc| cc.get(&rgba).cloned()).unwrap_or_else(|| Hsva::from(rgba))
 }
 
-// To ensure we keep hue slider when `srgba` is gray we store the full `Hsva` in a cache:
+// To ensure we keep hue slider when `srgba` is gray we store the full [`Hsva`] in a cache:
 fn color_cache_set(ctx: &Context, rgba: impl Into<Rgba>, hsva: Hsva) {
     let rgba = rgba.into();
     use_color_cache(ctx, |cc| cc.set(rgba, hsva));
 }
 
-// To ensure we keep hue slider when `srgba` is gray we store the full `Hsva` in a cache:
+// To ensure we keep hue slider when `srgba` is gray we store the full [`Hsva`] in a cache:
 fn use_color_cache<R>(ctx: &Context, f: impl FnOnce(&mut FixedCache<Rgba, Hsva>) -> R) -> R {
     f(ctx.data().get_temp_mut_or_default(Id::null()))
 }

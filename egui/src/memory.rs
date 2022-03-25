@@ -7,9 +7,9 @@ use crate::{area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
 /// The data that egui persists between frames.
 ///
 /// This includes window positions and sizes,
-/// how far the user has scrolled in a `ScrollArea` etc.
+/// how far the user has scrolled in a [`ScrollArea`] etc.
 ///
-/// If you want this to persist when closing your app you should serialize `Memory` and store it.
+/// If you want this to persist when closing your app you should serialize [`Memory`] and store it.
 /// For this you need to enable the `persistence`.
 ///
 /// If you want to store data for your widgets, you should look at [`Memory::data`]
@@ -19,7 +19,7 @@ use crate::{area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
 pub struct Memory {
     pub options: Options,
 
-    /// This map stores some superficial state for all widgets with custom `Id`s.
+    /// This map stores some superficial state for all widgets with custom [`Id`]s.
     ///
     /// This includes storing if a [`crate::CollapsingHeader`] is open, how far scrolled a
     /// [`crate::ScrollArea`] is, where the cursor in a [`crate::TextEdit`] is, etc.
@@ -97,7 +97,7 @@ pub struct Memory {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Options {
-    /// The default style for new `Ui`:s.
+    /// The default style for new [`Ui`]:s.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) style: epaint::mutex::Arc<Style>,
 
@@ -402,7 +402,7 @@ impl Memory {
         self.interaction.focus.interested_in_focus(id);
     }
 
-    /// Stop editing of active `TextEdit` (if any).
+    /// Stop editing of active [`TextEdit`] (if any).
     #[inline(always)]
     pub fn stop_text_input(&mut self) {
         self.interaction.focus.id = None;
@@ -471,8 +471,8 @@ impl Memory {
 
 // ----------------------------------------------------------------------------
 
-/// Keeps track of `Area`s, which are free-floating `Ui`s.
-/// These `Area`s can be in any `Order`.
+/// Keeps track of [`Area`]s, which are free-floating [`Ui`]s.
+/// These [`Area`]s can be in any [`Order`].
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]

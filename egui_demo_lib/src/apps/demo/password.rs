@@ -18,7 +18,7 @@ pub fn password_ui(ui: &mut egui::Ui, password: &mut String) -> egui::Response {
     let state_id = ui.id().with("show_plaintext");
 
     // Get state for this widget.
-    // You should get state by value, not by reference to avoid borrowing of `Memory`.
+    // You should get state by value, not by reference to avoid borrowing of [`Memory`].
     let mut show_plaintext = ui.data().get_temp::<bool>(state_id).unwrap_or(false);
 
     // Process ui, change a local copy of the state

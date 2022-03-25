@@ -7,16 +7,16 @@ use std::f32::INFINITY;
 /// It is what is used and updated by [`Layout`] when adding new widgets.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Region {
-    /// This is the minimal size of the `Ui`.
+    /// This is the minimal size of the [`Ui`].
     /// When adding new widgets, this will generally expand.
     ///
     /// Always finite.
     ///
     /// The bounding box of all child widgets, but not necessarily a tight bounding box
-    /// since `Ui` can start with a non-zero min_rect size.
+    /// since [`Ui`] can start with a non-zero min_rect size.
     pub min_rect: Rect,
 
-    /// The maximum size of this `Ui`. This is a *soft max*
+    /// The maximum size of this [`Ui`]. This is a *soft max*
     /// meaning new widgets will *try* not to expand beyond it,
     /// but if they have to, they will.
     ///
@@ -74,7 +74,7 @@ impl Region {
 
 // ----------------------------------------------------------------------------
 
-/// Layout direction, one of `LeftToRight`, `RightToLeft`, `TopDown`, `BottomUp`.
+/// Layout direction, one of [`LeftToRight`], [`RightToLeft`], [`TopDown`], [`BottomUp`].
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum Direction {
@@ -473,7 +473,7 @@ impl Layout {
     }
 
     /// Returns where to put the next widget that is of the given size.
-    /// The returned `frame_rect` `Rect` will always be justified along the cross axis.
+    /// The returned `frame_rect` [`Rect`] will always be justified along the cross axis.
     /// This is what you then pass to `advance_after_rects`.
     /// Use `justify_and_align` to get the inner `widget_rect`.
     pub(crate) fn next_frame(&self, region: &Region, child_size: Vec2, spacing: Vec2) -> Rect {

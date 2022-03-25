@@ -828,7 +828,7 @@ impl From<Hsva> for HsvaGamma {
 // ----------------------------------------------------------------------------
 
 /// Cheap and ugly.
-/// Made for graying out disabled `Ui`:s.
+/// Made for graying out disabled [`Ui`]:s.
 pub fn tint_color_towards(color: Color32, target: Color32) -> Color32 {
     let [mut r, mut g, mut b, mut a] = color.to_array();
 

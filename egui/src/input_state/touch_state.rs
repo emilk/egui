@@ -16,7 +16,7 @@ pub struct MultiTouchInfo {
     pub start_pos: Pos2,
 
     /// Number of touches (fingers) on the surface. Value is ≥ 2 since for a single touch no
-    /// `MultiTouchInfo` is created.
+    /// [`MultiTouchInfo`] is created.
     pub num_touches: usize,
 
     /// Proportional zoom factor (pinch gesture).
@@ -66,7 +66,7 @@ pub struct MultiTouchInfo {
 #[derive(Clone)]
 pub(crate) struct TouchState {
     /// Technical identifier of the touch device. This is used to identify relevant touch events
-    /// for this `TouchState` instance.
+    /// for this [`TouchState`] instance.
     device_id: TouchDeviceId,
     /// Active touches, if any.
     ///

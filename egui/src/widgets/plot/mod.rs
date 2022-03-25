@@ -145,7 +145,7 @@ impl LinkedAxisGroup {
 
 /// A 2D plot, e.g. a graph of a function.
 ///
-/// `Plot` supports multiple lines and points.
+/// [`Plot`] supports multiple lines and points.
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
@@ -188,7 +188,7 @@ pub struct Plot {
 }
 
 impl Plot {
-    /// Give a unique id for each plot within the same `Ui`.
+    /// Give a unique id for each plot within the same [`Ui`].
     pub fn new(id_source: impl std::hash::Hash) -> Self {
         Self {
             id_source: Id::new(id_source),
@@ -304,7 +304,7 @@ impl Plot {
         self
     }
 
-    /// Config the button pointer to use for boxed zooming. Default: `Secondary`
+    /// Config the button pointer to use for boxed zooming. Default: [`Secondary`]
     pub fn boxed_zoom_pointer_button(mut self, boxed_zoom_pointer_button: PointerButton) -> Self {
         self.boxed_zoom_pointer_button = boxed_zoom_pointer_button;
         self
@@ -405,7 +405,7 @@ impl Plot {
         self
     }
 
-    /// Whether or not to show the background `Rect`.
+    /// Whether or not to show the background [`Rect`].
     /// Can be useful to disable if the plot is overlaid over existing content.
     /// Default: `true`.
     pub fn show_background(mut self, show: bool) -> Self {

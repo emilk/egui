@@ -756,7 +756,7 @@ fn install_canvas_events(runner_container: &AppRunnerContainer) -> Result<(), Js
 
             // Report a zoom event in case CTRL (on Windows or Linux) or CMD (on Mac) is pressed.
             // This if-statement is equivalent to how `Modifiers.command` is determined in
-            // `modifiers_from_event()`, but we cannot directly use that fn for a `WheelEvent`.
+            // `modifiers_from_event()`, but we cannot directly use that fn for a [`WheelEvent`].
             if event.ctrl_key() || event.meta_key() {
                 let factor = (delta.y / 200.0).exp();
                 runner_lock.input.raw.events.push(egui::Event::Zoom(factor));

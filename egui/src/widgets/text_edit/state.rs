@@ -64,7 +64,7 @@ impl TextEditState {
         self.cursor_range
             .map(|cursor_range| {
                 // We only use the PCursor (paragraph number, and character offset within that paragraph).
-                // This is so that if we resize the `TextEdit` region, and text wrapping changes,
+                // This is so that if we resize the [`TextEdit`] region, and text wrapping changes,
                 // we keep the same byte character offset from the beginning of the text,
                 // even though the number of rows changes
                 // (each paragraph can be several rows, due to word wrapping).

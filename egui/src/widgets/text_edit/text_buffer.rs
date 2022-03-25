@@ -3,7 +3,7 @@ use std::ops::Range;
 /// Trait constraining what types [`crate::TextEdit`] may use as
 /// an underlying buffer.
 ///
-/// Most likely you will use a `String` which implements `TextBuffer`.
+/// Most likely you will use a [`String`] which implements [`TextBuffer`].
 pub trait TextBuffer: AsRef<str> {
     /// Can this text be edited?
     fn is_mutable(&self) -> bool;

@@ -20,7 +20,7 @@ pub struct Painter {
     /// Where we paint
     layer_id: LayerId,
 
-    /// Everything painted in this `Painter` will be clipped against this.
+    /// Everything painted in this [`Painter`] will be clipped against this.
     /// This means nothing outside of this rectangle will be visible on screen.
     clip_rect: Rect,
 
@@ -70,10 +70,10 @@ impl Painter {
         self.fade_to_color = Some(Color32::TRANSPARENT);
     }
 
-    /// Create a painter for a sub-region of this `Painter`.
+    /// Create a painter for a sub-region of this [`Painter`].
     ///
-    /// The clip-rect of the returned `Painter` will be the intersection
-    /// of the given rectangle and the `clip_rect()` of this `Painter`.
+    /// The clip-rect of the returned [`Painter`] will be the intersection
+    /// of the given rectangle and the `clip_rect()` of this [`Painter`].
     pub fn sub_region(&self, rect: Rect) -> Self {
         Self {
             ctx: self.ctx.clone(),
@@ -104,14 +104,14 @@ impl Painter {
         self.layer_id
     }
 
-    /// Everything painted in this `Painter` will be clipped against this.
+    /// Everything painted in this [`Painter`] will be clipped against this.
     /// This means nothing outside of this rectangle will be visible on screen.
     #[inline(always)]
     pub fn clip_rect(&self) -> Rect {
         self.clip_rect
     }
 
-    /// Everything painted in this `Painter` will be clipped against this.
+    /// Everything painted in this [`Painter`] will be clipped against this.
     /// This means nothing outside of this rectangle will be visible on screen.
     #[inline(always)]
     pub fn set_clip_rect(&mut self, clip_rect: Rect) {
@@ -385,7 +385,7 @@ impl Painter {
 
     /// Paint text that has already been layed out in a [`Galley`].
     ///
-    /// You can create the `Galley` with [`Self::layout`].
+    /// You can create the [`Galley`] with [`Self::layout`].
     ///
     /// If you want to change the color of the text, use [`Self::galley_with_color`].
     #[inline(always)]
@@ -397,7 +397,7 @@ impl Painter {
 
     /// Paint text that has already been layed out in a [`Galley`].
     ///
-    /// You can create the `Galley` with [`Self::layout`].
+    /// You can create the [`Galley`] with [`Self::layout`].
     ///
     /// The text color in the [`Galley`] will be replaced with the given color.
     #[inline(always)]

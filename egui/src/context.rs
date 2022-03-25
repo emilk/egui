@@ -114,7 +114,7 @@ impl ContextImpl {
 /// [`Context`] is cheap to clone, and any clones refers to the same mutable data
 /// ([`Context`] uses refcounting internally).
 ///
-/// All methods are marked `&self`; `Context` has interior mutability (protected by a mutex).
+/// All methods are marked `&self`; [`Context`] has interior mutability (protected by a mutex).
 ///
 ///
 /// You can store
@@ -287,7 +287,7 @@ impl Context {
         self.interact_with_hovered(layer_id, id, rect, sense, enabled, hovered)
     }
 
-    /// You specify if a thing is hovered, and the function gives a `Response`.
+    /// You specify if a thing is hovered, and the function gives a [`Response`].
     pub(crate) fn interact_with_hovered(
         &self,
         layer_id: LayerId,

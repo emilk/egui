@@ -42,15 +42,15 @@ pub struct Ui {
     /// They are therefore only good for Id:s that has no state.
     next_auto_id_source: u64,
 
-    /// Specifies paint layer, clip rectangle and a reference to `Context`.
+    /// Specifies paint layer, clip rectangle and a reference to [`Context`].
     painter: Painter,
 
-    /// The `Style` (visuals, spacing, etc) of this ui.
-    /// Commonly many `Ui`:s share the same `Style`.
-    /// The `Ui` implements copy-on-write for this.
+    /// The [`Style`] (visuals, spacing, etc) of this ui.
+    /// Commonly many [`Ui`]:s share the same [`Style`].
+    /// The [`Ui`] implements copy-on-write for this.
     style: Arc<Style>,
 
-    /// Handles the `Ui` size and the placement of new widgets.
+    /// Handles the [`Ui`] size and the placement of new widgets.
     placer: Placer,
 
     /// If false we are unresponsive to input,
@@ -65,7 +65,7 @@ impl Ui {
     // ------------------------------------------------------------------------
     // Creation:
 
-    /// Create a new `Ui`.
+    /// Create a new [`Ui`].
     ///
     /// Normally you would not use this directly, but instead use
     /// [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`].
@@ -82,12 +82,12 @@ impl Ui {
         }
     }
 
-    /// Create a new `Ui` at a specific region.
+    /// Create a new [`Ui`] at a specific region.
     pub fn child_ui(&mut self, max_rect: Rect, layout: Layout) -> Self {
         self.child_ui_with_id_source(max_rect, layout, "child")
     }
 
-    /// Create a new `Ui` at a specific region with a specific id.
+    /// Create a new [`Ui`] at a specific region with a specific id.
     pub fn child_ui_with_id_source(
         &mut self,
         max_rect: Rect,
@@ -111,13 +111,13 @@ impl Ui {
 
     // -------------------------------------------------
 
-    /// A unique identity of this `Ui`.
+    /// A unique identity of this [`Ui`].
     #[inline]
     pub fn id(&self) -> Id {
         self.id
     }
 
-    /// Style options for this `Ui` and its children.
+    /// Style options for this [`Ui`] and its children.
     ///
     /// Note that this may be a different [`Style`] than that of [`Context::style`].
     #[inline]
@@ -125,10 +125,10 @@ impl Ui {
         &self.style
     }
 
-    /// Mutably borrow internal `Style`.
-    /// Changes apply to this `Ui` and its subsequent children.
+    /// Mutably borrow internal [`Style`].
+    /// Changes apply to this [`Ui`] and its subsequent children.
     ///
-    /// To set the style of all `Ui`:s, use [`Context::set_style`].
+    /// To set the style of all [`Ui`]:s, use [`Context::set_style`].
     ///
     /// Example:
     /// ```
@@ -140,9 +140,9 @@ impl Ui {
         Arc::make_mut(&mut self.style) // clone-on-write
     }
 
-    /// Changes apply to this `Ui` and its subsequent children.
+    /// Changes apply to this [`Ui`] and its subsequent children.
     ///
-    /// To set the visuals of all `Ui`:s, use [`Context::set_visuals`].
+    /// To set the visuals of all [`Ui`]:s, use [`Context::set_visuals`].
     pub fn set_style(&mut self, style: impl Into<Arc<Style>>) {
         self.style = style.into();
     }
@@ -152,15 +152,15 @@ impl Ui {
         self.style = self.ctx().style();
     }
 
-    /// The current spacing options for this `Ui`.
+    /// The current spacing options for this [`Ui`].
     /// Short for `ui.style().spacing`.
     #[inline]
     pub fn spacing(&self) -> &crate::style::Spacing {
         &self.style.spacing
     }
 
-    /// Mutably borrow internal `Spacing`.
-    /// Changes apply to this `Ui` and its subsequent children.
+    /// Mutably borrow internal [`Spacing`].
+    /// Changes apply to this [`Ui`] and its subsequent children.
     ///
     /// Example:
     /// ```
@@ -172,7 +172,7 @@ impl Ui {
         &mut self.style_mut().spacing
     }
 
-    /// The current visuals settings of this `Ui`.
+    /// The current visuals settings of this [`Ui`].
     /// Short for `ui.style().visuals`.
     #[inline]
     pub fn visuals(&self) -> &crate::Visuals {
@@ -180,9 +180,9 @@ impl Ui {
     }
 
     /// Mutably borrow internal `visuals`.
-    /// Changes apply to this `Ui` and its subsequent children.
+    /// Changes apply to this [`Ui`] and its subsequent children.
     ///
-    /// To set the visuals of all `Ui`:s, use [`Context::set_visuals`].
+    /// To set the visuals of all [`Ui`]:s, use [`Context::set_visuals`].
     ///
     /// Example:
     /// ```
@@ -200,25 +200,25 @@ impl Ui {
         self.painter.ctx()
     }
 
-    /// Use this to paint stuff within this `Ui`.
+    /// Use this to paint stuff within this [`Ui`].
     #[inline]
     pub fn painter(&self) -> &Painter {
         &self.painter
     }
 
-    /// If `false`, the `Ui` does not allow any interaction and
+    /// If `false`, the [`Ui`] does not allow any interaction and
     /// the widgets in it will draw with a gray look.
     #[inline]
     pub fn is_enabled(&self) -> bool {
         self.enabled
     }
 
-    /// Calling `set_enabled(false)` will cause the `Ui` to deny all future interaction
+    /// Calling `set_enabled(false)` will cause the [`Ui`] to deny all future interaction
     /// and all the widgets will draw with a gray look.
     ///
     /// Usually it is more convenient to use [`Self::add_enabled_ui`] or [`Self::add_enabled`].
     ///
-    /// Calling `set_enabled(true)` has no effect - it will NOT re-enable the `Ui` once disabled.
+    /// Calling `set_enabled(true)` has no effect - it will NOT re-enable the [`Ui`] once disabled.
     ///
     /// ### Example
     /// ```
@@ -241,7 +241,7 @@ impl Ui {
         }
     }
 
-    /// If `false`, any widgets added to the `Ui` will be invisible and non-interactive.
+    /// If `false`, any widgets added to the [`Ui`] will be invisible and non-interactive.
     #[inline]
     pub fn is_visible(&self) -> bool {
         self.painter.is_visible()
@@ -284,9 +284,9 @@ impl Ui {
         self.placer.layout()
     }
 
-    /// Should text wrap in this `Ui`?
+    /// Should text wrap in this [`Ui`]?
     ///
-    /// This is determined first by [`Style::wrap`], and then by the layout of this `Ui`.
+    /// This is determined first by [`Style::wrap`], and then by the layout of this [`Ui`].
     pub fn wrap_text(&self) -> bool {
         if let Some(wrap) = self.style.wrap {
             wrap
@@ -300,13 +300,13 @@ impl Ui {
 
     /// Create a painter for a sub-region of this Ui.
     ///
-    /// The clip-rect of the returned `Painter` will be the intersection
-    /// of the given rectangle and the `clip_rect()` of this `Ui`.
+    /// The clip-rect of the returned [`Painter`] will be the intersection
+    /// of the given rectangle and the `clip_rect()` of this [`Ui`].
     pub fn painter_at(&self, rect: Rect) -> Painter {
         self.painter().sub_region(rect)
     }
 
-    /// Use this to paint stuff within this `Ui`.
+    /// Use this to paint stuff within this [`Ui`].
     #[inline]
     pub fn layer_id(&self) -> LayerId {
         self.painter().layer_id()
@@ -408,8 +408,8 @@ impl Ui {
 
 /// # Sizes etc
 impl Ui {
-    /// Where and how large the `Ui` is already.
-    /// All widgets that have been added ot this `Ui` fits within this rectangle.
+    /// Where and how large the [`Ui`] is already.
+    /// All widgets that have been added ot this [`Ui`] fits within this rectangle.
     ///
     /// No matter what, the final Ui will be at least this large.
     ///
@@ -429,7 +429,7 @@ impl Ui {
     /// Separator lines will span the `max_rect`.
     ///
     /// If a new widget doesn't fit within the `max_rect` then the
-    /// `Ui` will make room for it by expanding both `min_rect` and `max_rect`.
+    /// [`Ui`] will make room for it by expanding both `min_rect` and `max_rect`.
     pub fn max_rect(&self) -> Rect {
         self.placer.max_rect()
     }
@@ -567,9 +567,9 @@ impl Ui {
     }
 }
 
-/// # `Id` creation
+/// # [`Id`] creation
 impl Ui {
-    /// Use this to generate widget ids for widgets that have persistent state in `Memory`.
+    /// Use this to generate widget ids for widgets that have persistent state in [`Memory`].
     pub fn make_persistent_id<IdSource>(&self, id_source: IdSource) -> Id
     where
         IdSource: Hash + std::fmt::Debug,
@@ -595,7 +595,7 @@ impl Ui {
 
 /// # Interaction
 impl Ui {
-    /// Check for clicks, drags and/or hover on a specific region of this `Ui`.
+    /// Check for clicks, drags and/or hover on a specific region of this [`Ui`].
     pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
         self.ctx().interact(
             self.clip_rect(),
@@ -608,16 +608,16 @@ impl Ui {
         )
     }
 
-    /// Is the pointer (mouse/touch) above this rectangle in this `Ui`?
+    /// Is the pointer (mouse/touch) above this rectangle in this [`Ui`]?
     ///
-    /// The `clip_rect` and layer of this `Ui` will be respected, so, for instance,
-    /// if this `Ui` is behind some other window, this will always return `false`.
+    /// The `clip_rect` and layer of this [`Ui`] will be respected, so, for instance,
+    /// if this [`Ui`] is behind some other window, this will always return `false`.
     pub fn rect_contains_pointer(&self, rect: Rect) -> bool {
         self.ctx()
             .rect_contains_pointer(self.layer_id(), self.clip_rect().intersect(rect))
     }
 
-    /// Is the pointer (mouse/touch) above this `Ui`?
+    /// Is the pointer (mouse/touch) above this [`Ui`]?
     /// Equivalent to `ui.rect_contains_pointer(ui.min_rect())`
     pub fn ui_contains_pointer(&self) -> bool {
         self.rect_contains_pointer(self.min_rect())
@@ -627,7 +627,7 @@ impl Ui {
 /// # Allocating space: where do I put my widgets?
 impl Ui {
     /// Allocate space for a widget and check for interaction in the space.
-    /// Returns a `Response` which contains a rectangle, id, and interaction info.
+    /// Returns a [`Response`] which contains a rectangle, id, and interaction info.
     ///
     /// ## How sizes are negotiated
     /// Each widget should have a *minimum desired size* and a *desired size*.
@@ -651,11 +651,11 @@ impl Ui {
         self.interact(rect, id, sense)
     }
 
-    /// Returns a `Rect` with exactly what you asked for.
+    /// Returns a [`Rect`] with exactly what you asked for.
     ///
     /// The response rect will be larger if this is part of a justified layout or similar.
     /// This means that if this is a narrow widget in a wide justified layout, then
-    /// the widget will react to interactions outside the returned `Rect`.
+    /// the widget will react to interactions outside the returned [`Rect`].
     pub fn allocate_exact_size(&mut self, desired_size: Vec2, sense: Sense) -> (Rect, Response) {
         let response = self.allocate_response(desired_size, sense);
         let rect = self
@@ -666,7 +666,7 @@ impl Ui {
 
     /// Allocate at least as much space as needed, and interact with that rect.
     ///
-    /// The returned `Rect` will be the same size as `Response::rect`.
+    /// The returned [`Rect`] will be the same size as `Response::rect`.
     pub fn allocate_at_least(&mut self, desired_size: Vec2, sense: Sense) -> (Rect, Response) {
         let response = self.allocate_response(desired_size, sense);
         (response.rect, response)
@@ -685,7 +685,7 @@ impl Ui {
     ///
     /// You will never get a rectangle that is smaller than the amount of space you asked for.
     ///
-    /// Returns an automatic `Id` (which you can use for interaction) and the `Rect` of where to put your widget.
+    /// Returns an automatic [`Id`] (which you can use for interaction) and the [`Rect`] of where to put your widget.
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -754,9 +754,9 @@ impl Ui {
         widget_rect
     }
 
-    /// Allocate a specific part of the `Ui`.
+    /// Allocate a specific part of the [`Ui`].
     ///
-    /// Ignore the layout of the `Ui`: just put my widget here!
+    /// Ignore the layout of the [`Ui`]: just put my widget here!
     /// The layout cursor will advance to past this `rect`.
     pub fn allocate_rect(&mut self, rect: Rect, sense: Sense) -> Response {
         let id = self.advance_cursor_after_rect(rect);
@@ -914,7 +914,7 @@ impl Ui {
         (response, painter)
     }
 
-    /// Adjust the scroll position of any parent [`ScrollArea`] so that the given `Rect` becomes visible.
+    /// Adjust the scroll position of any parent [`ScrollArea`] so that the given [`Rect`] becomes visible.
     ///
     /// If `align` is `None`, it'll scroll enough to bring the cursor into view.
     ///
@@ -971,7 +971,7 @@ impl Ui {
 
 /// # Adding widgets
 impl Ui {
-    /// Add a [`Widget`] to this `Ui` at a location dependent on the current [`Layout`].
+    /// Add a [`Widget`] to this [`Ui`] at a location dependent on the current [`Layout`].
     ///
     /// The returned [`Response`] can be used to check for interactions,
     /// as well as adding tooltips using [`Response::on_hover_text`].
@@ -990,7 +990,7 @@ impl Ui {
         widget.ui(self)
     }
 
-    /// Add a [`Widget`] to this `Ui` with a given size.
+    /// Add a [`Widget`] to this [`Ui`] with a given size.
     /// The widget will attempt to fit within the given size, but some widgets may overflow.
     ///
     /// To fill all remaining area, use `ui.add_sized(ui.available_size(), widget);`
@@ -1014,7 +1014,7 @@ impl Ui {
             .inner
     }
 
-    /// Add a [`Widget`] to this `Ui` at a specific location (manual layout).
+    /// Add a [`Widget`] to this [`Ui`] at a specific location (manual layout).
     ///
     /// See also [`Self::add`] and [`Self::add_sized`].
     pub fn put(&mut self, max_rect: Rect, widget: impl Widget) -> Response {
@@ -1026,7 +1026,7 @@ impl Ui {
 
     /// Add a single [`Widget`] that is possibly disabled, i.e. greyed out and non-interactive.
     ///
-    /// If you call `add_enabled` from within an already disabled `Ui`,
+    /// If you call `add_enabled` from within an already disabled [`Ui`],
     /// the widget will always be disabled, even if the `enabled` argument is true.
     ///
     /// See also [`Self::add_enabled_ui`] and [`Self::is_enabled`].
@@ -1051,7 +1051,7 @@ impl Ui {
 
     /// Add a section that is possibly disabled, i.e. greyed out and non-interactive.
     ///
-    /// If you call `add_enabled_ui` from within an already disabled `Ui`,
+    /// If you call `add_enabled_ui` from within an already disabled [`Ui`],
     /// the result will always be disabled, even if the `enabled` argument is true.
     ///
     /// See also [`Self::add_enabled`] and [`Self::is_enabled`].
@@ -1083,7 +1083,7 @@ impl Ui {
     ///
     /// An invisible widget still takes up the same space as if it were visible.
     ///
-    /// If you call `add_visible` from within an already invisible `Ui`,
+    /// If you call `add_visible` from within an already invisible [`Ui`],
     /// the widget will always be invisible, even if the `visible` argument is true.
     ///
     /// See also [`Self::add_visible_ui`], [`Self::set_visible`] and [`Self::is_visible`].
@@ -1110,7 +1110,7 @@ impl Ui {
     ///
     /// An invisible ui still takes up the same space as if it were visible.
     ///
-    /// If you call `add_visible_ui` from within an already invisible `Ui`,
+    /// If you call `add_visible_ui` from within an already invisible [`Ui`],
     /// the result will always be invisible, even if the `visible` argument is true.
     ///
     /// See also [`Self::add_visible`], [`Self::set_visible`] and [`Self::is_visible`].
@@ -1240,7 +1240,7 @@ impl Ui {
         Hyperlink::from_label_and_url(label, url).ui(self)
     }
 
-    /// No newlines (`\n`) allowed. Pressing enter key will result in the `TextEdit` losing focus (`response.lost_focus`).
+    /// No newlines (`\n`) allowed. Pressing enter key will result in the [`TextEdit`] losing focus (`response.lost_focus`).
     ///
     /// See also [`TextEdit`].
     pub fn text_edit_singleline<S: widgets::text_edit::TextBuffer>(
@@ -1250,7 +1250,7 @@ impl Ui {
         TextEdit::singleline(text).ui(self)
     }
 
-    /// A `TextEdit` for multiple lines. Pressing enter key will create a new line.
+    /// A [`TextEdit`] for multiple lines. Pressing enter key will create a new line.
     ///
     /// See also [`TextEdit`].
     pub fn text_edit_multiline<S: widgets::text_edit::TextBuffer>(
@@ -1260,7 +1260,7 @@ impl Ui {
         TextEdit::multiline(text).ui(self)
     }
 
-    /// A `TextEdit` for code editing.
+    /// A [`TextEdit`] for code editing.
     ///
     /// This will be multiline, monospace, and will insert tabs instead of moving focus.
     ///
@@ -1696,9 +1696,9 @@ impl Ui {
     ///
     /// If you don't want the contents to be centered, use [`Self::horizontal_top`] instead.
     ///
-    /// The returned `Response` will only have checked for mouse hover
+    /// The returned [`Response`] will only have checked for mouse hover
     /// but can be used for tooltips (`on_hover_text`).
-    /// It also contains the `Rect` used by the horizontal layout.
+    /// It also contains the [`Rect`] used by the horizontal layout.
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -1740,9 +1740,9 @@ impl Ui {
     /// Centering is almost always what you want if you are
     /// planning to to mix widgets or use different types of text.
     ///
-    /// The returned `Response` will only have checked for mouse hover
+    /// The returned [`Response`] will only have checked for mouse hover
     /// but can be used for tooltips (`on_hover_text`).
-    /// It also contains the `Rect` used by the horizontal layout.
+    /// It also contains the [`Rect`] used by the horizontal layout.
     ///
     /// See also [`Self::with_layout`] for more options.
     pub fn horizontal_wrapped<R>(
