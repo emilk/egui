@@ -124,98 +124,12 @@ pub fn handle_app_output(
 // ----------------------------------------------------------------------------
 
 /// For loading/saving app state and/or egui memory to disk.
-pub struct Persistence {
-    last_auto_save: instant::Instant,
-}
-
-#[allow(clippy::unused_self)]
-impl Persistence {
+pub fn create_storage(_app_name: &str) -> Option<Box<dyn epi::Storage>> {
     #[cfg(feature = "persistence")]
-    const EGUI_MEMORY_KEY: &'static str = "egui";
-    #[cfg(feature = "persistence")]
-    const WINDOW_KEY: &'static str = "window";
-
-    pub fn from_app_name(app_name: &str) -> (Option<Box<dyn epi::Storage>>, Self) {
-        fn create_storage(_app_name: &str) -> Option<Box<dyn epi::Storage>> {
-            #[cfg(feature = "persistence")]
-            if let Some(storage) = epi::file_storage::FileStorage::from_app_name(_app_name) {
-                return Some(Box::new(storage));
-            }
-            None
-        }
-
-        let storage = create_storage(app_name);
-        (
-            storage,
-            Self {
-                last_auto_save: instant::Instant::now(),
-            },
-        )
+    if let Some(storage) = epi::file_storage::FileStorage::from_app_name(_app_name) {
+        return Some(Box::new(storage));
     }
-
-    #[cfg(feature = "persistence")]
-    pub fn load_window_settings(
-        &self,
-        storage: Option<&dyn epi::Storage>,
-    ) -> Option<crate::WindowSettings> {
-        epi::get_value(&**storage.as_ref()?, Self::WINDOW_KEY)
-    }
-
-    #[cfg(not(feature = "persistence"))]
-    pub fn load_window_settings(
-        &self,
-        _storage: Option<&dyn epi::Storage>,
-    ) -> Option<crate::WindowSettings> {
-        None
-    }
-
-    #[cfg(feature = "persistence")]
-    pub fn load_memory(&self, storage: Option<&dyn epi::Storage>) -> Option<egui::Memory> {
-        epi::get_value(&**storage.as_ref()?, Self::EGUI_MEMORY_KEY)
-    }
-
-    #[cfg(not(feature = "persistence"))]
-    pub fn load_memory(&self, _storage: Option<&dyn epi::Storage>) -> Option<egui::Memory> {
-        None
-    }
-
-    pub fn save(
-        &mut self,
-        _storage: Option<&mut dyn epi::Storage>,
-        _app: &mut dyn epi::App,
-        _egui_ctx: &egui::Context,
-        _window: &winit::window::Window,
-    ) {
-        #[cfg(feature = "persistence")]
-        if let Some(storage) = _storage {
-            if _app.persist_native_window() {
-                epi::set_value(
-                    storage,
-                    Self::WINDOW_KEY,
-                    &crate::WindowSettings::from_display(_window),
-                );
-            }
-            if _app.persist_egui_memory() {
-                epi::set_value(storage, Self::EGUI_MEMORY_KEY, &*_egui_ctx.memory());
-            }
-            _app.save(storage);
-            storage.flush();
-        }
-    }
-
-    pub fn maybe_autosave(
-        &mut self,
-        storage: Option<&mut dyn epi::Storage>,
-        app: &mut dyn epi::App,
-        egui_ctx: &egui::Context,
-        window: &winit::window::Window,
-    ) {
-        let now = instant::Instant::now();
-        if now - self.last_auto_save > app.auto_save_interval() {
-            self.save(storage, app, egui_ctx, window);
-            self.last_auto_save = now;
-        }
-    }
+    None
 }
 
 // ----------------------------------------------------------------------------
@@ -223,7 +137,7 @@ impl Persistence {
 /// Everything needed to make a winit-based integration for [`epi`].
 pub struct EpiIntegration {
     pub frame: epi::Frame,
-    pub persistence: crate::epi::Persistence,
+    last_auto_save: instant::Instant,
     pub egui_ctx: egui::Context,
     pending_full_output: egui::FullOutput,
     egui_winit: crate::State,
@@ -238,13 +152,10 @@ impl EpiIntegration {
         max_texture_side: usize,
         window: &winit::window::Window,
         storage: Option<Box<dyn epi::Storage>>,
-        persistence: crate::epi::Persistence,
     ) -> Self {
         let egui_ctx = egui::Context::default();
 
-        *egui_ctx.memory() = persistence
-            .load_memory(storage.as_deref())
-            .unwrap_or_default();
+        *egui_ctx.memory() = load_memory(storage.as_deref()).unwrap_or_default();
 
         let prefer_dark_mode = prefer_dark_mode();
 
@@ -268,7 +179,7 @@ impl EpiIntegration {
 
         Self {
             frame,
-            persistence,
+            last_auto_save: instant::Instant::now(),
             egui_ctx,
             egui_winit: crate::State::new(max_texture_side, window),
             pending_full_output: Default::default(),
@@ -347,13 +258,57 @@ impl EpiIntegration {
             .handle_platform_output(window, &self.egui_ctx, platform_output);
     }
 
+    // ------------------------------------------------------------------------
+    // Persistance stuff:
+
     pub fn maybe_autosave(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {
-        let storage = self.frame.storage.as_deref_mut();
-        if let Some(storage) = storage {
-            self.persistence
-                .maybe_autosave(Some(storage), &mut *app, &self.egui_ctx, window);
+        let now = instant::Instant::now();
+        if now - self.last_auto_save > app.auto_save_interval() {
+            self.save(app, window);
+            self.last_auto_save = now;
         }
     }
+
+    pub fn save(&mut self, _app: &mut dyn epi::App, _window: &winit::window::Window) {
+        #[cfg(feature = "persistence")]
+        if let Some(storage) = self.frame.storage_mut() {
+            if _app.persist_native_window() {
+                epi::set_value(
+                    storage,
+                    STORAGE_WINDOW_KEY,
+                    &crate::WindowSettings::from_display(_window),
+                );
+            }
+            if _app.persist_egui_memory() {
+                epi::set_value(storage, STORAGE_EGUI_MEMORY_KEY, &*self.egui_ctx.memory());
+            }
+            _app.save(storage);
+            storage.flush();
+        }
+    }
+}
+
+#[cfg(feature = "persistence")]
+const STORAGE_EGUI_MEMORY_KEY: &'static str = "egui";
+#[cfg(feature = "persistence")]
+const STORAGE_WINDOW_KEY: &'static str = "window";
+
+pub fn load_window_settings(_storage: Option<&dyn epi::Storage>) -> Option<crate::WindowSettings> {
+    #[cfg(feature = "persistence")]
+    {
+        epi::get_value(_storage?, STORAGE_WINDOW_KEY)
+    }
+    #[cfg(not(feature = "persistence"))]
+    None
+}
+
+pub fn load_memory(_storage: Option<&dyn epi::Storage>) -> Option<egui::Memory> {
+    #[cfg(feature = "persistence")]
+    {
+        epi::get_value(_storage?, STORAGE_EGUI_MEMORY_KEY)
+    }
+    #[cfg(not(feature = "persistence"))]
+    None
 }
 
 #[cfg(feature = "dark-light")]
