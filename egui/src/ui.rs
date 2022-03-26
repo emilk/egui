@@ -159,7 +159,7 @@ impl Ui {
         &self.style.spacing
     }
 
-    /// Mutably borrow internal [`Spacing`].
+    /// Mutably borrow internal [`Spacing`](crate::style::Spacing).
     /// Changes apply to this [`Ui`] and its subsequent children.
     ///
     /// Example:

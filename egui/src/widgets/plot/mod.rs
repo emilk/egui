@@ -304,7 +304,7 @@ impl Plot {
         self
     }
 
-    /// Config the button pointer to use for boxed zooming. Default: [`Secondary`]
+    /// Config the button pointer to use for boxed zooming. Default: [`Secondary`](PointerButton::Secondary)
     pub fn boxed_zoom_pointer_button(mut self, boxed_zoom_pointer_button: PointerButton) -> Self {
         self.boxed_zoom_pointer_button = boxed_zoom_pointer_button;
         self

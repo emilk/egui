@@ -7,7 +7,7 @@ use crate::{area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
 /// The data that egui persists between frames.
 ///
 /// This includes window positions and sizes,
-/// how far the user has scrolled in a [`ScrollArea`] etc.
+/// how far the user has scrolled in a [`ScrollArea`](crate::ScrollArea) etc.
 ///
 /// If you want this to persist when closing your app you should serialize [`Memory`] and store it.
 /// For this you need to enable the `persistence`.
@@ -402,7 +402,7 @@ impl Memory {
         self.interaction.focus.interested_in_focus(id);
     }
 
-    /// Stop editing of active [`TextEdit`] (if any).
+    /// Stop editing of active [`TextEdit`](crate::TextEdit) (if any).
     #[inline(always)]
     pub fn stop_text_input(&mut self) {
         self.interaction.focus.id = None;

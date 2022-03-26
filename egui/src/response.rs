@@ -62,8 +62,8 @@ pub struct Response {
     pub(crate) interact_pointer_pos: Option<Pos2>,
 
     /// What the underlying data changed?
-    /// e.g. the slider was dragged, text was entered in a [`TextEdit`] etc.
-    /// Always `false` for something like a [`Button`].
+    /// e.g. the slider was dragged, text was entered in a [`TextEdit`](crate::TextEdit) etc.
+    /// Always `false` for something like a [`Button`](crate::Button).
     pub(crate) changed: bool,
 }
 
@@ -286,14 +286,14 @@ impl Response {
 
     /// What the underlying data changed?
     ///
-    /// e.g. the slider was dragged, text was entered in a [`TextEdit`] etc.
-    /// Always `false` for something like a [`Button`].
+    /// e.g. the slider was dragged, text was entered in a [`TextEdit`](crate::TextEdit) etc.
+    /// Always `false` for something like a [`Button`](crate::Button).
     ///
     /// Can sometimes be `true` even though the data didn't changed
     /// (e.g. if the user entered a character and erased it the same frame).
     ///
     /// This is not set if the *view* of the data was changed.
-    /// For instance, moving the cursor in a [`TextEdit`] does not set this to `true`.
+    /// For instance, moving the cursor in a [`TextEdit`](crate::TextEdit) does not set this to `true`.
     #[inline(always)]
     pub fn changed(&self) -> bool {
         self.changed
@@ -555,7 +555,7 @@ impl Response {
 /// }
 /// ```
 ///
-/// Now `draw_vec2(ui, foo).hovered` is true if either [`DragValue`] were hovered.
+/// Now `draw_vec2(ui, foo).hovered` is true if either [`DragValue`](crate::DragValue) were hovered.
 impl std::ops::BitOr for Response {
     type Output = Self;
     fn bitor(self, rhs: Self) -> Self {
