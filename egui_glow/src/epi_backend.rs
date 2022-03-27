@@ -1,4 +1,3 @@
-use crate::*;
 use egui_winit::winit;
 
 struct RequestRepaintEvent;
@@ -50,6 +49,7 @@ pub fn run(app_name: &str, native_options: &epi::NativeOptions, app_creator: epi
 
     let mut integration = egui_winit::epi::EpiIntegration::new(
         "egui_glow",
+        gl.clone(),
         painter.max_texture_side(),
         gl_window.window(),
         storage,
@@ -86,6 +86,8 @@ pub fn run(app_name: &str, native_options: &epi::NativeOptions, app_creator: epi
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
 
+            clear_color_buffer(&gl, app.clear_color());
+
             let egui::FullOutput {
                 platform_output,
                 needs_repaint,
@@ -97,24 +99,14 @@ pub fn run(app_name: &str, native_options: &epi::NativeOptions, app_creator: epi
 
             let clipped_primitives = integration.egui_ctx.tessellate(shapes);
 
-            // paint:
-            {
-                let color = app.clear_color();
-                unsafe {
-                    use glow::HasContext as _;
-                    gl.disable(glow::SCISSOR_TEST);
-                    gl.clear_color(color[0], color[1], color[2], color[3]);
-                    gl.clear(glow::COLOR_BUFFER_BIT);
-                }
-                painter.paint_and_update_textures(
-                    gl_window.window().inner_size().into(),
-                    integration.egui_ctx.pixels_per_point(),
-                    &clipped_primitives,
-                    &textures_delta,
-                );
+            painter.paint_and_update_textures(
+                gl_window.window().inner_size().into(),
+                integration.egui_ctx.pixels_per_point(),
+                &clipped_primitives,
+                &textures_delta,
+            );
 
-                gl_window.swap_buffers().unwrap();
-            }
+            gl_window.swap_buffers().unwrap();
 
             {
                 *control_flow = if integration.should_quit() {
@@ -164,4 +156,14 @@ pub fn run(app_name: &str, native_options: &epi::NativeOptions, app_creator: epi
             _ => (),
         }
     });
+}
+
+#[allow(unsafe_code)]
+fn clear_color_buffer(gl: &glow::Context, color: egui::Rgba) {
+    unsafe {
+        use glow::HasContext as _;
+        gl.disable(glow::SCISSOR_TEST);
+        gl.clear_color(color[0], color[1], color[2], color[3]);
+        gl.clear(glow::COLOR_BUFFER_BIT);
+    }
 }
