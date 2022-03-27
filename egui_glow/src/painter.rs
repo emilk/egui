@@ -627,11 +627,16 @@ impl Painter {
     }
 }
 
-pub fn clear(gl: &glow::Context, dimension: [u32; 2], clear_color: egui::Rgba) {
+pub fn clear(gl: &glow::Context, screen_size_in_pixels: [u32; 2], clear_color: egui::Rgba) {
     unsafe {
         gl.disable(glow::SCISSOR_TEST);
 
-        gl.viewport(0, 0, dimension[0] as i32, dimension[1] as i32);
+        gl.viewport(
+            0,
+            0,
+            screen_size_in_pixels[0] as i32,
+            screen_size_in_pixels[1] as i32,
+        );
 
         let clear_color: Color32 = clear_color.into();
         gl.clear_color(

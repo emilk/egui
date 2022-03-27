@@ -86,7 +86,9 @@ pub fn run(app_name: &str, native_options: &epi::NativeOptions, app_creator: epi
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
 
-            clear_color_buffer(&gl, app.clear_color());
+            let screen_size_in_pixels: [u32; 2] = gl_window.window().inner_size().into();
+
+            crate::painter::clear(&gl, screen_size_in_pixels, app.clear_color());
 
             let egui::FullOutput {
                 platform_output,
@@ -100,7 +102,7 @@ pub fn run(app_name: &str, native_options: &epi::NativeOptions, app_creator: epi
             let clipped_primitives = integration.egui_ctx.tessellate(shapes);
 
             painter.paint_and_update_textures(
-                gl_window.window().inner_size().into(),
+                screen_size_in_pixels,
                 integration.egui_ctx.pixels_per_point(),
                 &clipped_primitives,
                 &textures_delta,
@@ -156,14 +158,4 @@ pub fn run(app_name: &str, native_options: &epi::NativeOptions, app_creator: epi
             _ => (),
         }
     });
-}
-
-#[allow(unsafe_code)]
-fn clear_color_buffer(gl: &glow::Context, color: egui::Rgba) {
-    unsafe {
-        use glow::HasContext as _;
-        gl.disable(glow::SCISSOR_TEST);
-        gl.clear_color(color[0], color[1], color[2], color[3]);
-        gl.clear(glow::COLOR_BUFFER_BIT);
-    }
 }
