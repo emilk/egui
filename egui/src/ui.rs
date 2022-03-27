@@ -792,7 +792,7 @@ impl Ui {
     /// So one can think of `cursor` as a constraint on the available region.
     ///
     /// If something has already been added, this will point to `style.spacing.item_spacing` beyond the latest child.
-    /// The cursor can thus be `style.spacing.item_spacing` pixels outside of the min_rect.
+    /// The cursor can thus be `style.spacing.item_spacing` pixels outside of the `min_rect`.
     pub fn cursor(&self) -> Rect {
         self.placer.cursor()
     }
