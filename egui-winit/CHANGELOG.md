@@ -3,6 +3,7 @@ All notable changes to the `egui-winit` integration will be noted in this file.
 
 
 ## Unreleased
+* Reexport `egui` crate
 
 
 ## 0.17.0 - 2022-02-22
