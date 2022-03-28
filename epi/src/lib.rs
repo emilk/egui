@@ -15,8 +15,6 @@ pub mod file_storage;
 pub use egui; // Re-export for user convenience
 pub use glow; // Re-export for user convenience
 
-use std::sync::{Arc, Mutex};
-
 /// The is is how your app is created.
 ///
 /// You can use the [`CreationContext`] to setup egui, restore state, setup OpenGL things, etc.
@@ -50,10 +48,10 @@ pub trait App {
     ///
     /// Put your widgets into a [`egui::SidePanel`], [`egui::TopBottomPanel`], [`egui::CentralPanel`], [`egui::Window`] or [`egui::Area`].
     ///
-    /// The [`egui::Context`] and [`Frame`] can be cloned and saved if you like.
+    /// The [`egui::Context`] can be cloned and saved if you like.
     ///
     /// To force a repaint, call [`egui::Context::request_repaint`] at any time (e.g. from another thread).
-    fn update(&mut self, ctx: &egui::Context, frame: &Frame);
+    fn update(&mut self, ctx: &egui::Context, frame: &mut Frame);
 
     /// Called on shutdown, and perhaps at regular intervals. Allows you to save state.
     ///
@@ -250,76 +248,93 @@ pub struct IconData {
 ///
 /// It provides methods to inspect the surroundings (are we on the web?),
 /// allocate textures, and change settings (e.g. window size).
-///
-/// [`Frame`] is cheap to clone and is safe to pass to other threads.
-#[derive(Clone)]
-pub struct Frame(pub Arc<Mutex<backend::FrameData>>);
+pub struct Frame {
+    /// Information about the integration.
+    #[doc(hidden)]
+    pub info: IntegrationInfo,
+
+    /// Where the app can issue commands back to the integration.
+    #[doc(hidden)]
+    pub output: backend::AppOutput,
+
+    /// A place where you can store custom data in a way that persists when you restart the app.
+    #[doc(hidden)]
+    pub storage: Option<Box<dyn Storage>>,
+
+    /// A reference to the underlying [`glow`] (OpenGL) context.
+    #[doc(hidden)]
+    pub gl: std::rc::Rc<glow::Context>,
+}
 
 impl Frame {
-    /// Create a `Frame` - called by the integration.
-    #[doc(hidden)]
-    pub fn new(frame_data: backend::FrameData) -> Self {
-        Self(Arc::new(Mutex::new(frame_data)))
-    }
-
-    /// Access the underlying [`backend::FrameData`].
-    #[doc(hidden)]
-    #[inline]
-    pub fn lock(&self) -> std::sync::MutexGuard<'_, backend::FrameData> {
-        self.0.lock().unwrap()
-    }
-
     /// True if you are in a web environment.
     pub fn is_web(&self) -> bool {
-        self.lock().info.web_info.is_some()
+        self.info.web_info.is_some()
     }
 
     /// Information about the integration.
     pub fn info(&self) -> IntegrationInfo {
-        self.lock().info.clone()
+        self.info.clone()
+    }
+
+    /// A place where you can store custom data in a way that persists when you restart the app.
+    pub fn storage(&self) -> Option<&dyn Storage> {
+        self.storage.as_deref()
+    }
+
+    /// A place where you can store custom data in a way that persists when you restart the app.
+    pub fn storage_mut(&mut self) -> Option<&mut (dyn Storage + 'static)> {
+        self.storage.as_deref_mut()
+    }
+
+    /// A reference to the underlying [`glow`] (OpenGL) context.
+    ///
+    /// This can be used, for instance, to:
+    /// * Render things to offscreen buffers.
+    /// * Read the pixel buffer from the previous frame (`glow::Context::read_pixels`).
+    /// * Render things behind the egui windows.
+    ///
+    /// Note that all egui painting is deferred to after the call to [`App::update`]
+    /// ([`egui`] only collects [`egui::Shape`]s and then eframe paints them all in one go later on).
+    pub fn gl(&self) -> &std::rc::Rc<glow::Context> {
+        &self.gl
     }
 
     /// Signal the app to stop/exit/quit the app (only works for native apps, not web apps).
     /// The framework will not quit immediately, but at the end of the this frame.
-    pub fn quit(&self) {
-        self.lock().output.quit = true;
+    pub fn quit(&mut self) {
+        self.output.quit = true;
     }
 
     /// Set the desired inner size of the window (in egui points).
-    pub fn set_window_size(&self, size: egui::Vec2) {
-        self.lock().output.window_size = Some(size);
+    pub fn set_window_size(&mut self, size: egui::Vec2) {
+        self.output.window_size = Some(size);
     }
 
     /// Set the desired title of the window.
-    pub fn set_window_title(&self, title: &str) {
-        self.lock().output.window_title = Some(title.to_owned());
+    pub fn set_window_title(&mut self, title: &str) {
+        self.output.window_title = Some(title.to_owned());
     }
 
     /// Set whether to show window decorations (i.e. a frame around you app).
     /// If false it will be difficult to move and resize the app.
-    pub fn set_decorations(&self, decorated: bool) {
-        self.lock().output.decorated = Some(decorated);
+    pub fn set_decorations(&mut self, decorated: bool) {
+        self.output.decorated = Some(decorated);
     }
 
     /// When called, the native window will follow the
     /// movement of the cursor while the primary mouse button is down.
     ///
     /// Does not work on the web.
-    pub fn drag_window(&self) {
-        self.lock().output.drag_window = true;
+    pub fn drag_window(&mut self) {
+        self.output.drag_window = true;
     }
 
     /// for integrations only: call once per frame
-    pub fn take_app_output(&self) -> crate::backend::AppOutput {
-        std::mem::take(&mut self.lock().output)
+    #[doc(hidden)]
+    pub fn take_app_output(&mut self) -> crate::backend::AppOutput {
+        std::mem::take(&mut self.output)
     }
-}
-
-#[cfg(test)]
-#[test]
-fn frame_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
-    assert_send_sync::<Frame>();
 }
 
 /// Information about the web environment (if applicable).
@@ -464,20 +479,12 @@ pub const APP_KEY: &str = "app";
 // ----------------------------------------------------------------------------
 
 /// You only need to look here if you are writing a backend for `epi`.
+#[doc(hidden)]
 pub mod backend {
     use super::*;
 
-    /// The data required by [`Frame`] each frame.
-    pub struct FrameData {
-        /// Information about the integration.
-        pub info: IntegrationInfo,
-
-        /// Where the app can issue commands back to the integration.
-        pub output: AppOutput,
-    }
-
     /// Action that can be taken by the user app.
-    #[derive(Default)]
+    #[derive(Clone, Debug, Default)]
     #[must_use]
     pub struct AppOutput {
         /// Set to `true` to stop the app.

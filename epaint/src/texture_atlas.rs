@@ -1,4 +1,4 @@
-use crate::{AlphaImage, ImageDelta};
+use crate::{FontImage, ImageDelta};
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 struct Rectu {
@@ -32,7 +32,7 @@ impl Rectu {
 /// More characters can be added, possibly expanding the texture.
 #[derive(Clone)]
 pub struct TextureAtlas {
-    image: AlphaImage,
+    image: FontImage,
     /// What part of the image that is dirty
     dirty: Rectu,
 
@@ -48,7 +48,7 @@ impl TextureAtlas {
     pub fn new(size: [usize; 2]) -> Self {
         assert!(size[0] >= 1024, "Tiny texture atlas");
         Self {
-            image: AlphaImage::new(size),
+            image: FontImage::new(size),
             dirty: Rectu::EVERYTHING,
             cursor: (0, 0),
             row_height: 0,
@@ -91,7 +91,7 @@ impl TextureAtlas {
 
     /// Returns the coordinates of where the rect ended up,
     /// and invalidates the region.
-    pub fn allocate(&mut self, (w, h): (usize, usize)) -> ((usize, usize), &mut AlphaImage) {
+    pub fn allocate(&mut self, (w, h): (usize, usize)) -> ((usize, usize), &mut FontImage) {
         /// On some low-precision GPUs (my old iPad) characters get muddled up
         /// if we don't add some empty pixels between the characters.
         /// On modern high-precision GPUs this is not needed.
@@ -138,13 +138,13 @@ impl TextureAtlas {
     }
 }
 
-fn resize_to_min_height(image: &mut AlphaImage, required_height: usize) -> bool {
+fn resize_to_min_height(image: &mut FontImage, required_height: usize) -> bool {
     while required_height >= image.height() {
         image.size[1] *= 2; // double the height
     }
 
     if image.width() * image.height() > image.pixels.len() {
-        image.pixels.resize(image.width() * image.height(), 0);
+        image.pixels.resize(image.width() * image.height(), 0.0);
         true
     } else {
         false

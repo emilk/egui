@@ -539,7 +539,7 @@ impl FontsImpl {
             // Make the top left pixel fully white:
             let (pos, image) = atlas.allocate((1, 1));
             assert_eq!(pos, (0, 0));
-            image[pos] = 255;
+            image[pos] = 1.0;
         }
 
         let atlas = Arc::new(Mutex::new(atlas));

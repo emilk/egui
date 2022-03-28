@@ -30,7 +30,7 @@ impl Default for ColorTest {
 }
 
 impl epi::App for ColorTest {
-    fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut epi::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             if frame.is_web() {
                 ui.label(

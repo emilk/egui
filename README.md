@@ -331,12 +331,6 @@ It is common to use `egui` from a game engine (using e.g. [`bevy_egui`](https://
 but you can also use `egui` stand-alone using `eframe`. `eframe` has integration for web and native, and handles input and rendering.
 The _frame_ in `eframe` stands both for the frame in which your egui app resides and also for "framework" (`frame` is a framework, `egui` is a library).
 
-### Why is `egui_web` using so much CPU in Firefox?
-On Linux and Mac, Firefox will copy the WebGL render target from GPU, to CPU and then back again: https://bugzilla.mozilla.org/show_bug.cgi?id=1010527#c0
-
-### Why does my web app not fill the full width of the screen?
-To alleviate the above mentioned performance issues the default max-width of an egui web app is 1024 points. You can change this by overriding the `fn max_size_points` of [`epi::App`](https://docs.rs/epi/latest/epi/trait.App.html).
-
 ### How do I render 3D stuff in an egui area?
 There are multiple ways to combine egui with 3D. The simplest way is to use a 3D library and have egui sit on top of the 3D view. See for instance [`bevy_egui`](https://github.com/mvlabat/bevy_egui) or [`three-d`](https://github.com/asny/three-d).
 

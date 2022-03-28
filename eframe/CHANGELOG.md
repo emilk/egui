@@ -8,8 +8,17 @@ NOTE: [`egui_web`](../egui_web/CHANGELOG.md), [`egui-winit`](../egui-winit/CHANG
 * Change default for `NativeOptions::drag_and_drop_support` to `true` ([#1329](https://github.com/emilk/egui/pull/1329)).
 * Remove the `egui_glium` feature. `eframe` will now always use `egui_glow` as the native backend ([#1357](https://github.com/emilk/egui/pull/1357)).
 * Removed `Frame::request_repaint` - just call `egui::Context::request_repaint` for the same effect ([#1366](https://github.com/emilk/egui/pull/1366)).
-* Use full browser width by default  ([#1378](https://github.com/emilk/egui/pull/1378)).
-* Add new `NativeOptions`: `vsync`, `multisampling`, `depth_buffer`, `stencil_buffer`.
+* Use full browser width by default ([#1378](https://github.com/emilk/egui/pull/1378)).
+* Added new `NativeOptions`: `vsync`, `multisampling`, `depth_buffer`, `stencil_buffer`.
+* Changed app creation/setup ([#1363](https://github.com/emilk/egui/pull/1363)):
+  * Removed `App::setup` and `App::name`.
+  * Provide `CreationContext` when creating app with egui context, storage, integration info and glow context.
+  * Change interface of `run_native` and `start_web`.
+* Added `Frame::storage()` and `Frame::storage_mut()` ([#1418](https://github.com/emilk/egui/pull/1418)).
+  * You can now load/save state in `App::update`
+  * Changed `App::update` to take `&mut Frame` instead of `&Frame`.
+  * `Frame` is no longer `Clone` or `Sync`.
+* Add `glow` (OpenGL) context to `Frame` ([#1425](https://github.com/emilk/egui/pull/1425)).
 
 
 ## 0.17.0 - 2022-02-22
