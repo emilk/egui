@@ -6,7 +6,7 @@
 use crate::{
     layout::{CellDirection, CellSize},
     sizing::Sizing,
-    Layout, Size,
+    Size, StripLayout,
 };
 
 use egui::{Response, Ui};
@@ -108,7 +108,7 @@ impl<'a> TableBuilder<'a> {
         );
         let ui = self.ui;
         {
-            let mut layout = Layout::new(ui, CellDirection::Horizontal);
+            let mut layout = StripLayout::new(ui, CellDirection::Horizontal);
             {
                 let row = TableRow {
                     layout: &mut layout,
@@ -172,7 +172,7 @@ impl<'a> Table<'a> {
         let end_y = ui.available_rect_before_wrap().bottom();
 
         egui::ScrollArea::new([false, self.scroll]).show(ui, move |ui| {
-            let layout = Layout::new(ui, CellDirection::Horizontal);
+            let layout = StripLayout::new(ui, CellDirection::Horizontal);
 
             body(TableBody {
                 layout,
@@ -189,7 +189,7 @@ impl<'a> Table<'a> {
 /// The body of a table.
 /// Is created by calling `body` on a [`Table`] (after adding a header row) or [`TableBuilder`] (without a header row).
 pub struct TableBody<'a> {
-    layout: Layout<'a>,
+    layout: StripLayout<'a>,
     widths: Vec<f32>,
     striped: bool,
     row_nr: usize,
@@ -273,7 +273,7 @@ impl<'a> Drop for TableBody<'a> {
 /// The row of a table.
 /// Is created by [`TableRow`] for each created [`TableBody::row`] or each visible row in rows created by calling [`TableBody::rows`].
 pub struct TableRow<'a, 'b> {
-    layout: &'b mut Layout<'a>,
+    layout: &'b mut StripLayout<'a>,
     widths: Vec<f32>,
     striped: bool,
     height: f32,

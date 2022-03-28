@@ -12,10 +12,10 @@ pub(crate) enum CellSize {
 ///
 /// In a strip there's only one line which goes in the direction of the strip:
 ///
-/// In a horizontal strip, a `[Layout]` with horizontal `[CellDirection]` is used.
-/// Its cells go from left to right inside this `[Layout]`.
+/// In a horizontal strip, a `[StripLayout]` with horizontal `[CellDirection]` is used.
+/// Its cells go from left to right inside this `[StripLayout]`.
 ///
-/// In a table there's a `[Layout]` for each table row with a horizonal `[CellDirection]`.
+/// In a table there's a `[StripLayout]` for each table row with a horizonal `[CellDirection]`.
 /// Its cells go from left to right. And the lines go from top to bottom.
 pub(crate) enum CellDirection {
     /// Cells go from left to right
@@ -24,8 +24,8 @@ pub(crate) enum CellDirection {
     Vertical,
 }
 
-/// Positions cells in `[CellDirection]` and starts a new line on `[Layout::end_line]`
-pub struct Layout<'l> {
+/// Positions cells in `[CellDirection]` and starts a new line on `[StripLayout::end_line]`
+pub struct StripLayout<'l> {
     ui: &'l mut Ui,
     direction: CellDirection,
     rect: Rect,
@@ -33,7 +33,7 @@ pub struct Layout<'l> {
     max: Pos2,
 }
 
-impl<'l> Layout<'l> {
+impl<'l> StripLayout<'l> {
     pub(crate) fn new(ui: &'l mut Ui, direction: CellDirection) -> Self {
         let rect = ui.available_rect_before_wrap();
         let pos = rect.left_top();

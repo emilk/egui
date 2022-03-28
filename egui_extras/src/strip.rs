@@ -1,5 +1,5 @@
 use crate::{
-    layout::{CellDirection, CellSize, Layout},
+    layout::{CellDirection, CellSize, StripLayout},
     sizing::Sizing,
     Size,
 };
@@ -74,7 +74,7 @@ impl<'a> StripBuilder<'a> {
             self.ui.available_rect_before_wrap().width() - self.ui.spacing().item_spacing.x,
             self.ui.spacing().item_spacing.x,
         );
-        let mut layout = Layout::new(self.ui, CellDirection::Horizontal);
+        let mut layout = StripLayout::new(self.ui, CellDirection::Horizontal);
         strip(Strip {
             layout: &mut layout,
             direction: CellDirection::Horizontal,
@@ -95,7 +95,7 @@ impl<'a> StripBuilder<'a> {
             self.ui.available_rect_before_wrap().height() - self.ui.spacing().item_spacing.y,
             self.ui.spacing().item_spacing.y,
         );
-        let mut layout = Layout::new(self.ui, CellDirection::Vertical);
+        let mut layout = StripLayout::new(self.ui, CellDirection::Vertical);
         strip(Strip {
             layout: &mut layout,
             direction: CellDirection::Vertical,
@@ -108,7 +108,7 @@ impl<'a> StripBuilder<'a> {
 /// A Strip of cells which go in one direction. Each cell has a fixed size.
 /// In contrast to normal egui behavior, strip cells do *not* grow with its children!
 pub struct Strip<'a, 'b> {
-    layout: &'b mut Layout<'a>,
+    layout: &'b mut StripLayout<'a>,
     direction: CellDirection,
     sizes: Vec<f32>,
 }
