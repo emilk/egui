@@ -1104,6 +1104,7 @@ name = "egui_glow"
 version = "0.17.0"
 dependencies = [
  "bytemuck",
+ "dark-light",
  "egui",
  "egui-winit",
  "epi",

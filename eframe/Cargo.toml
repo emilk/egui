@@ -42,6 +42,8 @@ screen_reader = [
   "egui_web/screen_reader",
 ]
 
+dark-light = [ "egui-winit/dark-light"]              # detect dark mode system preference
+
 
 [dependencies]
 egui = { version = "0.17.0", path = "../egui", default-features = false }
