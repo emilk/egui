@@ -17,6 +17,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * `ClippedMesh` has been replaced with `ClippedPrimitive` ([#1351](https://github.com/emilk/egui/pull/1351)).
 * Renamed `Frame::margin` to `Frame::inner_margin`.
 * Renamed `AlphaImage` to `FontImage` to discourage any other use for it ([#1412](https://github.com/emilk/egui/pull/1412)).
+* `dark-light` is not an opt-in feature for `eframe` and `egui_glow`.
 
 ### Fixed 🐛
 * Fixed ComboBoxes always being rendered left-aligned ([#1304](https://github.com/emilk/egui/pull/1304)).
