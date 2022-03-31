@@ -25,7 +25,7 @@ use egui::{Response, Ui};
 /// # egui::__run_test_ui(|ui| {
 /// use egui_extras::{TableBuilder, Size};
 /// TableBuilder::new(ui)
-///     .column(Size::RemainderMinimum(100.0))
+///     .column(Size::remainded_at_least(100.0))
 ///     .column(Size::Absolute(40.0))
 ///     .header(20.0, |mut header| {
 ///         header.col(|ui| {
@@ -273,10 +273,8 @@ impl<'a> Table<'a> {
                 if is_resizing {
                     if let Some(pointer) = ui.ctx().pointer_latest_pos() {
                         let new_width = *width + pointer.x - x;
-                        let allowed_range = sizing.sizes[i].allowed_range();
-                        let new_width =
-                            new_width.clamp(*allowed_range.start(), *allowed_range.end());
-
+                        let (min, max) = sizing.sizes[i].range();
+                        let new_width = new_width.clamp(min, max);
                         let x = x - *width + new_width;
                         p0.x = x;
                         p1.x = x;

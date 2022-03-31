@@ -1,32 +1,77 @@
-use std::ops::RangeInclusive;
-
-/// Size hint for table column/strip cell
+/// Size hint for table column/strip cell.
 #[derive(Clone, Debug, Copy)]
 pub enum Size {
-    /// Absolute size in points
-    Absolute(f32),
-    /// Relative size relative to all available space. Values must be in range `0.0..=1.0`
-    Relative(f32),
-    /// [`Size::Relative`] with a minimum size in points
-    RelativeMinimum {
-        /// Relative size relative to all available space. Values must be in range `0.0..=1.0`
-        relative: f32,
-        /// Absolute minimum size in points
-        minimum: f32,
-    },
-    /// Multiple remainders each get the same space
-    Remainder,
-    ///  [`Size::Remainder`] with a minimum size in points
-    RemainderMinimum(f32),
+    /// Absolute size in points, with a given range of allowed sizes to resize within.
+    Absolute { initial: f32, range: (f32, f32) },
+    /// Relative size relative to all available space.
+    Relative { fraction: f32, range: (f32, f32) },
+    /// Multiple remainders each get the same space.
+    Remainder { range: (f32, f32) },
 }
 
 impl Size {
-    pub fn allowed_range(self) -> RangeInclusive<f32> {
-        match self {
-            Size::Absolute(_) | Size::Relative(_) | Size::Remainder => 0.0..=f32::INFINITY,
-            Size::RelativeMinimum { minimum, .. } | Size::RemainderMinimum(minimum) => {
-                minimum..=f32::INFINITY
+    /// Exactly this big, with no room for resize.
+    pub fn exact(points: f32) -> Self {
+        Self::Absolute {
+            initial: points,
+            range: (points, points),
+        }
+    }
+
+    /// Initially this big, but can resize.
+    pub fn initial(points: f32) -> Self {
+        Self::Absolute {
+            initial: points,
+            range: (0.0, f32::INFINITY),
+        }
+    }
+
+    /// Relative size relative to all available space. Values must be in range `0.0..=1.0`.
+    pub fn relative(fraction: f32) -> Self {
+        egui::egui_assert!(0.0 <= fraction && fraction <= 1.0);
+        Self::Relative {
+            fraction,
+            range: (0.0, f32::INFINITY),
+        }
+    }
+
+    /// Multiple remainders each get the same space.
+    pub fn remainder() -> Self {
+        Self::Remainder {
+            range: (0.0, f32::INFINITY),
+        }
+    }
+
+    /// Won't shrink below this size (in points).
+    pub fn at_least(mut self, minimum: f32) -> Self {
+        match &mut self {
+            Self::Absolute { range, .. }
+            | Self::Relative { range, .. }
+            | Self::Remainder { range, .. } => {
+                range.0 = minimum;
             }
+        }
+        self
+    }
+
+    /// Won't grow above this size (in points).
+    pub fn at_most(mut self, maximum: f32) -> Self {
+        match &mut self {
+            Self::Absolute { range, .. }
+            | Self::Relative { range, .. }
+            | Self::Remainder { range, .. } => {
+                range.1 = maximum;
+            }
+        }
+        self
+    }
+
+    /// Allowed range of movement (in points), if in a resizable [`Table`].
+    pub fn range(self) -> (f32, f32) {
+        match self {
+            Self::Absolute { range, .. }
+            | Self::Relative { range, .. }
+            | Self::Remainder { range, .. } => range,
         }
     }
 }
@@ -50,19 +95,16 @@ impl Sizing {
         let sum_non_remainder = self
             .sizes
             .iter()
-            .map(|size| match size {
-                Size::Absolute(absolute) => *absolute,
-                Size::Relative(relative) => {
-                    assert!(*relative > 0.0, "Below 0.0 is not allowed.");
-                    assert!(*relative <= 1.0, "Above 1.0 is not allowed.");
-                    length * relative
+            .map(|&size| match size {
+                Size::Absolute { initial, .. } => initial,
+                Size::Relative {
+                    fraction,
+                    range: (min, max),
+                } => {
+                    assert!(0.0 <= fraction && fraction <= 1.0);
+                    (length * fraction).clamp(min, max)
                 }
-                Size::RelativeMinimum { relative, minimum } => {
-                    assert!(*relative > 0.0, "Below 0.0 is not allowed.");
-                    assert!(*relative <= 1.0, "Above 1.0 is not allowed.");
-                    minimum.max(length * relative)
-                }
-                Size::Remainder | Size::RemainderMinimum(..) => {
+                Size::Remainder { .. } => {
                     remainders += 1;
                     0.0
                 }
@@ -75,10 +117,10 @@ impl Sizing {
         } else {
             let mut remainder_length = length - sum_non_remainder;
             let avg_remainder_length = 0.0f32.max(remainder_length / remainders as f32).floor();
-            self.sizes.iter().for_each(|size| {
-                if let Size::RemainderMinimum(minimum) = size {
-                    if *minimum > avg_remainder_length {
-                        remainder_length -= minimum;
+            self.sizes.iter().for_each(|&size| {
+                if let Size::Remainder { range: (min, _max) } = size {
+                    if avg_remainder_length < min {
+                        remainder_length -= min;
                         remainders -= 1;
                     }
                 }
@@ -92,12 +134,13 @@ impl Sizing {
 
         self.sizes
             .iter()
-            .map(|size| match *size {
-                Size::Absolute(absolute) => absolute,
-                Size::Relative(relative) => length * relative,
-                Size::RelativeMinimum { relative, minimum } => minimum.max(length * relative),
-                Size::Remainder => avg_remainder_length,
-                Size::RemainderMinimum(minimum) => minimum.max(avg_remainder_length),
+            .map(|&size| match size {
+                Size::Absolute { initial, .. } => initial,
+                Size::Relative {
+                    fraction,
+                    range: (min, max),
+                } => (length * fraction).clamp(min, max),
+                Size::Remainder { range: (min, max) } => avg_remainder_length.clamp(min, max),
             })
             .collect()
     }
@@ -111,7 +154,7 @@ impl From<Vec<Size>> for Sizing {
 
 #[test]
 fn test_sizing() {
-    let sizing: Sizing = vec![Size::RemainderMinimum(20.0), Size::Remainder].into();
+    let sizing: Sizing = vec![Size::remainded_at_least(20.0), Size::Remainder].into();
     assert_eq!(sizing.clone().to_lengths(50.0, 0.0), vec![25.0, 25.0]);
     assert_eq!(sizing.clone().to_lengths(30.0, 0.0), vec![20.0, 10.0]);
     assert_eq!(sizing.clone().to_lengths(20.0, 0.0), vec![20.0, 0.0]);
@@ -123,7 +166,7 @@ fn test_sizing() {
             relative: 0.5,
             minimum: 10.0,
         },
-        Size::Absolute(10.0),
+        Size::Exact(10.0),
     ]
     .into();
     assert_eq!(sizing.clone().to_lengths(50.0, 0.0), vec![25.0, 10.0]);

@@ -18,7 +18,7 @@ use egui::{Response, Ui};
 /// # egui::__run_test_ui(|ui| {
 /// use egui_extras::{StripBuilder, Size};
 /// StripBuilder::new(ui)
-///     .size(Size::RemainderMinimum(100.0))
+///     .size(Size::remainded_at_least(100.0))
 ///     .size(Size::Absolute(40.0))
 ///     .vertical(|mut strip| {
 ///         strip.strip(|builder| {

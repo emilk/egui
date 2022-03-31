@@ -30,8 +30,8 @@ impl super::View for TableDemo {
 
         // Leave room for the source code link after the table demo:
         StripBuilder::new(ui)
-            .size(Size::Remainder) // for the table
-            .size(Size::Absolute(10.0)) // for the source code link
+            .size(Size::remainder()) // for the table
+            .size(Size::exact(10.0)) // for the source code link
             .vertical(|mut strip| {
                 strip.cell_clip(|ui| {
                     self.table_ui(ui);
@@ -49,9 +49,9 @@ impl TableDemo {
     fn table_ui(&mut self, ui: &mut egui::Ui) {
         TableBuilder::new(ui)
             .striped(true)
-            .column(Size::Absolute(120.0))
-            .column(Size::RemainderMinimum(180.0))
-            .column(Size::Absolute(100.0))
+            .column(Size::initial(120.0).at_least(50.0))
+            .column(Size::remainder().at_least(180.0))
+            .column(Size::initial(100.0).at_least(50.0))
             .resizable(true)
             .header(20.0, |mut header| {
                 header.col(|ui| {
@@ -81,7 +81,7 @@ impl TableDemo {
                         });
                     });
                 } else {
-                    for i in 0..100 {
+                    for i in 0..10 {
                         let height = match i % 8 {
                             0 => 25.0,
                             4 => 30.0,
