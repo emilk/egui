@@ -5,7 +5,7 @@ use egui_extras::{Size, StripBuilder, TableBuilder};
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Default)]
 pub struct TableDemo {
-    virtual_scrool: bool,
+    virtual_scroll: bool,
 }
 
 impl super::Demo for TableDemo {
@@ -27,7 +27,7 @@ impl super::Demo for TableDemo {
 
 impl super::View for TableDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.checkbox(&mut self.virtual_scrool, "Virtual scroll demo");
+        ui.checkbox(&mut self.virtual_scroll, "Virtual scroll demo");
 
         // The table is inside a grid as its container would otherwise grow slowly as it takes all available height
         ui.spacing_mut().item_spacing = Vec2::splat(4.0);
@@ -55,7 +55,7 @@ impl super::View for TableDemo {
                     });
                 })
                 .body(|mut body| {
-                    if self.virtual_scrool {
+                    if self.virtual_scroll {
                         body.rows(20.0, 100_000, |index, mut row| {
                             row.col(|ui| {
                                 ui.label(index.to_string());
