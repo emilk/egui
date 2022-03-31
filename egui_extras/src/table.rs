@@ -25,8 +25,8 @@ use egui::{Response, Ui};
 /// # egui::__run_test_ui(|ui| {
 /// use egui_extras::{TableBuilder, Size};
 /// TableBuilder::new(ui)
-///     .column(Size::remainded_at_least(100.0))
-///     .column(Size::Absolute(40.0))
+///     .column(Size::remainder().at_least(100.0))
+///     .column(Size::exact(40.0))
 ///     .header(20.0, |mut header| {
 ///         header.col(|ui| {
 ///             ui.heading("Growing");

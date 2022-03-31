@@ -18,11 +18,11 @@ use egui::{Response, Ui};
 /// # egui::__run_test_ui(|ui| {
 /// use egui_extras::{StripBuilder, Size};
 /// StripBuilder::new(ui)
-///     .size(Size::remainded_at_least(100.0))
-///     .size(Size::Absolute(40.0))
+///     .size(Size::remainder().at_least(100.0))
+///     .size(Size::exact(40.0))
 ///     .vertical(|mut strip| {
 ///         strip.strip(|builder| {
-///             builder.sizes(Size::Remainder, 2).horizontal(|mut strip| {
+///             builder.sizes(Size::remainder(), 2).horizontal(|mut strip| {
 ///                 strip.cell(|ui| {
 ///                     ui.label("Top Left");
 ///                 });
