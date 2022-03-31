@@ -300,7 +300,7 @@ impl<'a, 'b> TableRow<'a, 'b> {
     fn column(&mut self, clip: bool, add_contents: impl FnOnce(&mut Ui)) -> Response {
         assert!(
             !self.widths.is_empty(),
-            "Tried using more table columns then available."
+            "Tried using more table columns than available."
         );
 
         let width = self.widths[0];
