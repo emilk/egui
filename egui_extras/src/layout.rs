@@ -1,4 +1,4 @@
-use egui::{Pos2, Rect, Response, Rgba, Sense, Ui};
+use egui::{Pos2, Rect, Response, Sense, Ui};
 
 #[derive(Clone, Copy)]
 pub(crate) enum CellSize {
@@ -117,10 +117,9 @@ impl<'l> StripLayout<'l> {
         *rect.top_mut() -= self.ui.spacing().item_spacing.y;
         *rect.left_mut() -= self.ui.spacing().item_spacing.x;
 
-        let text_color: Rgba = self.ui.visuals().text_color().into();
         self.ui
             .painter()
-            .rect_filled(rect, 0.0, text_color.multiply(0.2));
+            .rect_filled(rect, 0.0, self.ui.visuals().faint_bg_color);
 
         self.add(width, height, clip, add_contents)
     }
