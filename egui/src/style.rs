@@ -636,7 +636,7 @@ impl Visuals {
             widgets: Widgets::default(),
             selection: Selection::default(),
             hyperlink_color: Color32::from_rgb(90, 170, 255),
-            faint_bg_color: Color32::from_gray(24),
+            faint_bg_color: Color32::from_gray(35),
             extreme_bg_color: Color32::from_gray(10), // e.g. TextEdit background
             code_bg_color: Color32::from_gray(64),
             window_rounding: Rounding::same(6.0),
@@ -658,7 +658,7 @@ impl Visuals {
             widgets: Widgets::light(),
             selection: Selection::light(),
             hyperlink_color: Color32::from_rgb(0, 155, 255),
-            faint_bg_color: Color32::from_gray(245),
+            faint_bg_color: Color32::from_gray(242),
             extreme_bg_color: Color32::from_gray(255), // e.g. TextEdit background
             code_bg_color: Color32::from_gray(230),
             window_shadow: Shadow::big_light(),
