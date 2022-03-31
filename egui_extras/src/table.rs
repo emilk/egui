@@ -10,7 +10,6 @@ use crate::{
 };
 
 use egui::{Response, Ui};
-use std::cmp;
 
 /// Builder for a [`Table`] with (optional) fixed header and scrolling body.
 ///
@@ -226,7 +225,7 @@ impl<'a> TableBody<'a> {
 
         let max_height = self.end_y - self.start_y;
         let count = (max_height / height).ceil() as usize;
-        let end = cmp::min(start + count, rows);
+        let end = rows.min(start + count);
 
         for idx in start..end {
             row(
