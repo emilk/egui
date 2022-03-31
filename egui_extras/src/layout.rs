@@ -99,10 +99,9 @@ impl<'l> StripLayout<'l> {
         add_contents: impl FnOnce(&mut Ui),
     ) -> Response {
         let rect = self.cell_rect(&width, &height);
-        self.cell(rect, clip, add_contents);
+        let used_rect = self.cell(rect, clip, add_contents);
         self.set_pos(rect);
-
-        self.ui.allocate_rect(rect, Sense::click())
+        self.ui.allocate_rect(rect.union(used_rect), Sense::click())
     }
 
     pub(crate) fn add_striped(
@@ -138,7 +137,7 @@ impl<'l> StripLayout<'l> {
         }
     }
 
-    fn cell(&mut self, rect: Rect, clip: bool, add_contents: impl FnOnce(&mut Ui)) {
+    fn cell(&mut self, rect: Rect, clip: bool, add_contents: impl FnOnce(&mut Ui)) -> Rect {
         let mut child_ui = self.ui.child_ui(rect, *self.ui.layout());
 
         if clip {
@@ -149,6 +148,7 @@ impl<'l> StripLayout<'l> {
         }
 
         add_contents(&mut child_ui);
+        child_ui.min_rect()
     }
 
     /// Allocate the rect in [`Self::ui`] so that the scrollview knows about our size
