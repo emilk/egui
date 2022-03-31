@@ -117,6 +117,10 @@ pub struct Strip<'a, 'b> {
 
 impl<'a, 'b> Strip<'a, 'b> {
     fn next_cell_size(&mut self) -> (CellSize, CellSize) {
+        assert!(
+            !self.sizes.is_empty(),
+            "Tried using more strip cells than available."
+        );
         let size = self.sizes[0];
         self.sizes = &self.sizes[1..];
 
@@ -128,21 +132,11 @@ impl<'a, 'b> Strip<'a, 'b> {
 
     /// Add empty cell
     pub fn empty(&mut self) {
-        assert!(
-            !self.sizes.is_empty(),
-            "Tried using more strip cells than available."
-        );
-
         let (width, height) = self.next_cell_size();
         self.layout.empty(width, height);
     }
 
     fn cell_impl(&mut self, clip: bool, add_contents: impl FnOnce(&mut Ui)) {
-        assert!(
-            !self.sizes.is_empty(),
-            "Tried using more strip cells than available."
-        );
-
         let (width, height) = self.next_cell_size();
         self.layout.add(width, height, clip, add_contents);
     }
