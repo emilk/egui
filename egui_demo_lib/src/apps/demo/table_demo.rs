@@ -28,26 +28,18 @@ impl super::View for TableDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.checkbox(&mut self.virtual_scroll, "Virtual scroll demo");
 
-        // Leave room for the source code link after the table demo.
-        // As the strip is not growing itself, we need to calculate the minimum width:
-        let min_width = 400.0 + ui.spacing().scroll_bar_width + 6.0 * ui.spacing().item_spacing.x;
+        // Leave room for the source code link after the table demo:
         StripBuilder::new(ui)
-            .size(Size::RemainderMinimum(min_width))
-            .horizontal(|mut strip| {
-                strip.strip(|builder| {
-                    builder
-                        .size(Size::Remainder) // for the table
-                        .size(Size::Absolute(10.0)) // for the source code link
-                        .vertical(|mut strip| {
-                            strip.cell_clip(|ui| {
-                                self.table_ui(ui);
-                            });
-                            strip.cell(|ui| {
-                                ui.vertical_centered(|ui| {
-                                    ui.add(crate::__egui_github_link_file!());
-                                });
-                            });
-                        });
+            .size(Size::Remainder) // for the table
+            .size(Size::Absolute(10.0)) // for the source code link
+            .vertical(|mut strip| {
+                strip.cell_clip(|ui| {
+                    self.table_ui(ui);
+                });
+                strip.cell(|ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.add(crate::__egui_github_link_file!());
+                    });
                 });
             });
     }
