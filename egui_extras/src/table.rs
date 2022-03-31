@@ -12,7 +12,42 @@ use crate::{
 use egui::{Response, Ui};
 use std::cmp;
 
-/// Builder for creating a new [`Table`].
+/// Builder for a [`Table`] with (optional) fixed header and scrolling body.
+///
+/// Cell widths are precalculated with given size hints so we can have tables like this:
+///
+/// | fixed size | all available space/minimum | 30% of available width | fixed size |
+///
+/// In contrast to normal egui behavior, columns/rows do *not* grow with its children!
+/// Takes all available height, so if you want something below the table, put it in a strip.
+///
+/// ### Example
+/// ```
+/// # egui::__run_test_ui(|ui| {
+/// use egui_extras::{TableBuilder, Size};
+/// TableBuilder::new(ui)
+///     .column(Size::RemainderMinimum(100.0))
+///     .column(Size::Absolute(40.0))
+///     .header(20.0, |mut header| {
+///         header.col(|ui| {
+///             ui.heading("Growing");
+///         });
+///         header.col(|ui| {
+///             ui.heading("Fixed");
+///         });
+///     })
+///     .body(|mut body| {
+///         body.row(30.0, |mut row| {
+///             row.col(|ui| {
+///                 ui.label("first row growing cell");
+///             });
+///             row.col_clip(|ui| {
+///                 ui.button("action");
+///             });
+///         });
+///     });
+/// # });
+/// ```
 pub struct TableBuilder<'a> {
     ui: &'a mut Ui,
     sizing: Sizing,
@@ -21,42 +56,6 @@ pub struct TableBuilder<'a> {
 }
 
 impl<'a> TableBuilder<'a> {
-    /// Build a table with (optional) fixed header and scrolling body.
-    ///
-    /// Cell widths are precalculated with given size hints so we can have tables like this:
-    ///
-    /// | fixed size | all available space/minimum | 30% of available width | fixed size |
-    ///
-    /// In contrast to normal egui behavior, columns/rows do *not* grow with its children!
-    /// Takes all available height, so if you want something below the table, put it in a strip.
-    ///
-    /// ### Example
-    /// ```
-    /// # egui::__run_test_ui(|ui| {
-    /// use egui_extras::{TableBuilder, Size};
-    /// TableBuilder::new(ui)
-    ///     .column(Size::RemainderMinimum(100.0))
-    ///     .column(Size::Absolute(40.0))
-    ///     .header(20.0, |mut header| {
-    ///         header.col(|ui| {
-    ///             ui.heading("Growing");
-    ///         });
-    ///         header.col(|ui| {
-    ///             ui.heading("Fixed");
-    ///         });
-    ///     })
-    ///     .body(|mut body| {
-    ///         body.row(30.0, |mut row| {
-    ///             row.col(|ui| {
-    ///                 ui.label("first row growing cell");
-    ///             });
-    ///             row.col_clip(|ui| {
-    ///                 ui.button("action");
-    ///             });
-    ///         });
-    ///     });
-    /// # });
-    /// ```
     pub fn new(ui: &'a mut Ui) -> Self {
         let sizing = Sizing::new();
 
@@ -86,7 +85,7 @@ impl<'a> TableBuilder<'a> {
         self
     }
 
-    /// Add size hint for column `count` times
+    /// Add size hint for several columns at once.
     pub fn columns(mut self, size: Size, count: usize) -> Self {
         for _ in 0..count {
             self.sizing.add(size);
@@ -109,17 +108,14 @@ impl<'a> TableBuilder<'a> {
         let ui = self.ui;
         {
             let mut layout = StripLayout::new(ui, CellDirection::Horizontal);
-            {
-                let row = TableRow {
-                    layout: &mut layout,
-                    widths: widths.clone(),
-                    striped: false,
-                    height,
-                    clicked: false,
-                };
-                header(row);
-            }
-            layout.set_rect();
+            header(TableRow {
+                layout: &mut layout,
+                widths: widths.clone(),
+                striped: false,
+                height,
+                clicked: false,
+            });
+            layout.allocate_rect();
         }
 
         Table {
@@ -151,7 +147,8 @@ impl<'a> TableBuilder<'a> {
 }
 
 /// Table struct which can construct a [`TableBody`].
-/// Is created by [`TableBuilder`] by either calling `body` or after creating a header row with `header`.
+///
+/// Is created by [`TableBuilder`] by either calling [`TableBuilder::body`] or after creating a header row with [`TableBuilder::header`].
 pub struct Table<'a> {
     ui: &'a mut Ui,
     widths: Vec<f32>,
@@ -266,7 +263,7 @@ impl<'a> TableBody<'a> {
 
 impl<'a> Drop for TableBody<'a> {
     fn drop(&mut self) {
-        self.layout.set_rect();
+        self.layout.allocate_rect();
     }
 }
 
@@ -286,7 +283,17 @@ impl<'a, 'b> TableRow<'a, 'b> {
         self.clicked
     }
 
-    fn _col(&mut self, clip: bool, add_contents: impl FnOnce(&mut Ui)) -> Response {
+    /// Add column, content is wrapped
+    pub fn col(&mut self, add_contents: impl FnOnce(&mut Ui)) -> Response {
+        self.column(false, add_contents)
+    }
+
+    /// Add column, content is clipped
+    pub fn col_clip(&mut self, add_contents: impl FnOnce(&mut Ui)) -> Response {
+        self.column(true, add_contents)
+    }
+
+    fn column(&mut self, clip: bool, add_contents: impl FnOnce(&mut Ui)) -> Response {
         assert!(
             !self.widths.is_empty(),
             "Tried using more table columns then available."
@@ -308,16 +315,6 @@ impl<'a, 'b> TableRow<'a, 'b> {
         }
 
         response
-    }
-
-    /// Add column, content is wrapped
-    pub fn col(&mut self, add_contents: impl FnOnce(&mut Ui)) -> Response {
-        self._col(false, add_contents)
-    }
-
-    /// Add column, content is clipped
-    pub fn col_clip(&mut self, add_contents: impl FnOnce(&mut Ui)) -> Response {
-        self._col(true, add_contents)
     }
 }
 

@@ -15,12 +15,12 @@ pub(crate) enum CellSize {
 /// In a horizontal strip, a `[StripLayout]` with horizontal `[CellDirection]` is used.
 /// Its cells go from left to right inside this `[StripLayout]`.
 ///
-/// In a table there's a `[StripLayout]` for each table row with a horizonal `[CellDirection]`.
+/// In a table there's a `[StripLayout]` for each table row with a horizontal `[CellDirection]`.
 /// Its cells go from left to right. And the lines go from top to bottom.
 pub(crate) enum CellDirection {
     /// Cells go from left to right
     Horizontal,
-    /// Cells go fromtop to bottom
+    /// Cells go from top to bottom
     Vertical,
 }
 
@@ -151,8 +151,8 @@ impl<'l> StripLayout<'l> {
         add_contents(&mut child_ui);
     }
 
-    /// Set the rect so that the scrollview knows about our size
-    pub fn set_rect(&mut self) -> Response {
+    /// Allocate the rect in [`Self::ui`] so that the scrollview knows about our size
+    pub fn allocate_rect(&mut self) -> Response {
         let mut rect = self.rect;
         rect.set_right(self.max.x);
         rect.set_bottom(self.max.y);
