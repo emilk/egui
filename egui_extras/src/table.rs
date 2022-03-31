@@ -110,7 +110,7 @@ impl<'a> TableBuilder<'a> {
             let mut layout = StripLayout::new(ui, CellDirection::Horizontal);
             header(TableRow {
                 layout: &mut layout,
-                widths: widths.clone(),
+                widths: &widths,
                 striped: false,
                 height,
                 clicked: false,
@@ -162,13 +162,17 @@ impl<'a> Table<'a> {
     where
         F: for<'b> FnOnce(TableBody<'b>),
     {
-        let ui = self.ui;
-        let widths = self.widths;
-        let striped = self.striped;
+        let Table {
+            ui,
+            widths,
+            scroll,
+            striped,
+        } = self;
+
         let start_y = ui.available_rect_before_wrap().top();
         let end_y = ui.available_rect_before_wrap().bottom();
 
-        egui::ScrollArea::new([false, self.scroll]).show(ui, move |ui| {
+        egui::ScrollArea::new([false, scroll]).show(ui, move |ui| {
             let layout = StripLayout::new(ui, CellDirection::Horizontal);
 
             body(TableBody {
@@ -208,7 +212,7 @@ impl<'a> TableBody<'a> {
             let skip_height = start as f32 * height;
             TableRow {
                 layout: &mut self.layout,
-                widths: self.widths.clone(),
+                widths: &self.widths,
                 striped: false,
                 height: skip_height,
                 clicked: false,
@@ -225,7 +229,7 @@ impl<'a> TableBody<'a> {
                 idx,
                 TableRow {
                     layout: &mut self.layout,
-                    widths: self.widths.clone(),
+                    widths: &self.widths,
                     striped: self.striped && idx % 2 == 0,
                     height,
                     clicked: false,
@@ -238,7 +242,7 @@ impl<'a> TableBody<'a> {
 
             TableRow {
                 layout: &mut self.layout,
-                widths: self.widths.clone(),
+                widths: &self.widths,
                 striped: false,
                 height: skip_height,
                 clicked: false,
@@ -251,7 +255,7 @@ impl<'a> TableBody<'a> {
     pub fn row(&mut self, height: f32, row: impl FnOnce(TableRow<'a, '_>)) {
         row(TableRow {
             layout: &mut self.layout,
-            widths: self.widths.clone(),
+            widths: &self.widths,
             striped: self.striped && self.row_nr % 2 == 0,
             height,
             clicked: false,
@@ -271,7 +275,7 @@ impl<'a> Drop for TableBody<'a> {
 /// Is created by [`TableRow`] for each created [`TableBody::row`] or each visible row in rows created by calling [`TableBody::rows`].
 pub struct TableRow<'a, 'b> {
     layout: &'b mut StripLayout<'a>,
-    widths: Vec<f32>,
+    widths: &'b [f32],
     striped: bool,
     height: f32,
     clicked: bool,
@@ -299,7 +303,9 @@ impl<'a, 'b> TableRow<'a, 'b> {
             "Tried using more table columns then available."
         );
 
-        let width = CellSize::Absolute(self.widths.remove(0));
+        let width = self.widths[0];
+        self.widths = &self.widths[1..];
+        let width = CellSize::Absolute(width);
         let height = CellSize::Absolute(self.height);
 
         let response;
