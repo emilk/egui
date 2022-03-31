@@ -52,6 +52,7 @@ impl TableDemo {
             .column(Size::Absolute(120.0))
             .column(Size::RemainderMinimum(180.0))
             .column(Size::Absolute(100.0))
+            .resizable(true)
             .header(20.0, |mut header| {
                 header.col(|ui| {
                     ui.heading("Left");

@@ -1,3 +1,5 @@
+use std::ops::RangeInclusive;
+
 /// Size hint for table column/strip cell
 #[derive(Clone, Debug, Copy)]
 pub enum Size {
@@ -18,9 +20,20 @@ pub enum Size {
     RemainderMinimum(f32),
 }
 
+impl Size {
+    pub fn allowed_range(self) -> RangeInclusive<f32> {
+        match self {
+            Size::Absolute(_) | Size::Relative(_) | Size::Remainder => 0.0..=f32::INFINITY,
+            Size::RelativeMinimum { minimum, .. } | Size::RemainderMinimum(minimum) => {
+                minimum..=f32::INFINITY
+            }
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct Sizing {
-    sizes: Vec<Size>,
+    pub(crate) sizes: Vec<Size>,
 }
 
 impl Sizing {
@@ -32,7 +45,7 @@ impl Sizing {
         self.sizes.push(size);
     }
 
-    pub fn into_lengths(self, length: f32, spacing: f32) -> Vec<f32> {
+    pub fn to_lengths(&self, length: f32, spacing: f32) -> Vec<f32> {
         let mut remainders = 0;
         let sum_non_remainder = self
             .sizes
@@ -78,8 +91,8 @@ impl Sizing {
         };
 
         self.sizes
-            .into_iter()
-            .map(|size| match size {
+            .iter()
+            .map(|size| match *size {
                 Size::Absolute(absolute) => absolute,
                 Size::Relative(relative) => length * relative,
                 Size::RelativeMinimum { relative, minimum } => minimum.max(length * relative),
@@ -99,11 +112,11 @@ impl From<Vec<Size>> for Sizing {
 #[test]
 fn test_sizing() {
     let sizing: Sizing = vec![Size::RemainderMinimum(20.0), Size::Remainder].into();
-    assert_eq!(sizing.clone().into_lengths(50.0, 0.0), vec![25.0, 25.0]);
-    assert_eq!(sizing.clone().into_lengths(30.0, 0.0), vec![20.0, 10.0]);
-    assert_eq!(sizing.clone().into_lengths(20.0, 0.0), vec![20.0, 0.0]);
-    assert_eq!(sizing.clone().into_lengths(10.0, 0.0), vec![20.0, 0.0]);
-    assert_eq!(sizing.into_lengths(20.0, 10.0), vec![20.0, 0.0]);
+    assert_eq!(sizing.clone().to_lengths(50.0, 0.0), vec![25.0, 25.0]);
+    assert_eq!(sizing.clone().to_lengths(30.0, 0.0), vec![20.0, 10.0]);
+    assert_eq!(sizing.clone().to_lengths(20.0, 0.0), vec![20.0, 0.0]);
+    assert_eq!(sizing.clone().to_lengths(10.0, 0.0), vec![20.0, 0.0]);
+    assert_eq!(sizing.to_lengths(20.0, 10.0), vec![20.0, 0.0]);
 
     let sizing: Sizing = vec![
         Size::RelativeMinimum {
@@ -113,8 +126,8 @@ fn test_sizing() {
         Size::Absolute(10.0),
     ]
     .into();
-    assert_eq!(sizing.clone().into_lengths(50.0, 0.0), vec![25.0, 10.0]);
-    assert_eq!(sizing.clone().into_lengths(30.0, 0.0), vec![15.0, 10.0]);
-    assert_eq!(sizing.clone().into_lengths(20.0, 0.0), vec![10.0, 10.0]);
-    assert_eq!(sizing.into_lengths(10.0, 0.0), vec![10.0, 10.0]);
+    assert_eq!(sizing.clone().to_lengths(50.0, 0.0), vec![25.0, 10.0]);
+    assert_eq!(sizing.clone().to_lengths(30.0, 0.0), vec![15.0, 10.0]);
+    assert_eq!(sizing.clone().to_lengths(20.0, 0.0), vec![10.0, 10.0]);
+    assert_eq!(sizing.to_lengths(10.0, 0.0), vec![10.0, 10.0]);
 }

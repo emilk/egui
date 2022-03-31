@@ -72,7 +72,7 @@ impl<'a> StripBuilder<'a> {
     where
         F: for<'b> FnOnce(Strip<'a, 'b>),
     {
-        let widths = self.sizing.into_lengths(
+        let widths = self.sizing.to_lengths(
             self.ui.available_rect_before_wrap().width() - self.ui.spacing().item_spacing.x,
             self.ui.spacing().item_spacing.x,
         );
@@ -93,7 +93,7 @@ impl<'a> StripBuilder<'a> {
     where
         F: for<'b> FnOnce(Strip<'a, 'b>),
     {
-        let heights = self.sizing.into_lengths(
+        let heights = self.sizing.to_lengths(
             self.ui.available_rect_before_wrap().height() - self.ui.spacing().item_spacing.y,
             self.ui.spacing().item_spacing.y,
         );
