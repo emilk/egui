@@ -80,7 +80,7 @@ impl<'a> StripBuilder<'a> {
         strip(Strip {
             layout: &mut layout,
             direction: CellDirection::Horizontal,
-            sizes: widths,
+            sizes: &widths,
         });
         layout.allocate_rect()
     }
@@ -101,7 +101,7 @@ impl<'a> StripBuilder<'a> {
         strip(Strip {
             layout: &mut layout,
             direction: CellDirection::Vertical,
-            sizes: heights,
+            sizes: &heights,
         });
         layout.allocate_rect()
     }
@@ -112,20 +112,17 @@ impl<'a> StripBuilder<'a> {
 pub struct Strip<'a, 'b> {
     layout: &'b mut StripLayout<'a>,
     direction: CellDirection,
-    sizes: Vec<f32>,
+    sizes: &'b [f32],
 }
 
 impl<'a, 'b> Strip<'a, 'b> {
     fn next_cell_size(&mut self) -> (CellSize, CellSize) {
+        let size = self.sizes[0];
+        self.sizes = &self.sizes[1..];
+
         match self.direction {
-            CellDirection::Horizontal => (
-                CellSize::Absolute(self.sizes.remove(0)),
-                CellSize::Remainder,
-            ),
-            CellDirection::Vertical => (
-                CellSize::Remainder,
-                CellSize::Absolute(self.sizes.remove(0)),
-            ),
+            CellDirection::Horizontal => (CellSize::Absolute(size), CellSize::Remainder),
+            CellDirection::Vertical => (CellSize::Remainder, CellSize::Absolute(size)),
         }
     }
 
