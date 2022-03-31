@@ -93,18 +93,22 @@ impl<'a> TableBuilder<'a> {
         self
     }
 
+    fn available_width(&self) -> f32 {
+        self.ui.available_rect_before_wrap().width()
+            - 2.0 * self.ui.spacing().item_spacing.x
+            - if self.scroll {
+                self.ui.spacing().scroll_bar_width
+            } else {
+                0.0
+            }
+    }
+
     /// Create a header row which always stays visible and at the top
     pub fn header(self, height: f32, header: impl FnOnce(TableRow<'_, '_>)) -> Table<'a> {
-        let widths = self.sizing.into_lengths(
-            self.ui.available_rect_before_wrap().width()
-                - self.ui.spacing().item_spacing.x
-                - if self.scroll {
-                    self.ui.spacing().scroll_bar_width
-                } else {
-                    0.0
-                },
-            self.ui.spacing().item_spacing.x,
-        );
+        let available_width = self.available_width();
+        let widths = self
+            .sizing
+            .into_lengths(available_width, self.ui.spacing().item_spacing.x);
         let ui = self.ui;
         {
             let mut layout = StripLayout::new(ui, CellDirection::Horizontal);
@@ -131,10 +135,10 @@ impl<'a> TableBuilder<'a> {
     where
         F: for<'b> FnOnce(TableBody<'b>),
     {
-        let widths = self.sizing.into_lengths(
-            self.ui.available_rect_before_wrap().width(),
-            self.ui.spacing().item_spacing.x,
-        );
+        let available_width = self.available_width();
+        let widths = self
+            .sizing
+            .into_lengths(available_width, self.ui.spacing().item_spacing.x);
 
         Table {
             ui: self.ui,
