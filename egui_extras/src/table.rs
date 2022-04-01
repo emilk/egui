@@ -40,7 +40,7 @@ use egui::{Response, Ui};
 ///             row.col(|ui| {
 ///                 ui.label("first row growing cell");
 ///             });
-///             row.col_clip(|ui| {
+///             row.col(|ui| {
 ///                 ui.button("action");
 ///             });
 ///         });
