@@ -192,7 +192,7 @@ pub enum Event {
     ///
     /// This means there is no longer a cursor on the screen for hovering etc.
     ///
-    /// On touch-up first send `PointerButton{pressed: false, …}` followed by [`PointerLeft`].
+    /// On touch-up first send `PointerButton{pressed: false, …}` followed by `PointerLeft`.
     PointerGone,
 
     /// How many points (logical pixels) the user scrolled.
