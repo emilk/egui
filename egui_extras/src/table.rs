@@ -53,6 +53,7 @@ pub struct TableBuilder<'a> {
     scroll: bool,
     striped: bool,
     resizable: bool,
+    clip: bool,
 }
 
 impl<'a> TableBuilder<'a> {
@@ -65,6 +66,7 @@ impl<'a> TableBuilder<'a> {
             scroll: true,
             striped: false,
             resizable: false,
+            clip: true,
         }
     }
 
@@ -91,6 +93,12 @@ impl<'a> TableBuilder<'a> {
     /// you will need to give them unique id:s with [`Ui::push_id`].
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = resizable;
+        self
+    }
+
+    /// Should we clip the contents of each cell? Default: `true`.
+    pub fn clip(mut self, clip: bool) -> Self {
+        self.clip = clip;
         self
     }
 
@@ -127,6 +135,7 @@ impl<'a> TableBuilder<'a> {
             scroll,
             striped,
             resizable,
+            clip,
         } = self;
 
         let resize_id = resizable.then(|| ui.id().with("__table_resize"));
@@ -141,13 +150,12 @@ impl<'a> TableBuilder<'a> {
         let table_top = ui.cursor().top();
 
         {
-            let mut layout = StripLayout::new(ui, CellDirection::Horizontal);
+            let mut layout = StripLayout::new(ui, CellDirection::Horizontal, clip);
             header(TableRow {
                 layout: &mut layout,
                 widths: &widths,
                 striped: false,
                 height,
-                clicked: false,
             });
             layout.allocate_rect();
         }
@@ -161,6 +169,7 @@ impl<'a> TableBuilder<'a> {
             widths,
             scroll,
             striped,
+            clip,
         }
     }
 
@@ -177,6 +186,7 @@ impl<'a> TableBuilder<'a> {
             scroll,
             striped,
             resizable,
+            clip,
         } = self;
 
         let resize_id = resizable.then(|| ui.id().with("__table_resize"));
@@ -199,6 +209,7 @@ impl<'a> TableBuilder<'a> {
             widths,
             scroll,
             striped,
+            clip,
         }
         .body(body);
     }
@@ -216,6 +227,7 @@ pub struct Table<'a> {
     widths: Vec<f32>,
     scroll: bool,
     striped: bool,
+    clip: bool,
 }
 
 impl<'a> Table<'a> {
@@ -233,6 +245,7 @@ impl<'a> Table<'a> {
             widths,
             scroll,
             striped,
+            clip,
         } = self;
 
         let avail_rect = ui.available_rect_before_wrap();
@@ -242,7 +255,7 @@ impl<'a> Table<'a> {
         egui::ScrollArea::new([false, scroll])
             .auto_shrink([true; 2])
             .show(ui, move |ui| {
-                let layout = StripLayout::new(ui, CellDirection::Horizontal);
+                let layout = StripLayout::new(ui, CellDirection::Horizontal, clip);
 
                 body(TableBody {
                     layout,
@@ -355,7 +368,6 @@ impl<'a> TableBody<'a> {
                 widths: &self.widths,
                 striped: false,
                 height: skip_height,
-                clicked: false,
             }
             .col(|_| ()); // advances the cursor
         }
@@ -372,7 +384,6 @@ impl<'a> TableBody<'a> {
                     widths: &self.widths,
                     striped: self.striped && idx % 2 == 0,
                     height,
-                    clicked: false,
                 },
             );
         }
@@ -385,7 +396,6 @@ impl<'a> TableBody<'a> {
                 widths: &self.widths,
                 striped: false,
                 height: skip_height,
-                clicked: false,
             }
             .col(|_| ()); // advances the cursor
         }
@@ -398,7 +408,6 @@ impl<'a> TableBody<'a> {
             widths: &self.widths,
             striped: self.striped && self.row_nr % 2 == 0,
             height,
-            clicked: false,
         });
 
         self.row_nr += 1;
@@ -418,26 +427,11 @@ pub struct TableRow<'a, 'b> {
     widths: &'b [f32],
     striped: bool,
     height: f32,
-    clicked: bool,
 }
 
 impl<'a, 'b> TableRow<'a, 'b> {
-    /// Check if row was clicked
-    pub fn clicked(&self) -> bool {
-        self.clicked
-    }
-
-    /// Add column, content is wrapped
+    /// Add the contents of a column.
     pub fn col(&mut self, add_contents: impl FnOnce(&mut Ui)) -> Response {
-        self.column(false, add_contents)
-    }
-
-    /// Add column, content is clipped
-    pub fn col_clip(&mut self, add_contents: impl FnOnce(&mut Ui)) -> Response {
-        self.column(true, add_contents)
-    }
-
-    fn column(&mut self, clip: bool, add_contents: impl FnOnce(&mut Ui)) -> Response {
         assert!(
             !self.widths.is_empty(),
             "Tried using more table columns than available."
@@ -448,19 +442,11 @@ impl<'a, 'b> TableRow<'a, 'b> {
         let width = CellSize::Absolute(width);
         let height = CellSize::Absolute(self.height);
 
-        let response;
-
         if self.striped {
-            response = self.layout.add_striped(width, height, clip, add_contents);
+            self.layout.add_striped(width, height, add_contents)
         } else {
-            response = self.layout.add(width, height, clip, add_contents);
+            self.layout.add(width, height, add_contents)
         }
-
-        if response.clicked() {
-            self.clicked = true;
-        }
-
-        response
     }
 }
 

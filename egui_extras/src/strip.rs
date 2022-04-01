@@ -40,6 +40,7 @@ use egui::{Response, Ui};
 pub struct StripBuilder<'a> {
     ui: &'a mut Ui,
     sizing: Sizing,
+    clip: bool,
 }
 
 impl<'a> StripBuilder<'a> {
@@ -47,7 +48,17 @@ impl<'a> StripBuilder<'a> {
     pub fn new(ui: &'a mut Ui) -> Self {
         let sizing = Sizing::new();
 
-        Self { ui, sizing }
+        Self {
+            ui,
+            sizing,
+            clip: true,
+        }
+    }
+
+    /// Should we clip the contents of each cell? Default: `true`.
+    pub fn clip(mut self, clip: bool) -> Self {
+        self.clip = clip;
+        self
     }
 
     /// Add size hint for one column/row.
@@ -76,7 +87,7 @@ impl<'a> StripBuilder<'a> {
             self.ui.available_rect_before_wrap().width() - self.ui.spacing().item_spacing.x,
             self.ui.spacing().item_spacing.x,
         );
-        let mut layout = StripLayout::new(self.ui, CellDirection::Horizontal);
+        let mut layout = StripLayout::new(self.ui, CellDirection::Horizontal, self.clip);
         strip(Strip {
             layout: &mut layout,
             direction: CellDirection::Horizontal,
@@ -97,7 +108,7 @@ impl<'a> StripBuilder<'a> {
             self.ui.available_rect_before_wrap().height() - self.ui.spacing().item_spacing.y,
             self.ui.spacing().item_spacing.y,
         );
-        let mut layout = StripLayout::new(self.ui, CellDirection::Vertical);
+        let mut layout = StripLayout::new(self.ui, CellDirection::Vertical, self.clip);
         strip(Strip {
             layout: &mut layout,
             direction: CellDirection::Vertical,
@@ -136,35 +147,17 @@ impl<'a, 'b> Strip<'a, 'b> {
         self.layout.empty(width, height);
     }
 
-    fn cell_impl(&mut self, clip: bool, add_contents: impl FnOnce(&mut Ui)) {
-        let (width, height) = self.next_cell_size();
-        self.layout.add(width, height, clip, add_contents);
-    }
-
-    /// Add cell, content is wrapped
+    /// Add cell contents.
     pub fn cell(&mut self, add_contents: impl FnOnce(&mut Ui)) {
-        self.cell_impl(false, add_contents);
-    }
-
-    /// Add cell, content is clipped
-    pub fn cell_clip(&mut self, add_contents: impl FnOnce(&mut Ui)) {
-        self.cell_impl(true, add_contents);
-    }
-
-    fn strip_impl(&mut self, clip: bool, strip_builder: impl FnOnce(StripBuilder<'_>)) {
-        self.cell_impl(clip, |ui| {
-            strip_builder(StripBuilder::new(ui));
-        });
+        let (width, height) = self.next_cell_size();
+        self.layout.add(width, height, add_contents);
     }
 
     /// Add strip as cell
     pub fn strip(&mut self, strip_builder: impl FnOnce(StripBuilder<'_>)) {
-        self.strip_impl(false, strip_builder);
-    }
-
-    /// Add strip as cell, content is clipped
-    pub fn strip_clip(&mut self, strip_builder: impl FnOnce(StripBuilder<'_>)) {
-        self.strip_impl(true, strip_builder);
+        self.cell(|ui| {
+            strip_builder(StripBuilder::new(ui));
+        });
     }
 }
 

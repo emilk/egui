@@ -31,14 +31,14 @@ impl super::View for StripDemo {
             .size(Size::relative(0.5).at_least(60.0))
             .size(Size::exact(10.0))
             .vertical(|mut strip| {
-                strip.cell_clip(|ui| {
+                strip.cell(|ui| {
                     ui.painter()
                         .rect_filled(ui.available_rect_before_wrap(), 0.0, Color32::BLUE);
                     ui.label("Full width and 50px height");
                 });
                 strip.strip(|builder| {
                     builder.sizes(Size::remainder(), 2).horizontal(|mut strip| {
-                        strip.cell_clip(|ui| {
+                        strip.cell(|ui| {
                             ui.painter().rect_filled(
                                 ui.available_rect_before_wrap(),
                                 0.0,
@@ -49,7 +49,7 @@ impl super::View for StripDemo {
                         strip.strip(|builder| {
                             builder.sizes(Size::remainder(), 3).vertical(|mut strip| {
                                 strip.empty();
-                                strip.cell_clip(|ui| {
+                                strip.cell(|ui| {
                                     ui.painter().rect_filled(
                                         ui.available_rect_before_wrap(),
                                         0.0,
@@ -76,7 +76,7 @@ impl super::View for StripDemo {
                                     .size(Size::remainder())
                                     .vertical(|mut strip| {
                                         strip.empty();
-                                        strip.cell_clip(|ui| {
+                                        strip.cell(|ui| {
                                             ui.painter().rect_filled(
                                                 ui.available_rect_before_wrap(),
                                                 0.0,
@@ -87,7 +87,7 @@ impl super::View for StripDemo {
                                     });
                             });
                             strip.empty();
-                            strip.cell_clip(|ui| {
+                            strip.cell(|ui| {
                                 ui.painter().rect_filled(
                                     ui.available_rect_before_wrap(),
                                     0.0,
@@ -97,7 +97,7 @@ impl super::View for StripDemo {
                             });
                         });
                 });
-                strip.cell_clip(|ui| {
+                strip.cell(|ui| {
                     ui.vertical_centered(|ui| {
                         ui.add(crate::__egui_github_link_file!());
                     });

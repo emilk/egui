@@ -70,7 +70,7 @@ impl<'a> DatePickerPopup<'a> {
             .size(Size::exact(height))
             .vertical(|mut strip| {
                 if self.combo_boxes {
-                    strip.strip_clip(|builder| {
+                    strip.strip(|builder| {
                         builder.sizes(Size::remainder(), 3).horizontal(|mut strip| {
                             strip.cell(|ui| {
                                 ComboBox::from_id_source("date_picker_year")

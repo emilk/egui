@@ -1,3 +1,4 @@
+use egui::TextStyle;
 use egui_extras::{Size, StripBuilder, TableBuilder};
 
 /// Shows off a table with dynamic layout
@@ -35,7 +36,7 @@ impl super::View for TableDemo {
             .size(Size::remainder()) // for the table
             .size(Size::exact(10.0)) // for the source code link
             .vertical(|mut strip| {
-                strip.cell_clip(|ui| {
+                strip.cell(|ui| {
                     self.table_ui(ui);
                 });
                 strip.cell(|ui| {
@@ -49,61 +50,80 @@ impl super::View for TableDemo {
 
 impl TableDemo {
     fn table_ui(&mut self, ui: &mut egui::Ui) {
+        let text_height = TextStyle::Body.resolve(ui.style()).size;
+
         TableBuilder::new(ui)
             .striped(true)
             .column(Size::initial(60.0).at_least(40.0))
-            .column(Size::remainder().at_least(60.0))
             .column(Size::initial(60.0).at_least(40.0))
+            .column(Size::remainder().at_least(60.0))
             .resizable(self.resizable)
             .header(20.0, |mut header| {
-                header.col_clip(|ui| {
-                    ui.heading("Left");
+                header.col(|ui| {
+                    ui.centered_and_justified(|ui| {
+                        ui.heading("Row");
+                    });
                 });
-                header.col_clip(|ui| {
-                    ui.heading("Middle");
+                header.col(|ui| {
+                    ui.centered_and_justified(|ui| {
+                        ui.heading("Clock");
+                    });
                 });
-                header.col_clip(|ui| {
-                    ui.heading("Right");
+                header.col(|ui| {
+                    ui.centered_and_justified(|ui| {
+                        ui.heading("Content");
+                    });
                 });
             })
             .body(|mut body| {
                 if self.virtual_scroll {
-                    body.rows(20.0, 100_000, |index, mut row| {
-                        row.col_clip(|ui| {
-                            ui.label(index.to_string());
+                    body.rows(text_height, 100_000, |row_index, mut row| {
+                        row.col(|ui| {
+                            ui.label(row_index.to_string());
                         });
-                        row.col_clip(|ui| {
+                        row.col(|ui| {
+                            ui.label(clock_emoji(row_index));
+                        });
+                        row.col(|ui| {
                             ui.add(
-                                egui::Label::new("virtual scroll, easily with thousands of rows!")
-                                    .wrap(false),
+                                egui::Label::new("Thousands of rows of even height").wrap(false),
                             );
-                        });
-                        row.col_clip(|ui| {
-                            ui.label(index.to_string());
                         });
                     });
                 } else {
-                    for i in 0..20 {
-                        let thick = i % 4 == 0;
-                        let height = if thick { 25.0 } else { 15.0 };
-                        body.row(height, |mut row| {
-                            row.col_clip(|ui| {
-                                ui.label(i.to_string());
+                    for row_index in 0..20 {
+                        let thick = row_index % 6 == 0;
+                        let row_height = if thick { 30.0 } else { 18.0 };
+                        body.row(row_height, |mut row| {
+                            row.col(|ui| {
+                                ui.centered_and_justified(|ui| {
+                                    ui.label(row_index.to_string());
+                                });
                             });
-                            row.col_clip(|ui| {
-                                ui.style_mut().wrap = Some(false);
-                                if thick {
-                                    ui.heading("Extra thick row");
-                                } else {
-                                    ui.label("Normal row");
-                                }
+                            row.col(|ui| {
+                                ui.centered_and_justified(|ui| {
+                                    ui.label(clock_emoji(row_index));
+                                });
                             });
-                            row.col_clip(|ui| {
-                                ui.label(i.to_string());
+                            row.col(|ui| {
+                                ui.centered_and_justified(|ui| {
+                                    ui.style_mut().wrap = Some(false);
+                                    if thick {
+                                        ui.heading("Extra thick row");
+                                    } else {
+                                        ui.label("Normal row");
+                                    }
+                                });
                             });
                         });
                     }
                 }
             });
     }
+}
+
+fn clock_emoji(row_index: usize) -> String {
+    char::from_u32(0x1f550 + row_index as u32 % 24)
+        .unwrap()
+        .to_string()
 }

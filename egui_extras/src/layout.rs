@@ -31,10 +31,11 @@ pub struct StripLayout<'l> {
     rect: Rect,
     cursor: Pos2,
     max: Pos2,
+    clip: bool,
 }
 
 impl<'l> StripLayout<'l> {
-    pub(crate) fn new(ui: &'l mut Ui, direction: CellDirection) -> Self {
+    pub(crate) fn new(ui: &'l mut Ui, direction: CellDirection, clip: bool) -> Self {
         let rect = ui.available_rect_before_wrap();
         let pos = rect.left_top();
 
@@ -44,6 +45,7 @@ impl<'l> StripLayout<'l> {
             cursor: pos,
             max: pos,
             direction,
+            clip,
         }
     }
 
@@ -89,11 +91,10 @@ impl<'l> StripLayout<'l> {
         &mut self,
         width: CellSize,
         height: CellSize,
-        clip: bool,
         add_contents: impl FnOnce(&mut Ui),
     ) -> Response {
         let rect = self.cell_rect(&width, &height);
-        let used_rect = self.cell(rect, clip, add_contents);
+        let used_rect = self.cell(rect, add_contents);
         self.set_pos(rect);
         self.ui.allocate_rect(rect.union(used_rect), Sense::hover())
     }
@@ -102,7 +103,6 @@ impl<'l> StripLayout<'l> {
         &mut self,
         width: CellSize,
         height: CellSize,
-        clip: bool,
         add_contents: impl FnOnce(&mut Ui),
     ) -> Response {
         let rect = self.cell_rect(&width, &height);
@@ -114,7 +114,7 @@ impl<'l> StripLayout<'l> {
             .painter()
             .rect_filled(rect, 0.0, self.ui.visuals().faint_bg_color);
 
-        self.add(width, height, clip, add_contents)
+        self.add(width, height, add_contents)
     }
 
     /// only needed for layouts with multiple lines, like [`Table`].
@@ -131,10 +131,10 @@ impl<'l> StripLayout<'l> {
         }
     }
 
-    fn cell(&mut self, rect: Rect, clip: bool, add_contents: impl FnOnce(&mut Ui)) -> Rect {
+    fn cell(&mut self, rect: Rect, add_contents: impl FnOnce(&mut Ui)) -> Rect {
         let mut child_ui = self.ui.child_ui(rect, *self.ui.layout());
 
-        if clip {
+        if self.clip {
             let mut clip_rect = child_ui.clip_rect();
             clip_rect.min = clip_rect.min.max(rect.min);
             clip_rect.max = clip_rect.max.min(rect.max);
