@@ -101,7 +101,7 @@ impl<'l> StripLayout<'l> {
         let rect = self.cell_rect(&width, &height);
         let used_rect = self.cell(rect, clip, add_contents);
         self.set_pos(rect);
-        self.ui.allocate_rect(rect.union(used_rect), Sense::click())
+        self.ui.allocate_rect(rect.union(used_rect), Sense::hover())
     }
 
     pub(crate) fn add_striped(

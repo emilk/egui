@@ -233,18 +233,20 @@ impl<'a> Table<'a> {
 
         let mut new_widths = widths.clone();
 
-        egui::ScrollArea::new([false, scroll]).show(ui, move |ui| {
-            let layout = StripLayout::new(ui, CellDirection::Horizontal);
+        egui::ScrollArea::new([false, scroll])
+            .auto_shrink([true; 2])
+            .show(ui, move |ui| {
+                let layout = StripLayout::new(ui, CellDirection::Horizontal);
 
-            body(TableBody {
-                layout,
-                widths,
-                striped,
-                row_nr: 0,
-                start_y: avail_rect.top(),
-                end_y: avail_rect.bottom(),
+                body(TableBody {
+                    layout,
+                    widths,
+                    striped,
+                    row_nr: 0,
+                    start_y: avail_rect.top(),
+                    end_y: avail_rect.bottom(),
+                });
             });
-        });
 
         let bottom = ui.min_rect().bottom();
 

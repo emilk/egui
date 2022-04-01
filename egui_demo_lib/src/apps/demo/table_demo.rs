@@ -5,6 +5,7 @@ use egui_extras::{Size, StripBuilder, TableBuilder};
 #[derive(Default)]
 pub struct TableDemo {
     virtual_scroll: bool,
+    resizable: bool,
 }
 
 impl super::Demo for TableDemo {
@@ -26,7 +27,8 @@ impl super::Demo for TableDemo {
 
 impl super::View for TableDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.checkbox(&mut self.virtual_scroll, "Virtual scroll demo");
+        ui.checkbox(&mut self.virtual_scroll, "Virtual scroll");
+        ui.checkbox(&mut self.resizable, "Resizable columns");
 
         // Leave room for the source code link after the table demo:
         StripBuilder::new(ui)
@@ -49,25 +51,25 @@ impl TableDemo {
     fn table_ui(&mut self, ui: &mut egui::Ui) {
         TableBuilder::new(ui)
             .striped(true)
-            .column(Size::initial(120.0).at_least(50.0))
-            .column(Size::remainder().at_least(180.0))
-            .column(Size::initial(100.0).at_least(50.0))
-            .resizable(true)
+            .column(Size::initial(60.0).at_least(40.0))
+            .column(Size::remainder().at_least(60.0))
+            .column(Size::initial(60.0).at_least(40.0))
+            .resizable(self.resizable)
             .header(20.0, |mut header| {
-                header.col(|ui| {
+                header.col_clip(|ui| {
                     ui.heading("Left");
                 });
-                header.col(|ui| {
+                header.col_clip(|ui| {
                     ui.heading("Middle");
                 });
-                header.col(|ui| {
+                header.col_clip(|ui| {
                     ui.heading("Right");
                 });
             })
             .body(|mut body| {
                 if self.virtual_scroll {
                     body.rows(20.0, 100_000, |index, mut row| {
-                        row.col(|ui| {
+                        row.col_clip(|ui| {
                             ui.label(index.to_string());
                         });
                         row.col_clip(|ui| {
@@ -76,30 +78,27 @@ impl TableDemo {
                                     .wrap(false),
                             );
                         });
-                        row.col(|ui| {
+                        row.col_clip(|ui| {
                             ui.label(index.to_string());
                         });
                     });
                 } else {
-                    for i in 0..10 {
-                        let height = match i % 8 {
-                            0 => 25.0,
-                            4 => 30.0,
-                            _ => 20.0,
-                        };
+                    for i in 0..20 {
+                        let thick = i % 4 == 0;
+                        let height = if thick { 25.0 } else { 15.0 };
                         body.row(height, |mut row| {
-                            row.col(|ui| {
+                            row.col_clip(|ui| {
                                 ui.label(i.to_string());
                             });
                             row.col_clip(|ui| {
-                                ui.add(
-                                    egui::Label::new(
-                                        format!("Normal scroll, each row can have a different height. Height: {}", height),
-                                    )
-                                    .wrap(false),
-                                );
+                                ui.style_mut().wrap = Some(false);
+                                if thick {
+                                    ui.heading("Extra thick row");
+                                } else {
+                                    ui.label("Normal row");
+                                }
                             });
-                            row.col(|ui| {
+                            row.col_clip(|ui| {
                                 ui.label(i.to_string());
                             });
                         });
