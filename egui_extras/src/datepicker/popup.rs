@@ -94,14 +94,14 @@ impl<'a> DatePickerPopup<'a> {
                             });
                             strip.cell(|ui| {
                                 ComboBox::from_id_source("date_picker_month")
-                                    .selected_text(popup_state.month.to_string())
+                                    .selected_text(month_name(popup_state.month))
                                     .show_ui(ui, |ui| {
                                         for month in 1..=12 {
                                             if ui
                                                 .selectable_value(
                                                     &mut popup_state.month,
                                                     month,
-                                                    month.to_string(),
+                                                    month_name(month),
                                                 )
                                                 .changed()
                                             {
@@ -359,5 +359,23 @@ impl<'a> DatePickerPopup<'a> {
                 .get_persisted_mut_or_default::<DatePickerButtonState>(self.button_id)
                 .picker_visible = false;
         }
+    }
+}
+
+fn month_name(i: u32) -> &'static str {
+    match i {
+        1 => "January",
+        2 => "February",
+        3 => "March",
+        4 => "April",
+        5 => "May",
+        6 => "June",
+        7 => "July",
+        8 => "August",
+        9 => "September",
+        10 => "October",
+        11 => "November",
+        12 => "December",
+        _ => panic!("Unknown month: {}", i),
     }
 }
