@@ -18,9 +18,9 @@ pub(crate) enum CellSize {
 /// In a table there's a `[StripLayout]` for each table row with a horizontal `[CellDirection]`.
 /// Its cells go from left to right. And the lines go from top to bottom.
 pub(crate) enum CellDirection {
-    /// Cells go from left to right
+    /// Cells go from left to right.
     Horizontal,
-    /// Cells go from top to bottom
+    /// Cells go from top to bottom.
     Vertical,
 }
 
@@ -29,7 +29,7 @@ pub struct StripLayout<'l> {
     ui: &'l mut Ui,
     direction: CellDirection,
     rect: Rect,
-    pos: Pos2,
+    cursor: Pos2,
     max: Pos2,
 }
 
@@ -41,7 +41,7 @@ impl<'l> StripLayout<'l> {
         Self {
             ui,
             rect,
-            pos,
+            cursor: pos,
             max: pos,
             direction,
         }
@@ -53,38 +53,32 @@ impl<'l> StripLayout<'l> {
 
     fn cell_rect(&self, width: &CellSize, height: &CellSize) -> Rect {
         Rect {
-            min: self.pos,
+            min: self.cursor,
             max: Pos2 {
                 x: match width {
-                    CellSize::Absolute(width) => self.pos.x + width,
-                    CellSize::Remainder => self.rect.right() - self.ui.spacing().item_spacing.x,
+                    CellSize::Absolute(width) => self.cursor.x + width,
+                    CellSize::Remainder => self.rect.right(),
                 },
                 y: match height {
-                    CellSize::Absolute(height) => self.pos.y + height,
-                    CellSize::Remainder => self.rect.bottom() - self.ui.spacing().item_spacing.y,
+                    CellSize::Absolute(height) => self.cursor.y + height,
+                    CellSize::Remainder => self.rect.bottom(),
                 },
             },
         }
     }
 
     fn set_pos(&mut self, rect: Rect) {
+        self.max.x = self.max.x.max(rect.right());
+        self.max.y = self.max.y.max(rect.bottom());
+
         match self.direction {
             CellDirection::Horizontal => {
-                self.pos.x = rect.right() + self.ui.spacing().item_spacing.x;
+                self.cursor.x = rect.right() + self.ui.spacing().item_spacing.x;
             }
             CellDirection::Vertical => {
-                self.pos.y = rect.bottom() + self.ui.spacing().item_spacing.y;
+                self.cursor.y = rect.bottom() + self.ui.spacing().item_spacing.y;
             }
         }
-
-        self.max.x = self
-            .max
-            .x
-            .max(rect.right() + self.ui.spacing().item_spacing.x);
-        self.max.y = self
-            .max
-            .y
-            .max(rect.bottom() + self.ui.spacing().item_spacing.y);
     }
 
     pub(crate) fn empty(&mut self, width: CellSize, height: CellSize) {
@@ -111,10 +105,10 @@ impl<'l> StripLayout<'l> {
         clip: bool,
         add_contents: impl FnOnce(&mut Ui),
     ) -> Response {
-        let mut rect = self.cell_rect(&width, &height);
-        // Make sure we don't have a gap in the stripe background
-        *rect.top_mut() -= self.ui.spacing().item_spacing.y;
-        *rect.left_mut() -= self.ui.spacing().item_spacing.x;
+        let rect = self.cell_rect(&width, &height);
+
+        // Make sure we don't have a gap in the stripe background:
+        let rect = rect.expand2(egui::vec2(0.5 * self.ui.spacing().item_spacing.x, 0.0));
 
         self.ui
             .painter()
@@ -123,16 +117,16 @@ impl<'l> StripLayout<'l> {
         self.add(width, height, clip, add_contents)
     }
 
-    /// only needed for layouts with multiple lines, like Table
+    /// only needed for layouts with multiple lines, like [`Table`].
     pub fn end_line(&mut self) {
         match self.direction {
             CellDirection::Horizontal => {
-                self.pos.y = self.max.y;
-                self.pos.x = self.rect.left();
+                self.cursor.y = self.max.y;
+                self.cursor.x = self.rect.left();
             }
             CellDirection::Vertical => {
-                self.pos.x = self.max.x;
-                self.pos.y = self.rect.top();
+                self.cursor.x = self.max.x;
+                self.cursor.y = self.rect.top();
             }
         }
     }

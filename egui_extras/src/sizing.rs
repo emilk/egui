@@ -91,6 +91,10 @@ impl Sizing {
     }
 
     pub fn to_lengths(&self, length: f32, spacing: f32) -> Vec<f32> {
+        if self.sizes.is_empty() {
+            return vec![];
+        }
+
         let mut remainders = 0;
         let sum_non_remainder = self
             .sizes
@@ -154,12 +158,18 @@ impl From<Vec<Size>> for Sizing {
 
 #[test]
 fn test_sizing() {
+    let sizing: Sizing = vec![].into();
+    assert_eq!(sizing.to_lengths(50.0, 0.0), vec![]);
+
     let sizing: Sizing = vec![Size::remainder().at_least(20.0), Size::remainder()].into();
     assert_eq!(sizing.to_lengths(50.0, 0.0), vec![25.0, 25.0]);
     assert_eq!(sizing.to_lengths(30.0, 0.0), vec![20.0, 10.0]);
     assert_eq!(sizing.to_lengths(20.0, 0.0), vec![20.0, 0.0]);
     assert_eq!(sizing.to_lengths(10.0, 0.0), vec![20.0, 0.0]);
     assert_eq!(sizing.to_lengths(20.0, 10.0), vec![20.0, 0.0]);
+    assert_eq!(sizing.to_lengths(30.0, 10.0), vec![20.0, 0.0]);
+    assert_eq!(sizing.to_lengths(40.0, 10.0), vec![20.0, 10.0]);
+    assert_eq!(sizing.to_lengths(110.0, 10.0), vec![50.0, 50.0]);
 
     let sizing: Sizing = vec![Size::relative(0.5).at_least(10.0), Size::exact(10.0)].into();
     assert_eq!(sizing.to_lengths(50.0, 0.0), vec![25.0, 10.0]);

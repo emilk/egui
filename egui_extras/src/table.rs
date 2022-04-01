@@ -107,9 +107,8 @@ impl<'a> TableBuilder<'a> {
 
     fn available_width(&self) -> f32 {
         self.ui.available_rect_before_wrap().width()
-            - 2.0 * self.ui.spacing().item_spacing.x
             - if self.scroll {
-                self.ui.spacing().scroll_bar_width
+                self.ui.spacing().item_spacing.x + self.ui.spacing().scroll_bar_width
             } else {
                 0.0
             }
