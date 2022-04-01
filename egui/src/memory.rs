@@ -418,6 +418,11 @@ impl Memory {
         self.interaction.drag_id == Some(id)
     }
 
+    #[inline(always)]
+    pub fn set_dragged_id(&mut self, id: Id) {
+        self.interaction.drag_id = Some(id);
+    }
+
     /// Forget window positions, sizes etc.
     /// Can be used to auto-layout windows.
     pub fn reset_areas(&mut self) {

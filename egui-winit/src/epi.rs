@@ -149,6 +149,7 @@ pub struct EpiIntegration {
 impl EpiIntegration {
     pub fn new(
         integration_name: &'static str,
+        gl: std::rc::Rc<glow::Context>,
         max_texture_side: usize,
         window: &winit::window::Window,
         storage: Option<Box<dyn epi::Storage>>,
@@ -169,6 +170,7 @@ impl EpiIntegration {
             },
             output: Default::default(),
             storage,
+            gl,
         };
 
         if prefer_dark_mode == Some(true) {

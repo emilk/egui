@@ -3,6 +3,20 @@
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
 
+#[cfg(feature = "chrono")]
+mod datepicker;
+
 pub mod image;
+mod layout;
+mod sizing;
+mod strip;
+mod table;
+
+#[cfg(feature = "chrono")]
+pub use crate::datepicker::DatePickerButton;
 
 pub use crate::image::RetainedImage;
+pub(crate) use crate::layout::StripLayout;
+pub use crate::sizing::Size;
+pub use crate::strip::*;
+pub use crate::table::*;
