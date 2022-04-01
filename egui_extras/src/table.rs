@@ -82,6 +82,9 @@ impl<'a> TableBuilder<'a> {
 
     /// Make the columns resizable by dragging.
     ///
+    /// If the _last_ column is [`Size::Remainder`], then it won't be resizable
+    /// (and instead use up the remainder).
+    ///
     /// Default is `false`.
     ///
     /// If you have multiple [`Table`]:s in the same [`Ui`]
@@ -135,7 +138,7 @@ impl<'a> TableBuilder<'a> {
         let widths = widths
             .unwrap_or_else(|| sizing.to_lengths(available_width, ui.spacing().item_spacing.x));
 
-        let table_top = ui.min_rect().bottom();
+        let table_top = ui.cursor().top();
 
         {
             let mut layout = StripLayout::new(ui, CellDirection::Horizontal);
@@ -154,6 +157,7 @@ impl<'a> TableBuilder<'a> {
             table_top,
             resize_id,
             sizing,
+            available_width,
             widths,
             scroll,
             striped,
@@ -184,13 +188,14 @@ impl<'a> TableBuilder<'a> {
         let widths = widths
             .unwrap_or_else(|| sizing.to_lengths(available_width, ui.spacing().item_spacing.x));
 
-        let table_top = ui.min_rect().bottom();
+        let table_top = ui.cursor().top();
 
         Table {
             ui,
             table_top,
             resize_id,
             sizing,
+            available_width,
             widths,
             scroll,
             striped,
@@ -207,6 +212,7 @@ pub struct Table<'a> {
     table_top: f32,
     resize_id: Option<egui::Id>,
     sizing: Sizing,
+    available_width: f32,
     widths: Vec<f32>,
     scroll: bool,
     striped: bool,
@@ -223,6 +229,7 @@ impl<'a> Table<'a> {
             table_top,
             resize_id,
             sizing,
+            mut available_width,
             widths,
             scroll,
             striped,
@@ -255,6 +262,16 @@ impl<'a> Table<'a> {
             let mut x = avail_rect.left() - spacing_x * 0.5;
             for (i, width) in new_widths.iter_mut().enumerate() {
                 x += *width + spacing_x;
+
+                // If the last column is Size::Remainder, then let it fill the remainder!
+                let last_column = i + 1 == sizing.sizes.len();
+                if last_column {
+                    if let Size::Remainder { range: (min, max) } = sizing.sizes[i] {
+                        let eps = 0.1; // just to avoid some rounding errors.
+                        *width = (available_width - eps).clamp(min, max);
+                        break;
+                    }
+                }
 
                 let resize_id = ui.id().with("__panel_resize").with(i);
 
@@ -301,6 +318,8 @@ impl<'a> Table<'a> {
                     ui.visuals().widgets.noninteractive.bg_stroke
                 };
                 ui.painter().line_segment([p0, p1], stroke);
+
+                available_width -= *width + spacing_x;
             }
 
             ui.data().insert_persisted(resize_id, new_widths);
