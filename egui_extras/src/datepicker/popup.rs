@@ -1,7 +1,7 @@
 use super::{button::DatePickerButtonState, month_data};
 use crate::{Size, StripBuilder, TableBuilder};
 use chrono::{Date, Datelike, NaiveDate, Utc, Weekday};
-use egui::{Align, Button, Color32, ComboBox, Direction, Id, Label, Layout, RichText, Ui, Vec2};
+use egui::{Align, Button, Color32, ComboBox, Direction, Id, Layout, RichText, Ui, Vec2};
 
 #[derive(Default, Clone)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
@@ -245,7 +245,7 @@ impl<'a> DatePickerPopup<'a> {
                                         ui.with_layout(
                                             Layout::centered_and_justified(Direction::TopDown),
                                             |ui| {
-                                                ui.add(Label::new("Week"));
+                                                ui.label("Week");
                                             },
                                         );
                                     });
@@ -257,7 +257,7 @@ impl<'a> DatePickerPopup<'a> {
                                         ui.with_layout(
                                             Layout::centered_and_justified(Direction::TopDown),
                                             |ui| {
-                                                ui.add(Label::new(name));
+                                                ui.label(name);
                                             },
                                         );
                                     });
@@ -268,7 +268,7 @@ impl<'a> DatePickerPopup<'a> {
                                     body.row(height, |mut row| {
                                         if self.calendar_week {
                                             row.col(|ui| {
-                                                ui.add(Label::new(week.number.to_string()));
+                                                ui.label(week.number.to_string());
                                             });
                                         }
                                         for day in week.days {
@@ -276,7 +276,6 @@ impl<'a> DatePickerPopup<'a> {
                                                 ui.with_layout(
                                                     Layout::top_down_justified(Align::Center),
                                                     |ui| {
-                                                        //TODO: Colors from egui style
                                                         let fill_color = if popup_state.year
                                                             == day.year()
                                                             && popup_state.month == day.month()
@@ -286,25 +285,51 @@ impl<'a> DatePickerPopup<'a> {
                                                         } else if day.weekday() == Weekday::Sat
                                                             || day.weekday() == Weekday::Sun
                                                         {
-                                                            Color32::DARK_RED
+                                                            if ui.visuals().dark_mode {
+                                                                Color32::DARK_RED
+                                                            } else {
+                                                                Color32::LIGHT_RED
+                                                            }
                                                         } else {
-                                                            Color32::BLACK
-                                                        };
-                                                        let text_color = if day == today {
-                                                            Color32::RED
-                                                        } else if day.month() == popup_state.month {
-                                                            Color32::WHITE
-                                                        } else {
-                                                            Color32::from_gray(80)
+                                                            ui.visuals().extreme_bg_color
                                                         };
 
-                                                        let button = Button::new(
-                                                            RichText::new(day.day().to_string())
+                                                        let mut text_color = ui
+                                                            .visuals()
+                                                            .widgets
+                                                            .inactive
+                                                            .text_color();
+
+                                                        if day.month() != popup_state.month {
+                                                            text_color =
+                                                                text_color.linear_multiply(0.5);
+                                                        };
+
+                                                        let button_response = ui.add(
+                                                            Button::new(
+                                                                RichText::new(
+                                                                    day.day().to_string(),
+                                                                )
                                                                 .color(text_color),
-                                                        )
-                                                        .fill(fill_color);
+                                                            )
+                                                            .fill(fill_color),
+                                                        );
 
-                                                        if ui.add(button).clicked() {
+                                                        if day == today {
+                                                            // Encircle today's date
+                                                            let stroke = ui
+                                                                .visuals()
+                                                                .widgets
+                                                                .inactive
+                                                                .fg_stroke;
+                                                            ui.painter().circle_stroke(
+                                                                button_response.rect.center(),
+                                                                8.0,
+                                                                stroke,
+                                                            );
+                                                        }
+
+                                                        if button_response.clicked() {
                                                             popup_state.year = day.year();
                                                             popup_state.month = day.month();
                                                             popup_state.day = day.day();
