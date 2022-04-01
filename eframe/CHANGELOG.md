@@ -19,6 +19,7 @@ NOTE: [`egui_web`](../egui_web/CHANGELOG.md), [`egui-winit`](../egui-winit/CHANG
   * Changed `App::update` to take `&mut Frame` instead of `&Frame`.
   * `Frame` is no longer `Clone` or `Sync`.
 * Add `glow` (OpenGL) context to `Frame` ([#1425](https://github.com/emilk/egui/pull/1425)).
+* Fixed potential scale bug when DPI scaling changes (e.g. when dragging a  window between different displays) ([#1441](https://github.com/emilk/egui/pull/1441)).
 
 
 ## 0.17.0 - 2022-02-22
