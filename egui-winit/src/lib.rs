@@ -5,7 +5,6 @@
 
 #![allow(clippy::manual_range_contains)]
 
-pub use egui;
 pub use winit;
 
 pub mod clipboard;

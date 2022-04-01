@@ -21,8 +21,6 @@ pub mod password;
 pub mod plot_demo;
 pub mod scrolling;
 pub mod sliders;
-pub mod strip_demo;
-pub mod table_demo;
 pub mod tests;
 pub mod text_edit;
 pub mod toggle_switch;

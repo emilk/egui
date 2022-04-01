@@ -155,7 +155,6 @@ impl AppRunner {
             },
             output: Default::default(),
             storage: Some(Box::new(LocalStorage::default())),
-            gl: painter.gl().clone(),
         };
 
         let needs_repaint: std::sync::Arc<NeedRepaint> = Default::default();
@@ -275,13 +274,11 @@ impl AppRunner {
         Ok((needs_repaint, clipped_primitives))
     }
 
-    pub fn clear_color_buffer(&self) {
-        self.painter.clear(self.app.clear_color());
-    }
-
     /// Paint the results of the last call to [`Self::logic`].
     pub fn paint(&mut self, clipped_primitives: &[egui::ClippedPrimitive]) -> Result<(), JsValue> {
         let textures_delta = std::mem::take(&mut self.textures_delta);
+
+        self.painter.clear(self.app.clear_color());
 
         self.painter.paint_and_update_textures(
             clipped_primitives,

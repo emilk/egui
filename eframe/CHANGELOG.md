@@ -18,7 +18,6 @@ NOTE: [`egui_web`](../egui_web/CHANGELOG.md), [`egui-winit`](../egui-winit/CHANG
   * You can now load/save state in `App::update`
   * Changed `App::update` to take `&mut Frame` instead of `&Frame`.
   * `Frame` is no longer `Clone` or `Sync`.
-* Add `glow` (OpenGL) context to `Frame` ([#1425](https://github.com/emilk/egui/pull/1425)).
 
 
 ## 0.17.0 - 2022-02-22
