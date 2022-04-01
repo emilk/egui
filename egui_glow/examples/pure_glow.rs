@@ -68,6 +68,10 @@ fn main() {
                 if let glutin::event::WindowEvent::Resized(physical_size) = event {
                     gl_window.resize(physical_size);
                 }
+                if let glutin::event::WindowEvent::ScaleFactorChanged { new_inner_size, .. } = event
+                {
+                    gl_window.resize(new_inner_size);
+                }
 
                 egui_glow.on_event(&event);
 

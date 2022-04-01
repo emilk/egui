@@ -139,6 +139,10 @@ pub fn run(app_name: &str, native_options: &epi::NativeOptions, app_creator: epi
                 if let winit::event::WindowEvent::Resized(physical_size) = event {
                     gl_window.resize(physical_size);
                 }
+                if let glutin::event::WindowEvent::ScaleFactorChanged { new_inner_size, .. } = event
+                {
+                    gl_window.resize(new_inner_size);
+                }
 
                 integration.on_event(app.as_mut(), &event);
                 if integration.should_quit() {
