@@ -1,7 +1,7 @@
 use super::{button::DatePickerButtonState, month_data};
 use crate::{Size, StripBuilder, TableBuilder};
 use chrono::{Date, Datelike, NaiveDate, Utc, Weekday};
-use egui::{Align, Button, Color32, ComboBox, Direction, Id, Label, Layout, RichText, Ui, Vec2};
+use egui::{Align, Button, Color32, ComboBox, Direction, Id, Layout, RichText, Ui, Vec2};
 
 #[derive(Default, Clone)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
@@ -55,6 +55,7 @@ impl<'a> DatePickerPopup<'a> {
         let spacing = 2.0;
         ui.spacing_mut().item_spacing = Vec2::splat(spacing);
         StripBuilder::new(ui)
+            .clip(false)
             .sizes(
                 Size::exact(height),
                 match (self.combo_boxes, self.arrows) {
@@ -70,7 +71,7 @@ impl<'a> DatePickerPopup<'a> {
             .size(Size::exact(height))
             .vertical(|mut strip| {
                 if self.combo_boxes {
-                    strip.strip_clip(|builder| {
+                    strip.strip(|builder| {
                         builder.sizes(Size::remainder(), 3).horizontal(|mut strip| {
                             strip.cell(|ui| {
                                 ComboBox::from_id_source("date_picker_year")
@@ -94,14 +95,14 @@ impl<'a> DatePickerPopup<'a> {
                             });
                             strip.cell(|ui| {
                                 ComboBox::from_id_source("date_picker_month")
-                                    .selected_text(popup_state.month.to_string())
+                                    .selected_text(month_name(popup_state.month))
                                     .show_ui(ui, |ui| {
                                         for month in 1..=12 {
                                             if ui
                                                 .selectable_value(
                                                     &mut popup_state.month,
                                                     month,
-                                                    month.to_string(),
+                                                    month_name(month),
                                                 )
                                                 .changed()
                                             {
@@ -236,6 +237,7 @@ impl<'a> DatePickerPopup<'a> {
                         ui.spacing_mut().item_spacing = Vec2::new(1.0, 2.0);
                         TableBuilder::new(ui)
                             .scroll(false)
+                            .clip(false)
                             .columns(Size::remainder(), if self.calendar_week { 8 } else { 7 })
                             .header(height, |mut header| {
                                 if self.calendar_week {
@@ -243,7 +245,7 @@ impl<'a> DatePickerPopup<'a> {
                                         ui.with_layout(
                                             Layout::centered_and_justified(Direction::TopDown),
                                             |ui| {
-                                                ui.add(Label::new("Week"));
+                                                ui.label("Week");
                                             },
                                         );
                                     });
@@ -255,7 +257,7 @@ impl<'a> DatePickerPopup<'a> {
                                         ui.with_layout(
                                             Layout::centered_and_justified(Direction::TopDown),
                                             |ui| {
-                                                ui.add(Label::new(name));
+                                                ui.label(name);
                                             },
                                         );
                                     });
@@ -266,7 +268,7 @@ impl<'a> DatePickerPopup<'a> {
                                     body.row(height, |mut row| {
                                         if self.calendar_week {
                                             row.col(|ui| {
-                                                ui.add(Label::new(week.number.to_string()));
+                                                ui.label(week.number.to_string());
                                             });
                                         }
                                         for day in week.days {
@@ -274,7 +276,6 @@ impl<'a> DatePickerPopup<'a> {
                                                 ui.with_layout(
                                                     Layout::top_down_justified(Align::Center),
                                                     |ui| {
-                                                        //TODO: Colors from egui style
                                                         let fill_color = if popup_state.year
                                                             == day.year()
                                                             && popup_state.month == day.month()
@@ -284,25 +285,51 @@ impl<'a> DatePickerPopup<'a> {
                                                         } else if day.weekday() == Weekday::Sat
                                                             || day.weekday() == Weekday::Sun
                                                         {
-                                                            Color32::DARK_RED
+                                                            if ui.visuals().dark_mode {
+                                                                Color32::DARK_RED
+                                                            } else {
+                                                                Color32::LIGHT_RED
+                                                            }
                                                         } else {
-                                                            Color32::BLACK
-                                                        };
-                                                        let text_color = if day == today {
-                                                            Color32::RED
-                                                        } else if day.month() == popup_state.month {
-                                                            Color32::WHITE
-                                                        } else {
-                                                            Color32::from_gray(80)
+                                                            ui.visuals().extreme_bg_color
                                                         };
 
-                                                        let button = Button::new(
-                                                            RichText::new(day.day().to_string())
+                                                        let mut text_color = ui
+                                                            .visuals()
+                                                            .widgets
+                                                            .inactive
+                                                            .text_color();
+
+                                                        if day.month() != popup_state.month {
+                                                            text_color =
+                                                                text_color.linear_multiply(0.5);
+                                                        };
+
+                                                        let button_response = ui.add(
+                                                            Button::new(
+                                                                RichText::new(
+                                                                    day.day().to_string(),
+                                                                )
                                                                 .color(text_color),
-                                                        )
-                                                        .fill(fill_color);
+                                                            )
+                                                            .fill(fill_color),
+                                                        );
 
-                                                        if ui.add(button).clicked() {
+                                                        if day == today {
+                                                            // Encircle today's date
+                                                            let stroke = ui
+                                                                .visuals()
+                                                                .widgets
+                                                                .inactive
+                                                                .fg_stroke;
+                                                            ui.painter().circle_stroke(
+                                                                button_response.rect.center(),
+                                                                8.0,
+                                                                stroke,
+                                                            );
+                                                        }
+
+                                                        if button_response.clicked() {
                                                             popup_state.year = day.year();
                                                             popup_state.month = day.month();
                                                             popup_state.day = day.day();
@@ -359,5 +386,23 @@ impl<'a> DatePickerPopup<'a> {
                 .get_persisted_mut_or_default::<DatePickerButtonState>(self.button_id)
                 .picker_visible = false;
         }
+    }
+}
+
+fn month_name(i: u32) -> &'static str {
+    match i {
+        1 => "January",
+        2 => "February",
+        3 => "March",
+        4 => "April",
+        5 => "May",
+        6 => "June",
+        7 => "July",
+        8 => "August",
+        9 => "September",
+        10 => "October",
+        11 => "November",
+        12 => "December",
+        _ => panic!("Unknown month: {}", i),
     }
 }
