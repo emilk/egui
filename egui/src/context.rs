@@ -885,7 +885,7 @@ impl Context {
     /// Latest reported pointer position.
     /// When tapping a touch screen, this will be `None`.
     #[inline(always)]
-    pub(crate) fn latest_pointer_pos(&self) -> Option<Pos2> {
+    pub fn pointer_latest_pos(&self) -> Option<Pos2> {
         self.input().pointer.latest_pos()
     }
 

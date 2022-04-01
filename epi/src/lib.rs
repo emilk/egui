@@ -248,8 +248,6 @@ pub struct IconData {
 ///
 /// It provides methods to inspect the surroundings (are we on the web?),
 /// allocate textures, and change settings (e.g. window size).
-///
-/// [`Frame`] is cheap to clone and is safe to pass to other threads.
 pub struct Frame {
     /// Information about the integration.
     #[doc(hidden)]
@@ -262,6 +260,10 @@ pub struct Frame {
     /// A place where you can store custom data in a way that persists when you restart the app.
     #[doc(hidden)]
     pub storage: Option<Box<dyn Storage>>,
+
+    /// A reference to the underlying [`glow`] (OpenGL) context.
+    #[doc(hidden)]
+    pub gl: std::rc::Rc<glow::Context>,
 }
 
 impl Frame {
@@ -283,6 +285,19 @@ impl Frame {
     /// A place where you can store custom data in a way that persists when you restart the app.
     pub fn storage_mut(&mut self) -> Option<&mut (dyn Storage + 'static)> {
         self.storage.as_deref_mut()
+    }
+
+    /// A reference to the underlying [`glow`] (OpenGL) context.
+    ///
+    /// This can be used, for instance, to:
+    /// * Render things to offscreen buffers.
+    /// * Read the pixel buffer from the previous frame (`glow::Context::read_pixels`).
+    /// * Render things behind the egui windows.
+    ///
+    /// Note that all egui painting is deferred to after the call to [`App::update`]
+    /// ([`egui`] only collects [`egui::Shape`]s and then eframe paints them all in one go later on).
+    pub fn gl(&self) -> &std::rc::Rc<glow::Context> {
+        &self.gl
     }
 
     /// Signal the app to stop/exit/quit the app (only works for native apps, not web apps).

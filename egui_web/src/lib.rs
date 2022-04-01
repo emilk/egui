@@ -339,6 +339,7 @@ fn paint_and_schedule(runner_ref: &AppRunnerRef, panicked: Arc<AtomicBool>) -> R
     fn paint_if_needed(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let mut runner_lock = runner_ref.lock();
         if runner_lock.needs_repaint.fetch_and_clear() {
+            runner_lock.clear_color_buffer();
             let (needs_repaint, clipped_primitives) = runner_lock.logic()?;
             runner_lock.paint(&clipped_primitives)?;
             if needs_repaint {

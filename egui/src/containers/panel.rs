@@ -201,7 +201,7 @@ impl SidePanel {
         let mut is_resizing = false;
         if resizable {
             let resize_id = id.with("__resize");
-            if let Some(pointer) = ui.ctx().latest_pointer_pos() {
+            if let Some(pointer) = ui.ctx().pointer_latest_pos() {
                 let we_are_on_top = ui
                     .ctx()
                     .layer_id_at(pointer)
@@ -217,9 +217,9 @@ impl SidePanel {
                     && ui.input().pointer.any_down()
                     && mouse_over_resize_line
                 {
-                    ui.memory().interaction.drag_id = Some(resize_id);
+                    ui.memory().set_dragged_id(resize_id);
                 }
-                is_resizing = ui.memory().interaction.drag_id == Some(resize_id);
+                is_resizing = ui.memory().is_being_dragged(resize_id);
                 if is_resizing {
                     let width = (pointer.x - side.side_x(panel_rect)).abs();
                     let width =
