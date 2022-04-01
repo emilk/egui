@@ -31,7 +31,7 @@ pub struct StripLayout<'l> {
     rect: Rect,
     cursor: Pos2,
     max: Pos2,
-    clip: bool,
+    pub(crate) clip: bool,
 }
 
 impl<'l> StripLayout<'l> {

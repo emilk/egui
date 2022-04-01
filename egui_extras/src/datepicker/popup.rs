@@ -55,6 +55,7 @@ impl<'a> DatePickerPopup<'a> {
         let spacing = 2.0;
         ui.spacing_mut().item_spacing = Vec2::splat(spacing);
         StripBuilder::new(ui)
+            .clip(false)
             .sizes(
                 Size::exact(height),
                 match (self.combo_boxes, self.arrows) {
@@ -236,6 +237,7 @@ impl<'a> DatePickerPopup<'a> {
                         ui.spacing_mut().item_spacing = Vec2::new(1.0, 2.0);
                         TableBuilder::new(ui)
                             .scroll(false)
+                            .clip(false)
                             .columns(Size::remainder(), if self.calendar_week { 8 } else { 7 })
                             .header(height, |mut header| {
                                 if self.calendar_week {

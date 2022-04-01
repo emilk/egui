@@ -155,8 +155,9 @@ impl<'a, 'b> Strip<'a, 'b> {
 
     /// Add strip as cell
     pub fn strip(&mut self, strip_builder: impl FnOnce(StripBuilder<'_>)) {
+        let clip = self.layout.clip;
         self.cell(|ui| {
-            strip_builder(StripBuilder::new(ui));
+            strip_builder(StripBuilder::new(ui).clip(clip));
         });
     }
 }
