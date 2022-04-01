@@ -26,13 +26,10 @@ impl super::Demo for StripDemo {
 impl super::View for StripDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
         StripBuilder::new(ui)
-            .size(Size::Absolute(50.0))
-            .size(Size::Remainder)
-            .size(Size::RelativeMinimum {
-                relative: 0.5,
-                minimum: 60.0,
-            })
-            .size(Size::Absolute(10.0))
+            .size(Size::exact(50.0))
+            .size(Size::remainder())
+            .size(Size::relative(0.5).at_least(60.0))
+            .size(Size::exact(10.0))
             .vertical(|mut strip| {
                 strip.cell_clip(|ui| {
                     ui.painter()
@@ -40,7 +37,7 @@ impl super::View for StripDemo {
                     ui.label("Full width and 50px height");
                 });
                 strip.strip(|builder| {
-                    builder.sizes(Size::Remainder, 2).horizontal(|mut strip| {
+                    builder.sizes(Size::remainder(), 2).horizontal(|mut strip| {
                         strip.cell_clip(|ui| {
                             ui.painter().rect_filled(
                                 ui.available_rect_before_wrap(),
@@ -50,7 +47,7 @@ impl super::View for StripDemo {
                             ui.label("remaining height and 50% of the width");
                         });
                         strip.strip(|builder| {
-                            builder.sizes(Size::Remainder, 3).vertical(|mut strip| {
+                            builder.sizes(Size::remainder(), 3).vertical(|mut strip| {
                                 strip.empty();
                                 strip.cell_clip(|ui| {
                                     ui.painter().rect_filled(
@@ -66,17 +63,17 @@ impl super::View for StripDemo {
                 });
                 strip.strip(|builder| {
                     builder
-                        .size(Size::Remainder)
-                        .size(Size::Absolute(60.0))
-                        .size(Size::Remainder)
-                        .size(Size::Absolute(70.0))
+                        .size(Size::remainder())
+                        .size(Size::exact(60.0))
+                        .size(Size::remainder())
+                        .size(Size::exact(70.0))
                         .horizontal(|mut strip| {
                             strip.empty();
                             strip.strip(|builder| {
                                 builder
-                                    .size(Size::Remainder)
-                                    .size(Size::Absolute(60.0))
-                                    .size(Size::Remainder)
+                                    .size(Size::remainder())
+                                    .size(Size::exact(60.0))
+                                    .size(Size::remainder())
                                     .vertical(|mut strip| {
                                         strip.empty();
                                         strip.cell_clip(|ui| {

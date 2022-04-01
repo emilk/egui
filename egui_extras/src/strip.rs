@@ -18,11 +18,11 @@ use egui::{Response, Ui};
 /// # egui::__run_test_ui(|ui| {
 /// use egui_extras::{StripBuilder, Size};
 /// StripBuilder::new(ui)
-///     .size(Size::RemainderMinimum(100.0))
-///     .size(Size::Absolute(40.0))
+///     .size(Size::remainder().at_least(100.0))
+///     .size(Size::exact(40.0))
 ///     .vertical(|mut strip| {
 ///         strip.strip(|builder| {
-///             builder.sizes(Size::Remainder, 2).horizontal(|mut strip| {
+///             builder.sizes(Size::remainder(), 2).horizontal(|mut strip| {
 ///                 strip.cell(|ui| {
 ///                     ui.label("Top Left");
 ///                 });
@@ -72,7 +72,7 @@ impl<'a> StripBuilder<'a> {
     where
         F: for<'b> FnOnce(Strip<'a, 'b>),
     {
-        let widths = self.sizing.into_lengths(
+        let widths = self.sizing.to_lengths(
             self.ui.available_rect_before_wrap().width() - self.ui.spacing().item_spacing.x,
             self.ui.spacing().item_spacing.x,
         );
@@ -93,7 +93,7 @@ impl<'a> StripBuilder<'a> {
     where
         F: for<'b> FnOnce(Strip<'a, 'b>),
     {
-        let heights = self.sizing.into_lengths(
+        let heights = self.sizing.to_lengths(
             self.ui.available_rect_before_wrap().height() - self.ui.spacing().item_spacing.y,
             self.ui.spacing().item_spacing.y,
         );
@@ -117,6 +117,10 @@ pub struct Strip<'a, 'b> {
 
 impl<'a, 'b> Strip<'a, 'b> {
     fn next_cell_size(&mut self) -> (CellSize, CellSize) {
+        assert!(
+            !self.sizes.is_empty(),
+            "Tried using more strip cells than available."
+        );
         let size = self.sizes[0];
         self.sizes = &self.sizes[1..];
 
@@ -128,21 +132,11 @@ impl<'a, 'b> Strip<'a, 'b> {
 
     /// Add empty cell
     pub fn empty(&mut self) {
-        assert!(
-            !self.sizes.is_empty(),
-            "Tried using more strip cells than available."
-        );
-
         let (width, height) = self.next_cell_size();
         self.layout.empty(width, height);
     }
 
     fn cell_impl(&mut self, clip: bool, add_contents: impl FnOnce(&mut Ui)) {
-        assert!(
-            !self.sizes.is_empty(),
-            "Tried using more strip cells than available."
-        );
-
         let (width, height) = self.next_cell_size();
         self.layout.add(width, height, clip, add_contents);
     }

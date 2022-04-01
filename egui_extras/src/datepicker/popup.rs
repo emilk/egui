@@ -56,7 +56,7 @@ impl<'a> DatePickerPopup<'a> {
         ui.spacing_mut().item_spacing = Vec2::splat(spacing);
         StripBuilder::new(ui)
             .sizes(
-                Size::Absolute(height),
+                Size::exact(height),
                 match (self.combo_boxes, self.arrows) {
                     (true, true) => 2,
                     (true, false) | (false, true) => 1,
@@ -64,14 +64,14 @@ impl<'a> DatePickerPopup<'a> {
                 },
             )
             .sizes(
-                Size::Absolute((spacing + height) * (weeks.len() + 1) as f32),
+                Size::exact((spacing + height) * (weeks.len() + 1) as f32),
                 if self.calendar { 1 } else { 0 },
             )
-            .size(Size::Absolute(height))
+            .size(Size::exact(height))
             .vertical(|mut strip| {
                 if self.combo_boxes {
                     strip.strip_clip(|builder| {
-                        builder.sizes(Size::Remainder, 3).horizontal(|mut strip| {
+                        builder.sizes(Size::remainder(), 3).horizontal(|mut strip| {
                             strip.cell(|ui| {
                                 ComboBox::from_id_source("date_picker_year")
                                     .selected_text(popup_state.year.to_string())
@@ -138,7 +138,7 @@ impl<'a> DatePickerPopup<'a> {
 
                 if self.arrows {
                     strip.strip(|builder| {
-                        builder.sizes(Size::Remainder, 6).horizontal(|mut strip| {
+                        builder.sizes(Size::remainder(), 6).horizontal(|mut strip| {
                             strip.cell(|ui| {
                                 ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
                                     if ui
@@ -236,7 +236,7 @@ impl<'a> DatePickerPopup<'a> {
                         ui.spacing_mut().item_spacing = Vec2::new(1.0, 2.0);
                         TableBuilder::new(ui)
                             .scroll(false)
-                            .columns(Size::Remainder, if self.calendar_week { 8 } else { 7 })
+                            .columns(Size::remainder(), if self.calendar_week { 8 } else { 7 })
                             .header(height, |mut header| {
                                 if self.calendar_week {
                                     header.col(|ui| {
@@ -322,7 +322,7 @@ impl<'a> DatePickerPopup<'a> {
                 }
 
                 strip.strip(|builder| {
-                    builder.sizes(Size::Remainder, 3).horizontal(|mut strip| {
+                    builder.sizes(Size::remainder(), 3).horizontal(|mut strip| {
                         strip.empty();
                         strip.cell(|ui| {
                             ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {

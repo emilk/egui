@@ -10,7 +10,6 @@ use crate::{
 };
 
 use egui::{Response, Ui};
-use std::cmp;
 
 /// Builder for a [`Table`] with (optional) fixed header and scrolling body.
 ///
@@ -26,8 +25,8 @@ use std::cmp;
 /// # egui::__run_test_ui(|ui| {
 /// use egui_extras::{TableBuilder, Size};
 /// TableBuilder::new(ui)
-///     .column(Size::RemainderMinimum(100.0))
-///     .column(Size::Absolute(40.0))
+///     .column(Size::remainder().at_least(100.0))
+///     .column(Size::exact(40.0))
 ///     .header(20.0, |mut header| {
 ///         header.col(|ui| {
 ///             ui.heading("Growing");
@@ -53,6 +52,7 @@ pub struct TableBuilder<'a> {
     sizing: Sizing,
     scroll: bool,
     striped: bool,
+    resizable: bool,
 }
 
 impl<'a> TableBuilder<'a> {
@@ -64,6 +64,7 @@ impl<'a> TableBuilder<'a> {
             sizing,
             scroll: true,
             striped: false,
+            resizable: false,
         }
     }
 
@@ -76,6 +77,17 @@ impl<'a> TableBuilder<'a> {
     /// Enable striped row background (default: false)
     pub fn striped(mut self, striped: bool) -> Self {
         self.striped = striped;
+        self
+    }
+
+    /// Make the columns resizable by dragging.
+    ///
+    /// Default is `false`.
+    ///
+    /// If you have multiple [`Table`]:s in the same [`Ui`]
+    /// you will need to give them unique id:s with [`Ui::push_id`].
+    pub fn resizable(mut self, resizable: bool) -> Self {
+        self.resizable = resizable;
         self
     }
 
@@ -106,10 +118,26 @@ impl<'a> TableBuilder<'a> {
     /// Create a header row which always stays visible and at the top
     pub fn header(self, height: f32, header: impl FnOnce(TableRow<'_, '_>)) -> Table<'a> {
         let available_width = self.available_width();
-        let widths = self
-            .sizing
-            .into_lengths(available_width, self.ui.spacing().item_spacing.x);
-        let ui = self.ui;
+
+        let Self {
+            ui,
+            sizing,
+            scroll,
+            striped,
+            resizable,
+        } = self;
+
+        let resize_id = resizable.then(|| ui.id().with("__table_resize"));
+        let widths = if let Some(resize_id) = resize_id {
+            ui.data().get_persisted(resize_id)
+        } else {
+            None
+        };
+        let widths = widths
+            .unwrap_or_else(|| sizing.to_lengths(available_width, ui.spacing().item_spacing.x));
+
+        let table_top = ui.min_rect().bottom();
+
         {
             let mut layout = StripLayout::new(ui, CellDirection::Horizontal);
             header(TableRow {
@@ -124,9 +152,12 @@ impl<'a> TableBuilder<'a> {
 
         Table {
             ui,
+            table_top,
+            resize_id,
+            sizing,
             widths,
-            scroll: self.scroll,
-            striped: self.striped,
+            scroll,
+            striped,
         }
     }
 
@@ -136,15 +167,34 @@ impl<'a> TableBuilder<'a> {
         F: for<'b> FnOnce(TableBody<'b>),
     {
         let available_width = self.available_width();
-        let widths = self
-            .sizing
-            .into_lengths(available_width, self.ui.spacing().item_spacing.x);
+
+        let Self {
+            ui,
+            sizing,
+            scroll,
+            striped,
+            resizable,
+        } = self;
+
+        let resize_id = resizable.then(|| ui.id().with("__table_resize"));
+        let widths = if let Some(resize_id) = resize_id {
+            ui.data().get_persisted(resize_id)
+        } else {
+            None
+        };
+        let widths = widths
+            .unwrap_or_else(|| sizing.to_lengths(available_width, ui.spacing().item_spacing.x));
+
+        let table_top = ui.min_rect().bottom();
 
         Table {
-            ui: self.ui,
+            ui,
+            table_top,
+            resize_id,
+            sizing,
             widths,
-            scroll: self.scroll,
-            striped: self.striped,
+            scroll,
+            striped,
         }
         .body(body);
     }
@@ -155,6 +205,9 @@ impl<'a> TableBuilder<'a> {
 /// Is created by [`TableBuilder`] by either calling [`TableBuilder::body`] or after creating a header row with [`TableBuilder::header`].
 pub struct Table<'a> {
     ui: &'a mut Ui,
+    table_top: f32,
+    resize_id: Option<egui::Id>,
+    sizing: Sizing,
     widths: Vec<f32>,
     scroll: bool,
     striped: bool,
@@ -168,26 +221,91 @@ impl<'a> Table<'a> {
     {
         let Table {
             ui,
+            table_top,
+            resize_id,
+            sizing,
             widths,
             scroll,
             striped,
         } = self;
 
-        let start_y = ui.available_rect_before_wrap().top();
-        let end_y = ui.available_rect_before_wrap().bottom();
+        let avail_rect = ui.available_rect_before_wrap();
 
-        egui::ScrollArea::new([false, scroll]).show(ui, move |ui| {
-            let layout = StripLayout::new(ui, CellDirection::Horizontal);
+        let mut new_widths = widths.clone();
 
-            body(TableBody {
-                layout,
-                widths,
-                striped,
-                row_nr: 0,
-                start_y,
-                end_y,
+        egui::ScrollArea::new([false, scroll])
+            .auto_shrink([true; 2])
+            .show(ui, move |ui| {
+                let layout = StripLayout::new(ui, CellDirection::Horizontal);
+
+                body(TableBody {
+                    layout,
+                    widths,
+                    striped,
+                    row_nr: 0,
+                    start_y: avail_rect.top(),
+                    end_y: avail_rect.bottom(),
+                });
             });
-        });
+
+        let bottom = ui.min_rect().bottom();
+
+        // TODO: fix frame-delay by interacting before laying out (but painting later).
+        if let Some(resize_id) = resize_id {
+            let spacing_x = ui.spacing().item_spacing.x;
+            let mut x = avail_rect.left() - spacing_x * 0.5;
+            for (i, width) in new_widths.iter_mut().enumerate() {
+                x += *width + spacing_x;
+
+                let resize_id = ui.id().with("__panel_resize").with(i);
+
+                let mut p0 = egui::pos2(x, table_top);
+                let mut p1 = egui::pos2(x, bottom);
+                let line_rect = egui::Rect::from_min_max(p0, p1)
+                    .expand(ui.style().interaction.resize_grab_radius_side);
+                let mouse_over_resize_line = ui.rect_contains_pointer(line_rect);
+
+                if ui.input().pointer.any_pressed()
+                    && ui.input().pointer.any_down()
+                    && mouse_over_resize_line
+                {
+                    ui.memory().set_dragged_id(resize_id);
+                }
+                let is_resizing = ui.memory().is_being_dragged(resize_id);
+                if is_resizing {
+                    if let Some(pointer) = ui.ctx().pointer_latest_pos() {
+                        let new_width = *width + pointer.x - x;
+                        let (min, max) = sizing.sizes[i].range();
+                        let new_width = new_width.clamp(min, max);
+                        let x = x - *width + new_width;
+                        p0.x = x;
+                        p1.x = x;
+
+                        *width = new_width;
+                    }
+                }
+
+                let dragging_something_else =
+                    ui.input().pointer.any_down() || ui.input().pointer.any_pressed();
+                let resize_hover = mouse_over_resize_line && !dragging_something_else;
+
+                if resize_hover || is_resizing {
+                    ui.output().cursor_icon = egui::CursorIcon::ResizeHorizontal;
+                }
+
+                let stroke = if is_resizing {
+                    ui.style().visuals.widgets.active.bg_stroke
+                } else if resize_hover {
+                    ui.style().visuals.widgets.hovered.bg_stroke
+                } else {
+                    // ui.visuals().widgets.inactive.bg_stroke
+                    ui.visuals().widgets.noninteractive.bg_stroke
+                };
+                ui.painter().line_segment([p0, p1], stroke);
+            }
+
+            ui.data().insert_persisted(resize_id, new_widths);
+        }
     }
 }
 
@@ -226,7 +344,7 @@ impl<'a> TableBody<'a> {
 
         let max_height = self.end_y - self.start_y;
         let count = (max_height / height).ceil() as usize;
-        let end = cmp::min(start + count, rows);
+        let end = rows.min(start + count);
 
         for idx in start..end {
             row(
