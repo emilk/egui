@@ -352,10 +352,22 @@ pub struct TableBody<'a> {
 }
 
 impl<'a> TableBody<'a> {
+    /// Return a vector containing all column widths for this table body.
+    ///
+    /// This is primarily meant for use with [`TableBody::heterogeneous_rows`] in cases where row
+    /// heights are expected to according to the width of one or more cells -- for example, if text
+    /// is wrapped rather than clippped within the cell.
     pub fn widths(&self) -> &Vec<f32> {
         &self.widths
     }
 
+    /// Add rows with varying heights.
+    ///
+    /// This takes a very slight performance hit compared to [`TableBody::rows`] due to the need to
+    /// iterate over all row heights in to calculate the virtual table height above and below the
+    /// visible region, but it is many orders of magnitude more performant than adding individual
+    /// heterogenously-sized rows using [`TableBody::row`] at the cost of the additional complexity
+    /// that comes with pre-calculating row heights and representing them as an iterator.
     pub fn heterogeneous_rows(
         &mut self,
         mut heights: impl Iterator<Item = f32>,
