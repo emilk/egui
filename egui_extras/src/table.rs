@@ -351,7 +351,65 @@ pub struct TableBody<'a> {
     end_y: f32,
 }
 
+pub trait TableRowBuilder {
+    fn row_heights(&self, widths: &Vec<f32>) -> Box<dyn Iterator<Item = f32> + '_>;
+    fn populate_row(&self, index: usize, row: TableRow<'_, '_>);
+}
+
 impl<'a> TableBody<'a> {
+    pub fn heterogenous_rows(mut self, builder: impl TableRowBuilder) {
+        let mut heights = builder.row_heights(&self.widths);
+
+        let max_height = self.end_y - self.start_y;
+        let delta = self.start_y - self.layout.current_y();
+
+        // cumulative height of all rows above those being displayed
+        let mut height_above_visible = 0.0;
+        // cumulative height of all rows below those being displayed
+        let mut height_below_visible = 0.0;
+
+        let mut row_index = 0;
+
+        let mut above_buffer_set = false;
+        let mut current_height = 0.0; // used to track height of visible rows
+        while let Some(height) = heights.next() {
+            // when delta is greater than height above 0, we need to increment the row index and
+            // update the height above visble with the current height then continue
+            if height_above_visible < delta {
+                row_index += 1;
+                height_above_visible += height;
+                continue;
+            }
+
+            // if height above visible is > 0 here then we need to add a buffer to allow the table
+            // to calculate the "virtual" scrollbar position, reset height_above_visisble to 0 to
+            // prevent doing this more than once
+            if height_above_visible > 0.0 && !above_buffer_set {
+                self.buffer(height_above_visible);
+                above_buffer_set = true; // only set the upper buffer once
+            }
+
+            // populate visible rows
+            if current_height < max_height {
+                let tr = TableRow {
+                    layout: &mut self.layout,
+                    widths: &self.widths,
+                    striped: self.striped && self.row_nr % 2 == 0,
+                    height: height,
+                };
+                self.row_nr += 1;
+                builder.populate_row(row_index, tr);
+                row_index += 1;
+                current_height += height;
+                continue;
+            }
+
+            // calculate below height
+            height_below_visible += height
+        }
+        self.buffer(height_below_visible);
+    }
+
     /// Add rows with same height.
     ///
     /// Is a lot more performant than adding each individual row as non visible rows must not be rendered
@@ -362,14 +420,7 @@ impl<'a> TableBody<'a> {
         if delta < 0.0 {
             start = (-delta / height).floor() as usize;
 
-            let skip_height = start as f32 * height;
-            TableRow {
-                layout: &mut self.layout,
-                widths: &self.widths,
-                striped: false,
-                height: skip_height,
-            }
-            .col(|_| ()); // advances the cursor
+            self.buffer(-delta);
         }
 
         let max_height = self.end_y - self.start_y;
@@ -391,13 +442,7 @@ impl<'a> TableBody<'a> {
         if rows - end > 0 {
             let skip_height = (rows - end) as f32 * height;
 
-            TableRow {
-                layout: &mut self.layout,
-                widths: &self.widths,
-                striped: false,
-                height: skip_height,
-            }
-            .col(|_| ()); // advances the cursor
+            self.buffer(skip_height);
         }
     }
 
@@ -411,6 +456,16 @@ impl<'a> TableBody<'a> {
         });
 
         self.row_nr += 1;
+    }
+
+    pub fn buffer(&mut self, height: f32) {
+        TableRow {
+            layout: &mut self.layout,
+            widths: &self.widths,
+            striped: false,
+            height: height,
+        }
+        .col(|_| ()); // advances the cursor
     }
 }
 

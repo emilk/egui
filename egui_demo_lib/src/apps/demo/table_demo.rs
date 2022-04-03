@@ -1,5 +1,5 @@
 use egui::TextStyle;
-use egui_extras::{Size, StripBuilder, TableBuilder};
+use egui_extras::{Size, StripBuilder, TableBuilder, TableRow, TableRowBuilder};
 
 /// Shows off a table with dynamic layout
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -75,7 +75,7 @@ impl TableDemo {
                     });
                 });
             })
-            .body(|mut body| {
+            .body(|body| {
                 if self.virtual_scroll {
                     body.rows(text_height, 100_000, |row_index, mut row| {
                         row.col(|ui| {
@@ -91,34 +91,68 @@ impl TableDemo {
                         });
                     });
                 } else {
-                    for row_index in 0..20 {
-                        let thick = row_index % 6 == 0;
-                        let row_height = if thick { 30.0 } else { 18.0 };
-                        body.row(row_height, |mut row| {
-                            row.col(|ui| {
-                                ui.centered_and_justified(|ui| {
-                                    ui.label(row_index.to_string());
-                                });
-                            });
-                            row.col(|ui| {
-                                ui.centered_and_justified(|ui| {
-                                    ui.label(clock_emoji(row_index));
-                                });
-                            });
-                            row.col(|ui| {
-                                ui.centered_and_justified(|ui| {
-                                    ui.style_mut().wrap = Some(false);
-                                    if thick {
-                                        ui.heading("Extra thick row");
-                                    } else {
-                                        ui.label("Normal row");
-                                    }
-                                });
-                            });
-                        });
-                    }
+                    let row_builder = DemoRowBuilder {
+                        row_count: 100000,
+                    };
+                    body.heterogenous_rows(row_builder);
                 }
             });
+    }
+}
+
+struct DemoRowBuilder {
+    row_count: usize,
+}
+
+struct DemoRows {
+    row_count: usize,
+    current_row: usize,
+}
+
+impl Iterator for DemoRows {
+    type Item = f32;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_row < self.row_count {
+            let thick = self.current_row % 6 == 0;
+            self.current_row += 1;
+            Some(if thick { 30.0 } else { 18.0 })
+        } else {
+            None
+        }
+    }
+}
+
+impl TableRowBuilder for DemoRowBuilder {
+    fn row_heights(&self, _: &Vec<f32>) -> Box<dyn Iterator<Item = f32>> {
+        Box::new(DemoRows{
+            row_count: self.row_count,
+            current_row: 0,
+        })
+    }
+
+    fn populate_row(&self, index: usize, mut row: TableRow<'_, '_>) {
+        let thick = index % 6 == 0;
+        row.col(|ui| {
+            ui.centered_and_justified(|ui| {
+                ui.label(index.to_string());
+            });
+        });
+        row.col(|ui| {
+            ui.centered_and_justified(|ui| {
+                ui.label(clock_emoji(index));
+            });
+        });
+        row.col(|ui| {
+            ui.centered_and_justified(|ui| {
+                ui.style_mut().wrap = Some(false);
+                if thick {
+                    ui.heading("Extra thick row");
+                } else {
+                    ui.label("Normal row");
+                }
+            });
+        });
     }
 }
 
