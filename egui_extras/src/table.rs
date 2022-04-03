@@ -352,6 +352,10 @@ pub struct TableBody<'a> {
 }
 
 impl<'a> TableBody<'a> {
+    fn delta(&self) -> f32 {
+        self.start_y - self.layout.current_y()
+    }
+
     /// Return a vector containing all column widths for this table body.
     ///
     /// This is primarily meant for use with [`TableBody::heterogeneous_rows`] in cases where row
@@ -370,70 +374,88 @@ impl<'a> TableBody<'a> {
     /// that comes with pre-calculating row heights and representing them as an iterator.
     pub fn heterogeneous_rows(
         &mut self,
-        mut heights: impl Iterator<Item = f32>,
+        heights: impl Iterator<Item = f32>,
         mut populate_row: impl FnMut(usize, TableRow<'_, '_>),
     ) {
-        let max_height = self.end_y - self.start_y;
-        let delta = self.start_y - self.layout.current_y();
+        // VIRTUAL_EXTENSION represents how far above and below the limits of the visible rectangle
+        // that we should consider when determining which rows to actually populate. this provides
+        // the illusion of table rows sliding out of view (rather than disappearing abruptly)
+        const VIRTUAL_EXTENSION: f32 = 30.0;
+
+        // in order for each row to retain its striped color as the table is scrolled, we need an
+        // iterator with the boolean built in based on the enumerated index of the iterator element
+        let mut striped_heights = heights
+            .enumerate()
+            .map(|(index, height)| (index % 2 == 0, height));
+
+        let max_height = self.end_y - self.start_y + VIRTUAL_EXTENSION;
+        let delta = self.delta() - VIRTUAL_EXTENSION;
 
         // cumulative height of all rows above those being displayed
-        let mut height_above_visible = 0.0;
+        let mut height_above_visible: f64 = 0.0;
         // cumulative height of all rows below those being displayed
-        let mut height_below_visible = 0.0;
+        let mut height_below_visible: f64 = 0.0;
 
         let mut row_index = 0;
 
-        let mut above_buffer_set = false;
-        let mut current_height = 0.0; // used to track height of visible rows
-        while let Some(height) = heights.next() {
+        // calculate height above visible table range
+        while let Some((_, height)) = striped_heights.next() {
             // when delta is greater than height above 0, we need to increment the row index and
             // update the height above visble with the current height then continue
-            if height_above_visible < delta {
-                row_index += 1;
-                height_above_visible += height;
-                continue;
+            if height_above_visible >= delta as f64 {
+                break;
             }
-
-            // if height above visible is > 0 here then we need to add a buffer to allow the table
-            // to calculate the "virtual" scrollbar position, reset height_above_visisble to 0 to
-            // prevent doing this more than once
-            if height_above_visible > 0.0 && !above_buffer_set {
-                self.buffer(height_above_visible);
-                above_buffer_set = true; // only set the upper buffer once
-            }
-
-            // populate visible rows
-            if current_height < max_height {
-                let tr = TableRow {
-                    layout: &mut self.layout,
-                    widths: &self.widths,
-                    striped: self.striped && self.row_nr % 2 == 0,
-                    height: height,
-                };
-                self.row_nr += 1;
-                populate_row(row_index, tr);
-                row_index += 1;
-                current_height += height;
-                continue;
-            }
-
-            // calculate below height
-            height_below_visible += height
+            row_index += 1;
+            height_above_visible += height as f64;
         }
-        self.buffer(height_below_visible);
+
+        // if height above visible is > 0 here then we need to add a buffer to allow the table to
+        // accurately calculate the "virtual" scrollbar position
+        if height_above_visible > 0.0 {
+            self.buffer(height_above_visible as f32);
+        }
+
+        // populate visible rows
+        let mut current_height: f64 = 0.0; // used to track height of visible rows
+        while let Some((striped, height)) = striped_heights.next() {
+            if current_height > max_height as f64 {
+                break;
+            }
+            let tr = TableRow {
+                layout: &mut self.layout,
+                widths: &self.widths,
+                striped: self.striped && striped,
+                height,
+            };
+            self.row_nr += 1;
+            populate_row(row_index, tr);
+            row_index += 1;
+            current_height += height as f64;
+        }
+
+        // calculate height below the visible table range
+        while let Some((_, height)) = striped_heights.next() {
+            height_below_visible += height as f64
+        }
+
+        // if height bloew visible is > 0 here then we need to add a buffer to allow the table to
+        // accurately calculate the "virtual" scrollbar position
+        if height_below_visible > 0.0 {
+            self.buffer(height_below_visible as f32);
+        }
     }
 
     /// Add rows with same height.
     ///
     /// Is a lot more performant than adding each individual row as non visible rows must not be rendered
     pub fn rows(mut self, height: f32, rows: usize, mut row: impl FnMut(usize, TableRow<'_, '_>)) {
-        let delta = self.layout.current_y() - self.start_y;
+        let delta = self.delta();
         let mut start = 0;
 
         if delta < 0.0 {
-            start = (-delta / height).floor() as usize;
+            start = (delta / height).floor() as usize;
 
-            self.buffer(-delta);
+            self.buffer(delta);
         }
 
         let max_height = self.end_y - self.start_y;
@@ -471,7 +493,9 @@ impl<'a> TableBody<'a> {
         self.row_nr += 1;
     }
 
-    pub fn buffer(&mut self, height: f32) {
+    // Create a table row buffer of the given height to represent the non-visible portion of the
+    // table.
+    fn buffer(&mut self, height: f32) {
         TableRow {
             layout: &mut self.layout,
             widths: &self.widths,
