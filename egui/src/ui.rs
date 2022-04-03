@@ -1097,9 +1097,14 @@ impl Ui {
         if self.is_visible() && !visible {
             // temporary make us invisible:
             let old_painter = self.painter.clone();
+            let old_enabled = self.enabled;
+
             self.set_visible(false);
+
             let response = self.add(widget);
+
             self.painter = old_painter;
+            self.enabled = old_enabled;
             response
         } else {
             self.add(widget)
