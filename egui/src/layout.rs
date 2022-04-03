@@ -7,16 +7,16 @@ use std::f32::INFINITY;
 /// It is what is used and updated by [`Layout`] when adding new widgets.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Region {
-    /// This is the minimal size of the [`Ui`].
+    /// This is the minimal size of the [`Ui`](crate::Ui).
     /// When adding new widgets, this will generally expand.
     ///
     /// Always finite.
     ///
     /// The bounding box of all child widgets, but not necessarily a tight bounding box
-    /// since [`Ui`] can start with a non-zero min_rect size.
+    /// since [`Ui`](crate::Ui) can start with a non-zero min_rect size.
     pub min_rect: Rect,
 
-    /// The maximum size of this [`Ui`]. This is a *soft max*
+    /// The maximum size of this [`Ui`](crate::Ui). This is a *soft max*
     /// meaning new widgets will *try* not to expand beyond it,
     /// but if they have to, they will.
     ///

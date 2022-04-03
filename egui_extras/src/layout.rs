@@ -117,7 +117,7 @@ impl<'l> StripLayout<'l> {
         self.add(width, height, add_contents)
     }
 
-    /// only needed for layouts with multiple lines, like [`Table`].
+    /// only needed for layouts with multiple lines, like [`Table`](crate::Table).
     pub fn end_line(&mut self) {
         match self.direction {
             CellDirection::Horizontal => {

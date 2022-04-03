@@ -97,7 +97,7 @@ pub struct Memory {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Options {
-    /// The default style for new [`Ui`]:s.
+    /// The default style for new [`Ui`](crate::Ui):s.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) style: epaint::mutex::Arc<Style>,
 
@@ -476,8 +476,8 @@ impl Memory {
 
 // ----------------------------------------------------------------------------
 
-/// Keeps track of [`Area`]s, which are free-floating [`Ui`]s.
-/// These [`Area`]s can be in any [`Order`].
+/// Keeps track of [`Area`](crate::containers::area::Area)s, which are free-floating [`Ui`](crate::Ui)s.
+/// These [`Area`](crate::containers::area::Area)s can be in any [`Order`](crate::Order).
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
