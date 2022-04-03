@@ -65,7 +65,7 @@ pub struct LayoutJob {
     /// How to horizontally align the text (`Align::LEFT`, `Align::Center`, `Align::RIGHT`).
     pub halign: Align,
 
-    /// Justify text so that word-wrapped rows fill the whole [`Self::wrap_width`]
+    /// Justify text so that word-wrapped rows fill the whole [`TextWrapping::max_width`]
     pub justify: bool,
 }
 

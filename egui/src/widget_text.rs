@@ -345,7 +345,7 @@ pub enum WidgetText {
     ///
     /// Only [`LayoutJob::text`] and [`LayoutJob::sections`] are guaranteed to be respected.
     ///
-    /// [`LayoutJob::wrap_width`], [`LayoutJob::halign`], [`LayoutJob::justify`]
+    /// [`TextWrapping::max_width`](epaint::text::TextWrapping::max_width), [`LayoutJob::halign`], [`LayoutJob::justify`]
     /// and [`LayoutJob::first_row_min_height`] will likely be determined by the [`crate::Layout`]
     /// of the [`Ui`] the widget is placed in.
     /// If you want all parts of the [`LayoutJob`] respected, then convert it to a
