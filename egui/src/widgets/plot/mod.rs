@@ -165,6 +165,7 @@ pub struct Plot {
     center_y_axis: bool,
     allow_zoom: bool,
     allow_drag: bool,
+    allow_scroll: bool,
     min_auto_bounds: PlotBounds,
     margin_fraction: Vec2,
     allow_boxed_zoom: bool,
@@ -197,6 +198,7 @@ impl Plot {
             center_y_axis: false,
             allow_zoom: true,
             allow_drag: true,
+            allow_scroll: true,
             min_auto_bounds: PlotBounds::NOTHING,
             margin_fraction: Vec2::splat(0.05),
             allow_boxed_zoom: true,
@@ -285,6 +287,12 @@ impl Plot {
     /// Whether to allow zooming in the plot. Default: `true`.
     pub fn allow_zoom(mut self, on: bool) -> Self {
         self.allow_zoom = on;
+        self
+    }
+
+    /// Whether to allow scrolling in the plot. Default: `true`.
+    pub fn allow_scroll(mut self, on: bool) -> Self {
+        self.allow_scroll = on;
         self
     }
 
@@ -435,6 +443,7 @@ impl Plot {
             center_x_axis,
             center_y_axis,
             allow_zoom,
+            allow_scroll,
             allow_drag,
             allow_boxed_zoom,
             boxed_zoom_pointer_button: boxed_zoom_pointer,
@@ -661,8 +670,8 @@ impl Plot {
             }
         }
 
-        if allow_zoom {
-            if let Some(hover_pos) = response.hover_pos() {
+        if let Some(hover_pos) = response.hover_pos() {
+            if allow_zoom {
                 let zoom_factor = if data_aspect.is_some() {
                     Vec2::splat(ui.input().zoom_delta())
                 } else {
@@ -672,7 +681,8 @@ impl Plot {
                     transform.zoom(zoom_factor, hover_pos);
                     auto_bounds = false;
                 }
-
+            }
+            if allow_scroll {
                 let scroll_delta = ui.input().scroll_delta;
                 if scroll_delta != Vec2::ZERO {
                     transform.translate_bounds(-scroll_delta);
