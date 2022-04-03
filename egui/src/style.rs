@@ -148,7 +148,7 @@ pub struct Style {
     pub text_styles: BTreeMap<TextStyle, FontId>,
 
     /// If set, labels buttons wtc will use this to determine whether or not
-    /// to wrap the text at the right edge of the `Ui` they are in.
+    /// to wrap the text at the right edge of the [`Ui`] they are in.
     /// By default this is `None`.
     ///
     /// * `None`: follow layout
@@ -171,7 +171,7 @@ pub struct Style {
     /// Options to help debug why egui behaves strangely.
     pub debug: DebugOptions,
 
-    /// Show tooltips explaining `DragValue`:s etc when hovered.
+    /// Show tooltips explaining [`DragValue`]:s etc when hovered.
     ///
     /// This only affects a few egui widgets.
     pub explanation_tooltips: bool,
@@ -229,15 +229,15 @@ pub struct Spacing {
     /// Indent collapsing regions etc by this much.
     pub indent: f32,
 
-    /// Minimum size of a `DragValue`, color picker button, and other small widgets.
+    /// Minimum size of a [`DragValue`], color picker button, and other small widgets.
     /// `interact_size.y` is the default height of button, slider, etc.
     /// Anything clickable should be (at least) this size.
     pub interact_size: Vec2, // TODO: rename min_interact_size ?
 
-    /// Default width of a `Slider` and `ComboBox`.
+    /// Default width of a [`Slider`] and [`ComboBox`](crate::ComboBox).
     pub slider_width: f32, // TODO: rename big_interact_size ?
 
-    /// Default width of a `TextEdit`.
+    /// Default width of a [`TextEdit`].
     pub text_edit_width: f32,
 
     /// Checkboxes, radio button and collapsing headers have an icon at the start.
@@ -277,6 +277,8 @@ impl Spacing {
     }
 }
 
+// ----------------------------------------------------------------------------
+
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Margin {
@@ -312,6 +314,20 @@ impl Margin {
     pub fn sum(&self) -> Vec2 {
         Vec2::new(self.left + self.right, self.top + self.bottom)
     }
+
+    pub fn left_top(&self) -> Vec2 {
+        Vec2::new(self.left, self.top)
+    }
+
+    pub fn right_bottom(&self) -> Vec2 {
+        Vec2::new(self.right, self.bottom)
+    }
+}
+
+impl From<f32> for Margin {
+    fn from(v: f32) -> Self {
+        Self::same(v)
+    }
 }
 
 impl From<Vec2> for Margin {
@@ -319,6 +335,20 @@ impl From<Vec2> for Margin {
         Self::symmetric(v.x, v.y)
     }
 }
+
+impl std::ops::Add for Margin {
+    type Output = Self;
+    fn add(self, other: Self) -> Self {
+        Self {
+            left: self.left + other.left,
+            right: self.right + other.right,
+            top: self.top + other.top,
+            bottom: self.bottom + other.bottom,
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 /// How and when interaction happens.
 #[derive(Clone, Debug, PartialEq)]
@@ -372,7 +402,7 @@ pub struct Visuals {
 
     pub selection: Selection,
 
-    /// The color used for `Hyperlink`,
+    /// The color used for [`Hyperlink`],
     pub hyperlink_color: Color32,
 
     /// Something just barely different from the background color.
@@ -606,7 +636,7 @@ impl Visuals {
             widgets: Widgets::default(),
             selection: Selection::default(),
             hyperlink_color: Color32::from_rgb(90, 170, 255),
-            faint_bg_color: Color32::from_gray(24),
+            faint_bg_color: Color32::from_gray(35),
             extreme_bg_color: Color32::from_gray(10), // e.g. TextEdit background
             code_bg_color: Color32::from_gray(64),
             window_rounding: Rounding::same(6.0),
@@ -628,7 +658,7 @@ impl Visuals {
             widgets: Widgets::light(),
             selection: Selection::light(),
             hyperlink_color: Color32::from_rgb(0, 155, 255),
-            faint_bg_color: Color32::from_gray(245),
+            faint_bg_color: Color32::from_gray(242),
             extreme_bg_color: Color32::from_gray(255), // e.g. TextEdit background
             code_bg_color: Color32::from_gray(230),
             window_shadow: Shadow::big_light(),

@@ -1,4 +1,4 @@
-//! Area is a `Ui` that has no parent, it floats on the background.
+//! Area is a [`Ui`] that has no parent, it floats on the background.
 //! It has no frame or own size. It is potentially movable.
 //! It is the foundation for windows and popups.
 

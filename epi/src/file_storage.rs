@@ -94,7 +94,7 @@ where
 
 // ----------------------------------------------------------------------------
 
-/// Alternative to `FileStorage`
+/// Alternative to [`FileStorage`]
 pub fn read_memory(ctx: &egui::Context, memory_file_path: impl AsRef<std::path::Path>) {
     let memory: Option<egui::Memory> = read_ron(memory_file_path);
     if let Some(memory) = memory {
@@ -102,7 +102,7 @@ pub fn read_memory(ctx: &egui::Context, memory_file_path: impl AsRef<std::path::
     }
 }
 
-/// Alternative to `FileStorage`
+/// Alternative to [`FileStorage`]
 ///
 /// # Errors
 /// When failing to serialize or create the file.

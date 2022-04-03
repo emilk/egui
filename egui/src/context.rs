@@ -17,7 +17,7 @@ impl Default for WrappedTextureManager {
         // Will be filled in later
         let font_id = tex_mngr.alloc(
             "egui_font_texture".into(),
-            epaint::AlphaImage::new([0, 0]).into(),
+            epaint::FontImage::new([0, 0]).into(),
         );
         assert_eq!(font_id, TextureId::default());
 
@@ -114,7 +114,7 @@ impl ContextImpl {
 /// [`Context`] is cheap to clone, and any clones refers to the same mutable data
 /// ([`Context`] uses refcounting internally).
 ///
-/// All methods are marked `&self`; `Context` has interior mutability (protected by a mutex).
+/// All methods are marked `&self`; [`Context`] has interior mutability (protected by a mutex).
 ///
 ///
 /// You can store
@@ -287,7 +287,7 @@ impl Context {
         self.interact_with_hovered(layer_id, id, rect, sense, enabled, hovered)
     }
 
-    /// You specify if a thing is hovered, and the function gives a `Response`.
+    /// You specify if a thing is hovered, and the function gives a [`Response`].
     pub(crate) fn interact_with_hovered(
         &self,
         layer_id: LayerId,
@@ -807,14 +807,16 @@ impl Context {
         // shapes are the same, but just comparing the shapes takes about 50% of the time
         // it takes to tessellate them, so it is not a worth optimization.
 
-        let mut tessellation_options = *self.tessellation_options();
-        tessellation_options.pixels_per_point = self.pixels_per_point();
-        tessellation_options.aa_size = 1.0 / self.pixels_per_point();
+        let pixels_per_point = self.pixels_per_point();
+        let tessellation_options = *self.tessellation_options();
+        let font_image_size = self.fonts().font_image_size();
+
         let paint_stats = PaintStats::from_shapes(&shapes);
         let clipped_primitives = tessellator::tessellate_shapes(
-            shapes,
+            pixels_per_point,
             tessellation_options,
-            self.fonts().font_image_size(),
+            shapes,
+            font_image_size,
         );
         self.write().paint_stats = paint_stats.with_clipped_primitives(&clipped_primitives);
         clipped_primitives
@@ -883,7 +885,7 @@ impl Context {
     /// Latest reported pointer position.
     /// When tapping a touch screen, this will be `None`.
     #[inline(always)]
-    pub(crate) fn latest_pointer_pos(&self) -> Option<Pos2> {
+    pub fn pointer_latest_pos(&self) -> Option<Pos2> {
         self.input().pointer.latest_pos()
     }
 

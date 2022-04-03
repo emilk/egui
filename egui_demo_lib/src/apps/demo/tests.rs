@@ -159,7 +159,7 @@ impl super::View for ManualLayoutTest {
 
         ui.add(crate::__egui_github_link_file!());
 
-        // Showing how to place a widget anywhere in the `Ui`:
+        // Showing how to place a widget anywhere in the [`Ui`]:
         match *widget_type {
             WidgetType::Button => {
                 ui.put(widget_rect, egui::Button::new("Example button"));

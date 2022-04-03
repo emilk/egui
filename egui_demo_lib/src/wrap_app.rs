@@ -66,10 +66,10 @@ impl epi::App for WrapApp {
     }
 
     fn clear_color(&self) -> egui::Rgba {
-        egui::Rgba::TRANSPARENT // we set a `CentralPanel` fill color in `demo_windows.rs`
+        egui::Rgba::TRANSPARENT // we set a [`CentralPanel`] fill color in `demo_windows.rs`
     }
 
-    fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut epi::Frame) {
         if let Some(web_info) = frame.info().web_info.as_ref() {
             if let Some(anchor) = web_info.location.hash.strip_prefix('#') {
                 self.selected_anchor = anchor.to_owned();
@@ -130,7 +130,7 @@ impl epi::App for WrapApp {
 }
 
 impl WrapApp {
-    fn bar_contents(&mut self, ui: &mut egui::Ui, frame: &epi::Frame) {
+    fn bar_contents(&mut self, ui: &mut egui::Ui, frame: &mut epi::Frame) {
         // A menu-bar is a horizontal layout with some special styles applied.
         // egui::menu::bar(ui, |ui| {
         ui.horizontal_wrapped(|ui| {

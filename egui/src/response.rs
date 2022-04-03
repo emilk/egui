@@ -8,11 +8,11 @@ use crate::{
 
 /// The result of adding a widget to a [`Ui`].
 ///
-/// A `Response` lets you know whether or not a widget is being hovered, clicked or dragged.
+/// A [`Response`] lets you know whether or not a widget is being hovered, clicked or dragged.
 /// It also lets you easily show a tooltip on hover.
 ///
-/// Whenever something gets added to a `Ui`, a `Response` object is returned.
-/// [`ui.add`] returns a `Response`, as does [`ui.button`], and all similar shortcuts.
+/// Whenever something gets added to a [`Ui`], a [`Response`] object is returned.
+/// [`ui.add`] returns a [`Response`], as does [`ui.button`], and all similar shortcuts.
 #[derive(Clone)]
 pub struct Response {
     // CONTEXT:
@@ -23,7 +23,7 @@ pub struct Response {
     /// Which layer the widget is part of.
     pub layer_id: LayerId,
 
-    /// The `Id` of the widget/area this response pertains.
+    /// The [`Id`] of the widget/area this response pertains.
     pub id: Id,
 
     /// The area of the screen we are talking about.
@@ -62,8 +62,8 @@ pub struct Response {
     pub(crate) interact_pointer_pos: Option<Pos2>,
 
     /// What the underlying data changed?
-    /// e.g. the slider was dragged, text was entered in a `TextEdit` etc.
-    /// Always `false` for something like a `Button`.
+    /// e.g. the slider was dragged, text was entered in a [`TextEdit`](crate::TextEdit) etc.
+    /// Always `false` for something like a [`Button`](crate::Button).
     pub(crate) changed: bool,
 }
 
@@ -286,14 +286,14 @@ impl Response {
 
     /// What the underlying data changed?
     ///
-    /// e.g. the slider was dragged, text was entered in a `TextEdit` etc.
-    /// Always `false` for something like a `Button`.
+    /// e.g. the slider was dragged, text was entered in a [`TextEdit`](crate::TextEdit) etc.
+    /// Always `false` for something like a [`Button`](crate::Button).
     ///
     /// Can sometimes be `true` even though the data didn't changed
     /// (e.g. if the user entered a character and erased it the same frame).
     ///
     /// This is not set if the *view* of the data was changed.
-    /// For instance, moving the cursor in a `TextEdit` does not set this to `true`.
+    /// For instance, moving the cursor in a [`TextEdit`](crate::TextEdit) does not set this to `true`.
     #[inline(always)]
     pub fn changed(&self) -> bool {
         self.changed
@@ -419,10 +419,10 @@ impl Response {
         self
     }
 
-    /// Check for more interactions (e.g. sense clicks on a `Response` returned from a label).
+    /// Check for more interactions (e.g. sense clicks on a [`Response`] returned from a label).
     ///
     /// Note that this call will not add any hover-effects to the widget, so when possible
-    /// it is better to give the widget a `Sense` instead, e.g. using [`crate::Label::sense`].
+    /// it is better to give the widget a [`Sense`] instead, e.g. using [`crate::Label::sense`].
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -555,7 +555,7 @@ impl Response {
 /// }
 /// ```
 ///
-/// Now `draw_vec2(ui, foo).hovered` is true if either `DragValue` were hovered.
+/// Now `draw_vec2(ui, foo).hovered` is true if either [`DragValue`](crate::DragValue) were hovered.
 impl std::ops::BitOr for Response {
     type Output = Self;
     fn bitor(self, rhs: Self) -> Self {

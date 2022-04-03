@@ -2,21 +2,29 @@
 //!
 //! This is very advanced usage, and you need to be careful.
 //!
-//! If you want an easier way to show 3D graphics with egui, take a look at:
+//! If you want an easier way to show 3D graphics with egui, take a look at the `custom_3d_three-d.rs` example.
+//!
+//! If you are content of having egui sit on top of a 3D background, take a look at:
+//!
 //! * [`bevy_egui`](https://github.com/mvlabat/bevy_egui)
 //! * [`three-d`](https://github.com/asny/three-d)
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
+#![allow(unsafe_code)]
 
 use eframe::egui;
 
-use parking_lot::Mutex;
+use egui::mutex::Mutex;
 use std::sync::Arc;
 
 fn main() {
-    let options = eframe::NativeOptions::default();
+    let options = eframe::NativeOptions {
+        initial_window_size: Some(egui::vec2(350.0, 380.0)),
+        multisampling: 8,
+        ..Default::default()
+    };
     eframe::run_native(
-        "Custom 3D painting in eframe",
+        "Custom 3D painting in eframe using glow",
         options,
         Box::new(|cc| Box::new(MyApp::new(cc))),
     );
@@ -38,7 +46,7 @@ impl MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;
@@ -47,24 +55,22 @@ impl eframe::App for MyApp {
                 ui.label(" (OpenGL).");
             });
 
-            egui::ScrollArea::both().show(ui, |ui| {
-                egui::Frame::dark_canvas(ui.style()).show(ui, |ui| {
-                    self.custom_painting(ui);
-                });
-                ui.label("Drag to rotate!");
+            egui::Frame::canvas(ui.style()).show(ui, |ui| {
+                self.custom_painting(ui);
             });
+            ui.label("Drag to rotate!");
         });
     }
 
     fn on_exit(&mut self, gl: &glow::Context) {
-        self.rotating_triangle.lock().destroy(gl)
+        self.rotating_triangle.lock().destroy(gl);
     }
 }
 
 impl MyApp {
     fn custom_painting(&mut self, ui: &mut egui::Ui) {
         let (rect, response) =
-            ui.allocate_exact_size(egui::Vec2::splat(256.0), egui::Sense::drag());
+            ui.allocate_exact_size(egui::Vec2::splat(300.0), egui::Sense::drag());
 
         self.angle += response.drag_delta().x * 0.01;
 
@@ -74,7 +80,7 @@ impl MyApp {
 
         let callback = egui::PaintCallback {
             rect,
-            callback: std::sync::Arc::new(move |render_ctx| {
+            callback: std::sync::Arc::new(move |_info, render_ctx| {
                 if let Some(painter) = render_ctx.downcast_ref::<egui_glow::Painter>() {
                     rotating_triangle.lock().paint(painter.gl(), angle);
                 } else {

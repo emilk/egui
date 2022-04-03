@@ -4,10 +4,7 @@
 //!
 //! If you are writing an app, you may want to look at [`eframe`](https://docs.rs/eframe) instead.
 
-// Forbid warnings in release builds:
-#![cfg_attr(not(debug_assertions), deny(warnings))]
-#![forbid(unsafe_code)]
-#![warn(clippy::all, rustdoc::missing_crate_level_docs, rust_2018_idioms)]
+#![allow(clippy::missing_errors_doc)] // So many `-> Result<_, JsValue>`
 
 pub mod backend;
 mod glow_wrapping;
@@ -342,6 +339,7 @@ fn paint_and_schedule(runner_ref: &AppRunnerRef, panicked: Arc<AtomicBool>) -> R
     fn paint_if_needed(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let mut runner_lock = runner_ref.lock();
         if runner_lock.needs_repaint.fetch_and_clear() {
+            runner_lock.clear_color_buffer();
             let (needs_repaint, clipped_primitives) = runner_lock.logic()?;
             runner_lock.paint(&clipped_primitives)?;
             if needs_repaint {
@@ -512,11 +510,9 @@ fn install_document_events(runner_container: &AppRunnerContainer) -> Result<(), 
     runner_container.add_event_listener(
         &document,
         "hashchange",
-        |_: web_sys::Event, runner_lock| {
-            let mut frame_lock = runner_lock.frame.lock();
-
+        |_: web_sys::Event, mut runner_lock| {
             // `epi::Frame::info(&self)` clones `epi::IntegrationInfo`, but we need to modify the original here
-            if let Some(web_info) = &mut frame_lock.info.web_info {
+            if let Some(web_info) = &mut runner_lock.frame.info.web_info {
                 web_info.location.hash = location_hash();
             }
         },
@@ -761,7 +757,7 @@ fn install_canvas_events(runner_container: &AppRunnerContainer) -> Result<(), Js
 
             // Report a zoom event in case CTRL (on Windows or Linux) or CMD (on Mac) is pressed.
             // This if-statement is equivalent to how `Modifiers.command` is determined in
-            // `modifiers_from_event()`, but we cannot directly use that fn for a `WheelEvent`.
+            // `modifiers_from_event()`, but we cannot directly use that fn for a [`WheelEvent`].
             if event.ctrl_key() || event.meta_key() {
                 let factor = (delta.y / 200.0).exp();
                 runner_lock.input.raw.events.push(egui::Event::Zoom(factor));
@@ -891,11 +887,11 @@ pub(crate) fn webgl1_requires_brightening(gl: &web_sys::WebGlRenderingContext) -
     !user_agent.contains("Mac OS X") && crate::is_safari_and_webkit_gtk(gl)
 }
 
-/// detecting Safari and webkitGTK.
+/// detecting Safari and `webkitGTK`.
 ///
-/// Safari and webkitGTK use unmasked renderer :Apple GPU
+/// Safari and `webkitGTK` use unmasked renderer :Apple GPU
 ///
-/// If we detect safari or webkitGTK returns true.
+/// If we detect safari or `webkitGTKs` returns true.
 ///
 /// This function used to avoid displaying linear color with `sRGB` supported systems.
 fn is_safari_and_webkit_gtk(gl: &web_sys::WebGlRenderingContext) -> bool {

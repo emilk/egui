@@ -689,10 +689,8 @@ fn add_hline(point_scale: PointScale, [start, stop]: [Pos2; 2], stroke: Stroke, 
     if antialiased {
         let mut path = crate::tessellator::Path::default(); // TODO: reuse this to avoid re-allocations.
         path.add_line_segment([start, stop]);
-        let options = crate::tessellator::TessellationOptions::from_pixels_per_point(
-            point_scale.pixels_per_point(),
-        );
-        path.stroke_open(stroke, &options, mesh);
+        let feathering = 1.0 / point_scale.pixels_per_point();
+        path.stroke_open(feathering, stroke, mesh);
     } else {
         // Thin lines often lost, so this is a bad idea
 

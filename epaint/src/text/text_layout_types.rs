@@ -37,12 +37,12 @@ use emath::*;
 /// );
 /// ```
 ///
-/// As you can see, constructing a `LayoutJob` is currently a lot of work.
+/// As you can see, constructing a [`LayoutJob`] is currently a lot of work.
 /// It would be nice to have a helper macro for it!
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct LayoutJob {
-    /// The complete text of this job, referenced by `LayoutSection`.
+    /// The complete text of this job, referenced by [`LayoutSection`].
     pub text: String,
 
     /// The different section, which can have different fonts, colors, etc.
@@ -140,7 +140,7 @@ impl LayoutJob {
         self.sections.is_empty()
     }
 
-    /// Helper for adding a new section when building a `LayoutJob`.
+    /// Helper for adding a new section when building a [`LayoutJob`].
     pub fn append(&mut self, text: &str, leading_space: f32, format: TextFormat) {
         let start = self.text.len();
         self.text += text;
@@ -356,11 +356,11 @@ pub struct Row {
     /// The mesh, ready to be rendered.
     pub visuals: RowVisuals,
 
-    /// If true, this `Row` came from a paragraph ending with a `\n`.
+    /// If true, this [`Row`] came from a paragraph ending with a `\n`.
     /// The `\n` itself is omitted from [`Self::glyphs`].
-    /// A `\n` in the input text always creates a new `Row` below it,
-    /// so that text that ends with `\n` has an empty `Row` last.
-    /// This also implies that the last `Row` in a `Galley` always has `ends_with_newline == false`.
+    /// A `\n` in the input text always creates a new [`Row`] below it,
+    /// so that text that ends with `\n` has an empty [`Row`] last.
+    /// This also implies that the last [`Row`] in a [`Galley`] always has `ends_with_newline == false`.
     pub ends_with_newline: bool,
 }
 
@@ -421,13 +421,13 @@ impl Glyph {
 // ----------------------------------------------------------------------------
 
 impl Row {
-    /// Excludes the implicit `\n` after the `Row`, if any.
+    /// Excludes the implicit `\n` after the [`Row`], if any.
     #[inline]
     pub fn char_count_excluding_newline(&self) -> usize {
         self.glyphs.len()
     }
 
-    /// Includes the implicit `\n` after the `Row`, if any.
+    /// Includes the implicit `\n` after the [`Row`], if any.
     #[inline]
     pub fn char_count_including_newline(&self) -> usize {
         self.glyphs.len() + (self.ends_with_newline as usize)

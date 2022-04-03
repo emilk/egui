@@ -36,15 +36,15 @@ pub use text_edit::{TextBuffer, TextEdit};
 
 /// Anything implementing Widget can be added to a [`Ui`] with [`Ui::add`].
 ///
-/// [`Button`], [`Label`], [`Slider`], etc all implement the `Widget` trait.
+/// [`Button`], [`Label`], [`Slider`], etc all implement the [`Widget`] trait.
 ///
-/// Note that the widgets (`Button`, `TextEdit` etc) are
+/// Note that the widgets ([`Button`], [`TextEdit`] etc) are
 /// [builders](https://doc.rust-lang.org/1.0.0/style/ownership/builders.html),
 /// and not objects that hold state.
 ///
 /// Tip: you can `impl Widget for &mut YourThing { }`.
 ///
-/// `|ui: &mut Ui| -> Response { … }` also implements `Widget`.
+/// `|ui: &mut Ui| -> Response { … }` also implements [`Widget`].
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub trait Widget {
     /// Allocate space, interact, paint, and return a [`Response`].

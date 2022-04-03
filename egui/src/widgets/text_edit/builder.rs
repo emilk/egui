@@ -81,7 +81,7 @@ impl<'t> TextEdit<'t> {
 }
 
 impl<'t> TextEdit<'t> {
-    /// No newlines (`\n`) allowed. Pressing enter key will result in the `TextEdit` losing focus (`response.lost_focus`).
+    /// No newlines (`\n`) allowed. Pressing enter key will result in the [`TextEdit`] losing focus (`response.lost_focus`).
     pub fn singleline(text: &'t mut dyn TextBuffer) -> Self {
         Self {
             desired_height_rows: 1,
@@ -90,7 +90,7 @@ impl<'t> TextEdit<'t> {
         }
     }
 
-    /// A `TextEdit` for multiple lines. Pressing enter key will create a new line.
+    /// A [`TextEdit`] for multiple lines. Pressing enter key will create a new line.
     pub fn multiline(text: &'t mut dyn TextBuffer) -> Self {
         Self {
             text,
@@ -112,7 +112,7 @@ impl<'t> TextEdit<'t> {
         }
     }
 
-    /// Build a `TextEdit` focused on code editing.
+    /// Build a [`TextEdit`] focused on code editing.
     /// By default it comes with:
     /// - monospaced font
     /// - focus lock
@@ -120,13 +120,13 @@ impl<'t> TextEdit<'t> {
         self.font(TextStyle::Monospace).lock_focus(true)
     }
 
-    /// Use if you want to set an explicit `Id` for this widget.
+    /// Use if you want to set an explicit [`Id`] for this widget.
     pub fn id(mut self, id: Id) -> Self {
         self.id = Some(id);
         self
     }
 
-    /// A source for the unique `Id`, e.g. `.id_source("second_text_edit_field")` or `.id_source(loop_index)`.
+    /// A source for the unique [`Id`], e.g. `.id_source("second_text_edit_field")` or `.id_source(loop_index)`.
     pub fn id_source(mut self, id_source: impl std::hash::Hash) -> Self {
         self.id_source = Some(Id::new(id_source));
         self
@@ -165,7 +165,7 @@ impl<'t> TextEdit<'t> {
         self
     }
 
-    /// Override how text is being shown inside the `TextEdit`.
+    /// Override how text is being shown inside the [`TextEdit`].
     ///
     /// This can be used to implement things like syntax highlighting.
     ///
@@ -196,7 +196,7 @@ impl<'t> TextEdit<'t> {
 
     /// Default is `true`. If set to `false` then you cannot interact with the text (neither edit or select it).
     ///
-    /// Consider using [`Ui::add_enabled`] instead to also give the `TextEdit` a greyed out look.
+    /// Consider using [`Ui::add_enabled`] instead to also give the [`TextEdit`] a greyed out look.
     pub fn interactive(mut self, interactive: bool) -> Self {
         self.interactive = interactive;
         self
@@ -359,7 +359,7 @@ impl<'t> TextEdit<'t> {
 
         let font_id = font_selection.resolve(ui.style());
         let row_height = ui.fonts().row_height(&font_id);
-        const MIN_WIDTH: f32 = 24.0; // Never make a `TextEdit` more narrow than this.
+        const MIN_WIDTH: f32 = 24.0; // Never make a [`TextEdit`] more narrow than this.
         let available_width = ui.available_width().at_least(MIN_WIDTH);
         let desired_width = desired_width.unwrap_or_else(|| ui.spacing().text_edit_width);
         let wrap_width = if ui.layout().horizontal_justify() {
@@ -402,7 +402,7 @@ impl<'t> TextEdit<'t> {
         let mut state = TextEditState::load(ui.ctx(), id).unwrap_or_default();
 
         // On touch screens (e.g. mobile in egui_web), should
-        // dragging select text, or scroll the enclosing `ScrollArea` (if any)?
+        // dragging select text, or scroll the enclosing [`ScrollArea`] (if any)?
         // Since currently copying selected text in not supported on `egui_web`,
         // we prioritize touch-scrolling:
         let any_touches = ui.input().any_touches(); // separate line to avoid double-locking the same mutex

@@ -539,7 +539,7 @@ impl FontsImpl {
             // Make the top left pixel fully white:
             let (pos, image) = atlas.allocate((1, 1));
             assert_eq!(pos, (0, 0));
-            image[pos] = 255;
+            image[pos] = 1.0;
         }
 
         let atlas = Arc::new(Mutex::new(atlas));
@@ -658,7 +658,7 @@ struct FontImplCache {
     pixels_per_point: f32,
     ab_glyph_fonts: BTreeMap<String, (FontTweak, ab_glyph::FontArc)>,
 
-    /// Map font pixel sizes and names to the cached `FontImpl`.
+    /// Map font pixel sizes and names to the cached [`FontImpl`].
     cache: ahash::AHashMap<(u32, String), Arc<FontImpl>>,
 }
 

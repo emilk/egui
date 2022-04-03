@@ -6,87 +6,6 @@
 //!
 //! Start by looking at the [`App`] trait, and implement [`App::update`].
 
-// Forbid warnings in release builds:
-#![cfg_attr(not(debug_assertions), deny(warnings))]
-#![forbid(unsafe_code)]
-#![warn(
-    clippy::all,
-    clippy::await_holding_lock,
-    clippy::char_lit_as_u8,
-    clippy::checked_conversions,
-    clippy::dbg_macro,
-    clippy::debug_assert_with_mut_call,
-    clippy::disallowed_method,
-    clippy::doc_markdown,
-    clippy::empty_enum,
-    clippy::enum_glob_use,
-    clippy::exit,
-    clippy::expl_impl_clone_on_copy,
-    clippy::explicit_deref_methods,
-    clippy::explicit_into_iter_loop,
-    clippy::fallible_impl_from,
-    clippy::filter_map_next,
-    clippy::flat_map_option,
-    clippy::float_cmp_const,
-    clippy::fn_params_excessive_bools,
-    clippy::from_iter_instead_of_collect,
-    clippy::if_let_mutex,
-    clippy::implicit_clone,
-    clippy::imprecise_flops,
-    clippy::inefficient_to_string,
-    clippy::invalid_upcast_comparisons,
-    clippy::large_digit_groups,
-    clippy::large_stack_arrays,
-    clippy::large_types_passed_by_value,
-    clippy::let_unit_value,
-    clippy::linkedlist,
-    clippy::lossy_float_literal,
-    clippy::macro_use_imports,
-    clippy::manual_ok_or,
-    clippy::map_err_ignore,
-    clippy::map_flatten,
-    clippy::map_unwrap_or,
-    clippy::match_on_vec_items,
-    clippy::match_same_arms,
-    clippy::match_wild_err_arm,
-    clippy::match_wildcard_for_single_variants,
-    clippy::mem_forget,
-    clippy::mismatched_target_os,
-    clippy::missing_errors_doc,
-    clippy::missing_safety_doc,
-    clippy::mut_mut,
-    clippy::mutex_integer,
-    clippy::needless_borrow,
-    clippy::needless_continue,
-    clippy::needless_for_each,
-    clippy::needless_pass_by_value,
-    clippy::option_option,
-    clippy::path_buf_push_overwrite,
-    clippy::ptr_as_ptr,
-    clippy::ref_option_ref,
-    clippy::rest_pat_in_fully_bound_structs,
-    clippy::same_functions_in_if_condition,
-    clippy::semicolon_if_nothing_returned,
-    clippy::single_match_else,
-    clippy::string_add_assign,
-    clippy::string_add,
-    clippy::string_lit_as_bytes,
-    clippy::string_to_string,
-    clippy::todo,
-    clippy::trait_duplication_in_bounds,
-    clippy::unimplemented,
-    clippy::unnested_or_patterns,
-    clippy::unused_self,
-    clippy::useless_transmute,
-    clippy::verbose_file_reads,
-    clippy::zero_sized_map_values,
-    future_incompatible,
-    nonstandard_style,
-    rust_2018_idioms,
-    rustdoc::missing_crate_level_docs
-)]
-#![allow(clippy::float_cmp)]
-#![allow(clippy::manual_range_contains)]
 #![warn(missing_docs)] // Let's keep `epi` well-documented.
 
 /// File storage which can be used by native backends.
@@ -95,8 +14,6 @@ pub mod file_storage;
 
 pub use egui; // Re-export for user convenience
 pub use glow; // Re-export for user convenience
-
-use std::sync::{Arc, Mutex};
 
 /// The is is how your app is created.
 ///
@@ -131,10 +48,10 @@ pub trait App {
     ///
     /// Put your widgets into a [`egui::SidePanel`], [`egui::TopBottomPanel`], [`egui::CentralPanel`], [`egui::Window`] or [`egui::Area`].
     ///
-    /// The [`egui::Context`] and [`Frame`] can be cloned and saved if you like.
+    /// The [`egui::Context`] can be cloned and saved if you like.
     ///
     /// To force a repaint, call [`egui::Context::request_repaint`] at any time (e.g. from another thread).
-    fn update(&mut self, ctx: &egui::Context, frame: &Frame);
+    fn update(&mut self, ctx: &egui::Context, frame: &mut Frame);
 
     /// Called on shutdown, and perhaps at regular intervals. Allows you to save state.
     ///
@@ -264,6 +181,32 @@ pub struct NativeOptions {
     /// You control the transparency with [`App::clear_color()`].
     /// You should avoid having a [`egui::CentralPanel`], or make sure its frame is also transparent.
     pub transparent: bool,
+
+    /// Turn on vertical syncing, limiting the FPS to the display refresh rate.
+    ///
+    /// The default is `true`.
+    pub vsync: bool,
+
+    /// Set the level of the multisampling anti-aliasing (MSAA).
+    ///
+    /// Must be a power-of-two. Higher = more smooth 3D.
+    ///
+    /// A value of `0` turns it off (default).
+    ///
+    /// `egui` already performs anti-aliasing via "feathering"
+    /// (controlled by [`egui::epaint::TessellationOptions`]),
+    /// but if you are embedding 3D in egui you may want to turn on multisampling.
+    pub multisampling: u16,
+
+    /// Sets the number of bits in the depth buffer.
+    ///
+    /// `egui` doesn't need the depth buffer, so the default value is 0.
+    pub depth_buffer: u8,
+
+    /// Sets the number of bits in the stencil buffer.
+    ///
+    /// `egui` doesn't need the stencil buffer, so the default value is 0.
+    pub stencil_buffer: u8,
 }
 
 impl Default for NativeOptions {
@@ -280,6 +223,10 @@ impl Default for NativeOptions {
             max_window_size: None,
             resizable: true,
             transparent: false,
+            vsync: true,
+            multisampling: 0,
+            depth_buffer: 0,
+            stencil_buffer: 0,
         }
     }
 }
@@ -301,76 +248,93 @@ pub struct IconData {
 ///
 /// It provides methods to inspect the surroundings (are we on the web?),
 /// allocate textures, and change settings (e.g. window size).
-///
-/// [`Frame`] is cheap to clone and is safe to pass to other threads.
-#[derive(Clone)]
-pub struct Frame(pub Arc<Mutex<backend::FrameData>>);
+pub struct Frame {
+    /// Information about the integration.
+    #[doc(hidden)]
+    pub info: IntegrationInfo,
+
+    /// Where the app can issue commands back to the integration.
+    #[doc(hidden)]
+    pub output: backend::AppOutput,
+
+    /// A place where you can store custom data in a way that persists when you restart the app.
+    #[doc(hidden)]
+    pub storage: Option<Box<dyn Storage>>,
+
+    /// A reference to the underlying [`glow`] (OpenGL) context.
+    #[doc(hidden)]
+    pub gl: std::rc::Rc<glow::Context>,
+}
 
 impl Frame {
-    /// Create a `Frame` - called by the integration.
-    #[doc(hidden)]
-    pub fn new(frame_data: backend::FrameData) -> Self {
-        Self(Arc::new(Mutex::new(frame_data)))
-    }
-
-    /// Access the underlying [`backend::FrameData`].
-    #[doc(hidden)]
-    #[inline]
-    pub fn lock(&self) -> std::sync::MutexGuard<'_, backend::FrameData> {
-        self.0.lock().unwrap()
-    }
-
     /// True if you are in a web environment.
     pub fn is_web(&self) -> bool {
-        self.lock().info.web_info.is_some()
+        self.info.web_info.is_some()
     }
 
     /// Information about the integration.
     pub fn info(&self) -> IntegrationInfo {
-        self.lock().info.clone()
+        self.info.clone()
+    }
+
+    /// A place where you can store custom data in a way that persists when you restart the app.
+    pub fn storage(&self) -> Option<&dyn Storage> {
+        self.storage.as_deref()
+    }
+
+    /// A place where you can store custom data in a way that persists when you restart the app.
+    pub fn storage_mut(&mut self) -> Option<&mut (dyn Storage + 'static)> {
+        self.storage.as_deref_mut()
+    }
+
+    /// A reference to the underlying [`glow`] (OpenGL) context.
+    ///
+    /// This can be used, for instance, to:
+    /// * Render things to offscreen buffers.
+    /// * Read the pixel buffer from the previous frame (`glow::Context::read_pixels`).
+    /// * Render things behind the egui windows.
+    ///
+    /// Note that all egui painting is deferred to after the call to [`App::update`]
+    /// ([`egui`] only collects [`egui::Shape`]s and then eframe paints them all in one go later on).
+    pub fn gl(&self) -> &std::rc::Rc<glow::Context> {
+        &self.gl
     }
 
     /// Signal the app to stop/exit/quit the app (only works for native apps, not web apps).
     /// The framework will not quit immediately, but at the end of the this frame.
-    pub fn quit(&self) {
-        self.lock().output.quit = true;
+    pub fn quit(&mut self) {
+        self.output.quit = true;
     }
 
     /// Set the desired inner size of the window (in egui points).
-    pub fn set_window_size(&self, size: egui::Vec2) {
-        self.lock().output.window_size = Some(size);
+    pub fn set_window_size(&mut self, size: egui::Vec2) {
+        self.output.window_size = Some(size);
     }
 
     /// Set the desired title of the window.
-    pub fn set_window_title(&self, title: &str) {
-        self.lock().output.window_title = Some(title.to_owned());
+    pub fn set_window_title(&mut self, title: &str) {
+        self.output.window_title = Some(title.to_owned());
     }
 
     /// Set whether to show window decorations (i.e. a frame around you app).
     /// If false it will be difficult to move and resize the app.
-    pub fn set_decorations(&self, decorated: bool) {
-        self.lock().output.decorated = Some(decorated);
+    pub fn set_decorations(&mut self, decorated: bool) {
+        self.output.decorated = Some(decorated);
     }
 
     /// When called, the native window will follow the
     /// movement of the cursor while the primary mouse button is down.
     ///
     /// Does not work on the web.
-    pub fn drag_window(&self) {
-        self.lock().output.drag_window = true;
+    pub fn drag_window(&mut self) {
+        self.output.drag_window = true;
     }
 
     /// for integrations only: call once per frame
-    pub fn take_app_output(&self) -> crate::backend::AppOutput {
-        std::mem::take(&mut self.lock().output)
+    #[doc(hidden)]
+    pub fn take_app_output(&mut self) -> crate::backend::AppOutput {
+        std::mem::take(&mut self.output)
     }
-}
-
-#[cfg(test)]
-#[test]
-fn frame_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
-    assert_send_sync::<Frame>();
 }
 
 /// Information about the web environment (if applicable).
@@ -515,20 +479,12 @@ pub const APP_KEY: &str = "app";
 // ----------------------------------------------------------------------------
 
 /// You only need to look here if you are writing a backend for `epi`.
+#[doc(hidden)]
 pub mod backend {
     use super::*;
 
-    /// The data required by [`Frame`] each frame.
-    pub struct FrameData {
-        /// Information about the integration.
-        pub info: IntegrationInfo,
-
-        /// Where the app can issue commands back to the integration.
-        pub output: AppOutput,
-    }
-
     /// Action that can be taken by the user app.
-    #[derive(Default)]
+    #[derive(Clone, Debug, Default)]
     #[must_use]
     pub struct AppOutput {
         /// Set to `true` to stop the app.

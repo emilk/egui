@@ -12,7 +12,7 @@ enum RunMode {
     /// For instance, a GUI for a thermostat need to repaint each time the temperature changes.
     /// To ensure the UI is up to date you need to call `egui::Context::request_repaint()` each
     /// time such an event happens. You can also chose to call `request_repaint()` once every second
-    /// or after every single frame - this is called `Continuous` mode,
+    /// or after every single frame - this is called [`Continuous`](RunMode::Continuous) mode,
     /// and for games and interactive tools that need repainting every frame anyway, this should be the default.
     Reactive,
 
@@ -47,7 +47,7 @@ pub struct BackendPanel {
     pub open: bool,
 
     #[cfg_attr(feature = "serde", serde(skip))]
-    // go back to `Reactive` mode each time we start
+    // go back to [`Reactive`] mode each time we start
     run_mode: RunMode,
 
     /// current slider value for current gui scale
@@ -73,7 +73,7 @@ impl Default for BackendPanel {
 }
 
 impl BackendPanel {
-    pub fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
+    pub fn update(&mut self, ctx: &egui::Context, frame: &mut epi::Frame) {
         self.frame_history
             .on_new_frame(ctx.input().time, frame.info().cpu_usage);
 
@@ -87,7 +87,7 @@ impl BackendPanel {
         self.egui_windows.windows(ctx);
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui, frame: &epi::Frame) {
+    pub fn ui(&mut self, ui: &mut egui::Ui, frame: &mut epi::Frame) {
         egui::trace!(ui);
         ui.vertical_centered(|ui| {
             ui.heading("💻 Backend");
@@ -142,7 +142,7 @@ impl BackendPanel {
         }
     }
 
-    fn integration_ui(&mut self, ui: &mut egui::Ui, frame: &epi::Frame) {
+    fn integration_ui(&mut self, ui: &mut egui::Ui, frame: &mut epi::Frame) {
         if frame.is_web() {
             ui.label("egui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
             ui.label(

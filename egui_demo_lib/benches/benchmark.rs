@@ -17,7 +17,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                     demo_windows.ui(ctx);
                 });
                 ctx.tessellate(full_output.shapes)
-            })
+            });
         });
 
         c.bench_function("demo_no_tessellate", |b| {
@@ -25,14 +25,14 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 ctx.run(RawInput::default(), |ctx| {
                     demo_windows.ui(ctx);
                 })
-            })
+            });
         });
 
         let full_output = ctx.run(RawInput::default(), |ctx| {
             demo_windows.ui(ctx);
         });
         c.bench_function("demo_only_tessellate", |b| {
-            b.iter(|| ctx.tessellate(full_output.shapes.clone()))
+            b.iter(|| ctx.tessellate(full_output.shapes.clone()));
         });
     }
 
@@ -45,7 +45,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 ctx.run(RawInput::default(), |ctx| {
                     demo_windows.ui(ctx);
                 })
-            })
+            });
         });
     }
 
@@ -56,12 +56,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 c.bench_function("label &str", |b| {
                     b.iter(|| {
                         ui.label("the quick brown fox jumps over the lazy dog");
-                    })
+                    });
                 });
                 c.bench_function("label format!", |b| {
                     b.iter(|| {
                         ui.label("the quick brown fox jumps over the lazy dog".to_owned());
-                    })
+                    });
                 });
             });
         });
@@ -77,7 +77,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 let rect = ui.max_rect();
                 b.iter(|| {
                     painter.rect(rect, 2.0, egui::Color32::RED, (1.0, egui::Color32::WHITE));
-                })
+                });
             });
         });
 
@@ -108,7 +108,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                         wrap_width,
                     );
                     layout(&mut locked_fonts.fonts, job.into())
-                })
+                });
             });
         }
         c.bench_function("text_layout_cached", |b| {
@@ -119,19 +119,20 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                     color,
                     wrap_width,
                 )
-            })
+            });
         });
 
         let galley = fonts.layout(LOREM_IPSUM_LONG.to_owned(), font_id, color, wrap_width);
-        let mut tessellator = egui::epaint::Tessellator::from_options(Default::default());
+        let font_image_size = fonts.font_image_size();
+        let mut tessellator =
+            egui::epaint::Tessellator::new(1.0, Default::default(), font_image_size);
         let mut mesh = egui::epaint::Mesh::default();
         let text_shape = TextShape::new(egui::Pos2::ZERO, galley);
-        let font_image_size = fonts.font_image_size();
         c.bench_function("tessellate_text", |b| {
             b.iter(|| {
-                tessellator.tessellate_text(font_image_size, &text_shape, &mut mesh);
+                tessellator.tessellate_text(&text_shape, &mut mesh);
                 mesh.clear();
-            })
+            });
         });
     }
 }

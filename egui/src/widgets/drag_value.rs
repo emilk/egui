@@ -11,7 +11,7 @@ use crate::*;
 pub(crate) struct MonoState {
     last_dragged_id: Option<Id>,
     last_dragged_value: Option<f64>,
-    /// For temporary edit of a `DragValue` value.
+    /// For temporary edit of a [`DragValue`] value.
     /// Couples with the current focus id.
     edit_string: Option<String>,
 }

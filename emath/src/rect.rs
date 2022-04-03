@@ -5,7 +5,7 @@ use crate::*;
 
 /// A rectangular region of space.
 ///
-/// Usually a `Rect` has a positive (or zero) size,
+/// Usually a [`Rect`] has a positive (or zero) size,
 /// and then [`Self::min`] `<=` [`Self::max`].
 /// In these cases [`Self::min`] is the left-top corner
 /// and [`Self::max`] is the right-bottom corner.
@@ -53,7 +53,7 @@ impl Rect {
         max: pos2(-INFINITY, -INFINITY),
     };
 
-    /// An invalid `Rect` filled with [`f32::NAN`];
+    /// An invalid [`Rect`] filled with [`f32::NAN`];
     pub const NAN: Self = Self {
         min: pos2(f32::NAN, f32::NAN),
         max: pos2(f32::NAN, f32::NAN),
@@ -107,7 +107,7 @@ impl Rect {
         rect
     }
 
-    /// A `Rect` that contains every point to the right of the given X coordinate.
+    /// A [`Rect`] that contains every point to the right of the given X coordinate.
     #[inline]
     pub fn everything_right_of(left_x: f32) -> Self {
         let mut rect = Self::EVERYTHING;
@@ -115,7 +115,7 @@ impl Rect {
         rect
     }
 
-    /// A `Rect` that contains every point to the left of the given X coordinate.
+    /// A [`Rect`] that contains every point to the left of the given X coordinate.
     #[inline]
     pub fn everything_left_of(right_x: f32) -> Self {
         let mut rect = Self::EVERYTHING;
@@ -123,7 +123,7 @@ impl Rect {
         rect
     }
 
-    /// A `Rect` that contains every point below a certain y coordinate
+    /// A [`Rect`] that contains every point below a certain y coordinate
     #[inline]
     pub fn everything_below(top_y: f32) -> Self {
         let mut rect = Self::EVERYTHING;
@@ -131,7 +131,7 @@ impl Rect {
         rect
     }
 
-    /// A `Rect` that contains every point above a certain y coordinate
+    /// A [`Rect`] that contains every point above a certain y coordinate
     #[inline]
     pub fn everything_above(bottom_y: f32) -> Self {
         let mut rect = Self::EVERYTHING;
@@ -169,7 +169,7 @@ impl Rect {
         Rect::from_min_size(self.min + amnt, self.size())
     }
 
-    /// Rotate the bounds (will expand the `Rect`)
+    /// Rotate the bounds (will expand the [`Rect`])
     #[must_use]
     #[inline]
     pub fn rotate_bb(self, rot: crate::Rot2) -> Self {
@@ -246,7 +246,7 @@ impl Rect {
         self.max.y = self.max.y.max(y);
     }
 
-    /// The union of two bounding rectangle, i.e. the minimum `Rect`
+    /// The union of two bounding rectangle, i.e. the minimum [`Rect`]
     /// that contains both input rectangles.
     #[inline(always)]
     #[must_use]
@@ -257,7 +257,7 @@ impl Rect {
         }
     }
 
-    /// The intersection of two `Rect`, i.e. the area covered by both.
+    /// The intersection of two [`Rect`], i.e. the area covered by both.
     #[inline]
     #[must_use]
     pub fn intersect(self, other: Rect) -> Self {

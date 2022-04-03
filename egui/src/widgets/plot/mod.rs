@@ -8,13 +8,14 @@ use epaint::color::Hsva;
 use epaint::util::FloatOrd;
 use items::PlotItem;
 use legend::LegendWidget;
-use transform::{PlotBounds, ScreenTransform};
+use transform::ScreenTransform;
 
 pub use items::{
     Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, HLine, Line, LineStyle, MarkerShape,
     Orientation, PlotImage, Points, Polygon, Text, VLine, Value, Values,
 };
 pub use legend::{Corner, Legend};
+pub use transform::PlotBounds;
 
 mod items;
 mod legend;
@@ -144,7 +145,7 @@ impl LinkedAxisGroup {
 
 /// A 2D plot, e.g. a graph of a function.
 ///
-/// `Plot` supports multiple lines and points.
+/// [`Plot`] supports multiple lines and points.
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
@@ -164,6 +165,7 @@ pub struct Plot {
     center_y_axis: bool,
     allow_zoom: bool,
     allow_drag: bool,
+    allow_scroll: bool,
     min_auto_bounds: PlotBounds,
     margin_fraction: Vec2,
     allow_boxed_zoom: bool,
@@ -187,7 +189,7 @@ pub struct Plot {
 }
 
 impl Plot {
-    /// Give a unique id for each plot within the same `Ui`.
+    /// Give a unique id for each plot within the same [`Ui`].
     pub fn new(id_source: impl std::hash::Hash) -> Self {
         Self {
             id_source: Id::new(id_source),
@@ -196,6 +198,7 @@ impl Plot {
             center_y_axis: false,
             allow_zoom: true,
             allow_drag: true,
+            allow_scroll: true,
             min_auto_bounds: PlotBounds::NOTHING,
             margin_fraction: Vec2::splat(0.05),
             allow_boxed_zoom: true,
@@ -287,6 +290,12 @@ impl Plot {
         self
     }
 
+    /// Whether to allow scrolling in the plot. Default: `true`.
+    pub fn allow_scroll(mut self, on: bool) -> Self {
+        self.allow_scroll = on;
+        self
+    }
+
     /// Set the side margin as a fraction of the plot size.
     ///
     /// For instance, a value of `0.1` will add 10% space on both sides.
@@ -303,7 +312,7 @@ impl Plot {
         self
     }
 
-    /// Config the button pointer to use for boxed zooming. Default: `Secondary`
+    /// Config the button pointer to use for boxed zooming. Default: [`Secondary`](PointerButton::Secondary)
     pub fn boxed_zoom_pointer_button(mut self, boxed_zoom_pointer_button: PointerButton) -> Self {
         self.boxed_zoom_pointer_button = boxed_zoom_pointer_button;
         self
@@ -404,7 +413,7 @@ impl Plot {
         self
     }
 
-    /// Whether or not to show the background `Rect`.
+    /// Whether or not to show the background [`Rect`].
     /// Can be useful to disable if the plot is overlaid over existing content.
     /// Default: `true`.
     pub fn show_background(mut self, show: bool) -> Self {
@@ -434,6 +443,7 @@ impl Plot {
             center_x_axis,
             center_y_axis,
             allow_zoom,
+            allow_scroll,
             allow_drag,
             allow_boxed_zoom,
             boxed_zoom_pointer_button: boxed_zoom_pointer,
@@ -660,8 +670,8 @@ impl Plot {
             }
         }
 
-        if allow_zoom {
-            if let Some(hover_pos) = response.hover_pos() {
+        if let Some(hover_pos) = response.hover_pos() {
+            if allow_zoom {
                 let zoom_factor = if data_aspect.is_some() {
                     Vec2::splat(ui.input().zoom_delta())
                 } else {
@@ -671,7 +681,8 @@ impl Plot {
                     transform.zoom(zoom_factor, hover_pos);
                     auto_bounds = false;
                 }
-
+            }
+            if allow_scroll {
                 let scroll_delta = ui.input().scroll_delta;
                 if scroll_delta != Vec2::ZERO {
                     transform.translate_bounds(-scroll_delta);

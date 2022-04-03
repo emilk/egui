@@ -42,6 +42,8 @@ screen_reader = [
   "egui_web/screen_reader",
 ]
 
+dark-light = [ "egui-winit/dark-light"]              # detect dark mode system preference
+
 
 [dependencies]
 egui = { version = "0.17.0", path = "../egui", default-features = false }
@@ -71,6 +73,6 @@ image = { version = "0.24", default-features = false, features = [
   "jpeg",
   "png",
 ] }
-parking_lot = "0.12"
 poll-promise = "0.1"
 rfd = "0.8"
+three-d = { git = "https://github.com/asny/three-d", rev = "fa475673e284e05b2f4e068769dce3ec5bcabc8d", default-features = false } # 2022-03-22

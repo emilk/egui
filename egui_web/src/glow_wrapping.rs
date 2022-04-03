@@ -32,6 +32,10 @@ impl WrappedGlowPainter {
 }
 
 impl WrappedGlowPainter {
+    pub fn gl(&self) -> &std::rc::Rc<glow::Context> {
+        self.painter.gl()
+    }
+
     pub fn max_texture_side(&self) -> usize {
         self.painter.max_texture_side()
     }
@@ -48,9 +52,9 @@ impl WrappedGlowPainter {
         self.painter.free_texture(tex_id);
     }
 
-    pub fn clear(&mut self, clear_color: Rgba) {
+    pub fn clear(&self, clear_color: Rgba) {
         let canvas_dimension = [self.canvas.width(), self.canvas.height()];
-        egui_glow::painter::clear(self.painter.gl(), canvas_dimension, clear_color)
+        egui_glow::painter::clear(self.painter.gl(), canvas_dimension, clear_color);
     }
 
     pub fn paint_primitives(
