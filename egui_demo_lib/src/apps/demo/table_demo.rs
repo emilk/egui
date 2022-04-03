@@ -6,6 +6,7 @@ use egui_extras::{Size, StripBuilder, TableBuilder, TableRow};
 #[derive(Default)]
 pub struct TableDemo {
     heterogeneous_rows: bool,
+    virtual_scroll: bool,
     resizable: bool,
     num_rows: usize,
 }
@@ -31,7 +32,7 @@ impl super::View for TableDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
         // Leave room for the source code link after the table demo:
         StripBuilder::new(ui)
-            .size(Size::exact(50.0)) // for the settings
+            .size(Size::exact(66.0)) // for the settings
             .size(Size::remainder()) // for the table
             .size(Size::exact(10.0)) // for the source code link
             .vertical(|mut strip| {
@@ -42,6 +43,7 @@ impl super::View for TableDemo {
                         .horizontal(|mut strip| {
                             strip.cell(|ui| {
                                 ui.checkbox(&mut self.heterogeneous_rows, "Heterogeneous rows");
+                                ui.checkbox(&mut self.virtual_scroll, "Virtual Scroll");
                                 ui.checkbox(&mut self.resizable, "Resizable columns");
                             });
                             strip.cell(|ui| {
@@ -106,9 +108,36 @@ impl TableDemo {
                             );
                         });
                     });
-                } else {
+                } else if self.virtual_scroll {
                     let rows = DemoRows::new(self.num_rows);
                     body.heterogeneous_rows(rows, DemoRows::populate_row);
+                } else {
+                    for row_index in 0..20 {
+                        let thick = row_index % 6 == 0;
+                        let row_height = if thick { 30.0 } else { 18.0 };
+                        body.row(row_height, |mut row| {
+                            row.col(|ui| {
+                                ui.centered_and_justified(|ui| {
+                                    ui.label(row_index.to_string());
+                                });
+                            });
+                            row.col(|ui| {
+                                ui.centered_and_justified(|ui| {
+                                    ui.label(clock_emoji(row_index));
+                                });
+                            });
+                            row.col(|ui| {
+                                ui.centered_and_justified(|ui| {
+                                    ui.style_mut().wrap = Some(false);
+                                    if thick {
+                                        ui.heading("Extra thick row");
+                                    } else {
+                                        ui.label("Normal row");
+                                    }
+                                });
+                            });
+                        });
+                    }
                 }
             });
     }
