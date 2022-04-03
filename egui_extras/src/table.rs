@@ -372,6 +372,41 @@ impl<'a> TableBody<'a> {
     /// visible region, but it is many orders of magnitude more performant than adding individual
     /// heterogenously-sized rows using [`TableBody::row`] at the cost of the additional complexity
     /// that comes with pre-calculating row heights and representing them as an iterator.
+    ///
+    /// ### Example
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// use egui_extras::{TableBuilderSize};
+    /// TableBuilder::new(ui)
+    ///     .column(Size::remainder().at_least(100.0))
+    ///     .body(|mut body| {
+    ///         let row_heights: Vec<f32> = vec![60.0, 18.0, 31.0, 240.0];
+    ///         body.heterogeneous_rows(row_heights.iter(), |row_index, mut row| {
+    ///             let thick = row_index % 6 == 0;
+    ///             row.col(|ui| {
+    ///                 ui.centered_and_justified(|ui| {
+    ///                     ui.label(row_index.to_string());
+    ///                 });
+    ///             });
+    ///             row.col(|ui| {
+    ///                 ui.centered_and_justified(|ui| {
+    ///                     ui.label(clock_emoji(row_index));
+    ///                 });
+    ///             });
+    ///             row.col(|ui| {
+    ///                 ui.centered_and_justified(|ui| {
+    ///                     ui.style_mut().wrap = Some(false);
+    ///                     if thick {
+    ///                         ui.heading("Extra thick row");
+    ///                     } else {
+    ///                         ui.label("Normal row");
+    ///                     }
+    ///                 });
+    ///             });
+    ///         });
+    ///     });
+    /// # });
+    /// ```
     pub fn heterogeneous_rows(
         &mut self,
         heights: impl Iterator<Item = f32>,
