@@ -239,21 +239,18 @@ impl<'a> Widget for Checkbox<'a> {
         let icon_width = spacing.icon_width;
         let icon_spacing = ui.spacing().icon_spacing;
         let button_padding = spacing.button_padding;
-        let mut total_extra = button_padding;
-        if !text.is_empty() {
+        let (text, mut desired_size) = if !text.is_empty() {
+            let mut total_extra = button_padding;
             total_extra += vec2(icon_width + icon_spacing, 0.0) + button_padding;
-        }
-
-        let wrap_width = ui.available_width() - total_extra.x;
-
-        let mut desired_size = total_extra;
-        let text = if !text.text().is_empty() {
+            let wrap_width = ui.available_width() - total_extra.x;
             let text = text.into_galley(ui, None, wrap_width, TextStyle::Button);
+            let mut desired_size = total_extra;
             desired_size += text.size();
-            Some(text)
+            (Some(text), desired_size)
         } else {
-            None
+            (None, button_padding)
         };
+
         desired_size = desired_size.at_least(Vec2::splat(spacing.interact_size.y));
         desired_size.y = desired_size.y.max(icon_width);
         let (rect, mut response) = ui.allocate_exact_size(desired_size, Sense::click());
