@@ -9,6 +9,7 @@ All notable changes to the epaint crate will be documented in this file.
 * Renamed `TessellationOptions::anti_alias` to `feathering` ([#1408](https://github.com/emilk/egui/pull/1408)).
 * Renamed `AlphaImage` to `FontImage` to discourage any other use for it ([#1412](https://github.com/emilk/egui/pull/1412)).
 * Dark text is darker and more readable on bright backgrounds ([#1412](https://github.com/emilk/egui/pull/1412)).
+* Fix panic when tessellating a [`Shape::Vec`] containing meshes with differing `TextureId`:s ([#1445](https://github.com/emilk/egui/pull/1445)).
 
 
 ## 0.17.0 - 2022-02-22
