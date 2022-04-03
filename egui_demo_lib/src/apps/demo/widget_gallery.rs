@@ -109,6 +109,7 @@ impl WidgetGallery {
             string,
             color,
             animate_progress_bar,
+            #[cfg(feature = "datetime")]
             date,
             texture,
         } = self;
