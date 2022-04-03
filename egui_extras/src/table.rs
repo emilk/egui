@@ -351,15 +351,16 @@ pub struct TableBody<'a> {
     end_y: f32,
 }
 
-pub trait TableRowBuilder {
-    fn row_heights(&self, widths: &Vec<f32>) -> Box<dyn Iterator<Item = f32> + '_>;
-    fn populate_row(&self, index: usize, row: TableRow<'_, '_>);
-}
-
 impl<'a> TableBody<'a> {
-    pub fn heterogeneous_rows(mut self, builder: impl TableRowBuilder) {
-        let mut heights = builder.row_heights(&self.widths);
+    pub fn widths(&self) -> &Vec<f32> {
+        &self.widths
+    }
 
+    pub fn heterogeneous_rows(
+        &mut self,
+        mut heights: impl Iterator<Item = f32>,
+        mut populate_row: impl FnMut(usize, TableRow<'_, '_>),
+    ) {
         let max_height = self.end_y - self.start_y;
         let delta = self.start_y - self.layout.current_y();
 
@@ -398,7 +399,7 @@ impl<'a> TableBody<'a> {
                     height: height,
                 };
                 self.row_nr += 1;
-                builder.populate_row(row_index, tr);
+                populate_row(row_index, tr);
                 row_index += 1;
                 current_height += height;
                 continue;

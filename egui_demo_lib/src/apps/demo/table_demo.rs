@@ -1,5 +1,5 @@
 use egui::TextStyle;
-use egui_extras::{Size, StripBuilder, TableBuilder, TableRow, TableRowBuilder};
+use egui_extras::{Size, StripBuilder, TableBuilder, TableRow};
 
 /// Shows off a table with dynamic layout
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -91,7 +91,7 @@ impl TableDemo {
                     });
                 });
             })
-            .body(|body| {
+            .body(|mut body| {
                 if !self.heterogeneous_rows {
                     body.rows(text_height, self.num_rows, |row_index, mut row| {
                         row.col(|ui| {
@@ -107,17 +107,11 @@ impl TableDemo {
                         });
                     });
                 } else {
-                    let row_builder = DemoRowBuilder {
-                        row_count: self.num_rows,
-                    };
-                    body.heterogeneous_rows(row_builder);
+                    let rows = DemoRows::new(self.num_rows);
+                    body.heterogeneous_rows(rows, DemoRows::populate_row);
                 }
             });
     }
-}
-
-struct DemoRowBuilder {
-    row_count: usize,
 }
 
 struct DemoRows {
@@ -125,29 +119,15 @@ struct DemoRows {
     current_row: usize,
 }
 
-impl Iterator for DemoRows {
-    type Item = f32;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.current_row < self.row_count {
-            let thick = self.current_row % 6 == 0;
-            self.current_row += 1;
-            Some(if thick { 30.0 } else { 18.0 })
-        } else {
-            None
+impl DemoRows {
+    fn new(row_count: usize) -> Self {
+        Self {
+            row_count,
+            current_row: 0,
         }
     }
-}
 
-impl TableRowBuilder for DemoRowBuilder {
-    fn row_heights(&self, _: &Vec<f32>) -> Box<dyn Iterator<Item = f32>> {
-        Box::new(DemoRows {
-            row_count: self.row_count,
-            current_row: 0,
-        })
-    }
-
-    fn populate_row(&self, index: usize, mut row: TableRow<'_, '_>) {
+    fn populate_row(index: usize, mut row: TableRow<'_, '_>) {
         let thick = index % 6 == 0;
         row.col(|ui| {
             ui.centered_and_justified(|ui| {
@@ -169,6 +149,20 @@ impl TableRowBuilder for DemoRowBuilder {
                 }
             });
         });
+    }
+}
+
+impl Iterator for DemoRows {
+    type Item = f32;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_row < self.row_count {
+            let thick = self.current_row % 6 == 0;
+            self.current_row += 1;
+            Some(if thick { 30.0 } else { 18.0 })
+        } else {
+            None
+        }
     }
 }
 
