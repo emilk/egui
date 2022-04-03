@@ -48,10 +48,7 @@ pub struct LayoutJob {
     /// The different section, which can have different fonts, colors, etc.
     pub sections: Vec<LayoutSection>,
 
-    /// Try to break text so that no row is wider than this.
-    /// Set to [`f32::INFINITY`] to turn off wrapping.
-    /// Note that `\n` always produces a new line.
-    pub wrap_width: f32,
+    pub wrap: TextWrapping,
 
     /// The first row must be at least this high.
     /// This is in case we lay out text that is the continuation
@@ -78,7 +75,7 @@ impl Default for LayoutJob {
         Self {
             text: Default::default(),
             sections: Default::default(),
-            wrap_width: f32::INFINITY,
+            wrap: Default::default(),
             first_row_min_height: 0.0,
             break_on_newline: true,
             halign: Align::LEFT,
@@ -98,7 +95,10 @@ impl LayoutJob {
                 format: TextFormat::simple(font_id, color),
             }],
             text,
-            wrap_width,
+            wrap: TextWrapping {
+                max_width: wrap_width,
+                ..Default::default()
+            },
             break_on_newline: true,
             ..Default::default()
         }
@@ -114,7 +114,7 @@ impl LayoutJob {
                 format: TextFormat::simple(font_id, color),
             }],
             text,
-            wrap_width: f32::INFINITY,
+            wrap: Default::default(),
             break_on_newline: false,
             ..Default::default()
         }
@@ -129,7 +129,7 @@ impl LayoutJob {
                 format,
             }],
             text,
-            wrap_width: f32::INFINITY,
+            wrap: Default::default(),
             break_on_newline: true,
             ..Default::default()
         }
@@ -168,7 +168,7 @@ impl std::hash::Hash for LayoutJob {
         let Self {
             text,
             sections,
-            wrap_width,
+            wrap,
             first_row_min_height,
             break_on_newline,
             halign,
@@ -177,7 +177,7 @@ impl std::hash::Hash for LayoutJob {
 
         text.hash(state);
         sections.hash(state);
-        crate::f32_hash(state, *wrap_width);
+        wrap.hash(state);
         crate::f32_hash(state, *first_row_min_height);
         break_on_newline.hash(state);
         halign.hash(state);
@@ -251,6 +251,54 @@ impl TextFormat {
             font_id,
             color,
             ..Default::default()
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct TextWrapping {
+    /// Try to break text so that no row is wider than this.
+    /// Set to [`f32::INFINITY`] to turn off wrapping.
+    /// Note that `\n` always produces a new line.
+    pub max_width: f32,
+
+    /// Maximum amount of rows the text should have.
+    /// Set to `0` to disable this.
+    pub max_rows: usize,
+
+    /// Don't try to break text at an appropriate place.
+    pub break_anywhere: bool,
+
+    /// Character to use to represent clipped text, `…` for example, which is the default.
+    pub overflow_character: Option<char>,
+}
+
+impl std::hash::Hash for TextWrapping {
+    #[inline]
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let Self {
+            max_width,
+            max_rows,
+            break_anywhere,
+            overflow_character,
+        } = self;
+        crate::f32_hash(state, *max_width);
+        max_rows.hash(state);
+        break_anywhere.hash(state);
+        overflow_character.hash(state);
+    }
+}
+
+impl Default for TextWrapping {
+    fn default() -> Self {
+        Self {
+            max_width: f32::INFINITY,
+            max_rows: 0,
+            break_anywhere: false,
+            overflow_character: Some('…'),
         }
     }
 }

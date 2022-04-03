@@ -85,7 +85,7 @@ impl EasyMarkEditor {
         let response = if self.highlight_editor {
             let mut layouter = |ui: &egui::Ui, easymark: &str, wrap_width: f32| {
                 let mut layout_job = highlighter.highlight(ui.style(), easymark);
-                layout_job.wrap_width = wrap_width;
+                layout_job.wrap.max_width = wrap_width;
                 ui.fonts().layout_job(layout_job)
             };
 

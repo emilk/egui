@@ -4,6 +4,13 @@ All notable changes to the epaint crate will be documented in this file.
 
 ## Unreleased
 * Add `Shape::Callback` for backend-specific painting ([#1351](https://github.com/emilk/egui/pull/1351)).
+* Added more text wrapping options ([#1291](https://github.com/emilk/egui/pull/1291)):
+  * Added `TextWrapping` struct containing all wrapping options.
+  * Added `LayoutJob::wrap` field containing these options.
+  * Moved `LayoutJob::wrap_width` to `TextWrapping::max_width`.
+  * Added `TextWrapping::max_rows` to limit amount of rows the text should have.
+  * Added `TextWrapping::break_anywhere` to control should the text break at appropriate places or not.
+  * Added `TextWrapping::overflow_character` to specify what character should be used to represent clipped text.
 * Removed the `single_threaded/multi_threaded` flags - epaint is now always thread-safe ([#1390](https://github.com/emilk/egui/pull/1390)).
 * `Tessellator::from_options` is now `Tessellator::new` ([#1408](https://github.com/emilk/egui/pull/1408)).
 * Renamed `TessellationOptions::anti_alias` to `feathering` ([#1408](https://github.com/emilk/egui/pull/1408)).

@@ -244,7 +244,7 @@ impl ColoredText {
             // Selectable text:
             let mut layouter = |ui: &egui::Ui, _string: &str, wrap_width: f32| {
                 let mut layout_job = self.0.clone();
-                layout_job.wrap_width = wrap_width;
+                layout_job.wrap.max_width = wrap_width;
                 ui.fonts().layout_job(layout_job)
             };
 
@@ -257,7 +257,7 @@ impl ColoredText {
             );
         } else {
             let mut job = self.0.clone();
-            job.wrap_width = ui.available_width();
+            job.wrap.max_width = ui.available_width();
             let galley = ui.fonts().layout_job(job);
             let (response, painter) = ui.allocate_painter(galley.size(), egui::Sense::hover());
             painter.add(egui::Shape::galley(response.rect.min, galley));

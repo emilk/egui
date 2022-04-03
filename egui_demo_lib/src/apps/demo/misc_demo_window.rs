@@ -1,11 +1,16 @@
 use super::*;
-use egui::{color::*, *};
+use crate::LOREM_IPSUM;
+use egui::{color::*, epaint::text::TextWrapping, *};
 
 /// Showcase some ui code
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct MiscDemoWindow {
     num_columns: usize,
+
+    break_anywhere: bool,
+    max_rows: usize,
+    overflow_character: Option<char>,
 
     widgets: Widgets,
     colors: ColorWidgets,
@@ -17,6 +22,10 @@ impl Default for MiscDemoWindow {
     fn default() -> MiscDemoWindow {
         MiscDemoWindow {
             num_columns: 2,
+
+            max_rows: 2,
+            break_anywhere: false,
+            overflow_character: Some('…'),
 
             widgets: Default::default(),
             colors: Default::default(),
@@ -53,7 +62,12 @@ impl View for MiscDemoWindow {
         CollapsingHeader::new("Text layout")
             .default_open(false)
             .show(ui, |ui| {
-                text_layout_ui(ui);
+                text_layout_ui(
+                    ui,
+                    &mut self.max_rows,
+                    &mut self.break_anywhere,
+                    &mut self.overflow_character,
+                );
             });
 
         CollapsingHeader::new("Colors")
@@ -401,7 +415,12 @@ impl SubTree {
 
 // ----------------------------------------------------------------------------
 
-fn text_layout_ui(ui: &mut egui::Ui) {
+fn text_layout_ui(
+    ui: &mut egui::Ui,
+    max_rows: &mut usize,
+    break_anywhere: &mut bool,
+    overflow_character: &mut Option<char>,
+) {
     use egui::text::LayoutJob;
 
     let mut job = LayoutJob::default();
@@ -554,6 +573,30 @@ fn text_layout_ui(ui: &mut egui::Ui) {
         },
     );
 
+    ui.label(job);
+
+    ui.separator();
+
+    ui.horizontal(|ui| {
+        ui.add(DragValue::new(max_rows));
+        ui.label("Max rows");
+    });
+    ui.checkbox(break_anywhere, "Break anywhere");
+    ui.horizontal(|ui| {
+        ui.selectable_value(overflow_character, None, "None");
+        ui.selectable_value(overflow_character, Some('…'), "…");
+        ui.selectable_value(overflow_character, Some('—'), "—");
+        ui.selectable_value(overflow_character, Some('-'), "  -  ");
+        ui.label("Overflow character");
+    });
+
+    let mut job = LayoutJob::single_section(LOREM_IPSUM.to_string(), TextFormat::default());
+    job.wrap = TextWrapping {
+        max_rows: *max_rows,
+        break_anywhere: *break_anywhere,
+        overflow_character: *overflow_character,
+        ..Default::default()
+    };
     ui.label(job);
 
     ui.vertical_centered(|ui| {
