@@ -5,8 +5,9 @@ use egui_extras::{Size, StripBuilder, TableBuilder, TableRow, TableRowBuilder};
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Default)]
 pub struct TableDemo {
-    virtual_scroll: bool,
+    heterogeneous_rows: bool,
     resizable: bool,
+    num_rows: usize,
 }
 
 impl super::Demo for TableDemo {
@@ -28,14 +29,29 @@ impl super::Demo for TableDemo {
 
 impl super::View for TableDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.checkbox(&mut self.virtual_scroll, "Virtual scroll");
-        ui.checkbox(&mut self.resizable, "Resizable columns");
-
         // Leave room for the source code link after the table demo:
         StripBuilder::new(ui)
+            .size(Size::exact(50.0)) // for the settings
             .size(Size::remainder()) // for the table
             .size(Size::exact(10.0)) // for the source code link
             .vertical(|mut strip| {
+                strip.cell(|ui| {
+                    StripBuilder::new(ui)
+                        .size(Size::exact(150.0))
+                        .size(Size::remainder())
+                        .horizontal(|mut strip| {
+                            strip.cell(|ui| {
+                                ui.checkbox(&mut self.heterogeneous_rows, "Heterogeneous rows");
+                                ui.checkbox(&mut self.resizable, "Resizable columns");
+                            });
+                            strip.cell(|ui| {
+                                ui.add(
+                                    egui::Slider::new(&mut self.num_rows, 0..=300_000)
+                                        .text("Num rows"),
+                                );
+                            });
+                        });
+                });
                 strip.cell(|ui| {
                     self.table_ui(ui);
                 });
@@ -76,8 +92,8 @@ impl TableDemo {
                 });
             })
             .body(|body| {
-                if self.virtual_scroll {
-                    body.rows(text_height, 100_000, |row_index, mut row| {
+                if !self.heterogeneous_rows {
+                    body.rows(text_height, self.num_rows, |row_index, mut row| {
                         row.col(|ui| {
                             ui.label(row_index.to_string());
                         });
@@ -92,9 +108,9 @@ impl TableDemo {
                     });
                 } else {
                     let row_builder = DemoRowBuilder {
-                        row_count: 100000,
+                        row_count: self.num_rows,
                     };
-                    body.heterogenous_rows(row_builder);
+                    body.heterogeneous_rows(row_builder);
                 }
             });
     }
@@ -125,7 +141,7 @@ impl Iterator for DemoRows {
 
 impl TableRowBuilder for DemoRowBuilder {
     fn row_heights(&self, _: &Vec<f32>) -> Box<dyn Iterator<Item = f32>> {
-        Box::new(DemoRows{
+        Box::new(DemoRows {
             row_count: self.row_count,
             current_row: 0,
         })

@@ -357,7 +357,7 @@ pub trait TableRowBuilder {
 }
 
 impl<'a> TableBody<'a> {
-    pub fn heterogenous_rows(mut self, builder: impl TableRowBuilder) {
+    pub fn heterogeneous_rows(mut self, builder: impl TableRowBuilder) {
         let mut heights = builder.row_heights(&self.widths);
 
         let max_height = self.end_y - self.start_y;
