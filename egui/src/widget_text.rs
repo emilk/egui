@@ -10,7 +10,7 @@ use crate::{
 /// The style choices (font, color) are applied to the entire text.
 /// For more detailed control, use [`crate::text::LayoutJob`] instead.
 ///
-/// A `RichText` can be used in most widgets and helper functions, e.g. [`Ui::label`] and [`Ui::button`].
+/// A [`RichText`] can be used in most widgets and helper functions, e.g. [`Ui::label`] and [`Ui::button`].
 ///
 /// ### Example
 /// ```
@@ -348,7 +348,7 @@ pub enum WidgetText {
     /// [`LayoutJob::wrap_width`], [`LayoutJob::halign`], [`LayoutJob::justify`]
     /// and [`LayoutJob::first_row_min_height`] will likely be determined by the [`crate::Layout`]
     /// of the [`Ui`] the widget is placed in.
-    /// If you want all parts of the `LayoutJob` respected, then convert it to a
+    /// If you want all parts of the [`LayoutJob`] respected, then convert it to a
     /// [`Galley`] and use [`Self::Galley`] instead.
     LayoutJob(LayoutJob),
 
@@ -546,7 +546,7 @@ impl WidgetText {
         }
     }
 
-    /// Layout with wrap mode based on the containing `Ui`.
+    /// Layout with wrap mode based on the containing [`Ui`].
     ///
     /// wrap: override for [`Ui::wrap_text`].
     pub fn into_galley(

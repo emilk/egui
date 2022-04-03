@@ -163,7 +163,7 @@ pub enum Event {
     Paste(String),
     /// Text input, e.g. via keyboard.
     ///
-    /// When the user presses enter/return, do not send a `Text` (just [`Key::Enter`]).
+    /// When the user presses enter/return, do not send a [`Text`](Event::Text) (just [`Key::Enter`]).
     Text(String),
     /// A key was pressed or released.
     Key {
@@ -255,7 +255,7 @@ pub const NUM_POINTER_BUTTONS: usize = 3;
 
 /// State of the modifier keys. These must be fed to egui.
 ///
-/// The best way to compare `Modifiers` is by using [`Modifiers::matches`].
+/// The best way to compare [`Modifiers`] is by using [`Modifiers::matches`].
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Modifiers {

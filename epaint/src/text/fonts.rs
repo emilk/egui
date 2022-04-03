@@ -658,7 +658,7 @@ struct FontImplCache {
     pixels_per_point: f32,
     ab_glyph_fonts: BTreeMap<String, (FontTweak, ab_glyph::FontArc)>,
 
-    /// Map font pixel sizes and names to the cached `FontImpl`.
+    /// Map font pixel sizes and names to the cached [`FontImpl`].
     cache: ahash::AHashMap<(u32, String), Arc<FontImpl>>,
 }
 

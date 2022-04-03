@@ -148,11 +148,11 @@ pub struct CollapsingHeader {
 }
 
 impl CollapsingHeader {
-    /// The `CollapsingHeader` starts out collapsed unless you call `default_open`.
+    /// The [`CollapsingHeader`] starts out collapsed unless you call `default_open`.
     ///
     /// The label is used as an [`Id`] source.
     /// If the label is unique and static this is fine,
-    /// but if it changes or there are several `CollapsingHeader` with the same title
+    /// but if it changes or there are several [`CollapsingHeader`] with the same title
     /// you need to provide a unique id source with [`Self::id_source`].
     pub fn new(text: impl Into<WidgetText>) -> Self {
         let text = text.into();
@@ -170,7 +170,7 @@ impl CollapsingHeader {
         }
     }
 
-    /// By default, the `CollapsingHeader` is collapsed.
+    /// By default, the [`CollapsingHeader`] is collapsed.
     /// Call `.default_open(true)` to change this.
     pub fn default_open(mut self, open: bool) -> Self {
         self.default_open = open;
@@ -187,14 +187,14 @@ impl CollapsingHeader {
         self
     }
 
-    /// Explicitly set the source of the `Id` of this widget, instead of using title label.
+    /// Explicitly set the source of the [`Id`] of this widget, instead of using title label.
     /// This is useful if the title label is dynamic or not unique.
     pub fn id_source(mut self, id_source: impl Hash) -> Self {
         self.id_source = Id::new(id_source);
         self
     }
 
-    /// If you set this to `false`, the `CollapsingHeader` will be grayed out and un-clickable.
+    /// If you set this to `false`, the [`CollapsingHeader`] will be grayed out and un-clickable.
     ///
     /// This is a convenience for [`Ui::set_enabled`].
     pub fn enabled(mut self, enabled: bool) -> Self {
@@ -202,14 +202,14 @@ impl CollapsingHeader {
         self
     }
 
-    /// Can the `CollapsingHeader` be selected by clicking it? Default: `false`.
+    /// Can the [`CollapsingHeader`] be selected by clicking it? Default: `false`.
     ///
     pub fn selectable(mut self, selectable: bool) -> Self {
         self.selectable = selectable;
         self
     }
 
-    /// If you set this to 'true', the `CollapsingHeader` will be shown as selected.
+    /// If you set this to 'true', the [`CollapsingHeader`] will be shown as selected.
     ///
     /// Example:
     /// ```
@@ -229,9 +229,9 @@ impl CollapsingHeader {
         self
     }
 
-    /// Should the `CollapsingHeader` show a background behind it? Default: `false`.
+    /// Should the [`CollapsingHeader`] show a background behind it? Default: `false`.
     ///
-    /// To show it behind all `CollapsingHeader` you can just use:
+    /// To show it behind all [`CollapsingHeader`] you can just use:
     /// ```
     /// # egui::__run_test_ui(|ui| {
     /// ui.visuals_mut().collapsing_header_frame = true;
@@ -242,8 +242,8 @@ impl CollapsingHeader {
         self
     }
 
-    /// Use the provided function to render a different `CollapsingHeader` icon.
-    /// Defaults to a triangle that animates as the `CollapsingHeader` opens and closes.
+    /// Use the provided function to render a different [`CollapsingHeader`] icon.
+    /// Defaults to a triangle that animates as the [`CollapsingHeader`] opens and closes.
     ///
     /// For example:
     /// ```
@@ -397,7 +397,7 @@ impl CollapsingHeader {
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> CollapsingResponse<R> {
         // Make sure contents are bellow header,
-        // and make sure it is one unit (necessary for putting a `CollapsingHeader` in a grid).
+        // and make sure it is one unit (necessary for putting a [`CollapsingHeader`] in a grid).
         ui.vertical(|ui| {
             ui.set_enabled(self.enabled);
 

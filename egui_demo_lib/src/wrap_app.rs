@@ -66,7 +66,7 @@ impl epi::App for WrapApp {
     }
 
     fn clear_color(&self) -> egui::Rgba {
-        egui::Rgba::TRANSPARENT // we set a `CentralPanel` fill color in `demo_windows.rs`
+        egui::Rgba::TRANSPARENT // we set a [`CentralPanel`] fill color in `demo_windows.rs`
     }
 
     fn update(&mut self, ctx: &egui::Context, frame: &mut epi::Frame) {

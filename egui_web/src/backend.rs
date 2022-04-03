@@ -338,7 +338,7 @@ pub fn start(canvas_id: &str, app_creator: epi::AppCreator) -> Result<AppRunnerR
 }
 
 /// Install event listeners to register different input events
-/// and starts running the given `AppRunner`.
+/// and starts running the given [`AppRunner`].
 fn start_runner(app_runner: AppRunner) -> Result<AppRunnerRef, JsValue> {
     let runner_container = AppRunnerContainer {
         runner: Arc::new(Mutex::new(app_runner)),

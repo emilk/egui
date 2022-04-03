@@ -11,7 +11,7 @@ use super::Vec2;
 //
 /// A rotation of 𝞃/4 = 90° rotates the X axis to the Y axis.
 //
-/// Normally a `Rot2` is normalized (unit-length).
+/// Normally a [`Rot2`] is normalized (unit-length).
 /// If not, it will also scale vectors.
 #[repr(C)]
 #[derive(Clone, Copy, PartialEq)]

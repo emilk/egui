@@ -66,7 +66,7 @@ pub struct PlatformOutput {
     /// Events that may be useful to e.g. a screen reader.
     pub events: Vec<OutputEvent>,
 
-    /// Is there a mutable `TextEdit` under the cursor?
+    /// Is there a mutable [`TextEdit`](crate::TextEdit) under the cursor?
     /// Use by `egui_web` to show/hide mobile keyboard and IME agent.
     pub mutable_text_under_cursor: bool,
 
@@ -321,7 +321,7 @@ pub struct WidgetInfo {
     pub enabled: bool,
     /// The text on labels, buttons, checkboxes etc.
     pub label: Option<String>,
-    /// The contents of some editable text (for `TextEdit` fields).
+    /// The contents of some editable text (for [`TextEdit`](crate::TextEdit) fields).
     pub current_text_value: Option<String>,
     // The previous text value.
     pub prev_text_value: Option<String>,

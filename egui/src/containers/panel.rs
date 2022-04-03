@@ -37,7 +37,7 @@ impl PanelState {
 
 // ----------------------------------------------------------------------------
 
-/// `Left` or `Right`
+/// [`Left`](Side::Left) or [`Right`](Side::Right)
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Side {
     Left,
@@ -132,7 +132,7 @@ impl SidePanel {
         self
     }
 
-    /// The initial wrapping width of the `SidePanel`.
+    /// The initial wrapping width of the [`SidePanel`].
     pub fn default_width(mut self, default_width: f32) -> Self {
         self.default_width = default_width;
         self
@@ -162,7 +162,7 @@ impl SidePanel {
 }
 
 impl SidePanel {
-    /// Show the panel inside a `Ui`.
+    /// Show the panel inside a [`Ui`].
     pub fn show_inside<R>(
         self,
         ui: &mut Ui,
@@ -171,7 +171,7 @@ impl SidePanel {
         self.show_inside_dyn(ui, Box::new(add_contents))
     }
 
-    /// Show the panel inside a `Ui`.
+    /// Show the panel inside a [`Ui`].
     fn show_inside_dyn<'c, R>(
         self,
         ui: &mut Ui,
@@ -321,7 +321,7 @@ impl SidePanel {
 
 // ----------------------------------------------------------------------------
 
-/// `Top` or `Bottom`
+/// [`Top`](TopBottomSide::Top) or [`Bottom`](TopBottomSide::Bottom)
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum TopBottomSide {
     Top,
@@ -416,7 +416,7 @@ impl TopBottomPanel {
         self
     }
 
-    /// The initial height of the `SidePanel`.
+    /// The initial height of the [`SidePanel`].
     /// Defaults to [`style::Spacing::interact_size`].y.
     pub fn default_height(mut self, default_height: f32) -> Self {
         self.default_height = Some(default_height);
@@ -447,7 +447,7 @@ impl TopBottomPanel {
 }
 
 impl TopBottomPanel {
-    /// Show the panel inside a `Ui`.
+    /// Show the panel inside a [`Ui`].
     pub fn show_inside<R>(
         self,
         ui: &mut Ui,
@@ -456,7 +456,7 @@ impl TopBottomPanel {
         self.show_inside_dyn(ui, Box::new(add_contents))
     }
 
-    /// Show the panel inside a `Ui`.
+    /// Show the panel inside a [`Ui`].
     fn show_inside_dyn<'c, R>(
         self,
         ui: &mut Ui,
@@ -615,9 +615,9 @@ impl TopBottomPanel {
 /// A panel that covers the remainder of the screen,
 /// i.e. whatever area is left after adding other panels.
 ///
-/// `CentralPanel` must be added after all other panels.
+/// [`CentralPanel`] must be added after all other panels.
 ///
-/// NOTE: Any [`Window`]s and [`Area`]s will cover the top-level `CentralPanel`.
+/// NOTE: Any [`Window`]s and [`Area`]s will cover the top-level [`CentralPanel`].
 ///
 /// See the [module level docs](crate::containers::panel) for more details.
 ///
@@ -643,7 +643,7 @@ impl CentralPanel {
 }
 
 impl CentralPanel {
-    /// Show the panel inside a `Ui`.
+    /// Show the panel inside a [`Ui`].
     pub fn show_inside<R>(
         self,
         ui: &mut Ui,
@@ -652,7 +652,7 @@ impl CentralPanel {
         self.show_inside_dyn(ui, Box::new(add_contents))
     }
 
-    /// Show the panel inside a `Ui`.
+    /// Show the panel inside a [`Ui`].
     fn show_inside_dyn<'c, R>(
         self,
         ui: &mut Ui,

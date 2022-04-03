@@ -6,17 +6,17 @@ use crate::*;
 /// Short-term (single frame) memory.
 #[derive(Clone)]
 pub(crate) struct FrameState {
-    /// All `Id`s that were used this frame.
-    /// Used to debug `Id` clashes of widgets.
+    /// All [`Id`]s that were used this frame.
+    /// Used to debug [`Id`] clashes of widgets.
     pub(crate) used_ids: IdMap<Rect>,
 
     /// Starts off as the screen_rect, shrinks as panels are added.
-    /// The `CentralPanel` does not change this.
+    /// The [`CentralPanel`] does not change this.
     /// This is the area available to Window's.
     pub(crate) available_rect: Rect,
 
     /// Starts off as the screen_rect, shrinks as panels are added.
-    /// The `CentralPanel` retracts from this.
+    /// The [`CentralPanel`] retracts from this.
     pub(crate) unused_rect: Rect,
 
     /// How much space is used by panels.
@@ -27,7 +27,7 @@ pub(crate) struct FrameState {
     /// Initialized to `None` at the start of each frame.
     pub(crate) tooltip_rect: Option<(Id, Rect, usize)>,
 
-    /// Cleared by the first `ScrollArea` that makes use of it.
+    /// Cleared by the first [`ScrollArea`] that makes use of it.
     pub(crate) scroll_delta: Vec2, // TODO: move to a Mutex inside of `InputState` ?
     /// horizontal, vertical
     pub(crate) scroll_target: [Option<(RangeInclusive<f32>, Option<Align>)>; 2],

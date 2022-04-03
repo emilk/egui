@@ -60,7 +60,7 @@ impl ColorImage {
         }
     }
 
-    /// Create an `Image` from flat un-multiplied RGBA data.
+    /// Create a [`ColorImage`] from flat un-multiplied RGBA data.
     ///
     /// This is usually what you want to use after having loaded an image file.
     ///

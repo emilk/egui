@@ -1,16 +1,16 @@
 // TODO: have separate types `PositionId` and `UniqueId`. ?
 
-/// egui tracks widgets frame-to-frame using `Id`s.
+/// egui tracks widgets frame-to-frame using [`Id`]s.
 ///
 /// For instance, if you start dragging a slider one frame, egui stores
-/// the sliders `Id` as the current active id so that next frame when
+/// the sliders [`Id`] as the current active id so that next frame when
 /// you move the mouse the same slider changes, even if the mouse has
 /// moved outside the slider.
 ///
-/// For some widgets `Id`s are also used to persist some state about the
+/// For some widgets [`Id`]s are also used to persist some state about the
 /// widgets, such as Window position or whether not a collapsing header region is open.
 ///
-/// This implies that the `Id`s must be unique.
+/// This implies that the [`Id`]s must be unique.
 ///
 /// For simple things like sliders and buttons that don't have any memory and
 /// doesn't move we can use the location of the widget as a source of identity.
@@ -30,10 +30,10 @@
 pub struct Id(u64);
 
 impl Id {
-    /// A special `Id`, in particular as a key to [`crate::Memory::data`]
+    /// A special [`Id`], in particular as a key to [`crate::Memory::data`]
     /// for when there is no particular widget to attach the data.
     ///
-    /// The null `Id` is still a valid id to use in all circumstances,
+    /// The null [`Id`] is still a valid id to use in all circumstances,
     /// though obviously it will lead to a lot of collisions if you do use it!
     pub fn null() -> Self {
         Self(0)
@@ -43,7 +43,7 @@ impl Id {
         Self(1)
     }
 
-    /// Generate a new `Id` by hashing some source (e.g. a string or integer).
+    /// Generate a new [`Id`] by hashing some source (e.g. a string or integer).
     pub fn new(source: impl std::hash::Hash) -> Id {
         use std::hash::Hasher;
         let mut hasher = epaint::ahash::AHasher::new_with_keys(123, 456);
@@ -51,7 +51,7 @@ impl Id {
         Id(hasher.finish())
     }
 
-    /// Generate a new `Id` by hashing the parent `Id` and the given argument.
+    /// Generate a new [`Id`] by hashing the parent [`Id`] and the given argument.
     pub fn with(self, child: impl std::hash::Hash) -> Id {
         use std::hash::Hasher;
         let mut hasher = epaint::ahash::AHasher::new_with_keys(123, 456);
@@ -142,5 +142,5 @@ impl std::hash::BuildHasher for BuilIdHasher {
     }
 }
 
-/// `IdMap<V>` is a `HashMap<Id, V>` optimized by knowing that `Id` has good entropy, and doesn't need more hashing.
+/// `IdMap<V>` is a `HashMap<Id, V>` optimized by knowing that [`Id`] has good entropy, and doesn't need more hashing.
 pub type IdMap<V> = std::collections::HashMap<Id, V, BuilIdHasher>;

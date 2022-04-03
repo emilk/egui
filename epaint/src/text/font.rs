@@ -212,7 +212,7 @@ impl FontImpl {
 type FontIndex = usize;
 
 // TODO: rename?
-/// Wrapper over multiple `FontImpl` (e.g. a primary + fallbacks for emojis)
+/// Wrapper over multiple [`FontImpl`] (e.g. a primary + fallbacks for emojis)
 pub struct Font {
     fonts: Vec<Arc<FontImpl>>,
     /// Lazily calculated.

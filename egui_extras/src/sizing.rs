@@ -66,7 +66,7 @@ impl Size {
         self
     }
 
-    /// Allowed range of movement (in points), if in a resizable [`Table`].
+    /// Allowed range of movement (in points), if in a resizable [`Table`](crate::table::Table).
     pub fn range(self) -> (f32, f32) {
         match self {
             Self::Absolute { range, .. }

@@ -1,7 +1,7 @@
 use crate::{style::WidgetVisuals, *};
 use epaint::Shape;
 
-/// A function that paints the `ComboBox` icon
+/// A function that paints the [`ComboBox`] icon
 pub type IconPainter = Box<dyn FnOnce(&Ui, Rect, &WidgetVisuals, bool)>;
 
 /// A drop-down selection menu with a descriptive label.
@@ -31,7 +31,7 @@ pub struct ComboBox {
 }
 
 impl ComboBox {
-    /// Create new `ComboBox` with id and label
+    /// Create new [`ComboBox`] with id and label
     pub fn new(id_source: impl std::hash::Hash, label: impl Into<WidgetText>) -> Self {
         Self {
             id_source: Id::new(id_source),
@@ -77,8 +77,8 @@ impl ComboBox {
         self
     }
 
-    /// Use the provided function to render a different `ComboBox` icon.
-    /// Defaults to a triangle that expands when the cursor is hovering over the `ComboBox`.
+    /// Use the provided function to render a different [`ComboBox`] icon.
+    /// Defaults to a triangle that expands when the cursor is hovering over the [`ComboBox`].
     ///
     /// For example:
     /// ```

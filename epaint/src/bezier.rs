@@ -54,7 +54,7 @@ impl CubicBezierShape {
         }
     }
 
-    /// Convert the cubic Bézier curve to one or two `PathShapes`.
+    /// Convert the cubic Bézier curve to one or two [`PathShape`]'s.
     /// When the curve is closed and it has to intersect with the base line, it will be converted into two shapes.
     /// Otherwise, it will be converted into one shape.
     /// The `tolerance` will be used to control the max distance between the curve and the base line.
@@ -418,7 +418,7 @@ impl QuadraticBezierShape {
         }
     }
 
-    /// Convert the quadratic Bézier curve to one `PathShape`.
+    /// Convert the quadratic Bézier curve to one [`PathShape`].
     /// The `tolerance` will be used to control the max distance between the curve and the base line.
     pub fn to_path_shape(&self, tolerance: Option<f32>) -> PathShape {
         let points = self.flatten(tolerance);

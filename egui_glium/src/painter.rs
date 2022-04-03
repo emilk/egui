@@ -133,11 +133,11 @@ impl Painter {
 
             let vertices: &[Vertex] = bytemuck::cast_slice(&mesh.vertices);
 
-            // TODO: we should probably reuse the `VertexBuffer` instead of allocating a new one each frame.
+            // TODO: we should probably reuse the [`VertexBuffer`] instead of allocating a new one each frame.
             glium::VertexBuffer::new(display, vertices).unwrap()
         };
 
-        // TODO: we should probably reuse the `IndexBuffer` instead of allocating a new one each frame.
+        // TODO: we should probably reuse the [`IndexBuffer`] instead of allocating a new one each frame.
         let index_buffer =
             glium::IndexBuffer::new(display, PrimitiveType::TrianglesList, &mesh.indices).unwrap();
 

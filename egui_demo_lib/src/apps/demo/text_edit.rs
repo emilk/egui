@@ -93,7 +93,7 @@ impl super::View for TextEdit {
                     let ccursor = egui::text::CCursor::new(0);
                     state.set_ccursor_range(Some(egui::text::CCursorRange::one(ccursor)));
                     state.store(ui.ctx(), text_edit_id);
-                    ui.ctx().memory().request_focus(text_edit_id); // give focus back to the `TextEdit`.
+                    ui.ctx().memory().request_focus(text_edit_id); // give focus back to the [`TextEdit`].
                 }
             }
 
@@ -103,7 +103,7 @@ impl super::View for TextEdit {
                     let ccursor = egui::text::CCursor::new(text.chars().count());
                     state.set_ccursor_range(Some(egui::text::CCursorRange::one(ccursor)));
                     state.store(ui.ctx(), text_edit_id);
-                    ui.ctx().memory().request_focus(text_edit_id); // give focus back to the `TextEdit`.
+                    ui.ctx().memory().request_focus(text_edit_id); // give focus back to the [`TextEdit`].
                 }
             }
         });

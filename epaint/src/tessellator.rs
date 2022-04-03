@@ -645,7 +645,7 @@ fn mul_color(color: Color32, factor: f32) -> Color32 {
 
 /// Converts [`Shape`]s into triangles ([`Mesh`]).
 ///
-/// For performance reasons it is smart to reuse the same `Tessellator`.
+/// For performance reasons it is smart to reuse the same [`Tessellator`].
 ///
 /// Se also [`tessellate_shapes`], a convenient wrapper around [`Tessellator`].
 pub struct Tessellator {
@@ -686,7 +686,7 @@ impl Tessellator {
         }
     }
 
-    /// Set the `Rect` to use for culling.
+    /// Set the [`Rect`] to use for culling.
     pub fn set_clip_rect(&mut self, clip_rect: Rect) {
         self.clip_rect = clip_rect;
     }
