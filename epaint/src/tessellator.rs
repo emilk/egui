@@ -651,6 +651,7 @@ fn mul_color(color: Color32, factor: f32) -> Color32 {
 pub struct Tessellator {
     pixels_per_point: f32,
     options: TessellationOptions,
+    font_tex_size: [usize; 2],
     /// size of feathering in points. normally the size of a physical pixel. 0.0 if disabled
     feathering: f32,
     /// Only used for culling
@@ -661,7 +662,13 @@ pub struct Tessellator {
 
 impl Tessellator {
     /// Create a new [`Tessellator`].
-    pub fn new(pixels_per_point: f32, options: TessellationOptions) -> Self {
+    ///
+    /// * `font_tex_size`: size of the font texture. Required to normalize glyph uv rectangles when tessellating text.
+    pub fn new(
+        pixels_per_point: f32,
+        options: TessellationOptions,
+        font_tex_size: [usize; 2],
+    ) -> Self {
         let feathering = if options.feathering {
             let pixel_size = 1.0 / pixels_per_point;
             options.feathering_size_in_pixels * pixel_size
@@ -671,6 +678,7 @@ impl Tessellator {
         Self {
             pixels_per_point,
             options,
+            font_tex_size,
             feathering,
             clip_rect: Rect::EVERYTHING,
             scratchpad_points: Default::default(),
@@ -693,11 +701,8 @@ impl Tessellator {
     }
 
     /// Tessellate a clipped shape into a list of primitives.
-    ///
-    /// * `tex_size`: size of the font texture (required to normalize glyph uv rectangles).
     pub fn tessellate_clipped_shape(
         &mut self,
-        tex_size: [usize; 2],
         clipped_shape: ClippedShape,
         out_primitives: &mut Vec<ClippedPrimitive>,
     ) {
@@ -709,11 +714,7 @@ impl Tessellator {
 
         if let Shape::Vec(shapes) = new_shape {
             for shape in shapes {
-                self.tessellate_clipped_shape(
-                    tex_size,
-                    ClippedShape(new_clip_rect, shape),
-                    out_primitives,
-                );
+                self.tessellate_clipped_shape(ClippedShape(new_clip_rect, shape), out_primitives);
             }
             return;
         }
@@ -749,7 +750,7 @@ impl Tessellator {
 
         if let Primitive::Mesh(out_mesh) = &mut out.primitive {
             self.clip_rect = new_clip_rect;
-            self.tessellate_shape(tex_size, new_shape, out_mesh);
+            self.tessellate_shape(new_shape, out_mesh);
         } else {
             unreachable!();
         }
@@ -759,16 +760,14 @@ impl Tessellator {
     ///
     /// This call can panic the given shape is of [`Shape::Vec`] or [`Shape::Callback`].
     /// For that, use [`Self::tessellate_clipped_shape`] instead.
-    ///
-    /// * `tex_size`: size of the font texture (required to normalize glyph uv rectangles).
     /// * `shape`: the shape to tessellate.
     /// * `out`: triangles are appended to this.
-    pub fn tessellate_shape(&mut self, tex_size: [usize; 2], shape: Shape, out: &mut Mesh) {
+    pub fn tessellate_shape(&mut self, shape: Shape, out: &mut Mesh) {
         match shape {
             Shape::Noop => {}
             Shape::Vec(vec) => {
                 for shape in vec {
-                    self.tessellate_shape(tex_size, shape, out);
+                    self.tessellate_shape(shape, out);
                 }
             }
             Shape::Circle(circle) => {
@@ -802,7 +801,7 @@ impl Tessellator {
                         out,
                     );
                 }
-                self.tessellate_text(tex_size, &text_shape, out);
+                self.tessellate_text(&text_shape, out);
             }
             Shape::QuadraticBezier(quadratic_shape) => {
                 self.tessellate_quadratic_bezier(quadratic_shape, out);
@@ -968,16 +967,9 @@ impl Tessellator {
     }
 
     /// Tessellate a single [`TextShape`] into a [`Mesh`].
-    ///
-    /// * `tex_size`: size of the font texture (required to normalize glyph uv rectangles).
     /// * `text_shape`: the text to tessellate.
     /// * `out`: triangles are appended to this.
-    pub fn tessellate_text(
-        &mut self,
-        tex_size: [usize; 2],
-        text_shape: &TextShape,
-        out: &mut Mesh,
-    ) {
+    pub fn tessellate_text(&mut self, text_shape: &TextShape, out: &mut Mesh) {
         let TextShape {
             pos: galley_pos,
             galley,
@@ -1000,7 +992,10 @@ impl Tessellator {
             self.round_to_pixel(galley_pos.y),
         );
 
-        let uv_normalizer = vec2(1.0 / tex_size[0] as f32, 1.0 / tex_size[1] as f32);
+        let uv_normalizer = vec2(
+            1.0 / self.font_tex_size[0] as f32,
+            1.0 / self.font_tex_size[1] as f32,
+        );
 
         let rotator = Rot2::from_angle(*angle);
 
@@ -1165,7 +1160,7 @@ impl Tessellator {
 /// * `pixels_per_point`: number of physical pixels to each logical point
 /// * `options`: tessellation quality
 /// * `shapes`: what to tessellate
-/// * `tex_size`: size of the font texture (required to normalize glyph uv rectangles)
+/// * `font_tex_size`: size of the font texture (required to normalize glyph uv rectangles)
 ///
 /// The implementation uses a [`Tessellator`].
 ///
@@ -1175,18 +1170,18 @@ pub fn tessellate_shapes(
     pixels_per_point: f32,
     options: TessellationOptions,
     shapes: Vec<ClippedShape>,
-    tex_size: [usize; 2],
+    font_tex_size: [usize; 2],
 ) -> Vec<ClippedPrimitive> {
-    let mut tessellator = Tessellator::new(pixels_per_point, options);
+    let mut tessellator = Tessellator::new(pixels_per_point, options, font_tex_size);
 
     let mut clipped_primitives: Vec<ClippedPrimitive> = Vec::default();
 
     for clipped_shape in shapes {
-        tessellator.tessellate_clipped_shape(tex_size, clipped_shape, &mut clipped_primitives);
+        tessellator.tessellate_clipped_shape(clipped_shape, &mut clipped_primitives);
     }
 
     if options.debug_paint_clip_rects {
-        clipped_primitives = add_clip_rects(&mut tessellator, tex_size, clipped_primitives);
+        clipped_primitives = add_clip_rects(&mut tessellator, clipped_primitives);
     }
 
     if options.debug_ignore_clip_rects {
@@ -1206,7 +1201,6 @@ pub fn tessellate_shapes(
 
 fn add_clip_rects(
     tessellator: &mut Tessellator,
-    tex_size: [usize; 2],
     clipped_primitives: Vec<ClippedPrimitive>,
 ) -> Vec<ClippedPrimitive> {
     tessellator.clip_rect = Rect::EVERYTHING;
@@ -1217,7 +1211,6 @@ fn add_clip_rects(
         .flat_map(|clipped_primitive| {
             let mut clip_rect_mesh = Mesh::default();
             tessellator.tessellate_shape(
-                tex_size,
                 Shape::rect_stroke(clipped_primitive.clip_rect, 0.0, stroke),
                 &mut clip_rect_mesh,
             );
