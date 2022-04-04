@@ -419,7 +419,7 @@ impl<'t> TextEdit<'t> {
         };
         let mut response = ui.interact(rect, id, sense);
         let text_clip_rect = rect;
-        let painter = ui.painter_at(text_clip_rect);
+        let painter = ui.painter_at(text_clip_rect.expand(1.0)); // expand to avoid clipping cursor
 
         if interactive {
             if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
