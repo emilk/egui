@@ -421,7 +421,7 @@ impl<'a> TableBody<'a> {
         // iterator with the boolean built in based on the enumerated index of the iterator element
         let mut striped_heights = heights
             .enumerate()
-            .map(|(index, height)| (index % 2 == 0, height));
+            .map(|(index, height)| (index, index % 2 == 0, height));
 
         let max_height = self.end_y - self.start_y + VIRTUAL_EXTENSION;
         let delta = self.delta() - VIRTUAL_EXTENSION;
@@ -431,16 +431,13 @@ impl<'a> TableBody<'a> {
         // cumulative height of all rows below those being displayed
         let mut height_below_visible: f64 = 0.0;
 
-        let mut row_index = 0;
-
         // calculate height above visible table range
-        while let Some((_, height)) = striped_heights.next() {
+        while let Some((_, _, height)) = striped_heights.next() {
             // when delta is greater than height above 0, we need to increment the row index and
             // update the height above visble with the current height then continue
             if height_above_visible >= delta as f64 {
                 break;
             }
-            row_index += 1;
             height_above_visible += height as f64;
         }
 
@@ -452,7 +449,7 @@ impl<'a> TableBody<'a> {
 
         // populate visible rows
         let mut current_height: f64 = 0.0; // used to track height of visible rows
-        while let Some((striped, height)) = striped_heights.next() {
+        while let Some((row_index, striped, height)) = striped_heights.next() {
             if current_height > max_height as f64 {
                 break;
             }
@@ -464,12 +461,11 @@ impl<'a> TableBody<'a> {
             };
             self.row_nr += 1;
             populate_row(row_index, tr);
-            row_index += 1;
             current_height += height as f64;
         }
 
         // calculate height below the visible table range
-        while let Some((_, height)) = striped_heights.next() {
+        while let Some((_, _, height)) = striped_heights.next() {
             height_below_visible += height as f64
         }
 
