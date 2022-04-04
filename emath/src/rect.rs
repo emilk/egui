@@ -338,6 +338,16 @@ impl Rect {
         dx * dx + dy * dy
     }
 
+    /// Signed distance to the edge of the box.
+    ///
+    /// Negative inside the box.
+    pub fn signed_distance_to_pos(&self, pos: Pos2) -> f32 {
+        let edge_distances = (pos - self.center()).abs() - self.size() * 0.5;
+        let inside_dist = edge_distances.x.max(edge_distances.y).min(0.0);
+        let outside_dist = edge_distances.max(Vec2::ZERO).length();
+        inside_dist + outside_dist
+    }
+
     #[inline(always)]
     pub fn x_range(&self) -> RangeInclusive<f32> {
         self.min.x..=self.max.x

@@ -223,6 +223,12 @@ impl Vec2 {
         vec2(self.x.ceil(), self.y.ceil())
     }
 
+    #[must_use]
+    #[inline]
+    pub fn abs(self) -> Self {
+        vec2(self.x.abs(), self.y.abs())
+    }
+
     /// True if all members are also finite.
     #[inline(always)]
     pub fn is_finite(self) -> bool {
