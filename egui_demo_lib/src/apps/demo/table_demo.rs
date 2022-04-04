@@ -30,9 +30,15 @@ impl super::Demo for TableDemo {
 
 impl super::View for TableDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
+        let mut settings_height = 44.0;
+        if self.virtual_scroll {
+            settings_height = 66.0;
+        } else {
+            self.heterogeneous_rows = false
+        }
         // Leave room for the source code link after the table demo:
         StripBuilder::new(ui)
-            .size(Size::exact(66.0)) // for the settings
+            .size(Size::exact(settings_height)) // for the settings
             .size(Size::remainder()) // for the table
             .size(Size::exact(10.0)) // for the source code link
             .vertical(|mut strip| {
@@ -42,16 +48,20 @@ impl super::View for TableDemo {
                         .size(Size::remainder())
                         .horizontal(|mut strip| {
                             strip.cell(|ui| {
-                                ui.checkbox(&mut self.heterogeneous_rows, "Heterogeneous rows");
                                 ui.checkbox(&mut self.virtual_scroll, "Virtual Scroll");
+                                if self.virtual_scroll {
+                                    ui.checkbox(&mut self.heterogeneous_rows, "Heterogeneous rows");
+                                }
                                 ui.checkbox(&mut self.resizable, "Resizable columns");
                             });
-                            strip.cell(|ui| {
-                                ui.add(
-                                    egui::Slider::new(&mut self.num_rows, 0..=300_000)
-                                        .text("Num rows"),
-                                );
-                            });
+                            if self.virtual_scroll {
+                                strip.cell(|ui| {
+                                    ui.add(
+                                        egui::Slider::new(&mut self.num_rows, 0..=300_000)
+                                            .text("Num rows"),
+                                    );
+                                });
+                            }
                         });
                 });
                 strip.cell(|ui| {
@@ -94,23 +104,26 @@ impl TableDemo {
                 });
             })
             .body(|mut body| {
-                if !self.heterogeneous_rows {
-                    body.rows(text_height, self.num_rows, |row_index, mut row| {
-                        row.col(|ui| {
-                            ui.label(row_index.to_string());
+                if self.virtual_scroll {
+                    if !self.heterogeneous_rows {
+                        body.rows(text_height, self.num_rows, |row_index, mut row| {
+                            row.col(|ui| {
+                                ui.label(row_index.to_string());
+                            });
+                            row.col(|ui| {
+                                ui.label(clock_emoji(row_index));
+                            });
+                            row.col(|ui| {
+                                ui.add(
+                                    egui::Label::new("Thousands of rows of even height")
+                                        .wrap(false),
+                                );
+                            });
                         });
-                        row.col(|ui| {
-                            ui.label(clock_emoji(row_index));
-                        });
-                        row.col(|ui| {
-                            ui.add(
-                                egui::Label::new("Thousands of rows of even height").wrap(false),
-                            );
-                        });
-                    });
-                } else if self.virtual_scroll {
-                    let rows = DemoRows::new(self.num_rows);
-                    body.heterogeneous_rows(rows, DemoRows::populate_row);
+                    } else {
+                        let rows = DemoRows::new(self.num_rows);
+                        body.heterogeneous_rows(rows, DemoRows::populate_row);
+                    }
                 } else {
                     for row_index in 0..20 {
                         let thick = row_index % 6 == 0;
