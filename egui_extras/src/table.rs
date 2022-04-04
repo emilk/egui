@@ -9,7 +9,7 @@ use crate::{
     Size, StripLayout,
 };
 
-use egui::{Response, Ui};
+use egui::{Rect, Response, Ui, Vec2};
 
 /// Builder for a [`Table`] with (optional) fixed header and scrolling body.
 ///
@@ -139,12 +139,8 @@ impl<'a> TableBuilder<'a> {
         } = self;
 
         let resize_id = resizable.then(|| ui.id().with("__table_resize"));
-        let widths = if let Some(resize_id) = resize_id {
-            ui.data().get_persisted(resize_id)
-        } else {
-            None
-        };
-        let widths = widths
+
+        let widths = read_table_widths(ui, resize_id)
             .unwrap_or_else(|| sizing.to_lengths(available_width, ui.spacing().item_spacing.x));
 
         let table_top = ui.cursor().top();
@@ -190,12 +186,8 @@ impl<'a> TableBuilder<'a> {
         } = self;
 
         let resize_id = resizable.then(|| ui.id().with("__table_resize"));
-        let widths = if let Some(resize_id) = resize_id {
-            ui.data().get_persisted(resize_id)
-        } else {
-            None
-        };
-        let widths = widths
+
+        let widths = read_table_widths(ui, resize_id)
             .unwrap_or_else(|| sizing.to_lengths(available_width, ui.spacing().item_spacing.x));
 
         let table_top = ui.cursor().top();
@@ -212,6 +204,16 @@ impl<'a> TableBuilder<'a> {
             clip,
         }
         .body(body);
+    }
+}
+
+fn read_table_widths(ui: &egui::Ui, resize_id: Option<egui::Id>) -> Option<Vec<f32>> {
+    if let Some(resize_id) = resize_id {
+        let rect = Rect::from_min_size(ui.available_rect_before_wrap().min, Vec2::ZERO);
+        ui.ctx().check_for_id_clash(resize_id, rect, "Table");
+        ui.data().get_persisted(resize_id)
+    } else {
+        None
     }
 }
 

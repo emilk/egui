@@ -1566,9 +1566,10 @@ impl Ui {
     /// ```
     /// # egui::__run_test_ui(|ui| {
     /// for i in 0..10 {
-    ///     // `ui.make_persistent_id("foo")` here will produce the same id each loop.
+    ///     // ui.collapsing("Same header", |ui| { }); // this will cause an ID clash because of the same title!
+    ///
     ///     ui.push_id(i, |ui| {
-    ///         // `ui.make_persistent_id("foo")` here will produce different id:s
+    ///         ui.collapsing("Same header", |ui| { }); // this is fine!
     ///     });
     /// }
     /// # });

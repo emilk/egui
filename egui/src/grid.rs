@@ -80,6 +80,8 @@ impl GridLayout {
             "Grid not yet available for right-to-left layouts"
         );
 
+        ui.ctx().check_for_id_clash(id, initial_available, "Grid");
+
         Self {
             ctx: ui.ctx().clone(),
             style: ui.style().clone(),

@@ -494,6 +494,7 @@ impl Plot {
 
         // Load or initialize the memory.
         let plot_id = ui.make_persistent_id(id_source);
+        ui.ctx().check_for_id_clash(plot_id, rect, "Plot");
         let mut memory = PlotMemory::load(ui.ctx(), plot_id).unwrap_or_else(|| PlotMemory {
             auto_bounds: !min_auto_bounds.is_valid(),
             hovered_entry: None,
