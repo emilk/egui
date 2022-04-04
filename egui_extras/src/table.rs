@@ -361,7 +361,7 @@ impl<'a> TableBody<'a> {
     /// This is primarily meant for use with [`TableBody::heterogeneous_rows`] in cases where row
     /// heights are expected to according to the width of one or more cells -- for example, if text
     /// is wrapped rather than clippped within the cell.
-    pub fn widths(&self) -> &Vec<f32> {
+    pub fn widths(&self) -> &[f32] {
         &self.widths
     }
 
