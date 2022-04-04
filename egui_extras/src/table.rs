@@ -412,30 +412,26 @@ impl<'a> TableBody<'a> {
         heights: impl Iterator<Item = f32>,
         mut populate_row: impl FnMut(usize, TableRow<'_, '_>),
     ) {
-        // VIRTUAL_EXTENSION represents how far above and below the limits of the visible rectangle
-        // that we should consider when determining which rows to actually populate. this provides
-        // the illusion of table rows sliding out of view (rather than disappearing abruptly)
-        const VIRTUAL_EXTENSION: f32 = 30.0;
-
         // in order for each row to retain its striped color as the table is scrolled, we need an
         // iterator with the boolean built in based on the enumerated index of the iterator element
         let mut striped_heights = heights
             .enumerate()
             .map(|(index, height)| (index, index % 2 == 0, height));
 
-        let max_height = self.end_y - self.start_y + VIRTUAL_EXTENSION;
-        let y_progress = self.y_progress() - VIRTUAL_EXTENSION;
+        let max_height = self.end_y - self.start_y;
+        let y_progress = self.y_progress();
 
         // cumulative height of all rows above those being displayed
         let mut height_above_visible: f64 = 0.0;
         // cumulative height of all rows below those being displayed
         let mut height_below_visible: f64 = 0.0;
 
-        // calculate height above visible table range
+        // calculate height above visible table range and populate the first non-virtual row.
+        // because this row is meant to slide under the top bound of the visual table we calculate
+        // height_of_first_row + height_above_visible >= y_progress as our break condition rather
+        // than just height_above_visible >= y_progress
         while let Some((row_index, striped, height)) = striped_heights.next() {
-            // when y_progress is greater than height above 0, we need to increment the row index
-            // and update the height above visble with the current height then continue
-            if height_above_visible >= y_progress as f64 {
+            if height as f64 + height_above_visible >= y_progress as f64 {
                 self.add_buffer(height_above_visible as f32);
                 let tr = TableRow {
                     layout: &mut self.layout,
@@ -450,10 +446,11 @@ impl<'a> TableBody<'a> {
             height_above_visible += height as f64;
         }
 
-        // populate visible rows
-        let mut current_height: f64 = 0.0; // used to track height of visible rows
+        // populate visible rows, including the final row that should slide under the bottom bound
+        // of the visible table.
+        let mut current_height: f64 = 0.0;
         while let Some((row_index, striped, height)) = striped_heights.next() {
-            if current_height > max_height as f64 {
+            if height as f64 + current_height > max_height as f64 {
                 break;
             }
             let tr = TableRow {
