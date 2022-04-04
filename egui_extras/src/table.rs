@@ -472,7 +472,7 @@ impl<'a> TableBody<'a> {
             height_below_visible += height as f64
         }
 
-        // if height bloew visible is > 0 here then we need to add a buffer to allow the table to
+        // if height below visible is > 0 here then we need to add a buffer to allow the table to
         // accurately calculate the "virtual" scrollbar position
         if height_below_visible > 0.0 {
             self.add_buffer(height_below_visible as f32);
