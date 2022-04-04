@@ -352,7 +352,7 @@ pub struct TableBody<'a> {
 }
 
 impl<'a> TableBody<'a> {
-    fn delta(&self) -> f32 {
+    fn y_progress(&self) -> f32 {
         self.start_y - self.layout.current_y()
     }
 
@@ -424,7 +424,7 @@ impl<'a> TableBody<'a> {
             .map(|(index, height)| (index, index % 2 == 0, height));
 
         let max_height = self.end_y - self.start_y + VIRTUAL_EXTENSION;
-        let delta = self.delta() - VIRTUAL_EXTENSION;
+        let y_progress = self.y_progress() - VIRTUAL_EXTENSION;
 
         // cumulative height of all rows above those being displayed
         let mut height_above_visible: f64 = 0.0;
@@ -433,9 +433,9 @@ impl<'a> TableBody<'a> {
 
         // calculate height above visible table range
         while let Some((_, _, height)) = striped_heights.next() {
-            // when delta is greater than height above 0, we need to increment the row index and
-            // update the height above visble with the current height then continue
-            if height_above_visible >= delta as f64 {
+            // when y_progress is greater than height above 0, we need to increment the row index
+            // and update the height above visble with the current height then continue
+            if height_above_visible >= y_progress as f64 {
                 break;
             }
             height_above_visible += height as f64;
@@ -480,13 +480,13 @@ impl<'a> TableBody<'a> {
     ///
     /// Is a lot more performant than adding each individual row as non visible rows must not be rendered
     pub fn rows(mut self, height: f32, rows: usize, mut row: impl FnMut(usize, TableRow<'_, '_>)) {
-        let delta = self.delta();
+        let y_progress = self.y_progress();
         let mut start = 0;
 
-        if delta < 0.0 {
-            start = (delta / height).floor() as usize;
+        if y_progress > 0.0 {
+            start = (y_progress / height).floor() as usize;
 
-            self.buffer(delta);
+            self.buffer(y_progress);
         }
 
         let max_height = self.end_y - self.start_y;
