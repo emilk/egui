@@ -16,6 +16,8 @@ pub struct MiscDemoWindow {
     colors: ColorWidgets,
     tree: Tree,
     box_painting: BoxPainting,
+    splitter_orientation: SplitterOrientation,
+    splitter_ratio: f32,
 }
 
 impl Default for MiscDemoWindow {
@@ -31,10 +33,11 @@ impl Default for MiscDemoWindow {
             colors: Default::default(),
             tree: Tree::demo(),
             box_painting: Default::default(),
+            splitter_orientation: SplitterOrientation::Vertical,
+            splitter_ratio: 0.5,
         }
     }
 }
-
 impl Demo for MiscDemoWindow {
     fn name(&self) -> &'static str {
         "✨ Misc Demos"
@@ -123,6 +126,37 @@ impl View for MiscDemoWindow {
                     painter.line_segment([c, c + r * Vec2::angled(TAU * 1.0 / 8.0)], stroke);
                     painter.line_segment([c, c + r * Vec2::angled(TAU * 3.0 / 8.0)], stroke);
                 });
+            });
+
+        CollapsingHeader::new("Splitter")
+            .default_open(false)
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label("Orientation");
+                    ui.radio_value(
+                        &mut self.splitter_orientation,
+                        SplitterOrientation::Vertical,
+                        "Vertical",
+                    );
+                    ui.radio_value(
+                        &mut self.splitter_orientation,
+                        SplitterOrientation::Horizontal,
+                        "Horizontal",
+                    );
+                });
+
+                ui.add(Slider::new(&mut self.splitter_ratio, 0.0..=1.0).text("Ratio"));
+
+                Splitter::with_orientation(self.splitter_orientation)
+                    .ratio(self.splitter_ratio)
+                    .show(ui, |ui_1, ui_2| {
+                        ui_1.label("Left/Top");
+                        ui_1.label("Left/Top");
+                        ui_1.label("Left/Top");
+                        ui_2.label("Right/Bottom");
+                        ui_2.label("Right/Bottom");
+                        ui_2.label("Right/Bottom");
+                    });
             });
     }
 }
