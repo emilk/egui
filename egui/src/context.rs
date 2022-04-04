@@ -223,9 +223,16 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
-    /// If the given [`Id`] is not unique, an error will be printed at the given position.
-    /// Call this for [`Id`]:s that need interaction or persistence.
-    pub(crate) fn register_interaction_id(&self, id: Id, new_rect: Rect) {
+    /// If the given [`Id`] has been used previously the same frame at at different position,
+    /// then an error will be printed on screen.
+    ///
+    /// This function is already called for all widgets that do any interaction,
+    /// but you can call this from widgets that store state but that does not interact.
+    ///
+    /// The given [`Rect`] should be approximately where the widget will be.
+    /// The most important thing is that [`Rect::min`] is approximately correct,
+    /// because that's where the warning will be painted. If you don't know what size to pick, just pick [`Vec2::ZERO`].
+    pub fn check_for_id_clash(&self, id: Id, new_rect: Rect, what: &str) {
         let prev_rect = self.frame_state().used_ids.insert(id, new_rect);
         if let Some(prev_rect) = prev_rect {
             // it is ok to reuse the same ID for e.g. a frame around a widget,
@@ -244,7 +251,8 @@ impl Context {
                         painter.error(
                             rect.left_bottom() + vec2(2.0, 4.0),
                             "ID clashes happens when things like Windows or CollapsingHeaders share names,\n\
-                             or when things like ScrollAreas and Resize areas aren't given unique id_source:s.",
+                             or when things like Plot and Grid:s aren't given unique id_source:s.\n\n\
+                             Sometimes the solution is to use ui.push_id.",
                         );
                     }
                 }
@@ -253,10 +261,19 @@ impl Context {
             let id_str = id.short_debug_format();
 
             if prev_rect.min.distance(new_rect.min) < 4.0 {
-                show_error(new_rect.min, format!("Double use of ID {}", id_str));
+                show_error(
+                    new_rect.min,
+                    format!("Double use of {} ID {}", what, id_str),
+                );
             } else {
-                show_error(prev_rect.min, format!("First use of ID {}", id_str));
-                show_error(new_rect.min, format!("Second use of ID {}", id_str));
+                show_error(
+                    prev_rect.min,
+                    format!("First use of {} ID {}", what, id_str),
+                );
+                show_error(
+                    new_rect.min,
+                    format!("Second use of {} ID {}", what, id_str),
+                );
             }
         }
     }
@@ -322,7 +339,7 @@ impl Context {
             return response;
         }
 
-        self.register_interaction_id(id, rect);
+        self.check_for_id_clash(id, rect, "widget");
 
         let clicked_elsewhere = response.clicked_elsewhere();
         let ctx_impl = &mut *self.write();

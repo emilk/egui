@@ -325,6 +325,11 @@ impl ScrollArea {
 
         let id_source = id_source.unwrap_or_else(|| Id::new("scroll_area"));
         let id = ui.make_persistent_id(id_source);
+        ui.ctx().check_for_id_clash(
+            id,
+            Rect::from_min_size(ui.available_rect_before_wrap().min, Vec2::ZERO),
+            "ScrollArea",
+        );
         let mut state = State::load(&ctx, id).unwrap_or_default();
 
         state.offset.x = offset_x.unwrap_or(state.offset.x);
