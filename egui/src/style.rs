@@ -608,7 +608,7 @@ impl Default for Spacing {
             slider_width: 100.0,
             text_edit_width: 280.0,
             icon_width: 14.0,
-            icon_spacing: 0.0,
+            icon_spacing: 4.0,
             tooltip_width: 600.0,
             combo_height: 200.0,
             scroll_bar_width: 8.0,

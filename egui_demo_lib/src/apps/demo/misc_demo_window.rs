@@ -16,6 +16,9 @@ pub struct MiscDemoWindow {
     colors: ColorWidgets,
     tree: Tree,
     box_painting: BoxPainting,
+
+    dummy_bool: bool,
+    dummy_usize: usize,
 }
 
 impl Default for MiscDemoWindow {
@@ -31,6 +34,9 @@ impl Default for MiscDemoWindow {
             colors: Default::default(),
             tree: Tree::demo(),
             box_painting: Default::default(),
+
+            dummy_bool: false,
+            dummy_usize: 0,
         }
     }
 }
@@ -79,6 +85,28 @@ impl View for MiscDemoWindow {
         CollapsingHeader::new("Tree")
             .default_open(false)
             .show(ui, |ui| self.tree.ui(ui));
+
+        CollapsingHeader::new("Checkboxes")
+            .default_open(false)
+            .show(ui, |ui| {
+                ui.label("Checkboxes with empty labels take up very little space:");
+                ui.spacing_mut().item_spacing = Vec2::ZERO;
+                ui.horizontal_wrapped(|ui| {
+                    for _ in 0..64 {
+                        ui.checkbox(&mut self.dummy_bool, "");
+                    }
+                });
+                ui.checkbox(&mut self.dummy_bool, "checkbox");
+
+                ui.label("Radiobuttons are similar:");
+                ui.spacing_mut().item_spacing = Vec2::ZERO;
+                ui.horizontal_wrapped(|ui| {
+                    for i in 0..64 {
+                        ui.radio_value(&mut self.dummy_usize, i, "");
+                    }
+                });
+                ui.radio_value(&mut self.dummy_usize, 64, "radio_value");
+            });
 
         ui.collapsing("Columns", |ui| {
             ui.add(Slider::new(&mut self.num_columns, 1..=10).text("Columns"));
