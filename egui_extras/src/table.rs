@@ -376,31 +376,16 @@ impl<'a> TableBody<'a> {
     /// ### Example
     /// ```
     /// # egui::__run_test_ui(|ui| {
-    /// use egui_extras::{TableBuilderSize};
+    /// use egui_extras::{TableBuilder, Size};
     /// TableBuilder::new(ui)
     ///     .column(Size::remainder().at_least(100.0))
     ///     .body(|mut body| {
     ///         let row_heights: Vec<f32> = vec![60.0, 18.0, 31.0, 240.0];
-    ///         body.heterogeneous_rows(row_heights.iter(), |row_index, mut row| {
+    ///         body.heterogeneous_rows(row_heights.into_iter(), |row_index, mut row| {
     ///             let thick = row_index % 6 == 0;
     ///             row.col(|ui| {
     ///                 ui.centered_and_justified(|ui| {
     ///                     ui.label(row_index.to_string());
-    ///                 });
-    ///             });
-    ///             row.col(|ui| {
-    ///                 ui.centered_and_justified(|ui| {
-    ///                     ui.label(clock_emoji(row_index));
-    ///                 });
-    ///             });
-    ///             row.col(|ui| {
-    ///                 ui.centered_and_justified(|ui| {
-    ///                     ui.style_mut().wrap = Some(false);
-    ///                     if thick {
-    ///                         ui.heading("Extra thick row");
-    ///                     } else {
-    ///                         ui.label("Normal row");
-    ///                     }
     ///                 });
     ///             });
     ///         });
@@ -531,7 +516,7 @@ impl<'a> TableBody<'a> {
             layout: &mut self.layout,
             widths: &self.widths,
             striped: false,
-            height: height,
+            height,
         }
         .col(|_| ()); // advances the cursor
     }
