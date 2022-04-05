@@ -6,6 +6,8 @@ set -eux
 # Checks all tests, lints etc.
 # Basically does what the CI does.
 
+RUSTDOCFLAGS="-D warnings" # https://github.com/emilk/egui/pull/1454
+
 cargo check --workspace --all-targets
 cargo check --workspace --all-targets --all-features
 cargo check -p egui_demo_app --lib --target wasm32-unknown-unknown
