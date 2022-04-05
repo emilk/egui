@@ -20,6 +20,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Renamed `AlphaImage` to `FontImage` to discourage any other use for it ([#1412](https://github.com/emilk/egui/pull/1412)).
 * Warnings will pe painted on screen when there is an `Id` clash for `Grid`, `Plot` or `ScrollArea` ([#1452](https://github.com/emilk/egui/pull/1452)).
 * `Checkbox` and `RadioButton` with an empty label (`""`) will now take up much less space ([#1456](https://github.com/emilk/egui/pull/1456)).
+* Replaced `Memory::top_most_layer` with more flexible `Memory::layer_ids`.
 
 ### Fixed 🐛
 * Fixed ComboBoxes always being rendered left-aligned ([#1304](https://github.com/emilk/egui/pull/1304)).

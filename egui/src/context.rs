@@ -943,13 +943,8 @@ impl Context {
         self.memory().layer_id_at(pos, resize_grab_radius_side)
     }
 
-    /// The overall top-most layer. When an area is clicked on or interacted
-    /// with, it is moved above all other areas.
-    pub fn top_most_layer(&self) -> Option<LayerId> {
-        self.memory().top_most_layer()
-    }
-
-    /// Moves the given area to the top.
+    /// Moves the given area to the top in its [`Order`].
+    /// [`Area`]:s and [`Window`]:s also do this automatically when being clicked on or interacted with.
     pub fn move_to_top(&self, layer_id: LayerId) {
         self.memory().areas.move_to_top(layer_id);
     }
