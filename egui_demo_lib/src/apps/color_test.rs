@@ -148,7 +148,7 @@ impl ColorTest {
 
         ui.separator();
 
-        fine_line_test(ui);
+        blending_and_feathering_test(ui);
     }
 
     fn show_gradients(&mut self, ui: &mut Ui, bg_fill: Color32, (left, right): (Color32, Color32)) {
@@ -390,25 +390,55 @@ fn pixel_test(ui: &mut Ui) {
     }
 }
 
-fn fine_line_test(ui: &mut Ui) {
+fn blending_and_feathering_test(ui: &mut Ui) {
     ui.label("Some fine lines for testing anti-aliasing and blending:");
 
-    let size = Vec2::new(256.0, 512.0);
+    let size = Vec2::new(512.0, 512.0);
     let (response, painter) = ui.allocate_painter(size, Sense::hover());
     let rect = response.rect;
 
     let mut top_half = rect;
     top_half.set_bottom(top_half.center().y);
     painter.rect_filled(top_half, 0.0, Color32::BLACK);
-    paint_fine_lines(&painter, top_half, Color32::WHITE);
+    paint_fine_lines_and_text(&painter, top_half, Color32::WHITE);
 
     let mut bottom_half = rect;
     bottom_half.set_top(bottom_half.center().y);
     painter.rect_filled(bottom_half, 0.0, Color32::WHITE);
-    paint_fine_lines(&painter, bottom_half, Color32::BLACK);
+    paint_fine_lines_and_text(&painter, bottom_half, Color32::BLACK);
 }
 
-fn paint_fine_lines(painter: &egui::Painter, mut rect: Rect, color: Color32) {
+fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Color32) {
+    {
+        let mut x = 0.0;
+        for opacity in [1.00, 0.50, 0.25, 0.10, 0.05, 0.02, 0.01, 0.00] {
+            painter.text(
+                rect.center_top() + Vec2::new(0.0, x),
+                Align2::LEFT_TOP,
+                format!("{:.0}% white", 100.0 * opacity),
+                FontId::proportional(16.0),
+                Color32::WHITE.linear_multiply(opacity),
+            );
+            painter.text(
+                rect.center_top() + Vec2::new(80.0, x),
+                Align2::LEFT_TOP,
+                format!("{:.0}% gray", 100.0 * opacity),
+                FontId::proportional(16.0),
+                Color32::GRAY.linear_multiply(opacity),
+            );
+            painter.text(
+                rect.center_top() + Vec2::new(160.0, x),
+                Align2::LEFT_TOP,
+                format!("{:.0}% black", 100.0 * opacity),
+                FontId::proportional(16.0),
+                Color32::BLACK.linear_multiply(opacity),
+            );
+            x += 20.0;
+        }
+    }
+
+    rect.max.x = rect.center().x;
+
     rect = rect.shrink(12.0);
     for width in [0.5, 1.0, 2.0] {
         painter.text(
