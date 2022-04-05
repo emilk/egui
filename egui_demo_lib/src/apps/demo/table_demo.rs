@@ -3,12 +3,22 @@ use egui_extras::{Size, StripBuilder, TableBuilder, TableRow};
 
 /// Shows off a table with dynamic layout
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[derive(Default)]
 pub struct TableDemo {
     heterogeneous_rows: bool,
     virtual_scroll: bool,
     resizable: bool,
     num_rows: usize,
+}
+
+impl Default for TableDemo {
+    fn default() -> Self {
+        Self {
+            heterogeneous_rows: true,
+            virtual_scroll: false,
+            resizable: true,
+            num_rows: 100,
+        }
+    }
 }
 
 impl super::Demo for TableDemo {
@@ -30,40 +40,29 @@ impl super::Demo for TableDemo {
 
 impl super::View for TableDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        let mut settings_height = 44.0;
-        if self.virtual_scroll {
-            settings_height = 66.0;
-        } else {
-            self.heterogeneous_rows = false
-        }
+        ui.horizontal(|ui| {
+            ui.vertical(|ui| {
+                ui.checkbox(&mut self.resizable, "Resizable columns");
+                ui.checkbox(&mut self.virtual_scroll, "Virtual Scroll");
+                if self.virtual_scroll {
+                    ui.checkbox(&mut self.heterogeneous_rows, "Heterogeneous row heights");
+                }
+            });
+
+            if self.virtual_scroll {
+                ui.add(
+                    egui::Slider::new(&mut self.num_rows, 0..=100_000)
+                        .logarithmic(true)
+                        .text("Num rows"),
+                );
+            }
+        });
+
         // Leave room for the source code link after the table demo:
         StripBuilder::new(ui)
-            .size(Size::exact(settings_height)) // for the settings
             .size(Size::remainder()) // for the table
             .size(Size::exact(10.0)) // for the source code link
             .vertical(|mut strip| {
-                strip.cell(|ui| {
-                    StripBuilder::new(ui)
-                        .size(Size::exact(150.0))
-                        .size(Size::remainder())
-                        .horizontal(|mut strip| {
-                            strip.cell(|ui| {
-                                ui.checkbox(&mut self.virtual_scroll, "Virtual Scroll");
-                                if self.virtual_scroll {
-                                    ui.checkbox(&mut self.heterogeneous_rows, "Heterogeneous rows");
-                                }
-                                ui.checkbox(&mut self.resizable, "Resizable columns");
-                            });
-                            if self.virtual_scroll {
-                                strip.cell(|ui| {
-                                    ui.add(
-                                        egui::Slider::new(&mut self.num_rows, 0..=300_000)
-                                            .text("Num rows"),
-                                    );
-                                });
-                            }
-                        });
-                });
                 strip.cell(|ui| {
                     self.table_ui(ui);
                 });
