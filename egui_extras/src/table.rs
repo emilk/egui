@@ -415,7 +415,7 @@ impl<'a> TableBody<'a> {
         // because this row is meant to slide under the top bound of the visual table we calculate
         // height_of_first_row + height_above_visible >= y_progress as our break condition rather
         // than just height_above_visible >= y_progress
-        while let Some((row_index, striped, height)) = striped_heights.next() {
+        for (row_index, striped, height) in &mut striped_heights {
             if height as f64 + height_above_visible >= y_progress as f64 {
                 self.add_buffer(height_above_visible as f32);
                 let tr = TableRow {
@@ -434,7 +434,7 @@ impl<'a> TableBody<'a> {
         // populate visible rows, including the final row that should slide under the bottom bound
         // of the visible table.
         let mut current_height: f64 = 0.0;
-        while let Some((row_index, striped, height)) = striped_heights.next() {
+        for (row_index, striped, height) in &mut striped_heights {
             if height as f64 + current_height > max_height as f64 {
                 break;
             }
@@ -450,7 +450,7 @@ impl<'a> TableBody<'a> {
         }
 
         // calculate height below the visible table range
-        while let Some((_, _, height)) = striped_heights.next() {
+        for (_, _, height) in striped_heights {
             height_below_visible += height as f64
         }
 
