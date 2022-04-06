@@ -179,6 +179,20 @@ impl Shape {
         TextShape::new(pos, galley).into()
     }
 
+    #[inline]
+    /// The text color in the [`Galley`] will be replaced with the given color.
+    pub fn galley_with_color(
+        pos: Pos2,
+        galley: crate::mutex::Arc<Galley>,
+        text_color: Color32,
+    ) -> Self {
+        TextShape {
+            override_text_color: Some(text_color),
+            ..TextShape::new(pos, galley)
+        }
+        .into()
+    }
+
     pub fn mesh(mesh: Mesh) -> Self {
         crate::epaint_assert!(mesh.is_valid());
         Self::Mesh(mesh)
