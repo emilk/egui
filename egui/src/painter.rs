@@ -6,7 +6,7 @@ use crate::{
 use epaint::{
     mutex::{Arc, RwLockReadGuard, RwLockWriteGuard},
     text::{Fonts, Galley},
-    CircleShape, RectShape, Rounding, Shape, Stroke, TextShape,
+    CircleShape, RectShape, Rounding, Shape, Stroke,
 };
 
 /// Helper to paint shapes and text to a specific region on a specific layer.
@@ -403,10 +403,7 @@ impl Painter {
     #[inline(always)]
     pub fn galley_with_color(&self, pos: Pos2, galley: Arc<Galley>, text_color: Color32) {
         if !galley.is_empty() {
-            self.add(TextShape {
-                override_text_color: Some(text_color),
-                ..TextShape::new(pos, galley)
-            });
+            self.add(Shape::galley_with_color(pos, galley, text_color));
         }
     }
 }

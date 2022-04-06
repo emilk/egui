@@ -17,6 +17,7 @@ All notable changes to the epaint crate will be documented in this file.
 * Renamed `AlphaImage` to `FontImage` to discourage any other use for it ([#1412](https://github.com/emilk/egui/pull/1412)).
 * Dark text is darker and more readable on bright backgrounds ([#1412](https://github.com/emilk/egui/pull/1412)).
 * Fix panic when tessellating a [`Shape::Vec`] containing meshes with differing `TextureId`:s ([#1445](https://github.com/emilk/egui/pull/1445)).
+* Added `Shape::galley_with_color` which adds the functionality of `Painter::galley_with_color` into the Shape enum. ([#1461](https://github.com/emilk/egui/pull/1461))
 
 
 ## 0.17.0 - 2022-02-22
