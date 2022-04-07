@@ -330,7 +330,7 @@ impl Memory {
     }
 
     /// An iterator over all layers. Back-to-front. Top is last.
-    pub fn layer_ids(&self) -> impl Iterator<Item = LayerId> + '_ {
+    pub fn layer_ids(&self) -> impl ExactSizeIterator<Item = LayerId> + '_ {
         self.areas.order().iter().copied()
     }
 
