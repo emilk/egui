@@ -65,3 +65,5 @@ cargo deny check
 
 # what compiles slowly?
 # cargo llvm-lines --lib -p egui | head -20
+
+echo "All checks passed."

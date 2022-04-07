@@ -41,6 +41,7 @@ impl Default for RunMode {
 
 // ----------------------------------------------------------------------------
 
+#[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct BackendPanel {
@@ -58,18 +59,6 @@ pub struct BackendPanel {
     frame_history: crate::frame_history::FrameHistory,
 
     egui_windows: EguiWindows,
-}
-
-impl Default for BackendPanel {
-    fn default() -> Self {
-        Self {
-            open: false,
-            run_mode: Default::default(),
-            pixels_per_point: Default::default(),
-            frame_history: Default::default(),
-            egui_windows: Default::default(),
-        }
-    }
 }
 
 impl BackendPanel {

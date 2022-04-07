@@ -213,7 +213,7 @@ impl MenuRootManager {
     ) -> Option<InnerResponse<R>> {
         if let Some(root) = self.inner.as_mut() {
             let (menu_response, inner_response) = root.show(response, add_contents);
-            if let MenuResponse::Close = menu_response {
+            if MenuResponse::Close == menu_response {
                 self.inner = None;
             }
             inner_response

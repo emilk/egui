@@ -29,17 +29,16 @@ pub fn pos_from_touch_event(
     event: &web_sys::TouchEvent,
     touch_id_for_pos: &mut Option<egui::TouchId>,
 ) -> egui::Pos2 {
-    let touch_for_pos;
-    if let Some(touch_id_for_pos) = touch_id_for_pos {
+    let touch_for_pos = if let Some(touch_id_for_pos) = touch_id_for_pos {
         // search for the touch we previously used for the position
         // (unfortunately, `event.touches()` is not a rust collection):
-        touch_for_pos = (0..event.touches().length())
+        (0..event.touches().length())
             .into_iter()
             .map(|i| event.touches().get(i).unwrap())
-            .find(|touch| egui::TouchId::from(touch.identifier()) == *touch_id_for_pos);
+            .find(|touch| egui::TouchId::from(touch.identifier()) == *touch_id_for_pos)
     } else {
-        touch_for_pos = None;
-    }
+        None
+    };
     // Use the touch found above or pick the first, or return a default position if there is no
     // touch at all. (The latter is not expected as the current method is only called when there is
     // at least one touch.)

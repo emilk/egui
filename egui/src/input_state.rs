@@ -101,9 +101,7 @@ impl Default for InputState {
 impl InputState {
     #[must_use]
     pub fn begin_frame(mut self, new: RawInput) -> InputState {
-        let time = new
-            .time
-            .unwrap_or_else(|| self.time + new.predicted_dt as f64);
+        let time = new.time.unwrap_or(self.time + new.predicted_dt as f64);
         let unstable_dt = (time - self.time) as f32;
         let screen_rect = new.screen_rect.unwrap_or(self.screen_rect);
         self.create_touch_states_for_new_devices(&new.events);

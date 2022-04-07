@@ -29,7 +29,9 @@ impl ShaderVersion {
     pub(crate) fn parse(glsl_ver: &str) -> Self {
         let start = glsl_ver.find(|c| char::is_ascii_digit(&c)).unwrap();
         let es = glsl_ver[..start].contains(" ES ");
-        let ver = glsl_ver[start..].splitn(2, ' ').next().unwrap();
+        let ver = glsl_ver[start..]
+            .split_once(' ')
+            .map_or(&glsl_ver[start..], |x| x.0);
         let [maj, min]: [u8; 2] = ver
             .splitn(3, '.')
             .take(2)

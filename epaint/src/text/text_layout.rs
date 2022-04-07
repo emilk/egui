@@ -250,7 +250,9 @@ fn line_break(
 
     if row_start_idx < paragraph.glyphs.len() {
         if non_empty_rows == job.wrap.max_rows {
-            replace_last_glyph_with_overflow_character(fonts, job, out_rows);
+            if let Some(last_row) = out_rows.last_mut() {
+                replace_last_glyph_with_overflow_character(fonts, job, last_row);
+            }
         } else {
             let glyphs: Vec<Glyph> = paragraph.glyphs[row_start_idx..]
                 .iter()
@@ -277,15 +279,10 @@ fn line_break(
 fn replace_last_glyph_with_overflow_character(
     fonts: &mut FontsImpl,
     job: &LayoutJob,
-    out_rows: &mut Vec<Row>,
+    row: &mut Row,
 ) {
     let overflow_character = match job.wrap.overflow_character {
         Some(c) => c,
-        None => return,
-    };
-
-    let row = match out_rows.last_mut() {
-        Some(r) => r,
         None => return,
     };
 

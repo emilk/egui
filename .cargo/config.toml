@@ -50,7 +50,6 @@ rustflags = [
     "-Wclippy::missing_enforced_import_renames",
     "-Wclippy::missing_errors_doc",
     "-Wclippy::missing_safety_doc",
-    # "-Wclippy::mod_module_files", // Enable when we update MSRV
     "-Wclippy::mut_mut",
     "-Wclippy::mutex_integer",
     "-Wclippy::needless_borrow",
