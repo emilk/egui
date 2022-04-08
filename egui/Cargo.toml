@@ -26,7 +26,7 @@ default = ["default_fonts"]
 cint = ["epaint/cint"]
 
 # implement bytemuck on most types.
-convert_bytemuck = ["epaint/convert_bytemuck"]
+bytemuck = ["epaint/bytemuck"]
 
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.

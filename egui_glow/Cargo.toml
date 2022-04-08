@@ -53,12 +53,12 @@ screen_reader = ["egui-winit/screen_reader"]
 # if you want to use glow painter on web disable this feature.
 winit = ["egui-winit", "glutin"]
 
-dark-light = ["egui-winit/dark-light"]                 # detect dark mode system preference
+dark-light = ["egui-winit/dark-light"] # detect dark mode system preference
 
 
 [dependencies]
 egui = { version = "0.17.0", path = "../egui", default-features = false, features = [
-  "convert_bytemuck",
+  "bytemuck",
 ] }
 epi = { version = "0.17.0", path = "../epi", optional = true }
 

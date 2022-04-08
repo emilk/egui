@@ -25,7 +25,7 @@ default = ["clipboard", "dark-light", "links"]
 clipboard = ["copypasta"]
 
 # implement bytemuck on most types.
-convert_bytemuck = ["egui/convert_bytemuck"]
+bytemuck = ["egui/bytemuck"]
 
 # Only for `egui_glow` - the official eframe/epi backend.
 epi_backend = ["epi", "glow"]

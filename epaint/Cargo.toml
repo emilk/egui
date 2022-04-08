@@ -30,7 +30,7 @@ all-features = true
 default = ["default_fonts"]
 
 # implement bytemuck on most types.
-convert_bytemuck = ["bytemuck", "emath/bytemuck"]
+bytemuck = ["dep:bytemuck", "emath/bytemuck"]
 
 # If set, epaint will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.

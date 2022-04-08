@@ -16,6 +16,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 
 ### Changed 🔧
 * MSRV (Minimum Supported Rust Version) is now `1.60.0`.
+* Renamed the feature `convert_bytemuck` to `bytemuck`.
 * `ClippedMesh` has been replaced with `ClippedPrimitive` ([#1351](https://github.com/emilk/egui/pull/1351)).
 * Renamed `Frame::margin` to `Frame::inner_margin`.
 * Renamed `AlphaImage` to `FontImage` to discourage any other use for it ([#1412](https://github.com/emilk/egui/pull/1412)).

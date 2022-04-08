@@ -3,6 +3,7 @@ All notable changes to the epaint crate will be documented in this file.
 
 
 ## Unreleased
+* Renamed the feature `convert_bytemuck` to `bytemuck`.
 * Add `Shape::Callback` for backend-specific painting ([#1351](https://github.com/emilk/egui/pull/1351)).
 * Added more text wrapping options ([#1291](https://github.com/emilk/egui/pull/1291)):
   * Added `TextWrapping` struct containing all wrapping options.
