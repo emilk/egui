@@ -41,10 +41,10 @@ extra_asserts = ["epaint/extra_asserts"]
 mint = ["epaint/mint"]
 
 # enable persistence of memory (window positions etc).
-persistence = ["serde", "epaint/serialize", "ron"]
+persistence = ["serde", "epaint/serde", "ron"]
 
 # implement serde on most types.
-serialize = ["serde", "epaint/serialize"]
+serde = ["dep:serde", "epaint/serde"]
 
 
 [dependencies]

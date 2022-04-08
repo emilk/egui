@@ -35,7 +35,7 @@ persistence = [
   "egui_extras/persistence",
   "serde",
 ]
-serialize = ["egui/serialize", "serde"]
+serde = ["egui/serde", "dep:serde"]
 syntax_highlighting = ["syntect"]
 
 

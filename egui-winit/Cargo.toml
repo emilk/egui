@@ -37,10 +37,10 @@ links = ["webbrowser"]
 screen_reader = ["tts"]
 
 persistence = [
-  "egui/serialize",
+  "egui/serde",
   "serde",
 ] # can't add epi/persistence here because of https://github.com/rust-lang/cargo/issues/8832
-serialize = ["egui/serialize", "serde"]
+serde = ["egui/serde", "dep:serde"]
 
 
 [dependencies]

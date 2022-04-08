@@ -5,6 +5,7 @@ All notable changes to the `egui-winit` integration will be noted in this file.
 ## Unreleased
 * Reexport `egui` crate
 * Renamed the feature `convert_bytemuck` to `bytemuck`.
+* Renamed the feature `serialize` to `serde`.
 
 
 ## 0.17.0 - 2022-02-22
