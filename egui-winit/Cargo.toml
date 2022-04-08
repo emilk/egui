@@ -36,10 +36,7 @@ links = ["webbrowser"]
 # experimental support for a screen reader
 screen_reader = ["tts"]
 
-persistence = [
-  "egui/serde",
-  "serde",
-] # can't add epi/persistence here because of https://github.com/rust-lang/cargo/issues/8832
+persistence = ["egui/serde", "serde", "epi?/persistence"]
 serde = ["egui/serde", "dep:serde"]
 
 
@@ -51,6 +48,7 @@ instant = { version = "0.1", features = ["wasm-bindgen"] }
 tracing = "0.1"
 winit = "0.26.1"
 
+# Optional:
 epi = { version = "0.17.0", path = "../epi", optional = true }
 
 copypasta = { version = "0.7", optional = true }

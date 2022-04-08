@@ -32,6 +32,7 @@ egui = { version = "0.17.0", path = "../egui", default-features = false }
 glow = "0.11"
 tracing = "0.1"
 
+# Optional:
 directories-next = { version = "2", optional = true }
 ron = { version = "0.7", optional = true }
 serde = { version = "1", optional = true }
