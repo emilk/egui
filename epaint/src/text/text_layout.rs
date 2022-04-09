@@ -172,9 +172,7 @@ fn rows_from_paragraphs(
                 });
             } else {
                 line_break(fonts, &paragraph, job, &mut rows);
-                if let Some(last_row) = rows.last_mut() {
-                    last_row.ends_with_newline = !is_last_paragraph;
-                }
+                rows.last_mut().unwrap().ends_with_newline = !is_last_paragraph;
             }
         }
     }
