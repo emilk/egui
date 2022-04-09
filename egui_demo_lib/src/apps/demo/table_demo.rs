@@ -1,12 +1,14 @@
 use egui::TextStyle;
-use egui_extras::{Size, StripBuilder, TableBuilder};
+use egui_extras::{Size, StripBuilder, TableBuilder, TableRow};
 
 /// Shows off a table with dynamic layout
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Default)]
 pub struct TableDemo {
+    heterogeneous_rows: bool,
     virtual_scroll: bool,
     resizable: bool,
+    num_rows: usize,
 }
 
 impl super::Demo for TableDemo {
@@ -28,14 +30,40 @@ impl super::Demo for TableDemo {
 
 impl super::View for TableDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.checkbox(&mut self.virtual_scroll, "Virtual scroll");
-        ui.checkbox(&mut self.resizable, "Resizable columns");
-
+        let mut settings_height = 44.0;
+        if self.virtual_scroll {
+            settings_height = 66.0;
+        } else {
+            self.heterogeneous_rows = false
+        }
         // Leave room for the source code link after the table demo:
         StripBuilder::new(ui)
+            .size(Size::exact(settings_height)) // for the settings
             .size(Size::remainder()) // for the table
             .size(Size::exact(10.0)) // for the source code link
             .vertical(|mut strip| {
+                strip.cell(|ui| {
+                    StripBuilder::new(ui)
+                        .size(Size::exact(150.0))
+                        .size(Size::remainder())
+                        .horizontal(|mut strip| {
+                            strip.cell(|ui| {
+                                ui.checkbox(&mut self.virtual_scroll, "Virtual Scroll");
+                                if self.virtual_scroll {
+                                    ui.checkbox(&mut self.heterogeneous_rows, "Heterogeneous rows");
+                                }
+                                ui.checkbox(&mut self.resizable, "Resizable columns");
+                            });
+                            if self.virtual_scroll {
+                                strip.cell(|ui| {
+                                    ui.add(
+                                        egui::Slider::new(&mut self.num_rows, 0..=300_000)
+                                            .text("Num rows"),
+                                    );
+                                });
+                            }
+                        });
+                });
                 strip.cell(|ui| {
                     self.table_ui(ui);
                 });
@@ -77,19 +105,25 @@ impl TableDemo {
             })
             .body(|mut body| {
                 if self.virtual_scroll {
-                    body.rows(text_height, 100_000, |row_index, mut row| {
-                        row.col(|ui| {
-                            ui.label(row_index.to_string());
+                    if !self.heterogeneous_rows {
+                        body.rows(text_height, self.num_rows, |row_index, mut row| {
+                            row.col(|ui| {
+                                ui.label(row_index.to_string());
+                            });
+                            row.col(|ui| {
+                                ui.label(clock_emoji(row_index));
+                            });
+                            row.col(|ui| {
+                                ui.add(
+                                    egui::Label::new("Thousands of rows of even height")
+                                        .wrap(false),
+                                );
+                            });
                         });
-                        row.col(|ui| {
-                            ui.label(clock_emoji(row_index));
-                        });
-                        row.col(|ui| {
-                            ui.add(
-                                egui::Label::new("Thousands of rows of even height").wrap(false),
-                            );
-                        });
-                    });
+                    } else {
+                        let rows = DemoRows::new(self.num_rows);
+                        body.heterogeneous_rows(rows, DemoRows::populate_row);
+                    }
                 } else {
                     for row_index in 0..20 {
                         let thick = row_index % 6 == 0;
@@ -119,6 +153,58 @@ impl TableDemo {
                     }
                 }
             });
+    }
+}
+
+struct DemoRows {
+    row_count: usize,
+    current_row: usize,
+}
+
+impl DemoRows {
+    fn new(row_count: usize) -> Self {
+        Self {
+            row_count,
+            current_row: 0,
+        }
+    }
+
+    fn populate_row(index: usize, mut row: TableRow<'_, '_>) {
+        let thick = index % 6 == 0;
+        row.col(|ui| {
+            ui.centered_and_justified(|ui| {
+                ui.label(index.to_string());
+            });
+        });
+        row.col(|ui| {
+            ui.centered_and_justified(|ui| {
+                ui.label(clock_emoji(index));
+            });
+        });
+        row.col(|ui| {
+            ui.centered_and_justified(|ui| {
+                ui.style_mut().wrap = Some(false);
+                if thick {
+                    ui.heading("Extra thick row");
+                } else {
+                    ui.label("Normal row");
+                }
+            });
+        });
+    }
+}
+
+impl Iterator for DemoRows {
+    type Item = f32;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_row < self.row_count {
+            let thick = self.current_row % 6 == 0;
+            self.current_row += 1;
+            Some(if thick { 30.0 } else { 18.0 })
+        } else {
+            None
+        }
     }
 }
 
