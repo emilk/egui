@@ -4,8 +4,9 @@ All notable changes to the `egui-winit` integration will be noted in this file.
 
 ## Unreleased
 * Reexport `egui` crate
-* Renamed the feature `convert_bytemuck` to `bytemuck`.
-* Renamed the feature `serialize` to `serde`.
+* Renamed the feature `convert_bytemuck` to `bytemuck` ([#1467](https://github.com/emilk/egui/pull/1467)).
+* Renamed the feature `serialize` to `serde` ([#1467](https://github.com/emilk/egui/pull/1467)).
+* MSRV (Minimum Supported Rust Version) is now `1.60.0` ([#1467](https://github.com/emilk/egui/pull/1467)).
 
 
 ## 0.17.0 - 2022-02-22
