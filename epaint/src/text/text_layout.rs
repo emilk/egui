@@ -775,3 +775,14 @@ fn is_chinese(c: char) -> bool {
         || ('\u{3400}' <= c && c <= '\u{4DBF}')
         || ('\u{2B740}' <= c && c <= '\u{2B81F}')
 }
+
+// ----------------------------------------------------------------------------
+
+#[test]
+fn test_zero_max_width() {
+    let mut fonts = FontsImpl::new(1.0, 1024, super::FontDefinitions::default());
+    let mut layout_job = LayoutJob::single_section("W".into(), super::TextFormat::default());
+    layout_job.wrap.max_width = 0.0;
+    let galley = super::layout(&mut fonts, layout_job.into());
+    assert_eq!(galley.rows.len(), 1);
+}
