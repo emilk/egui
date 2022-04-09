@@ -154,6 +154,15 @@ impl Color32 {
         Rgba::from(self).to_opaque().into()
     }
 
+    // Returns a hex string representing the rgb value
+    #[inline(always)]
+    pub fn to_hex_str(&self) -> String {
+        format!(
+            "#{:02x}{:02x}{:02x}",
+            self.0[0] as i32, self.0[1] as i32, self.0[2] as i32
+        )
+    }
+
     /// Returns an additive version of self
     #[inline(always)]
     pub fn additive(self) -> Self {
@@ -345,6 +354,15 @@ impl Rgba {
                 self.b() / self.a(),
             )
         }
+    }
+
+    // Returns a hex string representing the rgb value
+    #[inline(always)]
+    pub fn to_hex_str(&self) -> String {
+        format!(
+            "#{:02x}{:02x}{:02x}",
+            self.0[0] as i32, self.0[1] as i32, self.0[2] as i32
+        )
     }
 
     /// Premultiplied RGBA
