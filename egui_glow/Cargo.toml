@@ -24,7 +24,7 @@ all-features = true
 
 
 [features]
-default = ["clipboard", "default_fonts", "links", "persistence", "winit"]
+default = ["default_fonts"]
 
 # enable cut/copy/paste to OS clipboard.
 # if disabled a clipboard will be simulated so you can still copy/paste within the egui app.
