@@ -453,7 +453,7 @@ impl<'a> TableBody<'a> {
 
         // calculate height below the visible table range
         for (_, _, height) in striped_heights {
-            height_below_visible += height as f64
+            height_below_visible += height as f64;
         }
 
         // if height below visible is > 0 here then we need to add a buffer to allow the table to
@@ -466,6 +466,24 @@ impl<'a> TableBody<'a> {
     /// Add rows with same height.
     ///
     /// Is a lot more performant than adding each individual row as non visible rows must not be rendered
+    ///
+    /// ### Example
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// use egui_extras::{TableBuilder, Size};
+    /// TableBuilder::new(ui)
+    ///     .column(Size::remainder().at_least(100.0))
+    ///     .body(|mut body| {
+    ///         let row_height = 18.0;
+    ///         let num_rows = 10_000;
+    ///         body.rows(row_height, num_rows, |row_index, mut row| {
+    ///             row.col(|ui| {
+    ///                 ui.label("First column");
+    ///             });
+    ///         });
+    ///     });
+    /// # });
+    /// ```
     pub fn rows(mut self, height: f32, rows: usize, mut row: impl FnMut(usize, TableRow<'_, '_>)) {
         let y_progress = self.y_progress();
         let mut start = 0;
