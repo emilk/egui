@@ -251,7 +251,7 @@ fn line_break(
     }
 
     if row_start_idx < paragraph.glyphs.len() {
-        if non_empty_rows == job.wrap.max_rows {
+        if job.wrap.max_rows > 0 && non_empty_rows == job.wrap.max_rows {
             if let Some(last_row) = out_rows.last_mut() {
                 replace_last_glyph_with_overflow_character(fonts, job, last_row);
             }
