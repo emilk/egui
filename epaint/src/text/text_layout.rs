@@ -249,7 +249,7 @@ fn line_break(
     }
 
     if row_start_idx < paragraph.glyphs.len() {
-        if non_empty_rows == job.wrap.max_rows {
+        if job.wrap.max_rows > 0 && non_empty_rows == job.wrap.max_rows {
             if let Some(last_row) = out_rows.last_mut() {
                 replace_last_glyph_with_overflow_character(fonts, job, last_row);
             }
@@ -772,4 +772,15 @@ fn is_chinese(c: char) -> bool {
     ('\u{4E00}' <= c && c <= '\u{9FFF}')
         || ('\u{3400}' <= c && c <= '\u{4DBF}')
         || ('\u{2B740}' <= c && c <= '\u{2B81F}')
+}
+
+// ----------------------------------------------------------------------------
+
+#[test]
+fn test_zero_max_width() {
+    let mut fonts = FontsImpl::new(1.0, 1024, super::FontDefinitions::default());
+    let mut layout_job = LayoutJob::single_section("W".into(), super::TextFormat::default());
+    layout_job.wrap.max_width = 0.0;
+    let galley = super::layout(&mut fonts, layout_job.into());
+    assert_eq!(galley.rows.len(), 1);
 }
