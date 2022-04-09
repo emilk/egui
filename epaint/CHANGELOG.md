@@ -18,6 +18,9 @@ All notable changes to the epaint crate will be documented in this file.
 * Dark text is darker and more readable on bright backgrounds ([#1412](https://github.com/emilk/egui/pull/1412)).
 * Fix panic when tessellating a [`Shape::Vec`] containing meshes with differing `TextureId`:s ([#1445](https://github.com/emilk/egui/pull/1445)).
 * Added `Shape::galley_with_color` which adds the functionality of `Painter::galley_with_color` into the Shape enum. ([#1461](https://github.com/emilk/egui/pull/1461))
+* MSRV (Minimum Supported Rust Version) is now `1.60.0` ([#1467](https://github.com/emilk/egui/pull/1467)).
+* Renamed the feature `convert_bytemuck` to `bytemuck` ([#1467](https://github.com/emilk/egui/pull/1467)).
+* Renamed the feature `serialize` to `serde` ([#1467](https://github.com/emilk/egui/pull/1467)).
 
 
 ## 0.17.0 - 2022-02-22

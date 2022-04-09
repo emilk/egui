@@ -4,7 +4,7 @@ version = "0.17.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui natively using the glium library"
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.60"
 homepage = "https://github.com/emilk/egui/tree/master/egui_glium"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -46,7 +46,7 @@ screen_reader = ["egui-winit/screen_reader"]
 
 [dependencies]
 egui = { version = "0.17.0", path = "../egui", default-features = false, features = [
-  "convert_bytemuck",
+  "bytemuck",
 ] }
 egui-winit = { version = "0.17.0", path = "../egui-winit", default-features = false }
 

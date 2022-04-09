@@ -4,7 +4,7 @@ version = "0.17.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui with winit"
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.60"
 homepage = "https://github.com/emilk/egui/tree/master/egui-winit"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -25,7 +25,7 @@ default = ["clipboard", "dark-light", "links"]
 clipboard = ["copypasta"]
 
 # implement bytemuck on most types.
-convert_bytemuck = ["egui/convert_bytemuck"]
+bytemuck = ["egui/bytemuck"]
 
 # Only for `egui_glow` - the official eframe/epi backend.
 epi_backend = ["epi", "glow"]
@@ -36,11 +36,8 @@ links = ["webbrowser"]
 # experimental support for a screen reader
 screen_reader = ["tts"]
 
-persistence = [
-  "egui/serialize",
-  "serde",
-] # can't add epi/persistence here because of https://github.com/rust-lang/cargo/issues/8832
-serialize = ["egui/serialize", "serde"]
+persistence = ["egui/serde", "serde", "epi?/persistence"]
+serde = ["egui/serde", "dep:serde"]
 
 
 [dependencies]
@@ -51,6 +48,7 @@ instant = { version = "0.1", features = ["wasm-bindgen"] }
 tracing = "0.1"
 winit = "0.26.1"
 
+# Optional:
 epi = { version = "0.17.0", path = "../epi", optional = true }
 
 copypasta = { version = "0.7", optional = true }

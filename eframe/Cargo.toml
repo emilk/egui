@@ -4,7 +4,7 @@ version = "0.17.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "egui framework - write GUI apps that compiles to web and/or natively"
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.60"
 homepage = "https://github.com/emilk/egui/tree/master/eframe"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -28,8 +28,8 @@ default_fonts = ["egui/default_fonts"]
 
 # Enable saving app state to disk.
 persistence = [
-  # we cannot touch egui_glium or egui_glow here due to https://github.com/rust-lang/cargo/issues/8832
   "egui-winit/persistence",
+  "egui_glow/persistence",
   "egui/persistence",
   "epi/file_storage",
   "epi/persistence",
@@ -37,12 +37,12 @@ persistence = [
 
 # enable screen reader support (requires `ctx.options().screen_reader = true;`)
 screen_reader = [
-  # we cannot touch egui_glium or egui_glow here due to https://github.com/rust-lang/cargo/issues/8832
   "egui-winit/screen_reader",
+  "egui_glow/screen_reader",
   "egui_web/screen_reader",
 ]
 
-dark-light = [ "egui-winit/dark-light"]              # detect dark mode system preference
+dark-light = ["egui-winit/dark-light"] # detect dark mode system preference
 
 
 [dependencies]

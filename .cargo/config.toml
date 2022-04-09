@@ -9,11 +9,11 @@ rustflags = [
     "-Wclippy::checked_conversions",
     "-Wclippy::dbg_macro",
     "-Wclippy::debug_assert_with_mut_call",
-    "-Wclippy::disallowed_method",
+    "-Wclippy::disallowed_methods",
     "-Wclippy::doc_markdown",
     "-Wclippy::empty_enum",
     "-Wclippy::enum_glob_use",
-    # "-Wclippy::equatable_if_let", // Enable when we update MSRV
+    "-Wclippy::equatable_if_let",
     "-Wclippy::exit",
     "-Wclippy::expl_impl_clone_on_copy",
     "-Wclippy::explicit_deref_methods",
@@ -29,7 +29,7 @@ rustflags = [
     "-Wclippy::imprecise_flops",
     "-Wclippy::inefficient_to_string",
     "-Wclippy::invalid_upcast_comparisons",
-    # "-Wclippy::iter_not_returning_iterator", // Enable when we update MSRV
+    "-Wclippy::iter_not_returning_iterator",
     "-Wclippy::large_digit_groups",
     "-Wclippy::large_stack_arrays",
     "-Wclippy::large_types_passed_by_value",

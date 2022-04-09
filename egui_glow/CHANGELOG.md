@@ -7,6 +7,8 @@ All notable changes to the `egui_glow` integration will be noted in this file.
 * Add new `NativeOptions`: `vsync`, `multisampling`, `depth_buffer`, `stencil_buffer`.
 * `dark-light` (dark mode detection) is now an opt-in feature ([#1437](https://github.com/emilk/egui/pull/1437)).
 * Fixed potential scale bug when DPI scaling changes (e.g. when dragging a  window between different displays) ([#1441](https://github.com/emilk/egui/pull/1441)).
+* MSRV (Minimum Supported Rust Version) is now `1.60.0` ([#1467](https://github.com/emilk/egui/pull/1467)).
+* `clipboard`, `links`, `persistence`, `winit` are now all opt-in features ([#1467](https://github.com/emilk/egui/pull/1467)).
 
 
 ## 0.17.0 - 2022-02-22

@@ -4,7 +4,7 @@ version = "0.17.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "An easy-to-use immediate mode GUI that runs on both web and native"
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.60"
 homepage = "https://github.com/emilk/egui"
 license = "MIT OR Apache-2.0"
 readme = "../README.md"
@@ -26,7 +26,7 @@ default = ["default_fonts"]
 cint = ["epaint/cint"]
 
 # implement bytemuck on most types.
-convert_bytemuck = ["epaint/convert_bytemuck"]
+bytemuck = ["epaint/bytemuck"]
 
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
@@ -41,10 +41,10 @@ extra_asserts = ["epaint/extra_asserts"]
 mint = ["epaint/mint"]
 
 # enable persistence of memory (window positions etc).
-persistence = ["serde", "epaint/serialize", "ron"]
+persistence = ["serde", "epaint/serde", "ron"]
 
 # implement serde on most types.
-serialize = ["serde", "epaint/serialize"]
+serde = ["dep:serde", "epaint/serde"]
 
 
 [dependencies]

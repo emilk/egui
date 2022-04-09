@@ -5,7 +5,7 @@ authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for compiling egui code to WASM for a web page"
 license = "MIT OR Apache-2.0"
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.60"
 homepage = "https://github.com/emilk/egui/tree/master/egui_web"
 readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/master/egui_web"
@@ -42,7 +42,7 @@ screen_reader = ["tts"]
 
 [dependencies]
 egui = { version = "0.17.0", path = "../egui", default-features = false, features = [
-  "convert_bytemuck",
+  "bytemuck",
   "tracing",
 ] }
 egui_glow = { version = "0.17.0", path = "../egui_glow", default-features = false }
