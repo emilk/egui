@@ -22,7 +22,7 @@ default = ["clipboard", "dark-light", "links"]
 
 # enable cut/copy/paste to OS clipboard.
 # if disabled a clipboard will be simulated so you can still copy/paste within the egui app.
-clipboard = ["copypasta"]
+clipboard = ["arboard"]
 
 # implement bytemuck on most types.
 bytemuck = ["egui/bytemuck"]
@@ -51,8 +51,8 @@ winit = "0.26.1"
 # Optional:
 epi = { version = "0.17.0", path = "../epi", optional = true }
 
-copypasta = { version = "0.7", optional = true }
-dark-light = { version = "0.2.1", optional = true }                 # detect dark mode system preference
+arboard = { version = "2.1", optional = true, default-features = false }
+dark-light = { version = "0.2.1", optional = true }                      # detect dark mode system preference
 glow = { version = "0.11", optional = true }
 serde = { version = "1.0", optional = true, features = ["derive"] }
 webbrowser = { version = "0.6", optional = true }
