@@ -30,6 +30,7 @@ deny = [
 skip = [
     { name = "ahash" },      # old version via dark-light
     { name = "arrayvec" },   # old version via tiny-skiaz
+    { name = "hashbrown" },  # old version via dark-light
     { name = "time" },       # old version pulled in by unmaintianed crate 'chrono'
     { name = "ttf-parser" }, # different versions pulled in by ab_glyph and usvg
 ]
