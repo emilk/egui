@@ -74,7 +74,7 @@
 //!
 //! #[derive(PartialEq)]
 //! enum Enum { First, Second, Third }
-//! let mut my_enum = Enum::First;
+//! # let mut my_enum = Enum::First;
 //! ui.horizontal(|ui| {
 //!     ui.radio_value(&mut my_enum, Enum::First, "First");
 //!     ui.radio_value(&mut my_enum, Enum::Second, "Second");
@@ -157,12 +157,28 @@
 //! * check if the mouse is hovering or clicking that location
 //! * chose button colors based on if it is being hovered or clicked
 //! * add a [`Shape::Rect`] and [`Shape::Text`] to the list of shapes to be painted later this frame
-//! * return a [`Response`] with the `clicked` member so the user can check for interactions
+//! * return a [`Response`] with the [`clicked`](`Response::clicked`) member so the user can check for interactions
 //!
 //! There is no button being created and stored somewhere.
 //! The only output of this call is some colored shapes, and a [`Response`].
 //!
+//! Similarly, consider this code:
+//!
+//! ```
+//! # egui::__run_test_ui(|ui| {
+//! # let mut value: f32 = 0.0;
+//! ui.add(egui::Slider::new(&mut value, 0.0..=100.0).text("My value"));
+//! # });
+//! ```
+//!
+//! Here egui will read `value` to display the slider, then look if the mouse is dragging the slider and if so change the `value`.
+//! Note that `egui` does not store the slider value for you - it only displays the current value, and changes it
+//! by how much the slider has been dragged in the previous few milliseconds.
+//! This means it is responsibility of the egui user to store the state (`value`) so that it persists between frames.
+//!
 //! Read more about the pros and cons of immediate mode at <https://github.com/emilk/egui#why-immediate-mode>.
+//!
+//! # Misc
 //!
 //! ## How widgets works
 //!
