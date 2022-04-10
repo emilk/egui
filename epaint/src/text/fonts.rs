@@ -36,17 +36,17 @@ impl Default for FontId {
 
 impl FontId {
     #[inline]
-    pub fn new(size: f32, family: FontFamily) -> Self {
+    pub const fn new(size: f32, family: FontFamily) -> Self {
         Self { size, family }
     }
 
     #[inline]
-    pub fn proportional(size: f32) -> Self {
+    pub const fn proportional(size: f32) -> Self {
         Self::new(size, FontFamily::Proportional)
     }
 
     #[inline]
-    pub fn monospace(size: f32) -> Self {
+    pub const fn monospace(size: f32) -> Self {
         Self::new(size, FontFamily::Monospace)
     }
 }
