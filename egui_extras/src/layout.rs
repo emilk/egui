@@ -121,11 +121,11 @@ impl<'l> StripLayout<'l> {
     pub fn end_line(&mut self) {
         match self.direction {
             CellDirection::Horizontal => {
-                self.cursor.y = self.max.y;
+                self.cursor.y = self.max.y + self.ui.spacing().item_spacing.y;
                 self.cursor.x = self.rect.left();
             }
             CellDirection::Vertical => {
-                self.cursor.x = self.max.x;
+                self.cursor.x = self.max.x + self.ui.spacing().item_spacing.x;
                 self.cursor.y = self.rect.top();
             }
         }
@@ -135,10 +135,7 @@ impl<'l> StripLayout<'l> {
         let mut child_ui = self.ui.child_ui(rect, *self.ui.layout());
 
         if self.clip {
-            let mut clip_rect = child_ui.clip_rect();
-            clip_rect.min = clip_rect.min.max(rect.min);
-            clip_rect.max = clip_rect.max.min(rect.max);
-            child_ui.set_clip_rect(clip_rect);
+            child_ui.set_clip_rect(child_ui.clip_rect().intersect(rect));
         }
 
         add_contents(&mut child_ui);

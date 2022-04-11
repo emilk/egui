@@ -86,7 +86,7 @@ impl<'a> StripBuilder<'a> {
         F: for<'b> FnOnce(Strip<'a, 'b>),
     {
         let widths = self.sizing.to_lengths(
-            self.ui.available_rect_before_wrap().width() - self.ui.spacing().item_spacing.x,
+            self.ui.available_rect_before_wrap().width(),
             self.ui.spacing().item_spacing.x,
         );
         let mut layout = StripLayout::new(self.ui, CellDirection::Horizontal, self.clip);
@@ -107,7 +107,7 @@ impl<'a> StripBuilder<'a> {
         F: for<'b> FnOnce(Strip<'a, 'b>),
     {
         let heights = self.sizing.to_lengths(
-            self.ui.available_rect_before_wrap().height() - self.ui.spacing().item_spacing.y,
+            self.ui.available_rect_before_wrap().height(),
             self.ui.spacing().item_spacing.y,
         );
         let mut layout = StripLayout::new(self.ui, CellDirection::Vertical, self.clip);
