@@ -1721,6 +1721,21 @@ impl Ui {
         self.horizontal_with_main_wrap_dyn(false, Box::new(add_contents))
     }
 
+    /// Like [`Self::horizontal`], but allocates the full vertical height and then centers elements vertically.
+    pub fn horizontal_centered<R>(
+        &mut self,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
+        let initial_size = self.available_size_before_wrap();
+        let layout = if self.placer.prefer_right_to_left() {
+            Layout::right_to_left()
+        } else {
+            Layout::left_to_right()
+        }
+        .with_cross_align(Align::Center);
+        self.allocate_ui_with_layout_dyn(initial_size, layout, Box::new(add_contents))
+    }
+
     /// Like [`Self::horizontal`], but aligns content with top.
     pub fn horizontal_top<R>(
         &mut self,
