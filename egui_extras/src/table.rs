@@ -56,10 +56,12 @@ pub struct TableBuilder<'a> {
     striped: bool,
     resizable: bool,
     clip: bool,
+    cell_layout: egui::Layout,
 }
 
 impl<'a> TableBuilder<'a> {
     pub fn new(ui: &'a mut Ui) -> Self {
+        let cell_layout = *ui.layout();
         Self {
             ui,
             sizing: Default::default(),
@@ -67,6 +69,7 @@ impl<'a> TableBuilder<'a> {
             striped: false,
             resizable: false,
             clip: true,
+            cell_layout,
         }
     }
 
@@ -99,6 +102,12 @@ impl<'a> TableBuilder<'a> {
     /// Should we clip the contents of each cell? Default: `true`.
     pub fn clip(mut self, clip: bool) -> Self {
         self.clip = clip;
+        self
+    }
+
+    /// What layout should we use for the individual cells?
+    pub fn cell_layout(mut self, cell_layout: egui::Layout) -> Self {
+        self.cell_layout = cell_layout;
         self
     }
 
@@ -136,6 +145,7 @@ impl<'a> TableBuilder<'a> {
             striped,
             resizable,
             clip,
+            cell_layout,
         } = self;
 
         let resize_id = resizable.then(|| ui.id().with("__table_resize"));
@@ -146,7 +156,7 @@ impl<'a> TableBuilder<'a> {
         let table_top = ui.cursor().top();
 
         {
-            let mut layout = StripLayout::new(ui, CellDirection::Horizontal, clip);
+            let mut layout = StripLayout::new(ui, CellDirection::Horizontal, clip, cell_layout);
             header(TableRow {
                 layout: &mut layout,
                 widths: &widths,
@@ -166,6 +176,7 @@ impl<'a> TableBuilder<'a> {
             scroll,
             striped,
             clip,
+            cell_layout,
         }
     }
 
@@ -183,6 +194,7 @@ impl<'a> TableBuilder<'a> {
             striped,
             resizable,
             clip,
+            cell_layout,
         } = self;
 
         let resize_id = resizable.then(|| ui.id().with("__table_resize"));
@@ -202,6 +214,7 @@ impl<'a> TableBuilder<'a> {
             scroll,
             striped,
             clip,
+            cell_layout,
         }
         .body(body);
     }
@@ -230,6 +243,7 @@ pub struct Table<'a> {
     scroll: bool,
     striped: bool,
     clip: bool,
+    cell_layout: egui::Layout,
 }
 
 impl<'a> Table<'a> {
@@ -248,6 +262,7 @@ impl<'a> Table<'a> {
             scroll,
             striped,
             clip,
+            cell_layout,
         } = self;
 
         let avail_rect = ui.available_rect_before_wrap();
@@ -257,7 +272,7 @@ impl<'a> Table<'a> {
         egui::ScrollArea::new([false, scroll])
             .auto_shrink([true; 2])
             .show(ui, move |ui| {
-                let layout = StripLayout::new(ui, CellDirection::Horizontal, clip);
+                let layout = StripLayout::new(ui, CellDirection::Horizontal, clip, cell_layout);
 
                 body(TableBody {
                     layout,

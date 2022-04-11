@@ -81,25 +81,20 @@ impl TableDemo {
 
         TableBuilder::new(ui)
             .striped(true)
+            .cell_layout(egui::Layout::left_to_right().with_cross_align(egui::Align::Center))
             .column(Size::initial(60.0).at_least(40.0))
             .column(Size::initial(60.0).at_least(40.0))
             .column(Size::remainder().at_least(60.0))
             .resizable(self.resizable)
             .header(20.0, |mut header| {
                 header.col(|ui| {
-                    ui.centered_and_justified(|ui| {
-                        ui.heading("Row");
-                    });
+                    ui.heading("Row");
                 });
                 header.col(|ui| {
-                    ui.centered_and_justified(|ui| {
-                        ui.heading("Clock");
-                    });
+                    ui.heading("Clock");
                 });
                 header.col(|ui| {
-                    ui.centered_and_justified(|ui| {
-                        ui.heading("Content");
-                    });
+                    ui.heading("Content");
                 });
             })
             .body(|mut body| {
@@ -129,24 +124,18 @@ impl TableDemo {
                         let row_height = if thick { 30.0 } else { 18.0 };
                         body.row(row_height, |mut row| {
                             row.col(|ui| {
-                                ui.centered_and_justified(|ui| {
-                                    ui.label(row_index.to_string());
-                                });
+                                ui.label(row_index.to_string());
                             });
                             row.col(|ui| {
-                                ui.centered_and_justified(|ui| {
-                                    ui.label(clock_emoji(row_index));
-                                });
+                                ui.label(clock_emoji(row_index));
                             });
                             row.col(|ui| {
-                                ui.centered_and_justified(|ui| {
-                                    ui.style_mut().wrap = Some(false);
-                                    if thick {
-                                        ui.heading("Extra thick row");
-                                    } else {
-                                        ui.label("Normal row");
-                                    }
-                                });
+                                ui.style_mut().wrap = Some(false);
+                                if thick {
+                                    ui.heading("Extra thick row");
+                                } else {
+                                    ui.label("Normal row");
+                                }
                             });
                         });
                     }

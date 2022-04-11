@@ -45,14 +45,17 @@ pub struct StripBuilder<'a> {
     ui: &'a mut Ui,
     sizing: Sizing,
     clip: bool,
+    cell_layout: egui::Layout,
 }
 
 impl<'a> StripBuilder<'a> {
     /// Create new strip builder.
     pub fn new(ui: &'a mut Ui) -> Self {
+        let cell_layout = *ui.layout();
         Self {
             ui,
             sizing: Default::default(),
+            cell_layout,
             clip: true,
         }
     }
@@ -60,6 +63,12 @@ impl<'a> StripBuilder<'a> {
     /// Should we clip the contents of each cell? Default: `true`.
     pub fn clip(mut self, clip: bool) -> Self {
         self.clip = clip;
+        self
+    }
+
+    /// What layout should we use for the individual cells?
+    pub fn cell_layout(mut self, cell_layout: egui::Layout) -> Self {
+        self.cell_layout = cell_layout;
         self
     }
 
@@ -89,7 +98,12 @@ impl<'a> StripBuilder<'a> {
             self.ui.available_rect_before_wrap().width(),
             self.ui.spacing().item_spacing.x,
         );
-        let mut layout = StripLayout::new(self.ui, CellDirection::Horizontal, self.clip);
+        let mut layout = StripLayout::new(
+            self.ui,
+            CellDirection::Horizontal,
+            self.clip,
+            self.cell_layout,
+        );
         strip(Strip {
             layout: &mut layout,
             direction: CellDirection::Horizontal,
@@ -110,7 +124,12 @@ impl<'a> StripBuilder<'a> {
             self.ui.available_rect_before_wrap().height(),
             self.ui.spacing().item_spacing.y,
         );
-        let mut layout = StripLayout::new(self.ui, CellDirection::Vertical, self.clip);
+        let mut layout = StripLayout::new(
+            self.ui,
+            CellDirection::Vertical,
+            self.clip,
+            self.cell_layout,
+        );
         strip(Strip {
             layout: &mut layout,
             direction: CellDirection::Vertical,

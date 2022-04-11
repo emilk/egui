@@ -32,20 +32,27 @@ pub struct StripLayout<'l> {
     cursor: Pos2,
     max: Pos2,
     pub(crate) clip: bool,
+    cell_layout: egui::Layout,
 }
 
 impl<'l> StripLayout<'l> {
-    pub(crate) fn new(ui: &'l mut Ui, direction: CellDirection, clip: bool) -> Self {
+    pub(crate) fn new(
+        ui: &'l mut Ui,
+        direction: CellDirection,
+        clip: bool,
+        cell_layout: egui::Layout,
+    ) -> Self {
         let rect = ui.available_rect_before_wrap();
         let pos = rect.left_top();
 
         Self {
             ui,
+            direction,
             rect,
             cursor: pos,
             max: pos,
-            direction,
             clip,
+            cell_layout,
         }
     }
 
@@ -132,7 +139,7 @@ impl<'l> StripLayout<'l> {
     }
 
     fn cell(&mut self, rect: Rect, add_contents: impl FnOnce(&mut Ui)) -> Rect {
-        let mut child_ui = self.ui.child_ui(rect, *self.ui.layout());
+        let mut child_ui = self.ui.child_ui(rect, self.cell_layout);
 
         if self.clip {
             child_ui.set_clip_rect(child_ui.clip_rect().intersect(rect));
