@@ -150,8 +150,8 @@ impl<'a> TableBuilder<'a> {
 
         let resize_id = resizable.then(|| ui.id().with("__table_resize"));
 
-        let widths = read_table_widths(ui, resize_id)
-            .unwrap_or_else(|| sizing.to_lengths(available_width, ui.spacing().item_spacing.x));
+        let default_widths = sizing.to_lengths(available_width, ui.spacing().item_spacing.x);
+        let widths = read_persisted_widths(ui, default_widths, resize_id);
 
         let table_top = ui.cursor().top();
 
@@ -160,6 +160,7 @@ impl<'a> TableBuilder<'a> {
             header(TableRow {
                 layout: &mut layout,
                 widths: &widths,
+                width_index: 0,
                 striped: false,
                 height,
             });
@@ -199,8 +200,8 @@ impl<'a> TableBuilder<'a> {
 
         let resize_id = resizable.then(|| ui.id().with("__table_resize"));
 
-        let widths = read_table_widths(ui, resize_id)
-            .unwrap_or_else(|| sizing.to_lengths(available_width, ui.spacing().item_spacing.x));
+        let default_widths = sizing.to_lengths(available_width, ui.spacing().item_spacing.x);
+        let widths = read_persisted_widths(ui, default_widths, resize_id);
 
         let table_top = ui.cursor().top();
 
@@ -220,14 +221,23 @@ impl<'a> TableBuilder<'a> {
     }
 }
 
-fn read_table_widths(ui: &egui::Ui, resize_id: Option<egui::Id>) -> Option<Vec<f32>> {
+fn read_persisted_widths(
+    ui: &egui::Ui,
+    default_widths: Vec<f32>,
+    resize_id: Option<egui::Id>,
+) -> Vec<f32> {
     if let Some(resize_id) = resize_id {
         let rect = Rect::from_min_size(ui.available_rect_before_wrap().min, Vec2::ZERO);
         ui.ctx().check_for_id_clash(resize_id, rect, "Table");
-        ui.data().get_persisted(resize_id)
-    } else {
-        None
+        if let Some(persisted) = ui.data().get_persisted::<Vec<f32>>(resize_id) {
+            // make sure that the stored widths aren't out-dated
+            if persisted.len() == default_widths.len() {
+                return persisted;
+            }
+        }
     }
+
+    default_widths
 }
 
 /// Table struct which can construct a [`TableBody`].
@@ -377,7 +387,7 @@ impl<'a> TableBody<'a> {
     ///
     /// This is primarily meant for use with [`TableBody::heterogeneous_rows`] in cases where row
     /// heights are expected to according to the width of one or more cells -- for example, if text
-    /// is wrapped rather than clippped within the cell.
+    /// is wrapped rather than clipped within the cell.
     pub fn widths(&self) -> &[f32] {
         &self.widths
     }
@@ -389,6 +399,7 @@ impl<'a> TableBody<'a> {
         row(TableRow {
             layout: &mut self.layout,
             widths: &self.widths,
+            width_index: 0,
             striped: self.striped && self.row_nr % 2 == 0,
             height,
         });
@@ -439,6 +450,7 @@ impl<'a> TableBody<'a> {
                 TableRow {
                     layout: &mut self.layout,
                     widths: &self.widths,
+                    width_index: 0,
                     striped: self.striped && idx % 2 == 0,
                     height,
                 },
@@ -508,6 +520,7 @@ impl<'a> TableBody<'a> {
                 let tr = TableRow {
                     layout: &mut self.layout,
                     widths: &self.widths,
+                    width_index: 0,
                     striped: self.striped && striped,
                     height,
                 };
@@ -528,6 +541,7 @@ impl<'a> TableBody<'a> {
             let tr = TableRow {
                 layout: &mut self.layout,
                 widths: &self.widths,
+                width_index: 0,
                 striped: self.striped && striped,
                 height,
             };
@@ -554,6 +568,7 @@ impl<'a> TableBody<'a> {
         TableRow {
             layout: &mut self.layout,
             widths: &self.widths,
+            width_index: 0,
             striped: false,
             height,
         }
@@ -572,6 +587,7 @@ impl<'a> Drop for TableBody<'a> {
 pub struct TableRow<'a, 'b> {
     layout: &'b mut StripLayout<'a>,
     widths: &'b [f32],
+    width_index: usize,
     striped: bool,
     height: f32,
 }
@@ -579,24 +595,15 @@ pub struct TableRow<'a, 'b> {
 impl<'a, 'b> TableRow<'a, 'b> {
     /// Add the contents of a column.
     pub fn col(&mut self, add_contents: impl FnOnce(&mut Ui)) -> Response {
-        assert!(
-            !self.widths.is_empty(),
-            "Tried using more table columns than available."
-        );
-        let width = if self.widths.is_empty() {
-            if cfg!(debug_assertions) {
-                panic!("Added more `Table` columns than were allocated.");
-            } else {
-                #[cfg(feature = "tracing")]
-                tracing::error!("Added more `Table` columns than were allocated");
-                #[cfg(not(feature = "tracing"))]
-                eprintln!("egui_extras: Added more `Table` columns than were allocated");
-                8.0 // anything will look wrong, so pick something that is obviously wrong
-            }
+        let width = if let Some(width) = self.widths.get(self.width_index) {
+            self.width_index += 1;
+            *width
         } else {
-            let width = self.widths[0];
-            self.widths = &self.widths[1..];
-            width
+            crate::log_or_panic!(
+                "Added more `Table` columns than were pre-allocated ({} pre-allocated)",
+                self.widths.len()
+            );
+            8.0 // anything will look wrong, so pick something that is obviously wrong
         };
 
         let width = CellSize::Absolute(width);

@@ -107,7 +107,8 @@ impl<'a> StripBuilder<'a> {
         strip(Strip {
             layout: &mut layout,
             direction: CellDirection::Horizontal,
-            sizes: &widths,
+            sizes: widths,
+            size_index: 0,
         });
         layout.allocate_rect()
     }
@@ -133,7 +134,8 @@ impl<'a> StripBuilder<'a> {
         strip(Strip {
             layout: &mut layout,
             direction: CellDirection::Vertical,
-            sizes: &heights,
+            sizes: heights,
+            size_index: 0,
         });
         layout.allocate_rect()
     }
@@ -144,25 +146,21 @@ impl<'a> StripBuilder<'a> {
 pub struct Strip<'a, 'b> {
     layout: &'b mut StripLayout<'a>,
     direction: CellDirection,
-    sizes: &'b [f32],
+    sizes: Vec<f32>,
+    size_index: usize,
 }
 
 impl<'a, 'b> Strip<'a, 'b> {
     fn next_cell_size(&mut self) -> (CellSize, CellSize) {
-        let size = if self.sizes.is_empty() {
-            if cfg!(debug_assertions) {
-                panic!("Added more `Strip` cells than were allocated.");
-            } else {
-                #[cfg(feature = "tracing")]
-                tracing::error!("Added more `Strip` cells than were allocated");
-                #[cfg(not(feature = "tracing"))]
-                eprintln!("egui_extras: Added more `Strip` cells than were allocated");
-                8.0 // anything will look wrong, so pick something that is obviously wrong
-            }
+        let size = if let Some(size) = self.sizes.get(self.size_index) {
+            self.size_index += 1;
+            *size
         } else {
-            let size = self.sizes[0];
-            self.sizes = &self.sizes[1..];
-            size
+            crate::log_or_panic!(
+                "Added more `Strip` cells than were pre-allocated ({} pre-allocated)",
+                self.sizes.len()
+            );
+            8.0 // anything will look wrong, so pick something that is obviously wrong
         };
 
         match self.direction {
@@ -194,7 +192,7 @@ impl<'a, 'b> Strip<'a, 'b> {
 
 impl<'a, 'b> Drop for Strip<'a, 'b> {
     fn drop(&mut self) {
-        while !self.sizes.is_empty() {
+        while self.size_index < self.sizes.len() {
             self.empty();
         }
     }
