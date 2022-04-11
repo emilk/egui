@@ -9,7 +9,8 @@
 #![warn(missing_docs)] // Let's keep `epi` well-documented.
 
 /// File storage which can be used by native backends.
-#[cfg(feature = "file_storage")]
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "persistence")]
 pub mod file_storage;
 
 pub use egui; // Re-export for user convenience

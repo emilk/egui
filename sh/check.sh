@@ -24,7 +24,7 @@ cargo doc --document-private-items --no-deps --all-features
 (cd emath && cargo check --no-default-features)
 (cd epaint && cargo check --no-default-features)
 (cd epaint && cargo check --no-default-features --release)
-(cd egui && cargo check --no-default-features --features "serialize")
+(cd egui && cargo check --no-default-features --features "serde")
 (cd eframe && cargo check --no-default-features)
 (cd epi && cargo check --no-default-features)
 (cd egui_demo_lib && cargo check --no-default-features)
@@ -42,7 +42,7 @@ cargo doc --document-private-items --no-deps --all-features
 (cd egui_glium && cargo check --all-features)
 (cd egui_glow && cargo check --all-features)
 (cd egui_web && cargo check --all-features)
-# (cd egui-winit && cargo check --all-features) can't do, beacause of https://github.com/rust-lang/cargo/issues/8832
+(cd egui-winit && cargo check --all-features)
 (cd emath && cargo check --all-features)
 (cd epaint && cargo check --all-features)
 (cd epi && cargo check --all-features)

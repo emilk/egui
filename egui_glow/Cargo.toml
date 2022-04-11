@@ -28,31 +28,31 @@ default = ["default_fonts"]
 
 # enable cut/copy/paste to OS clipboard.
 # if disabled a clipboard will be simulated so you can still copy/paste within the egui app.
-clipboard = ["egui-winit/clipboard"]
+clipboard = ["egui-winit?/clipboard"]
+
+# detect dark mode system preference
+dark-light = ["egui-winit?/dark-light"]
 
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["egui/default_fonts"]
 
 # enable opening links in a browser when an egui hyperlink is clicked.
-links = ["egui-winit/links"]
+links = ["egui-winit?/links"]
 
 # enable persisting native window options and egui memory
 persistence = [
-  "egui-winit/persistence",
+  "egui-winit?/persistence",
   "egui/persistence",
-  "epi?/file_storage",
   "epi?/persistence",
 ]
 
 # experimental support for a screen reader
-screen_reader = ["egui-winit/screen_reader"]
+screen_reader = ["egui-winit?/screen_reader"]
 
 # enable glutin/winit integration.
 # if you want to use glow painter on web disable this feature.
 winit = ["egui-winit", "glutin"]
-
-dark-light = ["egui-winit/dark-light"] # detect dark mode system preference
 
 
 [dependencies]

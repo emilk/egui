@@ -21,10 +21,9 @@ all-features = true
 
 [features]
 default = []
-# Enable the file_storage module for storing data to disk.
-file_storage = ["directories-next", "ron", "serde"]
+
 # Persist native window options and egui memory
-persistence = ["ron", "serde", "egui/persistence"]
+persistence = ["directories-next", "ron", "serde", "egui/persistence"]
 
 
 [dependencies]
@@ -33,6 +32,9 @@ glow = "0.11"
 tracing = "0.1"
 
 # Optional:
-directories-next = { version = "2", optional = true }
 ron = { version = "0.7", optional = true }
 serde = { version = "1", optional = true }
+
+# native:
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+directories-next = { version = "2", optional = true }
