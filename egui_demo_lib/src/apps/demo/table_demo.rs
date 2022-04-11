@@ -1,11 +1,15 @@
-use egui::TextStyle;
-use egui_extras::{Size, StripBuilder, TableBuilder, TableRow};
+#[derive(PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+enum DemoType {
+    Manual,
+    ManyHomogenous,
+    ManyHeterogenous,
+}
 
 /// Shows off a table with dynamic layout
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TableDemo {
-    heterogeneous_rows: bool,
-    virtual_scroll: bool,
+    demo: DemoType,
     resizable: bool,
     num_rows: usize,
 }
@@ -13,10 +17,9 @@ pub struct TableDemo {
 impl Default for TableDemo {
     fn default() -> Self {
         Self {
-            heterogeneous_rows: true,
-            virtual_scroll: false,
+            demo: DemoType::Manual,
             resizable: true,
-            num_rows: 100,
+            num_rows: 10_000,
         }
     }
 }
@@ -40,16 +43,23 @@ impl super::Demo for TableDemo {
 
 impl super::View for TableDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            ui.vertical(|ui| {
-                ui.checkbox(&mut self.resizable, "Resizable columns");
-                ui.checkbox(&mut self.virtual_scroll, "Virtual Scroll");
-                if self.virtual_scroll {
-                    ui.checkbox(&mut self.heterogeneous_rows, "Heterogeneous row heights");
-                }
-            });
+        ui.vertical(|ui| {
+            ui.checkbox(&mut self.resizable, "Resizable columns");
 
-            if self.virtual_scroll {
+            ui.label("Table type:");
+            ui.radio_value(&mut self.demo, DemoType::Manual, "Few, manual rows");
+            ui.radio_value(
+                &mut self.demo,
+                DemoType::ManyHomogenous,
+                "Thousands of rows of same height",
+            );
+            ui.radio_value(
+                &mut self.demo,
+                DemoType::ManyHeterogenous,
+                "Thousands of rows of differing heights",
+            );
+
+            if self.demo != DemoType::Manual {
                 ui.add(
                     egui::Slider::new(&mut self.num_rows, 0..=100_000)
                         .logarithmic(true)
@@ -58,7 +68,10 @@ impl super::View for TableDemo {
             }
         });
 
+        ui.separator();
+
         // Leave room for the source code link after the table demo:
+        use egui_extras::{Size, StripBuilder};
         StripBuilder::new(ui)
             .size(Size::remainder()) // for the table
             .size(Size::exact(10.0)) // for the source code link
@@ -77,7 +90,9 @@ impl super::View for TableDemo {
 
 impl TableDemo {
     fn table_ui(&mut self, ui: &mut egui::Ui) {
-        let text_height = TextStyle::Body.resolve(ui.style()).size;
+        use egui_extras::{Size, TableBuilder};
+
+        let text_height = egui::TextStyle::Body.resolve(ui.style()).size;
 
         TableBuilder::new(ui)
             .striped(true)
@@ -97,31 +112,11 @@ impl TableDemo {
                     ui.heading("Content");
                 });
             })
-            .body(|mut body| {
-                if self.virtual_scroll {
-                    if !self.heterogeneous_rows {
-                        body.rows(text_height, self.num_rows, |row_index, mut row| {
-                            row.col(|ui| {
-                                ui.label(row_index.to_string());
-                            });
-                            row.col(|ui| {
-                                ui.label(clock_emoji(row_index));
-                            });
-                            row.col(|ui| {
-                                ui.add(
-                                    egui::Label::new("Thousands of rows of even height")
-                                        .wrap(false),
-                                );
-                            });
-                        });
-                    } else {
-                        let rows = DemoRows::new(self.num_rows);
-                        body.heterogeneous_rows(rows, DemoRows::populate_row);
-                    }
-                } else {
+            .body(|mut body| match self.demo {
+                DemoType::Manual => {
                     for row_index in 0..20 {
-                        let thick = row_index % 6 == 0;
-                        let row_height = if thick { 30.0 } else { 18.0 };
+                        let is_thick = thick_row(row_index);
+                        let row_height = if is_thick { 30.0 } else { 18.0 };
                         body.row(row_height, |mut row| {
                             row.col(|ui| {
                                 ui.label(row_index.to_string());
@@ -131,7 +126,7 @@ impl TableDemo {
                             });
                             row.col(|ui| {
                                 ui.style_mut().wrap = Some(false);
-                                if thick {
+                                if is_thick {
                                     ui.heading("Extra thick row");
                                 } else {
                                     ui.label("Normal row");
@@ -140,59 +135,56 @@ impl TableDemo {
                         });
                     }
                 }
-            });
-    }
-}
-
-struct DemoRows {
-    row_count: usize,
-    current_row: usize,
-}
-
-impl DemoRows {
-    fn new(row_count: usize) -> Self {
-        Self {
-            row_count,
-            current_row: 0,
-        }
-    }
-
-    fn populate_row(index: usize, mut row: TableRow<'_, '_>) {
-        let thick = index % 6 == 0;
-        row.col(|ui| {
-            ui.centered_and_justified(|ui| {
-                ui.label(index.to_string());
-            });
-        });
-        row.col(|ui| {
-            ui.centered_and_justified(|ui| {
-                ui.label(clock_emoji(index));
-            });
-        });
-        row.col(|ui| {
-            ui.centered_and_justified(|ui| {
-                ui.style_mut().wrap = Some(false);
-                if thick {
-                    ui.heading("Extra thick row");
-                } else {
-                    ui.label("Normal row");
+                DemoType::ManyHomogenous => {
+                    body.rows(text_height, self.num_rows, |row_index, mut row| {
+                        row.col(|ui| {
+                            ui.label(row_index.to_string());
+                        });
+                        row.col(|ui| {
+                            ui.label(clock_emoji(row_index));
+                        });
+                        row.col(|ui| {
+                            ui.add(
+                                egui::Label::new("Thousands of rows of even height").wrap(false),
+                            );
+                        });
+                    });
+                }
+                DemoType::ManyHeterogenous => {
+                    fn row_thickness(row_index: usize) -> f32 {
+                        if thick_row(row_index) {
+                            30.0
+                        } else {
+                            18.0
+                        }
+                    }
+                    body.heterogeneous_rows(
+                        (0..self.num_rows).into_iter().map(row_thickness),
+                        |row_index, mut row| {
+                            row.col(|ui| {
+                                ui.centered_and_justified(|ui| {
+                                    ui.label(row_index.to_string());
+                                });
+                            });
+                            row.col(|ui| {
+                                ui.centered_and_justified(|ui| {
+                                    ui.label(clock_emoji(row_index));
+                                });
+                            });
+                            row.col(|ui| {
+                                ui.centered_and_justified(|ui| {
+                                    ui.style_mut().wrap = Some(false);
+                                    if thick_row(row_index) {
+                                        ui.heading("Extra thick row");
+                                    } else {
+                                        ui.label("Normal row");
+                                    }
+                                });
+                            });
+                        },
+                    );
                 }
             });
-        });
-    }
-}
-
-impl Iterator for DemoRows {
-    type Item = f32;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.current_row < self.row_count {
-            let thick = self.current_row % 6 == 0;
-            self.current_row += 1;
-            Some(if thick { 30.0 } else { 18.0 })
-        } else {
-            None
-        }
     }
 }
 
@@ -200,4 +192,8 @@ fn clock_emoji(row_index: usize) -> String {
     char::from_u32(0x1f550 + row_index as u32 % 24)
         .unwrap()
         .to_string()
+}
+
+fn thick_row(row_index: usize) -> bool {
+    row_index % 6 == 0
 }
