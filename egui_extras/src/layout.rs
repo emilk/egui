@@ -26,9 +26,9 @@ pub(crate) enum CellDirection {
 
 /// Positions cells in `[CellDirection]` and starts a new line on `[StripLayout::end_line]`
 pub struct StripLayout<'l> {
-    ui: &'l mut Ui,
+    pub(crate) ui: &'l mut Ui,
     direction: CellDirection,
-    rect: Rect,
+    pub(crate) rect: Rect,
     cursor: Pos2,
     max: Pos2,
     pub(crate) clip: bool,
@@ -55,11 +55,6 @@ impl<'l> StripLayout<'l> {
             cell_layout,
         }
     }
-
-    pub fn current_y(&self) -> f32 {
-        self.rect.top()
-    }
-
     fn cell_rect(&self, width: &CellSize, height: &CellSize) -> Rect {
         Rect {
             min: self.cursor,
@@ -136,6 +131,14 @@ impl<'l> StripLayout<'l> {
                 self.cursor.y = self.rect.top();
             }
         }
+    }
+
+    /// Skip a lot of space.
+    pub(crate) fn skip_space(&mut self, delta: egui::Vec2) {
+        let before = self.cursor;
+        self.cursor += delta;
+        let rect = Rect::from_two_pos(before, self.cursor);
+        self.ui.allocate_rect(rect, Sense::hover());
     }
 
     fn cell(&mut self, rect: Rect, add_contents: impl FnOnce(&mut Ui)) -> Rect {

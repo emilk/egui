@@ -379,8 +379,8 @@ pub struct TableBody<'a> {
 }
 
 impl<'a> TableBody<'a> {
-    fn y_progress(&self) -> f32 {
-        self.start_y - self.layout.current_y()
+    fn scroll_offset_y(&self) -> f32 {
+        self.start_y - self.layout.rect.top()
     }
 
     /// Return a vector containing all column widths for this table body.
@@ -430,21 +430,31 @@ impl<'a> TableBody<'a> {
     ///     });
     /// # });
     /// ```
-    pub fn rows(mut self, height: f32, rows: usize, mut row: impl FnMut(usize, TableRow<'_, '_>)) {
-        let y_progress = self.y_progress();
-        let mut start = 0;
+    pub fn rows(
+        mut self,
+        row_height_sans_spacing: f32,
+        total_rows: usize,
+        mut row: impl FnMut(usize, TableRow<'_, '_>),
+    ) {
+        let spacing = self.layout.ui.spacing().item_spacing;
+        let row_height_with_spacing = row_height_sans_spacing + spacing.y;
 
-        if y_progress > 0.0 {
-            start = (y_progress / height).floor() as usize;
+        let scroll_offset_y = self
+            .scroll_offset_y()
+            .min(total_rows as f32 * row_height_with_spacing);
+        let max_height = self.end_y - self.start_y;
+        let mut min_row = 0;
 
-            self.add_buffer(y_progress);
+        if scroll_offset_y > 0.0 {
+            min_row = (scroll_offset_y / row_height_with_spacing).floor() as usize;
+            self.add_buffer(min_row as f32 * row_height_with_spacing);
         }
 
-        let max_height = self.end_y - self.start_y;
-        let count = (max_height / height).ceil() as usize;
-        let end = rows.min(start + count);
+        let max_row =
+            ((scroll_offset_y + max_height) / row_height_with_spacing).ceil() as usize + 1;
+        let max_row = max_row.min(total_rows);
 
-        for idx in start..end {
+        for idx in min_row..max_row {
             row(
                 idx,
                 TableRow {
@@ -452,15 +462,14 @@ impl<'a> TableBody<'a> {
                     widths: &self.widths,
                     width_index: 0,
                     striped: self.striped && idx % 2 == 0,
-                    height,
+                    height: row_height_sans_spacing,
                 },
             );
         }
 
-        if rows - end > 0 {
-            let skip_height = (rows - end) as f32 * height;
-
-            self.add_buffer(skip_height);
+        if total_rows - max_row > 0 {
+            let skip_height = (total_rows - max_row) as f32 * row_height_with_spacing;
+            self.add_buffer(skip_height - spacing.y);
         }
     }
 
@@ -496,68 +505,58 @@ impl<'a> TableBody<'a> {
         heights: impl Iterator<Item = f32>,
         mut populate_row: impl FnMut(usize, TableRow<'_, '_>),
     ) {
-        // in order for each row to retain its striped color as the table is scrolled, we need an
-        // iterator with the boolean built in based on the enumerated index of the iterator element
-        let mut striped_heights = heights
-            .enumerate()
-            .map(|(index, height)| (index, index % 2 == 0, height));
+        let spacing = self.layout.ui.spacing().item_spacing;
+        let mut enumerated_heights = heights.enumerate();
 
         let max_height = self.end_y - self.start_y;
-        let y_progress = self.y_progress();
+        let scroll_offset_y = self.scroll_offset_y() as f64;
 
-        // cumulative height of all rows above those being displayed
-        let mut height_above_visible: f64 = 0.0;
-        // cumulative height of all rows below those being displayed
-        let mut height_below_visible: f64 = 0.0;
+        let mut cursor_y: f64 = 0.0;
 
-        // calculate height above visible table range and populate the first non-virtual row.
-        // because this row is meant to slide under the top bound of the visual table we calculate
-        // height_of_first_row + height_above_visible >= y_progress as our break condition rather
-        // than just height_above_visible >= y_progress
-        for (row_index, striped, height) in &mut striped_heights {
-            if height as f64 + height_above_visible >= y_progress as f64 {
-                self.add_buffer(height_above_visible as f32);
+        // Skip the invisible rows, and populate the first non-virtual row.
+        for (row_index, row_height) in &mut enumerated_heights {
+            let old_cursor_y = cursor_y;
+            cursor_y += (row_height + spacing.y) as f64;
+            if cursor_y >= scroll_offset_y {
+                // This row is visible:
+                self.add_buffer(old_cursor_y as f32);
                 let tr = TableRow {
                     layout: &mut self.layout,
                     widths: &self.widths,
                     width_index: 0,
-                    striped: self.striped && striped,
-                    height,
+                    striped: self.striped && row_index % 2 == 0,
+                    height: row_height,
                 };
-                self.row_nr += 1;
                 populate_row(row_index, tr);
                 break;
             }
-            height_above_visible += height as f64;
         }
 
-        // populate visible rows, including the final row that should slide under the bottom bound
-        // of the visible table.
-        let mut current_height: f64 = 0.0;
-        for (row_index, striped, height) in &mut striped_heights {
-            if height as f64 + current_height > max_height as f64 {
-                break;
-            }
+        // populate visible rows:
+        for (row_index, row_height) in &mut enumerated_heights {
             let tr = TableRow {
                 layout: &mut self.layout,
                 widths: &self.widths,
                 width_index: 0,
-                striped: self.striped && striped,
-                height,
+                striped: self.striped && row_index % 2 == 0,
+                height: row_height,
             };
-            self.row_nr += 1;
             populate_row(row_index, tr);
-            current_height += height as f64;
+            cursor_y += (row_height + spacing.y) as f64;
+
+            if cursor_y > scroll_offset_y + max_height as f64 {
+                break;
+            }
         }
 
-        // calculate height below the visible table range
-        for (_, _, height) in striped_heights {
+        // calculate height below the visible table range:
+        let mut height_below_visible: f64 = 0.0;
+        for (_, height) in enumerated_heights {
             height_below_visible += height as f64;
         }
-
-        // if height below visible is > 0 here then we need to add a buffer to allow the table to
-        // accurately calculate the "virtual" scrollbar position
         if height_below_visible > 0.0 {
+            // we need to add a buffer to allow the table to
+            // accurately calculate the scrollbar position
             self.add_buffer(height_below_visible as f32);
         }
     }
@@ -565,14 +564,7 @@ impl<'a> TableBody<'a> {
     // Create a table row buffer of the given height to represent the non-visible portion of the
     // table.
     fn add_buffer(&mut self, height: f32) {
-        TableRow {
-            layout: &mut self.layout,
-            widths: &self.widths,
-            width_index: 0,
-            striped: false,
-            height,
-        }
-        .col(|_| ()); // advances the cursor
+        self.layout.skip_space(egui::vec2(0.0, height));
     }
 }
 

@@ -458,9 +458,7 @@ impl ScrollArea {
         self.show_viewport(ui, |ui, viewport| {
             ui.set_height((row_height_with_spacing * total_rows as f32 - spacing.y).at_least(0.0));
 
-            let min_row = (viewport.min.y / row_height_with_spacing)
-                .floor()
-                .at_least(0.0) as usize;
+            let min_row = (viewport.min.y / row_height_with_spacing).floor() as usize;
             let max_row = (viewport.max.y / row_height_with_spacing).ceil() as usize + 1;
             let max_row = max_row.at_most(total_rows);
 
