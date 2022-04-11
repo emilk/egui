@@ -13,12 +13,14 @@ use egui::{Rect, Response, Ui, Vec2};
 
 /// Builder for a [`Table`] with (optional) fixed header and scrolling body.
 ///
-/// Cell widths are precalculated with given size hints so we can have tables like this:
+/// Cell widths are precalculated so we can have tables like this:
 ///
 /// | fixed size | all available space/minimum | 30% of available width | fixed size |
 ///
 /// In contrast to normal egui behavior, columns/rows do *not* grow with its children!
 /// Takes all available height, so if you want something below the table, put it in a strip.
+///
+/// You must pre-allocate all columns with [`Self::column`]/[`Self::columns`].
 ///
 /// ### Example
 /// ```
@@ -58,11 +60,9 @@ pub struct TableBuilder<'a> {
 
 impl<'a> TableBuilder<'a> {
     pub fn new(ui: &'a mut Ui) -> Self {
-        let sizing = Sizing::new();
-
         Self {
             ui,
-            sizing,
+            sizing: Default::default(),
             scroll: true,
             striped: false,
             resizable: false,
@@ -102,13 +102,13 @@ impl<'a> TableBuilder<'a> {
         self
     }
 
-    /// Add size hint for column
+    /// Allocate space for one column.
     pub fn column(mut self, width: Size) -> Self {
         self.sizing.add(width);
         self
     }
 
-    /// Add size hint for several columns at once.
+    /// Allocate space for several columns at once.
     pub fn columns(mut self, size: Size, count: usize) -> Self {
         for _ in 0..count {
             self.sizing.add(size);
@@ -367,6 +367,76 @@ impl<'a> TableBody<'a> {
         &self.widths
     }
 
+    /// Add a single row with the given height.
+    ///
+    /// If you have many thousands of row it can be more performant to instead use [`Self::rows]` or [`Self::heterogeneous_rows`].
+    pub fn row(&mut self, height: f32, row: impl FnOnce(TableRow<'a, '_>)) {
+        row(TableRow {
+            layout: &mut self.layout,
+            widths: &self.widths,
+            striped: self.striped && self.row_nr % 2 == 0,
+            height,
+        });
+
+        self.row_nr += 1;
+    }
+
+    /// Add many rows with same height.
+    ///
+    /// Is a lot more performant than adding each individual row as non visible rows must not be rendered.
+    ///
+    /// If you need many rows with different heights, use [`Self::heterogeneous_rows`] instead.
+    ///
+    /// ### Example
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// use egui_extras::{TableBuilder, Size};
+    /// TableBuilder::new(ui)
+    ///     .column(Size::remainder().at_least(100.0))
+    ///     .body(|mut body| {
+    ///         let row_height = 18.0;
+    ///         let num_rows = 10_000;
+    ///         body.rows(row_height, num_rows, |row_index, mut row| {
+    ///             row.col(|ui| {
+    ///                 ui.label("First column");
+    ///             });
+    ///         });
+    ///     });
+    /// # });
+    /// ```
+    pub fn rows(mut self, height: f32, rows: usize, mut row: impl FnMut(usize, TableRow<'_, '_>)) {
+        let y_progress = self.y_progress();
+        let mut start = 0;
+
+        if y_progress > 0.0 {
+            start = (y_progress / height).floor() as usize;
+
+            self.add_buffer(y_progress);
+        }
+
+        let max_height = self.end_y - self.start_y;
+        let count = (max_height / height).ceil() as usize;
+        let end = rows.min(start + count);
+
+        for idx in start..end {
+            row(
+                idx,
+                TableRow {
+                    layout: &mut self.layout,
+                    widths: &self.widths,
+                    striped: self.striped && idx % 2 == 0,
+                    height,
+                },
+            );
+        }
+
+        if rows - end > 0 {
+            let skip_height = (rows - end) as f32 * height;
+
+            self.add_buffer(skip_height);
+        }
+    }
+
     /// Add rows with varying heights.
     ///
     /// This takes a very slight performance hit compared to [`TableBody::rows`] due to the need to
@@ -395,7 +465,7 @@ impl<'a> TableBody<'a> {
     /// # });
     /// ```
     pub fn heterogeneous_rows(
-        &mut self,
+        mut self,
         heights: impl Iterator<Item = f32>,
         mut populate_row: impl FnMut(usize, TableRow<'_, '_>),
     ) {
@@ -463,72 +533,6 @@ impl<'a> TableBody<'a> {
         }
     }
 
-    /// Add rows with same height.
-    ///
-    /// Is a lot more performant than adding each individual row as non visible rows must not be rendered
-    ///
-    /// ### Example
-    /// ```
-    /// # egui::__run_test_ui(|ui| {
-    /// use egui_extras::{TableBuilder, Size};
-    /// TableBuilder::new(ui)
-    ///     .column(Size::remainder().at_least(100.0))
-    ///     .body(|mut body| {
-    ///         let row_height = 18.0;
-    ///         let num_rows = 10_000;
-    ///         body.rows(row_height, num_rows, |row_index, mut row| {
-    ///             row.col(|ui| {
-    ///                 ui.label("First column");
-    ///             });
-    ///         });
-    ///     });
-    /// # });
-    /// ```
-    pub fn rows(mut self, height: f32, rows: usize, mut row: impl FnMut(usize, TableRow<'_, '_>)) {
-        let y_progress = self.y_progress();
-        let mut start = 0;
-
-        if y_progress > 0.0 {
-            start = (y_progress / height).floor() as usize;
-
-            self.add_buffer(y_progress);
-        }
-
-        let max_height = self.end_y - self.start_y;
-        let count = (max_height / height).ceil() as usize;
-        let end = rows.min(start + count);
-
-        for idx in start..end {
-            row(
-                idx,
-                TableRow {
-                    layout: &mut self.layout,
-                    widths: &self.widths,
-                    striped: self.striped && idx % 2 == 0,
-                    height,
-                },
-            );
-        }
-
-        if rows - end > 0 {
-            let skip_height = (rows - end) as f32 * height;
-
-            self.add_buffer(skip_height);
-        }
-    }
-
-    /// Add row with individual height
-    pub fn row(&mut self, height: f32, row: impl FnOnce(TableRow<'a, '_>)) {
-        row(TableRow {
-            layout: &mut self.layout,
-            widths: &self.widths,
-            striped: self.striped && self.row_nr % 2 == 0,
-            height,
-        });
-
-        self.row_nr += 1;
-    }
-
     // Create a table row buffer of the given height to represent the non-visible portion of the
     // table.
     fn add_buffer(&mut self, height: f32) {
@@ -564,9 +568,22 @@ impl<'a, 'b> TableRow<'a, 'b> {
             !self.widths.is_empty(),
             "Tried using more table columns than available."
         );
+        let width = if self.widths.is_empty() {
+            if cfg!(debug_assertions) {
+                panic!("Added more `Table` columns than were allocated.");
+            } else {
+                #[cfg(feature = "tracing")]
+                tracing::error!("Added more `Table` columns than were allocated");
+                #[cfg(not(feature = "tracing"))]
+                eprintln!("egui_extras: Added more `Table` columns than were allocated");
+                8.0 // anything will look wrong, so pick something that is obviously wrong
+            }
+        } else {
+            let width = self.widths[0];
+            self.widths = &self.widths[1..];
+            width
+        };
 
-        let width = self.widths[0];
-        self.widths = &self.widths[1..];
         let width = CellSize::Absolute(width);
         let height = CellSize::Absolute(self.height);
 

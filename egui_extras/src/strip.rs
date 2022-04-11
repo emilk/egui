@@ -11,16 +11,23 @@ use egui::{Response, Ui};
 ///
 /// In contrast to normal egui behavior, strip cells do *not* grow with its children!
 ///
-/// After adding size hints with `[Self::column]`/`[Self::columns]` the strip can be build with `[Self::horizontal]`/`[Self::vertical]`.
+/// First use [`Self::size`] and [`Self::sizes`] to allocate space for the rows or columns will follow.
+/// Then build the strip with `[Self::horizontal]`/`[Self::vertical]`, and add 'cells'
+/// to it using [`Strip::cell`]. The number of cells MUST match the number of pre-allocated sizes.
 ///
 /// ### Example
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// use egui_extras::{StripBuilder, Size};
 /// StripBuilder::new(ui)
-///     .size(Size::remainder().at_least(100.0))
-///     .size(Size::exact(40.0))
+///     .size(Size::remainder().at_least(100.0)) // top cell
+///     .size(Size::exact(40.0)) // bottom cell
 ///     .vertical(|mut strip| {
+///         // Add the top 'cell'
+///         strip.cell(|ui| {
+///             ui.label("Fixed");
+///         });
+///         // We add a nested strip in the bottom cell:
 ///         strip.strip(|builder| {
 ///             builder.sizes(Size::remainder(), 2).horizontal(|mut strip| {
 ///                 strip.cell(|ui| {
@@ -30,9 +37,6 @@ use egui::{Response, Ui};
 ///                     ui.label("Top Right");
 ///                 });
 ///             });
-///         });
-///         strip.cell(|ui| {
-///             ui.label("Fixed");
 ///         });
 ///     });
 /// # });
@@ -46,11 +50,9 @@ pub struct StripBuilder<'a> {
 impl<'a> StripBuilder<'a> {
     /// Create new strip builder.
     pub fn new(ui: &'a mut Ui) -> Self {
-        let sizing = Sizing::new();
-
         Self {
             ui,
-            sizing,
+            sizing: Default::default(),
             clip: true,
         }
     }
@@ -61,13 +63,13 @@ impl<'a> StripBuilder<'a> {
         self
     }
 
-    /// Add size hint for one column/row.
+    /// Allocate space for for one column/row.
     pub fn size(mut self, size: Size) -> Self {
         self.sizing.add(size);
         self
     }
 
-    /// Add size hint for several columns/rows at once.
+    /// Allocate space for for several columns/rows at once.
     pub fn sizes(mut self, size: Size, count: usize) -> Self {
         for _ in 0..count {
             self.sizing.add(size);
@@ -128,23 +130,26 @@ pub struct Strip<'a, 'b> {
 
 impl<'a, 'b> Strip<'a, 'b> {
     fn next_cell_size(&mut self) -> (CellSize, CellSize) {
-        assert!(
-            !self.sizes.is_empty(),
-            "Tried using more strip cells than available."
-        );
-        let size = self.sizes[0];
-        self.sizes = &self.sizes[1..];
+        let size = if self.sizes.is_empty() {
+            if cfg!(debug_assertions) {
+                panic!("Added more `Strip` cells than were allocated.");
+            } else {
+                #[cfg(feature = "tracing")]
+                tracing::error!("Added more `Strip` cells than were allocated");
+                #[cfg(not(feature = "tracing"))]
+                eprintln!("egui_extras: Added more `Strip` cells than were allocated");
+                8.0 // anything will look wrong, so pick something that is obviously wrong
+            }
+        } else {
+            let size = self.sizes[0];
+            self.sizes = &self.sizes[1..];
+            size
+        };
 
         match self.direction {
             CellDirection::Horizontal => (CellSize::Absolute(size), CellSize::Remainder),
             CellDirection::Vertical => (CellSize::Remainder, CellSize::Absolute(size)),
         }
-    }
-
-    /// Add empty cell
-    pub fn empty(&mut self) {
-        let (width, height) = self.next_cell_size();
-        self.layout.empty(width, height);
     }
 
     /// Add cell contents.
@@ -153,7 +158,13 @@ impl<'a, 'b> Strip<'a, 'b> {
         self.layout.add(width, height, add_contents);
     }
 
-    /// Add strip as cell
+    /// Add an empty cell.
+    pub fn empty(&mut self) {
+        let (width, height) = self.next_cell_size();
+        self.layout.empty(width, height);
+    }
+
+    /// Add a strip as cell.
     pub fn strip(&mut self, strip_builder: impl FnOnce(StripBuilder<'_>)) {
         let clip = self.layout.clip;
         self.cell(|ui| {

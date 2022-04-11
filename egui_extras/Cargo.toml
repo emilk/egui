@@ -35,6 +35,10 @@ datepicker = ["chrono"]
 # Persistence
 persistence = ["serde"]
 
+# Log warnings using `tracing` crate
+tracing = ["dep:tracing", "egui/tracing"]
+
+
 [dependencies]
 egui = { version = "0.17.0", path = "../egui", default-features = false }
 
@@ -55,3 +59,6 @@ usvg = { version = "0.22", optional = true }
 
 # feature "persistence":
 serde = { version = "1", features = ["derive"], optional = true }
+
+# feature "tracing"
+tracing = { version = "0.1", optional = true }

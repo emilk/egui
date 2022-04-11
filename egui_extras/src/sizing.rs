@@ -76,16 +76,12 @@ impl Size {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct Sizing {
     pub(crate) sizes: Vec<Size>,
 }
 
 impl Sizing {
-    pub fn new() -> Self {
-        Self { sizes: vec![] }
-    }
-
     pub fn add(&mut self, size: Size) {
         self.sizes.push(size);
     }

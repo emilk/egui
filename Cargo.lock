@@ -1091,6 +1091,7 @@ dependencies = [
  "resvg",
  "serde",
  "tiny-skia",
+ "tracing",
  "usvg",
 ]
 
