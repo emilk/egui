@@ -464,12 +464,11 @@ fn install_document_events(runner_container: &AppRunnerContainer) -> Result<(), 
         |event: web_sys::ClipboardEvent, mut runner_lock| {
             if let Some(data) = event.clipboard_data() {
                 if let Ok(text) = data.get_data("text") {
-                    runner_lock
-                        .input
-                        .raw
-                        .events
-                        .push(egui::Event::Paste(text.replace("\r\n", "\n")));
-                    runner_lock.needs_repaint.set_true();
+                    let text = text.replace("\r\n", "\n");
+                    if !text.is_empty() {
+                        runner_lock.input.raw.events.push(egui::Event::Paste(text));
+                        runner_lock.needs_repaint.set_true();
+                    }
                     event.stop_propagation();
                     event.prevent_default();
                 }

@@ -1,11 +1,12 @@
-/// Handles interfacing either with the OS clipboard.
-/// If the "clipboard" feature is off it will instead simulate the clipboard locally.
+/// Handles interfacing with the OS clipboard.
+///
+/// If the "clipboard" feature is off, or we cannot connect to the OS clipboard,
+/// then a fallback clipboard that just works works within the same app is used instead.
 pub struct Clipboard {
     #[cfg(feature = "arboard")]
     arboard: Option<arboard::Clipboard>,
 
     /// Fallback manual clipboard.
-    #[cfg(not(feature = "arboard"))]
     clipboard: String,
 }
 
@@ -15,7 +16,6 @@ impl Default for Clipboard {
             #[cfg(feature = "arboard")]
             arboard: init_arboard(),
 
-            #[cfg(not(feature = "arboard"))]
             clipboard: String::default(),
         }
     }
@@ -25,18 +25,15 @@ impl Clipboard {
     pub fn get(&mut self) -> Option<String> {
         #[cfg(feature = "arboard")]
         if let Some(clipboard) = &mut self.arboard {
-            match clipboard.get_text() {
+            return match clipboard.get_text() {
                 Ok(text) => Some(text),
                 Err(err) => {
                     tracing::error!("Paste error: {}", err);
                     None
                 }
-            }
-        } else {
-            None
+            };
         }
 
-        #[cfg(not(feature = "arboard"))]
         Some(self.clipboard.clone())
     }
 
@@ -46,12 +43,10 @@ impl Clipboard {
             if let Err(err) = clipboard.set_text(text) {
                 tracing::error!("Copy/Cut error: {}", err);
             }
+            return;
         }
 
-        #[cfg(not(feature = "arboard"))]
-        {
-            self.clipboard = text;
-        }
+        self.clipboard = text;
     }
 }
 
