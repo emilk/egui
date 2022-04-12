@@ -1044,6 +1044,7 @@ dependencies = [
  "epi",
  "glow",
  "instant",
+ "puffin",
  "serde",
  "tracing",
  "tts",
@@ -1118,6 +1119,7 @@ dependencies = [
  "glow",
  "glutin",
  "memoffset",
+ "puffin",
  "tracing",
  "wasm-bindgen",
  "web-sys",
@@ -2527,6 +2529,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c7342d5883fbccae1cc37a2353b09c87c9b0f3afd73f5fb9bba687a1f733b029"
 dependencies = [
  "unicode-xid",
+]
+
+[[package]]
+name = "puffin"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "78cc1dc2f2e3e4787201dd9404c9b097967fd74b9013ba41e62448b617cb7ac2"
+dependencies = [
+ "byteorder",
+ "once_cell",
 ]
 
 [[package]]

@@ -230,6 +230,7 @@ impl EpiIntegration {
 
         let raw_input = self.egui_winit.take_egui_input(window);
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
+            crate::profile_scope!("App::update");
             app.update(egui_ctx, &mut self.frame);
         });
         self.pending_full_output.append(full_output);
@@ -274,7 +275,10 @@ impl EpiIntegration {
     pub fn save(&mut self, _app: &mut dyn epi::App, _window: &winit::window::Window) {
         #[cfg(feature = "persistence")]
         if let Some(storage) = self.frame.storage_mut() {
+            crate::profile_function!();
+
             if _app.persist_native_window() {
+                crate::profile_scope!("native_window");
                 epi::set_value(
                     storage,
                     STORAGE_WINDOW_KEY,
@@ -282,9 +286,15 @@ impl EpiIntegration {
                 );
             }
             if _app.persist_egui_memory() {
+                crate::profile_scope!("egui_memory");
                 epi::set_value(storage, STORAGE_EGUI_MEMORY_KEY, &*self.egui_ctx.memory());
             }
-            _app.save(storage);
+            {
+                crate::profile_scope!("App::save");
+                _app.save(storage);
+            }
+
+            crate::profile_scope!("Storage::flush");
             storage.flush();
         }
     }

@@ -77,15 +77,20 @@ pub fn run(app_name: &str, native_options: &epi::NativeOptions, app_creator: epi
 
     event_loop.run(move |event, _, control_flow| {
         let mut redraw = || {
+            #[cfg(feature = "puffin")]
+            puffin::GlobalProfiler::lock().new_frame();
+
             if !is_focused {
                 // On Mac, a minimized Window uses up all CPU: https://github.com/emilk/egui/issues/325
                 // We can't know if we are minimized: https://github.com/rust-windowing/winit/issues/208
                 // But we know if we are focused (in foreground). When minimized, we are not focused.
                 // However, a user may want an egui with an animation in the background,
                 // so we still need to repaint quite fast.
+                crate::profile_scope!("bg_sleep");
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
 
+            crate::profile_scope!("frame");
             let screen_size_in_pixels: [u32; 2] = gl_window.window().inner_size().into();
 
             crate::painter::clear(&gl, screen_size_in_pixels, app.clear_color());
@@ -99,7 +104,10 @@ pub fn run(app_name: &str, native_options: &epi::NativeOptions, app_creator: epi
 
             integration.handle_platform_output(gl_window.window(), platform_output);
 
-            let clipped_primitives = integration.egui_ctx.tessellate(shapes);
+            let clipped_primitives = {
+                crate::profile_scope!("tessellate");
+                integration.egui_ctx.tessellate(shapes)
+            };
 
             painter.paint_and_update_textures(
                 screen_size_in_pixels,
@@ -108,7 +116,10 @@ pub fn run(app_name: &str, native_options: &epi::NativeOptions, app_creator: epi
                 &textures_delta,
             );
 
-            gl_window.swap_buffers().unwrap();
+            {
+                crate::profile_scope!("swap_buffers");
+                gl_window.swap_buffers().unwrap();
+            }
 
             {
                 *control_flow = if integration.should_quit() {

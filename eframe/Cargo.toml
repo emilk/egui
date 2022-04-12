@@ -37,6 +37,11 @@ persistence = [
   "epi/persistence",
 ]
 
+# Enable profiling with the puffin crate: https://github.com/EmbarkStudios/puffin
+# Only enabled on native, because of the low resolution (1ms) of time keeping in browsers.
+# eframe will call `puffin::GlobalProfiler::lock().new_frame()` for you
+puffin = ["egui_glow/puffin"]
+
 # enable screen reader support (requires `ctx.options().screen_reader = true;`)
 screen_reader = [
   "egui-winit/screen_reader",
