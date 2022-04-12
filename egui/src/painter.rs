@@ -1,5 +1,7 @@
+use std::ops::RangeInclusive;
+
 use crate::{
-    emath::{Align2, Pos2, Rect, Vec2},
+    emath::{pos2, Align2, Pos2, Rect, Vec2},
     layers::{LayerId, PaintList, ShapeIdx},
     Color32, Context, FontId,
 };
@@ -233,11 +235,26 @@ impl Painter {
 
 /// # Paint different primitives
 impl Painter {
-    /// Paints the line from the first point to the second using the `stroke`
-    /// for outlining shape.
+    /// Paints a line from the first point to the second.
     pub fn line_segment(&self, points: [Pos2; 2], stroke: impl Into<Stroke>) {
         self.add(Shape::LineSegment {
             points,
+            stroke: stroke.into(),
+        });
+    }
+
+    /// Paints a horizontal line.
+    pub fn hline(&self, x: RangeInclusive<f32>, y: f32, stroke: impl Into<Stroke>) {
+        self.add(Shape::LineSegment {
+            points: [pos2(*x.start(), y), pos2(*x.end(), y)],
+            stroke: stroke.into(),
+        });
+    }
+
+    /// Paints a vertical line.
+    pub fn vline(&self, x: f32, y: RangeInclusive<f32>, stroke: impl Into<Stroke>) {
+        self.add(Shape::LineSegment {
+            points: [pos2(x, *y.start()), pos2(x, *y.end())],
             stroke: stroke.into(),
         });
     }
