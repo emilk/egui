@@ -317,6 +317,17 @@ impl Rect {
         self.width() * self.height()
     }
 
+    /// The distance from the rect to the position.
+    ///
+    /// The distance is zero when the position is in the interior of the rectangle.
+    #[inline]
+    pub fn distance_to_pos(&self, pos: Pos2) -> f32 {
+        self.distance_sq_to_pos(pos).sqrt()
+    }
+
+    /// The distance from the rect to the position, squared.
+    ///
+    /// The distance is zero when the position is in the interior of the rectangle.
     #[inline]
     pub fn distance_sq_to_pos(&self, pos: Pos2) -> f32 {
         let dx = if self.min.x > pos.x {
