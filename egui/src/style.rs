@@ -2,11 +2,8 @@
 
 #![allow(clippy::if_same_then_else)]
 
-use crate::color::*;
-use crate::emath::*;
-use crate::{FontFamily, FontId, Response, RichText, WidgetText};
-use epaint::mutex::Arc;
-use epaint::{Rounding, Shadow, Stroke};
+use crate::{color::*, emath::*, FontFamily, FontId, Response, RichText, WidgetText};
+use epaint::{mutex::Arc, Rounding, Shadow, Stroke};
 use std::collections::BTreeMap;
 
 // ----------------------------------------------------------------------------
@@ -24,8 +21,7 @@ pub enum TextStyle {
     /// Normal labels. Easily readable, doesn't take up too much space.
     Body,
 
-    /// Same size as [`Self::Body]`, but used when monospace is important (for aligning number,
-    /// code snippets, etc).
+    /// Same size as [`Self::Body]`, but used when monospace is important (for aligning number, code snippets, etc).
     Monospace,
 
     /// Buttons. Maybe slightly bigger than [`Self::Body]`.
@@ -153,6 +149,7 @@ pub struct Style {
     /// If you would like to overwrite app text_styles
     ///
     /// ```
+    /// # let mut ctx = egui::Context::default();
     /// use FontFamily::Proportional;
     /// use TextStyle::*;
     ///
@@ -172,7 +169,7 @@ pub struct Style {
     ///
     /// // Mutate global style with above changes
     /// ctx.set_style(style);
-    /// ````
+    /// ```
     pub text_styles: BTreeMap<TextStyle, FontId>,
 
     /// If set, labels buttons wtc will use this to determine whether or not
@@ -556,8 +553,7 @@ pub struct WidgetVisuals {
     /// Button frames etc.
     pub rounding: Rounding,
 
-    /// Stroke and text color of the interactive part of a component (button text, slider grab,
-    /// check-mark, …).
+    /// Stroke and text color of the interactive part of a component (button text, slider grab, check-mark, …).
     pub fg_stroke: Stroke,
 
     /// Make the frame this much larger.
@@ -632,8 +628,7 @@ impl Default for Spacing {
             item_spacing: vec2(8.0, 3.0),
             window_margin: Margin::same(6.0),
             button_padding: vec2(4.0, 1.0),
-            indent: 18.0, /* match checkbox/radio-button with `button_padding.x + icon_width +
-                           * icon_spacing` */
+            indent: 18.0, // match checkbox/radio-button with `button_padding.x + icon_width + icon_spacing`
             interact_size: vec2(40.0, 18.0),
             slider_width: 100.0,
             text_edit_width: 280.0,
@@ -675,8 +670,7 @@ impl Visuals {
             resize_corner_size: 12.0,
             text_cursor_width: 2.0,
             text_cursor_preview: false,
-            clip_rect_margin: 3.0, /* should be at least half the size of the widest frame stroke
-                                    * + max WidgetVisuals::expansion */
+            clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
             button_frame: true,
             collapsing_header_frame: false,
         }
@@ -731,7 +725,7 @@ impl Widgets {
         Self {
             noninteractive: WidgetVisuals {
                 bg_fill: Color32::from_gray(27), // window background
-                bg_stroke: Stroke::new(1.0, Color32::from_gray(60)), /* separators, indentation lines, windows outlines */
+                bg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // separators, indentation lines, windows outlines
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(140)), // normal text color
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
@@ -745,8 +739,7 @@ impl Widgets {
             },
             hovered: WidgetVisuals {
                 bg_fill: Color32::from_gray(70),
-                bg_stroke: Stroke::new(1.0, Color32::from_gray(150)), /* e.g. hover over window
-                                                                       * edge or button */
+                bg_stroke: Stroke::new(1.0, Color32::from_gray(150)), // e.g. hover over window edge or button
                 fg_stroke: Stroke::new(1.5, Color32::from_gray(240)),
                 rounding: Rounding::same(3.0),
                 expansion: 1.0,
@@ -771,9 +764,8 @@ impl Widgets {
     pub fn light() -> Self {
         Self {
             noninteractive: WidgetVisuals {
-                bg_fill: Color32::from_gray(248), /* window background - should be distinct from
-                                                   * TextEdit background */
-                bg_stroke: Stroke::new(1.0, Color32::from_gray(190)), /* separators, indentation lines, windows outlines */
+                bg_fill: Color32::from_gray(248), // window background - should be distinct from TextEdit background
+                bg_stroke: Stroke::new(1.0, Color32::from_gray(190)), // separators, indentation lines, windows outlines
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(80)),  // normal text color
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
@@ -787,8 +779,7 @@ impl Widgets {
             },
             hovered: WidgetVisuals {
                 bg_fill: Color32::from_gray(220),
-                bg_stroke: Stroke::new(1.0, Color32::from_gray(105)), /* e.g. hover over window
-                                                                       * edge or button */
+                bg_stroke: Stroke::new(1.0, Color32::from_gray(105)), // e.g. hover over window edge or button
                 fg_stroke: Stroke::new(1.5, Color32::BLACK),
                 rounding: Rounding::same(3.0),
                 expansion: 1.0,
@@ -819,8 +810,7 @@ impl Default for Widgets {
 
 // ----------------------------------------------------------------------------
 
-use crate::widgets::*;
-use crate::Ui;
+use crate::{widgets::*, Ui};
 
 impl Style {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
