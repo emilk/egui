@@ -64,7 +64,7 @@ To test the demo app locally, run `cargo run --release -p egui_demo_app`.
 
 The native backend is [`egui_glow`](https://github.com/emilk/egui/tree/master/egui_glow) (using [`glow`](https://crates.io/crates/glow)) and should work out-of-the-box on Mac and Windows, but on Linux you need to first run:
 
-`sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev`
+`sudo apt-get install -y libclang-dev libgtk-3-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev`
 
 On Fedora Rawhide you need to run:
 
