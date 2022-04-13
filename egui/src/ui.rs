@@ -918,7 +918,7 @@ impl Ui {
     ///
     /// If `align` is `None`, it'll scroll enough to bring the cursor into view.
     ///
-    /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to_rect`].
+    /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to_cursor`].
     ///
     /// ```
     /// # use egui::Align;

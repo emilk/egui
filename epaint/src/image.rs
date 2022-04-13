@@ -260,17 +260,21 @@ fn fast_round(r: f32) -> u8 {
 
 /// A change to an image.
 ///
-/// Either a whole new image,
-/// or an update to a rectangular region of it.
+/// Either a whole new image, or an update to a rectangular region of it.
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[must_use = "The painter must take care of this"]
 pub struct ImageDelta {
     /// What to set the texture to.
+    ///
+    /// If [`Self::pos`] is `None`, this describes the whole texture.
+    ///
+    /// If [`Self::pos`] is `Some`, this describes a patch of the whole image starting at [`Self::pos`].
     pub image: ImageData,
 
     /// If `None`, set the whole texture to [`Self::image`].
-    /// If `Some(pos)`, update a sub-region of an already allocated texture.
+    ///
+    /// If `Some(pos)`, update a sub-region of an already allocated texture with the patch in [`Self::image`].
     pub pos: Option<[usize; 2]>,
 }
 

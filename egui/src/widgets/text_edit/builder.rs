@@ -46,6 +46,9 @@ use super::{CCursorRange, CursorRange, TextEditOutput, TextEditState};
 ///
 /// ## Advanced usage
 /// See [`TextEdit::show`].
+///
+/// ## Other
+/// The background color of a [`TextEdit`] is [`Visuals::extreme_bg_color`].
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct TextEdit<'t> {
     text: &'t mut dyn TextBuffer,

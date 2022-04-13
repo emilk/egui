@@ -5,7 +5,11 @@
 ![MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Apache](https://img.shields.io/badge/license-Apache-blue.svg)
 
-This crates provides bindings between [`egui`](https://github.com/emilk/egui) and [glow](https://crates.io/crates/glow) which allows you to write GUI code using egui and compile it and run it natively, cross platform.
+This crates provides bindings between [`egui`](https://github.com/emilk/egui) and [glow](https://crates.io/crates/glow) which allows you to:
+* Render egui using glow on both native and web.
+* Write cross platform native egui apps (with the `winit` feature).
+
+To write web apps using `glow` you should use either [`eframe`](https://github.com/emilk/egui/tree/master/eframe) or [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web) (both uses `egui_glow` for rendering, by default).
 
 To use on Linux, first run:
 
@@ -13,4 +17,4 @@ To use on Linux, first run:
 sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev
 ```
 
-This crate depends on [`egui-winit`](https://github.com/emilk/egui/tree/master/egui-winit).
+This crate optionally depends on [`egui-winit`](https://github.com/emilk/egui/tree/master/egui-winit).

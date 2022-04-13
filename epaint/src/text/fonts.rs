@@ -315,12 +315,13 @@ impl Default for FontDefinitions {
 
 /// The collection of fonts used by `epaint`.
 ///
-/// Required in order to paint text.
-/// Create one and reuse. Cheap to clone.
+/// Required in order to paint text. Create one and reuse. Cheap to clone.
+///
+/// Each [`Fonts`] comes with a font atlas textures that needs to be used when painting.
+///
+/// If you are using `egui`, use `egui::Context::set_fonts` and `egui::Context::fonts`.
 ///
 /// You need to call [`Self::begin_frame`] and [`Self::font_image_delta`] once every frame.
-///
-/// Wrapper for `Arc<Mutex<FontsAndCache>>`.
 pub struct Fonts(Arc<Mutex<FontsAndCache>>);
 
 impl Fonts {

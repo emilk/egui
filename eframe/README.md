@@ -27,6 +27,8 @@ To use on Linux, first run:
 sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev
 ```
 
+You need to either use `edition = "2021"`, or set `resolver = "2"` in the `[workspace`] section of your to-level `Cargo.toml`. See [this link](https://doc.rust-lang.org/edition-guide/rust-2021/default-cargo-resolver.html) for more info.
+
 
 ## Alternatives
 `eframe` is not the only way to write an app using `egui`! You can also try [`egui-miniquad`](https://github.com/not-fl3/egui-miniquad), [`bevy_egui`](https://github.com/mvlabat/bevy_egui), [`egui_sdl2_gl`](https://github.com/ArjunNair/egui_sdl2_gl), and others.
@@ -36,7 +38,7 @@ sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev lib
 Not all rust crates work when compiled to WASM, but here are some useful crates have been designed to work well both natively and as WASM:
 
 * Audio: [`cpal`](https://github.com/RustAudio/cpal).
-* HTTP client: [`ehttp`](https://github.com/emilk/ehttp).
+* HTTP client: [`ehttp`](https://github.com/emilk/ehttp) and [`reqwest`](https://github.com/seanmonstar/reqwest).
 * Time: [`chrono`](https://github.com/chronotope/chrono).
 * WebSockets: [`ewebsock`](https://github.com/rerun-io/ewebsock).
 

@@ -122,7 +122,6 @@ pub type IconPainter = Box<dyn FnOnce(&mut Ui, f32, &Response)>;
 
 /// A header which can be collapsed/expanded, revealing a contained [`Ui`] region.
 ///
-///
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// egui::CollapsingHeader::new("Heading")

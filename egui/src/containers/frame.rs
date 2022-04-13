@@ -3,7 +3,17 @@
 use crate::{layers::ShapeIdx, style::Margin, *};
 use epaint::*;
 
-/// Color and margin of a rectangular background of a [`Ui`].
+/// Add a background, frame and/or margin to a rectangular background of a [`Ui`].
+///
+/// ```
+/// # egui::__run_test_ui(|ui| {
+/// egui::Frame::none()
+///     .fill(egui::Color32::RED)
+///     .show(ui, |ui| {
+///         ui.label("Label with red background");
+///     });
+/// # });
+/// ```
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[must_use = "You should call .show()"]
 pub struct Frame {

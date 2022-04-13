@@ -74,6 +74,8 @@ pub struct ScrollAreaOutput<R> {
 /// });
 /// # });
 /// ```
+///
+/// You can scroll to an element using [`Response::scroll_to_me`], [`Ui::scroll_to_cursor`] and [`Ui::scroll_to_rect`].
 #[derive(Clone, Debug)]
 #[must_use = "You should call .show()"]
 pub struct ScrollArea {
