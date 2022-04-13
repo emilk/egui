@@ -75,16 +75,17 @@ impl Color32 {
     }
 
     #[inline(always)]
-    pub fn from_hex(hex: &str) -> Result<Self, ParseIntError> {
-        let [r, g, b, _] = u32::from_str_radix(&hex.replace("#", ""), 16)?.to_be_bytes();
-        Ok(Self([r, g, b, 255]))
+    pub fn from_hex(hex: &str) -> Result<Self, String> {
+        validate_hex_string(hex)?;
+        let (red, green, blue, _) = hex_from_str(hex, false)?;
+        Ok(Self([red, green, blue, 255]))
     }
 
     #[inline(always)]
     // TODO: This is current identical to from_hex
-    pub fn from_unmultiplied(hex: &str) -> Result<Self, ParseIntError> {
-        let [r, g, b, a] = u32::from_str_radix(&hex.replace("#", ""), 16)?.to_be_bytes();
-        Ok(Self([r, g, b, a]))
+    pub fn from_hex_unmultiplied(hex: &str) -> Result<Self, String> {
+        let (r, g, b, a) = hex_from_str(hex, true)?;
+        Ok(Self::from_rgba_unmultiplied(r, g, b, a.unwrap()))
     }
 
     #[inline(always)]
@@ -517,6 +518,75 @@ fn fast_round(r: f32) -> u8 {
     (r + 0.5).floor() as _ // rust does a saturating cast since 1.45
 }
 
+fn validate_hex_string(hex: &str) -> Result<(), String> {
+    match &hex.len() {
+        x if *x < 7 => return Err("Hex Truncated".into()), // Truncated
+        x if *x > 9 => return Err("Hex Overflow".into()),  // Overflow
+        _ => {}
+    };
+    if &hex[0..1] != "#" {
+        return Err("Invalid Hex".into());
+    }
+    Ok(())
+}
+
+fn hex_from_str(hex: &str, with_alpha: bool) -> Result<(u8, u8, u8, Option<u8>), String> {
+    validate_hex_string(hex)?;
+
+    // Invalid hex character
+    let red = match u8::from_str_radix(&hex[1..3], 16) {
+        Ok(r) => r,
+        Err(e) => return Err(format!("Invalid Red Hex: {e}")),
+    };
+
+    // Invalid hex character
+    let green = match u8::from_str_radix(&hex[3..5], 16) {
+        Ok(g) => g,
+        Err(e) => return Err(format!("Invalid Green Hex: {e}")),
+    };
+
+    // Invalid hex character
+    let blue = match u8::from_str_radix(&hex[5..7], 16) {
+        Ok(b) => b,
+        Err(e) => return Err(format!("Invalid Blue Hex: {e}")),
+    };
+
+    // Invalid hex character
+    let alpha = if with_alpha {
+        match u8::from_str_radix(&hex[8..10], 16) {
+            Ok(b) => Some(b),
+            Err(e) => return Err(format!("Invalid alpha Hex: {e}")),
+        }
+    } else {
+        None
+    };
+
+    for channel in [red, green, blue] {
+        if channel < 0 as u8 {
+            // Outside Bounds Negative
+            return Err("Outside Bounds Negative".into());
+        } else if channel > 255 as u8 {
+            // Outside Bounds High
+            return Err("Outside Bounds High".into());
+        }
+    }
+    Ok((red, green, blue, alpha))
+}
+
+#[test]
+fn test_from_hex_to_rgb() {
+    let rgb = Color32::RED;
+    let hex = Color32::from_hex("#ff0000").unwrap();
+    assert_eq!(rgb, hex);
+}
+
+#[test]
+fn test_from_hex_to_rgba() {
+    let rgba = Color32::from_rgba_unmultiplied(245, 40, 145, 2);
+    let hex = Color32::from_hex("#f5289133").unwrap();
+    assert_eq!(rgba, hex);
+}
+
 #[test]
 pub fn test_srgba_conversion() {
     for b in 0..=255 {
@@ -839,8 +909,6 @@ impl From<Hsva> for HsvaGamma {
 }
 
 // ----------------------------------------------------------------------------
-
-use std::num::ParseIntError;
 
 /// Cheap and ugly.
 /// Made for graying out disabled `Ui`:s.
