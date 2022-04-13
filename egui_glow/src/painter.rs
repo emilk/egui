@@ -96,6 +96,7 @@ impl Painter {
         pp_fb_extent: Option<[i32; 2]>,
         shader_prefix: &str,
     ) -> Result<Painter, String> {
+        crate::profile_function!();
         check_for_gl_error!(&gl, "before Painter::new");
 
         let max_texture_side = unsafe { gl.get_parameter_i32(glow::MAX_TEXTURE_SIZE) } as usize;
@@ -297,6 +298,7 @@ impl Painter {
         clipped_primitives: &[egui::ClippedPrimitive],
         textures_delta: &egui::TexturesDelta,
     ) {
+        crate::profile_function!();
         for (id, image_delta) in &textures_delta.set {
             self.set_texture(*id, image_delta);
         }
@@ -333,6 +335,7 @@ impl Painter {
         pixels_per_point: f32,
         clipped_primitives: &[egui::ClippedPrimitive],
     ) {
+        crate::profile_function!();
         self.assert_not_destroyed();
 
         if let Some(ref mut post_process) = self.post_process {
@@ -355,6 +358,7 @@ impl Painter {
                 }
                 Primitive::Callback(callback) => {
                     if callback.rect.is_positive() {
+                        crate::profile_scope!("callback");
                         // Transform callback rect to physical pixels:
                         let rect_min_x = pixels_per_point * callback.rect.min.x;
                         let rect_min_y = pixels_per_point * callback.rect.min.y;
@@ -456,6 +460,8 @@ impl Painter {
     // ------------------------------------------------------------------------
 
     pub fn set_texture(&mut self, tex_id: egui::TextureId, delta: &egui::epaint::ImageDelta) {
+        crate::profile_function!();
+
         self.assert_not_destroyed();
 
         let glow_texture = *self

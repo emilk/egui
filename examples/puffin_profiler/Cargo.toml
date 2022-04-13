@@ -1,0 +1,14 @@
+[package]
+name = "puffin_profiler"
+version = "0.1.0"
+authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+license = "MIT OR Apache-2.0"
+edition = "2021"
+rust-version = "1.60"
+publish = false
+
+
+[dependencies]
+eframe = { path = "../../eframe", features = ["puffin"] }
+puffin = "0.13"
+puffin_http = "0.10"

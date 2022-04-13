@@ -12,6 +12,8 @@ members = [
     "emath",
     "epaint",
     "epi",
+
+    "examples/puffin_profiler",
 ]
 
 [profile.dev]
