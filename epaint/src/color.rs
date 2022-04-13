@@ -75,6 +75,19 @@ impl Color32 {
     }
 
     #[inline(always)]
+    pub fn from_hex(hex: &str) -> Result<Self, ParseIntError> {
+        let [r, g, b, _] = u32::from_str_radix(&hex.replace("#", ""), 16)?.to_be_bytes();
+        Ok(Self([r, g, b, 255]))
+    }
+
+    #[inline(always)]
+    // TODO: This is current identical to from_hex
+    pub fn from_unmultiplied(hex: &str) -> Result<Self, ParseIntError> {
+        let [r, g, b, a] = u32::from_str_radix(&hex.replace("#", ""), 16)?.to_be_bytes();
+        Ok(Self([r, g, b, a]))
+    }
+
+    #[inline(always)]
     pub const fn from_rgb_additive(r: u8, g: u8, b: u8) -> Self {
         Self([r, g, b, 0])
     }
@@ -826,6 +839,8 @@ impl From<Hsva> for HsvaGamma {
 }
 
 // ----------------------------------------------------------------------------
+
+use std::num::ParseIntError;
 
 /// Cheap and ugly.
 /// Made for graying out disabled `Ui`:s.
