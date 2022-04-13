@@ -192,6 +192,117 @@ pub mod path {
 
     use super::*;
 
+    mod precomputed_quadrants {
+        use emath::{vec2, Vec2};
+
+        pub const QUADRANTS_0_5: [[Vec2; 3]; 4] = [
+            // quadrant 0: right bottom
+            [
+                vec2(1.000000, 0.000000),
+                vec2(0.707107, 0.707107),
+                vec2(-0.000000, 1.000000)
+            ],
+            // quadrant 1: left bottom
+            [
+                vec2(-0.000000, 1.000000),
+                vec2(-0.707107, 0.707107),
+                vec2(-1.000000, -0.000000),
+            ],
+            // quadrant 2: left top
+            [
+                vec2(-1.000000, -0.000000),
+                vec2(-0.707107, -0.707107),
+                vec2(0.000000, -1.000000),
+            ],
+            // quadrant 3: right top
+            [
+                vec2(0.000000, -1.000000),
+                vec2(0.707107, -0.707107),
+                vec2(1.000000, 0.000000),
+            ],
+        ];
+
+        pub const QUADRANTS_5_10: [[Vec2; 5]; 4] = [
+            // quadrant 0: right bottom
+            [
+                vec2(1.000000, 0.000000),
+                vec2(0.923880, 0.382683),
+                vec2(0.707107, 0.707107),
+                vec2(0.382683, 0.923880),
+                vec2(-0.000000, 1.000000),
+            ],
+            // quadrant 1: left bottom
+            [
+                vec2(-0.000000, 1.000000),
+                vec2(-0.382684, 0.923880),
+                vec2(-0.707107, 0.707107),
+                vec2(-0.923880, 0.382683),
+                vec2(-1.000000, -0.000000),
+            ],
+            // quadrant 2: left top
+            [
+                vec2(-1.000000, -0.000000),
+                vec2(-0.923880, -0.382683),
+                vec2(-0.707107, -0.707107),
+                vec2(-0.382684, -0.923880),
+                vec2(0.000000, -1.000000),
+            ],
+            // quadrant 3: right top
+            [
+                vec2(0.000000, -1.000000),
+                vec2(0.382684, -0.923879),
+                vec2(0.707107, -0.707107),
+                vec2(0.923880, -0.382683),
+                vec2(1.000000, 0.000000),
+            ],
+        ];
+
+        pub const QUADRANTS_10_20: [[Vec2; 7]; 4] = [
+            // quadrant 0: right bottom
+            [
+                vec2(1.000000, 0.000000),
+                vec2(0.965926, 0.258819),
+                vec2(0.866025, 0.500000),
+                vec2(0.707107, 0.707107),
+                vec2(0.500000, 0.866025),
+                vec2(0.258819, 0.965926),
+                vec2(-0.000000, 1.000000),
+            ],
+            // quadrant 1: left bottom
+            [
+                vec2(-0.000000, 1.000000),
+                vec2(-0.258819, 0.965926),
+                vec2(-0.500000, 0.866025),
+                vec2(-0.707107, 0.707107),
+                vec2(-0.866025, 0.500000),
+                vec2(-0.965926, 0.258819),
+                vec2(-1.000000, -0.000000),
+            ],
+            // quadrant 2: left top
+            [
+                vec2(-1.000000, -0.000000),
+                vec2(-0.965926, -0.258819),
+                vec2(-0.866026, -0.500000),
+                vec2(-0.707107, -0.707107),
+                vec2(-0.500000, -0.866025),
+                vec2(-0.258819, -0.965926),
+                vec2(0.000000, -1.000000),
+            ],
+            // quadrant 3: right top
+            [
+                vec2(0.000000, -1.000000),
+                vec2(0.258819, -0.965926),
+                vec2(0.500000, -0.866025),
+                vec2(0.707107, -0.707107),
+                vec2(0.866025, -0.500000),
+                vec2(0.965926, -0.258819),
+                vec2(1.000000, 0.000000),
+            ],
+        ];
+    }
+
+    use precomputed_quadrants::*;
+
     /// overwrites existing points
     pub fn rounded_rectangle(path: &mut Vec<Pos2>, rect: Rect, rounding: Rounding) {
         path.clear();
@@ -236,19 +347,26 @@ pub mod path {
     //   - quadrant 3: right top
     // * angle 4 * TAU / 4 = right
     pub fn add_circle_quadrant(path: &mut Vec<Pos2>, center: Pos2, radius: f32, quadrant: f32) {
-        // TODO: optimize with precalculated vertices for some radii ranges
-
-        let n = (radius * 0.75).round() as i32; // TODO: tweak a bit more
-        let n = n.clamp(2, 32);
-        const RIGHT_ANGLE: f32 = TAU / 4.0;
-        path.reserve(n as usize + 1);
-        for i in 0..=n {
-            let angle = remap(
-                i as f32,
-                0.0..=n as f32,
-                quadrant * RIGHT_ANGLE..=(quadrant + 1.0) * RIGHT_ANGLE,
-            );
-            path.push(center + radius * Vec2::angled(angle));
+        if radius == 0.0 {
+            path.push(center);
+        } else if radius <= 5.0 {
+            let quadrant_vertices = QUADRANTS_0_5[quadrant as usize];
+            path.reserve(quadrant_vertices.len());
+            quadrant_vertices
+                .iter()
+                .for_each(|v| path.push(center + radius * *v));
+        } else if radius > 5.0 && radius <= 10.0 {
+            let quadrant_vertices = QUADRANTS_5_10[quadrant as usize];
+            path.reserve(quadrant_vertices.len());
+            quadrant_vertices
+                .iter()
+                .for_each(|v| path.push(center + radius * *v));
+        } else {
+            let quadrant_vertices = QUADRANTS_10_20[quadrant as usize];
+            path.reserve(quadrant_vertices.len());
+            quadrant_vertices
+                .iter()
+                .for_each(|v| path.push(center + radius * *v));
         }
     }
 
