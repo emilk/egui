@@ -13,7 +13,9 @@ members = [
     "epaint",
     "epi",
 
+    "examples/hello_world",
     "examples/puffin_profiler",
+    "examples/svg",
 ]
 
 [profile.dev]

@@ -71,7 +71,7 @@ egui_web = { version = "0.17.0", path = "../egui_web", default-features = false 
 
 [dev-dependencies]
 # For examples:
-egui_extras = { path = "../egui_extras", features = ["image", "svg"] }
+egui_extras = { path = "../egui_extras", features = ["image"] }
 ehttp = "0.2"
 glow = "0.11"
 image = { version = "0.24", default-features = false, features = [
