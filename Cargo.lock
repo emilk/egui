@@ -818,6 +818,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b365fabc795046672053e29c954733ec3b05e4be654ab130fe8f1f94d7051f35"
 
 [[package]]
+name = "custom_3d_three-d"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui_glow",
+ "glow",
+ "three-d",
+]
+
+[[package]]
 name = "dark-light"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -981,6 +991,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ea835d29036a4087793836fa931b08837ad5e957da9e23886b29586fb9b6650"
 
 [[package]]
+name = "download_image"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui_extras",
+ "ehttp",
+ "image",
+ "poll-promise",
+]
+
+[[package]]
 name = "dyn-clonable"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1022,15 +1043,10 @@ dependencies = [
  "egui_extras",
  "egui_glow",
  "egui_web",
- "ehttp",
  "epi",
  "glow",
  "image",
- "poll-promise",
- "puffin",
- "puffin_http",
  "rfd",
- "three-d",
 ]
 
 [[package]]
@@ -2732,6 +2748,15 @@ dependencies = [
  "svgtypes",
  "tiny-skia",
  "usvg",
+]
+
+[[package]]
+name = "retained_image"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui_extras",
+ "image",
 ]
 
 [[package]]

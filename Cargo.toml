@@ -13,8 +13,11 @@ members = [
     "epaint",
     "epi",
 
+    "examples/custom_3d_three-d",
+    "examples/download_image",
     "examples/hello_world",
     "examples/puffin_profiler",
+    "examples/retained_image",
     "examples/svg",
 ]
 

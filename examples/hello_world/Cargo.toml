@@ -9,4 +9,4 @@ publish = false
 
 
 [dependencies]
-eframe = { path = "../../eframe", features = ["puffin"] }
+eframe = { path = "../../eframe" }
