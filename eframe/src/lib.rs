@@ -4,14 +4,14 @@
 //! and are happy with just using egui for all visuals,
 //! Then `eframe` is for you!
 //!
-//! To get started, see the [crate examples](https://github.com/emilk/egui/tree/master/examples) and [single-file examples](https://github.com/emilk/egui/tree/master/eframe/examples).
+//! To get started, see the [examples](https://github.com/emilk/egui/tree/master/examples).
 //! To learn how to set up `eframe` for web and native, go to <https://github.com/emilk/eframe_template/> and follow the instructions there!
 //!
-//! You write your application code for [`epi`] (implementing [`epi::App`]) and then
-//! call from [`crate::run_native`] your `main.rs`, and/or call `eframe::start_web` from your `lib.rs`.
+//! In short, you implement [`App`] and then
+//! call [`crate::run_native`] from your `main.rs`, and/or call `eframe::start_web` from your `lib.rs`.
 //!
 //! `eframe` is implemented using [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web) for web and
-//! [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium) or [`egui_glow`](https://github.com/emilk/egui/tree/master/egui_glow) for native.
+//! [`egui_glow`](https://github.com/emilk/egui/tree/master/egui_glow) for native.
 //!
 //! ## Usage, native:
 //! ``` no_run
@@ -100,7 +100,7 @@ pub fn start_web(canvas_id: &str, app_creator: AppCreator) -> Result<(), wasm_bi
 /// This is how you start a native (desktop) app.
 ///
 /// The first argument is name of your app, used for the title bar of the native window
-/// and the save location of persistence (see [`epi::App::save`]).
+/// and the save location of persistence (see [`App::save`]).
 ///
 /// Call from `fn main` like this:
 /// ``` no_run

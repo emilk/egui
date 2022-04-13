@@ -72,7 +72,7 @@ pub trait App {
     ///
     /// A scenario where this method will be run is after pressing the close button on a native
     /// window, which allows you to ask the user whether they want to do something before exiting.
-    /// See the example `eframe/examples/confirm_exit.rs` for practical usage.
+    /// See the example at <https://github.com/emilk/egui/blob/master/examples/confirm_exit/> for practical usage.
     ///
     /// It will _not_ be called on the web or when the window is forcefully closed.
     fn on_exit_event(&mut self) -> bool {
