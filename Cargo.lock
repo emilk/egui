@@ -609,6 +609,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "confirm_exit"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+]
+
+[[package]]
 name = "console_error_panic_hook"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -818,6 +825,39 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b365fabc795046672053e29c954733ec3b05e4be654ab130fe8f1f94d7051f35"
 
 [[package]]
+name = "custom_3d_glow"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui_glow",
+ "glow",
+]
+
+[[package]]
+name = "custom_3d_three-d"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui_glow",
+ "glow",
+ "three-d",
+]
+
+[[package]]
+name = "custom_font"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+]
+
+[[package]]
+name = "custom_window_frame"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+]
+
+[[package]]
 name = "dark-light"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -981,6 +1021,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ea835d29036a4087793836fa931b08837ad5e957da9e23886b29586fb9b6650"
 
 [[package]]
+name = "download_image"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui_extras",
+ "ehttp",
+ "image",
+ "poll-promise",
+]
+
+[[package]]
 name = "dyn-clonable"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1019,18 +1070,9 @@ version = "0.17.0"
 dependencies = [
  "egui",
  "egui-winit",
- "egui_extras",
  "egui_glow",
  "egui_web",
- "ehttp",
  "epi",
- "glow",
- "image",
- "poll-promise",
- "puffin",
- "puffin_http",
- "rfd",
- "three-d",
 ]
 
 [[package]]
@@ -1299,6 +1341,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3fcf0cee53519c866c09b5de1f6c56ff9d647101f81c1964fa632e148896cdf"
 dependencies = [
  "instant",
+]
+
+[[package]]
+name = "file_dialog"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "rfd",
 ]
 
 [[package]]
@@ -1701,6 +1751,13 @@ name = "heck"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2540771e65fc8cb83cd6e8a237f70c319bd5c29f78ed1084ba5d50eeac86f7f9"
+
+[[package]]
+name = "hello_world"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+]
 
 [[package]]
 name = "hermit-abi"
@@ -2728,6 +2785,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "retained_image"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui_extras",
+ "image",
+]
+
+[[package]]
 name = "rfd"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3127,6 +3193,14 @@ name = "strsim"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
+
+[[package]]
+name = "svg"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui_extras",
+]
 
 [[package]]
 name = "svgfilters"

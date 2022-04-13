@@ -50,7 +50,7 @@ ui.label(format!("Hello '{}', age {}", name, age));
 
 ## Quick start
 
-If you just want to write a GUI application in Rust (for the web or for native), go to <https://github.com/emilk/eframe_template/> and follow the instructions there! The official docs are at <https://docs.rs/egui>. For inspiration, check out the [the egui web demo](https://www.egui.rs/#demo) and follow the links in it to its source code. There is also an excellent tutorial video at <https://www.youtube.com/watch?v=NtUkr_z7l84>.
+There are simple examples in [the `examples/` folder](https://github.com/emilk/egui/blob/master/examples/). If you want to write a web app, then go to <https://github.com/emilk/eframe_template/> and follow the instructions. The official docs are at <https://docs.rs/egui>. For inspiration and more examples, check out the [the egui web demo](https://www.egui.rs/#demo) and follow the links in it to its source code.
 
 If you want to integrate egui into an existing engine, go to the [Integrations](#integrations) section.
 
@@ -64,7 +64,7 @@ To test the demo app locally, run `cargo run --release -p egui_demo_app`.
 
 The native backend is [`egui_glow`](https://github.com/emilk/egui/tree/master/egui_glow) (using [`glow`](https://crates.io/crates/glow)) and should work out-of-the-box on Mac and Windows, but on Linux you need to first run:
 
-`sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev`
+`sudo apt-get install -y libclang-dev libgtk-3-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev`
 
 On Fedora Rawhide you need to run:
 
@@ -312,7 +312,7 @@ Here is an example (from https://github.com/AlexxxRu/TinyPomodoro):
 If you call `.await` in your GUI code, the UI will freeze, with is very bad UX. Instead, keep the GUI thread non-blocking and communicate with any concurrent tasks (`async` tasks or other threads) with something like:
 * Channels (e.g. [`std::sync::mpsc::channel`](https://doc.rust-lang.org/std/sync/mpsc/fn.channel.html)). Make sure to use [`try_recv`](https://doc.rust-lang.org/std/sync/mpsc/struct.Receiver.html#method.try_recv) so you don't block the gui thread!
 * `Arc<Mutex<Value>>` (background thread sets a value; GUI thread reads it)
-* [`poll_promise::Promise`](https://docs.rs/poll-promise) (example: [`eframe/examples/download_image.rs`](https://github.com/emilk/egui/blob/master/eframe/examples/download_image.rs))
+* [`poll_promise::Promise`](https://docs.rs/poll-promise) (example: [`examples/download_image/`](https://github.com/emilk/egui/blob/master/examples/download_image/))
 * [`eventuals::Eventual`](https://docs.rs/eventuals/latest/eventuals/struct.Eventual.html)
 * [`tokio::sync::watch::channel`](https://docs.rs/tokio/latest/tokio/sync/watch/fn.channel.html)
 
@@ -338,8 +338,8 @@ If you want to embed 3D into an egui view there are two options.
 
 #### `Shape::Callback`
 Examples:
-* <https://github.com/emilk/egui/blob/master/eframe/examples/custom_3d_three-d.rs>
-* <https://github.com/emilk/egui/blob/master/eframe/examples/custom_3d_glow.rs>
+* <https://github.com/emilk/egui/blob/master/examples/custom_3d_three-d.rs>
+* <https://github.com/emilk/egui/blob/master/examples/custom_3d_glow.rs>
 
 `Shape::Callback` will call your code when egui gets painted, to show anything using whatever the background rendering context is. When using [`eframe`](https://github.com/emilk/egui/tree/master/eframe) this will be [`glow`](https://github.com/grovesNL/glow). Other integrations will give you other rendering contexts, if they support `Shape::Callback` at all.
 
