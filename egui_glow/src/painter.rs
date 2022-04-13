@@ -96,6 +96,7 @@ impl Painter {
         pp_fb_extent: Option<[i32; 2]>,
         shader_prefix: &str,
     ) -> Result<Painter, String> {
+        crate::profile_function!();
         check_for_gl_error!(&gl, "before Painter::new");
 
         let max_texture_side = unsafe { gl.get_parameter_i32(glow::MAX_TEXTURE_SIZE) } as usize;

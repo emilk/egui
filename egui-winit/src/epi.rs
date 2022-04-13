@@ -191,6 +191,7 @@ impl EpiIntegration {
     }
 
     pub fn warm_up(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {
+        crate::profile_function!();
         let saved_memory: egui::Memory = self.egui_ctx.memory().clone();
         self.egui_ctx.memory().set_everything_is_visible(true);
         let full_output = self.update(app, window);

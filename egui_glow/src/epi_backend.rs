@@ -11,6 +11,7 @@ fn create_display(
     glutin::WindowedContext<glutin::PossiblyCurrent>,
     glow::Context,
 ) {
+    crate::profile_function!();
     let gl_window = unsafe {
         glutin::ContextBuilder::new()
             .with_depth_buffer(native_options.depth_buffer)
