@@ -34,13 +34,13 @@ impl eframe::App for MyApp {
                 .resizable(false)
                 .show(ctx, |ui| {
                     ui.horizontal(|ui| {
+                        if ui.button("Not yet").clicked() {
+                            self.is_exiting = false;
+                        }
+
                         if ui.button("Yes!").clicked() {
                             self.can_exit = true;
                             frame.quit();
-                        }
-
-                        if ui.button("Not yet").clicked() {
-                            self.is_exiting = false;
                         }
                     });
                 });

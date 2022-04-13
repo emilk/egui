@@ -609,6 +609,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "confirm_exit"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+]
+
+[[package]]
 name = "console_error_panic_hook"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -834,6 +841,20 @@ dependencies = [
  "egui_glow",
  "glow",
  "three-d",
+]
+
+[[package]]
+name = "custom_font"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+]
+
+[[package]]
+name = "custom_window_frame"
+version = "0.1.0"
+dependencies = [
+ "eframe",
 ]
 
 [[package]]
