@@ -818,6 +818,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b365fabc795046672053e29c954733ec3b05e4be654ab130fe8f1f94d7051f35"
 
 [[package]]
+name = "custom_3d_glow"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui_glow",
+ "glow",
+]
+
+[[package]]
 name = "custom_3d_three-d"
 version = "0.1.0"
 dependencies = [
@@ -1040,13 +1049,9 @@ version = "0.17.0"
 dependencies = [
  "egui",
  "egui-winit",
- "egui_extras",
  "egui_glow",
  "egui_web",
  "epi",
- "glow",
- "image",
- "rfd",
 ]
 
 [[package]]
@@ -1315,6 +1320,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3fcf0cee53519c866c09b5de1f6c56ff9d647101f81c1964fa632e148896cdf"
 dependencies = [
  "instant",
+]
+
+[[package]]
+name = "file_dialog"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "rfd",
 ]
 
 [[package]]
