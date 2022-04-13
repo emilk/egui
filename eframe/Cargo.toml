@@ -79,5 +79,7 @@ image = { version = "0.24", default-features = false, features = [
   "png",
 ] }
 poll-promise = "0.1"
+puffin = "0.13"
+puffin_http = "0.10"
 rfd = "0.8"
 three-d = { version = "0.11", default-features = false }

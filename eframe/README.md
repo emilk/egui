@@ -8,9 +8,10 @@
 
 `eframe` is the official framework library for writing apps using [`egui`](https://github.com/emilk/egui). The app can be compiled both to run natively (cross platform) or be compiled to a web app (using WASM).
 
-To get started, go to <https://github.com/emilk/eframe_template/> and follow the instructions there!
+To get started, see the [crate examples](https://github.com/emilk/egui/tree/master/examples) and [single-file examples](https://github.com/emilk/egui/tree/master/eframe/examples).
+To learn how to set up `eframe` for web and native, go to <https://github.com/emilk/eframe_template/> and follow the instructions there!
 
-You can also take a look at [the `eframe` examples folder](https://github.com/emilk/egui/tree/master/eframe/examples). There is also an excellent tutorial video at <https://www.youtube.com/watch?v=NtUkr_z7l84>.
+There is also a tutorial video at <https://www.youtube.com/watch?v=NtUkr_z7l84>.
 
 For how to use `egui`, see [the egui docs](https://docs.rs/egui).
 
@@ -37,6 +38,7 @@ Not all rust crates work when compiled to WASM, but here are some useful crates 
 * Audio: [`cpal`](https://github.com/RustAudio/cpal).
 * HTTP client: [`ehttp`](https://github.com/emilk/ehttp).
 * Time: [`chrono`](https://github.com/chronotope/chrono).
+* WebSockets: [`ewebsock`](https://github.com/rerun-io/ewebsock).
 
 
 ## Name
