@@ -851,6 +851,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "custom_font_style"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+]
+
+[[package]]
 name = "custom_window_frame"
 version = "0.1.0"
 dependencies = [

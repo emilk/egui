@@ -145,6 +145,32 @@ pub struct Style {
     /// The [`FontFamily`] and size you want to use for a specific [`TextStyle`].
     ///
     /// The most convenient way to look something up in this is to use [`TextStyle::resolve`].
+    ///
+    /// If you would like to overwrite app text_styles
+    ///
+    /// ```
+    /// # let mut ctx = egui::Context::default();
+    /// use egui::FontFamily::Proportional;
+    /// use egui::FontId;
+    /// use egui::TextStyle::*;
+    ///
+    /// // Get current context style
+    /// let mut style = (*ctx.style()).clone();
+    ///
+    /// // Redefine text_styles
+    /// style.text_styles = [
+    ///   (Heading, FontId::new(30.0, Proportional)),
+    ///   (Name("Heading2".into()), FontId::new(25.0, Proportional)),
+    ///   (Name("Context".into()), FontId::new(23.0, Proportional)),
+    ///   (Body, FontId::new(18.0, Proportional)),
+    ///   (Monospace, FontId::new(14.0, Proportional)),
+    ///   (Button, FontId::new(14.0, Proportional)),
+    ///   (Small, FontId::new(10.0, Proportional)),
+    /// ].into();
+    ///
+    /// // Mutate global style with above changes
+    /// ctx.set_style(style);
+    /// ```
     pub text_styles: BTreeMap<TextStyle, FontId>,
 
     /// If set, labels buttons wtc will use this to determine whether or not
