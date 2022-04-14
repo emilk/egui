@@ -1383,10 +1383,20 @@ impl Ui {
         response
     }
 
-    /// Shortcut for `add(Separator::default())` (see [`Separator`]).
+    /// Shortcut for `add(Separator::default())`
+    ///
+    /// See also [`Separator`].
     #[inline]
     pub fn separator(&mut self) -> Response {
         Separator::default().ui(self)
+    }
+
+    /// Shortcut for `add(Spinner::new())`
+    ///
+    /// See also [`Spinner`].
+    #[inline]
+    pub fn spinner(&mut self) -> Response {
+        Spinner::new().ui(self)
     }
 
     /// Modify an angle. The given angle should be in radians, but is shown to the user in degrees.

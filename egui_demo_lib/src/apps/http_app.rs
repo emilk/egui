@@ -101,7 +101,7 @@ impl epi::App for HttpApp {
                         }
                     }
                 } else {
-                    ui.add(egui::Spinner::new());
+                    ui.spinner();
                 }
             }
         });

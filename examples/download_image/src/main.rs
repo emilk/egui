@@ -38,7 +38,7 @@ impl eframe::App for MyApp {
 
         egui::CentralPanel::default().show(ctx, |ui| match promise.ready() {
             None => {
-                ui.add(egui::Spinner::new()); // still loading
+                ui.spinner(); // still loading
             }
             Some(Err(err)) => {
                 ui.colored_label(egui::Color32::RED, err); // something went wrong
