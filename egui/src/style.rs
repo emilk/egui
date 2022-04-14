@@ -150,8 +150,9 @@ pub struct Style {
     ///
     /// ```
     /// # let mut ctx = egui::Context::default();
-    /// use FontFamily::Proportional;
-    /// use TextStyle::*;
+    /// use egui::FontFamily::Proportional;
+    /// use egui::FontId;
+    /// use egui::TextStyle::*;
     ///
     /// // Get current context style
     /// let mut style = (*ctx.style()).clone();
