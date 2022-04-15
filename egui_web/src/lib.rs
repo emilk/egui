@@ -498,7 +498,7 @@ fn install_document_events(runner_container: &AppRunnerContainer) -> Result<(), 
 
     for event_name in &["load", "pagehide", "pageshow", "resize"] {
         runner_container.add_event_listener(
-            &document,
+            &window,
             event_name,
             |_: web_sys::Event, runner_lock| {
                 runner_lock.needs_repaint.set_true();
@@ -507,7 +507,7 @@ fn install_document_events(runner_container: &AppRunnerContainer) -> Result<(), 
     }
 
     runner_container.add_event_listener(
-        &document,
+        &window,
         "hashchange",
         |_: web_sys::Event, mut runner_lock| {
             // `epi::Frame::info(&self)` clones `epi::IntegrationInfo`, but we need to modify the original here
