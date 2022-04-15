@@ -1,4 +1,5 @@
 // #![warn(missing_docs)]
+use std::sync::Arc;
 
 use crate::{
     animation_manager::AnimationManager, data::output::PlatformOutput, frame_state::FrameState,

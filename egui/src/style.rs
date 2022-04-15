@@ -3,7 +3,7 @@
 #![allow(clippy::if_same_then_else)]
 
 use crate::{color::*, emath::*, FontFamily, FontId, Response, RichText, WidgetText};
-use epaint::{mutex::Arc, Rounding, Shadow, Stroke};
+use epaint::{Rounding, Shadow, Stroke};
 use std::collections::BTreeMap;
 
 // ----------------------------------------------------------------------------
@@ -35,7 +35,7 @@ pub enum TextStyle {
     /// ```
     /// egui::TextStyle::Name("footing".into());
     /// ````
-    Name(Arc<str>),
+    Name(std::sync::Arc<str>),
 }
 
 impl std::fmt::Display for TextStyle {

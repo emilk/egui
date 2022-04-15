@@ -1,4 +1,5 @@
 use std::ops::RangeInclusive;
+use std::sync::Arc;
 
 use crate::{
     emath::{pos2, Align2, Pos2, Rect, Vec2},
@@ -6,7 +7,7 @@ use crate::{
     Color32, Context, FontId,
 };
 use epaint::{
-    mutex::{Arc, RwLockReadGuard, RwLockWriteGuard},
+    mutex::{RwLockReadGuard, RwLockWriteGuard},
     text::{Fonts, Galley},
     CircleShape, RectShape, Rounding, Shape, Stroke,
 };

@@ -142,11 +142,6 @@ mod rw_lock_impl {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-mod arc_impl {
-    pub use std::sync::Arc;
-}
-
 // ----------------------------------------------------------------------------
 
 #[cfg(target_arch = "wasm32")]
@@ -211,15 +206,8 @@ mod rw_lock_impl {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
-mod arc_impl {
-    // pub use std::rc::Rc as Arc; // TODO(emilk): optimize single threaded code by using `Rc` instead of `Arc`.
-    pub use std::sync::Arc;
-}
-
 // ----------------------------------------------------------------------------
 
-pub use arc_impl::Arc;
 pub use mutex_impl::{Mutex, MutexGuard};
 pub use rw_lock_impl::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 

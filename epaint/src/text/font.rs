@@ -1,10 +1,11 @@
 use crate::{
-    mutex::{Arc, Mutex, RwLock},
+    mutex::{Mutex, RwLock},
     TextureAtlas,
 };
 use ahash::AHashMap;
 use emath::{vec2, Vec2};
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
 // ----------------------------------------------------------------------------
 

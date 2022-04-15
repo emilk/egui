@@ -1,7 +1,8 @@
 use std::ops::RangeInclusive;
+use std::sync::Arc;
 
 use super::{FontsImpl, Galley, Glyph, LayoutJob, LayoutSection, Row, RowVisuals};
-use crate::{mutex::Arc, Color32, Mesh, Stroke, Vertex};
+use crate::{Color32, Mesh, Stroke, Vertex};
 use emath::*;
 
 // ----------------------------------------------------------------------------

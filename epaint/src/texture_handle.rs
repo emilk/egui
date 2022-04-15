@@ -1,8 +1,6 @@
-use crate::{
-    emath::NumExt,
-    mutex::{Arc, RwLock},
-    ImageData, ImageDelta, TextureId, TextureManager,
-};
+use std::sync::Arc;
+
+use crate::{emath::NumExt, mutex::RwLock, ImageData, ImageDelta, TextureId, TextureManager};
 
 /// Used to paint images.
 ///

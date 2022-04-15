@@ -1,7 +1,9 @@
 // #![warn(missing_docs)]
 
-use epaint::mutex::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::hash::Hash;
+use std::sync::Arc;
+
+use epaint::mutex::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
     color::*, containers::*, epaint::text::Fonts, layout::*, menu::MenuState, placer::Placer,

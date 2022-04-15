@@ -1,5 +1,7 @@
 //! The different shapes that can be painted.
 
+use std::sync::Arc;
+
 use crate::{
     text::{FontId, Fonts, Galley},
     Color32, Mesh, Stroke, TextureId,
@@ -175,17 +177,13 @@ impl Shape {
     }
 
     #[inline]
-    pub fn galley(pos: Pos2, galley: crate::mutex::Arc<Galley>) -> Self {
+    pub fn galley(pos: Pos2, galley: Arc<Galley>) -> Self {
         TextShape::new(pos, galley).into()
     }
 
     #[inline]
     /// The text color in the [`Galley`] will be replaced with the given color.
-    pub fn galley_with_color(
-        pos: Pos2,
-        galley: crate::mutex::Arc<Galley>,
-        text_color: Color32,
-    ) -> Self {
+    pub fn galley_with_color(pos: Pos2, galley: Arc<Galley>, text_color: Color32) -> Self {
         TextShape {
             override_text_color: Some(text_color),
             ..TextShape::new(pos, galley)
@@ -549,7 +547,7 @@ pub struct TextShape {
     pub pos: Pos2,
 
     /// The layed out text, from [`Fonts::layout_job`].
-    pub galley: crate::mutex::Arc<Galley>,
+    pub galley: Arc<Galley>,
 
     /// Add this underline to the whole text.
     /// You can also set an underline when creating the galley.
@@ -567,7 +565,7 @@ pub struct TextShape {
 
 impl TextShape {
     #[inline]
-    pub fn new(pos: Pos2, galley: crate::mutex::Arc<Galley>) -> Self {
+    pub fn new(pos: Pos2, galley: Arc<Galley>) -> Self {
         Self {
             pos,
             galley,
@@ -734,7 +732,7 @@ pub struct PaintCallback {
     ///
     /// The rendering backend is also responsible for restoring any state,
     /// such as the bound shader program and vertex array.
-    pub callback: std::sync::Arc<dyn Fn(&PaintCallbackInfo, &dyn std::any::Any) + Send + Sync>,
+    pub callback: Arc<dyn Fn(&PaintCallbackInfo, &dyn std::any::Any) + Send + Sync>,
 }
 
 impl PaintCallback {
@@ -758,7 +756,7 @@ impl std::cmp::PartialEq for PaintCallback {
         // can only happen if we do dynamic casts back and forth on the pointers, and we don't do that.
         #[allow(clippy::vtable_address_comparisons)]
         {
-            self.rect.eq(&other.rect) && std::sync::Arc::ptr_eq(&self.callback, &other.callback)
+            self.rect.eq(&other.rect) && Arc::ptr_eq(&self.callback, &other.callback)
         }
     }
 }

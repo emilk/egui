@@ -46,7 +46,7 @@ impl State {
 
 pub(crate) struct GridLayout {
     ctx: Context,
-    style: epaint::mutex::Arc<Style>,
+    style: std::sync::Arc<Style>,
     id: Id,
 
     /// State previous frame (if any).
