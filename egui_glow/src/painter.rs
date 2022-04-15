@@ -380,7 +380,8 @@ impl Painter {
                         }
 
                         let info = egui::PaintCallbackInfo {
-                            rect: callback.rect,
+                            viewport: callback.rect,
+                            clip_rect: *clip_rect,
                             pixels_per_point,
                             screen_size_px: inner_size,
                         };

@@ -659,7 +659,15 @@ fn dashes_from_line(
 /// Information passed along with [`PaintCallback`] ([`Shape::Callback`]).
 pub struct PaintCallbackInfo {
     /// Viewport in points.
-    pub rect: Rect,
+    ///
+    /// This specifies where on the screen to paint, and the borders of this
+    /// Rect is the [-1, +1] of the Normalized Device Coordinates.
+    ///
+    /// Note than only a portion of this may be visible due to [`Self::clip`].
+    pub viewport: Rect,
+
+    /// Clip rectangle in points.
+    pub clip_rect: Rect,
 
     /// Pixels per point.
     pub pixels_per_point: f32,
@@ -668,37 +676,44 @@ pub struct PaintCallbackInfo {
     pub screen_size_px: [u32; 2],
 }
 
-impl PaintCallbackInfo {
+pub struct ViewportInPixels {
     /// Physical pixel offset for left side of the viewport.
-    #[inline]
-    pub fn viewport_left_px(&self) -> f32 {
-        self.rect.min.x * self.pixels_per_point
-    }
+    pub left_px: f32,
 
     /// Physical pixel offset for top side of the viewport.
-    #[inline]
-    pub fn viewport_top_px(&self) -> f32 {
-        self.rect.min.y * self.pixels_per_point
-    }
+    pub top_px: f32,
 
     /// Physical pixel offset for bottom side of the viewport.
     ///
-    /// This is what `glViewport` etc expects for the y axis.
-    #[inline]
-    pub fn viewport_from_bottom_px(&self) -> f32 {
-        self.screen_size_px[1] as f32 - self.rect.max.y * self.pixels_per_point
-    }
+    /// This is what `glViewport`, `glScissor` etc expects for the y axis.
+    pub from_bottom_px: f32,
 
     /// Viewport width in physical pixels.
-    #[inline]
-    pub fn viewport_width_px(&self) -> f32 {
-        self.rect.width() * self.pixels_per_point
-    }
+    pub width_px: f32,
 
     /// Viewport width in physical pixels.
-    #[inline]
-    pub fn viewport_height_px(&self) -> f32 {
-        self.rect.height() * self.pixels_per_point
+    pub height_px: f32,
+}
+
+impl PaintCallbackInfo {
+    fn points_to_pixels(&self, rect: &Rect) -> ViewportInPixels {
+        ViewportInPixels {
+            left_px: rect.min.x * self.pixels_per_point,
+            top_px: rect.min.y * self.pixels_per_point,
+            from_bottom_px: self.screen_size_px[1] as f32 - rect.max.y * self.pixels_per_point,
+            width_px: rect.width() * self.pixels_per_point,
+            height_px: rect.height() * self.pixels_per_point,
+        }
+    }
+
+    /// The viewport rectangle.
+    pub fn viewport_in_pixels(&self) -> ViewportInPixels {
+        self.points_to_pixels(&self.viewport)
+    }
+
+    /// The "scissor" or "clip" rectangle.
+    pub fn clip_rect_in_pixels(&self) -> ViewportInPixels {
+        self.points_to_pixels(&self.clip_rect)
     }
 }
 

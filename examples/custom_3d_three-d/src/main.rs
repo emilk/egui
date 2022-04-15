@@ -99,11 +99,25 @@ fn paint_with_three_d(three_d: &three_d::Context, info: &egui::PaintCallbackInfo
     // Based on https://github.com/asny/three-d/blob/master/examples/triangle/src/main.rs
     use three_d::*;
 
+    // Set where to paint
+    let viewport = info.viewport_in_pixels();
     let viewport = Viewport {
-        x: info.viewport_left_px().round() as _,
-        y: info.viewport_from_bottom_px().round() as _,
-        width: info.viewport_width_px().round() as _,
-        height: info.viewport_height_px().round() as _,
+        x: viewport.left_px.round() as _,
+        y: viewport.from_bottom_px.round() as _,
+        width: viewport.width_px.round() as _,
+        height: viewport.height_px.round() as _,
+    };
+
+    // Respect the egui clip region (e.g. if we are inside an `egui::ScrollArea`).
+    let clip_rect = info.clip_rect_in_pixels();
+    let render_states = RenderStates {
+        clip: Clip::Enabled {
+            x: clip_rect.left_px.round() as _,
+            y: clip_rect.from_bottom_px.round() as _,
+            width: clip_rect.width_px.round() as _,
+            height: clip_rect.height_px.round() as _,
+        },
+        ..Default::default()
     };
 
     let camera = Camera::new_perspective(
@@ -135,8 +149,11 @@ fn paint_with_three_d(three_d: &three_d::Context, info: &egui::PaintCallbackInfo
         ..Default::default()
     };
 
-    // Construct a model, with a default color material, thereby transferring the mesh data to the GPU
-    let mut model = Model::new(three_d, &cpu_mesh).unwrap();
+    let material = ColorMaterial {
+        render_states,
+        ..Default::default()
+    };
+    let mut model = Model::new_with_material(three_d, &cpu_mesh, material).unwrap();
 
     // Set the current transformation of the triangle
     model.set_transformation(Mat4::from_angle_y(radians(angle)));

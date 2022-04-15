@@ -15,17 +15,16 @@ fn heading3() -> TextStyle {
 
 fn configure_text_styles(ctx: &egui::Context) {
     use FontFamily::Proportional;
-    use TextStyle::*;
 
     let mut style = (*ctx.style()).clone();
     style.text_styles = [
-        (Heading, FontId::new(30.0, Proportional)),
+        (TextStyle::Heading, FontId::new(30.0, Proportional)),
         (heading2(), FontId::new(25.0, Proportional)),
         (heading3(), FontId::new(23.0, Proportional)),
-        (Body, FontId::new(18.0, Proportional)),
-        (Monospace, FontId::new(14.0, Proportional)),
-        (Button, FontId::new(14.0, Proportional)),
-        (Small, FontId::new(10.0, Proportional)),
+        (TextStyle::Body, FontId::new(18.0, Proportional)),
+        (TextStyle::Monospace, FontId::new(14.0, Proportional)),
+        (TextStyle::Button, FontId::new(14.0, Proportional)),
+        (TextStyle::Small, FontId::new(10.0, Proportional)),
     ]
     .into();
     ctx.set_style(style);
