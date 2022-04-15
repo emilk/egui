@@ -12,7 +12,8 @@ pub(crate) struct PostProcess {
     index_buffer: glow::Buffer,
     vao: crate::vao::VertexArrayObject,
     is_webgl_1: bool,
-    texture: glow::Texture,
+    color_texture: glow::Texture,
+    depth_renderbuffer: Option<glow::Renderbuffer>,
     texture_size: (i32, i32),
     fbo: glow::Framebuffer,
     program: glow::Program,
@@ -23,42 +24,39 @@ impl PostProcess {
         gl: std::rc::Rc<glow::Context>,
         shader_prefix: &str,
         is_webgl_1: bool,
-        width: i32,
-        height: i32,
+        [width, height]: [i32; 2],
     ) -> Result<PostProcess, String> {
+        gl.pixel_store_i32(glow::UNPACK_ALIGNMENT, 1);
+
         let fbo = gl.create_framebuffer()?;
 
         gl.bind_framebuffer(glow::FRAMEBUFFER, Some(fbo));
 
-        let texture = gl.create_texture().unwrap();
+        // ----------------------------------------------
+        // Set up color tesxture:
 
-        gl.bind_texture(glow::TEXTURE_2D, Some(texture));
-
+        let color_texture = gl.create_texture()?;
+        gl.bind_texture(glow::TEXTURE_2D, Some(color_texture));
         gl.tex_parameter_i32(
             glow::TEXTURE_2D,
             glow::TEXTURE_WRAP_S,
             glow::CLAMP_TO_EDGE as i32,
         );
-
         gl.tex_parameter_i32(
             glow::TEXTURE_2D,
             glow::TEXTURE_WRAP_T,
             glow::CLAMP_TO_EDGE as i32,
         );
-
         gl.tex_parameter_i32(
             glow::TEXTURE_2D,
             glow::TEXTURE_MIN_FILTER,
             glow::NEAREST as i32,
         );
-
         gl.tex_parameter_i32(
             glow::TEXTURE_2D,
             glow::TEXTURE_MAG_FILTER,
             glow::NEAREST as i32,
         );
-
-        gl.pixel_store_i32(glow::UNPACK_ALIGNMENT, 1);
 
         let (internal_format, format) = if is_webgl_1 {
             (glow::SRGB_ALPHA, glow::SRGB_ALPHA)
@@ -83,11 +81,31 @@ impl PostProcess {
             glow::FRAMEBUFFER,
             glow::COLOR_ATTACHMENT0,
             glow::TEXTURE_2D,
-            Some(texture),
+            Some(color_texture),
             0,
         );
         gl.bind_texture(glow::TEXTURE_2D, None);
+
+        // ---------------------------------------------------------
+        // Depth buffer - we only need this when embedding 3D within egui using `egui::PaintCallback`.
+        // TODO: add a setting to enable/disable the depth buffer.
+
+        let with_depth_buffer = true;
+        let depth_renderbuffer = if with_depth_buffer {
+            let depth_renderbuffer = gl.create_renderbuffer()?;
+            gl.bind_renderbuffer(glow::RENDERBUFFER, Some(depth_renderbuffer));
+            gl.renderbuffer_storage(glow::RENDERBUFFER, glow::DEPTH_COMPONENT16, width, height);
+            gl.bind_renderbuffer(glow::RENDERBUFFER, None);
+            Some(depth_renderbuffer)
+        } else {
+            None
+        };
+
+        // ---------------------------------------------------------
+
         gl.bind_framebuffer(glow::FRAMEBUFFER, None);
+
+        // ---------------------------------------------------------
 
         let vert_shader = compile_shader(
             &gl,
@@ -109,9 +127,9 @@ impl PostProcess {
         )?;
         let program = link_program(&gl, [vert_shader, frag_shader].iter())?;
 
-        let positions = vec![0.0f32, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0];
+        let positions: Vec<f32> = vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0];
 
-        let indices = vec![0u8, 1, 2, 1, 2, 3];
+        let indices: Vec<u8> = vec![0, 1, 2, 1, 2, 3];
 
         let pos_buffer = gl.create_buffer()?;
         gl.bind_buffer(glow::ARRAY_BUFFER, Some(pos_buffer));
@@ -150,7 +168,8 @@ impl PostProcess {
             index_buffer,
             vao,
             is_webgl_1,
-            texture,
+            color_texture,
+            depth_renderbuffer,
             texture_size: (width, height),
             fbo,
             program,
@@ -159,9 +178,9 @@ impl PostProcess {
 
     pub(crate) unsafe fn begin(&mut self, width: i32, height: i32) {
         if (width, height) != self.texture_size {
-            self.gl.bind_texture(glow::TEXTURE_2D, Some(self.texture));
+            self.gl
+                .bind_texture(glow::TEXTURE_2D, Some(self.color_texture));
             self.gl.pixel_store_i32(glow::UNPACK_ALIGNMENT, 1);
-
             let (internal_format, format) = if self.is_webgl_1 {
                 (glow::SRGB_ALPHA, glow::SRGB_ALPHA)
             } else {
@@ -178,20 +197,45 @@ impl PostProcess {
                 glow::UNSIGNED_BYTE,
                 None,
             );
-
             self.gl.bind_texture(glow::TEXTURE_2D, None);
+
+            if let Some(depth_renderbuffer) = self.depth_renderbuffer {
+                self.gl
+                    .bind_renderbuffer(glow::RENDERBUFFER, Some(depth_renderbuffer));
+                self.gl.renderbuffer_storage(
+                    glow::RENDERBUFFER,
+                    glow::DEPTH_COMPONENT16,
+                    width,
+                    height,
+                );
+                self.gl.bind_renderbuffer(glow::RENDERBUFFER, None);
+            }
+
             self.texture_size = (width, height);
         }
-
-        self.gl.bind_framebuffer(glow::FRAMEBUFFER, Some(self.fbo));
-        self.gl.clear_color(0.0, 0.0, 0.0, 0.0);
-        self.gl.clear(glow::COLOR_BUFFER_BIT);
 
         check_for_gl_error!(&self.gl, "PostProcess::begin");
     }
 
     pub(crate) unsafe fn bind(&self) {
         self.gl.bind_framebuffer(glow::FRAMEBUFFER, Some(self.fbo));
+
+        self.gl.framebuffer_texture_2d(
+            glow::FRAMEBUFFER,
+            glow::COLOR_ATTACHMENT0,
+            glow::TEXTURE_2D,
+            Some(self.color_texture),
+            0,
+        );
+
+        self.gl.framebuffer_renderbuffer(
+            glow::FRAMEBUFFER,
+            glow::DEPTH_ATTACHMENT,
+            glow::RENDERBUFFER,
+            self.depth_renderbuffer,
+        );
+
+        check_for_gl_error!(&self.gl, "PostProcess::bind");
     }
 
     pub(crate) unsafe fn end(&self) {
@@ -201,7 +245,8 @@ impl PostProcess {
         self.gl.use_program(Some(self.program));
 
         self.gl.active_texture(glow::TEXTURE0);
-        self.gl.bind_texture(glow::TEXTURE_2D, Some(self.texture));
+        self.gl
+            .bind_texture(glow::TEXTURE_2D, Some(self.color_texture));
         let u_sampler_loc = self
             .gl
             .get_uniform_location(self.program, "u_sampler")
@@ -226,6 +271,9 @@ impl PostProcess {
         self.gl.delete_buffer(self.index_buffer);
         self.gl.delete_program(self.program);
         self.gl.delete_framebuffer(self.fbo);
-        self.gl.delete_texture(self.texture);
+        self.gl.delete_texture(self.color_texture);
+        if let Some(depth_renderbuffer) = self.depth_renderbuffer {
+            self.gl.delete_renderbuffer(depth_renderbuffer);
+        }
     }
 }

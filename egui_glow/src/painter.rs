@@ -111,7 +111,7 @@ impl Painter {
             // WebGL2 support sRGB default
             (ShaderVersion::Es300, _) | (ShaderVersion::Es100, true) => unsafe {
                 // Add sRGB support marker for fragment shader
-                if let Some([width, height]) = pp_fb_extent {
+                if let Some(size) = pp_fb_extent {
                     tracing::debug!("WebGL with sRGB enabled. Turning on post processing for linear framebuffer blending.");
                     // install post process to correct sRGB color:
                     (
@@ -119,8 +119,7 @@ impl Painter {
                             gl.clone(),
                             shader_prefix,
                             is_webgl_1,
-                            width,
-                            height,
+                            size,
                         )?),
                         "#define SRGB_SUPPORTED",
                     )
@@ -341,6 +340,7 @@ impl Painter {
         if let Some(ref mut post_process) = self.post_process {
             unsafe {
                 post_process.begin(inner_size[0] as i32, inner_size[1] as i32);
+                post_process.bind();
             }
         }
         let size_in_pixels = unsafe { self.prepare_painting(inner_size, pixels_per_point) };
