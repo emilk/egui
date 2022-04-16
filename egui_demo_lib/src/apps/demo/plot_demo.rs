@@ -315,10 +315,17 @@ impl Widget for &mut LegendDemo {
 struct CustomAxisDemo {}
 
 impl CustomAxisDemo {
+    const MINS_PER_DAY: f64 = 24.0 * 60.0;
+    const MINS_PER_H: f64 = 60.0;
+
     fn logistic_fn() -> Line {
+        fn days(min: f64) -> f64 {
+            CustomAxisDemo::MINS_PER_DAY * min
+        }
+
         let values = Values::from_explicit_callback(
-            move |x| 1.0 / (1.0 + (-2.5 * (x - 2.0)).exp()),
-            0.0..5.0,
+            move |x| 1.0 / (1.0 + (-2.5 * (x / CustomAxisDemo::MINS_PER_DAY - 2.0)).exp()),
+            days(0.0)..days(5.0),
             100,
         );
         Line::new(values)
@@ -331,28 +338,29 @@ impl CustomAxisDemo {
 
         let mut marks = vec![];
 
-        let steps_per_day = 24 * 12;
-        let fsteps_per_day = steps_per_day as f64;
-
         let (min, max) = input.bounds;
-        let min = (min * fsteps_per_day).floor() as i32;
-        let max = (max * fsteps_per_day).ceil() as i32;
+        let min = min.floor() as i32;
+        let max = max.ceil() as i32;
 
         for i in min..=max {
-            let step_size = if i % steps_per_day == 0 {
+            let step_size = if i % Self::MINS_PER_DAY as i32 == 0 {
                 // 1 day
-                1.0
-            } else if i % 12 == 0 {
+                Self::MINS_PER_DAY
+            } else if i % Self::MINS_PER_H as i32 == 0 {
                 // 1 hour
-                1.0 / 24.0
-            } else {
+                Self::MINS_PER_H
+            } else if i % 5 == 0 {
                 // 5min
-                1.0 / fsteps_per_day
+                5.0
+            } else {
+                // skip grids below 5min
+                continue;
             };
 
-            let value = i as f64 / fsteps_per_day;
-
-            marks.push(GridMark { value, step_size });
+            marks.push(GridMark {
+                value: i as f64,
+                step_size,
+            });
         }
 
         marks
@@ -361,27 +369,30 @@ impl CustomAxisDemo {
 
 impl Widget for &mut CustomAxisDemo {
     fn ui(self, ui: &mut Ui) -> Response {
+        const MINS_PER_DAY: f64 = CustomAxisDemo::MINS_PER_DAY;
+        const MINS_PER_H: f64 = CustomAxisDemo::MINS_PER_H;
+
         // Make sure floor() still rounds down, even in presence of arithmetic imprecision
         const EPS: f64 = 1e-6;
 
         fn get_day(x: f64) -> f64 {
-            x.floor()
+            (x / MINS_PER_DAY).floor()
         }
         fn get_hour(x: f64) -> f64 {
-            (24.0 * x.fract() + EPS).floor()
+            (x.rem_euclid(MINS_PER_DAY) / MINS_PER_H).floor()
         }
         fn get_minute(x: f64) -> f64 {
-            ((24.0 * x).fract() * 60.0 + EPS).floor()
+            x.rem_euclid(MINS_PER_H).floor()
         }
         fn get_percent(y: f64) -> f64 {
             (100.0 * y + EPS).floor()
         }
 
         let x_fmt = |x, _range: &RangeInclusive<f64>| {
-            if x < 0.0 || x >= 5.0 {
+            if x < 0.0 * MINS_PER_DAY || x >= 5.0 * MINS_PER_DAY {
                 // No labels outside value bounds
                 String::new()
-            } else if is_approx_integer(x) {
+            } else if is_approx_integer(x / MINS_PER_DAY) {
                 // Days
                 format!("Day {}", get_day(x))
             } else {
@@ -410,7 +421,7 @@ impl Widget for &mut CustomAxisDemo {
         };
 
         Plot::new("custom_axes")
-            .data_aspect(2.0)
+            .data_aspect(2.0 * MINS_PER_DAY as f32)
             .x_axis_formatter(x_fmt)
             .y_axis_formatter(y_fmt)
             .x_grid_spacer(CustomAxisDemo::x_grid)
