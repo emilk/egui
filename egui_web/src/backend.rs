@@ -268,6 +268,7 @@ impl AppRunner {
                 window_title: _, // TODO: change title of window
                 decorated: _,    // Can't toggle decorations
                 drag_window: _,  // Can't be dragged
+                window_pos: _,   // Can't set position of a web page
             } = app_output;
         }
 
