@@ -372,9 +372,6 @@ impl Widget for &mut CustomAxisDemo {
         const MINS_PER_DAY: f64 = CustomAxisDemo::MINS_PER_DAY;
         const MINS_PER_H: f64 = CustomAxisDemo::MINS_PER_H;
 
-        // Make sure floor() still rounds down, even in presence of arithmetic imprecision
-        const EPS: f64 = 1e-6;
-
         fn get_day(x: f64) -> f64 {
             (x / MINS_PER_DAY).floor()
         }
@@ -385,7 +382,7 @@ impl Widget for &mut CustomAxisDemo {
             x.rem_euclid(MINS_PER_H).floor()
         }
         fn get_percent(y: f64) -> f64 {
-            (100.0 * y + EPS).floor()
+            (100.0 * y).round()
         }
 
         let x_fmt = |x, _range: &RangeInclusive<f64>| {
