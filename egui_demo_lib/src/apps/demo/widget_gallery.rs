@@ -141,6 +141,12 @@ impl WidgetGallery {
         }
         ui.end_row();
 
+        ui.add(doc_link_label("Link", "link"));
+        if ui.link("Click me!").clicked() {
+            *boolean = !*boolean;
+        }
+        ui.end_row();
+
         ui.add(doc_link_label("Checkbox", "checkbox"));
         ui.checkbox(boolean, "Checkbox");
         ui.end_row();

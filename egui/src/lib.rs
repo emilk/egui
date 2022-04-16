@@ -494,7 +494,8 @@ pub mod special_emojis {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum WidgetType {
     Label, // TODO: emit Label events
-    Hyperlink,
+    /// e.g. a hyperlink
+    Link,
     TextEdit,
     Button,
     Checkbox,
