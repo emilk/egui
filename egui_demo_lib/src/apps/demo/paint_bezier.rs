@@ -31,7 +31,7 @@ impl Default for PaintBezier {
                 pos2(200.0, 200.0),
                 pos2(250.0, 50.0),
             ],
-            stroke: Stroke::new(1.0, Color32::LIGHT_BLUE),
+            stroke: Stroke::new(1.0, Color32::from_rgb(25, 200, 100)),
             fill: Color32::from_rgb(50, 100, 150).linear_multiply(0.25),
             aux_stroke: Stroke::new(1.0, Color32::RED.linear_multiply(0.25)),
             bounding_box_stroke: Stroke::new(0.0, Color32::LIGHT_GREEN.linear_multiply(0.25)),
@@ -164,7 +164,7 @@ impl super::View for PaintBezier {
         });
         self.ui_control(ui);
 
-        Frame::dark_canvas(ui.style()).show(ui, |ui| {
+        Frame::canvas(ui.style()).show(ui, |ui| {
             self.ui_content(ui);
         });
     }

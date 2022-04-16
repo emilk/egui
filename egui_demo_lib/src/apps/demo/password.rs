@@ -8,6 +8,7 @@
 /// ``` ignore
 /// password_ui(ui, &mut my_password);
 /// ```
+#[allow(clippy::ptr_arg)] // false positive
 pub fn password_ui(ui: &mut egui::Ui, password: &mut String) -> egui::Response {
     // This widget has its own state — show or hide password characters (`show_plaintext`).
     // In this case we use a simple `bool`, but you can also declare your own type.
@@ -18,7 +19,7 @@ pub fn password_ui(ui: &mut egui::Ui, password: &mut String) -> egui::Response {
     let state_id = ui.id().with("show_plaintext");
 
     // Get state for this widget.
-    // You should get state by value, not by reference to avoid borrowing of `Memory`.
+    // You should get state by value, not by reference to avoid borrowing of [`Memory`].
     let mut show_plaintext = ui.data().get_temp::<bool>(state_id).unwrap_or(false);
 
     // Process ui, change a local copy of the state

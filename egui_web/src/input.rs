@@ -22,24 +22,23 @@ pub fn button_from_mouse_event(event: &web_sys::MouseEvent) -> Option<egui::Poin
 /// should not jump to a different position. Therefore, we do not calculate the average position
 /// of all touches, but we keep using the same touch as long as it is available.
 ///
-/// `touch_id_for_pos` is the `TouchId` of the `Touch` we previously used to determine the
+/// `touch_id_for_pos` is the [`TouchId`](egui::TouchId) of the [`Touch`](web_sys::Touch) we previously used to determine the
 /// pointer position.
 pub fn pos_from_touch_event(
     canvas_id: &str,
     event: &web_sys::TouchEvent,
     touch_id_for_pos: &mut Option<egui::TouchId>,
 ) -> egui::Pos2 {
-    let touch_for_pos;
-    if let Some(touch_id_for_pos) = touch_id_for_pos {
+    let touch_for_pos = if let Some(touch_id_for_pos) = touch_id_for_pos {
         // search for the touch we previously used for the position
         // (unfortunately, `event.touches()` is not a rust collection):
-        touch_for_pos = (0..event.touches().length())
+        (0..event.touches().length())
             .into_iter()
             .map(|i| event.touches().get(i).unwrap())
-            .find(|touch| egui::TouchId::from(touch.identifier()) == *touch_id_for_pos);
+            .find(|touch| egui::TouchId::from(touch.identifier()) == *touch_id_for_pos)
     } else {
-        touch_for_pos = None;
-    }
+        None
+    };
     // Use the touch found above or pick the first, or return a default position if there is no
     // touch at all. (The latter is not expected as the current method is only called when there is
     // at least one touch.)
@@ -94,6 +93,7 @@ pub fn should_ignore_key(key: &str) -> bool {
                 | "Enter"
                 | "Esc"
                 | "Escape"
+                | "GroupNext" // https://github.com/emilk/egui/issues/510
                 | "Help"
                 | "Home"
                 | "Insert"

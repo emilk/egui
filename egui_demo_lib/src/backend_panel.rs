@@ -12,7 +12,7 @@ enum RunMode {
     /// For instance, a GUI for a thermostat need to repaint each time the temperature changes.
     /// To ensure the UI is up to date you need to call `egui::Context::request_repaint()` each
     /// time such an event happens. You can also chose to call `request_repaint()` once every second
-    /// or after every single frame - this is called `Continuous` mode,
+    /// or after every single frame - this is called [`Continuous`](RunMode::Continuous) mode,
     /// and for games and interactive tools that need repainting every frame anyway, this should be the default.
     Reactive,
 
@@ -41,22 +41,19 @@ impl Default for RunMode {
 
 // ----------------------------------------------------------------------------
 
+#[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct BackendPanel {
     pub open: bool,
 
     #[cfg_attr(feature = "serde", serde(skip))]
-    // go back to `Reactive` mode each time we start
+    // go back to [`Reactive`] mode each time we start
     run_mode: RunMode,
 
     /// current slider value for current gui scale
     #[cfg_attr(feature = "serde", serde(skip))]
     pixels_per_point: Option<f32>,
-
-    /// maximum size of the web browser canvas
-    max_size_points_ui: egui::Vec2,
-    pub max_size_points_active: egui::Vec2,
 
     #[cfg_attr(feature = "serde", serde(skip))]
     frame_history: crate::frame_history::FrameHistory,
@@ -64,22 +61,8 @@ pub struct BackendPanel {
     egui_windows: EguiWindows,
 }
 
-impl Default for BackendPanel {
-    fn default() -> Self {
-        Self {
-            open: false,
-            run_mode: Default::default(),
-            pixels_per_point: Default::default(),
-            max_size_points_ui: egui::Vec2::new(1024.0, 2048.0),
-            max_size_points_active: egui::Vec2::new(1024.0, 2048.0),
-            frame_history: Default::default(),
-            egui_windows: Default::default(),
-        }
-    }
-}
-
 impl BackendPanel {
-    pub fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
+    pub fn update(&mut self, ctx: &egui::Context, frame: &mut epi::Frame) {
         self.frame_history
             .on_new_frame(ctx.input().time, frame.info().cpu_usage);
 
@@ -93,7 +76,7 @@ impl BackendPanel {
         self.egui_windows.windows(ctx);
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui, frame: &epi::Frame) {
+    pub fn ui(&mut self, ui: &mut egui::Ui, frame: &mut epi::Frame) {
         egui::trace!(ui);
         ui.vertical_centered(|ui| {
             ui.heading("💻 Backend");
@@ -148,7 +131,7 @@ impl BackendPanel {
         }
     }
 
-    fn integration_ui(&mut self, ui: &mut egui::Ui, frame: &epi::Frame) {
+    fn integration_ui(&mut self, ui: &mut egui::Ui, frame: &mut epi::Frame) {
         if frame.is_web() {
             ui.label("egui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
             ui.label(
@@ -157,17 +140,6 @@ impl BackendPanel {
             ui.hyperlink("https://github.com/emilk/egui");
 
             ui.separator();
-
-            ui.add(
-                egui::Slider::new(&mut self.max_size_points_ui.x, 512.0..=f32::INFINITY)
-                    .logarithmic(true)
-                    .largest_finite(8192.0)
-                    .text("Max width"),
-            )
-            .on_hover_text("Maximum width of the egui region of the web page.");
-            if !ui.ctx().is_using_pointer() {
-                self.max_size_points_active = self.max_size_points_ui;
-            }
         }
 
         show_integration_name(ui, &frame.info());
@@ -273,9 +245,6 @@ fn show_integration_name(ui: &mut egui::Ui, integration_info: &epi::IntegrationI
                     name,
                     format!("https://github.com/emilk/egui/tree/master/{}", name),
                 );
-            }
-            name if name.starts_with("egui_web") => {
-                ui.hyperlink_to(name, "https://github.com/emilk/egui/tree/master/egui_web");
             }
             name => {
                 ui.label(name);

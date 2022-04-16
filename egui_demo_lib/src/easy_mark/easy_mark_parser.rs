@@ -133,7 +133,7 @@ impl<'a> Parser<'a> {
             self.s = rest;
             self.start_of_line = false;
             self.style.code = true;
-            let rest_of_line = &self.s[..self.s.find('\n').unwrap_or_else(|| self.s.len())];
+            let rest_of_line = &self.s[..self.s.find('\n').unwrap_or(self.s.len())];
             if let Some(end) = rest_of_line.find('`') {
                 let item = Item::Text(self.style, &self.s[..end]);
                 self.s = &self.s[end + 1..];
@@ -153,7 +153,7 @@ impl<'a> Parser<'a> {
     /// `<url>` or `[link](url)`
     fn url(&mut self) -> Option<Item<'a>> {
         if self.s.starts_with('<') {
-            let this_line = &self.s[..self.s.find('\n').unwrap_or_else(|| self.s.len())];
+            let this_line = &self.s[..self.s.find('\n').unwrap_or(self.s.len())];
             if let Some(url_end) = this_line.find('>') {
                 let url = &self.s[1..url_end];
                 self.s = &self.s[url_end + 1..];
@@ -164,7 +164,7 @@ impl<'a> Parser<'a> {
 
         // [text](url)
         if self.s.starts_with('[') {
-            let this_line = &self.s[..self.s.find('\n').unwrap_or_else(|| self.s.len())];
+            let this_line = &self.s[..self.s.find('\n').unwrap_or(self.s.len())];
             if let Some(bracket_end) = this_line.find(']') {
                 let text = &this_line[1..bracket_end];
                 if this_line[bracket_end + 1..].starts_with('(') {
@@ -217,7 +217,7 @@ impl<'a> Iterator for Parser<'a> {
             if self.start_of_line {
                 // leading space (indentation)
                 if self.s.starts_with(' ') {
-                    let length = self.s.find(|c| c != ' ').unwrap_or_else(|| self.s.len());
+                    let length = self.s.find(|c| c != ' ').unwrap_or(self.s.len());
                     self.s = &self.s[length..];
                     self.start_of_line = true; // indentation doesn't count
                     return Some(Item::Indentation(length));

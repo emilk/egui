@@ -30,15 +30,11 @@ impl Default for ColorTest {
 }
 
 impl epi::App for ColorTest {
-    fn name(&self) -> &str {
-        "🎨 Color test"
-    }
-
-    fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut epi::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             if frame.is_web() {
                 ui.label(
-                    "NOTE: The WebGL1 backend without sRGB support does NOT pass the color test.",
+                    "NOTE: Some old browsers stuck on WebGL1 without sRGB support will not pass the color test.",
                 );
                 ui.separator();
             }
@@ -132,9 +128,9 @@ impl ColorTest {
 
         ui.separator();
 
-        // TODO: another ground truth where we do the alpha-blending against the background also.
-        // TODO: exactly the same thing, but with vertex colors (no textures)
-        self.show_gradients(ui, WHITE, (TRANSPARENT, BLACK));
+        self.show_gradients(ui, BLACK, (BLACK, WHITE));
+        ui.separator();
+        self.show_gradients(ui, WHITE, (BLACK, TRANSPARENT));
         ui.separator();
         self.show_gradients(ui, BLACK, (TRANSPARENT, WHITE));
         ui.separator();
@@ -149,6 +145,10 @@ impl ColorTest {
         ui.separator();
 
         pixel_test(ui);
+
+        ui.separator();
+
+        blending_and_feathering_test(ui);
     }
 
     fn show_gradients(&mut self, ui: &mut Ui, bg_fill: Color32, (left, right): (Color32, Color32)) {
@@ -357,6 +357,12 @@ impl TextureManager {
 fn pixel_test(ui: &mut Ui) {
     ui.label("Each subsequent square should be one physical pixel larger than the previous. They should be exactly one physical pixel apart. They should be perfectly aligned to the pixel grid.");
 
+    let color = if ui.style().visuals.dark_mode {
+        egui::Color32::WHITE
+    } else {
+        egui::Color32::BLACK
+    };
+
     let pixels_per_point = ui.ctx().pixels_per_point();
     let num_squares: u32 = 8;
     let size_pixels = Vec2::new(
@@ -379,7 +385,101 @@ fn pixel_test(ui: &mut Ui) {
             ),
             Vec2::splat(size as f32) / pixels_per_point,
         );
-        painter.rect_filled(rect_points, 0.0, egui::Color32::WHITE);
+        painter.rect_filled(rect_points, 0.0, color);
         cursor_pixel.x += (1 + size) as f32;
     }
+}
+
+fn blending_and_feathering_test(ui: &mut Ui) {
+    ui.label("Some fine lines for testing anti-aliasing and blending:");
+
+    let size = Vec2::new(512.0, 512.0);
+    let (response, painter) = ui.allocate_painter(size, Sense::hover());
+    let rect = response.rect;
+
+    let mut top_half = rect;
+    top_half.set_bottom(top_half.center().y);
+    painter.rect_filled(top_half, 0.0, Color32::BLACK);
+    paint_fine_lines_and_text(&painter, top_half, Color32::WHITE);
+
+    let mut bottom_half = rect;
+    bottom_half.set_top(bottom_half.center().y);
+    painter.rect_filled(bottom_half, 0.0, Color32::WHITE);
+    paint_fine_lines_and_text(&painter, bottom_half, Color32::BLACK);
+}
+
+fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Color32) {
+    {
+        let mut x = 0.0;
+        for opacity in [1.00, 0.50, 0.25, 0.10, 0.05, 0.02, 0.01, 0.00] {
+            painter.text(
+                rect.center_top() + Vec2::new(0.0, x),
+                Align2::LEFT_TOP,
+                format!("{:.0}% white", 100.0 * opacity),
+                FontId::proportional(16.0),
+                Color32::WHITE.linear_multiply(opacity),
+            );
+            painter.text(
+                rect.center_top() + Vec2::new(80.0, x),
+                Align2::LEFT_TOP,
+                format!("{:.0}% gray", 100.0 * opacity),
+                FontId::proportional(16.0),
+                Color32::GRAY.linear_multiply(opacity),
+            );
+            painter.text(
+                rect.center_top() + Vec2::new(160.0, x),
+                Align2::LEFT_TOP,
+                format!("{:.0}% black", 100.0 * opacity),
+                FontId::proportional(16.0),
+                Color32::BLACK.linear_multiply(opacity),
+            );
+            x += 20.0;
+        }
+    }
+
+    rect.max.x = rect.center().x;
+
+    rect = rect.shrink(12.0);
+    for width in [0.5, 1.0, 2.0] {
+        painter.text(
+            rect.left_top(),
+            Align2::CENTER_CENTER,
+            width.to_string(),
+            FontId::monospace(14.0),
+            color,
+        );
+
+        painter.add(egui::epaint::CubicBezierShape::from_points_stroke(
+            [
+                rect.left_top() + Vec2::new(16.0, 0.0),
+                rect.right_top(),
+                rect.right_center(),
+                rect.right_bottom(),
+            ],
+            false,
+            Color32::TRANSPARENT,
+            Stroke::new(width, color),
+        ));
+
+        rect.min.y += 32.0;
+        rect.max.x -= 32.0;
+    }
+
+    rect.min.y += 16.0;
+    painter.text(
+        rect.left_top(),
+        Align2::LEFT_CENTER,
+        "transparent --> opaque",
+        FontId::monospace(11.0),
+        color,
+    );
+    rect.min.y += 12.0;
+    let mut mesh = Mesh::default();
+    mesh.colored_vertex(rect.left_bottom(), Color32::TRANSPARENT);
+    mesh.colored_vertex(rect.left_top(), Color32::TRANSPARENT);
+    mesh.colored_vertex(rect.right_bottom(), color);
+    mesh.colored_vertex(rect.right_top(), color);
+    mesh.add_triangle(0, 1, 2);
+    mesh.add_triangle(1, 2, 3);
+    painter.add(mesh);
 }

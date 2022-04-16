@@ -1,7 +1,8 @@
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use crate::{
-    mutex::{Arc, Mutex, MutexGuard},
+    mutex::{Mutex, MutexGuard},
     text::{
         font::{Font, FontImpl},
         Galley, LayoutJob,
@@ -36,17 +37,17 @@ impl Default for FontId {
 
 impl FontId {
     #[inline]
-    pub fn new(size: f32, family: FontFamily) -> Self {
+    pub const fn new(size: f32, family: FontFamily) -> Self {
         Self { size, family }
     }
 
     #[inline]
-    pub fn proportional(size: f32) -> Self {
+    pub const fn proportional(size: f32) -> Self {
         Self::new(size, FontFamily::Proportional)
     }
 
     #[inline]
-    pub fn monospace(size: f32) -> Self {
+    pub const fn monospace(size: f32) -> Self {
         Self::new(size, FontFamily::Monospace)
     }
 }
@@ -315,12 +316,13 @@ impl Default for FontDefinitions {
 
 /// The collection of fonts used by `epaint`.
 ///
-/// Required in order to paint text.
-/// Create one and reuse. Cheap to clone.
+/// Required in order to paint text. Create one and reuse. Cheap to clone.
+///
+/// Each [`Fonts`] comes with a font atlas textures that needs to be used when painting.
+///
+/// If you are using `egui`, use `egui::Context::set_fonts` and `egui::Context::fonts`.
 ///
 /// You need to call [`Self::begin_frame`] and [`Self::font_image_delta`] once every frame.
-///
-/// Wrapper for `Arc<Mutex<FontsAndCache>>`.
 pub struct Fonts(Arc<Mutex<FontsAndCache>>);
 
 impl Fonts {
@@ -539,7 +541,7 @@ impl FontsImpl {
             // Make the top left pixel fully white:
             let (pos, image) = atlas.allocate((1, 1));
             assert_eq!(pos, (0, 0));
-            image[pos] = 255;
+            image[pos] = 1.0;
         }
 
         let atlas = Arc::new(Mutex::new(atlas));
@@ -658,7 +660,7 @@ struct FontImplCache {
     pixels_per_point: f32,
     ab_glyph_fonts: BTreeMap<String, (FontTweak, ab_glyph::FontArc)>,
 
-    /// Map font pixel sizes and names to the cached `FontImpl`.
+    /// Map font pixel sizes and names to the cached [`FontImpl`].
     cache: ahash::AHashMap<(u32, String), Arc<FontImpl>>,
 }
 

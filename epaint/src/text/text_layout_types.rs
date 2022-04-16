@@ -1,9 +1,10 @@
 #![allow(clippy::derive_hash_xor_eq)] // We need to impl Hash for f32, but we don't implement Eq, which is fine
 
 use std::ops::Range;
+use std::sync::Arc;
 
 use super::{cursor::*, font::UvRect};
-use crate::{mutex::Arc, Color32, FontId, Mesh, Stroke};
+use crate::{Color32, FontId, Mesh, Stroke};
 use emath::*;
 
 /// Describes the task of laying out text.
@@ -37,21 +38,18 @@ use emath::*;
 /// );
 /// ```
 ///
-/// As you can see, constructing a `LayoutJob` is currently a lot of work.
+/// As you can see, constructing a [`LayoutJob`] is currently a lot of work.
 /// It would be nice to have a helper macro for it!
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct LayoutJob {
-    /// The complete text of this job, referenced by `LayoutSection`.
+    /// The complete text of this job, referenced by [`LayoutSection`].
     pub text: String,
 
     /// The different section, which can have different fonts, colors, etc.
     pub sections: Vec<LayoutSection>,
 
-    /// Try to break text so that no row is wider than this.
-    /// Set to [`f32::INFINITY`] to turn off wrapping.
-    /// Note that `\n` always produces a new line.
-    pub wrap_width: f32,
+    pub wrap: TextWrapping,
 
     /// The first row must be at least this high.
     /// This is in case we lay out text that is the continuation
@@ -68,7 +66,7 @@ pub struct LayoutJob {
     /// How to horizontally align the text (`Align::LEFT`, `Align::Center`, `Align::RIGHT`).
     pub halign: Align,
 
-    /// Justify text so that word-wrapped rows fill the whole [`Self::wrap_width`]
+    /// Justify text so that word-wrapped rows fill the whole [`TextWrapping::max_width`]
     pub justify: bool,
 }
 
@@ -78,7 +76,7 @@ impl Default for LayoutJob {
         Self {
             text: Default::default(),
             sections: Default::default(),
-            wrap_width: f32::INFINITY,
+            wrap: Default::default(),
             first_row_min_height: 0.0,
             break_on_newline: true,
             halign: Align::LEFT,
@@ -98,7 +96,10 @@ impl LayoutJob {
                 format: TextFormat::simple(font_id, color),
             }],
             text,
-            wrap_width,
+            wrap: TextWrapping {
+                max_width: wrap_width,
+                ..Default::default()
+            },
             break_on_newline: true,
             ..Default::default()
         }
@@ -114,7 +115,7 @@ impl LayoutJob {
                 format: TextFormat::simple(font_id, color),
             }],
             text,
-            wrap_width: f32::INFINITY,
+            wrap: Default::default(),
             break_on_newline: false,
             ..Default::default()
         }
@@ -129,7 +130,7 @@ impl LayoutJob {
                 format,
             }],
             text,
-            wrap_width: f32::INFINITY,
+            wrap: Default::default(),
             break_on_newline: true,
             ..Default::default()
         }
@@ -140,7 +141,7 @@ impl LayoutJob {
         self.sections.is_empty()
     }
 
-    /// Helper for adding a new section when building a `LayoutJob`.
+    /// Helper for adding a new section when building a [`LayoutJob`].
     pub fn append(&mut self, text: &str, leading_space: f32, format: TextFormat) {
         let start = self.text.len();
         self.text += text;
@@ -168,7 +169,7 @@ impl std::hash::Hash for LayoutJob {
         let Self {
             text,
             sections,
-            wrap_width,
+            wrap,
             first_row_min_height,
             break_on_newline,
             halign,
@@ -177,7 +178,7 @@ impl std::hash::Hash for LayoutJob {
 
         text.hash(state);
         sections.hash(state);
-        crate::f32_hash(state, *wrap_width);
+        wrap.hash(state);
         crate::f32_hash(state, *first_row_min_height);
         break_on_newline.hash(state);
         halign.hash(state);
@@ -257,6 +258,54 @@ impl TextFormat {
 
 // ----------------------------------------------------------------------------
 
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct TextWrapping {
+    /// Try to break text so that no row is wider than this.
+    /// Set to [`f32::INFINITY`] to turn off wrapping.
+    /// Note that `\n` always produces a new line.
+    pub max_width: f32,
+
+    /// Maximum amount of rows the text should have.
+    /// Set to `0` to disable this.
+    pub max_rows: usize,
+
+    /// Don't try to break text at an appropriate place.
+    pub break_anywhere: bool,
+
+    /// Character to use to represent clipped text, `…` for example, which is the default.
+    pub overflow_character: Option<char>,
+}
+
+impl std::hash::Hash for TextWrapping {
+    #[inline]
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let Self {
+            max_width,
+            max_rows,
+            break_anywhere,
+            overflow_character,
+        } = self;
+        crate::f32_hash(state, *max_width);
+        max_rows.hash(state);
+        break_anywhere.hash(state);
+        overflow_character.hash(state);
+    }
+}
+
+impl Default for TextWrapping {
+    fn default() -> Self {
+        Self {
+            max_width: f32::INFINITY,
+            max_rows: 0,
+            break_anywhere: false,
+            overflow_character: Some('…'),
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// Text that has been layed out, ready for painting.
 ///
 /// You can create a [`Galley`] using [`crate::Fonts::layout_job`];
@@ -308,11 +357,11 @@ pub struct Row {
     /// The mesh, ready to be rendered.
     pub visuals: RowVisuals,
 
-    /// If true, this `Row` came from a paragraph ending with a `\n`.
+    /// If true, this [`Row`] came from a paragraph ending with a `\n`.
     /// The `\n` itself is omitted from [`Self::glyphs`].
-    /// A `\n` in the input text always creates a new `Row` below it,
-    /// so that text that ends with `\n` has an empty `Row` last.
-    /// This also implies that the last `Row` in a `Galley` always has `ends_with_newline == false`.
+    /// A `\n` in the input text always creates a new [`Row`] below it,
+    /// so that text that ends with `\n` has an empty [`Row`] last.
+    /// This also implies that the last [`Row`] in a [`Galley`] always has `ends_with_newline == false`.
     pub ends_with_newline: bool,
 }
 
@@ -373,13 +422,13 @@ impl Glyph {
 // ----------------------------------------------------------------------------
 
 impl Row {
-    /// Excludes the implicit `\n` after the `Row`, if any.
+    /// Excludes the implicit `\n` after the [`Row`], if any.
     #[inline]
     pub fn char_count_excluding_newline(&self) -> usize {
         self.glyphs.len()
     }
 
-    /// Includes the implicit `\n` after the `Row`, if any.
+    /// Includes the implicit `\n` after the [`Row`], if any.
     #[inline]
     pub fn char_count_including_newline(&self) -> usize {
         self.glyphs.len() + (self.ends_with_newline as usize)

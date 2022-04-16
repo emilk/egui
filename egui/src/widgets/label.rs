@@ -32,7 +32,7 @@ impl Label {
         self.text.text()
     }
 
-    /// If `true`, the text will wrap to stay within the max width of the `Ui`.
+    /// If `true`, the text will wrap to stay within the max width of the [`Ui`].
     ///
     /// By default [`Self::wrap`] will be true in vertical layouts
     /// and horizontal layouts with wrapping,
@@ -103,7 +103,7 @@ impl Label {
             let first_row_indentation = available_width - ui.available_size_before_wrap().x;
             egui_assert!(first_row_indentation.is_finite());
 
-            text_job.job.wrap_width = available_width;
+            text_job.job.wrap.max_width = available_width;
             text_job.job.first_row_min_height = cursor.height();
             text_job.job.halign = Align::Min;
             text_job.job.justify = false;
@@ -129,9 +129,9 @@ impl Label {
             (pos, text_galley, response)
         } else {
             if should_wrap {
-                text_job.job.wrap_width = available_width;
+                text_job.job.wrap.max_width = available_width;
             } else {
-                text_job.job.wrap_width = f32::INFINITY;
+                text_job.job.wrap.max_width = f32::INFINITY;
             };
 
             if ui.is_grid() {

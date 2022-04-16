@@ -4,39 +4,43 @@
 //! and are happy with just using egui for all visuals,
 //! Then `eframe` is for you!
 //!
-//! To get started, look at <https://github.com/emilk/eframe_template>.
+//! To get started, see the [examples](https://github.com/emilk/egui/tree/master/examples).
+//! To learn how to set up `eframe` for web and native, go to <https://github.com/emilk/eframe_template/> and follow the instructions there!
 //!
-//! You can also take a look at [the `eframe` examples folder](https://github.com/emilk/egui/tree/master/eframe/examples).
-//!
-//! You write your application code for [`epi`] (implementing [`epi::App`]) and then
-//! call from [`crate::run_native`] your `main.rs`, and/or call `eframe::start_web` from your `lib.rs`.
+//! In short, you implement [`App`] and then
+//! call [`crate::run_native`] from your `main.rs`, and/or call `eframe::start_web` from your `lib.rs`.
 //!
 //! `eframe` is implemented using [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web) for web and
-//! [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium) or [`egui_glow`](https://github.com/emilk/egui/tree/master/egui_glow) for native.
+//! [`egui_glow`](https://github.com/emilk/egui/tree/master/egui_glow) for native.
 //!
 //! ## Usage, native:
 //! ``` no_run
-//! use eframe::{epi, egui};
+//! use eframe::egui;
+//!
+//! fn main() {
+//!     let native_options = eframe::NativeOptions::default();
+//!     eframe::run_native("My egui App", native_options, Box::new(|cc| Box::new(MyEguiApp::new(cc))));
+//! }
 //!
 //! #[derive(Default)]
 //! struct MyEguiApp {}
 //!
-//! impl epi::App for MyEguiApp {
-//!    fn name(&self) -> &str {
-//!        "My egui App"
-//!    }
+//! impl MyEguiApp {
+//!     fn new(cc: &eframe::CreationContext<'_>) -> Self {
+//!         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
+//!         // Restore app state using cc.storage (requires the "persistence" feature).
+//!         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
+//!         // for e.g. egui::PaintCallback.
+//!         Self::default()
+//!     }
+//! }
 //!
-//!    fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
+//! impl eframe::App for MyEguiApp {
+//!    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
 //!        egui::CentralPanel::default().show(ctx, |ui| {
 //!            ui.heading("Hello World!");
 //!        });
 //!    }
-//!}
-//!
-//! fn main() {
-//!     let app = MyEguiApp::default();
-//!     let native_options = eframe::NativeOptions::default();
-//!     eframe::run_native(Box::new(app), native_options);
 //! }
 //! ```
 //!
@@ -49,26 +53,17 @@
 //! #[cfg(target_arch = "wasm32")]
 //! #[wasm_bindgen]
 //! pub fn start(canvas_id: &str) -> Result<(), eframe::wasm_bindgen::JsValue> {
-//!     let app = MyEguiApp::default();
-//!     eframe::start_web(canvas_id, Box::new(app))
+//!     eframe::start_web(canvas_id, Box::new(|cc| Box::new(MyApp::new(cc))))
 //! }
 //! ```
 
-// Forbid warnings in release builds:
-#![cfg_attr(not(debug_assertions), deny(warnings))]
-#![forbid(unsafe_code)]
-#![warn(
-    clippy::all,
-    missing_docs,
-    rust_2018_idioms,
-    rustdoc::missing_crate_level_docs
-)]
 #![allow(clippy::needless_doctest_main)]
 
+// Re-export all useful libraries:
 pub use {egui, egui::emath, egui::epaint, epi};
 
-#[cfg(not(target_arch = "wasm32"))]
-pub use epi::NativeOptions;
+// Re-export everything in `epi` so `eframe` users don't have to care about what `epi` is:
+pub use epi::*;
 
 // ----------------------------------------------------------------------------
 // When compiling for web
@@ -79,20 +74,6 @@ pub use egui_web::wasm_bindgen;
 /// Install event listeners to register different input events
 /// and start running the given app.
 ///
-/// For performance reasons (on some browsers) the egui canvas does not, by default,
-/// fill the whole width of the browser.
-/// This can be changed by overriding [`epi::Frame::max_size_points`].
-///
-/// ### Usage, native:
-/// ``` no_run
-/// fn main() {
-///     let app = MyEguiApp::default();
-///     let native_options = eframe::NativeOptions::default();
-///     eframe::run_native(Box::new(app), native_options);
-/// }
-/// ```
-///
-/// ### Web
 /// ``` no_run
 /// #[cfg(target_arch = "wasm32")]
 /// use wasm_bindgen::prelude::*;
@@ -104,85 +85,55 @@ pub use egui_web::wasm_bindgen;
 /// #[cfg(target_arch = "wasm32")]
 /// #[wasm_bindgen]
 /// pub fn start(canvas_id: &str) -> Result<(), eframe::wasm_bindgen::JsValue> {
-///     let app = MyEguiApp::default();
-///     eframe::start_web(canvas_id, Box::new(app))
+///     eframe::start_web(canvas_id, Box::new(|cc| Box::new(MyEguiApp::new(cc))))
 /// }
 /// ```
 #[cfg(target_arch = "wasm32")]
-pub fn start_web(canvas_id: &str, app: Box<dyn epi::App>) -> Result<(), wasm_bindgen::JsValue> {
-    egui_web::start(canvas_id, app)?;
+pub fn start_web(canvas_id: &str, app_creator: AppCreator) -> Result<(), wasm_bindgen::JsValue> {
+    egui_web::start(canvas_id, app_creator)?;
     Ok(())
 }
 
 // ----------------------------------------------------------------------------
 // When compiling natively
 
+/// This is how you start a native (desktop) app.
+///
+/// The first argument is name of your app, used for the title bar of the native window
+/// and the save location of persistence (see [`App::save`]).
+///
 /// Call from `fn main` like this:
 /// ``` no_run
-/// use eframe::{epi, egui};
+/// use eframe::egui;
+///
+/// fn main() {
+///     let native_options = eframe::NativeOptions::default();
+///     eframe::run_native("MyApp", native_options, Box::new(|cc| Box::new(MyEguiApp::new(cc))));
+/// }
 ///
 /// #[derive(Default)]
 /// struct MyEguiApp {}
 ///
-/// impl epi::App for MyEguiApp {
-///    fn name(&self) -> &str {
-///        "My egui App"
-///    }
+/// impl MyEguiApp {
+///     fn new(cc: &eframe::CreationContext<'_>) -> Self {
+///         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
+///         // Restore app state using cc.storage (requires the "persistence" feature).
+///         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
+///         // for e.g. egui::PaintCallback.
+///         Self::default()
+///     }
+/// }
 ///
-///    fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
+/// impl eframe::App for MyEguiApp {
+///    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
 ///        egui::CentralPanel::default().show(ctx, |ui| {
 ///            ui.heading("Hello World!");
 ///        });
 ///    }
-///}
-///
-/// fn main() {
-///     let app = MyEguiApp::default();
-///     let native_options = eframe::NativeOptions::default();
-///     eframe::run_native(Box::new(app), native_options);
 /// }
 /// ```
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(feature = "egui_glium")]
-pub fn run_native(app: Box<dyn epi::App>, native_options: epi::NativeOptions) -> ! {
-    egui_glium::run(app, &native_options)
+#[allow(clippy::needless_pass_by_value)]
+pub fn run_native(app_name: &str, native_options: NativeOptions, app_creator: AppCreator) -> ! {
+    egui_glow::run(app_name, &native_options, app_creator)
 }
-
-/// Call from `fn main` like this:
-/// ``` no_run
-/// use eframe::{epi, egui};
-///
-/// #[derive(Default)]
-/// struct MyEguiApp {}
-///
-/// impl epi::App for MyEguiApp {
-///    fn name(&self) -> &str {
-///        "My egui App"
-///    }
-///
-///    fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
-///        egui::CentralPanel::default().show(ctx, |ui| {
-///            ui.heading("Hello World!");
-///        });
-///    }
-///}
-///
-/// fn main() {
-///     let app = MyEguiApp::default();
-///     let native_options = eframe::NativeOptions::default();
-///     eframe::run_native(Box::new(app), native_options);
-/// }
-/// ```
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(not(feature = "egui_glium"))] // make sure we still compile with `--all-features`
-#[cfg(feature = "egui_glow")]
-pub fn run_native(app: Box<dyn epi::App>, native_options: epi::NativeOptions) -> ! {
-    egui_glow::run(app, &native_options)
-}
-
-// disabled since we want to be able to compile with `--all-features`
-// #[cfg(all(feature = "egui_glium", feature = "egui_glow"))]
-// compile_error!("Enable either egui_glium or egui_glow, not both");
-
-#[cfg(not(any(feature = "egui_glium", feature = "egui_glow")))]
-compile_error!("Enable either egui_glium or egui_glow");

@@ -301,7 +301,9 @@ impl<'open> Window<'open> {
                 } else {
                     0.0
                 };
-                let margins = frame.margin.sum() + vec2(0.0, title_bar_height);
+                let margins = frame.outer_margin.sum()
+                    + frame.inner_margin.sum()
+                    + vec2(0.0, title_bar_height);
 
                 interact(
                     window_interaction,
@@ -880,14 +882,10 @@ impl TitleBar {
 
         if let Some(content_response) = &content_response {
             // paint separator between title and content:
-            let left = outer_rect.left();
-            let right = outer_rect.right();
             let y = content_response.rect.top() + ui.spacing().item_spacing.y * 0.5;
             // let y = lerp(self.rect.bottom()..=content_response.rect.top(), 0.5);
-            ui.painter().line_segment(
-                [pos2(left, y), pos2(right, y)],
-                ui.visuals().widgets.noninteractive.bg_stroke,
-            );
+            let stroke = ui.visuals().widgets.noninteractive.bg_stroke;
+            ui.painter().hline(outer_rect.x_range(), y, stroke);
         }
 
         if ui

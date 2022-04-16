@@ -3,6 +3,9 @@ All notable changes to the `egui_glium` integration will be noted in this file.
 
 
 ## Unreleased
+* Remove "epi" feature ([#1361](https://github.com/emilk/egui/pull/1361)).
+* Remove need for `trait epi::NativeTexture` to use the `fn register_native_texture/replace_native_texture` ([#1361](https://github.com/emilk/egui/pull/1361)).
+* MSRV (Minimum Supported Rust Version) is now `1.60.0` ([#1467](https://github.com/emilk/egui/pull/1467)).
 
 
 ## 0.17.0 - 2022-02-22

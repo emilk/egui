@@ -1,4 +1,4 @@
-use epaint::mutex::Arc;
+use std::sync::Arc;
 
 use crate::{
     style::WidgetVisuals, text::LayoutJob, Align, Color32, FontFamily, FontSelection, Galley, Pos2,
@@ -10,7 +10,7 @@ use crate::{
 /// The style choices (font, color) are applied to the entire text.
 /// For more detailed control, use [`crate::text::LayoutJob`] instead.
 ///
-/// A `RichText` can be used in most widgets and helper functions, e.g. [`Ui::label`] and [`Ui::button`].
+/// A [`RichText`] can be used in most widgets and helper functions, e.g. [`Ui::label`] and [`Ui::button`].
 ///
 /// ### Example
 /// ```
@@ -345,10 +345,10 @@ pub enum WidgetText {
     ///
     /// Only [`LayoutJob::text`] and [`LayoutJob::sections`] are guaranteed to be respected.
     ///
-    /// [`LayoutJob::wrap_width`], [`LayoutJob::halign`], [`LayoutJob::justify`]
+    /// [`TextWrapping::max_width`](epaint::text::TextWrapping::max_width), [`LayoutJob::halign`], [`LayoutJob::justify`]
     /// and [`LayoutJob::first_row_min_height`] will likely be determined by the [`crate::Layout`]
     /// of the [`Ui`] the widget is placed in.
-    /// If you want all parts of the `LayoutJob` respected, then convert it to a
+    /// If you want all parts of the [`LayoutJob`] respected, then convert it to a
     /// [`Galley`] and use [`Self::Galley`] instead.
     LayoutJob(LayoutJob),
 
@@ -546,7 +546,7 @@ impl WidgetText {
         }
     }
 
-    /// Layout with wrap mode based on the containing `Ui`.
+    /// Layout with wrap mode based on the containing [`Ui`].
     ///
     /// wrap: override for [`Ui::wrap_text`].
     pub fn into_galley(
@@ -563,14 +563,14 @@ impl WidgetText {
             Self::RichText(text) => {
                 let valign = ui.layout().vertical_align();
                 let mut text_job = text.into_text_job(ui.style(), fallback_font.into(), valign);
-                text_job.job.wrap_width = wrap_width;
+                text_job.job.wrap.max_width = wrap_width;
                 WidgetTextGalley {
                     galley: ui.fonts().layout_job(text_job.job),
                     galley_has_color: text_job.job_has_color,
                 }
             }
             Self::LayoutJob(mut job) => {
-                job.wrap_width = wrap_width;
+                job.wrap.max_width = wrap_width;
                 WidgetTextGalley {
                     galley: ui.fonts().layout_job(job),
                     galley_has_color: true,

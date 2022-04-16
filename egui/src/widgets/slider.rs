@@ -57,7 +57,7 @@ pub enum SliderOrientation {
 /// # });
 /// ```
 ///
-/// The default `Slider` size is set by [`crate::style::Spacing::slider_width`].
+/// The default [`Slider`] size is set by [`crate::style::Spacing::slider_width`].
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Slider<'a> {
     get_set_value: GetSetValue<'a>,
@@ -454,11 +454,15 @@ impl<'a> Slider<'a> {
     }
 
     fn value_ui(&mut self, ui: &mut Ui, position_range: RangeInclusive<f32>) -> Response {
-        // If `DragValue` is controlled from the keyboard and `step` is defined, set speed to `step`
-        let change = ui.input().num_presses(Key::ArrowUp) as i32
-            + ui.input().num_presses(Key::ArrowRight) as i32
-            - ui.input().num_presses(Key::ArrowDown) as i32
-            - ui.input().num_presses(Key::ArrowLeft) as i32;
+        // If [`DragValue`] is controlled from the keyboard and `step` is defined, set speed to `step`
+        let change = {
+            // Hold one lock rather than 4 (see https://github.com/emilk/egui/pull/1380).
+            let input = ui.input();
+
+            input.num_presses(Key::ArrowUp) as i32 + input.num_presses(Key::ArrowRight) as i32
+                - input.num_presses(Key::ArrowDown) as i32
+                - input.num_presses(Key::ArrowLeft) as i32
+        };
         let speed = match self.step {
             Some(step) if change != 0 => step,
             _ => self.current_gradient(&position_range),
@@ -505,7 +509,7 @@ impl<'a> Slider<'a> {
                 || value_response.has_focus()
                 || value_response.lost_focus()
             {
-                // Use the `DragValue` id as the id of the whole widget,
+                // Use the [`DragValue`] id as the id of the whole widget,
                 // so that the focus events work as expected.
                 response = value_response.union(response);
             } else {

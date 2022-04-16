@@ -36,10 +36,10 @@ impl Default for Settings {
 /// Automatic undo system.
 ///
 /// Every frame you feed it the most recent state.
-/// The `Undoer` compares it with the latest undo point
+/// The [`Undoer`] compares it with the latest undo point
 /// and if there is a change it may create a new undo point.
 ///
-/// `Undoer` follows two simple rules:
+/// [`Undoer`] follows two simple rules:
 ///
 /// 1) If the state has changed since the latest undo point, but has
 ///    remained stable for `stable_time` seconds, an new undo point is created.
@@ -125,7 +125,7 @@ where
     }
 
     /// Call this as often as you want (e.g. every frame)
-    /// and `Undoer` will determine if a new undo point should be created.
+    /// and [`Undoer`] will determine if a new undo point should be created.
     ///
     /// * `current_time`: current time in seconds.
     pub fn feed_state(&mut self, current_time: f64, current_state: &State) {

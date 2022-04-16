@@ -8,9 +8,10 @@
 
 `eframe` is the official framework library for writing apps using [`egui`](https://github.com/emilk/egui). The app can be compiled both to run natively (cross platform) or be compiled to a web app (using WASM).
 
-To get started, go to <https://github.com/emilk/eframe_template/> and follow the instructions there!
+To get started, see the [examples](https://github.com/emilk/egui/tree/master/examples).
+To learn how to set up `eframe` for web and native, go to <https://github.com/emilk/eframe_template/> and follow the instructions there!
 
-You can also take a look at [the `eframe` examples folder](https://github.com/emilk/egui/tree/master/eframe/examples). There is also an excellent tutorial video at <https://www.youtube.com/watch?v=NtUkr_z7l84>.
+There is also a tutorial video at <https://www.youtube.com/watch?v=NtUkr_z7l84>.
 
 For how to use `egui`, see [the egui docs](https://docs.rs/egui).
 
@@ -18,7 +19,7 @@ For how to use `egui`, see [the egui docs](https://docs.rs/egui).
 
 `eframe` is a very thin crate that re-exports [`egui`](https://github.com/emilk/egui) and[`epi`](https://github.com/emilk/egui/tree/master/epi) with thin wrappers over the backends.
 
-`eframe` uses [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web) for web and [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium) or [`egui_glow`](https://github.com/emilk/egui/tree/master/egui_glow) for native.
+`eframe` uses [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web) for web and [`egui_glow`](https://github.com/emilk/egui/tree/master/egui_glow) for native.
 
 To use on Linux, first run:
 
@@ -26,23 +27,20 @@ To use on Linux, first run:
 sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev
 ```
 
+You need to either use `edition = "2021"`, or set `resolver = "2"` in the `[workspace`] section of your to-level `Cargo.toml`. See [this link](https://doc.rust-lang.org/edition-guide/rust-2021/default-cargo-resolver.html) for more info.
+
 
 ## Alternatives
-The default native backend for `eframe` is currently [`egui_glow`](https://github.com/emilk/egui/tree/master/egui_glow), but you can switch to the previous [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium) backend by putting this in your `Cargo.toml`:
-
-``` toml
-eframe = { version = "*", default-features = false, features = ["default_fonts", "egui_glium"] }
-```
-
-`eframe` is not the only way to write an app using `egui`! You can also try [`egui-miniquad`](https://github.com/not-fl3/egui-miniquad) and [`egui_sdl2_gl`](https://github.com/ArjunNair/egui_sdl2_gl).
+`eframe` is not the only way to write an app using `egui`! You can also try [`egui-miniquad`](https://github.com/not-fl3/egui-miniquad), [`bevy_egui`](https://github.com/mvlabat/bevy_egui), [`egui_sdl2_gl`](https://github.com/ArjunNair/egui_sdl2_gl), and others.
 
 
 ## Companion crates
 Not all rust crates work when compiled to WASM, but here are some useful crates have been designed to work well both natively and as WASM:
 
 * Audio: [`cpal`](https://github.com/RustAudio/cpal).
-* HTTP client: [`ehttp`](https://github.com/emilk/ehttp).
+* HTTP client: [`ehttp`](https://github.com/emilk/ehttp) and [`reqwest`](https://github.com/seanmonstar/reqwest).
 * Time: [`chrono`](https://github.com/chronotope/chrono).
+* WebSockets: [`ewebsock`](https://github.com/rerun-io/ewebsock).
 
 
 ## Name

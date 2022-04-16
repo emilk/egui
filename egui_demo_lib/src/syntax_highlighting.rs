@@ -7,7 +7,7 @@ pub fn code_view_ui(ui: &mut egui::Ui, mut code: &str) {
 
     let mut layouter = |ui: &egui::Ui, string: &str, _wrap_width: f32| {
         let layout_job = highlight(ui.ctx(), &theme, string, language);
-        // layout_job.wrap_width = wrap_width; // no wrapping
+        // layout_job.wrap.max_width = wrap_width; // no wrapping
         ui.fonts().layout_job(layout_job)
     };
 
@@ -277,7 +277,7 @@ impl CodeTheme {
             ui.data().insert_persisted(selected_id, selected_tt);
 
             egui::Frame::group(ui.style())
-                .margin(egui::Vec2::splat(2.0))
+                .inner_margin(egui::Vec2::splat(2.0))
                 .show(ui, |ui| {
                     // ui.group(|ui| {
                     ui.style_mut().override_text_style = Some(egui::TextStyle::Small);
@@ -404,7 +404,7 @@ impl Highlighter {
 
         while !text.is_empty() {
             if text.starts_with("//") {
-                let end = text.find('\n').unwrap_or_else(|| text.len());
+                let end = text.find('\n').unwrap_or(text.len());
                 job.append(&text[..end], 0.0, theme.formats[TokenType::Comment].clone());
                 text = &text[end..];
             } else if text.starts_with('"') {
@@ -412,7 +412,7 @@ impl Highlighter {
                     .find('"')
                     .map(|i| i + 2)
                     .or_else(|| text.find('\n'))
-                    .unwrap_or_else(|| text.len());
+                    .unwrap_or(text.len());
                 job.append(
                     &text[..end],
                     0.0,

@@ -21,6 +21,7 @@ pub struct ContextMenus {
     show_axes: [bool; 2],
     allow_drag: bool,
     allow_zoom: bool,
+    allow_scroll: bool,
     center_x_axis: bool,
     center_y_axis: bool,
     width: f32,
@@ -34,6 +35,7 @@ impl Default for ContextMenus {
             show_axes: [true, true],
             allow_drag: true,
             allow_zoom: true,
+            allow_scroll: true,
             center_x_axis: false,
             center_y_axis: false,
             width: 400.0,
@@ -99,6 +101,7 @@ impl super::View for ContextMenus {
                     ui.end_row();
                     if ui.checkbox(&mut self.allow_drag, "Drag").changed()
                         || ui.checkbox(&mut self.allow_zoom, "Zoom").changed()
+                        || ui.checkbox(&mut self.allow_scroll, "Scroll").changed()
                     {
                         ui.close_menu();
                     }
@@ -128,6 +131,7 @@ impl ContextMenus {
             .show_axes(self.show_axes)
             .allow_drag(self.allow_drag)
             .allow_zoom(self.allow_zoom)
+            .allow_scroll(self.allow_scroll)
             .center_x_axis(self.center_x_axis)
             .center_x_axis(self.center_y_axis)
             .width(self.width)

@@ -12,7 +12,7 @@ impl Default for Painting {
     fn default() -> Self {
         Self {
             lines: Default::default(),
-            stroke: Stroke::new(1.0, Color32::LIGHT_BLUE),
+            stroke: Stroke::new(1.0, Color32::from_rgb(25, 200, 100)),
         }
     }
 }
@@ -91,7 +91,7 @@ impl super::View for Painting {
         });
         self.ui_control(ui);
         ui.label("Paint with your mouse/touch!");
-        Frame::dark_canvas(ui.style()).show(ui, |ui| {
+        Frame::canvas(ui.style()).show(ui, |ui| {
             self.ui_content(ui);
         });
     }

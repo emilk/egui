@@ -22,7 +22,13 @@ impl super::Demo for DancingStrings {
 
 impl super::View for DancingStrings {
     fn ui(&mut self, ui: &mut Ui) {
-        Frame::dark_canvas(ui.style()).show(ui, |ui| {
+        let color = if ui.visuals().dark_mode {
+            Color32::from_additive_luminance(196)
+        } else {
+            Color32::from_black_alpha(240)
+        };
+
+        Frame::canvas(ui.style()).show(ui, |ui| {
             ui.ctx().request_repaint();
             let time = ui.input().time;
 
@@ -49,10 +55,7 @@ impl super::View for DancingStrings {
                     .collect();
 
                 let thickness = 10.0 / mode as f32;
-                shapes.push(epaint::Shape::line(
-                    points,
-                    Stroke::new(thickness, Color32::from_additive_luminance(196)),
-                ));
+                shapes.push(epaint::Shape::line(points, Stroke::new(thickness, color)));
             }
 
             ui.painter().extend(shapes);

@@ -3,7 +3,7 @@
 //! Try the live web demo: <https://www.egui.rs/#demo>. Read more about egui at <https://github.com/emilk/egui>.
 //!
 //! `egui` is in heavy development, with each new version having breaking changes.
-//! You need to have rust 1.56.0 or later to use `egui`.
+//! You need to have rust 1.60.0 or later to use `egui`.
 //!
 //! To quickly get started with egui, you can take a look at [`eframe_template`](https://github.com/emilk/eframe_template)
 //! which uses [`eframe`](https://docs.rs/eframe).
@@ -74,7 +74,7 @@
 //!
 //! #[derive(PartialEq)]
 //! enum Enum { First, Second, Third }
-//! let mut my_enum = Enum::First;
+//! # let mut my_enum = Enum::First;
 //! ui.horizontal(|ui| {
 //!     ui.radio_value(&mut my_enum, Enum::First, "First");
 //!     ui.radio_value(&mut my_enum, Enum::Second, "Second");
@@ -112,7 +112,7 @@
 //! ``` no_run
 //! # fn handle_platform_output(_: egui::PlatformOutput) {}
 //! # fn gather_input() -> egui::RawInput { egui::RawInput::default() }
-//! # fn paint(textures_detla: egui::TexturesDelta, _: Vec<egui::ClippedMesh>) {}
+//! # fn paint(textures_detla: egui::TexturesDelta, _: Vec<egui::ClippedPrimitive>) {}
 //! let mut ctx = egui::Context::default();
 //!
 //! // Game loop:
@@ -128,8 +128,8 @@
 //!         });
 //!     });
 //!     handle_platform_output(full_output.platform_output);
-//!     let clipped_meshes = ctx.tessellate(full_output.shapes); // create triangles to paint
-//!     paint(full_output.textures_delta, clipped_meshes);
+//!     let clipped_primitives = ctx.tessellate(full_output.shapes); // create triangles to paint
+//!     paint(full_output.textures_delta, clipped_primitives);
 //! }
 //! ```
 //!
@@ -157,12 +157,31 @@
 //! * check if the mouse is hovering or clicking that location
 //! * chose button colors based on if it is being hovered or clicked
 //! * add a [`Shape::Rect`] and [`Shape::Text`] to the list of shapes to be painted later this frame
-//! * return a [`Response`] with the `clicked` member so the user can check for interactions
+//! * return a [`Response`] with the [`clicked`](`Response::clicked`) member so the user can check for interactions
 //!
 //! There is no button being created and stored somewhere.
 //! The only output of this call is some colored shapes, and a [`Response`].
 //!
+//! Similarly, consider this code:
+//!
+//! ```
+//! # egui::__run_test_ui(|ui| {
+//! # let mut value: f32 = 0.0;
+//! ui.add(egui::Slider::new(&mut value, 0.0..=100.0).text("My value"));
+//! # });
+//! ```
+//!
+//! Here egui will read `value` to display the slider, then look if the mouse is dragging the slider and if so change the `value`.
+//! Note that `egui` does not store the slider value for you - it only displays the current value, and changes it
+//! by how much the slider has been dragged in the previous few milliseconds.
+//! This means it is responsibility of the egui user to store the state (`value`) so that it persists between frames.
+//!
+//! It can be useful to read the code for the toggle switch example widget to get a better understanding
+//! of how egui works: <https://github.com/emilk/egui/blob/master/egui_demo_lib/src/apps/demo/toggle_switch.rs>.
+//!
 //! Read more about the pros and cons of immediate mode at <https://github.com/emilk/egui#why-immediate-mode>.
+//!
+//! # Misc
 //!
 //! ## How widgets works
 //!
@@ -273,85 +292,6 @@
 //! # });
 //! ```
 
-// Forbid warnings in release builds:
-#![cfg_attr(not(debug_assertions), deny(warnings))]
-#![forbid(unsafe_code)]
-#![warn(
-    clippy::all,
-    clippy::await_holding_lock,
-    clippy::char_lit_as_u8,
-    clippy::checked_conversions,
-    clippy::dbg_macro,
-    clippy::debug_assert_with_mut_call,
-    clippy::disallowed_method,
-    clippy::doc_markdown,
-    clippy::empty_enum,
-    clippy::enum_glob_use,
-    clippy::exit,
-    clippy::expl_impl_clone_on_copy,
-    clippy::explicit_deref_methods,
-    clippy::explicit_into_iter_loop,
-    clippy::fallible_impl_from,
-    clippy::filter_map_next,
-    clippy::flat_map_option,
-    clippy::float_cmp_const,
-    clippy::fn_params_excessive_bools,
-    clippy::from_iter_instead_of_collect,
-    clippy::if_let_mutex,
-    clippy::implicit_clone,
-    clippy::imprecise_flops,
-    clippy::inefficient_to_string,
-    clippy::invalid_upcast_comparisons,
-    clippy::large_digit_groups,
-    clippy::large_stack_arrays,
-    clippy::large_types_passed_by_value,
-    clippy::let_unit_value,
-    clippy::linkedlist,
-    clippy::lossy_float_literal,
-    clippy::macro_use_imports,
-    clippy::manual_ok_or,
-    clippy::map_err_ignore,
-    clippy::map_flatten,
-    clippy::map_unwrap_or,
-    clippy::match_on_vec_items,
-    clippy::match_same_arms,
-    clippy::match_wild_err_arm,
-    clippy::match_wildcard_for_single_variants,
-    clippy::mem_forget,
-    clippy::mismatched_target_os,
-    clippy::missing_errors_doc,
-    clippy::missing_safety_doc,
-    clippy::mut_mut,
-    clippy::mutex_integer,
-    clippy::needless_borrow,
-    clippy::needless_continue,
-    clippy::needless_for_each,
-    clippy::needless_pass_by_value,
-    clippy::option_option,
-    clippy::path_buf_push_overwrite,
-    clippy::ptr_as_ptr,
-    clippy::ref_option_ref,
-    clippy::rest_pat_in_fully_bound_structs,
-    clippy::same_functions_in_if_condition,
-    clippy::semicolon_if_nothing_returned,
-    clippy::single_match_else,
-    clippy::string_add_assign,
-    clippy::string_add,
-    clippy::string_lit_as_bytes,
-    clippy::string_to_string,
-    clippy::todo,
-    clippy::trait_duplication_in_bounds,
-    clippy::unimplemented,
-    clippy::unnested_or_patterns,
-    clippy::unused_self,
-    clippy::useless_transmute,
-    clippy::verbose_file_reads,
-    clippy::zero_sized_map_values,
-    future_incompatible,
-    nonstandard_style,
-    rust_2018_idioms,
-    rustdoc::missing_crate_level_docs
-)]
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
 
@@ -386,14 +326,15 @@ pub use epaint::{
     color, mutex,
     text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
     textures::TexturesDelta,
-    AlphaImage, ClippedMesh, Color32, ColorImage, ImageData, Mesh, Rgba, Rounding, Shape, Stroke,
-    TextureHandle, TextureId,
+    ClippedPrimitive, Color32, ColorImage, FontImage, ImageData, Mesh, PaintCallback,
+    PaintCallbackInfo, Rgba, Rounding, Shape, Stroke, TextureHandle, TextureId,
 };
 
 pub mod text {
+    pub use crate::text_edit::CCursorRange;
     pub use epaint::text::{
-        FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob, LayoutSection, TextFormat,
-        TAB_SIZE,
+        cursor::CCursor, FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob,
+        LayoutSection, TextFormat, TAB_SIZE,
     };
 }
 

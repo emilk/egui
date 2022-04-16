@@ -1,10 +1,14 @@
 [package]
 name = "egui_extras"
 version = "0.17.0"
-authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+authors = [
+  "Dominik Rössler <dominik@freshx.de>",
+  "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",
+  "René Rössler <rene@freshx.de>",
+]
 description = "Extra functionality and widgets for the egui GUI library"
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.60"
 homepage = "https://github.com/emilk/egui"
 license = "MIT OR Apache-2.0"
 readme = "../README.md"
@@ -25,21 +29,36 @@ default = []
 # Support loading svg images
 svg = ["resvg", "tiny-skia", "usvg"]
 
+# Datepicker widget
+datepicker = ["chrono"]
+
+# Persistence
+persistence = ["serde"]
+
+# Log warnings using `tracing` crate
+tracing = ["dep:tracing", "egui/tracing"]
+
 
 [dependencies]
-egui = { version = "0.17.0", path = "../egui", default-features = false, features = [
-  "single_threaded",
-] }
-parking_lot = "0.12"
+egui = { version = "0.17.0", path = "../egui", default-features = false }
 
 # Optional dependencies:
+
+# Date operations needed for datepicker widget
+chrono = { version = "0.4", optional = true }
 
 # Add support for loading images with the `image` crate.
 # You also need to ALSO opt-in to the image formats you want to support, like so:
 #     image = { version = "0.24", features = ["jpeg", "png"] }
-image = { version = "0.24", optional = true, default-features = false, features = [] }
+image = { version = "0.24", optional = true, default-features = false }
 
 # svg feature
 resvg = { version = "0.22", optional = true }
 tiny-skia = { version = "0.6", optional = true }
 usvg = { version = "0.22", optional = true }
+
+# feature "persistence":
+serde = { version = "1", features = ["derive"], optional = true }
+
+# feature "tracing"
+tracing = { version = "0.1", optional = true }

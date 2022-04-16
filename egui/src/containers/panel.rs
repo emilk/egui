@@ -37,7 +37,7 @@ impl PanelState {
 
 // ----------------------------------------------------------------------------
 
-/// `Left` or `Right`
+/// [`Left`](Side::Left) or [`Right`](Side::Right)
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Side {
     Left,
@@ -132,7 +132,7 @@ impl SidePanel {
         self
     }
 
-    /// The initial wrapping width of the `SidePanel`.
+    /// The initial wrapping width of the [`SidePanel`].
     pub fn default_width(mut self, default_width: f32) -> Self {
         self.default_width = default_width;
         self
@@ -162,7 +162,7 @@ impl SidePanel {
 }
 
 impl SidePanel {
-    /// Show the panel inside a `Ui`.
+    /// Show the panel inside a [`Ui`].
     pub fn show_inside<R>(
         self,
         ui: &mut Ui,
@@ -171,7 +171,7 @@ impl SidePanel {
         self.show_inside_dyn(ui, Box::new(add_contents))
     }
 
-    /// Show the panel inside a `Ui`.
+    /// Show the panel inside a [`Ui`].
     fn show_inside_dyn<'c, R>(
         self,
         ui: &mut Ui,
@@ -201,7 +201,7 @@ impl SidePanel {
         let mut is_resizing = false;
         if resizable {
             let resize_id = id.with("__resize");
-            if let Some(pointer) = ui.ctx().latest_pointer_pos() {
+            if let Some(pointer) = ui.ctx().pointer_latest_pos() {
                 let we_are_on_top = ui
                     .ctx()
                     .layer_id_at(pointer)
@@ -217,9 +217,9 @@ impl SidePanel {
                     && ui.input().pointer.any_down()
                     && mouse_over_resize_line
                 {
-                    ui.memory().interaction.drag_id = Some(resize_id);
+                    ui.memory().set_dragged_id(resize_id);
                 }
-                is_resizing = ui.memory().interaction.drag_id == Some(resize_id);
+                is_resizing = ui.memory().is_being_dragged(resize_id);
                 if is_resizing {
                     let width = (pointer.x - side.side_x(panel_rect)).abs();
                     let width =
@@ -273,11 +273,9 @@ impl SidePanel {
             // draw on top of ALL panels so that the resize line won't be covered by subsequent panels
             let resize_layer = LayerId::new(Order::Foreground, Id::new("panel_resize"));
             let resize_x = side.opposite().side_x(rect);
-            let top = pos2(resize_x, rect.top());
-            let bottom = pos2(resize_x, rect.bottom());
             ui.ctx()
                 .layer_painter(resize_layer)
-                .line_segment([top, bottom], stroke);
+                .vline(resize_x, rect.y_range(), stroke);
         }
 
         inner_response
@@ -321,7 +319,7 @@ impl SidePanel {
 
 // ----------------------------------------------------------------------------
 
-/// `Top` or `Bottom`
+/// [`Top`](TopBottomSide::Top) or [`Bottom`](TopBottomSide::Bottom)
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum TopBottomSide {
     Top,
@@ -416,7 +414,7 @@ impl TopBottomPanel {
         self
     }
 
-    /// The initial height of the `SidePanel`.
+    /// The initial height of the [`SidePanel`].
     /// Defaults to [`style::Spacing::interact_size`].y.
     pub fn default_height(mut self, default_height: f32) -> Self {
         self.default_height = Some(default_height);
@@ -447,7 +445,7 @@ impl TopBottomPanel {
 }
 
 impl TopBottomPanel {
-    /// Show the panel inside a `Ui`.
+    /// Show the panel inside a [`Ui`].
     pub fn show_inside<R>(
         self,
         ui: &mut Ui,
@@ -456,7 +454,7 @@ impl TopBottomPanel {
         self.show_inside_dyn(ui, Box::new(add_contents))
     }
 
-    /// Show the panel inside a `Ui`.
+    /// Show the panel inside a [`Ui`].
     fn show_inside_dyn<'c, R>(
         self,
         ui: &mut Ui,
@@ -560,11 +558,9 @@ impl TopBottomPanel {
             // draw on top of ALL panels so that the resize line won't be covered by subsequent panels
             let resize_layer = LayerId::new(Order::Foreground, Id::new("panel_resize"));
             let resize_y = side.opposite().side_y(rect);
-            let left = pos2(rect.left(), resize_y);
-            let right = pos2(rect.right(), resize_y);
             ui.ctx()
                 .layer_painter(resize_layer)
-                .line_segment([left, right], stroke);
+                .hline(rect.x_range(), resize_y, stroke);
         }
 
         inner_response
@@ -615,9 +611,9 @@ impl TopBottomPanel {
 /// A panel that covers the remainder of the screen,
 /// i.e. whatever area is left after adding other panels.
 ///
-/// `CentralPanel` must be added after all other panels.
+/// [`CentralPanel`] must be added after all other panels.
 ///
-/// NOTE: Any [`Window`]s and [`Area`]s will cover the top-level `CentralPanel`.
+/// NOTE: Any [`Window`]s and [`Area`]s will cover the top-level [`CentralPanel`].
 ///
 /// See the [module level docs](crate::containers::panel) for more details.
 ///
@@ -643,7 +639,7 @@ impl CentralPanel {
 }
 
 impl CentralPanel {
-    /// Show the panel inside a `Ui`.
+    /// Show the panel inside a [`Ui`].
     pub fn show_inside<R>(
         self,
         ui: &mut Ui,
@@ -652,7 +648,7 @@ impl CentralPanel {
         self.show_inside_dyn(ui, Box::new(add_contents))
     }
 
-    /// Show the panel inside a `Ui`.
+    /// Show the panel inside a [`Ui`].
     fn show_inside_dyn<'c, R>(
         self,
         ui: &mut Ui,

@@ -55,7 +55,7 @@ pub struct ScrollAreaOutput<R> {
     /// What the user closure returned.
     pub inner: R,
 
-    /// `Id` of the `ScrollArea`.
+    /// [`Id`] of the [`ScrollArea`].
     pub id: Id,
 
     /// The current state of the scroll area.
@@ -74,6 +74,8 @@ pub struct ScrollAreaOutput<R> {
 /// });
 /// # });
 /// ```
+///
+/// You can scroll to an element using [`Response::scroll_to_me`], [`Ui::scroll_to_cursor`] and [`Ui::scroll_to_rect`].
 #[derive(Clone, Debug)]
 #[must_use = "You should call .show()"]
 pub struct ScrollArea {
@@ -136,7 +138,7 @@ impl ScrollArea {
 
     /// The maximum width of the outer frame of the scroll area.
     ///
-    /// Use `f32::INFINITY` if you want the scroll area to expand to fit the surrounding `Ui` (default).
+    /// Use `f32::INFINITY` if you want the scroll area to expand to fit the surrounding [`Ui`] (default).
     ///
     /// See also [`Self::auto_shrink`].
     pub fn max_width(mut self, max_width: f32) -> Self {
@@ -146,7 +148,7 @@ impl ScrollArea {
 
     /// The maximum height of the outer frame of the scroll area.
     ///
-    /// Use `f32::INFINITY` if you want the scroll area to expand to fit the surrounding `Ui` (default).
+    /// Use `f32::INFINITY` if you want the scroll area to expand to fit the surrounding [`Ui`] (default).
     ///
     /// See also [`Self::auto_shrink`].
     pub fn max_height(mut self, max_height: f32) -> Self {
@@ -156,7 +158,7 @@ impl ScrollArea {
 
     /// The minimum width of a horizontal scroll area which requires scroll bars.
     ///
-    /// The `ScrollArea` will only become smaller than this if the content is smaller than this
+    /// The [`ScrollArea`] will only become smaller than this if the content is smaller than this
     /// (and so we don't require scroll bars).
     ///
     /// Default: `64.0`.
@@ -167,7 +169,7 @@ impl ScrollArea {
 
     /// The minimum height of a vertical scroll area which requires scroll bars.
     ///
-    /// The `ScrollArea` will only become smaller than this if the content is smaller than this
+    /// The [`ScrollArea`] will only become smaller than this if the content is smaller than this
     /// (and so we don't require scroll bars).
     ///
     /// Default: `64.0`.
@@ -183,7 +185,7 @@ impl ScrollArea {
         self
     }
 
-    /// A source for the unique `Id`, e.g. `.id_source("second_scroll_area")` or `.id_source(loop_index)`.
+    /// A source for the unique [`Id`], e.g. `.id_source("second_scroll_area")` or `.id_source(loop_index)`.
     pub fn id_source(mut self, id_source: impl std::hash::Hash) -> Self {
         self.id_source = Some(Id::new(id_source));
         self
@@ -241,7 +243,7 @@ impl ScrollArea {
     /// If `false`, the scroll area will not respond to user scrolling
     ///
     /// This can be used, for example, to optionally freeze scrolling while the user
-    /// is inputing text in a `TextEdit` widget contained within the scroll area.
+    /// is inputing text in a [`TextEdit`] widget contained within the scroll area.
     ///
     /// This controls both scrolling directions.
     pub fn enable_scrolling(mut self, enable: bool) -> Self {
@@ -325,6 +327,11 @@ impl ScrollArea {
 
         let id_source = id_source.unwrap_or_else(|| Id::new("scroll_area"));
         let id = ui.make_persistent_id(id_source);
+        ui.ctx().check_for_id_clash(
+            id,
+            Rect::from_min_size(ui.available_rect_before_wrap().min, Vec2::ZERO),
+            "ScrollArea",
+        );
         let mut state = State::load(&ctx, id).unwrap_or_default();
 
         state.offset.x = offset_x.unwrap_or(state.offset.x);
@@ -358,7 +365,7 @@ impl ScrollArea {
             let mut inner_size = outer_size - current_bar_use;
 
             // Don't go so far that we shrink to zero.
-            // In particular, if we put a `ScrollArea` inside of a `ScrollArea`, the inner
+            // In particular, if we put a [`ScrollArea`] inside of a [`ScrollArea`], the inner
             // one shouldn't collapse into nothingness.
             // See https://github.com/emilk/egui/issues/1097
             for d in 0..2 {
@@ -414,7 +421,7 @@ impl ScrollArea {
         }
     }
 
-    /// Show the `ScrollArea`, and add the contents to the viewport.
+    /// Show the [`ScrollArea`], and add the contents to the viewport.
     ///
     /// If the inner area can be very long, consider using [`Self::show_rows`] instead.
     pub fn show<R>(
@@ -453,9 +460,7 @@ impl ScrollArea {
         self.show_viewport(ui, |ui, viewport| {
             ui.set_height((row_height_with_spacing * total_rows as f32 - spacing.y).at_least(0.0));
 
-            let min_row = (viewport.min.y / row_height_with_spacing)
-                .floor()
-                .at_least(0.0) as usize;
+            let min_row = (viewport.min.y / row_height_with_spacing).floor() as usize;
             let max_row = (viewport.max.y / row_height_with_spacing).ceil() as usize + 1;
             let max_row = max_row.at_most(total_rows);
 

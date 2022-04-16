@@ -4,7 +4,7 @@ version = "0.17.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Backend-agnostic interface for writing apps using egui"
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.60"
 homepage = "https://github.com/emilk/egui/tree/master/epi"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -21,18 +21,20 @@ all-features = true
 
 [features]
 default = []
-# Enable the file_storage module for storing data to disk.
-file_storage = ["directories-next", "ron", "serde"]
+
 # Persist native window options and egui memory
-persistence = ["ron", "serde", "egui/persistence"]
+persistence = ["directories-next", "ron", "serde", "egui/persistence"]
 
 
 [dependencies]
-egui = { version = "0.17.0", path = "../egui", default-features = false, features = [
-  "single_threaded",
-] }
+egui = { version = "0.17.0", path = "../egui", default-features = false }
+glow = "0.11"
 tracing = "0.1"
 
-directories-next = { version = "2", optional = true }
+# Optional:
 ron = { version = "0.7", optional = true }
 serde = { version = "1", optional = true }
+
+# native:
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+directories-next = { version = "2", optional = true }

@@ -52,7 +52,7 @@ pub(crate) fn font_texture_ui(ui: &mut Ui, [width, height]: [usize; 2]) -> Respo
         response
             .on_hover_cursor(CursorIcon::ZoomIn)
             .on_hover_ui_at_pointer(|ui| {
-                if let Some(pos) = ui.ctx().latest_pointer_pos() {
+                if let Some(pos) = ui.ctx().pointer_latest_pos() {
                     let (_id, zoom_rect) = ui.allocate_space(vec2(128.0, 128.0));
                     let u = remap_clamp(pos.x, rect.x_range(), 0.0..=tex_w);
                     let v = remap_clamp(pos.y, rect.y_range(), 0.0..=tex_h);
@@ -91,19 +91,24 @@ impl Widget for &epaint::stats::PaintStats {
                 shape_path,
                 shape_mesh,
                 shape_vec,
+                num_callbacks,
                 text_shape_vertices,
                 text_shape_indices,
-                clipped_meshes,
+                clipped_primitives,
                 vertices,
                 indices,
             } = self;
 
             ui.label("Intermediate:");
             label(ui, shapes, "shapes").on_hover_text("Boxes, circles, etc");
-            label(ui, shape_text, "text (mostly cached)");
+            ui.horizontal(|ui| {
+                label(ui, shape_text, "text");
+                ui.small("(mostly cached)");
+            });
             label(ui, shape_path, "paths");
             label(ui, shape_mesh, "nested meshes");
             label(ui, shape_vec, "nested shapes");
+            ui.label(format!("{:6} callbacks", num_callbacks));
             ui.add_space(10.0);
 
             ui.label("Text shapes:");
@@ -113,7 +118,7 @@ impl Widget for &epaint::stats::PaintStats {
             ui.add_space(10.0);
 
             ui.label("Tessellated (and culled):");
-            label(ui, clipped_meshes, "clipped_meshes")
+            label(ui, clipped_primitives, "primitives lists")
                 .on_hover_text("Number of separate clip rectangles");
             label(ui, vertices, "vertices");
             label(ui, indices, "indices").on_hover_text("Three 32-bit indices per triangles");
@@ -134,9 +139,8 @@ impl Widget for &mut epaint::TessellationOptions {
     fn ui(self, ui: &mut Ui) -> Response {
         ui.vertical(|ui| {
             let epaint::TessellationOptions {
-                pixels_per_point: _,
-                aa_size: _,
-                anti_alias,
+                feathering,
+                feathering_size_in_pixels,
                 coarse_tessellation_culling,
                 round_text_to_pixels,
                 debug_paint_clip_rects,
@@ -145,8 +149,15 @@ impl Widget for &mut epaint::TessellationOptions {
                 bezier_tolerance,
                 epsilon: _,
             } = self;
-            ui.checkbox(anti_alias, "Antialias")
+
+            ui.checkbox(feathering, "Feathering (antialias)")
                 .on_hover_text("Apply feathering to smooth out the edges of shapes. Turn off for small performance gain.");
+            let feathering_slider = crate::Slider::new(feathering_size_in_pixels, 0.0..=10.0)
+                .smallest_positive(0.1)
+                .logarithmic(true)
+                .text("Feathering size in pixels");
+            ui.add_enabled(*feathering, feathering_slider);
+
             ui.add(
                 crate::widgets::Slider::new(bezier_tolerance, 0.0001..=10.0)
                     .logarithmic(true)

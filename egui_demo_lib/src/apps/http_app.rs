@@ -54,11 +54,7 @@ impl Default for HttpApp {
 }
 
 impl epi::App for HttpApp {
-    fn name(&self) -> &str {
-        "⬇ HTTP"
-    }
-
-    fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut epi::Frame) {
         egui::TopBottomPanel::bottom("http_bottom").show(ctx, |ui| {
             let layout = egui::Layout::top_down(egui::Align::Center).with_main_justify(true);
             ui.allocate_ui_with_layout(ui.available_size(), layout, |ui| {
@@ -78,11 +74,10 @@ impl epi::App for HttpApp {
 
             if trigger_fetch {
                 let ctx = ctx.clone();
-                let frame = frame.clone();
                 let (sender, promise) = Promise::new();
                 let request = ehttp::Request::get(&self.url);
                 ehttp::fetch(request, move |response| {
-                    frame.request_repaint(); // wake up UI thread
+                    ctx.request_repaint(); // wake up UI thread
                     let resource = response.map(|response| Resource::from_response(&ctx, response));
                     sender.send(resource);
                 });
@@ -106,14 +101,14 @@ impl epi::App for HttpApp {
                         }
                     }
                 } else {
-                    ui.add(egui::Spinner::new());
+                    ui.spinner();
                 }
             }
         });
     }
 }
 
-fn ui_url(ui: &mut egui::Ui, frame: &epi::Frame, url: &mut String) -> bool {
+fn ui_url(ui: &mut egui::Ui, frame: &mut epi::Frame, url: &mut String) -> bool {
     let mut trigger_fetch = false;
 
     ui.horizontal(|ui| {
@@ -249,7 +244,7 @@ impl ColoredText {
             // Selectable text:
             let mut layouter = |ui: &egui::Ui, _string: &str, wrap_width: f32| {
                 let mut layout_job = self.0.clone();
-                layout_job.wrap_width = wrap_width;
+                layout_job.wrap.max_width = wrap_width;
                 ui.fonts().layout_job(layout_job)
             };
 
@@ -262,7 +257,7 @@ impl ColoredText {
             );
         } else {
             let mut job = self.0.clone();
-            job.wrap_width = ui.available_width();
+            job.wrap.max_width = ui.available_width();
             let galley = ui.fonts().layout_job(job);
             let (response, painter) = ui.allocate_painter(galley.size(), egui::Sense::hover());
             painter.add(egui::Shape::galley(response.rect.min, galley));

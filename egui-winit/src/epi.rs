@@ -21,6 +21,10 @@ pub fn window_builder(
         max_window_size,
         resizable,
         transparent,
+        vsync: _,          // used in `fn create_display`
+        multisampling: _,  // used in `fn create_display`
+        depth_buffer: _,   // used in `fn create_display`
+        stencil_buffer: _, // used in `fn create_display`
     } = native_options;
 
     let window_icon = icon_data.clone().and_then(load_icon);
@@ -120,108 +124,23 @@ pub fn handle_app_output(
 // ----------------------------------------------------------------------------
 
 /// For loading/saving app state and/or egui memory to disk.
-pub struct Persistence {
-    storage: Option<Box<dyn epi::Storage>>,
-    last_auto_save: instant::Instant,
-}
-
-#[allow(clippy::unused_self)]
-impl Persistence {
+pub fn create_storage(_app_name: &str) -> Option<Box<dyn epi::Storage>> {
     #[cfg(feature = "persistence")]
-    const EGUI_MEMORY_KEY: &'static str = "egui";
-    #[cfg(feature = "persistence")]
-    const WINDOW_KEY: &'static str = "window";
-
-    pub fn from_app_name(app_name: &str) -> Self {
-        fn create_storage(_app_name: &str) -> Option<Box<dyn epi::Storage>> {
-            #[cfg(feature = "persistence")]
-            if let Some(storage) = epi::file_storage::FileStorage::from_app_name(_app_name) {
-                return Some(Box::new(storage));
-            }
-            None
-        }
-
-        Self {
-            storage: create_storage(app_name),
-            last_auto_save: instant::Instant::now(),
-        }
+    if let Some(storage) = epi::file_storage::FileStorage::from_app_name(_app_name) {
+        return Some(Box::new(storage));
     }
-
-    pub fn storage(&self) -> Option<&dyn epi::Storage> {
-        self.storage.as_deref()
-    }
-
-    #[cfg(feature = "persistence")]
-    pub fn load_window_settings(&self) -> Option<crate::WindowSettings> {
-        epi::get_value(&**self.storage.as_ref()?, Self::WINDOW_KEY)
-    }
-
-    #[cfg(not(feature = "persistence"))]
-    pub fn load_window_settings(&self) -> Option<crate::WindowSettings> {
-        None
-    }
-
-    #[cfg(feature = "persistence")]
-    pub fn load_memory(&self) -> Option<egui::Memory> {
-        epi::get_value(&**self.storage.as_ref()?, Self::EGUI_MEMORY_KEY)
-    }
-
-    #[cfg(not(feature = "persistence"))]
-    pub fn load_memory(&self) -> Option<egui::Memory> {
-        None
-    }
-
-    pub fn save(
-        &mut self,
-        _app: &mut dyn epi::App,
-        _egui_ctx: &egui::Context,
-        _window: &winit::window::Window,
-    ) {
-        #[cfg(feature = "persistence")]
-        if let Some(storage) = &mut self.storage {
-            if _app.persist_native_window() {
-                epi::set_value(
-                    storage.as_mut(),
-                    Self::WINDOW_KEY,
-                    &crate::WindowSettings::from_display(_window),
-                );
-            }
-            if _app.persist_egui_memory() {
-                epi::set_value(
-                    storage.as_mut(),
-                    Self::EGUI_MEMORY_KEY,
-                    &*_egui_ctx.memory(),
-                );
-            }
-            _app.save(storage.as_mut());
-            storage.flush();
-        }
-    }
-
-    pub fn maybe_autosave(
-        &mut self,
-        app: &mut dyn epi::App,
-        egui_ctx: &egui::Context,
-        window: &winit::window::Window,
-    ) {
-        let now = instant::Instant::now();
-        if now - self.last_auto_save > app.auto_save_interval() {
-            self.save(app, egui_ctx, window);
-            self.last_auto_save = now;
-        }
-    }
+    None
 }
 
 // ----------------------------------------------------------------------------
 
 /// Everything needed to make a winit-based integration for [`epi`].
 pub struct EpiIntegration {
-    frame: epi::Frame,
-    persistence: crate::epi::Persistence,
+    pub frame: epi::Frame,
+    last_auto_save: instant::Instant,
     pub egui_ctx: egui::Context,
     pending_full_output: egui::FullOutput,
     egui_winit: crate::State,
-    pub app: Box<dyn epi::App>,
     /// When set, it is time to quit
     quit: bool,
     can_drag_window: bool,
@@ -230,19 +149,18 @@ pub struct EpiIntegration {
 impl EpiIntegration {
     pub fn new(
         integration_name: &'static str,
+        gl: std::rc::Rc<glow::Context>,
         max_texture_side: usize,
         window: &winit::window::Window,
-        repaint_signal: std::sync::Arc<dyn epi::backend::RepaintSignal>,
-        persistence: crate::epi::Persistence,
-        app: Box<dyn epi::App>,
+        storage: Option<Box<dyn epi::Storage>>,
     ) -> Self {
         let egui_ctx = egui::Context::default();
 
-        *egui_ctx.memory() = persistence.load_memory().unwrap_or_default();
+        *egui_ctx.memory() = load_egui_memory(storage.as_deref()).unwrap_or_default();
 
         let prefer_dark_mode = prefer_dark_mode();
 
-        let frame = epi::Frame::new(epi::backend::FrameData {
+        let frame = epi::Frame {
             info: epi::IntegrationInfo {
                 name: integration_name,
                 web_info: None,
@@ -251,8 +169,9 @@ impl EpiIntegration {
                 native_pixels_per_point: Some(crate::native_pixels_per_point(window)),
             },
             output: Default::default(),
-            repaint_signal,
-        });
+            storage,
+            gl,
+        };
 
         if prefer_dark_mode == Some(true) {
             egui_ctx.set_visuals(egui::Visuals::dark());
@@ -260,41 +179,22 @@ impl EpiIntegration {
             egui_ctx.set_visuals(egui::Visuals::light());
         }
 
-        let mut slf = Self {
+        Self {
             frame,
-            persistence,
+            last_auto_save: instant::Instant::now(),
             egui_ctx,
             egui_winit: crate::State::new(max_texture_side, window),
             pending_full_output: Default::default(),
-            app,
             quit: false,
             can_drag_window: false,
-        };
-
-        slf.setup(window);
-        if slf.app.warm_up_enabled() {
-            slf.warm_up(window);
         }
-
-        slf
     }
 
-    fn setup(&mut self, window: &winit::window::Window) {
-        self.app
-            .setup(&self.egui_ctx, &self.frame, self.persistence.storage());
-        let app_output = self.frame.take_app_output();
-
-        if app_output.quit {
-            self.quit = self.app.on_exit_event();
-        }
-
-        crate::epi::handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
-    }
-
-    fn warm_up(&mut self, window: &winit::window::Window) {
+    pub fn warm_up(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {
+        crate::profile_function!();
         let saved_memory: egui::Memory = self.egui_ctx.memory().clone();
         self.egui_ctx.memory().set_everything_is_visible(true);
-        let full_output = self.update(window);
+        let full_output = self.update(app, window);
         self.pending_full_output.append(full_output); // Handle it next frame
         *self.egui_ctx.memory() = saved_memory; // We don't want to remember that windows were huge.
         self.egui_ctx.clear_animations();
@@ -305,11 +205,11 @@ impl EpiIntegration {
         self.quit
     }
 
-    pub fn on_event(&mut self, event: &winit::event::WindowEvent<'_>) {
+    pub fn on_event(&mut self, app: &mut dyn epi::App, event: &winit::event::WindowEvent<'_>) {
         use winit::event::{ElementState, MouseButton, WindowEvent};
 
         match event {
-            WindowEvent::CloseRequested => self.quit = self.app.on_exit_event(),
+            WindowEvent::CloseRequested => self.quit = app.on_exit_event(),
             WindowEvent::Destroyed => self.quit = true,
             WindowEvent::MouseInput {
                 button: MouseButton::Left,
@@ -322,12 +222,17 @@ impl EpiIntegration {
         self.egui_winit.on_event(&self.egui_ctx, event);
     }
 
-    pub fn update(&mut self, window: &winit::window::Window) -> egui::FullOutput {
+    pub fn update(
+        &mut self,
+        app: &mut dyn epi::App,
+        window: &winit::window::Window,
+    ) -> egui::FullOutput {
         let frame_start = instant::Instant::now();
 
         let raw_input = self.egui_winit.take_egui_input(window);
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
-            self.app.update(egui_ctx, &self.frame);
+            crate::profile_scope!("App::update");
+            app.update(egui_ctx, &mut self.frame);
         });
         self.pending_full_output.append(full_output);
         let full_output = std::mem::take(&mut self.pending_full_output);
@@ -337,13 +242,13 @@ impl EpiIntegration {
             app_output.drag_window &= self.can_drag_window; // Necessary on Windows; see https://github.com/emilk/egui/pull/1108
             self.can_drag_window = false;
             if app_output.quit {
-                self.quit = self.app.on_exit_event();
+                self.quit = app.on_exit_event();
             }
             crate::epi::handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
         }
 
         let frame_time = (instant::Instant::now() - frame_start).as_secs_f64() as f32;
-        self.frame.lock().info.cpu_usage = Some(frame_time);
+        self.frame.info.cpu_usage = Some(frame_time);
 
         full_output
     }
@@ -357,16 +262,66 @@ impl EpiIntegration {
             .handle_platform_output(window, &self.egui_ctx, platform_output);
     }
 
-    pub fn maybe_autosave(&mut self, window: &winit::window::Window) {
-        self.persistence
-            .maybe_autosave(&mut *self.app, &self.egui_ctx, window);
+    // ------------------------------------------------------------------------
+    // Persistance stuff:
+
+    pub fn maybe_autosave(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {
+        let now = instant::Instant::now();
+        if now - self.last_auto_save > app.auto_save_interval() {
+            self.save(app, window);
+            self.last_auto_save = now;
+        }
     }
 
-    pub fn on_exit(&mut self, window: &winit::window::Window) {
-        self.app.on_exit();
-        self.persistence
-            .save(&mut *self.app, &self.egui_ctx, window);
+    pub fn save(&mut self, _app: &mut dyn epi::App, _window: &winit::window::Window) {
+        #[cfg(feature = "persistence")]
+        if let Some(storage) = self.frame.storage_mut() {
+            crate::profile_function!();
+
+            if _app.persist_native_window() {
+                crate::profile_scope!("native_window");
+                epi::set_value(
+                    storage,
+                    STORAGE_WINDOW_KEY,
+                    &crate::WindowSettings::from_display(_window),
+                );
+            }
+            if _app.persist_egui_memory() {
+                crate::profile_scope!("egui_memory");
+                epi::set_value(storage, STORAGE_EGUI_MEMORY_KEY, &*self.egui_ctx.memory());
+            }
+            {
+                crate::profile_scope!("App::save");
+                _app.save(storage);
+            }
+
+            crate::profile_scope!("Storage::flush");
+            storage.flush();
+        }
     }
+}
+
+#[cfg(feature = "persistence")]
+const STORAGE_EGUI_MEMORY_KEY: &str = "egui";
+#[cfg(feature = "persistence")]
+const STORAGE_WINDOW_KEY: &str = "window";
+
+pub fn load_window_settings(_storage: Option<&dyn epi::Storage>) -> Option<crate::WindowSettings> {
+    #[cfg(feature = "persistence")]
+    {
+        epi::get_value(_storage?, STORAGE_WINDOW_KEY)
+    }
+    #[cfg(not(feature = "persistence"))]
+    None
+}
+
+pub fn load_egui_memory(_storage: Option<&dyn epi::Storage>) -> Option<egui::Memory> {
+    #[cfg(feature = "persistence")]
+    {
+        epi::get_value(_storage?, STORAGE_EGUI_MEMORY_KEY)
+    }
+    #[cfg(not(feature = "persistence"))]
+    None
 }
 
 #[cfg(feature = "dark-light")]

@@ -64,6 +64,7 @@ impl super::View for TextEdit {
             anything_selected,
             egui::Label::new("Press ctrl+T to toggle the case of selected text (cmd+T on Mac)"),
         );
+
         if ui
             .input_mut()
             .consume_key(egui::Modifiers::COMMAND, egui::Key::T)
@@ -82,5 +83,29 @@ impl super::View for TextEdit {
                 text.insert_text(&new_text, selected_chars.start);
             }
         }
+
+        ui.horizontal(|ui| {
+            ui.label("Move cursor to the:");
+
+            if ui.button("start").clicked() {
+                let text_edit_id = output.response.id;
+                if let Some(mut state) = egui::TextEdit::load_state(ui.ctx(), text_edit_id) {
+                    let ccursor = egui::text::CCursor::new(0);
+                    state.set_ccursor_range(Some(egui::text::CCursorRange::one(ccursor)));
+                    state.store(ui.ctx(), text_edit_id);
+                    ui.ctx().memory().request_focus(text_edit_id); // give focus back to the [`TextEdit`].
+                }
+            }
+
+            if ui.button("end").clicked() {
+                let text_edit_id = output.response.id;
+                if let Some(mut state) = egui::TextEdit::load_state(ui.ctx(), text_edit_id) {
+                    let ccursor = egui::text::CCursor::new(text.chars().count());
+                    state.set_ccursor_range(Some(egui::text::CCursorRange::one(ccursor)));
+                    state.store(ui.ctx(), text_edit_id);
+                    ui.ctx().memory().request_focus(text_edit_id); // give focus back to the [`TextEdit`].
+                }
+            }
+        });
     }
 }

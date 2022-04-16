@@ -7,16 +7,16 @@ use std::f32::INFINITY;
 /// It is what is used and updated by [`Layout`] when adding new widgets.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Region {
-    /// This is the minimal size of the `Ui`.
+    /// This is the minimal size of the [`Ui`](crate::Ui).
     /// When adding new widgets, this will generally expand.
     ///
     /// Always finite.
     ///
     /// The bounding box of all child widgets, but not necessarily a tight bounding box
-    /// since `Ui` can start with a non-zero min_rect size.
+    /// since [`Ui`](crate::Ui) can start with a non-zero min_rect size.
     pub min_rect: Rect,
 
-    /// The maximum size of this `Ui`. This is a *soft max*
+    /// The maximum size of this [`Ui`](crate::Ui). This is a *soft max*
     /// meaning new widgets will *try* not to expand beyond it,
     /// but if they have to, they will.
     ///
@@ -74,7 +74,7 @@ impl Region {
 
 // ----------------------------------------------------------------------------
 
-/// Layout direction, one of `LeftToRight`, `RightToLeft`, `TopDown`, `BottomUp`.
+/// Layout direction, one of [`LeftToRight`](Direction::LeftToRight), [`RightToLeft`](Direction::RightToLeft), [`TopDown`](Direction::TopDown), [`BottomUp`](Direction::BottomUp).
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum Direction {
@@ -473,7 +473,7 @@ impl Layout {
     }
 
     /// Returns where to put the next widget that is of the given size.
-    /// The returned `frame_rect` `Rect` will always be justified along the cross axis.
+    /// The returned `frame_rect` [`Rect`] will always be justified along the cross axis.
     /// This is what you then pass to `advance_after_rects`.
     /// Use `justify_and_align` to get the inner `widget_rect`.
     pub(crate) fn next_frame(&self, region: &Region, child_size: Vec2, spacing: Vec2) -> Rect {
@@ -772,32 +772,30 @@ impl Layout {
         let cursor = region.cursor;
         let next_pos = self.next_widget_position(region);
 
-        let align;
-
         let l = 64.0;
 
-        match self.main_dir {
+        let align = match self.main_dir {
             Direction::LeftToRight => {
                 painter.line_segment([cursor.left_top(), cursor.left_bottom()], stroke);
                 painter.arrow(next_pos, vec2(l, 0.0), stroke);
-                align = Align2([Align::LEFT, self.vertical_align()]);
+                Align2([Align::LEFT, self.vertical_align()])
             }
             Direction::RightToLeft => {
                 painter.line_segment([cursor.right_top(), cursor.right_bottom()], stroke);
                 painter.arrow(next_pos, vec2(-l, 0.0), stroke);
-                align = Align2([Align::RIGHT, self.vertical_align()]);
+                Align2([Align::RIGHT, self.vertical_align()])
             }
             Direction::TopDown => {
                 painter.line_segment([cursor.left_top(), cursor.right_top()], stroke);
                 painter.arrow(next_pos, vec2(0.0, l), stroke);
-                align = Align2([self.horizontal_align(), Align::TOP]);
+                Align2([self.horizontal_align(), Align::TOP])
             }
             Direction::BottomUp => {
                 painter.line_segment([cursor.left_bottom(), cursor.right_bottom()], stroke);
                 painter.arrow(next_pos, vec2(0.0, -l), stroke);
-                align = Align2([self.horizontal_align(), Align::BOTTOM]);
+                Align2([self.horizontal_align(), Align::BOTTOM])
             }
-        }
+        };
 
         painter.debug_text(next_pos, align, stroke.color, text);
     }

@@ -5,7 +5,25 @@ NOTE: [`egui_web`](../egui_web/CHANGELOG.md), [`egui-winit`](../egui-winit/CHANG
 
 
 ## Unreleased
-* Change default for `NativeOptions::drag_and_drop_support` to `true` ([#1329](https://github.com/emilk/egui/pull/1329))
+* Change default for `NativeOptions::drag_and_drop_support` to `true` ([#1329](https://github.com/emilk/egui/pull/1329)).
+* Remove the `egui_glium` feature. `eframe` will now always use `egui_glow` as the native backend ([#1357](https://github.com/emilk/egui/pull/1357)).
+* Removed `Frame::request_repaint` - just call `egui::Context::request_repaint` for the same effect ([#1366](https://github.com/emilk/egui/pull/1366)).
+* Use full browser width by default ([#1378](https://github.com/emilk/egui/pull/1378)).
+* Added new `NativeOptions`: `vsync`, `multisampling`, `depth_buffer`, `stencil_buffer`.
+* Changed app creation/setup ([#1363](https://github.com/emilk/egui/pull/1363)):
+  * Removed `App::setup` and `App::name`.
+  * Provide `CreationContext` when creating app with egui context, storage, integration info and glow context.
+  * Change interface of `run_native` and `start_web`.
+* Added `Frame::storage()` and `Frame::storage_mut()` ([#1418](https://github.com/emilk/egui/pull/1418)).
+  * You can now load/save state in `App::update`
+  * Changed `App::update` to take `&mut Frame` instead of `&Frame`.
+  * `Frame` is no longer `Clone` or `Sync`.
+* Add `glow` (OpenGL) context to `Frame` ([#1425](https://github.com/emilk/egui/pull/1425)).
+* `dark-light` (dark mode detection) is now an opt-in feature ([#1437](https://github.com/emilk/egui/pull/1437)).
+* Fixed potential scale bug when DPI scaling changes (e.g. when dragging a  window between different displays) ([#1441](https://github.com/emilk/egui/pull/1441)).
+* MSRV (Minimum Supported Rust Version) is now `1.60.0` ([#1467](https://github.com/emilk/egui/pull/1467)).
+* Added new feature `puffin` to add [`puffin profiler`](https://github.com/EmbarkStudios/puffin) scopes ([#1483](https://github.com/emilk/egui/pull/1483)).
+* Added `Ui::spinner()` shortcut method ([#1494](https://github.com/emilk/egui/pull/1494)).
 
 
 ## 0.17.0 - 2022-02-22

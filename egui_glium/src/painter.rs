@@ -1,6 +1,8 @@
 #![allow(deprecated)] // legacy implement_vertex macro
 #![allow(semicolon_in_expressions_from_macros)] // glium::program! macro
 
+use egui::epaint::Primitive;
+
 use {
     ahash::AHashMap,
     egui::{emath::Rect, epaint::Mesh},
@@ -21,7 +23,6 @@ pub struct Painter {
 
     textures: AHashMap<egui::TextureId, Rc<SrgbTexture2d>>,
 
-    #[cfg(feature = "epi")]
     /// [`egui::TextureId::User`] index
     next_native_tex_id: u64,
 }
@@ -56,7 +57,6 @@ impl Painter {
             max_texture_side,
             program,
             textures: Default::default(),
-            #[cfg(feature = "epi")]
             next_native_tex_id: 0,
         }
     }
@@ -70,14 +70,14 @@ impl Painter {
         display: &glium::Display,
         target: &mut T,
         pixels_per_point: f32,
-        clipped_meshes: Vec<egui::ClippedMesh>,
+        clipped_primitives: &[egui::ClippedPrimitive],
         textures_delta: &egui::TexturesDelta,
     ) {
         for (id, image_delta) in &textures_delta.set {
             self.set_texture(display, *id, image_delta);
         }
 
-        self.paint_meshes(display, target, pixels_per_point, clipped_meshes);
+        self.paint_primitives(display, target, pixels_per_point, clipped_primitives);
 
         for &id in &textures_delta.free {
             self.free_texture(id);
@@ -87,15 +87,26 @@ impl Painter {
     /// Main entry-point for painting a frame.
     /// You should call `target.clear_color(..)` before
     /// and `target.finish()` after this.
-    pub fn paint_meshes<T: glium::Surface>(
+    pub fn paint_primitives<T: glium::Surface>(
         &mut self,
         display: &glium::Display,
         target: &mut T,
         pixels_per_point: f32,
-        clipped_meshes: Vec<egui::ClippedMesh>,
+        clipped_primitives: &[egui::ClippedPrimitive],
     ) {
-        for egui::ClippedMesh(clip_rect, mesh) in clipped_meshes {
-            self.paint_mesh(target, display, pixels_per_point, clip_rect, &mesh);
+        for egui::ClippedPrimitive {
+            clip_rect,
+            primitive,
+        } in clipped_primitives
+        {
+            match primitive {
+                Primitive::Mesh(mesh) => {
+                    self.paint_mesh(target, display, pixels_per_point, clip_rect, mesh);
+                }
+                Primitive::Callback(_) => {
+                    panic!("Custom rendering callbacks are not implemented in egui_glium");
+                }
+            }
         }
     }
 
@@ -105,7 +116,7 @@ impl Painter {
         target: &mut T,
         display: &glium::Display,
         pixels_per_point: f32,
-        clip_rect: Rect,
+        clip_rect: &Rect,
         mesh: &Mesh,
     ) {
         debug_assert!(mesh.is_valid());
@@ -122,11 +133,11 @@ impl Painter {
 
             let vertices: &[Vertex] = bytemuck::cast_slice(&mesh.vertices);
 
-            // TODO: we should probably reuse the `VertexBuffer` instead of allocating a new one each frame.
+            // TODO: we should probably reuse the [`VertexBuffer`] instead of allocating a new one each frame.
             glium::VertexBuffer::new(display, vertices).unwrap()
         };
 
-        // TODO: we should probably reuse the `IndexBuffer` instead of allocating a new one each frame.
+        // TODO: we should probably reuse the [`IndexBuffer`] instead of allocating a new one each frame.
         let index_buffer =
             glium::IndexBuffer::new(display, PrimitiveType::TrianglesList, &mesh.indices).unwrap();
 
@@ -224,7 +235,7 @@ impl Painter {
                 );
                 image.pixels.iter().map(|color| color.to_tuple()).collect()
             }
-            egui::ImageData::Alpha(image) => {
+            egui::ImageData::Font(image) => {
                 let gamma = 1.0;
                 image
                     .srgba_pixels(gamma)
@@ -266,20 +277,15 @@ impl Painter {
     fn get_texture(&self, texture_id: egui::TextureId) -> Option<&SrgbTexture2d> {
         self.textures.get(&texture_id).map(|rc| rc.as_ref())
     }
-}
 
-#[cfg(feature = "epi")]
-impl epi::NativeTexture for Painter {
-    type Texture = Rc<SrgbTexture2d>;
-
-    fn register_native_texture(&mut self, native: Self::Texture) -> egui::TextureId {
+    pub fn register_native_texture(&mut self, native: Rc<SrgbTexture2d>) -> egui::TextureId {
         let id = egui::TextureId::User(self.next_native_tex_id);
         self.next_native_tex_id += 1;
         self.textures.insert(id, native);
         id
     }
 
-    fn replace_native_texture(&mut self, id: egui::TextureId, replacing: Self::Texture) {
+    pub fn replace_native_texture(&mut self, id: egui::TextureId, replacing: Rc<SrgbTexture2d>) {
         self.textures.insert(id, replacing);
     }
 }

@@ -1,0 +1,15 @@
+[package]
+name = "custom_3d_three-d"
+version = "0.1.0"
+authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+license = "MIT OR Apache-2.0"
+edition = "2021"
+rust-version = "1.60"
+publish = false
+
+
+[dependencies]
+eframe = { path = "../../eframe" }
+egui_glow = { path = "../../egui_glow" }
+glow = "0.11"
+three-d = { version = "0.11", default-features = false }

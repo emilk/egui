@@ -4,7 +4,7 @@ version = "0.17.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui natively using the glow library"
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.60"
 homepage = "https://github.com/emilk/egui/tree/master/egui_glow"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -24,30 +24,34 @@ all-features = true
 
 
 [features]
-default = ["clipboard", "default_fonts", "links", "persistence", "winit"]
+default = ["default_fonts"]
 
 # enable cut/copy/paste to OS clipboard.
 # if disabled a clipboard will be simulated so you can still copy/paste within the egui app.
-clipboard = ["egui-winit/clipboard"]
+clipboard = ["egui-winit?/clipboard"]
+
+# detect dark mode system preference
+dark-light = ["egui-winit?/dark-light"]
 
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["egui/default_fonts"]
 
 # enable opening links in a browser when an egui hyperlink is clicked.
-links = ["egui-winit/links"]
+links = ["egui-winit?/links"]
 
 # enable persisting native window options and egui memory
 persistence = [
-  "egui-winit/persistence",
+  "egui-winit?/persistence",
   "egui/persistence",
-  "epi",                    # also implied by the lines below, see https://github.com/rust-lang/cargo/issues/8832
-  "epi/file_storage",
-  "epi/persistence",
+  "epi?/persistence",
 ]
 
+# Enable profiling with the puffin crate: https://github.com/EmbarkStudios/puffin
+puffin = ["dep:puffin", "egui-winit?/puffin"]
+
 # experimental support for a screen reader
-screen_reader = ["egui-winit/screen_reader"]
+screen_reader = ["egui-winit?/screen_reader"]
 
 # enable glutin/winit integration.
 # if you want to use glow painter on web disable this feature.
@@ -56,8 +60,7 @@ winit = ["egui-winit", "glutin"]
 
 [dependencies]
 egui = { version = "0.17.0", path = "../egui", default-features = false, features = [
-  "convert_bytemuck",
-  "single_threaded",
+  "bytemuck",
 ] }
 epi = { version = "0.17.0", path = "../epi", optional = true }
 
@@ -66,13 +69,15 @@ glow = "0.11"
 memoffset = "0.6"
 tracing = "0.1"
 
+# Native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 egui-winit = { version = "0.17.0", path = "../egui-winit", optional = true, default-features = false, features = [
-  "dark-light",
-  "epi",
+  "epi_backend",
 ] }
 glutin = { version = "0.28.0", optional = true }
+puffin = { version = "0.13", optional = true }
 
+# Web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { version = "0.3", features = ["console"] }
 wasm-bindgen = { version = "0.2" }

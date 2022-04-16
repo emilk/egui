@@ -5,7 +5,36 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 
 
 ## Unreleased
-* Fixed ComboBoxes always being rendered left-aligned ([1304](https://github.com/emilk/egui/pull/1304))
+
+### Added ⭐
+* Added `Shape::Callback` for backend-specific painting, [with an example](https://github.com/emilk/egui/blob/master/examples/custom_3d_three/) ([#1351](https://github.com/emilk/egui/pull/1351)).
+* Added `Frame::canvas` ([#1362](https://github.com/emilk/egui/pull/1362)).
+* `Context::request_repaint` will wake up UI thread, if integrations has called `Context::set_request_repaint_callback` ([#1366](https://github.com/emilk/egui/pull/1366)).
+* Added `Plot::allow_scroll`, `Plot::allow_zoom` no longer affects scrolling ([#1382](https://github.com/emilk/egui/pull/1382)).
+* Added `Ui::push_id` to resolve id clashes ([#1374](https://github.com/emilk/egui/pull/1374)).
+* Added `Frame::outer_margin`.
+* Added `Painter::hline` and `Painter::vline`.
+
+### Changed 🔧
+* `ClippedMesh` has been replaced with `ClippedPrimitive` ([#1351](https://github.com/emilk/egui/pull/1351)).
+* Renamed `Frame::margin` to `Frame::inner_margin`.
+* Renamed `AlphaImage` to `FontImage` to discourage any other use for it ([#1412](https://github.com/emilk/egui/pull/1412)).
+* Warnings will pe painted on screen when there is an `Id` clash for `Grid`, `Plot` or `ScrollArea` ([#1452](https://github.com/emilk/egui/pull/1452)).
+* `Checkbox` and `RadioButton` with an empty label (`""`) will now take up much less space ([#1456](https://github.com/emilk/egui/pull/1456)).
+* Replaced `Memory::top_most_layer` with more flexible `Memory::layer_ids`.
+* MSRV (Minimum Supported Rust Version) is now `1.60.0` ([#1467](https://github.com/emilk/egui/pull/1467)).
+* Renamed the feature `convert_bytemuck` to `bytemuck` ([#1467](https://github.com/emilk/egui/pull/1467)).
+* Renamed the feature `serialize` to `serde` ([#1467](https://github.com/emilk/egui/pull/1467)).
+
+### Fixed 🐛
+* Fixed ComboBoxes always being rendered left-aligned ([#1304](https://github.com/emilk/egui/pull/1304)).
+* Fixed ui code that could lead to a deadlock ([#1380](https://github.com/emilk/egui/pull/1380)).
+* Text is darker and more readable in bright mode ([#1412](https://github.com/emilk/egui/pull/1412)).
+* Fixed `Ui::add_visible` sometimes leaving the `Ui` in a disabled state. ([#1436](https://github.com/emilk/egui/issues/1436)).
+
+### Removed 🔥
+* Removed the `single_threaded/multi_threaded` flags - egui is now always thread-safe ([#1390](https://github.com/emilk/egui/pull/1390)).
+
 
 ## 0.17.0 - 2022-02-22 - Improved font selection and image handling
 

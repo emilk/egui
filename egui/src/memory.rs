@@ -7,9 +7,9 @@ use crate::{area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
 /// The data that egui persists between frames.
 ///
 /// This includes window positions and sizes,
-/// how far the user has scrolled in a `ScrollArea` etc.
+/// how far the user has scrolled in a [`ScrollArea`](crate::ScrollArea) etc.
 ///
-/// If you want this to persist when closing your app you should serialize `Memory` and store it.
+/// If you want this to persist when closing your app you should serialize [`Memory`] and store it.
 /// For this you need to enable the `persistence`.
 ///
 /// If you want to store data for your widgets, you should look at [`Memory::data`]
@@ -19,7 +19,7 @@ use crate::{area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
 pub struct Memory {
     pub options: Options,
 
-    /// This map stores some superficial state for all widgets with custom `Id`s.
+    /// This map stores some superficial state for all widgets with custom [`Id`]s.
     ///
     /// This includes storing if a [`crate::CollapsingHeader`] is open, how far scrolled a
     /// [`crate::ScrollArea`] is, where the cursor in a [`crate::TextEdit`] is, etc.
@@ -97,9 +97,9 @@ pub struct Memory {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Options {
-    /// The default style for new `Ui`:s.
+    /// The default style for new [`Ui`](crate::Ui):s.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) style: epaint::mutex::Arc<Style>,
+    pub(crate) style: std::sync::Arc<Style>,
 
     /// Controls the tessellator.
     pub tessellation_options: epaint::TessellationOptions,
@@ -329,10 +329,9 @@ impl Memory {
         self.areas.layer_id_at(pos, resize_interact_radius_side)
     }
 
-    /// The overall top-most layer. When an area is clicked on or interacted
-    /// with, it is moved above all other areas.
-    pub fn top_most_layer(&self) -> Option<LayerId> {
-        self.areas.order().last().copied()
+    /// An iterator over all layers. Back-to-front. Top is last.
+    pub fn layer_ids(&self) -> impl ExactSizeIterator<Item = LayerId> + '_ {
+        self.areas.order().iter().copied()
     }
 
     pub(crate) fn had_focus_last_frame(&self, id: Id) -> bool {
@@ -402,7 +401,7 @@ impl Memory {
         self.interaction.focus.interested_in_focus(id);
     }
 
-    /// Stop editing of active `TextEdit` (if any).
+    /// Stop editing of active [`TextEdit`](crate::TextEdit) (if any).
     #[inline(always)]
     pub fn stop_text_input(&mut self) {
         self.interaction.focus.id = None;
@@ -416,6 +415,11 @@ impl Memory {
     #[inline(always)]
     pub fn is_being_dragged(&self, id: Id) -> bool {
         self.interaction.drag_id == Some(id)
+    }
+
+    #[inline(always)]
+    pub fn set_dragged_id(&mut self, id: Id) {
+        self.interaction.drag_id = Some(id);
     }
 
     /// Forget window positions, sizes etc.
@@ -471,8 +475,8 @@ impl Memory {
 
 // ----------------------------------------------------------------------------
 
-/// Keeps track of `Area`s, which are free-floating `Ui`s.
-/// These `Area`s can be in any `Order`.
+/// Keeps track of [`Area`](crate::containers::area::Area)s, which are free-floating [`Ui`](crate::Ui)s.
+/// These [`Area`](crate::containers::area::Area)s can be in any [`Order`](crate::Order).
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]

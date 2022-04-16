@@ -4,7 +4,7 @@ version = "0.17.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui with winit"
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.60"
 homepage = "https://github.com/emilk/egui/tree/master/egui-winit"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -20,39 +20,47 @@ all-features = true
 [features]
 default = ["clipboard", "dark-light", "links"]
 
+# implement bytemuck on most types.
+bytemuck = ["egui/bytemuck"]
+
 # enable cut/copy/paste to OS clipboard.
 # if disabled a clipboard will be simulated so you can still copy/paste within the egui app.
-clipboard = ["copypasta"]
+clipboard = ["arboard"]
+
+# detect dark mode system preference
+dark-light = ["dep:dark-light"]
+
+# Only for `egui_glow` - the official eframe/epi backend.
+epi_backend = ["epi", "glow"]
 
 # enable opening links in a browser when an egui hyperlink is clicked.
 links = ["webbrowser"]
 
+# Enable profiling with the puffin crate: https://github.com/EmbarkStudios/puffin
+puffin = ["dep:puffin"]
+
 # experimental support for a screen reader
 screen_reader = ["tts"]
 
-persistence = [
-  "egui/serialize",
-  "serde",
-] # can't add epi/persistence here because of https://github.com/rust-lang/cargo/issues/8832
-serialize = ["egui/serialize", "serde"]
-
-# implement bytemuck on most types.
-convert_bytemuck = ["egui/convert_bytemuck"]
+persistence = ["egui/serde", "serde", "epi?/persistence"]
+serde = ["egui/serde", "dep:serde"]
 
 
 [dependencies]
 egui = { version = "0.17.0", path = "../egui", default-features = false, features = [
-  "single_threaded",
   "tracing",
 ] }
 instant = { version = "0.1", features = ["wasm-bindgen"] }
 tracing = "0.1"
 winit = "0.26.1"
 
+# Optional:
 epi = { version = "0.17.0", path = "../epi", optional = true }
 
-copypasta = { version = "0.7", optional = true }
-dark-light = { version = "0.2.1", optional = true }                 # detect dark mode system preference
+arboard = { version = "2.1", optional = true, default-features = false }
+dark-light = { version = "0.2.1", optional = true }
+glow = { version = "0.11", optional = true }
+puffin = { version = "0.13", optional = true }
 serde = { version = "1.0", optional = true, features = ["derive"] }
 webbrowser = { version = "0.6", optional = true }
 
