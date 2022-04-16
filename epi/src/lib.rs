@@ -323,6 +323,11 @@ impl Frame {
         self.output.decorated = Some(decorated);
     }
 
+    /// set the position of the outer window
+    pub fn set_window_pos(&mut self, pos: egui::Pos2) {
+        self.output.window_pos = Some(pos);
+    }
+
     /// When called, the native window will follow the
     /// movement of the cursor while the primary mouse button is down.
     ///
@@ -503,5 +508,8 @@ pub mod backend {
 
         /// Set to true to drag window while primary mouse button is down.
         pub drag_window: bool,
+
+        /// Set to some position to move the outer window (e.g. glium window) to this position
+        pub window_pos: Option<egui::Pos2>,
     }
 }

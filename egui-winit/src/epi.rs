@@ -96,6 +96,7 @@ pub fn handle_app_output(
         window_title,
         decorated,
         drag_window,
+        window_pos,
     } = app_output;
 
     if let Some(decorated) = decorated {
@@ -114,6 +115,13 @@ pub fn handle_app_output(
 
     if let Some(window_title) = window_title {
         window.set_title(&window_title);
+    }
+
+    if let Some(window_pos) = window_pos {
+        window.set_outer_position(winit::dpi::PhysicalPosition {
+            x: window_pos.x as f64,
+            y: window_pos.y as f64,
+        });
     }
 
     if drag_window {

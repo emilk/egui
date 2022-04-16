@@ -14,6 +14,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Added `Ui::push_id` to resolve id clashes ([#1374](https://github.com/emilk/egui/pull/1374)).
 * Added `Frame::outer_margin`.
 * Added `Painter::hline` and `Painter::vline`.
+* Added `Link` and `ui.link`  ([#1506](https://github.com/emilk/egui/pull/1506)).
 * Added `Plot::x_grid_spacer` and `Plot::y_grid_spacer` for custom grid spacing ([#1180](https://github.com/emilk/egui/pull/1180)).
 
 ### Changed 🔧
@@ -28,7 +29,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Renamed the feature `serialize` to `serde` ([#1467](https://github.com/emilk/egui/pull/1467)).
 
 ### Fixed 🐛
-* Fixed ComboBoxes always being rendered left-aligned ([#1304](https://github.com/emilk/egui/pull/1304)).
+* Fixed `ComboBox`es always being rendered left-aligned ([#1304](https://github.com/emilk/egui/pull/1304)).
 * Fixed ui code that could lead to a deadlock ([#1380](https://github.com/emilk/egui/pull/1380)).
 * Text is darker and more readable in bright mode ([#1412](https://github.com/emilk/egui/pull/1412)).
 * Fixed `Ui::add_visible` sometimes leaving the `Ui` in a disabled state. ([#1436](https://github.com/emilk/egui/issues/1436)).
