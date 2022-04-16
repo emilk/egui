@@ -1227,14 +1227,40 @@ impl Ui {
         Label::new(text.into().weak()).ui(self)
     }
 
-    /// Shortcut for `add(Hyperlink::new(url))`
+    /// Looks like a hyperlink.
+    ///
+    /// Shortcut for `add(Link::new(text))`.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// if ui.link("Documentation").clicked() {
+    ///     // …
+    /// }
+    /// # });
+    /// ```
+    ///
+    /// See also [`Link`].
+    #[must_use = "You should check if the user clicked this with `if ui.link(…).clicked() { … } "]
+    pub fn link(&mut self, text: impl Into<WidgetText>) -> Response {
+        Link::new(text).ui(self)
+    }
+
+    /// Link to a web page.
+    ///
+    /// Shortcut for `add(Hyperlink::new(url))`.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// ui.hyperlink("https://www.egui.rs/");
+    /// # });
+    /// ```
     ///
     /// See also [`Hyperlink`].
     pub fn hyperlink(&mut self, url: impl ToString) -> Response {
         Hyperlink::new(url).ui(self)
     }
 
-    /// Shortcut for `add(Hyperlink::new(url).text(label))`
+    /// Shortcut for `add(Hyperlink::new(url).text(label))`.
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {

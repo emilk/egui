@@ -466,7 +466,7 @@ impl WidgetInfo {
 
         // TODO: localization
         let widget_type = match typ {
-            WidgetType::Hyperlink => "link",
+            WidgetType::Link => "link",
             WidgetType::TextEdit => "text edit",
             WidgetType::Button => "button",
             WidgetType::Checkbox => "checkbox",
