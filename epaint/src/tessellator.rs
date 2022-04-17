@@ -200,7 +200,7 @@ pub mod path {
             [
                 vec2(1.000000, 0.000000),
                 vec2(0.707107, 0.707107),
-                vec2(-0.000000, 1.000000)
+                vec2(-0.000000, 1.000000),
             ],
             // quadrant 1: left bottom
             [
@@ -347,26 +347,17 @@ pub mod path {
     //   - quadrant 3: right top
     // * angle 4 * TAU / 4 = right
     pub fn add_circle_quadrant(path: &mut Vec<Pos2>, center: Pos2, radius: f32, quadrant: f32) {
-        if radius == 0.0 {
+        if radius <= 0.0 {
             path.push(center);
         } else if radius <= 5.0 {
             let quadrant_vertices = QUADRANTS_0_5[quadrant as usize];
-            path.reserve(quadrant_vertices.len());
-            quadrant_vertices
-                .iter()
-                .for_each(|v| path.push(center + radius * *v));
-        } else if radius > 5.0 && radius <= 10.0 {
+            path.extend(quadrant_vertices.iter().map(|v| center + radius * *v));
+        } else if radius <= 10.0 {
             let quadrant_vertices = QUADRANTS_5_10[quadrant as usize];
-            path.reserve(quadrant_vertices.len());
-            quadrant_vertices
-                .iter()
-                .for_each(|v| path.push(center + radius * *v));
+            path.extend(quadrant_vertices.iter().map(|v| center + radius * *v));
         } else {
             let quadrant_vertices = QUADRANTS_10_20[quadrant as usize];
-            path.reserve(quadrant_vertices.len());
-            quadrant_vertices
-                .iter()
-                .for_each(|v| path.push(center + radius * *v));
+            path.extend(quadrant_vertices.iter().map(|v| center + radius * *v));
         }
     }
 
