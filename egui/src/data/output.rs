@@ -88,6 +88,7 @@ impl PlatformOutput {
             match event {
                 OutputEvent::Clicked(widget_info)
                 | OutputEvent::DoubleClicked(widget_info)
+                | OutputEvent::TripleClicked(widget_info)
                 | OutputEvent::FocusGained(widget_info)
                 | OutputEvent::TextSelectionChanged(widget_info)
                 | OutputEvent::ValueChanged(widget_info) => {
@@ -291,6 +292,8 @@ pub enum OutputEvent {
     Clicked(WidgetInfo),
     // A widget was double-clicked.
     DoubleClicked(WidgetInfo),
+    // A widget was triple-clicked.
+    TripleClicked(WidgetInfo),
     /// A widget gained keyboard focus (by tab key).
     FocusGained(WidgetInfo),
     // Text selection was updated.
@@ -304,6 +307,7 @@ impl std::fmt::Debug for OutputEvent {
         match self {
             Self::Clicked(wi) => write!(f, "Clicked({:?})", wi),
             Self::DoubleClicked(wi) => write!(f, "DoubleClicked({:?})", wi),
+            Self::TripleClicked(wi) => write!(f, "TripleClicked({:?})", wi),
             Self::FocusGained(wi) => write!(f, "FocusGained({:?})", wi),
             Self::TextSelectionChanged(wi) => write!(f, "TextSelectionChanged({:?})", wi),
             Self::ValueChanged(wi) => write!(f, "ValueChanged({:?})", wi),

@@ -332,7 +332,7 @@ impl super::View for InputTest {
         });
 
         let response = ui.add(
-            egui::Button::new("Click, double-click or drag me with any mouse button")
+            egui::Button::new("Click, double-click, triple-click or drag me with any mouse button")
                 .sense(egui::Sense::click_and_drag()),
         );
 
@@ -347,6 +347,9 @@ impl super::View for InputTest {
             }
             if response.double_clicked_by(button) {
                 new_info += &format!("Double-clicked by {:?} button\n", button);
+            }
+            if response.triple_clicked_by(button) {
+                new_info += &format!("Triple-clicked by {:?} button\n", button);
             }
             if response.dragged_by(button) {
                 new_info += &format!(

@@ -15,6 +15,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Added `Frame::outer_margin`.
 * Added `Painter::hline` and `Painter::vline`.
 * Added `Link` and `ui.link`  ([#1506](https://github.com/emilk/egui/pull/1506)).
+* Added triple-click support. Triple-clicking a TextEdit field will select the whole paragraph.
 
 ### Changed 🔧
 * `ClippedMesh` has been replaced with `ClippedPrimitive` ([#1351](https://github.com/emilk/egui/pull/1351)).

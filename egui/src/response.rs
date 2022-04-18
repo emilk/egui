@@ -47,6 +47,9 @@ pub struct Response {
     /// The thing was double-clicked.
     pub(crate) double_clicked: [bool; NUM_POINTER_BUTTONS],
 
+    /// The thing was triple-clicked.
+    pub(crate) triple_clicked: [bool; NUM_POINTER_BUTTONS],
+
     /// The widgets is being dragged
     pub(crate) dragged: bool,
 
@@ -79,6 +82,7 @@ impl std::fmt::Debug for Response {
             hovered,
             clicked,
             double_clicked,
+            triple_clicked,
             dragged,
             drag_released,
             is_pointer_button_down_on,
@@ -94,6 +98,7 @@ impl std::fmt::Debug for Response {
             .field("hovered", hovered)
             .field("clicked", clicked)
             .field("double_clicked", double_clicked)
+            .field("triple_clicked", triple_clicked)
             .field("dragged", dragged)
             .field("drag_released", drag_released)
             .field("is_pointer_button_down_on", is_pointer_button_down_on)
@@ -138,9 +143,19 @@ impl Response {
         self.double_clicked[PointerButton::Primary as usize]
     }
 
+    /// Returns true if this widget was triple-clicked this frame by the primary button.
+    pub fn triple_clicked(&self) -> bool {
+        self.triple_clicked[PointerButton::Primary as usize]
+    }
+
     /// Returns true if this widget was double-clicked this frame by the given button.
     pub fn double_clicked_by(&self, button: PointerButton) -> bool {
         self.double_clicked[button as usize]
+    }
+
+    /// Returns true if this widget was triple-clicked this frame by the given button.
+    pub fn triple_clicked_by(&self, button: PointerButton) -> bool {
+        self.triple_clicked[button as usize]
     }
 
     /// `true` if there was a click *outside* this widget this frame.
@@ -475,6 +490,8 @@ impl Response {
             Some(OutputEvent::Clicked(make_info()))
         } else if self.double_clicked() {
             Some(OutputEvent::DoubleClicked(make_info()))
+        } else if self.triple_clicked() {
+            Some(OutputEvent::TripleClicked(make_info()))
         } else if self.gained_focus() {
             Some(OutputEvent::FocusGained(make_info()))
         } else if self.changed {
@@ -535,6 +552,11 @@ impl Response {
                 self.double_clicked[0] || other.double_clicked[0],
                 self.double_clicked[1] || other.double_clicked[1],
                 self.double_clicked[2] || other.double_clicked[2],
+            ],
+            triple_clicked: [
+                self.triple_clicked[0] || other.triple_clicked[0],
+                self.triple_clicked[1] || other.triple_clicked[1],
+                self.triple_clicked[2] || other.triple_clicked[2],
             ],
             dragged: self.dragged || other.dragged,
             drag_released: self.drag_released || other.drag_released,
