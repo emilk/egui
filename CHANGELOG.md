@@ -12,6 +12,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * `Context::request_repaint` will wake up UI thread, if integrations has called `Context::set_request_repaint_callback` ([#1366](https://github.com/emilk/egui/pull/1366)).
 * Added `Plot::allow_scroll`, `Plot::allow_zoom` no longer affects scrolling ([#1382](https://github.com/emilk/egui/pull/1382)).
 * Added `Ui::push_id` to resolve id clashes ([#1374](https://github.com/emilk/egui/pull/1374)).
+* Added `Ui::scroll_with_delta`.
 * Added `Frame::outer_margin`.
 * Added `Painter::hline` and `Painter::vline`.
 * Added `Link` and `ui.link`  ([#1506](https://github.com/emilk/egui/pull/1506)).

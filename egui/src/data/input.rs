@@ -201,6 +201,12 @@ pub enum Event {
     /// So if you get positive values, the content being viewed should move to the right and down,
     /// revealing new things to the left and up.
     ///
+    /// A positive X-value indicates the content is being moved right,
+    /// as when swiping right on a touch-screen or track-pad with natural scrolling.
+    ///
+    /// A positive Y-value indicates the content is being moved down,
+    /// as when swiping down on a touch-screen or track-pad with natural scrolling.
+    ///
     /// Shift-scroll should result in horizontal scrolling (it is up to the integrations to do this).
     Scroll(Vec2),
 

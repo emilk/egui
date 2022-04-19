@@ -920,7 +920,7 @@ impl Ui {
     ///
     /// If `align` is `None`, it'll scroll enough to bring the cursor into view.
     ///
-    /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to_cursor`].
+    /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to_cursor`]. [`Ui::scroll_with_delta`]..
     ///
     /// ```
     /// # use egui::Align;
@@ -945,7 +945,7 @@ impl Ui {
     ///
     /// If `align` is not provided, it'll scroll enough to bring the cursor into view.
     ///
-    /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to_rect`].
+    /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to_rect`]. [`Ui::scroll_with_delta`].
     ///
     /// ```
     /// # use egui::Align;
@@ -968,6 +968,37 @@ impl Ui {
             let target = target[d];
             self.ctx().frame_state().scroll_target[d] = Some((target..=target, align));
         }
+    }
+
+    /// Scroll this many points in the given direction, in the parent [`ScrollArea`].
+    ///
+    /// The delta dictates how the _content_ (i.e. this UI) should move.
+    ///
+    /// A positive X-value indicates the content is being moved right,
+    /// as when swiping right on a touch-screen or track-pad with natural scrolling.
+    ///
+    /// A positive Y-value indicates the content is being moved down,
+    /// as when swiping down on a touch-screen or track-pad with natural scrolling.
+    ///
+    /// /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to_rect`], [`Ui::scroll_to_cursor`]
+    ///
+    /// ```
+    /// # use egui::{Align, Vec2};
+    /// # egui::__run_test_ui(|ui| {
+    /// let mut scroll_delta = Vec2::ZERO;
+    /// if ui.button("Scroll down").clicked() {
+    ///     scroll_delta.y -= 64.0; // move content up
+    /// }
+    /// egui::ScrollArea::vertical().show(ui, |ui| {
+    ///     ui.scroll_with_delta(scroll_delta);
+    ///     for i in 0..1000 {
+    ///         ui.label(format!("Item {}", i));
+    ///     }
+    /// });
+    /// # });
+    /// ```
+    pub fn scroll_with_delta(&self, delta: Vec2) {
+        self.ctx().frame_state().scroll_delta += delta;
     }
 }
 

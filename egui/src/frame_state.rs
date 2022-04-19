@@ -27,8 +27,11 @@ pub(crate) struct FrameState {
     /// Initialized to `None` at the start of each frame.
     pub(crate) tooltip_rect: Option<(Id, Rect, usize)>,
 
+    /// Set to [`InputState::scroll_delta`] on the start of each frame.
+    ///
     /// Cleared by the first [`ScrollArea`] that makes use of it.
     pub(crate) scroll_delta: Vec2, // TODO: move to a Mutex inside of `InputState` ?
+
     /// horizontal, vertical
     pub(crate) scroll_target: [Option<(RangeInclusive<f32>, Option<Align>)>; 2],
 }
