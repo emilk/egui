@@ -547,7 +547,7 @@ impl Plot {
 
         // Background
         if show_background {
-            ui.painter().sub_region(rect).add(epaint::RectShape {
+            ui.painter().with_clip_rect(rect).add(epaint::RectShape {
                 rect,
                 rounding: Rounding::same(2.0),
                 fill: ui.visuals().extreme_bg_color,
@@ -710,8 +710,8 @@ impl Plot {
         prepared.ui(ui, &response);
 
         if let Some(boxed_zoom_rect) = boxed_zoom_rect {
-            ui.painter().sub_region(rect).add(boxed_zoom_rect.0);
-            ui.painter().sub_region(rect).add(boxed_zoom_rect.1);
+            ui.painter().with_clip_rect(rect).add(boxed_zoom_rect.0);
+            ui.painter().with_clip_rect(rect).add(boxed_zoom_rect.1);
         }
 
         if let Some(mut legend) = legend {
@@ -955,7 +955,7 @@ impl PreparedPlot {
             self.hover(ui, pointer, &mut shapes);
         }
 
-        let painter = ui.painter().sub_region(*transform.frame());
+        let painter = ui.painter().with_clip_rect(*transform.frame());
         painter.extend(shapes);
 
         if let Some((corner, formatter)) = self.coordinates_formatter.as_ref() {

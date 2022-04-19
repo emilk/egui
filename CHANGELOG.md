@@ -26,6 +26,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * MSRV (Minimum Supported Rust Version) is now `1.60.0` ([#1467](https://github.com/emilk/egui/pull/1467)).
 * Renamed the feature `convert_bytemuck` to `bytemuck` ([#1467](https://github.com/emilk/egui/pull/1467)).
 * Renamed the feature `serialize` to `serde` ([#1467](https://github.com/emilk/egui/pull/1467)).
+* Renamed `Painter::sub_region` to `Painter::with_clip_rect`.
 
 ### Fixed 🐛
 * Fixed `ComboBox`:es always being rendered left-aligned ([#1304](https://github.com/emilk/egui/pull/1304)).

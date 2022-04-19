@@ -305,7 +305,7 @@ impl Ui {
     /// The clip-rect of the returned [`Painter`] will be the intersection
     /// of the given rectangle and the `clip_rect()` of this [`Ui`].
     pub fn painter_at(&self, rect: Rect) -> Painter {
-        self.painter().sub_region(rect)
+        self.painter().with_clip_rect(rect)
     }
 
     /// Use this to paint stuff within this [`Ui`].
