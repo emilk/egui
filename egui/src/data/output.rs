@@ -227,10 +227,11 @@ pub enum CursorIcon {
     Grabbing,
 
     // ------------------------------------
-    // Resizing and scrolling
     /// Something can be scrolled in any direction (panned).
     AllScroll,
 
+    // ------------------------------------
+    // Resizing in two directions:
     /// Horizontal resize `-` to make something wider or more narrow (left to/from right)
     ResizeHorizontal,
     /// Diagonal resize `/` (right-up to/from left-down)
@@ -240,6 +241,33 @@ pub enum CursorIcon {
     /// Vertical resize `|` (up-down or down-up)
     ResizeVertical,
 
+    // ------------------------------------
+    // Resizing in one direction:
+    /// Resize something rightwards (e.g. when dragging the right-most edge of something)
+    ResizeEast,
+    /// Resize something down and right (e.g. when dragging the bottom-right corner of something)
+    ResizeSouthEast,
+    /// Resize something downwards (e.g. when dragging the bottom edge of something)
+    ResizeSouth,
+    /// Resize something down and left (e.g. when dragging the bottom-left corner of something)
+    ResizeSouthWest,
+    /// Resize something leftwards (e.g. when dragging the left edge of something)
+    ResizeWest,
+    /// Resize something up and left (e.g. when dragging the top-left corner of something)
+    ResizeNorthWest,
+    /// Resize something up (e.g. when dragging the top edge of something)
+    ResizeNorth,
+    /// Resize something up and right (e.g. when dragging the top-right corner of something)
+    ResizeNorthEast,
+
+    // ------------------------------------
+    /// Resize a column
+    ResizeColumn,
+    /// Resize a row
+    ResizeRow,
+
+    // ------------------------------------
+    // Zooming:
     /// Enhance!
     ZoomIn,
     /// Let's get a better overview
@@ -247,7 +275,7 @@ pub enum CursorIcon {
 }
 
 impl CursorIcon {
-    pub const ALL: [CursorIcon; 25] = [
+    pub const ALL: [CursorIcon; 35] = [
         CursorIcon::Default,
         CursorIcon::None,
         CursorIcon::ContextMenu,
@@ -271,6 +299,16 @@ impl CursorIcon {
         CursorIcon::ResizeNeSw,
         CursorIcon::ResizeNwSe,
         CursorIcon::ResizeVertical,
+        CursorIcon::ResizeEast,
+        CursorIcon::ResizeSouthEast,
+        CursorIcon::ResizeSouth,
+        CursorIcon::ResizeSouthWest,
+        CursorIcon::ResizeWest,
+        CursorIcon::ResizeNorthWest,
+        CursorIcon::ResizeNorth,
+        CursorIcon::ResizeNorthEast,
+        CursorIcon::ResizeColumn,
+        CursorIcon::ResizeRow,
         CursorIcon::ZoomIn,
         CursorIcon::ZoomOut,
     ];

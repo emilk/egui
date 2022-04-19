@@ -250,6 +250,18 @@ fn cursor_web_name(cursor: egui::CursorIcon) -> &'static str {
         egui::CursorIcon::ResizeNeSw => "nesw-resize",
         egui::CursorIcon::ResizeNwSe => "nwse-resize",
         egui::CursorIcon::ResizeVertical => "ns-resize",
+
+        egui::CursorIcon::ResizeEast => "e-resize",
+        egui::CursorIcon::ResizeSouthEast => "se-resize",
+        egui::CursorIcon::ResizeSouth => "s-resize",
+        egui::CursorIcon::ResizeSouthWest => "sw-resize",
+        egui::CursorIcon::ResizeWest => "w-resize",
+        egui::CursorIcon::ResizeNorthWest => "nw-resize",
+        egui::CursorIcon::ResizeNorth => "n-resize",
+        egui::CursorIcon::ResizeNorthEast => "ne-resize",
+        egui::CursorIcon::ResizeColumn => "col-resize",
+        egui::CursorIcon::ResizeRow => "row-resize",
+
         egui::CursorIcon::Text => "text",
         egui::CursorIcon::VerticalText => "vertical-text",
         egui::CursorIcon::Wait => "wait",

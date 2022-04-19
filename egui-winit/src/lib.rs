@@ -635,10 +635,23 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
         egui::CursorIcon::NotAllowed => Some(winit::window::CursorIcon::NotAllowed),
         egui::CursorIcon::PointingHand => Some(winit::window::CursorIcon::Hand),
         egui::CursorIcon::Progress => Some(winit::window::CursorIcon::Progress),
+
         egui::CursorIcon::ResizeHorizontal => Some(winit::window::CursorIcon::EwResize),
         egui::CursorIcon::ResizeNeSw => Some(winit::window::CursorIcon::NeswResize),
         egui::CursorIcon::ResizeNwSe => Some(winit::window::CursorIcon::NwseResize),
         egui::CursorIcon::ResizeVertical => Some(winit::window::CursorIcon::NsResize),
+
+        egui::CursorIcon::ResizeEast => Some(winit::window::CursorIcon::EResize),
+        egui::CursorIcon::ResizeSouthEast => Some(winit::window::CursorIcon::SeResize),
+        egui::CursorIcon::ResizeSouth => Some(winit::window::CursorIcon::SResize),
+        egui::CursorIcon::ResizeSouthWest => Some(winit::window::CursorIcon::SwResize),
+        egui::CursorIcon::ResizeWest => Some(winit::window::CursorIcon::WResize),
+        egui::CursorIcon::ResizeNorthWest => Some(winit::window::CursorIcon::NwResize),
+        egui::CursorIcon::ResizeNorth => Some(winit::window::CursorIcon::NResize),
+        egui::CursorIcon::ResizeNorthEast => Some(winit::window::CursorIcon::NeResize),
+        egui::CursorIcon::ResizeColumn => Some(winit::window::CursorIcon::ColResize),
+        egui::CursorIcon::ResizeRow => Some(winit::window::CursorIcon::RowResize),
+
         egui::CursorIcon::Text => Some(winit::window::CursorIcon::Text),
         egui::CursorIcon::VerticalText => Some(winit::window::CursorIcon::VerticalText),
         egui::CursorIcon::Wait => Some(winit::window::CursorIcon::Wait),

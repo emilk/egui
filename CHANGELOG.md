@@ -18,6 +18,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Added `Link` and `ui.link`  ([#1506](https://github.com/emilk/egui/pull/1506)).
 * Added triple-click support; triple-clicking a TextEdit field will select the whole paragraph ([#1512](https://github.com/emilk/egui/pull/1512)).
 * Added `Plot::x_grid_spacer` and `Plot::y_grid_spacer` for custom grid spacing ([#1180](https://github.com/emilk/egui/pull/1180)).
+* Added `CursorIcon`s for resizing columns, rows, and the eight cardinal directions.
 
 ### Changed 🔧
 * `ClippedMesh` has been replaced with `ClippedPrimitive` ([#1351](https://github.com/emilk/egui/pull/1351)).
@@ -87,7 +88,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Replaced Frame's `margin: Vec2` with `margin: Margin`, allowing for different margins on opposing sides ([#1219](https://github.com/emilk/egui/pull/1219)).
 * Renamed `Plot::custom_label_func` to `Plot::label_formatter` ([#1235](https://github.com/emilk/egui/pull/1235)).
 * `Areas::layer_id_at` ignores non-interatable layers (i.e. Tooltips) ([#1240](https://github.com/emilk/egui/pull/1240)).
-* `ScrollArea`:s will not shrink below a certain minimum size, set by `min_scrolled_width/min_scrolled_height` ([1255](https://github.com/emilk/egui/pull/1255)).
+* `ScrollArea`s will not shrink below a certain minimum size, set by `min_scrolled_width/min_scrolled_height` ([1255](https://github.com/emilk/egui/pull/1255)).
 * For integrations:
   * `Output` has now been renamed `PlatformOutput` and `Context::run` now returns the new `FullOutput` ([#1292](https://github.com/emilk/egui/pull/1292)).
   * `FontImage` has been replaced by `TexturesDelta` (found in `FullOutput`), describing what textures were loaded and freed each frame ([#1110](https://github.com/emilk/egui/pull/1110)).
@@ -209,11 +210,11 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Change the default monospace font to [Hack](https://github.com/source-foundry/Hack).
 * Label text will now be centered, right-aligned and/or justified based on the layout of the `Ui` it is in.
 * `Hyperlink` will now word-wrap just like a `Label`.
-* All `Ui`:s must now have a finite `max_rect`.
+* All `Ui`s must now have a finite `max_rect`.
   * Deprecated: `max_rect_finite`, `available_size_before_wrap_finite` and `available_rect_before_wrap_finite`.
 * `Painter`/`Fonts`: text layout now expect a color when creating a `Galley`. You may override that color with `Painter::galley_with_color`.
 * MSRV (Minimum Supported Rust Version) is now `1.54.0`.
-* By default, `DragValue`:s no longer show a tooltip when hovered. Change with `Style::explanation_tooltips`.
+* By default, `DragValue`s no longer show a tooltip when hovered. Change with `Style::explanation_tooltips`.
 * Smaller and nicer color picker.
 * `ScrollArea` will auto-shrink to content size unless told otherwise using `ScollArea::auto_shrink`.
 * By default, `Slider`'s `clamp_to_range` is set to true.
@@ -373,7 +374,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 
 ### Fixed 🐛
 * Fix [defocus-bug on touch screens](https://github.com/emilk/egui/issues/288).
-* Fix bug with the layout of wide `DragValue`:s.
+* Fix bug with the layout of wide `DragValue`s.
 
 ### Removed 🔥
 * Moved experimental markup language to `egui_demo_lib`
