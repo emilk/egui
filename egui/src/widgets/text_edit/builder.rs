@@ -1231,15 +1231,15 @@ fn select_line_at(text: &str, ccursor: CCursor) -> CCursorRange {
         let mut it = it.skip(ccursor.index - 1);
         if let Some(char_before_cursor) = it.next() {
             if let Some(char_after_cursor) = it.next() {
-                if is_line_char(char_before_cursor) && is_line_char(char_after_cursor) {
+                if (!is_linebreak(char_before_cursor)) && (!is_linebreak(char_after_cursor)) {
                     let min = ccursor_previous_line(text, ccursor + 1);
                     let max = ccursor_next_line(text, min);
                     CCursorRange::two(min, max)
-                } else if is_line_char(char_before_cursor) {
+                } else if !is_linebreak(char_before_cursor) {
                     let min = ccursor_previous_line(text, ccursor);
                     let max = ccursor_next_line(text, min);
                     CCursorRange::two(min, max)
-                } else if is_line_char(char_after_cursor) {
+                } else if !is_linebreak(char_after_cursor) {
                     let max = ccursor_next_line(text, ccursor);
                     CCursorRange::two(ccursor, max)
                 } else {
@@ -1316,7 +1316,7 @@ fn next_line_boundary_char_index(it: impl Iterator<Item = char>, mut index: usiz
         if let Some(second) = it.next() {
             index += 1;
             for next in it {
-                if is_line_char(next) != is_line_char(second) {
+                if is_linebreak(next) != is_linebreak(second) {
                     break;
                 }
                 index += 1;
@@ -1330,8 +1330,8 @@ fn is_word_char(c: char) -> bool {
     c.is_ascii_alphanumeric() || c == '_'
 }
 
-fn is_line_char(c: char) -> bool {
-    c != '\r' && c != '\n'
+fn is_linebreak(c: char) -> bool {
+    c == '\r' || c == '\n'
 }
 
 /// Accepts and returns character offset (NOT byte offset!).
