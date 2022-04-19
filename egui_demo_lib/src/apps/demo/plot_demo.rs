@@ -382,7 +382,7 @@ impl Widget for &mut CustomAxisDemo {
             x.rem_euclid(MINS_PER_H).floor()
         }
         fn get_percent(y: f64) -> f64 {
-            (100.0 * y).round()
+            100.0 * y
         }
 
         let x_fmt = |x, _range: &RangeInclusive<f64>| {
@@ -401,7 +401,7 @@ impl Widget for &mut CustomAxisDemo {
         let y_fmt = |y, _range: &RangeInclusive<f64>| {
             // Display only integer percentages
             if !is_approx_zero(y) && is_approx_integer(100.0 * y) {
-                format!("{}%", get_percent(y))
+                format!("{:.0}%", get_percent(y))
             } else {
                 String::new()
             }
@@ -409,13 +409,15 @@ impl Widget for &mut CustomAxisDemo {
 
         let label_fmt = |_s: &str, val: &Value| {
             format!(
-                "Day {d}, {h}:{m:02}\n{p}%",
+                "Day {d}, {h}:{m:02}\n{p:.2}%",
                 d = get_day(val.x),
                 h = get_hour(val.x),
                 m = get_minute(val.x),
                 p = get_percent(val.y)
             )
         };
+
+        ui.label("Zoom in on the X-axis to see hours and minutes");
 
         Plot::new("custom_axes")
             .data_aspect(2.0 * MINS_PER_DAY as f32)
