@@ -349,7 +349,7 @@ impl InputState {
 pub(crate) struct Click {
     pub pos: Pos2,
     pub button: PointerButton,
-    /// 1 or 2 (double-click)
+    /// 1 or 2 (double-click) or 3 (triple-click)
     pub count: u32,
     /// Allows you to check for e.g. shift-click
     pub modifiers: Modifiers,
@@ -358,6 +358,9 @@ pub(crate) struct Click {
 impl Click {
     pub fn is_double(&self) -> bool {
         self.count == 2
+    }
+    pub fn is_triple(&self) -> bool {
+        self.count == 3
     }
 }
 
@@ -429,6 +432,10 @@ pub struct PointerState {
     /// Used to check for double-clicks.
     last_click_time: f64,
 
+    /// When did the pointer get click two clicks ago?
+    /// Used to check for triple-clicks.
+    last_last_click_time: f64,
+
     /// All button events that occurred this frame
     pub(crate) pointer_events: Vec<PointerEvent>,
 }
@@ -447,6 +454,7 @@ impl Default for PointerState {
             press_start_time: None,
             has_moved_too_much_for_a_click: false,
             last_click_time: std::f64::NEG_INFINITY,
+            last_last_click_time: std::f64::NEG_INFINITY,
             pointer_events: vec![],
         }
     }
@@ -508,8 +516,17 @@ impl PointerState {
                         let click = if clicked {
                             let double_click =
                                 (time - self.last_click_time) < MAX_DOUBLE_CLICK_DELAY;
-                            let count = if double_click { 2 } else { 1 };
+                            let triple_click =
+                                (time - self.last_last_click_time) < (MAX_DOUBLE_CLICK_DELAY * 2.0);
+                            let count = if triple_click {
+                                3
+                            } else if double_click {
+                                2
+                            } else {
+                                1
+                            };
 
+                            self.last_last_click_time = self.last_click_time;
                             self.last_click_time = time;
 
                             Some(Click {
@@ -797,6 +814,7 @@ impl PointerState {
             press_start_time,
             has_moved_too_much_for_a_click,
             last_click_time,
+            last_last_click_time,
             pointer_events,
         } = self;
 
@@ -815,6 +833,7 @@ impl PointerState {
             has_moved_too_much_for_a_click
         ));
         ui.label(format!("last_click_time: {:#?}", last_click_time));
+        ui.label(format!("last_last_click_time: {:#?}", last_last_click_time));
         ui.label(format!("pointer_events: {:?}", pointer_events));
     }
 }

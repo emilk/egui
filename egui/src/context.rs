@@ -327,6 +327,7 @@ impl Context {
             hovered,
             clicked: Default::default(),
             double_clicked: Default::default(),
+            triple_clicked: Default::default(),
             dragged: false,
             drag_released: false,
             is_pointer_button_down_on: false,
@@ -410,6 +411,8 @@ impl Context {
                                 response.clicked[click.button as usize] = clicked;
                                 response.double_clicked[click.button as usize] =
                                     clicked && click.is_double();
+                                response.triple_clicked[click.button as usize] =
+                                    clicked && click.is_triple();
                             }
                         }
                     }

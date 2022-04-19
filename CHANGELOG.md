@@ -16,6 +16,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Added `Frame::outer_margin`.
 * Added `Painter::hline` and `Painter::vline`.
 * Added `Link` and `ui.link`  ([#1506](https://github.com/emilk/egui/pull/1506)).
+* Added triple-click support; triple-clicking a TextEdit field will select the whole paragraph ([#1512](https://github.com/emilk/egui/pull/1512)).
 * Added `Plot::x_grid_spacer` and `Plot::y_grid_spacer` for custom grid spacing ([#1180](https://github.com/emilk/egui/pull/1180)).
 
 ### Changed 🔧
