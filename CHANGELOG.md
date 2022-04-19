@@ -12,10 +12,12 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * `Context::request_repaint` will wake up UI thread, if integrations has called `Context::set_request_repaint_callback` ([#1366](https://github.com/emilk/egui/pull/1366)).
 * Added `Plot::allow_scroll`, `Plot::allow_zoom` no longer affects scrolling ([#1382](https://github.com/emilk/egui/pull/1382)).
 * Added `Ui::push_id` to resolve id clashes ([#1374](https://github.com/emilk/egui/pull/1374)).
+* Added `Ui::scroll_with_delta`.
 * Added `Frame::outer_margin`.
 * Added `Painter::hline` and `Painter::vline`.
 * Added `Link` and `ui.link`  ([#1506](https://github.com/emilk/egui/pull/1506)).
-* Added triple-click support. Triple-clicking a TextEdit field will select the whole paragraph.
+* Added triple-click support; triple-clicking a TextEdit field will select the whole paragraph ([#1512](https://github.com/emilk/egui/pull/1512)).
+* Added `Plot::x_grid_spacer` and `Plot::y_grid_spacer` for custom grid spacing ([#1180](https://github.com/emilk/egui/pull/1180)).
 
 ### Changed 🔧
 * `ClippedMesh` has been replaced with `ClippedPrimitive` ([#1351](https://github.com/emilk/egui/pull/1351)).
@@ -27,9 +29,10 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * MSRV (Minimum Supported Rust Version) is now `1.60.0` ([#1467](https://github.com/emilk/egui/pull/1467)).
 * Renamed the feature `convert_bytemuck` to `bytemuck` ([#1467](https://github.com/emilk/egui/pull/1467)).
 * Renamed the feature `serialize` to `serde` ([#1467](https://github.com/emilk/egui/pull/1467)).
+* Renamed `Painter::sub_region` to `Painter::with_clip_rect`.
 
 ### Fixed 🐛
-* Fixed `ComboBox`:es always being rendered left-aligned ([#1304](https://github.com/emilk/egui/pull/1304)).
+* Fixed `ComboBox`es always being rendered left-aligned ([#1304](https://github.com/emilk/egui/pull/1304)).
 * Fixed ui code that could lead to a deadlock ([#1380](https://github.com/emilk/egui/pull/1380)).
 * Text is darker and more readable in bright mode ([#1412](https://github.com/emilk/egui/pull/1412)).
 * Fixed `Ui::add_visible` sometimes leaving the `Ui` in a disabled state. ([#1436](https://github.com/emilk/egui/issues/1436)).

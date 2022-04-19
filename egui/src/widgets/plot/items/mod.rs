@@ -1256,12 +1256,12 @@ impl BarChart {
     pub fn color(mut self, color: impl Into<Color32>) -> Self {
         let plot_color = color.into();
         self.default_color = plot_color;
-        self.bars.iter_mut().for_each(|b| {
+        for b in &mut self.bars {
             if b.fill == Color32::TRANSPARENT && b.stroke.color == Color32::TRANSPARENT {
                 b.fill = plot_color.linear_multiply(0.2);
                 b.stroke.color = plot_color;
             }
-        });
+        }
         self
     }
 
@@ -1278,26 +1278,26 @@ impl BarChart {
     /// Set all elements to be in a vertical orientation.
     /// Argument axis will be X and bar values will be on the Y axis.
     pub fn vertical(mut self) -> Self {
-        self.bars.iter_mut().for_each(|b| {
+        for b in &mut self.bars {
             b.orientation = Orientation::Vertical;
-        });
+        }
         self
     }
 
     /// Set all elements to be in a horizontal orientation.
     /// Argument axis will be Y and bar values will be on the X axis.
     pub fn horizontal(mut self) -> Self {
-        self.bars.iter_mut().for_each(|b| {
+        for b in &mut self.bars {
             b.orientation = Orientation::Horizontal;
-        });
+        }
         self
     }
 
     /// Set the width (thickness) of all its elements.
     pub fn width(mut self, width: f64) -> Self {
-        self.bars.iter_mut().for_each(|b| {
+        for b in &mut self.bars {
             b.bar_width = width;
-        });
+        }
         self
     }
 
@@ -1341,9 +1341,9 @@ impl BarChart {
 
 impl PlotItem for BarChart {
     fn get_shapes(&self, _ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
-        self.bars.iter().for_each(|b| {
+        for b in &self.bars {
             b.add_shapes(transform, self.highlight, shapes);
-        });
+        }
     }
 
     fn initialize(&mut self, _x_range: RangeInclusive<f64>) {
@@ -1372,9 +1372,9 @@ impl PlotItem for BarChart {
 
     fn get_bounds(&self) -> PlotBounds {
         let mut bounds = PlotBounds::NOTHING;
-        self.bars.iter().for_each(|b| {
+        for b in &self.bars {
             bounds.merge(&b.bounds());
-        });
+        }
         bounds
     }
 
@@ -1425,14 +1425,14 @@ impl BoxPlot {
     pub fn color(mut self, color: impl Into<Color32>) -> Self {
         let plot_color = color.into();
         self.default_color = plot_color;
-        self.boxes.iter_mut().for_each(|box_elem| {
+        for box_elem in &mut self.boxes {
             if box_elem.fill == Color32::TRANSPARENT
                 && box_elem.stroke.color == Color32::TRANSPARENT
             {
                 box_elem.fill = plot_color.linear_multiply(0.2);
                 box_elem.stroke.color = plot_color;
             }
-        });
+        }
         self
     }
 
@@ -1449,18 +1449,18 @@ impl BoxPlot {
     /// Set all elements to be in a vertical orientation.
     /// Argument axis will be X and values will be on the Y axis.
     pub fn vertical(mut self) -> Self {
-        self.boxes.iter_mut().for_each(|box_elem| {
+        for box_elem in &mut self.boxes {
             box_elem.orientation = Orientation::Vertical;
-        });
+        }
         self
     }
 
     /// Set all elements to be in a horizontal orientation.
     /// Argument axis will be Y and values will be on the X axis.
     pub fn horizontal(mut self) -> Self {
-        self.boxes.iter_mut().for_each(|box_elem| {
+        for box_elem in &mut self.boxes {
             box_elem.orientation = Orientation::Horizontal;
-        });
+        }
         self
     }
 
@@ -1483,9 +1483,9 @@ impl BoxPlot {
 
 impl PlotItem for BoxPlot {
     fn get_shapes(&self, _ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
-        self.boxes.iter().for_each(|b| {
+        for b in &self.boxes {
             b.add_shapes(transform, self.highlight, shapes);
-        });
+        }
     }
 
     fn initialize(&mut self, _x_range: RangeInclusive<f64>) {
@@ -1514,9 +1514,9 @@ impl PlotItem for BoxPlot {
 
     fn get_bounds(&self) -> PlotBounds {
         let mut bounds = PlotBounds::NOTHING;
-        self.boxes.iter().for_each(|b| {
+        for b in &self.boxes {
             bounds.merge(&b.bounds());
-        });
+        }
         bounds
     }
 

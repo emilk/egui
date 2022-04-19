@@ -33,7 +33,15 @@ pub struct InputState {
     /// (We keep a separate [`TouchState`] for each encountered touch device.)
     touch_states: BTreeMap<TouchDeviceId, TouchState>,
 
-    /// How many pixels the user scrolled.
+    /// How many points the user scrolled.
+    ///
+    /// The delta dictates how the _content_ should move.
+    ///
+    /// A positive X-value indicates the content is being moved right,
+    /// as when swiping right on a touch-screen or track-pad with natural scrolling.
+    ///
+    /// A positive Y-value indicates the content is being moved down,
+    /// as when swiping down on a touch-screen or track-pad with natural scrolling.
     pub scroll_delta: Vec2,
 
     /// Zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).
