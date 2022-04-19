@@ -652,9 +652,9 @@ impl Plot {
         // Set bounds automatically based on content.
         if auto_bounds || !bounds.is_valid() {
             bounds = min_auto_bounds;
-            items
-                .iter()
-                .for_each(|item| bounds.merge(&item.get_bounds()));
+            for item in &items {
+                bounds.merge(&item.get_bounds());
+            }
             bounds.add_relative_margin(margin_fraction);
         }
 
@@ -745,9 +745,9 @@ impl Plot {
         }
 
         // Initialize values from functions.
-        items
-            .iter_mut()
-            .for_each(|item| item.initialize(transform.bounds().range_x()));
+        for item in &mut items {
+            item.initialize(transform.bounds().range_x());
+        }
 
         let prepared = PreparedPlot {
             items,
