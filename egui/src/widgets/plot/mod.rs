@@ -6,6 +6,7 @@ use crate::*;
 use epaint::ahash::AHashSet;
 use epaint::color::Hsva;
 use epaint::util::FloatOrd;
+
 use items::PlotItem;
 use legend::LegendWidget;
 use transform::ScreenTransform;
@@ -25,6 +26,9 @@ type LabelFormatterFn = dyn Fn(&str, &Value) -> String;
 type LabelFormatter = Option<Box<LabelFormatterFn>>;
 type AxisFormatterFn = dyn Fn(f64, &RangeInclusive<f64>) -> String;
 type AxisFormatter = Option<Box<AxisFormatterFn>>;
+
+type GridSpacerFn = dyn Fn(GridInput) -> Vec<GridMark>;
+type GridSpacer = Box<GridSpacerFn>;
 
 /// Specifies the coordinates formatting when passed to [`Plot::coordinates_formatter`].
 pub struct CoordinatesFormatter {
@@ -60,6 +64,8 @@ impl Default for CoordinatesFormatter {
 }
 
 // ----------------------------------------------------------------------------
+
+const MIN_LINE_SPACING_IN_POINTS: f64 = 6.0; // TODO: large enough for a wide label
 
 /// Information about the plot that has to persist between frames.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -186,6 +192,7 @@ pub struct Plot {
     legend_config: Option<Legend>,
     show_background: bool,
     show_axes: [bool; 2],
+    grid_spacers: [GridSpacer; 2],
 }
 
 impl Plot {
@@ -219,6 +226,7 @@ impl Plot {
             legend_config: None,
             show_background: true,
             show_axes: [true; 2],
+            grid_spacers: [log_grid_spacer(10), log_grid_spacer(10)],
         }
     }
 
@@ -393,6 +401,49 @@ impl Plot {
         self
     }
 
+    /// Configure how the grid in the background is spaced apart along the X axis.
+    ///
+    /// Default is a log-10 grid, i.e. every plot unit is divided into 10 other units.
+    ///
+    /// The function has this signature:
+    /// ```ignore
+    /// fn get_step_sizes(input: GridInput) -> Vec<GridMark>;
+    /// ```
+    ///
+    /// This function should return all marks along the visible range of the X axis.
+    /// `step_size` also determines how thick/faint each line is drawn.
+    /// For example, if x = 80..=230 is visible and you want big marks at steps of
+    /// 100 and small ones at 25, you can return:
+    /// ```no_run
+    /// # use egui::plot::GridMark;
+    /// vec![
+    ///    // 100s
+    ///    GridMark { value: 100.0, step_size: 100.0 },
+    ///    GridMark { value: 200.0, step_size: 100.0 },
+    ///
+    ///    // 25s
+    ///    GridMark { value: 125.0, step_size: 25.0 },
+    ///    GridMark { value: 150.0, step_size: 25.0 },
+    ///    GridMark { value: 175.0, step_size: 25.0 },
+    ///    GridMark { value: 225.0, step_size: 25.0 },
+    /// ];
+    /// # ()
+    /// ```
+    ///
+    /// There are helpers for common cases, see [`log_grid_spacer`] and [`uniform_grid_spacer`].
+    pub fn x_grid_spacer(mut self, spacer: impl Fn(GridInput) -> Vec<GridMark> + 'static) -> Self {
+        self.grid_spacers[0] = Box::new(spacer);
+        self
+    }
+
+    /// Default is a log-10 grid, i.e. every plot unit is divided into 10 other units.
+    ///
+    /// See [`Self::x_grid_spacer`] for explanation.
+    pub fn y_grid_spacer(mut self, spacer: impl Fn(GridInput) -> Vec<GridMark> + 'static) -> Self {
+        self.grid_spacers[1] = Box::new(spacer);
+        self
+    }
+
     /// Expand bounds to include the given x value.
     /// For instance, to always show the y axis, call `plot.include_x(0.0)`.
     pub fn include_x(mut self, x: impl Into<f64>) -> Self {
@@ -463,6 +514,7 @@ impl Plot {
             show_background,
             show_axes,
             linked_axes,
+            grid_spacers,
         } = self;
 
         // Determine the size of the plot in the UI
@@ -706,6 +758,7 @@ impl Plot {
             axis_formatters,
             show_axes,
             transform: transform.clone(),
+            grid_spacers,
         };
         prepared.ui(ui, &response);
 
@@ -922,6 +975,80 @@ impl PlotUi {
     }
 }
 
+// ----------------------------------------------------------------------------
+// Grid
+
+/// Input for "grid spacer" functions.
+///
+/// See [`Plot::x_grid_spacer()`] and [`Plot::y_grid_spacer()`].
+pub struct GridInput {
+    /// Min/max of the visible data range (the values at the two edges of the plot,
+    /// for the current axis).
+    pub bounds: (f64, f64),
+
+    /// Recommended (but not required) lower-bound on the step size returned by custom grid spacers.
+    ///
+    /// Computed as the ratio between the diagram's bounds (in plot coordinates) and the viewport
+    /// (in frame/window coordinates), scaled up to represent the minimal possible step.
+    pub base_step_size: f64,
+}
+
+/// One mark (horizontal or vertical line) in the background grid of a plot.
+pub struct GridMark {
+    /// X or Y value in the plot.
+    pub value: f64,
+
+    /// The (approximate) distance to the next value of same thickness.
+    ///
+    /// Determines how thick the grid line is painted. It's not important that `step_size`
+    /// matches the difference between two `value`s precisely, but rather that grid marks of
+    /// same thickness have same `step_size`. For example, months can have a different number
+    /// of days, but consistently using a `step_size` of 30 days is a valid approximation.
+    pub step_size: f64,
+}
+
+/// Recursively splits the grid into `base` subdivisions (e.g. 100, 10, 1).
+///
+/// The logarithmic base, expressing how many times each grid unit is subdivided.
+/// 10 is a typical value, others are possible though.
+pub fn log_grid_spacer(log_base: i64) -> GridSpacer {
+    let log_base = log_base as f64;
+    let get_step_sizes = move |input: GridInput| -> Vec<GridMark> {
+        // The distance between two of the thinnest grid lines is "rounded" up
+        // to the next-bigger power of base
+        let smallest_visible_unit = next_power(input.base_step_size, log_base);
+
+        let step_sizes = [
+            smallest_visible_unit,
+            smallest_visible_unit * log_base,
+            smallest_visible_unit * log_base * log_base,
+        ];
+
+        generate_marks(step_sizes, input.bounds)
+    };
+
+    Box::new(get_step_sizes)
+}
+
+/// Splits the grid into uniform-sized spacings (e.g. 100, 25, 1).
+///
+/// This function should return 3 positive step sizes, designating where the lines in the grid are drawn.
+/// Lines are thicker for larger step sizes. Ordering of returned value is irrelevant.
+///
+/// Why only 3 step sizes? Three is the number of different line thicknesses that egui typically uses in the grid.
+/// Ideally, those 3 are not hardcoded values, but depend on the visible range (accessible through `GridInput`).
+pub fn uniform_grid_spacer(spacer: impl Fn(GridInput) -> [f64; 3] + 'static) -> GridSpacer {
+    let get_marks = move |input: GridInput| -> Vec<GridMark> {
+        let bounds = input.bounds;
+        let step_sizes = spacer(input);
+        generate_marks(step_sizes, bounds)
+    };
+
+    Box::new(get_marks)
+}
+
+// ----------------------------------------------------------------------------
+
 struct PreparedPlot {
     items: Vec<Box<dyn PlotItem>>,
     show_x: bool,
@@ -931,6 +1058,7 @@ struct PreparedPlot {
     axis_formatters: [AxisFormatter; 2],
     show_axes: [bool; 2],
     transform: ScreenTransform,
+    grid_spacers: [GridSpacer; 2],
 }
 
 impl PreparedPlot {
@@ -979,6 +1107,7 @@ impl PreparedPlot {
         let Self {
             transform,
             axis_formatters,
+            grid_spacers,
             ..
         } = self;
 
@@ -991,43 +1120,31 @@ impl PreparedPlot {
 
         let font_id = TextStyle::Body.resolve(ui.style());
 
-        let base: i64 = 10;
-        let basef = base as f64;
-
-        let min_line_spacing_in_points = 6.0; // TODO: large enough for a wide label
-        let step_size = transform.dvalue_dpos()[axis] * min_line_spacing_in_points;
-        let step_size = basef.powi(step_size.abs().log(basef).ceil() as i32);
-
-        let step_size_in_points = (transform.dpos_dvalue()[axis] * step_size).abs() as f32;
-
         // Where on the cross-dimension to show the label values
+        let bounds = transform.bounds();
         let value_cross = 0.0_f64.clamp(bounds.min[1 - axis], bounds.max[1 - axis]);
 
-        for i in 0.. {
-            let value_main = step_size * (bounds.min[axis] / step_size + i as f64).floor();
-            if value_main > bounds.max[axis] {
-                break;
-            }
+        let input = GridInput {
+            bounds: (bounds.min[axis], bounds.max[axis]),
+            base_step_size: transform.dvalue_dpos()[axis] * MIN_LINE_SPACING_IN_POINTS,
+        };
+        let steps = (grid_spacers[axis])(input);
+
+        for step in steps {
+            let value_main = step.value;
 
             let value = if axis == 0 {
                 Value::new(value_main, value_cross)
             } else {
                 Value::new(value_cross, value_main)
             };
-            let pos_in_gui = transform.position_from_value(&value);
 
-            let n = (value_main / step_size).round() as i64;
-            let spacing_in_points = if n % (base * base) == 0 {
-                step_size_in_points * (basef * basef) as f32 // think line (multiple of 100)
-            } else if n % base == 0 {
-                step_size_in_points * basef as f32 // medium line (multiple of 10)
-            } else {
-                step_size_in_points // thin line
-            };
+            let pos_in_gui = transform.position_from_value(&value);
+            let spacing_in_points = (transform.dpos_dvalue()[axis] * step.step_size).abs() as f32;
 
             let line_alpha = remap_clamp(
                 spacing_in_points,
-                (min_line_spacing_in_points as f32)..=300.0,
+                (MIN_LINE_SPACING_IN_POINTS as f32)..=300.0,
                 0.0..=0.15,
             );
 
@@ -1118,4 +1235,39 @@ impl PreparedPlot {
             items::rulers_at_value(pointer, value, "", &plot, shapes, label_formatter);
         }
     }
+}
+
+/// Returns next bigger power in given base
+/// e.g.
+/// ```ignore
+/// use egui::plot::next_power;
+/// assert_eq!(next_power(0.01, 10.0), 0.01);
+/// assert_eq!(next_power(0.02, 10.0), 0.1);
+/// assert_eq!(next_power(0.2,  10.0), 1);
+/// ```
+fn next_power(value: f64, base: f64) -> f64 {
+    assert_ne!(value, 0.0); // can be negative (typical for Y axis)
+    base.powi(value.abs().log(base).ceil() as i32)
+}
+
+/// Fill in all values between [min, max] which are a multiple of `step_size`
+fn generate_marks(step_sizes: [f64; 3], bounds: (f64, f64)) -> Vec<GridMark> {
+    let mut steps = vec![];
+    fill_marks_between(&mut steps, step_sizes[0], bounds);
+    fill_marks_between(&mut steps, step_sizes[1], bounds);
+    fill_marks_between(&mut steps, step_sizes[2], bounds);
+    steps
+}
+
+/// Fill in all values between [min, max] which are a multiple of `step_size`
+fn fill_marks_between(out: &mut Vec<GridMark>, step_size: f64, (min, max): (f64, f64)) {
+    assert!(max > min);
+    let first = (min / step_size).ceil() as i64;
+    let last = (max / step_size).ceil() as i64;
+
+    let marks_iter = (first..last).map(|i| {
+        let value = (i as f64) * step_size;
+        GridMark { value, step_size }
+    });
+    out.extend(marks_iter);
 }

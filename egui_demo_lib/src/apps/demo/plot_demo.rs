@@ -1,5 +1,7 @@
 use std::f64::consts::TAU;
+use std::ops::RangeInclusive;
 
+use egui::plot::{GridInput, GridMark};
 use egui::*;
 use plot::{
     Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, CoordinatesFormatter, Corner, HLine,
@@ -309,6 +311,125 @@ impl Widget for &mut LegendDemo {
     }
 }
 
+#[derive(PartialEq, Default)]
+struct CustomAxisDemo {}
+
+impl CustomAxisDemo {
+    const MINS_PER_DAY: f64 = 24.0 * 60.0;
+    const MINS_PER_H: f64 = 60.0;
+
+    fn logistic_fn() -> Line {
+        fn days(min: f64) -> f64 {
+            CustomAxisDemo::MINS_PER_DAY * min
+        }
+
+        let values = Values::from_explicit_callback(
+            move |x| 1.0 / (1.0 + (-2.5 * (x / CustomAxisDemo::MINS_PER_DAY - 2.0)).exp()),
+            days(0.0)..days(5.0),
+            100,
+        );
+        Line::new(values)
+    }
+
+    #[allow(clippy::needless_pass_by_value)]
+    fn x_grid(input: GridInput) -> Vec<GridMark> {
+        // Note: this always fills all possible marks. For optimization, `input.bounds`
+        // could be used to decide when the low-interval grids (minutes) should be added.
+
+        let mut marks = vec![];
+
+        let (min, max) = input.bounds;
+        let min = min.floor() as i32;
+        let max = max.ceil() as i32;
+
+        for i in min..=max {
+            let step_size = if i % Self::MINS_PER_DAY as i32 == 0 {
+                // 1 day
+                Self::MINS_PER_DAY
+            } else if i % Self::MINS_PER_H as i32 == 0 {
+                // 1 hour
+                Self::MINS_PER_H
+            } else if i % 5 == 0 {
+                // 5min
+                5.0
+            } else {
+                // skip grids below 5min
+                continue;
+            };
+
+            marks.push(GridMark {
+                value: i as f64,
+                step_size,
+            });
+        }
+
+        marks
+    }
+}
+
+impl Widget for &mut CustomAxisDemo {
+    fn ui(self, ui: &mut Ui) -> Response {
+        const MINS_PER_DAY: f64 = CustomAxisDemo::MINS_PER_DAY;
+        const MINS_PER_H: f64 = CustomAxisDemo::MINS_PER_H;
+
+        fn get_day(x: f64) -> f64 {
+            (x / MINS_PER_DAY).floor()
+        }
+        fn get_hour(x: f64) -> f64 {
+            (x.rem_euclid(MINS_PER_DAY) / MINS_PER_H).floor()
+        }
+        fn get_minute(x: f64) -> f64 {
+            x.rem_euclid(MINS_PER_H).floor()
+        }
+        fn get_percent(y: f64) -> f64 {
+            (100.0 * y).round()
+        }
+
+        let x_fmt = |x, _range: &RangeInclusive<f64>| {
+            if x < 0.0 * MINS_PER_DAY || x >= 5.0 * MINS_PER_DAY {
+                // No labels outside value bounds
+                String::new()
+            } else if is_approx_integer(x / MINS_PER_DAY) {
+                // Days
+                format!("Day {}", get_day(x))
+            } else {
+                // Hours and minutes
+                format!("{h}:{m:02}", h = get_hour(x), m = get_minute(x))
+            }
+        };
+
+        let y_fmt = |y, _range: &RangeInclusive<f64>| {
+            // Display only integer percentages
+            if !is_approx_zero(y) && is_approx_integer(100.0 * y) {
+                format!("{}%", get_percent(y))
+            } else {
+                String::new()
+            }
+        };
+
+        let label_fmt = |_s: &str, val: &Value| {
+            format!(
+                "Day {d}, {h}:{m:02}\n{p}%",
+                d = get_day(val.x),
+                h = get_hour(val.x),
+                m = get_minute(val.x),
+                p = get_percent(val.y)
+            )
+        };
+
+        Plot::new("custom_axes")
+            .data_aspect(2.0 * MINS_PER_DAY as f32)
+            .x_axis_formatter(x_fmt)
+            .y_axis_formatter(y_fmt)
+            .x_grid_spacer(CustomAxisDemo::x_grid)
+            .label_formatter(label_fmt)
+            .show(ui, |plot_ui| {
+                plot_ui.line(CustomAxisDemo::logistic_fn());
+            })
+            .response
+    }
+}
+
 #[derive(PartialEq)]
 struct LinkedAxisDemo {
     link_x: bool,
@@ -604,40 +725,15 @@ impl ChartsDemo {
         .name("Set 4")
         .stack_on(&[&chart1, &chart2, &chart3]);
 
-        let mut x_fmt: fn(f64, &std::ops::RangeInclusive<f64>) -> String = |val, _range| {
-            if val >= 0.0 && val <= 4.0 && is_approx_integer(val) {
-                // Only label full days from 0 to 4
-                format!("Day {}", val)
-            } else {
-                // Otherwise return empty string (i.e. no label)
-                String::new()
-            }
-        };
-
-        let mut y_fmt: fn(f64, &std::ops::RangeInclusive<f64>) -> String = |val, _range| {
-            let percent = 100.0 * val;
-
-            if is_approx_integer(percent) && !is_approx_zero(percent) {
-                // Only show integer percentages,
-                // and don't show at Y=0 (label overlaps with X axis label)
-                format!("{}%", percent)
-            } else {
-                String::new()
-            }
-        };
-
         if !self.vertical {
             chart1 = chart1.horizontal();
             chart2 = chart2.horizontal();
             chart3 = chart3.horizontal();
             chart4 = chart4.horizontal();
-            std::mem::swap(&mut x_fmt, &mut y_fmt);
         }
 
         Plot::new("Stacked Bar Chart Demo")
             .legend(Legend::default())
-            .x_axis_formatter(x_fmt)
-            .y_axis_formatter(y_fmt)
             .data_aspect(1.0)
             .show(ui, |plot_ui| {
                 plot_ui.bar_chart(chart1);
@@ -720,6 +816,7 @@ enum Panel {
     Charts,
     Items,
     Interaction,
+    CustomAxes,
     LinkedAxes,
 }
 
@@ -737,6 +834,7 @@ pub struct PlotDemo {
     charts_demo: ChartsDemo,
     items_demo: ItemsDemo,
     interaction_demo: InteractionDemo,
+    custom_axes_demo: CustomAxisDemo,
     linked_axes_demo: LinkedAxisDemo,
     open_panel: Panel,
 }
@@ -782,6 +880,7 @@ impl super::View for PlotDemo {
             ui.selectable_value(&mut self.open_panel, Panel::Charts, "Charts");
             ui.selectable_value(&mut self.open_panel, Panel::Items, "Items");
             ui.selectable_value(&mut self.open_panel, Panel::Interaction, "Interaction");
+            ui.selectable_value(&mut self.open_panel, Panel::CustomAxes, "Custom Axes");
             ui.selectable_value(&mut self.open_panel, Panel::LinkedAxes, "Linked Axes");
         });
         ui.separator();
@@ -804,6 +903,9 @@ impl super::View for PlotDemo {
             }
             Panel::Interaction => {
                 ui.add(&mut self.interaction_demo);
+            }
+            Panel::CustomAxes => {
+                ui.add(&mut self.custom_axes_demo);
             }
             Panel::LinkedAxes => {
                 ui.add(&mut self.linked_axes_demo);
