@@ -59,11 +59,17 @@ impl crate::Storage for FileStorage {
 
     fn flush(&mut self) {
         if self.dirty {
-            // eprintln!("Persisted to {}", self.path.display());
-            let file = std::fs::File::create(&self.ron_filepath).unwrap();
-            let config = Default::default();
-            ron::ser::to_writer_pretty(file, &self.kv, config).unwrap();
             self.dirty = false;
+
+            let file_path = self.ron_filepath.clone();
+            let kv = self.kv.clone();
+
+            std::thread::spawn(move || {
+                let file = std::fs::File::create(&file_path).unwrap();
+                let config = Default::default();
+                ron::ser::to_writer_pretty(file, &kv, config).unwrap();
+                tracing::trace!("Persisted to {:?}", file_path);
+            });
         }
     }
 }
