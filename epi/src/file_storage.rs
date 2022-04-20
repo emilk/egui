@@ -11,6 +11,15 @@ pub struct FileStorage {
     ron_filepath: PathBuf,
     kv: HashMap<String, String>,
     dirty: bool,
+    last_save_join_handle: Option<std::thread::JoinHandle<()>>,
+}
+
+impl Drop for FileStorage {
+    fn drop(&mut self) {
+        if let Some(join_handle) = self.last_save_join_handle.take() {
+            join_handle.join().ok();
+        }
+    }
 }
 
 impl FileStorage {
@@ -21,6 +30,7 @@ impl FileStorage {
             kv: read_ron(&ron_filepath).unwrap_or_default(),
             ron_filepath,
             dirty: false,
+            last_save_join_handle: None,
         }
     }
 
@@ -64,12 +74,19 @@ impl crate::Storage for FileStorage {
             let file_path = self.ron_filepath.clone();
             let kv = self.kv.clone();
 
-            std::thread::spawn(move || {
+            if let Some(join_handle) = self.last_save_join_handle.take() {
+                // wait for previous save to complete.
+                join_handle.join().ok();
+            }
+
+            let join_handle = std::thread::spawn(move || {
                 let file = std::fs::File::create(&file_path).unwrap();
                 let config = Default::default();
                 ron::ser::to_writer_pretty(file, &kv, config).unwrap();
                 tracing::trace!("Persisted to {:?}", file_path);
             });
+
+            self.last_save_join_handle = Some(join_handle);
         }
     }
 }
