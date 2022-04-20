@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
+    sync::mpsc,
 };
 
 // ----------------------------------------------------------------------------
@@ -8,19 +9,49 @@ use std::{
 /// A key-value store backed by a [RON](https://github.com/ron-rs/ron) file on disk.
 /// Used to restore egui state, glium window position/size and app state.
 pub struct FileStorage {
-    ron_filepath: PathBuf,
     kv: HashMap<String, String>,
     dirty: bool,
+    flush_handle: Option<std::thread::JoinHandle<()>>,
+    sender: mpsc::Sender<Message>,
+}
+
+enum Message {
+    DoFlush(HashMap<String, String>),
+    Terminate,
+}
+
+impl Drop for FileStorage {
+    fn drop(&mut self) {
+        self.sender.send(Message::Terminate).unwrap();
+        if let Some(handle) = self.flush_handle.take() {
+            handle.join().unwrap();
+        }
+    }
 }
 
 impl FileStorage {
     /// Store the state in this .ron file.
     pub fn from_ron_filepath(ron_filepath: impl Into<PathBuf>) -> Self {
         let ron_filepath: PathBuf = ron_filepath.into();
+        let filepath = ron_filepath.clone();
+        let (tx, rx): (mpsc::Sender<Message>, mpsc::Receiver<Message>) = mpsc::channel();
+        let flush_handle = Some(std::thread::spawn(move || loop {
+            let message = rx.recv().unwrap();
+            match message {
+                Message::DoFlush(kv) => {
+                    let file = std::fs::File::create(&filepath).unwrap();
+                    let config = Default::default();
+                    ron::ser::to_writer_pretty(file, &kv, config).unwrap();
+                    tracing::trace!("Persisted to {:?}", filepath);
+                }
+                Message::Terminate => break,
+            }
+        }));
         Self {
             kv: read_ron(&ron_filepath).unwrap_or_default(),
-            ron_filepath,
             dirty: false,
+            flush_handle,
+            sender: tx,
         }
     }
 
@@ -61,15 +92,8 @@ impl crate::Storage for FileStorage {
         if self.dirty {
             self.dirty = false;
 
-            let file_path = self.ron_filepath.clone();
             let kv = self.kv.clone();
-
-            std::thread::spawn(move || {
-                let file = std::fs::File::create(&file_path).unwrap();
-                let config = Default::default();
-                ron::ser::to_writer_pretty(file, &kv, config).unwrap();
-                tracing::trace!("Persisted to {:?}", file_path);
-            });
+            self.sender.send(Message::DoFlush(kv)).unwrap();
         }
     }
 }
