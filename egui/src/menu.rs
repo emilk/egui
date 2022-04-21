@@ -19,7 +19,6 @@ use super::{
     style::WidgetVisuals, Align, Context, Id, InnerResponse, PointerState, Pos2, Rect, Response,
     Sense, TextStyle, Ui, Vec2,
 };
-use crate::widget_text::WidgetTextGalley;
 use crate::{widgets::*, *};
 use epaint::{mutex::RwLock, Stroke};
 use std::sync::Arc;
@@ -255,22 +254,35 @@ fn stationary_menu_impl<'c, R>(
 
     let mut bar_state = BarState::load(ui.ctx(), bar_id);
 
-    let mut button = match button_config {
-        MenuButtonKind::ButtonWithImage(texture_id, size, text) => {
-            Button::image_and_text(texture_id, size, text)
-        }
-        MenuButtonKind::ImageButton(texture_id, size, _0) => {
-            Button::image_and_text(texture_id, size, "")
-        }
-        MenuButtonKind::Button(text) => Button::new(text),
-    };
-
-    if bar_state.open_menu.is_menu_open(menu_id) {
-        button = button.fill(ui.visuals().widgets.open.bg_fill);
-        button = button.stroke(ui.visuals().widgets.open.bg_stroke);
+    enum ButtonKind {
+        Button(Button),
+        ImageButton(ImageButton),
     }
 
-    let button_response = ui.add(button);
+    let button = match button_config {
+        MenuButtonKind::ButtonWithImage(texture_id, size, text) => {
+            ButtonKind::Button(Button::image_and_text(texture_id, size, text))
+        }
+        MenuButtonKind::ImageButton(texture_id, size, _0) => {
+            ButtonKind::ImageButton(ImageButton::new(texture_id, size))
+        }
+        MenuButtonKind::Button(text) => ButtonKind::Button(Button::new(text)),
+    };
+
+    let button_response = match button {
+        ButtonKind::Button(button) => {
+            let button = if bar_state.open_menu.is_menu_open(menu_id) {
+                button
+                    .fill(ui.visuals().widgets.open.bg_fill)
+                    .stroke(ui.visuals().widgets.open.bg_stroke)
+            } else {
+                button
+            };
+            ui.add(button)
+        }
+        ButtonKind::ImageButton(button) => ui.add(button),
+    };
+
     let inner = bar_state.bar_menu(&button_response, add_contents);
 
     bar_state.store(ui.ctx(), bar_id);
