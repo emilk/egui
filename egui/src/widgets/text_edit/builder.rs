@@ -579,23 +579,26 @@ impl<'t> TextEdit<'t> {
                     // We paint the cursor on top of the text, in case
                     // the text galley has backgrounds (as e.g. `code` snippets in markup do).
                     paint_cursor_selection(ui, &painter, text_draw_pos, &galley, &cursor_range);
-                    let cursor_pos = paint_cursor_end(
-                        ui,
-                        row_height,
-                        &painter,
-                        text_draw_pos,
-                        &galley,
-                        &cursor_range.primary,
-                    );
 
-                    if response.changed || selection_changed {
-                        ui.scroll_to_rect(cursor_pos, None); // keep cursor in view
-                    }
+                    if text.is_mutable() {
+                        let cursor_pos = paint_cursor_end(
+                            ui,
+                            row_height,
+                            &painter,
+                            text_draw_pos,
+                            &galley,
+                            &cursor_range.primary,
+                        );
 
-                    if interactive && text.is_mutable() {
-                        // egui_web uses `text_cursor_pos` when showing IME,
-                        // so only set it when text is editable and visible!
-                        ui.ctx().output().text_cursor_pos = Some(cursor_pos.left_top());
+                        if response.changed || selection_changed {
+                            ui.scroll_to_rect(cursor_pos, None); // keep cursor in view
+                        }
+
+                        if interactive {
+                            // egui_web uses `text_cursor_pos` when showing IME,
+                            // so only set it when text is editable and visible!
+                            ui.ctx().output().text_cursor_pos = Some(cursor_pos.left_top());
+                        }
                     }
                 }
             }
