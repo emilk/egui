@@ -263,7 +263,7 @@ fn stationary_menu_impl<'c, R>(
         MenuButtonKind::ButtonWithImage(texture_id, size, text) => {
             ButtonKind::Button(Button::image_and_text(texture_id, size, text))
         }
-        MenuButtonKind::ImageButton(texture_id, size, _0) => {
+        MenuButtonKind::ImageButton(texture_id, size, _) => {
             ButtonKind::ImageButton(ImageButton::new(texture_id, size))
         }
         MenuButtonKind::Button(text) => ButtonKind::Button(Button::new(text)),
