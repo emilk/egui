@@ -2105,6 +2105,55 @@ impl Ui {
             menu::menu_button(self, title, add_contents)
         }
     }
+
+    #[inline]
+    /// Create a menu button that when clicked will show the given menu.
+    ///
+    /// If called from within a menu this will instead create a button for a sub-menu.
+    ///
+    /// accessibility used to generate internal id and accessibility information (tts).
+    ///
+    /// See also: [`Self::close_menu`] and [`Response::context_menu`].
+    pub fn menu_image_button<R>(
+        &mut self,
+        accessibility: impl AsRef<str>,
+        texture_id: TextureId,
+        size: Vec2,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<Option<R>> {
+        if let Some(menu_state) = self.menu_state.clone() {
+            menu::submenu_image_button(
+                self,
+                menu_state,
+                accessibility,
+                texture_id,
+                size,
+                add_contents,
+            )
+        } else {
+            menu::menu_image_button(self, accessibility, texture_id, size, add_contents)
+        }
+    }
+
+    #[inline]
+    /// Create a menu button that when clicked will show the given menu.
+    ///
+    /// If called from within a menu this will instead create a button for a sub-menu.
+    ///
+    /// See also: [`Self::close_menu`] and [`Response::context_menu`].
+    pub fn menu_button_with_image<R>(
+        &mut self,
+        title: impl Into<WidgetText>,
+        texture_id: TextureId,
+        size: Vec2,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<Option<R>> {
+        if let Some(menu_state) = self.menu_state.clone() {
+            menu::submenu_button_with_image(self, menu_state, title, texture_id, size, add_contents)
+        } else {
+            menu::menu_button_with_image(self, title, texture_id, size, add_contents)
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------

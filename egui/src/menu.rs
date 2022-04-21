@@ -19,6 +19,7 @@ use super::{
     style::WidgetVisuals, Align, Context, Id, InnerResponse, PointerState, Pos2, Rect, Response,
     Sense, TextStyle, Ui, Vec2,
 };
+use crate::widget_text::WidgetTextGalley;
 use crate::{widgets::*, *};
 use epaint::{mutex::RwLock, Stroke};
 use std::sync::Arc;
@@ -27,6 +28,12 @@ use std::sync::Arc;
 #[derive(Clone, Default)]
 pub(crate) struct BarState {
     open_menu: MenuRootManager,
+}
+
+pub(crate) enum MenuButtonKind {
+    ButtonWithImage(TextureId, Vec2, WidgetText),
+    ImageButton(TextureId, Vec2, String),
+    Button(WidgetText),
 }
 
 impl BarState {
@@ -94,7 +101,49 @@ pub fn menu_button<R>(
     title: impl Into<WidgetText>,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> InnerResponse<Option<R>> {
-    stationary_menu_impl(ui, title, Box::new(add_contents))
+    stationary_menu_impl(
+        ui,
+        MenuButtonKind::Button(title.into()),
+        Box::new(add_contents),
+    )
+}
+
+/// Construct a top level menu in a menu bar with left placed image. This would be e.g. "File", "Edit" etc.
+///
+/// Responds to primary clicks.
+///
+/// Returns `None` if the menu is not open.
+pub fn menu_button_with_image<R>(
+    ui: &mut Ui,
+    title: impl Into<WidgetText>,
+    texture_id: TextureId,
+    size: Vec2,
+    add_contents: impl FnOnce(&mut Ui) -> R,
+) -> InnerResponse<Option<R>> {
+    stationary_menu_impl(
+        ui,
+        MenuButtonKind::ButtonWithImage(texture_id, size, title.into()),
+        Box::new(add_contents),
+    )
+}
+
+/// Construct a top level menu in a menu bar like image button. This would be e.g. "File", "Edit" etc.
+///
+/// Responds to primary clicks.
+///
+/// Returns `None` if the menu is not open.
+pub fn menu_image_button<R>(
+    ui: &mut Ui,
+    accessibility: impl AsRef<str>,
+    texture_id: TextureId,
+    size: Vec2,
+    add_contents: impl FnOnce(&mut Ui) -> R,
+) -> InnerResponse<Option<R>> {
+    stationary_menu_impl(
+        ui,
+        MenuButtonKind::ImageButton(texture_id, size, accessibility.as_ref().to_owned()),
+        Box::new(add_contents),
+    )
 }
 
 /// Construct a nested sub menu in another menu.
@@ -109,6 +158,38 @@ pub(crate) fn submenu_button<R>(
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> InnerResponse<Option<R>> {
     SubMenu::new(parent_state, title).show(ui, add_contents)
+}
+
+/// Construct a nested sub menu in another menu.
+///
+/// Opens on hover.
+///
+/// Returns `None` if the menu is not open.
+pub(crate) fn submenu_button_with_image<R>(
+    ui: &mut Ui,
+    parent_state: Arc<RwLock<MenuState>>,
+    title: impl Into<WidgetText>,
+    texture_id: TextureId,
+    size: Vec2,
+    add_contents: impl FnOnce(&mut Ui) -> R,
+) -> InnerResponse<Option<R>> {
+    SubMenu::new_with_image(parent_state, title, texture_id, size).show(ui, add_contents)
+}
+
+/// Construct a nested sub menu in another menu.
+///
+/// Opens on hover.
+///
+/// Returns `None` if the menu is not open.
+pub(crate) fn submenu_image_button<R>(
+    ui: &mut Ui,
+    parent_state: Arc<RwLock<MenuState>>,
+    accessibility: impl AsRef<str>,
+    texture_id: TextureId,
+    size: Vec2,
+    add_contents: impl FnOnce(&mut Ui) -> R,
+) -> InnerResponse<Option<R>> {
+    SubMenu::new_image_only(parent_state, accessibility, texture_id, size).show(ui, add_contents)
 }
 
 /// wrapper for the contents of every menu.
@@ -161,16 +242,28 @@ pub(crate) fn menu_ui<'c, R>(
 /// Responds to primary clicks.
 fn stationary_menu_impl<'c, R>(
     ui: &mut Ui,
-    title: impl Into<WidgetText>,
+    button_config: MenuButtonKind,
     add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
 ) -> InnerResponse<Option<R>> {
-    let title = title.into();
     let bar_id = ui.id();
-    let menu_id = bar_id.with(title.text());
+
+    let menu_id = match &button_config {
+        MenuButtonKind::ButtonWithImage(_, _, t) => bar_id.with(t.text()),
+        MenuButtonKind::ImageButton(_, _, acc) => bar_id.with(acc),
+        MenuButtonKind::Button(t) => bar_id.with(t.text()),
+    };
 
     let mut bar_state = BarState::load(ui.ctx(), bar_id);
 
-    let mut button = Button::new(title);
+    let mut button = match button_config {
+        MenuButtonKind::ButtonWithImage(texture_id, size, text) => {
+            Button::image_and_text(texture_id, size, text)
+        }
+        MenuButtonKind::ImageButton(texture_id, size, _0) => {
+            Button::image_and_text(texture_id, size, "")
+        }
+        MenuButtonKind::Button(text) => Button::new(text),
+    };
 
     if bar_state.open_menu.is_menu_open(menu_id) {
         button = button.fill(ui.visuals().widgets.open.bg_fill);
@@ -371,7 +464,7 @@ impl MenuResponse {
     }
 }
 pub struct SubMenuButton {
-    text: WidgetText,
+    button_data: MenuButtonKind,
     icon: WidgetText,
     index: usize,
 }
@@ -379,7 +472,41 @@ impl SubMenuButton {
     /// The `icon` can be an emoji (e.g. `⏵` right arrow), shown right of the label
     fn new(text: impl Into<WidgetText>, icon: impl Into<WidgetText>, index: usize) -> Self {
         Self {
-            text: text.into(),
+            button_data: MenuButtonKind::Button(text.into()),
+            icon: icon.into(),
+            index,
+        }
+    }
+
+    /// The `icon` can be an emoji (e.g. `⏵` right arrow), shown right of the label
+    fn new_with_image(
+        text: impl Into<WidgetText>,
+        texture_id: TextureId,
+        size: Vec2,
+        icon: impl Into<WidgetText>,
+        index: usize,
+    ) -> Self {
+        Self {
+            button_data: MenuButtonKind::ButtonWithImage(texture_id, size, text.into()),
+            icon: icon.into(),
+            index,
+        }
+    }
+
+    /// The `icon` can be an emoji (e.g. `⏵` right arrow), shown right of the label
+    fn new_image_only(
+        accessibility: impl AsRef<str>,
+        texture_id: TextureId,
+        size: Vec2,
+        icon: impl Into<WidgetText>,
+        index: usize,
+    ) -> Self {
+        Self {
+            button_data: MenuButtonKind::ImageButton(
+                texture_id,
+                size,
+                accessibility.as_ref().to_owned(),
+            ),
             icon: icon.into(),
             index,
         }
@@ -404,7 +531,9 @@ impl SubMenuButton {
     }
 
     pub(crate) fn show(self, ui: &mut Ui, menu_state: &MenuState, sub_id: Id) -> Response {
-        let SubMenuButton { text, icon, .. } = self;
+        let SubMenuButton {
+            button_data, icon, ..
+        } = self;
 
         let text_style = TextStyle::Button;
         let sense = Sense::click();
@@ -412,14 +541,35 @@ impl SubMenuButton {
         let button_padding = ui.spacing().button_padding;
         let total_extra = button_padding + button_padding;
         let text_available_width = ui.available_width() - total_extra.x;
-        let text_galley =
-            text.into_galley(ui, Some(true), text_available_width, text_style.clone());
+        let (texture, text_galley, button_image_size) = match button_data {
+            MenuButtonKind::ButtonWithImage(texture_id, size, text) => (
+                Some(texture_id),
+                text.into_galley(ui, Some(true), text_available_width, text_style.clone()),
+                size,
+            ),
+            MenuButtonKind::ImageButton(texture_id, size, _) => {
+                let text = WidgetText::RichText(RichText::new(""));
+                (
+                    Some(texture_id),
+                    text.into_galley(ui, Some(true), text_available_width, text_style.clone()),
+                    size,
+                )
+            }
+            MenuButtonKind::Button(text) => (
+                None,
+                text.into_galley(ui, Some(true), text_available_width, text_style.clone()),
+                Vec2::new(0.0, 0.0),
+            ),
+        };
 
-        let icon_available_width = text_available_width - text_galley.size().x;
+        let icon_available_width =
+            text_available_width - button_image_size.x - text_galley.size().x;
         let icon_galley = icon.into_galley(ui, Some(true), icon_available_width, text_style);
         let text_and_icon_size = Vec2::new(
-            text_galley.size().x + icon_galley.size().x,
-            text_galley.size().y.max(icon_galley.size().y),
+            button_image_size.x + text_galley.size().x + icon_galley.size().x,
+            button_image_size
+                .y
+                .max(text_galley.size().y.max(icon_galley.size().y)),
         );
         let desired_size = text_and_icon_size + 2.0 * button_padding;
 
@@ -430,9 +580,17 @@ impl SubMenuButton {
 
         if ui.is_rect_visible(rect) {
             let visuals = Self::visuals(ui, &response, menu_state, sub_id);
-            let text_pos = Align2::LEFT_CENTER
-                .align_size_within_rect(text_galley.size(), rect.shrink2(button_padding))
-                .min;
+
+            let text_pos = if texture.is_some() {
+                Align2::LEFT_CENTER
+                    .align_size_within_rect(text_galley.size(), rect.shrink2(button_padding))
+                    .min
+                    + vec2(button_image_size.x, 0.0)
+            } else {
+                Align2::LEFT_CENTER
+                    .align_size_within_rect(text_galley.size(), rect.shrink2(button_padding))
+                    .min
+            };
             let icon_pos = Align2::RIGHT_CENTER
                 .align_size_within_rect(icon_galley.size(), rect.shrink2(button_padding))
                 .min;
@@ -444,6 +602,15 @@ impl SubMenuButton {
             );
 
             let text_color = visuals.text_color();
+            if let Some(texture_id) = texture {
+                let mut mesh = Mesh::with_texture(texture_id);
+                mesh.add_rect_with_uv(
+                    Rect::from_min_max(rect.min, rect.min + button_image_size),
+                    Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
+                    Color32::WHITE,
+                );
+                ui.painter().add(Shape::Mesh(mesh));
+            }
             text_galley.paint_with_fallback_color(ui.painter(), text_pos, text_color);
             icon_galley.paint_with_fallback_color(ui.painter(), icon_pos, text_color);
         }
@@ -459,6 +626,32 @@ impl SubMenu {
         let index = parent_state.write().next_entry_index();
         Self {
             button: SubMenuButton::new(text, "⏵", index),
+            parent_state,
+        }
+    }
+
+    fn new_with_image(
+        parent_state: Arc<RwLock<MenuState>>,
+        text: impl Into<WidgetText>,
+        texture_id: TextureId,
+        size: Vec2,
+    ) -> Self {
+        let index = parent_state.write().next_entry_index();
+        Self {
+            button: SubMenuButton::new_with_image(text, texture_id, size, "⏵", index),
+            parent_state,
+        }
+    }
+
+    fn new_image_only(
+        parent_state: Arc<RwLock<MenuState>>,
+        accessibility: impl AsRef<str>,
+        texture_id: TextureId,
+        size: Vec2,
+    ) -> Self {
+        let index = parent_state.write().next_entry_index();
+        Self {
+            button: SubMenuButton::new_image_only(accessibility, texture_id, size, "⏵", index),
             parent_state,
         }
     }
