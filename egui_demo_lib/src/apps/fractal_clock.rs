@@ -93,7 +93,7 @@ impl FractalClock {
             "Inspired by a screensaver by Rob Mayoff",
             "http://www.dqd.com/~mayoff/programs/FractalClock/",
         );
-        ui.add(crate::__egui_github_link_file!());
+        ui.add(crate::egui_github_link_file!());
     }
 
     fn paint(&mut self, painter: &Painter) {

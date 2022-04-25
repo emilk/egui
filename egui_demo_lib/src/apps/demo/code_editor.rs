@@ -42,7 +42,7 @@ impl super::View for CodeEditor {
         ui.horizontal(|ui| {
             ui.set_height(0.0);
             ui.label("An example of syntax highlighting in a TextEdit.");
-            ui.add(crate::__egui_github_link_file!());
+            ui.add(crate::egui_github_link_file!());
         });
 
         if cfg!(feature = "syntect") {

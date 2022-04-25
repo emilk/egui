@@ -19,11 +19,9 @@ pub use wrap_app::WrapApp;
 // ----------------------------------------------------------------------------
 
 /// Create a [`Hyperlink`](crate::Hyperlink) to this egui source code file on github.
-#[doc(hidden)]
-#[macro_export]
-macro_rules! __egui_github_link_file {
+macro_rules! egui_github_link_file {
     () => {
-        crate::__egui_github_link_file!("(source code)")
+        crate::egui_github_link_file!("(source code)")
     };
     ($label: expr) => {
         egui::github_link_file!(
@@ -32,13 +30,12 @@ macro_rules! __egui_github_link_file {
         )
     };
 }
+pub(crate) use egui_github_link_file;
 
 /// Create a [`Hyperlink`](crate::Hyperlink) to this egui source code file and line on github.
-#[doc(hidden)]
-#[macro_export]
-macro_rules! __egui_github_link_file_line {
+macro_rules! egui_github_link_file_line {
     () => {
-        crate::__egui_github_link_file_line!("(source code)")
+        crate::egui_github_link_file_line!("(source code)")
     };
     ($label: expr) => {
         egui::github_link_file_line!(
@@ -47,6 +44,7 @@ macro_rules! __egui_github_link_file_line {
         )
     };
 }
+pub(crate) use egui_github_link_file_line;
 
 // ----------------------------------------------------------------------------
 

@@ -871,7 +871,7 @@ impl super::View for PlotDemo {
                     ui.label("Zoom with ctrl + scroll.");
                 }
                 ui.label("Reset view with double-click.");
-                ui.add(crate::__egui_github_link_file!());
+                ui.add(crate::egui_github_link_file!());
             });
         });
         ui.separator();

@@ -177,7 +177,7 @@ impl Widgets {
     pub fn ui(&mut self, ui: &mut Ui) {
         let Self { angle, password } = self;
         ui.vertical_centered(|ui| {
-            ui.add(crate::__egui_github_link_file_line!());
+            ui.add(crate::egui_github_link_file_line!());
         });
 
         ui.horizontal_wrapped(|ui| {
@@ -628,6 +628,6 @@ fn text_layout_ui(
     ui.label(job);
 
     ui.vertical_centered(|ui| {
-        ui.add(crate::__egui_github_link_file_line!());
+        ui.add(crate::egui_github_link_file_line!());
     });
 }

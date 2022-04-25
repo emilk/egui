@@ -87,7 +87,7 @@ impl super::Demo for Painting {
 impl super::View for Painting {
     fn ui(&mut self, ui: &mut Ui) {
         ui.vertical_centered(|ui| {
-            ui.add(crate::__egui_github_link_file!());
+            ui.add(crate::egui_github_link_file!());
         });
         self.ui_control(ui);
         ui.label("Paint with your mouse/touch!");

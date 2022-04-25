@@ -41,7 +41,7 @@ impl super::Demo for MultiTouch {
 impl super::View for MultiTouch {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.vertical_centered(|ui| {
-            ui.add(crate::__egui_github_link_file!());
+            ui.add(crate::egui_github_link_file!());
         });
         ui.strong(
             "This demo only works on devices with multitouch support (e.g. mobiles and tablets).",

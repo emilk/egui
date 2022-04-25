@@ -23,7 +23,7 @@ impl super::View for CursorTest {
                     .button(format!("{:?}", cursor_icon))
                     .on_hover_cursor(cursor_icon);
             }
-            ui.add(crate::__egui_github_link_file!());
+            ui.add(crate::egui_github_link_file!());
         });
     }
 }
@@ -77,7 +77,7 @@ impl super::View for IdTest {
         let _ = ui.button("Button");
 
         ui.vertical_centered(|ui| {
-            ui.add(crate::__egui_github_link_file!());
+            ui.add(crate::egui_github_link_file!());
         });
     }
 }
@@ -157,7 +157,7 @@ impl super::View for ManualLayoutTest {
         let widget_rect =
             egui::Rect::from_min_size(ui.min_rect().min + *widget_offset, *widget_size);
 
-        ui.add(crate::__egui_github_link_file!());
+        ui.add(crate::egui_github_link_file!());
 
         // Showing how to place a widget anywhere in the [`Ui`]:
         match *widget_type {
@@ -296,7 +296,7 @@ impl super::View for TableTest {
 
         ui.vertical_centered(|ui| {
             egui::reset_button(ui, self);
-            ui.add(crate::__egui_github_link_file!());
+            ui.add(crate::egui_github_link_file!());
         });
     }
 }
@@ -328,7 +328,7 @@ impl super::Demo for InputTest {
 impl super::View for InputTest {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.vertical_centered(|ui| {
-            ui.add(crate::__egui_github_link_file!());
+            ui.add(crate::egui_github_link_file!());
         });
 
         let response = ui.add(

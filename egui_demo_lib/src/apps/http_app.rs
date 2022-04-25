@@ -58,7 +58,7 @@ impl epi::App for HttpApp {
         egui::TopBottomPanel::bottom("http_bottom").show(ctx, |ui| {
             let layout = egui::Layout::top_down(egui::Align::Center).with_main_justify(true);
             ui.allocate_ui_with_layout(ui.available_size(), layout, |ui| {
-                ui.add(crate::__egui_github_link_file!())
+                ui.add(crate::egui_github_link_file!())
             })
         });
 

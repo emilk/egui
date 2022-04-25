@@ -663,21 +663,19 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
 // ---------------------------------------------------------------------------
 
 /// Profiling macro for feature "puffin"
-#[doc(hidden)]
-#[macro_export]
 macro_rules! profile_function {
     ($($arg: tt)*) => {
         #[cfg(feature = "puffin")]
         puffin::profile_function!($($arg)*);
     };
 }
+pub(crate) use profile_function;
 
 /// Profiling macro for feature "puffin"
-#[doc(hidden)]
-#[macro_export]
 macro_rules! profile_scope {
     ($($arg: tt)*) => {
         #[cfg(feature = "puffin")]
         puffin::profile_scope!($($arg)*);
     };
 }
+pub(crate) use profile_scope;

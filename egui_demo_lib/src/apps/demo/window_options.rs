@@ -135,7 +135,7 @@ impl super::View for WindowOptions {
                 self.disabled_time = ui.input().time;
             }
             egui::reset_button(ui, self);
-            ui.add(crate::__egui_github_link_file!());
+            ui.add(crate::egui_github_link_file!());
         });
     }
 }

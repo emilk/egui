@@ -22,8 +22,6 @@ pub use crate::strip::*;
 pub use crate::table::*;
 
 /// Log an error with either `tracing` or `eprintln`
-#[doc(hidden)]
-#[macro_export]
 macro_rules! log_err {
     ($fmt: literal, $($arg: tt)*) => {{
         #[cfg(feature = "tracing")]
@@ -35,10 +33,9 @@ macro_rules! log_err {
         );
     }};
 }
+pub(crate) use log_err;
 
 /// Panic in debug builds, log otherwise.
-#[doc(hidden)]
-#[macro_export]
 macro_rules! log_or_panic {
     ($fmt: literal, $($arg: tt)*) => {{
         if cfg!(debug_assertions) {
@@ -48,3 +45,4 @@ macro_rules! log_or_panic {
         }
     }};
 }
+pub(crate) use log_or_panic;

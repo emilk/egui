@@ -91,7 +91,7 @@ impl super::View for WidgetGallery {
         ui.vertical_centered(|ui| {
             let tooltip_text = "The full egui documentation.\nYou can also click the different widgets names in the left column.";
             ui.hyperlink("https://docs.rs/egui/").on_hover_text(tooltip_text);
-            ui.add(crate::__egui_github_link_file!(
+            ui.add(crate::egui_github_link_file!(
                 "Source code of the widget gallery"
             ));
         });
