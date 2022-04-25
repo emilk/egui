@@ -35,7 +35,7 @@ impl Frame {
     /// For when you want to group a few widgets together within a frame.
     pub fn group(style: &Style) -> Self {
         Self {
-            inner_margin: Margin::same(6.0), // symmetric looks best in corners when nesting
+            inner_margin: Margin::same(6.0), // same and symmetric looks best in corners when nesting groups
             rounding: style.visuals.widgets.noninteractive.rounding,
             stroke: style.visuals.widgets.noninteractive.bg_stroke,
             ..Default::default()
@@ -54,7 +54,7 @@ impl Frame {
 
     pub(crate) fn central_panel(style: &Style) -> Self {
         Self {
-            inner_margin: Margin::symmetric(8.0, 8.0),
+            inner_margin: Margin::same(8.0),
             rounding: Rounding::none(),
             fill: style.visuals.window_fill(),
             stroke: Default::default(),
@@ -101,7 +101,7 @@ impl Frame {
     /// and in dark mode this will be very dark.
     pub fn canvas(style: &Style) -> Self {
         Self {
-            inner_margin: Margin::symmetric(10.0, 10.0),
+            inner_margin: Margin::same(2.0),
             rounding: style.visuals.widgets.noninteractive.rounding,
             fill: style.visuals.extreme_bg_color,
             stroke: style.visuals.window_stroke(),
