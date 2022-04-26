@@ -20,6 +20,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Added `Plot::x_grid_spacer` and `Plot::y_grid_spacer` for custom grid spacing ([#1180](https://github.com/emilk/egui/pull/1180)).
 * Added `Ui::spinner()` shortcut method ([#1494](https://github.com/emilk/egui/pull/1494)).
 * Added `CursorIcon`s for resizing columns, rows, and the eight cardinal directions.
+* Added `Ui::toggle_value`.
 
 ### Changed 🔧
 * `ClippedMesh` has been replaced with `ClippedPrimitive` ([#1351](https://github.com/emilk/egui/pull/1351)).
