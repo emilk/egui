@@ -90,13 +90,8 @@ fn color_button(ui: &mut Ui, color: Color32, open: bool) -> Response {
         ui.painter().rect_filled(left_half, 0.0, color);
         ui.painter().rect_filled(right_half, 0.0, color.to_opaque());
 
-        let rounding = Rounding {
-            nw: visuals.rounding.nw.at_most(2.0),
-            ne: visuals.rounding.ne.at_most(2.0),
-            sw: visuals.rounding.sw.at_most(2.0),
-            se: visuals.rounding.se.at_most(2.0),
-        };
 
+        let rounding = visuals.rounding.at_most(2.0);
         ui.painter()
             .rect_stroke(rect, rounding, (2.0, visuals.bg_fill)); // fill is intentional, because default style has no border
     }
