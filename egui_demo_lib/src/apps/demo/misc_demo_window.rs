@@ -401,73 +401,30 @@ enum Action {
 
 #[derive(Clone, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-struct Tree(String, SubTree);
+struct Tree(Vec<Tree>);
 
 impl Tree {
     pub fn demo() -> Self {
-        Self(
-            String::from("root"),
-            SubTree(vec![
-                SubTree(vec![SubTree::default(); 4]),
-                SubTree(vec![SubTree(vec![SubTree::default(); 2]); 3]),
-            ]),
-        )
+        Self(vec![
+            Tree(vec![Tree::default(); 4]),
+            Tree(vec![Tree(vec![Tree::default(); 2]); 3]),
+        ])
     }
     pub fn ui(&mut self, ui: &mut Ui) -> Action {
-        self.1.ui(ui, 0, "root", &mut self.0)
+        self.ui_impl(ui, 0, "root")
     }
 }
 
-#[derive(Clone, Default)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-struct SubTree(Vec<SubTree>);
-
-impl SubTree {
-    pub fn ui(
-        &mut self,
-        ui: &mut Ui,
-        depth: usize,
-        name: &str,
-        selected_name: &mut String,
-    ) -> Action {
-        if true {
-            use egui::collapsing_header::CollapsingState;
-
-            let is_checked = selected_name == name;
-
-            let (_, header, content) =
-                CollapsingState::load_with_default_open(ui.ctx(), Id::new(name), depth < 1)
-                    .show_custom_header_and_contents(
-                        ui,
-                        |ui| ui.selectable_label(is_checked, name.to_owned()), // header
-                        |ui| self.children_ui(ui, name, depth, selected_name), // content
-                    );
-            if header.clicked() {
-                *selected_name = name.to_string();
-            }
-            content
-                .map(|inner_response| inner_response.inner)
-                .unwrap_or(Action::Keep)
-        } else {
-            let response = CollapsingHeader::new(name)
-                .default_open(depth < 1)
-                .selectable(true)
-                .selected(selected_name.as_str() == name)
-                .show(ui, |ui| self.children_ui(ui, name, depth, selected_name));
-            if response.header_response.clicked() {
-                *selected_name = name.to_string();
-            }
-            response.body_returned.unwrap_or(Action::Keep)
-        }
+impl Tree {
+    fn ui_impl(&mut self, ui: &mut Ui, depth: usize, name: &str) -> Action {
+        CollapsingHeader::new(name)
+            .default_open(depth < 1)
+            .show(ui, |ui| self.children_ui(ui, depth))
+            .body_returned
+            .unwrap_or(Action::Keep)
     }
 
-    fn children_ui(
-        &mut self,
-        ui: &mut Ui,
-        parent_name: &str,
-        depth: usize,
-        selected_name: &mut String,
-    ) -> Action {
+    fn children_ui(&mut self, ui: &mut Ui, depth: usize) -> Action {
         if depth > 0
             && ui
                 .button(RichText::new("delete").color(Color32::RED))
@@ -481,13 +438,7 @@ impl SubTree {
             .into_iter()
             .enumerate()
             .filter_map(|(i, mut tree)| {
-                if tree.ui(
-                    ui,
-                    depth + 1,
-                    &format!("{}/{}", parent_name, i),
-                    selected_name,
-                ) == Action::Keep
-                {
+                if tree.ui_impl(ui, depth + 1, &format!("child #{}", i)) == Action::Keep {
                     Some(tree)
                 } else {
                     None
@@ -496,7 +447,7 @@ impl SubTree {
             .collect();
 
         if ui.button("+").clicked() {
-            self.0.push(SubTree::default());
+            self.0.push(Tree::default());
         }
 
         Action::Keep
