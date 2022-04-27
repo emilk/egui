@@ -60,7 +60,11 @@ impl CollapsingState {
     }
 
     /// Will toggle when clicked, etc.
-    pub fn show_default_button(&mut self, ui: &mut Ui, button_size: Vec2) -> Response {
+    pub(crate) fn show_default_button_with_size(
+        &mut self,
+        ui: &mut Ui,
+        button_size: Vec2,
+    ) -> Response {
         let (_id, rect) = ui.allocate_space(button_size);
         let response = ui.interact(rect, self.id, Sense::click());
         if response.clicked() {
@@ -71,6 +75,29 @@ impl CollapsingState {
         response
     }
 
+    /// Will toggle when clicked, etc.
+    fn show_default_button_indented(&mut self, ui: &mut Ui) -> Response {
+        let size = Vec2::new(ui.spacing().indent, ui.spacing().icon_width);
+        let (_id, rect) = ui.allocate_space(size);
+        let response = ui.interact(rect, self.id, Sense::click());
+        if response.clicked() {
+            self.toggle(ui);
+        }
+
+        let (mut icon_rect, _) = ui.spacing().icon_rectangles(response.rect);
+        icon_rect.set_center(pos2(
+            response.rect.left() + ui.spacing().indent / 2.0,
+            response.rect.center().y,
+        ));
+        let openness = self.openness(ui.ctx());
+        let small_icon_response = Response {
+            rect: icon_rect,
+            ..response.clone()
+        };
+        paint_default_icon(ui, openness, &small_icon_response);
+        response
+    }
+
     /// Shows header and contents (if expanded).
     ///
     /// The header will start with the default button in a horizontal layout, followed by whatever you add.
@@ -78,17 +105,17 @@ impl CollapsingState {
     /// Will also store the state.
     ///
     /// Returns the response of the collapsing button, the custom header, and the custom contents.
-    pub fn show_custom_header_and_contens<HeaderRet, ContentRet>(
+    pub fn show_custom_header_and_contents<HeaderRet, ContentRet>(
         mut self,
         ui: &mut Ui,
         add_header: impl FnOnce(&mut Ui) -> HeaderRet,
         add_contents: impl FnOnce(&mut Ui) -> ContentRet,
     ) -> (Response, HeaderRet, Option<InnerResponse<ContentRet>>) {
         let header = ui.horizontal(|ui| {
-            let spacing = ui.spacing_mut();
-            spacing.item_spacing.x = spacing.icon_spacing;
-            let icon_size = Vec2::splat(spacing.icon_width_inner);
-            (self.show_default_button(ui, icon_size), add_header(ui))
+            ui.spacing_mut().item_spacing.x = 0.0; // the toggler button uses the full indent width
+            let collapser = self.show_default_button_indented(ui);
+            ui.spacing_mut().item_spacing.x = ui.spacing_mut().icon_spacing; // Restore spacing
+            (collapser, add_header(ui))
         });
         (
             header.inner.0,                                                  // button

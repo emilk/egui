@@ -293,10 +293,10 @@ pub struct Spacing {
 impl Spacing {
     /// Returns small icon rectangle and big icon rectangle
     pub fn icon_rectangles(&self, rect: Rect) -> (Rect, Rect) {
-        let box_side = self.icon_width;
+        let icon_width = self.icon_width;
         let big_icon_rect = Rect::from_center_size(
-            pos2(rect.left() + box_side / 2.0, rect.center().y),
-            vec2(box_side, box_side),
+            pos2(rect.left() + icon_width / 2.0, rect.center().y),
+            vec2(icon_width, icon_width),
         );
 
         let small_icon_rect =

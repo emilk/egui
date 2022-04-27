@@ -794,7 +794,7 @@ fn show_title_bar(
 
         if collapsible {
             ui.add_space(pad);
-            collapsing.show_default_button(ui, button_size);
+            collapsing.show_default_button_with_size(ui, button_size);
         }
 
         let title_galley = title.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Heading);

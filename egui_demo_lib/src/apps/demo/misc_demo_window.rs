@@ -14,6 +14,7 @@ pub struct MiscDemoWindow {
 
     widgets: Widgets,
     colors: ColorWidgets,
+    custom_collapsing_header: CustomCollapsingHeader,
     tree: Tree,
     box_painting: BoxPainting,
 
@@ -32,6 +33,7 @@ impl Default for MiscDemoWindow {
 
             widgets: Default::default(),
             colors: Default::default(),
+            custom_collapsing_header: Default::default(),
             tree: Tree::demo(),
             box_painting: Default::default(),
 
@@ -81,6 +83,10 @@ impl View for MiscDemoWindow {
             .show(ui, |ui| {
                 self.colors.ui(ui);
             });
+
+        CollapsingHeader::new("Custom Collapsing Header")
+            .default_open(false)
+            .show(ui, |ui| self.custom_collapsing_header.ui(ui));
 
         CollapsingHeader::new("Tree")
             .default_open(false)
@@ -351,6 +357,42 @@ impl BoxPainting {
 
 // ----------------------------------------------------------------------------
 
+#[derive(Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+struct CustomCollapsingHeader {
+    selected: bool,
+    value: i32,
+    checkbox: bool,
+}
+
+impl CustomCollapsingHeader {
+    pub fn ui(&mut self, ui: &mut egui::Ui) {
+        ui.label("Example of a collapsing header with custom header:");
+
+        let id = ui.make_persistent_id("my_collapsing_header");
+        egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, true)
+            .show_custom_header_and_contents(
+                ui,
+                |ui| {
+                    // header:
+                    ui.label("Some widgets:");
+                    ui.add(DragValue::new(&mut self.value));
+                    ui.checkbox(&mut self.checkbox, "");
+                },
+                |ui| {
+                    // content:
+                    ui.label("The content is always custom");
+                },
+            );
+
+        CollapsingHeader::new("Normal collapsing header for comparison").show(ui, |ui| {
+            ui.label("Nothing exciting here");
+        });
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 #[derive(Clone, Copy, PartialEq)]
 enum Action {
     Keep,
@@ -388,15 +430,35 @@ impl SubTree {
         name: &str,
         selected_name: &mut String,
     ) -> Action {
-        let response = CollapsingHeader::new(name)
-            .default_open(depth < 1)
-            .selectable(true)
-            .selected(selected_name.as_str() == name)
-            .show(ui, |ui| self.children_ui(ui, name, depth, selected_name));
-        if response.header_response.clicked() {
-            *selected_name = name.to_string();
+        if true {
+            use egui::collapsing_header::CollapsingState;
+
+            let is_checked = selected_name == name;
+
+            let (_, header, content) =
+                CollapsingState::load_with_default_open(ui.ctx(), Id::new(name), depth < 1)
+                    .show_custom_header_and_contents(
+                        ui,
+                        |ui| ui.selectable_label(is_checked, name.to_owned()), // header
+                        |ui| self.children_ui(ui, name, depth, selected_name), // content
+                    );
+            if header.clicked() {
+                *selected_name = name.to_string();
+            }
+            content
+                .map(|inner_response| inner_response.inner)
+                .unwrap_or(Action::Keep)
+        } else {
+            let response = CollapsingHeader::new(name)
+                .default_open(depth < 1)
+                .selectable(true)
+                .selected(selected_name.as_str() == name)
+                .show(ui, |ui| self.children_ui(ui, name, depth, selected_name));
+            if response.header_response.clicked() {
+                *selected_name = name.to_string();
+            }
+            response.body_returned.unwrap_or(Action::Keep)
         }
-        response.body_returned.unwrap_or(Action::Keep)
     }
 
     fn children_ui(
