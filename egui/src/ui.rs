@@ -1375,7 +1375,7 @@ impl Ui {
         Checkbox::new(checked, text).ui(self)
     }
 
-    /// Acts like a checkbox, but looks like a [`SelectableValue`].
+    /// Acts like a checkbox, but looks like a [`SelectableLabel`].
     ///
     /// Click to toggle to bool.
     ///
