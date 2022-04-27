@@ -23,51 +23,59 @@ fn background_checkers(painter: &Painter, rect: Rect) {
         return;
     }
 
-    let mut top_color = Color32::from_gray(128);
-    let mut bottom_color = Color32::from_gray(32);
+    let dark_color = Color32::from_gray(32);
+    let bright_color = Color32::from_gray(128);
+
     let checker_size = Vec2::splat(rect.height() / 2.0);
     let n = (rect.width() / checker_size.x).round() as u32;
 
     let mut mesh = Mesh::default();
+    mesh.add_colored_rect(rect, dark_color);
+
+    let mut top = true;
     for i in 0..n {
         let x = lerp(rect.left()..=rect.right(), i as f32 / (n as f32));
-        mesh.add_colored_rect(
-            Rect::from_min_size(pos2(x, rect.top()), checker_size),
-            top_color,
-        );
-        mesh.add_colored_rect(
-            Rect::from_min_size(pos2(x, rect.center().y), checker_size),
-            bottom_color,
-        );
-        std::mem::swap(&mut top_color, &mut bottom_color);
+        let small_rect = if top {
+            Rect::from_min_size(pos2(x, rect.top()), checker_size)
+        } else {
+            Rect::from_min_size(pos2(x, rect.center().y), checker_size)
+        };
+        mesh.add_colored_rect(small_rect, bright_color);
+        top = !top;
     }
     painter.add(Shape::mesh(mesh));
 }
 
 /// Show a color with background checkers to demonstrate transparency (if any).
-pub fn show_color(ui: &mut Ui, color: impl Into<Hsva>, desired_size: Vec2) -> Response {
-    show_hsva(ui, color.into(), desired_size)
+pub fn show_color(ui: &mut Ui, color: impl Into<Color32>, desired_size: Vec2) -> Response {
+    show_color32(ui, color.into(), desired_size)
 }
 
-fn show_hsva(ui: &mut Ui, color: Hsva, desired_size: Vec2) -> Response {
+fn show_color32(ui: &mut Ui, color: Color32, desired_size: Vec2) -> Response {
     let (rect, response) = ui.allocate_at_least(desired_size, Sense::hover());
     if ui.is_rect_visible(rect) {
-        background_checkers(ui.painter(), rect);
-        if true {
-            let left = Rect::from_min_max(rect.left_top(), rect.center_bottom());
-            let right = Rect::from_min_max(rect.center_top(), rect.right_bottom());
-            ui.painter().rect_filled(left, 0.0, color);
-            ui.painter().rect_filled(right, 0.0, color.to_opaque());
-        } else {
-            ui.painter().add(RectShape {
-                rect,
-                rounding: Rounding::same(2.0),
-                fill: color.into(),
-                stroke: Stroke::new(3.0, color.to_opaque()),
-            });
-        }
+        show_color_at(ui.painter(), color, rect);
     }
     response
+}
+
+/// Show a color with background checkers to demonstrate transparency (if any).
+pub fn show_color_at(painter: &Painter, color: Color32, rect: Rect) {
+    if color.is_opaque() {
+        painter.rect_filled(rect, 0.0, color);
+    } else {
+        // Transparent: how both the transparent and opaque versions of the color
+        background_checkers(painter, rect);
+
+        if color == Color32::TRANSPARENT {
+            // There is no opaque version, so just show the background checkers
+        } else {
+            let left = Rect::from_min_max(rect.left_top(), rect.center_bottom());
+            let right = Rect::from_min_max(rect.center_top(), rect.right_bottom());
+            painter.rect_filled(left, 0.0, color);
+            painter.rect_filled(right, 0.0, color.to_opaque());
+        }
+    }
 }
 
 fn color_button(ui: &mut Ui, color: Color32, open: bool) -> Response {
@@ -83,13 +91,7 @@ fn color_button(ui: &mut Ui, color: Color32, open: bool) -> Response {
         };
         let rect = rect.expand(visuals.expansion);
 
-        background_checkers(ui.painter(), rect);
-
-        let left_half = Rect::from_min_max(rect.left_top(), rect.center_bottom());
-        let right_half = Rect::from_min_max(rect.center_top(), rect.right_bottom());
-        ui.painter().rect_filled(left_half, 0.0, color);
-        ui.painter().rect_filled(right_half, 0.0, color.to_opaque());
-
+        show_color_at(ui.painter(), color, rect);
 
         let rounding = visuals.rounding.at_most(2.0);
         ui.painter()
