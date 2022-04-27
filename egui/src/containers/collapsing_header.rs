@@ -98,7 +98,7 @@ impl State {
 }
 
 /// Paint the arrow icon that indicated if the region is open or not
-pub(crate) fn paint_default_icon(ui: &mut Ui, openness: f32, response: &Response) {
+pub fn paint_default_icon(ui: &mut Ui, openness: f32, response: &Response) {
     let visuals = ui.style().interact(response);
     let stroke = visuals.fg_stroke;
 
@@ -268,6 +268,7 @@ struct Prepared {
     id: Id,
     header_response: Response,
     state: State,
+    openness: f32,
 }
 
 impl CollapsingHeader {
@@ -283,9 +284,9 @@ impl CollapsingHeader {
             open,
             id_source,
             enabled: _,
-            selectable: _,
-            selected: _,
-            show_background: _,
+            selectable,
+            selected,
+            show_background,
         } = self;
 
         // TODO: horizontal layout, with icon and text as labels. Insert background behind using Frame.
@@ -329,12 +330,12 @@ impl CollapsingHeader {
         header_response
             .widget_info(|| WidgetInfo::labeled(WidgetType::CollapsingHeader, text.text()));
 
-        if ui.is_rect_visible(rect) {
-            let visuals = ui
-                .style()
-                .interact_selectable(&header_response, self.selected);
+        let openness = state.openness(ui.ctx(), id);
 
-            if ui.visuals().collapsing_header_frame || self.show_background {
+        if ui.is_rect_visible(rect) {
+            let visuals = ui.style().interact_selectable(&header_response, selected);
+
+            if ui.visuals().collapsing_header_frame || show_background {
                 ui.painter().add(epaint::RectShape {
                     rect: header_response.rect.expand(visuals.expansion),
                     rounding: visuals.rounding,
@@ -344,8 +345,7 @@ impl CollapsingHeader {
                 });
             }
 
-            if self.selected
-                || self.selectable && (header_response.hovered() || header_response.has_focus())
+            if selected || selectable && (header_response.hovered() || header_response.has_focus())
             {
                 let rect = rect.expand(visuals.expansion);
 
@@ -363,7 +363,6 @@ impl CollapsingHeader {
                     rect: icon_rect,
                     ..header_response.clone()
                 };
-                let openness = state.openness(ui.ctx(), id);
                 if let Some(icon) = icon {
                     icon(ui, openness, &icon_response);
                 } else {
@@ -378,6 +377,7 @@ impl CollapsingHeader {
             id,
             header_response,
             state,
+            openness,
         }
     }
 
@@ -404,6 +404,7 @@ impl CollapsingHeader {
                 id,
                 header_response,
                 mut state,
+                openness,
             } = self.begin(ui);
 
             let ret_response = state.add_contents(ui, id, |ui| {
@@ -421,12 +422,14 @@ impl CollapsingHeader {
                     header_response,
                     body_response: Some(ret_response.response),
                     body_returned: Some(ret_response.inner),
+                    openness,
                 }
             } else {
                 CollapsingResponse {
                     header_response,
                     body_response: None,
                     body_returned: None,
+                    openness,
                 }
             }
         })
@@ -436,9 +439,27 @@ impl CollapsingHeader {
 
 /// The response from showing a [`CollapsingHeader`].
 pub struct CollapsingResponse<R> {
+    /// Response of the actual clickable header.
     pub header_response: Response,
+
     /// None iff collapsed.
     pub body_response: Option<Response>,
+
     /// None iff collapsed.
     pub body_returned: Option<R>,
+
+    /// 0.0 if fully closed, 1.0 if fully open, and something in-between while animating.
+    pub openness: f32,
+}
+
+impl<R> CollapsingResponse<R> {
+    /// Was the [`CollapsingHeader`] fully closed (and not being animated)?
+    pub fn fully_closed(&self) -> bool {
+        self.openness <= 0.0
+    }
+
+    /// Was the [`CollapsingHeader`] fully open (and not being animated)?
+    pub fn fully_open(&self) -> bool {
+        self.openness >= 1.0
+    }
 }
