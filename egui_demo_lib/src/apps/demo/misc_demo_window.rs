@@ -371,7 +371,7 @@ impl CustomCollapsingHeader {
 
         let id = ui.make_persistent_id("my_collapsing_header");
         egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, true)
-            .show_custom_header_and_contents(
+            .show_custom_header(
                 ui,
                 |ui| {
                     // header:
@@ -380,8 +380,8 @@ impl CustomCollapsingHeader {
                     ui.checkbox(&mut self.checkbox, "");
                 },
                 |ui| {
-                    // content:
-                    ui.label("The content is always custom");
+                    // body:
+                    ui.label("The body is always custom");
                 },
             );
 

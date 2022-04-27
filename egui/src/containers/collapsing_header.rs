@@ -98,19 +98,35 @@ impl CollapsingState {
         response
     }
 
-    /// Shows header and contents (if expanded).
+    /// Shows header and body (if expanded).
     ///
     /// The header will start with the default button in a horizontal layout, followed by whatever you add.
     ///
     /// Will also store the state.
     ///
-    /// Returns the response of the collapsing button, the custom header, and the custom contents.
-    pub fn show_custom_header_and_contents<HeaderRet, ContentRet>(
+    /// Returns the response of the collapsing button, the custom header, and the custom body.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// let id = ui.make_persistent_id("my_collapsing_header");
+    /// egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, false)
+    ///     .show_custom_header(
+    ///         ui,
+    ///         |ui| {
+    ///             ui.label("Header"); // you can put checkboxes or whatever here
+    ///         },
+    ///         |ui| {
+    ///             ui.label("Body"); // the thing that may or may not be hidden.
+    ///         },
+    ///     );
+    /// # });
+    /// ```
+    pub fn show_custom_header<HeaderRet, BodyRet>(
         mut self,
         ui: &mut Ui,
         add_header: impl FnOnce(&mut Ui) -> HeaderRet,
-        add_contents: impl FnOnce(&mut Ui) -> ContentRet,
-    ) -> (Response, HeaderRet, Option<InnerResponse<ContentRet>>) {
+        add_body: impl FnOnce(&mut Ui) -> BodyRet,
+    ) -> (Response, HeaderRet, Option<InnerResponse<BodyRet>>) {
         let header = ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0; // the toggler button uses the full indent width
             let collapser = self.show_default_button_indented(ui);
@@ -118,39 +134,39 @@ impl CollapsingState {
             (collapser, add_header(ui))
         });
         (
-            header.inner.0,                                                  // button
-            header.inner.1,                                                  // header
-            self.show_contents_indented(&header.response, ui, add_contents), // content
+            header.inner.0,                                          // button
+            header.inner.1,                                          // header
+            self.show_body_indented(&header.response, ui, add_body), // body
         )
     }
 
-    /// Show contents if we are open, with a nice animation between closed and open.
-    /// Indent the contents to show it belongs to the header.
+    /// Show body if we are open, with a nice animation between closed and open.
+    /// Indent the body to show it belongs to the header.
     ///
     /// Will also store the state.
-    pub fn show_contents_indented<R>(
+    pub fn show_body_indented<R>(
         self,
         header_response: &Response,
         ui: &mut Ui,
-        add_contents: impl FnOnce(&mut Ui) -> R,
+        add_body: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
         let id = self.id;
-        self.show_contents_unindented(ui, |ui| {
+        self.show_body_unindented(ui, |ui| {
             ui.indent(id, |ui| {
                 // make as wide as the header:
                 ui.expand_to_include_x(header_response.rect.right());
-                add_contents(ui)
+                add_body(ui)
             })
             .inner
         })
     }
 
-    /// Show contents if we are open, with a nice animation between closed and open.
+    /// Show body if we are open, with a nice animation between closed and open.
     /// Will also store the state.
-    pub fn show_contents_unindented<R>(
+    pub fn show_body_unindented<R>(
         mut self,
         ui: &mut Ui,
-        add_contents: impl FnOnce(&mut Ui) -> R,
+        add_body: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
         let openness = self.openness(ui.ctx());
         if openness <= 0.0 {
@@ -172,7 +188,7 @@ impl CollapsingState {
                 clip_rect.max.y = clip_rect.max.y.min(child_ui.max_rect().top() + max_height);
                 child_ui.set_clip_rect(clip_rect);
 
-                let ret = add_contents(child_ui);
+                let ret = add_body(child_ui);
 
                 let mut min_rect = child_ui.min_rect();
                 self.open_height = Some(min_rect.height());
@@ -184,7 +200,7 @@ impl CollapsingState {
                 ret
             }))
         } else {
-            let ret_response = ui.scope(add_contents);
+            let ret_response = ui.scope(add_body);
             let full_size = ret_response.response.rect.size();
             self.open_height = Some(full_size.y);
             self.store(ui.ctx()); // remember the height
@@ -222,13 +238,15 @@ pub type IconPainter = Box<dyn FnOnce(&mut Ui, f32, &Response)>;
 /// # egui::__run_test_ui(|ui| {
 /// egui::CollapsingHeader::new("Heading")
 ///     .show(ui, |ui| {
-///         ui.label("Contents");
+///         ui.label("Body");
 ///     });
 ///
 /// // Short version:
-/// ui.collapsing("Heading", |ui| { ui.label("Contents"); });
+/// ui.collapsing("Heading", |ui| { ui.label("Body"); });
 /// # });
 /// ```
+///
+/// If you want to customize the header contents, see [`CollapsingState::show_custom_header`].
 #[must_use = "You should call .show()"]
 pub struct CollapsingHeader {
     text: WidgetText,
@@ -313,7 +331,7 @@ impl CollapsingHeader {
     /// let response = egui::CollapsingHeader::new("Select and open me")
     ///     .selectable(true)
     ///     .selected(selected)
-    ///     .show(ui, |ui| ui.label("Content"));
+    ///     .show(ui, |ui| ui.label("Body"));
     /// if response.header_response.clicked() {
     ///     selected = true;
     /// }
@@ -479,17 +497,17 @@ impl CollapsingHeader {
     pub fn show<R>(
         self,
         ui: &mut Ui,
-        add_contents: impl FnOnce(&mut Ui) -> R,
+        add_body: impl FnOnce(&mut Ui) -> R,
     ) -> CollapsingResponse<R> {
-        self.show_dyn(ui, Box::new(add_contents))
+        self.show_dyn(ui, Box::new(add_body))
     }
 
     fn show_dyn<'c, R>(
         self,
         ui: &mut Ui,
-        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
+        add_body: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> CollapsingResponse<R> {
-        // Make sure contents are bellow header,
+        // Make sure body is bellow header,
         // and make sure it is one unit (necessary for putting a [`CollapsingHeader`] in a grid).
         ui.vertical(|ui| {
             ui.set_enabled(self.enabled);
@@ -500,7 +518,7 @@ impl CollapsingHeader {
                 openness,
             } = self.begin(ui); // show the header
 
-            let ret_response = state.show_contents_indented(&header_response, ui, add_contents);
+            let ret_response = state.show_body_indented(&header_response, ui, add_body);
 
             if let Some(ret_response) = ret_response {
                 CollapsingResponse {

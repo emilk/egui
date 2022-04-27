@@ -346,7 +346,7 @@ impl<'open> Window<'open> {
             };
 
             let (content_inner, content_response) = collapsing
-                .show_contents_unindented(&mut frame.content_ui, |ui| {
+                .show_body_unindented(&mut frame.content_ui, |ui| {
                     resize.show(ui, |ui| {
                         if title_bar.is_some() {
                             ui.add_space(title_content_spacing);
