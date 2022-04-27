@@ -1,5 +1,6 @@
 // WARNING: the code in here is horrible. It is a behemoth that needs breaking up into simpler parts.
 
+use crate::collapsing_header::CollapsingState;
 use crate::{widget_text::WidgetTextGalley, *};
 use epaint::*;
 
@@ -271,8 +272,8 @@ impl<'open> Window<'open> {
         let resize_id = area_id.with("resize");
         let collapsing_id = area_id.with("collapsing");
 
-        let is_collapsed = with_title_bar
-            && !collapsing_header::State::is_open(ctx, collapsing_id).unwrap_or_default();
+        let is_collapsed =
+            with_title_bar && !CollapsingState::is_open(ctx, collapsing_id).unwrap_or_default();
         let possible = PossibleInteractions::new(&area, &resize, is_collapsed);
 
         let area = area.movable(false); // We move it manually, or the area will move the window when we want to resize it
@@ -327,18 +328,14 @@ impl<'open> Window<'open> {
             let mut frame = frame.begin(&mut area_content_ui);
 
             let default_expanded = true;
-            let mut collapsing = collapsing_header::State::from_memory_with_default_open(
-                ctx,
-                collapsing_id,
-                default_expanded,
-            );
+            let mut collapsing =
+                CollapsingState::load_with_default_open(ctx, collapsing_id, default_expanded);
             let show_close_button = open.is_some();
             let title_bar = if with_title_bar {
                 let title_bar = show_title_bar(
                     &mut frame.content_ui,
                     title,
                     show_close_button,
-                    collapsing_id,
                     &mut collapsing,
                     collapsible,
                 );
@@ -349,7 +346,7 @@ impl<'open> Window<'open> {
             };
 
             let (content_inner, content_response) = collapsing
-                .add_contents(&mut frame.content_ui, collapsing_id, |ui| {
+                .show_contents_unindented(&mut frame.content_ui, |ui| {
                     resize.show(ui, |ui| {
                         if title_bar.is_some() {
                             ui.add_space(title_content_spacing);
@@ -380,7 +377,7 @@ impl<'open> Window<'open> {
                 );
             }
 
-            collapsing.store(ctx, collapsing_id);
+            collapsing.store(ctx);
 
             if let Some(interaction) = interaction {
                 paint_frame_interaction(
@@ -781,8 +778,7 @@ fn show_title_bar(
     ui: &mut Ui,
     title: WidgetText,
     show_close_button: bool,
-    collapsing_id: Id,
-    collapsing: &mut collapsing_header::State,
+    collapsing: &mut CollapsingState,
     collapsible: bool,
 ) -> TitleBar {
     let inner_response = ui.horizontal(|ui| {
@@ -798,14 +794,7 @@ fn show_title_bar(
 
         if collapsible {
             ui.add_space(pad);
-
-            let (_id, rect) = ui.allocate_space(button_size);
-            let collapse_button_response = ui.interact(rect, collapsing_id, Sense::click());
-            if collapse_button_response.clicked() {
-                collapsing.toggle(ui);
-            }
-            let openness = collapsing.openness(ui.ctx(), collapsing_id);
-            collapsing_header::paint_default_icon(ui, openness, &collapse_button_response);
+            collapsing.show_default_button(ui, button_size);
         }
 
         let title_galley = title.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Heading);
@@ -854,7 +843,7 @@ impl TitleBar {
         outer_rect: Rect,
         content_response: &Option<Response>,
         open: Option<&mut bool>,
-        collapsing: &mut collapsing_header::State,
+        collapsing: &mut CollapsingState,
         collapsible: bool,
     ) {
         if let Some(content_response) = &content_response {

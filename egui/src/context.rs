@@ -1238,11 +1238,12 @@ impl Context {
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} collapsing headers",
-                self.data().count::<containers::collapsing_header::State>()
+                self.data()
+                    .count::<containers::collapsing_header::CollapsingState>()
             ));
             if ui.button("Reset").clicked() {
                 self.data()
-                    .remove_by_type::<containers::collapsing_header::State>();
+                    .remove_by_type::<containers::collapsing_header::CollapsingState>();
             }
         });
 
