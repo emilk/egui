@@ -601,6 +601,7 @@ impl Painter {
         self.textures.get(&texture_id).copied()
     }
 
+    #[allow(clippy::needless_pass_by_value)] // False positive
     pub fn register_native_texture(&mut self, native: glow::Texture) -> egui::TextureId {
         self.assert_not_destroyed();
         let id = egui::TextureId::User(self.next_native_tex_id);
@@ -609,6 +610,7 @@ impl Painter {
         id
     }
 
+    #[allow(clippy::needless_pass_by_value)] // False positive
     pub fn replace_native_texture(&mut self, id: egui::TextureId, replacing: glow::Texture) {
         if let Some(old_tex) = self.textures.insert(id, replacing) {
             self.textures_to_destroy.push(old_tex);
