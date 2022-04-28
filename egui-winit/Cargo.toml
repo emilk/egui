@@ -30,13 +30,13 @@ clipboard = ["arboard"]
 # enable opening links in a browser when an egui hyperlink is clicked.
 links = ["webbrowser"]
 
-# Enable profiling with the puffin crate: https://github.com/EmbarkStudios/puffin
+# enable profiling with the puffin crate: https://github.com/EmbarkStudios/puffin
 puffin = ["dep:puffin"]
 
 # experimental support for a screen reader
 screen_reader = ["tts"]
 
-serd = ["egui/serde", "dep:serde"]
+# to serialize `WindowSettings`
 serde = ["egui/serde", "dep:serde"]
 
 

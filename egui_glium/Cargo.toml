@@ -24,15 +24,11 @@ all-features = true
 
 
 [features]
-default = ["clipboard", "default_fonts", "links"]
+default = ["clipboard", "links"]
 
 # enable cut/copy/paste to OS clipboard.
 # if disabled a clipboard will be simulated so you can still copy/paste within the egui app.
 clipboard = ["egui-winit/clipboard"]
-
-# If set, egui will use `include_bytes!` to bundle some fonts.
-# If you plan on specifying your own fonts you may disable this feature.
-default_fonts = ["egui/default_fonts"]
 
 # enable opening links in a browser when an egui hyperlink is clicked.
 links = ["egui-winit/links"]
