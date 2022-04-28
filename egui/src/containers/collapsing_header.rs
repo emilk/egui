@@ -219,7 +219,7 @@ impl CollapsingState {
     }
 }
 
-/// From [`CollapsingHeaderState::show_custom_header`].
+/// From [`CollapsingState::show_custom_header`].
 #[must_use = "Remember to show the body"]
 pub struct HeaderResponse<'ui, HeaderRet> {
     state: CollapsingState,
