@@ -17,7 +17,7 @@ pub(crate) struct InnerState {
 ///
 /// It is used by [`CollapsingHeader`] and [`Window`], but can also be used on its own.
 ///
-/// See [`CollapsingState::show_custom_header`] for how to show a collapsing header with a custom header.
+/// See [`CollapsingState::show_header`] for how to show a collapsing header with a custom header.
 #[derive(Clone, Debug)]
 pub struct CollapsingState {
     id: Id,
@@ -122,13 +122,13 @@ impl CollapsingState {
     /// # egui::__run_test_ui(|ui| {
     /// let id = ui.make_persistent_id("my_collapsing_header");
     /// egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, false)
-    ///     .show_custom_header(ui, |ui| {
+    ///     .show_header(ui, |ui| {
     ///         ui.label("Header"); // you can put checkboxes or whatever here
     ///     })
     ///     .body(|ui| ui.label("Body"));
     /// # });
     /// ```
-    pub fn show_custom_header<HeaderRet>(
+    pub fn show_header<HeaderRet>(
         mut self,
         ui: &mut Ui,
         add_header: impl FnOnce(&mut Ui) -> HeaderRet,
@@ -219,7 +219,7 @@ impl CollapsingState {
     }
 }
 
-/// From [`CollapsingState::show_custom_header`].
+/// From [`CollapsingState::show_header`].
 #[must_use = "Remember to show the body"]
 pub struct HeaderResponse<'ui, HeaderRet> {
     state: CollapsingState,
@@ -288,7 +288,7 @@ pub type IconPainter = Box<dyn FnOnce(&mut Ui, f32, &Response)>;
 /// # });
 /// ```
 ///
-/// If you want to customize the header contents, see [`CollapsingState::show_custom_header`].
+/// If you want to customize the header contents, see [`CollapsingState::show_header`].
 #[must_use = "You should call .show()"]
 pub struct CollapsingHeader {
     text: WidgetText,
