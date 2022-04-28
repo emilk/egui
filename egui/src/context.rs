@@ -1239,11 +1239,11 @@ impl Context {
             ui.label(format!(
                 "{} collapsing headers",
                 self.data()
-                    .count::<containers::collapsing_header::CollapsingState>()
+                    .count::<containers::collapsing_header::InnerState>()
             ));
             if ui.button("Reset").clicked() {
                 self.data()
-                    .remove_by_type::<containers::collapsing_header::CollapsingState>();
+                    .remove_by_type::<containers::collapsing_header::InnerState>();
             }
         });
 

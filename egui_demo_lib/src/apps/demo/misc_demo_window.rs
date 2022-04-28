@@ -357,11 +357,19 @@ impl BoxPainting {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct CustomCollapsingHeader {
     selected: bool,
     radio_value: bool,
+}
+
+impl Default for CustomCollapsingHeader {
+    fn default() -> Self {
+        Self {
+            selected: true,
+            radio_value: false,
+        }
+    }
 }
 
 impl CustomCollapsingHeader {
@@ -370,19 +378,14 @@ impl CustomCollapsingHeader {
 
         let id = ui.make_persistent_id("my_collapsing_header");
         egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, true)
-            .show_custom_header(
-                ui,
-                |ui| {
-                    // header:
-                    ui.toggle_value(&mut self.selected, "Click to select/unselect");
-                    ui.radio_value(&mut self.radio_value, false, "");
-                    ui.radio_value(&mut self.radio_value, true, "");
-                },
-                |ui| {
-                    // body:
-                    ui.label("The body is always custom");
-                },
-            );
+            .show_custom_header(ui, |ui| {
+                ui.toggle_value(&mut self.selected, "Click to select/unselect");
+                ui.radio_value(&mut self.radio_value, false, "");
+                ui.radio_value(&mut self.radio_value, true, "");
+            })
+            .body(|ui| {
+                ui.label("The body is always custom");
+            });
 
         CollapsingHeader::new("Normal collapsing header for comparison").show(ui, |ui| {
             ui.label("Nothing exciting here");

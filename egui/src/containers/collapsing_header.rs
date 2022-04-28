@@ -16,6 +16,8 @@ pub(crate) struct InnerState {
 /// This is a a building block for building collapsing regions.
 ///
 /// It is used by [`CollapsingHeader`] and [`Window`], but can also be used on its own.
+///
+/// See [`CollapsingState::show_custom_header`] for how to show a collapsing header with a custom header.
 #[derive(Clone, Debug)]
 pub struct CollapsingState {
     id: Id,
@@ -120,34 +122,32 @@ impl CollapsingState {
     /// # egui::__run_test_ui(|ui| {
     /// let id = ui.make_persistent_id("my_collapsing_header");
     /// egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, false)
-    ///     .show_custom_header(
-    ///         ui,
-    ///         |ui| {
-    ///             ui.label("Header"); // you can put checkboxes or whatever here
-    ///         },
-    ///         |ui| {
-    ///             ui.label("Body"); // the thing that may or may not be hidden.
-    ///         },
-    ///     );
+    ///     .show_custom_header(ui, |ui| {
+    ///         ui.label("Header"); // you can put checkboxes or whatever here
+    ///     })
+    ///     .body(|ui| ui.label("Body"));
     /// # });
     /// ```
-    pub fn show_custom_header<HeaderRet, BodyRet>(
+    pub fn show_custom_header<HeaderRet>(
         mut self,
         ui: &mut Ui,
         add_header: impl FnOnce(&mut Ui) -> HeaderRet,
-        add_body: impl FnOnce(&mut Ui) -> BodyRet,
-    ) -> (Response, HeaderRet, Option<InnerResponse<BodyRet>>) {
-        let header = ui.horizontal(|ui| {
+    ) -> HeaderResponse<'_, HeaderRet> {
+        let header_response = ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0; // the toggler button uses the full indent width
             let collapser = self.show_default_button_indented(ui);
             ui.spacing_mut().item_spacing.x = ui.spacing_mut().icon_spacing; // Restore spacing
             (collapser, add_header(ui))
         });
-        (
-            header.inner.0,                                          // button
-            header.inner.1,                                          // header
-            self.show_body_indented(&header.response, ui, add_body), // body
-        )
+        HeaderResponse {
+            state: self,
+            ui,
+            toggle_button_response: header_response.inner.0,
+            header_response: InnerResponse {
+                response: header_response.response,
+                inner: header_response.inner.1,
+            },
+        }
     }
 
     /// Show body if we are open, with a nice animation between closed and open.
@@ -218,6 +218,38 @@ impl CollapsingState {
         }
     }
 }
+
+/// From [`CollapsingHeaderState::show_custom_header`].
+#[must_use = "Remember to show the body"]
+pub struct HeaderResponse<'ui, HeaderRet> {
+    state: CollapsingState,
+    ui: &'ui mut Ui,
+    toggle_button_response: Response,
+    header_response: InnerResponse<HeaderRet>,
+}
+
+impl<'ui, HeaderRet> HeaderResponse<'ui, HeaderRet> {
+    /// Returns the response of the collapsing button, the custom header, and the custom body.
+    pub fn body<BodyRet>(
+        mut self,
+        add_body: impl FnOnce(&mut Ui) -> BodyRet,
+    ) -> (
+        Response,
+        InnerResponse<HeaderRet>,
+        Option<InnerResponse<BodyRet>>,
+    ) {
+        let body_response =
+            self.state
+                .show_body_indented(&self.header_response.response, self.ui, add_body);
+        (
+            self.toggle_button_response,
+            self.header_response,
+            body_response,
+        )
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 /// Paint the arrow icon that indicated if the region is open or not
 pub fn paint_default_icon(ui: &mut Ui, openness: f32, response: &Response) {
