@@ -21,6 +21,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Added `Ui::spinner()` shortcut method ([#1494](https://github.com/emilk/egui/pull/1494)).
 * Added `CursorIcon`s for resizing columns, rows, and the eight cardinal directions.
 * Added `Ui::toggle_value`.
+* Added ability to add any widgets to the header of a collapsing region ([#1538](https://github.com/emilk/egui/pull/1538)).
 
 ### Changed 🔧
 * `ClippedMesh` has been replaced with `ClippedPrimitive` ([#1351](https://github.com/emilk/egui/pull/1351)).

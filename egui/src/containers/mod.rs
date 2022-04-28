@@ -3,7 +3,7 @@
 //! For instance, a [`Frame`] adds a frame and background to some contained UI.
 
 pub(crate) mod area;
-pub(crate) mod collapsing_header;
+pub mod collapsing_header;
 mod combo_box;
 pub(crate) mod frame;
 pub mod panel;
