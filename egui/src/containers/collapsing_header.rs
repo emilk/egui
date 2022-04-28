@@ -3,14 +3,9 @@ use std::hash::Hash;
 use crate::*;
 use epaint::Shape;
 
-/// This is a a building block for building collapsing regions.
-///
-/// It is used by [`CollapsingHeader`] and [`Window`], but can also be used on its own.
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct CollapsingState {
-    id: Id,
-
+pub(crate) struct InnerState {
     open: bool,
 
     /// Height of the region when open. Used for animations
@@ -18,15 +13,24 @@ pub struct CollapsingState {
     open_height: Option<f32>,
 }
 
+/// This is a a building block for building collapsing regions.
+///
+/// It is used by [`CollapsingHeader`] and [`Window`], but can also be used on its own.
+#[derive(Clone, Debug)]
+pub struct CollapsingState {
+    id: Id,
+    state: InnerState,
+}
+
 impl CollapsingState {
     pub fn load(ctx: &Context, id: Id) -> Option<Self> {
         ctx.data()
-            .get_persisted::<Self>(id)
-            .filter(|state| state.id == id)
+            .get_persisted::<InnerState>(id)
+            .map(|state| Self { id, state })
     }
 
     pub fn store(&self, ctx: &Context) {
-        ctx.data().insert_persisted(self.id, self.clone());
+        ctx.data().insert_persisted(self.id, self.state);
     }
 
     pub fn id(&self) -> Id {
@@ -36,21 +40,23 @@ impl CollapsingState {
     pub fn load_with_default_open(ctx: &Context, id: Id, default_open: bool) -> Self {
         Self::load(ctx, id).unwrap_or(CollapsingState {
             id,
-            open: default_open,
-            open_height: None,
+            state: InnerState {
+                open: default_open,
+                open_height: None,
+            },
         })
     }
 
     pub fn is_open(&self) -> bool {
-        self.open
+        self.state.open
     }
 
     pub fn set_open(&mut self, open: bool) {
-        self.open = open;
+        self.state.open = open;
     }
 
     pub fn toggle(&mut self, ui: &Ui) {
-        self.open = !self.open;
+        self.state.open = !self.state.open;
         ui.ctx().request_repaint();
     }
 
@@ -59,7 +65,7 @@ impl CollapsingState {
         if ctx.memory().everything_is_visible() {
             1.0
         } else {
-            ctx.animate_bool(self.id, self.open)
+            ctx.animate_bool(self.id, self.state.open)
         }
     }
 
@@ -178,13 +184,13 @@ impl CollapsingState {
             None
         } else if openness < 1.0 {
             Some(ui.scope(|child_ui| {
-                let max_height = if self.open && self.open_height.is_none() {
+                let max_height = if self.state.open && self.state.open_height.is_none() {
                     // First frame of expansion.
                     // We don't know full height yet, but we will next frame.
                     // Just use a placeholder value that shows some movement:
                     10.0
                 } else {
-                    let full_height = self.open_height.unwrap_or_default();
+                    let full_height = self.state.open_height.unwrap_or_default();
                     remap_clamp(openness, 0.0..=1.0, 0.0..=full_height)
                 };
 
@@ -195,7 +201,7 @@ impl CollapsingState {
                 let ret = add_body(child_ui);
 
                 let mut min_rect = child_ui.min_rect();
-                self.open_height = Some(min_rect.height());
+                self.state.open_height = Some(min_rect.height());
                 self.store(child_ui.ctx()); // remember the height
 
                 // Pretend children took up at most `max_height` space:
@@ -206,7 +212,7 @@ impl CollapsingState {
         } else {
             let ret_response = ui.scope(add_body);
             let full_size = ret_response.response.rect.size();
-            self.open_height = Some(full_size.y);
+            self.state.open_height = Some(full_size.y);
             self.store(ui.ctx()); // remember the height
             Some(ret_response)
         }
@@ -435,7 +441,7 @@ impl CollapsingHeader {
 
         let mut state = CollapsingState::load_with_default_open(ui.ctx(), id, default_open);
         if let Some(open) = open {
-            if open != state.open {
+            if open != state.is_open() {
                 state.toggle(ui);
                 header_response.mark_changed();
             }
