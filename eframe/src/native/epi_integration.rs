@@ -1,3 +1,5 @@
+use egui_winit::{native_pixels_per_point, WindowSettings};
+
 pub fn points_to_size(points: egui::Vec2) -> winit::dpi::LogicalSize<f64> {
     winit::dpi::LogicalSize {
         width: points.x as f64,
@@ -7,7 +9,7 @@ pub fn points_to_size(points: egui::Vec2) -> winit::dpi::LogicalSize<f64> {
 
 pub fn window_builder(
     native_options: &epi::NativeOptions,
-    window_settings: &Option<crate::WindowSettings>,
+    window_settings: &Option<WindowSettings>,
 ) -> winit::window::WindowBuilder {
     let epi::NativeOptions {
         always_on_top,
@@ -109,7 +111,7 @@ pub fn handle_app_output(
                 width: (current_pixels_per_point * window_size.x).round(),
                 height: (current_pixels_per_point * window_size.y).round(),
             }
-            .to_logical::<f32>(crate::native_pixels_per_point(window) as f64),
+            .to_logical::<f32>(native_pixels_per_point(window) as f64),
         );
     }
 
@@ -145,10 +147,10 @@ pub fn create_storage(_app_name: &str) -> Option<Box<dyn epi::Storage>> {
 /// Everything needed to make a winit-based integration for [`epi`].
 pub struct EpiIntegration {
     pub frame: epi::Frame,
-    last_auto_save: instant::Instant,
+    last_auto_save: std::time::Instant,
     pub egui_ctx: egui::Context,
     pending_full_output: egui::FullOutput,
-    egui_winit: crate::State,
+    egui_winit: egui_winit::State,
     /// When set, it is time to quit
     quit: bool,
     can_drag_window: bool,
@@ -174,7 +176,7 @@ impl EpiIntegration {
                 web_info: None,
                 prefer_dark_mode,
                 cpu_usage: None,
-                native_pixels_per_point: Some(crate::native_pixels_per_point(window)),
+                native_pixels_per_point: Some(native_pixels_per_point(window)),
             },
             output: Default::default(),
             storage,
@@ -189,9 +191,9 @@ impl EpiIntegration {
 
         Self {
             frame,
-            last_auto_save: instant::Instant::now(),
+            last_auto_save: std::time::Instant::now(),
             egui_ctx,
-            egui_winit: crate::State::new(max_texture_side, window),
+            egui_winit: egui_winit::State::new(max_texture_side, window),
             pending_full_output: Default::default(),
             quit: false,
             can_drag_window: false,
@@ -235,7 +237,7 @@ impl EpiIntegration {
         app: &mut dyn epi::App,
         window: &winit::window::Window,
     ) -> egui::FullOutput {
-        let frame_start = instant::Instant::now();
+        let frame_start = std::time::Instant::now();
 
         let raw_input = self.egui_winit.take_egui_input(window);
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
@@ -252,10 +254,10 @@ impl EpiIntegration {
             if app_output.quit {
                 self.quit = app.on_exit_event();
             }
-            crate::epi::handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
+            handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
         }
 
-        let frame_time = (instant::Instant::now() - frame_start).as_secs_f64() as f32;
+        let frame_time = (std::time::Instant::now() - frame_start).as_secs_f64() as f32;
         self.frame.info.cpu_usage = Some(frame_time);
 
         full_output
@@ -274,7 +276,7 @@ impl EpiIntegration {
     // Persistance stuff:
 
     pub fn maybe_autosave(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {
-        let now = instant::Instant::now();
+        let now = std::time::Instant::now();
         if now - self.last_auto_save > app.auto_save_interval() {
             self.save(app, window);
             self.last_auto_save = now;
@@ -291,7 +293,7 @@ impl EpiIntegration {
                 epi::set_value(
                     storage,
                     STORAGE_WINDOW_KEY,
-                    &crate::WindowSettings::from_display(_window),
+                    &WindowSettings::from_display(_window),
                 );
             }
             if _app.persist_egui_memory() {
@@ -314,7 +316,7 @@ const STORAGE_EGUI_MEMORY_KEY: &str = "egui";
 #[cfg(feature = "persistence")]
 const STORAGE_WINDOW_KEY: &str = "window";
 
-pub fn load_window_settings(_storage: Option<&dyn epi::Storage>) -> Option<crate::WindowSettings> {
+pub fn load_window_settings(_storage: Option<&dyn epi::Storage>) -> Option<WindowSettings> {
     #[cfg(feature = "persistence")]
     {
         epi::get_value(_storage?, STORAGE_WINDOW_KEY)

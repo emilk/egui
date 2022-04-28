@@ -1075,6 +1075,7 @@ checksum = "6907e25393cdcc1f4f3f513d9aac1e840eb1cc341a0fccb01171f7d14d10b946"
 name = "eframe"
 version = "0.17.0"
 dependencies = [
+ "dark-light",
  "egui",
  "egui-winit",
  "egui_glow",
@@ -1083,6 +1084,7 @@ dependencies = [
  "glow",
  "glutin",
  "puffin",
+ "winit",
 ]
 
 [[package]]
@@ -1102,10 +1104,7 @@ name = "egui-winit"
 version = "0.17.0"
 dependencies = [
  "arboard",
- "dark-light",
  "egui",
- "epi",
- "glow",
  "instant",
  "puffin",
  "serde",
