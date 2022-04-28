@@ -1,6 +1,8 @@
 //! Demo-code for showing how egui is used.
 //!
-//! The demo-code is also used in benchmarks and tests.
+//! This library can be used to test 3rd party egui integrations (see for instance <https://github.com/not-fl3/egui-miniquad/blob/master/examples/demo.rs>).
+//!
+//! The demo is also used in benchmarks and tests.
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
@@ -15,7 +17,7 @@ pub use demo::DemoWindows;
 
 // ----------------------------------------------------------------------------
 
-/// Create a [`Hyperlink`](crate::Hyperlink) to this egui source code file on github.
+/// Create a [`Hyperlink`](egui::Hyperlink) to this egui source code file on github.
 #[macro_export]
 macro_rules! egui_github_link_file {
     () => {
@@ -29,7 +31,7 @@ macro_rules! egui_github_link_file {
     };
 }
 
-/// Create a [`Hyperlink`](crate::Hyperlink) to this egui source code file and line on github.
+/// Create a [`Hyperlink`](egui::Hyperlink) to this egui source code file and line on github.
 #[macro_export]
 macro_rules! egui_github_link_file_line {
     () => {
