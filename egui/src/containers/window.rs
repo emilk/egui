@@ -270,10 +270,10 @@ impl<'open> Window<'open> {
         let area_id = area.id;
         let area_layer_id = area.layer();
         let resize_id = area_id.with("resize");
-        let collapsing_id = area_id.with("collapsing");
+        let mut collapsing =
+            CollapsingState::load_with_default_open(ctx, area_id.with("collapsing"), true);
 
-        let is_collapsed =
-            with_title_bar && !CollapsingState::is_open(ctx, collapsing_id).unwrap_or_default();
+        let is_collapsed = with_title_bar && !collapsing.is_open();
         let possible = PossibleInteractions::new(&area, &resize, is_collapsed);
 
         let area = area.movable(false); // We move it manually, or the area will move the window when we want to resize it
@@ -327,9 +327,6 @@ impl<'open> Window<'open> {
             let frame_stroke = frame.stroke;
             let mut frame = frame.begin(&mut area_content_ui);
 
-            let default_expanded = true;
-            let mut collapsing =
-                CollapsingState::load_with_default_open(ctx, collapsing_id, default_expanded);
             let show_close_button = open.is_some();
             let title_bar = if with_title_bar {
                 let title_bar = show_title_bar(

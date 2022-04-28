@@ -3,6 +3,9 @@ use std::hash::Hash;
 use crate::*;
 use epaint::Shape;
 
+/// This is a a building block for building collapsing regions.
+///
+/// It is used by [`CollapsingHeader`] and [`Window`], but can also be used on its own.
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct CollapsingState {
@@ -36,13 +39,12 @@ impl CollapsingState {
         })
     }
 
-    /// `None` if this is is a new [`CollapsingState`].
-    pub fn is_open(ctx: &Context, id: Id) -> Option<bool> {
-        if ctx.memory().everything_is_visible() {
-            Some(true)
-        } else {
-            CollapsingState::load(ctx, id).map(|state| state.open)
-        }
+    pub fn is_open(&self) -> bool {
+        self.open
+    }
+
+    pub fn set_open(&mut self, open: bool) {
+        self.open = open;
     }
 
     pub fn toggle(&mut self, ui: &Ui) {
