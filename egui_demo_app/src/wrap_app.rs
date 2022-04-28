@@ -37,7 +37,7 @@ impl eframe::App for FractalClockApp {
         egui::CentralPanel::default()
             .frame(egui::Frame::dark_canvas(&ctx.style()))
             .show(ctx, |ui| {
-                self.fractal_clock.ui(ui, crate::seconds_since_midnight())
+                self.fractal_clock.ui(ui, crate::seconds_since_midnight());
             });
     }
 }

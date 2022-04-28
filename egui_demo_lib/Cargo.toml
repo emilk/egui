@@ -20,45 +20,33 @@ all-features = true
 
 
 [features]
-default = ["datetime"]
+default = []
 
 # Enable additional checks if debug assertions are enabled (debug builds).
 extra_debug_asserts = ["egui/extra_debug_asserts"]
 # Always enable additional checks.
 extra_asserts = ["egui/extra_asserts"]
 
-datetime = ["egui_extras/chrono", "chrono"]
-persistence = [
-  "egui/persistence",
-  "egui_extras/persistence",
-  "serde",
-]
+chrono = ["egui_extras/datepicker", "dep:chrono"]
 serde = ["egui/serde", "dep:serde"]
 syntax_highlighting = ["syntect"]
 
 
 [dependencies]
 egui = { version = "0.17.0", path = "../egui", default-features = false }
-egui_extras = { version = "0.17.0", path = "../egui_extras", features = [
-  "image",
-  "datepicker",
-] }
 
 chrono = { version = "0.4", optional = true, features = ["js-sys", "wasmbind"] }
+egui_extras = { version = "0.17.0", path = "../egui_extras", optional = true }
 enum-map = { version = "2", features = ["serde"] }
+serde = { version = "1", optional = true, features = ["derive"] }
+syntect = { version = "4", optional = true, default-features = false, features = ["default-fancy"] }
 tracing = "0.1"
 unicode_names2 = { version = "0.5.0", default-features = false }
 
-# feature "syntax_highlighting":
-syntect = { version = "4", optional = true, default-features = false, features = [
-  "default-fancy",
-] }
-
-# feature "persistence":
-serde = { version = "1", optional = true, features = ["derive"] }
 
 [dev-dependencies]
 criterion = { version = "0.3", default-features = false }
+
 
 [[bench]]
 name = "benchmark"
