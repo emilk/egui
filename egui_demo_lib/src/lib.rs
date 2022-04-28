@@ -1,27 +1,27 @@
 //! Demo-code for showing how egui is used.
 //!
-//! The demo-code is also used in benchmarks and tests.
+//! This library can be used to test 3rd party egui integrations (see for instance <https://github.com/not-fl3/egui-miniquad/blob/master/examples/demo.rs>).
+//!
+//! The demo is also used in benchmarks and tests.
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
 
-mod apps;
-mod backend_panel;
+mod color_test;
+mod demo;
 pub mod easy_mark;
-pub(crate) mod frame_history;
 pub mod syntax_highlighting;
-mod wrap_app;
 
-pub use apps::ColorTest; // used for tests
-pub use apps::DemoWindows; // used for tests
-pub use wrap_app::WrapApp;
+pub use color_test::ColorTest;
+pub use demo::DemoWindows;
 
 // ----------------------------------------------------------------------------
 
-/// Create a [`Hyperlink`](crate::Hyperlink) to this egui source code file on github.
+/// Create a [`Hyperlink`](egui::Hyperlink) to this egui source code file on github.
+#[macro_export]
 macro_rules! egui_github_link_file {
     () => {
-        crate::egui_github_link_file!("(source code)")
+        $crate::egui_github_link_file!("(source code)")
     };
     ($label: expr) => {
         egui::github_link_file!(
@@ -30,12 +30,12 @@ macro_rules! egui_github_link_file {
         )
     };
 }
-pub(crate) use egui_github_link_file;
 
-/// Create a [`Hyperlink`](crate::Hyperlink) to this egui source code file and line on github.
+/// Create a [`Hyperlink`](egui::Hyperlink) to this egui source code file and line on github.
+#[macro_export]
 macro_rules! egui_github_link_file_line {
     () => {
-        crate::egui_github_link_file_line!("(source code)")
+        $crate::egui_github_link_file_line!("(source code)")
     };
     ($label: expr) => {
         egui::github_link_file_line!(
@@ -44,7 +44,6 @@ macro_rules! egui_github_link_file_line {
         )
     };
 }
-pub(crate) use egui_github_link_file_line;
 
 // ----------------------------------------------------------------------------
 
@@ -92,20 +91,4 @@ fn test_egui_zero_window_size() {
             "There should be nothing to show"
         );
     }
-}
-
-// ----------------------------------------------------------------------------
-
-/// Time of day as seconds since midnight. Used for clock in demo app.
-pub(crate) fn seconds_since_midnight() -> Option<f64> {
-    #[cfg(feature = "datetime")]
-    {
-        use chrono::Timelike;
-        let time = chrono::Local::now().time();
-        let seconds_since_midnight =
-            time.num_seconds_from_midnight() as f64 + 1e-9 * (time.nanosecond() as f64);
-        Some(seconds_since_midnight)
-    }
-    #[cfg(not(feature = "datetime"))]
-    None
 }

@@ -18,7 +18,7 @@ pub struct WidgetGallery {
     color: egui::Color32,
     animate_progress_bar: bool,
 
-    #[cfg(feature = "datetime")]
+    #[cfg(feature = "chrono")]
     #[cfg_attr(feature = "serde", serde(skip))]
     date: Option<chrono::Date<chrono::Utc>>,
 
@@ -37,7 +37,7 @@ impl Default for WidgetGallery {
             string: Default::default(),
             color: egui::Color32::LIGHT_BLUE.linear_multiply(0.5),
             animate_progress_bar: false,
-            #[cfg(feature = "datetime")]
+            #[cfg(feature = "chrono")]
             date: None,
             texture: None,
         }
@@ -109,7 +109,7 @@ impl WidgetGallery {
             string,
             color,
             animate_progress_bar,
-            #[cfg(feature = "datetime")]
+            #[cfg(feature = "chrono")]
             date,
             texture,
         } = self;
@@ -216,7 +216,7 @@ impl WidgetGallery {
         }
         ui.end_row();
 
-        #[cfg(feature = "datetime")]
+        #[cfg(feature = "chrono")]
         {
             let date = date.get_or_insert_with(|| chrono::offset::Utc::now().date());
             ui.add(doc_link_label("DatePickerButton", "DatePickerButton"));

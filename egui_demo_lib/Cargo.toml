@@ -20,56 +20,29 @@ all-features = true
 
 
 [features]
-default = ["datetime"]
+default = []
 
-# Enable additional checks if debug assertions are enabled (debug builds).
-extra_debug_asserts = ["egui/extra_debug_asserts"]
-# Always enable additional checks.
-extra_asserts = ["egui/extra_asserts"]
-
-datetime = ["egui_extras/chrono", "chrono"]
-http = ["ehttp", "image", "poll-promise"]
-persistence = [
-  "egui/persistence",
-  "epi/persistence",
-  "egui_extras/persistence",
-  "serde",
-]
+chrono = ["egui_extras/datepicker", "dep:chrono"]
 serde = ["egui/serde", "dep:serde"]
 syntax_highlighting = ["syntect"]
 
 
 [dependencies]
 egui = { version = "0.17.0", path = "../egui", default-features = false }
-epi = { version = "0.17.0", path = "../epi" }
-egui_extras = { version = "0.17.0", path = "../egui_extras", features = [
-  "image",
-  "datepicker",
-] }
-
-chrono = { version = "0.4", optional = true, features = ["js-sys", "wasmbind"] }
+egui_extras = { version = "0.17.0", path = "../egui_extras" }
 enum-map = { version = "2", features = ["serde"] }
 tracing = "0.1"
 unicode_names2 = { version = "0.5.0", default-features = false }
 
-# feature "http":
-ehttp = { version = "0.2.0", optional = true }
-image = { version = "0.24", optional = true, default-features = false, features = [
-  "jpeg",
-  "png",
-] }
-poll-promise = { version = "0.1", optional = true, default-features = false }
-
-# feature "syntax_highlighting":
-syntect = { version = "4", optional = true, default-features = false, features = [
-  "default-fancy",
-] }
-
-# feature "persistence":
+# Optional:
+chrono = { version = "0.4", optional = true, features = ["js-sys", "wasmbind"] }
 serde = { version = "1", optional = true, features = ["derive"] }
+syntect = { version = "4", optional = true, default-features = false, features = ["default-fancy"] }
+
 
 [dev-dependencies]
 criterion = { version = "0.3", default-features = false }
+
 
 [[bench]]
 name = "benchmark"
