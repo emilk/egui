@@ -361,8 +361,7 @@ impl BoxPainting {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct CustomCollapsingHeader {
     selected: bool,
-    value: i32,
-    checkbox: bool,
+    radio_value: bool,
 }
 
 impl CustomCollapsingHeader {
@@ -375,9 +374,9 @@ impl CustomCollapsingHeader {
                 ui,
                 |ui| {
                     // header:
-                    ui.label("Some widgets:");
-                    ui.add(DragValue::new(&mut self.value));
-                    ui.checkbox(&mut self.checkbox, "");
+                    ui.toggle_value(&mut self.selected, "Click to select/unselect");
+                    ui.radio_value(&mut self.radio_value, false, "");
+                    ui.radio_value(&mut self.radio_value, true, "");
                 },
                 |ui| {
                     // body:
