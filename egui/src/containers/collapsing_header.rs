@@ -6,7 +6,7 @@ use epaint::Shape;
 /// This is a a building block for building collapsing regions.
 ///
 /// It is used by [`CollapsingHeader`] and [`Window`], but can also be used on its own.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct CollapsingState {
     id: Id,
@@ -20,11 +20,13 @@ pub struct CollapsingState {
 
 impl CollapsingState {
     pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.data().get_persisted(id)
+        ctx.data()
+            .get_persisted::<Self>(id)
+            .filter(|state| state.id == id)
     }
 
-    pub fn store(self, ctx: &Context) {
-        ctx.data().insert_persisted(self.id, self);
+    pub fn store(&self, ctx: &Context) {
+        ctx.data().insert_persisted(self.id, self.clone());
     }
 
     pub fn id(&self) -> Id {
@@ -147,7 +149,7 @@ impl CollapsingState {
     ///
     /// Will also store the state.
     pub fn show_body_indented<R>(
-        self,
+        &mut self,
         header_response: &Response,
         ui: &mut Ui,
         add_body: impl FnOnce(&mut Ui) -> R,
@@ -166,7 +168,7 @@ impl CollapsingState {
     /// Show body if we are open, with a nice animation between closed and open.
     /// Will also store the state.
     pub fn show_body_unindented<R>(
-        mut self,
+        &mut self,
         ui: &mut Ui,
         add_body: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
@@ -516,7 +518,7 @@ impl CollapsingHeader {
 
             let Prepared {
                 header_response,
-                state,
+                mut state,
                 openness,
             } = self.begin(ui); // show the header
 
