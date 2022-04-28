@@ -60,7 +60,7 @@ pub struct RawInput {
     /// Dragged files dropped into egui.
     ///
     /// Note: when using `eframe` on Windows you need to enable
-    /// drag-and-drop support using `epi::NativeOptions`.
+    /// drag-and-drop support using `eframe::NativeOptions`.
     pub dropped_files: Vec<DroppedFile>,
 }
 
