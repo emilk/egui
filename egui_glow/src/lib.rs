@@ -1,8 +1,7 @@
 //! [`egui`] bindings for [`glow`](https://github.com/grovesNL/glow).
 //!
-//! The main type you want to use is [`EguiGlow`].
+//! The main types you want to look are are [`Painter`] and [`EguiGlow`].
 //!
-//! This library is an [`epi`] backend.
 //! If you are writing an app, you may want to look at [`eframe`](https://docs.rs/eframe) instead.
 
 #![allow(clippy::float_cmp)]
