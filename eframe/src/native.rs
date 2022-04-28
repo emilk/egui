@@ -45,7 +45,7 @@ pub fn run(app_name: &str, native_options: &epi::NativeOptions, app_creator: epi
     let (gl_window, gl) = create_display(native_options, window_builder, &event_loop);
     let gl = std::rc::Rc::new(gl);
 
-    let mut painter = crate::Painter::new(gl.clone(), None, "")
+    let mut painter = egui_glow::Painter::new(gl.clone(), None, "")
         .unwrap_or_else(|error| panic!("some OpenGL error occurred {}\n", error));
 
     let mut integration = egui_winit::epi::EpiIntegration::new(
@@ -94,7 +94,7 @@ pub fn run(app_name: &str, native_options: &epi::NativeOptions, app_creator: epi
             crate::profile_scope!("frame");
             let screen_size_in_pixels: [u32; 2] = gl_window.window().inner_size().into();
 
-            crate::painter::clear(&gl, screen_size_in_pixels, app.clear_color());
+            egui_glow::painter::clear(&gl, screen_size_in_pixels, app.clear_color());
 
             let egui::FullOutput {
                 platform_output,

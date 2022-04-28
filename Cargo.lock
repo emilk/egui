@@ -1080,6 +1080,9 @@ dependencies = [
  "egui_glow",
  "egui_web",
  "epi",
+ "glow",
+ "glutin",
+ "puffin",
 ]
 
 [[package]]
@@ -1178,7 +1181,6 @@ dependencies = [
  "bytemuck",
  "egui",
  "egui-winit",
- "epi",
  "glow",
  "glutin",
  "memoffset",

@@ -31,7 +31,7 @@ clipboard = ["arboard"]
 dark-light = ["dep:dark-light"]
 
 # Only for `egui_glow` - the official eframe/epi backend.
-epi_backend = ["epi", "glow"]
+epi = ["dep:epi", "glow"]
 
 # enable opening links in a browser when an egui hyperlink is clicked.
 links = ["webbrowser"]
