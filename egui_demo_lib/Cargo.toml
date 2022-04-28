@@ -28,10 +28,8 @@ extra_debug_asserts = ["egui/extra_debug_asserts"]
 extra_asserts = ["egui/extra_asserts"]
 
 datetime = ["egui_extras/chrono", "chrono"]
-http = ["ehttp", "image", "poll-promise"]
 persistence = [
   "egui/persistence",
-  "epi/persistence",
   "egui_extras/persistence",
   "serde",
 ]
@@ -41,7 +39,6 @@ syntax_highlighting = ["syntect"]
 
 [dependencies]
 egui = { version = "0.17.0", path = "../egui", default-features = false }
-epi = { version = "0.17.0", path = "../epi" }
 egui_extras = { version = "0.17.0", path = "../egui_extras", features = [
   "image",
   "datepicker",
@@ -51,14 +48,6 @@ chrono = { version = "0.4", optional = true, features = ["js-sys", "wasmbind"] }
 enum-map = { version = "2", features = ["serde"] }
 tracing = "0.1"
 unicode_names2 = { version = "0.5.0", default-features = false }
-
-# feature "http":
-ehttp = { version = "0.2.0", optional = true }
-image = { version = "0.24", optional = true, default-features = false, features = [
-  "jpeg",
-  "png",
-] }
-poll-promise = { version = "0.1", optional = true, default-features = false }
 
 # feature "syntax_highlighting":
 syntect = { version = "4", optional = true, default-features = false, features = [

@@ -32,14 +32,6 @@ impl Default for FractalClock {
     }
 }
 
-impl epi::App for FractalClock {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut epi::Frame) {
-        egui::CentralPanel::default()
-            .frame(Frame::dark_canvas(&ctx.style()))
-            .show(ctx, |ui| self.ui(ui, crate::seconds_since_midnight()));
-    }
-}
-
 impl FractalClock {
     pub fn ui(&mut self, ui: &mut Ui, seconds_since_midnight: Option<f64>) {
         if !self.paused {
@@ -93,7 +85,7 @@ impl FractalClock {
             "Inspired by a screensaver by Rob Mayoff",
             "http://www.dqd.com/~mayoff/programs/FractalClock/",
         );
-        ui.add(crate::egui_github_link_file!());
+        ui.add(egui_demo_lib::egui_github_link_file!());
     }
 
     fn paint(&mut self, painter: &Painter) {

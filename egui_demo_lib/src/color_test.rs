@@ -29,22 +29,6 @@ impl Default for ColorTest {
     }
 }
 
-impl epi::App for ColorTest {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut epi::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            if frame.is_web() {
-                ui.label(
-                    "NOTE: Some old browsers stuck on WebGL1 without sRGB support will not pass the color test.",
-                );
-                ui.separator();
-            }
-            ScrollArea::both().auto_shrink([false; 2]).show(ui, |ui| {
-                self.ui(ui);
-            });
-        });
-    }
-}
-
 impl ColorTest {
     pub fn ui(&mut self, ui: &mut Ui) {
         ui.set_max_width(680.0);

@@ -1,48 +1,105 @@
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct EasyMarkApp {
-    editor: crate::easy_mark::EasyMarkEditor,
+    editor: egui_demo_lib::easy_mark::EasyMarkEditor,
 }
 
-impl epi::App for EasyMarkApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut epi::Frame) {
+impl eframe::App for EasyMarkApp {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.editor.panels(ctx);
     }
 }
+
+// ----------------------------------------------------------------------------
+
+#[derive(Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct DemoApp {
+    demo_windows: egui_demo_lib::DemoWindows,
+}
+
+impl eframe::App for DemoApp {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.demo_windows.ui(ctx);
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+#[derive(Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct FractalClockApp {
+    fractal_clock: crate::apps::FractalClock,
+}
+
+impl eframe::App for FractalClockApp {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default()
+            .frame(egui::Frame::dark_canvas(&ctx.style()))
+            .show(ctx, |ui| {
+                self.fractal_clock.ui(ui, crate::seconds_since_midnight())
+            });
+    }
+}
+// ----------------------------------------------------------------------------
+
+#[derive(Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct ColorTestApp {
+    color_test: egui_demo_lib::ColorTest,
+}
+
+impl eframe::App for ColorTestApp {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            if frame.is_web() {
+                ui.label(
+                    "NOTE: Some old browsers stuck on WebGL1 without sRGB support will not pass the color test.",
+                );
+                ui.separator();
+            }
+            egui::ScrollArea::both().auto_shrink([false; 2]).show(ui, |ui| {
+                self.color_test.ui(ui);
+            });
+        });
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 /// All the different demo apps.
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Apps {
-    demo: crate::apps::DemoApp,
+    demo: DemoApp,
     easy_mark_editor: EasyMarkApp,
     #[cfg(feature = "http")]
     http: crate::apps::HttpApp,
-    clock: crate::apps::FractalClock,
-    color_test: crate::apps::ColorTest,
+    clock: FractalClockApp,
+    color_test: ColorTestApp,
 }
 
 impl Apps {
-    fn iter_mut(&mut self) -> impl Iterator<Item = (&str, &str, &mut dyn epi::App)> {
+    fn iter_mut(&mut self) -> impl Iterator<Item = (&str, &str, &mut dyn eframe::App)> {
         vec![
-            ("✨ Demos", "demo", &mut self.demo as &mut dyn epi::App),
+            ("✨ Demos", "demo", &mut self.demo as &mut dyn eframe::App),
             (
                 "🖹 EasyMark editor",
                 "easymark",
-                &mut self.easy_mark_editor as &mut dyn epi::App,
+                &mut self.easy_mark_editor as &mut dyn eframe::App,
             ),
             #[cfg(feature = "http")]
-            ("⬇ HTTP", "http", &mut self.http as &mut dyn epi::App),
+            ("⬇ HTTP", "http", &mut self.http as &mut dyn eframe::App),
             (
                 "🕑 Fractal Clock",
                 "clock",
-                &mut self.clock as &mut dyn epi::App,
+                &mut self.clock as &mut dyn eframe::App,
             ),
             (
                 "🎨 Color test",
                 "colors",
-                &mut self.color_test as &mut dyn epi::App,
+                &mut self.color_test as &mut dyn eframe::App,
             ),
         ]
         .into_iter()
@@ -62,26 +119,26 @@ pub struct WrapApp {
 }
 
 impl WrapApp {
-    pub fn new(_cc: &epi::CreationContext<'_>) -> Self {
+    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         #[cfg(feature = "persistence")]
         if let Some(storage) = _cc.storage {
-            return epi::get_value(storage, epi::APP_KEY).unwrap_or_default();
+            return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
         }
         Self::default()
     }
 }
 
-impl epi::App for WrapApp {
+impl eframe::App for WrapApp {
     #[cfg(feature = "persistence")]
-    fn save(&mut self, storage: &mut dyn epi::Storage) {
-        epi::set_value(storage, epi::APP_KEY, self);
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        eframe::set_value(storage, eframe::APP_KEY, self);
     }
 
     fn clear_color(&self) -> egui::Rgba {
         egui::Rgba::TRANSPARENT // we set a [`CentralPanel`] fill color in `demo_windows.rs`
     }
 
-    fn update(&mut self, ctx: &egui::Context, frame: &mut epi::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         if let Some(web_info) = frame.info().web_info.as_ref() {
             if let Some(anchor) = web_info.location.hash.strip_prefix('#') {
                 self.selected_anchor = anchor.to_owned();
@@ -142,7 +199,7 @@ impl epi::App for WrapApp {
 }
 
 impl WrapApp {
-    fn bar_contents(&mut self, ui: &mut egui::Ui, frame: &mut epi::Frame) {
+    fn bar_contents(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         // A menu-bar is a horizontal layout with some special styles applied.
         // egui::menu::bar(ui, |ui| {
         ui.horizontal_wrapped(|ui| {

@@ -1116,9 +1116,16 @@ dependencies = [
 name = "egui_demo_app"
 version = "0.17.0"
 dependencies = [
+ "chrono",
  "console_error_panic_hook",
  "eframe",
+ "egui",
  "egui_demo_lib",
+ "egui_extras",
+ "ehttp",
+ "image",
+ "poll-promise",
+ "serde",
  "tracing-subscriber",
  "tracing-wasm",
 ]
@@ -1131,11 +1138,7 @@ dependencies = [
  "criterion",
  "egui",
  "egui_extras",
- "ehttp",
  "enum-map",
- "epi",
- "image",
- "poll-promise",
  "serde",
  "syntect",
  "tracing",

@@ -62,7 +62,7 @@ pub struct BackendPanel {
 }
 
 impl BackendPanel {
-    pub fn update(&mut self, ctx: &egui::Context, frame: &mut epi::Frame) {
+    pub fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         self.frame_history
             .on_new_frame(ctx.input().time, frame.info().cpu_usage);
 
@@ -76,7 +76,7 @@ impl BackendPanel {
         self.egui_windows.windows(ctx);
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui, frame: &mut epi::Frame) {
+    pub fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         egui::trace!(ui);
         ui.vertical_centered(|ui| {
             ui.heading("💻 Backend");
@@ -131,7 +131,7 @@ impl BackendPanel {
         }
     }
 
-    fn integration_ui(&mut self, ui: &mut egui::Ui, frame: &mut epi::Frame) {
+    fn integration_ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         if frame.is_web() {
             ui.label("egui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
             ui.label(
@@ -172,7 +172,7 @@ impl BackendPanel {
     fn pixels_per_point_ui(
         &mut self,
         ui: &mut egui::Ui,
-        info: &epi::IntegrationInfo,
+        info: &eframe::IntegrationInfo,
     ) -> Option<f32> {
         let pixels_per_point = self.pixels_per_point.get_or_insert_with(|| {
             info.native_pixels_per_point
@@ -234,7 +234,7 @@ impl BackendPanel {
 
 // ----------------------------------------------------------------------------
 
-fn show_integration_name(ui: &mut egui::Ui, integration_info: &epi::IntegrationInfo) {
+fn show_integration_name(ui: &mut egui::Ui, integration_info: &eframe::IntegrationInfo) {
     let name = integration_info.name;
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 0.0;
