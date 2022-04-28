@@ -1,10 +1,22 @@
+#[derive(Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+struct EasyMarkApp {
+    editor: crate::easy_mark::EasyMarkEditor,
+}
+
+impl epi::App for EasyMarkApp {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut epi::Frame) {
+        self.editor.panels(ctx);
+    }
+}
+
 /// All the different demo apps.
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Apps {
     demo: crate::apps::DemoApp,
-    easy_mark_editor: crate::easy_mark::EasyMarkEditor,
+    easy_mark_editor: EasyMarkApp,
     #[cfg(feature = "http")]
     http: crate::apps::HttpApp,
     clock: crate::apps::FractalClock,
