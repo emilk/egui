@@ -330,6 +330,57 @@ impl AppRunner {
     }
 }
 
+// ----------------------------------------------------------------------------
+
+pub type AppRunnerRef = Arc<Mutex<AppRunner>>;
+
+pub struct AppRunnerContainer {
+    pub runner: AppRunnerRef,
+    /// Set to `true` if there is a panic.
+    /// Used to ignore callbacks after a panic.
+    pub panicked: Arc<AtomicBool>,
+}
+
+impl AppRunnerContainer {
+    /// Convenience function to reduce boilerplate and ensure that all event handlers
+    /// are dealt with in the same way
+    pub fn add_event_listener<E: wasm_bindgen::JsCast>(
+        &self,
+        target: &EventTarget,
+        event_name: &'static str,
+        mut closure: impl FnMut(E, MutexGuard<'_, AppRunner>) + 'static,
+    ) -> Result<(), JsValue> {
+        use wasm_bindgen::JsCast;
+
+        // Create a JS closure based on the FnMut provided
+        let closure = Closure::wrap({
+            // Clone atomics
+            let runner_ref = self.runner.clone();
+            let panicked = self.panicked.clone();
+
+            Box::new(move |event: web_sys::Event| {
+                // Only call the wrapped closure if the egui code has not panicked
+                if !panicked.load(Ordering::SeqCst) {
+                    // Cast the event to the expected event type
+                    let event = event.unchecked_into::<E>();
+
+                    closure(event, runner_ref.lock());
+                }
+            }) as Box<dyn FnMut(_)>
+        });
+
+        // Add the event listener to the target
+        target.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
+
+        // Bypass closure drop so that event handler can call the closure
+        closure.forget();
+
+        Ok(())
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// Install event listeners to register different input events
 /// and start running the given app.
 pub fn start(canvas_id: &str, app_creator: epi::AppCreator) -> Result<AppRunnerRef, JsValue> {
@@ -346,12 +397,12 @@ fn start_runner(app_runner: AppRunner) -> Result<AppRunnerRef, JsValue> {
         panicked: Arc::new(AtomicBool::new(false)),
     };
 
-    install_canvas_events(&runner_container)?;
-    install_document_events(&runner_container)?;
+    crate::events::install_canvas_events(&runner_container)?;
+    crate::events::install_document_events(&runner_container)?;
     text_agent::install_text_agent(&runner_container)?;
-    repaint_every_ms(&runner_container, 1000)?; // just in case. TODO: make it a parameter
+    crate::events::repaint_every_ms(&runner_container, 1000)?; // just in case. TODO: make it a parameter
 
-    paint_and_schedule(&runner_container.runner, runner_container.panicked.clone())?;
+    crate::events::paint_and_schedule(&runner_container.runner, runner_container.panicked.clone())?;
 
     // Disable all event handlers on panic
     std::panic::set_hook(Box::new({
@@ -374,4 +425,19 @@ fn start_runner(app_runner: AppRunner) -> Result<AppRunnerRef, JsValue> {
     }));
 
     Ok(runner_container.runner)
+}
+
+// ----------------------------------------------------------------------------
+
+#[derive(Default)]
+struct LocalStorage {}
+
+impl epi::Storage for LocalStorage {
+    fn get_string(&self, key: &str) -> Option<String> {
+        local_storage_get(key)
+    }
+    fn set_string(&mut self, key: &str, value: String) {
+        local_storage_set(key, &value);
+    }
+    fn flush(&mut self) {}
 }
