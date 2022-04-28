@@ -358,7 +358,7 @@ impl CollapsingHeader {
     }
 
     /// Can the [`CollapsingHeader`] be selected by clicking it? Default: `false`.
-    ///
+    #[deprecated = "Use the more powerful egui::collapsing_header::CollapsingState::show_header"] // Deprecated in 2022-04-28, before egui 0.18
     pub fn selectable(mut self, selectable: bool) -> Self {
         self.selectable = selectable;
         self
@@ -379,6 +379,7 @@ impl CollapsingHeader {
     /// }
     /// # });
     /// ```
+    #[deprecated = "Use the more powerful egui::collapsing_header::CollapsingState::show_header"] // Deprecated in 2022-04-28, before egui 0.18
     pub fn selected(mut self, selected: bool) -> Self {
         self.selected = selected;
         self

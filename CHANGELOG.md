@@ -41,6 +41,9 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Text is darker and more readable in bright mode ([#1412](https://github.com/emilk/egui/pull/1412)).
 * Fixed `Ui::add_visible` sometimes leaving the `Ui` in a disabled state. ([#1436](https://github.com/emilk/egui/issues/1436)).
 
+### Deprecated ☢️
+* Deprecated `CollapsingHeader::selectable` ([#1538](https://github.com/emilk/egui/pull/1538)).
+
 ### Removed 🔥
 * Removed the `single_threaded/multi_threaded` flags - egui is now always thread-safe ([#1390](https://github.com/emilk/egui/pull/1390)).
 
