@@ -5,6 +5,7 @@ All notable changes to the `egui_extras` integration will be noted in this file.
 ## Unreleased
 * Added `Strip`, `Table` and `DatePicker` ([#963](https://github.com/emilk/egui/pull/963)).
 * MSRV (Minimum Supported Rust Version) is now `1.60.0` ([#1467](https://github.com/emilk/egui/pull/1467)).
+* Renamed feature "persistence" to "serde" ([#1540](https://github.com/emilk/egui/pull/1540)).
 
 
 ## 0.17.0 - 2022-02-22
