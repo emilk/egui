@@ -293,11 +293,11 @@ impl Context {
         sense: Sense,
         enabled: bool,
     ) -> Response {
-        let gap = 0.5; // Just to make sure we don't accidentally hover two things at once (a small eps should be sufficient).
+        let gap = 0.1; // Just to make sure we don't accidentally hover two things at once (a small eps should be sufficient).
 
         // Make it easier to click things:
         let interact_rect = rect.expand2(
-            (0.5 * item_spacing - Vec2::splat(gap))
+            (0.1 * item_spacing - Vec2::splat(gap))
                 .at_least(Vec2::splat(0.0))
                 .at_most(Vec2::splat(5.0)),
         ); // make it easier to click
