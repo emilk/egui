@@ -6,7 +6,7 @@
 
 #![warn(missing_docs)] // Let's keep `epi` well-documented.
 
-/// The is is how your app is created.
+/// This is how your app is created.
 ///
 /// You can use the [`CreationContext`] to setup egui, restore state, setup OpenGL things, etc.
 pub type AppCreator = Box<dyn FnOnce(&CreationContext<'_>) -> Box<dyn App>>;
@@ -221,7 +221,7 @@ impl Default for NativeOptions {
     }
 }
 
-/// Image data for the icon.
+/// Image data for an application icon.
 #[derive(Clone)]
 pub struct IconData {
     /// RGBA pixels, unmultiplied.
@@ -417,6 +417,8 @@ pub struct IntegrationInfo {
 ///
 /// On the web this is backed by [local storage](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage).
 /// On desktop this is backed by the file system.
+///
+/// See [`CreationContext::storage`] and [`App::save`].
 pub trait Storage {
     /// Get the value for the given key.
     fn get_string(&self, key: &str) -> Option<String>;
@@ -429,7 +431,7 @@ pub trait Storage {
 
 /// Stores nothing.
 #[derive(Clone, Default)]
-pub struct DummyStorage {}
+pub(crate) struct DummyStorage {}
 
 impl Storage for DummyStorage {
     fn get_string(&self, _key: &str) -> Option<String> {

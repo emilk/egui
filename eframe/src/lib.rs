@@ -58,7 +58,7 @@
 // Re-export all useful libraries:
 pub use {egui, egui::emath, egui::epaint, glow};
 
-pub mod epi; // TODO: make non-pub in 0.19.0
+mod epi;
 
 // Re-export everything in `epi` so `eframe` users don't have to care about what `epi` is:
 pub use epi::*;

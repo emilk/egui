@@ -5,6 +5,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 
 
 ## Unreleased
+* Removed `eframe::epi` - everything is now in `eframe` (`eframe::App`, `eframe::Frame` etc) ([#1545](https://github.com/emilk/egui/pull/1545)).
 * Removed `Frame::request_repaint` - just call `egui::Context::request_repaint` for the same effect ([#1366](https://github.com/emilk/egui/pull/1366)).
 * Changed app creation/setup ([#1363](https://github.com/emilk/egui/pull/1363)):
   * Removed `App::setup` and `App::name`.
