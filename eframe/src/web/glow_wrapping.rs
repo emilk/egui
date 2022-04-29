@@ -156,14 +156,3 @@ trait DummyWebGLConstructor {
 
     fn from_webgl2_context(context: web_sys::WebGl2RenderingContext) -> Self;
 }
-
-#[cfg(not(target_arch = "wasm32"))]
-impl DummyWebGLConstructor for glow::Context {
-    fn from_webgl1_context(_context: WebGlRenderingContext) -> Self {
-        panic!("you can't use egui_web(glow) on native")
-    }
-
-    fn from_webgl2_context(_context: WebGl2RenderingContext) -> Self {
-        panic!("you can't use egui_web(glow) on native")
-    }
-}

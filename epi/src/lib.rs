@@ -42,8 +42,7 @@ pub struct CreationContext<'s> {
 
 // ----------------------------------------------------------------------------
 
-/// Implement this trait to write apps that can be compiled both natively using the [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium) crate,
-/// and deployed as a web site using the [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web) crate.
+/// Implement this trait to write apps that can be compiled for both web/wasm and desktop/native using [`eframe`](https://github.com/emilk/egui/tree/master/eframe).
 pub trait App {
     /// Called each time the UI needs repainting, which may be many times per second.
     ///

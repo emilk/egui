@@ -9,7 +9,7 @@ This crates provides bindings between [`egui`](https://github.com/emilk/egui) an
 * Render egui using glow on both native and web.
 * Write cross platform native egui apps (with the `winit` feature).
 
-To write web apps using `glow` you should use either [`eframe`](https://github.com/emilk/egui/tree/master/eframe) or [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web) (both uses `egui_glow` for rendering, by default).
+To write web apps using `glow` you can use [`eframe`](https://github.com/emilk/egui/tree/master/eframe) (which uses `egui_glow` for rendering).
 
 To use on Linux, first run:
 

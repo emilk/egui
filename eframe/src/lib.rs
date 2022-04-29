@@ -10,9 +10,6 @@
 //! In short, you implement [`App`] and then
 //! call [`crate::run_native`] from your `main.rs`, and/or call `eframe::start_web` from your `lib.rs`.
 //!
-//! `eframe` is implemented using [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web) for web and
-//! [`egui_glow`](https://github.com/emilk/egui/tree/master/egui_glow) for native.
-//!
 //! ## Usage, native:
 //! ``` no_run
 //! use eframe::egui;
