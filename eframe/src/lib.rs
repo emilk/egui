@@ -69,7 +69,13 @@ pub use epi::*;
 // When compiling for web
 
 #[cfg(target_arch = "wasm32")]
-pub use egui_web::wasm_bindgen;
+mod web;
+
+#[cfg(target_arch = "wasm32")]
+pub use wasm_bindgen;
+
+#[cfg(target_arch = "wasm32")]
+pub use web_sys;
 
 /// Install event listeners to register different input events
 /// and start running the given app.
@@ -90,7 +96,7 @@ pub use egui_web::wasm_bindgen;
 /// ```
 #[cfg(target_arch = "wasm32")]
 pub fn start_web(canvas_id: &str, app_creator: AppCreator) -> Result<(), wasm_bindgen::JsValue> {
-    egui_web::start(canvas_id, app_creator)?;
+    web::start(canvas_id, app_creator)?;
     Ok(())
 }
 

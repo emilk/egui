@@ -1,4 +1,4 @@
-use crate::{canvas_element, canvas_origin, AppRunner};
+use super::{canvas_element, canvas_origin, AppRunner};
 
 pub fn pos_from_mouse_event(canvas_id: &str, event: &web_sys::MouseEvent) -> egui::Pos2 {
     let canvas = canvas_element(canvas_id).unwrap();

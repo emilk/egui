@@ -1,4 +1,4 @@
-use crate::{glow_wrapping::WrappedGlowPainter, *};
+use super::{glow_wrapping::WrappedGlowPainter, *};
 
 use egui::TexturesDelta;
 pub use egui::{pos2, Color32};
@@ -131,7 +131,7 @@ pub struct AppRunner {
     app: Box<dyn epi::App>,
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
     last_save_time: f64,
-    screen_reader: crate::screen_reader::ScreenReader,
+    screen_reader: super::screen_reader::ScreenReader,
     pub(crate) text_cursor_pos: Option<egui::Pos2>,
     pub(crate) mutable_text_under_cursor: bool,
     textures_delta: TexturesDelta,
@@ -141,7 +141,7 @@ impl AppRunner {
     pub fn new(canvas_id: &str, app_creator: epi::AppCreator) -> Result<Self, JsValue> {
         let painter = WrappedGlowPainter::new(canvas_id).map_err(JsValue::from)?;
 
-        let prefer_dark_mode = crate::prefer_dark_mode();
+        let prefer_dark_mode = super::prefer_dark_mode();
 
         let frame = epi::Frame {
             info: epi::IntegrationInfo {
@@ -309,7 +309,7 @@ impl AppRunner {
 
         set_cursor_icon(cursor_icon);
         if let Some(open) = open_url {
-            crate::open_url(&open.url, open.new_tab);
+            super::open_url(&open.url, open.new_tab);
         }
 
         #[cfg(web_sys_unstable_apis)]
@@ -396,12 +396,12 @@ fn start_runner(app_runner: AppRunner) -> Result<AppRunnerRef, JsValue> {
         panicked: Arc::new(AtomicBool::new(false)),
     };
 
-    crate::events::install_canvas_events(&runner_container)?;
-    crate::events::install_document_events(&runner_container)?;
+    super::events::install_canvas_events(&runner_container)?;
+    super::events::install_document_events(&runner_container)?;
     text_agent::install_text_agent(&runner_container)?;
-    crate::events::repaint_every_ms(&runner_container, 1000)?; // just in case. TODO: make it a parameter
+    super::events::repaint_every_ms(&runner_container, 1000)?; // just in case. TODO: make it a parameter
 
-    crate::events::paint_and_schedule(&runner_container.runner, runner_container.panicked.clone())?;
+    super::events::paint_and_schedule(&runner_container.runner, runner_container.panicked.clone())?;
 
     // Disable all event handlers on panic
     std::panic::set_hook(Box::new({

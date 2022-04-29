@@ -14,7 +14,7 @@ pub(crate) struct WrappedGlowPainter {
 
 impl WrappedGlowPainter {
     pub fn new(canvas_id: &str) -> Result<Self, String> {
-        let canvas = crate::canvas_element_or_die(canvas_id);
+        let canvas = super::canvas_element_or_die(canvas_id);
 
         let (gl, shader_prefix) = init_glow_context_from_canvas(&canvas)?;
         let gl = std::rc::Rc::new(gl);
@@ -122,7 +122,7 @@ fn init_webgl1(canvas: &HtmlCanvasElement) -> Option<(glow::Context, &'static st
         .dyn_into::<web_sys::WebGlRenderingContext>()
         .unwrap();
 
-    let shader_prefix = if crate::webgl1_requires_brightening(&gl1_ctx) {
+    let shader_prefix = if super::webgl1_requires_brightening(&gl1_ctx) {
         tracing::debug!("Enabling webkitGTK brightening workaround.");
         "#define APPLY_BRIGHTENING_GAMMA"
     } else {

@@ -34,6 +34,8 @@ persistence = [
   "egui-winit/serde",
   "egui/persistence",
   "epi/persistence",
+  "ron",
+  "serde",
 ]
 
 # Enable profiling with the puffin crate: https://github.com/EmbarkStudios/puffin
@@ -44,20 +46,21 @@ puffin = ["dep:puffin", "egui_glow/puffin"]
 # enable screen reader support (requires `ctx.options().screen_reader = true;`)
 screen_reader = [
   "egui-winit/screen_reader",
-  "egui_web/screen_reader",
+  "tts",
 ]
 
 
 [dependencies]
-egui = { version = "0.17.0", path = "../egui", default-features = false }
+egui = { version = "0.17.0", path = "../egui", default-features = false, features = [
+  "bytemuck",
+  "tracing",
+] }
+egui_glow = { version = "0.17.0", path = "../egui_glow", default-features = false }
 epi = { version = "0.17.0", path = "../epi" }
 
+# -------------------------------------------
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui_glow = { version = "0.17.0", path = "../egui_glow", default-features = false, features = [
-  "clipboard",
-  "links",
-] }
 dark-light = { version = "0.2.1", optional = true }
 egui-winit = { version = "0.17.0", path = "../egui-winit", default-features = false, features = ["clipboard", "links"] }
 glow = "0.11"
@@ -65,6 +68,59 @@ glutin = { version = "0.28.0" }
 puffin = { version = "0.13", optional = true }
 winit = "0.26.1"
 
+# -------------------------------------------
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-egui_web = { version = "0.17.0", path = "../egui_web", default-features = false }
+bytemuck = "1.7"
+js-sys = "0.3"
+percent-encoding = "2.1"
+tracing = "0.1"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3.52", features = [
+  "BinaryType",
+  "Blob",
+  "Clipboard",
+  "ClipboardEvent",
+  "CompositionEvent",
+  "console",
+  "CssStyleDeclaration",
+  "DataTransfer",
+  "DataTransferItem",
+  "DataTransferItemList",
+  "Document",
+  "DomRect",
+  "DragEvent",
+  "Element",
+  "Event",
+  "EventListener",
+  "EventTarget",
+  "ExtSRgb",
+  "File",
+  "FileList",
+  "FocusEvent",
+  "HtmlCanvasElement",
+  "HtmlElement",
+  "HtmlInputElement",
+  "InputEvent",
+  "KeyboardEvent",
+  "Location",
+  "MediaQueryList",
+  "MouseEvent",
+  "Navigator",
+  "Performance",
+  "Storage",
+  "Touch",
+  "TouchEvent",
+  "TouchList",
+  "WebGl2RenderingContext",
+  "WebglDebugRendererInfo",
+  "WebGlRenderingContext",
+  "WheelEvent",
+  "Window",
+] }
+
+# Optional:
+ron = { version = "0.7", optional = true }
+serde = { version = "1", optional = true }
+tts = { version = "0.20", optional = true } # feature screen_reader

@@ -1,7 +1,7 @@
 # egui changelog
 All notable changes to the `egui` crate will be documented in this file.
 
-NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_web`](egui_web/CHANGELOG.md), [`egui-winit`](egui-winit/CHANGELOG.md), [`egui_glium`](egui_glium/CHANGELOG.md), and [`egui_glow`](egui_glow/CHANGELOG.md) have their own changelogs!
+NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-winit`](egui-winit/CHANGELOG.md), [`egui_glium`](egui_glium/CHANGELOG.md), and [`egui_glow`](egui_glow/CHANGELOG.md) have their own changelogs!
 
 
 ## Unreleased
@@ -366,9 +366,9 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * [Add plot legends](https://github.com/emilk/egui/pull/349).
 * [Users can now store custom state in `egui::Memory`](https://github.com/emilk/egui/pull/257).
 * Add `Response::on_disabled_hover_text` to show tooltip for disabled widgets.
-* Zoom input: ctrl-scroll and (on `egui_web`) trackpad-pinch gesture.
+* Zoom input: ctrl-scroll and (on `eframe` web) trackpad-pinch gesture.
 * Support for raw [multi touch](https://github.com/emilk/egui/pull/306) events,
-  enabling zoom, rotate, and more. Works with `egui_web` on mobile devices,
+  enabling zoom, rotate, and more. Works with `eframe` web on mobile devices,
   and should work with `egui_glium` for certain touch devices/screens.
 * Add (optional) compatibility with [mint](https://docs.rs/mint).
 
