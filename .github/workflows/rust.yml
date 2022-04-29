@@ -162,20 +162,6 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install libspeechd-dev
       - run: cargo doc -p eframe -p egui -p egui_extras -p egui_glium -p egui_glow -p egui-winit -p emath -p epaint --lib --no-deps --all-features
 
-  doc_web:
-    name: cargo doc web
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: 1.60.0
-          override: true
-      - run: sudo apt-get update && sudo apt-get install libspeechd-dev
-      - run: rustup target add wasm32-unknown-unknown
-      - run: cargo doc -p eframe --target wasm32-unknown-unknown --lib --no-deps --all-features
-
   cargo-deny:
     runs-on: ubuntu-20.04
     steps:
