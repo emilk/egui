@@ -1,3 +1,4 @@
+use crate::epi;
 use egui_winit::{native_pixels_per_point, WindowSettings};
 
 pub fn points_to_size(points: egui::Vec2) -> winit::dpi::LogicalSize<f64> {
@@ -136,7 +137,7 @@ pub fn handle_app_output(
 /// For loading/saving app state and/or egui memory to disk.
 pub fn create_storage(_app_name: &str) -> Option<Box<dyn epi::Storage>> {
     #[cfg(feature = "persistence")]
-    if let Some(storage) = epi::file_storage::FileStorage::from_app_name(_app_name) {
+    if let Some(storage) = super::file_storage::FileStorage::from_app_name(_app_name) {
         return Some(Box::new(storage));
     }
     None

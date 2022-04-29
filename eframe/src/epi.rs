@@ -1,20 +1,10 @@
-//! Backend-agnostic interface for writing apps using [`egui`].
+//! Platform-agnostic interface for writing apps using [`egui`] (epi = egui programming interface).
 //!
 //! `epi` provides interfaces for window management and serialization.
-//! An app written for `epi` can then be plugged into [`eframe`](https://docs.rs/eframe),
-//! the egui framework crate.
 //!
 //! Start by looking at the [`App`] trait, and implement [`App::update`].
 
 #![warn(missing_docs)] // Let's keep `epi` well-documented.
-
-/// File storage which can be used by native backends.
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(feature = "persistence")]
-pub mod file_storage;
-
-pub use egui; // Re-export for user convenience
-pub use glow; // Re-export for user convenience
 
 /// The is is how your app is created.
 ///
@@ -337,7 +327,7 @@ impl Frame {
 
     /// for integrations only: call once per frame
     #[doc(hidden)]
-    pub fn take_app_output(&mut self) -> crate::backend::AppOutput {
+    pub fn take_app_output(&mut self) -> backend::AppOutput {
         std::mem::take(&mut self.output)
     }
 }
@@ -471,8 +461,6 @@ pub const APP_KEY: &str = "app";
 /// You only need to look here if you are writing a backend for `epi`.
 #[doc(hidden)]
 pub mod backend {
-    use super::*;
-
     /// Action that can be taken by the user app.
     #[derive(Clone, Debug, Default)]
     #[must_use]

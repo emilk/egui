@@ -10,7 +10,6 @@ members = [
     "egui",
     "emath",
     "epaint",
-    "epi",
 
     "examples/confirm_exit",
     "examples/custom_3d_glow",

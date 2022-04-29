@@ -5,7 +5,7 @@ Also see [`CONTRIBUTING.md`](https://github.com/emilk/egui/blob/master/CONTRIBUT
 
 
 ## Crate overview
-The crates in this repository are: `egui, emath, epaint, egui_extras, epi, egui-winit, egui_glium, egui_glow, egui_demo_lib, egui_demo_app`.
+The crates in this repository are: `egui, emath, epaint, egui_extras, egui-winit, egui_glium, egui_glow, egui_demo_lib, egui_demo_app`.
 
 ### `egui`: The main GUI library.
 Example code: `if ui.button("Click me").clicked() { … }`
@@ -24,10 +24,6 @@ Depends on `emath`.
 ### `egui_extras`
 This adds additional features on top of `egui`.
 
-### `epi`
-Depends only on `egui`.
-Adds a thin application level wrapper around `egui` for hosting an `egui` app inside of `eframe`.
-
 ### `egui-winit`
 This crates provides bindings between [`egui`](https://github.com/emilk/egui) and [winit](https://crates.io/crates/winit).
 
@@ -45,7 +41,7 @@ Puts an egui app inside a native window on your laptop. Paints the triangles tha
 The demo that you can see at <https://www.egui.rs> is using `eframe` to host the `egui`. The demo code is found in:
 
 ### `egui_demo_lib`
-Depends on `egui` + `epi`.
+Depends on `egui`.
 This contains a bunch of uses of `egui` and looks like the ui code you would write for an `egui` app.
 
 ### `egui_demo_app`

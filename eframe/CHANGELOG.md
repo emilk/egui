@@ -1,5 +1,5 @@
 # Changelog for eframe
-All notable changes to the `eframe` and `epi` crates.
+All notable changes to the `eframe` crate.
 
 NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/CHANGELOG.md), and [`egui_glow`](../egui_glow/CHANGELOG.md) have their own changelogs!
 
@@ -47,7 +47,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 #### Web:
 * The default web painter is now `egui_glow` (instead of WebGL) ([#1020](https://github.com/emilk/egui/pull/1020)).
 * Fixed glow failure on Chromium ([#1092](https://github.com/emilk/egui/pull/1092)).
-* Updated `epi::IntegrationInfo::web_location_hash` on `hashchange` event ([#1140](https://github.com/emilk/egui/pull/1140)).
+* Updated `eframe::IntegrationInfo::web_location_hash` on `hashchange` event ([#1140](https://github.com/emilk/egui/pull/1140)).
 * Expose all parts of the location/url in `frame.info().web_info` ([#1258](https://github.com/emilk/egui/pull/1258)).
 
 
@@ -72,7 +72,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 * Add new backend `egui_glow` as an alternative to `egui_glium`. Enable with `default-features = false, features = ["default_fonts", "egui_glow"]`.
 
 #### Web:
-* Implement `epi::NativeTexture` trait for the WebGL painter.
+* Implement `eframe::NativeTexture` trait for the WebGL painter.
 * Deprecate `Painter::register_webgl_texture.
 * Fix multiline paste.
 * Fix painting with non-opaque backgrounds.

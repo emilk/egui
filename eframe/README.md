@@ -17,8 +17,6 @@ For how to use `egui`, see [the egui docs](https://docs.rs/egui).
 
 ---
 
-`eframe` is a very thin crate that re-exports [`egui`](https://github.com/emilk/egui) and[`epi`](https://github.com/emilk/egui/tree/master/epi) with thin wrappers over the backends.
-
 `eframe` uses [`egui_glow`](https://github.com/emilk/egui/tree/master/egui_glow) for rendering, and on native it uses [`egui-winit`](https://github.com/emilk/egui/tree/master/egui-winit).
 
 To use on Linux, first run:

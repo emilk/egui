@@ -1077,10 +1077,10 @@ version = "0.17.0"
 dependencies = [
  "bytemuck",
  "dark-light",
+ "directories-next",
  "egui",
  "egui-winit",
  "egui_glow",
- "epi",
  "glow",
  "glutin",
  "js-sys",
@@ -1295,18 +1295,6 @@ dependencies = [
  "nohash-hasher",
  "parking_lot 0.12.0",
  "serde",
-]
-
-[[package]]
-name = "epi"
-version = "0.17.0"
-dependencies = [
- "directories-next",
- "egui",
- "glow",
- "ron",
- "serde",
- "tracing",
 ]
 
 [[package]]

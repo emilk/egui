@@ -1,13 +1,12 @@
-//! eframe - the egui framework crate
+//! eframe - the [`egui`] framework crate
 //!
 //! If you are planning to write an app for web or native,
-//! and are happy with just using egui for all visuals,
-//! Then `eframe` is for you!
+//! and want to use [`egui`] for everything, then `eframe` is for you!
 //!
 //! To get started, see the [examples](https://github.com/emilk/egui/tree/master/examples).
 //! To learn how to set up `eframe` for web and native, go to <https://github.com/emilk/eframe_template/> and follow the instructions there!
 //!
-//! In short, you implement [`App`] and then
+//! In short, you implement [`App`] (especially [`App::update`]) and then
 //! call [`crate::run_native`] from your `main.rs`, and/or call `eframe::start_web` from your `lib.rs`.
 //!
 //! ## Usage, native:
@@ -57,7 +56,9 @@
 #![allow(clippy::needless_doctest_main)]
 
 // Re-export all useful libraries:
-pub use {egui, egui::emath, egui::epaint, epi};
+pub use {egui, egui::emath, egui::epaint, glow};
+
+pub mod epi; // TODO: make non-pub in 0.19.0
 
 // Re-export everything in `epi` so `eframe` users don't have to care about what `epi` is:
 pub use epi::*;
