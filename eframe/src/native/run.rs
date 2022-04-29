@@ -50,7 +50,6 @@ pub fn run(app_name: &str, native_options: &epi::NativeOptions, app_creator: epi
         .unwrap_or_else(|error| panic!("some OpenGL error occurred {}\n", error));
 
     let mut integration = epi_integration::EpiIntegration::new(
-        "egui_glow",
         gl.clone(),
         painter.max_texture_side(),
         gl_window.window(),

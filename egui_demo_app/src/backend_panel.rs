@@ -142,7 +142,11 @@ impl BackendPanel {
             ui.separator();
         }
 
-        show_integration_name(ui, &frame.info());
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = 0.0;
+            ui.label("egui running inside ");
+            ui.hyperlink_to("eframe", "https://github.com/emilk/egui/tree/master/eframe");
+        });
 
         if let Some(web_info) = &frame.info().web_info {
             ui.collapsing("Web info (location)", |ui| {
@@ -230,27 +234,6 @@ impl BackendPanel {
             ui.label("Only running UI code when there are animations or input");
         }
     }
-}
-
-// ----------------------------------------------------------------------------
-
-fn show_integration_name(ui: &mut egui::Ui, integration_info: &eframe::IntegrationInfo) {
-    let name = integration_info.name;
-    ui.horizontal(|ui| {
-        ui.spacing_mut().item_spacing.x = 0.0;
-        ui.label("Integration: ");
-        match name {
-            "egui_glium" | "egui_glow" | "egui_web" => {
-                ui.hyperlink_to(
-                    name,
-                    format!("https://github.com/emilk/egui/tree/master/{}", name),
-                );
-            }
-            name => {
-                ui.label(name);
-            }
-        }
-    });
 }
 
 // ----------------------------------------------------------------------------

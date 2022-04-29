@@ -158,7 +158,6 @@ pub struct EpiIntegration {
 
 impl EpiIntegration {
     pub fn new(
-        integration_name: &'static str,
         gl: std::rc::Rc<glow::Context>,
         max_texture_side: usize,
         window: &winit::window::Window,
@@ -172,7 +171,6 @@ impl EpiIntegration {
 
         let frame = epi::Frame {
             info: epi::IntegrationInfo {
-                name: integration_name,
                 web_info: None,
                 prefer_dark_mode,
                 cpu_usage: None,

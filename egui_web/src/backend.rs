@@ -145,7 +145,6 @@ impl AppRunner {
 
         let frame = epi::Frame {
             info: epi::IntegrationInfo {
-                name: "egui_web",
                 web_info: Some(epi::WebInfo {
                     location: web_location(),
                 }),
