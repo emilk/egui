@@ -1,4 +1,4 @@
- //! [`egui`] bindings for web apps (compiling to WASM).
+//! [`egui`] bindings for web apps (compiling to WASM).
 
 #![allow(clippy::missing_errors_doc)] // So many `-> Result<_, JsValue>`
 
@@ -15,7 +15,10 @@ pub use events::*;
 pub use storage::*;
 
 use std::collections::BTreeMap;
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 
 use egui::mutex::{Mutex, MutexGuard};
 use wasm_bindgen::prelude::*;
