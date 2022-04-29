@@ -1,3 +1,4 @@
+use super::epi_integration;
 use egui_winit::winit;
 
 struct RequestRepaintEvent;
@@ -37,18 +38,18 @@ pub use epi::NativeOptions;
 /// Run an egui app
 #[allow(unsafe_code)]
 pub fn run(app_name: &str, native_options: &epi::NativeOptions, app_creator: epi::AppCreator) -> ! {
-    let storage = egui_winit::epi::create_storage(app_name);
-    let window_settings = egui_winit::epi::load_window_settings(storage.as_deref());
+    let storage = epi_integration::create_storage(app_name);
+    let window_settings = epi_integration::load_window_settings(storage.as_deref());
     let window_builder =
-        egui_winit::epi::window_builder(native_options, &window_settings).with_title(app_name);
+        epi_integration::window_builder(native_options, &window_settings).with_title(app_name);
     let event_loop = winit::event_loop::EventLoop::with_user_event();
     let (gl_window, gl) = create_display(native_options, window_builder, &event_loop);
     let gl = std::rc::Rc::new(gl);
 
-    let mut painter = crate::Painter::new(gl.clone(), None, "")
+    let mut painter = egui_glow::Painter::new(gl.clone(), None, "")
         .unwrap_or_else(|error| panic!("some OpenGL error occurred {}\n", error));
 
-    let mut integration = egui_winit::epi::EpiIntegration::new(
+    let mut integration = epi_integration::EpiIntegration::new(
         "egui_glow",
         gl.clone(),
         painter.max_texture_side(),
@@ -94,7 +95,7 @@ pub fn run(app_name: &str, native_options: &epi::NativeOptions, app_creator: epi
             crate::profile_scope!("frame");
             let screen_size_in_pixels: [u32; 2] = gl_window.window().inner_size().into();
 
-            crate::painter::clear(&gl, screen_size_in_pixels, app.clear_color());
+            egui_glow::painter::clear(&gl, screen_size_in_pixels, app.clear_color());
 
             let egui::FullOutput {
                 platform_output,

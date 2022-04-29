@@ -23,7 +23,7 @@ all-features = true
 default = ["default_fonts"]
 
 # detect dark mode system preference
-dark-light = ["egui-winit/dark-light"]
+dark-light = ["dep:dark-light"]
 
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
@@ -31,8 +31,7 @@ default_fonts = ["egui/default_fonts"]
 
 # Enable saving app state to disk.
 persistence = [
-  "egui-winit/persistence",
-  "egui_glow/persistence",
+  "egui-winit/serde",
   "egui/persistence",
   "epi/persistence",
 ]
@@ -40,12 +39,11 @@ persistence = [
 # Enable profiling with the puffin crate: https://github.com/EmbarkStudios/puffin
 # Only enabled on native, because of the low resolution (1ms) of time keeping in browsers.
 # eframe will call `puffin::GlobalProfiler::lock().new_frame()` for you
-puffin = ["egui_glow/puffin"]
+puffin = ["dep:puffin", "egui_glow/puffin"]
 
 # enable screen reader support (requires `ctx.options().screen_reader = true;`)
 screen_reader = [
   "egui-winit/screen_reader",
-  "egui_glow/screen_reader",
   "egui_web/screen_reader",
 ]
 
@@ -58,11 +56,14 @@ epi = { version = "0.17.0", path = "../epi" }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 egui_glow = { version = "0.17.0", path = "../egui_glow", default-features = false, features = [
   "clipboard",
-  "epi",
   "links",
-  "winit",
 ] }
-egui-winit = { version = "0.17.0", path = "../egui-winit", default-features = false }
+dark-light = { version = "0.2.1", optional = true }
+egui-winit = { version = "0.17.0", path = "../egui-winit", default-features = false, features = ["clipboard", "links"] }
+glow = "0.11"
+glutin = { version = "0.28.0" }
+puffin = { version = "0.13", optional = true }
+winit = "0.26.1"
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
