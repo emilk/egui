@@ -126,7 +126,7 @@ impl WidgetGallery {
         ui.add(doc_link_label("Hyperlink", "Hyperlink"));
         use egui::special_emojis::GITHUB;
         ui.hyperlink_to(
-            format!("{} egui home page", GITHUB),
+            format!("{} egui on GitHub", GITHUB),
             "https://github.com/emilk/egui",
         );
         ui.end_row();

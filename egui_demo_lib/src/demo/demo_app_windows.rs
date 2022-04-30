@@ -167,21 +167,24 @@ impl DemoWindows {
                 ui.separator();
 
                 ScrollArea::vertical().show(ui, |ui| {
-                    use egui::special_emojis::{GITHUB, OS_APPLE, OS_LINUX, OS_WINDOWS};
+                    use egui::special_emojis::{GITHUB, OS_APPLE, OS_LINUX, OS_WINDOWS, TWITTER};
 
-                    ui.vertical_centered(|ui| {
-                        ui.label("egui is an immediate mode GUI library written in Rust.");
+                    ui.label("egui is an immediate mode GUI library written in Rust.");
 
-                        ui.label(format!(
-                            "egui runs on the web, or natively on {}{}{}",
-                            OS_APPLE, OS_LINUX, OS_WINDOWS,
-                        ));
+                    ui.label(format!(
+                        "egui runs on the web, or natively on {}{}{}",
+                        OS_APPLE, OS_LINUX, OS_WINDOWS,
+                    ));
 
-                        ui.hyperlink_to(
-                            format!("{} egui home page", GITHUB),
-                            "https://github.com/emilk/egui",
-                        );
-                    });
+                    ui.hyperlink_to(
+                        format!("{} egui on GitHub", GITHUB),
+                        "https://github.com/emilk/egui",
+                    );
+
+                    ui.hyperlink_to(
+                        format!("{} @ernerfeldt", TWITTER),
+                        "https://twitter.com/ernerfeldt",
+                    );
 
                     ui.separator();
                     demos.checkboxes(ui);

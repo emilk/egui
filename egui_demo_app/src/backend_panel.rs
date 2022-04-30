@@ -231,7 +231,7 @@ impl BackendPanel {
                 self.frame_history.fps()
             ));
         } else {
-            ui.label("Only running UI code when there are animations or input");
+            ui.label("Only running UI code when there are animations or input.");
         }
     }
 }
