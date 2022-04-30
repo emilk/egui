@@ -85,6 +85,7 @@ pub struct State {
     selected_anchor: String,
     backend_panel: super::backend_panel::BackendPanel,
 }
+
 /// Wraps many demo/test apps into one.
 pub struct WrapApp {
     state: State,
