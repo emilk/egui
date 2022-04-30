@@ -53,7 +53,7 @@ impl super::Demo for WidgetGallery {
         egui::Window::new(self.name())
             .open(open)
             .resizable(true)
-            .default_width(300.0)
+            .default_width(280.0)
             .show(ctx, |ui| {
                 use super::View as _;
                 self.ui(ui);

@@ -1,3 +1,5 @@
+use egui_glow::glow;
+
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct EasyMarkApp {
@@ -41,6 +43,7 @@ impl eframe::App for FractalClockApp {
             });
     }
 }
+
 // ----------------------------------------------------------------------------
 
 #[derive(Default)]
@@ -67,71 +70,90 @@ impl eframe::App for ColorTestApp {
 
 // ----------------------------------------------------------------------------
 
-/// All the different demo apps.
+/// The state that we persist (serialize).
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
-pub struct Apps {
+pub struct State {
     demo: DemoApp,
     easy_mark_editor: EasyMarkApp,
     #[cfg(feature = "http")]
     http: crate::apps::HttpApp,
     clock: FractalClockApp,
     color_test: ColorTestApp,
+
+    selected_anchor: String,
+    backend_panel: super::backend_panel::BackendPanel,
 }
 
-impl Apps {
-    fn iter_mut(&mut self) -> impl Iterator<Item = (&str, &str, &mut dyn eframe::App)> {
+/// Wraps many demo/test apps into one.
+pub struct WrapApp {
+    state: State,
+    // not serialized (because it contains OpenGL buffers etc)
+    custom3d: crate::apps::Custom3d,
+    dropped_files: Vec<egui::DroppedFile>,
+}
+
+impl WrapApp {
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        let mut slf = Self {
+            state: State::default(),
+            custom3d: crate::apps::Custom3d::new(&cc.gl),
+            dropped_files: Default::default(),
+        };
+
+        #[cfg(feature = "persistence")]
+        if let Some(storage) = cc.storage {
+            if let Some(state) = eframe::get_value(storage, eframe::APP_KEY) {
+                slf.state = state;
+            }
+        }
+
+        slf
+    }
+
+    fn apps_iter_mut(&mut self) -> impl Iterator<Item = (&str, &str, &mut dyn eframe::App)> {
         vec![
-            ("✨ Demos", "demo", &mut self.demo as &mut dyn eframe::App),
+            (
+                "✨ Demos",
+                "demo",
+                &mut self.state.demo as &mut dyn eframe::App,
+            ),
             (
                 "🖹 EasyMark editor",
                 "easymark",
-                &mut self.easy_mark_editor as &mut dyn eframe::App,
+                &mut self.state.easy_mark_editor as &mut dyn eframe::App,
             ),
             #[cfg(feature = "http")]
-            ("⬇ HTTP", "http", &mut self.http as &mut dyn eframe::App),
+            (
+                "⬇ HTTP",
+                "http",
+                &mut self.state.http as &mut dyn eframe::App,
+            ),
             (
                 "🕑 Fractal Clock",
                 "clock",
-                &mut self.clock as &mut dyn eframe::App,
+                &mut self.state.clock as &mut dyn eframe::App,
+            ),
+            (
+                "🔺 3D painting",
+                "custom3e",
+                &mut self.custom3d as &mut dyn eframe::App,
             ),
             (
                 "🎨 Color test",
                 "colors",
-                &mut self.color_test as &mut dyn eframe::App,
+                &mut self.state.color_test as &mut dyn eframe::App,
             ),
         ]
         .into_iter()
     }
 }
 
-/// Wraps many demo/test apps into one.
-#[derive(Default)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
-pub struct WrapApp {
-    selected_anchor: String,
-    apps: Apps,
-    backend_panel: super::backend_panel::BackendPanel,
-    #[cfg_attr(feature = "serde", serde(skip))]
-    dropped_files: Vec<egui::DroppedFile>,
-}
-
-impl WrapApp {
-    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
-        #[cfg(feature = "persistence")]
-        if let Some(storage) = _cc.storage {
-            return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
-        }
-        Self::default()
-    }
-}
-
 impl eframe::App for WrapApp {
     #[cfg(feature = "persistence")]
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        eframe::set_value(storage, eframe::APP_KEY, self);
+        eframe::set_value(storage, eframe::APP_KEY, &self.state);
     }
 
     fn clear_color(&self) -> egui::Rgba {
@@ -141,12 +163,13 @@ impl eframe::App for WrapApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         if let Some(web_info) = frame.info().web_info.as_ref() {
             if let Some(anchor) = web_info.location.hash.strip_prefix('#') {
-                self.selected_anchor = anchor.to_owned();
+                self.state.selected_anchor = anchor.to_owned();
             }
         }
 
-        if self.selected_anchor.is_empty() {
-            self.selected_anchor = self.apps.iter_mut().next().unwrap().0.to_owned();
+        if self.state.selected_anchor.is_empty() {
+            let selected_anchor = self.apps_iter_mut().next().unwrap().0.to_owned();
+            self.state.selected_anchor = selected_anchor;
         }
 
         egui::TopBottomPanel::top("wrap_app_top_bar").show(ctx, |ui| {
@@ -154,11 +177,11 @@ impl eframe::App for WrapApp {
             self.bar_contents(ui, frame);
         });
 
-        self.backend_panel.update(ctx, frame);
+        self.state.backend_panel.update(ctx, frame);
 
-        if self.backend_panel.open || ctx.memory().everything_is_visible() {
+        if self.state.backend_panel.open || ctx.memory().everything_is_visible() {
             egui::SidePanel::left("backend_panel").show(ctx, |ui| {
-                self.backend_panel.ui(ui, frame);
+                self.state.backend_panel.ui(ui, frame);
 
                 ui.separator();
 
@@ -172,7 +195,7 @@ impl eframe::App for WrapApp {
                     }
 
                     if ui.button("Reset everything").clicked() {
-                        *self = Default::default();
+                        self.state = Default::default();
                         *ui.ctx().memory() = Default::default();
                     }
                 });
@@ -181,20 +204,25 @@ impl eframe::App for WrapApp {
 
         let mut found_anchor = false;
 
-        for (_name, anchor, app) in self.apps.iter_mut() {
-            if anchor == self.selected_anchor || ctx.memory().everything_is_visible() {
+        let selected_anchor = self.state.selected_anchor.clone();
+        for (_name, anchor, app) in self.apps_iter_mut() {
+            if anchor == selected_anchor || ctx.memory().everything_is_visible() {
                 app.update(ctx, frame);
                 found_anchor = true;
             }
         }
 
         if !found_anchor {
-            self.selected_anchor = "demo".into();
+            self.state.selected_anchor = "demo".into();
         }
 
-        self.backend_panel.end_of_frame(ctx);
+        self.state.backend_panel.end_of_frame(ctx);
 
         self.ui_file_drag_and_drop(ctx);
+    }
+
+    fn on_exit(&mut self, gl: &glow::Context) {
+        self.custom3d.on_exit(gl);
     }
 }
 
@@ -205,27 +233,29 @@ impl WrapApp {
         ui.horizontal_wrapped(|ui| {
             egui::widgets::global_dark_light_mode_switch(ui);
 
-            ui.checkbox(&mut self.backend_panel.open, "💻 Backend");
+            ui.checkbox(&mut self.state.backend_panel.open, "💻 Backend");
             ui.separator();
 
-            for (name, anchor, _app) in self.apps.iter_mut() {
+            let mut selected_anchor = self.state.selected_anchor.clone();
+            for (name, anchor, _app) in self.apps_iter_mut() {
                 if ui
-                    .selectable_label(self.selected_anchor == anchor, name)
+                    .selectable_label(selected_anchor == anchor, name)
                     .clicked()
                 {
-                    self.selected_anchor = anchor.to_owned();
+                    selected_anchor = anchor.to_owned();
                     if frame.is_web() {
                         ui.output().open_url(format!("#{}", anchor));
                     }
                 }
             }
+            self.state.selected_anchor = selected_anchor;
 
             ui.with_layout(egui::Layout::right_to_left(), |ui| {
                 if false {
                     // TODO: fix the overlap on small screens
                     if let Some(seconds_since_midnight) = crate::seconds_since_midnight() {
                         if clock_button(ui, seconds_since_midnight).clicked() {
-                            self.selected_anchor = "clock".to_owned();
+                            self.state.selected_anchor = "clock".to_owned();
                             if frame.is_web() {
                                 ui.output().open_url("#clock");
                             }

@@ -1133,6 +1133,7 @@ dependencies = [
  "egui",
  "egui_demo_lib",
  "egui_extras",
+ "egui_glow",
  "ehttp",
  "image",
  "poll-promise",
