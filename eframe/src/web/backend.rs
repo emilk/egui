@@ -407,23 +407,14 @@ fn start_runner(app_runner: AppRunner) -> Result<AppRunnerRef, JsValue> {
     super::events::paint_and_schedule(&runner_container.runner, runner_container.panicked.clone())?;
 
     // Disable all event handlers on panic
-    std::panic::set_hook(Box::new({
-        let previous_hook = std::panic::take_hook();
+    let previous_hook = std::panic::take_hook();
+    let panicked = runner_container.panicked;
+    std::panic::set_hook(Box::new(move |panic_info| {
+        tracing::info!("egui disabled all event handlers due to panic");
+        panicked.store(true, SeqCst);
 
-        let panicked = runner_container.panicked;
-
-        move |panic_info| {
-            tracing::info_span!("egui_panic_handler").in_scope(|| {
-                tracing::trace!("setting panicked flag");
-
-                panicked.store(true, SeqCst);
-
-                tracing::info!("egui disabled all event handlers due to panic");
-            });
-
-            // Propagate panic info to the previously registered panic hook
-            previous_hook(panic_info);
-        }
+        // Propagate panic info to the previously registered panic hook
+        previous_hook(panic_info);
     }));
 
     Ok(runner_container.runner)
