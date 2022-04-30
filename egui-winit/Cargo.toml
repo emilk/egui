@@ -54,4 +54,4 @@ serde = { version = "1.0", optional = true, features = ["derive"] }
 webbrowser = { version = "0.7", optional = true }
 
 # feature screen_reader
-tts = { version = "0.20", optional = true }
+tts = { version = "0.21", optional = true }

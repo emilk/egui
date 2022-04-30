@@ -127,4 +127,4 @@ web-sys = { version = "0.3.52", features = [
 ] }
 
 # optional:
-tts = { version = "0.20", optional = true } # feature screen_reader
+tts = { version = "0.21", optional = true } # feature screen_reader
