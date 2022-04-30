@@ -192,6 +192,7 @@ pub mod path {
 
     use super::*;
 
+    #[allow(clippy::approx_constant)]
     mod precomputed_quadrants {
         use emath::{vec2, Vec2};
 
