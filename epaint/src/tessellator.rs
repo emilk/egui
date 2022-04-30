@@ -257,13 +257,7 @@ pub mod path {
         let half_width = rect.width() * 0.5;
         let half_height = rect.height() * 0.5;
         let max_cr = half_width.min(half_height);
-
-        Rounding {
-            nw: rounding.nw.at_most(max_cr).at_least(0.0),
-            ne: rounding.ne.at_most(max_cr).at_least(0.0),
-            sw: rounding.sw.at_most(max_cr).at_least(0.0),
-            se: rounding.se.at_most(max_cr).at_least(0.0),
-        }
+        rounding.at_most(max_cr).at_least(0.0)
     }
 }
 

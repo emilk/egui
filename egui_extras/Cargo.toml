@@ -26,14 +26,13 @@ all-features = true
 [features]
 default = []
 
-# Support loading svg images
-svg = ["resvg", "tiny-skia", "usvg"]
-
 # Datepicker widget
 datepicker = ["chrono"]
 
-# Persistence
-persistence = ["serde"]
+serde = ["dep:serde"]
+
+# Support loading svg images
+svg = ["resvg", "tiny-skia", "usvg"]
 
 # Log warnings using `tracing` crate
 tracing = ["dep:tracing", "egui/tracing"]
@@ -57,7 +56,7 @@ resvg = { version = "0.22", optional = true }
 tiny-skia = { version = "0.6", optional = true }
 usvg = { version = "0.22", optional = true }
 
-# feature "persistence":
+# feature "serde":
 serde = { version = "1", features = ["derive"], optional = true }
 
 # feature "tracing"

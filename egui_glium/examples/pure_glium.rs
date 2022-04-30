@@ -1,4 +1,4 @@
-//! Example how to use pure `egui_glium` without [`epi`].
+//! Example how to use `egui_glium`.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 

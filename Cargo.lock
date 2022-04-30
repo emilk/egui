@@ -1075,11 +1075,16 @@ checksum = "6907e25393cdcc1f4f3f513d9aac1e840eb1cc341a0fccb01171f7d14d10b946"
 name = "eframe"
 version = "0.17.0"
 dependencies = [
+ "dark-light",
  "egui",
  "egui-winit",
  "egui_glow",
  "egui_web",
  "epi",
+ "glow",
+ "glutin",
+ "puffin",
+ "winit",
 ]
 
 [[package]]
@@ -1099,10 +1104,7 @@ name = "egui-winit"
 version = "0.17.0"
 dependencies = [
  "arboard",
- "dark-light",
  "egui",
- "epi",
- "glow",
  "instant",
  "puffin",
  "serde",
@@ -1116,9 +1118,16 @@ dependencies = [
 name = "egui_demo_app"
 version = "0.17.0"
 dependencies = [
+ "chrono",
  "console_error_panic_hook",
  "eframe",
+ "egui",
  "egui_demo_lib",
+ "egui_extras",
+ "ehttp",
+ "image",
+ "poll-promise",
+ "serde",
  "tracing-subscriber",
  "tracing-wasm",
 ]
@@ -1131,11 +1140,7 @@ dependencies = [
  "criterion",
  "egui",
  "egui_extras",
- "ehttp",
  "enum-map",
- "epi",
- "image",
- "poll-promise",
  "serde",
  "syntect",
  "tracing",
@@ -1175,7 +1180,6 @@ dependencies = [
  "bytemuck",
  "egui",
  "egui-winit",
- "epi",
  "glow",
  "glutin",
  "memoffset",

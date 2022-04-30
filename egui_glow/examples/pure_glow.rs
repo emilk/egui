@@ -1,4 +1,4 @@
-//! Example how to use pure `egui_glow` without [`epi`].
+//! Example how to use pure `egui_glow`.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![allow(unsafe_code)]

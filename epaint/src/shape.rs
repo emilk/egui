@@ -535,6 +535,28 @@ impl Rounding {
     pub fn is_same(&self) -> bool {
         self.nw == self.ne && self.nw == self.sw && self.nw == self.se
     }
+
+    /// Make sure each corner has a rounding of at least this.
+    #[inline]
+    pub fn at_least(&self, min: f32) -> Self {
+        Self {
+            nw: self.nw.max(min),
+            ne: self.ne.max(min),
+            sw: self.sw.max(min),
+            se: self.se.max(min),
+        }
+    }
+
+    /// Make sure each corner has a rounding of at most this.
+    #[inline]
+    pub fn at_most(&self, max: f32) -> Self {
+        Self {
+            nw: self.nw.min(max),
+            ne: self.ne.min(max),
+            sw: self.sw.min(max),
+            se: self.se.min(max),
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------

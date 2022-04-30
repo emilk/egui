@@ -97,6 +97,9 @@ pub fn start_web(canvas_id: &str, app_creator: AppCreator) -> Result<(), wasm_bi
 // ----------------------------------------------------------------------------
 // When compiling natively
 
+#[cfg(not(target_arch = "wasm32"))]
+mod native;
+
 /// This is how you start a native (desktop) app.
 ///
 /// The first argument is name of your app, used for the title bar of the native window
@@ -135,5 +138,29 @@ pub fn start_web(canvas_id: &str, app_creator: AppCreator) -> Result<(), wasm_bi
 #[cfg(not(target_arch = "wasm32"))]
 #[allow(clippy::needless_pass_by_value)]
 pub fn run_native(app_name: &str, native_options: NativeOptions, app_creator: AppCreator) -> ! {
-    egui_glow::run(app_name, &native_options, app_creator)
+    native::run(app_name, &native_options, app_creator)
 }
+
+// ---------------------------------------------------------------------------
+
+/// Profiling macro for feature "puffin"
+#[cfg(not(target_arch = "wasm32"))]
+macro_rules! profile_function {
+    ($($arg: tt)*) => {
+        #[cfg(feature = "puffin")]
+        puffin::profile_function!($($arg)*);
+    };
+}
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use profile_function;
+
+/// Profiling macro for feature "puffin"
+#[cfg(not(target_arch = "wasm32"))]
+macro_rules! profile_scope {
+    ($($arg: tt)*) => {
+        #[cfg(feature = "puffin")]
+        puffin::profile_scope!($($arg)*);
+    };
+}
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use profile_scope;

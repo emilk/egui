@@ -425,18 +425,6 @@ pub struct IntegrationInfo {
     pub native_pixels_per_point: Option<f32>,
 }
 
-/// Abstraction for platform dependent texture reference
-pub trait NativeTexture {
-    /// The native texture type.
-    type Texture;
-
-    /// Bind native texture to an egui texture id.
-    fn register_native_texture(&mut self, native: Self::Texture) -> egui::TextureId;
-
-    /// Change what texture the given id refers to.
-    fn replace_native_texture(&mut self, id: egui::TextureId, replacing: Self::Texture);
-}
-
 // ----------------------------------------------------------------------------
 
 /// A place where you can store custom data in a way that persists when you restart the app.

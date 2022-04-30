@@ -20,6 +20,8 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Added `Plot::x_grid_spacer` and `Plot::y_grid_spacer` for custom grid spacing ([#1180](https://github.com/emilk/egui/pull/1180)).
 * Added `Ui::spinner()` shortcut method ([#1494](https://github.com/emilk/egui/pull/1494)).
 * Added `CursorIcon`s for resizing columns, rows, and the eight cardinal directions.
+* Added `Ui::toggle_value`.
+* Added ability to add any widgets to the header of a collapsing region ([#1538](https://github.com/emilk/egui/pull/1538)).
 
 ### Changed 🔧
 * `ClippedMesh` has been replaced with `ClippedPrimitive` ([#1351](https://github.com/emilk/egui/pull/1351)).
@@ -38,6 +40,9 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui_w
 * Fixed ui code that could lead to a deadlock ([#1380](https://github.com/emilk/egui/pull/1380)).
 * Text is darker and more readable in bright mode ([#1412](https://github.com/emilk/egui/pull/1412)).
 * Fixed `Ui::add_visible` sometimes leaving the `Ui` in a disabled state. ([#1436](https://github.com/emilk/egui/issues/1436)).
+
+### Deprecated ☢️
+* Deprecated `CollapsingHeader::selectable` ([#1538](https://github.com/emilk/egui/pull/1538)).
 
 ### Removed 🔥
 * Removed the `single_threaded/multi_threaded` flags - egui is now always thread-safe ([#1390](https://github.com/emilk/egui/pull/1390)).
