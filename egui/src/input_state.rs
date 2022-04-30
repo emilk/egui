@@ -306,7 +306,7 @@ impl InputState {
     /// ```
     ///
     /// By far not all touch devices are supported, and the details depend on the `egui`
-    /// integration backend you are using. `egui_web` supports multi touch for most mobile
+    /// integration backend you are using. `eframe` web supports multi touch for most mobile
     /// devices, but not for a `Trackpad` on `MacOS`, for example. The backend has to be able to
     /// capture native touch events, but many browsers seem to pass such events only for touch
     /// _screens_, but not touch _pads._

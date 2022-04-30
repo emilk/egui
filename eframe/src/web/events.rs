@@ -1,4 +1,4 @@
-use crate::*;
+use super::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 pub fn paint_and_schedule(

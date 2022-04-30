@@ -1,7 +1,7 @@
 //! The text agent is an `<input>` element used to trigger
 //! mobile keyboard and IME input.
 
-use crate::{canvas_element, AppRunner, AppRunnerContainer};
+use super::{canvas_element, AppRunner, AppRunnerContainer};
 use egui::mutex::MutexGuard;
 use std::cell::Cell;
 use std::rc::Rc;

@@ -114,27 +114,3 @@ where
         }
     }
 }
-
-// ----------------------------------------------------------------------------
-
-/// Alternative to [`FileStorage`]
-pub fn read_memory(ctx: &egui::Context, memory_file_path: impl AsRef<std::path::Path>) {
-    let memory: Option<egui::Memory> = read_ron(memory_file_path);
-    if let Some(memory) = memory {
-        *ctx.memory() = memory;
-    }
-}
-
-/// Alternative to [`FileStorage`]
-///
-/// # Errors
-/// When failing to serialize or create the file.
-pub fn write_memory(
-    ctx: &egui::Context,
-    memory_file_path: impl AsRef<std::path::Path>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let file = std::fs::File::create(memory_file_path)?;
-    let ron_config = Default::default();
-    ron::ser::to_writer_pretty(file, &*ctx.memory(), ron_config)?;
-    Ok(())
-}

@@ -14,7 +14,7 @@ pub(crate) struct WrappedGlowPainter {
 
 impl WrappedGlowPainter {
     pub fn new(canvas_id: &str) -> Result<Self, String> {
-        let canvas = crate::canvas_element_or_die(canvas_id);
+        let canvas = super::canvas_element_or_die(canvas_id);
 
         let (gl, shader_prefix) = init_glow_context_from_canvas(&canvas)?;
         let gl = std::rc::Rc::new(gl);
@@ -122,7 +122,7 @@ fn init_webgl1(canvas: &HtmlCanvasElement) -> Option<(glow::Context, &'static st
         .dyn_into::<web_sys::WebGlRenderingContext>()
         .unwrap();
 
-    let shader_prefix = if crate::webgl1_requires_brightening(&gl1_ctx) {
+    let shader_prefix = if super::webgl1_requires_brightening(&gl1_ctx) {
         tracing::debug!("Enabling webkitGTK brightening workaround.");
         "#define APPLY_BRIGHTENING_GAMMA"
     } else {
@@ -155,15 +155,4 @@ trait DummyWebGLConstructor {
     fn from_webgl1_context(context: web_sys::WebGlRenderingContext) -> Self;
 
     fn from_webgl2_context(context: web_sys::WebGl2RenderingContext) -> Self;
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-impl DummyWebGLConstructor for glow::Context {
-    fn from_webgl1_context(_context: WebGlRenderingContext) -> Self {
-        panic!("you can't use egui_web(glow) on native")
-    }
-
-    fn from_webgl2_context(_context: WebGl2RenderingContext) -> Self {
-        panic!("you can't use egui_web(glow) on native")
-    }
 }

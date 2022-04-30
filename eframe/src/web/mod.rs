@@ -1,8 +1,4 @@
 //! [`egui`] bindings for web apps (compiling to WASM).
-//!
-//! This library is an [`epi`] backend.
-//!
-//! If you are writing an app, you may want to look at [`eframe`](https://docs.rs/eframe) instead.
 
 #![allow(clippy::missing_errors_doc)] // So many `-> Result<_, JsValue>`
 
@@ -18,17 +14,17 @@ pub use backend::*;
 pub use events::*;
 pub use storage::*;
 
-use egui::mutex::{Mutex, MutexGuard};
-pub use wasm_bindgen;
-pub use web_sys;
+use std::collections::BTreeMap;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 
-use input::*;
+use egui::mutex::{Mutex, MutexGuard};
+use wasm_bindgen::prelude::*;
 use web_sys::EventTarget;
 
-use std::collections::BTreeMap;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
-use wasm_bindgen::prelude::*;
+use input::*;
 
 // ----------------------------------------------------------------------------
 
@@ -76,7 +72,7 @@ pub fn canvas_element(canvas_id: &str) -> Option<web_sys::HtmlCanvasElement> {
 }
 
 pub fn canvas_element_or_die(canvas_id: &str) -> web_sys::HtmlCanvasElement {
-    crate::canvas_element(canvas_id)
+    canvas_element(canvas_id)
         .unwrap_or_else(|| panic!("Failed to find canvas with id '{}'", canvas_id))
 }
 
@@ -162,13 +158,6 @@ pub fn set_clipboard_text(s: &str) {
     }
 }
 
-pub fn spawn_future<F>(future: F)
-where
-    F: std::future::Future<Output = ()> + 'static,
-{
-    wasm_bindgen_futures::spawn_local(future);
-}
-
 fn cursor_web_name(cursor: egui::CursorIcon) -> &'static str {
     match cursor {
         egui::CursorIcon::Alias => "alias",
@@ -250,7 +239,7 @@ pub(crate) fn webgl1_requires_brightening(gl: &web_sys::WebGlRenderingContext) -
     // but safari use same vendor and renderer
     // so exclude "Mac OS X" user-agent.
     let user_agent = web_sys::window().unwrap().navigator().user_agent().unwrap();
-    !user_agent.contains("Mac OS X") && crate::is_safari_and_webkit_gtk(gl)
+    !user_agent.contains("Mac OS X") && is_safari_and_webkit_gtk(gl)
 }
 
 /// detecting Safari and `webkitGTK`.

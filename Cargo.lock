@@ -1075,15 +1075,24 @@ checksum = "6907e25393cdcc1f4f3f513d9aac1e840eb1cc341a0fccb01171f7d14d10b946"
 name = "eframe"
 version = "0.17.0"
 dependencies = [
+ "bytemuck",
  "dark-light",
+ "directories-next",
  "egui",
  "egui-winit",
  "egui_glow",
- "egui_web",
- "epi",
  "glow",
  "glutin",
+ "js-sys",
+ "percent-encoding",
  "puffin",
+ "ron",
+ "serde",
+ "tracing",
+ "tts",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
  "winit",
 ]
 
@@ -1190,25 +1199,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "egui_web"
-version = "0.17.0"
-dependencies = [
- "bytemuck",
- "egui",
- "egui_glow",
- "epi",
- "js-sys",
- "percent-encoding",
- "ron",
- "serde",
- "tracing",
- "tts",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
-]
-
-[[package]]
 name = "ehttp"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1305,18 +1295,6 @@ dependencies = [
  "nohash-hasher",
  "parking_lot 0.12.0",
  "serde",
-]
-
-[[package]]
-name = "epi"
-version = "0.17.0"
-dependencies = [
- "directories-next",
- "egui",
- "glow",
- "ron",
- "serde",
- "tracing",
 ]
 
 [[package]]

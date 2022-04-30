@@ -1,17 +1,13 @@
-//! eframe - the egui framework crate
+//! eframe - the [`egui`] framework crate
 //!
 //! If you are planning to write an app for web or native,
-//! and are happy with just using egui for all visuals,
-//! Then `eframe` is for you!
+//! and want to use [`egui`] for everything, then `eframe` is for you!
 //!
 //! To get started, see the [examples](https://github.com/emilk/egui/tree/master/examples).
 //! To learn how to set up `eframe` for web and native, go to <https://github.com/emilk/eframe_template/> and follow the instructions there!
 //!
-//! In short, you implement [`App`] and then
+//! In short, you implement [`App`] (especially [`App::update`]) and then
 //! call [`crate::run_native`] from your `main.rs`, and/or call `eframe::start_web` from your `lib.rs`.
-//!
-//! `eframe` is implemented using [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web) for web and
-//! [`egui_glow`](https://github.com/emilk/egui/tree/master/egui_glow) for native.
 //!
 //! ## Usage, native:
 //! ``` no_run
@@ -60,7 +56,9 @@
 #![allow(clippy::needless_doctest_main)]
 
 // Re-export all useful libraries:
-pub use {egui, egui::emath, egui::epaint, epi};
+pub use {egui, egui::emath, egui::epaint, glow};
+
+mod epi;
 
 // Re-export everything in `epi` so `eframe` users don't have to care about what `epi` is:
 pub use epi::*;
@@ -69,7 +67,13 @@ pub use epi::*;
 // When compiling for web
 
 #[cfg(target_arch = "wasm32")]
-pub use egui_web::wasm_bindgen;
+mod web;
+
+#[cfg(target_arch = "wasm32")]
+pub use wasm_bindgen;
+
+#[cfg(target_arch = "wasm32")]
+pub use web_sys;
 
 /// Install event listeners to register different input events
 /// and start running the given app.
@@ -90,7 +94,7 @@ pub use egui_web::wasm_bindgen;
 /// ```
 #[cfg(target_arch = "wasm32")]
 pub fn start_web(canvas_id: &str, app_creator: AppCreator) -> Result<(), wasm_bindgen::JsValue> {
-    egui_web::start(canvas_id, app_creator)?;
+    web::start(canvas_id, app_creator)?;
     Ok(())
 }
 

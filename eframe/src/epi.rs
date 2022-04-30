@@ -1,22 +1,12 @@
-//! Backend-agnostic interface for writing apps using [`egui`].
+//! Platform-agnostic interface for writing apps using [`egui`] (epi = egui programming interface).
 //!
 //! `epi` provides interfaces for window management and serialization.
-//! An app written for `epi` can then be plugged into [`eframe`](https://docs.rs/eframe),
-//! the egui framework crate.
 //!
 //! Start by looking at the [`App`] trait, and implement [`App::update`].
 
 #![warn(missing_docs)] // Let's keep `epi` well-documented.
 
-/// File storage which can be used by native backends.
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(feature = "persistence")]
-pub mod file_storage;
-
-pub use egui; // Re-export for user convenience
-pub use glow; // Re-export for user convenience
-
-/// The is is how your app is created.
+/// This is how your app is created.
 ///
 /// You can use the [`CreationContext`] to setup egui, restore state, setup OpenGL things, etc.
 pub type AppCreator = Box<dyn FnOnce(&CreationContext<'_>) -> Box<dyn App>>;
@@ -42,8 +32,7 @@ pub struct CreationContext<'s> {
 
 // ----------------------------------------------------------------------------
 
-/// Implement this trait to write apps that can be compiled both natively using the [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium) crate,
-/// and deployed as a web site using the [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web) crate.
+/// Implement this trait to write apps that can be compiled for both web/wasm and desktop/native using [`eframe`](https://github.com/emilk/egui/tree/master/eframe).
 pub trait App {
     /// Called each time the UI needs repainting, which may be many times per second.
     ///
@@ -232,7 +221,7 @@ impl Default for NativeOptions {
     }
 }
 
-/// Image data for the icon.
+/// Image data for an application icon.
 #[derive(Clone)]
 pub struct IconData {
     /// RGBA pixels, unmultiplied.
@@ -338,7 +327,7 @@ impl Frame {
 
     /// for integrations only: call once per frame
     #[doc(hidden)]
-    pub fn take_app_output(&mut self) -> crate::backend::AppOutput {
+    pub fn take_app_output(&mut self) -> backend::AppOutput {
         std::mem::take(&mut self.output)
     }
 }
@@ -407,9 +396,6 @@ pub struct Location {
 /// Information about the integration passed to the use app each frame.
 #[derive(Clone, Debug)]
 pub struct IntegrationInfo {
-    /// The name of the integration, e.g. `egui_web`, `egui_glium`, `egui_glow`
-    pub name: &'static str,
-
     /// If the app is running in a Web context, this returns information about the environment.
     pub web_info: Option<WebInfo>,
 
@@ -431,6 +417,8 @@ pub struct IntegrationInfo {
 ///
 /// On the web this is backed by [local storage](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage).
 /// On desktop this is backed by the file system.
+///
+/// See [`CreationContext::storage`] and [`App::save`].
 pub trait Storage {
     /// Get the value for the given key.
     fn get_string(&self, key: &str) -> Option<String>;
@@ -443,7 +431,7 @@ pub trait Storage {
 
 /// Stores nothing.
 #[derive(Clone, Default)]
-pub struct DummyStorage {}
+pub(crate) struct DummyStorage {}
 
 impl Storage for DummyStorage {
     fn get_string(&self, _key: &str) -> Option<String> {
@@ -475,8 +463,6 @@ pub const APP_KEY: &str = "app";
 /// You only need to look here if you are writing a backend for `epi`.
 #[doc(hidden)]
 pub mod backend {
-    use super::*;
-
     /// Action that can be taken by the user app.
     #[derive(Clone, Debug, Default)]
     #[must_use]
