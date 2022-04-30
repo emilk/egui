@@ -9,6 +9,8 @@ use plot::{
     Values,
 };
 
+// ----------------------------------------------------------------------------
+
 #[derive(PartialEq)]
 struct LineDemo {
     animate: bool,
@@ -145,8 +147,8 @@ impl LineDemo {
     }
 }
 
-impl Widget for &mut LineDemo {
-    fn ui(self, ui: &mut Ui) -> Response {
+impl LineDemo {
+    fn ui(&mut self, ui: &mut Ui) -> Response {
         self.options_ui(ui);
         if self.animate {
             ui.ctx().request_repaint();
@@ -170,6 +172,8 @@ impl Widget for &mut LineDemo {
         .response
     }
 }
+
+// ----------------------------------------------------------------------------
 
 #[derive(PartialEq)]
 struct MarkerDemo {
@@ -217,10 +221,8 @@ impl MarkerDemo {
             })
             .collect()
     }
-}
 
-impl Widget for &mut MarkerDemo {
-    fn ui(self, ui: &mut Ui) -> Response {
+    fn ui(&mut self, ui: &mut Ui) -> Response {
         ui.horizontal(|ui| {
             ui.checkbox(&mut self.fill_markers, "Fill");
             ui.add(
@@ -248,6 +250,8 @@ impl Widget for &mut MarkerDemo {
     }
 }
 
+// ----------------------------------------------------------------------------
+
 #[derive(Default, PartialEq)]
 struct LegendDemo {
     config: Legend,
@@ -263,10 +267,8 @@ impl LegendDemo {
     fn cos() -> Line {
         Line::new(Values::from_explicit_callback(move |x| x.cos(), .., 100))
     }
-}
 
-impl Widget for &mut LegendDemo {
-    fn ui(self, ui: &mut Ui) -> Response {
+    fn ui(&mut self, ui: &mut Ui) -> Response {
         let LegendDemo { config } = self;
 
         egui::Grid::new("settings").show(ui, |ui| {
@@ -310,6 +312,8 @@ impl Widget for &mut LegendDemo {
             .response
     }
 }
+
+// ----------------------------------------------------------------------------
 
 #[derive(PartialEq, Default)]
 struct CustomAxisDemo {}
@@ -365,10 +369,8 @@ impl CustomAxisDemo {
 
         marks
     }
-}
 
-impl Widget for &mut CustomAxisDemo {
-    fn ui(self, ui: &mut Ui) -> Response {
+    fn ui(&mut self, ui: &mut Ui) -> Response {
         const MINS_PER_DAY: f64 = CustomAxisDemo::MINS_PER_DAY;
         const MINS_PER_H: f64 = CustomAxisDemo::MINS_PER_H;
 
@@ -432,6 +434,8 @@ impl Widget for &mut CustomAxisDemo {
     }
 }
 
+// ----------------------------------------------------------------------------
+
 #[derive(PartialEq)]
 struct LinkedAxisDemo {
     link_x: bool,
@@ -469,10 +473,8 @@ impl LinkedAxisDemo {
         plot_ui.line(LinkedAxisDemo::sin());
         plot_ui.line(LinkedAxisDemo::cos());
     }
-}
 
-impl Widget for &mut LinkedAxisDemo {
-    fn ui(self, ui: &mut Ui) -> Response {
+    fn ui(&mut self, ui: &mut Ui) -> Response {
         ui.horizontal(|ui| {
             ui.label("Linked axes:");
             ui.checkbox(&mut self.link_x, "X");
@@ -504,13 +506,15 @@ impl Widget for &mut LinkedAxisDemo {
     }
 }
 
+// ----------------------------------------------------------------------------
+
 #[derive(PartialEq, Default)]
 struct ItemsDemo {
     texture: Option<egui::TextureHandle>,
 }
 
-impl Widget for &mut ItemsDemo {
-    fn ui(self, ui: &mut Ui) -> Response {
+impl ItemsDemo {
+    fn ui(&mut self, ui: &mut Ui) -> Response {
         let n = 100;
         let mut sin_values: Vec<_> = (0..=n)
             .map(|i| remap(i as f64, 0.0..=n as f64, -TAU..=TAU))
@@ -577,11 +581,13 @@ impl Widget for &mut ItemsDemo {
     }
 }
 
+// ----------------------------------------------------------------------------
+
 #[derive(Default, PartialEq)]
 struct InteractionDemo {}
 
-impl Widget for &mut InteractionDemo {
-    fn ui(self, ui: &mut Ui) -> Response {
+impl InteractionDemo {
+    fn ui(&mut self, ui: &mut Ui) -> Response {
         let plot = Plot::new("interaction_demo").height(300.0);
 
         let InnerResponse {
@@ -626,6 +632,8 @@ impl Widget for &mut InteractionDemo {
     }
 }
 
+// ----------------------------------------------------------------------------
+
 #[derive(PartialEq, Eq)]
 enum Chart {
     GaussBars,
@@ -655,6 +663,25 @@ impl Default for ChartsDemo {
 }
 
 impl ChartsDemo {
+    fn ui(&mut self, ui: &mut Ui) -> Response {
+        ui.label("Type:");
+        ui.horizontal(|ui| {
+            ui.selectable_value(&mut self.chart, Chart::GaussBars, "Histogram");
+            ui.selectable_value(&mut self.chart, Chart::StackedBars, "Stacked Bar Chart");
+            ui.selectable_value(&mut self.chart, Chart::BoxPlot, "Box Plot");
+        });
+        ui.label("Orientation:");
+        ui.horizontal(|ui| {
+            ui.selectable_value(&mut self.vertical, true, "Vertical");
+            ui.selectable_value(&mut self.vertical, false, "Horizontal");
+        });
+        match self.chart {
+            Chart::GaussBars => self.bar_gauss(ui),
+            Chart::StackedBars => self.bar_stacked(ui),
+            Chart::BoxPlot => self.box_plot(ui),
+        }
+    }
+
     fn bar_gauss(&self, ui: &mut Ui) -> Response {
         let mut chart = BarChart::new(
             (-395..=395)
@@ -789,26 +816,7 @@ impl ChartsDemo {
     }
 }
 
-impl Widget for &mut ChartsDemo {
-    fn ui(self, ui: &mut Ui) -> Response {
-        ui.label("Type:");
-        ui.horizontal(|ui| {
-            ui.selectable_value(&mut self.chart, Chart::GaussBars, "Histogram");
-            ui.selectable_value(&mut self.chart, Chart::StackedBars, "Stacked Bar Chart");
-            ui.selectable_value(&mut self.chart, Chart::BoxPlot, "Box Plot");
-        });
-        ui.label("Orientation:");
-        ui.horizontal(|ui| {
-            ui.selectable_value(&mut self.vertical, true, "Vertical");
-            ui.selectable_value(&mut self.vertical, false, "Horizontal");
-        });
-        match self.chart {
-            Chart::GaussBars => self.bar_gauss(ui),
-            Chart::StackedBars => self.bar_stacked(ui),
-            Chart::BoxPlot => self.box_plot(ui),
-        }
-    }
-}
+// ----------------------------------------------------------------------------
 
 #[derive(PartialEq, Eq)]
 enum Panel {
@@ -827,6 +835,8 @@ impl Default for Panel {
         Self::Lines
     }
 }
+
+// ----------------------------------------------------------------------------
 
 #[derive(PartialEq, Default)]
 pub struct PlotDemo {
@@ -889,28 +899,28 @@ impl super::View for PlotDemo {
 
         match self.open_panel {
             Panel::Lines => {
-                ui.add(&mut self.line_demo);
+                self.line_demo.ui(ui);
             }
             Panel::Markers => {
-                ui.add(&mut self.marker_demo);
+                self.marker_demo.ui(ui);
             }
             Panel::Legend => {
-                ui.add(&mut self.legend_demo);
+                self.legend_demo.ui(ui);
             }
             Panel::Charts => {
-                ui.add(&mut self.charts_demo);
+                self.charts_demo.ui(ui);
             }
             Panel::Items => {
-                ui.add(&mut self.items_demo);
+                self.items_demo.ui(ui);
             }
             Panel::Interaction => {
-                ui.add(&mut self.interaction_demo);
+                self.interaction_demo.ui(ui);
             }
             Panel::CustomAxes => {
-                ui.add(&mut self.custom_axes_demo);
+                self.custom_axes_demo.ui(ui);
             }
             Panel::LinkedAxes => {
-                ui.add(&mut self.linked_axes_demo);
+                self.linked_axes_demo.ui(ui);
             }
         }
     }
