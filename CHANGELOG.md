@@ -7,15 +7,16 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 ## Unreleased
 
 ### Added ⭐
-* Added `Shape::Callback` for backend-specific painting, [with an example](https://github.com/emilk/egui/blob/master/examples/custom_3d_three/) ([#1351](https://github.com/emilk/egui/pull/1351)).
+* Added `Shape::Callback` for backend-specific painting, [with an example](https://github.com/emilk/egui/tree/master/examples/custom_3d_glow) ([#1351](https://github.com/emilk/egui/pull/1351)).
 * Added `Frame::canvas` ([#1362](https://github.com/emilk/egui/pull/1362)).
-* `Context::request_repaint` will wake up UI thread, if integrations has called `Context::set_request_repaint_callback` ([#1366](https://github.com/emilk/egui/pull/1366)).
+* `Context::request_repaint` will now wake up UI thread, if integrations has called `Context::set_request_repaint_callback` ([#1366](https://github.com/emilk/egui/pull/1366)).
 * Added `Plot::allow_scroll`, `Plot::allow_zoom` no longer affects scrolling ([#1382](https://github.com/emilk/egui/pull/1382)).
 * Added `Ui::push_id` to resolve id clashes ([#1374](https://github.com/emilk/egui/pull/1374)).
+* Added `ComboBox::icon` ([#1405](https://github.com/emilk/egui/pull/1405)).
 * Added `Ui::scroll_with_delta`.
 * Added `Frame::outer_margin`.
 * Added `Painter::hline` and `Painter::vline`.
-* Added `Link` and `ui.link`  ([#1506](https://github.com/emilk/egui/pull/1506)).
+* Added `Link` and `ui.link` ([#1506](https://github.com/emilk/egui/pull/1506)).
 * Added triple-click support; triple-clicking a TextEdit field will select the whole paragraph ([#1512](https://github.com/emilk/egui/pull/1512)).
 * Added `Plot::x_grid_spacer` and `Plot::y_grid_spacer` for custom grid spacing ([#1180](https://github.com/emilk/egui/pull/1180)).
 * Added `Ui::spinner()` shortcut method ([#1494](https://github.com/emilk/egui/pull/1494)).
@@ -24,13 +25,13 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 * Added ability to add any widgets to the header of a collapsing region ([#1538](https://github.com/emilk/egui/pull/1538)).
 
 ### Changed 🔧
+* MSRV (Minimum Supported Rust Version) is now `1.60.0` ([#1467](https://github.com/emilk/egui/pull/1467)).
 * `ClippedMesh` has been replaced with `ClippedPrimitive` ([#1351](https://github.com/emilk/egui/pull/1351)).
 * Renamed `Frame::margin` to `Frame::inner_margin`.
 * Renamed `AlphaImage` to `FontImage` to discourage any other use for it ([#1412](https://github.com/emilk/egui/pull/1412)).
 * Warnings will pe painted on screen when there is an `Id` clash for `Grid`, `Plot` or `ScrollArea` ([#1452](https://github.com/emilk/egui/pull/1452)).
 * `Checkbox` and `RadioButton` with an empty label (`""`) will now take up much less space ([#1456](https://github.com/emilk/egui/pull/1456)).
 * Replaced `Memory::top_most_layer` with more flexible `Memory::layer_ids`.
-* MSRV (Minimum Supported Rust Version) is now `1.60.0` ([#1467](https://github.com/emilk/egui/pull/1467)).
 * Renamed the feature `convert_bytemuck` to `bytemuck` ([#1467](https://github.com/emilk/egui/pull/1467)).
 * Renamed the feature `serialize` to `serde` ([#1467](https://github.com/emilk/egui/pull/1467)).
 * Renamed `Painter::sub_region` to `Painter::with_clip_rect`.
@@ -39,13 +40,47 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 * Fixed `ComboBox`es always being rendered left-aligned ([#1304](https://github.com/emilk/egui/pull/1304)).
 * Fixed ui code that could lead to a deadlock ([#1380](https://github.com/emilk/egui/pull/1380)).
 * Text is darker and more readable in bright mode ([#1412](https://github.com/emilk/egui/pull/1412)).
-* Fixed `Ui::add_visible` sometimes leaving the `Ui` in a disabled state. ([#1436](https://github.com/emilk/egui/issues/1436)).
+* Fix a lot of broken/missing doclinks  ([#1419](https://github.com/emilk/egui/pull/1419)).
+* Fixed `Ui::add_visible` sometimes leaving the `Ui` in a disabled state ([#1436](https://github.com/emilk/egui/issues/1436)).
+* Add line breaking rules for Japanese text ([#1498](https://github.com/emilk/egui/pull/1498)).
 
 ### Deprecated ☢️
 * Deprecated `CollapsingHeader::selectable` ([#1538](https://github.com/emilk/egui/pull/1538)).
 
 ### Removed 🔥
 * Removed the `single_threaded/multi_threaded` flags - egui is now always thread-safe ([#1390](https://github.com/emilk/egui/pull/1390)).
+
+### Contributors 🙏
+* [4JX](https://github.com/4JX)
+* [AlexxxRu](https://github.com/AlexxxRu)
+* [ascclemens](https://github.com/ascclemens)
+* [awaken1ng](https://github.com/awaken1ng)
+* [bigfarts](https://github.com/bigfarts)
+* [bobyclaws](https://github.com/bobyclaws)
+* [Bromeon](https://github.com/Bromeon)
+* [cloudhead](https://github.com/cloudhead)
+* [collin-kemper](https://github.com/collin-kemper)
+* [cpterry](https://github.com/cpterry)
+* [dbuch](https://github.com/dbuch)
+* [DusterTheFirst](https://github.com/DusterTheFirst)
+* [Edgeworth ](https://github.com/Edgeworth )
+* [elwerene](https://github.com/elwerene)
+* [follower](https://github.com/follower)
+* [Friz64](https://github.com/Friz64)
+* [Hunter522 ](https://github.com/Hunter522 )
+* [Jake-Shadle](https://github.com/Jake-Shadle)
+* [jean-airoldie ](https://github.com/jean-airoldie )
+* [JelNiSlaw](https://github.com/JelNiSlaw)
+* [juancampa](https://github.com/juancampa)
+* [LU15W1R7H](https://github.com/LU15W1R7H)
+* [mbillingr](https://github.com/mbillingr)
+* [nicklasmoeller](https://github.com/nicklasmoeller)
+* [rukai](https://github.com/rukai)
+* [tami5](https://github.com/tami5)
+* [Titaniumtown](https://github.com/Titaniumtown)
+* [trevyn](https://github.com/trevyn)
+* [waynr](https://github.com/waynr)
+* [zam-5 ](https://github.com/zam-5 )
 
 
 ## 0.17.0 - 2022-02-22 - Improved font selection and image handling
@@ -60,7 +95,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 * Plot:
   * Added `Plot::x_axis_formatter` and `Plot::y_axis_formatter` for custom axis labels ([#1130](https://github.com/emilk/egui/pull/1130)).
   * Added `Plot::allow_boxed_zoom()`, `Plot::boxed_zoom_pointer()` for boxed zooming on plots ([#1188](https://github.com/emilk/egui/pull/1188)).
-  * Added plot pointer coordinates with `Plot::coordinates_formatter`. ([#1235](https://github.com/emilk/egui/pull/1235)).
+  * Added plot pointer coordinates with `Plot::coordinates_formatter` ([#1235](https://github.com/emilk/egui/pull/1235)).
   * Added linked axis support for plots via `plot::LinkedAxisGroup` ([#1184](https://github.com/emilk/egui/pull/1184)).
 * `Context::load_texture` to convert an image into a texture which can be displayed using e.g. `ui.image(texture, size)` ([#1110](https://github.com/emilk/egui/pull/1110)).
 * `Ui::input_mut` to modify how subsequent widgets see the `InputState` and a convenience method `InputState::consume_key` for shortcuts or hotkeys ([#1212](https://github.com/emilk/egui/pull/1212)).
