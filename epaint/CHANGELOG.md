@@ -21,6 +21,7 @@ All notable changes to the epaint crate will be documented in this file.
 * MSRV (Minimum Supported Rust Version) is now `1.60.0` ([#1467](https://github.com/emilk/egui/pull/1467)).
 * Renamed the feature `convert_bytemuck` to `bytemuck` ([#1467](https://github.com/emilk/egui/pull/1467)).
 * Renamed the feature `serialize` to `serde` ([#1467](https://github.com/emilk/egui/pull/1467)).
+* Optimize tessellation of circles and boxes with rounded corners ([#1547](https://github.com/emilk/egui/pull/1547)).
 
 
 ## 0.17.0 - 2022-02-22
