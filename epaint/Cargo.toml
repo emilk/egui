@@ -57,7 +57,7 @@ nohash-hasher = "0.2"
 # Optional:
 ahash = { version = "0.7", default-features = false, features = ["std"] }
 bytemuck = { version = "1.7.2", optional = true, features = ["derive"] }
-cint = { version = "^0.2.2", optional = true }
+cint = { version = "0.3.1", optional = true }
 serde = { version = "1", optional = true, features = ["derive", "rc"] }
 
 # native:
