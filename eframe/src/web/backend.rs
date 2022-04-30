@@ -141,35 +141,21 @@ pub struct AppRunner {
 
 impl AppRunner {
     pub fn new(canvas_id: &str, app_creator: epi::AppCreator) -> Result<Self, JsValue> {
-        let painter = WrappedGlowPainter::new(canvas_id).map_err(JsValue::from)?;
+        let painter = WrappedGlowPainter::new(canvas_id).map_err(JsValue::from)?; // fail early
 
         let prefer_dark_mode = super::prefer_dark_mode();
 
-        let frame = epi::Frame {
-            info: epi::IntegrationInfo {
-                web_info: Some(epi::WebInfo {
-                    location: web_location(),
-                }),
-                prefer_dark_mode,
-                cpu_usage: None,
-                native_pixels_per_point: Some(native_pixels_per_point()),
-            },
-            output: Default::default(),
-            storage: Some(Box::new(LocalStorage::default())),
-            gl: painter.gl().clone(),
+        let info = epi::IntegrationInfo {
+            web_info: Some(epi::WebInfo {
+                location: web_location(),
+            }),
+            prefer_dark_mode,
+            cpu_usage: None,
+            native_pixels_per_point: Some(native_pixels_per_point()),
         };
-
-        let needs_repaint: std::sync::Arc<NeedRepaint> = Default::default();
+        let storage = LocalStorage::default();
 
         let egui_ctx = egui::Context::default();
-
-        {
-            let needs_repaint = needs_repaint.clone();
-            egui_ctx.set_request_repaint_callback(move || {
-                needs_repaint.0.store(true, SeqCst);
-            });
-        }
-
         load_memory(&egui_ctx);
         if prefer_dark_mode == Some(true) {
             egui_ctx.set_visuals(egui::Visuals::dark());
@@ -179,10 +165,25 @@ impl AppRunner {
 
         let app = app_creator(&epi::CreationContext {
             egui_ctx: egui_ctx.clone(),
-            integration_info: frame.info(),
-            storage: frame.storage(),
+            integration_info: info.clone(),
+            storage: Some(&storage),
             gl: painter.painter.gl().clone(),
         });
+
+        let frame = epi::Frame {
+            info,
+            output: Default::default(),
+            storage: Some(Box::new(storage)),
+            gl: painter.gl().clone(),
+        };
+
+        let needs_repaint: std::sync::Arc<NeedRepaint> = Default::default();
+        {
+            let needs_repaint = needs_repaint.clone();
+            egui_ctx.set_request_repaint_callback(move || {
+                needs_repaint.0.store(true, SeqCst);
+            });
+        }
 
         let mut runner = Self {
             frame,
