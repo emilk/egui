@@ -17,7 +17,7 @@ cargo test --workspace --all-targets --all-features
 cargo test --workspace --doc # slow - checks all doc-tests
 cargo fmt --all -- --check
 
-cargo doc -p emath -p epaint -p egui -p eframe -p egui-winit -p egui_glium -p egui_glow --lib --no-deps --all-features
+cargo doc -p eframe -p egui -p egui_demo_lib -p egui_extras -p egui_glium -p egui_glow -p egui-winit -p emath -p epaint --lib --no-deps --all-features
 cargo doc --document-private-items --no-deps --all-features
 
 (cd eframe && cargo check --no-default-features)
@@ -46,6 +46,8 @@ cargo doc --document-private-items --no-deps --all-features
 
 # cargo install cargo-deny
 cargo deny check
+
+# TODO: consider using https://github.com/taiki-e/cargo-hack or https://github.com/frewsxcv/cargo-all-features
 
 # ------------------------------------------------------------
 #
