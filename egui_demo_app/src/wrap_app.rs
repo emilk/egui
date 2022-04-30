@@ -156,8 +156,8 @@ impl eframe::App for WrapApp {
         eframe::set_value(storage, eframe::APP_KEY, &self.state);
     }
 
-    fn clear_color(&self) -> egui::Rgba {
-        egui::Rgba::TRANSPARENT // we set a [`CentralPanel`] fill color in `demo_windows.rs`
+    fn clear_color(&self, visuals: &egui::Visuals) -> egui::Rgba {
+        visuals.window_fill().into()
     }
 
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {

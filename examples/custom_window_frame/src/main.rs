@@ -24,7 +24,7 @@ fn main() {
 struct MyApp {}
 
 impl eframe::App for MyApp {
-    fn clear_color(&self) -> egui::Rgba {
+    fn clear_color(&self, _visuals: &egui::Visuals) -> egui::Rgba {
         egui::Rgba::TRANSPARENT // Make sure we don't paint anything behind the rounded corners
     }
 

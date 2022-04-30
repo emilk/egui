@@ -93,11 +93,13 @@ pub trait App {
 
     /// Background color for the app, e.g. what is sent to `gl.clearColor`.
     /// This is the background of your windows if you don't set a central panel.
-    fn clear_color(&self) -> egui::Rgba {
+    fn clear_color(&self, _visuals: &egui::Visuals) -> egui::Rgba {
         // NOTE: a bright gray makes the shadows of the windows look weird.
         // We use a bit of transparency so that if the user switches on the
         // `transparent()` option they get immediate results.
         egui::Color32::from_rgba_unmultiplied(12, 12, 12, 180).into()
+
+        // _visuals.window_fill() would also be a natural choice
     }
 
     /// Controls whether or not the native window position and size will be

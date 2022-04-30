@@ -278,7 +278,8 @@ impl AppRunner {
     }
 
     pub fn clear_color_buffer(&self) {
-        self.painter.clear(self.app.clear_color());
+        self.painter
+            .clear(self.app.clear_color(&self.egui_ctx.style().visuals));
     }
 
     /// Paint the results of the last call to [`Self::logic`].
