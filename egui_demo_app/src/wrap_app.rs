@@ -128,7 +128,7 @@ impl WrapApp {
             (
                 "⬇ HTTP",
                 "http",
-                &mut self.apps.http as &mut dyn eframe::App,
+                &mut self.state.http as &mut dyn eframe::App,
             ),
             (
                 "🕑 Fractal Clock",
