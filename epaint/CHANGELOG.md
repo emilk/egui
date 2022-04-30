@@ -3,6 +3,9 @@ All notable changes to the epaint crate will be documented in this file.
 
 
 ## Unreleased
+
+
+## 0.18.0 - 2022-04-30
 * MSRV (Minimum Supported Rust Version) is now `1.60.0` ([#1467](https://github.com/emilk/egui/pull/1467)).
 * Add `Shape::Callback` for backend-specific painting ([#1351](https://github.com/emilk/egui/pull/1351)).
 * Added more text wrapping options ([#1291](https://github.com/emilk/egui/pull/1291)):

@@ -1,6 +1,6 @@
 [package]
 name = "egui"
-version = "0.17.0"
+version = "0.18.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "An easy-to-use immediate mode GUI that runs on both web and native"
 edition = "2021"
@@ -48,7 +48,7 @@ serde = ["dep:serde", "epaint/serde"]
 
 
 [dependencies]
-epaint = { version = "0.17.0", path = "../epaint", default-features = false }
+epaint = { version = "0.18.0", path = "../epaint", default-features = false }
 
 ahash = "0.7"
 nohash-hasher = "0.2"

@@ -1,6 +1,6 @@
 [package]
 name = "eframe"
-version = "0.17.0"
+version = "0.18.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "egui framework - write GUI apps that compiles to web and/or natively"
 edition = "2021"
@@ -51,11 +51,11 @@ screen_reader = [
 
 
 [dependencies]
-egui = { version = "0.17.0", path = "../egui", default-features = false, features = [
+egui = { version = "0.18.0", path = "../egui", default-features = false, features = [
   "bytemuck",
   "tracing",
 ] }
-egui_glow = { version = "0.17.0", path = "../egui_glow", default-features = false }
+egui_glow = { version = "0.18.0", path = "../egui_glow", default-features = false }
 glow = "0.11"
 tracing = "0.1"
 
@@ -67,7 +67,7 @@ serde = { version = "1", optional = true }
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 dark-light = { version = "0.2.1", optional = true }
-egui-winit = { version = "0.17.0", path = "../egui-winit", default-features = false, features = ["clipboard", "links"] }
+egui-winit = { version = "0.18.0", path = "../egui-winit", default-features = false, features = ["clipboard", "links"] }
 glutin = { version = "0.28.0" }
 winit = "0.26.1"
 

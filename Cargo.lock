@@ -1075,7 +1075,7 @@ checksum = "6907e25393cdcc1f4f3f513d9aac1e840eb1cc341a0fccb01171f7d14d10b946"
 
 [[package]]
 name = "eframe"
-version = "0.17.0"
+version = "0.18.0"
 dependencies = [
  "bytemuck",
  "dark-light",
@@ -1100,7 +1100,7 @@ dependencies = [
 
 [[package]]
 name = "egui"
-version = "0.17.0"
+version = "0.18.0"
 dependencies = [
  "ahash 0.7.6",
  "epaint",
@@ -1112,7 +1112,7 @@ dependencies = [
 
 [[package]]
 name = "egui-winit"
-version = "0.17.0"
+version = "0.18.0"
 dependencies = [
  "arboard",
  "egui",
@@ -1127,7 +1127,7 @@ dependencies = [
 
 [[package]]
 name = "egui_demo_app"
-version = "0.17.0"
+version = "0.18.0"
 dependencies = [
  "chrono",
  "console_error_panic_hook",
@@ -1146,7 +1146,7 @@ dependencies = [
 
 [[package]]
 name = "egui_demo_lib"
-version = "0.17.0"
+version = "0.18.0"
 dependencies = [
  "chrono",
  "criterion",
@@ -1161,7 +1161,7 @@ dependencies = [
 
 [[package]]
 name = "egui_extras"
-version = "0.17.0"
+version = "0.18.0"
 dependencies = [
  "chrono",
  "egui",
@@ -1175,7 +1175,7 @@ dependencies = [
 
 [[package]]
 name = "egui_glium"
-version = "0.17.0"
+version = "0.18.0"
 dependencies = [
  "ahash 0.7.6",
  "bytemuck",
@@ -1187,7 +1187,7 @@ dependencies = [
 
 [[package]]
 name = "egui_glow"
-version = "0.17.0"
+version = "0.18.0"
 dependencies = [
  "bytemuck",
  "egui",
@@ -1222,7 +1222,7 @@ checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 
 [[package]]
 name = "emath"
-version = "0.17.0"
+version = "0.18.0"
 dependencies = [
  "bytemuck",
  "mint",
@@ -1286,7 +1286,7 @@ dependencies = [
 
 [[package]]
 name = "epaint"
-version = "0.17.0"
+version = "0.18.0"
 dependencies = [
  "ab_glyph",
  "ahash 0.7.6",
