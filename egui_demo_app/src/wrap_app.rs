@@ -96,6 +96,7 @@ pub struct WrapApp {
 
 impl WrapApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        #[allow(unused_mut)]
         let mut slf = Self {
             state: State::default(),
             custom3d: crate::apps::Custom3d::new(&cc.gl),
