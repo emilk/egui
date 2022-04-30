@@ -20,6 +20,27 @@ pub use glow::Context;
 const VERT_SRC: &str = include_str!("shader/vertex.glsl");
 const FRAG_SRC: &str = include_str!("shader/fragment.glsl");
 
+#[derive(Copy, Clone)]
+pub enum TextureFilter {
+    Linear,
+    Nearest,
+}
+
+impl Default for TextureFilter {
+    fn default() -> Self {
+        TextureFilter::Linear
+    }
+}
+
+impl TextureFilter {
+    pub(crate) fn glow_code(&self) -> u32 {
+        match self {
+            TextureFilter::Linear => glow::LINEAR,
+            TextureFilter::Nearest => glow::NEAREST,
+        }
+    }
+}
+
 /// An OpenGL painter using [`glow`].
 ///
 /// This is responsible for painting egui and managing egui textures.
@@ -54,27 +75,6 @@ pub struct Painter {
 
     /// Used to make sure we are destroyed correctly.
     destroyed: bool,
-}
-
-#[derive(Copy, Clone)]
-pub enum TextureFilter {
-    Linear,
-    Nearest,
-}
-
-impl Default for TextureFilter {
-    fn default() -> Self {
-        TextureFilter::Linear
-    }
-}
-
-impl TextureFilter {
-    pub(crate) fn glow_code(&self) -> u32 {
-        match self {
-            TextureFilter::Linear => glow::LINEAR,
-            TextureFilter::Nearest => glow::NEAREST,
-        }
-    }
 }
 
 impl Painter {

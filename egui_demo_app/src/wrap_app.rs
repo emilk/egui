@@ -1,3 +1,5 @@
+use egui_glow::glow;
+
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct EasyMarkApp {
@@ -43,6 +45,31 @@ impl eframe::App for FractalClockApp {
 }
 // ----------------------------------------------------------------------------
 
+/// Wrapper so we can implement Deserialize/Serialize
+#[derive(Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct Custom3dDemo {
+    #[cfg_attr(feature = "serde", serde(skip))]
+    custom3d: Option<crate::apps::Custom3d>,
+}
+
+impl eframe::App for Custom3dDemo {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        let custom3d = self
+            .custom3d
+            .get_or_insert_with(|| crate::apps::Custom3d::new(frame.gl()));
+        custom3d.update(ctx, frame);
+    }
+
+    fn on_exit(&mut self, gl: &glow::Context) {
+        if let Some(mut custom3d) = self.custom3d.take() {
+            custom3d.on_exit(gl);
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ColorTestApp {
@@ -77,6 +104,7 @@ pub struct Apps {
     #[cfg(feature = "http")]
     http: crate::apps::HttpApp,
     clock: FractalClockApp,
+    custom3d_demo: Custom3dDemo,
     color_test: ColorTestApp,
 }
 
@@ -95,6 +123,11 @@ impl Apps {
                 "🕑 Fractal Clock",
                 "clock",
                 &mut self.clock as &mut dyn eframe::App,
+            ),
+            (
+                "🔺 3D painting",
+                "custom3e",
+                &mut self.custom3d_demo as &mut dyn eframe::App,
             ),
             (
                 "🎨 Color test",
@@ -195,6 +228,10 @@ impl eframe::App for WrapApp {
         self.backend_panel.end_of_frame(ctx);
 
         self.ui_file_drag_and_drop(ctx);
+    }
+
+    fn on_exit(&mut self, gl: &glow::Context) {
+        self.apps.custom3d_demo.on_exit(gl);
     }
 }
 
