@@ -754,12 +754,12 @@ pub struct PaintCallback {
     ///
     /// The rendering backend is also responsible for restoring any state,
     /// such as the bound shader program and vertex array.
-    pub callback: Arc<dyn Fn(&PaintCallbackInfo, &dyn std::any::Any) + Send + Sync>,
+    pub callback: Arc<dyn Fn(&PaintCallbackInfo, &mut dyn std::any::Any) + Send + Sync>,
 }
 
 impl PaintCallback {
     #[inline]
-    pub fn call(&self, info: &PaintCallbackInfo, render_ctx: &dyn std::any::Any) {
+    pub fn call(&self, info: &PaintCallbackInfo, render_ctx: &mut dyn std::any::Any) {
         (self.callback)(info, render_ctx);
     }
 }

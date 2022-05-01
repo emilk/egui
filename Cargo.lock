@@ -1100,7 +1100,7 @@ dependencies = [
 
 [[package]]
 name = "egui"
-version = "0.18.0"
+version = "0.18.1"
 dependencies = [
  "ahash 0.7.6",
  "epaint",
@@ -1286,7 +1286,7 @@ dependencies = [
 
 [[package]]
 name = "epaint"
-version = "0.18.0"
+version = "0.18.1"
 dependencies = [
  "ab_glyph",
  "ahash 0.7.6",
