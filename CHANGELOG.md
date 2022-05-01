@@ -7,6 +7,10 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 ## Unreleased
 
 
+## 0.18.1 - 2022-05-01
+* Change `Shape::Callback` from `&dyn Any` to `&mut dyn Any` to support more backends.
+
+
 ## 0.18.0 - 2022-04-30
 
 ### Added ⭐
