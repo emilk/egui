@@ -6,6 +6,8 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 
 ## Unreleased
 
+### Added ⭐
+* Added `StripBuilder::sense` & `TableBuilder::sense` for specifying the kind of interaction needed.
 
 ## 0.18.1 - 2022-05-01
 * Change `Shape::Callback` from `&dyn Any` to `&mut dyn Any` to support more backends.
