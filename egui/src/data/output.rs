@@ -67,7 +67,7 @@ pub struct PlatformOutput {
     pub events: Vec<OutputEvent>,
 
     /// Is there a mutable [`TextEdit`](crate::TextEdit) under the cursor?
-    /// Use by `egui_web` to show/hide mobile keyboard and IME agent.
+    /// Use by `eframe` web to show/hide mobile keyboard and IME agent.
     pub mutable_text_under_cursor: bool,
 
     /// Screen-space position of text edit cursor (used for IME).
@@ -88,6 +88,7 @@ impl PlatformOutput {
             match event {
                 OutputEvent::Clicked(widget_info)
                 | OutputEvent::DoubleClicked(widget_info)
+                | OutputEvent::TripleClicked(widget_info)
                 | OutputEvent::FocusGained(widget_info)
                 | OutputEvent::TextSelectionChanged(widget_info)
                 | OutputEvent::ValueChanged(widget_info) => {
@@ -226,10 +227,11 @@ pub enum CursorIcon {
     Grabbing,
 
     // ------------------------------------
-    // Resizing and scrolling
     /// Something can be scrolled in any direction (panned).
     AllScroll,
 
+    // ------------------------------------
+    // Resizing in two directions:
     /// Horizontal resize `-` to make something wider or more narrow (left to/from right)
     ResizeHorizontal,
     /// Diagonal resize `/` (right-up to/from left-down)
@@ -239,6 +241,33 @@ pub enum CursorIcon {
     /// Vertical resize `|` (up-down or down-up)
     ResizeVertical,
 
+    // ------------------------------------
+    // Resizing in one direction:
+    /// Resize something rightwards (e.g. when dragging the right-most edge of something)
+    ResizeEast,
+    /// Resize something down and right (e.g. when dragging the bottom-right corner of something)
+    ResizeSouthEast,
+    /// Resize something downwards (e.g. when dragging the bottom edge of something)
+    ResizeSouth,
+    /// Resize something down and left (e.g. when dragging the bottom-left corner of something)
+    ResizeSouthWest,
+    /// Resize something leftwards (e.g. when dragging the left edge of something)
+    ResizeWest,
+    /// Resize something up and left (e.g. when dragging the top-left corner of something)
+    ResizeNorthWest,
+    /// Resize something up (e.g. when dragging the top edge of something)
+    ResizeNorth,
+    /// Resize something up and right (e.g. when dragging the top-right corner of something)
+    ResizeNorthEast,
+
+    // ------------------------------------
+    /// Resize a column
+    ResizeColumn,
+    /// Resize a row
+    ResizeRow,
+
+    // ------------------------------------
+    // Zooming:
     /// Enhance!
     ZoomIn,
     /// Let's get a better overview
@@ -246,7 +275,7 @@ pub enum CursorIcon {
 }
 
 impl CursorIcon {
-    pub const ALL: [CursorIcon; 25] = [
+    pub const ALL: [CursorIcon; 35] = [
         CursorIcon::Default,
         CursorIcon::None,
         CursorIcon::ContextMenu,
@@ -270,6 +299,16 @@ impl CursorIcon {
         CursorIcon::ResizeNeSw,
         CursorIcon::ResizeNwSe,
         CursorIcon::ResizeVertical,
+        CursorIcon::ResizeEast,
+        CursorIcon::ResizeSouthEast,
+        CursorIcon::ResizeSouth,
+        CursorIcon::ResizeSouthWest,
+        CursorIcon::ResizeWest,
+        CursorIcon::ResizeNorthWest,
+        CursorIcon::ResizeNorth,
+        CursorIcon::ResizeNorthEast,
+        CursorIcon::ResizeColumn,
+        CursorIcon::ResizeRow,
         CursorIcon::ZoomIn,
         CursorIcon::ZoomOut,
     ];
@@ -291,6 +330,8 @@ pub enum OutputEvent {
     Clicked(WidgetInfo),
     // A widget was double-clicked.
     DoubleClicked(WidgetInfo),
+    // A widget was triple-clicked.
+    TripleClicked(WidgetInfo),
     /// A widget gained keyboard focus (by tab key).
     FocusGained(WidgetInfo),
     // Text selection was updated.
@@ -304,6 +345,7 @@ impl std::fmt::Debug for OutputEvent {
         match self {
             Self::Clicked(wi) => write!(f, "Clicked({:?})", wi),
             Self::DoubleClicked(wi) => write!(f, "DoubleClicked({:?})", wi),
+            Self::TripleClicked(wi) => write!(f, "TripleClicked({:?})", wi),
             Self::FocusGained(wi) => write!(f, "FocusGained({:?})", wi),
             Self::TextSelectionChanged(wi) => write!(f, "TextSelectionChanged({:?})", wi),
             Self::ValueChanged(wi) => write!(f, "ValueChanged({:?})", wi),
@@ -466,7 +508,7 @@ impl WidgetInfo {
 
         // TODO: localization
         let widget_type = match typ {
-            WidgetType::Hyperlink => "link",
+            WidgetType::Link => "link",
             WidgetType::TextEdit => "text edit",
             WidgetType::Button => "button",
             WidgetType::Checkbox => "checkbox",

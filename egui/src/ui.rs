@@ -305,7 +305,7 @@ impl Ui {
     /// The clip-rect of the returned [`Painter`] will be the intersection
     /// of the given rectangle and the `clip_rect()` of this [`Ui`].
     pub fn painter_at(&self, rect: Rect) -> Painter {
-        self.painter().sub_region(rect)
+        self.painter().with_clip_rect(rect)
     }
 
     /// Use this to paint stuff within this [`Ui`].
@@ -920,7 +920,7 @@ impl Ui {
     ///
     /// If `align` is `None`, it'll scroll enough to bring the cursor into view.
     ///
-    /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to_cursor`].
+    /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to_cursor`]. [`Ui::scroll_with_delta`]..
     ///
     /// ```
     /// # use egui::Align;
@@ -945,7 +945,7 @@ impl Ui {
     ///
     /// If `align` is not provided, it'll scroll enough to bring the cursor into view.
     ///
-    /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to_rect`].
+    /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to_rect`]. [`Ui::scroll_with_delta`].
     ///
     /// ```
     /// # use egui::Align;
@@ -968,6 +968,37 @@ impl Ui {
             let target = target[d];
             self.ctx().frame_state().scroll_target[d] = Some((target..=target, align));
         }
+    }
+
+    /// Scroll this many points in the given direction, in the parent [`ScrollArea`].
+    ///
+    /// The delta dictates how the _content_ (i.e. this UI) should move.
+    ///
+    /// A positive X-value indicates the content is being moved right,
+    /// as when swiping right on a touch-screen or track-pad with natural scrolling.
+    ///
+    /// A positive Y-value indicates the content is being moved down,
+    /// as when swiping down on a touch-screen or track-pad with natural scrolling.
+    ///
+    /// /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to_rect`], [`Ui::scroll_to_cursor`]
+    ///
+    /// ```
+    /// # use egui::{Align, Vec2};
+    /// # egui::__run_test_ui(|ui| {
+    /// let mut scroll_delta = Vec2::ZERO;
+    /// if ui.button("Scroll down").clicked() {
+    ///     scroll_delta.y -= 64.0; // move content up
+    /// }
+    /// egui::ScrollArea::vertical().show(ui, |ui| {
+    ///     ui.scroll_with_delta(scroll_delta);
+    ///     for i in 0..1000 {
+    ///         ui.label(format!("Item {}", i));
+    ///     }
+    /// });
+    /// # });
+    /// ```
+    pub fn scroll_with_delta(&self, delta: Vec2) {
+        self.ctx().frame_state().scroll_delta += delta;
     }
 }
 
@@ -1227,14 +1258,40 @@ impl Ui {
         Label::new(text.into().weak()).ui(self)
     }
 
-    /// Shortcut for `add(Hyperlink::new(url))`
+    /// Looks like a hyperlink.
+    ///
+    /// Shortcut for `add(Link::new(text))`.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// if ui.link("Documentation").clicked() {
+    ///     // …
+    /// }
+    /// # });
+    /// ```
+    ///
+    /// See also [`Link`].
+    #[must_use = "You should check if the user clicked this with `if ui.link(…).clicked() { … } "]
+    pub fn link(&mut self, text: impl Into<WidgetText>) -> Response {
+        Link::new(text).ui(self)
+    }
+
+    /// Link to a web page.
+    ///
+    /// Shortcut for `add(Hyperlink::new(url))`.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// ui.hyperlink("https://www.egui.rs/");
+    /// # });
+    /// ```
     ///
     /// See also [`Hyperlink`].
     pub fn hyperlink(&mut self, url: impl ToString) -> Response {
         Hyperlink::new(url).ui(self)
     }
 
-    /// Shortcut for `add(Hyperlink::new(url).text(label))`
+    /// Shortcut for `add(Hyperlink::new(url).text(label))`.
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -1311,9 +1368,24 @@ impl Ui {
     }
 
     /// Show a checkbox.
+    ///
+    /// See also [`Self::toggle_value`].
     #[inline]
     pub fn checkbox(&mut self, checked: &mut bool, text: impl Into<WidgetText>) -> Response {
         Checkbox::new(checked, text).ui(self)
+    }
+
+    /// Acts like a checkbox, but looks like a [`SelectableLabel`].
+    ///
+    /// Click to toggle to bool.
+    ///
+    /// See also [`Self::checkbox`].
+    pub fn toggle_value(&mut self, selected: &mut bool, text: impl Into<WidgetText>) -> Response {
+        let response = self.selectable_label(*selected, text);
+        if response.clicked() {
+            *selected = !*selected;
+        }
+        response
     }
 
     /// Show a [`RadioButton`].
@@ -1359,7 +1431,7 @@ impl Ui {
 
     /// Show a label which can be selected or not.
     ///
-    /// See also [`SelectableLabel`].
+    /// See also [`SelectableLabel`] and [`Self::toggle_value`].
     #[must_use = "You should check if the user clicked this with `if ui.selectable_label(…).clicked() { … } "]
     pub fn selectable_label(&mut self, checked: bool, text: impl Into<WidgetText>) -> Response {
         SelectableLabel::new(checked, text).ui(self)
@@ -1370,7 +1442,7 @@ impl Ui {
     ///
     /// Example: `ui.selectable_value(&mut my_enum, Enum::Alternative, "Alternative")`.
     ///
-    /// See also [`SelectableLabel`].
+    /// See also [`SelectableLabel`] and [`Self::toggle_value`].
     pub fn selectable_value<Value: PartialEq>(
         &mut self,
         current_value: &mut Value,
@@ -1441,8 +1513,8 @@ impl Ui {
 
     /// Show an image here with the given size.
     ///
-    /// In order to display an image you must first acquire a [`TextureHandle`]
-    /// using [`Context::load_texture`].
+    /// In order to display an image you must first acquire a [`TextureHandle`].
+    /// This is best done with [`egui_extras::RetainedImage`](https://docs.rs/egui_extras/latest/egui_extras/image/struct.RetainedImage.html) or [`Context::load_texture`].
     ///
     /// ```
     /// struct MyImage {

@@ -535,6 +535,28 @@ impl Rounding {
     pub fn is_same(&self) -> bool {
         self.nw == self.ne && self.nw == self.sw && self.nw == self.se
     }
+
+    /// Make sure each corner has a rounding of at least this.
+    #[inline]
+    pub fn at_least(&self, min: f32) -> Self {
+        Self {
+            nw: self.nw.max(min),
+            ne: self.ne.max(min),
+            sw: self.sw.max(min),
+            se: self.se.max(min),
+        }
+    }
+
+    /// Make sure each corner has a rounding of at most this.
+    #[inline]
+    pub fn at_most(&self, max: f32) -> Self {
+        Self {
+            nw: self.nw.min(max),
+            ne: self.ne.min(max),
+            sw: self.sw.min(max),
+            se: self.se.min(max),
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -732,12 +754,12 @@ pub struct PaintCallback {
     ///
     /// The rendering backend is also responsible for restoring any state,
     /// such as the bound shader program and vertex array.
-    pub callback: Arc<dyn Fn(&PaintCallbackInfo, &dyn std::any::Any) + Send + Sync>,
+    pub callback: Arc<dyn Fn(&PaintCallbackInfo, &mut dyn std::any::Any) + Send + Sync>,
 }
 
 impl PaintCallback {
     #[inline]
-    pub fn call(&self, info: &PaintCallbackInfo, render_ctx: &dyn std::any::Any) {
+    pub fn call(&self, info: &PaintCallbackInfo, render_ctx: &mut dyn std::any::Any) {
         (self.callback)(info, render_ctx);
     }
 }

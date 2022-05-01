@@ -3,7 +3,7 @@ use chrono::{Date, Utc};
 use egui::{Area, Button, Frame, Key, Order, RichText, Ui, Widget};
 
 #[derive(Default, Clone)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct DatePickerButtonState {
     pub picker_visible: bool,
 }

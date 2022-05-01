@@ -54,6 +54,19 @@ impl Painter {
         }
     }
 
+    /// Create a painter for a sub-region of this [`Painter`].
+    ///
+    /// The clip-rect of the returned [`Painter`] will be the intersection
+    /// of the given rectangle and the `clip_rect()` of the parent [`Painter`].
+    pub fn with_clip_rect(&self, rect: Rect) -> Self {
+        Self {
+            ctx: self.ctx.clone(),
+            layer_id: self.layer_id,
+            clip_rect: rect.intersect(self.clip_rect),
+            fade_to_color: self.fade_to_color,
+        }
+    }
+
     /// Redirect where you are painting.
     pub fn set_layer_id(&mut self, layer_id: LayerId) {
         self.layer_id = layer_id;
@@ -73,10 +86,7 @@ impl Painter {
         self.fade_to_color = Some(Color32::TRANSPARENT);
     }
 
-    /// Create a painter for a sub-region of this [`Painter`].
-    ///
-    /// The clip-rect of the returned [`Painter`] will be the intersection
-    /// of the given rectangle and the `clip_rect()` of this [`Painter`].
+    #[deprecated = "Use Painter::with_clip_rect"] // Deprecated in 2022-04-18, before egui 0.18
     pub fn sub_region(&self, rect: Rect) -> Self {
         Self {
             ctx: self.ctx.clone(),
@@ -197,7 +207,7 @@ impl Painter {
 /// ## Debug painting
 impl Painter {
     #[allow(clippy::needless_pass_by_value)]
-    pub fn debug_rect(&mut self, rect: Rect, color: Color32, text: impl ToString) {
+    pub fn debug_rect(&self, rect: Rect, color: Color32, text: impl ToString) {
         self.rect_stroke(rect, 0.0, (1.0, color));
         self.text(
             rect.min,

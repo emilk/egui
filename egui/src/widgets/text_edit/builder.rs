@@ -404,9 +404,9 @@ impl<'t> TextEdit<'t> {
         });
         let mut state = TextEditState::load(ui.ctx(), id).unwrap_or_default();
 
-        // On touch screens (e.g. mobile in egui_web), should
+        // On touch screens (e.g. mobile in `eframe` web), should
         // dragging select text, or scroll the enclosing [`ScrollArea`] (if any)?
-        // Since currently copying selected text in not supported on `egui_web`,
+        // Since currently copying selected text in not supported on `eframe` web,
         // we prioritize touch-scrolling:
         let any_touches = ui.input().any_touches(); // separate line to avoid double-locking the same mutex
         let allow_drag_to_select = !any_touches || ui.memory().has_focus(id);
@@ -430,7 +430,6 @@ impl<'t> TextEdit<'t> {
                     ui.output().mutable_text_under_cursor = true;
                 }
 
-                // TODO: triple-click to select whole paragraph
                 // TODO: drag selected text to either move or clone (ctrl on windows, alt on mac)
                 let singleline_offset = vec2(state.singleline_offset, 0.0);
                 let cursor_at_pointer =
@@ -455,6 +454,14 @@ impl<'t> TextEdit<'t> {
                     // Select word:
                     let center = cursor_at_pointer;
                     let ccursor_range = select_word_at(text.as_ref(), center.ccursor);
+                    state.set_cursor_range(Some(CursorRange {
+                        primary: galley.from_ccursor(ccursor_range.primary),
+                        secondary: galley.from_ccursor(ccursor_range.secondary),
+                    }));
+                } else if response.triple_clicked() {
+                    // Select line:
+                    let center = cursor_at_pointer;
+                    let ccursor_range = select_line_at(text.as_ref(), center.ccursor);
                     state.set_cursor_range(Some(CursorRange {
                         primary: galley.from_ccursor(ccursor_range.primary),
                         secondary: galley.from_ccursor(ccursor_range.secondary),
@@ -572,23 +579,26 @@ impl<'t> TextEdit<'t> {
                     // We paint the cursor on top of the text, in case
                     // the text galley has backgrounds (as e.g. `code` snippets in markup do).
                     paint_cursor_selection(ui, &painter, text_draw_pos, &galley, &cursor_range);
-                    let cursor_pos = paint_cursor_end(
-                        ui,
-                        row_height,
-                        &painter,
-                        text_draw_pos,
-                        &galley,
-                        &cursor_range.primary,
-                    );
 
-                    if response.changed || selection_changed {
-                        ui.scroll_to_rect(cursor_pos, None); // keep cursor in view
-                    }
+                    if text.is_mutable() {
+                        let cursor_pos = paint_cursor_end(
+                            ui,
+                            row_height,
+                            &painter,
+                            text_draw_pos,
+                            &galley,
+                            &cursor_range.primary,
+                        );
 
-                    if interactive && text.is_mutable() {
-                        // egui_web uses `text_cursor_pos` when showing IME,
-                        // so only set it when text is editable and visible!
-                        ui.ctx().output().text_cursor_pos = Some(cursor_pos.left_top());
+                        if response.changed || selection_changed {
+                            ui.scroll_to_rect(cursor_pos, None); // keep cursor in view
+                        }
+
+                        if interactive {
+                            // eframe web uses `text_cursor_pos` when showing IME,
+                            // so only set it when text is editable and visible!
+                            ui.ctx().output().text_cursor_pos = Some(cursor_pos.left_top());
+                        }
                     }
                 }
             }
@@ -1216,9 +1226,51 @@ fn select_word_at(text: &str, ccursor: CCursor) -> CCursorRange {
     }
 }
 
+fn select_line_at(text: &str, ccursor: CCursor) -> CCursorRange {
+    if ccursor.index == 0 {
+        CCursorRange::two(ccursor, ccursor_next_line(text, ccursor))
+    } else {
+        let it = text.chars();
+        let mut it = it.skip(ccursor.index - 1);
+        if let Some(char_before_cursor) = it.next() {
+            if let Some(char_after_cursor) = it.next() {
+                if (!is_linebreak(char_before_cursor)) && (!is_linebreak(char_after_cursor)) {
+                    let min = ccursor_previous_line(text, ccursor + 1);
+                    let max = ccursor_next_line(text, min);
+                    CCursorRange::two(min, max)
+                } else if !is_linebreak(char_before_cursor) {
+                    let min = ccursor_previous_line(text, ccursor);
+                    let max = ccursor_next_line(text, min);
+                    CCursorRange::two(min, max)
+                } else if !is_linebreak(char_after_cursor) {
+                    let max = ccursor_next_line(text, ccursor);
+                    CCursorRange::two(ccursor, max)
+                } else {
+                    let min = ccursor_previous_line(text, ccursor);
+                    let max = ccursor_next_line(text, ccursor);
+                    CCursorRange::two(min, max)
+                }
+            } else {
+                let min = ccursor_previous_line(text, ccursor);
+                CCursorRange::two(min, ccursor)
+            }
+        } else {
+            let max = ccursor_next_line(text, ccursor);
+            CCursorRange::two(ccursor, max)
+        }
+    }
+}
+
 fn ccursor_next_word(text: &str, ccursor: CCursor) -> CCursor {
     CCursor {
         index: next_word_boundary_char_index(text.chars(), ccursor.index),
+        prefer_next_row: false,
+    }
+}
+
+fn ccursor_next_line(text: &str, ccursor: CCursor) -> CCursor {
+    CCursor {
+        index: next_line_boundary_char_index(text.chars(), ccursor.index),
         prefer_next_row: false,
     }
 }
@@ -1228,6 +1280,15 @@ fn ccursor_previous_word(text: &str, ccursor: CCursor) -> CCursor {
     CCursor {
         index: num_chars
             - next_word_boundary_char_index(text.chars().rev(), num_chars - ccursor.index),
+        prefer_next_row: true,
+    }
+}
+
+fn ccursor_previous_line(text: &str, ccursor: CCursor) -> CCursor {
+    let num_chars = text.chars().count();
+    CCursor {
+        index: num_chars
+            - next_line_boundary_char_index(text.chars().rev(), num_chars - ccursor.index),
         prefer_next_row: true,
     }
 }
@@ -1250,8 +1311,30 @@ fn next_word_boundary_char_index(it: impl Iterator<Item = char>, mut index: usiz
     index
 }
 
+fn next_line_boundary_char_index(it: impl Iterator<Item = char>, mut index: usize) -> usize {
+    let mut it = it.skip(index);
+    if let Some(_first) = it.next() {
+        index += 1;
+
+        if let Some(second) = it.next() {
+            index += 1;
+            for next in it {
+                if is_linebreak(next) != is_linebreak(second) {
+                    break;
+                }
+                index += 1;
+            }
+        }
+    }
+    index
+}
+
 fn is_word_char(c: char) -> bool {
     c.is_ascii_alphanumeric() || c == '_'
+}
+
+fn is_linebreak(c: char) -> bool {
+    c == '\r' || c == '\n'
 }
 
 /// Accepts and returns character offset (NOT byte offset!).

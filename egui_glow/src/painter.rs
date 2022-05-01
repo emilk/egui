@@ -20,6 +20,27 @@ pub use glow::Context;
 const VERT_SRC: &str = include_str!("shader/vertex.glsl");
 const FRAG_SRC: &str = include_str!("shader/fragment.glsl");
 
+#[derive(Copy, Clone)]
+pub enum TextureFilter {
+    Linear,
+    Nearest,
+}
+
+impl Default for TextureFilter {
+    fn default() -> Self {
+        TextureFilter::Linear
+    }
+}
+
+impl TextureFilter {
+    pub(crate) fn glow_code(&self) -> u32 {
+        match self {
+            TextureFilter::Linear => glow::LINEAR,
+            TextureFilter::Nearest => glow::NEAREST,
+        }
+    }
+}
+
 /// An OpenGL painter using [`glow`].
 ///
 /// This is responsible for painting egui and managing egui textures.
@@ -47,7 +68,6 @@ pub struct Painter {
 
     textures: HashMap<egui::TextureId, glow::Texture>,
 
-    #[cfg(feature = "epi")]
     next_native_tex_id: u64, // TODO: 128-bit texture space?
 
     /// Stores outdated OpenGL textures that are yet to be deleted
@@ -55,27 +75,6 @@ pub struct Painter {
 
     /// Used to make sure we are destroyed correctly.
     destroyed: bool,
-}
-
-#[derive(Copy, Clone)]
-pub enum TextureFilter {
-    Linear,
-    Nearest,
-}
-
-impl Default for TextureFilter {
-    fn default() -> Self {
-        TextureFilter::Linear
-    }
-}
-
-impl TextureFilter {
-    pub(crate) fn glow_code(&self) -> u32 {
-        match self {
-            TextureFilter::Linear => glow::LINEAR,
-            TextureFilter::Nearest => glow::NEAREST,
-        }
-    }
 }
 
 impl Painter {
@@ -222,7 +221,6 @@ impl Painter {
                 vbo,
                 element_array_buffer,
                 textures: Default::default(),
-                #[cfg(feature = "epi")]
                 next_native_tex_id: 1 << 32,
                 textures_to_destroy: Vec::new(),
                 destroyed: false,
@@ -603,6 +601,22 @@ impl Painter {
         self.textures.get(&texture_id).copied()
     }
 
+    #[allow(clippy::needless_pass_by_value)] // False positive
+    pub fn register_native_texture(&mut self, native: glow::Texture) -> egui::TextureId {
+        self.assert_not_destroyed();
+        let id = egui::TextureId::User(self.next_native_tex_id);
+        self.next_native_tex_id += 1;
+        self.textures.insert(id, native);
+        id
+    }
+
+    #[allow(clippy::needless_pass_by_value)] // False positive
+    pub fn replace_native_texture(&mut self, id: egui::TextureId, replacing: glow::Texture) {
+        if let Some(old_tex) = self.textures.insert(id, replacing) {
+            self.textures_to_destroy.push(old_tex);
+        }
+    }
+
     unsafe fn destroy_gl(&self) {
         self.gl.delete_program(self.program);
         for tex in self.textures.values() {
@@ -645,13 +659,23 @@ pub fn clear(gl: &glow::Context, screen_size_in_pixels: [u32; 2], clear_color: e
             screen_size_in_pixels[1] as i32,
         );
 
-        let clear_color: Color32 = clear_color.into();
-        gl.clear_color(
-            clear_color[0] as f32 / 255.0,
-            clear_color[1] as f32 / 255.0,
-            clear_color[2] as f32 / 255.0,
-            clear_color[3] as f32 / 255.0,
-        );
+        if true {
+            // verified to be correct on eframe native (on Mac).
+            gl.clear_color(
+                clear_color[0] as f32,
+                clear_color[1] as f32,
+                clear_color[2] as f32,
+                clear_color[3] as f32,
+            );
+        } else {
+            let clear_color: Color32 = clear_color.into();
+            gl.clear_color(
+                clear_color[0] as f32 / 255.0,
+                clear_color[1] as f32 / 255.0,
+                clear_color[2] as f32 / 255.0,
+                clear_color[3] as f32 / 255.0,
+            );
+        }
         gl.clear(glow::COLOR_BUFFER_BIT);
     }
 }
@@ -662,25 +686,6 @@ impl Drop for Painter {
             tracing::warn!(
                 "You forgot to call destroy() on the egui glow painter. Resources will leak!"
             );
-        }
-    }
-}
-
-#[cfg(feature = "epi")]
-impl epi::NativeTexture for Painter {
-    type Texture = glow::Texture;
-
-    fn register_native_texture(&mut self, native: Self::Texture) -> egui::TextureId {
-        self.assert_not_destroyed();
-        let id = egui::TextureId::User(self.next_native_tex_id);
-        self.next_native_tex_id += 1;
-        self.textures.insert(id, native);
-        id
-    }
-
-    fn replace_native_texture(&mut self, id: egui::TextureId, replacing: Self::Texture) {
-        if let Some(old_tex) = self.textures.insert(id, replacing) {
-            self.textures_to_destroy.push(old_tex);
         }
     }
 }

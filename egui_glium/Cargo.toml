@@ -1,6 +1,6 @@
 [package]
 name = "egui_glium"
-version = "0.17.0"
+version = "0.18.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui natively using the glium library"
 edition = "2021"
@@ -24,35 +24,29 @@ all-features = true
 
 
 [features]
-default = ["clipboard", "default_fonts", "links", "persistence"]
+default = ["clipboard", "links"]
 
 # enable cut/copy/paste to OS clipboard.
 # if disabled a clipboard will be simulated so you can still copy/paste within the egui app.
 clipboard = ["egui-winit/clipboard"]
 
-# If set, egui will use `include_bytes!` to bundle some fonts.
-# If you plan on specifying your own fonts you may disable this feature.
-default_fonts = ["egui/default_fonts"]
-
 # enable opening links in a browser when an egui hyperlink is clicked.
 links = ["egui-winit/links"]
 
-# enable persisting native window options and egui memory
-persistence = ["egui-winit/persistence", "egui/persistence"]
-
-# experimental support for a screen reader
+# experimental support for a screen reader.
 screen_reader = ["egui-winit/screen_reader"]
 
 
 [dependencies]
-egui = { version = "0.17.0", path = "../egui", default-features = false, features = [
+egui = { version = "0.18.0", path = "../egui", default-features = false, features = [
   "bytemuck",
 ] }
-egui-winit = { version = "0.17.0", path = "../egui-winit", default-features = false }
+egui-winit = { version = "0.18.0", path = "../egui-winit", default-features = false }
 
 ahash = "0.7"
 bytemuck = "1.7"
 glium = "0.31"
+
 
 [dev-dependencies]
 image = { version = "0.24", default-features = false, features = ["png"] }

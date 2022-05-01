@@ -253,6 +253,12 @@ impl Vec2 {
         vec2(self.x.max(other.x), self.y.max(other.y))
     }
 
+    /// The dot-product of two vectors.
+    #[inline]
+    pub fn dot(self, other: Self) -> f32 {
+        self.x * other.x + self.y * other.y
+    }
+
     /// Returns the minimum of `self.x` and `self.y`.
     #[must_use]
     #[inline(always)]

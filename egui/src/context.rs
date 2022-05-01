@@ -327,6 +327,7 @@ impl Context {
             hovered,
             clicked: Default::default(),
             double_clicked: Default::default(),
+            triple_clicked: Default::default(),
             dragged: false,
             drag_released: false,
             is_pointer_button_down_on: false,
@@ -410,6 +411,8 @@ impl Context {
                                 response.clicked[click.button as usize] = clicked;
                                 response.double_clicked[click.button as usize] =
                                     clicked && click.is_double();
+                                response.triple_clicked[click.button as usize] =
+                                    clicked && click.is_triple();
                             }
                         }
                     }
@@ -636,7 +639,7 @@ impl Context {
     /// Will become active at the start of the next frame.
     ///
     /// Note that this may be overwritten by input from the integration via [`RawInput::pixels_per_point`].
-    /// For instance, when using `egui_web` the browsers native zoom level will always be used.
+    /// For instance, when using `eframe` on web, the browsers native zoom level will always be used.
     pub fn set_pixels_per_point(&self, pixels_per_point: f32) {
         if pixels_per_point != self.pixels_per_point() {
             self.request_repaint();
@@ -1235,11 +1238,12 @@ impl Context {
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} collapsing headers",
-                self.data().count::<containers::collapsing_header::State>()
+                self.data()
+                    .count::<containers::collapsing_header::InnerState>()
             ));
             if ui.button("Reset").clicked() {
                 self.data()
-                    .remove_by_type::<containers::collapsing_header::State>();
+                    .remove_by_type::<containers::collapsing_header::InnerState>();
             }
         });
 

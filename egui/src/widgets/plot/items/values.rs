@@ -264,11 +264,19 @@ impl Values {
     }
 
     pub(super) fn get_bounds(&self) -> PlotBounds {
-        let mut bounds = PlotBounds::NOTHING;
-        self.values
-            .iter()
-            .for_each(|value| bounds.extend_with(value));
-        bounds
+        if self.values.is_empty() {
+            if let Some(generator) = &self.generator {
+                generator.estimate_bounds()
+            } else {
+                PlotBounds::NOTHING
+            }
+        } else {
+            let mut bounds = PlotBounds::NOTHING;
+            for value in &self.values {
+                bounds.extend_with(value);
+            }
+            bounds
+        }
     }
 }
 
@@ -331,6 +339,20 @@ struct ExplicitGenerator {
     function: Box<dyn Fn(f64) -> f64>,
     x_range: RangeInclusive<f64>,
     points: usize,
+}
+
+impl ExplicitGenerator {
+    fn estimate_bounds(&self) -> PlotBounds {
+        let min_x = *self.x_range.start();
+        let max_x = *self.x_range.end();
+        let min_y = (self.function)(min_x);
+        let max_y = (self.function)(max_x);
+        // TODO: sample some more points
+        PlotBounds {
+            min: [min_x, min_y],
+            max: [max_x, max_y],
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------

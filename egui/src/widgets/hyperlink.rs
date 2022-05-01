@@ -1,5 +1,69 @@
 use crate::*;
 
+/// Clickable text, that looks like a hyperlink.
+///
+/// To link to a web page, use [`Hyperlink`], [`Ui::hyperlink`] or [`Ui::hyperlink_to`].
+///
+/// See also [`Ui::link`].
+///
+/// ```
+/// # egui::__run_test_ui(|ui| {
+/// // These are equivalent:
+/// if ui.link("Documentation").clicked() {
+///     // …
+/// }
+///
+/// if ui.add(egui::Link::new("Documentation")).clicked() {
+///     // …
+/// }
+/// # });
+/// ```
+#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+pub struct Link {
+    text: WidgetText,
+}
+
+impl Link {
+    pub fn new(text: impl Into<WidgetText>) -> Self {
+        Self { text: text.into() }
+    }
+}
+
+impl Widget for Link {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let Link { text } = self;
+        let label = Label::new(text).sense(Sense::click());
+
+        let (pos, text_galley, response) = label.layout_in_ui(ui);
+        response.widget_info(|| WidgetInfo::labeled(WidgetType::Link, text_galley.text()));
+
+        if response.hovered() {
+            ui.ctx().output().cursor_icon = CursorIcon::PointingHand;
+        }
+
+        if ui.is_rect_visible(response.rect) {
+            let color = ui.visuals().hyperlink_color;
+            let visuals = ui.style().interact(&response);
+
+            let underline = if response.hovered() || response.has_focus() {
+                Stroke::new(visuals.fg_stroke.width, color)
+            } else {
+                Stroke::none()
+            };
+
+            ui.painter().add(epaint::TextShape {
+                pos,
+                galley: text_galley.galley,
+                override_text_color: Some(color),
+                underline,
+                angle: 0.0,
+            });
+        }
+
+        response
+    }
+}
+
 /// A clickable hyperlink, e.g. to `"https://github.com/emilk/egui"`.
 ///
 /// See also [`Ui::hyperlink`] and [`Ui::hyperlink_to`].
@@ -42,15 +106,9 @@ impl Hyperlink {
 
 impl Widget for Hyperlink {
     fn ui(self, ui: &mut Ui) -> Response {
-        let Hyperlink { url, text } = self;
-        let label = Label::new(text).sense(Sense::click());
+        let Self { url, text } = self;
 
-        let (pos, text_galley, response) = label.layout_in_ui(ui);
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::Hyperlink, text_galley.text()));
-
-        if response.hovered() {
-            ui.ctx().output().cursor_icon = CursorIcon::PointingHand;
-        }
+        let response = ui.add(Link::new(text));
         if response.clicked() {
             let modifiers = ui.ctx().input().modifiers;
             ui.ctx().output().open_url = Some(crate::output::OpenUrl {
@@ -64,26 +122,6 @@ impl Widget for Hyperlink {
                 new_tab: true,
             });
         }
-
-        if ui.is_rect_visible(response.rect) {
-            let color = ui.visuals().hyperlink_color;
-            let visuals = ui.style().interact(&response);
-
-            let underline = if response.hovered() || response.has_focus() {
-                Stroke::new(visuals.fg_stroke.width, color)
-            } else {
-                Stroke::none()
-            };
-
-            ui.painter().add(epaint::TextShape {
-                pos,
-                galley: text_galley.galley,
-                override_text_color: Some(color),
-                underline,
-                angle: 0.0,
-            });
-        }
-
         response.on_hover_text(url)
     }
 }

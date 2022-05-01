@@ -60,7 +60,7 @@ pub struct RawInput {
     /// Dragged files dropped into egui.
     ///
     /// Note: when using `eframe` on Windows you need to enable
-    /// drag-and-drop support using `epi::NativeOptions`.
+    /// drag-and-drop support using `eframe::NativeOptions`.
     pub dropped_files: Vec<DroppedFile>,
 }
 
@@ -131,7 +131,7 @@ impl RawInput {
 pub struct HoveredFile {
     /// Set by the `egui-winit` backend.
     pub path: Option<std::path::PathBuf>,
-    /// With the `egui_web` backend, this is set to the mime-type of the file (if available).
+    /// With the `eframe` web backend, this is set to the mime-type of the file (if available).
     pub mime: String,
 }
 
@@ -141,11 +141,11 @@ pub struct HoveredFile {
 pub struct DroppedFile {
     /// Set by the `egui-winit` backend.
     pub path: Option<std::path::PathBuf>,
-    /// Name of the file. Set by the `egui_web` backend.
+    /// Name of the file. Set by the `eframe` web backend.
     pub name: String,
-    /// Set by the `egui_web` backend.
+    /// Set by the `eframe` web backend.
     pub last_modified: Option<std::time::SystemTime>,
-    /// Set by the `egui_web` backend.
+    /// Set by the `eframe` web backend.
     pub bytes: Option<std::sync::Arc<[u8]>>,
 }
 
@@ -200,6 +200,12 @@ pub enum Event {
     /// The direction of the vector indicates how to move the _content_ that is being viewed.
     /// So if you get positive values, the content being viewed should move to the right and down,
     /// revealing new things to the left and up.
+    ///
+    /// A positive X-value indicates the content is being moved right,
+    /// as when swiping right on a touch-screen or track-pad with natural scrolling.
+    ///
+    /// A positive Y-value indicates the content is being moved down,
+    /// as when swiping down on a touch-screen or track-pad with natural scrolling.
     ///
     /// Shift-scroll should result in horizontal scrolling (it is up to the integrations to do this).
     Scroll(Vec2),

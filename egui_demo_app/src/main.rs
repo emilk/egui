@@ -8,14 +8,12 @@ fn main() {
     tracing_subscriber::fmt::init();
 
     let options = eframe::NativeOptions {
-        // Let's show off that we support transparent windows
-        transparent: true,
         drag_and_drop_support: true,
         ..Default::default()
     };
     eframe::run_native(
         "egui demo app",
         options,
-        Box::new(|cc| Box::new(egui_demo_lib::WrapApp::new(cc))),
+        Box::new(|cc| Box::new(egui_demo_app::WrapApp::new(cc))),
     );
 }

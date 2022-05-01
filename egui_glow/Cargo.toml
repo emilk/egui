@@ -1,6 +1,6 @@
 [package]
 name = "egui_glow"
-version = "0.17.0"
+version = "0.18.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui natively using the glow library"
 edition = "2021"
@@ -24,45 +24,31 @@ all-features = true
 
 
 [features]
-default = ["default_fonts"]
+default = []
 
-# enable cut/copy/paste to OS clipboard.
+# for the winit integration:
+# enable cut/copy/paste to os clipboard.
 # if disabled a clipboard will be simulated so you can still copy/paste within the egui app.
 clipboard = ["egui-winit?/clipboard"]
 
-# detect dark mode system preference
-dark-light = ["egui-winit?/dark-light"]
-
-# If set, egui will use `include_bytes!` to bundle some fonts.
-# If you plan on specifying your own fonts you may disable this feature.
-default_fonts = ["egui/default_fonts"]
-
+# for the winit integration:
 # enable opening links in a browser when an egui hyperlink is clicked.
 links = ["egui-winit?/links"]
 
-# enable persisting native window options and egui memory
-persistence = [
-  "egui-winit?/persistence",
-  "egui/persistence",
-  "epi?/persistence",
-]
-
-# Enable profiling with the puffin crate: https://github.com/EmbarkStudios/puffin
-puffin = ["dep:puffin", "egui-winit?/puffin"]
-
-# experimental support for a screen reader
+# experimental support for a screen reader.
 screen_reader = ["egui-winit?/screen_reader"]
 
-# enable glutin/winit integration.
-# if you want to use glow painter on web disable this feature.
-winit = ["egui-winit", "glutin"]
+# enable profiling with the puffin crate: https://github.com/embarkstudios/puffin
+puffin = ["dep:puffin", "egui-winit?/puffin"]
+
+# enable winit integration.
+winit = ["egui-winit",]
 
 
 [dependencies]
-egui = { version = "0.17.0", path = "../egui", default-features = false, features = [
+egui = { version = "0.18.0", path = "../egui", default-features = false, features = [
   "bytemuck",
 ] }
-epi = { version = "0.17.0", path = "../epi", optional = true }
 
 bytemuck = "1.7"
 glow = "0.11"
@@ -71,13 +57,19 @@ tracing = "0.1"
 
 # Native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { version = "0.17.0", path = "../egui-winit", optional = true, default-features = false, features = [
-  "epi_backend",
-] }
-glutin = { version = "0.28.0", optional = true }
+egui-winit = { version = "0.18.0", path = "../egui-winit", optional = true, default-features = false }
 puffin = { version = "0.13", optional = true }
 
 # Web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { version = "0.3", features = ["console"] }
 wasm-bindgen = { version = "0.2" }
+
+
+[dev-dependencies]
+glutin = "0.28.0" # examples/pure_glow
+
+
+[[example]]
+name = "pure_glow"
+required-features = ["winit"]

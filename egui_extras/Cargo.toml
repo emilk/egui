@@ -1,6 +1,6 @@
 [package]
 name = "egui_extras"
-version = "0.17.0"
+version = "0.18.0"
 authors = [
   "Dominik Rössler <dominik@freshx.de>",
   "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",
@@ -26,21 +26,20 @@ all-features = true
 [features]
 default = []
 
-# Support loading svg images
-svg = ["resvg", "tiny-skia", "usvg"]
-
 # Datepicker widget
 datepicker = ["chrono"]
 
-# Persistence
-persistence = ["serde"]
+serde = ["dep:serde"]
+
+# Support loading svg images
+svg = ["resvg", "tiny-skia", "usvg"]
 
 # Log warnings using `tracing` crate
 tracing = ["dep:tracing", "egui/tracing"]
 
 
 [dependencies]
-egui = { version = "0.17.0", path = "../egui", default-features = false }
+egui = { version = "0.18.0", path = "../egui", default-features = false }
 
 # Optional dependencies:
 
@@ -57,7 +56,7 @@ resvg = { version = "0.22", optional = true }
 tiny-skia = { version = "0.6", optional = true }
 usvg = { version = "0.22", optional = true }
 
-# feature "persistence":
+# feature "serde":
 serde = { version = "1", features = ["derive"], optional = true }
 
 # feature "tracing"

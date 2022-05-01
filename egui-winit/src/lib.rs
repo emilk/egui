@@ -12,9 +12,6 @@ pub mod clipboard;
 pub mod screen_reader;
 mod window_settings;
 
-#[cfg(feature = "epi")]
-pub mod epi;
-
 pub use window_settings::WindowSettings;
 
 pub fn native_pixels_per_point(window: &winit::window::Window) -> f32 {
@@ -454,7 +451,7 @@ impl State {
             open_url,
             copied_text,
             events: _,                    // handled above
-            mutable_text_under_cursor: _, // only used in egui_web
+            mutable_text_under_cursor: _, // only used in eframe web
             text_cursor_pos,
         } = platform_output;
 
@@ -635,10 +632,23 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
         egui::CursorIcon::NotAllowed => Some(winit::window::CursorIcon::NotAllowed),
         egui::CursorIcon::PointingHand => Some(winit::window::CursorIcon::Hand),
         egui::CursorIcon::Progress => Some(winit::window::CursorIcon::Progress),
+
         egui::CursorIcon::ResizeHorizontal => Some(winit::window::CursorIcon::EwResize),
         egui::CursorIcon::ResizeNeSw => Some(winit::window::CursorIcon::NeswResize),
         egui::CursorIcon::ResizeNwSe => Some(winit::window::CursorIcon::NwseResize),
         egui::CursorIcon::ResizeVertical => Some(winit::window::CursorIcon::NsResize),
+
+        egui::CursorIcon::ResizeEast => Some(winit::window::CursorIcon::EResize),
+        egui::CursorIcon::ResizeSouthEast => Some(winit::window::CursorIcon::SeResize),
+        egui::CursorIcon::ResizeSouth => Some(winit::window::CursorIcon::SResize),
+        egui::CursorIcon::ResizeSouthWest => Some(winit::window::CursorIcon::SwResize),
+        egui::CursorIcon::ResizeWest => Some(winit::window::CursorIcon::WResize),
+        egui::CursorIcon::ResizeNorthWest => Some(winit::window::CursorIcon::NwResize),
+        egui::CursorIcon::ResizeNorth => Some(winit::window::CursorIcon::NResize),
+        egui::CursorIcon::ResizeNorthEast => Some(winit::window::CursorIcon::NeResize),
+        egui::CursorIcon::ResizeColumn => Some(winit::window::CursorIcon::ColResize),
+        egui::CursorIcon::ResizeRow => Some(winit::window::CursorIcon::RowResize),
+
         egui::CursorIcon::Text => Some(winit::window::CursorIcon::Text),
         egui::CursorIcon::VerticalText => Some(winit::window::CursorIcon::VerticalText),
         egui::CursorIcon::Wait => Some(winit::window::CursorIcon::Wait),
@@ -650,21 +660,23 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
 // ---------------------------------------------------------------------------
 
 /// Profiling macro for feature "puffin"
-#[doc(hidden)]
-#[macro_export]
+#[allow(unused_macros)]
 macro_rules! profile_function {
     ($($arg: tt)*) => {
         #[cfg(feature = "puffin")]
         puffin::profile_function!($($arg)*);
     };
 }
+#[allow(unused_imports)]
+pub(crate) use profile_function;
 
 /// Profiling macro for feature "puffin"
-#[doc(hidden)]
-#[macro_export]
+#[allow(unused_macros)]
 macro_rules! profile_scope {
     ($($arg: tt)*) => {
         #[cfg(feature = "puffin")]
         puffin::profile_scope!($($arg)*);
     };
 }
+#[allow(unused_imports)]
+pub(crate) use profile_scope;

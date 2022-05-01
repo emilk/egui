@@ -362,7 +362,7 @@ impl<'a> Table<'a> {
                 let resize_hover = mouse_over_resize_line && !dragging_something_else;
 
                 if resize_hover || is_resizing {
-                    ui.output().cursor_icon = egui::CursorIcon::ResizeHorizontal;
+                    ui.output().cursor_icon = egui::CursorIcon::ResizeColumn;
                 }
 
                 let stroke = if is_resizing {
