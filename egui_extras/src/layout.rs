@@ -33,6 +33,7 @@ pub struct StripLayout<'l> {
     max: Pos2,
     pub(crate) clip: bool,
     cell_layout: egui::Layout,
+    sense: egui::Sense,
 }
 
 impl<'l> StripLayout<'l> {
@@ -41,6 +42,7 @@ impl<'l> StripLayout<'l> {
         direction: CellDirection,
         clip: bool,
         cell_layout: egui::Layout,
+        sense: egui::Sense,
     ) -> Self {
         let rect = ui.available_rect_before_wrap();
         let pos = rect.left_top();
@@ -53,6 +55,7 @@ impl<'l> StripLayout<'l> {
             max: pos,
             clip,
             cell_layout,
+            sense,
         }
     }
     fn cell_rect(&self, width: &CellSize, height: &CellSize) -> Rect {
@@ -98,7 +101,7 @@ impl<'l> StripLayout<'l> {
         let rect = self.cell_rect(&width, &height);
         let used_rect = self.cell(rect, add_contents);
         self.set_pos(rect);
-        self.ui.allocate_rect(rect.union(used_rect), Sense::hover())
+        self.ui.allocate_rect(rect.union(used_rect), self.sense)
     }
 
     pub(crate) fn add_striped(
@@ -138,7 +141,7 @@ impl<'l> StripLayout<'l> {
         let before = self.cursor;
         self.cursor += delta;
         let rect = Rect::from_two_pos(before, self.cursor);
-        self.ui.allocate_rect(rect, Sense::hover());
+        self.ui.allocate_rect(rect, self.sense);
     }
 
     fn cell(&mut self, rect: Rect, add_contents: impl FnOnce(&mut Ui)) -> Rect {
@@ -161,6 +164,6 @@ impl<'l> StripLayout<'l> {
         rect.set_right(self.max.x);
         rect.set_bottom(self.max.y);
 
-        self.ui.allocate_rect(rect, Sense::hover())
+        self.ui.allocate_rect(rect, self.sense)
     }
 }

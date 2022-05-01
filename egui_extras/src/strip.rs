@@ -46,6 +46,7 @@ pub struct StripBuilder<'a> {
     sizing: Sizing,
     clip: bool,
     cell_layout: egui::Layout,
+    sense: egui::Sense,
 }
 
 impl<'a> StripBuilder<'a> {
@@ -57,7 +58,14 @@ impl<'a> StripBuilder<'a> {
             sizing: Default::default(),
             cell_layout,
             clip: true,
+            sense: egui::Sense::hover(),
         }
+    }
+
+    /// What the strip should sense for (Default: `egui::Sense::hover()`)
+    pub fn sense(mut self, sense: egui::Sense) -> Self {
+        self.sense = sense;
+        self
     }
 
     /// Should we clip the contents of each cell? Default: `true`.
@@ -103,6 +111,7 @@ impl<'a> StripBuilder<'a> {
             CellDirection::Horizontal,
             self.clip,
             self.cell_layout,
+            self.sense,
         );
         strip(Strip {
             layout: &mut layout,
@@ -130,6 +139,7 @@ impl<'a> StripBuilder<'a> {
             CellDirection::Vertical,
             self.clip,
             self.cell_layout,
+            self.sense,
         );
         strip(Strip {
             layout: &mut layout,

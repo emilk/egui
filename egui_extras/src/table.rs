@@ -57,6 +57,7 @@ pub struct TableBuilder<'a> {
     resizable: bool,
     clip: bool,
     cell_layout: egui::Layout,
+    sense: egui::Sense,
 }
 
 impl<'a> TableBuilder<'a> {
@@ -70,7 +71,14 @@ impl<'a> TableBuilder<'a> {
             resizable: false,
             clip: true,
             cell_layout,
+            sense: egui::Sense::hover(),
         }
+    }
+
+    /// What the table should sense for (Default: `egui::Sense::hover()`)
+    pub fn sense(mut self, sense: egui::Sense) -> Self {
+        self.sense = sense;
+        self
     }
 
     /// Enable scrollview in body (default: true)
@@ -146,6 +154,7 @@ impl<'a> TableBuilder<'a> {
             resizable,
             clip,
             cell_layout,
+            sense,
         } = self;
 
         let resize_id = resizable.then(|| ui.id().with("__table_resize"));
@@ -156,7 +165,8 @@ impl<'a> TableBuilder<'a> {
         let table_top = ui.cursor().top();
 
         {
-            let mut layout = StripLayout::new(ui, CellDirection::Horizontal, clip, cell_layout);
+            let mut layout =
+                StripLayout::new(ui, CellDirection::Horizontal, clip, cell_layout, sense);
             header(TableRow {
                 layout: &mut layout,
                 widths: &widths,
@@ -178,6 +188,7 @@ impl<'a> TableBuilder<'a> {
             striped,
             clip,
             cell_layout,
+            sense,
         }
     }
 
@@ -196,6 +207,7 @@ impl<'a> TableBuilder<'a> {
             resizable,
             clip,
             cell_layout,
+            sense,
         } = self;
 
         let resize_id = resizable.then(|| ui.id().with("__table_resize"));
@@ -216,6 +228,7 @@ impl<'a> TableBuilder<'a> {
             striped,
             clip,
             cell_layout,
+            sense,
         }
         .body(body);
     }
@@ -254,6 +267,7 @@ pub struct Table<'a> {
     striped: bool,
     clip: bool,
     cell_layout: egui::Layout,
+    sense: egui::Sense,
 }
 
 impl<'a> Table<'a> {
@@ -273,6 +287,7 @@ impl<'a> Table<'a> {
             striped,
             clip,
             cell_layout,
+            sense,
         } = self;
 
         let avail_rect = ui.available_rect_before_wrap();
@@ -282,7 +297,8 @@ impl<'a> Table<'a> {
         egui::ScrollArea::new([false, scroll])
             .auto_shrink([true; 2])
             .show(ui, move |ui| {
-                let layout = StripLayout::new(ui, CellDirection::Horizontal, clip, cell_layout);
+                let layout =
+                    StripLayout::new(ui, CellDirection::Horizontal, clip, cell_layout, sense);
 
                 body(TableBody {
                     layout,
