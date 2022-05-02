@@ -425,25 +425,21 @@ impl Layout {
         match self.main_dir {
             Direction::LeftToRight => {
                 avail.min.x = cursor.min.x;
-                avail.max.x = avail.max.x.max(cursor.min.x);
                 avail.max.x = avail.max.x.max(avail.min.x);
                 avail.max.y = avail.max.y.max(avail.min.y);
             }
             Direction::RightToLeft => {
                 avail.max.x = cursor.max.x;
-                avail.min.x = avail.min.x.min(cursor.max.x);
                 avail.min.x = avail.min.x.min(avail.max.x);
                 avail.max.y = avail.max.y.max(avail.min.y);
             }
             Direction::TopDown => {
                 avail.min.y = cursor.min.y;
-                avail.max.y = avail.max.y.max(cursor.min.y);
                 avail.max.x = avail.max.x.max(avail.min.x);
                 avail.max.y = avail.max.y.max(avail.min.y);
             }
             Direction::BottomUp => {
                 avail.max.y = cursor.max.y;
-                avail.min.y = avail.min.y.min(cursor.max.y);
                 avail.max.x = avail.max.x.max(avail.min.x);
                 avail.min.y = avail.min.y.min(avail.max.y);
             }
