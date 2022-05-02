@@ -370,6 +370,7 @@ impl CustomAxisDemo {
         marks
     }
 
+    #[allow(clippy::unused_self)]
     fn ui(&mut self, ui: &mut Ui) -> Response {
         const MINS_PER_DAY: f64 = CustomAxisDemo::MINS_PER_DAY;
         const MINS_PER_H: f64 = CustomAxisDemo::MINS_PER_H;
@@ -587,6 +588,7 @@ impl ItemsDemo {
 struct InteractionDemo {}
 
 impl InteractionDemo {
+    #[allow(clippy::unused_self)]
     fn ui(&mut self, ui: &mut Ui) -> Response {
         let plot = Plot::new("interaction_demo").height(300.0);
 
