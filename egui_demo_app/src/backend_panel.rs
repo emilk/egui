@@ -78,11 +78,6 @@ impl BackendPanel {
 
     pub fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         egui::trace!(ui);
-        ui.vertical_centered(|ui| {
-            ui.heading("💻 Backend");
-        });
-
-        ui.separator();
 
         self.integration_ui(ui, frame);
 
@@ -132,20 +127,11 @@ impl BackendPanel {
     }
 
     fn integration_ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
-        if frame.is_web() {
-            ui.label("egui is an immediate mode GUI written in Rust, compiled to WebAssembly, rendered with WebGL.");
-            ui.label(
-                    "Everything you see is rendered as textured triangles. There is no DOM and no HTML elements. \
-                    This is the web page, reinvented with game tech.");
-            ui.hyperlink("https://github.com/emilk/egui");
-
-            ui.separator();
-        }
-
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
             ui.label("egui running inside ");
             ui.hyperlink_to("eframe", "https://github.com/emilk/egui/tree/master/eframe");
+            ui.label(".");
         });
 
         if let Some(web_info) = &frame.info().web_info {
@@ -169,7 +155,9 @@ impl BackendPanel {
                 .on_hover_text("Resize the window to be small like a phone.")
                 .clicked()
         {
-            frame.set_window_size(egui::Vec2::new(375.0, 812.0)); // iPhone 12 mini
+            // frame.set_window_size(egui::Vec2::new(375.0, 812.0)); // iPhone 12 mini
+            frame.set_window_size(egui::Vec2::new(375.0, 667.0)); //  iPhone SE 2nd gen
+            ui.close_menu();
         }
     }
 

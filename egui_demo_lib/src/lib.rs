@@ -92,3 +92,12 @@ fn test_egui_zero_window_size() {
         );
     }
 }
+
+// ----------------------------------------------------------------------------
+
+/// Detect narrow screens. This is used by [`egui_demo_lib`] to show a simpler UI
+/// on mobile devices.
+pub fn is_mobile(ctx: &egui::Context) -> bool {
+    let screen_size = ctx.input().screen_rect().size();
+    screen_size.x < 550.0
+}
