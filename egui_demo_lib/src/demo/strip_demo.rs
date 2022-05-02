@@ -25,6 +25,14 @@ impl super::Demo for StripDemo {
 
 impl super::View for StripDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
+        let dark_mode = ui.visuals().dark_mode;
+        let faded_color = ui.visuals().window_fill();
+        let faded_color = |color: Color32| -> Color32 {
+            use egui::Rgba;
+            let t = if dark_mode { 0.95 } else { 0.8 };
+            egui::lerp(Rgba::from(color)..=Rgba::from(faded_color), t).into()
+        };
+
         StripBuilder::new(ui)
             .size(Size::exact(50.0))
             .size(Size::remainder())
@@ -32,9 +40,12 @@ impl super::View for StripDemo {
             .size(Size::exact(10.0))
             .vertical(|mut strip| {
                 strip.cell(|ui| {
-                    ui.painter()
-                        .rect_filled(ui.available_rect_before_wrap(), 0.0, Color32::BLUE);
-                    ui.label("Full width and 50px height");
+                    ui.painter().rect_filled(
+                        ui.available_rect_before_wrap(),
+                        0.0,
+                        faded_color(Color32::BLUE),
+                    );
+                    ui.label("width: 100%\nheight: 50px");
                 });
                 strip.strip(|builder| {
                     builder.sizes(Size::remainder(), 2).horizontal(|mut strip| {
@@ -42,9 +53,9 @@ impl super::View for StripDemo {
                             ui.painter().rect_filled(
                                 ui.available_rect_before_wrap(),
                                 0.0,
-                                Color32::RED,
+                                faded_color(Color32::RED),
                             );
-                            ui.label("remaining height and 50% of the width");
+                            ui.label("width: 50%\nheight: remaining");
                         });
                         strip.strip(|builder| {
                             builder.sizes(Size::remainder(), 3).vertical(|mut strip| {
@@ -53,10 +64,11 @@ impl super::View for StripDemo {
                                     ui.painter().rect_filled(
                                         ui.available_rect_before_wrap(),
                                         0.0,
-                                        Color32::YELLOW,
+                                        faded_color(Color32::YELLOW),
                                     );
-                                    ui.label("one third of the box left of me but same width");
+                                    ui.label("width: 50%\nheight: 1/3 of the red region");
                                 });
+                                strip.empty();
                             });
                         });
                     });
@@ -64,7 +76,7 @@ impl super::View for StripDemo {
                 strip.strip(|builder| {
                     builder
                         .size(Size::remainder())
-                        .size(Size::exact(60.0))
+                        .size(Size::exact(120.0))
                         .size(Size::remainder())
                         .size(Size::exact(70.0))
                         .horizontal(|mut strip| {
@@ -80,9 +92,9 @@ impl super::View for StripDemo {
                                             ui.painter().rect_filled(
                                                 ui.available_rect_before_wrap(),
                                                 0.0,
-                                                Color32::GOLD,
+                                                faded_color(Color32::GOLD),
                                             );
-                                            ui.label("60x60");
+                                            ui.label("width: 120px\nheight: 60px");
                                         });
                                     });
                             });
@@ -91,9 +103,9 @@ impl super::View for StripDemo {
                                 ui.painter().rect_filled(
                                     ui.available_rect_before_wrap(),
                                     0.0,
-                                    Color32::GREEN,
+                                    faded_color(Color32::GREEN),
                                 );
-                                ui.label("height: half the available - at least 60px, width: 70px");
+                                ui.label("width: 70px\n\nheight: 50%, but at least 60px.");
                             });
                         });
                 });

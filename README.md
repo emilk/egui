@@ -58,7 +58,7 @@ If you have questions, use [GitHub Discussions](https://github.com/emilk/egui/di
 
 ## Demo
 
-[Click to run egui web demo](https://www.egui.rs/#demo) (works in any browser with WASM and WebGL support). Uses [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web).
+[Click to run egui web demo](https://www.egui.rs/#demo) (works in any browser with WASM and WebGL support). Uses [`eframe`](https://github.com/emilk/egui/tree/master/eframe).
 
 To test the demo app locally, run `cargo run --release -p egui_demo_app`.
 
@@ -82,7 +82,7 @@ On Fedora Rawhide you need to run:
 * A simple 2D graphics API for custom painting ([`epaint`](https://docs.rs/epaint)).
 * No callbacks
 * Pure immediate mode
-* Extensible: [easy to write your own widgets for egui](https://github.com/emilk/egui/blob/master/egui_demo_lib/src/apps/demo/toggle_switch.rs)
+* Extensible: [easy to write your own widgets for egui](https://github.com/emilk/egui/blob/master/egui_demo_lib/src/demo/toggle_switch.rs)
 * Modular: You should be able to use small parts of egui and combine them in new ways
 * Safe: there is no `unsafe` code in egui
 * Minimal dependencies: [`ab_glyph`](https://crates.io/crates/ab_glyph) [`ahash`](https://crates.io/crates/ahash) [`nohash-hasher`](https://crates.io/crates/nohash-hasher) [`parking_lot`](https://crates.io/crates/parking_lot)
@@ -112,7 +112,7 @@ The obvious alternative to egui is [`imgui-rs`](https://github.com/Gekkio/imgui-
 * egui is pure Rust
 * egui is easily compiled to WASM
 * egui lets you use native Rust string types (`imgui-rs` forces you to use annoying macros and wrappers for zero-terminated strings)
-* [Writing your own widgets in egui is simple](https://github.com/emilk/egui/blob/master/egui_demo_lib/src/apps/demo/toggle_switch.rs)
+* [Writing your own widgets in egui is simple](https://github.com/emilk/egui/blob/master/egui_demo_lib/src/demo/toggle_switch.rs)
 
 egui also tries to improve your experience in other small ways:
 
@@ -160,14 +160,12 @@ An integration needs to do the following each frame:
 
 ### Official integrations
 
-If you're making an app, your best bet is using [`eframe`](https://github.com/emilk/egui/tree/master/eframe), the official egui framework. It lets you write apps that work on both the web and native. `eframe` is just a thin wrapper over `egui_web` and `egui_glow` (see below).
-
 These are the official egui integrations:
 
+* [`eframe`](https://github.com/emilk/egui/tree/master/eframe) for compiling the same app to web/wasm and desktop/native. Uses `egui_glow` and `egui-winit`.
 * [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium) for compiling native apps with [Glium](https://github.com/glium/glium).
 * [`egui_glow`](https://github.com/emilk/egui/tree/master/egui_glow) for rendering egui with [glow](https://github.com/grovesNL/glow) on native and web, and for making native apps.
-* [`egui_web`](https://github.com/emilk/egui/tree/master/egui_web) for making a web app. Compiles to WASM, renders with WebGL. [Click to run the egui demo](https://www.egui.rs/#demo). Uses `egui_glow`.
-* [`egui-winit`](https://github.com/emilk/egui/tree/master/egui-winit) for integrating with [winit](https://github.com/rust-windowing/winit). `egui-winit` is used by `egui_glium` and `egui_glow`.
+* [`egui-winit`](https://github.com/emilk/egui/tree/master/egui-winit) for integrating with [winit](https://github.com/rust-windowing/winit).
 
 ### 3rd party integrations
 
@@ -217,7 +215,7 @@ loop {
 }
 ```
 
-For a reference OpenGL backend, see [the `egui_glium` painter](https://github.com/emilk/egui/blob/master/egui_glium/src/painter.rs), [the `egui_glow` painter](https://github.com/emilk/egui/blob/master/egui_glow/src/painter.rs), or [the `egui_web` `WebGL` painter](https://github.com/emilk/egui/blob/master/egui_web/src/webgl2.rs).
+For a reference OpenGL backend, see [the `egui_glium` painter](https://github.com/emilk/egui/blob/master/egui_glium/src/painter.rs) or [the `egui_glow` painter](https://github.com/emilk/egui/blob/master/egui_glow/src/painter.rs).
 
 ### Debugging your integration
 
@@ -385,7 +383,7 @@ Notable contributions by:
 * [@optozorax](https://github.com/optozorax): [Arbitrary widget data storage](https://github.com/emilk/egui/pull/257).
 * [@quadruple-output](https://github.com/quadruple-output): [Multitouch](https://github.com/emilk/egui/pull/306).
 * [@EmbersArc](https://github.com/EmbersArc): [Plots](https://github.com/emilk/egui/pulls?q=+is%3Apr+author%3AEmbersArc).
-* [@AsmPrgmC3](https://github.com/AsmPrgmC3): [Proper sRGBA blending in `egui_web`](https://github.com/emilk/egui/pull/650).
+* [@AsmPrgmC3](https://github.com/AsmPrgmC3): [Proper sRGBA blending for web](https://github.com/emilk/egui/pull/650).
 * [@AlexApps99](https://github.com/AlexApps99): [`egui_glow`](https://github.com/emilk/egui/pull/685).
 * [@mankinskin](https://github.com/mankinskin): [Context menus](https://github.com/emilk/egui/pull/543).
 * [@t18b219k](https://github.com/t18b219k): [Port glow painter to web](https://github.com/emilk/egui/pull/868).

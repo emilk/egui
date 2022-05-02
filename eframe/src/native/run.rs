@@ -1,4 +1,5 @@
 use super::epi_integration;
+use crate::epi;
 use egui_winit::winit;
 
 struct RequestRepaintEvent;
@@ -50,7 +51,6 @@ pub fn run(app_name: &str, native_options: &epi::NativeOptions, app_creator: epi
         .unwrap_or_else(|error| panic!("some OpenGL error occurred {}\n", error));
 
     let mut integration = epi_integration::EpiIntegration::new(
-        "egui_glow",
         gl.clone(),
         painter.max_texture_side(),
         gl_window.window(),
@@ -95,7 +95,11 @@ pub fn run(app_name: &str, native_options: &epi::NativeOptions, app_creator: epi
             crate::profile_scope!("frame");
             let screen_size_in_pixels: [u32; 2] = gl_window.window().inner_size().into();
 
-            egui_glow::painter::clear(&gl, screen_size_in_pixels, app.clear_color());
+            egui_glow::painter::clear(
+                &gl,
+                screen_size_in_pixels,
+                app.clear_color(&integration.egui_ctx.style().visuals),
+            );
 
             let egui::FullOutput {
                 platform_output,

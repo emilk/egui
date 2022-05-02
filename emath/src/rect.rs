@@ -359,6 +359,15 @@ impl Rect {
         inside_dist + outside_dist
     }
 
+    /// Linearly interpolate so that `[0, 0]` is [`Self::min`] and
+    /// `[1, 1]` is [`Self::max`].
+    pub fn lerp(&self, t: Vec2) -> Pos2 {
+        Pos2 {
+            x: lerp(self.min.x..=self.max.x, t.x),
+            y: lerp(self.min.y..=self.max.y, t.y),
+        }
+    }
+
     #[inline(always)]
     pub fn x_range(&self) -> RangeInclusive<f32> {
         self.min.x..=self.max.x

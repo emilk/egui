@@ -167,21 +167,24 @@ impl DemoWindows {
                 ui.separator();
 
                 ScrollArea::vertical().show(ui, |ui| {
-                    use egui::special_emojis::{GITHUB, OS_APPLE, OS_LINUX, OS_WINDOWS};
+                    use egui::special_emojis::{GITHUB, OS_APPLE, OS_LINUX, OS_WINDOWS, TWITTER};
 
-                    ui.vertical_centered(|ui| {
-                        ui.label("egui is an immediate mode GUI library written in Rust.");
+                    ui.label("egui is an immediate mode GUI library written in Rust.");
 
-                        ui.label(format!(
-                            "egui runs on the web, or natively on {}{}{}",
-                            OS_APPLE, OS_LINUX, OS_WINDOWS,
-                        ));
+                    ui.label(format!(
+                        "egui runs on the web, or natively on {}{}{}",
+                        OS_APPLE, OS_LINUX, OS_WINDOWS,
+                    ));
 
-                        ui.hyperlink_to(
-                            format!("{} egui home page", GITHUB),
-                            "https://github.com/emilk/egui",
-                        );
-                    });
+                    ui.hyperlink_to(
+                        format!("{} egui on GitHub", GITHUB),
+                        "https://github.com/emilk/egui",
+                    );
+
+                    ui.hyperlink_to(
+                        format!("{} @ernerfeldt", TWITTER),
+                        "https://twitter.com/ernerfeldt",
+                    );
 
                     ui.separator();
                     demos.checkboxes(ui);
@@ -201,17 +204,7 @@ impl DemoWindows {
             show_menu_bar(ui);
         });
 
-        {
-            let mut fill = ctx.style().visuals.extreme_bg_color;
-            if !cfg!(target_arch = "wasm32") {
-                // Native: WrapApp uses a transparent window, so let's show that off:
-                // NOTE: the OS compositor assumes "normal" blending, so we need to hack it:
-                let [r, g, b, _] = fill.to_array();
-                fill = egui::Color32::from_rgba_premultiplied(r, g, b, 180);
-            }
-            let frame = egui::Frame::none().fill(fill);
-            egui::CentralPanel::default().frame(frame).show(ctx, |_| {});
-        }
+        egui::CentralPanel::default().show(ctx, |_ui| {}); // just to paint a background for the windows to be on top of. Needed on web because of https://github.com/emilk/egui/issues/1548
 
         self.windows(ctx);
     }

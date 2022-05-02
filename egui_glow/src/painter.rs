@@ -20,6 +20,27 @@ pub use glow::Context;
 const VERT_SRC: &str = include_str!("shader/vertex.glsl");
 const FRAG_SRC: &str = include_str!("shader/fragment.glsl");
 
+#[derive(Copy, Clone)]
+pub enum TextureFilter {
+    Linear,
+    Nearest,
+}
+
+impl Default for TextureFilter {
+    fn default() -> Self {
+        TextureFilter::Linear
+    }
+}
+
+impl TextureFilter {
+    pub(crate) fn glow_code(&self) -> u32 {
+        match self {
+            TextureFilter::Linear => glow::LINEAR,
+            TextureFilter::Nearest => glow::NEAREST,
+        }
+    }
+}
+
 /// An OpenGL painter using [`glow`].
 ///
 /// This is responsible for painting egui and managing egui textures.
@@ -54,27 +75,6 @@ pub struct Painter {
 
     /// Used to make sure we are destroyed correctly.
     destroyed: bool,
-}
-
-#[derive(Copy, Clone)]
-pub enum TextureFilter {
-    Linear,
-    Nearest,
-}
-
-impl Default for TextureFilter {
-    fn default() -> Self {
-        TextureFilter::Linear
-    }
-}
-
-impl TextureFilter {
-    pub(crate) fn glow_code(&self) -> u32 {
-        match self {
-            TextureFilter::Linear => glow::LINEAR,
-            TextureFilter::Nearest => glow::NEAREST,
-        }
-    }
 }
 
 impl Painter {
@@ -659,13 +659,23 @@ pub fn clear(gl: &glow::Context, screen_size_in_pixels: [u32; 2], clear_color: e
             screen_size_in_pixels[1] as i32,
         );
 
-        let clear_color: Color32 = clear_color.into();
-        gl.clear_color(
-            clear_color[0] as f32 / 255.0,
-            clear_color[1] as f32 / 255.0,
-            clear_color[2] as f32 / 255.0,
-            clear_color[3] as f32 / 255.0,
-        );
+        if true {
+            // verified to be correct on eframe native (on Mac).
+            gl.clear_color(
+                clear_color[0] as f32,
+                clear_color[1] as f32,
+                clear_color[2] as f32,
+                clear_color[3] as f32,
+            );
+        } else {
+            let clear_color: Color32 = clear_color.into();
+            gl.clear_color(
+                clear_color[0] as f32 / 255.0,
+                clear_color[1] as f32 / 255.0,
+                clear_color[2] as f32 / 255.0,
+                clear_color[3] as f32 / 255.0,
+            );
+        }
         gl.clear(glow::COLOR_BUFFER_BIT);
     }
 }

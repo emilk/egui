@@ -451,7 +451,7 @@ impl State {
             open_url,
             copied_text,
             events: _,                    // handled above
-            mutable_text_under_cursor: _, // only used in egui_web
+            mutable_text_under_cursor: _, // only used in eframe web
             text_cursor_pos,
         } = platform_output;
 

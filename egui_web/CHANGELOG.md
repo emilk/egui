@@ -1,12 +1,6 @@
-# Changelog for egui_web
-All notable changes to the `egui_web` integration will be noted in this file.
+# Legacy changelog for egui_web
+Between versions 0.17 and 0.18, `egui_web` was absorbed into `eframe`. Most of this changelog was then merged into [the `eframe` changelog](../eframe/CHANGELOG.md). This changelog is now only kept for historical reasons.
 
-
-## Unreleased
-* egui code will no longer be called after panic ([#1306](https://github.com/emilk/egui/pull/1306)).
-* Remove the "webgl" feature. `egui_web` now always use `glow` (which in turn wraps WebGL) ([#1356](https://github.com/emilk/egui/pull/1356)).
-* Use full browser width by default ([#1378](https://github.com/emilk/egui/pull/1378)).
-* MSRV (Minimum Supported Rust Version) is now `1.60.0` ([#1467](https://github.com/emilk/egui/pull/1467)).
 
 
 ## 0.17.0 - 2022-02-22

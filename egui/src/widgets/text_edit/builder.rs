@@ -404,9 +404,9 @@ impl<'t> TextEdit<'t> {
         });
         let mut state = TextEditState::load(ui.ctx(), id).unwrap_or_default();
 
-        // On touch screens (e.g. mobile in egui_web), should
+        // On touch screens (e.g. mobile in `eframe` web), should
         // dragging select text, or scroll the enclosing [`ScrollArea`] (if any)?
-        // Since currently copying selected text in not supported on `egui_web`,
+        // Since currently copying selected text in not supported on `eframe` web,
         // we prioritize touch-scrolling:
         let any_touches = ui.input().any_touches(); // separate line to avoid double-locking the same mutex
         let allow_drag_to_select = !any_touches || ui.memory().has_focus(id);
@@ -595,7 +595,7 @@ impl<'t> TextEdit<'t> {
                         }
 
                         if interactive {
-                            // egui_web uses `text_cursor_pos` when showing IME,
+                            // eframe web uses `text_cursor_pos` when showing IME,
                             // so only set it when text is editable and visible!
                             ui.ctx().output().text_cursor_pos = Some(cursor_pos.left_top());
                         }
