@@ -4,7 +4,7 @@ script_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 cd "$script_path/.."
 
 CRATE_NAME="egui_demo_app"
-FEATURES="http,persistence,screen_reader"
+FEATURES="http,persistence,screen_reader,glow"
 
 # This is required to enable the web_sys clipboard API which eframe web uses
 # https://rustwasm.github.io/wasm-bindgen/api/web_sys/struct.Clipboard.html

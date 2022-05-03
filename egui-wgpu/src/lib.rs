@@ -1,3 +1,5 @@
+//! This crates provides bindings between [`egui`](https://github.com/emilk/egui) and [wgpu](https://crates.io/crates/wgpu).
+
 #![allow(unsafe_code)]
 
 mod renderer;
