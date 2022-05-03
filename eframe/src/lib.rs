@@ -58,7 +58,7 @@
 // Re-export all useful libraries:
 pub use {egui, egui::emath, egui::epaint};
 
-#[cfg(not(feature = "wgpu"))]
+#[cfg(feature = "glow")]
 pub use {egui_glow, glow};
 
 mod epi;
@@ -145,11 +145,20 @@ mod native;
 #[cfg(not(target_arch = "wasm32"))]
 #[allow(clippy::needless_pass_by_value)]
 pub fn run_native(app_name: &str, native_options: NativeOptions, app_creator: AppCreator) -> ! {
-    #[cfg(feature = "wgpu")]
-    native::run::run_wgpu(app_name, &native_options, app_creator);
+    #[cfg(all(feature = "glow", feature = "wgpu"))]
+    {
+        tracing::warn!("eframe both features 'glow' and 'wgpu' selected. Will use glow.");
+    }
 
-    #[cfg(not(feature = "wgpu"))]
+    #[cfg(all(not(feature = "glow"), not(feature = "wgpu")))]
+    compile_error!("eframe: pick either feature 'glow' or feature 'wgpu'");
+
+    #[cfg(feature = "glow")]
     native::run::run_glow(app_name, &native_options, app_creator);
+
+    #[cfg(feature = "wgpu")]
+    #[cfg(not(feature = "glow"))]
+    native::run::run_wgpu(app_name, &native_options, app_creator);
 }
 
 // ---------------------------------------------------------------------------

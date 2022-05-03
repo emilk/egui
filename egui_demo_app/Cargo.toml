@@ -15,7 +15,7 @@ crate-type = ["cdylib", "rlib"]
 
 
 [features]
-default = ["persistence"]
+default = ["glow", "persistence"]
 
 http = ["ehttp", "image", "poll-promise", "egui_extras/image"]
 persistence = [
@@ -32,6 +32,7 @@ serde = [
 ]
 syntax_highlighting = ["egui_demo_lib/syntax_highlighting"]
 
+glow = ["eframe/glow"]
 wgpu = ["eframe/wgpu"]
 
 

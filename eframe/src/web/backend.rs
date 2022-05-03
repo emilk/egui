@@ -167,7 +167,7 @@ impl AppRunner {
             egui_ctx: egui_ctx.clone(),
             integration_info: info.clone(),
             storage: Some(&storage),
-            #[cfg(not(feature = "wgpu"))]
+            #[cfg(feature = "glow")]
             gl: painter.painter.gl().clone(),
         });
 
@@ -175,7 +175,7 @@ impl AppRunner {
             info,
             output: Default::default(),
             storage: Some(Box::new(storage)),
-            #[cfg(not(feature = "wgpu"))]
+            #[cfg(feature = "glow")]
             gl: painter.gl().clone(),
         };
 
