@@ -1,7 +1,7 @@
 use egui_demo_lib::is_mobile;
 
-#[cfg(feature = "glow")]
-use egui_glow::glow;
+#[cfg(not(feature = "wgpu"))]
+use eframe::glow;
 
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -93,7 +93,7 @@ pub struct State {
 pub struct WrapApp {
     state: State,
     // not serialized (because it contains OpenGL buffers etc)
-    #[cfg(feature = "glow")]
+    #[cfg(not(feature = "wgpu"))]
     custom3d: crate::apps::Custom3d,
     dropped_files: Vec<egui::DroppedFile>,
 }
@@ -103,7 +103,7 @@ impl WrapApp {
         #[allow(unused_mut)]
         let mut slf = Self {
             state: State::default(),
-            #[cfg(feature = "glow")]
+            #[cfg(not(feature = "wgpu"))]
             custom3d: crate::apps::Custom3d::new(&cc.gl),
             dropped_files: Default::default(),
         };
@@ -147,7 +147,7 @@ impl WrapApp {
                 "clock",
                 &mut self.state.clock as &mut dyn eframe::App,
             ),
-            #[cfg(feature = "glow")]
+            #[cfg(not(feature = "wgpu"))]
             (
                 "🔺 3D painting",
                 "custom3e",
@@ -217,7 +217,7 @@ impl eframe::App for WrapApp {
         self.ui_file_drag_and_drop(ctx);
     }
 
-    #[cfg(feature = "glow")]
+    #[cfg(not(feature = "wgpu"))]
     fn on_exit(&mut self, gl: &glow::Context) {
         self.custom3d.on_exit(gl);
     }

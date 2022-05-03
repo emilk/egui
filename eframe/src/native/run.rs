@@ -4,7 +4,7 @@ use egui_winit::winit;
 
 struct RequestRepaintEvent;
 
-#[cfg(feature = "glow")]
+#[cfg(not(feature = "wgpu"))]
 #[allow(unsafe_code)]
 fn create_display(
     native_options: &NativeOptions,
@@ -38,7 +38,7 @@ fn create_display(
 pub use epi::NativeOptions;
 
 /// Run an egui app
-#[cfg(feature = "glow")]
+#[cfg(not(feature = "wgpu"))]
 #[allow(unsafe_code)]
 pub fn run_glow(
     app_name: &str,
@@ -197,7 +197,6 @@ pub fn run_glow(
 // TODO: merge with with the clone above
 /// Run an egui app
 #[cfg(feature = "wgpu")]
-#[cfg(not(feature = "glow"))]
 pub fn run_wgpu(
     app_name: &str,
     native_options: &epi::NativeOptions,

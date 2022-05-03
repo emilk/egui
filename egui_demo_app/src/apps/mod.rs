@@ -1,4 +1,4 @@
-#[cfg(feature = "glow")]
+#[cfg(not(feature = "wgpu"))]
 mod custom3d;
 
 mod fractal_clock;
@@ -6,7 +6,7 @@ mod fractal_clock;
 #[cfg(feature = "http")]
 mod http_app;
 
-#[cfg(feature = "glow")]
+#[cfg(not(feature = "wgpu"))]
 pub use custom3d::Custom3d;
 
 pub use fractal_clock::FractalClock;

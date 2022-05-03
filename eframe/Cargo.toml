@@ -20,7 +20,7 @@ all-features = true
 
 
 [features]
-default = ["default_fonts", "glow"]
+default = ["default_fonts"]
 
 # detect dark mode system preference
 dark-light = ["dep:dark-light"]
@@ -28,8 +28,6 @@ dark-light = ["dep:dark-light"]
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["egui/default_fonts"]
-
-glow = ["dep:glow", "egui_glow"]
 
 # Enable saving app state to disk.
 persistence = [
@@ -62,10 +60,12 @@ egui = { version = "0.18.0", path = "../egui", default-features = false, feature
 ] }
 tracing = "0.1"
 
+# Only used when the "wgpu" feature is not turned on
+egui_glow = { version = "0.18.0", path = "../egui_glow", default-features = false }
+glow = { version = "0.11" }
+
 # optional:
-egui_glow = { version = "0.18.0", path = "../egui_glow", optional = true, default-features = false }
 egui_wgpu = { version = "0.18.0", path = "../egui_wgpu", optional = true, default-features = false }
-glow = { version = "0.11", optional = true }
 ron = { version = "0.7", optional = true }
 serde = { version = "1", optional = true }
 
