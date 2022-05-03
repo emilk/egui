@@ -13,6 +13,13 @@ pub(crate) struct InnerState {
     open_height: Option<f32>,
 }
 
+/// Where to show the collapser of a [`CollapsingHeader`]
+#[derive(Clone, Copy, Debug)]
+pub enum CollapserPosition {
+    Before,
+    After,
+}
+
 /// This is a a building block for building collapsing regions.
 ///
 /// It is used by [`CollapsingHeader`] and [`Window`], but can also be used on its own.
@@ -22,13 +29,18 @@ pub(crate) struct InnerState {
 pub struct CollapsingState {
     id: Id,
     state: InnerState,
+    collapser_position: CollapserPosition,
 }
 
 impl CollapsingState {
     pub fn load(ctx: &Context, id: Id) -> Option<Self> {
         ctx.data()
             .get_persisted::<InnerState>(id)
-            .map(|state| Self { id, state })
+            .map(|state| Self {
+                id,
+                state,
+                collapser_position: CollapserPosition::Before,
+            })
     }
 
     pub fn store(&self, ctx: &Context) {
@@ -46,6 +58,7 @@ impl CollapsingState {
                 open: default_open,
                 open_height: None,
             },
+            collapser_position: CollapserPosition::Before,
         })
     }
 
@@ -69,6 +82,12 @@ impl CollapsingState {
         } else {
             ctx.animate_bool(self.id, self.state.open)
         }
+    }
+
+    /// Sets the position in which the collapser will be drawn
+    pub fn collapser_position(mut self, position: CollapserPosition) -> Self {
+        self.collapser_position = position;
+        self
     }
 
     /// Will toggle when clicked, etc.
@@ -134,10 +153,22 @@ impl CollapsingState {
         add_header: impl FnOnce(&mut Ui) -> HeaderRet,
     ) -> HeaderResponse<'_, HeaderRet> {
         let header_response = ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing.x = 0.0; // the toggler button uses the full indent width
-            let collapser = self.show_default_button_indented(ui);
-            ui.spacing_mut().item_spacing.x = ui.spacing_mut().icon_spacing; // Restore spacing
-            (collapser, add_header(ui))
+            match self.collapser_position {
+                CollapserPosition::Before => {
+                    ui.spacing_mut().item_spacing.x = 0.0; // the toggler button uses the full indent width
+                    let collapser = self.show_default_button_indented(ui);
+                    ui.spacing_mut().item_spacing.x = ui.spacing_mut().icon_spacing; // Restore spacing
+                    let add_header_ret = add_header(ui);
+                    (collapser, add_header_ret)
+                }
+                CollapserPosition::After => {
+                    let add_header_ret = add_header(ui);
+                    ui.spacing_mut().item_spacing.x = 0.0; // the toggler button uses the full indent width
+                    let collapser = self.show_default_button_indented(ui);
+                    ui.spacing_mut().item_spacing.x = ui.spacing_mut().icon_spacing; // Restore spacing
+                    (collapser, add_header_ret)
+                }
+            }
         });
         HeaderResponse {
             state: self,
