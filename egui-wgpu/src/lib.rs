@@ -2,6 +2,7 @@
 
 mod renderer;
 
+/// Everything you need to paint egui with WGPU.
 pub struct Painter {
     device: wgpu::Device,
     queue: wgpu::Queue,
@@ -81,7 +82,7 @@ impl Painter {
                 return;
             }
             Err(e) => {
-                eprintln!("Dropped frame with error: {}", e);
+                tracing::warn!("Dropped frame with error: {e}");
                 return;
             }
         };

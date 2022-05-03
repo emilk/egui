@@ -25,5 +25,6 @@ egui = { version = "0.18.1", path = "../egui", default-features = false, feature
 
 bytemuck = "1.7"
 pollster = "0.2"
-wgpu = "0.12"
+tracing = "0.1"
+wgpu = { version = "0.12", features = ["webgl"] }
 winit = "0.26"

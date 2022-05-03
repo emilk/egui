@@ -1160,6 +1160,7 @@ dependencies = [
  "bytemuck",
  "egui",
  "pollster",
+ "tracing",
  "wgpu",
  "winit",
 ]

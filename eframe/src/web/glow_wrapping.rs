@@ -32,6 +32,7 @@ impl WrappedGlowPainter {
 }
 
 impl WrappedGlowPainter {
+    #[cfg(not(feature = "wgpu"))]
     pub fn gl(&self) -> &std::rc::Rc<glow::Context> {
         self.painter.gl()
     }
