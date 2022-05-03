@@ -1123,9 +1123,9 @@ dependencies = [
  "dark-light",
  "directories-next",
  "egui",
+ "egui-wgpu",
  "egui-winit",
  "egui_glow",
- "egui_wgpu",
  "glow",
  "glutin",
  "js-sys",
@@ -1151,6 +1151,17 @@ dependencies = [
  "ron",
  "serde",
  "tracing",
+]
+
+[[package]]
+name = "egui-wgpu"
+version = "0.18.0"
+dependencies = [
+ "bytemuck",
+ "egui",
+ "pollster",
+ "wgpu",
+ "winit",
 ]
 
 [[package]]
@@ -1241,17 +1252,6 @@ dependencies = [
  "tracing",
  "wasm-bindgen",
  "web-sys",
-]
-
-[[package]]
-name = "egui_wgpu"
-version = "0.18.0"
-dependencies = [
- "bytemuck",
- "egui",
- "pollster",
- "wgpu",
- "winit",
 ]
 
 [[package]]

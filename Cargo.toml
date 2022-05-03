@@ -6,7 +6,7 @@ members = [
     "egui_extras",
     "egui_glium",
     "egui_glow",
-    "egui_wgpu",
+    "egui-wgpu",
     "egui-winit",
     "egui",
     "emath",
