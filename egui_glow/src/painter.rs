@@ -649,6 +649,7 @@ impl Painter {
 }
 
 pub fn clear(gl: &glow::Context, screen_size_in_pixels: [u32; 2], clear_color: egui::Rgba) {
+    crate::profile_function!();
     unsafe {
         gl.disable(glow::SCISSOR_TEST);
 

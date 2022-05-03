@@ -47,9 +47,10 @@ pub fn run_glow(
 ) -> ! {
     let storage = epi_integration::create_storage(app_name);
     let window_settings = epi_integration::load_window_settings(storage.as_deref());
+    let event_loop = winit::event_loop::EventLoop::with_user_event();
+
     let window_builder =
         epi_integration::window_builder(native_options, &window_settings).with_title(app_name);
-    let event_loop = winit::event_loop::EventLoop::with_user_event();
     let (gl_window, gl) = create_display(native_options, window_builder, &event_loop);
     let gl = std::rc::Rc::new(gl);
 
@@ -84,22 +85,14 @@ pub fn run_glow(
     let mut is_focused = true;
 
     event_loop.run(move |event, _, control_flow| {
+        let window = gl_window.window();
+
         let mut redraw = || {
             #[cfg(feature = "puffin")]
             puffin::GlobalProfiler::lock().new_frame();
-
-            if !is_focused {
-                // On Mac, a minimized Window uses up all CPU: https://github.com/emilk/egui/issues/325
-                // We can't know if we are minimized: https://github.com/rust-windowing/winit/issues/208
-                // But we know if we are focused (in foreground). When minimized, we are not focused.
-                // However, a user may want an egui with an animation in the background,
-                // so we still need to repaint quite fast.
-                crate::profile_scope!("bg_sleep");
-                std::thread::sleep(std::time::Duration::from_millis(10));
-            }
-
             crate::profile_scope!("frame");
-            let screen_size_in_pixels: [u32; 2] = gl_window.window().inner_size().into();
+
+            let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
             egui_glow::painter::clear(
                 &gl,
@@ -112,9 +105,9 @@ pub fn run_glow(
                 needs_repaint,
                 textures_delta,
                 shapes,
-            } = integration.update(app.as_mut(), gl_window.window());
+            } = integration.update(app.as_mut(), window);
 
-            integration.handle_platform_output(gl_window.window(), platform_output);
+            integration.handle_platform_output(window, platform_output);
 
             let clipped_primitives = {
                 crate::profile_scope!("tessellate");
@@ -136,13 +129,23 @@ pub fn run_glow(
             *control_flow = if integration.should_quit() {
                 winit::event_loop::ControlFlow::Exit
             } else if needs_repaint {
-                gl_window.window().request_redraw();
+                window.request_redraw();
                 winit::event_loop::ControlFlow::Poll
             } else {
                 winit::event_loop::ControlFlow::Wait
             };
 
-            integration.maybe_autosave(app.as_mut(), gl_window.window());
+            integration.maybe_autosave(app.as_mut(), window);
+
+            if !is_focused {
+                // On Mac, a minimized Window uses up all CPU: https://github.com/emilk/egui/issues/325
+                // We can't know if we are minimized: https://github.com/rust-windowing/winit/issues/208
+                // But we know if we are focused (in foreground). When minimized, we are not focused.
+                // However, a user may want an egui with an animation in the background,
+                // so we still need to repaint quite fast.
+                crate::profile_scope!("bg_sleep");
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
         };
 
         match event {
@@ -158,9 +161,14 @@ pub fn run_glow(
                         is_focused = *new_focused;
                     }
                     winit::event::WindowEvent::Resized(physical_size) => {
-                        gl_window.resize(*physical_size);
+                        // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
+                        // See: https://github.com/rust-windowing/winit/issues/208
+                        // This solves an issue where the app would panic when minimizing on Windows.
+                        if physical_size.width > 0 && physical_size.height > 0 {
+                            gl_window.resize(*physical_size);
+                        }
                     }
-                    glutin::event::WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
+                    winit::event::WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                         gl_window.resize(**new_inner_size);
                     }
                     winit::event::WindowEvent::CloseRequested => {
@@ -173,16 +181,14 @@ pub fn run_glow(
                 if integration.should_quit() {
                     *control_flow = winit::event_loop::ControlFlow::Exit;
                 }
-                gl_window.window().request_redraw(); // TODO: ask egui if the events warrants a repaint instead
+                window.request_redraw(); // TODO: ask egui if the events warrants a repaint instead
             }
             winit::event::Event::LoopDestroyed => {
-                integration.save(&mut *app, gl_window.window());
+                integration.save(&mut *app, window);
                 app.on_exit(&gl);
                 painter.destroy();
             }
-            winit::event::Event::UserEvent(RequestRepaintEvent) => {
-                gl_window.window().request_redraw();
-            }
+            winit::event::Event::UserEvent(RequestRepaintEvent) => window.request_redraw(),
             _ => (),
         }
     });
@@ -200,6 +206,7 @@ pub fn run_wgpu(
     let storage = epi_integration::create_storage(app_name);
     let window_settings = epi_integration::load_window_settings(storage.as_deref());
     let event_loop = winit::event_loop::EventLoop::with_user_event();
+
     let window = epi_integration::window_builder(native_options, &window_settings)
         .with_title(app_name)
         .build(&event_loop)
@@ -230,19 +237,11 @@ pub fn run_wgpu(
     let mut is_focused = true;
 
     event_loop.run(move |event, _, control_flow| {
+        let window = &window;
+
         let mut redraw = || {
             #[cfg(feature = "puffin")]
             puffin::GlobalProfiler::lock().new_frame();
-
-            if !is_focused {
-                // On Mac, a minimized Window uses up all CPU: https://github.com/emilk/egui/issues/325
-                // We can't know if we are minimized: https://github.com/rust-windowing/winit/issues/208
-                // But we know if we are focused (in foreground). When minimized, we are not focused.
-                // However, a user may want an egui with an animation in the background,
-                // so we still need to repaint quite fast.
-                std::thread::sleep(std::time::Duration::from_millis(10));
-            }
-
             crate::profile_scope!("frame");
 
             let egui::FullOutput {
@@ -250,9 +249,9 @@ pub fn run_wgpu(
                 needs_repaint,
                 textures_delta,
                 shapes,
-            } = integration.update(app.as_mut(), &window);
+            } = integration.update(app.as_mut(), window);
 
-            integration.handle_platform_output(&window, platform_output);
+            integration.handle_platform_output(window, platform_output);
 
             let clipped_primitives = {
                 crate::profile_scope!("tessellate");
@@ -275,7 +274,17 @@ pub fn run_wgpu(
                 winit::event_loop::ControlFlow::Wait
             };
 
-            integration.maybe_autosave(app.as_mut(), &window);
+            integration.maybe_autosave(app.as_mut(), window);
+
+            if !is_focused {
+                // On Mac, a minimized Window uses up all CPU: https://github.com/emilk/egui/issues/325
+                // We can't know if we are minimized: https://github.com/rust-windowing/winit/issues/208
+                // But we know if we are focused (in foreground). When minimized, we are not focused.
+                // However, a user may want an egui with an animation in the background,
+                // so we still need to repaint quite fast.
+                crate::profile_scope!("bg_sleep");
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
         };
 
         match event {
@@ -286,17 +295,20 @@ pub fn run_wgpu(
             winit::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
 
             winit::event::Event::WindowEvent { event, .. } => {
-                match event {
+                match &event {
                     winit::event::WindowEvent::Focused(new_focused) => {
-                        is_focused = new_focused;
+                        is_focused = *new_focused;
                     }
-                    winit::event::WindowEvent::Resized(size) => {
+                    winit::event::WindowEvent::Resized(physical_size) => {
                         // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
                         // See: https://github.com/rust-windowing/winit/issues/208
                         // This solves an issue where the app would panic when minimizing on Windows.
-                        if size.width > 0 && size.height > 0 {
-                            painter.on_window_resized(size.width, size.height);
+                        if physical_size.width > 0 && physical_size.height > 0 {
+                            painter.on_window_resized(physical_size.width, physical_size.height);
                         }
+                    }
+                    winit::event::WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
+                        painter.on_window_resized(new_inner_size.width, new_inner_size.height);
                     }
                     winit::event::WindowEvent::CloseRequested => {
                         *control_flow = winit::event_loop::ControlFlow::Exit;
@@ -311,7 +323,7 @@ pub fn run_wgpu(
                 window.request_redraw(); // TODO: ask egui if the events warrants a repaint instead
             }
             winit::event::Event::LoopDestroyed => {
-                integration.save(&mut *app, &window);
+                integration.save(&mut *app, window);
                 app.on_exit();
                 painter.destroy();
             }
