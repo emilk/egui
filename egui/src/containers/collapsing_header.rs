@@ -25,11 +25,11 @@ pub enum CollapserPosition {
 /// It is used by [`CollapsingHeader`] and [`Window`], but can also be used on its own.
 ///
 /// See [`CollapsingState::show_header`] for how to show a collapsing header with a custom header.
-#[derive(Clone, Debug)]
 pub struct CollapsingState {
     id: Id,
     state: InnerState,
     collapser_position: CollapserPosition,
+    icon: Option<IconPainter>,
 }
 
 impl CollapsingState {
@@ -40,6 +40,7 @@ impl CollapsingState {
                 id,
                 state,
                 collapser_position: CollapserPosition::Before,
+                icon: None,
             })
     }
 
@@ -59,6 +60,7 @@ impl CollapsingState {
                 open_height: None,
             },
             collapser_position: CollapserPosition::Before,
+            icon: None,
         })
     }
 
@@ -90,6 +92,32 @@ impl CollapsingState {
         self
     }
 
+    /// Use the provided function to render a different [`CollapsingState`] icon.
+    /// Defaults to a triangle that animates as the [`CollapsingState`] opens and closes.
+    ///
+    /// For example:
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// fn circle_icon(ui: &mut egui::Ui, openness: f32, response: &egui::Response) {
+    ///     let stroke = ui.style().interact(&response).fg_stroke;
+    ///     let radius = egui::lerp(2.0..=3.0, openness);
+    ///     ui.painter().circle_filled(response.rect.center(), radius, stroke.color);
+    /// }
+    ///
+    /// let id = ui.make_persistent_id("my_collapsing_header");
+    /// egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, false)
+    ///     .icon(circle_icon);
+    ///     .show_header(ui, |ui| {
+    ///         ui.label("Header"); // you can put checkboxes or whatever here
+    ///     })
+    ///     .body(|ui| ui.label("Body"));
+    /// # });
+    /// ```
+    pub fn icon(mut self, icon_fn: impl Fn(&mut Ui, f32, &Response) + 'static) -> Self {
+        self.icon = Some(Box::new(icon_fn));
+        self
+    }
+
     /// Will toggle when clicked, etc.
     pub(crate) fn show_default_button_with_size(
         &mut self,
@@ -102,7 +130,11 @@ impl CollapsingState {
             self.toggle(ui);
         }
         let openness = self.openness(ui.ctx());
-        paint_default_icon(ui, openness, &response);
+        if let Some(icon) = &self.icon {
+            icon(ui, openness, &response);
+        } else {
+            paint_default_icon(ui, openness, &response);
+        };
         response
     }
 
@@ -125,7 +157,11 @@ impl CollapsingState {
             rect: icon_rect,
             ..response.clone()
         };
-        paint_default_icon(ui, openness, &small_icon_response);
+        if let Some(icon) = &self.icon {
+            icon(ui, openness, &small_icon_response);
+        } else {
+            paint_default_icon(ui, openness, &small_icon_response);
+        };
         response
     }
 
@@ -303,7 +339,7 @@ pub fn paint_default_icon(ui: &mut Ui, openness: f32, response: &Response) {
 }
 
 /// A function that paints an icon indicating if the region is open or not
-pub type IconPainter = Box<dyn FnOnce(&mut Ui, f32, &Response)>;
+pub type IconPainter = Box<dyn Fn(&mut Ui, f32, &Response)>;
 
 /// A header which can be collapsed/expanded, revealing a contained [`Ui`] region.
 ///
@@ -446,7 +482,7 @@ impl CollapsingHeader {
     ///   .show(ui, |ui| { ui.label("Hi!"); });
     /// # });
     /// ```
-    pub fn icon(mut self, icon_fn: impl FnOnce(&mut Ui, f32, &Response) + 'static) -> Self {
+    pub fn icon(mut self, icon_fn: impl Fn(&mut Ui, f32, &Response) + 'static) -> Self {
         self.icon = Some(Box::new(icon_fn));
         self
     }
