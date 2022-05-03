@@ -1,4 +1,6 @@
 use egui_demo_lib::is_mobile;
+
+#[cfg(feature = "glow")]
 use egui_glow::glow;
 
 #[derive(Default)]
@@ -91,6 +93,7 @@ pub struct State {
 pub struct WrapApp {
     state: State,
     // not serialized (because it contains OpenGL buffers etc)
+    #[cfg(feature = "glow")]
     custom3d: crate::apps::Custom3d,
     dropped_files: Vec<egui::DroppedFile>,
 }
@@ -100,6 +103,7 @@ impl WrapApp {
         #[allow(unused_mut)]
         let mut slf = Self {
             state: State::default(),
+            #[cfg(feature = "glow")]
             custom3d: crate::apps::Custom3d::new(&cc.gl),
             dropped_files: Default::default(),
         };
@@ -143,6 +147,7 @@ impl WrapApp {
                 "clock",
                 &mut self.state.clock as &mut dyn eframe::App,
             ),
+            #[cfg(feature = "glow")]
             (
                 "🔺 3D painting",
                 "custom3e",
@@ -212,6 +217,7 @@ impl eframe::App for WrapApp {
         self.ui_file_drag_and_drop(ctx);
     }
 
+    #[cfg(feature = "glow")]
     fn on_exit(&mut self, gl: &glow::Context) {
         self.custom3d.on_exit(gl);
     }

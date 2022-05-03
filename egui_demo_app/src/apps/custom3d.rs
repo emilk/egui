@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use eframe::egui_glow;
 use egui::mutex::Mutex;
 use egui_glow::glow;
 
