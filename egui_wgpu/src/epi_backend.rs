@@ -24,8 +24,8 @@ pub fn run(app_name: &str, native_options: &epi::NativeOptions, app_creator: epi
     let storage = epi_integration::create_storage(app_name);
     let window_settings = epi_integration::load_window_settings(storage.as_deref());
     let event_loop = winit::event_loop::EventLoop::with_user_event();
-    let window = window_builder(native_options, &window_settings).with_title(app_name);
-    let window_builder = epi_integration::window_builder(native_options, &window_settings)
+    let window = epi_integration::window_builder(native_options, &window_settings)
+        .with_title(app_name)
         .build(&event_loop)
         .unwrap();
 
