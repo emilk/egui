@@ -74,7 +74,7 @@ struct SizedBuffer {
     size: usize,
 }
 
-/// RenderPass to render a egui based GUI.
+/// Render pass to render a egui based GUI.
 pub struct RenderPass {
     render_pipeline: wgpu::RenderPipeline,
     index_buffers: Vec<SizedBuffer>,
@@ -88,7 +88,7 @@ pub struct RenderPass {
 impl RenderPass {
     /// Creates a new render pass to render a egui UI.
     ///
-    /// If the format passed is not a *Srgb format, the shader will automatically convert to sRGB colors in the shader.
+    /// If the format passed is not a *Srgb format, the shader will automatically convert to `sRGB` colors in the shader.
     pub fn new(
         device: &wgpu::Device,
         output_format: wgpu::TextureFormat,
@@ -350,7 +350,9 @@ impl RenderPass {
                     rpass.set_vertex_buffer(0, vertex_buffer.buffer.slice(..));
                     rpass.draw_indexed(0..mesh.indices.len() as u32, 0, 0..1);
                 }
-                Primitive::Callback(_) => todo!(),
+                Primitive::Callback(_) => {
+                    // already warned about earlier
+                }
             }
         }
 
@@ -484,7 +486,7 @@ impl RenderPass {
         self.update_buffer(
             device,
             queue,
-            BufferType::Uniform,
+            &BufferType::Uniform,
             0,
             bytemuck::cast_slice(&[UniformBuffer {
                 screen_size: [logical_width as f32, logical_height as f32],
@@ -496,7 +498,7 @@ impl RenderPass {
                 Primitive::Mesh(mesh) => {
                     let data: &[u8] = bytemuck::cast_slice(&mesh.indices);
                     if i < index_size {
-                        self.update_buffer(device, queue, BufferType::Index, i, data)
+                        self.update_buffer(device, queue, &BufferType::Index, i, data);
                     } else {
                         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                             label: Some("egui_index_buffer"),
@@ -511,7 +513,7 @@ impl RenderPass {
 
                     let data: &[u8] = bytemuck::cast_slice(&mesh.vertices);
                     if i < vertex_size {
-                        self.update_buffer(device, queue, BufferType::Vertex, i, data)
+                        self.update_buffer(device, queue, &BufferType::Vertex, i, data);
                     } else {
                         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                             label: Some("egui_vertex_buffer"),
@@ -525,7 +527,9 @@ impl RenderPass {
                         });
                     }
                 }
-                Primitive::Callback(_) => todo!(),
+                Primitive::Callback(_) => {
+                    tracing::warn!("Painting callbacks not supported by egui-wgpu");
+                }
             }
         }
     }
@@ -535,7 +539,7 @@ impl RenderPass {
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        buffer_type: BufferType,
+        buffer_type: &BufferType,
         index: usize,
         data: &[u8],
     ) {

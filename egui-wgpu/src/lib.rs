@@ -105,7 +105,7 @@ impl Painter {
 
         for (id, image_delta) in &textures_delta.set {
             self.egui_rpass
-                .update_texture(&self.device, &self.queue, *id, image_delta)
+                .update_texture(&self.device, &self.queue, *id, image_delta);
         }
         for id in &textures_delta.free {
             self.egui_rpass.free_texture(id);
@@ -114,7 +114,7 @@ impl Painter {
         self.egui_rpass.update_buffers(
             &self.device,
             &self.queue,
-            &clipped_primitives,
+            clipped_primitives,
             &screen_descriptor,
         );
 
@@ -123,7 +123,7 @@ impl Painter {
             .execute(
                 &mut encoder,
                 &output_view,
-                &clipped_primitives,
+                clipped_primitives,
                 &screen_descriptor,
                 Some(wgpu::Color {
                     r: clear_color.r() as f64,
@@ -141,6 +141,7 @@ impl Painter {
         output_frame.present();
     }
 
+    #[allow(clippy::unused_self)]
     pub fn destroy(&mut self) {
         // TODO: something here?
     }
