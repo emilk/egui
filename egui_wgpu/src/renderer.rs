@@ -10,8 +10,6 @@ use wgpu::util::DeviceExt;
 /// Error that the backend can return.
 #[derive(Debug)]
 pub enum BackendError {
-    /// The given `egui::TextureId` was invalid.
-    InvalidTextureId(String),
     /// Internal implementation error.
     Internal(String),
 }
@@ -19,9 +17,6 @@ pub enum BackendError {
 impl std::fmt::Display for BackendError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            BackendError::InvalidTextureId(msg) => {
-                write!(f, "invalid TextureId: `{:?}`", msg)
-            }
             BackendError::Internal(msg) => {
                 write!(f, "internal error: `{:?}`", msg)
             }
@@ -87,8 +82,6 @@ pub struct RenderPass {
     uniform_buffer: SizedBuffer,
     uniform_bind_group: wgpu::BindGroup,
     texture_bind_group_layout: wgpu::BindGroupLayout,
-    pending_textures_add: Vec<(egui::TextureId, egui::epaint::ImageDelta)>,
-    pending_textures_free: Vec<egui::TextureId>,
     textures: HashMap<egui::TextureId, (wgpu::Texture, wgpu::BindGroup)>,
 }
 
@@ -241,8 +234,6 @@ impl RenderPass {
             uniform_buffer,
             uniform_bind_group,
             texture_bind_group_layout,
-            pending_textures_add: Vec::new(),
-            pending_textures_free: Vec::new(),
             textures: HashMap::new(),
         }
     }
@@ -367,115 +358,113 @@ impl RenderPass {
     }
 
     /// Add a new texture in raw RGBA format to be added on the next call to `update_textures`.
-    pub fn update_texture(&mut self, id: egui::TextureId, image: egui::epaint::ImageDelta) {
-        self.pending_textures_add.push((id, image))
+    /// Should be called before `execute()`.
+    pub fn update_texture(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        id: egui::TextureId,
+        image_delta: &egui::epaint::ImageDelta,
+    ) {
+        let size = wgpu::Extent3d {
+            width: image_delta.image.size()[0] as u32,
+            height: image_delta.image.size()[1] as u32,
+            depth_or_array_layers: 1,
+        };
+
+        let data_color32 = match &image_delta.image {
+            egui::ImageData::Color(image) => {
+                assert_eq!(
+                    image.width() * image.height(),
+                    image.pixels.len(),
+                    "Mismatch between texture size and texel count"
+                );
+                Cow::Borrowed(&image.pixels)
+            }
+            egui::ImageData::Font(image) => {
+                assert_eq!(
+                    image.width() * image.height(),
+                    image.pixels.len(),
+                    "Mismatch between texture size and texel count"
+                );
+                Cow::Owned(image.srgba_pixels(1.0).collect::<Vec<_>>())
+            }
+        };
+        let data_bytes: &[u8] = bytemuck::cast_slice(data_color32.as_slice());
+
+        let queue_write_data_to_texture = |texture, origin| {
+            queue.write_texture(
+                wgpu::ImageCopyTexture {
+                    texture,
+                    mip_level: 0,
+                    origin,
+                    aspect: wgpu::TextureAspect::All,
+                },
+                data_bytes,
+                wgpu::ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: NonZeroU32::new((4 * image_delta.image.width()) as u32),
+                    rows_per_image: NonZeroU32::new(image_delta.image.height() as u32),
+                },
+                size,
+            );
+        };
+
+        if let Some(pos) = image_delta.pos {
+            // update the existing texture
+            let (texture, _bind_group) = self
+                .textures
+                .get(&id)
+                .expect("Tried to update a texture that has not been allocated yet.");
+            let origin = wgpu::Origin3d {
+                x: pos[0] as u32,
+                y: pos[1] as u32,
+                z: 0,
+            };
+            queue_write_data_to_texture(texture, origin);
+        } else {
+            // allocate a new texture
+            let texture = device.create_texture(&wgpu::TextureDescriptor {
+                label: None,
+                size,
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            });
+            let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+                label: None,
+                mag_filter: wgpu::FilterMode::Linear,
+                min_filter: wgpu::FilterMode::Linear,
+                ..Default::default()
+            });
+            let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: None,
+                layout: &self.texture_bind_group_layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::TextureView(
+                            &texture.create_view(&wgpu::TextureViewDescriptor::default()),
+                        ),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::Sampler(&sampler),
+                    },
+                ],
+            });
+            let origin = wgpu::Origin3d::ZERO;
+            queue_write_data_to_texture(&texture, origin);
+            self.textures.insert(id, (texture, bind_group));
+        };
     }
 
     /// Mark a texture to be destroyed on the next call to `update_textures`.
-    pub fn free_texture(&mut self, id: egui::TextureId) {
-        self.pending_textures_free.push(id);
-    }
-
-    /// Updates the textures that the app allocated. Should be called before `execute()`.
-    pub fn update_textures(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
-        for (id, image_delta) in self.pending_textures_add.drain(..) {
-            let size = wgpu::Extent3d {
-                width: image_delta.image.size()[0] as u32,
-                height: image_delta.image.size()[1] as u32,
-                depth_or_array_layers: 1,
-            };
-
-            let data_color32 = match &image_delta.image {
-                egui::ImageData::Color(image) => {
-                    assert_eq!(
-                        image.width() * image.height(),
-                        image.pixels.len(),
-                        "Mismatch between texture size and texel count"
-                    );
-                    Cow::Borrowed(&image.pixels)
-                }
-                egui::ImageData::Alpha(image) => {
-                    assert_eq!(
-                        image.width() * image.height(),
-                        image.pixels.len(),
-                        "Mismatch between texture size and texel count"
-                    );
-                    Cow::Owned(image.srgba_pixels(1.0).collect::<Vec<_>>())
-                }
-            };
-            let data_bytes: &[u8] = bytemuck::cast_slice(data_color32.as_slice());
-
-            let queue_write_data_to_texture = |texture, origin| {
-                queue.write_texture(
-                    wgpu::ImageCopyTexture {
-                        texture,
-                        mip_level: 0,
-                        origin,
-                        aspect: wgpu::TextureAspect::All,
-                    },
-                    data_bytes,
-                    wgpu::ImageDataLayout {
-                        offset: 0,
-                        bytes_per_row: NonZeroU32::new((4 * image_delta.image.width()) as u32),
-                        rows_per_image: NonZeroU32::new(image_delta.image.height() as u32),
-                    },
-                    size,
-                );
-            };
-
-            if let Some(pos) = image_delta.pos {
-                // update the existing texture
-                let (texture, _bind_group) = self
-                    .textures
-                    .get(&id)
-                    .expect("Tried to update a texture that has not been allocated yet.");
-                let origin = wgpu::Origin3d {
-                    x: pos[0] as u32,
-                    y: pos[1] as u32,
-                    z: 0,
-                };
-                queue_write_data_to_texture(texture, origin);
-            } else {
-                // allocate a new texture
-                let texture = device.create_texture(&wgpu::TextureDescriptor {
-                    label: None,
-                    size,
-                    mip_level_count: 1,
-                    sample_count: 1,
-                    dimension: wgpu::TextureDimension::D2,
-                    format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                    usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-                });
-                let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-                    label: None,
-                    mag_filter: wgpu::FilterMode::Linear,
-                    min_filter: wgpu::FilterMode::Linear,
-                    ..Default::default()
-                });
-                let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                    label: None,
-                    layout: &self.texture_bind_group_layout,
-                    entries: &[
-                        wgpu::BindGroupEntry {
-                            binding: 0,
-                            resource: wgpu::BindingResource::TextureView(
-                                &texture.create_view(&wgpu::TextureViewDescriptor::default()),
-                            ),
-                        },
-                        wgpu::BindGroupEntry {
-                            binding: 1,
-                            resource: wgpu::BindingResource::Sampler(&sampler),
-                        },
-                    ],
-                });
-                let origin = wgpu::Origin3d::ZERO;
-                queue_write_data_to_texture(&texture, origin);
-                self.textures.insert(id, (texture, bind_group));
-            };
-        }
-        for id in self.pending_textures_free.drain(..) {
-            self.textures.remove(&id);
-        }
+    /// Should be called before `execute()`.
+    pub fn free_texture(&mut self, id: &egui::TextureId) {
+        self.textures.remove(id);
     }
 
     /// Uploads the uniform, vertex and index data used by the render pass.

@@ -27,6 +27,7 @@ pub struct CreationContext<'s> {
 
     /// The [`glow::Context`] allows you to initialize OpenGL resources (e.g. shaders) that
     /// you might want to use later from a [`egui::PaintCallback`].
+    #[cfg(feature = "glow")]
     pub gl: std::rc::Rc<glow::Context>,
 }
 
@@ -71,7 +72,14 @@ pub trait App {
     /// Called once on shutdown, after [`Self::save`].
     ///
     /// If you need to abort an exit use [`Self::on_exit_event`].
+    #[cfg(feature = "glow")]
     fn on_exit(&mut self, _gl: &glow::Context) {}
+
+    /// Called once on shutdown, after [`Self::save`].
+    ///
+    /// If you need to abort an exit use [`Self::on_exit_event`].
+    #[cfg(not(feature = "glow"))]
+    fn on_exit(&mut self) {}
 
     // ---------
     // Settings:
@@ -254,6 +262,7 @@ pub struct Frame {
     pub storage: Option<Box<dyn Storage>>,
 
     /// A reference to the underlying [`glow`] (OpenGL) context.
+    #[cfg(feature = "glow")]
     #[doc(hidden)]
     pub gl: std::rc::Rc<glow::Context>,
 }
@@ -288,6 +297,7 @@ impl Frame {
     ///
     /// Note that all egui painting is deferred to after the call to [`App::update`]
     /// ([`egui`] only collects [`egui::Shape`]s and then eframe paints them all in one go later on).
+    #[cfg(feature = "glow")]
     pub fn gl(&self) -> &std::rc::Rc<glow::Context> {
         &self.gl
     }

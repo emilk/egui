@@ -1125,6 +1125,7 @@ dependencies = [
  "egui",
  "egui-winit",
  "egui_glow",
+ "egui_wgpu",
  "glow",
  "glutin",
  "js-sys",
@@ -1249,9 +1250,9 @@ version = "0.18.0"
 dependencies = [
  "bytemuck",
  "egui",
- "egui-winit",
  "pollster",
  "wgpu",
+ "winit",
 ]
 
 [[package]]

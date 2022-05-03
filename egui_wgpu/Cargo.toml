@@ -13,31 +13,8 @@ edition = "2021"
 egui = { version = "0.18.1", path = "../egui", default-features = false, features = [
     "bytemuck",
 ] }
-egui-winit = { version = "0.18.0", path = "../egui-winit", optional = true }
 
-wgpu = "0.12"
 bytemuck = "1.7"
 pollster = "0.2"
-
-
-[features]
-default = ["clipboard", "default_fonts", "links", "persistence", "winit"]
-
-# enable cut/copy/paste to OS clipboard.
-# if disabled a clipboard will be simulated so you can still copy/paste within the egui app.
-clipboard = ["egui-winit/clipboard"]
-
-# If set, egui will use `include_bytes!` to bundle some fonts.
-# If you plan on specifying your own fonts you may disable this feature.
-default_fonts = ["egui/default_fonts"]
-
-# enable opening links in a browser when an egui hyperlink is clicked.
-links = ["egui-winit/links"]
-
-# enable code for saving
-persistence = ["egui/persistence"]
-
-# experimental support for a screen reader
-screen_reader = ["egui-winit/screen_reader"]
-
-winit = ["egui-winit"]
+wgpu = "0.12"
+winit = "0.26"

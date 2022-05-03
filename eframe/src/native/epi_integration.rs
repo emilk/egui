@@ -159,10 +159,10 @@ pub struct EpiIntegration {
 
 impl EpiIntegration {
     pub fn new(
-        gl: std::rc::Rc<glow::Context>,
         max_texture_side: usize,
         window: &winit::window::Window,
         storage: Option<Box<dyn epi::Storage>>,
+        #[cfg(feature = "glow")] gl: std::rc::Rc<glow::Context>,
     ) -> Self {
         let egui_ctx = egui::Context::default();
 
@@ -179,6 +179,7 @@ impl EpiIntegration {
             },
             output: Default::default(),
             storage,
+            #[cfg(feature = "glow")]
             gl,
         };
 
