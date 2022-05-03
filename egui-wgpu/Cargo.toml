@@ -5,8 +5,17 @@ description = "Bindings for using egui natively using the wgpu library"
 authors = [
     "Nils Hasenbanck <nils@hasenbanck.de>",
     "embotech <opensource@embotech.com>",
+    "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",
 ]
 edition = "2021"
+rust-version = "1.60"
+homepage = "https://github.com/emilk/egui/tree/master/egui-wgpu"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/emilk/egui/tree/master/egui-wgpu"
+categories = ["gui", "game-development"]
+keywords = ["wgpu", "egui", "gui", "gamedev"]
+include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
 
 [dependencies]
