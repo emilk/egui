@@ -4,6 +4,7 @@
 
 // ----------------------------------------------------------------------------
 
+pub mod about;
 pub mod code_editor;
 pub mod code_example;
 pub mod context_menu;
@@ -30,7 +31,8 @@ pub mod window_options;
 pub mod window_with_panels;
 
 pub use {
-    demo_app_windows::DemoWindows, misc_demo_window::MiscDemoWindow, widget_gallery::WidgetGallery,
+    about::About, demo_app_windows::DemoWindows, misc_demo_window::MiscDemoWindow,
+    widget_gallery::WidgetGallery,
 };
 
 // ----------------------------------------------------------------------------

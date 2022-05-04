@@ -1,3 +1,4 @@
+use egui_demo_lib::is_mobile;
 use egui_glow::glow;
 
 #[derive(Default)]
@@ -181,47 +182,30 @@ impl eframe::App for WrapApp {
 
         egui::TopBottomPanel::top("wrap_app_top_bar").show(ctx, |ui| {
             egui::trace!(ui);
-            self.bar_contents(ui, frame);
+            ui.horizontal_wrapped(|ui| {
+                ui.visuals_mut().button_frame = false;
+                self.bar_contents(ui, frame);
+            });
         });
 
         self.state.backend_panel.update(ctx, frame);
 
-        if self.state.backend_panel.open || ctx.memory().everything_is_visible() {
-            egui::SidePanel::left("backend_panel").show(ctx, |ui| {
-                self.state.backend_panel.ui(ui, frame);
+        if !is_mobile(ctx)
+            && (self.state.backend_panel.open || ctx.memory().everything_is_visible())
+        {
+            egui::SidePanel::left("backend_panel")
+                .resizable(false)
+                .show(ctx, |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.heading("💻 Backend");
+                    });
 
-                ui.separator();
-
-                ui.horizontal(|ui| {
-                    if ui
-                        .button("Reset egui")
-                        .on_hover_text("Forget scroll, positions, sizes etc")
-                        .clicked()
-                    {
-                        *ui.ctx().memory() = Default::default();
-                    }
-
-                    if ui.button("Reset everything").clicked() {
-                        self.state = Default::default();
-                        *ui.ctx().memory() = Default::default();
-                    }
+                    ui.separator();
+                    self.backend_panel_contents(ui, frame);
                 });
-            });
         }
 
-        let mut found_anchor = false;
-
-        let selected_anchor = self.state.selected_anchor.clone();
-        for (_name, anchor, app) in self.apps_iter_mut() {
-            if anchor == selected_anchor || ctx.memory().everything_is_visible() {
-                app.update(ctx, frame);
-                found_anchor = true;
-            }
-        }
-
-        if !found_anchor {
-            self.state.selected_anchor = "demo".into();
-        }
+        self.show_selected_app(ctx, frame);
 
         self.state.backend_panel.end_of_frame(ctx);
 
@@ -234,44 +218,87 @@ impl eframe::App for WrapApp {
 }
 
 impl WrapApp {
+    fn backend_panel_contents(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+        self.state.backend_panel.ui(ui, frame);
+
+        ui.separator();
+
+        ui.horizontal(|ui| {
+            if ui
+                .button("Reset egui")
+                .on_hover_text("Forget scroll, positions, sizes etc")
+                .clicked()
+            {
+                *ui.ctx().memory() = Default::default();
+                ui.close_menu();
+            }
+
+            if ui.button("Reset everything").clicked() {
+                self.state = Default::default();
+                *ui.ctx().memory() = Default::default();
+                ui.close_menu();
+            }
+        });
+    }
+
+    fn show_selected_app(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        let mut found_anchor = false;
+        let selected_anchor = self.state.selected_anchor.clone();
+        for (_name, anchor, app) in self.apps_iter_mut() {
+            if anchor == selected_anchor || ctx.memory().everything_is_visible() {
+                app.update(ctx, frame);
+                found_anchor = true;
+            }
+        }
+        if !found_anchor {
+            self.state.selected_anchor = "demo".into();
+        }
+    }
+
     fn bar_contents(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
-        // A menu-bar is a horizontal layout with some special styles applied.
-        // egui::menu::bar(ui, |ui| {
-        ui.horizontal_wrapped(|ui| {
-            egui::widgets::global_dark_light_mode_switch(ui);
+        egui::widgets::global_dark_light_mode_switch(ui);
 
-            ui.checkbox(&mut self.state.backend_panel.open, "💻 Backend");
-            ui.separator();
+        ui.separator();
 
-            let mut selected_anchor = self.state.selected_anchor.clone();
-            for (name, anchor, _app) in self.apps_iter_mut() {
-                if ui
-                    .selectable_label(selected_anchor == anchor, name)
-                    .clicked()
-                {
-                    selected_anchor = anchor.to_owned();
-                    if frame.is_web() {
-                        ui.output().open_url(format!("#{}", anchor));
-                    }
+        if is_mobile(ui.ctx()) {
+            ui.menu_button("💻 Backend", |ui| {
+                ui.set_style(ui.ctx().style()); // ignore the "menu" style set by `menu_button`.
+                self.backend_panel_contents(ui, frame);
+            });
+        } else {
+            ui.toggle_value(&mut self.state.backend_panel.open, "💻 Backend");
+        }
+
+        ui.separator();
+
+        let mut selected_anchor = self.state.selected_anchor.clone();
+        for (name, anchor, _app) in self.apps_iter_mut() {
+            if ui
+                .selectable_label(selected_anchor == anchor, name)
+                .clicked()
+            {
+                selected_anchor = anchor.to_owned();
+                if frame.is_web() {
+                    ui.output().open_url(format!("#{}", anchor));
                 }
             }
-            self.state.selected_anchor = selected_anchor;
+        }
+        self.state.selected_anchor = selected_anchor;
 
-            ui.with_layout(egui::Layout::right_to_left(), |ui| {
-                if false {
-                    // TODO: fix the overlap on small screens
-                    if let Some(seconds_since_midnight) = crate::seconds_since_midnight() {
-                        if clock_button(ui, seconds_since_midnight).clicked() {
-                            self.state.selected_anchor = "clock".to_owned();
-                            if frame.is_web() {
-                                ui.output().open_url("#clock");
-                            }
+        ui.with_layout(egui::Layout::right_to_left(), |ui| {
+            if false {
+                // TODO: fix the overlap on small screens
+                if let Some(seconds_since_midnight) = crate::seconds_since_midnight() {
+                    if clock_button(ui, seconds_since_midnight).clicked() {
+                        self.state.selected_anchor = "clock".to_owned();
+                        if frame.is_web() {
+                            ui.output().open_url("#clock");
                         }
                     }
                 }
+            }
 
-                egui::warn_if_debug_build(ui);
-            });
+            egui::warn_if_debug_build(ui);
         });
     }
 
