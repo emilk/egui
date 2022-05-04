@@ -238,10 +238,14 @@ impl Default for NativeOptions {
     }
 }
 
+// ----------------------------------------------------------------------------
+
 /// What rendering backend to use.
 ///
 /// You need to enable the "glow" and "wgpu" features to have a choice.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
 pub enum Renderer {
     /// Use [`egui_glow`] renderer for [`glow`](https://github.com/grovesNL/glow).
     #[cfg(feature = "glow")]
@@ -266,6 +270,36 @@ impl Default for Renderer {
         compile_error!("eframe: you must enable at least one of the rendering backend features: 'glow' or 'wgpu'");
     }
 }
+
+impl std::fmt::Display for Renderer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            #[cfg(feature = "glow")]
+            Self::Glow => "glow".fmt(f),
+
+            #[cfg(feature = "wgpu")]
+            Self::Wgpu => "wgpu".fmt(f),
+        }
+    }
+}
+
+impl std::str::FromStr for Renderer {
+    type Err = String;
+
+    fn from_str(name: &str) -> Result<Self, String> {
+        match name.to_lowercase().as_str() {
+            #[cfg(feature = "glow")]
+            "glow" => Ok(Self::Glow),
+
+            #[cfg(feature = "wgpu")]
+            "wgpu" => Ok(Self::Wgpu),
+
+            _ =>Err(format!("eframe renderer {name:?} is not available. Make sure that the corresponding eframe feature is enabled."))
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 /// Image data for an application icon.
 #[derive(Clone)]

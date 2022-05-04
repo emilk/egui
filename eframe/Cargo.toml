@@ -67,7 +67,7 @@ egui_glow = { version = "0.18.0", path = "../egui_glow", optional = true, defaul
 egui-wgpu = { version = "0.18.0", path = "../egui-wgpu", optional = true, default-features = false }
 glow = { version = "0.11", optional = true }
 ron = { version = "0.7", optional = true }
-serde = { version = "1", optional = true }
+serde = { version = "1", optional = true, features = ["derive"] }
 
 # -------------------------------------------
 # native:
