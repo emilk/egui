@@ -40,8 +40,10 @@ impl eframe::App for Custom3d {
         });
     }
 
-    fn on_exit(&mut self, gl: &glow::Context) {
-        self.rotating_triangle.lock().destroy(gl);
+    fn on_exit(&mut self, gl: Option<&glow::Context>) {
+        if let Some(gl) = gl {
+            self.rotating_triangle.lock().destroy(gl);
+        }
     }
 }
 

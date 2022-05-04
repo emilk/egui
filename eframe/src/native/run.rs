@@ -60,7 +60,7 @@ pub fn run_glow(
         painter.max_texture_side(),
         gl_window.window(),
         storage,
-        gl.clone(),
+        Some(gl.clone()),
     );
 
     {
@@ -74,7 +74,7 @@ pub fn run_glow(
         egui_ctx: integration.egui_ctx.clone(),
         integration_info: integration.frame.info(),
         storage: integration.frame.storage(),
-        gl: gl.clone(),
+        gl: Some(gl.clone()),
     });
 
     if app.warm_up_enabled() {
@@ -184,7 +184,7 @@ pub fn run_glow(
             }
             winit::event::Event::LoopDestroyed => {
                 integration.save(&mut *app, window);
-                app.on_exit(&gl);
+                app.on_exit(Some(&gl));
                 painter.destroy();
             }
             winit::event::Event::UserEvent(RequestRepaintEvent) => window.request_redraw(),
@@ -196,7 +196,6 @@ pub fn run_glow(
 // TODO: merge with with the clone above
 /// Run an egui app
 #[cfg(feature = "wgpu")]
-#[cfg(not(feature = "glow"))]
 pub fn run_wgpu(
     app_name: &str,
     native_options: &epi::NativeOptions,
@@ -213,8 +212,13 @@ pub fn run_wgpu(
 
     let mut painter = egui_wgpu::Painter::new(&window);
 
-    let mut integration =
-        epi_integration::EpiIntegration::new(painter.max_texture_side(), &window, storage);
+    let mut integration = epi_integration::EpiIntegration::new(
+        painter.max_texture_side(),
+        &window,
+        storage,
+        #[cfg(feature = "glow")]
+        None,
+    );
 
     {
         let event_loop_proxy = egui::mutex::Mutex::new(event_loop.create_proxy());
@@ -227,6 +231,8 @@ pub fn run_wgpu(
         egui_ctx: integration.egui_ctx.clone(),
         integration_info: integration.frame.info(),
         storage: integration.frame.storage(),
+        #[cfg(feature = "glow")]
+        gl: None,
     });
 
     if app.warm_up_enabled() {
@@ -323,7 +329,13 @@ pub fn run_wgpu(
             }
             winit::event::Event::LoopDestroyed => {
                 integration.save(&mut *app, window);
+
+                #[cfg(feature = "glow")]
+                app.on_exit(None);
+
+                #[cfg(not(feature = "glow"))]
                 app.on_exit();
+
                 painter.destroy();
             }
             winit::event::Event::UserEvent(RequestRepaintEvent) => window.request_redraw(),

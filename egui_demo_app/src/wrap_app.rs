@@ -94,7 +94,7 @@ pub struct WrapApp {
     state: State,
     // not serialized (because it contains OpenGL buffers etc)
     #[cfg(feature = "glow")]
-    custom3d: crate::apps::Custom3d,
+    custom3d: Option<crate::apps::Custom3d>,
     dropped_files: Vec<egui::DroppedFile>,
 }
 
@@ -104,7 +104,7 @@ impl WrapApp {
         let mut slf = Self {
             state: State::default(),
             #[cfg(feature = "glow")]
-            custom3d: crate::apps::Custom3d::new(&cc.gl),
+            custom3d: cc.gl.as_ref().map(|gl| crate::apps::Custom3d::new(gl)),
             dropped_files: Default::default(),
         };
 
@@ -125,7 +125,7 @@ impl WrapApp {
     }
 
     fn apps_iter_mut(&mut self) -> impl Iterator<Item = (&str, &str, &mut dyn eframe::App)> {
-        vec![
+        let mut vec = vec![
             (
                 "✨ Demos",
                 "demo",
@@ -147,19 +147,24 @@ impl WrapApp {
                 "clock",
                 &mut self.state.clock as &mut dyn eframe::App,
             ),
-            #[cfg(feature = "glow")]
-            (
+        ];
+
+        #[cfg(feature = "glow")]
+        if let Some(custom3d) = &mut self.custom3d {
+            vec.push((
                 "🔺 3D painting",
                 "custom3e",
-                &mut self.custom3d as &mut dyn eframe::App,
-            ),
-            (
-                "🎨 Color test",
-                "colors",
-                &mut self.state.color_test as &mut dyn eframe::App,
-            ),
-        ]
-        .into_iter()
+                custom3d as &mut dyn eframe::App,
+            ));
+        }
+
+        vec.push((
+            "🎨 Color test",
+            "colors",
+            &mut self.state.color_test as &mut dyn eframe::App,
+        ));
+
+        vec.into_iter()
     }
 }
 
@@ -218,8 +223,10 @@ impl eframe::App for WrapApp {
     }
 
     #[cfg(feature = "glow")]
-    fn on_exit(&mut self, gl: &glow::Context) {
-        self.custom3d.on_exit(gl);
+    fn on_exit(&mut self, gl: Option<&glow::Context>) {
+        if let Some(custom3d) = &mut self.custom3d {
+            custom3d.on_exit(gl);
+        }
     }
 }
 

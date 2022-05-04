@@ -145,20 +145,21 @@ mod native;
 #[cfg(not(target_arch = "wasm32"))]
 #[allow(clippy::needless_pass_by_value)]
 pub fn run_native(app_name: &str, native_options: NativeOptions, app_creator: AppCreator) -> ! {
-    #[cfg(all(feature = "glow", feature = "wgpu"))]
-    {
-        tracing::warn!("eframe both features 'glow' and 'wgpu' selected. Will use glow.");
+    let renderer = native_options.renderer;
+
+    match renderer {
+        #[cfg(feature = "glow")]
+        Renderer::Glow => {
+            tracing::debug!("Using the glow renderer");
+            native::run::run_glow(app_name, &native_options, app_creator)
+        }
+
+        #[cfg(feature = "wgpu")]
+        Renderer::Wgpu => {
+            tracing::debug!("Using the wgpu renderer");
+            native::run::run_wgpu(app_name, &native_options, app_creator)
+        }
     }
-
-    #[cfg(all(not(feature = "glow"), not(feature = "wgpu")))]
-    compile_error!("eframe: pick either feature 'glow' or feature 'wgpu'");
-
-    #[cfg(feature = "glow")]
-    native::run::run_glow(app_name, &native_options, app_creator);
-
-    #[cfg(feature = "wgpu")]
-    #[cfg(not(feature = "glow"))]
-    native::run::run_wgpu(app_name, &native_options, app_creator);
 }
 
 // ---------------------------------------------------------------------------

@@ -168,7 +168,7 @@ impl AppRunner {
             integration_info: info.clone(),
             storage: Some(&storage),
             #[cfg(feature = "glow")]
-            gl: painter.painter.gl().clone(),
+            gl: Some(painter.painter.gl().clone()),
         });
 
         let frame = epi::Frame {
@@ -176,7 +176,7 @@ impl AppRunner {
             output: Default::default(),
             storage: Some(Box::new(storage)),
             #[cfg(feature = "glow")]
-            gl: painter.gl().clone(),
+            gl: Some(painter.gl().clone()),
         };
 
         let needs_repaint: std::sync::Arc<NeedRepaint> = Default::default();

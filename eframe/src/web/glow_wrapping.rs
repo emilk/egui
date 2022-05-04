@@ -32,7 +32,6 @@ impl WrappedGlowPainter {
 }
 
 impl WrappedGlowPainter {
-    #[cfg(feature = "glow")]
     pub fn gl(&self) -> &std::rc::Rc<glow::Context> {
         self.painter.gl()
     }
