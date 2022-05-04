@@ -331,7 +331,7 @@ impl CircleShape {
         } else {
             Rect::from_center_size(
                 self.center,
-                Vec2::splat(self.radius + self.stroke.width / 2.0),
+                Vec2::splat(self.radius * 2.0 + self.stroke.width),
             )
         }
     }
