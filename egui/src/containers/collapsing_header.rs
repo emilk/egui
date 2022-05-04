@@ -106,7 +106,7 @@ impl CollapsingState {
     ///
     /// let id = ui.make_persistent_id("my_collapsing_header");
     /// egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, false)
-    ///     .icon(circle_icon);
+    ///     .icon(circle_icon)
     ///     .show_header(ui, |ui| {
     ///         ui.label("Header"); // you can put checkboxes or whatever here
     ///     })
