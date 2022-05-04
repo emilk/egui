@@ -1381,9 +1381,10 @@ impl Ui {
     ///
     /// See also [`Self::checkbox`].
     pub fn toggle_value(&mut self, selected: &mut bool, text: impl Into<WidgetText>) -> Response {
-        let response = self.selectable_label(*selected, text);
+        let mut response = self.selectable_label(*selected, text);
         if response.clicked() {
             *selected = !*selected;
+            response.mark_changed();
         }
         response
     }
