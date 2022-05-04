@@ -86,6 +86,9 @@ impl<'a> DatePickerPopup<'a> {
                                                 )
                                                 .changed()
                                             {
+                                                popup_state.day = popup_state
+                                                    .day
+                                                    .min(popup_state.last_day_of_month());
                                                 ui.memory()
                                                     .data
                                                     .insert_persisted(id, popup_state.clone());
@@ -106,6 +109,9 @@ impl<'a> DatePickerPopup<'a> {
                                                 )
                                                 .changed()
                                             {
+                                                popup_state.day = popup_state
+                                                    .day
+                                                    .min(popup_state.last_day_of_month());
                                                 ui.memory()
                                                     .data
                                                     .insert_persisted(id, popup_state.clone());
