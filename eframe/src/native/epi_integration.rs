@@ -28,7 +28,7 @@ pub fn window_builder(
         multisampling: _,  // used in `fn create_display`
         depth_buffer: _,   // used in `fn create_display`
         stencil_buffer: _, // used in `fn create_display`
-        renderer: _,       // looked at in eframe::run_native
+        renderer: _,       // used in `fn run_native`
     } = native_options;
 
     let window_icon = icon_data.clone().and_then(load_icon);

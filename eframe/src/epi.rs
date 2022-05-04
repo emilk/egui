@@ -294,7 +294,7 @@ impl std::str::FromStr for Renderer {
             #[cfg(feature = "wgpu")]
             "wgpu" => Ok(Self::Wgpu),
 
-            _ =>Err(format!("eframe renderer {name:?} is not available. Make sure that the corresponding eframe feature is enabled."))
+            _ => Err(format!("eframe renderer {name:?} is not available. Make sure that the corresponding eframe feature is enabled."))
         }
     }
 }

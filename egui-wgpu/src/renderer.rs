@@ -40,19 +40,20 @@ enum BufferType {
 
 /// Information about the screen used for rendering.
 pub struct ScreenDescriptor {
-    /// Width of the window in physical pixel.
-    pub physical_width: u32,
-    /// Height of the window in physical pixel.
-    pub physical_height: u32,
-    /// HiDPI scale factor.
-    pub scale_factor: f32,
+    /// Size of the window in physical pixels.
+    pub size_in_pixels: [u32; 2],
+
+    /// HiDPI scale factor (pixels per point).
+    pub pixels_per_point: f32,
 }
 
 impl ScreenDescriptor {
-    fn logical_size(&self) -> (u32, u32) {
-        let logical_width = self.physical_width as f32 / self.scale_factor;
-        let logical_height = self.physical_height as f32 / self.scale_factor;
-        (logical_width as u32, logical_height as u32)
+    /// size in "logical" points
+    fn screen_size_in_points(&self) -> [f32; 2] {
+        [
+            self.size_in_pixels[0] as f32 / self.pixels_per_point,
+            self.size_in_pixels[1] as f32 / self.pixels_per_point,
+        ]
     }
 }
 
@@ -60,7 +61,7 @@ impl ScreenDescriptor {
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 struct UniformBuffer {
-    screen_size: [f32; 2],
+    screen_size_in_points: [f32; 2],
 }
 
 unsafe impl Pod for UniformBuffer {}
@@ -103,7 +104,7 @@ impl RenderPass {
         let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("egui_uniform_buffer"),
             contents: bytemuck::cast_slice(&[UniformBuffer {
-                screen_size: [0.0, 0.0],
+                screen_size_in_points: [0.0, 0.0],
             }]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
@@ -285,9 +286,8 @@ impl RenderPass {
 
         rpass.set_bind_group(0, &self.uniform_bind_group, &[]);
 
-        let scale_factor = screen_descriptor.scale_factor;
-        let physical_width = screen_descriptor.physical_width;
-        let physical_height = screen_descriptor.physical_height;
+        let pixels_per_point = screen_descriptor.pixels_per_point;
+        let size_in_pixels = screen_descriptor.size_in_pixels;
 
         for (
             (
@@ -304,16 +304,16 @@ impl RenderPass {
             .zip(self.index_buffers.iter())
         {
             // Transform clip rect to physical pixels.
-            let clip_min_x = scale_factor * clip_rect.min.x;
-            let clip_min_y = scale_factor * clip_rect.min.y;
-            let clip_max_x = scale_factor * clip_rect.max.x;
-            let clip_max_y = scale_factor * clip_rect.max.y;
+            let clip_min_x = pixels_per_point * clip_rect.min.x;
+            let clip_min_y = pixels_per_point * clip_rect.min.y;
+            let clip_max_x = pixels_per_point * clip_rect.max.x;
+            let clip_max_y = pixels_per_point * clip_rect.max.y;
 
             // Make sure clip rect can fit within an `u32`.
-            let clip_min_x = clip_min_x.clamp(0.0, physical_width as f32);
-            let clip_min_y = clip_min_y.clamp(0.0, physical_height as f32);
-            let clip_max_x = clip_max_x.clamp(clip_min_x, physical_width as f32);
-            let clip_max_y = clip_max_y.clamp(clip_min_y, physical_height as f32);
+            let clip_min_x = clip_min_x.clamp(0.0, size_in_pixels[0] as f32);
+            let clip_min_y = clip_min_y.clamp(0.0, size_in_pixels[1] as f32);
+            let clip_max_x = clip_max_x.clamp(clip_min_x, size_in_pixels[0] as f32);
+            let clip_max_y = clip_max_y.clamp(clip_min_y, size_in_pixels[1] as f32);
 
             let clip_min_x = clip_min_x.round() as u32;
             let clip_min_y = clip_min_y.round() as u32;
@@ -325,10 +325,10 @@ impl RenderPass {
 
             {
                 // Clip scissor rectangle to target size.
-                let x = clip_min_x.min(physical_width);
-                let y = clip_min_y.min(physical_height);
-                let width = width.min(physical_width - x);
-                let height = height.min(physical_height - y);
+                let x = clip_min_x.min(size_in_pixels[0]);
+                let y = clip_min_y.min(size_in_pixels[1]);
+                let width = width.min(size_in_pixels[0] - x);
+                let height = height.min(size_in_pixels[1] - y);
 
                 // Skip rendering with zero-sized clip areas.
                 if width == 0 || height == 0 {
@@ -359,7 +359,6 @@ impl RenderPass {
         Ok(())
     }
 
-    /// Add a new texture in raw RGBA format to be added on the next call to `update_textures`.
     /// Should be called before `execute()`.
     pub fn update_texture(
         &mut self,
@@ -463,7 +462,6 @@ impl RenderPass {
         };
     }
 
-    /// Mark a texture to be destroyed on the next call to `update_textures`.
     /// Should be called before `execute()`.
     pub fn free_texture(&mut self, id: &egui::TextureId) {
         self.textures.remove(id);
@@ -481,7 +479,7 @@ impl RenderPass {
         let index_size = self.index_buffers.len();
         let vertex_size = self.vertex_buffers.len();
 
-        let (logical_width, logical_height) = screen_descriptor.logical_size();
+        let screen_size_in_points = screen_descriptor.screen_size_in_points();
 
         self.update_buffer(
             device,
@@ -489,7 +487,7 @@ impl RenderPass {
             &BufferType::Uniform,
             0,
             bytemuck::cast_slice(&[UniformBuffer {
-                screen_size: [logical_width as f32, logical_height as f32],
+                screen_size_in_points,
             }]),
         );
 
@@ -543,28 +541,28 @@ impl RenderPass {
         index: usize,
         data: &[u8],
     ) {
-        let (buffer, storage, name) = match buffer_type {
+        let (buffer, storage, label) = match buffer_type {
             BufferType::Index => (
                 &mut self.index_buffers[index],
                 wgpu::BufferUsages::INDEX,
-                "index",
+                "egui_index_buffer",
             ),
             BufferType::Vertex => (
                 &mut self.vertex_buffers[index],
                 wgpu::BufferUsages::VERTEX,
-                "vertex",
+                "egui_vertex_buffer",
             ),
             BufferType::Uniform => (
                 &mut self.uniform_buffer,
                 wgpu::BufferUsages::UNIFORM,
-                "uniform",
+                "egui_uniform_buffer",
             ),
         };
 
         if data.len() > buffer.size {
             buffer.size = data.len();
             buffer.buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some(format!("egui_{}_buffer", name).as_str()),
+                label: Some(label),
                 contents: bytemuck::cast_slice(data),
                 usage: storage | wgpu::BufferUsages::COPY_DST,
             });

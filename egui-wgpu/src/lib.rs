@@ -100,9 +100,8 @@ impl Painter {
 
         // Upload all resources for the GPU.
         let screen_descriptor = renderer::ScreenDescriptor {
-            physical_width: self.surface_config.width,
-            physical_height: self.surface_config.height,
-            scale_factor: pixels_per_point,
+            size_in_pixels: [self.surface_config.width, self.surface_config.height],
+            pixels_per_point,
         };
 
         for (id, image_delta) in &textures_delta.set {
