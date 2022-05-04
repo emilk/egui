@@ -238,7 +238,7 @@ impl RenderPass {
         }
     }
 
-    /// Executes the egui render pass. When `clear_on_draw` is set, the output target will get cleared before writing to it.
+    /// Executes the egui render pass.
     pub fn execute(
         &self,
         encoder: &mut wgpu::CommandEncoder,
