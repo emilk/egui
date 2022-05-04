@@ -60,7 +60,7 @@ pub struct RawInput {
     /// Dragged files dropped into egui.
     ///
     /// Note: when using `eframe` on Windows you need to enable
-    /// drag-and-drop support using `epi::NativeOptions`.
+    /// drag-and-drop support using `eframe::NativeOptions`.
     pub dropped_files: Vec<DroppedFile>,
 }
 
@@ -131,7 +131,7 @@ impl RawInput {
 pub struct HoveredFile {
     /// Set by the `egui-winit` backend.
     pub path: Option<std::path::PathBuf>,
-    /// With the `egui_web` backend, this is set to the mime-type of the file (if available).
+    /// With the `eframe` web backend, this is set to the mime-type of the file (if available).
     pub mime: String,
 }
 
@@ -141,11 +141,11 @@ pub struct HoveredFile {
 pub struct DroppedFile {
     /// Set by the `egui-winit` backend.
     pub path: Option<std::path::PathBuf>,
-    /// Name of the file. Set by the `egui_web` backend.
+    /// Name of the file. Set by the `eframe` web backend.
     pub name: String,
-    /// Set by the `egui_web` backend.
+    /// Set by the `eframe` web backend.
     pub last_modified: Option<std::time::SystemTime>,
-    /// Set by the `egui_web` backend.
+    /// Set by the `eframe` web backend.
     pub bytes: Option<std::sync::Arc<[u8]>>,
 }
 

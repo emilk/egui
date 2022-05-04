@@ -1,6 +1,10 @@
-use super::Demo;
 use egui::{Context, ScrollArea, Ui};
 use std::collections::BTreeSet;
+
+use super::About;
+use super::Demo;
+use super::View;
+use crate::is_mobile;
 
 // ----------------------------------------------------------------------------
 
@@ -56,7 +60,7 @@ impl Demos {
         let Self { demos, open } = self;
         for demo in demos {
             let mut is_open = open.contains(demo.name());
-            ui.checkbox(&mut is_open, demo.name());
+            ui.toggle_value(&mut is_open, demo.name());
             set_open(open, demo.name(), is_open);
         }
     }
@@ -111,7 +115,7 @@ impl Tests {
         let Self { demos, open } = self;
         for demo in demos {
             let mut is_open = open.contains(demo.name());
-            ui.checkbox(&mut is_open, demo.name());
+            ui.toggle_value(&mut is_open, demo.name());
             set_open(open, demo.name(), is_open);
         }
     }
@@ -141,23 +145,103 @@ fn set_open(open: &mut BTreeSet<String>, key: &'static str, is_open: bool) {
 // ----------------------------------------------------------------------------
 
 /// A menu bar in which you can select different demo windows to show.
-#[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct DemoWindows {
+    about_is_open: bool,
+    about: About,
     demos: Demos,
     tests: Tests,
 }
 
+impl Default for DemoWindows {
+    fn default() -> Self {
+        Self {
+            about_is_open: true,
+            about: Default::default(),
+            demos: Default::default(),
+            tests: Default::default(),
+        }
+    }
+}
+
 impl DemoWindows {
     /// Show the app ui (menu bar and windows).
-    /// `sidebar_ui` can be used to optionally show some things in the sidebar
     pub fn ui(&mut self, ctx: &Context) {
-        let Self { demos, tests } = self;
+        if is_mobile(ctx) {
+            self.mobile_ui(ctx);
+        } else {
+            self.desktop_ui(ctx);
+        }
+    }
 
+    fn mobile_ui(&mut self, ctx: &Context) {
+        if self.about_is_open {
+            egui::CentralPanel::default().show(ctx, |_ui| {}); // just to paint a background for the windows to be on top of. Needed on web because of https://github.com/emilk/egui/issues/1548
+
+            let screen_size = ctx.input().screen_rect.size();
+            let default_width = (screen_size.x - 20.0).min(400.0);
+
+            let mut close = false;
+            egui::Window::new(self.about.name())
+                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                .default_width(default_width)
+                .default_height(ctx.available_rect().height() - 46.0)
+                .vscroll(true)
+                .open(&mut self.about_is_open)
+                .resizable(false)
+                .collapsible(false)
+                .show(ctx, |ui| {
+                    self.about.ui(ui);
+                    ui.add_space(12.0);
+                    ui.vertical_centered_justified(|ui| {
+                        if ui
+                            .button(egui::RichText::new("Continue to the demo!").size(24.0))
+                            .clicked()
+                        {
+                            close = true;
+                        }
+                    });
+                });
+            self.about_is_open &= !close;
+        } else {
+            self.mobile_top_bar(ctx);
+            self.show_windows(ctx);
+        }
+    }
+
+    fn mobile_top_bar(&mut self, ctx: &Context) {
+        egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
+            egui::menu::bar(ui, |ui| {
+                let font_size = 20.0;
+
+                ui.menu_button(egui::RichText::new("⏷ demos").size(font_size), |ui| {
+                    ui.set_style(ui.ctx().style()); // ignore the "menu" style set by `menu_button`.
+                    self.demo_list_ui(ui);
+                    if ui.ui_contains_pointer() && ui.input().pointer.any_click() {
+                        ui.close_menu();
+                    }
+                });
+
+                ui.with_layout(egui::Layout::right_to_left(), |ui| {
+                    use egui::special_emojis::{GITHUB, TWITTER};
+                    ui.hyperlink_to(
+                        egui::RichText::new(TWITTER).size(font_size),
+                        "https://twitter.com/ernerfeldt",
+                    );
+                    ui.hyperlink_to(
+                        egui::RichText::new(GITHUB).size(font_size),
+                        "https://github.com/emilk/egui",
+                    );
+                });
+            });
+        });
+    }
+
+    fn desktop_ui(&mut self, ctx: &Context) {
         egui::SidePanel::right("egui_demo_panel")
-            .min_width(150.0)
-            .default_width(180.0)
+            .resizable(false)
+            .default_width(145.0)
             .show(ctx, |ui| {
                 egui::trace!(ui);
                 ui.vertical_centered(|ui| {
@@ -166,85 +250,72 @@ impl DemoWindows {
 
                 ui.separator();
 
-                ScrollArea::vertical().show(ui, |ui| {
-                    use egui::special_emojis::{GITHUB, OS_APPLE, OS_LINUX, OS_WINDOWS};
+                use egui::special_emojis::{GITHUB, TWITTER};
+                ui.hyperlink_to(
+                    format!("{} egui on GitHub", GITHUB),
+                    "https://github.com/emilk/egui",
+                );
+                ui.hyperlink_to(
+                    format!("{} @ernerfeldt", TWITTER),
+                    "https://twitter.com/ernerfeldt",
+                );
 
-                    ui.vertical_centered(|ui| {
-                        ui.label("egui is an immediate mode GUI library written in Rust.");
+                ui.separator();
 
-                        ui.label(format!(
-                            "egui runs on the web, or natively on {}{}{}",
-                            OS_APPLE, OS_LINUX, OS_WINDOWS,
-                        ));
-
-                        ui.hyperlink_to(
-                            format!("{} egui home page", GITHUB),
-                            "https://github.com/emilk/egui",
-                        );
-                    });
-
-                    ui.separator();
-                    demos.checkboxes(ui);
-                    ui.separator();
-                    tests.checkboxes(ui);
-                    ui.separator();
-
-                    ui.vertical_centered(|ui| {
-                        if ui.button("Organize windows").clicked() {
-                            ui.ctx().memory().reset_areas();
-                        }
-                    });
-                });
+                self.demo_list_ui(ui);
             });
 
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
-            show_menu_bar(ui);
+            egui::menu::bar(ui, |ui| {
+                file_menu_button(ui);
+            });
         });
 
-        {
-            let mut fill = ctx.style().visuals.extreme_bg_color;
-            if !cfg!(target_arch = "wasm32") {
-                // Native: WrapApp uses a transparent window, so let's show that off:
-                // NOTE: the OS compositor assumes "normal" blending, so we need to hack it:
-                let [r, g, b, _] = fill.to_array();
-                fill = egui::Color32::from_rgba_premultiplied(r, g, b, 180);
-            }
-            let frame = egui::Frame::none().fill(fill);
-            egui::CentralPanel::default().frame(frame).show(ctx, |_| {});
-        }
-
-        self.windows(ctx);
+        self.show_windows(ctx);
     }
 
     /// Show the open windows.
-    fn windows(&mut self, ctx: &Context) {
-        let Self { demos, tests } = self;
+    fn show_windows(&mut self, ctx: &Context) {
+        egui::CentralPanel::default().show(ctx, |_ui| {}); // just to paint a background for the windows to be on top of. Needed on web because of https://github.com/emilk/egui/issues/1548
+        self.about.show(ctx, &mut self.about_is_open);
+        self.demos.windows(ctx);
+        self.tests.windows(ctx);
+    }
 
-        demos.windows(ctx);
-        tests.windows(ctx);
+    fn demo_list_ui(&mut self, ui: &mut egui::Ui) {
+        ScrollArea::vertical().show(ui, |ui| {
+            ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
+                ui.toggle_value(&mut self.about_is_open, self.about.name());
+
+                ui.separator();
+                self.demos.checkboxes(ui);
+                ui.separator();
+                self.tests.checkboxes(ui);
+                ui.separator();
+
+                if ui.button("Organize windows").clicked() {
+                    ui.ctx().memory().reset_areas();
+                }
+            });
+        });
     }
 }
 
 // ----------------------------------------------------------------------------
 
-fn show_menu_bar(ui: &mut Ui) {
-    trace!(ui);
-    use egui::*;
-
-    menu::bar(ui, |ui| {
-        ui.menu_button("File", |ui| {
-            if ui.button("Organize windows").clicked() {
-                ui.ctx().memory().reset_areas();
-                ui.close_menu();
-            }
-            if ui
-                .button("Reset egui memory")
-                .on_hover_text("Forget scroll, positions, sizes etc")
-                .clicked()
-            {
-                *ui.ctx().memory() = Default::default();
-                ui.close_menu();
-            }
-        });
+fn file_menu_button(ui: &mut Ui) {
+    ui.menu_button("File", |ui| {
+        if ui.button("Organize windows").clicked() {
+            ui.ctx().memory().reset_areas();
+            ui.close_menu();
+        }
+        if ui
+            .button("Reset egui memory")
+            .on_hover_text("Forget scroll, positions, sizes etc")
+            .clicked()
+        {
+            *ui.ctx().memory() = Default::default();
+            ui.close_menu();
+        }
     });
 }

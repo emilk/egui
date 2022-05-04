@@ -3,8 +3,8 @@ use emath::Rot2;
 
 /// An widget to show an image of a given size.
 ///
-/// In order to display an image you must first acquire a [`TextureHandle`]
-/// using [`Context::load_texture`].
+/// In order to display an image you must first acquire a [`TextureHandle`].
+/// This is best done with [`egui_extras::RetainedImage`](https://docs.rs/egui_extras/latest/egui_extras/image/struct.RetainedImage.html) or [`Context::load_texture`].
 ///
 /// ```
 /// struct MyImage {

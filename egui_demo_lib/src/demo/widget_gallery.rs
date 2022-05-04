@@ -53,7 +53,7 @@ impl super::Demo for WidgetGallery {
         egui::Window::new(self.name())
             .open(open)
             .resizable(true)
-            .default_width(300.0)
+            .default_width(280.0)
             .show(ctx, |ui| {
                 use super::View as _;
                 self.ui(ui);
@@ -126,7 +126,7 @@ impl WidgetGallery {
         ui.add(doc_link_label("Hyperlink", "Hyperlink"));
         use egui::special_emojis::GITHUB;
         ui.hyperlink_to(
-            format!("{} egui home page", GITHUB),
+            format!("{} egui on GitHub", GITHUB),
             "https://github.com/emilk/egui",
         );
         ui.end_row();

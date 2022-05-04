@@ -177,7 +177,7 @@
 //! This means it is responsibility of the egui user to store the state (`value`) so that it persists between frames.
 //!
 //! It can be useful to read the code for the toggle switch example widget to get a better understanding
-//! of how egui works: <https://github.com/emilk/egui/blob/master/egui_demo_lib/src/apps/demo/toggle_switch.rs>.
+//! of how egui works: <https://github.com/emilk/egui/blob/master/egui_demo_lib/src/demo/toggle_switch.rs>.
 //!
 //! Read more about the pros and cons of immediate mode at <https://github.com/emilk/egui#why-immediate-mode>.
 //!
@@ -482,6 +482,8 @@ pub mod special_emojis {
 
     /// The Github logo.
     pub const GITHUB: char = '';
+    /// The Twitter bird.
+    pub const TWITTER: char = '';
 
     /// The word `git`.
     pub const GIT: char = '';

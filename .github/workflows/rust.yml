@@ -3,7 +3,7 @@ on: [push, pull_request]
 name: CI
 
 env:
-  # This is required to enable the web_sys clipboard API which egui_web uses
+  # This is required to enable the web_sys clipboard API which eframe web uses
   # https://rustwasm.github.io/wasm-bindgen/api/web_sys/struct.Clipboard.html
   # https://rustwasm.github.io/docs/wasm-bindgen/web-sys/unstable-apis.html
   RUSTFLAGS: --cfg=web_sys_unstable_apis
@@ -160,21 +160,7 @@ jobs:
           toolchain: 1.60.0
           override: true
       - run: sudo apt-get update && sudo apt-get install libspeechd-dev
-      - run: cargo doc -p eframe -p egui -p egui_extras -p egui_glium -p egui_glow -p egui_web -p egui-winit -p emath -p epaint -p epi --lib --no-deps --all-features
-
-  doc_web:
-    name: cargo doc web
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: 1.60.0
-          override: true
-      - run: sudo apt-get update && sudo apt-get install libspeechd-dev
-      - run: rustup target add wasm32-unknown-unknown
-      - run: cargo doc -p egui_web --target wasm32-unknown-unknown --lib --no-deps --all-features
+      - run: cargo doc --lib --no-deps --all-features
 
   cargo-deny:
     runs-on: ubuntu-20.04

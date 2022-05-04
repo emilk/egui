@@ -1,7 +1,7 @@
 pub use egui_winit;
 use egui_winit::winit;
 
-/// Use [`egui`] from a [`glow`] app.
+/// Use [`egui`] from a [`glow`] app based on [`winit`].
 pub struct EguiGlow {
     pub egui_ctx: egui::Context,
     pub egui_winit: egui_winit::State,

@@ -12,9 +12,6 @@ pub mod clipboard;
 pub mod screen_reader;
 mod window_settings;
 
-#[cfg(feature = "epi")]
-pub mod epi;
-
 pub use window_settings::WindowSettings;
 
 pub fn native_pixels_per_point(window: &winit::window::Window) -> f32 {
@@ -454,7 +451,7 @@ impl State {
             open_url,
             copied_text,
             events: _,                    // handled above
-            mutable_text_under_cursor: _, // only used in egui_web
+            mutable_text_under_cursor: _, // only used in eframe web
             text_cursor_pos,
         } = platform_output;
 

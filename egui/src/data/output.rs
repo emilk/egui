@@ -67,7 +67,7 @@ pub struct PlatformOutput {
     pub events: Vec<OutputEvent>,
 
     /// Is there a mutable [`TextEdit`](crate::TextEdit) under the cursor?
-    /// Use by `egui_web` to show/hide mobile keyboard and IME agent.
+    /// Use by `eframe` web to show/hide mobile keyboard and IME agent.
     pub mutable_text_under_cursor: bool,
 
     /// Screen-space position of text edit cursor (used for IME).

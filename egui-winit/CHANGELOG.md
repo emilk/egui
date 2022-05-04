@@ -3,11 +3,15 @@ All notable changes to the `egui-winit` integration will be noted in this file.
 
 
 ## Unreleased
+
+
+## 0.18.0 - 2022-04-30
 * Reexport `egui` crate
-* Renamed the feature `convert_bytemuck` to `bytemuck` ([#1467](https://github.com/emilk/egui/pull/1467)).
-* Renamed the feature `serialize` to `serde` ([#1467](https://github.com/emilk/egui/pull/1467)).
 * MSRV (Minimum Supported Rust Version) is now `1.60.0` ([#1467](https://github.com/emilk/egui/pull/1467)).
 * Added new feature `puffin` to add [`puffin profiler`](https://github.com/EmbarkStudios/puffin) scopes ([#1483](https://github.com/emilk/egui/pull/1483)).
+* Renamed the feature `convert_bytemuck` to `bytemuck` ([#1467](https://github.com/emilk/egui/pull/1467)).
+* Renamed the feature `serialize` to `serde` ([#1467](https://github.com/emilk/egui/pull/1467)).
+* Removed the features `dark-light` and `persistence` ([#1542](https://github.com/emilk/egui/pull/1542)).
 
 
 ## 0.17.0 - 2022-02-22
