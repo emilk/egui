@@ -375,7 +375,7 @@ impl Context {
             for pointer_event in &input.pointer.pointer_events {
                 match pointer_event {
                     PointerEvent::Moved(_) => {}
-                    PointerEvent::Pressed(_) => {
+                    PointerEvent::Pressed { .. } => {
                         if hovered {
                             if sense.click && memory.interaction.click_id.is_none() {
                                 // potential start of a click
