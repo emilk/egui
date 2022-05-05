@@ -367,13 +367,16 @@ impl Click {
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum PointerEvent {
     Moved(Pos2),
-    Pressed(Pos2),
+    Pressed {
+        position: Pos2,
+        button: PointerButton,
+    },
     Released(Option<Click>),
 }
 
 impl PointerEvent {
     pub fn is_press(&self) -> bool {
-        matches!(self, PointerEvent::Pressed(_))
+        matches!(self, PointerEvent::Pressed { .. })
     }
     pub fn is_release(&self) -> bool {
         matches!(self, PointerEvent::Released(_))
@@ -509,7 +512,10 @@ impl PointerState {
                         self.press_origin = Some(pos);
                         self.press_start_time = Some(time);
                         self.has_moved_too_much_for_a_click = false;
-                        self.pointer_events.push(PointerEvent::Pressed(pos));
+                        self.pointer_events.push(PointerEvent::Pressed {
+                            position: pos,
+                            button,
+                        });
                     } else {
                         let clicked = self.could_any_button_be_click();
 
@@ -667,6 +673,23 @@ impl PointerState {
         self.pointer_events.iter().any(|event| event.is_release())
     }
 
+    /// Was the button given released this frame?
+    pub fn button_released(&self, button: PointerButton) -> bool {
+        self.pointer_events
+            .iter()
+            .any(|event| matches!(event, &PointerEvent::Released(Some(Click{button: b, ..})) if button == b))
+    }
+
+    /// Was the primary button released this frame?
+    pub fn primary_released(&self) -> bool {
+        self.button_released(PointerButton::Primary)
+    }
+
+    /// Was the secondary button released this frame?
+    pub fn secondary_released(&self) -> bool {
+        self.button_released(PointerButton::Secondary)
+    }
+
     /// Is any pointer button currently down?
     pub fn any_down(&self) -> bool {
         self.down.iter().any(|&down| down)
@@ -675,6 +698,23 @@ impl PointerState {
     /// Were there any type of click this frame?
     pub fn any_click(&self) -> bool {
         self.pointer_events.iter().any(|event| event.is_click())
+    }
+
+    /// Was the button given clicked this frame?
+    pub fn button_clicked(&self, button: PointerButton) -> bool {
+        self.pointer_events
+            .iter()
+            .any(|event| matches!(event, &PointerEvent::Pressed { button: b, .. } if button == b))
+    }
+
+    /// Was the primary button clicked this frame?
+    pub fn primary_clicked(&self) -> bool {
+        self.button_clicked(PointerButton::Primary)
+    }
+
+    /// Was the secondary button clicked this frame?
+    pub fn secondary_clicked(&self) -> bool {
+        self.button_clicked(PointerButton::Secondary)
     }
 
     // /// Was this button pressed (`!down -> down`) this frame?
