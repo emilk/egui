@@ -17,14 +17,19 @@ while test $# -gt 0; do
       echo "  --open: open the result in a browser"
       exit 0
       ;;
+
+    # Skip running `wasm-opt`.
+    # --fast also preserves debug symbols, which is great for profiling.
     --fast)
       shift
       FAST=true
       ;;
+
     --open)
       shift
       OPEN=true
       ;;
+
     *)
       break
       ;;
