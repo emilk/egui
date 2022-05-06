@@ -122,6 +122,8 @@ pub fn run(app_name: &str, native_options: &epi::NativeOptions, app_creator: epi
                 &textures_delta,
             );
 
+            integration.post_rendering(app.as_mut());
+
             {
                 crate::profile_scope!("swap_buffers");
                 gl_window.swap_buffers().unwrap();

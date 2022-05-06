@@ -262,6 +262,14 @@ impl EpiIntegration {
         full_output
     }
 
+    pub fn post_rendering(&mut self, app: &mut dyn epi::App) {
+        let pixels_per_point = self.frame.info().native_pixels_per_point.unwrap_or(1.0);
+        let screen_size = self.egui_ctx.input().screen_rect.size() * pixels_per_point;
+        let screen_size_px = [screen_size.x as u32, screen_size.y as u32];
+
+        app.post_rendering(screen_size_px, &self.frame);
+    }
+
     pub fn handle_platform_output(
         &mut self,
         window: &winit::window::Window,
