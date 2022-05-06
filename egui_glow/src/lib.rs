@@ -22,6 +22,8 @@ pub use winit::*;
 
 /// Check for OpenGL error and report it using `tracing::error`.
 ///
+/// Only active in debug builds!
+///
 /// ``` no_run
 /// # let glow_context = todo!();
 /// use egui_glow::check_for_gl_error;
@@ -30,6 +32,30 @@ pub use winit::*;
 /// ```
 #[macro_export]
 macro_rules! check_for_gl_error {
+    ($gl: expr) => {{
+        if cfg!(debug_assertions) {
+            $crate::check_for_gl_error_impl($gl, file!(), line!(), "")
+        }
+    }};
+    ($gl: expr, $context: literal) => {{
+        if cfg!(debug_assertions) {
+            $crate::check_for_gl_error_impl($gl, file!(), line!(), $context)
+        }
+    }};
+}
+
+/// Check for OpenGL error and report it using `tracing::error`.
+///
+/// WARNING: slow! Only use during setup!
+///
+/// ``` no_run
+/// # let glow_context = todo!();
+/// use egui_glow::check_for_gl_error_even_in_release;
+/// check_for_gl_error_even_in_release!(glow_context);
+/// check_for_gl_error_even_in_release!(glow_context, "during painting");
+/// ```
+#[macro_export]
+macro_rules! check_for_gl_error_even_in_release {
     ($gl: expr) => {{
         $crate::check_for_gl_error_impl($gl, file!(), line!(), "")
     }};
