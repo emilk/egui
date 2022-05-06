@@ -1,9 +1,5 @@
 use super::View;
-use egui::{
-    epaint::text::cursor::{CCursor, Cursor, PCursor, RCursor},
-    text_edit::CursorRange,
-    Grid, Key, Label, Modifiers, TextBuffer, TextEdit, Window,
-};
+use egui::{Grid, Key, Label, Modifiers, TextBuffer, TextEdit, Window};
 use std::ops::Range;
 
 pub struct Autocomplete {
@@ -63,11 +59,12 @@ impl View for Autocomplete {
                 let down_pressed = ui
                     .input_mut()
                     .consume_key(Modifiers::default(), Key::ArrowDown);
+                let end_pos = self.input.chars().count();
                 let te = TextEdit::singleline(&mut self.input)
                     .lock_focus(true)
                     .id(te_id);
                 if self.cursor_to_end {
-                    text_edit_cursor_set_to_end(ui, te_id);
+                    set_cursor_pos(ui, te_id, end_pos);
                 }
                 let re = ui.add(te);
                 self.ac_state.input_changed = re.changed();
@@ -114,20 +111,10 @@ impl View for Autocomplete {
     }
 }
 
-fn text_edit_cursor_set_to_end(ui: &mut egui::Ui, te_id: egui::Id) {
+fn set_cursor_pos(ui: &mut egui::Ui, te_id: egui::Id, char_pos: usize) {
     let mut state = TextEdit::load_state(ui.ctx(), te_id).unwrap();
-    state.set_cursor_range(Some(CursorRange::one(Cursor {
-        ccursor: CCursor {
-            index: 0,
-            prefer_next_row: false,
-        },
-        rcursor: RCursor { row: 0, column: 0 },
-        pcursor: PCursor {
-            paragraph: 0,
-            offset: 10000,
-            prefer_next_row: false,
-        },
-    })));
+    let ccursor = egui::text::CCursor::new(char_pos);
+    state.set_ccursor_range(Some(egui::text::CCursorRange::one(ccursor)));
     TextEdit::store_state(ui.ctx(), te_id, state);
 }
 
