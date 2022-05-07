@@ -186,6 +186,59 @@ impl Color32 {
     }
 }
 
+#[macro_export]
+macro_rules! hex_rgb {
+    ($s:literal) => {{
+        let color: [u8; 3] = $crate::color_hex::color_from_hex!($s);
+        $crate::Color32::from_rgb(color[0], color[1], color[2])
+    }};
+}
+
+#[macro_export]
+macro_rules! hex_rgb_additive {
+    ($s:literal) => {{
+        let color: [u8; 3] = $crate::color_hex::color_from_hex!($s);
+        $crate::Color32::from_rgb_additive(color[0], color[1], color[2])
+    }};
+}
+
+#[macro_export]
+macro_rules! hex_rgba_premultiplied {
+    ($s:literal) => {{
+        let color: [u8; 4] = $crate::color_hex::color_from_hex!($s);
+        $crate::Color32::from_rgba_premultiplied(color[0], color[1], color[2], color[3])
+    }};
+}
+
+#[macro_export]
+macro_rules! hex_rgba_unmultiplied {
+    ($s:literal) => {{
+        let color: [u8; 4] = $crate::color_hex::color_from_hex!($s);
+        $crate::Color32::from_rgba_unmultiplied(color[0], color[1], color[2], color[3])
+    }};
+}
+
+#[test]
+fn test_from_rgb_hex() {
+    assert_eq!(Color32::from_rgb(0x20, 0x21, 0x22), hex_rgb!("#202122"));
+    assert_eq!(
+        Color32::from_rgb_additive(0x20, 0x21, 0x22),
+        hex_rgb_additive!("#202122")
+    );
+}
+
+#[test]
+fn test_from_rgba_hex() {
+    assert_eq!(
+        Color32::from_rgba_premultiplied(0x20, 0x21, 0x22, 0xff),
+        hex_rgba_premultiplied!("202122ff")
+    );
+    assert_eq!(
+        Color32::from_rgba_unmultiplied(0x20, 0x21, 0x22, 0x50),
+        hex_rgba_unmultiplied!("20212250")
+    );
+}
+
 // ----------------------------------------------------------------------------
 
 /// 0-1 linear space `RGBA` color with premultiplied alpha.
