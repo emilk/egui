@@ -75,7 +75,7 @@ impl PostProcess {
             glow::UNSIGNED_BYTE,
             None,
         );
-        check_for_gl_error!(&gl, "post process texture initialization");
+        crate::check_for_gl_error_even_in_release!(&gl, "post process texture initialization");
 
         gl.framebuffer_texture_2d(
             glow::FRAMEBUFFER,
@@ -160,7 +160,7 @@ impl PostProcess {
         gl.buffer_data_u8_slice(glow::ELEMENT_ARRAY_BUFFER, &indices, glow::STATIC_DRAW);
 
         gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, None);
-        check_for_gl_error!(&gl, "post process initialization");
+        crate::check_for_gl_error_even_in_release!(&gl, "post process initialization");
 
         Ok(PostProcess {
             gl,

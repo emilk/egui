@@ -1251,7 +1251,7 @@ impl Ui {
         Label::new(text.into().strong()).ui(self)
     }
 
-    /// Show text that is waker (fainter color).
+    /// Show text that is weaker (fainter color).
     ///
     /// Shortcut for `ui.label(RichText::new(text).weak())`
     pub fn weak(&mut self, text: impl Into<RichText>) -> Response {
@@ -1381,9 +1381,10 @@ impl Ui {
     ///
     /// See also [`Self::checkbox`].
     pub fn toggle_value(&mut self, selected: &mut bool, text: impl Into<WidgetText>) -> Response {
-        let response = self.selectable_label(*selected, text);
+        let mut response = self.selectable_label(*selected, text);
         if response.clicked() {
             *selected = !*selected;
+            response.mark_changed();
         }
         response
     }
