@@ -67,11 +67,34 @@ impl Default for CoordinatesFormatter {
 
 const MIN_LINE_SPACING_IN_POINTS: f64 = 6.0; // TODO: large enough for a wide label
 
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Clone)]
+pub struct AutoBounds {
+    x: bool,
+    y: bool,
+}
+
+impl AutoBounds {
+    fn from_bool(val: bool) -> Self {
+        AutoBounds { x: val, y: val }
+    }
+
+    fn any(&self) -> bool {
+        self.x || self.y
+    }
+}
+
+impl From<bool> for AutoBounds {
+    fn from(val: bool) -> Self {
+        AutoBounds::from_bool(val)
+    }
+}
+
 /// Information about the plot that has to persist between frames.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone)]
 struct PlotMemory {
-    auto_bounds: bool,
+    auto_bounds: AutoBounds,
     hovered_entry: Option<String>,
     hidden_items: AHashSet<String>,
     min_auto_bounds: PlotBounds,
@@ -556,7 +579,7 @@ impl Plot {
         let plot_id = ui.make_persistent_id(id_source);
         ui.ctx().check_for_id_clash(plot_id, rect, "Plot");
         let mut memory = PlotMemory::load(ui.ctx(), plot_id).unwrap_or_else(|| PlotMemory {
-            auto_bounds: !min_auto_bounds.is_valid(),
+            auto_bounds: (!min_auto_bounds.is_valid()).into(),
             hovered_entry: None,
             hidden_items: Default::default(),
             min_auto_bounds,
@@ -572,7 +595,7 @@ impl Plot {
         // If the min bounds changed, recalculate everything.
         if min_auto_bounds != memory.min_auto_bounds {
             memory = PlotMemory {
-                auto_bounds: !min_auto_bounds.is_valid(),
+                auto_bounds: (!min_auto_bounds.is_valid()).into(),
                 hovered_entry: None,
                 min_auto_bounds,
                 ..memory
@@ -642,28 +665,51 @@ impl Plot {
         if let Some(axes) = linked_axes.as_ref() {
             if let Some(linked_bounds) = axes.get() {
                 if axes.link_x {
-                    bounds.min[0] = linked_bounds.min[0];
-                    bounds.max[0] = linked_bounds.max[0];
+                    bounds.set_x(&linked_bounds);
+                    // Turn off auto bounds to keep it from overriding what we just set.
+                    auto_bounds.x = false;
                 }
                 if axes.link_y {
-                    bounds.min[1] = linked_bounds.min[1];
-                    bounds.max[1] = linked_bounds.max[1];
+                    bounds.set_y(&linked_bounds);
+                    // Turn off auto bounds to keep it from overriding what we just set.
+                    auto_bounds.y = false
                 }
-                // Turn off auto bounds to keep it from overriding what we just set.
-                auto_bounds = false;
             }
-        }
+        };
 
         // Allow double clicking to reset to automatic bounds.
-        auto_bounds |= response.double_clicked_by(PointerButton::Primary);
+        if response.double_clicked_by(PointerButton::Primary) {
+            auto_bounds = true.into()
+        }
 
         // Set bounds automatically based on content.
-        if auto_bounds || !bounds.is_valid() {
-            bounds = min_auto_bounds;
-            for item in &items {
-                bounds.merge(&item.get_bounds());
+        if auto_bounds.any() || !bounds.is_valid() {
+            if auto_bounds.x {
+                bounds.set_x(&min_auto_bounds);
             }
-            bounds.add_relative_margin(margin_fraction);
+
+            if auto_bounds.y {
+                bounds.set_y(&min_auto_bounds);
+            }
+
+            for item in &items {
+                // bounds.merge(&item.get_bounds());
+
+                if auto_bounds.x {
+                    bounds.merge_x(&item.get_bounds());
+                }
+                if auto_bounds.y {
+                    bounds.merge_y(&item.get_bounds());
+                }
+            }
+
+            if auto_bounds.x {
+                bounds.add_relative_margin_x(margin_fraction);
+            }
+
+            if auto_bounds.y {
+                bounds.add_relative_margin_y(margin_fraction);
+            }
         }
 
         let mut transform = ScreenTransform::new(rect, bounds, center_x_axis, center_y_axis);
@@ -680,7 +726,7 @@ impl Plot {
         if allow_drag && response.dragged_by(PointerButton::Primary) {
             response = response.on_hover_cursor(CursorIcon::Grabbing);
             transform.translate_bounds(-response.drag_delta());
-            auto_bounds = false;
+            auto_bounds = false.into()
         }
 
         // Zooming
@@ -721,9 +767,9 @@ impl Plot {
                     };
                     if new_bounds.is_valid() {
                         *transform.bounds_mut() = new_bounds;
-                        auto_bounds = false;
+                        auto_bounds = false.into()
                     } else {
-                        auto_bounds = true;
+                        auto_bounds = true.into()
                     }
                     // reset the boxed zoom state
                     last_click_pos_for_zoom = None;
@@ -740,14 +786,14 @@ impl Plot {
                 };
                 if zoom_factor != Vec2::splat(1.0) {
                     transform.zoom(zoom_factor, hover_pos);
-                    auto_bounds = false;
+                    auto_bounds = false.into()
                 }
             }
             if allow_scroll {
                 let scroll_delta = ui.input().scroll_delta;
                 if scroll_delta != Vec2::ZERO {
                     transform.translate_bounds(-scroll_delta);
-                    auto_bounds = false;
+                    auto_bounds = false.into()
                 }
             }
         }
