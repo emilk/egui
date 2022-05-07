@@ -489,18 +489,14 @@ impl Widget for ImageButton {
             let (expansion, rounding, fill, stroke) = if selected {
                 let selection = ui.visuals().selection;
                 (
-                    -padding,
+                    Vec2::splat(0.0),
                     Rounding::none(),
                     selection.bg_fill,
                     selection.stroke,
                 )
             } else if frame {
                 let visuals = ui.style().interact(&response);
-                let expansion = if response.hovered {
-                    Vec2::splat(visuals.expansion) - padding
-                } else {
-                    Vec2::splat(visuals.expansion)
-                };
+                let expansion = Vec2::splat(visuals.expansion);
                 (
                     expansion,
                     visuals.rounding,
