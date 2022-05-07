@@ -6,7 +6,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 
 ## Unreleased
 * Add `*_released` & `*_clicked` methods for `PointerState`.
-* Fixed `ImageButton`'s changing background padding on hover ([#1528](https://github.com/emilk/egui/pull/1595)).
+* Fixed `ImageButton`'s changing background padding on hover ([#1595](https://github.com/emilk/egui/pull/1595)).
 
 ## 0.18.1 - 2022-05-01
 * Change `Shape::Callback` from `&dyn Any` to `&mut dyn Any` to support more backends.
