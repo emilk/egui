@@ -341,6 +341,8 @@ impl super::View for InputTest {
             egui::PointerButton::Primary,
             egui::PointerButton::Secondary,
             egui::PointerButton::Middle,
+            egui::PointerButton::Extra1,
+            egui::PointerButton::Extra2,
         ] {
             if response.clicked_by(button) {
                 new_info += &format!("Clicked by {:?} button\n", button);
