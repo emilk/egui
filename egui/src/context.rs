@@ -29,8 +29,36 @@ impl Default for WrappedTextureManager {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Default)]
-struct ContextImpl {
+/// Your handle to egui.
+///
+/// This is the first thing you need when working with egui.
+/// Contains the [`InputState`], [`Memory`], [`PlatformOutput`], and more.
+///
+/// # Example:
+///
+/// ``` no_run
+/// # fn handle_platform_output(_: egui::PlatformOutput) {}
+/// # fn paint(textures_detla: egui::TexturesDelta, _: Vec<egui::ClippedPrimitive>) {}
+/// let mut ctx = egui::Context::default();
+///
+/// // Game loop:
+/// loop {
+///     let raw_input = egui::RawInput::default();
+///     let full_output = ctx.run(raw_input, |ctx| {
+///         egui::CentralPanel::default().show(&ctx, |ui| {
+///             ui.label("Hello world!");
+///             if ui.button("Click me").clicked() {
+///                 // take some action here
+///             }
+///         });
+///     });
+///     handle_platform_output(full_output.platform_output);
+///     let clipped_primitives = ctx.tessellate(full_output.shapes); // create triangles to paint
+///     paint(full_output.textures_delta, clipped_primitives);
+/// }
+/// ```
+
+pub struct Context {
     /// `None` until the start of the first frame.
     fonts: Option<Fonts>,
     memory: Memory,
@@ -50,39 +78,32 @@ struct ContextImpl {
 
     /// While positive, keep requesting repaints. Decrement at the end of each frame.
     repaint_requests: u32,
-    request_repaint_callbacks: Option<Box<dyn Fn() + Send + Sync>>,
-    requested_repaint_last_frame: bool,
+    request_repaint_callback: Option<Box<dyn Fn() + Send + Sync>>,
 }
 
-impl ContextImpl {
-    fn begin_frame_mut(&mut self, new_raw_input: RawInput) {
-        self.memory.begin_frame(&self.input, &new_raw_input);
-
-        self.input = std::mem::take(&mut self.input)
-            .begin_frame(new_raw_input, self.requested_repaint_last_frame);
-
-        if let Some(new_pixels_per_point) = self.memory.new_pixels_per_point.take() {
-            self.input.pixels_per_point = new_pixels_per_point;
+impl Default for Context {
+    fn default() -> Self {
+        Self {
+            fonts: None,
+            memory: Memory::default(),
+            animation_manager: AnimationManager::default(),
+            tex_manager: WrappedTextureManager::default(),
+            input: InputState::default(),
+            frame_state: FrameState::default(),
+            graphics: GraphicLayers::default(),
+            output: PlatformOutput::default(),
+            paint_stats: PaintStats::default(),
+            // Start with painting an extra frame to compensate for some widgets
+            // that take two frames before they "settle":
+            repaint_requests: 1,
+            request_repaint_callback: None,
         }
-
-        self.frame_state.begin_frame(&self.input);
-
-        self.update_fonts_mut();
-
-        // Ensure we register the background area so panels and background ui can catch clicks:
-        let screen_rect = self.input.screen_rect();
-        self.memory.areas.set_state(
-            LayerId::background(),
-            containers::area::State {
-                pos: screen_rect.min,
-                size: screen_rect.size(),
-                interactable: true,
-            },
-        );
     }
+}
 
+impl Context {
     /// Load fonts unless already loaded.
-    fn update_fonts_mut(&mut self) {
+    fn update_fonts(&mut self) {
         let pixels_per_point = self.input.pixels_per_point();
         let max_texture_side = self.input.max_texture_side;
 
@@ -108,73 +129,7 @@ impl ContextImpl {
     }
 }
 
-// ----------------------------------------------------------------------------
-
-/// Your handle to egui.
-///
-/// This is the first thing you need when working with egui.
-/// Contains the [`InputState`], [`Memory`], [`PlatformOutput`], and more.
-///
-/// [`Context`] is cheap to clone, and any clones refers to the same mutable data
-/// ([`Context`] uses refcounting internally).
-///
-/// All methods are marked `&self`; [`Context`] has interior mutability (protected by a mutex).
-///
-///
-/// You can store
-///
-/// # Example:
-///
-/// ``` no_run
-/// # fn handle_platform_output(_: egui::PlatformOutput) {}
-/// # fn paint(textures_detla: egui::TexturesDelta, _: Vec<egui::ClippedPrimitive>) {}
-/// let mut ctx = egui::Context::default();
-///
-/// // Game loop:
-/// loop {
-///     let raw_input = egui::RawInput::default();
-///     let full_output = ctx.run(raw_input, |ctx| {
-///         egui::CentralPanel::default().show(&ctx, |ui| {
-///             ui.label("Hello world!");
-///             if ui.button("Click me").clicked() {
-///                 // take some action here
-///             }
-///         });
-///     });
-///     handle_platform_output(full_output.platform_output);
-///     let clipped_primitives = ctx.tessellate(full_output.shapes); // create triangles to paint
-///     paint(full_output.textures_delta, clipped_primitives);
-/// }
-/// ```
-#[derive(Clone)]
-pub struct Context(Arc<RwLock<ContextImpl>>);
-
-impl std::cmp::PartialEq for Context {
-    fn eq(&self, other: &Context) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
-    }
-}
-
-impl Default for Context {
-    fn default() -> Self {
-        Self(Arc::new(RwLock::new(ContextImpl {
-            // Start with painting an extra frame to compensate for some widgets
-            // that take two frames before they "settle":
-            repaint_requests: 1,
-            ..ContextImpl::default()
-        })))
-    }
-}
-
 impl Context {
-    fn read(&self) -> RwLockReadGuard<'_, ContextImpl> {
-        self.0.read()
-    }
-
-    fn write(&self) -> RwLockWriteGuard<'_, ContextImpl> {
-        self.0.write()
-    }
-
     /// Run the ui code for one frame.
     ///
     /// Put your widgets into a [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`].
@@ -198,7 +153,7 @@ impl Context {
     /// // handle full_output
     /// ```
     #[must_use]
-    pub fn run(&self, new_input: RawInput, run_ui: impl FnOnce(&Context)) -> FullOutput {
+    pub fn run(&mut self, new_input: RawInput, run_ui: impl FnOnce(&mut Context)) -> FullOutput {
         self.begin_frame(new_input);
         run_ui(self);
         self.end_frame()
@@ -221,8 +176,29 @@ impl Context {
     /// let full_output = ctx.end_frame();
     /// // handle full_output
     /// ```
-    pub fn begin_frame(&self, new_input: RawInput) {
-        self.write().begin_frame_mut(new_input);
+    pub fn begin_frame(&mut self, new_raw_input: RawInput) {
+        self.memory.begin_frame(&self.input, &new_raw_input);
+
+        self.input = std::mem::take(&mut self.input).begin_frame(new_raw_input);
+
+        if let Some(new_pixels_per_point) = self.memory.new_pixels_per_point.take() {
+            self.input.pixels_per_point = new_pixels_per_point;
+        }
+
+        self.frame_state.begin_frame(&self.input);
+
+        self.update_fonts();
+
+        // Ensure we register the background area so panels and background ui can catch clicks:
+        let screen_rect = self.input.screen_rect();
+        self.memory.areas.set_state(
+            LayerId::background(),
+            containers::area::State {
+                pos: screen_rect.min,
+                size: screen_rect.size(),
+                interactable: true,
+            },
+        );
     }
 
     // ---------------------------------------------------------------------
@@ -236,8 +212,8 @@ impl Context {
     /// The given [`Rect`] should be approximately where the widget will be.
     /// The most important thing is that [`Rect::min`] is approximately correct,
     /// because that's where the warning will be painted. If you don't know what size to pick, just pick [`Vec2::ZERO`].
-    pub fn check_for_id_clash(&self, id: Id, new_rect: Rect, what: &str) {
-        let prev_rect = self.frame_state().used_ids.insert(id, new_rect);
+    pub fn check_for_id_clash(&mut self, id: Id, new_rect: Rect, what: &str) {
+        let prev_rect = self.frame_state.used_ids.insert(id, new_rect);
         if let Some(prev_rect) = prev_rect {
             // it is ok to reuse the same ID for e.g. a frame around a widget,
             // or to check for interaction with the same widget twice:
@@ -458,101 +434,100 @@ impl Context {
     /// This is the "background" area, what egui doesn't cover with panels (but may cover with windows).
     /// This is also the area to which windows are constrained.
     pub fn available_rect(&self) -> Rect {
-        self.frame_state().available_rect()
+        self.frame_state.available_rect()
     }
 }
 
 /// ## Borrows parts of [`Context`]
 impl Context {
-    /// Stores all the egui state.
+    /// Returns a reference all the egui state.
     ///
     /// If you want to store/restore egui, serialize this.
     #[inline]
-    pub fn memory(&self) -> RwLockWriteGuard<'_, Memory> {
-        RwLockWriteGuard::map(self.write(), |c| &mut c.memory)
+    pub fn memory(&self) -> &Memory {
+        &self.memory
     }
 
-    /// Stores superficial widget state.
-    #[inline]
-    pub fn data(&self) -> RwLockWriteGuard<'_, crate::util::IdTypeMap> {
-        RwLockWriteGuard::map(self.write(), |c| &mut c.memory.data)
-    }
-
-    #[inline]
-    pub(crate) fn graphics(&self) -> RwLockWriteGuard<'_, GraphicLayers> {
-        RwLockWriteGuard::map(self.write(), |c| &mut c.graphics)
-    }
-
-    /// What egui outputs each frame.
+    /// Returns a mutable reference all the egui state.
     ///
+    /// See [Context::memory]
+    #[inline]
+    pub fn memory_mut(&mut self) -> &mut Memory {
+        &mut self.memory
+    }
+
+    /// Returns a mutable reference to the superficial widget state.
+    #[inline]
+    pub fn data_mut(&mut self) -> &mut crate::util::IdTypeMap {
+        &mut self.memory.data
+    }
+
+    /// Returns a mutable reference to the superficial widget state.
+    #[inline]
+    pub fn data(&self) -> &crate::util::IdTypeMap {
+        &self.memory.data
+    }
+
+    #[inline]
+    pub(crate) fn graphics_mut(&mut self) -> &mut GraphicLayers {
+        &mut self.graphics
+    }
+
+    /// Returns a mutable reference to the current frame's output, which can be
+    /// used by the platform integration.
+    ///
+    /// # Example
     /// ```
     /// # let mut ctx = egui::Context::default();
-    /// ctx.output().cursor_icon = egui::CursorIcon::Progress;
+    /// ctx.output_mut().cursor_icon = egui::CursorIcon::Progress;
     /// ```
     #[inline]
-    pub fn output(&self) -> RwLockWriteGuard<'_, PlatformOutput> {
-        RwLockWriteGuard::map(self.write(), |c| &mut c.output)
+    pub fn output_mut(&mut self) -> &mut PlatformOutput {
+        &mut self.output
     }
 
+    /// Returns a reference to the input used for rendering the next frame.
     #[inline]
-    pub(crate) fn frame_state(&self) -> RwLockWriteGuard<'_, FrameState> {
-        RwLockWriteGuard::map(self.write(), |c| &mut c.frame_state)
+    pub fn input(&self) -> &InputState {
+        &self.input
     }
 
-    /// Access the [`InputState`].
-    ///
-    /// Note that this locks the [`Context`], so be careful with if-let bindings:
-    ///
-    /// ```
-    /// # let mut ctx = egui::Context::default();
-    /// if let Some(pos) = ctx.input().pointer.hover_pos() {
-    ///     // ⚠️ Using `ctx` again here will lead to a dead-lock!
-    /// }
-    ///
-    /// if let Some(pos) = { ctx.input().pointer.hover_pos() } {
-    ///     // This is fine!
-    /// }
-    ///
-    /// let pos = ctx.input().pointer.hover_pos();
-    /// if let Some(pos) = pos {
-    ///     // This is fine!
-    /// }
-    /// ```
+    /// Returns a mutable reference to the input used for rendering the next frame.
     #[inline]
-    pub fn input(&self) -> RwLockReadGuard<'_, InputState> {
-        RwLockReadGuard::map(self.read(), |c| &c.input)
-    }
-
-    #[inline]
-    pub fn input_mut(&self) -> RwLockWriteGuard<'_, InputState> {
-        RwLockWriteGuard::map(self.write(), |c| &mut c.input)
+    pub fn input_mut(&mut self) -> &mut InputState {
+        &mut self.input
     }
 
     /// Not valid until first call to [`Context::run()`].
-    /// That's because since we don't know the proper `pixels_per_point` until then.
+    /// That's because we don't know the proper `pixels_per_point` until then.
     #[inline]
-    pub fn fonts(&self) -> RwLockReadGuard<'_, Fonts> {
-        RwLockReadGuard::map(self.read(), |c| {
-            c.fonts
-                .as_ref()
-                .expect("No fonts available until first call to Context::run()")
-        })
+    pub fn fonts(&self) -> &Fonts {
+        self.fonts
+            .as_ref()
+            .expect("No fonts available until first call to Context::run()")
     }
 
     #[inline]
-    fn fonts_mut(&self) -> RwLockWriteGuard<'_, Option<Fonts>> {
-        RwLockWriteGuard::map(self.write(), |c| &mut c.fonts)
+    fn fonts_mut(&self) -> &mut Option<Fonts> {
+        &mut self.fonts
     }
 
+    /// Returns a mutable reference to the `egui` options.
     #[inline]
-    pub fn options(&self) -> RwLockWriteGuard<'_, Options> {
-        RwLockWriteGuard::map(self.write(), |c| &mut c.memory.options)
+    pub fn options_mut(&mut self) -> &mut Options {
+        &mut self.memory.options
     }
 
-    /// Change the options used by the tessellator.
+    /// Returns a reference to the egui options.
     #[inline]
-    pub fn tessellation_options(&self) -> RwLockWriteGuard<'_, TessellationOptions> {
-        RwLockWriteGuard::map(self.write(), |c| &mut c.memory.options.tessellation_options)
+    pub fn options(&self) -> &Options {
+        &self.memory.options
+    }
+
+    /// Returns a mutable reference to the options used by the tessellator.
+    #[inline]
+    pub fn tessellation_options_mut(&mut self) -> &mut TessellationOptions {
+        &mut self.memory.options.tessellation_options
     }
 }
 
@@ -565,11 +540,10 @@ impl Context {
     /// If called from outside the UI thread, the UI thread will wake up and run,
     /// provided the egui integration has set that up via [`Self::set_request_repaint_callback`]
     /// (this will work on `eframe`).
-    pub fn request_repaint(&self) {
+    pub fn request_repaint(&mut self) {
         // request two frames of repaint, just to cover some corner cases (frame delays):
-        let mut ctx = self.write();
-        ctx.repaint_requests = 2;
-        if let Some(callback) = &ctx.request_repaint_callbacks {
+        self.repaint_requests = 2;
+        if let Some(callback) = &self.request_repaint_callback {
             (callback)();
         }
     }
@@ -577,9 +551,9 @@ impl Context {
     /// For integrations: this callback will be called when an egui user calls [`Self::request_repaint`].
     ///
     /// This lets you wake up a sleeping UI thread.
-    pub fn set_request_repaint_callback(&self, callback: impl Fn() + Send + Sync + 'static) {
+    pub fn set_request_repaint_callback(&mut self, callback: impl Fn() + Send + Sync + 'static) {
         let callback = Box::new(callback);
-        self.write().request_repaint_callbacks = Some(callback);
+        self.request_repaint_callback = Some(callback);
     }
 
     /// Tell `egui` which fonts to use.
@@ -588,48 +562,33 @@ impl Context {
     /// but you can call this to install additional fonts that support e.g. korean characters.
     ///
     /// The new fonts will become active at the start of the next frame.
-    pub fn set_fonts(&self, font_definitions: FontDefinitions) {
-        if let Some(current_fonts) = &*self.fonts_mut() {
+    pub fn set_fonts(&mut self, font_definitions: FontDefinitions) {
+        if let Some(current_fonts) = &self.fonts {
             // NOTE: this comparison is expensive since it checks TTF data for equality
             if current_fonts.lock().fonts.definitions() == &font_definitions {
                 return; // no change - save us from reloading font textures
             }
         }
 
-        self.memory().new_font_definitions = Some(font_definitions);
+        self.memory.new_font_definitions = Some(font_definitions);
     }
 
-    /// The [`Style`] used by all subsequent windows, panels etc.
-    pub fn style(&self) -> Arc<Style> {
-        self.options().style.clone()
+    /// Returns a refernce to the [`Style`] used by all new windows, panels etc.
+    pub fn style(&self) -> &Arc<Style> {
+        &self.options().style
     }
 
-    /// The [`Style`] used by all new windows, panels etc.
+    /// Returns a mutable reference to the [`Style`] used by all new windows, panels etc.
     ///
     /// You can also use [`Ui::style_mut`] to change the style of a single [`Ui`].
     ///
-    /// Example:
+    /// # Example
     /// ```
     /// # let mut ctx = egui::Context::default();
-    /// let mut style: egui::Style = (*ctx.style()).clone();
-    /// style.spacing.item_spacing = egui::vec2(10.0, 20.0);
-    /// ctx.set_style(style);
+    /// ctx.style_mut().spacing.item_spacing = egui::vec2(10.0, 20.0);
     /// ```
-    pub fn set_style(&self, style: impl Into<Arc<Style>>) {
-        self.options().style = style.into();
-    }
-
-    /// The [`Visuals`] used by all subsequent windows, panels etc.
-    ///
-    /// You can also use [`Ui::visuals_mut`] to change the visuals of a single [`Ui`].
-    ///
-    /// Example:
-    /// ```
-    /// # let mut ctx = egui::Context::default();
-    /// ctx.set_visuals(egui::Visuals::light()); // Switch to light mode
-    /// ```
-    pub fn set_visuals(&self, visuals: crate::Visuals) {
-        std::sync::Arc::make_mut(&mut self.options().style).visuals = visuals;
+    pub fn style_mut(&mut self) -> &mut Style {
+        Arc::make_mut(&mut self.options_mut().style)
     }
 
     /// The number of physical pixels for each logical point.
@@ -978,14 +937,12 @@ impl Context {
 
     /// Whether or not to debug widget layout on hover.
     pub fn debug_on_hover(&self) -> bool {
-        self.options().style.debug.debug_on_hover
+        self.style().debug.debug_on_hover
     }
 
     /// Turn on/off whether or not to debug widget layout on hover.
-    pub fn set_debug_on_hover(&self, debug_on_hover: bool) {
-        let mut style = (*self.options().style).clone();
-        style.debug.debug_on_hover = debug_on_hover;
-        self.set_style(style);
+    pub fn set_debug_on_hover(&mut self, debug_on_hover: bool) {
+        self.style_mut().debug.debug_on_hover = debug_on_hover;
     }
 }
 
@@ -1000,18 +957,16 @@ impl Context {
     /// The function will call [`Self::request_repaint()`] when appropriate.
     ///
     /// The animation time is taken from [`Style::animation_time`].
-    pub fn animate_bool(&self, id: Id, value: bool) -> f32 {
+    pub fn animate_bool(&mut self, id: Id, value: bool) -> f32 {
         let animation_time = self.style().animation_time;
         self.animate_bool_with_time(id, value, animation_time)
     }
 
     /// Like [`Self::animate_bool`] but allows you to control the animation time.
-    pub fn animate_bool_with_time(&self, id: Id, value: bool, animation_time: f32) -> f32 {
+    pub fn animate_bool_with_time(&mut self, id: Id, value: bool, animation_time: f32) -> f32 {
         let animated_value = {
-            let ctx_impl = &mut *self.write();
-            ctx_impl
-                .animation_manager
-                .animate_bool(&ctx_impl.input, animation_time, id, value)
+            self.animation_manager
+                .animate_bool(&self.input, animation_time, id, value)
         };
         let animation_in_progress = 0.0 < animated_value && animated_value < 1.0;
         if animation_in_progress {
@@ -1023,12 +978,10 @@ impl Context {
     /// Allows you to smoothly change the f32 value.
     /// At the first call the value is written to memory.
     /// When it is called with a new value, it linearly interpolates to it in the given time.
-    pub fn animate_value_with_time(&self, id: Id, value: f32, animation_time: f32) -> f32 {
+    pub fn animate_value_with_time(&mut self, id: Id, value: f32, animation_time: f32) -> f32 {
         let animated_value = {
-            let ctx_impl = &mut *self.write();
-            ctx_impl
-                .animation_manager
-                .animate_value(&ctx_impl.input, animation_time, id, value)
+            self.animation_manager
+                .animate_value(&self.input, animation_time, id, value)
         };
         let animation_in_progress = animated_value != value;
         if animation_in_progress {
@@ -1039,13 +992,13 @@ impl Context {
     }
 
     /// Clear memory of any animations.
-    pub fn clear_animations(&self) {
-        self.write().animation_manager = Default::default();
+    pub fn clear_animations(&mut self) {
+        self.animation_manager = Default::default();
     }
 }
 
 impl Context {
-    pub fn settings_ui(&self, ui: &mut Ui) {
+    pub fn settings_ui(&mut self, ui: &mut Ui) {
         use crate::containers::*;
 
         CollapsingHeader::new("🎑 Style")
@@ -1057,14 +1010,13 @@ impl Context {
         CollapsingHeader::new("✒ Painting")
             .default_open(true)
             .show(ui, |ui| {
-                let mut tessellation_options = self.options().tessellation_options;
+                let mut tessellation_options = self.tessellation_options_mut();
                 tessellation_options.ui(ui);
-                ui.vertical_centered(|ui| reset_button(ui, &mut tessellation_options));
-                *self.tessellation_options() = tessellation_options;
+                ui.vertical_centered(|ui| reset_button(ui, tessellation_options));
             });
     }
 
-    pub fn inspection_ui(&self, ui: &mut Ui) {
+    pub fn inspection_ui(&mut self, ui: &mut Ui) {
         use crate::containers::*;
         crate::trace!(ui);
 
@@ -1121,8 +1073,7 @@ impl Context {
         CollapsingHeader::new("📊 Paint stats")
             .default_open(false)
             .show(ui, |ui| {
-                let paint_stats = self.write().paint_stats;
-                paint_stats.ui(ui);
+                self.paint_stats.ui(ui);
             });
 
         CollapsingHeader::new("🖼 Textures")
@@ -1196,13 +1147,13 @@ impl Context {
         });
     }
 
-    pub fn memory_ui(&self, ui: &mut crate::Ui) {
+    pub fn memory_ui(&mut self, ui: &mut crate::Ui) {
         if ui
             .button("Reset all")
             .on_hover_text("Reset all egui state")
             .clicked()
         {
-            *self.memory() = Default::default();
+            self.memory = Default::default();
         }
 
         let num_state = self.data().len();
@@ -1215,29 +1166,26 @@ impl Context {
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} areas (panels, windows, popups, …)",
-                self.memory().areas.count()
+                self.memory.areas.count()
             ));
             if ui.button("Reset").clicked() {
-                self.memory().areas = Default::default();
+                self.memory.areas = Default::default();
             }
         });
         ui.indent("areas", |ui| {
             ui.label("Visible areas, ordered back to front.");
             ui.label("Hover to highlight");
-            let layers_ids: Vec<LayerId> = self.memory().areas.order().to_vec();
-            for layer_id in layers_ids {
+            for layer_id in self.memory.areas.order() {
                 let area = self.memory().areas.get(layer_id.id).cloned();
                 if let Some(area) = area {
-                    let is_visible = self.memory().areas.is_visible(&layer_id);
-                    if !is_visible {
+                    if !self.memory().areas.is_visible(layer_id) {
                         continue;
                     }
-                    let text = format!("{} - {:?}", layer_id.short_debug_format(), area.rect(),);
+                    let text = format!("{} - {:?}", layer_id.short_debug_format(), area.rect());
                     // TODO(emilk): `Sense::hover_highlight()`
                     if ui
                         .add(Label::new(RichText::new(text).monospace()).sense(Sense::click()))
                         .hovered
-                        && is_visible
                     {
                         ui.ctx()
                             .debug_painter()
@@ -1300,10 +1248,8 @@ impl Context {
 }
 
 impl Context {
-    pub fn style_ui(&self, ui: &mut Ui) {
-        let mut style: Style = (*self.style()).clone();
-        style.ui(ui);
-        self.set_style(style);
+    pub fn style_ui(&mut self, ui: &mut Ui) {
+        self.style_mut().ui(ui);
     }
 }
 
