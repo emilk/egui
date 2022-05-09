@@ -1180,6 +1180,7 @@ dependencies = [
  "instant",
  "puffin",
  "serde",
+ "smithay-clipboard",
  "tracing",
  "tts",
  "webbrowser",
@@ -3306,6 +3307,16 @@ dependencies = [
  "wayland-client",
  "wayland-cursor",
  "wayland-protocols",
+]
+
+[[package]]
+name = "smithay-clipboard"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "610b551bd25378bfd2b8e7a0fcbd83d427e8f2f6a40c47ae0f70688e9949dd55"
+dependencies = [
+ "smithay-client-toolkit",
+ "wayland-client",
 ]
 
 [[package]]

@@ -25,7 +25,7 @@ bytemuck = ["egui/bytemuck"]
 
 # enable cut/copy/paste to OS clipboard.
 # if disabled a clipboard will be simulated so you can still copy/paste within the egui app.
-clipboard = ["arboard"]
+clipboard = ["arboard", "smithay-clipboard"]
 
 # enable opening links in a browser when an egui hyperlink is clicked.
 links = ["webbrowser"]
@@ -55,3 +55,6 @@ webbrowser = { version = "0.7", optional = true }
 
 # feature screen_reader
 tts = { version = "0.20", optional = true } # stuck on old version due to compilation problems on linux
+
+[target.'cfg(any(target_os="linux", target_os="dragonfly", target_os="freebsd", target_os="netbsd", target_os="openbsd"))'.dependencies]
+smithay-clipboard = { version = "0.6.3", optional = true }
