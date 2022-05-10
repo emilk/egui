@@ -1107,8 +1107,7 @@ impl Visuals {
     }
 
     /// Show small toggle-button for light and dark mode.
-    #[must_use]
-    pub fn light_dark_small_toggle_button(&self, ui: &mut crate::Ui<'_>) -> Option<Self> {
+    pub fn light_dark_small_toggle_button(&mut self, ui: &mut crate::Ui<'_>) {
         #![allow(clippy::collapsible_else_if)]
         if self.dark_mode {
             if ui
@@ -1116,7 +1115,7 @@ impl Visuals {
                 .on_hover_text("Switch to light mode")
                 .clicked()
             {
-                return Some(Self::light());
+                *self = Self::light();
             }
         } else {
             if ui
@@ -1124,10 +1123,9 @@ impl Visuals {
                 .on_hover_text("Switch to dark mode")
                 .clicked()
             {
-                return Some(Self::dark());
+                *self = Self::dark();
             }
         }
-        None
     }
 
     pub fn ui(&mut self, ui: &mut crate::Ui<'_>) {
