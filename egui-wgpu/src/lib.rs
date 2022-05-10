@@ -2,9 +2,11 @@
 
 #![allow(unsafe_code)]
 
-mod renderer;
+pub mod renderer;
 
-/// Everything you need to paint egui with WGPU.
+/// Everything you need to paint egui with [`wgpu`] on winit.
+///
+/// Alternatively you can use [`crate::renderer`] directly.
 pub struct Painter {
     device: wgpu::Device,
     queue: wgpu::Queue,
@@ -14,7 +16,10 @@ pub struct Painter {
 }
 
 impl Painter {
-    pub fn new(window: &winit::window::Window) -> Self {
+    /// Creates a [`wgpu`] surface for the given window, and things required to render egui onto it.
+    ///
+    /// SAFETY: The given window MUST outlive [`Painter`].
+    pub unsafe fn new(window: &'window winit::window::Window) -> Self {
         let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY | wgpu::Backends::GL);
         let surface = unsafe { instance.create_surface(&window) };
 
@@ -43,7 +48,7 @@ impl Painter {
             format: surface_format,
             width: size.width as u32,
             height: size.height as u32,
-            present_mode: wgpu::PresentMode::Fifo,
+            present_mode: wgpu::PresentMode::Fifo, // TODO: make vsync configurable
         };
         surface.configure(&device, &surface_config);
 
