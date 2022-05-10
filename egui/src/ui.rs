@@ -28,7 +28,7 @@ use crate::{
 /// });
 /// # });
 /// ```
-pub struct Ui {
+pub struct Ui<'a> {
     /// ID of this ui.
     /// Generated based on id of parent ui together with
     /// another source of child identity (e.g. window title).
@@ -44,8 +44,11 @@ pub struct Ui {
     /// They are therefore only good for Id:s that has no state.
     next_auto_id_source: u64,
 
-    /// Specifies paint layer, clip rectangle and a reference to [`Context`].
+    /// Specifies paint layer and clip rectangle.
     painter: Painter,
+
+    /// Reference to the ['Context']
+    ctx: &'a mut Context,
 
     /// The [`Style`] (visuals, spacing, etc) of this ui.
     /// Commonly many [`Ui`]:s share the same [`Style`].
@@ -63,7 +66,7 @@ pub struct Ui {
     menu_state: Option<Arc<RwLock<MenuState>>>,
 }
 
-impl Ui {
+impl<'a> Ui<'a> {
     // ------------------------------------------------------------------------
     // Creation:
 
@@ -71,12 +74,13 @@ impl Ui {
     ///
     /// Normally you would not use this directly, but instead use
     /// [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`].
-    pub fn new(ctx: Context, layer_id: LayerId, id: Id, max_rect: Rect, clip_rect: Rect) -> Self {
+    pub fn new(ctx: &'a mut Context, layer_id: LayerId, id: Id, max_rect: Rect, clip_rect: Rect) -> Self {
         let style = ctx.style();
         Ui {
             id,
             next_auto_id_source: id.with("auto").value(),
             painter: Painter::new(ctx, layer_id, clip_rect),
+            ctx,
             style,
             placer: Placer::new(max_rect, Layout::default()),
             enabled: true,
@@ -142,16 +146,9 @@ impl Ui {
         Arc::make_mut(&mut self.style) // clone-on-write
     }
 
-    /// Changes apply to this [`Ui`] and its subsequent children.
-    ///
-    /// To set the visuals of all [`Ui`]:s, use [`Context::set_visuals`].
-    pub fn set_style(&mut self, style: impl Into<Arc<Style>>) {
-        self.style = style.into();
-    }
-
     /// Reset to the default style set in [`Context`].
     pub fn reset_style(&mut self) {
-        self.style = self.ctx().style();
+        self.style = self.ctx.style();
     }
 
     /// The current spacing options for this [`Ui`].
@@ -198,14 +195,14 @@ impl Ui {
 
     /// Get a reference to the parent [`Context`].
     #[inline]
-    pub fn ctx(&self) -> &Context {
-        self.painter.ctx()
+    pub fn ctx_mut(&mut self) -> &mut Context {
+        self.ctx
     }
 
     /// Use this to paint stuff within this [`Ui`].
     #[inline]
-    pub fn painter(&self) -> &Painter {
-        &self.painter
+    pub fn painter_mut(&mut self) -> &mut Painter {
+        &mut self.painter
     }
 
     /// If `false`, the [`Ui`] does not allow any interaction and
@@ -316,70 +313,48 @@ impl Ui {
 
     /// The [`InputState`] of the [`Context`] associated with this [`Ui`].
     /// Equivalent to `.ctx().input()`.
-    ///
-    /// Note that this locks the [`Context`], so be careful with if-let bindings:
-    ///
-    /// ```
-    /// # egui::__run_test_ui(|ui| {
-    /// if let Some(pos) = { ui.input().pointer.hover_pos() } {
-    ///     // This is fine!
-    /// }
-    ///
-    /// let pos = ui.input().pointer.hover_pos();
-    /// if let Some(pos) = pos {
-    ///     // This is also fine!
-    /// }
-    ///
-    /// if let Some(pos) = ui.input().pointer.hover_pos() {
-    ///     // ⚠️ Using `ui` again here will lead to a dead-lock!
-    /// }
-    /// # });
-    /// ```
     #[inline]
-    pub fn input(&self) -> RwLockReadGuard<'_, InputState> {
-        self.ctx().input()
+    pub fn input(&self) -> &InputState {
+        self.ctx.input()
     }
 
     /// The [`InputState`] of the [`Context`] associated with this [`Ui`].
     /// Equivalent to `.ctx().input_mut()`.
-    ///
-    /// Note that this locks the [`Context`], so be careful with if-let bindings
-    /// like for [`Self::input()`].
     /// ```
     /// # egui::__run_test_ui(|ui| {
     /// ui.input_mut().consume_key(egui::Modifiers::default(), egui::Key::Enter);
     /// # });
     /// ```
     #[inline]
-    pub fn input_mut(&self) -> RwLockWriteGuard<'_, InputState> {
-        self.ctx().input_mut()
+    pub fn input_mut(&mut self) -> &mut InputState {
+        self.ctx.input_mut()
     }
 
     /// The [`Memory`] of the [`Context`] associated with this ui.
     /// Equivalent to `.ctx().memory()`.
     #[inline]
-    pub fn memory(&self) -> RwLockWriteGuard<'_, Memory> {
-        self.ctx().memory()
+    pub fn memory(&self) -> &Memory {
+        self.ctx.memory()
     }
 
     /// Stores superficial widget state.
     #[inline]
-    pub fn data(&self) -> RwLockWriteGuard<'_, crate::util::IdTypeMap> {
-        self.ctx().data()
+    pub fn data(&self) -> &crate::util::IdTypeMap {
+        self.ctx.data()
     }
 
     /// The [`PlatformOutput`] of the [`Context`] associated with this ui.
     /// Equivalent to `.ctx().output()`.
     #[inline]
-    pub fn output(&self) -> RwLockWriteGuard<'_, PlatformOutput> {
-        self.ctx().output()
+    pub fn output(&self) -> &PlatformOutput {
+        self.ctx.output()
     }
 
     /// The [`Fonts`] of the [`Context`] associated with this ui.
     /// Equivalent to `.ctx().fonts()`.
     #[inline]
-    pub fn fonts(&self) -> RwLockReadGuard<'_, Fonts> {
-        self.ctx().fonts()
+    pub fn fonts(&self) -> &Fonts {
+        self.ctx.fonts()
     }
 
     /// The height of text of this text style
@@ -409,7 +384,7 @@ impl Ui {
 // ------------------------------------------------------------------------
 
 /// # Sizes etc
-impl Ui {
+impl<'a> Ui<'a> {
     /// Where and how large the [`Ui`] is already.
     /// All widgets that have been added ot this [`Ui`] fits within this rectangle.
     ///
@@ -570,7 +545,7 @@ impl Ui {
 }
 
 /// # [`Id`] creation
-impl Ui {
+impl<'a> Ui<'a> {
     /// Use this to generate widget ids for widgets that have persistent state in [`Memory`].
     pub fn make_persistent_id<IdSource>(&self, id_source: IdSource) -> Id
     where
@@ -596,7 +571,7 @@ impl Ui {
 }
 
 /// # Interaction
-impl Ui {
+impl<'a> Ui<'a> {
     /// Check for clicks, drags and/or hover on a specific region of this [`Ui`].
     pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
         self.ctx().interact(
@@ -627,7 +602,7 @@ impl Ui {
 }
 
 /// # Allocating space: where do I put my widgets?
-impl Ui {
+impl<'a> Ui<'a> {
     /// Allocate space for a widget and check for interaction in the space.
     /// Returns a [`Response`] which contains a rectangle, id, and interaction info.
     ///
@@ -1003,7 +978,7 @@ impl Ui {
 }
 
 /// # Adding widgets
-impl Ui {
+impl<'a> Ui<'a> {
     /// Add a [`Widget`] to this [`Ui`] at a location dependent on the current [`Layout`].
     ///
     /// The returned [`Response`] can be used to check for interactions,
@@ -1547,7 +1522,7 @@ impl Ui {
 }
 
 /// # Colors
-impl Ui {
+impl<'a> Ui<'a> {
     /// Shows a button with the given color.
     /// If the user clicks the button, a full color picker is shown.
     pub fn color_edit_button_srgba(&mut self, srgba: &mut Color32) -> Response {
@@ -1634,7 +1609,7 @@ impl Ui {
 }
 
 /// # Adding Containers / Sub-uis:
-impl Ui {
+impl<'a> Ui<'a> {
     /// Put into a [`Frame::group`], visually grouping the contents together
     ///
     /// ```
@@ -2130,7 +2105,7 @@ impl Ui {
 // ----------------------------------------------------------------------------
 
 /// # Debug stuff
-impl Ui {
+impl<'a> Ui<'a> {
     /// Shows where the next widget is going to be placed
     pub fn debug_paint_cursor(&self) {
         self.placer.debug_paint_cursor(&self.painter, "next");
