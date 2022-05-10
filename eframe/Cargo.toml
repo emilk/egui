@@ -64,7 +64,7 @@ tracing = "0.1"
 
 # optional:
 egui_glow = { version = "0.18.0", path = "../egui_glow", optional = true, default-features = false }
-egui-wgpu = { version = "0.18.0", path = "../egui-wgpu", optional = true, default-features = false }
+egui-wgpu = { version = "0.18.0", path = "../egui-wgpu", optional = true, features = ["winit"] }
 glow = { version = "0.11", optional = true }
 ron = { version = "0.7", optional = true }
 serde = { version = "1", optional = true, features = ["derive"] }

@@ -211,7 +211,8 @@ pub fn run_wgpu(
         .unwrap();
 
     // SAFETY: `window` must outlive `painter`.
-    let mut painter = unsafe { egui_wgpu::Painter::new(&window) };
+    #[allow(unsafe_code)]
+    let mut painter = unsafe { egui_wgpu::winit::Painter::new(&window) };
 
     let mut integration = epi_integration::EpiIntegration::new(
         painter.max_texture_side(),

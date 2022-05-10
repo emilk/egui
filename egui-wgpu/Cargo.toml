@@ -18,13 +18,20 @@ keywords = ["wgpu", "egui", "gui", "gamedev"]
 include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
 
+[features]
+# Make it easy to create bindings for winit.
+winit = ["dep:pollster", "dep:winit"]
+
+
 [dependencies]
 egui = { version = "0.18.1", path = "../egui", default-features = false, features = [
     "bytemuck",
 ] }
 
 bytemuck = "1.7"
-pollster = "0.2"
 tracing = "0.1"
 wgpu = { version = "0.12", features = ["webgl"] }
-winit = "0.26"
+
+# Optional:
+pollster = { version = "0.2", optional = true }
+winit = { version = "0.26", optional = true }
