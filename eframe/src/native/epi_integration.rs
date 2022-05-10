@@ -1,10 +1,29 @@
-use crate::epi;
+use crate::{epi, WindowInfo};
 use egui_winit::{native_pixels_per_point, WindowSettings};
 
 pub fn points_to_size(points: egui::Vec2) -> winit::dpi::LogicalSize<f64> {
     winit::dpi::LogicalSize {
         width: points.x as f64,
         height: points.y as f64,
+    }
+}
+
+pub fn read_window_info(window: &winit::window::Window) -> Option<WindowInfo> {
+    match window.outer_position() {
+        Ok(pos) => {
+            let size = window.inner_size();
+            Some(WindowInfo {
+                position: egui::Vec2 {
+                    x: pos.x as f32,
+                    y: pos.y as f32,
+                },
+                size: egui::Vec2 {
+                    x: size.width as f32,
+                    y: size.height as f32,
+                },
+            })
+        }
+        Err(_) => None,
     }
 }
 
@@ -176,6 +195,7 @@ impl EpiIntegration {
                 prefer_dark_mode,
                 cpu_usage: None,
                 native_pixels_per_point: Some(native_pixels_per_point(window)),
+                window_info: read_window_info(window),
             },
             output: Default::default(),
             storage,
@@ -238,6 +258,7 @@ impl EpiIntegration {
     ) -> egui::FullOutput {
         let frame_start = std::time::Instant::now();
 
+        self.frame.info.window_info = read_window_info(window);
         let raw_input = self.egui_winit.take_egui_input(window);
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
             crate::profile_scope!("App::update");

@@ -341,6 +341,17 @@ pub struct WebInfo {
     pub location: Location,
 }
 
+/// Information about the application's main window, if available.
+#[derive(Clone, Debug)]
+pub struct WindowInfo {
+    /// Coordinates of the window's top left corner, relative to the top left corner
+    /// of a user's first monitor.
+    pub position: egui::Vec2,
+
+    /// Window dimensions, in pixels.
+    pub size: egui::Vec2,
+}
+
 /// Information about the URL.
 ///
 /// Everything has been percent decoded (`%20` -> ` ` etc).
@@ -411,6 +422,9 @@ pub struct IntegrationInfo {
 
     /// The OS native pixels-per-point
     pub native_pixels_per_point: Option<f32>,
+
+    /// Window-specific geometry information, if provided by the platform.
+    pub window_info: Option<WindowInfo>,
 }
 
 // ----------------------------------------------------------------------------
