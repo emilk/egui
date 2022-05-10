@@ -286,7 +286,7 @@ impl Context {
 
     /// You specify if a thing is hovered, and the function gives a [`Response`].
     pub(crate) fn interact_with_hovered(
-        &self,
+        &mut self,
         layer_id: LayerId,
         id: Id,
         rect: Rect,
@@ -297,7 +297,6 @@ impl Context {
         let hovered = hovered && enabled; // can't even hover disabled widgets
 
         let mut response = Response {
-            ctx: self.clone(),
             layer_id,
             id,
             rect,
@@ -420,13 +419,13 @@ impl Context {
     }
 
     /// Get a full-screen painter for a new or existing layer
-    pub fn layer_painter(&self, layer_id: LayerId) -> Painter {
+    pub fn layer_painter(&mut self, layer_id: LayerId) -> Painter {
         let screen_rect = self.input().screen_rect();
-        Painter::new(self.clone(), layer_id, screen_rect)
+        Painter::new(self, layer_id, screen_rect)
     }
 
     /// Paint on top of everything else
-    pub fn debug_painter(&self) -> Painter {
+    pub fn debug_painter(&mut self) -> Painter {
         Self::layer_painter(self, LayerId::debug())
     }
 
@@ -484,6 +483,11 @@ impl Context {
     #[inline]
     pub fn output_mut(&mut self) -> &mut PlatformOutput {
         &mut self.output
+    }
+
+    #[inline]
+    pub(crate) fn frame_state_mut(&mut self) -> &mut FrameState {
+        &mut self.frame_state
     }
 
     /// Returns a reference to the input used for rendering the next frame.

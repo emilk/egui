@@ -187,15 +187,16 @@ fn stationary_menu_impl<'c, R>(
 /// Response to secondary clicks (right-clicks) by showing the given menu.
 pub(crate) fn context_menu(
     response: &Response,
+    ctx: &mut Context,
     add_contents: impl FnOnce(&mut Ui),
 ) -> Option<InnerResponse<()>> {
     let menu_id = Id::new("__egui::context_menu");
-    let mut bar_state = BarState::load(&response.ctx, menu_id);
+    let mut bar_state = BarState::load(ctx, menu_id);
 
     MenuRoot::context_click_interaction(response, &mut bar_state, response.id);
     let inner_response = bar_state.show(response, add_contents);
 
-    bar_state.store(&response.ctx, menu_id);
+    bar_state.store(ctx, menu_id);
     inner_response
 }
 
