@@ -42,7 +42,7 @@ pub struct PreparedDisc {
     pub r: f32,
 
     /// Width in texels.
-    pub w: usize,
+    pub w: f32,
 
     /// Where in the texture atlas the disc is.
     /// Normalized in 0-1 range.
@@ -151,7 +151,7 @@ impl TextureAtlas {
                     emath::pos2(min_x as f32 * inv_w, min_y as f32 * inv_h),
                     emath::pos2(max_x as f32 * inv_w, max_y as f32 * inv_h),
                 );
-                PreparedDisc { r, w, uv }
+                PreparedDisc { r, w: w as f32, uv }
             })
             .collect()
     }

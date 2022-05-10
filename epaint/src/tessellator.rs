@@ -1167,13 +1167,14 @@ impl Tessellator {
 
         if self.options.prerasterized_discs && fill != Color32::TRANSPARENT {
             let radius_px = radius * self.pixels_per_point;
+            // strike the right balance between some circles becoming too blurry, and some too sharp.
+            let cutoff_radius = radius_px * 2.0_f32.powf(0.25);
+
             // Find the right disc radius for a crisp edge:
-            for disc in self.prepared_discs.iter() {
-                let disc_radius_px = disc.r;
-                // slightly magic constant (0.5^4) to strike the right balance between some circles becoming too blurry, and some too sharp.
-                if radius_px <= 0.84 * disc_radius_px as f32 {
-                    let side =
-                        disc.w as f32 * radius_px / (self.pixels_per_point * disc_radius_px as f32);
+            // TODO: perhaps we can do something faster than this linear search.
+            for disc in &self.prepared_discs {
+                if cutoff_radius <= disc.r {
+                    let side = radius_px * disc.w / (self.pixels_per_point * disc.r);
                     let rect = Rect::from_center_size(center, Vec2::splat(side));
                     out.add_rect_with_uv(rect, disc.uv, fill);
 
