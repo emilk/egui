@@ -54,14 +54,18 @@ fn tessellate_circles(c: &mut Criterion) {
 
         let pixels_per_point = 2.0;
         let options = TessellationOptions::default();
-        let font_tex_size = [1024, 1024]; // unused
+
+        let atlas = TextureAtlas::new([4096, 256]);
+        let font_tex_size = atlas.size();
+        let prepared_discs = atlas.prepared_discs();
 
         b.iter(|| {
             let clipped_primitive = tessellate_shapes(
                 pixels_per_point,
                 options,
-                clipped_shapes.clone(),
                 font_tex_size,
+                prepared_discs.clone(),
+                clipped_shapes.clone(),
             );
             black_box(clipped_primitive);
         });
