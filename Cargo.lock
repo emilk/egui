@@ -1193,7 +1193,7 @@ dependencies = [
 
 [[package]]
 name = "egui_glow"
-version = "0.18.0"
+version = "0.18.1"
 dependencies = [
  "bytemuck",
  "egui",

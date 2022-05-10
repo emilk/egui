@@ -5,6 +5,7 @@
 
 #![allow(clippy::identity_op)]
 
+use crate::texture_atlas::PreparedDisc;
 use crate::*;
 use emath::*;
 
@@ -618,6 +619,10 @@ pub struct TessellationOptions {
     /// This likely makes
     pub coarse_tessellation_culling: bool,
 
+    /// If `true`, small filled circled will be optimized by using pre-rasterized circled
+    /// from the font atlas.
+    pub prerasterized_discs: bool,
+
     /// If `true` (default) align text to mesh grid.
     /// This makes the text sharper on most platforms.
     pub round_text_to_pixels: bool,
@@ -644,6 +649,7 @@ impl Default for TessellationOptions {
             feathering: true,
             feathering_size_in_pixels: 1.0,
             coarse_tessellation_culling: true,
+            prerasterized_discs: true,
             round_text_to_pixels: true,
             debug_paint_text_rects: false,
             debug_paint_clip_rects: false,
@@ -968,6 +974,8 @@ pub struct Tessellator {
     pixels_per_point: f32,
     options: TessellationOptions,
     font_tex_size: [usize; 2],
+    /// See [`TextureAtlas::prepared_discs`].
+    prepared_discs: Vec<PreparedDisc>,
     /// size of feathering in points. normally the size of a physical pixel. 0.0 if disabled
     feathering: f32,
     /// Only used for culling
@@ -980,10 +988,12 @@ impl Tessellator {
     /// Create a new [`Tessellator`].
     ///
     /// * `font_tex_size`: size of the font texture. Required to normalize glyph uv rectangles when tessellating text.
+    /// * `prepared_discs`: What [`TextureAtlas::prepared_discs`] returns. Can safely be set to an empty vec.
     pub fn new(
         pixels_per_point: f32,
         options: TessellationOptions,
         font_tex_size: [usize; 2],
+        prepared_discs: Vec<PreparedDisc>,
     ) -> Self {
         let feathering = if options.feathering {
             let pixel_size = 1.0 / pixels_per_point;
@@ -995,6 +1005,7 @@ impl Tessellator {
             pixels_per_point,
             options,
             font_tex_size,
+            prepared_discs,
             feathering,
             clip_rect: Rect::EVERYTHING,
             scratchpad_points: Default::default(),
@@ -1137,7 +1148,7 @@ impl Tessellator {
         let CircleShape {
             center,
             radius,
-            fill,
+            mut fill,
             stroke,
         } = shape;
 
@@ -1152,6 +1163,30 @@ impl Tessellator {
                 .contains(center)
         {
             return;
+        }
+
+        if self.options.prerasterized_discs && fill != Color32::TRANSPARENT {
+            let radius_px = radius * self.pixels_per_point;
+            // strike the right balance between some circles becoming too blurry, and some too sharp.
+            let cutoff_radius = radius_px * 2.0_f32.powf(0.25);
+
+            // Find the right disc radius for a crisp edge:
+            // TODO: perhaps we can do something faster than this linear search.
+            for disc in &self.prepared_discs {
+                if cutoff_radius <= disc.r {
+                    let side = radius_px * disc.w / (self.pixels_per_point * disc.r);
+                    let rect = Rect::from_center_size(center, Vec2::splat(side));
+                    out.add_rect_with_uv(rect, disc.uv, fill);
+
+                    if stroke.is_empty() {
+                        return; // we are done
+                    } else {
+                        // we still need to do the stroke
+                        fill = Color32::TRANSPARENT; // don't fill again below
+                        break;
+                    }
+                }
+            }
         }
 
         self.scratchpad_path.clear();
@@ -1476,7 +1511,8 @@ impl Tessellator {
 /// * `pixels_per_point`: number of physical pixels to each logical point
 /// * `options`: tessellation quality
 /// * `shapes`: what to tessellate
-/// * `font_tex_size`: size of the font texture (required to normalize glyph uv rectangles)
+/// * `font_tex_size`: size of the font texture. Required to normalize glyph uv rectangles when tessellating text.
+/// * `prepared_discs`: What [`TextureAtlas::prepared_discs`] returns. Can safely be set to an empty vec.
 ///
 /// The implementation uses a [`Tessellator`].
 ///
@@ -1485,10 +1521,12 @@ impl Tessellator {
 pub fn tessellate_shapes(
     pixels_per_point: f32,
     options: TessellationOptions,
-    shapes: Vec<ClippedShape>,
     font_tex_size: [usize; 2],
+    prepared_discs: Vec<PreparedDisc>,
+    shapes: Vec<ClippedShape>,
 ) -> Vec<ClippedPrimitive> {
-    let mut tessellator = Tessellator::new(pixels_per_point, options, font_tex_size);
+    let mut tessellator =
+        Tessellator::new(pixels_per_point, options, font_tex_size, prepared_discs);
 
     let mut clipped_primitives: Vec<ClippedPrimitive> = Vec::default();
 
@@ -1562,6 +1600,15 @@ fn test_tessellator() {
     let shape = Shape::Vec(shapes);
     let clipped_shapes = vec![ClippedShape(rect, shape)];
 
-    let primitives = tessellate_shapes(1.0, Default::default(), clipped_shapes, [100, 100]);
+    let font_tex_size = [1024, 1024]; // unused
+    let prepared_discs = vec![]; // unused
+
+    let primitives = tessellate_shapes(
+        1.0,
+        Default::default(),
+        font_tex_size,
+        prepared_discs,
+        clipped_shapes,
+    );
     assert_eq!(primitives.len(), 2);
 }

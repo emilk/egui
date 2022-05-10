@@ -401,7 +401,7 @@ pub struct Glyph {
     pub pos: Pos2,
     /// Advance width and font row height.
     pub size: Vec2,
-    /// Position of the glyph in the font texture.
+    /// Position of the glyph in the font texture, in texels.
     pub uv_rect: UvRect,
     /// Index into [`LayoutJob::sections`]. Decides color etc.
     pub section_index: u32,

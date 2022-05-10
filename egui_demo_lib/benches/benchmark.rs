@@ -124,8 +124,13 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
         let galley = fonts.layout(LOREM_IPSUM_LONG.to_owned(), font_id, color, wrap_width);
         let font_image_size = fonts.font_image_size();
-        let mut tessellator =
-            egui::epaint::Tessellator::new(1.0, Default::default(), font_image_size);
+        let prepared_discs = fonts.texture_atlas().lock().prepared_discs();
+        let mut tessellator = egui::epaint::Tessellator::new(
+            1.0,
+            Default::default(),
+            font_image_size,
+            prepared_discs,
+        );
         let mut mesh = egui::epaint::Mesh::default();
         let text_shape = TextShape::new(egui::Pos2::ZERO, galley);
         c.bench_function("tessellate_text", |b| {
