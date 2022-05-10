@@ -199,9 +199,15 @@ impl<'c> Ui<'c> {
         &mut self.style_mut().visuals
     }
 
-    /// Get a reference to the parent [`Context`].
+    /// Get a mutable reference to the parent [`Context`].
     #[inline]
     pub fn ctx_mut(&mut self) -> &mut Context {
+        self.ctx
+    }
+
+    /// Get a reference to the parent [`Context`].
+    #[inline]
+    pub fn ctx(&self) -> &Context {
         self.ctx
     }
 
