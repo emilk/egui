@@ -489,7 +489,7 @@ impl Widget for ImageButton {
             let (expansion, rounding, fill, stroke) = if selected {
                 let selection = ui.visuals().selection;
                 (
-                    Vec2::splat(0.0),
+                    Vec2::ZERO,
                     Rounding::none(),
                     selection.bg_fill,
                     selection.stroke,
