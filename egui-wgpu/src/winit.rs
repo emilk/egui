@@ -121,20 +121,18 @@ impl Painter {
         );
 
         // Record all render passes.
-        self.egui_rpass
-            .execute(
-                &mut encoder,
-                &output_view,
-                clipped_primitives,
-                &screen_descriptor,
-                Some(wgpu::Color {
-                    r: clear_color.r() as f64,
-                    g: clear_color.g() as f64,
-                    b: clear_color.b() as f64,
-                    a: clear_color.a() as f64,
-                }),
-            )
-            .unwrap();
+        self.egui_rpass.execute(
+            &mut encoder,
+            &output_view,
+            clipped_primitives,
+            &screen_descriptor,
+            Some(wgpu::Color {
+                r: clear_color.r() as f64,
+                g: clear_color.g() as f64,
+                b: clear_color.b() as f64,
+                a: clear_color.a() as f64,
+            }),
+        );
 
         // Submit the commands.
         self.queue.submit(std::iter::once(encoder.finish()));
