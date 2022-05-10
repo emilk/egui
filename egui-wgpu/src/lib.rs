@@ -2,6 +2,8 @@
 
 #![allow(unsafe_code)]
 
+pub use wgpu;
+
 /// Low-level painting of [`egui`] on [`wgpu`].
 pub mod renderer;
 

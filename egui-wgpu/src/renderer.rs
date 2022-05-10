@@ -1,34 +1,11 @@
 #![allow(unsafe_code)]
 
-use std::{borrow::Cow, collections::HashMap, fmt::Formatter, num::NonZeroU32};
+use std::{borrow::Cow, collections::HashMap, num::NonZeroU32};
 
 use bytemuck::{Pod, Zeroable};
 use egui::epaint::Primitive;
-pub use wgpu;
-use wgpu::util::DeviceExt;
-
-/// Error that the backend can return.
-#[derive(Debug)]
-pub enum BackendError {
-    /// Internal implementation error.
-    Internal(String),
-}
-
-impl std::fmt::Display for BackendError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            BackendError::Internal(msg) => {
-                write!(f, "internal error: `{:?}`", msg)
-            }
-        }
-    }
-}
-
-impl std::error::Error for BackendError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        None
-    }
-}
+use wgpu;
+use wgpu::util::DeviceExt as _;
 
 /// Enum for selecting the right buffer type.
 #[derive(Debug)]
@@ -247,7 +224,7 @@ impl RenderPass {
         paint_jobs: &[egui::epaint::ClippedPrimitive],
         screen_descriptor: &ScreenDescriptor,
         clear_color: Option<wgpu::Color>,
-    ) -> Result<(), BackendError> {
+    ) {
         let load_operation = if let Some(color) = clear_color {
             wgpu::LoadOp::Clear(color)
         } else {
@@ -268,11 +245,9 @@ impl RenderPass {
         });
         rpass.push_debug_group("egui_pass");
 
-        self.execute_with_renderpass(&mut rpass, paint_jobs, screen_descriptor)?;
+        self.execute_with_renderpass(&mut rpass, paint_jobs, screen_descriptor);
 
         rpass.pop_debug_group();
-
-        Ok(())
     }
 
     /// Executes the egui render pass onto an existing wgpu renderpass.
@@ -281,7 +256,7 @@ impl RenderPass {
         rpass: &mut wgpu::RenderPass<'rpass>,
         paint_jobs: &[egui::epaint::ClippedPrimitive],
         screen_descriptor: &ScreenDescriptor,
-    ) -> Result<(), BackendError> {
+    ) {
         rpass.set_pipeline(&self.render_pipeline);
 
         rpass.set_bind_group(0, &self.uniform_bind_group, &[]);
@@ -340,23 +315,23 @@ impl RenderPass {
 
             match primitive {
                 Primitive::Mesh(mesh) => {
-                    let (_texture, bind_group) =
-                        self.textures.get(&mesh.texture_id).ok_or_else(|| {
-                            BackendError::Internal("Texture bind group not found".to_string())
-                        })?;
-                    rpass.set_bind_group(1, bind_group, &[]);
-                    rpass
-                        .set_index_buffer(index_buffer.buffer.slice(..), wgpu::IndexFormat::Uint32);
-                    rpass.set_vertex_buffer(0, vertex_buffer.buffer.slice(..));
-                    rpass.draw_indexed(0..mesh.indices.len() as u32, 0, 0..1);
+                    if let Some((_texture, bind_group)) = self.textures.get(&mesh.texture_id) {
+                        rpass.set_bind_group(1, bind_group, &[]);
+                        rpass.set_index_buffer(
+                            index_buffer.buffer.slice(..),
+                            wgpu::IndexFormat::Uint32,
+                        );
+                        rpass.set_vertex_buffer(0, vertex_buffer.buffer.slice(..));
+                        rpass.draw_indexed(0..mesh.indices.len() as u32, 0, 0..1);
+                    } else {
+                        tracing::warn!("Missing texture: {:?}", mesh.texture_id);
+                    }
                 }
                 Primitive::Callback(_) => {
                     // already warned about earlier
                 }
             }
         }
-
-        Ok(())
     }
 
     /// Should be called before `execute()`.
