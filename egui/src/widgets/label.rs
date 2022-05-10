@@ -67,7 +67,7 @@ impl Label {
 
 impl Label {
     /// Do layout and position the galley in the ui, without painting it or adding widget info.
-    pub fn layout_in_ui(self, ui: &mut Ui) -> (Pos2, WidgetTextGalley, Response) {
+    pub fn layout_in_ui<'c>(self, ui: &mut Ui<'c>) -> (Pos2, WidgetTextGalley, Response<'c>) {
         if let WidgetText::Galley(galley) = self.text {
             // If the user said "use this specific galley", then just use it:
             let (rect, response) = ui.allocate_exact_size(galley.size(), self.sense);
@@ -156,7 +156,7 @@ impl Label {
 }
 
 impl Widget for Label {
-    fn ui(self, ui: &mut Ui) -> Response {
+    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response<'c> {
         let (pos, text_galley, response) = self.layout_in_ui(ui);
         response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, text_galley.text()));
 

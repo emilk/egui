@@ -234,19 +234,19 @@ impl<'open> Window<'open> {
     /// Returns `None` if the window is not open (if [`Window::open`] was called with `&mut false`).
     /// Returns `Some(InnerResponse { inner: None })` if the window is collapsed.
     #[inline]
-    pub fn show<R>(
+    pub fn show<'c, R>(
         self,
-        ctx: &Context,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> Option<InnerResponse<Option<R>>> {
+        ctx: &'c mut Context,
+        add_contents: impl FnOnce(&mut Ui<'_>) -> R,
+    ) -> Option<InnerResponse<'c, Option<R>>> {
         self.show_dyn(ctx, Box::new(add_contents))
     }
 
-    fn show_dyn<'c, R>(
+    fn show_dyn<'a, 'c, R>(
         self,
-        ctx: &Context,
-        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
-    ) -> Option<InnerResponse<Option<R>>> {
+        ctx: &'c mut Context,
+        add_contents: Box<dyn FnOnce(&mut Ui<'_>) -> R + 'a>,
+    ) -> Option<InnerResponse<'c, Option<R>>> {
         let Window {
             title,
             open,
@@ -400,7 +400,7 @@ impl<'open> Window<'open> {
             .constrain_window_rect_to_area(area.state().rect(), area.drag_bounds())
             .min;
 
-        let full_response = area.end(ctx, area_content_ui);
+        let full_response = area.end(area_content_ui);
 
         let inner_response = InnerResponse {
             inner: content_inner,
@@ -411,7 +411,7 @@ impl<'open> Window<'open> {
 }
 
 fn paint_resize_corner(
-    ui: &mut Ui,
+    ui: &mut Ui<'_>,
     possible: &PossibleInteractions,
     outer_rect: Rect,
     stroke: Stroke,
@@ -496,7 +496,7 @@ impl WindowInteraction {
 
 fn interact(
     window_interaction: WindowInteraction,
-    ctx: &Context,
+    ctx: &mut Context,
     margins: Vec2,
     area_layer_id: LayerId,
     area: &mut area::Prepared,
@@ -563,7 +563,7 @@ fn move_and_resize_window(ctx: &Context, window_interaction: &WindowInteraction)
 
 /// Returns `Some` if there is a move or resize
 fn window_interaction(
-    ctx: &Context,
+    ctx: &mut Context,
     possible: PossibleInteractions,
     area_layer_id: LayerId,
     id: Id,
@@ -577,22 +577,22 @@ fn window_interaction(
         }
     }
 
-    let mut window_interaction = { ctx.memory().window_interaction };
+    let mut window_interaction = ctx.memory().window_interaction;
 
     if window_interaction.is_none() {
         if let Some(hover_window_interaction) = resize_hover(ctx, possible, area_layer_id, rect) {
             hover_window_interaction.set_cursor(ctx);
             if ctx.input().pointer.any_pressed() && ctx.input().pointer.primary_down() {
-                ctx.memory().interaction.drag_id = Some(id);
-                ctx.memory().interaction.drag_is_window = true;
+                ctx.memory_mut().interaction.drag_id = Some(id);
+                ctx.memory_mut().interaction.drag_is_window = true;
                 window_interaction = Some(hover_window_interaction);
-                ctx.memory().window_interaction = window_interaction;
+                ctx.memory_mut().window_interaction = window_interaction;
             }
         }
     }
 
     if let Some(window_interaction) = window_interaction {
-        let is_active = ctx.memory().interaction.drag_id == Some(id);
+        let is_active = ctx.memory_mut().interaction.drag_id == Some(id);
 
         if is_active && window_interaction.area_layer_id == area_layer_id {
             return Some(window_interaction);
@@ -603,7 +603,7 @@ fn window_interaction(
 }
 
 fn resize_hover(
-    ctx: &Context,
+    ctx: &mut Context,
     possible: PossibleInteractions,
     area_layer_id: LayerId,
     rect: Rect,
@@ -688,7 +688,7 @@ fn resize_hover(
 
 /// Fill in parts of the window frame when we resize by dragging that part
 fn paint_frame_interaction(
-    ui: &mut Ui,
+    ui: &mut Ui<'_>,
     rect: Rect,
     interaction: WindowInteraction,
     visuals: style::WidgetVisuals,
@@ -772,7 +772,7 @@ struct TitleBar {
 }
 
 fn show_title_bar(
-    ui: &mut Ui,
+    ui: &mut Ui<'_>,
     title: WidgetText,
     show_close_button: bool,
     collapsing: &mut CollapsingState,
@@ -836,9 +836,9 @@ impl TitleBar {
     ///   of `collapsing` state
     fn ui(
         mut self,
-        ui: &mut Ui,
+        ui: &mut Ui<'_>,
         outer_rect: Rect,
-        content_response: &Option<Response>,
+        content_response: &Option<Response<'_>>,
         open: Option<&mut bool>,
         collapsing: &mut CollapsingState,
         collapsible: bool,
@@ -888,7 +888,7 @@ impl TitleBar {
     ///
     /// The button is square and its size is determined by the
     /// [`crate::style::Spacing::icon_width`] setting.
-    fn close_button_ui(&self, ui: &mut Ui) -> Response {
+    fn close_button_ui<'c>(&self, ui: &mut Ui<'c>) -> Response<'c> {
         let button_size = Vec2::splat(ui.spacing().icon_width);
         let pad = (self.rect.height() - button_size.y) / 2.0; // calculated so that the icon is on the diagonal (if window padding is symmetrical)
         let button_rect = Rect::from_min_size(
@@ -913,7 +913,7 @@ impl TitleBar {
 /// - `rect`: The rectangular area to fit the button in
 ///
 /// Returns the result of a click on a button if it was pressed
-fn close_button(ui: &mut Ui, rect: Rect) -> Response {
+fn close_button<'c>(ui: &mut Ui<'c>, rect: Rect) -> Response<'c> {
     let close_id = ui.auto_id_with("window_close_button");
     let response = ui.interact(rect, close_id, Sense::click());
     ui.expand_to_include_rect(response.rect);

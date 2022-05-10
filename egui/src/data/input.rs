@@ -523,7 +523,7 @@ pub enum Key {
 }
 
 impl RawInput {
-    pub fn ui(&self, ui: &mut crate::Ui) {
+    pub fn ui(&self, ui: &mut crate::Ui<'_>) {
         let Self {
             screen_rect,
             pixels_per_point,

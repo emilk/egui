@@ -97,6 +97,293 @@ impl std::fmt::Debug for Response {
 }
 
 impl Response {
+    /// `true` if there was a click *outside* this widget this frame.
+    pub fn clicked_elsewhere(&self) -> bool {
+        // We do not use self.clicked(), because we want to catch all clicks within our frame,
+        // even if we aren't clickable (or even enabled).
+        // This is important for windows and such that should close then the user clicks elsewhere.
+        let pointer = &self.ctx.input().pointer;
+
+        if pointer.any_click() {
+            // We detect clicks/hover on a "interact_rect" that is slightly larger than
+            // self.rect. See Context::interact.
+            // This means we can be hovered and clicked even though `!self.rect.contains(pos)` is true,
+            // hence the extra complexity here.
+            if self.hovered() {
+                false
+            } else if let Some(pos) = pointer.interact_pos() {
+                !self.rect.contains(pos)
+            } else {
+                false // clicked without a pointer, weird
+            }
+        } else {
+            false
+        }
+    }
+
+    /// This widget has the keyboard focus (i.e. is receiving key presses).
+    pub fn has_focus(&self) -> bool {
+        self.ctx.memory().has_focus(self.id)
+    }
+
+    /// True if this widget has keyboard focus this frame, but didn't last frame.
+    pub fn gained_focus(&self) -> bool {
+        self.ctx.memory().gained_focus(self.id)
+    }
+
+    /// The widget had keyboard focus and lost it,
+    /// either because the user pressed tab or clicked somewhere else,
+    /// or (in case of a [`crate::TextEdit`]) because the user pressed enter.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut my_text = String::new();
+    /// # fn do_request(_: &str) {}
+    /// let response = ui.text_edit_singleline(&mut my_text);
+    /// if response.lost_focus() && ui.input().key_pressed(egui::Key::Enter) {
+    ///     do_request(&my_text);
+    /// }
+    /// # });
+    /// ```
+    pub fn lost_focus(&self) -> bool {
+        self.ctx.memory().lost_focus(self.id)
+    }
+
+    /// Request that this widget get keyboard focus.
+    pub fn request_focus(&mut self) {
+        self.ctx.memory_mut().request_focus(self.id);
+    }
+
+    /// Surrender keyboard focus for this widget.
+    pub fn surrender_focus(&self) {
+        self.ctx.memory_mut().surrender_focus(self.id);
+    }
+
+    pub fn dragged_by(&self, button: PointerButton) -> bool {
+        self.dragged && self.ctx.input().pointer.button_down(button)
+    }
+
+    /// Did a drag on this widgets begin this frame?
+    pub fn drag_started(&self) -> bool {
+        self.dragged && self.ctx.input().pointer.any_pressed()
+    }
+
+    /// If dragged, how many points were we dragged and in what direction?
+    pub fn drag_delta(&self) -> Vec2 {
+        if self.dragged() {
+            self.ctx.input().pointer.delta()
+        } else {
+            Vec2::ZERO
+        }
+    }
+
+    /// If it is a good idea to show a tooltip, where is pointer?
+    /// None if the pointer is outside the response area.
+    pub fn hover_pos(&self) -> Option<Pos2> {
+        if self.hovered() {
+            self.ctx.input().pointer.hover_pos()
+        } else {
+            None
+        }
+    }
+
+    /// Show this UI if the widget was hovered (i.e. a tooltip).
+    ///
+    /// The text will not be visible if the widget is not enabled.
+    /// For that, use [`Self::on_disabled_hover_ui`] instead.
+    ///
+    /// If you call this multiple times the tooltips will stack underneath the previous ones.
+    #[doc(alias = "tooltip")]
+    pub fn on_hover_ui(self, add_contents: impl FnOnce(&mut Ui<'_>)) -> Self {
+        if self.should_show_hover_ui() {
+            crate::containers::show_tooltip_for(
+                self.ctx,
+                self.id.with("__tooltip"),
+                &self.rect,
+                add_contents,
+            );
+        }
+        self
+    }
+
+    /// Show this UI when hovering if the widget is disabled.
+    pub fn on_disabled_hover_ui(self, add_contents: impl FnOnce(&mut Ui<'_>)) -> Self {
+        if !self.enabled && self.ctx.rect_contains_pointer(self.layer_id, self.rect) {
+            crate::containers::show_tooltip_for(
+                self.ctx,
+                self.id.with("__tooltip"),
+                &self.rect,
+                add_contents,
+            );
+        }
+        self
+    }
+
+    /// Like `on_hover_ui`, but show the ui next to cursor.
+    pub fn on_hover_ui_at_pointer(self, add_contents: impl FnOnce(&mut Ui<'_>)) -> Self {
+        if self.should_show_hover_ui() {
+            crate::containers::show_tooltip_at_pointer(
+                self.ctx,
+                self.id.with("__tooltip"),
+                add_contents,
+            );
+        }
+        self
+    }
+
+    fn should_show_hover_ui(&self) -> bool {
+        if self.ctx.memory().everything_is_visible() {
+            return true;
+        }
+
+        if !self.hovered || !self.ctx.input().pointer.has_pointer() {
+            return false;
+        }
+
+        if self.ctx.style().interaction.show_tooltips_only_when_still
+            && !self.ctx.input().pointer.is_still()
+        {
+            // wait for mouse to stop
+            self.ctx.request_repaint();
+            return false;
+        }
+
+        // We don't want tooltips of things while we are dragging them,
+        // but we do want tooltips while holding down on an item on a touch screen.
+        if self.ctx.input().pointer.any_down()
+            && self.ctx.input().pointer.has_moved_too_much_for_a_click
+        {
+            return false;
+        }
+
+        true
+    }
+
+    /// Like `on_hover_text`, but show the text next to cursor.
+    #[doc(alias = "tooltip")]
+    pub fn on_hover_text_at_pointer(self, text: impl Into<WidgetText>) -> Self {
+        self.on_hover_ui_at_pointer(|ui| {
+            ui.add(crate::widgets::Label::new(text));
+        })
+    }
+
+    /// Show this text if the widget was hovered (i.e. a tooltip).
+    ///
+    /// The text will not be visible if the widget is not enabled.
+    /// For that, use [`Self::on_disabled_hover_text`] instead.
+    ///
+    /// If you call this multiple times the tooltips will stack underneath the previous ones.
+    #[doc(alias = "tooltip")]
+    pub fn on_hover_text(self, text: impl Into<WidgetText>) -> Self {
+        self.on_hover_ui(|ui| {
+            ui.add(crate::widgets::Label::new(text));
+        })
+    }
+
+    /// Show this text when hovering if the widget is disabled.
+    pub fn on_disabled_hover_text(self, text: impl Into<WidgetText>) -> Self {
+        self.on_disabled_hover_ui(|ui| {
+            ui.add(crate::widgets::Label::new(text));
+        })
+    }
+
+    /// When hovered, use this icon for the mouse cursor.
+    pub fn on_hover_cursor(self, cursor: CursorIcon) -> Self {
+        if self.hovered() {
+            self.ctx.output_mut().cursor_icon = cursor;
+        }
+        self
+    }
+
+    /// Check for more interactions (e.g. sense clicks on a [`Response`] returned from a label).
+    ///
+    /// Note that this call will not add any hover-effects to the widget, so when possible
+    /// it is better to give the widget a [`Sense`] instead, e.g. using [`crate::Label::sense`].
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// let response = ui.label("hello");
+    /// assert!(!response.clicked()); // labels don't sense clicks by default
+    /// let response = response.interact(egui::Sense::click());
+    /// if response.clicked() { /* … */ }
+    /// # });
+    /// ```
+    pub fn interact(&self, sense: Sense) -> Response<'_> {
+        self.ctx.interact_with_hovered(
+            self.layer_id,
+            self.id,
+            self.rect,
+            sense,
+            self.enabled,
+            self.hovered,
+        )
+    }
+
+    /// Adjust the scroll position until this UI becomes visible.
+    ///
+    /// If `align` is `None`, it'll scroll enough to bring the UI into view.
+    ///
+    /// See also: [`Ui::scroll_to_cursor`], [`Ui::scroll_to_rect`]. [`Ui::scroll_with_delta`].
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// egui::ScrollArea::vertical().show(ui, |ui| {
+    ///     for i in 0..1000 {
+    ///         let response = ui.button("Scroll to me");
+    ///         if response.clicked() {
+    ///             response.scroll_to_me(Some(egui::Align::Center));
+    ///         }
+    ///     }
+    /// });
+    /// # });
+    /// ```
+    pub fn scroll_to_me(&mut self, align: Option<Align>) {
+        self.ctx.frame_state_mut().scroll_target[0] = Some((self.rect.x_range(), align));
+        self.ctx.frame_state_mut().scroll_target[1] = Some((self.rect.y_range(), align));
+    }
+
+    /// For accessibility.
+    ///
+    /// Call after interacting and potential calls to [`Self::mark_changed`].
+    pub fn widget_info(&mut self, make_info: impl Fn() -> crate::WidgetInfo) {
+        use crate::output::OutputEvent;
+        let event = if self.clicked() {
+            Some(OutputEvent::Clicked(make_info()))
+        } else if self.double_clicked() {
+            Some(OutputEvent::DoubleClicked(make_info()))
+        } else if self.triple_clicked() {
+            Some(OutputEvent::TripleClicked(make_info()))
+        } else if self.gained_focus() {
+            Some(OutputEvent::FocusGained(make_info()))
+        } else if self.changed {
+            Some(OutputEvent::ValueChanged(make_info()))
+        } else {
+            None
+        };
+        if let Some(event) = event {
+            self.ctx.output_mut().events.push(event);
+        }
+    }
+
+    /// Response to secondary clicks (right-clicks) by showing the given menu.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// let response = ui.label("Right-click me!");
+    /// response.context_menu(|ui| {
+    ///     if ui.button("Close the menu").clicked() {
+    ///         ui.close_menu();
+    ///     }
+    /// });
+    /// # });
+    /// ```
+    ///
+    /// See also: [`Ui::menu_button`] and [`Ui::close_menu`].
+    pub fn context_menu(self, add_contents: impl FnOnce(&mut Ui<'_>)) -> Self {
+        menu::context_menu(&mut self, add_contents);
+        self
+    }
+
     /// Returns true if this widget was clicked this frame by the primary button.
     ///
     /// A click is registered when the mouse or touch is released within

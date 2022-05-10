@@ -27,13 +27,13 @@ impl Spinner {
 }
 
 impl Widget for Spinner {
-    fn ui(self, ui: &mut Ui) -> Response {
+    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response<'c> {
         let size = self
             .size
             .unwrap_or_else(|| ui.style().spacing.interact_size.y);
         let (rect, response) = ui.allocate_exact_size(vec2(size, size), Sense::hover());
 
-        if ui.is_rect_visible(rect) {
+        if ui.is_rect_visible(&rect) {
             ui.ctx().request_repaint();
 
             let radius = (rect.height() / 2.0) - 2.0;

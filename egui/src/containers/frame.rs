@@ -164,14 +164,14 @@ impl Frame {
     }
 }
 
-pub struct Prepared {
+pub struct Prepared<'c> {
     pub frame: Frame,
     where_to_put_background: ShapeIdx,
-    pub content_ui: Ui,
+    pub content_ui: Ui<'c>,
 }
 
 impl Frame {
-    pub fn begin(self, ui: &mut Ui) -> Prepared {
+    pub fn begin<'c>(self, ui: &mut Ui<'c>) -> Prepared<'c> {
         let where_to_put_background = ui.painter().add(Shape::Noop);
         let outer_rect_bounds = ui.available_rect_before_wrap();
 
@@ -194,15 +194,19 @@ impl Frame {
         }
     }
 
-    pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
+    pub fn show<'c, R>(
+        self,
+        ui: &mut Ui<'c>,
+        add_contents: impl FnOnce(&mut Ui<'_>) -> R,
+    ) -> InnerResponse<'c, R> {
         self.show_dyn(ui, Box::new(add_contents))
     }
 
-    fn show_dyn<'c, R>(
+    fn show_dyn<'a, 'c, R>(
         self,
-        ui: &mut Ui,
-        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
-    ) -> InnerResponse<R> {
+        ui: &mut Ui<'c>,
+        add_contents: Box<dyn FnOnce(&mut Ui<'_>) -> R + 'a>,
+    ) -> InnerResponse<'c, R> {
         let mut prepared = self.begin(ui);
         let ret = add_contents(&mut prepared.content_ui);
         let response = prepared.end(ui);
@@ -236,7 +240,7 @@ impl Frame {
     }
 }
 
-impl Prepared {
+impl<'c> Prepared<'c> {
     fn paint_rect(&self) -> Rect {
         let mut rect = self.content_ui.min_rect();
         rect.min -= self.frame.inner_margin.left_top();
@@ -244,7 +248,7 @@ impl Prepared {
         rect
     }
 
-    pub fn end(self, ui: &mut Ui) -> Response {
+    pub fn end(self, ui: &mut Ui<'c>) -> Response<'c> {
         let paint_rect = self.paint_rect();
 
         let Prepared {

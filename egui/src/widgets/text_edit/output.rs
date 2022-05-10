@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 /// The output from a [`TextEdit`](crate::TextEdit).
-pub struct TextEditOutput {
+pub struct TextEditOutput<'c> {
     /// The interaction response.
-    pub response: crate::Response,
+    pub response: crate::Response<'c>,
 
     /// How the text was displayed.
     pub galley: Arc<crate::Galley>,

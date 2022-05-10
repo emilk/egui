@@ -54,7 +54,7 @@ pub trait Widget {
     /// [builders](https://doc.rust-lang.org/1.0.0/style/ownership/builders.html)
     ///
     /// Tip: you can `impl Widget for &mut YourObject { }`.
-    fn ui(self, ui: &mut Ui) -> Response;
+    fn ui(self, ui: &mut Ui<'_>) -> Response;
 }
 
 /// This enables functions that return `impl Widget`, so that you can
@@ -75,9 +75,9 @@ pub trait Widget {
 /// ```
 impl<F> Widget for F
 where
-    F: FnOnce(&mut Ui) -> Response,
+    F: for<'c> FnOnce(&mut Ui<'c>) -> Response<'c>,
 {
-    fn ui(self, ui: &mut Ui) -> Response {
+    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response<'c> {
         self(ui)
     }
 }
@@ -91,12 +91,12 @@ pub trait WidgetWithState {
 
 /// Show a button to reset a value to its default.
 /// The button is only enabled if the value does not already have its original value.
-pub fn reset_button<T: Default + PartialEq>(ui: &mut Ui, value: &mut T) {
+pub fn reset_button<T: Default + PartialEq>(ui: &mut Ui<'_>, value: &mut T) {
     reset_button_with(ui, value, T::default());
 }
 /// Show a button to reset a value to its default.
 /// The button is only enabled if the value does not already have its original value.
-pub fn reset_button_with<T: PartialEq>(ui: &mut Ui, value: &mut T, reset_value: T) {
+pub fn reset_button_with<T: PartialEq>(ui: &mut Ui<'_>, value: &mut T, reset_value: T) {
     if ui
         .add_enabled(*value != reset_value, Button::new("Reset"))
         .clicked()
@@ -107,11 +107,11 @@ pub fn reset_button_with<T: PartialEq>(ui: &mut Ui, value: &mut T, reset_value: 
 
 // ----------------------------------------------------------------------------
 
-pub fn stroke_ui(ui: &mut crate::Ui, stroke: &mut epaint::Stroke, text: &str) {
+pub fn stroke_ui(ui: &mut crate::Ui<'_>, stroke: &mut epaint::Stroke, text: &str) {
     let epaint::Stroke { width, color } = stroke;
     ui.horizontal(|ui| {
         ui.add(DragValue::new(width).speed(0.1).clamp_range(0.0..=5.0))
-            .on_hover_text("Width");
+            .on_hover_text(ui.ctx_mut(), "Width");
         ui.color_edit_button_srgba(color);
         ui.label(text);
 
@@ -123,7 +123,7 @@ pub fn stroke_ui(ui: &mut crate::Ui, stroke: &mut epaint::Stroke, text: &str) {
     });
 }
 
-pub(crate) fn shadow_ui(ui: &mut Ui, shadow: &mut epaint::Shadow, text: &str) {
+pub(crate) fn shadow_ui(ui: &mut Ui<'_>, shadow: &mut epaint::Shadow, text: &str) {
     let epaint::Shadow { extrusion, color } = shadow;
     ui.horizontal(|ui| {
         ui.label(text);
@@ -132,13 +132,13 @@ pub(crate) fn shadow_ui(ui: &mut Ui, shadow: &mut epaint::Shadow, text: &str) {
                 .speed(1.0)
                 .clamp_range(0.0..=100.0),
         )
-        .on_hover_text("Extrusion");
+        .on_hover_text(ui.ctx_mut(), "Extrusion");
         ui.color_edit_button_srgba(color);
     });
 }
 
 /// Show a small button to switch to/from dark/light mode (globally).
-pub fn global_dark_light_mode_switch(ui: &mut Ui) {
+pub fn global_dark_light_mode_switch(ui: &mut Ui<'_>) {
     let style: crate::Style = (*ui.ctx().style()).clone();
     let new_visuals = style.visuals.light_dark_small_toggle_button(ui);
     if let Some(visuals) = new_visuals {
@@ -147,7 +147,7 @@ pub fn global_dark_light_mode_switch(ui: &mut Ui) {
 }
 
 /// Show larger buttons for switching between light and dark mode (globally).
-pub fn global_dark_light_mode_buttons(ui: &mut Ui) {
+pub fn global_dark_light_mode_buttons(ui: &mut Ui<'_>) {
     let mut visuals = ui.ctx().style().visuals.clone();
     visuals.light_dark_radio_buttons(ui);
     ui.ctx().set_visuals(visuals);

@@ -57,7 +57,7 @@ pub struct TextEdit<'t> {
     id_source: Option<Id>,
     font_selection: FontSelection,
     text_color: Option<Color32>,
-    layouter: Option<&'t mut dyn FnMut(&Ui, &str, f32) -> Arc<Galley>>,
+    layouter: Option<&'t mut dyn FnMut(&Ui<'_>, &str, f32) -> Arc<Galley>>,
     password: bool,
     frame: bool,
     margin: Vec2,
@@ -191,7 +191,10 @@ impl<'t> TextEdit<'t> {
     /// ui.add(egui::TextEdit::multiline(&mut my_code).layouter(&mut layouter));
     /// # });
     /// ```
-    pub fn layouter(mut self, layouter: &'t mut dyn FnMut(&Ui, &str, f32) -> Arc<Galley>) -> Self {
+    pub fn layouter(
+        mut self,
+        layouter: &'t mut dyn FnMut(&Ui<'_>, &str, f32) -> Arc<Galley>,
+    ) -> Self {
         self.layouter = Some(layouter);
 
         self
@@ -254,7 +257,7 @@ impl<'t> TextEdit<'t> {
 // ----------------------------------------------------------------------------
 
 impl<'t> Widget for TextEdit<'t> {
-    fn ui(self, ui: &mut Ui) -> Response {
+    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response<'c> {
         self.show(ui).response
     }
 }
@@ -275,7 +278,7 @@ impl<'t> TextEdit<'t> {
     /// }
     /// # });
     /// ```
-    pub fn show(self, ui: &mut Ui) -> TextEditOutput {
+    pub fn show<'c>(self, ui: &mut Ui<'c>) -> TextEditOutput<'c> {
         let is_mutable = self.text.is_mutable();
         let frame = self.frame;
         let interactive = self.interactive;
@@ -285,14 +288,14 @@ impl<'t> TextEdit<'t> {
         let max_rect = ui.available_rect_before_wrap().shrink2(margin);
         let mut content_ui = ui.child_ui(max_rect, *ui.layout());
         let mut output = self.show_content(&mut content_ui);
-        let id = output.response.id;
-        let frame_rect = output.response.rect.expand2(margin);
+        let id = output.response.id();
+        let frame_rect = output.response.rect().expand2(margin);
         ui.allocate_space(frame_rect.size());
         if interactive {
             output.response |= ui.interact(frame_rect, id, Sense::click());
         }
         if output.response.clicked() && !output.response.lost_focus() {
-            ui.memory().request_focus(output.response.id);
+            ui.memory().request_focus(output.response.id());
         }
 
         if frame {
@@ -333,7 +336,7 @@ impl<'t> TextEdit<'t> {
         output
     }
 
-    fn show_content(self, ui: &mut Ui) -> TextEditOutput {
+    fn show_content(self, ui: &mut Ui<'_>) -> TextEditOutput {
         let TextEdit {
             text,
             hint_text,
@@ -372,7 +375,7 @@ impl<'t> TextEdit<'t> {
         };
 
         let font_id_clone = font_id.clone();
-        let mut default_layouter = move |ui: &Ui, text: &str, wrap_width: f32| {
+        let mut default_layouter = move |ui: &Ui<'_>, text: &str, wrap_width: f32| {
             let text = mask_if_password(password, text);
             ui.fonts().layout_job(if multiline {
                 LayoutJob::simple(text, font_id_clone.clone(), text_color, wrap_width)
@@ -433,7 +436,7 @@ impl<'t> TextEdit<'t> {
                 // TODO(emilk): drag selected text to either move or clone (ctrl on windows, alt on mac)
                 let singleline_offset = vec2(state.singleline_offset, 0.0);
                 let cursor_at_pointer =
-                    galley.cursor_from_pos(pointer_pos - response.rect.min + singleline_offset);
+                    galley.cursor_from_pos(pointer_pos - response.rect().min + singleline_offset);
 
                 if ui.visuals().text_cursor_preview
                     && response.hovered()
@@ -444,7 +447,7 @@ impl<'t> TextEdit<'t> {
                         ui,
                         row_height,
                         &painter,
-                        response.rect.min,
+                        response.rect().min,
                         &galley,
                         &cursor_at_pointer,
                     );
@@ -525,7 +528,7 @@ impl<'t> TextEdit<'t> {
             cursor_range = Some(new_cursor_range);
         }
 
-        let mut text_draw_pos = response.rect.min;
+        let mut text_draw_pos = response.rect().min;
 
         // Visual clipping for singleline text editor with text larger than width
         if !multiline {
@@ -571,7 +574,7 @@ impl<'t> TextEdit<'t> {
                 } else {
                     hint_text.into_galley(ui, Some(false), f32::INFINITY, font_id)
                 };
-                galley.paint_with_fallback_color(&painter, response.rect.min, hint_text_color);
+                galley.paint_with_fallback_color(&painter, response.rect().min, hint_text_color);
             }
 
             if ui.memory().has_focus(id) {
@@ -590,14 +593,14 @@ impl<'t> TextEdit<'t> {
                             &cursor_range.primary,
                         );
 
-                        if response.changed || selection_changed {
+                        if response.changed() || selection_changed {
                             ui.scroll_to_rect(cursor_pos, None); // keep cursor in view
                         }
 
                         if interactive {
                             // eframe web uses `text_cursor_pos` when showing IME,
                             // so only set it when text is editable and visible!
-                            ui.ctx().output().text_cursor_pos = Some(cursor_pos.left_top());
+                            ui.ctx_mut().output_mut().text_cursor_pos = Some(cursor_pos.left_top());
                         }
                     }
                 }
@@ -665,11 +668,11 @@ fn mask_if_password(is_password: bool, text: &str) -> String {
 /// Check for (keyboard) events to edit the cursor and/or text.
 #[allow(clippy::too_many_arguments)]
 fn events(
-    ui: &mut crate::Ui,
+    ui: &mut crate::Ui<'_>,
     state: &mut TextEditState,
     text: &mut dyn TextBuffer,
     galley: &mut Arc<Galley>,
-    layouter: &mut dyn FnMut(&Ui, &str, f32) -> Arc<Galley>,
+    layouter: &mut dyn FnMut(&Ui<'_>, &str, f32) -> Arc<Galley>,
     id: Id,
     wrap_width: f32,
     multiline: bool,
@@ -685,7 +688,7 @@ fn events(
         &(cursor_range.as_ccursor_range(), text.as_ref().to_owned()),
     );
 
-    let copy_if_not_password = |ui: &Ui, text: String| {
+    let copy_if_not_password = |ui: &Ui<'_>, text: String| {
         if !password {
             ui.ctx().output().copied_text = text;
         }
@@ -851,7 +854,7 @@ fn events(
 // ----------------------------------------------------------------------------
 
 fn paint_cursor_selection(
-    ui: &mut Ui,
+    ui: &mut Ui<'_>,
     painter: &Painter,
     pos: Pos2,
     galley: &Galley,
@@ -893,7 +896,7 @@ fn paint_cursor_selection(
 }
 
 fn paint_cursor_end(
-    ui: &mut Ui,
+    ui: &mut Ui<'_>,
     row_height: f32,
     painter: &Painter,
     pos: Pos2,

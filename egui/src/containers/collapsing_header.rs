@@ -57,9 +57,9 @@ impl CollapsingState {
         self.state.open = open;
     }
 
-    pub fn toggle(&mut self, ui: &Ui) {
+    pub fn toggle(&mut self, ui: &mut Ui<'_>) {
         self.state.open = !self.state.open;
-        ui.ctx().request_repaint();
+        ui.ctx_mut().request_repaint();
     }
 
     /// 0 for closed, 1 for open, with tweening
@@ -72,11 +72,11 @@ impl CollapsingState {
     }
 
     /// Will toggle when clicked, etc.
-    pub(crate) fn show_default_button_with_size(
+    pub(crate) fn show_default_button_with_size<'c>(
         &mut self,
-        ui: &mut Ui,
+        ui: &mut Ui<'c>,
         button_size: Vec2,
-    ) -> Response {
+    ) -> Response<'c> {
         let (_id, rect) = ui.allocate_space(button_size);
         let response = ui.interact(rect, self.id, Sense::click());
         if response.clicked() {
@@ -88,15 +88,15 @@ impl CollapsingState {
     }
 
     /// Will toggle when clicked, etc.
-    fn show_default_button_indented(&mut self, ui: &mut Ui) -> Response {
+    fn show_default_button_indented(&mut self, ui: &mut Ui<'_>) -> Response {
         self.show_button_indented(ui, paint_default_icon)
     }
 
     /// Will toggle when clicked, etc.
     fn show_button_indented(
         &mut self,
-        ui: &mut Ui,
-        icon_fn: impl FnOnce(&mut Ui, f32, &Response) + 'static,
+        ui: &mut Ui<'_>,
+        icon_fn: impl FnOnce(&mut Ui<'_>, f32, &Response) + 'static,
     ) -> Response {
         let size = Vec2::new(ui.spacing().indent, ui.spacing().icon_width);
         let (_id, rect) = ui.allocate_space(size);
@@ -137,11 +137,11 @@ impl CollapsingState {
     ///     .body(|ui| ui.label("Body"));
     /// # });
     /// ```
-    pub fn show_header<HeaderRet>(
+    pub fn show_header<'ui, 'c, HeaderRet>(
         mut self,
-        ui: &mut Ui,
-        add_header: impl FnOnce(&mut Ui) -> HeaderRet,
-    ) -> HeaderResponse<'_, HeaderRet> {
+        ui: &'ui mut Ui<'c>,
+        add_header: impl FnOnce(&mut Ui<'_>) -> HeaderRet,
+    ) -> HeaderResponse<'ui, 'c, HeaderRet> {
         let header_response = ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0; // the toggler button uses the full indent width
             let collapser = self.show_default_button_indented(ui);
@@ -163,12 +163,12 @@ impl CollapsingState {
     /// Indent the body to show it belongs to the header.
     ///
     /// Will also store the state.
-    pub fn show_body_indented<R>(
+    pub fn show_body_indented<'c, R>(
         &mut self,
-        header_response: &Response,
-        ui: &mut Ui,
-        add_body: impl FnOnce(&mut Ui) -> R,
-    ) -> Option<InnerResponse<R>> {
+        header_response: &RawResponse,
+        ui: &mut Ui<'c>,
+        add_body: impl FnOnce(&mut Ui<'_>) -> R,
+    ) -> Option<InnerResponse<'c, R>> {
         let id = self.id;
         self.show_body_unindented(ui, |ui| {
             ui.indent(id, |ui| {
@@ -182,11 +182,11 @@ impl CollapsingState {
 
     /// Show body if we are open, with a nice animation between closed and open.
     /// Will also store the state.
-    pub fn show_body_unindented<R>(
+    pub fn show_body_unindented<'c, R>(
         &mut self,
-        ui: &mut Ui,
-        add_body: impl FnOnce(&mut Ui) -> R,
-    ) -> Option<InnerResponse<R>> {
+        ui: &mut Ui<'c>,
+        add_body: impl FnOnce(&mut Ui<'_>) -> R,
+    ) -> Option<InnerResponse<'c, R>> {
         let openness = self.openness(ui.ctx());
         if openness <= 0.0 {
             self.store(ui.ctx()); // we store any earlier toggling as promised in the docstring
@@ -230,7 +230,7 @@ impl CollapsingState {
     /// Paint this [CollapsingState](CollapsingState)'s toggle button. Takes an [IconPainter](IconPainter) as the icon.
     /// ```
     /// # egui::__run_test_ui(|ui| {
-    /// fn circle_icon(ui: &mut egui::Ui, openness: f32, response: &egui::Response) {
+    /// fn circle_icon(ui: &mut egui::Ui<'_>, openness: f32, response: &egui::Response) {
     ///     let stroke = ui.style().interact(&response).fg_stroke;
     ///     let radius = egui::lerp(2.0..=3.0, openness);
     ///     ui.painter().circle_filled(response.rect.center(), radius, stroke.color);
@@ -252,8 +252,8 @@ impl CollapsingState {
     /// ```
     pub fn show_toggle_button(
         &mut self,
-        ui: &mut Ui,
-        icon_fn: impl FnOnce(&mut Ui, f32, &Response) + 'static,
+        ui: &mut Ui<'_>,
+        icon_fn: impl FnOnce(&mut Ui<'_>, f32, &Response) + 'static,
     ) -> Response {
         self.show_button_indented(ui, icon_fn)
     }
@@ -261,22 +261,22 @@ impl CollapsingState {
 
 /// From [`CollapsingState::show_header`].
 #[must_use = "Remember to show the body"]
-pub struct HeaderResponse<'ui, HeaderRet> {
+pub struct HeaderResponse<'ui, 'c, HeaderRet> {
     state: CollapsingState,
-    ui: &'ui mut Ui,
-    toggle_button_response: Response,
-    header_response: InnerResponse<HeaderRet>,
+    ui: &'ui mut Ui<'c>,
+    toggle_button_response: Response<'c>,
+    header_response: InnerResponse<'c, HeaderRet>,
 }
 
-impl<'ui, HeaderRet> HeaderResponse<'ui, HeaderRet> {
+impl<'ui, 'c, HeaderRet> HeaderResponse<'ui, 'c, HeaderRet> {
     /// Returns the response of the collapsing button, the custom header, and the custom body.
     pub fn body<BodyRet>(
         mut self,
-        add_body: impl FnOnce(&mut Ui) -> BodyRet,
+        add_body: impl FnOnce(&mut Ui<'_>) -> BodyRet,
     ) -> (
-        Response,
-        InnerResponse<HeaderRet>,
-        Option<InnerResponse<BodyRet>>,
+        Response<'c>,
+        InnerResponse<'c, HeaderRet>,
+        Option<InnerResponse<'c, BodyRet>>,
     ) {
         let body_response =
             self.state
@@ -292,7 +292,7 @@ impl<'ui, HeaderRet> HeaderResponse<'ui, HeaderRet> {
 // ----------------------------------------------------------------------------
 
 /// Paint the arrow icon that indicated if the region is open or not
-pub fn paint_default_icon(ui: &mut Ui, openness: f32, response: &Response) {
+pub fn paint_default_icon(ui: &mut Ui<'_>, openness: f32, response: &Response<'_>) {
     let visuals = ui.style().interact(response);
     let stroke = visuals.fg_stroke;
 
@@ -312,7 +312,7 @@ pub fn paint_default_icon(ui: &mut Ui, openness: f32, response: &Response) {
 }
 
 /// A function that paints an icon indicating if the region is open or not
-pub type IconPainter = Box<dyn FnOnce(&mut Ui, f32, &Response)>;
+pub type IconPainter = Box<dyn FnOnce(&mut Ui<'_>, f32, &Response<'_>)>;
 
 /// A header which can be collapsed/expanded, revealing a contained [`Ui`] region.
 ///
@@ -455,20 +455,20 @@ impl CollapsingHeader {
     ///   .show(ui, |ui| { ui.label("Hi!"); });
     /// # });
     /// ```
-    pub fn icon(mut self, icon_fn: impl FnOnce(&mut Ui, f32, &Response) + 'static) -> Self {
+    pub fn icon(mut self, icon_fn: impl FnOnce(&mut Ui<'_>, f32, &Response<'_>) + 'static) -> Self {
         self.icon = Some(Box::new(icon_fn));
         self
     }
 }
 
-struct Prepared {
-    header_response: Response,
+struct Prepared<'r> {
+    header_response: Response<'r>,
     state: CollapsingState,
     openness: f32,
 }
 
 impl CollapsingHeader {
-    fn begin(self, ui: &mut Ui) -> Prepared {
+    fn begin<'r>(self, ui: &mut Ui<'r>) -> Prepared<'r> {
         assert!(
             ui.layout().main_dir().is_vertical(),
             "Horizontal collapsing is unimplemented"
@@ -577,19 +577,19 @@ impl CollapsingHeader {
     }
 
     #[inline]
-    pub fn show<R>(
+    pub fn show<'c, R>(
         self,
-        ui: &mut Ui,
-        add_body: impl FnOnce(&mut Ui) -> R,
-    ) -> CollapsingResponse<R> {
+        ui: &mut Ui<'c>,
+        add_body: impl FnOnce(&mut Ui<'_>) -> R,
+    ) -> CollapsingResponse<'c, R> {
         self.show_dyn(ui, Box::new(add_body))
     }
 
-    fn show_dyn<'c, R>(
+    fn show_dyn<'a, 'c, R>(
         self,
-        ui: &mut Ui,
-        add_body: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
-    ) -> CollapsingResponse<R> {
+        ui: &mut Ui<'c>,
+        add_body: Box<dyn FnOnce(&mut Ui<'_>) -> R + 'a>,
+    ) -> CollapsingResponse<'c, R> {
         // Make sure body is bellow header,
         // and make sure it is one unit (necessary for putting a [`CollapsingHeader`] in a grid).
         ui.vertical(|ui| {
@@ -624,12 +624,12 @@ impl CollapsingHeader {
 }
 
 /// The response from showing a [`CollapsingHeader`].
-pub struct CollapsingResponse<R> {
+pub struct CollapsingResponse<'r, R> {
     /// Response of the actual clickable header.
-    pub header_response: Response,
+    pub header_response: Response<'r>,
 
     /// None iff collapsed.
-    pub body_response: Option<Response>,
+    pub body_response: Option<Response<'r>>,
 
     /// None iff collapsed.
     pub body_returned: Option<R>,
@@ -638,7 +638,7 @@ pub struct CollapsingResponse<R> {
     pub openness: f32,
 }
 
-impl<R> CollapsingResponse<R> {
+impl<'r, R> CollapsingResponse<'r, R> {
     /// Was the [`CollapsingHeader`] fully closed (and not being animated)?
     pub fn fully_closed(&self) -> bool {
         self.openness <= 0.0

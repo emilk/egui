@@ -46,8 +46,8 @@ impl State {
         ctx.data().get_persisted(id)
     }
 
-    pub fn store(self, ctx: &Context, id: Id) {
-        ctx.data().insert_persisted(id, self);
+    pub fn store(self, ctx: &mut Context, id: Id) {
+        ctx.data_mut().insert_persisted(id, self);
     }
 }
 
@@ -289,7 +289,7 @@ impl ScrollArea {
     }
 }
 
-struct Prepared {
+struct Prepared<'c> {
     id: Id,
     state: State,
     has_bar: [bool; 2],
@@ -300,7 +300,7 @@ struct Prepared {
     always_show_scroll: bool,
     /// Where on the screen the content is (excludes scroll bars).
     inner_rect: Rect,
-    content_ui: Ui,
+    content_ui: Ui<'c>,
     /// Relative coordinates: the offset and size of the view of the inner UI.
     /// `viewport.min == ZERO` means we scrolled to the top.
     viewport: Rect,
@@ -309,7 +309,7 @@ struct Prepared {
 }
 
 impl ScrollArea {
-    fn begin(self, ui: &mut Ui) -> Prepared {
+    fn begin<'c>(self, ui: &mut Ui<'c>) -> Prepared<'c> {
         let Self {
             has_bar,
             auto_shrink,
@@ -323,8 +323,6 @@ impl ScrollArea {
             stick_to_end,
         } = self;
 
-        let ctx = ui.ctx().clone();
-
         let id_source = id_source.unwrap_or_else(|| Id::new("scroll_area"));
         let id = ui.make_persistent_id(id_source);
         ui.ctx().check_for_id_clash(
@@ -332,7 +330,7 @@ impl ScrollArea {
             Rect::from_min_size(ui.available_rect_before_wrap().min, Vec2::ZERO),
             "ScrollArea",
         );
-        let mut state = State::load(&ctx, id).unwrap_or_default();
+        let mut state = State::load(ui.ctx(), id).unwrap_or_default();
 
         state.offset.x = offset_x.unwrap_or(state.offset.x);
         state.offset.y = offset_y.unwrap_or(state.offset.y);
@@ -426,8 +424,8 @@ impl ScrollArea {
     /// If the inner area can be very long, consider using [`Self::show_rows`] instead.
     pub fn show<R>(
         self,
-        ui: &mut Ui,
-        add_contents: impl FnOnce(&mut Ui) -> R,
+        ui: &mut Ui<'_>,
+        add_contents: impl FnOnce(&mut Ui<'_>) -> R,
     ) -> ScrollAreaOutput<R> {
         self.show_viewport_dyn(ui, Box::new(|ui, _viewport| add_contents(ui)))
     }
@@ -450,10 +448,10 @@ impl ScrollArea {
     /// ```
     pub fn show_rows<R>(
         self,
-        ui: &mut Ui,
+        ui: &mut Ui<'_>,
         row_height_sans_spacing: f32,
         total_rows: usize,
-        add_contents: impl FnOnce(&mut Ui, std::ops::Range<usize>) -> R,
+        add_contents: impl FnOnce(&mut Ui<'_>, std::ops::Range<usize>) -> R,
     ) -> ScrollAreaOutput<R> {
         let spacing = ui.spacing().item_spacing;
         let row_height_with_spacing = row_height_sans_spacing + spacing.y;
@@ -483,16 +481,16 @@ impl ScrollArea {
     /// So if the passed rect has min = zero, then show the top left content (the user has not scrolled).
     pub fn show_viewport<R>(
         self,
-        ui: &mut Ui,
-        add_contents: impl FnOnce(&mut Ui, Rect) -> R,
+        ui: &mut Ui<'_>,
+        add_contents: impl FnOnce(&mut Ui<'_>, Rect) -> R,
     ) -> ScrollAreaOutput<R> {
         self.show_viewport_dyn(ui, Box::new(add_contents))
     }
 
     fn show_viewport_dyn<'c, R>(
         self,
-        ui: &mut Ui,
-        add_contents: Box<dyn FnOnce(&mut Ui, Rect) -> R + 'c>,
+        ui: &mut Ui<'_>,
+        add_contents: Box<dyn FnOnce(&mut Ui<'_>, Rect) -> R + 'c>,
     ) -> ScrollAreaOutput<R> {
         let mut prepared = self.begin(ui);
         let id = prepared.id;
@@ -508,8 +506,8 @@ impl ScrollArea {
     }
 }
 
-impl Prepared {
-    fn end(self, ui: &mut Ui) -> State {
+impl<'c> Prepared<'c> {
+    fn end(self, ui: &mut Ui<'c>) -> State {
         let Prepared {
             id,
             mut state,
@@ -845,6 +843,6 @@ impl Prepared {
 }
 
 /// Width of a vertical scrollbar, or height of a horizontal scroll bar
-fn max_scroll_bar_width_with_margin(ui: &Ui) -> f32 {
+fn max_scroll_bar_width_with_margin(ui: &Ui<'_>) -> f32 {
     ui.spacing().item_spacing.x + ui.spacing().scroll_bar_width
 }

@@ -55,7 +55,7 @@ impl ProgressBar {
 }
 
 impl Widget for ProgressBar {
-    fn ui(self, ui: &mut Ui) -> Response {
+    fn ui(self, ui: &mut Ui<'_>) -> Response {
         let ProgressBar {
             progress,
             desired_width,
@@ -71,7 +71,7 @@ impl Widget for ProgressBar {
         let (outer_rect, response) =
             ui.allocate_exact_size(vec2(desired_width, height), Sense::hover());
 
-        if ui.is_rect_visible(response.rect) {
+        if ui.is_rect_visible(response.rect()) {
             if animate {
                 ui.ctx().request_repaint();
             }

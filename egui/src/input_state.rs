@@ -815,7 +815,7 @@ impl PointerState {
 }
 
 impl InputState {
-    pub fn ui(&self, ui: &mut crate::Ui) {
+    pub fn ui(&self, ui: &mut crate::Ui<'_>) {
         let Self {
             raw,
             pointer,
@@ -883,7 +883,7 @@ impl InputState {
 }
 
 impl PointerState {
-    pub fn ui(&self, ui: &mut crate::Ui) {
+    pub fn ui(&self, ui: &mut crate::Ui<'_>) {
         let Self {
             time: _,
             latest_pos,

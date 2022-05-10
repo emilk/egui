@@ -271,7 +271,7 @@ impl Context {
         rect: Rect,
         sense: Sense,
         enabled: bool,
-    ) -> Response {
+    ) -> Response<'_> {
         let gap = 0.5; // Just to make sure we don't accidentally hover two things at once (a small eps should be sufficient).
 
         // Make it easier to click things:
@@ -293,7 +293,7 @@ impl Context {
         sense: Sense,
         enabled: bool,
         hovered: bool,
-    ) -> Response {
+    ) -> Response<'_> {
         let hovered = hovered && enabled; // can't even hover disabled widgets
 
         let mut response = Response {
@@ -1002,7 +1002,7 @@ impl Context {
 }
 
 impl Context {
-    pub fn settings_ui(&mut self, ui: &mut Ui) {
+    pub fn settings_ui(&mut self, ui: &mut Ui<'_>) {
         use crate::containers::*;
 
         CollapsingHeader::new("🎑 Style")
@@ -1020,7 +1020,7 @@ impl Context {
             });
     }
 
-    pub fn inspection_ui(&mut self, ui: &mut Ui) {
+    pub fn inspection_ui(&mut self, ui: &mut Ui<'_>) {
         use crate::containers::*;
         crate::trace!(ui);
 
@@ -1095,7 +1095,7 @@ impl Context {
     }
 
     /// Show stats about the allocated textures.
-    pub fn texture_ui(&self, ui: &mut crate::Ui) {
+    pub fn texture_ui(&self, ui: &mut crate::Ui<'_>) {
         let tex_mngr = self.tex_manager();
         let tex_mngr = tex_mngr.read();
 
@@ -1151,7 +1151,7 @@ impl Context {
         });
     }
 
-    pub fn memory_ui(&mut self, ui: &mut crate::Ui) {
+    pub fn memory_ui(&mut self, ui: &mut crate::Ui<'_>) {
         if ui
             .button("Reset all")
             .on_hover_text("Reset all egui state")
@@ -1252,7 +1252,7 @@ impl Context {
 }
 
 impl Context {
-    pub fn style_ui(&mut self, ui: &mut Ui) {
+    pub fn style_ui(&mut self, ui: &mut Ui<'_>) {
         self.style_mut().ui(ui);
     }
 }

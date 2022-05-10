@@ -208,11 +208,11 @@ impl Style {
     /// Use this style for interactive things.
     /// Note that you must already have a response,
     /// i.e. you must allocate space and interact BEFORE painting the widget!
-    pub fn interact(&self, response: &Response) -> &WidgetVisuals {
+    pub fn interact(&self, response: &Response<'_>) -> &WidgetVisuals {
         self.visuals.widgets.style(response)
     }
 
-    pub fn interact_selectable(&self, response: &Response, selected: bool) -> WidgetVisuals {
+    pub fn interact_selectable(&self, response: &Response<'_>, selected: bool) -> WidgetVisuals {
         let mut visuals = *self.visuals.widgets.style(response);
         if selected {
             visuals.bg_fill = self.visuals.selection.bg_fill;
@@ -529,7 +529,7 @@ pub struct Widgets {
 }
 
 impl Widgets {
-    pub fn style(&self, response: &Response) -> &WidgetVisuals {
+    pub fn style(&self, response: &Response<'_>) -> &WidgetVisuals {
         if !response.sense.interactive() {
             &self.noninteractive
         } else if response.is_pointer_button_down_on() || response.has_focus() {
@@ -818,7 +818,7 @@ impl Default for Widgets {
 use crate::{widgets::*, Ui};
 
 impl Style {
-    pub fn ui(&mut self, ui: &mut crate::Ui) {
+    pub fn ui(&mut self, ui: &mut crate::Ui<'_>) {
         let Self {
             override_font_id,
             override_text_style,
@@ -888,7 +888,7 @@ impl Style {
     }
 }
 
-fn text_styles_ui(ui: &mut Ui, text_styles: &mut BTreeMap<TextStyle, FontId>) -> Response {
+fn text_styles_ui(ui: &mut Ui<'_>, text_styles: &mut BTreeMap<TextStyle, FontId>) -> Response {
     ui.vertical(|ui| {
         crate::Grid::new("text_styles").show(ui, |ui| {
             for (text_style, font_id) in text_styles.iter_mut() {
@@ -903,7 +903,7 @@ fn text_styles_ui(ui: &mut Ui, text_styles: &mut BTreeMap<TextStyle, FontId>) ->
 }
 
 impl Spacing {
-    pub fn ui(&mut self, ui: &mut crate::Ui) {
+    pub fn ui(&mut self, ui: &mut crate::Ui<'_>) {
         let Self {
             item_spacing,
             window_margin,
@@ -1012,7 +1012,7 @@ impl Spacing {
 }
 
 impl Interaction {
-    pub fn ui(&mut self, ui: &mut crate::Ui) {
+    pub fn ui(&mut self, ui: &mut crate::Ui<'_>) {
         let Self {
             resize_grab_radius_side,
             resize_grab_radius_corner,
@@ -1032,7 +1032,7 @@ impl Interaction {
 }
 
 impl Widgets {
-    pub fn ui(&mut self, ui: &mut crate::Ui) {
+    pub fn ui(&mut self, ui: &mut crate::Ui<'_>) {
         let Self {
             active,
             hovered,
@@ -1069,7 +1069,7 @@ impl Widgets {
 }
 
 impl Selection {
-    pub fn ui(&mut self, ui: &mut crate::Ui) {
+    pub fn ui(&mut self, ui: &mut crate::Ui<'_>) {
         let Self { bg_fill, stroke } = self;
         ui.label("Selectable labels");
         ui_color(ui, bg_fill, "background fill");
@@ -1078,7 +1078,7 @@ impl Selection {
 }
 
 impl WidgetVisuals {
-    pub fn ui(&mut self, ui: &mut crate::Ui) {
+    pub fn ui(&mut self, ui: &mut crate::Ui<'_>) {
         let Self {
             bg_fill,
             bg_stroke,
@@ -1099,7 +1099,7 @@ impl WidgetVisuals {
 
 impl Visuals {
     /// Show radio-buttons to switch between light and dark mode.
-    pub fn light_dark_radio_buttons(&mut self, ui: &mut crate::Ui) {
+    pub fn light_dark_radio_buttons(&mut self, ui: &mut crate::Ui<'_>) {
         ui.horizontal(|ui| {
             ui.selectable_value(self, Self::light(), "☀ Light");
             ui.selectable_value(self, Self::dark(), "🌙 Dark");
@@ -1108,7 +1108,7 @@ impl Visuals {
 
     /// Show small toggle-button for light and dark mode.
     #[must_use]
-    pub fn light_dark_small_toggle_button(&self, ui: &mut crate::Ui) -> Option<Self> {
+    pub fn light_dark_small_toggle_button(&self, ui: &mut crate::Ui<'_>) -> Option<Self> {
         #![allow(clippy::collapsible_else_if)]
         if self.dark_mode {
             if ui
@@ -1130,7 +1130,7 @@ impl Visuals {
         None
     }
 
-    pub fn ui(&mut self, ui: &mut crate::Ui) {
+    pub fn ui(&mut self, ui: &mut crate::Ui<'_>) {
         let Self {
             dark_mode: _,
             override_text_color: _,
@@ -1203,7 +1203,7 @@ impl Visuals {
 }
 
 impl DebugOptions {
-    pub fn ui(&mut self, ui: &mut crate::Ui) {
+    pub fn ui(&mut self, ui: &mut crate::Ui<'_>) {
         let Self {
             debug_on_hover,
             show_expand_width: debug_expand_width,
@@ -1231,8 +1231,8 @@ fn slider_vec2<'a>(
     value: &'a mut Vec2,
     range: std::ops::RangeInclusive<f32>,
     text: &'a str,
-) -> impl Widget + 'a {
-    move |ui: &mut crate::Ui| {
+) -> impl Widget + 'a + for<'c> FnOnce(&mut crate::Ui<'c>) -> Response<'c> {
+    move |ui: &mut crate::Ui<'_>| {
         ui.horizontal(|ui| {
             ui.add(
                 DragValue::new(&mut value.x)
@@ -1250,7 +1250,11 @@ fn slider_vec2<'a>(
     }
 }
 
-fn ui_color(ui: &mut Ui, srgba: &mut Color32, label: impl Into<WidgetText>) -> Response {
+fn ui_color<'c>(
+    ui: &mut Ui<'c>,
+    srgba: &mut Color32,
+    label: impl Into<WidgetText>,
+) -> Response<'c> {
     ui.horizontal(|ui| {
         ui.color_edit_button_srgba(srgba);
         ui.label(label);
@@ -1258,7 +1262,7 @@ fn ui_color(ui: &mut Ui, srgba: &mut Color32, label: impl Into<WidgetText>) -> R
     .response
 }
 
-fn rounding_ui(ui: &mut Ui, rounding: &mut Rounding) {
+fn rounding_ui(ui: &mut Ui<'_>, rounding: &mut Rounding) {
     const MAX: f32 = 20.0;
     let mut same = rounding.is_same();
     ui.group(|ui| {

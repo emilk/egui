@@ -278,7 +278,7 @@ impl TouchState {
 }
 
 impl TouchState {
-    pub fn ui(&self, ui: &mut crate::Ui) {
+    pub fn ui(&self, ui: &mut crate::Ui<'_>) {
         ui.label(format!("{:?}", self));
     }
 }

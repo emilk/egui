@@ -177,17 +177,17 @@ pub(crate) struct Prepared {
 impl Area {
     pub fn show<R>(
         self,
-        ctx: &Context,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
+        ctx: &mut Context,
+        add_contents: impl FnOnce(&mut Ui<'_>) -> R,
+    ) -> InnerResponse<'_, R> {
         let prepared = self.begin(ctx);
         let mut content_ui = prepared.content_ui(ctx);
         let inner = add_contents(&mut content_ui);
-        let response = prepared.end(ctx, content_ui);
+        let response = prepared.end(content_ui);
         InnerResponse { inner, response }
     }
 
-    pub(crate) fn begin(self, ctx: &Context) -> Prepared {
+    pub(crate) fn begin(self, ctx: &mut Context) -> Prepared {
         let Area {
             id,
             movable,
@@ -236,7 +236,7 @@ impl Area {
         }
     }
 
-    pub fn show_open_close_animation(&self, ctx: &Context, frame: &Frame, is_open: bool) {
+    pub fn show_open_close_animation(&self, ctx: &mut Context, frame: &Frame, is_open: bool) {
         // must be called first so animation managers know the latest state
         let visibility_factor = ctx.animate_bool(self.id.with("close_animation"), is_open);
 
@@ -253,7 +253,7 @@ impl Area {
         let area_rect = ctx.memory().areas.get(self.id).map(|area| area.rect());
         if let Some(area_rect) = area_rect {
             let clip_rect = ctx.available_rect();
-            let painter = Painter::new(ctx.clone(), layer_id, clip_rect);
+            let painter = Painter::new(ctx, layer_id, clip_rect);
 
             // shrinkage: looks kinda a bad on its own
             // let area_rect =
@@ -278,7 +278,7 @@ impl Prepared {
         self.drag_bounds
     }
 
-    pub(crate) fn content_ui(&self, ctx: &Context) -> Ui {
+    pub(crate) fn content_ui<'c>(&self, ctx: &'c mut Context) -> Ui<'c> {
         let screen_rect = ctx.input().screen_rect();
 
         let bounds = if let Some(bounds) = self.drag_bounds {
@@ -306,20 +306,14 @@ impl Prepared {
             .expand(clip_rect_margin)
             .intersect(bounds);
 
-        let mut ui = Ui::new(
-            ctx.clone(),
-            self.layer_id,
-            self.layer_id.id,
-            max_rect,
-            clip_rect,
-        );
+        let mut ui = Ui::new(ctx, self.layer_id, self.layer_id.id, max_rect, clip_rect);
         ui.set_enabled(self.enabled);
 
         ui
     }
 
     #[allow(clippy::needless_pass_by_value)] // intentional to swallow up `content_ui`.
-    pub(crate) fn end(self, ctx: &Context, content_ui: Ui) -> Response {
+    pub(crate) fn end(self, content_ui: Ui<'_>) -> Response<'_> {
         let Prepared {
             layer_id,
             mut state,
@@ -329,6 +323,7 @@ impl Prepared {
         } = self;
 
         state.size = content_ui.min_rect().size();
+        let ctx = content_ui.ctx_mut();
 
         let interact_id = layer_id.id.with("move");
         let sense = if movable {

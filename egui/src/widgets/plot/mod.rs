@@ -511,15 +511,19 @@ impl Plot {
     }
 
     /// Interact with and add items to the plot and finally draw it.
-    pub fn show<R>(self, ui: &mut Ui, build_fn: impl FnOnce(&mut PlotUi) -> R) -> InnerResponse<R> {
+    pub fn show<'c, R>(
+        self,
+        ui: &mut Ui<'c>,
+        build_fn: impl FnOnce(&mut PlotUi<'_>) -> R,
+    ) -> InnerResponse<'c, R> {
         self.show_dyn(ui, Box::new(build_fn))
     }
 
-    fn show_dyn<'a, R>(
+    fn show_dyn<'a, 'c, R>(
         self,
-        ui: &mut Ui,
-        build_fn: Box<dyn FnOnce(&mut PlotUi) -> R + 'a>,
-    ) -> InnerResponse<R> {
+        ui: &mut Ui<'c>,
+        build_fn: Box<dyn FnOnce(&mut PlotUi<'_>) -> R + 'a>,
+    ) -> InnerResponse<'c, R> {
         let Self {
             id_source,
             center_x_axis,
@@ -618,7 +622,6 @@ impl Plot {
             next_auto_color_idx: 0,
             last_screen_transform,
             response,
-            ctx: ui.ctx().clone(),
         };
         let inner = build_fn(&mut plot_ui);
         let PlotUi {
@@ -724,7 +727,7 @@ impl Plot {
 
         // Dragging
         if allow_drag && response.dragged_by(PointerButton::Primary) {
-            response = response.on_hover_cursor(CursorIcon::Grabbing);
+            response = response.on_hover_cursor(ui.ctx_mut(), CursorIcon::Grabbing);
             transform.translate_bounds(-response.drag_delta());
             auto_bounds = false.into();
         }
@@ -742,7 +745,7 @@ impl Plot {
             if let (Some(box_start_pos), Some(box_end_pos)) = (box_start_pos, box_end_pos) {
                 // while dragging prepare a Shape and draw it later on top of the plot
                 if response.dragged_by(boxed_zoom_pointer) {
-                    response = response.on_hover_cursor(CursorIcon::ZoomIn);
+                    response = response.on_hover_cursor(ui.ctx_mut(), CursorIcon::ZoomIn);
                     let rect = epaint::Rect::from_two_pos(box_start_pos, box_end_pos);
                     boxed_zoom_rect = Some((
                         epaint::RectShape::stroke(
@@ -842,7 +845,7 @@ impl Plot {
         memory.store(ui.ctx(), plot_id);
 
         let response = if show_x || show_y {
-            response.on_hover_cursor(CursorIcon::Crosshair)
+            response.on_hover_cursor(ui.ctx_mut(), CursorIcon::Crosshair)
         } else {
             response
         };
@@ -853,25 +856,20 @@ impl Plot {
 
 /// Provides methods to interact with a plot while building it. It is the single argument of the closure
 /// provided to [`Plot::show`]. See [`Plot`] for an example of how to use it.
-pub struct PlotUi {
+pub struct PlotUi<'c> {
     items: Vec<Box<dyn PlotItem>>,
     next_auto_color_idx: usize,
     last_screen_transform: ScreenTransform,
-    response: Response,
-    ctx: Context,
+    response: Response<'c>,
 }
 
-impl PlotUi {
+impl<'c> PlotUi<'c> {
     fn auto_color(&mut self) -> Color32 {
         let i = self.next_auto_color_idx;
         self.next_auto_color_idx += 1;
         let golden_ratio = (5.0_f32.sqrt() - 1.0) / 2.0; // 0.61803398875
         let h = i as f32 * golden_ratio;
         Hsva::new(h, 0.85, 0.5, 1.0).into() // TODO(emilk): OkLab or some other perspective color space
-    }
-
-    pub fn ctx(&self) -> &Context {
-        &self.ctx
     }
 
     /// The plot bounds as they were in the last frame. If called on the first frame and the bounds were not
@@ -892,9 +890,9 @@ impl PlotUi {
     }
 
     /// The pointer position in plot coordinates. Independent of whether the pointer is in the plot area.
-    pub fn pointer_coordinate(&self) -> Option<Value> {
+    pub fn pointer_coordinate(&self, ctx: &Context) -> Option<Value> {
         // We need to subtract the drag delta to keep in sync with the frame-delayed screen transform:
-        let last_pos = self.ctx().input().pointer.latest_pos()? - self.response.drag_delta();
+        let last_pos = ctx.input().pointer.latest_pos()? - self.response.drag_delta();
         let value = self.plot_from_screen(last_pos);
         Some(value)
     }
@@ -1116,7 +1114,7 @@ struct PreparedPlot {
 }
 
 impl PreparedPlot {
-    fn ui(self, ui: &mut Ui, response: &Response) {
+    fn ui(self, ui: &mut Ui<'_>, response: &Response<'_>) {
         let mut shapes = Vec::new();
 
         for d in 0..2 {
@@ -1157,7 +1155,7 @@ impl PreparedPlot {
         }
     }
 
-    fn paint_axis(&self, ui: &Ui, axis: usize, shapes: &mut Vec<Shape>) {
+    fn paint_axis(&self, ui: &Ui<'_>, axis: usize, shapes: &mut Vec<Shape>) {
         let Self {
             transform,
             axis_formatters,
@@ -1239,7 +1237,7 @@ impl PreparedPlot {
             }
         }
 
-        fn color_from_alpha(ui: &Ui, alpha: f32) -> Color32 {
+        fn color_from_alpha(ui: &Ui<'_>, alpha: f32) -> Color32 {
             if ui.visuals().dark_mode {
                 Rgba::from_white_alpha(alpha).into()
             } else {
@@ -1248,7 +1246,7 @@ impl PreparedPlot {
         }
     }
 
-    fn hover(&self, ui: &Ui, pointer: Pos2, shapes: &mut Vec<Shape>) {
+    fn hover(&self, ui: &Ui<'_>, pointer: Pos2, shapes: &mut Vec<Shape>) {
         let Self {
             transform,
             show_x,

@@ -1,7 +1,7 @@
 //! Showing UI:s for egui/epaint types.
 use crate::*;
 
-pub fn font_family_ui(ui: &mut Ui, font_family: &mut FontFamily) {
+pub fn font_family_ui(ui: &mut Ui<'_>, font_family: &mut FontFamily) {
     let families = ui.fonts().families();
     ui.horizontal(|ui| {
         for alternative in families {
@@ -11,7 +11,7 @@ pub fn font_family_ui(ui: &mut Ui, font_family: &mut FontFamily) {
     });
 }
 
-pub fn font_id_ui(ui: &mut Ui, font_id: &mut FontId) {
+pub fn font_id_ui(ui: &mut Ui<'_>, font_id: &mut FontId) {
     let families = ui.fonts().families();
     ui.horizontal(|ui| {
         ui.add(Slider::new(&mut font_id.size, 4.0..=40.0).max_decimals(0));
@@ -23,7 +23,7 @@ pub fn font_id_ui(ui: &mut Ui, font_id: &mut FontId) {
 }
 
 // Show font texture in demo Ui
-pub(crate) fn font_texture_ui(ui: &mut Ui, [width, height]: [usize; 2]) -> Response {
+pub(crate) fn font_texture_ui<'c>(ui: &mut Ui<'c>, [width, height]: [usize; 2]) -> Response<'c> {
     ui.vertical(|ui| {
         let color = if ui.visuals().dark_mode {
             Color32::WHITE
@@ -75,7 +75,7 @@ pub(crate) fn font_texture_ui(ui: &mut Ui, [width, height]: [usize; 2]) -> Respo
 }
 
 impl Widget for &epaint::stats::PaintStats {
-    fn ui(self, ui: &mut Ui) -> Response {
+    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response<'c> {
         ui.vertical(|ui| {
             ui.label(
                 "egui generates intermediate level shapes like circles and text. \
@@ -131,12 +131,12 @@ impl Widget for &epaint::stats::PaintStats {
     }
 }
 
-fn label(ui: &mut Ui, alloc_info: &epaint::stats::AllocInfo, what: &str) -> Response {
+fn label<'c>(ui: &mut Ui<'c>, alloc_info: &epaint::stats::AllocInfo, what: &str) -> Response<'c> {
     ui.add(Label::new(alloc_info.format(what)).wrap(false))
 }
 
 impl Widget for &mut epaint::TessellationOptions {
-    fn ui(self, ui: &mut Ui) -> Response {
+    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response<'c> {
         ui.vertical(|ui| {
             let epaint::TessellationOptions {
                 feathering,
@@ -185,7 +185,7 @@ impl Widget for &mut epaint::TessellationOptions {
 }
 
 impl Widget for &memory::Interaction {
-    fn ui(self, ui: &mut Ui) -> Response {
+    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response<'c> {
         ui.vertical(|ui| {
             ui.label(format!("click_id: {:?}", self.click_id));
             ui.label(format!("drag_id: {:?}", self.drag_id));

@@ -3,7 +3,7 @@
 use std::hash::Hash;
 use std::sync::Arc;
 
-use epaint::mutex::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use epaint::mutex::RwLock;
 
 use crate::{
     color::*, containers::*, epaint::text::Fonts, layout::*, menu::MenuState, placer::Placer,
@@ -28,7 +28,7 @@ use crate::{
 /// });
 /// # });
 /// ```
-pub struct Ui<'a> {
+pub struct Ui<'c> {
     /// ID of this ui.
     /// Generated based on id of parent ui together with
     /// another source of child identity (e.g. window title).
@@ -48,7 +48,7 @@ pub struct Ui<'a> {
     painter: Painter,
 
     /// Reference to the ['Context']
-    ctx: &'a mut Context,
+    ctx: &'c mut Context,
 
     /// The [`Style`] (visuals, spacing, etc) of this ui.
     /// Commonly many [`Ui`]:s share the same [`Style`].
@@ -66,7 +66,7 @@ pub struct Ui<'a> {
     menu_state: Option<Arc<RwLock<MenuState>>>,
 }
 
-impl<'a> Ui<'a> {
+impl<'c> Ui<'c> {
     // ------------------------------------------------------------------------
     // Creation:
 
@@ -74,8 +74,14 @@ impl<'a> Ui<'a> {
     ///
     /// Normally you would not use this directly, but instead use
     /// [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`].
-    pub fn new(ctx: &'a mut Context, layer_id: LayerId, id: Id, max_rect: Rect, clip_rect: Rect) -> Self {
-        let style = ctx.style();
+    pub fn new(
+        ctx: &'c mut Context,
+        layer_id: LayerId,
+        id: Id,
+        max_rect: Rect,
+        clip_rect: Rect,
+    ) -> Self {
+        let style = ctx.style().clone();
         Ui {
             id,
             next_auto_id_source: id.with("auto").value(),
@@ -104,7 +110,7 @@ impl<'a> Ui<'a> {
         let next_auto_id_source = Id::new(self.next_auto_id_source).with("child").value();
         self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
         let menu_state = self.get_menu_state();
-        Ui {
+        Self {
             id: self.id.with(id_source),
             next_auto_id_source,
             painter: self.painter.clone(),
@@ -376,7 +382,7 @@ impl<'a> Ui<'a> {
     }
 
     /// Can be used for culling: if `false`, then no part of `rect` will be visible on screen.
-    pub fn is_rect_visible(&self, rect: Rect) -> bool {
+    pub fn is_rect_visible(&self, rect: &Rect) -> bool {
         self.is_visible() && rect.intersects(self.clip_rect())
     }
 }
@@ -384,7 +390,7 @@ impl<'a> Ui<'a> {
 // ------------------------------------------------------------------------
 
 /// # Sizes etc
-impl<'a> Ui<'a> {
+impl<'c> Ui<'c> {
     /// Where and how large the [`Ui`] is already.
     /// All widgets that have been added ot this [`Ui`] fits within this rectangle.
     ///
@@ -545,7 +551,7 @@ impl<'a> Ui<'a> {
 }
 
 /// # [`Id`] creation
-impl<'a> Ui<'a> {
+impl<'c> Ui<'c> {
     /// Use this to generate widget ids for widgets that have persistent state in [`Memory`].
     pub fn make_persistent_id<IdSource>(&self, id_source: IdSource) -> Id
     where
@@ -571,10 +577,10 @@ impl<'a> Ui<'a> {
 }
 
 /// # Interaction
-impl<'a> Ui<'a> {
+impl<'c> Ui<'c> {
     /// Check for clicks, drags and/or hover on a specific region of this [`Ui`].
-    pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
-        self.ctx().interact(
+    pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response<'_> {
+        self.ctx.interact(
             self.clip_rect(),
             self.spacing().item_spacing,
             self.layer_id(),
@@ -602,7 +608,7 @@ impl<'a> Ui<'a> {
 }
 
 /// # Allocating space: where do I put my widgets?
-impl<'a> Ui<'a> {
+impl<'c> Ui<'c> {
     /// Allocate space for a widget and check for interaction in the space.
     /// Returns a [`Response`] which contains a rectangle, id, and interaction info.
     ///
@@ -623,7 +629,7 @@ impl<'a> Ui<'a> {
     /// ui.painter().rect_stroke(response.rect, 0.0, (1.0, egui::Color32::WHITE));
     /// # });
     /// ```
-    pub fn allocate_response(&mut self, desired_size: Vec2, sense: Sense) -> Response {
+    pub fn allocate_response(&mut self, desired_size: Vec2, sense: Sense) -> Response<'c> {
         let (id, rect) = self.allocate_space(desired_size);
         self.interact(rect, id, sense)
     }
@@ -633,7 +639,11 @@ impl<'a> Ui<'a> {
     /// The response rect will be larger if this is part of a justified layout or similar.
     /// This means that if this is a narrow widget in a wide justified layout, then
     /// the widget will react to interactions outside the returned [`Rect`].
-    pub fn allocate_exact_size(&mut self, desired_size: Vec2, sense: Sense) -> (Rect, Response) {
+    pub fn allocate_exact_size(
+        &mut self,
+        desired_size: Vec2,
+        sense: Sense,
+    ) -> (Rect, Response<'c>) {
         let response = self.allocate_response(desired_size, sense);
         let rect = self
             .placer
@@ -644,7 +654,7 @@ impl<'a> Ui<'a> {
     /// Allocate at least as much space as needed, and interact with that rect.
     ///
     /// The returned [`Rect`] will be the same size as `Response::rect`.
-    pub fn allocate_at_least(&mut self, desired_size: Vec2, sense: Sense) -> (Rect, Response) {
+    pub fn allocate_at_least(&mut self, desired_size: Vec2, sense: Sense) -> (Rect, Response<'c>) {
         let response = self.allocate_response(desired_size, sense);
         (response.rect, response)
     }
@@ -735,7 +745,7 @@ impl<'a> Ui<'a> {
     ///
     /// Ignore the layout of the [`Ui`]: just put my widget here!
     /// The layout cursor will advance to past this `rect`.
-    pub fn allocate_rect(&mut self, rect: Rect, sense: Sense) -> Response {
+    pub fn allocate_rect(&mut self, rect: Rect, sense: Sense) -> Response<'c> {
         let id = self.advance_cursor_after_rect(rect);
         self.interact(rect, id, sense)
     }
@@ -791,8 +801,8 @@ impl<'a> Ui<'a> {
     pub fn allocate_ui<R>(
         &mut self,
         desired_size: Vec2,
-        add_contents: impl FnOnce(&mut Self) -> R,
-    ) -> InnerResponse<R> {
+        add_contents: impl FnOnce(&mut Ui<'_>) -> R,
+    ) -> InnerResponse<'c, R> {
         self.allocate_ui_with_layout(desired_size, *self.layout(), add_contents)
     }
 
@@ -805,17 +815,17 @@ impl<'a> Ui<'a> {
         &mut self,
         desired_size: Vec2,
         layout: Layout,
-        add_contents: impl FnOnce(&mut Self) -> R,
-    ) -> InnerResponse<R> {
+        add_contents: impl FnOnce(&mut Ui<'_>) -> R,
+    ) -> InnerResponse<'c, R> {
         self.allocate_ui_with_layout_dyn(desired_size, layout, Box::new(add_contents))
     }
 
-    fn allocate_ui_with_layout_dyn<'c, R>(
+    fn allocate_ui_with_layout_dyn<'a, R>(
         &mut self,
         desired_size: Vec2,
         layout: Layout,
-        add_contents: Box<dyn FnOnce(&mut Self) -> R + 'c>,
-    ) -> InnerResponse<R> {
+        add_contents: Box<dyn FnOnce(&mut Ui<'_>) -> R + 'a>,
+    ) -> InnerResponse<'c, R> {
         crate::egui_assert!(desired_size.x >= 0.0 && desired_size.y >= 0.0);
         let item_spacing = self.spacing().item_spacing;
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
@@ -846,8 +856,8 @@ impl<'a> Ui<'a> {
     pub fn allocate_ui_at_rect<R>(
         &mut self,
         max_rect: Rect,
-        add_contents: impl FnOnce(&mut Self) -> R,
-    ) -> InnerResponse<R> {
+        add_contents: impl FnOnce(&mut Ui<'_>) -> R,
+    ) -> InnerResponse<'c, R> {
         egui_assert!(max_rect.is_finite());
         let mut child_ui = self.child_ui(max_rect, *self.layout());
         let ret = add_contents(&mut child_ui);
@@ -884,7 +894,11 @@ impl<'a> Ui<'a> {
     /// painter.line_segment([c, c + r * Vec2::angled(TAU * 3.0 / 8.0)], stroke);
     /// # });
     /// ```
-    pub fn allocate_painter(&mut self, desired_size: Vec2, sense: Sense) -> (Response, Painter) {
+    pub fn allocate_painter(
+        &mut self,
+        desired_size: Vec2,
+        sense: Sense,
+    ) -> (Response<'c>, Painter) {
         let response = self.allocate_response(desired_size, sense);
         let clip_rect = self.clip_rect().intersect(response.rect); // Make sure we don't paint out of bounds
         let painter = Painter::new(self.ctx().clone(), self.layer_id(), clip_rect);
@@ -978,7 +992,7 @@ impl<'a> Ui<'a> {
 }
 
 /// # Adding widgets
-impl<'a> Ui<'a> {
+impl<'c> Ui<'c> {
     /// Add a [`Widget`] to this [`Ui`] at a location dependent on the current [`Layout`].
     ///
     /// The returned [`Response`] can be used to check for interactions,
@@ -994,7 +1008,7 @@ impl<'a> Ui<'a> {
     /// # });
     /// ```
     #[inline]
-    pub fn add(&mut self, widget: impl Widget) -> Response {
+    pub fn add(&mut self, widget: impl Widget) -> Response<'c> {
         widget.ui(self)
     }
 
@@ -1025,7 +1039,7 @@ impl<'a> Ui<'a> {
     /// Add a [`Widget`] to this [`Ui`] at a specific location (manual layout).
     ///
     /// See also [`Self::add`] and [`Self::add_sized`].
-    pub fn put(&mut self, max_rect: Rect, widget: impl Widget) -> Response {
+    pub fn put(&mut self, max_rect: Rect, widget: impl Widget) -> Response<'c> {
         self.allocate_ui_at_rect(max_rect, |ui| {
             ui.centered_and_justified(|ui| ui.add(widget)).inner
         })
@@ -1044,7 +1058,7 @@ impl<'a> Ui<'a> {
     /// ui.add_enabled(false, egui::Button::new("Can't click this"));
     /// # });
     /// ```
-    pub fn add_enabled(&mut self, enabled: bool, widget: impl Widget) -> Response {
+    pub fn add_enabled(&mut self, enabled: bool, widget: impl Widget) -> Response<'c> {
         if self.is_enabled() && !enabled {
             let old_painter = self.painter.clone();
             self.set_enabled(false);
@@ -1079,8 +1093,8 @@ impl<'a> Ui<'a> {
     pub fn add_enabled_ui<R>(
         &mut self,
         enabled: bool,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
+        add_contents: impl FnOnce(&mut Ui<'_>) -> R,
+    ) -> InnerResponse<'c, R> {
         self.scope(|ui| {
             ui.set_enabled(enabled);
             add_contents(ui)
@@ -1101,7 +1115,7 @@ impl<'a> Ui<'a> {
     /// ui.add_visible(false, egui::Label::new("You won't see me!"));
     /// # });
     /// ```
-    pub fn add_visible(&mut self, visible: bool, widget: impl Widget) -> Response {
+    pub fn add_visible(&mut self, visible: bool, widget: impl Widget) -> Response<'c> {
         if self.is_visible() && !visible {
             // temporary make us invisible:
             let old_painter = self.painter.clone();
@@ -1141,8 +1155,8 @@ impl<'a> Ui<'a> {
     pub fn add_visible_ui<R>(
         &mut self,
         visible: bool,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
+        add_contents: impl FnOnce(&mut Ui<'_>) -> R,
+    ) -> InnerResponse<'c, R> {
         self.scope(|ui| {
             ui.set_visible(visible);
             add_contents(ui)
@@ -1176,7 +1190,7 @@ impl<'a> Ui<'a> {
     /// # });
     /// ```
     #[inline]
-    pub fn label(&mut self, text: impl Into<WidgetText>) -> Response {
+    pub fn label(&mut self, text: impl Into<WidgetText>) -> Response<'c> {
         Label::new(text).ui(self)
     }
 
@@ -1187,49 +1201,49 @@ impl<'a> Ui<'a> {
         &mut self,
         color: impl Into<Color32>,
         text: impl Into<RichText>,
-    ) -> Response {
+    ) -> Response<'c> {
         Label::new(text.into().color(color)).ui(self)
     }
 
     /// Show large text.
     ///
     /// Shortcut for `ui.label(RichText::new(text).heading())`
-    pub fn heading(&mut self, text: impl Into<RichText>) -> Response {
+    pub fn heading(&mut self, text: impl Into<RichText>) -> Response<'c> {
         Label::new(text.into().heading()).ui(self)
     }
 
     /// Show monospace (fixed width) text.
     ///
     /// Shortcut for `ui.label(RichText::new(text).monospace())`
-    pub fn monospace(&mut self, text: impl Into<RichText>) -> Response {
+    pub fn monospace(&mut self, text: impl Into<RichText>) -> Response<'c> {
         Label::new(text.into().monospace()).ui(self)
     }
 
     /// Show text as monospace with a gray background.
     ///
     /// Shortcut for `ui.label(RichText::new(text).code())`
-    pub fn code(&mut self, text: impl Into<RichText>) -> Response {
+    pub fn code(&mut self, text: impl Into<RichText>) -> Response<'c> {
         Label::new(text.into().code()).ui(self)
     }
 
     /// Show small text.
     ///
     /// Shortcut for `ui.label(RichText::new(text).small())`
-    pub fn small(&mut self, text: impl Into<RichText>) -> Response {
+    pub fn small(&mut self, text: impl Into<RichText>) -> Response<'c> {
         Label::new(text.into().small()).ui(self)
     }
 
     /// Show text that stand out a bit (e.g. slightly brighter).
     ///
     /// Shortcut for `ui.label(RichText::new(text).strong())`
-    pub fn strong(&mut self, text: impl Into<RichText>) -> Response {
+    pub fn strong(&mut self, text: impl Into<RichText>) -> Response<'c> {
         Label::new(text.into().strong()).ui(self)
     }
 
     /// Show text that is weaker (fainter color).
     ///
     /// Shortcut for `ui.label(RichText::new(text).weak())`
-    pub fn weak(&mut self, text: impl Into<RichText>) -> Response {
+    pub fn weak(&mut self, text: impl Into<RichText>) -> Response<'c> {
         Label::new(text.into().weak()).ui(self)
     }
 
@@ -1247,7 +1261,7 @@ impl<'a> Ui<'a> {
     ///
     /// See also [`Link`].
     #[must_use = "You should check if the user clicked this with `if ui.link(…).clicked() { … } "]
-    pub fn link(&mut self, text: impl Into<WidgetText>) -> Response {
+    pub fn link(&mut self, text: impl Into<WidgetText>) -> Response<'c> {
         Link::new(text).ui(self)
     }
 
@@ -1262,7 +1276,7 @@ impl<'a> Ui<'a> {
     /// ```
     ///
     /// See also [`Hyperlink`].
-    pub fn hyperlink(&mut self, url: impl ToString) -> Response {
+    pub fn hyperlink(&mut self, url: impl ToString) -> Response<'c> {
         Hyperlink::new(url).ui(self)
     }
 
@@ -1275,7 +1289,11 @@ impl<'a> Ui<'a> {
     /// ```
     ///
     /// See also [`Hyperlink`].
-    pub fn hyperlink_to(&mut self, label: impl Into<WidgetText>, url: impl ToString) -> Response {
+    pub fn hyperlink_to(
+        &mut self,
+        label: impl Into<WidgetText>,
+        url: impl ToString,
+    ) -> Response<'c> {
         Hyperlink::from_label_and_url(label, url).ui(self)
     }
 
@@ -1285,7 +1303,7 @@ impl<'a> Ui<'a> {
     pub fn text_edit_singleline<S: widgets::text_edit::TextBuffer>(
         &mut self,
         text: &mut S,
-    ) -> Response {
+    ) -> Response<'c> {
         TextEdit::singleline(text).ui(self)
     }
 
@@ -1295,7 +1313,7 @@ impl<'a> Ui<'a> {
     pub fn text_edit_multiline<S: widgets::text_edit::TextBuffer>(
         &mut self,
         text: &mut S,
-    ) -> Response {
+    ) -> Response<'c> {
         TextEdit::multiline(text).ui(self)
     }
 
@@ -1304,7 +1322,7 @@ impl<'a> Ui<'a> {
     /// This will be multiline, monospace, and will insert tabs instead of moving focus.
     ///
     /// See also [`TextEdit::code_editor`].
-    pub fn code_editor<S: widgets::text_edit::TextBuffer>(&mut self, text: &mut S) -> Response {
+    pub fn code_editor<S: widgets::text_edit::TextBuffer>(&mut self, text: &mut S) -> Response<'c> {
         self.add(TextEdit::multiline(text).code_editor())
     }
 
@@ -1328,7 +1346,7 @@ impl<'a> Ui<'a> {
     /// ```
     #[must_use = "You should check if the user clicked this with `if ui.button(…).clicked() { … } "]
     #[inline]
-    pub fn button(&mut self, text: impl Into<WidgetText>) -> Response {
+    pub fn button(&mut self, text: impl Into<WidgetText>) -> Response<'c> {
         Button::new(text).ui(self)
     }
 
@@ -1338,7 +1356,7 @@ impl<'a> Ui<'a> {
     ///
     /// Shortcut for `add(Button::new(text).small())`
     #[must_use = "You should check if the user clicked this with `if ui.small_button(…).clicked() { … } "]
-    pub fn small_button(&mut self, text: impl Into<WidgetText>) -> Response {
+    pub fn small_button(&mut self, text: impl Into<WidgetText>) -> Response<'c> {
         Button::new(text).small().ui(self)
     }
 
@@ -1346,7 +1364,7 @@ impl<'a> Ui<'a> {
     ///
     /// See also [`Self::toggle_value`].
     #[inline]
-    pub fn checkbox(&mut self, checked: &mut bool, text: impl Into<WidgetText>) -> Response {
+    pub fn checkbox(&mut self, checked: &mut bool, text: impl Into<WidgetText>) -> Response<'c> {
         Checkbox::new(checked, text).ui(self)
     }
 
@@ -1355,7 +1373,11 @@ impl<'a> Ui<'a> {
     /// Click to toggle to bool.
     ///
     /// See also [`Self::checkbox`].
-    pub fn toggle_value(&mut self, selected: &mut bool, text: impl Into<WidgetText>) -> Response {
+    pub fn toggle_value(
+        &mut self,
+        selected: &mut bool,
+        text: impl Into<WidgetText>,
+    ) -> Response<'c> {
         let mut response = self.selectable_label(*selected, text);
         if response.clicked() {
             *selected = !*selected;
@@ -1368,7 +1390,7 @@ impl<'a> Ui<'a> {
     /// Often you want to use [`Self::radio_value`] instead.
     #[must_use = "You should check if the user clicked this with `if ui.radio(…).clicked() { … } "]
     #[inline]
-    pub fn radio(&mut self, selected: bool, text: impl Into<WidgetText>) -> Response {
+    pub fn radio(&mut self, selected: bool, text: impl Into<WidgetText>) -> Response<'c> {
         RadioButton::new(selected, text).ui(self)
     }
 
@@ -1396,7 +1418,7 @@ impl<'a> Ui<'a> {
         current_value: &mut Value,
         alternative: Value,
         text: impl Into<WidgetText>,
-    ) -> Response {
+    ) -> Response<'c> {
         let mut response = self.radio(*current_value == alternative, text);
         if response.clicked() {
             *current_value = alternative;
@@ -1409,7 +1431,7 @@ impl<'a> Ui<'a> {
     ///
     /// See also [`SelectableLabel`] and [`Self::toggle_value`].
     #[must_use = "You should check if the user clicked this with `if ui.selectable_label(…).clicked() { … } "]
-    pub fn selectable_label(&mut self, checked: bool, text: impl Into<WidgetText>) -> Response {
+    pub fn selectable_label(&mut self, checked: bool, text: impl Into<WidgetText>) -> Response<'c> {
         SelectableLabel::new(checked, text).ui(self)
     }
 
@@ -1424,7 +1446,7 @@ impl<'a> Ui<'a> {
         current_value: &mut Value,
         selected_value: Value,
         text: impl Into<WidgetText>,
-    ) -> Response {
+    ) -> Response<'c> {
         let mut response = self.selectable_label(*current_value == selected_value, text);
         if response.clicked() {
             *current_value = selected_value;
@@ -1437,7 +1459,7 @@ impl<'a> Ui<'a> {
     ///
     /// See also [`Separator`].
     #[inline]
-    pub fn separator(&mut self) -> Response {
+    pub fn separator(&mut self) -> Response<'c> {
         Separator::default().ui(self)
     }
 
@@ -1445,13 +1467,13 @@ impl<'a> Ui<'a> {
     ///
     /// See also [`Spinner`].
     #[inline]
-    pub fn spinner(&mut self) -> Response {
+    pub fn spinner(&mut self) -> Response<'c> {
         Spinner::new().ui(self)
     }
 
     /// Modify an angle. The given angle should be in radians, but is shown to the user in degrees.
     /// The angle is NOT wrapped, so the user may select, for instance 720° = 2𝞃 = 4π
-    pub fn drag_angle(&mut self, radians: &mut f32) -> Response {
+    pub fn drag_angle(&mut self, radians: &mut f32) -> Response<'c> {
         let mut degrees = radians.to_degrees();
         let mut response = self.add(DragValue::new(&mut degrees).speed(1.0).suffix("°"));
 
@@ -1467,7 +1489,7 @@ impl<'a> Ui<'a> {
     /// Modify an angle. The given angle should be in radians,
     /// but is shown to the user in fractions of one Tau (i.e. fractions of one turn).
     /// The angle is NOT wrapped, so the user may select, for instance 2𝞃 (720°)
-    pub fn drag_angle_tau(&mut self, radians: &mut f32) -> Response {
+    pub fn drag_angle_tau(&mut self, radians: &mut f32) -> Response<'c> {
         use std::f32::consts::TAU;
 
         let mut taus = *radians / TAU;
@@ -1516,43 +1538,47 @@ impl<'a> Ui<'a> {
     ///
     /// Se also [`crate::Image`] and [`crate::ImageButton`].
     #[inline]
-    pub fn image(&mut self, texture_id: impl Into<TextureId>, size: impl Into<Vec2>) -> Response {
+    pub fn image(
+        &mut self,
+        texture_id: impl Into<TextureId>,
+        size: impl Into<Vec2>,
+    ) -> Response<'c> {
         Image::new(texture_id, size).ui(self)
     }
 }
 
 /// # Colors
-impl<'a> Ui<'a> {
+impl<'c> Ui<'c> {
     /// Shows a button with the given color.
     /// If the user clicks the button, a full color picker is shown.
-    pub fn color_edit_button_srgba(&mut self, srgba: &mut Color32) -> Response {
+    pub fn color_edit_button_srgba(&mut self, srgba: &mut Color32) -> Response<'c> {
         color_picker::color_edit_button_srgba(self, srgba, color_picker::Alpha::BlendOrAdditive)
     }
 
     /// Shows a button with the given color.
     /// If the user clicks the button, a full color picker is shown.
-    pub fn color_edit_button_hsva(&mut self, hsva: &mut Hsva) -> Response {
+    pub fn color_edit_button_hsva(&mut self, hsva: &mut Hsva) -> Response<'c> {
         color_picker::color_edit_button_hsva(self, hsva, color_picker::Alpha::BlendOrAdditive)
     }
 
     /// Shows a button with the given color.
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in `sRGB` space.
-    pub fn color_edit_button_srgb(&mut self, srgb: &mut [u8; 3]) -> Response {
+    pub fn color_edit_button_srgb(&mut self, srgb: &mut [u8; 3]) -> Response<'c> {
         color_picker::color_edit_button_srgb(self, srgb)
     }
 
     /// Shows a button with the given color.
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in linear RGB space.
-    pub fn color_edit_button_rgb(&mut self, rgb: &mut [f32; 3]) -> Response {
+    pub fn color_edit_button_rgb(&mut self, rgb: &mut [f32; 3]) -> Response<'c> {
         color_picker::color_edit_button_rgb(self, rgb)
     }
 
     /// Shows a button with the given color.
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in `sRGBA` space with premultiplied alpha
-    pub fn color_edit_button_srgba_premultiplied(&mut self, srgba: &mut [u8; 4]) -> Response {
+    pub fn color_edit_button_srgba_premultiplied(&mut self, srgba: &mut [u8; 4]) -> Response<'c> {
         let mut color = Color32::from_rgba_premultiplied(srgba[0], srgba[1], srgba[2], srgba[3]);
         let response = self.color_edit_button_srgba(&mut color);
         *srgba = color.to_array();
@@ -1563,7 +1589,7 @@ impl<'a> Ui<'a> {
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in `sRGBA` space without premultiplied alpha.
     /// If unsure, what "premultiplied alpha" is, then this is probably the function you want to use.
-    pub fn color_edit_button_srgba_unmultiplied(&mut self, srgba: &mut [u8; 4]) -> Response {
+    pub fn color_edit_button_srgba_unmultiplied(&mut self, srgba: &mut [u8; 4]) -> Response<'c> {
         let mut rgba = Rgba::from_srgba_unmultiplied(srgba[0], srgba[1], srgba[2], srgba[3]);
         let response =
             color_picker::color_edit_button_rgba(self, &mut rgba, color_picker::Alpha::OnlyBlend);
@@ -1574,7 +1600,10 @@ impl<'a> Ui<'a> {
     /// Shows a button with the given color.
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in linear RGBA space with premultiplied alpha
-    pub fn color_edit_button_rgba_premultiplied(&mut self, rgba_premul: &mut [f32; 4]) -> Response {
+    pub fn color_edit_button_rgba_premultiplied(
+        &mut self,
+        rgba_premul: &mut [f32; 4],
+    ) -> Response<'c> {
         let mut rgba = Rgba::from_rgba_premultiplied(
             rgba_premul[0],
             rgba_premul[1],
@@ -1594,7 +1623,10 @@ impl<'a> Ui<'a> {
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in linear RGBA space without premultiplied alpha.
     /// If unsure, what "premultiplied alpha" is, then this is probably the function you want to use.
-    pub fn color_edit_button_rgba_unmultiplied(&mut self, rgba_unmul: &mut [f32; 4]) -> Response {
+    pub fn color_edit_button_rgba_unmultiplied(
+        &mut self,
+        rgba_unmul: &mut [f32; 4],
+    ) -> Response<'c> {
         let mut rgba = Rgba::from_rgba_unmultiplied(
             rgba_unmul[0],
             rgba_unmul[1],
@@ -1609,7 +1641,7 @@ impl<'a> Ui<'a> {
 }
 
 /// # Adding Containers / Sub-uis:
-impl<'a> Ui<'a> {
+impl<'c> Ui<'c> {
     /// Put into a [`Frame::group`], visually grouping the contents together
     ///
     /// ```
@@ -1621,7 +1653,7 @@ impl<'a> Ui<'a> {
     /// ```
     ///
     /// Se also [`Self::scope`].
-    pub fn group<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
+    pub fn group<R>(&mut self, add_contents: impl FnOnce(&mut Ui<'_>) -> R) -> InnerResponse<'c, R> {
         crate::Frame::group(self.style()).show(self, add_contents)
     }
 
@@ -1641,8 +1673,8 @@ impl<'a> Ui<'a> {
     pub fn push_id<R>(
         &mut self,
         id_source: impl Hash,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
+        add_contents: impl FnOnce(&mut Ui<'_>) -> R,
+    ) -> InnerResponse<'c, R> {
         self.scope_dyn(Box::new(add_contents), Id::new(id_source))
     }
 
@@ -1658,15 +1690,15 @@ impl<'a> Ui<'a> {
     /// });
     /// # });
     /// ```
-    pub fn scope<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
+    pub fn scope<R>(&mut self, add_contents: impl FnOnce(&mut Ui<'_>) -> R) -> InnerResponse<'c, R> {
         self.scope_dyn(Box::new(add_contents), Id::new("child"))
     }
 
-    fn scope_dyn<'c, R>(
+    fn scope_dyn<'a, R>(
         &mut self,
-        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
+        add_contents: Box<dyn FnOnce(&mut Ui<'_>) -> R + 'a>,
         id_source: Id,
-    ) -> InnerResponse<R> {
+    ) -> InnerResponse<'c, R> {
         let child_rect = self.available_rect_before_wrap();
         let next_auto_id_source = self.next_auto_id_source;
         let mut child_ui = self.child_ui_with_id_source(child_rect, *self.layout(), id_source);
@@ -1680,8 +1712,8 @@ impl<'a> Ui<'a> {
     pub fn with_layer_id<R>(
         &mut self,
         layer_id: LayerId,
-        add_contents: impl FnOnce(&mut Self) -> R,
-    ) -> InnerResponse<R> {
+        add_contents: impl FnOnce(&mut Ui<'_>) -> R,
+    ) -> InnerResponse<'c, R> {
         self.scope(|ui| {
             ui.painter.set_layer_id(layer_id);
             add_contents(ui)
@@ -1692,8 +1724,8 @@ impl<'a> Ui<'a> {
     pub fn collapsing<R>(
         &mut self,
         heading: impl Into<WidgetText>,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> CollapsingResponse<R> {
+        add_contents: impl FnOnce(&mut Ui<'_>) -> R,
+    ) -> CollapsingResponse<'c, R> {
         CollapsingHeader::new(heading).show(self, add_contents)
     }
 
@@ -1705,16 +1737,16 @@ impl<'a> Ui<'a> {
     pub fn indent<R>(
         &mut self,
         id_source: impl Hash,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
+        add_contents: impl FnOnce(&mut Ui<'_>) -> R,
+    ) -> InnerResponse<'c, R> {
         self.indent_dyn(id_source, Box::new(add_contents))
     }
 
-    fn indent_dyn<'c, R>(
+    fn indent_dyn<'a, R>(
         &mut self,
         id_source: impl Hash,
-        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
-    ) -> InnerResponse<R> {
+        add_contents: Box<dyn FnOnce(&mut Ui<'_>) -> R + 'a>,
+    ) -> InnerResponse<'c, R> {
         assert!(
             self.layout().is_vertical(),
             "You can only indent vertical layouts, found {:?}",
@@ -1781,15 +1813,18 @@ impl<'a> Ui<'a> {
     ///
     /// See also [`Self::with_layout`] for more options.
     #[inline]
-    pub fn horizontal<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
+    pub fn horizontal<R>(
+        &mut self,
+        add_contents: impl FnOnce(&mut Ui<'_>) -> R,
+    ) -> InnerResponse<'c, R> {
         self.horizontal_with_main_wrap_dyn(false, Box::new(add_contents))
     }
 
     /// Like [`Self::horizontal`], but allocates the full vertical height and then centers elements vertically.
     pub fn horizontal_centered<R>(
         &mut self,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
+        add_contents: impl FnOnce(&mut Ui<'_>) -> R,
+    ) -> InnerResponse<'c, R> {
         let initial_size = self.available_size_before_wrap();
         let layout = if self.placer.prefer_right_to_left() {
             Layout::right_to_left()
@@ -1803,8 +1838,8 @@ impl<'a> Ui<'a> {
     /// Like [`Self::horizontal`], but aligns content with top.
     pub fn horizontal_top<R>(
         &mut self,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
+        add_contents: impl FnOnce(&mut Ui<'_>) -> R,
+    ) -> InnerResponse<'c, R> {
         let initial_size = self.available_size_before_wrap();
         let layout = if self.placer.prefer_right_to_left() {
             Layout::right_to_left()
@@ -1832,16 +1867,16 @@ impl<'a> Ui<'a> {
     /// See also [`Self::with_layout`] for more options.
     pub fn horizontal_wrapped<R>(
         &mut self,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
+        add_contents: impl FnOnce(&mut Ui<'_>) -> R,
+    ) -> InnerResponse<'c, R> {
         self.horizontal_with_main_wrap_dyn(true, Box::new(add_contents))
     }
 
-    fn horizontal_with_main_wrap_dyn<'c, R>(
+    fn horizontal_with_main_wrap_dyn<'a, R>(
         &mut self,
         main_wrap: bool,
-        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
-    ) -> InnerResponse<R> {
+        add_contents: Box<dyn FnOnce(&mut Ui<'_>) -> R + 'a>,
+    ) -> InnerResponse<'c, R> {
         let initial_size = vec2(
             self.available_size_before_wrap().x,
             self.spacing().interact_size.y, // Assume there will be something interactive on the horizontal layout
@@ -1871,7 +1906,10 @@ impl<'a> Ui<'a> {
     ///
     /// See also [`Self::with_layout`] for more options.
     #[inline]
-    pub fn vertical<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
+    pub fn vertical<R>(
+        &mut self,
+        add_contents: impl FnOnce(&mut Ui<'_>) -> R,
+    ) -> InnerResponse<'c, R> {
         self.with_layout_dyn(Layout::top_down(Align::Min), Box::new(add_contents))
     }
 
@@ -1889,8 +1927,8 @@ impl<'a> Ui<'a> {
     #[inline]
     pub fn vertical_centered<R>(
         &mut self,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
+        add_contents: impl FnOnce(&mut Ui<'_>) -> R,
+    ) -> InnerResponse<'c, R> {
         self.with_layout_dyn(Layout::top_down(Align::Center), Box::new(add_contents))
     }
 
@@ -1907,8 +1945,8 @@ impl<'a> Ui<'a> {
     /// ```
     pub fn vertical_centered_justified<R>(
         &mut self,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
+        add_contents: impl FnOnce(&mut Ui<'_>) -> R,
+    ) -> InnerResponse<'c, R> {
         self.with_layout_dyn(
             Layout::top_down(Align::Center).with_cross_justify(true),
             Box::new(add_contents),
@@ -1932,16 +1970,16 @@ impl<'a> Ui<'a> {
     pub fn with_layout<R>(
         &mut self,
         layout: Layout,
-        add_contents: impl FnOnce(&mut Self) -> R,
-    ) -> InnerResponse<R> {
+        add_contents: impl FnOnce(&mut Ui<'_>) -> R,
+    ) -> InnerResponse<'c, R> {
         self.with_layout_dyn(layout, Box::new(add_contents))
     }
 
-    fn with_layout_dyn<'c, R>(
+    fn with_layout_dyn<'a, R>(
         &mut self,
         layout: Layout,
-        add_contents: Box<dyn FnOnce(&mut Self) -> R + 'c>,
-    ) -> InnerResponse<R> {
+        add_contents: Box<dyn FnOnce(&mut Ui<'_>) -> R + 'a>,
+    ) -> InnerResponse<'c, R> {
         let mut child_ui = self.child_ui(self.available_rect_before_wrap(), layout);
         let inner = add_contents(&mut child_ui);
         let rect = child_ui.min_rect();
@@ -1960,8 +1998,8 @@ impl<'a> Ui<'a> {
     /// This will make the next added widget centered and justified in the available space.
     pub fn centered_and_justified<R>(
         &mut self,
-        add_contents: impl FnOnce(&mut Self) -> R,
-    ) -> InnerResponse<R> {
+        add_contents: impl FnOnce(&mut Ui<'_>) -> R,
+    ) -> InnerResponse<'c, R> {
         self.with_layout_dyn(
             Layout::centered_and_justified(Direction::TopDown),
             Box::new(add_contents),
@@ -2006,15 +2044,15 @@ impl<'a> Ui<'a> {
     pub fn columns<R>(
         &mut self,
         num_columns: usize,
-        add_contents: impl FnOnce(&mut [Self]) -> R,
+        add_contents: impl FnOnce(&mut [Ui<'_>]) -> R,
     ) -> R {
         self.columns_dyn(num_columns, Box::new(add_contents))
     }
 
-    fn columns_dyn<'c, R>(
+    fn columns_dyn<'a, R>(
         &mut self,
         num_columns: usize,
-        add_contents: Box<dyn FnOnce(&mut [Self]) -> R + 'c>,
+        add_contents: Box<dyn FnOnce(&mut [Ui<'_>]) -> R + 'a>,
     ) -> R {
         // TODO(emilk): ensure there is space
         let spacing = self.spacing().item_spacing.x;
@@ -2022,7 +2060,7 @@ impl<'a> Ui<'a> {
         let column_width = (self.available_width() - total_spacing) / (num_columns as f32);
         let top_left = self.cursor().min;
 
-        let mut columns: Vec<Self> = (0..num_columns)
+        let mut columns: Vec<Ui<'_>> = (0..num_columns)
             .map(|col_idx| {
                 let pos = top_left + vec2((col_idx as f32) * (column_width + spacing), 0.0);
                 let child_rect = Rect::from_min_max(
@@ -2092,8 +2130,8 @@ impl<'a> Ui<'a> {
     pub fn menu_button<R>(
         &mut self,
         title: impl Into<WidgetText>,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<Option<R>> {
+        add_contents: impl FnOnce(&mut Ui<'_>) -> R,
+    ) -> InnerResponse<'c, Option<R>> {
         if let Some(menu_state) = self.menu_state.clone() {
             menu::submenu_button(self, menu_state, title, add_contents)
         } else {
@@ -2105,7 +2143,7 @@ impl<'a> Ui<'a> {
 // ----------------------------------------------------------------------------
 
 /// # Debug stuff
-impl<'a> Ui<'a> {
+impl<'c> Ui<'c> {
     /// Shows where the next widget is going to be placed
     pub fn debug_paint_cursor(&self) {
         self.placer.debug_paint_cursor(&self.painter, "next");

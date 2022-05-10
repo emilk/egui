@@ -51,7 +51,7 @@ impl Separator {
 }
 
 impl Widget for Separator {
-    fn ui(self, ui: &mut Ui) -> Response {
+    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response<'c> {
         let Separator {
             spacing,
             is_horizontal_line,
@@ -70,7 +70,7 @@ impl Widget for Separator {
 
         let (rect, response) = ui.allocate_at_least(size, Sense::hover());
 
-        if ui.is_rect_visible(response.rect) {
+        if ui.is_rect_visible(response.rect()) {
             let stroke = ui.visuals().widgets.noninteractive.bg_stroke;
             if is_horizontal_line {
                 ui.painter().hline(rect.x_range(), rect.center().y, stroke);

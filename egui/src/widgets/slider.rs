@@ -300,7 +300,7 @@ impl<'a> Slider<'a> {
 
 impl<'a> Slider<'a> {
     /// Just the slider, no text
-    fn allocate_slider_space(&self, ui: &mut Ui, thickness: f32) -> Response {
+    fn allocate_slider_space(&self, ui: &mut Ui<'_>, thickness: f32) -> Response {
         let desired_size = match self.orientation {
             SliderOrientation::Horizontal => vec2(ui.spacing().slider_width, thickness),
             SliderOrientation::Vertical => vec2(thickness, ui.spacing().slider_width),
@@ -309,8 +309,8 @@ impl<'a> Slider<'a> {
     }
 
     /// Just the slider, no text
-    fn slider_ui(&mut self, ui: &mut Ui, response: &Response) {
-        let rect = &response.rect;
+    fn slider_ui(&mut self, ui: &mut Ui<'_>, response: &Response) {
+        let rect = response.rect();
         let position_range = self.position_range(rect);
 
         if let Some(pointer_position_2d) = response.interact_pointer_pos() {
@@ -328,7 +328,7 @@ impl<'a> Slider<'a> {
         }
 
         let value = self.get_value();
-        response.widget_info(|| WidgetInfo::slider(value, &self.text));
+        response.widget_info(ui.ctx_mut(), || WidgetInfo::slider(value, &self.text));
 
         if response.has_focus() {
             let (dec_key, inc_key) = match self.orientation {
@@ -368,7 +368,7 @@ impl<'a> Slider<'a> {
         }
 
         // Paint it:
-        if ui.is_rect_visible(response.rect) {
+        if ui.is_rect_visible(response.rect()) {
             let value = self.get_value();
 
             let rail_radius = ui.painter().round_to_pixel(self.rail_radius_limit(rect));
@@ -453,7 +453,11 @@ impl<'a> Slider<'a> {
         }
     }
 
-    fn value_ui(&mut self, ui: &mut Ui, position_range: RangeInclusive<f32>) -> Response {
+    fn value_ui<'c>(
+        &mut self,
+        ui: &mut Ui<'c>,
+        position_range: RangeInclusive<f32>,
+    ) -> Response<'c> {
         // If [`DragValue`] is controlled from the keyboard and `step` is defined, set speed to `step`
         let change = {
             // Hold one lock rather than 4 (see https://github.com/emilk/egui/pull/1380).
@@ -495,7 +499,7 @@ impl<'a> Slider<'a> {
         right_value - left_value
     }
 
-    fn add_contents(&mut self, ui: &mut Ui) -> Response {
+    fn add_contents<'c>(&mut self, ui: &mut Ui<'c>) -> Response<'c> {
         let thickness = ui
             .text_style_height(&TextStyle::Body)
             .at_least(ui.spacing().interact_size.y);
@@ -503,7 +507,7 @@ impl<'a> Slider<'a> {
         self.slider_ui(ui, &response);
 
         if self.show_value {
-            let position_range = self.position_range(&response.rect);
+            let position_range = self.position_range(response.rect());
             let value_response = self.value_ui(ui, position_range);
             if value_response.gained_focus()
                 || value_response.has_focus()
@@ -529,7 +533,7 @@ impl<'a> Slider<'a> {
 }
 
 impl<'a> Widget for Slider<'a> {
-    fn ui(mut self, ui: &mut Ui) -> Response {
+    fn ui(mut self, ui: &mut Ui<'_>) -> Response {
         let old_value = self.get_value();
 
         let inner_response = match self.orientation {
@@ -538,7 +542,11 @@ impl<'a> Widget for Slider<'a> {
         };
 
         let mut response = inner_response.inner | inner_response.response;
-        response.changed = self.get_value() != old_value;
+
+        if self.get_value() != old_value {
+            response.mark_changed();
+        }
+
         response
     }
 }

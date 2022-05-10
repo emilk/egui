@@ -551,7 +551,7 @@ impl WidgetText {
     /// wrap: override for [`Ui::wrap_text`].
     pub fn into_galley(
         self,
-        ui: &Ui,
+        ui: &Ui<'_>,
         wrap: Option<bool>,
         available_width: f32,
         fallback_font: impl Into<FontSelection>,

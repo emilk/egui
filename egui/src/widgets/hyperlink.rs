@@ -30,7 +30,7 @@ impl Link {
 }
 
 impl Widget for Link {
-    fn ui(self, ui: &mut Ui) -> Response {
+    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response<'c> {
         let Link { text } = self;
         let label = Label::new(text).sense(Sense::click());
 
@@ -105,7 +105,7 @@ impl Hyperlink {
 }
 
 impl Widget for Hyperlink {
-    fn ui(self, ui: &mut Ui) -> Response {
+    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response<'c> {
         let Self { url, text } = self;
 
         let response = ui.add(Link::new(text));

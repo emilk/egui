@@ -37,7 +37,7 @@ impl SelectableLabel {
 }
 
 impl Widget for SelectableLabel {
-    fn ui(self, ui: &mut Ui) -> Response {
+    fn ui(self, ui: &mut Ui<'_>) -> Response {
         let Self { selected, text } = self;
 
         let button_padding = ui.spacing().button_padding;
@@ -49,11 +49,11 @@ impl Widget for SelectableLabel {
         let mut desired_size = total_extra + text.size();
         desired_size.y = desired_size.y.at_least(ui.spacing().interact_size.y);
         let (rect, response) = ui.allocate_at_least(desired_size, Sense::click());
-        response.widget_info(|| {
+        response.widget_info(ui.ctx_mut(), || {
             WidgetInfo::selected(WidgetType::SelectableLabel, selected, text.text())
         });
 
-        if ui.is_rect_visible(response.rect) {
+        if ui.is_rect_visible(response.rect()) {
             let text_pos = ui
                 .layout()
                 .align_size_within_rect(text.size(), rect.shrink2(button_padding))

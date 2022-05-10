@@ -21,8 +21,8 @@ impl State {
         ctx.data().get_persisted(id)
     }
 
-    pub fn store(self, ctx: &Context, id: Id) {
-        ctx.data().insert_persisted(id, self);
+    pub fn store(self, ctx: &mut Context, id: Id) {
+        ctx.data_mut().insert_persisted(id, self);
     }
 }
 
@@ -155,15 +155,15 @@ impl Resize {
     }
 }
 
-struct Prepared {
+struct Prepared<'c> {
     id: Id,
     state: State,
-    corner_response: Option<Response>,
-    content_ui: Ui,
+    corner_response: Option<RawResponse>,
+    content_ui: Ui<'c>,
 }
 
 impl Resize {
-    fn begin(&mut self, ui: &mut Ui) -> Prepared {
+    fn begin<'c>(&mut self, ui: &mut Ui<'c>) -> Prepared<'c> {
         let position = ui.available_rect_before_wrap().min;
         let id = self.id.unwrap_or_else(|| {
             let id_source = self.id_source.unwrap_or_else(|| Id::new("resize"));
@@ -254,14 +254,14 @@ impl Resize {
         }
     }
 
-    pub fn show<R>(mut self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+    pub fn show<R>(mut self, ui: &mut Ui<'_>, add_contents: impl FnOnce(&mut Ui<'_>) -> R) -> R {
         let mut prepared = self.begin(ui);
         let ret = add_contents(&mut prepared.content_ui);
         self.end(ui, prepared);
         ret
     }
 
-    fn end(self, ui: &mut Ui, prepared: Prepared) {
+    fn end(self, ui: &mut Ui<'_>, prepared: Prepared<'_>) {
         let Prepared {
             id,
             mut state,
@@ -326,12 +326,17 @@ impl Resize {
 
 use epaint::Stroke;
 
-pub fn paint_resize_corner(ui: &mut Ui, response: &Response) {
+pub fn paint_resize_corner(ui: &mut Ui<'_>, response: &Response<'_>) {
     let stroke = ui.style().interact(response).fg_stroke;
     paint_resize_corner_with_style(ui, &response.rect, stroke, Align2::RIGHT_BOTTOM);
 }
 
-pub fn paint_resize_corner_with_style(ui: &mut Ui, rect: &Rect, stroke: Stroke, corner: Align2) {
+pub fn paint_resize_corner_with_style(
+    ui: &mut Ui<'_>,
+    rect: &Rect,
+    stroke: Stroke,
+    corner: Align2,
+) {
     let painter = ui.painter();
     let cp = painter.round_pos_to_pixels(corner.pos_in_rect(rect));
     let mut w = 2.0;

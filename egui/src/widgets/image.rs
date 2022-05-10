@@ -100,7 +100,7 @@ impl Image {
         self.size
     }
 
-    pub fn paint_at(&self, ui: &mut Ui, rect: Rect) {
+    pub fn paint_at(&self, ui: &mut Ui<'_>, rect: Rect) {
         if ui.is_rect_visible(rect) {
             use epaint::*;
             let Self {
@@ -133,7 +133,7 @@ impl Image {
 }
 
 impl Widget for Image {
-    fn ui(self, ui: &mut Ui) -> Response {
+    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response<'c> {
         let (rect, response) = ui.allocate_exact_size(self.size, self.sense);
         self.paint_at(ui, rect);
         response

@@ -47,11 +47,15 @@ fn background_checkers(painter: &Painter, rect: Rect) {
 }
 
 /// Show a color with background checkers to demonstrate transparency (if any).
-pub fn show_color(ui: &mut Ui, color: impl Into<Color32>, desired_size: Vec2) -> Response {
+pub fn show_color<'c>(
+    ui: &mut Ui<'c>,
+    color: impl Into<Color32>,
+    desired_size: Vec2,
+) -> Response<'c> {
     show_color32(ui, color.into(), desired_size)
 }
 
-fn show_color32(ui: &mut Ui, color: Color32, desired_size: Vec2) -> Response {
+fn show_color32<'c>(ui: &mut Ui<'c>, color: Color32, desired_size: Vec2) -> Response<'c> {
     let (rect, response) = ui.allocate_at_least(desired_size, Sense::hover());
     if ui.is_rect_visible(rect) {
         show_color_at(ui.painter(), color, rect);
@@ -78,7 +82,7 @@ pub fn show_color_at(painter: &Painter, color: Color32, rect: Rect) {
     }
 }
 
-fn color_button(ui: &mut Ui, color: Color32, open: bool) -> Response {
+fn color_button<'c>(ui: &mut Ui<'c>, color: Color32, open: bool) -> Response<'c> {
     let size = ui.spacing().interact_size;
     let (rect, response) = ui.allocate_exact_size(size, Sense::click());
     response.widget_info(|| WidgetInfo::new(WidgetType::ColorButton));
@@ -101,7 +105,11 @@ fn color_button(ui: &mut Ui, color: Color32, open: bool) -> Response {
     response
 }
 
-fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Color32) -> Response {
+fn color_slider_1d<'c>(
+    ui: &mut Ui<'c>,
+    value: &mut f32,
+    color_at: impl Fn(f32) -> Color32,
+) -> Response<'c> {
     #![allow(clippy::identity_op)]
 
     let desired_size = vec2(ui.spacing().slider_width, ui.spacing().interact_size.y);
@@ -155,12 +163,12 @@ fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Color
     response
 }
 
-fn color_slider_2d(
-    ui: &mut Ui,
+fn color_slider_2d<'c>(
+    ui: &mut Ui<'c>,
     x_value: &mut f32,
     y_value: &mut f32,
     color_at: impl Fn(f32, f32) -> Color32,
-) -> Response {
+) -> Response<'c> {
     let desired_size = Vec2::splat(ui.spacing().slider_width);
     let (rect, response) = ui.allocate_at_least(desired_size, Sense::click_and_drag());
 
@@ -221,7 +229,7 @@ pub enum Alpha {
     BlendOrAdditive,
 }
 
-fn color_text_ui(ui: &mut Ui, color: impl Into<Color32>, alpha: Alpha) {
+fn color_text_ui(ui: &mut Ui<'_>, color: impl Into<Color32>, alpha: Alpha) {
     let color = color.into();
     ui.horizontal(|ui| {
         let [r, g, b, a] = color.to_array();
@@ -244,7 +252,7 @@ fn color_text_ui(ui: &mut Ui, color: impl Into<Color32>, alpha: Alpha) {
     });
 }
 
-fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
+fn color_picker_hsvag_2d(ui: &mut Ui<'_>, hsva: &mut HsvaGamma, alpha: Alpha) {
     let current_color_size = vec2(ui.spacing().slider_width, ui.spacing().interact_size.y);
     show_color(ui, *hsva, current_color_size).on_hover_text("Selected color");
 
@@ -314,7 +322,7 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
 //// Shows a color picker where the user can change the given [`Hsva`] color.
 ///
 /// Returns `true` on change.
-pub fn color_picker_hsva_2d(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> bool {
+pub fn color_picker_hsva_2d(ui: &mut Ui<'_>, hsva: &mut Hsva, alpha: Alpha) -> bool {
     let mut hsvag = HsvaGamma::from(*hsva);
     ui.vertical(|ui| {
         color_picker_hsvag_2d(ui, &mut hsvag, alpha);
@@ -331,7 +339,7 @@ pub fn color_picker_hsva_2d(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> bool 
 /// Shows a color picker where the user can change the given [`Color32`] color.
 ///
 /// Returns `true` on change.
-pub fn color_picker_color32(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -> bool {
+pub fn color_picker_color32(ui: &mut Ui<'_>, srgba: &mut Color32, alpha: Alpha) -> bool {
     let mut hsva = color_cache_get(ui.ctx(), *srgba);
     let changed = color_picker_hsva_2d(ui, &mut hsva, alpha);
     *srgba = Color32::from(hsva);
@@ -339,7 +347,7 @@ pub fn color_picker_color32(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -> b
     changed
 }
 
-pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Response {
+pub fn color_edit_button_hsva<'c>(ui: &mut Ui<'c>, hsva: &mut Hsva, alpha: Alpha) -> Response<'c> {
     let popup_id = ui.auto_id_with("popup");
     let open = ui.memory().is_popup_open(popup_id);
     let mut button_response = color_button(ui, (*hsva).into(), open);
@@ -377,7 +385,11 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
 
 /// Shows a button with the given color.
 /// If the user clicks the button, a full color picker is shown.
-pub fn color_edit_button_srgba(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -> Response {
+pub fn color_edit_button_srgba<'c>(
+    ui: &mut Ui<'c>,
+    srgba: &mut Color32,
+    alpha: Alpha,
+) -> Response<'c> {
     let mut hsva = color_cache_get(ui.ctx(), *srgba);
     let response = color_edit_button_hsva(ui, &mut hsva, alpha);
     *srgba = Color32::from(hsva);
@@ -388,7 +400,7 @@ pub fn color_edit_button_srgba(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -
 /// Shows a button with the given color.
 /// If the user clicks the button, a full color picker is shown.
 /// The given color is in `sRGB` space.
-pub fn color_edit_button_srgb(ui: &mut Ui, srgb: &mut [u8; 3]) -> Response {
+pub fn color_edit_button_srgb<'c>(ui: &mut Ui<'c>, srgb: &mut [u8; 3]) -> Response<'c> {
     let mut srgba = Color32::from_rgb(srgb[0], srgb[1], srgb[2]);
     let response = color_edit_button_srgba(ui, &mut srgba, Alpha::Opaque);
     srgb[0] = srgba[0];
@@ -399,7 +411,7 @@ pub fn color_edit_button_srgb(ui: &mut Ui, srgb: &mut [u8; 3]) -> Response {
 
 /// Shows a button with the given color.
 /// If the user clicks the button, a full color picker is shown.
-pub fn color_edit_button_rgba(ui: &mut Ui, rgba: &mut Rgba, alpha: Alpha) -> Response {
+pub fn color_edit_button_rgba<'c>(ui: &mut Ui<'c>, rgba: &mut Rgba, alpha: Alpha) -> Response<'c> {
     let mut hsva = color_cache_get(ui.ctx(), *rgba);
     let response = color_edit_button_hsva(ui, &mut hsva, alpha);
     *rgba = Rgba::from(hsva);
@@ -409,7 +421,7 @@ pub fn color_edit_button_rgba(ui: &mut Ui, rgba: &mut Rgba, alpha: Alpha) -> Res
 
 /// Shows a button with the given color.
 /// If the user clicks the button, a full color picker is shown.
-pub fn color_edit_button_rgb(ui: &mut Ui, rgb: &mut [f32; 3]) -> Response {
+pub fn color_edit_button_rgb<'c>(ui: &mut Ui<'c>, rgb: &mut [f32; 3]) -> Response<'c> {
     let mut rgba = Rgba::from_rgb(rgb[0], rgb[1], rgb[2]);
     let response = color_edit_button_rgba(ui, &mut rgba, Alpha::Opaque);
     rgb[0] = rgba[0];
@@ -419,18 +431,18 @@ pub fn color_edit_button_rgb(ui: &mut Ui, rgb: &mut [f32; 3]) -> Response {
 }
 
 // To ensure we keep hue slider when `srgba` is gray we store the full [`Hsva`] in a cache:
-fn color_cache_get(ctx: &Context, rgba: impl Into<Rgba>) -> Hsva {
+fn color_cache_get(ctx: &mut Context, rgba: impl Into<Rgba>) -> Hsva {
     let rgba = rgba.into();
     use_color_cache(ctx, |cc| cc.get(&rgba).cloned()).unwrap_or_else(|| Hsva::from(rgba))
 }
 
 // To ensure we keep hue slider when `srgba` is gray we store the full [`Hsva`] in a cache:
-fn color_cache_set(ctx: &Context, rgba: impl Into<Rgba>, hsva: Hsva) {
+fn color_cache_set(ctx: &mut Context, rgba: impl Into<Rgba>, hsva: Hsva) {
     let rgba = rgba.into();
     use_color_cache(ctx, |cc| cc.set(rgba, hsva));
 }
 
 // To ensure we keep hue slider when `srgba` is gray we store the full [`Hsva`] in a cache:
-fn use_color_cache<R>(ctx: &Context, f: impl FnOnce(&mut FixedCache<Rgba, Hsva>) -> R) -> R {
-    f(ctx.data().get_temp_mut_or_default(Id::null()))
+fn use_color_cache<R>(ctx: &mut Context, f: impl FnOnce(&mut FixedCache<Rgba, Hsva>) -> R) -> R {
+    f(ctx.data_mut().get_temp_mut_or_default(Id::null()))
 }

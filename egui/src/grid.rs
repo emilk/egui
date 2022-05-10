@@ -47,7 +47,6 @@ impl State {
 // ----------------------------------------------------------------------------
 
 pub(crate) struct GridLayout {
-    ctx: Context,
     style: std::sync::Arc<Style>,
     id: Id,
 
@@ -71,7 +70,7 @@ pub(crate) struct GridLayout {
 }
 
 impl GridLayout {
-    pub(crate) fn new(ui: &Ui, id: Id) -> Self {
+    pub(crate) fn new(ui: &Ui<'_>, id: Id) -> Self {
         let prev_state = State::load(ui.ctx(), id).unwrap_or_default();
 
         // TODO(emilk): respect current layout
@@ -85,7 +84,6 @@ impl GridLayout {
         ui.ctx().check_for_id_clash(id, initial_available, "Grid");
 
         Self {
-            ctx: ui.ctx().clone(),
             style: ui.style().clone(),
             id,
             prev_state,
@@ -337,15 +335,19 @@ impl Grid {
 }
 
 impl Grid {
-    pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
+    pub fn show<'c, R>(
+        self,
+        ui: &mut Ui<'c>,
+        add_contents: impl FnOnce(&mut Ui<'_>) -> R,
+    ) -> InnerResponse<'c, R> {
         self.show_dyn(ui, Box::new(add_contents))
     }
 
-    fn show_dyn<'c, R>(
+    fn show_dyn<'a, 'c, R>(
         self,
-        ui: &mut Ui,
-        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
-    ) -> InnerResponse<R> {
+        ui: &mut Ui<'c>,
+        add_contents: Box<dyn FnOnce(&mut Ui<'_>) -> R + 'a>,
+    ) -> InnerResponse<'c, R> {
         let Self {
             id_source,
             num_columns,

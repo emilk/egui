@@ -60,16 +60,16 @@ impl MonoState {
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// if ui.ui_contains_pointer() {
-///     egui::show_tooltip(ui.ctx(), egui::Id::new("my_tooltip"), |ui| {
+///     egui::show_tooltip(ui.ctx_mut(), egui::Id::new("my_tooltip"), |ui| {
 ///         ui.label("Helpful text");
 ///     });
 /// }
 /// # });
 /// ```
 pub fn show_tooltip<R>(
-    ctx: &Context,
+    ctx: &mut Context,
     id: Id,
-    add_contents: impl FnOnce(&mut Ui) -> R,
+    add_contents: impl FnOnce(&mut Ui<'_>) -> R,
 ) -> Option<R> {
     show_tooltip_at_pointer(ctx, id, add_contents)
 }
@@ -85,16 +85,16 @@ pub fn show_tooltip<R>(
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// if ui.ui_contains_pointer() {
-///     egui::show_tooltip_at_pointer(ui.ctx(), egui::Id::new("my_tooltip"), |ui| {
+///     egui::show_tooltip_at_pointer(ui.ctx_mut(), egui::Id::new("my_tooltip"), |ui| {
 ///         ui.label("Helpful text");
 ///     });
 /// }
 /// # });
 /// ```
 pub fn show_tooltip_at_pointer<R>(
-    ctx: &Context,
+    ctx: &mut Context,
     id: Id,
-    add_contents: impl FnOnce(&mut Ui) -> R,
+    add_contents: impl FnOnce(&mut Ui<'_>) -> R,
 ) -> Option<R> {
     let suggested_pos = ctx
         .input()
@@ -108,10 +108,10 @@ pub fn show_tooltip_at_pointer<R>(
 ///
 /// If the tooltip does not fit under the area, it tries to place it above it instead.
 pub fn show_tooltip_for<R>(
-    ctx: &Context,
+    ctx: &mut Context,
     id: Id,
     rect: &Rect,
-    add_contents: impl FnOnce(&mut Ui) -> R,
+    add_contents: impl FnOnce(&mut Ui<'_>) -> R,
 ) -> Option<R> {
     let expanded_rect = rect.expand2(vec2(2.0, 4.0));
     let (above, position) = if ctx.input().any_touches() {
@@ -133,10 +133,10 @@ pub fn show_tooltip_for<R>(
 ///
 /// Returns `None` if the tooltip could not be placed.
 pub fn show_tooltip_at<R>(
-    ctx: &Context,
+    ctx: &mut Context,
     id: Id,
     suggested_position: Option<Pos2>,
-    add_contents: impl FnOnce(&mut Ui) -> R,
+    add_contents: impl FnOnce(&mut Ui<'_>) -> R,
 ) -> Option<R> {
     let above = false;
     show_tooltip_at_avoid_dyn(
@@ -149,13 +149,13 @@ pub fn show_tooltip_at<R>(
     )
 }
 
-fn show_tooltip_at_avoid_dyn<'c, R>(
-    ctx: &Context,
+fn show_tooltip_at_avoid_dyn<'a, R>(
+    ctx: &mut Context,
     mut id: Id,
     suggested_position: Option<Pos2>,
     above: bool,
     mut avoid_rect: Rect,
-    add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
+    add_contents: Box<dyn FnOnce(&mut Ui<'_>) -> R + 'a>,
 ) -> Option<R> {
     let mut tooltip_rect = Rect::NOTHING;
     let mut count = 0;
@@ -233,23 +233,23 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// if ui.ui_contains_pointer() {
-///     egui::show_tooltip_text(ui.ctx(), egui::Id::new("my_tooltip"), "Helpful text");
+///     egui::show_tooltip_text(ui.ctx_mut(), egui::Id::new("my_tooltip"), "Helpful text");
 /// }
 /// # });
 /// ```
-pub fn show_tooltip_text(ctx: &Context, id: Id, text: impl Into<WidgetText>) -> Option<()> {
+pub fn show_tooltip_text(ctx: &mut Context, id: Id, text: impl Into<WidgetText>) -> Option<()> {
     show_tooltip(ctx, id, |ui| {
         crate::widgets::Label::new(text).ui(ui);
     })
 }
 
 /// Show a pop-over window.
-fn show_tooltip_area_dyn<'c, R>(
-    ctx: &Context,
+fn show_tooltip_area_dyn<'a, 'c, R>(
+    ctx: &'c mut Context,
     id: Id,
     window_pos: Pos2,
-    add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
-) -> InnerResponse<R> {
+    add_contents: Box<dyn FnOnce(&mut Ui<'_>) -> R + 'a>,
+) -> InnerResponse<'c, R> {
     use containers::*;
     Area::new(id)
         .order(Order::Tooltip)
@@ -289,16 +289,16 @@ fn show_tooltip_area_dyn<'c, R>(
 /// # });
 /// ```
 pub fn popup_below_widget<R>(
-    ui: &Ui,
+    ui: &mut Ui<'_>,
     popup_id: Id,
-    widget_response: &Response,
-    add_contents: impl FnOnce(&mut Ui) -> R,
+    widget_response: &RawResponse,
+    add_contents: impl FnOnce(&mut Ui<'_>) -> R,
 ) -> Option<R> {
     if ui.memory().is_popup_open(popup_id) {
         let inner = Area::new(popup_id)
             .order(Order::Foreground)
             .fixed_pos(widget_response.rect.left_bottom())
-            .show(ui.ctx(), |ui| {
+            .show(ui.ctx_mut(), |ui| {
                 // Note: we use a separate clip-rect for this area, so the popup can be outside the parent.
                 // See https://github.com/emilk/egui/issues/825
                 let frame = Frame::popup(ui.style());

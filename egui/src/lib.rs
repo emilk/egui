@@ -358,7 +358,7 @@ pub use {
     layout::*,
     memory::Memory,
     painter::Painter,
-    response::{InnerResponse, Response},
+    response::{InnerResponse, RawResponse, Response},
     sense::Sense,
     style::{FontSelection, Style, TextStyle, Visuals},
     text::{Galley, TextFormat},
@@ -370,14 +370,17 @@ pub use {
 // ----------------------------------------------------------------------------
 
 /// Helper function that adds a label when compiling with debug assertions enabled.
-pub fn warn_if_debug_build(ui: &mut crate::Ui) {
+pub fn warn_if_debug_build(ui: &mut crate::Ui<'_>) {
     if cfg!(debug_assertions) {
         ui.label(
             RichText::new("‼ Debug build ‼")
                 .small()
                 .color(crate::Color32::RED),
         )
-        .on_hover_text("egui was compiled with debug assertions enabled.");
+        .on_hover_text(
+            ui.ctx_mut(),
+            "egui was compiled with debug assertions enabled.",
+        );
     }
 }
 
@@ -534,7 +537,7 @@ pub fn __run_test_ctx(mut run_ui: impl FnMut(&Context)) {
 }
 
 /// For use in tests; especially doctests.
-pub fn __run_test_ui(mut add_contents: impl FnMut(&mut Ui)) {
+pub fn __run_test_ui(mut add_contents: impl FnMut(&mut Ui<'_>)) {
     let ctx = Context::default();
     ctx.set_fonts(FontDefinitions::empty()); // prevent fonts from being loaded (save CPU time)
     let _ = ctx.run(Default::default(), |ctx| {

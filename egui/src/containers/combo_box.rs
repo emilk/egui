@@ -2,7 +2,7 @@ use crate::{style::WidgetVisuals, *};
 use epaint::Shape;
 
 /// A function that paints the [`ComboBox`] icon
-pub type IconPainter = Box<dyn FnOnce(&Ui, Rect, &WidgetVisuals, bool)>;
+pub type IconPainter = Box<dyn FnOnce(&Ui<'_>, Rect, &WidgetVisuals, bool)>;
 
 /// A drop-down selection menu with a descriptive label.
 ///
@@ -107,7 +107,10 @@ impl ComboBox {
     ///     .show_ui(ui, |_ui| {});
     /// # });
     /// ```
-    pub fn icon(mut self, icon_fn: impl FnOnce(&Ui, Rect, &WidgetVisuals, bool) + 'static) -> Self {
+    pub fn icon(
+        mut self,
+        icon_fn: impl FnOnce(&Ui<'_>, Rect, &WidgetVisuals, bool) + 'static,
+    ) -> Self {
         self.icon = Some(Box::new(icon_fn));
         self
     }
@@ -117,16 +120,16 @@ impl ComboBox {
     /// Returns `InnerResponse { inner: None }` if the combo box is closed.
     pub fn show_ui<R>(
         self,
-        ui: &mut Ui,
-        menu_contents: impl FnOnce(&mut Ui) -> R,
+        ui: &mut Ui<'_>,
+        menu_contents: impl FnOnce(&mut Ui<'_>) -> R,
     ) -> InnerResponse<Option<R>> {
         self.show_ui_dyn(ui, Box::new(menu_contents))
     }
 
-    fn show_ui_dyn<'c, R>(
+    fn show_ui_dyn<'a, R>(
         self,
-        ui: &mut Ui,
-        menu_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
+        ui: &mut Ui<'_>,
+        menu_contents: Box<dyn FnOnce(&mut Ui<'_>) -> R + 'a>,
     ) -> InnerResponse<Option<R>> {
         let Self {
             id_source,
@@ -176,7 +179,7 @@ impl ComboBox {
     /// ```
     pub fn show_index(
         self,
-        ui: &mut Ui,
+        ui: &mut Ui<'_>,
         selected: &mut usize,
         len: usize,
         get: impl Fn(usize) -> String,
@@ -203,11 +206,11 @@ impl ComboBox {
     }
 }
 
-fn combo_box_dyn<'c, R>(
-    ui: &mut Ui,
+fn combo_box_dyn<'a, R>(
+    ui: &mut Ui<'_>,
     button_id: Id,
     selected_text: WidgetText,
-    menu_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
+    menu_contents: Box<dyn FnOnce(&mut Ui<'_>) -> R + 'a>,
     icon: Option<IconPainter>,
 ) -> InnerResponse<Option<R>> {
     let popup_id = button_id.with("popup");
@@ -269,13 +272,13 @@ fn combo_box_dyn<'c, R>(
     }
 }
 
-fn button_frame(
-    ui: &mut Ui,
+fn button_frame<'c>(
+    ui: &mut Ui<'c>,
     id: Id,
     is_popup_open: bool,
     sense: Sense,
-    add_contents: impl FnOnce(&mut Ui),
-) -> Response {
+    add_contents: impl FnOnce(&mut Ui<'_>),
+) -> Response<'c> {
     let where_to_put_background = ui.painter().add(Shape::Noop);
 
     let margin = ui.spacing().button_padding;
