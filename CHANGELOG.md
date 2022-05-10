@@ -5,7 +5,9 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 
 
 ## Unreleased
-* Add `*_released` & `*_clicked` methods for `PointerState`.
+* Add `*_released` & `*_clicked` methods for `PointerState` ([#1582](https://github.com/emilk/egui/pull/1582)).
+* Optimize painting of filled circles (e.g. for scatter plots) by 10x or more ([#1616](https://github.com/emilk/egui/pull/1616)).
+
 
 ## 0.18.1 - 2022-05-01
 * Change `Shape::Callback` from `&dyn Any` to `&mut dyn Any` to support more backends.
