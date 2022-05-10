@@ -142,6 +142,7 @@ impl Widget for &mut epaint::TessellationOptions {
                 feathering,
                 feathering_size_in_pixels,
                 coarse_tessellation_culling,
+                prerasterized_discs,
                 round_text_to_pixels,
                 debug_paint_clip_rects,
                 debug_paint_text_rects,
@@ -157,6 +158,8 @@ impl Widget for &mut epaint::TessellationOptions {
                 .logarithmic(true)
                 .text("Feathering size in pixels");
             ui.add_enabled(*feathering, feathering_slider);
+
+            ui.checkbox(prerasterized_discs, "Speed up filled circles with pre-rasterization");
 
             ui.add(
                 crate::widgets::Slider::new(bezier_tolerance, 0.0001..=10.0)
