@@ -277,6 +277,24 @@ impl Response {
         self.drag_released
     }
 
+    /// Mouse dragged, nevertheless it's stuck on screen's edge or not.
+    pub fn motion_delta(&self) -> Vec2 {
+        #[cfg(target_family = "wasm")]
+        return self.drag_delta();
+
+        #[cfg(not(target_family = "wasm"))]
+        {
+            let res = self.ctx.input().pointer.motion();
+
+            if res == Vec2::ZERO {
+                // in a case of touchscreen or whatever
+                self.drag_delta()
+            } else {
+                res
+            }
+        }
+    }
+
     /// If dragged, how many points were we dragged and in what direction?
     pub fn drag_delta(&self) -> Vec2 {
         if self.dragged() {

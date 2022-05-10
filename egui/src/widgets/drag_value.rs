@@ -234,7 +234,8 @@ impl<'a> Widget for DragValue<'a> {
             } else if response.dragged() {
                 ui.output().cursor_icon = CursorIcon::ResizeHorizontal;
 
-                let mdelta = response.drag_delta();
+                let mdelta = response.motion_delta();
+
                 let delta_points = mdelta.x - mdelta.y; // Increase to the right and up
 
                 let speed = if is_slow_speed { speed / 10.0 } else { speed };

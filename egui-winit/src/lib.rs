@@ -6,6 +6,7 @@
 #![allow(clippy::manual_range_contains)]
 
 pub use egui;
+use egui::Vec2;
 pub use winit;
 
 pub mod clipboard;
@@ -119,6 +120,13 @@ impl State {
         self.egui_input.take()
     }
 
+    pub fn on_mouse_delta(&mut self, delta: (f64, f64)) {
+        self.egui_input.events.push(egui::Event::MouseDelta(Vec2 {
+            x: delta.0 as f32,
+            y: delta.1 as f32,
+        }))
+    }
+
     /// Call this when there is a new event.
     ///
     /// The result can be found in [`Self::egui_input`] and be extracted with [`Self::take_egui_input`].
@@ -152,6 +160,7 @@ impl State {
             }
             WindowEvent::CursorMoved { position, .. } => {
                 self.on_cursor_moved(*position);
+
                 egui_ctx.is_using_pointer()
             }
             WindowEvent::CursorLeft { .. } => {
@@ -226,10 +235,8 @@ impl State {
                 };
                 false
             }
-            _ => {
-                // dbg!(event);
-                false
-            }
+
+            _ => false,
         }
     }
 
