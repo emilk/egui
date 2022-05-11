@@ -323,7 +323,7 @@ pub use epaint::emath;
 
 pub use emath::{lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rect, Vec2};
 pub use epaint::{
-    color, mutex,
+    color, hex_color, mutex,
     text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
     textures::TexturesDelta,
     ClippedPrimitive, Color32, ColorImage, FontImage, ImageData, Mesh, PaintCallback,
