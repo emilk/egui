@@ -125,27 +125,27 @@ impl Color32 {
     }
 
     #[inline(always)]
-    pub fn is_opaque(&self) -> bool {
+    pub const fn is_opaque(&self) -> bool {
         self.a() == 255
     }
 
     #[inline(always)]
-    pub fn r(&self) -> u8 {
+    pub const fn r(&self) -> u8 {
         self.0[0]
     }
 
     #[inline(always)]
-    pub fn g(&self) -> u8 {
+    pub const fn g(&self) -> u8 {
         self.0[1]
     }
 
     #[inline(always)]
-    pub fn b(&self) -> u8 {
+    pub const fn b(&self) -> u8 {
         self.0[2]
     }
 
     #[inline(always)]
-    pub fn a(&self) -> u8 {
+    pub const fn a(&self) -> u8 {
         self.0[3]
     }
 
@@ -156,20 +156,20 @@ impl Color32 {
 
     /// Returns an additive version of self
     #[inline(always)]
-    pub fn additive(self) -> Self {
+    pub const fn additive(self) -> Self {
         let [r, g, b, _] = self.to_array();
         Self([r, g, b, 0])
     }
 
     /// Premultiplied RGBA
     #[inline(always)]
-    pub fn to_array(&self) -> [u8; 4] {
+    pub const fn to_array(&self) -> [u8; 4] {
         [self.r(), self.g(), self.b(), self.a()]
     }
 
     /// Premultiplied RGBA
     #[inline(always)]
-    pub fn to_tuple(&self) -> (u8, u8, u8, u8) {
+    pub const fn to_tuple(&self) -> (u8, u8, u8, u8) {
         (self.r(), self.g(), self.b(), self.a())
     }
 
