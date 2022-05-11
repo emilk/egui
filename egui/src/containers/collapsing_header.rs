@@ -89,7 +89,7 @@ impl CollapsingState {
 
     /// Will toggle when clicked, etc.
     fn show_default_button_indented(&mut self, ui: &mut Ui) -> Response {
-        self.paint_button_indented(ui, paint_default_icon)
+        self.show_button_indented(ui, paint_default_icon)
     }
 
     /// Will toggle when clicked, etc.
@@ -255,7 +255,7 @@ impl CollapsingState {
         ui: &mut Ui,
         icon_fn: impl FnOnce(&mut Ui, f32, &Response) + 'static,
     ) -> Response {
-        self.paint_button_indented(ui, icon_fn)
+        self.show_button_indented(ui, icon_fn)
     }
 }
 
