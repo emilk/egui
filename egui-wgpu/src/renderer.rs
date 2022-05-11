@@ -2,7 +2,6 @@
 
 use std::{borrow::Cow, collections::HashMap, num::NonZeroU32};
 
-use bytemuck::{Pod, Zeroable};
 use egui::epaint::Primitive;
 use wgpu;
 use wgpu::util::DeviceExt as _;
@@ -35,20 +34,17 @@ impl ScreenDescriptor {
 }
 
 /// Uniform buffer used when rendering.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 #[repr(C)]
 struct UniformBuffer {
     screen_size_in_points: [f32; 2],
 }
 
-unsafe impl Pod for UniformBuffer {}
-
-unsafe impl Zeroable for UniformBuffer {}
-
 /// Wraps the buffers and includes additional information.
 #[derive(Debug)]
 struct SizedBuffer {
     buffer: wgpu::Buffer,
+    /// number of bytes
     size: usize,
 }
 
@@ -275,8 +271,8 @@ impl RenderPass {
             index_buffer,
         ) in paint_jobs
             .iter()
-            .zip(self.vertex_buffers.iter())
-            .zip(self.index_buffers.iter())
+            .zip(&self.vertex_buffers)
+            .zip(&self.index_buffers)
         {
             // Transform clip rect to physical pixels.
             let clip_min_x = pixels_per_point * clip_rect.min.x;
@@ -342,16 +338,19 @@ impl RenderPass {
         id: egui::TextureId,
         image_delta: &egui::epaint::ImageDelta,
     ) {
+        let width = image_delta.image.width() as u32;
+        let height = image_delta.image.height() as u32;
+
         let size = wgpu::Extent3d {
-            width: image_delta.image.size()[0] as u32,
-            height: image_delta.image.size()[1] as u32,
+            width,
+            height,
             depth_or_array_layers: 1,
         };
 
         let data_color32 = match &image_delta.image {
             egui::ImageData::Color(image) => {
                 assert_eq!(
-                    image.width() * image.height(),
+                    width as usize * height as usize,
                     image.pixels.len(),
                     "Mismatch between texture size and texel count"
                 );
@@ -359,7 +358,7 @@ impl RenderPass {
             }
             egui::ImageData::Font(image) => {
                 assert_eq!(
-                    image.width() * image.height(),
+                    width as usize * height as usize,
                     image.pixels.len(),
                     "Mismatch between texture size and texel count"
                 );
@@ -379,8 +378,8 @@ impl RenderPass {
                 data_bytes,
                 wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: NonZeroU32::new((4 * image_delta.image.width()) as u32),
-                    rows_per_image: NonZeroU32::new(image_delta.image.height() as u32),
+                    bytes_per_row: NonZeroU32::new(4 * width),
+                    rows_per_image: NonZeroU32::new(height),
                 },
                 size,
             );
@@ -451,9 +450,6 @@ impl RenderPass {
         paint_jobs: &[egui::epaint::ClippedPrimitive],
         screen_descriptor: &ScreenDescriptor,
     ) {
-        let index_size = self.index_buffers.len();
-        let vertex_size = self.vertex_buffers.len();
-
         let screen_size_in_points = screen_descriptor.screen_size_in_points();
 
         self.update_buffer(
@@ -470,7 +466,7 @@ impl RenderPass {
             match primitive {
                 Primitive::Mesh(mesh) => {
                     let data: &[u8] = bytemuck::cast_slice(&mesh.indices);
-                    if i < index_size {
+                    if i < self.index_buffers.len() {
                         self.update_buffer(device, queue, &BufferType::Index, i, data);
                     } else {
                         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -485,7 +481,7 @@ impl RenderPass {
                     }
 
                     let data: &[u8] = bytemuck::cast_slice(&mesh.vertices);
-                    if i < vertex_size {
+                    if i < self.vertex_buffers.len() {
                         self.update_buffer(device, queue, &BufferType::Vertex, i, data);
                     } else {
                         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -501,7 +497,7 @@ impl RenderPass {
                     }
                 }
                 Primitive::Callback(_) => {
-                    tracing::warn!("Painting callbacks not supported by egui-wgpu");
+                    tracing::warn!("Painting callbacks not supported by egui-wgpu (yet)");
                 }
             }
         }

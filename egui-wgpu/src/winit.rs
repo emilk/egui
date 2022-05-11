@@ -16,11 +16,10 @@ impl Painter {
     ///
     /// # Safety
     /// The given `window` must outlive the returned [`Painter`].
-    pub unsafe fn new(window: &winit::window::Window) -> Self {
+    pub unsafe fn new(window: &winit::window::Window, msaa_samples: u32) -> Self {
         let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY | wgpu::Backends::GL);
         let surface = instance.create_surface(&window);
 
-        // WGPU 0.11+ support force fallback (if HW implementation not supported), set it to true or false (optional).
         let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::HighPerformance,
             compatible_surface: Some(&surface),
@@ -49,7 +48,7 @@ impl Painter {
         };
         surface.configure(&device, &surface_config);
 
-        let egui_rpass = renderer::RenderPass::new(&device, surface_format, 1);
+        let egui_rpass = renderer::RenderPass::new(&device, surface_format, msaa_samples);
 
         Self {
             device,
@@ -64,9 +63,9 @@ impl Painter {
         self.device.limits().max_texture_dimension_2d as usize
     }
 
-    pub fn on_window_resized(&mut self, width: u32, height: u32) {
-        self.surface_config.width = width;
-        self.surface_config.height = height;
+    pub fn on_window_resized(&mut self, width_in_pixels: u32, height_in_pixels: u32) {
+        self.surface_config.width = width_in_pixels;
+        self.surface_config.height = height_in_pixels;
         self.surface.configure(&self.device, &self.surface_config);
     }
 

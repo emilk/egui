@@ -11,6 +11,7 @@ struct Locals {
 };
 [[group(0), binding(0)]] var<uniform> r_locals: Locals;
 
+// 0-1 from 0-255
 fn linear_from_srgb(srgb: vec3<f32>) -> vec3<f32> {
     let cutoff = srgb < vec3<f32>(10.31475);
     let lower = srgb / vec3<f32>(3294.6);
