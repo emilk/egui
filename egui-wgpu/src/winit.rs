@@ -14,7 +14,8 @@ pub struct Painter {
 impl Painter {
     /// Creates a [`wgpu`] surface for the given window, and things required to render egui onto it.
     ///
-    /// SAFETY: The given window MUST outlive [`Painter`].
+    /// # Safety
+    /// The given `window` must outlive the returned [`Painter`].
     pub unsafe fn new(window: &winit::window::Window) -> Self {
         let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY | wgpu::Backends::GL);
         let surface = instance.create_surface(&window);
