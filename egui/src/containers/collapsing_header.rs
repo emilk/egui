@@ -92,7 +92,8 @@ impl CollapsingState {
         self.paint_button_indented(ui, paint_default_icon)
     }
 
-    fn paint_button_indented(
+    /// Will toggle when clicked, etc.
+    fn show_button_indented(
         &mut self,
         ui: &mut Ui,
         icon_fn: impl FnOnce(&mut Ui, f32, &Response) + 'static,
