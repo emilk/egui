@@ -8,18 +8,21 @@ pub fn points_to_size(points: egui::Vec2) -> winit::dpi::LogicalSize<f64> {
     }
 }
 
-pub fn read_window_info(window: &winit::window::Window) -> Option<WindowInfo> {
+pub fn read_window_info(
+    window: &winit::window::Window,
+    pixels_per_point: f32,
+) -> Option<WindowInfo> {
     match window.outer_position() {
         Ok(pos) => {
-            let size = window.inner_size();
+            let pos = pos.to_logical::<f32>(pixels_per_point.into());
+            let size = window
+                .inner_size()
+                .to_logical::<f32>(pixels_per_point.into());
             Some(WindowInfo {
-                position: egui::Vec2 {
-                    x: pos.x as f32,
-                    y: pos.y as f32,
-                },
+                position: egui::Pos2 { x: pos.x, y: pos.y },
                 size: egui::Vec2 {
-                    x: size.width as f32,
-                    y: size.height as f32,
+                    x: size.width,
+                    y: size.height,
                 },
             })
         }
@@ -195,7 +198,7 @@ impl EpiIntegration {
                 prefer_dark_mode,
                 cpu_usage: None,
                 native_pixels_per_point: Some(native_pixels_per_point(window)),
-                window_info: read_window_info(window),
+                window_info: read_window_info(window, egui_ctx.pixels_per_point()),
             },
             output: Default::default(),
             storage,
@@ -258,7 +261,7 @@ impl EpiIntegration {
     ) -> egui::FullOutput {
         let frame_start = std::time::Instant::now();
 
-        self.frame.info.window_info = read_window_info(window);
+        self.frame.info.window_info = read_window_info(window, self.egui_ctx.pixels_per_point());
         let raw_input = self.egui_winit.take_egui_input(window);
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
             crate::profile_scope!("App::update");

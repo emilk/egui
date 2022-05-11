@@ -344,11 +344,11 @@ pub struct WebInfo {
 /// Information about the application's main window, if available.
 #[derive(Clone, Debug)]
 pub struct WindowInfo {
-    /// Coordinates of the window's top left corner, relative to the top left corner
-    /// of a user's first monitor.
-    pub position: egui::Vec2,
+    /// Coordinates of the window's outer top left corner, relative to the top left corner.
+    /// Unit: egui points (logical pixels).
+    pub position: egui::Pos2,
 
-    /// Window dimensions, in pixels.
+    /// Window inner size in egui points (logical pixels).
     pub size: egui::Vec2,
 }
 
