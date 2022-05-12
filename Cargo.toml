@@ -22,6 +22,7 @@ members = [
     "examples/hello_world",
     "examples/puffin_profiler",
     "examples/retained_image",
+    "examples/screenshot",
     "examples/svg",
 ]
 
