@@ -23,6 +23,7 @@ members = [
     "examples/hello_world",
     "examples/puffin_profiler",
     "examples/retained_image",
+    "examples/mouse_lock",
     "examples/svg",
 ]
 

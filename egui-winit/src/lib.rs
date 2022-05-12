@@ -6,6 +6,7 @@
 #![allow(clippy::manual_range_contains)]
 
 pub use egui;
+use egui::{Pos2, Vec2};
 pub use winit;
 
 pub mod clipboard;
@@ -151,7 +152,9 @@ impl State {
                 egui_ctx.wants_pointer_input()
             }
             WindowEvent::CursorMoved { position, .. } => {
-                self.on_cursor_moved(*position);
+                let cursor_is_locked = egui_ctx.input().cursor_lock.is_locked();
+
+                self.on_cursor_moved(*position, &cursor_is_locked);
                 egui_ctx.is_using_pointer()
             }
             WindowEvent::CursorLeft { .. } => {
@@ -278,12 +281,19 @@ impl State {
         }
     }
 
-    fn on_cursor_moved(&mut self, pos_in_pixels: winit::dpi::PhysicalPosition<f64>) {
+    fn on_cursor_moved(
+        &mut self,
+        pos_in_pixels: winit::dpi::PhysicalPosition<f64>,
+        cursor_is_locked: &Option<Pos2>,
+    ) {
         let pos_in_points = egui::pos2(
             pos_in_pixels.x as f32 / self.pixels_per_point(),
             pos_in_pixels.y as f32 / self.pixels_per_point(),
         );
-        self.pointer_pos_in_points = Some(pos_in_points);
+
+        if cursor_is_locked.is_none() {
+            self.pointer_pos_in_points = Some(pos_in_points);
+        }
 
         if self.simulate_touch_screen {
             if self.any_pointer_button_down {
@@ -300,9 +310,23 @@ impl State {
                 });
             }
         } else {
-            self.egui_input
-                .events
-                .push(egui::Event::PointerMoved(pos_in_points));
+            if let Some(center) = cursor_is_locked {
+                let mut pp = Vec2 {
+                    x: pos_in_points.x,
+                    y: pos_in_points.y,
+                };
+
+                pp.x -= center.x / self.pixels_per_point();
+                pp.y -= center.y / self.pixels_per_point();
+
+                self.egui_input
+                    .events
+                    .push(egui::Event::PointerMovedLocked(pp));
+            } else {
+                self.egui_input
+                    .events
+                    .push(egui::Event::PointerMoved(pos_in_points));
+            }
         }
     }
 
@@ -339,14 +363,14 @@ impl State {
                 winit::event::TouchPhase::Started => {
                     self.pointer_touch_id = Some(touch.id);
                     // First move the pointer to the right location
-                    self.on_cursor_moved(touch.location);
+                    self.on_cursor_moved(touch.location, &None);
                     self.on_mouse_button_input(
                         winit::event::ElementState::Pressed,
                         winit::event::MouseButton::Left,
                     );
                 }
                 winit::event::TouchPhase::Moved => {
-                    self.on_cursor_moved(touch.location);
+                    self.on_cursor_moved(touch.location, &None);
                 }
                 winit::event::TouchPhase::Ended => {
                     self.pointer_touch_id = None;

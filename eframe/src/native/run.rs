@@ -1,6 +1,11 @@
-use super::epi_integration;
+use super::epi_integration::{self, EpiIntegration};
 use crate::epi;
+use egui::Pos2;
 use egui_winit::winit;
+use winit::{
+    dpi::{PhysicalPosition, Position},
+    window::Window,
+};
 
 struct RequestRepaintEvent;
 
@@ -36,6 +41,60 @@ fn create_display(
 // ----------------------------------------------------------------------------
 
 pub use epi::NativeOptions;
+
+fn process_cursor_lock(integration: &EpiIntegration, window: &Window) {
+    use egui::CursorLock;
+
+    let mut input = integration.egui_ctx.input_mut();
+
+    match input.cursor_lock {
+        CursorLock::PendingLock { point_to_return } => {
+            window.set_cursor_visible(false);
+            window.set_cursor_grab(true).unwrap();
+
+            let size = window.inner_size();
+            let pos = PhysicalPosition {
+                x: (size.width as i32) / 2,
+                y: (size.height as i32) / 2,
+            };
+
+            window.set_cursor_position(Position::Physical(pos)).unwrap();
+
+            input.cursor_lock = CursorLock::Locked {
+                point_to_return,
+                screen_center: Pos2 {
+                    x: pos.x as f32,
+                    y: pos.y as f32,
+                },
+            };
+        }
+        CursorLock::PendingUnLock {
+            point_to_return: to_pos,
+        } => {
+            window
+                .set_cursor_position(Position::Physical(PhysicalPosition {
+                    x: to_pos.x as i32,
+                    y: to_pos.y as i32,
+                }))
+                .unwrap();
+
+            window.set_cursor_visible(true);
+            window.set_cursor_grab(false).unwrap();
+            input.cursor_lock = CursorLock::Unlocked
+        }
+        CursorLock::Locked { .. } => {
+            let size = window.inner_size();
+
+            let pos = PhysicalPosition {
+                x: (size.width as i32) / 2,
+                y: (size.height as i32) / 2,
+            };
+
+            window.set_cursor_position(Position::Physical(pos)).unwrap();
+        }
+        CursorLock::Unlocked => {}
+    };
+}
 
 /// Run an egui app
 #[cfg(feature = "glow")]
@@ -87,6 +146,8 @@ pub fn run_glow(
         let window = gl_window.window();
 
         let mut redraw = || {
+            process_cursor_lock(&integration, &window);
+
             #[cfg(feature = "puffin")]
             puffin::GlobalProfiler::lock().new_frame();
             crate::profile_scope!("frame");
@@ -177,6 +238,7 @@ pub fn run_glow(
                 }
 
                 integration.on_event(app.as_mut(), &event);
+
                 if integration.should_quit() {
                     *control_flow = winit::event_loop::ControlFlow::Exit;
                 }

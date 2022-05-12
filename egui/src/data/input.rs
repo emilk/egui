@@ -177,6 +177,8 @@ pub enum Event {
     /// The mouse or touch moved to a new place.
     PointerMoved(Pos2),
 
+    PointerMovedLocked(Vec2),
+
     /// A mouse button was pressed or released (or a touch started or stopped).
     PointerButton {
         /// Where is the pointer?

@@ -17,6 +17,33 @@ const MAX_CLICK_DURATION: f64 = 0.6; // TODO: move to settings
 /// The new pointer press must come within this many seconds from previous pointer release
 const MAX_DOUBLE_CLICK_DELAY: f64 = 0.3; // TODO: move to settings
 
+#[derive(Clone, Debug)]
+pub enum CursorLock {
+    PendingLock {
+        point_to_return: Pos2,
+    },
+    PendingUnLock {
+        point_to_return: Pos2,
+    },
+    Locked {
+        point_to_return: Pos2,
+        screen_center: Pos2,
+    },
+    Unlocked,
+}
+
+impl CursorLock {
+    pub fn is_locked(&self) -> Option<Pos2> {
+        match self {
+            CursorLock::Locked { screen_center, .. } => Some(*screen_center),
+            // we should not be in this state when this function calls
+            CursorLock::PendingLock { .. } => None,
+            CursorLock::PendingUnLock { .. } => None,
+            CursorLock::Unlocked => None,
+        }
+    }
+}
+
 /// Input state that egui updates each frame.
 ///
 /// You can check if `egui` is using the inputs using
@@ -25,6 +52,8 @@ const MAX_DOUBLE_CLICK_DELAY: f64 = 0.3; // TODO: move to settings
 pub struct InputState {
     /// The raw input we got this frame from the backend.
     pub raw: RawInput,
+
+    pub cursor_lock: CursorLock,
 
     /// State of the mouse or simple touch gestures which can be mapped to mouse operations.
     pub pointer: PointerState,
@@ -132,6 +161,7 @@ impl Default for InputState {
             modifiers: Default::default(),
             keys_down: Default::default(),
             events: Default::default(),
+            cursor_lock: CursorLock::Unlocked,
         }
     }
 }
@@ -194,6 +224,19 @@ impl InputState {
             keys_down,
             events: new.events.clone(), // TODO: remove clone() and use raw.events
             raw: new,
+            cursor_lock: self.cursor_lock,
+        }
+    }
+
+    pub fn lock_cursor(&mut self, val: bool, pos: Pos2) {
+        if val {
+            self.cursor_lock = CursorLock::PendingLock {
+                point_to_return: pos,
+            };
+        } else {
+            self.cursor_lock = CursorLock::PendingUnLock {
+                point_to_return: (pos),
+            };
         }
     }
 
@@ -513,6 +556,8 @@ impl PointerState {
         let old_pos = self.latest_pos;
         self.interact_pos = self.latest_pos;
 
+        let mut locked_delta_acc = Vec2::ZERO;
+
         for event in &new.events {
             match event {
                 Event::PointerMoved(pos) => {
@@ -528,6 +573,12 @@ impl PointerState {
 
                     self.pointer_events.push(PointerEvent::Moved(pos));
                 }
+
+                Event::PointerMovedLocked(pos) => {
+                    locked_delta_acc += *pos;
+                    // self.pointer_events.push(PointerEvent::Moved(pos));
+                }
+
                 Event::PointerButton {
                     pos,
                     button,
@@ -606,6 +657,8 @@ impl PointerState {
         } else {
             Vec2::ZERO
         };
+
+        self.delta += locked_delta_acc;
 
         if let Some(pos) = self.latest_pos {
             self.pos_history.add(time, pos);
@@ -832,6 +885,7 @@ impl InputState {
             modifiers,
             keys_down,
             events,
+            ..
         } = self;
 
         ui.style_mut()
