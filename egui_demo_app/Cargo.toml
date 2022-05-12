@@ -6,6 +6,7 @@ license = "MIT OR Apache-2.0"
 edition = "2021"
 rust-version = "1.60"
 publish = false
+default-run = "egui_demo_app"
 
 [package.metadata.docs.rs]
 all-features = true
