@@ -165,6 +165,7 @@ These are the official egui integrations:
 * [`eframe`](https://github.com/emilk/egui/tree/master/eframe) for compiling the same app to web/wasm and desktop/native. Uses `egui_glow` and `egui-winit`.
 * [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium) for compiling native apps with [Glium](https://github.com/glium/glium).
 * [`egui_glow`](https://github.com/emilk/egui/tree/master/egui_glow) for rendering egui with [glow](https://github.com/grovesNL/glow) on native and web, and for making native apps.
+* [`egui-wgpu`](https://github.com/emilk/egui/tree/master/egui-wgpu) for [wgpu](https://crates.io/crates/wgpu) (WebGPU API).
 * [`egui-winit`](https://github.com/emilk/egui/tree/master/egui-winit) for integrating with [winit](https://github.com/rust-windowing/winit).
 
 ### 3rd party integrations
@@ -174,7 +175,6 @@ These are the official egui integrations:
 * [`egui_glfw_gl`](https://github.com/cohaereo/egui_glfw_gl) for [GLFW](https://crates.io/crates/glfw).
 * [`egui_sdl2_gl`](https://crates.io/crates/egui_sdl2_gl) for [SDL2](https://crates.io/crates/sdl2).
 * [`egui_vulkano`](https://github.com/derivator/egui_vulkano) for [Vulkano](https://github.com/vulkano-rs/vulkano).
-* [`egui_wgpu_backend`](https://crates.io/crates/egui_wgpu_backend) for [wgpu](https://crates.io/crates/wgpu) (WebGPU API).
 * [`egui_winit_vulkano`](https://github.com/hakolao/egui_winit_vulkano) for [Vulkano](https://github.com/vulkano-rs/vulkano).
 * [`egui-macroquad`](https://github.com/optozorax/egui-macroquad) for [macroquad](https://github.com/not-fl3/macroquad).
 * [`egui-miniquad`](https://github.com/not-fl3/egui-miniquad) for [Miniquad](https://github.com/not-fl3/miniquad).

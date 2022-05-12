@@ -4,7 +4,7 @@ script_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 cd "$script_path/.."
 
 CRATE_NAME="egui_demo_app"
-FEATURES="http,persistence,screen_reader"
+FEATURES="glow,http,persistence,screen_reader"
 
 OPEN=false
 FAST=false

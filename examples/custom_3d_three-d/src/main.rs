@@ -6,6 +6,7 @@ fn main() {
     let options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(550.0, 610.0)),
         multisampling: 8,
+        renderer: eframe::Renderer::Glow,
         ..Default::default()
     };
     eframe::run_native(
