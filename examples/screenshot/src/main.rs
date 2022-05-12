@@ -28,7 +28,14 @@ impl eframe::App for MyApp {
                 self.texture = Some(ui.ctx().load_texture("screenshot", screenshot));
             }
 
-            ui.label("Screenshot:");
+            if ui
+                .add(egui::Label::new("Screenshot (hover me!):").sense(egui::Sense::hover()))
+                .hovered()
+            {
+                ctx.set_visuals(egui::Visuals::dark())
+            } else {
+                ctx.set_visuals(egui::Visuals::light())
+            };
             if let Some(texture) = self.texture.as_ref() {
                 ui.image(texture, texture.size_vec2());
             } else {
