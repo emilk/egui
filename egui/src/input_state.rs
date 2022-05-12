@@ -67,13 +67,42 @@ pub struct InputState {
 
     /// Time since last frame, in seconds.
     ///
-    /// This can be very unstable in reactive mode (when we don't paint each frame)
-    /// so it can be smart to use e.g. `unstable_dt.min(1.0 / 30.0)`.
+    /// This can be very unstable in reactive mode (when we don't paint each frame).
+    /// For animations it is therefore better to use [`Self::stable_dt`].
     pub unstable_dt: f32,
 
+    /// Estimated time until next frame (provided we repaint right away).
+    ///
     /// Used for animations to get instant feedback (avoid frame delay).
     /// Should be set to the expected time between frames when painting at vsync speeds.
+    ///
+    /// On most integrations this has a fixed value of `1.0 / 60.0`, so it is not a very accurate estimate.
     pub predicted_dt: f32,
+
+    /// Time since last frame (in seconds), but gracefully handles the first frame after sleeping in reactive mode.
+    ///
+    /// In reactive mode (available in e.g. `eframe`), `egui` only updates when there is new input
+    /// or something is animating.
+    /// This can lead to large gaps of time (sleep), leading to large [`Self::unstable_dt`].
+    ///
+    /// If `egui` requested a repaint the previous frame, then `egui` will use
+    /// `stable_dt = unstable_dt;`, but if `egui` did not not request a repaint last frame,
+    /// then `egui` will assume `unstable_dt` is too large, and will use
+    /// `stable_dt = predicted_dt;`.
+    ///
+    /// This means that for the first frame after a sleep,
+    /// `stable_dt` will be a prediction of the delta-time until the next frame,
+    /// and in all other situations this will be an accurate measurement of time passed
+    /// since the previous frame.
+    ///
+    /// Note that a frame can still stall for various reasons, so `stable_dt` can
+    /// still be unusually large in some situations.
+    ///
+    /// When animating something, it is recommended that you use something like
+    /// `stable_dt.min(0.1)` - this will give you smooth animations when the framerate is good
+    /// (even in reactive mode), but will avoid large jumps when framerate is bad,
+    /// and will effectively slow down the animation when FPS drops below 10.
+    pub stable_dt: f32,
 
     /// Which modifier keys are down at the start of the frame?
     pub modifiers: Modifiers,
@@ -97,8 +126,9 @@ impl Default for InputState {
             pixels_per_point: 1.0,
             max_texture_side: 2048,
             time: 0.0,
-            unstable_dt: 1.0 / 6.0,
-            predicted_dt: 1.0 / 6.0,
+            unstable_dt: 1.0 / 60.0,
+            predicted_dt: 1.0 / 60.0,
+            stable_dt: 1.0 / 60.0,
             modifiers: Default::default(),
             keys_down: Default::default(),
             events: Default::default(),
@@ -108,9 +138,18 @@ impl Default for InputState {
 
 impl InputState {
     #[must_use]
-    pub fn begin_frame(mut self, new: RawInput) -> InputState {
+    pub fn begin_frame(mut self, new: RawInput, requested_repaint_last_frame: bool) -> InputState {
         let time = new.time.unwrap_or(self.time + new.predicted_dt as f64);
         let unstable_dt = (time - self.time) as f32;
+
+        let stable_dt = if requested_repaint_last_frame {
+            // we should have had a repaint straight away,
+            // so this should be trustable.
+            unstable_dt
+        } else {
+            new.predicted_dt
+        };
+
         let screen_rect = new.screen_rect.unwrap_or(self.screen_rect);
         self.create_touch_states_for_new_devices(&new.events);
         for touch_state in self.touch_states.values_mut() {
@@ -150,6 +189,7 @@ impl InputState {
             time,
             unstable_dt,
             predicted_dt: new.predicted_dt,
+            stable_dt,
             modifiers: new.modifiers,
             keys_down,
             events: new.events.clone(), // TODO: remove clone() and use raw.events
@@ -788,6 +828,7 @@ impl InputState {
             time,
             unstable_dt,
             predicted_dt,
+            stable_dt,
             modifiers,
             keys_down,
             events,
@@ -830,6 +871,7 @@ impl InputState {
             1e3 * unstable_dt
         ));
         ui.label(format!("predicted_dt: {:.1} ms", 1e3 * predicted_dt));
+        ui.label(format!("stable_dt:    {:.1} ms", 1e3 * stable_dt));
         ui.label(format!("modifiers: {:#?}", modifiers));
         ui.label(format!("keys_down: {:?}", keys_down));
         ui.scope(|ui| {
