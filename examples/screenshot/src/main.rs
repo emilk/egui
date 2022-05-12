@@ -32,9 +32,9 @@ impl eframe::App for MyApp {
                 .add(egui::Label::new("Screenshot (hover me!):").sense(egui::Sense::hover()))
                 .hovered()
             {
-                ctx.set_visuals(egui::Visuals::dark())
+                ctx.set_visuals(egui::Visuals::dark());
             } else {
-                ctx.set_visuals(egui::Visuals::light())
+                ctx.set_visuals(egui::Visuals::light());
             };
             if let Some(texture) = self.texture.as_ref() {
                 ui.image(texture, texture.size_vec2());
@@ -48,32 +48,34 @@ impl eframe::App for MyApp {
 
     #[allow(unsafe_code)]
     fn post_rendering(&mut self, screen_size_px: [u32; 2], frame: &eframe::Frame) {
-        let mut buf = vec![0u8; screen_size_px[0] as usize * screen_size_px[1] as usize * 4];
-        let pixels = glow::PixelPackData::Slice(&mut buf[..]);
-        unsafe {
-            frame.gl().read_pixels(
-                0,
-                0,
-                screen_size_px[0] as i32,
-                screen_size_px[1] as i32,
-                glow::RGBA,
-                glow::UNSIGNED_BYTE,
-                pixels,
-            );
+        if let Some(gl) = frame.gl() {
+            let mut buf = vec![0u8; screen_size_px[0] as usize * screen_size_px[1] as usize * 4];
+            let pixels = glow::PixelPackData::Slice(&mut buf[..]);
+            unsafe {
+                gl.read_pixels(
+                    0,
+                    0,
+                    screen_size_px[0] as i32,
+                    screen_size_px[1] as i32,
+                    glow::RGBA,
+                    glow::UNSIGNED_BYTE,
+                    pixels,
+                );
+            }
+
+            let mut rows: Vec<Vec<u8>> = buf
+                .into_iter()
+                .chunks(screen_size_px[0] as usize * 4)
+                .into_iter()
+                .map(|chunk| chunk.collect())
+                .collect();
+            rows.reverse();
+            let buf: Vec<u8> = rows.into_iter().flatten().collect();
+
+            self.screenshot = Some(ColorImage::from_rgba_unmultiplied(
+                [screen_size_px[0] as usize, screen_size_px[1] as usize],
+                &buf[..],
+            ));
         }
-
-        let mut rows: Vec<Vec<u8>> = buf
-            .into_iter()
-            .chunks(screen_size_px[0] as usize * 4)
-            .into_iter()
-            .map(|chunk| chunk.collect())
-            .collect();
-        rows.reverse();
-        let buf: Vec<u8> = rows.into_iter().flatten().collect();
-
-        self.screenshot = Some(ColorImage::from_rgba_unmultiplied(
-            [screen_size_px[0] as usize, screen_size_px[1] as usize],
-            &buf[..],
-        ));
     }
 }
