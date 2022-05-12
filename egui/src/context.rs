@@ -50,13 +50,15 @@ struct ContextImpl {
     /// While positive, keep requesting repaints. Decrement at the end of each frame.
     repaint_requests: u32,
     request_repaint_callbacks: Option<Box<dyn Fn() + Send + Sync>>,
+    requested_repaint_last_frame: bool,
 }
 
 impl ContextImpl {
     fn begin_frame_mut(&mut self, new_raw_input: RawInput) {
         self.memory.begin_frame(&self.input, &new_raw_input);
 
-        self.input = std::mem::take(&mut self.input).begin_frame(new_raw_input);
+        self.input = std::mem::take(&mut self.input)
+            .begin_frame(new_raw_input, self.requested_repaint_last_frame);
 
         if let Some(new_pixels_per_point) = self.memory.new_pixels_per_point.take() {
             self.input.pixels_per_point = new_pixels_per_point;
@@ -803,6 +805,7 @@ impl Context {
         } else {
             false
         };
+        self.write().requested_repaint_last_frame = needs_repaint;
 
         let shapes = self.drain_paint_lists();
 
