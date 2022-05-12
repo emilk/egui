@@ -73,6 +73,7 @@ impl Shadow {
                 ..Default::default()
             },
             font_tex_size,
+            vec![],
         );
         let mut mesh = Mesh::default();
         tessellator.tessellate_rect(&rect, &mut mesh);

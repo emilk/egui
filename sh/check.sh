@@ -20,9 +20,11 @@ cargo fmt --all -- --check
 cargo doc -p eframe -p egui -p egui_demo_lib -p egui_extras -p egui_glium -p egui_glow -p egui-winit -p emath -p epaint --lib --no-deps --all-features
 cargo doc --document-private-items --no-deps --all-features
 
-(cd eframe && cargo check --no-default-features)
+(cd eframe && cargo check --no-default-features --features "glow")
+(cd eframe && cargo check --no-default-features --features "wgpu")
 (cd egui && cargo check --no-default-features --features "serde")
-(cd egui_demo_app && cargo check --no-default-features)
+(cd egui_demo_app && cargo check --no-default-features --features "glow")
+(cd egui_demo_app && cargo check --no-default-features --features "wgpu")
 (cd egui_demo_lib && cargo check --no-default-features)
 (cd egui_extras && cargo check --no-default-features)
 (cd egui_glium && cargo check --no-default-features)

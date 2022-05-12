@@ -5,6 +5,10 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 
 
 ## Unreleased
+* `egui_glow`: remove calls to `gl.get_error` in release builds to speed up rendering ([#1583](https://github.com/emilk/egui/pull/1583)).
+* Add `wgpu` rendering backed ([#1564](https://github.com/emilk/egui/pull/1564)):
+  * Add features "wgpu" and "glow"
+  * Add `NativeOptions::renderer` to switch between the rendering backends
 
 
 ## 0.18.0 - 2022-04-30

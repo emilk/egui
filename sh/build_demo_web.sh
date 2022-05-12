@@ -4,7 +4,7 @@ script_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 cd "$script_path/.."
 
 CRATE_NAME="egui_demo_app"
-FEATURES="http,persistence,screen_reader"
+FEATURES="glow,http,persistence,screen_reader"
 
 OPEN=false
 FAST=false
@@ -17,14 +17,19 @@ while test $# -gt 0; do
       echo "  --open: open the result in a browser"
       exit 0
       ;;
+
+    # Skip running `wasm-opt`.
+    # --fast also preserves debug symbols, which is great for profiling.
     --fast)
       shift
       FAST=true
       ;;
+
     --open)
       shift
       OPEN=true
       ;;
+
     *)
       break
       ;;

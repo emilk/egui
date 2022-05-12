@@ -96,7 +96,7 @@ impl Painter {
         shader_prefix: &str,
     ) -> Result<Painter, String> {
         crate::profile_function!();
-        check_for_gl_error!(&gl, "before Painter::new");
+        crate::check_for_gl_error_even_in_release!(&gl, "before Painter::new");
 
         let max_texture_side = unsafe { gl.get_parameter_i32(glow::MAX_TEXTURE_SIZE) } as usize;
 
@@ -204,7 +204,7 @@ impl Painter {
 
             let element_array_buffer = gl.create_buffer()?;
 
-            check_for_gl_error!(&gl, "after Painter::new");
+            crate::check_for_gl_error_even_in_release!(&gl, "after Painter::new");
 
             Ok(Painter {
                 gl,
@@ -649,6 +649,7 @@ impl Painter {
 }
 
 pub fn clear(gl: &glow::Context, screen_size_in_pixels: [u32; 2], clear_color: egui::Rgba) {
+    crate::profile_function!();
     unsafe {
         gl.disable(glow::SCISSOR_TEST);
 

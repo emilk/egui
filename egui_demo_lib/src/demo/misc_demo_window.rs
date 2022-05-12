@@ -158,6 +158,20 @@ impl View for MiscDemoWindow {
                     painter.line_segment([c, c + r * Vec2::angled(TAU * 3.0 / 8.0)], stroke);
                 });
             });
+
+        CollapsingHeader::new("Many circles of different sizes")
+            .default_open(false)
+            .show(ui, |ui| {
+                ui.horizontal_wrapped(|ui| {
+                    for i in 0..100 {
+                        let r = i as f32 * 0.5;
+                        let size = Vec2::splat(2.0 * r + 5.0);
+                        let (rect, _response) = ui.allocate_at_least(size, Sense::hover());
+                        ui.painter()
+                            .circle_filled(rect.center(), r, ui.visuals().text_color());
+                    }
+                });
+            });
     }
 }
 

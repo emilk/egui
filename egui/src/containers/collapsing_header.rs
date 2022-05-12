@@ -89,6 +89,15 @@ impl CollapsingState {
 
     /// Will toggle when clicked, etc.
     fn show_default_button_indented(&mut self, ui: &mut Ui) -> Response {
+        self.show_button_indented(ui, paint_default_icon)
+    }
+
+    /// Will toggle when clicked, etc.
+    fn show_button_indented(
+        &mut self,
+        ui: &mut Ui,
+        icon_fn: impl FnOnce(&mut Ui, f32, &Response) + 'static,
+    ) -> Response {
         let size = Vec2::new(ui.spacing().indent, ui.spacing().icon_width);
         let (_id, rect) = ui.allocate_space(size);
         let response = ui.interact(rect, self.id, Sense::click());
@@ -106,7 +115,7 @@ impl CollapsingState {
             rect: icon_rect,
             ..response.clone()
         };
-        paint_default_icon(ui, openness, &small_icon_response);
+        icon_fn(ui, openness, &small_icon_response);
         response
     }
 
@@ -216,6 +225,37 @@ impl CollapsingState {
             self.store(ui.ctx()); // remember the height
             Some(ret_response)
         }
+    }
+
+    /// Paint this [CollapsingState](CollapsingState)'s toggle button. Takes an [IconPainter](IconPainter) as the icon.
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// fn circle_icon(ui: &mut egui::Ui, openness: f32, response: &egui::Response) {
+    ///     let stroke = ui.style().interact(&response).fg_stroke;
+    ///     let radius = egui::lerp(2.0..=3.0, openness);
+    ///     ui.painter().circle_filled(response.rect.center(), radius, stroke.color);
+    /// }
+    ///
+    /// let mut state = egui::collapsing_header::CollapsingState::load_with_default_open(
+    ///     ui.ctx(),
+    ///     ui.make_persistent_id("my_collapsing_state"),
+    ///     false,
+    /// );
+    ///
+    /// let header_res = ui.horizontal(|ui| {
+    ///     ui.label("Header");
+    ///     state.show_toggle_button(ui, circle_icon);
+    /// });
+    ///
+    /// state.show_body_indented(&header_res.response, ui, |ui| ui.label("Body"));
+    /// # });
+    /// ```
+    pub fn show_toggle_button(
+        &mut self,
+        ui: &mut Ui,
+        icon_fn: impl FnOnce(&mut Ui, f32, &Response) + 'static,
+    ) -> Response {
+        self.show_button_indented(ui, icon_fn)
     }
 }
 

@@ -28,6 +28,7 @@ pub fn window_builder(
         multisampling: _,  // used in `fn create_display`
         depth_buffer: _,   // used in `fn create_display`
         stencil_buffer: _, // used in `fn create_display`
+        renderer: _,       // used in `fn run_native`
     } = native_options;
 
     let window_icon = icon_data.clone().and_then(load_icon);
@@ -159,10 +160,10 @@ pub struct EpiIntegration {
 
 impl EpiIntegration {
     pub fn new(
-        gl: std::rc::Rc<glow::Context>,
         max_texture_side: usize,
         window: &winit::window::Window,
         storage: Option<Box<dyn epi::Storage>>,
+        #[cfg(feature = "glow")] gl: Option<std::rc::Rc<glow::Context>>,
     ) -> Self {
         let egui_ctx = egui::Context::default();
 
@@ -179,6 +180,7 @@ impl EpiIntegration {
             },
             output: Default::default(),
             storage,
+            #[cfg(feature = "glow")]
             gl,
         };
 

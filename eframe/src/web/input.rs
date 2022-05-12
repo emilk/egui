@@ -14,6 +14,8 @@ pub fn button_from_mouse_event(event: &web_sys::MouseEvent) -> Option<egui::Poin
         0 => Some(egui::PointerButton::Primary),
         1 => Some(egui::PointerButton::Middle),
         2 => Some(egui::PointerButton::Secondary),
+        3 => Some(egui::PointerButton::Extra1),
+        4 => Some(egui::PointerButton::Extra2),
         _ => None,
     }
 }
