@@ -139,13 +139,6 @@ impl PlotBounds {
         self.expand_y(margin_fraction.y as f64 * height);
     }
 
-    pub(crate) fn add_relative_margin(&mut self, margin_fraction: Vec2) {
-        let width = self.width().max(0.0);
-        let height = self.height().max(0.0);
-        self.expand_x(margin_fraction.x as f64 * width);
-        self.expand_y(margin_fraction.y as f64 * height);
-    }
-
     pub(crate) fn range_x(&self) -> RangeInclusive<f64> {
         self.min[0]..=self.max[0]
     }
