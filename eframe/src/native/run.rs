@@ -120,7 +120,7 @@ pub fn run_glow(
                 &textures_delta,
             );
 
-            integration.post_rendering(app.as_mut());
+            integration.post_rendering(app.as_mut(), window);
 
             {
                 crate::profile_scope!("swap_buffers");

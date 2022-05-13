@@ -140,7 +140,7 @@ pub trait App {
     /// Called each time after the rendering the UI.
     ///
     /// Can be used to access pixel data with `get_pixels`
-    fn post_rendering(&mut self, _screen_size_px: [u32; 2], _frame: &Frame) {}
+    fn post_rendering(&mut self, _window_size_px: [u32; 2], _frame: &Frame) {}
 }
 
 /// Options controlling the behavior of a native window.
