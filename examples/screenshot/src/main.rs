@@ -17,6 +17,8 @@ fn main() {
 
 #[derive(Default)]
 struct MyApp {
+    continuously_take_screenshots: bool,
+    take_screenshot: bool,
     texture: Option<egui::TextureHandle>,
     screenshot: Option<ColorImage>,
 }
@@ -28,14 +30,28 @@ impl eframe::App for MyApp {
                 self.texture = Some(ui.ctx().load_texture("screenshot", screenshot));
             }
 
-            if ui
-                .add(egui::Label::new("Screenshot (hover me!):").sense(egui::Sense::hover()))
-                .hovered()
-            {
-                ctx.set_visuals(egui::Visuals::dark());
-            } else {
-                ctx.set_visuals(egui::Visuals::light());
-            };
+            ui.horizontal(|ui| {
+                ui.checkbox(
+                    &mut self.continuously_take_screenshots,
+                    "continuously take screenshots",
+                );
+
+                ui.with_layout(egui::Layout::top_down(egui::Align::RIGHT), |ui| {
+                    if self.continuously_take_screenshots {
+                        if ui
+                            .add(egui::Label::new("hover me!").sense(egui::Sense::hover()))
+                            .hovered()
+                        {
+                            ctx.set_visuals(egui::Visuals::dark());
+                        } else {
+                            ctx.set_visuals(egui::Visuals::light());
+                        };
+                    } else if ui.button("take screenshot!").clicked() {
+                        self.take_screenshot = true;
+                    }
+                });
+            });
+
             if let Some(texture) = self.texture.as_ref() {
                 ui.image(texture, ui.available_size());
             } else {
@@ -48,6 +64,11 @@ impl eframe::App for MyApp {
 
     #[allow(unsafe_code)]
     fn post_rendering(&mut self, screen_size_px: [u32; 2], frame: &eframe::Frame) {
+        if !self.take_screenshot && !self.continuously_take_screenshots {
+            return;
+        }
+
+        self.take_screenshot = false;
         if let Some(gl) = frame.gl() {
             let mut buf = vec![0u8; screen_size_px[0] as usize * screen_size_px[1] as usize * 4];
             let pixels = glow::PixelPackData::Slice(&mut buf[..]);
