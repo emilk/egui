@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use eframe::egui_glow;
 use egui::mutex::Mutex;
 use egui_glow::glow;
 
@@ -39,8 +40,10 @@ impl eframe::App for Custom3d {
         });
     }
 
-    fn on_exit(&mut self, gl: &glow::Context) {
-        self.rotating_triangle.lock().destroy(gl);
+    fn on_exit(&mut self, gl: Option<&glow::Context>) {
+        if let Some(gl) = gl {
+            self.rotating_triangle.lock().destroy(gl);
+        }
     }
 }
 

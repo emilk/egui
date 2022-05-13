@@ -394,6 +394,12 @@ impl Fonts {
         self.lock().fonts.max_texture_side
     }
 
+    /// The font atlas.
+    /// Pass this to [`crate::Tessellator`].
+    pub fn texture_atlas(&self) -> Arc<Mutex<TextureAtlas>> {
+        self.lock().fonts.atlas.clone()
+    }
+
     /// Current size of the font image.
     /// Pass this to [`crate::Tessellator`].
     pub fn font_image_size(&self) -> [usize; 2] {
@@ -535,14 +541,7 @@ impl FontsImpl {
 
         let texture_width = max_texture_side.at_most(8 * 1024);
         let initial_height = 64;
-        let mut atlas = TextureAtlas::new([texture_width, initial_height]);
-
-        {
-            // Make the top left pixel fully white:
-            let (pos, image) = atlas.allocate((1, 1));
-            assert_eq!(pos, (0, 0));
-            image[pos] = 1.0;
-        }
+        let atlas = TextureAtlas::new([texture_width, initial_height]);
 
         let atlas = Arc::new(Mutex::new(atlas));
 

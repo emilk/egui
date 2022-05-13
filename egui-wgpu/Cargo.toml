@@ -1,0 +1,37 @@
+[package]
+name = "egui-wgpu"
+version = "0.18.0"
+description = "Bindings for using egui natively using the wgpu library"
+authors = [
+    "Nils Hasenbanck <nils@hasenbanck.de>",
+    "embotech <opensource@embotech.com>",
+    "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",
+]
+edition = "2021"
+rust-version = "1.60"
+homepage = "https://github.com/emilk/egui/tree/master/egui-wgpu"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/emilk/egui/tree/master/egui-wgpu"
+categories = ["gui", "game-development"]
+keywords = ["wgpu", "egui", "gui", "gamedev"]
+include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
+
+
+[features]
+# Make it easy to create bindings for winit.
+winit = ["dep:pollster", "dep:winit"]
+
+
+[dependencies]
+egui = { version = "0.18.1", path = "../egui", default-features = false, features = [
+    "bytemuck",
+] }
+
+bytemuck = "1.7"
+tracing = "0.1"
+wgpu = { version = "0.12", features = ["webgl"] }
+
+# Optional:
+pollster = { version = "0.2", optional = true }
+winit = { version = "0.26", optional = true }

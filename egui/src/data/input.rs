@@ -254,10 +254,14 @@ pub enum PointerButton {
     Secondary = 1,
     /// The tertiary mouse button is usually the middle mouse button (e.g. clicking the scroll wheel).
     Middle = 2,
+    /// The first extra mouse button on some mice. In web typically corresponds to the Browser back button.
+    Extra1 = 3,
+    /// The second extra mouse button on some mice. In web typically corresponds to the Browser forward button.
+    Extra2 = 4,
 }
 
 /// Number of pointer buttons supported by egui, i.e. the number of possible states of [`PointerButton`].
-pub const NUM_POINTER_BUTTONS: usize = 3;
+pub const NUM_POINTER_BUTTONS: usize = 5;
 
 /// State of the modifier keys. These must be fed to egui.
 ///

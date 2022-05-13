@@ -56,7 +56,10 @@
 #![allow(clippy::needless_doctest_main)]
 
 // Re-export all useful libraries:
-pub use {egui, egui::emath, egui::epaint, glow};
+pub use {egui, egui::emath, egui::epaint};
+
+#[cfg(feature = "glow")]
+pub use {egui_glow, glow};
 
 mod epi;
 
@@ -142,7 +145,21 @@ mod native;
 #[cfg(not(target_arch = "wasm32"))]
 #[allow(clippy::needless_pass_by_value)]
 pub fn run_native(app_name: &str, native_options: NativeOptions, app_creator: AppCreator) -> ! {
-    native::run(app_name, &native_options, app_creator)
+    let renderer = native_options.renderer;
+
+    match renderer {
+        #[cfg(feature = "glow")]
+        Renderer::Glow => {
+            tracing::debug!("Using the glow renderer");
+            native::run::run_glow(app_name, &native_options, app_creator)
+        }
+
+        #[cfg(feature = "wgpu")]
+        Renderer::Wgpu => {
+            tracing::debug!("Using the wgpu renderer");
+            native::run::run_wgpu(app_name, &native_options, app_creator)
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
