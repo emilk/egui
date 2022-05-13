@@ -37,7 +37,7 @@ impl eframe::App for MyApp {
                 ctx.set_visuals(egui::Visuals::light());
             };
             if let Some(texture) = self.texture.as_ref() {
-                ui.image(texture, texture.size_vec2());
+                ui.image(texture, ui.available_size());
             } else {
                 ui.spinner();
             }
