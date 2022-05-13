@@ -542,6 +542,8 @@ fn translate_mouse_button(button: winit::event::MouseButton) -> Option<egui::Poi
         winit::event::MouseButton::Left => Some(egui::PointerButton::Primary),
         winit::event::MouseButton::Right => Some(egui::PointerButton::Secondary),
         winit::event::MouseButton::Middle => Some(egui::PointerButton::Middle),
+        winit::event::MouseButton::Other(1) => Some(egui::PointerButton::Extra1),
+        winit::event::MouseButton::Other(2) => Some(egui::PointerButton::Extra2),
         winit::event::MouseButton::Other(_) => None,
     }
 }

@@ -3,6 +3,9 @@ All notable changes to the `egui_glow` integration will be noted in this file.
 
 
 ## Unreleased
+
+
+## 0.18.1 - 2022-05-05
 * Remove calls to `gl.get_error` in release builds to speed up rendering ([#1583](https://github.com/emilk/egui/pull/1583)).
 
 

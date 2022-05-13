@@ -3,6 +3,7 @@ All notable changes to the epaint crate will be documented in this file.
 
 
 ## Unreleased
+* Optimize tessellation of filled circles by 10x or more ([#1616](https://github.com/emilk/egui/pull/1616)).
 
 
 ## 0.18.1 - 2022-05-01

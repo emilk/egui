@@ -6,6 +6,7 @@ license = "MIT OR Apache-2.0"
 edition = "2021"
 rust-version = "1.60"
 publish = false
+default-run = "egui_demo_app"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -15,7 +16,7 @@ crate-type = ["cdylib", "rlib"]
 
 
 [features]
-default = ["persistence"]
+default = ["glow", "persistence"]
 
 http = ["ehttp", "image", "poll-promise", "egui_extras/image"]
 persistence = [
@@ -32,13 +33,15 @@ serde = [
 ]
 syntax_highlighting = ["egui_demo_lib/syntax_highlighting"]
 
+glow = ["eframe/glow"]
+wgpu = ["eframe/wgpu"]
+
 
 [dependencies]
 chrono = { version = "0.4", features = ["js-sys", "wasmbind"] }
-eframe = { version = "0.18.0", path = "../eframe" }
+eframe = { version = "0.18.0", path = "../eframe", default-features = false }
 egui = { version = "0.18.0", path = "../egui", features = ["extra_debug_asserts"] }
 egui_demo_lib = { version = "0.18.0", path = "../egui_demo_lib", features = ["chrono"] }
-egui_glow = { version = "0.18.0", path = "../egui_glow" }
 
 # Optional dependencies:
 
