@@ -10,6 +10,7 @@ fn main() {
     let options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(350.0, 380.0)),
         multisampling: 8,
+        renderer: eframe::Renderer::Glow,
         ..Default::default()
     };
     eframe::run_native(
@@ -27,8 +28,12 @@ struct MyApp {
 
 impl MyApp {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        let gl = cc
+            .gl
+            .as_ref()
+            .expect("You need to run eframe with the glow backend");
         Self {
-            rotating_triangle: Arc::new(Mutex::new(RotatingTriangle::new(&cc.gl))),
+            rotating_triangle: Arc::new(Mutex::new(RotatingTriangle::new(gl))),
             angle: 0.0,
         }
     }
@@ -51,8 +56,10 @@ impl eframe::App for MyApp {
         });
     }
 
-    fn on_exit(&mut self, gl: &glow::Context) {
-        self.rotating_triangle.lock().destroy(gl);
+    fn on_exit(&mut self, gl: Option<&glow::Context>) {
+        if let Some(gl) = gl {
+            self.rotating_triangle.lock().destroy(gl);
+        }
     }
 }
 

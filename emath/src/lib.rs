@@ -255,9 +255,20 @@ macro_rules! impl_num_ext {
     };
 }
 
+impl_num_ext!(u8);
+impl_num_ext!(u16);
+impl_num_ext!(u32);
+impl_num_ext!(u64);
+impl_num_ext!(u128);
+impl_num_ext!(usize);
+impl_num_ext!(i8);
+impl_num_ext!(i16);
+impl_num_ext!(i32);
+impl_num_ext!(i64);
+impl_num_ext!(i128);
+impl_num_ext!(isize);
 impl_num_ext!(f32);
 impl_num_ext!(f64);
-impl_num_ext!(usize);
 impl_num_ext!(Vec2);
 impl_num_ext!(Pos2);
 

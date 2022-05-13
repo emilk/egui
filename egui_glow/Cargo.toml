@@ -1,6 +1,6 @@
 [package]
 name = "egui_glow"
-version = "0.18.0"
+version = "0.18.1"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui natively using the glow library"
 edition = "2021"

@@ -2,6 +2,13 @@ use std::ops::RangeInclusive;
 
 use crate::*;
 
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct TooltipRect {
+    pub id: Id,
+    pub rect: Rect,
+    pub count: usize,
+}
+
 /// State that is collected during a frame and then cleared.
 /// Short-term (single frame) memory.
 #[derive(Clone)]
@@ -25,7 +32,7 @@ pub(crate) struct FrameState {
     /// If a tooltip has been shown this frame, where was it?
     /// This is used to prevent multiple tooltips to cover each other.
     /// Initialized to `None` at the start of each frame.
-    pub(crate) tooltip_rect: Option<(Id, Rect, usize)>,
+    pub(crate) tooltip_rect: Option<TooltipRect>,
 
     /// Set to [`InputState::scroll_delta`] on the start of each frame.
     ///

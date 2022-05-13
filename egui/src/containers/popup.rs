@@ -160,13 +160,13 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
     let mut tooltip_rect = Rect::NOTHING;
     let mut count = 0;
 
-    let mut position = if let Some((stored_id, stored_tooltip_rect, stored_count)) =
-        ctx.frame_state().tooltip_rect
-    {
+    let stored = ctx.frame_state().tooltip_rect;
+
+    let mut position = if let Some(stored) = stored {
         // if there are multiple tooltips open they should use the same id for the `tooltip_size` caching to work.
-        id = stored_id;
-        tooltip_rect = stored_tooltip_rect;
-        count = stored_count;
+        id = stored.id;
+        tooltip_rect = stored.rect;
+        count = stored.count;
         avoid_rect = avoid_rect.union(tooltip_rect);
         if above {
             tooltip_rect.left_top()
@@ -214,7 +214,11 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
     state.set_tooltip_size(id, count, response.rect.size());
     state.store(ctx);
 
-    ctx.frame_state().tooltip_rect = Some((id, tooltip_rect.union(response.rect), count + 1));
+    ctx.frame_state().tooltip_rect = Some(crate::frame_state::TooltipRect {
+        id,
+        rect: tooltip_rect.union(response.rect),
+        count: count + 1,
+    });
     Some(inner)
 }
 
