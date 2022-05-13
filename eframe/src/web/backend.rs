@@ -152,6 +152,7 @@ impl AppRunner {
             prefer_dark_mode,
             cpu_usage: None,
             native_pixels_per_point: Some(native_pixels_per_point()),
+            window_info: None,
         };
         let storage = LocalStorage::default();
 
