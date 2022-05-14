@@ -186,6 +186,12 @@ impl Color32 {
     }
 }
 
+/// Construct a [`Color32`] from a hex RGB or RGBA string.
+///
+/// ```ignore
+/// assert_eq!(hex_color!("#202122"), Color32::from_rgb(0x20, 0x21, 0x22));
+/// assert_eq!(hex_color!("#abcdef12"), Color32::from_rgba_unmultiplied(0xab, 0xcd, 0xef, 0x12));
+/// ```
 #[macro_export]
 macro_rules! hex_color {
     ($s:literal) => {{
