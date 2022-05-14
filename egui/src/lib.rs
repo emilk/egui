@@ -358,7 +358,7 @@ pub use {
     layout::*,
     memory::Memory,
     painter::Painter,
-    response::{InnerResponse, RawResponse, Response},
+    response::{InnerResponse, Response},
     sense::Sense,
     style::{FontSelection, Style, TextStyle, Visuals},
     text::{Galley, TextFormat},

@@ -271,7 +271,7 @@ impl Context {
         rect: Rect,
         sense: Sense,
         enabled: bool,
-    ) -> Response<'_> {
+    ) -> Response {
         let gap = 0.5; // Just to make sure we don't accidentally hover two things at once (a small eps should be sufficient).
 
         // Make it easier to click things:
@@ -293,8 +293,29 @@ impl Context {
         sense: Sense,
         enabled: bool,
         hovered: bool,
-    ) -> Response<'_> {
+    ) -> Response {
         let hovered = hovered && enabled; // can't even hover disabled widgets
+
+        let clicked_elsewhere = {
+            // Catch all clicks within our frame, even if we aren't clickable (or even enabled).
+            // This is important for windows and such that should close then the user clicks elsewhere.
+
+            if self.input.pointer.any_click() {
+                // We detect clicks/hover on a "interact_rect" that is slightly larger than
+                // self.rect. See Context::interact.
+                // This means we can be hovered and clicked even though `!self.rect.contains(pos)` is true,
+                // hence the extra complexity here.
+                if hovered {
+                    false
+                } else if let Some(pos) = self.input.pointer.interact_pos() {
+                    !rect.contains(pos)
+                } else {
+                    false // clicked without a pointer, weird
+                }
+            } else {
+                false
+            }
+        };
 
         let mut response = Response {
             layer_id,
@@ -311,53 +332,51 @@ impl Context {
             is_pointer_button_down_on: false,
             interact_pointer_pos: None,
             changed: false, // must be set by the widget itself
+            has_focus: self.memory.has_focus(id),
+            lost_focus: self.memory.lost_focus(id),
+            gained_focus: self.memory.gained_focus(id),
         };
 
         if !enabled || !sense.focusable || !layer_id.allow_interaction() {
             // Not interested or allowed input:
-            self.memory().surrender_focus(id);
+            self.memory.surrender_focus(id);
             return response;
         }
 
         self.check_for_id_clash(id, rect, "widget");
 
-        let clicked_elsewhere = response.clicked_elsewhere();
-        let ctx_impl = &mut *self.write();
-        let memory = &mut ctx_impl.memory;
-        let input = &mut ctx_impl.input;
-
         // We only want to focus labels if the screen reader is on.
         let interested_in_focus =
-            sense.interactive() || sense.focusable && memory.options.screen_reader;
+            sense.interactive() || sense.focusable && self.memory.options.screen_reader;
 
         if interested_in_focus {
-            memory.interested_in_focus(id);
+            self.memory.interested_in_focus(id);
         }
 
         if sense.click
-            && memory.has_focus(response.id)
-            && (input.key_pressed(Key::Space) || input.key_pressed(Key::Enter))
+            && self.memory.has_focus(response.id)
+            && (self.input.key_pressed(Key::Space) || self.input.key_pressed(Key::Enter))
         {
             // Space/enter works like a primary click for e.g. selected buttons
             response.clicked[PointerButton::Primary as usize] = true;
         }
 
         if sense.click || sense.drag {
-            memory.interaction.click_interest |= hovered && sense.click;
-            memory.interaction.drag_interest |= hovered && sense.drag;
+            self.memory.interaction.click_interest |= hovered && sense.click;
+            self.memory.interaction.drag_interest |= hovered && sense.drag;
 
-            response.dragged = memory.interaction.drag_id == Some(id);
+            response.dragged = self.memory.interaction.drag_id == Some(id);
             response.is_pointer_button_down_on =
-                memory.interaction.click_id == Some(id) || response.dragged;
+                self.memory.interaction.click_id == Some(id) || response.dragged;
 
-            for pointer_event in &input.pointer.pointer_events {
+            for pointer_event in &self.input.pointer.pointer_events {
                 match pointer_event {
                     PointerEvent::Moved(_) => {}
                     PointerEvent::Pressed { .. } => {
                         if hovered {
-                            if sense.click && memory.interaction.click_id.is_none() {
+                            if sense.click && self.memory.interaction.click_id.is_none() {
                                 // potential start of a click
-                                memory.interaction.click_id = Some(id);
+                                self.memory.interaction.click_id = Some(id);
                                 response.is_pointer_button_down_on = true;
                             }
 
@@ -367,13 +386,13 @@ impl Context {
                             // This is needed because we do window interaction first (to prevent frame delay),
                             // and then do content layout.
                             if sense.drag
-                                && (memory.interaction.drag_id.is_none()
-                                    || memory.interaction.drag_is_window)
+                                && (self.memory.interaction.drag_id.is_none()
+                                    || self.memory.interaction.drag_is_window)
                             {
                                 // potential start of a drag
-                                memory.interaction.drag_id = Some(id);
-                                memory.interaction.drag_is_window = false;
-                                memory.window_interaction = None; // HACK: stop moving windows (if any)
+                                self.memory.interaction.drag_id = Some(id);
+                                self.memory.interaction.drag_is_window = false;
+                                self.memory.window_interaction = None; // HACK: stop moving windows (if any)
                                 response.is_pointer_button_down_on = true;
                                 response.dragged = true;
                             }
@@ -399,20 +418,20 @@ impl Context {
         }
 
         if response.is_pointer_button_down_on {
-            response.interact_pointer_pos = input.pointer.interact_pos();
+            response.interact_pointer_pos = self.input.pointer.interact_pos();
         }
 
-        if input.pointer.any_down() {
+        if self.input.pointer.any_down() {
             response.hovered &= response.is_pointer_button_down_on; // we don't hover widgets while interacting with *other* widgets
         }
 
-        if memory.has_focus(response.id) && clicked_elsewhere {
-            memory.surrender_focus(id);
+        if self.memory.has_focus(response.id) && clicked_elsewhere {
+            self.memory.surrender_focus(id);
         }
 
-        if response.dragged() && !memory.has_focus(response.id) {
+        if response.dragged() && !self.memory.has_focus(response.id) {
             // e.g.: remove focus from a widget when you drag something else
-            memory.stop_text_input();
+            self.memory.stop_text_self.input();
         }
 
         response

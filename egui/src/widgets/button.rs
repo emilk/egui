@@ -123,7 +123,7 @@ impl Button {
 }
 
 impl Widget for Button {
-    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response<'c> {
+    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response {
         let Button {
             text,
             wrap,
@@ -232,7 +232,7 @@ impl<'a> Checkbox<'a> {
 }
 
 impl<'a> Widget for Checkbox<'a> {
-    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response<'c> {
+    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response {
         let Checkbox { checked, text } = self;
 
         let spacing = &ui.spacing();
@@ -341,7 +341,7 @@ impl RadioButton {
 }
 
 impl Widget for RadioButton {
-    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response<'c> {
+    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response {
         let RadioButton { checked, text } = self;
 
         let spacing = &ui.spacing();
@@ -467,7 +467,7 @@ impl ImageButton {
 }
 
 impl Widget for ImageButton {
-    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response<'c> {
+    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response {
         let Self {
             image,
             sense,

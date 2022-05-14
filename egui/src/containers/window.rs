@@ -238,7 +238,7 @@ impl<'open> Window<'open> {
         self,
         ctx: &'c mut Context,
         add_contents: impl FnOnce(&mut Ui<'_>) -> R,
-    ) -> Option<InnerResponse<'c, Option<R>>> {
+    ) -> Option<InnerResponse<Option<R>>> {
         self.show_dyn(ctx, Box::new(add_contents))
     }
 
@@ -246,7 +246,7 @@ impl<'open> Window<'open> {
         self,
         ctx: &'c mut Context,
         add_contents: Box<dyn FnOnce(&mut Ui<'_>) -> R + 'a>,
-    ) -> Option<InnerResponse<'c, Option<R>>> {
+    ) -> Option<InnerResponse<Option<R>>> {
         let Window {
             title,
             open,
@@ -358,7 +358,7 @@ impl<'open> Window<'open> {
                 })
                 .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
 
-            let outer_rect = frame.end(&mut area_content_ui).rect;
+            let outer_rect = *frame.end(&mut area_content_ui).rect();
             paint_resize_corner(&mut area_content_ui, &possible, outer_rect, frame_stroke);
 
             // END FRAME --------------------------------
@@ -477,15 +477,15 @@ pub(crate) struct WindowInteraction {
 }
 
 impl WindowInteraction {
-    pub fn set_cursor(&self, ctx: &Context) {
+    pub fn set_cursor(&self, ctx: &mut Context) {
         if (self.left && self.top) || (self.right && self.bottom) {
-            ctx.output().cursor_icon = CursorIcon::ResizeNwSe;
+            ctx.output_mut().cursor_icon = CursorIcon::ResizeNwSe;
         } else if (self.right && self.top) || (self.left && self.bottom) {
-            ctx.output().cursor_icon = CursorIcon::ResizeNeSw;
+            ctx.output_mut().cursor_icon = CursorIcon::ResizeNeSw;
         } else if self.left || self.right {
-            ctx.output().cursor_icon = CursorIcon::ResizeHorizontal;
+            ctx.output_mut().cursor_icon = CursorIcon::ResizeHorizontal;
         } else if self.bottom || self.top {
-            ctx.output().cursor_icon = CursorIcon::ResizeVertical;
+            ctx.output_mut().cursor_icon = CursorIcon::ResizeVertical;
         }
     }
 
@@ -814,7 +814,7 @@ fn show_title_bar(
     });
 
     let title_bar = inner_response.inner;
-    let rect = inner_response.response.rect;
+    let rect = *inner_response.response.rect();
 
     TitleBar { rect, ..title_bar }
 }
@@ -838,14 +838,14 @@ impl TitleBar {
         mut self,
         ui: &mut Ui<'_>,
         outer_rect: Rect,
-        content_response: &Option<Response<'_>>,
+        content_response: &Option<Response>,
         open: Option<&mut bool>,
         collapsing: &mut CollapsingState,
         collapsible: bool,
     ) {
         if let Some(content_response) = &content_response {
             // Now we know how large we got to be:
-            self.rect.max.x = self.rect.max.x.max(content_response.rect.max.x);
+            self.rect.max.x = self.rect.max.x.max(content_response.rect().max.x);
         }
 
         if let Some(open) = open {
@@ -868,7 +868,7 @@ impl TitleBar {
 
         if let Some(content_response) = &content_response {
             // paint separator between title and content:
-            let y = content_response.rect.top() + ui.spacing().item_spacing.y * 0.5;
+            let y = content_response.rect().top() + ui.spacing().item_spacing.y * 0.5;
             // let y = lerp(self.rect.bottom()..=content_response.rect.top(), 0.5);
             let stroke = ui.visuals().widgets.noninteractive.bg_stroke;
             ui.painter_mut().hline(outer_rect.x_range(), y, stroke);
@@ -888,7 +888,7 @@ impl TitleBar {
     ///
     /// The button is square and its size is determined by the
     /// [`crate::style::Spacing::icon_width`] setting.
-    fn close_button_ui<'c>(&self, ui: &mut Ui<'c>) -> Response<'c> {
+    fn close_button_ui<'c>(&self, ui: &mut Ui<'c>) -> Response {
         let button_size = Vec2::splat(ui.spacing().icon_width);
         let pad = (self.rect.height() - button_size.y) / 2.0; // calculated so that the icon is on the diagonal (if window padding is symmetrical)
         let button_rect = Rect::from_min_size(
@@ -913,10 +913,10 @@ impl TitleBar {
 /// - `rect`: The rectangular area to fit the button in
 ///
 /// Returns the result of a click on a button if it was pressed
-fn close_button<'c>(ui: &mut Ui<'c>, rect: Rect) -> Response<'c> {
+fn close_button<'c>(ui: &mut Ui<'c>, rect: Rect) -> Response {
     let close_id = ui.auto_id_with("window_close_button");
     let response = ui.interact(rect, close_id, Sense::click());
-    ui.expand_to_include_rect(response.rect);
+    ui.expand_to_include_rect(response.rect());
 
     let visuals = ui.style().interact(&response);
     let rect = rect.shrink(2.0).expand(visuals.expansion);

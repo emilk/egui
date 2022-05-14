@@ -51,7 +51,7 @@ impl Separator {
 }
 
 impl Widget for Separator {
-    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response<'c> {
+    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response {
         let Separator {
             spacing,
             is_horizontal_line,

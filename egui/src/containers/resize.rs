@@ -158,7 +158,7 @@ impl Resize {
 struct Prepared<'c> {
     id: Id,
     state: State,
-    corner_response: Option<RawResponse>,
+    corner_response: Option<Response>,
     content_ui: Ui<'c>,
 }
 
@@ -204,7 +204,7 @@ impl Resize {
 
             if let Some(pointer_pos) = corner_response.interact_pointer_pos() {
                 user_requested_size =
-                    Some(pointer_pos - position + 0.5 * corner_response.rect.size());
+                    Some(pointer_pos - position + 0.5 * corner_response.rect().size());
             }
 
             Some(corner_response)
@@ -303,11 +303,11 @@ impl Resize {
             paint_resize_corner(ui, &corner_response);
 
             if corner_response.hovered() || corner_response.dragged() {
-                ui.ctx().output().cursor_icon = CursorIcon::ResizeNwSe;
+                ui.ctx_mut().output_mut().cursor_icon = CursorIcon::ResizeNwSe;
             }
         }
 
-        state.store(ui.ctx(), id);
+        state.store(ui.ctx_mut(), id);
 
         if ui.ctx().style().debug.show_resize {
             ui.ctx().debug_painter().debug_rect(
@@ -326,9 +326,9 @@ impl Resize {
 
 use epaint::Stroke;
 
-pub fn paint_resize_corner(ui: &mut Ui<'_>, response: &Response<'_>) {
+pub fn paint_resize_corner(ui: &mut Ui<'_>, response: &Response) {
     let stroke = ui.style().interact(response).fg_stroke;
-    paint_resize_corner_with_style(ui, &response.rect, stroke, Align2::RIGHT_BOTTOM);
+    paint_resize_corner_with_style(ui, response.rect(), stroke, Align2::RIGHT_BOTTOM);
 }
 
 pub fn paint_resize_corner_with_style(

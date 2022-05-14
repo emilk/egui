@@ -339,7 +339,7 @@ impl Grid {
         self,
         ui: &mut Ui<'c>,
         add_contents: impl FnOnce(&mut Ui<'_>) -> R,
-    ) -> InnerResponse<'c, R> {
+    ) -> InnerResponse<R> {
         self.show_dyn(ui, Box::new(add_contents))
     }
 
@@ -347,7 +347,7 @@ impl Grid {
         self,
         ui: &mut Ui<'c>,
         add_contents: Box<dyn FnOnce(&mut Ui<'_>) -> R + 'a>,
-    ) -> InnerResponse<'c, R> {
+    ) -> InnerResponse<R> {
         let Self {
             id_source,
             num_columns,

@@ -82,7 +82,7 @@ impl LegendEntry {
         }
     }
 
-    fn ui<'c>(&mut self, ui: &mut Ui<'c>, text: String, text_style: &TextStyle) -> Response<'c> {
+    fn ui<'c>(&mut self, ui: &mut Ui<'c>, text: String, text_style: &TextStyle) -> Response {
         let Self {
             color,
             checked,
@@ -217,7 +217,7 @@ impl LegendWidget {
 }
 
 impl Widget for &mut LegendWidget {
-    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response<'c> {
+    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response {
         let LegendWidget {
             rect,
             entries,

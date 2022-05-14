@@ -179,7 +179,7 @@ impl Area {
         self,
         ctx: &mut Context,
         add_contents: impl FnOnce(&mut Ui<'_>) -> R,
-    ) -> InnerResponse<'_, R> {
+    ) -> InnerResponse<R> {
         let prepared = self.begin(ctx);
         let mut content_ui = prepared.content_ui(ctx);
         let inner = add_contents(&mut content_ui);
@@ -313,7 +313,7 @@ impl Prepared {
     }
 
     #[allow(clippy::needless_pass_by_value)] // intentional to swallow up `content_ui`.
-    pub(crate) fn end(self, content_ui: Ui<'_>) -> Response<'_> {
+    pub(crate) fn end(self, content_ui: Ui<'_>) -> Response {
         let Prepared {
             layer_id,
             mut state,

@@ -514,16 +514,16 @@ impl Plot {
     pub fn show<'c, R>(
         self,
         ui: &mut Ui<'c>,
-        build_fn: impl FnOnce(&mut PlotUi<'_>) -> R,
-    ) -> InnerResponse<'c, R> {
+        build_fn: impl FnOnce(&mut PlotUi) -> R,
+    ) -> InnerResponse<R> {
         self.show_dyn(ui, Box::new(build_fn))
     }
 
     fn show_dyn<'a, 'c, R>(
         self,
         ui: &mut Ui<'c>,
-        build_fn: Box<dyn FnOnce(&mut PlotUi<'_>) -> R + 'a>,
-    ) -> InnerResponse<'c, R> {
+        build_fn: Box<dyn FnOnce(&mut PlotUi) -> R + 'a>,
+    ) -> InnerResponse<R> {
         let Self {
             id_source,
             center_x_axis,
@@ -858,14 +858,14 @@ impl Plot {
 
 /// Provides methods to interact with a plot while building it. It is the single argument of the closure
 /// provided to [`Plot::show`]. See [`Plot`] for an example of how to use it.
-pub struct PlotUi<'c> {
+pub struct PlotUi {
     items: Vec<Box<dyn PlotItem>>,
     next_auto_color_idx: usize,
     last_screen_transform: ScreenTransform,
-    response: Response<'c>,
+    response: Response,
 }
 
-impl<'c> PlotUi<'c> {
+impl PlotUi {
     fn auto_color(&mut self) -> Color32 {
         let i = self.next_auto_color_idx;
         self.next_auto_color_idx += 1;
@@ -1116,7 +1116,7 @@ struct PreparedPlot {
 }
 
 impl PreparedPlot {
-    fn ui(self, ui: &mut Ui<'_>, response: &Response<'_>) {
+    fn ui(self, ui: &mut Ui<'_>, response: &Response) {
         let mut shapes = Vec::new();
 
         for d in 0..2 {

@@ -75,9 +75,9 @@ pub trait Widget {
 /// ```
 impl<F> Widget for F
 where
-    F: for<'c> FnOnce(&mut Ui<'c>) -> Response<'c>,
+    F: FnOnce(&mut Ui<'_>) -> Response,
 {
-    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response<'c> {
+    fn ui(self, ui: &mut Ui<'_>) -> Response {
         self(ui)
     }
 }

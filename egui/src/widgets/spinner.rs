@@ -27,7 +27,7 @@ impl Spinner {
 }
 
 impl Widget for Spinner {
-    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response<'c> {
+    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response {
         let size = self
             .size
             .unwrap_or_else(|| ui.style().spacing.interact_size.y);

@@ -49,13 +49,13 @@ impl Placer {
     }
 
     #[inline(always)]
-    pub(crate) fn min_rect(&self) -> Rect {
-        self.region.min_rect
+    pub(crate) fn min_rect(&self) -> &Rect {
+        &self.region.min_rect
     }
 
     #[inline(always)]
-    pub(crate) fn max_rect(&self) -> Rect {
-        self.region.max_rect
+    pub(crate) fn max_rect(&self) -> &Rect {
+        &self.region.max_rect
     }
 
     #[inline(always)]
@@ -195,7 +195,7 @@ impl Placer {
 
 impl Placer {
     /// Expand the `min_rect` and `max_rect` of this ui to include a child at the given rect.
-    pub(crate) fn expand_to_include_rect(&mut self, rect: Rect) {
+    pub(crate) fn expand_to_include_rect(&mut self, rect: &Rect) {
         self.region.expand_to_include_rect(rect);
     }
 

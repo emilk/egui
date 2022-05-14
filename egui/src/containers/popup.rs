@@ -211,14 +211,15 @@ fn show_tooltip_at_avoid_dyn<'a, R>(
 
     let InnerResponse { inner, response } = show_tooltip_area_dyn(ctx, id, position, add_contents);
 
-    state.set_tooltip_size(id, count, response.rect.size());
+    state.set_tooltip_size(id, count, response.rect().size());
     state.store(ctx);
 
-    ctx.frame_state().tooltip_rect = Some(crate::frame_state::TooltipRect {
+    ctx.frame_state_mut().tooltip_rect = Some(crate::frame_state::TooltipRect {
         id,
         rect: tooltip_rect.union(response.rect),
         count: count + 1,
     });
+
     Some(inner)
 }
 
@@ -249,7 +250,7 @@ fn show_tooltip_area_dyn<'a, 'c, R>(
     id: Id,
     window_pos: Pos2,
     add_contents: Box<dyn FnOnce(&mut Ui<'_>) -> R + 'a>,
-) -> InnerResponse<'c, R> {
+) -> InnerResponse<R> {
     use containers::*;
     Area::new(id)
         .order(Order::Tooltip)
@@ -291,13 +292,13 @@ fn show_tooltip_area_dyn<'a, 'c, R>(
 pub fn popup_below_widget<R>(
     ui: &mut Ui<'_>,
     popup_id: Id,
-    widget_response: &RawResponse,
+    widget_response: &Response,
     add_contents: impl FnOnce(&mut Ui<'_>) -> R,
 ) -> Option<R> {
     if ui.memory().is_popup_open(popup_id) {
         let inner = Area::new(popup_id)
             .order(Order::Foreground)
-            .fixed_pos(widget_response.rect.left_bottom())
+            .fixed_pos(widget_response.rect().left_bottom())
             .show(ui.ctx_mut(), |ui| {
                 // Note: we use a separate clip-rect for this area, so the popup can be outside the parent.
                 // See https://github.com/emilk/egui/issues/825
@@ -306,7 +307,7 @@ pub fn popup_below_widget<R>(
                 frame
                     .show(ui, |ui| {
                         ui.with_layout(Layout::top_down_justified(Align::LEFT), |ui| {
-                            ui.set_width(widget_response.rect.width() - frame_margin.sum().x);
+                            ui.set_width(widget_response.rect().width() - frame_margin.sum().x);
                             add_contents(ui)
                         })
                         .inner

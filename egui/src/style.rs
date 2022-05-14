@@ -208,11 +208,11 @@ impl Style {
     /// Use this style for interactive things.
     /// Note that you must already have a response,
     /// i.e. you must allocate space and interact BEFORE painting the widget!
-    pub fn interact(&self, response: &Response<'_>) -> &WidgetVisuals {
+    pub fn interact(&self, response: &Response) -> &WidgetVisuals {
         self.visuals.widgets.style(response)
     }
 
-    pub fn interact_selectable(&self, response: &Response<'_>, selected: bool) -> WidgetVisuals {
+    pub fn interact_selectable(&self, response: &Response, selected: bool) -> WidgetVisuals {
         let mut visuals = *self.visuals.widgets.style(response);
         if selected {
             visuals.bg_fill = self.visuals.selection.bg_fill;
@@ -529,7 +529,7 @@ pub struct Widgets {
 }
 
 impl Widgets {
-    pub fn style(&self, response: &Response<'_>) -> &WidgetVisuals {
+    pub fn style(&self, response: &Response) -> &WidgetVisuals {
         if !response.sense.interactive() {
             &self.noninteractive
         } else if response.is_pointer_button_down_on() || response.has_focus() {
@@ -1229,7 +1229,7 @@ fn slider_vec2<'a>(
     value: &'a mut Vec2,
     range: std::ops::RangeInclusive<f32>,
     text: &'a str,
-) -> impl Widget + 'a + for<'c> FnOnce(&mut crate::Ui<'c>) -> Response<'c> {
+) -> impl Widget + 'a + for<'c> FnOnce(&mut crate::Ui<'c>) -> Response {
     move |ui: &mut crate::Ui<'_>| {
         ui.horizontal(|ui| {
             ui.add(
@@ -1248,11 +1248,7 @@ fn slider_vec2<'a>(
     }
 }
 
-fn ui_color<'c>(
-    ui: &mut Ui<'c>,
-    srgba: &mut Color32,
-    label: impl Into<WidgetText>,
-) -> Response<'c> {
+fn ui_color<'c>(ui: &mut Ui<'c>, srgba: &mut Color32, label: impl Into<WidgetText>) -> Response {
     ui.horizontal(|ui| {
         ui.color_edit_button_srgba(srgba);
         ui.label(label);

@@ -257,7 +257,7 @@ impl<'t> TextEdit<'t> {
 // ----------------------------------------------------------------------------
 
 impl<'t> Widget for TextEdit<'t> {
-    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response<'c> {
+    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response {
         self.show(ui).response
     }
 }
@@ -278,7 +278,7 @@ impl<'t> TextEdit<'t> {
     /// }
     /// # });
     /// ```
-    pub fn show<'c>(self, ui: &mut Ui<'c>) -> TextEditOutput<'c> {
+    pub fn show<'c>(self, ui: &mut Ui<'c>) -> TextEditOutput {
         let is_mutable = self.text.is_mutable();
         let frame = self.frame;
         let interactive = self.interactive;
@@ -609,8 +609,8 @@ impl<'t> TextEdit<'t> {
 
         state.clone().store(ui.ctx(), id);
 
-        if response.changed {
-            response.widget_info(|| {
+        if response.changed() {
+            response.widget_info(ui.ctx_mut(), || {
                 WidgetInfo::text_edit(
                     mask_if_password(password, prev_text.as_str()),
                     mask_if_password(password, text.as_str()),
@@ -624,13 +624,12 @@ impl<'t> TextEdit<'t> {
                 char_range,
                 mask_if_password(password, text.as_str()),
             );
-            response
-                .ctx
-                .output()
+            ui.ctx_mut()
+                .output_mut()
                 .events
                 .push(OutputEvent::TextSelectionChanged(info));
         } else {
-            response.widget_info(|| {
+            response.widget_info(ui.ctx_mut(), || {
                 WidgetInfo::text_edit(
                     mask_if_password(password, prev_text.as_str()),
                     mask_if_password(password, text.as_str()),
@@ -690,7 +689,7 @@ fn events(
 
     let copy_if_not_password = |ui: &Ui<'_>, text: String| {
         if !password {
-            ui.ctx().output().copied_text = text;
+            ui.ctx_mut().output_mut().copied_text = text;
         }
     };
 

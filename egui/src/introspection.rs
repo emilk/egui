@@ -23,7 +23,7 @@ pub fn font_id_ui(ui: &mut Ui<'_>, font_id: &mut FontId) {
 }
 
 // Show font texture in demo Ui
-pub(crate) fn font_texture_ui<'c>(ui: &mut Ui<'c>, [width, height]: [usize; 2]) -> Response<'c> {
+pub(crate) fn font_texture_ui<'c>(ui: &mut Ui<'c>, [width, height]: [usize; 2]) -> Response {
     ui.vertical(|ui| {
         let color = if ui.visuals().dark_mode {
             Color32::WHITE
@@ -75,7 +75,7 @@ pub(crate) fn font_texture_ui<'c>(ui: &mut Ui<'c>, [width, height]: [usize; 2]) 
 }
 
 impl Widget for &epaint::stats::PaintStats {
-    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response<'c> {
+    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response {
         ui.vertical(|ui| {
             ui.label(
                 "egui generates intermediate level shapes like circles and text. \
@@ -131,12 +131,12 @@ impl Widget for &epaint::stats::PaintStats {
     }
 }
 
-fn label<'c>(ui: &mut Ui<'c>, alloc_info: &epaint::stats::AllocInfo, what: &str) -> Response<'c> {
+fn label<'c>(ui: &mut Ui<'c>, alloc_info: &epaint::stats::AllocInfo, what: &str) -> Response {
     ui.add(Label::new(alloc_info.format(what)).wrap(false))
 }
 
 impl Widget for &mut epaint::TessellationOptions {
-    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response<'c> {
+    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response {
         ui.vertical(|ui| {
             let epaint::TessellationOptions {
                 feathering,
@@ -185,7 +185,7 @@ impl Widget for &mut epaint::TessellationOptions {
 }
 
 impl Widget for &memory::Interaction {
-    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response<'c> {
+    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response {
         ui.vertical(|ui| {
             ui.label(format!("click_id: {:?}", self.click_id));
             ui.label(format!("drag_id: {:?}", self.drag_id));

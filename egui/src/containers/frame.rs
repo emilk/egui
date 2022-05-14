@@ -198,7 +198,7 @@ impl Frame {
         self,
         ui: &mut Ui<'c>,
         add_contents: impl FnOnce(&mut Ui<'_>) -> R,
-    ) -> InnerResponse<'c, R> {
+    ) -> InnerResponse<R> {
         self.show_dyn(ui, Box::new(add_contents))
     }
 
@@ -206,7 +206,7 @@ impl Frame {
         self,
         ui: &mut Ui<'c>,
         add_contents: Box<dyn FnOnce(&mut Ui<'_>) -> R + 'a>,
-    ) -> InnerResponse<'c, R> {
+    ) -> InnerResponse<R> {
         let mut prepared = self.begin(ui);
         let ret = add_contents(&mut prepared.content_ui);
         let response = prepared.end(ui);
@@ -248,7 +248,7 @@ impl<'c> Prepared<'c> {
         rect
     }
 
-    pub fn end(self, ui: &mut Ui<'c>) -> Response<'c> {
+    pub fn end(self, ui: &mut Ui<'c>) -> Response {
         let paint_rect = self.paint_rect();
 
         let Prepared {
