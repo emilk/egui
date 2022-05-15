@@ -69,7 +69,7 @@ const MIN_LINE_SPACING_IN_POINTS: f64 = 6.0; // TODO: large enough for a wide la
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone)]
-pub struct AutoBounds {
+struct AutoBounds {
     x: bool,
     y: bool,
 }
