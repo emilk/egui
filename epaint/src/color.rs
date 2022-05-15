@@ -125,27 +125,27 @@ impl Color32 {
     }
 
     #[inline(always)]
-    pub fn is_opaque(&self) -> bool {
+    pub const fn is_opaque(&self) -> bool {
         self.a() == 255
     }
 
     #[inline(always)]
-    pub fn r(&self) -> u8 {
+    pub const fn r(&self) -> u8 {
         self.0[0]
     }
 
     #[inline(always)]
-    pub fn g(&self) -> u8 {
+    pub const fn g(&self) -> u8 {
         self.0[1]
     }
 
     #[inline(always)]
-    pub fn b(&self) -> u8 {
+    pub const fn b(&self) -> u8 {
         self.0[2]
     }
 
     #[inline(always)]
-    pub fn a(&self) -> u8 {
+    pub const fn a(&self) -> u8 {
         self.0[3]
     }
 
@@ -156,20 +156,20 @@ impl Color32 {
 
     /// Returns an additive version of self
     #[inline(always)]
-    pub fn additive(self) -> Self {
+    pub const fn additive(self) -> Self {
         let [r, g, b, _] = self.to_array();
         Self([r, g, b, 0])
     }
 
     /// Premultiplied RGBA
     #[inline(always)]
-    pub fn to_array(&self) -> [u8; 4] {
+    pub const fn to_array(&self) -> [u8; 4] {
         [self.r(), self.g(), self.b(), self.a()]
     }
 
     /// Premultiplied RGBA
     #[inline(always)]
-    pub fn to_tuple(&self) -> (u8, u8, u8, u8) {
+    pub const fn to_tuple(&self) -> (u8, u8, u8, u8) {
         (self.r(), self.g(), self.b(), self.a())
     }
 
@@ -184,6 +184,42 @@ impl Color32 {
         // we need a somewhat expensive conversion to linear space and back.
         Rgba::from(self).multiply(factor).into()
     }
+}
+
+/// Construct a [`Color32`] from a hex RGB or RGBA string.
+///
+/// ```ignore
+/// assert_eq!(hex_color!("#202122"), Color32::from_rgb(0x20, 0x21, 0x22));
+/// assert_eq!(hex_color!("#abcdef12"), Color32::from_rgba_unmultiplied(0xab, 0xcd, 0xef, 0x12));
+/// ```
+#[macro_export]
+macro_rules! hex_color {
+    ($s:literal) => {{
+        let array = $crate::color_hex::color_from_hex!($s);
+        if array.len() == 3 {
+            $crate::Color32::from_rgb(array[0], array[1], array[2])
+        } else {
+            #[allow(unconditional_panic)]
+            $crate::Color32::from_rgba_unmultiplied(array[0], array[1], array[2], array[3])
+        }
+    }};
+}
+
+#[test]
+fn test_from_rgb_hex() {
+    assert_eq!(Color32::from_rgb(0x20, 0x21, 0x22), hex_color!("#202122"));
+    assert_eq!(
+        Color32::from_rgb_additive(0x20, 0x21, 0x22),
+        hex_color!("#202122").additive()
+    );
+}
+
+#[test]
+fn test_from_rgba_hex() {
+    assert_eq!(
+        Color32::from_rgba_unmultiplied(0x20, 0x21, 0x22, 0x50),
+        hex_color!("20212250")
+    );
 }
 
 // ----------------------------------------------------------------------------

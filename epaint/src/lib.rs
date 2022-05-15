@@ -49,6 +49,8 @@ pub use emath::{pos2, vec2, Pos2, Rect, Vec2};
 pub use ahash;
 pub use emath;
 
+pub use color_hex;
+
 /// The UV coordinate of a white region of the texture mesh.
 /// The default egui texture has the top-left corner pixel fully white.
 /// You need need use a clamping texture sampler for this to work

@@ -4,7 +4,7 @@ All notable changes to the epaint crate will be documented in this file.
 
 ## Unreleased
 * Optimize tessellation of filled circles by 10x or more ([#1616](https://github.com/emilk/egui/pull/1616)).
-
+* Added `epaint::hex_rgb*!()` macros to create Color32's from hex strings ([#1596](https://github.com/emilk/egui/pull/1596)).
 
 ## 0.18.1 - 2022-05-01
 * Change `Shape::Callback` from `&dyn Any` to `&mut dyn Any` to support more backends.
