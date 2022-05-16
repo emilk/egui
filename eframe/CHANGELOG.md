@@ -9,6 +9,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 * Add `wgpu` rendering backed ([#1564](https://github.com/emilk/egui/pull/1564)):
   * Add features "wgpu" and "glow"
   * Add `NativeOptions::renderer` to switch between the rendering backends
+* Fix clipboard on Wayland ([#1613](https://github.com/emilk/egui/pull/1613)).
 
 
 ## 0.18.0 - 2022-04-30
