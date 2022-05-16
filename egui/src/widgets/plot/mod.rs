@@ -672,14 +672,14 @@ impl Plot {
                 if axes.link_y {
                     bounds.set_y(&linked_bounds);
                     // Turn off auto bounds to keep it from overriding what we just set.
-                    auto_bounds.y = false
+                    auto_bounds.y = false;
                 }
             }
         };
 
         // Allow double clicking to reset to automatic bounds.
         if response.double_clicked_by(PointerButton::Primary) {
-            auto_bounds = true.into()
+            auto_bounds = true.into();
         }
 
         // Set bounds automatically based on content.
@@ -726,7 +726,7 @@ impl Plot {
         if allow_drag && response.dragged_by(PointerButton::Primary) {
             response = response.on_hover_cursor(CursorIcon::Grabbing);
             transform.translate_bounds(-response.drag_delta());
-            auto_bounds = false.into()
+            auto_bounds = false.into();
         }
 
         // Zooming
@@ -767,9 +767,9 @@ impl Plot {
                     };
                     if new_bounds.is_valid() {
                         *transform.bounds_mut() = new_bounds;
-                        auto_bounds = false.into()
+                        auto_bounds = false.into();
                     } else {
-                        auto_bounds = true.into()
+                        auto_bounds = true.into();
                     }
                     // reset the boxed zoom state
                     last_click_pos_for_zoom = None;
@@ -786,14 +786,14 @@ impl Plot {
                 };
                 if zoom_factor != Vec2::splat(1.0) {
                     transform.zoom(zoom_factor, hover_pos);
-                    auto_bounds = false.into()
+                    auto_bounds = false.into();
                 }
             }
             if allow_scroll {
                 let scroll_delta = ui.input().scroll_delta;
                 if scroll_delta != Vec2::ZERO {
                     transform.translate_bounds(-scroll_delta);
-                    auto_bounds = false.into()
+                    auto_bounds = false.into();
                 }
             }
         }

@@ -679,7 +679,7 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
 }
 
 /// Returns a Wayland display handle if the target is running Wayland
-fn get_wayland_display(window: &winit::window::Window) -> Option<*mut c_void> {
+fn get_wayland_display(_window: &winit::window::Window) -> Option<*mut c_void> {
     #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",
@@ -688,7 +688,7 @@ fn get_wayland_display(window: &winit::window::Window) -> Option<*mut c_void> {
         target_os = "openbsd"
     ))]
     {
-        return window.wayland_display();
+        return _window.wayland_display();
     }
 
     #[allow(unreachable_code)]
