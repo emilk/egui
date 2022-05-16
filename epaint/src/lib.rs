@@ -49,6 +49,7 @@ pub use emath::{pos2, vec2, Pos2, Rect, Vec2};
 pub use ahash;
 pub use emath;
 
+#[cfg(feature = "color-hex")]
 pub use color_hex;
 
 /// The UV coordinate of a white region of the texture mesh.

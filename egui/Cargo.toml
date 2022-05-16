@@ -46,6 +46,8 @@ persistence = ["serde", "epaint/serde", "ron"]
 # implement serde on most types.
 serde = ["dep:serde", "epaint/serde"]
 
+# Ease of use hex to Color32 macro
+color-hex = ["epaint/color-hex"]
 
 [dependencies]
 epaint = { version = "0.18.1", path = "../epaint", default-features = false }
