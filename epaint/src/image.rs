@@ -1,4 +1,4 @@
-use crate::Color32;
+use crate::{textures::TextureFilter, Color32};
 
 /// An image stored in RAM.
 ///
@@ -272,6 +272,8 @@ pub struct ImageDelta {
     /// If [`Self::pos`] is `Some`, this describes a patch of the whole image starting at [`Self::pos`].
     pub image: ImageData,
 
+    pub filter: TextureFilter,
+
     /// If `None`, set the whole texture to [`Self::image`].
     ///
     /// If `Some(pos)`, update a sub-region of an already allocated texture with the patch in [`Self::image`].
@@ -280,17 +282,19 @@ pub struct ImageDelta {
 
 impl ImageDelta {
     /// Update the whole texture.
-    pub fn full(image: impl Into<ImageData>) -> Self {
+    pub fn full(image: impl Into<ImageData>, filter: TextureFilter) -> Self {
         Self {
             image: image.into(),
+            filter,
             pos: None,
         }
     }
 
     /// Update a sub-region of an existing texture.
-    pub fn partial(pos: [usize; 2], image: impl Into<ImageData>) -> Self {
+    pub fn partial(pos: [usize; 2], image: impl Into<ImageData>, filter: TextureFilter) -> Self {
         Self {
             image: image.into(),
+            filter,
             pos: Some(pos),
         }
     }

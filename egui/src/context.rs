@@ -5,7 +5,7 @@ use crate::{
     animation_manager::AnimationManager, data::output::PlatformOutput, frame_state::FrameState,
     input_state::*, layers::GraphicLayers, memory::Options, output::FullOutput, TextureHandle, *,
 };
-use epaint::{mutex::*, stats::*, text::Fonts, TessellationOptions, *};
+use epaint::{mutex::*, stats::*, text::Fonts, textures::TextureFilter, TessellationOptions, *};
 
 // ----------------------------------------------------------------------------
 
@@ -19,6 +19,7 @@ impl Default for WrappedTextureManager {
         let font_id = tex_mngr.alloc(
             "egui_font_texture".into(),
             epaint::FontImage::new([0, 0]).into(),
+            Default::default(),
         );
         assert_eq!(font_id, TextureId::default());
 
@@ -693,7 +694,11 @@ impl Context {
     ///     fn ui(&mut self, ui: &mut egui::Ui) {
     ///         let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
     ///             // Load the texture only once.
-    ///             ui.ctx().load_texture("my-image", egui::ColorImage::example())
+    ///             ui.ctx().load_texture(
+    ///                 "my-image",
+    ///                 egui::ColorImage::example(),
+    ///                 egui::epaint::textures::TextureFilter::Linear
+    ///             )
     ///         });
     ///
     ///         // Show the image:
@@ -707,6 +712,7 @@ impl Context {
         &self,
         name: impl Into<String>,
         image: impl Into<ImageData>,
+        filter: TextureFilter,
     ) -> TextureHandle {
         let name = name.into();
         let image = image.into();
@@ -720,7 +726,7 @@ impl Context {
             max_texture_side
         );
         let tex_mngr = self.tex_manager();
-        let tex_id = tex_mngr.write().alloc(name, image);
+        let tex_id = tex_mngr.write().alloc(name, image, filter);
         TextureHandle::new(tex_mngr, tex_id)
     }
 
