@@ -11,6 +11,7 @@ mod painter;
 pub use painter::Painter;
 
 pub use egui_winit;
+use egui_winit::winit::event_loop::EventLoopWindowTarget;
 
 // ----------------------------------------------------------------------------
 
@@ -25,14 +26,17 @@ pub struct EguiGlium {
 }
 
 impl EguiGlium {
-    pub fn new(display: &glium::Display) -> Self {
+    pub fn new<E>(display: &glium::Display, event_loop: &EventLoopWindowTarget<E>) -> Self {
         let painter = crate::Painter::new(display);
+
+        let mut egui_winit = egui_winit::State::new(event_loop);
+        egui_winit.set_max_texture_side(painter.max_texture_side());
+        let pixels_per_point = display.gl_window().window().scale_factor() as f32;
+        egui_winit.set_pixels_per_point(pixels_per_point);
+
         Self {
             egui_ctx: Default::default(),
-            egui_winit: egui_winit::State::new(
-                painter.max_texture_side(),
-                display.gl_window().window(),
-            ),
+            egui_winit,
             painter,
             shapes: Default::default(),
             textures_delta: Default::default(),

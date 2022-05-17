@@ -12,7 +12,10 @@ pub struct EguiGlow {
 }
 
 impl EguiGlow {
-    pub fn new(window: &winit::window::Window, gl: std::sync::Arc<glow::Context>) -> Self {
+    pub fn new<E>(
+        event_loop: &winit::event_loop::EventLoopWindowTarget<E>,
+        gl: std::sync::Arc<glow::Context>,
+    ) -> Self {
         let painter = crate::Painter::new(gl, None, "")
             .map_err(|error| {
                 tracing::error!("error occurred in initializing painter:\n{}", error);
@@ -21,7 +24,7 @@ impl EguiGlow {
 
         Self {
             egui_ctx: Default::default(),
-            egui_winit: egui_winit::State::new(painter.max_texture_side(), window),
+            egui_winit: egui_winit::State::new(event_loop),
             painter,
             shapes: Default::default(),
             textures_delta: Default::default(),

@@ -57,6 +57,7 @@ pub fn run_glow(
         .unwrap_or_else(|error| panic!("some OpenGL error occurred {}\n", error));
 
     let mut integration = epi_integration::EpiIntegration::new(
+        &event_loop,
         painter.max_texture_side(),
         gl_window.window(),
         storage,

@@ -16,6 +16,7 @@ mod window_settings;
 
 pub use window_settings::WindowSettings;
 
+use winit::event_loop::EventLoopWindowTarget;
 #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -23,7 +24,7 @@ pub use window_settings::WindowSettings;
     target_os = "netbsd",
     target_os = "openbsd"
 ))]
-use winit::platform::unix::WindowExtUnix;
+use winit::platform::unix::EventLoopWindowTargetExtUnix;
 
 pub fn native_pixels_per_point(window: &winit::window::Window) -> f32 {
     window.scale_factor() as f32
@@ -60,36 +61,18 @@ pub struct State {
 }
 
 impl State {
-    /// Initialize with:
-    /// * `max_texture_side`: e.g. `GL_MAX_TEXTURE_SIZE`
-    /// * the native `pixels_per_point` (dpi scaling).
-    pub fn new(max_texture_side: usize, window: &winit::window::Window) -> Self {
-        Self::from_pixels_per_point(
-            max_texture_side,
-            native_pixels_per_point(window),
-            get_wayland_display(window),
-        )
+    pub fn new<T>(event_loop: &EventLoopWindowTarget<T>) -> Self {
+        Self::new_with_wayland_display(get_wayland_display(event_loop))
     }
 
-    /// Initialize with:
-    /// * `max_texture_side`: e.g. `GL_MAX_TEXTURE_SIZE`
-    /// * the given `pixels_per_point` (dpi scaling).
-    pub fn from_pixels_per_point(
-        max_texture_side: usize,
-        pixels_per_point: f32,
-        wayland_display: Option<*mut c_void>,
-    ) -> Self {
+    pub fn new_with_wayland_display(wayland_display: Option<*mut c_void>) -> Self {
         Self {
             start_time: instant::Instant::now(),
-            egui_input: egui::RawInput {
-                pixels_per_point: Some(pixels_per_point),
-                max_texture_side: Some(max_texture_side),
-                ..Default::default()
-            },
+            egui_input: Default::default(),
             pointer_pos_in_points: None,
             any_pointer_button_down: false,
             current_cursor_icon: egui::CursorIcon::Default,
-            current_pixels_per_point: pixels_per_point,
+            current_pixels_per_point: 1.0,
 
             clipboard: clipboard::Clipboard::new(wayland_display),
             screen_reader: screen_reader::ScreenReader::default(),
@@ -97,6 +80,25 @@ impl State {
             simulate_touch_screen: false,
             pointer_touch_id: None,
         }
+    }
+
+    /// Call this once a graphics context has been created to update the maximum texture dimensions
+    /// that egui will use.
+    pub fn set_max_texture_side(&mut self, max_texture_side: usize) {
+        self.egui_input.max_texture_side = Some(max_texture_side);
+    }
+
+    /// Call this when a new native Window is created for rendering to initialize the `pixels_per_point`
+    /// for that window.
+    ///
+    /// In particular, on Android it is necessary to call this after each `Resumed` lifecycle
+    /// event, each time a new native window is created.
+    ///
+    /// Once this has been initialized for a new window then this state will be maintained by handling
+    /// [`winit::event::WindowEvent::ScaleFactorChanged`] events.
+    pub fn set_pixels_per_point(&mut self, pixels_per_point: f32) {
+        self.egui_input.pixels_per_point = Some(pixels_per_point);
+        self.current_pixels_per_point = pixels_per_point;
     }
 
     /// The number of physical pixels per logical point,
@@ -679,7 +681,7 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
 }
 
 /// Returns a Wayland display handle if the target is running Wayland
-fn get_wayland_display(_window: &winit::window::Window) -> Option<*mut c_void> {
+fn get_wayland_display<T>(_event_loop: &EventLoopWindowTarget<T>) -> Option<*mut c_void> {
     #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",
@@ -688,11 +690,14 @@ fn get_wayland_display(_window: &winit::window::Window) -> Option<*mut c_void> {
         target_os = "openbsd"
     ))]
     {
-        return _window.wayland_display();
+        return _event_loop.wayland_display();
     }
 
     #[allow(unreachable_code)]
-    None
+    {
+        let _ = _event_loop;
+        None
+    }
 }
 
 // ---------------------------------------------------------------------------
