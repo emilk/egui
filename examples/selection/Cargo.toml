@@ -1,0 +1,12 @@
+[package]
+name = "selection"
+version = "0.1.0"
+authors = ["Mattia Maldini <mattia512maldini@gmail.com>"]
+license = "MIT OR Apache-2.0"
+edition = "2021"
+rust-version = "1.60"
+publish = false
+
+
+[dependencies]
+eframe = { path = "../../eframe" }

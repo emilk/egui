@@ -3157,6 +3157,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "selection"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+]
+
+[[package]]
 name = "semver"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
