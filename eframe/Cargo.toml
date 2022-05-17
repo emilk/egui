@@ -52,7 +52,7 @@ screen_reader = [
 ]
 
 # Use WGPU as the backend instead of glow
-wgpu = ["egui-wgpu"]
+wgpu = ["dep:wgpu", "egui-wgpu"]
 
 
 [dependencies]
@@ -68,6 +68,7 @@ egui-wgpu = { version = "0.18.0", path = "../egui-wgpu", optional = true, featur
 glow = { version = "0.11", optional = true }
 ron = { version = "0.7", optional = true }
 serde = { version = "1", optional = true, features = ["derive"] }
+wgpu = { version = "0.12", optional = true }
 
 # -------------------------------------------
 # native:
