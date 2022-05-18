@@ -17,7 +17,7 @@ impl WrappedGlowPainter {
         let canvas = super::canvas_element_or_die(canvas_id);
 
         let (gl, shader_prefix) = init_glow_context_from_canvas(&canvas)?;
-        let gl = std::rc::Rc::new(gl);
+        let gl = std::sync::Arc::new(gl);
 
         let dimension = [canvas.width() as i32, canvas.height() as i32];
         let painter = egui_glow::Painter::new(gl, Some(dimension), shader_prefix)
@@ -32,7 +32,7 @@ impl WrappedGlowPainter {
 }
 
 impl WrappedGlowPainter {
-    pub fn gl(&self) -> &std::rc::Rc<glow::Context> {
+    pub fn gl(&self) -> &std::sync::Arc<glow::Context> {
         self.painter.gl()
     }
 

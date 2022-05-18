@@ -1,6 +1,6 @@
 #![allow(unsafe_code)]
 
-use std::{collections::HashMap, rc::Rc};
+use std::{collections::HashMap, sync::Arc};
 
 use egui::{
     emath::Rect,
@@ -49,7 +49,7 @@ impl TextureFilter {
 /// This struct must be destroyed with [`Painter::destroy`] before dropping, to ensure OpenGL
 /// objects have been properly deleted and are not leaked.
 pub struct Painter {
-    gl: Rc<glow::Context>,
+    gl: Arc<glow::Context>,
 
     max_texture_side: usize,
 
@@ -91,7 +91,7 @@ impl Painter {
     /// * failed to create postprocess on webgl with `sRGB` support
     /// * failed to create buffer
     pub fn new(
-        gl: Rc<glow::Context>,
+        gl: Arc<glow::Context>,
         pp_fb_extent: Option<[i32; 2]>,
         shader_prefix: &str,
     ) -> Result<Painter, String> {
@@ -229,7 +229,7 @@ impl Painter {
     }
 
     /// Access the shared glow context.
-    pub fn gl(&self) -> &std::rc::Rc<glow::Context> {
+    pub fn gl(&self) -> &Arc<glow::Context> {
         &self.gl
     }
 

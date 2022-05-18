@@ -185,7 +185,7 @@ impl EpiIntegration {
         max_texture_side: usize,
         window: &winit::window::Window,
         storage: Option<Box<dyn epi::Storage>>,
-        #[cfg(feature = "glow")] gl: Option<std::rc::Rc<glow::Context>>,
+        #[cfg(feature = "glow")] gl: Option<std::sync::Arc<glow::Context>>,
     ) -> Self {
         let egui_ctx = egui::Context::default();
 
