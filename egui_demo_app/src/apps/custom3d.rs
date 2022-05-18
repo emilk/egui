@@ -85,7 +85,7 @@ impl RotatingTriangle {
         let shader_version = if cfg!(target_arch = "wasm32") {
             "#version 300 es"
         } else {
-            "#version 410"
+            "#version 330"
         };
 
         unsafe {
