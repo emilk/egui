@@ -1,4 +1,4 @@
-# 🖌 egui: an easy-to-use GUI in pure Rust
+# 🖌 egui: 一个纯 Rust 编写的易用 GUI 库
 
 [<img alt="github" src="https://img.shields.io/badge/github-emilk/egui-8da0cb?logo=github" height="20">](https://github.com/emilk/egui)
 [![Latest version](https://img.shields.io/crates/v/egui.svg)](https://crates.io/crates/egui)
@@ -9,26 +9,26 @@
 [![Apache](https://img.shields.io/badge/license-Apache-blue.svg)](https://github.com/emilk/egui/blob/master/LICENSE-APACHE)
 [![Discord](https://img.shields.io/discord/900275882684477440?label=egui%20discord)](https://discord.gg/JFcEma9bJq)
 
-Languages：
-[English](https://github.com/emilk/egui/blob/master/README.md)
+语言：
+[英文](https://github.com/emilk/egui/blob/master/README.md)
 |
-[Simplified Chinese](https://github.com/emilk/egui/blob/master/README_zh-hans.md)
+[简体中文](https://github.com/emilk/egui/blob/master/README_zh-hans.md)
 
-👉 [Click to run the web demo](https://www.egui.rs/#demo) 👈
+👉 [点此运行 Web 样例](https://www.egui.rs/#demo) 👈
 
-egui is a simple, fast, and highly portable immediate mode GUI library for Rust. egui runs on the web, natively, and [in your favorite game engine](#integrations) (or will soon).
+egui 是一个简单、快速、高度可移植的 Rust 即时模式 GUI 库。egui 可运行于 Web, 原生（*Native*） 甚至 [你喜欢的的游戏引擎](#integrations) （或者很快）。
 
-egui aims to be the easiest-to-use Rust GUI library, and the simplest way to make a web app in Rust.
+egui 旨在成为最易用的 Rust GUI 库，用最简单的方式创建Web应用程序。
 
-egui can be used anywhere you can draw textured triangles, which means you can easily integrate it into your game engine of choice.
+egui 可以在任何可以绘制纹理三角形（textured triangles）的地方使用，这意味着你可以轻松地地将它集成到你选择的游戏引擎中。
 
-Sections:
+章节:
 
-* [Example](#example)
-* [Quick start](#quick-start)
-* [Demo](#demo)
-* [Goals](#goals)
-* [Who is egui for?](#who-is-egui-for)
+* [示例 Example](#示例)
+* [快速上手](#快速上手)
+* [样例 Demo](#样例)
+* [目标](#目标)
+* [egui 是为谁设计的？](#egui-是为谁设计的)
 * [State / features](#state)
 * [Integrations](#integrations)
 * [Why immediate mode](#why-immediate-mode)
@@ -36,7 +36,7 @@ Sections:
 * [Other](#other)
 * [Credits](#credits)
 
-## Example
+## 示例
 
 ``` rust
 ui.heading("My egui Application");
@@ -53,88 +53,90 @@ ui.label(format!("Hello '{}', age {}", name, age));
 
 <img src="media/demo.gif">
 
-## Quick start
+## 快速上手
 
-There are simple examples in [the `examples/` folder](https://github.com/emilk/egui/blob/master/examples/). If you want to write a web app, then go to <https://github.com/emilk/eframe_template/> and follow the instructions. The official docs are at <https://docs.rs/egui>. For inspiration and more examples, check out the [the egui web demo](https://www.egui.rs/#demo) and follow the links in it to its source code.
+[范例目录](https://github.com/emilk/egui/blob/master/examples/)（`examples/`）中有一些简单的范例。如果你想写一个 Web App，请按照 <https://github.com/emilk/eframe_template/>的说明操作。官方文档位于 <https://docs.rs/egui>。要获得更多灵感或范例，请查看 [egui web 样例](https://www.egui.rs/#demo) 并按照其中的链接访问源代码。
 
-If you want to integrate egui into an existing engine, go to the [Integrations](#integrations) section.
+如果你想要将egui集成到现有的引擎中，请前往  [集成](#集成) 一节.
 
-If you have questions, use [GitHub Discussions](https://github.com/emilk/egui/discussions). There is also [an egui discord server](https://discord.gg/JFcEma9bJq). If you want to contribute to egui, please read the [Contributing Guidelines](https://github.com/emilk/egui/blob/master/CONTRIBUTING.md).
+如果有疑问，请访问 [GitHub Discussions](https://github.com/emilk/egui/discussions) 或 [egui discord 服务器](https://discord.gg/JFcEma9bJq)。如果你想贡献给 egui，请阅读 [Contributing Guidelines](https://github.com/emilk/egui/blob/master/CONTRIBUTING.md).
 
-## Demo
+## 样例
 
-[Click to run egui web demo](https://www.egui.rs/#demo) (works in any browser with WASM and WebGL support). Uses [`eframe`](https://github.com/emilk/egui/tree/master/eframe).
+[点此运行 Web 样例](https://www.egui.rs/#demo) （支持任何支持WASM和WebGL的浏览器）。使用 [`eframe`](https://github.com/emilk/egui/tree/master/eframe)。
 
-To test the demo app locally, run `cargo run --release -p egui_demo_app`.
+若要在本地测试样例 App，运行 `cargo run --release -p egui_demo_app`。
 
-The native backend is [`egui_glow`](https://github.com/emilk/egui/tree/master/egui_glow) (using [`glow`](https://crates.io/crates/glow)) and should work out-of-the-box on Mac and Windows, but on Linux you need to first run:
+原生后端是 [`egui_glow`](https://github.com/emilk/egui/tree/master/egui_glow)（使用 [`glow`](https://crates.io/crates/glow))，在 Windows 和 Mac 上开箱即用，但如果要在 Linux 上使用，需要先运行：
 
 `sudo apt-get install -y libclang-dev libgtk-3-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev`
 
-On Fedora Rawhide you need to run:
+在 Fedora Rawhide 上需要运行:
 
 `dnf install clang clang-devel clang-tools-extra speech-dispatcher-devel libxkbcommon-devel pkg-config openssl-devel libxcb-devel`
 
-**NOTE**: This is just for the demo app - egui itself is completely platform agnostic!
+**注意**: 这只针对样例 App —— egui 本身是完全平台无关的
 
-## Goals
+## 目标
 
-* The easiest to use GUI library
-* Responsive: target 60 Hz in debug build
-* Friendly: difficult to make mistakes, and shouldn't panic
-* Portable: the same code works on the web and as a native app
-* Easy to integrate into any environment
-* A simple 2D graphics API for custom painting ([`epaint`](https://docs.rs/epaint)).
-* No callbacks
-* Pure immediate mode
-* Extensible: [easy to write your own widgets for egui](https://github.com/emilk/egui/blob/master/egui_demo_lib/src/demo/toggle_switch.rs)
-* Modular: You should be able to use small parts of egui and combine them in new ways
-* Safe: there is no `unsafe` code in egui
-* Minimal dependencies: [`ab_glyph`](https://crates.io/crates/ab_glyph) [`ahash`](https://crates.io/crates/ahash) [`nohash-hasher`](https://crates.io/crates/nohash-hasher) [`parking_lot`](https://crates.io/crates/parking_lot)
+* 最易用的 GUI 库
+* 反应敏捷的：在 debug build 中达到 60 Hz
+* 友好的: 难以犯错，不应该发生 panic
+* 可移植的：同样的代码可以在不同平台上使用
+* 轻松集成到任意环境中
+* 用于自定义绘制的简单 2D 图形 API（[`epaint`](https://docs.rs/epaint)）.
+* 没有回调
+* 纯即时模式
+* 可扩展的：[轻松为 egui 编写自己的 widgets](https://github.com/emilk/egui/blob/master/egui_demo_lib/src/demo/toggle_switch.rs)
+* 模块化的：你应该可以使用 egui 中的一小部分，并用新的方式将它们组合起来
+* 安全的：egui 中没有`unsafe`关键字
+* 依赖最小化：[`ab_glyph`](https://crates.io/crates/ab_glyph) [`ahash`](https://crates.io/crates/ahash) [`nohash-hasher`](https://crates.io/crates/nohash-hasher) [`parking_lot`](https://crates.io/crates/parking_lot)
 
-egui is *not* a framework. egui is a library you call into, not an environment you program for.
+egui *不是*框架。egui 是供调用的库，而不是供编程的环境。
 
-**NOTE**: egui does not claim to have reached all these goals yet! egui is still work in progress.
+**注意**: egui 还没有实现所有上述目标！egui 仍在开发中。
 
-### Non-goals
+### 非目标
 
-* Become the most powerful GUI library
-* Native looking interface
-* Advanced and flexible layouts (that's fundamentally incompatible with immediate mode)
+* 成为最强大的 GUI 库
+* 原生外观界面（*looking interface*）
+* 高级灵活的布局（这与即时模式根本不兼容）
 
-## Who is egui for?
+## egui 是为谁设计的？
 
-egui aims to be the best choice when you want a simple way to create a GUI, or you want to add a GUI to a game engine.
+egui 旨在成为想要以最简单的方式创建 GUI 或想要在游戏引擎中添加 GUI 的人的最佳选择。
 
-If you are not using Rust, egui is not for you. If you want a GUI that looks native, egui is not for you. If you want something that doesn't break when you upgrade it, egui isn't for you (yet).
+如果你不用 Rust，egui 不适合你。如果你想要一个看起来原生的 GUI，egui 不适合你。如果你想要升级时不会损坏的东西（*something that doesn't break when you upgrade it*），egui 不适合你（暂时）。
 
-But if you are writing something interactive in Rust that needs a simple GUI, egui may be for you.
+但如果你想用 Rust 写一些交互式的东西，需要一个简单的 GUI，egui 可能会适合你。
 
 ### egui vs Dear ImGui
 
-The obvious alternative to egui is [`imgui-rs`](https://github.com/Gekkio/imgui-rs), the Rust wrapper around the C++ library [Dear ImGui](https://github.com/ocornut/imgui). Dear ImGui is a great library (and the main inspiration for egui), with a lot more features and polish. However, egui provides some benefits for Rust users:
+egui 的明显替代方案是 [`imgui-rs`](https://github.com/Gekkio/imgui-rs)，C++ 库 [Dear ImGui](https://github.com/ocornut/imgui) 的 Rust 封装。Dear ImGui 是一个很棒的库（也是 egui 的灵感来源），它有更多特性和打磨（*polish*）不过，egui为Rust用户提供了一些好处：
 
-* egui is pure Rust
-* egui is easily compiled to WASM
-* egui lets you use native Rust string types (`imgui-rs` forces you to use annoying macros and wrappers for zero-terminated strings)
+* egui 是纯 Rust 编写的
+* egui 可以很方便的编译为 WASM
+* egui 允许你使用原生Rust字符串类（`imgui-rs` 强制你对以零结尾的字符串使用恼人的宏和包装器）
 * [Writing your own widgets in egui is simple](https://github.com/emilk/egui/blob/master/egui_demo_lib/src/demo/toggle_switch.rs)
 
-egui also tries to improve your experience in other small ways:
+egui 还尝试在一些小地方增加你的体验：
 
-* Windows are automatically sized based on their contents
-* Windows are automatically positioned to not overlap with each other
-* Some subtle animations make egui come alive
+* 窗口会根据其内容自动调整大小
+* 窗口会自动定位，以避免互相重叠。
+* 一些微妙的动画使 egui 变得生动
 
-So in summary:
+综上所述:
 
-* egui: pure Rust, new, exciting, work in progress
-* Dear ImGui: feature rich, well tested, cumbersome Rust integration
+* egui：纯 Rust、初生、激动人心、正在开发中
+* Dear ImGui：特性丰富、经过良好测试、笨重的 Rust 集成
 
-## State
+## 状态
 
-egui is in active development. It works well for what it does, but it lacks many features and the interfaces are still in flux. New releases will have breaking changes.
+egui 在活跃开发中。它做的不错，但缺少许多特性，接口仍在变化。新的版本会有破坏性的改变。
 
-### Features
+### 特性
+
+*译者注：这一段个人认为不宜翻译。*
 
 * Widgets: label, text button, hyperlink, checkbox, radio button, slider, draggable value, text editing, combo box, color picker
 * Layouts: horizontal, vertical, columns, automatic wrapping
@@ -151,21 +153,24 @@ Light Theme:
 
 <img src="media/light_theme.png" width="50%">
 
-## Integrations
+## 集成
 
-egui is built to be easy to integrate into any existing game engine or platform you are working on.
-egui itself doesn't know or care on what OS it is running or how to render things to the screen - that is the job of the egui integration.
+egui 易于集成到任何你使用的游戏引擎或平台
+egui 自身不知道且不关心运行它的操作系统和被渲染到屏幕的方式——这是egui集成的工作
 
-An integration needs to do the following each frame:
+一个集成需要在每一帧都做以下事情：
 
-* **Input**: Gather input (mouse, touches, keyboard, screen size, etc) and give it to egui
-* Run the application code
-* **Output**: Handle egui output (cursor changes, paste, texture allocations, …)
-* **Painting**: Render the triangle mesh egui produces (see [OpenGL example](https://github.com/emilk/egui/blob/master/egui_glium/src/painter.rs))
+* **输入**: 采集输入（鼠标、触摸、键盘、屏幕大小……）并传递给 egui
+* 运行应用程序代码
+* **输出**: 处理 egui 输出 （光标变化、粘贴、纹理分配（*texture allocations*）……）
 
-### Official integrations
+* **绘制**：渲染 egui 生成的三角形网格（参考 [OpenGL example](https://github.com/emilk/egui/blob/master/egui_glium/src/painter.rs)）
 
-These are the official egui integrations:
+### 官方集成
+
+*译者注：个人认为仓库列表不应该翻译。*
+
+以下是 egui 官方集成：
 
 * [`eframe`](https://github.com/emilk/egui/tree/master/eframe) for compiling the same app to web/wasm and desktop/native. Uses `egui_glow` and `egui-winit`.
 * [`egui_glium`](https://github.com/emilk/egui/tree/master/egui_glium) for compiling native apps with [Glium](https://github.com/glium/glium).
@@ -173,7 +178,9 @@ These are the official egui integrations:
 * [`egui-wgpu`](https://github.com/emilk/egui/tree/master/egui-wgpu) for [wgpu](https://crates.io/crates/wgpu) (WebGPU API).
 * [`egui-winit`](https://github.com/emilk/egui/tree/master/egui-winit) for integrating with [winit](https://github.com/rust-windowing/winit).
 
-### 3rd party integrations
+### 第三方集成
+
+*译者注：个人认为仓库列表不应该翻译。*
 
 * [`amethyst_egui`](https://github.com/jgraef/amethyst_egui) for [the Amethyst game engine](https://amethyst.rs/).
 * [`bevy_egui`](https://github.com/mvlabat/bevy_egui) for [the Bevy game engine](https://bevyengine.org/).
@@ -191,11 +198,11 @@ These are the official egui integrations:
 * [`nannou_egui`](https://github.com/AlexEne/nannou_egui) for [nannou](https://nannou.cc).
 * [`smithay-egui`](https://github.com/Smithay/smithay-egui) for [smithay](https://github.com/Smithay/smithay/).
 
-Missing an integration for the thing you're working on? Create one, it's easy!
+没有你想要的集成？创建一个很容易！
 
-### Writing your own egui integration
+### 编写你自己的 egui 集成
 
-You need to collect [`egui::RawInput`](https://docs.rs/egui/latest/egui/struct.RawInput.html) and handle [`egui::FullOutput`](https://docs.rs/egui/latest/egui/struct.FullOutput.html). The basic structure is this:
+你需要采集 [`egui::RawInput`](https://docs.rs/egui/latest/egui/struct.RawInput.html) 并处理 [`egui::FullOutput`](https://docs.rs/egui/latest/egui/struct.FullOutput.html)。基本结构如下
 
 ``` rust
 let mut egui_ctx = egui::CtxRef::default();
@@ -220,25 +227,25 @@ loop {
 }
 ```
 
-For a reference OpenGL backend, see [the `egui_glium` painter](https://github.com/emilk/egui/blob/master/egui_glium/src/painter.rs) or [the `egui_glow` painter](https://github.com/emilk/egui/blob/master/egui_glow/src/painter.rs).
+关于 OpenGl 后端请参考 [the `egui_glium` painter](https://github.com/emilk/egui/blob/master/egui_glium/src/painter.rs) 或 [the `egui_glow` painter](https://github.com/emilk/egui/blob/master/egui_glow/src/painter.rs).
 
-### Debugging your integration
+### 调试你的集成
 
 #### Things look jagged
 
 * Turn off backface culling.
 
-#### My text is blurry
+#### 文字看起来很模糊
 
-* Make sure you set the proper `pixels_per_point` in the input to egui.
-* Make sure the texture sampler is not off by half a pixel. Try nearest-neighbor sampler to check.
+* 确保在 egui 输入中设置了正确的 `pixels_per_point`。
+* 确保纹理采样器未关闭半像素。尝试使用最邻近采样器来检查。
 
-#### My windows are too transparent or too dark
+#### 窗口太透明或太暗
 
-* egui uses premultiplied alpha, so make sure your blending function is `(ONE, ONE_MINUS_SRC_ALPHA)`.
-* Make sure your texture sampler is clamped (`GL_CLAMP_TO_EDGE`).
-* egui prefers linear color spaces for all blending so:
-  * Use an sRGBA-aware texture if available (e.g. `GL_SRGB8_ALPHA8`).
+* egui 使用预乘 alpha，因此，请确保您的混合函数是 `(ONE, ONE_MINUS_SRC_ALPHA)`。
+* 确保纹理采样器已钳制（`GL_CLAMP_TO_EDGE`）。
+* egui 对所有混合使用线性颜色空间，因此
+  * 使用sRGBA-aware纹理（如果可用）（例如 `GL_SRGB8_ALPHA8`).
     * Otherwise: remember to decode gamma in the fragment shader.
   * Decode the gamma of the incoming vertex colors in your vertex shader.
   * Turn on sRGBA/linear framebuffer if available (`GL_FRAMEBUFFER_SRGB`).
