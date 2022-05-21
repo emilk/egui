@@ -450,6 +450,11 @@ pub struct PointerState {
     /// How much the pointer moved compared to last frame, in points.
     delta: Vec2,
 
+    /// How much the pointer moved despite on cursor location, window, in unspecified units.
+    /// Platform specific.
+    /// See `winit::event::DeviceEvent::MouseMotion`
+    motion: Vec2,
+
     /// Current velocity of pointer.
     velocity: Vec2,
 
@@ -490,6 +495,7 @@ impl Default for PointerState {
             latest_pos: None,
             interact_pos: None,
             delta: Vec2::ZERO,
+            motion: Vec2::ZERO,
             velocity: Vec2::ZERO,
             pos_history: History::new(0..1000, 0.1),
             down: Default::default(),
@@ -512,6 +518,7 @@ impl PointerState {
 
         let old_pos = self.latest_pos;
         self.interact_pos = self.latest_pos;
+        self.motion = Vec2::ZERO;
 
         for event in &new.events {
             match event {
@@ -597,6 +604,9 @@ impl PointerState {
                     self.latest_pos = None;
                     // NOTE: we do NOT clear `self.interact_pos` here. It will be cleared next frame.
                 }
+
+                Event::MouseDelta(delta) => self.motion += *delta,
+
                 _ => {}
             }
         }
@@ -634,6 +644,13 @@ impl PointerState {
     #[inline(always)]
     pub fn delta(&self) -> Vec2 {
         self.delta
+    }
+
+    /// Mouse delta, in unspecified units. Works when mouse pointer in screen bounds.
+    /// Currently on winit only.
+    #[inline(always)]
+    pub fn motion(&self) -> Vec2 {
+        self.motion
     }
 
     /// Current velocity of pointer.
@@ -889,6 +906,7 @@ impl PointerState {
             latest_pos,
             interact_pos,
             delta,
+            motion,
             velocity,
             pos_history: _,
             down,
@@ -903,6 +921,7 @@ impl PointerState {
         ui.label(format!("latest_pos: {:?}", latest_pos));
         ui.label(format!("interact_pos: {:?}", interact_pos));
         ui.label(format!("delta: {:?}", delta));
+        ui.label(format!("motion: {:?}", motion));
         ui.label(format!(
             "velocity: [{:3.0} {:3.0}] points/sec",
             velocity.x, velocity.y

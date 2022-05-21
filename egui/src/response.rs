@@ -277,6 +277,27 @@ impl Response {
         self.drag_released
     }
 
+    /// Mouse dragged, nevertheless it's stuck on screen's edge or not.
+    /// The idea of this method is to overcome limitations of computing delta from `old-new`,
+    /// which does not work when mouse is stuck on screen corner.
+    /// On platform where it is not supported in fallbacks to `pointer.delta()`
+    pub fn motion_delta(&self) -> Vec2 {
+        #[cfg(target_family = "wasm")]
+        return self.ctx.input().pointer.delta();
+
+        #[cfg(not(target_family = "wasm"))]
+        {
+            let res = self.ctx.input().pointer.motion();
+
+            if res == Vec2::ZERO {
+                // in a case of touchscreen or whatever
+                self.ctx.input().pointer.delta()
+            } else {
+                res
+            }
+        }
+    }
+
     /// If dragged, how many points were we dragged and in what direction?
     pub fn drag_delta(&self) -> Vec2 {
         if self.dragged() {

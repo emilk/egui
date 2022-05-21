@@ -154,6 +154,13 @@ pub fn run_glow(
             winit::event::Event::RedrawEventsCleared if cfg!(windows) => redraw(),
             winit::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
 
+            winit::event::Event::DeviceEvent {
+                device_id: _,
+                event: winit::event::DeviceEvent::MouseMotion { delta },
+            } => {
+                integration.on_mouse_delta(delta);
+            }
+
             winit::event::Event::WindowEvent { event, .. } => {
                 match &event {
                     winit::event::WindowEvent::Focused(new_focused) => {
@@ -302,6 +309,13 @@ pub fn run_wgpu(
             // See: https://github.com/rust-windowing/winit/issues/1619
             winit::event::Event::RedrawEventsCleared if cfg!(windows) => redraw(),
             winit::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
+
+            winit::event::Event::DeviceEvent {
+                device_id: _,
+                event: winit::event::DeviceEvent::MouseMotion { delta },
+            } => {
+                integration.on_mouse_delta(delta);
+            }
 
             winit::event::Event::WindowEvent { event, .. } => {
                 match &event {

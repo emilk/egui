@@ -239,6 +239,10 @@ impl EpiIntegration {
         self.quit
     }
 
+    pub fn on_mouse_delta(&mut self, delta: (f64, f64)) {
+        self.egui_winit.on_mouse_delta(delta);
+    }
+
     pub fn on_event(&mut self, app: &mut dyn epi::App, event: &winit::event::WindowEvent<'_>) {
         use winit::event::{ElementState, MouseButton, WindowEvent};
 
