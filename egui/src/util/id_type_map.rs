@@ -1,4 +1,4 @@
-// TODO: it is possible we can simplify `Element` further by
+// TODO(emilk): it is possible we can simplify `Element` further by
 // assuming everything is possibly serializable, and by supplying serialize/deserialize functions for them.
 // For non-serializable types, these simply return `None`.
 // This will also allow users to pick their own serialization format per type.
@@ -292,7 +292,7 @@ fn from_ron_str<T: serde::de::DeserializeOwned>(ron: &str) -> Option<T> {
 
 use crate::Id;
 
-// TODO: make IdTypeMap generic over the key (`Id`), and make a library of IdTypeMap.
+// TODO(emilk): make IdTypeMap generic over the key (`Id`), and make a library of IdTypeMap.
 /// Stores values identified by an [`Id`] AND a the [`std::any::TypeId`] of the value.
 ///
 /// In other words, it maps `(Id, TypeId)` to any value you want.

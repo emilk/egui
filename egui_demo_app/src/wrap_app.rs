@@ -300,7 +300,7 @@ impl WrapApp {
 
         ui.with_layout(egui::Layout::right_to_left(), |ui| {
             if false {
-                // TODO: fix the overlap on small screens
+                // TODO(emilk): fix the overlap on small screens
                 if let Some(seconds_since_midnight) = crate::seconds_since_midnight() {
                     if clock_button(ui, seconds_since_midnight).clicked() {
                         self.state.selected_anchor = "clock".to_owned();

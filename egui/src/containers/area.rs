@@ -7,7 +7,7 @@ use std::{fmt::Debug, hash::Hash};
 use crate::*;
 
 /// State that is persisted between frames.
-// TODO: this is not currently stored in `memory().data`, but maybe it should be?
+// TODO(emilk): this is not currently stored in `memory().data`, but maybe it should be?
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct State {

@@ -312,7 +312,7 @@ impl<'t> TextEdit<'t> {
                         rect: frame_rect,
                         rounding: visuals.rounding,
                         fill: ui.visuals().extreme_bg_color,
-                        stroke: visuals.bg_stroke, // TODO: we want to show something here, or a text-edit field doesn't "pop".
+                        stroke: visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
                     }
                 }
             } else {
@@ -323,7 +323,7 @@ impl<'t> TextEdit<'t> {
                     // fill: ui.visuals().extreme_bg_color,
                     // fill: visuals.bg_fill,
                     fill: Color32::TRANSPARENT,
-                    stroke: visuals.bg_stroke, // TODO: we want to show something here, or a text-edit field doesn't "pop".
+                    stroke: visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
                 }
             };
 
@@ -388,7 +388,7 @@ impl<'t> TextEdit<'t> {
         let desired_width = if multiline {
             galley.size().x.max(wrap_width) // always show everything in multiline
         } else {
-            wrap_width // visual clipping with scroll in singleline input. TODO: opt-in/out?
+            wrap_width // visual clipping with scroll in singleline input. TODO(emilk): opt-in/out?
         };
         let desired_height = (desired_height_rows.at_least(1) as f32) * row_height;
         let desired_size = vec2(desired_width, galley.size().y.max(desired_height));
@@ -430,7 +430,7 @@ impl<'t> TextEdit<'t> {
                     ui.output().mutable_text_under_cursor = true;
                 }
 
-                // TODO: drag selected text to either move or clone (ctrl on windows, alt on mac)
+                // TODO(emilk): drag selected text to either move or clone (ctrl on windows, alt on mac)
                 let singleline_offset = vec2(state.singleline_offset, 0.0);
                 let cursor_at_pointer =
                     galley.cursor_from_pos(pointer_pos - response.rect.min + singleline_offset);
@@ -693,7 +693,7 @@ fn events(
 
     let mut any_change = false;
 
-    let events = ui.input().events.clone(); // avoid dead-lock by cloning. TODO: optimize
+    let events = ui.input().events.clone(); // avoid dead-lock by cloning. TODO(emilk): optimize
     for event in &events {
         let did_mutate_text = match event {
             Event::Copy => {
@@ -740,7 +740,7 @@ fn events(
                 if multiline && ui.memory().has_lock_focus(id) {
                     let mut ccursor = delete_selected(text, &cursor_range);
                     if modifiers.shift {
-                        // TODO: support removing indentation over a selection?
+                        // TODO(emilk): support removing indentation over a selection?
                         decrease_identation(&mut ccursor, text);
                     } else {
                         insert_text(&mut ccursor, text, "\t");
@@ -758,7 +758,7 @@ fn events(
                 if multiline {
                     let mut ccursor = delete_selected(text, &cursor_range);
                     insert_text(&mut ccursor, text, "\n");
-                    // TODO: if code editor, auto-indent by same leading tabs, + one if the lines end on an opening bracket
+                    // TODO(emilk): if code editor, auto-indent by same leading tabs, + one if the lines end on an opening bracket
                     Some(CCursorRange::one(ccursor))
                 } else {
                     ui.memory().surrender_focus(id); // End input with enter
@@ -770,7 +770,7 @@ fn events(
                 pressed: true,
                 modifiers,
             } if modifiers.command && !modifiers.shift => {
-                // TODO: redo
+                // TODO(emilk): redo
                 if let Some((undo_ccursor_range, undo_txt)) = state
                     .undoer
                     .lock()

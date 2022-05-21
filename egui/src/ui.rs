@@ -1037,7 +1037,7 @@ impl Ui {
     /// # });
     /// ```
     pub fn add_sized(&mut self, max_size: impl Into<Vec2>, widget: impl Widget) -> Response {
-        // TODO: configure to overflow to main_dir instead of centered overflow
+        // TODO(emilk): configure to overflow to main_dir instead of centered overflow
         // to handle the bug mentioned at https://github.com/emilk/egui/discussions/318#discussioncomment-627578
         // and fixed in https://github.com/emilk/egui/commit/035166276322b3f2324bd8b97ffcedc63fa8419f
         //
@@ -1721,7 +1721,7 @@ impl Ui {
     /// Create a child ui which is indented to the right.
     ///
     /// The `id_source` here be anything at all.
-    // TODO: remove `id_source` argument?
+    // TODO(emilk): remove `id_source` argument?
     #[inline]
     pub fn indent<R>(
         &mut self,
@@ -2037,7 +2037,7 @@ impl Ui {
         num_columns: usize,
         add_contents: Box<dyn FnOnce(&mut [Self]) -> R + 'c>,
     ) -> R {
-        // TODO: ensure there is space
+        // TODO(emilk): ensure there is space
         let spacing = self.spacing().item_spacing.x;
         let total_spacing = spacing * (num_columns as f32 - 1.0);
         let column_width = (self.available_width() - total_spacing) / (num_columns as f32);

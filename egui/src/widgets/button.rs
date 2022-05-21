@@ -203,7 +203,7 @@ impl Widget for Button {
 
 // ----------------------------------------------------------------------------
 
-// TODO: allow checkbox without a text label
+// TODO(emilk): allow checkbox without a text label
 /// Boolean on/off control with text label.
 ///
 /// Usually you'd use [`Ui::checkbox`] instead.

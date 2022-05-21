@@ -347,7 +347,7 @@ impl ExplicitGenerator {
         let max_x = *self.x_range.end();
         let min_y = (self.function)(min_x);
         let max_y = (self.function)(max_x);
-        // TODO: sample some more points
+        // TODO(emilk): sample some more points
         PlotBounds {
             min: [min_x, min_y],
             max: [max_x, max_y],

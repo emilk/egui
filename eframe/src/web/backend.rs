@@ -270,7 +270,7 @@ impl AppRunner {
             let epi::backend::AppOutput {
                 quit: _,         // Can't quit a web page
                 window_size: _,  // Can't resize a web page
-                window_title: _, // TODO: change title of window
+                window_title: _, // TODO(emilk): change title of window
                 decorated: _,    // Can't toggle decorations
                 drag_window: _,  // Can't be dragged
                 window_pos: _,   // Can't set position of a web page
@@ -406,7 +406,7 @@ fn start_runner(app_runner: AppRunner) -> Result<AppRunnerRef, JsValue> {
     super::events::install_canvas_events(&runner_container)?;
     super::events::install_document_events(&runner_container)?;
     text_agent::install_text_agent(&runner_container)?;
-    super::events::repaint_every_ms(&runner_container, 1000)?; // just in case. TODO: make it a parameter
+    super::events::repaint_every_ms(&runner_container, 1000)?; // just in case. TODO(emilk): make it a parameter
 
     super::events::paint_and_schedule(&runner_container.runner, runner_container.panicked.clone())?;
 

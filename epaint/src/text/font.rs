@@ -66,7 +66,7 @@ pub struct FontImpl {
     // move each character by this much (hack)
     y_offset: f32,
     pixels_per_point: f32,
-    glyph_info_cache: RwLock<AHashMap<char, GlyphInfo>>, // TODO: standard Mutex
+    glyph_info_cache: RwLock<AHashMap<char, GlyphInfo>>, // TODO(emilk): standard Mutex
     atlas: Arc<Mutex<TextureAtlas>>,
 }
 
@@ -84,7 +84,7 @@ impl FontImpl {
 
         let height_in_points = scale_in_pixels as f32 / pixels_per_point;
 
-        // TODO: use these font metrics?
+        // TODO(emilk): use these font metrics?
         // use ab_glyph::ScaleFont as _;
         // let scaled = ab_glyph_font.as_scaled(scale_in_pixels as f32);
         // dbg!(scaled.ascent());
@@ -212,7 +212,7 @@ impl FontImpl {
 
 type FontIndex = usize;
 
-// TODO: rename?
+// TODO(emilk): rename?
 /// Wrapper over multiple [`FontImpl`] (e.g. a primary + fallbacks for emojis)
 pub struct Font {
     fonts: Vec<Arc<FontImpl>>,
@@ -349,7 +349,7 @@ fn invisible_char(c: char) -> bool {
     // See https://github.com/emilk/egui/issues/336
 
     // From https://www.fileformat.info/info/unicode/category/Cf/list.htm
-    ('\u{200B}'..='\u{206F}').contains(&c) // TODO: heed bidi characters
+    ('\u{200B}'..='\u{206F}').contains(&c) // TODO(emilk): heed bidi characters
 }
 
 fn allocate_glyph(

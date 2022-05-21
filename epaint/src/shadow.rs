@@ -47,7 +47,7 @@ impl Shadow {
     }
 
     pub fn tessellate(&self, rect: emath::Rect, rounding: impl Into<Rounding>) -> Mesh {
-        // tessellator.clip_rect = clip_rect; // TODO: culling
+        // tessellator.clip_rect = clip_rect; // TODO(emilk): culling
 
         let Self { extrusion, color } = *self;
 

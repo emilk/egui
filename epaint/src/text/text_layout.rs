@@ -98,7 +98,7 @@ fn layout_section(
 
     let mut paragraph = out_paragraphs.last_mut().unwrap();
     if paragraph.glyphs.is_empty() {
-        paragraph.empty_paragraph_height = font_height; // TODO: replace this hack with actually including `\n` in the glyphs?
+        paragraph.empty_paragraph_height = font_height; // TODO(emilk): replace this hack with actually including `\n` in the glyphs?
     }
 
     paragraph.cursor_x += leading_space;
@@ -109,7 +109,7 @@ fn layout_section(
         if job.break_on_newline && chr == '\n' {
             out_paragraphs.push(Paragraph::default());
             paragraph = out_paragraphs.last_mut().unwrap();
-            paragraph.empty_paragraph_height = font_height; // TODO: replace this hack with actually including `\n` in the glyphs?
+            paragraph.empty_paragraph_height = font_height; // TODO(emilk): replace this hack with actually including `\n` in the glyphs?
         } else {
             let (font_impl, glyph_info) = font.glyph_info_and_font_impl(chr);
             if let Some(font_impl) = font_impl {
@@ -207,7 +207,7 @@ fn line_break(
                 && !row_break_candidates.has_good_candidate(job.wrap.break_anywhere)
             {
                 // Allow the first row to be completely empty, because we know there will be more space on the next row:
-                // TODO: this records the height of this first row as zero, though that is probably fine since first_row_indentation usually comes with a first_row_min_height.
+                // TODO(emilk): this records the height of this first row as zero, though that is probably fine since first_row_indentation usually comes with a first_row_min_height.
                 out_rows.push(Row {
                     glyphs: vec![],
                     visuals: Default::default(),
@@ -685,7 +685,7 @@ fn add_hline(point_scale: PointScale, [start, stop]: [Pos2; 2], stroke: Stroke, 
     let antialiased = true;
 
     if antialiased {
-        let mut path = crate::tessellator::Path::default(); // TODO: reuse this to avoid re-allocations.
+        let mut path = crate::tessellator::Path::default(); // TODO(emilk): reuse this to avoid re-allocations.
         path.add_line_segment([start, stop]);
         let feathering = 1.0 / point_scale.pixels_per_point();
         path.stroke_open(feathering, stroke, mesh);

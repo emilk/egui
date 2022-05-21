@@ -68,7 +68,7 @@ pub struct Painter {
 
     textures: HashMap<egui::TextureId, glow::Texture>,
 
-    next_native_tex_id: u64, // TODO: 128-bit texture space?
+    next_native_tex_id: u64,
 
     /// Stores outdated OpenGL textures that are yet to be deleted
     textures_to_destroy: Vec<glow::Texture>,
@@ -288,9 +288,10 @@ impl Painter {
         (width_in_pixels, height_in_pixels)
     }
 
+    /// You are expected to have cleared the color buffer before calling this.
     pub fn paint_and_update_textures(
         &mut self,
-        inner_size: [u32; 2],
+        screen_size_px: [u32; 2],
         pixels_per_point: f32,
         clipped_primitives: &[egui::ClippedPrimitive],
         textures_delta: &egui::TexturesDelta,
@@ -300,7 +301,7 @@ impl Painter {
             self.set_texture(*id, image_delta);
         }
 
-        self.paint_primitives(inner_size, pixels_per_point, clipped_primitives);
+        self.paint_primitives(screen_size_px, pixels_per_point, clipped_primitives);
 
         for &id in &textures_delta.free {
             self.free_texture(id);
@@ -308,6 +309,7 @@ impl Painter {
     }
 
     /// Main entry-point for painting a frame.
+    ///
     /// You should call `target.clear_color(..)` before
     /// and `target.finish()` after this.
     ///
@@ -328,7 +330,7 @@ impl Painter {
     /// of the effects your program might have on this code. Look at the source if in doubt.
     pub fn paint_primitives(
         &mut self,
-        inner_size: [u32; 2],
+        screen_size_px: [u32; 2],
         pixels_per_point: f32,
         clipped_primitives: &[egui::ClippedPrimitive],
     ) {
@@ -337,11 +339,16 @@ impl Painter {
 
         if let Some(ref mut post_process) = self.post_process {
             unsafe {
-                post_process.begin(inner_size[0] as i32, inner_size[1] as i32);
+                post_process.begin(screen_size_px[0] as i32, screen_size_px[1] as i32);
                 post_process.bind();
+                self.gl.disable(glow::SCISSOR_TEST);
+                self.gl
+                    .viewport(0, 0, screen_size_px[0] as i32, screen_size_px[1] as i32);
+                // use the same clear-color as was set for the screen framebuffer.
+                self.gl.clear(glow::COLOR_BUFFER_BIT);
             }
         }
-        let size_in_pixels = unsafe { self.prepare_painting(inner_size, pixels_per_point) };
+        let size_in_pixels = unsafe { self.prepare_painting(screen_size_px, pixels_per_point) };
 
         for egui::ClippedPrimitive {
             clip_rect,
@@ -381,7 +388,7 @@ impl Painter {
                             viewport: callback.rect,
                             clip_rect: *clip_rect,
                             pixels_per_point,
-                            screen_size_px: inner_size,
+                            screen_size_px,
                         };
 
                         callback.call(&info, self);
@@ -393,7 +400,7 @@ impl Painter {
                             if let Some(ref mut post_process) = self.post_process {
                                 post_process.bind();
                             }
-                            self.prepare_painting(inner_size, pixels_per_point)
+                            self.prepare_painting(screen_size_px, pixels_per_point)
                         };
                     }
                 }

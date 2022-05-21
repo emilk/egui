@@ -1352,6 +1352,7 @@ dependencies = [
  "ab_glyph",
  "ahash 0.7.6",
  "atomic_refcell",
+ "backtrace",
  "bytemuck",
  "cint",
  "color-hex",

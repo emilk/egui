@@ -21,4 +21,4 @@ pub struct TextEditOutput {
     pub cursor_range: Option<super::CursorRange>,
 }
 
-// TODO: add `output.paint` and `output.store` and split out that code from `TextEdit::show`.
+// TODO(emilk): add `output.paint` and `output.store` and split out that code from `TextEdit::show`.

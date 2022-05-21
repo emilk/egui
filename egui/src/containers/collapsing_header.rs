@@ -485,7 +485,7 @@ impl CollapsingHeader {
             show_background,
         } = self;
 
-        // TODO: horizontal layout, with icon and text as labels. Insert background behind using Frame.
+        // TODO(emilk): horizontal layout, with icon and text as labels. Insert background behind using Frame.
 
         let id = ui.make_persistent_id(id_source);
         let button_padding = ui.spacing().button_padding;

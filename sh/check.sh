@@ -49,7 +49,7 @@ cargo doc --document-private-items --no-deps --all-features
 # cargo install cargo-deny
 cargo deny check
 
-# TODO: consider using https://github.com/taiki-e/cargo-hack or https://github.com/frewsxcv/cargo-all-features
+# TODO(emilk): consider using https://github.com/taiki-e/cargo-hack or https://github.com/frewsxcv/cargo-all-features
 
 # ------------------------------------------------------------
 #

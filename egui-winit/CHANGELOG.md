@@ -3,6 +3,7 @@ All notable changes to the `egui-winit` integration will be noted in this file.
 
 
 ## Unreleased
+* Fix clipboard on Wayland ([#1613](https://github.com/emilk/egui/pull/1613)).
 
 
 ## 0.18.0 - 2022-04-30

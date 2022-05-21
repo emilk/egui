@@ -339,7 +339,7 @@ impl Path {
     pub fn add_circle(&mut self, center: Pos2, radius: f32) {
         use precomputed_vertices::*;
 
-        // These cutoffs are based on a high-dpi display. TODO: use pixels_per_point here?
+        // These cutoffs are based on a high-dpi display. TODO(emilk): use pixels_per_point here?
         // same cutoffs as in add_circle_quadrant
 
         if radius <= 2.0 {
@@ -547,7 +547,7 @@ pub mod path {
     pub fn add_circle_quadrant(path: &mut Vec<Pos2>, center: Pos2, radius: f32, quadrant: f32) {
         use super::precomputed_vertices::*;
 
-        // These cutoffs are based on a high-dpi display. TODO: use pixels_per_point here?
+        // These cutoffs are based on a high-dpi display. TODO(emilk): use pixels_per_point here?
         // same cutoffs as in add_circle
 
         if radius <= 0.0 {
@@ -1171,7 +1171,7 @@ impl Tessellator {
             let cutoff_radius = radius_px * 2.0_f32.powf(0.25);
 
             // Find the right disc radius for a crisp edge:
-            // TODO: perhaps we can do something faster than this linear search.
+            // TODO(emilk): perhaps we can do something faster than this linear search.
             for disc in &self.prepared_discs {
                 if cutoff_radius <= disc.r {
                     let side = radius_px * disc.w / (self.pixels_per_point * disc.r);

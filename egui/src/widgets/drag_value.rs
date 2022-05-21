@@ -112,7 +112,7 @@ impl<'a> DragValue<'a> {
         self
     }
 
-    // TODO: we should also have a "min precision".
+    // TODO(emilk): we should also have a "min precision".
     /// Set a minimum number of decimals to display.
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
@@ -121,7 +121,7 @@ impl<'a> DragValue<'a> {
         self
     }
 
-    // TODO: we should also have a "max precision".
+    // TODO(emilk): we should also have a "max precision".
     /// Set a maximum number of decimals to display.
     /// Values will also be rounded to this number of decimals.
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
@@ -214,7 +214,7 @@ impl<'a> Widget for DragValue<'a> {
             )
             .wrap(false)
             .sense(Sense::click_and_drag())
-            .min_size(ui.spacing().interact_size); // TODO: find some more generic solution to `min_size`
+            .min_size(ui.spacing().interact_size); // TODO(emilk): find some more generic solution to `min_size`
 
             let response = ui.add(button);
             let mut response = response.on_hover_cursor(CursorIcon::ResizeHorizontal);
@@ -223,7 +223,7 @@ impl<'a> Widget for DragValue<'a> {
                 response = response .on_hover_text(format!(
                     "{}{}{}\nDrag to edit or click to enter a value.\nPress 'Shift' while dragging for better control.",
                     prefix,
-                    value as f32, // Show full precision value on-hover. TODO: figure out f64 vs f32
+                    value as f32, // Show full precision value on-hover. TODO(emilk): figure out f64 vs f32
                     suffix
                 ));
             }

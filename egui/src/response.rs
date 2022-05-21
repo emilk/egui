@@ -46,7 +46,7 @@ pub struct Response {
     #[doc(hidden)]
     pub clicked: [bool; NUM_POINTER_BUTTONS],
 
-    // TODO: `released` for sliders
+    // TODO(emilk): `released` for sliders
     /// The thing was double-clicked.
     #[doc(hidden)]
     pub double_clicked: [bool; NUM_POINTER_BUTTONS],

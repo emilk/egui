@@ -212,7 +212,7 @@ impl<'a> Slider<'a> {
         self
     }
 
-    // TODO: we should also have a "min precision".
+    // TODO(emilk): we should also have a "min precision".
     /// Set a minimum number of decimals to display.
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
@@ -221,7 +221,7 @@ impl<'a> Slider<'a> {
         self
     }
 
-    // TODO: we should also have a "max precision".
+    // TODO(emilk): we should also have a "max precision".
     /// Set a maximum number of decimals to display.
     /// Values will also be rounded to this number of decimals.
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
@@ -485,7 +485,7 @@ impl<'a> Slider<'a> {
 
     /// delta(value) / delta(points)
     fn current_gradient(&mut self, position_range: &RangeInclusive<f32>) -> f64 {
-        // TODO: handle clamping
+        // TODO(emilk): handle clamping
         let value = self.get_value();
         let value_from_pos =
             |position: f32| self.value_from_position(position, position_range.clone());

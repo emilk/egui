@@ -44,7 +44,7 @@ impl Painter {
             format: surface_format,
             width: size.width as u32,
             height: size.height as u32,
-            present_mode: wgpu::PresentMode::Fifo, // TODO: make vsync configurable
+            present_mode: wgpu::PresentMode::Fifo, // TODO(emilk): make vsync configurable
         };
         surface.configure(&device, &surface_config);
 
@@ -143,6 +143,6 @@ impl Painter {
 
     #[allow(clippy::unused_self)]
     pub fn destroy(&mut self) {
-        // TODO: something here?
+        // TODO(emilk): something here?
     }
 }

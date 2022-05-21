@@ -145,7 +145,7 @@ pub fn format_with_decimals_in_range(value: f64, decimal_range: RangeInclusive<u
     let min_decimals = min_decimals.min(max_decimals);
 
     if min_decimals != max_decimals {
-        // Ugly/slow way of doing this. TODO: clean up precision.
+        // Ugly/slow way of doing this. TODO(emilk): clean up precision.
         for decimals in min_decimals..max_decimals {
             let text = format!("{:.*}", decimals, value);
             let epsilon = 16.0 * f32::EPSILON; // margin large enough to handle most peoples round-tripping needs

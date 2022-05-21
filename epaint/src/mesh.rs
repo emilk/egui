@@ -38,7 +38,7 @@ pub struct Mesh {
 
     /// The texture to use when drawing these triangles.
     pub texture_id: TextureId,
-    // TODO: bounding rectangle
+    // TODO(emilk): bounding rectangle
 }
 
 impl Mesh {

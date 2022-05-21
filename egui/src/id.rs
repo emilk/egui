@@ -1,4 +1,4 @@
-// TODO: have separate types `PositionId` and `UniqueId`. ?
+// TODO(emilk): have separate types `PositionId` and `UniqueId`. ?
 
 /// egui tracks widgets frame-to-frame using [`Id`]s.
 ///

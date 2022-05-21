@@ -144,7 +144,7 @@ pub struct Layout {
 
 impl Default for Layout {
     fn default() -> Self {
-        // TODO: Get from `Style` instead.
+        // TODO(emilk): Get from `Style` instead.
         Self::top_down(Align::LEFT) // This is a very euro-centric default.
     }
 }

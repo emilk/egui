@@ -592,7 +592,7 @@ impl Prepared {
                         - current_bar_use[d]
                         - ui.spacing().item_spacing[d];
                     inner_rect.max[d] = inner_rect.max[d].at_most(max);
-                    // TODO: maybe auto-enable horizontal/vertical scrolling if this limit is reached
+                    // TODO(emilk): maybe auto-enable horizontal/vertical scrolling if this limit is reached
                 }
             }
 
