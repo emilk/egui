@@ -1,5 +1,5 @@
-# Changelog for egui_glow
-All notable changes to the `egui-glow` integration will be noted in this file.
+# Changelog for egui-wgpu
+All notable changes to the `egui-wgpu` integration will be noted in this file.
 
 
 ## Unreleased
