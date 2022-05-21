@@ -56,7 +56,11 @@ pub struct RenderPass {
     uniform_buffer: SizedBuffer,
     uniform_bind_group: wgpu::BindGroup,
     texture_bind_group_layout: wgpu::BindGroupLayout,
-    textures: HashMap<egui::TextureId, (wgpu::Texture, wgpu::BindGroup)>,
+    /// Map of egui texture IDs to textures and their associated bindgroups (texture view +
+    /// sampler). The texture may be None if the TextureId is just a handle to a user-provided
+    /// sampler.
+    textures: HashMap<egui::TextureId, (Option<wgpu::Texture>, wgpu::BindGroup)>,
+    next_user_texture_id: u64,
 }
 
 impl RenderPass {
@@ -209,6 +213,7 @@ impl RenderPass {
             uniform_bind_group,
             texture_bind_group_layout,
             textures: HashMap::new(),
+            next_user_texture_id: 0,
         }
     }
 
@@ -396,7 +401,10 @@ impl RenderPass {
                 y: pos[1] as u32,
                 z: 0,
             };
-            queue_write_data_to_texture(texture, origin);
+            queue_write_data_to_texture(
+                texture.as_ref().expect("Tried to update user texture."),
+                origin,
+            );
         } else {
             // allocate a new texture
             let texture = device.create_texture(&wgpu::TextureDescriptor {
@@ -432,13 +440,91 @@ impl RenderPass {
             });
             let origin = wgpu::Origin3d::ZERO;
             queue_write_data_to_texture(&texture, origin);
-            self.textures.insert(id, (texture, bind_group));
+            self.textures.insert(id, (Some(texture), bind_group));
         };
     }
 
     /// Should be called before `execute()`.
     pub fn free_texture(&mut self, id: &egui::TextureId) {
         self.textures.remove(id);
+    }
+
+    /// Registers a `wgpu::Texture` with a `egui::TextureId`.
+    ///
+    /// This enables the application to reference the texture inside an image ui element.
+    /// This effectively enables off-screen rendering inside the egui UI. Texture must have
+    /// the texture format `TextureFormat::Rgba8UnormSrgb` and
+    /// Texture usage `TextureUsage::SAMPLED`.
+    pub fn register_native_texture(
+        &mut self,
+        device: &wgpu::Device,
+        texture: &wgpu::TextureView,
+        texture_filter: wgpu::FilterMode,
+    ) -> egui::TextureId {
+        self.register_native_texture_with_sampler_options(
+            device,
+            texture,
+            wgpu::SamplerDescriptor {
+                label: Some(
+                    format!(
+                        "egui_user_image_{}_texture_sampler",
+                        self.next_user_texture_id
+                    )
+                    .as_str(),
+                ),
+                mag_filter: texture_filter,
+                min_filter: texture_filter,
+                ..Default::default()
+            },
+        )
+    }
+
+    /// Registers a `wgpu::Texture` with a `egui::TextureId` while also accepting custom
+    /// `wgpu::SamplerDescriptor` options.
+    ///
+    /// This allows applications to specify individual minification/magnification filters as well as
+    /// custom mipmap and tiling options.
+    ///
+    /// The `Texture` must have the format `TextureFormat::Rgba8UnormSrgb` and usage
+    /// `TextureUsage::SAMPLED`. Any compare function supplied in the `SamplerDescriptor` will be
+    /// ignored.
+    pub fn register_native_texture_with_sampler_options(
+        &mut self,
+        device: &wgpu::Device,
+        texture: &wgpu::TextureView,
+        sampler_descriptor: wgpu::SamplerDescriptor,
+    ) -> egui::TextureId {
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            compare: None,
+            ..sampler_descriptor
+        });
+
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some(
+                format!(
+                    "egui_user_image_{}_texture_bind_group",
+                    self.next_user_texture_id
+                )
+                .as_str(),
+            ),
+            layout: &self.texture_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(texture),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&sampler),
+                },
+            ],
+        });
+
+        let id = egui::TextureId::User(self.next_user_texture_id);
+        self.textures.insert(id, (None, bind_group));
+        self.next_user_texture_id += 1;
+
+        id
     }
 
     /// Uploads the uniform, vertex and index data used by the render pass.
