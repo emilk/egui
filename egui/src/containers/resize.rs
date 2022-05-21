@@ -52,7 +52,7 @@ impl Default for Resize {
             resizable: true,
             min_size: Vec2::splat(16.0),
             max_size: Vec2::splat(f32::INFINITY),
-            default_size: vec2(320.0, 128.0), // TODO: preferred size of [`Resize`] area.
+            default_size: vec2(320.0, 128.0), // TODO(emilk): preferred size of [`Resize`] area.
             with_stroke: true,
         }
     }

@@ -350,7 +350,7 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
     if button_response.clicked() {
         ui.memory().toggle_popup(popup_id);
     }
-    // TODO: make it easier to show a temporary popup that closes when you click outside it
+    // TODO(emilk): make it easier to show a temporary popup that closes when you click outside it
     if ui.memory().is_popup_open(popup_id) {
         let area_response = Area::new(popup_id)
             .order(Order::Foreground)

@@ -507,7 +507,7 @@ fn interact(
 
     let new_rect = ctx.constrain_window_rect_to_area(new_rect, area.drag_bounds());
 
-    // TODO: add this to a Window state instead as a command "move here next frame"
+    // TODO(emilk): add this to a Window state instead as a command "move here next frame"
     area.state_mut().pos = new_rect.min;
 
     if window_interaction.is_resize() {

@@ -135,7 +135,7 @@ impl Label {
             };
 
             if ui.is_grid() {
-                // TODO: remove special Grid hacks like these
+                // TODO(emilk): remove special Grid hacks like these
                 text_job.job.halign = Align::LEFT;
                 text_job.job.justify = false;
             } else {

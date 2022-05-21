@@ -77,7 +77,7 @@ fn main() {
 
                 egui_glow.on_event(&event);
 
-                gl_window.window().request_redraw(); // TODO: ask egui if the events warrants a repaint instead
+                gl_window.window().request_redraw(); // TODO(emilk): ask egui if the events warrants a repaint instead
             }
             glutin::event::Event::LoopDestroyed => {
                 egui_glow.destroy();

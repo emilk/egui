@@ -142,7 +142,7 @@ pub(crate) fn menu_ui<'c, R>(
 
             Frame::menu(style)
                 .show(ui, |ui| {
-                    const DEFAULT_MENU_WIDTH: f32 = 150.0; // TODO: add to ui.spacing
+                    const DEFAULT_MENU_WIDTH: f32 = 150.0; // TODO(emilk): add to ui.spacing
                     ui.set_max_width(DEFAULT_MENU_WIDTH);
                     ui.set_menu_state(Some(menu_state_arc.clone()));
                     ui.with_layout(Layout::top_down_justified(Align::LEFT), add_contents)

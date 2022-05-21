@@ -68,7 +68,7 @@ pub struct Painter {
 
     textures: HashMap<egui::TextureId, glow::Texture>,
 
-    next_native_tex_id: u64, // TODO: 128-bit texture space?
+    next_native_tex_id: u64,
 
     /// Stores outdated OpenGL textures that are yet to be deleted
     textures_to_destroy: Vec<glow::Texture>,

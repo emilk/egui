@@ -116,7 +116,7 @@ impl Image {
             }
 
             {
-                // TODO: builder pattern for Mesh
+                // TODO(emilk): builder pattern for Mesh
                 let mut mesh = Mesh::with_texture(*texture_id);
                 mesh.add_rect_with_uv(rect, *uv, *tint);
                 if let Some((rot, origin)) = rotation {

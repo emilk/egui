@@ -252,7 +252,7 @@ pub(crate) fn webgl1_requires_brightening(gl: &web_sys::WebGlRenderingContext) -
 fn is_safari_and_webkit_gtk(gl: &web_sys::WebGlRenderingContext) -> bool {
     // This call produces a warning in Firefox ("WEBGL_debug_renderer_info is deprecated in Firefox and will be removed.")
     // but unless we call it we get errors in Chrome when we call `get_parameter` below.
-    // TODO: do something smart based on user agent?
+    // TODO(emilk): do something smart based on user agent?
     if gl
         .get_extension("WEBGL_debug_renderer_info")
         .unwrap()

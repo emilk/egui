@@ -87,7 +87,7 @@ impl TextureAtlas {
         image[pos] = 1.0;
 
         // Allocate a series of anti-aliased discs used to render small filled circles:
-        // TODO: these circles can be packed A LOT better.
+        // TODO(emilk): these circles can be packed A LOT better.
         // In fact, the whole texture atlas could be packed a lot better.
         // for r in [1, 2, 4, 8, 16, 32, 64] {
         //     let w = 2 * r + 3;

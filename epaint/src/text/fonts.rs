@@ -22,7 +22,7 @@ pub struct FontId {
 
     /// What font family to use.
     pub family: FontFamily,
-    // TODO: weight (bold), italics, …
+    // TODO(emilk): weight (bold), italics, …
 }
 
 impl Default for FontId {
@@ -240,7 +240,6 @@ pub struct FontDefinitions {
     /// When looking for a character glyph `epaint` will start with
     /// the first font and then move to the second, and so on.
     /// So the first font is the primary, and then comes a list of fallbacks in order of priority.
-    // TODO: per font size-modifier.
     pub families: BTreeMap<FontFamily, Vec<String>>,
 }
 
@@ -618,7 +617,7 @@ struct GalleyCache {
 
 impl GalleyCache {
     fn layout(&mut self, fonts: &mut FontsImpl, job: LayoutJob) -> Arc<Galley> {
-        let hash = crate::util::hash(&job); // TODO: even faster hasher?
+        let hash = crate::util::hash(&job); // TODO(emilk): even faster hasher?
 
         match self.cache.entry(hash) {
             std::collections::hash_map::Entry::Occupied(entry) => {

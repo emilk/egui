@@ -37,7 +37,7 @@ pub(crate) struct FrameState {
     /// Set to [`InputState::scroll_delta`] on the start of each frame.
     ///
     /// Cleared by the first [`ScrollArea`] that makes use of it.
-    pub(crate) scroll_delta: Vec2, // TODO: move to a Mutex inside of `InputState` ?
+    pub(crate) scroll_delta: Vec2, // TODO(emilk): move to `InputState` ?
 
     /// horizontal, vertical
     pub(crate) scroll_target: [Option<(RangeInclusive<f32>, Option<Align>)>; 2],

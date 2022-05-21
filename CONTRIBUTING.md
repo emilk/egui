@@ -59,15 +59,44 @@ Conventions unless otherwise specified:
 
 While using an immediate mode gui is simple, implementing one is a lot more tricky. There are many subtle corner-case you need to think through. The `egui` source code is a bit messy, partially because it is still evolving.
 
-* read some code before writing your own
-* follow the `egui` code style
-* add blank lines around all `fn`, `struct`, `enum`, etc.
-* `// Comment like this`, not `//like this`
-* write idiomatic rust
-* avoid `unsafe`
-* avoid code that can cause panics
-* use good names for everything
-* add docstrings to types, `struct` fields and all `pub fn`.
-* add some example code (doc-tests)
-* before making a function longer, consider adding a helper function
-* break the above rules when it makes sense
+* Read some code before writing your own.
+* Follow the `egui` code style.
+* Add blank lines around all `fn`, `struct`, `enum`, etc.
+* `// Comment like this.` and not `//like this`.
+* Use `TODO` instead of `FIXME`.
+* Add your github handle to the `TODO`:s you write, e.g: `TODO(emilk): clean this up`.
+* Write idiomatic rust.
+* Avoid `unsafe`.
+* Avoid code that can cause panics.
+* Use good names for everything.
+* Add docstrings to types, `struct` fields and all `pub fn`.
+* Add some example code (doc-tests).
+* Before making a function longer, consider adding a helper function.
+* If you are only using it in one function, put the `use` statement in that function. This improves locality, making it easier to read and move the code.
+* When importing a `trait` to use it's trait methods, do this: `use Trait as _;`. That lets the reader know why you imported it, even though it seems unused.
+* Follow the [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/).
+* Break the above rules when it makes sense.
+
+
+### Good:
+``` rust
+/// The name of the thing.
+fn name(&self) -> &str {
+    &self.name
+}
+
+fn foo(&self) {
+    // TODO(emilk): implement
+}
+```
+
+### Bad:
+``` rust
+//some function
+fn get_name(&self) -> &str {
+    &self.name
+}
+fn foo(&self) {
+    //FIXME: implement
+}
+```

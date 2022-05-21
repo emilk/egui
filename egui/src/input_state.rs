@@ -9,13 +9,13 @@ pub use touch_state::MultiTouchInfo;
 use touch_state::TouchState;
 
 /// If the pointer moves more than this, it won't become a click (but it is still a drag)
-const MAX_CLICK_DIST: f32 = 6.0; // TODO: move to settings
+const MAX_CLICK_DIST: f32 = 6.0; // TODO(emilk): move to settings
 
 /// If the pointer is down for longer than this, it won't become a click (but it is still a drag)
-const MAX_CLICK_DURATION: f64 = 0.6; // TODO: move to settings
+const MAX_CLICK_DURATION: f64 = 0.6; // TODO(emilk): move to settings
 
 /// The new pointer press must come within this many seconds from previous pointer release
-const MAX_DOUBLE_CLICK_DELAY: f64 = 0.3; // TODO: move to settings
+const MAX_DOUBLE_CLICK_DELAY: f64 = 0.3; // TODO(emilk): move to settings
 
 /// Input state that egui updates each frame.
 ///
@@ -192,7 +192,7 @@ impl InputState {
             stable_dt,
             modifiers: new.modifiers,
             keys_down,
-            events: new.events.clone(), // TODO: remove clone() and use raw.events
+            events: new.events.clone(), // TODO(emilk): remove clone() and use raw.events
             raw: new,
         }
     }
@@ -324,7 +324,7 @@ impl InputState {
     /// Returns imprecision in points.
     #[inline(always)]
     pub fn aim_radius(&self) -> f32 {
-        // TODO: multiply by ~3 for touch inputs because fingers are fat
+        // TODO(emilk): multiply by ~3 for touch inputs because fingers are fat
         self.physical_pixel_size()
     }
 

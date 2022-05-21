@@ -65,7 +65,7 @@ impl Default for CoordinatesFormatter {
 
 // ----------------------------------------------------------------------------
 
-const MIN_LINE_SPACING_IN_POINTS: f64 = 6.0; // TODO: large enough for a wide label
+const MIN_LINE_SPACING_IN_POINTS: f64 = 6.0; // TODO(emilk): large enough for a wide label
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone)]
@@ -867,7 +867,7 @@ impl PlotUi {
         self.next_auto_color_idx += 1;
         let golden_ratio = (5.0_f32.sqrt() - 1.0) / 2.0; // 0.61803398875
         let h = i as f32 * golden_ratio;
-        Hsva::new(h, 0.85, 0.5, 1.0).into() // TODO: OkLab or some other perspective color space
+        Hsva::new(h, 0.85, 0.5, 1.0).into() // TODO(emilk): OkLab or some other perspective color space
     }
 
     pub fn ctx(&self) -> &Context {

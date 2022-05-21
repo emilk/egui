@@ -83,7 +83,7 @@ fn main() {
 
                 egui_glium.on_event(&event);
 
-                display.gl_window().window().request_redraw(); // TODO: ask egui if the events warrants a repaint instead
+                display.gl_window().window().request_redraw(); // TODO(emilk): ask egui if the events warrants a repaint instead
             }
 
             _ => (),

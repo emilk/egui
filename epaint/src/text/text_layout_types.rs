@@ -227,7 +227,7 @@ pub struct TextFormat {
     /// If you use a small font and [`Align::TOP`] you
     /// can get the effect of raised text.
     pub valign: Align,
-    // TODO: lowered
+    // TODO(emilk): lowered
 }
 
 impl Default for TextFormat {
@@ -735,7 +735,7 @@ impl Galley {
         }
     }
 
-    // TODO: return identical cursor, or clamp?
+    // TODO(emilk): return identical cursor, or clamp?
     pub fn from_pcursor(&self, pcursor: PCursor) -> Cursor {
         let prefer_next_row = pcursor.prefer_next_row;
         let mut ccursor_it = CCursor {

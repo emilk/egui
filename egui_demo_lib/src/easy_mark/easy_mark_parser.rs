@@ -10,7 +10,7 @@
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Item<'a> {
     /// `\n`
-    // TODO: add Style here so empty heading still uses up the right amount of space.
+    // TODO(emilk): add Style here so empty heading still uses up the right amount of space.
     Newline,
     ///
     Text(Style, &'a str),

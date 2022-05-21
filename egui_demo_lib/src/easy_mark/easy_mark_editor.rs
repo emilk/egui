@@ -64,7 +64,7 @@ impl EasyMarkEditor {
                 ScrollArea::vertical()
                     .id_source("rendered")
                     .show(&mut columns[1], |ui| {
-                        // TODO: we can save some more CPU by caching the rendered output.
+                        // TODO(emilk): we can save some more CPU by caching the rendered output.
                         crate::easy_mark::easy_mark(ui, &self.code);
                     });
             });

@@ -180,7 +180,7 @@ pub fn run_glow(
                 if integration.should_quit() {
                     *control_flow = winit::event_loop::ControlFlow::Exit;
                 }
-                window.request_redraw(); // TODO: ask egui if the events warrants a repaint instead
+                window.request_redraw(); // TODO(emilk): ask egui if the events warrants a repaint instead
             }
             winit::event::Event::LoopDestroyed => {
                 integration.save(&mut *app, window);
@@ -193,7 +193,7 @@ pub fn run_glow(
     });
 }
 
-// TODO: merge with with the clone above
+// TODO(emilk): merge with with the clone above
 /// Run an egui app
 #[cfg(feature = "wgpu")]
 pub fn run_wgpu(
@@ -329,7 +329,7 @@ pub fn run_wgpu(
                 if integration.should_quit() {
                     *control_flow = winit::event_loop::ControlFlow::Exit;
                 }
-                window.request_redraw(); // TODO: ask egui if the events warrants a repaint instead
+                window.request_redraw(); // TODO(emilk): ask egui if the events warrants a repaint instead
             }
             winit::event::Event::LoopDestroyed => {
                 integration.save(&mut *app, window);

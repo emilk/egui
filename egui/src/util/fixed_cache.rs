@@ -2,7 +2,7 @@ use epaint::util::hash;
 
 const FIXED_CACHE_SIZE: usize = 1024; // must be small for web/WASM build (for unknown reason)
 
-/// Very stupid/simple key-value cache. TODO: improve
+/// Very stupid/simple key-value cache. TODO(emilk): improve
 #[derive(Clone)]
 pub(crate) struct FixedCache<K, V>([Option<(K, V)>; FIXED_CACHE_SIZE]);
 

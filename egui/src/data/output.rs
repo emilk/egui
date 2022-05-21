@@ -506,7 +506,7 @@ impl WidgetInfo {
             text_selection: _,
         } = self;
 
-        // TODO: localization
+        // TODO(emilk): localization
         let widget_type = match typ {
             WidgetType::Link => "link",
             WidgetType::TextEdit => "text edit",

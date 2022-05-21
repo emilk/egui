@@ -296,7 +296,7 @@ impl<'a> Table<'a> {
 
         let bottom = ui.min_rect().bottom();
 
-        // TODO: fix frame-delay by interacting before laying out (but painting later).
+        // TODO(emilk): fix frame-delay by interacting before laying out (but painting later).
         if let Some(resize_id) = resize_id {
             let spacing_x = ui.spacing().item_spacing.x;
             let mut x = avail_rect.left() - spacing_x * 0.5;
