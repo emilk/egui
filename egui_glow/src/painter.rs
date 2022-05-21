@@ -288,6 +288,7 @@ impl Painter {
         (width_in_pixels, height_in_pixels)
     }
 
+    /// You are expected to have cleared the color buffer before calling this.
     pub fn paint_and_update_textures(
         &mut self,
         screen_size_px: [u32; 2],
@@ -308,6 +309,7 @@ impl Painter {
     }
 
     /// Main entry-point for painting a frame.
+    ///
     /// You should call `target.clear_color(..)` before
     /// and `target.finish()` after this.
     ///
@@ -339,6 +341,11 @@ impl Painter {
             unsafe {
                 post_process.begin(screen_size_px[0] as i32, screen_size_px[1] as i32);
                 post_process.bind();
+                self.gl.disable(glow::SCISSOR_TEST);
+                self.gl
+                    .viewport(0, 0, screen_size_px[0] as i32, screen_size_px[1] as i32);
+                // use the same clear-color as was set for the screen framebuffer.
+                self.gl.clear(glow::COLOR_BUFFER_BIT);
             }
         }
         let size_in_pixels = unsafe { self.prepare_painting(screen_size_px, pixels_per_point) };

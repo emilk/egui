@@ -177,8 +177,6 @@ impl DemoWindows {
 
     fn mobile_ui(&mut self, ctx: &Context) {
         if self.about_is_open {
-            egui::CentralPanel::default().show(ctx, |_ui| {}); // just to paint a background for the windows to be on top of. Needed on web because of https://github.com/emilk/egui/issues/1548
-
             let screen_size = ctx.input().screen_rect.size();
             let default_width = (screen_size.x - 20.0).min(400.0);
 
@@ -276,7 +274,6 @@ impl DemoWindows {
 
     /// Show the open windows.
     fn show_windows(&mut self, ctx: &Context) {
-        egui::CentralPanel::default().show(ctx, |_ui| {}); // just to paint a background for the windows to be on top of. Needed on web because of https://github.com/emilk/egui/issues/1548
         self.about.show(ctx, &mut self.about_is_open);
         self.demos.windows(ctx);
         self.tests.windows(ctx);
