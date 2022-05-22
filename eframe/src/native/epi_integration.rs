@@ -1,5 +1,6 @@
 use crate::{epi, WindowInfo};
 use egui_winit::{native_pixels_per_point, WindowSettings};
+use winit::event_loop::EventLoopWindowTarget;
 
 pub fn points_to_size(points: egui::Vec2) -> winit::dpi::LogicalSize<f64> {
     winit::dpi::LogicalSize {
@@ -181,7 +182,8 @@ pub struct EpiIntegration {
 }
 
 impl EpiIntegration {
-    pub fn new(
+    pub fn new<E>(
+        event_loop: &EventLoopWindowTarget<E>,
         max_texture_side: usize,
         window: &winit::window::Window,
         storage: Option<Box<dyn epi::Storage>>,
@@ -213,11 +215,16 @@ impl EpiIntegration {
             egui_ctx.set_visuals(egui::Visuals::light());
         }
 
+        let mut egui_winit = egui_winit::State::new(event_loop);
+        egui_winit.set_max_texture_side(max_texture_side);
+        let pixels_per_point = window.scale_factor() as f32;
+        egui_winit.set_pixels_per_point(pixels_per_point);
+
         Self {
             frame,
             last_auto_save: std::time::Instant::now(),
             egui_ctx,
-            egui_winit: egui_winit::State::new(max_texture_side, window),
+            egui_winit,
             pending_full_output: Default::default(),
             quit: false,
             can_drag_window: false,

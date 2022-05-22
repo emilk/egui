@@ -4,6 +4,7 @@ All notable changes to the `egui-winit` integration will be noted in this file.
 
 ## Unreleased
 * Fix clipboard on Wayland ([#1613](https://github.com/emilk/egui/pull/1613)).
+* Allow deferred render + surface state initialization for Android ([#1634](https://github.com/emilk/egui/pull/1634))
 
 
 ## 0.18.0 - 2022-04-30
