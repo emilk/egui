@@ -80,7 +80,7 @@ impl MyApp {
 /// to the [`egui::PaintCallback`] because [`three_d::Context`] isn't `Send+Sync`, which
 /// [`egui::PaintCallback`] is.
 fn with_three_d_context<R>(
-    gl: &std::rc::Rc<glow::Context>,
+    gl: &std::sync::Arc<glow::Context>,
     f: impl FnOnce(&three_d::Context) -> R,
 ) -> R {
     use std::cell::RefCell;
@@ -111,15 +111,12 @@ fn paint_with_three_d(three_d: &three_d::Context, info: &egui::PaintCallbackInfo
 
     // Respect the egui clip region (e.g. if we are inside an `egui::ScrollArea`).
     let clip_rect = info.clip_rect_in_pixels();
-    let render_states = RenderStates {
-        clip: Clip::Enabled {
-            x: clip_rect.left_px.round() as _,
-            y: clip_rect.from_bottom_px.round() as _,
-            width: clip_rect.width_px.round() as _,
-            height: clip_rect.height_px.round() as _,
-        },
-        ..Default::default()
-    };
+    three_d.set_scissor(ScissorBox {
+        x: clip_rect.left_px.round() as _,
+        y: clip_rect.from_bottom_px.round() as _,
+        width: clip_rect.width_px.round() as _,
+        height: clip_rect.height_px.round() as _,
+    });
 
     let camera = Camera::new_perspective(
         three_d,
@@ -150,11 +147,7 @@ fn paint_with_three_d(three_d: &three_d::Context, info: &egui::PaintCallbackInfo
         ..Default::default()
     };
 
-    let material = ColorMaterial {
-        render_states,
-        ..Default::default()
-    };
-    let mut model = Model::new_with_material(three_d, &cpu_mesh, material).unwrap();
+    let mut model = Model::new(three_d, &cpu_mesh).unwrap();
 
     // Set the current transformation of the triangle
     model.set_transformation(Mat4::from_angle_y(radians(angle)));

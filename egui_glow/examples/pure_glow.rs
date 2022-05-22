@@ -8,7 +8,7 @@ fn main() {
 
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
     let (gl_window, gl) = create_display(&event_loop);
-    let gl = std::rc::Rc::new(gl);
+    let gl = std::sync::Arc::new(gl);
 
     let mut egui_glow = egui_glow::EguiGlow::new(gl_window.window(), gl.clone());
 

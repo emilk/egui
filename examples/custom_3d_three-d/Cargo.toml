@@ -12,4 +12,4 @@ publish = false
 eframe = { path = "../../eframe", features = ["glow"] }
 egui_glow = { path = "../../egui_glow" }
 glow = "0.11"
-three-d = { version = "0.11", default-features = false }
+three-d = { version = "0.12", default-features = false }
