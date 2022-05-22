@@ -136,11 +136,20 @@ pub struct TextureMeta {
     pub filter: TextureFilter,
 }
 
+/// How the texture texels are filtered.
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum TextureFilter {
-    Linear,
+    /// Show the nearest pixel value.
+    ///
+    /// When zooming in you will get sharp, square pixels/texels.
+    /// When zooming out you will get a very crisp (and aliased) look.
     Nearest,
+
+    /// Linearly interpolate the nearest neighbors, creating a smoother look when zooming in and out.
+    ///
+    /// This is the default.
+    Linear,
 }
 
 impl Default for TextureFilter {

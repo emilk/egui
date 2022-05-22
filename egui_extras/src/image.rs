@@ -26,35 +26,6 @@ impl RetainedImage {
         }
     }
 
-    /// Set the texture filter to use for the image.
-    ///
-    /// **Note:** If the texture has already been uploaded to the GPU, this will require
-    /// re-uploading the texture with the updated filter.
-    ///
-    /// # Example
-    /// ```rust
-    /// # use egui_extras::RetainedImage;
-    /// # use egui::{Color32, epaint::{ColorImage, textures::TextureFilter}};
-    /// # let pixels = vec![Color32::BLACK];
-    /// # let color_image = ColorImage {
-    /// #   size: [1, 1],
-    /// #   pixels,
-    /// # };
-    /// #
-    /// // Upload a pixel art image without it getting blurry when resized
-    /// let image = RetainedImage::from_color_image("my_image", color_image)
-    ///     .with_texture_filter(TextureFilter::Nearest);
-    /// ```
-    pub fn with_texture_filter(mut self, filter: TextureFilter) -> Self {
-        self.filter = filter;
-
-        // If the texture has already been uploaded, this will force it to be re-uploaded with the
-        // updated filter.
-        *self.texture.lock() = None;
-
-        self
-    }
-
     /// Load a (non-svg) image.
     ///
     /// Requires the "image" feature. You must also opt-in to the image formats you need
@@ -92,6 +63,35 @@ impl RetainedImage {
     #[cfg(feature = "svg")]
     pub fn from_svg_str(debug_name: impl Into<String>, svg_str: &str) -> Result<Self, String> {
         Self::from_svg_bytes(debug_name, svg_str.as_bytes())
+    }
+
+    /// Set the texture filter to use for the image.
+    ///
+    /// **Note:** If the texture has already been uploaded to the GPU, this will require
+    /// re-uploading the texture with the updated filter.
+    ///
+    /// # Example
+    /// ```rust
+    /// # use egui_extras::RetainedImage;
+    /// # use egui::{Color32, epaint::{ColorImage, textures::TextureFilter}};
+    /// # let pixels = vec![Color32::BLACK];
+    /// # let color_image = ColorImage {
+    /// #   size: [1, 1],
+    /// #   pixels,
+    /// # };
+    /// #
+    /// // Upload a pixel art image without it getting blurry when resized
+    /// let image = RetainedImage::from_color_image("my_image", color_image)
+    ///     .with_texture_filter(TextureFilter::Nearest);
+    /// ```
+    pub fn with_texture_filter(mut self, filter: TextureFilter) -> Self {
+        self.filter = filter;
+
+        // If the texture has already been uploaded, this will force it to be re-uploaded with the
+        // updated filter.
+        *self.texture.lock() = None;
+
+        self
     }
 
     /// The size of the image data (number of pixels wide/high).
