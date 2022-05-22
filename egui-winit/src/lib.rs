@@ -628,6 +628,27 @@ fn translate_virtual_key_code(key: winit::event::VirtualKeyCode) -> Option<egui:
         VirtualKeyCode::Y => Key::Y,
         VirtualKeyCode::Z => Key::Z,
 
+        VirtualKeyCode::F1 => Key::F1,
+        VirtualKeyCode::F2 => Key::F2,
+        VirtualKeyCode::F3 => Key::F3,
+        VirtualKeyCode::F4 => Key::F4,
+        VirtualKeyCode::F5 => Key::F5,
+        VirtualKeyCode::F6 => Key::F6,
+        VirtualKeyCode::F7 => Key::F7,
+        VirtualKeyCode::F8 => Key::F8,
+        VirtualKeyCode::F9 => Key::F9,
+        VirtualKeyCode::F10 => Key::F10,
+        VirtualKeyCode::F11 => Key::F11,
+        VirtualKeyCode::F12 => Key::F12,
+        VirtualKeyCode::F13 => Key::F13,
+        VirtualKeyCode::F14 => Key::F14,
+        VirtualKeyCode::F15 => Key::F15,
+        VirtualKeyCode::F16 => Key::F16,
+        VirtualKeyCode::F17 => Key::F17,
+        VirtualKeyCode::F18 => Key::F18,
+        VirtualKeyCode::F19 => Key::F19,
+        VirtualKeyCode::F20 => Key::F20,
+
         _ => {
             return None;
         }
