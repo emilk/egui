@@ -549,8 +549,11 @@ impl ItemsDemo {
         };
 
         let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
-            ui.ctx()
-                .load_texture("plot_demo", egui::ColorImage::example())
+            ui.ctx().load_texture(
+                "plot_demo",
+                egui::ColorImage::example(),
+                egui::epaint::textures::TextureFilter::Linear,
+            )
         });
         let image = PlotImage::new(
             texture,

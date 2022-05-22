@@ -15,7 +15,11 @@ use emath::Rot2;
 ///     fn ui(&mut self, ui: &mut egui::Ui) {
 ///         let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
 ///             // Load the texture only once.
-///             ui.ctx().load_texture("my-image", egui::ColorImage::example())
+///             ui.ctx().load_texture(
+///                 "my-image",
+///                 egui::ColorImage::example(),
+///                 egui::epaint::textures::TextureFilter::Linear
+///             )
 ///         });
 ///
 ///         // Show the image:

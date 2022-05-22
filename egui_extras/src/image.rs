@@ -1,3 +1,4 @@
+use egui::epaint::textures::TextureFilter;
 use egui::mutex::Mutex;
 
 /// An image to be shown in egui.
@@ -12,8 +13,8 @@ pub struct RetainedImage {
     image: Mutex<egui::ColorImage>,
     /// Lazily loaded when we have an egui context.
     texture: Mutex<Option<egui::TextureHandle>>,
+    filter: TextureFilter,
 }
-
 impl RetainedImage {
     pub fn from_color_image(debug_name: impl Into<String>, image: ColorImage) -> Self {
         Self {
@@ -21,7 +22,37 @@ impl RetainedImage {
             size: image.size,
             image: Mutex::new(image),
             texture: Default::default(),
+            filter: Default::default(),
         }
+    }
+
+    /// Set the texture filter to use for the image.
+    ///
+    /// **Note:** If the texture has already been uploaded to the GPU, this will require
+    /// re-uploading the texture with the updated filter.
+    ///
+    /// # Example
+    /// ```rust
+    /// # use egui_extras::RetainedImage;
+    /// # use egui::{Color32, epaint::{ColorImage, textures::TextureFilter}};
+    /// # let pixels = vec![Color32::BLACK];
+    /// # let color_image = ColorImage {
+    /// #   size: [1, 1],
+    /// #   pixels,
+    /// # };
+    /// #
+    /// // Upload a pixel art image without it getting blurry when resized
+    /// let image = RetainedImage::from_color_image("my_image", color_image)
+    ///     .with_texture_filter(TextureFilter::Nearest);
+    /// ```
+    pub fn with_texture_filter(mut self, filter: TextureFilter) -> Self {
+        self.filter = filter;
+
+        // If the texture has already been uploaded, this will force it to be re-uploaded with the
+        // updated filter.
+        *self.texture.lock() = None;
+
+        self
     }
 
     /// Load a (non-svg) image.
@@ -86,7 +117,7 @@ impl RetainedImage {
             .get_or_insert_with(|| {
                 let image: &mut ColorImage = &mut self.image.lock();
                 let image = std::mem::take(image);
-                ctx.load_texture(&self.debug_name, image)
+                ctx.load_texture(&self.debug_name, image, self.filter)
             })
             .id()
     }
