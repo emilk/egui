@@ -20,7 +20,7 @@ pub use glow::Context;
 const VERT_SRC: &str = include_str!("shader/vertex.glsl");
 const FRAG_SRC: &str = include_str!("shader/fragment.glsl");
 
-pub type TextureFilter = egui::epaint::textures::TextureFilter;
+pub type TextureFilter = egui::TextureFilter;
 
 trait TextureFilterExt {
     fn glow_code(&self) -> u32;

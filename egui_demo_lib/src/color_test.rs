@@ -1,4 +1,4 @@
-use egui::{color::*, epaint::textures::TextureFilter, widgets::color_picker::show_color, *};
+use egui::{color::*, widgets::color_picker::show_color, TextureFilter, *};
 use std::collections::HashMap;
 
 const GRADIENT_SIZE: Vec2 = vec2(256.0, 24.0);

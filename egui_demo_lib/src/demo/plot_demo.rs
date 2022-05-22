@@ -552,7 +552,7 @@ impl ItemsDemo {
             ui.ctx().load_texture(
                 "plot_demo",
                 egui::ColorImage::example(),
-                egui::epaint::textures::TextureFilter::Linear,
+                egui::TextureFilter::Linear,
             )
         });
         let image = PlotImage::new(

@@ -1,5 +1,5 @@
-use egui::epaint::textures::TextureFilter;
 use egui::mutex::Mutex;
+use egui::TextureFilter;
 
 /// An image to be shown in egui.
 ///

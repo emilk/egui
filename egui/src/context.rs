@@ -697,7 +697,7 @@ impl Context {
     ///             ui.ctx().load_texture(
     ///                 "my-image",
     ///                 egui::ColorImage::example(),
-    ///                 egui::epaint::textures::TextureFilter::Linear
+    ///                 egui::TextureFilter::Linear
     ///             )
     ///         });
     ///

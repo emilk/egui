@@ -416,10 +416,14 @@ impl RenderPass {
                 format: wgpu::TextureFormat::Rgba8UnormSrgb,
                 usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
             });
+            let filter = match image_delta.filter {
+                egui::TextureFilter::Nearest => wgpu::FilterMode::Nearest,
+                egui::TextureFilter::Linear => wgpu::FilterMode::Linear,
+            };
             let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
                 label: None,
-                mag_filter: wgpu::FilterMode::Linear,
-                min_filter: wgpu::FilterMode::Linear,
+                mag_filter: filter,
+                min_filter: filter,
                 ..Default::default()
             });
             let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -488,11 +492,12 @@ impl RenderPass {
     /// The `Texture` must have the format `TextureFormat::Rgba8UnormSrgb` and usage
     /// `TextureUsage::SAMPLED`. Any compare function supplied in the `SamplerDescriptor` will be
     /// ignored.
+    #[allow(clippy::needless_pass_by_value)] // false positive
     pub fn register_native_texture_with_sampler_options(
         &mut self,
         device: &wgpu::Device,
         texture: &wgpu::TextureView,
-        sampler_descriptor: wgpu::SamplerDescriptor,
+        sampler_descriptor: wgpu::SamplerDescriptor<'_>,
     ) -> egui::TextureId {
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             compare: None,

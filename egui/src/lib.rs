@@ -327,7 +327,7 @@ pub use epaint::hex_color;
 pub use epaint::{
     color, mutex,
     text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
-    textures::TexturesDelta,
+    textures::{TextureFilter, TexturesDelta},
     ClippedPrimitive, Color32, ColorImage, FontImage, ImageData, Mesh, PaintCallback,
     PaintCallbackInfo, Rgba, Rounding, Shape, Stroke, TextureHandle, TextureId,
 };

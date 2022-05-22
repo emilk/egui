@@ -118,7 +118,7 @@ impl WidgetGallery {
             ui.ctx().load_texture(
                 "example",
                 egui::ColorImage::example(),
-                egui::epaint::textures::TextureFilter::Linear,
+                egui::TextureFilter::Linear,
             )
         });
 
