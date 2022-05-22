@@ -3529,17 +3529,14 @@ dependencies = [
 
 [[package]]
 name = "three-d"
-version = "0.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67f308ad823369a15af7278f5fc31e9742663fead72c1361d64d5b39ce882339"
+version = "0.12.0"
+source = "git+https://github.com/asny/three-d.git?rev=43f210668197e8b1dc50ea9f074d2b8426ecb0f2#43f210668197e8b1dc50ea9f074d2b8426ecb0f2"
 dependencies = [
  "cgmath",
- "gl_generator",
  "gloo-timers",
  "glow",
  "half",
  "js-sys",
- "log",
  "serde",
  "thiserror",
  "wasm-bindgen",

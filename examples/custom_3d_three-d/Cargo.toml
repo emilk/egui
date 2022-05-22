@@ -12,4 +12,4 @@ publish = false
 eframe = { path = "../../eframe", features = ["glow"] }
 egui_glow = { path = "../../egui_glow" }
 glow = "0.11"
-three-d = { version = "0.12", default-features = false }
+three-d = { git = "https://github.com/asny/three-d.git", rev = "43f210668197e8b1dc50ea9f074d2b8426ecb0f2", default-features = false } # 2022-05-22

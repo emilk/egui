@@ -37,6 +37,3 @@ opt-level = 2 # fast and small wasm, basically same as `opt-level = 's'`
 # opt-level = 3 # unecessarily large wasm for no performance gain
 
 # debug = true # include debug symbols, useful when profiling wasm
-
-[patch.crates-io]
-three-d = { git = "https://github.com/asny/three-d.git", rev = "7ac4f3e1e14335290e505a5799a0b88717474678" }
