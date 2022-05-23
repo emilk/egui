@@ -38,6 +38,7 @@ impl ScreenDescriptor {
 #[repr(C)]
 struct UniformBuffer {
     screen_size_in_points: [f32; 2],
+    _padding: [u32; 6],
 }
 
 /// Wraps the buffers and includes additional information.
@@ -82,6 +83,7 @@ impl RenderPass {
             label: Some("egui_uniform_buffer"),
             contents: bytemuck::cast_slice(&[UniformBuffer {
                 screen_size_in_points: [0.0, 0.0],
+                _padding: Default::default(),
             }]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
@@ -550,6 +552,7 @@ impl RenderPass {
             0,
             bytemuck::cast_slice(&[UniformBuffer {
                 screen_size_in_points,
+                _padding: Default::default()
             }]),
         );
 
