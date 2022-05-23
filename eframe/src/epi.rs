@@ -475,7 +475,7 @@ pub struct Location {
     ///
     /// Note that the leading `?` is NOT included in the string.
     ///
-    /// Use [`Self::web_query_map]` to get the parsed version of it.
+    /// Use [`Self::query_map`] to get the parsed version of it.
     pub query: String,
 
     /// The parsed "query" part of "www.example.com/index.html?query#fragment".

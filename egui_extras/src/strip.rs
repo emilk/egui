@@ -12,7 +12,7 @@ use egui::{Response, Ui};
 /// In contrast to normal egui behavior, strip cells do *not* grow with its children!
 ///
 /// First use [`Self::size`] and [`Self::sizes`] to allocate space for the rows or columns will follow.
-/// Then build the strip with `[Self::horizontal]`/`[Self::vertical]`, and add 'cells'
+/// Then build the strip with [`Self::horizontal`]/[`Self::vertical`], and add 'cells'
 /// to it using [`Strip::cell`]. The number of cells MUST match the number of pre-allocated sizes.
 ///
 /// ### Example
@@ -89,7 +89,7 @@ impl<'a> StripBuilder<'a> {
     /// Build horizontal strip: Cells are positions from left to right.
     /// Takes the available horizontal width, so there can't be anything right of the strip or the container will grow slowly!
     ///
-    /// Returns a `[egui::Response]` for hover events.
+    /// Returns a [`egui::Response`] for hover events.
     pub fn horizontal<F>(self, strip: F) -> Response
     where
         F: for<'b> FnOnce(Strip<'a, 'b>),
@@ -116,7 +116,7 @@ impl<'a> StripBuilder<'a> {
     /// Build vertical strip: Cells are positions from top to bottom.
     /// Takes the full available vertical height, so there can't be anything below of the strip or the container will grow slowly!
     ///
-    /// Returns a `[egui::Response]` for hover events.
+    /// Returns a [`egui::Response`] for hover events.
     pub fn vertical<F>(self, strip: F) -> Response
     where
         F: for<'b> FnOnce(Strip<'a, 'b>),

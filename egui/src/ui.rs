@@ -1952,7 +1952,7 @@ impl Ui {
     /// ```
     ///
     /// See also [`Self::allocate_ui_with_layout`],
-    /// and the helpers [`Self::horizontal]`, [`Self::vertical`], etc.
+    /// and the helpers [`Self::horizontal`], [`Self::vertical`], etc.
     #[inline]
     pub fn with_layout<R>(
         &mut self,
