@@ -498,6 +498,8 @@ pub enum Key {
     X,
     Y,
     Z, // Used for cmd+Z (undo)
+    
+    // The function keys:
     F1,
     F2,
     F3,
