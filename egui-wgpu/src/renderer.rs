@@ -38,7 +38,7 @@ impl ScreenDescriptor {
 #[repr(C)]
 struct UniformBuffer {
     screen_size_in_points: [f32; 2],
-    _padding: [u32; 6],
+    _padding: [u32; 2],
 }
 
 /// Wraps the buffers and includes additional information.
