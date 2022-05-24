@@ -110,7 +110,7 @@ impl<'l> StripLayout<'l> {
         let rect = self.cell_rect(&width, &height);
 
         // Make sure we don't have a gap in the stripe background:
-        let rect = rect.expand2(egui::vec2(0.5 * self.ui.spacing().item_spacing.x, 0.0));
+        let rect = rect.expand2(egui::vec2(0.5 * self.ui.spacing().item_spacing.x, 0.5 * self.ui.spacing().item_spacing.y));
 
         self.ui
             .painter()
