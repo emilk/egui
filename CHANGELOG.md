@@ -12,6 +12,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 * Added opt-in feature `deadlock_detection` to detect double-lock of mutexes on the same thread ([#1619](https://github.com/emilk/egui/pull/1619)).
 * Added `InputState::stable_dt`: a more stable estimate for the delta-time in reactive mode ([#1625](https://github.com/emilk/egui/pull/1625)).
 * You can now specify a texture filter for your textures ([#1636](https://github.com/emilk/egui/pull/1636)).
+* Added `fn columns_with_sizes` method for `TableBuilder` ([#1652](https://github.com/emilk/egui/pull/1652)).
 
 ### Fixed 🐛
 * Fixed `ImageButton`'s changing background padding on hover ([#1595](https://github.com/emilk/egui/pull/1595)).
