@@ -125,6 +125,15 @@ impl<'a> TableBuilder<'a> {
         self
     }
 
+    /// Allocate space for several columns at once with varying sizes.
+    /// Example: let vec = &vec![Size::relative(0.5), Size::relative(0.3)];
+    pub fn columns_with_sizes(mut self, sizes: &Vec<Size>) -> Self {
+        for size in sizes.iter() {
+            self.sizing.add(*size);
+        }
+        self
+    }
+
     fn available_width(&self) -> f32 {
         self.ui.available_rect_before_wrap().width()
             - if self.scroll {
