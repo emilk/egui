@@ -14,7 +14,7 @@ members = [
 
     "examples/confirm_exit",
     "examples/custom_3d_glow",
-    "examples/custom_3d_three-d",
+    # "examples/custom_3d_three-d",
     "examples/custom_font",
     "examples/custom_font_style",
     "examples/custom_window_frame",

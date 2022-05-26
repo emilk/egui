@@ -29,6 +29,10 @@ pub struct CreationContext<'s> {
     /// you might want to use later from a [`egui::PaintCallback`].
     #[cfg(feature = "glow")]
     pub gl: Option<std::sync::Arc<glow::Context>>,
+    /// Can be used to manage GPU resources for custom rendering with WGPU using
+    /// [`egui::PaintCallback`]s.
+    #[cfg(feature = "wgpu")]
+    pub render_state: Option<egui_wgpu::RenderState>,
 }
 
 // ----------------------------------------------------------------------------
@@ -335,6 +339,11 @@ pub struct Frame {
     #[cfg(feature = "glow")]
     #[doc(hidden)]
     pub gl: Option<std::sync::Arc<glow::Context>>,
+
+    /// Can be used to manage GPU resources for custom rendering with WGPU using
+    /// [`egui::PaintCallback`]s.
+    #[cfg(feature = "wgpu")]
+    pub render_state: Option<egui_wgpu::RenderState>,
 }
 
 impl Frame {

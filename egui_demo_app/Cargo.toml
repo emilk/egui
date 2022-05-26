@@ -34,7 +34,7 @@ serde = [
 syntax_highlighting = ["egui_demo_lib/syntax_highlighting"]
 
 glow = ["eframe/glow"]
-wgpu = ["eframe/wgpu"]
+wgpu = ["eframe/wgpu", "bytemuck", "pollster"]
 
 
 [dependencies]
@@ -42,6 +42,8 @@ chrono = { version = "0.4", features = ["js-sys", "wasmbind"] }
 eframe = { version = "0.18.0", path = "../eframe", default-features = false }
 egui = { version = "0.18.0", path = "../egui", features = ["extra_debug_asserts"] }
 egui_demo_lib = { version = "0.18.0", path = "../egui_demo_lib", features = ["chrono"] }
+bytemuck = { version = "1.9.1", optional = true }
+pollster = { version = "0.2.5", optional = true }
 
 # Optional dependencies:
 

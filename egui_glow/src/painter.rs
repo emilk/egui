@@ -4,7 +4,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use egui::{
     emath::Rect,
-    epaint::{Color32, Mesh, Primitive, Vertex},
+    epaint::{Color32, Mesh, PaintCallbackInfo, Primitive, Vertex},
 };
 use glow::HasContext as _;
 use memoffset::offset_of;
@@ -66,6 +66,18 @@ pub struct Painter {
 
     /// Used to make sure we are destroyed correctly.
     destroyed: bool,
+}
+
+// TODO: Documentation
+pub struct CallbackFn {
+    f: Box<dyn Fn(PaintCallbackInfo, &Painter) + Sync + Send>,
+}
+
+impl CallbackFn {
+    pub fn new<F: Fn(PaintCallbackInfo, &Painter) + Sync + Send + 'static>(callback: F) -> Self {
+        let f = Box::new(callback);
+        CallbackFn { f }
+    }
 }
 
 impl Painter {
@@ -381,7 +393,11 @@ impl Painter {
                             screen_size_px,
                         };
 
-                        callback.call(&info, self);
+                        if let Some(callback) = callback.callback.downcast_ref::<CallbackFn>() {
+                            (callback.f)(info, self);
+                        } else {
+                            tracing::warn!("Warning: Unsupported render callback");
+                        }
 
                         check_for_gl_error!(&self.gl, "callback");
 
