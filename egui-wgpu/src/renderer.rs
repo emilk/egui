@@ -9,6 +9,27 @@ use wgpu::util::DeviceExt as _;
 
 /// A callback function that can be used to compose an [`egui::PaintCallback`] for custom WGPU
 /// rendering.
+///
+/// The callback is composed of two functions: `prepare` and `paint`.
+///
+/// `prepare` is called every frame before `paint`, and can use the passed-in [`wgpu::Device`] and
+/// [`wgpu::Buffer`] to allocate or modify GPU resources such as buffers.
+///
+/// `paint` is called after `prepare` and is given access to the the [`wgpu::RenderPass`] so that it
+/// can issue draw commands.
+///
+/// The final argument of both the `prepare` and `paint` callbacks is a the
+/// [`paint_callback_resources`][crate::renderer::RenderPass::paint_callback_resources].
+/// `paint_callback_resources` has the same lifetime as the Egui render pass, so it can be used to
+/// store buffers, pipelines, and other information that needs to be accessed during the render
+/// pass.
+///
+/// # Example
+///
+/// See the [custom3d_wgpu] demo source for a detailed usage example.
+///
+/// [custom3d_wgpu]:
+///     https://github.com/emilk/egui/blob/master/egui_demo_app/src/apps/custom3d_wgpu.rs
 pub struct CallbackFn {
     prepare: Box<PrepareCallback>,
     paint: Box<PaintCallback>,
@@ -32,6 +53,7 @@ impl CallbackFn {
         Self::default()
     }
 
+    /// Set the prepare callback
     pub fn prepare<F>(mut self, prepare: F) -> Self
     where
         F: Fn(&wgpu::Device, &wgpu::Queue, &mut TypeMap) + Sync + Send + 'static,
@@ -40,6 +62,7 @@ impl CallbackFn {
         self
     }
 
+    /// Set the paint callback
     pub fn paint<F>(mut self, paint: F) -> Self
     where
         F: for<'a, 'b> Fn(PaintCallbackInfo, &'a mut wgpu::RenderPass<'b>, &'b TypeMap)
@@ -375,6 +398,7 @@ impl RenderPass {
                     let cbfn = if let Some(c) = callback.callback.downcast_ref::<CallbackFn>() {
                         c
                     } else {
+                        // We already warned in the `prepare` callback
                         continue;
                     };
 
@@ -539,7 +563,6 @@ impl RenderPass {
         };
     }
 
-    /// Should be called before `execute()`.
     pub fn free_texture(&mut self, id: &egui::TextureId) {
         self.textures.remove(id);
     }
@@ -682,8 +705,7 @@ impl RenderPass {
                     let cbfn = if let Some(c) = callback.callback.downcast_ref::<CallbackFn>() {
                         c
                     } else {
-                        // TODO: Should we warn in the console about this, or provide some other way to
-                        // debug ignored paint callbacks?
+                        tracing::warn!("Unknown paint callback: expected `egui_gpu::CallbackFn`");
                         continue;
                     };
 

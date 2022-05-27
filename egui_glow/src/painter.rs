@@ -68,7 +68,18 @@ pub struct Painter {
     destroyed: bool,
 }
 
-// TODO: Documentation
+/// A callback function that can be used to compose an [`egui::PaintCallback`] for custom rendering
+/// with [`glow`].
+///
+/// The callback is passed, the [`egui::PaintCallbackInfo`] and the [`Painter`] which can be used to
+/// access the OpenGL context.
+///
+/// # Example
+///
+/// See the [custom3d_glow] demo source for a detailed usage example.
+///
+/// [custom3d_glow]:
+///     https://github.com/emilk/egui/blob/master/egui_demo_app/src/apps/custom3d_wgpu.rs
 pub struct CallbackFn {
     f: Box<dyn Fn(PaintCallbackInfo, &Painter) + Sync + Send>,
 }

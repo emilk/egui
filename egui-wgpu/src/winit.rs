@@ -264,9 +264,6 @@ impl<'a> Painter<'a> {
             for (id, image_delta) in &textures_delta.set {
                 rpass.update_texture(&render_state.device, &render_state.queue, *id, image_delta);
             }
-            for id in &textures_delta.free {
-                rpass.free_texture(id);
-            }
 
             rpass.update_buffers(
                 &render_state.device,
@@ -289,6 +286,13 @@ impl<'a> Painter<'a> {
                 a: clear_color.a() as f64,
             }),
         );
+
+        {
+            let mut rpass = render_state.egui_rpass.write();
+            for id in &textures_delta.free {
+                rpass.free_texture(id);
+            }
+        }
 
         // Submit the commands.
         render_state.queue.submit(std::iter::once(encoder.finish()));
