@@ -126,7 +126,8 @@ impl<'a> TableBuilder<'a> {
     }
 
     /// Allocate space for several columns at once with varying sizes.
-    /// Vector example, let vec = &vec!`[Size::relative(0.5), Size::relative(0.3)]`
+    ///
+    /// Example: `.columns_with_sizes(&[Size::relative(0.5), Size::relative(0.3)])`
     pub fn columns_with_sizes(mut self, sizes: &[Size]) -> Self {
         for size in sizes.iter() {
             self.sizing.add(*size);
