@@ -17,6 +17,7 @@ fn create_display(
     crate::profile_function!();
     let gl_window = unsafe {
         glutin::ContextBuilder::new()
+            .with_hardware_acceleration(native_options.hardware_acceleration)
             .with_depth_buffer(native_options.depth_buffer)
             .with_multisampling(native_options.multisampling)
             .with_srgb(true)

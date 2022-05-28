@@ -216,6 +216,11 @@ pub struct NativeOptions {
     /// `egui` doesn't need the stencil buffer, so the default value is 0.
     pub stencil_buffer: u8,
 
+    /// Use hardware acceleration if available. On macOS, this will possibly
+    /// use a dedicated GPU which will lead to higher power consumption.
+    /// The default value is `Some(true)`
+    pub hardware_acceleration: Option<bool>,
+
     /// What rendering backend to use.
     pub renderer: Renderer,
 }
@@ -238,6 +243,7 @@ impl Default for NativeOptions {
             multisampling: 0,
             depth_buffer: 0,
             stencil_buffer: 0,
+            hardware_acceleration: Some(true),
             renderer: Renderer::default(),
         }
     }
