@@ -76,10 +76,7 @@ pub struct Painter {
 ///
 /// # Example
 ///
-/// See the [custom3d_glow] demo source for a detailed usage example.
-///
-/// [custom3d_glow]:
-///     https://github.com/emilk/egui/blob/master/egui_demo_app/src/apps/custom3d_wgpu.rs
+/// See the [`custom3d_glow`](https://github.com/emilk/egui/blob/master/egui_demo_app/src/apps/custom3d_wgpu.rs) demo source for a detailed usage example.
 pub struct CallbackFn {
     f: Box<dyn Fn(PaintCallbackInfo, &Painter) + Sync + Send>,
 }
