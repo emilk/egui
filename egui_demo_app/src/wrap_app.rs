@@ -92,9 +92,7 @@ pub struct State {
 /// Wraps many demo/test apps into one.
 pub struct WrapApp {
     state: State,
-    // not serialized (because it contains OpenGL buffers etc)
-    #[cfg(feature = "glow")]
-    custom3d: Option<crate::apps::Custom3d>,
+    custom3d: crate::apps::Custom3d,
     dropped_files: Vec<egui::DroppedFile>,
 }
 
@@ -103,8 +101,7 @@ impl WrapApp {
         #[allow(unused_mut)]
         let mut slf = Self {
             state: State::default(),
-            #[cfg(feature = "glow")]
-            custom3d: cc.gl.as_ref().map(|gl| crate::apps::Custom3d::new(gl)),
+            custom3d: crate::apps::Custom3d::new(cc),
             dropped_files: Default::default(),
         };
 
@@ -149,14 +146,11 @@ impl WrapApp {
             ),
         ];
 
-        #[cfg(feature = "glow")]
-        if let Some(custom3d) = &mut self.custom3d {
-            vec.push((
-                "🔺 3D painting",
-                "custom3e",
-                custom3d as &mut dyn eframe::App,
-            ));
-        }
+        vec.push((
+            "🔺 3D painting",
+            "custom3d",
+            &mut self.custom3d as &mut dyn eframe::App,
+        ));
 
         vec.push((
             "🎨 Color test",
@@ -224,9 +218,7 @@ impl eframe::App for WrapApp {
 
     #[cfg(feature = "glow")]
     fn on_exit(&mut self, gl: Option<&glow::Context>) {
-        if let Some(custom3d) = &mut self.custom3d {
-            custom3d.on_exit(gl);
-        }
+        self.custom3d.on_exit(gl);
     }
 }
 

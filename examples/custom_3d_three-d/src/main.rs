@@ -60,15 +60,11 @@ impl MyApp {
 
         let callback = egui::PaintCallback {
             rect,
-            callback: std::sync::Arc::new(move |info, render_ctx| {
-                if let Some(painter) = render_ctx.downcast_ref::<egui_glow::Painter>() {
-                    with_three_d_context(painter.gl(), |three_d| {
-                        paint_with_three_d(three_d, info, angle);
-                    });
-                } else {
-                    eprintln!("Can't do custom painting because we are not using a glow context");
-                }
-            }),
+            callback: std::sync::Arc::new(egui_glow::CallbackFn::new(move |info, painter| {
+                with_three_d_context(painter.gl(), |three_d| {
+                    paint_with_three_d(three_d, &info, angle);
+                });
+            })),
         };
         ui.painter().add(callback);
     }

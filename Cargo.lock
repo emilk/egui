@@ -1168,6 +1168,7 @@ dependencies = [
  "egui",
  "pollster",
  "tracing",
+ "type-map",
  "wgpu",
  "winit",
 ]
@@ -1192,6 +1193,7 @@ dependencies = [
 name = "egui_demo_app"
 version = "0.18.0"
 dependencies = [
+ "bytemuck",
  "chrono",
  "console_error_panic_hook",
  "eframe",
@@ -1201,6 +1203,7 @@ dependencies = [
  "ehttp",
  "image",
  "poll-promise",
+ "pollster",
  "serde",
  "tracing-subscriber",
  "tracing-wasm",
@@ -3718,6 +3721,15 @@ checksum = "4ee73e6e4924fe940354b8d4d98cad5231175d615cd855b758adc658c0aac6a0"
 dependencies = [
  "cfg-if 1.0.0",
  "static_assertions",
+]
+
+[[package]]
+name = "type-map"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "deb68604048ff8fa93347f02441e4487594adc20bb8a084f9e564d2b827a0a9f"
+dependencies = [
+ "rustc-hash",
 ]
 
 [[package]]

@@ -4,7 +4,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use egui::{
     emath::Rect,
-    epaint::{Color32, Mesh, Primitive, Vertex},
+    epaint::{Color32, Mesh, PaintCallbackInfo, Primitive, Vertex},
 };
 use glow::HasContext as _;
 use memoffset::offset_of;
@@ -66,6 +66,29 @@ pub struct Painter {
 
     /// Used to make sure we are destroyed correctly.
     destroyed: bool,
+}
+
+/// A callback function that can be used to compose an [`egui::PaintCallback`] for custom rendering
+/// with [`glow`].
+///
+/// The callback is passed, the [`egui::PaintCallbackInfo`] and the [`Painter`] which can be used to
+/// access the OpenGL context.
+///
+/// # Example
+///
+/// See the [custom3d_glow] demo source for a detailed usage example.
+///
+/// [custom3d_glow]:
+///     https://github.com/emilk/egui/blob/master/egui_demo_app/src/apps/custom3d_wgpu.rs
+pub struct CallbackFn {
+    f: Box<dyn Fn(PaintCallbackInfo, &Painter) + Sync + Send>,
+}
+
+impl CallbackFn {
+    pub fn new<F: Fn(PaintCallbackInfo, &Painter) + Sync + Send + 'static>(callback: F) -> Self {
+        let f = Box::new(callback);
+        CallbackFn { f }
+    }
 }
 
 impl Painter {
@@ -381,7 +404,11 @@ impl Painter {
                             screen_size_px,
                         };
 
-                        callback.call(&info, self);
+                        if let Some(callback) = callback.callback.downcast_ref::<CallbackFn>() {
+                            (callback.f)(info, self);
+                        } else {
+                            tracing::warn!("Warning: Unsupported render callback. Expected egui_glow::CallbackFn");
+                        }
 
                         check_for_gl_error!(&self.gl, "callback");
 

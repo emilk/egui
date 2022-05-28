@@ -170,6 +170,8 @@ impl AppRunner {
             storage: Some(&storage),
             #[cfg(feature = "glow")]
             gl: Some(painter.painter.gl().clone()),
+            #[cfg(feature = "wgpu")]
+            render_state: None,
         });
 
         let frame = epi::Frame {
@@ -178,6 +180,8 @@ impl AppRunner {
             storage: Some(Box::new(storage)),
             #[cfg(feature = "glow")]
             gl: Some(painter.gl().clone()),
+            #[cfg(feature = "wgpu")]
+            render_state: None,
         };
 
         let needs_repaint: std::sync::Arc<NeedRepaint> = Default::default();

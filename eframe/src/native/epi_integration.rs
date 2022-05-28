@@ -188,6 +188,7 @@ impl EpiIntegration {
         window: &winit::window::Window,
         storage: Option<Box<dyn epi::Storage>>,
         #[cfg(feature = "glow")] gl: Option<std::sync::Arc<glow::Context>>,
+        #[cfg(feature = "wgpu")] render_state: Option<egui_wgpu::RenderState>,
     ) -> Self {
         let egui_ctx = egui::Context::default();
 
@@ -207,6 +208,8 @@ impl EpiIntegration {
             storage,
             #[cfg(feature = "glow")]
             gl,
+            #[cfg(feature = "wgpu")]
+            render_state,
         };
 
         if prefer_dark_mode == Some(true) {
