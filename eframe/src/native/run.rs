@@ -15,9 +15,18 @@ fn create_display(
     glow::Context,
 ) {
     crate::profile_function!();
+
+    use crate::HardwareAcceleration;
+
+    let hardware_acceleration = match native_options.hardware_acceleration {
+        HardwareAcceleration::Required => Some(true),
+        HardwareAcceleration::Preferred => None,
+        HardwareAcceleration::Off => Some(false),
+    };
+
     let gl_window = unsafe {
         glutin::ContextBuilder::new()
-            .with_hardware_acceleration(native_options.hardware_acceleration)
+            .with_hardware_acceleration(hardware_acceleration)
             .with_depth_buffer(native_options.depth_buffer)
             .with_multisampling(native_options.multisampling)
             .with_srgb(true)

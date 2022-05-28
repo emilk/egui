@@ -6,7 +6,6 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 
 ## Unreleased
 ### Added ⭐
-* Added `NativeOptions::hardware_acceleration` to allow opting out of hardware acceleration for less power consumption ([#1681](https://github.com/emilk/egui/pull/1681)).
 * Added `*_released` & `*_clicked` methods for `PointerState` ([#1582](https://github.com/emilk/egui/pull/1582)).
 * Added `egui::hex_color!` to create `Color32`'s from hex strings under the `color-hex` feature ([#1596](https://github.com/emilk/egui/pull/1596)).
 * Optimized painting of filled circles (e.g. for scatter plots) by 10x or more ([#1616](https://github.com/emilk/egui/pull/1616)).

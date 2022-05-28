@@ -143,6 +143,21 @@ pub trait App {
     }
 }
 
+/// Selects the level of hardware graphics acceleration.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum HardwareAcceleration {
+    /// Require graphics acceleration.
+    Required,
+
+    /// Prefer graphics acceleration, but fall back to software.
+    Preferred,
+
+    /// Do NOT use graphics acceleration.
+    ///
+    /// On some platforms (MacOS) this is ignored and treated the same as [`Self::Preferred`].
+    Off,
+}
+
 /// Options controlling the behavior of a native window.
 ///
 /// Only a single native window is currently supported.
@@ -216,10 +231,10 @@ pub struct NativeOptions {
     /// `egui` doesn't need the stencil buffer, so the default value is 0.
     pub stencil_buffer: u8,
 
-    /// Use hardware acceleration if available. On macOS, this will possibly
-    /// use a dedicated GPU which will lead to higher power consumption.
-    /// The default value is `Some(true)`
-    pub hardware_acceleration: Option<bool>,
+    /// Specify wether or not hardware acceleration is preferred, required, or not.
+    ///
+    /// Default: [`HardwareAcceleration::Preferred`].
+    pub hardware_acceleration: HardwareAcceleration,
 
     /// What rendering backend to use.
     pub renderer: Renderer,
@@ -243,7 +258,7 @@ impl Default for NativeOptions {
             multisampling: 0,
             depth_buffer: 0,
             stencil_buffer: 0,
-            hardware_acceleration: Some(true),
+            hardware_acceleration: HardwareAcceleration::Preferred,
             renderer: Renderer::default(),
         }
     }
