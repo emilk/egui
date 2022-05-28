@@ -554,7 +554,7 @@ impl RenderPass {
             0,
             bytemuck::cast_slice(&[UniformBuffer {
                 screen_size_in_points,
-                _padding: Default::default()
+                _padding: Default::default(),
             }]),
         );
 
