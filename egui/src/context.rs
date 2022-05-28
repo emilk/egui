@@ -582,6 +582,14 @@ impl Context {
         self.write().request_repaint_callbacks = Some(callback);
     }
 
+    /// in reactive mode, egui is only repainted upon new input events
+    /// but, your gui might become too stale due to long periods of inactivity in cases where app is
+    /// idling in the background.
+    /// this function can set a idle repaint interval, and when egui has been idling without any
+    /// new input for the duration of the interval, the app will be forced to update.
+    pub fn set_idle_repaint_interval(&mut self, interval: Option<std::time::Duration>) {
+        self.write().output.idle_timeout_interval = interval;
+    }
     /// Tell `egui` which fonts to use.
     ///
     /// The default `egui` fonts only support latin and cyrillic alphabets,

@@ -49,11 +49,14 @@ impl FullOutput {
 /// You can access (and modify) this with [`crate::Context::output`].
 ///
 /// The backend should use this.
-#[derive(Clone, Default, PartialEq)]
+#[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PlatformOutput {
     /// Set the cursor to this icon.
     pub cursor_icon: CursorIcon,
+
+    /// Interval duration to wait for events before forcing update
+    pub idle_timeout_interval: Option<std::time::Duration>,
 
     /// If set, open this url.
     pub open_url: Option<OpenUrl>,
@@ -73,7 +76,19 @@ pub struct PlatformOutput {
     /// Screen-space position of text edit cursor (used for IME).
     pub text_cursor_pos: Option<crate::Pos2>,
 }
-
+impl Default for PlatformOutput {
+    fn default() -> Self {
+        Self {
+            cursor_icon: Default::default(),
+            idle_timeout_interval: Some(std::time::Duration::from_secs(1)),
+            open_url: None,
+            copied_text: "".to_string(),
+            events: vec![],
+            mutable_text_under_cursor: false,
+            text_cursor_pos: None,
+        }
+    }
+}
 impl PlatformOutput {
     /// Open the given url in a web browser.
     /// If egui is running in a browser, the same tab will be reused.
@@ -103,6 +118,7 @@ impl PlatformOutput {
     pub fn append(&mut self, newer: Self) {
         let Self {
             cursor_icon,
+            idle_timeout_interval,
             open_url,
             copied_text,
             mut events,
@@ -111,6 +127,9 @@ impl PlatformOutput {
         } = newer;
 
         self.cursor_icon = cursor_icon;
+        if idle_timeout_interval.is_some() {
+            self.idle_timeout_interval = idle_timeout_interval;
+        }
         if open_url.is_some() {
             self.open_url = open_url;
         }
@@ -126,6 +145,7 @@ impl PlatformOutput {
     pub fn take(&mut self) -> Self {
         let taken = std::mem::take(self);
         self.cursor_icon = taken.cursor_icon; // eveything else is ephemeral
+        self.idle_timeout_interval = taken.idle_timeout_interval;
         taken
     }
 }

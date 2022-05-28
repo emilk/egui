@@ -469,13 +469,14 @@ impl State {
 
         let egui::PlatformOutput {
             cursor_icon,
+            idle_timeout_interval,
             open_url,
             copied_text,
             events: _,                    // handled above
             mutable_text_under_cursor: _, // only used in eframe web
             text_cursor_pos,
         } = platform_output;
-
+        let _ = idle_timeout_interval;
         self.current_pixels_per_point = egui_ctx.pixels_per_point(); // someone can have changed it to scale the UI
 
         self.set_cursor_icon(window, cursor_icon);

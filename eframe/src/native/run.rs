@@ -111,7 +111,7 @@ pub fn run_glow(
                 textures_delta,
                 shapes,
             } = integration.update(app.as_mut(), window);
-
+            let idle_duration = platform_output.idle_timeout_interval;
             integration.handle_platform_output(window, platform_output);
 
             let clipped_primitives = {
@@ -136,6 +136,10 @@ pub fn run_glow(
             } else if needs_repaint {
                 window.request_redraw();
                 winit::event_loop::ControlFlow::Poll
+            } else if let Some(idle_duration) = idle_duration {
+                let idle_duration = std::time::Instant::now()
+                    + idle_duration;
+                winit::event_loop::ControlFlow::WaitUntil(idle_duration)
             } else {
                 winit::event_loop::ControlFlow::Wait
             };
@@ -152,7 +156,6 @@ pub fn run_glow(
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
         };
-
         match event {
             // Platform-dependent event handlers to workaround a winit bug
             // See: https://github.com/rust-windowing/winit/issues/987
@@ -194,7 +197,12 @@ pub fn run_glow(
                 painter.destroy();
             }
             winit::event::Event::UserEvent(RequestRepaintEvent) => window.request_redraw(),
-            _ => (),
+            winit::event::Event::NewEvents(winit::event::StartCause::ResumeTimeReached {
+                ..
+            }) => {
+                window.request_redraw();
+            }
+            _ => {}
         }
     });
 }
