@@ -26,6 +26,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: check
+          args: --locked
 
   check_all_features:
     name: cargo check --all-features
