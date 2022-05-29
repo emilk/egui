@@ -27,7 +27,11 @@ impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             if let Some(screenshot) = self.screenshot.take() {
-                self.texture = Some(ui.ctx().load_texture("screenshot", screenshot));
+                self.texture = Some(ui.ctx().load_texture(
+                    "screenshot",
+                    screenshot,
+                    egui::TextureFilter::Linear,
+                ));
             }
 
             ui.horizontal(|ui| {
