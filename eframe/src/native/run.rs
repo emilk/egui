@@ -176,7 +176,7 @@ pub fn run_glow(
                     winit::event::WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                         gl_window.resize(**new_inner_size);
                     }
-                    winit::event::WindowEvent::CloseRequested => {
+                    winit::event::WindowEvent::CloseRequested if integration.should_quit() => {
                         *control_flow = winit::event_loop::ControlFlow::Exit;
                     }
                     _ => {}
@@ -352,7 +352,7 @@ pub fn run_wgpu(
                     winit::event::WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                         painter.on_window_resized(new_inner_size.width, new_inner_size.height);
                     }
-                    winit::event::WindowEvent::CloseRequested => {
+                    winit::event::WindowEvent::CloseRequested if integration.should_quit() => {
                         *control_flow = winit::event_loop::ControlFlow::Exit;
                     }
                     _ => {}
