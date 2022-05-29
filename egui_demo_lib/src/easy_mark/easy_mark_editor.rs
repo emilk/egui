@@ -52,7 +52,7 @@ impl EasyMarkEditor {
             ui.checkbox(&mut self.show_rendered, "Show rendered");
         });
 
-        ui.label("Use ctrl/cmd + key to toggle:   B: *strong*   C: `code`   I: /italics/   L: $lowered$   R: ^raised^   S: ~strikethrough~   U: _underline_");
+        ui.label("Use ctrl/cmd + key to toggle:   B: *strong*   N: `code`   I: /italics/   L: $lowered$   Y: ^raised^   M: ~strikethrough~   U: _underline_");
 
         ui.separator();
 
@@ -117,7 +117,7 @@ fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRang
         (Key::I, "/"), // /italics/
         (Key::L, "$"), // $subscript$
         (Key::Y, "^"), // ^superscript^
-        (Key::S, "~"), // ~strikethrough~
+        (Key::M, "~"), // ~strikethrough~
         (Key::U, "_"), // _underline_
     ] {
         if ui.input_mut().consume_key(egui::Modifiers::COMMAND, key) {
