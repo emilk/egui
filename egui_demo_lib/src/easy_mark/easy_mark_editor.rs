@@ -113,10 +113,10 @@ fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRang
     let mut any_change = false;
     for (key, surrounding) in [
         (Key::B, "*"), // *bold*
-        (Key::C, "`"), // `code`
+        (Key::N, "`"), // `code`
         (Key::I, "/"), // /italics/
         (Key::L, "$"), // $subscript$
-        (Key::R, "^"), // ^superscript^
+        (Key::Y, "^"), // ^superscript^
         (Key::S, "~"), // ~strikethrough~
         (Key::U, "_"), // _underline_
     ] {
