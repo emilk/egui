@@ -31,6 +31,8 @@ Sections:
 * [Other](#other)
 * [Credits](#credits)
 
+([egui 的中文翻译文档 / chinese translation](https://github.com/Re-Ch-Love/egui-doc-cn/blob/main/README_zh-hans.md))
+
 ## Example
 
 ``` rust
