@@ -52,7 +52,7 @@ impl EasyMarkEditor {
             ui.checkbox(&mut self.show_rendered, "Show rendered");
         });
 
-        ui.label("CTRL+B: *strong*   CTRL+N: `code`   CTRL+I: /italics/   CTRL+L: $lowered$   CTRL+Y: ^raised^   CTRL+M: ~strikethrough~   ALTSHIFT+Q: _underline_");
+        ui.label("(CTRL or Mac CMD) + [B: *bold*  N: `code`  I: /italics/  L: $lower$  Y: ^raise^  M: ~Strikethrough~] ALTSHIFT+Q: _underline_");
 
         ui.separator();
 
