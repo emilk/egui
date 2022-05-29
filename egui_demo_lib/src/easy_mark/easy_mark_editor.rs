@@ -111,16 +111,16 @@ impl EasyMarkEditor {
 
 fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRange) -> bool {
     let mut any_change = false;
-    for (key, surrounding) in [
-        (Key::B, "*"), // *bold*
-        (Key::N, "`"), // `code`
-        (Key::I, "/"), // /italics/
-        (Key::L, "$"), // $subscript$
-        (Key::Y, "^"), // ^superscript^
-        (Key::M, "~"), // ~strikethrough~
-        (Key::U, "_"), // _underline_
+    for (key, surrounding, modifier) in [
+        (Key::B, "*", egui::Modifiers::COMMAND), // *bold*
+        (Key::N, "`", egui::Modifiers::COMMAND), // `code`
+        (Key::I, "/", egui::Modifiers::COMMAND), // /italics/
+        (Key::L, "$", egui::Modifiers::COMMAND), // $subscript$
+        (Key::Y, "^", egui::Modifiers::COMMAND), // ^superscript^
+        (Key::M, "~", egui::Modifiers::COMMAND), // ~strikethrough~
+        (Key::Q, "_", egui::Modifiers::COMMAND), // _underline_
     ] {
-        if ui.input_mut().consume_key(egui::Modifiers::COMMAND, key) {
+        if ui.input_mut().consume_key(modifier, key) {
             toggle_surrounding(code, ccursor_range, surrounding);
             any_change = true;
         };
