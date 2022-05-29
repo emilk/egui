@@ -52,7 +52,7 @@ impl EasyMarkEditor {
             ui.checkbox(&mut self.show_rendered, "Show rendered");
         });
 
-        ui.label("Use ctrl/cmd + key to toggle:   B: *strong*   N: `code`   I: /italics/   L: $lowered$   Y: ^raised^   M: ~strikethrough~   U: _underline_");
+        ui.label("CTRL+B: *strong*   CTRL+N: `code`   CTRL+I: /italics/   CTRL+L: $lowered$   CTRL+Y: ^raised^   CTRL+M: ~strikethrough~   ALTSHIFT+Q: _underline_");
 
         ui.separator();
 
@@ -112,13 +112,13 @@ impl EasyMarkEditor {
 fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRange) -> bool {
     let mut any_change = false;
     for (key, surrounding, modifier) in [
-        (Key::B, "*", egui::Modifiers::COMMAND), // *bold*
-        (Key::N, "`", egui::Modifiers::COMMAND), // `code`
-        (Key::I, "/", egui::Modifiers::COMMAND), // /italics/
-        (Key::L, "$", egui::Modifiers::COMMAND), // $subscript$
-        (Key::Y, "^", egui::Modifiers::COMMAND), // ^superscript^
-        (Key::M, "~", egui::Modifiers::COMMAND), // ~strikethrough~
-        (Key::Q, "_", egui::Modifiers::COMMAND), // _underline_
+        (Key::B, "*", egui::Modifiers::COMMAND),  // *bold*
+        (Key::N, "`", egui::Modifiers::COMMAND),  // `code`
+        (Key::I, "/", egui::Modifiers::COMMAND),  // /italics/
+        (Key::L, "$", egui::Modifiers::COMMAND),  // $subscript$
+        (Key::Y, "^", egui::Modifiers::COMMAND),  // ^superscript^
+        (Key::M, "~", egui::Modifiers::COMMAND),  // ~strikethrough~
+        (Key::Q, "_", egui::Modifiers::ALTSHIFT), // _underline_
     ] {
         if ui.input_mut().consume_key(modifier, key) {
             toggle_surrounding(code, ccursor_range, surrounding);
