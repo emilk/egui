@@ -299,6 +299,13 @@ impl EpiIntegration {
         full_output
     }
 
+    pub fn post_rendering(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {
+        let inner_size = window.inner_size();
+        let window_size_px = [inner_size.width, inner_size.height];
+
+        app.post_rendering(window_size_px, &self.frame);
+    }
+
     pub fn handle_platform_output(
         &mut self,
         window: &winit::window::Window,
