@@ -14,13 +14,8 @@ fn main() {
     );
 }
 
+#[derive(Default)]
 struct MyApp {}
-
-impl Default for MyApp {
-    fn default() -> Self {
-        Self {}
-    }
-}
 
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
@@ -95,7 +90,7 @@ impl eframe::App for MyApp {
                         ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
                             for i in 0..4 {
                                 if ui.button(format!("Centered button {}", i)).clicked() {
-                                    println!("Clicked {}!", i)
+                                    println!("Clicked {}!", i);
                                 };
                             }
                         });
@@ -108,7 +103,7 @@ impl eframe::App for MyApp {
                                         .button(format!("Centered&justified button {}", i))
                                         .clicked()
                                     {
-                                        println!("Clicked {}!", i)
+                                        println!("Clicked {}!", i);
                                     };
                                 }
                             },
@@ -120,7 +115,7 @@ impl eframe::App for MyApp {
                                 for i in 0..4 {
                                     if ui.button(format!("Right&justified button {}", i)).clicked()
                                     {
-                                        println!("Clicked {}!", i)
+                                        println!("Clicked {}!", i);
                                     };
                                 }
                             },
@@ -129,7 +124,7 @@ impl eframe::App for MyApp {
                         ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
                             for i in 0..4 {
                                 if ui.button(format!("Left button {}", i)).clicked() {
-                                    println!("Clicked {}!", i)
+                                    println!("Clicked {}!", i);
                                 };
                             }
                         });

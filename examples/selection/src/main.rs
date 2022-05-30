@@ -89,7 +89,7 @@ impl eframe::App for MyApp {
             .show_ui(ui, |ui| {
                 for option in STRING_OPTIONS {
                     // Selectable values can be anything: enums, strings or integers - as long as they can be compared and have a text repersentation
-                    ui.selectable_value(&mut self.string_option, option.into(), option.clone());
+                    ui.selectable_value(&mut self.string_option, option.into(), option);
                 }
             });
 
@@ -101,7 +101,7 @@ impl eframe::App for MyApp {
                     for option in STRING_OPTIONS {
                         ui.add(egui::SelectableLabel::new(
                             self.string_option == option,
-                            option.clone(),
+                            option,
                         ));
                     }
                 });
