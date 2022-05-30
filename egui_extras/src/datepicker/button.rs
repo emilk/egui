@@ -97,9 +97,7 @@ impl<'a> Widget for DatePickerButton<'a> {
             }
 
             // Check to make sure the calendar never is displayed out of window
-            if pos.x < ui.style().spacing.window_margin.left {
-                pos.x = ui.style().spacing.window_margin.left;
-            }
+            pos.x = pos.x.max(ui.style().spacing.window_margin.left);
 
             //TODO(elwerene): Better positioning
 
