@@ -95,6 +95,12 @@ impl<'a> Widget for DatePickerButton<'a> {
             if pos.x + width_with_padding > ui.clip_rect().right() {
                 pos.x = button_response.rect.right() - width_with_padding;
             }
+
+            // Check to make sure the calendar never is displayed out of window
+            if pos.x < ui.style().spacing.window_margin.left {
+                pos.x = ui.style().spacing.window_margin.left;
+            }
+
             //TODO(elwerene): Better positioning
 
             let area_response = Area::new(ui.make_persistent_id(&self.id_source))
