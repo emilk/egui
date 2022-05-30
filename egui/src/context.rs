@@ -839,6 +839,9 @@ impl Context {
 
         let platform_output: PlatformOutput = std::mem::take(&mut self.output());
 
+        if self.read().repaint_requests > 0 {
+            self.write().repaint_requests -= 1;
+        }
         let repaint_after = self.read().repaint_after;
         self.write().requested_repaint_last_frame = repaint_after.is_zero();
         // make sure we reset the repaint_after duration.
