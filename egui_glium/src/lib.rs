@@ -56,13 +56,17 @@ impl EguiGlium {
     /// Returns `true` if egui requests a repaint.
     ///
     /// Call [`Self::paint`] later to paint.
-    pub fn run(&mut self, display: &glium::Display, run_ui: impl FnMut(&egui::Context)) -> bool {
+    pub fn run(
+        &mut self,
+        display: &glium::Display,
+        run_ui: impl FnMut(&egui::Context),
+    ) -> std::time::Duration {
         let raw_input = self
             .egui_winit
             .take_egui_input(display.gl_window().window());
         let egui::FullOutput {
             platform_output,
-            needs_repaint,
+            repaint_after,
             textures_delta,
             shapes,
         } = self.egui_ctx.run(raw_input, run_ui);
@@ -76,7 +80,7 @@ impl EguiGlium {
         self.shapes = shapes;
         self.textures_delta.append(textures_delta);
 
-        needs_repaint
+        repaint_after
     }
 
     /// Paint the results of the last call to [`Self::run`].

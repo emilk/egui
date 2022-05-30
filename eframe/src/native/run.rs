@@ -107,11 +107,11 @@ pub fn run_glow(
 
             let egui::FullOutput {
                 platform_output,
-                needs_repaint,
+                repaint_after,
                 textures_delta,
                 shapes,
             } = integration.update(app.as_mut(), window);
-            let idle_duration = platform_output.idle_timeout_interval;
+
             integration.handle_platform_output(window, platform_output);
 
             let clipped_primitives = {
@@ -133,13 +133,18 @@ pub fn run_glow(
 
             *control_flow = if integration.should_quit() {
                 winit::event_loop::ControlFlow::Exit
-            } else if needs_repaint {
+            } else if repaint_after.is_zero() {
                 window.request_redraw();
                 winit::event_loop::ControlFlow::Poll
-            } else if let Some(idle_duration) = idle_duration {
-                let idle_duration = std::time::Instant::now()
-                    + idle_duration;
-                winit::event_loop::ControlFlow::WaitUntil(idle_duration)
+            } else if let Some(repaint_after_instant) =
+                std::time::Instant::now().checked_add(repaint_after)
+            {
+                // if repaint_after is something huge and can't be added to Instant,
+                // we will use `ControlFlow::Wait` instead.
+                // technically, this might lead to some weird corner cases where the user *WANTS*
+                // winit to use `WaitUntil(MAX_INSTANT)` explicitly. they can roll their own
+                // egui backend impl i guess.
+                winit::event_loop::ControlFlow::WaitUntil(repaint_after_instant)
             } else {
                 winit::event_loop::ControlFlow::Wait
             };
@@ -287,7 +292,7 @@ pub fn run_wgpu(
 
             let egui::FullOutput {
                 platform_output,
-                needs_repaint,
+                repaint_after,
                 textures_delta,
                 shapes,
             } = integration.update(app.as_mut(), window);
@@ -308,9 +313,18 @@ pub fn run_wgpu(
 
             *control_flow = if integration.should_quit() {
                 winit::event_loop::ControlFlow::Exit
-            } else if needs_repaint {
+            } else if repaint_after.is_zero() {
                 window.request_redraw();
                 winit::event_loop::ControlFlow::Poll
+            } else if let Some(repaint_after_instant) =
+                std::time::Instant::now().checked_add(repaint_after)
+            {
+                // if repaint_after is something huge and can't be added to Instant,
+                // we will use `ControlFlow::Wait` instead.
+                // technically, this might lead to some weird corner cases where the user *WANTS*
+                // winit to use `WaitUntil(MAX_INSTANT)` explicitly. they can roll their own
+                // egui backend impl i guess.
+                winit::event_loop::ControlFlow::WaitUntil(repaint_after_instant)
             } else {
                 winit::event_loop::ControlFlow::Wait
             };

@@ -28,7 +28,6 @@ impl Default for WrappedTextureManager {
 }
 
 // ----------------------------------------------------------------------------
-
 #[derive(Default)]
 struct ContextImpl {
     /// `None` until the start of the first frame.
@@ -47,7 +46,9 @@ struct ContextImpl {
     output: PlatformOutput,
 
     paint_stats: PaintStats,
-
+    /// the duration backend will poll for new events, before forcing another egui update
+    /// even if there's no new events.
+    repaint_after: std::time::Duration,
     /// While positive, keep requesting repaints. Decrement at the end of each frame.
     repaint_requests: u32,
     request_repaint_callbacks: Option<Box<dyn Fn() + Send + Sync>>,
@@ -574,6 +575,39 @@ impl Context {
         }
     }
 
+    /// request repaint after the specified duration elapses in the case of no new input
+    /// events being received.
+    ///
+    /// function can be multiple times, but only the *smallest* duration will be considered.
+    /// so, if the function is called two times with `1 second` and `2 seconds`, egui will repaint
+    /// after `1 second`
+    ///
+    /// this is primarily useful for applications who would like to save battery by avoiding wasted
+    /// redraws when the app is not in focus. but sometimes the GUI of the app might become stale
+    /// and outdated if it is not updated for too long.
+    ///
+    /// lets say, something like a stop watch widget that displays the time in seconds. you would waste
+    /// resources repainting multiple times within the same second (when you have no input),
+    /// just calculate the difference of duration between current time and next second change,
+    /// and call this function, to make sure that you are displaying the latest updated time, but
+    /// not wasting resources on needless repaints within the same second.
+    ///
+    /// NOTE: only works if called before `Context::end_frame()`. to force egui to update,
+    /// use `Context::request_repaint()` instead.
+    ///
+    /// Quirk:
+    ///
+    ///     duration begins at the next frame. lets say for example that its a very inefficient app
+    ///     and takes 500 milliseconds per frame at 2 fps. the widget / user might want a repaint in
+    ///     next 500 milliseconds. now, app takes 1000 ms per frame (1 fps) because the backend event
+    ///     timeout takes 500 milli seconds AFTER the vsync swap buffer.
+    ///     so, its not that we are requesting repaint within X duration. we are rather timing out
+    ///     during app idle time where we are not receiving any new input events.
+    pub fn request_repaint_after(&self, duration: std::time::Duration) {
+        // maybe we can check if duration is ZERO, and call self.request_repaint()?
+        let mut ctx = self.write();
+        ctx.repaint_after = ctx.repaint_after.min(duration);
+    }
     /// For integrations: this callback will be called when an egui user calls [`Self::request_repaint`].
     ///
     /// This lets you wake up a sleeping UI thread.
@@ -582,14 +616,6 @@ impl Context {
         self.write().request_repaint_callbacks = Some(callback);
     }
 
-    /// in reactive mode, egui is only repainted upon new input events
-    /// but, your gui might become too stale due to long periods of inactivity in cases where app is
-    /// idling in the background.
-    /// this function can set a idle repaint interval, and when egui has been idling without any
-    /// new input for the duration of the interval, the app will be forced to update.
-    pub fn set_idle_repaint_interval(&mut self, interval: Option<std::time::Duration>) {
-        self.write().output.idle_timeout_interval = interval;
-    }
     /// Tell `egui` which fonts to use.
     ///
     /// The default `egui` fonts only support latin and cyrillic alphabets,
@@ -813,19 +839,18 @@ impl Context {
 
         let platform_output: PlatformOutput = std::mem::take(&mut self.output());
 
-        let needs_repaint = if self.read().repaint_requests > 0 {
-            self.write().repaint_requests -= 1;
-            true
-        } else {
-            false
-        };
-        self.write().requested_repaint_last_frame = needs_repaint;
-
+        let repaint_after = self.read().repaint_after;
+        self.write().requested_repaint_last_frame = repaint_after.is_zero();
+        // make sure we reset the repaint_after duration.
+        // otherwise, if repaint_after is low, then any widget setting repaint_after next frame,
+        // will fail to overwrite the previous lower value. and thus, repaints will never
+        // go back to higher values.
+        self.write().repaint_after = std::time::Duration::MAX;
         let shapes = self.drain_paint_lists();
 
         FullOutput {
             platform_output,
-            needs_repaint,
+            repaint_after,
             textures_delta,
             shapes,
         }

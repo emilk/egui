@@ -9,9 +9,9 @@ pub fn paint_and_schedule(
         let mut runner_lock = runner_ref.lock();
         if runner_lock.needs_repaint.fetch_and_clear() {
             runner_lock.clear_color_buffer();
-            let (needs_repaint, clipped_primitives) = runner_lock.logic()?;
+            let (repaint_after, clipped_primitives) = runner_lock.logic()?;
             runner_lock.paint(&clipped_primitives)?;
-            if needs_repaint {
+            if repaint_after.is_zero() {
                 runner_lock.needs_repaint.set_true();
             }
             runner_lock.auto_save();

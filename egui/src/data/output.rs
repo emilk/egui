@@ -10,10 +10,15 @@ pub struct FullOutput {
     /// Non-rendering related output.
     pub platform_output: PlatformOutput,
 
-    /// If `true`, egui is requesting immediate repaint (i.e. on the next frame).
+    /// If `Duration::is_zero()`, egui is requesting immediate repaint (i.e. on the next frame).
     ///
     /// This happens for instance when there is an animation, or if a user has called `Context::request_repaint()`.
-    pub needs_repaint: bool,
+    ///
+    /// If `Duration` is greater than zero, egui wants to be repainted at or before the specified
+    /// duration elapses. when in reactive mode, egui spends forever waiting for input and only then,
+    /// will it repaint itself. this can be used to make sure that backend will only wait for a
+    /// specified amount of time, and repaint egui without any new input.
+    pub repaint_after: std::time::Duration,
 
     /// Texture changes since last frame (including the font texture).
     ///
@@ -32,13 +37,13 @@ impl FullOutput {
     pub fn append(&mut self, newer: Self) {
         let Self {
             platform_output,
-            needs_repaint,
+            repaint_after,
             textures_delta,
             shapes,
         } = newer;
 
         self.platform_output.append(platform_output);
-        self.needs_repaint = needs_repaint; // if the last frame doesn't need a repaint, then we don't need to repaint
+        self.repaint_after = repaint_after; // if the last frame doesn't need a repaint, then we don't need to repaint
         self.textures_delta.append(textures_delta);
         self.shapes = shapes; // Only paint the latest
     }
@@ -49,14 +54,11 @@ impl FullOutput {
 /// You can access (and modify) this with [`crate::Context::output`].
 ///
 /// The backend should use this.
-#[derive(Clone, PartialEq)]
+#[derive(Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PlatformOutput {
     /// Set the cursor to this icon.
     pub cursor_icon: CursorIcon,
-
-    /// Interval duration to wait for events before forcing update
-    pub idle_timeout_interval: Option<std::time::Duration>,
 
     /// If set, open this url.
     pub open_url: Option<OpenUrl>,
@@ -76,19 +78,7 @@ pub struct PlatformOutput {
     /// Screen-space position of text edit cursor (used for IME).
     pub text_cursor_pos: Option<crate::Pos2>,
 }
-impl Default for PlatformOutput {
-    fn default() -> Self {
-        Self {
-            cursor_icon: Default::default(),
-            idle_timeout_interval: Some(std::time::Duration::from_secs(1)),
-            open_url: None,
-            copied_text: "".to_string(),
-            events: vec![],
-            mutable_text_under_cursor: false,
-            text_cursor_pos: None,
-        }
-    }
-}
+
 impl PlatformOutput {
     /// Open the given url in a web browser.
     /// If egui is running in a browser, the same tab will be reused.
@@ -118,7 +108,6 @@ impl PlatformOutput {
     pub fn append(&mut self, newer: Self) {
         let Self {
             cursor_icon,
-            idle_timeout_interval,
             open_url,
             copied_text,
             mut events,
@@ -127,9 +116,6 @@ impl PlatformOutput {
         } = newer;
 
         self.cursor_icon = cursor_icon;
-        if idle_timeout_interval.is_some() {
-            self.idle_timeout_interval = idle_timeout_interval;
-        }
         if open_url.is_some() {
             self.open_url = open_url;
         }
@@ -145,7 +131,6 @@ impl PlatformOutput {
     pub fn take(&mut self) -> Self {
         let taken = std::mem::take(self);
         self.cursor_icon = taken.cursor_icon; // eveything else is ephemeral
-        self.idle_timeout_interval = taken.idle_timeout_interval;
         taken
     }
 }

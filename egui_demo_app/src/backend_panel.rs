@@ -1,3 +1,5 @@
+use egui::Widget;
+
 /// How often we repaint the demo app by default
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum RunMode {
@@ -41,7 +43,6 @@ impl Default for RunMode {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct BackendPanel {
@@ -50,6 +51,10 @@ pub struct BackendPanel {
     #[cfg_attr(feature = "serde", serde(skip))]
     // go back to [`Reactive`] mode each time we start
     run_mode: RunMode,
+
+    #[cfg_attr(feature = "serde", serde(skip))]
+    // reset to 1 second as default repaint_after idle timeout.
+    repaint_after_timeout: std::time::Duration,
 
     /// current slider value for current gui scale
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -61,14 +66,32 @@ pub struct BackendPanel {
     egui_windows: EguiWindows,
 }
 
+impl Default for BackendPanel {
+    fn default() -> Self {
+        Self {
+            open: false,
+            run_mode: Default::default(),
+            repaint_after_timeout: std::time::Duration::from_secs(1),
+            pixels_per_point: None,
+            frame_history: Default::default(),
+            egui_windows: Default::default(),
+        }
+    }
+}
+
 impl BackendPanel {
     pub fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         self.frame_history
             .on_new_frame(ctx.input().time, frame.info().cpu_usage);
 
-        if self.run_mode == RunMode::Continuous {
-            // Tell the backend to repaint as soon as possible
-            ctx.request_repaint();
+        match self.run_mode {
+            RunMode::Reactive => {
+                ctx.request_repaint_after(self.repaint_after_timeout);
+            }
+            RunMode::Continuous => {
+                // Tell the backend to repaint as soon as possible
+                ctx.request_repaint();
+            }
         }
     }
 
@@ -220,6 +243,16 @@ impl BackendPanel {
             ));
         } else {
             ui.label("Only running UI code when there are animations or input.");
+            ui.label("but if there's no input for the repaint_after duration, we force an update");
+            ui.label("repaint_after (in seconds)");
+            let mut milli_seconds = self.repaint_after_timeout.as_secs_f32();
+            if egui::DragValue::new(&mut milli_seconds)
+                .clamp_range(0.1..=10.0)
+                .ui(ui)
+                .changed()
+            {
+                self.repaint_after_timeout = std::time::Duration::from_secs_f32(milli_seconds);
+            }
         }
     }
 }
