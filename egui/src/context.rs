@@ -839,10 +839,15 @@ impl Context {
 
         let platform_output: PlatformOutput = std::mem::take(&mut self.output());
 
-        if self.read().repaint_requests > 0 {
+        // if repaint_requests is greater than zero. just set the duration to zero for immediate
+        // repaint. if there's no repaint requests, then we can use the actual repaint_after instead.
+        let repaint_after = if self.read().repaint_requests > 0 {
             self.write().repaint_requests -= 1;
-        }
-        let repaint_after = self.read().repaint_after;
+            std::time::Duration::ZERO
+        } else {
+            self.read().repaint_after;
+        };
+
         self.write().requested_repaint_last_frame = repaint_after.is_zero();
         // make sure we reset the repaint_after duration.
         // otherwise, if repaint_after is low, then any widget setting repaint_after next frame,
