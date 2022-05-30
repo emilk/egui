@@ -460,15 +460,15 @@ impl SubMenuButton {
                 .align_size_within_rect(icon_galley.size(), rect.shrink2(button_padding))
                 .min;
 
-            ui.painter().rect_filled(
+            ui.painter_mut().rect_filled(
                 rect.expand(visuals.expansion),
                 visuals.rounding,
                 visuals.bg_fill,
             );
 
             let text_color = visuals.text_color();
-            text_galley.paint_with_fallback_color(ui.painter(), text_pos, text_color);
-            icon_galley.paint_with_fallback_color(ui.painter(), icon_pos, text_color);
+            text_galley.paint_with_fallback_color(ui.painter_mut(), text_pos, text_color);
+            icon_galley.paint_with_fallback_color(ui.painter_mut(), icon_pos, text_color);
         }
         response
     }

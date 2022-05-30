@@ -292,7 +292,7 @@ impl Resize {
         if self.with_stroke && corner_response.is_some() {
             let rect = Rect::from_min_size(content_ui.min_rect().left_top(), state.desired_size);
             let rect = rect.expand(2.0); // breathing room for content
-            ui.painter().add(Shape::rect_stroke(
+            ui.painter_mut().add(Shape::rect_stroke(
                 rect,
                 3.0,
                 ui.visuals().widgets.noninteractive.bg_stroke,
@@ -337,7 +337,7 @@ pub fn paint_resize_corner_with_style(
     stroke: Stroke,
     corner: Align2,
 ) {
-    let painter = ui.painter();
+    let painter = ui.painter_mut();
     let cp = painter.round_pos_to_pixels(corner.pos_in_rect(rect));
     let mut w = 2.0;
 

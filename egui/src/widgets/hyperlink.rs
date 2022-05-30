@@ -51,7 +51,7 @@ impl Widget for Link {
                 Stroke::none()
             };
 
-            ui.painter().add(epaint::TextShape {
+            ui.painter_mut().add(epaint::TextShape {
                 pos,
                 galley: text_galley.galley,
                 override_text_color: Some(color),

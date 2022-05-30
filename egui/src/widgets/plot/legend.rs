@@ -116,7 +116,7 @@ impl LegendEntry {
         let icon_position = pos2(icon_position_x, rect.center().y);
         let icon_rect = Rect::from_center_size(icon_position, vec2(icon_size, icon_size));
 
-        let painter = ui.painter();
+        let painter = ui.painter_mut();
 
         painter.add(epaint::CircleShape {
             center: icon_rect.center(),

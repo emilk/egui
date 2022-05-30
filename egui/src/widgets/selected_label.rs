@@ -64,11 +64,11 @@ impl Widget for SelectableLabel {
             if selected || response.hovered() || response.has_focus() {
                 let rect = rect.expand(visuals.expansion);
 
-                ui.painter()
+                ui.painter_mut()
                     .rect(rect, visuals.rounding, visuals.bg_fill, visuals.bg_stroke);
             }
 
-            text.paint_with_visuals(ui.painter(), text_pos, &visuals);
+            text.paint_with_visuals(ui.painter_mut(), text_pos, &visuals);
         }
 
         response

@@ -206,8 +206,7 @@ impl Painter {
 
 /// ## Debug painting
 impl Painter {
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn debug_rect(&self, rect: Rect, color: Color32, text: impl ToString) {
+    pub fn debug_rect(&self, rect: &Rect, color: Color32, text: impl ToString) {
         self.rect_stroke(rect, 0.0, (1.0, color));
         self.text(
             rect.min,
@@ -218,15 +217,14 @@ impl Painter {
         );
     }
 
-    pub fn error(&self, pos: Pos2, text: impl std::fmt::Display) -> Rect {
+    pub fn error(&self, pos: &Pos2, text: impl std::fmt::Display) -> Rect {
         self.debug_text(pos, Align2::LEFT_TOP, Color32::RED, format!("🔥 {}", text))
     }
 
     /// text with a background
-    #[allow(clippy::needless_pass_by_value)]
     pub fn debug_text(
         &self,
-        pos: Pos2,
+        pos: &Pos2,
         anchor: Align2,
         color: Color32,
         text: impl ToString,

@@ -45,7 +45,7 @@ pub(crate) fn font_texture_ui<'c>(ui: &mut Ui<'c>, [width, height]: [usize; 2]) 
         let (rect, response) = ui.allocate_at_least(size, Sense::hover());
         let mut mesh = Mesh::default();
         mesh.add_rect_with_uv(rect, [pos2(0.0, 0.0), pos2(1.0, 1.0)].into(), color);
-        ui.painter().add(Shape::mesh(mesh));
+        ui.painter_mut().add(Shape::mesh(mesh));
 
         let (tex_w, tex_h) = (width as f32, height as f32);
 
@@ -67,7 +67,7 @@ pub(crate) fn font_texture_ui<'c>(ui: &mut Ui<'c>, [width, height]: [usize; 2]) 
                     );
                     let mut mesh = Mesh::default();
                     mesh.add_rect_with_uv(zoom_rect, uv_rect, color);
-                    ui.painter().add(Shape::mesh(mesh));
+                    ui.painter_mut().add(Shape::mesh(mesh));
                 }
             });
     })

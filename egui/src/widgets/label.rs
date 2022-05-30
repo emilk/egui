@@ -175,7 +175,7 @@ impl Widget for Label {
                 Some(response_color)
             };
 
-            ui.painter().add(epaint::TextShape {
+            ui.painter_mut().add(epaint::TextShape {
                 pos,
                 galley: text_galley.galley,
                 override_text_color,

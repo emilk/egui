@@ -94,7 +94,7 @@ impl ComboBox {
     ///         rect.center(),
     ///         egui::Vec2::new(rect.width() * 0.6, rect.height() * 0.4),
     ///     );
-    ///     ui.painter().add(egui::Shape::convex_polygon(
+    ///     ui.painter_mut().add(egui::Shape::convex_polygon(
     ///         vec![rect.left_top(), rect.right_top(), rect.center_bottom()],
     ///         visuals.fg_stroke.color,
     ///         visuals.fg_stroke,
@@ -248,11 +248,15 @@ fn combo_box_dyn<'a, R>(
                     is_popup_open,
                 );
             } else {
-                paint_default_icon(ui.painter(), icon_rect.expand(visuals.expansion), visuals);
+                paint_default_icon(
+                    ui.painter_mut(),
+                    icon_rect.expand(visuals.expansion),
+                    visuals,
+                );
             }
 
             let text_rect = Align2::LEFT_CENTER.align_size_within_rect(galley.size(), rect);
-            galley.paint_with_visuals(ui.painter(), text_rect.min, visuals);
+            galley.paint_with_visuals(ui.painter_mut(), text_rect.min, visuals);
         }
     });
 
@@ -272,14 +276,14 @@ fn combo_box_dyn<'a, R>(
     }
 }
 
-fn button_frame<'c>(
-    ui: &mut Ui<'c>,
+fn button_frame(
+    ui: &mut Ui<'_>,
     id: Id,
     is_popup_open: bool,
     sense: Sense,
     add_contents: impl FnOnce(&mut Ui<'_>),
-) -> Response<'c> {
-    let where_to_put_background = ui.painter().add(Shape::Noop);
+) -> Response {
+    let where_to_put_background = ui.painter_mut().add(Shape::Noop);
 
     let margin = ui.spacing().button_padding;
     let interact_size = ui.spacing().interact_size;
@@ -303,7 +307,7 @@ fn button_frame<'c>(
             ui.style().interact(&response)
         };
 
-        ui.painter().set(
+        ui.painter_mut().set(
             where_to_put_background,
             epaint::RectShape {
                 rect: outer_rect.expand(visuals.expansion),

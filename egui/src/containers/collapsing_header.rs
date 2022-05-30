@@ -308,7 +308,7 @@ pub fn paint_default_icon(ui: &mut Ui<'_>, openness: f32, response: &Response<'_
         *p = rect.center() + rotation * (*p - rect.center());
     }
 
-    ui.painter().add(Shape::closed_line(points, stroke));
+    ui.painter_mut().add(Shape::closed_line(points, stroke));
 }
 
 /// A function that paints an icon indicating if the region is open or not
@@ -447,7 +447,7 @@ impl CollapsingHeader {
     /// fn circle_icon(ui: &mut egui::Ui, openness: f32, response: &egui::Response) {
     ///     let stroke = ui.style().interact(&response).fg_stroke;
     ///     let radius = egui::lerp(2.0..=3.0, openness);
-    ///     ui.painter().circle_filled(response.rect.center(), radius, stroke.color);
+    ///     ui.painter_mut().circle_filled(response.rect.center(), radius, stroke.color);
     /// }
     ///
     /// egui::CollapsingHeader::new("Circles")
@@ -532,7 +532,7 @@ impl CollapsingHeader {
             let visuals = ui.style().interact_selectable(&header_response, selected);
 
             if ui.visuals().collapsing_header_frame || show_background {
-                ui.painter().add(epaint::RectShape {
+                ui.painter_mut().add(epaint::RectShape {
                     rect: header_response.rect.expand(visuals.expansion),
                     rounding: visuals.rounding,
                     fill: visuals.bg_fill,
@@ -545,7 +545,7 @@ impl CollapsingHeader {
             {
                 let rect = rect.expand(visuals.expansion);
 
-                ui.painter()
+                ui.painter_mut()
                     .rect(rect, visuals.rounding, visuals.bg_fill, visuals.bg_stroke);
             }
 
@@ -566,7 +566,7 @@ impl CollapsingHeader {
                 }
             }
 
-            text.paint_with_visuals(ui.painter(), text_pos, &visuals);
+            text.paint_with_visuals(ui.painter_mut(), text_pos, &visuals);
         }
 
         Prepared {

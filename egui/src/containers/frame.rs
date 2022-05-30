@@ -172,7 +172,7 @@ pub struct Prepared<'c> {
 
 impl Frame {
     pub fn begin<'c>(self, ui: &mut Ui<'c>) -> Prepared<'c> {
-        let where_to_put_background = ui.painter().add(Shape::Noop);
+        let where_to_put_background = ui.painter_mut().add(Shape::Noop);
         let outer_rect_bounds = ui.available_rect_before_wrap();
 
         let mut inner_rect = outer_rect_bounds;
@@ -259,7 +259,7 @@ impl<'c> Prepared<'c> {
 
         if ui.is_rect_visible(paint_rect) {
             let shape = frame.paint(paint_rect);
-            ui.painter().set(where_to_put_background, shape);
+            ui.painter_mut().set(where_to_put_background, shape);
         }
 
         ui.allocate_rect(paint_rect, Sense::hover())

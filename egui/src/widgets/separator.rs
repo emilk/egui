@@ -73,9 +73,11 @@ impl Widget for Separator {
         if ui.is_rect_visible(response.rect()) {
             let stroke = ui.visuals().widgets.noninteractive.bg_stroke;
             if is_horizontal_line {
-                ui.painter().hline(rect.x_range(), rect.center().y, stroke);
+                ui.painter_mut()
+                    .hline(rect.x_range(), rect.center().y, stroke);
             } else {
-                ui.painter().vline(rect.center().x, rect.y_range(), stroke);
+                ui.painter_mut()
+                    .vline(rect.center().x, rect.y_range(), stroke);
             }
         }
 

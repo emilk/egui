@@ -78,7 +78,7 @@ impl Widget for ProgressBar {
 
             let visuals = ui.style().visuals.clone();
             let rounding = outer_rect.height() / 2.0;
-            ui.painter().rect(
+            ui.painter_mut().rect(
                 outer_rect,
                 rounding,
                 visuals.extreme_bg_color,
@@ -99,7 +99,7 @@ impl Widget for ProgressBar {
                 bright
             };
 
-            ui.painter().rect(
+            ui.painter_mut().rect(
                 inner_rect,
                 rounding,
                 Color32::from(Rgba::from(visuals.selection.bg_fill) * color_factor as f32),
@@ -120,7 +120,7 @@ impl Widget for ProgressBar {
                             + vec2(-rounding, 0.0)
                     })
                     .collect();
-                ui.painter().add(Shape::line(
+                ui.painter_mut().add(Shape::line(
                     points,
                     Stroke::new(2.0, visuals.faint_bg_color),
                 ));
@@ -140,7 +140,7 @@ impl Widget for ProgressBar {
                     .override_text_color
                     .unwrap_or(visuals.selection.stroke.color);
                 galley.paint_with_fallback_color(
-                    &ui.painter().with_clip_rect(outer_rect),
+                    &ui.painter_mut().with_clip_rect(outer_rect),
                     text_pos,
                     text_color,
                 );

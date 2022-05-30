@@ -217,6 +217,12 @@ impl<'c> Ui<'c> {
         &mut self.painter
     }
 
+    /// Use this to paint stuff within this [`Ui`].
+    #[inline]
+    pub fn painter(&self) -> &Painter {
+        &self.painter
+    }
+
     /// If `false`, the [`Ui`] does not allow any interaction and
     /// the widgets in it will draw with a gray look.
     #[inline]
@@ -309,14 +315,6 @@ impl<'c> Ui<'c> {
         }
     }
 
-    /// Create a painter for a sub-region of this Ui.
-    ///
-    /// The clip-rect of the returned [`Painter`] will be the intersection
-    /// of the given rectangle and the `clip_rect()` of this [`Ui`].
-    pub fn painter_at(&self, rect: Rect) -> Painter {
-        self.painter().with_clip_rect(rect)
-    }
-
     /// Use this to paint stuff within this [`Ui`].
     #[inline]
     pub fn layer_id(&self) -> LayerId {
@@ -331,7 +329,7 @@ impl<'c> Ui<'c> {
     }
 
     /// The [`InputState`] of the [`Context`] associated with this [`Ui`].
-    /// Equivalent to `.ctx().input_mut()`.
+    /// Equivalent to `.ctx_mut().input_mut()`.
     /// ```
     /// # egui::__run_test_ui(|ui| {
     /// ui.input_mut().consume_key(egui::Modifiers::default(), egui::Key::Enter);
@@ -370,6 +368,7 @@ impl<'c> Ui<'c> {
     }
 
     /// The height of text of this text style
+    #[inline]
     pub fn text_style_height(&self, style: &TextStyle) -> f32 {
         self.fonts().row_height(&style.resolve(self.style()))
     }
@@ -383,11 +382,13 @@ impl<'c> Ui<'c> {
 
     /// Screen-space rectangle for clipping what we paint in this ui.
     /// This is used, for instance, to avoid painting outside a window that is smaller than its contents.
+    #[inline]
     pub fn set_clip_rect(&mut self, clip_rect: Rect) {
         self.painter.set_clip_rect(clip_rect);
     }
 
     /// Can be used for culling: if `false`, then no part of `rect` will be visible on screen.
+    #[inline]
     pub fn is_rect_visible(&self, rect: &Rect) -> bool {
         self.is_visible() && rect.intersects(self.clip_rect())
     }
@@ -632,7 +633,7 @@ impl<'c> Ui<'c> {
     /// # egui::__run_test_ui(|ui| {
     /// let response = ui.allocate_response(egui::vec2(100.0, 200.0), egui::Sense::click());
     /// if response.clicked() { /* … */ }
-    /// ui.painter().rect_stroke(response.rect, 0.0, (1.0, egui::Color32::WHITE));
+    /// ui.painter_mut().rect_stroke(response.rect, 0.0, (1.0, egui::Color32::WHITE));
     /// # });
     /// ```
     pub fn allocate_response(&mut self, desired_size: Vec2, sense: Sense) -> Response<'c> {

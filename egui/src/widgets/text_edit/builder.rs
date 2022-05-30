@@ -282,7 +282,7 @@ impl<'t> TextEdit<'t> {
         let is_mutable = self.text.is_mutable();
         let frame = self.frame;
         let interactive = self.interactive;
-        let where_to_put_background = ui.painter().add(Shape::Noop);
+        let where_to_put_background = ui.painter_mut().add(Shape::Noop);
 
         let margin = self.margin;
         let max_rect = ui.available_rect_before_wrap().shrink2(margin);
@@ -330,7 +330,7 @@ impl<'t> TextEdit<'t> {
                 }
             };
 
-            ui.painter().set(where_to_put_background, shape);
+            ui.painter_mut().set(where_to_put_background, shape);
         }
 
         output
