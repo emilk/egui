@@ -245,7 +245,7 @@ impl AppRunner {
         Ok(())
     }
 
-    /// Returns `true` if egui requests a repaint.
+    /// Returns how long to wait until the next repaint.
     ///
     /// Call [`Self::paint`] later to paint
     pub fn logic(&mut self) -> Result<(std::time::Duration, Vec<egui::ClippedPrimitive>), JsValue> {
