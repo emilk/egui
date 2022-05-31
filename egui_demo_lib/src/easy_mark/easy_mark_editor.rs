@@ -111,18 +111,27 @@ impl EasyMarkEditor {
 
 fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRange) -> bool {
     let mut any_change = false;
-    for (key, surrounding, modifier) in [
-        (Key::B, "*", egui::Modifiers::COMMAND),  // *bold*
-        (Key::N, "`", egui::Modifiers::COMMAND),  // `code`
-        (Key::I, "/", egui::Modifiers::COMMAND),  // /italics/
-        (Key::L, "$", egui::Modifiers::COMMAND),  // $subscript$
-        (Key::Y, "^", egui::Modifiers::COMMAND),  // ^superscript^
-        (Key::M, "~", egui::Modifiers::COMMAND),  // ~strikethrough~
-        (Key::Q, "_", egui::Modifiers::ALTSHIFT), // _underline_
+    for (modifier, key, surrounding) in [
+        (egui::Modifiers::COMMAND, Key::B, "*"),  // *bold*
+        (egui::Modifiers::COMMAND, Key::N, "`"),  // `code`
+        (egui::Modifiers::COMMAND, Key::I, "/"),  // /italics/
+        (egui::Modifiers::COMMAND, Key::L, "$"),  // $subscript$
+        (egui::Modifiers::COMMAND, Key::Y, "^"),  // ^superscript^
+        (egui::Modifiers::COMMAND, Key::M, "~"),  // ~strikethrough~
+        (egui::Modifiers::ALTSHIFT, Key::Q, "_"), // _underline_
+        (egui::Modifiers::ALTSHIFT, Key::W, "tab"),
     ] {
         if ui.input_mut().consume_key(modifier, key) {
-            toggle_surrounding(code, ccursor_range, surrounding);
             any_change = true;
+            if surrounding == "tab" {
+                let [primary, _secondary] = ccursor_range.sorted();
+
+                let advance = code.insert_text("  ", primary.index);
+                ccursor_range.primary.index += advance;
+                ccursor_range.secondary.index += advance;
+            } else {
+                toggle_surrounding(code, ccursor_range, surrounding);
+            }
         };
     }
     any_change
