@@ -596,7 +596,6 @@ impl Context {
     /// use `Context::request_repaint()` instead.
     ///
     /// Quirk:
-    ///
     ///     duration begins at the next frame. lets say for example that its a very inefficient app
     ///     and takes 500 milliseconds per frame at 2 fps. the widget / user might want a repaint in
     ///     next 500 milliseconds. now, app takes 1000 ms per frame (1 fps) because the backend event
@@ -608,6 +607,7 @@ impl Context {
         let mut ctx = self.write();
         ctx.repaint_after = ctx.repaint_after.min(duration);
     }
+
     /// For integrations: this callback will be called when an egui user calls [`Self::request_repaint`].
     ///
     /// This lets you wake up a sleeping UI thread.
