@@ -845,7 +845,7 @@ impl Context {
             self.write().repaint_requests -= 1;
             std::time::Duration::ZERO
         } else {
-            self.read().repaint_after;
+            self.read().repaint_after
         };
 
         self.write().requested_repaint_last_frame = repaint_after.is_zero();
