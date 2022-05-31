@@ -109,33 +109,35 @@ impl EasyMarkEditor {
     }
 }
 
-fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRange) -> bool {
-    let mut any_change = false;
-    for (modifier, key, surrounding) in [
-        (egui::Modifiers::COMMAND, Key::B, "*"),  // *bold*
-        (egui::Modifiers::COMMAND, Key::N, "`"),  // `code`
-        (egui::Modifiers::COMMAND, Key::I, "/"),  // /italics/
-        (egui::Modifiers::COMMAND, Key::L, "$"),  // $subscript$
-        (egui::Modifiers::COMMAND, Key::Y, "^"),  // ^superscript^
-        (egui::Modifiers::COMMAND, Key::M, "~"),  // ~strikethrough~
-        (egui::Modifiers::ALTSHIFT, Key::Q, "_"), // _underline_
-        (egui::Modifiers::ALTSHIFT, Key::W, "tab"),
-    ] {
-        if ui.input_mut().consume_key(modifier, key) {
-            any_change = true;
-            if surrounding == "tab" {
+        fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRange) -> bool {
+            let mut any_change = false;
+            if ui
+                .input_mut()
+                .consume_key(egui::Modifiers::ALTSHIFT, Key::W)
+            { /// add two spaces for tab (to be replaced)
+                any_change = true;
                 let [primary, _secondary] = ccursor_range.sorted();
 
                 let advance = code.insert_text("  ", primary.index);
                 ccursor_range.primary.index += advance;
                 ccursor_range.secondary.index += advance;
-            } else {
-                toggle_surrounding(code, ccursor_range, surrounding);
             }
-        };
-    }
-    any_change
-}
+            for (modifier, key, surrounding) in [
+                (egui::Modifiers::COMMAND, Key::B, "*"),  // *bold*
+                (egui::Modifiers::COMMAND, Key::N, "`"),  // `code`
+                (egui::Modifiers::COMMAND, Key::I, "/"),  // /italics/
+                (egui::Modifiers::COMMAND, Key::L, "$"),  // $subscript$
+                (egui::Modifiers::COMMAND, Key::Y, "^"),  // ^superscript^
+                (egui::Modifiers::COMMAND, Key::M, "~"),  // ~strikethrough~
+                (egui::Modifiers::ALTSHIFT, Key::Q, "_"), // _underline_
+            ] {
+                if ui.input_mut().consume_key(modifier, key) {
+                    any_change = true;
+                    toggle_surrounding(code, ccursor_range, surrounding);
+                };
+            }
+            any_change
+        }
 
 /// E.g. toggle *strong* with `toggle_surrounding(&mut text, &mut cursor, "*")`
 fn toggle_surrounding(
