@@ -15,9 +15,18 @@ fn create_display(
     glow::Context,
 ) {
     crate::profile_function!();
+
+    use crate::HardwareAcceleration;
+
+    let hardware_acceleration = match native_options.hardware_acceleration {
+        HardwareAcceleration::Required => Some(true),
+        HardwareAcceleration::Preferred => None,
+        HardwareAcceleration::Off => Some(false),
+    };
+
     let gl_window = unsafe {
         glutin::ContextBuilder::new()
-            .with_hardware_acceleration(native_options.hardware_acceleration)
+            .with_hardware_acceleration(hardware_acceleration)
             .with_depth_buffer(native_options.depth_buffer)
             .with_multisampling(native_options.multisampling)
             .with_srgb(true)
@@ -126,6 +135,8 @@ pub fn run_glow(
                 &textures_delta,
             );
 
+            integration.post_rendering(app.as_mut(), window);
+
             {
                 crate::profile_scope!("swap_buffers");
                 gl_window.swap_buffers().unwrap();
@@ -176,7 +187,7 @@ pub fn run_glow(
                     winit::event::WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                         gl_window.resize(**new_inner_size);
                     }
-                    winit::event::WindowEvent::CloseRequested => {
+                    winit::event::WindowEvent::CloseRequested if integration.should_quit() => {
                         *control_flow = winit::event_loop::ControlFlow::Exit;
                     }
                     _ => {}
@@ -352,7 +363,7 @@ pub fn run_wgpu(
                     winit::event::WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                         painter.on_window_resized(new_inner_size.width, new_inner_size.height);
                     }
-                    winit::event::WindowEvent::CloseRequested => {
+                    winit::event::WindowEvent::CloseRequested if integration.should_quit() => {
                         *control_flow = winit::event_loop::ControlFlow::Exit;
                     }
                     _ => {}
