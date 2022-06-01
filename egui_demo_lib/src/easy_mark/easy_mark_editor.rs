@@ -44,16 +44,21 @@ impl EasyMarkEditor {
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui) {
+        let mut hotkeys_open = false;
         egui::Grid::new("controls").show(ui, |ui| {
+            ui.menu_button("File", Self::nested_file);
+            ui.menu_button("Hotkeys", Self::nested_hotkeys);
+            //ui.menu_button("View", Self::nested_view);
+            if ui
+                .button(RichText::new("render").color(Color32::from_rgb(126, 130, 255)))
+                .clicked()
+            {
+                self.show_rendered = !self.show_rendered;
+            }
             ui.checkbox(&mut self.highlight_editor, "Highlight editor");
             egui::reset_button(ui, self);
             ui.end_row();
-
-            ui.checkbox(&mut self.show_rendered, "Show rendered");
         });
-
-        ui.label("(CTRL or Mac CMD) + [B: *bold*  N: `code`  I: /italics/  L: $lower$  Y: ^raise^  M: ~Strikethrough~] ALTSHIFT+Q: _underline_");
-
         ui.separator();
 
         if self.show_rendered {
@@ -72,6 +77,35 @@ impl EasyMarkEditor {
             ScrollArea::vertical()
                 .id_source("source")
                 .show(ui, |ui| self.editor_ui(ui));
+        }
+        fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRange) -> bool {
+            let mut any_change = false;
+            if ui
+                .input_mut()
+                .consume_key(egui::Modifiers::ALTSHIFT, Key::W)
+            {
+                any_change = true;
+                let [primary, _secondary] = ccursor_range.sorted();
+
+                let advance = code.insert_text("  ", primary.index);
+                ccursor_range.primary.index += advance;
+                ccursor_range.secondary.index += advance;
+            }
+            for (modifier, key, surrounding) in [
+                (egui::Modifiers::COMMAND, Key::B, "*"),  // *bold*
+                (egui::Modifiers::COMMAND, Key::N, "`"),  // `code`
+                (egui::Modifiers::COMMAND, Key::I, "/"),  // /italics/
+                (egui::Modifiers::COMMAND, Key::L, "$"),  // $subscript$
+                (egui::Modifiers::COMMAND, Key::Y, "^"),  // ^superscript^
+                (egui::Modifiers::COMMAND, Key::M, "~"),  // ~strikethrough~
+                (egui::Modifiers::ALTSHIFT, Key::Q, "_"), // _underline_
+            ] {
+                if ui.input_mut().consume_key(modifier, key) {
+                    any_change = true;
+                    toggle_surrounding(code, ccursor_range, surrounding);
+                };
+            }
+            any_change
         }
     }
 
@@ -107,37 +141,54 @@ impl EasyMarkEditor {
             }
         }
     }
+    fn nested_hotkeys(ui: &mut egui::Ui) {
+        let _ = ui.button("CTRL+B *bold*");
+        let _ = ui.button("CTRL+N `code`");
+        let _ = ui.button("CTRL+I /italics/");
+        let _ = ui.button("CTRL+L $subscript$");
+        let _ = ui.button("CTRL+Y ^superscript^");
+        let _ = ui.button("CTRL+M ~strikethrough~");
+        let _ = ui.button("ALTSHIFT+Q _underline_");
+        let _ = ui.button("ALTSHIFT+W two spaces");
+    }
+    fn nested_file(ui: &mut egui::Ui) {
+        let _ = ui.button("CTRL+O Open");
+        let _ = ui.button("New File");
+        //let _ = ui.button("Reset");
+    }
+    /*fn nested_view(ui: &mut egui::Ui) {
+        let _ = ui.button("Highlight Editor");
+        let _ = ui.button("Show Rendered");
+    }*/
 }
 
-        fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRange) -> bool {
-            let mut any_change = false;
-            if ui
-                .input_mut()
-                .consume_key(egui::Modifiers::ALTSHIFT, Key::W)
-            { /// add two spaces for tab (to be replaced)
-                any_change = true;
+fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRange) -> bool {
+    let mut any_change = false;
+    for (modifier, key, surrounding) in [
+        (egui::Modifiers::COMMAND, Key::B, "*"),    // *bold*
+        (egui::Modifiers::COMMAND, Key::N, "`"),    // `code`
+        (egui::Modifiers::COMMAND, Key::I, "/"),    // /italics/
+        (egui::Modifiers::COMMAND, Key::L, "$"),    // $subscript$
+        (egui::Modifiers::COMMAND, Key::Y, "^"),    // ^superscript^
+        (egui::Modifiers::COMMAND, Key::M, "~"),    // ~strikethrough~
+        (egui::Modifiers::ALTSHIFT, Key::Q, "_"),   // _underline_
+        (egui::Modifiers::ALTSHIFT, Key::W, "tab"), // adds two spaces
+    ] {
+        if ui.input_mut().consume_key(modifier, key) {
+            any_change = true;
+            if surrounding == "tab" {
                 let [primary, _secondary] = ccursor_range.sorted();
 
                 let advance = code.insert_text("  ", primary.index);
                 ccursor_range.primary.index += advance;
                 ccursor_range.secondary.index += advance;
+            } else {
+                toggle_surrounding(code, ccursor_range, surrounding);
             }
-            for (modifier, key, surrounding) in [
-                (egui::Modifiers::COMMAND, Key::B, "*"),  // *bold*
-                (egui::Modifiers::COMMAND, Key::N, "`"),  // `code`
-                (egui::Modifiers::COMMAND, Key::I, "/"),  // /italics/
-                (egui::Modifiers::COMMAND, Key::L, "$"),  // $subscript$
-                (egui::Modifiers::COMMAND, Key::Y, "^"),  // ^superscript^
-                (egui::Modifiers::COMMAND, Key::M, "~"),  // ~strikethrough~
-                (egui::Modifiers::ALTSHIFT, Key::Q, "_"), // _underline_
-            ] {
-                if ui.input_mut().consume_key(modifier, key) {
-                    any_change = true;
-                    toggle_surrounding(code, ccursor_range, surrounding);
-                };
-            }
-            any_change
-        }
+        };
+    }
+    any_change
+}
 
 /// E.g. toggle *strong* with `toggle_surrounding(&mut text, &mut cursor, "*")`
 fn toggle_surrounding(
@@ -233,6 +284,9 @@ The style characters are chosen to be similar to what they are representing:
 
 # TODO
 - Sub-headers (`## h2`, `### h3` etc)
+- Hotkey Editor
+- Internationalize EasyMark symbols
+
 - Images
   - we want to be able to optionally specify size (width and\/or height)
   - centering of images is very desirable
