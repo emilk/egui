@@ -371,7 +371,7 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
         ui.label(
             RichText::new("‼ Debug build ‼")
                 .small()
-                .color(crate::Color32::RED),
+                .color(crate::Color32::from_rgb(126, 130, 255)),
         )
         .on_hover_text("egui was compiled with debug assertions enabled.");
     }
