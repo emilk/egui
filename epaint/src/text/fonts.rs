@@ -7,8 +7,6 @@ use crate::{
     TextureAtlas,
 };
 use emath::NumExt as _;
-#[cfg(feature = "system_fonts")]
-use font_kit::family_handle::FamilyHandle;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -245,20 +243,18 @@ pub struct FontDefinitions {
 }
 
 impl FontDefinitions {
+    /// query a font which contains the character
     #[cfg(feature = "system_fonts")]
-    pub fn query_fonts_for_character(c: char) -> Option<FamilyHandle> {
-        use font_kit::source::SystemSource;
+    pub fn query_font_for_character(c: char) -> Option<(Vec<u8>, String)> {
         use skia_safe::{FontMgr, FontStyle};
 
-        let source = SystemSource::new();
         let font_mgr = FontMgr::new();
 
         if let Some(typeface) =
             font_mgr.match_family_style_character("", FontStyle::normal(), &[], c as i32)
         {
-            let family_name = typeface.family_name();
-            if let Ok(fonts) = source.select_family_by_name(&family_name) {
-                return Some(fonts);
+            if let Some((buf, _index)) = typeface.to_font_data() {
+                return Some((buf, typeface.family_name()));
             }
         }
         None
@@ -623,8 +619,6 @@ impl FontsImpl {
 
     #[cfg(feature = "system_fonts")]
     pub fn ensure_correct_fonts_for_text(&mut self, text: &str, main_font_id: &FontId) {
-        use font_kit::handle::Handle;
-        use std::fs;
         let FontId { size, family: _ } = main_font_id;
         let scale_in_pixels = self.font_impl_cache.scale_as_pixels(*size);
 
@@ -633,48 +627,36 @@ impl FontsImpl {
             if font_impl_manager.has_glyph_info_and_cache(c) {
                 continue;
             }
-            if let Some(fonts) = FontDefinitions::query_fonts_for_character(c) {
-                for font in fonts.fonts() {
-                    if let Handle::Path {
-                        path,
-                        font_index: _,
-                    } = font
-                    {
-                        if let Ok(buf) = fs::read(path) {
-                            let new_font_name =
-                                path.file_name().unwrap().to_str().unwrap().to_string();
-                            // update FontData
-                            let font_data = self
-                                .definitions
-                                .font_data
-                                .entry(new_font_name.clone())
-                                .or_insert_with(|| FontData::from_owned(buf));
+            if let Some((buf, new_font_name)) = FontDefinitions::query_font_for_character(c) {
+                // update FontData
+                let font_data = self
+                    .definitions
+                    .font_data
+                    .entry(new_font_name.clone())
+                    .or_insert_with(|| FontData::from_owned(buf));
 
-                            self.definitions
-                                .families
-                                .entry(FontFamily::Monospace)
-                                .or_default()
-                                .push(new_font_name.clone());
-                            self.definitions
-                                .families
-                                .entry(FontFamily::Proportional)
-                                .or_default()
-                                .push(new_font_name.clone());
-                            // update fonts_impl_cache
-                            let ab_glyph = ab_glyph_font_from_font_data(&new_font_name, font_data);
-                            let tweak = font_data.tweak;
-                            self.font_impl_cache
-                                .ab_glyph_fonts
-                                .insert(new_font_name.clone(), (tweak, ab_glyph));
-                            // update fonts_impl_cache
-                            let new_font_impl = self
-                                .font_impl_cache
-                                .font_impl(scale_in_pixels, &new_font_name);
-                            font_impl_manager = self.font(main_font_id);
-                            font_impl_manager.push_font_impl(new_font_impl);
-                        }
-                    }
-                }
+                self.definitions
+                    .families
+                    .entry(FontFamily::Monospace)
+                    .or_default()
+                    .push(new_font_name.clone());
+                self.definitions
+                    .families
+                    .entry(FontFamily::Proportional)
+                    .or_default()
+                    .push(new_font_name.clone());
+                // update fonts_impl_cache
+                let ab_glyph = ab_glyph_font_from_font_data(&new_font_name, font_data);
+                let tweak = font_data.tweak;
+                self.font_impl_cache
+                    .ab_glyph_fonts
+                    .insert(new_font_name.clone(), (tweak, ab_glyph));
+                // update fonts_impl_cache
+                let new_font_impl = self
+                    .font_impl_cache
+                    .font_impl(scale_in_pixels, &new_font_name);
+                font_impl_manager = self.font(main_font_id);
+                font_impl_manager.push_font_impl(new_font_impl);
             }
         }
     }
