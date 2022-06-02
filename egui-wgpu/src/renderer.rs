@@ -139,7 +139,7 @@ impl RenderPass {
     /// Creates a new render pass to render a egui UI.
     ///
     /// If the format passed is not a *Srgb format, the shader will automatically convert to `sRGB` colors in the shader.
-    pub(crate) fn new(
+    pub fn new(
         device: &wgpu::Device,
         output_format: wgpu::TextureFormat,
         msaa_samples: u32,
@@ -292,7 +292,7 @@ impl RenderPass {
     }
 
     /// Executes the egui render pass.
-    pub(crate) fn execute(
+    pub fn execute(
         &self,
         encoder: &mut wgpu::CommandEncoder,
         color_attachment: &wgpu::TextureView,
@@ -326,7 +326,7 @@ impl RenderPass {
     }
 
     /// Executes the egui render pass onto an existing wgpu renderpass.
-    pub(crate) fn execute_with_renderpass<'rpass>(
+    pub fn execute_with_renderpass<'rpass>(
         &'rpass self,
         rpass: &mut wgpu::RenderPass<'rpass>,
         paint_jobs: &[egui::epaint::ClippedPrimitive],
@@ -449,7 +449,7 @@ impl RenderPass {
     }
 
     /// Should be called before `execute()`.
-    pub(crate) fn update_texture(
+    pub fn update_texture(
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
@@ -561,7 +561,7 @@ impl RenderPass {
         };
     }
 
-    pub(crate) fn free_texture(&mut self, id: &egui::TextureId) {
+    pub fn free_texture(&mut self, id: &egui::TextureId) {
         self.textures.remove(id);
     }
 
@@ -658,7 +658,7 @@ impl RenderPass {
 
     /// Uploads the uniform, vertex and index data used by the render pass.
     /// Should be called before `execute()`.
-    pub(crate) fn update_buffers(
+    pub fn update_buffers(
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
