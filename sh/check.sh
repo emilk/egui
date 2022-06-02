@@ -6,6 +6,7 @@ set -eux
 # Checks all tests, lints etc.
 # Basically does what the CI does.
 
+RUSTFLAGS="-D warnings"
 RUSTDOCFLAGS="-D warnings" # https://github.com/emilk/egui/pull/1454
 
 cargo check --workspace --all-targets
