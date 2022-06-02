@@ -52,6 +52,7 @@ mint = ["emath/mint"]
 # implement serde on most types.
 serde = ["dep:serde", "ahash/serde", "emath/serde"]
 
+# load font from disk automatically according to user input
 system_fonts = ["skia-safe"]
 
 [dependencies]

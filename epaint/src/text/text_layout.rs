@@ -94,6 +94,7 @@ fn layout_section(
         format,
     } = section;
 
+    // load font from system while we can't recognize with fonts in memory while layout
     #[cfg(feature = "system_fonts")]
     fonts.ensure_correct_fonts_for_text(&job.text, &format.font_id);
 
