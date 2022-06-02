@@ -339,19 +339,13 @@ impl RenderPass {
         // run.
         let mut needs_reset = true;
 
-        for (
-            (
-                egui::ClippedPrimitive {
-                    clip_rect,
-                    primitive,
-                },
-                vertex_buffer,
-            ),
-            index_buffer,
-        ) in paint_jobs
-            .iter()
-            .zip(&self.vertex_buffers)
-            .zip(&self.index_buffers)
+        let mut index_buffers = self.index_buffers.iter();
+        let mut vertex_buffers = self.vertex_buffers.iter();
+
+        for egui::ClippedPrimitive {
+            clip_rect,
+            primitive,
+        } in paint_jobs
         {
             if needs_reset {
                 rpass.set_viewport(
@@ -384,6 +378,9 @@ impl RenderPass {
             match primitive {
                 Primitive::Mesh(mesh) => {
                     if let Some((_texture, bind_group)) = self.textures.get(&mesh.texture_id) {
+                        let index_buffer = index_buffers.next().unwrap();
+                        let vertex_buffer = vertex_buffers.next().unwrap();
+
                         rpass.set_bind_group(1, bind_group, &[]);
                         rpass.set_index_buffer(
                             index_buffer.buffer.slice(..),
@@ -568,6 +565,18 @@ impl RenderPass {
         self.textures.remove(id);
     }
 
+    /// Get the WGPU texture and bind group associated to a texture that has been allocated by egui.
+    ///
+    /// This could be used by custom paint hooks to render images that have been added through with
+    /// [`egui_extras::RetainedImage`](https://docs.rs/egui_extras/latest/egui_extras/image/struct.RetainedImage.html)
+    /// or [`egui::Context::load_texture`].
+    pub fn get_texture(
+        &self,
+        id: &egui::TextureId,
+    ) -> Option<&(Option<wgpu::Texture>, wgpu::BindGroup)> {
+        self.textures.get(id)
+    }
+
     /// Registers a `wgpu::Texture` with a `egui::TextureId`.
     ///
     /// This enables the application to reference the texture inside an image ui element.
@@ -669,12 +678,13 @@ impl RenderPass {
             }]),
         );
 
-        for (i, egui::ClippedPrimitive { primitive, .. }) in paint_jobs.iter().enumerate() {
+        let mut mesh_idx = 0;
+        for egui::ClippedPrimitive { primitive, .. } in paint_jobs.iter() {
             match primitive {
                 Primitive::Mesh(mesh) => {
                     let data: &[u8] = bytemuck::cast_slice(&mesh.indices);
-                    if i < self.index_buffers.len() {
-                        self.update_buffer(device, queue, &BufferType::Index, i, data);
+                    if mesh_idx < self.index_buffers.len() {
+                        self.update_buffer(device, queue, &BufferType::Index, mesh_idx, data);
                     } else {
                         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                             label: Some("egui_index_buffer"),
@@ -688,8 +698,8 @@ impl RenderPass {
                     }
 
                     let data: &[u8] = bytemuck::cast_slice(&mesh.vertices);
-                    if i < self.vertex_buffers.len() {
-                        self.update_buffer(device, queue, &BufferType::Vertex, i, data);
+                    if mesh_idx < self.vertex_buffers.len() {
+                        self.update_buffer(device, queue, &BufferType::Vertex, mesh_idx, data);
                     } else {
                         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                             label: Some("egui_vertex_buffer"),
@@ -702,6 +712,8 @@ impl RenderPass {
                             size: data.len(),
                         });
                     }
+
+                    mesh_idx += 1;
                 }
                 Primitive::Callback(callback) => {
                     let cbfn = if let Some(c) = callback.callback.downcast_ref::<CallbackFn>() {
