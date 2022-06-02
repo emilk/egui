@@ -24,7 +24,7 @@ default = ["default_fonts", "glow"]
 
 # detect dark mode system preference
 dark-light = ["dep:dark-light"]
-
+system_fonts = ["egui/system_fonts"]
 # If set, egui will use `include_bytes!` to bundle some fonts.
 # If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["egui/default_fonts"]

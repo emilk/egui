@@ -311,6 +311,18 @@ impl Font {
         self.glyph_info(c).1.advance_width
     }
 
+    pub fn has_glyph_info_and_cache(&mut self, c: char) -> bool {
+        if let Some(_font_index_glyph_info) = self.glyph_info_cache.get(&c) {
+            return true;
+        }
+
+        self.glyph_info_no_cache_or_fallback(c).is_some()
+    }
+
+    pub fn push_font_impl(&mut self, new_font_impl: Arc<FontImpl>) {
+        self.fonts.push(new_font_impl);
+    }
+
     /// `\n` will (intentionally) show up as the replacement character.
     fn glyph_info(&mut self, c: char) -> (FontIndex, GlyphInfo) {
         if let Some(font_index_glyph_info) = self.glyph_info_cache.get(&c) {

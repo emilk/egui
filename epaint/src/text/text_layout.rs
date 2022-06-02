@@ -93,6 +93,11 @@ fn layout_section(
         byte_range,
         format,
     } = section;
+
+    // load font from system while we can't recognize with fonts in memory while layout
+    #[cfg(feature = "system_fonts")]
+    fonts.ensure_correct_fonts_for_text(&job.text, &format.font_id);
+
     let font = fonts.font(&format.font_id);
     let font_height = font.row_height();
 
