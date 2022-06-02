@@ -195,10 +195,8 @@ impl State {
                 // We need to ignore these characters that are side-effects of commands.
                 let is_mac_cmd = cfg!(target_os = "macos")
                     && (self.egui_input.modifiers.ctrl || self.egui_input.modifiers.mac_cmd);
-                let is_altshift: bool =
-                    self.egui_input.modifiers.alt && self.egui_input.modifiers.shift;
-                
-                if is_printable_char(*ch) && !is_mac_cmd && !is_altshift {
+
+                if is_printable_char(*ch) && !is_mac_cmd && !self.egui_input.modifiers.alt {
                     self.egui_input
                         .events
                         .push(egui::Event::Text(ch.to_string()));
