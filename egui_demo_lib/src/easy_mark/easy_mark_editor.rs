@@ -44,13 +44,12 @@ impl EasyMarkEditor {
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui) {
-        let mut hotkeys_open = false;
         egui::Grid::new("controls").show(ui, |ui| {
-            ui.menu_button("File", Self::nested_file);
+            //ui.menu_button("File", Self::nested_file);
             ui.menu_button("Hotkeys", Self::nested_hotkeys);
             //ui.menu_button("View", Self::nested_view);
             if ui
-                .button(RichText::new("render").color(Color32::from_rgb(126, 130, 255)))
+                .button(RichText::new("render").color(Color32::from_rgb(76, 139, 255)))
                 .clicked()
             {
                 self.show_rendered = !self.show_rendered;
@@ -77,35 +76,6 @@ impl EasyMarkEditor {
             ScrollArea::vertical()
                 .id_source("source")
                 .show(ui, |ui| self.editor_ui(ui));
-        }
-        fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRange) -> bool {
-            let mut any_change = false;
-            if ui
-                .input_mut()
-                .consume_key(egui::Modifiers::ALTSHIFT, Key::W)
-            {
-                any_change = true;
-                let [primary, _secondary] = ccursor_range.sorted();
-
-                let advance = code.insert_text("  ", primary.index);
-                ccursor_range.primary.index += advance;
-                ccursor_range.secondary.index += advance;
-            }
-            for (modifier, key, surrounding) in [
-                (egui::Modifiers::COMMAND, Key::B, "*"),  // *bold*
-                (egui::Modifiers::COMMAND, Key::N, "`"),  // `code`
-                (egui::Modifiers::COMMAND, Key::I, "/"),  // /italics/
-                (egui::Modifiers::COMMAND, Key::L, "$"),  // $subscript$
-                (egui::Modifiers::COMMAND, Key::Y, "^"),  // ^superscript^
-                (egui::Modifiers::COMMAND, Key::M, "~"),  // ~strikethrough~
-                (egui::Modifiers::ALTSHIFT, Key::Q, "_"), // _underline_
-            ] {
-                if ui.input_mut().consume_key(modifier, key) {
-                    any_change = true;
-                    toggle_surrounding(code, ccursor_range, surrounding);
-                };
-            }
-            any_change
         }
     }
 
@@ -164,27 +134,29 @@ impl EasyMarkEditor {
 
 fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRange) -> bool {
     let mut any_change = false;
+    if ui
+        .input_mut()
+        .consume_key(egui::Modifiers::ALTSHIFT, Key::W)
+    {
+        any_change = true;
+        let [primary, _secondary] = ccursor_range.sorted();
+
+        let advance = code.insert_text("  ", primary.index);
+        ccursor_range.primary.index += advance;
+        ccursor_range.secondary.index += advance;
+    }
     for (modifier, key, surrounding) in [
-        (egui::Modifiers::COMMAND, Key::B, "*"),    // *bold*
-        (egui::Modifiers::COMMAND, Key::N, "`"),    // `code`
-        (egui::Modifiers::COMMAND, Key::I, "/"),    // /italics/
-        (egui::Modifiers::COMMAND, Key::L, "$"),    // $subscript$
-        (egui::Modifiers::COMMAND, Key::Y, "^"),    // ^superscript^
-        (egui::Modifiers::COMMAND, Key::M, "~"),    // ~strikethrough~
-        (egui::Modifiers::ALTSHIFT, Key::Q, "_"),   // _underline_
-        (egui::Modifiers::ALTSHIFT, Key::W, "tab"), // adds two spaces
+        (egui::Modifiers::COMMAND, Key::B, "*"),     // *bold*
+        (egui::Modifiers::COMMAND, Key::N, "`"),     // `code`
+        (egui::Modifiers::COMMAND, Key::I, "/"),     // /italics/
+        (egui::Modifiers::COMMAND, Key::L, "$"),     // $subscript$
+        (egui::Modifiers::COMMAND, Key::Y, "^"),     // ^superscript^
+        (egui::Modifiers::ALTSHIFT, Key::Num3, "~"), // ~strikethrough~
+        (egui::Modifiers::COMMAND, Key::Num2, "_"),  // _underline_
     ] {
         if ui.input_mut().consume_key(modifier, key) {
             any_change = true;
-            if surrounding == "tab" {
-                let [primary, _secondary] = ccursor_range.sorted();
-
-                let advance = code.insert_text("  ", primary.index);
-                ccursor_range.primary.index += advance;
-                ccursor_range.secondary.index += advance;
-            } else {
-                toggle_surrounding(code, ccursor_range, surrounding);
-            }
+            toggle_surrounding(code, ccursor_range, surrounding);
         };
     }
     any_change
