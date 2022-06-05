@@ -370,6 +370,11 @@ impl RenderPass {
 
             // Skip rendering with zero-sized clip areas.
             if width == 0 || height == 0 {
+                // If this is a mesh, we need to advance the index and vertex buffer iterators
+                if let Primitive::Mesh(_) = primitive {
+                    index_buffers.next().unwrap();
+                    vertex_buffers.next().unwrap();
+                }
                 continue;
             }
 
@@ -377,10 +382,10 @@ impl RenderPass {
 
             match primitive {
                 Primitive::Mesh(mesh) => {
-                    if let Some((_texture, bind_group)) = self.textures.get(&mesh.texture_id) {
-                        let index_buffer = index_buffers.next().unwrap();
-                        let vertex_buffer = vertex_buffers.next().unwrap();
+                    let index_buffer = index_buffers.next().unwrap();
+                    let vertex_buffer = vertex_buffers.next().unwrap();
 
+                    if let Some((_texture, bind_group)) = self.textures.get(&mesh.texture_id) {
                         rpass.set_bind_group(1, bind_group, &[]);
                         rpass.set_index_buffer(
                             index_buffer.buffer.slice(..),
