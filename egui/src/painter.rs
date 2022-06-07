@@ -7,7 +7,6 @@ use crate::{
     Color32, Context, FontId,
 };
 use epaint::{
-    mutex::{RwLockReadGuard, RwLockWriteGuard},
     text::{Fonts, Galley},
     CircleShape, RectShape, Rounding, Shape, Stroke,
 };
@@ -17,9 +16,6 @@ use epaint::{
 /// All coordinates are screen coordinates in the unit points (one point can consist of many physical pixels).
 #[derive(Clone)]
 pub struct Painter {
-    /// Source of fonts and destination of shapes
-    ctx: Context,
-
     /// Where we paint
     layer_id: LayerId,
 
@@ -34,9 +30,8 @@ pub struct Painter {
 
 impl Painter {
     /// Create a painter to a specific layer within a certain clip rectangle.
-    pub fn new(ctx: Context, layer_id: LayerId, clip_rect: Rect) -> Self {
+    pub fn new(layer_id: LayerId, clip_rect: Rect) -> Self {
         Self {
-            ctx,
             layer_id,
             clip_rect,
             fade_to_color: None,
@@ -47,7 +42,6 @@ impl Painter {
     #[must_use]
     pub fn with_layer_id(self, layer_id: LayerId) -> Self {
         Self {
-            ctx: self.ctx,
             layer_id,
             clip_rect: self.clip_rect,
             fade_to_color: None,
@@ -60,7 +54,6 @@ impl Painter {
     /// of the given rectangle and the `clip_rect()` of the parent [`Painter`].
     pub fn with_clip_rect(&self, rect: Rect) -> Self {
         Self {
-            ctx: self.ctx.clone(),
             layer_id: self.layer_id,
             clip_rect: rect.intersect(self.clip_rect),
             fade_to_color: self.fade_to_color,
@@ -89,7 +82,6 @@ impl Painter {
     #[deprecated = "Use Painter::with_clip_rect"] // Deprecated in 2022-04-18, before egui 0.18
     pub fn sub_region(&self, rect: Rect) -> Self {
         Self {
-            ctx: self.ctx.clone(),
             layer_id: self.layer_id,
             clip_rect: rect.intersect(self.clip_rect),
             fade_to_color: self.fade_to_color,
@@ -99,18 +91,6 @@ impl Painter {
 
 /// ## Accessors etc
 impl Painter {
-    /// Get a reference to the parent [`Context`].
-    #[inline(always)]
-    pub fn ctx(&self) -> &Context {
-        &self.ctx
-    }
-
-    /// Available fonts.
-    #[inline(always)]
-    pub fn fonts(&self) -> RwLockReadGuard<'_, Fonts> {
-        self.ctx.fonts()
-    }
-
     /// Where we paint
     #[inline(always)]
     pub fn layer_id(&self) -> LayerId {
@@ -130,30 +110,12 @@ impl Painter {
     pub fn set_clip_rect(&mut self, clip_rect: Rect) {
         self.clip_rect = clip_rect;
     }
-
-    /// Useful for pixel-perfect rendering.
-    #[inline(always)]
-    pub fn round_to_pixel(&self, point: f32) -> f32 {
-        self.ctx().round_to_pixel(point)
-    }
-
-    /// Useful for pixel-perfect rendering.
-    #[inline(always)]
-    pub fn round_vec_to_pixels(&self, vec: Vec2) -> Vec2 {
-        self.ctx().round_vec_to_pixels(vec)
-    }
-
-    /// Useful for pixel-perfect rendering.
-    #[inline(always)]
-    pub fn round_pos_to_pixels(&self, pos: Pos2) -> Pos2 {
-        self.ctx().round_pos_to_pixels(pos)
-    }
 }
 
 /// ## Low level
 impl Painter {
-    fn paint_list(&self) -> RwLockWriteGuard<'_, PaintList> {
-        RwLockWriteGuard::map(self.ctx.graphics(), |g| g.list(self.layer_id))
+    fn paint_list<'a>(&self, ctx: &'a mut Context) -> &'a mut PaintList {
+        ctx.graphics_mut().list(self.layer_id)
     }
 
     fn transform_shape(&self, shape: &mut Shape) {
@@ -165,20 +127,20 @@ impl Painter {
     /// It is up to the caller to make sure there is room for this.
     /// Can be used for free painting.
     /// NOTE: all coordinates are screen coordinates!
-    pub fn add(&self, shape: impl Into<Shape>) -> ShapeIdx {
+    pub fn add(&self, ctx: &mut Context, shape: impl Into<Shape>) -> ShapeIdx {
         if self.fade_to_color == Some(Color32::TRANSPARENT) {
-            self.paint_list().add(self.clip_rect, Shape::Noop)
+            self.paint_list(ctx).add(self.clip_rect, Shape::Noop)
         } else {
             let mut shape = shape.into();
             self.transform_shape(&mut shape);
-            self.paint_list().add(self.clip_rect, shape)
+            self.paint_list(ctx).add(self.clip_rect, shape)
         }
     }
 
     /// Add many shapes at once.
     ///
     /// Calling this once is generally faster than calling [`Self::add`] multiple times.
-    pub fn extend(&self, mut shapes: Vec<Shape>) {
+    pub fn extend(&self, ctx: &mut Context, mut shapes: Vec<Shape>) {
         if self.fade_to_color == Some(Color32::TRANSPARENT) {
             return;
         }
@@ -189,26 +151,27 @@ impl Painter {
                 }
             }
 
-            self.paint_list().extend(self.clip_rect, shapes);
+            self.paint_list(ctx).extend(self.clip_rect, shapes);
         }
     }
 
     /// Modify an existing [`Shape`].
-    pub fn set(&self, idx: ShapeIdx, shape: impl Into<Shape>) {
+    pub fn set(&self, ctx: &mut Context, idx: ShapeIdx, shape: impl Into<Shape>) {
         if self.fade_to_color == Some(Color32::TRANSPARENT) {
             return;
         }
         let mut shape = shape.into();
         self.transform_shape(&mut shape);
-        self.paint_list().set(idx, self.clip_rect, shape);
+        self.paint_list(ctx).set(idx, self.clip_rect, shape);
     }
 }
 
 /// ## Debug painting
 impl Painter {
-    pub fn debug_rect(&self, rect: &Rect, color: Color32, text: impl ToString) {
-        self.rect_stroke(rect, 0.0, (1.0, color));
+    pub fn debug_rect(&self, ctx: &mut Context, rect: &Rect, color: Color32, text: impl ToString) {
+        self.rect_stroke(ctx, rect, 0.0, (1.0, color));
         self.text(
+            ctx,
             rect.min,
             Align2::LEFT_TOP,
             text.to_string(),
@@ -217,27 +180,35 @@ impl Painter {
         );
     }
 
-    pub fn error(&self, pos: &Pos2, text: impl std::fmt::Display) -> Rect {
-        self.debug_text(pos, Align2::LEFT_TOP, Color32::RED, format!("🔥 {}", text))
+    pub fn error(&self, ctx: &mut Context, pos: &Pos2, text: impl std::fmt::Display) -> Rect {
+        self.debug_text(
+            ctx,
+            pos,
+            Align2::LEFT_TOP,
+            Color32::RED,
+            format!("🔥 {}", text),
+        )
     }
 
     /// text with a background
     pub fn debug_text(
         &self,
+        ctx: &mut Context,
         pos: &Pos2,
         anchor: Align2,
         color: Color32,
         text: impl ToString,
     ) -> Rect {
-        let galley = self.layout_no_wrap(text.to_string(), FontId::monospace(14.0), color);
+        let galley = ctx
+            .fonts()
+            .layout_no_wrap(text.to_string(), FontId::monospace(14.0), color);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size()));
         let frame_rect = rect.expand(2.0);
-        self.add(Shape::rect_filled(
-            frame_rect,
-            0.0,
-            Color32::from_black_alpha(240),
-        ));
-        self.galley(rect.min, galley);
+        self.add(
+            ctx,
+            Shape::rect_filled(frame_rect, 0.0, Color32::from_black_alpha(240)),
+        );
+        self.galley(ctx, rect.min, galley);
         frame_rect
     }
 }
@@ -245,115 +216,170 @@ impl Painter {
 /// # Paint different primitives
 impl Painter {
     /// Paints a line from the first point to the second.
-    pub fn line_segment(&self, points: [Pos2; 2], stroke: impl Into<Stroke>) {
-        self.add(Shape::LineSegment {
-            points,
-            stroke: stroke.into(),
-        });
+    pub fn line_segment(&self, ctx: &mut Context, points: [Pos2; 2], stroke: impl Into<Stroke>) {
+        self.add(
+            ctx,
+            Shape::LineSegment {
+                points,
+                stroke: stroke.into(),
+            },
+        );
     }
 
     /// Paints a horizontal line.
-    pub fn hline(&self, x: RangeInclusive<f32>, y: f32, stroke: impl Into<Stroke>) {
-        self.add(Shape::LineSegment {
-            points: [pos2(*x.start(), y), pos2(*x.end(), y)],
-            stroke: stroke.into(),
-        });
+    pub fn hline(
+        &self,
+        ctx: &mut Context,
+        x: RangeInclusive<f32>,
+        y: f32,
+        stroke: impl Into<Stroke>,
+    ) {
+        self.add(
+            ctx,
+            Shape::LineSegment {
+                points: [pos2(*x.start(), y), pos2(*x.end(), y)],
+                stroke: stroke.into(),
+            },
+        );
     }
 
     /// Paints a vertical line.
-    pub fn vline(&self, x: f32, y: RangeInclusive<f32>, stroke: impl Into<Stroke>) {
-        self.add(Shape::LineSegment {
-            points: [pos2(x, *y.start()), pos2(x, *y.end())],
-            stroke: stroke.into(),
-        });
+    pub fn vline(
+        &self,
+        ctx: &mut Context,
+        x: f32,
+        y: RangeInclusive<f32>,
+        stroke: impl Into<Stroke>,
+    ) {
+        self.add(
+            ctx,
+            Shape::LineSegment {
+                points: [pos2(x, *y.start()), pos2(x, *y.end())],
+                stroke: stroke.into(),
+            },
+        );
     }
 
     pub fn circle(
         &self,
+        ctx: &mut Context,
         center: Pos2,
         radius: f32,
         fill_color: impl Into<Color32>,
         stroke: impl Into<Stroke>,
     ) {
-        self.add(CircleShape {
-            center,
-            radius,
-            fill: fill_color.into(),
-            stroke: stroke.into(),
-        });
+        self.add(
+            ctx,
+            CircleShape {
+                center,
+                radius,
+                fill: fill_color.into(),
+                stroke: stroke.into(),
+            },
+        );
     }
 
-    pub fn circle_filled(&self, center: Pos2, radius: f32, fill_color: impl Into<Color32>) {
-        self.add(CircleShape {
-            center,
-            radius,
-            fill: fill_color.into(),
-            stroke: Default::default(),
-        });
+    pub fn circle_filled(
+        &self,
+        ctx: &mut Context,
+        center: Pos2,
+        radius: f32,
+        fill_color: impl Into<Color32>,
+    ) {
+        self.add(
+            ctx,
+            CircleShape {
+                center,
+                radius,
+                fill: fill_color.into(),
+                stroke: Default::default(),
+            },
+        );
     }
 
-    pub fn circle_stroke(&self, center: Pos2, radius: f32, stroke: impl Into<Stroke>) {
-        self.add(CircleShape {
-            center,
-            radius,
-            fill: Default::default(),
-            stroke: stroke.into(),
-        });
+    pub fn circle_stroke(
+        &self,
+        ctx: &mut Context,
+        center: Pos2,
+        radius: f32,
+        stroke: impl Into<Stroke>,
+    ) {
+        self.add(
+            ctx,
+            CircleShape {
+                center,
+                radius,
+                fill: Default::default(),
+                stroke: stroke.into(),
+            },
+        );
     }
 
     pub fn rect(
         &self,
+        ctx: &mut Context,
         rect: Rect,
         rounding: impl Into<Rounding>,
         fill_color: impl Into<Color32>,
         stroke: impl Into<Stroke>,
     ) {
-        self.add(RectShape {
-            rect,
-            rounding: rounding.into(),
-            fill: fill_color.into(),
-            stroke: stroke.into(),
-        });
+        self.add(
+            ctx,
+            RectShape {
+                rect,
+                rounding: rounding.into(),
+                fill: fill_color.into(),
+                stroke: stroke.into(),
+            },
+        );
     }
 
     pub fn rect_filled(
         &self,
+        ctx: &mut Context,
         rect: Rect,
         rounding: impl Into<Rounding>,
         fill_color: impl Into<Color32>,
     ) {
-        self.add(RectShape {
-            rect,
-            rounding: rounding.into(),
-            fill: fill_color.into(),
-            stroke: Default::default(),
-        });
+        self.add(
+            ctx,
+            RectShape {
+                rect,
+                rounding: rounding.into(),
+                fill: fill_color.into(),
+                stroke: Default::default(),
+            },
+        );
     }
 
     pub fn rect_stroke(
         &self,
+        ctx: &mut Context,
         rect: Rect,
         rounding: impl Into<Rounding>,
         stroke: impl Into<Stroke>,
     ) {
-        self.add(RectShape {
-            rect,
-            rounding: rounding.into(),
-            fill: Default::default(),
-            stroke: stroke.into(),
-        });
+        self.add(
+            ctx,
+            RectShape {
+                rect,
+                rounding: rounding.into(),
+                fill: Default::default(),
+                stroke: stroke.into(),
+            },
+        );
     }
 
     /// Show an arrow starting at `origin` and going in the direction of `vec`, with the length `vec.length()`.
-    pub fn arrow(&self, origin: Pos2, vec: Vec2, stroke: Stroke) {
+    pub fn arrow(&self, ctx: &mut Context, origin: Pos2, vec: Vec2, stroke: Stroke) {
         use crate::emath::*;
         let rot = Rot2::from_angle(std::f32::consts::TAU / 10.0);
         let tip_length = vec.length() / 4.0;
         let tip = origin + vec;
         let dir = vec.normalized();
-        self.line_segment([origin, tip], stroke);
-        self.line_segment([tip, tip - tip_length * (rot * dir)], stroke);
-        self.line_segment([tip, tip - tip_length * (rot.inverse() * dir)], stroke);
+        self.line_segment(ctx, [origin, tip], stroke);
+        self.line_segment(ctx, [tip, tip - tip_length * (rot * dir)], stroke);
+        self.line_segment(ctx, [tip, tip - tip_length * (rot.inverse() * dir)], stroke);
     }
 }
 
@@ -370,43 +396,19 @@ impl Painter {
     #[allow(clippy::needless_pass_by_value)]
     pub fn text(
         &self,
+        ctx: &mut Context,
         pos: Pos2,
         anchor: Align2,
         text: impl ToString,
         font_id: FontId,
         text_color: Color32,
     ) -> Rect {
-        let galley = self.layout_no_wrap(text.to_string(), font_id, text_color);
+        let galley = ctx
+            .fonts()
+            .layout_no_wrap(text.to_string(), font_id, text_color);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size()));
-        self.galley(rect.min, galley);
+        self.galley(ctx, rect.min, galley);
         rect
-    }
-
-    /// Will wrap text at the given width and line break at `\n`.
-    ///
-    /// Paint the results with [`Self::galley`].
-    #[inline(always)]
-    pub fn layout(
-        &self,
-        text: String,
-        font_id: FontId,
-        color: crate::Color32,
-        wrap_width: f32,
-    ) -> Arc<Galley> {
-        self.fonts().layout(text, font_id, color, wrap_width)
-    }
-
-    /// Will line break at `\n`.
-    ///
-    /// Paint the results with [`Self::galley`].
-    #[inline(always)]
-    pub fn layout_no_wrap(
-        &self,
-        text: String,
-        font_id: FontId,
-        color: crate::Color32,
-    ) -> Arc<Galley> {
-        self.fonts().layout(text, font_id, color, f32::INFINITY)
     }
 
     /// Paint text that has already been layed out in a [`Galley`].
@@ -415,9 +417,9 @@ impl Painter {
     ///
     /// If you want to change the color of the text, use [`Self::galley_with_color`].
     #[inline(always)]
-    pub fn galley(&self, pos: Pos2, galley: Arc<Galley>) {
+    pub fn galley(&self, ctx: &mut Context, pos: Pos2, galley: Arc<Galley>) {
         if !galley.is_empty() {
-            self.add(Shape::galley(pos, galley));
+            self.add(ctx, Shape::galley(pos, galley));
         }
     }
 
@@ -427,9 +429,15 @@ impl Painter {
     ///
     /// The text color in the [`Galley`] will be replaced with the given color.
     #[inline(always)]
-    pub fn galley_with_color(&self, pos: Pos2, galley: Arc<Galley>, text_color: Color32) {
+    pub fn galley_with_color(
+        &self,
+        ctx: &mut Context,
+        pos: Pos2,
+        galley: Arc<Galley>,
+        text_color: Color32,
+    ) {
         if !galley.is_empty() {
-            self.add(Shape::galley_with_color(pos, galley, text_color));
+            self.add(ctx, Shape::galley_with_color(pos, galley, text_color));
         }
     }
 }
