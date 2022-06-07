@@ -1,6 +1,6 @@
 //! Contains items that can be added to a plot.
 
-use std::ops::RangeInclusive;
+use std::{cell::RefCell, ops::RangeInclusive};
 
 use epaint::util::FloatOrd;
 use epaint::Mesh;
@@ -28,6 +28,7 @@ pub(super) struct PlotConfig<'a> {
     pub transform: &'a ScreenTransform,
     pub show_x: bool,
     pub show_y: bool,
+    pub cursors: &'a RefCell<Vec<(Orientation, f64)>>,
 }
 
 /// Trait shared by things that can be drawn in the plot.
@@ -1547,7 +1548,7 @@ impl PlotItem for BoxPlot {
 // ----------------------------------------------------------------------------
 // Helper functions
 
-fn rulers_color(ui: &Ui) -> Color32 {
+pub(crate) fn rulers_color(ui: &Ui) -> Color32 {
     if ui.visuals().dark_mode {
         Color32::from_gray(100).additive()
     } else {
@@ -1555,7 +1556,11 @@ fn rulers_color(ui: &Ui) -> Color32 {
     }
 }
 
-fn vertical_line(pointer: Pos2, transform: &ScreenTransform, line_color: Color32) -> Shape {
+pub(crate) fn vertical_line(
+    pointer: Pos2,
+    transform: &ScreenTransform,
+    line_color: Color32,
+) -> Shape {
     let frame = transform.frame();
     Shape::line_segment(
         [
@@ -1566,7 +1571,11 @@ fn vertical_line(pointer: Pos2, transform: &ScreenTransform, line_color: Color32
     )
 }
 
-fn horizontal_line(pointer: Pos2, transform: &ScreenTransform, line_color: Color32) -> Shape {
+pub(crate) fn horizontal_line(
+    pointer: Pos2,
+    transform: &ScreenTransform,
+    line_color: Color32,
+) -> Shape {
     let frame = transform.frame();
     Shape::line_segment(
         [
@@ -1661,9 +1670,15 @@ pub(super) fn rulers_at_value(
     let line_color = rulers_color(plot.ui);
     if plot.show_x {
         shapes.push(vertical_line(pointer, plot.transform, line_color));
+        plot.cursors
+            .borrow_mut()
+            .push((Orientation::Vertical, value.x));
     }
     if plot.show_y {
         shapes.push(horizontal_line(pointer, plot.transform, line_color));
+        plot.cursors
+            .borrow_mut()
+            .push((Orientation::Horizontal, value.y));
     }
 
     let mut prefix = String::new();

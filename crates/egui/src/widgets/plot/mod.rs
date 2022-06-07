@@ -1,6 +1,11 @@
 //! Simple plotting library.
 
-use std::{cell::Cell, ops::RangeInclusive, rc::Rc};
+use std::{
+    cell::{Cell, RefCell},
+    collections::HashMap,
+    ops::RangeInclusive,
+    rc::Rc,
+};
 
 use crate::*;
 use epaint::color::Hsva;
@@ -16,6 +21,8 @@ pub use items::{
 };
 pub use legend::{Corner, Legend};
 pub use transform::PlotBounds;
+
+use self::items::{horizontal_line, rulers_color, vertical_line};
 
 mod items;
 mod legend;
@@ -121,7 +128,9 @@ impl PlotMemory {
 pub struct LinkedAxisGroup {
     pub(crate) link_x: bool,
     pub(crate) link_y: bool,
+    pub(crate) link_cursor: bool,
     pub(crate) bounds: Rc<Cell<Option<PlotBounds>>>,
+    pub(crate) cursors: Rc<RefCell<HashMap<Id, Vec<(Orientation, f64)>>>>,
 }
 
 impl LinkedAxisGroup {
@@ -129,7 +138,9 @@ impl LinkedAxisGroup {
         Self {
             link_x,
             link_y,
+            link_cursor: false,
             bounds: Rc::new(Cell::new(None)),
+            cursors: Rc::new(RefCell::new(HashMap::new())),
         }
     }
 
@@ -158,6 +169,11 @@ impl LinkedAxisGroup {
     /// drawn in this frame already may lead to unexpected results.
     pub fn set_link_y(&mut self, link: bool) {
         self.link_y = link;
+    }
+
+    /// Change whether the cursor is linked for this group. By default it is unlinked.
+    pub fn set_link_cursor(&mut self, link: bool) {
+        self.link_cursor = link;
     }
 
     fn get(&self) -> Option<PlotBounds> {
@@ -660,8 +676,13 @@ impl Plot {
         // --- Bound computation ---
         let mut bounds = *last_screen_transform.bounds();
 
+        let mut cursors = HashMap::new();
+
         // Transfer the bounds from a link group.
         if let Some(axes) = linked_axes.as_ref() {
+            if axes.link_cursor {
+                cursors = axes.cursors.borrow().clone();
+            }
             if let Some(linked_bounds) = axes.get() {
                 if axes.link_x {
                     bounds.set_x(&linked_bounds);
@@ -818,8 +839,11 @@ impl Plot {
             show_axes,
             transform: transform.clone(),
             grid_spacers,
+            draw_cursor_x: linked_axes.as_ref().map_or(false, |axes| axes.link_x),
+            draw_cursor_y: linked_axes.as_ref().map_or(false, |axes| axes.link_y),
+            draw_cursors: cursors,
         };
-        prepared.ui(ui, &response);
+        let cursors = prepared.ui(ui, &response);
 
         if let Some(boxed_zoom_rect) = boxed_zoom_rect {
             ui.painter().with_clip_rect(rect).add(boxed_zoom_rect.0);
@@ -833,6 +857,12 @@ impl Plot {
         }
 
         if let Some(group) = linked_axes.as_ref() {
+            let cursors_map = &mut *group.cursors.borrow_mut();
+            if response.hovered() {
+                cursors_map.insert(id_source, cursors);
+            } else {
+                cursors_map.remove(&id_source);
+            }
             group.set(*transform.bounds());
         }
 
@@ -1118,10 +1148,13 @@ struct PreparedPlot {
     show_axes: [bool; 2],
     transform: ScreenTransform,
     grid_spacers: [GridSpacer; 2],
+    draw_cursor_x: bool,
+    draw_cursor_y: bool,
+    draw_cursors: HashMap<Id, Vec<(Orientation, f64)>>,
 }
 
 impl PreparedPlot {
-    fn ui(self, ui: &mut Ui, response: &Response) {
+    fn ui(self, ui: &mut Ui, response: &Response) -> Vec<(Orientation, f64)> {
         let mut shapes = Vec::new();
 
         for d in 0..2 {
@@ -1138,9 +1171,40 @@ impl PreparedPlot {
             item.shapes(&mut plot_ui, transform, &mut shapes);
         }
 
-        if let Some(pointer) = response.hover_pos() {
-            self.hover(ui, pointer, &mut shapes);
-        }
+        let cursors = if let Some(pointer) = response.hover_pos() {
+            self.hover(ui, pointer, &mut shapes)
+        } else {
+            // Draw cursors from other plots
+            let line_color = rulers_color(ui);
+            for &(orientation, value) in self
+                .draw_cursors
+                .values()
+                .flat_map(|cursors| cursors.iter())
+            {
+                match orientation {
+                    Orientation::Horizontal => {
+                        if self.draw_cursor_y {
+                            shapes.push(horizontal_line(
+                                transform.position_from_point(&PlotPoint::new(0.0, value)),
+                                &self.transform,
+                                line_color,
+                            ));
+                        }
+                    }
+                    Orientation::Vertical => {
+                        if self.draw_cursor_x {
+                            shapes.push(vertical_line(
+                                transform.position_from_point(&PlotPoint::new(value, 0.0)),
+                                &self.transform,
+                                line_color,
+                            ));
+                        }
+                    }
+                }
+            }
+
+            Vec::new()
+        };
 
         let painter = ui.painter().with_clip_rect(*transform.frame());
         painter.extend(shapes);
@@ -1160,6 +1224,8 @@ impl PreparedPlot {
                 painter.text(position, anchor, text, font_id, ui.visuals().text_color());
             }
         }
+
+        cursors
     }
 
     fn paint_axis(&self, ui: &Ui, axis: usize, shapes: &mut Vec<Shape>) {
@@ -1253,7 +1319,7 @@ impl PreparedPlot {
         }
     }
 
-    fn hover(&self, ui: &Ui, pointer: Pos2, shapes: &mut Vec<Shape>) {
+    fn hover(&self, ui: &Ui, pointer: Pos2, shapes: &mut Vec<Shape>) -> Vec<(Orientation, f64)> {
         let Self {
             transform,
             show_x,
@@ -1264,7 +1330,7 @@ impl PreparedPlot {
         } = self;
 
         if !show_x && !show_y {
-            return;
+            return Vec::new();
         }
 
         let interact_radius_sq: f32 = (16.0f32).powi(2);
@@ -1280,11 +1346,13 @@ impl PreparedPlot {
             .min_by_key(|(_, elem)| elem.dist_sq.ord())
             .filter(|(_, elem)| elem.dist_sq <= interact_radius_sq);
 
+        let cursors = RefCell::new(Vec::new());
         let plot = items::PlotConfig {
             ui,
             transform,
             show_x: *show_x,
             show_y: *show_y,
+            cursors: &cursors,
         };
 
         if let Some((item, elem)) = closest {
@@ -1293,6 +1361,8 @@ impl PreparedPlot {
             let value = transform.value_from_position(pointer);
             items::rulers_at_value(pointer, value, "", &plot, shapes, label_formatter);
         }
+
+        cursors.into_inner()
     }
 }
 
