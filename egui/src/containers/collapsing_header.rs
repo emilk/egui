@@ -534,7 +534,7 @@ impl CollapsingHeader {
 
         let openness = state.openness(ui.ctx());
 
-        if ui.is_rect_visible(rect) {
+        if ui.is_rect_visible(&rect) {
             let visuals = ui.style().interact_selectable(&header_response, selected);
 
             if ui.visuals().collapsing_header_frame || show_background {

@@ -442,7 +442,7 @@ impl SubMenuButton {
             crate::WidgetInfo::labeled(crate::WidgetType::Button, &text_galley.text())
         });
 
-        if ui.is_rect_visible(rect) {
+        if ui.is_rect_visible(&rect) {
             let visuals = Self::visuals(ui, &response, menu_state, sub_id);
             let text_pos = Align2::LEFT_CENTER
                 .align_size_within_rect(text_galley.size(), rect.shrink2(button_padding))

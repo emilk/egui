@@ -564,7 +564,7 @@ impl<'t> TextEdit<'t> {
             false
         };
 
-        if ui.is_rect_visible(rect) {
+        if ui.is_rect_visible(&rect) {
             painter.galley(ui.ctx_mut(), text_draw_pos, galley.clone());
 
             if text.as_ref().is_empty() && !hint_text.is_empty() {

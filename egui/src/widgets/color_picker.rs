@@ -53,7 +53,7 @@ pub fn show_color<'c>(ui: &mut Ui<'c>, color: impl Into<Color32>, desired_size: 
 
 fn show_color32<'c>(ui: &mut Ui<'c>, color: Color32, desired_size: Vec2) -> Response {
     let (rect, response) = ui.allocate_at_least(desired_size, Sense::hover());
-    if ui.is_rect_visible(rect) {
+    if ui.is_rect_visible(&rect) {
         show_color_at(ui.painter_mut(), color, rect);
     }
     response
@@ -83,7 +83,7 @@ fn color_button<'c>(ui: &mut Ui<'c>, color: Color32, open: bool) -> Response {
     let (rect, response) = ui.allocate_exact_size(size, Sense::click());
     response.widget_info(ui, || WidgetInfo::new(WidgetType::ColorButton));
 
-    if ui.is_rect_visible(rect) {
+    if ui.is_rect_visible(&rect) {
         let visuals = if open {
             &ui.visuals().widgets.open
         } else {
@@ -115,7 +115,7 @@ fn color_slider_1d<'c>(
         *value = remap_clamp(mpos.x, rect.left()..=rect.right(), 0.0..=1.0);
     }
 
-    if ui.is_rect_visible(rect) {
+    if ui.is_rect_visible(&rect) {
         let visuals = ui.style().interact(&response);
 
         background_checkers(ui.painter_mut(), rect); // for alpha:
@@ -177,7 +177,7 @@ fn color_slider_2d<'c>(
         *y_value = remap_clamp(mpos.y, rect.bottom()..=rect.top(), 0.0..=1.0);
     }
 
-    if ui.is_rect_visible(rect) {
+    if ui.is_rect_visible(&rect) {
         let visuals = ui.style().interact(&response);
         let mut mesh = Mesh::default();
 

@@ -233,7 +233,7 @@ fn combo_box_dyn<'a, R>(
         let response = ui.interact(button_rect, button_id, Sense::click());
         // response.active |= is_popup_open;
 
-        if ui.is_rect_visible(rect) {
+        if ui.is_rect_visible(&rect) {
             let icon_rect = Align2::RIGHT_CENTER.align_size_within_rect(icon_size, rect);
             let visuals = if is_popup_open {
                 &ui.visuals().widgets.open
