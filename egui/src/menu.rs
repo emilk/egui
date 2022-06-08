@@ -452,6 +452,7 @@ impl SubMenuButton {
                 .min;
 
             ui.painter_mut().rect_filled(
+                ui.ctx_mut(),
                 rect.expand(visuals.expansion),
                 visuals.rounding,
                 visuals.bg_fill,

@@ -633,14 +633,15 @@ impl Plot {
 
         // Background
         if show_background {
-            ui.painter_mut()
-                .with_clip_rect(rect)
-                .add(epaint::RectShape {
+            ui.painter_mut().with_clip_rect(rect).add(
+                ui.ctx_mut(),
+                epaint::RectShape {
                     rect,
                     rounding: Rounding::same(2.0),
                     fill: ui.visuals().extreme_bg_color,
                     stroke: ui.visuals().widgets.noninteractive.bg_stroke,
-                });
+                },
+            );
         }
 
         // --- Legend ---

@@ -79,6 +79,7 @@ impl Widget for ProgressBar {
             let visuals = ui.style().visuals.clone();
             let rounding = outer_rect.height() / 2.0;
             ui.painter_mut().rect(
+                ui.ctx_mut(),
                 outer_rect,
                 rounding,
                 visuals.extreme_bg_color,
@@ -100,6 +101,7 @@ impl Widget for ProgressBar {
             };
 
             ui.painter_mut().rect(
+                ui.ctx_mut(),
                 inner_rect,
                 rounding,
                 Color32::from(Rgba::from(visuals.selection.bg_fill) * color_factor as f32),
@@ -120,10 +122,10 @@ impl Widget for ProgressBar {
                             + vec2(-rounding, 0.0)
                     })
                     .collect();
-                ui.painter_mut().add(Shape::line(
-                    points,
-                    Stroke::new(2.0, visuals.faint_bg_color),
-                ));
+                ui.painter_mut().add(
+                    ui.ctx_mut(),
+                    Shape::line(points, Stroke::new(2.0, visuals.faint_bg_color)),
+                );
             }
 
             if let Some(text_kind) = text {

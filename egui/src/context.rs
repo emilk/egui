@@ -843,7 +843,7 @@ impl Context {
     pub fn used_rect(&self) -> Rect {
         let mut used = self.frame_state().used_by_panels;
         for window in self.memory().areas.visible_windows() {
-            used = used.union(window.rect());
+            used = used.union(window.rect(ui.ctx_mut()));
         }
         used
     }
@@ -1208,15 +1208,21 @@ impl Context {
                     if !self.memory().areas.is_visible(layer_id) {
                         continue;
                     }
-                    let text = format!("{} - {:?}", layer_id.short_debug_format(), area.rect());
+                    let text = format!(
+                        "{} - {:?}",
+                        layer_id.short_debug_format(),
+                        area.rect(ui.ctx_mut(),)
+                    );
                     // TODO(emilk): `Sense::hover_highlight()`
                     if ui
                         .add(Label::new(RichText::new(text).monospace()).sense(Sense::click()))
                         .hovered
                     {
-                        ui.ctx()
-                            .debug_painter()
-                            .debug_rect(area.rect(), Color32::RED, "");
+                        ui.ctx().debug_painter().debug_rect(
+                            area.rect(ui.ctx_mut()),
+                            Color32::RED,
+                            "",
+                        );
                     }
                 }
             }

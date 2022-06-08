@@ -250,7 +250,11 @@ impl Area {
         }
 
         let layer_id = LayerId::new(self.order, self.id);
-        let area_rect = ctx.memory().areas.get(self.id).map(|area| area.rect());
+        let area_rect = ctx
+            .memory()
+            .areas
+            .get(self.id)
+            .map(|area| area.rect(ui.ctx_mut()));
         if let Some(area_rect) = area_rect {
             let clip_rect = ctx.available_rect();
             let painter = Painter::new(ctx, layer_id, clip_rect);
@@ -286,7 +290,8 @@ impl Prepared {
         } else {
             let central_area = ctx.available_rect();
 
-            let is_within_central_area = central_area.contains_rect(self.state.rect().shrink(1.0));
+            let is_within_central_area =
+                central_area.contains_rect(self.state.rect(ui.ctx_mut()).shrink(1.0));
             if is_within_central_area {
                 central_area // let's try to not cover side panels
             } else {
@@ -337,7 +342,7 @@ impl Prepared {
             ctx.style().spacing.item_spacing,
             layer_id,
             interact_id,
-            state.rect(),
+            state.rect(ui.ctx_mut()),
             sense,
             enabled,
         );
@@ -349,7 +354,7 @@ impl Prepared {
         // Important check - don't try to move e.g. a combobox popup!
         if movable {
             state.pos = ctx
-                .constrain_window_rect_to_area(state.rect(), drag_bounds)
+                .constrain_window_rect_to_area(state.rect(ui.ctx_mut()), drag_bounds)
                 .min;
         }
 

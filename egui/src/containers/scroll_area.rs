@@ -798,17 +798,19 @@ impl<'c> Prepared<'c> {
                     &ui.style().visuals.widgets.inactive
                 };
 
-                ui.painter_mut().add(epaint::Shape::rect_filled(
-                    outer_scroll_rect,
-                    visuals.rounding,
-                    ui.visuals().extreme_bg_color,
-                ));
+                ui.painter_mut().add(
+                    ui.ctx_mut(),
+                    epaint::Shape::rect_filled(
+                        outer_scroll_rect,
+                        visuals.rounding,
+                        ui.visuals().extreme_bg_color,
+                    ),
+                );
 
-                ui.painter_mut().add(epaint::Shape::rect_filled(
-                    handle_rect,
-                    visuals.rounding,
-                    visuals.bg_fill,
-                ));
+                ui.painter_mut().add(
+                    ui.ctx_mut(),
+                    epaint::Shape::rect_filled(handle_rect, visuals.rounding, visuals.bg_fill),
+                );
             }
         }
 

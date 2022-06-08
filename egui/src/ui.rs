@@ -705,7 +705,7 @@ impl<'c> Ui<'c> {
                 .rect_stroke(rect, 0.0, (1.0, Color32::LIGHT_BLUE));
 
             let stroke = Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
-            let paint_line_seg = |a, b| self.painter().line_segment([a, b], stroke);
+            let paint_line_seg = |a, b| self.painter().line_segment(ui.ctx_mut(), [a, b], stroke);
 
             if debug_expand_width && too_wide {
                 paint_line_seg(rect.left_top(), rect.left_bottom());
@@ -892,9 +892,9 @@ impl<'c> Ui<'c> {
     /// let color = Color32::from_gray(128);
     /// let stroke = Stroke::new(1.0, color);
     /// painter.circle_stroke(c, r, stroke);
-    /// painter.line_segment([c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
-    /// painter.line_segment([c, c + r * Vec2::angled(TAU * 1.0 / 8.0)], stroke);
-    /// painter.line_segment([c, c + r * Vec2::angled(TAU * 3.0 / 8.0)], stroke);
+    /// painter.line_segment(ui.ctx_mut(), [c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
+    /// painter.line_segment(ui.ctx_mut(), [c, c + r * Vec2::angled(TAU * 1.0 / 8.0)], stroke);
+    /// painter.line_segment(ui.ctx_mut(), [c, c + r * Vec2::angled(TAU * 3.0 / 8.0)], stroke);
     /// # });
     /// ```
     pub fn allocate_painter(&mut self, desired_size: Vec2, sense: Sense) -> (Response, Painter) {
@@ -1756,12 +1756,13 @@ impl<'c> Ui<'c> {
         let left_top = self.painter().round_pos_to_pixels(left_top);
         let left_bottom = pos2(left_top.x, child_ui.min_rect().bottom() - 2.0);
         let left_bottom = self.painter().round_pos_to_pixels(left_bottom);
-        self.painter.line_segment([left_top, left_bottom], stroke);
+        self.painter
+            .line_segment(ui.ctx_mut(), [left_top, left_bottom], stroke);
         if end_with_horizontal_line {
             let fudge = 2.0; // looks nicer with button rounding in collapsing headers
             let right_bottom = pos2(child_ui.min_rect().right() - fudge, left_bottom.y);
             self.painter
-                .line_segment([left_bottom, right_bottom], stroke);
+                .line_segment(ui.ctx_mut(), [left_bottom, right_bottom], stroke);
         }
 
         let response = self.allocate_rect(child_ui.min_rect(), Sense::hover());

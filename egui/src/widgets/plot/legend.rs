@@ -119,12 +119,15 @@ impl LegendEntry {
 
         let painter = ui.painter_mut();
 
-        painter.add(epaint::CircleShape {
-            center: icon_rect.center(),
-            radius: icon_size * 0.5,
-            fill: visuals.bg_fill,
-            stroke: visuals.bg_stroke,
-        });
+        painter.add(
+            ui.ctx_mut(),
+            epaint::CircleShape {
+                center: icon_rect.center(),
+                radius: icon_size * 0.5,
+                fill: visuals.bg_fill,
+                stroke: visuals.bg_stroke,
+            },
+        );
 
         if *checked {
             let fill = if *color == Color32::TRANSPARENT {
@@ -132,11 +135,10 @@ impl LegendEntry {
             } else {
                 *color
             };
-            painter.add(epaint::Shape::circle_filled(
-                icon_rect.center(),
-                icon_size * 0.4,
-                fill,
-            ));
+            painter.add(
+                ui.ctx_mut(),
+                epaint::Shape::circle_filled(icon_rect.center(), icon_size * 0.4, fill),
+            );
         }
 
         let text_position_x = if label_on_the_left {
@@ -146,7 +148,7 @@ impl LegendEntry {
         };
 
         let text_position = pos2(text_position_x, rect.center().y - 0.5 * galley.size().y);
-        painter.galley_with_color(text_position, galley, visuals.text_color());
+        painter.galley_with_color(ui.ctx_mut(), text_position, galley, visuals.text_color());
 
         *checked ^= response.clicked_by(PointerButton::Primary);
         *hovered = response.hovered();

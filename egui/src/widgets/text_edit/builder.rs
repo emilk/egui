@@ -282,7 +282,7 @@ impl<'t> TextEdit<'t> {
         let is_mutable = self.text.is_mutable();
         let frame = self.frame;
         let interactive = self.interactive;
-        let where_to_put_background = ui.painter_mut().add(Shape::Noop);
+        let where_to_put_background = ui.painter_mut().add(ui.ctx_mut(), Shape::Noop);
 
         let margin = self.margin;
         let max_rect = ui.available_rect_before_wrap().shrink2(margin);
@@ -565,7 +565,7 @@ impl<'t> TextEdit<'t> {
         };
 
         if ui.is_rect_visible(rect) {
-            painter.galley(text_draw_pos, galley.clone());
+            painter.galley(ui.ctx_mut(), text_draw_pos, galley.clone());
 
             if text.as_ref().is_empty() && !hint_text.is_empty() {
                 let hint_text_color = ui.visuals().weak_text_color();
@@ -890,7 +890,7 @@ fn paint_cursor_selection(
             pos + vec2(left, row.min_y()),
             pos + vec2(right, row.max_y()),
         );
-        painter.rect_filled(rect, 0.0, color);
+        painter.rect_filled(ui.ctx_mut(), rect, 0.0, color);
     }
 }
 
@@ -912,6 +912,7 @@ fn paint_cursor_end(
     let bottom = cursor_pos.center_bottom();
 
     painter.line_segment(
+        ui.ctx_mut(),
         [top, bottom],
         (ui.visuals().text_cursor_width, stroke.color),
     );
@@ -921,10 +922,12 @@ fn paint_cursor_end(
         let extrusion = 3.0;
         let width = 1.0;
         painter.line_segment(
+            ui.ctx_mut(),
             [top - vec2(extrusion, 0.0), top + vec2(extrusion, 0.0)],
             (width, stroke.color),
         );
         painter.line_segment(
+            ui.ctx_mut(),
             [bottom - vec2(extrusion, 0.0), bottom + vec2(extrusion, 0.0)],
             (width, stroke.color),
         );

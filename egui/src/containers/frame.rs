@@ -172,7 +172,7 @@ pub struct Prepared<'c> {
 
 impl Frame {
     pub fn begin<'c>(self, ui: &mut Ui<'c>) -> Prepared<'c> {
-        let where_to_put_background = ui.painter_mut().add(Shape::Noop);
+        let where_to_put_background = ui.painter_mut().add(ui.ctx_mut(), Shape::Noop);
         let outer_rect_bounds = ui.available_rect_before_wrap();
 
         let mut inner_rect = outer_rect_bounds;

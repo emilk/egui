@@ -273,9 +273,12 @@ impl SidePanel {
             // draw on top of ALL panels so that the resize line won't be covered by subsequent panels
             let resize_layer = LayerId::new(Order::Foreground, Id::new("panel_resize"));
             let resize_x = side.opposite().side_x(rect);
-            ui.ctx()
-                .layer_painter(resize_layer)
-                .vline(resize_x, rect.y_range(), stroke);
+            ui.ctx().layer_painter(resize_layer).vline(
+                ui.ctx_mut(),
+                resize_x,
+                rect.y_range(),
+                stroke,
+            );
         }
 
         inner_response
@@ -558,9 +561,12 @@ impl TopBottomPanel {
             // draw on top of ALL panels so that the resize line won't be covered by subsequent panels
             let resize_layer = LayerId::new(Order::Foreground, Id::new("panel_resize"));
             let resize_y = side.opposite().side_y(rect);
-            ui.ctx()
-                .layer_painter(resize_layer)
-                .hline(rect.x_range(), resize_y, stroke);
+            ui.ctx().layer_painter(resize_layer).hline(
+                ui.ctx_mut(),
+                rect.x_range(),
+                resize_y,
+                stroke,
+            );
         }
 
         inner_response

@@ -312,7 +312,8 @@ pub fn paint_default_icon(ui: &mut Ui<'_>, openness: f32, response: &Response) {
         *p = rect.center() + rotation * (*p - rect.center());
     }
 
-    ui.painter_mut().add(Shape::closed_line(points, stroke));
+    ui.painter_mut()
+        .add(ui.ctx_mut(), Shape::closed_line(points, stroke));
 }
 
 /// A function that paints an icon indicating if the region is open or not
@@ -537,21 +538,29 @@ impl CollapsingHeader {
             let visuals = ui.style().interact_selectable(&header_response, selected);
 
             if ui.visuals().collapsing_header_frame || show_background {
-                ui.painter_mut().add(epaint::RectShape {
-                    rect: header_response.rect.expand(visuals.expansion),
-                    rounding: visuals.rounding,
-                    fill: visuals.bg_fill,
-                    stroke: visuals.bg_stroke,
-                    // stroke: Default::default(),
-                });
+                ui.painter_mut().add(
+                    ui.ctx_mut(),
+                    epaint::RectShape {
+                        rect: header_response.rect.expand(visuals.expansion),
+                        rounding: visuals.rounding,
+                        fill: visuals.bg_fill,
+                        stroke: visuals.bg_stroke,
+                        // stroke: Default::default(),
+                    },
+                );
             }
 
             if selected || selectable && (header_response.hovered() || header_response.has_focus())
             {
                 let rect = rect.expand(visuals.expansion);
 
-                ui.painter_mut()
-                    .rect(rect, visuals.rounding, visuals.bg_fill, visuals.bg_stroke);
+                ui.painter_mut().rect(
+                    ui.ctx_mut(),
+                    rect,
+                    visuals.rounding,
+                    visuals.bg_fill,
+                    visuals.bg_stroke,
+                );
             }
 
             {

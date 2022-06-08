@@ -177,13 +177,16 @@ impl Widget for Label {
                 Some(response_color)
             };
 
-            ui.painter_mut().add(epaint::TextShape {
-                pos,
-                galley: text_galley.galley,
-                override_text_color,
-                underline,
-                angle: 0.0,
-            });
+            ui.painter_mut().add(
+                ui.ctx_mut(),
+                epaint::TextShape {
+                    pos,
+                    galley: text_galley.galley,
+                    override_text_color,
+                    underline,
+                    angle: 0.0,
+                },
+            );
         }
 
         response

@@ -116,7 +116,7 @@ impl Image {
             if *bg_fill != Default::default() {
                 let mut mesh = Mesh::default();
                 mesh.add_colored_rect(rect, *bg_fill);
-                ui.painter_mut().add(Shape::mesh(mesh));
+                ui.painter_mut().add(ui.ctx_mut(), Shape::mesh(mesh));
             }
 
             {
@@ -126,7 +126,7 @@ impl Image {
                 if let Some((rot, origin)) = rotation {
                     mesh.rotate(*rot, rect.min + *origin * *size);
                 }
-                ui.painter_mut().add(Shape::mesh(mesh));
+                ui.painter_mut().add(ui.ctx_mut(), Shape::mesh(mesh));
             }
         }
     }

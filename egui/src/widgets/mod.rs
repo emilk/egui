@@ -120,7 +120,7 @@ pub fn stroke_ui(ui: &mut crate::Ui<'_>, stroke: &mut epaint::Stroke, text: &str
         let left = stroke_rect.left_center();
         let right = stroke_rect.right_center();
         ui.painter_mut()
-            .line_segment([left, right], (*width, *color));
+            .line_segment(ui.ctx_mut(), [left, right], (*width, *color));
     });
 }
 

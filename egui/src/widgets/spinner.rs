@@ -47,10 +47,10 @@ impl Widget for Spinner {
                     rect.center() + radius * vec2(cos as f32, sin as f32)
                 })
                 .collect();
-            ui.painter_mut().add(Shape::line(
-                points,
-                Stroke::new(3.0, ui.visuals().strong_text_color()),
-            ));
+            ui.painter_mut().add(
+                ui.ctx_mut(),
+                Shape::line(points, Stroke::new(3.0, ui.visuals().strong_text_color())),
+            );
         }
 
         response

@@ -776,22 +776,38 @@ impl Layout {
 
         let align = match self.main_dir {
             Direction::LeftToRight => {
-                painter.line_segment([cursor.left_top(), cursor.left_bottom()], stroke);
+                painter.line_segment(
+                    ui.ctx_mut(),
+                    [cursor.left_top(), cursor.left_bottom()],
+                    stroke,
+                );
                 painter.arrow(next_pos, vec2(l, 0.0), stroke);
                 Align2([Align::LEFT, self.vertical_align()])
             }
             Direction::RightToLeft => {
-                painter.line_segment([cursor.right_top(), cursor.right_bottom()], stroke);
+                painter.line_segment(
+                    ui.ctx_mut(),
+                    [cursor.right_top(), cursor.right_bottom()],
+                    stroke,
+                );
                 painter.arrow(next_pos, vec2(-l, 0.0), stroke);
                 Align2([Align::RIGHT, self.vertical_align()])
             }
             Direction::TopDown => {
-                painter.line_segment([cursor.left_top(), cursor.right_top()], stroke);
+                painter.line_segment(
+                    ui.ctx_mut(),
+                    [cursor.left_top(), cursor.right_top()],
+                    stroke,
+                );
                 painter.arrow(next_pos, vec2(0.0, l), stroke);
                 Align2([self.horizontal_align(), Align::TOP])
             }
             Direction::BottomUp => {
-                painter.line_segment([cursor.left_bottom(), cursor.right_bottom()], stroke);
+                painter.line_segment(
+                    ui.ctx_mut(),
+                    [cursor.left_bottom(), cursor.right_bottom()],
+                    stroke,
+                );
                 painter.arrow(next_pos, vec2(0.0, -l), stroke);
                 Align2([self.horizontal_align(), Align::BOTTOM])
             }

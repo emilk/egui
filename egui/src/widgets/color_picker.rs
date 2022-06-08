@@ -43,7 +43,7 @@ fn background_checkers(painter: &Painter, rect: Rect) {
         mesh.add_colored_rect(small_rect, bright_color);
         top = !top;
     }
-    painter.add(Shape::mesh(mesh));
+    painter.add(ui.ctx_mut(), Shape::mesh(mesh));
 }
 
 /// Show a color with background checkers to demonstrate transparency (if any).
@@ -62,7 +62,7 @@ fn show_color32<'c>(ui: &mut Ui<'c>, color: Color32, desired_size: Vec2) -> Resp
 /// Show a color with background checkers to demonstrate transparency (if any).
 pub fn show_color_at(painter: &Painter, color: Color32, rect: Rect) {
     if color.is_opaque() {
-        painter.rect_filled(rect, 0.0, color);
+        painter.rect_filled(ui.ctx_mut(), rect, 0.0, color);
     } else {
         // Transparent: how both the transparent and opaque versions of the color
         background_checkers(painter, rect);
@@ -72,8 +72,8 @@ pub fn show_color_at(painter: &Painter, color: Color32, rect: Rect) {
         } else {
             let left = Rect::from_min_max(rect.left_top(), rect.center_bottom());
             let right = Rect::from_min_max(rect.center_top(), rect.right_bottom());
-            painter.rect_filled(left, 0.0, color);
-            painter.rect_filled(right, 0.0, color.to_opaque());
+            painter.rect_filled(ui.ctx_mut(), left, 0.0, color);
+            painter.rect_filled(ui.ctx_mut(), right, 0.0, color.to_opaque());
         }
     }
 }
@@ -134,7 +134,7 @@ fn color_slider_1d<'c>(
                     mesh.add_triangle(2 * i + 1, 2 * i + 2, 2 * i + 3);
                 }
             }
-            ui.painter_mut().add(Shape::mesh(mesh));
+            ui.painter_mut().add(ui.ctx_mut(), Shape::mesh(mesh));
         }
 
         ui.painter_mut().rect_stroke(rect, 0.0, visuals.bg_stroke); // outline
@@ -144,15 +144,18 @@ fn color_slider_1d<'c>(
             let x = lerp(rect.left()..=rect.right(), *value);
             let r = rect.height() / 4.0;
             let picked_color = color_at(*value);
-            ui.painter_mut().add(Shape::convex_polygon(
-                vec![
-                    pos2(x, rect.center().y),   // tip
-                    pos2(x + r, rect.bottom()), // right bottom
-                    pos2(x - r, rect.bottom()), // left bottom
-                ],
-                picked_color,
-                Stroke::new(visuals.fg_stroke.width, contrast_color(picked_color)),
-            ));
+            ui.painter_mut().add(
+                ui.ctx_mut(),
+                Shape::convex_polygon(
+                    vec![
+                        pos2(x, rect.center().y),   // tip
+                        pos2(x + r, rect.bottom()), // right bottom
+                        pos2(x - r, rect.bottom()), // left bottom
+                    ],
+                    picked_color,
+                    Stroke::new(visuals.fg_stroke.width, contrast_color(picked_color)),
+                ),
+            );
         }
     }
 
@@ -195,7 +198,7 @@ fn color_slider_2d<'c>(
                 }
             }
         }
-        ui.painter_mut().add(Shape::mesh(mesh)); // fill
+        ui.painter_mut().add(ui.ctx_mut(), Shape::mesh(mesh)); // fill
 
         ui.painter_mut().rect_stroke(rect, 0.0, visuals.bg_stroke); // outline
 
@@ -203,12 +206,15 @@ fn color_slider_2d<'c>(
         let x = lerp(rect.left()..=rect.right(), *x_value);
         let y = lerp(rect.bottom()..=rect.top(), *y_value);
         let picked_color = color_at(*x_value, *y_value);
-        ui.painter_mut().add(epaint::CircleShape {
-            center: pos2(x, y),
-            radius: rect.width() / 12.0,
-            fill: picked_color,
-            stroke: Stroke::new(visuals.fg_stroke.width, contrast_color(picked_color)),
-        });
+        ui.painter_mut().add(
+            ui.ctx_mut(),
+            epaint::CircleShape {
+                center: pos2(x, y),
+                radius: rect.width() / 12.0,
+                fill: picked_color,
+                stroke: Stroke::new(visuals.fg_stroke.width, contrast_color(picked_color)),
+            },
+        );
     }
 
     response

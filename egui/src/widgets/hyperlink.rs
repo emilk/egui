@@ -53,13 +53,16 @@ impl Widget for Link {
                 Stroke::none()
             };
 
-            ui.painter_mut().add(epaint::TextShape {
-                pos,
-                galley: text_galley.galley,
-                override_text_color: Some(color),
-                underline,
-                angle: 0.0,
-            });
+            ui.painter_mut().add(
+                ui.ctx_mut(),
+                epaint::TextShape {
+                    pos,
+                    galley: text_galley.galley,
+                    override_text_color: Some(color),
+                    underline,
+                    angle: 0.0,
+                },
+            );
         }
 
         response
