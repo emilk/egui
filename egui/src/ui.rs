@@ -633,7 +633,7 @@ impl<'c> Ui<'c> {
     /// # egui::__run_test_ui(|ui| {
     /// let response = ui.allocate_response(egui::vec2(100.0, 200.0), egui::Sense::click());
     /// if response.clicked() { /* … */ }
-    /// ui.painter_mut().rect_stroke(response.rect(), 0.0, (1.0, egui::Color32::WHITE));
+    /// ui.painter_mut().rect_stroke(ui.ctx_mut(), response.rect(), 0.0, (1.0, egui::Color32::WHITE));
     /// # });
     /// ```
     pub fn allocate_response(&mut self, desired_size: Vec2, sense: Sense) -> Response {
@@ -693,7 +693,7 @@ impl<'c> Ui<'c> {
 
         if self.style().debug.debug_on_hover && self.rect_contains_pointer(rect) {
             let painter = self.ctx().debug_painter();
-            painter.rect_stroke(rect, 4.0, (1.0, Color32::LIGHT_BLUE));
+            painter.rect_stroke(ui.ctx_mut(), rect, 4.0, (1.0, Color32::LIGHT_BLUE));
             self.placer.debug_paint_cursor(&painter, "next");
         }
 
@@ -702,7 +702,7 @@ impl<'c> Ui<'c> {
 
         if (debug_expand_width && too_wide) || (debug_expand_height && too_high) {
             self.painter
-                .rect_stroke(rect, 0.0, (1.0, Color32::LIGHT_BLUE));
+                .rect_stroke(ui.ctx_mut(), rect, 0.0, (1.0, Color32::LIGHT_BLUE));
 
             let stroke = Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
             let paint_line_seg = |a, b| self.painter().line_segment(ui.ctx_mut(), [a, b], stroke);
@@ -760,7 +760,7 @@ impl<'c> Ui<'c> {
 
         if self.style().debug.debug_on_hover && self.rect_contains_pointer(rect) {
             let painter = self.ctx().debug_painter();
-            painter.rect_stroke(rect, 4.0, (1.0, Color32::LIGHT_BLUE));
+            painter.rect_stroke(ui.ctx_mut(), rect, 4.0, (1.0, Color32::LIGHT_BLUE));
             self.placer.debug_paint_cursor(&painter, "next");
         }
 
@@ -843,8 +843,13 @@ impl<'c> Ui<'c> {
 
         if self.style().debug.debug_on_hover && self.rect_contains_pointer(final_child_rect) {
             let painter = self.ctx().debug_painter();
-            painter.rect_stroke(frame_rect, 4.0, (1.0, Color32::LIGHT_BLUE));
-            painter.rect_stroke(final_child_rect, 4.0, (1.0, Color32::LIGHT_BLUE));
+            painter.rect_stroke(ui.ctx_mut(), frame_rect, 4.0, (1.0, Color32::LIGHT_BLUE));
+            painter.rect_stroke(
+                ui.ctx_mut(),
+                final_child_rect,
+                4.0,
+                (1.0, Color32::LIGHT_BLUE),
+            );
             self.placer.debug_paint_cursor(&painter, "next");
         }
 
@@ -1967,7 +1972,7 @@ impl<'c> Ui<'c> {
 
         if self.style().debug.debug_on_hover && self.rect_contains_pointer(rect) {
             let painter = self.ctx().debug_painter();
-            painter.rect_stroke(rect, 4.0, (1.0, Color32::LIGHT_BLUE));
+            painter.rect_stroke(ui.ctx_mut(), rect, 4.0, (1.0, Color32::LIGHT_BLUE));
             self.placer.debug_paint_cursor(&painter, "next");
         }
 

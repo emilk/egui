@@ -95,7 +95,7 @@ fn color_button<'c>(ui: &mut Ui<'c>, color: Color32, open: bool) -> Response {
 
         let rounding = visuals.rounding.at_most(2.0);
         ui.painter_mut()
-            .rect_stroke(rect, rounding, (2.0, visuals.bg_fill)); // fill is intentional, because default style has no border
+            .rect_stroke(ui.ctx_mut(), rect, rounding, (2.0, visuals.bg_fill)); // fill is intentional, because default style has no border
     }
 
     response
@@ -137,7 +137,8 @@ fn color_slider_1d<'c>(
             ui.painter_mut().add(ui.ctx_mut(), Shape::mesh(mesh));
         }
 
-        ui.painter_mut().rect_stroke(rect, 0.0, visuals.bg_stroke); // outline
+        ui.painter_mut()
+            .rect_stroke(ui.ctx_mut(), rect, 0.0, visuals.bg_stroke); // outline
 
         {
             // Show where the slider is at:
@@ -200,7 +201,8 @@ fn color_slider_2d<'c>(
         }
         ui.painter_mut().add(ui.ctx_mut(), Shape::mesh(mesh)); // fill
 
-        ui.painter_mut().rect_stroke(rect, 0.0, visuals.bg_stroke); // outline
+        ui.painter_mut()
+            .rect_stroke(ui.ctx_mut(), rect, 0.0, visuals.bg_stroke); // outline
 
         // Show where the slider is at:
         let x = lerp(rect.left()..=rect.right(), *x_value);

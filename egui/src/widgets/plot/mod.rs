@@ -1139,7 +1139,7 @@ impl PreparedPlot {
         }
 
         let painter = ui.painter_mut().with_clip_rect(*transform.frame());
-        painter.extend(shapes);
+        painter.extend(ui.ctx_mut(), shapes);
 
         if let Some((corner, formatter)) = self.coordinates_formatter.as_ref() {
             if let Some(pointer) = response.hover_pos() {
@@ -1153,7 +1153,14 @@ impl PreparedPlot {
                     Corner::LeftBottom => (Align2::LEFT_BOTTOM, padded_frame.left_bottom()),
                     Corner::RightBottom => (Align2::RIGHT_BOTTOM, padded_frame.right_bottom()),
                 };
-                painter.text(position, anchor, text, font_id, ui.visuals().text_color());
+                painter.text(
+                    ui.ctx_mut(),
+                    position,
+                    anchor,
+                    text,
+                    font_id,
+                    ui.visuals().text_color(),
+                );
             }
         }
     }

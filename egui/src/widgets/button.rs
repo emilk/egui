@@ -532,7 +532,7 @@ impl Widget for ImageButton {
 
             // Draw frame outline:
             ui.painter_mut()
-                .rect_stroke(rect.expand2(expansion), rounding, stroke);
+                .rect_stroke(ui.ctx_mut(), rect.expand2(expansion), rounding, stroke);
         }
 
         response

@@ -175,7 +175,7 @@ impl GridLayout {
 
             if (debug_expand_width && too_wide) || (debug_expand_height && too_high) {
                 let painter = self.ctx.debug_painter();
-                painter.rect_stroke(rect, 0.0, (1.0, Color32::LIGHT_BLUE));
+                painter.rect_stroke(ui.ctx_mut(), rect, 0.0, (1.0, Color32::LIGHT_BLUE));
 
                 let stroke = Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
                 let paint_line_seg = |a, b| painter.line_segment(ui.ctx_mut(), [a, b], stroke);
