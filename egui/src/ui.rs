@@ -633,7 +633,7 @@ impl<'c> Ui<'c> {
     /// # egui::__run_test_ui(|ui| {
     /// let response = ui.allocate_response(egui::vec2(100.0, 200.0), egui::Sense::click());
     /// if response.clicked() { /* … */ }
-    /// ui.painter_mut().rect_stroke(response.rect, 0.0, (1.0, egui::Color32::WHITE));
+    /// ui.painter_mut().rect_stroke(response.rect(), 0.0, (1.0, egui::Color32::WHITE));
     /// # });
     /// ```
     pub fn allocate_response(&mut self, desired_size: Vec2, sense: Sense) -> Response {
@@ -650,7 +650,7 @@ impl<'c> Ui<'c> {
         let response = self.allocate_response(desired_size, sense);
         let rect = self
             .placer
-            .align_size_within_rect(desired_size, response.rect);
+            .align_size_within_rect(desired_size, response.rect());
         (rect, response)
     }
 
@@ -659,7 +659,7 @@ impl<'c> Ui<'c> {
     /// The returned [`Rect`] will be the same size as `Response::rect`.
     pub fn allocate_at_least(&mut self, desired_size: Vec2, sense: Sense) -> (Rect, Response) {
         let response = self.allocate_response(desired_size, sense);
-        (response.rect, response)
+        (response.rect(), response)
     }
 
     /// Reserve this much space and move the cursor.
@@ -886,7 +886,7 @@ impl<'c> Ui<'c> {
     /// # egui::__run_test_ui(|ui| {
     /// let size = Vec2::splat(16.0);
     /// let (response, painter) = ui.allocate_painter(size, Sense::hover());
-    /// let rect = response.rect;
+    /// let rect = response.rect();
     /// let c = rect.center();
     /// let r = rect.width() / 2.0 - 1.0;
     /// let color = Color32::from_gray(128);
@@ -899,7 +899,7 @@ impl<'c> Ui<'c> {
     /// ```
     pub fn allocate_painter(&mut self, desired_size: Vec2, sense: Sense) -> (Response, Painter) {
         let response = self.allocate_response(desired_size, sense);
-        let clip_rect = self.clip_rect().intersect(response.rect); // Make sure we don't paint out of bounds
+        let clip_rect = self.clip_rect().intersect(response.rect()); // Make sure we don't paint out of bounds
         let painter = Painter::new(self.ctx().clone(), self.layer_id(), clip_rect);
         (response, painter)
     }
@@ -917,7 +917,7 @@ impl<'c> Ui<'c> {
     ///     // …
     ///     let response = ui.button("Center on me.");
     ///     if response.clicked() {
-    ///         ui.scroll_to_rect(response.rect, Some(Align::Center));
+    ///         ui.scroll_to_rect(response.rect(), Some(Align::Center));
     ///     }
     /// });
     /// # });

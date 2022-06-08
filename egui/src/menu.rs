@@ -45,7 +45,7 @@ impl BarState {
         response: &Response,
         add_contents: impl FnOnce(&mut Ui<'_>) -> R,
     ) -> Option<InnerResponse<R>> {
-        MenuRoot::stationary_click_interaction(response, &mut self.open_menu, response.id);
+        MenuRoot::stationary_click_interaction(response, &mut self.open_menu, response.id());
         self.open_menu.show(response, add_contents)
     }
 }
@@ -157,7 +157,7 @@ pub(crate) fn menu_ui<'a, R>(
         })
         .inner
     });
-    menu_state_arc.write().rect = inner_response.response.rect;
+    menu_state_arc.write().rect = inner_response.response.rect();
     inner_response
 }
 
@@ -198,7 +198,7 @@ pub(crate) fn context_menu(
     let menu_id = Id::new("__egui::context_menu");
     let mut bar_state = BarState::load(ctx, menu_id);
 
-    MenuRoot::context_click_interaction(response, &mut bar_state, response.id);
+    MenuRoot::context_click_interaction(response, &mut bar_state, response.id());
     let inner_response = bar_state.show(response, add_contents);
 
     bar_state.store(ctx, menu_id);
@@ -267,11 +267,11 @@ impl MenuRoot {
         response: &Response,
         add_contents: impl FnOnce(&mut Ui<'_>) -> R,
     ) -> (MenuResponse, Option<InnerResponse<R>>) {
-        if self.id == response.id {
+        if self.id == response.id() {
             let inner_response =
                 MenuState::show(response.ctx_mut(), &self.menu_state, self.id, add_contents);
             let mut menu_state = self.menu_state.write();
-            menu_state.rect = inner_response.response.rect;
+            menu_state.rect = inner_response.response.rect();
 
             if menu_state.response.is_close() {
                 return (MenuResponse::Close, Some(inner_response));
@@ -299,7 +299,7 @@ impl MenuRoot {
         {
             // menu not open and button clicked
             // or button hovered while other menu is open
-            let pos = response.rect.left_bottom();
+            let pos = response.rect().left_bottom();
             return MenuResponse::Create(pos, id);
         } else if input.pointer.any_pressed() && input.pointer.primary_down() {
             if let Some(pos) = input.pointer.interact_pos() {
@@ -333,7 +333,7 @@ impl MenuRoot {
                 if let Some(root) = root {
                     let menu_state = root.menu_state.read();
                     in_old_menu = menu_state.area_contains(pos);
-                    destroy = root.id == response.id;
+                    destroy = root.id == response.id();
                 }
                 if !in_old_menu {
                     if response.hovered() && pointer.secondary_down() {

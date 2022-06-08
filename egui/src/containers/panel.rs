@@ -246,7 +246,7 @@ impl SidePanel {
             add_contents(ui)
         });
 
-        let rect = inner_response.response.rect;
+        let rect = inner_response.response.rect();
 
         {
             let mut cursor = ui.cursor();
@@ -698,7 +698,7 @@ impl CentralPanel {
 
         // Only inform ctx about what we actually used, so we can shrink the native window to fit.
         ctx.frame_state()
-            .allocate_central_panel(inner_response.response.rect);
+            .allocate_central_panel(inner_response.response.rect());
 
         inner_response
     }

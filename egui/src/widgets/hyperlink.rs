@@ -43,7 +43,7 @@ impl Widget for Link {
             ui.ctx().output().cursor_icon = CursorIcon::PointingHand;
         }
 
-        if ui.is_rect_visible(response.rect) {
+        if ui.is_rect_visible(response.rect()) {
             let color = ui.visuals().hyperlink_color;
             let visuals = ui.style().interact(&response);
 

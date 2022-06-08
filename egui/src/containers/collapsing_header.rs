@@ -105,10 +105,10 @@ impl CollapsingState {
             self.toggle(ui);
         }
 
-        let (mut icon_rect, _) = ui.spacing().icon_rectangles(response.rect);
+        let (mut icon_rect, _) = ui.spacing().icon_rectangles(response.rect());
         icon_rect.set_center(pos2(
-            response.rect.left() + ui.spacing().indent / 2.0,
-            response.rect.center().y,
+            response.rect().left() + ui.spacing().indent / 2.0,
+            response.rect().center().y,
         ));
         let openness = self.openness(ui.ctx());
         let small_icon_response = Response {
@@ -177,7 +177,7 @@ impl CollapsingState {
         self.show_body_unindented(ui, |ui| {
             ui.indent(id, |ui| {
                 // make as wide as the header:
-                ui.expand_to_include_x(header_response.rect.right());
+                ui.expand_to_include_x(header_response.rect().right());
                 add_body(ui)
             })
             .inner
@@ -224,7 +224,7 @@ impl CollapsingState {
             }))
         } else {
             let ret_response = ui.scope(add_body);
-            let full_size = ret_response.response.rect.size();
+            let full_size = ret_response.response.rect().size();
             self.state.open_height = Some(full_size.y);
             self.store(ui.ctx()); // remember the height
             Some(ret_response)
@@ -237,7 +237,7 @@ impl CollapsingState {
     /// fn circle_icon(ui: &mut egui::Ui<'_>, openness: f32, response: &egui::Response) {
     ///     let stroke = ui.style().interact(&response).fg_stroke;
     ///     let radius = egui::lerp(2.0..=3.0, openness);
-    ///     ui.painter().circle_filled(response.rect.center(), radius, stroke.color);
+    ///     ui.painter().circle_filled(response.rect().center(), radius, stroke.color);
     /// }
     ///
     /// let mut state = egui::collapsing_header::CollapsingState::load_with_default_open(
@@ -300,7 +300,7 @@ pub fn paint_default_icon(ui: &mut Ui<'_>, openness: f32, response: &Response) {
     let visuals = ui.style().interact(response);
     let stroke = visuals.fg_stroke;
 
-    let rect = response.rect;
+    let rect = response.rect();
 
     // Draw a pointy triangle arrow:
     let rect = Rect::from_center_size(rect.center(), vec2(rect.width(), rect.height()) * 0.75);
@@ -452,7 +452,7 @@ impl CollapsingHeader {
     /// fn circle_icon(ui: &mut egui::Ui, openness: f32, response: &egui::Response) {
     ///     let stroke = ui.style().interact(&response).fg_stroke;
     ///     let radius = egui::lerp(2.0..=3.0, openness);
-    ///     ui.painter_mut().circle_filled(response.rect.center(), radius, stroke.color);
+    ///     ui.painter_mut().circle_filled(response.rect().center(), radius, stroke.color);
     /// }
     ///
     /// egui::CollapsingHeader::new("Circles")
@@ -541,7 +541,7 @@ impl CollapsingHeader {
                 ui.painter_mut().add(
                     ui.ctx_mut(),
                     epaint::RectShape {
-                        rect: header_response.rect.expand(visuals.expansion),
+                        rect: header_response.rect().expand(visuals.expansion),
                         rounding: visuals.rounding,
                         fill: visuals.bg_fill,
                         stroke: visuals.bg_stroke,
@@ -564,10 +564,10 @@ impl CollapsingHeader {
             }
 
             {
-                let (mut icon_rect, _) = ui.spacing().icon_rectangles(header_response.rect);
+                let (mut icon_rect, _) = ui.spacing().icon_rectangles(header_response.rect());
                 icon_rect.set_center(pos2(
-                    header_response.rect.left() + ui.spacing().indent / 2.0,
-                    header_response.rect.center().y,
+                    header_response.rect().left() + ui.spacing().indent / 2.0,
+                    header_response.rect().center().y,
                 ));
                 let icon_response = Response {
                     rect: icon_rect,

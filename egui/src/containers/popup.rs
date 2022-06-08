@@ -216,7 +216,7 @@ fn show_tooltip_at_avoid_dyn<'a, R>(
 
     ctx.frame_state_mut().tooltip_rect = Some(crate::frame_state::TooltipRect {
         id,
-        rect: tooltip_rect.union(response.rect),
+        rect: tooltip_rect.union(response.rect()),
         count: count + 1,
     });
 

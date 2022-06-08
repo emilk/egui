@@ -162,7 +162,7 @@ impl Widget for Label {
             WidgetInfo::labeled(WidgetType::Label, text_galley.text())
         });
 
-        if ui.is_rect_visible(response.rect) {
+        if ui.is_rect_visible(response.rect()) {
             let response_color = ui.style().interact(&response).text_color();
 
             let underline = if response.has_focus() {

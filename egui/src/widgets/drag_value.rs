@@ -245,7 +245,7 @@ impl<'a> Widget for DragValue<'a> {
                     let mut drag_state = std::mem::take(&mut ui.memory().drag_value);
 
                     // Since we round the value being dragged, we need to store the full precision value in memory:
-                    let stored_value = (drag_state.last_dragged_id == Some(response.id))
+                    let stored_value = (drag_state.last_dragged_id == Some(response.id()))
                         .then(|| drag_state.last_dragged_value)
                         .flatten();
                     let stored_value = stored_value.unwrap_or(value);
@@ -261,7 +261,7 @@ impl<'a> Widget for DragValue<'a> {
                     let rounded_new_value = clamp_to_range(rounded_new_value, clamp_range);
                     set(&mut get_set_value, rounded_new_value);
 
-                    drag_state.last_dragged_id = Some(response.id);
+                    drag_state.last_dragged_id = Some(response.id());
                     drag_state.last_dragged_value = Some(stored_value);
                     ui.memory().drag_value = drag_state;
                 }

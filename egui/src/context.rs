@@ -354,7 +354,7 @@ impl Context {
         }
 
         if sense.click
-            && self.memory.has_focus(response.id)
+            && self.memory.has_focus(response.id())
             && (self.input.key_pressed(Key::Space) || self.input.key_pressed(Key::Enter))
         {
             // Space/enter works like a primary click for e.g. selected buttons
@@ -425,11 +425,11 @@ impl Context {
             response.hovered &= response.is_pointer_button_down_on; // we don't hover widgets while interacting with *other* widgets
         }
 
-        if self.memory.has_focus(response.id) && clicked_elsewhere {
+        if self.memory.has_focus(response.id()) && clicked_elsewhere {
             self.memory.surrender_focus(id);
         }
 
-        if response.dragged() && !self.memory.has_focus(response.id) {
+        if response.dragged() && !self.memory.has_focus(response.id()) {
             // e.g.: remove focus from a widget when you drag something else
             self.memory.stop_text_self.input();
         }
