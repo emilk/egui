@@ -220,7 +220,7 @@ impl<'a> Widget for DragValue<'a> {
             let mut response = response.on_hover_cursor(CursorIcon::ResizeHorizontal);
 
             if ui.style().explanation_tooltips {
-                response = response .on_hover_text(format!(
+                response = response .on_hover_text(ui, format!(
                     "{}{}{}\nDrag to edit or click to enter a value.\nPress 'Shift' while dragging for better control.",
                     prefix,
                     value as f32, // Show full precision value on-hover. TODO(emilk): figure out f64 vs f32
@@ -284,7 +284,7 @@ impl<'a> Widget for DragValue<'a> {
 
         response.changed = get(&mut get_set_value) != old_value;
 
-        response.widget_info(|| WidgetInfo::drag_value(value));
+        response.widget_info(ui, || WidgetInfo::drag_value(value));
         response
     }
 }

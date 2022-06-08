@@ -438,7 +438,7 @@ impl SubMenuButton {
         let desired_size = text_and_icon_size + 2.0 * button_padding;
 
         let (rect, response) = ui.allocate_at_least(desired_size, sense);
-        response.widget_info(|| {
+        response.widget_info(ui, || {
             crate::WidgetInfo::labeled(crate::WidgetType::Button, &text_galley.text())
         });
 

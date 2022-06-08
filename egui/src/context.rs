@@ -1045,15 +1045,16 @@ impl Context {
 
         ui.label(format!("Is using pointer: {}", self.is_using_pointer()))
             .on_hover_text(
+                ui,
                 "Is egui currently using the pointer actively (e.g. dragging a slider)?",
             );
         ui.label(format!("Wants pointer input: {}", self.wants_pointer_input()))
-            .on_hover_text("Is egui currently interested in the location of the pointer (either because it is in use, or because it is hovering over a window).");
+            .on_hover_text(ui, "Is egui currently interested in the location of the pointer (either because it is in use, or because it is hovering over a window).");
         ui.label(format!(
             "Wants keyboard input: {}",
             self.wants_keyboard_input()
         ))
-        .on_hover_text("Is egui currently listening for text input?");
+        .on_hover_text(ui, "Is egui currently listening for text input?");
         ui.label(format!(
             "Keyboard focus widget: {}",
             self.memory()
@@ -1064,7 +1065,7 @@ impl Context {
                 .map(Id::short_debug_format)
                 .unwrap_or_default()
         ))
-        .on_hover_text("Is egui currently listening for text input?");
+        .on_hover_text(ui, "Is egui currently listening for text input?");
 
         let pointer_pos = self
             .pointer_hover_pos()
@@ -1083,7 +1084,10 @@ impl Context {
             "There are {} text galleys in the layout cache",
             self.fonts().num_galleys_in_cache()
         ))
-        .on_hover_text("This is approximately the number of text strings on screen");
+        .on_hover_text(
+            ui,
+            "This is approximately the number of text strings on screen",
+        );
         ui.add_space(16.0);
 
         CollapsingHeader::new("📥 Input")
@@ -1173,7 +1177,7 @@ impl Context {
     pub fn memory_ui(&mut self, ui: &mut crate::Ui<'_>) {
         if ui
             .button("Reset all")
-            .on_hover_text("Reset all egui state")
+            .on_hover_text(ui, "Reset all egui state")
             .clicked()
         {
             self.memory = Default::default();

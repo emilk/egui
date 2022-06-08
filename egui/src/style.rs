@@ -881,6 +881,7 @@ impl Style {
 
         ui.checkbox(explanation_tooltips, "Explanation tooltips")
             .on_hover_text(
+                ui,
                 "Show explanatory text when hovering DragValue:s and other egui widgets",
             );
 
@@ -1093,7 +1094,7 @@ impl WidgetVisuals {
 
         stroke_ui(ui, fg_stroke, "foreground stroke (text)");
         ui.add(Slider::new(expansion, -5.0..=5.0).text("expansion"))
-            .on_hover_text("make shapes this much larger");
+            .on_hover_text(ui, "make shapes this much larger");
     }
 }
 
@@ -1112,7 +1113,7 @@ impl Visuals {
         if self.dark_mode {
             if ui
                 .add(Button::new("☀").frame(false))
-                .on_hover_text("Switch to light mode")
+                .on_hover_text(ui, "Switch to light mode")
                 .clicked()
             {
                 *self = Self::light();
@@ -1120,7 +1121,7 @@ impl Visuals {
         } else {
             if ui
                 .add(Button::new("🌙").frame(false))
-                .on_hover_text("Switch to dark mode")
+                .on_hover_text(ui, "Switch to dark mode")
                 .clicked()
             {
                 *self = Self::dark();
@@ -1153,10 +1154,11 @@ impl Visuals {
             ui_color(ui, &mut widgets.inactive.bg_fill, "Buttons");
             ui_color(ui, &mut widgets.noninteractive.bg_fill, "Windows");
             ui_color(ui, faint_bg_color, "Faint accent").on_hover_text(
+                ui,
                 "Used for faint accentuation of interactive things, like striped grids.",
             );
             ui_color(ui, extreme_bg_color, "Extreme")
-                .on_hover_text("Background of plots and paintings");
+                .on_hover_text(ui, "Background of plots and paintings");
         });
 
         ui.collapsing("Window", |ui| {

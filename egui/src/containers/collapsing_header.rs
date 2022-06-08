@@ -527,8 +527,9 @@ impl CollapsingHeader {
             header_response.mark_changed();
         }
 
-        header_response
-            .widget_info(|| WidgetInfo::labeled(WidgetType::CollapsingHeader, text.text()));
+        header_response.widget_info(ui, || {
+            WidgetInfo::labeled(WidgetType::CollapsingHeader, text.text())
+        });
 
         let openness = state.openness(ui.ctx());
 

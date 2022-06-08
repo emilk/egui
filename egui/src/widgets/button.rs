@@ -159,7 +159,7 @@ impl Widget for Button {
         }
 
         let (rect, response) = ui.allocate_at_least(desired_size, sense);
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::Button, text.text()));
+        response.widget_info(ui, || WidgetInfo::labeled(WidgetType::Button, text.text()));
 
         if ui.is_rect_visible(rect) {
             let visuals = ui.style().interact(&response);
@@ -261,7 +261,7 @@ impl<'a> Widget for Checkbox<'a> {
             *checked = !*checked;
             response.mark_changed();
         }
-        response.widget_info(|| {
+        response.widget_info(ui, || {
             WidgetInfo::selected(
                 WidgetType::Checkbox,
                 *checked,
@@ -366,7 +366,7 @@ impl Widget for RadioButton {
         desired_size.y = desired_size.y.max(icon_width);
         let (rect, response) = ui.allocate_exact_size(desired_size, Sense::click());
 
-        response.widget_info(|| {
+        response.widget_info(ui, || {
             WidgetInfo::selected(
                 WidgetType::RadioButton,
                 checked,
@@ -483,7 +483,7 @@ impl Widget for ImageButton {
         };
         let padded_size = image.size() + 2.0 * padding;
         let (rect, response) = ui.allocate_exact_size(padded_size, sense);
-        response.widget_info(|| WidgetInfo::new(WidgetType::ImageButton));
+        response.widget_info(ui, || WidgetInfo::new(WidgetType::ImageButton));
 
         if ui.is_rect_visible(rect) {
             let (expansion, rounding, fill, stroke) = if selected {

@@ -100,7 +100,7 @@ impl Widget for &epaint::stats::PaintStats {
             } = self;
 
             ui.label("Intermediate:");
-            label(ui, shapes, "shapes").on_hover_text("Boxes, circles, etc");
+            label(ui, shapes, "shapes").on_hover_text(ui, "Boxes, circles, etc");
             ui.horizontal(|ui| {
                 label(ui, shape_text, "text");
                 ui.small("(mostly cached)");
@@ -114,14 +114,14 @@ impl Widget for &epaint::stats::PaintStats {
             ui.label("Text shapes:");
             label(ui, text_shape_vertices, "vertices");
             label(ui, text_shape_indices, "indices")
-                .on_hover_text("Three 32-bit indices per triangles");
+                .on_hover_text(ui, "Three 32-bit indices per triangles");
             ui.add_space(10.0);
 
             ui.label("Tessellated (and culled):");
             label(ui, clipped_primitives, "primitives lists")
-                .on_hover_text("Number of separate clip rectangles");
+                .on_hover_text(ui, "Number of separate clip rectangles");
             label(ui, vertices, "vertices");
-            label(ui, indices, "indices").on_hover_text("Three 32-bit indices per triangles");
+            label(ui, indices, "indices").on_hover_text(ui, "Three 32-bit indices per triangles");
             ui.add_space(10.0);
 
             // ui.label("Total:");
@@ -152,7 +152,7 @@ impl Widget for &mut epaint::TessellationOptions {
             } = self;
 
             ui.checkbox(feathering, "Feathering (antialias)")
-                .on_hover_text("Apply feathering to smooth out the edges of shapes. Turn off for small performance gain.");
+                .on_hover_text(ui, "Apply feathering to smooth out the edges of shapes. Turn off for small performance gain.");
             let feathering_slider = crate::Slider::new(feathering_size_in_pixels, 0.0..=10.0)
                 .smallest_positive(0.1)
                 .logarithmic(true)
@@ -173,7 +173,7 @@ impl Widget for &mut epaint::TessellationOptions {
                     "Do coarse culling in the tessellator",
                 );
                 ui.checkbox(round_text_to_pixels, "Align text positions to pixel grid")
-                    .on_hover_text("Most text already is, so don't expect to see a large change.");
+                    .on_hover_text(ui, "Most text already is, so don't expect to see a large change.");
 
                 ui.checkbox(debug_ignore_clip_rects, "Ignore clip rectangles");
                 ui.checkbox(debug_paint_clip_rects, "Paint clip rectangles");

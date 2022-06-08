@@ -729,7 +729,7 @@ impl Plot {
 
         // Dragging
         if allow_drag && response.dragged_by(PointerButton::Primary) {
-            response = response.on_hover_cursor(ui.ctx_mut(), CursorIcon::Grabbing);
+            response = response.on_hover_cursor(ui, CursorIcon::Grabbing);
             transform.translate_bounds(-response.drag_delta());
             auto_bounds = false.into();
         }
@@ -747,7 +747,7 @@ impl Plot {
             if let (Some(box_start_pos), Some(box_end_pos)) = (box_start_pos, box_end_pos) {
                 // while dragging prepare a Shape and draw it later on top of the plot
                 if response.dragged_by(boxed_zoom_pointer) {
-                    response = response.on_hover_cursor(ui.ctx_mut(), CursorIcon::ZoomIn);
+                    response = response.on_hover_cursor(ui, CursorIcon::ZoomIn);
                     let rect = epaint::Rect::from_two_pos(box_start_pos, box_end_pos);
                     boxed_zoom_rect = Some((
                         epaint::RectShape::stroke(
@@ -847,7 +847,7 @@ impl Plot {
         memory.store(ui.ctx(), plot_id);
 
         let response = if show_x || show_y {
-            response.on_hover_cursor(ui.ctx_mut(), CursorIcon::Crosshair)
+            response.on_hover_cursor(ui, CursorIcon::Crosshair)
         } else {
             response
         };

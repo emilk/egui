@@ -102,8 +102,9 @@ impl LegendEntry {
         let desired_size = total_extra + galley.size();
         let (rect, response) = ui.allocate_exact_size(desired_size, Sense::click());
 
-        response
-            .widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, *checked, galley.text()));
+        response.widget_info(ui, || {
+            WidgetInfo::selected(WidgetType::Checkbox, *checked, galley.text())
+        });
 
         let visuals = ui.style().interact(&response);
         let label_on_the_left = ui.layout().horizontal_placement() == Align::RIGHT;

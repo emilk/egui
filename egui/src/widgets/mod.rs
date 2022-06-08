@@ -111,7 +111,7 @@ pub fn stroke_ui(ui: &mut crate::Ui<'_>, stroke: &mut epaint::Stroke, text: &str
     let epaint::Stroke { width, color } = stroke;
     ui.horizontal(|ui| {
         ui.add(DragValue::new(width).speed(0.1).clamp_range(0.0..=5.0))
-            .on_hover_text(ui.ctx_mut(), "Width");
+            .on_hover_text(ui, "Width");
         ui.color_edit_button_srgba(color);
         ui.label(text);
 
@@ -133,7 +133,7 @@ pub(crate) fn shadow_ui(ui: &mut Ui<'_>, shadow: &mut epaint::Shadow, text: &str
                 .speed(1.0)
                 .clamp_range(0.0..=100.0),
         )
-        .on_hover_text(ui.ctx_mut(), "Extrusion");
+        .on_hover_text(ui, "Extrusion");
         ui.color_edit_button_srgba(color);
     });
 }

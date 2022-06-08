@@ -282,10 +282,10 @@ impl Response {
     ///
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
     #[doc(alias = "tooltip")]
-    pub fn on_hover_ui(self, ctx: &mut Context, add_contents: impl FnOnce(&mut Ui<'_>)) -> Self {
-        if self.should_show_hover_ui(ctx) {
+    pub fn on_hover_ui(self, ui: &mut Ui<'_>, add_contents: impl FnOnce(&mut Ui<'_>)) -> Self {
+        if self.should_show_hover_ui(ui) {
             crate::containers::show_tooltip_for(
-                ctx,
+                ui,
                 self.id.with("__tooltip"),
                 &self.rect,
                 add_contents,
@@ -297,12 +297,12 @@ impl Response {
     /// Show this UI when hovering if the widget is disabled.
     pub fn on_disabled_hover_ui(
         self,
-        ctx: &mut Context,
+        ui: &mut Ui<'_>,
         add_contents: impl FnOnce(&mut Ui<'_>),
     ) -> Self {
-        if !self.enabled && ctx.rect_contains_pointer(self.layer_id, self.rect) {
+        if !self.enabled && ui.ctx_mut().rect_contains_pointer(self.layer_id, self.rect) {
             crate::containers::show_tooltip_for(
-                ctx,
+                ui,
                 self.id.with("__tooltip"),
                 &self.rect,
                 add_contents,
@@ -314,20 +314,18 @@ impl Response {
     /// Like `on_hover_ui`, but show the ui next to cursor.
     pub fn on_hover_ui_at_pointer(
         self,
-        ctx: &mut Context,
+        ui: &mut Ui<'_>,
         add_contents: impl FnOnce(&mut Ui<'_>),
     ) -> Self {
-        if self.should_show_hover_ui(ctx) {
-            crate::containers::show_tooltip_at_pointer(
-                ctx,
-                self.id.with("__tooltip"),
-                add_contents,
-            );
+        if self.should_show_hover_ui(ui) {
+            crate::containers::show_tooltip_at_pointer(ui, self.id.with("__tooltip"), add_contents);
         }
         self
     }
 
-    fn should_show_hover_ui(&self, ctx: &mut Context) -> bool {
+    fn should_show_hover_ui(&self, ui: &mut Ui<'_>) -> bool {
+        let ctx = ui.ctx_mut();
+
         if ctx.memory().everything_is_visible() {
             return true;
         }
@@ -354,8 +352,8 @@ impl Response {
 
     /// Like `on_hover_text`, but show the text next to cursor.
     #[doc(alias = "tooltip")]
-    pub fn on_hover_text_at_pointer(self, ctx: &mut Context, text: impl Into<WidgetText>) -> Self {
-        self.on_hover_ui_at_pointer(ctx, |ui| {
+    pub fn on_hover_text_at_pointer(self, ui: &mut Ui<'_>, text: impl Into<WidgetText>) -> Self {
+        self.on_hover_ui_at_pointer(ui, |ui| {
             ui.add(crate::widgets::Label::new(text));
         })
     }
@@ -367,23 +365,23 @@ impl Response {
     ///
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
     #[doc(alias = "tooltip")]
-    pub fn on_hover_text(self, ctx: &mut Context, text: impl Into<WidgetText>) -> Self {
-        self.on_hover_ui(ctx, |ui| {
+    pub fn on_hover_text(self, ui: &mut Ui<'_>, text: impl Into<WidgetText>) -> Self {
+        self.on_hover_ui(ui, |ui| {
             ui.add(crate::widgets::Label::new(text));
         })
     }
 
     /// Show this text when hovering if the widget is disabled.
-    pub fn on_disabled_hover_text(self, ctx: &mut Context, text: impl Into<WidgetText>) -> Self {
-        self.on_disabled_hover_ui(ctx, |ui| {
+    pub fn on_disabled_hover_text(self, ui: &mut Ui<'_>, text: impl Into<WidgetText>) -> Self {
+        self.on_disabled_hover_ui(ui, |ui| {
             ui.add(crate::widgets::Label::new(text));
         })
     }
 
     /// When hovered, use this icon for the mouse cursor.
-    pub fn on_hover_cursor(self, ctx: &mut Context, cursor: CursorIcon) -> Self {
+    pub fn on_hover_cursor(self, ui: &mut Ui<'_>, cursor: CursorIcon) -> Self {
         if self.hovered() {
-            ctx.output_mut().cursor_icon = cursor;
+            ui.ctx_mut().output_mut().cursor_icon = cursor;
         }
         self
     }
@@ -401,8 +399,8 @@ impl Response {
     /// if response.clicked() { /* … */ }
     /// # });
     /// ```
-    pub fn interact(&self, ctx: &Context, sense: Sense) -> Self {
-        ctx.interact_with_hovered(
+    pub fn interact(&self, ui: &mut Ui<'_>, sense: Sense) -> Response {
+        ui.ctx_mut().interact_with_hovered(
             self.layer_id,
             self.id,
             self.rect,
@@ -424,21 +422,21 @@ impl Response {
     ///     for i in 0..1000 {
     ///         let response = ui.button("Scroll to me");
     ///         if response.clicked() {
-    ///             response.scroll_to_me(Some(egui::Align::Center));
+    ///             response.scroll_to_me(ui, Some(egui::Align::Center));
     ///         }
     ///     }
     /// });
     /// # });
     /// ```
-    pub fn scroll_to_me(&self, ctx: &mut Context, align: Option<Align>) {
-        ctx.frame_state_mut().scroll_target[0] = Some((self.rect.x_range(), align));
-        ctx.frame_state_mut().scroll_target[1] = Some((self.rect.y_range(), align));
+    pub fn scroll_to_me(&self, ui: &mut Ui<'_>, align: Option<Align>) {
+        ui.ctx_mut().frame_state_mut().scroll_target[0] = Some((self.rect.x_range(), align));
+        ui.ctx_mut().frame_state_mut().scroll_target[1] = Some((self.rect.y_range(), align));
     }
 
     /// For accessibility.
     ///
     /// Call after interacting and potential calls to [`Self::mark_changed`].
-    pub fn widget_info(&self, ctx: &mut Context, make_info: impl Fn() -> crate::WidgetInfo) {
+    pub fn widget_info(&mut self, ui: &mut Ui<'_>, make_info: impl Fn() -> crate::WidgetInfo) {
         use crate::output::OutputEvent;
         let event = if self.clicked() {
             Some(OutputEvent::Clicked(make_info()))
@@ -454,7 +452,7 @@ impl Response {
             None
         };
         if let Some(event) = event {
-            ctx.output_mut().events.push(event);
+            ui.ctx_mut().output_mut().events.push(event);
         }
     }
 
@@ -472,8 +470,8 @@ impl Response {
     /// ```
     ///
     /// See also: [`Ui::menu_button`] and [`Ui::close_menu`].
-    pub fn context_menu(self, ctx: &mut Context, add_contents: impl FnOnce(&mut Ui<'_>)) -> Self {
-        menu::context_menu(&self, ctx, add_contents);
+    pub fn context_menu(self, ui: &mut Ui<'_>, add_contents: impl FnOnce(&mut Ui<'_>)) -> Self {
+        menu::context_menu(ui, &mut self, add_contents);
         self
     }
 }
@@ -571,7 +569,7 @@ impl std::ops::BitOrAssign for Response {
 ///     ui.label("Blah blah");
 ///     42
 /// });
-/// inner_resp.response.on_hover_text("You hovered the horizontal layout");
+/// inner_resp.response.on_hover_text(ui, "You hovered the horizontal layout");
 /// assert_eq!(inner_resp.inner, 42);
 /// # });
 /// ```

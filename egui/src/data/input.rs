@@ -539,6 +539,7 @@ impl RawInput {
         ui.label(format!("screen_rect: {:?} points", screen_rect));
         ui.label(format!("pixels_per_point: {:?}", pixels_per_point))
             .on_hover_text(
+                ui,
                 "Also called HDPI factor.\nNumber of physical pixels per each logical pixel.",
             );
         ui.label(format!("max_texture_side: {:?}", max_texture_side));
@@ -554,7 +555,7 @@ impl RawInput {
         ui.scope(|ui| {
             ui.set_min_height(150.0);
             ui.label(format!("events: {:#?}", events))
-                .on_hover_text("key presses etc");
+                .on_hover_text(ui, "key presses etc");
         });
     }
 }

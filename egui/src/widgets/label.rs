@@ -158,7 +158,9 @@ impl Label {
 impl Widget for Label {
     fn ui<'c>(self, ui: &mut Ui<'c>) -> Response {
         let (pos, text_galley, response) = self.layout_in_ui(ui);
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, text_galley.text()));
+        response.widget_info(ui, || {
+            WidgetInfo::labeled(WidgetType::Label, text_galley.text())
+        });
 
         if ui.is_rect_visible(response.rect) {
             let response_color = ui.style().interact(&response).text_color();

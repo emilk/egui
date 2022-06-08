@@ -610,7 +610,7 @@ impl<'t> TextEdit<'t> {
         state.clone().store(ui.ctx(), id);
 
         if response.changed() {
-            response.widget_info(ui.ctx_mut(), || {
+            response.widget_info(ui, || {
                 WidgetInfo::text_edit(
                     mask_if_password(password, prev_text.as_str()),
                     mask_if_password(password, text.as_str()),
@@ -629,7 +629,7 @@ impl<'t> TextEdit<'t> {
                 .events
                 .push(OutputEvent::TextSelectionChanged(info));
         } else {
-            response.widget_info(ui.ctx_mut(), || {
+            response.widget_info(ui, || {
                 WidgetInfo::text_edit(
                     mask_if_password(password, prev_text.as_str()),
                     mask_if_password(password, text.as_str()),
