@@ -149,6 +149,7 @@ pub trait App {
 }
 
 /// Selects the level of hardware graphics acceleration.
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum HardwareAcceleration {
     /// Require graphics acceleration.
@@ -166,6 +167,7 @@ pub enum HardwareAcceleration {
 /// Options controlling the behavior of a native window.
 ///
 /// Only a single native window is currently supported.
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Clone)]
 pub struct NativeOptions {
     /// Sets whether or not the window will always be on top of other windows.
@@ -254,14 +256,14 @@ pub struct NativeOptions {
     /// See also [`Self::default_theme`].
     pub follow_system_theme: bool,
 
-    /// Use the dark mode theme if:
-    /// * the `dark-light` feature is disabled
-    /// * OR [`Self::follow_system_theme`] is `false`.
+    /// Which theme to use in case [`Self::follow_system_theme`] is `false`
+    /// or the `dark-light` feature is disabled.
     ///
-    /// Default: `Theme::Dark` (default to dark theme).
+    /// Default: `Theme::Dark`.
     pub default_theme: Theme,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Default for NativeOptions {
     fn default() -> Self {
         Self {
@@ -288,6 +290,7 @@ impl Default for NativeOptions {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl NativeOptions {
     /// The theme used by the system.
     #[cfg(feature = "dark-light")]
@@ -310,6 +313,37 @@ impl NativeOptions {
     }
 }
 
+// ----------------------------------------------------------------------------
+
+/// Options when using `eframe` in a web page.
+#[cfg(target_arch = "wasm32")]
+pub struct WebOptions {
+    /// Try to detect and follow the system preferred setting for dark vs light mode.
+    ///
+    /// See also [`Self::default_theme`].
+    ///
+    /// Default: `true`.
+    pub follow_system_theme: bool,
+
+    /// Which theme to use in case [`Self::follow_system_theme`] is `false`
+    /// or system theme detection fails.
+    ///
+    /// Default: `Theme::Dark`.
+    pub default_theme: Theme,
+}
+
+#[cfg(target_arch = "wasm32")]
+impl Default for WebOptions {
+    fn default() -> Self {
+        Self {
+            follow_system_theme: true,
+            default_theme: Theme::Dark,
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// Dark or Light theme.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -321,7 +355,10 @@ pub enum Theme {
 }
 
 impl Theme {
-    pub(crate) fn egui_visuals(self) -> egui::Visuals {
+    /// Get the egui visuals corresponding to this theme.
+    ///
+    /// Use with [`egui::Context::set_visuals`].
+    pub fn egui_visuals(self) -> egui::Visuals {
         match self {
             Self::Dark => egui::Visuals::dark(),
             Self::Light => egui::Visuals::light(),

@@ -26,6 +26,8 @@ use web_sys::EventTarget;
 
 use input::*;
 
+use crate::Theme;
+
 // ----------------------------------------------------------------------------
 
 /// Current time in seconds (since undefined point in time)
@@ -55,13 +57,14 @@ pub fn native_pixels_per_point() -> f32 {
     }
 }
 
-pub fn prefer_dark_mode() -> Option<bool> {
-    Some(
-        web_sys::window()?
+pub fn system_theme() -> Option<Theme> {
+    let dark_mode = web_sys::window()?
             .match_media("(prefers-color-scheme: dark)")
             .ok()??
-            .matches(),
-    )
+            .matches();
+    Some(if dark_mode {
+        Theme::Dark
+    } else { Theme::Light })
 }
 
 pub fn canvas_element(canvas_id: &str) -> Option<web_sys::HtmlCanvasElement> {

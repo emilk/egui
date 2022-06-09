@@ -77,11 +77,8 @@ pub fn run_glow(
         #[cfg(feature = "wgpu")]
         None,
     );
-    integration.egui_ctx.set_visuals(
-        system_theme
-            .unwrap_or(native_options.default_theme)
-            .egui_visuals(),
-    );
+    let theme = system_theme.unwrap_or(native_options.default_theme);
+    integration.egui_ctx.set_visuals(theme.egui_visuals());
 
     {
         let event_loop_proxy = egui::mutex::Mutex::new(event_loop.create_proxy());
@@ -266,11 +263,8 @@ pub fn run_wgpu(
         None,
         Some(render_state.clone()),
     );
-    integration.egui_ctx.set_visuals(
-        system_theme
-            .unwrap_or(native_options.default_theme)
-            .egui_visuals(),
-    );
+    let theme = system_theme.unwrap_or(native_options.default_theme);
+    integration.egui_ctx.set_visuals(theme.egui_visuals());
 
     {
         let event_loop_proxy = egui::mutex::Mutex::new(event_loop.create_proxy());
