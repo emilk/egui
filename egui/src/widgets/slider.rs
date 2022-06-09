@@ -371,9 +371,7 @@ impl<'a> Slider<'a> {
         if ui.is_rect_visible(response.rect()) {
             let value = self.get_value();
 
-            let rail_radius = ui
-                .painter_mut()
-                .round_to_pixel(self.rail_radius_limit(rect));
+            let rail_radius = ui.ctx().round_to_pixel(self.rail_radius_limit(rect));
             let rail_rect = self.rail_rect(rect, rail_radius);
 
             let position_1d = self.position_from_value(value, position_range);
@@ -393,7 +391,7 @@ impl<'a> Slider<'a> {
                 },
             );
 
-            let center = self.marker_center(position_1d, &rail_rect);
+            let center = self.marker_center(position_1d, rail_rect);
 
             ui.painter_mut().add(
                 ui.ctx_mut(),
@@ -407,7 +405,7 @@ impl<'a> Slider<'a> {
         }
     }
 
-    fn marker_center(&self, position_1d: f32, rail_rect: &Rect) -> Pos2 {
+    fn marker_center(&self, position_1d: f32, rail_rect: Rect) -> Pos2 {
         match self.orientation {
             SliderOrientation::Horizontal => pos2(position_1d, rail_rect.center().y),
             SliderOrientation::Vertical => pos2(rail_rect.center().x, position_1d),
@@ -421,7 +419,7 @@ impl<'a> Slider<'a> {
         }
     }
 
-    fn position_range(&self, rect: &Rect) -> RangeInclusive<f32> {
+    fn position_range(&self, rect: Rect) -> RangeInclusive<f32> {
         let handle_radius = self.handle_radius(rect);
         match self.orientation {
             SliderOrientation::Horizontal => {
@@ -433,7 +431,7 @@ impl<'a> Slider<'a> {
         }
     }
 
-    fn rail_rect(&self, rect: &Rect, radius: f32) -> Rect {
+    fn rail_rect(&self, rect: Rect, radius: f32) -> Rect {
         match self.orientation {
             SliderOrientation::Horizontal => Rect::from_min_max(
                 pos2(rect.left(), rect.center().y - radius),
@@ -446,7 +444,7 @@ impl<'a> Slider<'a> {
         }
     }
 
-    fn handle_radius(&self, rect: &Rect) -> f32 {
+    fn handle_radius(&self, rect: Rect) -> f32 {
         let limit = match self.orientation {
             SliderOrientation::Horizontal => rect.height(),
             SliderOrientation::Vertical => rect.width(),
@@ -454,7 +452,7 @@ impl<'a> Slider<'a> {
         limit / 2.5
     }
 
-    fn rail_radius_limit(&self, rect: &Rect) -> f32 {
+    fn rail_radius_limit(&self, rect: Rect) -> f32 {
         match self.orientation {
             SliderOrientation::Horizontal => (rect.height() / 4.0).at_least(2.0),
             SliderOrientation::Vertical => (rect.width() / 4.0).at_least(2.0),

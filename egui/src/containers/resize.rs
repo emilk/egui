@@ -330,12 +330,7 @@ pub fn paint_resize_corner(ui: &mut Ui<'_>, response: &Response) {
     paint_resize_corner_with_style(ui, response.rect(), stroke, Align2::RIGHT_BOTTOM);
 }
 
-pub fn paint_resize_corner_with_style(
-    ui: &mut Ui<'_>,
-    rect: &Rect,
-    stroke: Stroke,
-    corner: Align2,
-) {
+pub fn paint_resize_corner_with_style(ui: &mut Ui<'_>, rect: Rect, stroke: Stroke, corner: Align2) {
     let painter = ui.painter_mut();
     let cp = painter.round_pos_to_pixels(corner.pos_in_rect(rect));
     let mut w = 2.0;

@@ -33,7 +33,7 @@ impl Widget for Spinner {
             .unwrap_or_else(|| ui.style().spacing.interact_size.y);
         let (rect, response) = ui.allocate_exact_size(vec2(size, size), Sense::hover());
 
-        if ui.is_rect_visible(&rect) {
+        if ui.is_rect_visible(rect) {
             ui.ctx().request_repaint();
 
             let radius = (rect.height() / 2.0) - 2.0;

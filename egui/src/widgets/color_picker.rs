@@ -17,7 +17,7 @@ fn contrast_color(color: impl Into<Rgba>) -> Color32 {
 /// Should always be a multiple of 6 to hit the peak hues in HSV/HSL (every 60°).
 const N: u32 = 6 * 6;
 
-fn background_checkers(painter: &Painter, rect: Rect) {
+fn background_checkers(ctx: &mut Context, painter: &Painter, rect: Rect) {
     let rect = rect.shrink(0.5); // Small hack to avoid the checkers from peeking through the sides
     if !rect.is_positive() {
         return;
@@ -43,47 +43,47 @@ fn background_checkers(painter: &Painter, rect: Rect) {
         mesh.add_colored_rect(small_rect, bright_color);
         top = !top;
     }
-    painter.add(ui.ctx_mut(), Shape::mesh(mesh));
+    painter.add(ctx, Shape::mesh(mesh));
 }
 
 /// Show a color with background checkers to demonstrate transparency (if any).
-pub fn show_color<'c>(ui: &mut Ui<'c>, color: impl Into<Color32>, desired_size: Vec2) -> Response {
+pub fn show_color(ui: &mut Ui<'_>, color: impl Into<Color32>, desired_size: Vec2) -> Response {
     show_color32(ui, color.into(), desired_size)
 }
 
-fn show_color32<'c>(ui: &mut Ui<'c>, color: Color32, desired_size: Vec2) -> Response {
+fn show_color32(ui: &mut Ui<'_>, color: Color32, desired_size: Vec2) -> Response {
     let (rect, response) = ui.allocate_at_least(desired_size, Sense::hover());
-    if ui.is_rect_visible(&rect) {
-        show_color_at(ui.painter_mut(), color, rect);
+    if ui.is_rect_visible(rect) {
+        show_color_at(ui.ctx_mut(), ui.painter_mut(), color, rect);
     }
     response
 }
 
 /// Show a color with background checkers to demonstrate transparency (if any).
-pub fn show_color_at(painter: &Painter, color: Color32, rect: Rect) {
+pub fn show_color_at(ctx: &mut Context, painter: &Painter, color: Color32, rect: Rect) {
     if color.is_opaque() {
-        painter.rect_filled(ui.ctx_mut(), rect, 0.0, color);
+        painter.rect_filled(ctx, rect, 0.0, color);
     } else {
         // Transparent: how both the transparent and opaque versions of the color
-        background_checkers(painter, rect);
+        background_checkers(ctx, painter, rect);
 
         if color == Color32::TRANSPARENT {
             // There is no opaque version, so just show the background checkers
         } else {
             let left = Rect::from_min_max(rect.left_top(), rect.center_bottom());
             let right = Rect::from_min_max(rect.center_top(), rect.right_bottom());
-            painter.rect_filled(ui.ctx_mut(), left, 0.0, color);
-            painter.rect_filled(ui.ctx_mut(), right, 0.0, color.to_opaque());
+            painter.rect_filled(ctx, left, 0.0, color);
+            painter.rect_filled(ctx, right, 0.0, color.to_opaque());
         }
     }
 }
 
-fn color_button<'c>(ui: &mut Ui<'c>, color: Color32, open: bool) -> Response {
+fn color_button(ui: &mut Ui<'_>, color: Color32, open: bool) -> Response {
     let size = ui.spacing().interact_size;
     let (rect, response) = ui.allocate_exact_size(size, Sense::click());
     response.widget_info(ui, || WidgetInfo::new(WidgetType::ColorButton));
 
-    if ui.is_rect_visible(&rect) {
+    if ui.is_rect_visible(rect) {
         let visuals = if open {
             &ui.visuals().widgets.open
         } else {
@@ -91,7 +91,7 @@ fn color_button<'c>(ui: &mut Ui<'c>, color: Color32, open: bool) -> Response {
         };
         let rect = rect.expand(visuals.expansion);
 
-        show_color_at(ui.painter_mut(), color, rect);
+        show_color_at(ui.ctx_mut(), ui.painter_mut(), color, rect);
 
         let rounding = visuals.rounding.at_most(2.0);
         ui.painter_mut()
@@ -101,13 +101,11 @@ fn color_button<'c>(ui: &mut Ui<'c>, color: Color32, open: bool) -> Response {
     response
 }
 
-fn color_slider_1d<'c>(
-    ui: &mut Ui<'c>,
+fn color_slider_1d(
+    ui: &mut Ui<'_>,
     value: &mut f32,
     color_at: impl Fn(f32) -> Color32,
 ) -> Response {
-    #![allow(clippy::identity_op)]
-
     let desired_size = vec2(ui.spacing().slider_width, ui.spacing().interact_size.y);
     let (rect, response) = ui.allocate_at_least(desired_size, Sense::click_and_drag());
 
@@ -115,10 +113,10 @@ fn color_slider_1d<'c>(
         *value = remap_clamp(mpos.x, rect.left()..=rect.right(), 0.0..=1.0);
     }
 
-    if ui.is_rect_visible(&rect) {
+    if ui.is_rect_visible(rect) {
         let visuals = ui.style().interact(&response);
 
-        background_checkers(ui.painter_mut(), rect); // for alpha:
+        background_checkers(ui.ctx_mut(), ui.painter_mut(), rect); // for alpha:
 
         {
             // fill color:
@@ -177,7 +175,7 @@ fn color_slider_2d<'c>(
         *y_value = remap_clamp(mpos.y, rect.bottom()..=rect.top(), 0.0..=1.0);
     }
 
-    if ui.is_rect_visible(&rect) {
+    if ui.is_rect_visible(rect) {
         let visuals = ui.style().interact(&response);
         let mut mesh = Mesh::default();
 
@@ -240,9 +238,9 @@ fn color_text_ui(ui: &mut Ui<'_>, color: impl Into<Color32>, alpha: Alpha) {
 
         if ui.button("📋").on_hover_text(ui, "Click to copy").clicked() {
             if alpha == Alpha::Opaque {
-                ui.output().copied_text = format!("{}, {}, {}", r, g, b);
+                ui.output_mut().copied_text = format!("{}, {}, {}", r, g, b);
             } else {
-                ui.output().copied_text = format!("{}, {}, {}, {}", r, g, b, a);
+                ui.output_mut().copied_text = format!("{}, {}, {}, {}", r, g, b, a);
             }
         }
 
@@ -345,10 +343,10 @@ pub fn color_picker_hsva_2d(ui: &mut Ui<'_>, hsva: &mut Hsva, alpha: Alpha) -> b
 ///
 /// Returns `true` on change.
 pub fn color_picker_color32(ui: &mut Ui<'_>, srgba: &mut Color32, alpha: Alpha) -> bool {
-    let mut hsva = color_cache_get(ui.ctx(), *srgba);
+    let mut hsva = color_cache_get(ui.ctx_mut(), *srgba);
     let changed = color_picker_hsva_2d(ui, &mut hsva, alpha);
     *srgba = Color32::from(hsva);
-    color_cache_set(ui.ctx(), *srgba, hsva);
+    color_cache_set(ui.ctx_mut(), *srgba, hsva);
     changed
 }
 
@@ -368,7 +366,7 @@ pub fn color_edit_button_hsva<'c>(ui: &mut Ui<'c>, hsva: &mut Hsva, alpha: Alpha
         let area_response = Area::new(popup_id)
             .order(Order::Foreground)
             .current_pos(button_response.rect().max)
-            .show(ui.ctx(), |ui| {
+            .show(ui.ctx_mut(), |ui| {
                 ui.spacing_mut().slider_width = 210.0;
                 Frame::popup(ui.style()).show(ui, |ui| {
                     if color_picker_hsva_2d(ui, hsva, alpha) {
@@ -391,10 +389,10 @@ pub fn color_edit_button_hsva<'c>(ui: &mut Ui<'c>, hsva: &mut Hsva, alpha: Alpha
 /// Shows a button with the given color.
 /// If the user clicks the button, a full color picker is shown.
 pub fn color_edit_button_srgba<'c>(ui: &mut Ui<'c>, srgba: &mut Color32, alpha: Alpha) -> Response {
-    let mut hsva = color_cache_get(ui.ctx(), *srgba);
+    let mut hsva = color_cache_get(ui.ctx_mut(), *srgba);
     let response = color_edit_button_hsva(ui, &mut hsva, alpha);
     *srgba = Color32::from(hsva);
-    color_cache_set(ui.ctx(), *srgba, hsva);
+    color_cache_set(ui.ctx_mut(), *srgba, hsva);
     response
 }
 
@@ -413,10 +411,10 @@ pub fn color_edit_button_srgb<'c>(ui: &mut Ui<'c>, srgb: &mut [u8; 3]) -> Respon
 /// Shows a button with the given color.
 /// If the user clicks the button, a full color picker is shown.
 pub fn color_edit_button_rgba<'c>(ui: &mut Ui<'c>, rgba: &mut Rgba, alpha: Alpha) -> Response {
-    let mut hsva = color_cache_get(ui.ctx(), *rgba);
+    let mut hsva = color_cache_get(ui.ctx_mut(), *rgba);
     let response = color_edit_button_hsva(ui, &mut hsva, alpha);
     *rgba = Rgba::from(hsva);
-    color_cache_set(ui.ctx(), *rgba, hsva);
+    color_cache_set(ui.ctx_mut(), *rgba, hsva);
     response
 }
 

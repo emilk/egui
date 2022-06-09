@@ -191,8 +191,8 @@ fn stationary_menu_impl<'a, R>(
 
 /// Response to secondary clicks (right-clicks) by showing the given menu.
 pub(crate) fn context_menu(
-    response: &Response,
     ctx: &mut Context,
+    response: &Response,
     add_contents: impl FnOnce(&mut Ui<'_>),
 ) -> Option<InnerResponse<()>> {
     let menu_id = Id::new("__egui::context_menu");
@@ -320,6 +320,7 @@ impl MenuRoot {
 
     /// Interaction with a context menu (secondary clicks).
     fn context_interaction(
+        ctx: &mut Context,
         response: &Response,
         root: &mut Option<MenuRoot>,
         id: Id,
@@ -442,7 +443,7 @@ impl SubMenuButton {
             crate::WidgetInfo::labeled(crate::WidgetType::Button, &text_galley.text())
         });
 
-        if ui.is_rect_visible(&rect) {
+        if ui.is_rect_visible(rect) {
             let visuals = Self::visuals(ui, &response, menu_state, sub_id);
             let text_pos = Align2::LEFT_CENTER
                 .align_size_within_rect(text_galley.size(), rect.shrink2(button_padding))
@@ -480,9 +481,9 @@ impl SubMenu {
         }
     }
 
-    pub fn show<'c, R>(
+    pub fn show<R>(
         self,
-        ui: &mut Ui<'c>,
+        ui: &mut Ui<'_>,
         add_contents: impl FnOnce(&mut Ui<'_>) -> R,
     ) -> InnerResponse<Option<R>> {
         let sub_id = ui.id().with(self.button.index);
@@ -493,7 +494,7 @@ impl SubMenu {
         let inner = self
             .parent_state
             .write()
-            .show_submenu(ui.ctx(), sub_id, add_contents);
+            .show_submenu(ui.ctx_mut(), sub_id, add_contents);
         InnerResponse::new(inner, button)
     }
 }

@@ -197,18 +197,22 @@ impl ScreenTransform {
         }
     }
 
-    pub fn frame(&self) -> &Rect {
-        &self.frame
+    #[inline]
+    pub fn frame(&self) -> Rect {
+        self.frame
     }
 
+    #[inline]
     pub fn bounds(&self) -> &PlotBounds {
         &self.bounds
     }
 
+    #[inline]
     pub fn bounds_mut(&mut self) -> &mut PlotBounds {
         &mut self.bounds
     }
 
+    #[inline]
     pub fn translate_bounds(&mut self, mut delta_pos: Vec2) {
         if self.x_centered {
             delta_pos.x = 0.;
@@ -279,25 +283,30 @@ impl ScreenTransform {
     }
 
     /// delta position / delta value
+    #[inline]
     pub fn dpos_dvalue_x(&self) -> f64 {
         self.frame.width() as f64 / self.bounds.width()
     }
 
     /// delta position / delta value
+    #[inline]
     pub fn dpos_dvalue_y(&self) -> f64 {
         -self.frame.height() as f64 / self.bounds.height() // negated y axis!
     }
 
     /// delta position / delta value
+    #[inline]
     pub fn dpos_dvalue(&self) -> [f64; 2] {
         [self.dpos_dvalue_x(), self.dpos_dvalue_y()]
     }
 
     /// delta value / delta position
+    #[inline]
     pub fn dvalue_dpos(&self) -> [f64; 2] {
         [1.0 / self.dpos_dvalue_x(), 1.0 / self.dpos_dvalue_y()]
     }
 
+    #[inline]
     pub fn get_aspect(&self) -> f64 {
         let rw = self.frame.width() as f64;
         let rh = self.frame.height() as f64;

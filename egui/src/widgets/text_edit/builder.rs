@@ -330,7 +330,8 @@ impl<'t> TextEdit<'t> {
                 }
             };
 
-            ui.painter_mut().set(where_to_put_background, shape);
+            ui.painter_mut()
+                .set(ui.ctx_mut(), where_to_put_background, shape);
         }
 
         output
@@ -430,7 +431,7 @@ impl<'t> TextEdit<'t> {
         if interactive {
             if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
                 if response.hovered() && text.is_mutable() {
-                    ui.output().mutable_text_under_cursor = true;
+                    ui.output_mut().mutable_text_under_cursor = true;
                 }
 
                 // TODO(emilk): drag selected text to either move or clone (ctrl on windows, alt on mac)
@@ -495,7 +496,7 @@ impl<'t> TextEdit<'t> {
         }
 
         if response.hovered() && interactive {
-            ui.output().cursor_icon = CursorIcon::Text;
+            ui.output_mut().cursor_icon = CursorIcon::Text;
         }
 
         let mut cursor_range = None;
@@ -564,7 +565,7 @@ impl<'t> TextEdit<'t> {
             false
         };
 
-        if ui.is_rect_visible(&rect) {
+        if ui.is_rect_visible(rect) {
             painter.galley(ui.ctx_mut(), text_draw_pos, galley.clone());
 
             if text.as_ref().is_empty() && !hint_text.is_empty() {

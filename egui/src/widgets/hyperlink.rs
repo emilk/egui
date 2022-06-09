@@ -30,7 +30,7 @@ impl Link {
 }
 
 impl Widget for Link {
-    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response {
+    fn ui(self, ui: &mut Ui<'_>) -> Response {
         let Link { text } = self;
         let label = Label::new(text).sense(Sense::click());
 
@@ -40,7 +40,7 @@ impl Widget for Link {
         });
 
         if response.hovered() {
-            ui.ctx().output().cursor_icon = CursorIcon::PointingHand;
+            ui.ctx_mut().output_mut().cursor_icon = CursorIcon::PointingHand;
         }
 
         if ui.is_rect_visible(response.rect()) {
@@ -110,19 +110,19 @@ impl Hyperlink {
 }
 
 impl Widget for Hyperlink {
-    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response {
+    fn ui(self, ui: &mut Ui<'_>) -> Response {
         let Self { url, text } = self;
 
         let response = ui.add(Link::new(text));
         if response.clicked() {
             let modifiers = ui.ctx().input().modifiers;
-            ui.ctx().output().open_url = Some(crate::output::OpenUrl {
+            ui.ctx_mut().output_mut().open_url = Some(crate::output::OpenUrl {
                 url: url.clone(),
                 new_tab: modifiers.any(),
             });
         }
         if response.middle_clicked() {
-            ui.ctx().output().open_url = Some(crate::output::OpenUrl {
+            ui.ctx_mut().output_mut().open_url = Some(crate::output::OpenUrl {
                 url: url.clone(),
                 new_tab: true,
             });

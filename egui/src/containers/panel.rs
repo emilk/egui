@@ -232,7 +232,7 @@ impl SidePanel {
                 resize_hover = mouse_over_resize_line && !dragging_something_else;
 
                 if resize_hover || is_resizing {
-                    ui.output().cursor_icon = CursorIcon::ResizeHorizontal;
+                    ui.output_mut().cursor_icon = CursorIcon::ResizeHorizontal;
                 }
             }
         }
@@ -520,7 +520,7 @@ impl TopBottomPanel {
                 resize_hover = mouse_over_resize_line && !dragging_something_else;
 
                 if resize_hover || is_resizing {
-                    ui.output().cursor_icon = CursorIcon::ResizeVertical;
+                    ui.output_mut().cursor_icon = CursorIcon::ResizeVertical;
                 }
             }
         }
@@ -548,7 +548,7 @@ impl TopBottomPanel {
             }
             ui.set_cursor(cursor);
         }
-        ui.expand_to_include_rect(&rect);
+        ui.expand_to_include_rect(rect);
 
         PanelState { rect }.store(ui.ctx(), id);
 

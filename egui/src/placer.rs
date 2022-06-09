@@ -49,13 +49,13 @@ impl Placer {
     }
 
     #[inline(always)]
-    pub(crate) fn min_rect(&self) -> &Rect {
-        &self.region.min_rect
+    pub(crate) fn min_rect(&self) -> Rect {
+        self.region.min_rect
     }
 
     #[inline(always)]
-    pub(crate) fn max_rect(&self) -> &Rect {
-        &self.region.max_rect
+    pub(crate) fn max_rect(&self) -> Rect {
+        self.region.max_rect
     }
 
     #[inline(always)]
@@ -195,7 +195,7 @@ impl Placer {
 
 impl Placer {
     /// Expand the `min_rect` and `max_rect` of this ui to include a child at the given rect.
-    pub(crate) fn expand_to_include_rect(&mut self, rect: &Rect) {
+    pub(crate) fn expand_to_include_rect(&mut self, rect: Rect) {
         self.region.expand_to_include_rect(rect);
     }
 
@@ -262,14 +262,19 @@ impl Placer {
 }
 
 impl Placer {
-    pub(crate) fn debug_paint_cursor(&self, painter: &crate::Painter, text: impl ToString) {
+    pub(crate) fn debug_paint_cursor(
+        &self,
+        ctx: &mut Context,
+        painter: &crate::Painter,
+        text: impl ToString,
+    ) {
         let stroke = Stroke::new(1.0, Color32::DEBUG_COLOR);
 
         if let Some(grid) = &self.grid {
             let rect = grid.next_cell(self.cursor(), Vec2::splat(0.0));
-            painter.rect_stroke(ui.ctx_mut(), rect, 1.0, stroke);
+            painter.rect_stroke(ctx, rect, 1.0, stroke);
             let align = Align2::CENTER_CENTER;
-            painter.debug_text(align.pos_in_rect(&rect), align, stroke.color, text);
+            painter.debug_text(ctx, align.pos_in_rect(&rect), align, stroke.color, text);
         } else {
             self.layout
                 .paint_text_at_cursor(painter, &self.region, stroke, text);

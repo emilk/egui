@@ -110,7 +110,7 @@ pub fn show_tooltip_at_pointer<R>(
 pub fn show_tooltip_for<R>(
     ctx: &mut Context,
     id: Id,
-    rect: &Rect,
+    rect: Rect,
     add_contents: impl FnOnce(&mut Ui<'_>) -> R,
 ) -> Option<R> {
     let expanded_rect = rect.expand2(vec2(2.0, 4.0));

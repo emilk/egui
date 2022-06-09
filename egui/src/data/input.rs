@@ -540,6 +540,7 @@ impl RawInput {
         ui.label(format!("pixels_per_point: {:?}", pixels_per_point))
             .on_hover_text(
                 ui,
+                ui,
                 "Also called HDPI factor.\nNumber of physical pixels per each logical pixel.",
             );
         ui.label(format!("max_texture_side: {:?}", max_texture_side));

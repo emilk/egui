@@ -50,7 +50,7 @@ pub(crate) fn font_texture_ui<'c>(ui: &mut Ui<'c>, [width, height]: [usize; 2]) 
         let (tex_w, tex_h) = (width as f32, height as f32);
 
         response
-            .on_hover_cursor(CursorIcon::ZoomIn)
+            .on_hover_cursor(ui, CursorIcon::ZoomIn)
             .on_hover_ui_at_pointer(|ui| {
                 if let Some(pos) = ui.ctx().pointer_latest_pos() {
                     let (_id, zoom_rect) = ui.allocate_space(vec2(128.0, 128.0));

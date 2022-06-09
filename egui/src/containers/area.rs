@@ -403,7 +403,7 @@ fn automatic_area_position(ctx: &Context) -> Pos2 {
     // Separate existing rectangles into columns:
     let mut column_bbs = vec![existing[0]];
 
-    for &rect in &existing {
+    for rect in &existing {
         let current_column_bb = column_bbs.last_mut().unwrap();
         if rect.left() < current_column_bb.right() {
             // same column

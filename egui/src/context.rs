@@ -217,18 +217,19 @@ impl Context {
         if let Some(prev_rect) = prev_rect {
             // it is ok to reuse the same ID for e.g. a frame around a widget,
             // or to check for interaction with the same widget twice:
-            if prev_rect.expand(0.1).contains_rect(new_rect)
-                || new_rect.expand(0.1).contains_rect(prev_rect)
+            if prev_rect.expand(0.1).contains_rect(&new_rect)
+                || new_rect.expand(0.1).contains_rect(&prev_rect)
             {
                 return;
             }
 
             let show_error = |pos: Pos2, text: String| {
                 let painter = self.debug_painter();
-                let rect = painter.error(pos, text);
+                let rect = painter.error(self, pos, text);
                 if let Some(pointer_pos) = self.pointer_hover_pos() {
                     if rect.contains(pointer_pos) {
                         painter.error(
+                            self,
                             rect.left_bottom() + vec2(2.0, 4.0),
                             "ID clashes happens when things like Windows or CollapsingHeaders share names,\n\
                              or when things like Plot and Grid:s aren't given unique id_source:s.\n\n\
@@ -280,7 +281,7 @@ impl Context {
                 .at_least(Vec2::splat(0.0))
                 .at_most(Vec2::splat(5.0)),
         ); // make it easier to click
-        let hovered = self.rect_contains_pointer(layer_id, clip_rect.intersect(interact_rect));
+        let hovered = self.rect_contains_pointer(layer_id, clip_rect.intersect(&interact_rect));
         self.interact_with_hovered(layer_id, id, rect, sense, enabled, hovered)
     }
 
@@ -438,13 +439,13 @@ impl Context {
     }
 
     /// Get a full-screen painter for a new or existing layer
-    pub fn layer_painter(&mut self, layer_id: LayerId) -> Painter {
+    pub fn layer_painter(&self, layer_id: LayerId) -> Painter {
         let screen_rect = self.input().screen_rect();
-        Painter::new(self, layer_id, screen_rect)
+        Painter::new(layer_id, screen_rect)
     }
 
     /// Paint on top of everything else
-    pub fn debug_painter(&mut self) -> Painter {
+    pub fn debug_painter(&self) -> Painter {
         Self::layer_painter(self, LayerId::debug())
     }
 
@@ -1046,6 +1047,7 @@ impl Context {
         ui.label(format!("Is using pointer: {}", self.is_using_pointer()))
             .on_hover_text(
                 ui,
+                ui,
                 "Is egui currently using the pointer actively (e.g. dragging a slider)?",
             );
         ui.label(format!("Wants pointer input: {}", self.wants_pointer_input()))
@@ -1085,6 +1087,7 @@ impl Context {
             self.fonts().num_galleys_in_cache()
         ))
         .on_hover_text(
+            ui,
             ui,
             "This is approximately the number of text strings on screen",
         );
@@ -1155,7 +1158,7 @@ impl Context {
                                 let mut size = Vec2::new(w as f32, h as f32);
                                 size *= (max_preview_size.x / size.x).min(1.0);
                                 size *= (max_preview_size.y / size.y).min(1.0);
-                                ui.image(texture_id, size).on_hover_ui(|ui| {
+                                ui.image(texture_id, size).on_hover_ui(ui, |ui| {
                                     // show larger on hover
                                     let max_size = 0.5 * ui.ctx().input().screen_rect().size();
                                     let mut size = Vec2::new(w as f32, h as f32);

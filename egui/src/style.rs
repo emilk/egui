@@ -530,7 +530,7 @@ pub struct Widgets {
 
 impl Widgets {
     pub fn style(&self, response: &Response) -> &WidgetVisuals {
-        if !response.sense.interactive() {
+        if !response.sense().interactive() {
             &self.noninteractive
         } else if response.is_pointer_button_down_on() || response.has_focus() {
             &self.active
@@ -956,7 +956,7 @@ impl Spacing {
 
         ui.add(slider_vec2(button_padding, 0.0..=20.0, "Button padding"));
         ui.add(slider_vec2(interact_size, 4.0..=60.0, "Interact size"))
-            .on_hover_text("Minimum size of an interactive widget");
+            .on_hover_text(ui, "Minimum size of an interactive widget");
         ui.horizontal(|ui| {
             ui.add(DragValue::new(indent).clamp_range(0.0..=100.0));
             ui.label("Indent");
@@ -1180,14 +1180,17 @@ impl Visuals {
             &mut widgets.noninteractive.fg_stroke.color,
             "Text color",
         );
-        ui_color(ui, code_bg_color, RichText::new("Code background").code()).on_hover_ui(|ui| {
-            ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = 0.0;
-                ui.label("For monospaced inlined text ");
-                ui.code("like this");
-                ui.label(".");
-            });
-        });
+        ui_color(ui, code_bg_color, RichText::new("Code background").code()).on_hover_ui(
+            ui,
+            |ui| {
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 0.0;
+                    ui.label("For monospaced inlined text ");
+                    ui.code("like this");
+                    ui.label(".");
+                });
+            },
+        );
 
         ui_color(ui, hyperlink_color, "hyperlink_color");
         ui.add(Slider::new(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));

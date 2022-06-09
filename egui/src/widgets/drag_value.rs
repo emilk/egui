@@ -217,7 +217,7 @@ impl<'a> Widget for DragValue<'a> {
             .min_size(ui.spacing().interact_size); // TODO(emilk): find some more generic solution to `min_size`
 
             let response = ui.add(button);
-            let mut response = response.on_hover_cursor(CursorIcon::ResizeHorizontal);
+            let mut response = response.on_hover_cursor(ui, CursorIcon::ResizeHorizontal);
 
             if ui.style().explanation_tooltips {
                 response = response .on_hover_text(ui, format!(
@@ -232,7 +232,7 @@ impl<'a> Widget for DragValue<'a> {
                 ui.memory().request_focus(kb_edit_id);
                 ui.memory().drag_value.edit_string = None; // Filled in next frame
             } else if response.dragged() {
-                ui.output().cursor_icon = CursorIcon::ResizeHorizontal;
+                ui.output_mut().cursor_icon = CursorIcon::ResizeHorizontal;
 
                 let mdelta = response.drag_delta();
                 let delta_points = mdelta.x - mdelta.y; // Increase to the right and up
@@ -282,7 +282,7 @@ impl<'a> Widget for DragValue<'a> {
             response
         };
 
-        response.changed = get(&mut get_set_value) != old_value;
+        response.set_changed(get(&mut get_set_value) != old_value);
 
         response.widget_info(ui, || WidgetInfo::drag_value(value));
         response

@@ -85,7 +85,7 @@ impl<'c> Ui<'c> {
         Ui {
             id,
             next_auto_id_source: id.with("auto").value(),
-            painter: Painter::new(ctx, layer_id, clip_rect),
+            painter: Painter::new(layer_id, clip_rect),
             ctx,
             style,
             placer: Placer::new(max_rect, Layout::default()),
@@ -95,25 +95,26 @@ impl<'c> Ui<'c> {
     }
 
     /// Create a new [`Ui`] at a specific region.
-    pub fn child_ui(&mut self, max_rect: Rect, layout: Layout) -> Self {
+    pub fn child_ui<'a>(&'a mut self, max_rect: Rect, layout: Layout) -> Ui<'a> {
         self.child_ui_with_id_source(max_rect, layout, "child")
     }
 
     /// Create a new [`Ui`] at a specific region with a specific id.
-    pub fn child_ui_with_id_source(
-        &mut self,
+    pub fn child_ui_with_id_source<'a>(
+        &'a mut self,
         max_rect: Rect,
         layout: Layout,
         id_source: impl Hash,
-    ) -> Self {
+    ) -> Ui<'a> {
         crate::egui_assert!(!max_rect.any_nan());
         let next_auto_id_source = Id::new(self.next_auto_id_source).with("child").value();
         self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
         let menu_state = self.get_menu_state();
-        Self {
+        Ui {
             id: self.id.with(id_source),
             next_auto_id_source,
             painter: self.painter.clone(),
+            ctx: self.ctx,
             style: self.style.clone(),
             placer: Placer::new(max_rect, layout),
             enabled: self.enabled,
@@ -154,7 +155,7 @@ impl<'c> Ui<'c> {
 
     /// Reset to the default style set in [`Context`].
     pub fn reset_style(&mut self) {
-        self.style = self.ctx.style();
+        self.style = self.ctx.style().clone();
     }
 
     /// The current spacing options for this [`Ui`].
@@ -363,10 +364,10 @@ impl<'c> Ui<'c> {
     }
 
     /// The [`PlatformOutput`] of the [`Context`] associated with this ui.
-    /// Equivalent to `.ctx().output()`.
+    /// Equivalent to `.ctx_mut().output_mut()`.
     #[inline]
-    pub fn output(&self) -> &PlatformOutput {
-        self.ctx.output()
+    pub fn output_mut(&self) -> &mut PlatformOutput {
+        self.ctx.output_mut()
     }
 
     /// The [`Fonts`] of the [`Context`] associated with this ui.
@@ -398,7 +399,7 @@ impl<'c> Ui<'c> {
 
     /// Can be used for culling: if `false`, then no part of `rect` will be visible on screen.
     #[inline]
-    pub fn is_rect_visible(&self, rect: &Rect) -> bool {
+    pub fn is_rect_visible(&self, rect: Rect) -> bool {
         self.is_visible() && rect.intersects(self.clip_rect())
     }
 }
@@ -413,7 +414,7 @@ impl<'c> Ui<'c> {
     /// No matter what, the final Ui will be at least this large.
     ///
     /// This will grow as new widgets are added, but never shrink.
-    pub fn min_rect(&self) -> &Rect {
+    pub fn min_rect(&self) -> Rect {
         self.placer.min_rect()
     }
 
@@ -429,7 +430,7 @@ impl<'c> Ui<'c> {
     ///
     /// If a new widget doesn't fit within the `max_rect` then the
     /// [`Ui`] will make room for it by expanding both `min_rect` and `max_rect`.
-    pub fn max_rect(&self) -> &Rect {
+    pub fn max_rect(&self) -> Rect {
         self.placer.max_rect()
     }
 
@@ -496,7 +497,7 @@ impl<'c> Ui<'c> {
     }
 
     /// Expand the `min_rect` and `max_rect` of this ui to include a child at the given rect.
-    pub fn expand_to_include_rect(&mut self, rect: &Rect) {
+    pub fn expand_to_include_rect(&mut self, rect: Rect) {
         self.placer.expand_to_include_rect(rect);
     }
 
@@ -914,7 +915,7 @@ impl<'c> Ui<'c> {
     pub fn allocate_painter(&mut self, desired_size: Vec2, sense: Sense) -> (Response, Painter) {
         let response = self.allocate_response(desired_size, sense);
         let clip_rect = self.clip_rect().intersect(response.rect()); // Make sure we don't paint out of bounds
-        let painter = Painter::new(self.ctx().clone(), self.layer_id(), clip_rect);
+        let painter = Painter::new(self.layer_id(), clip_rect);
         (response, painter)
     }
 
@@ -939,7 +940,7 @@ impl<'c> Ui<'c> {
     pub fn scroll_to_rect(&self, rect: Rect, align: Option<Align>) {
         for d in 0..2 {
             let range = rect.min[d]..=rect.max[d];
-            self.ctx().frame_state().scroll_target[d] = Some((range, align));
+            self.ctx.frame_state_mut().scroll_target[d] = Some((range, align));
         }
     }
 
@@ -968,7 +969,7 @@ impl<'c> Ui<'c> {
         let target = self.next_widget_position();
         for d in 0..2 {
             let target = target[d];
-            self.ctx().frame_state().scroll_target[d] = Some((target..=target, align));
+            self.ctx.frame_state_mut().scroll_target[d] = Some((target..=target, align));
         }
     }
 
@@ -1000,7 +1001,7 @@ impl<'c> Ui<'c> {
     /// # });
     /// ```
     pub fn scroll_with_delta(&self, delta: Vec2) {
-        self.ctx().frame_state().scroll_delta += delta;
+        self.ctx.frame_state_mut().scroll_delta += delta;
     }
 }
 
@@ -1485,7 +1486,7 @@ impl<'c> Ui<'c> {
         // only touch `*radians` if we actually changed the degree value
         if degrees != radians.to_degrees() {
             *radians = degrees.to_radians();
-            response.changed = true;
+            response.mark_changed();
         }
 
         response
@@ -1508,7 +1509,7 @@ impl<'c> Ui<'c> {
         // only touch `*radians` if we actually changed the value
         if taus != *radians / TAU {
             *radians = taus * TAU;
-            response.changed = true;
+            response.mark_changed();
         }
 
         response
@@ -1752,7 +1753,7 @@ impl<'c> Ui<'c> {
         let mut child_rect = self.placer.available_rect_before_wrap();
         child_rect.min.x += indent;
 
-        let mut child_ui = Self {
+        let mut child_ui = Ui {
             id: self.id.with(id_source),
             ..self.child_ui(child_rect, *self.layout())
         };
@@ -1767,16 +1768,16 @@ impl<'c> Ui<'c> {
         // draw a faint line on the left to mark the indented section
         let stroke = self.visuals().widgets.noninteractive.bg_stroke;
         let left_top = child_rect.min - 0.5 * indent * Vec2::X;
-        let left_top = self.painter().round_pos_to_pixels(left_top);
+        let left_top = self.ctx.round_pos_to_pixels(left_top);
         let left_bottom = pos2(left_top.x, child_ui.min_rect().bottom() - 2.0);
-        let left_bottom = self.painter().round_pos_to_pixels(left_bottom);
+        let left_bottom = self.ctx.round_pos_to_pixels(left_bottom);
         self.painter
-            .line_segment(ui.ctx_mut(), [left_top, left_bottom], stroke);
+            .line_segment(self.ctx, [left_top, left_bottom], stroke);
         if end_with_horizontal_line {
             let fudge = 2.0; // looks nicer with button rounding in collapsing headers
             let right_bottom = pos2(child_ui.min_rect().right() - fudge, left_bottom.y);
             self.painter
-                .line_segment(ui.ctx_mut(), [left_bottom, right_bottom], stroke);
+                .line_segment(self.ctx, [left_bottom, right_bottom], stroke);
         }
 
         let response = self.allocate_rect(child_ui.min_rect(), Sense::hover());
@@ -1981,7 +1982,7 @@ impl<'c> Ui<'c> {
 
         if self.style().debug.debug_on_hover && self.rect_contains_pointer(rect) {
             let painter = self.ctx().debug_painter();
-            painter.rect_stroke(ui.ctx_mut(), rect, 4.0, (1.0, Color32::LIGHT_BLUE));
+            painter.rect_stroke(self.ctx_mut(), rect, 4.0, (1.0, Color32::LIGHT_BLUE));
             self.placer.debug_paint_cursor(&painter, "next");
         }
 

@@ -823,8 +823,12 @@ impl Plot {
         prepared.ui(ui, &response);
 
         if let Some(boxed_zoom_rect) = boxed_zoom_rect {
-            ui.painter_mut().with_clip_rect(rect).add(boxed_zoom_rect.0);
-            ui.painter_mut().with_clip_rect(rect).add(boxed_zoom_rect.1);
+            ui.painter_mut()
+                .with_clip_rect(rect)
+                .add(ui.ctx_mut(), boxed_zoom_rect.0);
+            ui.painter_mut()
+                .with_clip_rect(rect)
+                .add(ui.ctx_mut(), boxed_zoom_rect.1);
         }
 
         if let Some(mut legend) = legend {
@@ -1128,8 +1132,8 @@ impl PreparedPlot {
 
         let transform = &self.transform;
 
-        let mut plot_ui = ui.child_ui(*transform.frame(), Layout::default());
-        plot_ui.set_clip_rect(*transform.frame());
+        let mut plot_ui = ui.child_ui(transform.frame(), Layout::default());
+        plot_ui.set_clip_rect(transform.frame());
         for item in &self.items {
             item.get_shapes(&mut plot_ui, transform, &mut shapes);
         }
@@ -1138,7 +1142,7 @@ impl PreparedPlot {
             self.hover(ui, pointer, &mut shapes);
         }
 
-        let painter = ui.painter_mut().with_clip_rect(*transform.frame());
+        let painter = ui.painter_mut().with_clip_rect(transform.frame());
         painter.extend(ui.ctx_mut(), shapes);
 
         if let Some((corner, formatter)) = self.coordinates_formatter.as_ref() {
@@ -1234,7 +1238,8 @@ impl PreparedPlot {
                 // Custom formatters can return empty string to signal "no label at this resolution"
                 if !text.is_empty() {
                     let galley = ui
-                        .painter_mut()
+                        .ctx()
+                        .fonts()
                         .layout_no_wrap(text, font_id.clone(), color);
 
                     let mut text_pos = pos_in_gui + vec2(1.0, -galley.size().y);

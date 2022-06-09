@@ -101,7 +101,7 @@ impl Image {
     }
 
     pub fn paint_at(&self, ui: &mut Ui<'_>, rect: Rect) {
-        if ui.is_rect_visible(&rect) {
+        if ui.is_rect_visible(rect) {
             use epaint::*;
             let Self {
                 texture_id,

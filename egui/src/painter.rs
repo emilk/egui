@@ -168,7 +168,7 @@ impl Painter {
 
 /// ## Debug painting
 impl Painter {
-    pub fn debug_rect(&self, ctx: &mut Context, rect: &Rect, color: Color32, text: impl ToString) {
+    pub fn debug_rect(&self, ctx: &mut Context, rect: Rect, color: Color32, text: impl ToString) {
         self.rect_stroke(ctx, rect, 0.0, (1.0, color));
         self.text(
             ctx,
@@ -180,7 +180,7 @@ impl Painter {
         );
     }
 
-    pub fn error(&self, ctx: &mut Context, pos: &Pos2, text: impl std::fmt::Display) -> Rect {
+    pub fn error(&self, ctx: &mut Context, pos: Pos2, text: impl std::fmt::Display) -> Rect {
         self.debug_text(
             ctx,
             pos,
@@ -194,7 +194,7 @@ impl Painter {
     pub fn debug_text(
         &self,
         ctx: &mut Context,
-        pos: &Pos2,
+        pos: Pos2,
         anchor: Align2,
         color: Color32,
         text: impl ToString,

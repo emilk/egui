@@ -161,7 +161,7 @@ impl Widget for Button {
         let (rect, response) = ui.allocate_at_least(desired_size, sense);
         response.widget_info(ui, || WidgetInfo::labeled(WidgetType::Button, text.text()));
 
-        if ui.is_rect_visible(&rect) {
+        if ui.is_rect_visible(rect) {
             let visuals = ui.style().interact(&response);
             let text_pos = if let Some(image) = image {
                 let icon_spacing = ui.spacing().icon_spacing;
@@ -270,7 +270,7 @@ impl<'a> Widget for Checkbox<'a> {
             )
         });
 
-        if ui.is_rect_visible(&rect) {
+        if ui.is_rect_visible(rect) {
             // let visuals = ui.style().interact_selectable(&response, *checked); // too colorful
             let visuals = ui.style().interact(&response);
             let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
@@ -381,7 +381,7 @@ impl Widget for RadioButton {
             )
         });
 
-        if ui.is_rect_visible(&rect) {
+        if ui.is_rect_visible(rect) {
             // let visuals = ui.style().interact_selectable(&response, checked); // too colorful
             let visuals = ui.style().interact(&response);
 
@@ -498,7 +498,7 @@ impl Widget for ImageButton {
         let (rect, response) = ui.allocate_exact_size(padded_size, sense);
         response.widget_info(ui, || WidgetInfo::new(WidgetType::ImageButton));
 
-        if ui.is_rect_visible(&rect) {
+        if ui.is_rect_visible(rect) {
             let (expansion, rounding, fill, stroke) = if selected {
                 let selection = ui.visuals().selection;
                 (

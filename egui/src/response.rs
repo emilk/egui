@@ -53,6 +53,18 @@ impl Response {
         self.id
     }
 
+    /// The area of the screen this widget occupies.
+    #[inline]
+    pub fn rect(&self) -> Rect {
+        self.rect
+    }
+
+    /// The senses (click and/or drag) that the widget was interested in (if any).
+    #[inline]
+    pub fn sense(&self) -> Sense {
+        self.sense
+    }
+
     /// `true` if there was a click *outside* this widget this frame.
     #[inline]
     pub fn clicked_elsewhere(&self) -> bool {
@@ -131,12 +143,6 @@ impl Response {
         } else {
             None
         }
-    }
-
-    /// The area of the screen this widget occupies.
-    #[inline]
-    pub fn rect(&self) -> &Rect {
-        &self.rect
     }
 
     /// Returns true if this widget was clicked this frame by the primary button.
@@ -275,6 +281,11 @@ impl Response {
         self.changed = true;
     }
 
+    #[inline]
+    pub(crate) fn set_changed(&mut self, changed: bool) {
+        self.changed = changed;
+    }
+
     /// Show this UI if the widget was hovered (i.e. a tooltip).
     ///
     /// The text will not be visible if the widget is not enabled.
@@ -285,9 +296,9 @@ impl Response {
     pub fn on_hover_ui(self, ui: &mut Ui<'_>, add_contents: impl FnOnce(&mut Ui<'_>)) -> Self {
         if self.should_show_hover_ui(ui) {
             crate::containers::show_tooltip_for(
-                ui,
+                ui.ctx_mut(),
                 self.id.with("__tooltip"),
-                &self.rect,
+                self.rect,
                 add_contents,
             );
         }
@@ -302,9 +313,9 @@ impl Response {
     ) -> Self {
         if !self.enabled && ui.ctx_mut().rect_contains_pointer(self.layer_id, self.rect) {
             crate::containers::show_tooltip_for(
-                ui,
+                ui.ctx_mut(),
                 self.id.with("__tooltip"),
-                &self.rect,
+                self.rect,
                 add_contents,
             );
         }
@@ -318,7 +329,11 @@ impl Response {
         add_contents: impl FnOnce(&mut Ui<'_>),
     ) -> Self {
         if self.should_show_hover_ui(ui) {
-            crate::containers::show_tooltip_at_pointer(ui, self.id.with("__tooltip"), add_contents);
+            crate::containers::show_tooltip_at_pointer(
+                ui.ctx_mut(),
+                self.id.with("__tooltip"),
+                add_contents,
+            );
         }
         self
     }
@@ -471,7 +486,7 @@ impl Response {
     ///
     /// See also: [`Ui::menu_button`] and [`Ui::close_menu`].
     pub fn context_menu(self, ui: &mut Ui<'_>, add_contents: impl FnOnce(&mut Ui<'_>)) -> Self {
-        menu::context_menu(ui, &mut self, add_contents);
+        menu::context_menu(ui.ctx_mut(), &mut self, add_contents);
         self
     }
 }
@@ -491,8 +506,25 @@ impl Response {
             id: self.id,
             rect: self.rect.union(other.rect),
             sense: self.sense.union(other.sense),
+            interact_pointer_pos: self.interact_pointer_pos.or(other.interact_pointer_pos),
+            hover_pointer_pos: self.hover_pointer_pos.or(other.hover_pointer_pos),
+            pointer_delta: self.pointer_delta,
             enabled: self.enabled || other.enabled,
             hovered: self.hovered || other.hovered,
+            pointer_pressed: [
+                self.pointer_pressed[0] || other.pointer_pressed[0],
+                self.pointer_pressed[1] || other.pointer_pressed[1],
+                self.pointer_pressed[2] || other.pointer_pressed[2],
+                self.pointer_pressed[3] || other.pointer_pressed[3],
+                self.pointer_pressed[4] || other.pointer_pressed[4],
+            ],
+            pointer_down: [
+                self.pointer_down[0] || other.pointer_down[0],
+                self.pointer_down[1] || other.pointer_down[1],
+                self.pointer_down[2] || other.pointer_down[2],
+                self.pointer_down[3] || other.pointer_down[3],
+                self.pointer_down[4] || other.pointer_down[4],
+            ],
             clicked: [
                 self.clicked[0] || other.clicked[0],
                 self.clicked[1] || other.clicked[1],
@@ -518,8 +550,11 @@ impl Response {
             drag_released: self.drag_released || other.drag_released,
             is_pointer_button_down_on: self.is_pointer_button_down_on
                 || other.is_pointer_button_down_on,
-            interact_pointer_pos: self.interact_pointer_pos.or(other.interact_pointer_pos),
             changed: self.changed || other.changed,
+            clicked_elsewhere: self.clicked_elsewhere || other.clicked_elsewhere,
+            has_focus: self.has_focus || other.has_focus,
+            gained_focus: self.gained_focus || other.gained_focus,
+            lost_focus: self.lost_focus || other.lost_focus,
         }
     }
 }
