@@ -22,37 +22,37 @@ all-features = true
 [features]
 default = ["default_fonts"]
 
-# add compatibility with https://crates.io/crates/cint
-cint = ["epaint/cint"]
-
-# implement bytemuck on most types.
+## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`epaint::Vertex`], [`emath::Vec2`] etc to `&[u8]`.
 bytemuck = ["epaint/bytemuck"]
 
-# This will automatically detect deadlocks due to double-locking on the same thread.
-# If your app freezes, you may want to enable this!
-# Only affects `epaint::mutex::RwLock` (which egui uses a lot).
+## [`cint`](https://docs.rs/cint) enables interopability with other color libraries.
+cint = ["epaint/cint"]
+
+## Enable the [`hex_color`] macro.
+color-hex = ["epaint/color-hex"]
+
+## This will automatically detect deadlocks due to double-locking on the same thread.
+## If your app freezes, you may want to enable this!
+## Only affects [`epaint::mutex::RwLock`] (which egui uses a lot).
 deadlock_detection = ["epaint/deadlock_detection"]
 
-# If set, egui will use `include_bytes!` to bundle some fonts.
-# If you plan on specifying your own fonts you may disable this feature.
+## If set, egui will use `include_bytes!` to bundle some fonts.
+## If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["epaint/default_fonts"]
 
-# Enable additional checks if debug assertions are enabled (debug builds).
+## Enable additional checks if debug assertions are enabled (debug builds).
 extra_debug_asserts = ["epaint/extra_debug_asserts"]
-# Always enable additional checks.
+## Always enable additional checks.
 extra_asserts = ["epaint/extra_asserts"]
 
-# Add compatability with https://github.com/kvark/mint
+## [`mint`](https://docs.rs/mint) enables interopability with other math libraries such as [`glam`](https://docs.rs/glam) and [`nalgebra`](https://docs.rs/nalgebra).
 mint = ["epaint/mint"]
 
-# enable persistence of memory (window positions etc).
+## Enable persistence of memory (window positions etc).
 persistence = ["serde", "epaint/serde", "ron"]
 
-# implement serde on most types.
+## Allow serialization using [`serde`](https://docs.rs/serde).
 serde = ["dep:serde", "epaint/serde"]
-
-# Ease of use hex to Color32 macro
-color-hex = ["epaint/color-hex"]
 
 [dependencies]
 epaint = { version = "0.18.1", path = "../epaint", default-features = false }
@@ -60,8 +60,11 @@ epaint = { version = "0.18.1", path = "../epaint", default-features = false }
 ahash = "0.7"
 nohash-hasher = "0.2"
 
-# Optional:
+#! ### Optional dependencies
 ron = { version = "0.7", optional = true }
 serde = { version = "1", optional = true, features = ["derive", "rc"] }
 # egui doesn't log much, but when it does, it uses `tracing`
 tracing = { version = "0.1", optional = true }
+
+## Enable this when building the docs.
+document-features = { version = "0.2", optional = true }

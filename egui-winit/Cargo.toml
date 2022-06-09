@@ -20,23 +20,23 @@ all-features = true
 [features]
 default = ["clipboard", "links"]
 
-# implement bytemuck on most types.
+## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`egui::epaint::Vertex`], [`egui::Vec2`] etc to `&[u8]`.
 bytemuck = ["egui/bytemuck"]
 
-# enable cut/copy/paste to OS clipboard.
-# if disabled a clipboard will be simulated so you can still copy/paste within the egui app.
+## Enable cut/copy/paste to OS clipboard.
+## If disabled a clipboard will be simulated so you can still copy/paste within the egui app.
 clipboard = ["arboard", "smithay-clipboard"]
 
-# enable opening links in a browser when an egui hyperlink is clicked.
+## Enable opening links in a browser when an egui hyperlink is clicked.
 links = ["webbrowser"]
 
-# enable profiling with the puffin crate: https://github.com/EmbarkStudios/puffin
+## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
 puffin = ["dep:puffin"]
 
-# experimental support for a screen reader
+## Experimental support for a screen reader.
 screen_reader = ["tts"]
 
-# to serialize `WindowSettings`
+## Allow serialization of [`WindowSettings`] using [`serde`](https://docs.rs/serde).
 serde = ["egui/serde", "dep:serde"]
 
 
@@ -55,6 +55,9 @@ webbrowser = { version = "0.7", optional = true }
 
 # feature screen_reader
 tts = { version = "0.20", optional = true } # stuck on old version due to compilation problems on linux
+
+## Enable this when building the docs.
+document-features = { version = "0.2", optional = true }
 
 [target.'cfg(any(target_os="linux", target_os="dragonfly", target_os="freebsd", target_os="netbsd", target_os="openbsd"))'.dependencies]
 smithay-clipboard = { version = "0.6.3", optional = true }

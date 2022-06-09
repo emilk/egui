@@ -52,6 +52,10 @@
 //!     eframe::start_web(canvas_id, Box::new(|cc| Box::new(MyApp::new(cc))))
 //! }
 //! ```
+//!
+//! ## Feature flags
+#![doc = document_features::document_features!()]
+//!
 
 #![allow(clippy::needless_doctest_main)]
 

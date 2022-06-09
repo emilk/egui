@@ -22,14 +22,23 @@ all-features = true
 [features]
 default = []
 
-# Enable additional checks if debug assertions are enabled (debug builds).
+## Enable additional checks if debug assertions are enabled (debug builds).
 extra_debug_asserts = []
-# Always enable additional checks.
+## Always enable additional checks.
 extra_asserts = []
 
 
 [dependencies]
-# Optional:
+#! ### Optional dependencies
+
+## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast `emath` types to `&[u8]`.
 bytemuck = { version = "1.7.2", optional = true, features = ["derive"] }
+
+## [`mint`](https://docs.rs/mint) enables interopability with other math libraries such as [`glam`](https://docs.rs/glam) and [`nalgebra`](https://docs.rs/nalgebra).
 mint = { version = "0.5.6", optional = true }
+
+## Allow serialization using [`serde`](https://docs.rs/serde).
 serde = { version = "1", optional = true, features = ["derive"] }
+
+## Enable this when building the docs.
+document-features = { version = "0.2", optional = true }
