@@ -355,7 +355,7 @@ impl Plot {
         self
     }
 
-    /// Provide a function to customize the on-hovel label for the x and y axis
+    /// Provide a function to customize the on-hover label for the x and y axis
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
