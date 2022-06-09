@@ -285,7 +285,7 @@ impl<'open> Window<'open> {
         let title_content_spacing = 2.0 * ctx.style().spacing.item_spacing.y;
 
         // First interact (move etc) to avoid frame delay:
-        let last_frame_outer_rect = area.state().rect(ui.ctx);
+        let last_frame_outer_rect = area.state().rect();
         let interaction = if possible.movable || possible.resizable() {
             window_interaction(
                 ctx,
@@ -358,7 +358,7 @@ impl<'open> Window<'open> {
                 })
                 .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
 
-            let outer_rect = *frame.end(&mut area_content_ui).rect(ui.ctx);
+            let outer_rect = frame.end(&mut area_content_ui).rect();
             paint_resize_corner(&mut area_content_ui, &possible, outer_rect, frame_stroke);
 
             // END FRAME --------------------------------
@@ -397,7 +397,7 @@ impl<'open> Window<'open> {
         };
 
         area.state_mut().pos = ctx
-            .constrain_window_rect_to_area(area.state().rect(ui.ctx), area.drag_bounds())
+            .constrain_window_rect_to_area(area.state().rect(), area.drag_bounds())
             .min;
 
         let full_response = area.end(area_content_ui);
@@ -431,7 +431,7 @@ fn paint_resize_corner(
     let corner_size = Vec2::splat(ui.visuals().resize_corner_size);
     let corner_rect = corner.align_size_within_rect(corner_size, outer_rect);
     let corner_rect = corner_rect.translate(-2.0 * corner.to_sign()); // move away from corner
-    crate::resize::paint_resize_corner_with_style(ui, &corner_rect, stroke, corner);
+    crate::resize::paint_resize_corner_with_style(ui, corner_rect, stroke, corner);
 }
 
 // ----------------------------------------------------------------------------
@@ -521,7 +521,10 @@ fn interact(
     Some(window_interaction)
 }
 
-fn move_and_resize_window(ctx: &Context, window_interaction: &WindowInteraction) -> Option<Rect> {
+fn move_and_resize_window(
+    ctx: &mut Context,
+    window_interaction: &WindowInteraction,
+) -> Option<Rect> {
     window_interaction.set_cursor(ctx);
 
     // Only move/resize windows with primary mouse button:
@@ -815,7 +818,7 @@ fn show_title_bar(
     });
 
     let title_bar = inner_response.inner;
-    let rect = *inner_response.response.rect();
+    let rect = inner_response.response.rect();
 
     TitleBar { rect, ..title_bar }
 }
@@ -859,9 +862,10 @@ impl TitleBar {
         let full_top_rect = Rect::from_x_y_ranges(self.rect.x_range(), self.min_rect.y_range());
         let text_pos =
             emath::align::center_size_in_rect(self.title_galley.size(), full_top_rect).left_top();
-        let text_pos = text_pos - self.title_galley.galley(ui.ctx).rect.min.to_vec2();
+        let text_pos = text_pos - self.title_galley.galley().rect.min.to_vec2();
         let text_pos = text_pos - 1.5 * Vec2::Y; // HACK: center on x-height of text (looks better)
         self.title_galley.paint_with_fallback_color(
+            ui.ctx,
             ui.painter_mut(),
             text_pos,
             ui.visuals().text_color(),

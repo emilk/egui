@@ -527,7 +527,7 @@ impl<'c> Prepared<'c> {
         for d in 0..2 {
             if has_bar[d] {
                 // We take the scroll target so only this ScrollArea will use it:
-                let scroll_target = content_ui.ctx.frame_state().scroll_target[d].take();
+                let scroll_target = content_ui.ctx.frame_state_mut().scroll_target[d].take();
                 if let Some((scroll, align)) = scroll_target {
                     let min = content_ui.min_rect().min[d];
                     let clip_rect = content_ui.clip_rect();
@@ -645,7 +645,7 @@ impl<'c> Prepared<'c> {
         if scrolling_enabled && ui.rect_contains_pointer(outer_rect) {
             for d in 0..2 {
                 if has_bar[d] {
-                    let mut frame_state = ui.ctx.frame_state();
+                    let mut frame_state = ui.ctx.frame_state_mut();
                     let scroll_delta = frame_state.scroll_delta;
 
                     let scrolling_up = state.offset[d] > 0.0 && scroll_delta[d] > 0.0;

@@ -1237,10 +1237,7 @@ impl PreparedPlot {
 
                 // Custom formatters can return empty string to signal "no label at this resolution"
                 if !text.is_empty() {
-                    let galley = ui
-                        .ctx
-                        .fonts()
-                        .layout_no_wrap(text, font_id.clone(), color);
+                    let galley = ui.ctx.fonts().layout_no_wrap(text, font_id.clone(), color);
 
                     let mut text_pos = pos_in_gui + vec2(1.0, -galley.size().y);
 

@@ -40,13 +40,14 @@ impl BarState {
 
     /// Show a menu at pointer if primary-clicked response.
     /// Should be called from [`Context`] on a [`Response`]
-    pub fn bar_menu<'c, R>(
+    pub fn bar_menu<R>(
         &mut self,
+        ctx: &mut Context,
         response: &Response,
         add_contents: impl FnOnce(&mut Ui<'_>) -> R,
     ) -> Option<InnerResponse<R>> {
-        MenuRoot::stationary_click_interaction(response, &mut self.open_menu, response.id());
-        self.open_menu.show(response, add_contents)
+        MenuRoot::stationary_click_interaction(ctx, response, &mut self.open_menu, response.id());
+        self.open_menu.show(ctx, response, add_contents)
     }
 }
 
@@ -71,7 +72,7 @@ pub fn bar<'c, R>(
     add_contents: impl FnOnce(&mut Ui<'_>) -> R,
 ) -> InnerResponse<R> {
     ui.horizontal(|ui| {
-        let mut style = (**ui.style()).clone();
+        let mut style = ui.style_mut();
         style.spacing.button_padding = vec2(2.0, 0.0);
         // style.visuals.widgets.active.bg_fill = Color32::TRANSPARENT;
         style.visuals.widgets.active.bg_stroke = Stroke::none();
@@ -79,7 +80,6 @@ pub fn bar<'c, R>(
         style.visuals.widgets.hovered.bg_stroke = Stroke::none();
         style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
         style.visuals.widgets.inactive.bg_stroke = Stroke::none();
-        ui.set_style(style);
 
         // Take full width and fixed height:
         let height = ui.spacing().interact_size.y;
@@ -183,7 +183,7 @@ fn stationary_menu_impl<'a, R>(
     }
 
     let button_response = ui.add(button);
-    let inner = bar_state.bar_menu(&button_response, add_contents);
+    let inner = bar_state.bar_menu(ui.ctx, &button_response, add_contents);
 
     bar_state.store(ui.ctx, bar_id);
     InnerResponse::new(inner.map(|r| r.inner), button_response)
@@ -198,8 +198,8 @@ pub(crate) fn context_menu(
     let menu_id = Id::new("__egui::context_menu");
     let mut bar_state = BarState::load(ctx, menu_id);
 
-    MenuRoot::context_click_interaction(response, &mut bar_state, response.id());
-    let inner_response = bar_state.show(response, add_contents);
+    MenuRoot::context_click_interaction(ctx, response, &mut bar_state, response.id());
+    let inner_response = bar_state.show(ctx, response, add_contents);
 
     bar_state.store(ctx, menu_id);
     inner_response
@@ -214,13 +214,14 @@ pub(crate) struct MenuRootManager {
 impl MenuRootManager {
     /// Show a menu at pointer if right-clicked response.
     /// Should be called from [`Context`] on a [`Response`]
-    pub fn show<'c, R>(
+    pub fn show<R>(
         &mut self,
+        ctx: &mut Context,
         response: &Response,
         add_contents: impl FnOnce(&mut Ui<'_>) -> R,
     ) -> Option<InnerResponse<R>> {
         if let Some(root) = self.inner.as_mut() {
-            let (menu_response, inner_response) = root.show(response, add_contents);
+            let (menu_response, inner_response) = root.show(ctx, response, add_contents);
             if MenuResponse::Close == menu_response {
                 self.inner = None;
             }
@@ -262,14 +263,14 @@ impl MenuRoot {
         }
     }
 
-    pub fn show<'c, R>(
+    pub fn show<R>(
         &mut self,
+        ctx: &mut Context,
         response: &Response,
         add_contents: impl FnOnce(&mut Ui<'_>) -> R,
     ) -> (MenuResponse, Option<InnerResponse<R>>) {
         if self.id == response.id() {
-            let inner_response =
-                MenuState::show(response.ctx_mut(), &self.menu_state, self.id, add_contents);
+            let inner_response = MenuState::show(ctx, &self.menu_state, self.id, add_contents);
             let mut menu_state = self.menu_state.write();
             menu_state.rect = inner_response.response.rect();
 
@@ -284,12 +285,12 @@ impl MenuRoot {
     ///
     /// Responds to primary clicks.
     fn stationary_interaction(
+        ctx: &Context,
         response: &Response,
         root: &mut MenuRootManager,
         id: Id,
     ) -> MenuResponse {
-        // Lock the input once for the whole function call (see https://github.com/emilk/egui/pull/1380).
-        let input = response.ctx.input();
+        let input = ctx.input();
 
         if (response.clicked() && root.is_menu_open(id)) || input.key_pressed(Key::Escape) {
             // menu open and button clicked or esc pressed
@@ -325,8 +326,8 @@ impl MenuRoot {
         root: &mut Option<MenuRoot>,
         id: Id,
     ) -> MenuResponse {
-        let response = response.interact(Sense::click());
-        let pointer = &response.ctx.input().pointer;
+        let response = response.interact(ctx, Sense::click());
+        let pointer = &ctx.input().pointer;
         if pointer.any_pressed() {
             if let Some(pos) = pointer.interact_pos() {
                 let mut destroy = false;
@@ -359,14 +360,24 @@ impl MenuRoot {
     }
 
     /// Respond to secondary (right) clicks.
-    pub fn context_click_interaction(response: &Response, root: &mut MenuRootManager, id: Id) {
-        let menu_response = Self::context_interaction(response, root, id);
+    pub fn context_click_interaction(
+        ctx: &mut Context,
+        response: &Response,
+        root: &mut MenuRootManager,
+        id: Id,
+    ) {
+        let menu_response = Self::context_interaction(ctx, response, root, id);
         Self::handle_menu_response(root, menu_response);
     }
 
     // Responds to primary clicks.
-    pub fn stationary_click_interaction(response: &Response, root: &mut MenuRootManager, id: Id) {
-        let menu_response = Self::stationary_interaction(response, root, id);
+    pub fn stationary_click_interaction(
+        ctx: &mut Context,
+        response: &Response,
+        root: &mut MenuRootManager,
+        id: Id,
+    ) {
+        let menu_response = Self::stationary_interaction(ctx, response, root, id);
         Self::handle_menu_response(root, menu_response);
     }
 }
@@ -460,8 +471,8 @@ impl SubMenuButton {
             );
 
             let text_color = visuals.text_color();
-            text_galley.paint_with_fallback_color(ui.painter_mut(), text_pos, text_color);
-            icon_galley.paint_with_fallback_color(ui.painter_mut(), icon_pos, text_color);
+            text_galley.paint_with_fallback_color(ui.ctx, ui.painter_mut(), text_pos, text_color);
+            icon_galley.paint_with_fallback_color(ui.ctx, ui.painter_mut(), icon_pos, text_color);
         }
         response
     }
@@ -568,7 +579,7 @@ impl MenuState {
             // ensure to repaint once even when pointer is not moving
             ui.ctx.request_repaint();
         } else if !open && button.hovered() {
-            let pos = button.rect.right_top();
+            let pos = button.rect().right_top();
             self.open_submenu(sub_id, pos);
         } else if open && !button.hovered() && !self.hovering_current_submenu(pointer) {
             self.close_submenu();

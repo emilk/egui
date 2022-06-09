@@ -488,7 +488,7 @@ impl TopBottomPanel {
             let latest_pos = ui.input().pointer.latest_pos();
             if let Some(pointer) = latest_pos {
                 let we_are_on_top = ui
-                    .ctx()
+                    .ctx
                     .layer_id_at(pointer)
                     .map_or(true, |top_layer_id| top_layer_id == ui.layer_id());
 
@@ -523,7 +523,7 @@ impl TopBottomPanel {
         }
 
         let mut panel_ui = ui.child_ui_with_id_source(panel_rect, Layout::top_down(Align::Min), id);
-        panel_ui.expand_to_include_rect(&panel_rect);
+        panel_ui.expand_to_include_rect(panel_rect);
         let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_width(ui.max_rect().width()); // Make the frame fill full width
@@ -531,7 +531,7 @@ impl TopBottomPanel {
             add_contents(ui)
         });
 
-        let rect = *inner_response.response.rect();
+        let rect = inner_response.response.rect();
 
         {
             let mut cursor = ui.cursor();
@@ -676,9 +676,9 @@ impl CentralPanel {
     }
 
     /// Show the panel at the top level.
-    fn show_dyn<'a, 'c, R>(
+    fn show_dyn<'a, R>(
         self,
-        ctx: &'c mut Context,
+        ctx: &mut Context,
         add_contents: Box<dyn FnOnce(&mut Ui<'_>) -> R + 'a>,
     ) -> InnerResponse<R> {
         let available_rect = ctx.available_rect();
@@ -686,12 +686,12 @@ impl CentralPanel {
         let id = Id::new("central_panel");
 
         let clip_rect = ctx.input().screen_rect();
-        let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, available_rect, clip_rect);
+        let mut panel_ui = Ui::new(ctx, layer_id, id, available_rect, clip_rect);
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
 
         // Only inform ctx about what we actually used, so we can shrink the native window to fit.
-        ctx.frame_state()
+        ctx.frame_state_mut()
             .allocate_central_panel(inner_response.response.rect());
 
         inner_response

@@ -189,7 +189,7 @@ impl Widget for Button {
                 );
             }
 
-            text.paint_with_visuals(ui.painter_mut(), text_pos, visuals);
+            text.paint_with_visuals(ui.ctx, ui.painter_mut(), text_pos, visuals);
         }
 
         if let Some(image) = image {
@@ -305,7 +305,7 @@ impl<'a> Widget for Checkbox<'a> {
                     rect.min.x + icon_width + icon_spacing,
                     rect.center().y - 0.5 * text.size().y,
                 );
-                text.paint_with_visuals(ui.painter_mut(), text_pos, visuals);
+                text.paint_with_visuals(ui.ctx, ui.painter_mut(), text_pos, visuals);
             }
         }
 
@@ -419,7 +419,7 @@ impl Widget for RadioButton {
                     rect.min.x + icon_width + icon_spacing,
                     rect.center().y - 0.5 * text.size().y,
                 );
-                text.paint_with_visuals(ui.painter_mut(), text_pos, visuals);
+                text.paint_with_visuals(ui.ctx, ui.painter_mut(), text_pos, visuals);
             }
         }
 

@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    style::WidgetVisuals, text::LayoutJob, Align, Color32, FontFamily, FontSelection, Galley, Pos2,
-    Style, TextStyle, Ui, Visuals,
+    style::WidgetVisuals, text::LayoutJob, Align, Color32, Context, FontFamily, FontSelection,
+    Galley, Painter, Pos2, Style, TextStyle, Ui, Visuals,
 };
 
 /// Text and optional style choices for it.
@@ -676,35 +676,38 @@ impl WidgetTextGalley {
     /// else fall back to the one specified by the [`WidgetVisuals`].
     pub fn paint_with_visuals(
         self,
-        painter: &crate::Painter,
+        ctx: &mut Context,
+        painter: &Painter,
         text_pos: Pos2,
         visuals: &WidgetVisuals,
     ) {
-        self.paint_with_fallback_color(painter, text_pos, visuals.text_color());
+        self.paint_with_fallback_color(ctx, painter, text_pos, visuals.text_color());
     }
 
     /// Use the colors in the original [`WidgetText`] if any,
     /// else fall back to the given color.
     pub fn paint_with_fallback_color(
         self,
-        painter: &crate::Painter,
+        ctx: &mut Context,
+        painter: &Painter,
         text_pos: Pos2,
         text_color: Color32,
     ) {
         if self.galley_has_color {
-            painter.galley(ui.ctx, text_pos, self.galley);
+            painter.galley(ctx, text_pos, self.galley);
         } else {
-            painter.galley_with_color(ui.ctx, text_pos, self.galley, text_color);
+            painter.galley_with_color(ctx, text_pos, self.galley, text_color);
         }
     }
 
     /// Paint with this specific color.
     pub fn paint_with_color_override(
         self,
-        painter: &crate::Painter,
+        ctx: &mut Context,
+        painter: &Painter,
         text_pos: Pos2,
         text_color: Color32,
     ) {
-        painter.galley_with_color(ui.ctx, text_pos, self.galley, text_color);
+        painter.galley_with_color(ctx, text_pos, self.galley, text_color);
     }
 }

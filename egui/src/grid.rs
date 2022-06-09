@@ -165,7 +165,13 @@ impl GridLayout {
         self.align_size_within_rect(size, frame)
     }
 
-    pub(crate) fn advance(&mut self, cursor: &mut Rect, _frame_rect: Rect, widget_rect: Rect) {
+    pub(crate) fn advance(
+        &mut self,
+        ctx: &mut Context,
+        cursor: &mut Rect,
+        _frame_rect: Rect,
+        widget_rect: Rect,
+    ) {
         let debug_expand_width = self.style.debug.show_expand_width;
         let debug_expand_height = self.style.debug.show_expand_height;
         if debug_expand_width || debug_expand_height {
@@ -174,11 +180,11 @@ impl GridLayout {
             let too_high = rect.height() > self.prev_row_height(self.row);
 
             if (debug_expand_width && too_wide) || (debug_expand_height && too_high) {
-                let painter = self.ctx.debug_painter();
-                painter.rect_stroke(ui.ctx, rect, 0.0, (1.0, Color32::LIGHT_BLUE));
+                let painter = ctx.debug_painter();
+                painter.rect_stroke(ctx, rect, 0.0, (1.0, Color32::LIGHT_BLUE));
 
                 let stroke = Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
-                let paint_line_seg = |a, b| painter.line_segment(ui.ctx, [a, b], stroke);
+                let paint_line_seg = |a, b| painter.line_segment(ctx, [a, b], stroke);
 
                 if debug_expand_width && too_wide {
                     paint_line_seg(rect.left_top(), rect.left_bottom());
@@ -197,7 +203,7 @@ impl GridLayout {
         self.col += 1;
     }
 
-    pub(crate) fn end_row(&mut self, cursor: &mut Rect, painter: &Painter) {
+    pub(crate) fn end_row(&mut self, ctx: &mut Context, cursor: &mut Rect, painter: &Painter) {
         cursor.min.x = self.initial_available.min.x;
         cursor.min.y += self.spacing.y;
         cursor.min.y += self
@@ -216,15 +222,15 @@ impl GridLayout {
                 let rect = rect.expand2(0.5 * self.spacing.y * Vec2::Y);
                 let rect = rect.expand2(2.0 * Vec2::X); // HACK: just looks better with some spacing on the sides
 
-                painter.rect_filled(ui.ctx, rect, 2.0, self.style.visuals.faint_bg_color);
+                painter.rect_filled(ctx, rect, 2.0, self.style.visuals.faint_bg_color);
             }
         }
     }
 
-    pub(crate) fn save(&self) {
+    pub(crate) fn save(&self, ctx: &mut Context) {
         if self.curr_state != self.prev_state {
-            self.curr_state.clone().store(&self.ctx, self.id);
-            self.ctx.request_repaint();
+            self.curr_state.clone().store(ctx, self.id);
+            ctx.request_repaint();
         }
     }
 }
@@ -335,17 +341,17 @@ impl Grid {
 }
 
 impl Grid {
-    pub fn show<'c, R>(
+    pub fn show<R>(
         self,
-        ui: &mut Ui<'c>,
+        ui: &mut Ui<'_>,
         add_contents: impl FnOnce(&mut Ui<'_>) -> R,
     ) -> InnerResponse<R> {
         self.show_dyn(ui, Box::new(add_contents))
     }
 
-    fn show_dyn<'a, 'c, R>(
+    fn show_dyn<'a, R>(
         self,
-        ui: &mut Ui<'c>,
+        ui: &mut Ui<'_>,
         add_contents: Box<dyn FnOnce(&mut Ui<'_>) -> R + 'a>,
     ) -> InnerResponse<R> {
         let Self {

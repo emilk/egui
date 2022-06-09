@@ -250,21 +250,17 @@ impl Area {
         }
 
         let layer_id = LayerId::new(self.order, self.id);
-        let area_rect = ctx
-            .memory()
-            .areas
-            .get(self.id)
-            .map(|area| area.rect(ui.ctx));
+        let area_rect = ctx.memory().areas.get(self.id).map(|area| area.rect());
         if let Some(area_rect) = area_rect {
             let clip_rect = ctx.available_rect();
-            let painter = Painter::new(ctx, layer_id, clip_rect);
+            let painter = Painter::new(layer_id, clip_rect);
 
             // shrinkage: looks kinda a bad on its own
             // let area_rect =
             //     Rect::from_center_size(area_rect.center(), visibility_factor * area_rect.size());
 
             let frame = frame.multiply_with_opacity(visibility_factor);
-            painter.add(frame.paint(area_rect));
+            painter.add(ctx, frame.paint(area_rect));
         }
     }
 }
@@ -290,8 +286,7 @@ impl Prepared {
         } else {
             let central_area = ctx.available_rect();
 
-            let is_within_central_area =
-                central_area.contains_rect(self.state.rect(ui.ctx).shrink(1.0));
+            let is_within_central_area = central_area.contains_rect(self.state.rect().shrink(1.0));
             if is_within_central_area {
                 central_area // let's try to not cover side panels
             } else {
@@ -342,7 +337,7 @@ impl Prepared {
             ctx.style().spacing.item_spacing,
             layer_id,
             interact_id,
-            state.rect(ui.ctx),
+            state.rect(),
             sense,
             enabled,
         );
@@ -354,7 +349,7 @@ impl Prepared {
         // Important check - don't try to move e.g. a combobox popup!
         if movable {
             state.pos = ctx
-                .constrain_window_rect_to_area(state.rect(ui.ctx), drag_bounds)
+                .constrain_window_rect_to_area(state.rect(), drag_bounds)
                 .min;
         }
 
@@ -403,7 +398,7 @@ fn automatic_area_position(ctx: &Context) -> Pos2 {
     // Separate existing rectangles into columns:
     let mut column_bbs = vec![existing[0]];
 
-    for rect in &existing {
+    for rect in existing {
         let current_column_bb = column_bbs.last_mut().unwrap();
         if rect.left() < current_column_bb.right() {
             // same column

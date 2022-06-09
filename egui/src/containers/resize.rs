@@ -310,11 +310,13 @@ impl Resize {
 
         if ui.ctx.style().debug.show_resize {
             ui.ctx.debug_painter().debug_rect(
+                ui.ctx,
                 Rect::from_min_size(content_ui.min_rect().left_top(), state.desired_size),
                 Color32::GREEN,
                 "desired_size",
             );
             ui.ctx.debug_painter().debug_rect(
+                ui.ctx,
                 Rect::from_min_size(content_ui.min_rect().left_top(), state.last_content_size),
                 Color32::LIGHT_BLUE,
                 "last_content_size",
@@ -332,7 +334,7 @@ pub fn paint_resize_corner(ui: &mut Ui<'_>, response: &Response) {
 
 pub fn paint_resize_corner_with_style(ui: &mut Ui<'_>, rect: Rect, stroke: Stroke, corner: Align2) {
     let painter = ui.painter_mut();
-    let cp = painter.round_pos_to_pixels(corner.pos_in_rect(rect));
+    let cp = ui.ctx.round_pos_to_pixels(corner.pos_in_rect(&rect));
     let mut w = 2.0;
 
     while w <= rect.width() && w <= rect.height() {

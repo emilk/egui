@@ -79,6 +79,7 @@ pub struct Context {
     /// While positive, keep requesting repaints. Decrement at the end of each frame.
     repaint_requests: u32,
     request_repaint_callback: Option<Box<dyn Fn() + Send + Sync>>,
+    requested_repaint_last_frame: bool,
 }
 
 impl Default for Context {
@@ -97,6 +98,7 @@ impl Default for Context {
             // that take two frames before they "settle":
             repaint_requests: 1,
             request_repaint_callback: None,
+            requested_repaint_last_frame: false,
         }
     }
 }
@@ -179,7 +181,8 @@ impl Context {
     pub fn begin_frame(&mut self, new_raw_input: RawInput) {
         self.memory.begin_frame(&self.input, &new_raw_input);
 
-        self.input = std::mem::take(&mut self.input).begin_frame(new_raw_input);
+        self.input = std::mem::take(&mut self.input)
+            .begin_frame(new_raw_input, self.requested_repaint_last_frame);
 
         if let Some(new_pixels_per_point) = self.memory.new_pixels_per_point.take() {
             self.input.pixels_per_point = new_pixels_per_point;
@@ -217,8 +220,8 @@ impl Context {
         if let Some(prev_rect) = prev_rect {
             // it is ok to reuse the same ID for e.g. a frame around a widget,
             // or to check for interaction with the same widget twice:
-            if prev_rect.expand(0.1).contains_rect(&new_rect)
-                || new_rect.expand(0.1).contains_rect(&prev_rect)
+            if prev_rect.expand(0.1).contains_rect(new_rect)
+                || new_rect.expand(0.1).contains_rect(prev_rect)
             {
                 return;
             }
@@ -281,7 +284,7 @@ impl Context {
                 .at_least(Vec2::splat(0.0))
                 .at_most(Vec2::splat(5.0)),
         ); // make it easier to click
-        let hovered = self.rect_contains_pointer(layer_id, clip_rect.intersect(&interact_rect));
+        let hovered = self.rect_contains_pointer(layer_id, clip_rect.intersect(interact_rect));
         self.interact_with_hovered(layer_id, id, rect, sense, enabled, hovered)
     }
 
@@ -432,7 +435,7 @@ impl Context {
 
         if response.dragged() && !self.memory.has_focus(response.id()) {
             // e.g.: remove focus from a widget when you drag something else
-            self.memory.stop_text_self.input();
+            self.memory.stop_text_input();
         }
 
         response
@@ -506,6 +509,11 @@ impl Context {
     }
 
     #[inline]
+    pub(crate) fn frame_state(&self) -> &FrameState {
+        &self.frame_state
+    }
+
+    #[inline]
     pub(crate) fn frame_state_mut(&mut self) -> &mut FrameState {
         &mut self.frame_state
     }
@@ -536,22 +544,28 @@ impl Context {
         &mut self.fonts
     }
 
-    /// Returns a mutable reference to the `egui` options.
-    #[inline]
-    pub fn options_mut(&mut self) -> &mut Options {
-        &mut self.memory.options
-    }
-
     /// Returns a reference to the egui options.
     #[inline]
     pub fn options(&self) -> &Options {
         &self.memory.options
     }
 
+    /// Returns a mutable reference to the `egui` options.
+    #[inline]
+    pub fn options_mut(&mut self) -> &mut Options {
+        &mut self.memory.options
+    }
+
     /// Returns a mutable reference to the options used by the tessellator.
     #[inline]
     pub fn tessellation_options_mut(&mut self) -> &mut TessellationOptions {
         &mut self.memory.options.tessellation_options
+    }
+
+    /// Returns a reference to the options used by the tessellator.
+    #[inline]
+    pub fn tessellation_options(&self) -> &TessellationOptions {
+        &self.memory.options.tessellation_options
     }
 }
 
@@ -708,7 +722,7 @@ impl Context {
             image.height(),
             max_texture_side
         );
-        let tex_mngr = self.tex_manager();
+        let tex_mngr = self.tex_manager().clone();
         let tex_id = tex_mngr.write().alloc(name, image, filter);
         TextureHandle::new(tex_mngr, tex_id)
     }
@@ -718,8 +732,8 @@ impl Context {
     /// In general it is easier to use [`Self::load_texture`] and [`TextureHandle`].
     ///
     /// You can show stats about the allocated textures using [`Self::texture_ui`].
-    pub fn tex_manager(&self) -> Arc<RwLock<epaint::textures::TextureManager>> {
-        self.read().tex_manager.0.clone()
+    pub fn tex_manager(&self) -> &Arc<RwLock<epaint::textures::TextureManager>> {
+        &self.tex_manager.0
     }
 
     // ---------------------------------------------------------------------
@@ -769,32 +783,29 @@ impl Context {
 
         let textures_delta;
         {
-            let ctx_impl = &mut *self.write();
-            ctx_impl
-                .memory
-                .end_frame(&ctx_impl.input, &ctx_impl.frame_state.used_ids);
+            self.memory
+                .end_frame(&self.input, &self.frame_state.used_ids);
 
-            let font_image_delta = ctx_impl.fonts.as_ref().unwrap().font_image_delta();
+            let font_image_delta = self.fonts.as_ref().unwrap().font_image_delta();
             if let Some(font_image_delta) = font_image_delta {
-                ctx_impl
-                    .tex_manager
+                self.tex_manager
                     .0
                     .write()
                     .set(TextureId::default(), font_image_delta);
             }
 
-            textures_delta = ctx_impl.tex_manager.0.write().take_delta();
+            textures_delta = self.tex_manager.0.write().take_delta();
         };
 
-        let platform_output: PlatformOutput = std::mem::take(&mut self.output());
+        let platform_output: PlatformOutput = std::mem::take(&mut self.output);
 
-        let needs_repaint = if self.read().repaint_requests > 0 {
-            self.write().repaint_requests -= 1;
+        let needs_repaint = if self.repaint_requests > 0 {
+            self.repaint_requests -= 1;
             true
         } else {
             false
         };
-        self.write().requested_repaint_last_frame = needs_repaint;
+        self.requested_repaint_last_frame = needs_repaint;
 
         let shapes = self.drain_paint_lists();
 
@@ -806,12 +817,8 @@ impl Context {
         }
     }
 
-    fn drain_paint_lists(&self) -> Vec<ClippedShape> {
-        let ctx_impl = &mut *self.write();
-        ctx_impl
-            .graphics
-            .drain(ctx_impl.memory.areas.order())
-            .collect()
+    fn drain_paint_lists(&mut self) -> Vec<ClippedShape> {
+        self.graphics.drain(self.memory.areas.order()).collect()
     }
 
     /// Tessellate the given shapes into triangle meshes.
@@ -834,7 +841,7 @@ impl Context {
             prepared_discs,
             shapes,
         );
-        self.write().paint_stats = paint_stats.with_clipped_primitives(&clipped_primitives);
+        self.paint_stats = paint_stats.with_clipped_primitives(&clipped_primitives);
         clipped_primitives
     }
 
@@ -842,9 +849,9 @@ impl Context {
 
     /// How much space is used by panels and windows.
     pub fn used_rect(&self) -> Rect {
-        let mut used = self.frame_state().used_by_panels;
+        let mut used = self.frame_state.used_by_panels;
         for window in self.memory().areas.visible_windows() {
-            used = used.union(window.rect(ui.ctx));
+            used = used.union(window.rect());
         }
         used
     }
@@ -863,7 +870,7 @@ impl Context {
         if let Some(pointer_pos) = pointer_pos {
             if let Some(layer) = self.layer_id_at(pointer_pos) {
                 if layer.order == Order::Background {
-                    !self.frame_state().unused_rect.contains(pointer_pos)
+                    !self.frame_state.unused_rect.contains(pointer_pos)
                 } else {
                     true
                 }
@@ -932,7 +939,7 @@ impl Context {
     /// Can be used to implement drag-and-drop (see relevant demo).
     pub fn translate_layer(&self, layer_id: LayerId, delta: Vec2) {
         if delta != Vec2::ZERO {
-            self.graphics().list(layer_id).translate(delta);
+            self.graphics.list(layer_id).translate(delta);
         }
     }
 
@@ -1046,8 +1053,7 @@ impl Context {
 
         ui.label(format!("Is using pointer: {}", self.is_using_pointer()))
             .on_hover_text(
-                ui,
-                ui,
+                ui.ctx,
                 "Is egui currently using the pointer actively (e.g. dragging a slider)?",
             );
         ui.label(format!("Wants pointer input: {}", self.wants_pointer_input()))
@@ -1087,8 +1093,7 @@ impl Context {
             self.fonts().num_galleys_in_cache()
         ))
         .on_hover_text(
-            ui,
-            ui,
+            ui.ctx,
             "This is approximately the number of text strings on screen",
         );
         ui.add_space(16.0);
@@ -1158,7 +1163,7 @@ impl Context {
                                 let mut size = Vec2::new(w as f32, h as f32);
                                 size *= (max_preview_size.x / size.x).min(1.0);
                                 size *= (max_preview_size.y / size.y).min(1.0);
-                                ui.image(texture_id, size).on_hover_ui(ui, |ui| {
+                                ui.image(texture_id, size).on_hover_ui(ui.ctx, |ui| {
                                     // show larger on hover
                                     let max_size = 0.5 * ui.ctx.input().screen_rect().size();
                                     let mut size = Vec2::new(w as f32, h as f32);
@@ -1211,19 +1216,15 @@ impl Context {
                     if !self.memory().areas.is_visible(layer_id) {
                         continue;
                     }
-                    let text = format!(
-                        "{} - {:?}",
-                        layer_id.short_debug_format(),
-                        area.rect(ui.ctx,)
-                    );
+                    let text = format!("{} - {:?}", layer_id.short_debug_format(), area.rect());
                     // TODO(emilk): `Sense::hover_highlight()`
                     if ui
                         .add(Label::new(RichText::new(text).monospace()).sense(Sense::click()))
-                        .hovered
+                        .hovered()
                     {
                         ui.ctx
                             .debug_painter()
-                            .debug_rect(area.rect(ui.ctx), Color32::RED, "");
+                            .debug_rect(ui.ctx, area.rect(), Color32::RED, "");
                     }
                 }
             }

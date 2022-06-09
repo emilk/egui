@@ -259,7 +259,7 @@ impl<'c> Prepared<'c> {
 
         if ui.is_rect_visible(paint_rect) {
             let shape = frame.paint(paint_rect);
-            ui.painter_mut().set(where_to_put_background, shape);
+            ui.painter_mut().set(ui.ctx, where_to_put_background, shape);
         }
 
         ui.allocate_rect(paint_rect, Sense::hover())

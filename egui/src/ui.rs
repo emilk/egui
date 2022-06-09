@@ -691,8 +691,8 @@ impl<'c> Ui<'c> {
 
         if self.style().debug.debug_on_hover && self.rect_contains_pointer(rect) {
             let painter = self.ctx.debug_painter();
-            painter.rect_stroke(ui.ctx, rect, 4.0, (1.0, Color32::LIGHT_BLUE));
-            self.placer.debug_paint_cursor(&painter, "next");
+            painter.rect_stroke(self.ctx, rect, 4.0, (1.0, Color32::LIGHT_BLUE));
+            self.placer.debug_paint_cursor(self.ctx, &painter, "next");
         }
 
         let debug_expand_width = self.style().debug.show_expand_width;
@@ -700,10 +700,10 @@ impl<'c> Ui<'c> {
 
         if (debug_expand_width && too_wide) || (debug_expand_height && too_high) {
             self.painter
-                .rect_stroke(ui.ctx, rect, 0.0, (1.0, Color32::LIGHT_BLUE));
+                .rect_stroke(self.ctx, rect, 0.0, (1.0, Color32::LIGHT_BLUE));
 
             let stroke = Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
-            let paint_line_seg = |a, b| self.painter().line_segment(ui.ctx, [a, b], stroke);
+            let paint_line_seg = |a, b| self.painter.line_segment(self.ctx, [a, b], stroke);
 
             if debug_expand_width && too_wide {
                 paint_line_seg(rect.left_top(), rect.left_bottom());
@@ -737,7 +737,7 @@ impl<'c> Ui<'c> {
         let widget_rect = self.placer.justify_and_align(frame_rect, desired_size);
 
         self.placer
-            .advance_after_rects(frame_rect, widget_rect, item_spacing);
+            .advance_after_rects(self.ctx, frame_rect, widget_rect, item_spacing);
 
         widget_rect
     }
@@ -754,12 +754,13 @@ impl<'c> Ui<'c> {
     pub(crate) fn advance_cursor_after_rect(&mut self, rect: Rect) -> Id {
         egui_assert!(!rect.any_nan());
         let item_spacing = self.spacing().item_spacing;
-        self.placer.advance_after_rects(rect, rect, item_spacing);
+        self.placer
+            .advance_after_rects(self.ctx, rect, rect, item_spacing);
 
         if self.style().debug.debug_on_hover && self.rect_contains_pointer(rect) {
             let painter = self.ctx.debug_painter();
-            painter.rect_stroke(ui.ctx, rect, 4.0, (1.0, Color32::LIGHT_BLUE));
-            self.placer.debug_paint_cursor(&painter, "next");
+            painter.rect_stroke(self.ctx, rect, 4.0, (1.0, Color32::LIGHT_BLUE));
+            self.placer.debug_paint_cursor(self.ctx, &painter, "next");
         }
 
         let id = Id::new(self.next_auto_id_source);
@@ -837,13 +838,13 @@ impl<'c> Ui<'c> {
         let final_child_rect = child_ui.min_rect();
 
         self.placer
-            .advance_after_rects(final_child_rect, final_child_rect, item_spacing);
+            .advance_after_rects(self.ctx, final_child_rect, final_child_rect, item_spacing);
 
         if self.style().debug.debug_on_hover && self.rect_contains_pointer(final_child_rect) {
             let painter = self.ctx.debug_painter();
-            painter.rect_stroke(ui.ctx, frame_rect, 4.0, (1.0, Color32::LIGHT_BLUE));
-            painter.rect_stroke(ui.ctx, final_child_rect, 4.0, (1.0, Color32::LIGHT_BLUE));
-            self.placer.debug_paint_cursor(&painter, "next");
+            painter.rect_stroke(self.ctx, frame_rect, 4.0, (1.0, Color32::LIGHT_BLUE));
+            painter.rect_stroke(self.ctx, final_child_rect, 4.0, (1.0, Color32::LIGHT_BLUE));
+            self.placer.debug_paint_cursor(self.ctx, &painter, "next");
         }
 
         let response = self.interact(final_child_rect, child_ui.id, Sense::hover());
@@ -865,6 +866,7 @@ impl<'c> Ui<'c> {
         let final_child_rect = child_ui.min_rect();
 
         self.placer.advance_after_rects(
+            self.ctx,
             final_child_rect,
             final_child_rect,
             self.spacing().item_spacing,
@@ -1963,12 +1965,13 @@ impl<'c> Ui<'c> {
         let inner = add_contents(&mut child_ui);
         let rect = child_ui.min_rect();
         let item_spacing = self.spacing().item_spacing;
-        self.placer.advance_after_rects(rect, rect, item_spacing);
+        self.placer
+            .advance_after_rects(self.ctx, rect, rect, item_spacing);
 
         if self.style().debug.debug_on_hover && self.rect_contains_pointer(rect) {
             let painter = self.ctx.debug_painter();
             painter.rect_stroke(self.ctx, rect, 4.0, (1.0, Color32::LIGHT_BLUE));
-            self.placer.debug_paint_cursor(&painter, "next");
+            self.placer.debug_paint_cursor(self.ctx, &painter, "next");
         }
 
         InnerResponse::new(inner, self.interact(rect, child_ui.id, Sense::hover()))
@@ -1990,7 +1993,7 @@ impl<'c> Ui<'c> {
     }
 
     pub(crate) fn save_grid(&mut self) {
-        self.placer.save_grid();
+        self.placer.save_grid(self.ctx);
     }
 
     pub(crate) fn is_grid(&self) -> bool {
@@ -2001,7 +2004,7 @@ impl<'c> Ui<'c> {
     /// Otherwise does nothing.
     pub fn end_row(&mut self) {
         self.placer
-            .end_row(self.spacing().item_spacing, &self.painter().clone());
+            .end_row(self.ctx, self.spacing().item_spacing, &self.painter.clone());
     }
 
     /// Set row height in horizontal wrapping layout.
@@ -2125,7 +2128,8 @@ impl<'c> Ui<'c> {
 impl<'c> Ui<'c> {
     /// Shows where the next widget is going to be placed
     pub fn debug_paint_cursor(&self) {
-        self.placer.debug_paint_cursor(&self.painter, "next");
+        self.placer
+            .debug_paint_cursor(self.ctx, &self.painter, "next");
     }
 
     /// Shows the given text where the next widget is to be placed
@@ -2134,7 +2138,7 @@ impl<'c> Ui<'c> {
         let rect = self.max_rect();
         if self.style().debug.debug_on_hover && self.rect_contains_pointer(rect) {
             self.placer
-                .debug_paint_cursor(&self.ctx.debug_painter(), text);
+                .debug_paint_cursor(self.ctx, &self.ctx.debug_painter(), text);
         }
     }
 }

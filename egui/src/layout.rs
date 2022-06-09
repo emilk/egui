@@ -1,4 +1,4 @@
-use crate::{egui_assert, emath::*, Align};
+use crate::{egui_assert, emath::*, Align, Context, Painter};
 use std::f32::INFINITY;
 
 // ----------------------------------------------------------------------------
@@ -764,7 +764,8 @@ impl Layout {
     /// Shows where the next widget is going to be placed
     pub(crate) fn paint_text_at_cursor(
         &self,
-        painter: &crate::Painter,
+        ctx: &mut Context,
+        painter: &Painter,
         region: &Region,
         stroke: epaint::Stroke,
         text: impl ToString,
@@ -776,31 +777,27 @@ impl Layout {
 
         let align = match self.main_dir {
             Direction::LeftToRight => {
-                painter.line_segment(ui.ctx, [cursor.left_top(), cursor.left_bottom()], stroke);
-                painter.arrow(next_pos, vec2(l, 0.0), stroke);
+                painter.line_segment(ctx, [cursor.left_top(), cursor.left_bottom()], stroke);
+                painter.arrow(ctx, next_pos, vec2(l, 0.0), stroke);
                 Align2([Align::LEFT, self.vertical_align()])
             }
             Direction::RightToLeft => {
-                painter.line_segment(ui.ctx, [cursor.right_top(), cursor.right_bottom()], stroke);
-                painter.arrow(next_pos, vec2(-l, 0.0), stroke);
+                painter.line_segment(ctx, [cursor.right_top(), cursor.right_bottom()], stroke);
+                painter.arrow(ctx, next_pos, vec2(-l, 0.0), stroke);
                 Align2([Align::RIGHT, self.vertical_align()])
             }
             Direction::TopDown => {
-                painter.line_segment(ui.ctx, [cursor.left_top(), cursor.right_top()], stroke);
-                painter.arrow(next_pos, vec2(0.0, l), stroke);
+                painter.line_segment(ctx, [cursor.left_top(), cursor.right_top()], stroke);
+                painter.arrow(ctx, next_pos, vec2(0.0, l), stroke);
                 Align2([self.horizontal_align(), Align::TOP])
             }
             Direction::BottomUp => {
-                painter.line_segment(
-                    ui.ctx,
-                    [cursor.left_bottom(), cursor.right_bottom()],
-                    stroke,
-                );
-                painter.arrow(next_pos, vec2(0.0, -l), stroke);
+                painter.line_segment(ctx, [cursor.left_bottom(), cursor.right_bottom()], stroke);
+                painter.arrow(ctx, next_pos, vec2(0.0, -l), stroke);
                 Align2([self.horizontal_align(), Align::BOTTOM])
             }
         };
 
-        painter.debug_text(next_pos, align, stroke.color, text);
+        painter.debug_text(ctx, next_pos, align, stroke.color, text);
     }
 }

@@ -881,7 +881,7 @@ impl Style {
 
         ui.checkbox(explanation_tooltips, "Explanation tooltips")
             .on_hover_text(
-                ui,
+                ui.ctx,
                 "Show explanatory text when hovering DragValue:s and other egui widgets",
             );
 
@@ -1154,7 +1154,7 @@ impl Visuals {
             ui_color(ui, &mut widgets.inactive.bg_fill, "Buttons");
             ui_color(ui, &mut widgets.noninteractive.bg_fill, "Windows");
             ui_color(ui, faint_bg_color, "Faint accent").on_hover_text(
-                ui,
+                ui.ctx,
                 "Used for faint accentuation of interactive things, like striped grids.",
             );
             ui_color(ui, extreme_bg_color, "Extreme")
@@ -1181,7 +1181,7 @@ impl Visuals {
             "Text color",
         );
         ui_color(ui, code_bg_color, RichText::new("Code background").code()).on_hover_ui(
-            ui,
+            ui.ctx,
             |ui| {
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 0.0;

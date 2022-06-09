@@ -144,14 +144,14 @@ impl CollapsingState {
     ) -> HeaderResponse<'ui, HeaderRet> {
         let header_response = ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0; // the toggler button uses the full indent width
-            let collapser = self.show_default_button_indented(ui).into_raw();
+            let collapser = self.show_default_button_indented(ui);
             ui.spacing_mut().item_spacing.x = ui.spacing_mut().icon_spacing; // Restore spacing
             (collapser, add_header(ui))
         });
 
         let toggle_button_response = header_response.inner.0;
         let header_response = InnerResponse {
-            response: header_response.response.into_raw(),
+            response: header_response.response,
             inner: header_response.inner.1,
         };
 
@@ -580,7 +580,7 @@ impl CollapsingHeader {
                 }
             }
 
-            text.paint_with_visuals(ui.painter_mut(), text_pos, &visuals);
+            text.paint_with_visuals(ui.ctx, ui.painter_mut(), text_pos, &visuals);
         }
 
         Prepared {

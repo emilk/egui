@@ -250,6 +250,7 @@ fn combo_box_dyn<'a, R>(
                 );
             } else {
                 paint_default_icon(
+                    ui.ctx,
                     ui.painter_mut(),
                     icon_rect.expand(visuals.expansion),
                     visuals,
@@ -257,7 +258,7 @@ fn combo_box_dyn<'a, R>(
             }
 
             let text_rect = Align2::LEFT_CENTER.align_size_within_rect(galley.size(), rect);
-            galley.paint_with_visuals(ui.painter_mut(), text_rect.min, visuals);
+            galley.paint_with_visuals(ui.ctx, ui.painter_mut(), text_rect.min, visuals);
         }
     });
 
@@ -309,6 +310,7 @@ fn button_frame(
         };
 
         ui.painter_mut().set(
+            ui.ctx,
             where_to_put_background,
             epaint::RectShape {
                 rect: outer_rect.expand(visuals.expansion),
@@ -324,13 +326,13 @@ fn button_frame(
     response
 }
 
-fn paint_default_icon(painter: &Painter, rect: Rect, visuals: &WidgetVisuals) {
+fn paint_default_icon(ctx: &mut Context, painter: &Painter, rect: Rect, visuals: &WidgetVisuals) {
     let rect = Rect::from_center_size(
         rect.center(),
         vec2(rect.width() * 0.7, rect.height() * 0.45),
     );
     painter.add(
-        ui.ctx,
+        ctx,
         Shape::closed_line(
             vec![rect.left_top(), rect.right_top(), rect.center_bottom()],
             visuals.fg_stroke,

@@ -22,9 +22,9 @@ impl Placer {
         self.grid = Some(grid);
     }
 
-    pub(crate) fn save_grid(&mut self) {
+    pub(crate) fn save_grid(&mut self, ctx: &mut Context) {
         if let Some(grid) = &mut self.grid {
-            grid.save();
+            grid.save(ctx);
         }
     }
 
@@ -153,6 +153,7 @@ impl Placer {
     /// * `widget_rect`: the actual rect used by the widget
     pub(crate) fn advance_after_rects(
         &mut self,
+        ctx: &mut Context,
         frame_rect: Rect,
         widget_rect: Rect,
         item_spacing: Vec2,
@@ -162,7 +163,7 @@ impl Placer {
         self.region.sanity_check();
 
         if let Some(grid) = &mut self.grid {
-            grid.advance(&mut self.region.cursor, frame_rect, widget_rect);
+            grid.advance(ctx, &mut self.region.cursor, frame_rect, widget_rect);
         } else {
             self.layout.advance_after_rects(
                 &mut self.region.cursor,
@@ -179,9 +180,9 @@ impl Placer {
 
     /// Move to the next row in a grid layout or wrapping layout.
     /// Otherwise does nothing.
-    pub(crate) fn end_row(&mut self, item_spacing: Vec2, painter: &Painter) {
+    pub(crate) fn end_row(&mut self, ctx: &mut Context, item_spacing: Vec2, painter: &Painter) {
         if let Some(grid) = &mut self.grid {
-            grid.end_row(&mut self.region.cursor, painter);
+            grid.end_row(ctx, &mut self.region.cursor, painter);
         } else {
             self.layout.end_row(&mut self.region, item_spacing);
         }
@@ -277,7 +278,7 @@ impl Placer {
             painter.debug_text(ctx, align.pos_in_rect(&rect), align, stroke.color, text);
         } else {
             self.layout
-                .paint_text_at_cursor(painter, &self.region, stroke, text);
+                .paint_text_at_cursor(ctx, painter, &self.region, stroke, text);
         }
     }
 }

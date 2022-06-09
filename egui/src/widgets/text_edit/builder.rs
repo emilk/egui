@@ -574,7 +574,12 @@ impl<'t> TextEdit<'t> {
                 } else {
                     hint_text.into_galley(ui, Some(false), f32::INFINITY, font_id)
                 };
-                galley.paint_with_fallback_color(&painter, response.rect().min, hint_text_color);
+                galley.paint_with_fallback_color(
+                    ui.ctx,
+                    &painter,
+                    response.rect().min,
+                    hint_text_color,
+                );
             }
 
             if ui.memory().has_focus(id) {
