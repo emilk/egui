@@ -1,4 +1,4 @@
-use crate::{epi, WindowInfo};
+use crate::{epi, Theme, WindowInfo};
 use egui_winit::{native_pixels_per_point, WindowSettings};
 use winit::event_loop::EventLoopWindowTarget;
 
@@ -47,12 +47,7 @@ pub fn window_builder(
         max_window_size,
         resizable,
         transparent,
-        vsync: _,                 // used in `fn create_display`
-        multisampling: _,         // used in `fn create_display`
-        depth_buffer: _,          // used in `fn create_display`
-        stencil_buffer: _,        // used in `fn create_display`
-        hardware_acceleration: _, // used in `fn create_display`
-        renderer: _,              // used in `fn run_native`
+        ..
     } = native_options;
 
     let window_icon = icon_data.clone().and_then(load_icon);
@@ -187,6 +182,7 @@ impl EpiIntegration {
         event_loop: &EventLoopWindowTarget<E>,
         max_texture_side: usize,
         window: &winit::window::Window,
+        system_theme: Option<Theme>,
         storage: Option<Box<dyn epi::Storage>>,
         #[cfg(feature = "glow")] gl: Option<std::sync::Arc<glow::Context>>,
         #[cfg(feature = "wgpu")] render_state: Option<egui_wgpu::RenderState>,
@@ -195,12 +191,10 @@ impl EpiIntegration {
 
         *egui_ctx.memory() = load_egui_memory(storage.as_deref()).unwrap_or_default();
 
-        let prefer_dark_mode = prefer_dark_mode();
-
         let frame = epi::Frame {
             info: epi::IntegrationInfo {
                 web_info: None,
-                prefer_dark_mode,
+                system_theme,
                 cpu_usage: None,
                 native_pixels_per_point: Some(native_pixels_per_point(window)),
                 window_info: read_window_info(window, egui_ctx.pixels_per_point()),
@@ -212,12 +206,6 @@ impl EpiIntegration {
             #[cfg(feature = "wgpu")]
             render_state,
         };
-
-        if prefer_dark_mode == Some(true) {
-            egui_ctx.set_visuals(egui::Visuals::dark());
-        } else {
-            egui_ctx.set_visuals(egui::Visuals::light());
-        }
 
         let mut egui_winit = egui_winit::State::new(event_loop);
         egui_winit.set_max_texture_side(max_texture_side);
@@ -374,18 +362,5 @@ pub fn load_egui_memory(_storage: Option<&dyn epi::Storage>) -> Option<egui::Mem
         epi::get_value(_storage?, STORAGE_EGUI_MEMORY_KEY)
     }
     #[cfg(not(feature = "persistence"))]
-    None
-}
-
-#[cfg(feature = "dark-light")]
-fn prefer_dark_mode() -> Option<bool> {
-    match dark_light::detect() {
-        dark_light::Mode::Dark => Some(true),
-        dark_light::Mode::Light => Some(false),
-    }
-}
-
-#[cfg(not(feature = "dark-light"))]
-fn prefer_dark_mode() -> Option<bool> {
     None
 }

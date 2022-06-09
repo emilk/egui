@@ -20,9 +20,11 @@ all-features = true
 
 
 [features]
-default = ["default_fonts", "glow"]
+default = ["dark-light", "default_fonts", "glow"]
 
 ## Detect dark mode system preference using [`dark-light`](https://docs.rs/dark-light).
+##
+## See also [`NativeOptions::follow_system_theme`] and [`NativeOptions::default_theme`].
 dark-light = ["dep:dark-light"]
 
 ## If set, egui will use `include_bytes!` to bundle some fonts.

@@ -140,16 +140,24 @@ pub struct AppRunner {
 }
 
 impl AppRunner {
-    pub fn new(canvas_id: &str, app_creator: epi::AppCreator) -> Result<Self, JsValue> {
+    pub fn new(
+        canvas_id: &str,
+        web_options: crate::WebOptions,
+        app_creator: epi::AppCreator,
+    ) -> Result<Self, JsValue> {
         let painter = WrappedGlowPainter::new(canvas_id).map_err(JsValue::from)?; // fail early
 
-        let prefer_dark_mode = super::prefer_dark_mode();
+        let system_theme = if web_options.follow_system_theme {
+            super::system_theme()
+        } else {
+            None
+        };
 
         let info = epi::IntegrationInfo {
             web_info: Some(epi::WebInfo {
                 location: web_location(),
             }),
-            prefer_dark_mode,
+            system_theme,
             cpu_usage: None,
             native_pixels_per_point: Some(native_pixels_per_point()),
             window_info: None,
@@ -158,11 +166,9 @@ impl AppRunner {
 
         let egui_ctx = egui::Context::default();
         load_memory(&egui_ctx);
-        if prefer_dark_mode == Some(true) {
-            egui_ctx.set_visuals(egui::Visuals::dark());
-        } else {
-            egui_ctx.set_visuals(egui::Visuals::light());
-        }
+
+        let theme = system_theme.unwrap_or(web_options.default_theme);
+        egui_ctx.set_visuals(theme.egui_visuals());
 
         let app = app_creator(&epi::CreationContext {
             egui_ctx: egui_ctx.clone(),
@@ -393,8 +399,12 @@ impl AppRunnerContainer {
 
 /// Install event listeners to register different input events
 /// and start running the given app.
-pub fn start(canvas_id: &str, app_creator: epi::AppCreator) -> Result<AppRunnerRef, JsValue> {
-    let mut runner = AppRunner::new(canvas_id, app_creator)?;
+pub fn start(
+    canvas_id: &str,
+    web_options: crate::WebOptions,
+    app_creator: epi::AppCreator,
+) -> Result<AppRunnerRef, JsValue> {
+    let mut runner = AppRunner::new(canvas_id, web_options, app_creator)?;
     runner.warm_up()?;
     start_runner(runner)
 }
