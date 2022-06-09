@@ -293,10 +293,10 @@ impl Response {
     ///
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
     #[doc(alias = "tooltip")]
-    pub fn on_hover_ui(self, ui: &mut Ui<'_>, add_contents: impl FnOnce(&mut Ui<'_>)) -> Self {
-        if self.should_show_hover_ui(ui) {
+    pub fn on_hover_ui(self, ctx: &mut Context, add_contents: impl FnOnce(&mut Ui<'_>)) -> Self {
+        if self.should_show_hover_ui(ctx) {
             crate::containers::show_tooltip_for(
-                ui.ctx_mut(),
+                ctx,
                 self.id.with("__tooltip"),
                 self.rect,
                 add_contents,
@@ -308,12 +308,12 @@ impl Response {
     /// Show this UI when hovering if the widget is disabled.
     pub fn on_disabled_hover_ui(
         self,
-        ui: &mut Ui<'_>,
+        ctx: &mut Context,
         add_contents: impl FnOnce(&mut Ui<'_>),
     ) -> Self {
-        if !self.enabled && ui.ctx_mut().rect_contains_pointer(self.layer_id, self.rect) {
+        if !self.enabled && ctx.rect_contains_pointer(self.layer_id, self.rect) {
             crate::containers::show_tooltip_for(
-                ui.ctx_mut(),
+                ctx,
                 self.id.with("__tooltip"),
                 self.rect,
                 add_contents,
@@ -325,12 +325,12 @@ impl Response {
     /// Like `on_hover_ui`, but show the ui next to cursor.
     pub fn on_hover_ui_at_pointer(
         self,
-        ui: &mut Ui<'_>,
+        ctx: &mut Context,
         add_contents: impl FnOnce(&mut Ui<'_>),
     ) -> Self {
-        if self.should_show_hover_ui(ui) {
+        if self.should_show_hover_ui(ctx) {
             crate::containers::show_tooltip_at_pointer(
-                ui.ctx_mut(),
+                ctx,
                 self.id.with("__tooltip"),
                 add_contents,
             );
@@ -338,9 +338,7 @@ impl Response {
         self
     }
 
-    fn should_show_hover_ui(&self, ui: &mut Ui<'_>) -> bool {
-        let ctx = ui.ctx_mut();
-
+    fn should_show_hover_ui(&self, ctx: &mut Context) -> bool {
         if ctx.memory().everything_is_visible() {
             return true;
         }
@@ -367,8 +365,8 @@ impl Response {
 
     /// Like `on_hover_text`, but show the text next to cursor.
     #[doc(alias = "tooltip")]
-    pub fn on_hover_text_at_pointer(self, ui: &mut Ui<'_>, text: impl Into<WidgetText>) -> Self {
-        self.on_hover_ui_at_pointer(ui, |ui| {
+    pub fn on_hover_text_at_pointer(self, ctx: &mut Context, text: impl Into<WidgetText>) -> Self {
+        self.on_hover_ui_at_pointer(ctx, |ui| {
             ui.add(crate::widgets::Label::new(text));
         })
     }
@@ -380,23 +378,23 @@ impl Response {
     ///
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
     #[doc(alias = "tooltip")]
-    pub fn on_hover_text(self, ui: &mut Ui<'_>, text: impl Into<WidgetText>) -> Self {
-        self.on_hover_ui(ui, |ui| {
+    pub fn on_hover_text(self, ctx: &mut Context, text: impl Into<WidgetText>) -> Self {
+        self.on_hover_ui(ctx, |ui| {
             ui.add(crate::widgets::Label::new(text));
         })
     }
 
     /// Show this text when hovering if the widget is disabled.
-    pub fn on_disabled_hover_text(self, ui: &mut Ui<'_>, text: impl Into<WidgetText>) -> Self {
-        self.on_disabled_hover_ui(ui, |ui| {
+    pub fn on_disabled_hover_text(self, ctx: &mut Context, text: impl Into<WidgetText>) -> Self {
+        self.on_disabled_hover_ui(ctx, |ui| {
             ui.add(crate::widgets::Label::new(text));
         })
     }
 
     /// When hovered, use this icon for the mouse cursor.
-    pub fn on_hover_cursor(self, ui: &mut Ui<'_>, cursor: CursorIcon) -> Self {
+    pub fn on_hover_cursor(self, ctx: &mut Context, cursor: CursorIcon) -> Self {
         if self.hovered() {
-            ui.ctx_mut().output_mut().cursor_icon = cursor;
+            ctx.output_mut().cursor_icon = cursor;
         }
         self
     }
@@ -414,8 +412,8 @@ impl Response {
     /// if response.clicked() { /* … */ }
     /// # });
     /// ```
-    pub fn interact(&self, ui: &mut Ui<'_>, sense: Sense) -> Response {
-        ui.ctx_mut().interact_with_hovered(
+    pub fn interact(&self, ctx: &mut Context, sense: Sense) -> Response {
+        ctx.interact_with_hovered(
             self.layer_id,
             self.id,
             self.rect,
@@ -443,15 +441,15 @@ impl Response {
     /// });
     /// # });
     /// ```
-    pub fn scroll_to_me(&self, ui: &mut Ui<'_>, align: Option<Align>) {
-        ui.ctx_mut().frame_state_mut().scroll_target[0] = Some((self.rect.x_range(), align));
-        ui.ctx_mut().frame_state_mut().scroll_target[1] = Some((self.rect.y_range(), align));
+    pub fn scroll_to_me(&self, ctx: &mut Context, align: Option<Align>) {
+        ctx.frame_state_mut().scroll_target[0] = Some((self.rect.x_range(), align));
+        ctx.frame_state_mut().scroll_target[1] = Some((self.rect.y_range(), align));
     }
 
     /// For accessibility.
     ///
     /// Call after interacting and potential calls to [`Self::mark_changed`].
-    pub fn widget_info(&mut self, ui: &mut Ui<'_>, make_info: impl Fn() -> crate::WidgetInfo) {
+    pub fn widget_info(&mut self, ctx: &mut Context, make_info: impl Fn() -> crate::WidgetInfo) {
         use crate::output::OutputEvent;
         let event = if self.clicked() {
             Some(OutputEvent::Clicked(make_info()))
@@ -467,7 +465,7 @@ impl Response {
             None
         };
         if let Some(event) = event {
-            ui.ctx_mut().output_mut().events.push(event);
+            ctx.output_mut().events.push(event);
         }
     }
 
@@ -485,8 +483,8 @@ impl Response {
     /// ```
     ///
     /// See also: [`Ui::menu_button`] and [`Ui::close_menu`].
-    pub fn context_menu(self, ui: &mut Ui<'_>, add_contents: impl FnOnce(&mut Ui<'_>)) -> Self {
-        menu::context_menu(ui.ctx_mut(), &mut self, add_contents);
+    pub fn context_menu(self, ctx: &mut Context, add_contents: impl FnOnce(&mut Ui<'_>)) -> Self {
+        menu::context_menu(ctx, &mut self, add_contents);
         self
     }
 }
