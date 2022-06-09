@@ -48,7 +48,7 @@ pub struct Ui<'c> {
     painter: Painter,
 
     /// Reference to the ['Context']
-    ctx: &'c mut Context,
+    pub ctx: &'c mut Context,
 
     /// The [`Style`] (visuals, spacing, etc) of this ui.
     /// Commonly many [`Ui`]:s share the same [`Style`].
@@ -198,18 +198,6 @@ impl<'c> Ui<'c> {
     /// ```
     pub fn visuals_mut(&mut self) -> &mut crate::Visuals {
         &mut self.style_mut().visuals
-    }
-
-    /// Get a mutable reference to the parent [`Context`].
-    #[inline]
-    pub fn ctx_mut(&mut self) -> &mut Context {
-        self.ctx
-    }
-
-    /// Get a reference to the parent [`Context`].
-    #[inline]
-    pub fn ctx(&self) -> &Context {
-        self.ctx
     }
 
     /// Use this to paint stuff within this [`Ui`].
