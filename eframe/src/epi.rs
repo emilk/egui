@@ -243,6 +243,23 @@ pub struct NativeOptions {
 
     /// What rendering backend to use.
     pub renderer: Renderer,
+
+    /// If the `dark-light` feature is enabled:
+    ///
+    /// Try to detect and follow the system preferred setting for dark vs light mode.
+    ///
+    /// By default, this is `true` on Mac and Windows, but `false` on Linux
+    /// due to <https://github.com/frewsxcv/rust-dark-light/issues/17>.
+    ///
+    /// See also [`Self::default_theme`].
+    pub follow_system_theme: bool,
+
+    /// Use the dark mode theme if:
+    /// * the `dark-light` feature is disabled
+    /// * OR [`Self::follow_system_theme`] is `false`.
+    ///
+    /// Default: `Theme::Dark` (default to dark theme).
+    pub default_theme: Theme,
 }
 
 impl Default for NativeOptions {
@@ -265,6 +282,49 @@ impl Default for NativeOptions {
             stencil_buffer: 0,
             hardware_acceleration: HardwareAcceleration::Preferred,
             renderer: Renderer::default(),
+            follow_system_theme: cfg!(target_os = "macos") || cfg!(target_os = "windows"),
+            default_theme: Theme::Dark,
+        }
+    }
+}
+
+impl NativeOptions {
+    /// The theme used by the system.
+    #[cfg(feature = "dark-light")]
+    pub fn system_theme(&self) -> Option<Theme> {
+        if self.follow_system_theme {
+            crate::profile_scope!("dark_light::detect");
+            match dark_light::detect() {
+                dark_light::Mode::Dark => Some(Theme::Dark),
+                dark_light::Mode::Light => Some(Theme::Light),
+            }
+        } else {
+            None
+        }
+    }
+
+    /// The theme used by the system.
+    #[cfg(not(feature = "dark-light"))]
+    pub fn system_theme(&self) -> Option<Theme> {
+        None
+    }
+}
+
+/// Dark or Light theme.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum Theme {
+    /// Dark mode: light text on a dark background.
+    Dark,
+    /// Light mode: dark text on a light background.
+    Light,
+}
+
+impl Theme {
+    pub(crate) fn egui_visuals(self) -> egui::Visuals {
+        match self {
+            Self::Dark => egui::Visuals::dark(),
+            Self::Light => egui::Visuals::light(),
         }
     }
 }
@@ -531,9 +591,10 @@ pub struct IntegrationInfo {
     /// If the app is running in a Web context, this returns information about the environment.
     pub web_info: Option<WebInfo>,
 
-    /// Does the system prefer dark mode (over light mode)?
+    /// Does the OS use dark or light mode?
+    ///
     /// `None` means "don't know".
-    pub prefer_dark_mode: Option<bool>,
+    pub system_theme: Option<Theme>,
 
     /// Seconds of cpu usage (in seconds) of UI code on the previous frame.
     /// `None` if this is the first frame.
