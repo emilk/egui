@@ -41,6 +41,9 @@ serde = ["egui/serde", "dep:serde"]
 
 
 [dependencies]
+# Needed when generating the docs, but unfortunately also needed by `cargo check`
+document-features = "0.2"
+
 egui = { version = "0.18.0", path = "../egui", default-features = false, features = [
   "tracing",
 ] }
@@ -55,9 +58,6 @@ webbrowser = { version = "0.7", optional = true }
 
 # feature screen_reader
 tts = { version = "0.20", optional = true } # stuck on old version due to compilation problems on linux
-
-## Enable this when building the docs.
-document-features = { version = "0.2", optional = true }
 
 [target.'cfg(any(target_os="linux", target_os="dragonfly", target_os="freebsd", target_os="netbsd", target_os="openbsd"))'.dependencies]
 smithay-clipboard = { version = "0.6.3", optional = true }

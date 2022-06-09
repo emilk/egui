@@ -53,6 +53,9 @@ mint = ["emath/mint"]
 serde = ["dep:serde", "ahash/serde", "emath/serde"]
 
 [dependencies]
+# Needed when generating the docs, but unfortunately also needed by `cargo check`
+document-features = "0.2"
+
 emath = { version = "0.18.0", path = "../emath" }
 
 ab_glyph = "0.2.11"
@@ -70,9 +73,6 @@ color-hex = { version = "0.2.0", optional = true }
 
 ## Allow serialization using [`serde`](https://docs.rs/serde) .
 serde = { version = "1", optional = true, features = ["derive", "rc"] }
-
-## Enable this when building the docs.
-document-features = { version = "0.2", optional = true }
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

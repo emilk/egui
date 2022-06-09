@@ -40,5 +40,5 @@ mint = { version = "0.5.6", optional = true }
 ## Allow serialization using [`serde`](https://docs.rs/serde).
 serde = { version = "1", optional = true, features = ["derive"] }
 
-## Enable this when building the docs.
-document-features = { version = "0.2", optional = true }
+# Needed when generating the docs, but unfortunately also needed by `cargo check`
+document-features = "0.2"

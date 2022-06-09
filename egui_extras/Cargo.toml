@@ -66,5 +66,5 @@ serde = { version = "1", features = ["derive"], optional = true }
 # feature "tracing"
 tracing = { version = "0.1", optional = true }
 
-## Enable this when building the docs.
-document-features = { version = "0.2", optional = true }
+# Needed when generating the docs, but unfortunately also needed by `cargo check`
+document-features = "0.2"

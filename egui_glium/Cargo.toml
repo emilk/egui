@@ -39,6 +39,9 @@ screen_reader = ["egui-winit/screen_reader"]
 
 
 [dependencies]
+# Needed when generating the docs, but unfortunately also needed by `cargo check`
+document-features = "0.2"
+
 egui = { version = "0.18.0", path = "../egui", default-features = false, features = [
   "bytemuck",
 ] }
@@ -47,10 +50,6 @@ egui-winit = { version = "0.18.0", path = "../egui-winit", default-features = fa
 ahash = "0.7"
 bytemuck = "1.7"
 glium = "0.31"
-
-## Enable this when building the docs.
-document-features = { version = "0.2", optional = true }
-
 
 [dev-dependencies]
 image = { version = "0.24", default-features = false, features = ["png"] }

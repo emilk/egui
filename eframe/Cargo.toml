@@ -59,6 +59,9 @@ wgpu = ["dep:wgpu", "egui-wgpu"]
 
 
 [dependencies]
+# Needed when generating the docs, but unfortunately also needed by `cargo check`
+document-features = "0.2"
+
 egui = { version = "0.18.0", path = "../egui", default-features = false, features = [
   "bytemuck",
   "tracing",
@@ -72,9 +75,6 @@ glow = { version = "0.11", optional = true }
 ron = { version = "0.7", optional = true }
 serde = { version = "1", optional = true, features = ["derive"] }
 wgpu = { version = "0.12", optional = true }
-
-## Enable this when building the docs.
-document-features = { version = "0.2", optional = true }
 
 # -------------------------------------------
 # native:
