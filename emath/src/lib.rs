@@ -14,6 +14,10 @@
 //!
 //! For that, use something else ([`glam`](https://docs.rs/glam), [`nalgebra`](https://docs.rs/nalgebra), …)
 //! and enable the `mint` feature flag in `emath` to enable implicit conversion to/from `emath`.
+//!
+//! ## Feature flags
+#![doc = document_features::document_features!()]
+//!
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]

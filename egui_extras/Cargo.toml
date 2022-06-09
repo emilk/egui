@@ -26,29 +26,33 @@ all-features = true
 [features]
 default = []
 
-# Datepicker widget
+## Enable [`DatePickerButton`] widget.
 datepicker = ["chrono"]
 
+## Allow serialization using [`serde`](https://docs.rs/serde).
 serde = ["dep:serde"]
 
-# Support loading svg images
+## Support loading svg images.
 svg = ["resvg", "tiny-skia", "usvg"]
 
-# Log warnings using `tracing` crate
+## Log warnings using `tracing` crate.
 tracing = ["dep:tracing", "egui/tracing"]
 
 
 [dependencies]
 egui = { version = "0.18.0", path = "../egui", default-features = false }
 
-# Optional dependencies:
+#! ### Optional dependencies
 
 # Date operations needed for datepicker widget
 chrono = { version = "0.4", optional = true }
 
-# Add support for loading images with the `image` crate.
-# You also need to ALSO opt-in to the image formats you want to support, like so:
-#     image = { version = "0.24", features = ["jpeg", "png"] }
+## Add support for loading images with the [`image`](https://docs.rs/image) crate.
+##
+## You also need to ALSO opt-in to the image formats you want to support, like so:
+## ```toml
+## image = { version = "0.24", features = ["jpeg", "png"] }
+## ```
 image = { version = "0.24", optional = true, default-features = false }
 
 # svg feature
@@ -61,3 +65,6 @@ serde = { version = "1", features = ["derive"], optional = true }
 
 # feature "tracing"
 tracing = { version = "0.1", optional = true }
+
+# Needed when generating the docs, but unfortunately also needed by `cargo check`
+document-features = "0.2"

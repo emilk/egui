@@ -291,6 +291,10 @@
 //! }); // the temporary settings are reverted here
 //! # });
 //! ```
+//!
+//! ## Feature flags
+#![doc = document_features::document_features!()]
+//!
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]

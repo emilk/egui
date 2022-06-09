@@ -26,18 +26,22 @@ all-features = true
 [features]
 default = ["clipboard", "links"]
 
-# enable cut/copy/paste to OS clipboard.
-# if disabled a clipboard will be simulated so you can still copy/paste within the egui app.
+## Enable cut/copy/paste to OS clipboard.
+##
+## If disabled a clipboard will be simulated so you can still copy/paste within the egui app.
 clipboard = ["egui-winit/clipboard"]
 
-# enable opening links in a browser when an egui hyperlink is clicked.
+## Enable opening links in a browser when an egui hyperlink is clicked.
 links = ["egui-winit/links"]
 
-# experimental support for a screen reader.
+## Experimental support for a screen reader.
 screen_reader = ["egui-winit/screen_reader"]
 
 
 [dependencies]
+# Needed when generating the docs, but unfortunately also needed by `cargo check`
+document-features = "0.2"
+
 egui = { version = "0.18.0", path = "../egui", default-features = false, features = [
   "bytemuck",
 ] }
@@ -46,7 +50,6 @@ egui-winit = { version = "0.18.0", path = "../egui-winit", default-features = fa
 ahash = "0.7"
 bytemuck = "1.7"
 glium = "0.31"
-
 
 [dev-dependencies]
 image = { version = "0.24", default-features = false, features = ["png"] }

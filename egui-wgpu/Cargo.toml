@@ -28,11 +28,14 @@ all-features = true
 
 
 [features]
-# Make it easy to create bindings for winit.
+## Enable [`winit`](https://docs.rs/winit) integration.
 winit = ["dep:pollster", "dep:winit"]
 
 
 [dependencies]
+# Needed when generating the docs, but unfortunately also needed by `cargo check`
+document-features = "0.2"
+
 egui = { version = "0.18.1", path = "../egui", default-features = false, features = [
     "bytemuck",
 ] }
@@ -42,6 +45,6 @@ tracing = "0.1"
 type-map = "0.5.0"
 wgpu = { version = "0.12", features = ["webgl"] }
 
-# Optional:
+#! ### Optional dependencies
 pollster = { version = "0.2", optional = true }
 winit = { version = "0.26", optional = true }

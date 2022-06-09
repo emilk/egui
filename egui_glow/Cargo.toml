@@ -26,26 +26,30 @@ all-features = true
 [features]
 default = []
 
-# for the winit integration:
-# enable cut/copy/paste to os clipboard.
-# if disabled a clipboard will be simulated so you can still copy/paste within the egui app.
+## For the `winit` integration:
+## enable cut/copy/paste to os clipboard.
+##
+## if disabled a clipboard will be simulated so you can still copy/paste within the egui app.
 clipboard = ["egui-winit?/clipboard"]
 
-# for the winit integration:
-# enable opening links in a browser when an egui hyperlink is clicked.
+## For the `winit` integration:
+## enable opening links in a browser when an egui hyperlink is clicked.
 links = ["egui-winit?/links"]
 
-# experimental support for a screen reader.
+## Experimental support for a screen reader.
 screen_reader = ["egui-winit?/screen_reader"]
 
-# enable profiling with the puffin crate: https://github.com/embarkstudios/puffin
+## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
 puffin = ["dep:puffin", "egui-winit?/puffin"]
 
-# enable winit integration.
+## Enable [`winit`](https://docs.rs/winit) integration.
 winit = ["egui-winit",]
 
 
 [dependencies]
+# Needed when generating the docs, but unfortunately also needed by `cargo check`
+document-features = "0.2"
+
 egui = { version = "0.18.0", path = "../egui", default-features = false, features = [
   "bytemuck",
 ] }

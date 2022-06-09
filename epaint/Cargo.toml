@@ -29,40 +29,49 @@ all-features = true
 [features]
 default = ["default_fonts"]
 
-# implement bytemuck on most types.
+## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`Vertex`] to `&[u8]`.
 bytemuck = ["dep:bytemuck", "emath/bytemuck"]
 
-# This will automatically detect deadlocks due to double-locking on the same thread.
-# If your app freezes, you may want to enable this!
-# Only affects `epaint::mutex::RwLock` (which epaint and egui uses a lot).
+## This will automatically detect deadlocks due to double-locking on the same thread.
+## If your app freezes, you may want to enable this!
+## Only affects [`mutex::RwLock`] (which epaint and egui uses a lot).
 deadlock_detection = ["dep:backtrace"]
 
-# If set, epaint will use `include_bytes!` to bundle some fonts.
-# If you plan on specifying your own fonts you may disable this feature.
+## If set, epaint will use `include_bytes!` to bundle some fonts.
+## If you plan on specifying your own fonts you may disable this feature.
 default_fonts = []
 
-# Enable additional checks if debug assertions are enabled (debug builds).
+## Enable additional checks if debug assertions are enabled (debug builds).
 extra_debug_asserts = ["emath/extra_debug_asserts"]
-# Always enable additional checks.
+## Always enable additional checks.
 extra_asserts = ["emath/extra_asserts"]
 
-# Add compatability with https://github.com/kvark/mint
+## [`mint`](https://docs.rs/mint) enables interopability with other math libraries such as [`glam`](https://docs.rs/glam) and [`nalgebra`](https://docs.rs/nalgebra).
 mint = ["emath/mint"]
 
-# implement serde on most types.
+## Allow serialization using [`serde`](https://docs.rs/serde).
 serde = ["dep:serde", "ahash/serde", "emath/serde"]
 
 [dependencies]
+# Needed when generating the docs, but unfortunately also needed by `cargo check`
+document-features = "0.2"
+
 emath = { version = "0.18.0", path = "../emath" }
 
 ab_glyph = "0.2.11"
 ahash = { version = "0.7", default-features = false, features = ["std"] }
 nohash-hasher = "0.2"
 
-# Optional:
+#! ### Optional dependencies
 bytemuck = { version = "1.7.2", optional = true, features = ["derive"] }
+
+## [`cint`](https://docs.rs/cint) enables interopability with other color libraries.
 cint = { version = "0.3.1", optional = true }
+
+## Enable the [`hex_color`] macro.
 color-hex = { version = "0.2.0", optional = true }
+
+## Allow serialization using [`serde`](https://docs.rs/serde) .
 serde = { version = "1", optional = true, features = ["derive", "rc"] }
 
 # native:

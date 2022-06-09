@@ -1072,6 +1072,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "document-features"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b01c09fd63b5136fba41aa625c7b3254f0aa0a435ff6ec4b2c9a28d496c83c88"
+
+[[package]]
 name = "downcast-rs"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1128,6 +1134,7 @@ dependencies = [
  "bytemuck",
  "dark-light",
  "directories-next",
+ "document-features",
  "egui",
  "egui-wgpu",
  "egui-winit",
@@ -1153,6 +1160,7 @@ name = "egui"
 version = "0.18.1"
 dependencies = [
  "ahash 0.7.6",
+ "document-features",
  "epaint",
  "nohash-hasher",
  "ron",
@@ -1165,6 +1173,7 @@ name = "egui-wgpu"
 version = "0.18.0"
 dependencies = [
  "bytemuck",
+ "document-features",
  "egui",
  "pollster",
  "tracing",
@@ -1178,6 +1187,7 @@ name = "egui-winit"
 version = "0.18.0"
 dependencies = [
  "arboard",
+ "document-features",
  "egui",
  "instant",
  "puffin",
@@ -1215,6 +1225,7 @@ version = "0.18.0"
 dependencies = [
  "chrono",
  "criterion",
+ "document-features",
  "egui",
  "egui_extras",
  "enum-map",
@@ -1229,6 +1240,7 @@ name = "egui_extras"
 version = "0.18.0"
 dependencies = [
  "chrono",
+ "document-features",
  "egui",
  "image",
  "resvg",
@@ -1244,6 +1256,7 @@ version = "0.18.0"
 dependencies = [
  "ahash 0.7.6",
  "bytemuck",
+ "document-features",
  "egui",
  "egui-winit",
  "glium",
@@ -1255,6 +1268,7 @@ name = "egui_glow"
 version = "0.18.1"
 dependencies = [
  "bytemuck",
+ "document-features",
  "egui",
  "egui-winit",
  "glow",
@@ -1290,6 +1304,7 @@ name = "emath"
 version = "0.18.0"
 dependencies = [
  "bytemuck",
+ "document-features",
  "mint",
  "serde",
 ]
@@ -1361,6 +1376,7 @@ dependencies = [
  "cint",
  "color-hex",
  "criterion",
+ "document-features",
  "emath",
  "nohash-hasher",
  "parking_lot 0.12.0",

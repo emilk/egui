@@ -23,11 +23,16 @@ all-features = true
 default = []
 
 chrono = ["egui_extras/datepicker", "dep:chrono"]
+## Allow serialization using [`serde`](https://docs.rs/serde).
 serde = ["egui/serde", "dep:serde"]
+## Enable better syntax highlighting using [`syntect`](https://docs.rs/syntect).
 syntax_highlighting = ["syntect"]
 
 
 [dependencies]
+# Needed when generating the docs, but unfortunately also needed by `cargo check`
+document-features = "0.2"
+
 egui = { version = "0.18.0", path = "../egui", default-features = false }
 egui_extras = { version = "0.18.0", path = "../egui_extras" }
 enum-map = { version = "2", features = ["serde"] }
