@@ -147,13 +147,13 @@ impl ComboBox {
             }
             let mut ir = combo_box_dyn(ui, button_id, selected_text, menu_contents, icon);
             if let Some(label) = label {
-                ir.response.widget_info(ui, || {
+                ir.response.widget_info(ui.ctx, || {
                     WidgetInfo::labeled(WidgetType::ComboBox, label.text())
                 });
                 ir.response |= ui.label(label);
             } else {
                 ir.response
-                    .widget_info(ui, || WidgetInfo::labeled(WidgetType::ComboBox, ""));
+                    .widget_info(ui.ctx, || WidgetInfo::labeled(WidgetType::ComboBox, ""));
             }
             ir
         })

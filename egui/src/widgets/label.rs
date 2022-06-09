@@ -158,7 +158,7 @@ impl Label {
 impl Widget for Label {
     fn ui<'c>(self, ui: &mut Ui<'c>) -> Response {
         let (pos, text_galley, response) = self.layout_in_ui(ui);
-        response.widget_info(ui, || {
+        response.widget_info(ui.ctx, || {
             WidgetInfo::labeled(WidgetType::Label, text_galley.text())
         });
 

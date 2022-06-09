@@ -1051,12 +1051,12 @@ impl Context {
                 "Is egui currently using the pointer actively (e.g. dragging a slider)?",
             );
         ui.label(format!("Wants pointer input: {}", self.wants_pointer_input()))
-            .on_hover_text(ui, "Is egui currently interested in the location of the pointer (either because it is in use, or because it is hovering over a window).");
+            .on_hover_text(ui.ctx, "Is egui currently interested in the location of the pointer (either because it is in use, or because it is hovering over a window).");
         ui.label(format!(
             "Wants keyboard input: {}",
             self.wants_keyboard_input()
         ))
-        .on_hover_text(ui, "Is egui currently listening for text input?");
+        .on_hover_text(ui.ctx, "Is egui currently listening for text input?");
         ui.label(format!(
             "Keyboard focus widget: {}",
             self.memory()
@@ -1067,7 +1067,7 @@ impl Context {
                 .map(Id::short_debug_format)
                 .unwrap_or_default()
         ))
-        .on_hover_text(ui, "Is egui currently listening for text input?");
+        .on_hover_text(ui.ctx, "Is egui currently listening for text input?");
 
         let pointer_pos = self
             .pointer_hover_pos()
@@ -1180,7 +1180,7 @@ impl Context {
     pub fn memory_ui(&mut self, ui: &mut crate::Ui<'_>) {
         if ui
             .button("Reset all")
-            .on_hover_text(ui, "Reset all egui state")
+            .on_hover_text(ui.ctx, "Reset all egui state")
             .clicked()
         {
             self.memory = Default::default();

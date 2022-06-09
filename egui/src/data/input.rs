@@ -556,7 +556,7 @@ impl RawInput {
         ui.scope(|ui| {
             ui.set_min_height(150.0);
             ui.label(format!("events: {:#?}", events))
-                .on_hover_text(ui, "key presses etc");
+                .on_hover_text(ui.ctx, "key presses etc");
         });
     }
 }

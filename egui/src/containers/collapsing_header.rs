@@ -528,7 +528,7 @@ impl CollapsingHeader {
             header_response.mark_changed();
         }
 
-        header_response.widget_info(ui, || {
+        header_response.widget_info(ui.ctx, || {
             WidgetInfo::labeled(WidgetType::CollapsingHeader, text.text())
         });
 

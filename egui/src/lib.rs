@@ -377,7 +377,7 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui<'_>) {
                 .small()
                 .color(crate::Color32::RED),
         )
-        .on_hover_text(ui, "egui was compiled with debug assertions enabled.");
+        .on_hover_text(ui.ctx, "egui was compiled with debug assertions enabled.");
     }
 }
 

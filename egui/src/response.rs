@@ -602,7 +602,7 @@ impl std::ops::BitOrAssign for Response {
 ///     ui.label("Blah blah");
 ///     42
 /// });
-/// inner_resp.response.on_hover_text(ui, "You hovered the horizontal layout");
+/// inner_resp.response.on_hover_text(ui.ctx, "You hovered the horizontal layout");
 /// assert_eq!(inner_resp.inner, 42);
 /// # });
 /// ```

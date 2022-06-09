@@ -328,7 +328,7 @@ impl<'a> Slider<'a> {
         }
 
         let value = self.get_value();
-        response.widget_info(ui, || WidgetInfo::slider(value, &self.text));
+        response.widget_info(ui.ctx, || WidgetInfo::slider(value, &self.text));
 
         if response.has_focus() {
             let (dec_key, inc_key) = match self.orientation {

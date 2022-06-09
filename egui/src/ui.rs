@@ -1001,7 +1001,7 @@ impl<'c> Ui<'c> {
     /// # egui::__run_test_ui(|ui| {
     /// # let mut my_value = 42;
     /// let response = ui.add(egui::Slider::new(&mut my_value, 0..=100));
-    /// response.on_hover_text(ui, "Drag me!");
+    /// response.on_hover_text(ui.ctx, "Drag me!");
     /// # });
     /// ```
     #[inline]
@@ -1485,8 +1485,10 @@ impl<'c> Ui<'c> {
         let mut response = self.add(DragValue::new(&mut taus).speed(0.01).suffix("τ"));
 
         if self.style().explanation_tooltips {
-            response =
-                response.on_hover_text(self, "1τ = one turn, 0.5τ = half a turn, etc. 0.25τ = 90°");
+            response = response.on_hover_text(
+                self.ctx,
+                "1τ = one turn, 0.5τ = half a turn, etc. 0.25τ = 90°",
+            );
         }
 
         // only touch `*radians` if we actually changed the value

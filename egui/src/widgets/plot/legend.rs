@@ -102,7 +102,7 @@ impl LegendEntry {
         let desired_size = total_extra + galley.size();
         let (rect, response) = ui.allocate_exact_size(desired_size, Sense::click());
 
-        response.widget_info(ui, || {
+        response.widget_info(ui.ctx, || {
             WidgetInfo::selected(WidgetType::Checkbox, *checked, galley.text())
         });
 

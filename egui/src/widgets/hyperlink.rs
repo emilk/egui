@@ -35,7 +35,7 @@ impl Widget for Link {
         let label = Label::new(text).sense(Sense::click());
 
         let (pos, text_galley, response) = label.layout_in_ui(ui);
-        response.widget_info(ui, || {
+        response.widget_info(ui.ctx, || {
             WidgetInfo::labeled(WidgetType::Link, text_galley.text())
         });
 
@@ -127,6 +127,6 @@ impl Widget for Hyperlink {
                 new_tab: true,
             });
         }
-        response.on_hover_text(ui, url)
+        response.on_hover_text(ui.ctx, url)
     }
 }

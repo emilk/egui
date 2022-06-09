@@ -956,7 +956,7 @@ impl Spacing {
 
         ui.add(slider_vec2(button_padding, 0.0..=20.0, "Button padding"));
         ui.add(slider_vec2(interact_size, 4.0..=60.0, "Interact size"))
-            .on_hover_text(ui, "Minimum size of an interactive widget");
+            .on_hover_text(ui.ctx, "Minimum size of an interactive widget");
         ui.horizontal(|ui| {
             ui.add(DragValue::new(indent).clamp_range(0.0..=100.0));
             ui.label("Indent");
@@ -1094,7 +1094,7 @@ impl WidgetVisuals {
 
         stroke_ui(ui, fg_stroke, "foreground stroke (text)");
         ui.add(Slider::new(expansion, -5.0..=5.0).text("expansion"))
-            .on_hover_text(ui, "make shapes this much larger");
+            .on_hover_text(ui.ctx, "make shapes this much larger");
     }
 }
 
@@ -1113,7 +1113,7 @@ impl Visuals {
         if self.dark_mode {
             if ui
                 .add(Button::new("☀").frame(false))
-                .on_hover_text(ui, "Switch to light mode")
+                .on_hover_text(ui.ctx, "Switch to light mode")
                 .clicked()
             {
                 *self = Self::light();
@@ -1121,7 +1121,7 @@ impl Visuals {
         } else {
             if ui
                 .add(Button::new("🌙").frame(false))
-                .on_hover_text(ui, "Switch to dark mode")
+                .on_hover_text(ui.ctx, "Switch to dark mode")
                 .clicked()
             {
                 *self = Self::dark();
@@ -1158,7 +1158,7 @@ impl Visuals {
                 "Used for faint accentuation of interactive things, like striped grids.",
             );
             ui_color(ui, extreme_bg_color, "Extreme")
-                .on_hover_text(ui, "Background of plots and paintings");
+                .on_hover_text(ui.ctx, "Background of plots and paintings");
         });
 
         ui.collapsing("Window", |ui| {

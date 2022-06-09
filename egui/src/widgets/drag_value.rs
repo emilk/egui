@@ -217,10 +217,10 @@ impl<'a> Widget for DragValue<'a> {
             .min_size(ui.spacing().interact_size); // TODO(emilk): find some more generic solution to `min_size`
 
             let response = ui.add(button);
-            let mut response = response.on_hover_cursor(ui, CursorIcon::ResizeHorizontal);
+            let mut response = response.on_hover_cursor(ui.ctx, CursorIcon::ResizeHorizontal);
 
             if ui.style().explanation_tooltips {
-                response = response .on_hover_text(ui, format!(
+                response = response .on_hover_text(ui.ctx, format!(
                     "{}{}{}\nDrag to edit or click to enter a value.\nPress 'Shift' while dragging for better control.",
                     prefix,
                     value as f32, // Show full precision value on-hover. TODO(emilk): figure out f64 vs f32
@@ -284,7 +284,7 @@ impl<'a> Widget for DragValue<'a> {
 
         response.set_changed(get(&mut get_set_value) != old_value);
 
-        response.widget_info(ui, || WidgetInfo::drag_value(value));
+        response.widget_info(ui.ctx, || WidgetInfo::drag_value(value));
         response
     }
 }
