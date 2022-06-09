@@ -601,7 +601,7 @@ impl<'c> Ui<'c> {
     /// The `clip_rect` and layer of this [`Ui`] will be respected, so, for instance,
     /// if this [`Ui`] is behind some other window, this will always return `false`.
     pub fn rect_contains_pointer(&self, rect: Rect) -> bool {
-        self.ctx()
+        self.ctx
             .rect_contains_pointer(self.layer_id(), self.clip_rect().intersect(rect))
     }
 
@@ -690,7 +690,7 @@ impl<'c> Ui<'c> {
         let rect = self.allocate_space_impl(desired_size);
 
         if self.style().debug.debug_on_hover && self.rect_contains_pointer(rect) {
-            let painter = self.ctx().debug_painter();
+            let painter = self.ctx.debug_painter();
             painter.rect_stroke(ui.ctx, rect, 4.0, (1.0, Color32::LIGHT_BLUE));
             self.placer.debug_paint_cursor(&painter, "next");
         }
@@ -757,7 +757,7 @@ impl<'c> Ui<'c> {
         self.placer.advance_after_rects(rect, rect, item_spacing);
 
         if self.style().debug.debug_on_hover && self.rect_contains_pointer(rect) {
-            let painter = self.ctx().debug_painter();
+            let painter = self.ctx.debug_painter();
             painter.rect_stroke(ui.ctx, rect, 4.0, (1.0, Color32::LIGHT_BLUE));
             self.placer.debug_paint_cursor(&painter, "next");
         }
@@ -840,7 +840,7 @@ impl<'c> Ui<'c> {
             .advance_after_rects(final_child_rect, final_child_rect, item_spacing);
 
         if self.style().debug.debug_on_hover && self.rect_contains_pointer(final_child_rect) {
-            let painter = self.ctx().debug_painter();
+            let painter = self.ctx.debug_painter();
             painter.rect_stroke(ui.ctx, frame_rect, 4.0, (1.0, Color32::LIGHT_BLUE));
             painter.rect_stroke(ui.ctx, final_child_rect, 4.0, (1.0, Color32::LIGHT_BLUE));
             self.placer.debug_paint_cursor(&painter, "next");
@@ -1966,8 +1966,8 @@ impl<'c> Ui<'c> {
         self.placer.advance_after_rects(rect, rect, item_spacing);
 
         if self.style().debug.debug_on_hover && self.rect_contains_pointer(rect) {
-            let painter = self.ctx().debug_painter();
-            painter.rect_stroke(self.ctx_mut(), rect, 4.0, (1.0, Color32::LIGHT_BLUE));
+            let painter = self.ctx.debug_painter();
+            painter.rect_stroke(self.ctx, rect, 4.0, (1.0, Color32::LIGHT_BLUE));
             self.placer.debug_paint_cursor(&painter, "next");
         }
 
@@ -2134,7 +2134,7 @@ impl<'c> Ui<'c> {
         let rect = self.max_rect();
         if self.style().debug.debug_on_hover && self.rect_contains_pointer(rect) {
             self.placer
-                .debug_paint_cursor(&self.ctx().debug_painter(), text);
+                .debug_paint_cursor(&self.ctx.debug_painter(), text);
         }
     }
 }

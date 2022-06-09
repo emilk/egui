@@ -203,7 +203,7 @@ impl SidePanel {
             let resize_id = id.with("__resize");
             if let Some(pointer) = ui.ctx.pointer_latest_pos() {
                 let we_are_on_top = ui
-                    .ctx()
+                    .ctx
                     .layer_id_at(pointer)
                     .map_or(true, |top_layer_id| top_layer_id == ui.layer_id());
 
