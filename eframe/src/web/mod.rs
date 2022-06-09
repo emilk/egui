@@ -59,12 +59,10 @@ pub fn native_pixels_per_point() -> f32 {
 
 pub fn system_theme() -> Option<Theme> {
     let dark_mode = web_sys::window()?
-            .match_media("(prefers-color-scheme: dark)")
-            .ok()??
-            .matches();
-    Some(if dark_mode {
-        Theme::Dark
-    } else { Theme::Light })
+        .match_media("(prefers-color-scheme: dark)")
+        .ok()??
+        .matches();
+    Some(if dark_mode { Theme::Dark } else { Theme::Light })
 }
 
 pub fn canvas_element(canvas_id: &str) -> Option<web_sys::HtmlCanvasElement> {
