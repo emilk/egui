@@ -5,7 +5,7 @@
 //! If you are writing an app, you may want to look at [`eframe`](https://docs.rs/eframe) instead.
 //!
 //! ## Feature flags
-#![doc = document_features::document_features!()]
+#![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
 
 #![allow(clippy::float_cmp)]

@@ -47,9 +47,6 @@ winit = ["egui-winit",]
 
 
 [dependencies]
-# Needed when generating the docs, but unfortunately also needed by `cargo check`
-document-features = "0.2"
-
 egui = { version = "0.18.0", path = "../egui", default-features = false, features = [
   "bytemuck",
 ] }
@@ -58,6 +55,10 @@ bytemuck = "1.7"
 glow = "0.11"
 memoffset = "0.6"
 tracing = "0.1"
+
+#! ### Optional dependencies
+## Enable this when generating docs.
+document-features = { version = "0.2", optional = true }
 
 # Native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

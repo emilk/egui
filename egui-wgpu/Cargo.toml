@@ -33,9 +33,6 @@ winit = ["dep:pollster", "dep:winit"]
 
 
 [dependencies]
-# Needed when generating the docs, but unfortunately also needed by `cargo check`
-document-features = "0.2"
-
 egui = { version = "0.18.1", path = "../egui", default-features = false, features = [
     "bytemuck",
 ] }
@@ -46,5 +43,8 @@ type-map = "0.5.0"
 wgpu = { version = "0.12", features = ["webgl"] }
 
 #! ### Optional dependencies
+## Enable this when generating docs.
+document-features = { version = "0.2", optional = true }
+
 pollster = { version = "0.2", optional = true }
 winit = { version = "0.26", optional = true }

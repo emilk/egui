@@ -47,6 +47,9 @@ egui = { version = "0.18.0", path = "../egui", default-features = false }
 # Date operations needed for datepicker widget
 chrono = { version = "0.4", optional = true }
 
+## Enable this when generating docs.
+document-features = { version = "0.2", optional = true }
+
 ## Add support for loading images with the [`image`](https://docs.rs/image) crate.
 ##
 ## You also need to ALSO opt-in to the image formats you want to support, like so:
@@ -65,6 +68,3 @@ serde = { version = "1", features = ["derive"], optional = true }
 
 # feature "tracing"
 tracing = { version = "0.1", optional = true }
-
-# Needed when generating the docs, but unfortunately also needed by `cargo check`
-document-features = "0.2"

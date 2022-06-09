@@ -59,9 +59,6 @@ wgpu = ["dep:wgpu", "egui-wgpu"]
 
 
 [dependencies]
-# Needed when generating the docs, but unfortunately also needed by `cargo check`
-document-features = "0.2"
-
 egui = { version = "0.18.0", path = "../egui", default-features = false, features = [
   "bytemuck",
   "tracing",
@@ -69,6 +66,9 @@ egui = { version = "0.18.0", path = "../egui", default-features = false, feature
 tracing = "0.1"
 
 #! ### Optional dependencies
+## Enable this when generating docs.
+document-features = { version = "0.2", optional = true }
+
 egui_glow = { version = "0.18.0", path = "../egui_glow", optional = true, default-features = false }
 egui-wgpu = { version = "0.18.0", path = "../egui-wgpu", optional = true, features = ["winit"] }
 glow = { version = "0.11", optional = true }
@@ -84,7 +84,7 @@ egui-winit = { version = "0.18.0", path = "../egui-winit", default-features = fa
 glutin = { version = "0.28.0" }
 winit = "0.26.1"
 
-# optional:
+# optional native:
 puffin = { version = "0.13", optional = true }
 directories-next = { version = "2", optional = true }
 

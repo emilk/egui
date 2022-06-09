@@ -54,7 +54,7 @@
 //! ```
 //!
 //! ## Feature flags
-#![doc = document_features::document_features!()]
+#![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
 
 #![allow(clippy::needless_doctest_main)]

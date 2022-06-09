@@ -3,7 +3,7 @@
 //! This crate are for experimental features, and features that require big dependencies that does not belong in `egui`.
 //!
 //! ## Feature flags
-#![doc = document_features::document_features!()]
+#![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
 
 #![allow(clippy::float_cmp)]

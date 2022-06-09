@@ -4,7 +4,7 @@
 //! updates the cursor, open links clicked in egui, etc.
 //!
 //! ## Feature flags
-#![doc = document_features::document_features!()]
+#![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
 
 #![allow(clippy::manual_range_contains)]

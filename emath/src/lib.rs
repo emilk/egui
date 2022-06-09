@@ -16,7 +16,7 @@
 //! and enable the `mint` feature flag in `emath` to enable implicit conversion to/from `emath`.
 //!
 //! ## Feature flags
-#![doc = document_features::document_features!()]
+#![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
 
 #![allow(clippy::float_cmp)]
