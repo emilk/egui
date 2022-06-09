@@ -60,7 +60,7 @@ impl MonoState {
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// if ui.ui_contains_pointer() {
-///     egui::show_tooltip(ui.ctx_mut(), egui::Id::new("my_tooltip"), |ui| {
+///     egui::show_tooltip(ui.ctx, egui::Id::new("my_tooltip"), |ui| {
 ///         ui.label("Helpful text");
 ///     });
 /// }
@@ -85,7 +85,7 @@ pub fn show_tooltip<R>(
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// if ui.ui_contains_pointer() {
-///     egui::show_tooltip_at_pointer(ui.ctx_mut(), egui::Id::new("my_tooltip"), |ui| {
+///     egui::show_tooltip_at_pointer(ui.ctx, egui::Id::new("my_tooltip"), |ui| {
 ///         ui.label("Helpful text");
 ///     });
 /// }
@@ -234,7 +234,7 @@ fn show_tooltip_at_avoid_dyn<'a, R>(
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// if ui.ui_contains_pointer() {
-///     egui::show_tooltip_text(ui.ctx_mut(), egui::Id::new("my_tooltip"), "Helpful text");
+///     egui::show_tooltip_text(ui.ctx, egui::Id::new("my_tooltip"), "Helpful text");
 /// }
 /// # });
 /// ```
@@ -299,7 +299,7 @@ pub fn popup_below_widget<R>(
         let inner = Area::new(popup_id)
             .order(Order::Foreground)
             .fixed_pos(widget_response.rect().left_bottom())
-            .show(ui.ctx_mut(), |ui| {
+            .show(ui.ctx, |ui| {
                 // Note: we use a separate clip-rect for this area, so the popup can be outside the parent.
                 // See https://github.com/emilk/egui/issues/825
                 let frame = Frame::popup(ui.style());

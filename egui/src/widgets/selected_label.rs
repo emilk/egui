@@ -65,7 +65,7 @@ impl Widget for SelectableLabel {
                 let rect = rect.expand(visuals.expansion);
 
                 ui.painter_mut().rect(
-                    ui.ctx_mut(),
+                    ui.ctx,
                     rect,
                     visuals.rounding,
                     visuals.bg_fill,

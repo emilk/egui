@@ -179,7 +179,7 @@ impl Widget for Button {
                 let fill = fill.unwrap_or(visuals.bg_fill);
                 let stroke = stroke.unwrap_or(visuals.bg_stroke);
                 ui.painter_mut().rect(
-                    ui.ctx_mut(),
+                    ui.ctx,
                     rect.expand(visuals.expansion),
                     visuals.rounding,
                     fill,
@@ -275,7 +275,7 @@ impl<'a> Widget for Checkbox<'a> {
             let visuals = ui.style().interact(&response);
             let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
             ui.painter_mut().add(
-                ui.ctx_mut(),
+                ui.ctx,
                 epaint::RectShape {
                     rect: big_icon_rect.expand(visuals.expansion),
                     rounding: visuals.rounding,
@@ -287,7 +287,7 @@ impl<'a> Widget for Checkbox<'a> {
             if *checked {
                 // Check mark:
                 ui.painter_mut().add(
-                    ui.ctx_mut(),
+                    ui.ctx,
                     Shape::line(
                         vec![
                             pos2(small_icon_rect.left(), small_icon_rect.center().y),
@@ -390,7 +390,7 @@ impl Widget for RadioButton {
             let painter = ui.painter_mut();
 
             painter.add(
-                ui.ctx_mut(),
+                ui.ctx,
                 epaint::CircleShape {
                     center: big_icon_rect.center(),
                     radius: big_icon_rect.width() / 2.0 + visuals.expansion,
@@ -401,7 +401,7 @@ impl Widget for RadioButton {
 
             if checked {
                 painter.add(
-                    ui.ctx_mut(),
+                    ui.ctx,
                     epaint::CircleShape {
                         center: small_icon_rect.center(),
                         radius: small_icon_rect.width() / 3.0,
@@ -522,7 +522,7 @@ impl Widget for ImageButton {
 
             // Draw frame background (for transparent images):
             ui.painter_mut()
-                .rect_filled(ui.ctx_mut(), rect.expand2(expansion), rounding, fill);
+                .rect_filled(ui.ctx, rect.expand2(expansion), rounding, fill);
 
             let image_rect = ui
                 .layout()
@@ -532,7 +532,7 @@ impl Widget for ImageButton {
 
             // Draw frame outline:
             ui.painter_mut()
-                .rect_stroke(ui.ctx_mut(), rect.expand2(expansion), rounding, stroke);
+                .rect_stroke(ui.ctx, rect.expand2(expansion), rounding, stroke);
         }
 
         response

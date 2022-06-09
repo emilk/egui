@@ -71,7 +71,7 @@ pub(crate) struct GridLayout {
 
 impl GridLayout {
     pub(crate) fn new(ui: &Ui<'_>, id: Id) -> Self {
-        let prev_state = State::load(ui.ctx(), id).unwrap_or_default();
+        let prev_state = State::load(ui.ctx, id).unwrap_or_default();
 
         // TODO(emilk): respect current layout
 
@@ -81,7 +81,7 @@ impl GridLayout {
             "Grid not yet available for right-to-left layouts"
         );
 
-        ui.ctx().check_for_id_clash(id, initial_available, "Grid");
+        ui.ctx.check_for_id_clash(id, initial_available, "Grid");
 
         Self {
             style: ui.style().clone(),
@@ -175,10 +175,10 @@ impl GridLayout {
 
             if (debug_expand_width && too_wide) || (debug_expand_height && too_high) {
                 let painter = self.ctx.debug_painter();
-                painter.rect_stroke(ui.ctx_mut(), rect, 0.0, (1.0, Color32::LIGHT_BLUE));
+                painter.rect_stroke(ui.ctx, rect, 0.0, (1.0, Color32::LIGHT_BLUE));
 
                 let stroke = Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
-                let paint_line_seg = |a, b| painter.line_segment(ui.ctx_mut(), [a, b], stroke);
+                let paint_line_seg = |a, b| painter.line_segment(ui.ctx, [a, b], stroke);
 
                 if debug_expand_width && too_wide {
                     paint_line_seg(rect.left_top(), rect.left_bottom());
@@ -216,7 +216,7 @@ impl GridLayout {
                 let rect = rect.expand2(0.5 * self.spacing.y * Vec2::Y);
                 let rect = rect.expand2(2.0 * Vec2::X); // HACK: just looks better with some spacing on the sides
 
-                painter.rect_filled(ui.ctx_mut(), rect, 2.0, self.style.visuals.faint_bg_color);
+                painter.rect_filled(ui.ctx, rect, 2.0, self.style.visuals.faint_bg_color);
             }
         }
     }

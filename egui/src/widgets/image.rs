@@ -15,7 +15,7 @@ use emath::Rot2;
 ///     fn ui(&mut self, ui: &mut egui::Ui) {
 ///         let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
 ///             // Load the texture only once.
-///             ui.ctx().load_texture(
+///             ui.ctx.load_texture(
 ///                 "my-image",
 ///                 egui::ColorImage::example(),
 ///                 egui::TextureFilter::Linear
@@ -116,7 +116,7 @@ impl Image {
             if *bg_fill != Default::default() {
                 let mut mesh = Mesh::default();
                 mesh.add_colored_rect(rect, *bg_fill);
-                ui.painter_mut().add(ui.ctx_mut(), Shape::mesh(mesh));
+                ui.painter_mut().add(ui.ctx, Shape::mesh(mesh));
             }
 
             {
@@ -126,7 +126,7 @@ impl Image {
                 if let Some((rot, origin)) = rotation {
                     mesh.rotate(*rot, rect.min + *origin * *size);
                 }
-                ui.painter_mut().add(ui.ctx_mut(), Shape::mesh(mesh));
+                ui.painter_mut().add(ui.ctx, Shape::mesh(mesh));
             }
         }
     }

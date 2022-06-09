@@ -34,7 +34,7 @@ impl Widget for Spinner {
         let (rect, response) = ui.allocate_exact_size(vec2(size, size), Sense::hover());
 
         if ui.is_rect_visible(rect) {
-            ui.ctx().request_repaint();
+            ui.ctx.request_repaint();
 
             let radius = (rect.height() / 2.0) - 2.0;
             let n_points = 20;
@@ -48,7 +48,7 @@ impl Widget for Spinner {
                 })
                 .collect();
             ui.painter_mut().add(
-                ui.ctx_mut(),
+                ui.ctx,
                 Shape::line(points, Stroke::new(3.0, ui.visuals().strong_text_color())),
             );
         }

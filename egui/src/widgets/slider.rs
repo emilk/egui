@@ -371,14 +371,14 @@ impl<'a> Slider<'a> {
         if ui.is_rect_visible(response.rect()) {
             let value = self.get_value();
 
-            let rail_radius = ui.ctx().round_to_pixel(self.rail_radius_limit(rect));
+            let rail_radius = ui.ctx.round_to_pixel(self.rail_radius_limit(rect));
             let rail_rect = self.rail_rect(rect, rail_radius);
 
             let position_1d = self.position_from_value(value, position_range);
 
             let visuals = ui.style().interact(response);
             ui.painter_mut().add(
-                ui.ctx_mut(),
+                ui.ctx,
                 epaint::RectShape {
                     rect: rail_rect,
                     rounding: ui.visuals().widgets.inactive.rounding,
@@ -394,7 +394,7 @@ impl<'a> Slider<'a> {
             let center = self.marker_center(position_1d, rail_rect);
 
             ui.painter_mut().add(
-                ui.ctx_mut(),
+                ui.ctx,
                 epaint::CircleShape {
                     center,
                     radius: self.handle_radius(rect) + visuals.expansion,

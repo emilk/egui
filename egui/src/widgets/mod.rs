@@ -120,7 +120,7 @@ pub fn stroke_ui(ui: &mut crate::Ui<'_>, stroke: &mut epaint::Stroke, text: &str
         let left = stroke_rect.left_center();
         let right = stroke_rect.right_center();
         ui.painter_mut()
-            .line_segment(ui.ctx_mut(), [left, right], (*width, *color));
+            .line_segment(ui.ctx, [left, right], (*width, *color));
     });
 }
 
@@ -140,7 +140,7 @@ pub(crate) fn shadow_ui(ui: &mut Ui<'_>, shadow: &mut epaint::Shadow, text: &str
 
 /// Show a small button to switch to/from dark/light mode (globally).
 pub fn global_dark_light_mode_switch(ui: &mut Ui<'_>) {
-    ui.ctx_mut()
+    ui.ctx
         .style_mut()
         .visuals
         .light_dark_small_toggle_button(ui);
@@ -148,8 +148,5 @@ pub fn global_dark_light_mode_switch(ui: &mut Ui<'_>) {
 
 /// Show larger buttons for switching between light and dark mode (globally).
 pub fn global_dark_light_mode_buttons(ui: &mut Ui<'_>) {
-    ui.ctx_mut()
-        .style_mut()
-        .visuals
-        .light_dark_radio_buttons(ui);
+    ui.ctx.style_mut().visuals.light_dark_radio_buttons(ui);
 }

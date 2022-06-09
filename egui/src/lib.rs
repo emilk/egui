@@ -420,7 +420,7 @@ macro_rules! github_link_file {
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// // Turn on tracing of widgets
-/// ui.ctx().set_debug_on_hover(true);
+/// ui.ctx.set_debug_on_hover(true);
 ///
 /// /// Show [`std::file`], [`std::line`] and argument on hover
 /// egui::trace!(ui, "MyWindow");

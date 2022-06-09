@@ -522,7 +522,7 @@ impl Areas {
         for layer in self.order.iter().rev() {
             if self.is_visible(layer) {
                 if let Some(state) = self.areas.get(&layer.id) {
-                    let mut rect = state.rect(ui.ctx_mut());
+                    let mut rect = state.rect(ui.ctx);
                     if state.interactable {
                         // Allow us to resize by dragging just outside the window:
                         rect = rect.expand(resize_interact_radius_side);

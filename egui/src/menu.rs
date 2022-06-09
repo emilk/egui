@@ -173,7 +173,7 @@ fn stationary_menu_impl<'a, R>(
     let bar_id = ui.id();
     let menu_id = bar_id.with(title.text());
 
-    let mut bar_state = BarState::load(ui.ctx(), bar_id);
+    let mut bar_state = BarState::load(ui.ctx, bar_id);
 
     let mut button = Button::new(title);
 
@@ -185,7 +185,7 @@ fn stationary_menu_impl<'a, R>(
     let button_response = ui.add(button);
     let inner = bar_state.bar_menu(&button_response, add_contents);
 
-    bar_state.store(ui.ctx(), bar_id);
+    bar_state.store(ui.ctx, bar_id);
     InnerResponse::new(inner.map(|r| r.inner), button_response)
 }
 
@@ -453,7 +453,7 @@ impl SubMenuButton {
                 .min;
 
             ui.painter_mut().rect_filled(
-                ui.ctx_mut(),
+                ui.ctx,
                 rect.expand(visuals.expansion),
                 visuals.rounding,
                 visuals.bg_fill,
@@ -494,7 +494,7 @@ impl SubMenu {
         let inner = self
             .parent_state
             .write()
-            .show_submenu(ui.ctx_mut(), sub_id, add_contents);
+            .show_submenu(ui.ctx, sub_id, add_contents);
         InnerResponse::new(inner, button)
     }
 }
@@ -566,7 +566,7 @@ impl MenuState {
         let open = self.is_open(sub_id);
         if self.moving_towards_current_submenu(pointer) {
             // ensure to repaint once even when pointer is not moving
-            ui.ctx().request_repaint();
+            ui.ctx.request_repaint();
         } else if !open && button.hovered() {
             let pos = button.rect.right_top();
             self.open_submenu(sub_id, pos);

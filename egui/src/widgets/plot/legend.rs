@@ -120,7 +120,7 @@ impl LegendEntry {
         let painter = ui.painter_mut();
 
         painter.add(
-            ui.ctx_mut(),
+            ui.ctx,
             epaint::CircleShape {
                 center: icon_rect.center(),
                 radius: icon_size * 0.5,
@@ -136,7 +136,7 @@ impl LegendEntry {
                 *color
             };
             painter.add(
-                ui.ctx_mut(),
+                ui.ctx,
                 epaint::Shape::circle_filled(icon_rect.center(), icon_size * 0.4, fill),
             );
         }
@@ -148,7 +148,7 @@ impl LegendEntry {
         };
 
         let text_position = pos2(text_position_x, rect.center().y - 0.5 * galley.size().y);
-        painter.galley_with_color(ui.ctx_mut(), text_position, galley, visuals.text_color());
+        painter.galley_with_color(ui.ctx, text_position, galley, visuals.text_color());
 
         *checked ^= response.clicked_by(PointerButton::Primary);
         *hovered = response.hovered();

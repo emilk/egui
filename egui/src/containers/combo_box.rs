@@ -284,7 +284,7 @@ fn button_frame(
     sense: Sense,
     add_contents: impl FnOnce(&mut Ui<'_>),
 ) -> Response {
-    let where_to_put_background = ui.painter_mut().add(ui.ctx_mut(), Shape::Noop);
+    let where_to_put_background = ui.painter_mut().add(ui.ctx, Shape::Noop);
 
     let margin = ui.spacing().button_padding;
     let interact_size = ui.spacing().interact_size;
@@ -330,7 +330,7 @@ fn paint_default_icon(painter: &Painter, rect: Rect, visuals: &WidgetVisuals) {
         vec2(rect.width() * 0.7, rect.height() * 0.45),
     );
     painter.add(
-        ui.ctx_mut(),
+        ui.ctx,
         Shape::closed_line(
             vec![rect.left_top(), rect.right_top(), rect.center_bottom()],
             visuals.fg_stroke,

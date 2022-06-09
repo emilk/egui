@@ -581,8 +581,8 @@ impl Plot {
 
         // Load or initialize the memory.
         let plot_id = ui.make_persistent_id(id_source);
-        ui.ctx().check_for_id_clash(plot_id, rect, "Plot");
-        let mut memory = PlotMemory::load(ui.ctx(), plot_id).unwrap_or_else(|| PlotMemory {
+        ui.ctx.check_for_id_clash(plot_id, rect, "Plot");
+        let mut memory = PlotMemory::load(ui.ctx, plot_id).unwrap_or_else(|| PlotMemory {
             auto_bounds: (!min_auto_bounds.is_valid()).into(),
             hovered_entry: None,
             hidden_items: Default::default(),
@@ -604,7 +604,7 @@ impl Plot {
                 min_auto_bounds,
                 ..memory
             };
-            memory.clone().store(ui.ctx(), plot_id);
+            memory.clone().store(ui.ctx, plot_id);
         }
 
         let PlotMemory {
@@ -634,7 +634,7 @@ impl Plot {
         // Background
         if show_background {
             ui.painter_mut().with_clip_rect(rect).add(
-                ui.ctx_mut(),
+                ui.ctx,
                 epaint::RectShape {
                     rect,
                     rounding: Rounding::same(2.0),
@@ -825,10 +825,10 @@ impl Plot {
         if let Some(boxed_zoom_rect) = boxed_zoom_rect {
             ui.painter_mut()
                 .with_clip_rect(rect)
-                .add(ui.ctx_mut(), boxed_zoom_rect.0);
+                .add(ui.ctx, boxed_zoom_rect.0);
             ui.painter_mut()
                 .with_clip_rect(rect)
-                .add(ui.ctx_mut(), boxed_zoom_rect.1);
+                .add(ui.ctx, boxed_zoom_rect.1);
         }
 
         if let Some(mut legend) = legend {
@@ -849,7 +849,7 @@ impl Plot {
             last_screen_transform: transform,
             last_click_pos_for_zoom,
         };
-        memory.store(ui.ctx(), plot_id);
+        memory.store(ui.ctx, plot_id);
 
         let response = if show_x || show_y {
             response.on_hover_cursor(ui, CursorIcon::Crosshair)
@@ -1143,7 +1143,7 @@ impl PreparedPlot {
         }
 
         let painter = ui.painter_mut().with_clip_rect(transform.frame());
-        painter.extend(ui.ctx_mut(), shapes);
+        painter.extend(ui.ctx, shapes);
 
         if let Some((corner, formatter)) = self.coordinates_formatter.as_ref() {
             if let Some(pointer) = response.hover_pos() {
@@ -1158,7 +1158,7 @@ impl PreparedPlot {
                     Corner::RightBottom => (Align2::RIGHT_BOTTOM, padded_frame.right_bottom()),
                 };
                 painter.text(
-                    ui.ctx_mut(),
+                    ui.ctx,
                     position,
                     anchor,
                     text,

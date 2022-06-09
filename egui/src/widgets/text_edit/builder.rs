@@ -282,7 +282,7 @@ impl<'t> TextEdit<'t> {
         let is_mutable = self.text.is_mutable();
         let frame = self.frame;
         let interactive = self.interactive;
-        let where_to_put_background = ui.painter_mut().add(ui.ctx_mut(), Shape::Noop);
+        let where_to_put_background = ui.painter_mut().add(ui.ctx, Shape::Noop);
 
         let margin = self.margin;
         let max_rect = ui.available_rect_before_wrap().shrink2(margin);
@@ -330,8 +330,7 @@ impl<'t> TextEdit<'t> {
                 }
             };
 
-            ui.painter_mut()
-                .set(ui.ctx_mut(), where_to_put_background, shape);
+            ui.painter_mut().set(ui.ctx, where_to_put_background, shape);
         }
 
         output
@@ -406,7 +405,7 @@ impl<'t> TextEdit<'t> {
                 auto_id // Since we are only storing the cursor a persistent Id is not super important
             }
         });
-        let mut state = TextEditState::load(ui.ctx(), id).unwrap_or_default();
+        let mut state = TextEditState::load(ui.ctx, id).unwrap_or_default();
 
         // On touch screens (e.g. mobile in `eframe` web), should
         // dragging select text, or scroll the enclosing [`ScrollArea`] (if any)?
@@ -429,7 +428,7 @@ impl<'t> TextEdit<'t> {
         let painter = ui.painter_at(text_clip_rect.expand(1.0)); // expand to avoid clipping cursor
 
         if interactive {
-            if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
+            if let Some(pointer_pos) = ui.ctx.pointer_interact_pos() {
                 if response.hovered() && text.is_mutable() {
                     ui.output_mut().mutable_text_under_cursor = true;
                 }
@@ -566,7 +565,7 @@ impl<'t> TextEdit<'t> {
         };
 
         if ui.is_rect_visible(rect) {
-            painter.galley(ui.ctx_mut(), text_draw_pos, galley.clone());
+            painter.galley(ui.ctx, text_draw_pos, galley.clone());
 
             if text.as_ref().is_empty() && !hint_text.is_empty() {
                 let hint_text_color = ui.visuals().weak_text_color();
@@ -601,14 +600,14 @@ impl<'t> TextEdit<'t> {
                         if interactive {
                             // eframe web uses `text_cursor_pos` when showing IME,
                             // so only set it when text is editable and visible!
-                            ui.ctx_mut().output_mut().text_cursor_pos = Some(cursor_pos.left_top());
+                            ui.ctx.output_mut().text_cursor_pos = Some(cursor_pos.left_top());
                         }
                     }
                 }
             }
         }
 
-        state.clone().store(ui.ctx(), id);
+        state.clone().store(ui.ctx, id);
 
         if response.changed() {
             response.widget_info(ui, || {
@@ -625,7 +624,7 @@ impl<'t> TextEdit<'t> {
                 char_range,
                 mask_if_password(password, text.as_str()),
             );
-            ui.ctx_mut()
+            ui.ctx
                 .output_mut()
                 .events
                 .push(OutputEvent::TextSelectionChanged(info));
@@ -690,7 +689,7 @@ fn events(
 
     let copy_if_not_password = |ui: &Ui<'_>, text: String| {
         if !password {
-            ui.ctx_mut().output_mut().copied_text = text;
+            ui.ctx.output_mut().copied_text = text;
         }
     };
 
@@ -891,7 +890,7 @@ fn paint_cursor_selection(
             pos + vec2(left, row.min_y()),
             pos + vec2(right, row.max_y()),
         );
-        painter.rect_filled(ui.ctx_mut(), rect, 0.0, color);
+        painter.rect_filled(ui.ctx, rect, 0.0, color);
     }
 }
 
@@ -913,7 +912,7 @@ fn paint_cursor_end(
     let bottom = cursor_pos.center_bottom();
 
     painter.line_segment(
-        ui.ctx_mut(),
+        ui.ctx,
         [top, bottom],
         (ui.visuals().text_cursor_width, stroke.color),
     );
@@ -923,12 +922,12 @@ fn paint_cursor_end(
         let extrusion = 3.0;
         let width = 1.0;
         painter.line_segment(
-            ui.ctx_mut(),
+            ui.ctx,
             [top - vec2(extrusion, 0.0), top + vec2(extrusion, 0.0)],
             (width, stroke.color),
         );
         painter.line_segment(
-            ui.ctx_mut(),
+            ui.ctx,
             [bottom - vec2(extrusion, 0.0), bottom + vec2(extrusion, 0.0)],
             (width, stroke.color),
         );

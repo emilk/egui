@@ -73,13 +73,13 @@ impl Widget for ProgressBar {
 
         if ui.is_rect_visible(response.rect()) {
             if animate {
-                ui.ctx().request_repaint();
+                ui.ctx.request_repaint();
             }
 
             let visuals = ui.style().visuals.clone();
             let rounding = outer_rect.height() / 2.0;
             ui.painter_mut().rect(
-                ui.ctx_mut(),
+                ui.ctx,
                 outer_rect,
                 rounding,
                 visuals.extreme_bg_color,
@@ -101,7 +101,7 @@ impl Widget for ProgressBar {
             };
 
             ui.painter_mut().rect(
-                ui.ctx_mut(),
+                ui.ctx,
                 inner_rect,
                 rounding,
                 Color32::from(Rgba::from(visuals.selection.bg_fill) * color_factor as f32),
@@ -123,7 +123,7 @@ impl Widget for ProgressBar {
                     })
                     .collect();
                 ui.painter_mut().add(
-                    ui.ctx_mut(),
+                    ui.ctx,
                     Shape::line(points, Stroke::new(2.0, visuals.faint_bg_color)),
                 );
             }

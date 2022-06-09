@@ -59,7 +59,7 @@ impl CollapsingState {
 
     pub fn toggle(&mut self, ui: &mut Ui<'_>) {
         self.state.open = !self.state.open;
-        ui.ctx_mut().request_repaint();
+        ui.ctx.request_repaint();
     }
 
     /// 0 for closed, 1 for open, with tweening
@@ -82,7 +82,7 @@ impl CollapsingState {
         if response.clicked() {
             self.toggle(ui);
         }
-        let openness = self.openness(ui.ctx());
+        let openness = self.openness(ui.ctx);
         paint_default_icon(ui, openness, &response);
         response
     }
@@ -110,7 +110,7 @@ impl CollapsingState {
             response.rect().left() + ui.spacing().indent / 2.0,
             response.rect().center().y,
         ));
-        let openness = self.openness(ui.ctx());
+        let openness = self.openness(ui.ctx);
         let small_icon_response = Response {
             rect: icon_rect,
             ..response.clone()
@@ -130,7 +130,7 @@ impl CollapsingState {
     /// ```
     /// # egui::__run_test_ui(|ui| {
     /// let id = ui.make_persistent_id("my_collapsing_header");
-    /// egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, false)
+    /// egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx, id, false)
     ///     .show_header(ui, |ui| {
     ///         ui.label("Header"); // you can put checkboxes or whatever here
     ///     })
@@ -191,9 +191,9 @@ impl CollapsingState {
         ui: &mut Ui<'c>,
         add_body: impl FnOnce(&mut Ui<'_>) -> R,
     ) -> Option<InnerResponse<R>> {
-        let openness = self.openness(ui.ctx());
+        let openness = self.openness(ui.ctx);
         if openness <= 0.0 {
-            self.store(ui.ctx()); // we store any earlier toggling as promised in the docstring
+            self.store(ui.ctx); // we store any earlier toggling as promised in the docstring
             None
         } else if openness < 1.0 {
             Some(ui.scope(|child_ui| {
@@ -215,7 +215,7 @@ impl CollapsingState {
 
                 let mut min_rect = child_ui.min_rect();
                 self.state.open_height = Some(min_rect.height());
-                self.store(child_ui.ctx()); // remember the height
+                self.store(child_ui.ctx); // remember the height
 
                 // Pretend children took up at most `max_height` space:
                 min_rect.max.y = min_rect.max.y.at_most(min_rect.top() + max_height);
@@ -226,7 +226,7 @@ impl CollapsingState {
             let ret_response = ui.scope(add_body);
             let full_size = ret_response.response.rect().size();
             self.state.open_height = Some(full_size.y);
-            self.store(ui.ctx()); // remember the height
+            self.store(ui.ctx); // remember the height
             Some(ret_response)
         }
     }
@@ -241,7 +241,7 @@ impl CollapsingState {
     /// }
     ///
     /// let mut state = egui::collapsing_header::CollapsingState::load_with_default_open(
-    ///     ui.ctx(),
+    ///     ui.ctx,
     ///     ui.make_persistent_id("my_collapsing_state"),
     ///     false,
     /// );
@@ -313,7 +313,7 @@ pub fn paint_default_icon(ui: &mut Ui<'_>, openness: f32, response: &Response) {
     }
 
     ui.painter_mut()
-        .add(ui.ctx_mut(), Shape::closed_line(points, stroke));
+        .add(ui.ctx, Shape::closed_line(points, stroke));
 }
 
 /// A function that paints an icon indicating if the region is open or not
@@ -517,7 +517,7 @@ impl CollapsingHeader {
             header_response.rect().center().y - text.size().y / 2.0,
         );
 
-        let mut state = CollapsingState::load_with_default_open(ui.ctx(), id, default_open);
+        let mut state = CollapsingState::load_with_default_open(ui.ctx, id, default_open);
         if let Some(open) = open {
             if open != state.is_open() {
                 state.toggle(ui);
@@ -532,14 +532,14 @@ impl CollapsingHeader {
             WidgetInfo::labeled(WidgetType::CollapsingHeader, text.text())
         });
 
-        let openness = state.openness(ui.ctx());
+        let openness = state.openness(ui.ctx);
 
         if ui.is_rect_visible(rect) {
             let visuals = ui.style().interact_selectable(&header_response, selected);
 
             if ui.visuals().collapsing_header_frame || show_background {
                 ui.painter_mut().add(
-                    ui.ctx_mut(),
+                    ui.ctx,
                     epaint::RectShape {
                         rect: header_response.rect().expand(visuals.expansion),
                         rounding: visuals.rounding,
@@ -555,7 +555,7 @@ impl CollapsingHeader {
                 let rect = rect.expand(visuals.expansion);
 
                 ui.painter_mut().rect(
-                    ui.ctx_mut(),
+                    ui.ctx,
                     rect,
                     visuals.rounding,
                     visuals.bg_fill,

@@ -170,8 +170,8 @@ impl Resize {
             ui.make_persistent_id(id_source)
         });
 
-        let mut state = State::load(ui.ctx(), id).unwrap_or_else(|| {
-            ui.ctx().request_repaint(); // counter frame delay
+        let mut state = State::load(ui.ctx, id).unwrap_or_else(|| {
+            ui.ctx.request_repaint(); // counter frame delay
 
             let default_size = self
                 .default_size
@@ -293,7 +293,7 @@ impl Resize {
             let rect = Rect::from_min_size(content_ui.min_rect().left_top(), state.desired_size);
             let rect = rect.expand(2.0); // breathing room for content
             ui.painter_mut().add(
-                ui.ctx_mut(),
+                ui.ctx,
                 Shape::rect_stroke(rect, 3.0, ui.visuals().widgets.noninteractive.bg_stroke),
             );
         }
@@ -302,19 +302,19 @@ impl Resize {
             paint_resize_corner(ui, &corner_response);
 
             if corner_response.hovered() || corner_response.dragged() {
-                ui.ctx_mut().output_mut().cursor_icon = CursorIcon::ResizeNwSe;
+                ui.ctx.output_mut().cursor_icon = CursorIcon::ResizeNwSe;
             }
         }
 
-        state.store(ui.ctx_mut(), id);
+        state.store(ui.ctx, id);
 
-        if ui.ctx().style().debug.show_resize {
-            ui.ctx().debug_painter().debug_rect(
+        if ui.ctx.style().debug.show_resize {
+            ui.ctx.debug_painter().debug_rect(
                 Rect::from_min_size(content_ui.min_rect().left_top(), state.desired_size),
                 Color32::GREEN,
                 "desired_size",
             );
-            ui.ctx().debug_painter().debug_rect(
+            ui.ctx.debug_painter().debug_rect(
                 Rect::from_min_size(content_ui.min_rect().left_top(), state.last_content_size),
                 Color32::LIGHT_BLUE,
                 "last_content_size",
@@ -337,7 +337,7 @@ pub fn paint_resize_corner_with_style(ui: &mut Ui<'_>, rect: Rect, stroke: Strok
 
     while w <= rect.width() && w <= rect.height() {
         painter.line_segment(
-            ui.ctx_mut(),
+            ui.ctx,
             [
                 pos2(cp.x - w * corner.x().to_sign(), cp.y),
                 pos2(cp.x, cp.y - w * corner.y().to_sign()),

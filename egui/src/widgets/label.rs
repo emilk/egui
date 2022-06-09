@@ -178,7 +178,7 @@ impl Widget for Label {
             };
 
             ui.painter_mut().add(
-                ui.ctx_mut(),
+                ui.ctx,
                 epaint::TextShape {
                     pos,
                     galley: text_galley.galley,

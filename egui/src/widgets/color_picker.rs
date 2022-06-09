@@ -54,7 +54,7 @@ pub fn show_color(ui: &mut Ui<'_>, color: impl Into<Color32>, desired_size: Vec2
 fn show_color32(ui: &mut Ui<'_>, color: Color32, desired_size: Vec2) -> Response {
     let (rect, response) = ui.allocate_at_least(desired_size, Sense::hover());
     if ui.is_rect_visible(rect) {
-        show_color_at(ui.ctx_mut(), ui.painter_mut(), color, rect);
+        show_color_at(ui.ctx, ui.painter_mut(), color, rect);
     }
     response
 }
@@ -91,11 +91,11 @@ fn color_button(ui: &mut Ui<'_>, color: Color32, open: bool) -> Response {
         };
         let rect = rect.expand(visuals.expansion);
 
-        show_color_at(ui.ctx_mut(), ui.painter_mut(), color, rect);
+        show_color_at(ui.ctx, ui.painter_mut(), color, rect);
 
         let rounding = visuals.rounding.at_most(2.0);
         ui.painter_mut()
-            .rect_stroke(ui.ctx_mut(), rect, rounding, (2.0, visuals.bg_fill)); // fill is intentional, because default style has no border
+            .rect_stroke(ui.ctx, rect, rounding, (2.0, visuals.bg_fill)); // fill is intentional, because default style has no border
     }
 
     response
@@ -116,7 +116,7 @@ fn color_slider_1d(
     if ui.is_rect_visible(rect) {
         let visuals = ui.style().interact(&response);
 
-        background_checkers(ui.ctx_mut(), ui.painter_mut(), rect); // for alpha:
+        background_checkers(ui.ctx, ui.painter_mut(), rect); // for alpha:
 
         {
             // fill color:
@@ -132,11 +132,11 @@ fn color_slider_1d(
                     mesh.add_triangle(2 * i + 1, 2 * i + 2, 2 * i + 3);
                 }
             }
-            ui.painter_mut().add(ui.ctx_mut(), Shape::mesh(mesh));
+            ui.painter_mut().add(ui.ctx, Shape::mesh(mesh));
         }
 
         ui.painter_mut()
-            .rect_stroke(ui.ctx_mut(), rect, 0.0, visuals.bg_stroke); // outline
+            .rect_stroke(ui.ctx, rect, 0.0, visuals.bg_stroke); // outline
 
         {
             // Show where the slider is at:
@@ -144,7 +144,7 @@ fn color_slider_1d(
             let r = rect.height() / 4.0;
             let picked_color = color_at(*value);
             ui.painter_mut().add(
-                ui.ctx_mut(),
+                ui.ctx,
                 Shape::convex_polygon(
                     vec![
                         pos2(x, rect.center().y),   // tip
@@ -197,17 +197,17 @@ fn color_slider_2d<'c>(
                 }
             }
         }
-        ui.painter_mut().add(ui.ctx_mut(), Shape::mesh(mesh)); // fill
+        ui.painter_mut().add(ui.ctx, Shape::mesh(mesh)); // fill
 
         ui.painter_mut()
-            .rect_stroke(ui.ctx_mut(), rect, 0.0, visuals.bg_stroke); // outline
+            .rect_stroke(ui.ctx, rect, 0.0, visuals.bg_stroke); // outline
 
         // Show where the slider is at:
         let x = lerp(rect.left()..=rect.right(), *x_value);
         let y = lerp(rect.bottom()..=rect.top(), *y_value);
         let picked_color = color_at(*x_value, *y_value);
         ui.painter_mut().add(
-            ui.ctx_mut(),
+            ui.ctx,
             epaint::CircleShape {
                 center: pos2(x, y),
                 radius: rect.width() / 12.0,
@@ -343,10 +343,10 @@ pub fn color_picker_hsva_2d(ui: &mut Ui<'_>, hsva: &mut Hsva, alpha: Alpha) -> b
 ///
 /// Returns `true` on change.
 pub fn color_picker_color32(ui: &mut Ui<'_>, srgba: &mut Color32, alpha: Alpha) -> bool {
-    let mut hsva = color_cache_get(ui.ctx_mut(), *srgba);
+    let mut hsva = color_cache_get(ui.ctx, *srgba);
     let changed = color_picker_hsva_2d(ui, &mut hsva, alpha);
     *srgba = Color32::from(hsva);
-    color_cache_set(ui.ctx_mut(), *srgba, hsva);
+    color_cache_set(ui.ctx, *srgba, hsva);
     changed
 }
 
@@ -366,7 +366,7 @@ pub fn color_edit_button_hsva<'c>(ui: &mut Ui<'c>, hsva: &mut Hsva, alpha: Alpha
         let area_response = Area::new(popup_id)
             .order(Order::Foreground)
             .current_pos(button_response.rect().max)
-            .show(ui.ctx_mut(), |ui| {
+            .show(ui.ctx, |ui| {
                 ui.spacing_mut().slider_width = 210.0;
                 Frame::popup(ui.style()).show(ui, |ui| {
                     if color_picker_hsva_2d(ui, hsva, alpha) {
@@ -389,10 +389,10 @@ pub fn color_edit_button_hsva<'c>(ui: &mut Ui<'c>, hsva: &mut Hsva, alpha: Alpha
 /// Shows a button with the given color.
 /// If the user clicks the button, a full color picker is shown.
 pub fn color_edit_button_srgba<'c>(ui: &mut Ui<'c>, srgba: &mut Color32, alpha: Alpha) -> Response {
-    let mut hsva = color_cache_get(ui.ctx_mut(), *srgba);
+    let mut hsva = color_cache_get(ui.ctx, *srgba);
     let response = color_edit_button_hsva(ui, &mut hsva, alpha);
     *srgba = Color32::from(hsva);
-    color_cache_set(ui.ctx_mut(), *srgba, hsva);
+    color_cache_set(ui.ctx, *srgba, hsva);
     response
 }
 
@@ -411,10 +411,10 @@ pub fn color_edit_button_srgb<'c>(ui: &mut Ui<'c>, srgb: &mut [u8; 3]) -> Respon
 /// Shows a button with the given color.
 /// If the user clicks the button, a full color picker is shown.
 pub fn color_edit_button_rgba<'c>(ui: &mut Ui<'c>, rgba: &mut Rgba, alpha: Alpha) -> Response {
-    let mut hsva = color_cache_get(ui.ctx_mut(), *rgba);
+    let mut hsva = color_cache_get(ui.ctx, *rgba);
     let response = color_edit_button_hsva(ui, &mut hsva, alpha);
     *rgba = Rgba::from(hsva);
-    color_cache_set(ui.ctx_mut(), *rgba, hsva);
+    color_cache_set(ui.ctx, *rgba, hsva);
     response
 }
 

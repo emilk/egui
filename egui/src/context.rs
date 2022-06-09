@@ -677,7 +677,7 @@ impl Context {
     ///     fn ui(&mut self, ui: &mut egui::Ui) {
     ///         let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
     ///             // Load the texture only once.
-    ///             ui.ctx().load_texture(
+    ///             ui.ctx.load_texture(
     ///                 "my-image",
     ///                 egui::ColorImage::example(),
     ///                 egui::TextureFilter::Linear
@@ -844,7 +844,7 @@ impl Context {
     pub fn used_rect(&self) -> Rect {
         let mut used = self.frame_state().used_by_panels;
         for window in self.memory().areas.visible_windows() {
-            used = used.union(window.rect(ui.ctx_mut()));
+            used = used.union(window.rect(ui.ctx));
         }
         used
     }
@@ -1160,7 +1160,7 @@ impl Context {
                                 size *= (max_preview_size.y / size.y).min(1.0);
                                 ui.image(texture_id, size).on_hover_ui(ui, |ui| {
                                     // show larger on hover
-                                    let max_size = 0.5 * ui.ctx().input().screen_rect().size();
+                                    let max_size = 0.5 * ui.ctx.input().screen_rect().size();
                                     let mut size = Vec2::new(w as f32, h as f32);
                                     size *= max_size.x / size.x.max(max_size.x);
                                     size *= max_size.y / size.y.max(max_size.y);
@@ -1214,18 +1214,16 @@ impl Context {
                     let text = format!(
                         "{} - {:?}",
                         layer_id.short_debug_format(),
-                        area.rect(ui.ctx_mut(),)
+                        area.rect(ui.ctx,)
                     );
                     // TODO(emilk): `Sense::hover_highlight()`
                     if ui
                         .add(Label::new(RichText::new(text).monospace()).sense(Sense::click()))
                         .hovered
                     {
-                        ui.ctx().debug_painter().debug_rect(
-                            area.rect(ui.ctx_mut()),
-                            Color32::RED,
-                            "",
-                        );
+                        ui.ctx
+                            .debug_painter()
+                            .debug_rect(area.rect(ui.ctx), Color32::RED, "");
                     }
                 }
             }

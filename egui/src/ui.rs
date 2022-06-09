@@ -631,7 +631,7 @@ impl<'c> Ui<'c> {
     /// # egui::__run_test_ui(|ui| {
     /// let response = ui.allocate_response(egui::vec2(100.0, 200.0), egui::Sense::click());
     /// if response.clicked() { /* … */ }
-    /// ui.painter_mut().rect_stroke(ui.ctx_mut(), response.rect(), 0.0, (1.0, egui::Color32::WHITE));
+    /// ui.painter_mut().rect_stroke(ui.ctx, response.rect(), 0.0, (1.0, egui::Color32::WHITE));
     /// # });
     /// ```
     pub fn allocate_response(&mut self, desired_size: Vec2, sense: Sense) -> Response {
@@ -691,7 +691,7 @@ impl<'c> Ui<'c> {
 
         if self.style().debug.debug_on_hover && self.rect_contains_pointer(rect) {
             let painter = self.ctx().debug_painter();
-            painter.rect_stroke(ui.ctx_mut(), rect, 4.0, (1.0, Color32::LIGHT_BLUE));
+            painter.rect_stroke(ui.ctx, rect, 4.0, (1.0, Color32::LIGHT_BLUE));
             self.placer.debug_paint_cursor(&painter, "next");
         }
 
@@ -700,10 +700,10 @@ impl<'c> Ui<'c> {
 
         if (debug_expand_width && too_wide) || (debug_expand_height && too_high) {
             self.painter
-                .rect_stroke(ui.ctx_mut(), rect, 0.0, (1.0, Color32::LIGHT_BLUE));
+                .rect_stroke(ui.ctx, rect, 0.0, (1.0, Color32::LIGHT_BLUE));
 
             let stroke = Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
-            let paint_line_seg = |a, b| self.painter().line_segment(ui.ctx_mut(), [a, b], stroke);
+            let paint_line_seg = |a, b| self.painter().line_segment(ui.ctx, [a, b], stroke);
 
             if debug_expand_width && too_wide {
                 paint_line_seg(rect.left_top(), rect.left_bottom());
@@ -758,7 +758,7 @@ impl<'c> Ui<'c> {
 
         if self.style().debug.debug_on_hover && self.rect_contains_pointer(rect) {
             let painter = self.ctx().debug_painter();
-            painter.rect_stroke(ui.ctx_mut(), rect, 4.0, (1.0, Color32::LIGHT_BLUE));
+            painter.rect_stroke(ui.ctx, rect, 4.0, (1.0, Color32::LIGHT_BLUE));
             self.placer.debug_paint_cursor(&painter, "next");
         }
 
@@ -841,13 +841,8 @@ impl<'c> Ui<'c> {
 
         if self.style().debug.debug_on_hover && self.rect_contains_pointer(final_child_rect) {
             let painter = self.ctx().debug_painter();
-            painter.rect_stroke(ui.ctx_mut(), frame_rect, 4.0, (1.0, Color32::LIGHT_BLUE));
-            painter.rect_stroke(
-                ui.ctx_mut(),
-                final_child_rect,
-                4.0,
-                (1.0, Color32::LIGHT_BLUE),
-            );
+            painter.rect_stroke(ui.ctx, frame_rect, 4.0, (1.0, Color32::LIGHT_BLUE));
+            painter.rect_stroke(ui.ctx, final_child_rect, 4.0, (1.0, Color32::LIGHT_BLUE));
             self.placer.debug_paint_cursor(&painter, "next");
         }
 
@@ -895,9 +890,9 @@ impl<'c> Ui<'c> {
     /// let color = Color32::from_gray(128);
     /// let stroke = Stroke::new(1.0, color);
     /// painter.circle_stroke(c, r, stroke);
-    /// painter.line_segment(ui.ctx_mut(), [c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
-    /// painter.line_segment(ui.ctx_mut(), [c, c + r * Vec2::angled(TAU * 1.0 / 8.0)], stroke);
-    /// painter.line_segment(ui.ctx_mut(), [c, c + r * Vec2::angled(TAU * 3.0 / 8.0)], stroke);
+    /// painter.line_segment(ui.ctx, [c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
+    /// painter.line_segment(ui.ctx, [c, c + r * Vec2::angled(TAU * 1.0 / 8.0)], stroke);
+    /// painter.line_segment(ui.ctx, [c, c + r * Vec2::angled(TAU * 3.0 / 8.0)], stroke);
     /// # });
     /// ```
     pub fn allocate_painter(&mut self, desired_size: Vec2, sense: Sense) -> (Response, Painter) {
@@ -1517,7 +1512,7 @@ impl<'c> Ui<'c> {
     ///     fn ui(&mut self, ui: &mut egui::Ui) {
     ///         let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
     ///             // Load the texture only once.
-    ///             ui.ctx().load_texture(
+    ///             ui.ctx.load_texture(
     ///                 "my-image",
     ///                 egui::ColorImage::example(),
     ///                 egui::TextureFilter::Linear

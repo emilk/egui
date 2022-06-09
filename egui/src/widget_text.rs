@@ -692,9 +692,9 @@ impl WidgetTextGalley {
         text_color: Color32,
     ) {
         if self.galley_has_color {
-            painter.galley(ui.ctx_mut(), text_pos, self.galley);
+            painter.galley(ui.ctx, text_pos, self.galley);
         } else {
-            painter.galley_with_color(ui.ctx_mut(), text_pos, self.galley, text_color);
+            painter.galley_with_color(ui.ctx, text_pos, self.galley, text_color);
         }
     }
 
@@ -705,6 +705,6 @@ impl WidgetTextGalley {
         text_pos: Pos2,
         text_color: Color32,
     ) {
-        painter.galley_with_color(ui.ctx_mut(), text_pos, self.galley, text_color);
+        painter.galley_with_color(ui.ctx, text_pos, self.galley, text_color);
     }
 }

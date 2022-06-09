@@ -190,7 +190,7 @@ impl SidePanel {
         let mut panel_rect = available_rect;
         {
             let mut width = default_width;
-            if let Some(state) = PanelState::load(ui.ctx(), id) {
+            if let Some(state) = PanelState::load(ui.ctx, id) {
                 width = state.rect.width();
             }
             width = clamp_to_range(width, width_range.clone()).at_most(available_rect.width());
@@ -201,7 +201,7 @@ impl SidePanel {
         let mut is_resizing = false;
         if resizable {
             let resize_id = id.with("__resize");
-            if let Some(pointer) = ui.ctx().pointer_latest_pos() {
+            if let Some(pointer) = ui.ctx.pointer_latest_pos() {
                 let we_are_on_top = ui
                     .ctx()
                     .layer_id_at(pointer)
@@ -262,7 +262,7 @@ impl SidePanel {
         }
         ui.expand_to_include_rect(rect);
 
-        PanelState { rect }.store(ui.ctx(), id);
+        PanelState { rect }.store(ui.ctx, id);
 
         if resize_hover || is_resizing {
             let stroke = if is_resizing {
@@ -273,12 +273,9 @@ impl SidePanel {
             // draw on top of ALL panels so that the resize line won't be covered by subsequent panels
             let resize_layer = LayerId::new(Order::Foreground, Id::new("panel_resize"));
             let resize_x = side.opposite().side_x(rect);
-            ui.ctx().layer_painter(resize_layer).vline(
-                ui.ctx_mut(),
-                resize_x,
-                rect.y_range(),
-                stroke,
-            );
+            ui.ctx
+                .layer_painter(resize_layer)
+                .vline(ui.ctx, resize_x, rect.y_range(), stroke);
         }
 
         inner_response
@@ -475,7 +472,7 @@ impl TopBottomPanel {
         let available_rect = ui.available_rect_before_wrap();
         let mut panel_rect = available_rect;
         {
-            let mut height = if let Some(state) = PanelState::load(ui.ctx(), id) {
+            let mut height = if let Some(state) = PanelState::load(ui.ctx, id) {
                 state.rect.height()
             } else {
                 default_height.unwrap_or_else(|| ui.style().spacing.interact_size.y)
@@ -550,7 +547,7 @@ impl TopBottomPanel {
         }
         ui.expand_to_include_rect(rect);
 
-        PanelState { rect }.store(ui.ctx(), id);
+        PanelState { rect }.store(ui.ctx, id);
 
         if resize_hover || is_resizing {
             let stroke = if is_resizing {
@@ -561,12 +558,9 @@ impl TopBottomPanel {
             // draw on top of ALL panels so that the resize line won't be covered by subsequent panels
             let resize_layer = LayerId::new(Order::Foreground, Id::new("panel_resize"));
             let resize_y = side.opposite().side_y(rect);
-            ui.ctx().layer_painter(resize_layer).hline(
-                ui.ctx_mut(),
-                rect.x_range(),
-                resize_y,
-                stroke,
-            );
+            ui.ctx
+                .layer_painter(resize_layer)
+                .hline(ui.ctx, rect.x_range(), resize_y, stroke);
         }
 
         inner_response
