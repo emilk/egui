@@ -130,13 +130,13 @@ fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRang
         ccursor_range.secondary.index += advance;
     }
     for (modifier, key, surrounding) in [
-        (egui::Modifiers::COMMAND, Key::B, "*"),      // *bold*
-        (egui::Modifiers::COMMAND, Key::N, "`"),      // `code`
-        (egui::Modifiers::COMMAND, Key::I, "/"),      // /italics/
-        (egui::Modifiers::COMMAND, Key::L, "$"),      // $subscript$
-        (egui::Modifiers::COMMAND, Key::Y, "^"),      // ^superscript^
-        (egui::Modifiers::ALT_SHIFT, Key::Num3, "~"), // ~strikethrough~
-        (egui::Modifiers::COMMAND, Key::Num2, "_"),   // _underline_
+        (egui::Modifiers::COMMAND, Key::B, "*"),   // *bold*
+        (egui::Modifiers::COMMAND, Key::N, "`"),   // `code`
+        (egui::Modifiers::COMMAND, Key::I, "/"),   // /italics/
+        (egui::Modifiers::COMMAND, Key::L, "$"),   // $subscript$
+        (egui::Modifiers::COMMAND, Key::Y, "^"),   // ^superscript^
+        (egui::Modifiers::ALT_SHIFT, Key::Q, "~"), // ~strikethrough~
+        (egui::Modifiers::ALT_SHIFT, Key::W, "_"), // _underline_
     ] {
         if ui.input_mut().consume_key(modifier, key) {
             any_change = true;
