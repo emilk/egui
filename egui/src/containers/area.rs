@@ -357,10 +357,10 @@ impl Prepared {
             || pointer_pressed_on_area(ctx, layer_id)
             || !ctx.memory().areas.visible_last_frame(&layer_id)
         {
-            ctx.memory().areas.move_to_top(layer_id);
+            ctx.memory_mut().areas.move_to_top(layer_id);
             ctx.request_repaint();
         }
-        ctx.memory().areas.set_state(layer_id, state);
+        ctx.memory_mut().areas.set_state(layer_id, state);
 
         move_response
     }

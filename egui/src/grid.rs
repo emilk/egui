@@ -7,15 +7,15 @@ pub(crate) struct State {
 }
 
 impl State {
-    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.data().get_temp(id)
+    pub fn load(ctx: &mut Context, id: Id) -> Option<Self> {
+        ctx.data_mut().get_temp(id)
     }
 
-    pub fn store(self, ctx: &Context, id: Id) {
+    pub fn store(self, ctx: &mut Context, id: Id) {
         // We don't persist Grids, because
         // A) there are potentially a lot of them, using up a lot of space (and therefore serialization time)
         // B) if the code changes, the grid _should_ change, and not remember old sizes
-        ctx.data().insert_temp(id, self);
+        ctx.data_mut().insert_temp(id, self);
     }
 
     fn set_min_col_width(&mut self, col: usize, width: f32) {
@@ -70,7 +70,7 @@ pub(crate) struct GridLayout {
 }
 
 impl GridLayout {
-    pub(crate) fn new(ui: &Ui<'_>, id: Id) -> Self {
+    pub(crate) fn new(ui: &mut Ui<'_>, id: Id) -> Self {
         let prev_state = State::load(ui.ctx, id).unwrap_or_default();
 
         // TODO(emilk): respect current layout
@@ -184,7 +184,7 @@ impl GridLayout {
                 painter.rect_stroke(ctx, rect, 0.0, (1.0, Color32::LIGHT_BLUE));
 
                 let stroke = Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
-                let paint_line_seg = |a, b| painter.line_segment(ctx, [a, b], stroke);
+                let mut paint_line_seg = |a, b| painter.line_segment(ctx, [a, b], stroke);
 
                 if debug_expand_width && too_wide {
                     paint_line_seg(rect.left_top(), rect.left_bottom());

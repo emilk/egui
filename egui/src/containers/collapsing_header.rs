@@ -25,21 +25,21 @@ pub struct CollapsingState {
 }
 
 impl CollapsingState {
-    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.data()
+    pub fn load(ctx: &mut Context, id: Id) -> Option<Self> {
+        ctx.data_mut()
             .get_persisted::<InnerState>(id)
             .map(|state| Self { id, state })
     }
 
-    pub fn store(&self, ctx: &Context) {
-        ctx.data().insert_persisted(self.id, self.state);
+    pub fn store(&self, ctx: &mut Context) {
+        ctx.data_mut().insert_persisted(self.id, self.state);
     }
 
     pub fn id(&self) -> Id {
         self.id
     }
 
-    pub fn load_with_default_open(ctx: &Context, id: Id, default_open: bool) -> Self {
+    pub fn load_with_default_open(ctx: &mut Context, id: Id, default_open: bool) -> Self {
         Self::load(ctx, id).unwrap_or(CollapsingState {
             id,
             state: InnerState {
@@ -63,7 +63,7 @@ impl CollapsingState {
     }
 
     /// 0 for closed, 1 for open, with tweening
-    pub fn openness(&self, ctx: &Context) -> f32 {
+    pub fn openness(&self, ctx: &mut Context) -> f32 {
         if ctx.memory().everything_is_visible() {
             1.0
         } else {
@@ -167,10 +167,10 @@ impl CollapsingState {
     /// Indent the body to show it belongs to the header.
     ///
     /// Will also store the state.
-    pub fn show_body_indented<'c, R>(
+    pub fn show_body_indented<R>(
         &mut self,
         header_response: &Response,
-        ui: &mut Ui<'c>,
+        ui: &mut Ui<'_>,
         add_body: impl FnOnce(&mut Ui<'_>) -> R,
     ) -> Option<InnerResponse<R>> {
         let id = self.id;
@@ -186,9 +186,9 @@ impl CollapsingState {
 
     /// Show body if we are open, with a nice animation between closed and open.
     /// Will also store the state.
-    pub fn show_body_unindented<'c, R>(
+    pub fn show_body_unindented<R>(
         &mut self,
-        ui: &mut Ui<'c>,
+        ui: &mut Ui<'_>,
         add_body: impl FnOnce(&mut Ui<'_>) -> R,
     ) -> Option<InnerResponse<R>> {
         let openness = self.openness(ui.ctx);

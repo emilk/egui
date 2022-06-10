@@ -42,8 +42,8 @@ impl Default for State {
 }
 
 impl State {
-    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.data().get_persisted(id)
+    pub fn load(ctx: &mut Context, id: Id) -> Option<Self> {
+        ctx.data_mut().get_persisted(id)
     }
 
     pub fn store(self, ctx: &mut Context, id: Id) {
@@ -391,15 +391,17 @@ impl ScrollArea {
         }
 
         let content_max_rect = Rect::from_min_size(inner_rect.min - state.offset, content_max_size);
-        let mut content_ui = ui.child_ui(content_max_rect, *ui.layout());
-        let mut content_clip_rect = inner_rect.expand(ui.visuals().clip_rect_margin);
-        content_clip_rect = content_clip_rect.intersect(ui.clip_rect());
+        let mut content_clip_rect = inner_rect
+            .expand(ui.visuals().clip_rect_margin)
+            .intersect(ui.clip_rect());
         // Nice handling of forced resizing beyond the possible:
         for d in 0..2 {
             if !has_bar[d] {
                 content_clip_rect.max[d] = ui.clip_rect().max[d] - current_bar_use[d];
             }
         }
+
+        let mut content_ui = ui.child_ui(content_max_rect, *ui.layout());
         content_ui.set_clip_rect(content_clip_rect);
 
         let viewport = Rect::from_min_size(Pos2::ZERO + state.offset, inner_size);
@@ -645,7 +647,7 @@ impl<'a> Prepared<'a> {
         if scrolling_enabled && ui.rect_contains_pointer(outer_rect) {
             for d in 0..2 {
                 if has_bar[d] {
-                    let mut frame_state = ui.ctx.frame_state_mut();
+                    let frame_state = ui.ctx.frame_state_mut();
                     let scroll_delta = frame_state.scroll_delta;
 
                     let scrolling_up = state.offset[d] > 0.0 && scroll_delta[d] > 0.0;
@@ -798,19 +800,16 @@ impl<'a> Prepared<'a> {
                     &ui.style().visuals.widgets.inactive
                 };
 
-                ui.painter.add(
-                    ui.ctx,
-                    epaint::Shape::rect_filled(
-                        outer_scroll_rect,
-                        visuals.rounding,
-                        ui.visuals().extreme_bg_color,
-                    ),
+                let outer_scroll = epaint::Shape::rect_filled(
+                    outer_scroll_rect,
+                    visuals.rounding,
+                    ui.visuals().extreme_bg_color,
                 );
+                let handle =
+                    epaint::Shape::rect_filled(handle_rect, visuals.rounding, visuals.bg_fill);
 
-                ui.painter.add(
-                    ui.ctx,
-                    epaint::Shape::rect_filled(handle_rect, visuals.rounding, visuals.bg_fill),
-                );
+                ui.painter.add(ui.ctx, outer_scroll);
+                ui.painter.add(ui.ctx, handle);
             }
         }
 

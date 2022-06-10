@@ -235,10 +235,11 @@ fn combo_box_dyn<'a, R>(
 
         if ui.is_rect_visible(rect) {
             let icon_rect = Align2::RIGHT_CENTER.align_size_within_rect(icon_size, rect);
+            let style = ui.style().clone();
             let visuals = if is_popup_open {
-                &ui.visuals().widgets.open
+                &style.visuals.widgets.open
             } else {
-                ui.style().interact(&response)
+                style.interact(&response)
             };
 
             if let Some(icon) = icon {
@@ -263,7 +264,7 @@ fn combo_box_dyn<'a, R>(
     });
 
     if button_response.clicked() {
-        ui.memory().toggle_popup(popup_id);
+        ui.memory_mut().toggle_popup(popup_id);
     }
     let inner = crate::popup::popup_below_widget(ui, popup_id, &button_response, |ui| {
         ScrollArea::vertical()
@@ -303,10 +304,11 @@ fn button_frame(
     let response = ui.interact(outer_rect, id, sense);
 
     if ui.is_rect_visible(outer_rect) {
+        let style = ui.style().clone();
         let visuals = if is_popup_open {
-            &ui.visuals().widgets.open
+            &style.visuals.widgets.open
         } else {
-            ui.style().interact(&response)
+            style.interact(&response)
         };
 
         ui.painter.set(

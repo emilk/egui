@@ -123,7 +123,7 @@ impl Button {
 }
 
 impl Widget for Button {
-    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response {
+    fn ui(self, ui: &mut Ui<'_>) -> Response {
         let Button {
             text,
             wrap,
@@ -164,7 +164,8 @@ impl Widget for Button {
         });
 
         if ui.is_rect_visible(rect) {
-            let visuals = ui.style().interact(&response);
+            let style = ui.style().clone();
+            let visuals = style.interact(&response);
             let text_pos = if let Some(image) = image {
                 let icon_spacing = ui.spacing().icon_spacing;
                 pos2(
@@ -235,7 +236,7 @@ impl<'a> Checkbox<'a> {
 }
 
 impl<'a> Widget for Checkbox<'a> {
-    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response {
+    fn ui(self, ui: &mut Ui<'_>) -> Response {
         let Checkbox { checked, text } = self;
 
         let spacing = &ui.spacing();
@@ -274,7 +275,8 @@ impl<'a> Widget for Checkbox<'a> {
 
         if ui.is_rect_visible(rect) {
             // let visuals = ui.style().interact_selectable(&response, *checked); // too colorful
-            let visuals = ui.style().interact(&response);
+            let style = ui.style().clone();
+            let visuals = style.interact(&response);
             let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
             ui.painter.add(
                 ui.ctx,
@@ -385,7 +387,8 @@ impl Widget for RadioButton {
 
         if ui.is_rect_visible(rect) {
             // let visuals = ui.style().interact_selectable(&response, checked); // too colorful
-            let visuals = ui.style().interact(&response);
+            let style = ui.style().clone();
+            let visuals = style.interact(&response);
 
             let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
 

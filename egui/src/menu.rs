@@ -408,19 +408,6 @@ impl SubMenuButton {
         }
     }
 
-    fn visuals<'a>(
-        ui: &'a Ui<'_>,
-        response: &Response,
-        menu_state: &MenuState,
-        sub_id: Id,
-    ) -> &'a WidgetVisuals {
-        if menu_state.is_open(sub_id) {
-            &ui.style().visuals.widgets.hovered
-        } else {
-            ui.style().interact(response)
-        }
-    }
-
     pub fn icon(mut self, icon: impl Into<WidgetText>) -> Self {
         self.icon = icon.into();
         self
@@ -452,7 +439,13 @@ impl SubMenuButton {
         });
 
         if ui.is_rect_visible(rect) {
-            let visuals = Self::visuals(ui, &response, menu_state, sub_id);
+            let style = ui.style().clone();
+            let visuals = if menu_state.is_open(sub_id) {
+                &style.visuals.widgets.hovered
+            } else {
+                style.interact(&response)
+            };
+
             let text_pos = Align2::LEFT_CENTER
                 .align_size_within_rect(text_galley.size(), rect.shrink2(button_padding))
                 .min;

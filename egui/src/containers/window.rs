@@ -234,17 +234,17 @@ impl<'open> Window<'open> {
     /// Returns `None` if the window is not open (if [`Window::open`] was called with `&mut false`).
     /// Returns `Some(InnerResponse { inner: None })` if the window is collapsed.
     #[inline]
-    pub fn show<'c, R>(
+    pub fn show<R>(
         self,
-        ctx: &'c mut Context,
+        ctx: &mut Context,
         add_contents: impl FnOnce(&mut Ui<'_>) -> R,
     ) -> Option<InnerResponse<Option<R>>> {
         self.show_dyn(ctx, Box::new(add_contents))
     }
 
-    fn show_dyn<'a, 'c, R>(
+    fn show_dyn<'a, R>(
         self,
-        ctx: &'c mut Context,
+        ctx: &mut Context,
         add_contents: Box<dyn FnOnce(&mut Ui<'_>) -> R + 'a>,
     ) -> Option<InnerResponse<Option<R>>> {
         let Window {
@@ -258,7 +258,7 @@ impl<'open> Window<'open> {
             with_title_bar,
         } = self;
 
-        let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
+        let frame = frame.unwrap_or_else(|| Frame::window(ctx.style()));
 
         let is_open = !matches!(open, Some(false)) || ctx.memory().everything_is_visible();
         area.show_open_close_animation(ctx, &frame, is_open);
@@ -374,29 +374,27 @@ impl<'open> Window<'open> {
                 );
             }
 
-            collapsing.store(ctx);
+            collapsing.store(area_content_ui.ctx);
 
             if let Some(interaction) = interaction {
-                paint_frame_interaction(
-                    &mut area_content_ui,
-                    outer_rect,
-                    interaction,
-                    ctx.style().visuals.widgets.active,
-                );
+                let active = area_content_ui.ctx.style().visuals.widgets.active;
+                paint_frame_interaction(&mut area_content_ui, outer_rect, interaction, active);
             } else if let Some(hover_interaction) = hover_interaction {
-                if ctx.input().pointer.has_pointer() {
+                if area_content_ui.ctx.input().pointer.has_pointer() {
+                    let hovered = area_content_ui.ctx.style().visuals.widgets.hovered;
                     paint_frame_interaction(
                         &mut area_content_ui,
                         outer_rect,
                         hover_interaction,
-                        ctx.style().visuals.widgets.hovered,
+                        hovered,
                     );
                 }
             }
             content_inner
         };
 
-        area.state_mut().pos = ctx
+        area.state_mut().pos = area_content_ui
+            .ctx
             .constrain_window_rect_to_area(area.state().rect(), area.drag_bounds())
             .min;
 
@@ -517,7 +515,7 @@ fn interact(
         }
     }
 
-    ctx.memory().areas.move_to_top(area_layer_id);
+    ctx.memory_mut().areas.move_to_top(area_layer_id);
     Some(window_interaction)
 }
 
@@ -864,12 +862,9 @@ impl TitleBar {
             emath::align::center_size_in_rect(self.title_galley.size(), full_top_rect).left_top();
         let text_pos = text_pos - self.title_galley.galley().rect.min.to_vec2();
         let text_pos = text_pos - 1.5 * Vec2::Y; // HACK: center on x-height of text (looks better)
-        self.title_galley.paint_with_fallback_color(
-            ui.ctx,
-            &mut ui.painter,
-            text_pos,
-            ui.visuals().text_color(),
-        );
+        let text_color = ui.visuals().text_color();
+        self.title_galley
+            .paint_with_fallback_color(ui.ctx, &mut ui.painter, text_pos, text_color);
 
         if let Some(content_response) = &content_response {
             // paint separator between title and content:

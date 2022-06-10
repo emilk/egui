@@ -116,8 +116,6 @@ fn color_slider_1d(
     }
 
     if ui.is_rect_visible(rect) {
-        let visuals = ui.style().interact(&response);
-
         background_checkers(ui.ctx, &mut ui.painter, rect); // for alpha:
 
         {
@@ -137,7 +135,11 @@ fn color_slider_1d(
             ui.painter.add(ui.ctx, Shape::mesh(mesh));
         }
 
-        ui.painter.rect_stroke(ui.ctx, rect, 0.0, visuals.bg_stroke); // outline
+        let visuals = ui.style().interact(&response);
+        let bg_stroke = visuals.bg_stroke;
+        let fg_stroke_width = visuals.fg_stroke.width;
+
+        ui.painter.rect_stroke(ui.ctx, rect, 0.0, bg_stroke); // outline
 
         {
             // Show where the slider is at:
@@ -153,7 +155,7 @@ fn color_slider_1d(
                         pos2(x - r, rect.bottom()), // left bottom
                     ],
                     picked_color,
-                    Stroke::new(visuals.fg_stroke.width, contrast_color(picked_color)),
+                    Stroke::new(fg_stroke_width, contrast_color(picked_color)),
                 ),
             );
         }
@@ -177,7 +179,6 @@ fn color_slider_2d(
     }
 
     if ui.is_rect_visible(rect) {
-        let visuals = ui.style().interact(&response);
         let mut mesh = Mesh::default();
 
         for xi in 0..=N {
@@ -200,7 +201,11 @@ fn color_slider_2d(
         }
         ui.painter.add(ui.ctx, Shape::mesh(mesh)); // fill
 
-        ui.painter.rect_stroke(ui.ctx, rect, 0.0, visuals.bg_stroke); // outline
+        let visuals = ui.style().interact(&response);
+        let bg_stroke = visuals.bg_stroke;
+        let fg_stroke_width = visuals.fg_stroke.width;
+
+        ui.painter.rect_stroke(ui.ctx, rect, 0.0, bg_stroke); // outline
 
         // Show where the slider is at:
         let x = lerp(rect.left()..=rect.right(), *x_value);
@@ -212,7 +217,7 @@ fn color_slider_2d(
                 center: pos2(x, y),
                 radius: rect.width() / 12.0,
                 fill: picked_color,
-                stroke: Stroke::new(visuals.fg_stroke.width, contrast_color(picked_color)),
+                stroke: Stroke::new(fg_stroke_width, contrast_color(picked_color)),
             },
         );
     }

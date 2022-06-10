@@ -12,12 +12,12 @@ pub(crate) struct MonoState {
 }
 
 impl MonoState {
-    fn load(ctx: &Context) -> Option<Self> {
-        ctx.data().get_temp(Id::null())
+    fn load(ctx: &mut Context) -> Option<Self> {
+        ctx.data_mut().get_temp(Id::null())
     }
 
-    fn store(self, ctx: &Context) {
-        ctx.data().insert_temp(Id::null(), self);
+    fn store(self, ctx: &mut Context) {
+        ctx.data_mut().insert_temp(Id::null(), self);
     }
 
     fn tooltip_size(&self, id: Id, index: usize) -> Option<Vec2> {
@@ -258,7 +258,7 @@ fn show_tooltip_area_dyn<'a, 'c, R>(
         .interactable(false)
         .drag_bounds(Rect::EVERYTHING) // disable clip rect
         .show(ctx, |ui| {
-            Frame::popup(&ctx.style())
+            Frame::popup(ui.ctx.style())
                 .show(ui, |ui| {
                     ui.set_max_width(ui.spacing().tooltip_width);
                     add_contents(ui)
@@ -317,7 +317,7 @@ pub fn popup_below_widget<R>(
             .inner;
 
         if ui.input().key_pressed(Key::Escape) || widget_response.clicked_elsewhere() {
-            ui.memory().close_popup();
+            ui.memory_mut().close_popup();
         }
         Some(inner)
     } else {

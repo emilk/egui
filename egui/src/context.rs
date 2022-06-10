@@ -226,7 +226,7 @@ impl Context {
                 return;
             }
 
-            let show_error = |pos: Pos2, text: String| {
+            let mut show_error = |pos: Pos2, text: String| {
                 let painter = self.debug_painter();
                 let rect = painter.error(self, pos, text);
                 if let Some(pointer_pos) = self.pointer_hover_pos() {
@@ -267,7 +267,7 @@ impl Context {
     /// Use `ui.interact` instead
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn interact(
-        &self,
+        &mut self,
         clip_rect: Rect,
         item_spacing: Vec2,
         layer_id: LayerId,
@@ -542,7 +542,7 @@ impl Context {
     }
 
     #[inline]
-    fn fonts_mut(&self) -> &mut Option<Fonts> {
+    fn fonts_mut(&mut self) -> &mut Option<Fonts> {
         &mut self.fonts
     }
 
@@ -634,7 +634,7 @@ impl Context {
     /// The number of physical pixels for each logical point.
     #[inline(always)]
     pub fn pixels_per_point(&self) -> f32 {
-        self.input().pixels_per_point()
+        self.input.pixels_per_point()
     }
 
     /// Set the number of physical pixels for each logical point.
@@ -642,12 +642,12 @@ impl Context {
     ///
     /// Note that this may be overwritten by input from the integration via [`RawInput::pixels_per_point`].
     /// For instance, when using `eframe` on web, the browsers native zoom level will always be used.
-    pub fn set_pixels_per_point(&self, pixels_per_point: f32) {
+    pub fn set_pixels_per_point(&mut self, pixels_per_point: f32) {
         if pixels_per_point != self.pixels_per_point() {
             self.request_repaint();
         }
 
-        self.memory().new_pixels_per_point = Some(pixels_per_point);
+        self.memory.new_pixels_per_point = Some(pixels_per_point);
     }
 
     /// Useful for pixel-perfect rendering
@@ -778,8 +778,8 @@ impl Context {
 impl Context {
     /// Call at the end of each frame.
     #[must_use]
-    pub fn end_frame(&self) -> FullOutput {
-        if self.input().wants_repaint() {
+    pub fn end_frame(&mut self) -> FullOutput {
+        if self.input.wants_repaint() {
             self.request_repaint();
         }
 
@@ -824,7 +824,7 @@ impl Context {
     }
 
     /// Tessellate the given shapes into triangle meshes.
-    pub fn tessellate(&self, shapes: Vec<ClippedShape>) -> Vec<ClippedPrimitive> {
+    pub fn tessellate(&mut self, shapes: Vec<ClippedShape>) -> Vec<ClippedPrimitive> {
         // A tempting optimization is to reuse the tessellation from last frame if the
         // shapes are the same, but just comparing the shapes takes about 50% of the time
         // it takes to tessellate them, so it is not a worth optimization.
@@ -939,7 +939,7 @@ impl Context {
 impl Context {
     /// Move all the graphics at the given layer.
     /// Can be used to implement drag-and-drop (see relevant demo).
-    pub fn translate_layer(&self, layer_id: LayerId, delta: Vec2) {
+    pub fn translate_layer(&mut self, layer_id: LayerId, delta: Vec2) {
         if delta != Vec2::ZERO {
             self.graphics.list(layer_id).translate(delta);
         }
@@ -948,13 +948,13 @@ impl Context {
     /// Top-most layer at the given position.
     pub fn layer_id_at(&self, pos: Pos2) -> Option<LayerId> {
         let resize_grab_radius_side = self.style().interaction.resize_grab_radius_side;
-        self.memory().layer_id_at(pos, resize_grab_radius_side)
+        self.memory.layer_id_at(pos, resize_grab_radius_side)
     }
 
     /// Moves the given area to the top in its [`Order`].
     /// [`Area`]:s and [`Window`]:s also do this automatically when being clicked on or interacted with.
-    pub fn move_to_top(&self, layer_id: LayerId) {
-        self.memory().areas.move_to_top(layer_id);
+    pub fn move_to_top(&mut self, layer_id: LayerId) {
+        self.memory.areas.move_to_top(layer_id);
     }
 
     pub(crate) fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
@@ -1043,7 +1043,7 @@ impl Context {
         CollapsingHeader::new("✒ Painting")
             .default_open(true)
             .show(ui, |ui| {
-                let mut tessellation_options = self.tessellation_options_mut();
+                let tessellation_options = self.tessellation_options_mut();
                 tessellation_options.ui(ui);
                 ui.vertical_centered(|ui| reset_button(ui, tessellation_options));
             });
@@ -1194,7 +1194,7 @@ impl Context {
         }
 
         let num_state = self.data().len();
-        let num_serialized = self.data().count_serialized();
+        let num_serialized = self.data_mut().count_serialized();
         ui.label(format!(
             "{} widget states stored (of which {} are serialized).",
             num_state, num_serialized
@@ -1239,7 +1239,7 @@ impl Context {
                     .count::<containers::collapsing_header::InnerState>()
             ));
             if ui.button("Reset").clicked() {
-                self.data()
+                self.data_mut()
                     .remove_by_type::<containers::collapsing_header::InnerState>();
             }
         });
@@ -1250,7 +1250,7 @@ impl Context {
                 self.data().count::<menu::BarState>()
             ));
             if ui.button("Reset").clicked() {
-                self.data().remove_by_type::<menu::BarState>();
+                self.data_mut().remove_by_type::<menu::BarState>();
             }
         });
 
@@ -1260,7 +1260,7 @@ impl Context {
                 self.data().count::<scroll_area::State>()
             ));
             if ui.button("Reset").clicked() {
-                self.data().remove_by_type::<scroll_area::State>();
+                self.data_mut().remove_by_type::<scroll_area::State>();
             }
         });
 
@@ -1270,7 +1270,7 @@ impl Context {
                 self.data().count::<resize::State>()
             ));
             if ui.button("Reset").clicked() {
-                self.data().remove_by_type::<resize::State>();
+                self.data_mut().remove_by_type::<resize::State>();
             }
         });
 

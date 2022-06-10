@@ -26,12 +26,12 @@ struct PanelState {
 }
 
 impl PanelState {
-    fn load(ctx: &Context, bar_id: Id) -> Option<Self> {
-        ctx.data().get_persisted(bar_id)
+    fn load(ctx: &mut Context, bar_id: Id) -> Option<Self> {
+        ctx.data_mut().get_persisted(bar_id)
     }
 
-    fn store(self, ctx: &Context, bar_id: Id) {
-        ctx.data().insert_persisted(bar_id, self);
+    fn store(self, ctx: &mut Context, bar_id: Id) {
+        ctx.data_mut().insert_persisted(bar_id, self);
     }
 }
 
@@ -217,7 +217,7 @@ impl SidePanel {
                     && ui.input().pointer.any_down()
                     && mouse_over_resize_line
                 {
-                    ui.memory().set_dragged_id(resize_id);
+                    ui.memory_mut().set_dragged_id(resize_id);
                 }
                 is_resizing = ui.memory().is_being_dragged(resize_id);
                 if is_resizing {
@@ -237,9 +237,9 @@ impl SidePanel {
             }
         }
 
+        let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let mut panel_ui = ui.child_ui_with_id_source(panel_rect, Layout::top_down(Align::Min), id);
         panel_ui.expand_to_include_rect(panel_rect);
-        let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_height(ui.max_rect().height()); // Make sure the frame fills the full height
             ui.set_min_width(*width_range.start());
@@ -502,7 +502,7 @@ impl TopBottomPanel {
                     && ui.input().pointer.any_down()
                     && mouse_over_resize_line
                 {
-                    ui.memory().interaction.drag_id = Some(resize_id);
+                    ui.memory_mut().interaction.drag_id = Some(resize_id);
                 }
                 is_resizing = ui.memory().interaction.drag_id == Some(resize_id);
                 if is_resizing {
@@ -522,9 +522,9 @@ impl TopBottomPanel {
             }
         }
 
+        let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let mut panel_ui = ui.child_ui_with_id_source(panel_rect, Layout::top_down(Align::Min), id);
         panel_ui.expand_to_include_rect(panel_rect);
-        let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_width(ui.max_rect().width()); // Make the frame fill full width
             ui.set_min_height(*height_range.start());
@@ -640,26 +640,25 @@ impl CentralPanel {
 
 impl CentralPanel {
     /// Show the panel inside a [`Ui`].
-    pub fn show_inside<'c, R>(
+    pub fn show_inside<R>(
         self,
-        ui: &mut Ui<'c>,
+        ui: &mut Ui<'_>,
         add_contents: impl FnOnce(&mut Ui<'_>) -> R,
     ) -> InnerResponse<R> {
         self.show_inside_dyn(ui, Box::new(add_contents))
     }
 
     /// Show the panel inside a [`Ui`].
-    fn show_inside_dyn<'a, 'c, R>(
+    fn show_inside_dyn<'a, R>(
         self,
-        ui: &mut Ui<'c>,
+        ui: &mut Ui<'_>,
         add_contents: Box<dyn FnOnce(&mut Ui<'_>) -> R + 'a>,
     ) -> InnerResponse<R> {
-        let Self { frame } = self;
-
+        let frame = self
+            .frame
+            .unwrap_or_else(|| Frame::central_panel(ui.style()));
         let panel_rect = ui.available_rect_before_wrap();
         let mut panel_ui = ui.child_ui(panel_rect, Layout::top_down(Align::Min));
-
-        let frame = frame.unwrap_or_else(|| Frame::central_panel(ui.style()));
         frame.show(&mut panel_ui, |ui| {
             ui.expand_to_include_rect(ui.max_rect()); // Expand frame to include it all
             add_contents(ui)
@@ -667,9 +666,9 @@ impl CentralPanel {
     }
 
     /// Show the panel at the top level.
-    pub fn show<'c, R>(
+    pub fn show<R>(
         self,
-        ctx: &'c mut Context,
+        ctx: &mut Context,
         add_contents: impl FnOnce(&mut Ui<'_>) -> R,
     ) -> InnerResponse<R> {
         self.show_dyn(ctx, Box::new(add_contents))

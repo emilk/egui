@@ -579,7 +579,7 @@ impl<'c> Ui<'c> {
 /// # Interaction
 impl<'c> Ui<'c> {
     /// Check for clicks, drags and/or hover on a specific region of this [`Ui`].
-    pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
+    pub fn interact(&mut self, rect: Rect, id: Id, sense: Sense) -> Response {
         self.ctx.interact(
             self.clip_rect(),
             self.spacing().item_spacing,
