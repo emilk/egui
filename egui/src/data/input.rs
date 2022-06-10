@@ -323,7 +323,7 @@ impl Modifiers {
         mac_cmd: false,
         command: false,
     };
-    pub const ALTSHIFT: Self = Self {
+    pub const ALT_SHIFT: Self = Self {
         alt: true,
         ctrl: false,
         shift: true,
