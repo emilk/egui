@@ -163,18 +163,18 @@ impl SidePanel {
 
 impl SidePanel {
     /// Show the panel inside a [`Ui`].
-    pub fn show_inside<'c, R>(
+    pub fn show_inside<R>(
         self,
-        ui: &mut Ui<'c>,
+        ui: &mut Ui<'_>,
         add_contents: impl FnOnce(&mut Ui<'_>) -> R,
     ) -> InnerResponse<R> {
         self.show_inside_dyn(ui, Box::new(add_contents))
     }
 
     /// Show the panel inside a [`Ui`].
-    fn show_inside_dyn<'a, 'c, R>(
+    fn show_inside_dyn<'a, R>(
         self,
-        ui: &mut Ui<'c>,
+        ui: &mut Ui<'_>,
         add_contents: Box<dyn FnOnce(&mut Ui<'_>) -> R + 'a>,
     ) -> InnerResponse<R> {
         let Self {
@@ -446,9 +446,9 @@ impl TopBottomPanel {
 
 impl TopBottomPanel {
     /// Show the panel inside a [`Ui`].
-    pub fn show_inside<'c, R>(
+    pub fn show_inside<R>(
         self,
-        ui: &mut Ui<'c>,
+        ui: &mut Ui<'_>,
         add_contents: impl FnOnce(&mut Ui<'_>) -> R,
     ) -> InnerResponse<R> {
         self.show_inside_dyn(ui, Box::new(add_contents))
@@ -567,9 +567,9 @@ impl TopBottomPanel {
     }
 
     /// Show the panel at the top level.
-    pub fn show<'c, R>(
+    pub fn show<R>(
         self,
-        ctx: &'c mut Context,
+        ctx: &mut Context,
         add_contents: impl FnOnce(&mut Ui<'_>) -> R,
     ) -> InnerResponse<R> {
         self.show_dyn(ctx, Box::new(add_contents))

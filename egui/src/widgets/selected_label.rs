@@ -73,7 +73,7 @@ impl Widget for SelectableLabel {
                 );
             }
 
-            text.paint_with_visuals(ui.ctx, &mut ui.painter, text_pos, &visuals);
+            text.paint_with_visuals(ui.ctx, &ui.painter, text_pos, &visuals);
         }
 
         response

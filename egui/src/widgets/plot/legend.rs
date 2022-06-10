@@ -255,7 +255,7 @@ impl Widget for &mut LegendWidget {
                         entries
                             .iter_mut()
                             .map(|(name, entry)| entry.ui(ui, name.clone(), &config.text_style))
-                            .reduce(|r1, r2| r1.union(r2))
+                            .reduce(|r1, r2| r1.union(&r2))
                             .unwrap()
                     })
                     .inner

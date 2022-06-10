@@ -511,9 +511,9 @@ impl Plot {
     }
 
     /// Interact with and add items to the plot and finally draw it.
-    pub fn show<'c, R>(
+    pub fn show<R>(
         self,
-        ui: &mut Ui<'c>,
+        ui: &mut Ui<'_>,
         build_fn: impl FnOnce(&mut PlotUi) -> R,
     ) -> InnerResponse<R> {
         self.show_dyn(ui, Box::new(build_fn))

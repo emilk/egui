@@ -298,7 +298,7 @@ impl<'open> Window<'open> {
                 // Calculate roughly how much larger the window size is compared to the inner rect
                 let title_bar_height = if with_title_bar {
                     let style = ctx.style();
-                    title.font_height(&ctx.fonts(), &style) + title_content_spacing
+                    title.font_height(ctx.fonts(), style) + title_content_spacing
                 } else {
                     0.0
                 };
@@ -782,7 +782,7 @@ fn show_title_bar(
 ) -> TitleBar {
     let inner_response = ui.horizontal(|ui| {
         let height = title
-            .font_height(&ui.fonts(), ui.style())
+            .font_height(ui.fonts(), ui.style())
             .max(ui.spacing().interact_size.y);
         ui.set_min_height(height);
 
@@ -864,7 +864,7 @@ impl TitleBar {
         let text_pos = text_pos - 1.5 * Vec2::Y; // HACK: center on x-height of text (looks better)
         let text_color = ui.visuals().text_color();
         self.title_galley
-            .paint_with_fallback_color(ui.ctx, &mut ui.painter, text_pos, text_color);
+            .paint_with_fallback_color(ui.ctx, &ui.painter, text_pos, text_color);
 
         if let Some(content_response) = &content_response {
             // paint separator between title and content:
@@ -913,7 +913,7 @@ impl TitleBar {
 /// - `rect`: The rectangular area to fit the button in
 ///
 /// Returns the result of a click on a button if it was pressed
-fn close_button<'c>(ui: &mut Ui<'c>, rect: Rect) -> Response {
+fn close_button(ui: &mut Ui<'_>, rect: Rect) -> Response {
     let close_id = ui.auto_id_with("window_close_button");
     let response = ui.interact(rect, close_id, Sense::click());
     ui.expand_to_include_rect(response.rect());

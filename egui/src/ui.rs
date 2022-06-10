@@ -95,17 +95,17 @@ impl<'c> Ui<'c> {
     }
 
     /// Create a new [`Ui`] at a specific region.
-    pub fn child_ui<'a>(&'a mut self, max_rect: Rect, layout: Layout) -> Ui<'a> {
+    pub fn child_ui(&mut self, max_rect: Rect, layout: Layout) -> Ui<'_> {
         self.child_ui_with_id_source(max_rect, layout, "child")
     }
 
     /// Create a new [`Ui`] at a specific region with a specific id.
-    pub fn child_ui_with_id_source<'a>(
-        &'a mut self,
+    pub fn child_ui_with_id_source(
+        &mut self,
         max_rect: Rect,
         layout: Layout,
         id_source: impl Hash,
-    ) -> Ui<'a> {
+    ) -> Ui<'_> {
         crate::egui_assert!(!max_rect.any_nan());
         let next_auto_id_source = Id::new(self.next_auto_id_source).with("child").value();
         self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
@@ -2026,7 +2026,7 @@ impl<'c> Ui<'c> {
     /// returned back.
     ///
     /// # Panics
-    /// Panics if num_columns is 0
+    /// Panics if `num_columns` is 0
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -2153,7 +2153,7 @@ impl<'c> Ui<'c> {
 
     /// Shows the given text where the next widget is to be placed
     /// if when [`Context::set_debug_on_hover`] has been turned on and the mouse is hovering the Ui.
-    pub fn trace_location(&mut self, text: impl ToString) {
+    pub fn trace_location(&mut self, text: impl Into<String>) {
         let rect = self.max_rect();
         if self.style().debug.debug_on_hover && self.rect_contains_pointer(rect) {
             self.placer

@@ -113,7 +113,7 @@ impl CollapsingState {
         let openness = self.openness(ui.ctx);
         let small_icon_response = Response {
             rect: icon_rect,
-            ..response.clone()
+            ..response
         };
         icon_fn(ui, openness, &small_icon_response);
         response
@@ -579,7 +579,7 @@ impl CollapsingHeader {
                 }
             }
 
-            text.paint_with_visuals(ui.ctx, &mut ui.painter, text_pos, &visuals);
+            text.paint_with_visuals(ui.ctx, &ui.painter, text_pos, &visuals);
         }
 
         Prepared {

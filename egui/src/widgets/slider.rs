@@ -513,10 +513,10 @@ impl<'a> Slider<'a> {
             {
                 // Use the [`DragValue`] id as the id of the whole widget,
                 // so that the focus events work as expected.
-                response = value_response.union(response);
+                response = value_response.union(&response);
             } else {
                 // Use the slider id as the id for the whole widget
-                response = response.union(value_response);
+                response = response.union(&value_response);
             }
         }
 

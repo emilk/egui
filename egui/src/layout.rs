@@ -768,7 +768,7 @@ impl Layout {
         painter: &Painter,
         region: &Region,
         stroke: epaint::Stroke,
-        text: impl ToString,
+        text: impl Into<String>,
     ) {
         let cursor = region.cursor;
         let next_pos = self.next_widget_position(region);

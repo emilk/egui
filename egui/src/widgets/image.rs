@@ -133,7 +133,7 @@ impl Image {
 }
 
 impl Widget for Image {
-    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response {
+    fn ui(self, ui: &mut Ui<'_>) -> Response {
         let (rect, response) = ui.allocate_exact_size(self.size, self.sense);
         self.paint_at(ui, rect);
         response

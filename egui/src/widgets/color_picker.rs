@@ -54,7 +54,7 @@ pub fn show_color(ui: &mut Ui<'_>, color: impl Into<Color32>, desired_size: Vec2
 fn show_color32(ui: &mut Ui<'_>, color: Color32, desired_size: Vec2) -> Response {
     let (rect, response) = ui.allocate_at_least(desired_size, Sense::hover());
     if ui.is_rect_visible(rect) {
-        show_color_at(ui.ctx, &mut ui.painter, color, rect);
+        show_color_at(ui.ctx, &ui.painter, color, rect);
     }
     response
 }
@@ -93,7 +93,7 @@ fn color_button(ui: &mut Ui<'_>, color: Color32, open: bool) -> Response {
         let rounding = visuals.rounding.at_most(2.0);
         let bg_fill = visuals.bg_fill;
 
-        show_color_at(ui.ctx, &mut ui.painter, color, rect);
+        show_color_at(ui.ctx, &ui.painter, color, rect);
 
         // fill is intentional, because default style has no border
         ui.painter
@@ -116,7 +116,7 @@ fn color_slider_1d(
     }
 
     if ui.is_rect_visible(rect) {
-        background_checkers(ui.ctx, &mut ui.painter, rect); // for alpha:
+        background_checkers(ui.ctx, &ui.painter, rect); // for alpha:
 
         {
             // fill color:
@@ -128,6 +128,7 @@ fn color_slider_1d(
                 mesh.colored_vertex(pos2(x, rect.top()), color);
                 mesh.colored_vertex(pos2(x, rect.bottom()), color);
                 if i < N {
+                    #[allow(clippy::identity_op)]
                     mesh.add_triangle(2 * i + 0, 2 * i + 1, 2 * i + 2);
                     mesh.add_triangle(2 * i + 1, 2 * i + 2, 2 * i + 3);
                 }

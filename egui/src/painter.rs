@@ -165,13 +165,19 @@ impl Painter {
 
 /// ## Debug painting
 impl Painter {
-    pub fn debug_rect(&self, ctx: &mut Context, rect: Rect, color: Color32, text: impl ToString) {
+    pub fn debug_rect(
+        &self,
+        ctx: &mut Context,
+        rect: Rect,
+        color: Color32,
+        text: impl Into<String>,
+    ) {
         self.rect_stroke(ctx, rect, 0.0, (1.0, color));
         self.text(
             ctx,
             rect.min,
             Align2::LEFT_TOP,
-            text.to_string(),
+            text.into(),
             FontId::monospace(14.0),
             color,
         );
@@ -194,11 +200,11 @@ impl Painter {
         pos: Pos2,
         anchor: Align2,
         color: Color32,
-        text: impl ToString,
+        text: impl Into<String>,
     ) -> Rect {
         let galley = ctx
             .fonts()
-            .layout_no_wrap(text.to_string(), FontId::monospace(14.0), color);
+            .layout_no_wrap(text.into(), FontId::monospace(14.0), color);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size()));
         let frame_rect = rect.expand(2.0);
         self.add(

@@ -267,7 +267,7 @@ impl Placer {
         &self,
         ctx: &mut Context,
         painter: &crate::Painter,
-        text: impl ToString,
+        text: impl Into<String>,
     ) {
         let stroke = Stroke::new(1.0, Color32::DEBUG_COLOR);
 

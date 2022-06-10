@@ -190,7 +190,7 @@ impl Widget for Button {
                 );
             }
 
-            text.paint_with_visuals(ui.ctx, &mut ui.painter, text_pos, visuals);
+            text.paint_with_visuals(ui.ctx, &ui.painter, text_pos, visuals);
         }
 
         if let Some(image) = image {
@@ -307,7 +307,7 @@ impl<'a> Widget for Checkbox<'a> {
                     rect.min.x + icon_width + icon_spacing,
                     rect.center().y - 0.5 * text.size().y,
                 );
-                text.paint_with_visuals(ui.ctx, &mut ui.painter, text_pos, visuals);
+                text.paint_with_visuals(ui.ctx, &ui.painter, text_pos, visuals);
             }
         }
 
@@ -420,7 +420,7 @@ impl Widget for RadioButton {
                     rect.min.x + icon_width + icon_spacing,
                     rect.center().y - 0.5 * text.size().y,
                 );
-                text.paint_with_visuals(ui.ctx, &mut ui.painter, text_pos, visuals);
+                text.paint_with_visuals(ui.ctx, &ui.painter, text_pos, visuals);
             }
         }
 
@@ -483,7 +483,7 @@ impl ImageButton {
 }
 
 impl Widget for ImageButton {
-    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response {
+    fn ui(self, ui: &mut Ui<'_>) -> Response {
         let Self {
             image,
             sense,

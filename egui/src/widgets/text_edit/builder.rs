@@ -257,7 +257,7 @@ impl<'t> TextEdit<'t> {
 // ----------------------------------------------------------------------------
 
 impl<'t> Widget for TextEdit<'t> {
-    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response {
+    fn ui(self, ui: &mut Ui<'_>) -> Response {
         self.show(ui).response
     }
 }
@@ -278,7 +278,7 @@ impl<'t> TextEdit<'t> {
     /// }
     /// # });
     /// ```
-    pub fn show<'c>(self, ui: &mut Ui<'c>) -> TextEditOutput {
+    pub fn show(self, ui: &mut Ui<'_>) -> TextEditOutput {
         let is_mutable = self.text.is_mutable();
         let frame = self.frame;
         let interactive = self.interactive;

@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use crate::{
     emath::{Align, Pos2, Rect, Vec2},
     menu, Context, CursorIcon, Id, LayerId, PointerButton, Sense, Ui, WidgetText,
@@ -483,12 +485,8 @@ impl Response {
     /// ```
     ///
     /// See also: [`Ui::menu_button`] and [`Ui::close_menu`].
-    pub fn context_menu(
-        mut self,
-        ctx: &mut Context,
-        add_contents: impl FnOnce(&mut Ui<'_>),
-    ) -> Self {
-        menu::context_menu(ctx, &mut self, add_contents);
+    pub fn context_menu(self, ctx: &mut Context, add_contents: impl FnOnce(&mut Ui<'_>)) -> Self {
+        menu::context_menu(ctx, &self, add_contents);
         self
     }
 }
@@ -498,7 +496,7 @@ impl Response {
     /// For instance `a.union(b).hovered` means "was either a or b hovered?".
     ///
     /// The resulting [`Self::id`] will come from the first (`self`) argument.
-    pub fn union(&self, other: Self) -> Self {
+    pub fn union(&self, other: &Self) -> Self {
         crate::egui_assert!(
             self.layer_id == other.layer_id,
             "It makes no sense to combine Responses from two different layers"
@@ -565,10 +563,14 @@ impl Response {
 /// ```
 ///
 /// Now `draw_vec2(ui, foo).hovered` is true if either [`DragValue`](crate::DragValue) were hovered.
-impl std::ops::BitOr for Response {
+impl<R> std::ops::BitOr<R> for Response
+where
+    R: Borrow<Response>,
+{
     type Output = Self;
-    fn bitor(self, rhs: Self) -> Self {
-        self.union(rhs)
+
+    fn bitor(self, rhs: R) -> Self {
+        self.union(rhs.borrow())
     }
 }
 
@@ -583,9 +585,12 @@ impl std::ops::BitOr for Response {
 /// if response.hovered() { ui.label("You hovered at least one of the widgets"); }
 /// # });
 /// ```
-impl std::ops::BitOrAssign for Response {
-    fn bitor_assign(&mut self, rhs: Self) {
-        *self = self.union(rhs);
+impl<R> std::ops::BitOrAssign<R> for Response
+where
+    R: Borrow<Response>,
+{
+    fn bitor_assign(&mut self, rhs: R) {
+        *self = self.union(rhs.borrow());
     }
 }
 

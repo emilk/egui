@@ -148,7 +148,7 @@ impl<'a> DragValue<'a> {
 }
 
 impl<'a> Widget for DragValue<'a> {
-    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response {
+    fn ui(self, ui: &mut Ui<'_>) -> Response {
         let Self {
             mut get_set_value,
             speed,

@@ -474,7 +474,7 @@ impl Context {
 
     /// Returns a mutable reference all the egui state.
     ///
-    /// See [Context::memory]
+    /// See [`Context::memory`]
     #[inline]
     pub fn memory_mut(&mut self) -> &mut Memory {
         &mut self.memory

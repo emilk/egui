@@ -461,8 +461,8 @@ impl SubMenuButton {
             );
 
             let text_color = visuals.text_color();
-            text_galley.paint_with_fallback_color(ui.ctx, &mut ui.painter, text_pos, text_color);
-            icon_galley.paint_with_fallback_color(ui.ctx, &mut ui.painter, icon_pos, text_color);
+            text_galley.paint_with_fallback_color(ui.ctx, &ui.painter, text_pos, text_color);
+            icon_galley.paint_with_fallback_color(ui.ctx, &ui.painter, icon_pos, text_color);
         }
         response
     }
@@ -524,8 +524,8 @@ impl MenuState {
         self.response = MenuResponse::Close;
     }
 
-    pub fn show<'c, R>(
-        ctx: &'c mut Context,
+    pub fn show<R>(
+        ctx: &mut Context,
         menu_state: &Arc<RwLock<Self>>,
         id: Id,
         add_contents: impl FnOnce(&mut Ui<'_>) -> R,

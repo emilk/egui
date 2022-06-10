@@ -252,14 +252,14 @@ fn combo_box_dyn<'a, R>(
             } else {
                 paint_default_icon(
                     ui.ctx,
-                    &mut ui.painter,
+                    &ui.painter,
                     icon_rect.expand(visuals.expansion),
                     visuals,
                 );
             }
 
             let text_rect = Align2::LEFT_CENTER.align_size_within_rect(galley.size(), rect);
-            galley.paint_with_visuals(ui.ctx, &mut ui.painter, text_rect.min, visuals);
+            galley.paint_with_visuals(ui.ctx, &ui.painter, text_rect.min, visuals);
         }
     });
 
