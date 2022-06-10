@@ -44,8 +44,8 @@ pub struct Ui<'c> {
     /// They are therefore only good for Id:s that has no state.
     next_auto_id_source: u64,
 
-    /// Specifies paint layer and clip rectangle.
-    painter: Painter,
+    /// Use this to paint stuff within this [`Ui`].
+    pub painter: Painter,
 
     /// Reference to the ['Context']
     pub ctx: &'c mut Context,
@@ -200,18 +200,6 @@ impl<'c> Ui<'c> {
         &mut self.style_mut().visuals
     }
 
-    /// Use this to paint stuff within this [`Ui`].
-    #[inline]
-    pub fn painter_mut(&mut self) -> &mut Painter {
-        &mut self.painter
-    }
-
-    /// Use this to paint stuff within this [`Ui`].
-    #[inline]
-    pub fn painter(&self) -> &Painter {
-        &self.painter
-    }
-
     /// If `false`, the [`Ui`] does not allow any interaction and
     /// the widgets in it will draw with a gray look.
     #[inline]
@@ -310,13 +298,13 @@ impl<'c> Ui<'c> {
     /// of the given rectangle and the `clip_rect()` of this [`Ui`].
     #[inline]
     pub fn painter_at(&self, rect: Rect) -> Painter {
-        self.painter().with_clip_rect(rect)
+        self.painter.with_clip_rect(rect)
     }
 
     /// Use this to paint stuff within this [`Ui`].
     #[inline]
     pub fn layer_id(&self) -> LayerId {
-        self.painter().layer_id()
+        self.painter.layer_id()
     }
 
     /// The [`InputState`] of the [`Context`] associated with this [`Ui`].
@@ -638,7 +626,7 @@ impl<'c> Ui<'c> {
     /// # egui::__run_test_ui(|ui| {
     /// let response = ui.allocate_response(egui::vec2(100.0, 200.0), egui::Sense::click());
     /// if response.clicked() { /* … */ }
-    /// ui.painter_mut().rect_stroke(ui.ctx, response.rect(), 0.0, (1.0, egui::Color32::WHITE));
+    /// ui.painter.rect_stroke(ui.ctx, response.rect(), 0.0, (1.0, egui::Color32::WHITE));
     /// # });
     /// ```
     pub fn allocate_response(&mut self, desired_size: Vec2, sense: Sense) -> Response {

@@ -377,7 +377,7 @@ impl<'a> Slider<'a> {
             let position_1d = self.position_from_value(value, position_range);
 
             let visuals = ui.style().interact(response);
-            ui.painter_mut().add(
+            ui.painter.add(
                 ui.ctx,
                 epaint::RectShape {
                     rect: rail_rect,
@@ -393,7 +393,7 @@ impl<'a> Slider<'a> {
 
             let center = self.marker_center(position_1d, rail_rect);
 
-            ui.painter_mut().add(
+            ui.painter.add(
                 ui.ctx,
                 epaint::CircleShape {
                     center,

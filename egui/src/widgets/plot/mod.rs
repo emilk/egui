@@ -633,7 +633,7 @@ impl Plot {
 
         // Background
         if show_background {
-            ui.painter_mut().with_clip_rect(rect).add(
+            ui.painter.with_clip_rect(rect).add(
                 ui.ctx,
                 epaint::RectShape {
                     rect,
@@ -823,10 +823,10 @@ impl Plot {
         prepared.ui(ui, &response);
 
         if let Some(boxed_zoom_rect) = boxed_zoom_rect {
-            ui.painter_mut()
+            ui.painter
                 .with_clip_rect(rect)
                 .add(ui.ctx, boxed_zoom_rect.0);
-            ui.painter_mut()
+            ui.painter
                 .with_clip_rect(rect)
                 .add(ui.ctx, boxed_zoom_rect.1);
         }
@@ -1142,7 +1142,7 @@ impl PreparedPlot {
             self.hover(ui, pointer, &mut shapes);
         }
 
-        let painter = ui.painter_mut().with_clip_rect(transform.frame());
+        let painter = ui.painter.with_clip_rect(transform.frame());
         painter.extend(ui.ctx, shapes);
 
         if let Some((corner, formatter)) = self.coordinates_formatter.as_ref() {

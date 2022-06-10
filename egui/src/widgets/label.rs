@@ -177,7 +177,7 @@ impl Widget for Label {
                 Some(response_color)
             };
 
-            ui.painter_mut().add(
+            ui.painter.add(
                 ui.ctx,
                 epaint::TextShape {
                     pos,

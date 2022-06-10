@@ -237,7 +237,7 @@ impl CollapsingState {
     /// fn circle_icon(ui: &mut egui::Ui<'_>, openness: f32, response: &egui::Response) {
     ///     let stroke = ui.style().interact(&response).fg_stroke;
     ///     let radius = egui::lerp(2.0..=3.0, openness);
-    ///     ui.painter().circle_filled(response.rect().center(), radius, stroke.color);
+    ///     ui.painter.circle_filled(response.rect().center(), radius, stroke.color);
     /// }
     ///
     /// let mut state = egui::collapsing_header::CollapsingState::load_with_default_open(
@@ -312,8 +312,7 @@ pub fn paint_default_icon(ui: &mut Ui<'_>, openness: f32, response: &Response) {
         *p = rect.center() + rotation * (*p - rect.center());
     }
 
-    ui.painter_mut()
-        .add(ui.ctx, Shape::closed_line(points, stroke));
+    ui.painter.add(ui.ctx, Shape::closed_line(points, stroke));
 }
 
 /// A function that paints an icon indicating if the region is open or not
@@ -452,7 +451,7 @@ impl CollapsingHeader {
     /// fn circle_icon(ui: &mut egui::Ui, openness: f32, response: &egui::Response) {
     ///     let stroke = ui.style().interact(&response).fg_stroke;
     ///     let radius = egui::lerp(2.0..=3.0, openness);
-    ///     ui.painter_mut().circle_filled(response.rect().center(), radius, stroke.color);
+    ///     ui.painter.circle_filled(response.rect().center(), radius, stroke.color);
     /// }
     ///
     /// egui::CollapsingHeader::new("Circles")
@@ -538,7 +537,7 @@ impl CollapsingHeader {
             let visuals = ui.style().interact_selectable(&header_response, selected);
 
             if ui.visuals().collapsing_header_frame || show_background {
-                ui.painter_mut().add(
+                ui.painter.add(
                     ui.ctx,
                     epaint::RectShape {
                         rect: header_response.rect().expand(visuals.expansion),
@@ -554,7 +553,7 @@ impl CollapsingHeader {
             {
                 let rect = rect.expand(visuals.expansion);
 
-                ui.painter_mut().rect(
+                ui.painter.rect(
                     ui.ctx,
                     rect,
                     visuals.rounding,
@@ -580,7 +579,7 @@ impl CollapsingHeader {
                 }
             }
 
-            text.paint_with_visuals(ui.ctx, ui.painter_mut(), text_pos, &visuals);
+            text.paint_with_visuals(ui.ctx, &mut ui.painter, text_pos, &visuals);
         }
 
         Prepared {

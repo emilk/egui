@@ -48,7 +48,7 @@ impl Widget for Spinner {
                 })
                 .collect();
             let shape = Shape::line(points, Stroke::new(3.0, ui.visuals().strong_text_color()));
-            ui.painter_mut().add(ui.ctx, shape);
+            ui.painter.add(ui.ctx, shape);
         }
 
         response

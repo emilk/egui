@@ -180,7 +180,7 @@ impl Widget for Button {
             if frame {
                 let fill = fill.unwrap_or(visuals.bg_fill);
                 let stroke = stroke.unwrap_or(visuals.bg_stroke);
-                ui.painter_mut().rect(
+                ui.painter.rect(
                     ui.ctx,
                     rect.expand(visuals.expansion),
                     visuals.rounding,
@@ -189,7 +189,7 @@ impl Widget for Button {
                 );
             }
 
-            text.paint_with_visuals(ui.ctx, ui.painter_mut(), text_pos, visuals);
+            text.paint_with_visuals(ui.ctx, &mut ui.painter, text_pos, visuals);
         }
 
         if let Some(image) = image {
@@ -276,7 +276,7 @@ impl<'a> Widget for Checkbox<'a> {
             // let visuals = ui.style().interact_selectable(&response, *checked); // too colorful
             let visuals = ui.style().interact(&response);
             let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
-            ui.painter_mut().add(
+            ui.painter.add(
                 ui.ctx,
                 epaint::RectShape {
                     rect: big_icon_rect.expand(visuals.expansion),
@@ -288,7 +288,7 @@ impl<'a> Widget for Checkbox<'a> {
 
             if *checked {
                 // Check mark:
-                ui.painter_mut().add(
+                ui.painter.add(
                     ui.ctx,
                     Shape::line(
                         vec![
@@ -305,7 +305,7 @@ impl<'a> Widget for Checkbox<'a> {
                     rect.min.x + icon_width + icon_spacing,
                     rect.center().y - 0.5 * text.size().y,
                 );
-                text.paint_with_visuals(ui.ctx, ui.painter_mut(), text_pos, visuals);
+                text.paint_with_visuals(ui.ctx, &mut ui.painter, text_pos, visuals);
             }
         }
 
@@ -350,7 +350,7 @@ impl RadioButton {
 }
 
 impl Widget for RadioButton {
-    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response {
+    fn ui(self, ui: &mut Ui<'_>) -> Response {
         let RadioButton { checked, text } = self;
 
         let spacing = &ui.spacing();
@@ -389,9 +389,7 @@ impl Widget for RadioButton {
 
             let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
 
-            let painter = ui.painter_mut();
-
-            painter.add(
+            ui.painter.add(
                 ui.ctx,
                 epaint::CircleShape {
                     center: big_icon_rect.center(),
@@ -402,7 +400,7 @@ impl Widget for RadioButton {
             );
 
             if checked {
-                painter.add(
+                ui.painter.add(
                     ui.ctx,
                     epaint::CircleShape {
                         center: small_icon_rect.center(),
@@ -419,7 +417,7 @@ impl Widget for RadioButton {
                     rect.min.x + icon_width + icon_spacing,
                     rect.center().y - 0.5 * text.size().y,
                 );
-                text.paint_with_visuals(ui.ctx, ui.painter_mut(), text_pos, visuals);
+                text.paint_with_visuals(ui.ctx, &mut ui.painter, text_pos, visuals);
             }
         }
 
@@ -523,7 +521,7 @@ impl Widget for ImageButton {
             };
 
             // Draw frame background (for transparent images):
-            ui.painter_mut()
+            ui.painter
                 .rect_filled(ui.ctx, rect.expand2(expansion), rounding, fill);
 
             let image_rect = ui
@@ -533,7 +531,7 @@ impl Widget for ImageButton {
             image.paint_at(ui, image_rect);
 
             // Draw frame outline:
-            ui.painter_mut()
+            ui.painter
                 .rect_stroke(ui.ctx, rect.expand2(expansion), rounding, stroke);
         }
 

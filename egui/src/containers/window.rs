@@ -755,7 +755,7 @@ fn paint_frame_interaction(
         points.push(pos2(max.x, min.y + rounding.ne));
         points.push(pos2(max.x, max.y - rounding.se));
     }
-    ui.painter_mut()
+    ui.painter
         .add(ui.ctx, Shape::line(points, visuals.bg_stroke));
 }
 
@@ -866,7 +866,7 @@ impl TitleBar {
         let text_pos = text_pos - 1.5 * Vec2::Y; // HACK: center on x-height of text (looks better)
         self.title_galley.paint_with_fallback_color(
             ui.ctx,
-            ui.painter_mut(),
+            &mut ui.painter,
             text_pos,
             ui.visuals().text_color(),
         );
@@ -876,8 +876,7 @@ impl TitleBar {
             let y = content_response.rect().top() + ui.spacing().item_spacing.y * 0.5;
             // let y = lerp(self.rect.bottom()..=content_response.rect().top(), 0.5);
             let stroke = ui.visuals().widgets.noninteractive.bg_stroke;
-            ui.painter_mut()
-                .hline(ui.ctx, outer_rect.x_range(), y, stroke);
+            ui.painter.hline(ui.ctx, outer_rect.x_range(), y, stroke);
         }
 
         if ui
@@ -927,9 +926,9 @@ fn close_button<'c>(ui: &mut Ui<'c>, rect: Rect) -> Response {
     let visuals = ui.style().interact(&response);
     let rect = rect.shrink(2.0).expand(visuals.expansion);
     let stroke = visuals.fg_stroke;
-    ui.painter_mut() // paints \
+    ui.painter // paints \
         .line_segment(ui.ctx, [rect.left_top(), rect.right_bottom()], stroke);
-    ui.painter_mut() // paints /
+    ui.painter // paints /
         .line_segment(ui.ctx, [rect.right_top(), rect.left_bottom()], stroke);
     response
 }

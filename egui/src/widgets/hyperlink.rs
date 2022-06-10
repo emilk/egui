@@ -53,7 +53,7 @@ impl Widget for Link {
                 Stroke::none()
             };
 
-            ui.painter_mut().add(
+            ui.painter.add(
                 ui.ctx,
                 epaint::TextShape {
                     pos,

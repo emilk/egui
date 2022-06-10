@@ -78,7 +78,7 @@ impl Widget for ProgressBar {
 
             let visuals = ui.style().visuals.clone();
             let rounding = outer_rect.height() / 2.0;
-            ui.painter_mut().rect(
+            ui.painter.rect(
                 ui.ctx,
                 outer_rect,
                 rounding,
@@ -100,7 +100,7 @@ impl Widget for ProgressBar {
                 bright
             };
 
-            ui.painter_mut().rect(
+            ui.painter.rect(
                 ui.ctx,
                 inner_rect,
                 rounding,
@@ -122,7 +122,7 @@ impl Widget for ProgressBar {
                             + vec2(-rounding, 0.0)
                     })
                     .collect();
-                ui.painter_mut().add(
+                ui.painter.add(
                     ui.ctx,
                     Shape::line(points, Stroke::new(2.0, visuals.faint_bg_color)),
                 );
@@ -142,7 +142,7 @@ impl Widget for ProgressBar {
                     .override_text_color
                     .unwrap_or(visuals.selection.stroke.color);
 
-                let painter = ui.painter_mut().with_clip_rect(outer_rect);
+                let painter = ui.painter.with_clip_rect(outer_rect);
 
                 galley.paint_with_fallback_color(ui.ctx, &painter, text_pos, text_color);
             }

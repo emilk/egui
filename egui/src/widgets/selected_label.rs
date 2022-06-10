@@ -64,7 +64,7 @@ impl Widget for SelectableLabel {
             if selected || response.hovered() || response.has_focus() {
                 let rect = rect.expand(visuals.expansion);
 
-                ui.painter_mut().rect(
+                ui.painter.rect(
                     ui.ctx,
                     rect,
                     visuals.rounding,
@@ -73,7 +73,7 @@ impl Widget for SelectableLabel {
                 );
             }
 
-            text.paint_with_visuals(ui.ctx, ui.painter_mut(), text_pos, &visuals);
+            text.paint_with_visuals(ui.ctx, &mut ui.painter, text_pos, &visuals);
         }
 
         response

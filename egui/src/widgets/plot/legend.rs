@@ -126,9 +126,7 @@ impl LegendEntry {
             stroke: visuals.bg_stroke,
         };
 
-        let painter = ui.painter_mut();
-
-        painter.add(ui.ctx, icon_shape);
+        ui.painter.add(ui.ctx, icon_shape);
 
         if *checked {
             let fill = if *color == Color32::TRANSPARENT {
@@ -136,7 +134,7 @@ impl LegendEntry {
             } else {
                 *color
             };
-            painter.add(
+            ui.painter.add(
                 ui.ctx,
                 epaint::Shape::circle_filled(icon_rect.center(), icon_size * 0.4, fill),
             );
@@ -149,7 +147,8 @@ impl LegendEntry {
         };
 
         let text_position = pos2(text_position_x, rect.center().y - 0.5 * galley.size().y);
-        painter.galley_with_color(ui.ctx, text_position, galley, text_color);
+        ui.painter
+            .galley_with_color(ui.ctx, text_position, galley, text_color);
 
         *checked ^= response.clicked_by(PointerButton::Primary);
         *hovered = response.hovered();

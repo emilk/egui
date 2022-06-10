@@ -54,7 +54,7 @@ pub fn show_color(ui: &mut Ui<'_>, color: impl Into<Color32>, desired_size: Vec2
 fn show_color32(ui: &mut Ui<'_>, color: Color32, desired_size: Vec2) -> Response {
     let (rect, response) = ui.allocate_at_least(desired_size, Sense::hover());
     if ui.is_rect_visible(rect) {
-        show_color_at(ui.ctx, ui.painter_mut(), color, rect);
+        show_color_at(ui.ctx, &mut ui.painter, color, rect);
     }
     response
 }
@@ -93,10 +93,10 @@ fn color_button(ui: &mut Ui<'_>, color: Color32, open: bool) -> Response {
         let rounding = visuals.rounding.at_most(2.0);
         let bg_fill = visuals.bg_fill;
 
-        show_color_at(ui.ctx, ui.painter_mut(), color, rect);
+        show_color_at(ui.ctx, &mut ui.painter, color, rect);
 
         // fill is intentional, because default style has no border
-        ui.painter_mut()
+        ui.painter
             .rect_stroke(ui.ctx, rect, rounding, (2.0, bg_fill));
     }
 
@@ -118,7 +118,7 @@ fn color_slider_1d(
     if ui.is_rect_visible(rect) {
         let visuals = ui.style().interact(&response);
 
-        background_checkers(ui.ctx, ui.painter_mut(), rect); // for alpha:
+        background_checkers(ui.ctx, &mut ui.painter, rect); // for alpha:
 
         {
             // fill color:
@@ -134,18 +134,17 @@ fn color_slider_1d(
                     mesh.add_triangle(2 * i + 1, 2 * i + 2, 2 * i + 3);
                 }
             }
-            ui.painter_mut().add(ui.ctx, Shape::mesh(mesh));
+            ui.painter.add(ui.ctx, Shape::mesh(mesh));
         }
 
-        ui.painter_mut()
-            .rect_stroke(ui.ctx, rect, 0.0, visuals.bg_stroke); // outline
+        ui.painter.rect_stroke(ui.ctx, rect, 0.0, visuals.bg_stroke); // outline
 
         {
             // Show where the slider is at:
             let x = lerp(rect.left()..=rect.right(), *value);
             let r = rect.height() / 4.0;
             let picked_color = color_at(*value);
-            ui.painter_mut().add(
+            ui.painter.add(
                 ui.ctx,
                 Shape::convex_polygon(
                     vec![
@@ -199,16 +198,15 @@ fn color_slider_2d(
                 }
             }
         }
-        ui.painter_mut().add(ui.ctx, Shape::mesh(mesh)); // fill
+        ui.painter.add(ui.ctx, Shape::mesh(mesh)); // fill
 
-        ui.painter_mut()
-            .rect_stroke(ui.ctx, rect, 0.0, visuals.bg_stroke); // outline
+        ui.painter.rect_stroke(ui.ctx, rect, 0.0, visuals.bg_stroke); // outline
 
         // Show where the slider is at:
         let x = lerp(rect.left()..=rect.right(), *x_value);
         let y = lerp(rect.bottom()..=rect.top(), *y_value);
         let picked_color = color_at(*x_value, *y_value);
-        ui.painter_mut().add(
+        ui.painter.add(
             ui.ctx,
             epaint::CircleShape {
                 center: pos2(x, y),

@@ -460,7 +460,7 @@ impl SubMenuButton {
                 .align_size_within_rect(icon_galley.size(), rect.shrink2(button_padding))
                 .min;
 
-            ui.painter_mut().rect_filled(
+            ui.painter.rect_filled(
                 ui.ctx,
                 rect.expand(visuals.expansion),
                 visuals.rounding,
@@ -468,8 +468,8 @@ impl SubMenuButton {
             );
 
             let text_color = visuals.text_color();
-            text_galley.paint_with_fallback_color(ui.ctx, ui.painter_mut(), text_pos, text_color);
-            icon_galley.paint_with_fallback_color(ui.ctx, ui.painter_mut(), icon_pos, text_color);
+            text_galley.paint_with_fallback_color(ui.ctx, &mut ui.painter, text_pos, text_color);
+            icon_galley.paint_with_fallback_color(ui.ctx, &mut ui.painter, icon_pos, text_color);
         }
         response
     }

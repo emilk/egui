@@ -798,7 +798,7 @@ impl<'a> Prepared<'a> {
                     &ui.style().visuals.widgets.inactive
                 };
 
-                ui.painter_mut().add(
+                ui.painter.add(
                     ui.ctx,
                     epaint::Shape::rect_filled(
                         outer_scroll_rect,
@@ -807,7 +807,7 @@ impl<'a> Prepared<'a> {
                     ),
                 );
 
-                ui.painter_mut().add(
+                ui.painter.add(
                     ui.ctx,
                     epaint::Shape::rect_filled(handle_rect, visuals.rounding, visuals.bg_fill),
                 );

@@ -94,7 +94,7 @@ impl ComboBox {
     ///         rect.center(),
     ///         egui::Vec2::new(rect.width() * 0.6, rect.height() * 0.4),
     ///     );
-    ///     ui.painter_mut().add(egui::Shape::convex_polygon(
+    ///     ui.painter.add(egui::Shape::convex_polygon(
     ///         vec![rect.left_top(), rect.right_top(), rect.center_bottom()],
     ///         visuals.fg_stroke.color,
     ///         visuals.fg_stroke,
@@ -251,14 +251,14 @@ fn combo_box_dyn<'a, R>(
             } else {
                 paint_default_icon(
                     ui.ctx,
-                    ui.painter_mut(),
+                    &mut ui.painter,
                     icon_rect.expand(visuals.expansion),
                     visuals,
                 );
             }
 
             let text_rect = Align2::LEFT_CENTER.align_size_within_rect(galley.size(), rect);
-            galley.paint_with_visuals(ui.ctx, ui.painter_mut(), text_rect.min, visuals);
+            galley.paint_with_visuals(ui.ctx, &mut ui.painter, text_rect.min, visuals);
         }
     });
 
@@ -285,7 +285,7 @@ fn button_frame(
     sense: Sense,
     add_contents: impl FnOnce(&mut Ui<'_>),
 ) -> Response {
-    let where_to_put_background = ui.painter_mut().add(ui.ctx, Shape::Noop);
+    let where_to_put_background = ui.painter.add(ui.ctx, Shape::Noop);
 
     let margin = ui.spacing().button_padding;
     let interact_size = ui.spacing().interact_size;
@@ -309,7 +309,7 @@ fn button_frame(
             ui.style().interact(&response)
         };
 
-        ui.painter_mut().set(
+        ui.painter.set(
             ui.ctx,
             where_to_put_background,
             epaint::RectShape {
