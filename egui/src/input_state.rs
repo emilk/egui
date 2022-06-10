@@ -457,7 +457,7 @@ pub struct PointerState {
     /// Used for calculating velocity of pointer.
     pos_history: History<Pos2>,
 
-    down: [bool; NUM_POINTER_BUTTONS],
+    pub(crate) down: [bool; NUM_POINTER_BUTTONS],
 
     /// Where did the current click/drag originate?
     /// `None` if no mouse button is down.

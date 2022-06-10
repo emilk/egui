@@ -300,25 +300,22 @@ impl Context {
     ) -> Response {
         let hovered = hovered && enabled; // can't even hover disabled widgets
 
-        let clicked_elsewhere = {
-            // Catch all clicks within our frame, even if we aren't clickable (or even enabled).
-            // This is important for windows and such that should close then the user clicks elsewhere.
-
-            if self.input.pointer.any_click() {
-                // We detect clicks/hover on a "interact_rect" that is slightly larger than
-                // self.rect. See Context::interact.
-                // This means we can be hovered and clicked even though `!self.rect.contains(pos)` is true,
-                // hence the extra complexity here.
-                if hovered {
-                    false
-                } else if let Some(pos) = self.input.pointer.interact_pos() {
-                    !rect.contains(pos)
-                } else {
-                    false // clicked without a pointer, weird
-                }
-            } else {
+        // Catch all clicks within our frame, even if we aren't clickable (or even enabled).
+        // This is important for windows and such that should close then the user clicks elsewhere.
+        let clicked_elsewhere = if self.input.pointer.any_click() {
+            // We detect clicks/hover on a "interact_rect" that is slightly larger than
+            // self.rect. See Context::interact.
+            // This means we can be hovered and clicked even though `!self.rect.contains(pos)` is true,
+            // hence the extra complexity here.
+            if hovered {
                 false
+            } else if let Some(pos) = self.input.pointer.interact_pos() {
+                !rect.contains(pos)
+            } else {
+                false // clicked without a pointer, weird
             }
+        } else {
+            false
         };
 
         let mut response = Response {
@@ -326,16 +323,21 @@ impl Context {
             id,
             rect,
             sense,
+            interact_pointer_pos: None,
+            hover_pointer_pos: self.input.pointer.hover_pos(),
+            pointer_delta: self.input.pointer.delta(),
             enabled,
             hovered,
+            pointer_any_pressed: self.input.pointer.any_pressed(),
+            pointer_down: self.input.pointer.down,
             clicked: Default::default(),
             double_clicked: Default::default(),
             triple_clicked: Default::default(),
             dragged: false,
             drag_released: false,
             is_pointer_button_down_on: false,
-            interact_pointer_pos: None,
             changed: false, // must be set by the widget itself
+            clicked_elsewhere,
             has_focus: self.memory.has_focus(id),
             lost_focus: self.memory.lost_focus(id),
             gained_focus: self.memory.gained_focus(id),

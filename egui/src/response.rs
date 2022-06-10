@@ -24,7 +24,7 @@ pub struct Response {
     pub(crate) pointer_delta: Vec2,
     pub(crate) enabled: bool,
     pub(crate) hovered: bool,
-    pub(crate) pointer_pressed: [bool; NUM_POINTER_BUTTONS],
+    pub(crate) pointer_any_pressed: bool,
     pub(crate) pointer_down: [bool; NUM_POINTER_BUTTONS],
     pub(crate) clicked: [bool; NUM_POINTER_BUTTONS],
     // TODO: `released` for sliders
@@ -121,7 +121,7 @@ impl Response {
     /// Did a drag on this widgets begin this frame?
     #[inline]
     pub fn drag_started(&self) -> bool {
-        self.dragged && self.pointer_pressed.into_iter().any(|v| v)
+        self.dragged && self.pointer_any_pressed
     }
 
     /// If dragged, how many points were we dragged and in what direction?
@@ -509,13 +509,7 @@ impl Response {
             pointer_delta: self.pointer_delta,
             enabled: self.enabled || other.enabled,
             hovered: self.hovered || other.hovered,
-            pointer_pressed: [
-                self.pointer_pressed[0] || other.pointer_pressed[0],
-                self.pointer_pressed[1] || other.pointer_pressed[1],
-                self.pointer_pressed[2] || other.pointer_pressed[2],
-                self.pointer_pressed[3] || other.pointer_pressed[3],
-                self.pointer_pressed[4] || other.pointer_pressed[4],
-            ],
+            pointer_any_pressed: self.pointer_any_pressed || other.pointer_any_pressed,
             pointer_down: [
                 self.pointer_down[0] || other.pointer_down[0],
                 self.pointer_down[1] || other.pointer_down[1],
