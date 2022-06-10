@@ -2,11 +2,11 @@ use super::easy_mark_parser as easy_mark;
 use egui::*;
 
 /// Parse and display a VERY simple and small subset of Markdown.
-pub fn easy_mark(ui: &mut Ui, easy_mark: &str) {
+pub fn easy_mark(ui: &mut Ui<'_>, easy_mark: &str) {
     easy_mark_it(ui, easy_mark::Parser::new(easy_mark));
 }
 
-pub fn easy_mark_it<'em>(ui: &mut Ui, items: impl Iterator<Item = easy_mark::Item<'em>>) {
+pub fn easy_mark_it<'em>(ui: &mut Ui<'_>, items: impl Iterator<Item = easy_mark::Item<'em>>) {
     let initial_size = vec2(
         ui.available_width(),
         ui.spacing().interact_size.y, // Assume there will be
@@ -27,7 +27,7 @@ pub fn easy_mark_it<'em>(ui: &mut Ui, items: impl Iterator<Item = easy_mark::Ite
     });
 }
 
-pub fn item_ui(ui: &mut Ui, item: easy_mark::Item<'_>) {
+pub fn item_ui(ui: &mut Ui<'_>, item: easy_mark::Item<'_>) {
     let row_height = ui.text_style_height(&TextStyle::Body);
     let one_indent = row_height / 2.0;
 
@@ -133,7 +133,7 @@ fn rich_text_from_style(text: &str, style: &easy_mark::Style) -> RichText {
     rich_text
 }
 
-fn bullet_point(ui: &mut Ui, width: f32) -> Response {
+fn bullet_point(ui: &mut Ui<'_>, width: f32) -> Response {
     let row_height = ui.text_style_height(&TextStyle::Body);
     let (rect, response) = ui.allocate_exact_size(vec2(width, row_height), Sense::hover());
     ui.painter().circle_filled(
@@ -144,7 +144,7 @@ fn bullet_point(ui: &mut Ui, width: f32) -> Response {
     response
 }
 
-fn numbered_point(ui: &mut Ui, width: f32, number: &str) -> Response {
+fn numbered_point(ui: &mut Ui<'_>, width: f32, number: &str) -> Response {
     let font_id = TextStyle::Body.resolve(ui.style());
     let row_height = ui.fonts().row_height(&font_id);
     let (rect, response) = ui.allocate_exact_size(vec2(width, row_height), Sense::hover());

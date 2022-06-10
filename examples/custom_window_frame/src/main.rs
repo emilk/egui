@@ -43,7 +43,7 @@ fn custon_window_frame(
     ctx: &egui::Context,
     frame: &mut eframe::Frame,
     title: &str,
-    add_contents: impl FnOnce(&mut egui::Ui),
+    add_contents: impl FnOnce(&mut egui::Ui<'_>),
 ) {
     use egui::*;
     let text_color = ctx.style().visuals.text_color();

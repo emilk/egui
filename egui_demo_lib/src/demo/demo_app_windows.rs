@@ -56,7 +56,7 @@ impl Demos {
         Self { demos, open }
     }
 
-    pub fn checkboxes(&mut self, ui: &mut Ui) {
+    pub fn checkboxes(&mut self, ui: &mut Ui<'_>) {
         let Self { demos, open } = self;
         for demo in demos {
             let mut is_open = open.contains(demo.name());
@@ -111,7 +111,7 @@ impl Tests {
         Self { demos, open }
     }
 
-    pub fn checkboxes(&mut self, ui: &mut Ui) {
+    pub fn checkboxes(&mut self, ui: &mut Ui<'_>) {
         let Self { demos, open } = self;
         for demo in demos {
             let mut is_open = open.contains(demo.name());
@@ -279,7 +279,7 @@ impl DemoWindows {
         self.tests.windows(ctx);
     }
 
-    fn demo_list_ui(&mut self, ui: &mut egui::Ui) {
+    fn demo_list_ui(&mut self, ui: &mut egui::Ui<'_>) {
         ScrollArea::vertical().show(ui, |ui| {
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
                 ui.toggle_value(&mut self.about_is_open, self.about.name());
@@ -300,7 +300,7 @@ impl DemoWindows {
 
 // ----------------------------------------------------------------------------
 
-fn file_menu_button(ui: &mut Ui) {
+fn file_menu_button(ui: &mut Ui<'_>) {
     ui.menu_button("File", |ui| {
         if ui.button("Organize windows").clicked() {
             ui.ctx().memory().reset_areas();

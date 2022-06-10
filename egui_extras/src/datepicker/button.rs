@@ -62,7 +62,7 @@ impl<'a> DatePickerButton<'a> {
 }
 
 impl<'a> Widget for DatePickerButton<'a> {
-    fn ui(self, ui: &mut Ui) -> egui::Response {
+    fn ui(self, ui: &mut Ui<'_>) -> egui::Response {
         let id = ui.make_persistent_id(&self.id_source);
         let mut button_state = ui
             .memory()
@@ -87,13 +87,13 @@ impl<'a> Widget for DatePickerButton<'a> {
 
         if button_state.picker_visible {
             let width = 333.0;
-            let mut pos = button_response.rect.left_bottom();
+            let mut pos = button_response.rect().left_bottom();
             let width_with_padding = width
                 + ui.style().spacing.item_spacing.x
                 + ui.style().spacing.window_margin.left
                 + ui.style().spacing.window_margin.right;
             if pos.x + width_with_padding > ui.clip_rect().right() {
-                pos.x = button_response.rect.right() - width_with_padding;
+                pos.x = button_response.rect().right() - width_with_padding;
             }
 
             // Check to make sure the calendar never is displayed out of window
@@ -104,7 +104,7 @@ impl<'a> Widget for DatePickerButton<'a> {
             let area_response = Area::new(ui.make_persistent_id(&self.id_source))
                 .order(Order::Foreground)
                 .fixed_pos(pos)
-                .show(ui.ctx(), |ui| {
+                .show(ui.ctx, |ui| {
                     let frame = Frame::popup(ui.style());
                     frame.show(ui, |ui| {
                         ui.set_min_width(width);

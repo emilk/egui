@@ -41,7 +41,7 @@ impl super::Demo for Scrolling {
 }
 
 impl super::View for Scrolling {
-    fn ui(&mut self, ui: &mut Ui) {
+    fn ui(&mut self, ui: &mut Ui<'_>) {
         ui.horizontal(|ui| {
             ui.selectable_value(&mut self.demo, ScrollDemo::ScrollTo, "Scroll to");
             ui.selectable_value(
@@ -74,7 +74,7 @@ impl super::View for Scrolling {
     }
 }
 
-fn huge_content_lines(ui: &mut egui::Ui) {
+fn huge_content_lines(ui: &mut egui::Ui<'_>) {
     ui.label(
         "A lot of rows, but only the visible ones are layed out, so performance is still good:",
     );
@@ -96,7 +96,7 @@ fn huge_content_lines(ui: &mut egui::Ui) {
     );
 }
 
-fn huge_content_painter(ui: &mut egui::Ui) {
+fn huge_content_painter(ui: &mut egui::Ui<'_>) {
     // This is similar to the other demo, but is fully manual, for when you want to do custom painting.
     ui.label("A lot of rows, but only the visible ones are painted, so performance is still good:");
     ui.add_space(4.0);
@@ -162,7 +162,7 @@ impl Default for ScrollTo {
 }
 
 impl super::View for ScrollTo {
-    fn ui(&mut self, ui: &mut Ui) {
+    fn ui(&mut self, ui: &mut Ui<'_>) {
         ui.label("This shows how you can scroll to a specific item or pixel offset");
 
         let mut track_item = false;
@@ -264,7 +264,7 @@ struct ScrollStickTo {
 }
 
 impl super::View for ScrollStickTo {
-    fn ui(&mut self, ui: &mut Ui) {
+    fn ui(&mut self, ui: &mut Ui<'_>) {
         ui.label("Rows enter from the bottom, we want the scroll handle to start and stay at bottom unless moved");
 
         ui.add_space(4.0);

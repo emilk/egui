@@ -1,6 +1,6 @@
 use egui::*;
 
-pub fn drag_source(ui: &mut Ui, id: Id, body: impl FnOnce(&mut Ui)) {
+pub fn drag_source(ui: &mut Ui<'_>, id: Id, body: impl FnOnce(&mut Ui)) {
     let is_being_dragged = ui.memory().is_being_dragged(id);
 
     if !is_being_dragged {
@@ -33,9 +33,9 @@ pub fn drag_source(ui: &mut Ui, id: Id, body: impl FnOnce(&mut Ui)) {
 }
 
 pub fn drop_target<R>(
-    ui: &mut Ui,
+    ui: &mut Ui<'_>,
     can_accept_what_is_being_dragged: bool,
-    body: impl FnOnce(&mut Ui) -> R,
+    body: impl FnOnce(&mut Ui<'_>) -> R,
 ) -> InnerResponse<R> {
     let is_being_dragged = ui.memory().is_anything_being_dragged();
 
@@ -113,7 +113,7 @@ impl super::Demo for DragAndDropDemo {
 }
 
 impl super::View for DragAndDropDemo {
-    fn ui(&mut self, ui: &mut Ui) {
+    fn ui(&mut self, ui: &mut Ui<'_>) {
         ui.label("This is a proof-of-concept of drag-and-drop in egui.");
         ui.label("Drag items between columns.");
 

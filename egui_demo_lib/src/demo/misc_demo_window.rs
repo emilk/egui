@@ -58,7 +58,7 @@ impl Demo for MiscDemoWindow {
 }
 
 impl View for MiscDemoWindow {
-    fn ui(&mut self, ui: &mut Ui) {
+    fn ui(&mut self, ui: &mut Ui<'_>) {
         ui.set_min_width(250.0);
 
         CollapsingHeader::new("Widgets")
@@ -194,7 +194,7 @@ impl Default for Widgets {
 }
 
 impl Widgets {
-    pub fn ui(&mut self, ui: &mut Ui) {
+    pub fn ui(&mut self, ui: &mut Ui<'_>) {
         let Self { angle, password } = self;
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file_line!());
@@ -222,7 +222,7 @@ impl Widgets {
             ui.monospace("There is also a monospace font.");
         });
 
-        let tooltip_ui = |ui: &mut Ui| {
+        let tooltip_ui = |ui: &mut Ui<'_>| {
             ui.heading("The name of the tooltip");
             ui.horizontal(|ui| {
                 ui.label("This tooltip was created with");
@@ -279,7 +279,7 @@ impl Default for ColorWidgets {
 }
 
 impl ColorWidgets {
-    fn ui(&mut self, ui: &mut Ui) {
+    fn ui(&mut self, ui: &mut Ui<'_>) {
         egui::reset_button(ui, self);
 
         ui.label("egui lets you edit colors stored as either sRGBA or linear RGBA and with or without premultiplied alpha");
@@ -348,7 +348,7 @@ impl Default for BoxPainting {
 }
 
 impl BoxPainting {
-    pub fn ui(&mut self, ui: &mut Ui) {
+    pub fn ui(&mut self, ui: &mut Ui<'_>) {
         ui.add(Slider::new(&mut self.size.x, 0.0..=500.0).text("width"));
         ui.add(Slider::new(&mut self.size.y, 0.0..=500.0).text("height"));
         ui.add(Slider::new(&mut self.rounding, 0.0..=50.0).text("rounding"));
@@ -387,7 +387,7 @@ impl Default for CustomCollapsingHeader {
 }
 
 impl CustomCollapsingHeader {
-    pub fn ui(&mut self, ui: &mut egui::Ui) {
+    pub fn ui(&mut self, ui: &mut egui::Ui<'_>) {
         ui.label("Example of a collapsing header with custom header:");
 
         let id = ui.make_persistent_id("my_collapsing_header");
@@ -426,13 +426,13 @@ impl Tree {
             Tree(vec![Tree(vec![Tree::default(); 2]); 3]),
         ])
     }
-    pub fn ui(&mut self, ui: &mut Ui) -> Action {
+    pub fn ui(&mut self, ui: &mut Ui<'_>) -> Action {
         self.ui_impl(ui, 0, "root")
     }
 }
 
 impl Tree {
-    fn ui_impl(&mut self, ui: &mut Ui, depth: usize, name: &str) -> Action {
+    fn ui_impl(&mut self, ui: &mut Ui<'_>, depth: usize, name: &str) -> Action {
         CollapsingHeader::new(name)
             .default_open(depth < 1)
             .show(ui, |ui| self.children_ui(ui, depth))
@@ -440,7 +440,7 @@ impl Tree {
             .unwrap_or(Action::Keep)
     }
 
-    fn children_ui(&mut self, ui: &mut Ui, depth: usize) -> Action {
+    fn children_ui(&mut self, ui: &mut Ui<'_>, depth: usize) -> Action {
         if depth > 0
             && ui
                 .button(RichText::new("delete").color(Color32::RED))
@@ -473,7 +473,7 @@ impl Tree {
 // ----------------------------------------------------------------------------
 
 fn text_layout_ui(
-    ui: &mut egui::Ui,
+    ui: &mut egui::Ui<'_>,
     max_rows: &mut usize,
     break_anywhere: &mut bool,
     overflow_character: &mut Option<char>,

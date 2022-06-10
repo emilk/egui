@@ -76,7 +76,7 @@ impl BackendPanel {
         self.egui_windows.windows(ctx);
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+    pub fn ui(&mut self, ui: &mut egui::Ui<'_>, frame: &mut eframe::Frame) {
         egui::trace!(ui);
 
         self.integration_ui(ui, frame);
@@ -126,7 +126,7 @@ impl BackendPanel {
         }
     }
 
-    fn integration_ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+    fn integration_ui(&mut self, ui: &mut egui::Ui<'_>, frame: &mut eframe::Frame) {
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
             ui.label("egui running inside ");
@@ -163,7 +163,7 @@ impl BackendPanel {
 
     fn pixels_per_point_ui(
         &mut self,
-        ui: &mut egui::Ui,
+        ui: &mut egui::Ui<'_>,
         info: &eframe::IntegrationInfo,
     ) -> Option<f32> {
         let pixels_per_point = self.pixels_per_point.get_or_insert_with(|| {
@@ -203,7 +203,7 @@ impl BackendPanel {
         }
     }
 
-    fn run_mode_ui(&mut self, ui: &mut egui::Ui) {
+    fn run_mode_ui(&mut self, ui: &mut egui::Ui<'_>) {
         ui.horizontal(|ui| {
             let run_mode = &mut self.run_mode;
             ui.label("Mode:");
@@ -255,7 +255,7 @@ impl EguiWindows {
         }
     }
 
-    fn checkboxes(&mut self, ui: &mut egui::Ui) {
+    fn checkboxes(&mut self, ui: &mut egui::Ui<'_>) {
         let Self {
             settings,
             inspection,

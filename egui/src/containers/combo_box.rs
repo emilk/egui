@@ -85,7 +85,7 @@ impl ComboBox {
     /// # egui::__run_test_ui(|ui| {
     /// # let text = "Selected text";
     /// pub fn filled_triangle(
-    ///     ui: &egui::Ui,
+    ///     ui: &egui::Ui<'_>,
     ///     rect: egui::Rect,
     ///     visuals: &egui::style::WidgetVisuals,
     ///     _is_open: bool,

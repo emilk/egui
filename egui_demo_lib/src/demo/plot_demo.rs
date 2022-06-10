@@ -39,7 +39,7 @@ impl Default for LineDemo {
 }
 
 impl LineDemo {
-    fn options_ui(&mut self, ui: &mut Ui) {
+    fn options_ui(&mut self, ui: &mut Ui<'_>) {
         let Self {
             animate,
             time: _,
@@ -148,7 +148,7 @@ impl LineDemo {
 }
 
 impl LineDemo {
-    fn ui(&mut self, ui: &mut Ui) -> Response {
+    fn ui(&mut self, ui: &mut Ui<'_>) -> Response {
         self.options_ui(ui);
         if self.animate {
             ui.ctx().request_repaint();
@@ -222,7 +222,7 @@ impl MarkerDemo {
             .collect()
     }
 
-    fn ui(&mut self, ui: &mut Ui) -> Response {
+    fn ui(&mut self, ui: &mut Ui<'_>) -> Response {
         ui.horizontal(|ui| {
             ui.checkbox(&mut self.fill_markers, "Fill");
             ui.add(
@@ -268,7 +268,7 @@ impl LegendDemo {
         Line::new(Values::from_explicit_callback(move |x| x.cos(), .., 100))
     }
 
-    fn ui(&mut self, ui: &mut Ui) -> Response {
+    fn ui(&mut self, ui: &mut Ui<'_>) -> Response {
         let LegendDemo { config } = self;
 
         egui::Grid::new("settings").show(ui, |ui| {
@@ -371,7 +371,7 @@ impl CustomAxisDemo {
     }
 
     #[allow(clippy::unused_self)]
-    fn ui(&mut self, ui: &mut Ui) -> Response {
+    fn ui(&mut self, ui: &mut Ui<'_>) -> Response {
         const MINS_PER_DAY: f64 = CustomAxisDemo::MINS_PER_DAY;
         const MINS_PER_H: f64 = CustomAxisDemo::MINS_PER_H;
 
@@ -475,7 +475,7 @@ impl LinkedAxisDemo {
         plot_ui.line(LinkedAxisDemo::cos());
     }
 
-    fn ui(&mut self, ui: &mut Ui) -> Response {
+    fn ui(&mut self, ui: &mut Ui<'_>) -> Response {
         ui.horizontal(|ui| {
             ui.label("Linked axes:");
             ui.checkbox(&mut self.link_x, "X");
@@ -515,7 +515,7 @@ struct ItemsDemo {
 }
 
 impl ItemsDemo {
-    fn ui(&mut self, ui: &mut Ui) -> Response {
+    fn ui(&mut self, ui: &mut Ui<'_>) -> Response {
         let n = 100;
         let mut sin_values: Vec<_> = (0..=n)
             .map(|i| remap(i as f64, 0.0..=n as f64, -TAU..=TAU))
@@ -592,7 +592,7 @@ struct InteractionDemo {}
 
 impl InteractionDemo {
     #[allow(clippy::unused_self)]
-    fn ui(&mut self, ui: &mut Ui) -> Response {
+    fn ui(&mut self, ui: &mut Ui<'_>) -> Response {
         let plot = Plot::new("interaction_demo").height(300.0);
 
         let InnerResponse {
@@ -668,7 +668,7 @@ impl Default for ChartsDemo {
 }
 
 impl ChartsDemo {
-    fn ui(&mut self, ui: &mut Ui) -> Response {
+    fn ui(&mut self, ui: &mut Ui<'_>) -> Response {
         ui.label("Type:");
         ui.horizontal(|ui| {
             ui.selectable_value(&mut self.chart, Chart::GaussBars, "Histogram");
@@ -687,7 +687,7 @@ impl ChartsDemo {
         }
     }
 
-    fn bar_gauss(&self, ui: &mut Ui) -> Response {
+    fn bar_gauss(&self, ui: &mut Ui<'_>) -> Response {
         let mut chart = BarChart::new(
             (-395..=395)
                 .step_by(10)
@@ -715,7 +715,7 @@ impl ChartsDemo {
             .response
     }
 
-    fn bar_stacked(&self, ui: &mut Ui) -> Response {
+    fn bar_stacked(&self, ui: &mut Ui<'_>) -> Response {
         let mut chart1 = BarChart::new(vec![
             Bar::new(0.5, 1.0).name("Day 1"),
             Bar::new(1.5, 3.0).name("Day 2"),
@@ -778,7 +778,7 @@ impl ChartsDemo {
             .response
     }
 
-    fn box_plot(&self, ui: &mut Ui) -> Response {
+    fn box_plot(&self, ui: &mut Ui<'_>) -> Response {
         let yellow = Color32::from_rgb(248, 252, 168);
         let mut box1 = BoxPlot::new(vec![
             BoxElem::new(0.5, BoxSpread::new(1.5, 2.2, 2.5, 2.6, 3.1)).name("Day 1"),
@@ -872,7 +872,7 @@ impl super::Demo for PlotDemo {
 }
 
 impl super::View for PlotDemo {
-    fn ui(&mut self, ui: &mut Ui) {
+    fn ui(&mut self, ui: &mut Ui<'_>) {
         ui.horizontal(|ui| {
             egui::reset_button(ui, self);
             ui.collapsing("Instructions", |ui| {

@@ -43,7 +43,7 @@ impl EasyMarkEditor {
         });
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui) {
+    pub fn ui(&mut self, ui: &mut egui::Ui<'_>) {
         egui::Grid::new("controls").show(ui, |ui| {
             ui.checkbox(&mut self.highlight_editor, "Highlight editor");
             egui::reset_button(ui, self);
@@ -75,13 +75,13 @@ impl EasyMarkEditor {
         }
     }
 
-    fn editor_ui(&mut self, ui: &mut egui::Ui) {
+    fn editor_ui(&mut self, ui: &mut egui::Ui<'_>) {
         let Self {
             code, highlighter, ..
         } = self;
 
         let response = if self.highlight_editor {
-            let mut layouter = |ui: &egui::Ui, easymark: &str, wrap_width: f32| {
+            let mut layouter = |ui: &egui::Ui<'_>, easymark: &str, wrap_width: f32| {
                 let mut layout_job = highlighter.highlight(ui.style(), easymark);
                 layout_job.wrap.max_width = wrap_width;
                 ui.fonts().layout_job(layout_job)

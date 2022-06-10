@@ -74,7 +74,7 @@ impl super::Demo for WindowOptions {
 }
 
 impl super::View for WindowOptions {
-    fn ui(&mut self, ui: &mut egui::Ui) {
+    fn ui(&mut self, ui: &mut egui::Ui<'_>) {
         let Self {
             title,
             title_bar,

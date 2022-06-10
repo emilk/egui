@@ -62,7 +62,7 @@ impl super::Demo for WidgetGallery {
 }
 
 impl super::View for WidgetGallery {
-    fn ui(&mut self, ui: &mut egui::Ui) {
+    fn ui(&mut self, ui: &mut egui::Ui<'_>) {
         ui.add_enabled_ui(self.enabled, |ui| {
             ui.set_visible(self.visible);
 
@@ -99,7 +99,7 @@ impl super::View for WidgetGallery {
 }
 
 impl WidgetGallery {
-    fn gallery_grid_contents(&mut self, ui: &mut egui::Ui) {
+    fn gallery_grid_contents(&mut self, ui: &mut egui::Ui<'_>) {
         let Self {
             enabled: _,
             visible: _,
@@ -259,7 +259,7 @@ impl WidgetGallery {
     }
 }
 
-fn example_plot(ui: &mut egui::Ui) -> egui::Response {
+fn example_plot(ui: &mut egui::Ui<'_>) -> egui::Response {
     use egui::plot::{Line, Value, Values};
     let n = 128;
     let line = Line::new(Values::from_values_iter((0..=n).map(|i| {
@@ -277,7 +277,7 @@ fn example_plot(ui: &mut egui::Ui) -> egui::Response {
 fn doc_link_label<'a>(title: &'a str, search_term: &'a str) -> impl egui::Widget + 'a {
     let label = format!("{}:", title);
     let url = format!("https://docs.rs/egui?search={}", search_term);
-    move |ui: &mut egui::Ui| {
+    move |ui: &mut egui::Ui<'_>| {
         ui.hyperlink_to(label, url).on_hover_ui(|ui| {
             ui.horizontal_wrapped(|ui| {
                 ui.label("Search egui docs for");

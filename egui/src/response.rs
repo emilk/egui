@@ -557,7 +557,7 @@ impl Response {
 ///
 /// ```
 /// use egui::*;
-/// fn draw_vec2(ui: &mut Ui, v: &mut Vec2) -> Response {
+/// fn draw_vec2(ui: &mut Ui<'_>, v: &mut Vec2) -> Response {
 ///     ui.add(DragValue::new(&mut v.x)) | ui.add(DragValue::new(&mut v.y))
 /// }
 /// ```

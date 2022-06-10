@@ -18,7 +18,7 @@ impl Default for Painting {
 }
 
 impl Painting {
-    pub fn ui_control(&mut self, ui: &mut egui::Ui) -> egui::Response {
+    pub fn ui_control(&mut self, ui: &mut egui::Ui<'_>) -> egui::Response {
         ui.horizontal(|ui| {
             egui::stroke_ui(ui, &mut self.stroke, "Stroke");
             ui.separator();
@@ -29,7 +29,7 @@ impl Painting {
         .response
     }
 
-    pub fn ui_content(&mut self, ui: &mut Ui) -> egui::Response {
+    pub fn ui_content(&mut self, ui: &mut Ui<'_>) -> egui::Response {
         let (mut response, painter) =
             ui.allocate_painter(ui.available_size_before_wrap(), Sense::drag());
 
@@ -85,7 +85,7 @@ impl super::Demo for Painting {
 }
 
 impl super::View for Painting {
-    fn ui(&mut self, ui: &mut Ui) {
+    fn ui(&mut self, ui: &mut Ui<'_>) {
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file!());
         });

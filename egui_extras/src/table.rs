@@ -50,7 +50,7 @@ use egui::{Rect, Response, Ui, Vec2};
 /// # });
 /// ```
 pub struct TableBuilder<'a> {
-    ui: &'a mut Ui,
+    ui: &'a mut Ui<'a>,
     sizing: Sizing,
     scroll: bool,
     striped: bool,
@@ -60,7 +60,7 @@ pub struct TableBuilder<'a> {
 }
 
 impl<'a> TableBuilder<'a> {
-    pub fn new(ui: &'a mut Ui) -> Self {
+    pub fn new(ui: &'a mut Ui<'a>) -> Self {
         let cell_layout = *ui.layout();
         Self {
             ui,
@@ -222,13 +222,13 @@ impl<'a> TableBuilder<'a> {
 }
 
 fn read_persisted_widths(
-    ui: &egui::Ui,
+    ui: &egui::Ui<'_>,
     default_widths: Vec<f32>,
     resize_id: Option<egui::Id>,
 ) -> Vec<f32> {
     if let Some(resize_id) = resize_id {
         let rect = Rect::from_min_size(ui.available_rect_before_wrap().min, Vec2::ZERO);
-        ui.ctx().check_for_id_clash(resize_id, rect, "Table");
+        ui.ctx.check_for_id_clash(resize_id, rect, "Table");
         if let Some(persisted) = ui.data().get_persisted::<Vec<f32>>(resize_id) {
             // make sure that the stored widths aren't out-dated
             if persisted.len() == default_widths.len() {
@@ -244,7 +244,7 @@ fn read_persisted_widths(
 ///
 /// Is created by [`TableBuilder`] by either calling [`TableBuilder::body`] or after creating a header row with [`TableBuilder::header`].
 pub struct Table<'a> {
-    ui: &'a mut Ui,
+    ui: &'a mut Ui<'a>,
     table_top: f32,
     resize_id: Option<egui::Id>,
     sizing: Sizing,
@@ -329,7 +329,7 @@ impl<'a> Table<'a> {
                 }
                 let is_resizing = ui.memory().is_being_dragged(resize_id);
                 if is_resizing {
-                    if let Some(pointer) = ui.ctx().pointer_latest_pos() {
+                    if let Some(pointer) = ui.ctx.pointer_latest_pos() {
                         let new_width = *width + pointer.x - x;
                         let (min, max) = sizing.sizes[i].range();
                         let new_width = new_width.clamp(min, max);
@@ -346,7 +346,7 @@ impl<'a> Table<'a> {
                 let resize_hover = mouse_over_resize_line && !dragging_something_else;
 
                 if resize_hover || is_resizing {
-                    ui.output().cursor_icon = egui::CursorIcon::ResizeColumn;
+                    ui.output_mut().cursor_icon = egui::CursorIcon::ResizeColumn;
                 }
 
                 let stroke = if is_resizing {
@@ -357,7 +357,7 @@ impl<'a> Table<'a> {
                     // ui.visuals().widgets.inactive.bg_stroke
                     ui.visuals().widgets.noninteractive.bg_stroke
                 };
-                ui.painter().line_segment([p0, p1], stroke);
+                ui.painter.line_segment(ui.ctx, [p0, p1], stroke);
 
                 available_width -= *width + spacing_x;
             }
@@ -586,7 +586,7 @@ pub struct TableRow<'a, 'b> {
 
 impl<'a, 'b> TableRow<'a, 'b> {
     /// Add the contents of a column.
-    pub fn col(&mut self, add_contents: impl FnOnce(&mut Ui)) -> Response {
+    pub fn col(&mut self, add_contents: impl FnOnce(&mut Ui<'_>)) -> Response {
         let width = if let Some(width) = self.widths.get(self.width_index) {
             self.width_index += 1;
             *width

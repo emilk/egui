@@ -44,7 +44,7 @@ pub use text_edit::{TextBuffer, TextEdit};
 ///
 /// Tip: you can `impl Widget for &mut YourThing { }`.
 ///
-/// `|ui: &mut Ui| -> Response { … }` also implements [`Widget`].
+/// `|ui: &mut Ui<'_>| -> Response { … }` also implements [`Widget`].
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub trait Widget {
     /// Allocate space, interact, paint, and return a [`Response`].
@@ -64,7 +64,7 @@ pub trait Widget {
 ///
 /// ```
 /// pub fn slider_vec2(value: &mut egui::Vec2) -> impl egui::Widget + '_ {
-///    move |ui: &mut egui::Ui| {
+///    move |ui: &mut egui::Ui<'_>| {
 ///        ui.horizontal(|ui| {
 ///            ui.add(egui::Slider::new(&mut value.x, 0.0..=1.0).text("x"));
 ///            ui.add(egui::Slider::new(&mut value.y, 0.0..=1.0).text("y"));

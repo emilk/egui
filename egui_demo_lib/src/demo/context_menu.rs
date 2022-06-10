@@ -60,7 +60,7 @@ impl super::Demo for ContextMenus {
 }
 
 impl super::View for ContextMenus {
-    fn ui(&mut self, ui: &mut egui::Ui) {
+    fn ui(&mut self, ui: &mut egui::Ui<'_>) {
         ui.horizontal(|ui| {
             ui.menu_button("Click for menu", Self::nested_menus);
             ui.button("Right-click for menu")
@@ -115,7 +115,7 @@ impl super::View for ContextMenus {
 }
 
 impl ContextMenus {
-    fn example_plot(&self, ui: &mut egui::Ui) -> egui::Response {
+    fn example_plot(&self, ui: &mut egui::Ui<'_>) -> egui::Response {
         use egui::plot::{Line, Value, Values};
         let n = 128;
         let line = Line::new(Values::from_values_iter((0..=n).map(|i| {
@@ -141,7 +141,7 @@ impl ContextMenus {
             .response
     }
 
-    fn nested_menus(ui: &mut egui::Ui) {
+    fn nested_menus(ui: &mut egui::Ui<'_>) {
         if ui.button("Open...").clicked() {
             ui.close_menu();
         }

@@ -39,7 +39,7 @@ impl super::Demo for MultiTouch {
 }
 
 impl super::View for MultiTouch {
-    fn ui(&mut self, ui: &mut egui::Ui) {
+    fn ui(&mut self, ui: &mut egui::Ui<'_>) {
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file!());
         });
@@ -114,7 +114,7 @@ impl super::View for MultiTouch {
 }
 
 impl MultiTouch {
-    fn slowly_reset(&mut self, ui: &egui::Ui) {
+    fn slowly_reset(&mut self, ui: &egui::Ui<'_>) {
         // This has nothing to do with the touch gesture. It just smoothly brings the
         // painted arrow back into its original position, for a nice visual effect:
 

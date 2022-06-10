@@ -33,7 +33,7 @@ pub(crate) struct DatePickerPopup<'a> {
 }
 
 impl<'a> DatePickerPopup<'a> {
-    pub fn draw(&mut self, ui: &mut Ui) {
+    pub fn draw(&mut self, ui: &mut Ui<'_>) {
         let id = ui.make_persistent_id("date_picker");
         let today = chrono::offset::Utc::now().date();
         let mut popup_state = ui
@@ -150,7 +150,7 @@ impl<'a> DatePickerPopup<'a> {
                                 ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
                                     if ui
                                         .button("<<<")
-                                        .on_hover_text("substract one year")
+                                        .on_hover_text(ui.ctx, "substract one year")
                                         .clicked()
                                     {
                                         popup_state.year -= 1;
@@ -164,7 +164,7 @@ impl<'a> DatePickerPopup<'a> {
                                 ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
                                     if ui
                                         .button("<<")
-                                        .on_hover_text("substract one month")
+                                        .on_hover_text(ui.ctx, "substract one month")
                                         .clicked()
                                     {
                                         popup_state.month -= 1;
@@ -180,7 +180,11 @@ impl<'a> DatePickerPopup<'a> {
                             });
                             strip.cell(|ui| {
                                 ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
-                                    if ui.button("<").on_hover_text("substract one day").clicked() {
+                                    if ui
+                                        .button("<")
+                                        .on_hover_text(ui.ctx, "substract one day")
+                                        .clicked()
+                                    {
                                         popup_state.day -= 1;
                                         if popup_state.day == 0 {
                                             popup_state.month -= 1;
@@ -196,7 +200,11 @@ impl<'a> DatePickerPopup<'a> {
                             });
                             strip.cell(|ui| {
                                 ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
-                                    if ui.button(">").on_hover_text("add one day").clicked() {
+                                    if ui
+                                        .button(">")
+                                        .on_hover_text(ui.ctx, "add one day")
+                                        .clicked()
+                                    {
                                         popup_state.day += 1;
                                         if popup_state.day > popup_state.last_day_of_month() {
                                             popup_state.day = 1;
@@ -212,7 +220,11 @@ impl<'a> DatePickerPopup<'a> {
                             });
                             strip.cell(|ui| {
                                 ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
-                                    if ui.button(">>").on_hover_text("add one month").clicked() {
+                                    if ui
+                                        .button(">>")
+                                        .on_hover_text(ui.ctx, "add one month")
+                                        .clicked()
+                                    {
                                         popup_state.month += 1;
                                         if popup_state.month > 12 {
                                             popup_state.month = 1;
@@ -226,7 +238,11 @@ impl<'a> DatePickerPopup<'a> {
                             });
                             strip.cell(|ui| {
                                 ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
-                                    if ui.button(">>>").on_hover_text("add one year").clicked() {
+                                    if ui
+                                        .button(">>>")
+                                        .on_hover_text(ui.ctx, "add one year")
+                                        .clicked()
+                                    {
                                         popup_state.year += 1;
                                         popup_state.day =
                                             popup_state.day.min(popup_state.last_day_of_month());
@@ -328,8 +344,9 @@ impl<'a> DatePickerPopup<'a> {
                                                                 .widgets
                                                                 .inactive
                                                                 .fg_stroke;
-                                                            ui.painter().circle_stroke(
-                                                                button_response.rect.center(),
+                                                            ui.painter.circle_stroke(
+                                                                ui.ctx,
+                                                                button_response.rect().center(),
                                                                 8.0,
                                                                 stroke,
                                                             );

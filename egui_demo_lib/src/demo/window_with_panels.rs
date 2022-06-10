@@ -19,7 +19,7 @@ impl super::Demo for WindowWithPanels {
 }
 
 impl super::View for WindowWithPanels {
-    fn ui(&mut self, ui: &mut egui::Ui) {
+    fn ui(&mut self, ui: &mut egui::Ui<'_>) {
         // Note that the order we add the panels is very important!
 
         egui::TopBottomPanel::top("top_panel")
@@ -80,7 +80,7 @@ impl super::View for WindowWithPanels {
     }
 }
 
-fn lorem_ipsum(ui: &mut egui::Ui) {
+fn lorem_ipsum(ui: &mut egui::Ui<'_>) {
     ui.with_layout(
         egui::Layout::top_down(egui::Align::LEFT).with_cross_justify(true),
         |ui| {

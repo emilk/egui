@@ -30,7 +30,7 @@ fn configure_text_styles(ctx: &egui::Context) {
     ctx.set_style(style);
 }
 
-fn content(ui: &mut egui::Ui) {
+fn content(ui: &mut egui::Ui<'_>) {
     ui.heading("Top Heading");
     ui.add_space(5.);
     ui.label(LOREM_IPSUM);

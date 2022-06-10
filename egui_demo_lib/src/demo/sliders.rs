@@ -52,7 +52,7 @@ impl super::Demo for Sliders {
 }
 
 impl super::View for Sliders {
-    fn ui(&mut self, ui: &mut Ui) {
+    fn ui(&mut self, ui: &mut Ui<'_>) {
         let Self {
             min,
             max,

@@ -24,7 +24,7 @@ impl super::Demo for StripDemo {
 }
 
 impl super::View for StripDemo {
-    fn ui(&mut self, ui: &mut egui::Ui) {
+    fn ui(&mut self, ui: &mut egui::Ui<'_>) {
         let dark_mode = ui.visuals().dark_mode;
         let faded_color = ui.visuals().window_fill();
         let faded_color = |color: Color32| -> Color32 {

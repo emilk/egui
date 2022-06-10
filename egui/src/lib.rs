@@ -22,7 +22,7 @@
 //!
 //! Here is a simple counter that can be incremented and decremented using two buttons:
 //! ```
-//! fn ui_counter(ui: &mut egui::Ui, counter: &mut i32) {
+//! fn ui_counter(ui: &mut egui::Ui<'_>, counter: &mut i32) {
 //!     // Put the buttons and label on the same row:
 //!     ui.horizontal(|ui| {
 //!         if ui.button("-").clicked() {
@@ -221,7 +221,7 @@
 //! # use egui::*;
 //! pub trait Widget {
 //!     /// Allocate space, interact, paint, and return a [`Response`].
-//!     fn ui(self, ui: &mut Ui) -> Response;
+//!     fn ui(self, ui: &mut Ui<'_>) -> Response;
 //! }
 //! ```
 //!

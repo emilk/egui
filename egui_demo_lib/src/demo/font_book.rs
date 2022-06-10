@@ -30,7 +30,7 @@ impl super::Demo for FontBook {
 }
 
 impl super::View for FontBook {
-    fn ui(&mut self, ui: &mut egui::Ui) {
+    fn ui(&mut self, ui: &mut egui::Ui<'_>) {
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file!());
         });
@@ -85,7 +85,7 @@ impl super::View for FontBook {
                         )
                         .frame(false);
 
-                        let tooltip_ui = |ui: &mut egui::Ui| {
+                        let tooltip_ui = |ui: &mut egui::Ui<'_>| {
                             ui.label(
                                 egui::RichText::new(chr.to_string()).font(self.font_id.clone()),
                             );
@@ -102,7 +102,7 @@ impl super::View for FontBook {
     }
 }
 
-fn available_characters(ui: &egui::Ui, family: egui::FontFamily) -> BTreeMap<char, String> {
+fn available_characters(ui: &egui::Ui<'_>, family: egui::FontFamily) -> BTreeMap<char, String> {
     ui.fonts()
         .lock()
         .fonts

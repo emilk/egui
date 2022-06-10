@@ -609,6 +609,7 @@ impl Context {
     }
 
     /// Returns a refernce to the [`Style`] used by all new windows, panels etc.
+    #[inline]
     pub fn style(&self) -> &Arc<Style> {
         &self.options().style
     }
@@ -622,8 +623,14 @@ impl Context {
     /// # let mut ctx = egui::Context::default();
     /// ctx.style_mut().spacing.item_spacing = egui::vec2(10.0, 20.0);
     /// ```
+    #[inline]
     pub fn style_mut(&mut self) -> &mut Style {
         Arc::make_mut(&mut self.options_mut().style)
+    }
+
+    #[inline]
+    pub fn set_visuals(&mut self, visuals: Visuals) {
+        self.style_mut().visuals = visuals;
     }
 
     /// The number of physical pixels for each logical point.
@@ -680,7 +687,7 @@ impl Context {
     /// }
     ///
     /// impl MyImage {
-    ///     fn ui(&mut self, ui: &mut egui::Ui) {
+    ///     fn ui(&mut self, ui: &mut egui::Ui<'_>) {
     ///         let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
     ///             // Load the texture only once.
     ///             ui.ctx.load_texture(

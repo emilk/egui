@@ -2,7 +2,7 @@
 //!
 //! Usage:
 //! ```
-//! fn show_menu(ui: &mut egui::Ui) {
+//! fn show_menu(ui: &mut egui::Ui<'_>) {
 //!     use egui::{menu, Button};
 //!
 //!     menu::bar(ui, |ui| {

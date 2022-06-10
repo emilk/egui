@@ -42,7 +42,7 @@ use egui::{Response, Ui};
 /// # });
 /// ```
 pub struct StripBuilder<'a> {
-    ui: &'a mut Ui,
+    ui: &'a mut Ui<'a>,
     sizing: Sizing,
     clip: bool,
     cell_layout: egui::Layout,
@@ -50,7 +50,7 @@ pub struct StripBuilder<'a> {
 
 impl<'a> StripBuilder<'a> {
     /// Create new strip builder.
-    pub fn new(ui: &'a mut Ui) -> Self {
+    pub fn new(ui: &'a mut Ui<'a>) -> Self {
         let cell_layout = *ui.layout();
         Self {
             ui,
@@ -170,7 +170,7 @@ impl<'a, 'b> Strip<'a, 'b> {
     }
 
     /// Add cell contents.
-    pub fn cell(&mut self, add_contents: impl FnOnce(&mut Ui)) {
+    pub fn cell(&mut self, add_contents: impl FnOnce(&mut Ui<'_>)) {
         let (width, height) = self.next_cell_size();
         self.layout.add(width, height, add_contents);
     }

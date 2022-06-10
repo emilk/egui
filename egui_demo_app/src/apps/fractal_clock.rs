@@ -33,7 +33,7 @@ impl Default for FractalClock {
 }
 
 impl FractalClock {
-    pub fn ui(&mut self, ui: &mut Ui, seconds_since_midnight: Option<f64>) {
+    pub fn ui(&mut self, ui: &mut Ui<'_>, seconds_since_midnight: Option<f64>) {
         if !self.paused {
             self.time = seconds_since_midnight.unwrap_or_else(|| ui.input().time);
             ui.ctx().request_repaint();
@@ -57,7 +57,7 @@ impl FractalClock {
             });
     }
 
-    fn options_ui(&mut self, ui: &mut Ui, seconds_since_midnight: Option<f64>) {
+    fn options_ui(&mut self, ui: &mut Ui<'_>, seconds_since_midnight: Option<f64>) {
         if seconds_since_midnight.is_some() {
             ui.label(format!(
                 "Local time: {:02}:{:02}:{:02}.{:03}",

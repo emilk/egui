@@ -21,7 +21,7 @@ impl super::Demo for DancingStrings {
 }
 
 impl super::View for DancingStrings {
-    fn ui(&mut self, ui: &mut Ui) {
+    fn ui(&mut self, ui: &mut Ui<'_>) {
         let color = if ui.visuals().dark_mode {
             Color32::from_additive_luminance(196)
         } else {

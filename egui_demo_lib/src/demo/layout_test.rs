@@ -88,7 +88,7 @@ impl super::Demo for LayoutTest {
 }
 
 impl super::View for LayoutTest {
-    fn ui(&mut self, ui: &mut Ui) {
+    fn ui(&mut self, ui: &mut Ui<'_>) {
         ui.label("Tests and demonstrates the limits of the egui layouts");
         self.content_ui(ui);
         Resize::default()
@@ -115,7 +115,7 @@ impl super::View for LayoutTest {
 }
 
 impl LayoutTest {
-    pub fn content_ui(&mut self, ui: &mut Ui) {
+    pub fn content_ui(&mut self, ui: &mut Ui<'_>) {
         ui.horizontal(|ui| {
             ui.selectable_value(&mut self.layout, LayoutSettings::top_down(), "Top-down");
             ui.selectable_value(
@@ -169,7 +169,7 @@ impl LayoutTest {
     }
 }
 
-fn demo_ui(ui: &mut Ui) {
+fn demo_ui(ui: &mut Ui<'_>) {
     ui.add(egui::Label::new("Wrapping text followed by example widgets:").wrap(true));
     let mut dummy = false;
     ui.checkbox(&mut dummy, "checkbox");

@@ -14,7 +14,7 @@ impl Default for CodeExample {
 }
 
 impl CodeExample {
-    fn samples_in_grid(&mut self, ui: &mut egui::Ui) {
+    fn samples_in_grid(&mut self, ui: &mut egui::Ui<'_>) {
         show_code(ui, r#"ui.heading("Code samples");"#);
         ui.heading("Code samples");
         ui.end_row();
@@ -80,7 +80,7 @@ impl super::Demo for CodeExample {
 }
 
 impl super::View for CodeExample {
-    fn ui(&mut self, ui: &mut egui::Ui) {
+    fn ui(&mut self, ui: &mut egui::Ui<'_>) {
         use crate::syntax_highlighting::code_view_ui;
 
         ui.vertical_centered(|ui| {
@@ -96,7 +96,7 @@ pub struct CodeExample {
 }
 
 impl CodeExample {
-    fn ui(&mut self, ui: &mut egui::Ui) {
+    fn ui(&mut self, ui: &mut egui::Ui<'_>) {
 "
             .trim(),
         );
@@ -133,7 +133,7 @@ impl CodeExample {
     }
 }
 
-fn show_code(ui: &mut egui::Ui, code: &str) {
+fn show_code(ui: &mut egui::Ui<'_>, code: &str) {
     let code = remove_leading_indentation(code.trim_start_matches('\n'));
     crate::syntax_highlighting::code_view_ui(ui, &code);
 }

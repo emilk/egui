@@ -39,7 +39,7 @@ pub use {
 
 /// Something to view in the demo windows
 pub trait View {
-    fn ui(&mut self, ui: &mut egui::Ui);
+    fn ui(&mut self, ui: &mut egui::Ui<'_>);
 }
 
 /// Something to view

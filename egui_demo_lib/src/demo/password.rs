@@ -9,7 +9,7 @@
 /// password_ui(ui, &mut my_password);
 /// ```
 #[allow(clippy::ptr_arg)] // false positive
-pub fn password_ui(ui: &mut egui::Ui, password: &mut String) -> egui::Response {
+pub fn password_ui(ui: &mut egui::Ui<'_>, password: &mut String) -> egui::Response {
     // This widget has its own state — show or hide password characters (`show_plaintext`).
     // In this case we use a simple `bool`, but you can also declare your own type.
     // It must implement at least `Clone` and be `'static`.
@@ -58,7 +58,7 @@ pub fn password_ui(ui: &mut egui::Ui, password: &mut String) -> egui::Response {
 /// ui.add(password(&mut my_password));
 /// ```
 pub fn password(password: &mut String) -> impl egui::Widget + '_ {
-    move |ui: &mut egui::Ui| password_ui(ui, password)
+    move |ui: &mut egui::Ui<'_>| password_ui(ui, password)
 }
 
 pub fn url_to_file_source_code() -> String {

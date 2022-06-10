@@ -42,7 +42,7 @@ impl super::Demo for TableDemo {
 }
 
 impl super::View for TableDemo {
-    fn ui(&mut self, ui: &mut egui::Ui) {
+    fn ui(&mut self, ui: &mut egui::Ui<'_>) {
         ui.vertical(|ui| {
             ui.checkbox(&mut self.resizable, "Resizable columns");
 
@@ -89,7 +89,7 @@ impl super::View for TableDemo {
 }
 
 impl TableDemo {
-    fn table_ui(&mut self, ui: &mut egui::Ui) {
+    fn table_ui(&mut self, ui: &mut egui::Ui<'_>) {
         use egui_extras::{Size, TableBuilder};
 
         let text_height = egui::TextStyle::Body.resolve(ui.style()).size;

@@ -217,7 +217,7 @@ impl eframe::App for WrapApp {
 }
 
 impl WrapApp {
-    fn backend_panel_contents(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+    fn backend_panel_contents(&mut self, ui: &mut egui::Ui<'_>, frame: &mut eframe::Frame) {
         self.state.backend_panel.ui(ui, frame);
 
         ui.separator();
@@ -254,7 +254,7 @@ impl WrapApp {
         }
     }
 
-    fn bar_contents(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+    fn bar_contents(&mut self, ui: &mut egui::Ui<'_>, frame: &mut eframe::Frame) {
         egui::widgets::global_dark_light_mode_switch(ui);
 
         ui.separator();
@@ -363,7 +363,7 @@ impl WrapApp {
     }
 }
 
-fn clock_button(ui: &mut egui::Ui, seconds_since_midnight: f64) -> egui::Response {
+fn clock_button(ui: &mut egui::Ui<'_>, seconds_since_midnight: f64) -> egui::Response {
     let time = seconds_since_midnight;
     let time = format!(
         "{:02}:{:02}:{:02}.{:02}",

@@ -12,7 +12,7 @@ use emath::Rot2;
 /// }
 ///
 /// impl MyImage {
-///     fn ui(&mut self, ui: &mut egui::Ui) {
+///     fn ui(&mut self, ui: &mut egui::Ui<'_>) {
 ///         let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
 ///             // Load the texture only once.
 ///             ui.ctx.load_texture(

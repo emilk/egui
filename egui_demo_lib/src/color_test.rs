@@ -31,7 +31,7 @@ impl Default for ColorTest {
 }
 
 impl ColorTest {
-    pub fn ui(&mut self, ui: &mut Ui) {
+    pub fn ui(&mut self, ui: &mut Ui<'_>) {
         ui.set_max_width(680.0);
 
         ui.vertical_centered(|ui| {
@@ -136,7 +136,12 @@ impl ColorTest {
         blending_and_feathering_test(ui);
     }
 
-    fn show_gradients(&mut self, ui: &mut Ui, bg_fill: Color32, (left, right): (Color32, Color32)) {
+    fn show_gradients(
+        &mut self,
+        ui: &mut Ui<'_>,
+        bg_fill: Color32,
+        (left, right): (Color32, Color32),
+    ) {
         let is_opaque = left.is_opaque() && right.is_opaque();
 
         ui.horizontal(|ui| {
@@ -199,7 +204,13 @@ impl ColorTest {
         });
     }
 
-    fn tex_gradient(&mut self, ui: &mut Ui, label: &str, bg_fill: Color32, gradient: &Gradient) {
+    fn tex_gradient(
+        &mut self,
+        ui: &mut Ui<'_>,
+        label: &str,
+        bg_fill: Color32,
+        gradient: &Gradient,
+    ) {
         if !self.texture_gradients {
             return;
         }
@@ -216,7 +227,13 @@ impl ColorTest {
         });
     }
 
-    fn vertex_gradient(&mut self, ui: &mut Ui, label: &str, bg_fill: Color32, gradient: &Gradient) {
+    fn vertex_gradient(
+        &mut self,
+        ui: &mut Ui<'_>,
+        label: &str,
+        bg_fill: Color32,
+        gradient: &Gradient,
+    ) {
         if !self.vertex_gradients {
             return;
         }
@@ -230,7 +247,7 @@ impl ColorTest {
     }
 }
 
-fn vertex_gradient(ui: &mut Ui, bg_fill: Color32, gradient: &Gradient) -> Response {
+fn vertex_gradient(ui: &mut Ui<'_>, bg_fill: Color32, gradient: &Gradient) -> Response {
     use egui::epaint::*;
     let (rect, response) = ui.allocate_at_least(GRADIENT_SIZE, Sense::hover());
     if bg_fill != Default::default() {
@@ -340,7 +357,7 @@ impl TextureManager {
     }
 }
 
-fn pixel_test(ui: &mut Ui) {
+fn pixel_test(ui: &mut Ui<'_>) {
     ui.label("Each subsequent square should be one physical pixel larger than the previous. They should be exactly one physical pixel apart. They should be perfectly aligned to the pixel grid.");
 
     let color = if ui.style().visuals.dark_mode {
@@ -376,7 +393,7 @@ fn pixel_test(ui: &mut Ui) {
     }
 }
 
-fn blending_and_feathering_test(ui: &mut Ui) {
+fn blending_and_feathering_test(ui: &mut Ui<'_>) {
     ui.label("Some fine lines for testing anti-aliasing and blending:");
 
     let size = Vec2::new(512.0, 512.0);

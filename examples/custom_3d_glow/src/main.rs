@@ -64,7 +64,7 @@ impl eframe::App for MyApp {
 }
 
 impl MyApp {
-    fn custom_painting(&mut self, ui: &mut egui::Ui) {
+    fn custom_painting(&mut self, ui: &mut egui::Ui<'_>) {
         let (rect, response) =
             ui.allocate_exact_size(egui::Vec2::splat(300.0), egui::Sense::drag());
 

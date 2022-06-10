@@ -108,7 +108,7 @@ impl eframe::App for HttpApp {
     }
 }
 
-fn ui_url(ui: &mut egui::Ui, frame: &mut eframe::Frame, url: &mut String) -> bool {
+fn ui_url(ui: &mut egui::Ui<'_>, frame: &mut eframe::Frame, url: &mut String) -> bool {
     let mut trigger_fetch = false;
 
     ui.horizontal(|ui| {
@@ -141,7 +141,7 @@ fn ui_url(ui: &mut egui::Ui, frame: &mut eframe::Frame, url: &mut String) -> boo
     trigger_fetch
 }
 
-fn ui_resource(ui: &mut egui::Ui, resource: &Resource) {
+fn ui_resource(ui: &mut egui::Ui<'_>, resource: &Resource) {
     let Resource {
         response,
         text,
@@ -206,7 +206,7 @@ fn ui_resource(ui: &mut egui::Ui, resource: &Resource) {
         });
 }
 
-fn selectable_text(ui: &mut egui::Ui, mut text: &str) {
+fn selectable_text(ui: &mut egui::Ui<'_>, mut text: &str) {
     ui.add(
         egui::TextEdit::multiline(&mut text)
             .desired_width(f32::INFINITY)
@@ -239,10 +239,10 @@ fn syntax_highlighting(_ctx: &egui::Context, _: &ehttp::Response, _: &str) -> Op
 struct ColoredText(egui::text::LayoutJob);
 
 impl ColoredText {
-    pub fn ui(&self, ui: &mut egui::Ui) {
+    pub fn ui(&self, ui: &mut egui::Ui<'_>) {
         if true {
             // Selectable text:
-            let mut layouter = |ui: &egui::Ui, _string: &str, wrap_width: f32| {
+            let mut layouter = |ui: &egui::Ui<'_>, _string: &str, wrap_width: f32| {
                 let mut layout_job = self.0.clone();
                 layout_job.wrap.max_width = wrap_width;
                 ui.fonts().layout_job(layout_job)

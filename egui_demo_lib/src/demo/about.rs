@@ -20,7 +20,7 @@ impl super::Demo for About {
 }
 
 impl super::View for About {
-    fn ui(&mut self, ui: &mut egui::Ui) {
+    fn ui(&mut self, ui: &mut egui::Ui<'_>) {
         use egui::special_emojis::{OS_APPLE, OS_LINUX, OS_WINDOWS};
 
         ui.heading("egui");
@@ -44,7 +44,7 @@ impl super::View for About {
     }
 }
 
-fn about_immediate_mode(ui: &mut egui::Ui) {
+fn about_immediate_mode(ui: &mut egui::Ui<'_>) {
     use crate::syntax_highlighting::code_view_ui;
     ui.style_mut().spacing.interact_size.y = 0.0; // hack to make `horizontal_wrapped` work better with text.
 
@@ -80,7 +80,7 @@ fn about_immediate_mode(ui: &mut egui::Ui) {
     });
 }
 
-fn links(ui: &mut egui::Ui) {
+fn links(ui: &mut egui::Ui<'_>) {
     use egui::special_emojis::{GITHUB, TWITTER};
     ui.hyperlink_to(
         format!("{} egui on GitHub", GITHUB),

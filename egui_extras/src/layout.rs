@@ -26,7 +26,7 @@ pub(crate) enum CellDirection {
 
 /// Positions cells in [`CellDirection`] and starts a new line on [`StripLayout::end_line`]
 pub struct StripLayout<'l> {
-    pub(crate) ui: &'l mut Ui,
+    pub(crate) ui: &'l mut Ui<'l>,
     direction: CellDirection,
     pub(crate) rect: Rect,
     cursor: Pos2,
@@ -37,7 +37,7 @@ pub struct StripLayout<'l> {
 
 impl<'l> StripLayout<'l> {
     pub(crate) fn new(
-        ui: &'l mut Ui,
+        ui: &'l mut Ui<'l>,
         direction: CellDirection,
         clip: bool,
         cell_layout: egui::Layout,
@@ -93,7 +93,7 @@ impl<'l> StripLayout<'l> {
         &mut self,
         width: CellSize,
         height: CellSize,
-        add_contents: impl FnOnce(&mut Ui),
+        add_contents: impl FnOnce(&mut Ui<'_>),
     ) -> Response {
         let rect = self.cell_rect(&width, &height);
         let used_rect = self.cell(rect, add_contents);
@@ -105,16 +105,15 @@ impl<'l> StripLayout<'l> {
         &mut self,
         width: CellSize,
         height: CellSize,
-        add_contents: impl FnOnce(&mut Ui),
+        add_contents: impl FnOnce(&mut Ui<'_>),
     ) -> Response {
         let rect = self.cell_rect(&width, &height);
 
         // Make sure we don't have a gap in the stripe background:
         let rect = rect.expand2(egui::vec2(0.5 * self.ui.spacing().item_spacing.x, 0.0));
 
-        self.ui
-            .painter()
-            .rect_filled(rect, 0.0, self.ui.visuals().faint_bg_color);
+        let color = self.ui.visuals().faint_bg_color;
+        self.ui.painter.rect_filled(self.ui.ctx, rect, 0.0, color);
 
         self.add(width, height, add_contents)
     }
@@ -141,7 +140,7 @@ impl<'l> StripLayout<'l> {
         self.ui.allocate_rect(rect, Sense::hover());
     }
 
-    fn cell(&mut self, rect: Rect, add_contents: impl FnOnce(&mut Ui)) -> Rect {
+    fn cell(&mut self, rect: Rect, add_contents: impl FnOnce(&mut Ui<'_>)) -> Rect {
         let mut child_ui = self.ui.child_ui(rect, self.cell_layout);
 
         if self.clip {

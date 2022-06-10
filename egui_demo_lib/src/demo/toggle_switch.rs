@@ -14,7 +14,7 @@
 /// ``` ignore
 /// toggle_ui(ui, &mut my_bool);
 /// ```
-pub fn toggle_ui(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
+pub fn toggle_ui(ui: &mut egui::Ui<'_>, on: &mut bool) -> egui::Response {
     // Widget code can be broken up in four steps:
     //  1. Decide a size for the widget
     //  2. Allocate space for it
@@ -70,7 +70,7 @@ pub fn toggle_ui(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
 
 /// Here is the same code again, but a bit more compact:
 #[allow(dead_code)]
-fn toggle_ui_compact(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
+fn toggle_ui_compact(ui: &mut egui::Ui<'_>, on: &mut bool) -> egui::Response {
     let desired_size = ui.spacing().interact_size.y * egui::vec2(2.0, 1.0);
     let (rect, mut response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
     if response.clicked() {
@@ -103,7 +103,7 @@ fn toggle_ui_compact(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
 /// ui.add(toggle(&mut my_bool));
 /// ```
 pub fn toggle(on: &mut bool) -> impl egui::Widget + '_ {
-    move |ui: &mut egui::Ui| toggle_ui(ui, on)
+    move |ui: &mut egui::Ui<'_>| toggle_ui(ui, on)
 }
 
 pub fn url_to_file_source_code() -> String {

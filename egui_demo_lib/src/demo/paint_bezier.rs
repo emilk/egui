@@ -40,7 +40,7 @@ impl Default for PaintBezier {
 }
 
 impl PaintBezier {
-    pub fn ui_control(&mut self, ui: &mut egui::Ui) {
+    pub fn ui_control(&mut self, ui: &mut egui::Ui<'_>) {
         ui.collapsing("Colors", |ui| {
             ui.horizontal(|ui| {
                 ui.label("Fill color:");
@@ -65,7 +65,7 @@ impl PaintBezier {
         ui.small("Only convex curves can be accurately filled.");
     }
 
-    pub fn ui_content(&mut self, ui: &mut Ui) -> egui::Response {
+    pub fn ui_content(&mut self, ui: &mut Ui<'_>) -> egui::Response {
         let (response, painter) =
             ui.allocate_painter(Vec2::new(ui.available_width(), 300.0), Sense::hover());
 
@@ -158,7 +158,7 @@ impl super::Demo for PaintBezier {
 }
 
 impl super::View for PaintBezier {
-    fn ui(&mut self, ui: &mut Ui) {
+    fn ui(&mut self, ui: &mut Ui<'_>) {
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file!());
         });

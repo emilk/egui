@@ -123,7 +123,7 @@ impl RetainedImage {
     }
 
     /// Show the image with the given maximum size.
-    pub fn show_max_size(&self, ui: &mut egui::Ui, max_size: egui::Vec2) -> egui::Response {
+    pub fn show_max_size(&self, ui: &mut egui::Ui<'_>, max_size: egui::Vec2) -> egui::Response {
         let mut desired_size = self.size_vec2();
         desired_size *= (max_size.x / desired_size.x).min(1.0);
         desired_size *= (max_size.y / desired_size.y).min(1.0);
@@ -131,21 +131,21 @@ impl RetainedImage {
     }
 
     /// Show the image with the original size (one image pixel = one gui point).
-    pub fn show(&self, ui: &mut egui::Ui) -> egui::Response {
+    pub fn show(&self, ui: &mut egui::Ui<'_>) -> egui::Response {
         self.show_size(ui, self.size_vec2())
     }
 
     /// Show the image with the given scale factor (1.0 = original size).
-    pub fn show_scaled(&self, ui: &mut egui::Ui, scale: f32) -> egui::Response {
+    pub fn show_scaled(&self, ui: &mut egui::Ui<'_>, scale: f32) -> egui::Response {
         self.show_size(ui, self.size_vec2() * scale)
     }
 
     /// Show the image with the given size.
-    pub fn show_size(&self, ui: &mut egui::Ui, desired_size: egui::Vec2) -> egui::Response {
+    pub fn show_size(&self, ui: &mut egui::Ui<'_>, desired_size: egui::Vec2) -> egui::Response {
         // We need to convert the SVG to a texture to display it:
         // Future improvement: tell backend to do mip-mapping of the image to
         // make it look smoother when downsized.
-        ui.image(self.texture_id(ui.ctx()), desired_size)
+        ui.image(self.texture_id(ui.ctx), desired_size)
     }
 }
 

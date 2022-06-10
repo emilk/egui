@@ -448,7 +448,7 @@ impl CollapsingHeader {
     /// For example:
     /// ```
     /// # egui::__run_test_ui(|ui| {
-    /// fn circle_icon(ui: &mut egui::Ui, openness: f32, response: &egui::Response) {
+    /// fn circle_icon(ui: &mut egui::Ui<'_>, openness: f32, response: &egui::Response) {
     ///     let stroke = ui.style().interact(&response).fg_stroke;
     ///     let radius = egui::lerp(2.0..=3.0, openness);
     ///     ui.painter.circle_filled(response.rect().center(), radius, stroke.color);

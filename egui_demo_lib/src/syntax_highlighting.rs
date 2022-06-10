@@ -1,11 +1,11 @@
 use egui::text::LayoutJob;
 
 /// View some code with syntax highlighting and selection.
-pub fn code_view_ui(ui: &mut egui::Ui, mut code: &str) {
+pub fn code_view_ui(ui: &mut egui::Ui<'_>, mut code: &str) {
     let language = "rs";
     let theme = CodeTheme::from_memory(ui.ctx());
 
-    let mut layouter = |ui: &egui::Ui, string: &str, _wrap_width: f32| {
+    let mut layouter = |ui: &egui::Ui<'_>, string: &str, _wrap_width: f32| {
         let layout_job = highlight(ui.ctx(), &theme, string, language);
         // layout_job.wrap.max_width = wrap_width; // no wrapping
         ui.fonts().layout_job(layout_job)
@@ -181,7 +181,7 @@ impl CodeTheme {
         }
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui) {
+    pub fn ui(&mut self, ui: &mut egui::Ui<'_>) {
         egui::widgets::global_dark_light_mode_buttons(ui);
 
         for theme in SyntectTheme::all() {
@@ -227,7 +227,7 @@ impl CodeTheme {
         }
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui) {
+    pub fn ui(&mut self, ui: &mut egui::Ui<'_>) {
         ui.horizontal_top(|ui| {
             let selected_id = egui::Id::null();
             let mut selected_tt: TokenType = *ui
