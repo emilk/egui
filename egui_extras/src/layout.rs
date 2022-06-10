@@ -25,8 +25,8 @@ pub(crate) enum CellDirection {
 }
 
 /// Positions cells in [`CellDirection`] and starts a new line on [`StripLayout::end_line`]
-pub struct StripLayout<'l> {
-    pub(crate) ui: &'l mut Ui<'l>,
+pub struct StripLayout<'l, 'c> {
+    pub(crate) ui: &'l mut Ui<'c>,
     direction: CellDirection,
     pub(crate) rect: Rect,
     cursor: Pos2,
@@ -35,9 +35,9 @@ pub struct StripLayout<'l> {
     cell_layout: egui::Layout,
 }
 
-impl<'l> StripLayout<'l> {
+impl<'l, 'c> StripLayout<'l, 'c> {
     pub(crate) fn new(
-        ui: &'l mut Ui<'l>,
+        ui: &'l mut Ui<'c>,
         direction: CellDirection,
         clip: bool,
         cell_layout: egui::Layout,

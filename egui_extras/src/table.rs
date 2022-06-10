@@ -49,8 +49,8 @@ use egui::{Rect, Response, Ui, Vec2};
 ///     });
 /// # });
 /// ```
-pub struct TableBuilder<'a> {
-    ui: &'a mut Ui<'a>,
+pub struct TableBuilder<'a, 'c> {
+    ui: &'a mut Ui<'c>,
     sizing: Sizing,
     scroll: bool,
     striped: bool,
@@ -59,8 +59,8 @@ pub struct TableBuilder<'a> {
     cell_layout: egui::Layout,
 }
 
-impl<'a> TableBuilder<'a> {
-    pub fn new(ui: &'a mut Ui<'a>) -> Self {
+impl<'a, 'c> TableBuilder<'a, 'c> {
+    pub fn new(ui: &'a mut Ui<'c>) -> Self {
         let cell_layout = *ui.layout();
         Self {
             ui,
@@ -135,7 +135,7 @@ impl<'a> TableBuilder<'a> {
     }
 
     /// Create a header row which always stays visible and at the top
-    pub fn header(self, height: f32, header: impl FnOnce(TableRow<'_, '_>)) -> Table<'a> {
+    pub fn header(self, height: f32, header: impl FnOnce(TableRow<'_, '_, '_, '_>)) -> Table<'a, 'c> {
         let available_width = self.available_width();
 
         let Self {
@@ -184,7 +184,7 @@ impl<'a> TableBuilder<'a> {
     /// Create table body without a header row
     pub fn body<F>(self, body: F)
     where
-        F: for<'b> FnOnce(TableBody<'b>),
+        F: FnOnce(TableBody<'_, '_>),
     {
         let available_width = self.available_width();
 
@@ -243,8 +243,8 @@ fn read_persisted_widths(
 /// Table struct which can construct a [`TableBody`].
 ///
 /// Is created by [`TableBuilder`] by either calling [`TableBuilder::body`] or after creating a header row with [`TableBuilder::header`].
-pub struct Table<'a> {
-    ui: &'a mut Ui<'a>,
+pub struct Table<'a, 'c> {
+    ui: &'a mut Ui<'c>,
     table_top: f32,
     resize_id: Option<egui::Id>,
     sizing: Sizing,
@@ -256,11 +256,11 @@ pub struct Table<'a> {
     cell_layout: egui::Layout,
 }
 
-impl<'a> Table<'a> {
+impl<'a, 'c> Table<'a, 'c> {
     /// Create table body after adding a header row
     pub fn body<F>(self, body: F)
     where
-        F: for<'b> FnOnce(TableBody<'b>),
+        F: FnOnce(TableBody<'_, '_>),
     {
         let Table {
             ui,
@@ -369,8 +369,8 @@ impl<'a> Table<'a> {
 
 /// The body of a table.
 /// Is created by calling `body` on a [`Table`] (after adding a header row) or [`TableBuilder`] (without a header row).
-pub struct TableBody<'a> {
-    layout: StripLayout<'a>,
+pub struct TableBody<'a, 'c> {
+    layout: StripLayout<'a, 'c>,
     widths: Vec<f32>,
     striped: bool,
     row_nr: usize,
@@ -378,7 +378,7 @@ pub struct TableBody<'a> {
     end_y: f32,
 }
 
-impl<'a> TableBody<'a> {
+impl<'a, 'c> TableBody<'a, 'c> {
     fn scroll_offset_y(&self) -> f32 {
         self.start_y - self.layout.rect.top()
     }
@@ -395,7 +395,7 @@ impl<'a> TableBody<'a> {
     /// Add a single row with the given height.
     ///
     /// If you have many thousands of row it can be more performant to instead use [`Self::rows`] or [`Self::heterogeneous_rows`].
-    pub fn row(&mut self, height: f32, row: impl FnOnce(TableRow<'a, '_>)) {
+    pub fn row(&mut self, height: f32, row: impl FnOnce(TableRow<'_, '_, '_, '_>)) {
         row(TableRow {
             layout: &mut self.layout,
             widths: &self.widths,
@@ -434,7 +434,7 @@ impl<'a> TableBody<'a> {
         mut self,
         row_height_sans_spacing: f32,
         total_rows: usize,
-        mut row: impl FnMut(usize, TableRow<'_, '_>),
+        mut row: impl FnMut(usize, TableRow<'_, '_, '_, '_>),
     ) {
         let spacing = self.layout.ui.spacing().item_spacing;
         let row_height_with_spacing = row_height_sans_spacing + spacing.y;
@@ -503,7 +503,7 @@ impl<'a> TableBody<'a> {
     pub fn heterogeneous_rows(
         mut self,
         heights: impl Iterator<Item = f32>,
-        mut populate_row: impl FnMut(usize, TableRow<'_, '_>),
+        mut populate_row: impl FnMut(usize, TableRow<'_, '_, '_, '_>),
     ) {
         let spacing = self.layout.ui.spacing().item_spacing;
         let mut enumerated_heights = heights.enumerate();
@@ -568,7 +568,7 @@ impl<'a> TableBody<'a> {
     }
 }
 
-impl<'a> Drop for TableBody<'a> {
+impl<'a, 'c> Drop for TableBody<'a, 'c> {
     fn drop(&mut self) {
         self.layout.allocate_rect();
     }
@@ -576,15 +576,15 @@ impl<'a> Drop for TableBody<'a> {
 
 /// The row of a table.
 /// Is created by [`TableRow`] for each created [`TableBody::row`] or each visible row in rows created by calling [`TableBody::rows`].
-pub struct TableRow<'a, 'b> {
-    layout: &'b mut StripLayout<'a>,
-    widths: &'b [f32],
+pub struct TableRow<'a, 'b, 'c, 'd> {
+    layout: &'b mut StripLayout<'a, 'c>,
+    widths: &'d [f32],
     width_index: usize,
     striped: bool,
     height: f32,
 }
 
-impl<'a, 'b> TableRow<'a, 'b> {
+impl<'a, 'b, 'c, 'd> TableRow<'a, 'b, 'c, 'd> {
     /// Add the contents of a column.
     pub fn col(&mut self, add_contents: impl FnOnce(&mut Ui<'_>)) -> Response {
         let width = if let Some(width) = self.widths.get(self.width_index) {
@@ -609,7 +609,7 @@ impl<'a, 'b> TableRow<'a, 'b> {
     }
 }
 
-impl<'a, 'b> Drop for TableRow<'a, 'b> {
+impl<'a, 'b, 'c, 'd> Drop for TableRow<'a, 'b, 'c, 'd> {
     fn drop(&mut self) {
         self.layout.end_line();
     }

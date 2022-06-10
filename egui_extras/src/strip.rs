@@ -41,16 +41,16 @@ use egui::{Response, Ui};
 ///     });
 /// # });
 /// ```
-pub struct StripBuilder<'a> {
-    ui: &'a mut Ui<'a>,
+pub struct StripBuilder<'a, 'c> {
+    ui: &'a mut Ui<'c>,
     sizing: Sizing,
     clip: bool,
     cell_layout: egui::Layout,
 }
 
-impl<'a> StripBuilder<'a> {
+impl<'a, 'c> StripBuilder<'a, 'c> {
     /// Create new strip builder.
-    pub fn new(ui: &'a mut Ui<'a>) -> Self {
+    pub fn new(ui: &'a mut Ui<'c>) -> Self {
         let cell_layout = *ui.layout();
         Self {
             ui,
@@ -92,7 +92,7 @@ impl<'a> StripBuilder<'a> {
     /// Returns a [`egui::Response`] for hover events.
     pub fn horizontal<F>(self, strip: F) -> Response
     where
-        F: for<'b> FnOnce(Strip<'a, 'b>),
+        F: FnOnce(Strip<'a, '_, '_>),
     {
         let widths = self.sizing.to_lengths(
             self.ui.available_rect_before_wrap().width(),
@@ -119,7 +119,7 @@ impl<'a> StripBuilder<'a> {
     /// Returns a [`egui::Response`] for hover events.
     pub fn vertical<F>(self, strip: F) -> Response
     where
-        F: for<'b> FnOnce(Strip<'a, 'b>),
+        F: FnOnce(Strip<'a, '_, '_>),
     {
         let heights = self.sizing.to_lengths(
             self.ui.available_rect_before_wrap().height(),
@@ -143,14 +143,14 @@ impl<'a> StripBuilder<'a> {
 
 /// A Strip of cells which go in one direction. Each cell has a fixed size.
 /// In contrast to normal egui behavior, strip cells do *not* grow with its children!
-pub struct Strip<'a, 'b> {
-    layout: &'b mut StripLayout<'a>,
+pub struct Strip<'a, 'b, 'c> {
+    layout: &'b mut StripLayout<'a, 'c>,
     direction: CellDirection,
     sizes: Vec<f32>,
     size_index: usize,
 }
 
-impl<'a, 'b> Strip<'a, 'b> {
+impl<'a, 'b, 'c> Strip<'a, 'b, 'c> {
     fn next_cell_size(&mut self) -> (CellSize, CellSize) {
         let size = if let Some(size) = self.sizes.get(self.size_index) {
             self.size_index += 1;
@@ -182,7 +182,7 @@ impl<'a, 'b> Strip<'a, 'b> {
     }
 
     /// Add a strip as cell.
-    pub fn strip(&mut self, strip_builder: impl FnOnce(StripBuilder<'_>)) {
+    pub fn strip(&mut self, strip_builder: impl FnOnce(StripBuilder<'_, '_>)) {
         let clip = self.layout.clip;
         self.cell(|ui| {
             strip_builder(StripBuilder::new(ui).clip(clip));
@@ -190,7 +190,7 @@ impl<'a, 'b> Strip<'a, 'b> {
     }
 }
 
-impl<'a, 'b> Drop for Strip<'a, 'b> {
+impl<'a, 'b, 'c> Drop for Strip<'a, 'b, 'c> {
     fn drop(&mut self) {
         while self.size_index < self.sizes.len() {
             self.empty();
