@@ -30,12 +30,12 @@ pub(crate) struct BarState {
 }
 
 impl BarState {
-    fn load(ctx: &Context, bar_id: Id) -> Self {
-        ctx.data().get_temp::<Self>(bar_id).unwrap_or_default()
+    fn load(ctx: &mut Context, bar_id: Id) -> Self {
+        ctx.data_mut().get_temp::<Self>(bar_id).unwrap_or_default()
     }
 
-    fn store(self, ctx: &Context, bar_id: Id) {
-        ctx.data().insert_temp(bar_id, self);
+    fn store(self, ctx: &mut Context, bar_id: Id) {
+        ctx.data_mut().insert_temp(bar_id, self);
     }
 
     /// Show a menu at pointer if primary-clicked response.
@@ -67,10 +67,7 @@ impl std::ops::DerefMut for BarState {
 /// The menu bar goes well in a [`TopBottomPanel::top`],
 /// but can also be placed in a [`Window`].
 /// In the latter case you may want to wrap it in [`Frame`].
-pub fn bar<'c, R>(
-    ui: &mut Ui<'c>,
-    add_contents: impl FnOnce(&mut Ui<'_>) -> R,
-) -> InnerResponse<R> {
+pub fn bar<R>(ui: &mut Ui<'_>, add_contents: impl FnOnce(&mut Ui<'_>) -> R) -> InnerResponse<R> {
     ui.horizontal(|ui| {
         let mut style = ui.style_mut();
         style.spacing.button_padding = vec2(2.0, 0.0);
@@ -94,7 +91,7 @@ pub fn bar<'c, R>(
 /// Responds to primary clicks.
 ///
 /// Returns `None` if the menu is not open.
-pub fn menu_button<'c, R>(
+pub fn menu_button<R>(
     ui: &mut Ui<'_>,
     title: impl Into<WidgetText>,
     add_contents: impl FnOnce(&mut Ui<'_>) -> R,

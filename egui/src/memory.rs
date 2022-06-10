@@ -368,7 +368,7 @@ impl Memory {
     }
 
     /// Is the keyboard focus locked on this widget? If so the focus won't move even if the user presses the tab key.
-    pub fn has_lock_focus(&mut self, id: Id) -> bool {
+    pub fn has_lock_focus(&self, id: Id) -> bool {
         if self.had_focus_last_frame(id) && self.has_focus(id) {
             self.interaction.focus.is_focus_locked
         } else {

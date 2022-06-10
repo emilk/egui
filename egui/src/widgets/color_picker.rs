@@ -90,12 +90,14 @@ fn color_button(ui: &mut Ui<'_>, color: Color32, open: bool) -> Response {
             ui.style().interact(&response)
         };
         let rect = rect.expand(visuals.expansion);
+        let rounding = visuals.rounding.at_most(2.0);
+        let bg_fill = visuals.bg_fill;
 
         show_color_at(ui.ctx, ui.painter_mut(), color, rect);
 
-        let rounding = visuals.rounding.at_most(2.0);
+        // fill is intentional, because default style has no border
         ui.painter_mut()
-            .rect_stroke(ui.ctx, rect, rounding, (2.0, visuals.bg_fill)); // fill is intentional, because default style has no border
+            .rect_stroke(ui.ctx, rect, rounding, (2.0, bg_fill));
     }
 
     response
@@ -161,8 +163,8 @@ fn color_slider_1d(
     response
 }
 
-fn color_slider_2d<'c>(
-    ui: &mut Ui<'c>,
+fn color_slider_2d(
+    ui: &mut Ui<'_>,
     x_value: &mut f32,
     y_value: &mut f32,
     color_at: impl Fn(f32, f32) -> Color32,
@@ -365,7 +367,7 @@ pub fn color_edit_button_hsva<'c>(ui: &mut Ui<'c>, hsva: &mut Hsva, alpha: Alpha
     }
 
     if button_response.clicked() {
-        ui.memory().toggle_popup(popup_id);
+        ui.memory_mut().toggle_popup(popup_id);
     }
     // TODO(emilk): make it easier to show a temporary popup that closes when you click outside it
     if ui.memory().is_popup_open(popup_id) {
@@ -385,7 +387,7 @@ pub fn color_edit_button_hsva<'c>(ui: &mut Ui<'c>, hsva: &mut Hsva, alpha: Alpha
         if !button_response.clicked()
             && (ui.input().key_pressed(Key::Escape) || area_response.clicked_elsewhere())
         {
-            ui.memory().close_popup();
+            ui.memory_mut().close_popup();
         }
     }
 

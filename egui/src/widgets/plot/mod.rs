@@ -104,12 +104,12 @@ struct PlotMemory {
 }
 
 impl PlotMemory {
-    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.data().get_persisted(id)
+    pub fn load(ctx: &mut Context, id: Id) -> Option<Self> {
+        ctx.data_mut().get_persisted(id)
     }
 
-    pub fn store(self, ctx: &Context, id: Id) {
-        ctx.data().insert_persisted(id, self);
+    pub fn store(self, ctx: &mut Context, id: Id) {
+        ctx.data_mut().insert_persisted(id, self);
     }
 }
 

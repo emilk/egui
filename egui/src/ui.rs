@@ -339,10 +339,17 @@ impl<'c> Ui<'c> {
     }
 
     /// The [`Memory`] of the [`Context`] associated with this ui.
-    /// Equivalent to `.ctx().memory()`.
+    /// Equivalent to `.ctx.memory()`.
     #[inline]
     pub fn memory(&self) -> &Memory {
         self.ctx.memory()
+    }
+
+    /// The [`Memory`] of the [`Context`] associated with this ui.
+    /// Equivalent to `.ctx.memory_mut()`.
+    #[inline]
+    pub fn memory_mut(&mut self) -> &mut Memory {
+        self.ctx.memory_mut()
     }
 
     /// Stores superficial widget state.
@@ -352,14 +359,14 @@ impl<'c> Ui<'c> {
     }
 
     /// The [`PlatformOutput`] of the [`Context`] associated with this ui.
-    /// Equivalent to `.ctx_mut().output_mut()`.
+    /// Equivalent to `.ctx.output_mut()`.
     #[inline]
-    pub fn output_mut(&self) -> &mut PlatformOutput {
+    pub fn output_mut(&mut self) -> &mut PlatformOutput {
         self.ctx.output_mut()
     }
 
     /// The [`Fonts`] of the [`Context`] associated with this ui.
-    /// Equivalent to `.ctx().fonts()`.
+    /// Equivalent to `.ctx.fonts()`.
     #[inline]
     pub fn fonts(&self) -> &Fonts {
         self.ctx.fonts()
@@ -703,7 +710,7 @@ impl<'c> Ui<'c> {
                 .rect_stroke(self.ctx, rect, 0.0, (1.0, Color32::LIGHT_BLUE));
 
             let stroke = Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
-            let paint_line_seg = |a, b| self.painter.line_segment(self.ctx, [a, b], stroke);
+            let mut paint_line_seg = |a, b| self.painter.line_segment(self.ctx, [a, b], stroke);
 
             if debug_expand_width && too_wide {
                 paint_line_seg(rect.left_top(), rect.left_bottom());
@@ -836,6 +843,7 @@ impl<'c> Ui<'c> {
         let mut child_ui = self.child_ui(child_rect, layout);
         let ret = add_contents(&mut child_ui);
         let final_child_rect = child_ui.min_rect();
+        let child_id = child_ui.id;
 
         self.placer
             .advance_after_rects(self.ctx, final_child_rect, final_child_rect, item_spacing);
@@ -847,7 +855,7 @@ impl<'c> Ui<'c> {
             self.placer.debug_paint_cursor(self.ctx, &painter, "next");
         }
 
-        let response = self.interact(final_child_rect, child_ui.id, Sense::hover());
+        let response = self.interact(final_child_rect, child_id, Sense::hover());
         InnerResponse::new(ret, response)
     }
 
@@ -864,6 +872,7 @@ impl<'c> Ui<'c> {
         let mut child_ui = self.child_ui(max_rect, *self.layout());
         let ret = add_contents(&mut child_ui);
         let final_child_rect = child_ui.min_rect();
+        let child_id = child_ui.id;
 
         self.placer.advance_after_rects(
             self.ctx,
@@ -872,7 +881,7 @@ impl<'c> Ui<'c> {
             self.spacing().item_spacing,
         );
 
-        let response = self.interact(final_child_rect, child_ui.id, Sense::hover());
+        let response = self.interact(final_child_rect, child_id, Sense::hover());
         InnerResponse::new(ret, response)
     }
 
@@ -922,7 +931,7 @@ impl<'c> Ui<'c> {
     /// });
     /// # });
     /// ```
-    pub fn scroll_to_rect(&self, rect: Rect, align: Option<Align>) {
+    pub fn scroll_to_rect(&mut self, rect: Rect, align: Option<Align>) {
         for d in 0..2 {
             let range = rect.min[d]..=rect.max[d];
             self.ctx.frame_state_mut().scroll_target[d] = Some((range, align));
@@ -950,7 +959,7 @@ impl<'c> Ui<'c> {
     /// });
     /// # });
     /// ```
-    pub fn scroll_to_cursor(&self, align: Option<Align>) {
+    pub fn scroll_to_cursor(&mut self, align: Option<Align>) {
         let target = self.next_widget_position();
         for d in 0..2 {
             let target = target[d];
@@ -985,7 +994,7 @@ impl<'c> Ui<'c> {
     /// });
     /// # });
     /// ```
-    pub fn scroll_with_delta(&self, delta: Vec2) {
+    pub fn scroll_with_delta(&mut self, delta: Vec2) {
         self.ctx.frame_state_mut().scroll_delta += delta;
     }
 }
@@ -1685,9 +1694,15 @@ impl<'c> Ui<'c> {
         let child_rect = self.available_rect_before_wrap();
         let next_auto_id_source = self.next_auto_id_source;
         let mut child_ui = self.child_ui_with_id_source(child_rect, *self.layout(), id_source);
-        self.next_auto_id_source = next_auto_id_source; // HACK: we want `scope` to only increment this once, so that `ui.scope` is equivalent to `ui.allocate_space`.
+
         let ret = add_contents(&mut child_ui);
-        let response = self.allocate_rect(child_ui.min_rect(), Sense::hover());
+        let child_min_rect = child_ui.min_rect();
+
+        // HACK: we want `scope` to only increment this once, so that `ui.scope` is
+        // equivalent to `ui.allocate_space`.
+        self.next_auto_id_source = next_auto_id_source;
+
+        let response = self.allocate_rect(child_min_rect, Sense::hover());
         InnerResponse::new(ret, response)
     }
 
@@ -1740,13 +1755,14 @@ impl<'c> Ui<'c> {
         let mut child_rect = self.placer.available_rect_before_wrap();
         child_rect.min.x += indent;
 
+        let end_with_horizontal_line = self.spacing().indent_ends_with_horizontal_line;
+
         let mut child_ui = Ui {
             id: self.id.with(id_source),
             ..self.child_ui(child_rect, *self.layout())
         };
         let ret = add_contents(&mut child_ui);
-
-        let end_with_horizontal_line = self.spacing().indent_ends_with_horizontal_line;
+        let child_min_rect = child_ui.min_rect();
 
         if end_with_horizontal_line {
             child_ui.add_space(4.0);
@@ -1756,18 +1772,18 @@ impl<'c> Ui<'c> {
         let stroke = self.visuals().widgets.noninteractive.bg_stroke;
         let left_top = child_rect.min - 0.5 * indent * Vec2::X;
         let left_top = self.ctx.round_pos_to_pixels(left_top);
-        let left_bottom = pos2(left_top.x, child_ui.min_rect().bottom() - 2.0);
+        let left_bottom = pos2(left_top.x, child_min_rect.bottom() - 2.0);
         let left_bottom = self.ctx.round_pos_to_pixels(left_bottom);
         self.painter
             .line_segment(self.ctx, [left_top, left_bottom], stroke);
         if end_with_horizontal_line {
             let fudge = 2.0; // looks nicer with button rounding in collapsing headers
-            let right_bottom = pos2(child_ui.min_rect().right() - fudge, left_bottom.y);
+            let right_bottom = pos2(child_min_rect.right() - fudge, left_bottom.y);
             self.painter
                 .line_segment(self.ctx, [left_bottom, right_bottom], stroke);
         }
 
-        let response = self.allocate_rect(child_ui.min_rect(), Sense::hover());
+        let response = self.allocate_rect(child_min_rect, Sense::hover());
         InnerResponse::new(ret, response)
     }
 
@@ -1964,6 +1980,7 @@ impl<'c> Ui<'c> {
         let mut child_ui = self.child_ui(self.available_rect_before_wrap(), layout);
         let inner = add_contents(&mut child_ui);
         let rect = child_ui.min_rect();
+        let child_id = child_ui.id;
         let item_spacing = self.spacing().item_spacing;
         self.placer
             .advance_after_rects(self.ctx, rect, rect, item_spacing);
@@ -1974,7 +1991,7 @@ impl<'c> Ui<'c> {
             self.placer.debug_paint_cursor(self.ctx, &painter, "next");
         }
 
-        InnerResponse::new(inner, self.interact(rect, child_ui.id, Sense::hover()))
+        InnerResponse::new(inner, self.interact(rect, child_id, Sense::hover()))
     }
 
     /// This will make the next added widget centered and justified in the available space.
@@ -2127,14 +2144,14 @@ impl<'c> Ui<'c> {
 /// # Debug stuff
 impl<'c> Ui<'c> {
     /// Shows where the next widget is going to be placed
-    pub fn debug_paint_cursor(&self) {
+    pub fn debug_paint_cursor(&mut self) {
         self.placer
             .debug_paint_cursor(self.ctx, &self.painter, "next");
     }
 
     /// Shows the given text where the next widget is to be placed
     /// if when [`Context::set_debug_on_hover`] has been turned on and the mouse is hovering the Ui.
-    pub fn trace_location(&self, text: impl ToString) {
+    pub fn trace_location(&mut self, text: impl ToString) {
         let rect = self.max_rect();
         if self.style().debug.debug_on_hover && self.rect_contains_pointer(rect) {
             self.placer

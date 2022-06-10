@@ -74,11 +74,11 @@ impl<'t> WidgetWithState for TextEdit<'t> {
 }
 
 impl<'t> TextEdit<'t> {
-    pub fn load_state(ctx: &Context, id: Id) -> Option<TextEditState> {
+    pub fn load_state(ctx: &mut Context, id: Id) -> Option<TextEditState> {
         TextEditState::load(ctx, id)
     }
 
-    pub fn store_state(ctx: &Context, id: Id, state: TextEditState) {
+    pub fn store_state(ctx: &mut Context, id: Id, state: TextEditState) {
         state.store(ctx, id);
     }
 }
@@ -295,7 +295,7 @@ impl<'t> TextEdit<'t> {
             output.response |= ui.interact(frame_rect, id, Sense::click());
         }
         if output.response.clicked() && !output.response.lost_focus() {
-            ui.memory().request_focus(output.response.id());
+            ui.memory_mut().request_focus(output.response.id());
         }
 
         if frame {
@@ -471,7 +471,7 @@ impl<'t> TextEdit<'t> {
                     }));
                 } else if allow_drag_to_select {
                     if response.hovered() && ui.input().pointer.any_pressed() {
-                        ui.memory().request_focus(id);
+                        ui.memory_mut().request_focus(id);
                         if ui.input().modifiers.shift {
                             if let Some(mut cursor_range) = state.cursor_range(&*galley) {
                                 cursor_range.primary = cursor_at_pointer;
@@ -501,7 +501,7 @@ impl<'t> TextEdit<'t> {
         let mut cursor_range = None;
         let prev_cursor_range = state.cursor_range(&*galley);
         if ui.memory().has_focus(id) && interactive {
-            ui.memory().lock_focus(id, lock_focus);
+            ui.memory_mut().lock_focus(id, lock_focus);
 
             let default_cursor_range = if cursor_at_end {
                 CursorRange::one(galley.end())
@@ -672,7 +672,7 @@ fn mask_if_password(is_password: bool, text: &str) -> String {
 /// Check for (keyboard) events to edit the cursor and/or text.
 #[allow(clippy::too_many_arguments)]
 fn events(
-    ui: &mut crate::Ui<'_>,
+    ui: &mut Ui<'_>,
     state: &mut TextEditState,
     text: &mut dyn TextBuffer,
     galley: &mut Arc<Galley>,
@@ -692,7 +692,7 @@ fn events(
         &(cursor_range.as_ccursor_range(), text.as_ref().to_owned()),
     );
 
-    let copy_if_not_password = |ui: &Ui<'_>, text: String| {
+    let copy_if_not_password = |ui: &mut Ui<'_>, text: String| {
         if !password {
             ui.ctx.output_mut().copied_text = text;
         }
@@ -768,7 +768,8 @@ fn events(
                     // TODO(emilk): if code editor, auto-indent by same leading tabs, + one if the lines end on an opening bracket
                     Some(CCursorRange::one(ccursor))
                 } else {
-                    ui.memory().surrender_focus(id); // End input with enter
+                    // End input with enter
+                    ui.memory_mut().surrender_focus(id);
                     break;
                 }
             }

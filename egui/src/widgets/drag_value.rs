@@ -186,7 +186,7 @@ impl<'a> Widget for DragValue<'a> {
         let mut response = if is_kb_editing {
             let button_width = ui.spacing().interact_size.x;
             let mut value_text = ui
-                .memory()
+                .memory_mut()
                 .drag_value
                 .edit_string
                 .take()
@@ -202,10 +202,10 @@ impl<'a> Widget for DragValue<'a> {
                 set(&mut get_set_value, parsed_value);
             }
             if ui.input().key_pressed(Key::Enter) {
-                ui.memory().surrender_focus(kb_edit_id);
-                ui.memory().drag_value.edit_string = None;
+                ui.memory_mut().surrender_focus(kb_edit_id);
+                ui.memory_mut().drag_value.edit_string = None;
             } else {
-                ui.memory().drag_value.edit_string = Some(value_text);
+                ui.memory_mut().drag_value.edit_string = Some(value_text);
             }
             response
         } else {
@@ -229,8 +229,8 @@ impl<'a> Widget for DragValue<'a> {
             }
 
             if response.clicked() {
-                ui.memory().request_focus(kb_edit_id);
-                ui.memory().drag_value.edit_string = None; // Filled in next frame
+                ui.memory_mut().request_focus(kb_edit_id);
+                ui.memory_mut().drag_value.edit_string = None; // Filled in next frame
             } else if response.dragged() {
                 ui.output_mut().cursor_icon = CursorIcon::ResizeHorizontal;
 
@@ -242,7 +242,7 @@ impl<'a> Widget for DragValue<'a> {
                 let delta_value = delta_points as f64 * speed;
 
                 if delta_value != 0.0 {
-                    let mut drag_state = std::mem::take(&mut ui.memory().drag_value);
+                    let mut drag_state = std::mem::take(&mut ui.memory_mut().drag_value);
 
                     // Since we round the value being dragged, we need to store the full precision value in memory:
                     let stored_value = (drag_state.last_dragged_id == Some(response.id()))
@@ -263,7 +263,7 @@ impl<'a> Widget for DragValue<'a> {
 
                     drag_state.last_dragged_id = Some(response.id());
                     drag_state.last_dragged_value = Some(stored_value);
-                    ui.memory().drag_value = drag_state;
+                    ui.memory_mut().drag_value = drag_state;
                 }
             } else if response.has_focus() {
                 let change = ui.input().num_presses(Key::ArrowUp) as f64

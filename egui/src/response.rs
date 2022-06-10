@@ -449,7 +449,7 @@ impl Response {
     /// For accessibility.
     ///
     /// Call after interacting and potential calls to [`Self::mark_changed`].
-    pub fn widget_info(&mut self, ctx: &mut Context, make_info: impl Fn() -> crate::WidgetInfo) {
+    pub fn widget_info(&self, ctx: &mut Context, make_info: impl Fn() -> crate::WidgetInfo) {
         use crate::output::OutputEvent;
         let event = if self.clicked() {
             Some(OutputEvent::Clicked(make_info()))
@@ -483,7 +483,11 @@ impl Response {
     /// ```
     ///
     /// See also: [`Ui::menu_button`] and [`Ui::close_menu`].
-    pub fn context_menu(self, ctx: &mut Context, add_contents: impl FnOnce(&mut Ui<'_>)) -> Self {
+    pub fn context_menu(
+        mut self,
+        ctx: &mut Context,
+        add_contents: impl FnOnce(&mut Ui<'_>),
+    ) -> Self {
         menu::context_menu(ctx, &mut self, add_contents);
         self
     }

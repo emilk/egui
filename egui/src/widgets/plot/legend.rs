@@ -82,7 +82,7 @@ impl LegendEntry {
         }
     }
 
-    fn ui<'c>(&mut self, ui: &mut Ui<'c>, text: String, text_style: &TextStyle) -> Response {
+    fn ui(&mut self, ui: &mut Ui<'_>, text: String, text_style: &TextStyle) -> Response {
         let Self {
             color,
             checked,
@@ -117,21 +117,22 @@ impl LegendEntry {
         let icon_position = pos2(icon_position_x, rect.center().y);
         let icon_rect = Rect::from_center_size(icon_position, vec2(icon_size, icon_size));
 
+        let text_color = visuals.text_color();
+        let default_fill_color = ui.visuals().noninteractive().fg_stroke.color;
+        let icon_shape = epaint::CircleShape {
+            center: icon_rect.center(),
+            radius: icon_size * 0.5,
+            fill: visuals.bg_fill,
+            stroke: visuals.bg_stroke,
+        };
+
         let painter = ui.painter_mut();
 
-        painter.add(
-            ui.ctx,
-            epaint::CircleShape {
-                center: icon_rect.center(),
-                radius: icon_size * 0.5,
-                fill: visuals.bg_fill,
-                stroke: visuals.bg_stroke,
-            },
-        );
+        painter.add(ui.ctx, icon_shape);
 
         if *checked {
             let fill = if *color == Color32::TRANSPARENT {
-                ui.visuals().noninteractive().fg_stroke.color
+                default_fill_color
             } else {
                 *color
             };
@@ -148,7 +149,7 @@ impl LegendEntry {
         };
 
         let text_position = pos2(text_position_x, rect.center().y - 0.5 * galley.size().y);
-        painter.galley_with_color(ui.ctx, text_position, galley, visuals.text_color());
+        painter.galley_with_color(ui.ctx, text_position, galley, text_color);
 
         *checked ^= response.clicked_by(PointerButton::Primary);
         *hovered = response.hovered();
@@ -220,7 +221,7 @@ impl LegendWidget {
 }
 
 impl Widget for &mut LegendWidget {
-    fn ui<'c>(self, ui: &mut Ui<'c>) -> Response {
+    fn ui(self, ui: &mut Ui<'_>) -> Response {
         let LegendWidget {
             rect,
             entries,
