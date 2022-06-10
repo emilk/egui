@@ -155,15 +155,15 @@ impl Resize {
     }
 }
 
-struct Prepared<'c> {
+struct Prepared<'a> {
     id: Id,
     state: State,
     corner_response: Option<Response>,
-    content_ui: Ui<'c>,
+    content_ui: Ui<'a>,
 }
 
 impl Resize {
-    fn begin<'c>(&mut self, ui: &mut Ui<'c>) -> Prepared<'c> {
+    fn begin<'a>(&mut self, ui: &'a mut Ui<'_>) -> Prepared<'a> {
         let position = ui.available_rect_before_wrap().min;
         let id = self.id.unwrap_or_else(|| {
             let id_source = self.id_source.unwrap_or_else(|| Id::new("resize"));

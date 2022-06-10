@@ -289,7 +289,7 @@ impl ScrollArea {
     }
 }
 
-struct Prepared<'c> {
+struct Prepared<'a> {
     id: Id,
     state: State,
     has_bar: [bool; 2],
@@ -300,7 +300,7 @@ struct Prepared<'c> {
     always_show_scroll: bool,
     /// Where on the screen the content is (excludes scroll bars).
     inner_rect: Rect,
-    content_ui: Ui<'c>,
+    content_ui: Ui<'a>,
     /// Relative coordinates: the offset and size of the view of the inner UI.
     /// `viewport.min == ZERO` means we scrolled to the top.
     viewport: Rect,
@@ -309,7 +309,7 @@ struct Prepared<'c> {
 }
 
 impl ScrollArea {
-    fn begin<'c>(self, ui: &mut Ui<'c>) -> Prepared<'c> {
+    fn begin<'a>(self, ui: &'a mut Ui<'_>) -> Prepared<'a> {
         let Self {
             has_bar,
             auto_shrink,
@@ -506,8 +506,8 @@ impl ScrollArea {
     }
 }
 
-impl<'c> Prepared<'c> {
-    fn end(self, ui: &mut Ui<'c>) -> State {
+impl<'a> Prepared<'a> {
+    fn end(self, ui: &mut Ui<'_>) -> State {
         let Prepared {
             id,
             mut state,
