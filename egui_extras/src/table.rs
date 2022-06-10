@@ -222,14 +222,14 @@ impl<'a, 'c> TableBuilder<'a, 'c> {
 }
 
 fn read_persisted_widths(
-    ui: &egui::Ui<'_>,
+    ui: &mut egui::Ui<'_>,
     default_widths: Vec<f32>,
     resize_id: Option<egui::Id>,
 ) -> Vec<f32> {
     if let Some(resize_id) = resize_id {
         let rect = Rect::from_min_size(ui.available_rect_before_wrap().min, Vec2::ZERO);
         ui.ctx.check_for_id_clash(resize_id, rect, "Table");
-        if let Some(persisted) = ui.data().get_persisted::<Vec<f32>>(resize_id) {
+        if let Some(persisted) = ui.ctx.data_mut().get_persisted::<Vec<f32>>(resize_id) {
             // make sure that the stored widths aren't out-dated
             if persisted.len() == default_widths.len() {
                 return persisted;
@@ -325,7 +325,7 @@ impl<'a, 'c> Table<'a, 'c> {
                     && ui.input().pointer.any_down()
                     && mouse_over_resize_line
                 {
-                    ui.memory().set_dragged_id(resize_id);
+                    ui.ctx.memory_mut().set_dragged_id(resize_id);
                 }
                 let is_resizing = ui.memory().is_being_dragged(resize_id);
                 if is_resizing {
@@ -362,7 +362,7 @@ impl<'a, 'c> Table<'a, 'c> {
                 available_width -= *width + spacing_x;
             }
 
-            ui.data().insert_persisted(resize_id, new_widths);
+            ui.ctx.data_mut().insert_persisted(resize_id, new_widths);
         }
     }
 }

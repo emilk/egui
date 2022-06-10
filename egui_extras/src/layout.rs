@@ -144,8 +144,8 @@ impl<'l, 'c> StripLayout<'l, 'c> {
         let mut child_ui = self.ui.child_ui(rect, self.cell_layout);
 
         if self.clip {
-            let margin = egui::Vec2::splat(self.ui.visuals().clip_rect_margin);
-            let margin = margin.min(0.5 * self.ui.spacing().item_spacing);
+            let margin = egui::Vec2::splat(child_ui.visuals().clip_rect_margin);
+            let margin = margin.min(0.5 * child_ui.spacing().item_spacing);
             let clip_rect = rect.expand2(margin);
             child_ui.set_clip_rect(clip_rect.intersect(child_ui.clip_rect()));
         }
