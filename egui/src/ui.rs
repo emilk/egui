@@ -2019,19 +2019,31 @@ impl<'c> Ui<'c> {
 
     /// Temporarily split split an Ui into several columns.
     ///
+    /// The passed closure will be called for each column, with an index passed
+    /// as the first argument.
+    ///
+    /// Note that only the return value of the last invocation of the closure is
+    /// returned back.
+    ///
+    /// # Panics
+    /// Panics if num_columns is 0
+    ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
-    /// ui.columns(2, |columns| {
-    ///     columns[0].label("First column");
-    ///     columns[1].label("Second column");
+    /// ui.columns(2, |i, ui| {
+    ///    match i {
+    ///        0 => ui.label("First column"),
+    ///        1 => ui.label("Second column"),
+    ///        _ => unreachable!(),
+    ///    }
     /// });
     /// # });
     /// ```
     #[inline]
-    pub fn columns<R>(
+    pub fn columns<'a, R>(
         &mut self,
         num_columns: usize,
-        add_contents: impl FnOnce(&mut [Ui<'_>]) -> R,
+        add_contents: impl FnMut(usize, &mut Ui<'_>) -> R + 'a,
     ) -> R {
         self.columns_dyn(num_columns, Box::new(add_contents))
     }
@@ -2039,36 +2051,38 @@ impl<'c> Ui<'c> {
     fn columns_dyn<'a, R>(
         &mut self,
         num_columns: usize,
-        add_contents: Box<dyn FnOnce(&mut [Ui<'_>]) -> R + 'a>,
+        mut add_contents: Box<dyn FnMut(usize, &mut Ui<'_>) -> R + 'a>,
     ) -> R {
+        assert_ne!(num_columns, 0, "number of columns cannot be 0");
+
         // TODO(emilk): ensure there is space
         let spacing = self.spacing().item_spacing.x;
         let total_spacing = spacing * (num_columns as f32 - 1.0);
         let column_width = (self.available_width() - total_spacing) / (num_columns as f32);
         let top_left = self.cursor().min;
 
-        let mut columns: Vec<Ui<'_>> = (0..num_columns)
-            .map(|col_idx| {
-                let pos = top_left + vec2((col_idx as f32) * (column_width + spacing), 0.0);
-                let child_rect = Rect::from_min_max(
-                    pos,
-                    pos2(pos.x + column_width, self.max_rect().right_bottom().y),
-                );
-                let mut column_ui =
-                    self.child_ui(child_rect, Layout::top_down_justified(Align::LEFT));
-                column_ui.set_width(column_width);
-                column_ui
-            })
-            .collect();
-
-        let result = add_contents(&mut columns[..]);
-
         let mut max_column_width = column_width;
         let mut max_height = 0.0;
-        for column in &columns {
-            max_column_width = max_column_width.max(column.min_rect().width());
-            max_height = column.min_size().y.max(max_height);
+        let mut result = None;
+
+        for i in 0..num_columns {
+            let pos = top_left + vec2((i as f32) * (column_width + spacing), 0.0);
+            let child_rect = Rect::from_min_max(
+                pos,
+                pos2(pos.x + column_width, self.max_rect().right_bottom().y),
+            );
+
+            let mut ui = self.child_ui(child_rect, Layout::top_down_justified(Align::LEFT));
+            ui.set_width(column_width);
+
+            result = Some(add_contents(i, &mut ui));
+
+            max_column_width = max_column_width.max(ui.min_rect().width());
+            max_height = ui.min_size().y.max(max_height);
         }
+
+        // Impossible that it is None at this point, since num_columns != 0
+        let result = result.unwrap();
 
         // Make sure we fit everything next frame:
         let total_required_width = total_spacing + max_column_width * (num_columns as f32);
