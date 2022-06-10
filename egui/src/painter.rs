@@ -6,10 +6,7 @@ use crate::{
     layers::{LayerId, PaintList, ShapeIdx},
     Color32, Context, FontId,
 };
-use epaint::{
-    text::{Fonts, Galley},
-    CircleShape, RectShape, Rounding, Shape, Stroke,
-};
+use epaint::{text::Galley, CircleShape, RectShape, Rounding, Shape, Stroke};
 
 /// Helper to paint shapes and text to a specific region on a specific layer.
 ///

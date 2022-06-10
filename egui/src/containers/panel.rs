@@ -17,7 +17,7 @@
 
 use std::ops::RangeInclusive;
 
-use crate::{collapsing_header::InnerState, *};
+use crate::*;
 
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]

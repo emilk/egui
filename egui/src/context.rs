@@ -541,11 +541,6 @@ impl Context {
             .expect("No fonts available until first call to Context::run()")
     }
 
-    #[inline]
-    fn fonts_mut(&mut self) -> &mut Option<Fonts> {
-        &mut self.fonts
-    }
-
     /// Returns a reference to the egui options.
     #[inline]
     pub fn options(&self) -> &Options {
@@ -659,11 +654,6 @@ impl Context {
     /// Useful for pixel-perfect rendering
     pub(crate) fn round_pos_to_pixels(&self, pos: Pos2) -> Pos2 {
         pos2(self.round_to_pixel(pos.x), self.round_to_pixel(pos.y))
-    }
-
-    /// Useful for pixel-perfect rendering
-    pub(crate) fn round_vec_to_pixels(&self, vec: Vec2) -> Vec2 {
-        vec2(self.round_to_pixel(vec.x), self.round_to_pixel(vec.y))
     }
 
     /// Useful for pixel-perfect rendering

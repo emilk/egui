@@ -16,8 +16,8 @@
 //! ```
 
 use super::{
-    style::WidgetVisuals, Align, Context, Id, InnerResponse, PointerState, Pos2, Rect, Response,
-    Sense, TextStyle, Ui, Vec2,
+    Align, Context, Id, InnerResponse, PointerState, Pos2, Rect, Response, Sense, TextStyle, Ui,
+    Vec2,
 };
 use crate::{widgets::*, *};
 use epaint::{mutex::RwLock, Stroke};
