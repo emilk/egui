@@ -45,15 +45,8 @@ impl EasyMarkEditor {
 
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         egui::Grid::new("controls").show(ui, |ui| {
-            //ui.menu_button("File", Self::nested_file);
             ui.menu_button("Hotkeys", Self::nested_hotkeys);
-            //ui.menu_button("View", Self::nested_view);
-            if ui
-                .button(RichText::new("render").color(Color32::from_rgb(76, 139, 255)))
-                .clicked()
-            {
-                self.show_rendered = !self.show_rendered;
-            }
+            ui.checkbox(&mut self.show_rendered, "Show rendered");
             ui.checkbox(&mut self.highlight_editor, "Highlight editor");
             egui::reset_button(ui, self);
             ui.end_row();
@@ -112,31 +105,22 @@ impl EasyMarkEditor {
         }
     }
     fn nested_hotkeys(ui: &mut egui::Ui) {
-        let _ = ui.button("CTRL+B *bold*");
-        let _ = ui.button("CTRL+N `code`");
-        let _ = ui.button("CTRL+I /italics/");
-        let _ = ui.button("CTRL+L $subscript$");
-        let _ = ui.button("CTRL+Y ^superscript^");
-        let _ = ui.button("CTRL+M ~strikethrough~");
-        let _ = ui.button("ALTSHIFT+Q _underline_");
-        let _ = ui.button("ALTSHIFT+W two spaces");
+        let _ = ui.label("CTRL+B *bold*");
+        let _ = ui.label("CTRL+N `code`");
+        let _ = ui.label("CTRL+I /italics/");
+        let _ = ui.label("CTRL+L $subscript$");
+        let _ = ui.label("CTRL+Y ^superscript^");
+        let _ = ui.label("CTRL+M ~strikethrough~");
+        let _ = ui.label("ALT+SHIFT+Q _underline_");
+        let _ = ui.label("ALT+SHIFT+W two spaces");
     }
-    fn nested_file(ui: &mut egui::Ui) {
-        let _ = ui.button("CTRL+O Open");
-        let _ = ui.button("New File");
-        //let _ = ui.button("Reset");
-    }
-    /*fn nested_view(ui: &mut egui::Ui) {
-        let _ = ui.button("Highlight Editor");
-        let _ = ui.button("Show Rendered");
-    }*/
 }
 
 fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRange) -> bool {
     let mut any_change = false;
     if ui
         .input_mut()
-        .consume_key(egui::Modifiers::ALTSHIFT, Key::W)
+        .consume_key(egui::Modifiers::ALT_SHIFT, Key::W)
     {
         any_change = true;
         let [primary, _secondary] = ccursor_range.sorted();
@@ -146,13 +130,13 @@ fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRang
         ccursor_range.secondary.index += advance;
     }
     for (modifier, key, surrounding) in [
-        (egui::Modifiers::COMMAND, Key::B, "*"),     // *bold*
-        (egui::Modifiers::COMMAND, Key::N, "`"),     // `code`
-        (egui::Modifiers::COMMAND, Key::I, "/"),     // /italics/
-        (egui::Modifiers::COMMAND, Key::L, "$"),     // $subscript$
-        (egui::Modifiers::COMMAND, Key::Y, "^"),     // ^superscript^
-        (egui::Modifiers::ALTSHIFT, Key::Num3, "~"), // ~strikethrough~
-        (egui::Modifiers::COMMAND, Key::Num2, "_"),  // _underline_
+        (egui::Modifiers::COMMAND, Key::B, "*"),      // *bold*
+        (egui::Modifiers::COMMAND, Key::N, "`"),      // `code`
+        (egui::Modifiers::COMMAND, Key::I, "/"),      // /italics/
+        (egui::Modifiers::COMMAND, Key::L, "$"),      // $subscript$
+        (egui::Modifiers::COMMAND, Key::Y, "^"),      // ^superscript^
+        (egui::Modifiers::ALT_SHIFT, Key::Num3, "~"), // ~strikethrough~
+        (egui::Modifiers::COMMAND, Key::Num2, "_"),   // _underline_
     ] {
         if ui.input_mut().consume_key(modifier, key) {
             any_change = true;
