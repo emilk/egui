@@ -257,19 +257,17 @@ impl Resize {
     pub fn show<R>(mut self, ui: &mut Ui<'_>, add_contents: impl FnOnce(&mut Ui<'_>) -> R) -> R {
         let mut prepared = self.begin(ui);
         let ret = add_contents(&mut prepared.content_ui);
-        self.end(ui, prepared);
-        ret
-    }
 
-    fn end(self, ui: &mut Ui<'_>, prepared: Prepared<'_>) {
         let Prepared {
             id,
             mut state,
             corner_response,
             content_ui,
         } = prepared;
+        let min_size = content_ui.min_size();
+        let min_rect = content_ui.min_rect();
 
-        state.last_content_size = content_ui.min_size();
+        state.last_content_size = min_size;
 
         // ------------------------------
 
@@ -285,12 +283,12 @@ impl Resize {
             // Probably a window.
             state.last_content_size
         };
-        ui.advance_cursor_after_rect(Rect::from_min_size(content_ui.min_rect().min, size));
+        ui.advance_cursor_after_rect(Rect::from_min_size(min_rect.min, size));
 
         // ------------------------------
 
         if self.with_stroke && corner_response.is_some() {
-            let rect = Rect::from_min_size(content_ui.min_rect().left_top(), state.desired_size);
+            let rect = Rect::from_min_size(min_rect.left_top(), state.desired_size);
             let rect = rect.expand(2.0); // breathing room for content
             ui.painter.add(
                 ui.ctx,
@@ -311,17 +309,19 @@ impl Resize {
         if ui.ctx.style().debug.show_resize {
             ui.ctx.debug_painter().debug_rect(
                 ui.ctx,
-                Rect::from_min_size(content_ui.min_rect().left_top(), state.desired_size),
+                Rect::from_min_size(min_rect.left_top(), state.desired_size),
                 Color32::GREEN,
                 "desired_size",
             );
             ui.ctx.debug_painter().debug_rect(
                 ui.ctx,
-                Rect::from_min_size(content_ui.min_rect().left_top(), state.last_content_size),
+                Rect::from_min_size(min_rect.left_top(), state.last_content_size),
                 Color32::LIGHT_BLUE,
                 "last_content_size",
             );
         }
+
+        ret
     }
 }
 

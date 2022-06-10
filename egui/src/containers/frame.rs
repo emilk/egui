@@ -170,6 +170,30 @@ pub struct Prepared<'a> {
     pub content_ui: Ui<'a>,
 }
 
+pub struct PreparedResult {
+    frame: Frame,
+    where_to_put_background: ShapeIdx,
+    paint_rect: Rect,
+}
+
+impl<'a> From<Prepared<'a>> for PreparedResult {
+    fn from(prepared: Prepared<'a>) -> Self {
+        let paint_rect = prepared.paint_rect();
+
+        let Prepared {
+            frame,
+            where_to_put_background,
+            ..
+        } = prepared;
+
+        Self {
+            frame,
+            where_to_put_background,
+            paint_rect,
+        }
+    }
+}
+
 impl Frame {
     pub fn begin<'a>(self, ui: &'a mut Ui<'_>) -> Prepared<'a> {
         let where_to_put_background = ui.painter.add(ui.ctx, Shape::Noop);
@@ -209,7 +233,7 @@ impl Frame {
     ) -> InnerResponse<R> {
         let mut prepared = self.begin(ui);
         let ret = add_contents(&mut prepared.content_ui);
-        let response = prepared.end(ui);
+        let response = prepared.into_result().end(ui);
         InnerResponse::new(ret, response)
     }
 
@@ -248,20 +272,18 @@ impl<'a> Prepared<'a> {
         rect
     }
 
+    pub fn into_result(self) -> PreparedResult {
+        self.into()
+    }
+}
+
+impl PreparedResult {
     pub fn end(self, ui: &mut Ui<'_>) -> Response {
-        let paint_rect = self.paint_rect();
-
-        let Prepared {
-            frame,
-            where_to_put_background,
-            ..
-        } = self;
-
-        if ui.is_rect_visible(paint_rect) {
-            let shape = frame.paint(paint_rect);
-            ui.painter.set(ui.ctx, where_to_put_background, shape);
+        if ui.is_rect_visible(self.paint_rect) {
+            let shape = self.frame.paint(self.paint_rect);
+            ui.painter.set(ui.ctx, self.where_to_put_background, shape);
         }
 
-        ui.allocate_rect(paint_rect, Sense::hover())
+        ui.allocate_rect(self.paint_rect, Sense::hover())
     }
 }
