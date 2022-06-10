@@ -110,9 +110,9 @@ impl EasyMarkEditor {
         let _ = ui.label("CTRL+I /italics/");
         let _ = ui.label("CTRL+L $subscript$");
         let _ = ui.label("CTRL+Y ^superscript^");
-        let _ = ui.label("CTRL+M ~strikethrough~");
-        let _ = ui.label("ALT+SHIFT+Q _underline_");
-        let _ = ui.label("ALT+SHIFT+W two spaces");
+        let _ = ui.label("ALT+SHIFT+Q ~strikethrough~");
+        let _ = ui.label("ALT+SHIFT+W _underline_");
+        let _ = ui.label("ALT+SHIFT+E two spaces");
     }
 }
 
@@ -120,7 +120,7 @@ fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRang
     let mut any_change = false;
     if ui
         .input_mut()
-        .consume_key(egui::Modifiers::ALT_SHIFT, Key::W)
+        .consume_key(egui::Modifiers::ALT_SHIFT, Key::E)
     {
         any_change = true;
         let [primary, _secondary] = ccursor_range.sorted();
