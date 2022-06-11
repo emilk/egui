@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::rc::Rc;
 
 use eframe::{
     egui_wgpu::{self, wgpu},
@@ -10,7 +10,7 @@ pub struct Custom3d {
 }
 
 impl Custom3d {
-    pub fn new<'a>(cc: &'a eframe::CreationContext<'a>) -> Self {
+    pub fn new(cc: &mut eframe::CreationContext<'_, '_>) -> Self {
         // Get the WGPU render state from the eframe creation context. This can also be retrieved
         // from `eframe::Frame` when you don't have a `CreationContext` available.
         let render_state = cc.render_state.as_ref().expect("WGPU enabled");
@@ -96,7 +96,7 @@ impl Custom3d {
 }
 
 impl eframe::App for Custom3d {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &mut egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;
@@ -149,10 +149,10 @@ impl Custom3d {
 
         let callback = egui::PaintCallback {
             rect,
-            callback: Arc::new(cb),
+            callback: Rc::new(cb),
         };
 
-        ui.painter.add(callback);
+        ui.painter.add(ui.ctx, callback);
     }
 }
 

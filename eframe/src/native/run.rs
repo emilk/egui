@@ -273,8 +273,8 @@ pub fn run_wgpu(
         });
     }
 
-    let mut app = app_creator(&epi::CreationContext {
-        egui_ctx: integration.egui_ctx.clone(),
+    let mut app = app_creator(&mut epi::CreationContext {
+        egui_ctx: &mut integration.egui_ctx,
         integration_info: integration.frame.info(),
         storage: integration.frame.storage(),
         #[cfg(feature = "glow")]
