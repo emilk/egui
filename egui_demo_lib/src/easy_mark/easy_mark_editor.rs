@@ -112,7 +112,7 @@ impl EasyMarkEditor {
         let _ = ui.label("CTRL+Y ^superscript^");
         let _ = ui.label("ALT+SHIFT+Q ~strikethrough~");
         let _ = ui.label("ALT+SHIFT+W _underline_");
-        let _ = ui.label("ALT+SHIFT+E two spaces");
+        let _ = ui.label("ALT+SHIFT+E two spaces"); // Placeholder for tab indent
     }
 }
 
@@ -121,7 +121,7 @@ fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRang
     if ui
         .input_mut()
         .consume_key(egui::Modifiers::ALT_SHIFT, Key::E)
-    {
+    { // TODO: Replace this with a call to indent the active line
         any_change = true;
         let [primary, _secondary] = ccursor_range.sorted();
 
@@ -241,7 +241,9 @@ The style characters are chosen to be similar to what they are representing:
 # TODO
 - Sub-headers (`## h2`, `### h3` etc)
 - Hotkey Editor
-- Internationalize EasyMark symbols
+- International keyboard algorithm for non-letter keys
+- ALT+SHIFT+Num1 is not a functioning hotkey
+- Tab Indent Increment/Decrement CTRL+], CTRL+[
 
 - Images
   - we want to be able to optionally specify size (width and\/or height)
