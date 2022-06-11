@@ -368,12 +368,7 @@ pub use {
 /// Helper function that adds a label when compiling with debug assertions enabled.
 pub fn warn_if_debug_build(ui: &mut crate::Ui) {
     if cfg!(debug_assertions) {
-        ui.label(
-            RichText::new("‼ Debug build ‼")
-                .small()
-                .color(crate::Color32::from_rgb(91, 91, 200)),
-        )
-        .on_hover_text("egui was compiled with debug assertions enabled.");
+        ui.hyperlink_to("‼ Debug build ‼", "https://github.com/emilk/egui/");
     }
 }
 
