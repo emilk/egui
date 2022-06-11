@@ -112,12 +112,6 @@ impl WrapApp {
             }
         }
 
-        if cc.integration_info.prefer_dark_mode == Some(false) {
-            cc.egui_ctx.set_visuals(egui::Visuals::light()); // use light mode if explicitly asked for
-        } else {
-            cc.egui_ctx.set_visuals(egui::Visuals::dark()); // use dark mode if there is no preference, or the preference is dark mode
-        }
-
         slf
     }
 

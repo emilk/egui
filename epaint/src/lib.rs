@@ -4,6 +4,10 @@
 //!
 //! Create some [`Shape`]:s and pass them to [`tessellate_shapes`] to generate [`Mesh`]:es
 //! that you can then paint using some graphics API of your choice (e.g. OpenGL).
+//!
+//! ## Feature flags
+#![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
+//!
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]

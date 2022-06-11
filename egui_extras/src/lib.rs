@@ -1,4 +1,10 @@
-//! This is a crate that adds some features on top top of [`egui`](https://github.com/emilk/egui). This crate are for experimental features, and features that require big dependencies that does not belong in `egui`.
+//! This is a crate that adds some features on top top of [`egui`](https://github.com/emilk/egui).
+//!
+//! This crate are for experimental features, and features that require big dependencies that does not belong in `egui`.
+//!
+//! ## Feature flags
+#![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
+//!
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]

@@ -1,4 +1,8 @@
 //! This crates provides bindings between [`egui`](https://github.com/emilk/egui) and [wgpu](https://crates.io/crates/wgpu).
+//!
+//! ## Feature flags
+#![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
+//!
 
 #![allow(unsafe_code)]
 

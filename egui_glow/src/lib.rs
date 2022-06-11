@@ -3,6 +3,10 @@
 //! The main types you want to look are are [`Painter`] and [`EguiGlow`].
 //!
 //! If you are writing an app, you may want to look at [`eframe`](https://docs.rs/eframe) instead.
+//!
+//! ## Feature flags
+#![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
+//!
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]

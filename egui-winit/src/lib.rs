@@ -2,6 +2,10 @@
 //!
 //! The library translates winit events to egui, handled copy/paste,
 //! updates the cursor, open links clicked in egui, etc.
+//!
+//! ## Feature flags
+#![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
+//!
 
 #![allow(clippy::manual_range_contains)]
 

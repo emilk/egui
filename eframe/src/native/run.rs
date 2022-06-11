@@ -66,15 +66,19 @@ pub fn run_glow(
     let mut painter = egui_glow::Painter::new(gl.clone(), None, "")
         .unwrap_or_else(|error| panic!("some OpenGL error occurred {}\n", error));
 
+    let system_theme = native_options.system_theme();
     let mut integration = epi_integration::EpiIntegration::new(
         &event_loop,
         painter.max_texture_side(),
         gl_window.window(),
+        system_theme,
         storage,
         Some(gl.clone()),
         #[cfg(feature = "wgpu")]
         None,
     );
+    let theme = system_theme.unwrap_or(native_options.default_theme);
+    integration.egui_ctx.set_visuals(theme.egui_visuals());
 
     {
         let event_loop_proxy = egui::mutex::Mutex::new(event_loop.create_proxy());
@@ -248,15 +252,19 @@ pub fn run_wgpu(
 
     let render_state = painter.get_render_state().expect("Uninitialized");
 
+    let system_theme = native_options.system_theme();
     let mut integration = epi_integration::EpiIntegration::new(
         &event_loop,
         painter.max_texture_side().unwrap_or(2048),
         &window,
+        system_theme,
         storage,
         #[cfg(feature = "glow")]
         None,
         Some(render_state.clone()),
     );
+    let theme = system_theme.unwrap_or(native_options.default_theme);
+    integration.egui_ctx.set_visuals(theme.egui_visuals());
 
     {
         let event_loop_proxy = egui::mutex::Mutex::new(event_loop.create_proxy());

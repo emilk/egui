@@ -20,18 +20,21 @@ all-features = true
 
 
 [features]
-default = ["default_fonts", "glow"]
+default = ["dark-light", "default_fonts", "glow"]
 
-# detect dark mode system preference
+## Detect dark mode system preference using [`dark-light`](https://docs.rs/dark-light).
+##
+## See also [`NativeOptions::follow_system_theme`] and [`NativeOptions::default_theme`].
 dark-light = ["dep:dark-light"]
 
-# If set, egui will use `include_bytes!` to bundle some fonts.
-# If you plan on specifying your own fonts you may disable this feature.
+## If set, egui will use `include_bytes!` to bundle some fonts.
+## If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["egui/default_fonts"]
 
+## Use [`glow`](https://github.com/grovesNL/glow) for painting, via [`egui_glow`](https://github.com/emilk/egui/tree/master/egui_glow).
 glow = ["dep:glow", "egui_glow"]
 
-# Enable saving app state to disk.
+## Enable saving app state to disk.
 persistence = [
   "directories-next",
   "egui-winit/serde",
@@ -40,18 +43,20 @@ persistence = [
   "serde",
 ]
 
-# Enable profiling with the puffin crate: https://github.com/EmbarkStudios/puffin
-# Only enabled on native, because of the low resolution (1ms) of time keeping in browsers.
-# eframe will call `puffin::GlobalProfiler::lock().new_frame()` for you
+## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
+##
+## Only enabled on native, because of the low resolution (1ms) of time keeping in browsers.
+## `eframe` will call `puffin::GlobalProfiler::lock().new_frame()` for you
 puffin = ["dep:puffin", "egui_glow/puffin"]
 
-# enable screen reader support (requires `ctx.options().screen_reader = true;`)
+## Enable screen reader support (requires `ctx.options().screen_reader = true;`)
 screen_reader = [
   "egui-winit/screen_reader",
   "tts",
 ]
 
-# Use WGPU as the backend instead of glow
+## Use [`wgpu`](https://docs.rs/wgpu) for painting (via [`egui_wgpu`](https://github.com/emilk/egui/tree/master/egui_wgpu)).
+## This overrides the `glow` feature.
 wgpu = ["dep:wgpu", "egui-wgpu"]
 
 
@@ -62,7 +67,10 @@ egui = { version = "0.18.0", path = "../egui", default-features = false, feature
 ] }
 tracing = "0.1"
 
-# optional:
+#! ### Optional dependencies
+## Enable this when generating docs.
+document-features = { version = "0.2", optional = true }
+
 egui_glow = { version = "0.18.0", path = "../egui_glow", optional = true, default-features = false }
 egui-wgpu = { version = "0.18.0", path = "../egui-wgpu", optional = true, features = ["winit"] }
 glow = { version = "0.11", optional = true }
@@ -78,7 +86,7 @@ egui-winit = { version = "0.18.0", path = "../egui-winit", default-features = fa
 glutin = { version = "0.28.0" }
 winit = "0.26.1"
 
-# optional:
+# optional native:
 puffin = { version = "0.13", optional = true }
 directories-next = { version = "2", optional = true }
 
@@ -133,6 +141,6 @@ web-sys = { version = "0.3.52", features = [
   "Window",
 ] }
 
-# optional:
+# optional
 # feature screen_reader
 tts = { version = "0.20", optional = true } # stuck on old version due to compilation problems on linux
