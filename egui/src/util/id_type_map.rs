@@ -3,8 +3,7 @@
 // For non-serializable types, these simply return `None`.
 // This will also allow users to pick their own serialization format per type.
 
-use std::any::Any;
-use std::sync::Arc;
+use std::{any::Any, rc::Rc};
 
 // -----------------------------------------------------------------------------------------------
 
@@ -36,21 +35,21 @@ impl From<std::any::TypeId> for TypeId {
 
 #[cfg(feature = "persistence")]
 pub trait SerializableAny:
-    'static + Any + Clone + serde::Serialize + for<'a> serde::Deserialize<'a> + Send + Sync
+    'static + Any + Clone + serde::Serialize + for<'a> serde::Deserialize<'a>
 {
 }
 
 #[cfg(feature = "persistence")]
 impl<T> SerializableAny for T where
-    T: 'static + Any + Clone + serde::Serialize + for<'a> serde::Deserialize<'a> + Send + Sync
+    T: 'static + Any + Clone + serde::Serialize + for<'a> serde::Deserialize<'a>
 {
 }
 
 #[cfg(not(feature = "persistence"))]
-pub trait SerializableAny: 'static + Any + Clone + for<'a> Send + Sync {}
+pub trait SerializableAny: 'static + Any + Clone {}
 
 #[cfg(not(feature = "persistence"))]
-impl<T> SerializableAny for T where T: 'static + Any + Clone + for<'a> Send + Sync {}
+impl<T> SerializableAny for T where T: 'static + Any + Clone {}
 
 // -----------------------------------------------------------------------------------------------
 
@@ -58,20 +57,20 @@ impl<T> SerializableAny for T where T: 'static + Any + Clone + for<'a> Send + Sy
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 struct SerializedElement {
     type_id: TypeId,
-    ron: Arc<str>,
+    ron: Rc<str>,
 }
 
 #[cfg(feature = "persistence")]
-type Serializer = fn(&Box<dyn Any + 'static + Send + Sync>) -> Option<String>;
+type Serializer = fn(&Box<dyn Any + 'static>) -> Option<String>;
 
 enum Element {
     /// A value, maybe serializable.
     Value {
         /// The actual value.
-        value: Box<dyn Any + 'static + Send + Sync>,
+        value: Box<dyn Any + 'static>,
 
         /// How to clone the value.
-        clone_fn: fn(&Box<dyn Any + 'static + Send + Sync>) -> Box<dyn Any + 'static + Send + Sync>,
+        clone_fn: fn(&Box<dyn Any + 'static>) -> Box<dyn Any + 'static>,
 
         /// How to serialize the value.
         /// None if non-serializable type.
@@ -83,7 +82,7 @@ enum Element {
         /// The type of value we are storing.
         type_id: TypeId,
         /// The ron data we can deserialize.
-        ron: Arc<str>,
+        ron: Rc<str>,
     },
 }
 
@@ -129,7 +128,7 @@ impl std::fmt::Debug for Element {
 impl Element {
     /// Create a value that won't be persisted.
     #[inline]
-    pub(crate) fn new_temp<T: 'static + Any + Clone + Send + Sync>(t: T) -> Self {
+    pub(crate) fn new_temp<T: 'static + Any + Clone>(t: T) -> Self {
         Self::Value {
             value: Box::new(t),
             clone_fn: |x| {
@@ -176,7 +175,7 @@ impl Element {
     }
 
     #[inline]
-    pub(crate) fn get_temp_mut_or_insert_with<T: 'static + Any + Clone + Send + Sync>(
+    pub(crate) fn get_temp_mut_or_insert_with<T: 'static + Any + Clone>(
         &mut self,
         insert_with: impl FnOnce() -> T,
     ) -> &mut T {
@@ -337,7 +336,7 @@ pub struct IdTypeMap(nohash_hasher::IntMap<u64, Element>);
 impl IdTypeMap {
     /// Insert a value that will not be persisted.
     #[inline]
-    pub fn insert_temp<T: 'static + Any + Clone + Send + Sync>(&mut self, id: Id, value: T) {
+    pub fn insert_temp<T: 'static + Any + Clone>(&mut self, id: Id, value: T) {
         let hash = hash(TypeId::of::<T>(), id);
         self.0.insert(hash, Element::new_temp(value));
     }
@@ -374,7 +373,7 @@ impl IdTypeMap {
     }
 
     #[inline]
-    pub fn get_temp_mut_or<T: 'static + Any + Clone + Send + Sync>(
+    pub fn get_temp_mut_or<T: 'static + Any + Clone>(
         &mut self,
         id: Id,
         or_insert: T,
@@ -388,7 +387,7 @@ impl IdTypeMap {
     }
 
     #[inline]
-    pub fn get_temp_mut_or_default<T: 'static + Any + Clone + Send + Sync + Default>(
+    pub fn get_temp_mut_or_default<T: 'static + Any + Clone + Default>(
         &mut self,
         id: Id,
     ) -> &mut T {
@@ -400,7 +399,7 @@ impl IdTypeMap {
         self.get_persisted_mut_or_insert_with(id, Default::default)
     }
 
-    pub fn get_temp_mut_or_insert_with<T: 'static + Any + Clone + Send + Sync>(
+    pub fn get_temp_mut_or_insert_with<T: 'static + Any + Clone>(
         &mut self,
         id: Id,
         insert_with: impl FnOnce() -> T,
