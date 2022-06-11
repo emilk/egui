@@ -21,7 +21,7 @@ impl super::Demo for FontBook {
         "🔤 Font Book"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ctx: &mut egui::Context, open: &mut bool) {
         egui::Window::new(self.name()).open(open).show(ctx, |ui| {
             use super::View as _;
             self.ui(ui);
@@ -92,8 +92,8 @@ impl super::View for FontBook {
                             ui.label(format!("{}\nU+{:X}\n\nClick to copy", name, chr as u32));
                         };
 
-                        if ui.add(button).on_hover_ui(tooltip_ui).clicked() {
-                            ui.output().copied_text = chr.to_string();
+                        if ui.add(button).on_hover_ui(ui.ctx, tooltip_ui).clicked() {
+                            ui.ctx.output_mut().copied_text = chr.to_string();
                         }
                     }
                 }

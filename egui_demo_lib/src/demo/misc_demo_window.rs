@@ -48,7 +48,7 @@ impl Demo for MiscDemoWindow {
         "✨ Misc Demos"
     }
 
-    fn show(&mut self, ctx: &Context, open: &mut bool) {
+    fn show(&mut self, ctx: &mut Context, open: &mut bool) {
         Window::new(self.name())
             .open(open)
             .vscroll(true)
@@ -116,12 +116,10 @@ impl View for MiscDemoWindow {
 
         ui.collapsing("Columns", |ui| {
             ui.add(Slider::new(&mut self.num_columns, 1..=10).text("Columns"));
-            ui.columns(self.num_columns, |cols| {
-                for (i, col) in cols.iter_mut().enumerate() {
-                    col.label(format!("Column {} out of {}", i + 1, self.num_columns));
-                    if i + 1 == self.num_columns && col.button("Delete this").clicked() {
-                        self.num_columns -= 1;
-                    }
+            ui.columns(self.num_columns, |i, ui| {
+                ui.label(format!("Column {} out of {}", i + 1, self.num_columns));
+                if i + 1 == self.num_columns && ui.button("Delete this").clicked() {
+                    self.num_columns -= 1;
                 }
             });
         });
@@ -147,15 +145,23 @@ impl View for MiscDemoWindow {
                     use std::f32::consts::TAU;
                     let size = Vec2::splat(16.0);
                     let (response, painter) = ui.allocate_painter(size, Sense::hover());
-                    let rect = response.rect;
+                    let rect = response.rect();
                     let c = rect.center();
                     let r = rect.width() / 2.0 - 1.0;
                     let color = Color32::from_gray(128);
                     let stroke = Stroke::new(1.0, color);
-                    painter.circle_stroke(c, r, stroke);
-                    painter.line_segment([c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
-                    painter.line_segment([c, c + r * Vec2::angled(TAU * 1.0 / 8.0)], stroke);
-                    painter.line_segment([c, c + r * Vec2::angled(TAU * 3.0 / 8.0)], stroke);
+                    painter.circle_stroke(ui.ctx, c, r, stroke);
+                    painter.line_segment(ui.ctx, [c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
+                    painter.line_segment(
+                        ui.ctx,
+                        [c, c + r * Vec2::angled(TAU * 1.0 / 8.0)],
+                        stroke,
+                    );
+                    painter.line_segment(
+                        ui.ctx,
+                        [c, c + r * Vec2::angled(TAU * 3.0 / 8.0)],
+                        stroke,
+                    );
                 });
             });
 
@@ -167,8 +173,12 @@ impl View for MiscDemoWindow {
                         let r = i as f32 * 0.5;
                         let size = Vec2::splat(2.0 * r + 5.0);
                         let (rect, _response) = ui.allocate_at_least(size, Sense::hover());
-                        ui.painter()
-                            .circle_filled(rect.center(), r, ui.visuals().text_color());
+                        ui.painter.circle_filled(
+                            ui.ctx,
+                            rect.center(),
+                            r,
+                            ui.visuals().text_color(),
+                        );
                     }
                 });
             });
@@ -207,7 +217,7 @@ impl Widgets {
 
             ui.label(RichText::new("Text can have").color(Color32::from_rgb(110, 255, 110)));
             ui.colored_label(Color32::from_rgb(128, 140, 255), "color"); // Shortcut version
-            ui.label("and tooltips.").on_hover_text(
+            ui.label("and tooltips.").on_hover_text(ui.ctx, 
                 "This is a multiline tooltip that demonstrates that you can easily add tooltips to any element.\nThis is the second line.\nThis is the third.",
             );
 
@@ -216,7 +226,7 @@ impl Widgets {
             ui.label(".");
 
             ui.label("The default font supports all latin and cyrillic characters (ИÅđ…), common math symbols (∫√∞²⅓…), and many emojis (💓🌟🖩…).")
-                .on_hover_text("There is currently no support for right-to-left languages.");
+                .on_hover_text(ui.ctx, "There is currently no support for right-to-left languages.");
             ui.label("See the 🔤 Font Book for more!");
 
             ui.monospace("There is also a monospace font.");
@@ -226,12 +236,12 @@ impl Widgets {
             ui.heading("The name of the tooltip");
             ui.horizontal(|ui| {
                 ui.label("This tooltip was created with");
-                ui.monospace(".on_hover_ui(…)");
+                ui.monospace(".on_hover_ui(ui.ctx, …)");
             });
             let _ = ui.button("A button you can never press");
         };
         ui.label("Tooltips can be more than just simple text.")
-            .on_hover_ui(tooltip_ui);
+            .on_hover_ui(ui.ctx, tooltip_ui);
 
         ui.separator();
 
@@ -239,16 +249,22 @@ impl Widgets {
             ui.label("An angle:");
             ui.drag_angle(angle);
             ui.label(format!("≈ {:.3}τ", *angle / std::f32::consts::TAU))
-                .on_hover_text("Each τ represents one turn (τ = 2π)");
+                .on_hover_text(ui.ctx, "Each τ represents one turn (τ = 2π)");
         })
         .response
-        .on_hover_text("The angle is stored in radians, but presented in degrees");
+        .on_hover_text(
+            ui.ctx,
+            "The angle is stored in radians, but presented in degrees",
+        );
 
         ui.separator();
 
         ui.horizontal(|ui| {
             ui.hyperlink_to("Password:", super::password::url_to_file_source_code())
-                .on_hover_text("See the example code for how to use egui to store UI state");
+                .on_hover_text(
+                    ui.ctx,
+                    "See the example code for how to use egui to store UI state",
+                );
             ui.add(super::password::password(password));
         });
     }
@@ -358,7 +374,8 @@ impl BoxPainting {
         ui.horizontal_wrapped(|ui| {
             for _ in 0..self.num_boxes {
                 let (rect, _response) = ui.allocate_at_least(self.size, Sense::hover());
-                ui.painter().rect(
+                ui.painter.rect(
+                    ui.ctx,
                     rect,
                     self.rounding,
                     Color32::from_gray(64),
@@ -391,7 +408,7 @@ impl CustomCollapsingHeader {
         ui.label("Example of a collapsing header with custom header:");
 
         let id = ui.make_persistent_id("my_collapsing_header");
-        egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, true)
+        egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx, id, true)
             .show_header(ui, |ui| {
                 ui.toggle_value(&mut self.selected, "Click to select/unselect");
                 ui.radio_value(&mut self.radio_value, false, "");

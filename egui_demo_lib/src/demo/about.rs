@@ -8,7 +8,7 @@ impl super::Demo for About {
         "About egui"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ctx: &mut egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .default_width(320.0)
             .open(open)

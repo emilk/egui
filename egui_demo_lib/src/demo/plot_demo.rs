@@ -81,11 +81,11 @@ impl LineDemo {
                 ui.style_mut().wrap = Some(false);
                 ui.checkbox(animate, "Animate");
                 ui.checkbox(square, "Square view")
-                    .on_hover_text("Always keep the viewport square.");
+                    .on_hover_text(ui.ctx, "Always keep the viewport square.");
                 ui.checkbox(proportional, "Proportional data axes")
-                    .on_hover_text("Tick are the same size on both axes.");
+                    .on_hover_text(ui.ctx, "Tick are the same size on both axes.");
                 ui.checkbox(coordinates, "Show coordinates")
-                    .on_hover_text("Can take a custom formatting function.");
+                    .on_hover_text(ui.ctx, "Can take a custom formatting function.");
 
                 ComboBox::from_label("Line style")
                     .selected_text(line_style.to_string())
@@ -151,7 +151,7 @@ impl LineDemo {
     fn ui(&mut self, ui: &mut Ui<'_>) -> Response {
         self.options_ui(ui);
         if self.animate {
-            ui.ctx().request_repaint();
+            ui.ctx.request_repaint();
             self.time += ui.input().unstable_dt.at_most(1.0 / 30.0) as f64;
         };
         let mut plot = Plot::new("lines_demo").legend(Legend::default());
@@ -549,7 +549,7 @@ impl ItemsDemo {
         };
 
         let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
-            ui.ctx().load_texture(
+            ui.ctx.load_texture(
                 "plot_demo",
                 egui::ColorImage::example(),
                 egui::TextureFilter::Linear,
@@ -601,7 +601,7 @@ impl InteractionDemo {
         } = plot.show(ui, |plot_ui| {
             (
                 plot_ui.screen_from_plot(Value::new(0.0, 0.0)),
-                plot_ui.pointer_coordinate(),
+                plot_ui.pointer_coordinate(ui.ctx),
                 plot_ui.pointer_coordinate_drag_delta(),
                 plot_ui.plot_bounds(),
                 plot_ui.plot_hovered(),
@@ -861,7 +861,7 @@ impl super::Demo for PlotDemo {
         "🗠 Plot"
     }
 
-    fn show(&mut self, ctx: &Context, open: &mut bool) {
+    fn show(&mut self, ctx: &mut Context, open: &mut bool) {
         use super::View as _;
         Window::new(self.name())
             .open(open)

@@ -49,7 +49,7 @@ impl super::Demo for WidgetGallery {
         "🗄 Widget Gallery"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ctx: &mut egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .resizable(true)
@@ -79,10 +79,12 @@ impl super::View for WidgetGallery {
 
         ui.horizontal(|ui| {
             ui.checkbox(&mut self.visible, "Visible")
-                .on_hover_text("Uncheck to hide all the widgets.");
+                .on_hover_text(ui.ctx, "Uncheck to hide all the widgets.");
             if self.visible {
-                ui.checkbox(&mut self.enabled, "Interactive")
-                    .on_hover_text("Uncheck to inspect how the widgets look when disabled.");
+                ui.checkbox(&mut self.enabled, "Interactive").on_hover_text(
+                    ui.ctx,
+                    "Uncheck to inspect how the widgets look when disabled.",
+                );
             }
         });
 
@@ -90,7 +92,7 @@ impl super::View for WidgetGallery {
 
         ui.vertical_centered(|ui| {
             let tooltip_text = "The full egui documentation.\nYou can also click the different widgets names in the left column.";
-            ui.hyperlink("https://docs.rs/egui/").on_hover_text(tooltip_text);
+            ui.hyperlink("https://docs.rs/egui/").on_hover_text(ui.ctx, tooltip_text);
             ui.add(crate::egui_github_link_file!(
                 "Source code of the widget gallery"
             ));
@@ -115,7 +117,7 @@ impl WidgetGallery {
         } = self;
 
         let texture: &egui::TextureHandle = texture.get_or_insert_with(|| {
-            ui.ctx().load_texture(
+            ui.ctx.load_texture(
                 "example",
                 egui::ColorImage::example(),
                 egui::TextureFilter::Linear,
@@ -199,7 +201,7 @@ impl WidgetGallery {
             .animate(*animate_progress_bar);
         *animate_progress_bar = ui
             .add(progress_bar)
-            .on_hover_text("The progress bar can be animated!")
+            .on_hover_text(ui.ctx, "The progress bar can be animated!")
             .hovered();
         ui.end_row();
 
@@ -252,6 +254,7 @@ impl WidgetGallery {
             super::toggle_switch::url_to_file_source_code(),
         );
         ui.add(super::toggle_switch::toggle(boolean)).on_hover_text(
+            ui.ctx,
             "It's easy to create your own widgets!\n\
             This toggle switch is just 15 lines of code.",
         );
@@ -278,7 +281,7 @@ fn doc_link_label<'a>(title: &'a str, search_term: &'a str) -> impl egui::Widget
     let label = format!("{}:", title);
     let url = format!("https://docs.rs/egui?search={}", search_term);
     move |ui: &mut egui::Ui<'_>| {
-        ui.hyperlink_to(label, url).on_hover_ui(|ui| {
+        ui.hyperlink_to(label, url).on_hover_ui(ui.ctx, |ui| {
             ui.horizontal_wrapped(|ui| {
                 ui.label("Search egui docs for");
                 ui.code(search_term);

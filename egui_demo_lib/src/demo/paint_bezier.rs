@@ -52,10 +52,10 @@ impl PaintBezier {
         });
 
         ui.collapsing("Global tessellation options", |ui| {
-            let mut tessellation_options = *(ui.ctx().tessellation_options());
+            let mut tessellation_options = *(ui.ctx.tessellation_options());
             let tessellation_options = &mut tessellation_options;
             tessellation_options.ui(ui);
-            let mut new_tessellation_options = ui.ctx().tessellation_options();
+            let mut new_tessellation_options = ui.ctx.tessellation_options();
             *new_tessellation_options = *tessellation_options;
         });
 
@@ -70,8 +70,8 @@ impl PaintBezier {
             ui.allocate_painter(Vec2::new(ui.available_width(), 300.0), Sense::hover());
 
         let to_screen = emath::RectTransform::from_to(
-            Rect::from_min_size(Pos2::ZERO, response.rect.size()),
-            response.rect,
+            Rect::from_min_size(Pos2::ZERO, response.rect().size()),
+            response.rect(),
         );
 
         let control_point_radius = 8.0;
@@ -83,7 +83,7 @@ impl PaintBezier {
 
             let point_in_screen = to_screen.transform_pos(*point);
             let point_rect = Rect::from_center_size(point_in_screen, size);
-            let point_id = response.id.with(i);
+            let point_id = response.id().with(i);
             let point_response = ui.interact(point_rect, point_id, Sense::drag());
 
             *point += point_response.drag_delta();
@@ -111,31 +111,37 @@ impl PaintBezier {
                 let points = points_in_screen.clone().try_into().unwrap();
                 let shape =
                     QuadraticBezierShape::from_points_stroke(points, true, self.fill, self.stroke);
-                painter.add(epaint::RectShape::stroke(
-                    shape.visual_bounding_rect(),
-                    0.0,
-                    self.bounding_box_stroke,
-                ));
-                painter.add(shape);
+                painter.add(
+                    ui.ctx,
+                    epaint::RectShape::stroke(
+                        shape.visual_bounding_rect(),
+                        0.0,
+                        self.bounding_box_stroke,
+                    ),
+                );
+                painter.add(ui.ctx, shape);
             }
             4 => {
                 let points = points_in_screen.clone().try_into().unwrap();
                 let shape =
                     CubicBezierShape::from_points_stroke(points, true, self.fill, self.stroke);
-                painter.add(epaint::RectShape::stroke(
-                    shape.visual_bounding_rect(),
-                    0.0,
-                    self.bounding_box_stroke,
-                ));
-                painter.add(shape);
+                painter.add(
+                    ui.ctx,
+                    epaint::RectShape::stroke(
+                        shape.visual_bounding_rect(),
+                        0.0,
+                        self.bounding_box_stroke,
+                    ),
+                );
+                painter.add(ui.ctx, shape);
             }
             _ => {
                 unreachable!();
             }
         };
 
-        painter.add(PathShape::line(points_in_screen, self.aux_stroke));
-        painter.extend(control_point_shapes);
+        painter.add(ui.ctx, PathShape::line(points_in_screen, self.aux_stroke));
+        painter.extend(ui.ctx, control_point_shapes);
 
         response
     }
@@ -146,7 +152,7 @@ impl super::Demo for PaintBezier {
         "） Bézier Curve"
     }
 
-    fn show(&mut self, ctx: &Context, open: &mut bool) {
+    fn show(&mut self, ctx: &mut Context, open: &mut bool) {
         use super::View as _;
         Window::new(self.name())
             .open(open)

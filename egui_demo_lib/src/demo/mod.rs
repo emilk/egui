@@ -48,5 +48,5 @@ pub trait Demo {
     fn name(&self) -> &'static str;
 
     /// Show windows, etc
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool);
+    fn show(&mut self, ctx: &mut egui::Context, open: &mut bool);
 }

@@ -79,11 +79,14 @@ impl ColorTest {
 
             ui.horizontal(|ui| {
                 let g = Gradient::one_color(Color32::from(tex_color));
-                let tex = self.tex_mngr.get(ui.ctx(), &g);
+                let tex = self.tex_mngr.get(ui.ctx, &g);
                 let texel_offset = 0.5 / (g.0.len() as f32);
                 let uv = Rect::from_min_max(pos2(texel_offset, 0.0), pos2(1.0 - texel_offset, 1.0));
                 ui.add(Image::new(tex, GRADIENT_SIZE).tint(vertex_color).uv(uv))
-                    .on_hover_text(format!("A texture that is {} texels wide", g.0.len()));
+                    .on_hover_text(
+                        ui.ctx,
+                        format!("A texture that is {} texels wide", g.0.len()),
+                    );
                 ui.label("GPU result");
             });
         });
@@ -215,14 +218,14 @@ impl ColorTest {
             return;
         }
         ui.horizontal(|ui| {
-            let tex = self.tex_mngr.get(ui.ctx(), gradient);
+            let tex = self.tex_mngr.get(ui.ctx, gradient);
             let texel_offset = 0.5 / (gradient.0.len() as f32);
             let uv = Rect::from_min_max(pos2(texel_offset, 0.0), pos2(1.0 - texel_offset, 1.0));
             ui.add(Image::new(tex, GRADIENT_SIZE).bg_fill(bg_fill).uv(uv))
-                .on_hover_text(format!(
-                    "A texture that is {} texels wide",
-                    gradient.0.len()
-                ));
+                .on_hover_text(
+                    ui.ctx,
+                    format!("A texture that is {} texels wide", gradient.0.len()),
+                );
             ui.label(label);
         });
     }
@@ -238,10 +241,10 @@ impl ColorTest {
             return;
         }
         ui.horizontal(|ui| {
-            vertex_gradient(ui, bg_fill, gradient).on_hover_text(format!(
-                "A triangle mesh that is {} vertices wide",
-                gradient.0.len()
-            ));
+            vertex_gradient(ui, bg_fill, gradient).on_hover_text(
+                ui.ctx,
+                format!("A triangle mesh that is {} vertices wide", gradient.0.len()),
+            );
             ui.label(label);
         });
     }
@@ -253,7 +256,7 @@ fn vertex_gradient(ui: &mut Ui<'_>, bg_fill: Color32, gradient: &Gradient) -> Re
     if bg_fill != Default::default() {
         let mut mesh = Mesh::default();
         mesh.add_colored_rect(rect, bg_fill);
-        ui.painter().add(Shape::mesh(mesh));
+        ui.painter.add(ui.ctx, Shape::mesh(mesh));
     }
     {
         let n = gradient.0.len();
@@ -270,7 +273,7 @@ fn vertex_gradient(ui: &mut Ui<'_>, bg_fill: Color32, gradient: &Gradient) -> Re
                 mesh.add_triangle(2 * i + 1, 2 * i + 2, 2 * i + 3);
             }
         }
-        ui.painter().add(Shape::mesh(mesh));
+        ui.painter.add(ui.ctx, Shape::mesh(mesh));
     }
     response
 }
@@ -340,7 +343,7 @@ impl Gradient {
 struct TextureManager(HashMap<Gradient, TextureHandle>);
 
 impl TextureManager {
-    fn get(&mut self, ctx: &egui::Context, gradient: &Gradient) -> &TextureHandle {
+    fn get(&mut self, ctx: &mut egui::Context, gradient: &Gradient) -> &TextureHandle {
         self.0.entry(gradient.clone()).or_insert_with(|| {
             let pixels = gradient.to_pixel_row();
             let width = pixels.len();
@@ -366,7 +369,7 @@ fn pixel_test(ui: &mut Ui<'_>) {
         egui::Color32::BLACK
     };
 
-    let pixels_per_point = ui.ctx().pixels_per_point();
+    let pixels_per_point = ui.ctx.pixels_per_point();
     let num_squares: u32 = 8;
     let size_pixels = Vec2::new(
         ((num_squares + 1) * (num_squares + 2) / 2) as f32,
@@ -376,8 +379,8 @@ fn pixel_test(ui: &mut Ui<'_>) {
     let (response, painter) = ui.allocate_painter(size_points, Sense::hover());
 
     let mut cursor_pixel = Pos2::new(
-        response.rect.min.x * pixels_per_point,
-        response.rect.min.y * pixels_per_point,
+        response.rect().min.x * pixels_per_point,
+        response.rect().min.y * pixels_per_point,
     )
     .ceil();
     for size in 1..=num_squares {
@@ -388,7 +391,7 @@ fn pixel_test(ui: &mut Ui<'_>) {
             ),
             Vec2::splat(size as f32) / pixels_per_point,
         );
-        painter.rect_filled(rect_points, 0.0, color);
+        painter.rect_filled(ui.ctx, rect_points, 0.0, color);
         cursor_pixel.x += (1 + size) as f32;
     }
 }
@@ -398,24 +401,30 @@ fn blending_and_feathering_test(ui: &mut Ui<'_>) {
 
     let size = Vec2::new(512.0, 512.0);
     let (response, painter) = ui.allocate_painter(size, Sense::hover());
-    let rect = response.rect;
+    let rect = response.rect();
 
     let mut top_half = rect;
     top_half.set_bottom(top_half.center().y);
-    painter.rect_filled(top_half, 0.0, Color32::BLACK);
-    paint_fine_lines_and_text(&painter, top_half, Color32::WHITE);
+    painter.rect_filled(ui.ctx, top_half, 0.0, Color32::BLACK);
+    paint_fine_lines_and_text(ui.ctx, &painter, top_half, Color32::WHITE);
 
     let mut bottom_half = rect;
     bottom_half.set_top(bottom_half.center().y);
-    painter.rect_filled(bottom_half, 0.0, Color32::WHITE);
-    paint_fine_lines_and_text(&painter, bottom_half, Color32::BLACK);
+    painter.rect_filled(ui.ctx, bottom_half, 0.0, Color32::WHITE);
+    paint_fine_lines_and_text(ui.ctx, &painter, bottom_half, Color32::BLACK);
 }
 
-fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Color32) {
+fn paint_fine_lines_and_text(
+    ctx: &mut Context,
+    painter: &egui::Painter,
+    mut rect: Rect,
+    color: Color32,
+) {
     {
         let mut x = 0.0;
         for opacity in [1.00, 0.50, 0.25, 0.10, 0.05, 0.02, 0.01, 0.00] {
             painter.text(
+                ctx,
                 rect.center_top() + Vec2::new(0.0, x),
                 Align2::LEFT_TOP,
                 format!("{:.0}% white", 100.0 * opacity),
@@ -423,6 +432,7 @@ fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Col
                 Color32::WHITE.linear_multiply(opacity),
             );
             painter.text(
+                ctx,
                 rect.center_top() + Vec2::new(80.0, x),
                 Align2::LEFT_TOP,
                 format!("{:.0}% gray", 100.0 * opacity),
@@ -430,6 +440,7 @@ fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Col
                 Color32::GRAY.linear_multiply(opacity),
             );
             painter.text(
+                ctx,
                 rect.center_top() + Vec2::new(160.0, x),
                 Align2::LEFT_TOP,
                 format!("{:.0}% black", 100.0 * opacity),
@@ -445,6 +456,7 @@ fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Col
     rect = rect.shrink(12.0);
     for width in [0.5, 1.0, 2.0] {
         painter.text(
+            ctx,
             rect.left_top(),
             Align2::CENTER_CENTER,
             width.to_string(),
@@ -452,17 +464,20 @@ fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Col
             color,
         );
 
-        painter.add(egui::epaint::CubicBezierShape::from_points_stroke(
-            [
-                rect.left_top() + Vec2::new(16.0, 0.0),
-                rect.right_top(),
-                rect.right_center(),
-                rect.right_bottom(),
-            ],
-            false,
-            Color32::TRANSPARENT,
-            Stroke::new(width, color),
-        ));
+        painter.add(
+            ctx,
+            egui::epaint::CubicBezierShape::from_points_stroke(
+                [
+                    rect.left_top() + Vec2::new(16.0, 0.0),
+                    rect.right_top(),
+                    rect.right_center(),
+                    rect.right_bottom(),
+                ],
+                false,
+                Color32::TRANSPARENT,
+                Stroke::new(width, color),
+            ),
+        );
 
         rect.min.y += 32.0;
         rect.max.x -= 32.0;
@@ -470,6 +485,7 @@ fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Col
 
     rect.min.y += 16.0;
     painter.text(
+        ctx,
         rect.left_top(),
         Align2::LEFT_CENTER,
         "transparent --> opaque",
@@ -484,5 +500,5 @@ fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Col
     mesh.colored_vertex(rect.right_top(), color);
     mesh.add_triangle(0, 1, 2);
     mesh.add_triangle(1, 2, 3);
-    painter.add(mesh);
+    painter.add(ctx, mesh);
 }

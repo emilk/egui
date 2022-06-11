@@ -68,7 +68,7 @@ impl super::Demo for CodeExample {
         "🖮 Code Example"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ctx: &mut egui::Context, open: &mut bool) {
         use super::View;
         egui::Window::new(self.name())
             .open(open)
@@ -125,10 +125,10 @@ impl CodeExample {
 
         ui.separator();
 
-        let mut theme = crate::syntax_highlighting::CodeTheme::from_memory(ui.ctx());
+        let mut theme = crate::syntax_highlighting::CodeTheme::from_memory(ui.ctx);
         ui.collapsing("Theme", |ui| {
             theme.ui(ui);
-            theme.store_in_memory(ui.ctx());
+            theme.store_in_memory(ui.ctx);
         });
     }
 }

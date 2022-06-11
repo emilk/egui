@@ -1,18 +1,18 @@
 use egui::*;
 
-pub fn drag_source(ui: &mut Ui<'_>, id: Id, body: impl FnOnce(&mut Ui)) {
+pub fn drag_source(ui: &mut Ui<'_>, id: Id, body: impl FnOnce(&mut Ui<'_>)) {
     let is_being_dragged = ui.memory().is_being_dragged(id);
 
     if !is_being_dragged {
         let response = ui.scope(body).response;
 
         // Check for drags:
-        let response = ui.interact(response.rect, id, Sense::drag());
+        let response = ui.interact(response.rect(), id, Sense::drag());
         if response.hovered() {
-            ui.output().cursor_icon = CursorIcon::Grab;
+            ui.ctx.output_mut().cursor_icon = CursorIcon::Grab;
         }
     } else {
-        ui.output().cursor_icon = CursorIcon::Grabbing;
+        ui.ctx.output_mut().cursor_icon = CursorIcon::Grabbing;
 
         // Paint the body to a new layer:
         let layer_id = LayerId::new(Order::Tooltip, id);
@@ -25,9 +25,9 @@ pub fn drag_source(ui: &mut Ui<'_>, id: Id, body: impl FnOnce(&mut Ui)) {
         // (anything with `Order::Tooltip` always gets an empty [`Response`])
         // So this is fine!
 
-        if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
-            let delta = pointer_pos - response.rect.center();
-            ui.ctx().translate_layer(layer_id, delta);
+        if let Some(pointer_pos) = ui.ctx.pointer_interact_pos() {
+            let delta = pointer_pos - response.rect().center();
+            ui.ctx.translate_layer(layer_id, delta);
         }
     }
 }
@@ -43,7 +43,7 @@ pub fn drop_target<R>(
 
     let outer_rect_bounds = ui.available_rect_before_wrap();
     let inner_rect = outer_rect_bounds.shrink2(margin);
-    let where_to_put_background = ui.painter().add(Shape::Noop);
+    let where_to_put_background = ui.painter.add(ui.ctx, Shape::Noop);
     let mut content_ui = ui.child_ui(inner_rect, *ui.layout());
     let ret = body(&mut content_ui);
     let outer_rect = Rect::from_min_max(outer_rect_bounds.min, content_ui.min_rect().max + margin);
@@ -63,7 +63,8 @@ pub fn drop_target<R>(
         stroke.color = color::tint_color_towards(stroke.color, ui.visuals().window_fill());
     }
 
-    ui.painter().set(
+    ui.painter.set(
+        ui.ctx,
         where_to_put_background,
         epaint::RectShape {
             rounding: style.rounding,
@@ -101,7 +102,7 @@ impl super::Demo for DragAndDropDemo {
         "✋ Drag and Drop"
     }
 
-    fn show(&mut self, ctx: &Context, open: &mut bool) {
+    fn show(&mut self, ctx: &mut Context, open: &mut bool) {
         use super::View as _;
         Window::new(self.name())
             .open(open)
@@ -120,42 +121,40 @@ impl super::View for DragAndDropDemo {
         let id_source = "my_drag_and_drop_demo";
         let mut source_col_row = None;
         let mut drop_col = None;
-        ui.columns(self.columns.len(), |uis| {
-            for (col_idx, column) in self.columns.clone().into_iter().enumerate() {
-                let ui = &mut uis[col_idx];
-                let can_accept_what_is_being_dragged = true; // We accept anything being dragged (for now) ¯\_(ツ)_/¯
-                let response = drop_target(ui, can_accept_what_is_being_dragged, |ui| {
-                    ui.set_min_size(vec2(64.0, 100.0));
-                    for (row_idx, item) in column.iter().enumerate() {
-                        let item_id = Id::new(id_source).with(col_idx).with(row_idx);
-                        drag_source(ui, item_id, |ui| {
-                            let response = ui.add(Label::new(item).sense(Sense::click()));
-                            response.context_menu(|ui| {
-                                if ui.button("Remove").clicked() {
-                                    self.columns[col_idx].remove(row_idx);
-                                    ui.close_menu();
-                                }
-                            });
+        ui.columns(self.columns.len(), |i, ui| {
+            let column = self.columns[i].clone();
+            let can_accept_what_is_being_dragged = true; // We accept anything being dragged (for now) ¯\_(ツ)_/¯
+            let response = drop_target(ui, can_accept_what_is_being_dragged, |ui| {
+                ui.set_min_size(vec2(64.0, 100.0));
+                for (row_idx, item) in column.iter().enumerate() {
+                    let item_id = Id::new(id_source).with(i).with(row_idx);
+                    drag_source(ui, item_id, |ui| {
+                        let response = ui.add(Label::new(item).sense(Sense::click()));
+                        response.context_menu(ui.ctx, |ui| {
+                            if ui.button("Remove").clicked() {
+                                self.columns[i].remove(row_idx);
+                                ui.close_menu();
+                            }
                         });
+                    });
 
-                        if ui.memory().is_being_dragged(item_id) {
-                            source_col_row = Some((col_idx, row_idx));
-                        }
+                    if ui.memory().is_being_dragged(item_id) {
+                        source_col_row = Some((i, row_idx));
                     }
-                })
-                .response;
-
-                let response = response.context_menu(|ui| {
-                    if ui.button("New Item").clicked() {
-                        self.columns[col_idx].push("New Item".to_string());
-                        ui.close_menu();
-                    }
-                });
-
-                let is_being_dragged = ui.memory().is_anything_being_dragged();
-                if is_being_dragged && can_accept_what_is_being_dragged && response.hovered() {
-                    drop_col = Some(col_idx);
                 }
+            })
+            .response;
+
+            let response = response.context_menu(ui.ctx, |ui| {
+                if ui.button("New Item").clicked() {
+                    self.columns[i].push("New Item".to_string());
+                    ui.close_menu();
+                }
+            });
+
+            let is_being_dragged = ui.memory().is_anything_being_dragged();
+            if is_being_dragged && can_accept_what_is_being_dragged && response.hovered() {
+                drop_col = Some(i);
             }
         });
 

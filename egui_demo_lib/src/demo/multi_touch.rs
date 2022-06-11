@@ -26,7 +26,7 @@ impl super::Demo for MultiTouch {
         "👌 Multi Touch"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ctx: &mut egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .default_size(vec2(512.0, 512.0))
@@ -73,16 +73,16 @@ impl super::View for MultiTouch {
                 ui.allocate_painter(ui.available_size_before_wrap(), Sense::drag());
 
             // normalize painter coordinates to ±1 units in each direction with [0,0] in the center:
-            let painter_proportions = response.rect.square_proportions();
+            let painter_proportions = response.rect().square_proportions();
             let to_screen = RectTransform::from_to(
                 Rect::from_min_size(Pos2::ZERO - painter_proportions, 2. * painter_proportions),
-                response.rect,
+                response.rect(),
             );
 
             // check for touch input (or the lack thereof) and update zoom and scale factors, plus
             // color and width:
             let mut stroke_width = 1.;
-            if let Some(multi_touch) = ui.ctx().multi_touch() {
+            if let Some(multi_touch) = ui.ctx.multi_touch() {
                 // This adjusts the current zoom factor and rotation angle according to the dynamic
                 // change (for the current frame) of the touch gesture:
                 self.zoom *= multi_touch.zoom_delta;
@@ -105,6 +105,7 @@ impl super::View for MultiTouch {
             let arrow_start = Pos2::ZERO + arrow_start_offset;
             let arrow_direction = zoom_and_rotate * vec2(1., -1.);
             painter.arrow(
+                ui.ctx,
                 to_screen * arrow_start,
                 to_screen.scale() * arrow_direction,
                 Stroke::new(stroke_width, color),
@@ -122,7 +123,7 @@ impl MultiTouch {
 
         let delay = 0.5;
         if time_since_last_touch < delay {
-            ui.ctx().request_repaint();
+            ui.ctx.request_repaint();
         } else {
             // seconds after which half the amount of zoom/rotation will be reverted:
             let half_life =
@@ -138,7 +139,7 @@ impl MultiTouch {
                 self.zoom = 1. + ((self.zoom - 1.) * half_life_factor);
                 self.rotation *= half_life_factor;
                 self.translation *= half_life_factor;
-                ui.ctx().request_repaint();
+                ui.ctx.request_repaint();
             }
         }
     }

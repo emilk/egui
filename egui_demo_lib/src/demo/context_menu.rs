@@ -49,7 +49,7 @@ impl super::Demo for ContextMenus {
         "☰ Context Menus"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ctx: &mut egui::Context, open: &mut bool) {
         use super::View;
         egui::Window::new(self.name())
             .vscroll(false)
@@ -64,14 +64,14 @@ impl super::View for ContextMenus {
         ui.horizontal(|ui| {
             ui.menu_button("Click for menu", Self::nested_menus);
             ui.button("Right-click for menu")
-                .context_menu(Self::nested_menus);
+                .context_menu(ui.ctx, Self::nested_menus);
         });
 
         ui.separator();
 
         ui.label("Right-click plot to edit it!");
         ui.horizontal(|ui| {
-            self.example_plot(ui).context_menu(|ui| {
+            self.example_plot(ui).context_menu(ui.ctx, |ui| {
                 ui.menu_button("Plot", |ui| {
                     if ui.radio_value(&mut self.plot, Plot::Sin, "Sin").clicked()
                         || ui

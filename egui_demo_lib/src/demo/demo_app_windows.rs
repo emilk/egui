@@ -65,7 +65,7 @@ impl Demos {
         }
     }
 
-    pub fn windows(&mut self, ctx: &Context) {
+    pub fn windows(&mut self, ctx: &mut Context) {
         let Self { demos, open } = self;
         for demo in demos {
             let mut is_open = open.contains(demo.name());
@@ -120,7 +120,7 @@ impl Tests {
         }
     }
 
-    pub fn windows(&mut self, ctx: &Context) {
+    pub fn windows(&mut self, ctx: &mut Context) {
         let Self { demos, open } = self;
         for demo in demos {
             let mut is_open = open.contains(demo.name());
@@ -167,7 +167,7 @@ impl Default for DemoWindows {
 
 impl DemoWindows {
     /// Show the app ui (menu bar and windows).
-    pub fn ui(&mut self, ctx: &Context) {
+    pub fn ui(&mut self, ctx: &mut Context) {
         if is_mobile(ctx) {
             self.mobile_ui(ctx);
         } else {
@@ -175,7 +175,7 @@ impl DemoWindows {
         }
     }
 
-    fn mobile_ui(&mut self, ctx: &Context) {
+    fn mobile_ui(&mut self, ctx: &mut Context) {
         if self.about_is_open {
             let screen_size = ctx.input().screen_rect.size();
             let default_width = (screen_size.x - 20.0).min(400.0);
@@ -208,13 +208,13 @@ impl DemoWindows {
         }
     }
 
-    fn mobile_top_bar(&mut self, ctx: &Context) {
+    fn mobile_top_bar(&mut self, ctx: &mut Context) {
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 let font_size = 20.0;
 
                 ui.menu_button(egui::RichText::new("⏷ demos").size(font_size), |ui| {
-                    ui.set_style(ui.ctx().style()); // ignore the "menu" style set by `menu_button`.
+                    ui.reset_style(); // ignore the "menu" style set by `menu_button`.
                     self.demo_list_ui(ui);
                     if ui.ui_contains_pointer() && ui.input().pointer.any_click() {
                         ui.close_menu();
@@ -236,7 +236,7 @@ impl DemoWindows {
         });
     }
 
-    fn desktop_ui(&mut self, ctx: &Context) {
+    fn desktop_ui(&mut self, ctx: &mut Context) {
         egui::SidePanel::right("egui_demo_panel")
             .resizable(false)
             .default_width(145.0)
@@ -273,7 +273,7 @@ impl DemoWindows {
     }
 
     /// Show the open windows.
-    fn show_windows(&mut self, ctx: &Context) {
+    fn show_windows(&mut self, ctx: &mut Context) {
         self.about.show(ctx, &mut self.about_is_open);
         self.demos.windows(ctx);
         self.tests.windows(ctx);
@@ -291,7 +291,7 @@ impl DemoWindows {
                 ui.separator();
 
                 if ui.button("Organize windows").clicked() {
-                    ui.ctx().memory().reset_areas();
+                    ui.ctx.memory().reset_areas();
                 }
             });
         });
@@ -303,15 +303,15 @@ impl DemoWindows {
 fn file_menu_button(ui: &mut Ui<'_>) {
     ui.menu_button("File", |ui| {
         if ui.button("Organize windows").clicked() {
-            ui.ctx().memory().reset_areas();
+            ui.ctx.memory().reset_areas();
             ui.close_menu();
         }
         if ui
             .button("Reset egui memory")
-            .on_hover_text("Forget scroll, positions, sizes etc")
+            .on_hover_text(ui.ctx, "Forget scroll, positions, sizes etc")
             .clicked()
         {
-            *ui.ctx().memory() = Default::default();
+            *ui.ctx.memory() = Default::default();
             ui.close_menu();
         }
     });

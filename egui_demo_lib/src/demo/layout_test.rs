@@ -76,7 +76,7 @@ impl super::Demo for LayoutTest {
         "Layout Test"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ctx: &mut egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .resizable(false)
@@ -144,7 +144,10 @@ impl LayoutTest {
 
         ui.horizontal(|ui| {
             ui.checkbox(&mut self.layout.main_wrap, "Main wrap")
-                .on_hover_text("Wrap when next widget doesn't fit the current row/column");
+                .on_hover_text(
+                    ui.ctx,
+                    "Wrap when next widget doesn't fit the current row/column",
+                );
 
             if self.layout.main_wrap {
                 if self.layout.main_dir.is_horizontal() {
@@ -165,7 +168,7 @@ impl LayoutTest {
         });
 
         ui.checkbox(&mut self.layout.cross_justify, "Cross Justified")
-            .on_hover_text("Try to fill full width/height (e.g. buttons)");
+            .on_hover_text(ui.ctx, "Try to fill full width/height (e.g. buttons)");
     }
 }
 

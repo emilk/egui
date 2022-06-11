@@ -26,7 +26,7 @@ impl super::Demo for CodeEditor {
         "🖮 Code Editor"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ctx: &mut egui::Context, open: &mut bool) {
         use super::View as _;
         egui::Window::new(self.name())
             .open(open)
@@ -67,17 +67,17 @@ impl super::View for CodeEditor {
             });
         }
 
-        let mut theme = crate::syntax_highlighting::CodeTheme::from_memory(ui.ctx());
+        let mut theme = crate::syntax_highlighting::CodeTheme::from_memory(ui.ctx);
         ui.collapsing("Theme", |ui| {
             ui.group(|ui| {
                 theme.ui(ui);
-                theme.clone().store_in_memory(ui.ctx());
+                theme.clone().store_in_memory(ui.ctx);
             });
         });
 
         let mut layouter = |ui: &egui::Ui<'_>, string: &str, wrap_width: f32| {
             let mut layout_job =
-                crate::syntax_highlighting::highlight(ui.ctx(), &theme, string, language);
+                crate::syntax_highlighting::highlight(ui.ctx, &theme, string, language);
             layout_job.wrap.max_width = wrap_width;
             ui.fonts().layout_job(layout_job)
         };

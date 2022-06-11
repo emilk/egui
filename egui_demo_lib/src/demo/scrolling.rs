@@ -29,7 +29,7 @@ impl super::Demo for Scrolling {
         "↕ Scrolling"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ctx: &mut egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .resizable(false)
@@ -126,12 +126,14 @@ fn huge_content_painter(ui: &mut egui::Ui<'_>) {
                     num_rows,
                     indentation
                 );
-                let text_rect = ui.painter().text(
+                let color = ui.visuals().text_color();
+                let text_rect = ui.painter.text(
+                    ui.ctx,
                     pos2(x, y),
                     Align2::LEFT_TOP,
                     text,
                     font_id.clone(),
-                    ui.visuals().text_color(),
+                    color,
                 );
                 used_rect = used_rect.union(text_rect);
             }
@@ -223,7 +225,7 @@ impl super::View for ScrollTo {
                         if track_item && item == self.track_item {
                             let response =
                                 ui.colored_label(Color32::YELLOW, format!("This is item {}", item));
-                            response.scroll_to_me(self.tack_item_align);
+                            response.scroll_to_me(ui.ctx, self.tack_item_align);
                         } else {
                             ui.label(format!("This is item {}", item));
                         }
@@ -284,6 +286,6 @@ impl super::View for ScrollStickTo {
         );
 
         self.n_items += 1;
-        ui.ctx().request_repaint();
+        ui.ctx.request_repaint();
     }
 }

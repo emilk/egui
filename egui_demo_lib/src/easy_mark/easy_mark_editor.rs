@@ -30,7 +30,7 @@ impl Default for EasyMarkEditor {
 }
 
 impl EasyMarkEditor {
-    pub fn panels(&mut self, ctx: &egui::Context) {
+    pub fn panels(&mut self, ctx: &mut egui::Context) {
         egui::TopBottomPanel::bottom("easy_mark_bottom").show(ctx, |ui| {
             let layout = egui::Layout::top_down(egui::Align::Center).with_main_justify(true);
             ui.allocate_ui_with_layout(ui.available_size(), layout, |ui| {
@@ -57,16 +57,17 @@ impl EasyMarkEditor {
         ui.separator();
 
         if self.show_rendered {
-            ui.columns(2, |columns| {
-                ScrollArea::vertical()
-                    .id_source("source")
-                    .show(&mut columns[0], |ui| self.editor_ui(ui));
-                ScrollArea::vertical()
-                    .id_source("rendered")
-                    .show(&mut columns[1], |ui| {
+            ui.columns(2, |i, ui| {
+                match i {
+                    0 => ScrollArea::vertical()
+                        .id_source("source")
+                        .show(ui, |ui| self.editor_ui(ui)),
+                    1 => ScrollArea::vertical().id_source("rendered").show(ui, |ui| {
                         // TODO(emilk): we can save some more CPU by caching the rendered output.
                         crate::easy_mark::easy_mark(ui, &self.code);
-                    });
+                    }),
+                    _ => unreachable!(),
+                }
             });
         } else {
             ScrollArea::vertical()
@@ -97,19 +98,19 @@ impl EasyMarkEditor {
             ui.add(egui::TextEdit::multiline(code).desired_width(f32::INFINITY))
         };
 
-        if let Some(mut state) = TextEdit::load_state(ui.ctx(), response.id) {
+        if let Some(mut state) = TextEdit::load_state(ui.ctx, response.id()) {
             if let Some(mut ccursor_range) = state.ccursor_range() {
                 let any_change = shortcuts(ui, code, &mut ccursor_range);
                 if any_change {
                     state.set_ccursor_range(Some(ccursor_range));
-                    state.store(ui.ctx(), response.id);
+                    state.store(ui.ctx, response.id());
                 }
             }
         }
     }
 }
 
-fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRange) -> bool {
+fn shortcuts(ui: &Ui<'_>, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRange) -> bool {
     let mut any_change = false;
     for (key, surrounding) in [
         (Key::B, "*"), // *bold*

@@ -11,7 +11,7 @@ impl super::Demo for StripDemo {
         "▣ Strip Demo"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ctx: &mut egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .resizable(true)
@@ -40,7 +40,8 @@ impl super::View for StripDemo {
             .size(Size::exact(10.0))
             .vertical(|mut strip| {
                 strip.cell(|ui| {
-                    ui.painter().rect_filled(
+                    ui.painter.rect_filled(
+                        ui.ctx,
                         ui.available_rect_before_wrap(),
                         0.0,
                         faded_color(Color32::BLUE),
@@ -50,7 +51,8 @@ impl super::View for StripDemo {
                 strip.strip(|builder| {
                     builder.sizes(Size::remainder(), 2).horizontal(|mut strip| {
                         strip.cell(|ui| {
-                            ui.painter().rect_filled(
+                            ui.painter.rect_filled(
+                                ui.ctx,
                                 ui.available_rect_before_wrap(),
                                 0.0,
                                 faded_color(Color32::RED),
@@ -61,7 +63,8 @@ impl super::View for StripDemo {
                             builder.sizes(Size::remainder(), 3).vertical(|mut strip| {
                                 strip.empty();
                                 strip.cell(|ui| {
-                                    ui.painter().rect_filled(
+                                    ui.painter.rect_filled(
+                                        ui.ctx,
                                         ui.available_rect_before_wrap(),
                                         0.0,
                                         faded_color(Color32::YELLOW),
@@ -89,7 +92,8 @@ impl super::View for StripDemo {
                                     .vertical(|mut strip| {
                                         strip.empty();
                                         strip.cell(|ui| {
-                                            ui.painter().rect_filled(
+                                            ui.painter.rect_filled(
+                                                ui.ctx,
                                                 ui.available_rect_before_wrap(),
                                                 0.0,
                                                 faded_color(Color32::GOLD),
@@ -100,7 +104,8 @@ impl super::View for StripDemo {
                             });
                             strip.empty();
                             strip.cell(|ui| {
-                                ui.painter().rect_filled(
+                                ui.painter.rect_filled(
+                                    ui.ctx,
                                     ui.available_rect_before_wrap(),
                                     0.0,
                                     faded_color(Color32::GREEN),

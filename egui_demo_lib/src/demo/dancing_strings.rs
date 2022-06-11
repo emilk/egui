@@ -10,7 +10,7 @@ impl super::Demo for DancingStrings {
         "♫ Dancing Strings"
     }
 
-    fn show(&mut self, ctx: &Context, open: &mut bool) {
+    fn show(&mut self, ctx: &mut Context, open: &mut bool) {
         use super::View as _;
         Window::new(self.name())
             .open(open)
@@ -29,7 +29,7 @@ impl super::View for DancingStrings {
         };
 
         Frame::canvas(ui.style()).show(ui, |ui| {
-            ui.ctx().request_repaint();
+            ui.ctx.request_repaint();
             let time = ui.input().time;
 
             let desired_size = ui.available_width() * vec2(1.0, 0.35);
@@ -58,7 +58,7 @@ impl super::View for DancingStrings {
                 shapes.push(epaint::Shape::line(points, Stroke::new(thickness, color)));
             }
 
-            ui.painter().extend(shapes);
+            ui.painter.extend(ui.ctx, shapes);
         });
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file!());

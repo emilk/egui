@@ -34,8 +34,8 @@ impl Painting {
             ui.allocate_painter(ui.available_size_before_wrap(), Sense::drag());
 
         let to_screen = emath::RectTransform::from_to(
-            Rect::from_min_size(Pos2::ZERO, response.rect.square_proportions()),
-            response.rect,
+            Rect::from_min_size(Pos2::ZERO, response.rect().square_proportions()),
+            response.rect(),
         );
         let from_screen = to_screen.inverse();
 
@@ -63,7 +63,7 @@ impl Painting {
                 shapes.push(egui::Shape::line(points, self.stroke));
             }
         }
-        painter.extend(shapes);
+        painter.extend(ui.ctx, shapes);
 
         response
     }
@@ -74,7 +74,7 @@ impl super::Demo for Painting {
         "🖊 Painting"
     }
 
-    fn show(&mut self, ctx: &Context, open: &mut bool) {
+    fn show(&mut self, ctx: &mut Context, open: &mut bool) {
         use super::View as _;
         Window::new(self.name())
             .open(open)

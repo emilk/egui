@@ -19,7 +19,7 @@ impl super::Demo for TextEdit {
         "🖹 TextEdit"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ctx: &mut egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .resizable(false)
@@ -88,22 +88,22 @@ impl super::View for TextEdit {
             ui.label("Move cursor to the:");
 
             if ui.button("start").clicked() {
-                let text_edit_id = output.response.id;
-                if let Some(mut state) = egui::TextEdit::load_state(ui.ctx(), text_edit_id) {
+                let text_edit_id = output.response.id();
+                if let Some(mut state) = egui::TextEdit::load_state(ui.ctx, text_edit_id) {
                     let ccursor = egui::text::CCursor::new(0);
                     state.set_ccursor_range(Some(egui::text::CCursorRange::one(ccursor)));
-                    state.store(ui.ctx(), text_edit_id);
-                    ui.ctx().memory().request_focus(text_edit_id); // give focus back to the [`TextEdit`].
+                    state.store(ui.ctx, text_edit_id);
+                    ui.ctx.memory().request_focus(text_edit_id); // give focus back to the [`TextEdit`].
                 }
             }
 
             if ui.button("end").clicked() {
-                let text_edit_id = output.response.id;
-                if let Some(mut state) = egui::TextEdit::load_state(ui.ctx(), text_edit_id) {
+                let text_edit_id = output.response.id();
+                if let Some(mut state) = egui::TextEdit::load_state(ui.ctx, text_edit_id) {
                     let ccursor = egui::text::CCursor::new(text.chars().count());
                     state.set_ccursor_range(Some(egui::text::CCursorRange::one(ccursor)));
-                    state.store(ui.ctx(), text_edit_id);
-                    ui.ctx().memory().request_focus(text_edit_id); // give focus back to the [`TextEdit`].
+                    state.store(ui.ctx, text_edit_id);
+                    ui.ctx.memory().request_focus(text_edit_id); // give focus back to the [`TextEdit`].
                 }
             }
         });

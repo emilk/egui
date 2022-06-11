@@ -59,7 +59,8 @@ pub fn item_ui(ui: &mut Ui<'_>, item: easy_mark::Item<'_>) {
                 .allocate_exact_size(vec2(2.0 * one_indent, row_height), Sense::hover())
                 .0;
             let rect = rect.expand2(ui.style().spacing.item_spacing * 0.5);
-            ui.painter().line_segment(
+            ui.painter.line_segment(
+                ui.ctx,
                 [rect.center_top(), rect.center_bottom()],
                 (1.0, ui.visuals().weak_text_color()),
             );
@@ -75,12 +76,13 @@ pub fn item_ui(ui: &mut Ui<'_>, item: easy_mark::Item<'_>) {
             ui.allocate_exact_size(vec2(one_indent, row_height), Sense::hover());
         }
         easy_mark::Item::CodeBlock(_language, code) => {
-            let where_to_put_background = ui.painter().add(Shape::Noop);
-            let mut rect = ui.monospace(code).rect;
+            let where_to_put_background = ui.painter.add(ui.ctx, Shape::Noop);
+            let mut rect = ui.monospace(code).rect();
             rect = rect.expand(1.0); // looks better
             rect.max.x = ui.max_rect().max.x;
             let code_bg_color = ui.visuals().code_bg_color;
-            ui.painter().set(
+            ui.painter.set(
+                ui.ctx,
                 where_to_put_background,
                 Shape::rect_filled(rect, 1.0, code_bg_color),
             );
@@ -136,7 +138,8 @@ fn rich_text_from_style(text: &str, style: &easy_mark::Style) -> RichText {
 fn bullet_point(ui: &mut Ui<'_>, width: f32) -> Response {
     let row_height = ui.text_style_height(&TextStyle::Body);
     let (rect, response) = ui.allocate_exact_size(vec2(width, row_height), Sense::hover());
-    ui.painter().circle_filled(
+    ui.painter.circle_filled(
+        ui.ctx,
         rect.center(),
         rect.height() / 8.0,
         ui.visuals().strong_text_color(),
@@ -150,7 +153,8 @@ fn numbered_point(ui: &mut Ui<'_>, width: f32, number: &str) -> Response {
     let (rect, response) = ui.allocate_exact_size(vec2(width, row_height), Sense::hover());
     let text = format!("{}.", number);
     let text_color = ui.visuals().strong_text_color();
-    ui.painter().text(
+    ui.painter.text(
+        ui.ctx,
         rect.right_center(),
         Align2::RIGHT_CENTER,
         text,

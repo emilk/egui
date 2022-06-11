@@ -29,7 +29,7 @@ pub fn password_ui(ui: &mut egui::Ui<'_>, password: &mut String) -> egui::Respon
         // Toggle the `show_plaintext` bool with a button:
         let response = ui
             .add(egui::SelectableLabel::new(show_plaintext, "👁"))
-            .on_hover_text("Show/hide password");
+            .on_hover_text(ui.ctx, "Show/hide password");
 
         if response.clicked() {
             show_plaintext = !show_plaintext;

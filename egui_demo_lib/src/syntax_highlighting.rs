@@ -3,10 +3,10 @@ use egui::text::LayoutJob;
 /// View some code with syntax highlighting and selection.
 pub fn code_view_ui(ui: &mut egui::Ui<'_>, mut code: &str) {
     let language = "rs";
-    let theme = CodeTheme::from_memory(ui.ctx());
+    let theme = CodeTheme::from_memory(ui.ctx);
 
     let mut layouter = |ui: &egui::Ui<'_>, string: &str, _wrap_width: f32| {
-        let layout_job = highlight(ui.ctx(), &theme, string, language);
+        let layout_job = highlight(ui.ctx, &theme, string, language);
         // layout_job.wrap.max_width = wrap_width; // no wrapping
         ui.fonts().layout_job(layout_job)
     };
@@ -22,7 +22,12 @@ pub fn code_view_ui(ui: &mut egui::Ui<'_>, mut code: &str) {
 }
 
 /// Memoized Code highlighting
-pub fn highlight(ctx: &egui::Context, theme: &CodeTheme, code: &str, language: &str) -> LayoutJob {
+pub fn highlight(
+    ctx: &mut egui::Context,
+    theme: &CodeTheme,
+    code: &str,
+    language: &str,
+) -> LayoutJob {
     impl egui::util::cache::ComputerMut<(&CodeTheme, &str, &str), LayoutJob> for Highlighter {
         fn compute(&mut self, (theme, code, lang): (&CodeTheme, &str, &str)) -> LayoutJob {
             self.highlight(theme, code, lang)
@@ -144,7 +149,7 @@ impl CodeTheme {
         }
     }
 
-    pub fn from_memory(ctx: &egui::Context) -> Self {
+    pub fn from_memory(ctx: &mut egui::Context) -> Self {
         if ctx.style().visuals.dark_mode {
             ctx.data()
                 .get_persisted(egui::Id::new("dark"))
@@ -156,7 +161,7 @@ impl CodeTheme {
         }
     }
 
-    pub fn store_in_memory(self, ctx: &egui::Context) {
+    pub fn store_in_memory(self, ctx: &mut egui::Context) {
         if self.dark_mode {
             ctx.data().insert_persisted(egui::Id::new("dark"), self);
         } else {

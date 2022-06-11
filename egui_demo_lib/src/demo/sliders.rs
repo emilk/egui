@@ -40,7 +40,7 @@ impl super::Demo for Sliders {
         "⬌ Sliders"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ctx: &mut egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .resizable(false)
@@ -151,7 +151,7 @@ impl super::View for Sliders {
             ui.radio_value(integer, false, "f64");
         })
         .response
-        .on_hover_text("All numeric types (f32, usize, …) are supported.");
+        .on_hover_text(ui.ctx, "All numeric types (f32, usize, …) are supported.");
 
         ui.horizontal(|ui| {
             ui.label("Slider orientation:");
