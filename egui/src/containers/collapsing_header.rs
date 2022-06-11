@@ -137,11 +137,11 @@ impl CollapsingState {
     ///     .body(|ui| ui.label("Body"));
     /// # });
     /// ```
-    pub fn show_header<'ui, HeaderRet>(
+    pub fn show_header<'a, 'c, HeaderRet>(
         mut self,
-        ui: &'ui mut Ui<'ui>,
+        ui: &'a mut Ui<'c>,
         add_header: impl FnOnce(&mut Ui<'_>) -> HeaderRet,
-    ) -> HeaderResponse<'ui, HeaderRet> {
+    ) -> HeaderResponse<'a, 'c, HeaderRet> {
         let header_response = ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0; // the toggler button uses the full indent width
             let collapser = self.show_default_button_indented(ui);
@@ -265,14 +265,14 @@ impl CollapsingState {
 
 /// From [`CollapsingState::show_header`].
 #[must_use = "Remember to show the body"]
-pub struct HeaderResponse<'ui, HeaderRet> {
+pub struct HeaderResponse<'a, 'c, HeaderRet> {
     state: CollapsingState,
-    ui: &'ui mut Ui<'ui>,
+    ui: &'a mut Ui<'c>,
     toggle_button_response: Response,
     header_response: InnerResponse<HeaderRet>,
 }
 
-impl<'ui, HeaderRet> HeaderResponse<'ui, HeaderRet> {
+impl<'a, 'c, HeaderRet> HeaderResponse<'a, 'c, HeaderRet> {
     /// Returns the response of the collapsing button, the custom header, and the custom body.
     pub fn body<BodyRet>(
         mut self,
