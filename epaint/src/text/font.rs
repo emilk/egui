@@ -4,8 +4,7 @@ use crate::{
 };
 use ahash::AHashMap;
 use emath::{vec2, Vec2};
-use std::collections::BTreeSet;
-use std::sync::Arc;
+use std::{collections::BTreeSet, rc::Rc, sync::Arc};
 
 // ----------------------------------------------------------------------------
 
@@ -215,9 +214,9 @@ type FontIndex = usize;
 // TODO(emilk): rename?
 /// Wrapper over multiple [`FontImpl`] (e.g. a primary + fallbacks for emojis)
 pub struct Font {
-    fonts: Vec<Arc<FontImpl>>,
+    fonts: Vec<Rc<FontImpl>>,
     /// Lazily calculated.
-    characters: Option<std::collections::BTreeSet<char>>,
+    characters: Option<BTreeSet<char>>,
     replacement_glyph: (FontIndex, GlyphInfo),
     pixels_per_point: f32,
     row_height: f32,
@@ -225,7 +224,7 @@ pub struct Font {
 }
 
 impl Font {
-    pub fn new(fonts: Vec<Arc<FontImpl>>) -> Self {
+    pub fn new(fonts: Vec<Rc<FontImpl>>) -> Self {
         if fonts.is_empty() {
             return Self {
                 fonts,

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::rc::Rc;
 
 use epaint::text::{cursor::*, Galley, LayoutJob};
 
@@ -57,7 +57,7 @@ pub struct TextEdit<'t> {
     id_source: Option<Id>,
     font_selection: FontSelection,
     text_color: Option<Color32>,
-    layouter: Option<&'t mut dyn FnMut(&mut Ui<'_>, &str, f32) -> Arc<Galley>>,
+    layouter: Option<&'t mut dyn FnMut(&mut Ui<'_>, &str, f32) -> Rc<Galley>>,
     password: bool,
     frame: bool,
     margin: Vec2,
@@ -193,7 +193,7 @@ impl<'t> TextEdit<'t> {
     /// ```
     pub fn layouter(
         mut self,
-        layouter: &'t mut dyn FnMut(&mut Ui<'_>, &str, f32) -> Arc<Galley>,
+        layouter: &'t mut dyn FnMut(&mut Ui<'_>, &str, f32) -> Rc<Galley>,
     ) -> Self {
         self.layouter = Some(layouter);
 
@@ -675,8 +675,8 @@ fn events(
     ui: &mut Ui<'_>,
     state: &mut TextEditState,
     text: &mut dyn TextBuffer,
-    galley: &mut Arc<Galley>,
-    layouter: &mut dyn FnMut(&mut Ui<'_>, &str, f32) -> Arc<Galley>,
+    galley: &mut Rc<Galley>,
+    layouter: &mut dyn FnMut(&mut Ui<'_>, &str, f32) -> Rc<Galley>,
     id: Id,
     wrap_width: f32,
     multiline: bool,
@@ -687,7 +687,7 @@ fn events(
 
     // We feed state to the undoer both before and after handling input
     // so that the undoer creates automatic saves even when there are no events for a while.
-    state.undoer.lock().feed_state(
+    state.undoer.borrow_mut().feed_state(
         ui.input().time,
         &(cursor_range.as_ccursor_range(), text.as_ref().to_owned()),
     );
@@ -781,7 +781,7 @@ fn events(
                 // TODO(emilk): redo
                 if let Some((undo_ccursor_range, undo_txt)) = state
                     .undoer
-                    .lock()
+                    .borrow_mut()
                     .undo(&(cursor_range.as_ccursor_range(), text.as_ref().to_owned()))
                 {
                     text.replace(undo_txt);
@@ -848,7 +848,7 @@ fn events(
 
     state.set_cursor_range(Some(cursor_range));
 
-    state.undoer.lock().feed_state(
+    state.undoer.borrow_mut().feed_state(
         ui.input().time,
         &(cursor_range.as_ccursor_range(), text.as_ref().to_owned()),
     );

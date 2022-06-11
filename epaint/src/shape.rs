@@ -1,6 +1,6 @@
 //! The different shapes that can be painted.
 
-use std::{any::Any, sync::Arc};
+use std::{any::Any, rc::Rc};
 
 use crate::{
     text::{FontId, Fonts, Galley},
@@ -177,13 +177,13 @@ impl Shape {
     }
 
     #[inline]
-    pub fn galley(pos: Pos2, galley: Arc<Galley>) -> Self {
+    pub fn galley(pos: Pos2, galley: Rc<Galley>) -> Self {
         TextShape::new(pos, galley).into()
     }
 
     #[inline]
     /// The text color in the [`Galley`] will be replaced with the given color.
-    pub fn galley_with_color(pos: Pos2, galley: Arc<Galley>, text_color: Color32) -> Self {
+    pub fn galley_with_color(pos: Pos2, galley: Rc<Galley>, text_color: Color32) -> Self {
         TextShape {
             override_text_color: Some(text_color),
             ..TextShape::new(pos, galley)
@@ -569,7 +569,7 @@ pub struct TextShape {
     pub pos: Pos2,
 
     /// The layed out text, from [`Fonts::layout_job`].
-    pub galley: Arc<Galley>,
+    pub galley: Rc<Galley>,
 
     /// Add this underline to the whole text.
     /// You can also set an underline when creating the galley.
@@ -587,7 +587,7 @@ pub struct TextShape {
 
 impl TextShape {
     #[inline]
-    pub fn new(pos: Pos2, galley: Arc<Galley>) -> Self {
+    pub fn new(pos: Pos2, galley: Rc<Galley>) -> Self {
         Self {
             pos,
             galley,
@@ -759,7 +759,7 @@ pub struct PaintCallback {
     ///
     /// The rendering backend is also responsible for restoring any state, such as the bound shader
     /// program, vertex array, etc.
-    pub callback: Arc<dyn Any + Sync + Send>,
+    pub callback: Rc<dyn Any>,
 }
 
 impl std::fmt::Debug for PaintCallback {
@@ -776,7 +776,7 @@ impl std::cmp::PartialEq for PaintCallback {
         // can only happen if we do dynamic casts back and forth on the pointers, and we don't do that.
         #[allow(clippy::vtable_address_comparisons)]
         {
-            self.rect.eq(&other.rect) && Arc::ptr_eq(&self.callback, &other.callback)
+            self.rect.eq(&other.rect) && Rc::ptr_eq(&self.callback, &other.callback)
         }
     }
 }

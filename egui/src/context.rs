@@ -1,5 +1,5 @@
 // #![warn(missing_docs)]
-use std::sync::Arc;
+use std::{rc::Rc, sync::Arc};
 
 use crate::{
     animation_manager::AnimationManager, data::output::PlatformOutput, frame_state::FrameState,
@@ -622,7 +622,7 @@ impl Context {
 
     /// Returns a refernce to the [`Style`] used by all new windows, panels etc.
     #[inline]
-    pub fn style(&self) -> &Arc<Style> {
+    pub fn style(&self) -> &Rc<Style> {
         &self.options().style
     }
 
@@ -637,7 +637,7 @@ impl Context {
     /// ```
     #[inline]
     pub fn style_mut(&mut self) -> &mut Style {
-        Arc::make_mut(&mut self.options_mut().style)
+        Rc::make_mut(&mut self.options_mut().style)
     }
 
     #[inline]

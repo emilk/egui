@@ -1,6 +1,4 @@
-use std::sync::Arc;
-
-use crate::mutex::Mutex;
+use std::{cell::RefCell, rc::Rc};
 
 use crate::*;
 
@@ -19,9 +17,9 @@ pub struct TextEditState {
     /// so users are more likely to read/write this.
     ccursor_range: Option<CCursorRange>,
 
-    /// Wrapped in Arc for cheaper clones.
+    /// Wrapped in Rc for cheaper clones.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) undoer: Arc<Mutex<Undoer>>,
+    pub(crate) undoer: Rc<RefCell<Undoer>>,
 
     // If IME candidate window is shown on this text edit.
     #[cfg_attr(feature = "serde", serde(skip))]

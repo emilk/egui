@@ -373,11 +373,7 @@ impl IdTypeMap {
     }
 
     #[inline]
-    pub fn get_temp_mut_or<T: 'static + Any + Clone>(
-        &mut self,
-        id: Id,
-        or_insert: T,
-    ) -> &mut T {
+    pub fn get_temp_mut_or<T: 'static + Any + Clone>(&mut self, id: Id, or_insert: T) -> &mut T {
         self.get_temp_mut_or_insert_with(id, || or_insert)
     }
 

@@ -1,9 +1,6 @@
 // #![warn(missing_docs)]
 
-use std::hash::Hash;
-use std::sync::Arc;
-
-use epaint::mutex::RwLock;
+use std::{cell::RefCell, hash::Hash, rc::Rc};
 
 use crate::{
     color::*, containers::*, epaint::text::Fonts, layout::*, menu::MenuState, placer::Placer,
@@ -53,7 +50,7 @@ pub struct Ui<'c> {
     /// The [`Style`] (visuals, spacing, etc) of this ui.
     /// Commonly many [`Ui`]:s share the same [`Style`].
     /// The [`Ui`] implements copy-on-write for this.
-    style: Arc<Style>,
+    style: Rc<Style>,
 
     /// Handles the [`Ui`] size and the placement of new widgets.
     placer: Placer,
@@ -63,7 +60,7 @@ pub struct Ui<'c> {
     enabled: bool,
 
     /// Indicates whether this Ui belongs to a Menu.
-    menu_state: Option<Arc<RwLock<MenuState>>>,
+    menu_state: Option<Rc<RefCell<MenuState>>>,
 }
 
 impl<'c> Ui<'c> {
@@ -134,7 +131,7 @@ impl<'c> Ui<'c> {
     ///
     /// Note that this may be a different [`Style`] than that of [`Context::style`].
     #[inline]
-    pub fn style(&self) -> &Arc<Style> {
+    pub fn style(&self) -> &Rc<Style> {
         &self.style
     }
 
@@ -150,7 +147,7 @@ impl<'c> Ui<'c> {
     /// # });
     /// ```
     pub fn style_mut(&mut self) -> &mut Style {
-        Arc::make_mut(&mut self.style) // clone-on-write
+        Rc::make_mut(&mut self.style) // clone-on-write
     }
 
     /// Reset to the default style set in [`Context`].
@@ -2097,16 +2094,16 @@ impl<'c> Ui<'c> {
     /// See also: [`Self::menu_button`] and [`Response::context_menu`].
     pub fn close_menu(&mut self) {
         if let Some(menu_state) = &mut self.menu_state {
-            menu_state.write().close();
+            menu_state.borrow_mut().close();
         }
         self.menu_state = None;
     }
 
-    pub(crate) fn get_menu_state(&self) -> Option<Arc<RwLock<MenuState>>> {
+    pub(crate) fn get_menu_state(&self) -> Option<Rc<RefCell<MenuState>>> {
         self.menu_state.clone()
     }
 
-    pub(crate) fn set_menu_state(&mut self, menu_state: Option<Arc<RwLock<MenuState>>>) {
+    pub(crate) fn set_menu_state(&mut self, menu_state: Option<Rc<RefCell<MenuState>>>) {
         self.menu_state = menu_state;
     }
 

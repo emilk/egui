@@ -1,5 +1,4 @@
-use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::{collections::BTreeMap, rc::Rc, sync::Arc};
 
 use crate::{
     mutex::{Mutex, MutexGuard},
@@ -450,7 +449,7 @@ impl Fonts {
     ///
     /// The implementation uses memoization so repeated calls are cheap.
     #[inline]
-    pub fn layout_job(&self, job: LayoutJob) -> Arc<Galley> {
+    pub fn layout_job(&self, job: LayoutJob) -> Rc<Galley> {
         self.lock().layout_job(job)
     }
 
@@ -475,7 +474,7 @@ impl Fonts {
         font_id: FontId,
         color: crate::Color32,
         wrap_width: f32,
-    ) -> Arc<Galley> {
+    ) -> Rc<Galley> {
         let job = LayoutJob::simple(text, font_id, color, wrap_width);
         self.layout_job(job)
     }
@@ -488,7 +487,7 @@ impl Fonts {
         text: String,
         font_id: FontId,
         color: crate::Color32,
-    ) -> Arc<Galley> {
+    ) -> Rc<Galley> {
         let job = LayoutJob::simple(text, font_id, color, f32::INFINITY);
         self.layout_job(job)
     }
@@ -501,7 +500,7 @@ impl Fonts {
         text: String,
         font_id: FontId,
         wrap_width: f32,
-    ) -> Arc<Galley> {
+    ) -> Rc<Galley> {
         self.layout_job(LayoutJob::simple(
             text,
             font_id,
@@ -519,7 +518,7 @@ pub struct FontsAndCache {
 }
 
 impl FontsAndCache {
-    fn layout_job(&mut self, job: LayoutJob) -> Arc<Galley> {
+    fn layout_job(&mut self, job: LayoutJob) -> Rc<Galley> {
         self.galley_cache.layout(&mut self.fonts, job)
     }
 }
@@ -594,7 +593,7 @@ impl FontsImpl {
                     panic!("FontFamily::{:?} is not bound to any fonts", family)
                 });
 
-                let fonts: Vec<Arc<FontImpl>> = fonts
+                let fonts: Vec<Rc<FontImpl>> = fonts
                     .iter()
                     .map(|font_name| self.font_impl_cache.font_impl(scale_in_pixels, font_name))
                     .collect();
@@ -619,7 +618,7 @@ impl FontsImpl {
 struct CachedGalley {
     /// When it was last used
     last_used: u32,
-    galley: Arc<Galley>,
+    galley: Rc<Galley>,
 }
 
 #[derive(Default)]
@@ -630,7 +629,7 @@ struct GalleyCache {
 }
 
 impl GalleyCache {
-    fn layout(&mut self, fonts: &mut FontsImpl, job: LayoutJob) -> Arc<Galley> {
+    fn layout(&mut self, fonts: &mut FontsImpl, job: LayoutJob) -> Rc<Galley> {
         let hash = crate::util::hash(&job); // TODO(emilk): even faster hasher?
 
         match self.cache.entry(hash) {
@@ -641,7 +640,7 @@ impl GalleyCache {
             }
             std::collections::hash_map::Entry::Vacant(entry) => {
                 let galley = super::layout(fonts, job.into());
-                let galley = Arc::new(galley);
+                let galley = Rc::new(galley);
                 entry.insert(CachedGalley {
                     last_used: self.generation,
                     galley: galley.clone(),
@@ -673,7 +672,7 @@ struct FontImplCache {
     ab_glyph_fonts: BTreeMap<String, (FontTweak, ab_glyph::FontArc)>,
 
     /// Map font pixel sizes and names to the cached [`FontImpl`].
-    cache: ahash::AHashMap<(u32, String), Arc<FontImpl>>,
+    cache: ahash::AHashMap<(u32, String), Rc<FontImpl>>,
 }
 
 impl FontImplCache {
@@ -708,7 +707,7 @@ impl FontImplCache {
         scale_in_pixels.round() as u32
     }
 
-    pub fn font_impl(&mut self, scale_in_pixels: u32, font_name: &str) -> Arc<FontImpl> {
+    pub fn font_impl(&mut self, scale_in_pixels: u32, font_name: &str) -> Rc<FontImpl> {
         let (tweak, ab_glyph_font) = self
             .ab_glyph_fonts
             .get(font_name)
@@ -725,7 +724,7 @@ impl FontImplCache {
         self.cache
             .entry((scale_in_pixels, font_name.to_owned()))
             .or_insert_with(|| {
-                Arc::new(FontImpl::new(
+                Rc::new(FontImpl::new(
                     self.atlas.clone(),
                     self.pixels_per_point,
                     font_name.to_owned(),

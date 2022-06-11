@@ -1,5 +1,4 @@
-use std::ops::RangeInclusive;
-use std::sync::Arc;
+use std::{ops::RangeInclusive, rc::Rc};
 
 use crate::{
     emath::{pos2, Align2, Pos2, Rect, Vec2},
@@ -420,7 +419,7 @@ impl Painter {
     ///
     /// If you want to change the color of the text, use [`Self::galley_with_color`].
     #[inline(always)]
-    pub fn galley(&self, ctx: &mut Context, pos: Pos2, galley: Arc<Galley>) {
+    pub fn galley(&self, ctx: &mut Context, pos: Pos2, galley: Rc<Galley>) {
         if !galley.is_empty() {
             self.add(ctx, Shape::galley(pos, galley));
         }
@@ -436,7 +435,7 @@ impl Painter {
         &self,
         ctx: &mut Context,
         pos: Pos2,
-        galley: Arc<Galley>,
+        galley: Rc<Galley>,
         text_color: Color32,
     ) {
         if !galley.is_empty() {

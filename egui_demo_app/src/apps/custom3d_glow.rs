@@ -1,21 +1,18 @@
-use std::sync::Arc;
+use std::rc::Rc;
 
 use eframe::egui_glow;
-use egui::mutex::Mutex;
 use egui_glow::glow;
 
 pub struct Custom3d {
-    /// Behind an `Arc<Mutex<…>>` so we can pass it to [`egui::PaintCallback`] and paint later.
-    rotating_triangle: Arc<Mutex<RotatingTriangle>>,
+    /// Behind an `Rc<…>` so we can pass it to [`egui::PaintCallback`] and paint later.
+    rotating_triangle: Rc<RotatingTriangle>,
     angle: f32,
 }
 
 impl Custom3d {
     pub fn new(cc: &eframe::CreationContext<'_, '_>) -> Self {
         Self {
-            rotating_triangle: Arc::new(Mutex::new(RotatingTriangle::new(
-                cc.gl.as_ref().expect("GL Enabled"),
-            ))),
+            rotating_triangle: Rc::new(RotatingTriangle::new(cc.gl.as_ref().expect("GL Enabled"))),
             angle: 0.0,
         }
     }
@@ -44,7 +41,7 @@ impl eframe::App for Custom3d {
 
     fn on_exit(&mut self, gl: Option<&glow::Context>) {
         if let Some(gl) = gl {
-            self.rotating_triangle.lock().destroy(gl);
+            self.rotating_triangle.destroy(gl);
         }
     }
 }
@@ -61,12 +58,12 @@ impl Custom3d {
         let rotating_triangle = self.rotating_triangle.clone();
 
         let cb = egui_glow::CallbackFn::new(move |_info, painter| {
-            rotating_triangle.lock().paint(painter.gl(), angle);
+            rotating_triangle.paint(painter.gl(), angle);
         });
 
         let callback = egui::PaintCallback {
             rect,
-            callback: Arc::new(cb),
+            callback: Rc::new(cb),
         };
         ui.painter.add(ui.ctx, callback);
     }

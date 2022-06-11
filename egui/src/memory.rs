@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use epaint::ahash::AHashSet;
 
 use crate::{area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
@@ -27,7 +29,7 @@ pub struct Memory {
     /// This is NOT meant to store any important data. Store that in your own structures!
     ///
     /// Each read clones the data, so keep your values cheap to clone.
-    /// If you want to store a lot of data you should wrap it in `Arc<Mutex<…>>` so it is cheap to clone.
+    /// If you want to store a lot of data you should wrap it in `Rc<RefCell<…>>` so it is cheap to clone.
     ///
     /// This will be saved between different program runs if you use the `persistence` feature.
     ///
@@ -99,7 +101,7 @@ pub struct Memory {
 pub struct Options {
     /// The default style for new [`Ui`](crate::Ui):s.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) style: std::sync::Arc<Style>,
+    pub(crate) style: Rc<Style>,
 
     /// Controls the tessellator.
     pub tessellation_options: epaint::TessellationOptions,

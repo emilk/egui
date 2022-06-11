@@ -1,5 +1,7 @@
 use crate::*;
 
+use std::rc::Rc;
+
 pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
     #![allow(clippy::match_same_arms)]
     match shape {
@@ -30,7 +32,7 @@ pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
             }
 
             if !text_shape.galley.is_empty() {
-                let galley = std::sync::Arc::make_mut(&mut text_shape.galley);
+                let galley = Rc::make_mut(&mut text_shape.galley);
                 for row in &mut galley.rows {
                     for vertex in &mut row.visuals.mesh.vertices {
                         adjust_color(&mut vertex.color);

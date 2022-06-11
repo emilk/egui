@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::rc::Rc;
 
 use crate::{
     style::WidgetVisuals, text::LayoutJob, Align, Color32, Context, FontFamily, FontSelection,
@@ -353,7 +353,7 @@ pub enum WidgetText {
     LayoutJob(LayoutJob),
 
     /// Use exactly this galley when painting the text.
-    Galley(Arc<Galley>),
+    Galley(Rc<Galley>),
 }
 
 impl Default for WidgetText {
@@ -619,9 +619,9 @@ impl From<LayoutJob> for WidgetText {
     }
 }
 
-impl From<Arc<Galley>> for WidgetText {
+impl From<Rc<Galley>> for WidgetText {
     #[inline]
-    fn from(galley: Arc<Galley>) -> Self {
+    fn from(galley: Rc<Galley>) -> Self {
         Self::Galley(galley)
     }
 }
@@ -650,7 +650,7 @@ impl WidgetTextJob {
 /// Text that has been layed out and ready to be painted.
 #[derive(Clone, PartialEq)]
 pub struct WidgetTextGalley {
-    pub galley: Arc<Galley>,
+    pub galley: Rc<Galley>,
     pub galley_has_color: bool,
 }
 
@@ -668,7 +668,7 @@ impl WidgetTextGalley {
     }
 
     #[inline]
-    pub fn galley(&self) -> &Arc<Galley> {
+    pub fn galley(&self) -> &Rc<Galley> {
         &self.galley
     }
 

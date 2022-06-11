@@ -78,11 +78,11 @@ pub struct Painter {
 ///
 /// See the [`custom3d_glow`](https://github.com/emilk/egui/blob/master/egui_demo_app/src/apps/custom3d_wgpu.rs) demo source for a detailed usage example.
 pub struct CallbackFn {
-    f: Box<dyn Fn(PaintCallbackInfo, &Painter) + Sync + Send>,
+    f: Box<dyn Fn(PaintCallbackInfo, &Painter)>,
 }
 
 impl CallbackFn {
-    pub fn new<F: Fn(PaintCallbackInfo, &Painter) + Sync + Send + 'static>(callback: F) -> Self {
+    pub fn new<F: Fn(PaintCallbackInfo, &Painter) + 'static>(callback: F) -> Self {
         let f = Box::new(callback);
         CallbackFn { f }
     }

@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::*;
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -47,7 +49,7 @@ impl State {
 // ----------------------------------------------------------------------------
 
 pub(crate) struct GridLayout {
-    style: std::sync::Arc<Style>,
+    style: Rc<Style>,
     id: Id,
 
     /// State previous frame (if any).
