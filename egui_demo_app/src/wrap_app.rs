@@ -97,7 +97,7 @@ pub struct WrapApp {
 }
 
 impl WrapApp {
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(cc: &mut eframe::CreationContext<'_, '_>) -> Self {
         #[allow(unused_mut)]
         let mut slf = Self {
             state: State::default(),

@@ -9,15 +9,15 @@
 /// This is how your app is created.
 ///
 /// You can use the [`CreationContext`] to setup egui, restore state, setup OpenGL things, etc.
-pub type AppCreator = Box<dyn FnOnce(&CreationContext<'_>) -> Box<dyn App>>;
+pub type AppCreator = Box<dyn FnOnce(&mut CreationContext<'_, '_>) -> Box<dyn App>>;
 
 /// Data that is passed to [`AppCreator`] that can be used to setup and initialize your app.
-pub struct CreationContext<'s> {
+pub struct CreationContext<'c, 's> {
     /// The egui Context.
     ///
     /// You can use this to customize the look of egui, e.g to call [`egui::Context::set_fonts`],
     /// [`egui::Context::set_visuals`] etc.
-    pub egui_ctx: egui::Context,
+    pub egui_ctx: &'c mut egui::Context,
 
     /// Information about the surrounding environment.
     pub integration_info: IntegrationInfo,

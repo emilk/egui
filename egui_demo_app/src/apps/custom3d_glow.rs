@@ -11,7 +11,7 @@ pub struct Custom3d {
 }
 
 impl Custom3d {
-    pub fn new<'a>(cc: &'a eframe::CreationContext<'a>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_, '_>) -> Self {
         Self {
             rotating_triangle: Arc::new(Mutex::new(RotatingTriangle::new(
                 cc.gl.as_ref().expect("GL Enabled"),
