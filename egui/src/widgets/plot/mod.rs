@@ -616,12 +616,21 @@ impl Plot {
             ..
         } = memory;
 
+        // We need to subtract the drag delta to keep in sync with the frame-delayed screen transform:
+        let last_pointer_pos = ui
+            .ctx
+            .input()
+            .pointer
+            .latest_pos()
+            .map(|p| p - response.drag_delta());
+
         // Call the plot build function.
         let mut plot_ui = PlotUi {
             items: Vec::new(),
             next_auto_color_idx: 0,
             last_screen_transform,
             response,
+            last_pointer_pos,
         };
         let inner = build_fn(&mut plot_ui);
         let PlotUi {
@@ -868,6 +877,7 @@ pub struct PlotUi {
     next_auto_color_idx: usize,
     last_screen_transform: ScreenTransform,
     response: Response,
+    last_pointer_pos: Option<Pos2>,
 }
 
 impl PlotUi {
@@ -897,11 +907,8 @@ impl PlotUi {
     }
 
     /// The pointer position in plot coordinates. Independent of whether the pointer is in the plot area.
-    pub fn pointer_coordinate(&self, ctx: &Context) -> Option<Value> {
-        // We need to subtract the drag delta to keep in sync with the frame-delayed screen transform:
-        let last_pos = ctx.input().pointer.latest_pos()? - self.response.drag_delta();
-        let value = self.plot_from_screen(last_pos);
-        Some(value)
+    pub fn pointer_coordinate(&self) -> Option<Value> {
+        self.last_pointer_pos.map(|p| self.plot_from_screen(p))
     }
 
     /// The pointer drag delta in plot coordinates.

@@ -601,7 +601,7 @@ impl InteractionDemo {
         } = plot.show(ui, |plot_ui| {
             (
                 plot_ui.screen_from_plot(Value::new(0.0, 0.0)),
-                plot_ui.pointer_coordinate(ui.ctx),
+                plot_ui.pointer_coordinate(),
                 plot_ui.pointer_coordinate_drag_delta(),
                 plot_ui.plot_bounds(),
                 plot_ui.plot_hovered(),
