@@ -291,21 +291,21 @@ impl EguiWindows {
             .open(&mut self.settings)
             .vscroll(true)
             .show(ctx, |ui| {
-                ctx.settings_ui(ui);
+                egui::introspection::settings_ui(ui);
             });
 
         egui::Window::new("🔍 Inspection")
             .open(&mut self.inspection)
             .vscroll(true)
             .show(ctx, |ui| {
-                ctx.inspection_ui(ui);
+                egui::introspection::inspection_ui(ui);
             });
 
         egui::Window::new("📝 Memory")
             .open(&mut self.memory)
             .resizable(false)
             .show(ctx, |ui| {
-                ctx.memory_ui(ui);
+                egui::introspection::memory_ui(ui);
             });
 
         egui::Window::new("📤 Output Events")
