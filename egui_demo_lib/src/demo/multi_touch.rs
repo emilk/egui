@@ -115,7 +115,7 @@ impl super::View for MultiTouch {
 }
 
 impl MultiTouch {
-    fn slowly_reset(&mut self, ui: &egui::Ui<'_>) {
+    fn slowly_reset(&mut self, ui: &mut egui::Ui<'_>) {
         // This has nothing to do with the touch gesture. It just smoothly brings the
         // painted arrow back into its original position, for a nice visual effect:
 

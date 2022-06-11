@@ -291,7 +291,7 @@ impl DemoWindows {
                 ui.separator();
 
                 if ui.button("Organize windows").clicked() {
-                    ui.ctx.memory().reset_areas();
+                    ui.ctx.memory_mut().reset_areas();
                 }
             });
         });
@@ -303,7 +303,7 @@ impl DemoWindows {
 fn file_menu_button(ui: &mut Ui<'_>) {
     ui.menu_button("File", |ui| {
         if ui.button("Organize windows").clicked() {
-            ui.ctx.memory().reset_areas();
+            ui.ctx.memory_mut().reset_areas();
             ui.close_menu();
         }
         if ui
@@ -311,7 +311,7 @@ fn file_menu_button(ui: &mut Ui<'_>) {
             .on_hover_text(ui.ctx, "Forget scroll, positions, sizes etc")
             .clicked()
         {
-            *ui.ctx.memory() = Default::default();
+            *ui.ctx.memory_mut() = Default::default();
             ui.close_menu();
         }
     });

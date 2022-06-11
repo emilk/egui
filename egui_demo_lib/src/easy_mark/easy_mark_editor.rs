@@ -82,7 +82,7 @@ impl EasyMarkEditor {
         } = self;
 
         let response = if self.highlight_editor {
-            let mut layouter = |ui: &egui::Ui<'_>, easymark: &str, wrap_width: f32| {
+            let mut layouter = |ui: &mut egui::Ui<'_>, easymark: &str, wrap_width: f32| {
                 let mut layout_job = highlighter.highlight(ui.style(), easymark);
                 layout_job.wrap.max_width = wrap_width;
                 ui.fonts().layout_job(layout_job)
@@ -110,7 +110,7 @@ impl EasyMarkEditor {
     }
 }
 
-fn shortcuts(ui: &Ui<'_>, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRange) -> bool {
+fn shortcuts(ui: &mut Ui<'_>, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRange) -> bool {
     let mut any_change = false;
     for (key, surrounding) in [
         (Key::B, "*"), // *bold*

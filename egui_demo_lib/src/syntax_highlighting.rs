@@ -5,7 +5,7 @@ pub fn code_view_ui(ui: &mut egui::Ui<'_>, mut code: &str) {
     let language = "rs";
     let theme = CodeTheme::from_memory(ui.ctx);
 
-    let mut layouter = |ui: &egui::Ui<'_>, string: &str, _wrap_width: f32| {
+    let mut layouter = |ui: &mut egui::Ui<'_>, string: &str, _wrap_width: f32| {
         let layout_job = highlight(ui.ctx, &theme, string, language);
         // layout_job.wrap.max_width = wrap_width; // no wrapping
         ui.fonts().layout_job(layout_job)
@@ -36,8 +36,7 @@ pub fn highlight(
 
     type HighlightCache<'a> = egui::util::cache::FrameCache<LayoutJob, Highlighter>;
 
-    let mut memory = ctx.memory();
-    let highlight_cache = memory.caches.cache::<HighlightCache<'_>>();
+    let highlight_cache = ctx.memory_mut().caches.cache::<HighlightCache<'_>>();
     highlight_cache.get((theme, code, language))
 }
 
@@ -151,11 +150,11 @@ impl CodeTheme {
 
     pub fn from_memory(ctx: &mut egui::Context) -> Self {
         if ctx.style().visuals.dark_mode {
-            ctx.data()
+            ctx.data_mut()
                 .get_persisted(egui::Id::new("dark"))
                 .unwrap_or_else(CodeTheme::dark)
         } else {
-            ctx.data()
+            ctx.data_mut()
                 .get_persisted(egui::Id::new("light"))
                 .unwrap_or_else(CodeTheme::light)
         }
@@ -163,9 +162,10 @@ impl CodeTheme {
 
     pub fn store_in_memory(self, ctx: &mut egui::Context) {
         if self.dark_mode {
-            ctx.data().insert_persisted(egui::Id::new("dark"), self);
+            ctx.data_mut().insert_persisted(egui::Id::new("dark"), self);
         } else {
-            ctx.data().insert_persisted(egui::Id::new("light"), self);
+            ctx.data_mut()
+                .insert_persisted(egui::Id::new("light"), self);
         }
     }
 }
@@ -236,7 +236,8 @@ impl CodeTheme {
         ui.horizontal_top(|ui| {
             let selected_id = egui::Id::null();
             let mut selected_tt: TokenType = *ui
-                .data()
+                .ctx
+                .data_mut()
                 .get_persisted_mut_or(selected_id, TokenType::Comment);
 
             ui.vertical(|ui| {
@@ -279,7 +280,7 @@ impl CodeTheme {
 
             ui.add_space(16.0);
 
-            ui.data().insert_persisted(selected_id, selected_tt);
+            ui.ctx.data_mut().insert_persisted(selected_id, selected_tt);
 
             egui::Frame::group(ui.style())
                 .inner_margin(egui::Vec2::splat(2.0))

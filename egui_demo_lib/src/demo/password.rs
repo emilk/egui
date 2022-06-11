@@ -20,7 +20,11 @@ pub fn password_ui(ui: &mut egui::Ui<'_>, password: &mut String) -> egui::Respon
 
     // Get state for this widget.
     // You should get state by value, not by reference to avoid borrowing of [`Memory`].
-    let mut show_plaintext = ui.data().get_temp::<bool>(state_id).unwrap_or(false);
+    let mut show_plaintext = ui
+        .ctx
+        .data_mut()
+        .get_temp::<bool>(state_id)
+        .unwrap_or(false);
 
     // Process ui, change a local copy of the state
     // We want TextEdit to fill entire space, and have button after that, so in that case we can
@@ -43,7 +47,7 @@ pub fn password_ui(ui: &mut egui::Ui<'_>, password: &mut String) -> egui::Respon
     });
 
     // Store the (possibly changed) state:
-    ui.data().insert_temp(state_id, show_plaintext);
+    ui.ctx.data_mut().insert_temp(state_id, show_plaintext);
 
     // All done! Return the interaction response so the user can check what happened
     // (hovered, clicked, …) and maybe show a tooltip:

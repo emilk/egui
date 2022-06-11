@@ -57,7 +57,7 @@ pub struct TextEdit<'t> {
     id_source: Option<Id>,
     font_selection: FontSelection,
     text_color: Option<Color32>,
-    layouter: Option<&'t mut dyn FnMut(&Ui<'_>, &str, f32) -> Arc<Galley>>,
+    layouter: Option<&'t mut dyn FnMut(&mut Ui<'_>, &str, f32) -> Arc<Galley>>,
     password: bool,
     frame: bool,
     margin: Vec2,
@@ -193,7 +193,7 @@ impl<'t> TextEdit<'t> {
     /// ```
     pub fn layouter(
         mut self,
-        layouter: &'t mut dyn FnMut(&Ui<'_>, &str, f32) -> Arc<Galley>,
+        layouter: &'t mut dyn FnMut(&mut Ui<'_>, &str, f32) -> Arc<Galley>,
     ) -> Self {
         self.layouter = Some(layouter);
 
@@ -375,7 +375,7 @@ impl<'t> TextEdit<'t> {
         };
 
         let font_id_clone = font_id.clone();
-        let mut default_layouter = move |ui: &Ui<'_>, text: &str, wrap_width: f32| {
+        let mut default_layouter = move |ui: &mut Ui<'_>, text: &str, wrap_width: f32| {
             let text = mask_if_password(password, text);
             ui.fonts().layout_job(if multiline {
                 LayoutJob::simple(text, font_id_clone.clone(), text_color, wrap_width)
@@ -676,7 +676,7 @@ fn events(
     state: &mut TextEditState,
     text: &mut dyn TextBuffer,
     galley: &mut Arc<Galley>,
-    layouter: &mut dyn FnMut(&Ui<'_>, &str, f32) -> Arc<Galley>,
+    layouter: &mut dyn FnMut(&mut Ui<'_>, &str, f32) -> Arc<Galley>,
     id: Id,
     wrap_width: f32,
     multiline: bool,

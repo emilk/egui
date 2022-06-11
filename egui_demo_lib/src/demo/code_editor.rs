@@ -75,7 +75,7 @@ impl super::View for CodeEditor {
             });
         });
 
-        let mut layouter = |ui: &egui::Ui<'_>, string: &str, wrap_width: f32| {
+        let mut layouter = |ui: &mut egui::Ui<'_>, string: &str, wrap_width: f32| {
             let mut layout_job =
                 crate::syntax_highlighting::highlight(ui.ctx, &theme, string, language);
             layout_job.wrap.max_width = wrap_width;
