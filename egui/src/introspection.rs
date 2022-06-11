@@ -281,7 +281,7 @@ pub fn inspection_ui(ui: &mut Ui<'_>) {
     CollapsingHeader::new("📊 Paint stats")
         .default_open(false)
         .show(ui, |ui| {
-            let paint_stats = ui.ctx.paint_stats().clone();
+            let paint_stats = *ui.ctx.paint_stats();
             paint_stats.ui(ui);
         });
 
@@ -384,10 +384,14 @@ pub fn memory_ui(ui: &mut Ui<'_>) {
     ui.indent("areas", |ui| {
         ui.label("Visible areas, ordered back to front.");
         ui.label("Hover to highlight");
-        for layer_id in ui.ctx.memory().areas.order().to_owned() {
+
+        // Need to use indexing to satisfy borrow checker.
+        for i in 0..ui.ctx.memory().areas.order().len() {
+            let layer_id = &ui.ctx.memory().areas.order()[i];
+
             let area = ui.ctx.memory().areas.get(layer_id.id).cloned();
             if let Some(area) = area {
-                if !ui.ctx.memory().areas.is_visible(&layer_id) {
+                if !ui.ctx.memory().areas.is_visible(layer_id) {
                     continue;
                 }
                 let text = format!("{} - {:?}", layer_id.short_debug_format(), area.rect());

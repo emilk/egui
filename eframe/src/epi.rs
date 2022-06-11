@@ -304,6 +304,7 @@ impl NativeOptions {
 
     /// The theme used by the system.
     #[cfg(not(feature = "dark-light"))]
+    #[allow(clippy::unused_self)]
     pub fn system_theme(&self) -> Option<Theme> {
         None
     }

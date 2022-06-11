@@ -40,7 +40,7 @@ pub struct FractalClockApp {
 impl eframe::App for FractalClockApp {
     fn update(&mut self, ctx: &mut egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default()
-            .frame(egui::Frame::dark_canvas(&ctx.style()))
+            .frame(egui::Frame::dark_canvas(ctx.style()))
             .show(ctx, |ui| {
                 self.fractal_clock.ui(ui, crate::seconds_since_midnight());
             });
@@ -327,7 +327,7 @@ impl WrapApp {
                 screen_rect.center(),
                 Align2::CENTER_CENTER,
                 text,
-                TextStyle::Heading.resolve(&ctx.style()),
+                TextStyle::Heading.resolve(ctx.style()),
                 Color32::WHITE,
             );
         }
