@@ -135,7 +135,11 @@ impl<'a, 'c> TableBuilder<'a, 'c> {
     }
 
     /// Create a header row which always stays visible and at the top
-    pub fn header(self, height: f32, header: impl FnOnce(TableRow<'_, '_, '_, '_>)) -> Table<'a, 'c> {
+    pub fn header(
+        self,
+        height: f32,
+        header: impl FnOnce(TableRow<'_, '_, '_, '_>),
+    ) -> Table<'a, 'c> {
         let available_width = self.available_width();
 
         let Self {

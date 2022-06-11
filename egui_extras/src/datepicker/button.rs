@@ -65,8 +65,8 @@ impl<'a> Widget for DatePickerButton<'a> {
     fn ui(self, ui: &mut Ui<'_>) -> egui::Response {
         let id = ui.make_persistent_id(&self.id_source);
         let mut button_state = ui
-            .memory()
-            .data
+            .ctx
+            .data_mut()
             .get_persisted::<DatePickerButtonState>(id)
             .unwrap_or_default();
 
@@ -82,7 +82,7 @@ impl<'a> Widget for DatePickerButton<'a> {
         let button_response = ui.add(button);
         if button_response.clicked() {
             button_state.picker_visible = true;
-            ui.memory().data.insert_persisted(id, button_state.clone());
+            ui.ctx.data_mut().insert_persisted(id, button_state.clone());
         }
 
         if button_state.picker_visible {
@@ -127,7 +127,7 @@ impl<'a> Widget for DatePickerButton<'a> {
                 && (ui.input().key_pressed(Key::Escape) || area_response.clicked_elsewhere())
             {
                 button_state.picker_visible = false;
-                ui.memory().data.insert_persisted(id, button_state);
+                ui.ctx.data_mut().insert_persisted(id, button_state);
             }
         }
 
