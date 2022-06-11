@@ -687,7 +687,7 @@ impl Visuals {
             dark_mode: false,
             widgets: Widgets::light(),
             selection: Selection::light(),
-            hyperlink_color: Color32::from_rgb(0, 155, 255),
+            hyperlink_color: Color32::from_rgb(0, 115, 235),
             faint_bg_color: Color32::from_gray(242),
             extreme_bg_color: Color32::from_gray(255), // e.g. TextEdit background
             code_bg_color: Color32::from_gray(230),
