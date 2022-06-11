@@ -22,7 +22,7 @@ impl Custom3d {
 }
 
 impl eframe::App for Custom3d {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &mut egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;
@@ -68,7 +68,7 @@ impl Custom3d {
             rect,
             callback: Arc::new(cb),
         };
-        ui.painter().add(callback);
+        ui.painter.add(ui.ctx, callback);
     }
 }
 

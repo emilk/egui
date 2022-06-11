@@ -37,13 +37,14 @@ impl FrameHistory {
             "Total frames painted: {}",
             self.frame_times.total_count()
         ))
-        .on_hover_text("Includes this frame.");
+        .on_hover_text(ui.ctx, "Includes this frame.");
 
         ui.label(format!(
             "Mean CPU usage: {:.2} ms / frame",
             1e3 * self.mean_frame_time()
         ))
         .on_hover_text(
+            ui.ctx,
             "Includes egui layout and tessellation time.\n\
             Does not include GPU usage, nor overhead for sending data to GPU.",
         );
@@ -123,7 +124,7 @@ impl FrameHistory {
             }
         }
 
-        ui.painter().extend(shapes);
+        ui.painter.extend(ui.ctx, shapes);
 
         response
     }

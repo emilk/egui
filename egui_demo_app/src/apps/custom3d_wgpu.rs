@@ -152,7 +152,7 @@ impl Custom3d {
             callback: Arc::new(cb),
         };
 
-        ui.painter().add(callback);
+        ui.painter.add(callback);
     }
 }
 

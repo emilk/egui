@@ -497,6 +497,13 @@ impl Context {
         &mut self.graphics
     }
 
+    /// Returns a reference to the current frame's output, which can be
+    /// used by the platform integration.
+    #[inline]
+    pub fn output(&self) -> &PlatformOutput {
+        &self.output
+    }
+
     /// Returns a mutable reference to the current frame's output, which can be
     /// used by the platform integration.
     ///

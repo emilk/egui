@@ -10,7 +10,7 @@ struct EasyMarkApp {
 }
 
 impl eframe::App for EasyMarkApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &mut egui::Context, _frame: &mut eframe::Frame) {
         self.editor.panels(ctx);
     }
 }
@@ -24,7 +24,7 @@ pub struct DemoApp {
 }
 
 impl eframe::App for DemoApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &mut egui::Context, _frame: &mut eframe::Frame) {
         self.demo_windows.ui(ctx);
     }
 }
@@ -38,7 +38,7 @@ pub struct FractalClockApp {
 }
 
 impl eframe::App for FractalClockApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &mut egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default()
             .frame(egui::Frame::dark_canvas(&ctx.style()))
             .show(ctx, |ui| {
@@ -56,7 +56,7 @@ pub struct ColorTestApp {
 }
 
 impl eframe::App for ColorTestApp {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &mut egui::Context, frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             if frame.is_web() {
                 ui.label(
@@ -166,7 +166,7 @@ impl eframe::App for WrapApp {
         visuals.window_fill().into()
     }
 
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &mut egui::Context, frame: &mut eframe::Frame) {
         if let Some(web_info) = frame.info().web_info.as_ref() {
             if let Some(anchor) = web_info.location.hash.strip_prefix('#') {
                 self.state.selected_anchor = anchor.to_owned();
@@ -225,22 +225,22 @@ impl WrapApp {
         ui.horizontal(|ui| {
             if ui
                 .button("Reset egui")
-                .on_hover_text("Forget scroll, positions, sizes etc")
+                .on_hover_text(ui.ctx, "Forget scroll, positions, sizes etc")
                 .clicked()
             {
-                *ui.ctx().memory() = Default::default();
+                *ui.ctx.memory_mut() = Default::default();
                 ui.close_menu();
             }
 
             if ui.button("Reset everything").clicked() {
                 self.state = Default::default();
-                *ui.ctx().memory() = Default::default();
+                *ui.ctx.memory_mut() = Default::default();
                 ui.close_menu();
             }
         });
     }
 
-    fn show_selected_app(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn show_selected_app(&mut self, ctx: &mut egui::Context, frame: &mut eframe::Frame) {
         let mut found_anchor = false;
         let selected_anchor = self.state.selected_anchor.clone();
         for (_name, anchor, app) in self.apps_iter_mut() {
@@ -259,9 +259,9 @@ impl WrapApp {
 
         ui.separator();
 
-        if is_mobile(ui.ctx()) {
+        if is_mobile(ui.ctx) {
             ui.menu_button("💻 Backend", |ui| {
-                ui.set_style(ui.ctx().style()); // ignore the "menu" style set by `menu_button`.
+                ui.reset_style(); // ignore the "menu" style set by `menu_button`.
                 self.backend_panel_contents(ui, frame);
             });
         } else {
@@ -278,7 +278,7 @@ impl WrapApp {
             {
                 selected_anchor = anchor.to_owned();
                 if frame.is_web() {
-                    ui.output().open_url(format!("#{}", anchor));
+                    ui.ctx.output_mut().open_url(format!("#{}", anchor));
                 }
             }
         }
@@ -291,7 +291,7 @@ impl WrapApp {
                     if clock_button(ui, seconds_since_midnight).clicked() {
                         self.state.selected_anchor = "clock".to_owned();
                         if frame.is_web() {
-                            ui.output().open_url("#clock");
+                            ui.ctx.output_mut().open_url("#clock");
                         }
                     }
                 }
@@ -301,7 +301,7 @@ impl WrapApp {
         });
     }
 
-    fn ui_file_drag_and_drop(&mut self, ctx: &egui::Context) {
+    fn ui_file_drag_and_drop(&mut self, ctx: &mut egui::Context) {
         use egui::*;
 
         // Preview hovering files:
@@ -321,8 +321,9 @@ impl WrapApp {
                 ctx.layer_painter(LayerId::new(Order::Foreground, Id::new("file_drop_target")));
 
             let screen_rect = ctx.input().screen_rect();
-            painter.rect_filled(screen_rect, 0.0, Color32::from_black_alpha(192));
+            painter.rect_filled(ctx, screen_rect, 0.0, Color32::from_black_alpha(192));
             painter.text(
+                ctx,
                 screen_rect.center(),
                 Align2::CENTER_CENTER,
                 text,

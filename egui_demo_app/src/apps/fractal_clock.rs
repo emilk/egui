@@ -36,15 +36,11 @@ impl FractalClock {
     pub fn ui(&mut self, ui: &mut Ui<'_>, seconds_since_midnight: Option<f64>) {
         if !self.paused {
             self.time = seconds_since_midnight.unwrap_or_else(|| ui.input().time);
-            ui.ctx().request_repaint();
+            ui.ctx.request_repaint();
         }
 
-        let painter = Painter::new(
-            ui.ctx().clone(),
-            ui.layer_id(),
-            ui.available_rect_before_wrap(),
-        );
-        self.paint(&painter);
+        let painter = Painter::new(ui.layer_id(), ui.available_rect_before_wrap());
+        self.paint(ui.ctx, &painter);
         // Make sure we allocate what we used (everything)
         ui.expand_to_include_rect(painter.clip_rect());
 
@@ -88,7 +84,7 @@ impl FractalClock {
         ui.add(egui_demo_lib::egui_github_link_file!());
     }
 
-    fn paint(&mut self, painter: &Painter) {
+    fn paint(&mut self, ctx: &mut Context, painter: &Painter) {
         struct Hand {
             length: f32,
             angle: f32,
@@ -200,6 +196,6 @@ impl FractalClock {
             std::mem::swap(&mut nodes, &mut new_nodes);
         }
         self.line_count = shapes.len();
-        painter.extend(shapes);
+        painter.extend(ctx, shapes);
     }
 }

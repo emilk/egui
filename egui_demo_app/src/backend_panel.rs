@@ -62,7 +62,7 @@ pub struct BackendPanel {
 }
 
 impl BackendPanel {
-    pub fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    pub fn update(&mut self, ctx: &mut egui::Context, frame: &mut eframe::Frame) {
         self.frame_history
             .on_new_frame(ctx.input().time, frame.info().cpu_usage);
 
@@ -72,7 +72,7 @@ impl BackendPanel {
         }
     }
 
-    pub fn end_of_frame(&mut self, ctx: &egui::Context) {
+    pub fn end_of_frame(&mut self, ctx: &mut egui::Context) {
         self.egui_windows.windows(ctx);
     }
 
@@ -97,18 +97,21 @@ impl BackendPanel {
         ui.separator();
 
         {
-            let mut debug_on_hover = ui.ctx().debug_on_hover();
+            let mut debug_on_hover = ui.ctx.debug_on_hover();
             ui.checkbox(&mut debug_on_hover, "🐛 Debug on hover")
-                .on_hover_text("Show structure of the ui when you hover with the mouse");
-            ui.ctx().set_debug_on_hover(debug_on_hover);
+                .on_hover_text(
+                    ui.ctx,
+                    "Show structure of the ui when you hover with the mouse",
+                );
+            ui.ctx.set_debug_on_hover(debug_on_hover);
         }
 
         ui.separator();
 
         {
-            let mut screen_reader = ui.ctx().options().screen_reader;
-            ui.checkbox(&mut screen_reader, "🔈 Screen reader").on_hover_text("Experimental feature: checking this will turn on the screen reader on supported platforms");
-            ui.ctx().options().screen_reader = screen_reader;
+            let mut screen_reader = ui.ctx.options().screen_reader;
+            ui.checkbox(&mut screen_reader, "🔈 Screen reader").on_hover_text(ui.ctx, "Experimental feature: checking this will turn on the screen reader on supported platforms");
+            ui.ctx.options_mut().screen_reader = screen_reader;
         }
 
         if !frame.is_web() {
@@ -145,14 +148,14 @@ impl BackendPanel {
         let integration_controls_pixels_per_point = ui.input().raw.pixels_per_point.is_some();
         if !integration_controls_pixels_per_point {
             if let Some(new_pixels_per_point) = self.pixels_per_point_ui(ui, &frame.info()) {
-                ui.ctx().set_pixels_per_point(new_pixels_per_point);
+                ui.ctx.set_pixels_per_point(new_pixels_per_point);
             }
         }
 
         if !frame.is_web()
             && ui
                 .button("📱 Phone Size")
-                .on_hover_text("Resize the window to be small like a phone.")
+                .on_hover_text(ui.ctx, "Resize the window to be small like a phone.")
                 .clicked()
         {
             // frame.set_window_size(egui::Vec2::new(375.0, 812.0)); // iPhone 12 mini
@@ -168,7 +171,7 @@ impl BackendPanel {
     ) -> Option<f32> {
         let pixels_per_point = self.pixels_per_point.get_or_insert_with(|| {
             info.native_pixels_per_point
-                .unwrap_or_else(|| ui.ctx().pixels_per_point())
+                .unwrap_or_else(|| ui.ctx.pixels_per_point())
         });
 
         ui.horizontal(|ui| {
@@ -179,15 +182,18 @@ impl BackendPanel {
                     .clamp_to_range(true)
                     .text("Scale"),
             )
-            .on_hover_text("Physical pixels per point.");
+            .on_hover_text(ui.ctx, "Physical pixels per point.");
             if let Some(native_pixels_per_point) = info.native_pixels_per_point {
                 let enabled = *pixels_per_point != native_pixels_per_point;
                 if ui
                     .add_enabled(enabled, egui::Button::new("Reset"))
-                    .on_hover_text(format!(
-                        "Reset scale to native value ({:.1})",
-                        native_pixels_per_point
-                    ))
+                    .on_hover_text(
+                        ui.ctx,
+                        format!(
+                            "Reset scale to native value ({:.1})",
+                            native_pixels_per_point
+                        ),
+                    )
                     .clicked()
                 {
                     *pixels_per_point = native_pixels_per_point;
@@ -196,7 +202,7 @@ impl BackendPanel {
         });
 
         // We wait until mouse release to activate:
-        if ui.ctx().is_using_pointer() {
+        if ui.ctx.is_using_pointer() {
             None
         } else {
             Some(*pixels_per_point)
@@ -208,9 +214,12 @@ impl BackendPanel {
             let run_mode = &mut self.run_mode;
             ui.label("Mode:");
             ui.radio_value(run_mode, RunMode::Reactive, "Reactive")
-                .on_hover_text("Repaint when there are animations or input (e.g. mouse movement)");
+                .on_hover_text(
+                    ui.ctx,
+                    "Repaint when there are animations or input (e.g. mouse movement)",
+                );
             ui.radio_value(run_mode, RunMode::Continuous, "Continuous")
-                .on_hover_text("Repaint everything each frame");
+                .on_hover_text(ui.ctx, "Repaint everything each frame");
         });
 
         if self.run_mode == RunMode::Continuous {
@@ -270,45 +279,37 @@ impl EguiWindows {
         ui.checkbox(output_events, "📤 Output Events");
     }
 
-    fn windows(&mut self, ctx: &egui::Context) {
-        let Self {
-            settings,
-            inspection,
-            memory,
-            output_events,
-            output_event_history,
-        } = self;
-
-        for event in &ctx.output().events {
-            output_event_history.push_back(event.clone());
-        }
-        while output_event_history.len() > 1000 {
-            output_event_history.pop_front();
+    fn windows(&mut self, ctx: &mut egui::Context) {
+        self.output_event_history
+            .extend(ctx.output().events.iter().cloned());
+        if self.output_event_history.len() > 1000 {
+            let range = 0..self.output_event_history.len() - 1000;
+            self.output_event_history.drain(range);
         }
 
         egui::Window::new("🔧 Settings")
-            .open(settings)
+            .open(&mut self.settings)
             .vscroll(true)
             .show(ctx, |ui| {
                 ctx.settings_ui(ui);
             });
 
         egui::Window::new("🔍 Inspection")
-            .open(inspection)
+            .open(&mut self.inspection)
             .vscroll(true)
             .show(ctx, |ui| {
                 ctx.inspection_ui(ui);
             });
 
         egui::Window::new("📝 Memory")
-            .open(memory)
+            .open(&mut self.memory)
             .resizable(false)
             .show(ctx, |ui| {
                 ctx.memory_ui(ui);
             });
 
         egui::Window::new("📤 Output Events")
-            .open(output_events)
+            .open(&mut self.output_events)
             .resizable(true)
             .default_width(520.0)
             .show(ctx, |ui| {
@@ -323,7 +324,7 @@ impl EguiWindows {
                 egui::ScrollArea::vertical()
                     .stick_to_bottom()
                     .show(ui, |ui| {
-                        for event in output_event_history {
+                        for event in &self.output_event_history {
                             ui.label(format!("{:?}", event));
                         }
                     });

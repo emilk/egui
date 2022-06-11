@@ -43,11 +43,7 @@ pub trait App {
     /// Called each time the UI needs repainting, which may be many times per second.
     ///
     /// Put your widgets into a [`egui::SidePanel`], [`egui::TopBottomPanel`], [`egui::CentralPanel`], [`egui::Window`] or [`egui::Area`].
-    ///
-    /// The [`egui::Context`] can be cloned and saved if you like.
-    ///
-    /// To force a repaint, call [`egui::Context::request_repaint`] at any time (e.g. from another thread).
-    fn update(&mut self, ctx: &egui::Context, frame: &mut Frame);
+    fn update(&mut self, ctx: &mut egui::Context, frame: &mut Frame);
 
     /// Called on shutdown, and perhaps at regular intervals. Allows you to save state.
     ///
