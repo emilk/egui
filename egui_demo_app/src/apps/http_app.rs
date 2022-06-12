@@ -41,7 +41,7 @@ pub struct HttpApp {
     url: String,
 
     #[cfg_attr(feature = "serde", serde(skip))]
-    promise: Option<Promise<ehttp::Result<Resource>>>,
+    promise: Option<Promise<ehttp::Result<ehttp::Response>>>,
 }
 
 impl Default for HttpApp {
@@ -54,7 +54,7 @@ impl Default for HttpApp {
 }
 
 impl eframe::App for HttpApp {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &mut egui::Context, frame: &mut eframe::Frame) {
         egui::TopBottomPanel::bottom("http_bottom").show(ctx, |ui| {
             let layout = egui::Layout::top_down(egui::Align::Center).with_main_justify(true);
             ui.allocate_ui_with_layout(ui.available_size(), layout, |ui| {
@@ -73,13 +73,12 @@ impl eframe::App for HttpApp {
             });
 
             if trigger_fetch {
-                let ctx = ctx.clone();
+                let repaint_requests = ui.ctx.repaint_requests().clone();
                 let (sender, promise) = Promise::new();
                 let request = ehttp::Request::get(&self.url);
                 ehttp::fetch(request, move |response| {
-                    ctx.request_repaint(); // wake up UI thread
-                    let resource = response.map(|response| Resource::from_response(&ctx, response));
-                    sender.send(resource);
+                    sender.send(response);
+                    repaint_requests.request(); // wake up UI thread
                 });
                 self.promise = Some(promise);
             }
@@ -89,8 +88,10 @@ impl eframe::App for HttpApp {
             if let Some(promise) = &self.promise {
                 if let Some(result) = promise.ready() {
                     match result {
-                        Ok(resource) => {
-                            ui_resource(ui, resource);
+                        Ok(response) => {
+                            // TODO(Pjottos): Cache resource
+                            let resource = Resource::from_response(ui.ctx, response.clone());
+                            ui_resource(ui, &resource);
                         }
                         Err(error) => {
                             // This should only happen if the fetch API isn't available or something similar.
@@ -187,7 +188,7 @@ fn ui_resource(ui: &mut egui::Ui<'_>, resource: &Resource) {
             if let Some(text) = &text {
                 let tooltip = "Click to copy the response body";
                 if ui.button("📋").on_hover_text(ui.ctx, tooltip).clicked() {
-                    ui.output().copied_text = text.clone();
+                    ui.ctx.output_mut().copied_text = text.clone();
                 }
                 ui.separator();
             }
@@ -242,7 +243,7 @@ impl ColoredText {
     pub fn ui(&self, ui: &mut egui::Ui<'_>) {
         if true {
             // Selectable text:
-            let mut layouter = |ui: &egui::Ui<'_>, _string: &str, wrap_width: f32| {
+            let mut layouter = |ui: &mut egui::Ui<'_>, _string: &str, wrap_width: f32| {
                 let mut layout_job = self.0.clone();
                 layout_job.wrap.max_width = wrap_width;
                 ui.fonts().layout_job(layout_job)
@@ -260,7 +261,7 @@ impl ColoredText {
             job.wrap.max_width = ui.available_width();
             let galley = ui.fonts().layout_job(job);
             let (response, painter) = ui.allocate_painter(galley.size(), egui::Sense::hover());
-            painter.add(egui::Shape::galley(response.rect.min, galley));
+            painter.add(ui.ctx, egui::Shape::galley(response.rect().min, galley));
         }
     }
 }
