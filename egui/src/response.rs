@@ -410,7 +410,7 @@ impl Response {
     /// # egui::__run_test_ui(|ui| {
     /// let response = ui.label("hello");
     /// assert!(!response.clicked()); // labels don't sense clicks by default
-    /// let response = response.interact(egui::Sense::click());
+    /// let response = response.interact(ui.ctx, egui::Sense::click());
     /// if response.clicked() { /* … */ }
     /// # });
     /// ```
@@ -437,7 +437,7 @@ impl Response {
     ///     for i in 0..1000 {
     ///         let response = ui.button("Scroll to me");
     ///         if response.clicked() {
-    ///             response.scroll_to_me(ui, Some(egui::Align::Center));
+    ///             response.scroll_to_me(ui.ctx, Some(egui::Align::Center));
     ///         }
     ///     }
     /// });
@@ -476,7 +476,7 @@ impl Response {
     /// ```
     /// # egui::__run_test_ui(|ui| {
     /// let response = ui.label("Right-click me!");
-    /// response.context_menu(|ui| {
+    /// response.context_menu(ui.ctx, |ui| {
     ///     if ui.button("Close the menu").clicked() {
     ///         ui.close_menu();
     ///     }

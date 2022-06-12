@@ -11,7 +11,7 @@ fn main() {
     );
 }
 
-fn setup_custom_fonts(ctx: &egui::Context) {
+fn setup_custom_fonts(ctx: &mut egui::Context) {
     // Start with the default fonts (we will be adding to them rather than replacing them).
     let mut fonts = egui::FontDefinitions::default();
 
@@ -45,8 +45,8 @@ struct MyApp {
 }
 
 impl MyApp {
-    fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        setup_custom_fonts(&cc.egui_ctx);
+    fn new(cc: &mut eframe::CreationContext<'_, '_>) -> Self {
+        setup_custom_fonts(cc.egui_ctx);
         Self {
             text: "Edit this text field if you want".to_owned(),
         }
@@ -54,7 +54,7 @@ impl MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &mut egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("egui using custom fonts");
             ui.text_edit_multiline(&mut self.text);

@@ -24,11 +24,11 @@ struct MyApp {
 
 impl MyApp {
     fn new(cc: &eframe::CreationContext<'_, '_>) -> Self {
-        let gl =
-                cc.gl
-                    .as_ref()
-                    .expect("No gl context in CreationContext")
-                    .clone();
+        let gl = cc
+            .gl
+            .as_ref()
+            .expect("No gl context in CreationContext")
+            .clone();
         let three_d = three_d::Context::from_gl_context(gl).unwrap();
 
         Self {

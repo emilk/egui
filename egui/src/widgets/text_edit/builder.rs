@@ -183,7 +183,7 @@ impl<'t> TextEdit<'t> {
     /// # egui::__run_test_ui(|ui| {
     /// # let mut my_code = String::new();
     /// # fn my_memoized_highlighter(s: &str) -> egui::text::LayoutJob { Default::default() }
-    /// let mut layouter = |ui: &egui::Ui<'_>, string: &str, wrap_width: f32| {
+    /// let mut layouter = |ui: &mut egui::Ui<'_>, string: &str, wrap_width: f32| {
     ///     let mut layout_job: egui::text::LayoutJob = my_memoized_highlighter(string);
     ///     layout_job.wrap.max_width = wrap_width;
     ///     ui.fonts().layout_job(layout_job)

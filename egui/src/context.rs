@@ -103,7 +103,7 @@ impl RepaintRequests {
 /// loop {
 ///     let raw_input = egui::RawInput::default();
 ///     let full_output = ctx.run(raw_input, |ctx| {
-///         egui::CentralPanel::default().show(&ctx, |ui| {
+///         egui::CentralPanel::default().show(ctx, |ui| {
 ///             ui.label("Hello world!");
 ///             if ui.button("Click me").clicked() {
 ///                 // take some action here
@@ -200,7 +200,7 @@ impl Context {
     /// // Each frame:
     /// let input = egui::RawInput::default();
     /// let full_output = ctx.run(input, |ctx| {
-    ///     egui::CentralPanel::default().show(&ctx, |ui| {
+    ///     egui::CentralPanel::default().show(ctx, |ui| {
     ///         ui.label("Hello egui!");
     ///     });
     /// });
@@ -223,7 +223,7 @@ impl Context {
     /// let input = egui::RawInput::default();
     /// ctx.begin_frame(input);
     ///
-    /// egui::CentralPanel::default().show(&ctx, |ui| {
+    /// egui::CentralPanel::default().show(&mut ctx, |ui| {
     ///     ui.label("Hello egui!");
     /// });
     ///
@@ -742,7 +742,7 @@ impl Context {
     ///
     /// Make sure to only call this once for each image, i.e. NOT in your main GUI code.
     ///
-    /// The given name can be useful for later debugging, and will be visible if you call [`Self::texture_ui`].
+    /// The given name can be useful for later debugging, and will be visible if you call [`crate::introspection::texture_ui`].
     ///
     /// For how to load an image, see [`ImageData`] and [`ColorImage::from_rgba_unmultiplied`].
     ///
@@ -795,7 +795,7 @@ impl Context {
     ///
     /// In general it is easier to use [`Self::load_texture`] and [`TextureHandle`].
     ///
-    /// You can show stats about the allocated textures using [`Self::texture_ui`].
+    /// You can show stats about the allocated textures using [`crate::introspection::texture_ui`].
     pub fn tex_manager(&self) -> &Arc<RwLock<epaint::textures::TextureManager>> {
         &self.tex_manager.0
     }

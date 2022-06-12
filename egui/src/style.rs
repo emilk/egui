@@ -123,7 +123,7 @@ impl From<TextStyle> for FontSelection {
 /// Specifies the look and feel of egui.
 ///
 /// You can change the visuals of a [`Ui`] with [`Ui::style_mut`]
-/// and of everything with [`crate::Context::set_style`].
+/// and of everything with [`crate::Context::style_mut`].
 ///
 /// If you want to change fonts, use [`crate::Context::set_fonts`] instead.
 #[derive(Clone, Debug, PartialEq)]
@@ -154,11 +154,8 @@ pub struct Style {
     /// use egui::FontId;
     /// use egui::TextStyle::*;
     ///
-    /// // Get current context style
-    /// let mut style = (*ctx.style()).clone();
-    ///
-    /// // Redefine text_styles
-    /// style.text_styles = [
+    /// // Redefine global text_styles
+    /// ctx.style_mut().text_styles = [
     ///   (Heading, FontId::new(30.0, Proportional)),
     ///   (Name("Heading2".into()), FontId::new(25.0, Proportional)),
     ///   (Name("Context".into()), FontId::new(23.0, Proportional)),
@@ -167,9 +164,6 @@ pub struct Style {
     ///   (Button, FontId::new(14.0, Proportional)),
     ///   (Small, FontId::new(10.0, Proportional)),
     /// ].into();
-    ///
-    /// // Mutate global style with above changes
-    /// ctx.set_style(style);
     /// ```
     pub text_styles: BTreeMap<TextStyle, FontId>,
 

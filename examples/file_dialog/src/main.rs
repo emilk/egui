@@ -21,7 +21,7 @@ struct MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &mut egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.label("Drag-and-drop files onto the window!");
 
@@ -70,7 +70,7 @@ impl eframe::App for MyApp {
 }
 
 /// Preview hovering files:
-fn preview_files_being_dropped(ctx: &egui::Context) {
+fn preview_files_being_dropped(ctx: &mut egui::Context) {
     use egui::*;
 
     if !ctx.input().raw.hovered_files.is_empty() {
@@ -89,12 +89,13 @@ fn preview_files_being_dropped(ctx: &egui::Context) {
             ctx.layer_painter(LayerId::new(Order::Foreground, Id::new("file_drop_target")));
 
         let screen_rect = ctx.input().screen_rect();
-        painter.rect_filled(screen_rect, 0.0, Color32::from_black_alpha(192));
+        painter.rect_filled(ctx, screen_rect, 0.0, Color32::from_black_alpha(192));
         painter.text(
+            ctx,
             screen_rect.center(),
             Align2::CENTER_CENTER,
             text,
-            TextStyle::Heading.resolve(&ctx.style()),
+            TextStyle::Heading.resolve(ctx.style()),
             Color32::WHITE,
         );
     }

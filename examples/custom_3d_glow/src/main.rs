@@ -3,8 +3,7 @@
 
 use eframe::egui;
 
-use egui::mutex::Mutex;
-use std::sync::Arc;
+use std::rc::Rc;
 
 fn main() {
     let options = eframe::NativeOptions {
@@ -21,26 +20,26 @@ fn main() {
 }
 
 struct MyApp {
-    /// Behind an `Arc<Mutex<…>>` so we can pass it to [`egui::PaintCallback`] and paint later.
-    rotating_triangle: Arc<Mutex<RotatingTriangle>>,
+    /// Behind an `Rc` so we can pass it to [`egui::PaintCallback`] and paint later.
+    rotating_triangle: Rc<RotatingTriangle>,
     angle: f32,
 }
 
 impl MyApp {
-    fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    fn new(cc: &eframe::CreationContext<'_, '_>) -> Self {
         let gl = cc
             .gl
             .as_ref()
             .expect("You need to run eframe with the glow backend");
         Self {
-            rotating_triangle: Arc::new(Mutex::new(RotatingTriangle::new(gl))),
+            rotating_triangle: Rc::new(RotatingTriangle::new(gl)),
             angle: 0.0,
         }
     }
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &mut egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;
@@ -58,7 +57,7 @@ impl eframe::App for MyApp {
 
     fn on_exit(&mut self, gl: Option<&glow::Context>) {
         if let Some(gl) = gl {
-            self.rotating_triangle.lock().destroy(gl);
+            self.rotating_triangle.destroy(gl);
         }
     }
 }
@@ -76,11 +75,11 @@ impl MyApp {
 
         let callback = egui::PaintCallback {
             rect,
-            callback: std::sync::Arc::new(egui_glow::CallbackFn::new(move |_info, painter| {
-                rotating_triangle.lock().paint(painter.gl(), angle);
+            callback: Rc::new(egui_glow::CallbackFn::new(move |_info, painter| {
+                rotating_triangle.paint(painter.gl(), angle);
             })),
         };
-        ui.painter().add(callback);
+        ui.painter.add(ui.ctx, callback);
     }
 }
 

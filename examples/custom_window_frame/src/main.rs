@@ -28,7 +28,7 @@ impl eframe::App for MyApp {
         egui::Rgba::TRANSPARENT // Make sure we don't paint anything behind the rounded corners
     }
 
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &mut egui::Context, frame: &mut eframe::Frame) {
         custon_window_frame(ctx, frame, "egui with custom frame", |ui| {
             ui.label("This is just the contents of the window");
             ui.horizontal(|ui| {
@@ -40,7 +40,7 @@ impl eframe::App for MyApp {
 }
 
 fn custon_window_frame(
-    ctx: &egui::Context,
+    ctx: &mut egui::Context,
     frame: &mut eframe::Frame,
     title: &str,
     add_contents: impl FnOnce(&mut egui::Ui<'_>),
@@ -55,18 +55,19 @@ fn custon_window_frame(
         .frame(Frame::none())
         .show(ctx, |ui| {
             let rect = ui.max_rect();
-            let painter = ui.painter();
 
             // Paint the frame:
-            painter.rect(
+            ui.painter.rect(
+                ui.ctx,
                 rect.shrink(1.0),
                 10.0,
-                ctx.style().visuals.window_fill(),
+                ui.ctx.style().visuals.window_fill(),
                 Stroke::new(1.0, text_color),
             );
 
             // Paint the title:
-            painter.text(
+            ui.painter.text(
+                ui.ctx,
                 rect.center_top() + vec2(0.0, height / 2.0),
                 Align2::CENTER_CENTER,
                 title,
@@ -75,7 +76,8 @@ fn custon_window_frame(
             );
 
             // Paint the line under the title:
-            painter.line_segment(
+            ui.painter.line_segment(
+                ui.ctx,
                 [
                     rect.left_top() + vec2(2.0, height),
                     rect.right_top() + vec2(-2.0, height),

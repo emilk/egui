@@ -237,7 +237,7 @@ impl CollapsingState {
     /// fn circle_icon(ui: &mut egui::Ui<'_>, openness: f32, response: &egui::Response) {
     ///     let stroke = ui.style().interact(&response).fg_stroke;
     ///     let radius = egui::lerp(2.0..=3.0, openness);
-    ///     ui.painter.circle_filled(response.rect().center(), radius, stroke.color);
+    ///     ui.painter.circle_filled(ui.ctx, response.rect().center(), radius, stroke.color);
     /// }
     ///
     /// let mut state = egui::collapsing_header::CollapsingState::load_with_default_open(
@@ -451,7 +451,7 @@ impl CollapsingHeader {
     /// fn circle_icon(ui: &mut egui::Ui<'_>, openness: f32, response: &egui::Response) {
     ///     let stroke = ui.style().interact(&response).fg_stroke;
     ///     let radius = egui::lerp(2.0..=3.0, openness);
-    ///     ui.painter.circle_filled(response.rect().center(), radius, stroke.color);
+    ///     ui.painter.circle_filled(ui.ctx, response.rect().center(), radius, stroke.color);
     /// }
     ///
     /// egui::CollapsingHeader::new("Circles")

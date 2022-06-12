@@ -7,7 +7,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     use egui::RawInput;
 
     {
-        let ctx = egui::Context::default();
+        let mut ctx = egui::Context::default();
         let mut demo_windows = egui_demo_lib::DemoWindows::default();
 
         // The most end-to-end benchmark.
@@ -37,8 +37,8 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     }
 
     if false {
-        let ctx = egui::Context::default();
-        ctx.memory().set_everything_is_visible(true); // give us everything
+        let mut ctx = egui::Context::default();
+        ctx.memory_mut().set_everything_is_visible(true); // give us everything
         let mut demo_windows = egui_demo_lib::DemoWindows::default();
         c.bench_function("demo_full_no_tessellate", |b| {
             b.iter(|| {
@@ -50,7 +50,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     }
 
     {
-        let ctx = egui::Context::default();
+        let mut ctx = egui::Context::default();
         let _ = ctx.run(RawInput::default(), |ctx| {
             egui::CentralPanel::default().show(ctx, |ui| {
                 c.bench_function("label &str", |b| {
@@ -68,15 +68,20 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     }
 
     {
-        let ctx = egui::Context::default();
+        let mut ctx = egui::Context::default();
         ctx.begin_frame(RawInput::default());
 
-        egui::CentralPanel::default().show(&ctx, |ui| {
+        egui::CentralPanel::default().show(&mut ctx, |ui| {
             c.bench_function("Painter::rect", |b| {
-                let painter = ui.painter();
                 let rect = ui.max_rect();
                 b.iter(|| {
-                    painter.rect(rect, 2.0, egui::Color32::RED, (1.0, egui::Color32::WHITE));
+                    ui.painter.rect(
+                        ui.ctx,
+                        rect,
+                        2.0,
+                        egui::Color32::RED,
+                        (1.0, egui::Color32::WHITE),
+                    );
                 });
             });
         });

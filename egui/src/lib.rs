@@ -46,7 +46,7 @@
 //!
 //! ```
 //! # egui::__run_test_ctx(|ctx| {
-//! egui::CentralPanel::default().show(&ctx, |ui| {
+//! egui::CentralPanel::default().show(ctx, |ui| {
 //!     ui.add(egui::Label::new("Hello World!"));
 //!     ui.label("A shorter and more convenient way to add a label.");
 //!     if ui.button("Click me").clicked() {
@@ -120,7 +120,7 @@
 //!     let raw_input: egui::RawInput = gather_input();
 //!
 //!     let full_output = ctx.run(raw_input, |ctx| {
-//!         egui::CentralPanel::default().show(&ctx, |ui| {
+//!         egui::CentralPanel::default().show(ctx, |ui| {
 //!             ui.label("Hello world!");
 //!             if ui.button("Click me").clicked() {
 //!                 // take some action here
@@ -346,7 +346,7 @@ pub mod text {
 
 pub use {
     containers::*,
-    context::Context,
+    context::{Context, RepaintRequests},
     data::{
         input::*,
         output::{self, CursorIcon, FullOutput, PlatformOutput, WidgetInfo},

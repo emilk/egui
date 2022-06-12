@@ -24,10 +24,10 @@ struct MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &mut egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             if let Some(screenshot) = self.screenshot.take() {
-                self.texture = Some(ui.ctx().load_texture(
+                self.texture = Some(ui.ctx.load_texture(
                     "screenshot",
                     screenshot,
                     egui::TextureFilter::Linear,
@@ -46,9 +46,9 @@ impl eframe::App for MyApp {
                             .add(egui::Label::new("hover me!").sense(egui::Sense::hover()))
                             .hovered()
                         {
-                            ctx.set_visuals(egui::Visuals::dark());
+                            ui.ctx.set_visuals(egui::Visuals::dark());
                         } else {
-                            ctx.set_visuals(egui::Visuals::light());
+                            ui.ctx.set_visuals(egui::Visuals::light());
                         };
                     } else if ui.button("take screenshot!").clicked() {
                         self.take_screenshot = true;
@@ -62,7 +62,7 @@ impl eframe::App for MyApp {
                 ui.spinner();
             }
 
-            ctx.request_repaint();
+            ui.ctx.request_repaint();
         });
     }
 

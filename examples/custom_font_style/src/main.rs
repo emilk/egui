@@ -13,11 +13,10 @@ fn heading3() -> TextStyle {
     TextStyle::Name("ContextHeading".into())
 }
 
-fn configure_text_styles(ctx: &egui::Context) {
+fn configure_text_styles(ctx: &mut egui::Context) {
     use FontFamily::Proportional;
 
-    let mut style = (*ctx.style()).clone();
-    style.text_styles = [
+    ctx.style_mut().text_styles = [
         (TextStyle::Heading, FontId::new(30.0, Proportional)),
         (heading2(), FontId::new(25.0, Proportional)),
         (heading3(), FontId::new(23.0, Proportional)),
@@ -27,7 +26,6 @@ fn configure_text_styles(ctx: &egui::Context) {
         (TextStyle::Small, FontId::new(10.0, Proportional)),
     ]
     .into();
-    ctx.set_style(style);
 }
 
 fn content(ui: &mut egui::Ui<'_>) {
@@ -46,14 +44,14 @@ fn content(ui: &mut egui::Ui<'_>) {
 struct MyApp;
 
 impl MyApp {
-    fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        configure_text_styles(&cc.egui_ctx);
+    fn new(cc: &mut eframe::CreationContext<'_, '_>) -> Self {
+        configure_text_styles(cc.egui_ctx);
         Self
     }
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &mut egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, content);
     }
 }

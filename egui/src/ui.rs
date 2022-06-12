@@ -138,7 +138,7 @@ impl<'c> Ui<'c> {
     /// Mutably borrow internal [`Style`].
     /// Changes apply to this [`Ui`] and its subsequent children.
     ///
-    /// To set the style of all [`Ui`]:s, use [`Context::set_style`].
+    /// To change the style of all [`Ui`]:s, use [`Context::style_mut`].
     ///
     /// Example:
     /// ```
@@ -885,7 +885,7 @@ impl<'c> Ui<'c> {
     /// let r = rect.width() / 2.0 - 1.0;
     /// let color = Color32::from_gray(128);
     /// let stroke = Stroke::new(1.0, color);
-    /// painter.circle_stroke(c, r, stroke);
+    /// painter.circle_stroke(ui.ctx, c, r, stroke);
     /// painter.line_segment(ui.ctx, [c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
     /// painter.line_segment(ui.ctx, [c, c + r * Vec2::angled(TAU * 1.0 / 8.0)], stroke);
     /// painter.line_segment(ui.ctx, [c, c + r * Vec2::angled(TAU * 3.0 / 8.0)], stroke);

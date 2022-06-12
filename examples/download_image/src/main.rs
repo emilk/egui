@@ -20,18 +20,20 @@ struct MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &mut egui::Context, _frame: &mut eframe::Frame) {
         let promise = self.promise.get_or_insert_with(|| {
             // Begin download.
             // We download the image using `ehttp`, a library that works both in WASM and on native.
             // We use the `poll-promise` library to communicate with the UI thread.
-            let ctx = ctx.clone();
             let (sender, promise) = Promise::new();
             let request = ehttp::Request::get("https://picsum.photos/seed/1.759706314/1024");
+
+            let repaint_requests = ctx.repaint_requests().clone();
+
             ehttp::fetch(request, move |response| {
                 let image = response.and_then(parse_response);
                 sender.send(image); // send the results back to the UI thread.
-                ctx.request_repaint(); // wake up UI thread
+                repaint_requests.request(); // wake up UI thread
             });
             promise
         });

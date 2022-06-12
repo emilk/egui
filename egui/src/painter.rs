@@ -392,7 +392,7 @@ impl Painter {
     /// To center the text at the given position, use `Align2::CENTER_CENTER`.
     ///
     /// To find out the size of text before painting it, use
-    /// [`Self::layout`] or [`Self::layout_no_wrap`].
+    /// [`epaint::text::Fonts::layout`] or [`epaint::text::Fonts::layout_no_wrap`].
     ///
     /// Returns where the text ended up.
     #[allow(clippy::needless_pass_by_value)]
@@ -415,7 +415,7 @@ impl Painter {
 
     /// Paint text that has already been layed out in a [`Galley`].
     ///
-    /// You can create the [`Galley`] with [`Self::layout`].
+    /// You can create the [`Galley`] with [`epaint::text::Fonts::layout`].
     ///
     /// If you want to change the color of the text, use [`Self::galley_with_color`].
     #[inline(always)]
@@ -427,7 +427,7 @@ impl Painter {
 
     /// Paint text that has already been layed out in a [`Galley`].
     ///
-    /// You can create the [`Galley`] with [`Self::layout`].
+    /// You can create the [`Galley`] with [`epaint::text::Fonts::layout`].
     ///
     /// The text color in the [`Galley`] will be replaced with the given color.
     #[inline(always)]

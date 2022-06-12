@@ -60,7 +60,11 @@ impl EguiGlium {
     /// Returns `true` if egui requests a repaint.
     ///
     /// Call [`Self::paint`] later to paint.
-    pub fn run(&mut self, display: &glium::Display, run_ui: impl FnMut(&egui::Context)) -> bool {
+    pub fn run(
+        &mut self,
+        display: &glium::Display,
+        run_ui: impl FnMut(&mut egui::Context),
+    ) -> bool {
         let raw_input = self
             .egui_winit
             .take_egui_input(display.gl_window().window());

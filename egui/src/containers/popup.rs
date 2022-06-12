@@ -280,7 +280,7 @@ fn show_tooltip_area_dyn<'a, 'c, R>(
 /// let response = ui.button("Open popup");
 /// let popup_id = ui.make_persistent_id("my_unique_id");
 /// if response.clicked() {
-///     ui.memory().toggle_popup(popup_id);
+///     ui.ctx.memory_mut().toggle_popup(popup_id);
 /// }
 /// egui::popup::popup_below_widget(ui, popup_id, &response, |ui| {
 ///     ui.set_min_width(200.0); // if you want to control the size

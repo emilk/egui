@@ -2,7 +2,7 @@ use crate::{style::WidgetVisuals, *};
 use epaint::Shape;
 
 /// A function that paints the [`ComboBox`] icon
-pub type IconPainter = Box<dyn FnOnce(&Ui<'_>, Rect, &WidgetVisuals, bool)>;
+pub type IconPainter = Box<dyn FnOnce(&mut Ui<'_>, Rect, &WidgetVisuals, bool)>;
 
 /// A drop-down selection menu with a descriptive label.
 ///
@@ -85,7 +85,7 @@ impl ComboBox {
     /// # egui::__run_test_ui(|ui| {
     /// # let text = "Selected text";
     /// pub fn filled_triangle(
-    ///     ui: &egui::Ui<'_>,
+    ///     ui: &mut egui::Ui<'_>,
     ///     rect: egui::Rect,
     ///     visuals: &egui::style::WidgetVisuals,
     ///     _is_open: bool,
@@ -94,7 +94,7 @@ impl ComboBox {
     ///         rect.center(),
     ///         egui::Vec2::new(rect.width() * 0.6, rect.height() * 0.4),
     ///     );
-    ///     ui.painter.add(egui::Shape::convex_polygon(
+    ///     ui.painter.add(ui.ctx, egui::Shape::convex_polygon(
     ///         vec![rect.left_top(), rect.right_top(), rect.center_bottom()],
     ///         visuals.fg_stroke.color,
     ///         visuals.fg_stroke,
@@ -109,7 +109,7 @@ impl ComboBox {
     /// ```
     pub fn icon(
         mut self,
-        icon_fn: impl FnOnce(&Ui<'_>, Rect, &WidgetVisuals, bool) + 'static,
+        icon_fn: impl FnOnce(&mut Ui<'_>, Rect, &WidgetVisuals, bool) + 'static,
     ) -> Self {
         self.icon = Some(Box::new(icon_fn));
         self

@@ -47,7 +47,7 @@ impl EguiGlow {
     pub fn run(
         &mut self,
         window: &winit::window::Window,
-        run_ui: impl FnMut(&egui::Context),
+        run_ui: impl FnMut(&mut egui::Context),
     ) -> bool {
         let raw_input = self.egui_winit.take_egui_input(window);
         let egui::FullOutput {
