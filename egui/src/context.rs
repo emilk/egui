@@ -1,5 +1,11 @@
 // #![warn(missing_docs)]
-use std::{rc::Rc, sync::Arc};
+use std::{
+    rc::Rc,
+    sync::{
+        atomic::{self, AtomicU32},
+        Arc,
+    },
+};
 
 use crate::{
     animation_manager::AnimationManager, data::output::PlatformOutput, frame_state::FrameState,
@@ -29,6 +35,58 @@ impl Default for WrappedTextureManager {
 
 // ----------------------------------------------------------------------------
 
+/// Can be used to request repaints from a different thread than the [`Context`] was
+/// created on.
+pub struct RepaintRequests {
+    /// While positive, keep requesting repaints. Decrement at the end of each frame.
+    count: AtomicU32,
+    // TODO(Pjottos): This shouldn't need to be a mutex since it's probably only assigned once.
+    // Maybe make a ContextBuilder?
+    callback: Mutex<Option<Box<dyn Fn() + Send + Sync>>>,
+}
+
+impl Default for RepaintRequests {
+    fn default() -> Self {
+        Self {
+            // Start with painting an extra frame to compensate for some widgets
+            // that take two frames before they "settle":
+            count: AtomicU32::new(1),
+            callback: Mutex::new(None),
+        }
+    }
+}
+
+impl RepaintRequests {
+    /// Make a new repaint request.
+    ///
+    /// If called from outside the UI thread, the UI thread will wake up and run,
+    /// provided the egui integration has set that up via [`Context::set_request_repaint_callback`]
+    /// (this will work on `eframe`).
+    pub fn request(&self) {
+        // Request two frames of repaint, just to cover some corner cases (frame delays):
+        if self.count.swap(2, atomic::Ordering::Relaxed) == 0 {
+            // We only have to call the callback once when the request count was 0 because
+            // otherwise the integration will issue a repaint based on the `needs_repaint`
+            // field in `FullOutput`.
+            // TODO(Pjottos): Is the `needs_repaint` field not redundant?
+            if let Some(callback) = self.callback.lock().as_ref() {
+                callback();
+            }
+        }
+    }
+
+    /// Try to decrement the request count and return `true` if it wasn't 0
+    fn take_request(&self) -> bool {
+        self.count
+            .fetch_update(
+                atomic::Ordering::Relaxed,
+                atomic::Ordering::Relaxed,
+                |cur| cur.checked_sub(1),
+            )
+            .is_ok()
+    }
+}
+
 /// Your handle to egui.
 ///
 /// This is the first thing you need when working with egui.
@@ -57,7 +115,6 @@ impl Default for WrappedTextureManager {
 ///     paint(full_output.textures_delta, clipped_primitives);
 /// }
 /// ```
-
 pub struct Context {
     /// `None` until the start of the first frame.
     fonts: Option<Fonts>,
@@ -76,9 +133,7 @@ pub struct Context {
 
     paint_stats: PaintStats,
 
-    /// While positive, keep requesting repaints. Decrement at the end of each frame.
-    repaint_requests: u32,
-    request_repaint_callback: Option<Box<dyn Fn() + Send + Sync>>,
+    repaint_requests: Arc<RepaintRequests>,
     requested_repaint_last_frame: bool,
 }
 
@@ -94,10 +149,7 @@ impl Default for Context {
             graphics: GraphicLayers::default(),
             output: PlatformOutput::default(),
             paint_stats: PaintStats::default(),
-            // Start with painting an extra frame to compensate for some widgets
-            // that take two frames before they "settle":
-            repaint_requests: 1,
-            request_repaint_callback: None,
+            repaint_requests: Arc::new(RepaintRequests::default()),
             requested_repaint_last_frame: false,
         }
     }
@@ -576,6 +628,13 @@ impl Context {
     pub fn tessellation_options(&self) -> &TessellationOptions {
         &self.memory.options.tessellation_options
     }
+
+    /// Returns a reference to the [`RepaintRequests`], which can be used to request repaints from
+    /// another thread.
+    #[inline]
+    pub fn repaint_requests(&self) -> &Arc<RepaintRequests> {
+        &self.repaint_requests
+    }
 }
 
 impl Context {
@@ -583,24 +642,18 @@ impl Context {
     ///
     /// If this is called at least once in a frame, then there will be another frame right after this.
     /// Call as many times as you wish, only one repaint will be issued.
-    ///
-    /// If called from outside the UI thread, the UI thread will wake up and run,
-    /// provided the egui integration has set that up via [`Self::set_request_repaint_callback`]
-    /// (this will work on `eframe`).
-    pub fn request_repaint(&mut self) {
-        // request two frames of repaint, just to cover some corner cases (frame delays):
-        self.repaint_requests = 2;
-        if let Some(callback) = &self.request_repaint_callback {
-            (callback)();
-        }
+    #[inline]
+    pub fn request_repaint(&self) {
+        self.repaint_requests.request();
     }
 
-    /// For integrations: this callback will be called when an egui user calls [`Self::request_repaint`].
+    /// For integrations: this callback will be called when a repaint was requested while there
+    /// was no other repaint pending.
     ///
     /// This lets you wake up a sleeping UI thread.
     pub fn set_request_repaint_callback(&mut self, callback: impl Fn() + Send + Sync + 'static) {
         let callback = Box::new(callback);
-        self.request_repaint_callback = Some(callback);
+        *self.repaint_requests.callback.lock() = Some(callback);
     }
 
     /// Tell `egui` which fonts to use.
@@ -810,12 +863,7 @@ impl Context {
 
         let platform_output: PlatformOutput = std::mem::take(&mut self.output);
 
-        let needs_repaint = if self.repaint_requests > 0 {
-            self.repaint_requests -= 1;
-            true
-        } else {
-            false
-        };
+        let needs_repaint = self.repaint_requests.take_request();
         self.requested_repaint_last_frame = needs_repaint;
 
         let shapes = self.drain_paint_lists();
