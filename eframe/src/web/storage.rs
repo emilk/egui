@@ -11,11 +11,11 @@ pub fn local_storage_set(key: &str, value: &str) {
 }
 
 #[cfg(feature = "persistence")]
-pub fn load_memory(ctx: &egui::Context) {
+pub fn load_memory(ctx: &mut egui::Context) {
     if let Some(memory_string) = local_storage_get("egui_memory_ron") {
         match ron::from_str(&memory_string) {
             Ok(memory) => {
-                *ctx.memory() = memory;
+                *ctx.memory_mut() = memory;
             }
             Err(err) => {
                 tracing::error!("Failed to parse memory RON: {}", err);
@@ -25,7 +25,7 @@ pub fn load_memory(ctx: &egui::Context) {
 }
 
 #[cfg(not(feature = "persistence"))]
-pub fn load_memory(_: &egui::Context) {}
+pub fn load_memory(_: &mut egui::Context) {}
 
 #[cfg(feature = "persistence")]
 pub fn save_memory(ctx: &egui::Context) {

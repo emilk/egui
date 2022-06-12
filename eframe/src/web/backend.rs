@@ -164,14 +164,14 @@ impl AppRunner {
         };
         let storage = LocalStorage::default();
 
-        let egui_ctx = egui::Context::default();
-        load_memory(&egui_ctx);
+        let mut egui_ctx = egui::Context::default();
+        load_memory(&mut egui_ctx);
 
         let theme = system_theme.unwrap_or(web_options.default_theme);
         egui_ctx.set_visuals(theme.egui_visuals());
 
-        let app = app_creator(&epi::CreationContext {
-            egui_ctx: egui_ctx.clone(),
+        let app = app_creator(&mut epi::CreationContext {
+            egui_ctx: &mut egui_ctx,
             integration_info: info.clone(),
             storage: Some(&storage),
             #[cfg(feature = "glow")]
@@ -243,9 +243,9 @@ impl AppRunner {
     pub fn warm_up(&mut self) -> Result<(), JsValue> {
         if self.app.warm_up_enabled() {
             let saved_memory: egui::Memory = self.egui_ctx.memory().clone();
-            self.egui_ctx.memory().set_everything_is_visible(true);
+            self.egui_ctx.memory_mut().set_everything_is_visible(true);
             self.logic()?;
-            *self.egui_ctx.memory() = saved_memory; // We don't want to remember that windows were huge.
+            *self.egui_ctx.memory_mut() = saved_memory; // We don't want to remember that windows were huge.
             self.egui_ctx.clear_animations();
         }
         Ok(())
