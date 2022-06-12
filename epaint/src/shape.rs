@@ -39,13 +39,6 @@ pub enum Shape {
     Callback(PaintCallback),
 }
 
-#[cfg(test)]
-#[test]
-fn shape_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
-    assert_send_sync::<Shape>();
-}
-
 impl From<Vec<Shape>> for Shape {
     #[inline(always)]
     fn from(shapes: Vec<Shape>) -> Self {

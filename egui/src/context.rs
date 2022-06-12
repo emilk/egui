@@ -1038,10 +1038,3 @@ impl Context {
         self.animation_manager = Default::default();
     }
 }
-
-#[cfg(test)]
-#[test]
-fn context_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
-    assert_send_sync::<Context>();
-}
