@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 use eframe::egui;
+use std::rc::Rc;
 
 fn main() {
     let options = eframe::NativeOptions {
@@ -18,16 +19,27 @@ fn main() {
 
 struct MyApp {
     angle: f32,
+    three_d: Rc<three_d::Context>,
 }
 
 impl MyApp {
-    fn new(_cc: &eframe::CreationContext<'_>) -> Self {
-        Self { angle: 0.2 }
+    fn new(cc: &eframe::CreationContext<'_, '_>) -> Self {
+        let gl =
+                cc.gl
+                    .as_ref()
+                    .expect("No gl context in CreationContext")
+                    .clone();
+        let three_d = three_d::Context::from_gl_context(gl).unwrap();
+
+        Self {
+            angle: 0.2,
+            three_d: Rc::new(three_d),
+        }
     }
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &mut egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::widgets::global_dark_light_mode_buttons(ui);
 
@@ -57,39 +69,16 @@ impl MyApp {
 
         // Clone locals so we can move them into the paint callback:
         let angle = self.angle;
+        let three_d = self.three_d.clone();
 
         let callback = egui::PaintCallback {
             rect,
-            callback: std::sync::Arc::new(egui_glow::CallbackFn::new(move |info, painter| {
-                with_three_d_context(painter.gl(), |three_d| {
-                    paint_with_three_d(three_d, &info, angle);
-                });
+            callback: Rc::new(egui_glow::CallbackFn::new(move |info, _painter| {
+                paint_with_three_d(&three_d, &info, angle);
             })),
         };
-        ui.painter().add(callback);
+        ui.painter.add(ui.ctx, callback);
     }
-}
-
-/// We get a [`glow::Context`] from `eframe`, but we want a [`three_d::Context`].
-///
-/// Sadly we can't just create a [`three_d::Context`] in [`MyApp::new`] and pass it
-/// to the [`egui::PaintCallback`] because [`three_d::Context`] isn't `Send+Sync`, which
-/// [`egui::PaintCallback`] is.
-fn with_three_d_context<R>(
-    gl: &std::sync::Arc<glow::Context>,
-    f: impl FnOnce(&three_d::Context) -> R,
-) -> R {
-    use std::cell::RefCell;
-    thread_local! {
-        pub static THREE_D: RefCell<Option<three_d::Context>> = RefCell::new(None);
-    }
-
-    THREE_D.with(|three_d| {
-        let mut three_d = three_d.borrow_mut();
-        let three_d =
-            three_d.get_or_insert_with(|| three_d::Context::from_gl_context(gl.clone()).unwrap());
-        f(three_d)
-    })
 }
 
 fn paint_with_three_d(three_d: &three_d::Context, info: &egui::PaintCallbackInfo, angle: f32) {
