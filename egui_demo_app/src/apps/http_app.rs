@@ -42,6 +42,8 @@ pub struct HttpApp {
 
     #[cfg_attr(feature = "serde", serde(skip))]
     promise: Option<Promise<ehttp::Result<ehttp::Response>>>,
+    #[cfg_attr(feature = "serde", serde(skip))]
+    resource: Option<Resource>,
 }
 
 impl Default for HttpApp {
@@ -49,6 +51,7 @@ impl Default for HttpApp {
         Self {
             url: "https://raw.githubusercontent.com/emilk/egui/master/README.md".to_owned(),
             promise: Default::default(),
+            resource: None,
         }
     }
 }
@@ -79,30 +82,33 @@ impl eframe::App for HttpApp {
                 ehttp::fetch(request, move |response| {
                     sender.send(response);
                     repaint_requests.request(); // wake up UI thread
+
+                    // Can't create Resource here because we don't have access to the Context.
                 });
                 self.promise = Some(promise);
+                self.resource = None;
             }
 
             ui.separator();
 
             if let Some(promise) = &self.promise {
-                if let Some(result) = promise.ready() {
-                    match result {
-                        Ok(response) => {
-                            // TODO(Pjottos): Cache resource
-                            let resource = Resource::from_response(ui.ctx, response.clone());
-                            ui_resource(ui, &resource);
-                        }
-                        Err(error) => {
-                            // This should only happen if the fetch API isn't available or something similar.
-                            ui.colored_label(
-                                egui::Color32::RED,
-                                if error.is_empty() { "Error" } else { error },
-                            );
-                        }
+                match promise.ready() {
+                    Some(Ok(response)) => {
+                        let resource = self.resource.get_or_insert_with(|| {
+                            Resource::from_response(ui.ctx, response.clone())
+                        });
+                        ui_resource(ui, resource);
                     }
-                } else {
-                    ui.spinner();
+                    None => {
+                        ui.spinner();
+                    }
+                    Some(Err(error)) => {
+                        // This should only happen if the fetch API isn't available or something similar.
+                        ui.colored_label(
+                            egui::Color32::RED,
+                            if error.is_empty() { "Error" } else { error },
+                        );
+                    }
                 }
             }
         });
