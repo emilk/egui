@@ -188,9 +188,6 @@ impl Context {
     ///
     /// Put your widgets into a [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`].
     ///
-    /// This will modify the internal reference to point to a new generation of [`Context`].
-    /// Any old clones of this [`Context`] will refer to the old [`Context`], which will not get new input.
-    ///
     /// You can alternatively run [`Self::begin_frame`] and [`Context::end_frame`].
     ///
     /// ```
@@ -516,7 +513,7 @@ impl Context {
 
 /// ## Borrows parts of [`Context`]
 impl Context {
-    /// Returns a reference all the egui state.
+    /// Returns a reference to all the egui state.
     ///
     /// If you want to store/restore egui, serialize this.
     #[inline]
@@ -524,7 +521,7 @@ impl Context {
         &self.memory
     }
 
-    /// Returns a mutable reference all the egui state.
+    /// Returns a mutable reference to all the egui state.
     ///
     /// See [`Context::memory`]
     #[inline]
@@ -693,6 +690,15 @@ impl Context {
         Rc::make_mut(&mut self.options_mut().style)
     }
 
+    /// The [`Visuals`] used by all subsequent windows, panels etc.
+    ///
+    /// You can also use [`Ui::visuals_mut`] to change the visuals of a single [`Ui`].
+    ///
+    /// Example:
+    /// ```
+    /// # let mut ctx = egui::Context::default();
+    /// ctx.set_visuals(egui::Visuals::light()); // Switch to light mode
+    /// ```
     #[inline]
     pub fn set_visuals(&mut self, visuals: Visuals) {
         self.style_mut().visuals = visuals;

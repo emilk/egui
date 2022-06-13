@@ -392,7 +392,7 @@ impl Painter {
     /// To center the text at the given position, use `Align2::CENTER_CENTER`.
     ///
     /// To find out the size of text before painting it, use
-    /// [`epaint::text::Fonts::layout`] or [`epaint::text::Fonts::layout_no_wrap`].
+    /// [`crate::Fonts::layout`] or [`crate::Fonts::layout_no_wrap`].
     ///
     /// Returns where the text ended up.
     #[allow(clippy::needless_pass_by_value)]
