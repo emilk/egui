@@ -888,7 +888,7 @@ impl TitleBar {
     ///
     /// The button is square and its size is determined by the
     /// [`crate::style::Spacing::icon_width`] setting.
-    fn close_button_ui<'c>(&self, ui: &mut Ui<'c>) -> Response {
+    fn close_button_ui(&self, ui: &mut Ui<'_>) -> Response {
         let button_size = Vec2::splat(ui.spacing().icon_width);
         let pad = (self.rect.height() - button_size.y) / 2.0; // calculated so that the icon is on the diagonal (if window padding is symmetrical)
         let button_rect = Rect::from_min_size(

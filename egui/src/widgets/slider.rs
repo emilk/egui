@@ -455,7 +455,7 @@ impl<'a> Slider<'a> {
         }
     }
 
-    fn value_ui<'c>(&mut self, ui: &mut Ui<'c>, position_range: RangeInclusive<f32>) -> Response {
+    fn value_ui(&mut self, ui: &mut Ui<'_>, position_range: RangeInclusive<f32>) -> Response {
         // If [`DragValue`] is controlled from the keyboard and `step` is defined, set speed to `step`
         let change = {
             // Hold one lock rather than 4 (see https://github.com/emilk/egui/pull/1380).
@@ -497,7 +497,7 @@ impl<'a> Slider<'a> {
         right_value - left_value
     }
 
-    fn add_contents<'c>(&mut self, ui: &mut Ui<'c>) -> Response {
+    fn add_contents(&mut self, ui: &mut Ui<'_>) -> Response {
         let thickness = ui
             .text_style_height(&TextStyle::Body)
             .at_least(ui.spacing().interact_size.y);

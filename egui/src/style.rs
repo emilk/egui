@@ -1228,7 +1228,7 @@ fn slider_vec2<'a>(
     value: &'a mut Vec2,
     range: std::ops::RangeInclusive<f32>,
     text: &'a str,
-) -> impl Widget + 'a + for<'c> FnOnce(&mut crate::Ui<'c>) -> Response {
+) -> impl Widget + 'a {
     move |ui: &mut crate::Ui<'_>| {
         ui.horizontal(|ui| {
             ui.add(
@@ -1247,7 +1247,7 @@ fn slider_vec2<'a>(
     }
 }
 
-fn ui_color<'c>(ui: &mut Ui<'c>, srgba: &mut Color32, label: impl Into<WidgetText>) -> Response {
+fn ui_color(ui: &mut Ui<'_>, srgba: &mut Color32, label: impl Into<WidgetText>) -> Response {
     ui.horizontal(|ui| {
         ui.color_edit_button_srgba(srgba);
         ui.label(label);

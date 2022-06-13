@@ -413,7 +413,7 @@ impl SubMenuButton {
         self
     }
 
-    pub(crate) fn show<'c>(self, ui: &mut Ui<'c>, menu_state: &MenuState, sub_id: Id) -> Response {
+    pub(crate) fn show(self, ui: &mut Ui<'_>, menu_state: &MenuState, sub_id: Id) -> Response {
         let SubMenuButton { text, icon, .. } = self;
 
         let text_style = TextStyle::Button;

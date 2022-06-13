@@ -245,8 +245,8 @@ pub fn show_tooltip_text(ctx: &mut Context, id: Id, text: impl Into<WidgetText>)
 }
 
 /// Show a pop-over window.
-fn show_tooltip_area_dyn<'a, 'c, R>(
-    ctx: &'c mut Context,
+fn show_tooltip_area_dyn<'a, R>(
+    ctx: &mut Context,
     id: Id,
     window_pos: Pos2,
     add_contents: Box<dyn FnOnce(&mut Ui<'_>) -> R + 'a>,

@@ -519,9 +519,9 @@ impl Plot {
         self.show_dyn(ui, Box::new(build_fn))
     }
 
-    fn show_dyn<'a, 'c, R>(
+    fn show_dyn<'a, R>(
         self,
-        ui: &mut Ui<'c>,
+        ui: &mut Ui<'_>,
         build_fn: Box<dyn FnOnce(&mut PlotUi) -> R + 'a>,
     ) -> InnerResponse<R> {
         let Self {

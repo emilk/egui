@@ -72,9 +72,9 @@ impl CollapsingState {
     }
 
     /// Will toggle when clicked, etc.
-    pub(crate) fn show_default_button_with_size<'a>(
+    pub(crate) fn show_default_button_with_size(
         &mut self,
-        ui: &'a mut Ui<'_>,
+        ui: &mut Ui<'_>,
         button_size: Vec2,
     ) -> Response {
         let (_id, rect) = ui.allocate_space(button_size);
