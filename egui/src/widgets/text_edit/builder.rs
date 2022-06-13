@@ -605,7 +605,7 @@ impl<'t> TextEdit<'t> {
                         if interactive {
                             // eframe web uses `text_cursor_pos` when showing IME,
                             // so only set it when text is editable and visible!
-                            ui.ctx.output_mut().text_cursor_pos = Some(cursor_pos.left_top());
+                            ui.output_mut().text_cursor_pos = Some(cursor_pos.left_top());
                         }
                     }
                 }
@@ -694,7 +694,7 @@ fn events(
 
     let copy_if_not_password = |ui: &mut Ui<'_>, text: String| {
         if !password {
-            ui.ctx.output_mut().copied_text = text;
+            ui.output_mut().copied_text = text;
         }
     };
 

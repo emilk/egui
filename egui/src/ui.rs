@@ -343,6 +343,19 @@ impl<'c> Ui<'c> {
         self.ctx.data()
     }
 
+    /// Stores superficial widget state.
+    #[inline]
+    pub fn data_mut(&mut self) -> &mut crate::util::IdTypeMap {
+        self.ctx.data_mut()
+    }
+
+    /// The [`PlatformOutput`] of the [`Context`] associated with this ui.
+    /// Equivalent to `.ctx.output_mut()`.
+    #[inline]
+    pub fn output(&self) -> &PlatformOutput {
+        self.ctx.output()
+    }
+
     /// The [`PlatformOutput`] of the [`Context`] associated with this ui.
     /// Equivalent to `.ctx.output_mut()`.
     #[inline]

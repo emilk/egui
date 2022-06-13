@@ -236,7 +236,6 @@ impl CodeTheme {
         ui.horizontal_top(|ui| {
             let selected_id = egui::Id::null();
             let mut selected_tt: TokenType = *ui
-                .ctx
                 .data_mut()
                 .get_persisted_mut_or(selected_id, TokenType::Comment);
 
@@ -280,7 +279,7 @@ impl CodeTheme {
 
             ui.add_space(16.0);
 
-            ui.ctx.data_mut().insert_persisted(selected_id, selected_tt);
+            ui.data_mut().insert_persisted(selected_id, selected_tt);
 
             egui::Frame::group(ui.style())
                 .inner_margin(egui::Vec2::splat(2.0))

@@ -93,7 +93,7 @@ impl super::View for FontBook {
                         };
 
                         if ui.add(button).on_hover_ui(ui.ctx, tooltip_ui).clicked() {
-                            ui.ctx.output_mut().copied_text = chr.to_string();
+                            ui.output_mut().copied_text = chr.to_string();
                         }
                     }
                 }

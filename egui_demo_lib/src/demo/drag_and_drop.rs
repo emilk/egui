@@ -9,10 +9,10 @@ pub fn drag_source(ui: &mut Ui<'_>, id: Id, body: impl FnOnce(&mut Ui<'_>)) {
         // Check for drags:
         let response = ui.interact(response.rect(), id, Sense::drag());
         if response.hovered() {
-            ui.ctx.output_mut().cursor_icon = CursorIcon::Grab;
+            ui.output_mut().cursor_icon = CursorIcon::Grab;
         }
     } else {
-        ui.ctx.output_mut().cursor_icon = CursorIcon::Grabbing;
+        ui.output_mut().cursor_icon = CursorIcon::Grabbing;
 
         // Paint the body to a new layer:
         let layer_id = LayerId::new(Order::Tooltip, id);

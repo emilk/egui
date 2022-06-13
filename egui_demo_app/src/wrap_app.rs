@@ -278,7 +278,7 @@ impl WrapApp {
             {
                 selected_anchor = anchor.to_owned();
                 if frame.is_web() {
-                    ui.ctx.output_mut().open_url(format!("#{}", anchor));
+                    ui.output_mut().open_url(format!("#{}", anchor));
                 }
             }
         }
@@ -291,7 +291,7 @@ impl WrapApp {
                     if clock_button(ui, seconds_since_midnight).clicked() {
                         self.state.selected_anchor = "clock".to_owned();
                         if frame.is_web() {
-                            ui.ctx.output_mut().open_url("#clock");
+                            ui.output_mut().open_url("#clock");
                         }
                     }
                 }
