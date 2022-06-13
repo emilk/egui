@@ -350,7 +350,7 @@ impl<'c> Ui<'c> {
     }
 
     /// The [`PlatformOutput`] of the [`Context`] associated with this ui.
-    /// Equivalent to `.ctx.output_mut()`.
+    /// Equivalent to `.ctx.output()`.
     #[inline]
     pub fn output(&self) -> &PlatformOutput {
         self.ctx.output()

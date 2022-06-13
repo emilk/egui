@@ -236,7 +236,7 @@ impl Widgets {
             ui.heading("The name of the tooltip");
             ui.horizontal(|ui| {
                 ui.label("This tooltip was created with");
-                ui.monospace(".on_hover_ui(ui.ctx, …)");
+                ui.monospace(".on_hover_ui(…)");
             });
             let _ = ui.button("A button you can never press");
         };
