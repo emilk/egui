@@ -67,86 +67,6 @@ impl Response {
         self.sense
     }
 
-    /// `true` if there was a click *outside* this widget this frame.
-    #[inline]
-    pub fn clicked_elsewhere(&self) -> bool {
-        self.clicked_elsewhere
-    }
-
-    /// This widget has the keyboard focus (i.e. is receiving key presses).
-    #[inline]
-    pub fn has_focus(&self) -> bool {
-        self.has_focus
-    }
-
-    /// True if this widget has keyboard focus this frame, but didn't last frame.
-    #[inline]
-    pub fn gained_focus(&self) -> bool {
-        self.gained_focus
-    }
-
-    /// The widget had keyboard focus and lost it,
-    /// either because the user pressed tab or clicked somewhere else,
-    /// or (in case of a [`crate::TextEdit`]) because the user pressed enter.
-    ///
-    /// ```
-    /// # egui::__run_test_ui(|ui| {
-    /// # let mut my_text = String::new();
-    /// # fn do_request(_: &str) {}
-    /// let response = ui.text_edit_singleline(&mut my_text);
-    /// if response.lost_focus() && ui.input().key_pressed(egui::Key::Enter) {
-    ///     do_request(&my_text);
-    /// }
-    /// # });
-    /// ```
-    #[inline]
-    pub fn lost_focus(&self) -> bool {
-        self.lost_focus
-    }
-
-    /// Request that this widget get keyboard focus.
-    pub fn request_focus(&self, ctx: &mut Context) {
-        ctx.memory_mut().request_focus(self.id);
-    }
-
-    /// Surrender keyboard focus for this widget.
-    pub fn surrender_focus(&self, ctx: &mut Context) {
-        ctx.memory_mut().surrender_focus(self.id);
-    }
-
-    /// Whether this widget is being dragged by the given pointer button.
-    #[inline]
-    pub fn dragged_by(&self, button: PointerButton) -> bool {
-        self.dragged && self.pointer_down[button as usize]
-    }
-
-    /// Did a drag on this widgets begin this frame?
-    #[inline]
-    pub fn drag_started(&self) -> bool {
-        self.dragged && self.pointer_any_pressed
-    }
-
-    /// If dragged, how many points were we dragged and in what direction?
-    #[inline]
-    pub fn drag_delta(&self) -> Vec2 {
-        if self.dragged() {
-            self.pointer_delta
-        } else {
-            Vec2::ZERO
-        }
-    }
-
-    /// If it is a good idea to show a tooltip, where is pointer?
-    /// None if the pointer is outside the response area.
-    #[inline]
-    pub fn hover_pos(&self) -> Option<Pos2> {
-        if self.hovered() {
-            self.hover_pointer_pos
-        } else {
-            None
-        }
-    }
-
     /// Returns true if this widget was clicked this frame by the primary button.
     ///
     /// A click is registered when the mouse or touch is released within
@@ -203,6 +123,12 @@ impl Response {
         self.triple_clicked[button as usize]
     }
 
+    /// `true` if there was a click *outside* this widget this frame.
+    #[inline]
+    pub fn clicked_elsewhere(&self) -> bool {
+        self.clicked_elsewhere
+    }
+
     /// Was the widget enabled?
     /// If false, there was no interaction attempted
     /// and the widget should be drawn in a gray disabled look.
@@ -222,6 +148,47 @@ impl Response {
         self.hovered
     }
 
+    /// This widget has the keyboard focus (i.e. is receiving key presses).
+    #[inline]
+    pub fn has_focus(&self) -> bool {
+        self.has_focus
+    }
+
+    /// True if this widget has keyboard focus this frame, but didn't last frame.
+    #[inline]
+    pub fn gained_focus(&self) -> bool {
+        self.gained_focus
+    }
+
+    /// The widget had keyboard focus and lost it,
+    /// either because the user pressed tab or clicked somewhere else,
+    /// or (in case of a [`crate::TextEdit`]) because the user pressed enter.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut my_text = String::new();
+    /// # fn do_request(_: &str) {}
+    /// let response = ui.text_edit_singleline(&mut my_text);
+    /// if response.lost_focus() && ui.input().key_pressed(egui::Key::Enter) {
+    ///     do_request(&my_text);
+    /// }
+    /// # });
+    /// ```
+    #[inline]
+    pub fn lost_focus(&self) -> bool {
+        self.lost_focus
+    }
+
+    /// Request that this widget get keyboard focus.
+    pub fn request_focus(&self, ctx: &mut Context) {
+        ctx.memory_mut().request_focus(self.id);
+    }
+
+    /// Surrender keyboard focus for this widget.
+    pub fn surrender_focus(&self, ctx: &mut Context) {
+        ctx.memory_mut().surrender_focus(self.id);
+    }
+
     /// The widgets is being dragged.
     ///
     /// To find out which button(s), query [`crate::PointerState::button_down`]
@@ -236,10 +203,32 @@ impl Response {
         self.dragged
     }
 
+    /// Whether this widget is being dragged by the given pointer button.
+    #[inline]
+    pub fn dragged_by(&self, button: PointerButton) -> bool {
+        self.dragged && self.pointer_down[button as usize]
+    }
+
+    /// Did a drag on this widgets begin this frame?
+    #[inline]
+    pub fn drag_started(&self) -> bool {
+        self.dragged && self.pointer_any_pressed
+    }
+
     /// The widget was being dragged, but now it has been released.
     #[inline]
     pub fn drag_released(&self) -> bool {
         self.drag_released
+    }
+
+    /// If dragged, how many points were we dragged and in what direction?
+    #[inline]
+    pub fn drag_delta(&self) -> Vec2 {
+        if self.dragged() {
+            self.pointer_delta
+        } else {
+            Vec2::ZERO
+        }
     }
 
     /// Where the pointer (mouse/touch) were when when this widget was clicked or dragged.
@@ -247,6 +236,17 @@ impl Response {
     #[inline]
     pub fn interact_pointer_pos(&self) -> Option<Pos2> {
         self.interact_pointer_pos
+    }
+
+    /// If it is a good idea to show a tooltip, where is pointer?
+    /// None if the pointer is outside the response area.
+    #[inline]
+    pub fn hover_pos(&self) -> Option<Pos2> {
+        if self.hovered() {
+            self.hover_pointer_pos
+        } else {
+            None
+        }
     }
 
     /// Is the pointer button currently down on this widget?
@@ -281,11 +281,6 @@ impl Response {
     #[inline]
     pub fn mark_changed(&mut self) {
         self.changed = true;
-    }
-
-    #[inline]
-    pub(crate) fn set_changed(&mut self, changed: bool) {
-        self.changed = changed;
     }
 
     /// Show this UI if the widget was hovered (i.e. a tooltip).
