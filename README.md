@@ -188,6 +188,7 @@ These are the official egui integrations:
 * [`nannou_egui`](https://github.com/AlexEne/nannou_egui) for [nannou](https://nannou.cc).
 * [`screen-13-egui`](https://github.com/attackgoat/screen-13/tree/master/contrib/screen-13-egui) for [Screen 13](https://github.com/attackgoat/screen-13).
 * [`smithay-egui`](https://github.com/Smithay/smithay-egui) for [smithay](https://github.com/Smithay/smithay/).
+* [`notan_egui`](https://github.com/Nazariglez/notan/tree/main/crates/notan_egui) for [notan](https://github.com/Nazariglez/notan)
 
 Missing an integration for the thing you're working on? Create one, it's easy!
 
