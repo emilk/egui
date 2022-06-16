@@ -4,6 +4,7 @@
 pub struct WindowSettings {
     /// Position of window in physical pixels. This is either
     /// the inner or outer position depending on the platform.
+    /// See [`winit::window::WindowAttributes`] for details.
     position: Option<egui::Pos2>,
     /// Inner size of window in logical pixels
     inner_size_points: Option<egui::Vec2>,
