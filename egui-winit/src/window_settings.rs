@@ -13,7 +13,7 @@ impl WindowSettings {
     pub fn from_display(window: &winit::window::Window) -> Self {
         let inner_size_points = window.inner_size().to_logical::<f32>(window.scale_factor());
         let position = if cfg!(macos) {
-            // Use the inner position for MacOS
+            // MacOS uses inner position when positioning windows.
             window
                 .inner_position()
                 .ok()
