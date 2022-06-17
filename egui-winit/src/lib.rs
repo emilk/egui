@@ -499,6 +499,7 @@ impl State {
 
     fn set_cursor_icon(&mut self, window: &winit::window::Window, cursor_icon: egui::CursorIcon) {
         // prevent flickering near frame boundary when Windows OS tries to control cursor icon for window resizing
+        #[cfg(windows)]
         if self.current_cursor_icon == cursor_icon {
             return;
         }
