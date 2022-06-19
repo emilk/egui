@@ -58,7 +58,7 @@ impl TextureManager {
                 meta.size = delta.image.size();
                 meta.bytes_per_pixel = delta.image.bytes_per_pixel();
                 // since we update the whole image, we can discard all old enqueued deltas
-                self.delta.set.retain(|(x, _)| x != id);
+                self.delta.set.retain(|(x, _)| x != &id);
             }
             self.delta.set.push((id, delta));
         } else {
