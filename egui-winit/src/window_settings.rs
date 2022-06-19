@@ -2,8 +2,10 @@
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WindowSettings {
-    /// Inner position of window in physical pixels
-    inner_pos: Option<egui::Pos2>,
+    /// Position of window in physical pixels. This is either
+    /// the inner or outer position depending on the platform.
+    /// See [`winit::window::WindowAttributes`] for details.
+    position: Option<egui::Pos2>,
     /// Inner size of window in logical pixels
     inner_size_points: Option<egui::Vec2>,
 }
@@ -11,13 +13,22 @@ pub struct WindowSettings {
 impl WindowSettings {
     pub fn from_display(window: &winit::window::Window) -> Self {
         let inner_size_points = window.inner_size().to_logical::<f32>(window.scale_factor());
-
-        Self {
-            inner_pos: window
+        let position = if cfg!(macos) {
+            // MacOS uses inner position when positioning windows.
+            window
                 .inner_position()
                 .ok()
-                .map(|p| egui::pos2(p.x as f32, p.y as f32)),
+                .map(|p| egui::pos2(p.x as f32, p.y as f32))
+        } else {
+            // Other platforms use the outer position.
+            window
+                .outer_position()
+                .ok()
+                .map(|p| egui::pos2(p.x as f32, p.y as f32))
+        };
 
+        Self {
+            position,
             inner_size_points: Some(egui::vec2(
                 inner_size_points.width as f32,
                 inner_size_points.height as f32,
@@ -35,7 +46,7 @@ impl WindowSettings {
             // If this happens on Mac, the window is clamped into valid area.
             // If this happens on Windows, the window is hidden and very difficult to find.
             // So we don't restore window positions on Windows.
-            if let Some(pos) = self.inner_pos {
+            if let Some(pos) = self.position {
                 window = window.with_position(winit::dpi::PhysicalPosition {
                     x: pos.x as f64,
                     y: pos.y as f64,
