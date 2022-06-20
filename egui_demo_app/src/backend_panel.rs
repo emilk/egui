@@ -245,13 +245,13 @@ impl BackendPanel {
             ui.label("Only running UI code when there are animations or input.");
             ui.label("but if there's no input for the repaint_after duration, we force an update");
             ui.label("repaint_after (in seconds)");
-            let mut milli_seconds = self.repaint_after_timeout.as_secs_f32();
-            if egui::DragValue::new(&mut milli_seconds)
+            let mut seconds = self.repaint_after_timeout.as_secs_f32();
+            if egui::DragValue::new(&mut seconds)
                 .clamp_range(0.1..=10.0)
                 .ui(ui)
                 .changed()
             {
-                self.repaint_after_timeout = std::time::Duration::from_secs_f32(milli_seconds);
+                self.repaint_after_timeout = std::time::Duration::from_secs_f32(seconds);
             }
         }
     }

@@ -70,7 +70,11 @@ fn main() {
 
                 display.gl_window().window().request_redraw(); // TODO(emilk): ask egui if the events warrants a repaint instead
             }
-
+            glutin::event::Event::NewEvents(glutin::event::StartCause::ResumeTimeReached {
+                                                ..
+                                            }) => {
+                window.request_redraw();
+            }
             _ => (),
         }
     });

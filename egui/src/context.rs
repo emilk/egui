@@ -575,18 +575,18 @@ impl Context {
         }
     }
 
-    /// request repaint after the specified duration elapses in the case of no new input
+    /// Request repaint after the specified duration elapses in the case of no new input
     /// events being received.
     ///
-    /// function can be multiple times, but only the *smallest* duration will be considered.
-    /// so, if the function is called two times with `1 second` and `2 seconds`, egui will repaint
+    /// The function can be multiple times, but only the *smallest* duration will be considered.
+    /// So, if the function is called two times with `1 second` and `2 seconds`, egui will repaint
     /// after `1 second`
     ///
-    /// this is primarily useful for applications who would like to save battery by avoiding wasted
-    /// redraws when the app is not in focus. but sometimes the GUI of the app might become stale
+    /// This is primarily useful for applications who would like to save battery by avoiding wasted
+    /// redraws when the app is not in focus. But sometimes the GUI of the app might become stale
     /// and outdated if it is not updated for too long.
     ///
-    /// lets say, something like a stop watch widget that displays the time in seconds. you would waste
+    /// Lets say, something like a stop watch widget that displays the time in seconds. You would waste
     /// resources repainting multiple times within the same second (when you have no input),
     /// just calculate the difference of duration between current time and next second change,
     /// and call this function, to make sure that you are displaying the latest updated time, but
@@ -595,15 +595,15 @@ impl Context {
     /// NOTE: only works if called before `Context::end_frame()`. to force egui to update,
     /// use `Context::request_repaint()` instead.
     ///
-    /// Quirk:
-    ///     duration begins at the next frame. lets say for example that its a very inefficient app
-    ///     and takes 500 milliseconds per frame at 2 fps. the widget / user might want a repaint in
-    ///     next 500 milliseconds. now, app takes 1000 ms per frame (1 fps) because the backend event
-    ///     timeout takes 500 milli seconds AFTER the vsync swap buffer.
-    ///     so, its not that we are requesting repaint within X duration. we are rather timing out
-    ///     during app idle time where we are not receiving any new input events.
+    /// ### Quirk:
+    /// Duration begins at the next frame. lets say for example that its a very inefficient app
+    /// and takes 500 milliseconds per frame at 2 fps. The widget / user might want a repaint in
+    /// next 500 milliseconds. Now, app takes 1000 ms per frame (1 fps) because the backend event
+    /// timeout takes 500 milli seconds AFTER the vsync swap buffer.
+    /// So, its not that we are requesting repaint within X duration. We are rather timing out
+    /// during app idle time where we are not receiving any new input events.
     pub fn request_repaint_after(&self, duration: std::time::Duration) {
-        // maybe we can check if duration is ZERO, and call self.request_repaint()?
+        // Maybe we can check if duration is ZERO, and call self.request_repaint()?
         let mut ctx = self.write();
         ctx.repaint_after = ctx.repaint_after.min(duration);
     }

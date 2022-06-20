@@ -41,7 +41,7 @@ impl EguiGlow {
         self.egui_winit.on_event(&self.egui_ctx, event)
     }
 
-    /// Returns `true` if egui requests a repaint.
+    /// Returns the `Duration` of the timeout after which egui should be repainted even if there's no new events.
     ///
     /// Call [`Self::paint`] later to paint.
     pub fn run(

@@ -17,7 +17,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 
 ### Changed
 * `PaintCallback` shapes now require the whole callback to be put in an `Arc<dyn Any>` with the value being a backend-specific callback type. ([#1684](https://github.com/emilk/egui/pull/1684))
-* Replaced `needs_repaint` in `FullOutput` with `repaint_after`. used to force repaint after the set duration in reactive mode.([#1694](https://github.com/emilk/egui/pull/1694))
+* Replaced `needs_repaint` in `FullOutput` with `repaint_after`. Used to force repaint after the set duration in reactive mode.([#1694](https://github.com/emilk/egui/pull/1694)).
 
 ### Fixed 🐛
 * Fixed `ImageButton`'s changing background padding on hover ([#1595](https://github.com/emilk/egui/pull/1595)).

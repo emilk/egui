@@ -398,6 +398,11 @@ pub fn run_wgpu(
                 painter.destroy();
             }
             winit::event::Event::UserEvent(RequestRepaintEvent) => window.request_redraw(),
+            winit::event::Event::NewEvents(winit::event::StartCause::ResumeTimeReached {
+            ..
+            }) => {
+                window.request_redraw();
+            }
             _ => (),
         }
     });
