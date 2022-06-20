@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use glium::glutin;
 use egui_winit::winit;
+use glium::glutin;
 
 fn main() {
     let event_loop = glutin::event_loop::EventLoop::with_user_event();
@@ -91,7 +91,7 @@ fn main() {
                 display.gl_window().window().request_redraw(); // TODO(emilk): ask egui if the events warrants a repaint instead
             }
             glutin::event::Event::NewEvents(glutin::event::StartCause::ResumeTimeReached {
-            ..
+                ..
             }) => {
                 window.request_redraw();
             }

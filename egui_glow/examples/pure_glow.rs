@@ -89,8 +89,8 @@ fn main() {
                 egui_glow.destroy();
             }
             glutin::event::Event::NewEvents(glutin::event::StartCause::ResumeTimeReached {
-                                                ..
-                                            }) => {
+                ..
+            }) => {
                 gl_window..window().request_redraw();
             }
 
