@@ -73,7 +73,7 @@ fn main() {
             glutin::event::Event::NewEvents(glutin::event::StartCause::ResumeTimeReached {
                 ..
             }) => {
-                window.request_redraw();
+                display.gl_window().window().request_redraw();
             }
             _ => (),
         }
