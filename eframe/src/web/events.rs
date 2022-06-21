@@ -14,6 +14,7 @@ pub fn paint_and_schedule(
             if repaint_after.is_zero() {
                 runner_lock.needs_repaint.set_true();
             }
+            // TODO: schedule a repaint after `repaint_after` when it is not zero
             runner_lock.auto_save();
         }
 
