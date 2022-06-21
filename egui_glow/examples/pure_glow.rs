@@ -3,8 +3,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![allow(unsafe_code)]
 
-use web_sys::window;
-
 fn main() {
     let mut clear_color = [0.1, 0.1, 0.1];
 
