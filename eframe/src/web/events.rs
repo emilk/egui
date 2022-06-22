@@ -12,7 +12,9 @@ pub fn paint_and_schedule(
             runner_lock.clear_color_buffer();
             let (repaint_after, clipped_primitives) = runner_lock.logic()?;
             runner_lock.paint(&clipped_primitives)?;
-            runner_lock.needs_repaint.repaint_after(repaint_after.as_secs_f64());
+            runner_lock
+                .needs_repaint
+                .repaint_after(repaint_after.as_secs_f64());
             runner_lock.auto_save();
         }
 
