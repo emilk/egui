@@ -20,7 +20,6 @@ use std::sync::{
     Arc,
 };
 
-use egui::mutex::{Mutex, MutexGuard};
 use wasm_bindgen::prelude::*;
 use web_sys::EventTarget;
 
@@ -30,7 +29,9 @@ use crate::Theme;
 
 // ----------------------------------------------------------------------------
 
-/// Current time in seconds (since undefined point in time)
+/// Current time in seconds (since undefined point in time).
+///
+/// Monotonically increasing.
 pub fn now_sec() -> f64 {
     web_sys::window()
         .expect("should have a Window")

@@ -55,7 +55,7 @@ pub fn install_text_agent(runner_container: &AppRunnerContainer) -> Result<(), J
             if !text.is_empty() && !is_composing.get() {
                 input_clone.set_value("");
                 runner_lock.input.raw.events.push(egui::Event::Text(text));
-                runner_lock.needs_repaint.set_true();
+                runner_lock.needs_repaint.repaint_asap();
             }
         }
     })?;
@@ -75,7 +75,7 @@ pub fn install_text_agent(runner_container: &AppRunnerContainer) -> Result<(), J
                     .raw
                     .events
                     .push(egui::Event::CompositionStart);
-                runner_lock.needs_repaint.set_true();
+                runner_lock.needs_repaint.repaint_asap();
             }
         })?;
 
@@ -85,7 +85,7 @@ pub fn install_text_agent(runner_container: &AppRunnerContainer) -> Result<(), J
             move |event: web_sys::CompositionEvent, mut runner_lock: MutexGuard<'_, AppRunner>| {
                 if let Some(event) = event.data().map(egui::Event::CompositionUpdate) {
                     runner_lock.input.raw.events.push(event);
-                    runner_lock.needs_repaint.set_true();
+                    runner_lock.needs_repaint.repaint_asap();
                 }
             },
         )?;
@@ -99,7 +99,7 @@ pub fn install_text_agent(runner_container: &AppRunnerContainer) -> Result<(), J
 
                 if let Some(event) = event.data().map(egui::Event::CompositionEnd) {
                     runner_lock.input.raw.events.push(event);
-                    runner_lock.needs_repaint.set_true();
+                    runner_lock.needs_repaint.repaint_asap();
                 }
             }
         })?;
