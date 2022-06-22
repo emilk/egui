@@ -49,12 +49,11 @@ pub struct BackendPanel {
     pub open: bool,
 
     #[cfg_attr(feature = "serde", serde(skip))]
-    // go back to [`Reactive`] mode each time we start
+    // go back to [`RunMode::Reactive`] mode each time we start
     run_mode: RunMode,
 
     #[cfg_attr(feature = "serde", serde(skip))]
-    // reset to 1 second as default repaint_after idle timeout.
-    repaint_after_timeout: std::time::Duration,
+    repaint_after_seocnds: f32,
 
     /// current slider value for current gui scale
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -71,7 +70,7 @@ impl Default for BackendPanel {
         Self {
             open: false,
             run_mode: Default::default(),
-            repaint_after_timeout: std::time::Duration::from_secs(1),
+            repaint_after_seocnds: 1.0,
             pixels_per_point: None,
             frame_history: Default::default(),
             egui_windows: Default::default(),
@@ -85,12 +84,15 @@ impl BackendPanel {
             .on_new_frame(ctx.input().time, frame.info().cpu_usage);
 
         match self.run_mode {
-            RunMode::Reactive => {
-                ctx.request_repaint_after(self.repaint_after_timeout);
-            }
             RunMode::Continuous => {
                 // Tell the backend to repaint as soon as possible
                 ctx.request_repaint();
+            }
+            RunMode::Reactive => {
+                // let the computer rest for a bit
+                ctx.request_repaint_after(std::time::Duration::from_secs_f32(
+                    self.repaint_after_seocnds,
+                ));
             }
         }
     }
@@ -243,16 +245,18 @@ impl BackendPanel {
             ));
         } else {
             ui.label("Only running UI code when there are animations or input.");
-            ui.label("but if there's no input for the repaint_after duration, we force an update");
-            ui.label("repaint_after (in seconds)");
-            let mut seconds = self.repaint_after_timeout.as_secs_f32();
-            if egui::DragValue::new(&mut seconds)
-                .clamp_range(0.1..=10.0)
-                .ui(ui)
-                .changed()
-            {
-                self.repaint_after_timeout = std::time::Duration::from_secs_f32(seconds);
-            }
+
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = 0.0;
+                ui.label("(but at least every ");
+                egui::DragValue::new(&mut self.repaint_after_seocnds)
+                    .clamp_range(0.1..=10.0)
+                    .speed(0.1)
+                    .suffix(" s")
+                    .ui(ui)
+                    .on_hover_text("Repaint this often, even if there is no input.");
+                ui.label(")");
+            });
         }
     }
 }
