@@ -251,10 +251,10 @@ impl AppRunner {
         Ok(())
     }
 
-    /// Returns `true` if egui requests a repaint.
+    /// Returns how long to wait until the next repaint.
     ///
     /// Call [`Self::paint`] later to paint
-    pub fn logic(&mut self) -> Result<(bool, Vec<egui::ClippedPrimitive>), JsValue> {
+    pub fn logic(&mut self) -> Result<(std::time::Duration, Vec<egui::ClippedPrimitive>), JsValue> {
         let frame_start = now_sec();
 
         resize_canvas_to_screen_size(self.canvas_id(), self.app.max_size_points());
@@ -266,7 +266,7 @@ impl AppRunner {
         });
         let egui::FullOutput {
             platform_output,
-            needs_repaint,
+            repaint_after,
             textures_delta,
             shapes,
         } = full_output;
@@ -288,7 +288,7 @@ impl AppRunner {
         }
 
         self.frame.info.cpu_usage = Some((now_sec() - frame_start) as f32);
-        Ok((needs_repaint, clipped_primitives))
+        Ok((repaint_after, clipped_primitives))
     }
 
     pub fn clear_color_buffer(&self) {

@@ -16,7 +16,7 @@ fn main() {
         let mut redraw = || {
             let mut quit = false;
 
-            let needs_repaint = egui_glow.run(gl_window.window(), |egui_ctx| {
+            let repaint_after = egui_glow.run(gl_window.window(), |egui_ctx| {
                 egui::SidePanel::left("my_side_panel").show(egui_ctx, |ui| {
                     ui.heading("Hello World!");
                     if ui.button("Quit").clicked() {
@@ -28,9 +28,13 @@ fn main() {
 
             *control_flow = if quit {
                 glutin::event_loop::ControlFlow::Exit
-            } else if needs_repaint {
+            } else if repaint_after.is_zero() {
                 gl_window.window().request_redraw();
                 glutin::event_loop::ControlFlow::Poll
+            } else if let Some(repaint_after_instant) =
+                std::time::Instant::now().checked_add(repaint_after)
+            {
+                glutin::event_loop::ControlFlow::WaitUntil(repaint_after_instant)
             } else {
                 glutin::event_loop::ControlFlow::Wait
             };
@@ -81,6 +85,11 @@ fn main() {
             }
             glutin::event::Event::LoopDestroyed => {
                 egui_glow.destroy();
+            }
+            glutin::event::Event::NewEvents(glutin::event::StartCause::ResumeTimeReached {
+                ..
+            }) => {
+                gl_window.window().request_redraw();
             }
 
             _ => (),
