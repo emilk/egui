@@ -485,7 +485,7 @@ impl RenderPass {
                     image.pixels.len(),
                     "Mismatch between texture size and texel count"
                 );
-                Cow::Owned(image.srgba_pixels(1.0).collect::<Vec<_>>())
+                Cow::Owned(image.linear_premultiplied_srgb_pixels().collect::<Vec<_>>())
             }
         };
         let data_bytes: &[u8] = bytemuck::cast_slice(data_color32.as_slice());

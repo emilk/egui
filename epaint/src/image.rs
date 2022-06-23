@@ -191,19 +191,17 @@ impl FontImage {
         self.size[1]
     }
 
-    /// Returns the textures as `sRGBA` premultiplied pixels, row by row, top to bottom.
-    ///
-    /// `gamma` should normally be set to 1.0.
-    /// If you are having problems with text looking skinny and pixelated, try
-    /// setting a lower gamma, e.g. `0.5`.
-    pub fn srgba_pixels(&'_ self, gamma: f32) -> impl ExactSizeIterator<Item = Color32> + '_ {
+    /// Returns the textures as `sRGBA` pixels row by row, top to bottom.
+    /// rgb values are premultiplied by alpha, ready for blending in linear space.
+    pub fn linear_premultiplied_srgb_pixels(
+        &'_ self,
+    ) -> impl ExactSizeIterator<Item = Color32> + '_ {
         self.pixels.iter().map(move |coverage| {
-            // This is arbitrarily chosen to make text look as good as possible.
-            // In particular, it looks good with gamma=1 and the default eframe backend,
-            // which uses linear blending.
-            // See https://github.com/emilk/egui/issues/1410
-            let a = fast_round(coverage.powf(gamma / 2.2) * 255.0);
-            Color32::from_rgba_premultiplied(a, a, a, a) // this makes no sense, but works
+            // Egui uses linear blending which means we need to premultiply the srgb values
+            // in linear space and convert back. the alpha is left in linear.
+            let v = fast_round(coverage.powf(1.0 / 2.2) * 255.0);
+            let alpha = fast_round(coverage * 255.0);
+            Color32::from_rgba_premultiplied(v, v, v, alpha) // this makes no sense, but works
         })
     }
 

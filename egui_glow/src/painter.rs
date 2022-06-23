@@ -505,13 +505,14 @@ impl Painter {
                     "Mismatch between texture size and texel count"
                 );
 
+                // TODO (felix): confirm what this conditional is about
                 let gamma = if self.is_embedded && self.post_process.is_none() {
                     1.0 / 2.2
                 } else {
                     1.0
                 };
                 let data: Vec<u8> = image
-                    .srgba_pixels(gamma)
+                    .linear_premultiplied_srgb_pixels()
                     .flat_map(|a| a.to_array())
                     .collect();
 
