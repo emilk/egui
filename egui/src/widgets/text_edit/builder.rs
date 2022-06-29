@@ -136,6 +136,26 @@ impl<'t> TextEdit<'t> {
     }
 
     /// Show a faint hint text when the text field is empty.
+    ///
+    /// If the hint text needs to be persisted even when the text field has input,
+    /// the following workaround can be used:
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut my_string = String::new();
+    /// # use egui::{ Color32, FontId };
+    /// let text_edit = egui::TextEdit::multiline(&mut my_string)
+    ///     .desired_width(f32::INFINITY);
+    /// let output = text_edit.show(ui);
+    /// let painter = ui.painter_at(output.response.rect);
+    /// let galley = painter.layout(
+    ///     String::from("Enter text"),
+    ///     FontId::default(),
+    ///     Color32::from_rgba_premultiplied(100, 100, 100, 100),
+    ///     f32::INFINITY
+    /// );
+    /// painter.galley(output.text_draw_pos, galley);
+    /// # });
+    /// ```
     pub fn hint_text(mut self, hint_text: impl Into<WidgetText>) -> Self {
         self.hint_text = hint_text.into();
         self
