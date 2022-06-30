@@ -1,0 +1,14 @@
+[package]
+name = "screenshot"
+version = "0.1.0"
+authors = ["René Rössler <rene@freshx.de>"]
+license = "MIT OR Apache-2.0"
+edition = "2021"
+rust-version = "1.60"
+publish = false
+
+
+[dependencies]
+eframe = { path = "../../eframe" }
+egui_extras = { path = "../../egui_extras", features = ["image"] }
+itertools = "0.10.3"

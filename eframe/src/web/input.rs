@@ -170,6 +170,27 @@ pub fn translate_key(key: &str) -> Option<egui::Key> {
         "y" | "Y" => Some(egui::Key::Y),
         "z" | "Z" => Some(egui::Key::Z),
 
+        "F1" => Some(egui::Key::F1),
+        "F2" => Some(egui::Key::F2),
+        "F3" => Some(egui::Key::F3),
+        "F4" => Some(egui::Key::F4),
+        "F5" => Some(egui::Key::F5),
+        "F6" => Some(egui::Key::F6),
+        "F7" => Some(egui::Key::F7),
+        "F8" => Some(egui::Key::F8),
+        "F9" => Some(egui::Key::F9),
+        "F10" => Some(egui::Key::F10),
+        "F11" => Some(egui::Key::F11),
+        "F12" => Some(egui::Key::F12),
+        "F13" => Some(egui::Key::F13),
+        "F14" => Some(egui::Key::F14),
+        "F15" => Some(egui::Key::F15),
+        "F16" => Some(egui::Key::F16),
+        "F17" => Some(egui::Key::F17),
+        "F18" => Some(egui::Key::F18),
+        "F19" => Some(egui::Key::F19),
+        "F20" => Some(egui::Key::F20),
+
         _ => None,
     }
 }

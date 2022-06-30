@@ -1,13 +1,19 @@
+use std::sync::Arc;
+
+use egui::mutex::RwLock;
 use tracing::error;
 use wgpu::{Adapter, Instance, Surface, TextureFormat};
 
 use crate::renderer;
 
-struct RenderState {
-    device: wgpu::Device,
-    queue: wgpu::Queue,
-    target_format: TextureFormat,
-    egui_rpass: renderer::RenderPass,
+/// Access to the render state for egui, which can be useful in combination with
+/// [`egui::PaintCallback`]s for custom rendering using WGPU.
+#[derive(Clone)]
+pub struct RenderState {
+    pub device: Arc<wgpu::Device>,
+    pub queue: Arc<wgpu::Queue>,
+    pub target_format: TextureFormat,
+    pub egui_rpass: Arc<RwLock<renderer::RenderPass>>,
 }
 
 struct SurfaceState {
@@ -66,6 +72,13 @@ impl<'a> Painter<'a> {
         }
     }
 
+    /// Get the [`RenderState`].
+    ///
+    /// Will return [`None`] if the render state has not been initialized yet.
+    pub fn get_render_state(&self) -> Option<RenderState> {
+        self.render_state.as_ref().cloned()
+    }
+
     async fn init_render_state(
         &self,
         adapter: &Adapter,
@@ -74,13 +87,13 @@ impl<'a> Painter<'a> {
         let (device, queue) =
             pollster::block_on(adapter.request_device(&self.device_descriptor, None)).unwrap();
 
-        let egui_rpass = renderer::RenderPass::new(&device, target_format, self.msaa_samples);
+        let rpass = renderer::RenderPass::new(&device, target_format, self.msaa_samples);
 
         RenderState {
-            device,
-            queue,
+            device: Arc::new(device),
+            queue: Arc::new(queue),
             target_format,
-            egui_rpass,
+            egui_rpass: Arc::new(RwLock::new(rpass)),
         }
     }
 
@@ -246,27 +259,22 @@ impl<'a> Painter<'a> {
             pixels_per_point,
         };
 
-        for (id, image_delta) in &textures_delta.set {
-            render_state.egui_rpass.update_texture(
+        {
+            let mut rpass = render_state.egui_rpass.write();
+            for (id, image_delta) in &textures_delta.set {
+                rpass.update_texture(&render_state.device, &render_state.queue, *id, image_delta);
+            }
+
+            rpass.update_buffers(
                 &render_state.device,
                 &render_state.queue,
-                *id,
-                image_delta,
+                clipped_primitives,
+                &screen_descriptor,
             );
         }
-        for id in &textures_delta.free {
-            render_state.egui_rpass.free_texture(id);
-        }
-
-        render_state.egui_rpass.update_buffers(
-            &render_state.device,
-            &render_state.queue,
-            clipped_primitives,
-            &screen_descriptor,
-        );
 
         // Record all render passes.
-        render_state.egui_rpass.execute(
+        render_state.egui_rpass.read().execute(
             &mut encoder,
             &output_view,
             clipped_primitives,
@@ -278,6 +286,13 @@ impl<'a> Painter<'a> {
                 a: clear_color.a() as f64,
             }),
         );
+
+        {
+            let mut rpass = render_state.egui_rpass.write();
+            for id in &textures_delta.free {
+                rpass.free_texture(id);
+            }
+        }
 
         // Submit the commands.
         render_state.queue.submit(std::iter::once(encoder.finish()));

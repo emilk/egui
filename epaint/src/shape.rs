@@ -1,6 +1,6 @@
 //! The different shapes that can be painted.
 
-use std::sync::Arc;
+use std::{any::Any, sync::Arc};
 
 use crate::{
     text::{FontId, Fonts, Galley},
@@ -747,21 +747,19 @@ pub struct PaintCallback {
 
     /// Paint something custom (e.g. 3D stuff).
     ///
-    /// The argument is the render context, and what it contains depends on the backend.
-    /// In `eframe` it will be `egui_glow::Painter`.
+    /// The concrete value of `callback` depends on the rendering backend used. For instance, the
+    /// `glow` backend requires that callback be an `egui_glow::CallbackFn` while the `wgpu`
+    /// backend requires a `egui_wgpu::CallbackFn`.
     ///
-    /// The rendering backend is responsible for first setting the active viewport to [`Self::rect`].
+    /// If the type cannnot be downcast to the type expected by the current backend the callback
+    /// will not be drawn.
     ///
-    /// The rendering backend is also responsible for restoring any state,
-    /// such as the bound shader program and vertex array.
-    pub callback: Arc<dyn Fn(&PaintCallbackInfo, &mut dyn std::any::Any) + Send + Sync>,
-}
-
-impl PaintCallback {
-    #[inline]
-    pub fn call(&self, info: &PaintCallbackInfo, render_ctx: &mut dyn std::any::Any) {
-        (self.callback)(info, render_ctx);
-    }
+    /// The rendering backend is responsible for first setting the active viewport to
+    /// [`Self::rect`].
+    ///
+    /// The rendering backend is also responsible for restoring any state, such as the bound shader
+    /// program, vertex array, etc.
+    pub callback: Arc<dyn Any + Sync + Send>,
 }
 
 impl std::fmt::Debug for PaintCallback {

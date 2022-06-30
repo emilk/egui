@@ -29,6 +29,11 @@ pub struct CreationContext<'s> {
     /// you might want to use later from a [`egui::PaintCallback`].
     #[cfg(feature = "glow")]
     pub gl: Option<std::sync::Arc<glow::Context>>,
+
+    /// Can be used to manage GPU resources for custom rendering with WGPU using
+    /// [`egui::PaintCallback`]s.
+    #[cfg(feature = "wgpu")]
+    pub render_state: Option<egui_wgpu::RenderState>,
 }
 
 // ----------------------------------------------------------------------------
@@ -136,11 +141,33 @@ pub trait App {
     fn warm_up_enabled(&self) -> bool {
         false
     }
+
+    /// Called each time after the rendering the UI.
+    ///
+    /// Can be used to access pixel data with `get_pixels`
+    fn post_rendering(&mut self, _window_size_px: [u32; 2], _frame: &Frame) {}
+}
+
+/// Selects the level of hardware graphics acceleration.
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum HardwareAcceleration {
+    /// Require graphics acceleration.
+    Required,
+
+    /// Prefer graphics acceleration, but fall back to software.
+    Preferred,
+
+    /// Do NOT use graphics acceleration.
+    ///
+    /// On some platforms (MacOS) this is ignored and treated the same as [`Self::Preferred`].
+    Off,
 }
 
 /// Options controlling the behavior of a native window.
 ///
 /// Only a single native window is currently supported.
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Clone)]
 pub struct NativeOptions {
     /// Sets whether or not the window will always be on top of other windows.
@@ -211,10 +238,32 @@ pub struct NativeOptions {
     /// `egui` doesn't need the stencil buffer, so the default value is 0.
     pub stencil_buffer: u8,
 
+    /// Specify wether or not hardware acceleration is preferred, required, or not.
+    ///
+    /// Default: [`HardwareAcceleration::Preferred`].
+    pub hardware_acceleration: HardwareAcceleration,
+
     /// What rendering backend to use.
     pub renderer: Renderer,
+
+    /// If the `dark-light` feature is enabled:
+    ///
+    /// Try to detect and follow the system preferred setting for dark vs light mode.
+    ///
+    /// By default, this is `true` on Mac and Windows, but `false` on Linux
+    /// due to <https://github.com/frewsxcv/rust-dark-light/issues/17>.
+    ///
+    /// See also [`Self::default_theme`].
+    pub follow_system_theme: bool,
+
+    /// Which theme to use in case [`Self::follow_system_theme`] is `false`
+    /// or the `dark-light` feature is disabled.
+    ///
+    /// Default: `Theme::Dark`.
+    pub default_theme: Theme,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Default for NativeOptions {
     fn default() -> Self {
         Self {
@@ -233,7 +282,86 @@ impl Default for NativeOptions {
             multisampling: 0,
             depth_buffer: 0,
             stencil_buffer: 0,
+            hardware_acceleration: HardwareAcceleration::Preferred,
             renderer: Renderer::default(),
+            follow_system_theme: cfg!(target_os = "macos") || cfg!(target_os = "windows"),
+            default_theme: Theme::Dark,
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl NativeOptions {
+    /// The theme used by the system.
+    #[cfg(feature = "dark-light")]
+    pub fn system_theme(&self) -> Option<Theme> {
+        if self.follow_system_theme {
+            crate::profile_scope!("dark_light::detect");
+            match dark_light::detect() {
+                dark_light::Mode::Dark => Some(Theme::Dark),
+                dark_light::Mode::Light => Some(Theme::Light),
+            }
+        } else {
+            None
+        }
+    }
+
+    /// The theme used by the system.
+    #[cfg(not(feature = "dark-light"))]
+    pub fn system_theme(&self) -> Option<Theme> {
+        None
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// Options when using `eframe` in a web page.
+#[cfg(target_arch = "wasm32")]
+pub struct WebOptions {
+    /// Try to detect and follow the system preferred setting for dark vs light mode.
+    ///
+    /// See also [`Self::default_theme`].
+    ///
+    /// Default: `true`.
+    pub follow_system_theme: bool,
+
+    /// Which theme to use in case [`Self::follow_system_theme`] is `false`
+    /// or system theme detection fails.
+    ///
+    /// Default: `Theme::Dark`.
+    pub default_theme: Theme,
+}
+
+#[cfg(target_arch = "wasm32")]
+impl Default for WebOptions {
+    fn default() -> Self {
+        Self {
+            follow_system_theme: true,
+            default_theme: Theme::Dark,
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// Dark or Light theme.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum Theme {
+    /// Dark mode: light text on a dark background.
+    Dark,
+    /// Light mode: dark text on a light background.
+    Light,
+}
+
+impl Theme {
+    /// Get the egui visuals corresponding to this theme.
+    ///
+    /// Use with [`egui::Context::set_visuals`].
+    pub fn egui_visuals(self) -> egui::Visuals {
+        match self {
+            Self::Dark => egui::Visuals::dark(),
+            Self::Light => egui::Visuals::light(),
         }
     }
 }
@@ -335,6 +463,11 @@ pub struct Frame {
     #[cfg(feature = "glow")]
     #[doc(hidden)]
     pub gl: Option<std::sync::Arc<glow::Context>>,
+
+    /// Can be used to manage GPU resources for custom rendering with WGPU using
+    /// [`egui::PaintCallback`]s.
+    #[cfg(feature = "wgpu")]
+    pub render_state: Option<egui_wgpu::RenderState>,
 }
 
 impl Frame {
@@ -475,7 +608,7 @@ pub struct Location {
     ///
     /// Note that the leading `?` is NOT included in the string.
     ///
-    /// Use [`Self::web_query_map]` to get the parsed version of it.
+    /// Use [`Self::query_map`] to get the parsed version of it.
     pub query: String,
 
     /// The parsed "query" part of "www.example.com/index.html?query#fragment".
@@ -495,9 +628,10 @@ pub struct IntegrationInfo {
     /// If the app is running in a Web context, this returns information about the environment.
     pub web_info: Option<WebInfo>,
 
-    /// Does the system prefer dark mode (over light mode)?
+    /// Does the OS use dark or light mode?
+    ///
     /// `None` means "don't know".
-    pub prefer_dark_mode: Option<bool>,
+    pub system_theme: Option<Theme>,
 
     /// Seconds of cpu usage (in seconds) of UI code on the previous frame.
     /// `None` if this is the first frame.

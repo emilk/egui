@@ -1,3 +1,5 @@
+use egui::Widget;
+
 /// How often we repaint the demo app by default
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum RunMode {
@@ -41,15 +43,17 @@ impl Default for RunMode {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct BackendPanel {
     pub open: bool,
 
     #[cfg_attr(feature = "serde", serde(skip))]
-    // go back to [`Reactive`] mode each time we start
+    // go back to [`RunMode::Reactive`] mode each time we start
     run_mode: RunMode,
+
+    #[cfg_attr(feature = "serde", serde(skip))]
+    repaint_after_seocnds: f32,
 
     /// current slider value for current gui scale
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -61,14 +65,35 @@ pub struct BackendPanel {
     egui_windows: EguiWindows,
 }
 
+impl Default for BackendPanel {
+    fn default() -> Self {
+        Self {
+            open: false,
+            run_mode: Default::default(),
+            repaint_after_seocnds: 1.0,
+            pixels_per_point: None,
+            frame_history: Default::default(),
+            egui_windows: Default::default(),
+        }
+    }
+}
+
 impl BackendPanel {
     pub fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         self.frame_history
             .on_new_frame(ctx.input().time, frame.info().cpu_usage);
 
-        if self.run_mode == RunMode::Continuous {
-            // Tell the backend to repaint as soon as possible
-            ctx.request_repaint();
+        match self.run_mode {
+            RunMode::Continuous => {
+                // Tell the backend to repaint as soon as possible
+                ctx.request_repaint();
+            }
+            RunMode::Reactive => {
+                // let the computer rest for a bit
+                ctx.request_repaint_after(std::time::Duration::from_secs_f32(
+                    self.repaint_after_seocnds,
+                ));
+            }
         }
     }
 
@@ -220,6 +245,18 @@ impl BackendPanel {
             ));
         } else {
             ui.label("Only running UI code when there are animations or input.");
+
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = 0.0;
+                ui.label("(but at least every ");
+                egui::DragValue::new(&mut self.repaint_after_seocnds)
+                    .clamp_range(0.1..=10.0)
+                    .speed(0.1)
+                    .suffix(" s")
+                    .ui(ui)
+                    .on_hover_text("Repaint this often, even if there is no input.");
+                ui.label(")");
+            });
         }
     }
 }

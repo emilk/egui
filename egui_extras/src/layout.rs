@@ -12,10 +12,10 @@ pub(crate) enum CellSize {
 ///
 /// In a strip there's only one line which goes in the direction of the strip:
 ///
-/// In a horizontal strip, a `[StripLayout]` with horizontal `[CellDirection]` is used.
-/// Its cells go from left to right inside this `[StripLayout]`.
+/// In a horizontal strip, a [`StripLayout`] with horizontal [`CellDirection`] is used.
+/// Its cells go from left to right inside this [`StripLayout`].
 ///
-/// In a table there's a `[StripLayout]` for each table row with a horizontal `[CellDirection]`.
+/// In a table there's a [`StripLayout`] for each table row with a horizontal [`CellDirection`].
 /// Its cells go from left to right. And the lines go from top to bottom.
 pub(crate) enum CellDirection {
     /// Cells go from left to right.
@@ -24,7 +24,7 @@ pub(crate) enum CellDirection {
     Vertical,
 }
 
-/// Positions cells in `[CellDirection]` and starts a new line on `[StripLayout::end_line]`
+/// Positions cells in [`CellDirection`] and starts a new line on [`StripLayout::end_line`]
 pub struct StripLayout<'l> {
     pub(crate) ui: &'l mut Ui,
     direction: CellDirection,
@@ -110,7 +110,7 @@ impl<'l> StripLayout<'l> {
         let rect = self.cell_rect(&width, &height);
 
         // Make sure we don't have a gap in the stripe background:
-        let rect = rect.expand2(egui::vec2(0.5 * self.ui.spacing().item_spacing.x, 0.0));
+        let rect = rect.expand2(0.5 * self.ui.spacing().item_spacing);
 
         self.ui
             .painter()

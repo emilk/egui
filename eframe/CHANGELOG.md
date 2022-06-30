@@ -10,6 +10,9 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
   * Add features "wgpu" and "glow"
   * Add `NativeOptions::renderer` to switch between the rendering backends
 * Fix clipboard on Wayland ([#1613](https://github.com/emilk/egui/pull/1613)).
+* Allow running on native without hardware accelerated rendering. Change with `NativeOptions::hardware_acceleration` ([#1681]([#1693](https://github.com/emilk/egui/pull/1693)).
+* `dark-light` (dark mode detection) is now enabled by default on Mac and Windows ([#1726](https://github.com/emilk/egui/pull/1726)).
+* Add `NativeOptions::follow_system_theme` and `NativeOptions::default_theme` ([#1726](https://github.com/emilk/egui/pull/1726)).
 
 
 ## 0.18.0 - 2022-04-30

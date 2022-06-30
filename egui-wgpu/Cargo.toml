@@ -23,10 +23,12 @@ include = [
   "Cargo.toml",
 ]
 
+[package.metadata.docs.rs]
+all-features = true
 
 
 [features]
-# Make it easy to create bindings for winit.
+## Enable [`winit`](https://docs.rs/winit) integration.
 winit = ["dep:pollster", "dep:winit"]
 
 
@@ -37,8 +39,12 @@ egui = { version = "0.18.1", path = "../egui", default-features = false, feature
 
 bytemuck = "1.7"
 tracing = "0.1"
+type-map = "0.5.0"
 wgpu = { version = "0.12", features = ["webgl"] }
 
-# Optional:
+#! ### Optional dependencies
+## Enable this when generating docs.
+document-features = { version = "0.2", optional = true }
+
 pollster = { version = "0.2", optional = true }
 winit = { version = "0.26", optional = true }

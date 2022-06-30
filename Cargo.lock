@@ -1072,6 +1072,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "document-features"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b01c09fd63b5136fba41aa625c7b3254f0aa0a435ff6ec4b2c9a28d496c83c88"
+
+[[package]]
 name = "downcast-rs"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1128,6 +1134,7 @@ dependencies = [
  "bytemuck",
  "dark-light",
  "directories-next",
+ "document-features",
  "egui",
  "egui-wgpu",
  "egui-winit",
@@ -1153,6 +1160,7 @@ name = "egui"
 version = "0.18.1"
 dependencies = [
  "ahash 0.7.6",
+ "document-features",
  "epaint",
  "nohash-hasher",
  "ron",
@@ -1165,9 +1173,11 @@ name = "egui-wgpu"
 version = "0.18.0"
 dependencies = [
  "bytemuck",
+ "document-features",
  "egui",
  "pollster",
  "tracing",
+ "type-map",
  "wgpu",
  "winit",
 ]
@@ -1177,6 +1187,7 @@ name = "egui-winit"
 version = "0.18.0"
 dependencies = [
  "arboard",
+ "document-features",
  "egui",
  "instant",
  "puffin",
@@ -1192,6 +1203,7 @@ dependencies = [
 name = "egui_demo_app"
 version = "0.18.0"
 dependencies = [
+ "bytemuck",
  "chrono",
  "console_error_panic_hook",
  "eframe",
@@ -1201,6 +1213,7 @@ dependencies = [
  "ehttp",
  "image",
  "poll-promise",
+ "pollster",
  "serde",
  "tracing-subscriber",
  "tracing-wasm",
@@ -1212,6 +1225,7 @@ version = "0.18.0"
 dependencies = [
  "chrono",
  "criterion",
+ "document-features",
  "egui",
  "egui_extras",
  "enum-map",
@@ -1226,6 +1240,7 @@ name = "egui_extras"
 version = "0.18.0"
 dependencies = [
  "chrono",
+ "document-features",
  "egui",
  "image",
  "resvg",
@@ -1241,6 +1256,7 @@ version = "0.18.0"
 dependencies = [
  "ahash 0.7.6",
  "bytemuck",
+ "document-features",
  "egui",
  "egui-winit",
  "glium",
@@ -1252,6 +1268,7 @@ name = "egui_glow"
 version = "0.18.1"
 dependencies = [
  "bytemuck",
+ "document-features",
  "egui",
  "egui-winit",
  "glow",
@@ -1287,6 +1304,7 @@ name = "emath"
 version = "0.18.0"
 dependencies = [
  "bytemuck",
+ "document-features",
  "mint",
  "serde",
 ]
@@ -1358,6 +1376,7 @@ dependencies = [
  "cint",
  "color-hex",
  "criterion",
+ "document-features",
  "emath",
  "nohash-hasher",
  "parking_lot 0.12.0",
@@ -3149,6 +3168,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
 
 [[package]]
+name = "screenshot"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui_extras",
+ "itertools",
+]
+
+[[package]]
 name = "sct"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3718,6 +3746,15 @@ checksum = "4ee73e6e4924fe940354b8d4d98cad5231175d615cd855b758adc658c0aac6a0"
 dependencies = [
  "cfg-if 1.0.0",
  "static_assertions",
+]
+
+[[package]]
+name = "type-map"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "deb68604048ff8fa93347f02441e4487594adc20bb8a084f9e564d2b827a0a9f"
+dependencies = [
+ "rustc-hash",
 ]
 
 [[package]]

@@ -52,6 +52,10 @@
 //!     eframe::start_web(canvas_id, Box::new(|cc| Box::new(MyApp::new(cc))))
 //! }
 //! ```
+//!
+//! ## Feature flags
+#![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
+//!
 
 #![allow(clippy::needless_doctest_main)]
 
@@ -60,6 +64,9 @@ pub use {egui, egui::emath, egui::epaint};
 
 #[cfg(feature = "glow")]
 pub use {egui_glow, glow};
+
+#[cfg(feature = "wgpu")]
+pub use {egui_wgpu, wgpu};
 
 mod epi;
 
@@ -92,12 +99,17 @@ pub use web_sys;
 /// #[cfg(target_arch = "wasm32")]
 /// #[wasm_bindgen]
 /// pub fn start(canvas_id: &str) -> Result<(), eframe::wasm_bindgen::JsValue> {
-///     eframe::start_web(canvas_id, Box::new(|cc| Box::new(MyEguiApp::new(cc))))
+///     let web_options = eframe::WebOptions::default();
+///     eframe::start_web(canvas_id, web_options, Box::new(|cc| Box::new(MyEguiApp::new(cc))))
 /// }
 /// ```
 #[cfg(target_arch = "wasm32")]
-pub fn start_web(canvas_id: &str, app_creator: AppCreator) -> Result<(), wasm_bindgen::JsValue> {
-    web::start(canvas_id, app_creator)?;
+pub fn start_web(
+    canvas_id: &str,
+    web_options: WebOptions,
+    app_creator: AppCreator,
+) -> Result<(), wasm_bindgen::JsValue> {
+    web::start(canvas_id, web_options, app_creator)?;
     Ok(())
 }
 

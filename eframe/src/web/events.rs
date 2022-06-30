@@ -7,13 +7,14 @@ pub fn paint_and_schedule(
 ) -> Result<(), JsValue> {
     fn paint_if_needed(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
         let mut runner_lock = runner_ref.lock();
-        if runner_lock.needs_repaint.fetch_and_clear() {
+        if runner_lock.needs_repaint.when_to_repaint() <= now_sec() {
+            runner_lock.needs_repaint.clear();
             runner_lock.clear_color_buffer();
-            let (needs_repaint, clipped_primitives) = runner_lock.logic()?;
+            let (repaint_after, clipped_primitives) = runner_lock.logic()?;
             runner_lock.paint(&clipped_primitives)?;
-            if needs_repaint {
-                runner_lock.needs_repaint.set_true();
-            }
+            runner_lock
+                .needs_repaint
+                .repaint_after(repaint_after.as_secs_f64());
             runner_lock.auto_save();
         }
 
@@ -74,7 +75,7 @@ pub fn install_document_events(runner_container: &AppRunnerContainer) -> Result<
             {
                 runner_lock.input.raw.events.push(egui::Event::Text(key));
             }
-            runner_lock.needs_repaint.set_true();
+            runner_lock.needs_repaint.repaint_asap();
 
             let egui_wants_keyboard = runner_lock.egui_ctx().wants_keyboard_input();
 
@@ -122,7 +123,7 @@ pub fn install_document_events(runner_container: &AppRunnerContainer) -> Result<
                     modifiers,
                 });
             }
-            runner_lock.needs_repaint.set_true();
+            runner_lock.needs_repaint.repaint_asap();
         },
     )?;
 
@@ -136,7 +137,7 @@ pub fn install_document_events(runner_container: &AppRunnerContainer) -> Result<
                     let text = text.replace("\r\n", "\n");
                     if !text.is_empty() {
                         runner_lock.input.raw.events.push(egui::Event::Paste(text));
-                        runner_lock.needs_repaint.set_true();
+                        runner_lock.needs_repaint.repaint_asap();
                     }
                     event.stop_propagation();
                     event.prevent_default();
@@ -151,7 +152,7 @@ pub fn install_document_events(runner_container: &AppRunnerContainer) -> Result<
         "cut",
         |_: web_sys::ClipboardEvent, mut runner_lock| {
             runner_lock.input.raw.events.push(egui::Event::Cut);
-            runner_lock.needs_repaint.set_true();
+            runner_lock.needs_repaint.repaint_asap();
         },
     )?;
 
@@ -161,7 +162,7 @@ pub fn install_document_events(runner_container: &AppRunnerContainer) -> Result<
         "copy",
         |_: web_sys::ClipboardEvent, mut runner_lock| {
             runner_lock.input.raw.events.push(egui::Event::Copy);
-            runner_lock.needs_repaint.set_true();
+            runner_lock.needs_repaint.repaint_asap();
         },
     )?;
 
@@ -170,7 +171,7 @@ pub fn install_document_events(runner_container: &AppRunnerContainer) -> Result<
             &window,
             event_name,
             |_: web_sys::Event, runner_lock| {
-                runner_lock.needs_repaint.set_true();
+                runner_lock.needs_repaint.repaint_asap();
             },
         )?;
     }
@@ -186,38 +187,6 @@ pub fn install_document_events(runner_container: &AppRunnerContainer) -> Result<
         },
     )?;
 
-    Ok(())
-}
-
-/// Repaint at least every `ms` milliseconds.
-pub fn repaint_every_ms(
-    runner_container: &AppRunnerContainer,
-    milliseconds: i32,
-) -> Result<(), JsValue> {
-    assert!(milliseconds >= 0);
-
-    use wasm_bindgen::JsCast;
-
-    let window = web_sys::window().unwrap();
-
-    let closure = Closure::wrap(Box::new({
-        let runner = runner_container.runner.clone();
-        let panicked = runner_container.panicked.clone();
-
-        move || {
-            // Do not lock the runner if the code has panicked
-            if !panicked.load(Ordering::SeqCst) {
-                runner.lock().needs_repaint.set_true();
-            }
-        }
-    }) as Box<dyn FnMut()>);
-
-    window.set_interval_with_callback_and_timeout_and_arguments_0(
-        closure.as_ref().unchecked_ref(),
-        milliseconds,
-    )?;
-
-    closure.forget();
     Ok(())
 }
 
@@ -253,7 +222,7 @@ pub fn install_canvas_events(runner_container: &AppRunnerContainer) -> Result<()
                         pressed: true,
                         modifiers,
                     });
-                runner_lock.needs_repaint.set_true();
+                runner_lock.needs_repaint.repaint_asap();
             }
             event.stop_propagation();
             // Note: prevent_default breaks VSCode tab focusing, hence why we don't call it here.
@@ -270,7 +239,7 @@ pub fn install_canvas_events(runner_container: &AppRunnerContainer) -> Result<()
                 .raw
                 .events
                 .push(egui::Event::PointerMoved(pos));
-            runner_lock.needs_repaint.set_true();
+            runner_lock.needs_repaint.repaint_asap();
             event.stop_propagation();
             event.prevent_default();
         },
@@ -293,7 +262,7 @@ pub fn install_canvas_events(runner_container: &AppRunnerContainer) -> Result<()
                         pressed: false,
                         modifiers,
                     });
-                runner_lock.needs_repaint.set_true();
+                runner_lock.needs_repaint.repaint_asap();
 
                 text_agent::update_text_agent(runner_lock);
             }
@@ -307,7 +276,7 @@ pub fn install_canvas_events(runner_container: &AppRunnerContainer) -> Result<()
         "mouseleave",
         |event: web_sys::MouseEvent, mut runner_lock| {
             runner_lock.input.raw.events.push(egui::Event::PointerGone);
-            runner_lock.needs_repaint.set_true();
+            runner_lock.needs_repaint.repaint_asap();
             event.stop_propagation();
             event.prevent_default();
         },
@@ -335,7 +304,7 @@ pub fn install_canvas_events(runner_container: &AppRunnerContainer) -> Result<()
                 });
 
             push_touches(&mut *runner_lock, egui::TouchPhase::Start, &event);
-            runner_lock.needs_repaint.set_true();
+            runner_lock.needs_repaint.repaint_asap();
             event.stop_propagation();
             event.prevent_default();
         },
@@ -357,7 +326,7 @@ pub fn install_canvas_events(runner_container: &AppRunnerContainer) -> Result<()
                 .push(egui::Event::PointerMoved(pos));
 
             push_touches(&mut *runner_lock, egui::TouchPhase::Move, &event);
-            runner_lock.needs_repaint.set_true();
+            runner_lock.needs_repaint.repaint_asap();
             event.stop_propagation();
             event.prevent_default();
         },
@@ -384,7 +353,7 @@ pub fn install_canvas_events(runner_container: &AppRunnerContainer) -> Result<()
                 runner_lock.input.raw.events.push(egui::Event::PointerGone);
 
                 push_touches(&mut *runner_lock, egui::TouchPhase::End, &event);
-                runner_lock.needs_repaint.set_true();
+                runner_lock.needs_repaint.repaint_asap();
                 event.stop_propagation();
                 event.prevent_default();
             }
@@ -443,7 +412,7 @@ pub fn install_canvas_events(runner_container: &AppRunnerContainer) -> Result<()
                     .push(egui::Event::Scroll(delta));
             }
 
-            runner_lock.needs_repaint.set_true();
+            runner_lock.needs_repaint.repaint_asap();
             event.stop_propagation();
             event.prevent_default();
         },
@@ -463,7 +432,7 @@ pub fn install_canvas_events(runner_container: &AppRunnerContainer) -> Result<()
                         });
                     }
                 }
-                runner_lock.needs_repaint.set_true();
+                runner_lock.needs_repaint.repaint_asap();
                 event.stop_propagation();
                 event.prevent_default();
             }
@@ -475,7 +444,7 @@ pub fn install_canvas_events(runner_container: &AppRunnerContainer) -> Result<()
         "dragleave",
         |event: web_sys::DragEvent, mut runner_lock| {
             runner_lock.input.raw.hovered_files.clear();
-            runner_lock.needs_repaint.set_true();
+            runner_lock.needs_repaint.repaint_asap();
             event.stop_propagation();
             event.prevent_default();
         },
@@ -487,7 +456,7 @@ pub fn install_canvas_events(runner_container: &AppRunnerContainer) -> Result<()
         move |event: web_sys::DragEvent, mut runner_lock| {
             if let Some(data_transfer) = event.data_transfer() {
                 runner_lock.input.raw.hovered_files.clear();
-                runner_lock.needs_repaint.set_true();
+                runner_lock.needs_repaint.repaint_asap();
                 // Unlock the runner so it can be locked after a future await point
                 drop(runner_lock);
 
@@ -523,7 +492,7 @@ pub fn install_canvas_events(runner_container: &AppRunnerContainer) -> Result<()
                                                 ..Default::default()
                                             },
                                         );
-                                        runner_lock.needs_repaint.set_true();
+                                        runner_lock.needs_repaint.repaint_asap();
                                     }
                                     Err(err) => {
                                         tracing::error!("Failed to read file: {:?}", err);

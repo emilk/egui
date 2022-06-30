@@ -2,6 +2,10 @@
 //!
 //! The library translates winit events to egui, handled copy/paste,
 //! updates the cursor, open links clicked in egui, etc.
+//!
+//! ## Feature flags
+#![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
+//!
 
 #![allow(clippy::manual_range_contains)]
 
@@ -475,7 +479,6 @@ impl State {
             mutable_text_under_cursor: _, // only used in eframe web
             text_cursor_pos,
         } = platform_output;
-
         self.current_pixels_per_point = egui_ctx.pixels_per_point(); // someone can have changed it to scale the UI
 
         self.set_cursor_icon(window, cursor_icon);
@@ -495,6 +498,7 @@ impl State {
 
     fn set_cursor_icon(&mut self, window: &winit::window::Window, cursor_icon: egui::CursorIcon) {
         // prevent flickering near frame boundary when Windows OS tries to control cursor icon for window resizing
+        #[cfg(windows)]
         if self.current_cursor_icon == cursor_icon {
             return;
         }
@@ -629,6 +633,27 @@ fn translate_virtual_key_code(key: winit::event::VirtualKeyCode) -> Option<egui:
         VirtualKeyCode::X => Key::X,
         VirtualKeyCode::Y => Key::Y,
         VirtualKeyCode::Z => Key::Z,
+
+        VirtualKeyCode::F1 => Key::F1,
+        VirtualKeyCode::F2 => Key::F2,
+        VirtualKeyCode::F3 => Key::F3,
+        VirtualKeyCode::F4 => Key::F4,
+        VirtualKeyCode::F5 => Key::F5,
+        VirtualKeyCode::F6 => Key::F6,
+        VirtualKeyCode::F7 => Key::F7,
+        VirtualKeyCode::F8 => Key::F8,
+        VirtualKeyCode::F9 => Key::F9,
+        VirtualKeyCode::F10 => Key::F10,
+        VirtualKeyCode::F11 => Key::F11,
+        VirtualKeyCode::F12 => Key::F12,
+        VirtualKeyCode::F13 => Key::F13,
+        VirtualKeyCode::F14 => Key::F14,
+        VirtualKeyCode::F15 => Key::F15,
+        VirtualKeyCode::F16 => Key::F16,
+        VirtualKeyCode::F17 => Key::F17,
+        VirtualKeyCode::F18 => Key::F18,
+        VirtualKeyCode::F19 => Key::F19,
+        VirtualKeyCode::F20 => Key::F20,
 
         _ => {
             return None;

@@ -11,9 +11,11 @@ pub struct Custom3d {
 }
 
 impl Custom3d {
-    pub fn new(gl: &glow::Context) -> Self {
+    pub fn new<'a>(cc: &'a eframe::CreationContext<'a>) -> Self {
         Self {
-            rotating_triangle: Arc::new(Mutex::new(RotatingTriangle::new(gl))),
+            rotating_triangle: Arc::new(Mutex::new(RotatingTriangle::new(
+                cc.gl.as_ref().expect("GL Enabled"),
+            ))),
             angle: 0.0,
         }
     }
@@ -58,15 +60,13 @@ impl Custom3d {
         let angle = self.angle;
         let rotating_triangle = self.rotating_triangle.clone();
 
+        let cb = egui_glow::CallbackFn::new(move |_info, painter| {
+            rotating_triangle.lock().paint(painter.gl(), angle);
+        });
+
         let callback = egui::PaintCallback {
             rect,
-            callback: std::sync::Arc::new(move |_info, render_ctx| {
-                if let Some(painter) = render_ctx.downcast_ref::<egui_glow::Painter>() {
-                    rotating_triangle.lock().paint(painter.gl(), angle);
-                } else {
-                    eprintln!("Can't do custom painting because we are not using a glow context");
-                }
-            }),
+            callback: Arc::new(cb),
         };
         ui.painter().add(callback);
     }

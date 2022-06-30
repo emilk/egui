@@ -2,9 +2,75 @@
 
 use std::{borrow::Cow, collections::HashMap, num::NonZeroU32};
 
-use egui::epaint::Primitive;
+use egui::{epaint::Primitive, PaintCallbackInfo};
+use type_map::TypeMap;
 use wgpu;
 use wgpu::util::DeviceExt as _;
+
+/// A callback function that can be used to compose an [`egui::PaintCallback`] for custom WGPU
+/// rendering.
+///
+/// The callback is composed of two functions: `prepare` and `paint`.
+///
+/// `prepare` is called every frame before `paint`, and can use the passed-in [`wgpu::Device`] and
+/// [`wgpu::Buffer`] to allocate or modify GPU resources such as buffers.
+///
+/// `paint` is called after `prepare` and is given access to the the [`wgpu::RenderPass`] so that it
+/// can issue draw commands.
+///
+/// The final argument of both the `prepare` and `paint` callbacks is a the
+/// [`paint_callback_resources`][crate::renderer::RenderPass::paint_callback_resources].
+/// `paint_callback_resources` has the same lifetime as the Egui render pass, so it can be used to
+/// store buffers, pipelines, and other information that needs to be accessed during the render
+/// pass.
+///
+/// # Example
+///
+/// See the [`custom3d_glow`](https://github.com/emilk/egui/blob/master/egui_demo_app/src/apps/custom3d_wgpu.rs) demo source for a detailed usage example.
+pub struct CallbackFn {
+    prepare: Box<PrepareCallback>,
+    paint: Box<PaintCallback>,
+}
+
+type PrepareCallback = dyn Fn(&wgpu::Device, &wgpu::Queue, &mut TypeMap) + Sync + Send;
+type PaintCallback =
+    dyn for<'a, 'b> Fn(PaintCallbackInfo, &'a mut wgpu::RenderPass<'b>, &'b TypeMap) + Sync + Send;
+
+impl Default for CallbackFn {
+    fn default() -> Self {
+        CallbackFn {
+            prepare: Box::new(|_, _, _| ()),
+            paint: Box::new(|_, _, _| ()),
+        }
+    }
+}
+
+impl CallbackFn {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set the prepare callback
+    pub fn prepare<F>(mut self, prepare: F) -> Self
+    where
+        F: Fn(&wgpu::Device, &wgpu::Queue, &mut TypeMap) + Sync + Send + 'static,
+    {
+        self.prepare = Box::new(prepare) as _;
+        self
+    }
+
+    /// Set the paint callback
+    pub fn paint<F>(mut self, paint: F) -> Self
+    where
+        F: for<'a, 'b> Fn(PaintCallbackInfo, &'a mut wgpu::RenderPass<'b>, &'b TypeMap)
+            + Sync
+            + Send
+            + 'static,
+    {
+        self.paint = Box::new(paint) as _;
+        self
+    }
+}
 
 /// Enum for selecting the right buffer type.
 #[derive(Debug)]
@@ -38,6 +104,9 @@ impl ScreenDescriptor {
 #[repr(C)]
 struct UniformBuffer {
     screen_size_in_points: [f32; 2],
+    // Uniform buffers need to be at least 16 bytes in WebGL.
+    // See https://github.com/gfx-rs/wgpu/issues/2072
+    _padding: [u32; 2],
 }
 
 /// Wraps the buffers and includes additional information.
@@ -61,6 +130,9 @@ pub struct RenderPass {
     /// sampler.
     textures: HashMap<egui::TextureId, (Option<wgpu::Texture>, wgpu::BindGroup)>,
     next_user_texture_id: u64,
+    /// Storage for use by [`egui::PaintCallback`]'s that need to store resources such as render
+    /// pipelines that must have the lifetime of the renderpass.
+    pub paint_callback_resources: type_map::TypeMap,
 }
 
 impl RenderPass {
@@ -82,6 +154,7 @@ impl RenderPass {
             label: Some("egui_uniform_buffer"),
             contents: bytemuck::cast_slice(&[UniformBuffer {
                 screen_size_in_points: [0.0, 0.0],
+                _padding: Default::default(),
             }]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
@@ -214,6 +287,7 @@ impl RenderPass {
             texture_bind_group_layout,
             textures: HashMap::new(),
             next_user_texture_id: 0,
+            paint_callback_resources: TypeMap::default(),
         }
     }
 
@@ -258,64 +332,59 @@ impl RenderPass {
         paint_jobs: &[egui::epaint::ClippedPrimitive],
         screen_descriptor: &ScreenDescriptor,
     ) {
-        rpass.set_pipeline(&self.render_pipeline);
-
-        rpass.set_bind_group(0, &self.uniform_bind_group, &[]);
-
         let pixels_per_point = screen_descriptor.pixels_per_point;
         let size_in_pixels = screen_descriptor.size_in_pixels;
 
-        for (
-            (
-                egui::ClippedPrimitive {
-                    clip_rect,
-                    primitive,
-                },
-                vertex_buffer,
-            ),
-            index_buffer,
-        ) in paint_jobs
-            .iter()
-            .zip(&self.vertex_buffers)
-            .zip(&self.index_buffers)
+        // Whether or not we need to reset the renderpass state because a paint callback has just
+        // run.
+        let mut needs_reset = true;
+
+        let mut index_buffers = self.index_buffers.iter();
+        let mut vertex_buffers = self.vertex_buffers.iter();
+
+        for egui::ClippedPrimitive {
+            clip_rect,
+            primitive,
+        } in paint_jobs
         {
-            // Transform clip rect to physical pixels.
-            let clip_min_x = pixels_per_point * clip_rect.min.x;
-            let clip_min_y = pixels_per_point * clip_rect.min.y;
-            let clip_max_x = pixels_per_point * clip_rect.max.x;
-            let clip_max_y = pixels_per_point * clip_rect.max.y;
-
-            // Make sure clip rect can fit within an `u32`.
-            let clip_min_x = clip_min_x.clamp(0.0, size_in_pixels[0] as f32);
-            let clip_min_y = clip_min_y.clamp(0.0, size_in_pixels[1] as f32);
-            let clip_max_x = clip_max_x.clamp(clip_min_x, size_in_pixels[0] as f32);
-            let clip_max_y = clip_max_y.clamp(clip_min_y, size_in_pixels[1] as f32);
-
-            let clip_min_x = clip_min_x.round() as u32;
-            let clip_min_y = clip_min_y.round() as u32;
-            let clip_max_x = clip_max_x.round() as u32;
-            let clip_max_y = clip_max_y.round() as u32;
-
-            let width = (clip_max_x - clip_min_x).max(1);
-            let height = (clip_max_y - clip_min_y).max(1);
-
-            {
-                // Clip scissor rectangle to target size.
-                let x = clip_min_x.min(size_in_pixels[0]);
-                let y = clip_min_y.min(size_in_pixels[1]);
-                let width = width.min(size_in_pixels[0] - x);
-                let height = height.min(size_in_pixels[1] - y);
-
-                // Skip rendering with zero-sized clip areas.
-                if width == 0 || height == 0 {
-                    continue;
-                }
-
-                rpass.set_scissor_rect(x, y, width, height);
+            if needs_reset {
+                rpass.set_viewport(
+                    0.0,
+                    0.0,
+                    size_in_pixels[0] as f32,
+                    size_in_pixels[1] as f32,
+                    0.0,
+                    1.0,
+                );
+                rpass.set_pipeline(&self.render_pipeline);
+                rpass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                needs_reset = false;
             }
+
+            let PixelRect {
+                x,
+                y,
+                width,
+                height,
+            } = calculate_pixel_rect(clip_rect, pixels_per_point, size_in_pixels);
+
+            // Skip rendering with zero-sized clip areas.
+            if width == 0 || height == 0 {
+                // If this is a mesh, we need to advance the index and vertex buffer iterators
+                if let Primitive::Mesh(_) = primitive {
+                    index_buffers.next().unwrap();
+                    vertex_buffers.next().unwrap();
+                }
+                continue;
+            }
+
+            rpass.set_scissor_rect(x, y, width, height);
 
             match primitive {
                 Primitive::Mesh(mesh) => {
+                    let index_buffer = index_buffers.next().unwrap();
+                    let vertex_buffer = vertex_buffers.next().unwrap();
+
                     if let Some((_texture, bind_group)) = self.textures.get(&mesh.texture_id) {
                         rpass.set_bind_group(1, bind_group, &[]);
                         rpass.set_index_buffer(
@@ -328,8 +397,57 @@ impl RenderPass {
                         tracing::warn!("Missing texture: {:?}", mesh.texture_id);
                     }
                 }
-                Primitive::Callback(_) => {
-                    // already warned about earlier
+                Primitive::Callback(callback) => {
+                    let cbfn = if let Some(c) = callback.callback.downcast_ref::<CallbackFn>() {
+                        c
+                    } else {
+                        // We already warned in the `prepare` callback
+                        continue;
+                    };
+
+                    if callback.rect.is_positive() {
+                        needs_reset = true;
+
+                        // Set the viewport rect
+                        let PixelRect {
+                            x,
+                            y,
+                            width,
+                            height,
+                        } = calculate_pixel_rect(&callback.rect, pixels_per_point, size_in_pixels);
+                        rpass.set_viewport(
+                            x as f32,
+                            y as f32,
+                            width as f32,
+                            height as f32,
+                            0.0,
+                            1.0,
+                        );
+
+                        // Set the scissor rect
+                        let PixelRect {
+                            x,
+                            y,
+                            width,
+                            height,
+                        } = calculate_pixel_rect(clip_rect, pixels_per_point, size_in_pixels);
+                        // Skip rendering with zero-sized clip areas.
+                        if width == 0 || height == 0 {
+                            continue;
+                        }
+                        rpass.set_scissor_rect(x, y, width, height);
+
+                        (cbfn.paint)(
+                            PaintCallbackInfo {
+                                viewport: callback.rect,
+                                clip_rect: *clip_rect,
+                                pixels_per_point,
+                                screen_size_px: size_in_pixels,
+                            },
+                            rpass,
+                            &self.paint_callback_resources,
+                        );
+                    }
                 }
             }
         }
@@ -448,9 +566,20 @@ impl RenderPass {
         };
     }
 
-    /// Should be called before `execute()`.
     pub fn free_texture(&mut self, id: &egui::TextureId) {
         self.textures.remove(id);
+    }
+
+    /// Get the WGPU texture and bind group associated to a texture that has been allocated by egui.
+    ///
+    /// This could be used by custom paint hooks to render images that have been added through with
+    /// [`egui_extras::RetainedImage`](https://docs.rs/egui_extras/latest/egui_extras/image/struct.RetainedImage.html)
+    /// or [`egui::Context::load_texture`].
+    pub fn get_texture(
+        &self,
+        id: &egui::TextureId,
+    ) -> Option<&(Option<wgpu::Texture>, wgpu::BindGroup)> {
+        self.textures.get(id)
     }
 
     /// Registers a `wgpu::Texture` with a `egui::TextureId`.
@@ -550,15 +679,17 @@ impl RenderPass {
             0,
             bytemuck::cast_slice(&[UniformBuffer {
                 screen_size_in_points,
+                _padding: Default::default(),
             }]),
         );
 
-        for (i, egui::ClippedPrimitive { primitive, .. }) in paint_jobs.iter().enumerate() {
+        let mut mesh_idx = 0;
+        for egui::ClippedPrimitive { primitive, .. } in paint_jobs.iter() {
             match primitive {
                 Primitive::Mesh(mesh) => {
                     let data: &[u8] = bytemuck::cast_slice(&mesh.indices);
-                    if i < self.index_buffers.len() {
-                        self.update_buffer(device, queue, &BufferType::Index, i, data);
+                    if mesh_idx < self.index_buffers.len() {
+                        self.update_buffer(device, queue, &BufferType::Index, mesh_idx, data);
                     } else {
                         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                             label: Some("egui_index_buffer"),
@@ -572,8 +703,8 @@ impl RenderPass {
                     }
 
                     let data: &[u8] = bytemuck::cast_slice(&mesh.vertices);
-                    if i < self.vertex_buffers.len() {
-                        self.update_buffer(device, queue, &BufferType::Vertex, i, data);
+                    if mesh_idx < self.vertex_buffers.len() {
+                        self.update_buffer(device, queue, &BufferType::Vertex, mesh_idx, data);
                     } else {
                         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                             label: Some("egui_vertex_buffer"),
@@ -586,9 +717,18 @@ impl RenderPass {
                             size: data.len(),
                         });
                     }
+
+                    mesh_idx += 1;
                 }
-                Primitive::Callback(_) => {
-                    tracing::warn!("Painting callbacks not supported by egui-wgpu (yet)");
+                Primitive::Callback(callback) => {
+                    let cbfn = if let Some(c) = callback.callback.downcast_ref::<CallbackFn>() {
+                        c
+                    } else {
+                        tracing::warn!("Unknown paint callback: expected `egui_gpu::CallbackFn`");
+                        continue;
+                    };
+
+                    (cbfn.prepare)(device, queue, &mut self.paint_callback_resources);
                 }
             }
         }
@@ -631,5 +771,53 @@ impl RenderPass {
         } else {
             queue.write_buffer(&buffer.buffer, 0, data);
         }
+    }
+}
+
+/// A Rect in physical pixel space, used for setting viewport and cliipping rectangles.
+struct PixelRect {
+    x: u32,
+    y: u32,
+    width: u32,
+    height: u32,
+}
+
+/// Convert the Egui clip rect to a physical pixel rect we can use for the GPU viewport/scissor
+fn calculate_pixel_rect(
+    clip_rect: &egui::Rect,
+    pixels_per_point: f32,
+    target_size: [u32; 2],
+) -> PixelRect {
+    // Transform clip rect to physical pixels.
+    let clip_min_x = pixels_per_point * clip_rect.min.x;
+    let clip_min_y = pixels_per_point * clip_rect.min.y;
+    let clip_max_x = pixels_per_point * clip_rect.max.x;
+    let clip_max_y = pixels_per_point * clip_rect.max.y;
+
+    // Make sure clip rect can fit within an `u32`.
+    let clip_min_x = clip_min_x.clamp(0.0, target_size[0] as f32);
+    let clip_min_y = clip_min_y.clamp(0.0, target_size[1] as f32);
+    let clip_max_x = clip_max_x.clamp(clip_min_x, target_size[0] as f32);
+    let clip_max_y = clip_max_y.clamp(clip_min_y, target_size[1] as f32);
+
+    let clip_min_x = clip_min_x.round() as u32;
+    let clip_min_y = clip_min_y.round() as u32;
+    let clip_max_x = clip_max_x.round() as u32;
+    let clip_max_y = clip_max_y.round() as u32;
+
+    let width = (clip_max_x - clip_min_x).max(1);
+    let height = (clip_max_y - clip_min_y).max(1);
+
+    // Clip scissor rectangle to target size.
+    let x = clip_min_x.min(target_size[0]);
+    let y = clip_min_y.min(target_size[1]);
+    let width = width.min(target_size[0] - x);
+    let height = height.min(target_size[1] - y);
+
+    PixelRect {
+        x,
+        y,
+        width,
+        height,
     }
 }

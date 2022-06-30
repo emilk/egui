@@ -244,68 +244,82 @@ pub struct FontDefinitions {
 }
 
 impl Default for FontDefinitions {
+    /// Specifies the default fonts if the feature `default_fonts` is enabled,
+    /// otherwise this is the same as [`Self::empty`].
+    #[cfg(not(feature = "default_fonts"))]
     fn default() -> Self {
-        #[allow(unused)]
+        Self::empty()
+    }
+
+    /// Specifies the default fonts if the feature `default_fonts` is enabled,
+    /// otherwise this is the same as [`Self::empty`].
+    #[cfg(feature = "default_fonts")]
+    fn default() -> Self {
         let mut font_data: BTreeMap<String, FontData> = BTreeMap::new();
 
         let mut families = BTreeMap::new();
 
-        #[cfg(feature = "default_fonts")]
-        {
-            font_data.insert(
+        font_data.insert(
+            "Hack".to_owned(),
+            FontData::from_static(include_bytes!("../../fonts/Hack-Regular.ttf")),
+        );
+        font_data.insert(
+            "Ubuntu-Light".to_owned(),
+            FontData::from_static(include_bytes!("../../fonts/Ubuntu-Light.ttf")),
+        );
+
+        // Some good looking emojis. Use as first priority:
+        font_data.insert(
+            "NotoEmoji-Regular".to_owned(),
+            FontData::from_static(include_bytes!("../../fonts/NotoEmoji-Regular.ttf")),
+        );
+
+        // Bigger emojis, and more. <http://jslegers.github.io/emoji-icon-font/>:
+        font_data.insert(
+            "emoji-icon-font".to_owned(),
+            FontData::from_static(include_bytes!("../../fonts/emoji-icon-font.ttf")).tweak(
+                FontTweak {
+                    scale: 0.8,            // make it smaller
+                    y_offset_factor: 0.07, // move it down slightly
+                    y_offset: 0.0,
+                },
+            ),
+        );
+
+        families.insert(
+            FontFamily::Monospace,
+            vec![
                 "Hack".to_owned(),
-                FontData::from_static(include_bytes!("../../fonts/Hack-Regular.ttf")),
-            );
-            font_data.insert(
-                "Ubuntu-Light".to_owned(),
-                FontData::from_static(include_bytes!("../../fonts/Ubuntu-Light.ttf")),
-            );
-
-            // Some good looking emojis. Use as first priority:
-            font_data.insert(
+                "Ubuntu-Light".to_owned(), // fallback for √ etc
                 "NotoEmoji-Regular".to_owned(),
-                FontData::from_static(include_bytes!("../../fonts/NotoEmoji-Regular.ttf")),
-            );
-
-            // Bigger emojis, and more. <http://jslegers.github.io/emoji-icon-font/>:
-            font_data.insert(
                 "emoji-icon-font".to_owned(),
-                FontData::from_static(include_bytes!("../../fonts/emoji-icon-font.ttf")).tweak(
-                    FontTweak {
-                        scale: 0.8,            // make it smaller
-                        y_offset_factor: 0.07, // move it down slightly
-                        y_offset: 0.0,
-                    },
-                ),
-            );
-
-            families.insert(
-                FontFamily::Monospace,
-                vec![
-                    "Hack".to_owned(),
-                    "Ubuntu-Light".to_owned(), // fallback for √ etc
-                    "NotoEmoji-Regular".to_owned(),
-                    "emoji-icon-font".to_owned(),
-                ],
-            );
-            families.insert(
-                FontFamily::Proportional,
-                vec![
-                    "Ubuntu-Light".to_owned(),
-                    "NotoEmoji-Regular".to_owned(),
-                    "emoji-icon-font".to_owned(),
-                ],
-            );
-        }
-
-        #[cfg(not(feature = "default_fonts"))]
-        {
-            families.insert(FontFamily::Monospace, vec![]);
-            families.insert(FontFamily::Proportional, vec![]);
-        }
+            ],
+        );
+        families.insert(
+            FontFamily::Proportional,
+            vec![
+                "Ubuntu-Light".to_owned(),
+                "NotoEmoji-Regular".to_owned(),
+                "emoji-icon-font".to_owned(),
+            ],
+        );
 
         Self {
             font_data,
+            families,
+        }
+    }
+}
+
+impl FontDefinitions {
+    /// No fonts.
+    pub fn empty() -> Self {
+        let mut families = BTreeMap::new();
+        families.insert(FontFamily::Monospace, vec![]);
+        families.insert(FontFamily::Proportional, vec![]);
+
+        Self {
+            font_data: Default::default(),
             families,
         }
     }
