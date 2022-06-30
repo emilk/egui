@@ -8,6 +8,9 @@ struct VertexOutput {
 
 struct Locals {
     screen_size: vec2<f32>,
+    // Uniform buffers need to be at least 16 bytes in WebGL.
+    // See https://github.com/gfx-rs/wgpu/issues/2072
+    _padding: vec2<u32>,
 };
 @group(0) @binding(0) var<uniform> r_locals: Locals;
 
