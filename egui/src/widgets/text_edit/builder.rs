@@ -590,7 +590,9 @@ impl<'t> TextEdit<'t> {
                             &cursor_range.primary,
                         );
 
-                        if response.changed || selection_changed {
+                        if (response.changed || selection_changed)
+                            && !ui.clip_rect().contains_rect(rect)
+                        {
                             ui.scroll_to_rect(cursor_pos, None); // keep cursor in view
                         }
 
