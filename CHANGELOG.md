@@ -13,6 +13,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 * Added `InputState::stable_dt`: a more stable estimate for the delta-time in reactive mode ([#1625](https://github.com/emilk/egui/pull/1625)).
 * You can now specify a texture filter for your textures ([#1636](https://github.com/emilk/egui/pull/1636)).
 * Added support for using `PaintCallback` shapes with the WGPU backend ([#1684](https://github.com/emilk/egui/pull/1684))
+* Added support for fullscreen windowing ([#_](https://github.com/emilk/egui/pull/_)).
 
 ### Changed
 * `PaintCallback` shapes now require the whole callback to be put in an `Arc<dyn Any>` with the value being a backend-specific callback type. ([#1684](https://github.com/emilk/egui/pull/1684))

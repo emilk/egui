@@ -207,6 +207,9 @@ pub struct NativeOptions {
     /// Should the app window be resizable?
     pub resizable: bool,
 
+    /// Should the app window be fullscreen?
+    pub fullscreen: bool,
+
     /// On desktop: make the window transparent.
     /// You control the transparency with [`App::clear_color()`].
     /// You should avoid having a [`egui::CentralPanel`], or make sure its frame is also transparent.
@@ -277,6 +280,7 @@ impl Default for NativeOptions {
             min_window_size: None,
             max_window_size: None,
             resizable: true,
+            fullscreen: false,
             transparent: false,
             vsync: true,
             multisampling: 0,
@@ -514,6 +518,16 @@ impl Frame {
         self.output.quit = true;
     }
 
+    /// Whether or not the window is being displayed in fullscreen mode
+    pub fn is_fullscreen(&self) -> bool {
+        self.info.fullscreen
+    }
+
+    /// Set fullscreen mode
+    pub fn set_fullscreen(&mut self, fullscreen: bool) {
+        self.output.fullscreen = Some(fullscreen);
+    }
+
     /// Set the desired inner size of the window (in egui points).
     pub fn set_window_size(&mut self, size: egui::Vec2) {
         self.output.window_size = Some(size);
@@ -640,6 +654,9 @@ pub struct IntegrationInfo {
     /// The OS native pixels-per-point
     pub native_pixels_per_point: Option<f32>,
 
+    /// If the window was set to fullscreen.
+    pub fullscreen: bool,
+
     /// Window-specific geometry information, if provided by the platform.
     pub window_info: Option<WindowInfo>,
 }
@@ -718,5 +735,8 @@ pub mod backend {
 
         /// Set to some position to move the outer window (e.g. glium window) to this position
         pub window_pos: Option<egui::Pos2>,
+
+        /// Set to true to enable fullscreen mode.
+        pub fullscreen: Option<bool>,
     }
 }

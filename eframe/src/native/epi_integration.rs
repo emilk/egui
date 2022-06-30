@@ -47,10 +47,17 @@ pub fn window_builder(
         max_window_size,
         resizable,
         transparent,
+        fullscreen,
         ..
     } = native_options;
 
     let window_icon = icon_data.clone().and_then(load_icon);
+
+    let fullscreen = if *fullscreen {
+        Some(winit::window::Fullscreen::Borderless(None))
+    } else {
+        None
+    };
 
     let mut window_builder = winit::window::WindowBuilder::new()
         .with_always_on_top(*always_on_top)
@@ -58,7 +65,8 @@ pub fn window_builder(
         .with_decorations(*decorated)
         .with_resizable(*resizable)
         .with_transparent(*transparent)
-        .with_window_icon(window_icon);
+        .with_window_icon(window_icon)
+        .with_fullscreen(fullscreen);
 
     if let Some(min_size) = *min_window_size {
         window_builder = window_builder.with_min_inner_size(points_to_size(min_size));
@@ -120,6 +128,7 @@ pub fn handle_app_output(
         decorated,
         drag_window,
         window_pos,
+        fullscreen,
     } = app_output;
 
     if let Some(decorated) = decorated {
@@ -134,6 +143,15 @@ pub fn handle_app_output(
             }
             .to_logical::<f32>(native_pixels_per_point(window) as f64),
         );
+    }
+
+    if let Some(fullscreen) = fullscreen {
+        let fullscreen = if fullscreen {
+            Some(winit::window::Fullscreen::Borderless(None))
+        } else {
+            None
+        };
+        window.set_fullscreen(fullscreen);
     }
 
     if let Some(window_title) = window_title {
@@ -197,6 +215,7 @@ impl EpiIntegration {
                 system_theme,
                 cpu_usage: None,
                 native_pixels_per_point: Some(native_pixels_per_point(window)),
+                fullscreen: window.fullscreen().is_some(),
                 window_info: read_window_info(window, egui_ctx.pixels_per_point()),
             },
             output: Default::default(),
@@ -262,6 +281,7 @@ impl EpiIntegration {
     ) -> egui::FullOutput {
         let frame_start = std::time::Instant::now();
 
+        self.frame.info.fullscreen = window.fullscreen().is_some();
         self.frame.info.window_info = read_window_info(window, self.egui_ctx.pixels_per_point());
         let raw_input = self.egui_winit.take_egui_input(window);
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {

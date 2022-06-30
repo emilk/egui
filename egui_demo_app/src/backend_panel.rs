@@ -138,6 +138,16 @@ impl BackendPanel {
 
         if !frame.is_web() {
             ui.separator();
+
+            let mut fullscreen = frame.is_fullscreen();
+            ui.checkbox(&mut fullscreen, "🗖 Fullscreen")
+                .on_hover_text("Fullscreen the window");
+
+            frame.set_fullscreen(fullscreen);
+        }
+
+        if !frame.is_web() {
+            ui.separator();
             if ui.button("Quit").clicked() {
                 frame.quit();
             }

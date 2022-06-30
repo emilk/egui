@@ -299,6 +299,7 @@ impl AppRunner {
                 decorated: _,    // Can't toggle decorations
                 drag_window: _,  // Can't be dragged
                 window_pos: _,   // Can't set position of a web page
+                fullscreen: _,   // TODO(jezza): request fullscreen
             } = app_output;
         }
 
