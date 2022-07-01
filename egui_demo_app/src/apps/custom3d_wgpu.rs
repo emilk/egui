@@ -17,7 +17,7 @@ impl Custom3d {
 
         let device = &render_state.device;
 
-        let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: None,
             source: wgpu::ShaderSource::Wgsl(include_str!("./custom3d_wgpu_shader.wgsl").into()),
         });
@@ -53,7 +53,7 @@ impl Custom3d {
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
                 entry_point: "fs_main",
-                targets: &[render_state.target_format.into()],
+                targets: &[Some(render_state.target_format.into())],
             }),
             primitive: wgpu::PrimitiveState::default(),
             depth_stencil: None,
