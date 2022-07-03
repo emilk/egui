@@ -45,7 +45,7 @@ impl EasyMarkEditor {
 
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         egui::Grid::new("controls").show(ui, |ui| {
-            ui.menu_button("Hotkeys", Self::nested_hotkeys);
+            let _ = ui.button("Hotkeys").on_hover_ui(nested_hotkeys_ui);
             ui.checkbox(&mut self.show_rendered, "Show rendered");
             ui.checkbox(&mut self.highlight_editor, "Highlight editor");
             egui::reset_button(ui, self);
@@ -104,16 +104,17 @@ impl EasyMarkEditor {
             }
         }
     }
-    fn nested_hotkeys(ui: &mut egui::Ui) {
-        let _ = ui.label("CTRL+B *bold*");
-        let _ = ui.label("CTRL+N `code`");
-        let _ = ui.label("CTRL+I /italics/");
-        let _ = ui.label("CTRL+L $subscript$");
-        let _ = ui.label("CTRL+Y ^superscript^");
-        let _ = ui.label("ALT+SHIFT+Q ~strikethrough~");
-        let _ = ui.label("ALT+SHIFT+W _underline_");
-        let _ = ui.label("ALT+SHIFT+E two spaces"); // Placeholder for tab indent
-    }
+}
+
+fn nested_hotkeys_ui(ui: &mut egui::Ui) {
+    let _ = ui.label("CTRL+B *bold*");
+    let _ = ui.label("CTRL+N `code`");
+    let _ = ui.label("CTRL+I /italics/");
+    let _ = ui.label("CTRL+L $subscript$");
+    let _ = ui.label("CTRL+Y ^superscript^");
+    let _ = ui.label("ALT+SHIFT+Q ~strikethrough~");
+    let _ = ui.label("ALT+SHIFT+W _underline_");
+    let _ = ui.label("ALT+SHIFT+E two spaces"); // Placeholder for tab indent
 }
 
 fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRange) -> bool {
