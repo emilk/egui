@@ -45,15 +45,12 @@ impl EasyMarkEditor {
 
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         egui::Grid::new("controls").show(ui, |ui| {
+            let _ = ui.button("Hotkeys").on_hover_ui(nested_hotkeys_ui);
+            ui.checkbox(&mut self.show_rendered, "Show rendered");
             ui.checkbox(&mut self.highlight_editor, "Highlight editor");
             egui::reset_button(ui, self);
             ui.end_row();
-
-            ui.checkbox(&mut self.show_rendered, "Show rendered");
         });
-
-        ui.label("Use ctrl/cmd + key to toggle:   B: *strong*   C: `code`   I: /italics/   L: $lowered$   R: ^raised^   S: ~strikethrough~   U: _underline_");
-
         ui.separator();
 
         if self.show_rendered {
@@ -109,20 +106,43 @@ impl EasyMarkEditor {
     }
 }
 
+fn nested_hotkeys_ui(ui: &mut egui::Ui) {
+    let _ = ui.label("CTRL+B *bold*");
+    let _ = ui.label("CTRL+N `code`");
+    let _ = ui.label("CTRL+I /italics/");
+    let _ = ui.label("CTRL+L $subscript$");
+    let _ = ui.label("CTRL+Y ^superscript^");
+    let _ = ui.label("ALT+SHIFT+Q ~strikethrough~");
+    let _ = ui.label("ALT+SHIFT+W _underline_");
+    let _ = ui.label("ALT+SHIFT+E two spaces"); // Placeholder for tab indent
+}
+
 fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRange) -> bool {
     let mut any_change = false;
-    for (key, surrounding) in [
-        (Key::B, "*"), // *bold*
-        (Key::C, "`"), // `code`
-        (Key::I, "/"), // /italics/
-        (Key::L, "$"), // $subscript$
-        (Key::R, "^"), // ^superscript^
-        (Key::S, "~"), // ~strikethrough~
-        (Key::U, "_"), // _underline_
+    if ui
+        .input_mut()
+        .consume_key(egui::Modifiers::ALT_SHIFT, Key::E)
+    {
+        // This is a placeholder till we can indent the active line
+        any_change = true;
+        let [primary, _secondary] = ccursor_range.sorted();
+
+        let advance = code.insert_text("  ", primary.index);
+        ccursor_range.primary.index += advance;
+        ccursor_range.secondary.index += advance;
+    }
+    for (modifier, key, surrounding) in [
+        (egui::Modifiers::COMMAND, Key::B, "*"),   // *bold*
+        (egui::Modifiers::COMMAND, Key::N, "`"),   // `code`
+        (egui::Modifiers::COMMAND, Key::I, "/"),   // /italics/
+        (egui::Modifiers::COMMAND, Key::L, "$"),   // $subscript$
+        (egui::Modifiers::COMMAND, Key::Y, "^"),   // ^superscript^
+        (egui::Modifiers::ALT_SHIFT, Key::Q, "~"), // ~strikethrough~
+        (egui::Modifiers::ALT_SHIFT, Key::W, "_"), // _underline_
     ] {
-        if ui.input_mut().consume_key(egui::Modifiers::COMMAND, key) {
-            toggle_surrounding(code, ccursor_range, surrounding);
+        if ui.input_mut().consume_key(modifier, key) {
             any_change = true;
+            toggle_surrounding(code, ccursor_range, surrounding);
         };
     }
     any_change
@@ -222,6 +242,11 @@ The style characters are chosen to be similar to what they are representing:
 
 # TODO
 - Sub-headers (`## h2`, `### h3` etc)
+- Hotkey Editor
+- International keyboard algorithm for non-letter keys
+- ALT+SHIFT+Num1 is not a functioning hotkey
+- Tab Indent Increment/Decrement CTRL+], CTRL+[
+
 - Images
   - we want to be able to optionally specify size (width and\/or height)
   - centering of images is very desirable

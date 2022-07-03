@@ -323,6 +323,13 @@ impl Modifiers {
         mac_cmd: false,
         command: false,
     };
+    pub const ALT_SHIFT: Self = Self {
+        alt: true,
+        ctrl: false,
+        shift: true,
+        mac_cmd: false,
+        command: false,
+    };
     /// The Mac ⌘ Command key
     pub const MAC_CMD: Self = Self {
         alt: false,
@@ -429,7 +436,7 @@ impl std::ops::BitOr for Modifiers {
 /// plus a few that are useful for detecting keyboard shortcuts.
 ///
 /// Many keys are omitted because they are not always physical keys (depending on keyboard language), e.g. `;` and `§`,
-/// and are therefor unsuitable as keyboard shortcuts if you want your app to be portable.
+/// and are therefore unsuitable as keyboard shortcuts if you want your app to be portable.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum Key {
@@ -474,37 +481,37 @@ pub enum Key {
 
     A, // Used for cmd+A (select All)
     B,
-    C,
-    D,
-    E,
-    F,
-    G,
-    H,
-    I,
-    J,
+    C, // |CMD COPY|
+    D, // |CMD BOOKMARK|
+    E, // |CMD SEARCH|
+    F, // |CMD FIND firefox & chrome|
+    G, // |CMD FIND chrome|
+    H, // |CMD History|
+    I, // italics
+    J, // |CMD SEARCH firefox/DOWNLOAD chrome|
     K, // Used for ctrl+K (delete text after cursor)
     L,
     M,
     N,
-    O,
-    P,
+    O, // |CMD OPEN|
+    P, // |CMD PRINT|
     Q,
-    R,
-    S,
-    T,
+    R, // |CMD REFRESH|
+    S, // |CMD SAVE|
+    T, // |CMD TAB|
     U, // Used for ctrl+U (delete text before cursor)
-    V,
+    V, // |CMD PASTE|
     W, // Used for ctrl+W (delete previous word)
-    X,
+    X, // |CMD CUT|
     Y,
-    Z, // Used for cmd+Z (undo)
+    Z, // |CMD UNDO|
 
     // The function keys:
     F1,
     F2,
     F3,
     F4,
-    F5,
+    F5, // |CMD REFRESH|
     F6,
     F7,
     F8,
