@@ -287,7 +287,7 @@ dependencies = [
  "cc",
  "cfg-if 1.0.0",
  "libc",
- "miniz_oxide",
+ "miniz_oxide 0.5.1",
  "object",
  "rustc-demangle",
 ]
@@ -991,6 +991,16 @@ checksum = "7046468a81e6a002061c01e6a7c83139daf91b11c30e66795b13217c2d885c8b"
 
 [[package]]
 name = "deflate"
+version = "0.8.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73770f8e1fe7d64df17ca66ad28994a0a623ea497fa69486e14984e715c5d174"
+dependencies = [
+ "adler32",
+ "byteorder",
+]
+
+[[package]]
+name = "deflate"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c86f7e25f518f4b81808a2cf1c50996a61f5c2eb394b2393bd87f2a4780a432f"
@@ -1099,7 +1109,7 @@ dependencies = [
  "eframe",
  "egui_extras",
  "ehttp",
- "image",
+ "image 0.24.2",
  "poll-promise",
 ]
 
@@ -1220,7 +1230,7 @@ dependencies = [
  "egui_demo_lib",
  "egui_extras",
  "ehttp",
- "image",
+ "image 0.24.2",
  "poll-promise",
  "pollster",
  "serde",
@@ -1251,7 +1261,7 @@ dependencies = [
  "chrono",
  "document-features",
  "egui",
- "image",
+ "image 0.24.2",
  "resvg",
  "serde",
  "tiny-skia",
@@ -1269,7 +1279,7 @@ dependencies = [
  "egui",
  "egui-winit",
  "glium",
- "image",
+ "image 0.24.2",
 ]
 
 [[package]]
@@ -1444,7 +1454,7 @@ dependencies = [
  "cfg-if 1.0.0",
  "crc32fast",
  "libc",
- "miniz_oxide",
+ "miniz_oxide 0.5.1",
 ]
 
 [[package]]
@@ -1940,6 +1950,22 @@ dependencies = [
 
 [[package]]
 name = "image"
+version = "0.23.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "24ffcb7e7244a9bf19d35bf2883b9c080c4ced3c07a9895572178cdb8f13f6a1"
+dependencies = [
+ "bytemuck",
+ "byteorder",
+ "color_quant",
+ "jpeg-decoder 0.1.22",
+ "num-iter",
+ "num-rational 0.3.2",
+ "num-traits",
+ "png 0.16.8",
+]
+
+[[package]]
+name = "image"
 version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28edd9d7bc256be2502e325ac0628bde30b7001b9b52e0abe31a1a9dc2701212"
@@ -1947,11 +1973,11 @@ dependencies = [
  "bytemuck",
  "byteorder",
  "color_quant",
- "jpeg-decoder",
+ "jpeg-decoder 0.2.4",
  "num-iter",
- "num-rational",
+ "num-rational 0.4.0",
  "num-traits",
- "png",
+ "png 0.17.5",
 ]
 
 [[package]]
@@ -2031,6 +2057,12 @@ checksum = "af25a77299a7f711a01975c35a6a424eb6862092cc2d6c72c4ed6cbc56dfc1fa"
 dependencies = [
  "libc",
 ]
+
+[[package]]
+name = "jpeg-decoder"
+version = "0.1.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "229d53d58899083193af11e15917b5640cd40b29ff475a1fe4ef725deb02d0f2"
 
 [[package]]
 name = "jpeg-decoder"
@@ -2208,6 +2240,15 @@ name = "minimal-lexical"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
+
+[[package]]
+name = "miniz_oxide"
+version = "0.3.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "791daaae1ed6889560f8c4359194f56648355540573244a5448a83ba1ecc7435"
+dependencies = [
+ "adler32",
+]
 
 [[package]]
 name = "miniz_oxide"
@@ -2423,6 +2464,17 @@ name = "num-iter"
 version = "0.1.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d03e6c028c5dc5cac6e2dec0efda81fc887605bb3d884578bb6d6bf7514e252"
+dependencies = [
+ "autocfg",
+ "num-integer",
+ "num-traits",
+]
+
+[[package]]
+name = "num-rational"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12ac428b1cb17fce6f731001d307d351ec70a6d202fc2e60f7d4c5e42d8f4f07"
 dependencies = [
  "autocfg",
  "num-integer",
@@ -2734,14 +2786,26 @@ dependencies = [
 
 [[package]]
 name = "png"
+version = "0.16.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c3287920cb847dee3de33d301c463fba14dda99db24214ddf93f83d3021f4c6"
+dependencies = [
+ "bitflags",
+ "crc32fast",
+ "deflate 0.8.6",
+ "miniz_oxide 0.3.7",
+]
+
+[[package]]
+name = "png"
 version = "0.17.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc38c0ad57efb786dd57b9864e5b18bae478c00c824dc55a38bbc9da95dde3ba"
 dependencies = [
  "bitflags",
  "crc32fast",
- "deflate",
- "miniz_oxide",
+ "deflate 1.0.0",
+ "miniz_oxide 0.5.1",
 ]
 
 [[package]]
@@ -2980,10 +3044,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2e702d1e8e00a3a0717b96244cba840f34f542d8f23097c8903266c4e2975658"
 dependencies = [
  "gif",
- "jpeg-decoder",
+ "jpeg-decoder 0.2.4",
  "log",
  "pico-args",
- "png",
+ "png 0.17.5",
  "rgb",
  "svgfilters",
  "svgtypes",
@@ -2997,7 +3061,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "egui_extras",
- "image",
+ "image 0.24.2",
 ]
 
 [[package]]
@@ -3570,8 +3634,9 @@ dependencies = [
 
 [[package]]
 name = "three-d"
-version = "0.12.0"
-source = "git+https://github.com/asny/three-d.git?rev=43f210668197e8b1dc50ea9f074d2b8426ecb0f2#43f210668197e8b1dc50ea9f074d2b8426ecb0f2"
+version = "0.12.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8cc0ef660c02244f00fc2d1759e67d30a3c282541458490de641f0e832c8d3c9"
 dependencies = [
  "cgmath",
  "gloo-timers",
@@ -3580,8 +3645,22 @@ dependencies = [
  "js-sys",
  "serde",
  "thiserror",
+ "three-d-asset",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
+name = "three-d-asset"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af1886553d8b51093705b6d1a02ec2c41ac78260f68b40682d94d9976960d689"
+dependencies = [
+ "cgmath",
+ "half",
+ "image 0.23.14",
+ "thiserror",
  "web-sys",
 ]
 
@@ -3616,7 +3695,7 @@ dependencies = [
  "arrayvec 0.5.2",
  "bytemuck",
  "cfg-if 1.0.0",
- "png",
+ "png 0.17.5",
  "safe_arch",
 ]
 
