@@ -287,6 +287,23 @@ impl<'ui, HeaderRet> HeaderResponse<'ui, HeaderRet> {
             body_response,
         )
     }
+
+    /// Returns the response of the collapsing button, the custom header, and the custom body, without indentation.
+    pub fn body_unindented<BodyRet>(
+        mut self,
+        add_body: impl FnOnce(&mut Ui) -> BodyRet,
+    ) -> (
+        Response,
+        InnerResponse<HeaderRet>,
+        Option<InnerResponse<BodyRet>>,
+    ) {
+        let body_response = self.state.show_body_unindented(self.ui, add_body);
+        (
+            self.toggle_button_response,
+            self.header_response,
+            body_response,
+        )
+    }
 }
 
 // ----------------------------------------------------------------------------
