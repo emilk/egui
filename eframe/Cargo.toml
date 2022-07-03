@@ -143,4 +143,4 @@ web-sys = { version = "0.3.52", features = [
 
 # optional
 # feature screen_reader
-tts = { version = "0.22", optional = true }
+tts = { version = "0.20", optional = true } # stuck on old version due to compilation problems on linux
