@@ -200,22 +200,26 @@ impl TexturesDelta {
 
 impl std::fmt::Debug for TexturesDelta {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use std::fmt::Write as _;
+
         let mut debug_struct = f.debug_struct("TexturesDelta");
         if !self.set.is_empty() {
             let mut string = String::new();
             for (tex_id, delta) in &self.set {
                 let size = delta.image.size();
                 if let Some(pos) = delta.pos {
-                    string += &format!(
+                    write!(
+                        string,
                         "{:?} partial ([{} {}] - [{} {}]), ",
                         tex_id,
                         pos[0],
                         pos[1],
                         pos[0] + size[0],
                         pos[1] + size[1]
-                    );
+                    )
+                    .ok();
                 } else {
-                    string += &format!("{:?} full {}x{}, ", tex_id, size[0], size[1]);
+                    write!(string, "{:?} full {}x{}, ", tex_id, size[0], size[1]).ok();
                 }
             }
             debug_struct.field("set", &string);
