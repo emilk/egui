@@ -1256,6 +1256,7 @@ dependencies = [
  "serde",
  "tracing-subscriber",
  "tracing-wasm",
+ "wgpu",
 ]
 
 [[package]]
