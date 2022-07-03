@@ -121,7 +121,7 @@ fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRang
     if ui
         .input_mut()
         .consume_key(egui::Modifiers::ALT_SHIFT, Key::E)
-    { 
+    {
         // This is a placeholder till we can indent the active line
         any_change = true;
         let [primary, _secondary] = ccursor_range.sorted();
