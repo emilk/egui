@@ -68,4 +68,4 @@ ron = { version = "0.7", optional = true }
 serde = { version = "1", optional = true, features = ["derive", "rc"] }
 
 # egui doesn't log much, but when it does, it uses [`tracing`](https://docs.rs/tracing).
-tracing = { version = "0.1", optional = true }
+tracing = { version = "0.1", optional = true, default-features = false, features = ["std"] }
