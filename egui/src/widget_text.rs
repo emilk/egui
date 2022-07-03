@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::sync::Arc;
 
 use crate::{
@@ -62,6 +63,13 @@ impl From<String> for RichText {
     #[inline]
     fn from(text: String) -> Self {
         RichText::new(text)
+    }
+}
+
+impl From<Cow<'_, str>> for RichText {
+    #[inline]
+    fn from(text: Cow<'_, str>) -> Self {
+        Self::new(text)
     }
 }
 
@@ -601,6 +609,13 @@ impl From<&String> for WidgetText {
 impl From<String> for WidgetText {
     #[inline]
     fn from(text: String) -> Self {
+        Self::RichText(RichText::new(text))
+    }
+}
+
+impl From<Cow<'_, str>> for WidgetText {
+    #[inline]
+    fn from(text: Cow<'_, str>) -> Self {
         Self::RichText(RichText::new(text))
     }
 }
