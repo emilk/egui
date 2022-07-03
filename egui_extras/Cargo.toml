@@ -59,9 +59,9 @@ document-features = { version = "0.2", optional = true }
 image = { version = "0.24", optional = true, default-features = false }
 
 # svg feature
-resvg = { version = "0.22", optional = true }
+resvg = { version = "0.23", optional = true }
 tiny-skia = { version = "0.6", optional = true }
-usvg = { version = "0.22", optional = true }
+usvg = { version = "0.23", optional = true }
 
 # feature "serde":
 serde = { version = "1", features = ["derive"], optional = true }
