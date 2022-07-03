@@ -40,7 +40,7 @@ egui = { version = "0.18.1", path = "../egui", default-features = false, feature
 bytemuck = "1.7"
 tracing = "0.1"
 type-map = "0.5.0"
-wgpu = { version = "0.13", features = ["webgl"] }
+wgpu = "0.13"
 
 #! ### Optional dependencies
 ## Enable this when generating docs.

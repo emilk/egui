@@ -303,15 +303,16 @@ impl WrapApp {
 
     fn ui_file_drag_and_drop(&mut self, ctx: &egui::Context) {
         use egui::*;
+        use std::fmt::Write as _;
 
         // Preview hovering files:
         if !ctx.input().raw.hovered_files.is_empty() {
             let mut text = "Dropping files:\n".to_owned();
             for file in &ctx.input().raw.hovered_files {
                 if let Some(path) = &file.path {
-                    text += &format!("\n{}", path.display());
+                    write!(text, "\n{}", path.display()).ok();
                 } else if !file.mime.is_empty() {
-                    text += &format!("\n{}", file.mime);
+                    write!(text, "\n{}", file.mime).ok();
                 } else {
                     text += "\n???";
                 }
@@ -351,7 +352,7 @@ impl WrapApp {
                             "???".to_owned()
                         };
                         if let Some(bytes) = &file.bytes {
-                            info += &format!(" ({} bytes)", bytes.len());
+                            write!(info, " ({} bytes)", bytes.len()).ok();
                         }
                         ui.label(info);
                     }
