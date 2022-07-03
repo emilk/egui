@@ -114,7 +114,7 @@ impl<'a> Painter<'a> {
 
         if self.render_state.is_none() {
             let adapter = self.adapter.as_ref().unwrap();
-            let swapchain_format = surface.get_preferred_format(adapter).unwrap();
+            let swapchain_format = surface.get_supported_formats(adapter)[0];
 
             let rs = pollster::block_on(self.init_render_state(adapter, swapchain_format));
             self.render_state = Some(rs);
