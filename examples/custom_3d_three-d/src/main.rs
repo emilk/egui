@@ -143,7 +143,10 @@ fn paint_with_three_d(three_d: &three_d::Context, info: &egui::PaintCallbackInfo
         ..Default::default()
     };
 
-    let mut model = Model::new(three_d, &cpu_mesh).unwrap();
+    let mut model = Gm::new(
+        Mesh::new(three_d, &cpu_mesh).unwrap(),
+        ColorMaterial::default(),
+    );
 
     // Set the current transformation of the triangle
     model.set_transformation(Mat4::from_angle_y(radians(angle)));
