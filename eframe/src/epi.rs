@@ -543,6 +543,11 @@ impl Frame {
         self.output.drag_window = true;
     }
 
+    /// Set the visibility of the window.
+    pub fn set_visibility(&mut self, visible: bool) {
+        self.output.visible = Some(visible);
+    }
+
     /// for integrations only: call once per frame
     #[doc(hidden)]
     pub fn take_app_output(&mut self) -> backend::AppOutput {
@@ -718,5 +723,8 @@ pub mod backend {
 
         /// Set to some position to move the outer window (e.g. glium window) to this position
         pub window_pos: Option<egui::Pos2>,
+
+        /// Set to some bool to change window visibility.
+        pub visible: Option<bool>,
     }
 }

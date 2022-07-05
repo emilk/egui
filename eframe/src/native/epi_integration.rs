@@ -120,6 +120,7 @@ pub fn handle_app_output(
         decorated,
         drag_window,
         window_pos,
+        visible,
     } = app_output;
 
     if let Some(decorated) = decorated {
@@ -149,6 +150,10 @@ pub fn handle_app_output(
 
     if drag_window {
         let _ = window.drag_window();
+    }
+
+    if let Some(visible) = visible {
+        window.set_visible(visible);
     }
 }
 
