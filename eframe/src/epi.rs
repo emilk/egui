@@ -330,6 +330,11 @@ pub struct WebOptions {
     ///
     /// Default: `Theme::Dark`.
     pub default_theme: Theme,
+
+    /// Which version of WebGl context to select
+    ///
+    /// Default: `WebGlContextOption: BestFirst`.
+    pub webgl_context_option: WebGlContextOption,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -338,6 +343,7 @@ impl Default for WebOptions {
         Self {
             follow_system_theme: true,
             default_theme: Theme::Dark,
+            webgl_context_option: WebGlContextOption::BestFirst,
         }
     }
 }
@@ -364,6 +370,22 @@ impl Theme {
             Self::Light => egui::Visuals::light(),
         }
     }
+}
+
+// ----------------------------------------------------------------------------
+
+/// WebGl Context options
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum WebGlContextOption {
+    /// Force Use WebGL1.
+    WebGl1,
+    // Force use WebGL2.
+    WebGl2,
+    /// Use WebGl2 first.
+    BestFirst,
+    /// Use WebGl1 first
+    CompatibilityFirst,
 }
 
 // ----------------------------------------------------------------------------

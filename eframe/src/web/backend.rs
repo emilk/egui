@@ -160,7 +160,8 @@ impl AppRunner {
         web_options: crate::WebOptions,
         app_creator: epi::AppCreator,
     ) -> Result<Self, JsValue> {
-        let painter = WrappedGlowPainter::new(canvas_id).map_err(JsValue::from)?; // fail early
+        let painter = WrappedGlowPainter::new(canvas_id, web_options.webgl_context_option)
+            .map_err(JsValue::from)?; // fail early
 
         let system_theme = if web_options.follow_system_theme {
             super::system_theme()
