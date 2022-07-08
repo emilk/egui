@@ -333,7 +333,7 @@ pub struct WebOptions {
 
     /// Which version of WebGl context to select
     ///
-    /// Default: `WebGlContextOption: BestFirst`.
+    /// Default: `WebGlContextOption::BestFirst`.
     pub webgl_context_option: WebGlContextOption,
 }
 
@@ -380,7 +380,7 @@ impl Theme {
 pub enum WebGlContextOption {
     /// Force Use WebGL1.
     WebGl1,
-    // Force use WebGL2.
+    /// Force use WebGL2.
     WebGl2,
     /// Use WebGl2 first.
     BestFirst,
