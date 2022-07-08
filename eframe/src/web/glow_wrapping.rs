@@ -1,3 +1,4 @@
+use crate::WebGlContextOption;
 use egui::{ClippedPrimitive, Rgba};
 use egui_glow::glow;
 use wasm_bindgen::JsCast;
@@ -13,10 +14,10 @@ pub(crate) struct WrappedGlowPainter {
 }
 
 impl WrappedGlowPainter {
-    pub fn new(canvas_id: &str) -> Result<Self, String> {
+    pub fn new(canvas_id: &str, options: WebGlContextOption) -> Result<Self, String> {
         let canvas = super::canvas_element_or_die(canvas_id);
 
-        let (gl, shader_prefix) = init_glow_context_from_canvas(&canvas)?;
+        let (gl, shader_prefix) = init_glow_context_from_canvas(&canvas, options)?;
         let gl = std::sync::Arc::new(gl);
 
         let dimension = [canvas.width() as i32, canvas.height() as i32];
@@ -91,16 +92,19 @@ impl WrappedGlowPainter {
 /// Returns glow context and shader prefix.
 fn init_glow_context_from_canvas(
     canvas: &HtmlCanvasElement,
+    options: WebGlContextOption,
 ) -> Result<(glow::Context, &'static str), String> {
-    const BEST_FIRST: bool = true;
-
-    let result = if BEST_FIRST {
+    let result = match options {
+        // Force use WebGl1
+        WebGlContextOption::WebGl1 => init_webgl1(canvas),
+        // Force use WebGl2
+        WebGlContextOption::WebGl2 => init_webgl2(canvas),
         // Trying WebGl2 first
-        init_webgl2(canvas).or_else(|| init_webgl1(canvas))
-    } else {
+        WebGlContextOption::BestFirst => init_webgl2(canvas).or_else(|| init_webgl1(canvas)),
         // Trying WebGl1 first (useful for testing).
-        tracing::warn!("Looking for WebGL1 first");
-        init_webgl1(canvas).or_else(|| init_webgl2(canvas))
+        WebGlContextOption::CompatibilityFirst => {
+            init_webgl1(canvas).or_else(|| init_webgl2(canvas))
+        }
     };
 
     if let Some(result) = result {
