@@ -333,7 +333,7 @@ pub struct WebOptions {
 
     /// Which version of WebGl context to select
     ///
-    /// Default: `WebGlContextOption::BestFirst`.
+    /// Default: [`WebGlContextOption::BestFirst`].
     pub webgl_context_option: WebGlContextOption,
 }
 
