@@ -5,8 +5,8 @@ use egui::plot::{GridInput, GridMark};
 use egui::*;
 use plot::{
     Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, CoordinatesFormatter, Corner, HLine,
-    Legend, Line, LineStyle, MarkerShape, Plot, PlotImage, Points, Polygon, Text, VLine, Value,
-    Values,
+    Legend, Line, LineStyle, MarkerShape, Plot, PlotImage, PlotPoint, PlotPoints, Points, Polygon,
+    Text, VLine,
 };
 
 // ----------------------------------------------------------------------------
@@ -106,25 +106,27 @@ impl LineDemo {
         });
     }
 
-    fn circle(&self) -> Line {
+    fn circle(&self) -> Line<'static> {
         let n = 512;
-        let circle = (0..=n).map(|i| {
-            let t = remap(i as f64, 0.0..=(n as f64), 0.0..=TAU);
-            let r = self.circle_radius;
-            Value::new(
-                r * t.cos() + self.circle_center.x as f64,
-                r * t.sin() + self.circle_center.y as f64,
-            )
-        });
-        Line::new(Values::from_values_iter(circle))
+        let circle_points: Vec<_> = (0..=n)
+            .map(|i| {
+                let t = remap(i as f64, 0.0..=(n as f64), 0.0..=TAU);
+                let r = self.circle_radius;
+                [
+                    r * t.cos() + self.circle_center.x as f64,
+                    r * t.sin() + self.circle_center.y as f64,
+                ]
+            })
+            .collect();
+        Line::new(circle_points)
             .color(Color32::from_rgb(100, 200, 100))
             .style(self.line_style)
             .name("circle")
     }
 
-    fn sin(&self) -> Line {
+    fn sin(&self) -> Line<'static> {
         let time = self.time;
-        Line::new(Values::from_explicit_callback(
+        Line::new(PlotPoints::from_explicit_callback(
             move |x| 0.5 * (2.0 * x).sin() * time.sin(),
             ..,
             512,
@@ -134,9 +136,9 @@ impl LineDemo {
         .name("wave")
     }
 
-    fn thingy(&self) -> Line {
+    fn thingy(&self) -> Line<'static> {
         let time = self.time;
-        Line::new(Values::from_parametric_callback(
+        Line::new(PlotPoints::from_parametric_callback(
             move |t| ((2.0 * t + time).sin(), (3.0 * t).sin()),
             0.0..=TAU,
             256,
@@ -195,19 +197,19 @@ impl Default for MarkerDemo {
 }
 
 impl MarkerDemo {
-    fn markers(&self) -> Vec<Points> {
+    fn markers(&self) -> Vec<Points<'static>> {
         MarkerShape::all()
             .enumerate()
             .map(|(i, marker)| {
-                let y_offset = i as f32 * 0.5 + 1.0;
-                let mut points = Points::new(Values::from_values(vec![
-                    Value::new(1.0, 0.0 + y_offset),
-                    Value::new(2.0, 0.5 + y_offset),
-                    Value::new(3.0, 0.0 + y_offset),
-                    Value::new(4.0, 0.5 + y_offset),
-                    Value::new(5.0, 0.0 + y_offset),
-                    Value::new(6.0, 0.5 + y_offset),
-                ]))
+                let y_offset = i as f64 * 0.5 + 1.0;
+                let mut points = Points::new(vec![
+                    [1.0, 0.0 + y_offset],
+                    [2.0, 0.5 + y_offset],
+                    [3.0, 0.0 + y_offset],
+                    [4.0, 0.5 + y_offset],
+                    [5.0, 0.0 + y_offset],
+                    [6.0, 0.5 + y_offset],
+                ])
                 .name(format!("{:?}", marker))
                 .filled(self.fill_markers)
                 .radius(self.marker_radius)
@@ -258,14 +260,26 @@ struct LegendDemo {
 }
 
 impl LegendDemo {
-    fn line_with_slope(slope: f64) -> Line {
-        Line::new(Values::from_explicit_callback(move |x| slope * x, .., 100))
+    fn line_with_slope(slope: f64) -> Line<'static> {
+        Line::new(PlotPoints::from_explicit_callback(
+            move |x| slope * x,
+            ..,
+            100,
+        ))
     }
-    fn sin() -> Line {
-        Line::new(Values::from_explicit_callback(move |x| x.sin(), .., 100))
+    fn sin() -> Line<'static> {
+        Line::new(PlotPoints::from_explicit_callback(
+            move |x| x.sin(),
+            ..,
+            100,
+        ))
     }
-    fn cos() -> Line {
-        Line::new(Values::from_explicit_callback(move |x| x.cos(), .., 100))
+    fn cos() -> Line<'static> {
+        Line::new(PlotPoints::from_explicit_callback(
+            move |x| x.cos(),
+            ..,
+            100,
+        ))
     }
 
     fn ui(&mut self, ui: &mut Ui) -> Response {
@@ -322,12 +336,12 @@ impl CustomAxisDemo {
     const MINS_PER_DAY: f64 = 24.0 * 60.0;
     const MINS_PER_H: f64 = 60.0;
 
-    fn logistic_fn() -> Line {
+    fn logistic_fn() -> Line<'static> {
         fn days(min: f64) -> f64 {
             CustomAxisDemo::MINS_PER_DAY * min
         }
 
-        let values = Values::from_explicit_callback(
+        let values = PlotPoints::from_explicit_callback(
             move |x| 1.0 / (1.0 + (-2.5 * (x / CustomAxisDemo::MINS_PER_DAY - 2.0)).exp()),
             days(0.0)..days(5.0),
             100,
@@ -410,7 +424,7 @@ impl CustomAxisDemo {
             }
         };
 
-        let label_fmt = |_s: &str, val: &Value| {
+        let label_fmt = |_s: &str, val: &PlotPoint| {
             format!(
                 "Day {d}, {h}:{m:02}\n{p:.2}%",
                 d = get_day(val.x),
@@ -457,14 +471,26 @@ impl Default for LinkedAxisDemo {
 }
 
 impl LinkedAxisDemo {
-    fn line_with_slope(slope: f64) -> Line {
-        Line::new(Values::from_explicit_callback(move |x| slope * x, .., 100))
+    fn line_with_slope(slope: f64) -> Line<'static> {
+        Line::new(PlotPoints::from_explicit_callback(
+            move |x| slope * x,
+            ..,
+            100,
+        ))
     }
-    fn sin() -> Line {
-        Line::new(Values::from_explicit_callback(move |x| x.sin(), .., 100))
+    fn sin() -> Line<'static> {
+        Line::new(PlotPoints::from_explicit_callback(
+            move |x| x.sin(),
+            ..,
+            100,
+        ))
     }
-    fn cos() -> Line {
-        Line::new(Values::from_explicit_callback(move |x| x.cos(), .., 100))
+    fn cos() -> Line<'static> {
+        Line::new(PlotPoints::from_explicit_callback(
+            move |x| x.cos(),
+            ..,
+            100,
+        ))
     }
 
     fn configure_plot(plot_ui: &mut plot::PlotUi) {
@@ -519,28 +545,26 @@ impl ItemsDemo {
         let n = 100;
         let mut sin_values: Vec<_> = (0..=n)
             .map(|i| remap(i as f64, 0.0..=n as f64, -TAU..=TAU))
-            .map(|i| Value::new(i, i.sin()))
+            .map(|i| [i, i.sin()])
             .collect();
 
-        let line = Line::new(Values::from_values(sin_values.split_off(n / 2))).fill(-1.5);
-        let polygon = Polygon::new(Values::from_parametric_callback(
+        let line = Line::new(sin_values.split_off(n / 2)).fill(-1.5);
+        let polygon = Polygon::new(PlotPoints::from_parametric_callback(
             |t| (4.0 * t.sin() + 2.0 * t.cos(), 4.0 * t.cos() + 2.0 * t.sin()),
             0.0..TAU,
             100,
         ));
-        let points = Points::new(Values::from_values(sin_values))
-            .stems(-1.5)
-            .radius(1.0);
+        let points = Points::new(sin_values).stems(-1.5).radius(1.0);
 
         let arrows = {
             let pos_radius = 8.0;
             let tip_radius = 7.0;
-            let arrow_origins = Values::from_parametric_callback(
+            let arrow_origins = PlotPoints::from_parametric_callback(
                 |t| (pos_radius * t.sin(), pos_radius * t.cos()),
                 0.0..TAU,
                 36,
             );
-            let arrow_tips = Values::from_parametric_callback(
+            let arrow_tips = PlotPoints::from_parametric_callback(
                 |t| (tip_radius * t.sin(), tip_radius * t.cos()),
                 0.0..TAU,
                 36,
@@ -557,7 +581,7 @@ impl ItemsDemo {
         });
         let image = PlotImage::new(
             texture,
-            Value::new(0.0, 10.0),
+            PlotPoint::new(0.0, 10.0),
             5.0 * vec2(texture.aspect_ratio(), 1.0),
         );
 
@@ -574,10 +598,10 @@ impl ItemsDemo {
             plot_ui.line(line.name("Line with fill"));
             plot_ui.polygon(polygon.name("Convex polygon"));
             plot_ui.points(points.name("Points with stems"));
-            plot_ui.text(Text::new(Value::new(-3.0, -3.0), "wow").name("Text"));
-            plot_ui.text(Text::new(Value::new(-2.0, 2.5), "so graph").name("Text"));
-            plot_ui.text(Text::new(Value::new(3.0, 3.0), "much color").name("Text"));
-            plot_ui.text(Text::new(Value::new(2.5, -2.0), "such plot").name("Text"));
+            plot_ui.text(Text::new(PlotPoint::new(-3.0, -3.0), "wow").name("Text"));
+            plot_ui.text(Text::new(PlotPoint::new(-2.0, 2.5), "so graph").name("Text"));
+            plot_ui.text(Text::new(PlotPoint::new(3.0, 3.0), "much color").name("Text"));
+            plot_ui.text(Text::new(PlotPoint::new(2.5, -2.0), "such plot").name("Text"));
             plot_ui.image(image.name("Image"));
             plot_ui.arrows(arrows.name("Arrows"));
         })
@@ -600,7 +624,7 @@ impl InteractionDemo {
             inner: (screen_pos, pointer_coordinate, pointer_coordinate_drag_delta, bounds, hovered),
         } = plot.show(ui, |plot_ui| {
             (
-                plot_ui.screen_from_plot(Value::new(0.0, 0.0)),
+                plot_ui.screen_from_plot(PlotPoint::new(0.0, 0.0)),
                 plot_ui.pointer_coordinate(),
                 plot_ui.pointer_coordinate_drag_delta(),
                 plot_ui.plot_bounds(),

@@ -13,7 +13,7 @@ use transform::ScreenTransform;
 
 pub use items::{
     Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, HLine, Line, LineStyle, MarkerShape,
-    Orientation, PlotImage, Points, Polygon, Text, VLine, Value, Values,
+    Orientation, PlotImage, PlotPoint, PlotPoints, Points, Polygon, Text, VLine,
 };
 pub use legend::{Corner, Legend};
 pub use transform::PlotBounds;
@@ -22,7 +22,7 @@ mod items;
 mod legend;
 mod transform;
 
-type LabelFormatterFn = dyn Fn(&str, &Value) -> String;
+type LabelFormatterFn = dyn Fn(&str, &PlotPoint) -> String;
 type LabelFormatter = Option<Box<LabelFormatterFn>>;
 type AxisFormatterFn = dyn Fn(f64, &RangeInclusive<f64>) -> String;
 type AxisFormatter = Option<Box<AxisFormatterFn>>;
@@ -32,12 +32,12 @@ type GridSpacer = Box<GridSpacerFn>;
 
 /// Specifies the coordinates formatting when passed to [`Plot::coordinates_formatter`].
 pub struct CoordinatesFormatter {
-    function: Box<dyn Fn(&Value, &PlotBounds) -> String>,
+    function: Box<dyn Fn(&PlotPoint, &PlotBounds) -> String>,
 }
 
 impl CoordinatesFormatter {
     /// Create a new formatter based on the pointer coordinate and the plot bounds.
-    pub fn new(function: impl Fn(&Value, &PlotBounds) -> String + 'static) -> Self {
+    pub fn new(function: impl Fn(&PlotPoint, &PlotBounds) -> String + 'static) -> Self {
         Self {
             function: Box::new(function),
         }
@@ -52,7 +52,7 @@ impl CoordinatesFormatter {
         }
     }
 
-    fn format(&self, value: &Value, bounds: &PlotBounds) -> String {
+    fn format(&self, value: &PlotPoint, bounds: &PlotBounds) -> String {
         (self.function)(value, bounds)
     }
 }
@@ -178,12 +178,12 @@ impl LinkedAxisGroup {
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
-/// use egui::plot::{Line, Plot, Value, Values};
-/// let sin = (0..1000).map(|i| {
+/// use egui::plot::{Line, Plot};
+/// let sin: Vec<_> = (0..1000).map(|i| {
 ///     let x = i as f64 * 0.01;
-///     Value::new(x, x.sin())
-/// });
-/// let line = Line::new(Values::from_values_iter(sin));
+///     [x, x.sin()]
+/// }).collect();
+/// let line = Line::new(sin);
 /// Plot::new("my_plot").view_aspect(2.0).show(ui, |plot_ui| plot_ui.line(line));
 /// # });
 /// ```
@@ -359,12 +359,12 @@ impl Plot {
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
-    /// use egui::plot::{Line, Plot, Value, Values};
-    /// let sin = (0..1000).map(|i| {
+    /// use egui::plot::{Line, Plot};
+    /// let sin: Vec<_> = (0..1000).map(|i| {
     ///     let x = i as f64 * 0.01;
-    ///     Value::new(x, x.sin())
-    /// });
-    /// let line = Line::new(Values::from_values_iter(sin));
+    ///     [x, x.sin()]
+    /// }).collect();
+    /// let line = Line::new(sin);
     /// Plot::new("my_plot").view_aspect(2.0)
     /// .label_formatter(|name, value| {
     ///     if !name.is_empty() {
@@ -378,7 +378,7 @@ impl Plot {
     /// ```
     pub fn label_formatter(
         mut self,
-        label_formatter: impl Fn(&str, &Value) -> String + 'static,
+        label_formatter: impl Fn(&str, &PlotPoint) -> String + 'static,
     ) -> Self {
         self.label_formatter = Some(Box::new(label_formatter));
         self
@@ -861,7 +861,7 @@ pub struct PlotUi {
     ctx: Context,
 }
 
-impl PlotUi {
+impl<'p> PlotUi {
     fn auto_color(&mut self) -> Color32 {
         let i = self.next_auto_color_idx;
         self.next_auto_color_idx += 1;
@@ -892,7 +892,7 @@ impl PlotUi {
     }
 
     /// The pointer position in plot coordinates. Independent of whether the pointer is in the plot area.
-    pub fn pointer_coordinate(&self) -> Option<Value> {
+    pub fn pointer_coordinate(&self) -> Option<PlotPoint> {
         // We need to subtract the drag delta to keep in sync with the frame-delayed screen transform:
         let last_pos = self.ctx().input().pointer.latest_pos()? - self.response.drag_delta();
         let value = self.plot_from_screen(last_pos);
@@ -907,17 +907,17 @@ impl PlotUi {
     }
 
     /// Transform the plot coordinates to screen coordinates.
-    pub fn screen_from_plot(&self, position: Value) -> Pos2 {
-        self.last_screen_transform.position_from_value(&position)
+    pub fn screen_from_plot(&self, position: PlotPoint) -> Pos2 {
+        self.last_screen_transform.position_from_point(&position)
     }
 
     /// Transform the screen coordinates to plot coordinates.
-    pub fn plot_from_screen(&self, position: Pos2) -> Value {
+    pub fn plot_from_screen(&self, position: Pos2) -> PlotPoint {
         self.last_screen_transform.value_from_position(position)
     }
 
     /// Add a data line.
-    pub fn line(&mut self, mut line: Line) {
+    pub fn line(&mut self, mut line: Line<'static>) {
         if line.series.is_empty() {
             return;
         };
@@ -930,7 +930,7 @@ impl PlotUi {
     }
 
     /// Add a polygon. The polygon has to be convex.
-    pub fn polygon(&mut self, mut polygon: Polygon) {
+    pub fn polygon(&mut self, mut polygon: Polygon<'static>) {
         if polygon.series.is_empty() {
             return;
         };
@@ -952,7 +952,7 @@ impl PlotUi {
     }
 
     /// Add data points.
-    pub fn points(&mut self, mut points: Points) {
+    pub fn points(&mut self, mut points: Points<'static>) {
         if points.series.is_empty() {
             return;
         };
@@ -965,7 +965,7 @@ impl PlotUi {
     }
 
     /// Add arrows.
-    pub fn arrows(&mut self, mut arrows: Arrows) {
+    pub fn arrows(&mut self, mut arrows: Arrows<'static>) {
         if arrows.origins.is_empty() || arrows.tips.is_empty() {
             return;
         };
@@ -1188,12 +1188,12 @@ impl PreparedPlot {
             let value_main = step.value;
 
             let value = if axis == 0 {
-                Value::new(value_main, value_cross)
+                PlotPoint::new(value_main, value_cross)
             } else {
-                Value::new(value_cross, value_main)
+                PlotPoint::new(value_cross, value_main)
             };
 
-            let pos_in_gui = transform.position_from_value(&value);
+            let pos_in_gui = transform.position_from_point(&value);
             let spacing_in_points = (transform.dpos_dvalue()[axis] * step.step_size).abs() as f32;
 
             let line_alpha = remap_clamp(

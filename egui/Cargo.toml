@@ -57,6 +57,8 @@ serde = ["dep:serde", "epaint/serde"]
 [dependencies]
 epaint = { version = "0.18.1", path = "../epaint", default-features = false }
 
+bytemuck = { version = "1.7.0", features = ["derive"] }
+
 ahash = "0.7"
 nohash-hasher = "0.2"
 

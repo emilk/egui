@@ -2,7 +2,7 @@ use crate::emath::NumExt;
 use crate::epaint::{Color32, RectShape, Rounding, Shape, Stroke};
 
 use super::{add_rulers_and_text, highlighted_color, Orientation, PlotConfig, RectElement};
-use crate::plot::{BoxPlot, ScreenTransform, Value};
+use crate::plot::{BoxPlot, PlotPoint, ScreenTransform};
 
 /// Contains the values of a single box in a box plot.
 #[derive(Clone, Debug, PartialEq)]
@@ -161,8 +161,8 @@ impl BoxElem {
         let line_between = |v1, v2| {
             Shape::line_segment(
                 [
-                    transform.position_from_value(&v1),
-                    transform.position_from_value(&v2),
+                    transform.position_from_point(&v1),
+                    transform.position_from_point(&v2),
                 ],
                 stroke,
             )
@@ -236,19 +236,19 @@ impl RectElement for BoxElem {
         self.name.as_str()
     }
 
-    fn bounds_min(&self) -> Value {
+    fn bounds_min(&self) -> PlotPoint {
         let argument = self.argument - self.box_width.max(self.whisker_width) / 2.0;
         let value = self.spread.lower_whisker;
         self.point_at(argument, value)
     }
 
-    fn bounds_max(&self) -> Value {
+    fn bounds_max(&self) -> PlotPoint {
         let argument = self.argument + self.box_width.max(self.whisker_width) / 2.0;
         let value = self.spread.upper_whisker;
         self.point_at(argument, value)
     }
 
-    fn values_with_ruler(&self) -> Vec<Value> {
+    fn values_with_ruler(&self) -> Vec<PlotPoint> {
         let median = self.point_at(self.argument, self.spread.median);
         let q1 = self.point_at(self.argument, self.spread.quartile1);
         let q3 = self.point_at(self.argument, self.spread.quartile3);
@@ -262,7 +262,7 @@ impl RectElement for BoxElem {
         self.orientation
     }
 
-    fn corner_value(&self) -> Value {
+    fn corner_value(&self) -> PlotPoint {
         self.point_at(self.argument, self.spread.upper_whisker)
     }
 

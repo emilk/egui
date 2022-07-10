@@ -13,7 +13,7 @@ use values::{ClosestElem, PlotGeometry};
 
 pub use bar::Bar;
 pub use box_elem::{BoxElem, BoxSpread};
-pub use values::{LineStyle, MarkerShape, Orientation, Value, Values};
+pub use values::{LineStyle, MarkerShape, Orientation, PlotPoint, PlotPoints};
 
 mod bar;
 mod box_elem;
@@ -49,7 +49,7 @@ pub(super) trait PlotItem {
                 .iter()
                 .enumerate()
                 .map(|(index, value)| {
-                    let pos = transform.position_from_value(value);
+                    let pos = transform.position_from_point(value);
                     let dist_sq = point.distance_sq(pos);
                     ClosestElem { index, dist_sq }
                 })
@@ -86,7 +86,7 @@ pub(super) trait PlotItem {
 
         // this method is only called, if the value is in the result set of find_closest()
         let value = points[elem.index];
-        let pointer = plot.transform.position_from_value(&value);
+        let pointer = plot.transform.position_from_point(&value);
         shapes.push(Shape::circle_filled(pointer, 3.0, line_color));
 
         rulers_at_value(pointer, value, self.name(), plot, shapes, label_formatter);
@@ -169,8 +169,8 @@ impl PlotItem for HLine {
             ..
         } = self;
         let points = vec![
-            transform.position_from_value(&Value::new(transform.bounds().min[0], *y)),
-            transform.position_from_value(&Value::new(transform.bounds().max[0], *y)),
+            transform.position_from_point(&PlotPoint::new(transform.bounds().min[0], *y)),
+            transform.position_from_point(&PlotPoint::new(transform.bounds().max[0], *y)),
         ];
         style.style_line(points, *stroke, *highlight, shapes);
     }
@@ -279,8 +279,8 @@ impl PlotItem for VLine {
             ..
         } = self;
         let points = vec![
-            transform.position_from_value(&Value::new(*x, transform.bounds().min[1])),
-            transform.position_from_value(&Value::new(*x, transform.bounds().max[1])),
+            transform.position_from_point(&PlotPoint::new(*x, transform.bounds().min[1])),
+            transform.position_from_point(&PlotPoint::new(*x, transform.bounds().max[1])),
         ];
         style.style_line(points, *stroke, *highlight, shapes);
     }
@@ -316,8 +316,8 @@ impl PlotItem for VLine {
 }
 
 /// A series of values forming a path.
-pub struct Line {
-    pub(super) series: Values,
+pub struct Line<'v> {
+    pub(super) series: PlotPoints<'v>,
     pub(super) stroke: Stroke,
     pub(super) name: String,
     pub(super) highlight: bool,
@@ -325,10 +325,10 @@ pub struct Line {
     pub(super) style: LineStyle,
 }
 
-impl Line {
-    pub fn new(series: Values) -> Self {
+impl<'v> Line<'v> {
+    pub fn new(series: impl Into<PlotPoints<'v>>) -> Self {
         Self {
-            series,
+            series: series.into(),
             stroke: Stroke::new(1.0, Color32::TRANSPARENT),
             name: Default::default(),
             highlight: false,
@@ -393,7 +393,7 @@ fn y_intersection(p1: &Pos2, p2: &Pos2, y: f32) -> Option<f32> {
         .then(|| ((y * (p1.x - p2.x)) - (p1.x * p2.y - p1.y * p2.x)) / (p1.y - p2.y))
 }
 
-impl PlotItem for Line {
+impl PlotItem for Line<'_> {
     fn get_shapes(&self, _ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
         let Self {
             series,
@@ -405,9 +405,9 @@ impl PlotItem for Line {
         } = self;
 
         let values_tf: Vec<_> = series
-            .values
+            .points()
             .iter()
-            .map(|v| transform.position_from_value(v))
+            .map(|v| transform.position_from_point(v))
             .collect();
         let n_values = values_tf.len();
 
@@ -421,7 +421,7 @@ impl PlotItem for Line {
                 fill_alpha = (2.0 * fill_alpha).at_most(1.0);
             }
             let y = transform
-                .position_from_value(&Value::new(0.0, y_reference))
+                .position_from_point(&PlotPoint::new(0.0, y_reference))
                 .y;
             let fill_color = Rgba::from(stroke.color)
                 .to_opaque()
@@ -474,7 +474,7 @@ impl PlotItem for Line {
     }
 
     fn geometry(&self) -> PlotGeometry<'_> {
-        PlotGeometry::Points(&self.series.values)
+        PlotGeometry::Points(self.series.points())
     }
 
     fn get_bounds(&self) -> PlotBounds {
@@ -483,8 +483,8 @@ impl PlotItem for Line {
 }
 
 /// A convex polygon.
-pub struct Polygon {
-    pub(super) series: Values,
+pub struct Polygon<'v> {
+    pub(super) series: PlotPoints<'v>,
     pub(super) stroke: Stroke,
     pub(super) name: String,
     pub(super) highlight: bool,
@@ -492,10 +492,10 @@ pub struct Polygon {
     pub(super) style: LineStyle,
 }
 
-impl Polygon {
-    pub fn new(series: Values) -> Self {
+impl<'v> Polygon<'v> {
+    pub fn new(series: impl Into<PlotPoints<'v>>) -> Self {
         Self {
-            series,
+            series: series.into(),
             stroke: Stroke::new(1.0, Color32::TRANSPARENT),
             name: Default::default(),
             highlight: false,
@@ -554,7 +554,7 @@ impl Polygon {
     }
 }
 
-impl PlotItem for Polygon {
+impl PlotItem for Polygon<'_> {
     fn get_shapes(&self, _ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
         let Self {
             series,
@@ -570,9 +570,9 @@ impl PlotItem for Polygon {
         }
 
         let mut values_tf: Vec<_> = series
-            .values
+            .points()
             .iter()
-            .map(|v| transform.position_from_value(v))
+            .map(|v| transform.position_from_point(v))
             .collect();
 
         let fill = Rgba::from(stroke.color).to_opaque().multiply(fill_alpha);
@@ -604,7 +604,7 @@ impl PlotItem for Polygon {
     }
 
     fn geometry(&self) -> PlotGeometry<'_> {
-        PlotGeometry::Points(&self.series.values)
+        PlotGeometry::Points(self.series.points())
     }
 
     fn get_bounds(&self) -> PlotBounds {
@@ -616,7 +616,7 @@ impl PlotItem for Polygon {
 #[derive(Clone)]
 pub struct Text {
     pub(super) text: WidgetText,
-    pub(super) position: Value,
+    pub(super) position: PlotPoint,
     pub(super) name: String,
     pub(super) highlight: bool,
     pub(super) color: Color32,
@@ -624,7 +624,7 @@ pub struct Text {
 }
 
 impl Text {
-    pub fn new(position: Value, text: impl Into<WidgetText>) -> Self {
+    pub fn new(position: PlotPoint, text: impl Into<WidgetText>) -> Self {
         Self {
             text: text.into(),
             position,
@@ -679,7 +679,7 @@ impl PlotItem for Text {
                 .clone()
                 .into_galley(ui, Some(false), f32::INFINITY, TextStyle::Small);
 
-        let pos = transform.position_from_value(&self.position);
+        let pos = transform.position_from_point(&self.position);
         let rect = self
             .anchor
             .anchor_rect(Rect::from_min_size(pos, galley.size()));
@@ -729,8 +729,8 @@ impl PlotItem for Text {
 }
 
 /// A set of points.
-pub struct Points {
-    pub(super) series: Values,
+pub struct Points<'v> {
+    pub(super) series: PlotPoints<'v>,
     pub(super) shape: MarkerShape,
     /// Color of the marker. `Color32::TRANSPARENT` means that it will be picked automatically.
     pub(super) color: Color32,
@@ -743,10 +743,10 @@ pub struct Points {
     pub(super) stems: Option<f32>,
 }
 
-impl Points {
-    pub fn new(series: Values) -> Self {
+impl<'v> Points<'v> {
+    pub fn new(series: impl Into<PlotPoints<'v>>) -> Self {
         Self {
-            series,
+            series: series.into(),
             shape: MarkerShape::Circle,
             color: Color32::TRANSPARENT,
             filled: true,
@@ -806,7 +806,7 @@ impl Points {
     }
 }
 
-impl PlotItem for Points {
+impl PlotItem for Points<'_> {
     fn get_shapes(&self, _ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
         let sqrt_3 = 3_f32.sqrt();
         let frac_sqrt_3_2 = 3_f32.sqrt() / 2.0;
@@ -838,12 +838,12 @@ impl PlotItem for Points {
         }
 
         let y_reference =
-            stems.map(|y| transform.position_from_value(&Value::new(0.0, y)).y as f32);
+            stems.map(|y| transform.position_from_point(&PlotPoint::new(0.0, y)).y as f32);
 
         series
-            .values
+            .points()
             .iter()
-            .map(|value| transform.position_from_value(value))
+            .map(|value| transform.position_from_point(value))
             .for_each(|center| {
                 let tf = |dx: f32, dy: f32| -> Pos2 { center + radius * vec2(dx, dy) };
 
@@ -956,7 +956,7 @@ impl PlotItem for Points {
     }
 
     fn geometry(&self) -> PlotGeometry<'_> {
-        PlotGeometry::Points(&self.series.values)
+        PlotGeometry::Points(self.series.points())
     }
 
     fn get_bounds(&self) -> PlotBounds {
@@ -965,19 +965,19 @@ impl PlotItem for Points {
 }
 
 /// A set of arrows.
-pub struct Arrows {
-    pub(super) origins: Values,
-    pub(super) tips: Values,
+pub struct Arrows<'v> {
+    pub(super) origins: PlotPoints<'v>,
+    pub(super) tips: PlotPoints<'v>,
     pub(super) color: Color32,
     pub(super) name: String,
     pub(super) highlight: bool,
 }
 
-impl Arrows {
-    pub fn new(origins: Values, tips: Values) -> Self {
+impl<'v> Arrows<'v> {
+    pub fn new(origins: impl Into<PlotPoints<'v>>, tips: impl Into<PlotPoints<'v>>) -> Self {
         Self {
-            origins,
-            tips,
+            origins: origins.into(),
+            tips: tips.into(),
             color: Color32::TRANSPARENT,
             name: Default::default(),
             highlight: false,
@@ -1009,7 +1009,7 @@ impl Arrows {
     }
 }
 
-impl PlotItem for Arrows {
+impl PlotItem for Arrows<'_> {
     fn get_shapes(&self, _ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
         use crate::emath::*;
         let Self {
@@ -1021,13 +1021,13 @@ impl PlotItem for Arrows {
         } = self;
         let stroke = Stroke::new(if *highlight { 2.0 } else { 1.0 }, *color);
         origins
-            .values
+            .points()
             .iter()
-            .zip(tips.values.iter())
+            .zip(tips.points().iter())
             .map(|(origin, tip)| {
                 (
-                    transform.position_from_value(origin),
-                    transform.position_from_value(tip),
+                    transform.position_from_point(origin),
+                    transform.position_from_point(tip),
                 )
             })
             .for_each(|(origin, tip)| {
@@ -1071,7 +1071,7 @@ impl PlotItem for Arrows {
     }
 
     fn geometry(&self) -> PlotGeometry<'_> {
-        PlotGeometry::Points(&self.origins.values)
+        PlotGeometry::Points(self.origins.points())
     }
 
     fn get_bounds(&self) -> PlotBounds {
@@ -1082,7 +1082,7 @@ impl PlotItem for Arrows {
 /// An image in the plot.
 #[derive(Clone)]
 pub struct PlotImage {
-    pub(super) position: Value,
+    pub(super) position: PlotPoint,
     pub(super) texture_id: TextureId,
     pub(super) uv: Rect,
     pub(super) size: Vec2,
@@ -1096,7 +1096,7 @@ impl PlotImage {
     /// Create a new image with position and size in plot coordinates.
     pub fn new(
         texture_id: impl Into<TextureId>,
-        center_position: Value,
+        center_position: PlotPoint,
         size: impl Into<Vec2>,
     ) -> Self {
         Self {
@@ -1161,16 +1161,16 @@ impl PlotItem for PlotImage {
             ..
         } = self;
         let rect = {
-            let left_top = Value::new(
+            let left_top = PlotPoint::new(
                 position.x as f32 - size.x / 2.0,
                 position.y as f32 - size.y / 2.0,
             );
-            let right_bottom = Value::new(
+            let right_bottom = PlotPoint::new(
                 position.x as f32 + size.x / 2.0,
                 position.y as f32 + size.y / 2.0,
             );
-            let left_top_tf = transform.position_from_value(&left_top);
-            let right_bottom_tf = transform.position_from_value(&right_bottom);
+            let left_top_tf = transform.position_from_point(&left_top);
+            let right_bottom_tf = transform.position_from_point(&right_bottom);
             Rect::from_two_pos(left_top_tf, right_bottom_tf)
         };
         Image::new(*texture_id, *size)
@@ -1211,11 +1211,11 @@ impl PlotItem for PlotImage {
 
     fn get_bounds(&self) -> PlotBounds {
         let mut bounds = PlotBounds::NOTHING;
-        let left_top = Value::new(
+        let left_top = PlotPoint::new(
             self.position.x as f32 - self.size.x / 2.0,
             self.position.y as f32 - self.size.y / 2.0,
         );
-        let right_bottom = Value::new(
+        let right_bottom = PlotPoint::new(
             self.position.x as f32 + self.size.x / 2.0,
             self.position.y as f32 + self.size.y / 2.0,
         );
@@ -1587,8 +1587,8 @@ fn add_rulers_and_text(
 
     // Rulers for argument (usually vertical)
     if show_argument {
-        let push_argument_ruler = |argument: Value, shapes: &mut Vec<Shape>| {
-            let position = plot.transform.position_from_value(&argument);
+        let push_argument_ruler = |argument: PlotPoint, shapes: &mut Vec<Shape>| {
+            let position = plot.transform.position_from_point(&argument);
             let line = match orientation {
                 Orientation::Horizontal => horizontal_line(position, plot.transform, line_color),
                 Orientation::Vertical => vertical_line(position, plot.transform, line_color),
@@ -1603,8 +1603,8 @@ fn add_rulers_and_text(
 
     // Rulers for values (usually horizontal)
     if show_values {
-        let push_value_ruler = |value: Value, shapes: &mut Vec<Shape>| {
-            let position = plot.transform.position_from_value(&value);
+        let push_value_ruler = |value: PlotPoint, shapes: &mut Vec<Shape>| {
+            let position = plot.transform.position_from_point(&value);
             let line = match orientation {
                 Orientation::Horizontal => vertical_line(position, plot.transform, line_color),
                 Orientation::Vertical => horizontal_line(position, plot.transform, line_color),
@@ -1633,7 +1633,7 @@ fn add_rulers_and_text(
     let corner_value = elem.corner_value();
     shapes.push(Shape::text(
         &*plot.ui.fonts(),
-        plot.transform.position_from_value(&corner_value) + vec2(3.0, -2.0),
+        plot.transform.position_from_point(&corner_value) + vec2(3.0, -2.0),
         Align2::LEFT_BOTTOM,
         text,
         font_id,
@@ -1646,7 +1646,7 @@ fn add_rulers_and_text(
 #[allow(clippy::too_many_arguments)]
 pub(super) fn rulers_at_value(
     pointer: Pos2,
-    value: Value,
+    value: PlotPoint,
     name: &str,
     plot: &PlotConfig<'_>,
     shapes: &mut Vec<Shape>,

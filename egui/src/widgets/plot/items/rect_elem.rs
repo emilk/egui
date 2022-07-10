@@ -1,4 +1,4 @@
-use super::{Orientation, Value};
+use super::{Orientation, PlotPoint};
 use crate::plot::transform::{PlotBounds, ScreenTransform};
 use epaint::emath::NumExt;
 use epaint::{Color32, Rgba, Stroke};
@@ -6,8 +6,8 @@ use epaint::{Color32, Rgba, Stroke};
 /// Trait that abstracts from rectangular 'Value'-like elements, such as bars or boxes
 pub(super) trait RectElement {
     fn name(&self) -> &str;
-    fn bounds_min(&self) -> Value;
-    fn bounds_max(&self) -> Value;
+    fn bounds_min(&self) -> PlotPoint;
+    fn bounds_max(&self) -> PlotPoint;
 
     fn bounds(&self) -> PlotBounds {
         let mut bounds = PlotBounds::NOTHING;
@@ -17,29 +17,29 @@ pub(super) trait RectElement {
     }
 
     /// At which argument (input; usually X) there is a ruler (usually vertical)
-    fn arguments_with_ruler(&self) -> Vec<Value> {
+    fn arguments_with_ruler(&self) -> Vec<PlotPoint> {
         // Default: one at center
         vec![self.bounds().center()]
     }
 
     /// At which value (output; usually Y) there is a ruler (usually horizontal)
-    fn values_with_ruler(&self) -> Vec<Value>;
+    fn values_with_ruler(&self) -> Vec<PlotPoint>;
 
     /// The diagram's orientation (vertical/horizontal)
     fn orientation(&self) -> Orientation;
 
     /// Get X/Y-value for (argument, value) pair, taking into account orientation
-    fn point_at(&self, argument: f64, value: f64) -> Value {
+    fn point_at(&self, argument: f64, value: f64) -> PlotPoint {
         match self.orientation() {
-            Orientation::Horizontal => Value::new(value, argument),
-            Orientation::Vertical => Value::new(argument, value),
+            Orientation::Horizontal => PlotPoint::new(value, argument),
+            Orientation::Vertical => PlotPoint::new(argument, value),
         }
     }
 
     /// Right top of the rectangle (position of text)
-    fn corner_value(&self) -> Value {
+    fn corner_value(&self) -> PlotPoint {
         //self.point_at(self.position + self.width / 2.0, value)
-        Value {
+        PlotPoint {
             x: self.bounds_max().x,
             y: self.bounds_max().y,
         }
