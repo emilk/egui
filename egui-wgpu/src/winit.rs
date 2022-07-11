@@ -179,8 +179,8 @@ impl<'a> Painter<'a> {
                 self.ensure_render_state_for_surface(&surface);
 
                 let size = window.inner_size();
-                let width = size.width as u32;
-                let height = size.height as u32;
+                let width = size.width;
+                let height = size.height;
                 self.surface_state = Some(SurfaceState {
                     surface,
                     width,
