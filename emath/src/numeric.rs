@@ -23,12 +23,18 @@ macro_rules! impl_numeric_float {
 
             #[inline(always)]
             fn to_f64(self) -> f64 {
-                self as f64
+                #[allow(trivial_numeric_casts)]
+                {
+                    self as f64
+                }
             }
 
             #[inline(always)]
             fn from_f64(num: f64) -> Self {
-                num as Self
+                #[allow(trivial_numeric_casts)]
+                {
+                    num as Self
+                }
             }
         }
     };

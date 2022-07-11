@@ -217,7 +217,7 @@ type FontIndex = usize;
 pub struct Font {
     fonts: Vec<Arc<FontImpl>>,
     /// Lazily calculated.
-    characters: Option<std::collections::BTreeSet<char>>,
+    characters: Option<BTreeSet<char>>,
     replacement_glyph: (FontIndex, GlyphInfo),
     pixels_per_point: f32,
     row_height: f32,
@@ -382,7 +382,7 @@ fn allocate_glyph(
                 }
             });
 
-            let offset_in_pixels = vec2(bb.min.x as f32, scale_in_pixels + bb.min.y as f32);
+            let offset_in_pixels = vec2(bb.min.x, scale_in_pixels + bb.min.y);
             let offset = offset_in_pixels / pixels_per_point + y_offset * Vec2::Y;
             UvRect {
                 offset,

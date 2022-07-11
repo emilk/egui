@@ -647,7 +647,7 @@ fn text_layout_ui(
         ui.label("Overflow character");
     });
 
-    let mut job = LayoutJob::single_section(LOREM_IPSUM.to_string(), TextFormat::default());
+    let mut job = LayoutJob::single_section(LOREM_IPSUM.to_owned(), TextFormat::default());
     job.wrap = TextWrapping {
         max_rows: *max_rows,
         break_anywhere: *break_anywhere,

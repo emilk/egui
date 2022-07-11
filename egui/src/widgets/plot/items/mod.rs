@@ -837,8 +837,7 @@ impl PlotItem for Points {
             stem_stroke.width *= 2.0;
         }
 
-        let y_reference =
-            stems.map(|y| transform.position_from_value(&Value::new(0.0, y)).y as f32);
+        let y_reference = stems.map(|y| transform.position_from_value(&Value::new(0.0, y)).y);
 
         series
             .values
@@ -1619,7 +1618,7 @@ fn add_rulers_and_text(
 
     // Text
     let text = text.unwrap_or({
-        let mut text = elem.name().to_string(); // could be empty
+        let mut text = elem.name().to_owned(); // could be empty
 
         if show_values {
             text.push_str(&elem.default_values_format(plot.transform));

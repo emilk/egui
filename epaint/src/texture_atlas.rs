@@ -104,11 +104,8 @@ impl TextureAtlas {
             for dx in -hw..=hw {
                 for dy in -hw..=hw {
                     let distance_to_center = ((dx * dx + dy * dy) as f32).sqrt();
-                    let coverage = remap_clamp(
-                        distance_to_center,
-                        (r as f32 - 0.5)..=(r as f32 + 0.5),
-                        1.0..=0.0,
-                    );
+                    let coverage =
+                        remap_clamp(distance_to_center, (r - 0.5)..=(r + 0.5), 1.0..=0.0);
                     image[((x as i32 + hw + dx) as usize, (y as i32 + hw + dy) as usize)] =
                         coverage;
                 }

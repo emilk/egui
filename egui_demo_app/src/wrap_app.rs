@@ -42,7 +42,8 @@ impl eframe::App for FractalClockApp {
         egui::CentralPanel::default()
             .frame(egui::Frame::dark_canvas(&ctx.style()))
             .show(ctx, |ui| {
-                self.fractal_clock.ui(ui, crate::seconds_since_midnight());
+                self.fractal_clock
+                    .ui(ui, Some(crate::seconds_since_midnight()));
             });
     }
 }
@@ -287,12 +288,10 @@ impl WrapApp {
         ui.with_layout(egui::Layout::right_to_left(), |ui| {
             if false {
                 // TODO(emilk): fix the overlap on small screens
-                if let Some(seconds_since_midnight) = crate::seconds_since_midnight() {
-                    if clock_button(ui, seconds_since_midnight).clicked() {
-                        self.state.selected_anchor = "clock".to_owned();
-                        if frame.is_web() {
-                            ui.output().open_url("#clock");
-                        }
+                if clock_button(ui, crate::seconds_since_midnight()).clicked() {
+                    self.state.selected_anchor = "clock".to_owned();
+                    if frame.is_web() {
+                        ui.output().open_url("#clock");
                     }
                 }
             }

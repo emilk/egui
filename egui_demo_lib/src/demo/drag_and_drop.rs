@@ -147,7 +147,7 @@ impl super::View for DragAndDropDemo {
 
                 let response = response.context_menu(|ui| {
                     if ui.button("New Item").clicked() {
-                        self.columns[col_idx].push("New Item".to_string());
+                        self.columns[col_idx].push("New Item".to_owned());
                         ui.close_menu();
                     }
                 });
