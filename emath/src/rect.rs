@@ -102,7 +102,7 @@ impl Rect {
     pub fn from_points(points: &[Pos2]) -> Self {
         let mut rect = Rect::NOTHING;
         for &p in points {
-            rect.extend_with(p);
+            rect.extend_with(p)
         }
         rect
     }
