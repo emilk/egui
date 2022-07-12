@@ -4,17 +4,12 @@ use std::ops::Range;
 /// an underlying buffer.
 ///
 /// Most likely you will use a [`String`] which implements [`TextBuffer`].
-pub trait TextBuffer: AsRef<str> {
+pub trait TextBuffer {
     /// Can this text be edited?
     fn is_mutable(&self) -> bool;
 
     /// Returns this buffer as a `str`.
-    ///
-    /// This is an utility method, as it simply relies on the `AsRef<str>`
-    /// implementation.
-    fn as_str(&self) -> &str {
-        self.as_ref()
-    }
+    fn as_str(&self) -> &str;
 
     /// Reads the given character range.
     fn char_range(&self, char_range: Range<usize>) -> &str {
@@ -45,7 +40,7 @@ pub trait TextBuffer: AsRef<str> {
 
     /// Clears all characters in this buffer
     fn clear(&mut self) {
-        self.delete_char_range(0..self.as_ref().len());
+        self.delete_char_range(0..self.as_str().len());
     }
 
     /// Replaces all contents of this string with `text`
@@ -56,7 +51,7 @@ pub trait TextBuffer: AsRef<str> {
 
     /// Clears all characters in this buffer and returns a string of the contents.
     fn take(&mut self) -> String {
-        let s = self.as_ref().to_owned();
+        let s = self.as_str().to_owned();
         self.clear();
         s
     }
@@ -65,6 +60,10 @@ pub trait TextBuffer: AsRef<str> {
 impl TextBuffer for String {
     fn is_mutable(&self) -> bool {
         true
+    }
+
+    fn as_str(&self) -> &str {
+        self.as_ref()
     }
 
     fn insert_text(&mut self, text: &str, char_index: usize) -> usize {
@@ -105,6 +104,10 @@ impl TextBuffer for String {
 impl<'a> TextBuffer for &'a str {
     fn is_mutable(&self) -> bool {
         false
+    }
+
+    fn as_str(&self) -> &str {
+        self
     }
 
     fn insert_text(&mut self, _text: &str, _ch_idx: usize) -> usize {
