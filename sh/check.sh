@@ -15,7 +15,7 @@ cargo check --workspace --all-targets
 cargo check --workspace --all-targets --all-features
 cargo check -p egui_demo_app --lib --target wasm32-unknown-unknown
 cargo check -p egui_demo_app --lib --target wasm32-unknown-unknown --all-features
-cargo cranky --workspace --all-targets --all-features -- -D warnings -W clippy::all
+cargo cranky --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-targets --all-features
 cargo test --workspace --doc # slow - checks all doc-tests
 cargo fmt --all -- --check
