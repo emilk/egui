@@ -221,17 +221,20 @@ impl DemoWindows {
                     }
                 });
 
-                ui.with_layout(egui::Layout::right_to_left(), |ui| {
-                    use egui::special_emojis::{GITHUB, TWITTER};
-                    ui.hyperlink_to(
-                        egui::RichText::new(TWITTER).size(font_size),
-                        "https://twitter.com/ernerfeldt",
-                    );
-                    ui.hyperlink_to(
-                        egui::RichText::new(GITHUB).size(font_size),
-                        "https://github.com/emilk/egui",
-                    );
-                });
+                ui.with_layout(
+                    egui::Layout::right_to_left().with_cross_align(egui::Align::Center),
+                    |ui| {
+                        use egui::special_emojis::{GITHUB, TWITTER};
+                        ui.hyperlink_to(
+                            egui::RichText::new(TWITTER).size(font_size),
+                            "https://twitter.com/ernerfeldt",
+                        );
+                        ui.hyperlink_to(
+                            egui::RichText::new(GITHUB).size(font_size),
+                            "https://github.com/emilk/egui",
+                        );
+                    },
+                );
             });
         });
     }

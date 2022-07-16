@@ -1877,6 +1877,7 @@ impl Ui {
         } else {
             Layout::left_to_right()
         }
+        .with_cross_align(Align::Center)
         .with_main_wrap(main_wrap);
 
         self.allocate_ui_with_layout_dyn(initial_size, layout, add_contents)

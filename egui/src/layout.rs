@@ -158,7 +158,7 @@ impl Layout {
             main_wrap: false,
             main_align: Align::Center, // looks best to e.g. center text within a button
             main_justify: false,
-            cross_align: Align::Center,
+            cross_align: Align::LEFT,
             cross_justify: false,
         }
     }
@@ -170,7 +170,7 @@ impl Layout {
             main_wrap: false,
             main_align: Align::Center, // looks best to e.g. center text within a button
             main_justify: false,
-            cross_align: Align::Center,
+            cross_align: Align::LEFT,
             cross_justify: false,
         }
     }

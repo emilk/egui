@@ -285,19 +285,22 @@ impl WrapApp {
         }
         self.state.selected_anchor = selected_anchor;
 
-        ui.with_layout(egui::Layout::right_to_left(), |ui| {
-            if false {
-                // TODO(emilk): fix the overlap on small screens
-                if clock_button(ui, crate::seconds_since_midnight()).clicked() {
-                    self.state.selected_anchor = "clock".to_owned();
-                    if frame.is_web() {
-                        ui.output().open_url("#clock");
+        ui.with_layout(
+            egui::Layout::right_to_left().with_cross_align(egui::Align::Center),
+            |ui| {
+                if false {
+                    // TODO(emilk): fix the overlap on small screens
+                    if clock_button(ui, crate::seconds_since_midnight()).clicked() {
+                        self.state.selected_anchor = "clock".to_owned();
+                        if frame.is_web() {
+                            ui.output().open_url("#clock");
+                        }
                     }
                 }
-            }
 
-            egui::warn_if_debug_build(ui);
-        });
+                egui::warn_if_debug_build(ui);
+            },
+        );
     }
 
     fn ui_file_drag_and_drop(&mut self, ctx: &egui::Context) {
