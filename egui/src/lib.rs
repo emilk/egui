@@ -319,7 +319,7 @@ mod sense;
 pub mod style;
 mod ui;
 pub mod util;
-mod widget_text;
+pub mod widget_text;
 pub mod widgets;
 
 pub use epaint;
