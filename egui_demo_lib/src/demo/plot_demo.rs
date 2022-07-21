@@ -645,7 +645,7 @@ impl InteractionDemo {
         let coordinate_text = if let Some(coordinate) = pointer_coordinate {
             format!("x: {:.02}, y: {:.02}", coordinate.x, coordinate.y)
         } else {
-            "None".to_string()
+            "None".to_owned()
         };
         ui.label(format!("pointer coordinate: {}", coordinate_text));
         let coordinate_text = format!(

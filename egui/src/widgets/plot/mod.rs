@@ -370,7 +370,7 @@ impl Plot {
     ///     if !name.is_empty() {
     ///         format!("{}: {:.*}%", name, 1, value.y)
     ///     } else {
-    ///         "".to_string()
+    ///         "".to_owned()
     ///     }
     /// })
     /// .show(ui, |plot_ui| plot_ui.line(line));

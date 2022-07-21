@@ -30,8 +30,8 @@ impl WindowSettings {
         Self {
             position,
             inner_size_points: Some(egui::vec2(
-                inner_size_points.width as f32,
-                inner_size_points.height as f32,
+                inner_size_points.width,
+                inner_size_points.height,
             )),
         }
     }

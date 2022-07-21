@@ -1619,7 +1619,7 @@ fn add_rulers_and_text(
 
     // Text
     let text = text.unwrap_or({
-        let mut text = elem.name().to_string(); // could be empty
+        let mut text = elem.name().to_owned(); // could be empty
 
         if show_values {
             text.push_str(&elem.default_values_format(plot.transform));

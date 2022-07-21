@@ -1090,6 +1090,11 @@ fn on_key_press(
             None
         }
 
+        Key::H if modifiers.ctrl => {
+            let ccursor = delete_previous_char(text, cursor_range.primary.ccursor);
+            Some(CCursorRange::one(ccursor))
+        }
+
         Key::K if modifiers.ctrl => {
             let ccursor = delete_paragraph_after_cursor(text, galley, cursor_range);
             Some(CCursorRange::one(ccursor))

@@ -51,7 +51,7 @@ struct ContextImpl {
     repaint_after: std::time::Duration,
     /// While positive, keep requesting repaints. Decrement at the end of each frame.
     repaint_requests: u32,
-    request_repaint_callbacks: Option<Box<dyn Fn() + Send + Sync>>,
+    request_repaint_callback: Option<Box<dyn Fn() + Send + Sync>>,
     requested_repaint_last_frame: bool,
 }
 
@@ -570,7 +570,7 @@ impl Context {
         // request two frames of repaint, just to cover some corner cases (frame delays):
         let mut ctx = self.write();
         ctx.repaint_requests = 2;
-        if let Some(callback) = &ctx.request_repaint_callbacks {
+        if let Some(callback) = &ctx.request_repaint_callback {
             (callback)();
         }
     }
@@ -611,9 +611,11 @@ impl Context {
     /// For integrations: this callback will be called when an egui user calls [`Self::request_repaint`].
     ///
     /// This lets you wake up a sleeping UI thread.
+    ///
+    /// Note that only one callback can be set. Any new call overrides the previous callback.
     pub fn set_request_repaint_callback(&self, callback: impl Fn() + Send + Sync + 'static) {
         let callback = Box::new(callback);
-        self.write().request_repaint_callbacks = Some(callback);
+        self.write().request_repaint_callback = Some(callback);
     }
 
     /// Tell `egui` which fonts to use.
