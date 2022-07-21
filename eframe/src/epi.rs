@@ -544,7 +544,7 @@ impl Frame {
     }
 
     /// Set the visibility of the window.
-    pub fn set_visibility(&mut self, visible: bool) {
+    pub fn set_visible(&mut self, visible: bool) {
         self.output.visible = Some(visible);
     }
 
