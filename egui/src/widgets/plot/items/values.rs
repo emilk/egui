@@ -148,6 +148,9 @@ impl Default for Orientation {
 
 // ----------------------------------------------------------------------------
 
+/// Represents many [`PlotPoint`]s.
+///
+/// These can be a borrowed slice, an owned `Vec`, or generated with a function.
 pub enum PlotPoints<'v> {
     Borrowed(&'v [PlotPoint]),
     Owned(Vec<PlotPoint>),
