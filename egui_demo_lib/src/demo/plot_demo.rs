@@ -108,7 +108,7 @@ impl LineDemo {
 
     fn circle(&self) -> Line<'static> {
         let n = 512;
-        let circle_points: Vec<_> = (0..=n)
+        let circle_points: PlotPoints = (0..=n)
             .map(|i| {
                 let t = remap(i as f64, 0.0..=(n as f64), 0.0..=TAU);
                 let r = self.circle_radius;

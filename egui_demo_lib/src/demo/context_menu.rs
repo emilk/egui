@@ -116,7 +116,7 @@ impl super::View for ContextMenus {
 
 impl ContextMenus {
     fn example_plot(&self, ui: &mut egui::Ui) -> egui::Response {
-        use egui::plot::Line;
+        use egui::plot::{Line, PlotPoints};
         let n = 128;
         let line = Line::new(
             (0..=n)
@@ -129,7 +129,7 @@ impl ContextMenus {
                         Plot::Sigmoid => [x, sigmoid(x)],
                     }
                 })
-                .collect::<Vec<_>>(),
+                .collect::<PlotPoints>(),
         );
         egui::plot::Plot::new("example_plot")
             .show_axes(self.show_axes)

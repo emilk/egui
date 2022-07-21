@@ -20,7 +20,10 @@ pub struct PlotPoint {
 impl From<[f64; 2]> for PlotPoint {
     #[inline]
     fn from(point: [f64; 2]) -> Self {
-        Self { x: point[0], y: point[1] }
+        Self {
+            x: point[0],
+            y: point[1],
+        }
     }
 }
 
@@ -157,6 +160,12 @@ pub enum PlotPoints<'v> {
     Generator(ExplicitGenerator),
 }
 
+impl Default for PlotPoints<'_> {
+    fn default() -> Self {
+        Self::Owned(Vec::new())
+    }
+}
+
 impl From<[f64; 2]> for PlotPoints<'_> {
     fn from(coordinate: [f64; 2]) -> Self {
         Self::new(vec![coordinate])
@@ -172,6 +181,13 @@ impl From<Vec<[f64; 2]>> for PlotPoints<'_> {
 impl<'v> From<&'v [[f64; 2]]> for PlotPoints<'v> {
     fn from(coordinates: &'v [[f64; 2]]) -> Self {
         Self::from_slice(coordinates)
+    }
+}
+
+impl<'v> FromIterator<[f64; 2]> for PlotPoints<'v> {
+    fn from_iter<T: IntoIterator<Item = [f64; 2]>>(iter: T) -> Self {
+        let values: Vec<_> = iter.into_iter().collect();
+        Self::from(values)
     }
 }
 
@@ -239,32 +255,28 @@ impl<'v> PlotPoints<'v> {
         } else {
             (end - start) / points as f64
         };
-        let values = (0..points)
+        (0..points)
             .map(|i| {
                 let t = start + i as f64 * increment;
                 let (x, y) = function(t);
-                [x, y].into()
+                [x, y]
             })
-            .collect();
-        Self::Owned(values)
+            .collect()
     }
 
     /// From a series of y-values.
     /// The x-values will be the indices of these values
     pub fn from_ys_f32(ys: &[f32]) -> Self {
-        let points: Vec<[f64; 2]> = ys
-            .iter()
+        ys.iter()
             .enumerate()
             .map(|(i, &y)| [i as f64, y as f64])
-            .collect();
-        Self::new(points)
+            .collect()
     }
 
     /// From a series of y-values.
     /// The x-values will be the indices of these values
     pub fn from_ys_f64(ys: &[f64]) -> Self {
-        let points: Vec<[f64; 2]> = ys.iter().enumerate().map(|(i, &y)| [i as f64, y]).collect();
-        Self::new(points)
+        ys.iter().enumerate().map(|(i, &y)| [i as f64, y]).collect()
     }
 
     /// Returns true if there are no data points available and there is no function to generate any.
@@ -280,7 +292,7 @@ impl<'v> PlotPoints<'v> {
     /// given range.
     pub(super) fn generate_points(&mut self, x_range: RangeInclusive<f64>) {
         if let Self::Generator(generator) = self {
-            let points = Self::range_intersection(&x_range, &generator.x_range)
+            *self = Self::range_intersection(&x_range, &generator.x_range)
                 .map(|intersection| {
                     let increment =
                         (intersection.end() - intersection.start()) / (generator.points - 1) as f64;
@@ -288,12 +300,11 @@ impl<'v> PlotPoints<'v> {
                         .map(|i| {
                             let x = intersection.start() + i as f64 * increment;
                             let y = (generator.function)(x);
-                            [x, y].into()
+                            [x, y]
                         })
                         .collect()
                 })
                 .unwrap_or_default();
-            *self = Self::Owned(points);
         }
     }
 
