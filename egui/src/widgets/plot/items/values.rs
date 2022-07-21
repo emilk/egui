@@ -18,8 +18,9 @@ pub struct PlotPoint {
 }
 
 impl From<[f64; 2]> for PlotPoint {
+    #[inline]
     fn from(point: [f64; 2]) -> Self {
-        bytemuck::cast(point)
+        Self { x: point[0], y: point[1] }
     }
 }
 
