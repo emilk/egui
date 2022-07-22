@@ -3,7 +3,7 @@ use std::ops::{Bound, RangeBounds, RangeInclusive};
 
 use crate::plot::transform::PlotBounds;
 
-/// A value in the value-space of the plot.
+/// A point coordinate in the plot.
 ///
 /// Uses f64 for improved accuracy to enable plotting
 /// large values (e.g. unix time on x axis).
