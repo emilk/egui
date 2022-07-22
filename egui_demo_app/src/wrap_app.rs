@@ -285,7 +285,7 @@ impl WrapApp {
         }
         self.state.selected_anchor = selected_anchor;
 
-        ui.with_layout(egui::Layout::right_to_left(), |ui| {
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if false {
                 // TODO(emilk): fix the overlap on small screens
                 if clock_button(ui, crate::seconds_since_midnight()).clicked() {

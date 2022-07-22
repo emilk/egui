@@ -1817,9 +1817,9 @@ impl Ui {
     ) -> InnerResponse<R> {
         let initial_size = self.available_size_before_wrap();
         let layout = if self.placer.prefer_right_to_left() {
-            Layout::right_to_left()
+            Layout::right_to_left(Align::Center)
         } else {
-            Layout::left_to_right()
+            Layout::left_to_right(Align::Center)
         }
         .with_cross_align(Align::Center);
         self.allocate_ui_with_layout_dyn(initial_size, layout, Box::new(add_contents))
@@ -1832,9 +1832,9 @@ impl Ui {
     ) -> InnerResponse<R> {
         let initial_size = self.available_size_before_wrap();
         let layout = if self.placer.prefer_right_to_left() {
-            Layout::right_to_left()
+            Layout::right_to_left(Align::Center)
         } else {
-            Layout::left_to_right()
+            Layout::left_to_right(Align::Center)
         }
         .with_cross_align(Align::Min);
         self.allocate_ui_with_layout_dyn(initial_size, layout, Box::new(add_contents))
@@ -1873,9 +1873,9 @@ impl Ui {
         );
 
         let layout = if self.placer.prefer_right_to_left() {
-            Layout::right_to_left()
+            Layout::right_to_left(Align::Center)
         } else {
-            Layout::left_to_right()
+            Layout::left_to_right(Align::Center)
         }
         .with_main_wrap(main_wrap);
 
@@ -1944,15 +1944,16 @@ impl Ui {
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
-    /// ui.with_layout(egui::Layout::right_to_left(), |ui| {
+    /// ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
     ///     ui.label("world!");
     ///     ui.label("Hello");
     /// });
     /// # });
     /// ```
     ///
-    /// See also [`Self::allocate_ui_with_layout`],
-    /// and the helpers [`Self::horizontal`], [`Self::vertical`], etc.
+    /// If you don't want to use up all available space, use [`Self::allocate_ui_with_layout`].
+    ///
+    /// See also the helpers [`Self::horizontal`], [`Self::vertical`], etc.
     #[inline]
     pub fn with_layout<R>(
         &mut self,

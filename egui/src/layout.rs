@@ -108,7 +108,7 @@ impl Direction {
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
-/// ui.with_layout(egui::Layout::right_to_left(), |ui| {
+/// ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
 ///     ui.label("world!");
 ///     ui.label("Hello");
 /// });
@@ -153,30 +153,30 @@ impl Default for Layout {
 impl Layout {
     /// Place elements horizontally, left to right.
     ///
-    /// Elements will be centered vertically.
+    /// The `valign` parameter controls how to align elements vertically.
     #[inline(always)]
-    pub fn left_to_right() -> Self {
+    pub fn left_to_right(valing: Align) -> Self {
         Self {
             main_dir: Direction::LeftToRight,
             main_wrap: false,
             main_align: Align::Center, // looks best to e.g. center text within a button
             main_justify: false,
-            cross_align: Align::Center,
+            cross_align: valing,
             cross_justify: false,
         }
     }
 
     /// Place elements horizontally, right to left.
     ///
-    /// Elements will be centered vertically.
+    /// The `valign` parameter controls how to align elements vertically.
     #[inline(always)]
-    pub fn right_to_left() -> Self {
+    pub fn right_to_left(valing: Align) -> Self {
         Self {
             main_dir: Direction::RightToLeft,
             main_wrap: false,
             main_align: Align::Center, // looks best to e.g. center text within a button
             main_justify: false,
-            cross_align: Align::Center,
+            cross_align: valing,
             cross_justify: false,
         }
     }
@@ -185,34 +185,34 @@ impl Layout {
     ///
     /// Use the provided horizontal alignmen.
     #[inline(always)]
-    pub fn top_down(cross_align: Align) -> Self {
+    pub fn top_down(halign: Align) -> Self {
         Self {
             main_dir: Direction::TopDown,
             main_wrap: false,
             main_align: Align::Center, // looks best to e.g. center text within a button
             main_justify: false,
-            cross_align,
+            cross_align: halign,
             cross_justify: false,
         }
     }
 
     /// Top-down layout justifed so that buttons etc fill the full available width.
     #[inline(always)]
-    pub fn top_down_justified(cross_align: Align) -> Self {
-        Self::top_down(cross_align).with_cross_justify(true)
+    pub fn top_down_justified(halign: Align) -> Self {
+        Self::top_down(halign).with_cross_justify(true)
     }
 
     /// Place elements vertically, bottom up.
     ///
     /// Use the provided horizontal alignmen.
     #[inline(always)]
-    pub fn bottom_up(cross_align: Align) -> Self {
+    pub fn bottom_up(halign: Align) -> Self {
         Self {
             main_dir: Direction::BottomUp,
             main_wrap: false,
             main_align: Align::Center, // looks best to e.g. center text within a button
             main_justify: false,
-            cross_align,
+            cross_align: halign,
             cross_justify: false,
         }
     }

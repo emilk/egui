@@ -96,7 +96,7 @@ impl TableDemo {
 
         TableBuilder::new(ui)
             .striped(true)
-            .cell_layout(egui::Layout::left_to_right().with_cross_align(egui::Align::Center))
+            .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
             .column(Size::initial(60.0).at_least(40.0))
             .column(Size::initial(60.0).at_least(40.0))
             .column(Size::remainder().at_least(60.0))
