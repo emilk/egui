@@ -7,8 +7,7 @@ use crate::plot::transform::PlotBounds;
 ///
 /// Uses f64 for improved accuracy to enable plotting
 /// large values (e.g. unix time on x axis).
-#[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PlotPoint {
     /// This is often something monotonically increasing, such as time, but doesn't have to be.
     /// Goes from left to right.
@@ -153,56 +152,44 @@ impl Default for Orientation {
 
 /// Represents many [`PlotPoint`]s.
 ///
-/// These can be a borrowed slice, an owned `Vec`, or generated with a function.
-pub enum PlotPoints<'v> {
-    Borrowed(&'v [PlotPoint]),
+/// These can be an owned `Vec` or generated with a function.
+pub enum PlotPoints {
     Owned(Vec<PlotPoint>),
     Generator(ExplicitGenerator),
+    // Borrowed(&[PlotPoint]), // TODO: Lifetimes are tricky in this case.
 }
 
-impl Default for PlotPoints<'_> {
+impl Default for PlotPoints {
     fn default() -> Self {
         Self::Owned(Vec::new())
     }
 }
 
-impl From<[f64; 2]> for PlotPoints<'_> {
+impl From<[f64; 2]> for PlotPoints {
     fn from(coordinate: [f64; 2]) -> Self {
         Self::new(vec![coordinate])
     }
 }
 
-impl From<Vec<[f64; 2]>> for PlotPoints<'_> {
+impl From<Vec<[f64; 2]>> for PlotPoints {
     fn from(coordinates: Vec<[f64; 2]>) -> Self {
         Self::new(coordinates)
     }
 }
 
-impl<'v> From<&'v [[f64; 2]]> for PlotPoints<'v> {
-    fn from(coordinates: &'v [[f64; 2]]) -> Self {
-        Self::from_slice(coordinates)
-    }
-}
-
-impl<'v> FromIterator<[f64; 2]> for PlotPoints<'v> {
+impl FromIterator<[f64; 2]> for PlotPoints {
     fn from_iter<T: IntoIterator<Item = [f64; 2]>>(iter: T) -> Self {
-        let values: Vec<_> = iter.into_iter().collect();
-        Self::from(values)
+        Self::Owned(iter.into_iter().map(|point| point.into()).collect())
     }
 }
 
-impl<'v> PlotPoints<'v> {
+impl PlotPoints {
     pub fn new(points: Vec<[f64; 2]>) -> Self {
-        Self::Owned(bytemuck::cast_vec(points))
-    }
-
-    pub fn from_slice(points: &'v [[f64; 2]]) -> Self {
-        Self::Borrowed(bytemuck::cast_slice(points))
+        Self::from_iter(points)
     }
 
     pub fn points(&self) -> &[PlotPoint] {
         match self {
-            PlotPoints::Borrowed(points) => points,
             PlotPoints::Owned(points) => points.as_slice(),
             PlotPoints::Generator(_) => &[],
         }
@@ -282,7 +269,6 @@ impl<'v> PlotPoints<'v> {
     /// Returns true if there are no data points available and there is no function to generate any.
     pub(crate) fn is_empty(&self) -> bool {
         match self {
-            PlotPoints::Borrowed(points) => points.is_empty(),
             PlotPoints::Owned(points) => points.is_empty(),
             PlotPoints::Generator(_) => false,
         }
@@ -320,13 +306,6 @@ impl<'v> PlotPoints<'v> {
 
     pub(super) fn get_bounds(&self) -> PlotBounds {
         match self {
-            PlotPoints::Borrowed(points) => {
-                let mut bounds = PlotBounds::NOTHING;
-                for point in points.iter() {
-                    bounds.extend_with(point);
-                }
-                bounds
-            }
             PlotPoints::Owned(points) => {
                 let mut bounds = PlotBounds::NOTHING;
                 for point in points {

@@ -861,7 +861,7 @@ pub struct PlotUi {
     ctx: Context,
 }
 
-impl<'p> PlotUi {
+impl PlotUi {
     fn auto_color(&mut self) -> Color32 {
         let i = self.next_auto_color_idx;
         self.next_auto_color_idx += 1;
@@ -917,7 +917,7 @@ impl<'p> PlotUi {
     }
 
     /// Add a data line.
-    pub fn line(&mut self, mut line: Line<'static>) {
+    pub fn line(&mut self, mut line: Line) {
         if line.series.is_empty() {
             return;
         };
@@ -930,7 +930,7 @@ impl<'p> PlotUi {
     }
 
     /// Add a polygon. The polygon has to be convex.
-    pub fn polygon(&mut self, mut polygon: Polygon<'static>) {
+    pub fn polygon(&mut self, mut polygon: Polygon) {
         if polygon.series.is_empty() {
             return;
         };
@@ -952,7 +952,7 @@ impl<'p> PlotUi {
     }
 
     /// Add data points.
-    pub fn points(&mut self, mut points: Points<'static>) {
+    pub fn points(&mut self, mut points: Points) {
         if points.series.is_empty() {
             return;
         };
@@ -965,7 +965,7 @@ impl<'p> PlotUi {
     }
 
     /// Add arrows.
-    pub fn arrows(&mut self, mut arrows: Arrows<'static>) {
+    pub fn arrows(&mut self, mut arrows: Arrows) {
         if arrows.origins.is_empty() || arrows.tips.is_empty() {
             return;
         };

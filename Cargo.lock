@@ -1199,7 +1199,6 @@ name = "egui"
 version = "0.18.1"
 dependencies = [
  "ahash 0.7.6",
- "bytemuck",
  "document-features",
  "epaint",
  "nohash-hasher",
