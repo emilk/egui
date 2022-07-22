@@ -359,8 +359,8 @@ impl Plot {
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
-    /// use egui::plot::{Line, Plot};
-    /// let sin: Vec<_> = (0..1000).map(|i| {
+    /// use egui::plot::{Line, Plot, PlotPoints};
+    /// let sin: PlotPoints = (0..1000).map(|i| {
     ///     let x = i as f64 * 0.01;
     ///     [x, x.sin()]
     /// }).collect();
