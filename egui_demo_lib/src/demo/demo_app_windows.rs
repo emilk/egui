@@ -221,7 +221,7 @@ impl DemoWindows {
                     }
                 });
 
-                ui.with_layout(egui::Layout::right_to_left(), |ui| {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     use egui::special_emojis::{GITHUB, TWITTER};
                     ui.hyperlink_to(
                         egui::RichText::new(TWITTER).size(font_size),
