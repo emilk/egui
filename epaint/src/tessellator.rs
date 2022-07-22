@@ -1544,6 +1544,14 @@ pub fn tessellate_shapes(
         }
     }
 
+    clipped_primitives.retain(|p| {
+        p.clip_rect.is_positive()
+            && match &p.primitive {
+                Primitive::Mesh(mesh) => !mesh.is_empty(),
+                Primitive::Callback(_) => true,
+            }
+    });
+
     for clipped_primitive in &clipped_primitives {
         if let Primitive::Mesh(mesh) = &clipped_primitive.primitive {
             crate::epaint_assert!(mesh.is_valid(), "Tessellator generated invalid Mesh");
