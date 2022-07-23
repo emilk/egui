@@ -8,7 +8,7 @@ authors = [
     "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",
 ]
 edition = "2021"
-rust-version = "1.60"
+rust-version = "1.61"
 homepage = "https://github.com/emilk/egui/tree/master/egui-wgpu"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
