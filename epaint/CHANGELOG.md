@@ -14,7 +14,7 @@ All notable changes to the epaint crate will be documented in this file.
 
 ## 0.18.0 - 2022-04-30
 * MSRV (Minimum Supported Rust Version) is now `1.60.0` ([#1467](https://github.com/emilk/egui/pull/1467)).
-* Add `Shape::Callback` for backend-specific painting ([#1351](https://github.com/emilk/egui/pull/1351)).
+* Added `Shape::Callback` for backend-specific painting ([#1351](https://github.com/emilk/egui/pull/1351)).
 * Added more text wrapping options ([#1291](https://github.com/emilk/egui/pull/1291)):
   * Added `TextWrapping` struct containing all wrapping options.
   * Added `LayoutJob::wrap` field containing these options.
@@ -27,11 +27,11 @@ All notable changes to the epaint crate will be documented in this file.
 * Renamed `TessellationOptions::anti_alias` to `feathering` ([#1408](https://github.com/emilk/egui/pull/1408)).
 * Renamed `AlphaImage` to `FontImage` to discourage any other use for it ([#1412](https://github.com/emilk/egui/pull/1412)).
 * Dark text is darker and more readable on bright backgrounds ([#1412](https://github.com/emilk/egui/pull/1412)).
-* Fix panic when tessellating a `Shape::Vec` containing meshes with differing `TextureId`s ([#1445](https://github.com/emilk/egui/pull/1445)).
+* Fixed panic when tessellating a `Shape::Vec` containing meshes with differing `TextureId`s ([#1445](https://github.com/emilk/egui/pull/1445)).
 * Added `Shape::galley_with_color` which adds the functionality of `Painter::galley_with_color` into the Shape enum ([#1461](https://github.com/emilk/egui/pull/1461)).
 * Renamed the feature `convert_bytemuck` to `bytemuck` ([#1467](https://github.com/emilk/egui/pull/1467)).
 * Renamed the feature `serialize` to `serde` ([#1467](https://github.com/emilk/egui/pull/1467)).
-* Add line breaking rules for Japanese text ([#1498](https://github.com/emilk/egui/pull/1498)).
+* Added line breaking rules for Japanese text ([#1498](https://github.com/emilk/egui/pull/1498)).
 * Optimize tessellation of circles and boxes with rounded corners ([#1547](https://github.com/emilk/egui/pull/1547)).
 
 
@@ -43,7 +43,7 @@ All notable changes to the epaint crate will be documented in this file.
 * Added `ImageData` and `TextureManager` for loading images into textures ([#1110](https://github.com/emilk/egui/pull/1110)).
 * Added `Shape::dashed_line_many` ([#1027](https://github.com/emilk/egui/pull/1027)).
 * Replaced `corner_radius: f32` with `rounding: Rounding`, allowing per-corner rounding settings ([#1206](https://github.com/emilk/egui/pull/1206)).
-* Fix anti-aliasing of filled paths with counter-clockwise winding order.
+* Fixed anti-aliasing of filled paths with counter-clockwise winding order.
 * Improve the anti-aliasing of filled paths with sharp corners, at the cost of these corners sometimes becoming badly extruded instead (see https://github.com/emilk/egui/issues/1226).
 
 

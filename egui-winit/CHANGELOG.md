@@ -5,7 +5,7 @@ All notable changes to the `egui-winit` integration will be noted in this file.
 ## Unreleased
 * Fixed clipboard on Wayland ([#1613](https://github.com/emilk/egui/pull/1613)).
 * Allow deferred render + surface state initialization for Android ([#1634](https://github.com/emilk/egui/pull/1634)).
-* Fix window position persistence ([#1745](https://github.com/emilk/egui/pull/1745)).
+* Fixed window position persistence ([#1745](https://github.com/emilk/egui/pull/1745)).
 * Fixed mouse cursor change on Linux ([#1747](https://github.com/emilk/egui/pull/1747)).
 
 

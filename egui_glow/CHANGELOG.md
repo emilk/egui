@@ -5,7 +5,7 @@ All notable changes to the `egui_glow` integration will be noted in this file.
 ## Unreleased
 * `EguiGlow::new` now takes an `EventLoopWindowTarget<E>` instead of a `winit::Window` ([#1634](https://github.com/emilk/egui/pull/1634)).
 * Use `Arc` for `glow::Context` instead of `Rc` ([#1640](https://github.com/emilk/egui/pull/1640)).
-* Fix `glClear` on WebGL1 ([#1658](https://github.com/emilk/egui/pull/1658)).
+* Fixed `glClear` on WebGL1 ([#1658](https://github.com/emilk/egui/pull/1658)).
 
 
 ## 0.18.1 - 2022-05-05
@@ -14,7 +14,7 @@ All notable changes to the `egui_glow` integration will be noted in this file.
 
 ## 0.18.0 - 2022-04-30
 * Improved logging on rendering failures.
-* Add new `NativeOptions`: `vsync`, `multisampling`, `depth_buffer`, `stencil_buffer`.
+* Added new `NativeOptions`: `vsync`, `multisampling`, `depth_buffer`, `stencil_buffer`.
 * Fixed potential scale bug when DPI scaling changes (e.g. when dragging a  window between different displays) ([#1441](https://github.com/emilk/egui/pull/1441)).
 * MSRV (Minimum Supported Rust Version) is now `1.60.0` ([#1467](https://github.com/emilk/egui/pull/1467)).
 * `clipboard`, `links`, `winit` are now all opt-in features ([#1467](https://github.com/emilk/egui/pull/1467)).
@@ -25,7 +25,7 @@ All notable changes to the `egui_glow` integration will be noted in this file.
 ## 0.17.0 - 2022-02-22
 * `EguiGlow::run` no longer returns the shapes to paint, but stores them internally until you call `EguiGlow::paint` ([#1110](https://github.com/emilk/egui/pull/1110)).
 * Added `set_texture_filter` method to `Painter` ([#1041](https://github.com/emilk/egui/pull/1041)).
-* Fix failure to run in Chrome ([#1092](https://github.com/emilk/egui/pull/1092)).
+* Fixed failure to run in Chrome ([#1092](https://github.com/emilk/egui/pull/1092)).
 * `EguiGlow::new` and `EguiGlow::paint` now takes `&winit::Window` ([#1151](https://github.com/emilk/egui/pull/1151)).
 * Automatically detect and apply dark or light mode from system ([#1045](https://github.com/emilk/egui/pull/1045)).
 
