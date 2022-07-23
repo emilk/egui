@@ -36,6 +36,26 @@ impl Value {
     }
 }
 
+impl<T: Into<f64>> From<[T; 2]> for Value {
+    #[inline(always)]
+    fn from(xy: [T; 2]) -> Self {
+        let [x, y] = xy;
+        Self::new(x, y)
+    }
+}
+
+impl<T, U> From<(T, U)> for Value
+where
+    T: Into<f64>,
+    U: Into<f64>,
+{
+    #[inline(always)]
+    fn from(xy: (T, U)) -> Self {
+        let (x, y) = xy;
+        Self::new(x, y)
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -154,8 +174,8 @@ impl Values {
         }
     }
 
-    pub fn from_values_iter(iter: impl Iterator<Item = Value>) -> Self {
-        Self::from_values(iter.collect())
+    pub fn from_values_iter(iter: impl IntoIterator<Item = Value>) -> Self {
+        Self::from_values(iter.into_iter().collect())
     }
 
     /// Draw a line based on a function `y=f(x)`, a range (which can be infinite) for x and the number of points.
@@ -277,6 +297,12 @@ impl Values {
             }
             bounds
         }
+    }
+}
+
+impl<V: Into<Value>> FromIterator<V> for Values {
+    fn from_iter<T: IntoIterator<Item = V>>(iter: T) -> Self {
+        Self::from_values_iter(iter.into_iter().map(Into::into))
     }
 }
 
