@@ -7,21 +7,28 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 ## Unreleased
 ### Added ⭐
 * Added `*_released` & `*_clicked` methods for `PointerState` ([#1582](https://github.com/emilk/egui/pull/1582)).
+* Added `PointerButton::Extra1` and `PointerButton::Extra2` ([#1592](https://github.com/emilk/egui/pull/1592)).
 * Added `egui::hex_color!` to create `Color32`'s from hex strings under the `color-hex` feature ([#1596](https://github.com/emilk/egui/pull/1596)).
 * Optimized painting of filled circles (e.g. for scatter plots) by 10x or more ([#1616](https://github.com/emilk/egui/pull/1616)).
 * Added opt-in feature `deadlock_detection` to detect double-lock of mutexes on the same thread ([#1619](https://github.com/emilk/egui/pull/1619)).
 * Added `InputState::stable_dt`: a more stable estimate for the delta-time in reactive mode ([#1625](https://github.com/emilk/egui/pull/1625)).
 * You can now specify a texture filter for your textures ([#1636](https://github.com/emilk/egui/pull/1636)).
-* Added support for using `PaintCallback` shapes with the WGPU backend ([#1684](https://github.com/emilk/egui/pull/1684))
+* Added functions keys in `egui::Key` ([#1665](https://github.com/emilk/egui/pull/1665)).
+* Added support for using `PaintCallback` shapes with the WGPU backend ([#1684](https://github.com/emilk/egui/pull/1684)).
+* Added `Contex::request_repaint_after` ([#1694](https://github.com/emilk/egui/pull/1694)).
+* `ctrl-h` now acts like backspace in `TextEdit` ([#1812](https://github.com/emilk/egui/pull/1812)).
 
 ### Changed
-* `PaintCallback` shapes now require the whole callback to be put in an `Arc<dyn Any>` with the value being a backend-specific callback type. ([#1684](https://github.com/emilk/egui/pull/1684))
-* Replaced `needs_repaint` in `FullOutput` with `repaint_after`. Used to force repaint after the set duration in reactive mode.([#1694](https://github.com/emilk/egui/pull/1694)).
+* `PaintCallback` shapes now require the whole callback to be put in an `Arc<dyn Any>` with the value being a backend-specific callback type ([#1684](https://github.com/emilk/egui/pull/1684)).
+* Replaced `needs_repaint` in `FullOutput` with `repaint_after`. Used to force repaint after the set duration in reactive mode ([#1694](https://github.com/emilk/egui/pull/1694)).
 * `Layout::left_to_right` and `Layout::right_to_left` now takes the vertical align as an argument. Previous default was `Align::Center`.
 
 ### Fixed 🐛
+* Fixed `Response::changed` for `ui.toggle_value` ([#1573](https://github.com/emilk/egui/pull/1573)).
 * Fixed `ImageButton`'s changing background padding on hover ([#1595](https://github.com/emilk/egui/pull/1595)).
-* Fix dead-lock when alt-tabbing while also showing a tooltip ([#1618](https://github.com/emilk/egui/pull/1618)).
+* Fixed `Plot` auto-bounds bug ([#1599](https://github.com/emilk/egui/pull/1599)).
+* Fixed dead-lock when alt-tabbing while also showing a tooltip ([#1618](https://github.com/emilk/egui/pull/1618)).
+* Fixed `ScrollArea` scrolling when editing an unrelated `TextEdit` ([#1779](https://github.com/emilk/egui/pull/1779)).
 
 
 ## 0.18.1 - 2022-05-01

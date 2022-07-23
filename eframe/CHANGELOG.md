@@ -5,14 +5,26 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 
 
 ## Unreleased
+* Added `wgpu` rendering backed ([#1564](https://github.com/emilk/egui/pull/1564)):
+  * Added features "wgpu" and "glow"
+  * Added `NativeOptions::renderer` to switch between the rendering backends
 * `egui_glow`: remove calls to `gl.get_error` in release builds to speed up rendering ([#1583](https://github.com/emilk/egui/pull/1583)).
-* Add `wgpu` rendering backed ([#1564](https://github.com/emilk/egui/pull/1564)):
-  * Add features "wgpu" and "glow"
-  * Add `NativeOptions::renderer` to switch between the rendering backends
-* Fix clipboard on Wayland ([#1613](https://github.com/emilk/egui/pull/1613)).
-* Allow running on native without hardware accelerated rendering. Change with `NativeOptions::hardware_acceleration` ([#1681]([#1693](https://github.com/emilk/egui/pull/1693)).
+* Add `App::post_rendering` for e.g. reading the framebuffer ([#1591](https://github.com/emilk/egui/pull/1591)).
+* Use `Arc` for `glow::Context` instead of `Rc` ([#1640](https://github.com/emilk/egui/pull/1640)).
+* Fixed bug where the result returned from `App::on_exit_event` would sometimes be ignored ([#1696](https://github.com/emilk/egui/pull/1696)).
+* Added `NativeOptions::follow_system_theme` and `NativeOptions::default_theme` ([#1726](https://github.com/emilk/egui/pull/1726)).
+
+#### Desktop/Native:
+* Fixed clipboard on Wayland ([#1613](https://github.com/emilk/egui/pull/1613)).
+* Added ability to read window position and size with `frame.info().window_info` ([#1617](https://github.com/emilk/egui/pull/1617)).
+* Allow running on native without hardware accelerated rendering. Change with `NativeOptions::hardware_acceleration` ([#1681](https://github.com/emilk/egui/pull/1681), [#1693](https://github.com/emilk/egui/pull/1693)).
+* Fixed window position persistence ([#1745](https://github.com/emilk/egui/pull/1745)).
 * `dark-light` (dark mode detection) is now enabled by default on Mac and Windows ([#1726](https://github.com/emilk/egui/pull/1726)).
-* Add `NativeOptions::follow_system_theme` and `NativeOptions::default_theme` ([#1726](https://github.com/emilk/egui/pull/1726)).
+* Fixed mouse cursor change on Linux ([#1747](https://github.com/emilk/egui/pull/1747)).
+* Added `Frame::set_visible` ([#1808](https://github.com/emilk/egui/pull/1808)).
+
+#### Web:
+* Added option to select WebGL version ([#1803](https://github.com/emilk/egui/pull/1803)).
 
 
 ## 0.18.0 - 2022-04-30

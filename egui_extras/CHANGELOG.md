@@ -4,6 +4,7 @@ All notable changes to the `egui_extras` integration will be noted in this file.
 
 ## Unreleased
 * You can now specify a texture filter for `RetainedImage` ([#1636](https://github.com/emilk/egui/pull/1636)).
+* Fix uneven `Table` striping ([#1680](https://github.com/emilk/egui/pull/1680)).
 
 
 ## 0.18.0 - 2022-04-30

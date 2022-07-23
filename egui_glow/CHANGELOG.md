@@ -3,7 +3,10 @@ All notable changes to the `egui_glow` integration will be noted in this file.
 
 
 ## Unreleased
-* `EguiGlow::new` now takes an `EventLoopWindowTarget<E>` instead of a `winit::Window` ([#1634](https://github.com/emilk/egui/pull/1634))
+* `EguiGlow::new` now takes an `EventLoopWindowTarget<E>` instead of a `winit::Window` ([#1634](https://github.com/emilk/egui/pull/1634)).
+* Use `Arc` for `glow::Context` instead of `Rc` ([#1640](https://github.com/emilk/egui/pull/1640)).
+* Fix `glClear` on WebGL1 ([#1658](https://github.com/emilk/egui/pull/1658)).
+
 
 ## 0.18.1 - 2022-05-05
 * Remove calls to `gl.get_error` in release builds to speed up rendering ([#1583](https://github.com/emilk/egui/pull/1583)).
