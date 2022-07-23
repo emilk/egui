@@ -837,8 +837,7 @@ impl PlotItem for Points {
             stem_stroke.width *= 2.0;
         }
 
-        let y_reference =
-            stems.map(|y| transform.position_from_point(&PlotPoint::new(0.0, y)).y);
+        let y_reference = stems.map(|y| transform.position_from_point(&PlotPoint::new(0.0, y)).y);
 
         series
             .points()
