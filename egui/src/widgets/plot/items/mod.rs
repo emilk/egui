@@ -838,7 +838,7 @@ impl PlotItem for Points {
         }
 
         let y_reference =
-            stems.map(|y| transform.position_from_point(&PlotPoint::new(0.0, y)).y as f32);
+            stems.map(|y| transform.position_from_point(&PlotPoint::new(0.0, y)).y);
 
         series
             .points()
