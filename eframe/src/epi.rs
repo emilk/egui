@@ -374,7 +374,7 @@ impl Theme {
 
 // ----------------------------------------------------------------------------
 
-/// `WebGl` Context options
+/// WebGL Context options
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum WebGlContextOption {

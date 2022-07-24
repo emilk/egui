@@ -1,6 +1,6 @@
 use std::ops::RangeInclusive;
 
-use super::items::Value;
+use super::PlotPoint;
 use crate::*;
 
 /// 2D bounding box of f64 precision.
@@ -52,15 +52,16 @@ impl PlotBounds {
         self.max[1] - self.min[1]
     }
 
-    pub fn center(&self) -> Value {
-        Value {
-            x: (self.min[0] + self.max[0]) / 2.0,
-            y: (self.min[1] + self.max[1]) / 2.0,
-        }
+    pub fn center(&self) -> PlotPoint {
+        [
+            (self.min[0] + self.max[0]) / 2.0,
+            (self.min[1] + self.max[1]) / 2.0,
+        ]
+        .into()
     }
 
     /// Expand to include the given (x,y) value
-    pub(crate) fn extend_with(&mut self, value: &Value) {
+    pub(crate) fn extend_with(&mut self, value: &PlotPoint) {
         self.extend_with_x(value.x);
         self.extend_with_y(value.y);
     }
@@ -236,7 +237,7 @@ impl ScreenTransform {
         }
     }
 
-    pub fn position_from_value(&self, value: &Value) -> Pos2 {
+    pub fn position_from_point(&self, value: &PlotPoint) -> Pos2 {
         let x = remap(
             value.x,
             self.bounds.min[0]..=self.bounds.max[0],
@@ -250,7 +251,7 @@ impl ScreenTransform {
         pos2(x as f32, y as f32)
     }
 
-    pub fn value_from_position(&self, pos: Pos2) -> Value {
+    pub fn value_from_position(&self, pos: Pos2) -> PlotPoint {
         let x = remap(
             pos.x as f64,
             (self.frame.left() as f64)..=(self.frame.right() as f64),
@@ -261,16 +262,16 @@ impl ScreenTransform {
             (self.frame.bottom() as f64)..=(self.frame.top() as f64), // negated y axis!
             self.bounds.min[1]..=self.bounds.max[1],
         );
-        Value::new(x, y)
+        PlotPoint::new(x, y)
     }
 
     /// Transform a rectangle of plot values to a screen-coordinate rectangle.
     ///
     /// This typically means that the rect is mirrored vertically (top becomes bottom and vice versa),
     /// since the plot's coordinate system has +Y up, while egui has +Y down.
-    pub fn rect_from_values(&self, value1: &Value, value2: &Value) -> Rect {
-        let pos1 = self.position_from_value(value1);
-        let pos2 = self.position_from_value(value2);
+    pub fn rect_from_values(&self, value1: &PlotPoint, value2: &PlotPoint) -> Rect {
+        let pos1 = self.position_from_point(value1);
+        let pos2 = self.position_from_point(value2);
 
         let mut rect = Rect::NOTHING;
         rect.extend_with(pos1);
