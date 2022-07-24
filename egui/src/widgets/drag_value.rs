@@ -152,7 +152,7 @@ impl<'a> DragValue<'a> {
         self
     }
 
-    pub fn with_formatter(mut self, formatter: impl 'a + Fn(f64, RangeInclusive<usize>) -> String) -> Self {
+    pub fn custom_formatter(mut self, formatter: impl 'a + Fn(f64, RangeInclusive<usize>) -> String) -> Self {
         self.custom_formatter = Some(Box::new(formatter));
         self
     }

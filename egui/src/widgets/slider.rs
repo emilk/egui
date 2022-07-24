@@ -247,7 +247,7 @@ impl<'a> Slider<'a> {
         self
     }
 
-    pub fn with_formatter(mut self, formatter: impl 'a + Fn(f64, RangeInclusive<usize>) -> String) -> Self {
+    pub fn custom_formatter(mut self, formatter: impl 'a + Fn(f64, RangeInclusive<usize>) -> String) -> Self {
         self.custom_formatter = Some(Box::new(formatter));
         self
     }
@@ -488,7 +488,7 @@ impl<'a> Slider<'a> {
                 .suffix(self.suffix.clone())
                 .prefix(self.prefix.clone());
             match &self.custom_formatter {
-                Some(custom_formatter) => dv.with_formatter(|n, r| custom_formatter(n, r)),
+                Some(custom_formatter) => dv.custom_formatter(|n, r| custom_formatter(n, r)),
                 None => dv,
             }
         });
