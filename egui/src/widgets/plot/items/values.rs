@@ -18,11 +18,8 @@ pub struct PlotPoint {
 
 impl From<[f64; 2]> for PlotPoint {
     #[inline]
-    fn from(point: [f64; 2]) -> Self {
-        Self {
-            x: point[0],
-            y: point[1],
-        }
+    fn from([x, y]: [f64; 2]) -> Self {
+        Self { x, y }
     }
 }
 
