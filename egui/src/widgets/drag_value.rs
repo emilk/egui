@@ -152,6 +152,7 @@ impl<'a> DragValue<'a> {
         self
     }
 
+    /// Set custom formatter defining how numbers are converted into text.
     pub fn custom_formatter(mut self, formatter: impl 'a + Fn(f64, RangeInclusive<usize>) -> String) -> Self {
         self.custom_formatter = Some(Box::new(formatter));
         self
