@@ -79,7 +79,7 @@ pub struct Memory {
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) drag_value: crate::widgets::drag_value::MonoState,
 
-    pub(crate) areas: Areas,
+    pub areas: Areas,
 
     /// Which popup-window is open (if any)?
     /// Could be a combo box, color picker, menu etc.
@@ -500,7 +500,7 @@ impl Areas {
         self.areas.len()
     }
 
-    pub(crate) fn get(&self, id: Id) -> Option<&area::State> {
+    pub fn get(&self, id: Id) -> Option<&area::State> {
         self.areas.get(&id)
     }
 

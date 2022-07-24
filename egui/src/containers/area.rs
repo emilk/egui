@@ -10,7 +10,7 @@ use crate::*;
 // TODO(emilk): this is not currently stored in `memory().data`, but maybe it should be?
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub(crate) struct State {
+pub struct State {
     /// Last known pos
     pub pos: Pos2,
 
