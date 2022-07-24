@@ -27,6 +27,10 @@ impl MonoState {
 
 // ----------------------------------------------------------------------------
 
+type NumFormatter<'a> = Box<dyn 'a + FnOnce(f64, RangeInclusive<usize>) -> String>;
+
+// ----------------------------------------------------------------------------
+
 /// Combined into one function (rather than two) to make it easier
 /// for the borrow checker.
 type GetSetValue<'a> = Box<dyn 'a + FnMut(Option<f64>) -> f64>;
@@ -56,6 +60,7 @@ pub struct DragValue<'a> {
     clamp_range: RangeInclusive<f64>,
     min_decimals: usize,
     max_decimals: Option<usize>,
+    custom_formatter: Option<NumFormatter<'a>>,
 }
 
 impl<'a> DragValue<'a> {
@@ -85,6 +90,7 @@ impl<'a> DragValue<'a> {
             clamp_range: f64::NEG_INFINITY..=f64::INFINITY,
             min_decimals: 0,
             max_decimals: None,
+            custom_formatter: None,
         }
     }
 
@@ -145,6 +151,11 @@ impl<'a> DragValue<'a> {
         self.max_decimals = Some(num_decimals);
         self
     }
+
+    pub fn with_formatter(mut self, formatter: impl 'a + FnOnce(f64, RangeInclusive<usize>) -> String) -> Self {
+        self.custom_formatter = Some(Box::new(formatter));
+        self
+    }
 }
 
 impl<'a> Widget for DragValue<'a> {
@@ -157,6 +168,7 @@ impl<'a> Widget for DragValue<'a> {
             suffix,
             min_decimals,
             max_decimals,
+            custom_formatter,
         } = self;
 
         let shift = ui.input().modifiers.shift_only();
@@ -176,6 +188,8 @@ impl<'a> Widget for DragValue<'a> {
         let auto_decimals = auto_decimals.clamp(min_decimals, max_decimals);
         let value_text = if value == 0.0 {
             "0".to_owned()
+        } else if let Some(custom_formatter) = custom_formatter {
+            custom_formatter(value, auto_decimals..=max_decimals)
         } else {
             emath::format_with_decimals_in_range(value, auto_decimals..=max_decimals)
         };
