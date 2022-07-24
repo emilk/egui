@@ -6,6 +6,10 @@ use crate::*;
 
 // ----------------------------------------------------------------------------
 
+type NumFormatter<'a> = Box<dyn 'a + Fn(f64, RangeInclusive<usize>) -> String>;
+
+// ----------------------------------------------------------------------------
+
 /// Combined into one function (rather than two) to make it easier
 /// for the borrow checker.
 type GetSetValue<'a> = Box<dyn 'a + FnMut(Option<f64>) -> f64>;
@@ -75,6 +79,7 @@ pub struct Slider<'a> {
     step: Option<f64>,
     min_decimals: usize,
     max_decimals: Option<usize>,
+    custom_formatter: Option<NumFormatter<'a>>,
 }
 
 impl<'a> Slider<'a> {
@@ -118,6 +123,7 @@ impl<'a> Slider<'a> {
             step: None,
             min_decimals: 0,
             max_decimals: None,
+            custom_formatter: None,
         }
     }
 
@@ -238,6 +244,11 @@ impl<'a> Slider<'a> {
     pub fn fixed_decimals(mut self, num_decimals: usize) -> Self {
         self.min_decimals = num_decimals;
         self.max_decimals = Some(num_decimals);
+        self
+    }
+
+    pub fn with_formatter(mut self, formatter: impl 'a + Fn(f64, RangeInclusive<usize>) -> String) -> Self {
+        self.custom_formatter = Some(Box::new(formatter));
         self
     }
 
@@ -468,15 +479,19 @@ impl<'a> Slider<'a> {
             _ => self.current_gradient(&position_range),
         };
         let mut value = self.get_value();
-        let response = ui.add(
-            DragValue::new(&mut value)
+        let response = ui.add({
+            let dv = DragValue::new(&mut value)
                 .speed(speed)
                 .clamp_range(self.clamp_range())
                 .min_decimals(self.min_decimals)
                 .max_decimals_opt(self.max_decimals)
                 .suffix(self.suffix.clone())
-                .prefix(self.prefix.clone()),
-        );
+                .prefix(self.prefix.clone());
+            match &self.custom_formatter {
+                Some(custom_formatter) => dv.with_formatter(|n, r| custom_formatter(n, r)),
+                None => dv,
+            }
+        });
         if value != self.get_value() {
             self.set_value(value);
         }

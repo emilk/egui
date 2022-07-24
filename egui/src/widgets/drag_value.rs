@@ -27,7 +27,7 @@ impl MonoState {
 
 // ----------------------------------------------------------------------------
 
-type NumFormatter<'a> = Box<dyn 'a + FnOnce(f64, RangeInclusive<usize>) -> String>;
+type NumFormatter<'a> = Box<dyn 'a + Fn(f64, RangeInclusive<usize>) -> String>;
 
 // ----------------------------------------------------------------------------
 
@@ -152,7 +152,7 @@ impl<'a> DragValue<'a> {
         self
     }
 
-    pub fn with_formatter(mut self, formatter: impl 'a + FnOnce(f64, RangeInclusive<usize>) -> String) -> Self {
+    pub fn with_formatter(mut self, formatter: impl 'a + Fn(f64, RangeInclusive<usize>) -> String) -> Self {
         self.custom_formatter = Some(Box::new(formatter));
         self
     }
@@ -186,12 +186,15 @@ impl<'a> Widget for DragValue<'a> {
 
         let max_decimals = max_decimals.unwrap_or(auto_decimals + 2);
         let auto_decimals = auto_decimals.clamp(min_decimals, max_decimals);
-        let value_text = if value == 0.0 {
-            "0".to_owned()
-        } else if let Some(custom_formatter) = custom_formatter {
-            custom_formatter(value, auto_decimals..=max_decimals)
-        } else {
-            emath::format_with_decimals_in_range(value, auto_decimals..=max_decimals)
+        let value_text = match custom_formatter {
+            Some(custom_formatter) => custom_formatter(value, auto_decimals..=max_decimals),
+            None => {
+                if value == 0.0 {
+                    "0".to_owned()
+                } else {
+                    emath::format_with_decimals_in_range(value, auto_decimals..=max_decimals)
+                }
+            }
         };
 
         let kb_edit_id = ui.next_auto_id();
