@@ -248,6 +248,16 @@ impl<'a> Slider<'a> {
     }
 
     /// Set custom formatter defining how numbers are converted into text.
+    ///
+    /// A custom formatter takes a `f64` for the numeric value and a `RangeInclusive<usize>` representing
+    /// the decimal range i.e. minimum and maximum number of decimal places shown.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut my_i64: i64 = 0;
+    /// ui.add(egui::Slider::new(&mut my_i64, 0..=100).custom_formatter(|n, _| format!("{:X}", n as i64)));
+    /// # });
+    /// ```
     pub fn custom_formatter(mut self, formatter: impl 'a + Fn(f64, RangeInclusive<usize>) -> String) -> Self {
         self.custom_formatter = Some(Box::new(formatter));
         self
