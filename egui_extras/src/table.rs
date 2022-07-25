@@ -56,6 +56,7 @@ pub struct TableBuilder<'a> {
     striped: bool,
     resizable: bool,
     clip: bool,
+    stick_to_bottom: bool,
     cell_layout: egui::Layout,
 }
 
@@ -69,6 +70,7 @@ impl<'a> TableBuilder<'a> {
             striped: false,
             resizable: false,
             clip: true,
+            stick_to_bottom: false,
             cell_layout,
         }
     }
@@ -102,6 +104,14 @@ impl<'a> TableBuilder<'a> {
     /// Should we clip the contents of each cell? Default: `true`.
     pub fn clip(mut self, clip: bool) -> Self {
         self.clip = clip;
+        self
+    }
+
+    /// Should the scroll handle stick to the bottom position even as the content size changes
+    /// dynamically? The scroll handle remains stuck until manually changed, and will become stuck
+    /// once again when repositioned to the bottom. Default: `false`.
+    pub fn stick_to_bottom(mut self) -> Self {
+        self.stick_to_bottom = true;
         self
     }
 
@@ -145,6 +155,7 @@ impl<'a> TableBuilder<'a> {
             striped,
             resizable,
             clip,
+            stick_to_bottom,
             cell_layout,
         } = self;
 
@@ -177,6 +188,7 @@ impl<'a> TableBuilder<'a> {
             scroll,
             striped,
             clip,
+            stick_to_bottom,
             cell_layout,
         }
     }
@@ -195,6 +207,7 @@ impl<'a> TableBuilder<'a> {
             striped,
             resizable,
             clip,
+            stick_to_bottom,
             cell_layout,
         } = self;
 
@@ -215,6 +228,7 @@ impl<'a> TableBuilder<'a> {
             scroll,
             striped,
             clip,
+            stick_to_bottom,
             cell_layout,
         }
         .body(body);
@@ -253,6 +267,7 @@ pub struct Table<'a> {
     scroll: bool,
     striped: bool,
     clip: bool,
+    stick_to_bottom: bool,
     cell_layout: egui::Layout,
 }
 
@@ -272,6 +287,7 @@ impl<'a> Table<'a> {
             scroll,
             striped,
             clip,
+            stick_to_bottom,
             cell_layout,
         } = self;
 
@@ -279,20 +295,24 @@ impl<'a> Table<'a> {
 
         let mut new_widths = widths.clone();
 
-        egui::ScrollArea::new([false, scroll])
-            .auto_shrink([true; 2])
-            .show(ui, move |ui| {
-                let layout = StripLayout::new(ui, CellDirection::Horizontal, clip, cell_layout);
+        let mut scroll_area = egui::ScrollArea::new([false, scroll]).auto_shrink([true; 2]);
 
-                body(TableBody {
-                    layout,
-                    widths,
-                    striped,
-                    row_nr: 0,
-                    start_y: avail_rect.top(),
-                    end_y: avail_rect.bottom(),
-                });
+        if stick_to_bottom {
+            scroll_area = scroll_area.stick_to_bottom();
+        }
+
+        scroll_area.show(ui, move |ui| {
+            let layout = StripLayout::new(ui, CellDirection::Horizontal, clip, cell_layout);
+
+            body(TableBody {
+                layout,
+                widths,
+                striped,
+                row_nr: 0,
+                start_y: avail_rect.top(),
+                end_y: avail_rect.bottom(),
             });
+        });
 
         let bottom = ui.min_rect().bottom();
 
