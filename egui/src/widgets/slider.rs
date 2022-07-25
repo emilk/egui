@@ -258,7 +258,10 @@ impl<'a> Slider<'a> {
     /// ui.add(egui::Slider::new(&mut my_i64, 0..=100).custom_formatter(|n, _| format!("{:X}", n as i64)));
     /// # });
     /// ```
-    pub fn custom_formatter(mut self, formatter: impl 'a + Fn(f64, RangeInclusive<usize>) -> String) -> Self {
+    pub fn custom_formatter(
+        mut self,
+        formatter: impl 'a + Fn(f64, RangeInclusive<usize>) -> String,
+    ) -> Self {
         self.custom_formatter = Some(Box::new(formatter));
         self
     }
@@ -499,7 +502,7 @@ impl<'a> Slider<'a> {
                 .suffix(self.suffix.clone())
                 .prefix(self.prefix.clone());
             match &self.custom_formatter {
-                Some(custom_formatter) => dv.custom_formatter(|n, r| custom_formatter(n, r)),
+                Some(fmt) => dv.custom_formatter(fmt),
                 None => dv,
             }
         });

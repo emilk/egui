@@ -163,7 +163,10 @@ impl<'a> DragValue<'a> {
     /// ui.add(egui::DragValue::new(&mut my_i64).custom_formatter(|n, _| format!("{:X}", n as i64)));
     /// # });
     /// ```
-    pub fn custom_formatter(mut self, formatter: impl 'a + Fn(f64, RangeInclusive<usize>) -> String) -> Self {
+    pub fn custom_formatter(
+        mut self,
+        formatter: impl 'a + Fn(f64, RangeInclusive<usize>) -> String,
+    ) -> Self {
         self.custom_formatter = Some(Box::new(formatter));
         self
     }
