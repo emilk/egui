@@ -27,6 +27,10 @@ impl MonoState {
 
 // ----------------------------------------------------------------------------
 
+type NumFormatter<'a> = Box<dyn 'a + Fn(f64, RangeInclusive<usize>) -> String>;
+
+// ----------------------------------------------------------------------------
+
 /// Combined into one function (rather than two) to make it easier
 /// for the borrow checker.
 type GetSetValue<'a> = Box<dyn 'a + FnMut(Option<f64>) -> f64>;
@@ -56,6 +60,7 @@ pub struct DragValue<'a> {
     clamp_range: RangeInclusive<f64>,
     min_decimals: usize,
     max_decimals: Option<usize>,
+    custom_formatter: Option<NumFormatter<'a>>,
 }
 
 impl<'a> DragValue<'a> {
@@ -85,6 +90,7 @@ impl<'a> DragValue<'a> {
             clamp_range: f64::NEG_INFINITY..=f64::INFINITY,
             min_decimals: 0,
             max_decimals: None,
+            custom_formatter: None,
         }
     }
 
@@ -145,6 +151,25 @@ impl<'a> DragValue<'a> {
         self.max_decimals = Some(num_decimals);
         self
     }
+
+    /// Set custom formatter defining how numbers are converted into text.
+    ///
+    /// A custom formatter takes a `f64` for the numeric value and a `RangeInclusive<usize>` representing
+    /// the decimal range i.e. minimum and maximum number of decimal places shown.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut my_i64: i64 = 0;
+    /// ui.add(egui::DragValue::new(&mut my_i64).custom_formatter(|n, _| format!("{:X}", n as i64)));
+    /// # });
+    /// ```
+    pub fn custom_formatter(
+        mut self,
+        formatter: impl 'a + Fn(f64, RangeInclusive<usize>) -> String,
+    ) -> Self {
+        self.custom_formatter = Some(Box::new(formatter));
+        self
+    }
 }
 
 impl<'a> Widget for DragValue<'a> {
@@ -157,6 +182,7 @@ impl<'a> Widget for DragValue<'a> {
             suffix,
             min_decimals,
             max_decimals,
+            custom_formatter,
         } = self;
 
         let shift = ui.input().modifiers.shift_only();
@@ -174,10 +200,15 @@ impl<'a> Widget for DragValue<'a> {
 
         let max_decimals = max_decimals.unwrap_or(auto_decimals + 2);
         let auto_decimals = auto_decimals.clamp(min_decimals, max_decimals);
-        let value_text = if value == 0.0 {
-            "0".to_owned()
-        } else {
-            emath::format_with_decimals_in_range(value, auto_decimals..=max_decimals)
+        let value_text = match custom_formatter {
+            Some(custom_formatter) => custom_formatter(value, auto_decimals..=max_decimals),
+            None => {
+                if value == 0.0 {
+                    "0".to_owned()
+                } else {
+                    emath::format_with_decimals_in_range(value, auto_decimals..=max_decimals)
+                }
+            }
         };
 
         let kb_edit_id = ui.next_auto_id();
