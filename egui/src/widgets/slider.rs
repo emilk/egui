@@ -327,9 +327,6 @@ impl<'a> Slider<'a> {
             self.set_value(new_value);
         }
 
-        let value = self.get_value();
-        response.widget_info(|| WidgetInfo::slider(value, &self.text));
-
         if response.has_focus() {
             let (dec_key, inc_key) = match self.orientation {
                 SliderOrientation::Horizontal => (Key::ArrowLeft, Key::ArrowRight),
@@ -538,7 +535,9 @@ impl<'a> Widget for Slider<'a> {
         };
 
         let mut response = inner_response.inner | inner_response.response;
-        response.changed = self.get_value() != old_value;
+        let value = self.get_value();
+        response.changed = value != old_value;
+        response.widget_info(|| WidgetInfo::slider(value, &self.text));
         response
     }
 }
