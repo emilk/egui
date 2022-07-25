@@ -3,6 +3,8 @@ set -eu
 script_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 cd "$script_path/.."
 
+./sh/setup_web.sh
+
 CRATE_NAME="egui_demo_app"
 FEATURES="glow,http,persistence,screen_reader"
 
