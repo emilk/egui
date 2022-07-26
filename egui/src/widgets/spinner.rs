@@ -38,7 +38,7 @@ impl Widget for Spinner {
 
             let radius = (rect.height() / 2.0) - 2.0;
             let n_points = 20;
-            let start_angle = ui.input().time as f64 * 360f64.to_radians();
+            let start_angle = ui.input().time * std::f64::consts::TAU;
             let end_angle = start_angle + 240f64.to_radians() * ui.input().time.sin();
             let points: Vec<Pos2> = (0..n_points)
                 .map(|i| {

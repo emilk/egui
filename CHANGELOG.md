@@ -7,19 +7,29 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 ## Unreleased
 ### Added ⭐
 * Added `*_released` & `*_clicked` methods for `PointerState` ([#1582](https://github.com/emilk/egui/pull/1582)).
+* Added `PointerButton::Extra1` and `PointerButton::Extra2` ([#1592](https://github.com/emilk/egui/pull/1592)).
 * Added `egui::hex_color!` to create `Color32`'s from hex strings under the `color-hex` feature ([#1596](https://github.com/emilk/egui/pull/1596)).
 * Optimized painting of filled circles (e.g. for scatter plots) by 10x or more ([#1616](https://github.com/emilk/egui/pull/1616)).
 * Added opt-in feature `deadlock_detection` to detect double-lock of mutexes on the same thread ([#1619](https://github.com/emilk/egui/pull/1619)).
 * Added `InputState::stable_dt`: a more stable estimate for the delta-time in reactive mode ([#1625](https://github.com/emilk/egui/pull/1625)).
 * You can now specify a texture filter for your textures ([#1636](https://github.com/emilk/egui/pull/1636)).
-* Added support for using `PaintCallback` shapes with the WGPU backend ([#1684](https://github.com/emilk/egui/pull/1684))
+* Added functions keys in `egui::Key` ([#1665](https://github.com/emilk/egui/pull/1665)).
+* Added support for using `PaintCallback` shapes with the WGPU backend ([#1684](https://github.com/emilk/egui/pull/1684)).
+* Added `Contex::request_repaint_after` ([#1694](https://github.com/emilk/egui/pull/1694)).
+* `ctrl-h` now acts like backspace in `TextEdit` ([#1812](https://github.com/emilk/egui/pull/1812)).
 
 ### Changed
-* `PaintCallback` shapes now require the whole callback to be put in an `Arc<dyn Any>` with the value being a backend-specific callback type. ([#1684](https://github.com/emilk/egui/pull/1684))
+* `PaintCallback` shapes now require the whole callback to be put in an `Arc<dyn Any>` with the value being a backend-specific callback type ([#1684](https://github.com/emilk/egui/pull/1684)).
+* Replaced `needs_repaint` in `FullOutput` with `repaint_after`. Used to force repaint after the set duration in reactive mode ([#1694](https://github.com/emilk/egui/pull/1694)).
+* `Layout::left_to_right` and `Layout::right_to_left` now takes the vertical align as an argument. Previous default was `Align::Center`.
+* Improved ergonomics of adding plot items. All plot items that take a series of 2D coordinates can now be created directly from `Vec<[f64; 2]>`. The `Value` and `Values` types were removed in favor of `PlotPoint` and `PlotPoints` respectively.
 
 ### Fixed 🐛
+* Fixed `Response::changed` for `ui.toggle_value` ([#1573](https://github.com/emilk/egui/pull/1573)).
 * Fixed `ImageButton`'s changing background padding on hover ([#1595](https://github.com/emilk/egui/pull/1595)).
-* Fix dead-lock when alt-tabbing while also showing a tooltip ([#1618](https://github.com/emilk/egui/pull/1618)).
+* Fixed `Plot` auto-bounds bug ([#1599](https://github.com/emilk/egui/pull/1599)).
+* Fixed dead-lock when alt-tabbing while also showing a tooltip ([#1618](https://github.com/emilk/egui/pull/1618)).
+* Fixed `ScrollArea` scrolling when editing an unrelated `TextEdit` ([#1779](https://github.com/emilk/egui/pull/1779)).
 
 
 ## 0.18.1 - 2022-05-01
@@ -62,9 +72,9 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 * Fixed `ComboBox`es always being rendered left-aligned ([#1304](https://github.com/emilk/egui/pull/1304)).
 * Fixed ui code that could lead to a deadlock ([#1380](https://github.com/emilk/egui/pull/1380)).
 * Text is darker and more readable in bright mode ([#1412](https://github.com/emilk/egui/pull/1412)).
-* Fix a lot of broken/missing doclinks  ([#1419](https://github.com/emilk/egui/pull/1419)).
+* Fixed a lot of broken/missing doclinks  ([#1419](https://github.com/emilk/egui/pull/1419)).
 * Fixed `Ui::add_visible` sometimes leaving the `Ui` in a disabled state ([#1436](https://github.com/emilk/egui/issues/1436)).
-* Add line breaking rules for Japanese text ([#1498](https://github.com/emilk/egui/pull/1498)).
+* Added line breaking rules for Japanese text ([#1498](https://github.com/emilk/egui/pull/1498)).
 
 ### Deprecated ☢️
 * Deprecated `CollapsingHeader::selectable` ([#1538](https://github.com/emilk/egui/pull/1538)).
@@ -200,7 +210,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 ## 0.16.1 - 2021-12-31 - Add back `CtxRef::begin_frame,end_frame`
 
 ### Added ⭐
-* Add back `CtxRef::begin_frame,end_frame` as an alternative to `CtxRef::run`.
+* Added back `CtxRef::begin_frame,end_frame` as an alternative to `CtxRef::run`.
 
 
 ## 0.16.0 - 2021-12-29 - Context menus and rich text
@@ -259,15 +269,15 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 <img src="media/egui-0.15-code-editor.gif">
 
 ### Added ⭐
-* Add horizontal scrolling support to `ScrollArea` and `Window` (opt-in).
+* Added horizontal scrolling support to `ScrollArea` and `Window` (opt-in).
 * `TextEdit::layouter`: Add custom text layout for e.g. syntax highlighting or WYSIWYG.
 * `Fonts::layout_job`: New text layout engine allowing mixing fonts, colors and styles, with underlining and strikethrough.
-* Add `ui.add_enabled(bool, widget)` to easily add a possibly disabled widget.
-* Add `ui.add_enabled_ui(bool, |ui| …)` to create a possibly disabled UI section.
-* Add feature `"serialize"` separatedly from `"persistence"`.
-* Add `egui::widgets::global_dark_light_mode_buttons` to easily add buttons for switching the egui theme.
+* Added `ui.add_enabled(bool, widget)` to easily add a possibly disabled widget.
+* Added `ui.add_enabled_ui(bool, |ui| …)` to create a possibly disabled UI section.
+* Added feature `"serialize"` separatedly from `"persistence"`.
+* Added `egui::widgets::global_dark_light_mode_buttons` to easily add buttons for switching the egui theme.
 * `TextEdit` can now be used to show text which can be selected and copied, but not edited.
-* Add `Memory::caches` for caching things from one frame to the next.
+* Added `Memory::caches` for caching things from one frame to the next.
 
 ### Changed 🔧
 * Change the default monospace font to [Hack](https://github.com/source-foundry/Hack).
@@ -281,14 +291,14 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 * Smaller and nicer color picker.
 * `ScrollArea` will auto-shrink to content size unless told otherwise using `ScollArea::auto_shrink`.
 * By default, `Slider`'s `clamp_to_range` is set to true.
-* Rename `TextEdit::enabled` to `TextEdit::interactive`.
+* Renamed `TextEdit::enabled` to `TextEdit::interactive`.
 * `ui.label` (and friends) now take `impl ToString` as argument instead of `impl Into<Label>`.
 
 ### Fixed 🐛
-* Fix wrongly sized multiline `TextEdit` in justified layouts.
-* Fix clip rectangle of windows that don't fit the central area.
+* Fixed wrongly sized multiline `TextEdit` in justified layouts.
+* Fixed clip rectangle of windows that don't fit the central area.
 * Show tooltips above widgets on touch screens.
-* Fix popups sometimes getting clipped by panels.
+* Fixed popups sometimes getting clipped by panels.
 
 ### Removed 🔥
 * Replace `Button::enabled` with `ui.add_enabled`.
@@ -313,20 +323,20 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 ## 0.14.2 - 2021-08-28 - Window resize fix
 
 ### Fixed 🐛
-* Fix window resize bug introduced in `0.14.1`.
+* Fixed window resize bug introduced in `0.14.1`.
 
 
 ## 0.14.1 - 2021-08-28 - Layout bug fixes
 
 ### Added ⭐
-* Add `Ui::horizontal_top`.
+* Added `Ui::horizontal_top`.
 
 ### Fixed 🐛
-* Fix `set_width/set_min_width/set_height/set_min_height/expand_to_include_x/expand_to_include_y`.
+* Fixed `set_width/set_min_width/set_height/set_min_height/expand_to_include_x/expand_to_include_y`.
 * Make minimum grid column width propagate properly.
 * Make sure `TextEdit` contents expand to fill width if applicable.
 * `ProgressBar`: add a minimum width and fix for having it in an infinite layout.
-* Fix sometimes not being able to click inside a combo box or popup menu.
+* Fixed sometimes not being able to click inside a combo box or popup menu.
 
 
 ## 0.14.0 - 2021-08-24 - Ui panels and bug fixes
@@ -335,10 +345,10 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 * Panels can now be added to any `Ui`.
 * Plot:
   * [Line styles](https://github.com/emilk/egui/pull/482).
-  * Add `show_background` and `show_axes` methods to `Plot`.
+  * Added `show_background` and `show_axes` methods to `Plot`.
 * [Progress bar](https://github.com/emilk/egui/pull/519).
 * `Grid::num_columns`: allow the last column to take up the rest of the space of the parent `Ui`.
-* Add an API for dropping files into egui (see `RawInput`).
+* Added an API for dropping files into egui (see `RawInput`).
 * `CollapsingHeader` can now optionally be selectable.
 
 ### Changed 🔧
@@ -348,12 +358,12 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 * Tooltips are now moved to not cover the widget they are attached to.
 
 ### Fixed 🐛
-* Fix custom font definitions getting replaced when `pixels_per_point` is changed.
-* Fix `lost_focus` for `TextEdit`.
+* Fixed custom font definitions getting replaced when `pixels_per_point` is changed.
+* Fixed `lost_focus` for `TextEdit`.
 * Clicking the edge of a menu button will now properly open the menu.
-* Fix hover detection close to an `Area`.
-* Fix case where `Plot`'s `min_auto_bounds` could be ignored after the first call to `Plot::ui`.
-* Fix slow startup when using large font files.
+* Fixed hover detection close to an `Area`.
+* Fixed case where `Plot`'s `min_auto_bounds` could be ignored after the first call to `Plot::ui`.
+* Fixed slow startup when using large font files.
 
 ### Contributors 🙏
 * [barrowsys](https://github.com/barrowsys)
@@ -385,19 +395,19 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
   * [Plot legend improvements](https://github.com/emilk/egui/pull/410).
   * [Line markers for plots](https://github.com/emilk/egui/pull/363).
 * Panels:
-  * Add right and bottom panels (`SidePanel::right` and `Panel::bottom`).
+  * Added right and bottom panels (`SidePanel::right` and `Panel::bottom`).
   * Panels can now be resized.
-  * Add an option to overwrite frame of a `Panel`.
+  * Added an option to overwrite frame of a `Panel`.
 * [Improve accessibility / screen reader](https://github.com/emilk/egui/pull/412).
-* Add `ScrollArea::show_rows` for efficient scrolling of huge UI:s.
-* Add `ScrollArea::enable_scrolling` to allow freezing scrolling when editing TextEdit widgets within it
-* Add `Ui::set_visible` as a way to hide widgets.
-* Add `Style::override_text_style` to easily change the text style of everything in a `Ui` (or globally).
+* Added `ScrollArea::show_rows` for efficient scrolling of huge UI:s.
+* Added `ScrollArea::enable_scrolling` to allow freezing scrolling when editing TextEdit widgets within it
+* Added `Ui::set_visible` as a way to hide widgets.
+* Added `Style::override_text_style` to easily change the text style of everything in a `Ui` (or globally).
 * You can now change `TextStyle` on checkboxes, radio buttons and `SelectableLabel`.
-* Add support for [cint](https://crates.io/crates/cint) under `cint` feature.
-* Add features `extra_asserts` and `extra_debug_asserts` to enable additional checks.
+* Added support for [cint](https://crates.io/crates/cint) under `cint` feature.
+* Added features `extra_asserts` and `extra_debug_asserts` to enable additional checks.
 * `TextEdit` now supports edits on a generic buffer using `TextBuffer`.
-* Add `Context::set_debug_on_hover` and `egui::trace!(ui)`
+* Added `Context::set_debug_on_hover` and `egui::trace!(ui)`
 
 ### Changed 🔧
 * Minimum Rust version is now 1.51 (used to be 1.52)
@@ -408,36 +418,36 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 * `SidePanel::left` is resizable by default.
 
 ### Fixed 🐛
-* Fix uneven lettering on non-integral device scales ("extortion lettering").
-* Fix invisible scroll bar when native window is too narrow for egui.
+* Fixed uneven lettering on non-integral device scales ("extortion lettering").
+* Fixed invisible scroll bar when native window is too narrow for egui.
 
 
 ## 0.12.0 - 2021-05-10 - Multitouch, user memory, window pivots, and improved plots
 
 ### Added ⭐
-* Add anchors to windows and areas so you can put a window in e.g. the top right corner.
+* Added anchors to windows and areas so you can put a window in e.g. the top right corner.
 * Make labels interactive with `Label::sense(Sense::click())`.
-* Add `Response::request_focus` and `Response::surrender_focus`.
-* Add `TextEdit::code_editor` (VERY basic).
+* Added `Response::request_focus` and `Response::surrender_focus`.
+* Added `TextEdit::code_editor` (VERY basic).
 * [Pan and zoom plots](https://github.com/emilk/egui/pull/317).
 * [Add plot legends](https://github.com/emilk/egui/pull/349).
 * [Users can now store custom state in `egui::Memory`](https://github.com/emilk/egui/pull/257).
-* Add `Response::on_disabled_hover_text` to show tooltip for disabled widgets.
+* Added `Response::on_disabled_hover_text` to show tooltip for disabled widgets.
 * Zoom input: ctrl-scroll and (on `eframe` web) trackpad-pinch gesture.
 * Support for raw [multi touch](https://github.com/emilk/egui/pull/306) events,
   enabling zoom, rotate, and more. Works with `eframe` web on mobile devices,
   and should work with `egui_glium` for certain touch devices/screens.
-* Add (optional) compatibility with [mint](https://docs.rs/mint).
+* Added (optional) compatibility with [mint](https://docs.rs/mint).
 
 ### Changed 🔧
 * Make `Memory::has_focus` public (again).
 * `Plot` must now be given a name that is unique within its scope.
 * Tab only selects labels if the `screen_reader` option is turned on.
-* Rename `ui.wrap` to `ui.scope`.
+* Renamed `ui.wrap` to `ui.scope`.
 
 ### Fixed 🐛
-* Fix [defocus-bug on touch screens](https://github.com/emilk/egui/issues/288).
-* Fix bug with the layout of wide `DragValue`s.
+* Fixed [defocus-bug on touch screens](https://github.com/emilk/egui/issues/288).
+* Fixed bug with the layout of wide `DragValue`s.
 
 ### Removed 🔥
 * Moved experimental markup language to `egui_demo_lib`
@@ -451,24 +461,24 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
   * Use arrow keys to adjust sliders and `DragValue`s.
 * egui will now output events when widgets gain keyboard focus.
   * This can be hooked up to a screen reader to aid the visually impaired
-* Add the option to restrict the dragging bounds of `Window` and `Area` to a specified area using `drag_bounds(rect)`.
-* Add support for small and raised text.
-* Add `ui.set_row_height`.
-* Add `DebugOptions::show_widgets` to debug layouting by hovering widgets.
-* Add `ComboBox` to more easily customize combo boxes.
-* Add `Slider::new` and `DragValue::new` to replace old type-specific constructors.
-* Add `TextEdit::password` to hide input characters.
+* Added the option to restrict the dragging bounds of `Window` and `Area` to a specified area using `drag_bounds(rect)`.
+* Added support for small and raised text.
+* Added `ui.set_row_height`.
+* Added `DebugOptions::show_widgets` to debug layouting by hovering widgets.
+* Added `ComboBox` to more easily customize combo boxes.
+* Added `Slider::new` and `DragValue::new` to replace old type-specific constructors.
+* Added `TextEdit::password` to hide input characters.
 
 ### Changed 🔧
 * `ui.advance_cursor` is now called `ui.add_space`.
 * `kb_focus` is now just called `focus`.
 
 ### Fixed 🐛
-* Fix some bugs related to centered layouts.
+* Fixed some bugs related to centered layouts.
 * Fixed secondary-click to open a menu.
 * [Fix panic for zero-range sliders and zero-speed drag values](https://github.com/emilk/egui/pull/216).
-* Fix false id clash error for wrapping text.
-* Fix bug that would close a popup (e.g. the color picker) when clicking inside of it.
+* Fixed false id clash error for wrapping text.
+* Fixed bug that would close a popup (e.g. the color picker) when clicking inside of it.
 
 ### Deprecated ☢️
 * Deprectated `combo_box_with_label` in favor of new `ComboBox`.
@@ -480,12 +490,12 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 <img src="media/egui-0.10-plot.gif" width="50%">
 
 ### Added ⭐
-* Add `egui::plot::Plot` to plot some 2D data.
-* Add `Ui::hyperlink_to(label, url)`.
+* Added `egui::plot::Plot` to plot some 2D data.
+* Added `Ui::hyperlink_to(label, url)`.
 * Sliders can now have a value prefix and suffix (e.g. the suffix `"°"` works like a unit).
 * `Context::set_pixels_per_point` to control the scale of the UI.
-* Add `Response::changed()` to query if e.g. a slider was dragged, text was entered or a checkbox was clicked.
-* Add support for all integers in `DragValue` and `Slider` (except 128-bit).
+* Added `Response::changed()` to query if e.g. a slider was dragged, text was entered or a checkbox was clicked.
+* Added support for all integers in `DragValue` and `Slider` (except 128-bit).
 
 ### Changed 🔧
 * Improve the positioning of tooltips.
@@ -499,18 +509,18 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 <img src="media/0.9.0-disabled.gif" width="50%">
 
 ### Added ⭐
-* Add support for secondary and middle mouse buttons.
-* Add `Label` methods for code, strong, strikethrough, underline and italics.
-* Add `ui.group(|ui| { … })` to visually group some widgets within a frame.
-* Add `Ui` helpers for doing manual layout (`ui.put`, `ui.allocate_ui_at_rect` and more).
-* Add `ui.set_enabled(false)` to disable all widgets in a `Ui` (grayed out and non-interactive).
-* Add `TextEdit::hint_text` for showing a weak hint text when empty.
+* Added support for secondary and middle mouse buttons.
+* Added `Label` methods for code, strong, strikethrough, underline and italics.
+* Added `ui.group(|ui| { … })` to visually group some widgets within a frame.
+* Added `Ui` helpers for doing manual layout (`ui.put`, `ui.allocate_ui_at_rect` and more).
+* Added `ui.set_enabled(false)` to disable all widgets in a `Ui` (grayed out and non-interactive).
+* Added `TextEdit::hint_text` for showing a weak hint text when empty.
 * `egui::popup::popup_below_widget`: show a popup area below another widget.
-* Add `Slider::clamp_to_range(bool)`: if set, clamp the incoming and outgoing values to the slider range.
+* Added `Slider::clamp_to_range(bool)`: if set, clamp the incoming and outgoing values to the slider range.
 * Add: `ui.spacing()`, `ui.spacing_mut()`, `ui.visuals()`, `ui.visuals_mut()`.
 * Add: `ctx.set_visuals()`.
 * You can now control text wrapping with `Style::wrap`.
-* Add `Grid::max_col_width`.
+* Added `Grid::max_col_width`.
 
 ### Changed 🔧
 * Text will now wrap at newlines, spaces, dashes, punctuation or in the middle of a words if necessary, in that order of priority.
@@ -542,9 +552,9 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 
 ### Changed 🔧
 * New simpler and sleeker look!
-* Rename `PaintCmd` to `Shape`.
+* Renamed `PaintCmd` to `Shape`.
 * Replace tuple `(Rect, Shape)` with tuple-struct `ClippedShape`.
-* Rename feature `"serde"` to `"persistence"`.
+* Renamed feature `"serde"` to `"persistence"`.
 * Break out the modules `math` and `paint` into separate crates `emath` and `epaint`.
 
 ### Fixed 🐛
@@ -555,8 +565,8 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 ## 0.7.0 - 2021-01-04
 
 ### Added ⭐
-* Add `ui.scroll_to_cursor` and `response.scroll_to_me` ([#81](https://github.com/emilk/egui/pull/81) by [lucaspoffo](https://github.com/lucaspoffo)).
-* Add `window.id(…)` and `area.id(…)` for overriding the default `Id`.
+* Added `ui.scroll_to_cursor` and `response.scroll_to_me` ([#81](https://github.com/emilk/egui/pull/81) by [lucaspoffo](https://github.com/lucaspoffo)).
+* Added `window.id(…)` and `area.id(…)` for overriding the default `Id`.
 
 ### Changed 🔧
 * Renamed `Srgba` to `Color32`.
@@ -582,10 +592,10 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 * Mouse-over explanation to duplicate ID warning.
 * You can now easily constrain egui to a portion of the screen using `RawInput::screen_rect`.
 * You can now control the minimum and maixumum number of decimals to show in a `Slider` or `DragValue`.
-* Add `egui::math::Rot2`: rotation helper.
+* Added `egui::math::Rot2`: rotation helper.
 * `Response` now contains the `Id` of the widget it pertains to.
 * `ui.allocate_response` that allocates space and checks for interactions.
-* Add `response.interact(sense)`, e.g. to check for clicks on labels.
+* Added `response.interact(sense)`, e.g. to check for clicks on labels.
 
 ### Changed 🔧
 * `ui.allocate_space` now returns an `(Id, Rect)` tuple.
@@ -600,7 +610,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 * Combo boxes has scroll bars when needed.
 * Expand `Window` + `Resize` containers to be large enough for last frames content
 * `ui.columns`: Columns now defaults to justified top-to-down layouts.
-* Rename `Sense::nothing()` to  `Sense::hover()`.
+* Renamed `Sense::nothing()` to  `Sense::hover()`.
 * Replaced `parking_lot` dependency with `atomic_refcell` by default.
 
 ### Fixed 🐛
@@ -626,7 +636,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 * `SelectableLabel` (`ui.selectable_label` and `ui.selectable_value`): A text-button that can be selected.
 * `ui.small_button`: A smaller button that looks good embedded in text.
 * `ui.drag_angle_tau`: For those who want to specify angles as fractions of τ (a full turn).
-* Add `Resize::id_source` and `ScrollArea::id_source` to let the user avoid Id clashes.
+* Added `Resize::id_source` and `ScrollArea::id_source` to let the user avoid Id clashes.
 
 ### Changed 🔧
 * New default font: [Ubuntu-Light](https://fonts.google.com/specimen/Ubuntu).
@@ -669,7 +679,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 ### Added ⭐
 * Panels: you can now create panels using `SidePanel`, `TopPanel` and `CentralPanel`.
 * You can now override the default egui fonts.
-* Add ability to override text color with `visuals.override_text_color`.
+* Added ability to override text color with `visuals.override_text_color`.
 * The demo now includes a simple drag-and-drop example.
 * The demo app now has a slider to scale all of egui.
 
@@ -686,7 +696,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 * You can no longer throw windows.
 
 ### Fixed 🐛
-* Fix a bug where some regions would slowly grow for non-integral scales (`pixels_per_point`).
+* Fixed a bug where some regions would slowly grow for non-integral scales (`pixels_per_point`).
 
 
 ## 0.2.0 - 2020-10-10

@@ -62,12 +62,12 @@ impl super::View for TextEdit {
 
         ui.add_enabled(
             anything_selected,
-            egui::Label::new("Press ctrl+T to toggle the case of selected text (cmd+T on Mac)"),
+            egui::Label::new("Press ctrl+Y to toggle the case of selected text (cmd+Y on Mac)"),
         );
 
         if ui
             .input_mut()
-            .consume_key(egui::Modifiers::COMMAND, egui::Key::T)
+            .consume_key(egui::Modifiers::COMMAND, egui::Key::Y)
         {
             if let Some(text_cursor_range) = output.cursor_range {
                 use egui::TextBuffer as _;

@@ -84,6 +84,17 @@ fn with_three_d_context<R>(
         pub static THREE_D: RefCell<Option<three_d::Context>> = RefCell::new(None);
     }
 
+    // If you are using the depth buffer you need to do this:
+    #[allow(unsafe_code)]
+    unsafe {
+        use glow::HasContext as _;
+        gl.enable(glow::DEPTH_TEST);
+        if !cfg!(target_arch = "wasm32") {
+            gl.disable(glow::FRAMEBUFFER_SRGB);
+        }
+        gl.clear(glow::DEPTH_BUFFER_BIT);
+    }
+
     THREE_D.with(|three_d| {
         let mut three_d = three_d.borrow_mut();
         let three_d =
@@ -143,7 +154,10 @@ fn paint_with_three_d(three_d: &three_d::Context, info: &egui::PaintCallbackInfo
         ..Default::default()
     };
 
-    let mut model = Model::new(three_d, &cpu_mesh).unwrap();
+    let mut model = Gm::new(
+        Mesh::new(three_d, &cpu_mesh).unwrap(),
+        ColorMaterial::default(),
+    );
 
     // Set the current transformation of the triangle
     model.set_transformation(Mat4::from_angle_y(radians(angle)));

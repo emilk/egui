@@ -330,6 +330,11 @@ pub struct WebOptions {
     ///
     /// Default: `Theme::Dark`.
     pub default_theme: Theme,
+
+    /// Which version of WebGl context to select
+    ///
+    /// Default: [`WebGlContextOption::BestFirst`].
+    pub webgl_context_option: WebGlContextOption,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -338,6 +343,7 @@ impl Default for WebOptions {
         Self {
             follow_system_theme: true,
             default_theme: Theme::Dark,
+            webgl_context_option: WebGlContextOption::BestFirst,
         }
     }
 }
@@ -364,6 +370,22 @@ impl Theme {
             Self::Light => egui::Visuals::light(),
         }
     }
+}
+
+// ----------------------------------------------------------------------------
+
+/// WebGL Context options
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum WebGlContextOption {
+    /// Force Use WebGL1.
+    WebGl1,
+    /// Force use WebGL2.
+    WebGl2,
+    /// Use WebGl2 first.
+    BestFirst,
+    /// Use WebGl1 first
+    CompatibilityFirst,
 }
 
 // ----------------------------------------------------------------------------
@@ -543,6 +565,11 @@ impl Frame {
         self.output.drag_window = true;
     }
 
+    /// Set the visibility of the window.
+    pub fn set_visible(&mut self, visible: bool) {
+        self.output.visible = Some(visible);
+    }
+
     /// for integrations only: call once per frame
     #[doc(hidden)]
     pub fn take_app_output(&mut self) -> backend::AppOutput {
@@ -718,5 +745,8 @@ pub mod backend {
 
         /// Set to some position to move the outer window (e.g. glium window) to this position
         pub window_pos: Option<egui::Pos2>,
+
+        /// Set to some bool to change window visibility.
+        pub visible: Option<bool>,
     }
 }

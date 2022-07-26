@@ -479,7 +479,6 @@ impl State {
             mutable_text_under_cursor: _, // only used in eframe web
             text_cursor_pos,
         } = platform_output;
-
         self.current_pixels_per_point = egui_ctx.pixels_per_point(); // someone can have changed it to scale the UI
 
         self.set_cursor_icon(window, cursor_icon);
@@ -499,6 +498,7 @@ impl State {
 
     fn set_cursor_icon(&mut self, window: &winit::window::Window, cursor_icon: egui::CursorIcon) {
         // prevent flickering near frame boundary when Windows OS tries to control cursor icon for window resizing
+        #[cfg(windows)]
         if self.current_cursor_icon == cursor_icon {
             return;
         }

@@ -344,21 +344,25 @@ impl super::View for InputTest {
             egui::PointerButton::Extra1,
             egui::PointerButton::Extra2,
         ] {
+            use std::fmt::Write as _;
+
             if response.clicked_by(button) {
-                new_info += &format!("Clicked by {:?} button\n", button);
+                writeln!(new_info, "Clicked by {:?} button", button).ok();
             }
             if response.double_clicked_by(button) {
-                new_info += &format!("Double-clicked by {:?} button\n", button);
+                writeln!(new_info, "Double-clicked by {:?} button", button).ok();
             }
             if response.triple_clicked_by(button) {
-                new_info += &format!("Triple-clicked by {:?} button\n", button);
+                writeln!(new_info, "Triple-clicked by {:?} button", button).ok();
             }
             if response.dragged_by(button) {
-                new_info += &format!(
-                    "Dragged by {:?} button, delta: {:?}\n",
+                writeln!(
+                    new_info,
+                    "Dragged by {:?} button, delta: {:?}",
                     button,
                     response.drag_delta()
-                );
+                )
+                .ok();
             }
         }
         if !new_info.is_empty() {

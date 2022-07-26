@@ -141,7 +141,7 @@ impl PostProcess {
 
         let a_pos_loc = gl
             .get_attrib_location(program, "a_pos")
-            .ok_or_else(|| "failed to get location of a_pos".to_string())?;
+            .ok_or_else(|| "failed to get location of a_pos".to_owned())?;
         let vao = crate::vao::VertexArrayObject::new(
             &gl,
             pos_buffer,

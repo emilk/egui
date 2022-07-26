@@ -148,7 +148,7 @@ impl RenderPass {
             label: Some("egui_shader"),
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("egui.wgsl"))),
         };
-        let module = device.create_shader_module(&shader);
+        let module = device.create_shader_module(shader);
 
         let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("egui_uniform_buffer"),
@@ -258,7 +258,7 @@ impl RenderPass {
             fragment: Some(wgpu::FragmentState {
                 module: &module,
                 entry_point: "fs_main",
-                targets: &[wgpu::ColorTargetState {
+                targets: &[Some(wgpu::ColorTargetState {
                     format: output_format,
                     blend: Some(wgpu::BlendState {
                         color: wgpu::BlendComponent {
@@ -273,7 +273,7 @@ impl RenderPass {
                         },
                     }),
                     write_mask: wgpu::ColorWrites::ALL,
-                }],
+                })],
             }),
             multiview: None,
         });
@@ -307,14 +307,14 @@ impl RenderPass {
         };
 
         let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            color_attachments: &[wgpu::RenderPassColorAttachment {
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: color_attachment,
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: load_operation,
                     store: true,
                 },
-            }],
+            })],
             depth_stencil_attachment: None,
             label: Some("egui main render pass"),
         });

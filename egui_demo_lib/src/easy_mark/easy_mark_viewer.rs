@@ -12,9 +12,7 @@ pub fn easy_mark_it<'em>(ui: &mut Ui, items: impl Iterator<Item = easy_mark::Ite
         ui.spacing().interact_size.y, // Assume there will be
     );
 
-    let layout = Layout::left_to_right()
-        .with_main_wrap(true)
-        .with_cross_align(Align::BOTTOM);
+    let layout = Layout::left_to_right(Align::BOTTOM).with_main_wrap(true);
 
     ui.allocate_ui_with_layout(initial_size, layout, |ui| {
         ui.spacing_mut().item_spacing.x = 0.0;

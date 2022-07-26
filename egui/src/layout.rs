@@ -108,7 +108,7 @@ impl Direction {
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
-/// ui.with_layout(egui::Layout::right_to_left(), |ui| {
+/// ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
 ///     ui.label("world!");
 ///     ui.label("Hello");
 /// });
@@ -151,56 +151,68 @@ impl Default for Layout {
 
 /// ## Constructors
 impl Layout {
+    /// Place elements horizontally, left to right.
+    ///
+    /// The `valign` parameter controls how to align elements vertically.
     #[inline(always)]
-    pub fn left_to_right() -> Self {
+    pub fn left_to_right(valing: Align) -> Self {
         Self {
             main_dir: Direction::LeftToRight,
             main_wrap: false,
             main_align: Align::Center, // looks best to e.g. center text within a button
             main_justify: false,
-            cross_align: Align::Center,
+            cross_align: valing,
             cross_justify: false,
         }
     }
 
+    /// Place elements horizontally, right to left.
+    ///
+    /// The `valign` parameter controls how to align elements vertically.
     #[inline(always)]
-    pub fn right_to_left() -> Self {
+    pub fn right_to_left(valing: Align) -> Self {
         Self {
             main_dir: Direction::RightToLeft,
             main_wrap: false,
             main_align: Align::Center, // looks best to e.g. center text within a button
             main_justify: false,
-            cross_align: Align::Center,
+            cross_align: valing,
             cross_justify: false,
         }
     }
 
+    /// Place elements vertically, top to bottom.
+    ///
+    /// Use the provided horizontal alignmen.
     #[inline(always)]
-    pub fn top_down(cross_align: Align) -> Self {
+    pub fn top_down(halign: Align) -> Self {
         Self {
             main_dir: Direction::TopDown,
             main_wrap: false,
             main_align: Align::Center, // looks best to e.g. center text within a button
             main_justify: false,
-            cross_align,
+            cross_align: halign,
             cross_justify: false,
         }
     }
 
     /// Top-down layout justifed so that buttons etc fill the full available width.
     #[inline(always)]
-    pub fn top_down_justified(cross_align: Align) -> Self {
-        Self::top_down(cross_align).with_cross_justify(true)
+    pub fn top_down_justified(halign: Align) -> Self {
+        Self::top_down(halign).with_cross_justify(true)
     }
 
+    /// Place elements vertically, bottom up.
+    ///
+    /// Use the provided horizontal alignmen.
     #[inline(always)]
-    pub fn bottom_up(cross_align: Align) -> Self {
+    pub fn bottom_up(halign: Align) -> Self {
         Self {
             main_dir: Direction::BottomUp,
             main_wrap: false,
             main_align: Align::Center, // looks best to e.g. center text within a button
             main_justify: false,
-            cross_align,
+            cross_align: halign,
             cross_justify: false,
         }
     }
@@ -217,6 +229,8 @@ impl Layout {
         }
     }
 
+    /// For when you want to add a single widget to a layout, and that widget
+    /// should use up all available space.
     #[inline(always)]
     pub fn centered_and_justified(main_dir: Direction) -> Self {
         Self {
@@ -229,11 +243,19 @@ impl Layout {
         }
     }
 
+    /// Wrap widgets when we overflow the main axis?
+    ///
+    /// For instance, for left-to-right layouts, setting this to `true` will
+    /// put widgets on a new row if we would overflow the right side of [`crate::Ui::max_rect`].
     #[inline(always)]
     pub fn with_main_wrap(self, main_wrap: bool) -> Self {
         Self { main_wrap, ..self }
     }
 
+    /// The aligmnet to use on the cross axis.
+    ///
+    /// The "cross" axis is the one orthogonal to the main axis.
+    /// For instance: in left-to-right layout, the main axis is horizontal and the cross axis is vertical.
     #[inline(always)]
     pub fn with_cross_align(self, cross_align: Align) -> Self {
         Self {
@@ -242,6 +264,9 @@ impl Layout {
         }
     }
 
+    /// Justify widgets on the main axis?
+    ///
+    /// Justify here means "take up all available space".
     #[inline(always)]
     pub fn with_main_justify(self, main_justify: bool) -> Self {
         Self {
@@ -250,6 +275,12 @@ impl Layout {
         }
     }
 
+    /// Justify widgets along the cross axis?
+    ///
+    /// Justify here means "take up all available space".
+    ///
+    /// The "cross" axis is the one orthogonal to the main axis.
+    /// For instance: in left-to-right layout, the main axis is horizontal and the cross axis is vertical.
     #[inline(always)]
     pub fn with_cross_justify(self, cross_justify: bool) -> Self {
         Self {

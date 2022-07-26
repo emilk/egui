@@ -37,6 +37,8 @@ skip = [
 skip-tree = [
     { name = "criterion" }, # dev-dependnecy
     { name = "glium" },     # legacy crate, lots of old dependencies
+    { name = "rfd" },       # example dependency
+    { name = "three-d" },   # example dependency
 ]
 
 

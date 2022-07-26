@@ -42,7 +42,8 @@ impl eframe::App for FractalClockApp {
         egui::CentralPanel::default()
             .frame(egui::Frame::dark_canvas(&ctx.style()))
             .show(ctx, |ui| {
-                self.fractal_clock.ui(ui, crate::seconds_since_midnight());
+                self.fractal_clock
+                    .ui(ui, Some(crate::seconds_since_midnight()));
             });
     }
 }
@@ -284,15 +285,13 @@ impl WrapApp {
         }
         self.state.selected_anchor = selected_anchor;
 
-        ui.with_layout(egui::Layout::right_to_left(), |ui| {
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if false {
                 // TODO(emilk): fix the overlap on small screens
-                if let Some(seconds_since_midnight) = crate::seconds_since_midnight() {
-                    if clock_button(ui, seconds_since_midnight).clicked() {
-                        self.state.selected_anchor = "clock".to_owned();
-                        if frame.is_web() {
-                            ui.output().open_url("#clock");
-                        }
+                if clock_button(ui, crate::seconds_since_midnight()).clicked() {
+                    self.state.selected_anchor = "clock".to_owned();
+                    if frame.is_web() {
+                        ui.output().open_url("#clock");
                     }
                 }
             }
@@ -303,15 +302,16 @@ impl WrapApp {
 
     fn ui_file_drag_and_drop(&mut self, ctx: &egui::Context) {
         use egui::*;
+        use std::fmt::Write as _;
 
         // Preview hovering files:
         if !ctx.input().raw.hovered_files.is_empty() {
             let mut text = "Dropping files:\n".to_owned();
             for file in &ctx.input().raw.hovered_files {
                 if let Some(path) = &file.path {
-                    text += &format!("\n{}", path.display());
+                    write!(text, "\n{}", path.display()).ok();
                 } else if !file.mime.is_empty() {
-                    text += &format!("\n{}", file.mime);
+                    write!(text, "\n{}", file.mime).ok();
                 } else {
                     text += "\n???";
                 }
@@ -351,7 +351,7 @@ impl WrapApp {
                             "???".to_owned()
                         };
                         if let Some(bytes) = &file.bytes {
-                            info += &format!(" ({} bytes)", bytes.len());
+                            write!(info, " ({} bytes)", bytes.len()).ok();
                         }
                         ui.label(info);
                     }

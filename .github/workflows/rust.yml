@@ -142,8 +142,8 @@ jobs:
           command: fmt
           args: --all -- --check
 
-  clippy:
-    name: cargo clippy
+  cranky:
+    name: cargo cranky
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -152,14 +152,14 @@ jobs:
           profile: minimal
           toolchain: 1.60.0
           override: true
-      - run: rustup component add clippy
+      - run: cargo install cargo-cranky
       - name: Install packages (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install libspeechd-dev libgtk-3-dev # libgtk-3-dev is used by rfd
       - uses: actions-rs/cargo@v1
         with:
-          command: clippy
-          args: --workspace --all-targets --all-features --  -D warnings -W clippy::all
+          command: cranky
+          args: --workspace --all-targets --all-features --  -D warnings
 
   doc:
     name: cargo doc
@@ -193,5 +193,5 @@ jobs:
           toolchain: 1.60.0
           override: true
       - run: rustup target add wasm32-unknown-unknown
-      - run: cargo install wasm-bindgen-cli
+      - run: ./sh/setup_web.sh
       - run: ./sh/wasm_bindgen_check.sh

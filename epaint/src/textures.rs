@@ -39,7 +39,7 @@ impl TextureManager {
             filter,
         });
 
-        self.delta.set.insert(id, ImageDelta::full(image, filter));
+        self.delta.set.push((id, ImageDelta::full(image, filter)));
         id
     }
 
@@ -57,9 +57,10 @@ impl TextureManager {
                 // whole update
                 meta.size = delta.image.size();
                 meta.bytes_per_pixel = delta.image.bytes_per_pixel();
+                // since we update the whole image, we can discard all old enqueued deltas
+                self.delta.set.retain(|(x, _)| x != &id);
             }
-
-            self.delta.set.insert(id, delta);
+            self.delta.set.push((id, delta));
         } else {
             crate::epaint_assert!(false, "Tried setting texture {id:?} which is not allocated");
         }
@@ -175,7 +176,7 @@ impl TextureMeta {
 #[must_use = "The painter must take care of this"]
 pub struct TexturesDelta {
     /// New or changed textures. Apply before painting.
-    pub set: AHashMap<TextureId, ImageDelta>,
+    pub set: Vec<(TextureId, ImageDelta)>,
 
     /// Textures to free after painting.
     pub free: Vec<TextureId>,
@@ -199,22 +200,26 @@ impl TexturesDelta {
 
 impl std::fmt::Debug for TexturesDelta {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use std::fmt::Write as _;
+
         let mut debug_struct = f.debug_struct("TexturesDelta");
         if !self.set.is_empty() {
             let mut string = String::new();
             for (tex_id, delta) in &self.set {
                 let size = delta.image.size();
                 if let Some(pos) = delta.pos {
-                    string += &format!(
+                    write!(
+                        string,
                         "{:?} partial ([{} {}] - [{} {}]), ",
                         tex_id,
                         pos[0],
                         pos[1],
                         pos[0] + size[0],
                         pos[1] + size[1]
-                    );
+                    )
+                    .ok();
                 } else {
-                    string += &format!("{:?} full {}x{}, ", tex_id, size[0], size[1]);
+                    write!(string, "{:?} full {}x{}, ", tex_id, size[0], size[1]).ok();
                 }
             }
             debug_struct.field("set", &string);

@@ -178,7 +178,7 @@ impl LegendWidget {
             .filter(|item| !item.name().is_empty())
             .for_each(|item| {
                 entries
-                    .entry(item.name().to_string())
+                    .entry(item.name().to_owned())
                     .and_modify(|entry| {
                         if entry.color != item.color() {
                             // Multiple items with different colors

@@ -136,6 +136,26 @@ impl<'t> TextEdit<'t> {
     }
 
     /// Show a faint hint text when the text field is empty.
+    ///
+    /// If the hint text needs to be persisted even when the text field has input,
+    /// the following workaround can be used:
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut my_string = String::new();
+    /// # use egui::{ Color32, FontId };
+    /// let text_edit = egui::TextEdit::multiline(&mut my_string)
+    ///     .desired_width(f32::INFINITY);
+    /// let output = text_edit.show(ui);
+    /// let painter = ui.painter_at(output.response.rect);
+    /// let galley = painter.layout(
+    ///     String::from("Enter text"),
+    ///     FontId::default(),
+    ///     Color32::from_rgba_premultiplied(100, 100, 100, 100),
+    ///     f32::INFINITY
+    /// );
+    /// painter.galley(output.text_draw_pos, galley);
+    /// # });
+    /// ```
     pub fn hint_text(mut self, hint_text: impl Into<WidgetText>) -> Self {
         self.hint_text = hint_text.into();
         self
@@ -590,7 +610,8 @@ impl<'t> TextEdit<'t> {
                             &cursor_range.primary,
                         );
 
-                        if response.changed || selection_changed {
+                        let is_fully_visible = ui.clip_rect().contains_rect(rect); // TODO: remove this HACK workaround for https://github.com/emilk/egui/issues/1531
+                        if (response.changed || selection_changed) && !is_fully_visible {
                             ui.scroll_to_rect(cursor_pos, None); // keep cursor in view
                         }
 
@@ -1067,6 +1088,11 @@ fn on_key_press(
             // select all
             *cursor_range = CursorRange::two(Cursor::default(), galley.end());
             None
+        }
+
+        Key::H if modifiers.ctrl => {
+            let ccursor = delete_previous_char(text, cursor_range.primary.ccursor);
+            Some(CCursorRange::one(ccursor))
         }
 
         Key::K if modifiers.ctrl => {

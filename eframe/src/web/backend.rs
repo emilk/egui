@@ -2,7 +2,9 @@ use super::{glow_wrapping::WrappedGlowPainter, *};
 
 use crate::epi;
 
+use egui::mutex::{Mutex, MutexGuard};
 use egui::TexturesDelta;
+
 pub use egui::{pos2, Color32};
 
 // ----------------------------------------------------------------------------
@@ -34,21 +36,34 @@ impl WebInput {
 
 use std::sync::atomic::Ordering::SeqCst;
 
-pub struct NeedRepaint(std::sync::atomic::AtomicBool);
+/// Stores when to do the next repaint.
+pub struct NeedRepaint(Mutex<f64>);
 
 impl Default for NeedRepaint {
     fn default() -> Self {
-        Self(true.into())
+        Self(Mutex::new(f64::NEG_INFINITY)) // start with a repaint
     }
 }
 
 impl NeedRepaint {
-    pub fn fetch_and_clear(&self) -> bool {
-        self.0.swap(false, SeqCst)
+    /// Returns the time (in [`now_sec`] scale) when
+    /// we should next repaint.
+    pub fn when_to_repaint(&self) -> f64 {
+        *self.0.lock()
     }
 
-    pub fn set_true(&self) {
-        self.0.store(true, SeqCst);
+    /// Unschedule repainting.
+    pub fn clear(&self) {
+        *self.0.lock() = f64::INFINITY;
+    }
+
+    pub fn repaint_after(&self, num_seconds: f64) {
+        let mut repaint_time = self.0.lock();
+        *repaint_time = repaint_time.min(now_sec() + num_seconds);
+    }
+
+    pub fn repaint_asap(&self) {
+        *self.0.lock() = f64::NEG_INFINITY;
     }
 }
 
@@ -145,7 +160,8 @@ impl AppRunner {
         web_options: crate::WebOptions,
         app_creator: epi::AppCreator,
     ) -> Result<Self, JsValue> {
-        let painter = WrappedGlowPainter::new(canvas_id).map_err(JsValue::from)?; // fail early
+        let painter = WrappedGlowPainter::new(canvas_id, web_options.webgl_context_option)
+            .map_err(JsValue::from)?; // fail early
 
         let system_theme = if web_options.follow_system_theme {
             super::system_theme()
@@ -194,7 +210,7 @@ impl AppRunner {
         {
             let needs_repaint = needs_repaint.clone();
             egui_ctx.set_request_repaint_callback(move || {
-                needs_repaint.0.store(true, SeqCst);
+                needs_repaint.repaint_asap();
             });
         }
 
@@ -251,10 +267,10 @@ impl AppRunner {
         Ok(())
     }
 
-    /// Returns `true` if egui requests a repaint.
+    /// Returns how long to wait until the next repaint.
     ///
     /// Call [`Self::paint`] later to paint
-    pub fn logic(&mut self) -> Result<(bool, Vec<egui::ClippedPrimitive>), JsValue> {
+    pub fn logic(&mut self) -> Result<(std::time::Duration, Vec<egui::ClippedPrimitive>), JsValue> {
         let frame_start = now_sec();
 
         resize_canvas_to_screen_size(self.canvas_id(), self.app.max_size_points());
@@ -266,7 +282,7 @@ impl AppRunner {
         });
         let egui::FullOutput {
             platform_output,
-            needs_repaint,
+            repaint_after,
             textures_delta,
             shapes,
         } = full_output;
@@ -284,11 +300,12 @@ impl AppRunner {
                 decorated: _,    // Can't toggle decorations
                 drag_window: _,  // Can't be dragged
                 window_pos: _,   // Can't set position of a web page
+                visible: _,      // Can't hide a web page
             } = app_output;
         }
 
         self.frame.info.cpu_usage = Some((now_sec() - frame_start) as f32);
-        Ok((needs_repaint, clipped_primitives))
+        Ok((repaint_after, clipped_primitives))
     }
 
     pub fn clear_color_buffer(&self) {
@@ -420,7 +437,6 @@ fn start_runner(app_runner: AppRunner) -> Result<AppRunnerRef, JsValue> {
     super::events::install_canvas_events(&runner_container)?;
     super::events::install_document_events(&runner_container)?;
     text_agent::install_text_agent(&runner_container)?;
-    super::events::repaint_every_ms(&runner_container, 1000)?; // just in case. TODO(emilk): make it a parameter
 
     super::events::paint_and_schedule(&runner_container.runner, runner_container.panicked.clone())?;
 

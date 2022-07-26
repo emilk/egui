@@ -194,7 +194,7 @@ pub fn load_svg_bytes(svg_bytes: &[u8]) -> Result<egui::ColorImage, String> {
     resvg::render(
         &rtree,
         usvg::FitTo::Original,
-        tiny_skia::Transform::default(),
+        Default::default(),
         pixmap.as_mut(),
     )
     .ok_or_else(|| "Failed to render SVG".to_owned())?;

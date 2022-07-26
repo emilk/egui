@@ -54,7 +54,7 @@ egui = { version = "0.18.0", path = "../egui", default-features = false, feature
 bytemuck = "1.7"
 glow = "0.11"
 memoffset = "0.6"
-tracing = "0.1"
+tracing = { version = "0.1", default-features = false, features = ["std"] }
 
 #! ### Optional dependencies
 ## Enable this when generating docs.
