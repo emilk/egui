@@ -90,15 +90,13 @@ impl LineDemo {
                 ComboBox::from_label("Line style")
                     .selected_text(line_style.to_string())
                     .show_ui(ui, |ui| {
-                        for style in [
+                        for style in &[
                             LineStyle::Solid,
                             LineStyle::dashed_dense(),
                             LineStyle::dashed_loose(),
                             LineStyle::dotted_dense(),
                             LineStyle::dotted_loose(),
-                        ]
-                        .iter()
-                        {
+                        ] {
                             ui.selectable_value(line_style, *style, style.to_string());
                         }
                     });

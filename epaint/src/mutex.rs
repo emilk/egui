@@ -170,25 +170,25 @@ mod rw_lock_impl {
         }
 
         pub fn read(&self) -> RwLockReadGuard<'_, T> {
-            if self.lock.is_locked_exclusive() {
-                panic!(
-                    "{} DEAD-LOCK DETECTED! Previous lock held at:\n{}\n\n",
-                    std::any::type_name::<Self>(),
-                    format_backtrace(&mut self.last_lock.lock())
-                );
-            }
+            assert!(
+                !self.lock.is_locked_exclusive(),
+                "{} DEAD-LOCK DETECTED! Previous lock held at:\n{}\n\n",
+                std::any::type_name::<Self>(),
+                format_backtrace(&mut self.last_lock.lock())
+            );
+
             *self.last_lock.lock() = make_backtrace();
             parking_lot::RwLockReadGuard::map(self.lock.read(), |v| v)
         }
 
         pub fn write(&self) -> RwLockWriteGuard<'_, T> {
-            if self.lock.is_locked() {
-                panic!(
-                    "{} DEAD-LOCK DETECTED! Previous lock held at:\n{}\n\n",
-                    std::any::type_name::<Self>(),
-                    format_backtrace(&mut self.last_lock.lock())
-                );
-            }
+            assert!(
+                !self.lock.is_locked(),
+                "{} DEAD-LOCK DETECTED! Previous lock held at:\n{}\n\n",
+                std::any::type_name::<Self>(),
+                format_backtrace(&mut self.last_lock.lock())
+            );
+
             *self.last_lock.lock() = make_backtrace();
             parking_lot::RwLockWriteGuard::map(self.lock.write(), |v| v)
         }
