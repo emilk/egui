@@ -172,6 +172,7 @@ pub(crate) struct Prepared {
     pub(crate) movable: bool,
     enabled: bool,
     drag_bounds: Option<Rect>,
+    dry_run: bool,
 }
 
 impl Area {
@@ -214,11 +215,11 @@ impl Area {
         });
         state.pos = new_pos.unwrap_or(state.pos);
         state.interactable = interactable;
+        let mut dry_run = false;
 
         if let Some((anchor, offset)) = anchor {
             if is_new {
-                // unknown size
-                ctx.request_repaint();
+                dry_run = true;
             } else {
                 let screen = ctx.available_rect();
                 state.pos = anchor.align_size_within_rect(state.size, screen).min + offset;
@@ -233,6 +234,7 @@ impl Area {
             movable,
             enabled,
             drag_bounds,
+            dry_run,
         }
     }
 
@@ -314,7 +316,7 @@ impl Prepared {
             clip_rect,
         );
         ui.set_enabled(self.enabled);
-
+        ui.set_visible(!self.dry_run);
         ui
     }
 
@@ -326,6 +328,7 @@ impl Prepared {
             movable,
             enabled,
             drag_bounds,
+            dry_run: _,
         } = self;
 
         state.size = content_ui.min_rect().size();
