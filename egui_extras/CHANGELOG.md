@@ -3,8 +3,9 @@ All notable changes to the `egui_extras` integration will be noted in this file.
 
 
 ## Unreleased
-* You can now specify a texture filter for `RetainedImage` ([#1636](https://github.com/emilk/egui/pull/1636)).
 * MSRV (Minimum Supported Rust Version) is now `1.61.0` ([#1846](https://github.com/emilk/egui/pull/1846)).
+* You can now specify a texture filter for `RetainedImage` ([#1636](https://github.com/emilk/egui/pull/1636)).
+* Fixed uneven `Table` striping ([#1680](https://github.com/emilk/egui/pull/1680)).
 
 
 ## 0.18.0 - 2022-04-30

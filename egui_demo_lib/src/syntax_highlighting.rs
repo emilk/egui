@@ -29,10 +29,10 @@ pub fn highlight(ctx: &egui::Context, theme: &CodeTheme, code: &str, language: &
         }
     }
 
-    type HighlightCache<'a> = egui::util::cache::FrameCache<LayoutJob, Highlighter>;
+    type HighlightCache = egui::util::cache::FrameCache<LayoutJob, Highlighter>;
 
     let mut memory = ctx.memory();
-    let highlight_cache = memory.caches.cache::<HighlightCache<'_>>();
+    let highlight_cache = memory.caches.cache::<HighlightCache>();
     highlight_cache.get((theme, code, language))
 }
 

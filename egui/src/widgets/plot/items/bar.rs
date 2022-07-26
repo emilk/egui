@@ -2,7 +2,7 @@ use crate::emath::NumExt;
 use crate::epaint::{Color32, RectShape, Rounding, Shape, Stroke};
 
 use super::{add_rulers_and_text, highlighted_color, Orientation, PlotConfig, RectElement};
-use crate::plot::{BarChart, ScreenTransform, Value};
+use crate::plot::{BarChart, PlotPoint, ScreenTransform};
 
 /// One bar in a [`BarChart`]. Potentially floating, allowing stacked bar charts.
 /// Width can be changed to allow variable-width histograms.
@@ -157,15 +157,15 @@ impl RectElement for Bar {
         self.name.as_str()
     }
 
-    fn bounds_min(&self) -> Value {
+    fn bounds_min(&self) -> PlotPoint {
         self.point_at(self.argument - self.bar_width / 2.0, self.lower())
     }
 
-    fn bounds_max(&self) -> Value {
+    fn bounds_max(&self) -> PlotPoint {
         self.point_at(self.argument + self.bar_width / 2.0, self.upper())
     }
 
-    fn values_with_ruler(&self) -> Vec<Value> {
+    fn values_with_ruler(&self) -> Vec<PlotPoint> {
         let base = self.base_offset.unwrap_or(0.0);
         let value_center = self.point_at(self.argument, base + self.value);
 

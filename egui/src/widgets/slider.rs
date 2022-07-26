@@ -6,6 +6,10 @@ use crate::*;
 
 // ----------------------------------------------------------------------------
 
+type NumFormatter<'a> = Box<dyn 'a + Fn(f64, RangeInclusive<usize>) -> String>;
+
+// ----------------------------------------------------------------------------
+
 /// Combined into one function (rather than two) to make it easier
 /// for the borrow checker.
 type GetSetValue<'a> = Box<dyn 'a + FnMut(Option<f64>) -> f64>;
@@ -75,6 +79,7 @@ pub struct Slider<'a> {
     step: Option<f64>,
     min_decimals: usize,
     max_decimals: Option<usize>,
+    custom_formatter: Option<NumFormatter<'a>>,
 }
 
 impl<'a> Slider<'a> {
@@ -118,6 +123,7 @@ impl<'a> Slider<'a> {
             step: None,
             min_decimals: 0,
             max_decimals: None,
+            custom_formatter: None,
         }
     }
 
@@ -241,6 +247,25 @@ impl<'a> Slider<'a> {
         self
     }
 
+    /// Set custom formatter defining how numbers are converted into text.
+    ///
+    /// A custom formatter takes a `f64` for the numeric value and a `RangeInclusive<usize>` representing
+    /// the decimal range i.e. minimum and maximum number of decimal places shown.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut my_i64: i64 = 0;
+    /// ui.add(egui::Slider::new(&mut my_i64, 0..=100).custom_formatter(|n, _| format!("{:X}", n as i64)));
+    /// # });
+    /// ```
+    pub fn custom_formatter(
+        mut self,
+        formatter: impl 'a + Fn(f64, RangeInclusive<usize>) -> String,
+    ) -> Self {
+        self.custom_formatter = Some(Box::new(formatter));
+        self
+    }
+
     /// Helper: equivalent to `self.precision(0).smallest_positive(1.0)`.
     /// If you use one of the integer constructors (e.g. `Slider::i32`) this is called for you,
     /// but if you want to have a slider for picking integer values in an `Slider::f64`, use this.
@@ -326,9 +351,6 @@ impl<'a> Slider<'a> {
             };
             self.set_value(new_value);
         }
-
-        let value = self.get_value();
-        response.widget_info(|| WidgetInfo::slider(value, &self.text));
 
         if response.has_focus() {
             let (dec_key, inc_key) = match self.orientation {
@@ -468,15 +490,19 @@ impl<'a> Slider<'a> {
             _ => self.current_gradient(&position_range),
         };
         let mut value = self.get_value();
-        let response = ui.add(
-            DragValue::new(&mut value)
+        let response = ui.add({
+            let dv = DragValue::new(&mut value)
                 .speed(speed)
                 .clamp_range(self.clamp_range())
                 .min_decimals(self.min_decimals)
                 .max_decimals_opt(self.max_decimals)
                 .suffix(self.suffix.clone())
-                .prefix(self.prefix.clone()),
-        );
+                .prefix(self.prefix.clone());
+            match &self.custom_formatter {
+                Some(fmt) => dv.custom_formatter(fmt),
+                None => dv,
+            }
+        });
         if value != self.get_value() {
             self.set_value(value);
         }
@@ -538,7 +564,9 @@ impl<'a> Widget for Slider<'a> {
         };
 
         let mut response = inner_response.inner | inner_response.response;
-        response.changed = self.get_value() != old_value;
+        let value = self.get_value();
+        response.changed = value != old_value;
+        response.widget_info(|| WidgetInfo::slider(value, &self.text));
         response
     }
 }

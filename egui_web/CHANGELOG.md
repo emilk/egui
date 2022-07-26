@@ -24,15 +24,15 @@ Between versions 0.17 and 0.18, `egui_web` was absorbed into `eframe`. Most of t
 * Deprecate `Painter::register_webgl_texture.
 
 ### Fixed 🐛
-* Fix multiline paste.
-* Fix painting with non-opaque backgrounds.
+* Fixed multiline paste.
+* Fixed painting with non-opaque backgrounds.
 * Improve text input on mobile and for IME.
 
 
 ## 0.14.1 - 2021-08-28
 ### Fixed 🐛
-* Fix alpha blending for WebGL2 and WebGL1 with sRGB support backends, now having identical results as egui_glium.
-* Fix use of egui on devices with both touch and mouse.
+* Fixed alpha blending for WebGL2 and WebGL1 with sRGB support backends, now having identical results as egui_glium.
+* Fixed use of egui on devices with both touch and mouse.
 
 
 ## 0.14.0 - 2021-08-24
@@ -49,7 +49,7 @@ Between versions 0.17 and 0.18, `egui_web` was absorbed into `eframe`. Most of t
 
 ### Fixed 🐛
 * Improve alpha blending, making fonts look much better (especially in light mode)
-* Fix double-paste bug
+* Fixed double-paste bug
 
 
 ## 0.12.0 - 2021-05-10
@@ -75,7 +75,7 @@ Contributors: [n2](https://github.com/n2)
 * Right-clicks will no longer open browser context menu.
 
 ### Fixed 🐛
-* Fix a bug where one couldn't select items in a combo box on a touch screen.
+* Fixed a bug where one couldn't select items in a combo box on a touch screen.
 
 
 ## 0.8.0 - 2021-01-17
@@ -109,7 +109,7 @@ Contributors: [n2](https://github.com/n2)
 ## 0.4.0 - 2020-11-28
 ### Added ⭐
 * A simple HTTP fetch API (wraps `web_sys`).
-* Add ability to request a repaint
+* Added ability to request a repaint
 * Copy/cut/paste suppoert
 
 ### Changed 🔧

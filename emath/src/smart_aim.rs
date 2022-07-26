@@ -85,7 +85,7 @@ fn to_decimal_string(v: f64) -> [i32; NUM_DECIMALS] {
     crate::emath_assert!(v < 10.0, "{:?}", v);
     let mut digits = [0; NUM_DECIMALS];
     let mut v = v.abs();
-    for r in digits.iter_mut() {
+    for r in &mut digits {
         let digit = v.floor();
         *r = digit as i32;
         v -= digit;

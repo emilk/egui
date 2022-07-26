@@ -5,15 +5,27 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 
 
 ## Unreleased
-* `egui_glow`: remove calls to `gl.get_error` in release builds to speed up rendering ([#1583](https://github.com/emilk/egui/pull/1583)).
-* Add `wgpu` rendering backed ([#1564](https://github.com/emilk/egui/pull/1564)):
-  * Add features "wgpu" and "glow"
-  * Add `NativeOptions::renderer` to switch between the rendering backends
-* Fix clipboard on Wayland ([#1613](https://github.com/emilk/egui/pull/1613)).
-* Allow running on native without hardware accelerated rendering. Change with `NativeOptions::hardware_acceleration` ([#1681]([#1693](https://github.com/emilk/egui/pull/1693)).
-* `dark-light` (dark mode detection) is now enabled by default on Mac and Windows ([#1726](https://github.com/emilk/egui/pull/1726)).
-* Add `NativeOptions::follow_system_theme` and `NativeOptions::default_theme` ([#1726](https://github.com/emilk/egui/pull/1726)).
 * MSRV (Minimum Supported Rust Version) is now `1.61.0` ([#1846](https://github.com/emilk/egui/pull/1846)).
+* Added `wgpu` rendering backed ([#1564](https://github.com/emilk/egui/pull/1564)):
+  * Added features "wgpu" and "glow"
+  * Added `NativeOptions::renderer` to switch between the rendering backends
+* `egui_glow`: remove calls to `gl.get_error` in release builds to speed up rendering ([#1583](https://github.com/emilk/egui/pull/1583)).
+* Added `App::post_rendering` for e.g. reading the framebuffer ([#1591](https://github.com/emilk/egui/pull/1591)).
+* Use `Arc` for `glow::Context` instead of `Rc` ([#1640](https://github.com/emilk/egui/pull/1640)).
+* Fixed bug where the result returned from `App::on_exit_event` would sometimes be ignored ([#1696](https://github.com/emilk/egui/pull/1696)).
+* Added `NativeOptions::follow_system_theme` and `NativeOptions::default_theme` ([#1726](https://github.com/emilk/egui/pull/1726)).
+
+#### Desktop/Native:
+* Fixed clipboard on Wayland ([#1613](https://github.com/emilk/egui/pull/1613)).
+* Added ability to read window position and size with `frame.info().window_info` ([#1617](https://github.com/emilk/egui/pull/1617)).
+* Allow running on native without hardware accelerated rendering. Change with `NativeOptions::hardware_acceleration` ([#1681](https://github.com/emilk/egui/pull/1681), [#1693](https://github.com/emilk/egui/pull/1693)).
+* Fixed window position persistence ([#1745](https://github.com/emilk/egui/pull/1745)).
+* `dark-light` (dark mode detection) is now enabled by default on Mac and Windows ([#1726](https://github.com/emilk/egui/pull/1726)).
+* Fixed mouse cursor change on Linux ([#1747](https://github.com/emilk/egui/pull/1747)).
+* Added `Frame::set_visible` ([#1808](https://github.com/emilk/egui/pull/1808)).
+
+#### Web:
+* Added option to select WebGL version ([#1803](https://github.com/emilk/egui/pull/1803)).
 
 
 ## 0.18.0 - 2022-04-30
@@ -28,7 +40,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
   * You can now load/save state in `App::update`
   * Changed `App::update` to take `&mut Frame` instead of `&Frame`.
   * `Frame` is no longer `Clone` or `Sync`.
-* Add `glow` (OpenGL) context to `Frame` ([#1425](https://github.com/emilk/egui/pull/1425)).
+* Added `glow` (OpenGL) context to `Frame` ([#1425](https://github.com/emilk/egui/pull/1425)).
 
 #### Desktop/Native:
 * Remove the `egui_glium` feature. `eframe` will now always use `egui_glow` as the native backend ([#1357](https://github.com/emilk/egui/pull/1357)).
@@ -53,7 +65,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 #### Desktop/Native:
 * The default native backend is now `egui_glow` (instead of `egui_glium`) ([#1020](https://github.com/emilk/egui/pull/1020)).
 * Automatically detect and apply dark or light mode from system ([#1045](https://github.com/emilk/egui/pull/1045)).
-* Fix horizontal scrolling direction on Linux.
+* Fixed horizontal scrolling direction on Linux.
 * Added `App::on_exit_event` ([#1038](https://github.com/emilk/egui/pull/1038))
 * Added `NativeOptions::initial_window_pos`.
 * Fixed `enable_drag` for Windows OS ([#1108](https://github.com/emilk/egui/pull/1108)).
@@ -79,29 +91,29 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 * `Frame` now provides `set_window_title` to set window title dynamically
 * `Frame` now provides `set_decorations` to set whether to show window decorations.
 * Remove "http" feature (use https://github.com/emilk/ehttp instead!).
-* Add `App::persist_native_window` and `App::persist_egui_memory` to control what gets persisted.
+* Added `App::persist_native_window` and `App::persist_egui_memory` to control what gets persisted.
 
 #### Desktop/Native:
 * Increase native scroll speed.
-* Add new backend `egui_glow` as an alternative to `egui_glium`. Enable with `default-features = false, features = ["default_fonts", "egui_glow"]`.
+* Added new backend `egui_glow` as an alternative to `egui_glium`. Enable with `default-features = false, features = ["default_fonts", "egui_glow"]`.
 
 #### Web:
 * Implement `eframe::NativeTexture` trait for the WebGL painter.
 * Deprecate `Painter::register_webgl_texture.
-* Fix multiline paste.
-* Fix painting with non-opaque backgrounds.
+* Fixed multiline paste.
+* Fixed painting with non-opaque backgrounds.
 * Improve text input on mobile and for IME.
 
 
 ## 0.14.0 - 2021-08-24
-* Add dragging and dropping files into egui.
+* Added dragging and dropping files into egui.
 * Improve http fetch API.
 * `run_native` now returns when the app is closed.
 * Web: Made text thicker and less pixelated.
 
 
 ## 0.13.1 - 2021-06-24
-* Fix `http` feature flag and docs
+* Fixed `http` feature flag and docs
 
 
 ## 0.13.0 - 2021-06-24
@@ -114,7 +126,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 
 ## 0.12.0 - 2021-05-10
 * Moved options out of `trait App` into new `NativeOptions`.
-* Add option for `always_on_top`.
+* Added option for `always_on_top`.
 * Web: Scroll faster when scrolling with mouse wheel.
 
 
@@ -135,7 +147,7 @@ Contributors: [n2](https://github.com/n2)
 
 
 ## 0.9.0 - 2021-02-07
-* [Add support for HTTP body](https://github.com/emilk/egui/pull/139).
+* [Added support for HTTP body](https://github.com/emilk/egui/pull/139).
 * Web: Right-clicks will no longer open browser context menu.
 * Web: Fix a bug where one couldn't select items in a combo box on a touch screen.
 

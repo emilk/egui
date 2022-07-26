@@ -3,12 +3,12 @@ use std::ops::{Bound, RangeBounds, RangeInclusive};
 
 use crate::plot::transform::PlotBounds;
 
-/// A value in the value-space of the plot.
+/// A point coordinate in the plot.
 ///
 /// Uses f64 for improved accuracy to enable plotting
 /// large values (e.g. unix time on x axis).
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Value {
+pub struct PlotPoint {
     /// This is often something monotonically increasing, such as time, but doesn't have to be.
     /// Goes from left to right.
     pub x: f64,
@@ -16,7 +16,14 @@ pub struct Value {
     pub y: f64,
 }
 
-impl Value {
+impl From<[f64; 2]> for PlotPoint {
+    #[inline]
+    fn from([x, y]: [f64; 2]) -> Self {
+        Self { x, y }
+    }
+}
+
+impl PlotPoint {
     #[inline(always)]
     pub fn new(x: impl Into<f64>, y: impl Into<f64>) -> Self {
         Self {
@@ -140,22 +147,49 @@ impl Default for Orientation {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Default)]
-pub struct Values {
-    pub(super) values: Vec<Value>,
-    generator: Option<ExplicitGenerator>,
+/// Represents many [`PlotPoint`]s.
+///
+/// These can be an owned `Vec` or generated with a function.
+pub enum PlotPoints {
+    Owned(Vec<PlotPoint>),
+    Generator(ExplicitGenerator),
+    // Borrowed(&[PlotPoint]), // TODO: Lifetimes are tricky in this case.
 }
 
-impl Values {
-    pub fn from_values(values: Vec<Value>) -> Self {
-        Self {
-            values,
-            generator: None,
-        }
+impl Default for PlotPoints {
+    fn default() -> Self {
+        Self::Owned(Vec::new())
+    }
+}
+
+impl From<[f64; 2]> for PlotPoints {
+    fn from(coordinate: [f64; 2]) -> Self {
+        Self::new(vec![coordinate])
+    }
+}
+
+impl From<Vec<[f64; 2]>> for PlotPoints {
+    fn from(coordinates: Vec<[f64; 2]>) -> Self {
+        Self::new(coordinates)
+    }
+}
+
+impl FromIterator<[f64; 2]> for PlotPoints {
+    fn from_iter<T: IntoIterator<Item = [f64; 2]>>(iter: T) -> Self {
+        Self::Owned(iter.into_iter().map(|point| point.into()).collect())
+    }
+}
+
+impl PlotPoints {
+    pub fn new(points: Vec<[f64; 2]>) -> Self {
+        Self::from_iter(points)
     }
 
-    pub fn from_values_iter(iter: impl Iterator<Item = Value>) -> Self {
-        Self::from_values(iter.collect())
+    pub fn points(&self) -> &[PlotPoint] {
+        match self {
+            PlotPoints::Owned(points) => points.as_slice(),
+            PlotPoints::Generator(_) => &[],
+        }
     }
 
     /// Draw a line based on a function `y=f(x)`, a range (which can be infinite) for x and the number of points.
@@ -180,10 +214,7 @@ impl Values {
             points,
         };
 
-        Self {
-            values: Vec::new(),
-            generator: Some(generator),
-        }
+        Self::Generator(generator)
     }
 
     /// Draw a line based on a function `(x,y)=f(t)`, a range for t and the number of points.
@@ -208,48 +239,55 @@ impl Values {
         } else {
             (end - start) / points as f64
         };
-        let values = (0..points).map(|i| {
-            let t = start + i as f64 * increment;
-            let (x, y) = function(t);
-            Value { x, y }
-        });
-        Self::from_values_iter(values)
+        (0..points)
+            .map(|i| {
+                let t = start + i as f64 * increment;
+                let (x, y) = function(t);
+                [x, y]
+            })
+            .collect()
     }
 
     /// From a series of y-values.
     /// The x-values will be the indices of these values
     pub fn from_ys_f32(ys: &[f32]) -> Self {
-        let values: Vec<Value> = ys
-            .iter()
+        ys.iter()
             .enumerate()
-            .map(|(i, &y)| Value {
-                x: i as f64,
-                y: y as f64,
-            })
-            .collect();
-        Self::from_values(values)
+            .map(|(i, &y)| [i as f64, y as f64])
+            .collect()
+    }
+
+    /// From a series of y-values.
+    /// The x-values will be the indices of these values
+    pub fn from_ys_f64(ys: &[f64]) -> Self {
+        ys.iter().enumerate().map(|(i, &y)| [i as f64, y]).collect()
     }
 
     /// Returns true if there are no data points available and there is no function to generate any.
     pub(crate) fn is_empty(&self) -> bool {
-        self.generator.is_none() && self.values.is_empty()
+        match self {
+            PlotPoints::Owned(points) => points.is_empty(),
+            PlotPoints::Generator(_) => false,
+        }
     }
 
     /// If initialized with a generator function, this will generate `n` evenly spaced points in the
     /// given range.
     pub(super) fn generate_points(&mut self, x_range: RangeInclusive<f64>) {
-        if let Some(generator) = self.generator.take() {
-            if let Some(intersection) = Self::range_intersection(&x_range, &generator.x_range) {
-                let increment =
-                    (intersection.end() - intersection.start()) / (generator.points - 1) as f64;
-                self.values = (0..generator.points)
-                    .map(|i| {
-                        let x = intersection.start() + i as f64 * increment;
-                        let y = (generator.function)(x);
-                        Value { x, y }
-                    })
-                    .collect();
-            }
+        if let Self::Generator(generator) = self {
+            *self = Self::range_intersection(&x_range, &generator.x_range)
+                .map(|intersection| {
+                    let increment =
+                        (intersection.end() - intersection.start()) / (generator.points - 1) as f64;
+                    (0..generator.points)
+                        .map(|i| {
+                            let x = intersection.start() + i as f64 * increment;
+                            let y = (generator.function)(x);
+                            [x, y]
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
         }
     }
 
@@ -264,18 +302,15 @@ impl Values {
     }
 
     pub(super) fn get_bounds(&self) -> PlotBounds {
-        if self.values.is_empty() {
-            if let Some(generator) = &self.generator {
-                generator.estimate_bounds()
-            } else {
-                PlotBounds::NOTHING
+        match self {
+            PlotPoints::Owned(points) => {
+                let mut bounds = PlotBounds::NOTHING;
+                for point in points {
+                    bounds.extend_with(point);
+                }
+                bounds
             }
-        } else {
-            let mut bounds = PlotBounds::NOTHING;
-            for value in &self.values {
-                bounds.extend_with(value);
-            }
-            bounds
+            PlotPoints::Generator(generator) => generator.estimate_bounds(),
         }
     }
 }
@@ -318,13 +353,13 @@ impl MarkerShape {
 
 // ----------------------------------------------------------------------------
 
-/// Query the values of the plot, for geometric relations like closest checks
+/// Query the points of the plot, for geometric relations like closest checks
 pub(crate) enum PlotGeometry<'a> {
     /// No geometry based on single elements (examples: text, image, horizontal/vertical line)
     None,
 
     /// Point values (X-Y graphs)
-    Points(&'a [Value]),
+    Points(&'a [PlotPoint]),
 
     /// Rectangles (examples: boxes or bars)
     // Has currently no data, as it would require copying rects or iterating a list of pointers.
@@ -335,7 +370,7 @@ pub(crate) enum PlotGeometry<'a> {
 // ----------------------------------------------------------------------------
 
 /// Describes a function y = f(x) with an optional range for x and a number of points.
-struct ExplicitGenerator {
+pub struct ExplicitGenerator {
     function: Box<dyn Fn(f64) -> f64>,
     x_range: RangeInclusive<f64>,
     points: usize,
