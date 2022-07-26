@@ -18,7 +18,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.60.0
+          toolchain: 1.61.0
           override: true
       - name: Install packages (Linux)
         if: runner.os == 'Linux'
@@ -39,7 +39,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.60.0
+          toolchain: 1.61.0
           override: true
       - name: Install packages (Linux)
         if: runner.os == 'Linux'
@@ -57,7 +57,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.60.0
+          toolchain: 1.61.0
           override: true
       - run: rustup target add wasm32-unknown-unknown
       - uses: actions-rs/cargo@v1
@@ -73,7 +73,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.60.0
+          toolchain: 1.61.0
           override: true
       - name: check
         run: cargo check -p egui_demo_app
@@ -86,7 +86,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.60.0
+          toolchain: 1.61.0
           override: true
       - run: rustup target add wasm32-unknown-unknown
       - name: check
@@ -100,7 +100,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.60.0
+          toolchain: 1.61.0
           override: true
       - run: rustup target add wasm32-unknown-unknown
       - uses: actions-rs/cargo@v1
@@ -116,7 +116,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.60.0
+          toolchain: 1.61.0
           override: true
       - name: Install packages (Linux)
         if: runner.os == 'Linux'
@@ -134,7 +134,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.60.0
+          toolchain: 1.61.0
           override: true
       - run: rustup component add rustfmt
       - uses: actions-rs/cargo@v1
@@ -150,7 +150,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.60.0
+          toolchain: 1.61.0
           override: true
       - run: cargo install cargo-cranky
       - name: Install packages (Linux)
@@ -169,7 +169,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.60.0
+          toolchain: 1.61.0
           override: true
       - name: Install packages (Linux)
         if: runner.os == 'Linux'
@@ -190,7 +190,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.60.0
+          toolchain: 1.61.0
           override: true
       - run: rustup target add wasm32-unknown-unknown
       - run: ./sh/setup_web.sh

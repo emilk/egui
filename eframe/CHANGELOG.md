@@ -5,6 +5,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 
 
 ## Unreleased
+* MSRV (Minimum Supported Rust Version) is now `1.61.0` ([#1846](https://github.com/emilk/egui/pull/1846)).
 * Added `wgpu` rendering backed ([#1564](https://github.com/emilk/egui/pull/1564)):
   * Added features "wgpu" and "glow"
   * Added `NativeOptions::renderer` to switch between the rendering backends
