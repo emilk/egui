@@ -11,6 +11,7 @@ pub mod storage;
 mod text_agent;
 
 pub use backend::*;
+use egui::Vec2;
 pub use events::*;
 pub use storage::*;
 
@@ -41,6 +42,7 @@ pub fn now_sec() -> f64 {
         / 1000.0
 }
 
+#[allow(dead_code)]
 pub fn screen_size_in_native_points() -> Option<egui::Vec2> {
     let window = web_sys::window()?;
     Some(egui::vec2(
@@ -96,13 +98,21 @@ pub fn canvas_size_in_points(canvas_id: &str) -> egui::Vec2 {
 
 pub fn resize_canvas_to_screen_size(canvas_id: &str, max_size_points: egui::Vec2) -> Option<()> {
     let canvas = canvas_element(canvas_id)?;
+    let parent = canvas.parent_element()?;
 
-    let screen_size_points = screen_size_in_native_points()?;
+    let width = parent.scroll_width();
+    let height = parent.scroll_height();
+
+    let canvas_real_size = Vec2 {
+        x: width as f32,
+        y: height as f32,
+    };
+
     let pixels_per_point = native_pixels_per_point();
 
     let max_size_pixels = pixels_per_point * max_size_points;
 
-    let canvas_size_pixels = pixels_per_point * screen_size_points;
+    let canvas_size_pixels = pixels_per_point * canvas_real_size;
     let canvas_size_pixels = canvas_size_pixels.min(max_size_pixels);
     let canvas_size_points = canvas_size_pixels / pixels_per_point;
 

@@ -2,9 +2,10 @@ use super::{glow_wrapping::WrappedGlowPainter, *};
 
 use crate::epi;
 
-use egui::mutex::{Mutex, MutexGuard};
-use egui::TexturesDelta;
-
+use egui::{
+    mutex::{Mutex, MutexGuard},
+    TexturesDelta,
+};
 pub use egui::{pos2, Color32};
 
 // ----------------------------------------------------------------------------
@@ -64,6 +65,24 @@ impl NeedRepaint {
 
     pub fn repaint_asap(&self) {
         *self.0.lock() = f64::NEG_INFINITY;
+    }
+}
+
+pub struct IsDestroyed(std::sync::atomic::AtomicBool);
+
+impl Default for IsDestroyed {
+    fn default() -> Self {
+        Self(false.into())
+    }
+}
+
+impl IsDestroyed {
+    pub fn fetch(&self) -> bool {
+        self.0.load(SeqCst)
+    }
+
+    pub fn set_true(&self) {
+        self.0.store(true, SeqCst);
     }
 }
 
@@ -147,11 +166,19 @@ pub struct AppRunner {
     pub(crate) input: WebInput,
     app: Box<dyn epi::App>,
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
+    pub(crate) is_destroyed: std::sync::Arc<IsDestroyed>,
     last_save_time: f64,
     screen_reader: super::screen_reader::ScreenReader,
     pub(crate) text_cursor_pos: Option<egui::Pos2>,
     pub(crate) mutable_text_under_cursor: bool,
     textures_delta: TexturesDelta,
+    pub events_to_unsubscribe: Vec<EventToUnsubscribe>,
+}
+
+impl Drop for AppRunner {
+    fn drop(&mut self) {
+        tracing::debug!("AppRunner has fully dropped");
+    }
 }
 
 impl AppRunner {
@@ -220,11 +247,13 @@ impl AppRunner {
             input: Default::default(),
             app,
             needs_repaint,
+            is_destroyed: Default::default(),
             last_save_time: now_sec(),
             screen_reader: Default::default(),
             text_cursor_pos: None,
             mutable_text_under_cursor: false,
             textures_delta: Default::default(),
+            events_to_unsubscribe: Default::default(),
         };
 
         runner.input.raw.max_texture_side = Some(runner.painter.max_texture_side());
@@ -264,6 +293,24 @@ impl AppRunner {
             self.egui_ctx.clear_animations();
         }
         Ok(())
+    }
+
+    pub fn destroy(&mut self) -> Result<(), JsValue> {
+        let is_destroyed_already = self.is_destroyed.fetch();
+
+        if is_destroyed_already {
+            tracing::warn!("App was destroyed already");
+            Ok(())
+        } else {
+            tracing::debug!("Destroying");
+            for x in self.events_to_unsubscribe.drain(..) {
+                x.unsubscribe()?;
+            }
+
+            self.painter.destroy();
+            self.is_destroyed.set_true();
+            Ok(())
+        }
     }
 
     /// Returns how long to wait until the next repaint.
@@ -358,18 +405,59 @@ impl AppRunner {
 
 pub type AppRunnerRef = Arc<Mutex<AppRunner>>;
 
+pub struct TargetEvent {
+    target: EventTarget,
+    event_name: String,
+    closure: Closure<dyn FnMut(web_sys::Event)>,
+}
+
+pub struct IntervalHandle {
+    pub handle: i32,
+    pub closure: Closure<dyn FnMut()>,
+}
+
+pub enum EventToUnsubscribe {
+    TargetEvent(TargetEvent),
+    #[allow(dead_code)]
+    IntervalHandle(IntervalHandle),
+}
+
+impl EventToUnsubscribe {
+    pub fn unsubscribe(self) -> Result<(), JsValue> {
+        use wasm_bindgen::JsCast;
+
+        match self {
+            EventToUnsubscribe::TargetEvent(handle) => {
+                handle.target.remove_event_listener_with_callback(
+                    handle.event_name.as_str(),
+                    handle.closure.as_ref().unchecked_ref(),
+                )?;
+                Ok(())
+            }
+            EventToUnsubscribe::IntervalHandle(handle) => {
+                let window = web_sys::window().unwrap();
+                window.clear_interval_with_handle(handle.handle);
+                Ok(())
+            }
+        }
+    }
+}
 pub struct AppRunnerContainer {
     pub runner: AppRunnerRef,
     /// Set to `true` if there is a panic.
     /// Used to ignore callbacks after a panic.
     pub panicked: Arc<AtomicBool>,
+    pub events: Vec<EventToUnsubscribe>,
 }
 
 impl AppRunnerContainer {
     /// Convenience function to reduce boilerplate and ensure that all event handlers
     /// are dealt with in the same way
+    ///
+
+    #[must_use]
     pub fn add_event_listener<E: wasm_bindgen::JsCast>(
-        &self,
+        &mut self,
         target: &EventTarget,
         event_name: &'static str,
         mut closure: impl FnMut(E, MutexGuard<'_, AppRunner>) + 'static,
@@ -390,14 +478,19 @@ impl AppRunnerContainer {
 
                     closure(event, runner_ref.lock());
                 }
-            }) as Box<dyn FnMut(_)>
+            }) as Box<dyn FnMut(web_sys::Event)>
         });
 
         // Add the event listener to the target
         target.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
 
-        // Bypass closure drop so that event handler can call the closure
-        closure.forget();
+        let handle = TargetEvent {
+            target: target.clone(),
+            event_name: event_name.to_string(),
+            closure,
+        };
+
+        self.events.push(EventToUnsubscribe::TargetEvent(handle));
 
         Ok(())
     }
@@ -420,23 +513,26 @@ pub fn start(
 /// Install event listeners to register different input events
 /// and starts running the given [`AppRunner`].
 fn start_runner(app_runner: AppRunner) -> Result<AppRunnerRef, JsValue> {
-    let runner_container = AppRunnerContainer {
+    let mut runner_container = AppRunnerContainer {
         runner: Arc::new(Mutex::new(app_runner)),
         panicked: Arc::new(AtomicBool::new(false)),
+        events: Vec::with_capacity(20),
     };
 
-    super::events::install_canvas_events(&runner_container)?;
-    super::events::install_document_events(&runner_container)?;
-    text_agent::install_text_agent(&runner_container)?;
+    super::events::install_canvas_events(&mut runner_container)?;
+    super::events::install_document_events(&mut runner_container)?;
+    text_agent::install_text_agent(&mut runner_container)?;
 
     super::events::paint_and_schedule(&runner_container.runner, runner_container.panicked.clone())?;
 
     // Disable all event handlers on panic
     let previous_hook = std::panic::take_hook();
-    let panicked = runner_container.panicked;
+
+    runner_container.runner.lock().events_to_unsubscribe = runner_container.events;
+
     std::panic::set_hook(Box::new(move |panic_info| {
         tracing::info!("egui disabled all event handlers due to panic");
-        panicked.store(true, SeqCst);
+        runner_container.panicked.store(true, SeqCst);
 
         // Propagate panic info to the previously registered panic hook
         previous_hook(panic_info);

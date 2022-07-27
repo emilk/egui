@@ -1,13 +1,17 @@
 use super::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+struct IsDestroyed(pub bool);
+
 pub fn paint_and_schedule(
     runner_ref: &AppRunnerRef,
     panicked: Arc<AtomicBool>,
 ) -> Result<(), JsValue> {
-    fn paint_if_needed(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
+    fn paint_if_needed(runner_ref: &AppRunnerRef) -> Result<IsDestroyed, JsValue> {
         let mut runner_lock = runner_ref.lock();
-        if runner_lock.needs_repaint.when_to_repaint() <= now_sec() {
+        let is_destroyed = runner_lock.is_destroyed.fetch();
+
+        if !is_destroyed && runner_lock.needs_repaint.when_to_repaint() <= now_sec() {
             runner_lock.needs_repaint.clear();
             runner_lock.clear_color_buffer();
             let (repaint_after, clipped_primitives) = runner_lock.logic()?;
@@ -18,7 +22,7 @@ pub fn paint_and_schedule(
             runner_lock.auto_save();
         }
 
-        Ok(())
+        Ok(IsDestroyed(is_destroyed))
     }
 
     fn request_animation_frame(
@@ -35,14 +39,16 @@ pub fn paint_and_schedule(
 
     // Only paint and schedule if there has been no panic
     if !panicked.load(Ordering::SeqCst) {
-        paint_if_needed(runner_ref)?;
-        request_animation_frame(runner_ref.clone(), panicked)?;
+        let is_destroyed = paint_if_needed(runner_ref)?;
+        if !is_destroyed.0 {
+            request_animation_frame(runner_ref.clone(), panicked)?;
+        }
     }
 
     Ok(())
 }
 
-pub fn install_document_events(runner_container: &AppRunnerContainer) -> Result<(), JsValue> {
+pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
 
@@ -188,25 +194,27 @@ pub fn install_document_events(runner_container: &AppRunnerContainer) -> Result<
     Ok(())
 }
 
-pub fn install_canvas_events(runner_container: &AppRunnerContainer) -> Result<(), JsValue> {
-    use wasm_bindgen::JsCast;
+pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Result<(), JsValue> {
     let canvas = canvas_element(runner_container.runner.lock().canvas_id()).unwrap();
 
     {
         // By default, right-clicks open a context menu.
         // We don't want to do that (right clicks is handled by egui):
         let event_name = "contextmenu";
-        let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
-            event.prevent_default();
-        }) as Box<dyn FnMut(_)>);
-        canvas.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
-        closure.forget();
+
+        let closure =
+            move |event: web_sys::MouseEvent,
+                  mut _runner_lock: egui::mutex::MutexGuard<AppRunner>| {
+                event.prevent_default();
+            };
+
+        runner_container.add_event_listener(&canvas, event_name, closure)?;
     }
 
     runner_container.add_event_listener(
         &canvas,
         "mousedown",
-        |event: web_sys::MouseEvent, mut runner_lock| {
+        |event: web_sys::MouseEvent, mut runner_lock: egui::mutex::MutexGuard<AppRunner>| {
             if let Some(button) = button_from_mouse_event(&event) {
                 let pos = pos_from_mouse_event(runner_lock.canvas_id(), &event);
                 let modifiers = runner_lock.input.raw.modifiers;
