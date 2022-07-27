@@ -298,6 +298,7 @@ impl Focus {
         } else if self.pressed_tab && self.id == None && !self.give_to_next {
             // nothing has focus and the user pressed tab - give focus to the first widgets that wants it:
             self.id = Some(id);
+            self.pressed_tab = false;
         }
 
         self.last_interested = Some(id);
