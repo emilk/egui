@@ -451,6 +451,8 @@ impl RenderPass {
                 }
             }
         }
+
+        rpass.set_scissor_rect(0, 0, size_in_pixels[0], size_in_pixels[1]);
     }
 
     /// Should be called before `execute()`.
