@@ -298,6 +298,7 @@ impl AppRunner {
                 window_size: _,  // Can't resize a web page
                 window_title: _, // TODO(emilk): change title of window
                 decorated: _,    // Can't toggle decorations
+                fullscreen: _,   // TODO(emilk): fullscreen web window
                 drag_window: _,  // Can't be dragged
                 window_pos: _,   // Can't set position of a web page
                 visible: _,      // Can't hide a web page

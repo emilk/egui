@@ -180,6 +180,11 @@ pub struct NativeOptions {
     /// If false it will be difficult to move and resize the app.
     pub decorated: bool,
 
+    /// Start in (borderless) fullscreen?
+    ///
+    /// Default: `false`.
+    pub fullscreen: bool,
+
     /// On Windows: enable drag and drop support. Drag and drop can
     /// not be disabled on other platforms.
     ///
@@ -270,6 +275,7 @@ impl Default for NativeOptions {
             always_on_top: false,
             maximized: false,
             decorated: true,
+            fullscreen: false,
             drag_and_drop_support: true,
             icon_data: None,
             initial_window_pos: None,
@@ -547,9 +553,15 @@ impl Frame {
     }
 
     /// Set whether to show window decorations (i.e. a frame around you app).
+    ///
     /// If false it will be difficult to move and resize the app.
     pub fn set_decorations(&mut self, decorated: bool) {
         self.output.decorated = Some(decorated);
+    }
+
+    /// Turn borderless fullscreen on/off (native only).
+    pub fn set_fullscreen(&mut self, fullscreen: bool) {
+        self.output.fullscreen = Some(fullscreen);
     }
 
     /// set the position of the outer window
@@ -590,6 +602,9 @@ pub struct WindowInfo {
     /// Coordinates of the window's outer top left corner, relative to the top left corner of the first display.
     /// Unit: egui points (logical pixels).
     pub position: egui::Pos2,
+
+    /// Are we in fullscreen mode?
+    pub fullscreen: bool,
 
     /// Window inner size in egui points (logical pixels).
     pub size: egui::Vec2,
@@ -739,6 +754,9 @@ pub mod backend {
 
         /// Set to some bool to change window decorations.
         pub decorated: Option<bool>,
+
+        /// Set to some bool to change window fullscreen.
+        pub fullscreen: Option<bool>,
 
         /// Set to true to drag window while primary mouse button is down.
         pub drag_window: bool,
