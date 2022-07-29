@@ -13,3 +13,7 @@ Run it locally with `cargo run --release -p egui_demo_app`.
 ```
 
 `egui_demo_app` uses [`egui_demo_lib`](https://github.com/emilk/egui/tree/master/egui_demo_lib).
+
+
+## Running with `wgpu` backend
+`(cd egui_demo_app && cargo r --features wgpu)`

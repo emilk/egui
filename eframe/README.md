@@ -33,6 +33,8 @@ You can opt-in to the using [`egui_wgpu`](https://github.com/emilk/egui/tree/mas
 ## Alternatives
 `eframe` is not the only way to write an app using `egui`! You can also try [`egui-miniquad`](https://github.com/not-fl3/egui-miniquad), [`bevy_egui`](https://github.com/mvlabat/bevy_egui), [`egui_sdl2_gl`](https://github.com/ArjunNair/egui_sdl2_gl), and others.
 
+You can also use `egui_glow` and [`winit`](https://github.com/rust-windowing/winit) to build your own app as demonstrated in <https://github.com/emilk/egui/blob/master/egui_glow/examples/pure_glow.rs>.
+
 
 ## Problems with running egui on the web
 `eframe` uses WebGL (via [`glow`](https://crates.io/crates/glow)) and WASM, and almost nothing else from the web tech stack. This has some benefits, but also produces some challenges and serious downsides.
