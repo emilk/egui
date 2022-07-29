@@ -136,7 +136,8 @@ impl BackendPanel {
             ui.ctx().options().screen_reader = screen_reader;
         }
 
-        if !frame.is_web() {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
             ui.separator();
             if ui.button("Quit").clicked() {
                 frame.quit();
@@ -159,11 +160,10 @@ impl BackendPanel {
             ui.label(".");
         });
 
-        if let Some(web_info) = &frame.info().web_info {
-            ui.collapsing("Web info (location)", |ui| {
-                ui.monospace(format!("{:#?}", web_info.location));
-            });
-        }
+        #[cfg(target_arch = "wasm32")]
+        ui.collapsing("Web info (location)", |ui| {
+            ui.monospace(format!("{:#?}", frame.info().web_info.location));
+        });
 
         // For instance: `eframe` web sets `pixels_per_point` every frame to force
         // egui to use the same scale as the web zoom factor.
@@ -174,10 +174,11 @@ impl BackendPanel {
             }
         }
 
-        if !frame.is_web() {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
             ui.horizontal(|ui| {
-                if let Some(window_info) = &frame.info().window_info {
-                    let mut fullscreen = window_info.fullscreen;
+                {
+                    let mut fullscreen = frame.info().window_info.fullscreen;
                     ui.checkbox(&mut fullscreen, "🗖 Fullscreen")
                         .on_hover_text("Fullscreen the window");
                     frame.set_fullscreen(fullscreen);

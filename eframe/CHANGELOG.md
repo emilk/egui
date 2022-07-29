@@ -14,6 +14,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 * Use `Arc` for `glow::Context` instead of `Rc` ([#1640](https://github.com/emilk/egui/pull/1640)).
 * Fixed bug where the result returned from `App::on_exit_event` would sometimes be ignored ([#1696](https://github.com/emilk/egui/pull/1696)).
 * Added `NativeOptions::follow_system_theme` and `NativeOptions::default_theme` ([#1726](https://github.com/emilk/egui/pull/1726)).
+* Selectively expose parts of the API based on target arch (`wasm32` or not) ([#1867](https://github.com/emilk/egui/pull/1867)).
 
 #### Desktop/Native:
 * Fixed clipboard on Wayland ([#1613](https://github.com/emilk/egui/pull/1613)).

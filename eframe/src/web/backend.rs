@@ -170,13 +170,12 @@ impl AppRunner {
         };
 
         let info = epi::IntegrationInfo {
-            web_info: Some(epi::WebInfo {
+            web_info: epi::WebInfo {
                 location: web_location(),
-            }),
+            },
             system_theme,
             cpu_usage: None,
             native_pixels_per_point: Some(native_pixels_per_point()),
-            window_info: None,
         };
         let storage = LocalStorage::default();
 
@@ -293,16 +292,7 @@ impl AppRunner {
 
         {
             let app_output = self.frame.take_app_output();
-            let epi::backend::AppOutput {
-                quit: _,         // Can't quit a web page
-                window_size: _,  // Can't resize a web page
-                window_title: _, // TODO(emilk): change title of window
-                decorated: _,    // Can't toggle decorations
-                fullscreen: _,   // TODO(emilk): fullscreen web window
-                drag_window: _,  // Can't be dragged
-                window_pos: _,   // Can't set position of a web page
-                visible: _,      // Can't hide a web page
-            } = app_output;
+            let epi::backend::AppOutput {} = app_output;
         }
 
         self.frame.info.cpu_usage = Some((now_sec() - frame_start) as f32);
