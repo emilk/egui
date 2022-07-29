@@ -311,6 +311,28 @@ fn test_normalized_angle() {
 
 // ----------------------------------------------------------------------------
 
+/// Calculate a lerp-factor for exponential smoothing using a time step.
+///
+/// * `exponential_smooth_factor(0.90, 1.0, dt)`: reach 90% in 1.0 seconds
+/// * `exponential_smooth_factor(0.50, 0.2, dt)`: reach 50% in 0.2 seconds
+///
+/// Example:
+/// ```
+/// # use emath::{lerp, exponential_smooth_factor};
+/// # let (mut smoothed_value, target_value, dt) = (0.0_f32, 1.0_f32, 0.01_f32);
+/// let t = exponential_smooth_factor(0.90, 0.2, dt); // reach 90% in 0.2 seconds
+/// smoothed_value = lerp(smoothed_value..=target_value, t);
+/// ```
+pub fn exponential_smooth_factor(
+    reach_this_fraction: f32,
+    in_this_many_seconds: f32,
+    dt: f32,
+) -> f32 {
+    1.0 - (1.0 - reach_this_fraction).powf(dt / in_this_many_seconds)
+}
+
+// ----------------------------------------------------------------------------
+
 /// An assert that is only active when `emath` is compiled with the `extra_asserts` feature
 /// or with the `extra_debug_asserts` feature in debug builds.
 #[macro_export]
