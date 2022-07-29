@@ -378,15 +378,44 @@ pub struct ExplicitGenerator {
 
 impl ExplicitGenerator {
     fn estimate_bounds(&self) -> PlotBounds {
+        let mut bounds = PlotBounds::NOTHING;
+
+        let mut add_x = |x: f64| {
+            // avoid infinities, as we cannot auto-bound on them!
+            if x.is_finite() {
+                bounds.extend_with_x(x);
+            }
+            let y = (self.function)(x);
+            if y.is_finite() {
+                bounds.extend_with_y(y);
+            }
+        };
+
         let min_x = *self.x_range.start();
         let max_x = *self.x_range.end();
-        let min_y = (self.function)(min_x);
-        let max_y = (self.function)(max_x);
-        // TODO(emilk): sample some more points
-        PlotBounds {
-            min: [min_x, min_y],
-            max: [max_x, max_y],
+
+        add_x(min_x);
+        add_x(max_x);
+
+        if min_x.is_finite() && max_x.is_finite() {
+            // Sample some points in the interval:
+            const N: u32 = 8;
+            for i in 1..N {
+                let t = i as f64 / (N - 1) as f64;
+                let x = crate::lerp(min_x..=max_x, t);
+                add_x(x);
+            }
+        } else {
+            // Try adding some points anyway:
+            for x in [-1, 0, 1] {
+                let x = x as f64;
+                if min_x <= x && x <= max_x {
+                    add_x(x);
+                }
+            }
         }
+
+        bounds
     }
 }
 

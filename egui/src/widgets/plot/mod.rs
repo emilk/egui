@@ -682,8 +682,12 @@ impl Plot {
             auto_bounds = true.into();
         }
 
+        if !bounds.is_valid() {
+            auto_bounds = true.into();
+        }
+
         // Set bounds automatically based on content.
-        if auto_bounds.any() || !bounds.is_valid() {
+        if auto_bounds.any() {
             if auto_bounds.x {
                 bounds.set_x(&min_auto_bounds);
             }
@@ -693,13 +697,13 @@ impl Plot {
             }
 
             for item in &items {
-                // bounds.merge(&item.get_bounds());
+                let item_bounds = item.get_bounds();
 
                 if auto_bounds.x {
-                    bounds.merge_x(&item.get_bounds());
+                    bounds.merge_x(&item_bounds);
                 }
                 if auto_bounds.y {
-                    bounds.merge_y(&item.get_bounds());
+                    bounds.merge_y(&item_bounds);
                 }
             }
 
@@ -714,12 +718,14 @@ impl Plot {
 
         let mut transform = ScreenTransform::new(rect, bounds, center_x_axis, center_y_axis);
 
-        // Enforce equal aspect ratio.
+        // Enforce aspect ratio
         if let Some(data_aspect) = data_aspect {
-            let preserve_y = linked_axes
-                .as_ref()
-                .map_or(false, |group| group.link_y && !group.link_x);
-            transform.set_aspect(data_aspect as f64, preserve_y);
+            if let Some(linked_axes) = &linked_axes {
+                let change_x = linked_axes.link_y && !linked_axes.link_x;
+                transform.set_aspect_by_changing_axis(data_aspect as f64, change_x);
+            } else {
+                transform.set_aspect_by_expanding(data_aspect as f64);
+            }
         }
 
         // Dragging
@@ -766,7 +772,7 @@ impl Plot {
                         max: [box_end_pos.x, box_start_pos.y],
                     };
                     if new_bounds.is_valid() {
-                        *transform.bounds_mut() = new_bounds;
+                        transform.set_bounds(new_bounds);
                         auto_bounds = false.into();
                     } else {
                         auto_bounds = true.into();

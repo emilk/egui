@@ -206,8 +206,8 @@ impl ScreenTransform {
         &self.bounds
     }
 
-    pub fn bounds_mut(&mut self) -> &mut PlotBounds {
-        &mut self.bounds
+    pub fn set_bounds(&mut self, bounds: PlotBounds) {
+        self.bounds = bounds;
     }
 
     pub fn translate_bounds(&mut self, mut delta_pos: Vec2) {
@@ -299,15 +299,17 @@ impl ScreenTransform {
         [1.0 / self.dpos_dvalue_x(), 1.0 / self.dpos_dvalue_y()]
     }
 
-    pub fn get_aspect(&self) -> f64 {
+    fn aspect(&self) -> f64 {
         let rw = self.frame.width() as f64;
         let rh = self.frame.height() as f64;
         (self.bounds.width() / rw) / (self.bounds.height() / rh)
     }
 
-    /// Sets the aspect ratio by either expanding the x-axis or contracting the y-axis.
-    pub fn set_aspect(&mut self, aspect: f64, preserve_y: bool) {
-        let current_aspect = self.get_aspect();
+    /// Sets the aspect ratio by expanding the x- or y-axis.
+    ///
+    /// This never contracts, so we don't miss out on any data.
+    pub fn set_aspect_by_expanding(&mut self, aspect: f64) {
+        let current_aspect = self.aspect();
 
         let epsilon = 1e-5;
         if (current_aspect - aspect).abs() < epsilon {
@@ -315,7 +317,26 @@ impl ScreenTransform {
             return;
         }
 
-        if preserve_y {
+        if current_aspect < aspect {
+            self.bounds
+                .expand_x((aspect / current_aspect - 1.0) * self.bounds.width() * 0.5);
+        } else {
+            self.bounds
+                .expand_y((current_aspect / aspect - 1.0) * self.bounds.height() * 0.5);
+        }
+    }
+
+    /// Sets the aspect ratio by changing either the X or Y axis (callers choice).
+    pub fn set_aspect_by_changing_axis(&mut self, aspect: f64, change_x: bool) {
+        let current_aspect = self.aspect();
+
+        let epsilon = 1e-5;
+        if (current_aspect - aspect).abs() < epsilon {
+            // Don't make any changes when the aspect is already almost correct.
+            return;
+        }
+
+        if change_x {
             self.bounds
                 .expand_x((aspect / current_aspect - 1.0) * self.bounds.width() * 0.5);
         } else {
