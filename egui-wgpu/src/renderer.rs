@@ -2,7 +2,7 @@
 
 use std::{borrow::Cow, collections::HashMap, num::NonZeroU32};
 
-use egui::{epaint::Primitive, PaintCallbackInfo};
+use egui::{epaint::Primitive, NumExt, PaintCallbackInfo};
 use type_map::TypeMap;
 use wgpu;
 use wgpu::util::DeviceExt as _;
@@ -361,24 +361,21 @@ impl RenderPass {
                 needs_reset = false;
             }
 
-            let PixelRect {
-                x,
-                y,
-                width,
-                height,
-            } = calculate_pixel_rect(clip_rect, pixels_per_point, size_in_pixels);
+            {
+                let rect = ScissorRect::new(clip_rect, pixels_per_point, size_in_pixels);
 
-            // Skip rendering with zero-sized clip areas.
-            if width == 0 || height == 0 {
-                // If this is a mesh, we need to advance the index and vertex buffer iterators
-                if let Primitive::Mesh(_) = primitive {
-                    index_buffers.next().unwrap();
-                    vertex_buffers.next().unwrap();
+                if rect.width == 0 || rect.height == 0 {
+                    // Skip rendering with zero-sized clip areas.
+                    if let Primitive::Mesh(_) = primitive {
+                        // If this is a mesh, we need to advance the index and vertex buffer iterators
+                        index_buffers.next().unwrap();
+                        vertex_buffers.next().unwrap();
+                    }
+                    continue;
                 }
-                continue;
-            }
 
-            rpass.set_scissor_rect(x, y, width, height);
+                rpass.set_scissor_rect(rect.x, rect.y, rect.width, rect.height);
+            }
 
             match primitive {
                 Primitive::Mesh(mesh) => {
@@ -408,34 +405,28 @@ impl RenderPass {
                     if callback.rect.is_positive() {
                         needs_reset = true;
 
-                        // Set the viewport rect
-                        let PixelRect {
-                            x,
-                            y,
-                            width,
-                            height,
-                        } = calculate_pixel_rect(&callback.rect, pixels_per_point, size_in_pixels);
-                        rpass.set_viewport(
-                            x as f32,
-                            y as f32,
-                            width as f32,
-                            height as f32,
-                            0.0,
-                            1.0,
-                        );
+                        {
+                            // Set the viewport rect
+                            // Transform callback rect to physical pixels:
+                            let rect_min_x = pixels_per_point * callback.rect.min.x;
+                            let rect_min_y = pixels_per_point * callback.rect.min.y;
+                            let rect_max_x = pixels_per_point * callback.rect.max.x;
+                            let rect_max_y = pixels_per_point * callback.rect.max.y;
 
-                        // Set the scissor rect
-                        let PixelRect {
-                            x,
-                            y,
-                            width,
-                            height,
-                        } = calculate_pixel_rect(clip_rect, pixels_per_point, size_in_pixels);
-                        // Skip rendering with zero-sized clip areas.
-                        if width == 0 || height == 0 {
-                            continue;
+                            let rect_min_x = rect_min_x.round();
+                            let rect_min_y = rect_min_y.round();
+                            let rect_max_x = rect_max_x.round();
+                            let rect_max_y = rect_max_y.round();
+
+                            rpass.set_viewport(
+                                rect_min_x,
+                                rect_min_y,
+                                rect_max_x - rect_min_x,
+                                rect_max_y - rect_min_y,
+                                0.0,
+                                1.0,
+                            );
                         }
-                        rpass.set_scissor_rect(x, y, width, height);
 
                         (cbfn.paint)(
                             PaintCallbackInfo {
@@ -776,50 +767,42 @@ impl RenderPass {
     }
 }
 
-/// A Rect in physical pixel space, used for setting viewport and cliipping rectangles.
-struct PixelRect {
+/// A Rect in physical pixel space, used for setting cliipping rectangles.
+struct ScissorRect {
     x: u32,
     y: u32,
     width: u32,
     height: u32,
 }
 
-/// Convert the Egui clip rect to a physical pixel rect we can use for the GPU viewport/scissor
-fn calculate_pixel_rect(
-    clip_rect: &egui::Rect,
-    pixels_per_point: f32,
-    target_size: [u32; 2],
-) -> PixelRect {
-    // Transform clip rect to physical pixels.
-    let clip_min_x = pixels_per_point * clip_rect.min.x;
-    let clip_min_y = pixels_per_point * clip_rect.min.y;
-    let clip_max_x = pixels_per_point * clip_rect.max.x;
-    let clip_max_y = pixels_per_point * clip_rect.max.y;
+impl ScissorRect {
+    fn new(clip_rect: &egui::Rect, pixels_per_point: f32, target_size: [u32; 2]) -> Self {
+        // Transform clip rect to physical pixels:
+        let clip_min_x = pixels_per_point * clip_rect.min.x;
+        let clip_min_y = pixels_per_point * clip_rect.min.y;
+        let clip_max_x = pixels_per_point * clip_rect.max.x;
+        let clip_max_y = pixels_per_point * clip_rect.max.y;
 
-    // Make sure clip rect can fit within an `u32`.
-    let clip_min_x = clip_min_x.clamp(0.0, target_size[0] as f32);
-    let clip_min_y = clip_min_y.clamp(0.0, target_size[1] as f32);
-    let clip_max_x = clip_max_x.clamp(clip_min_x, target_size[0] as f32);
-    let clip_max_y = clip_max_y.clamp(clip_min_y, target_size[1] as f32);
+        // Round to integer:
+        let clip_min_x = clip_min_x.round() as u32;
+        let clip_min_y = clip_min_y.round() as u32;
+        let clip_max_x = clip_max_x.round() as u32;
+        let clip_max_y = clip_max_y.round() as u32;
 
-    let clip_min_x = clip_min_x.round() as u32;
-    let clip_min_y = clip_min_y.round() as u32;
-    let clip_max_x = clip_max_x.round() as u32;
-    let clip_max_y = clip_max_y.round() as u32;
+        // Clamp:
+        let clip_min_x = clip_min_x.clamp(0, target_size[0]);
+        let clip_min_y = clip_min_y.clamp(0, target_size[1]);
+        let clip_max_x = clip_max_x.clamp(clip_min_x, target_size[0]);
+        let clip_max_y = clip_max_y.clamp(clip_min_y, target_size[1]);
 
-    let width = (clip_max_x - clip_min_x).max(1);
-    let height = (clip_max_y - clip_min_y).max(1);
+        let width = (clip_max_x - clip_min_x).at_least(1);
+        let height = (clip_max_y - clip_min_y).at_least(1);
 
-    // Clip scissor rectangle to target size.
-    let x = clip_min_x.min(target_size[0]);
-    let y = clip_min_y.min(target_size[1]);
-    let width = width.min(target_size[0] - x);
-    let height = height.min(target_size[1] - y);
-
-    PixelRect {
-        x,
-        y,
-        width,
-        height,
+        ScissorRect {
+            x: clip_min_x,
+            y: clip_min_y,
+            width,
+            height,
+        }
     }
 }
