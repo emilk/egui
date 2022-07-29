@@ -7,7 +7,7 @@ use epaint::Mesh;
 
 use crate::*;
 
-use super::{LabelFormatter, PlotBounds, ScreenTransform};
+use super::{Cursor, LabelFormatter, PlotBounds, ScreenTransform};
 use rect_elem::*;
 use values::{ClosestElem, PlotGeometry};
 
@@ -28,7 +28,7 @@ pub(super) struct PlotConfig<'a> {
     pub transform: &'a ScreenTransform,
     pub show_x: bool,
     pub show_y: bool,
-    pub cursors: &'a RefCell<Vec<(Orientation, f64)>>,
+    pub cursors: &'a RefCell<Vec<Cursor>>,
 }
 
 /// Trait shared by things that can be drawn in the plot.
@@ -1670,15 +1670,17 @@ pub(super) fn rulers_at_value(
     let line_color = rulers_color(plot.ui);
     if plot.show_x {
         shapes.push(vertical_line(pointer, plot.transform, line_color));
-        plot.cursors
-            .borrow_mut()
-            .push((Orientation::Vertical, value.x));
+        plot.cursors.borrow_mut().push(Cursor {
+            orientation: Orientation::Vertical,
+            point: value.x,
+        });
     }
     if plot.show_y {
         shapes.push(horizontal_line(pointer, plot.transform, line_color));
-        plot.cursors
-            .borrow_mut()
-            .push((Orientation::Horizontal, value.y));
+        plot.cursors.borrow_mut().push(Cursor {
+            orientation: Orientation::Horizontal,
+            point: value.y,
+        });
     }
 
     let mut prefix = String::new();

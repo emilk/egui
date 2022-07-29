@@ -2,7 +2,6 @@
 
 use std::{
     cell::{Cell, RefCell},
-    collections::HashMap,
     ops::RangeInclusive,
     rc::Rc,
 };
@@ -121,6 +120,12 @@ impl PlotMemory {
 
 // ----------------------------------------------------------------------------
 
+#[derive(Copy, Clone, PartialEq)]
+struct Cursor {
+    orientation: Orientation,
+    point: f64,
+}
+
 /// Defines how multiple plots share the same range for one or both of their axes. Can be added while building
 /// a plot with [`Plot::link_axis`]. Contains an internal state, meaning that this object should be stored by
 /// the user between frames.
@@ -130,7 +135,7 @@ pub struct LinkedAxisGroup {
     pub(crate) link_y: bool,
     pub(crate) link_cursor: bool,
     pub(crate) bounds: Rc<Cell<Option<PlotBounds>>>,
-    pub(crate) cursors: Rc<RefCell<HashMap<Id, Vec<(Orientation, f64)>>>>,
+    cursors: Rc<RefCell<Vec<(Id, Vec<Cursor>)>>>,
 }
 
 impl LinkedAxisGroup {
@@ -140,7 +145,7 @@ impl LinkedAxisGroup {
             link_y,
             link_cursor: false,
             bounds: Rc::new(Cell::new(None)),
-            cursors: Rc::new(RefCell::new(HashMap::new())),
+            cursors: Rc::new(RefCell::new(Vec::new())),
         }
     }
 
@@ -676,12 +681,24 @@ impl Plot {
         // --- Bound computation ---
         let mut bounds = *last_screen_transform.bounds();
 
-        let mut cursors = HashMap::new();
+        let mut draw_cursors: Vec<Cursor> = Vec::new();
 
         // Transfer the bounds from a link group.
         if let Some(axes) = linked_axes.as_ref() {
             if axes.link_cursor {
-                cursors = axes.cursors.borrow().clone();
+                let mut cursors = axes.cursors.borrow_mut();
+
+                // Look for our previous entry
+                let index = cursors
+                    .iter()
+                    .enumerate()
+                    .find(|(_, e)| e.0 == plot_id)
+                    .map(|(i, _)| i);
+
+                // Remove our previous entry and all older entries as these are no longer displayed.
+                index.map(|index| cursors.drain(0..=index));
+
+                draw_cursors = cursors.iter().flat_map(|e| e.1.iter().copied()).collect();
             }
             if let Some(linked_bounds) = axes.get() {
                 if axes.link_x {
@@ -841,9 +858,9 @@ impl Plot {
             grid_spacers,
             draw_cursor_x: linked_axes.as_ref().map_or(false, |axes| axes.link_x),
             draw_cursor_y: linked_axes.as_ref().map_or(false, |axes| axes.link_y),
-            draw_cursors: cursors,
+            draw_cursors,
         };
-        let cursors = prepared.ui(ui, &response);
+        let plot_cursors = prepared.ui(ui, &response);
 
         if let Some(boxed_zoom_rect) = boxed_zoom_rect {
             ui.painter().with_clip_rect(rect).add(boxed_zoom_rect.0);
@@ -857,11 +874,8 @@ impl Plot {
         }
 
         if let Some(group) = linked_axes.as_ref() {
-            let cursors_map = &mut *group.cursors.borrow_mut();
-            if response.hovered() {
-                cursors_map.insert(id_source, cursors);
-            } else {
-                cursors_map.remove(&id_source);
+            if group.link_cursor {
+                group.cursors.borrow_mut().push((plot_id, plot_cursors));
             }
             group.set(*transform.bounds());
         }
@@ -1150,11 +1164,11 @@ struct PreparedPlot {
     grid_spacers: [GridSpacer; 2],
     draw_cursor_x: bool,
     draw_cursor_y: bool,
-    draw_cursors: HashMap<Id, Vec<(Orientation, f64)>>,
+    draw_cursors: Vec<Cursor>,
 }
 
 impl PreparedPlot {
-    fn ui(self, ui: &mut Ui, response: &Response) -> Vec<(Orientation, f64)> {
+    fn ui(self, ui: &mut Ui, response: &Response) -> Vec<Cursor> {
         let mut shapes = Vec::new();
 
         for d in 0..2 {
@@ -1176,16 +1190,12 @@ impl PreparedPlot {
         } else {
             // Draw cursors from other plots
             let line_color = rulers_color(ui);
-            for &(orientation, value) in self
-                .draw_cursors
-                .values()
-                .flat_map(|cursors| cursors.iter())
-            {
-                match orientation {
+            for cursor in &self.draw_cursors {
+                match cursor.orientation {
                     Orientation::Horizontal => {
                         if self.draw_cursor_y {
                             shapes.push(horizontal_line(
-                                transform.position_from_point(&PlotPoint::new(0.0, value)),
+                                transform.position_from_point(&PlotPoint::new(0.0, cursor.point)),
                                 &self.transform,
                                 line_color,
                             ));
@@ -1194,7 +1204,7 @@ impl PreparedPlot {
                     Orientation::Vertical => {
                         if self.draw_cursor_x {
                             shapes.push(vertical_line(
-                                transform.position_from_point(&PlotPoint::new(value, 0.0)),
+                                transform.position_from_point(&PlotPoint::new(cursor.point, 0.0)),
                                 &self.transform,
                                 line_color,
                             ));
@@ -1319,7 +1329,7 @@ impl PreparedPlot {
         }
     }
 
-    fn hover(&self, ui: &Ui, pointer: Pos2, shapes: &mut Vec<Shape>) -> Vec<(Orientation, f64)> {
+    fn hover(&self, ui: &Ui, pointer: Pos2, shapes: &mut Vec<Shape>) -> Vec<Cursor> {
         let Self {
             transform,
             show_x,
