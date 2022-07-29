@@ -6,6 +6,9 @@ pub struct WindowSettings {
     /// the inner or outer position depending on the platform.
     /// See [`winit::window::WindowAttributes`] for details.
     position: Option<egui::Pos2>,
+
+    fullscreen: bool,
+
     /// Inner size of window in logical pixels
     inner_size_points: Option<egui::Vec2>,
 }
@@ -29,6 +32,9 @@ impl WindowSettings {
 
         Self {
             position,
+
+            fullscreen: window.fullscreen().is_some(),
+
             inner_size_points: Some(egui::vec2(
                 inner_size_points.width,
                 inner_size_points.height,
@@ -55,10 +61,15 @@ impl WindowSettings {
         }
 
         if let Some(inner_size_points) = self.inner_size_points {
-            window.with_inner_size(winit::dpi::LogicalSize {
-                width: inner_size_points.x as f64,
-                height: inner_size_points.y as f64,
-            })
+            window
+                .with_inner_size(winit::dpi::LogicalSize {
+                    width: inner_size_points.x as f64,
+                    height: inner_size_points.y as f64,
+                })
+                .with_fullscreen(
+                    self.fullscreen
+                        .then(|| winit::window::Fullscreen::Borderless(None)),
+                )
         } else {
             window
         }

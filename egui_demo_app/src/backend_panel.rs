@@ -174,15 +174,25 @@ impl BackendPanel {
             }
         }
 
-        if !frame.is_web()
-            && ui
-                .button("📱 Phone Size")
-                .on_hover_text("Resize the window to be small like a phone.")
-                .clicked()
-        {
-            // frame.set_window_size(egui::Vec2::new(375.0, 812.0)); // iPhone 12 mini
-            frame.set_window_size(egui::Vec2::new(375.0, 667.0)); //  iPhone SE 2nd gen
-            ui.close_menu();
+        if !frame.is_web() {
+            ui.horizontal(|ui| {
+                if let Some(window_info) = &frame.info().window_info {
+                    let mut fullscreen = window_info.fullscreen;
+                    ui.checkbox(&mut fullscreen, "🗖 Fullscreen")
+                        .on_hover_text("Fullscreen the window");
+                    frame.set_fullscreen(fullscreen);
+                }
+
+                if ui
+                    .button("📱 Phone Size")
+                    .on_hover_text("Resize the window to be small like a phone.")
+                    .clicked()
+                {
+                    // frame.set_window_size(egui::Vec2::new(375.0, 812.0)); // iPhone 12 mini
+                    frame.set_window_size(egui::Vec2::new(375.0, 667.0)); //  iPhone SE 2nd gen
+                    ui.close_menu();
+                }
+            });
         }
     }
 

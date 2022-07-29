@@ -21,6 +21,7 @@ pub fn read_window_info(
                 .to_logical::<f32>(pixels_per_point.into());
             Some(WindowInfo {
                 position: egui::Pos2 { x: pos.x, y: pos.y },
+                fullscreen: window.fullscreen().is_some(),
                 size: egui::Vec2 {
                     x: size.width,
                     y: size.height,
@@ -39,6 +40,7 @@ pub fn window_builder(
         always_on_top,
         maximized,
         decorated,
+        fullscreen,
         drag_and_drop_support,
         icon_data,
         initial_window_pos,
@@ -54,8 +56,9 @@ pub fn window_builder(
 
     let mut window_builder = winit::window::WindowBuilder::new()
         .with_always_on_top(*always_on_top)
-        .with_maximized(*maximized)
         .with_decorations(*decorated)
+        .with_fullscreen(fullscreen.then(|| winit::window::Fullscreen::Borderless(None)))
+        .with_maximized(*maximized)
         .with_resizable(*resizable)
         .with_transparent(*transparent)
         .with_window_icon(window_icon);
@@ -118,6 +121,7 @@ pub fn handle_app_output(
         window_size,
         window_title,
         decorated,
+        fullscreen,
         drag_window,
         window_pos,
         visible,
@@ -135,6 +139,10 @@ pub fn handle_app_output(
             }
             .to_logical::<f32>(native_pixels_per_point(window) as f64),
         );
+    }
+
+    if let Some(fullscreen) = fullscreen {
+        window.set_fullscreen(fullscreen.then(|| winit::window::Fullscreen::Borderless(None)));
     }
 
     if let Some(window_title) = window_title {
