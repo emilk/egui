@@ -856,10 +856,10 @@ mod tests {
     fn test_cubic_bounding_box() {
         let curve = CubicBezierShape {
             points: [
-                Pos2::new(10.0, 10.0),
-                Pos2::new(110.0, 170.0),
-                Pos2::new(180.0, 30.0),
-                Pos2::new(270.0, 210.0),
+                pos2(10.0, 10.0),
+                pos2(110.0, 170.0),
+                pos2(180.0, 30.0),
+                pos2(270.0, 210.0),
             ],
             closed: false,
             fill: Default::default(),
@@ -874,10 +874,10 @@ mod tests {
 
         let curve = CubicBezierShape {
             points: [
-                Pos2::new(10.0, 10.0),
-                Pos2::new(110.0, 170.0),
-                Pos2::new(270.0, 210.0),
-                Pos2::new(180.0, 30.0),
+                pos2(10.0, 10.0),
+                pos2(110.0, 170.0),
+                pos2(270.0, 210.0),
+                pos2(180.0, 30.0),
             ],
             closed: false,
             fill: Default::default(),
@@ -892,10 +892,10 @@ mod tests {
 
         let curve = CubicBezierShape {
             points: [
-                Pos2::new(110.0, 170.0),
-                Pos2::new(10.0, 10.0),
-                Pos2::new(270.0, 210.0),
-                Pos2::new(180.0, 30.0),
+                pos2(110.0, 170.0),
+                pos2(10.0, 10.0),
+                pos2(270.0, 210.0),
+                pos2(180.0, 30.0),
             ],
             closed: false,
             fill: Default::default(),
@@ -913,10 +913,10 @@ mod tests {
     fn test_cubic_different_tolerance_flattening() {
         let curve = CubicBezierShape {
             points: [
-                Pos2::new(0.0, 0.0),
-                Pos2::new(100.0, 0.0),
-                Pos2::new(100.0, 100.0),
-                Pos2::new(100.0, 200.0),
+                pos2(0.0, 0.0),
+                pos2(100.0, 0.0),
+                pos2(100.0, 100.0),
+                pos2(100.0, 200.0),
             ],
             closed: false,
             fill: Default::default(),
@@ -963,10 +963,10 @@ mod tests {
     fn test_cubic_different_shape_flattening() {
         let curve = CubicBezierShape {
             points: [
-                Pos2::new(90.0, 110.0),
-                Pos2::new(30.0, 170.0),
-                Pos2::new(210.0, 170.0),
-                Pos2::new(170.0, 110.0),
+                pos2(90.0, 110.0),
+                pos2(30.0, 170.0),
+                pos2(210.0, 170.0),
+                pos2(170.0, 110.0),
             ],
             closed: false,
             fill: Default::default(),
@@ -982,10 +982,10 @@ mod tests {
 
         let curve = CubicBezierShape {
             points: [
-                Pos2::new(90.0, 110.0),
-                Pos2::new(90.0, 170.0),
-                Pos2::new(170.0, 170.0),
-                Pos2::new(170.0, 110.0),
+                pos2(90.0, 110.0),
+                pos2(90.0, 170.0),
+                pos2(170.0, 170.0),
+                pos2(170.0, 110.0),
             ],
             closed: false,
             fill: Default::default(),
@@ -1001,10 +1001,10 @@ mod tests {
 
         let curve = CubicBezierShape {
             points: [
-                Pos2::new(90.0, 110.0),
-                Pos2::new(110.0, 170.0),
-                Pos2::new(150.0, 170.0),
-                Pos2::new(170.0, 110.0),
+                pos2(90.0, 110.0),
+                pos2(110.0, 170.0),
+                pos2(150.0, 170.0),
+                pos2(170.0, 110.0),
             ],
             closed: false,
             fill: Default::default(),
@@ -1020,10 +1020,10 @@ mod tests {
 
         let curve = CubicBezierShape {
             points: [
-                Pos2::new(90.0, 110.0),
-                Pos2::new(110.0, 170.0),
-                Pos2::new(230.0, 110.0),
-                Pos2::new(170.0, 110.0),
+                pos2(90.0, 110.0),
+                pos2(110.0, 170.0),
+                pos2(230.0, 110.0),
+                pos2(170.0, 110.0),
             ],
             closed: false,
             fill: Default::default(),
@@ -1039,10 +1039,10 @@ mod tests {
 
         let curve = CubicBezierShape {
             points: [
-                Pos2::new(90.0, 110.0),
-                Pos2::new(110.0, 170.0),
-                Pos2::new(210.0, 70.0),
-                Pos2::new(170.0, 110.0),
+                pos2(90.0, 110.0),
+                pos2(110.0, 170.0),
+                pos2(210.0, 70.0),
+                pos2(170.0, 110.0),
             ],
             closed: false,
             fill: Default::default(),
@@ -1058,10 +1058,10 @@ mod tests {
 
         let curve = CubicBezierShape {
             points: [
-                Pos2::new(90.0, 110.0),
-                Pos2::new(110.0, 170.0),
-                Pos2::new(150.0, 50.0),
-                Pos2::new(170.0, 110.0),
+                pos2(90.0, 110.0),
+                pos2(110.0, 170.0),
+                pos2(150.0, 50.0),
+                pos2(170.0, 110.0),
             ],
             closed: false,
             fill: Default::default(),
@@ -1079,11 +1079,7 @@ mod tests {
     #[test]
     fn test_quadrtic_flattening() {
         let curve = QuadraticBezierShape {
-            points: [
-                Pos2::new(0.0, 0.0),
-                Pos2::new(80.0, 200.0),
-                Pos2::new(100.0, 30.0),
-            ],
+            points: [pos2(0.0, 0.0), pos2(80.0, 200.0), pos2(100.0, 30.0)],
             closed: false,
             fill: Default::default(),
             stroke: Default::default(),

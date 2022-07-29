@@ -341,15 +341,15 @@ impl Margin {
 
     /// Total margins on both sides
     pub fn sum(&self) -> Vec2 {
-        Vec2::new(self.left + self.right, self.top + self.bottom)
+        vec2(self.left + self.right, self.top + self.bottom)
     }
 
     pub fn left_top(&self) -> Vec2 {
-        Vec2::new(self.left, self.top)
+        vec2(self.left, self.top)
     }
 
     pub fn right_bottom(&self) -> Vec2 {
-        Vec2::new(self.right, self.bottom)
+        vec2(self.right, self.bottom)
     }
 }
 

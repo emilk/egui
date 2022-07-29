@@ -103,7 +103,7 @@ impl Default for ManualLayoutTest {
     fn default() -> Self {
         Self {
             widget_offset: egui::Vec2::splat(150.0),
-            widget_size: egui::Vec2::new(200.0, 100.0),
+            widget_size: egui::vec2(200.0, 100.0),
             widget_type: WidgetType::Button,
             text_edit_contents: crate::LOREM_IPSUM.to_owned(),
         }

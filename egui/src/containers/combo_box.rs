@@ -92,7 +92,7 @@ impl ComboBox {
     /// ) {
     ///     let rect = egui::Rect::from_center_size(
     ///         rect.center(),
-    ///         egui::Vec2::new(rect.width() * 0.6, rect.height() * 0.4),
+    ///         egui::vec2(rect.width() * 0.6, rect.height() * 0.4),
     ///     );
     ///     ui.painter().add(egui::Shape::convex_polygon(
     ///         vec![rect.left_top(), rect.right_top(), rect.center_bottom()],

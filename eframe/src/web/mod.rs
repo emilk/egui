@@ -82,7 +82,7 @@ fn canvas_origin(canvas_id: &str) -> egui::Pos2 {
     let rect = canvas_element(canvas_id)
         .unwrap()
         .get_bounding_client_rect();
-    egui::Pos2::new(rect.left() as f32, rect.top() as f32)
+    egui::pos2(rect.left() as f32, rect.top() as f32)
 }
 
 pub fn canvas_size_in_points(canvas_id: &str) -> egui::Vec2 {

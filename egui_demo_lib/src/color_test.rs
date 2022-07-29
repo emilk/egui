@@ -351,7 +351,7 @@ fn pixel_test(ui: &mut Ui) {
 
     let pixels_per_point = ui.ctx().pixels_per_point();
     let num_squares: u32 = 8;
-    let size_pixels = Vec2::new(
+    let size_pixels = vec2(
         ((num_squares + 1) * (num_squares + 2) / 2) as f32,
         num_squares as f32,
     );
@@ -379,7 +379,7 @@ fn pixel_test(ui: &mut Ui) {
 fn blending_and_feathering_test(ui: &mut Ui) {
     ui.label("Some fine lines for testing anti-aliasing and blending:");
 
-    let size = Vec2::new(512.0, 512.0);
+    let size = vec2(512.0, 512.0);
     let (response, painter) = ui.allocate_painter(size, Sense::hover());
     let rect = response.rect;
 
@@ -399,21 +399,21 @@ fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Col
         let mut x = 0.0;
         for opacity in [1.00, 0.50, 0.25, 0.10, 0.05, 0.02, 0.01, 0.00] {
             painter.text(
-                rect.center_top() + Vec2::new(0.0, x),
+                rect.center_top() + vec2(0.0, x),
                 Align2::LEFT_TOP,
                 format!("{:.0}% white", 100.0 * opacity),
                 FontId::proportional(16.0),
                 Color32::WHITE.linear_multiply(opacity),
             );
             painter.text(
-                rect.center_top() + Vec2::new(80.0, x),
+                rect.center_top() + vec2(80.0, x),
                 Align2::LEFT_TOP,
                 format!("{:.0}% gray", 100.0 * opacity),
                 FontId::proportional(16.0),
                 Color32::GRAY.linear_multiply(opacity),
             );
             painter.text(
-                rect.center_top() + Vec2::new(160.0, x),
+                rect.center_top() + vec2(160.0, x),
                 Align2::LEFT_TOP,
                 format!("{:.0}% black", 100.0 * opacity),
                 FontId::proportional(16.0),
@@ -437,7 +437,7 @@ fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Col
 
         painter.add(egui::epaint::CubicBezierShape::from_points_stroke(
             [
-                rect.left_top() + Vec2::new(16.0, 0.0),
+                rect.left_top() + vec2(16.0, 0.0),
                 rect.right_top(),
                 rect.right_center(),
                 rect.right_bottom(),

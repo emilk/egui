@@ -188,8 +188,8 @@ impl BackendPanel {
                     .on_hover_text("Resize the window to be small like a phone.")
                     .clicked()
                 {
-                    // frame.set_window_size(egui::Vec2::new(375.0, 812.0)); // iPhone 12 mini
-                    frame.set_window_size(egui::Vec2::new(375.0, 667.0)); //  iPhone SE 2nd gen
+                    // frame.set_window_size(egui::vec2(375.0, 812.0)); // iPhone 12 mini
+                    frame.set_window_size(egui::vec2(375.0, 667.0)); //  iPhone SE 2nd gen
                     ui.close_menu();
                 }
             });

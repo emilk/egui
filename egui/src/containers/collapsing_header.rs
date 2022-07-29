@@ -98,7 +98,7 @@ impl CollapsingState {
         ui: &mut Ui,
         icon_fn: impl FnOnce(&mut Ui, f32, &Response) + 'static,
     ) -> Response {
-        let size = Vec2::new(ui.spacing().indent, ui.spacing().icon_width);
+        let size = vec2(ui.spacing().indent, ui.spacing().icon_width);
         let (_id, rect) = ui.allocate_space(size);
         let response = ui.interact(rect, self.id, Sense::click());
         if response.clicked() {
