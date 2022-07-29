@@ -212,6 +212,10 @@ impl Response {
     }
 
     /// This widget has the keyboard focus (i.e. is receiving key presses).
+    ///
+    /// This function only returns true if the UI as a whole (e.g. window)
+    /// also has the keyboard focus. That makes this function suitable
+    /// for style choices, e.g. a thicker border around focused widgets.
     pub fn has_focus(&self) -> bool {
         // Access input and memory in separate statements to prevent deadlock.
         let has_global_focus = self.ctx.input().raw.has_focus;
