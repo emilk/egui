@@ -8,6 +8,7 @@ All notable changes to the `egui-winit` integration will be noted in this file.
 * Allow deferred render + surface state initialization for Android ([#1634](https://github.com/emilk/egui/pull/1634)).
 * Fixed window position persistence ([#1745](https://github.com/emilk/egui/pull/1745)).
 * Fixed mouse cursor change on Linux ([#1747](https://github.com/emilk/egui/pull/1747)).
+* Use the new `RawInput::has_focus` field to indicate whether the window has the keyboard focus ([#1859](https://github.com/emilk/egui/pull/1859)).
 
 
 ## 0.18.0 - 2022-04-30

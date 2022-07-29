@@ -350,6 +350,11 @@ impl Memory {
     }
 
     /// Does this widget have keyboard focus?
+    ///
+    /// This function does not consider whether the UI as a whole (e.g. window)
+    /// has the keyboard focus. That makes this function suitable for deciding
+    /// widget state that should not be disrupted if the user moves away
+    /// from the window and back.
     #[inline(always)]
     pub fn has_focus(&self, id: Id) -> bool {
         self.interaction.focus.id == Some(id)
