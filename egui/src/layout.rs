@@ -155,13 +155,13 @@ impl Layout {
     ///
     /// The `valign` parameter controls how to align elements vertically.
     #[inline(always)]
-    pub fn left_to_right(valing: Align) -> Self {
+    pub fn left_to_right(valign: Align) -> Self {
         Self {
             main_dir: Direction::LeftToRight,
             main_wrap: false,
             main_align: Align::Center, // looks best to e.g. center text within a button
             main_justify: false,
-            cross_align: valing,
+            cross_align: valign,
             cross_justify: false,
         }
     }
@@ -170,13 +170,13 @@ impl Layout {
     ///
     /// The `valign` parameter controls how to align elements vertically.
     #[inline(always)]
-    pub fn right_to_left(valing: Align) -> Self {
+    pub fn right_to_left(valign: Align) -> Self {
         Self {
             main_dir: Direction::RightToLeft,
             main_wrap: false,
             main_align: Align::Center, // looks best to e.g. center text within a button
             main_justify: false,
-            cross_align: valing,
+            cross_align: valign,
             cross_justify: false,
         }
     }
