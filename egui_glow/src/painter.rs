@@ -468,6 +468,8 @@ impl Painter {
             }
 
             check_for_gl_error!(&self.gl, "paint_mesh");
+        } else {
+            tracing::warn!("Failed to find texture {:?}", mesh.texture_id);
         }
     }
 

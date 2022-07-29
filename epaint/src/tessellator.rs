@@ -1058,10 +1058,11 @@ impl Tessellator {
             None => true,
             Some(output_clipped_primitive) => {
                 output_clipped_primitive.clip_rect != new_clip_rect
-                    || if let Primitive::Mesh(output_mesh) = &output_clipped_primitive.primitive {
-                        output_mesh.texture_id != new_shape.texture_id()
-                    } else {
-                        true
+                    || match &output_clipped_primitive.primitive {
+                        Primitive::Mesh(output_mesh) => {
+                            output_mesh.texture_id != new_shape.texture_id()
+                        }
+                        Primitive::Callback(_) => true,
                     }
             }
         };

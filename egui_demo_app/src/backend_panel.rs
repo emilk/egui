@@ -142,13 +142,6 @@ impl BackendPanel {
             if ui.button("Quit").clicked() {
                 frame.quit();
             }
-
-            if ui
-                .button("Drag me to drag window")
-                .is_pointer_button_down_on()
-            {
-                frame.drag_window();
-            }
         }
     }
 
@@ -191,9 +184,18 @@ impl BackendPanel {
                 {
                     // frame.set_window_size(egui::vec2(375.0, 812.0)); // iPhone 12 mini
                     frame.set_window_size(egui::vec2(375.0, 667.0)); //  iPhone SE 2nd gen
+                    frame.set_fullscreen(false);
                     ui.close_menu();
                 }
             });
+
+            if !frame.info().window_info.fullscreen
+                && ui
+                    .button("Drag me to drag window")
+                    .is_pointer_button_down_on()
+            {
+                frame.drag_window();
+            }
         }
     }
 

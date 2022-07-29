@@ -99,6 +99,16 @@ impl RetainedImage {
         self.size
     }
 
+    /// The width of the image.
+    pub fn width(&self) -> usize {
+        self.size[0]
+    }
+
+    /// The height of the image.
+    pub fn height(&self) -> usize {
+        self.size[1]
+    }
+
     /// The size of the image data (number of pixels wide/high).
     pub fn size_vec2(&self) -> egui::Vec2 {
         let [w, h] = self.size();

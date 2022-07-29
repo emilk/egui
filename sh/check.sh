@@ -62,8 +62,8 @@ cargo deny check
 # Also try https://github.com/google/bloaty
 
 # what compiles slowly?
+# cargo clean && time cargo build -p eframe --timings
 # https://fasterthanli.me/articles/why-is-my-rust-build-so-slow
-# (cd egui_demo_app && cargo clean && RUSTC_BOOTSTRAP=1 cargo build --release --quiet -Z timings)
 
 # what compiles slowly?
 # cargo llvm-lines --lib -p egui | head -20
