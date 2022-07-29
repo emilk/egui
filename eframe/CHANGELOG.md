@@ -23,6 +23,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 * `dark-light` (dark mode detection) is now enabled by default on Mac and Windows ([#1726](https://github.com/emilk/egui/pull/1726)).
 * Fixed mouse cursor change on Linux ([#1747](https://github.com/emilk/egui/pull/1747)).
 * Added `Frame::set_visible` ([#1808](https://github.com/emilk/egui/pull/1808)).
+* Added fullscreen support ([#1866](https://github.com/emilk/egui/pull/1866)).
 
 #### Web:
 * Added option to select WebGL version ([#1803](https://github.com/emilk/egui/pull/1803)).
