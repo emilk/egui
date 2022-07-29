@@ -53,7 +53,7 @@ pub struct BackendPanel {
     run_mode: RunMode,
 
     #[cfg_attr(feature = "serde", serde(skip))]
-    repaint_after_seocnds: f32,
+    repaint_after_seconds: f32,
 
     /// current slider value for current gui scale
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -70,7 +70,7 @@ impl Default for BackendPanel {
         Self {
             open: false,
             run_mode: Default::default(),
-            repaint_after_seocnds: 1.0,
+            repaint_after_seconds: 1.0,
             pixels_per_point: None,
             frame_history: Default::default(),
             egui_windows: Default::default(),
@@ -91,7 +91,7 @@ impl BackendPanel {
             RunMode::Reactive => {
                 // let the computer rest for a bit
                 ctx.request_repaint_after(std::time::Duration::from_secs_f32(
-                    self.repaint_after_seocnds,
+                    self.repaint_after_seconds,
                 ));
             }
         }
@@ -260,7 +260,7 @@ impl BackendPanel {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;
                 ui.label("(but at least every ");
-                egui::DragValue::new(&mut self.repaint_after_seocnds)
+                egui::DragValue::new(&mut self.repaint_after_seconds)
                     .clamp_range(0.1..=10.0)
                     .speed(0.1)
                     .suffix(" s")
