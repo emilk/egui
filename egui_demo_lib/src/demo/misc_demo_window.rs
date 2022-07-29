@@ -443,7 +443,7 @@ impl Tree {
     fn children_ui(&mut self, ui: &mut Ui, depth: usize) -> Action {
         if depth > 0
             && ui
-                .button(RichText::new("delete").color(Color32::RED))
+                .button(RichText::new("delete").color(ui.visuals().warn_fg_color))
                 .clicked()
         {
             return Action::Delete;

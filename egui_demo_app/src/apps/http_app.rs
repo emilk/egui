@@ -95,7 +95,7 @@ impl eframe::App for HttpApp {
                         Err(error) => {
                             // This should only happen if the fetch API isn't available or something similar.
                             ui.colored_label(
-                                egui::Color32::RED,
+                                ui.visuals().error_fg_color,
                                 if error.is_empty() { "Error" } else { error },
                             );
                         }

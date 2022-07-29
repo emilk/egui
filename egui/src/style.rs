@@ -446,6 +446,12 @@ pub struct Visuals {
     /// Background color behind code-styled monospaced labels.
     pub code_bg_color: Color32,
 
+    /// A good color for warning text (e.g. orange).
+    pub warn_fg_color: Color32,
+
+    /// A good color for error text (e.g. red).
+    pub error_fg_color: Color32,
+
     pub window_rounding: Rounding,
     pub window_shadow: Shadow,
 
@@ -669,6 +675,8 @@ impl Visuals {
             faint_bg_color: Color32::from_gray(35),
             extreme_bg_color: Color32::from_gray(10), // e.g. TextEdit background
             code_bg_color: Color32::from_gray(64),
+            warn_fg_color: Color32::from_rgb(255, 143, 0), // orange
+            error_fg_color: Color32::from_rgb(255, 0, 0),  // red
             window_rounding: Rounding::same(6.0),
             window_shadow: Shadow::big_dark(),
             popup_shadow: Shadow::small_dark(),
@@ -691,6 +699,8 @@ impl Visuals {
             faint_bg_color: Color32::from_gray(242),
             extreme_bg_color: Color32::from_gray(255), // e.g. TextEdit background
             code_bg_color: Color32::from_gray(230),
+            warn_fg_color: Color32::from_rgb(255, 0, 0), // red also, beecause orange doesn't look great because of https://github.com/emilk/egui/issues/1455
+            error_fg_color: Color32::from_rgb(255, 0, 0), // red
             window_shadow: Shadow::big_light(),
             popup_shadow: Shadow::small_light(),
             ..Self::dark()
@@ -1140,6 +1150,8 @@ impl Visuals {
             faint_bg_color,
             extreme_bg_color,
             code_bg_color,
+            warn_fg_color,
+            error_fg_color,
             window_rounding,
             window_shadow,
             popup_shadow,
@@ -1175,11 +1187,16 @@ impl Visuals {
         ui.collapsing("Widgets", |ui| widgets.ui(ui));
         ui.collapsing("Selection", |ui| selection.ui(ui));
 
-        ui_color(
-            ui,
-            &mut widgets.noninteractive.fg_stroke.color,
-            "Text color",
-        );
+        ui.horizontal(|ui| {
+            ui_color(
+                ui,
+                &mut widgets.noninteractive.fg_stroke.color,
+                "Text color",
+            );
+            ui_color(ui, warn_fg_color, RichText::new("Warnings"));
+            ui_color(ui, error_fg_color, RichText::new("Errors"));
+        });
+
         ui_color(ui, code_bg_color, RichText::new("Code background").code()).on_hover_ui(|ui| {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;
