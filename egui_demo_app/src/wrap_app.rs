@@ -168,10 +168,9 @@ impl eframe::App for WrapApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        if let Some(web_info) = frame.info().web_info.as_ref() {
-            if let Some(anchor) = web_info.location.hash.strip_prefix('#') {
-                self.state.selected_anchor = anchor.to_owned();
-            }
+        #[cfg(target_arch = "wasm32")]
+        if let Some(anchor) = frame.info().web_info.location.hash.strip_prefix('#') {
+            self.state.selected_anchor = anchor.to_owned();
         }
 
         if self.state.selected_anchor.is_empty() {

@@ -181,9 +181,7 @@ pub fn install_document_events(runner_container: &AppRunnerContainer) -> Result<
         "hashchange",
         |_: web_sys::Event, mut runner_lock| {
             // `epi::Frame::info(&self)` clones `epi::IntegrationInfo`, but we need to modify the original here
-            if let Some(web_info) = &mut runner_lock.frame.info.web_info {
-                web_info.location.hash = location_hash();
-            }
+            runner_lock.frame.info.web_info.location.hash = location_hash();
         },
     )?;
 

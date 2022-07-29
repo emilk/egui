@@ -9,26 +9,24 @@ pub fn points_to_size(points: egui::Vec2) -> winit::dpi::LogicalSize<f64> {
     }
 }
 
-pub fn read_window_info(
-    window: &winit::window::Window,
-    pixels_per_point: f32,
-) -> Option<WindowInfo> {
-    match window.outer_position() {
-        Ok(pos) => {
-            let pos = pos.to_logical::<f32>(pixels_per_point.into());
-            let size = window
-                .inner_size()
-                .to_logical::<f32>(pixels_per_point.into());
-            Some(WindowInfo {
-                position: egui::Pos2 { x: pos.x, y: pos.y },
-                fullscreen: window.fullscreen().is_some(),
-                size: egui::Vec2 {
-                    x: size.width,
-                    y: size.height,
-                },
-            })
-        }
-        Err(_) => None,
+pub fn read_window_info(window: &winit::window::Window, pixels_per_point: f32) -> WindowInfo {
+    let position = window
+        .outer_position()
+        .ok()
+        .map(|pos| pos.to_logical::<f32>(pixels_per_point.into()))
+        .map(|pos| egui::Pos2 { x: pos.x, y: pos.y });
+
+    let size = window
+        .inner_size()
+        .to_logical::<f32>(pixels_per_point.into());
+
+    WindowInfo {
+        position,
+        fullscreen: window.fullscreen().is_some(),
+        size: egui::Vec2 {
+            x: size.width,
+            y: size.height,
+        },
     }
 }
 
@@ -206,7 +204,6 @@ impl EpiIntegration {
 
         let frame = epi::Frame {
             info: epi::IntegrationInfo {
-                web_info: None,
                 system_theme,
                 cpu_usage: None,
                 native_pixels_per_point: Some(native_pixels_per_point(window)),
