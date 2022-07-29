@@ -456,6 +456,7 @@ impl CustomAxisDemo {
 
 #[derive(PartialEq)]
 struct LinkedAxisDemo {
+    link_cursor: bool,
     link_x: bool,
     link_y: bool,
     group: plot::LinkedAxisGroup,
@@ -466,6 +467,7 @@ impl Default for LinkedAxisDemo {
         let link_x = true;
         let link_y = false;
         Self {
+            link_cursor: true,
             link_x,
             link_y,
             group: plot::LinkedAxisGroup::new(link_x, link_y),
@@ -508,10 +510,12 @@ impl LinkedAxisDemo {
 
     fn ui(&mut self, ui: &mut Ui) -> Response {
         ui.horizontal(|ui| {
+            ui.checkbox(&mut &mut self.link_cursor, "Link cursor");
             ui.label("Linked axes:");
             ui.checkbox(&mut self.link_x, "X");
             ui.checkbox(&mut self.link_y, "Y");
         });
+        self.group.set_link_cursor(self.link_cursor);
         self.group.set_link_x(self.link_x);
         self.group.set_link_y(self.link_y);
         ui.horizontal(|ui| {
