@@ -682,8 +682,12 @@ impl Plot {
             auto_bounds = true.into();
         }
 
+        if !bounds.is_valid() {
+            auto_bounds = true.into();
+        }
+
         // Set bounds automatically based on content.
-        if auto_bounds.any() || !bounds.is_valid() {
+        if auto_bounds.any() {
             if auto_bounds.x {
                 bounds.set_x(&min_auto_bounds);
             }
@@ -693,13 +697,13 @@ impl Plot {
             }
 
             for item in &items {
-                // bounds.merge(&item.get_bounds());
+                let item_bounds = item.get_bounds();
 
                 if auto_bounds.x {
-                    bounds.merge_x(&item.get_bounds());
+                    bounds.merge_x(&item_bounds);
                 }
                 if auto_bounds.y {
-                    bounds.merge_y(&item.get_bounds());
+                    bounds.merge_y(&item_bounds);
                 }
             }
 
