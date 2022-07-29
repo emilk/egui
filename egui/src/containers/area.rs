@@ -172,6 +172,12 @@ pub(crate) struct Prepared {
     pub(crate) movable: bool,
     enabled: bool,
     drag_bounds: Option<Rect>,
+    /// Set the first frame of new windows with anchors.
+    ///
+    /// This is so that we use the first frame to calculate the window size,
+    /// and then can correctly position the window the next frame,
+    /// without having one frame where the window is positioned in the wrong place.
+    temporarily_invisible: bool,
 }
 
 impl Area {
@@ -214,11 +220,11 @@ impl Area {
         });
         state.pos = new_pos.unwrap_or(state.pos);
         state.interactable = interactable;
+        let mut temporarily_invisible = false;
 
         if let Some((anchor, offset)) = anchor {
             if is_new {
-                // unknown size
-                ctx.request_repaint();
+                temporarily_invisible = true;
             } else {
                 let screen = ctx.available_rect();
                 state.pos = anchor.align_size_within_rect(state.size, screen).min + offset;
@@ -233,6 +239,7 @@ impl Area {
             movable,
             enabled,
             drag_bounds,
+            temporarily_invisible,
         }
     }
 
@@ -314,7 +321,7 @@ impl Prepared {
             clip_rect,
         );
         ui.set_enabled(self.enabled);
-
+        ui.set_visible(!self.temporarily_invisible);
         ui
     }
 
@@ -326,6 +333,7 @@ impl Prepared {
             movable,
             enabled,
             drag_bounds,
+            temporarily_invisible: _,
         } = self;
 
         state.size = content_ui.min_rect().size();
