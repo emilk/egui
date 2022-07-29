@@ -126,6 +126,22 @@ struct Cursor {
     point: f64,
 }
 
+impl Cursor {
+    fn vertical(point: f64) -> Self {
+        Self {
+            orientation: Orientation::Vertical,
+            point,
+        }
+    }
+
+    fn horizontal(point: f64) -> Self {
+        Self {
+            orientation: Orientation::Horizontal,
+            point,
+        }
+    }
+}
+
 /// Defines how multiple plots share the same range for one or both of their axes. Can be added while building
 /// a plot with [`Plot::link_axis`]. Contains an internal state, meaning that this object should be stored by
 /// the user between frames.
@@ -1188,12 +1204,17 @@ impl PreparedPlot {
         let cursors = if let Some(pointer) = response.hover_pos() {
             self.hover(ui, pointer, &mut shapes)
         } else {
-            // Draw cursors from other plots
-            let line_color = rulers_color(ui);
-            for cursor in &self.draw_cursors {
+            Vec::new()
+        };
+
+        // Draw cursors
+        let line_color = rulers_color(ui);
+
+        let mut draw_cursor = |cursors: &Vec<Cursor>, always| {
+            for cursor in cursors {
                 match cursor.orientation {
                     Orientation::Horizontal => {
-                        if self.draw_cursor_y {
+                        if self.draw_cursor_y || always {
                             shapes.push(horizontal_line(
                                 transform.position_from_point(&PlotPoint::new(0.0, cursor.point)),
                                 &self.transform,
@@ -1202,7 +1223,7 @@ impl PreparedPlot {
                         }
                     }
                     Orientation::Vertical => {
-                        if self.draw_cursor_x {
+                        if self.draw_cursor_x || always {
                             shapes.push(vertical_line(
                                 transform.position_from_point(&PlotPoint::new(cursor.point, 0.0)),
                                 &self.transform,
@@ -1212,9 +1233,10 @@ impl PreparedPlot {
                     }
                 }
             }
-
-            Vec::new()
         };
+
+        draw_cursor(&self.draw_cursors, false);
+        draw_cursor(&cursors, true);
 
         let painter = ui.painter().with_clip_rect(*transform.frame());
         painter.extend(shapes);
@@ -1356,23 +1378,31 @@ impl PreparedPlot {
             .min_by_key(|(_, elem)| elem.dist_sq.ord())
             .filter(|(_, elem)| elem.dist_sq <= interact_radius_sq);
 
-        let cursors = RefCell::new(Vec::new());
+        let mut cursors = Vec::new();
+
         let plot = items::PlotConfig {
             ui,
             transform,
             show_x: *show_x,
             show_y: *show_y,
-            cursors: &cursors,
         };
 
         if let Some((item, elem)) = closest {
-            item.on_hover(elem, shapes, &plot, label_formatter);
+            item.on_hover(elem, shapes, &mut cursors, &plot, label_formatter);
         } else {
             let value = transform.value_from_position(pointer);
-            items::rulers_at_value(pointer, value, "", &plot, shapes, label_formatter);
+            items::rulers_at_value(
+                pointer,
+                value,
+                "",
+                &plot,
+                shapes,
+                &mut cursors,
+                label_formatter,
+            );
         }
 
-        cursors.into_inner()
+        cursors
     }
 }
 

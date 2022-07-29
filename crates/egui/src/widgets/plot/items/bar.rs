@@ -2,7 +2,7 @@ use crate::emath::NumExt;
 use crate::epaint::{Color32, RectShape, Rounding, Shape, Stroke};
 
 use super::{add_rulers_and_text, highlighted_color, Orientation, PlotConfig, RectElement};
-use crate::plot::{BarChart, PlotPoint, ScreenTransform};
+use crate::plot::{BarChart, Cursor, PlotPoint, ScreenTransform};
 
 /// One bar in a [`BarChart`]. Potentially floating, allowing stacked bar charts.
 /// Width can be changed to allow variable-width histograms.
@@ -142,13 +142,14 @@ impl Bar {
         parent: &BarChart,
         plot: &PlotConfig<'_>,
         shapes: &mut Vec<Shape>,
+        cursors: &mut Vec<Cursor>,
     ) {
         let text: Option<String> = parent
             .element_formatter
             .as_ref()
             .map(|fmt| fmt(self, parent));
 
-        add_rulers_and_text(self, plot, text, shapes);
+        add_rulers_and_text(self, plot, text, shapes, cursors);
     }
 }
 

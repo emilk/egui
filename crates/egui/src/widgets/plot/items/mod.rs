@@ -1,6 +1,6 @@
 //! Contains items that can be added to a plot.
 
-use std::{cell::RefCell, ops::RangeInclusive};
+use std::ops::RangeInclusive;
 
 use epaint::util::FloatOrd;
 use epaint::Mesh;
@@ -28,7 +28,6 @@ pub(super) struct PlotConfig<'a> {
     pub transform: &'a ScreenTransform,
     pub show_x: bool,
     pub show_y: bool,
-    pub cursors: &'a RefCell<Vec<Cursor>>,
 }
 
 /// Trait shared by things that can be drawn in the plot.
@@ -73,6 +72,7 @@ pub(super) trait PlotItem {
         &self,
         elem: ClosestElem,
         shapes: &mut Vec<Shape>,
+        cursors: &mut Vec<Cursor>,
         plot: &PlotConfig<'_>,
         label_formatter: &LabelFormatter,
     ) {
@@ -97,7 +97,15 @@ pub(super) trait PlotItem {
         let pointer = plot.transform.position_from_point(&value);
         shapes.push(Shape::circle_filled(pointer, 3.0, line_color));
 
-        rulers_at_value(pointer, value, self.name(), plot, shapes, label_formatter);
+        rulers_at_value(
+            pointer,
+            value,
+            self.name(),
+            plot,
+            shapes,
+            cursors,
+            label_formatter,
+        );
     }
 }
 
@@ -1393,13 +1401,14 @@ impl PlotItem for BarChart {
         &self,
         elem: ClosestElem,
         shapes: &mut Vec<Shape>,
+        cursors: &mut Vec<Cursor>,
         plot: &PlotConfig<'_>,
         _: &LabelFormatter,
     ) {
         let bar = &self.bars[elem.index];
 
         bar.add_shapes(plot.transform, true, shapes);
-        bar.add_rulers_and_text(self, plot, shapes);
+        bar.add_rulers_and_text(self, plot, shapes, cursors);
     }
 }
 
@@ -1535,13 +1544,14 @@ impl PlotItem for BoxPlot {
         &self,
         elem: ClosestElem,
         shapes: &mut Vec<Shape>,
+        cursors: &mut Vec<Cursor>,
         plot: &PlotConfig<'_>,
         _: &LabelFormatter,
     ) {
         let box_plot = &self.boxes[elem.index];
 
         box_plot.add_shapes(plot.transform, true, shapes);
-        box_plot.add_rulers_and_text(self, plot, shapes);
+        box_plot.add_rulers_and_text(self, plot, shapes, cursors);
     }
 }
 
@@ -1591,6 +1601,7 @@ fn add_rulers_and_text(
     plot: &PlotConfig<'_>,
     text: Option<String>,
     shapes: &mut Vec<Shape>,
+    cursors: &mut Vec<Cursor>,
 ) {
     let orientation = elem.orientation();
     let show_argument = plot.show_x && orientation == Orientation::Vertical
@@ -1598,37 +1609,33 @@ fn add_rulers_and_text(
     let show_values = plot.show_y && orientation == Orientation::Vertical
         || plot.show_x && orientation == Orientation::Horizontal;
 
-    let line_color = rulers_color(plot.ui);
-
     // Rulers for argument (usually vertical)
     if show_argument {
-        let push_argument_ruler = |argument: PlotPoint, shapes: &mut Vec<Shape>| {
-            let position = plot.transform.position_from_point(&argument);
-            let line = match orientation {
-                Orientation::Horizontal => horizontal_line(position, plot.transform, line_color),
-                Orientation::Vertical => vertical_line(position, plot.transform, line_color),
+        let push_argument_ruler = |argument: PlotPoint, cursors: &mut Vec<Cursor>| {
+            let cursor = match orientation {
+                Orientation::Horizontal => Cursor::horizontal(argument.y),
+                Orientation::Vertical => Cursor::vertical(argument.x),
             };
-            shapes.push(line);
+            cursors.push(cursor);
         };
 
         for pos in elem.arguments_with_ruler() {
-            push_argument_ruler(pos, shapes);
+            push_argument_ruler(pos, cursors);
         }
     }
 
     // Rulers for values (usually horizontal)
     if show_values {
-        let push_value_ruler = |value: PlotPoint, shapes: &mut Vec<Shape>| {
-            let position = plot.transform.position_from_point(&value);
-            let line = match orientation {
-                Orientation::Horizontal => vertical_line(position, plot.transform, line_color),
-                Orientation::Vertical => horizontal_line(position, plot.transform, line_color),
+        let push_value_ruler = |value: PlotPoint, cursors: &mut Vec<Cursor>| {
+            let cursor = match orientation {
+                Orientation::Horizontal => Cursor::vertical(value.x),
+                Orientation::Vertical => Cursor::horizontal(value.y),
             };
-            shapes.push(line);
+            cursors.push(cursor);
         };
 
         for pos in elem.values_with_ruler() {
-            push_value_ruler(pos, shapes);
+            push_value_ruler(pos, cursors);
         }
     }
 
@@ -1665,22 +1672,14 @@ pub(super) fn rulers_at_value(
     name: &str,
     plot: &PlotConfig<'_>,
     shapes: &mut Vec<Shape>,
+    cursors: &mut Vec<Cursor>,
     label_formatter: &LabelFormatter,
 ) {
-    let line_color = rulers_color(plot.ui);
     if plot.show_x {
-        shapes.push(vertical_line(pointer, plot.transform, line_color));
-        plot.cursors.borrow_mut().push(Cursor {
-            orientation: Orientation::Vertical,
-            point: value.x,
-        });
+        cursors.push(Cursor::vertical(value.x));
     }
     if plot.show_y {
-        shapes.push(horizontal_line(pointer, plot.transform, line_color));
-        plot.cursors.borrow_mut().push(Cursor {
-            orientation: Orientation::Horizontal,
-            point: value.y,
-        });
+        cursors.push(Cursor::horizontal(value.y));
     }
 
     let mut prefix = String::new();
