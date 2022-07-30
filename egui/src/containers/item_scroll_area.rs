@@ -632,12 +632,12 @@ impl Prepared {
 
         let outer_rect = Rect::from_min_size(inner_rect.min, inner_rect.size() + current_bar_use);
 
-        let content_is_too_small = [
+        let content_is_too_large = [
             content_size.x > inner_rect.width() || (has_bar[0] && state.first_to_show != 0),
             content_size.y > inner_rect.height() || (has_bar[1] && state.first_to_show != 0),
         ];
 
-        if content_is_too_small[0] || content_is_too_small[1] {
+        if content_is_too_large[0] || content_is_too_large[1] {
             // Drag contents to scroll (for touch screens mostly):
             let sense = if self.scrolling_enabled {
                 Sense::drag()
@@ -697,8 +697,8 @@ impl Prepared {
         }
 
         let show_scroll_this_frame = [
-            (content_is_too_small[0] || always_show_scroll),
-            (content_is_too_small[1] || always_show_scroll),
+            (content_is_too_large[0] || always_show_scroll),
+            (content_is_too_large[1] || always_show_scroll),
         ];
 
         let max_scroll_bar_width = max_scroll_bar_width_with_margin(ui);
