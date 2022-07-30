@@ -11,7 +11,7 @@
 //!
 //! You must never open one top-level panel from within another panel. Add one panel, then the next.
 //!
-//! Always add any [`CentralPanel`] last.
+//! ⚠ Always add any [`CentralPanel`] last.
 //!
 //! Add your [`Window`]:s after any top-level panels.
 
@@ -71,6 +71,8 @@ impl Side {
 ///
 /// The order in which you add panels matter!
 /// The first panel you add will always be the outermost, and the last you add will always be the innermost.
+///
+/// ⚠ Always add any [`CentralPanel`] last.
 ///
 /// See the [module level docs](crate::containers::panel) for more details.
 ///
@@ -354,6 +356,8 @@ impl TopBottomSide {
 /// The order in which you add panels matter!
 /// The first panel you add will always be the outermost, and the last you add will always be the innermost.
 ///
+/// ⚠ Always add any [`CentralPanel`] last.
+///
 /// See the [module level docs](crate::containers::panel) for more details.
 ///
 /// ```
@@ -611,7 +615,10 @@ impl TopBottomPanel {
 /// A panel that covers the remainder of the screen,
 /// i.e. whatever area is left after adding other panels.
 ///
-/// [`CentralPanel`] must be added after all other panels.
+/// The order in which you add panels matter!
+/// The first panel you add will always be the outermost, and the last you add will always be the innermost.
+///
+/// ⚠ [`CentralPanel`] must be added after all other panels!
 ///
 /// NOTE: Any [`Window`]s and [`Area`]s will cover the top-level [`CentralPanel`].
 ///
@@ -619,6 +626,9 @@ impl TopBottomPanel {
 ///
 /// ```
 /// # egui::__run_test_ctx(|ctx| {
+/// egui::TopBottomPanel::top("my_panel").show(ctx, |ui| {
+///    ui.label("Hello World! From `TopBottomPanel`, that must be before `CentralPanel`!");
+/// });
 /// egui::CentralPanel::default().show(ctx, |ui| {
 ///    ui.label("Hello World!");
 /// });
