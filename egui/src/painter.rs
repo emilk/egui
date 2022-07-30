@@ -2,7 +2,7 @@ use std::ops::RangeInclusive;
 use std::sync::Arc;
 
 use crate::{
-    emath::{pos2, Align2, Pos2, Rect, Vec2},
+    emath::{Align2, Pos2, Rect, Vec2},
     layers::{LayerId, PaintList, ShapeIdx},
     Color32, Context, FontId,
 };
@@ -257,18 +257,12 @@ impl Painter {
 
     /// Paints a horizontal line.
     pub fn hline(&self, x: RangeInclusive<f32>, y: f32, stroke: impl Into<Stroke>) {
-        self.add(Shape::LineSegment {
-            points: [pos2(*x.start(), y), pos2(*x.end(), y)],
-            stroke: stroke.into(),
-        });
+        self.add(Shape::hline(x, y, stroke));
     }
 
     /// Paints a vertical line.
     pub fn vline(&self, x: f32, y: RangeInclusive<f32>, stroke: impl Into<Stroke>) {
-        self.add(Shape::LineSegment {
-            points: [pos2(x, *y.start()), pos2(x, *y.end())],
-            stroke: stroke.into(),
-        });
+        self.add(Shape::vline(x, y, stroke));
     }
 
     pub fn circle(

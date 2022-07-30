@@ -1,5 +1,6 @@
 //! The different shapes that can be painted.
 
+use std::ops::RangeInclusive;
 use std::{any::Any, sync::Arc};
 
 use crate::{
@@ -68,6 +69,22 @@ impl Shape {
     pub fn line_segment(points: [Pos2; 2], stroke: impl Into<Stroke>) -> Self {
         Self::LineSegment {
             points,
+            stroke: stroke.into(),
+        }
+    }
+
+    /// A horizontal line.
+    pub fn hline(x: RangeInclusive<f32>, y: f32, stroke: impl Into<Stroke>) -> Self {
+        Shape::LineSegment {
+            points: [pos2(*x.start(), y), pos2(*x.end(), y)],
+            stroke: stroke.into(),
+        }
+    }
+
+    /// A vertical line.
+    pub fn vline(x: f32, y: RangeInclusive<f32>, stroke: impl Into<Stroke>) -> Self {
+        Shape::LineSegment {
+            points: [pos2(x, *y.start()), pos2(x, *y.end())],
             stroke: stroke.into(),
         }
     }
