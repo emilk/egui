@@ -21,6 +21,7 @@ members = [
     "examples/download_image",
     "examples/file_dialog",
     "examples/hello_world",
+    "examples/item_scroll_area",
     "examples/puffin_profiler",
     "examples/retained_image",
     "examples/screenshot",

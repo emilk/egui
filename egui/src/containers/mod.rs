@@ -10,6 +10,7 @@ pub mod panel;
 pub mod popup;
 pub(crate) mod resize;
 pub(crate) mod scroll_area;
+pub(crate) mod item_scroll_area;
 pub(crate) mod window;
 
 pub use {
@@ -21,5 +22,6 @@ pub use {
     popup::*,
     resize::Resize,
     scroll_area::ScrollArea,
+    item_scroll_area::ItemScrollArea,
     window::Window,
 };
