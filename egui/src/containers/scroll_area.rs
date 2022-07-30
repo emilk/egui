@@ -627,14 +627,14 @@ impl Prepared {
                 }
             } else {
                 let stop_speed = 20.0; // Pixels per second.
-                let friction_coeff = 1000.0; // Pixels per second squared.
+                let friction_coeff = 68.0;
                 let dt = ui.input().unstable_dt;
 
                 let friction = friction_coeff * dt;
                 if friction > state.vel.length() || state.vel.length() < stop_speed {
                     state.vel = Vec2::ZERO;
                 } else {
-                    state.vel -= friction * state.vel.normalized();
+                    state.vel = state.vel / friction;
                     // Offset has an inverted coordinate system compared to
                     // the velocity, so we subtract it instead of adding it
                     state.offset -= state.vel * dt;
