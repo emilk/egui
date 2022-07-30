@@ -6,6 +6,7 @@ cd "$script_path/.."
 ./sh/setup_web.sh
 
 CRATE_NAME="egui_demo_app"
+ # NOTE: persistence use up about 400kB (10%) of the WASM!
 FEATURES="glow,http,persistence,screen_reader"
 
 OPEN=false

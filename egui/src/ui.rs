@@ -370,6 +370,13 @@ impl Ui {
 
     /// The [`PlatformOutput`] of the [`Context`] associated with this ui.
     /// Equivalent to `.ctx().output()`.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// if ui.button("📋").clicked() {
+    ///     ui.output().copied_text = "some_text".to_string();
+    /// }
+    /// # });
     #[inline]
     pub fn output(&self) -> RwLockWriteGuard<'_, PlatformOutput> {
         self.ctx().output()

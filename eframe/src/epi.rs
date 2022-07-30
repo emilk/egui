@@ -195,6 +195,9 @@ pub struct NativeOptions {
     pub drag_and_drop_support: bool,
 
     /// The application icon, e.g. in the Windows task bar etc.
+    ///
+    /// This doesn't work on Mac and on Wayland.
+    /// See <https://docs.rs/winit/latest/winit/window/struct.Window.html#method.set_window_icon> for more.
     pub icon_data: Option<IconData>,
 
     /// The initial (inner) position of the native window in points (logical pixels).

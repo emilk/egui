@@ -20,7 +20,7 @@ use super::{
     Sense, TextStyle, Ui, Vec2,
 };
 use crate::{widgets::*, *};
-use epaint::{mutex::RwLock, Stroke};
+use epaint::mutex::RwLock;
 use std::sync::Arc;
 
 /// What is saved between frames.
@@ -61,20 +61,20 @@ impl std::ops::DerefMut for BarState {
     }
 }
 
+fn set_menu_style(style: &mut Style) {
+    style.spacing.button_padding = vec2(2.0, 0.0);
+    style.visuals.widgets.active.bg_stroke = Stroke::none();
+    style.visuals.widgets.hovered.bg_stroke = Stroke::none();
+    style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
+    style.visuals.widgets.inactive.bg_stroke = Stroke::none();
+}
+
 /// The menu bar goes well in a [`TopBottomPanel::top`],
 /// but can also be placed in a [`Window`].
 /// In the latter case you may want to wrap it in [`Frame`].
 pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
     ui.horizontal(|ui| {
-        let mut style = (**ui.style()).clone();
-        style.spacing.button_padding = vec2(2.0, 0.0);
-        // style.visuals.widgets.active.bg_fill = Color32::TRANSPARENT;
-        style.visuals.widgets.active.bg_stroke = Stroke::none();
-        // style.visuals.widgets.hovered.bg_fill = Color32::TRANSPARENT;
-        style.visuals.widgets.hovered.bg_stroke = Stroke::none();
-        style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
-        style.visuals.widgets.inactive.bg_stroke = Stroke::none();
-        ui.set_style(style);
+        set_menu_style(ui.style_mut());
 
         // Take full width and fixed height:
         let height = ui.spacing().interact_size.y;
@@ -130,27 +130,17 @@ pub(crate) fn menu_ui<'c, R>(
         .interactable(true)
         .drag_bounds(Rect::EVERYTHING);
     let inner_response = area.show(ctx, |ui| {
-        ui.scope(|ui| {
-            let style = ui.style_mut();
-            style.spacing.item_spacing = Vec2::ZERO;
-            style.spacing.button_padding = crate::vec2(2.0, 0.0);
+        set_menu_style(ui.style_mut());
 
-            style.visuals.widgets.active.bg_stroke = Stroke::none();
-            style.visuals.widgets.hovered.bg_stroke = Stroke::none();
-            style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
-            style.visuals.widgets.inactive.bg_stroke = Stroke::none();
-
-            Frame::menu(style)
-                .show(ui, |ui| {
-                    const DEFAULT_MENU_WIDTH: f32 = 150.0; // TODO(emilk): add to ui.spacing
-                    ui.set_max_width(DEFAULT_MENU_WIDTH);
-                    ui.set_menu_state(Some(menu_state_arc.clone()));
-                    ui.with_layout(Layout::top_down_justified(Align::LEFT), add_contents)
-                        .inner
-                })
-                .inner
-        })
-        .inner
+        Frame::menu(ui.style())
+            .show(ui, |ui| {
+                const DEFAULT_MENU_WIDTH: f32 = 150.0; // TODO(emilk): add to ui.spacing
+                ui.set_max_width(DEFAULT_MENU_WIDTH);
+                ui.set_menu_state(Some(menu_state_arc.clone()));
+                ui.with_layout(Layout::top_down_justified(Align::LEFT), add_contents)
+                    .inner
+            })
+            .inner
     });
     menu_state_arc.write().rect = inner_response.response.rect;
     inner_response
@@ -437,11 +427,13 @@ impl SubMenuButton {
                 .align_size_within_rect(icon_galley.size(), rect.shrink2(button_padding))
                 .min;
 
-            ui.painter().rect_filled(
-                rect.expand(visuals.expansion),
-                visuals.rounding,
-                visuals.bg_fill,
-            );
+            if ui.visuals().button_frame {
+                ui.painter().rect_filled(
+                    rect.expand(visuals.expansion),
+                    visuals.rounding,
+                    visuals.bg_fill,
+                );
+            }
 
             let text_color = visuals.text_color();
             text_galley.paint_with_fallback_color(ui.painter(), text_pos, text_color);

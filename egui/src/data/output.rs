@@ -66,6 +66,14 @@ pub struct PlatformOutput {
     /// If set, put this text in the system clipboard. Ignore if empty.
     ///
     /// This is often a response to [`crate::Event::Copy`] or [`crate::Event::Cut`].
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// if ui.button("📋").clicked() {
+    ///     ui.output().copied_text = "some_text".to_string();
+    /// }
+    /// # });
+    /// ```
     pub copied_text: String,
 
     /// Events that may be useful to e.g. a screen reader.

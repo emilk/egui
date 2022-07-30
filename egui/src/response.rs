@@ -463,6 +463,7 @@ impl Response {
     /// if response.clicked() { /* … */ }
     /// # });
     /// ```
+    #[must_use]
     pub fn interact(&self, sense: Sense) -> Self {
         self.ctx.interact_with_hovered(
             self.layer_id,
