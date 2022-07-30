@@ -103,7 +103,7 @@ pub use web_sys;
 /// /// This is the entry-point for all the web-assembly.
 /// /// This is called from the HTML.
 /// /// It loads the app, installs some callbacks, then returns.
-/// /// It creates singleton app-handle that could be stopped calling `stop_web`
+/// /// It returns a handle to the running app that can be stopped calling `AppRunner::stop_web`.
 /// /// You can add more callbacks like this if you want to call in to your code.
 /// #[cfg(target_arch = "wasm32")]
 /// #[wasm_bindgen]
