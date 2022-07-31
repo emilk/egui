@@ -51,19 +51,15 @@ impl WebHandle {
     }
 }
 
-
-
-
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
-pub fn init_wasm_hooks(){
+pub fn init_wasm_hooks() {
     // Make sure panics are logged using `console.error`.
     console_error_panic_hook::set_once();
 
     // Redirect tracing to console.log and friends:
     tracing_wasm::set_as_global_default();
 }
-
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
@@ -75,10 +71,9 @@ pub fn start_separate(canvas_id: &str) -> Result<WebHandle, wasm_bindgen::JsValu
         Box::new(|cc| Box::new(WrapApp::new(cc))),
     )
     .map(|handle| WebHandle { handle });
-    
+
     handle
 }
-
 
 /// This is the entry-point for all the web-assembly.
 /// This is called once from the HTML.
@@ -87,7 +82,6 @@ pub fn start_separate(canvas_id: &str) -> Result<WebHandle, wasm_bindgen::JsValu
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn start(canvas_id: &str) -> Result<WebHandle, wasm_bindgen::JsValue> {
-
     init_wasm_hooks();
     start_separate(canvas_id)
 }
