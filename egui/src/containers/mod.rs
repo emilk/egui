@@ -18,10 +18,10 @@ pub use {
     collapsing_header::{CollapsingHeader, CollapsingResponse},
     combo_box::*,
     frame::Frame,
+    item_scroll_area::ItemScrollArea,
     panel::{CentralPanel, SidePanel, TopBottomPanel},
     popup::*,
     resize::Resize,
     scroll_area::ScrollArea,
-    item_scroll_area::ItemScrollArea,
     window::Window,
 };

@@ -494,12 +494,12 @@ impl ItemScrollArea {
         });
         prepared.state.first_shown_item_size = prepared.content_ui.min_size();
         for i in (prepared.state.first_to_show + 1)..prepared.total_items {
-            prepared.content_ui.push_id(i, |ui|{
-                add_contents(ui, i);
-            });
             if !inner_rect.y_range().contains(&prepared.content_ui.next_widget_position().y) {
                 break;
             }
+            prepared.content_ui.push_id(i, |ui|{
+                add_contents(ui, i);
+            });
         }
         let state = prepared.end(ui);
         ScrollAreaOutput {
@@ -628,8 +628,6 @@ impl Prepared {
             inner_rect
         };
 
-        let original_inner_rect = inner_rect;
-
         let outer_rect = Rect::from_min_size(inner_rect.min, inner_rect.size() + current_bar_use);
 
         let content_is_too_large = [
@@ -674,7 +672,7 @@ impl Prepared {
             }
         }
 
-        let max_offset = original_inner_rect.size();
+        let max_offset = inner_rect.size();
         if scrolling_enabled && ui.rect_contains_pointer(outer_rect) {
             for d in 0..2 {
                 if has_bar[d] {
@@ -846,7 +844,7 @@ impl Prepared {
             ui.ctx().request_repaint();
         }
 
-        let available_offset = original_inner_rect.size();
+        let available_offset = inner_rect.size();
         let mut max_size = available_offset;
         for d in 0..2 {
             let scroll_item_size = inner_rect.size()[d] / (total_items as f32);
