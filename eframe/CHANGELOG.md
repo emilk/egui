@@ -28,7 +28,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 
 #### Web:
 * Added option to select WebGL version ([#1803](https://github.com/emilk/egui/pull/1803)).
-* Added ability to stop/re-run web app from JavaScript ([#1803](https://github.com/emilk/egui/pull/1650)). This change is also finds parent html container and resizes canvas to it's size. So settings `html, body: [height: 100%; width: 100%;]` for older demos is required.
+* Added ability to stop/re-run web app from JavaScript. ⚠️ You need to update your CSS with `html, body: { height: 100%; width: 100%; }` ([#1803](https://github.com/emilk/egui/pull/1650)).
 
 
 
