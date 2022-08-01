@@ -72,7 +72,7 @@ wasm-bindgen = { version = "0.2" }
 
 
 [dev-dependencies]
-glutin = "0.28.0" # examples/pure_glow
+glutin = "0.29.0" # examples/pure_glow
 
 
 [[example]]
