@@ -46,7 +46,7 @@ egui-winit = { version = "0.18.0", path = "../egui-winit", default-features = fa
 
 ahash = "0.7"
 bytemuck = "1.7"
-glium = "0.31"
+glium = "0.32"
 
 #! ### Optional dependencies
 ## Enable this when generating docs.
