@@ -167,10 +167,13 @@ impl PlotBounds {
 pub(crate) struct ScreenTransform {
     /// The screen rectangle.
     frame: Rect,
+
     /// The plot bounds.
     bounds: PlotBounds,
+
     /// Whether to always center the x-range of the bounds.
     x_centered: bool,
+
     /// Whether to always center the y-range of the bounds.
     y_centered: bool,
 }

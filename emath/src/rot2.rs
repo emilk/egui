@@ -20,6 +20,7 @@ use super::Vec2;
 pub struct Rot2 {
     /// angle.sin()
     s: f32,
+
     /// angle.cos()
     c: f32,
 }

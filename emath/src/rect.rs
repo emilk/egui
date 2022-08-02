@@ -415,11 +415,13 @@ impl Rect {
     pub fn left(&self) -> f32 {
         self.min.x
     }
+
     /// `min.x`
     #[inline(always)]
     pub fn left_mut(&mut self) -> &mut f32 {
         &mut self.min.x
     }
+
     /// `min.x`
     #[inline(always)]
     pub fn set_left(&mut self, x: f32) {
@@ -431,11 +433,13 @@ impl Rect {
     pub fn right(&self) -> f32 {
         self.max.x
     }
+
     /// `max.x`
     #[inline(always)]
     pub fn right_mut(&mut self) -> &mut f32 {
         &mut self.max.x
     }
+
     /// `max.x`
     #[inline(always)]
     pub fn set_right(&mut self, x: f32) {
@@ -447,11 +451,13 @@ impl Rect {
     pub fn top(&self) -> f32 {
         self.min.y
     }
+
     /// `min.y`
     #[inline(always)]
     pub fn top_mut(&mut self) -> &mut f32 {
         &mut self.min.y
     }
+
     /// `min.y`
     #[inline(always)]
     pub fn set_top(&mut self, y: f32) {
@@ -463,11 +469,13 @@ impl Rect {
     pub fn bottom(&self) -> f32 {
         self.max.y
     }
+
     /// `max.y`
     #[inline(always)]
     pub fn bottom_mut(&mut self) -> &mut f32 {
         &mut self.max.y
     }
+
     /// `max.y`
     #[inline(always)]
     pub fn set_bottom(&mut self, y: f32) {

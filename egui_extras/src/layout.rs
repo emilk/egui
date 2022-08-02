@@ -4,6 +4,7 @@ use egui::{Pos2, Rect, Response, Sense, Ui};
 pub(crate) enum CellSize {
     /// Absolute size in points
     Absolute(f32),
+
     /// Take all available space
     Remainder,
 }
@@ -20,6 +21,7 @@ pub(crate) enum CellSize {
 pub(crate) enum CellDirection {
     /// Cells go from left to right.
     Horizontal,
+
     /// Cells go from top to bottom.
     Vertical,
 }

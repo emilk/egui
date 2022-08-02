@@ -104,11 +104,13 @@ impl Resize {
         self.min_size = min_size.into();
         self
     }
+
     /// Won't shrink to smaller than this
     pub fn min_width(mut self, min_width: f32) -> Self {
         self.min_size.x = min_width;
         self
     }
+
     /// Won't shrink to smaller than this
     pub fn min_height(mut self, min_height: f32) -> Self {
         self.min_size.y = min_height;

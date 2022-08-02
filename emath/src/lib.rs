@@ -254,6 +254,7 @@ macro_rules! impl_num_ext {
             fn at_least(self, lower_limit: Self) -> Self {
                 self.max(lower_limit)
             }
+
             #[inline(always)]
             fn at_most(self, upper_limit: Self) -> Self {
                 self.min(upper_limit)

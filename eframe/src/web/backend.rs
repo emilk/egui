@@ -360,6 +360,7 @@ pub type AppRunnerRef = Arc<Mutex<AppRunner>>;
 
 pub struct AppRunnerContainer {
     pub runner: AppRunnerRef,
+
     /// Set to `true` if there is a panic.
     /// Used to ignore callbacks after a panic.
     pub panicked: Arc<AtomicBool>,

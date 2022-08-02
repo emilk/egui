@@ -365,6 +365,7 @@ impl Default for WebOptions {
 pub enum Theme {
     /// Dark mode: light text on a dark background.
     Dark,
+
     /// Light mode: dark text on a light background.
     Light,
 }
@@ -389,10 +390,13 @@ impl Theme {
 pub enum WebGlContextOption {
     /// Force Use WebGL1.
     WebGl1,
+
     /// Force use WebGL2.
     WebGl2,
+
     /// Use WebGl2 first.
     BestFirst,
+
     /// Use WebGl1 first
     CompatibilityFirst,
 }
@@ -714,6 +718,7 @@ pub struct IntegrationInfo {
 pub trait Storage {
     /// Get the value for the given key.
     fn get_string(&self, key: &str) -> Option<String>;
+
     /// Set the value for the given key.
     fn set_string(&mut self, key: &str, value: String);
 

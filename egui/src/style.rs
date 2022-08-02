@@ -525,12 +525,16 @@ pub struct Widgets {
     /// * `noninteractive.bg_fill` is the background color of windows.
     /// * `noninteractive.fg_stroke` is the normal text color.
     pub noninteractive: WidgetVisuals,
+
     /// The style of an interactive widget, such as a button, at rest.
     pub inactive: WidgetVisuals,
+
     /// The style of an interactive widget while you hover it.
     pub hovered: WidgetVisuals,
+
     /// The style of an interactive widget as you are clicking or dragging it.
     pub active: WidgetVisuals,
+
     /// The style of a button that has an open menu beneath it (e.g. a combo-box)
     pub open: WidgetVisuals,
 }

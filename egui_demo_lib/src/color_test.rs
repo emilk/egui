@@ -284,6 +284,7 @@ impl Gradient {
                 .collect(),
         )
     }
+
     /// This is how a bad person blends `sRGBA`
     pub fn ground_truth_bad_srgba_gradient(left: Color32, right: Color32) -> Self {
         let n = 255;

@@ -741,6 +741,7 @@ macro_rules! profile_function {
         puffin::profile_function!($($arg)*);
     };
 }
+
 #[allow(unused_imports)]
 pub(crate) use profile_function;
 
@@ -752,5 +753,6 @@ macro_rules! profile_scope {
         puffin::profile_scope!($($arg)*);
     };
 }
+
 #[allow(unused_imports)]
 pub(crate) use profile_scope;

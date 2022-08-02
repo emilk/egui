@@ -18,22 +18,36 @@ pub use crate::{CubicBezierShape, QuadraticBezierShape};
 pub enum Shape {
     /// Paint nothing. This can be useful as a placeholder.
     Noop,
+
     /// Recursively nest more shapes - sometimes a convenience to be able to do.
     /// For performance reasons it is better to avoid it.
     Vec(Vec<Shape>),
+
+    /// Circle with optional outline and fill.
     Circle(CircleShape),
+
     /// A line between two points.
-    LineSegment {
-        points: [Pos2; 2],
-        stroke: Stroke,
-    },
+    LineSegment { points: [Pos2; 2], stroke: Stroke },
+
     /// A series of lines between points.
     /// The path can have a stroke and/or fill (if closed).
     Path(PathShape),
+
+    /// Rectangle with optional outline and fill.
     Rect(RectShape),
+
+    /// Text.
     Text(TextShape),
+
+    /// A general triangle mesh.
+    ///
+    /// Can be used to display images.
     Mesh(Mesh),
+
+    /// A quadratic [Bézier Curve](https://en.wikipedia.org/wiki/B%C3%A9zier_curve).
     QuadraticBezier(QuadraticBezierShape),
+
+    /// A cubic [Bézier Curve](https://en.wikipedia.org/wiki/B%C3%A9zier_curve).
     CubicBezier(CubicBezierShape),
 
     /// Backend-specific painting.
@@ -369,11 +383,15 @@ impl From<CircleShape> for Shape {
 pub struct PathShape {
     /// Filled paths should prefer clockwise order.
     pub points: Vec<Pos2>,
+
     /// If true, connect the first and last of the points together.
     /// This is required if `fill != TRANSPARENT`.
     pub closed: bool,
+
     /// Fill is only supported for convex polygons.
     pub fill: Color32,
+
+    /// Color and thickness of the line.
     pub stroke: Stroke,
 }
 
@@ -444,9 +462,14 @@ impl From<PathShape> for Shape {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct RectShape {
     pub rect: Rect,
+
     /// How rounded the corners are. Use `Rounding::none()` for no rounding.
     pub rounding: Rounding,
+
+    /// How to fill the rectangle.
     pub fill: Color32,
+
+    /// The thickness and color of the outline.
     pub stroke: Stroke,
 }
 
@@ -499,10 +522,13 @@ impl From<RectShape> for Shape {
 pub struct Rounding {
     /// Radius of the rounding of the North-West (left top) corner.
     pub nw: f32,
+
     /// Radius of the rounding of the North-East (right top) corner.
     pub ne: f32,
+
     /// Radius of the rounding of the South-West (left bottom) corner.
     pub sw: f32,
+
     /// Radius of the rounding of the South-East (right bottom) corner.
     pub se: f32,
 }

@@ -395,14 +395,19 @@ impl Default for RowVisuals {
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Glyph {
+    /// The character this glyph represents.
     pub chr: char,
+
     /// Relative to the galley position.
     /// Logical position: pos.y is the same for all chars of the same [`TextFormat`].
     pub pos: Pos2,
+
     /// Advance width and font row height.
     pub size: Vec2,
+
     /// Position of the glyph in the font texture, in texels.
     pub uv_rect: UvRect,
+
     /// Index into [`LayoutJob::sections`]. Decides color etc.
     pub section_index: u32,
 }

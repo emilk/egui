@@ -358,6 +358,7 @@ impl MenuRoot {
         Self::handle_menu_response(root, menu_response);
     }
 }
+
 #[derive(Copy, Clone, PartialEq)]
 pub(crate) enum MenuResponse {
     Close,
@@ -490,10 +491,13 @@ impl SubMenu {
 pub(crate) struct MenuState {
     /// The opened sub-menu and its [`Id`]
     sub_menu: Option<(Id, Arc<RwLock<MenuState>>)>,
+
     /// Bounding box of this menu (without the sub-menu)
     pub rect: Rect,
+
     /// Used to check if any menu in the tree wants to close
     pub response: MenuResponse,
+
     /// Used to hash different [`Id`]s for sub-menus
     entry_count: usize,
 }
@@ -507,6 +511,7 @@ impl MenuState {
             entry_count: 0,
         }
     }
+
     /// Close menu hierarchy.
     pub fn close(&mut self) {
         self.response = MenuResponse::Close;
@@ -534,6 +539,7 @@ impl MenuState {
         self.cascade_close_response(sub_response);
         Some(response)
     }
+
     /// Check if position is in the menu hierarchy's area.
     pub fn area_contains(&self, pos: Pos2) -> bool {
         self.rect.contains(pos)
@@ -547,6 +553,7 @@ impl MenuState {
         self.entry_count += 1;
         self.entry_count - 1
     }
+
     /// Sense button interaction opening and closing submenu.
     fn submenu_button_interaction(&mut self, ui: &mut Ui, sub_id: Id, button: &Response) {
         let pointer = &ui.input().pointer.clone();
@@ -561,6 +568,7 @@ impl MenuState {
             self.close_submenu();
         }
     }
+
     /// Check if `dir` points from `pos` towards left side of `rect`.
     fn points_at_left_of_rect(pos: Pos2, dir: Vec2, rect: Rect) -> bool {
         let vel_a = dir.angle();
@@ -568,6 +576,7 @@ impl MenuState {
         let bottom_a = (rect.left_bottom() - pos).angle();
         bottom_a - vel_a >= 0.0 && top_a - vel_a <= 0.0
     }
+
     /// Check if pointer is moving towards current submenu.
     fn moving_towards_current_submenu(&self, pointer: &PointerState) -> bool {
         if pointer.is_still() {
@@ -580,6 +589,7 @@ impl MenuState {
         }
         false
     }
+
     /// Check if pointer is hovering current submenu.
     fn hovering_current_submenu(&self, pointer: &PointerState) -> bool {
         if let Some(sub_menu) = self.get_current_submenu() {
@@ -589,6 +599,7 @@ impl MenuState {
         }
         false
     }
+
     /// Cascade close response to menu root.
     fn cascade_close_response(&mut self, response: MenuResponse) {
         if response.is_close() {
@@ -613,6 +624,7 @@ impl MenuState {
             .as_ref()
             .and_then(|(k, sub)| if id == *k { Some(sub) } else { None })
     }
+
     /// Open submenu at position, if not already open.
     fn open_submenu(&mut self, id: Id, pos: Pos2) {
         if !self.is_open(id) {

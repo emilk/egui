@@ -587,10 +587,13 @@ pub fn gamma_from_linear(linear: f32) -> f32 {
 pub struct Hsva {
     /// hue 0-1
     pub h: f32,
+
     /// saturation 0-1
     pub s: f32,
+
     /// value 0-1
     pub v: f32,
+
     /// alpha 0-1. A negative value signifies an additive color (and alpha is ignored).
     pub a: f32,
 }
@@ -813,10 +816,13 @@ fn test_hsv_roundtrip() {
 pub struct HsvaGamma {
     /// hue 0-1
     pub h: f32,
+
     /// saturation 0-1
     pub s: f32,
+
     /// value 0-1, in gamma-space (~perceptually even)
     pub v: f32,
+
     /// alpha 0-1. A negative value signifies an additive color (and alpha is ignored).
     pub a: f32,
 }

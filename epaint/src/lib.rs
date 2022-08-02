@@ -93,6 +93,7 @@ pub struct ClippedShape(
     /// Clip / scissor rectangle.
     /// Only show the part of the [`Shape`] that falls within this.
     pub emath::Rect,
+
     /// The shape
     pub Shape,
 );
@@ -105,6 +106,7 @@ pub struct ClippedPrimitive {
     /// Clip / scissor rectangle.
     /// Only show the part of the [`Mesh`] that falls within this.
     pub clip_rect: emath::Rect,
+
     /// What to paint - either a [`Mesh`] or a [`PaintCallback`].
     pub primitive: Primitive,
 }

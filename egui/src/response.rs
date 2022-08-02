@@ -645,6 +645,7 @@ impl std::ops::BitOrAssign for Response {
 pub struct InnerResponse<R> {
     /// What the user closure returned.
     pub inner: R,
+
     /// The response of the area.
     pub response: Response,
 }
