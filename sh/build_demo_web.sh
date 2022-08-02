@@ -3,29 +3,29 @@ set -eu
 script_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 cd "$script_path/.."
 
-./sh/setup_web.sh
-
 CRATE_NAME="egui_demo_app"
  # NOTE: persistence use up about 400kB (10%) of the WASM!
 FEATURES="glow,http,persistence,screen_reader"
 
 OPEN=false
-FAST=false
+OPTIMIZE=false
 
 while test $# -gt 0; do
   case "$1" in
     -h|--help)
-      echo "build_demo_web.sh [--fast] [--open]"
-      echo "  --fast: skip optimization step"
-      echo "  --open: open the result in a browser"
+      echo "build_demo_web.sh [--optimize] [--open]"
+      echo ""
+      echo "  --optimize: Enable optimization step"
+      echo "              Runs wasm-opt."
+      echo "              NOTE: --optimize also removes debug symbols which are otherwise useful for in-browser profiling."
+      echo ""
+      echo "  --open:     Open the result in a browser"
       exit 0
       ;;
 
-    # Skip running `wasm-opt`.
-    # --fast also preserves debug symbols, which is great for profiling.
-    --fast)
+    -O|--optimize)
       shift
-      FAST=true
+      OPTIMIZE=true
       ;;
 
     --open)
@@ -38,6 +38,8 @@ while test $# -gt 0; do
       ;;
   esac
 done
+
+./sh/setup_web.sh
 
 # This is required to enable the web_sys clipboard API which eframe web uses
 # https://rustwasm.github.io/wasm-bindgen/api/web_sys/struct.Clipboard.html
@@ -74,7 +76,7 @@ wasm-bindgen "${WASM_PATH}" --out-dir docs --no-modules --no-typescript
 # to get wasm-strip:  apt/brew/dnf install wabt
 # wasm-strip docs/${CRATE_NAME}_bg.wasm
 
-if [[ "${FAST}" = false ]]; then
+if [[ "${OPTIMIZE}" = true ]]; then
   echo "Optimizing wasm…"
   # to get wasm-opt:  apt/brew/dnf install binaryen
   wasm-opt "docs/${CRATE_NAME}_bg.wasm" -O2 --fast-math -o "docs/${CRATE_NAME}_bg.wasm" # add -g to get debug symbols
