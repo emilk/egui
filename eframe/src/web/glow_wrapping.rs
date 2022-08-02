@@ -87,6 +87,10 @@ impl WrappedGlowPainter {
 
         Ok(())
     }
+
+    pub fn destroy(&mut self) {
+        self.painter.destroy()
+    }
 }
 
 /// Returns glow context and shader prefix.
