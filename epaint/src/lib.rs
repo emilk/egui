@@ -93,7 +93,6 @@ pub struct ClippedShape(
     /// Clip / scissor rectangle.
     /// Only show the part of the [`Shape`] that falls within this.
     pub emath::Rect,
-
     /// The shape
     pub Shape,
 );
