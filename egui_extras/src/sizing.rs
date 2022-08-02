@@ -3,8 +3,10 @@
 pub enum Size {
     /// Absolute size in points, with a given range of allowed sizes to resize within.
     Absolute { initial: f32, range: (f32, f32) },
+
     /// Relative size relative to all available space.
     Relative { fraction: f32, range: (f32, f32) },
+
     /// Multiple remainders each get the same space.
     Remainder { range: (f32, f32) },
 }

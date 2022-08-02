@@ -852,6 +852,7 @@ mod tests {
 
         assert_eq!(result.len(), 240);
     }
+
     #[test]
     fn test_cubic_bounding_box() {
         let curve = CubicBezierShape {
@@ -909,6 +910,7 @@ mod tests {
         assert!((bbox.max.x - 199.27).abs() < 0.01);
         assert!((bbox.max.y - 170.0).abs() < 0.01);
     }
+
     #[test]
     fn test_cubic_different_tolerance_flattening() {
         let curve = CubicBezierShape {

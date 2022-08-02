@@ -33,6 +33,7 @@ impl PartialEq for CCursor {
 
 impl std::ops::Add<usize> for CCursor {
     type Output = CCursor;
+
     fn add(self, rhs: usize) -> Self::Output {
         CCursor {
             index: self.index.saturating_add(rhs),
@@ -43,6 +44,7 @@ impl std::ops::Add<usize> for CCursor {
 
 impl std::ops::Sub<usize> for CCursor {
     type Output = CCursor;
+
     fn sub(self, rhs: usize) -> Self::Output {
         CCursor {
             index: self.index.saturating_sub(rhs),

@@ -13,6 +13,7 @@ use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub, SubAssign};
 pub struct Vec2 {
     /// Rightwards. Width.
     pub x: f32,
+
     /// Downwards. Height.
     pub y: f32,
 }

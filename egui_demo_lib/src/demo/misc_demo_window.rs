@@ -426,6 +426,7 @@ impl Tree {
             Tree(vec![Tree(vec![Tree::default(); 2]); 3]),
         ])
     }
+
     pub fn ui(&mut self, ui: &mut Ui) -> Action {
         self.ui_impl(ui, 0, "root")
     }

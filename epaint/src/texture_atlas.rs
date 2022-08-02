@@ -6,10 +6,13 @@ use crate::{textures::TextureFilter, FontImage, ImageDelta};
 struct Rectu {
     /// inclusive
     min_x: usize,
+
     /// inclusive
     min_y: usize,
+
     /// exclusive
     max_x: usize,
+
     /// exclusive
     max_y: usize,
 }
@@ -55,11 +58,13 @@ pub struct PreparedDisc {
 #[derive(Clone)]
 pub struct TextureAtlas {
     image: FontImage,
+
     /// What part of the image that is dirty
     dirty: Rectu,
 
     /// Used for when allocating new rectangles.
     cursor: (usize, usize),
+
     row_height: usize,
 
     /// Set when someone requested more space than was available.

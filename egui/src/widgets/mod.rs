@@ -94,6 +94,7 @@ pub trait WidgetWithState {
 pub fn reset_button<T: Default + PartialEq>(ui: &mut Ui, value: &mut T) {
     reset_button_with(ui, value, T::default());
 }
+
 /// Show a button to reset a value to its default.
 /// The button is only enabled if the value does not already have its original value.
 pub fn reset_button_with<T: PartialEq>(ui: &mut Ui, value: &mut T, reset_value: T) {

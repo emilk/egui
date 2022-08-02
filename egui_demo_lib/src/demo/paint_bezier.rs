@@ -6,6 +6,7 @@ use egui::*;
 pub struct PaintBezier {
     /// Bézier curve degree, it can be 3, 4.
     degree: usize,
+
     /// The control points. The [`Self::degree`] first of them are used.
     control_points: [Pos2; 4],
 

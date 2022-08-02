@@ -603,6 +603,7 @@ impl Response {
 /// Now `draw_vec2(ui, foo).hovered` is true if either [`DragValue`](crate::DragValue) were hovered.
 impl std::ops::BitOr for Response {
     type Output = Self;
+
     fn bitor(self, rhs: Self) -> Self {
         self.union(rhs)
     }
@@ -644,6 +645,7 @@ impl std::ops::BitOrAssign for Response {
 pub struct InnerResponse<R> {
     /// What the user closure returned.
     pub inner: R,
+
     /// The response of the area.
     pub response: Response,
 }

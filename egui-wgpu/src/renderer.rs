@@ -33,6 +33,7 @@ pub struct CallbackFn {
 }
 
 type PrepareCallback = dyn Fn(&wgpu::Device, &wgpu::Queue, &mut TypeMap) + Sync + Send;
+
 type PaintCallback =
     dyn for<'a, 'b> Fn(PaintCallbackInfo, &'a mut wgpu::RenderPass<'b>, &'b TypeMap) + Sync + Send;
 

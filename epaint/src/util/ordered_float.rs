@@ -89,7 +89,9 @@ impl FloatOrd for f64 {
 /// Internal abstraction over floating point types
 #[doc(hidden)]
 pub trait Float: PartialOrd + PartialEq + private::FloatImpl {}
+
 impl Float for f32 {}
+
 impl Float for f64 {}
 
 // Keep this trait in private module, to avoid exposing its methods as extensions in user code
@@ -98,6 +100,7 @@ mod private {
 
     pub trait FloatImpl {
         fn is_nan(&self) -> bool;
+
         fn hash<H: Hasher>(&self, state: &mut H);
     }
 
