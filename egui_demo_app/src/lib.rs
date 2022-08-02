@@ -6,13 +6,7 @@ pub(crate) mod frame_history;
 mod wrap_app;
 
 #[cfg(target_arch = "wasm32")]
-use std::sync::Arc;
-
-#[cfg(target_arch = "wasm32")]
-use eframe::web::AppRunner;
-
-#[cfg(target_arch = "wasm32")]
-use egui::mutex::Mutex;
+use eframe::web::AppRunnerRef;
 
 pub use wrap_app::WrapApp;
 
@@ -31,7 +25,7 @@ use eframe::wasm_bindgen::{self, prelude::*};
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub struct WebHandle {
-    handle: Arc<Mutex<AppRunner>>,
+    handle: AppRunnerRef,
 }
 
 #[cfg(target_arch = "wasm32")]
