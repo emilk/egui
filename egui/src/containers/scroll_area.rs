@@ -272,8 +272,8 @@ impl ScrollArea {
     /// it will remain focused on whatever content viewport the user left it on. If the scroll
     /// handle is dragged all the way to the right it will again become stuck and remain there
     /// until manually pulled from the end position.
-    pub fn stick_to_right(mut self) -> Self {
-        self.stick_to_end[0] = true;
+    pub fn stick_to_right(mut self, stick: bool) -> Self {
+        self.stick_to_end[0] = stick;
         self
     }
 
@@ -283,8 +283,8 @@ impl ScrollArea {
     /// it will remain focused on whatever content viewport the user left it on. If the scroll
     /// handle is dragged to the bottom it will again become stuck and remain there until manually
     /// pulled from the end position.
-    pub fn stick_to_bottom(mut self) -> Self {
-        self.stick_to_end[1] = true;
+    pub fn stick_to_bottom(mut self, stick: bool) -> Self {
+        self.stick_to_end[1] = stick;
         self
     }
 }
