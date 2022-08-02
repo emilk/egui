@@ -77,4 +77,4 @@ glutin = "0.28.0" # examples/pure_glow
 
 [[example]]
 name = "pure_glow"
-required-features = ["winit"]
+required-features = ["winit", "egui/default_fonts"]
