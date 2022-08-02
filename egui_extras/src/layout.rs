@@ -55,6 +55,7 @@ impl<'l> StripLayout<'l> {
             cell_layout,
         }
     }
+
     fn cell_rect(&self, width: &CellSize, height: &CellSize) -> Rect {
         Rect {
             min: self.cursor,

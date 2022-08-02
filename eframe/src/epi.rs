@@ -729,7 +729,9 @@ impl Storage for DummyStorage {
     fn get_string(&self, _key: &str) -> Option<String> {
         None
     }
+
     fn set_string(&mut self, _key: &str, _value: String) {}
+
     fn flush(&mut self) {}
 }
 

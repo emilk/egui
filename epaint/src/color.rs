@@ -727,6 +727,7 @@ impl From<Hsva> for Rgba {
         Rgba(hsva.to_rgba_premultiplied())
     }
 }
+
 impl From<Rgba> for Hsva {
     fn from(rgba: Rgba) -> Hsva {
         Self::from_rgba_premultiplied(rgba.0[0], rgba.0[1], rgba.0[2], rgba.0[3])
@@ -738,6 +739,7 @@ impl From<Hsva> for Color32 {
         Color32::from(Rgba::from(hsva))
     }
 }
+
 impl From<Color32> for Hsva {
     fn from(srgba: Color32) -> Hsva {
         Hsva::from(Rgba::from(srgba))

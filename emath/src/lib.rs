@@ -51,12 +51,14 @@ pub use {
 pub trait One {
     fn one() -> Self;
 }
+
 impl One for f32 {
     #[inline(always)]
     fn one() -> Self {
         1.0
     }
 }
+
 impl One for f64 {
     #[inline(always)]
     fn one() -> Self {
@@ -78,6 +80,7 @@ pub trait Real:
 }
 
 impl Real for f32 {}
+
 impl Real for f64 {}
 
 // ----------------------------------------------------------------------------

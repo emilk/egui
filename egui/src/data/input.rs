@@ -426,6 +426,7 @@ impl Modifiers {
 
 impl std::ops::BitOr for Modifiers {
     type Output = Self;
+
     fn bitor(self, rhs: Self) -> Self {
         Self {
             alt: self.alt | rhs.alt,

@@ -454,8 +454,10 @@ impl epi::Storage for LocalStorage {
     fn get_string(&self, key: &str) -> Option<String> {
         local_storage_get(key)
     }
+
     fn set_string(&mut self, key: &str, value: String) {
         local_storage_set(key, &value);
     }
+
     fn flush(&mut self) {}
 }

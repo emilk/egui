@@ -47,6 +47,7 @@ impl LayoutSettings {
             cross_justify: false,
         }
     }
+
     fn top_down_justified_centered() -> Self {
         Self {
             main_dir: Direction::TopDown,
@@ -55,6 +56,7 @@ impl LayoutSettings {
             cross_justify: true,
         }
     }
+
     fn horizontal_wrapped() -> Self {
         Self {
             main_dir: Direction::LeftToRight,

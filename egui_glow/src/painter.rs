@@ -25,6 +25,7 @@ pub type TextureFilter = egui::TextureFilter;
 trait TextureFilterExt {
     fn glow_code(&self) -> u32;
 }
+
 impl TextureFilterExt for TextureFilter {
     fn glow_code(&self) -> u32 {
         match self {

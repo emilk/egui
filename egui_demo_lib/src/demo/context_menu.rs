@@ -10,6 +10,7 @@ fn gaussian(x: f64) -> f64 {
     let var: f64 = 2.0;
     f64::exp(-(x / var).powi(2)) / (var * f64::sqrt(std::f64::consts::TAU))
 }
+
 fn sigmoid(x: f64) -> f64 {
     -1.0 + 2.0 / (1.0 + f64::exp(-x))
 }

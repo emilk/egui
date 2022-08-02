@@ -512,6 +512,7 @@ impl PersistedMap {
                 .collect(),
         )
     }
+
     fn into_map(self) -> IdTypeMap {
         IdTypeMap(
             self.0

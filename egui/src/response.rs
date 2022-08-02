@@ -603,6 +603,7 @@ impl Response {
 /// Now `draw_vec2(ui, foo).hovered` is true if either [`DragValue`](crate::DragValue) were hovered.
 impl std::ops::BitOr for Response {
     type Output = Self;
+
     fn bitor(self, rhs: Self) -> Self {
         self.union(rhs)
     }

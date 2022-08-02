@@ -265,9 +265,11 @@ impl Gradient {
     pub fn one_color(srgba: Color32) -> Self {
         Self(vec![srgba, srgba])
     }
+
     pub fn texture_gradient(left: Color32, right: Color32) -> Self {
         Self(vec![left, right])
     }
+
     pub fn ground_truth_linear_gradient(left: Color32, right: Color32) -> Self {
         let left = Rgba::from(left);
         let right = Rgba::from(right);

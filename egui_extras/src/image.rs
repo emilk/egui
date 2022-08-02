@@ -15,6 +15,7 @@ pub struct RetainedImage {
     texture: Mutex<Option<egui::TextureHandle>>,
     filter: TextureFilter,
 }
+
 impl RetainedImage {
     pub fn from_color_image(debug_name: impl Into<String>, image: ColorImage) -> Self {
         Self {

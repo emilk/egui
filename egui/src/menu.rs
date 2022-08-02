@@ -49,12 +49,15 @@ impl BarState {
         self.open_menu.show(response, add_contents)
     }
 }
+
 impl std::ops::Deref for BarState {
     type Target = MenuRootManager;
+
     fn deref(&self) -> &Self::Target {
         &self.open_menu
     }
 }
+
 impl std::ops::DerefMut for BarState {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.open_menu
@@ -194,6 +197,7 @@ pub(crate) fn context_menu(
 pub(crate) struct MenuRootManager {
     inner: Option<MenuRoot>,
 }
+
 impl MenuRootManager {
     /// Show a menu at pointer if right-clicked response.
     /// Should be called from [`Context`] on a [`Response`]
@@ -212,16 +216,20 @@ impl MenuRootManager {
             None
         }
     }
+
     fn is_menu_open(&self, id: Id) -> bool {
         self.inner.as_ref().map(|m| m.id) == Some(id)
     }
 }
+
 impl std::ops::Deref for MenuRootManager {
     type Target = Option<MenuRoot>;
+
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }
+
 impl std::ops::DerefMut for MenuRootManager {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
@@ -242,6 +250,7 @@ impl MenuRoot {
             id,
         }
     }
+
     pub fn show<R>(
         &mut self,
         response: &Response,
@@ -355,16 +364,19 @@ pub(crate) enum MenuResponse {
     Stay,
     Create(Pos2, Id),
 }
+
 impl MenuResponse {
     pub fn is_close(&self) -> bool {
         *self == Self::Close
     }
 }
+
 pub struct SubMenuButton {
     text: WidgetText,
     icon: WidgetText,
     index: usize,
 }
+
 impl SubMenuButton {
     /// The `icon` can be an emoji (e.g. `⏵` right arrow), shown right of the label
     fn new(text: impl Into<WidgetText>, icon: impl Into<WidgetText>, index: usize) -> Self {
@@ -442,10 +454,12 @@ impl SubMenuButton {
         response
     }
 }
+
 pub struct SubMenu {
     button: SubMenuButton,
     parent_state: Arc<RwLock<MenuState>>,
 }
+
 impl SubMenu {
     fn new(parent_state: Arc<RwLock<MenuState>>, text: impl Into<WidgetText>) -> Self {
         let index = parent_state.write().next_entry_index();
@@ -472,6 +486,7 @@ impl SubMenu {
         InnerResponse::new(inner, button)
     }
 }
+
 pub(crate) struct MenuState {
     /// The opened sub-menu and its [`Id`]
     sub_menu: Option<(Id, Arc<RwLock<MenuState>>)>,
@@ -482,6 +497,7 @@ pub(crate) struct MenuState {
     /// Used to hash different [`Id`]s for sub-menus
     entry_count: usize,
 }
+
 impl MenuState {
     pub fn new(position: Pos2) -> Self {
         Self {
@@ -495,6 +511,7 @@ impl MenuState {
     pub fn close(&mut self) {
         self.response = MenuResponse::Close;
     }
+
     pub fn show<R>(
         ctx: &Context,
         menu_state: &Arc<RwLock<Self>>,
@@ -503,6 +520,7 @@ impl MenuState {
     ) -> InnerResponse<R> {
         crate::menu::menu_ui(ctx, id, menu_state, add_contents)
     }
+
     fn show_submenu<R>(
         &mut self,
         ctx: &Context,
@@ -524,6 +542,7 @@ impl MenuState {
                 .as_ref()
                 .map_or(false, |(_, sub)| sub.read().area_contains(pos))
     }
+
     fn next_entry_index(&mut self) -> usize {
         self.entry_count += 1;
         self.entry_count - 1
@@ -576,15 +595,19 @@ impl MenuState {
             self.response = response;
         }
     }
+
     fn is_open(&self, id: Id) -> bool {
         self.get_sub_id() == Some(id)
     }
+
     fn get_sub_id(&self) -> Option<Id> {
         self.sub_menu.as_ref().map(|(id, _)| *id)
     }
+
     fn get_current_submenu(&self) -> Option<&Arc<RwLock<MenuState>>> {
         self.sub_menu.as_ref().map(|(_, sub)| sub)
     }
+
     fn get_submenu(&mut self, id: Id) -> Option<&Arc<RwLock<MenuState>>> {
         self.sub_menu
             .as_ref()
@@ -596,6 +619,7 @@ impl MenuState {
             self.sub_menu = Some((id, Arc::new(RwLock::new(MenuState::new(pos)))));
         }
     }
+
     fn close_submenu(&mut self) {
         self.sub_menu = None;
     }

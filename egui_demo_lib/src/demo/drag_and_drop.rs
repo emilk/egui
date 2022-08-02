@@ -81,6 +81,7 @@ pub struct DragAndDropDemo {
     /// columns with items
     columns: Vec<Vec<String>>,
 }
+
 impl Default for DragAndDropDemo {
     fn default() -> Self {
         Self {

@@ -60,6 +60,7 @@ impl ShaderVersion {
             Self::Es300 => "#version 300 es\n",
         }
     }
+
     pub(crate) fn is_new_shader_interface(&self) -> &'static str {
         match self {
             ShaderVersion::Es300 | ShaderVersion::Gl140 => "#define NEW_SHADER_INTERFACE\n",

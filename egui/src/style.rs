@@ -367,6 +367,7 @@ impl From<Vec2> for Margin {
 
 impl std::ops::Add for Margin {
     type Output = Self;
+
     fn add(self, other: Self) -> Self {
         Self {
             left: self.left + other.left,
@@ -721,6 +722,7 @@ impl Selection {
             stroke: Stroke::new(1.0, Color32::from_rgb(192, 222, 255)),
         }
     }
+
     fn light() -> Self {
         Self {
             bg_fill: Color32::from_rgb(144, 209, 255),

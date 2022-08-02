@@ -399,6 +399,7 @@ impl Click {
     pub fn is_double(&self) -> bool {
         self.count == 2
     }
+
     pub fn is_triple(&self) -> bool {
         self.count == 3
     }
@@ -418,9 +419,11 @@ impl PointerEvent {
     pub fn is_press(&self) -> bool {
         matches!(self, PointerEvent::Pressed { .. })
     }
+
     pub fn is_release(&self) -> bool {
         matches!(self, PointerEvent::Released(_))
     }
+
     pub fn is_click(&self) -> bool {
         matches!(self, PointerEvent::Released(Some(_click)))
     }
