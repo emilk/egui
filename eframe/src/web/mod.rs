@@ -11,7 +11,6 @@ pub mod storage;
 mod text_agent;
 
 pub use backend::*;
-use egui::Vec2;
 pub use events::*;
 pub use storage::*;
 
@@ -21,6 +20,7 @@ use std::sync::{
     Arc,
 };
 
+use egui::Vec2;
 use wasm_bindgen::prelude::*;
 use web_sys::EventTarget;
 

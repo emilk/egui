@@ -77,19 +77,14 @@ pub use epi::*;
 // When compiling for web
 
 #[cfg(target_arch = "wasm32")]
-use egui::mutex::Mutex;
-
-#[cfg(target_arch = "wasm32")]
-use std::sync::Arc;
-
-#[cfg(target_arch = "wasm32")]
 pub mod web;
 
 #[cfg(target_arch = "wasm32")]
 pub use wasm_bindgen;
 
 #[cfg(target_arch = "wasm32")]
-use web::AppRunner;
+use web::AppRunnerRef;
+
 #[cfg(target_arch = "wasm32")]
 pub use web_sys;
 
@@ -107,7 +102,7 @@ pub use web_sys;
 /// /// You can add more callbacks like this if you want to call in to your code.
 /// #[cfg(target_arch = "wasm32")]
 /// #[wasm_bindgen]
-/// pub fn start(canvas_id: &str) -> Result<Arc<Mutex<AppRunner>>, eframe::wasm_bindgen::JsValue> {
+/// pub fn start(canvas_id: &str) -> Result<AppRunnerRef>, eframe::wasm_bindgen::JsValue> {
 ///     let web_options = eframe::WebOptions::default();
 ///     eframe::start_web(canvas_id, web_options, Box::new(|cc| Box::new(MyEguiApp::new(cc))))
 /// }
@@ -117,7 +112,7 @@ pub fn start_web(
     canvas_id: &str,
     web_options: WebOptions,
     app_creator: AppCreator,
-) -> Result<Arc<Mutex<AppRunner>>, wasm_bindgen::JsValue> {
+) -> Result<AppRunnerRef, wasm_bindgen::JsValue> {
     let handle = web::start(canvas_id, web_options, app_creator)?;
 
     Ok(handle)
