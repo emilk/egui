@@ -176,6 +176,11 @@ impl PostProcess {
         })
     }
 
+    /// What we render to.
+    pub(crate) fn fbo(&self) -> glow::Framebuffer {
+        self.fbo
+    }
+
     pub(crate) unsafe fn begin(&mut self, width: i32, height: i32) {
         if (width, height) != self.texture_size {
             self.gl
