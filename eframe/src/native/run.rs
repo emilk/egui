@@ -1,6 +1,13 @@
+//! Note that this file contains two similar paths - one for [`glow`], one for [`wgpu`].
+//! When making changes to one you often also want to apply it to the other.
+
+use std::sync::Arc;
+
+use egui_winit::winit;
+use winit::event_loop::ControlFlow;
+
 use super::epi_integration;
 use crate::epi;
-use egui_winit::winit;
 
 struct RequestRepaintEvent;
 
@@ -47,73 +54,107 @@ fn create_display(
 
 pub use epi::NativeOptions;
 
+enum EventResult {
+    Repaint,
+    Exit,
+    Continue,
+}
+
 /// Run an egui app
 #[cfg(feature = "glow")]
-pub fn run_glow(
-    app_name: &str,
-    native_options: &epi::NativeOptions,
-    app_creator: epi::AppCreator,
-) -> ! {
-    let storage = epi_integration::create_storage(app_name);
-    let window_settings = epi_integration::load_window_settings(storage.as_deref());
-    let event_loop = winit::event_loop::EventLoop::with_user_event();
+mod glow_integration {
+    use super::*;
 
-    let window_builder =
-        epi_integration::window_builder(native_options, &window_settings).with_title(app_name);
-    let (gl_window, gl) = create_display(native_options, window_builder, &event_loop);
-    let gl = std::sync::Arc::new(gl);
-
-    let mut painter = egui_glow::Painter::new(gl.clone(), None, "")
-        .unwrap_or_else(|error| panic!("some OpenGL error occurred {}\n", error));
-
-    let system_theme = native_options.system_theme();
-    let mut integration = epi_integration::EpiIntegration::new(
-        &event_loop,
-        painter.max_texture_side(),
-        gl_window.window(),
-        system_theme,
-        storage,
-        Some(gl.clone()),
-        #[cfg(feature = "wgpu")]
-        None,
-    );
-    let theme = system_theme.unwrap_or(native_options.default_theme);
-    integration.egui_ctx.set_visuals(theme.egui_visuals());
-
-    {
-        let event_loop_proxy = egui::mutex::Mutex::new(event_loop.create_proxy());
-        integration.egui_ctx.set_request_repaint_callback(move || {
-            event_loop_proxy.lock().send_event(RequestRepaintEvent).ok();
-        });
+    struct GlowEframe {
+        gl_window: glutin::WindowedContext<glutin::PossiblyCurrent>,
+        gl: Arc<glow::Context>,
+        painter: egui_glow::Painter,
+        integration: epi_integration::EpiIntegration,
+        app: Box<dyn epi::App>,
+        is_focused: bool,
     }
 
-    let mut app = app_creator(&epi::CreationContext {
-        egui_ctx: integration.egui_ctx.clone(),
-        integration_info: integration.frame.info(),
-        storage: integration.frame.storage(),
-        gl: Some(gl.clone()),
-        #[cfg(feature = "wgpu")]
-        render_state: None,
-    });
+    impl GlowEframe {
+        fn new(
+            event_loop: &winit::event_loop::EventLoop<RequestRepaintEvent>,
+            app_name: &str,
+            native_options: &epi::NativeOptions,
+            app_creator: epi::AppCreator,
+        ) -> Self {
+            let storage = epi_integration::create_storage(app_name);
+            let window_settings = epi_integration::load_window_settings(storage.as_deref());
 
-    if app.warm_up_enabled() {
-        integration.warm_up(app.as_mut(), gl_window.window());
-    }
+            let window_builder = epi_integration::window_builder(native_options, &window_settings)
+                .with_title(app_name);
+            let (gl_window, gl) = create_display(native_options, window_builder, event_loop);
+            let gl = Arc::new(gl);
 
-    let mut is_focused = true;
+            let painter = egui_glow::Painter::new(gl.clone(), None, "")
+                .unwrap_or_else(|error| panic!("some OpenGL error occurred {}\n", error));
 
-    event_loop.run(move |event, _, control_flow| {
-        let window = gl_window.window();
+            let system_theme = native_options.system_theme();
+            let mut integration = epi_integration::EpiIntegration::new(
+                event_loop,
+                painter.max_texture_side(),
+                gl_window.window(),
+                system_theme,
+                storage,
+                Some(gl.clone()),
+                #[cfg(feature = "wgpu")]
+                None,
+            );
+            let theme = system_theme.unwrap_or(native_options.default_theme);
+            integration.egui_ctx.set_visuals(theme.egui_visuals());
 
-        let mut redraw = || {
+            {
+                let event_loop_proxy = egui::mutex::Mutex::new(event_loop.create_proxy());
+                integration.egui_ctx.set_request_repaint_callback(move || {
+                    event_loop_proxy.lock().send_event(RequestRepaintEvent).ok();
+                });
+            }
+
+            let mut app = app_creator(&epi::CreationContext {
+                egui_ctx: integration.egui_ctx.clone(),
+                integration_info: integration.frame.info(),
+                storage: integration.frame.storage(),
+                gl: Some(gl.clone()),
+                #[cfg(feature = "wgpu")]
+                render_state: None,
+            });
+
+            if app.warm_up_enabled() {
+                integration.warm_up(app.as_mut(), gl_window.window());
+            }
+
+            Self {
+                gl_window,
+                gl,
+                painter,
+                integration,
+                app,
+                is_focused: true,
+            }
+        }
+
+        fn paint(&mut self) -> ControlFlow {
             #[cfg(feature = "puffin")]
             puffin::GlobalProfiler::lock().new_frame();
             crate::profile_scope!("frame");
 
+            let Self {
+                gl_window,
+                gl,
+                app,
+                integration,
+                painter,
+                ..
+            } = self;
+            let window = gl_window.window();
+
             let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
             egui_glow::painter::clear(
-                &gl,
+                gl,
                 screen_size_in_pixels,
                 app.clear_color(&integration.egui_ctx.style().visuals),
             );
@@ -146,11 +187,11 @@ pub fn run_glow(
                 gl_window.swap_buffers().unwrap();
             }
 
-            *control_flow = if integration.should_quit() {
-                winit::event_loop::ControlFlow::Exit
+            let control_flow = if integration.should_quit() {
+                ControlFlow::Exit
             } else if repaint_after.is_zero() {
                 window.request_redraw();
-                winit::event_loop::ControlFlow::Poll
+                ControlFlow::Poll
             } else if let Some(repaint_after_instant) =
                 std::time::Instant::now().checked_add(repaint_after)
             {
@@ -159,14 +200,14 @@ pub fn run_glow(
                 // technically, this might lead to some weird corner cases where the user *WANTS*
                 // winit to use `WaitUntil(MAX_INSTANT)` explicitly. they can roll their own
                 // egui backend impl i guess.
-                winit::event_loop::ControlFlow::WaitUntil(repaint_after_instant)
+                ControlFlow::WaitUntil(repaint_after_instant)
             } else {
-                winit::event_loop::ControlFlow::Wait
+                ControlFlow::Wait
             };
 
             integration.maybe_autosave(app.as_mut(), window);
 
-            if !is_focused {
+            if !self.is_focused {
                 // On Mac, a minimized Window uses up all CPU: https://github.com/emilk/egui/issues/325
                 // We can't know if we are minimized: https://github.com/rust-windowing/winit/issues/208
                 // But we know if we are focused (in foreground). When minimized, we are not focused.
@@ -175,57 +216,104 @@ pub fn run_glow(
                 crate::profile_scope!("bg_sleep");
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
-        };
-        match event {
-            // Platform-dependent event handlers to workaround a winit bug
-            // See: https://github.com/rust-windowing/winit/issues/987
-            // See: https://github.com/rust-windowing/winit/issues/1619
-            winit::event::Event::RedrawEventsCleared if cfg!(windows) => redraw(),
-            winit::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
 
-            winit::event::Event::WindowEvent { event, .. } => {
-                match &event {
-                    winit::event::WindowEvent::Focused(new_focused) => {
-                        is_focused = *new_focused;
-                    }
-                    winit::event::WindowEvent::Resized(physical_size) => {
-                        // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
-                        // See: https://github.com/rust-windowing/winit/issues/208
-                        // This solves an issue where the app would panic when minimizing on Windows.
-                        if physical_size.width > 0 && physical_size.height > 0 {
-                            gl_window.resize(*physical_size);
-                        }
-                    }
-                    winit::event::WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                        gl_window.resize(**new_inner_size);
-                    }
-                    winit::event::WindowEvent::CloseRequested if integration.should_quit() => {
-                        *control_flow = winit::event_loop::ControlFlow::Exit;
-                    }
-                    _ => {}
-                }
-
-                integration.on_event(app.as_mut(), &event);
-                if integration.should_quit() {
-                    *control_flow = winit::event_loop::ControlFlow::Exit;
-                }
-                window.request_redraw(); // TODO(emilk): ask egui if the events warrants a repaint instead
-            }
-            winit::event::Event::LoopDestroyed => {
-                integration.save(&mut *app, window);
-                app.on_exit(Some(&gl));
-                painter.destroy();
-            }
-            winit::event::Event::UserEvent(RequestRepaintEvent) => window.request_redraw(),
-            winit::event::Event::NewEvents(winit::event::StartCause::ResumeTimeReached {
-                ..
-            }) => {
-                window.request_redraw();
-            }
-            _ => {}
+            control_flow
         }
-    });
+
+        fn on_event(&mut self, event: winit::event::Event<'_, RequestRepaintEvent>) -> EventResult {
+            let Self {
+                gl_window,
+                gl,
+                integration,
+                painter,
+                ..
+            } = self;
+            let window = gl_window.window();
+
+            match event {
+                // Platform-dependent event handlers to workaround a winit bug
+                // See: https://github.com/rust-windowing/winit/issues/987
+                // See: https://github.com/rust-windowing/winit/issues/1619
+                winit::event::Event::RedrawEventsCleared if cfg!(windows) => EventResult::Repaint,
+                winit::event::Event::RedrawRequested(_) if !cfg!(windows) => EventResult::Repaint,
+
+                winit::event::Event::WindowEvent { event, .. } => {
+                    match &event {
+                        winit::event::WindowEvent::Focused(new_focused) => {
+                            self.is_focused = *new_focused;
+                        }
+                        winit::event::WindowEvent::Resized(physical_size) => {
+                            // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
+                            // See: https://github.com/rust-windowing/winit/issues/208
+                            // This solves an issue where the app would panic when minimizing on Windows.
+                            if physical_size.width > 0 && physical_size.height > 0 {
+                                gl_window.resize(*physical_size);
+                            }
+                        }
+                        winit::event::WindowEvent::ScaleFactorChanged {
+                            new_inner_size, ..
+                        } => {
+                            gl_window.resize(**new_inner_size);
+                        }
+                        winit::event::WindowEvent::CloseRequested if integration.should_quit() => {
+                            return EventResult::Exit
+                        }
+                        _ => {}
+                    }
+
+                    integration.on_event(self.app.as_mut(), &event);
+                    if integration.should_quit() {
+                        EventResult::Exit
+                    } else {
+                        window.request_redraw(); // TODO(emilk): ask egui if the events warrants a repaint instead
+                        EventResult::Continue
+                    }
+                }
+                winit::event::Event::LoopDestroyed => {
+                    integration.save(&mut *self.app, window);
+                    self.app.on_exit(Some(gl));
+                    painter.destroy();
+                    EventResult::Continue
+                }
+                winit::event::Event::UserEvent(RequestRepaintEvent)
+                | winit::event::Event::NewEvents(winit::event::StartCause::ResumeTimeReached {
+                    ..
+                }) => {
+                    window.request_redraw();
+                    EventResult::Continue
+                }
+                _ => EventResult::Continue,
+            }
+        }
+    }
+
+    pub fn run_glow(
+        app_name: &str,
+        native_options: &epi::NativeOptions,
+        app_creator: epi::AppCreator,
+    ) -> ! {
+        let event_loop = winit::event_loop::EventLoop::with_user_event();
+        let mut glow_eframe = GlowEframe::new(&event_loop, app_name, native_options, app_creator);
+
+        event_loop.run(move |event, _, control_flow| {
+            let event_result = glow_eframe.on_event(event);
+            match event_result {
+                EventResult::Continue => {}
+                EventResult::Repaint => {
+                    *control_flow = glow_eframe.paint();
+                }
+                EventResult::Exit => {
+                    *control_flow = ControlFlow::Exit;
+                }
+            }
+        })
+    }
 }
+
+#[cfg(feature = "glow")]
+pub use glow_integration::run_glow;
+
+// ----------------------------------------------------------------------------
 
 // TODO(emilk): merge with with the clone above
 /// Run an egui app
@@ -331,10 +419,10 @@ pub fn run_wgpu(
             );
 
             *control_flow = if integration.should_quit() {
-                winit::event_loop::ControlFlow::Exit
+                ControlFlow::Exit
             } else if repaint_after.is_zero() {
                 window.request_redraw();
-                winit::event_loop::ControlFlow::Poll
+                ControlFlow::Poll
             } else if let Some(repaint_after_instant) =
                 std::time::Instant::now().checked_add(repaint_after)
             {
@@ -343,9 +431,9 @@ pub fn run_wgpu(
                 // technically, this might lead to some weird corner cases where the user *WANTS*
                 // winit to use `WaitUntil(MAX_INSTANT)` explicitly. they can roll their own
                 // egui backend impl i guess.
-                winit::event_loop::ControlFlow::WaitUntil(repaint_after_instant)
+                ControlFlow::WaitUntil(repaint_after_instant)
             } else {
-                winit::event_loop::ControlFlow::Wait
+                ControlFlow::Wait
             };
 
             integration.maybe_autosave(app.as_mut(), window);
