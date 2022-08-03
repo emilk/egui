@@ -47,6 +47,11 @@ impl eframe::App for MyApp {
             });
         });
     }
+
+    #[cfg(target_arch = "wasm32")]
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        &mut *self
+    }
 }
 
 impl MyApp {

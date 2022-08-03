@@ -35,7 +35,7 @@ impl WebInput {
 
 // ----------------------------------------------------------------------------
 
-use std::sync::atomic::Ordering::SeqCst;
+use std::{any::Any, sync::atomic::Ordering::SeqCst};
 
 /// Stores when to do the next repaint.
 pub struct NeedRepaint(Mutex<f64>);
@@ -263,6 +263,10 @@ impl AppRunner {
 
     pub fn egui_ctx(&self) -> &egui::Context {
         &self.egui_ctx
+    }
+
+    pub fn get_app_mut(&mut self) -> &mut dyn Any {
+        self.app.as_any_mut()
     }
 
     pub fn auto_save(&mut self) {

@@ -3,6 +3,9 @@ use egui_demo_lib::is_mobile;
 #[cfg(feature = "glow")]
 use eframe::glow;
 
+#[cfg(target_arch = "wasm32")]
+use core::any::Any;
+
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct EasyMarkApp {
@@ -12,6 +15,11 @@ struct EasyMarkApp {
 impl eframe::App for EasyMarkApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.editor.panels(ctx);
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        &mut *self
     }
 }
 
@@ -26,6 +34,11 @@ pub struct DemoApp {
 impl eframe::App for DemoApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.demo_windows.ui(ctx);
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        &mut *self
     }
 }
 
@@ -45,6 +58,11 @@ impl eframe::App for FractalClockApp {
                 self.fractal_clock
                     .ui(ui, Some(crate::seconds_since_midnight()));
             });
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        &mut *self
     }
 }
 
@@ -69,6 +87,11 @@ impl eframe::App for ColorTestApp {
                 self.color_test.ui(ui);
             });
         });
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        &mut *self
     }
 }
 
@@ -213,6 +236,11 @@ impl eframe::App for WrapApp {
     #[cfg(feature = "glow")]
     fn on_exit(&mut self, gl: Option<&glow::Context>) {
         self.custom3d.on_exit(gl);
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        &mut *self
     }
 }
 
