@@ -350,6 +350,10 @@ impl EpiIntegration {
             storage.flush();
         }
     }
+
+    pub fn files_are_hovering(&self) -> bool {
+        !self.egui_winit.egui_input().hovered_files.is_empty()
+    }
 }
 
 #[cfg(feature = "persistence")]

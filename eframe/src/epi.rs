@@ -170,6 +170,20 @@ pub enum HardwareAcceleration {
 #[cfg(not(target_arch = "wasm32"))]
 #[derive(Clone)]
 pub struct NativeOptions {
+    /// If `true`, the app will close once the egui window is closed.
+    /// If `false`, execution will continue.
+    ///
+    /// This is `true` by default, because setting it to `false` has several downsides,
+    /// at least on Mac:
+    ///
+    /// * Window resizing is now longer instantaneous
+    /// * CPU usage is higher when idle
+    /// * [`Frame::drag_window`] doesn't work as expected
+    ///
+    /// When `true`, [`winit::event_loop::EventLoop::run`] is used.
+    /// When `false`, [`winit::platform::run_return::EventLoopExtRunReturn::run_return`] is used.
+    pub exit_on_window_close: bool,
+
     /// Sets whether or not the window will always be on top of other windows.
     pub always_on_top: bool,
 
@@ -275,6 +289,7 @@ pub struct NativeOptions {
 impl Default for NativeOptions {
     fn default() -> Self {
         Self {
+            exit_on_window_close: true,
             always_on_top: false,
             maximized: false,
             decorated: true,
