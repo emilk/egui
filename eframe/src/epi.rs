@@ -176,7 +176,7 @@ pub struct NativeOptions {
     /// This is `true` by default, because setting it to `false` has several downsides,
     /// at least on Mac:
     ///
-    /// * Window resizing is now longer instantaneous
+    /// * Window resizing is no longer instantaneous
     /// * CPU usage is higher when idle
     /// * [`Frame::drag_window`] doesn't work as expected
     ///

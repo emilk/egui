@@ -2,11 +2,12 @@
 //! When making changes to one you often also want to apply it to the other.
 
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use egui_winit::winit;
 use winit::event_loop::{ControlFlow, EventLoop};
 
-use super::epi_integration;
+use super::epi_integration::{self, EpiIntegration};
 use crate::epi;
 
 #[derive(Debug)]
@@ -61,14 +62,118 @@ enum EventResult {
     Continue,
 }
 
+trait WinitApp {
+    fn is_focused(&self) -> bool;
+    fn integration(&self) -> &EpiIntegration;
+    fn save_and_destroy(&mut self);
+    fn paint(&mut self) -> ControlFlow;
+    fn on_event(&mut self, event: winit::event::Event<'_, RequestRepaintEvent>) -> EventResult;
+}
+
+fn suggest_sleep_duration(winit_app: &dyn WinitApp) -> Duration {
+    if winit_app.is_focused() || winit_app.integration().files_are_hovering() {
+        Duration::from_millis(10)
+    } else {
+        Duration::from_millis(50)
+    }
+}
+
+fn run_and_continue(mut event_loop: EventLoop<RequestRepaintEvent>, mut winit_app: impl WinitApp) {
+    let mut running = true;
+    let mut needs_repaint_by = Instant::now();
+
+    while running {
+        use winit::platform::run_return::EventLoopExtRunReturn as _;
+        event_loop.run_return(|event, _, control_flow| {
+            *control_flow = match event {
+                winit::event::Event::LoopDestroyed => ControlFlow::Exit,
+                winit::event::Event::MainEventsCleared => ControlFlow::Wait,
+                event => {
+                    let event_result = winit_app.on_event(event);
+                    match event_result {
+                        EventResult::Continue => ControlFlow::Wait,
+                        EventResult::Repaint => {
+                            needs_repaint_by = Instant::now();
+                            ControlFlow::Exit
+                        }
+                        EventResult::Exit => {
+                            running = false;
+                            ControlFlow::Exit
+                        }
+                    }
+                }
+            };
+
+            match needs_repaint_by.checked_duration_since(Instant::now()) {
+                None => {
+                    *control_flow = ControlFlow::Exit; // Time to redraw
+                }
+                Some(duration_until_repaint) => {
+                    if *control_flow == ControlFlow::Wait {
+                        // On Mac, ControlFlow::WaitUntil doesn't sleep enough. It uses a lot of CPU.
+                        // So we sleep manually. But, it still uses 1-3% CPU :(
+                        let sleep_duration =
+                            duration_until_repaint.min(suggest_sleep_duration(&winit_app));
+                        std::thread::sleep(sleep_duration);
+
+                        *control_flow = ControlFlow::WaitUntil(needs_repaint_by);
+                    }
+                }
+            }
+        });
+
+        if running && needs_repaint_by <= Instant::now() {
+            let paint_result = winit_app.paint();
+            match paint_result {
+                ControlFlow::Poll => {
+                    needs_repaint_by = Instant::now();
+                }
+                ControlFlow::Wait => {
+                    // wait a long time unless something happens
+                    needs_repaint_by = Instant::now() + Duration::from_secs(3600);
+                }
+                ControlFlow::WaitUntil(repaint_time) => {
+                    needs_repaint_by = repaint_time;
+                }
+                ControlFlow::Exit => {
+                    running = false;
+                }
+            }
+        }
+    }
+    winit_app.save_and_destroy();
+}
+
+fn run_then_exit(
+    event_loop: EventLoop<RequestRepaintEvent>,
+    mut winit_app: impl WinitApp + 'static,
+) -> ! {
+    event_loop.run(move |event, _, control_flow| {
+        if let winit::event::Event::LoopDestroyed = event {
+            winit_app.save_and_destroy();
+        } else {
+            let event_result = winit_app.on_event(event);
+            match event_result {
+                EventResult::Continue => {}
+                EventResult::Repaint => {
+                    *control_flow = winit_app.paint();
+                }
+                EventResult::Exit => {
+                    *control_flow = ControlFlow::Exit;
+                }
+            }
+        }
+    })
+}
+
+// ----------------------------------------------------------------------------
+
 /// Run an egui app
 #[cfg(feature = "glow")]
 mod glow_integration {
-    use std::time::{Duration, Instant};
-
     use super::*;
 
-    struct GlowEframe {
+    struct GlowWinitApp {
         gl_window: glutin::WindowedContext<glutin::PossiblyCurrent>,
         gl: Arc<glow::Context>,
         painter: egui_glow::Painter,
@@ -77,7 +182,7 @@ mod glow_integration {
         is_focused: bool,
     }
 
-    impl GlowEframe {
+    impl GlowWinitApp {
         fn new(
             event_loop: &EventLoop<RequestRepaintEvent>,
             app_name: &str,
@@ -137,6 +242,16 @@ mod glow_integration {
                 app,
                 is_focused: true,
             }
+        }
+    }
+
+    impl WinitApp for GlowWinitApp {
+        fn is_focused(&self) -> bool {
+            self.is_focused
+        }
+
+        fn integration(&self) -> &EpiIntegration {
+            &self.integration
         }
 
         fn save_and_destroy(&mut self) {
@@ -294,109 +409,13 @@ mod glow_integration {
         app_creator: epi::AppCreator,
     ) {
         let event_loop = EventLoop::with_user_event();
-        let glow_eframe = GlowEframe::new(&event_loop, app_name, native_options, app_creator);
+        let glow_eframe = GlowWinitApp::new(&event_loop, app_name, native_options, app_creator);
 
         if native_options.exit_on_window_close {
             run_then_exit(event_loop, glow_eframe);
         } else {
             run_and_continue(event_loop, glow_eframe);
         }
-    }
-
-    fn suggest_sleep_duration(glow_eframe: &GlowEframe) -> Duration {
-        if glow_eframe.is_focused || glow_eframe.integration.files_are_hovering() {
-            Duration::from_millis(10)
-        } else {
-            Duration::from_millis(50)
-        }
-    }
-
-    fn run_and_continue(
-        mut event_loop: EventLoop<RequestRepaintEvent>,
-        mut glow_eframe: GlowEframe,
-    ) {
-        let mut running = true;
-        let mut needs_repaint_by = Instant::now();
-
-        while running {
-            use winit::platform::run_return::EventLoopExtRunReturn as _;
-            event_loop.run_return(|event, _, control_flow| {
-                *control_flow = match event {
-                    winit::event::Event::LoopDestroyed => ControlFlow::Exit,
-                    winit::event::Event::MainEventsCleared => ControlFlow::Wait,
-                    event => {
-                        let event_result = glow_eframe.on_event(event);
-                        match event_result {
-                            EventResult::Continue => ControlFlow::Wait,
-                            EventResult::Repaint => {
-                                needs_repaint_by = Instant::now();
-                                ControlFlow::Exit
-                            }
-                            EventResult::Exit => {
-                                running = false;
-                                ControlFlow::Exit
-                            }
-                        }
-                    }
-                };
-
-                match needs_repaint_by.checked_duration_since(Instant::now()) {
-                    None => {
-                        *control_flow = ControlFlow::Exit; // Time to redraw
-                    }
-                    Some(duration_until_repaint) => {
-                        if *control_flow == ControlFlow::Wait {
-                            // On Mac, ControlFlow::WaitUntil doesn't sleep enough. It uses a lot of CPU.
-                            // So we sleep manually. But, it still uses 1-3% CPU :(
-                            let sleep_duration =
-                                duration_until_repaint.min(suggest_sleep_duration(&glow_eframe));
-                            std::thread::sleep(sleep_duration);
-
-                            *control_flow = ControlFlow::WaitUntil(needs_repaint_by);
-                        }
-                    }
-                }
-            });
-
-            if running && needs_repaint_by <= Instant::now() {
-                let paint_result = glow_eframe.paint();
-                match paint_result {
-                    ControlFlow::Poll => {
-                        needs_repaint_by = Instant::now();
-                    }
-                    ControlFlow::Wait => {
-                        // wait a long time unless something happens
-                        needs_repaint_by = Instant::now() + Duration::from_secs(3600);
-                    }
-                    ControlFlow::WaitUntil(repaint_time) => {
-                        needs_repaint_by = repaint_time;
-                    }
-                    ControlFlow::Exit => {
-                        running = false;
-                    }
-                }
-            }
-        }
-        glow_eframe.save_and_destroy();
-    }
-
-    fn run_then_exit(event_loop: EventLoop<RequestRepaintEvent>, mut glow_eframe: GlowEframe) -> ! {
-        event_loop.run(move |event, _, control_flow| {
-            if let winit::event::Event::LoopDestroyed = event {
-                glow_eframe.save_and_destroy();
-            } else {
-                let event_result = glow_eframe.on_event(event);
-                match event_result {
-                    EventResult::Continue => {}
-                    EventResult::Repaint => {
-                        *control_flow = glow_eframe.paint();
-                    }
-                    EventResult::Exit => {
-                        *control_flow = ControlFlow::Exit;
-                    }
-                }
-            }
-        })
     }
 }
 
@@ -407,11 +426,9 @@ pub use glow_integration::run_glow;
 
 #[cfg(feature = "wgpu")]
 mod wgpu_integration {
-    use std::time::{Duration, Instant};
-
     use super::*;
 
-    struct WgpuEframe {
+    struct WgpuWinitApp {
         window: winit::window::Window,
         painter: egui_wgpu::winit::Painter<'static>,
         integration: epi_integration::EpiIntegration,
@@ -419,7 +436,7 @@ mod wgpu_integration {
         is_focused: bool,
     }
 
-    impl WgpuEframe {
+    impl WgpuWinitApp {
         fn new(
             event_loop: &EventLoop<RequestRepaintEvent>,
             app_name: &str,
@@ -496,6 +513,16 @@ mod wgpu_integration {
                 app,
                 is_focused: true,
             }
+        }
+    }
+
+    impl WinitApp for WgpuWinitApp {
+        fn is_focused(&self) -> bool {
+            self.is_focused
+        }
+
+        fn integration(&self) -> &EpiIntegration {
+            &self.integration
         }
 
         fn save_and_destroy(&mut self) {
@@ -651,109 +678,13 @@ mod wgpu_integration {
         app_creator: epi::AppCreator,
     ) {
         let event_loop = EventLoop::with_user_event();
-        let wgpu_eframe = WgpuEframe::new(&event_loop, app_name, native_options, app_creator);
+        let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);
 
         if native_options.exit_on_window_close {
             run_then_exit(event_loop, wgpu_eframe);
         } else {
             run_and_continue(event_loop, wgpu_eframe);
         }
-    }
-
-    fn suggest_sleep_duration(wgpu_eframe: &WgpuEframe) -> Duration {
-        if wgpu_eframe.is_focused || wgpu_eframe.integration.files_are_hovering() {
-            Duration::from_millis(10)
-        } else {
-            Duration::from_millis(50)
-        }
-    }
-
-    fn run_and_continue(
-        mut event_loop: EventLoop<RequestRepaintEvent>,
-        mut wgpu_eframe: WgpuEframe,
-    ) {
-        let mut running = true;
-        let mut needs_repaint_by = Instant::now();
-
-        while running {
-            use winit::platform::run_return::EventLoopExtRunReturn as _;
-            event_loop.run_return(|event, _, control_flow| {
-                *control_flow = match event {
-                    winit::event::Event::LoopDestroyed => ControlFlow::Exit,
-                    winit::event::Event::MainEventsCleared => ControlFlow::Wait,
-                    event => {
-                        let event_result = wgpu_eframe.on_event(event);
-                        match event_result {
-                            EventResult::Continue => ControlFlow::Wait,
-                            EventResult::Repaint => {
-                                needs_repaint_by = Instant::now();
-                                ControlFlow::Exit
-                            }
-                            EventResult::Exit => {
-                                running = false;
-                                ControlFlow::Exit
-                            }
-                        }
-                    }
-                };
-
-                match needs_repaint_by.checked_duration_since(Instant::now()) {
-                    None => {
-                        *control_flow = ControlFlow::Exit; // Time to redraw
-                    }
-                    Some(duration_until_repaint) => {
-                        if *control_flow == ControlFlow::Wait {
-                            // On Mac, ControlFlow::WaitUntil doesn't sleep enough. It uses a lot of CPU.
-                            // So we sleep manually. But, it still uses 1-3% CPU :(
-                            let sleep_duration =
-                                duration_until_repaint.min(suggest_sleep_duration(&wgpu_eframe));
-                            std::thread::sleep(sleep_duration);
-
-                            *control_flow = ControlFlow::WaitUntil(needs_repaint_by);
-                        }
-                    }
-                }
-            });
-
-            if running && needs_repaint_by <= Instant::now() {
-                let paint_result = wgpu_eframe.paint();
-                match paint_result {
-                    ControlFlow::Poll => {
-                        needs_repaint_by = Instant::now();
-                    }
-                    ControlFlow::Wait => {
-                        // wait a long time unless something happens
-                        needs_repaint_by = Instant::now() + Duration::from_secs(3600);
-                    }
-                    ControlFlow::WaitUntil(repaint_time) => {
-                        needs_repaint_by = repaint_time;
-                    }
-                    ControlFlow::Exit => {
-                        running = false;
-                    }
-                }
-            }
-        }
-        wgpu_eframe.save_and_destroy();
-    }
-
-    fn run_then_exit(event_loop: EventLoop<RequestRepaintEvent>, mut wgpu_eframe: WgpuEframe) -> ! {
-        event_loop.run(move |event, _, control_flow| {
-            if let winit::event::Event::LoopDestroyed = event {
-                wgpu_eframe.save_and_destroy();
-            } else {
-                let event_result = wgpu_eframe.on_event(event);
-                match event_result {
-                    EventResult::Continue => {}
-                    EventResult::Repaint => {
-                        *control_flow = wgpu_eframe.paint();
-                    }
-                    EventResult::Exit => {
-                        *control_flow = ControlFlow::Exit;
-                    }
-                }
-            }
-        })
     }
 }
 
