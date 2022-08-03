@@ -3,7 +3,7 @@
 use std::{borrow::Cow, collections::HashMap, num::NonZeroU32};
 
 use egui::{epaint::Primitive, NumExt, PaintCallbackInfo};
-use type_map::TypeMap;
+use type_map::concurrent::TypeMap;
 use wgpu;
 use wgpu::util::DeviceExt as _;
 
@@ -133,7 +133,7 @@ pub struct RenderPass {
     next_user_texture_id: u64,
     /// Storage for use by [`egui::PaintCallback`]'s that need to store resources such as render
     /// pipelines that must have the lifetime of the renderpass.
-    pub paint_callback_resources: type_map::TypeMap,
+    pub paint_callback_resources: TypeMap,
 }
 
 impl RenderPass {
@@ -806,4 +806,10 @@ impl ScissorRect {
             height,
         }
     }
+}
+
+#[test]
+fn render_pass_impl_send_sync() {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<RenderPass>();
 }
