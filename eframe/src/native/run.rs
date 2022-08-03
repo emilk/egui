@@ -1,8 +1,8 @@
 //! Note that this file contains two similar paths - one for [`glow`], one for [`wgpu`].
 //! When making changes to one you often also want to apply it to the other.
 
-use std::sync::Arc;
 use std::time::Instant;
+use std::{sync::Arc, time::Duration};
 
 use egui_winit::winit;
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -58,7 +58,7 @@ pub use epi::NativeOptions;
 
 enum EventResult {
     Wait,
-    RepaintNow,
+    RepaintAsap,
     RepaintAt(Instant),
     Exit,
 }
@@ -73,10 +73,11 @@ trait WinitApp {
 }
 
 fn run_and_continue(mut event_loop: EventLoop<RequestRepaintEvent>, mut winit_app: impl WinitApp) {
-    let mut needs_repaint_by = Instant::now();
-
     use winit::platform::run_return::EventLoopExtRunReturn as _;
+
     tracing::debug!("event_loop.run_return");
+
+    let mut next_repaint_time = Instant::now();
 
     event_loop.run_return(|event, _, control_flow| {
         let event_result = match event {
@@ -85,24 +86,30 @@ fn run_and_continue(mut event_loop: EventLoop<RequestRepaintEvent>, mut winit_ap
             // Platform-dependent event handlers to workaround a winit bug
             // See: https://github.com/rust-windowing/winit/issues/987
             // See: https://github.com/rust-windowing/winit/issues/1619
-            winit::event::Event::RedrawEventsCleared if cfg!(windows) => winit_app.paint(),
-            winit::event::Event::RedrawRequested(_) if !cfg!(windows) => winit_app.paint(),
+            winit::event::Event::RedrawEventsCleared if cfg!(windows) => {
+                next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
+                winit_app.paint()
+            }
+            winit::event::Event::RedrawRequested(_) if !cfg!(windows) => {
+                next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
+                winit_app.paint()
+            }
 
             winit::event::Event::UserEvent(RequestRepaintEvent)
             | winit::event::Event::NewEvents(winit::event::StartCause::ResumeTimeReached {
                 ..
-            }) => EventResult::RepaintNow,
+            }) => EventResult::RepaintAsap,
 
             event => winit_app.on_event(event),
         };
 
         match event_result {
             EventResult::Wait => {}
-            EventResult::RepaintNow => {
-                needs_repaint_by = Instant::now();
+            EventResult::RepaintAsap => {
+                next_repaint_time = Instant::now();
             }
             EventResult::RepaintAt(repaint_time) => {
-                needs_repaint_by = repaint_time;
+                next_repaint_time = next_repaint_time.min(repaint_time);
             }
             EventResult::Exit => {
                 *control_flow = ControlFlow::Exit;
@@ -110,16 +117,15 @@ fn run_and_continue(mut event_loop: EventLoop<RequestRepaintEvent>, mut winit_ap
             }
         }
 
-        *control_flow = match needs_repaint_by.checked_duration_since(Instant::now()) {
+        *control_flow = match next_repaint_time.checked_duration_since(Instant::now()) {
             None => {
-                // repaint asap!
                 winit_app.window().request_redraw();
                 ControlFlow::Poll
             }
-            Some(duration_until_repaint) => {
-                ControlFlow::WaitUntil(Instant::now() + duration_until_repaint)
+            Some(time_until_next_repaint) => {
+                ControlFlow::WaitUntil(Instant::now() + time_until_next_repaint)
             }
-        };
+        }
     });
 
     tracing::debug!("eframe window closed");
@@ -132,6 +138,9 @@ fn run_then_exit(
     mut winit_app: impl WinitApp + 'static,
 ) -> ! {
     tracing::debug!("event_loop.run");
+
+    let mut next_repaint_time = Instant::now();
+
     event_loop.run(move |event, _, control_flow| {
         let event_result = match event {
             winit::event::Event::LoopDestroyed => EventResult::Exit,
@@ -139,29 +148,46 @@ fn run_then_exit(
             // Platform-dependent event handlers to workaround a winit bug
             // See: https://github.com/rust-windowing/winit/issues/987
             // See: https://github.com/rust-windowing/winit/issues/1619
-            winit::event::Event::RedrawEventsCleared if cfg!(windows) => winit_app.paint(),
-            winit::event::Event::RedrawRequested(_) if !cfg!(windows) => winit_app.paint(),
+            winit::event::Event::RedrawEventsCleared if cfg!(windows) => {
+                next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
+                winit_app.paint()
+            }
+            winit::event::Event::RedrawRequested(_) if !cfg!(windows) => {
+                next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
+                winit_app.paint()
+            }
 
             winit::event::Event::UserEvent(RequestRepaintEvent)
             | winit::event::Event::NewEvents(winit::event::StartCause::ResumeTimeReached {
                 ..
-            }) => EventResult::RepaintNow,
+            }) => EventResult::RepaintAsap,
 
             event => winit_app.on_event(event),
         };
 
-        *control_flow = match event_result {
-            EventResult::Wait => ControlFlow::Wait,
-            EventResult::RepaintNow => {
-                winit_app.window().request_redraw();
-                ControlFlow::Poll
+        match event_result {
+            EventResult::Wait => {}
+            EventResult::RepaintAsap => {
+                next_repaint_time = Instant::now();
             }
-            EventResult::RepaintAt(time) => ControlFlow::WaitUntil(time),
+            EventResult::RepaintAt(repaint_time) => {
+                next_repaint_time = next_repaint_time.min(repaint_time);
+            }
             EventResult::Exit => {
-                tracing::debug!("quitting…");
+                tracing::debug!("Quitting…");
                 winit_app.save_and_destroy();
                 #[allow(clippy::exit)]
                 std::process::exit(0);
+            }
+        }
+
+        *control_flow = match next_repaint_time.checked_duration_since(Instant::now()) {
+            None => {
+                winit_app.window().request_redraw();
+                ControlFlow::Poll
+            }
+            Some(time_until_next_repaint) => {
+                ControlFlow::WaitUntil(Instant::now() + time_until_next_repaint)
             }
         }
     })
@@ -320,7 +346,7 @@ mod glow_integration {
             let control_flow = if integration.should_quit() {
                 EventResult::Exit
             } else if repaint_after.is_zero() {
-                EventResult::RepaintNow
+                EventResult::RepaintAsap
             } else if let Some(repaint_after_instant) =
                 std::time::Instant::now().checked_add(repaint_after)
             {
@@ -383,7 +409,7 @@ mod glow_integration {
                         EventResult::Exit
                     } else {
                         // TODO(emilk): ask egui if the event warrants a repaint
-                        EventResult::RepaintNow
+                        EventResult::RepaintAsap
                     }
                 }
                 _ => EventResult::Wait,
@@ -566,7 +592,7 @@ mod wgpu_integration {
             let control_flow = if integration.should_quit() {
                 EventResult::Exit
             } else if repaint_after.is_zero() {
-                EventResult::RepaintNow
+                EventResult::RepaintAsap
             } else if let Some(repaint_after_instant) =
                 std::time::Instant::now().checked_add(repaint_after)
             {
@@ -639,7 +665,7 @@ mod wgpu_integration {
                         EventResult::Exit
                     } else {
                         // TODO(emilk): ask egui if the event warrants a repaint
-                        EventResult::RepaintNow
+                        EventResult::RepaintAsap
                     }
                 }
                 _ => EventResult::Wait,
