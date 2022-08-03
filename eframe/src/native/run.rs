@@ -72,7 +72,7 @@ trait WinitApp {
     fn on_event(&mut self, event: winit::event::Event<'_, RequestRepaintEvent>) -> EventResult;
 }
 
-fn run_and_continue(mut event_loop: EventLoop<RequestRepaintEvent>, mut winit_app: impl WinitApp) {
+fn run_and_return(mut event_loop: EventLoop<RequestRepaintEvent>, mut winit_app: impl WinitApp) {
     use winit::platform::run_return::EventLoopExtRunReturn as _;
 
     tracing::debug!("event_loop.run_return");
@@ -133,7 +133,7 @@ fn run_and_continue(mut event_loop: EventLoop<RequestRepaintEvent>, mut winit_ap
     winit_app.save_and_destroy();
 }
 
-fn run_then_exit(
+fn run_and_exit(
     event_loop: EventLoop<RequestRepaintEvent>,
     mut winit_app: impl WinitApp + 'static,
 ) -> ! {
@@ -425,10 +425,10 @@ mod glow_integration {
         let event_loop = EventLoop::with_user_event();
         let glow_eframe = GlowWinitApp::new(&event_loop, app_name, native_options, app_creator);
 
-        if native_options.exit_on_window_close {
-            run_then_exit(event_loop, glow_eframe);
+        if native_options.run_and_return {
+            run_and_return(event_loop, glow_eframe);
         } else {
-            run_and_continue(event_loop, glow_eframe);
+            run_and_exit(event_loop, glow_eframe);
         }
     }
 }
@@ -681,10 +681,10 @@ mod wgpu_integration {
         let event_loop = EventLoop::with_user_event();
         let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);
 
-        if native_options.exit_on_window_close {
-            run_then_exit(event_loop, wgpu_eframe);
+        if native_options.run_and_return {
+            run_and_return(event_loop, wgpu_eframe);
         } else {
-            run_and_continue(event_loop, wgpu_eframe);
+            run_and_exit(event_loop, wgpu_eframe);
         }
     }
 }

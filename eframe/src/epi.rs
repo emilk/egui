@@ -270,14 +270,19 @@ pub struct NativeOptions {
     /// Default: `Theme::Dark`.
     pub default_theme: Theme,
 
-    /// If `true`, the app will close once the egui window is closed.
-    /// If `false`, execution will continue.
+    /// This controls what happens when you close the main egui window.
     ///
-    /// This is `true` by default.
+    /// If `true`, execution will continue after the egui window is closed.
+    /// If `false`, the app will close once the egui window is closed.
     ///
-    /// When `true`, [`winit::event_loop::EventLoop::run`] is used.
-    /// When `false`, [`winit::platform::run_return::EventLoopExtRunReturn::run_return`] is used.
-    pub exit_on_window_close: bool,
+    /// This is `true` by default, and the `false` option is only there
+    /// so we can revert if we find any bugs.
+    ///
+    /// This feature was introduced in <https://github.com/emilk/egui/pull/1889>.
+    ///
+    /// When `true`, [`winit::platform::run_return::EventLoopExtRunReturn::run_return`] is used.
+    /// When `false`, [`winit::event_loop::EventLoop::run`] is used.
+    pub run_and_return: bool,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -304,7 +309,7 @@ impl Default for NativeOptions {
             renderer: Renderer::default(),
             follow_system_theme: cfg!(target_os = "macos") || cfg!(target_os = "windows"),
             default_theme: Theme::Dark,
-            exit_on_window_close: false,
+            run_and_return: true,
         }
     }
 }
