@@ -524,8 +524,9 @@ impl Response {
     /// Response to secondary clicks (right-clicks) by showing the given menu.
     ///
     /// ```
+    /// # use egui::{Label, Sense};
     /// # egui::__run_test_ui(|ui| {
-    /// let response = ui.label("Right-click me!");
+    /// let response = ui.add(Label::new("Right-click me!").sense(Sense::click()));
     /// response.context_menu(|ui| {
     ///     if ui.button("Close the menu").clicked() {
     ///         ui.close_menu();
