@@ -270,10 +270,10 @@ pub struct NativeOptions {
     /// Default: `Theme::Dark`.
     pub default_theme: Theme,
 
-    /// This controls what happens when you close the main egui window.
+    /// This controls what happens when you close the main eframe window.
     ///
-    /// If `true`, execution will continue after the egui window is closed.
-    /// If `false`, the app will close once the egui window is closed.
+    /// If `true`, execution will continue after the eframe window is closed.
+    /// If `false`, the app will close once the eframe window is closed.
     ///
     /// This is `true` by default, and the `false` option is only there
     /// so we can revert if we find any bugs.
