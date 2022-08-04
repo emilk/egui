@@ -56,7 +56,6 @@ impl WebHandle {
     }
 
     #[wasm_bindgen]
-    #[cfg(target_arch = "wasm32")]
     pub fn set_some_content_from_javasript(&mut self, _some_data: &str) {
         self.with_app(|_app| {
             // app.data = some_data;
