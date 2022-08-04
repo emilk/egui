@@ -252,7 +252,13 @@ impl Layout {
         Self { main_wrap, ..self }
     }
 
-    /// The aligmnet to use on the cross axis.
+    /// The alignment to use on the main axis.
+    #[inline(always)]
+    pub fn with_main_align(self, main_align: Align) -> Self {
+        Self { main_align, ..self }
+    }
+
+    /// The alignment to use on the cross axis.
     ///
     /// The "cross" axis is the one orthogonal to the main axis.
     /// For instance: in left-to-right layout, the main axis is horizontal and the cross axis is vertical.
