@@ -269,6 +269,20 @@ pub struct NativeOptions {
     ///
     /// Default: `Theme::Dark`.
     pub default_theme: Theme,
+
+    /// This controls what happens when you close the main eframe window.
+    ///
+    /// If `true`, execution will continue after the eframe window is closed.
+    /// If `false`, the app will close once the eframe window is closed.
+    ///
+    /// This is `true` by default, and the `false` option is only there
+    /// so we can revert if we find any bugs.
+    ///
+    /// This feature was introduced in <https://github.com/emilk/egui/pull/1889>.
+    ///
+    /// When `true`, [`winit::platform::run_return::EventLoopExtRunReturn::run_return`] is used.
+    /// When `false`, [`winit::event_loop::EventLoop::run`] is used.
+    pub run_and_return: bool,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -295,6 +309,7 @@ impl Default for NativeOptions {
             renderer: Renderer::default(),
             follow_system_theme: cfg!(target_os = "macos") || cfg!(target_os = "windows"),
             default_theme: Theme::Dark,
+            run_and_return: true,
         }
     }
 }
