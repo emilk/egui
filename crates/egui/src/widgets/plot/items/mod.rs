@@ -1611,31 +1611,21 @@ fn add_rulers_and_text(
 
     // Rulers for argument (usually vertical)
     if show_argument {
-        let push_argument_ruler = |argument: PlotPoint, cursors: &mut Vec<Cursor>| {
-            let cursor = match orientation {
-                Orientation::Horizontal => Cursor::Horizontal { y: argument.y },
-                Orientation::Vertical => Cursor::Vertical { x: argument.x },
-            };
-            cursors.push(cursor);
-        };
-
         for pos in elem.arguments_with_ruler() {
-            push_argument_ruler(pos, cursors);
+            cursors.push(match orientation {
+                Orientation::Horizontal => Cursor::Horizontal { y: pos.y },
+                Orientation::Vertical => Cursor::Vertical { x: pos.x },
+            });
         }
     }
 
     // Rulers for values (usually horizontal)
     if show_values {
-        let push_value_ruler = |value: PlotPoint, cursors: &mut Vec<Cursor>| {
-            let cursor = match orientation {
-                Orientation::Horizontal => Cursor::Vertical { x: value.x },
-                Orientation::Vertical => Cursor::Horizontal { y: value.y },
-            };
-            cursors.push(cursor);
-        };
-
         for pos in elem.values_with_ruler() {
-            push_value_ruler(pos, cursors);
+            cursors.push(match orientation {
+                Orientation::Horizontal => Cursor::Vertical { x: pos.x },
+                Orientation::Vertical => Cursor::Horizontal { y: pos.y },
+            });
         }
     }
 
