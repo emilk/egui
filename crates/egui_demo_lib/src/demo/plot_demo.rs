@@ -456,21 +456,27 @@ impl CustomAxisDemo {
 
 #[derive(PartialEq)]
 struct LinkedAxisDemo {
-    link_cursor: bool,
     link_x: bool,
     link_y: bool,
     group: plot::LinkedAxisGroup,
+    cursor_group: plot::LinkedCursorsGroup,
+    link_cursor_x: bool,
+    link_cursor_y: bool,
 }
 
 impl Default for LinkedAxisDemo {
     fn default() -> Self {
         let link_x = true;
         let link_y = false;
+        let link_cursor_x = true;
+        let link_cursor_y = false;
         Self {
-            link_cursor: true,
             link_x,
             link_y,
             group: plot::LinkedAxisGroup::new(link_x, link_y),
+            cursor_group: plot::LinkedCursorsGroup::new(link_cursor_x, link_cursor_y),
+            link_cursor_x,
+            link_cursor_y,
         }
     }
 }
@@ -510,26 +516,33 @@ impl LinkedAxisDemo {
 
     fn ui(&mut self, ui: &mut Ui) -> Response {
         ui.horizontal(|ui| {
-            ui.checkbox(&mut &mut self.link_cursor, "Link cursor");
             ui.label("Linked axes:");
             ui.checkbox(&mut self.link_x, "X");
             ui.checkbox(&mut self.link_y, "Y");
         });
-        self.group.set_link_cursor(self.link_cursor);
         self.group.set_link_x(self.link_x);
         self.group.set_link_y(self.link_y);
+        ui.horizontal(|ui| {
+            ui.label("Linked cursors:");
+            ui.checkbox(&mut self.link_cursor_x, "X");
+            ui.checkbox(&mut self.link_cursor_y, "Y");
+        });
+        self.cursor_group.set_link_x(self.link_cursor_x);
+        self.cursor_group.set_link_y(self.link_cursor_y);
         ui.horizontal(|ui| {
             Plot::new("linked_axis_1")
                 .data_aspect(1.0)
                 .width(250.0)
                 .height(250.0)
                 .link_axis(self.group.clone())
+                .link_cursor(self.cursor_group.clone())
                 .show(ui, LinkedAxisDemo::configure_plot);
             Plot::new("linked_axis_2")
                 .data_aspect(2.0)
                 .width(150.0)
                 .height(250.0)
                 .link_axis(self.group.clone())
+                .link_cursor(self.cursor_group.clone())
                 .show(ui, LinkedAxisDemo::configure_plot);
         });
         Plot::new("linked_axis_3")
@@ -537,6 +550,7 @@ impl LinkedAxisDemo {
             .width(250.0)
             .height(150.0)
             .link_axis(self.group.clone())
+            .link_cursor(self.cursor_group.clone())
             .show(ui, LinkedAxisDemo::configure_plot)
             .response
     }

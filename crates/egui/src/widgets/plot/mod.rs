@@ -142,6 +142,63 @@ impl Cursor {
     }
 }
 
+/// Contains the cursors drawn for a specific frame of a plot.
+#[derive(PartialEq)]
+struct PlotFrameCursors {
+    id: Id,
+    cursors: Vec<Cursor>,
+}
+
+/// Defines how multiple plots share the same cursor for one or both of their axes. Can be added while building
+/// a plot with [`Plot::link_cursor`]. Contains an internal state, meaning that this object should be stored by
+/// the user between frames.
+#[derive(Clone, PartialEq)]
+pub struct LinkedCursorsGroup {
+    link_x: bool,
+    link_y: bool,
+    // We store the cursors drawn for each linked plot.
+    frames: Rc<RefCell<Vec<PlotFrameCursors>>>,
+}
+
+impl LinkedCursorsGroup {
+    pub fn new(link_x: bool, link_y: bool) -> Self {
+        Self {
+            link_x,
+            link_y,
+            frames: Rc::new(RefCell::new(Vec::new())),
+        }
+    }
+
+    /// Only link the cursor for the x-axis.
+    pub fn x() -> Self {
+        Self::new(true, false)
+    }
+
+    /// Only link the cursor for the y-axis.
+    pub fn y() -> Self {
+        Self::new(false, true)
+    }
+
+    /// Link the cursors for both axes.
+    pub fn both() -> Self {
+        Self::new(true, true)
+    }
+
+    /// Change whether the cursor for the x-axis is linked for this group. Using this after plots in this group have been
+    /// drawn in this frame already may lead to unexpected results.
+    pub fn set_link_x(&mut self, link: bool) {
+        self.link_x = link;
+    }
+
+    /// Change whether the cursor for the y-axis is linked for this group. Using this after plots in this group have been
+    /// drawn in this frame already may lead to unexpected results.
+    pub fn set_link_y(&mut self, link: bool) {
+        self.link_y = link;
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// Defines how multiple plots share the same range for one or both of their axes. Can be added while building
 /// a plot with [`Plot::link_axis`]. Contains an internal state, meaning that this object should be stored by
 /// the user between frames.
@@ -149,9 +206,7 @@ impl Cursor {
 pub struct LinkedAxisGroup {
     pub(crate) link_x: bool,
     pub(crate) link_y: bool,
-    pub(crate) link_cursor: bool,
     pub(crate) bounds: Rc<Cell<Option<PlotBounds>>>,
-    cursors: Rc<RefCell<Vec<(Id, Vec<Cursor>)>>>,
 }
 
 impl LinkedAxisGroup {
@@ -159,9 +214,7 @@ impl LinkedAxisGroup {
         Self {
             link_x,
             link_y,
-            link_cursor: false,
             bounds: Rc::new(Cell::new(None)),
-            cursors: Rc::new(RefCell::new(Vec::new())),
         }
     }
 
@@ -190,11 +243,6 @@ impl LinkedAxisGroup {
     /// drawn in this frame already may lead to unexpected results.
     pub fn set_link_y(&mut self, link: bool) {
         self.link_y = link;
-    }
-
-    /// Change whether the cursor is linked for this group. By default it is unlinked.
-    pub fn set_link_cursor(&mut self, link: bool) {
-        self.link_cursor = link;
     }
 
     fn get(&self) -> Option<PlotBounds> {
@@ -236,6 +284,7 @@ pub struct Plot {
     allow_boxed_zoom: bool,
     boxed_zoom_pointer_button: PointerButton,
     linked_axes: Option<LinkedAxisGroup>,
+    linked_cursors: Option<LinkedCursorsGroup>,
 
     min_size: Vec2,
     width: Option<f32>,
@@ -270,6 +319,7 @@ impl Plot {
             allow_boxed_zoom: true,
             boxed_zoom_pointer_button: PointerButton::Secondary,
             linked_axes: None,
+            linked_cursors: None,
 
             min_size: Vec2::splat(64.0),
             width: None,
@@ -546,6 +596,13 @@ impl Plot {
         self
     }
 
+    /// Add a [`LinkedCursorGroup`] so that this plot will share the bounds with other plots that have this
+    /// group assigned. A plot cannot belong to more than one group.
+    pub fn link_cursor(mut self, group: LinkedCursorsGroup) -> Self {
+        self.linked_cursors = Some(group);
+        self
+    }
+
     /// Interact with and add items to the plot and finally draw it.
     pub fn show<R>(self, ui: &mut Ui, build_fn: impl FnOnce(&mut PlotUi) -> R) -> InnerResponse<R> {
         self.show_dyn(ui, Box::new(build_fn))
@@ -581,6 +638,7 @@ impl Plot {
             show_background,
             show_axes,
             linked_axes,
+            linked_cursors,
             grid_spacers,
         } = self;
 
@@ -697,25 +755,31 @@ impl Plot {
         // --- Bound computation ---
         let mut bounds = *last_screen_transform.bounds();
 
-        let mut draw_cursors: Vec<Cursor> = Vec::new();
+        // Find the cursors from other plots we need to draw
+        let draw_cursors: Vec<Cursor> = if let Some(group) = linked_cursors.as_ref() {
+            let mut frames = group.frames.borrow_mut();
+
+            // Look for our previous frame
+            let index = frames
+                .iter()
+                .enumerate()
+                .find(|(_, frame)| frame.id == plot_id)
+                .map(|(i, _)| i);
+
+            // Remove our previous frame and all older frames as these are no longer displayed.
+            index.map(|index| frames.drain(0..=index));
+
+            // Gather all cursors of the remaining frames
+            frames
+                .iter()
+                .flat_map(|frame| frame.cursors.iter().copied())
+                .collect()
+        } else {
+            Vec::new()
+        };
 
         // Transfer the bounds from a link group.
         if let Some(axes) = linked_axes.as_ref() {
-            if axes.link_cursor {
-                let mut cursors = axes.cursors.borrow_mut();
-
-                // Look for our previous entry
-                let index = cursors
-                    .iter()
-                    .enumerate()
-                    .find(|(_, e)| e.0 == plot_id)
-                    .map(|(i, _)| i);
-
-                // Remove our previous entry and all older entries as these are no longer displayed.
-                index.map(|index| cursors.drain(0..=index));
-
-                draw_cursors = cursors.iter().flat_map(|e| e.1.iter().copied()).collect();
-            }
             if let Some(linked_bounds) = axes.get() {
                 if axes.link_x {
                     bounds.set_x(&linked_bounds);
@@ -872,8 +936,8 @@ impl Plot {
             show_axes,
             transform: transform.clone(),
             grid_spacers,
-            draw_cursor_x: linked_axes.as_ref().map_or(false, |axes| axes.link_x),
-            draw_cursor_y: linked_axes.as_ref().map_or(false, |axes| axes.link_y),
+            draw_cursor_x: linked_cursors.as_ref().map_or(false, |group| group.link_x),
+            draw_cursor_y: linked_cursors.as_ref().map_or(false, |group| group.link_y),
             draw_cursors,
         };
         let plot_cursors = prepared.ui(ui, &response);
@@ -889,10 +953,15 @@ impl Plot {
             hovered_entry = legend.hovered_entry_name();
         }
 
+        if let Some(group) = linked_cursors.as_ref() {
+            // Push the frame we just drew to the list of frames
+            group.frames.borrow_mut().push(PlotFrameCursors {
+                id: plot_id,
+                cursors: plot_cursors,
+            });
+        }
+
         if let Some(group) = linked_axes.as_ref() {
-            if group.link_cursor {
-                group.cursors.borrow_mut().push((plot_id, plot_cursors));
-            }
             group.set(*transform.bounds());
         }
 
