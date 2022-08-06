@@ -1613,8 +1613,8 @@ fn add_rulers_and_text(
     if show_argument {
         let push_argument_ruler = |argument: PlotPoint, cursors: &mut Vec<Cursor>| {
             let cursor = match orientation {
-                Orientation::Horizontal => Cursor::horizontal(argument.y),
-                Orientation::Vertical => Cursor::vertical(argument.x),
+                Orientation::Horizontal => Cursor::Horizontal { y: argument.y },
+                Orientation::Vertical => Cursor::Vertical { x: argument.x },
             };
             cursors.push(cursor);
         };
@@ -1628,8 +1628,8 @@ fn add_rulers_and_text(
     if show_values {
         let push_value_ruler = |value: PlotPoint, cursors: &mut Vec<Cursor>| {
             let cursor = match orientation {
-                Orientation::Horizontal => Cursor::vertical(value.x),
-                Orientation::Vertical => Cursor::horizontal(value.y),
+                Orientation::Horizontal => Cursor::Vertical { x: value.x },
+                Orientation::Vertical => Cursor::Horizontal { y: value.y },
             };
             cursors.push(cursor);
         };
@@ -1676,10 +1676,10 @@ pub(super) fn rulers_at_value(
     label_formatter: &LabelFormatter,
 ) {
     if plot.show_x {
-        cursors.push(Cursor::vertical(value.x));
+        cursors.push(Cursor::Vertical { x: value.x });
     }
     if plot.show_y {
-        cursors.push(Cursor::horizontal(value.y));
+        cursors.push(Cursor::Horizontal { y: value.y });
     }
 
     let mut prefix = String::new();

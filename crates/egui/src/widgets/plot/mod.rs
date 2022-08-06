@@ -120,26 +120,11 @@ impl PlotMemory {
 
 // ----------------------------------------------------------------------------
 
+/// Indicates a vertical or horizontal cursor line in plot coordinates.
 #[derive(Copy, Clone, PartialEq)]
-struct Cursor {
-    orientation: Orientation,
-    point: f64,
-}
-
-impl Cursor {
-    fn vertical(point: f64) -> Self {
-        Self {
-            orientation: Orientation::Vertical,
-            point,
-        }
-    }
-
-    fn horizontal(point: f64) -> Self {
-        Self {
-            orientation: Orientation::Horizontal,
-            point,
-        }
-    }
+enum Cursor {
+    Horizontal { y: f64 },
+    Vertical { x: f64 },
 }
 
 /// Contains the cursors drawn for a specific frame of a plot.
@@ -1280,21 +1265,21 @@ impl PreparedPlot {
         let line_color = rulers_color(ui);
 
         let mut draw_cursor = |cursors: &Vec<Cursor>, always| {
-            for cursor in cursors {
-                match cursor.orientation {
-                    Orientation::Horizontal => {
+            for &cursor in cursors {
+                match cursor {
+                    Cursor::Horizontal { y } => {
                         if self.draw_cursor_y || always {
                             shapes.push(horizontal_line(
-                                transform.position_from_point(&PlotPoint::new(0.0, cursor.point)),
+                                transform.position_from_point(&PlotPoint::new(0.0, y)),
                                 &self.transform,
                                 line_color,
                             ));
                         }
                     }
-                    Orientation::Vertical => {
+                    Cursor::Vertical { x } => {
                         if self.draw_cursor_x || always {
                             shapes.push(vertical_line(
-                                transform.position_from_point(&PlotPoint::new(cursor.point, 0.0)),
+                                transform.position_from_point(&PlotPoint::new(x, 0.0)),
                                 &self.transform,
                                 line_color,
                             ));
