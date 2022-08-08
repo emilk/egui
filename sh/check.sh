@@ -58,7 +58,7 @@ cargo deny check
 #
 
 # For finding bloat:
-# cargo bloat --release --bin demo_glium -n 200 | rg egui
+# cargo bloat --release --bin egui_demo_app -n 200 | rg egui
 # Also try https://github.com/google/bloaty
 
 # what compiles slowly?

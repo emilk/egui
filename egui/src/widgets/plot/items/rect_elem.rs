@@ -6,7 +6,9 @@ use epaint::{Color32, Rgba, Stroke};
 /// Trait that abstracts from rectangular 'Value'-like elements, such as bars or boxes
 pub(super) trait RectElement {
     fn name(&self) -> &str;
+
     fn bounds_min(&self) -> PlotPoint;
+
     fn bounds_max(&self) -> PlotPoint;
 
     fn bounds(&self) -> PlotBounds {

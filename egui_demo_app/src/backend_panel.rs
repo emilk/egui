@@ -371,7 +371,7 @@ impl EguiWindows {
                 ui.separator();
 
                 egui::ScrollArea::vertical()
-                    .stick_to_bottom()
+                    .stick_to_bottom(true)
                     .show(ui, |ui| {
                         for event in output_event_history {
                             ui.label(format!("{:?}", event));

@@ -33,6 +33,7 @@ impl<T> From<&[T]> for AllocInfo {
 
 impl std::ops::Add for AllocInfo {
     type Output = AllocInfo;
+
     fn add(self, rhs: AllocInfo) -> AllocInfo {
         use ElementSize::{Heterogenous, Homogeneous, Unknown};
         let element_size = match (self.element_size, rhs.element_size) {
@@ -113,9 +114,11 @@ impl AllocInfo {
         assert!(self.element_size != ElementSize::Heterogenous);
         self.num_elements
     }
+
     pub fn num_allocs(&self) -> usize {
         self.num_allocs
     }
+
     pub fn num_bytes(&self) -> usize {
         self.num_bytes
     }

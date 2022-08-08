@@ -587,10 +587,13 @@ pub fn gamma_from_linear(linear: f32) -> f32 {
 pub struct Hsva {
     /// hue 0-1
     pub h: f32,
+
     /// saturation 0-1
     pub s: f32,
+
     /// value 0-1
     pub v: f32,
+
     /// alpha 0-1. A negative value signifies an additive color (and alpha is ignored).
     pub a: f32,
 }
@@ -727,6 +730,7 @@ impl From<Hsva> for Rgba {
         Rgba(hsva.to_rgba_premultiplied())
     }
 }
+
 impl From<Rgba> for Hsva {
     fn from(rgba: Rgba) -> Hsva {
         Self::from_rgba_premultiplied(rgba.0[0], rgba.0[1], rgba.0[2], rgba.0[3])
@@ -738,6 +742,7 @@ impl From<Hsva> for Color32 {
         Color32::from(Rgba::from(hsva))
     }
 }
+
 impl From<Color32> for Hsva {
     fn from(srgba: Color32) -> Hsva {
         Hsva::from(Rgba::from(srgba))
@@ -811,10 +816,13 @@ fn test_hsv_roundtrip() {
 pub struct HsvaGamma {
     /// hue 0-1
     pub h: f32,
+
     /// saturation 0-1
     pub s: f32,
+
     /// value 0-1, in gamma-space (~perceptually even)
     pub v: f32,
+
     /// alpha 0-1. A negative value signifies an additive color (and alpha is ignored).
     pub a: f32,
 }

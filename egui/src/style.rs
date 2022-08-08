@@ -367,6 +367,7 @@ impl From<Vec2> for Margin {
 
 impl std::ops::Add for Margin {
     type Output = Self;
+
     fn add(self, other: Self) -> Self {
         Self {
             left: self.left + other.left,
@@ -524,12 +525,16 @@ pub struct Widgets {
     /// * `noninteractive.bg_fill` is the background color of windows.
     /// * `noninteractive.fg_stroke` is the normal text color.
     pub noninteractive: WidgetVisuals,
+
     /// The style of an interactive widget, such as a button, at rest.
     pub inactive: WidgetVisuals,
+
     /// The style of an interactive widget while you hover it.
     pub hovered: WidgetVisuals,
+
     /// The style of an interactive widget as you are clicking or dragging it.
     pub active: WidgetVisuals,
+
     /// The style of a button that has an open menu beneath it (e.g. a combo-box)
     pub open: WidgetVisuals,
 }
@@ -721,6 +726,7 @@ impl Selection {
             stroke: Stroke::new(1.0, Color32::from_rgb(192, 222, 255)),
         }
     }
+
     fn light() -> Self {
         Self {
             bg_fill: Color32::from_rgb(144, 209, 255),

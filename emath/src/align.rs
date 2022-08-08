@@ -19,10 +19,13 @@ pub enum Align {
 impl Align {
     /// Convenience for [`Self::Min`]
     pub const LEFT: Self = Self::Min;
+
     /// Convenience for [`Self::Max`]
     pub const RIGHT: Self = Self::Max;
+
     /// Convenience for [`Self::Min`]
     pub const TOP: Self = Self::Min;
+
     /// Convenience for [`Self::Max`]
     pub const BOTTOM: Self = Self::Max;
 

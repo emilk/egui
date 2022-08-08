@@ -138,6 +138,7 @@ impl RawInput {
 pub struct HoveredFile {
     /// Set by the `egui-winit` backend.
     pub path: Option<std::path::PathBuf>,
+
     /// With the `eframe` web backend, this is set to the mime-type of the file (if available).
     pub mime: String,
 }
@@ -148,10 +149,13 @@ pub struct HoveredFile {
 pub struct DroppedFile {
     /// Set by the `egui-winit` backend.
     pub path: Option<std::path::PathBuf>,
+
     /// Name of the file. Set by the `eframe` web backend.
     pub name: String,
+
     /// Set by the `eframe` web backend.
     pub last_modified: Option<std::time::SystemTime>,
+
     /// Set by the `eframe` web backend.
     pub bytes: Option<std::sync::Arc<[u8]>>,
 }
@@ -164,19 +168,25 @@ pub struct DroppedFile {
 pub enum Event {
     /// The integration detected a "copy" event (e.g. Cmd+C).
     Copy,
+
     /// The integration detected a "cut" event (e.g. Cmd+X).
     Cut,
+
     /// The integration detected a "paste" event (e.g. Cmd+V).
     Paste(String),
+
     /// Text input, e.g. via keyboard.
     ///
     /// When the user presses enter/return, do not send a [`Text`](Event::Text) (just [`Key::Enter`]).
     Text(String),
+
     /// A key was pressed or released.
     Key {
         key: Key,
+
         /// Was it pressed or released?
         pressed: bool,
+
         /// The state of the modifier keys at the time of the event.
         modifiers: Modifiers,
     },
@@ -188,13 +198,17 @@ pub enum Event {
     PointerButton {
         /// Where is the pointer?
         pos: Pos2,
+
         /// What mouse button? For touches, use [`PointerButton::Primary`].
         button: PointerButton,
+
         /// Was it the button/touch pressed this frame, or released?
         pressed: bool,
+
         /// The state of the modifier keys at the time of the event.
         modifiers: Modifiers,
     },
+
     /// The mouse left the screen, or the last/primary touch input disappeared.
     ///
     /// This means there is no longer a cursor on the screen for hovering etc.
@@ -225,8 +239,10 @@ pub enum Event {
 
     /// IME composition start.
     CompositionStart,
+
     /// A new IME candidate is being suggested.
     CompositionUpdate(String),
+
     /// IME composition ended with this final result.
     CompositionEnd(String),
 
@@ -236,13 +252,17 @@ pub enum Event {
         /// Hashed device identifier (if available; may be zero).
         /// Can be used to separate touches from different devices.
         device_id: TouchDeviceId,
+
         /// Unique identifier of a finger/pen. Value is stable from touch down
         /// to lift-up
         id: TouchId,
+
         /// One of: start move end cancel.
         phase: TouchPhase,
+
         /// Position of the touch (or where the touch was last detected)
         pos: Pos2,
+
         /// Describes how hard the touch device was pressed. May always be `0` if the platform does
         /// not support pressure sensitivity.
         /// The value is in the range from 0.0 (no pressure) to 1.0 (maximum pressure).
@@ -256,13 +276,17 @@ pub enum Event {
 pub enum PointerButton {
     /// The primary mouse button is usually the left one.
     Primary = 0,
+
     /// The secondary mouse button is usually the right one,
     /// and most often used for context menus or other optional things.
     Secondary = 1,
+
     /// The tertiary mouse button is usually the middle mouse button (e.g. clicking the scroll wheel).
     Middle = 2,
+
     /// The first extra mouse button on some mice. In web typically corresponds to the Browser back button.
     Extra1 = 3,
+
     /// The second extra mouse button on some mice. In web typically corresponds to the Browser forward button.
     Extra2 = 4,
 }
@@ -337,6 +361,7 @@ impl Modifiers {
         mac_cmd: false,
         command: false,
     };
+
     /// The Mac ⌘ Command key
     pub const MAC_CMD: Self = Self {
         alt: false,
@@ -345,6 +370,7 @@ impl Modifiers {
         mac_cmd: true,
         command: false,
     };
+
     /// On Mac: ⌘ Command key, elsewhere: Ctrl key
     pub const COMMAND: Self = Self {
         alt: false,
@@ -426,6 +452,7 @@ impl Modifiers {
 
 impl std::ops::BitOr for Modifiers {
     type Output = Self;
+
     fn bitor(self, rhs: Self) -> Self {
         Self {
             alt: self.alt | rhs.alt,
@@ -593,12 +620,15 @@ pub struct TouchId(pub u64);
 pub enum TouchPhase {
     /// User just placed a touch point on the touch surface
     Start,
+
     /// User moves a touch point along the surface. This event is also sent when
     /// any attributes (position, force, …) of the touch point change.
     Move,
+
     /// User lifted the finger or pen from the surface, or slid off the edge of
     /// the surface
     End,
+
     /// Touch operation has been disrupted by something (various reasons are possible,
     /// maybe a pop-up alert or any other kind of interruption which may not have
     /// been intended by the user)

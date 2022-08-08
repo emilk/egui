@@ -78,10 +78,12 @@ enum Element {
         #[cfg(feature = "persistence")]
         serialize_fn: Option<Serializer>,
     },
+
     /// A serialized value
     Serialized {
         /// The type of value we are storing.
         type_id: TypeId,
+
         /// The ron data we can deserialize.
         ron: Arc<str>,
     },
@@ -512,6 +514,7 @@ impl PersistedMap {
                 .collect(),
         )
     }
+
     fn into_map(self) -> IdTypeMap {
         IdTypeMap(
             self.0

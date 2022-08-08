@@ -25,6 +25,7 @@ pub type TextureFilter = egui::TextureFilter;
 trait TextureFilterExt {
     fn glow_code(&self) -> u32;
 }
+
 impl TextureFilterExt for TextureFilter {
     fn glow_code(&self) -> u32 {
         match self {
@@ -245,6 +246,19 @@ impl Painter {
 
     pub fn max_texture_side(&self) -> usize {
         self.max_texture_side
+    }
+
+    /// The framebuffer we use as an intermediate render target,
+    /// or `None` if we are painting to the screen framebuffer directly.
+    ///
+    /// This is the framebuffer that is bound when [`egui::Shape::Callback`] is called,
+    /// and is where any callbacks should ultimately render onto.
+    ///
+    /// So if in a [`egui::Shape::Callback`] you need to use an offscreen FBO, you should
+    /// then restore to this afterwards with
+    /// `gl.bind_framebuffer(glow::FRAMEBUFFER, painter.intermediate_fbo());`
+    pub fn intermediate_fbo(&self) -> Option<glow::Framebuffer> {
+        self.post_process.as_ref().map(|pp| pp.fbo())
     }
 
     unsafe fn prepare_painting(

@@ -15,5 +15,6 @@ pub use renderer::CallbackFn;
 /// Module for painting [`egui`] with [`wgpu`] on [`winit`].
 #[cfg(feature = "winit")]
 pub mod winit;
+
 #[cfg(feature = "winit")]
 pub use crate::winit::RenderState;

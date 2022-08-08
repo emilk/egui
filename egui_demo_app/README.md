@@ -9,7 +9,7 @@ Run it locally with `cargo run --release -p egui_demo_app`.
 
 ```sh
 ./sh/start_server.sh &
-./sh/build_demo_web.sh --fast --open
+./sh/build_demo_web.sh --open
 ```
 
 `egui_demo_app` uses [`egui_demo_lib`](https://github.com/emilk/egui/tree/master/egui_demo_lib).

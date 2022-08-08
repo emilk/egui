@@ -7,6 +7,7 @@ All notable changes to the `egui_glow` integration will be noted in this file.
 * `EguiGlow::new` now takes an `EventLoopWindowTarget<E>` instead of a `winit::Window` ([#1634](https://github.com/emilk/egui/pull/1634)).
 * Use `Arc` for `glow::Context` instead of `Rc` ([#1640](https://github.com/emilk/egui/pull/1640)).
 * Fixed `glClear` on WebGL1 ([#1658](https://github.com/emilk/egui/pull/1658)).
+* Add `Painter::intermediate_fbo` which tells callbacks where to render. This is only needed if the callbacks use their own FBO:s and need to know what to restore to.
 
 
 ## 0.18.1 - 2022-05-05

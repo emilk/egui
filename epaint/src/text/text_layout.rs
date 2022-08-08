@@ -42,7 +42,9 @@ impl PointScale {
 struct Paragraph {
     /// Start of the next glyph to be added.
     pub cursor_x: f32,
+
     pub glyphs: Vec<Glyph>,
+
     /// In case of an empty paragraph ("\n"), use this as height.
     pub empty_paragraph_height: f32,
 }
@@ -715,16 +717,21 @@ struct RowBreakCandidates {
     /// Breaking at ` ` or other whitespace
     /// is always the primary candidate.
     space: Option<usize>,
+
     /// Logograms (single character representing a whole word) are good candidates for line break.
     logogram: Option<usize>,
+
     /// Kana (Japanese hiragana and katakana) may be line broken unless before a gyōtō kinsoku character.
     kana: Option<usize>,
+
     /// Breaking at a dash is a super-
     /// good idea.
     dash: Option<usize>,
+
     /// This is nicer for things like URLs, e.g. www.
     /// example.com.
     punctuation: Option<usize>,
+
     /// Breaking after just random character is some
     /// times necessary.
     any: Option<usize>,

@@ -33,12 +33,19 @@ pub(super) struct PlotConfig<'a> {
 /// Trait shared by things that can be drawn in the plot.
 pub(super) trait PlotItem {
     fn get_shapes(&self, ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>);
+
     fn initialize(&mut self, x_range: RangeInclusive<f64>);
+
     fn name(&self) -> &str;
+
     fn color(&self) -> Color32;
+
     fn highlight(&mut self);
+
     fn highlighted(&self) -> bool;
+
     fn geometry(&self) -> PlotGeometry<'_>;
+
     fn get_bounds(&self) -> PlotBounds;
 
     fn find_closest(&self, point: Pos2, transform: &ScreenTransform) -> Option<ClosestElem> {

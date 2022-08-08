@@ -10,16 +10,21 @@ use epaint::{ClippedShape, Shape};
 pub enum Order {
     /// Painted behind all floating windows
     Background,
+
     /// Special layer between panels and windows
     PanelResizeLine,
+
     /// Normal moveable windows that you reorder by click
     Middle,
+
     /// Popups, menus etc that should always be painted on top of windows
     /// Foreground objects can also have tooltips
     Foreground,
+
     /// Things floating on top of everything else, like tooltips.
     /// You cannot interact with these.
     Tooltip,
+
     /// Debug layer, always painted last / on top
     Debug,
 }

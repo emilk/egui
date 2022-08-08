@@ -110,6 +110,7 @@ impl GridLayout {
             .col_width(col)
             .unwrap_or(self.min_cell_size.x)
     }
+
     fn prev_row_height(&self, row: usize) -> f32 {
         self.prev_state
             .row_height(row)

@@ -354,6 +354,7 @@ impl EpiIntegration {
 
 #[cfg(feature = "persistence")]
 const STORAGE_EGUI_MEMORY_KEY: &str = "egui";
+
 #[cfg(feature = "persistence")]
 const STORAGE_WINDOW_KEY: &str = "window";
 

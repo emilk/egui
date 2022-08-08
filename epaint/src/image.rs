@@ -12,6 +12,7 @@ use crate::{textures::TextureFilter, Color32};
 pub enum ImageData {
     /// RGBA image.
     Color(ColorImage),
+
     /// Used for the font texture.
     Font(FontImage),
 }
@@ -47,6 +48,7 @@ impl ImageData {
 pub struct ColorImage {
     /// width, height.
     pub size: [usize; 2],
+
     /// The pixels, row by row, from top to bottom.
     pub pixels: Vec<Color32>,
 }

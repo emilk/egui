@@ -68,6 +68,7 @@ pub(crate) struct TouchState {
     /// Technical identifier of the touch device. This is used to identify relevant touch events
     /// for this [`TouchState`] instance.
     device_id: TouchDeviceId,
+
     /// Active touches, if any.
     ///
     /// TouchId is the unique identifier of the touch. It is valid as long as the finger/pen touches the surface. The
@@ -75,6 +76,7 @@ pub(crate) struct TouchState {
     ///
     /// Refer to [`ActiveTouch`].
     active_touches: BTreeMap<TouchId, ActiveTouch>,
+
     /// If a gesture has been recognized (i.e. when exactly two fingers touch the surface), this
     /// holds state information
     gesture_state: Option<GestureState>,
@@ -107,6 +109,7 @@ struct DynGestureState {
 struct ActiveTouch {
     /// Current position of this touch, in device coordinates (not necessarily screen position)
     pos: Pos2,
+
     /// Current force of the touch. A value in the interval [0.0 .. 1.0]
     ///
     /// Note that a value of 0.0 either indicates a very light touch, or it means that the device

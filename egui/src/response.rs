@@ -463,6 +463,7 @@ impl Response {
     /// if response.clicked() { /* … */ }
     /// # });
     /// ```
+    #[must_use]
     pub fn interact(&self, sense: Sense) -> Self {
         self.ctx.interact_with_hovered(
             self.layer_id,
@@ -523,8 +524,9 @@ impl Response {
     /// Response to secondary clicks (right-clicks) by showing the given menu.
     ///
     /// ```
+    /// # use egui::{Label, Sense};
     /// # egui::__run_test_ui(|ui| {
-    /// let response = ui.label("Right-click me!");
+    /// let response = ui.add(Label::new("Right-click me!").sense(Sense::click()));
     /// response.context_menu(|ui| {
     ///     if ui.button("Close the menu").clicked() {
     ///         ui.close_menu();
@@ -602,6 +604,7 @@ impl Response {
 /// Now `draw_vec2(ui, foo).hovered` is true if either [`DragValue`](crate::DragValue) were hovered.
 impl std::ops::BitOr for Response {
     type Output = Self;
+
     fn bitor(self, rhs: Self) -> Self {
         self.union(rhs)
     }
@@ -643,6 +646,7 @@ impl std::ops::BitOrAssign for Response {
 pub struct InnerResponse<R> {
     /// What the user closure returned.
     pub inner: R,
+
     /// The response of the area.
     pub response: Response,
 }

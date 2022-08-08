@@ -265,6 +265,7 @@ impl LegendDemo {
             100,
         ))
     }
+
     fn sin() -> Line {
         Line::new(PlotPoints::from_explicit_callback(
             move |x| x.sin(),
@@ -272,6 +273,7 @@ impl LegendDemo {
             100,
         ))
     }
+
     fn cos() -> Line {
         Line::new(PlotPoints::from_explicit_callback(
             move |x| x.cos(),
@@ -390,12 +392,15 @@ impl CustomAxisDemo {
         fn get_day(x: f64) -> f64 {
             (x / MINS_PER_DAY).floor()
         }
+
         fn get_hour(x: f64) -> f64 {
             (x.rem_euclid(MINS_PER_DAY) / MINS_PER_H).floor()
         }
+
         fn get_minute(x: f64) -> f64 {
             x.rem_euclid(MINS_PER_H).floor()
         }
+
         fn get_percent(y: f64) -> f64 {
             100.0 * y
         }
@@ -476,6 +481,7 @@ impl LinkedAxisDemo {
             100,
         ))
     }
+
     fn sin() -> Line {
         Line::new(PlotPoints::from_explicit_callback(
             move |x| x.sin(),
@@ -483,6 +489,7 @@ impl LinkedAxisDemo {
             100,
         ))
     }
+
     fn cos() -> Line {
         Line::new(PlotPoints::from_explicit_callback(
             move |x| x.cos(),

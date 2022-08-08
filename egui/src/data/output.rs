@@ -66,6 +66,14 @@ pub struct PlatformOutput {
     /// If set, put this text in the system clipboard. Ignore if empty.
     ///
     /// This is often a response to [`crate::Event::Copy`] or [`crate::Event::Cut`].
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// if ui.button("📋").clicked() {
+    ///     ui.output().copied_text = "some_text".to_string();
+    /// }
+    /// # });
+    /// ```
     pub copied_text: String,
 
     /// Events that may be useful to e.g. a screen reader.
@@ -135,10 +143,12 @@ impl PlatformOutput {
     }
 }
 
+/// What URL to open, and how.
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct OpenUrl {
     pub url: String,
+
     /// If `true`, open the url in a new tab.
     /// If `false` open it in the same tab.
     /// Only matters when in a web browser.
@@ -239,10 +249,13 @@ pub enum CursorIcon {
     // Resizing in two directions:
     /// Horizontal resize `-` to make something wider or more narrow (left to/from right)
     ResizeHorizontal,
+
     /// Diagonal resize `/` (right-up to/from left-down)
     ResizeNeSw,
+
     /// Diagonal resize `\` (left-up to/from right-down)
     ResizeNwSe,
+
     /// Vertical resize `|` (up-down or down-up)
     ResizeVertical,
 
@@ -250,24 +263,32 @@ pub enum CursorIcon {
     // Resizing in one direction:
     /// Resize something rightwards (e.g. when dragging the right-most edge of something)
     ResizeEast,
+
     /// Resize something down and right (e.g. when dragging the bottom-right corner of something)
     ResizeSouthEast,
+
     /// Resize something downwards (e.g. when dragging the bottom edge of something)
     ResizeSouth,
+
     /// Resize something down and left (e.g. when dragging the bottom-left corner of something)
     ResizeSouthWest,
+
     /// Resize something leftwards (e.g. when dragging the left edge of something)
     ResizeWest,
+
     /// Resize something up and left (e.g. when dragging the top-left corner of something)
     ResizeNorthWest,
+
     /// Resize something up (e.g. when dragging the top edge of something)
     ResizeNorth,
+
     /// Resize something up and right (e.g. when dragging the top-right corner of something)
     ResizeNorthEast,
 
     // ------------------------------------
     /// Resize a column
     ResizeColumn,
+
     /// Resize a row
     ResizeRow,
 
@@ -275,6 +296,7 @@ pub enum CursorIcon {
     // Zooming:
     /// Enhance!
     ZoomIn,
+
     /// Let's get a better overview
     ZoomOut,
 }
@@ -331,17 +353,22 @@ impl Default for CursorIcon {
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum OutputEvent {
-    // A widget was clicked.
+    /// A widget was clicked.
     Clicked(WidgetInfo),
-    // A widget was double-clicked.
+
+    /// A widget was double-clicked.
     DoubleClicked(WidgetInfo),
-    // A widget was triple-clicked.
+
+    /// A widget was triple-clicked.
     TripleClicked(WidgetInfo),
+
     /// A widget gained keyboard focus (by tab key).
     FocusGained(WidgetInfo),
-    // Text selection was updated.
+
+    /// Text selection was updated.
     TextSelectionChanged(WidgetInfo),
-    // A widget's value changed.
+
+    /// A widget's value changed.
     ValueChanged(WidgetInfo),
 }
 
@@ -364,19 +391,26 @@ impl std::fmt::Debug for OutputEvent {
 pub struct WidgetInfo {
     /// The type of widget this is.
     pub typ: WidgetType,
-    // Whether the widget is enabled.
+
+    /// Whether the widget is enabled.
     pub enabled: bool,
+
     /// The text on labels, buttons, checkboxes etc.
     pub label: Option<String>,
+
     /// The contents of some editable text (for [`TextEdit`](crate::TextEdit) fields).
     pub current_text_value: Option<String>,
-    // The previous text value.
+
+    /// The previous text value.
     pub prev_text_value: Option<String>,
+
     /// The current value of checkboxes and radio buttons.
     pub selected: Option<bool>,
+
     /// The current value of sliders etc.
     pub value: Option<f64>,
-    // Selected range of characters in [`Self::current_text_value`].
+
+    /// Selected range of characters in [`Self::current_text_value`].
     pub text_selection: Option<std::ops::RangeInclusive<usize>>,
 }
 

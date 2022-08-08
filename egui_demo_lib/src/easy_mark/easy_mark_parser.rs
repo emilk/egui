@@ -12,20 +12,28 @@ pub enum Item<'a> {
     /// `\n`
     // TODO(emilk): add Style here so empty heading still uses up the right amount of space.
     Newline,
+
     ///
     Text(Style, &'a str),
+
     /// title, url
     Hyperlink(Style, &'a str, &'a str),
+
     /// leading space before e.g. a [`Self::BulletPoint`].
     Indentation(usize),
+
     /// >
     QuoteIndent,
+
     /// - a point well made.
     BulletPoint,
+
     /// 1. numbered list. The string is the number(s).
     NumberedPoint(&'a str),
+
     /// ---
     Separator,
+
     /// language, code
     CodeBlock(&'a str, &'a str),
 }
@@ -34,20 +42,28 @@ pub enum Item<'a> {
 pub struct Style {
     /// # heading (large text)
     pub heading: bool,
+
     /// > quoted (slightly dimmer color or other font style)
     pub quoted: bool,
+
     /// `code` (monospace, some other color)
     pub code: bool,
+
     /// self.strong* (emphasized, e.g. bold)
     pub strong: bool,
+
     /// _underline_
     pub underline: bool,
+
     /// ~strikethrough~
     pub strikethrough: bool,
+
     /// /italics/
     pub italics: bool,
+
     /// $small$
     pub small: bool,
+
     /// ^raised^
     pub raised: bool,
 }
@@ -66,8 +82,10 @@ pub struct Style {
 pub struct Parser<'a> {
     /// The remainder of the input text
     s: &'a str,
+
     /// Are we at the start of a line?
     start_of_line: bool,
+
     /// Current self.style. Reset after a newline.
     style: Style,
 }
@@ -83,27 +101,13 @@ impl<'a> Parser<'a> {
 
     /// `1. `, `42. ` etc.
     fn numbered_list(&mut self) -> Option<Item<'a>> {
-        let bytes = self.s.as_bytes();
-        // 1. numbered bullet
-        if bytes.len() >= 3 && bytes[0].is_ascii_digit() && bytes[1] == b'.' && bytes[2] == b' ' {
-            let number = &self.s[0..1];
-            self.s = &self.s[3..];
+        let n_digits = self.s.chars().take_while(|c| c.is_ascii_digit()).count();
+        if n_digits > 0 && self.s.chars().skip(n_digits).take(2).eq(". ".chars()) {
+            let number = &self.s[..n_digits];
+            self.s = &self.s[(n_digits + 2)..];
             self.start_of_line = false;
             return Some(Item::NumberedPoint(number));
         }
-        // 42. double-digit numbered bullet
-        if bytes.len() >= 4
-            && bytes[0].is_ascii_digit()
-            && bytes[1].is_ascii_digit()
-            && bytes[2] == b'.'
-            && bytes[3] == b' '
-        {
-            let number = &self.s[0..2];
-            self.s = &self.s[4..];
-            self.start_of_line = false;
-            return Some(Item::NumberedPoint(number));
-        }
-        // There is no triple-digit numbered bullet. Please don't make numbered lists that long.
         None
     }
 

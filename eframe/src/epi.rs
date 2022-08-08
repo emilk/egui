@@ -195,6 +195,9 @@ pub struct NativeOptions {
     pub drag_and_drop_support: bool,
 
     /// The application icon, e.g. in the Windows task bar etc.
+    ///
+    /// This doesn't work on Mac and on Wayland.
+    /// See <https://docs.rs/winit/latest/winit/window/struct.Window.html#method.set_window_icon> for more.
     pub icon_data: Option<IconData>,
 
     /// The initial (inner) position of the native window in points (logical pixels).
@@ -266,6 +269,20 @@ pub struct NativeOptions {
     ///
     /// Default: `Theme::Dark`.
     pub default_theme: Theme,
+
+    /// This controls what happens when you close the main eframe window.
+    ///
+    /// If `true`, execution will continue after the eframe window is closed.
+    /// If `false`, the app will close once the eframe window is closed.
+    ///
+    /// This is `true` by default, and the `false` option is only there
+    /// so we can revert if we find any bugs.
+    ///
+    /// This feature was introduced in <https://github.com/emilk/egui/pull/1889>.
+    ///
+    /// When `true`, [`winit::platform::run_return::EventLoopExtRunReturn::run_return`] is used.
+    /// When `false`, [`winit::event_loop::EventLoop::run`] is used.
+    pub run_and_return: bool,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -292,6 +309,7 @@ impl Default for NativeOptions {
             renderer: Renderer::default(),
             follow_system_theme: cfg!(target_os = "macos") || cfg!(target_os = "windows"),
             default_theme: Theme::Dark,
+            run_and_return: true,
         }
     }
 }
@@ -362,6 +380,7 @@ impl Default for WebOptions {
 pub enum Theme {
     /// Dark mode: light text on a dark background.
     Dark,
+
     /// Light mode: dark text on a light background.
     Light,
 }
@@ -386,10 +405,13 @@ impl Theme {
 pub enum WebGlContextOption {
     /// Force Use WebGL1.
     WebGl1,
+
     /// Force use WebGL2.
     WebGl2,
+
     /// Use WebGl2 first.
     BestFirst,
+
     /// Use WebGl1 first
     CompatibilityFirst,
 }
@@ -711,6 +733,7 @@ pub struct IntegrationInfo {
 pub trait Storage {
     /// Get the value for the given key.
     fn get_string(&self, key: &str) -> Option<String>;
+
     /// Set the value for the given key.
     fn set_string(&mut self, key: &str, value: String);
 
@@ -726,7 +749,9 @@ impl Storage for DummyStorage {
     fn get_string(&self, _key: &str) -> Option<String> {
         None
     }
+
     fn set_string(&mut self, _key: &str, _value: String) {}
+
     fn flush(&mut self) {}
 }
 

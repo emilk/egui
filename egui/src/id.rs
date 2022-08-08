@@ -91,9 +91,11 @@ impl std::hash::Hasher for IdHasher {
     fn write_u8(&mut self, _n: u8) {
         unreachable!("Invalid use of IdHasher");
     }
+
     fn write_u16(&mut self, _n: u16) {
         unreachable!("Invalid use of IdHasher");
     }
+
     fn write_u32(&mut self, _n: u32) {
         unreachable!("Invalid use of IdHasher");
     }
@@ -110,15 +112,19 @@ impl std::hash::Hasher for IdHasher {
     fn write_i8(&mut self, _n: i8) {
         unreachable!("Invalid use of IdHasher");
     }
+
     fn write_i16(&mut self, _n: i16) {
         unreachable!("Invalid use of IdHasher");
     }
+
     fn write_i32(&mut self, _n: i32) {
         unreachable!("Invalid use of IdHasher");
     }
+
     fn write_i64(&mut self, _n: i64) {
         unreachable!("Invalid use of IdHasher");
     }
+
     fn write_isize(&mut self, _n: isize) {
         unreachable!("Invalid use of IdHasher");
     }

@@ -110,8 +110,8 @@ impl<'a> TableBuilder<'a> {
     /// Should the scroll handle stick to the bottom position even as the content size changes
     /// dynamically? The scroll handle remains stuck until manually changed, and will become stuck
     /// once again when repositioned to the bottom. Default: `false`.
-    pub fn stick_to_bottom(mut self) -> Self {
-        self.stick_to_bottom = true;
+    pub fn stick_to_bottom(mut self, stick: bool) -> Self {
+        self.stick_to_bottom = stick;
         self
     }
 
@@ -295,11 +295,9 @@ impl<'a> Table<'a> {
 
         let mut new_widths = widths.clone();
 
-        let mut scroll_area = egui::ScrollArea::new([false, scroll]).auto_shrink([true; 2]);
-
-        if stick_to_bottom {
-            scroll_area = scroll_area.stick_to_bottom();
-        }
+        let scroll_area = egui::ScrollArea::new([false, scroll])
+            .auto_shrink([true; 2])
+            .stick_to_bottom(stick_to_bottom);
 
         scroll_area.show(ui, move |ui| {
             let layout = StripLayout::new(ui, CellDirection::Horizontal, clip, cell_layout);

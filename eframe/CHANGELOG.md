@@ -28,6 +28,8 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 
 #### Web:
 * Added option to select WebGL version ([#1803](https://github.com/emilk/egui/pull/1803)).
+* Added ability to stop/re-run web app from JavaScript. ⚠️ You need to update your CSS with `html, body: { height: 100%; width: 100%; }` ([#1803](https://github.com/emilk/egui/pull/1650)).
+
 
 
 ## 0.18.0 - 2022-04-30

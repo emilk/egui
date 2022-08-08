@@ -17,6 +17,12 @@
             /* Light mode background color for what is not covered by the egui canvas,
             or where the egui canvas is translucent. */
             background: #909090;
+            display:flex;
+        }
+
+        .canvas_wrap{
+            /* height: 200px; */
+            width: 400px;
         }
 
         @media (prefers-color-scheme: dark) {
@@ -39,13 +45,15 @@
 
         /* Position canvas in center-top: */
         canvas {
-            margin-right: auto;
-            margin-left: auto;
-            display: block;
+            /* margin-right: auto;
+            margin-left: auto; */
+            /* display: block;
             position: absolute;
             top: 0%;
             left: 50%;
-            transform: translate(-50%, 0%);
+            transform: translate(-50%, 0%); */
+            width:90%;
+            height:90%;
         }
 
         .centered {
@@ -96,7 +104,23 @@
 
 <body>
     <!-- The WASM code will resize the canvas dynamically -->
-    <canvas id="the_canvas_id"></canvas>
+
+    <div>controls</div>
+
+    <button class="stop_one">
+    stop    
+    </button>
+
+    <div class="canvas_wrap one">
+        <canvas id="the_canvas_id_one"></canvas>
+    </div>
+
+    <div  class="canvas_wrap two">
+        <canvas id="the_canvas_id_two"></canvas>
+    </div>
+
+
+
     <div class="centered" id="center_text">
         <p style="font-size:16px">
             Loading…
@@ -133,11 +157,23 @@
             console.debug("wasm loaded. starting app…");
 
             // This call installs a bunch of callbacks and then returns:
-            const handle = wasm_bindgen.start("the_canvas_id");
+
+            wasm_bindgen.init_wasm_hooks()
+
+            const handle_one = wasm_bindgen.start_separate("the_canvas_id_one");
+            const handle_two = wasm_bindgen.start_separate("the_canvas_id_two");
+
+            const button = document.getElementsByClassName("stop_one")[0]
+
+            button.addEventListener("click", ()=>{
+                handle_one.stop_web()
+                handle_one.free()
+            });
+    
 
             // call `handle.stop_web()` to stop
             // uncomment to quick result
-            // setTimeout(() => {handle.stop_web(); handle.free())}, 2000)
+            // setTimeout(() => {handle.stop_web()}, 2000)
 
             console.debug("app started.");
             document.getElementById("center_text").remove();

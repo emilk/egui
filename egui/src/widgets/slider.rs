@@ -27,9 +27,11 @@ fn set(get_set_value: &mut GetSetValue<'_>, value: f64) {
 #[derive(Clone)]
 struct SliderSpec {
     logarithmic: bool,
+
     /// For logarithmic sliders, the smallest positive value we are interested in.
     /// 1 for integer sliders, maybe 1e-6 for others.
     smallest_positive: f64,
+
     /// For logarithmic sliders, the largest positive value we are interested in
     /// before the slider switches to `INFINITY`, if that is the higher end.
     /// Default: INFINITY.

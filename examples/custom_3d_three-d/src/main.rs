@@ -7,6 +7,7 @@ fn main() {
         initial_window_size: Some(egui::vec2(550.0, 610.0)),
         multisampling: 8,
         renderer: eframe::Renderer::Glow,
+        depth_buffer: 32,
         ..Default::default()
     };
     eframe::run_native(

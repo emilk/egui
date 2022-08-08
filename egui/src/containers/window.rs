@@ -102,6 +102,7 @@ impl<'open> Window<'open> {
         self.resize = self.resize.min_width(min_width);
         self
     }
+
     /// Set minimum height of the window.
     pub fn min_height(mut self, min_height: f32) -> Self {
         self.resize = self.resize.min_height(min_height);
@@ -148,6 +149,7 @@ impl<'open> Window<'open> {
         self.resize = self.resize.default_width(default_width);
         self
     }
+
     /// Set initial height of the window.
     pub fn default_height(mut self, default_height: f32) -> Self {
         self.resize = self.resize.default_height(default_height);
@@ -760,12 +762,15 @@ fn paint_frame_interaction(
 struct TitleBar {
     /// A title Id used for dragging windows
     id: Id,
+
     /// Prepared text in the title
     title_galley: WidgetTextGalley,
+
     /// Size of the title bar in a collapsed state (if window is collapsible),
     /// which includes all necessary space for showing the expand button, the
     /// title and the close button.
     min_rect: Rect,
+
     /// Size of the title bar in an expanded state. This size become known only
     /// after expanding window and painting its content
     rect: Rect,
