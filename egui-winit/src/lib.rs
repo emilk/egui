@@ -66,7 +66,7 @@ pub struct State {
 
 impl State {
     pub fn new<T>(event_loop: &EventLoopWindowTarget<T>) -> Self {
-        Self::new_with_wayland_display(get_wayland_display(event_loop))
+        Self::new_with_wayland_display(wayland_display(event_loop))
     }
 
     pub fn new_with_wayland_display(wayland_display: Option<*mut c_void>) -> Self {
@@ -712,7 +712,7 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
 }
 
 /// Returns a Wayland display handle if the target is running Wayland
-fn get_wayland_display<T>(_event_loop: &EventLoopWindowTarget<T>) -> Option<*mut c_void> {
+fn wayland_display<T>(_event_loop: &EventLoopWindowTarget<T>) -> Option<*mut c_void> {
     #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",

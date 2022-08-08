@@ -199,7 +199,7 @@ impl LegendWidget {
     }
 
     // Get the names of the hidden items.
-    pub fn get_hidden_items(&self) -> AHashSet<String> {
+    pub fn hidden_items(&self) -> AHashSet<String> {
         self.entries
             .iter()
             .filter(|(_, entry)| !entry.checked)
@@ -208,7 +208,7 @@ impl LegendWidget {
     }
 
     // Get the name of the hovered items.
-    pub fn get_hovered_entry_name(&self) -> Option<String> {
+    pub fn hovered_entry_name(&self) -> Option<String> {
         self.entries
             .iter()
             .find(|(_, entry)| entry.hovered)

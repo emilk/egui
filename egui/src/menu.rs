@@ -532,7 +532,7 @@ impl MenuState {
         id: Id,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<R> {
-        let (sub_response, response) = self.get_submenu(id).map(|sub| {
+        let (sub_response, response) = self.submenu(id).map(|sub| {
             let inner_response = Self::show(ctx, sub, id, add_contents);
             (sub.read().response, inner_response.inner)
         })?;
@@ -582,7 +582,7 @@ impl MenuState {
         if pointer.is_still() {
             return false;
         }
-        if let Some(sub_menu) = self.get_current_submenu() {
+        if let Some(sub_menu) = self.current_submenu() {
             if let Some(pos) = pointer.hover_pos() {
                 return Self::points_at_left_of_rect(pos, pointer.velocity(), sub_menu.read().rect);
             }
@@ -592,7 +592,7 @@ impl MenuState {
 
     /// Check if pointer is hovering current submenu.
     fn hovering_current_submenu(&self, pointer: &PointerState) -> bool {
-        if let Some(sub_menu) = self.get_current_submenu() {
+        if let Some(sub_menu) = self.current_submenu() {
             if let Some(pos) = pointer.hover_pos() {
                 return sub_menu.read().area_contains(pos);
             }
@@ -608,18 +608,18 @@ impl MenuState {
     }
 
     fn is_open(&self, id: Id) -> bool {
-        self.get_sub_id() == Some(id)
+        self.sub_id() == Some(id)
     }
 
-    fn get_sub_id(&self) -> Option<Id> {
+    fn sub_id(&self) -> Option<Id> {
         self.sub_menu.as_ref().map(|(id, _)| *id)
     }
 
-    fn get_current_submenu(&self) -> Option<&Arc<RwLock<MenuState>>> {
+    fn current_submenu(&self) -> Option<&Arc<RwLock<MenuState>>> {
         self.sub_menu.as_ref().map(|(_, sub)| sub)
     }
 
-    fn get_submenu(&mut self, id: Id) -> Option<&Arc<RwLock<MenuState>>> {
+    fn submenu(&mut self, id: Id) -> Option<&Arc<RwLock<MenuState>>> {
         self.sub_menu
             .as_ref()
             .and_then(|(k, sub)| if id == *k { Some(sub) } else { None })

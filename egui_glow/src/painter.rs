@@ -452,7 +452,7 @@ impl Painter {
     #[inline(never)] // Easier profiling
     fn paint_mesh(&mut self, mesh: &Mesh) {
         debug_assert!(mesh.is_valid());
-        if let Some(texture) = self.get_texture(mesh.texture_id) {
+        if let Some(texture) = self.texture(mesh.texture_id) {
             unsafe {
                 self.gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vbo));
                 self.gl.buffer_data_u8_slice(
@@ -634,8 +634,13 @@ impl Painter {
     }
 
     /// Get the [`glow::Texture`] bound to a [`egui::TextureId`].
-    pub fn get_texture(&self, texture_id: egui::TextureId) -> Option<glow::Texture> {
+    pub fn texture(&self, texture_id: egui::TextureId) -> Option<glow::Texture> {
         self.textures.get(&texture_id).copied()
+    }
+
+    #[deprecated = "renamed 'texture'"]
+    pub fn get_texture(&self, texture_id: egui::TextureId) -> Option<glow::Texture> {
+        self.texture(texture_id)
     }
 
     #[allow(clippy::needless_pass_by_value)] // False positive

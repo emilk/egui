@@ -145,7 +145,7 @@ impl Painter {
         let width_in_points = width_in_pixels as f32 / pixels_per_point;
         let height_in_points = height_in_pixels as f32 / pixels_per_point;
 
-        if let Some(texture) = self.get_texture(mesh.texture_id) {
+        if let Some(texture) = self.texture(mesh.texture_id) {
             // The texture coordinates for text are so that both nearest and linear should work with the egui font texture.
             // For user textures linear sampling is more likely to be the right choice.
             let filter = MagnifySamplerFilter::Linear;
@@ -274,7 +274,7 @@ impl Painter {
         self.textures.remove(&tex_id);
     }
 
-    fn get_texture(&self, texture_id: egui::TextureId) -> Option<&SrgbTexture2d> {
+    fn texture(&self, texture_id: egui::TextureId) -> Option<&SrgbTexture2d> {
         self.textures.get(&texture_id).map(|rc| rc.as_ref())
     }
 
