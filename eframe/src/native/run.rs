@@ -254,7 +254,7 @@ mod glow_integration {
                 storage: integration.frame.storage(),
                 gl: Some(gl.clone()),
                 #[cfg(feature = "wgpu")]
-                render_state: None,
+                wgpu_render_state: None,
             });
 
             if app.warm_up_enabled() {
@@ -484,7 +484,7 @@ mod wgpu_integration {
                 painter
             };
 
-            let render_state = painter.get_render_state().expect("Uninitialized");
+            let wgpu_render_state = painter.render_state().expect("Uninitialized");
 
             let system_theme = native_options.system_theme();
             let mut integration = epi_integration::EpiIntegration::new(
@@ -495,7 +495,7 @@ mod wgpu_integration {
                 storage,
                 #[cfg(feature = "glow")]
                 None,
-                Some(render_state.clone()),
+                Some(wgpu_render_state.clone()),
             );
             let theme = system_theme.unwrap_or(native_options.default_theme);
             integration.egui_ctx.set_visuals(theme.egui_visuals());
@@ -513,7 +513,7 @@ mod wgpu_integration {
                 storage: integration.frame.storage(),
                 #[cfg(feature = "glow")]
                 gl: None,
-                render_state: Some(render_state),
+                wgpu_render_state: Some(wgpu_render_state),
             });
 
             if app.warm_up_enabled() {

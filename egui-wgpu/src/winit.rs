@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use egui::mutex::RwLock;
 use tracing::error;
-use wgpu::{Adapter, Instance, Surface, TextureFormat};
+use wgpu::{Adapter, Instance, Surface};
 
 use crate::renderer;
 
@@ -12,7 +12,7 @@ use crate::renderer;
 pub struct RenderState {
     pub device: Arc<wgpu::Device>,
     pub queue: Arc<wgpu::Queue>,
-    pub target_format: TextureFormat,
+    pub target_format: wgpu::TextureFormat,
     pub egui_rpass: Arc<RwLock<renderer::RenderPass>>,
 }
 
@@ -75,14 +75,14 @@ impl<'a> Painter<'a> {
     /// Get the [`RenderState`].
     ///
     /// Will return [`None`] if the render state has not been initialized yet.
-    pub fn get_render_state(&self) -> Option<RenderState> {
+    pub fn render_state(&self) -> Option<RenderState> {
         self.render_state.as_ref().cloned()
     }
 
     async fn init_render_state(
         &self,
         adapter: &Adapter,
-        target_format: TextureFormat,
+        target_format: wgpu::TextureFormat,
     ) -> RenderState {
         let (device, queue) =
             pollster::block_on(adapter.request_device(&self.device_descriptor, None)).unwrap();

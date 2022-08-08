@@ -27,13 +27,18 @@ pub struct CreationContext<'s> {
 
     /// The [`glow::Context`] allows you to initialize OpenGL resources (e.g. shaders) that
     /// you might want to use later from a [`egui::PaintCallback`].
+    ///
+    /// Only available when compiling with the `glow` feature and using [`Renderer::Glow`].
     #[cfg(feature = "glow")]
     pub gl: Option<std::sync::Arc<glow::Context>>,
 
-    /// Can be used to manage GPU resources for custom rendering with WGPU using
-    /// [`egui::PaintCallback`]s.
+    /// The underlying WGPU render state.
+    ///
+    /// Only available when compiling with the `wgpu` feature and using [`Renderer::Wgpu`].
+    ///
+    /// Can be used to manage GPU resources for custom rendering with WGPU using [`egui::PaintCallback`]s.
     #[cfg(feature = "wgpu")]
-    pub render_state: Option<egui_wgpu::RenderState>,
+    pub wgpu_render_state: Option<egui_wgpu::RenderState>,
 }
 
 // ----------------------------------------------------------------------------
@@ -510,10 +515,9 @@ pub struct Frame {
     #[cfg(feature = "glow")]
     pub(crate) gl: Option<std::sync::Arc<glow::Context>>,
 
-    /// Can be used to manage GPU resources for custom rendering with WGPU using
-    /// [`egui::PaintCallback`]s.
+    /// Can be used to manage GPU resources for custom rendering with WGPU using [`egui::PaintCallback`]s.
     #[cfg(feature = "wgpu")]
-    pub render_state: Option<egui_wgpu::RenderState>,
+    pub(crate) wgpu_render_state: Option<egui_wgpu::RenderState>,
 }
 
 impl Frame {
@@ -551,10 +555,20 @@ impl Frame {
     /// ([`egui`] only collects [`egui::Shape`]s and then eframe paints them all in one go later on).
     ///
     /// To get a [`glow`] context you need to compile with the `glow` feature flag,
-    /// and run eframe with the glow backend.
+    /// and run eframe using [`Renderer::Glow`].
     #[cfg(feature = "glow")]
     pub fn gl(&self) -> Option<&std::sync::Arc<glow::Context>> {
         self.gl.as_ref()
+    }
+
+    /// The underlying WGPU render state.
+    ///
+    /// Only available when compiling with the `wgpu` feature and using [`Renderer::Wgpu`].
+    ///
+    /// Can be used to manage GPU resources for custom rendering with WGPU using [`egui::PaintCallback`]s.
+    #[cfg(feature = "wgpu")]
+    pub fn wgpu_render_state(&self) -> Option<&egui_wgpu::RenderState> {
+        self.wgpu_render_state.as_ref()
     }
 
     /// Signal the app to stop/exit/quit the app (only works for native apps, not web apps).
