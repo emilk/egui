@@ -1,8 +1,8 @@
 //! Note that this file contains two similar paths - one for [`glow`], one for [`wgpu`].
 //! When making changes to one you often also want to apply it to the other.
 
+use std::time::Duration;
 use std::time::Instant;
-use std::{sync::Arc, time::Duration};
 
 use egui_winit::winit;
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -198,6 +198,8 @@ fn run_and_exit(
 /// Run an egui app
 #[cfg(feature = "glow")]
 mod glow_integration {
+    use std::sync::Arc;
+
     use super::*;
 
     struct GlowWinitApp {
@@ -588,6 +590,8 @@ mod wgpu_integration {
                 &clipped_primitives,
                 &textures_delta,
             );
+
+            integration.post_rendering(app.as_mut(), window);
 
             let control_flow = if integration.should_quit() {
                 EventResult::Exit
