@@ -25,6 +25,8 @@ members = [
     "examples/retained_image",
     "examples/screenshot",
     "examples/svg",
+    "examples/selection",
+    "examples/layout",
 ]
 
 [profile.dev]
