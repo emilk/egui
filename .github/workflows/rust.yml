@@ -195,3 +195,18 @@ jobs:
       - run: rustup target add wasm32-unknown-unknown
       - run: ./sh/setup_web.sh
       - run: ./sh/wasm_bindgen_check.sh
+
+  android:
+    name: android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.61.0
+          target: aarch64-linux-android
+          override: true
+
+      - run: cargo check --features wgpu --target aarch64-linux-android
+        working-directory: eframe
