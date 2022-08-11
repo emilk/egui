@@ -468,7 +468,7 @@ mod wgpu_integration {
                 .unwrap();
 
             // SAFETY: `window` must outlive `painter`.
-            #[allow(unsafe_code)]
+            #[allow(unsafe_code, unused_mut, unused_unsafe)]
             let painter = unsafe {
                 let mut painter = egui_wgpu::winit::Painter::new(
                     wgpu::Backends::PRIMARY | wgpu::Backends::GL,
@@ -486,7 +486,7 @@ mod wgpu_integration {
                 painter
             };
 
-            let wgpu_render_state = painter.render_state().expect("Uninitialized");
+            let wgpu_render_state = painter.render_state();
 
             let system_theme = native_options.system_theme();
             let mut integration = epi_integration::EpiIntegration::new(
@@ -497,7 +497,7 @@ mod wgpu_integration {
                 storage,
                 #[cfg(feature = "glow")]
                 None,
-                Some(wgpu_render_state.clone()),
+                wgpu_render_state.clone(),
             );
             let theme = system_theme.unwrap_or(native_options.default_theme);
             integration.egui_ctx.set_visuals(theme.egui_visuals());
@@ -515,7 +515,7 @@ mod wgpu_integration {
                 storage: integration.frame.storage(),
                 #[cfg(feature = "glow")]
                 gl: None,
-                wgpu_render_state: Some(wgpu_render_state),
+                wgpu_render_state,
             });
 
             if app.warm_up_enabled() {
@@ -629,11 +629,13 @@ mod wgpu_integration {
             match event {
                 #[cfg(target_os = "android")]
                 winit::event::Event::Resumed => unsafe {
-                    painter.set_window(Some(&window));
+                    self.painter.set_window(Some(&self.window));
+                    EventResult::RepaintAsap
                 },
                 #[cfg(target_os = "android")]
-                winit::event::Event::Paused => unsafe {
-                    painter.set_window(None);
+                winit::event::Event::Suspended => unsafe {
+                    self.painter.set_window(None);
+                    EventResult::Wait
                 },
 
                 winit::event::Event::WindowEvent { event, .. } => {
