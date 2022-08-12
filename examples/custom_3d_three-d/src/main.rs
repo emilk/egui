@@ -2,6 +2,7 @@
 
 use eframe::egui;
 
+#[cfg(not(target_arch = "wasm32"))]
 fn main() {
     let options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(550.0, 610.0)),
@@ -17,12 +18,12 @@ fn main() {
     );
 }
 
-struct MyApp {
+pub struct MyApp {
     angle: f32,
 }
 
 impl MyApp {
-    fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         Self { angle: 0.2 }
     }
 }
