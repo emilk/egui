@@ -63,7 +63,43 @@ impl MyApp {
             rect,
             callback: std::sync::Arc::new(egui_glow::CallbackFn::new(move |info, painter| {
                 with_three_d_context(painter.gl(), |three_d| {
-                    paint_with_three_d(three_d, &info, angle);
+                    use three_d::*;
+                    let screen = painter
+                        .intermediate_fbo()
+                        .map(|fbo| {
+                            dbg!(fbo);
+                            RenderTarget::from_raw(
+                                three_d,
+                                fbo,
+                                info.viewport.width() as u32,
+                                info.viewport.height() as u32,
+                            )
+                        })
+                        .unwrap_or(RenderTarget::screen(
+                            three_d,
+                            info.viewport.width() as u32,
+                            info.viewport.height() as u32,
+                        ));
+
+                    // Set where to paint
+                    let viewport = info.viewport_in_pixels();
+                    let viewport = Viewport {
+                        x: viewport.left_px.round() as _,
+                        y: viewport.from_bottom_px.round() as _,
+                        width: viewport.width_px.round() as _,
+                        height: viewport.height_px.round() as _,
+                    };
+
+                    // Respect the egui clip region (e.g. if we are inside an `egui::ScrollArea`).
+                    let clip_rect = info.clip_rect_in_pixels();
+                    let scissor_box = ScissorBox {
+                        x: clip_rect.left_px.round() as _,
+                        y: clip_rect.from_bottom_px.round() as _,
+                        width: clip_rect.width_px.round() as _,
+                        height: clip_rect.height_px.round() as _,
+                    };
+
+                    paint_with_three_d(three_d, screen, viewport, scissor_box, angle);
                 });
             })),
         };
@@ -86,14 +122,11 @@ fn with_three_d_context<R>(
     }
 
     // If you are using the depth buffer you need to do this:
+    #[cfg(not(target_arch = "wasm32"))]
     #[allow(unsafe_code)]
     unsafe {
         use glow::HasContext as _;
-        gl.enable(glow::DEPTH_TEST);
-        if !cfg!(target_arch = "wasm32") {
-            gl.disable(glow::FRAMEBUFFER_SRGB);
-        }
-        gl.clear(glow::DEPTH_BUFFER_BIT);
+        gl.disable(glow::FRAMEBUFFER_SRGB);
     }
 
     THREE_D.with(|three_d| {
@@ -104,30 +137,18 @@ fn with_three_d_context<R>(
     })
 }
 
-fn paint_with_three_d(three_d: &three_d::Context, info: &egui::PaintCallbackInfo, angle: f32) {
+fn paint_with_three_d(
+    context: &three_d::Context,
+    screen: three_d::RenderTarget,
+    viewport: three_d::Viewport,
+    scissor_box: three_d::ScissorBox,
+    angle: f32,
+) {
     // Based on https://github.com/asny/three-d/blob/master/examples/triangle/src/main.rs
     use three_d::*;
 
-    // Set where to paint
-    let viewport = info.viewport_in_pixels();
-    let viewport = Viewport {
-        x: viewport.left_px.round() as _,
-        y: viewport.from_bottom_px.round() as _,
-        width: viewport.width_px.round() as _,
-        height: viewport.height_px.round() as _,
-    };
-
-    // Respect the egui clip region (e.g. if we are inside an `egui::ScrollArea`).
-    let clip_rect = info.clip_rect_in_pixels();
-    three_d.set_scissor(ScissorBox {
-        x: clip_rect.left_px.round() as _,
-        y: clip_rect.from_bottom_px.round() as _,
-        width: clip_rect.width_px.round() as _,
-        height: clip_rect.height_px.round() as _,
-    });
-
+    // Create a camera
     let camera = Camera::new_perspective(
-        three_d,
         viewport,
         vec3(0.0, 0.0, 2.0),
         vec3(0.0, 0.0, 0.0),
@@ -135,8 +156,7 @@ fn paint_with_three_d(three_d: &three_d::Context, info: &egui::PaintCallbackInfo
         degrees(45.0),
         0.1,
         10.0,
-    )
-    .unwrap();
+    );
 
     // Create a CPU-side mesh consisting of a single colored triangle
     let positions = vec![
@@ -155,14 +175,16 @@ fn paint_with_three_d(three_d: &three_d::Context, info: &egui::PaintCallbackInfo
         ..Default::default()
     };
 
-    let mut model = Gm::new(
-        Mesh::new(three_d, &cpu_mesh).unwrap(),
-        ColorMaterial::default(),
-    );
+    // Construct a model, with a default color material, thereby transferring the mesh data to the GPU
+    let mut model = Gm::new(Mesh::new(&context, &cpu_mesh), ColorMaterial::default());
 
     // Set the current transformation of the triangle
     model.set_transformation(Mat4::from_angle_y(radians(angle)));
 
-    // Render the triangle with the color material which uses the per vertex colors defined at construction
-    model.render(&camera, &[]).unwrap();
+    // Get the screen render target to be able to render something on the screen
+    screen
+        // Clear the color and depth of the screen render target
+        .clear_partially(scissor_box, ClearState::depth(1.0))
+        // Render the triangle with the color material which uses the per vertex colors defined at construction
+        .render_partially(scissor_box, &camera, &[&model], &[]);
 }
