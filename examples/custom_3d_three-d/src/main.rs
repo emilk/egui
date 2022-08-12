@@ -68,12 +68,11 @@ impl MyApp {
                     let screen = painter
                         .intermediate_fbo()
                         .map(|fbo| {
-                            dbg!(fbo);
-                            RenderTarget::from_raw(
+                            RenderTarget::from_framebuffer(
                                 three_d,
-                                fbo,
                                 info.viewport.width() as u32,
                                 info.viewport.height() as u32,
+                                fbo,
                             )
                         })
                         .unwrap_or(RenderTarget::screen(
@@ -100,7 +99,8 @@ impl MyApp {
                         height: clip_rect.height_px.round() as _,
                     };
 
-                    paint_with_three_d(three_d, screen, viewport, scissor_box, angle);
+                    paint_with_three_d(three_d, &screen, viewport, scissor_box, angle);
+                    screen.into_framebuffer(); // Take back the screen fbo, we will continue to use it.
                 });
             })),
         };
@@ -140,7 +140,7 @@ fn with_three_d_context<R>(
 
 fn paint_with_three_d(
     context: &three_d::Context,
-    screen: three_d::RenderTarget,
+    screen: &three_d::RenderTarget,
     viewport: three_d::Viewport,
     scissor_box: three_d::ScissorBox,
     angle: f32,
