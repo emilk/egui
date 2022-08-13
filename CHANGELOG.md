@@ -18,6 +18,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 * Added `Contex::request_repaint_after` ([#1694](https://github.com/emilk/egui/pull/1694)).
 * `ctrl-h` now acts like backspace in `TextEdit` ([#1812](https://github.com/emilk/egui/pull/1812)).
 * Added `RawInput::has_focus` which backends can set to indicate whether the UI as a whole has the keyboard focus ([#1859](https://github.com/emilk/egui/pull/1859)).
+* Added `PointerState::button_double_clicked()` and `PointerState::button_triple_clicked()` ([#1906](https://github.com/emilk/egui/issues/1906)).
 
 ### Changed
 * MSRV (Minimum Supported Rust Version) is now `1.61.0` ([#1846](https://github.com/emilk/egui/pull/1846)).
