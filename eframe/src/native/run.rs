@@ -424,7 +424,7 @@ mod glow_integration {
         native_options: &epi::NativeOptions,
         app_creator: epi::AppCreator,
     ) {
-        let event_loop = EventLoop::with_user_event();
+        let event_loop = glutin::event_loop::EventLoopBuilder::with_user_event().build();
         let glow_eframe = GlowWinitApp::new(&event_loop, app_name, native_options, app_creator);
 
         if native_options.run_and_return {
@@ -682,7 +682,7 @@ mod wgpu_integration {
         native_options: &epi::NativeOptions,
         app_creator: epi::AppCreator,
     ) {
-        let event_loop = EventLoop::with_user_event();
+        let event_loop = winit::event_loop::EventLoopBuilder::with_user_event().build();
         let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);
 
         if native_options.run_and_return {

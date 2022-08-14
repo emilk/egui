@@ -3,7 +3,7 @@
 use glium::glutin;
 
 fn main() {
-    let event_loop = glutin::event_loop::EventLoop::with_user_event();
+    let event_loop = glutin::event_loop::EventLoopBuilder::with_user_event().build();
     let display = create_display(&event_loop);
 
     let mut egui_glium = egui_glium::EguiGlium::new(&display, &event_loop);
