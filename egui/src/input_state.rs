@@ -750,6 +750,20 @@ impl PointerState {
             .any(|event| matches!(event, &PointerEvent::Pressed { button: b, .. } if button == b))
     }
 
+    /// Was the button given double clicked this frame?
+    pub fn button_double_clicked(&self, button: PointerButton) -> bool {
+        self.pointer_events
+            .iter()
+            .any(|event| matches!(&event, PointerEvent::Released(Some(click)) if click.button == button && click.is_double()))
+    }
+
+    /// Was the button given triple clicked this frame?
+    pub fn button_triple_clicked(&self, button: PointerButton) -> bool {
+        self.pointer_events
+            .iter()
+            .any(|event| matches!(&event, PointerEvent::Released(Some(click)) if click.button == button && click.is_triple()))
+    }
+
     /// Was the primary button clicked this frame?
     pub fn primary_clicked(&self) -> bool {
         self.button_clicked(PointerButton::Primary)
