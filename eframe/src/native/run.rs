@@ -1,8 +1,8 @@
 //! Note that this file contains two similar paths - one for [`glow`], one for [`wgpu`].
 //! When making changes to one you often also want to apply it to the other.
 
+use std::time::Duration;
 use std::time::Instant;
-use std::{sync::Arc, time::Duration};
 
 use egui_winit::winit;
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -198,6 +198,8 @@ fn run_and_exit(
 /// Run an egui app
 #[cfg(feature = "glow")]
 mod glow_integration {
+    use std::sync::Arc;
+
     use super::*;
 
     struct GlowWinitApp {
@@ -254,7 +256,7 @@ mod glow_integration {
                 storage: integration.frame.storage(),
                 gl: Some(gl.clone()),
                 #[cfg(feature = "wgpu")]
-                render_state: None,
+                wgpu_render_state: None,
             });
 
             if app.warm_up_enabled() {
@@ -484,7 +486,7 @@ mod wgpu_integration {
                 painter
             };
 
-            let render_state = painter.get_render_state().expect("Uninitialized");
+            let wgpu_render_state = painter.render_state().expect("Uninitialized");
 
             let system_theme = native_options.system_theme();
             let mut integration = epi_integration::EpiIntegration::new(
@@ -495,7 +497,7 @@ mod wgpu_integration {
                 storage,
                 #[cfg(feature = "glow")]
                 None,
-                Some(render_state.clone()),
+                Some(wgpu_render_state.clone()),
             );
             let theme = system_theme.unwrap_or(native_options.default_theme);
             integration.egui_ctx.set_visuals(theme.egui_visuals());
@@ -513,7 +515,7 @@ mod wgpu_integration {
                 storage: integration.frame.storage(),
                 #[cfg(feature = "glow")]
                 gl: None,
-                render_state: Some(render_state),
+                wgpu_render_state: Some(wgpu_render_state),
             });
 
             if app.warm_up_enabled() {
@@ -588,6 +590,8 @@ mod wgpu_integration {
                 &clipped_primitives,
                 &textures_delta,
             );
+
+            integration.post_rendering(app.as_mut(), window);
 
             let control_flow = if integration.should_quit() {
                 EventResult::Exit

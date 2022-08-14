@@ -389,19 +389,19 @@ impl CustomAxisDemo {
         const MINS_PER_DAY: f64 = CustomAxisDemo::MINS_PER_DAY;
         const MINS_PER_H: f64 = CustomAxisDemo::MINS_PER_H;
 
-        fn get_day(x: f64) -> f64 {
+        fn day(x: f64) -> f64 {
             (x / MINS_PER_DAY).floor()
         }
 
-        fn get_hour(x: f64) -> f64 {
+        fn hour(x: f64) -> f64 {
             (x.rem_euclid(MINS_PER_DAY) / MINS_PER_H).floor()
         }
 
-        fn get_minute(x: f64) -> f64 {
+        fn minute(x: f64) -> f64 {
             x.rem_euclid(MINS_PER_H).floor()
         }
 
-        fn get_percent(y: f64) -> f64 {
+        fn percent(y: f64) -> f64 {
             100.0 * y
         }
 
@@ -411,17 +411,17 @@ impl CustomAxisDemo {
                 String::new()
             } else if is_approx_integer(x / MINS_PER_DAY) {
                 // Days
-                format!("Day {}", get_day(x))
+                format!("Day {}", day(x))
             } else {
                 // Hours and minutes
-                format!("{h}:{m:02}", h = get_hour(x), m = get_minute(x))
+                format!("{h}:{m:02}", h = hour(x), m = minute(x))
             }
         };
 
         let y_fmt = |y, _range: &RangeInclusive<f64>| {
             // Display only integer percentages
             if !is_approx_zero(y) && is_approx_integer(100.0 * y) {
-                format!("{:.0}%", get_percent(y))
+                format!("{:.0}%", percent(y))
             } else {
                 String::new()
             }
@@ -430,10 +430,10 @@ impl CustomAxisDemo {
         let label_fmt = |_s: &str, val: &PlotPoint| {
             format!(
                 "Day {d}, {h}:{m:02}\n{p:.2}%",
-                d = get_day(val.x),
-                h = get_hour(val.x),
-                m = get_minute(val.x),
-                p = get_percent(val.y)
+                d = day(val.x),
+                h = hour(val.x),
+                m = minute(val.x),
+                p = percent(val.y)
             )
         };
 

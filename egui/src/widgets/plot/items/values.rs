@@ -302,7 +302,7 @@ impl PlotPoints {
         (start < end).then(|| start..=end)
     }
 
-    pub(super) fn get_bounds(&self) -> PlotBounds {
+    pub(super) fn bounds(&self) -> PlotBounds {
         match self {
             PlotPoints::Owned(points) => {
                 let mut bounds = PlotBounds::NOTHING;

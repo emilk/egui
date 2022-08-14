@@ -99,7 +99,7 @@ impl Ui {
         crate::egui_assert!(!max_rect.any_nan());
         let next_auto_id_source = Id::new(self.next_auto_id_source).with("child").value();
         self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
-        let menu_state = self.get_menu_state();
+        let menu_state = self.menu_state();
         Ui {
             id: self.id.with(id_source),
             next_auto_id_source,
@@ -2096,7 +2096,7 @@ impl Ui {
         self.menu_state = None;
     }
 
-    pub(crate) fn get_menu_state(&self) -> Option<Arc<RwLock<MenuState>>> {
+    pub(crate) fn menu_state(&self) -> Option<Arc<RwLock<MenuState>>> {
         self.menu_state.clone()
     }
 

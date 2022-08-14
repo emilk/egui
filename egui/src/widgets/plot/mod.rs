@@ -430,7 +430,7 @@ impl Plot {
     ///
     /// The function has this signature:
     /// ```ignore
-    /// fn get_step_sizes(input: GridInput) -> Vec<GridMark>;
+    /// fn step_sizes(input: GridInput) -> Vec<GridMark>;
     /// ```
     ///
     /// This function should return all marks along the visible range of the X axis.
@@ -697,7 +697,7 @@ impl Plot {
             }
 
             for item in &items {
-                let item_bounds = item.get_bounds();
+                let item_bounds = item.bounds();
 
                 if auto_bounds.x {
                     bounds.merge_x(&item_bounds);
@@ -829,8 +829,8 @@ impl Plot {
 
         if let Some(mut legend) = legend {
             ui.add(&mut legend);
-            hidden_items = legend.get_hidden_items();
-            hovered_entry = legend.get_hovered_entry_name();
+            hidden_items = legend.hidden_items();
+            hovered_entry = legend.hovered_entry_name();
         }
 
         if let Some(group) = linked_axes.as_ref() {
@@ -1073,7 +1073,7 @@ pub struct GridMark {
 /// 10 is a typical value, others are possible though.
 pub fn log_grid_spacer(log_base: i64) -> GridSpacer {
     let log_base = log_base as f64;
-    let get_step_sizes = move |input: GridInput| -> Vec<GridMark> {
+    let step_sizes = move |input: GridInput| -> Vec<GridMark> {
         // The distance between two of the thinnest grid lines is "rounded" up
         // to the next-bigger power of base
         let smallest_visible_unit = next_power(input.base_step_size, log_base);
@@ -1087,7 +1087,7 @@ pub fn log_grid_spacer(log_base: i64) -> GridSpacer {
         generate_marks(step_sizes, input.bounds)
     };
 
-    Box::new(get_step_sizes)
+    Box::new(step_sizes)
 }
 
 /// Splits the grid into uniform-sized spacings (e.g. 100, 25, 1).
@@ -1136,7 +1136,7 @@ impl PreparedPlot {
         let mut plot_ui = ui.child_ui(*transform.frame(), Layout::default());
         plot_ui.set_clip_rect(*transform.frame());
         for item in &self.items {
-            item.get_shapes(&mut plot_ui, transform, &mut shapes);
+            item.shapes(&mut plot_ui, transform, &mut shapes);
         }
 
         if let Some(pointer) = response.hover_pos() {
