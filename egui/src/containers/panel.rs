@@ -245,10 +245,19 @@ impl SidePanel {
         let inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_height(ui.max_rect().height()); // Make sure the frame fills the full height
             ui.set_min_width(*width_range.start());
-            add_contents(ui)
+            let res = add_contents(ui);
+
+            // This is a hack to force the `Frame` to expand its background to fill the available
+            // space.
+            let mut rect = ui.min_rect();
+            rect.min -= Vec2::new(frame.margin.left, frame.margin.top);
+            rect.max += Vec2::new(frame.margin.right, frame.margin.bottom);
+            ui.allocate_space(ui.available_size());
+
+            (rect, res)
         });
 
-        let rect = inner_response.response.rect;
+        let rect = inner_response.inner.0;
 
         {
             let mut cursor = ui.cursor();
@@ -280,7 +289,10 @@ impl SidePanel {
                 .vline(resize_x, rect.y_range(), stroke);
         }
 
-        inner_response
+        InnerResponse {
+            inner: inner_response.inner.1,
+            response: inner_response.response,
+        }
     }
 
     /// Show the panel at the top level.
