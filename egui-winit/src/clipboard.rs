@@ -5,7 +5,7 @@ use std::os::raw::c_void;
 /// If the "clipboard" feature is off, or we cannot connect to the OS clipboard,
 /// then a fallback clipboard that just works works within the same app is used instead.
 pub struct Clipboard {
-    #[cfg(feature = "arboard")]
+    #[cfg(all(feature = "arboard", not(target_os = "android")))]
     arboard: Option<arboard::Clipboard>,
 
     #[cfg(all(
@@ -28,7 +28,7 @@ impl Clipboard {
     #[allow(unused_variables)]
     pub fn new(#[allow(unused_variables)] wayland_display: Option<*mut c_void>) -> Self {
         Self {
-            #[cfg(feature = "arboard")]
+            #[cfg(all(feature = "arboard", not(target_os = "android")))]
             arboard: init_arboard(),
             #[cfg(all(
                 any(
@@ -66,7 +66,7 @@ impl Clipboard {
             };
         }
 
-        #[cfg(feature = "arboard")]
+        #[cfg(all(feature = "arboard", not(target_os = "android")))]
         if let Some(clipboard) = &mut self.arboard {
             return match clipboard.get_text() {
                 Ok(text) => Some(text),
@@ -96,7 +96,7 @@ impl Clipboard {
             return;
         }
 
-        #[cfg(feature = "arboard")]
+        #[cfg(all(feature = "arboard", not(target_os = "android")))]
         if let Some(clipboard) = &mut self.arboard {
             if let Err(err) = clipboard.set_text(text) {
                 tracing::error!("Copy/Cut error: {}", err);
@@ -108,7 +108,7 @@ impl Clipboard {
     }
 }
 
-#[cfg(feature = "arboard")]
+#[cfg(all(feature = "arboard", not(target_os = "android")))]
 fn init_arboard() -> Option<arboard::Clipboard> {
     match arboard::Clipboard::new() {
         Ok(clipboard) => Some(clipboard),

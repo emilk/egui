@@ -49,7 +49,6 @@ tracing = { version = "0.1", default-features = false, features = ["std"] }
 winit = "0.27.2"
 
 #! ### Optional dependencies
-arboard = { version = "2.1", optional = true, default-features = false }
 
 ## Enable this when generating docs.
 document-features = { version = "0.2", optional = true }
@@ -64,3 +63,6 @@ webbrowser = { version = "0.7", optional = true }
 
 [target.'cfg(any(target_os="linux", target_os="dragonfly", target_os="freebsd", target_os="netbsd", target_os="openbsd"))'.dependencies]
 smithay-clipboard = { version = "0.6.3", optional = true }
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+arboard = { version = "2.1", optional = true, default-features = false }
