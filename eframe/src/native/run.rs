@@ -72,7 +72,20 @@ trait WinitApp {
     fn on_event(&mut self, event: winit::event::Event<'_, RequestRepaintEvent>) -> EventResult;
 }
 
-fn run_and_return(mut event_loop: EventLoop<RequestRepaintEvent>, mut winit_app: impl WinitApp) {
+/// Access a thread-local event loop.
+///
+/// We reuse the event-loop so we can support closing and opening an eframe window
+/// multiple times. This is just a limitation of winit.
+fn with_event_loop(f: impl FnOnce(&mut EventLoop<RequestRepaintEvent>)) {
+    use std::cell::RefCell;
+    thread_local!(static EVENT_LOOP: RefCell<EventLoop<RequestRepaintEvent>> = RefCell::new(winit::event_loop::EventLoopBuilder::with_user_event().build()));
+
+    EVENT_LOOP.with(|event_loop| {
+        f(&mut *event_loop.borrow_mut());
+    });
+}
+
+fn run_and_return(event_loop: &mut EventLoop<RequestRepaintEvent>, mut winit_app: impl WinitApp) {
     use winit::platform::run_return::EventLoopExtRunReturn as _;
 
     tracing::debug!("event_loop.run_return");
@@ -99,6 +112,14 @@ fn run_and_return(mut event_loop: EventLoop<RequestRepaintEvent>, mut winit_app:
             | winit::event::Event::NewEvents(winit::event::StartCause::ResumeTimeReached {
                 ..
             }) => EventResult::RepaintAsap,
+
+            winit::event::Event::WindowEvent { window_id, .. }
+                if window_id != winit_app.window().id() =>
+            {
+                // This can happen if we close a window, and then reopen a new one,
+                // or if we have multiple windows open.
+                EventResult::Wait
+            }
 
             event => winit_app.on_event(event),
         };
@@ -131,6 +152,13 @@ fn run_and_return(mut event_loop: EventLoop<RequestRepaintEvent>, mut winit_app:
     tracing::debug!("eframe window closed");
 
     winit_app.save_and_destroy();
+
+    drop(winit_app);
+
+    // Needed to clean the event_loop:
+    event_loop.run_return(|_, _, control_flow| {
+        control_flow.set_exit();
+    });
 }
 
 fn run_and_exit(
@@ -424,12 +452,15 @@ mod glow_integration {
         native_options: &epi::NativeOptions,
         app_creator: epi::AppCreator,
     ) {
-        let event_loop = glutin::event_loop::EventLoopBuilder::with_user_event().build();
-        let glow_eframe = GlowWinitApp::new(&event_loop, app_name, native_options, app_creator);
-
         if native_options.run_and_return {
-            run_and_return(event_loop, glow_eframe);
+            with_event_loop(|event_loop| {
+                let glow_eframe =
+                    GlowWinitApp::new(event_loop, app_name, native_options, app_creator);
+                run_and_return(event_loop, glow_eframe);
+            });
         } else {
+            let event_loop = winit::event_loop::EventLoopBuilder::with_user_event().build();
+            let glow_eframe = GlowWinitApp::new(&event_loop, app_name, native_options, app_creator);
             run_and_exit(event_loop, glow_eframe);
         }
     }
@@ -684,12 +715,15 @@ mod wgpu_integration {
         native_options: &epi::NativeOptions,
         app_creator: epi::AppCreator,
     ) {
-        let event_loop = winit::event_loop::EventLoopBuilder::with_user_event().build();
-        let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);
-
         if native_options.run_and_return {
-            run_and_return(event_loop, wgpu_eframe);
+            with_event_loop(|event_loop| {
+                let wgpu_eframe =
+                    WgpuWinitApp::new(event_loop, app_name, native_options, app_creator);
+                run_and_return(event_loop, wgpu_eframe);
+            });
         } else {
+            let event_loop = winit::event_loop::EventLoopBuilder::with_user_event().build();
+            let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);
             run_and_exit(event_loop, wgpu_eframe);
         }
     }
