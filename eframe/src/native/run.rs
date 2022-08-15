@@ -152,6 +152,13 @@ fn run_and_return(event_loop: &mut EventLoop<RequestRepaintEvent>, mut winit_app
     tracing::debug!("eframe window closed");
 
     winit_app.save_and_destroy();
+
+    drop(winit_app);
+
+    // Needed to clean the event_loop:
+    event_loop.run_return(|_, _, control_flow| {
+        control_flow.set_exit();
+    });
 }
 
 fn run_and_exit(
