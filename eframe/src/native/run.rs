@@ -113,6 +113,14 @@ fn run_and_return(event_loop: &mut EventLoop<RequestRepaintEvent>, mut winit_app
                 ..
             }) => EventResult::RepaintAsap,
 
+            winit::event::Event::WindowEvent { window_id, .. }
+                if window_id != winit_app.window().id() =>
+            {
+                // This can happen if we close a window, and then reopen a new one,
+                // or if we have multiple windows open.
+                EventResult::Wait
+            }
+
             event => winit_app.on_event(event),
         };
 
