@@ -10,6 +10,7 @@ pub mod panel;
 pub mod popup;
 pub(crate) mod resize;
 pub(crate) mod scroll_area;
+pub(crate) mod item_scroll_area;
 pub(crate) mod window;
 
 pub use {
@@ -17,6 +18,7 @@ pub use {
     collapsing_header::{CollapsingHeader, CollapsingResponse},
     combo_box::*,
     frame::Frame,
+    item_scroll_area::ItemScrollArea,
     panel::{CentralPanel, SidePanel, TopBottomPanel},
     popup::*,
     resize::Resize,
