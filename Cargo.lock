@@ -3439,6 +3439,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "serial_windows"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+]
+
+[[package]]
 name = "servo-fontconfig"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
