@@ -2086,6 +2086,68 @@ impl Ui {
         result
     }
 
+    /// Temporarily split split an Ui into several rows.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// ui.rows(2, |rows| {
+    ///     rows[0].label("First column");
+    ///     rows[1].label("Second column");
+    /// });
+    /// # });
+    /// ```
+    #[inline]
+    pub fn rows<R>(
+        &mut self,
+        num_rows: usize,
+        add_contents: impl FnOnce(&mut [Self]) -> R,
+    ) -> R {
+        self.rows_dyn(num_rows, Box::new(add_contents))
+    }
+
+    fn rows_dyn<'c, R>(
+        &mut self,
+        num_rows: usize,
+        add_contents: Box<dyn FnOnce(&mut [Self]) -> R + 'c>,
+    ) -> R {
+        // TODO: ensure there is space
+        let spacing = self.spacing().item_spacing.y;
+        let total_spacing = spacing * (num_rows as f32 - 1.0);
+        let row_height = (self.available_height() - total_spacing) / (num_rows as f32);
+        let top_left = self.cursor().min;
+
+        let mut rows: Vec<Self> = (0..num_rows)
+            .map(|row_idx| {
+                let pos = top_left + vec2(0.0,(row_idx as f32) * (row_height + spacing));
+                let child_rect = Rect::from_min_max(
+                    pos,
+                    pos2(self.max_rect().right_bottom().x,pos.x + row_height),
+                );
+                let mut row_ui =
+                    self.child_ui(child_rect, Layout::top_down_justified(Align::LEFT));
+                //column_ui.set_width(column_width);
+                row_ui.set_height(row_height);
+                row_ui
+            })
+            .collect();
+
+        let result = add_contents(&mut rows[..]);
+
+        let mut max_row_height = row_height;
+        let mut max_width = 0.0;
+        for row in &rows {
+            max_row_height = max_row_height.max(row.min_rect().height());
+            max_width = row.min_size().y.max(max_width);
+        }
+
+        // Make sure we fit everything next frame:
+        let total_required_height = total_spacing + max_row_height * (num_rows as f32);
+
+        let size = vec2(max_width,self.available_height().max(total_required_height));
+        self.advance_cursor_after_rect(Rect::from_min_size(top_left, size));
+        result
+    }
+
     /// Close the menu we are in (including submenus), if any.
     ///
     /// See also: [`Self::menu_button`] and [`Response::context_menu`].
