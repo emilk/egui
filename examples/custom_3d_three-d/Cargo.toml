@@ -14,7 +14,7 @@ crate-type = ["cdylib", "rlib"]
 eframe = { path = "../../eframe", features = ["glow"] }
 egui_glow = { path = "../../egui_glow" }
 glow = "0.11"
-three-d = { path = "../../../three-d", default-features = false }
+three-d = { version = "0.13", default-features = false }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies] # Web dependencies
 wasm-bindgen = "0.2" # Core bindings
