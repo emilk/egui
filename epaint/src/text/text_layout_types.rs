@@ -309,6 +309,8 @@ impl Default for TextWrapping {
 /// Text that has been layed out, ready for painting.
 ///
 /// You can create a [`Galley`] using [`crate::Fonts::layout_job`];
+///
+/// This needs to be recreated if `pixels_per_point` (dpi scale) changes.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Galley {
@@ -341,6 +343,12 @@ pub struct Galley {
 
     /// Total number of indices in all the row meshes.
     pub num_indices: usize,
+
+    /// The number of physical pixels for each logical point.
+    /// Since this affects the layout, we keep track of it
+    /// so that we can warn if this has changed once we get to
+    /// tessellation.
+    pub pixels_per_point: f32,
 }
 
 #[derive(Clone, Debug, PartialEq)]

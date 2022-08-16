@@ -13,6 +13,11 @@ pub use crate::{CubicBezierShape, QuadraticBezierShape};
 
 /// A paint primitive such as a circle or a piece of text.
 /// Coordinates are all screen space points (not physical pixels).
+///
+/// You should generally recreate your [`Shape`]s each frame,
+/// but storing them should also be fine with one exception:
+/// [`Shape::Text`] depends on the current `pixels_per_point` (dpi scale)
+/// and so must be recreated every time `pixels_per_point` changes.
 #[must_use = "Add a Shape to a Painter"]
 #[derive(Clone, Debug, PartialEq)]
 pub enum Shape {
@@ -37,6 +42,8 @@ pub enum Shape {
     Rect(RectShape),
 
     /// Text.
+    ///
+    /// This needs to be recreated if `pixels_per_point` (dpi scale) changes.
     Text(TextShape),
 
     /// A general triangle mesh.
@@ -604,6 +611,8 @@ impl Rounding {
 // ----------------------------------------------------------------------------
 
 /// How to paint some text on screen.
+///
+/// This needs to be recreated if `pixels_per_point` (dpi scale) changes.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TextShape {
