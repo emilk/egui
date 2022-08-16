@@ -68,22 +68,58 @@ impl eframe::App for MyApp {
     }
 }
 
+// Based on https://github.com/asny/three-d/blob/master/examples/triangle/src/main.rs
 use three_d::*;
 struct ThreeDApp {
     context: Context,
+    camera: Camera,
+    model: Gm<Mesh, ColorMaterial>,
 }
 
 impl ThreeDApp {
     pub fn new(gl: std::sync::Arc<glow::Context>) -> Self {
+        let context = Context::from_gl_context(gl).unwrap();
+        // Create a camera
+        let camera = Camera::new_perspective(
+            Viewport::new_at_origo(1, 1),
+            vec3(0.0, 0.0, 2.0),
+            vec3(0.0, 0.0, 0.0),
+            vec3(0.0, 1.0, 0.0),
+            degrees(45.0),
+            0.1,
+            10.0,
+        );
+
+        // Create a CPU-side mesh consisting of a single colored triangle
+        let positions = vec![
+            vec3(0.5, -0.5, 0.0),  // bottom right
+            vec3(-0.5, -0.5, 0.0), // bottom left
+            vec3(0.0, 0.5, 0.0),   // top
+        ];
+        let colors = vec![
+            Color::new(255, 0, 0, 255), // bottom right
+            Color::new(0, 255, 0, 255), // bottom left
+            Color::new(0, 0, 255, 255), // top
+        ];
+        let cpu_mesh = CpuMesh {
+            positions: Positions::F32(positions),
+            colors: Some(colors),
+            ..Default::default()
+        };
+
+        // Construct a model, with a default color material, thereby transferring the mesh data to the GPU
+        let model = Gm::new(Mesh::new(&context, &cpu_mesh), ColorMaterial::default());
         Self {
-            context: Context::from_gl_context(gl).unwrap(),
+            context,
+            camera,
+            model,
         }
     }
 }
 
 impl ThreeDApp {
     fn custom_painting(
-        &self,
+        &mut self,
         info: egui::PaintCallbackInfo,
         painter: &egui_glow::Painter,
         angle: f32,
@@ -134,57 +170,24 @@ impl ThreeDApp {
     }
 
     fn render(
-        &self,
+        &mut self,
         screen: &three_d::RenderTarget,
         viewport: three_d::Viewport,
         scissor_box: three_d::ScissorBox,
         angle: f32,
     ) {
-        // Based on https://github.com/asny/three-d/blob/master/examples/triangle/src/main.rs
-
-        // Create a camera
-        let camera = Camera::new_perspective(
-            viewport,
-            vec3(0.0, 0.0, 2.0),
-            vec3(0.0, 0.0, 0.0),
-            vec3(0.0, 1.0, 0.0),
-            degrees(45.0),
-            0.1,
-            10.0,
-        );
-
-        // Create a CPU-side mesh consisting of a single colored triangle
-        let positions = vec![
-            vec3(0.5, -0.5, 0.0),  // bottom right
-            vec3(-0.5, -0.5, 0.0), // bottom left
-            vec3(0.0, 0.5, 0.0),   // top
-        ];
-        let colors = vec![
-            Color::new(255, 0, 0, 255), // bottom right
-            Color::new(0, 255, 0, 255), // bottom left
-            Color::new(0, 0, 255, 255), // top
-        ];
-        let cpu_mesh = CpuMesh {
-            positions: Positions::F32(positions),
-            colors: Some(colors),
-            ..Default::default()
-        };
-
-        // Construct a model, with a default color material, thereby transferring the mesh data to the GPU
-        let mut model = Gm::new(
-            Mesh::new(&self.context, &cpu_mesh),
-            ColorMaterial::default(),
-        );
+        self.camera.set_viewport(viewport);
 
         // Set the current transformation of the triangle
-        model.set_transformation(Mat4::from_angle_y(radians(angle)));
+        self.model
+            .set_transformation(Mat4::from_angle_y(radians(angle)));
 
         // Get the screen render target to be able to render something on the screen
         screen
             // Clear the color and depth of the screen render target
             .clear_partially(scissor_box, ClearState::depth(1.0))
             // Render the triangle with the color material which uses the per vertex colors defined at construction
-            .render_partially(scissor_box, &camera, &[&model], &[]);
+            .render_partially(scissor_box, &self.camera, &[&self.model], &[]);
     }
 }
 
@@ -195,7 +198,7 @@ impl ThreeDApp {
 /// [`egui::PaintCallback`] is.
 fn with_three_d_context<R>(
     gl: &std::sync::Arc<glow::Context>,
-    f: impl FnOnce(&ThreeDApp) -> R,
+    f: impl FnOnce(&mut ThreeDApp) -> R,
 ) -> R {
     use std::cell::RefCell;
     thread_local! {
