@@ -4,7 +4,7 @@
 pub struct WindowSettings {
     /// Position of window in physical pixels. This is either
     /// the inner or outer position depending on the platform.
-    /// See [`winit::window::WindowAttributes`] for details.
+    /// See [`winit::window::WindowBuilder::with_position`] for details.
     position: Option<egui::Pos2>,
 
     fullscreen: bool,
