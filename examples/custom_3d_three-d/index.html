@@ -13,7 +13,7 @@
       // will "boot" the module and make it ready to use. Currently browsers
       // don't support natively imported WebAssembly as an ES module, but
       // eventually the manual initialization won't be required!
-      import init from './pkg/web.js';
+      import init from './pkg/custom_3d_three_d.js';
 
       async function run() {
         // First up we need to actually load the wasm file, so we use the
@@ -29,7 +29,7 @@
         // Also note that the promise, when resolved, yields the wasm module's
         // exports which is the same as importing the `*_bg` module in other
         // modes
-        await init('./pkg/web_bg.wasm');
+        await init('./pkg/custom_3d_three_d_bg.wasm');
       }
 
       run();
