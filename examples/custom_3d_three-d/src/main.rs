@@ -57,7 +57,7 @@ impl eframe::App for MyApp {
                             move |info, painter| {
                                 with_three_d(painter.gl(), |three_d| {
                                     three_d.frame(
-                                        FrameInput::new(&three_d.context, info, painter),
+                                        FrameInput::new(&three_d.context, &info, painter),
                                         angle,
                                     );
                                 });
@@ -102,7 +102,7 @@ pub struct FrameInput<'a> {
 impl FrameInput<'_> {
     pub fn new(
         context: &three_d::Context,
-        info: egui::PaintCallbackInfo,
+        info: &egui::PaintCallbackInfo,
         painter: &egui_glow::Painter,
     ) -> Self {
         use three_d::*;
@@ -126,11 +126,13 @@ impl FrameInput<'_> {
                     fbo,
                 )
             })
-            .unwrap_or(RenderTarget::screen(
-                context,
-                info.viewport.width() as u32,
-                info.viewport.height() as u32,
-            ));
+            .unwrap_or_else(|| {
+                RenderTarget::screen(
+                    context,
+                    info.viewport.width() as u32,
+                    info.viewport.height() as u32,
+                )
+            });
 
         // Set where to paint
         let viewport = info.viewport_in_pixels();
@@ -158,7 +160,7 @@ impl FrameInput<'_> {
 }
 
 ///
-/// Based on https://github.com/asny/three-d/blob/master/examples/triangle/src/main.rs
+/// Based on the `three-d` [Triangle example](https://github.com/asny/three-d/blob/master/examples/triangle/src/main.rs).
 /// This is where you'll need to customize
 ///
 use three_d::*;
@@ -208,7 +210,7 @@ impl ThreeDApp {
         }
     }
 
-    pub fn frame(&mut self, frame_input: FrameInput, angle: f32) -> Option<glow::Framebuffer> {
+    pub fn frame(&mut self, frame_input: FrameInput<'_>, angle: f32) -> Option<glow::Framebuffer> {
         // Ensure the viewport matches the current window viewport which changes if the window is resized
         self.camera.set_viewport(frame_input.viewport);
 
