@@ -54,8 +54,11 @@ impl eframe::App for MyApp {
                         rect,
                         callback: std::sync::Arc::new(egui_glow::CallbackFn::new(
                             move |info, painter| {
-                                with_three_d_context(painter.gl(), |three_d| {
-                                    three_d.custom_painting(info, painter, angle);
+                                with_three_d(painter.gl(), |three_d| {
+                                    three_d.frame(
+                                        FrameInput::new(&three_d.context, info, painter),
+                                        angle,
+                                    );
                                 });
                             },
                         )),
@@ -68,9 +71,97 @@ impl eframe::App for MyApp {
     }
 }
 
-// Based on https://github.com/asny/three-d/blob/master/examples/triangle/src/main.rs
+/// We get a [`glow::Context`] from `eframe` and we want to construct a [`ThreeDApp`].
+///
+/// Sadly we can't just create a [`ThreeDApp`] in [`MyApp::new`] and pass it
+/// to the [`egui::PaintCallback`] because [`glow::Context`] isn't `Send+Sync` on web, which
+/// [`egui::PaintCallback`] needs. If you do not target web, then you can construct the [`ThreeDApp`] in [`MyApp::new`].
+fn with_three_d<R>(gl: &std::sync::Arc<glow::Context>, f: impl FnOnce(&mut ThreeDApp) -> R) -> R {
+    use std::cell::RefCell;
+    thread_local! {
+        pub static THREE_D: RefCell<Option<ThreeDApp>> = RefCell::new(None);
+    }
+
+    THREE_D.with(|three_d| {
+        let mut three_d = three_d.borrow_mut();
+        let three_d = three_d.get_or_insert_with(|| ThreeDApp::new(gl.clone()));
+        f(three_d)
+    })
+}
+
+///
+/// Translates from egui input to three-d input
+///
+pub struct FrameInput<'a> {
+    screen: three_d::RenderTarget<'a>,
+    viewport: three_d::Viewport,
+    scissor_box: three_d::ScissorBox,
+}
+
+impl FrameInput<'_> {
+    pub fn new(
+        context: &three_d::Context,
+        info: egui::PaintCallbackInfo,
+        painter: &egui_glow::Painter,
+    ) -> Self {
+        use three_d::*;
+
+        // Disable sRGB textures for three-d
+        #[cfg(not(target_arch = "wasm32"))]
+        #[allow(unsafe_code)]
+        unsafe {
+            use glow::HasContext as _;
+            context.disable(glow::FRAMEBUFFER_SRGB);
+        }
+
+        // Constructs a screen render target to render the final image to
+        let screen = painter
+            .intermediate_fbo()
+            .map(|fbo| {
+                RenderTarget::from_framebuffer(
+                    context,
+                    info.viewport.width() as u32,
+                    info.viewport.height() as u32,
+                    fbo,
+                )
+            })
+            .unwrap_or(RenderTarget::screen(
+                context,
+                info.viewport.width() as u32,
+                info.viewport.height() as u32,
+            ));
+
+        // Set where to paint
+        let viewport = info.viewport_in_pixels();
+        let viewport = Viewport {
+            x: viewport.left_px.round() as _,
+            y: viewport.from_bottom_px.round() as _,
+            width: viewport.width_px.round() as _,
+            height: viewport.height_px.round() as _,
+        };
+
+        // Respect the egui clip region (e.g. if we are inside an `egui::ScrollArea`).
+        let clip_rect = info.clip_rect_in_pixels();
+        let scissor_box = ScissorBox {
+            x: clip_rect.left_px.round() as _,
+            y: clip_rect.from_bottom_px.round() as _,
+            width: clip_rect.width_px.round() as _,
+            height: clip_rect.height_px.round() as _,
+        };
+        Self {
+            screen,
+            scissor_box,
+            viewport,
+        }
+    }
+}
+
+///
+/// Based on https://github.com/asny/three-d/blob/master/examples/triangle/src/main.rs
+/// This is where you'll need to customize
+///
 use three_d::*;
-struct ThreeDApp {
+pub struct ThreeDApp {
     context: Context,
     camera: Camera,
     model: Gm<Mesh, ColorMaterial>,
@@ -115,99 +206,23 @@ impl ThreeDApp {
             model,
         }
     }
-}
 
-impl ThreeDApp {
-    fn custom_painting(
-        &mut self,
-        info: egui::PaintCallbackInfo,
-        painter: &egui_glow::Painter,
-        angle: f32,
-    ) {
-        #[cfg(not(target_arch = "wasm32"))]
-        #[allow(unsafe_code)]
-        unsafe {
-            use glow::HasContext as _;
-            self.context.disable(glow::FRAMEBUFFER_SRGB);
-        }
-
-        let screen = painter
-            .intermediate_fbo()
-            .map(|fbo| {
-                RenderTarget::from_framebuffer(
-                    &self.context,
-                    info.viewport.width() as u32,
-                    info.viewport.height() as u32,
-                    fbo,
-                )
-            })
-            .unwrap_or(RenderTarget::screen(
-                &self.context,
-                info.viewport.width() as u32,
-                info.viewport.height() as u32,
-            ));
-
-        // Set where to paint
-        let viewport = info.viewport_in_pixels();
-        let viewport = Viewport {
-            x: viewport.left_px.round() as _,
-            y: viewport.from_bottom_px.round() as _,
-            width: viewport.width_px.round() as _,
-            height: viewport.height_px.round() as _,
-        };
-
-        // Respect the egui clip region (e.g. if we are inside an `egui::ScrollArea`).
-        let clip_rect = info.clip_rect_in_pixels();
-        let scissor_box = ScissorBox {
-            x: clip_rect.left_px.round() as _,
-            y: clip_rect.from_bottom_px.round() as _,
-            width: clip_rect.width_px.round() as _,
-            height: clip_rect.height_px.round() as _,
-        };
-
-        self.render(&screen, viewport, scissor_box, angle);
-        screen.into_framebuffer(); // Take back the screen fbo, we will continue to use it.
-    }
-
-    fn render(
-        &mut self,
-        screen: &three_d::RenderTarget,
-        viewport: three_d::Viewport,
-        scissor_box: three_d::ScissorBox,
-        angle: f32,
-    ) {
-        self.camera.set_viewport(viewport);
+    pub fn frame(&mut self, frame_input: FrameInput, angle: f32) -> Option<glow::Framebuffer> {
+        // Ensure the viewport matches the current window viewport which changes if the window is resized
+        self.camera.set_viewport(frame_input.viewport);
 
         // Set the current transformation of the triangle
         self.model
             .set_transformation(Mat4::from_angle_y(radians(angle)));
 
         // Get the screen render target to be able to render something on the screen
-        screen
+        frame_input
+            .screen
             // Clear the color and depth of the screen render target
-            .clear_partially(scissor_box, ClearState::depth(1.0))
+            .clear_partially(frame_input.scissor_box, ClearState::depth(1.0))
             // Render the triangle with the color material which uses the per vertex colors defined at construction
-            .render_partially(scissor_box, &self.camera, &[&self.model], &[]);
-    }
-}
+            .render_partially(frame_input.scissor_box, &self.camera, &[&self.model], &[]);
 
-/// We get a [`glow::Context`] from `eframe`, but we want a [`three_d::Context`].
-///
-/// Sadly we can't just create a [`three_d::Context`] in [`MyApp::new`] and pass it
-/// to the [`egui::PaintCallback`] because [`three_d::Context`] isn't `Send+Sync`, which
-/// [`egui::PaintCallback`] is.
-fn with_three_d_context<R>(
-    gl: &std::sync::Arc<glow::Context>,
-    f: impl FnOnce(&mut ThreeDApp) -> R,
-) -> R {
-    use std::cell::RefCell;
-    thread_local! {
-        pub static THREE_D: RefCell<Option<ThreeDApp>> = RefCell::new(None);
+        frame_input.screen.into_framebuffer() // Take back the screen fbo, we will continue to use it.
     }
-
-    THREE_D.with(|three_d| {
-        let mut three_d = three_d.borrow_mut();
-        let three_d = three_d.get_or_insert_with(|| ThreeDApp::new(gl.clone()));
-        f(three_d)
-    })
 }
