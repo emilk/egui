@@ -64,7 +64,7 @@ nohash-hasher = "0.2"
 ## Enable this when generating docs.
 document-features = { version = "0.2", optional = true }
 
-ron = { version = "0.7", optional = true }
+ron = { version = "0.8", optional = true }
 serde = { version = "1", optional = true, features = ["derive", "rc"] }
 
 # egui doesn't log much, but when it does, it uses [`tracing`](https://docs.rs/tracing).
