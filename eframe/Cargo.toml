@@ -94,6 +94,7 @@ directories-next = { version = "2", optional = true }
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 bytemuck = "1.7"
+getrandom = { version = "0.2", features = ["js"] } # used by ahash
 js-sys = "0.3"
 percent-encoding = "2.1"
 wasm-bindgen = "0.2"
