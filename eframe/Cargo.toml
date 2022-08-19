@@ -74,7 +74,7 @@ document-features = { version = "0.2", optional = true }
 egui_glow = { version = "0.18.0", path = "../egui_glow", optional = true, default-features = false }
 egui-wgpu = { version = "0.18.0", path = "../egui-wgpu", optional = true, features = ["winit"] }
 glow = { version = "0.11", optional = true }
-ron = { version = "0.8", optional = true }
+ron = { version = "0.8", optional = true, features = ["integer128"] }
 serde = { version = "1", optional = true, features = ["derive"] }
 wgpu = { version = "0.13", optional = true }
 
