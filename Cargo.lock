@@ -1261,6 +1261,7 @@ dependencies = [
  "serde",
  "tracing-subscriber",
  "tracing-wasm",
+ "web-sys",
  "wgpu",
 ]
 

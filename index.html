@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+<!-- Disable zooming: -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+<head>
+    <title>egui – An immediate mode GUI written in Rust</title>
+
+    <!-- config for our rust wasm binary. go to https://trunkrs.dev/assets/#rust for more customization -->
+    <link data-trunk rel="rust" data-wasm-opt="2" href="egui_demo_app" />
+    <!-- this is the base url relative to which other urls will be constructed. trunk will insert this from the public-url option -->
+    <base data-trunk-public-url />
+
+    <link data-trunk rel="icon" href="assets/favicon.ico">
+    <link data-trunk rel="copy-file" href="assets/CNAME">
+
+    <style>
+        html {
+            /* Remove touch delay: */
+            touch-action: manipulation;
+        }
+
+        body {
+            /* Light mode background color for what is not covered by the egui canvas,
+            or where the egui canvas is translucent. */
+            background: #909090;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body {
+                /* Dark mode background color for what is not covered by the egui canvas,
+                or where the egui canvas is translucent. */
+                background: #404040;
+            }
+        }
+
+        /* Allow canvas to fill entire web page: */
+        html,
+        body {
+            overflow: hidden;
+            margin: 0 !important;
+            padding: 0 !important;
+            height: 100%;
+            width: 100%;
+        }
+
+        /* Position canvas in center-top: */
+        canvas {
+            margin-right: auto;
+            margin-left: auto;
+            display: block;
+            position: absolute;
+            top: 0%;
+            left: 50%;
+            transform: translate(-50%, 0%);
+        }
+
+        .centered {
+            margin-right: auto;
+            margin-left: auto;
+            display: block;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #f0f0f0;
+            font-size: 24px;
+            font-family: Ubuntu-Light, Helvetica, sans-serif;
+            text-align: center;
+        }
+
+        /* ---------------------------------------------- */
+        /* Loading animation from https://loading.io/css/ */
+        .lds-dual-ring {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+        }
+
+        .lds-dual-ring:after {
+            content: " ";
+            display: block;
+            width: 24px;
+            height: 24px;
+            margin: 0px;
+            border-radius: 50%;
+            border: 3px solid #fff;
+            border-color: #fff transparent #fff transparent;
+            animation: lds-dual-ring 1.2s linear infinite;
+        }
+
+        @keyframes lds-dual-ring {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+    </style>
+</head>
+
+<body>
+    <!-- The WASM code will resize the canvas dynamically -->
+    <!-- The canvas id is hardcoded in `egui_demo_app/src/main.rs` so, make sure they match -->
+    <canvas id="the_canvas_id"></canvas>
+
+    <div class="centered" id="loading_text">
+        <p style="font-size:16px">
+            Loading…
+        </p>
+        <div class="lds-dual-ring"></div>
+    </div>
+</body>
+
+</html>
+
+<!-- Powered by egui: https://github.com/emilk/egui/ -->

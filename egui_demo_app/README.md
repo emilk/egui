@@ -5,7 +5,11 @@ View the demo app online at <https://egui.rs>.
 
 Run it locally with `cargo run --release -p egui_demo_app`.
 
-`egui_demo_app` can be compiled to WASM and viewed in a browser locally with:
+`egui_demo_app` can be compiled to WASM and viewed in a browser locally using [Trunk](https://trunkrs.dev/).
+
+First install trunk with `cargo install --locked trunk`.
+
+Run `trunk serve` to build and serve on `http://127.0.0.1:8080`. It will rebuild automatically if you edit the project.
 
 ```sh
 ./sh/start_server.sh &
