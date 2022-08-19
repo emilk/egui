@@ -44,7 +44,7 @@ egui = { version = "0.18.0", path = "../egui", default-features = false, feature
 ] }
 egui-winit = { version = "0.18.0", path = "../egui-winit", default-features = false }
 
-ahash = "0.7"
+ahash = "0.8"
 bytemuck = "1.7"
 glium = "0.32"
 

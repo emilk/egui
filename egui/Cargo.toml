@@ -57,7 +57,7 @@ serde = ["dep:serde", "epaint/serde"]
 [dependencies]
 epaint = { version = "0.18.1", path = "../epaint", default-features = false }
 
-ahash = "0.7"
+ahash = "0.8"
 nohash-hasher = "0.2"
 
 #! ### Optional dependencies

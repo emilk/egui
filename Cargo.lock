@@ -53,6 +53,18 @@ checksum = "fcb51a0695d8f838b1ee009b3fbf66bda078cd64590202a864a8f3e8c4315c47"
 dependencies = [
  "getrandom",
  "once_cell",
+ "version_check",
+]
+
+[[package]]
+name = "ahash"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57e6e951cfbb2db8de1828d49073a113a29fd7117b1596caa781a258c7e38d72"
+dependencies = [
+ "cfg-if",
+ "getrandom",
+ "once_cell",
  "serde",
  "version_check",
 ]
@@ -1199,7 +1211,7 @@ dependencies = [
 name = "egui"
 version = "0.18.1"
 dependencies = [
- "ahash 0.7.6",
+ "ahash 0.8.0",
  "document-features",
  "epaint",
  "nohash-hasher",
@@ -1295,7 +1307,7 @@ dependencies = [
 name = "egui_glium"
 version = "0.18.0"
 dependencies = [
- "ahash 0.7.6",
+ "ahash 0.8.0",
  "bytemuck",
  "document-features",
  "egui",
@@ -1410,7 +1422,7 @@ name = "epaint"
 version = "0.18.1"
 dependencies = [
  "ab_glyph",
- "ahash 0.7.6",
+ "ahash 0.8.0",
  "atomic_refcell",
  "backtrace",
  "bytemuck",

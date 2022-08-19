@@ -3,7 +3,6 @@
 use std::{cell::Cell, ops::RangeInclusive, rc::Rc};
 
 use crate::*;
-use epaint::ahash::AHashSet;
 use epaint::color::Hsva;
 use epaint::util::FloatOrd;
 
@@ -96,7 +95,7 @@ impl From<bool> for AutoBounds {
 struct PlotMemory {
     auto_bounds: AutoBounds,
     hovered_entry: Option<String>,
-    hidden_items: AHashSet<String>,
+    hidden_items: ahash::HashSet<String>,
     min_auto_bounds: PlotBounds,
     last_screen_transform: ScreenTransform,
     /// Allows to remember the first click position when performing a boxed zoom
