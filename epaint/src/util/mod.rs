@@ -6,7 +6,7 @@ pub use ordered_float::*;
 #[inline]
 pub fn hash(value: impl std::hash::Hash) -> u64 {
     use std::hash::Hasher as _;
-    let mut hasher = ahash::AHasher::new_with_keys(123, 456);
+    let mut hasher = ahash::AHasher::default();
     value.hash(&mut hasher);
     hasher.finish()
 }

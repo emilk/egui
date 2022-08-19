@@ -119,7 +119,7 @@ impl<Value: 'static + Send + Sync, Computer: 'static + Send + Sync> CacheTrait
 /// ```
 #[derive(Default)]
 pub struct CacheStorage {
-    caches: ahash::AHashMap<std::any::TypeId, Box<dyn CacheTrait>>,
+    caches: ahash::HashMap<std::any::TypeId, Box<dyn CacheTrait>>,
 }
 
 impl CacheStorage {

@@ -4,7 +4,6 @@
 use egui::epaint::Primitive;
 
 use {
-    ahash::AHashMap,
     egui::{emath::Rect, epaint::Mesh},
     glium::{
         implement_vertex,
@@ -21,7 +20,7 @@ pub struct Painter {
     max_texture_side: usize,
     program: glium::Program,
 
-    textures: AHashMap<egui::TextureId, Rc<SrgbTexture2d>>,
+    textures: ahash::HashMap<egui::TextureId, Rc<SrgbTexture2d>>,
 
     /// [`egui::TextureId::User`] index
     next_native_tex_id: u64,

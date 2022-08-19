@@ -535,7 +535,7 @@ pub struct FontsImpl {
     definitions: FontDefinitions,
     atlas: Arc<Mutex<TextureAtlas>>,
     font_impl_cache: FontImplCache,
-    sized_family: ahash::AHashMap<(u32, FontFamily), Font>,
+    sized_family: ahash::HashMap<(u32, FontFamily), Font>,
 }
 
 impl FontsImpl {
@@ -673,7 +673,7 @@ struct FontImplCache {
     ab_glyph_fonts: BTreeMap<String, (FontTweak, ab_glyph::FontArc)>,
 
     /// Map font pixel sizes and names to the cached [`FontImpl`].
-    cache: ahash::AHashMap<(u32, String), Arc<FontImpl>>,
+    cache: ahash::HashMap<(u32, String), Arc<FontImpl>>,
 }
 
 impl FontImplCache {

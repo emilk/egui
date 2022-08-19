@@ -46,7 +46,7 @@ impl Id {
     /// Generate a new [`Id`] by hashing some source (e.g. a string or integer).
     pub fn new(source: impl std::hash::Hash) -> Id {
         use std::hash::Hasher;
-        let mut hasher = epaint::ahash::AHasher::new_with_keys(123, 456);
+        let mut hasher = epaint::ahash::AHasher::default();
         source.hash(&mut hasher);
         Id(hasher.finish())
     }
@@ -54,7 +54,7 @@ impl Id {
     /// Generate a new [`Id`] by hashing the parent [`Id`] and the given argument.
     pub fn with(self, child: impl std::hash::Hash) -> Id {
         use std::hash::Hasher;
-        let mut hasher = epaint::ahash::AHasher::new_with_keys(123, 456);
+        let mut hasher = epaint::ahash::AHasher::default();
         hasher.write_u64(self.0);
         child.hash(&mut hasher);
         Id(hasher.finish())
