@@ -780,7 +780,10 @@ pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &st
 /// Serialize the given value as [RON](https://github.com/ron-rs/ron) and store with the given key.
 #[cfg(feature = "ron")]
 pub fn set_value<T: serde::Serialize>(storage: &mut dyn Storage, key: &str, value: &T) {
-    storage.set_string(key, ron::ser::to_string(value).unwrap());
+    match ron::ser::to_string(value) {
+        Ok(string) => storage.set_string(key, string),
+        Err(err) => tracing::error!("eframe failed to encode data using ron: {}", err),
+    }
 }
 
 /// [`Storage`] key used for app
