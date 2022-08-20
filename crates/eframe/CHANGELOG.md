@@ -7,8 +7,8 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 ## Unreleased
 * MSRV (Minimum Supported Rust Version) is now `1.61.0` ([#1846](https://github.com/emilk/egui/pull/1846)).
 * Added `wgpu` rendering backed ([#1564](https://github.com/emilk/egui/pull/1564)):
-  * Added features "wgpu" and "glow"
-  * Added `NativeOptions::renderer` to switch between the rendering backends
+  * Added features `wgpu` and `glow`.
+  * Added `NativeOptions::renderer` to switch between the rendering backends.
 * `egui_glow`: remove calls to `gl.get_error` in release builds to speed up rendering ([#1583](https://github.com/emilk/egui/pull/1583)).
 * Added `App::post_rendering` for e.g. reading the framebuffer ([#1591](https://github.com/emilk/egui/pull/1591)).
 * Use `Arc` for `glow::Context` instead of `Rc` ([#1640](https://github.com/emilk/egui/pull/1640)).
@@ -21,14 +21,14 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 * Added ability to read window position and size with `frame.info().window_info` ([#1617](https://github.com/emilk/egui/pull/1617)).
 * Allow running on native without hardware accelerated rendering. Change with `NativeOptions::hardware_acceleration` ([#1681](https://github.com/emilk/egui/pull/1681), [#1693](https://github.com/emilk/egui/pull/1693)).
 * Fixed window position persistence ([#1745](https://github.com/emilk/egui/pull/1745)).
-* `dark-light` (dark mode detection) is now enabled by default on Mac and Windows ([#1726](https://github.com/emilk/egui/pull/1726)).
 * Fixed mouse cursor change on Linux ([#1747](https://github.com/emilk/egui/pull/1747)).
 * Added `Frame::set_visible` ([#1808](https://github.com/emilk/egui/pull/1808)).
 * Added fullscreen support ([#1866](https://github.com/emilk/egui/pull/1866)).
 
 #### Web:
-* Added option to select WebGL version ([#1803](https://github.com/emilk/egui/pull/1803)).
 * Added ability to stop/re-run web app from JavaScript. ⚠️ You need to update your CSS with `html, body: { height: 100%; width: 100%; }` ([#1803](https://github.com/emilk/egui/pull/1650)).
+* Added `WebOptions::follow_system_theme` and `WebOptions::default_theme` ([#1726](https://github.com/emilk/egui/pull/1726)).
+* Added option to select WebGL version ([#1803](https://github.com/emilk/egui/pull/1803)).
 
 
 

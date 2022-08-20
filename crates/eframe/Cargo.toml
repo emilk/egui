@@ -20,7 +20,7 @@ all-features = true
 
 
 [features]
-default = ["dark-light", "default_fonts", "glow"]
+default = ["default_fonts", "glow"]
 
 ## Detect dark mode system preference using [`dark-light`](https://docs.rs/dark-light).
 ##
