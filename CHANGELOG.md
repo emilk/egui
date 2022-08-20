@@ -17,6 +17,7 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 * Added support for using `PaintCallback` shapes with the WGPU backend ([#1684](https://github.com/emilk/egui/pull/1684)).
 * Added `Contex::request_repaint_after` ([#1694](https://github.com/emilk/egui/pull/1694)).
 * `ctrl-h` now acts like backspace in `TextEdit` ([#1812](https://github.com/emilk/egui/pull/1812)).
+* Added `custom_formatter` method for `Slider` and `DragValue` ([#1851](https://github.com/emilk/egui/issues/1851)).
 * Added `RawInput::has_focus` which backends can set to indicate whether the UI as a whole has the keyboard focus ([#1859](https://github.com/emilk/egui/pull/1859)).
 * Added `PointerState::button_double_clicked()` and `PointerState::button_triple_clicked()` ([#1906](https://github.com/emilk/egui/issues/1906)).
 
@@ -25,7 +26,8 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 * `PaintCallback` shapes now require the whole callback to be put in an `Arc<dyn Any>` with the value being a backend-specific callback type ([#1684](https://github.com/emilk/egui/pull/1684)).
 * Replaced `needs_repaint` in `FullOutput` with `repaint_after`. Used to force repaint after the set duration in reactive mode ([#1694](https://github.com/emilk/egui/pull/1694)).
 * `Layout::left_to_right` and `Layout::right_to_left` now takes the vertical align as an argument. Previous default was `Align::Center`.
-* Improved ergonomics of adding plot items. All plot items that take a series of 2D coordinates can now be created directly from `Vec<[f64; 2]>`. The `Value` and `Values` types were removed in favor of `PlotPoint` and `PlotPoints` respectively.
+* Improved ergonomics of adding plot items. All plot items that take a series of 2D coordinates can now be created directly from `Vec<[f64; 2]>`. The `Value` and `Values` types were removed in favor of `PlotPoint` and `PlotPoints` respectively ([#1816](https://github.com/emilk/egui/pull/1816)).
+* `TextBuffer` no longer needs to implement `AsRef<str>` ([#1824](https://github.com/emilk/egui/pull/1824)).
 
 ### Fixed 🐛
 * Fixed `Response::changed` for `ui.toggle_value` ([#1573](https://github.com/emilk/egui/pull/1573)).
@@ -33,6 +35,8 @@ NOTE: [`epaint`](epaint/CHANGELOG.md), [`eframe`](eframe/CHANGELOG.md), [`egui-w
 * Fixed `Plot` auto-bounds bug ([#1599](https://github.com/emilk/egui/pull/1599)).
 * Fixed dead-lock when alt-tabbing while also showing a tooltip ([#1618](https://github.com/emilk/egui/pull/1618)).
 * Fixed `ScrollArea` scrolling when editing an unrelated `TextEdit` ([#1779](https://github.com/emilk/egui/pull/1779)).
+* Fixed `Slider` not always generating events on change ([#1854](https://github.com/emilk/egui/pull/1854)).
+* Fixed jitter of anchored windows for the first frame ([#1856](https://github.com/emilk/egui/pull/1856)).
 * Fixed focus behavior when pressing Tab in a UI with no focused widget ([#1861](https://github.com/emilk/egui/pull/1861)).
 * Fixed automatic plot bounds ([#1865](https://github.com/emilk/egui/pull/1865)).
 
