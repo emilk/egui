@@ -19,6 +19,8 @@ mod post_process;
 mod shader_version;
 mod vao;
 
+pub use shader_version::ShaderVersion;
+
 #[cfg(all(not(target_arch = "wasm32"), feature = "winit"))]
 pub mod winit;
 #[cfg(all(not(target_arch = "wasm32"), feature = "winit"))]

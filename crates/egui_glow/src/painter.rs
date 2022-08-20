@@ -114,7 +114,7 @@ impl Painter {
 
         let shader_version = ShaderVersion::get(&gl);
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
-        let header = shader_version.version();
+        let header = shader_version.version_declaration();
         tracing::debug!("Shader header: {:?}.", header);
         let srgb_support = gl.supported_extensions().contains("EXT_sRGB");
 
@@ -155,7 +155,11 @@ impl Painter {
                     "{}\n{}\n{}\n{}",
                     header,
                     shader_prefix,
-                    shader_version.is_new_shader_interface(),
+                    if shader_version.is_new_shader_interface() {
+                        "#define NEW_SHADER_INTERFACE\n"
+                    } else {
+                        ""
+                    },
                     VERT_SRC
                 ),
             )?;
@@ -167,7 +171,11 @@ impl Painter {
                     header,
                     shader_prefix,
                     srgb_support_define,
-                    shader_version.is_new_shader_interface(),
+                    if shader_version.is_new_shader_interface() {
+                        "#define NEW_SHADER_INTERFACE\n"
+                    } else {
+                        ""
+                    },
                     FRAG_SRC
                 ),
             )?;

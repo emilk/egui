@@ -84,44 +84,72 @@ impl RotatingTriangle {
     fn new(gl: &glow::Context) -> Self {
         use glow::HasContext as _;
 
-        let shader_version = if cfg!(target_arch = "wasm32") {
-            "#version 300 es"
-        } else {
-            "#version 330"
-        };
+        let shader_version = egui_glow::ShaderVersion::get(gl);
 
         unsafe {
             let program = gl.create_program().expect("Cannot create program");
 
-            let (vertex_shader_source, fragment_shader_source) = (
-                r#"
-                    const vec2 verts[3] = vec2[3](
-                        vec2(0.0, 1.0),
-                        vec2(-1.0, -1.0),
-                        vec2(1.0, -1.0)
-                    );
-                    const vec4 colors[3] = vec4[3](
-                        vec4(1.0, 0.0, 0.0, 1.0),
-                        vec4(0.0, 1.0, 0.0, 1.0),
-                        vec4(0.0, 0.0, 1.0, 1.0)
-                    );
-                    out vec4 v_color;
-                    uniform float u_angle;
-                    void main() {
-                        v_color = colors[gl_VertexID];
-                        gl_Position = vec4(verts[gl_VertexID], 0.0, 1.0);
-                        gl_Position.x *= cos(u_angle);
-                    }
-                "#,
-                r#"
-                    precision mediump float;
-                    in vec4 v_color;
-                    out vec4 out_color;
-                    void main() {
-                        out_color = v_color;
-                    }
-                "#,
-            );
+            let (vertex_shader_source, fragment_shader_source) =
+                if shader_version.is_new_shader_interface() {
+                    (
+                        r#"
+                        const vec2 verts[3] = vec2[3](
+                            vec2(0.0, 1.0),
+                            vec2(-1.0, -1.0),
+                            vec2(1.0, -1.0)
+                        );
+                        const vec4 colors[3] = vec4[3](
+                            vec4(1.0, 0.0, 0.0, 1.0),
+                            vec4(0.0, 1.0, 0.0, 1.0),
+                            vec4(0.0, 0.0, 1.0, 1.0)
+                        );
+                        uniform float u_angle;
+                        out vec4 v_color;
+                        void main() {
+                            v_color = colors[gl_VertexID];
+                            gl_Position = vec4(verts[gl_VertexID], 0.0, 1.0);
+                            gl_Position.x *= cos(u_angle);
+                        }
+                    "#,
+                        r#"
+                        precision mediump float;
+                        in vec4 v_color;
+                        out vec4 out_color;
+                        void main() {
+                            out_color = v_color;
+                        }
+                    "#,
+                    )
+                } else {
+                    (
+                        r#"
+                        const vec2 verts[3] = vec2[3](
+                            vec2(0.0, 1.0),
+                            vec2(-1.0, -1.0),
+                            vec2(1.0, -1.0)
+                        );
+                        const vec4 colors[3] = vec4[3](
+                            vec4(1.0, 0.0, 0.0, 1.0),
+                            vec4(0.0, 1.0, 0.0, 1.0),
+                            vec4(0.0, 0.0, 1.0, 1.0)
+                        );
+                        uniform float u_angle;
+                        varying vec4 v_color;
+                        void main() {
+                            v_color = colors[gl_VertexID];
+                            gl_Position = vec4(verts[gl_VertexID], 0.0, 1.0);
+                            gl_Position.x *= cos(u_angle);
+                        }
+                    "#,
+                        r#"
+                        precision mediump float;
+                        varying vec4 v_color;
+                        void main() {
+                            gl_FragColor = v_color;
+                        }
+                    "#,
+                    )
+                };
 
             let shader_sources = [
                 (glow::VERTEX_SHADER, vertex_shader_source),
@@ -134,10 +162,20 @@ impl RotatingTriangle {
                     let shader = gl
                         .create_shader(*shader_type)
                         .expect("Cannot create shader");
-                    gl.shader_source(shader, &format!("{}\n{}", shader_version, shader_source));
+                    gl.shader_source(
+                        shader,
+                        &format!(
+                            "{}\n{}",
+                            shader_version.version_declaration(),
+                            shader_source
+                        ),
+                    );
                     gl.compile_shader(shader);
                     if !gl.get_shader_compile_status(shader) {
-                        panic!("{}", gl.get_shader_info_log(shader));
+                        panic!(
+                            "Failed to compile custom_3d_glow: {}",
+                            gl.get_shader_info_log(shader)
+                        );
                     }
                     gl.attach_shader(program, shader);
                     shader
