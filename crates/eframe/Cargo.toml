@@ -55,7 +55,7 @@ screen_reader = [
   "tts",
 ]
 
-## Use [`wgpu`](https://docs.rs/wgpu) for painting (via [`egui_wgpu`](https://github.com/emilk/egui/tree/master/crates/egui_wgpu)).
+## Use [`wgpu`](https://docs.rs/wgpu) for painting (via [`egui-wgpu`](https://github.com/emilk/egui/tree/master/crates/egui-wgpu)).
 ## This overrides the `glow` feature.
 wgpu = ["dep:wgpu", "egui-wgpu"]
 

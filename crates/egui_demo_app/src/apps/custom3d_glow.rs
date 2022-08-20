@@ -11,13 +11,12 @@ pub struct Custom3d {
 }
 
 impl Custom3d {
-    pub fn new<'a>(cc: &'a eframe::CreationContext<'a>) -> Self {
-        Self {
-            rotating_triangle: Arc::new(Mutex::new(RotatingTriangle::new(
-                cc.gl.as_ref().expect("GL Enabled"),
-            ))),
+    pub fn new<'a>(cc: &'a eframe::CreationContext<'a>) -> Option<Self> {
+        let gl = cc.gl.as_ref()?;
+        Some(Self {
+            rotating_triangle: Arc::new(Mutex::new(RotatingTriangle::new(gl)?)),
             angle: 0.0,
-        }
+        })
     }
 }
 
@@ -81,7 +80,7 @@ struct RotatingTriangle {
 
 #[allow(unsafe_code)] // we need unsafe code to use glow
 impl RotatingTriangle {
-    fn new(gl: &glow::Context) -> Self {
+    fn new(gl: &glow::Context) -> Option<Self> {
         use glow::HasContext as _;
 
         let shader_version = egui_glow::ShaderVersion::get(gl);
@@ -89,67 +88,43 @@ impl RotatingTriangle {
         unsafe {
             let program = gl.create_program().expect("Cannot create program");
 
-            let (vertex_shader_source, fragment_shader_source) =
-                if shader_version.is_new_shader_interface() {
-                    (
-                        r#"
-                        const vec2 verts[3] = vec2[3](
-                            vec2(0.0, 1.0),
-                            vec2(-1.0, -1.0),
-                            vec2(1.0, -1.0)
-                        );
-                        const vec4 colors[3] = vec4[3](
-                            vec4(1.0, 0.0, 0.0, 1.0),
-                            vec4(0.0, 1.0, 0.0, 1.0),
-                            vec4(0.0, 0.0, 1.0, 1.0)
-                        );
-                        uniform float u_angle;
-                        out vec4 v_color;
-                        void main() {
-                            v_color = colors[gl_VertexID];
-                            gl_Position = vec4(verts[gl_VertexID], 0.0, 1.0);
-                            gl_Position.x *= cos(u_angle);
-                        }
-                    "#,
-                        r#"
-                        precision mediump float;
-                        in vec4 v_color;
-                        out vec4 out_color;
-                        void main() {
-                            out_color = v_color;
-                        }
-                    "#,
-                    )
-                } else {
-                    (
-                        r#"
-                        const vec2 verts[3] = vec2[3](
-                            vec2(0.0, 1.0),
-                            vec2(-1.0, -1.0),
-                            vec2(1.0, -1.0)
-                        );
-                        const vec4 colors[3] = vec4[3](
-                            vec4(1.0, 0.0, 0.0, 1.0),
-                            vec4(0.0, 1.0, 0.0, 1.0),
-                            vec4(0.0, 0.0, 1.0, 1.0)
-                        );
-                        uniform float u_angle;
-                        varying vec4 v_color;
-                        void main() {
-                            v_color = colors[gl_VertexID];
-                            gl_Position = vec4(verts[gl_VertexID], 0.0, 1.0);
-                            gl_Position.x *= cos(u_angle);
-                        }
-                    "#,
-                        r#"
-                        precision mediump float;
-                        varying vec4 v_color;
-                        void main() {
-                            gl_FragColor = v_color;
-                        }
-                    "#,
-                    )
-                };
+            if !shader_version.is_new_shader_interface() {
+                tracing::warn!(
+                    "Custom 3D painting hasn't been ported to {:?}",
+                    shader_version
+                );
+                return None;
+            }
+
+            let (vertex_shader_source, fragment_shader_source) = (
+                r#"
+                    const vec2 verts[3] = vec2[3](
+                        vec2(0.0, 1.0),
+                        vec2(-1.0, -1.0),
+                        vec2(1.0, -1.0)
+                    );
+                    const vec4 colors[3] = vec4[3](
+                        vec4(1.0, 0.0, 0.0, 1.0),
+                        vec4(0.0, 1.0, 0.0, 1.0),
+                        vec4(0.0, 0.0, 1.0, 1.0)
+                    );
+                    out vec4 v_color;
+                    uniform float u_angle;
+                    void main() {
+                        v_color = colors[gl_VertexID];
+                        gl_Position = vec4(verts[gl_VertexID], 0.0, 1.0);
+                        gl_Position.x *= cos(u_angle);
+                    }
+                "#,
+                r#"
+                    precision mediump float;
+                    in vec4 v_color;
+                    out vec4 out_color;
+                    void main() {
+                        out_color = v_color;
+                    }
+                "#,
+            );
 
             let shader_sources = [
                 (glow::VERTEX_SHADER, vertex_shader_source),
@@ -196,10 +171,10 @@ impl RotatingTriangle {
                 .create_vertex_array()
                 .expect("Cannot create vertex array");
 
-            Self {
+            Some(Self {
                 program,
                 vertex_array,
-            }
+            })
         }
     }
 

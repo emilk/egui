@@ -1259,6 +1259,7 @@ dependencies = [
  "poll-promise",
  "pollster",
  "serde",
+ "tracing",
  "tracing-subscriber",
  "tracing-wasm",
  "wgpu",

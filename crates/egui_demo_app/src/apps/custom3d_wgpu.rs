@@ -10,10 +10,10 @@ pub struct Custom3d {
 }
 
 impl Custom3d {
-    pub fn new<'a>(cc: &'a eframe::CreationContext<'a>) -> Self {
+    pub fn new<'a>(cc: &'a eframe::CreationContext<'a>) -> Option<Self> {
         // Get the WGPU render state from the eframe creation context. This can also be retrieved
         // from `eframe::Frame` when you don't have a `CreationContext` available.
-        let wgpu_render_state = cc.wgpu_render_state.as_ref().expect("WGPU enabled");
+        let wgpu_render_state = cc.wgpu_render_state.as_ref()?;
 
         let device = &wgpu_render_state.device;
 
@@ -91,7 +91,7 @@ impl Custom3d {
                 uniform_buffer,
             });
 
-        Self { angle: 0.0 }
+        Some(Self { angle: 0.0 })
     }
 }
 

@@ -95,7 +95,7 @@ pub struct WrapApp {
     state: State,
 
     #[cfg(any(feature = "glow", feature = "wgpu"))]
-    custom3d: crate::apps::Custom3d,
+    custom3d: Option<crate::apps::Custom3d>,
 
     dropped_files: Vec<egui::DroppedFile>,
 }
@@ -148,11 +148,13 @@ impl WrapApp {
         ];
 
         #[cfg(any(feature = "glow", feature = "wgpu"))]
-        vec.push((
-            "🔺 3D painting",
-            "custom3d",
-            &mut self.custom3d as &mut dyn eframe::App,
-        ));
+        if let Some(custom3d) = &mut self.custom3d {
+            vec.push((
+                "🔺 3D painting",
+                "custom3d",
+                custom3d as &mut dyn eframe::App,
+            ));
+        }
 
         vec.push((
             "🎨 Color test",
@@ -219,7 +221,9 @@ impl eframe::App for WrapApp {
 
     #[cfg(feature = "glow")]
     fn on_exit(&mut self, gl: Option<&glow::Context>) {
-        self.custom3d.on_exit(gl);
+        if let Some(custom3d) = &mut self.custom3d {
+            custom3d.on_exit(gl);
+        }
     }
 }
 
