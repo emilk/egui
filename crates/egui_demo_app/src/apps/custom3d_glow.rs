@@ -11,13 +11,12 @@ pub struct Custom3d {
 }
 
 impl Custom3d {
-    pub fn new<'a>(cc: &'a eframe::CreationContext<'a>) -> Self {
-        Self {
-            rotating_triangle: Arc::new(Mutex::new(RotatingTriangle::new(
-                cc.gl.as_ref().expect("GL Enabled"),
-            ))),
+    pub fn new<'a>(cc: &'a eframe::CreationContext<'a>) -> Option<Self> {
+        let gl = cc.gl.as_ref()?;
+        Some(Self {
+            rotating_triangle: Arc::new(Mutex::new(RotatingTriangle::new(gl)?)),
             angle: 0.0,
-        }
+        })
     }
 }
 
@@ -81,17 +80,21 @@ struct RotatingTriangle {
 
 #[allow(unsafe_code)] // we need unsafe code to use glow
 impl RotatingTriangle {
-    fn new(gl: &glow::Context) -> Self {
+    fn new(gl: &glow::Context) -> Option<Self> {
         use glow::HasContext as _;
 
-        let shader_version = if cfg!(target_arch = "wasm32") {
-            "#version 300 es"
-        } else {
-            "#version 330"
-        };
+        let shader_version = egui_glow::ShaderVersion::get(gl);
 
         unsafe {
             let program = gl.create_program().expect("Cannot create program");
+
+            if !shader_version.is_new_shader_interface() {
+                tracing::warn!(
+                    "Custom 3D painting hasn't been ported to {:?}",
+                    shader_version
+                );
+                return None;
+            }
 
             let (vertex_shader_source, fragment_shader_source) = (
                 r#"
@@ -134,10 +137,20 @@ impl RotatingTriangle {
                     let shader = gl
                         .create_shader(*shader_type)
                         .expect("Cannot create shader");
-                    gl.shader_source(shader, &format!("{}\n{}", shader_version, shader_source));
+                    gl.shader_source(
+                        shader,
+                        &format!(
+                            "{}\n{}",
+                            shader_version.version_declaration(),
+                            shader_source
+                        ),
+                    );
                     gl.compile_shader(shader);
                     if !gl.get_shader_compile_status(shader) {
-                        panic!("{}", gl.get_shader_info_log(shader));
+                        panic!(
+                            "Failed to compile custom_3d_glow: {}",
+                            gl.get_shader_info_log(shader)
+                        );
                     }
                     gl.attach_shader(program, shader);
                     shader
@@ -158,10 +171,10 @@ impl RotatingTriangle {
                 .create_vertex_array()
                 .expect("Cannot create vertex array");
 
-            Self {
+            Some(Self {
                 program,
                 vertex_array,
-            }
+            })
         }
     }
 
