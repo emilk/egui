@@ -35,7 +35,7 @@ impl WebInput {
 
 // ----------------------------------------------------------------------------
 
-use std::{any::Any, sync::atomic::Ordering::SeqCst};
+use std::sync::atomic::Ordering::SeqCst;
 
 /// Stores when to do the next repaint.
 pub struct NeedRepaint(Mutex<f64>);
@@ -265,8 +265,9 @@ impl AppRunner {
         &self.egui_ctx
     }
 
-    pub fn get_app_mut(&mut self) -> &mut dyn Any {
-        self.app.as_any_mut()
+    /// Get mutable access to the concrete [`App`] we enclose.
+    pub fn app_mut<ConreteApp: 'static + crate::App>(&mut self) -> &mut ConreteApp {
+        self.app.as_any_mut().downcast_mut::<ConreteApp>().unwrap()
     }
 
     pub fn auto_save(&mut self) {
