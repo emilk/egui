@@ -1,5 +1,6 @@
+.DS_Store
 **/target
 /.*.json
 /.vscode
+/dist
 /media/*
-.DS_Store

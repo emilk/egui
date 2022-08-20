@@ -1,0 +1,45 @@
+name: Github Pages
+
+# By default, runs if you push to master. keeps your deployed app in sync with master branch.
+on:
+  push:
+    branches:
+      - master
+# to only run when you do a new github release, comment out above part and uncomment the below trigger.
+# on:
+#   release:
+#     types:
+#       - published
+
+permissions:
+  contents: write # for committing to gh-pages branch.
+
+jobs:
+  build-github-pages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2 # repo checkout
+      - uses: actions-rs/toolchain@v1 # get rust toolchain for wasm
+        with:
+          profile: minimal
+          toolchain: stable
+          target: wasm32-unknown-unknown
+          override: true
+      - name: Rust Cache # cache the rust build artefacts
+        uses: Swatinem/rust-cache@v1
+      - name: Download and install Trunk binary
+        run: wget -qO- https://github.com/thedodd/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
+      - name: Build # build
+        # "${GITHUB_REPOSITORY#*/}" evaluates into the name of the repository
+        # using --public-url something will allow trunk to modify all the href paths like from favicon.ico to repo_name/favicon.ico .
+        # this is necessary for github pages where the site is deployed to username.github.io/repo_name and all files must be requested
+        # relatively as eframe_template/favicon.ico. if we skip public-url option, the href paths will instead request username.github.io/favicon.ico which
+        # will obviously return error 404 not found.
+        run: ./trunk build --release --public-url "${GITHUB_REPOSITORY#*/}"
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: dist
+          # this option will not maintain any history of your previous pages deployment
+          # set to false if you want all page build to be committed to your gh-pages branch history
+          single-commit: true
