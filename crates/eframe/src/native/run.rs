@@ -373,7 +373,7 @@ mod glow_integration {
                 gl_window.swap_buffers().unwrap();
             }
 
-            let control_flow = if integration.should_quit() {
+            let control_flow = if integration.should_close() {
                 EventResult::Exit
             } else if repaint_after.is_zero() {
                 EventResult::RepaintAsap
@@ -426,7 +426,7 @@ mod glow_integration {
                             self.gl_window.resize(**new_inner_size);
                         }
                         winit::event::WindowEvent::CloseRequested
-                            if self.integration.should_quit() =>
+                            if self.integration.should_close() =>
                         {
                             return EventResult::Exit
                         }
@@ -435,7 +435,7 @@ mod glow_integration {
 
                     self.integration.on_event(self.app.as_mut(), &event);
 
-                    if self.integration.should_quit() {
+                    if self.integration.should_close() {
                         EventResult::Exit
                     } else {
                         // TODO(emilk): ask egui if the event warrants a repaint
@@ -624,7 +624,7 @@ mod wgpu_integration {
 
             integration.post_rendering(app.as_mut(), window);
 
-            let control_flow = if integration.should_quit() {
+            let control_flow = if integration.should_close() {
                 EventResult::Exit
             } else if repaint_after.is_zero() {
                 EventResult::RepaintAsap
@@ -690,7 +690,7 @@ mod wgpu_integration {
                                 .on_window_resized(new_inner_size.width, new_inner_size.height);
                         }
                         winit::event::WindowEvent::CloseRequested
-                            if self.integration.should_quit() =>
+                            if self.integration.should_close() =>
                         {
                             return EventResult::Exit
                         }
@@ -698,7 +698,7 @@ mod wgpu_integration {
                     };
 
                     self.integration.on_event(self.app.as_mut(), &event);
-                    if self.integration.should_quit() {
+                    if self.integration.should_close() {
                         EventResult::Exit
                     } else {
                         // TODO(emilk): ask egui if the event warrants a repaint

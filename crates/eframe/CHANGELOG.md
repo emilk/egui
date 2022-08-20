@@ -24,6 +24,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 * Fixed mouse cursor change on Linux ([#1747](https://github.com/emilk/egui/pull/1747)).
 * Added `Frame::set_visible` ([#1808](https://github.com/emilk/egui/pull/1808)).
 * Added fullscreen support ([#1866](https://github.com/emilk/egui/pull/1866)).
+* `Frame::quit` has been renamed to `Frame::close` and `App::on_exit_event` is now `App::on_close_event` ([#1943](https://github.com/emilk/egui/pull/1943)).
 
 #### Web:
 * Added ability to stop/re-run web app from JavaScript. ⚠️ You need to update your CSS with `html, body: { height: 100%; width: 100%; }` ([#1803](https://github.com/emilk/egui/pull/1650)).

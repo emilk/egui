@@ -13,14 +13,14 @@ fn main() {
 
 #[derive(Default)]
 struct MyApp {
-    can_exit: bool,
-    is_exiting: bool,
+    allowed_to_close: bool,
+    show_confirmation_dialog: bool,
 }
 
 impl eframe::App for MyApp {
-    fn on_exit_event(&mut self) -> bool {
-        self.is_exiting = true;
-        self.can_exit
+    fn on_close_event(&mut self) -> bool {
+        self.show_confirmation_dialog = true;
+        self.allowed_to_close
     }
 
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
@@ -28,19 +28,20 @@ impl eframe::App for MyApp {
             ui.heading("Try to close the window");
         });
 
-        if self.is_exiting {
+        if self.show_confirmation_dialog {
+            // Show confirmation dialog:
             egui::Window::new("Do you want to quit?")
                 .collapsible(false)
                 .resizable(false)
                 .show(ctx, |ui| {
                     ui.horizontal(|ui| {
-                        if ui.button("Not yet").clicked() {
-                            self.is_exiting = false;
+                        if ui.button("Cancel").clicked() {
+                            self.show_confirmation_dialog = false;
                         }
 
                         if ui.button("Yes!").clicked() {
-                            self.can_exit = true;
-                            frame.quit();
+                            self.allowed_to_close = true;
+                            frame.close();
                         }
                     });
                 });

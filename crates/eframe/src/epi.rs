@@ -67,21 +67,25 @@ pub trait App {
     /// where `APPNAME` is what is given to `eframe::run_native`.
     fn save(&mut self, _storage: &mut dyn Storage) {}
 
-    /// Called before an exit that can be aborted.
-    /// By returning `false` the exit will be aborted. To continue the exit return `true`.
+    /// Called when the user attempts to close the desktop window and/or quit the application.
+    ///
+    /// By returning `false` the closing will be aborted. To continue the closing return `true`.
     ///
     /// A scenario where this method will be run is after pressing the close button on a native
     /// window, which allows you to ask the user whether they want to do something before exiting.
     /// See the example at <https://github.com/emilk/egui/blob/master/examples/confirm_exit/> for practical usage.
     ///
     /// It will _not_ be called on the web or when the window is forcefully closed.
-    fn on_exit_event(&mut self) -> bool {
+    #[cfg(not(target_arch = "wasm32"))]
+    #[doc(alias = "exit")]
+    #[doc(alias = "quit")]
+    fn on_close_event(&mut self) -> bool {
         true
     }
 
     /// Called once on shutdown, after [`Self::save`].
     ///
-    /// If you need to abort an exit use [`Self::on_exit_event`].
+    /// If you need to abort an exit use [`Self::on_close_event`].
     ///
     /// To get a [`glow`] context you need to compile with the `glow` feature flag,
     /// and run eframe with the glow backend.
@@ -90,7 +94,7 @@ pub trait App {
 
     /// Called once on shutdown, after [`Self::save`].
     ///
-    /// If you need to abort an exit use [`Self::on_exit_event`].
+    /// If you need to abort an exit use [`Self::on_close_event`].
     #[cfg(not(feature = "glow"))]
     fn on_exit(&mut self) {}
 
@@ -571,11 +575,24 @@ impl Frame {
         self.wgpu_render_state.as_ref()
     }
 
-    /// Signal the app to stop/exit/quit the app (only works for native apps, not web apps).
-    /// The framework will not quit immediately, but at the end of the this frame.
+    /// Tell `eframe` to close the desktop window.
+    ///
+    /// The window will not close immediately, but at the end of the this frame.
+    ///
+    /// Calling this will likely result in the app quitting, unless
+    /// you have more code after the call to [`crate::run_native`].
     #[cfg(not(target_arch = "wasm32"))]
+    #[doc(alias = "exit")]
+    #[doc(alias = "quit")]
+    pub fn close(&mut self) {
+        self.output.close = true;
+    }
+
+    /// Tell `eframe` to close the desktop window.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[deprecated = "Renamed `close`"]
     pub fn quit(&mut self) {
-        self.output.quit = true;
+        self.close();
     }
 
     /// Set the desired inner size of the window (in egui points).
@@ -797,10 +814,9 @@ pub(crate) mod backend {
     #[derive(Clone, Debug, Default)]
     #[must_use]
     pub struct AppOutput {
-        /// Set to `true` to stop the app.
-        /// This does nothing for web apps.
+        /// Set to `true` to close the native window (which often quits the app).
         #[cfg(not(target_arch = "wasm32"))]
-        pub quit: bool,
+        pub close: bool,
 
         /// Set to some size to resize the outer window (e.g. glium window) to this size.
         #[cfg(not(target_arch = "wasm32"))]

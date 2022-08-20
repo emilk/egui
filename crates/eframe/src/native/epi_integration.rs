@@ -115,7 +115,7 @@ pub fn handle_app_output(
     app_output: epi::backend::AppOutput,
 ) {
     let epi::backend::AppOutput {
-        quit: _,
+        close: _,
         window_size,
         window_title,
         decorated,
@@ -183,8 +183,8 @@ pub struct EpiIntegration {
     pub egui_ctx: egui::Context,
     pending_full_output: egui::FullOutput,
     egui_winit: egui_winit::State,
-    /// When set, it is time to quit
-    quit: bool,
+    /// When set, it is time to close the native window.
+    close: bool,
     can_drag_window: bool,
 }
 
@@ -228,7 +228,7 @@ impl EpiIntegration {
             egui_ctx,
             egui_winit,
             pending_full_output: Default::default(),
-            quit: false,
+            close: false,
             can_drag_window: false,
         }
     }
@@ -243,17 +243,17 @@ impl EpiIntegration {
         self.egui_ctx.clear_animations();
     }
 
-    /// If `true`, it is time to shut down.
-    pub fn should_quit(&self) -> bool {
-        self.quit
+    /// If `true`, it is time to close the native window.
+    pub fn should_close(&self) -> bool {
+        self.close
     }
 
     pub fn on_event(&mut self, app: &mut dyn epi::App, event: &winit::event::WindowEvent<'_>) {
         use winit::event::{ElementState, MouseButton, WindowEvent};
 
         match event {
-            WindowEvent::CloseRequested => self.quit = app.on_exit_event(),
-            WindowEvent::Destroyed => self.quit = true,
+            WindowEvent::CloseRequested => self.close = app.on_close_event(),
+            WindowEvent::Destroyed => self.close = true,
             WindowEvent::MouseInput {
                 button: MouseButton::Left,
                 state: ElementState::Pressed,
@@ -285,8 +285,8 @@ impl EpiIntegration {
             let mut app_output = self.frame.take_app_output();
             app_output.drag_window &= self.can_drag_window; // Necessary on Windows; see https://github.com/emilk/egui/pull/1108
             self.can_drag_window = false;
-            if app_output.quit {
-                self.quit = app.on_exit_event();
+            if app_output.close {
+                self.close = app.on_close_event();
             }
             handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
         }
