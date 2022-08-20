@@ -29,6 +29,8 @@ impl RetainedImage {
 
     /// Load a (non-svg) image.
     ///
+    /// `image_bytes` should be the raw contents of an image file (`.png`, `.jpg`, …).
+    ///
     /// Requires the "image" feature. You must also opt-in to the image formats you need
     /// with e.g. `image = { version = "0.24", features = ["jpeg", "png"] }`.
     ///

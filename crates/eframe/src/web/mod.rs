@@ -108,6 +108,10 @@ pub fn resize_canvas_to_screen_size(canvas_id: &str, max_size_points: egui::Vec2
         y: height as f32,
     };
 
+    if width <= 0 || height <= 0 {
+        tracing::error!("egui canvas parent size is {}x{}. Try adding `html, body {{ height: 100%; width: 100% }}` to your CSS!", width, height);
+    }
+
     let pixels_per_point = native_pixels_per_point();
 
     let max_size_pixels = pixels_per_point * max_size_points;

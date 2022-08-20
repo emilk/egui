@@ -479,7 +479,7 @@ impl ScrollArea {
 
     /// This can be used to only paint the visible part of the contents.
     ///
-    /// `add_contents` is past the viewport, which is the relative view of the content.
+    /// `add_contents` is given the viewport rectangle, which is the relative view of the content.
     /// So if the passed rect has min = zero, then show the top left content (the user has not scrolled).
     pub fn show_viewport<R>(
         self,
