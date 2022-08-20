@@ -9,6 +9,6 @@ publish = false
 
 
 [dependencies]
-eframe = { path = "../../eframe", features = ["glow"] }
-egui_glow = { path = "../../egui_glow" }
+eframe = { path = "../../crates/eframe", features = ["glow"] }
+egui_glow = { path = "../../crates/egui_glow" }
 glow = "0.11"

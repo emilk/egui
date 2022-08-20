@@ -9,6 +9,6 @@ publish = false
 
 
 [dependencies]
-eframe = { path = "../../eframe" }
-egui_extras = { path = "../../egui_extras", features = ["image"] }
+eframe = { path = "../../crates/eframe" }
+egui_extras = { path = "../../crates/egui_extras", features = ["image"] }
 itertools = "0.10.3"

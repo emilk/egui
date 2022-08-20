@@ -209,4 +209,4 @@ jobs:
           override: true
 
       - run: cargo check --features wgpu --target aarch64-linux-android
-        working-directory: eframe
+        working-directory: crates/eframe
