@@ -31,7 +31,7 @@ All notable changes to the `egui_glium` integration will be noted in this file.
 * Deprecate 'Painter::register_glium_texture'.
 * Increase scroll speed.
 * Restore window position on startup without flickering.
-* A lot of the code has been moved to the new library [`egui-winit`](https://github.com/emilk/egui/tree/master/egui-winit).
+* A lot of the code has been moved to the new library [`egui-winit`](https://github.com/emilk/egui/tree/master/crates/egui-winit).
 * Fixed reactive mode on windows.
 
 

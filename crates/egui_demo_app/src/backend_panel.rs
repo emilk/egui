@@ -149,7 +149,10 @@ impl BackendPanel {
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
             ui.label("egui running inside ");
-            ui.hyperlink_to("eframe", "https://github.com/emilk/egui/tree/master/eframe");
+            ui.hyperlink_to(
+                "eframe",
+                "https://github.com/emilk/egui/tree/master/crates/eframe",
+            );
             ui.label(".");
         });
 
