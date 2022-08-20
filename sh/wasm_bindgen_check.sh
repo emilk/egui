@@ -16,7 +16,7 @@ export RUSTFLAGS=--cfg=web_sys_unstable_apis
 echo "Building rust…"
 BUILD=debug # debug builds are faster
 
-(cd $CRATE_NAME &&
+(cd crates/$CRATE_NAME &&
   cargo build \
     --lib \
     --target wasm32-unknown-unknown \

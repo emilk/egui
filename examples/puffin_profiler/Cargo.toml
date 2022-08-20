@@ -9,6 +9,6 @@ publish = false
 
 
 [dependencies]
-eframe = { path = "../../eframe", features = ["puffin"] }
+eframe = { path = "../../crates/eframe", features = ["puffin"] }
 puffin = "0.13"
 puffin_http = "0.10"

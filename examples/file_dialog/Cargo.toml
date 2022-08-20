@@ -9,5 +9,5 @@ publish = false
 
 
 [dependencies]
-eframe = { path = "../../eframe" }
+eframe = { path = "../../crates/eframe" }
 rfd = "0.8"
