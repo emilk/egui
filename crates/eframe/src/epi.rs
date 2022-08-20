@@ -588,8 +588,9 @@ impl Frame {
         self.output.close = true;
     }
 
+    /// Tell `eframe` to close the desktop window.
     #[cfg(not(target_arch = "wasm32"))]
-    #[deprecated("Renamed `close`")]
+    #[deprecated = "Renamed `close`"]
     pub fn quit(&mut self) {
         self.close();
     }

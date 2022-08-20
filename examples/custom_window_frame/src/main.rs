@@ -89,7 +89,7 @@ fn custon_window_frame(
                 Button::new(RichText::new("❌").size(height - 4.0)).frame(false),
             );
             if close_response.clicked() {
-                frame.quit();
+                frame.close();
             }
 
             // Interact with the title bar (drag to move window):

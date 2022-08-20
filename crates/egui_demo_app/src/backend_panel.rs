@@ -140,7 +140,7 @@ impl BackendPanel {
         {
             ui.separator();
             if ui.button("Quit").clicked() {
-                frame.quit();
+                frame.close();
             }
         }
     }

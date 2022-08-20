@@ -46,7 +46,7 @@ impl eframe::App for MyApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             if ui.button("Close").clicked() {
                 eprintln!("Pressed Close button");
-                frame.quit();
+                frame.close();
             }
         });
     }
