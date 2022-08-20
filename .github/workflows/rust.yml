@@ -58,8 +58,8 @@ jobs:
         with:
           profile: minimal
           toolchain: 1.61.0
+          target: wasm32-unknown-unknown
           override: true
-      - run: rustup target add wasm32-unknown-unknown
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -87,8 +87,8 @@ jobs:
         with:
           profile: minimal
           toolchain: 1.61.0
+          target: wasm32-unknown-unknown
           override: true
-      - run: rustup target add wasm32-unknown-unknown
       - name: check
         run: cargo check -p eframe --lib --no-default-features --features glow,persistence --target wasm32-unknown-unknown
 
@@ -101,8 +101,8 @@ jobs:
         with:
           profile: minimal
           toolchain: 1.61.0
+          target: wasm32-unknown-unknown
           override: true
-      - run: rustup target add wasm32-unknown-unknown
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -136,7 +136,7 @@ jobs:
           profile: minimal
           toolchain: 1.61.0
           override: true
-      - run: rustup component add rustfmt
+          components: rustfmt
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
@@ -191,7 +191,22 @@ jobs:
         with:
           profile: minimal
           toolchain: 1.61.0
+          target: wasm32-unknown-unknown
           override: true
-      - run: rustup target add wasm32-unknown-unknown
       - run: ./sh/setup_web.sh
       - run: ./sh/wasm_bindgen_check.sh
+
+  android:
+    name: android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.61.0
+          target: aarch64-linux-android
+          override: true
+
+      - run: cargo check --features wgpu --target aarch64-linux-android
+        working-directory: eframe

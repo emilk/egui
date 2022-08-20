@@ -478,6 +478,7 @@ fn galley_from_rows(point_scale: PointScale, job: Arc<LayoutJob>, mut rows: Vec<
         mesh_bounds,
         num_vertices,
         num_indices,
+        pixels_per_point: point_scale.pixels_per_point,
     }
 }
 

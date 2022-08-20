@@ -569,7 +569,7 @@ impl RenderPass {
     /// This could be used by custom paint hooks to render images that have been added through with
     /// [`egui_extras::RetainedImage`](https://docs.rs/egui_extras/latest/egui_extras/image/struct.RetainedImage.html)
     /// or [`egui::Context::load_texture`].
-    pub fn get_texture(
+    pub fn texture(
         &self,
         id: &egui::TextureId,
     ) -> Option<&(Option<wgpu::Texture>, wgpu::BindGroup)> {

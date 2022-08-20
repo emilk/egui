@@ -219,7 +219,7 @@ impl AppRunner {
             #[cfg(feature = "glow")]
             gl: Some(painter.painter.gl().clone()),
             #[cfg(feature = "wgpu")]
-            render_state: None,
+            wgpu_render_state: None,
         });
 
         let frame = epi::Frame {
@@ -229,7 +229,7 @@ impl AppRunner {
             #[cfg(feature = "glow")]
             gl: Some(painter.gl().clone()),
             #[cfg(feature = "wgpu")]
-            render_state: None,
+            wgpu_render_state: None,
         };
 
         let needs_repaint: std::sync::Arc<NeedRepaint> = Default::default();

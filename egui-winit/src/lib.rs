@@ -66,7 +66,7 @@ pub struct State {
 
 impl State {
     pub fn new<T>(event_loop: &EventLoopWindowTarget<T>) -> Self {
-        Self::new_with_wayland_display(get_wayland_display(event_loop))
+        Self::new_with_wayland_display(wayland_display(event_loop))
     }
 
     pub fn new_with_wayland_display(wayland_display: Option<*mut c_void>) -> Self {
@@ -400,7 +400,7 @@ impl State {
     }
 
     fn on_mouse_wheel(&mut self, delta: winit::event::MouseScrollDelta) {
-        let mut delta = match delta {
+        let delta = match delta {
             winit::event::MouseScrollDelta::LineDelta(x, y) => {
                 let points_per_scroll_line = 50.0; // Scroll speed decided by consensus: https://github.com/emilk/egui/issues/461
                 egui::vec2(x, y) * points_per_scroll_line
@@ -409,8 +409,6 @@ impl State {
                 egui::vec2(delta.x as f32, delta.y as f32) / self.pixels_per_point()
             }
         };
-
-        delta.x *= -1.0; // Winit has inverted hscroll. Remove this line when we update winit after https://github.com/rust-windowing/winit/pull/2105 is merged and released
 
         if self.egui_input.modifiers.ctrl || self.egui_input.modifiers.command {
             // Treat as zoom instead:
@@ -712,7 +710,7 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
 }
 
 /// Returns a Wayland display handle if the target is running Wayland
-fn get_wayland_display<T>(_event_loop: &EventLoopWindowTarget<T>) -> Option<*mut c_void> {
+fn wayland_display<T>(_event_loop: &EventLoopWindowTarget<T>) -> Option<*mut c_void> {
     #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",

@@ -1,7 +1,5 @@
 use std::{collections::BTreeMap, string::String};
 
-use epaint::ahash::AHashSet;
-
 use crate::*;
 
 use super::items::PlotItem;
@@ -168,7 +166,7 @@ impl LegendWidget {
         rect: Rect,
         config: Legend,
         items: &[Box<dyn PlotItem>],
-        hidden_items: &AHashSet<String>,
+        hidden_items: &ahash::HashSet<String>,
     ) -> Option<Self> {
         // Collect the legend entries. If multiple items have the same name, they share a
         // checkbox. If their colors don't match, we pick a neutral color for the checkbox.
@@ -199,7 +197,7 @@ impl LegendWidget {
     }
 
     // Get the names of the hidden items.
-    pub fn get_hidden_items(&self) -> AHashSet<String> {
+    pub fn hidden_items(&self) -> ahash::HashSet<String> {
         self.entries
             .iter()
             .filter(|(_, entry)| !entry.checked)
@@ -208,7 +206,7 @@ impl LegendWidget {
     }
 
     // Get the name of the hovered items.
-    pub fn get_hovered_entry_name(&self) -> Option<String> {
+    pub fn hovered_entry_name(&self) -> Option<String> {
         self.entries
             .iter()
             .find(|(_, entry)| entry.hovered)

@@ -30,13 +30,18 @@ pub struct CreationContext<'s> {
 
     /// The [`glow::Context`] allows you to initialize OpenGL resources (e.g. shaders) that
     /// you might want to use later from a [`egui::PaintCallback`].
+    ///
+    /// Only available when compiling with the `glow` feature and using [`Renderer::Glow`].
     #[cfg(feature = "glow")]
     pub gl: Option<std::sync::Arc<glow::Context>>,
 
-    /// Can be used to manage GPU resources for custom rendering with WGPU using
-    /// [`egui::PaintCallback`]s.
+    /// The underlying WGPU render state.
+    ///
+    /// Only available when compiling with the `wgpu` feature and using [`Renderer::Wgpu`].
+    ///
+    /// Can be used to manage GPU resources for custom rendering with WGPU using [`egui::PaintCallback`]s.
     #[cfg(feature = "wgpu")]
-    pub render_state: Option<egui_wgpu::RenderState>,
+    pub wgpu_render_state: Option<egui_wgpu::RenderState>,
 }
 
 // ----------------------------------------------------------------------------
@@ -281,6 +286,20 @@ pub struct NativeOptions {
     ///
     /// Default: `Theme::Dark`.
     pub default_theme: Theme,
+
+    /// This controls what happens when you close the main eframe window.
+    ///
+    /// If `true`, execution will continue after the eframe window is closed.
+    /// If `false`, the app will close once the eframe window is closed.
+    ///
+    /// This is `true` by default, and the `false` option is only there
+    /// so we can revert if we find any bugs.
+    ///
+    /// This feature was introduced in <https://github.com/emilk/egui/pull/1889>.
+    ///
+    /// When `true`, [`winit::platform::run_return::EventLoopExtRunReturn::run_return`] is used.
+    /// When `false`, [`winit::event_loop::EventLoop::run`] is used.
+    pub run_and_return: bool,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -307,6 +326,7 @@ impl Default for NativeOptions {
             renderer: Renderer::default(),
             follow_system_theme: cfg!(target_os = "macos") || cfg!(target_os = "windows"),
             default_theme: Theme::Dark,
+            run_and_return: true,
         }
     }
 }
@@ -507,10 +527,9 @@ pub struct Frame {
     #[cfg(feature = "glow")]
     pub(crate) gl: Option<std::sync::Arc<glow::Context>>,
 
-    /// Can be used to manage GPU resources for custom rendering with WGPU using
-    /// [`egui::PaintCallback`]s.
+    /// Can be used to manage GPU resources for custom rendering with WGPU using [`egui::PaintCallback`]s.
     #[cfg(feature = "wgpu")]
-    pub render_state: Option<egui_wgpu::RenderState>,
+    pub(crate) wgpu_render_state: Option<egui_wgpu::RenderState>,
 }
 
 impl Frame {
@@ -548,10 +567,20 @@ impl Frame {
     /// ([`egui`] only collects [`egui::Shape`]s and then eframe paints them all in one go later on).
     ///
     /// To get a [`glow`] context you need to compile with the `glow` feature flag,
-    /// and run eframe with the glow backend.
+    /// and run eframe using [`Renderer::Glow`].
     #[cfg(feature = "glow")]
     pub fn gl(&self) -> Option<&std::sync::Arc<glow::Context>> {
         self.gl.as_ref()
+    }
+
+    /// The underlying WGPU render state.
+    ///
+    /// Only available when compiling with the `wgpu` feature and using [`Renderer::Wgpu`].
+    ///
+    /// Can be used to manage GPU resources for custom rendering with WGPU using [`egui::PaintCallback`]s.
+    #[cfg(feature = "wgpu")]
+    pub fn wgpu_render_state(&self) -> Option<&egui_wgpu::RenderState> {
+        self.wgpu_render_state.as_ref()
     }
 
     /// Signal the app to stop/exit/quit the app (only works for native apps, not web apps).
@@ -763,7 +792,10 @@ pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &st
 /// Serialize the given value as [RON](https://github.com/ron-rs/ron) and store with the given key.
 #[cfg(feature = "ron")]
 pub fn set_value<T: serde::Serialize>(storage: &mut dyn Storage, key: &str, value: &T) {
-    storage.set_string(key, ron::ser::to_string(value).unwrap());
+    match ron::ser::to_string(value) {
+        Ok(string) => storage.set_string(key, string),
+        Err(err) => tracing::error!("eframe failed to encode data using ron: {}", err),
+    }
 }
 
 /// [`Storage`] key used for app

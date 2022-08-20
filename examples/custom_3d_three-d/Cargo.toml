@@ -7,9 +7,16 @@ edition = "2021"
 rust-version = "1.61"
 publish = false
 
+[lib]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 eframe = { path = "../../eframe", features = ["glow"] }
 egui_glow = { path = "../../egui_glow" }
 glow = "0.11"
-three-d = { version = "0.12", default-features = false } # 2022-05-22
+three-d = { version = "0.13", default-features = false }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies] # Web dependencies
+wasm-bindgen = "0.2" # Core bindings
+wasm-bindgen-futures = "0.4" # Core bindings
+console_error_panic_hook = "0.1" # For logging

@@ -16,9 +16,9 @@ impl Custom3d {
     pub fn new<'a>(cc: &'a eframe::CreationContext<'a>) -> Self {
         // Get the WGPU render state from the eframe creation context. This can also be retrieved
         // from `eframe::Frame` when you don't have a `CreationContext` available.
-        let render_state = cc.render_state.as_ref().expect("WGPU enabled");
+        let wgpu_render_state = cc.wgpu_render_state.as_ref().expect("WGPU enabled");
 
-        let device = &render_state.device;
+        let device = &wgpu_render_state.device;
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: None,
@@ -56,7 +56,7 @@ impl Custom3d {
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
                 entry_point: "fs_main",
-                targets: &[Some(render_state.target_format.into())],
+                targets: &[Some(wgpu_render_state.target_format.into())],
             }),
             primitive: wgpu::PrimitiveState::default(),
             depth_stencil: None,
@@ -84,7 +84,7 @@ impl Custom3d {
         // Because the graphics pipeline must have the same lifetime as the egui render pass,
         // instead of storing the pipeline in our `Custom3D` struct, we insert it into the
         // `paint_callback_resources` type map, which is stored alongside the render pass.
-        render_state
+        wgpu_render_state
             .egui_rpass
             .write()
             .paint_callback_resources

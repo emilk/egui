@@ -60,7 +60,7 @@ image = { version = "0.24", optional = true, default-features = false }
 
 # svg feature
 resvg = { version = "0.23", optional = true }
-tiny-skia = { version = "0.6", optional = true }
+tiny-skia = { version = "0.6", optional = true } # must be updated in lock-step with resvg
 usvg = { version = "0.23", optional = true }
 
 # feature "serde":

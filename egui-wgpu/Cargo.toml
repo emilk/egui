@@ -47,4 +47,4 @@ wgpu = "0.13"
 document-features = { version = "0.2", optional = true }
 
 pollster = { version = "0.2", optional = true }
-winit = { version = "0.26", optional = true }
+winit = { version = "0.27.2", optional = true }

@@ -99,8 +99,8 @@ fn custon_window_frame(
                 rect
             };
             let title_bar_response =
-                ui.interact(title_bar_rect, Id::new("title_bar"), Sense::drag());
-            if title_bar_response.drag_started() {
+                ui.interact(title_bar_rect, Id::new("title_bar"), Sense::click());
+            if title_bar_response.is_pointer_button_down_on() {
                 frame.drag_window();
             }
 
