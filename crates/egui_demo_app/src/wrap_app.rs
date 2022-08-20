@@ -93,21 +93,27 @@ pub struct State {
 /// Wraps many demo/test apps into one.
 pub struct WrapApp {
     state: State,
+
+    #[cfg(any(feature = "glow", feature = "wgpu"))]
     custom3d: crate::apps::Custom3d,
+
     dropped_files: Vec<egui::DroppedFile>,
 }
 
 impl WrapApp {
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         #[allow(unused_mut)]
         let mut slf = Self {
             state: State::default(),
-            custom3d: crate::apps::Custom3d::new(cc),
+
+            #[cfg(any(feature = "glow", feature = "wgpu"))]
+            custom3d: crate::apps::Custom3d::new(_cc),
+
             dropped_files: Default::default(),
         };
 
         #[cfg(feature = "persistence")]
-        if let Some(storage) = cc.storage {
+        if let Some(storage) = _cc.storage {
             if let Some(state) = eframe::get_value(storage, eframe::APP_KEY) {
                 slf.state = state;
             }
@@ -141,6 +147,7 @@ impl WrapApp {
             ),
         ];
 
+        #[cfg(any(feature = "glow", feature = "wgpu"))]
         vec.push((
             "🔺 3D painting",
             "custom3d",

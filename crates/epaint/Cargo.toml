@@ -56,7 +56,7 @@ serde = ["dep:serde", "ahash/serde", "emath/serde"]
 emath = { version = "0.18.0", path = "../emath" }
 
 ab_glyph = "0.2.11"
-ahash = { version = "0.8", default-features = false, features = ["std"] }
+ahash = "0.8"
 nohash-hasher = "0.2"
 
 #! ### Optional dependencies
