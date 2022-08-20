@@ -259,7 +259,7 @@ pub struct NativeOptions {
     /// What rendering backend to use.
     pub renderer: Renderer,
 
-    /// If the `dark-light` feature is enabled:
+    /// Only used if the `dark-light` feature is enabled:
     ///
     /// Try to detect and follow the system preferred setting for dark vs light mode.
     ///
@@ -272,7 +272,7 @@ pub struct NativeOptions {
     /// Which theme to use in case [`Self::follow_system_theme`] is `false`
     /// or the `dark-light` feature is disabled.
     ///
-    /// Default: `Theme::Dark`.
+    /// Default: [`Theme::Dark`].
     pub default_theme: Theme,
 
     /// This controls what happens when you close the main eframe window.
@@ -351,7 +351,7 @@ pub struct WebOptions {
     ///
     /// See also [`Self::default_theme`].
     ///
-    /// Default: `true`.
+    /// Default: `false`.
     pub follow_system_theme: bool,
 
     /// Which theme to use in case [`Self::follow_system_theme`] is `false`
