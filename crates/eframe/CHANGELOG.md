@@ -1,10 +1,13 @@
 # Changelog for eframe
 All notable changes to the `eframe` crate.
 
-NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/CHANGELOG.md), and [`egui_glow`](../egui_glow/CHANGELOG.md) have their own changelogs!
+NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/CHANGELOG.md), [`egui_glow`](../egui_glow/CHANGELOG.md),and [`egui-wgpu`](../egui-wgpu/CHANGELOG.md) have their own changelogs!
 
 
 ## Unreleased
+
+
+## 0.19.0 - 2022-08-20
 * MSRV (Minimum Supported Rust Version) is now `1.61.0` ([#1846](https://github.com/emilk/egui/pull/1846)).
 * Added `wgpu` rendering backed ([#1564](https://github.com/emilk/egui/pull/1564)):
   * Added features `wgpu` and `glow`.
@@ -24,13 +27,13 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 * Fixed mouse cursor change on Linux ([#1747](https://github.com/emilk/egui/pull/1747)).
 * Added `Frame::set_visible` ([#1808](https://github.com/emilk/egui/pull/1808)).
 * Added fullscreen support ([#1866](https://github.com/emilk/egui/pull/1866)).
+* You can now continue execution after closing the native desktop window ([#1889](https://github.com/emilk/egui/pull/1889)).
 * `Frame::quit` has been renamed to `Frame::close` and `App::on_exit_event` is now `App::on_close_event` ([#1943](https://github.com/emilk/egui/pull/1943)).
 
 #### Web:
 * Added ability to stop/re-run web app from JavaScript. ⚠️ You need to update your CSS with `html, body: { height: 100%; width: 100%; }` ([#1803](https://github.com/emilk/egui/pull/1650)).
 * Added `WebOptions::follow_system_theme` and `WebOptions::default_theme` ([#1726](https://github.com/emilk/egui/pull/1726)).
 * Added option to select WebGL version ([#1803](https://github.com/emilk/egui/pull/1803)).
-
 
 
 ## 0.18.0 - 2022-04-30

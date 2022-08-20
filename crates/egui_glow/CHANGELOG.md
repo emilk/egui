@@ -3,6 +3,9 @@ All notable changes to the `egui_glow` integration will be noted in this file.
 
 
 ## Unreleased
+
+
+## 0.19.0 - 2022-08-20
 * MSRV (Minimum Supported Rust Version) is now `1.61.0` ([#1846](https://github.com/emilk/egui/pull/1846)).
 * `EguiGlow::new` now takes an `EventLoopWindowTarget<E>` instead of a `winit::Window` ([#1634](https://github.com/emilk/egui/pull/1634)).
 * Use `Arc` for `glow::Context` instead of `Rc` ([#1640](https://github.com/emilk/egui/pull/1640)).

@@ -1,6 +1,6 @@
 [package]
 name = "eframe"
-version = "0.18.0"
+version = "0.19.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "egui framework - write GUI apps that compiles to web and/or natively"
 edition = "2021"
@@ -61,7 +61,7 @@ wgpu = ["dep:wgpu", "egui-wgpu"]
 
 
 [dependencies]
-egui = { version = "0.18.0", path = "../egui", default-features = false, features = [
+egui = { version = "0.19.0", path = "../egui", default-features = false, features = [
   "bytemuck",
   "tracing",
 ] }
@@ -71,8 +71,8 @@ tracing = { version = "0.1", default-features = false, features = ["std"] }
 ## Enable this when generating docs.
 document-features = { version = "0.2", optional = true }
 
-egui_glow = { version = "0.18.0", path = "../egui_glow", optional = true, default-features = false }
-egui-wgpu = { version = "0.18.0", path = "../egui-wgpu", optional = true, features = ["winit"] }
+egui_glow = { version = "0.19.0", path = "../egui_glow", optional = true, default-features = false }
+egui-wgpu = { version = "0.19.0", path = "../egui-wgpu", optional = true, features = ["winit"] }
 glow = { version = "0.11", optional = true }
 ron = { version = "0.8", optional = true, features = ["integer128"] }
 serde = { version = "1", optional = true, features = ["derive"] }
@@ -82,7 +82,7 @@ wgpu = { version = "0.13", optional = true }
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 dark-light = { version = "0.2.1", optional = true }
-egui-winit = { version = "0.18.0", path = "../egui-winit", default-features = false, features = ["clipboard", "links"] }
+egui-winit = { version = "0.19.0", path = "../egui-winit", default-features = false, features = ["clipboard", "links"] }
 glutin = { version = "0.29.0" }
 winit = "0.27.2"
 

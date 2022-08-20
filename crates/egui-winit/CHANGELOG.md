@@ -3,6 +3,9 @@ All notable changes to the `egui-winit` integration will be noted in this file.
 
 
 ## Unreleased
+
+
+## 0.19.0 - 2022-08-20
 * MSRV (Minimum Supported Rust Version) is now `1.61.0` ([#1846](https://github.com/emilk/egui/pull/1846)).
 * Fixed clipboard on Wayland ([#1613](https://github.com/emilk/egui/pull/1613)).
 * Allow deferred render + surface state initialization for Android ([#1634](https://github.com/emilk/egui/pull/1634)).

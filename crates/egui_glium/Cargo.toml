@@ -1,6 +1,6 @@
 [package]
 name = "egui_glium"
-version = "0.18.0"
+version = "0.19.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui natively using the glium library"
 edition = "2021"
@@ -39,10 +39,10 @@ screen_reader = ["egui-winit/screen_reader"]
 
 
 [dependencies]
-egui = { version = "0.18.0", path = "../egui", default-features = false, features = [
+egui = { version = "0.19.0", path = "../egui", default-features = false, features = [
   "bytemuck",
 ] }
-egui-winit = { version = "0.18.0", path = "../egui-winit", default-features = false }
+egui-winit = { version = "0.19.0", path = "../egui-winit", default-features = false }
 
 ahash = "0.8"
 bytemuck = "1.7"
