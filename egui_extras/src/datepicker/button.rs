@@ -1,5 +1,5 @@
 use super::popup::DatePickerPopup;
-use chrono::{Date, Utc};
+use chrono::{DateTime, Utc};
 use egui::{Area, Button, Frame, Key, Order, RichText, Ui, Widget};
 
 #[derive(Default, Clone)]
@@ -9,7 +9,7 @@ pub(crate) struct DatePickerButtonState {
 }
 
 pub struct DatePickerButton<'a> {
-    selection: &'a mut Date<Utc>,
+    selection: &'a mut DateTime<Utc>,
     id_source: Option<&'a str>,
     combo_boxes: bool,
     arrows: bool,
@@ -18,7 +18,7 @@ pub struct DatePickerButton<'a> {
 }
 
 impl<'a> DatePickerButton<'a> {
-    pub fn new(selection: &'a mut Date<Utc>) -> Self {
+    pub fn new(selection: &'a mut DateTime<Utc>) -> Self {
         Self {
             selection,
             id_source: None,

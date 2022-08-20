@@ -1,6 +1,6 @@
 use super::{button::DatePickerButtonState, month_data};
 use crate::{Size, StripBuilder, TableBuilder};
-use chrono::{Date, Datelike, NaiveDate, Utc, Weekday};
+use chrono::{DateTime, Datelike, NaiveDate, Utc, Weekday};
 use egui::{Align, Button, Color32, ComboBox, Direction, Id, Layout, RichText, Ui, Vec2};
 
 #[derive(Default, Clone)]
@@ -14,7 +14,10 @@ struct DatePickerPopupState {
 
 impl DatePickerPopupState {
     fn last_day_of_month(&self) -> u32 {
-        let date: Date<Utc> = Date::from_utc(NaiveDate::from_ymd(self.year, self.month, 1), Utc);
+        let date: DateTime<Utc> = DateTime::from_utc(
+            NaiveDate::from_ymd(self.year, self.month, 1).and_hms(0, 0, 0),
+            Utc,
+        );
         date.with_day(31)
             .map(|_| 31)
             .or_else(|| date.with_day(30).map(|_| 30))
@@ -24,7 +27,7 @@ impl DatePickerPopupState {
 }
 
 pub(crate) struct DatePickerPopup<'a> {
-    pub selection: &'a mut Date<Utc>,
+    pub selection: &'a mut DateTime<Utc>,
     pub button_id: Id,
     pub combo_boxes: bool,
     pub arrows: bool,
@@ -35,7 +38,7 @@ pub(crate) struct DatePickerPopup<'a> {
 impl<'a> DatePickerPopup<'a> {
     pub fn draw(&mut self, ui: &mut Ui) {
         let id = ui.make_persistent_id("date_picker");
-        let today = chrono::offset::Utc::now().date();
+        let today = chrono::offset::Utc::now();
         let mut popup_state = ui
             .memory()
             .data
@@ -367,12 +370,13 @@ impl<'a> DatePickerPopup<'a> {
                         strip.cell(|ui| {
                             ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
                                 if ui.button("Save").clicked() {
-                                    *self.selection = Date::from_utc(
+                                    *self.selection = DateTime::from_utc(
                                         NaiveDate::from_ymd(
                                             popup_state.year,
                                             popup_state.month,
                                             popup_state.day,
-                                        ),
+                                        )
+                                        .and_hms(0, 0, 0),
                                         Utc,
                                     );
                                     close = true;
