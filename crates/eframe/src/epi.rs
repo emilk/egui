@@ -85,7 +85,7 @@ pub trait App {
 
     /// Called once on shutdown, after [`Self::save`].
     ///
-    /// If you need to abort an exit use [`Self::on_exit_event`].
+    /// If you need to abort an exit use [`Self::on_close_event`].
     ///
     /// To get a [`glow`] context you need to compile with the `glow` feature flag,
     /// and run eframe with the glow backend.
@@ -94,7 +94,7 @@ pub trait App {
 
     /// Called once on shutdown, after [`Self::save`].
     ///
-    /// If you need to abort an exit use [`Self::on_exit_event`].
+    /// If you need to abort an exit use [`Self::on_close_event`].
     #[cfg(not(feature = "glow"))]
     fn on_exit(&mut self) {}
 
@@ -580,7 +580,7 @@ impl Frame {
     /// The window will not close immediately, but at the end of the this frame.
     ///
     /// Calling this will likely result in the app quitting, unless
-    /// you have more code after the call to [`eframe::run_native`].
+    /// you have more code after the call to [`crate::run_native`].
     #[cfg(not(target_arch = "wasm32"))]
     #[doc(alias = "exit")]
     #[doc(alias = "quit")]
