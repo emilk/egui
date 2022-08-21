@@ -12,6 +12,8 @@ pub struct TableDemo {
     demo: DemoType,
     resizable: bool,
     num_rows: usize,
+    row_to_scroll_to: i32,
+    vertical_scroll_offset: Option<f32>,
 }
 
 impl Default for TableDemo {
@@ -20,6 +22,8 @@ impl Default for TableDemo {
             demo: DemoType::Manual,
             resizable: true,
             num_rows: 10_000,
+            row_to_scroll_to: 0,
+            vertical_scroll_offset: None,
         }
     }
 }
@@ -39,6 +43,12 @@ impl super::Demo for TableDemo {
                 self.ui(ui);
             });
     }
+}
+
+fn scroll_offset_for_row(ui: &egui::Ui, row: i32) -> f32 {
+    let text_height = egui::TextStyle::Body.resolve(ui.style()).size;
+    let row_item_spacing = ui.spacing().item_spacing.y;
+    row as f32 * (text_height + row_item_spacing)
 }
 
 impl super::View for TableDemo {
@@ -65,6 +75,18 @@ impl super::View for TableDemo {
                         .logarithmic(true)
                         .text("Num rows"),
                 );
+            }
+
+            if self.demo == DemoType::ManyHomogenous {
+                ui.add(
+                    egui::Slider::new(&mut self.row_to_scroll_to, 0..=self.num_rows as i32)
+                        .logarithmic(true)
+                        .text("Row to scroll to")
+                );
+
+                if ui.button("Scroll to row").clicked() {
+                    self.vertical_scroll_offset.replace(scroll_offset_for_row(ui, self.row_to_scroll_to));
+                }
             }
         });
 
@@ -94,14 +116,19 @@ impl TableDemo {
 
         let text_height = egui::TextStyle::Body.resolve(ui.style()).size;
 
-        TableBuilder::new(ui)
+        let mut table = TableBuilder::new(ui)
             .striped(true)
             .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
             .column(Size::initial(60.0).at_least(40.0))
             .column(Size::initial(60.0).at_least(40.0))
             .column(Size::remainder().at_least(60.0))
-            .resizable(self.resizable)
-            .header(20.0, |mut header| {
+            .resizable(self.resizable);
+
+            if let Some(y_scroll) = self.vertical_scroll_offset.take() {
+                table = table.vertical_scroll_offset(y_scroll);
+            }
+
+            table.header(20.0, |mut header| {
                 header.col(|ui| {
                     ui.heading("Row");
                 });
