@@ -81,11 +81,12 @@ impl super::View for TableDemo {
                 ui.add(
                     egui::Slider::new(&mut self.row_to_scroll_to, 0..=self.num_rows as i32)
                         .logarithmic(true)
-                        .text("Row to scroll to")
+                        .text("Row to scroll to"),
                 );
 
                 if ui.button("Scroll to row").clicked() {
-                    self.vertical_scroll_offset.replace(scroll_offset_for_row(ui, self.row_to_scroll_to));
+                    self.vertical_scroll_offset
+                        .replace(scroll_offset_for_row(ui, self.row_to_scroll_to));
                 }
             }
         });
@@ -124,11 +125,12 @@ impl TableDemo {
             .column(Size::remainder().at_least(60.0))
             .resizable(self.resizable);
 
-            if let Some(y_scroll) = self.vertical_scroll_offset.take() {
-                table = table.vertical_scroll_offset(y_scroll);
-            }
+        if let Some(y_scroll) = self.vertical_scroll_offset.take() {
+            table = table.vertical_scroll_offset(y_scroll);
+        }
 
-            table.header(20.0, |mut header| {
+        table
+            .header(20.0, |mut header| {
                 header.col(|ui| {
                     ui.heading("Row");
                 });
