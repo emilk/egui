@@ -6,6 +6,18 @@
 
 #![warn(missing_docs)] // Let's keep `epi` well-documented.
 
+#[cfg(not(target_arch = "wasm32"))]
+pub use crate::native::run::RequestRepaintEvent;
+#[cfg(not(target_arch = "wasm32"))]
+pub use winit::event_loop::EventLoopBuilder;
+
+/// Hook into the building of an event loop before it is run
+///
+/// You can configure any platform specific details required on top of the default configuration
+/// done by `EFrame`.
+#[cfg(not(target_arch = "wasm32"))]
+pub type EventLoopBuilderHook = Box<dyn FnOnce(&mut EventLoopBuilder<RequestRepaintEvent>)>;
+
 /// This is how your app is created.
 ///
 /// You can use the [`CreationContext`] to setup egui, restore state, setup OpenGL things, etc.
@@ -177,7 +189,6 @@ pub enum HardwareAcceleration {
 ///
 /// Only a single native window is currently supported.
 #[cfg(not(target_arch = "wasm32"))]
-#[derive(Clone)]
 pub struct NativeOptions {
     /// Sets whether or not the window will always be on top of other windows.
     pub always_on_top: bool,
@@ -292,6 +303,25 @@ pub struct NativeOptions {
     /// When `true`, [`winit::platform::run_return::EventLoopExtRunReturn::run_return`] is used.
     /// When `false`, [`winit::event_loop::EventLoop::run`] is used.
     pub run_and_return: bool,
+
+    /// Hook into the building of an event loop before it is run.
+    ///
+    /// Specify a callback here in case you need to make platform specific changes to the
+    /// event loop before it is run.
+    ///
+    /// Note: A [`NativeOptions`] clone will not include any `event_loop_builder` hook.
+    pub event_loop_builder: Option<EventLoopBuilderHook>,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl Clone for NativeOptions {
+    fn clone(&self) -> Self {
+        Self {
+            icon_data: self.icon_data.clone(),
+            event_loop_builder: None, // Skip any builder callbacks if cloning
+            ..*self
+        }
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -319,6 +349,7 @@ impl Default for NativeOptions {
             follow_system_theme: cfg!(target_os = "macos") || cfg!(target_os = "windows"),
             default_theme: Theme::Dark,
             run_and_return: true,
+            event_loop_builder: None,
         }
     }
 }

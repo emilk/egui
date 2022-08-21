@@ -5,13 +5,13 @@ use std::time::Duration;
 use std::time::Instant;
 
 use egui_winit::winit;
-use winit::event_loop::{ControlFlow, EventLoop};
+use winit::event_loop::{ControlFlow, EventLoop, EventLoopBuilder};
 
 use super::epi_integration::{self, EpiIntegration};
 use crate::epi;
 
 #[derive(Debug)]
-struct RequestRepaintEvent;
+pub struct RequestRepaintEvent;
 
 #[cfg(feature = "glow")]
 #[allow(unsafe_code)]
@@ -72,16 +72,37 @@ trait WinitApp {
     fn on_event(&mut self, event: winit::event::Event<'_, RequestRepaintEvent>) -> EventResult;
 }
 
+fn create_event_loop_builder(
+    native_options: &mut epi::NativeOptions,
+) -> EventLoopBuilder<RequestRepaintEvent> {
+    let mut event_loop_builder = winit::event_loop::EventLoopBuilder::with_user_event();
+
+    if let Some(hook) = std::mem::take(&mut native_options.event_loop_builder) {
+        hook(&mut event_loop_builder);
+    }
+
+    event_loop_builder
+}
+
 /// Access a thread-local event loop.
 ///
 /// We reuse the event-loop so we can support closing and opening an eframe window
 /// multiple times. This is just a limitation of winit.
-fn with_event_loop(f: impl FnOnce(&mut EventLoop<RequestRepaintEvent>)) {
+fn with_event_loop(
+    mut native_options: epi::NativeOptions,
+    f: impl FnOnce(&mut EventLoop<RequestRepaintEvent>, NativeOptions),
+) {
     use std::cell::RefCell;
-    thread_local!(static EVENT_LOOP: RefCell<EventLoop<RequestRepaintEvent>> = RefCell::new(winit::event_loop::EventLoopBuilder::with_user_event().build()));
+    thread_local!(static EVENT_LOOP: RefCell<Option<EventLoop<RequestRepaintEvent>>> = RefCell::new(None));
 
     EVENT_LOOP.with(|event_loop| {
-        f(&mut *event_loop.borrow_mut());
+        // Since we want to reference NativeOptions when creating the EventLoop we can't
+        // do that as part of the lazy thread local storage initialization and so we instead
+        // create the event loop lazily here
+        let mut event_loop = event_loop.borrow_mut();
+        let event_loop = event_loop
+            .get_or_insert_with(|| create_event_loop_builder(&mut native_options).build());
+        f(event_loop, native_options);
     });
 }
 
@@ -243,15 +264,15 @@ mod glow_integration {
         fn new(
             event_loop: &EventLoop<RequestRepaintEvent>,
             app_name: &str,
-            native_options: &epi::NativeOptions,
+            native_options: epi::NativeOptions,
             app_creator: epi::AppCreator,
         ) -> Self {
             let storage = epi_integration::create_storage(app_name);
             let window_settings = epi_integration::load_window_settings(storage.as_deref());
 
-            let window_builder = epi_integration::window_builder(native_options, &window_settings)
+            let window_builder = epi_integration::window_builder(&native_options, &window_settings)
                 .with_title(app_name);
-            let (gl_window, gl) = create_display(native_options, window_builder, event_loop);
+            let (gl_window, gl) = create_display(&native_options, window_builder, event_loop);
             let gl = Arc::new(gl);
 
             let painter = egui_glow::Painter::new(gl.clone(), None, "")
@@ -449,17 +470,17 @@ mod glow_integration {
 
     pub fn run_glow(
         app_name: &str,
-        native_options: &epi::NativeOptions,
+        mut native_options: epi::NativeOptions,
         app_creator: epi::AppCreator,
     ) {
         if native_options.run_and_return {
-            with_event_loop(|event_loop| {
+            with_event_loop(native_options, |event_loop, native_options| {
                 let glow_eframe =
                     GlowWinitApp::new(event_loop, app_name, native_options, app_creator);
                 run_and_return(event_loop, glow_eframe);
             });
         } else {
-            let event_loop = winit::event_loop::EventLoopBuilder::with_user_event().build();
+            let event_loop = create_event_loop_builder(&mut native_options).build();
             let glow_eframe = GlowWinitApp::new(&event_loop, app_name, native_options, app_creator);
             run_and_exit(event_loop, glow_eframe);
         }
@@ -487,13 +508,13 @@ mod wgpu_integration {
         fn new(
             event_loop: &EventLoop<RequestRepaintEvent>,
             app_name: &str,
-            native_options: &epi::NativeOptions,
+            native_options: epi::NativeOptions,
             app_creator: epi::AppCreator,
         ) -> Self {
             let storage = epi_integration::create_storage(app_name);
             let window_settings = epi_integration::load_window_settings(storage.as_deref());
 
-            let window = epi_integration::window_builder(native_options, &window_settings)
+            let window = epi_integration::window_builder(&native_options, &window_settings)
                 .with_title(app_name)
                 .build(event_loop)
                 .unwrap();
@@ -712,17 +733,17 @@ mod wgpu_integration {
 
     pub fn run_wgpu(
         app_name: &str,
-        native_options: &epi::NativeOptions,
+        mut native_options: epi::NativeOptions,
         app_creator: epi::AppCreator,
     ) {
         if native_options.run_and_return {
-            with_event_loop(|event_loop| {
+            with_event_loop(native_options, |event_loop, native_options| {
                 let wgpu_eframe =
                     WgpuWinitApp::new(event_loop, app_name, native_options, app_creator);
                 run_and_return(event_loop, wgpu_eframe);
             });
         } else {
-            let event_loop = winit::event_loop::EventLoopBuilder::with_user_event().build();
+            let event_loop = create_event_loop_builder(&mut native_options).build();
             let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);
             run_and_exit(event_loop, wgpu_eframe);
         }
