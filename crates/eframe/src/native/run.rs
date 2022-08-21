@@ -507,7 +507,7 @@ mod wgpu_integration {
                     wgpu::DeviceDescriptor {
                         label: None,
                         features: wgpu::Features::default(),
-                        limits: wgpu::Limits::default(),
+                        limits: wgpu::Limits::downlevel_webgl2_defaults(),
                     },
                     wgpu::PresentMode::Fifo,
                     native_options.multisampling.max(1) as _,
