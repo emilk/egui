@@ -553,12 +553,6 @@ impl Painter {
     ) {
         assert_eq!(data.len(), w * h * 4);
         assert!(
-            w >= 1 && h >= 1,
-            "Got a texture image of size {}x{}. A texture must at least be one texel wide.",
-            w,
-            h
-        );
-        assert!(
             w <= self.max_texture_side && h <= self.max_texture_side,
             "Got a texture image of size {}x{}, but the maximum supported texture side is only {}",
             w,

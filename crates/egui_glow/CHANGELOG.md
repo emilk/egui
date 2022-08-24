@@ -3,6 +3,7 @@ All notable changes to the `egui_glow` integration will be noted in this file.
 
 
 ## Unreleased
+* Allow empty textures.
 
 
 ## 0.19.0 - 2022-08-20
