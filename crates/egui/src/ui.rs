@@ -3,7 +3,7 @@
 use std::hash::Hash;
 use std::sync::Arc;
 
-use epaint::mutex::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use epaint::mutex::RwLock;
 
 use crate::{
     containers::*, ecolor::*, epaint::text::Fonts, layout::*, menu::MenuState, placer::Placer,
@@ -314,84 +314,53 @@ impl Ui {
         self.painter().layer_id()
     }
 
-    /// The [`InputState`] of the [`Context`] associated with this [`Ui`].
-    /// Equivalent to `.ctx().input()`.
-    ///
-    /// Note that this locks the [`Context`], so be careful with if-let bindings:
-    ///
-    /// ```
-    /// # egui::__run_test_ui(|ui| {
-    /// if let Some(pos) = { ui.input().pointer.hover_pos() } {
-    ///     // This is fine!
-    /// }
-    ///
-    /// let pos = ui.input().pointer.hover_pos();
-    /// if let Some(pos) = pos {
-    ///     // This is also fine!
-    /// }
-    ///
-    /// if let Some(pos) = ui.input().pointer.hover_pos() {
-    ///     // ⚠️ Using `ui` again here will lead to a dead-lock!
-    /// }
-    /// # });
-    /// ```
+    /// shortcuts for some self.ctx.method()
+    /// TODO: doc must stay
+
     #[inline]
-    pub fn input(&self) -> RwLockReadGuard<'_, InputState> {
-        self.ctx().input()
+    pub fn input<R>(&self, reader: impl FnOnce(&InputState) -> R) -> R {
+        self.ctx().input(reader)
+    }
+    #[inline]
+    pub fn input_mut<R>(&self, writer: impl FnOnce(&mut InputState) -> R) -> R {
+        self.ctx().input_mut(writer)
     }
 
-    /// The [`InputState`] of the [`Context`] associated with this [`Ui`].
-    /// Equivalent to `.ctx().input_mut()`.
-    ///
-    /// Note that this locks the [`Context`], so be careful with if-let bindings
-    /// like for [`Self::input()`].
-    /// ```
-    /// # egui::__run_test_ui(|ui| {
-    /// ui.input_mut().consume_key(egui::Modifiers::default(), egui::Key::Enter);
-    /// # });
-    /// ```
     #[inline]
-    pub fn input_mut(&self) -> RwLockWriteGuard<'_, InputState> {
-        self.ctx().input_mut()
+    pub fn memory<R>(&self, reader: impl FnOnce(&Memory) -> R) -> R {
+        self.ctx().memory(reader)
+    }
+    #[inline]
+    pub fn memory_mut<R>(&self, writer: impl FnOnce(&mut Memory) -> R) -> R {
+        self.ctx().memory_mut(writer)
     }
 
-    /// The [`Memory`] of the [`Context`] associated with this ui.
-    /// Equivalent to `.ctx().memory()`.
     #[inline]
-    pub fn memory(&self) -> RwLockWriteGuard<'_, Memory> {
-        self.ctx().memory()
+    pub fn data<R>(&self, reader: impl FnOnce(&crate::util::IdTypeMap) -> R) -> R {
+        self.ctx().data(reader)
+    }
+    #[inline]
+    pub fn data_mut<R>(&self, writer: impl FnOnce(&mut crate::util::IdTypeMap) -> R) -> R {
+        self.ctx().data_mut(writer)
     }
 
-    /// Stores superficial widget state.
     #[inline]
-    pub fn data(&self) -> RwLockWriteGuard<'_, crate::util::IdTypeMap> {
-        self.ctx().data()
+    pub fn output<R>(&self, reader: impl FnOnce(&PlatformOutput) -> R) -> R {
+        self.ctx().output(reader)
+    }
+    #[inline]
+    pub fn output_mut<R>(&self, writer: impl FnOnce(&mut PlatformOutput) -> R) -> R {
+        self.ctx().output_mut(writer)
     }
 
-    /// The [`PlatformOutput`] of the [`Context`] associated with this ui.
-    /// Equivalent to `.ctx().output()`.
-    ///
-    /// ```
-    /// # egui::__run_test_ui(|ui| {
-    /// if ui.button("📋").clicked() {
-    ///     ui.output().copied_text = "some_text".to_string();
-    /// }
-    /// # });
     #[inline]
-    pub fn output(&self) -> RwLockWriteGuard<'_, PlatformOutput> {
-        self.ctx().output()
-    }
-
-    /// The [`Fonts`] of the [`Context`] associated with this ui.
-    /// Equivalent to `.ctx().fonts()`.
-    #[inline]
-    pub fn fonts(&self) -> RwLockReadGuard<'_, Fonts> {
-        self.ctx().fonts()
+    pub fn fonts<R>(&self, reader: impl FnOnce(&Fonts) -> R) -> R {
+        self.ctx().fonts(reader)
     }
 
     /// The height of text of this text style
     pub fn text_style_height(&self, style: &TextStyle) -> f32 {
-        self.fonts().row_height(&style.resolve(self.style()))
+        self.fonts(|f| f.row_height(&style.resolve(self.style())))
     }
 
     /// Screen-space rectangle for clipping what we paint in this ui.
@@ -961,7 +930,8 @@ impl Ui {
     pub fn scroll_to_rect(&self, rect: Rect, align: Option<Align>) {
         for d in 0..2 {
             let range = rect.min[d]..=rect.max[d];
-            self.ctx().frame_state().scroll_target[d] = Some((range, align));
+            self.ctx()
+                .frame_state_mut(|state| state.scroll_target[d] = Some((range, align)));
         }
     }
 
@@ -990,7 +960,8 @@ impl Ui {
         let target = self.next_widget_position();
         for d in 0..2 {
             let target = target[d];
-            self.ctx().frame_state().scroll_target[d] = Some((target..=target, align));
+            self.ctx()
+                .frame_state_mut(|state| state.scroll_target[d] = Some((target..=target, align)));
         }
     }
 
@@ -1022,7 +993,8 @@ impl Ui {
     /// # });
     /// ```
     pub fn scroll_with_delta(&self, delta: Vec2) {
-        self.ctx().frame_state().scroll_delta += delta;
+        self.ctx()
+            .frame_state_mut(|state| state.scroll_delta += delta);
     }
 }
 

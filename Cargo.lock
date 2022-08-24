@@ -2171,6 +2171,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "hello_world_par"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+]
+
+[[package]]
 name = "hermit-abi"
 version = "0.1.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"

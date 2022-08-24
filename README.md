@@ -1,3 +1,10 @@
+## feature spec:
+1) need to remove feature spec from README
+2) methods documentation may be little outdated, since changes where made by "change api and fix all everything that failed to build"
+3) not all libs are currently ready or even can be built, especialy integration and web code
+4) changes are easy but breaking, will be great to write some migration guide
+
+
 # 🖌 egui: an easy-to-use GUI in pure Rust
 
 [<img alt="github" src="https://img.shields.io/badge/github-emilk/egui-8da0cb?logo=github" height="20">](https://github.com/emilk/egui)
@@ -369,6 +376,9 @@ All colors have premultiplied alpha.
 egui uses the builder pattern for construction widgets. For instance: `ui.add(Label::new("Hello").text_color(RED));` I am not a big fan of the builder pattern (it is quite verbose both in implementation and in use) but until Rust has named, default arguments it is the best we can do. To alleviate some of the verbosity there are common-case helper functions, like `ui.label("Hello");`.
 
 Instead of using matching `begin/end` style function calls (which can be error prone) egui prefers to use `FnOnce` closures passed to a wrapping function. Lambdas are a bit ugly though, so I'd like to find a nicer solution to this. More discussion of this at <https://github.com/emilk/egui/issues/1004#issuecomment-1001650754>.
+
+egui uses single RWLock for short time locks on each access to Context data. Single lock is to leave implementation simple and transactional. Short time locks is to allow users to run their UI logic in parallel almost without waiting on locks.
+Also, instead of creating mutex guards egui::Context uses `FnOnce` closures passed to a wrapping function. Reason for this is to make it harder to implement double locking from the same thread (can lead to deadlock) or long locking.
 
 ### Inspiration
 

@@ -8,14 +8,14 @@ pub(crate) struct State {
 
 impl State {
     pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.data().get_temp(id)
+        ctx.data_mut(|d| d.get_temp(id))
     }
 
     pub fn store(self, ctx: &Context, id: Id) {
         // We don't persist Grids, because
         // A) there are potentially a lot of them, using up a lot of space (and therefore serialization time)
         // B) if the code changes, the grid _should_ change, and not remember old sizes
-        ctx.data().insert_temp(id, self);
+        ctx.data_mut(|d| d.insert_temp(id, self));
     }
 
     fn set_min_col_width(&mut self, col: usize, width: f32) {

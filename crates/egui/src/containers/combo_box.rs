@@ -243,18 +243,13 @@ fn combo_box_dyn<'c, R>(
 ) -> InnerResponse<Option<R>> {
     let popup_id = button_id.with("popup");
 
-    let is_popup_open = ui.memory().is_popup_open(popup_id);
+    let is_popup_open = ui.memory(|m| m.is_popup_open(popup_id));
 
-    let popup_height = ui
-        .ctx()
-        .memory()
-        .areas
-        .get(popup_id)
-        .map_or(100.0, |state| state.size.y);
+    let popup_height = ui.memory(|m| m.areas.get(popup_id).map_or(100.0, |state| state.size.y));
 
     let above_or_below =
         if ui.next_widget_position().y + ui.spacing().interact_size.y + popup_height
-            < ui.ctx().input().screen_rect().bottom()
+            < ui.input(|i| i.screen_rect().bottom())
         {
             AboveOrBelow::Below
         } else {
@@ -314,7 +309,7 @@ fn combo_box_dyn<'c, R>(
     });
 
     if button_response.clicked() {
-        ui.memory().toggle_popup(popup_id);
+        ui.memory_mut(|mem| mem.toggle_popup(popup_id));
     }
     let inner = crate::popup::popup_above_or_below_widget(
         ui,
