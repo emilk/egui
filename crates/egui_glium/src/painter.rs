@@ -20,7 +20,7 @@ pub struct Painter {
     max_texture_side: usize,
     program: glium::Program,
 
-    textures: ahash::HashMap<egui::TextureId, UserTexture>,
+    textures: ahash::HashMap<egui::TextureId, EguiTexture>,
 
     /// [`egui::TextureId::User`] index
     next_native_tex_id: u64,
@@ -273,7 +273,7 @@ impl Painter {
             let gl_texture =
                 SrgbTexture2d::with_format(facade, glium_image, format, mipmaps).unwrap();
 
-            let user_texture = UserTexture::new(gl_texture.into(), delta.filter);
+            let user_texture = EguiTexture::new(gl_texture.into(), delta.filter);
             self.textures.insert(tex_id, user_texture);
         }
     }
@@ -282,7 +282,7 @@ impl Painter {
         self.textures.remove(&tex_id);
     }
 
-    fn texture(&self, texture_id: egui::TextureId) -> Option<&UserTexture> {
+    fn texture(&self, texture_id: egui::TextureId) -> Option<&EguiTexture> {
         self.textures.get(&texture_id)
     }
 
@@ -294,7 +294,7 @@ impl Painter {
         let id = egui::TextureId::User(self.next_native_tex_id);
         self.next_native_tex_id += 1;
 
-        let texture = UserTexture::new(native, filter);
+        let texture = EguiTexture::new(native, filter);
         self.textures.insert(id, texture);
         id
     }
@@ -305,17 +305,17 @@ impl Painter {
         replacing: Rc<SrgbTexture2d>,
         filter: TextureFilter,
     ) {
-        let texture = UserTexture::new(replacing, filter);
+        let texture = EguiTexture::new(replacing, filter);
         self.textures.insert(id, texture);
     }
 }
 
-struct UserTexture {
+struct EguiTexture {
     glium_texture: Rc<SrgbTexture2d>,
     filter: TextureFilter,
 }
 
-impl UserTexture {
+impl EguiTexture {
     fn new(glium_texture: Rc<SrgbTexture2d>, filter: TextureFilter) -> Self {
         Self {
             glium_texture,
