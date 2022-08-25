@@ -127,7 +127,7 @@ enum Cursor {
     Vertical { x: f64 },
 }
 
-/// Contains the cursors drawn for a specific frame of a plot.
+/// Contains the cursors drawn for a plot widget in a single frame.
 #[derive(PartialEq)]
 struct PlotFrameCursors {
     id: Id,
@@ -141,7 +141,11 @@ struct PlotFrameCursors {
 pub struct LinkedCursorsGroup {
     link_x: bool,
     link_y: bool,
-    // We store the cursors drawn for each linked plot.
+    // We store the cursors drawn for each linked plot. Each time a plot in the group is drawn, the
+    // cursors due to hovering it drew are appended to `frames`, so lower indices are older.
+    // When a plot is redrawn all entries older than its previous entry are removed. This avoids
+    // unbounded growth and also ensures entries for plots which are not longer part of the group
+    // gets removed.
     frames: Rc<RefCell<Vec<PlotFrameCursors>>>,
 }
 
@@ -751,10 +755,12 @@ impl Plot {
                 .find(|(_, frame)| frame.id == plot_id)
                 .map(|(i, _)| i);
 
-            // Remove our previous frame and all older frames as these are no longer displayed.
+            // Remove our previous frame and all older frames as these are no longer displayed. This avoids
+            // unbounded growth, as we add an entry each time we draw a plot.
             index.map(|index| frames.drain(0..=index));
 
-            // Gather all cursors of the remaining frames
+            // Gather all cursors of the remaining frames. This will be all the cursors of the
+            // other plots in the group. We want to draw these in the current plot too.
             frames
                 .iter()
                 .flat_map(|frame| frame.cursors.iter().copied())
