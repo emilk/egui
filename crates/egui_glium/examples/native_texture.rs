@@ -16,7 +16,9 @@ fn main() {
     // Allow us to share the texture with egui:
     let glium_texture = std::rc::Rc::new(glium_texture);
     // Allocate egui's texture id for GL texture
-    let texture_id = egui_glium.painter.register_native_texture(glium_texture);
+    let texture_id = egui_glium
+        .painter
+        .register_native_texture(glium_texture, egui::TextureFilter::Linear);
     // Setup button image size for reasonable image size for button container.
     let button_image_size = egui::vec2(32_f32, 32_f32);
 
