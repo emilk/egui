@@ -585,7 +585,7 @@ impl Plot {
         self
     }
 
-    /// Add a [`LinkedCursorGroup`] so that this plot will share the bounds with other plots that have this
+    /// Add a [`LinkedCursorsGroup`] so that this plot will share the bounds with other plots that have this
     /// group assigned. A plot cannot belong to more than one group.
     pub fn link_cursor(mut self, group: LinkedCursorsGroup) -> Self {
         self.linked_cursors = Some(group);
