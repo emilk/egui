@@ -28,6 +28,7 @@ impl MonoState {
 // ----------------------------------------------------------------------------
 
 type NumFormatter<'a> = Box<dyn 'a + Fn(f64, RangeInclusive<usize>) -> String>;
+type NumParser<'a> = Box<dyn 'a + Fn(&str) -> Option<f64>>;
 
 // ----------------------------------------------------------------------------
 
@@ -61,6 +62,7 @@ pub struct DragValue<'a> {
     min_decimals: usize,
     max_decimals: Option<usize>,
     custom_formatter: Option<NumFormatter<'a>>,
+    custom_parser: Option<NumParser<'a>>,
 }
 
 impl<'a> DragValue<'a> {
@@ -91,6 +93,7 @@ impl<'a> DragValue<'a> {
             min_decimals: 0,
             max_decimals: None,
             custom_formatter: None,
+            custom_parser: None,
         }
     }
 
@@ -157,10 +160,35 @@ impl<'a> DragValue<'a> {
     /// A custom formatter takes a `f64` for the numeric value and a `RangeInclusive<usize>` representing
     /// the decimal range i.e. minimum and maximum number of decimal places shown.
     ///
+    /// See also: [`DragValue::custom_parser`]
+    ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
-    /// # let mut my_i64: i64 = 0;
-    /// ui.add(egui::DragValue::new(&mut my_i64).custom_formatter(|n, _| format!("{:X}", n as i64)));
+    /// # let mut my_i32: i32 = 0;
+    /// ui.add(egui::DragValue::new(&mut my_i32)
+    ///     .clamp_range(0..=((60 * 60 * 24) - 1))
+    ///     .custom_formatter(|n, _| {
+    ///         let n = n as i32;
+    ///         let hours = n / (60 * 60);
+    ///         let mins = (n / 60) % 60;
+    ///         let secs = n % 60;
+    ///         format!("{hours:02}:{mins:02}:{secs:02}")
+    ///     })
+    ///     .custom_parser(|s| {
+    ///         let parts: Vec<&str> = s.split(':').collect();
+    ///         if parts.len() == 3 {
+    ///             parts[0].parse::<i32>().and_then(|h| {
+    ///                 parts[1].parse::<i32>().and_then(|m| {
+    ///                     parts[2].parse::<i32>().and_then(|s| {
+    ///                         Ok(((h * 60 * 60) + (m * 60) + s) as f64)
+    ///                     })
+    ///                 })
+    ///             })
+    ///             .ok()
+    ///         } else {
+    ///             None
+    ///         }
+    ///     }));
     /// # });
     /// ```
     pub fn custom_formatter(
@@ -168,6 +196,47 @@ impl<'a> DragValue<'a> {
         formatter: impl 'a + Fn(f64, RangeInclusive<usize>) -> String,
     ) -> Self {
         self.custom_formatter = Some(Box::new(formatter));
+        self
+    }
+
+    /// Set custom parser defining how the text input is parsed into a number.
+    ///
+    /// A custom parser takes an `&str` to parse into a number and returns `Some` if it was successfully parsed
+    /// or `None` otherwise.
+    ///
+    /// See also: [`DragValue::custom_formatter`]
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut my_i32: i32 = 0;
+    /// ui.add(egui::DragValue::new(&mut my_i32)
+    ///     .clamp_range(0..=((60 * 60 * 24) - 1))
+    ///     .custom_formatter(|n, _| {
+    ///         let n = n as i32;
+    ///         let hours = n / (60 * 60);
+    ///         let mins = (n / 60) % 60;
+    ///         let secs = n % 60;
+    ///         format!("{hours:02}:{mins:02}:{secs:02}")
+    ///     })
+    ///     .custom_parser(|s| {
+    ///         let parts: Vec<&str> = s.split(':').collect();
+    ///         if parts.len() == 3 {
+    ///             parts[0].parse::<i32>().and_then(|h| {
+    ///                 parts[1].parse::<i32>().and_then(|m| {
+    ///                     parts[2].parse::<i32>().and_then(|s| {
+    ///                         Ok(((h * 60 * 60) + (m * 60) + s) as f64)
+    ///                     })
+    ///                 })
+    ///             })
+    ///             .ok()
+    ///         } else {
+    ///             None
+    ///         }
+    ///     }));
+    /// # });
+    /// ```
+    pub fn custom_parser(mut self, parser: impl 'a + Fn(&str) -> Option<f64>) -> Self {
+        self.custom_parser = Some(Box::new(parser));
         self
     }
 }
@@ -183,6 +252,7 @@ impl<'a> Widget for DragValue<'a> {
             min_decimals,
             max_decimals,
             custom_formatter,
+            custom_parser,
         } = self;
 
         let shift = ui.input().modifiers.shift_only();
@@ -228,7 +298,11 @@ impl<'a> Widget for DragValue<'a> {
                     .desired_width(button_width)
                     .font(TextStyle::Monospace),
             );
-            if let Ok(parsed_value) = value_text.parse() {
+            let parsed_value = match custom_parser {
+                Some(parser) => parser(&value_text),
+                None => value_text.parse().ok(),
+            };
+            if let Some(parsed_value) = parsed_value {
                 let parsed_value = clamp_to_range(parsed_value, clamp_range);
                 set(&mut get_set_value, parsed_value);
             }
