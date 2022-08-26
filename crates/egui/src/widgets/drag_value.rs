@@ -243,7 +243,7 @@ impl<'a> DragValue<'a> {
     /// Set `custom_formatter` and `custom_parser` to display and parse numbers in binary.
     /// Signed integers and floating point numbers are not supported.
     ///
-    /// `min_width` specifies the minimum number of displayed digits; if the number is shorten than this, it will be
+    /// `min_width` specifies the minimum number of displayed digits; if the number is shorter than this, it will be
     /// prefixed with additional 0s to match `min_width`.
     ///
     /// # Panics
@@ -255,7 +255,10 @@ impl<'a> DragValue<'a> {
     /// ui.add(egui::DragValue::new(&mut my_i32).binary_u64(64));
     /// # });
     pub fn binary_u64(self, min_width: usize) -> Self {
-        assert!(min_width > 0, "DragValue::binary_u64: `min_width` must be greater than 0");
+        assert!(
+            min_width > 0,
+            "DragValue::binary_u64: `min_width` must be greater than 0"
+        );
         self.custom_formatter(move |n, _| format!("{:0>min_width$b}", n as u64))
             .custom_parser(|s| {
                 if s.is_empty() {
@@ -276,7 +279,7 @@ impl<'a> DragValue<'a> {
     /// Set `custom_formatter` and `custom_parser` to display and parse numbers in octal.
     /// Signed integers and floating point numbers are not supported.
     ///
-    /// `min_width` specifies the minimum number of displayed digits; if the number is shorten than this, it will be
+    /// `min_width` specifies the minimum number of displayed digits; if the number is shorter than this, it will be
     /// prefixed with additional 0s to match `min_width`.
     ///
     /// # Panics
@@ -288,7 +291,10 @@ impl<'a> DragValue<'a> {
     /// ui.add(egui::DragValue::new(&mut my_i32).octal_u64(22));
     /// # });
     pub fn octal_u64(self, min_width: usize) -> Self {
-        assert!(min_width > 0, "DragValue::octal_u64: `min_width` must be greater than 0");
+        assert!(
+            min_width > 0,
+            "DragValue::octal_u64: `min_width` must be greater than 0"
+        );
         self.custom_formatter(move |n, _| format!("{:0>min_width$o}", n as u64))
             .custom_parser(|s| {
                 if s.is_empty() {
@@ -309,7 +315,7 @@ impl<'a> DragValue<'a> {
     /// Set `custom_formatter` and `custom_parser` to display and parse numbers in hexadecimal.
     /// Signed integers and floating point numbers are not supported.
     ///
-    /// `min_width` specifies the minimum number of displayed digits; if the number is shorten than this, it will be
+    /// `min_width` specifies the minimum number of displayed digits; if the number is shorter than this, it will be
     /// prefixed with additional 0s to match `min_width`.
     ///
     /// # Panics
@@ -320,9 +326,12 @@ impl<'a> DragValue<'a> {
     /// # let mut my_i32: i32 = 0;
     /// ui.add(egui::DragValue::new(&mut my_i32).hexadecimal_u64(16));
     /// # });
-    pub fn hexadecimal_u64(self, min_width: usize, big: bool) -> Self {
-        assert!(min_width > 0, "DragValue::hexadecimal_u64: `min_width` must be greater than 0");
-        if big {
+    pub fn hexadecimal_u64(self, min_width: usize, upper: bool) -> Self {
+        assert!(
+            min_width > 0,
+            "DragValue::hexadecimal_u64: `min_width` must be greater than 0"
+        );
+        if upper {
             self.custom_formatter(move |n, _| format!("{:0>min_width$X}", n as u64))
         } else {
             self.custom_formatter(move |n, _| format!("{:0>min_width$x}", n as u64))
