@@ -215,10 +215,8 @@ impl SidePanel {
                     && (resize_x - pointer.x).abs()
                         <= ui.style().interaction.resize_grab_radius_side;
 
-                if ui.input().pointer.any_pressed()
-                    && ui.input().pointer.any_down()
-                    && mouse_over_resize_line
-                {
+                let any_pressed = ui.input().pointer.any_pressed(); // avoid deadlocks
+                if any_pressed && ui.input().pointer.any_down() && mouse_over_resize_line {
                     ui.memory().set_dragged_id(resize_id);
                 }
                 is_resizing = ui.memory().is_being_dragged(resize_id);
@@ -229,8 +227,8 @@ impl SidePanel {
                     side.set_rect_width(&mut panel_rect, width);
                 }
 
-                let dragging_something_else =
-                    ui.input().pointer.any_down() || ui.input().pointer.any_pressed();
+                let any_down = ui.input().pointer.any_down(); // avoid deadlocks
+                let dragging_something_else = any_down || ui.input().pointer.any_pressed();
                 resize_hover = mouse_over_resize_line && !dragging_something_else;
 
                 if resize_hover || is_resizing {
@@ -516,8 +514,8 @@ impl TopBottomPanel {
                     side.set_rect_height(&mut panel_rect, height);
                 }
 
-                let dragging_something_else =
-                    ui.input().pointer.any_down() || ui.input().pointer.any_pressed();
+                let any_down = ui.input().pointer.any_down(); // avoid deadlocks
+                let dragging_something_else = any_down || ui.input().pointer.any_pressed();
                 resize_hover = mouse_over_resize_line && !dragging_something_else;
 
                 if resize_hover || is_resizing {
