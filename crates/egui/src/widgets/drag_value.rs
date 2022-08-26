@@ -179,8 +179,8 @@ impl<'a> DragValue<'a> {
     ///         if parts.len() == 3 {
     ///             parts[0].parse::<i32>().and_then(|h| {
     ///                 parts[1].parse::<i32>().and_then(|m| {
-    ///                     parts[2].parse::<i32>().and_then(|s| {
-    ///                         Ok(((h * 60 * 60) + (m * 60) + s) as f64)
+    ///                     parts[2].parse::<i32>().map(|s| {
+    ///                         ((h * 60 * 60) + (m * 60) + s) as f64
     ///                     })
     ///                 })
     ///             })
@@ -223,8 +223,8 @@ impl<'a> DragValue<'a> {
     ///         if parts.len() == 3 {
     ///             parts[0].parse::<i32>().and_then(|h| {
     ///                 parts[1].parse::<i32>().and_then(|m| {
-    ///                     parts[2].parse::<i32>().and_then(|s| {
-    ///                         Ok(((h * 60 * 60) + (m * 60) + s) as f64)
+    ///                     parts[2].parse::<i32>().map(|s| {
+    ///                         ((h * 60 * 60) + (m * 60) + s) as f64
     ///                     })
     ///                 })
     ///             })

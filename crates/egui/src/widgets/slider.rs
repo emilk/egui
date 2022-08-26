@@ -262,8 +262,7 @@ impl<'a> Slider<'a> {
     /// ```
     /// # egui::__run_test_ui(|ui| {
     /// # let mut my_i32: i32 = 0;
-    /// ui.add(egui::DragValue::new(&mut my_i32)
-    ///     .clamp_range(0..=((60 * 60 * 24) - 1))
+    /// ui.add(egui::Slider::new(&mut my_i32, 0..=((60 * 60 * 24) - 1))
     ///     .custom_formatter(|n, _| {
     ///         let n = n as i32;
     ///         let hours = n / (60 * 60);
@@ -276,8 +275,8 @@ impl<'a> Slider<'a> {
     ///         if parts.len() == 3 {
     ///             parts[0].parse::<i32>().and_then(|h| {
     ///                 parts[1].parse::<i32>().and_then(|m| {
-    ///                     parts[2].parse::<i32>().and_then(|s| {
-    ///                         Ok(((h * 60 * 60) + (m * 60) + s) as f64)
+    ///                     parts[2].parse::<i32>().map(|s| {
+    ///                         ((h * 60 * 60) + (m * 60) + s) as f64
     ///                     })
     ///                 })
     ///             })
@@ -306,8 +305,7 @@ impl<'a> Slider<'a> {
     /// ```
     /// # egui::__run_test_ui(|ui| {
     /// # let mut my_i32: i32 = 0;
-    /// ui.add(egui::DragValue::new(&mut my_i32)
-    ///     .clamp_range(0..=((60 * 60 * 24) - 1))
+    /// ui.add(egui::Slider::new(&mut my_i32, 0..=((60 * 60 * 24) - 1))
     ///     .custom_formatter(|n, _| {
     ///         let n = n as i32;
     ///         let hours = n / (60 * 60);
@@ -320,8 +318,8 @@ impl<'a> Slider<'a> {
     ///         if parts.len() == 3 {
     ///             parts[0].parse::<i32>().and_then(|h| {
     ///                 parts[1].parse::<i32>().and_then(|m| {
-    ///                     parts[2].parse::<i32>().and_then(|s| {
-    ///                         Ok(((h * 60 * 60) + (m * 60) + s) as f64)
+    ///                     parts[2].parse::<i32>().map(|s| {
+    ///                         ((h * 60 * 60) + (m * 60) + s) as f64
     ///                     })
     ///                 })
     ///             })
@@ -335,6 +333,114 @@ impl<'a> Slider<'a> {
     pub fn custom_parser(mut self, parser: impl 'a + Fn(&str) -> Option<f64>) -> Self {
         self.custom_parser = Some(Box::new(parser));
         self
+    }
+
+    /// Set `custom_formatter` and `custom_parser` to display and parse numbers in binary.
+    /// Signed integers and floating point numbers are not supported.
+    ///
+    /// `min_width` specifies the minimum number of displayed digits; if the number is shorten than this, it will be
+    /// prefixed with additional 0s to match `min_width`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `min_width` is 0.
+    ///
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut my_i32: i32 = 0;
+    /// ui.add(egui::DragValue::new(&mut my_i32).binary_u64(64));
+    /// # });
+    pub fn binary_u64(self, min_width: usize) -> Self {
+        assert!(min_width > 0, "DragValue::binary_u64: `min_width` must be greater than 0");
+        self.custom_formatter(move |n, _| format!("{:0>min_width$b}", n as u64))
+            .custom_parser(|s| {
+                if s.is_empty() {
+                    return None;
+                }
+                let num_digits = s.len().min(64);
+                let mut n = 0;
+                for (i, digit) in s.chars().rev().take(num_digits).enumerate() {
+                    if digit != '0' && digit != '1' {
+                        return None;
+                    }
+                    n |= (digit as u64 - '0' as u64) << (i as u64);
+                }
+                Some(n as f64)
+            })
+    }
+
+    /// Set `custom_formatter` and `custom_parser` to display and parse numbers in octal.
+    /// Signed integers and floating point numbers are not supported.
+    ///
+    /// `min_width` specifies the minimum number of displayed digits; if the number is shorten than this, it will be
+    /// prefixed with additional 0s to match `min_width`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `min_width` is 0.
+    ///
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut my_i32: i32 = 0;
+    /// ui.add(egui::DragValue::new(&mut my_i32).octal_u64(22));
+    /// # });
+    pub fn octal_u64(self, min_width: usize) -> Self {
+        assert!(min_width > 0, "DragValue::octal_u64: `min_width` must be greater than 0");
+        self.custom_formatter(move |n, _| format!("{:0>min_width$o}", n as u64))
+            .custom_parser(|s| {
+                if s.is_empty() {
+                    return None;
+                }
+                let num_digits = s.len().min(22);
+                let mut n = 0;
+                for (i, digit) in s.chars().rev().take(num_digits).enumerate() {
+                    if !"01234567".contains(digit) {
+                        return None;
+                    }
+                    n += (digit as u64 - '0' as u64) * 8u64.pow(i as u32);
+                }
+                Some(n as f64)
+            })
+    }
+
+    /// Set `custom_formatter` and `custom_parser` to display and parse numbers in hexadecimal.
+    /// Signed integers and floating point numbers are not supported.
+    ///
+    /// `min_width` specifies the minimum number of displayed digits; if the number is shorten than this, it will be
+    /// prefixed with additional 0s to match `min_width`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `min_width` is 0.
+    ///
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut my_i32: i32 = 0;
+    /// ui.add(egui::DragValue::new(&mut my_i32).hexadecimal_u64(16));
+    /// # });
+    pub fn hexadecimal_u64(self, min_width: usize, big: bool) -> Self {
+        assert!(min_width > 0, "DragValue::hexadecimal_u64: `min_width` must be greater than 0");
+        if big {
+            self.custom_formatter(move |n, _| format!("{:0>min_width$X}", n as u64))
+        } else {
+            self.custom_formatter(move |n, _| format!("{:0>min_width$x}", n as u64))
+        }
+            .custom_parser(|s| {
+                if s.is_empty() {
+                    return None;
+                }
+                let num_digits = s.len().min(16);
+                let mut n = 0;
+                for (i, digit) in s.chars().rev().take(num_digits).enumerate() {
+                    match "0123456789ABCDEFabcdef".find(digit) {
+                        Some(mut digit) => {
+                            if digit > 15 {
+                                digit -= 6;
+                            }
+                            n += (digit as u64) * 16u64.pow(i as u32)
+                        }
+                        None => return None,
+                    }
+                }
+                Some(n as f64)
+            })
     }
 
     /// Helper: equivalent to `self.precision(0).smallest_positive(1.0)`.
