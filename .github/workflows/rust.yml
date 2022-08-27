@@ -34,11 +34,6 @@ jobs:
         uses: baptiste0928/cargo-install@v1
         with:
           crate: cargo-cranky
-      - name: Cranky
-        uses: actions-rs/cargo@v1
-        with:
-          command: cranky
-          args: --all-targets --all-features --  -D warnings
       - name: Check all features
         uses: actions-rs/cargo@v1
         with:
@@ -74,6 +69,11 @@ jobs:
         with:
           command: test
           args: --all-features
+      - name: Cranky
+        uses: actions-rs/cargo@v1
+        with:
+          command: cranky
+          args: --all-targets --all-features --  -D warnings
 
   check_wasm:
     name: Check wasm32 + wasm-bindgen
