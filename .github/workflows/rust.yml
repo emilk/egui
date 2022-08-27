@@ -130,6 +130,7 @@ jobs:
           toolchain: 1.61.0
           target: aarch64-linux-android
           override: true
-
+      - name: Set up cargo cache
+        uses: Swatinem/rust-cache@v2
       - run: cargo check --features wgpu --target aarch64-linux-android
         working-directory: crates/eframe
