@@ -3,7 +3,13 @@ set -eu
 script_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 cd "$script_path/.."
 
-./sh/setup_web.sh
+if [[ $* == --skip-setup ]]
+then
+  echo "Skipping setup_web.sh"
+else
+  echo "Running setup_web.sh"
+  ./sh/setup_web.sh
+fi
 
 CRATE_NAME="egui_demo_app"
 FEATURES="glow,http,persistence,screen_reader"
