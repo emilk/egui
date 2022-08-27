@@ -17,10 +17,9 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
-          profile: minimal
+          profile: default
           toolchain: 1.63.0
           override: true
-          components: clippy rustfmt
       - name: Install packages (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libgtk-3-dev # libgtk-3-dev is used by rfd
