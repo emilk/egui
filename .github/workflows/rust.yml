@@ -3,50 +3,77 @@ on: [push, pull_request]
 name: CI
 
 env:
-  # This is required to enable the web_sys clipboard API which eframe web uses
+  # web_sys_unstable_apis is required to enable the web_sys clipboard API which eframe web uses
   # https://rustwasm.github.io/wasm-bindgen/api/web_sys/struct.Clipboard.html
   # https://rustwasm.github.io/docs/wasm-bindgen/web-sys/unstable-apis.html
   RUSTFLAGS: --cfg=web_sys_unstable_apis -D warnings
   RUSTDOCFLAGS: -D warnings
 
 jobs:
-  check_default:
-    name: cargo check (default features)
+  fmt-crank-check-test:
+    name: Format + check + test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.61.0
+          toolchain: 1.63.0
           override: true
+          components: rustfmt
       - name: Install packages (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install libspeechd-dev libgtk-3-dev
-      - uses: actions-rs/cargo@v1
+        run: sudo apt-get update && sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libgtk-3-dev # libgtk-3-dev is used by rfd
+      - name: Set up cargo cache
+        uses: Swatinem/rust-cache@v2
+      - name: Rustfmt
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+      - name: Install cargo-cranky
+        uses: baptiste0928/cargo-install@v1
+        with:
+          crate: cargo-cranky
+      - name: Cranky
+        uses: actions-rs/cargo@v1
+        with:
+          command: cranky
+          args: --all-targets --all-features --  -D warnings
+      - name: Check all features
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --locked --all-features
+      - name: Check default features
+        uses: actions-rs/cargo@v1
         with:
           command: check
           args: --locked
-
-  check_all_features:
-    name: cargo check --all-features
-    strategy:
-      matrix:
-        os: [ubuntu-20.04, windows-latest, macOS-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: 1.61.0
-          override: true
-      - name: Install packages (Linux)
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install libspeechd-dev libgtk-3-dev
-      - uses: actions-rs/cargo@v1
+      - name: Check no default features
+        uses: actions-rs/cargo@v1
         with:
           command: check
+          args: --locked --no-default-features --lib
+      - name: Test doc-tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --doc --all-features
+      - name: cargo doc --lib
+        uses: actions-rs/cargo@v1
+        with:
+          command: doc
+          args: --lib --no-deps --all-features
+      - name: cargo doc --document-private-items
+        uses: actions-rs/cargo@v1
+        with:
+          command: doc
+          args: --document-private-items --no-deps --all-features
+      - name: Test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
           args: --all-features
 
   check_web_default:
@@ -64,19 +91,6 @@ jobs:
         with:
           command: check
           args: -p egui_demo_app --lib --target wasm32-unknown-unknown
-
-  check_egui_demo_app:
-    name: cargo check -p egui_demo_app
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: 1.61.0
-          override: true
-      - name: check
-        run: cargo check -p egui_demo_app
 
   check_wasm_eframe_with_features:
     name: cargo check wasm eframe
@@ -107,74 +121,6 @@ jobs:
         with:
           command: check
           args: -p egui_demo_app --lib --target wasm32-unknown-unknown --all-features
-
-  test:
-    name: cargo test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: 1.61.0
-          override: true
-      - name: Install packages (Linux)
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libgtk-3-dev # libgtk-3-dev is used by rfd
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --all-features
-
-  fmt:
-    name: cargo fmt
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: 1.61.0
-          override: true
-          components: rustfmt
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
-
-  cranky:
-    name: cargo cranky
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: 1.61.0
-          override: true
-      - run: cargo install cargo-cranky
-      - name: Install packages (Linux)
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install libspeechd-dev libgtk-3-dev # libgtk-3-dev is used by rfd
-      - uses: actions-rs/cargo@v1
-        with:
-          command: cranky
-          args: --workspace --all-targets --all-features --  -D warnings
-
-  doc:
-    name: cargo doc
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: 1.61.0
-          override: true
-      - name: Install packages (Linux)
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install libspeechd-dev
-      - run: cargo doc --lib --no-deps --all-features
 
   cargo-deny:
     runs-on: ubuntu-20.04
