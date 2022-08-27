@@ -250,10 +250,12 @@ impl<'a> DragValue<'a> {
     ///
     /// Panics if `min_width` is 0.
     ///
+    /// ```
     /// # egui::__run_test_ui(|ui| {
     /// # let mut my_i32: i32 = 0;
     /// ui.add(egui::DragValue::new(&mut my_i32).binary_u64(64));
     /// # });
+    /// ```
     pub fn binary_u64(self, min_width: usize) -> Self {
         assert!(
             min_width > 0,
@@ -286,10 +288,12 @@ impl<'a> DragValue<'a> {
     ///
     /// Panics if `min_width` is 0.
     ///
+    /// ```
     /// # egui::__run_test_ui(|ui| {
     /// # let mut my_i32: i32 = 0;
     /// ui.add(egui::DragValue::new(&mut my_i32).octal_u64(22));
     /// # });
+    /// ```
     pub fn octal_u64(self, min_width: usize) -> Self {
         assert!(
             min_width > 0,
@@ -322,10 +326,12 @@ impl<'a> DragValue<'a> {
     ///
     /// Panics if `min_width` is 0.
     ///
+    /// ```
     /// # egui::__run_test_ui(|ui| {
     /// # let mut my_i32: i32 = 0;
-    /// ui.add(egui::DragValue::new(&mut my_i32).hexadecimal_u64(16));
+    /// ui.add(egui::DragValue::new(&mut my_i32).hexadecimal_u64(16, true));
     /// # });
+    /// ```
     pub fn hexadecimal_u64(self, min_width: usize, upper: bool) -> Self {
         assert!(
             min_width > 0,
@@ -348,7 +354,7 @@ impl<'a> DragValue<'a> {
                         if digit > 15 {
                             digit -= 6;
                         }
-                        n += (digit as u64) * 16u64.pow(i as u32)
+                        n += (digit as u64) * 16u64.pow(i as u32);
                     }
                     None => return None,
                 }
