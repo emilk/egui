@@ -3,187 +3,80 @@ on: [push, pull_request]
 name: CI
 
 env:
-  # This is required to enable the web_sys clipboard API which eframe web uses
+  # web_sys_unstable_apis is required to enable the web_sys clipboard API which eframe web uses
   # https://rustwasm.github.io/wasm-bindgen/api/web_sys/struct.Clipboard.html
   # https://rustwasm.github.io/docs/wasm-bindgen/web-sys/unstable-apis.html
   RUSTFLAGS: --cfg=web_sys_unstable_apis -D warnings
   RUSTDOCFLAGS: -D warnings
 
 jobs:
-  check_default:
-    name: cargo check (default features)
+  fmt-crank-check-test:
+    name: Format + check + test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
-          profile: minimal
-          toolchain: 1.61.0
-          override: true
-      - name: Install packages (Linux)
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install libspeechd-dev libgtk-3-dev
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --locked
-
-  check_all_features:
-    name: cargo check --all-features
-    strategy:
-      matrix:
-        os: [ubuntu-20.04, windows-latest, macOS-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: 1.61.0
-          override: true
-      - name: Install packages (Linux)
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install libspeechd-dev libgtk-3-dev
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --all-features
-
-  check_web_default:
-    name: cargo check web (default features)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: 1.61.0
-          target: wasm32-unknown-unknown
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: -p egui_demo_app --lib --target wasm32-unknown-unknown
-
-  check_egui_demo_app:
-    name: cargo check -p egui_demo_app
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: 1.61.0
-          override: true
-      - name: check
-        run: cargo check -p egui_demo_app
-
-  check_wasm_eframe_with_features:
-    name: cargo check wasm eframe
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: 1.61.0
-          target: wasm32-unknown-unknown
-          override: true
-      - name: check
-        run: cargo check -p eframe --lib --no-default-features --features glow,persistence --target wasm32-unknown-unknown
-
-  check_web_all_features:
-    name: cargo check web --all-features
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: 1.61.0
-          target: wasm32-unknown-unknown
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: -p egui_demo_app --lib --target wasm32-unknown-unknown --all-features
-
-  test:
-    name: cargo test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
+          profile: default
           toolchain: 1.61.0
           override: true
       - name: Install packages (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libgtk-3-dev # libgtk-3-dev is used by rfd
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --all-features
-
-  fmt:
-    name: cargo fmt
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: 1.61.0
-          override: true
-          components: rustfmt
-      - uses: actions-rs/cargo@v1
+      - name: Set up cargo cache
+        uses: Swatinem/rust-cache@v2
+      - name: Rustfmt
+        uses: actions-rs/cargo@v1
         with:
           command: fmt
           args: --all -- --check
-
-  cranky:
-    name: cargo cranky
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - name: Install cargo-cranky
+        uses: baptiste0928/cargo-install@v1
         with:
-          profile: minimal
-          toolchain: 1.61.0
-          override: true
-      - run: cargo install cargo-cranky
-      - name: Install packages (Linux)
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install libspeechd-dev libgtk-3-dev # libgtk-3-dev is used by rfd
-      - uses: actions-rs/cargo@v1
+          crate: cargo-cranky
+      - name: Check all features
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --locked --all-features
+      - name: Check default features
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --locked
+      - name: Check no default features
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --locked --no-default-features --lib
+      - name: Test doc-tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --doc --all-features
+      - name: cargo doc --lib
+        uses: actions-rs/cargo@v1
+        with:
+          command: doc
+          args: --lib --no-deps --all-features
+      - name: cargo doc --document-private-items
+        uses: actions-rs/cargo@v1
+        with:
+          command: doc
+          args: --document-private-items --no-deps --all-features
+      - name: Test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --all-features
+      - name: Cranky
+        uses: actions-rs/cargo@v1
         with:
           command: cranky
-          args: --workspace --all-targets --all-features --  -D warnings
+          args: --all-targets --all-features --  -D warnings
 
-  doc:
-    name: cargo doc
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: 1.61.0
-          override: true
-      - name: Install packages (Linux)
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install libspeechd-dev
-      - run: cargo doc --lib --no-deps --all-features
-
-  cargo-deny:
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v2
-      - uses: EmbarkStudios/cargo-deny-action@v1
-
-  wasm_bindgen:
-    name: wasm-bindgen
+  check_wasm:
+    name: Check wasm32 + wasm-bindgen
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -193,8 +86,38 @@ jobs:
           toolchain: 1.61.0
           target: wasm32-unknown-unknown
           override: true
-      - run: ./sh/setup_web.sh
-      - run: ./sh/wasm_bindgen_check.sh
+      - run: sudo apt-get update && sudo apt-get install libgtk-3-dev
+      - name: Set up cargo cache
+        uses: Swatinem/rust-cache@v2
+      - name: Check wasm32 egui_demo_app
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: -p egui_demo_app --lib --target wasm32-unknown-unknown
+      - name: Check wasm32 egui_demo_app --all-features
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: -p egui_demo_app --lib --target wasm32-unknown-unknown --all-features
+      - name: Check wasm32 eframe
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: -p eframe --lib --no-default-features --features glow,persistence --target wasm32-unknown-unknown
+      - name: wasm-bindgen
+        uses: jetli/wasm-bindgen-action@v0.1.0
+        with:
+          version: "0.2.82"
+      - run: ./sh/wasm_bindgen_check.sh --skip-setup
+
+  cargo-deny:
+    name: cargo deny
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: EmbarkStudios/cargo-deny-action@v1
+        with:
+          rust-version: "1.61.0"
 
   android:
     name: android
@@ -207,6 +130,7 @@ jobs:
           toolchain: 1.61.0
           target: aarch64-linux-android
           override: true
-
+      - name: Set up cargo cache
+        uses: Swatinem/rust-cache@v2
       - run: cargo check --features wgpu --target aarch64-linux-android
         working-directory: crates/eframe
