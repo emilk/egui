@@ -111,24 +111,13 @@ jobs:
         run: ./scripts/wasm_bindgen_check.sh --skip-setup
 
   cargo-deny:
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v2
-      - uses: EmbarkStudios/cargo-deny-action@v1
-
-  wasm_bindgen:
-    name: wasm-bindgen
+    name: cargo deny
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: EmbarkStudios/cargo-deny-action@v1
         with:
-          profile: minimal
-          toolchain: 1.61.0
-          target: wasm32-unknown-unknown
-          override: true
-      - run: ./sh/setup_web.sh
-      - run: ./sh/wasm_bindgen_check.sh
+          rust-version: "1.61.0"
 
   android:
     name: android
