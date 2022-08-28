@@ -2,7 +2,7 @@ use crate::emath::NumExt;
 use crate::epaint::{Color32, RectShape, Rounding, Shape, Stroke};
 
 use super::{add_rulers_and_text, highlighted_color, Orientation, PlotConfig, RectElement};
-use crate::plot::{BoxPlot, PlotPoint, ScreenTransform};
+use crate::plot::{BoxPlot, Cursor, PlotPoint, ScreenTransform};
 
 /// Contains the values of a single box in a box plot.
 #[derive(Clone, Debug, PartialEq)]
@@ -221,13 +221,14 @@ impl BoxElem {
         parent: &BoxPlot,
         plot: &PlotConfig<'_>,
         shapes: &mut Vec<Shape>,
+        cursors: &mut Vec<Cursor>,
     ) {
         let text: Option<String> = parent
             .element_formatter
             .as_ref()
             .map(|fmt| fmt(self, parent));
 
-        add_rulers_and_text(self, plot, text, shapes);
+        add_rulers_and_text(self, plot, text, shapes, cursors);
     }
 }
 

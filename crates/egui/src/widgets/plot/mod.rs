@@ -1,6 +1,10 @@
 //! Simple plotting library.
 
-use std::{cell::Cell, ops::RangeInclusive, rc::Rc};
+use std::{
+    cell::{Cell, RefCell},
+    ops::RangeInclusive,
+    rc::Rc,
+};
 
 use crate::*;
 use epaint::color::Hsva;
@@ -16,6 +20,8 @@ pub use items::{
 };
 pub use legend::{Corner, Legend};
 pub use transform::PlotBounds;
+
+use self::items::{horizontal_line, rulers_color, vertical_line};
 
 mod items;
 mod legend;
@@ -114,6 +120,74 @@ impl PlotMemory {
 
 // ----------------------------------------------------------------------------
 
+/// Indicates a vertical or horizontal cursor line in plot coordinates.
+#[derive(Copy, Clone, PartialEq)]
+enum Cursor {
+    Horizontal { y: f64 },
+    Vertical { x: f64 },
+}
+
+/// Contains the cursors drawn for a plot widget in a single frame.
+#[derive(PartialEq)]
+struct PlotFrameCursors {
+    id: Id,
+    cursors: Vec<Cursor>,
+}
+
+/// Defines how multiple plots share the same cursor for one or both of their axes. Can be added while building
+/// a plot with [`Plot::link_cursor`]. Contains an internal state, meaning that this object should be stored by
+/// the user between frames.
+#[derive(Clone, PartialEq)]
+pub struct LinkedCursorsGroup {
+    link_x: bool,
+    link_y: bool,
+    // We store the cursors drawn for each linked plot. Each time a plot in the group is drawn, the
+    // cursors due to hovering it drew are appended to `frames`, so lower indices are older.
+    // When a plot is redrawn all entries older than its previous entry are removed. This avoids
+    // unbounded growth and also ensures entries for plots which are not longer part of the group
+    // gets removed.
+    frames: Rc<RefCell<Vec<PlotFrameCursors>>>,
+}
+
+impl LinkedCursorsGroup {
+    pub fn new(link_x: bool, link_y: bool) -> Self {
+        Self {
+            link_x,
+            link_y,
+            frames: Rc::new(RefCell::new(Vec::new())),
+        }
+    }
+
+    /// Only link the cursor for the x-axis.
+    pub fn x() -> Self {
+        Self::new(true, false)
+    }
+
+    /// Only link the cursor for the y-axis.
+    pub fn y() -> Self {
+        Self::new(false, true)
+    }
+
+    /// Link the cursors for both axes.
+    pub fn both() -> Self {
+        Self::new(true, true)
+    }
+
+    /// Change whether the cursor for the x-axis is linked for this group. Using this after plots in this group have been
+    /// drawn in this frame already may lead to unexpected results.
+    pub fn set_link_x(&mut self, link: bool) {
+        self.link_x = link;
+    }
+
+    /// Change whether the cursor for the y-axis is linked for this group. Using this after plots in this group have been
+    /// drawn in this frame already may lead to unexpected results.
+    pub fn set_link_y(&mut self, link: bool) {
+        self.link_y = link;
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// Defines how multiple plots share the same range for one or both of their axes. Can be added while building
 /// a plot with [`Plot::link_axis`]. Contains an internal state, meaning that this object should be stored by
 /// the user between frames.
@@ -199,6 +273,7 @@ pub struct Plot {
     allow_boxed_zoom: bool,
     boxed_zoom_pointer_button: PointerButton,
     linked_axes: Option<LinkedAxisGroup>,
+    linked_cursors: Option<LinkedCursorsGroup>,
 
     min_size: Vec2,
     width: Option<f32>,
@@ -233,6 +308,7 @@ impl Plot {
             allow_boxed_zoom: true,
             boxed_zoom_pointer_button: PointerButton::Secondary,
             linked_axes: None,
+            linked_cursors: None,
 
             min_size: Vec2::splat(64.0),
             width: None,
@@ -509,6 +585,13 @@ impl Plot {
         self
     }
 
+    /// Add a [`LinkedCursorsGroup`] so that this plot will share the bounds with other plots that have this
+    /// group assigned. A plot cannot belong to more than one group.
+    pub fn link_cursor(mut self, group: LinkedCursorsGroup) -> Self {
+        self.linked_cursors = Some(group);
+        self
+    }
+
     /// Interact with and add items to the plot and finally draw it.
     pub fn show<R>(self, ui: &mut Ui, build_fn: impl FnOnce(&mut PlotUi) -> R) -> InnerResponse<R> {
         self.show_dyn(ui, Box::new(build_fn))
@@ -544,6 +627,7 @@ impl Plot {
             show_background,
             show_axes,
             linked_axes,
+            linked_cursors,
             grid_spacers,
         } = self;
 
@@ -659,6 +743,31 @@ impl Plot {
 
         // --- Bound computation ---
         let mut bounds = *last_screen_transform.bounds();
+
+        // Find the cursors from other plots we need to draw
+        let draw_cursors: Vec<Cursor> = if let Some(group) = linked_cursors.as_ref() {
+            let mut frames = group.frames.borrow_mut();
+
+            // Look for our previous frame
+            let index = frames
+                .iter()
+                .enumerate()
+                .find(|(_, frame)| frame.id == plot_id)
+                .map(|(i, _)| i);
+
+            // Remove our previous frame and all older frames as these are no longer displayed. This avoids
+            // unbounded growth, as we add an entry each time we draw a plot.
+            index.map(|index| frames.drain(0..=index));
+
+            // Gather all cursors of the remaining frames. This will be all the cursors of the
+            // other plots in the group. We want to draw these in the current plot too.
+            frames
+                .iter()
+                .flat_map(|frame| frame.cursors.iter().copied())
+                .collect()
+        } else {
+            Vec::new()
+        };
 
         // Transfer the bounds from a link group.
         if let Some(axes) = linked_axes.as_ref() {
@@ -818,8 +927,11 @@ impl Plot {
             show_axes,
             transform: transform.clone(),
             grid_spacers,
+            draw_cursor_x: linked_cursors.as_ref().map_or(false, |group| group.link_x),
+            draw_cursor_y: linked_cursors.as_ref().map_or(false, |group| group.link_y),
+            draw_cursors,
         };
-        prepared.ui(ui, &response);
+        let plot_cursors = prepared.ui(ui, &response);
 
         if let Some(boxed_zoom_rect) = boxed_zoom_rect {
             ui.painter().with_clip_rect(rect).add(boxed_zoom_rect.0);
@@ -830,6 +942,14 @@ impl Plot {
             ui.add(&mut legend);
             hidden_items = legend.hidden_items();
             hovered_entry = legend.hovered_entry_name();
+        }
+
+        if let Some(group) = linked_cursors.as_ref() {
+            // Push the frame we just drew to the list of frames
+            group.frames.borrow_mut().push(PlotFrameCursors {
+                id: plot_id,
+                cursors: plot_cursors,
+            });
         }
 
         if let Some(group) = linked_axes.as_ref() {
@@ -1118,10 +1238,13 @@ struct PreparedPlot {
     show_axes: [bool; 2],
     transform: ScreenTransform,
     grid_spacers: [GridSpacer; 2],
+    draw_cursor_x: bool,
+    draw_cursor_y: bool,
+    draw_cursors: Vec<Cursor>,
 }
 
 impl PreparedPlot {
-    fn ui(self, ui: &mut Ui, response: &Response) {
+    fn ui(self, ui: &mut Ui, response: &Response) -> Vec<Cursor> {
         let mut shapes = Vec::new();
 
         for d in 0..2 {
@@ -1138,9 +1261,42 @@ impl PreparedPlot {
             item.shapes(&mut plot_ui, transform, &mut shapes);
         }
 
-        if let Some(pointer) = response.hover_pos() {
-            self.hover(ui, pointer, &mut shapes);
-        }
+        let cursors = if let Some(pointer) = response.hover_pos() {
+            self.hover(ui, pointer, &mut shapes)
+        } else {
+            Vec::new()
+        };
+
+        // Draw cursors
+        let line_color = rulers_color(ui);
+
+        let mut draw_cursor = |cursors: &Vec<Cursor>, always| {
+            for &cursor in cursors {
+                match cursor {
+                    Cursor::Horizontal { y } => {
+                        if self.draw_cursor_y || always {
+                            shapes.push(horizontal_line(
+                                transform.position_from_point(&PlotPoint::new(0.0, y)),
+                                &self.transform,
+                                line_color,
+                            ));
+                        }
+                    }
+                    Cursor::Vertical { x } => {
+                        if self.draw_cursor_x || always {
+                            shapes.push(vertical_line(
+                                transform.position_from_point(&PlotPoint::new(x, 0.0)),
+                                &self.transform,
+                                line_color,
+                            ));
+                        }
+                    }
+                }
+            }
+        };
+
+        draw_cursor(&self.draw_cursors, false);
+        draw_cursor(&cursors, true);
 
         let painter = ui.painter().with_clip_rect(*transform.frame());
         painter.extend(shapes);
@@ -1160,6 +1316,8 @@ impl PreparedPlot {
                 painter.text(position, anchor, text, font_id, ui.visuals().text_color());
             }
         }
+
+        cursors
     }
 
     fn paint_axis(&self, ui: &Ui, axis: usize, shapes: &mut Vec<Shape>) {
@@ -1253,7 +1411,7 @@ impl PreparedPlot {
         }
     }
 
-    fn hover(&self, ui: &Ui, pointer: Pos2, shapes: &mut Vec<Shape>) {
+    fn hover(&self, ui: &Ui, pointer: Pos2, shapes: &mut Vec<Shape>) -> Vec<Cursor> {
         let Self {
             transform,
             show_x,
@@ -1264,7 +1422,7 @@ impl PreparedPlot {
         } = self;
 
         if !show_x && !show_y {
-            return;
+            return Vec::new();
         }
 
         let interact_radius_sq: f32 = (16.0f32).powi(2);
@@ -1280,6 +1438,8 @@ impl PreparedPlot {
             .min_by_key(|(_, elem)| elem.dist_sq.ord())
             .filter(|(_, elem)| elem.dist_sq <= interact_radius_sq);
 
+        let mut cursors = Vec::new();
+
         let plot = items::PlotConfig {
             ui,
             transform,
@@ -1288,11 +1448,21 @@ impl PreparedPlot {
         };
 
         if let Some((item, elem)) = closest {
-            item.on_hover(elem, shapes, &plot, label_formatter);
+            item.on_hover(elem, shapes, &mut cursors, &plot, label_formatter);
         } else {
             let value = transform.value_from_position(pointer);
-            items::rulers_at_value(pointer, value, "", &plot, shapes, label_formatter);
+            items::rulers_at_value(
+                pointer,
+                value,
+                "",
+                &plot,
+                shapes,
+                &mut cursors,
+                label_formatter,
+            );
         }
+
+        cursors
     }
 }
 
