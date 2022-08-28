@@ -344,8 +344,6 @@ impl<'a> Slider<'a> {
     /// If `twos_complement` is true, negative values will be displayed as the 2's complement representation. Otherwise
     /// they will be prefixed with a '-' sign.
     ///
-    /// See also: [`binary`]
-    ///
     /// # Panics
     ///
     /// Panics if `min_width` is 0.
@@ -381,8 +379,6 @@ impl<'a> Slider<'a> {
     /// If `twos_complement` is true, negative values will be displayed as the 2's complement representation. Otherwise
     /// they will be prefixed with a '-' sign.
     ///
-    /// See also: [`octal`]
-    ///
     /// # Panics
     ///
     /// Panics if `min_width` is 0.
@@ -417,8 +413,6 @@ impl<'a> Slider<'a> {
     ///
     /// If `twos_complement` is true, negative values will be displayed as the 2's complement representation. Otherwise
     /// they will be prefixed with a '-' sign.
-    ///
-    /// See also: [`hexadecimal`]
     ///
     /// # Panics
     ///
