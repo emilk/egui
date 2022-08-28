@@ -1,11 +1,13 @@
-use crate::WebGlContextOption;
-use egui::{ClippedPrimitive, Rgba};
-use egui_glow::glow;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 #[cfg(not(target_arch = "wasm32"))]
 use web_sys::{WebGl2RenderingContext, WebGlRenderingContext};
+
+use egui::{ClippedPrimitive, Rgba};
+use egui_glow::glow;
+
+use crate::WebGlContextOption;
 
 pub(crate) struct WebPainter {
     pub(crate) canvas: HtmlCanvasElement,
@@ -157,10 +159,4 @@ fn init_webgl2(canvas: &HtmlCanvasElement) -> Option<(glow::Context, &'static st
     let shader_prefix = "";
 
     Some((gl, shader_prefix))
-}
-
-trait DummyWebGLConstructor {
-    fn from_webgl1_context(context: web_sys::WebGlRenderingContext) -> Self;
-
-    fn from_webgl2_context(context: web_sys::WebGl2RenderingContext) -> Self;
 }
