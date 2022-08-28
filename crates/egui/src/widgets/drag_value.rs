@@ -277,7 +277,7 @@ impl<'a> DragValue<'a> {
         .custom_parser(|s| i64::from_str_radix(s, 2).map(|n| n as f64).ok())
     }
 
-    /// Set `custom_formatter` and `custom_parser` to display and parse numbers as binary integers. Floating point
+    /// Set `custom_formatter` and `custom_parser` to display and parse numbers as octal integers. Floating point
     /// numbers are *not* supported.
     ///
     /// `min_width` specifies the minimum number of displayed digits; if the number is shorter than this, it will be
@@ -314,7 +314,7 @@ impl<'a> DragValue<'a> {
         .custom_parser(|s| i64::from_str_radix(s, 8).map(|n| n as f64).ok())
     }
 
-    /// Set `custom_formatter` and `custom_parser` to display and parse numbers as binary integers. Floating point
+    /// Set `custom_formatter` and `custom_parser` to display and parse numbers as hexadecimal integers. Floating point
     /// numbers are *not* supported.
     ///
     /// `min_width` specifies the minimum number of displayed digits; if the number is shorter than this, it will be
