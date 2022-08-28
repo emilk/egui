@@ -132,6 +132,7 @@ fn run_and_return(event_loop: &mut EventLoop<RequestRepaintEvent>, mut winit_app
                 if let Some(window) = winit_app.window() {
                     window.request_redraw();
                 }
+                next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
                 ControlFlow::Poll
             }
             Some(time_until_next_repaint) => {
