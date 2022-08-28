@@ -99,7 +99,7 @@ js-sys = "0.3"
 percent-encoding = "2.1"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
-web-sys = { version = "0.3.52", features = [
+web-sys = { version = "0.3.58", features = [
   "BinaryType",
   "Blob",
   "Clipboard",
