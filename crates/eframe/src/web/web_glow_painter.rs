@@ -1,19 +1,21 @@
-use crate::WebGlContextOption;
-use egui::{ClippedPrimitive, Rgba};
-use egui_glow::glow;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 #[cfg(not(target_arch = "wasm32"))]
 use web_sys::{WebGl2RenderingContext, WebGlRenderingContext};
 
-pub(crate) struct WrappedGlowPainter {
+use egui::{ClippedPrimitive, Rgba};
+use egui_glow::glow;
+
+use crate::WebGlContextOption;
+
+pub(crate) struct WebPainter {
     pub(crate) canvas: HtmlCanvasElement,
     pub(crate) canvas_id: String,
     pub(crate) painter: egui_glow::Painter,
 }
 
-impl WrappedGlowPainter {
+impl WebPainter {
     pub fn new(canvas_id: &str, options: WebGlContextOption) -> Result<Self, String> {
         let canvas = super::canvas_element_or_die(canvas_id);
 
@@ -32,7 +34,7 @@ impl WrappedGlowPainter {
     }
 }
 
-impl WrappedGlowPainter {
+impl WebPainter {
     pub fn gl(&self) -> &std::sync::Arc<glow::Context> {
         self.painter.gl()
     }
@@ -157,10 +159,4 @@ fn init_webgl2(canvas: &HtmlCanvasElement) -> Option<(glow::Context, &'static st
     let shader_prefix = "";
 
     Some((gl, shader_prefix))
-}
-
-trait DummyWebGLConstructor {
-    fn from_webgl1_context(context: web_sys::WebGlRenderingContext) -> Self;
-
-    fn from_webgl2_context(context: web_sys::WebGl2RenderingContext) -> Self;
 }
