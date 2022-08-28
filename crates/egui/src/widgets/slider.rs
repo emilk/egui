@@ -335,8 +335,8 @@ impl<'a> Slider<'a> {
         self
     }
 
-    /// Set `custom_formatter` and `custom_parser` to display and parse numbers as binary signed integers. Floating
-    /// point numbers are *not* supported.
+    /// Set `custom_formatter` and `custom_parser` to display and parse numbers as binary integers. Floating point
+    /// numbers are *not* supported.
     ///
     /// `min_width` specifies the minimum number of displayed digits; if the number is shorter than this, it will be
     /// prefixed with additional 0s to match `min_width`.
@@ -372,8 +372,8 @@ impl<'a> Slider<'a> {
         .custom_parser(|s| i64::from_str_radix(s, 2).map(|n| n as f64).ok())
     }
 
-    /// Set `custom_formatter` and `custom_parser` to display and parse numbers as binary signed integers. Floating
-    /// point numbers are *not* supported.
+    /// Set `custom_formatter` and `custom_parser` to display and parse numbers as binary integers. Floating point
+    /// numbers are *not* supported.
     ///
     /// `min_width` specifies the minimum number of displayed digits; if the number is shorter than this, it will be
     /// prefixed with additional 0s to match `min_width`.
@@ -409,8 +409,8 @@ impl<'a> Slider<'a> {
         .custom_parser(|s| i64::from_str_radix(s, 8).map(|n| n as f64).ok())
     }
 
-    /// Set `custom_formatter` and `custom_parser` to display and parse numbers as binary signed integers. Floating
-    /// point numbers are *not* supported.
+    /// Set `custom_formatter` and `custom_parser` to display and parse numbers as binary integers. Floating point
+    /// numbers are *not* supported.
     ///
     /// `min_width` specifies the minimum number of displayed digits; if the number is shorter than this, it will be
     /// prefixed with additional 0s to match `min_width`.
