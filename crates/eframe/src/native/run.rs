@@ -19,6 +19,7 @@ pub struct RequestRepaintEvent;
 
 pub use epi::NativeOptions;
 
+#[derive(Debug)]
 enum EventResult {
     Wait,
     RepaintAsap,
@@ -35,7 +36,7 @@ trait WinitApp {
     fn on_event(
         &mut self,
         event_loop: &EventLoopWindowTarget<RequestRepaintEvent>,
-        event: winit::event::Event<'_, RequestRepaintEvent>,
+        event: &winit::event::Event<'_, RequestRepaintEvent>,
     ) -> EventResult;
 }
 
@@ -81,7 +82,7 @@ fn run_and_return(event_loop: &mut EventLoop<RequestRepaintEvent>, mut winit_app
     let mut next_repaint_time = Instant::now();
 
     event_loop.run_return(|event, event_loop, control_flow| {
-        let event_result = match event {
+        let event_result = match &event {
             winit::event::Event::LoopDestroyed => EventResult::Exit,
 
             // Platform-dependent event handlers to workaround a winit bug
@@ -103,7 +104,7 @@ fn run_and_return(event_loop: &mut EventLoop<RequestRepaintEvent>, mut winit_app
 
             winit::event::Event::WindowEvent { window_id, .. }
                 if winit_app.window().is_none()
-                    || window_id != winit_app.window().unwrap().id() =>
+                    || *window_id != winit_app.window().unwrap().id() =>
             {
                 // This can happen if we close a window, and then reopen a new one,
                 // or if we have multiple windows open.
@@ -116,7 +117,7 @@ fn run_and_return(event_loop: &mut EventLoop<RequestRepaintEvent>, mut winit_app
         match event_result {
             EventResult::Wait => {}
             EventResult::RepaintAsap => {
-                tracing::debug!("RepaintAsap caused by winit::Event: {:?}", event);
+                tracing::debug!("Repaint caused by winit::Event: {:?}", event);
                 next_repaint_time = Instant::now();
             }
             EventResult::RepaintAt(repaint_time) => {
@@ -183,7 +184,7 @@ fn run_and_exit(
                 ..
             }) => EventResult::RepaintAsap,
 
-            event => winit_app.on_event(event_loop, event),
+            event => winit_app.on_event(event_loop, &event),
         };
 
         match event_result {
@@ -498,7 +499,7 @@ mod glow_integration {
         fn on_event(
             &mut self,
             event_loop: &EventLoopWindowTarget<RequestRepaintEvent>,
-            event: winit::event::Event<'_, RequestRepaintEvent>,
+            event: &winit::event::Event<'_, RequestRepaintEvent>,
         ) -> EventResult {
             match event {
                 winit::event::Event::Resumed => {
@@ -553,13 +554,15 @@ mod glow_integration {
                             _ => {}
                         }
 
-                        running.integration.on_event(running.app.as_mut(), &event);
+                        let event_response =
+                            running.integration.on_event(running.app.as_mut(), event);
 
                         if running.integration.should_close() {
                             EventResult::Exit
-                        } else {
-                            // TODO(emilk): ask egui if the event warrants a repaint
+                        } else if event_response.repaint {
                             EventResult::RepaintAsap
+                        } else {
+                            EventResult::Wait
                         }
                     } else {
                         EventResult::Wait
@@ -849,7 +852,7 @@ mod wgpu_integration {
         fn on_event(
             &mut self,
             event_loop: &EventLoopWindowTarget<RequestRepaintEvent>,
-            event: winit::event::Event<'_, RequestRepaintEvent>,
+            event: &winit::event::Event<'_, RequestRepaintEvent>,
         ) -> EventResult {
             match event {
                 winit::event::Event::Resumed => {
@@ -914,12 +917,14 @@ mod wgpu_integration {
                             _ => {}
                         };
 
-                        running.integration.on_event(running.app.as_mut(), &event);
+                        let event_response =
+                            running.integration.on_event(running.app.as_mut(), event);
                         if running.integration.should_close() {
                             EventResult::Exit
-                        } else {
-                            // TODO(emilk): ask egui if the event warrants a repaint
+                        } else if event_response.repaint {
                             EventResult::RepaintAsap
+                        } else {
+                            EventResult::Wait
                         }
                     } else {
                         EventResult::Wait

@@ -15,7 +15,9 @@ mod painter;
 pub use painter::Painter;
 
 pub use egui_winit;
+
 use egui_winit::winit::event_loop::EventLoopWindowTarget;
+pub use egui_winit::EventResponse;
 
 // ----------------------------------------------------------------------------
 
@@ -47,13 +49,7 @@ impl EguiGlium {
         }
     }
 
-    /// Returns `true` if egui wants exclusive use of this event
-    /// (e.g. a mouse click on an egui window, or entering text into a text field).
-    /// For instance, if you use egui for a game, you want to first call this
-    /// and only when this returns `false` pass on the events to your game.
-    ///
-    /// Note that egui uses `tab` to move focus between elements, so this will always return `true` for tabs.
-    pub fn on_event(&mut self, event: &glium::glutin::event::WindowEvent<'_>) -> bool {
+    pub fn on_event(&mut self, event: &glium::glutin::event::WindowEvent<'_>) -> EventResponse {
         self.egui_winit.on_event(&self.egui_ctx, event)
     }
 
