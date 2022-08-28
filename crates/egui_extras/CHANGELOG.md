@@ -3,7 +3,7 @@ All notable changes to the `egui_extras` integration will be noted in this file.
 
 
 ## Unreleased
-* Added `TableBuilder::vertical_scroll_offset`: method to set vertical scroll offset position for a table.
+* Added `TableBuilder::vertical_scroll_offset`: method to set vertical scroll offset position for a table ([#1946](https://github.com/emilk/egui/pull/1946)).
 
 ## 0.19.0 - 2022-08-20
 * MSRV (Minimum Supported Rust Version) is now `1.61.0` ([#1846](https://github.com/emilk/egui/pull/1846)).
