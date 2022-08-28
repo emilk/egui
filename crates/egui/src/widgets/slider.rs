@@ -344,7 +344,7 @@ impl<'a> Slider<'a> {
     /// If `twos_complement` is true, negative values will be displayed as the 2's complement representation. Otherwise
     /// they will be prefixed with a '-' sign.
     ///
-    /// See also: [`binary_uint`]
+    /// See also: [`binary`]
     ///
     /// # Panics
     ///
@@ -381,7 +381,7 @@ impl<'a> Slider<'a> {
     /// If `twos_complement` is true, negative values will be displayed as the 2's complement representation. Otherwise
     /// they will be prefixed with a '-' sign.
     ///
-    /// See also: [`octal_uint`]
+    /// See also: [`octal`]
     ///
     /// # Panics
     ///
@@ -396,7 +396,7 @@ impl<'a> Slider<'a> {
     pub fn octal(self, min_width: usize, twos_complement: bool) -> Self {
         assert!(
             min_width > 0,
-            "Slider::octal_int: `min_width` must be greater than 0"
+            "Slider::octal: `min_width` must be greater than 0"
         );
         if twos_complement {
             self.custom_formatter(move |n, _| format!("{:0>min_width$o}", n as i64))
@@ -418,7 +418,7 @@ impl<'a> Slider<'a> {
     /// If `twos_complement` is true, negative values will be displayed as the 2's complement representation. Otherwise
     /// they will be prefixed with a '-' sign.
     ///
-    /// See also: [`hexadecinal_uint`]
+    /// See also: [`hexadecimal`]
     ///
     /// # Panics
     ///
