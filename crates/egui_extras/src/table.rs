@@ -57,6 +57,7 @@ pub struct TableBuilder<'a> {
     resizable: bool,
     clip: bool,
     stick_to_bottom: bool,
+    scroll_offset_y: Option<f32>,
     cell_layout: egui::Layout,
 }
 
@@ -71,6 +72,7 @@ impl<'a> TableBuilder<'a> {
             resizable: false,
             clip: true,
             stick_to_bottom: false,
+            scroll_offset_y: None,
             cell_layout,
         }
     }
@@ -115,6 +117,12 @@ impl<'a> TableBuilder<'a> {
         self
     }
 
+    /// Set the vertical scroll offset position.
+    pub fn vertical_scroll_offset(mut self, offset: f32) -> Self {
+        self.scroll_offset_y = Some(offset);
+        self
+    }
+
     /// What layout should we use for the individual cells?
     pub fn cell_layout(mut self, cell_layout: egui::Layout) -> Self {
         self.cell_layout = cell_layout;
@@ -156,6 +164,7 @@ impl<'a> TableBuilder<'a> {
             resizable,
             clip,
             stick_to_bottom,
+            scroll_offset_y,
             cell_layout,
         } = self;
 
@@ -189,6 +198,7 @@ impl<'a> TableBuilder<'a> {
             striped,
             clip,
             stick_to_bottom,
+            scroll_offset_y,
             cell_layout,
         }
     }
@@ -208,6 +218,7 @@ impl<'a> TableBuilder<'a> {
             resizable,
             clip,
             stick_to_bottom,
+            scroll_offset_y,
             cell_layout,
         } = self;
 
@@ -229,6 +240,7 @@ impl<'a> TableBuilder<'a> {
             striped,
             clip,
             stick_to_bottom,
+            scroll_offset_y,
             cell_layout,
         }
         .body(body);
@@ -268,6 +280,7 @@ pub struct Table<'a> {
     striped: bool,
     clip: bool,
     stick_to_bottom: bool,
+    scroll_offset_y: Option<f32>,
     cell_layout: egui::Layout,
 }
 
@@ -288,6 +301,7 @@ impl<'a> Table<'a> {
             striped,
             clip,
             stick_to_bottom,
+            scroll_offset_y,
             cell_layout,
         } = self;
 
@@ -295,9 +309,13 @@ impl<'a> Table<'a> {
 
         let mut new_widths = widths.clone();
 
-        let scroll_area = egui::ScrollArea::new([false, scroll])
+        let mut scroll_area = egui::ScrollArea::new([false, scroll])
             .auto_shrink([true; 2])
             .stick_to_bottom(stick_to_bottom);
+
+        if let Some(scroll_offset_y) = scroll_offset_y {
+            scroll_area = scroll_area.vertical_scroll_offset(scroll_offset_y);
+        }
 
         scroll_area.show(ui, move |ui| {
             let layout = StripLayout::new(ui, CellDirection::Horizontal, clip, cell_layout);
