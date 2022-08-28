@@ -240,11 +240,16 @@ impl<'a> DragValue<'a> {
         self
     }
 
-    /// Set `custom_formatter` and `custom_parser` to display and parse numbers in binary.
-    /// Signed integers and floating point numbers are not supported.
+    /// Set `custom_formatter` and `custom_parser` to display and parse numbers as binary signed integers. Floating
+    /// point numbers are *not* supported.
     ///
     /// `min_width` specifies the minimum number of displayed digits; if the number is shorter than this, it will be
     /// prefixed with additional 0s to match `min_width`.
+    ///
+    /// If `twos_complement` is true, negative values will be displayed as the 2's complement representation. Otherwise
+    /// they will be prefixed with a '-' sign.
+    ///
+    /// See also: [`binary_uint`]
     ///
     /// # Panics
     ///
@@ -253,114 +258,105 @@ impl<'a> DragValue<'a> {
     /// ```
     /// # egui::__run_test_ui(|ui| {
     /// # let mut my_i32: i32 = 0;
-    /// ui.add(egui::DragValue::new(&mut my_i32).binary_u64(64));
+    /// ui.add(egui::DragValue::new(&mut my_i32).binary(64, false));
     /// # });
     /// ```
-    pub fn binary_u64(self, min_width: usize) -> Self {
+    pub fn binary(self, min_width: usize, twos_complement: bool) -> Self {
         assert!(
             min_width > 0,
-            "DragValue::binary_u64: `min_width` must be greater than 0"
+            "DragValue::binary: `min_width` must be greater than 0"
         );
-        self.custom_formatter(move |n, _| format!("{:0>min_width$b}", n as u64))
-            .custom_parser(|s| {
-                if s.is_empty() {
-                    return None;
-                }
-                let num_digits = s.len().min(64);
-                let mut n = 0;
-                for (i, digit) in s.chars().rev().take(num_digits).enumerate() {
-                    if digit != '0' && digit != '1' {
-                        return None;
-                    }
-                    n |= (digit as u64 - '0' as u64) << (i as u64);
-                }
-                Some(n as f64)
-            })
-    }
-
-    /// Set `custom_formatter` and `custom_parser` to display and parse numbers in octal.
-    /// Signed integers and floating point numbers are not supported.
-    ///
-    /// `min_width` specifies the minimum number of displayed digits; if the number is shorter than this, it will be
-    /// prefixed with additional 0s to match `min_width`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `min_width` is 0.
-    ///
-    /// ```
-    /// # egui::__run_test_ui(|ui| {
-    /// # let mut my_i32: i32 = 0;
-    /// ui.add(egui::DragValue::new(&mut my_i32).octal_u64(22));
-    /// # });
-    /// ```
-    pub fn octal_u64(self, min_width: usize) -> Self {
-        assert!(
-            min_width > 0,
-            "DragValue::octal_u64: `min_width` must be greater than 0"
-        );
-        self.custom_formatter(move |n, _| format!("{:0>min_width$o}", n as u64))
-            .custom_parser(|s| {
-                if s.is_empty() {
-                    return None;
-                }
-                let num_digits = s.len().min(22);
-                let mut n = 0;
-                for (i, digit) in s.chars().rev().take(num_digits).enumerate() {
-                    if !"01234567".contains(digit) {
-                        return None;
-                    }
-                    n += (digit as u64 - '0' as u64) * 8u64.pow(i as u32);
-                }
-                Some(n as f64)
-            })
-    }
-
-    /// Set `custom_formatter` and `custom_parser` to display and parse numbers in hexadecimal.
-    /// Signed integers and floating point numbers are not supported.
-    ///
-    /// `min_width` specifies the minimum number of displayed digits; if the number is shorter than this, it will be
-    /// prefixed with additional 0s to match `min_width`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `min_width` is 0.
-    ///
-    /// ```
-    /// # egui::__run_test_ui(|ui| {
-    /// # let mut my_i32: i32 = 0;
-    /// ui.add(egui::DragValue::new(&mut my_i32).hexadecimal_u64(16, true));
-    /// # });
-    /// ```
-    pub fn hexadecimal_u64(self, min_width: usize, upper: bool) -> Self {
-        assert!(
-            min_width > 0,
-            "DragValue::hexadecimal_u64: `min_width` must be greater than 0"
-        );
-        if upper {
-            self.custom_formatter(move |n, _| format!("{:0>min_width$X}", n as u64))
+        if twos_complement {
+            self.custom_formatter(move |n, _| format!("{:0>min_width$b}", n as i64))
         } else {
-            self.custom_formatter(move |n, _| format!("{:0>min_width$x}", n as u64))
+            self.custom_formatter(move |n, _| {
+                let sign = if n < 0.0 { "-" } else { "" };
+                format!("{sign}{:0>min_width$b}", n.abs() as i64)
+            })
         }
-        .custom_parser(|s| {
-            if s.is_empty() {
-                return None;
+        .custom_parser(|s| i64::from_str_radix(s, 2).map(|n| n as f64).ok())
+    }
+
+    /// Set `custom_formatter` and `custom_parser` to display and parse numbers as binary signed integers. Floating
+    /// point numbers are *not* supported.
+    ///
+    /// `min_width` specifies the minimum number of displayed digits; if the number is shorter than this, it will be
+    /// prefixed with additional 0s to match `min_width`.
+    ///
+    /// If `twos_complement` is true, negative values will be displayed as the 2's complement representation. Otherwise
+    /// they will be prefixed with a '-' sign.
+    ///
+    /// See also: [`octal_uint`]
+    ///
+    /// # Panics
+    ///
+    /// Panics if `min_width` is 0.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut my_i32: i32 = 0;
+    /// ui.add(egui::DragValue::new(&mut my_i32).octal(22, false));
+    /// # });
+    /// ```
+    pub fn octal(self, min_width: usize, twos_complement: bool) -> Self {
+        assert!(
+            min_width > 0,
+            "DragValue::octal_int: `min_width` must be greater than 0"
+        );
+        if twos_complement {
+            self.custom_formatter(move |n, _| format!("{:0>min_width$o}", n as i64))
+        } else {
+            self.custom_formatter(move |n, _| {
+                let sign = if n < 0.0 { "-" } else { "" };
+                format!("{sign}{:0>min_width$o}", n.abs() as i64)
+            })
+        }
+        .custom_parser(|s| i64::from_str_radix(s, 8).map(|n| n as f64).ok())
+    }
+
+    /// Set `custom_formatter` and `custom_parser` to display and parse numbers as binary signed integers. Floating
+    /// point numbers are *not* supported.
+    ///
+    /// `min_width` specifies the minimum number of displayed digits; if the number is shorter than this, it will be
+    /// prefixed with additional 0s to match `min_width`.
+    ///
+    /// If `twos_complement` is true, negative values will be displayed as the 2's complement representation. Otherwise
+    /// they will be prefixed with a '-' sign.
+    ///
+    /// See also: [`hexadecinal_uint`]
+    ///
+    /// # Panics
+    ///
+    /// Panics if `min_width` is 0.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut my_i32: i32 = 0;
+    /// ui.add(egui::DragValue::new(&mut my_i32).hexadecimal(16, false, true));
+    /// # });
+    /// ```
+    pub fn hexadecimal(self, min_width: usize, twos_complement: bool, upper: bool) -> Self {
+        assert!(
+            min_width > 0,
+            "DragValue::hexadecimal: `min_width` must be greater than 0"
+        );
+        match (twos_complement, upper) {
+            (true, true) => {
+                self.custom_formatter(move |n, _| format!("{:0>min_width$X}", n as i64))
             }
-            let num_digits = s.len().min(16);
-            let mut n = 0;
-            for (i, digit) in s.chars().rev().take(num_digits).enumerate() {
-                match "0123456789ABCDEFabcdef".find(digit) {
-                    Some(mut digit) => {
-                        if digit > 15 {
-                            digit -= 6;
-                        }
-                        n += (digit as u64) * 16u64.pow(i as u32);
-                    }
-                    None => return None,
-                }
+            (true, false) => {
+                self.custom_formatter(move |n, _| format!("{:0>min_width$x}", n as i64))
             }
-            Some(n as f64)
-        })
+            (false, true) => self.custom_formatter(move |n, _| {
+                let sign = if n < 0.0 { "-" } else { "" };
+                format!("{sign}{:0>min_width$X}", n.abs() as i64)
+            }),
+            (false, false) => self.custom_formatter(move |n, _| {
+                let sign = if n < 0.0 { "-" } else { "" };
+                format!("{sign}{:0>min_width$x}", n.abs() as i64)
+            }),
+        }
+        .custom_parser(|s| i64::from_str_radix(s, 16).map(|n| n as f64).ok())
     }
 }
 
