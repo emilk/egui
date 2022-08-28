@@ -7,13 +7,13 @@ use web_sys::HtmlCanvasElement;
 #[cfg(not(target_arch = "wasm32"))]
 use web_sys::{WebGl2RenderingContext, WebGlRenderingContext};
 
-pub(crate) struct WrappedGlowPainter {
+pub(crate) struct WebPainter {
     pub(crate) canvas: HtmlCanvasElement,
     pub(crate) canvas_id: String,
     pub(crate) painter: egui_glow::Painter,
 }
 
-impl WrappedGlowPainter {
+impl WebPainter {
     pub fn new(canvas_id: &str, options: WebGlContextOption) -> Result<Self, String> {
         let canvas = super::canvas_element_or_die(canvas_id);
 
@@ -32,7 +32,7 @@ impl WrappedGlowPainter {
     }
 }
 
-impl WrappedGlowPainter {
+impl WebPainter {
     pub fn gl(&self) -> &std::sync::Arc<glow::Context> {
         self.painter.gl()
     }

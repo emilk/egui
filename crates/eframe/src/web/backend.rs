@@ -1,4 +1,4 @@
-use super::{glow_wrapping::WrappedGlowPainter, *};
+use super::{WebPainter, *};
 
 use crate::epi;
 
@@ -162,7 +162,7 @@ fn test_parse_query() {
 pub struct AppRunner {
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
-    painter: WrappedGlowPainter,
+    painter: WebPainter,
     pub(crate) input: WebInput,
     app: Box<dyn epi::App>,
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
@@ -187,8 +187,8 @@ impl AppRunner {
         web_options: crate::WebOptions,
         app_creator: epi::AppCreator,
     ) -> Result<Self, JsValue> {
-        let painter = WrappedGlowPainter::new(canvas_id, web_options.webgl_context_option)
-            .map_err(JsValue::from)?; // fail early
+        let painter =
+            WebPainter::new(canvas_id, web_options.webgl_context_option).map_err(JsValue::from)?; // fail early
 
         let system_theme = if web_options.follow_system_theme {
             super::system_theme()

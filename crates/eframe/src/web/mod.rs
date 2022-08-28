@@ -4,12 +4,13 @@
 
 pub mod backend;
 mod events;
-mod glow_wrapping;
 mod input;
 pub mod screen_reader;
 pub mod storage;
 mod text_agent;
+mod web_glow_painter;
 
+pub(crate) use web_glow_painter::WebPainter;
 pub use backend::*;
 pub use events::*;
 pub use storage::*;
