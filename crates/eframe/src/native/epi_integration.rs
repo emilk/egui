@@ -1,6 +1,8 @@
-use crate::{epi, Theme, WindowInfo};
-use egui_winit::{native_pixels_per_point, WindowSettings};
 use winit::event_loop::EventLoopWindowTarget;
+
+use egui_winit::{native_pixels_per_point, EventResponse, WindowSettings};
+
+use crate::{epi, Theme, WindowInfo};
 
 pub fn points_to_size(points: egui::Vec2) -> winit::dpi::LogicalSize<f64> {
     winit::dpi::LogicalSize {
@@ -248,7 +250,11 @@ impl EpiIntegration {
         self.close
     }
 
-    pub fn on_event(&mut self, app: &mut dyn epi::App, event: &winit::event::WindowEvent<'_>) {
+    pub fn on_event(
+        &mut self,
+        app: &mut dyn epi::App,
+        event: &winit::event::WindowEvent<'_>,
+    ) -> EventResponse {
         use winit::event::{ElementState, MouseButton, WindowEvent};
 
         match event {
@@ -262,7 +268,7 @@ impl EpiIntegration {
             _ => {}
         }
 
-        self.egui_winit.on_event(&self.egui_ctx, event);
+        self.egui_winit.on_event(&self.egui_ctx, event)
     }
 
     pub fn update(

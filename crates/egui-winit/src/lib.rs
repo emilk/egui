@@ -39,6 +39,25 @@ pub fn screen_size_in_pixels(window: &winit::window::Window) -> egui::Vec2 {
     egui::vec2(size.width as f32, size.height as f32)
 }
 
+// ----------------------------------------------------------------------------
+
+#[must_use]
+pub struct EventResponse {
+    /// If true, egui consumed this event, i.e. wants exclusive use of this event
+    /// (e.g. a mouse click on an egui window, or entering text into a text field).
+    ///
+    /// For instance, if you use egui for a game, you should only
+    /// pass on the events to your game when [`Self::consumed`] is `false.
+    ///
+    /// Note that egui uses `tab` to move focus between elements, so this will always be `true` for tabs.
+    pub consumed: bool,
+
+    /// Do we need an egui refresh because of this event?
+    pub repaint: bool,
+}
+
+// ----------------------------------------------------------------------------
+
 /// Handles the integration between egui and winit.
 pub struct State {
     start_time: instant::Instant,
@@ -152,51 +171,63 @@ impl State {
     /// Call this when there is a new event.
     ///
     /// The result can be found in [`Self::egui_input`] and be extracted with [`Self::take_egui_input`].
-    ///
-    /// Returns `true` if egui wants exclusive use of this event
-    /// (e.g. a mouse click on an egui window, or entering text into a text field).
-    /// For instance, if you use egui for a game, you want to first call this
-    /// and only when this returns `false` pass on the events to your game.
-    ///
-    /// Note that egui uses `tab` to move focus between elements, so this will always return `true` for tabs.
     pub fn on_event(
         &mut self,
         egui_ctx: &egui::Context,
         event: &winit::event::WindowEvent<'_>,
-    ) -> bool {
+    ) -> EventResponse {
         use winit::event::WindowEvent;
         match event {
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 let pixels_per_point = *scale_factor as f32;
                 self.egui_input.pixels_per_point = Some(pixels_per_point);
                 self.current_pixels_per_point = pixels_per_point;
-                false
+                EventResponse {
+                    repaint: true,
+                    consumed: false,
+                }
             }
             WindowEvent::MouseInput { state, button, .. } => {
                 self.on_mouse_button_input(*state, *button);
-                egui_ctx.wants_pointer_input()
+                EventResponse {
+                    repaint: true,
+                    consumed: egui_ctx.wants_pointer_input(),
+                }
             }
             WindowEvent::MouseWheel { delta, .. } => {
                 self.on_mouse_wheel(*delta);
-                egui_ctx.wants_pointer_input()
+                EventResponse {
+                    repaint: true,
+                    consumed: egui_ctx.wants_pointer_input(),
+                }
             }
             WindowEvent::CursorMoved { position, .. } => {
                 self.on_cursor_moved(*position);
-                egui_ctx.is_using_pointer()
+                EventResponse {
+                    repaint: true,
+                    consumed: egui_ctx.is_using_pointer(),
+                }
             }
             WindowEvent::CursorLeft { .. } => {
                 self.pointer_pos_in_points = None;
                 self.egui_input.events.push(egui::Event::PointerGone);
-                false
+                EventResponse {
+                    repaint: true,
+                    consumed: false,
+                }
             }
             // WindowEvent::TouchpadPressure {device_id, pressure, stage, ..  } => {} // TODO
             WindowEvent::Touch(touch) => {
                 self.on_touch(touch);
-                match touch.phase {
+                let consumed = match touch.phase {
                     winit::event::TouchPhase::Started
                     | winit::event::TouchPhase::Ended
                     | winit::event::TouchPhase::Cancelled => egui_ctx.wants_pointer_input(),
                     winit::event::TouchPhase::Moved => egui_ctx.is_using_pointer(),
+                };
+                EventResponse {
+                    repaint: true,
+                    consumed,
                 }
             }
             WindowEvent::ReceivedCharacter(ch) => {
@@ -205,37 +236,54 @@ impl State {
                 let is_mac_cmd = cfg!(target_os = "macos")
                     && (self.egui_input.modifiers.ctrl || self.egui_input.modifiers.mac_cmd);
 
-                if is_printable_char(*ch) && !is_mac_cmd {
+                let consumed = if is_printable_char(*ch) && !is_mac_cmd {
                     self.egui_input
                         .events
                         .push(egui::Event::Text(ch.to_string()));
                     egui_ctx.wants_keyboard_input()
                 } else {
                     false
+                };
+                EventResponse {
+                    repaint: true,
+                    consumed,
                 }
             }
             WindowEvent::KeyboardInput { input, .. } => {
                 self.on_keyboard_input(input);
-                egui_ctx.wants_keyboard_input()
-                    || input.virtual_keycode == Some(winit::event::VirtualKeyCode::Tab)
+                let consumed = egui_ctx.wants_keyboard_input()
+                    || input.virtual_keycode == Some(winit::event::VirtualKeyCode::Tab);
+                EventResponse {
+                    repaint: true,
+                    consumed,
+                }
             }
             WindowEvent::Focused(has_focus) => {
                 self.egui_input.has_focus = *has_focus;
                 // We will not be given a KeyboardInput event when the modifiers are released while
                 // the window does not have focus. Unset all modifier state to be safe.
                 self.egui_input.modifiers = egui::Modifiers::default();
-                false
+                EventResponse {
+                    repaint: true,
+                    consumed: false,
+                }
             }
             WindowEvent::HoveredFile(path) => {
                 self.egui_input.hovered_files.push(egui::HoveredFile {
                     path: Some(path.clone()),
                     ..Default::default()
                 });
-                false
+                EventResponse {
+                    repaint: true,
+                    consumed: false,
+                }
             }
             WindowEvent::HoveredFileCancelled => {
                 self.egui_input.hovered_files.clear();
-                false
+                EventResponse {
+                    repaint: true,
+                    consumed: false,
+                }
             }
             WindowEvent::DroppedFile(path) => {
                 self.egui_input.hovered_files.clear();
@@ -243,7 +291,10 @@ impl State {
                     path: Some(path.clone()),
                     ..Default::default()
                 });
-                false
+                EventResponse {
+                    repaint: true,
+                    consumed: false,
+                }
             }
             WindowEvent::ModifiersChanged(state) => {
                 self.egui_input.modifiers.alt = state.alt();
@@ -255,12 +306,27 @@ impl State {
                 } else {
                     state.ctrl()
                 };
-                false
+                EventResponse {
+                    repaint: true,
+                    consumed: false,
+                }
             }
-            _ => {
-                // dbg!(event);
-                false
-            }
+            WindowEvent::AxisMotion { .. }
+            | WindowEvent::CloseRequested
+            | WindowEvent::CursorEntered { .. }
+            | WindowEvent::Destroyed
+            | WindowEvent::Ime(_)
+            | WindowEvent::Occluded(_)
+            | WindowEvent::Resized(_)
+            | WindowEvent::ThemeChanged(_)
+            | WindowEvent::TouchpadPressure { .. } => EventResponse {
+                repaint: true,
+                consumed: false,
+            },
+            WindowEvent::Moved(_) => EventResponse {
+                repaint: false, // moving a window doesn't warrant a repaint
+                consumed: false,
+            },
         }
     }
 

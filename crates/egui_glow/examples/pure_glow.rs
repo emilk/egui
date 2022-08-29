@@ -79,9 +79,11 @@ fn main() {
                     gl_window.resize(**new_inner_size);
                 }
 
-                egui_glow.on_event(&event);
+                let event_response = egui_glow.on_event(&event);
 
-                gl_window.window().request_redraw(); // TODO(emilk): ask egui if the events warrants a repaint instead
+                if event_response.repaint {
+                    gl_window.window().request_redraw();
+                }
             }
             glutin::event::Event::LoopDestroyed => {
                 egui_glow.destroy();

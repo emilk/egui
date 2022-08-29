@@ -66,9 +66,11 @@ fn main() {
                     *control_flow = glutin::event_loop::ControlFlow::Exit;
                 }
 
-                egui_glium.on_event(&event);
+                let event_response = egui_glium.on_event(&event);
 
-                display.gl_window().window().request_redraw(); // TODO(emilk): ask egui if the events warrants a repaint instead
+                if event_response.repaint {
+                    display.gl_window().window().request_redraw();
+                }
             }
             glutin::event::Event::NewEvents(glutin::event::StartCause::ResumeTimeReached {
                 ..
