@@ -632,7 +632,7 @@ impl RenderPass {
                 ..Default::default()
             },
             id,
-        )
+        );
     }
 
     /// Registers a `wgpu::Texture` with a `egui::TextureId` while also accepting custom
@@ -688,11 +688,12 @@ impl RenderPass {
     /// `wgpu::SamplerDescriptor` options.
     ///
     /// This allows applications to reuse `TextureId`s created with custom sampler options.
+    #[allow(clippy::needless_pass_by_value)] // false positive
     pub fn update_egui_texture_from_wgpu_texture_with_sampler_options(
         &mut self,
         device: &wgpu::Device,
         texture: &wgpu::TextureView,
-        sampler_descriptor: wgpu::SamplerDescriptor,
+        sampler_descriptor: wgpu::SamplerDescriptor<'_>,
         id: egui::TextureId,
     ) {
         let (_user_texture, user_texture_binding) = self
