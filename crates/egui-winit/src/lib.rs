@@ -47,7 +47,7 @@ pub struct EventResponse {
     /// (e.g. a mouse click on an egui window, or entering text into a text field).
     ///
     /// For instance, if you use egui for a game, you should only
-    /// pass on the events to your game when [`consumed_by_egui`] is `false.
+    /// pass on the events to your game when [`Self::consumed`] is `false.
     ///
     /// Note that egui uses `tab` to move focus between elements, so this will always be `true` for tabs.
     pub consumed: bool,
