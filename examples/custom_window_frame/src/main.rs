@@ -29,7 +29,7 @@ impl eframe::App for MyApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        custon_window_frame(ctx, frame, "egui with custom frame", |ui| {
+        custom_window_frame(ctx, frame, "egui with custom frame", |ui| {
             ui.label("This is just the contents of the window");
             ui.horizontal(|ui| {
                 ui.label("egui theme:");
@@ -39,7 +39,7 @@ impl eframe::App for MyApp {
     }
 }
 
-fn custon_window_frame(
+fn custom_window_frame(
     ctx: &egui::Context,
     frame: &mut eframe::Frame,
     title: &str,
