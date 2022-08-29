@@ -606,6 +606,35 @@ impl RenderPass {
         )
     }
 
+    /// Registers a `wgpu::Texture` with an existing `egui::TextureId`.
+    ///
+    /// This enables applications to reuse `TextureId`s.
+    pub fn update_egui_texture_from_wgpu_texture(
+        &mut self,
+        device: &wgpu::Device,
+        texture: &wgpu::TextureView,
+        texture_filter: wgpu::FilterMode,
+        id: egui::TextureId,
+    ) {
+        self.update_egui_texture_from_wgpu_texture_with_sampler_options(
+            device,
+            texture,
+            wgpu::SamplerDescriptor {
+                label: Some(
+                    format!(
+                        "egui_user_image_{}_texture_sampler",
+                        self.next_user_texture_id
+                    )
+                    .as_str(),
+                ),
+                mag_filter: texture_filter,
+                min_filter: texture_filter,
+                ..Default::default()
+            },
+            id,
+        )
+    }
+
     /// Registers a `wgpu::Texture` with a `egui::TextureId` while also accepting custom
     /// `wgpu::SamplerDescriptor` options.
     ///
@@ -653,6 +682,47 @@ impl RenderPass {
         self.next_user_texture_id += 1;
 
         id
+    }
+
+    /// Registers a `wgpu::Texture` with an existing `egui::TextureId` while also accepting custom
+    /// `wgpu::SamplerDescriptor` options.
+    ///
+    /// This allows applications to reuse `TextureId`s created with custom sampler options.
+    pub fn update_egui_texture_from_wgpu_texture_with_sampler_options(
+        &mut self,
+        device: &wgpu::Device,
+        texture: &wgpu::TextureView,
+        sampler_descriptor: wgpu::SamplerDescriptor,
+        id: egui::TextureId,
+    ) {
+        let (_user_texture, user_texture_binding) = self
+            .textures
+            .get_mut(&id)
+            .expect("Tried to update a texture that has not been allocated yet.");
+
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            compare: None,
+            ..sampler_descriptor
+        });
+
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some(
+                format!("egui_user_{}_texture_bind_group", self.next_user_texture_id).as_str(),
+            ),
+            layout: &self.texture_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(texture),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&sampler),
+                },
+            ],
+        });
+
+        *user_texture_binding = bind_group;
     }
 
     /// Uploads the uniform, vertex and index data used by the render pass.
