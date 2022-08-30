@@ -21,6 +21,8 @@ mod window_settings;
 pub use window_settings::WindowSettings;
 
 use winit::event_loop::EventLoopWindowTarget;
+
+#[cfg(feature = "wayland")]
 #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -777,6 +779,7 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
 
 /// Returns a Wayland display handle if the target is running Wayland
 fn wayland_display<T>(_event_loop: &EventLoopWindowTarget<T>) -> Option<*mut c_void> {
+    #[cfg(feature = "wayland")]
     #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",

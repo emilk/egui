@@ -18,7 +18,7 @@ all-features = true
 
 
 [features]
-default = ["clipboard", "links"]
+default = ["clipboard", "links", "wayland", "winit/default"]
 
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`egui::epaint::Vertex`], [`egui::Vec2`] etc to `&[u8]`.
 bytemuck = ["egui/bytemuck"]
@@ -39,6 +39,8 @@ screen_reader = ["tts"]
 ## Allow serialization of [`WindowSettings`] using [`serde`](https://docs.rs/serde).
 serde = ["egui/serde", "dep:serde"]
 
+## Enables Wayland support.
+wayland = ["winit/wayland"]
 
 [dependencies]
 egui = { version = "0.19.0", path = "../egui", default-features = false, features = [
@@ -46,7 +48,7 @@ egui = { version = "0.19.0", path = "../egui", default-features = false, feature
 ] }
 instant = { version = "0.1", features = ["wasm-bindgen"] } # We use instant so we can (maybe) compile for web
 tracing = { version = "0.1", default-features = false, features = ["std"] }
-winit = "0.27.2"
+winit = { version = "0.27.2", default-features = false }
 
 #! ### Optional dependencies
 
