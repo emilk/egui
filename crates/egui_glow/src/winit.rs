@@ -1,7 +1,7 @@
-pub use egui_winit;
-pub use egui_winit::EventResponse;
 use crate::shader_version::ShaderVersion;
+pub use egui_winit;
 use egui_winit::winit;
+pub use egui_winit::EventResponse;
 
 /// Use [`egui`] from a [`glow`] app based on [`winit`].
 pub struct EguiGlow {
