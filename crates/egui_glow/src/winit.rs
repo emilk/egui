@@ -1,6 +1,6 @@
 pub use egui_winit;
 pub use egui_winit::EventResponse;
-
+use crate::shader_version::ShaderVersion;
 use egui_winit::winit;
 
 /// Use [`egui`] from a [`glow`] app based on [`winit`].
@@ -18,7 +18,7 @@ impl EguiGlow {
     pub fn new<E>(
         event_loop: &winit::event_loop::EventLoopWindowTarget<E>,
         gl: std::sync::Arc<glow::Context>,
-        custom_shader_version: Option<egui_glow::ShaderVersion>,
+        custom_shader_version: Option<ShaderVersion>,
     ) -> Self {
         let painter = crate::Painter::new(gl, None, "", custom_shader_version)
             .map_err(|error| {
