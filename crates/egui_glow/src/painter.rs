@@ -106,13 +106,16 @@ impl Painter {
         gl: Arc<glow::Context>,
         pp_fb_extent: Option<[i32; 2]>,
         shader_prefix: &str,
+        custom_shader_version: Option<ShaderVersion>,
     ) -> Result<Painter, String> {
         crate::profile_function!();
         crate::check_for_gl_error_even_in_release!(&gl, "before Painter::new");
 
         let max_texture_side = unsafe { gl.get_parameter_i32(glow::MAX_TEXTURE_SIZE) } as usize;
-
-        let shader_version = ShaderVersion::get(&gl);
+        let shader_version = match custom_shader_version {
+            Some(version) => version,
+            _ => ShaderVersion::get(&gl),
+        };
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
         let header = shader_version.version_declaration();
         tracing::debug!("Shader header: {:?}.", header);

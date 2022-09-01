@@ -311,6 +311,14 @@ pub struct NativeOptions {
     ///
     /// Note: A [`NativeOptions`] clone will not include any `event_loop_builder` hook.
     pub event_loop_builder: Option<EventLoopBuilderHook>,
+
+    #[cfg(feature = "glow")]
+    /// A helper when cross compiling for different target OpenGL | ES versions.
+    ///
+    /// cross compiling for VirtualBox VMSVGA driver with OpenGL 2.1 but doesn't support SRGB texture.
+    ///
+    /// the OpenGL ES 2.0 shader: ShaderVersion::Es100 can be used to solve blank texture problem (fallback shader).
+    pub custom_shader_version: Option<egui_glow::ShaderVersion>,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -350,6 +358,8 @@ impl Default for NativeOptions {
             default_theme: Theme::Dark,
             run_and_return: true,
             event_loop_builder: None,
+            #[cfg(feature = "glow")]
+            custom_shader_version: None,
         }
     }
 }
