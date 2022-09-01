@@ -690,7 +690,10 @@ mod wgpu_integration {
                     wgpu::DeviceDescriptor {
                         label: None,
                         features: wgpu::Features::default(),
-                        limits: wgpu::Limits::downlevel_webgl2_defaults(),
+                        limits: wgpu::Limits {
+                            max_texture_dimension_2d: 4096,
+                            ..wgpu::Limits::downlevel_webgl2_defaults()
+                        },
                     },
                     wgpu::PresentMode::Fifo,
                     self.native_options.multisampling.max(1) as _,

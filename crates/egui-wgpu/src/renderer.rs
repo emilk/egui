@@ -134,6 +134,7 @@ pub struct RenderPass {
     /// Storage for use by [`egui::PaintCallback`]'s that need to store resources such as render
     /// pipelines that must have the lifetime of the renderpass.
     pub paint_callback_resources: TypeMap,
+    depth_texture: Option<(wgpu::Texture, wgpu::TextureView)>,
 }
 
 impl RenderPass {
@@ -249,7 +250,13 @@ impl RenderPass {
                 polygon_mode: wgpu::PolygonMode::default(),
                 strip_index_format: None,
             },
-            depth_stencil: None,
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: wgpu::TextureFormat::Depth32Float,
+                depth_write_enabled: false,
+                depth_compare: wgpu::CompareFunction::Always,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
             multisample: wgpu::MultisampleState {
                 alpha_to_coverage_enabled: false,
                 count: msaa_samples,
@@ -289,7 +296,28 @@ impl RenderPass {
             textures: HashMap::new(),
             next_user_texture_id: 0,
             paint_callback_resources: TypeMap::default(),
+            depth_texture: None,
         }
+    }
+
+    pub fn update_depth_texture(&mut self, device: &wgpu::Device, width: u32, height: u32) {
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: None,
+            size: wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Depth32Float,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+        });
+
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+        self.depth_texture = Some((texture, view));
     }
 
     /// Executes the egui render pass.
@@ -307,6 +335,17 @@ impl RenderPass {
             wgpu::LoadOp::Load
         };
 
+        let depth_stencil_attachment = self.depth_texture.as_ref().map(|(_texture, view)| {
+            wgpu::RenderPassDepthStencilAttachment {
+                view,
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(1.0),
+                    store: true,
+                }),
+                stencil_ops: None,
+            }
+        });
+
         let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: color_attachment,
@@ -316,7 +355,7 @@ impl RenderPass {
                     store: true,
                 },
             })],
-            depth_stencil_attachment: None,
+            depth_stencil_attachment,
             label: Some("egui main render pass"),
         });
         rpass.push_debug_group("egui_pass");

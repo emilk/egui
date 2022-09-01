@@ -145,6 +145,8 @@ impl<'a> Painter<'a> {
             .configure(&render_state.device, &config);
         surface_state.width = width_in_pixels;
         surface_state.height = height_in_pixels;
+
+        render_state.egui_rpass.write().update_depth_texture(&render_state.device, width_in_pixels, height_in_pixels);
     }
 
     /// Updates (or clears) the [`winit::window::Window`] associated with the [`Painter`]
