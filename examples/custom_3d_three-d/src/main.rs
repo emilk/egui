@@ -1,11 +1,15 @@
+#![allow(dead_code)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 use eframe::egui;
 
+#[cfg(not(target_arch = "wasm32"))]
 fn main() {
     let options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(550.0, 610.0)),
         multisampling: 8,
+        renderer: eframe::Renderer::Glow,
+        depth_buffer: 24,
         ..Default::default()
     };
     eframe::run_native(
@@ -15,12 +19,12 @@ fn main() {
     );
 }
 
-struct MyApp {
+pub struct MyApp {
     angle: f32,
 }
 
 impl MyApp {
-    fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         Self { angle: 0.2 }
     }
 }
@@ -39,7 +43,28 @@ impl eframe::App for MyApp {
 
             egui::ScrollArea::both().show(ui, |ui| {
                 egui::Frame::canvas(ui.style()).show(ui, |ui| {
-                    self.custom_painting(ui);
+                    let (rect, response) =
+                        ui.allocate_exact_size(egui::Vec2::splat(512.0), egui::Sense::drag());
+
+                    self.angle += response.drag_delta().x * 0.01;
+
+                    // Clone locals so we can move them into the paint callback:
+                    let angle = self.angle;
+
+                    let callback = egui::PaintCallback {
+                        rect,
+                        callback: std::sync::Arc::new(egui_glow::CallbackFn::new(
+                            move |info, painter| {
+                                with_three_d(painter.gl(), |three_d| {
+                                    three_d.frame(
+                                        FrameInput::new(&three_d.context, &info, painter),
+                                        angle,
+                                    );
+                                });
+                            },
+                        )),
+                    };
+                    ui.painter().add(callback);
                 });
                 ui.label("Drag to rotate!");
             });
@@ -47,117 +72,160 @@ impl eframe::App for MyApp {
     }
 }
 
-impl MyApp {
-    fn custom_painting(&mut self, ui: &mut egui::Ui) {
-        let (rect, response) =
-            ui.allocate_exact_size(egui::Vec2::splat(512.0), egui::Sense::drag());
-
-        self.angle += response.drag_delta().x * 0.01;
-
-        // Clone locals so we can move them into the paint callback:
-        let angle = self.angle;
-
-        let callback = egui::PaintCallback {
-            rect,
-            callback: std::sync::Arc::new(move |info, render_ctx| {
-                if let Some(painter) = render_ctx.downcast_ref::<egui_glow::Painter>() {
-                    with_three_d_context(painter.gl(), |three_d| {
-                        paint_with_three_d(three_d, info, angle);
-                    });
-                } else {
-                    eprintln!("Can't do custom painting because we are not using a glow context");
-                }
-            }),
-        };
-        ui.painter().add(callback);
-    }
-}
-
-/// We get a [`glow::Context`] from `eframe`, but we want a [`three_d::Context`].
+/// We get a [`glow::Context`] from `eframe` and we want to construct a [`ThreeDApp`].
 ///
-/// Sadly we can't just create a [`three_d::Context`] in [`MyApp::new`] and pass it
-/// to the [`egui::PaintCallback`] because [`three_d::Context`] isn't `Send+Sync`, which
-/// [`egui::PaintCallback`] is.
-fn with_three_d_context<R>(
-    gl: &std::rc::Rc<glow::Context>,
-    f: impl FnOnce(&three_d::Context) -> R,
-) -> R {
+/// Sadly we can't just create a [`ThreeDApp`] in [`MyApp::new`] and pass it
+/// to the [`egui::PaintCallback`] because [`glow::Context`] isn't `Send+Sync` on web, which
+/// [`egui::PaintCallback`] needs. If you do not target web, then you can construct the [`ThreeDApp`] in [`MyApp::new`].
+fn with_three_d<R>(gl: &std::sync::Arc<glow::Context>, f: impl FnOnce(&mut ThreeDApp) -> R) -> R {
     use std::cell::RefCell;
     thread_local! {
-        pub static THREE_D: RefCell<Option<three_d::Context>> = RefCell::new(None);
+        pub static THREE_D: RefCell<Option<ThreeDApp>> = RefCell::new(None);
     }
 
     THREE_D.with(|three_d| {
         let mut three_d = three_d.borrow_mut();
-        let three_d =
-            three_d.get_or_insert_with(|| three_d::Context::from_gl_context(gl.clone()).unwrap());
+        let three_d = three_d.get_or_insert_with(|| ThreeDApp::new(gl.clone()));
         f(three_d)
     })
 }
 
-fn paint_with_three_d(three_d: &three_d::Context, info: &egui::PaintCallbackInfo, angle: f32) {
-    // Based on https://github.com/asny/three-d/blob/master/examples/triangle/src/main.rs
-    use three_d::*;
+///
+/// Translates from egui input to three-d input
+///
+pub struct FrameInput<'a> {
+    screen: three_d::RenderTarget<'a>,
+    viewport: three_d::Viewport,
+    scissor_box: three_d::ScissorBox,
+}
 
-    // Set where to paint
-    let viewport = info.viewport_in_pixels();
-    let viewport = Viewport {
-        x: viewport.left_px.round() as _,
-        y: viewport.from_bottom_px.round() as _,
-        width: viewport.width_px.round() as _,
-        height: viewport.height_px.round() as _,
-    };
+impl FrameInput<'_> {
+    pub fn new(
+        context: &three_d::Context,
+        info: &egui::PaintCallbackInfo,
+        painter: &egui_glow::Painter,
+    ) -> Self {
+        use three_d::*;
 
-    // Respect the egui clip region (e.g. if we are inside an `egui::ScrollArea`).
-    let clip_rect = info.clip_rect_in_pixels();
-    let render_states = RenderStates {
-        clip: Clip::Enabled {
+        // Disable sRGB textures for three-d
+        #[cfg(not(target_arch = "wasm32"))]
+        #[allow(unsafe_code)]
+        unsafe {
+            use glow::HasContext as _;
+            context.disable(glow::FRAMEBUFFER_SRGB);
+        }
+
+        // Constructs a screen render target to render the final image to
+        let screen = painter.intermediate_fbo().map_or_else(
+            || {
+                RenderTarget::screen(
+                    context,
+                    info.viewport.width() as u32,
+                    info.viewport.height() as u32,
+                )
+            },
+            |fbo| {
+                RenderTarget::from_framebuffer(
+                    context,
+                    info.viewport.width() as u32,
+                    info.viewport.height() as u32,
+                    fbo,
+                )
+            },
+        );
+
+        // Set where to paint
+        let viewport = info.viewport_in_pixels();
+        let viewport = Viewport {
+            x: viewport.left_px.round() as _,
+            y: viewport.from_bottom_px.round() as _,
+            width: viewport.width_px.round() as _,
+            height: viewport.height_px.round() as _,
+        };
+
+        // Respect the egui clip region (e.g. if we are inside an `egui::ScrollArea`).
+        let clip_rect = info.clip_rect_in_pixels();
+        let scissor_box = ScissorBox {
             x: clip_rect.left_px.round() as _,
             y: clip_rect.from_bottom_px.round() as _,
             width: clip_rect.width_px.round() as _,
             height: clip_rect.height_px.round() as _,
-        },
-        ..Default::default()
-    };
+        };
+        Self {
+            screen,
+            scissor_box,
+            viewport,
+        }
+    }
+}
 
-    let camera = Camera::new_perspective(
-        three_d,
-        viewport,
-        vec3(0.0, 0.0, 2.0),
-        vec3(0.0, 0.0, 0.0),
-        vec3(0.0, 1.0, 0.0),
-        degrees(45.0),
-        0.1,
-        10.0,
-    )
-    .unwrap();
+///
+/// Based on the `three-d` [Triangle example](https://github.com/asny/three-d/blob/master/examples/triangle/src/main.rs).
+/// This is where you'll need to customize
+///
+use three_d::*;
+pub struct ThreeDApp {
+    context: Context,
+    camera: Camera,
+    model: Gm<Mesh, ColorMaterial>,
+}
 
-    // Create a CPU-side mesh consisting of a single colored triangle
-    let positions = vec![
-        vec3(0.5, -0.5, 0.0),  // bottom right
-        vec3(-0.5, -0.5, 0.0), // bottom left
-        vec3(0.0, 0.5, 0.0),   // top
-    ];
-    let colors = vec![
-        Color::new(255, 0, 0, 255), // bottom right
-        Color::new(0, 255, 0, 255), // bottom left
-        Color::new(0, 0, 255, 255), // top
-    ];
-    let cpu_mesh = CpuMesh {
-        positions: Positions::F32(positions),
-        colors: Some(colors),
-        ..Default::default()
-    };
+impl ThreeDApp {
+    pub fn new(gl: std::sync::Arc<glow::Context>) -> Self {
+        let context = Context::from_gl_context(gl).unwrap();
+        // Create a camera
+        let camera = Camera::new_perspective(
+            Viewport::new_at_origo(1, 1),
+            vec3(0.0, 0.0, 2.0),
+            vec3(0.0, 0.0, 0.0),
+            vec3(0.0, 1.0, 0.0),
+            degrees(45.0),
+            0.1,
+            10.0,
+        );
 
-    let material = ColorMaterial {
-        render_states,
-        ..Default::default()
-    };
-    let mut model = Model::new_with_material(three_d, &cpu_mesh, material).unwrap();
+        // Create a CPU-side mesh consisting of a single colored triangle
+        let positions = vec![
+            vec3(0.5, -0.5, 0.0),  // bottom right
+            vec3(-0.5, -0.5, 0.0), // bottom left
+            vec3(0.0, 0.5, 0.0),   // top
+        ];
+        let colors = vec![
+            Color::new(255, 0, 0, 255), // bottom right
+            Color::new(0, 255, 0, 255), // bottom left
+            Color::new(0, 0, 255, 255), // top
+        ];
+        let cpu_mesh = CpuMesh {
+            positions: Positions::F32(positions),
+            colors: Some(colors),
+            ..Default::default()
+        };
 
-    // Set the current transformation of the triangle
-    model.set_transformation(Mat4::from_angle_y(radians(angle)));
+        // Construct a model, with a default color material, thereby transferring the mesh data to the GPU
+        let model = Gm::new(Mesh::new(&context, &cpu_mesh), ColorMaterial::default());
+        Self {
+            context,
+            camera,
+            model,
+        }
+    }
 
-    // Render the triangle with the color material which uses the per vertex colors defined at construction
-    model.render(&camera, &[]).unwrap();
+    pub fn frame(&mut self, frame_input: FrameInput<'_>, angle: f32) -> Option<glow::Framebuffer> {
+        // Ensure the viewport matches the current window viewport which changes if the window is resized
+        self.camera.set_viewport(frame_input.viewport);
+
+        // Set the current transformation of the triangle
+        self.model
+            .set_transformation(Mat4::from_angle_y(radians(angle)));
+
+        // Get the screen render target to be able to render something on the screen
+        frame_input
+            .screen
+            // Clear the color and depth of the screen render target
+            .clear_partially(frame_input.scissor_box, ClearState::depth(1.0))
+            // Render the triangle with the color material which uses the per vertex colors defined at construction
+            .render_partially(frame_input.scissor_box, &self.camera, &[&self.model], &[]);
+
+        frame_input.screen.into_framebuffer() // Take back the screen fbo, we will continue to use it.
+    }
 }

@@ -1,0 +1,50 @@
+[package]
+name = "egui-wgpu"
+version = "0.19.0"
+description = "Bindings for using egui natively using the wgpu library"
+authors = [
+    "Nils Hasenbanck <nils@hasenbanck.de>",
+    "embotech <opensource@embotech.com>",
+    "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",
+]
+edition = "2021"
+rust-version = "1.61"
+homepage = "https://github.com/emilk/egui/tree/master/crates/egui-wgpu"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/emilk/egui/tree/master/crates/egui-wgpu"
+categories = ["gui", "game-development"]
+keywords = ["wgpu", "egui", "gui", "gamedev"]
+include = [
+  "../LICENSE-APACHE",
+  "../LICENSE-MIT",
+  "**/*.rs",
+  "**/*.wgsl",
+  "Cargo.toml",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+
+
+[features]
+## Enable [`winit`](https://docs.rs/winit) integration.
+winit = ["dep:pollster", "dep:winit"]
+
+
+[dependencies]
+egui = { version = "0.19.0", path = "../egui", default-features = false, features = [
+    "bytemuck",
+] }
+
+bytemuck = "1.7"
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+type-map = "0.5.0"
+wgpu = "0.13"
+
+#! ### Optional dependencies
+## Enable this when generating docs.
+document-features = { version = "0.2", optional = true }
+
+pollster = { version = "0.2", optional = true }
+winit = { version = "0.27.2", optional = true }

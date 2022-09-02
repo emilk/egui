@@ -1,0 +1,71 @@
+[package]
+name = "egui"
+version = "0.19.0"
+authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+description = "An easy-to-use immediate mode GUI that runs on both web and native"
+edition = "2021"
+rust-version = "1.61"
+homepage = "https://github.com/emilk/egui"
+license = "MIT OR Apache-2.0"
+readme = "../../README.md"
+repository = "https://github.com/emilk/egui"
+categories = ["gui", "game-development"]
+keywords = ["gui", "imgui", "immediate", "portable", "gamedev"]
+include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
+
+[package.metadata.docs.rs]
+all-features = true
+
+[lib]
+
+
+[features]
+default = ["default_fonts"]
+
+## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`epaint::Vertex`], [`emath::Vec2`] etc to `&[u8]`.
+bytemuck = ["epaint/bytemuck"]
+
+## [`cint`](https://docs.rs/cint) enables interopability with other color libraries.
+cint = ["epaint/cint"]
+
+## Enable the [`hex_color`] macro.
+color-hex = ["epaint/color-hex"]
+
+## This will automatically detect deadlocks due to double-locking on the same thread.
+## If your app freezes, you may want to enable this!
+## Only affects [`epaint::mutex::RwLock`] (which egui uses a lot).
+deadlock_detection = ["epaint/deadlock_detection"]
+
+## If set, egui will use `include_bytes!` to bundle some fonts.
+## If you plan on specifying your own fonts you may disable this feature.
+default_fonts = ["epaint/default_fonts"]
+
+## Enable additional checks if debug assertions are enabled (debug builds).
+extra_debug_asserts = ["epaint/extra_debug_asserts"]
+## Always enable additional checks.
+extra_asserts = ["epaint/extra_asserts"]
+
+## [`mint`](https://docs.rs/mint) enables interopability with other math libraries such as [`glam`](https://docs.rs/glam) and [`nalgebra`](https://docs.rs/nalgebra).
+mint = ["epaint/mint"]
+
+## Enable persistence of memory (window positions etc).
+persistence = ["serde", "epaint/serde", "ron"]
+
+## Allow serialization using [`serde`](https://docs.rs/serde).
+serde = ["dep:serde", "epaint/serde"]
+
+[dependencies]
+epaint = { version = "0.19.0", path = "../epaint", default-features = false }
+
+ahash = "0.8"
+nohash-hasher = "0.2"
+
+#! ### Optional dependencies
+## Enable this when generating docs.
+document-features = { version = "0.2", optional = true }
+
+ron = { version = "0.8", optional = true }
+serde = { version = "1", optional = true, features = ["derive", "rc"] }
+
+# egui doesn't log much, but when it does, it uses [`tracing`](https://docs.rs/tracing).
+tracing = { version = "0.1", optional = true, default-features = false, features = ["std"] }

@@ -1,0 +1,70 @@
+[package]
+name = "egui-winit"
+version = "0.19.0"
+authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+description = "Bindings for using egui with winit"
+edition = "2021"
+rust-version = "1.61"
+homepage = "https://github.com/emilk/egui/tree/master/crates/egui-winit"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/emilk/egui/tree/master/crates/egui-winit"
+categories = ["gui", "game-development"]
+keywords = ["winit", "egui", "gui", "gamedev"]
+include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
+
+[package.metadata.docs.rs]
+all-features = true
+
+
+[features]
+default = ["clipboard", "links", "wayland", "winit/default"]
+
+## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`egui::epaint::Vertex`], [`egui::Vec2`] etc to `&[u8]`.
+bytemuck = ["egui/bytemuck"]
+
+## Enable cut/copy/paste to OS clipboard.
+## If disabled a clipboard will be simulated so you can still copy/paste within the egui app.
+clipboard = ["arboard", "smithay-clipboard"]
+
+## Enable opening links in a browser when an egui hyperlink is clicked.
+links = ["webbrowser"]
+
+## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
+puffin = ["dep:puffin"]
+
+## Experimental support for a screen reader.
+screen_reader = ["tts"]
+
+## Allow serialization of [`WindowSettings`] using [`serde`](https://docs.rs/serde).
+serde = ["egui/serde", "dep:serde"]
+
+## Enables Wayland support.
+wayland = ["winit/wayland"]
+
+[dependencies]
+egui = { version = "0.19.0", path = "../egui", default-features = false, features = [
+  "tracing",
+] }
+instant = { version = "0.1", features = ["wasm-bindgen"] } # We use instant so we can (maybe) compile for web
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+winit = { version = "0.27.2", default-features = false }
+
+#! ### Optional dependencies
+
+## Enable this when generating docs.
+document-features = { version = "0.2", optional = true }
+
+puffin = { version = "0.13", optional = true }
+serde = { version = "1.0", optional = true, features = ["derive"] }
+
+# feature screen_reader
+tts = { version = "0.20", optional = true } # Can't use 0.22 due to compilation problems on linux: https://github.com/emilk/egui/runs/7170127089?check_suite_focus=true#step:5:713
+
+webbrowser = { version = "0.7", optional = true }
+
+[target.'cfg(any(target_os="linux", target_os="dragonfly", target_os="freebsd", target_os="netbsd", target_os="openbsd"))'.dependencies]
+smithay-clipboard = { version = "0.6.3", optional = true }
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+arboard = { version = "2.1", optional = true, default-features = false }
