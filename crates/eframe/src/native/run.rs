@@ -682,6 +682,12 @@ mod wgpu_integration {
             storage: Option<Box<dyn epi::Storage>>,
             window: winit::window::Window,
         ) {
+            let mut limits = wgpu::Limits::downlevel_webgl2_defaults();
+            if self.native_options.depth_buffer > 0 {
+                // When using a depth buffer, we have to be able to create a texture large enough for the entire surface.
+                limits.max_texture_dimension_2d = 8192;
+            }
+
             #[allow(unsafe_code, unused_mut, unused_unsafe)]
             let painter = unsafe {
                 let mut painter = egui_wgpu::winit::Painter::new(
@@ -690,13 +696,11 @@ mod wgpu_integration {
                     wgpu::DeviceDescriptor {
                         label: None,
                         features: wgpu::Features::default(),
-                        limits: wgpu::Limits {
-                            max_texture_dimension_2d: 4096,
-                            ..wgpu::Limits::downlevel_webgl2_defaults()
-                        },
+                        limits,
                     },
                     wgpu::PresentMode::Fifo,
                     self.native_options.multisampling.max(1) as _,
+                    self.native_options.depth_buffer,
                 );
                 painter.set_window(Some(&window));
                 painter

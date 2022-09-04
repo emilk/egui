@@ -30,6 +30,7 @@ pub struct Painter<'a> {
     device_descriptor: wgpu::DeviceDescriptor<'a>,
     present_mode: wgpu::PresentMode,
     msaa_samples: u32,
+    depth_bits: u8,
 
     instance: Instance,
     adapter: Option<Adapter>,
@@ -56,6 +57,7 @@ impl<'a> Painter<'a> {
         device_descriptor: wgpu::DeviceDescriptor<'a>,
         present_mode: wgpu::PresentMode,
         msaa_samples: u32,
+        depth_bits: u8,
     ) -> Self {
         let instance = wgpu::Instance::new(backends);
 
@@ -64,6 +66,7 @@ impl<'a> Painter<'a> {
             device_descriptor,
             present_mode,
             msaa_samples,
+            depth_bits,
 
             instance,
             adapter: None,
@@ -87,7 +90,8 @@ impl<'a> Painter<'a> {
         let (device, queue) =
             pollster::block_on(adapter.request_device(&self.device_descriptor, None)).unwrap();
 
-        let rpass = renderer::RenderPass::new(&device, target_format, self.msaa_samples);
+        let rpass =
+            renderer::RenderPass::new(&device, target_format, self.msaa_samples, self.depth_bits);
 
         RenderState {
             device: Arc::new(device),
@@ -146,7 +150,13 @@ impl<'a> Painter<'a> {
         surface_state.width = width_in_pixels;
         surface_state.height = height_in_pixels;
 
-        render_state.egui_rpass.write().update_depth_texture(&render_state.device, width_in_pixels, height_in_pixels);
+        if self.depth_bits > 0 {
+            render_state.egui_rpass.write().update_depth_texture(
+                &render_state.device,
+                width_in_pixels,
+                height_in_pixels,
+            );
+        }
     }
 
     /// Updates (or clears) the [`winit::window::Window`] associated with the [`Painter`]

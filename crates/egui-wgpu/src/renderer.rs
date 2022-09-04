@@ -121,6 +121,7 @@ struct SizedBuffer {
 /// Render pass to render a egui based GUI.
 pub struct RenderPass {
     render_pipeline: wgpu::RenderPipeline,
+    depth_texture: Option<(wgpu::Texture, wgpu::TextureView)>,
     index_buffers: Vec<SizedBuffer>,
     vertex_buffers: Vec<SizedBuffer>,
     uniform_buffer: SizedBuffer,
@@ -134,7 +135,6 @@ pub struct RenderPass {
     /// Storage for use by [`egui::PaintCallback`]'s that need to store resources such as render
     /// pipelines that must have the lifetime of the renderpass.
     pub paint_callback_resources: TypeMap,
-    depth_texture: Option<(wgpu::Texture, wgpu::TextureView)>,
 }
 
 impl RenderPass {
@@ -145,6 +145,7 @@ impl RenderPass {
         device: &wgpu::Device,
         output_format: wgpu::TextureFormat,
         msaa_samples: u32,
+        depth_bits: u8,
     ) -> Self {
         let shader = wgpu::ShaderModuleDescriptor {
             label: Some("egui_shader"),
@@ -222,6 +223,14 @@ impl RenderPass {
             push_constant_ranges: &[],
         });
 
+        let depth_stencil = (depth_bits > 0).then(|| wgpu::DepthStencilState {
+            format: wgpu::TextureFormat::Depth32Float,
+            depth_write_enabled: false,
+            depth_compare: wgpu::CompareFunction::Always,
+            stencil: wgpu::StencilState::default(),
+            bias: wgpu::DepthBiasState::default(),
+        });
+
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("egui_pipeline"),
             layout: Some(&pipeline_layout),
@@ -250,13 +259,7 @@ impl RenderPass {
                 polygon_mode: wgpu::PolygonMode::default(),
                 strip_index_format: None,
             },
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: wgpu::TextureFormat::Depth32Float,
-                depth_write_enabled: false,
-                depth_compare: wgpu::CompareFunction::Always,
-                stencil: wgpu::StencilState::default(),
-                bias: wgpu::DepthBiasState::default(),
-            }),
+            depth_stencil,
             multisample: wgpu::MultisampleState {
                 alpha_to_coverage_enabled: false,
                 count: msaa_samples,
