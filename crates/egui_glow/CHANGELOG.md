@@ -4,7 +4,7 @@ All notable changes to the `egui_glow` integration will be noted in this file.
 
 ## Unreleased
 * Allow empty textures.
-* small BREAKING change: Added `custom_shader_version` variable on `EguiGlow::new` for easier cross compilling on different OpenGL | ES targets.
+* Added `custom_shader_version` variable on `EguiGlow::new` for easier cross compilling on different OpenGL | ES targets ([#1993](https://github.com/emilk/egui/pull/1993)).
 
 ## 0.19.0 - 2022-08-20
 * MSRV (Minimum Supported Rust Version) is now `1.61.0` ([#1846](https://github.com/emilk/egui/pull/1846)).
