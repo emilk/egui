@@ -719,11 +719,11 @@ struct RowBreakCandidates {
     /// is always the primary candidate.
     space: Option<usize>,
 
-    /// Logograms (single character representing a whole word) are good candidates for line break.
-    logogram: Option<usize>,
+    /// Logograms (single character representing a whole word) or kana (Japanese hiragana and katakana) are good candidates for line break.
+    cjk: Option<usize>,
 
-    /// Kana (Japanese hiragana and katakana) may be line broken unless before a gyōtō kinsoku character.
-    kana: Option<usize>,
+    /// Breaking anywhere before a CJK character is acceptable too.
+    pre_cjk: Option<usize>,
 
     /// Breaking at a dash is a super-
     /// good idea.
@@ -744,27 +744,30 @@ impl RowBreakCandidates {
         const NON_BREAKING_SPACE: char = '\u{A0}';
         if chr.is_whitespace() && chr != NON_BREAKING_SPACE {
             self.space = Some(index);
-        } else if is_cjk_ideograph(chr) {
-            self.logogram = Some(index);
+        } else if is_cjk(chr) && (glyphs.len() == 1 || is_cjk_break_allowed(glyphs[1].chr)) {
+            self.cjk = Some(index);
         } else if chr == '-' {
             self.dash = Some(index);
         } else if chr.is_ascii_punctuation() {
             self.punctuation = Some(index);
-        } else if is_kana(chr) && (glyphs.len() == 1 || !is_gyoto_kinsoku(glyphs[1].chr)) {
-            self.kana = Some(index);
+        } else if glyphs.len() > 1 && is_cjk(glyphs[1].chr) {
+            self.pre_cjk = Some(index);
         }
         self.any = Some(index);
     }
 
-    fn has_word_boundary(&self) -> bool {
-        self.space.is_some() || self.logogram.is_some()
+    fn word_boundary(&self) -> Option<usize> {
+        [self.space, self.cjk, self.pre_cjk]
+            .into_iter()
+            .max()
+            .flatten()
     }
 
     fn has_good_candidate(&self, break_anywhere: bool) -> bool {
         if break_anywhere {
             self.any.is_some()
         } else {
-            self.has_word_boundary()
+            self.word_boundary().is_some()
         }
     }
 
@@ -772,9 +775,7 @@ impl RowBreakCandidates {
         if break_anywhere {
             self.any
         } else {
-            self.space
-                .or(self.kana)
-                .or(self.logogram)
+            self.word_boundary()
                 .or(self.dash)
                 .or(self.punctuation)
                 .or(self.any)
@@ -796,10 +797,15 @@ fn is_kana(c: char) -> bool {
 }
 
 #[inline]
-fn is_gyoto_kinsoku(c: char) -> bool {
-    // Gyōtō (meaning "beginning of line") kinsoku characters in Japanese typesetting are characters that may not appear at the start of a line, according to kinsoku shori rules.
-    // The list of gyōtō kinsoku characters can be found at https://en.wikipedia.org/wiki/Line_breaking_rules_in_East_Asian_languages#Characters_not_permitted_on_the_start_of_a_line.
-    ")]｝〕〉》」』】〙〗〟'\"｠»ヽヾーァィゥェォッャュョヮヵヶぁぃぅぇぉっゃゅょゎゕゖㇰㇱㇲㇳㇴㇵㇶㇷㇸㇹㇺㇻㇼㇽㇾㇿ々〻‐゠–〜?!‼⁇⁈⁉・、:;,。.".contains(c)
+fn is_cjk(c: char) -> bool {
+    // TODO: Add support for Korean Hangul.
+    is_cjk_ideograph(c) || is_kana(c)
+}
+
+#[inline]
+fn is_cjk_break_allowed(c: char) -> bool {
+    // See: https://en.wikipedia.org/wiki/Line_breaking_rules_in_East_Asian_languages#Characters_not_permitted_on_the_start_of_a_line.
+    !")]｝〕〉》」』】〙〗〟'\"｠»ヽヾーァィゥェォッャュョヮヵヶぁぃぅぇぉっゃゅょゎゕゖㇰㇱㇲㇳㇴㇵㇶㇷㇸㇹㇺㇻㇼㇽㇾㇿ々〻‐゠–〜?!‼⁇⁈⁉・、:;,。.".contains(c)
 }
 
 // ----------------------------------------------------------------------------
@@ -811,4 +817,42 @@ fn test_zero_max_width() {
     layout_job.wrap.max_width = 0.0;
     let galley = super::layout(&mut fonts, layout_job.into());
     assert_eq!(galley.rows.len(), 1);
+}
+
+#[test]
+fn test_cjk() {
+    let mut fonts = FontsImpl::new(1.0, 1024, super::FontDefinitions::default());
+    let mut layout_job = LayoutJob::single_section(
+        "日本語とEnglishの混在した文章".into(),
+        super::TextFormat::default(),
+    );
+    layout_job.wrap.max_width = 90.0;
+    let galley = super::layout(&mut fonts, layout_job.into());
+    assert_eq!(
+        galley
+            .rows
+            .iter()
+            .map(|row| row.glyphs.iter().map(|g| g.chr).collect::<String>())
+            .collect::<Vec<_>>(),
+        vec!["日本語と", "Englishの混在", "した文章"]
+    );
+}
+
+#[test]
+fn test_pre_cjk() {
+    let mut fonts = FontsImpl::new(1.0, 1024, super::FontDefinitions::default());
+    let mut layout_job = LayoutJob::single_section(
+        "日本語とEnglishの混在した文章".into(),
+        super::TextFormat::default(),
+    );
+    layout_job.wrap.max_width = 100.0;
+    let galley = super::layout(&mut fonts, layout_job.into());
+    assert_eq!(
+        galley
+            .rows
+            .iter()
+            .map(|row| row.glyphs.iter().map(|g| g.chr).collect::<String>())
+            .collect::<Vec<_>>(),
+        vec!["日本語とEnglish", "の混在した文章"]
+    );
 }
