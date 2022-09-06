@@ -10,7 +10,7 @@ fn main() {
     let (gl_window, gl) = create_display(&event_loop);
     let gl = std::sync::Arc::new(gl);
 
-    let mut egui_glow = egui_glow::EguiGlow::new(&event_loop, gl.clone());
+    let mut egui_glow = egui_glow::EguiGlow::new(&event_loop, gl.clone(), None);
 
     event_loop.run(move |event, _, control_flow| {
         let mut redraw = || {
