@@ -83,7 +83,10 @@ fn run_and_return(event_loop: &mut EventLoop<RequestRepaintEvent>, mut winit_app
 
     event_loop.run_return(|event, event_loop, control_flow| {
         let event_result = match &event {
-            winit::event::Event::LoopDestroyed => EventResult::Exit,
+            winit::event::Event::LoopDestroyed => {
+                tracing::debug!("winit::event::Event::LoopDestroyed");
+                EventResult::Exit
+            }
 
             // Platform-dependent event handlers to workaround a winit bug
             // See: https://github.com/rust-windowing/winit/issues/987
@@ -124,6 +127,10 @@ fn run_and_return(event_loop: &mut EventLoop<RequestRepaintEvent>, mut winit_app
                 next_repaint_time = next_repaint_time.min(repaint_time);
             }
             EventResult::Exit => {
+                // On Cmd-Q we get here and then `run_return` doesn't return,
+                // so we need to save state now:
+                tracing::debug!("Exiting event loop - saving app state…");
+                winit_app.save_and_destroy();
                 *control_flow = ControlFlow::Exit;
                 return;
             }
@@ -145,11 +152,10 @@ fn run_and_return(event_loop: &mut EventLoop<RequestRepaintEvent>, mut winit_app
 
     tracing::debug!("eframe window closed");
 
-    winit_app.save_and_destroy();
-
     drop(winit_app);
 
-    // Needed to clean the event_loop:
+    // On Windows this clears out events so that we can later create another window.
+    // See https://github.com/emilk/egui/pull/1889 for details.
     event_loop.run_return(|_, _, control_flow| {
         control_flow.set_exit();
     });
