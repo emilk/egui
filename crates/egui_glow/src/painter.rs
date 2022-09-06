@@ -117,6 +117,7 @@ impl Painter {
         let header = shader.version_declaration();
         tracing::debug!("Shader header: {:?}.", header);
         let srgb_support = gl.supported_extensions().contains("EXT_sRGB");
+        tracing::debug!("SRGB Support: {:?}.", srgb_support);
 
         let (post_process, srgb_support_define) = match (shader, srgb_support) {
             // WebGL2 support sRGB default
@@ -591,6 +592,8 @@ impl Painter {
                     glow::RGBA
                 };
                 (format, format)
+            } else if !self.srgb_support {
+                (glow::RGBA8, glow::RGBA)
             } else {
                 (glow::SRGB8_ALPHA8, glow::RGBA)
             };

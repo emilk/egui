@@ -147,6 +147,7 @@ fn supports_vao(gl: &glow::Context) -> bool {
             let supported_extensions = gl.supported_extensions();
             tracing::debug!("Supported OpenGL extensions: {:?}", supported_extensions);
             supported_extensions.contains("ARB_vertex_array_object")
+                || supported_extensions.contains("GL_ARB_vertex_array_object")
         } else {
             true
         }
