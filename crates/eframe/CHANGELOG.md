@@ -8,7 +8,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 * Added `NativeOptions::event_loop_builder` hook for apps to change platform specific event loop options ([#1952](https://github.com/emilk/egui/pull/1952)).
 * Enabled deferred render state initialization to support Android ([#1952](https://github.com/emilk/egui/pull/1952)).
 * Allow empty textures with the glow renderer.
-* Added `custom_shader_version` to `NativeOptions` for cross compilling support on different target OpenGL | ES versions (on native `glow` renderer only).
+* Added `custom_shader_version` to `NativeOptions` for cross compilling support on different target OpenGL | ES versions (on native `glow` renderer only) ([#1993](https://github.com/emilk/egui/pull/1993))..
 
 ## 0.19.0 - 2022-08-20
 * MSRV (Minimum Supported Rust Version) is now `1.61.0` ([#1846](https://github.com/emilk/egui/pull/1846)).
