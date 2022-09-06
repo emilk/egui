@@ -106,19 +106,19 @@ impl Painter {
         gl: Arc<glow::Context>,
         pp_fb_extent: Option<[i32; 2]>,
         shader_prefix: &str,
-        custom_shader_version: Option<ShaderVersion>,
+        shader_version: Option<ShaderVersion>,
     ) -> Result<Painter, String> {
         crate::profile_function!();
         crate::check_for_gl_error_even_in_release!(&gl, "before Painter::new");
 
         let max_texture_side = unsafe { gl.get_parameter_i32(glow::MAX_TEXTURE_SIZE) } as usize;
-        let shader_version = custom_shader_version.uwrap_or_else(|| ShaderVersion::get(&gl));
-        let is_webgl_1 = shader_version == ShaderVersion::Es100;
-        let header = shader_version.version_declaration();
+        let shader = shader_version.unwrap_or_else(|| ShaderVersion::get(&gl));
+        let is_webgl_1 = shader == ShaderVersion::Es100;
+        let header = shader.version_declaration();
         tracing::debug!("Shader header: {:?}.", header);
         let srgb_support = gl.supported_extensions().contains("EXT_sRGB");
 
-        let (post_process, srgb_support_define) = match (shader_version, srgb_support) {
+        let (post_process, srgb_support_define) = match (shader, srgb_support) {
             // WebGL2 support sRGB default
             (ShaderVersion::Es300, _) | (ShaderVersion::Es100, true) => unsafe {
                 // Add sRGB support marker for fragment shader
@@ -155,7 +155,7 @@ impl Painter {
                     "{}\n{}\n{}\n{}",
                     header,
                     shader_prefix,
-                    if shader_version.is_new_shader_interface() {
+                    if shader.is_new_shader_interface() {
                         "#define NEW_SHADER_INTERFACE\n"
                     } else {
                         ""
@@ -171,7 +171,7 @@ impl Painter {
                     header,
                     shader_prefix,
                     srgb_support_define,
-                    if shader_version.is_new_shader_interface() {
+                    if shader.is_new_shader_interface() {
                         "#define NEW_SHADER_INTERFACE\n"
                     } else {
                         ""
@@ -233,7 +233,7 @@ impl Painter {
                 u_screen_size,
                 u_sampler,
                 is_webgl_1,
-                is_embedded: matches!(shader_version, ShaderVersion::Es100 | ShaderVersion::Es300),
+                is_embedded: matches!(shader, ShaderVersion::Es100 | ShaderVersion::Es300),
                 vao,
                 srgb_support,
                 post_process,

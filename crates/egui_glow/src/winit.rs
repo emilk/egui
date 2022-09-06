@@ -14,13 +14,13 @@ pub struct EguiGlow {
 }
 
 impl EguiGlow {
-    /// For automatic shader version detection set `custom_shader_version` to `None`.
+    /// For automatic shader version detection set `shader_version` to `None`.
     pub fn new<E>(
         event_loop: &winit::event_loop::EventLoopWindowTarget<E>,
         gl: std::sync::Arc<glow::Context>,
-        custom_shader_version: Option<ShaderVersion>,
+        shader_version: Option<ShaderVersion>,
     ) -> Self {
-        let painter = crate::Painter::new(gl, None, "", custom_shader_version)
+        let painter = crate::Painter::new(gl, None, "", shader_version)
             .map_err(|error| {
                 tracing::error!("error occurred in initializing painter:\n{}", error);
             })
