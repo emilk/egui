@@ -259,6 +259,10 @@ pub struct NativeOptions {
     /// Sets the number of bits in the depth buffer.
     ///
     /// `egui` doesn't need the depth buffer, so the default value is 0.
+    ///
+    /// On `wgpu` backends, due to limited depth texture format options, this
+    /// will be interpreted as a boolean (non-zero = true) for whether or not
+    /// specifically a `Depth32Float` buffer is used.
     pub depth_buffer: u8,
 
     /// Sets the number of bits in the stencil buffer.
@@ -266,7 +270,7 @@ pub struct NativeOptions {
     /// `egui` doesn't need the stencil buffer, so the default value is 0.
     pub stencil_buffer: u8,
 
-    /// Specify wether or not hardware acceleration is preferred, required, or not.
+    /// Specify whether or not hardware acceleration is preferred, required, or not.
     ///
     /// Default: [`HardwareAcceleration::Preferred`].
     pub hardware_acceleration: HardwareAcceleration,
