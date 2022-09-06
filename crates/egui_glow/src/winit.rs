@@ -14,7 +14,7 @@ pub struct EguiGlow {
 }
 
 impl EguiGlow {
-    /// for automatic shader version detection set `custom_shader_version` to None
+    /// For automatic shader version detection set `custom_shader_version` to `None`.
     pub fn new<E>(
         event_loop: &winit::event_loop::EventLoopWindowTarget<E>,
         gl: std::sync::Arc<glow::Context>,
