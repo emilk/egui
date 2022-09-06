@@ -176,6 +176,7 @@ These are the official egui integrations:
 * [`bevy_egui`](https://github.com/mvlabat/bevy_egui) for [the Bevy game engine](https://bevyengine.org/).
 * [`egui_glfw_gl`](https://github.com/cohaereo/egui_glfw_gl) for [GLFW](https://crates.io/crates/glfw).
 * [`egui_sdl2_gl`](https://crates.io/crates/egui_sdl2_gl) for [SDL2](https://crates.io/crates/sdl2).
+* [`egui_sdl2_platform`](https://github.com/ComLarsic/egui_sdl2_platform) for [SDL2](https://crates.io/crates/sdl2).
 * [`egui_vulkano`](https://github.com/derivator/egui_vulkano) for [Vulkano](https://github.com/vulkano-rs/vulkano).
 * [`egui_winit_vulkano`](https://github.com/hakolao/egui_winit_vulkano) for [Vulkano](https://github.com/vulkano-rs/vulkano).
 * [`egui-macroquad`](https://github.com/optozorax/egui-macroquad) for [macroquad](https://github.com/not-fl3/macroquad).
