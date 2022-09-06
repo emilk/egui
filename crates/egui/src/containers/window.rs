@@ -78,14 +78,14 @@ impl<'open> Window<'open> {
     }
 
     /// Usage: `Window::new(…).mutate(|w| w.resize = w.resize.auto_expand_width(true))`
-    /// Not sure this is a good interface for this.
+    // TODO(emilk): I'm not sure this is a good interface for this.
     pub fn mutate(mut self, mutate: impl Fn(&mut Self)) -> Self {
         mutate(&mut self);
         self
     }
 
     /// Usage: `Window::new(…).resize(|r| r.auto_expand_width(true))`
-    /// Not sure this is a good interface for this.
+    // TODO(emilk): I'm not sure this is a good interface for this.
     pub fn resize(mut self, mutate: impl Fn(Resize) -> Resize) -> Self {
         self.resize = mutate(self.resize);
         self

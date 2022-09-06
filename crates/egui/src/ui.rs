@@ -2025,7 +2025,7 @@ impl Ui {
         self.placer.set_row_height(height);
     }
 
-    /// Temporarily split split an Ui into several columns.
+    /// Temporarily split a [`Ui`] into several columns.
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
