@@ -317,7 +317,7 @@ pub struct NativeOptions {
     ///
     /// cross compiling for VirtualBox VMSVGA driver with OpenGL 2.1 but doesn't support SRGB texture.
     ///
-    /// the OpenGL ES 2.0 shader: ShaderVersion::Es100 can be used to solve blank texture problem (fallback shader).
+    /// For OpenGL ES 2.0: set this to [`ShaderVersion::Es100`] to solve blank texture problem (by using the "fallback shader").
     pub custom_shader_version: Option<egui_glow::ShaderVersion>,
 }
 
