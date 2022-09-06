@@ -315,7 +315,8 @@ pub struct NativeOptions {
     #[cfg(feature = "glow")]
     /// A helper when cross compiling for different target OpenGL | ES versions.
     ///
-    /// cross compiling for VirtualBox VMSVGA driver with OpenGL 2.1 but doesn't support SRGB texture.
+    /// Needed fo cross compiling for VirtualBox VMSVGA driver with OpenGL 2.1 which doesn't support SRGB texture.
+    /// See <https://github.com//pull/1993>.
     ///
     /// For OpenGL ES 2.0: set this to [`ShaderVersion::Es100`] to solve blank texture problem (by using the "fallback shader").
     pub custom_shader_version: Option<egui_glow::ShaderVersion>,
