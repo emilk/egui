@@ -116,7 +116,12 @@ impl Painter {
         let is_webgl_1 = shader == ShaderVersion::Es100;
         let header = shader.version_declaration();
         tracing::debug!("Shader header: {:?}.", header);
-        let srgb_support = gl.supported_extensions().contains("EXT_sRGB");
+        // Previously checking srgb_support on WebGL only, now we have to check on other GL | ES as well.
+        let srgb_support = gl.supported_extensions().contains("EXT_sRGB")
+            || gl.supported_extensions().contains("GL_EXT_sRGB")
+            || gl
+                .supported_extensions()
+                .contains("GL_ARB_framebuffer_sRGB");
         tracing::debug!("SRGB Support: {:?}.", srgb_support);
 
         let (post_process, srgb_support_define) = match (shader, srgb_support) {
