@@ -82,7 +82,7 @@ impl Custom3d {
         // instead of storing the pipeline in our `Custom3D` struct, we insert it into the
         // `paint_callback_resources` type map, which is stored alongside the render pass.
         wgpu_render_state
-            .egui_rpass
+            .renderer
             .write()
             .paint_callback_resources
             .insert(TriangleRenderResources {
@@ -142,9 +142,9 @@ impl Custom3d {
                 let resources: &TriangleRenderResources = paint_callback_resources.get().unwrap();
                 resources.prepare(device, queue, angle);
             })
-            .paint(move |_info, rpass, paint_callback_resources| {
+            .paint(move |_info, render_pass, paint_callback_resources| {
                 let resources: &TriangleRenderResources = paint_callback_resources.get().unwrap();
-                resources.paint(rpass);
+                resources.paint(render_pass);
             });
 
         let callback = egui::PaintCallback {
@@ -168,10 +168,10 @@ impl TriangleRenderResources {
         queue.write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[angle]));
     }
 
-    fn paint<'rpass>(&'rpass self, rpass: &mut wgpu::RenderPass<'rpass>) {
+    fn paint<'rp>(&'rp self, render_pass: &mut wgpu::RenderPass<'rp>) {
         // Draw our triangle!
-        rpass.set_pipeline(&self.pipeline);
-        rpass.set_bind_group(0, &self.bind_group, &[]);
-        rpass.draw(0..3, 0..1);
+        render_pass.set_pipeline(&self.pipeline);
+        render_pass.set_bind_group(0, &self.bind_group, &[]);
+        render_pass.draw(0..3, 0..1);
     }
 }
