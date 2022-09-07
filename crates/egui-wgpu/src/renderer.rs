@@ -323,7 +323,7 @@ impl Renderer {
         self.depth_texture = Some((texture, view));
     }
 
-    /// Executes the renderer on it's own render pass.
+    /// Executes the renderer on its own render pass.
     pub fn render(
         &self,
         encoder: &mut wgpu::CommandEncoder,
