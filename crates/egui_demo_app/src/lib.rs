@@ -32,7 +32,6 @@ pub struct WebHandle {
 #[wasm_bindgen]
 impl WebHandle {
     #[wasm_bindgen]
-    #[cfg(target_arch = "wasm32")]
     pub fn stop_web(&self) -> Result<(), wasm_bindgen::JsValue> {
         let mut app = self.handle.lock();
         let res = app.destroy();
@@ -44,22 +43,10 @@ impl WebHandle {
         res
     }
 
-    // helper for mutating original app from javascript
-    fn with_app<F>(&mut self, func: F) -> ()
-    where
-        F: Fn(&mut WrapApp) -> (),
-    {
-        let mut runner_ref = self.handle.lock();
-        let app_ref = runner_ref.get_app_mut();
-        let app = app_ref.downcast_mut::<WrapApp>().unwrap();
-        func(app);
-    }
-
     #[wasm_bindgen]
     pub fn set_some_content_from_javasript(&mut self, _some_data: &str) {
-        self.with_app(|_app| {
-            // app.data = some_data;
-        });
+        let _app = self.handle.lock().app_mut::<WrapApp>();
+        // _app.data = some_data;
     }
 }
 
