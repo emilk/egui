@@ -418,6 +418,11 @@ mod glow_integration {
 
         fn paint(&mut self) -> EventResult {
             if let Some(running) = &mut self.running {
+                // Exit if egui glow has been destroyed.
+                if running.painter.is_destroyed() {
+                    return EventResult::Exit;
+                }
+
                 #[cfg(feature = "puffin")]
                 puffin::GlobalProfiler::lock().new_frame();
                 crate::profile_scope!("frame");

@@ -695,6 +695,11 @@ impl Painter {
         }
     }
 
+    /// Check if egui glow painter is destroyed
+    pub fn is_destroyed(&self) -> bool {
+        self.destroyed
+    }
+
     fn assert_not_destroyed(&self) {
         assert!(!self.destroyed, "the egui glow has already been destroyed!");
     }
