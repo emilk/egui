@@ -1,0 +1,57 @@
+[package]
+name = "egui_glium"
+version = "0.19.0"
+authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+description = "Bindings for using egui natively using the glium library"
+edition = "2021"
+rust-version = "1.61"
+homepage = "https://github.com/emilk/egui/tree/master/crates/egui_glium"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/emilk/egui/tree/master/crates/egui_glium"
+categories = ["gui", "game-development"]
+keywords = ["glium", "egui", "gui", "gamedev"]
+include = [
+  "../LICENSE-APACHE",
+  "../LICENSE-MIT",
+  "**/*.rs",
+  "Cargo.toml",
+  "src/shader/*.glsl",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+
+
+[features]
+default = ["clipboard", "links"]
+
+## Enable cut/copy/paste to OS clipboard.
+##
+## If disabled a clipboard will be simulated so you can still copy/paste within the egui app.
+clipboard = ["egui-winit/clipboard"]
+
+## Enable opening links in a browser when an egui hyperlink is clicked.
+links = ["egui-winit/links"]
+
+## Experimental support for a screen reader.
+screen_reader = ["egui-winit/screen_reader"]
+
+
+[dependencies]
+egui = { version = "0.19.0", path = "../egui", default-features = false, features = [
+  "bytemuck",
+] }
+egui-winit = { version = "0.19.0", path = "../egui-winit", default-features = false }
+
+ahash = "0.8"
+bytemuck = "1.7"
+glium = "0.32"
+
+#! ### Optional dependencies
+## Enable this when generating docs.
+document-features = { version = "0.2", optional = true }
+
+
+[dev-dependencies]
+image = { version = "0.24", default-features = false, features = ["png"] }

@@ -9,5 +9,5 @@ publish = false
 
 
 [dependencies]
-eframe = { path = "../../eframe" }
-egui_extras = { path = "../../egui_extras", features = ["svg"] }
+eframe = { path = "../../crates/eframe" }
+egui_extras = { path = "../../crates/egui_extras", features = ["svg"] }

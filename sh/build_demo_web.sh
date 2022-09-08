@@ -52,7 +52,7 @@ rm -f "docs/${CRATE_NAME}_bg.wasm"
 echo "Building rust…"
 BUILD=release
 
-(cd $CRATE_NAME &&
+(cd crates/$CRATE_NAME &&
   cargo build \
     --release \
     --lib \

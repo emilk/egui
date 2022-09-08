@@ -1,0 +1,80 @@
+[package]
+name = "egui_glow"
+version = "0.19.0"
+authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+description = "Bindings for using egui natively using the glow library"
+edition = "2021"
+rust-version = "1.61"
+homepage = "https://github.com/emilk/egui/tree/master/crates/egui_glow"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/emilk/egui/tree/master/crates/egui_glow"
+categories = ["gui", "game-development"]
+keywords = ["glow", "egui", "gui", "gamedev"]
+include = [
+  "../LICENSE-APACHE",
+  "../LICENSE-MIT",
+  "**/*.rs",
+  "Cargo.toml",
+  "src/shader/*.glsl",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+
+
+[features]
+default = []
+
+## For the `winit` integration:
+## enable cut/copy/paste to os clipboard.
+##
+## if disabled a clipboard will be simulated so you can still copy/paste within the egui app.
+clipboard = ["egui-winit?/clipboard"]
+
+## For the `winit` integration:
+## enable opening links in a browser when an egui hyperlink is clicked.
+links = ["egui-winit?/links"]
+
+## Experimental support for a screen reader.
+screen_reader = ["egui-winit?/screen_reader"]
+
+## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
+puffin = ["dep:puffin", "egui-winit?/puffin"]
+
+## Enable [`winit`](https://docs.rs/winit) integration.
+winit = ["egui-winit",]
+
+
+[dependencies]
+egui = { version = "0.19.0", path = "../egui", default-features = false, features = [
+  "bytemuck",
+] }
+
+bytemuck = "1.7"
+glow = "0.11"
+memoffset = "0.6"
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+
+#! ### Optional dependencies
+## Enable this when generating docs.
+document-features = { version = "0.2", optional = true }
+
+# Native:
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+egui-winit = { version = "0.19.0", path = "../egui-winit", optional = true, default-features = false }
+puffin = { version = "0.13", optional = true }
+
+# Web:
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-sys = { version = "0.3", features = ["console"] }
+wasm-bindgen = { version = "0.2" }
+
+
+[dev-dependencies]
+glutin = "0.29.0" # examples/pure_glow
+
+
+[[example]]
+name = "pure_glow"
+required-features = ["winit", "egui/default_fonts"]
