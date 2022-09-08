@@ -271,6 +271,8 @@ pub struct Plot {
     data_aspect: Option<f32>,
     view_aspect: Option<f32>,
 
+    reset: bool,
+
     show_x: bool,
     show_y: bool,
     label_formatter: LabelFormatter,
@@ -306,6 +308,8 @@ impl Plot {
             height: None,
             data_aspect: None,
             view_aspect: None,
+
+            reset: false,
 
             show_x: true,
             show_y: true,
@@ -595,6 +599,12 @@ impl Plot {
         self
     }
 
+    /// Resets the plot.
+    pub fn reset(mut self) -> Self {
+        self.reset = true;
+        self
+    }
+
     /// Interact with and add items to the plot and finally draw it.
     pub fn show<R>(self, ui: &mut Ui, build_fn: impl FnOnce(&mut PlotUi) -> R) -> InnerResponse<R> {
         self.show_dyn(ui, Box::new(build_fn))
@@ -628,6 +638,7 @@ impl Plot {
             coordinates_formatter,
             axis_formatters,
             legend_config,
+            reset,
             show_background,
             show_axes,
             linked_axes,
@@ -665,7 +676,16 @@ impl Plot {
         // Load or initialize the memory.
         let plot_id = ui.make_persistent_id(id_source);
         ui.ctx().check_for_id_clash(plot_id, rect, "Plot");
-        let memory = PlotMemory::load(ui.ctx(), plot_id).unwrap_or_else(|| PlotMemory {
+        let memory = if reset {
+            if let Some(axes) = linked_axes.as_ref() {
+                axes.bounds.set(None);
+            };
+
+            None
+        } else {
+            PlotMemory::load(ui.ctx(), plot_id)
+        }
+        .unwrap_or_else(|| PlotMemory {
             modified: false.into(),
             hovered_entry: None,
             hidden_items: Default::default(),
