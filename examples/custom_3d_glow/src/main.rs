@@ -9,6 +9,8 @@ use std::sync::Arc;
 fn main() {
     let options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(350.0, 380.0)),
+        // For Mesa LLVMpipe OpenGL driver on linux leave multisampling as default,
+        // to avoid crashing due to its feature limitations.
         multisampling: 8,
         renderer: eframe::Renderer::Glow,
         ..Default::default()

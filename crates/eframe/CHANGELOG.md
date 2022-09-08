@@ -9,7 +9,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 * Enabled deferred render state initialization to support Android ([#1952](https://github.com/emilk/egui/pull/1952)).
 * Allow empty textures with the glow renderer.
 * Added `shader_version` to `NativeOptions` for cross compiling support on different target OpenGL | ES versions (on native `glow` renderer only) ([#1993](https://github.com/emilk/egui/pull/1993)).
-* Fix: app state is now saved when user presses Cmd-Q on Mac ([#1993](https://github.com/emilk/egui/pull/1993)).
+* Fix: app state is now saved when user presses Cmd-Q on Mac ([#2013](https://github.com/emilk/egui/pull/2013)).
 
 
 ## 0.19.0 - 2022-08-20

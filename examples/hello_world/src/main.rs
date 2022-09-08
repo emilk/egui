@@ -4,6 +4,11 @@ use eframe::egui;
 
 fn main() {
     let options = eframe::NativeOptions::default();
+    // When using glow renderer on VirtualBox VMSVGA driver (OpenGL 2.1 which doesn't support SRGB texture),
+    // make sure to set shader_version to ES 100 (GLES 2.0 as fallback shader) like so:
+    //
+    // let mut options = eframe::NativeOptions::default();
+    // options.shader_version = Some(eframe::egui_glow::ShaderVersion::Es100);
     eframe::run_native(
         "My egui App",
         options,
