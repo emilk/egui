@@ -73,7 +73,7 @@ impl Default for CoordinatesFormatter {
 const MIN_LINE_SPACING_IN_POINTS: f64 = 6.0; // TODO(emilk): large enough for a wide label
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 struct AutoBounds {
     x: bool,
     y: bool,
@@ -658,11 +658,13 @@ impl Plot {
         // Allocate the space.
         let (rect, response) = ui.allocate_exact_size(size, Sense::drag());
 
+        let initial_auto_bounds = (!min_auto_bounds.is_valid()).into();
+
         // Load or initialize the memory.
         let plot_id = ui.make_persistent_id(id_source);
         ui.ctx().check_for_id_clash(plot_id, rect, "Plot");
         let mut memory = PlotMemory::load(ui.ctx(), plot_id).unwrap_or_else(|| PlotMemory {
-            auto_bounds: (!min_auto_bounds.is_valid()).into(),
+            auto_bounds: initial_auto_bounds,
             hovered_entry: None,
             hidden_items: Default::default(),
             min_auto_bounds,
@@ -678,7 +680,7 @@ impl Plot {
         // If the min bounds changed, recalculate everything.
         if min_auto_bounds != memory.min_auto_bounds {
             memory = PlotMemory {
-                auto_bounds: (!min_auto_bounds.is_valid()).into(),
+                auto_bounds: initial_auto_bounds,
                 hovered_entry: None,
                 min_auto_bounds,
                 ..memory
@@ -785,9 +787,10 @@ impl Plot {
             }
         };
 
-        // Allow double clicking to reset to automatic bounds.
+        // Allow double clicking to reset to the initial bounds.
         if response.double_clicked_by(PointerButton::Primary) {
-            auto_bounds = true.into();
+            bounds = min_auto_bounds;
+            auto_bounds = initial_auto_bounds;
         }
 
         if !bounds.is_valid() {
