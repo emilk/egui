@@ -1,6 +1,9 @@
 use egui_extras::RetainedImage;
 use poll_promise::Promise;
 
+#[cfg(target_arch = "wasm32")]
+use core::any::Any;
+
 struct Resource {
     /// HTTP response
     response: ehttp::Response,
@@ -105,6 +108,11 @@ impl eframe::App for HttpApp {
                 }
             }
         });
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        &mut *self
     }
 }
 

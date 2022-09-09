@@ -265,6 +265,11 @@ impl AppRunner {
         &self.egui_ctx
     }
 
+    /// Get mutable access to the concrete [`App`] we enclose.
+    pub fn app_mut<ConreteApp: 'static + crate::App>(&mut self) -> &mut ConreteApp {
+        self.app.as_any_mut().downcast_mut::<ConreteApp>().unwrap()
+    }
+
     pub fn auto_save(&mut self) {
         let now = now_sec();
         let time_since_last_save = now - self.last_save_time;

@@ -6,6 +6,9 @@
 
 #![warn(missing_docs)] // Let's keep `epi` well-documented.
 
+#[cfg(target_arch = "wasm32")]
+use std::any::Any;
+
 #[cfg(not(target_arch = "wasm32"))]
 pub use crate::native::run::RequestRepaintEvent;
 #[cfg(not(target_arch = "wasm32"))]
@@ -65,6 +68,15 @@ pub trait App {
     ///
     /// To force a repaint, call [`egui::Context::request_repaint`] at any time (e.g. from another thread).
     fn update(&mut self, ctx: &egui::Context, frame: &mut Frame);
+
+    /// Handle to the app.
+    ///
+    /// Can be used from web to interact or other external context
+    /// Implementation is needed, because downcasting Box<dyn App> -> Box<dyn Any> to get &ConcreteApp is not simple in current rust.
+    ///
+    /// Just return &mut *self
+    #[cfg(target_arch = "wasm32")]
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 
     /// Called on shutdown, and perhaps at regular intervals. Allows you to save state.
     ///
