@@ -876,14 +876,18 @@ impl Plot {
                     let box_start_pos = transform.value_from_position(box_start_pos);
                     let box_end_pos = transform.value_from_position(box_end_pos);
                     let new_bounds = PlotBounds {
-                        min: [box_start_pos.x, box_end_pos.y],
-                        max: [box_end_pos.x, box_start_pos.y],
+                        min: [
+                            box_start_pos.x.min(box_end_pos.x),
+                            box_start_pos.y.min(box_end_pos.y),
+                        ],
+                        max: [
+                            box_start_pos.x.max(box_end_pos.x),
+                            box_start_pos.y.max(box_end_pos.y),
+                        ],
                     };
                     if new_bounds.is_valid() {
                         transform.set_bounds(new_bounds);
                         auto_bounds = false.into();
-                    } else {
-                        auto_bounds = true.into();
                     }
                     // reset the boxed zoom state
                     last_click_pos_for_zoom = None;
