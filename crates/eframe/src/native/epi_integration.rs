@@ -174,7 +174,6 @@ pub fn handle_app_output(
         window.set_visible(visible);
     }
 
-    #[cfg(not(any(target_os = "ios", target_os = "android", target_arch = "wasm32")))]
     if let Some(always_on_top) = app_output.always_on_top {
         window.set_always_on_top(always_on_top);
     }

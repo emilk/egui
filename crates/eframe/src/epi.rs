@@ -706,18 +706,18 @@ impl Frame {
         self.output.visible = Some(visible);
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    /// On desktop: Set the window always on top at runtime.
+    /// On desktop: Set the window always on top.
     ///
     /// (Wayland desktop currently aren't supported)
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn set_always_on_top(&mut self, always_on_top: bool) {
         self.output.always_on_top = Some(always_on_top);
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    /// On desktop: Set the window to be centered at runtime.
+    /// On desktop: Set the window to be centered.
     ///
     /// (Wayland desktop currently aren't supported)
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn set_centered(&mut self) {
         if let Some(monitor_size) = self.info.window_info.monitor_size {
             let inner_size = self.info.window_info.size;
