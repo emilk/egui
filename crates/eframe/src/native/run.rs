@@ -223,12 +223,11 @@ fn run_and_exit(
     })
 }
 
-fn centere_window_pos<T: 'static>(
-    event_loop: &EventLoop<T>,
+fn centere_window_pos(
+    monitor: Option<winit::monitor::MonitorHandle>,
     native_options: &mut epi::NativeOptions,
 ) {
     // Get the current_monitor.
-    let monitor = event_loop.available_monitors().next();
     if let Some(monitor) = monitor {
         let monitor_size = monitor.size();
         let inner_size = native_options
@@ -610,7 +609,7 @@ mod glow_integration {
         if native_options.run_and_return {
             with_event_loop(native_options, |event_loop, mut native_options| {
                 if native_options.centered {
-                    centere_window_pos(&event_loop, &mut native_options);
+                    centere_window_pos(event_loop.available_monitors().next(), &mut native_options);
                 }
 
                 let glow_eframe =
@@ -621,7 +620,7 @@ mod glow_integration {
             let event_loop = create_event_loop_builder(&mut native_options).build();
 
             if native_options.centered {
-                centere_window_pos(&event_loop, &mut native_options);
+                centere_window_pos(event_loop.available_monitors().next(), &mut native_options);
             }
 
             let glow_eframe = GlowWinitApp::new(&event_loop, app_name, native_options, app_creator);
@@ -988,7 +987,7 @@ mod wgpu_integration {
         if native_options.run_and_return {
             with_event_loop(native_options, |event_loop, mut native_options| {
                 if native_options.centered {
-                    centere_window_pos(&event_loop, &mut native_options);
+                    centere_window_pos(event_loop.available_monitors().next(), &mut native_options);
                 }
 
                 let wgpu_eframe =
@@ -999,7 +998,7 @@ mod wgpu_integration {
             let event_loop = create_event_loop_builder(&mut native_options).build();
 
             if native_options.centered {
-                centere_window_pos(&event_loop, &mut native_options);
+                centere_window_pos(event_loop.available_monitors().next(), &mut native_options);
             }
 
             let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);

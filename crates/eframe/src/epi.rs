@@ -339,7 +339,7 @@ pub struct NativeOptions {
     ///
     /// Platform specific:
     ///
-    /// Wayland desktop currently aren't supported.
+    /// Wayland desktop currently not supported.
     pub centered: bool,
 }
 
@@ -708,7 +708,7 @@ impl Frame {
 
     /// On desktop: Set the window always on top.
     ///
-    /// (Wayland desktop currently aren't supported)
+    /// (Wayland desktop currently not supported)
     #[cfg(not(target_arch = "wasm32"))]
     pub fn set_always_on_top(&mut self, always_on_top: bool) {
         self.output.always_on_top = Some(always_on_top);
@@ -716,7 +716,7 @@ impl Frame {
 
     /// On desktop: Set the window to be centered.
     ///
-    /// (Wayland desktop currently aren't supported)
+    /// (Wayland desktop currently not supported)
     #[cfg(not(target_arch = "wasm32"))]
     pub fn set_centered(&mut self) {
         if let Some(monitor_size) = self.info.window_info.monitor_size {
