@@ -721,11 +721,9 @@ impl Frame {
     pub fn set_centered(&mut self) {
         if let Some(monitor_size) = self.info.window_info.monitor_size {
             let inner_size = self.info.window_info.size;
-            let logical_one = 1.0;
-            if monitor_size.x > logical_one && monitor_size.y > logical_one {
-                let logical_two = 2.0;
-                let x = (monitor_size.x - inner_size.x) / logical_two;
-                let y = (monitor_size.y - inner_size.y) / logical_two;
+            if monitor_size.x > 1.0 && monitor_size.y > 1.0 {
+                let x = (monitor_size.x - inner_size.x) / 2.0;
+                let y = (monitor_size.y - inner_size.y) / 2.0
                 self.set_window_pos(egui::Pos2 { x, y });
             }
         }
