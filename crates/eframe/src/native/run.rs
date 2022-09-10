@@ -229,11 +229,11 @@ fn centere_window_pos<T: 'static>(
 ) {
     // Get the current_monitor.
     let monitor = event_loop.available_monitors().next();
-    if monitor.is_some() {
-        let monitor_size = monitor.unwrap().size();
+    if let Some(monitor) = monitor {
+        let monitor_size = monitor.size();
         let inner_size = native_options
             .initial_window_size
-            .unwrap_or_else(|| egui::Vec2 { x: 800.0, y: 600.0 });
+            .unwrap_or(egui::Vec2 { x: 800.0, y: 600.0 });
         if monitor_size.width > 0 && monitor_size.height > 0 {
             let x = (monitor_size.width - inner_size.x as u32) / 2;
             let y = (monitor_size.height - inner_size.y as u32) / 2;
@@ -610,7 +610,7 @@ mod glow_integration {
         if native_options.run_and_return {
             with_event_loop(native_options, |event_loop, mut native_options| {
                 if native_options.centered {
-                    centere_window_pos(&event_loop, &mut native_options)
+                    centere_window_pos(&event_loop, &mut native_options);
                 }
 
                 let glow_eframe =
@@ -621,7 +621,7 @@ mod glow_integration {
             let event_loop = create_event_loop_builder(&mut native_options).build();
 
             if native_options.centered {
-                centere_window_pos(&event_loop, &mut native_options)
+                centere_window_pos(&event_loop, &mut native_options);
             }
 
             let glow_eframe = GlowWinitApp::new(&event_loop, app_name, native_options, app_creator);
@@ -988,7 +988,7 @@ mod wgpu_integration {
         if native_options.run_and_return {
             with_event_loop(native_options, |event_loop, mut native_options| {
                 if native_options.centered {
-                    centere_window_pos(&event_loop, &mut native_options)
+                    centere_window_pos(&event_loop, &mut native_options);
                 }
 
                 let wgpu_eframe =
@@ -999,7 +999,7 @@ mod wgpu_integration {
             let event_loop = create_event_loop_builder(&mut native_options).build();
 
             if native_options.centered {
-                centere_window_pos(&event_loop, &mut native_options)
+                centere_window_pos(&event_loop, &mut native_options);
             }
 
             let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);
