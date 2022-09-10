@@ -134,7 +134,7 @@ pub fn handle_app_output(
         drag_window,
         window_pos,
         visible,
-        ..
+        always_on_top,
     } = app_output;
 
     if let Some(decorated) = decorated {
@@ -174,7 +174,7 @@ pub fn handle_app_output(
         window.set_visible(visible);
     }
 
-    if let Some(always_on_top) = app_output.always_on_top {
+    if let Some(always_on_top) = always_on_top {
         window.set_always_on_top(always_on_top);
     }
 }
