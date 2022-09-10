@@ -202,7 +202,7 @@ pub enum HardwareAcceleration {
 /// Only a single native window is currently supported.
 #[cfg(not(target_arch = "wasm32"))]
 pub struct NativeOptions {
-    /// Sets whether or not the window will always be on top of other windows.
+    /// Sets whether or not the window will always be on top of other windows at initialization.
     pub always_on_top: bool,
 
     /// Show window in maximized mode
@@ -334,6 +334,13 @@ pub struct NativeOptions {
     ///
     /// For OpenGL ES 2.0: set this to [`egui_glow::ShaderVersion::Es100`] to solve blank texture problem (by using the "fallback shader").
     pub shader_version: Option<egui_glow::ShaderVersion>,
+
+    /// On desktop: make the window position to be centered at initialization.
+    ///
+    /// Platform specific:
+    ///
+    /// Wayland desktop currently aren't supported.
+    pub centered: bool,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -375,6 +382,7 @@ impl Default for NativeOptions {
             event_loop_builder: None,
             #[cfg(feature = "glow")]
             shader_version: None,
+            centered: false,
         }
     }
 }
@@ -698,6 +706,31 @@ impl Frame {
         self.output.visible = Some(visible);
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
+    /// On desktop: Set the window always on top at runtime.
+    ///
+    /// (Wayland desktop currently aren't supported)
+    pub fn set_always_on_top(&mut self, always_on_top: bool) {
+        self.output.always_on_top = Some(always_on_top);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    /// On desktop: Set the window to be centered at runtime.
+    ///
+    /// (Wayland desktop currently aren't supported)
+    pub fn set_centered(&mut self) {
+        if let Some(monitor_size) = self.info.window_info.monitor_size {
+            let inner_size = self.info.window_info.size;
+            let logical_one = 1.0;
+            if monitor_size.x > logical_one && monitor_size.y > logical_one {
+                let logical_two = 2.0;
+                let x = (monitor_size.x - inner_size.x) / logical_two;
+                let y = (monitor_size.y - inner_size.y) / logical_two;
+                self.set_window_pos(egui::Pos2 { x, y });
+            }
+        }
+    }
+
     /// for integrations only: call once per frame
     pub(crate) fn take_app_output(&mut self) -> backend::AppOutput {
         std::mem::take(&mut self.output)
@@ -728,6 +761,9 @@ pub struct WindowInfo {
 
     /// Window inner size in egui points (logical pixels).
     pub size: egui::Vec2,
+
+    /// Current monitor size in egui points (logical pixels)
+    pub monitor_size: Option<egui::Vec2>,
 }
 
 /// Information about the URL.
@@ -901,5 +937,9 @@ pub(crate) mod backend {
         /// Set to some bool to change window visibility.
         #[cfg(not(target_arch = "wasm32"))]
         pub visible: Option<bool>,
+
+        /// Set to some bool to tell the window always on top.
+        #[cfg(not(target_arch = "wasm32"))]
+        pub always_on_top: Option<bool>,
     }
 }

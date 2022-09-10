@@ -223,6 +223,28 @@ fn run_and_exit(
     })
 }
 
+fn centere_window_pos<T: 'static>(
+    event_loop: &EventLoop<T>,
+    native_options: &mut epi::NativeOptions,
+) {
+    // Get the current_monitor.
+    let monitor = event_loop.available_monitors().next();
+    if monitor.is_some() {
+        let monitor_size = monitor.unwrap().size();
+        let inner_size = native_options
+            .initial_window_size
+            .unwrap_or_else(|| egui::Vec2 { x: 800.0, y: 600.0 });
+        if monitor_size.width > 0 && monitor_size.height > 0 {
+            let x = (monitor_size.width - inner_size.x as u32) / 2;
+            let y = (monitor_size.height - inner_size.y as u32) / 2;
+            native_options.initial_window_pos = Some(egui::Pos2 {
+                x: x as _,
+                y: y as _,
+            });
+        }
+    }
+}
+
 // ----------------------------------------------------------------------------
 /// Run an egui app
 #[cfg(feature = "glow")]
@@ -586,13 +608,22 @@ mod glow_integration {
         app_creator: epi::AppCreator,
     ) {
         if native_options.run_and_return {
-            with_event_loop(native_options, |event_loop, native_options| {
+            with_event_loop(native_options, |event_loop, mut native_options| {
+                if native_options.centered {
+                    centere_window_pos(&event_loop, &mut native_options)
+                }
+
                 let glow_eframe =
                     GlowWinitApp::new(event_loop, app_name, native_options, app_creator);
                 run_and_return(event_loop, glow_eframe);
             });
         } else {
             let event_loop = create_event_loop_builder(&mut native_options).build();
+
+            if native_options.centered {
+                centere_window_pos(&event_loop, &mut native_options)
+            }
+
             let glow_eframe = GlowWinitApp::new(&event_loop, app_name, native_options, app_creator);
             run_and_exit(event_loop, glow_eframe);
         }
@@ -955,13 +986,22 @@ mod wgpu_integration {
         app_creator: epi::AppCreator,
     ) {
         if native_options.run_and_return {
-            with_event_loop(native_options, |event_loop, native_options| {
+            with_event_loop(native_options, |event_loop, mut native_options| {
+                if native_options.centered {
+                    centere_window_pos(&event_loop, &mut native_options)
+                }
+
                 let wgpu_eframe =
                     WgpuWinitApp::new(event_loop, app_name, native_options, app_creator);
                 run_and_return(event_loop, wgpu_eframe);
             });
         } else {
             let event_loop = create_event_loop_builder(&mut native_options).build();
+
+            if native_options.centered {
+                centere_window_pos(&event_loop, &mut native_options)
+            }
+
             let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);
             run_and_exit(event_loop, wgpu_eframe);
         }
