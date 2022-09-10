@@ -723,7 +723,7 @@ impl Frame {
             let inner_size = self.info.window_info.size;
             if monitor_size.x > 1.0 && monitor_size.y > 1.0 {
                 let x = (monitor_size.x - inner_size.x) / 2.0;
-                let y = (monitor_size.y - inner_size.y) / 2.0
+                let y = (monitor_size.y - inner_size.y) / 2.0;
                 self.set_window_pos(egui::Pos2 { x, y });
             }
         }
