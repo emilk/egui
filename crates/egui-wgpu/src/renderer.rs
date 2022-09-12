@@ -2,7 +2,7 @@
 
 use std::{borrow::Cow, collections::HashMap, num::NonZeroU32};
 
-use egui::{epaint::Primitive, NumExt, PaintCallbackInfo};
+use egui::{epaint::Primitive, PaintCallbackInfo};
 use type_map::concurrent::TypeMap;
 use wgpu;
 use wgpu::util::DeviceExt as _;
@@ -405,9 +405,9 @@ impl Renderer {
                 let rect = ScissorRect::new(clip_rect, pixels_per_point, size_in_pixels);
 
                 if rect.width == 0 || rect.height == 0 {
-                    // Skip rendering with zero-sized clip areas.
+                    // Skip rendering zero-sized clip areas.
                     if let Primitive::Mesh(_) = primitive {
-                        // If this is a mesh, we need to advance the index and vertex buffer iterators
+                        // If this is a mesh, we need to advance the index and vertex buffer iterators:
                         index_buffers.next().unwrap();
                         vertex_buffers.next().unwrap();
                     }
@@ -906,14 +906,11 @@ impl ScissorRect {
         let clip_max_x = clip_max_x.clamp(clip_min_x, target_size[0]);
         let clip_max_y = clip_max_y.clamp(clip_min_y, target_size[1]);
 
-        let width = (clip_max_x - clip_min_x).at_least(1);
-        let height = (clip_max_y - clip_min_y).at_least(1);
-
-        ScissorRect {
+        Self {
             x: clip_min_x,
             y: clip_min_y,
-            width,
-            height,
+            width: clip_max_x - clip_min_x,
+            height: clip_max_y - clip_min_y,
         }
     }
 }

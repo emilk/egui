@@ -74,7 +74,13 @@ pub trait App {
     /// Can be used from web to interact or other external context
     /// Implementation is needed, because downcasting Box<dyn App> -> Box<dyn Any> to get &ConcreteApp is not simple in current rust.
     ///
-    /// Just return &mut *self
+    /// Just copy-paste this as your implementation:
+    /// ```ignore
+    /// #[cfg(target_arch = "wasm32")]
+    /// fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+    ///     &mut *self
+    /// }
+    /// ```
     #[cfg(target_arch = "wasm32")]
     fn as_any_mut(&mut self) -> &mut dyn Any;
 
