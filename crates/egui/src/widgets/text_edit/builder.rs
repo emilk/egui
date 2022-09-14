@@ -618,7 +618,11 @@ impl<'t> TextEdit<'t> {
                         if interactive {
                             // eframe web uses `text_cursor_pos` when showing IME,
                             // so only set it when text is editable and visible!
-                            ui.ctx().output().text_cursor_pos = Some(cursor_pos.left_top());
+                            if cfg!(target_arch = "wasm32") {
+                                ui.ctx().output().text_cursor_pos = Some(cursor_pos.left_top());
+                            } else {
+                                ui.ctx().output().text_cursor_pos = Some(cursor_pos.left_bottom());
+                            }
                         }
                     }
                 }
@@ -828,14 +832,14 @@ fn events(
             }
 
             Event::CompositionEnd(prediction) => {
-                if !prediction.is_empty()
-                    && prediction != "\n"
-                    && prediction != "\r"
-                    && state.has_ime
-                {
+                // prediction == "" means winit::event::Ime::Disabled, and we need to clear
+                // old text input.
+                if prediction != "\n" && prediction != "\r" && state.has_ime {
                     state.has_ime = false;
                     let mut ccursor = delete_selected(text, &cursor_range);
-                    insert_text(&mut ccursor, text, prediction);
+                    if !prediction.is_empty() {
+                        insert_text(&mut ccursor, text, prediction);
+                    }
                     Some(CCursorRange::one(ccursor))
                 } else {
                     None

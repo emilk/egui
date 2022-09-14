@@ -251,6 +251,27 @@ impl State {
                     consumed,
                 }
             }
+            WindowEvent::Ime(ime) => {
+                match ime {
+                    winit::event::Ime::Enabled => {
+                        self.egui_input.events.push(egui::Event::CompositionStart)
+                    }
+                    winit::event::Ime::Disabled => (),
+                    winit::event::Ime::Commit(text) => self
+                        .egui_input
+                        .events
+                        .push(egui::Event::CompositionEnd(text.clone())),
+                    winit::event::Ime::Preedit(text, ..) => self
+                        .egui_input
+                        .events
+                        .push(egui::Event::CompositionUpdate(text.clone())),
+                }
+
+                EventResponse {
+                    repaint: true,
+                    consumed: egui_ctx.wants_keyboard_input(),
+                }
+            }
             WindowEvent::KeyboardInput { input, .. } => {
                 self.on_keyboard_input(input);
                 let consumed = egui_ctx.wants_keyboard_input()
@@ -317,7 +338,6 @@ impl State {
             | WindowEvent::CloseRequested
             | WindowEvent::CursorEntered { .. }
             | WindowEvent::Destroyed
-            | WindowEvent::Ime(_)
             | WindowEvent::Occluded(_)
             | WindowEvent::Resized(_)
             | WindowEvent::ThemeChanged(_)
