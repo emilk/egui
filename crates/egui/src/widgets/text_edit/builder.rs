@@ -618,7 +618,7 @@ impl<'t> TextEdit<'t> {
                         if interactive {
                             // eframe web uses `text_cursor_pos` when showing IME,
                             // so only set it when text is editable and visible!
-                            // But `winit` and `egui_web` differs in how to set the 
+                            // But `winit` and `egui_web` differs in how to set the
                             // position of IME.
                             if cfg!(target_arch = "wasm32") {
                                 ui.ctx().output().text_cursor_pos = Some(cursor_pos.left_top());
@@ -822,10 +822,9 @@ fn events(
             }
 
             Event::CompositionUpdate(text_mark) => {
-                // empty prediction can be produced when user press backspace 
+                // empty prediction can be produced when user press backspace
                 // or escape during ime. We should clear current text.
-                if text_mark != "\n" && text_mark != "\r" && state.has_ime
-                {
+                if text_mark != "\n" && text_mark != "\r" && state.has_ime {
                     let mut ccursor = delete_selected(text, &cursor_range);
                     let start_cursor = ccursor;
                     if !text_mark.is_empty() {

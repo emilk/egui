@@ -257,17 +257,17 @@ impl State {
                 }
             }
             WindowEvent::Ime(ime) => {
-                // on Mac even Cmd-C is preessed during ime, a `c` is pushed to Preddit. 
+                // on Mac even Cmd-C is preessed during ime, a `c` is pushed to Preddit.
                 // So no need to check is_mac_cmd.
                 //
-                // How winit produce `Ime::Enabled` and `Ime::Disabled` differs in MacOS 
-                // and Windows. 
+                // How winit produce `Ime::Enabled` and `Ime::Disabled` differs in MacOS
+                // and Windows.
                 //
                 // - On Windows, before and after each Commit will produce an Enable/Disabled
                 // event.
-                // - On MacOS, only when user explicit enable/disable ime. No Disabled 
+                // - On MacOS, only when user explicit enable/disable ime. No Disabled
                 // after Commit.
-                // 
+                //
                 // We use input_method_editor_started to mannualy insert CompositionStart
                 // between Commits.
                 match ime {
@@ -275,13 +275,17 @@ impl State {
                     winit::event::Ime::Disabled => (),
                     winit::event::Ime::Commit(text) => {
                         self.input_method_editor_started = false;
-                        self.egui_input.events.push(egui::Event::CompositionEnd(text.clone()))
-                    },
+                        self.egui_input
+                            .events
+                            .push(egui::Event::CompositionEnd(text.clone()))
+                    }
                     winit::event::Ime::Preedit(text, ..) => {
-                        if !self.input_method_editor_started { 
+                        if !self.input_method_editor_started {
                             self.egui_input.events.push(egui::Event::CompositionStart);
                         }
-                        self.egui_input.events.push(egui::Event::CompositionUpdate(text.clone()))
+                        self.egui_input
+                            .events
+                            .push(egui::Event::CompositionUpdate(text.clone()))
                     }
                 };
 
