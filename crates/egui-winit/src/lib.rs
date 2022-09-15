@@ -257,7 +257,7 @@ impl State {
                 }
             }
             WindowEvent::Ime(ime) => {
-                // on Mac even Cmd-C is preessed during ime, a `c` is pushed to Preddit.
+                // on Mac even Cmd-C is preessed during ime, a `c` is pushed to Preedit.
                 // So no need to check is_mac_cmd.
                 //
                 // How winit produce `Ime::Enabled` and `Ime::Disabled` differs in MacOS
@@ -281,6 +281,7 @@ impl State {
                     }
                     winit::event::Ime::Preedit(text, ..) => {
                         if !self.input_method_editor_started {
+                            self.input_method_editor_started = true;
                             self.egui_input.events.push(egui::Event::CompositionStart);
                         }
                         self.egui_input
