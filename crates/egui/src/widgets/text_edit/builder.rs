@@ -618,7 +618,13 @@ impl<'t> TextEdit<'t> {
                         if interactive {
                             // eframe web uses `text_cursor_pos` when showing IME,
                             // so only set it when text is editable and visible!
-                            ui.ctx().output().text_cursor_pos = Some(cursor_pos.left_top());
+                            // But `winit` and `egui_web` differs in how to set the
+                            // position of IME.
+                            if cfg!(target_arch = "wasm32") {
+                                ui.ctx().output().text_cursor_pos = Some(cursor_pos.left_top());
+                            } else {
+                                ui.ctx().output().text_cursor_pos = Some(cursor_pos.left_bottom());
+                            }
                         }
                     }
                 }
@@ -816,11 +822,14 @@ fn events(
             }
 
             Event::CompositionUpdate(text_mark) => {
-                if !text_mark.is_empty() && text_mark != "\n" && text_mark != "\r" && state.has_ime
-                {
+                // empty prediction can be produced when user press backspace
+                // or escape during ime. We should clear current text.
+                if text_mark != "\n" && text_mark != "\r" && state.has_ime {
                     let mut ccursor = delete_selected(text, &cursor_range);
                     let start_cursor = ccursor;
-                    insert_text(&mut ccursor, text, text_mark);
+                    if !text_mark.is_empty() {
+                        insert_text(&mut ccursor, text, text_mark);
+                    }
                     Some(CCursorRange::two(start_cursor, ccursor))
                 } else {
                     None
@@ -828,14 +837,12 @@ fn events(
             }
 
             Event::CompositionEnd(prediction) => {
-                if !prediction.is_empty()
-                    && prediction != "\n"
-                    && prediction != "\r"
-                    && state.has_ime
-                {
+                if prediction != "\n" && prediction != "\r" && state.has_ime {
                     state.has_ime = false;
                     let mut ccursor = delete_selected(text, &cursor_range);
-                    insert_text(&mut ccursor, text, prediction);
+                    if !prediction.is_empty() {
+                        insert_text(&mut ccursor, text, prediction);
+                    }
                     Some(CCursorRange::one(ccursor))
                 } else {
                     None

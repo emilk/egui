@@ -83,6 +83,9 @@ pub struct State {
     ///
     /// Only one touch will be interpreted as pointer at any time.
     pointer_touch_id: Option<u64>,
+
+    /// track ime state
+    input_method_editor_started: bool,
 }
 
 impl State {
@@ -109,6 +112,8 @@ impl State {
 
             simulate_touch_screen: false,
             pointer_touch_id: None,
+
+            input_method_editor_started: false,
         }
     }
 
@@ -251,6 +256,44 @@ impl State {
                     consumed,
                 }
             }
+            WindowEvent::Ime(ime) => {
+                // on Mac even Cmd-C is preessed during ime, a `c` is pushed to Preedit.
+                // So no need to check is_mac_cmd.
+                //
+                // How winit produce `Ime::Enabled` and `Ime::Disabled` differs in MacOS
+                // and Windows.
+                //
+                // - On Windows, before and after each Commit will produce an Enable/Disabled
+                // event.
+                // - On MacOS, only when user explicit enable/disable ime. No Disabled
+                // after Commit.
+                //
+                // We use input_method_editor_started to mannualy insert CompositionStart
+                // between Commits.
+                match ime {
+                    winit::event::Ime::Enabled | winit::event::Ime::Disabled => (),
+                    winit::event::Ime::Commit(text) => {
+                        self.input_method_editor_started = false;
+                        self.egui_input
+                            .events
+                            .push(egui::Event::CompositionEnd(text.clone()));
+                    }
+                    winit::event::Ime::Preedit(text, ..) => {
+                        if !self.input_method_editor_started {
+                            self.input_method_editor_started = true;
+                            self.egui_input.events.push(egui::Event::CompositionStart);
+                        }
+                        self.egui_input
+                            .events
+                            .push(egui::Event::CompositionUpdate(text.clone()));
+                    }
+                };
+
+                EventResponse {
+                    repaint: true,
+                    consumed: egui_ctx.wants_keyboard_input(),
+                }
+            }
             WindowEvent::KeyboardInput { input, .. } => {
                 self.on_keyboard_input(input);
                 let consumed = egui_ctx.wants_keyboard_input()
@@ -317,7 +360,6 @@ impl State {
             | WindowEvent::CloseRequested
             | WindowEvent::CursorEntered { .. }
             | WindowEvent::Destroyed
-            | WindowEvent::Ime(_)
             | WindowEvent::Occluded(_)
             | WindowEvent::Resized(_)
             | WindowEvent::ThemeChanged(_)
