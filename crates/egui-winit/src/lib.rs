@@ -271,13 +271,12 @@ impl State {
                 // We use input_method_editor_started to mannualy insert CompositionStart
                 // between Commits.
                 match ime {
-                    winit::event::Ime::Enabled => (),
-                    winit::event::Ime::Disabled => (),
+                    winit::event::Ime::Enabled | winit::event::Ime::Disabled => (),
                     winit::event::Ime::Commit(text) => {
                         self.input_method_editor_started = false;
                         self.egui_input
                             .events
-                            .push(egui::Event::CompositionEnd(text.clone()))
+                            .push(egui::Event::CompositionEnd(text.clone()));
                     }
                     winit::event::Ime::Preedit(text, ..) => {
                         if !self.input_method_editor_started {
@@ -286,7 +285,7 @@ impl State {
                         }
                         self.egui_input
                             .events
-                            .push(egui::Event::CompositionUpdate(text.clone()))
+                            .push(egui::Event::CompositionUpdate(text.clone()));
                     }
                 };
 
