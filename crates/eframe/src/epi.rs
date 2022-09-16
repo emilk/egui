@@ -225,9 +225,7 @@ pub struct NativeOptions {
 
     /// On Mac: the window doesn't have a titlebar, but floating window buttons.
     ///
-    /// See [winit's documentation][with_fullsize_content_view] for information on Mac-specific options.
-    ///
-    /// [with_fullsize_content_view]: https://docs.rs/winit/latest/x86_64-apple-darwin/winit/platform/macos/trait.WindowBuilderExtMacOS.html#tymethod.with_fullsize_content_view
+    /// See [`winit::platform::macos::WindowBuilderExtMacOS`] for more information about Mac-specific options.
     pub fullsize_content: bool,
 
     /// On Windows: enable drag and drop support. Drag and drop can
