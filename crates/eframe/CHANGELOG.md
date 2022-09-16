@@ -5,6 +5,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 
 
 ## Unreleased
+* Added `NativeOptions::fullsize_content` option on Mac to build titlebar-less windows with floating window controls.
 * Added `NativeOptions::event_loop_builder` hook for apps to change platform specific event loop options ([#1952](https://github.com/emilk/egui/pull/1952)).
 * Enabled deferred render state initialization to support Android ([#1952](https://github.com/emilk/egui/pull/1952)).
 * Allow empty textures with the glow renderer.

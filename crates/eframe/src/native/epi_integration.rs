@@ -1,5 +1,8 @@
 use winit::event_loop::EventLoopWindowTarget;
 
+#[cfg(target_os = "macos")]
+use winit::platform::macos::WindowBuilderExtMacOS;
+
 use egui_winit::{native_pixels_per_point, EventResponse, WindowSettings};
 
 use crate::{epi, Theme, WindowInfo};
@@ -41,6 +44,8 @@ pub fn window_builder(
         maximized,
         decorated,
         fullscreen,
+        #[cfg(target_os = "macos")]
+        fullsize_content,
         drag_and_drop_support,
         icon_data,
         initial_window_pos,
@@ -62,6 +67,14 @@ pub fn window_builder(
         .with_resizable(*resizable)
         .with_transparent(*transparent)
         .with_window_icon(window_icon);
+
+    #[cfg(target_os = "macos")]
+    if *fullsize_content {
+        window_builder = window_builder
+            .with_title_hidden(true)
+            .with_titlebar_transparent(true)
+            .with_fullsize_content_view(true);
+    }
 
     if let Some(min_size) = *min_window_size {
         window_builder = window_builder.with_min_inner_size(points_to_size(min_size));
