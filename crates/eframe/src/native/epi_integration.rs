@@ -1,7 +1,7 @@
 use winit::event_loop::EventLoopWindowTarget;
 
 #[cfg(target_os = "macos")]
-use winit::platform::macos::WindowBuilderExtMacOS;
+use winit::platform::macos::WindowBuilderExtMacOS as _;
 
 use egui_winit::{native_pixels_per_point, EventResponse, WindowSettings};
 
