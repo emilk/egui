@@ -75,7 +75,7 @@ impl Frame {
 
     pub fn menu(style: &Style) -> Self {
         Self {
-            inner_margin: Margin::same(1.0),
+            inner_margin: style.spacing.menu_margin,
             rounding: style.visuals.widgets.noninteractive.rounding,
             shadow: style.visuals.popup_shadow,
             fill: style.visuals.window_fill(),
