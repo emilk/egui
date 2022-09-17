@@ -21,6 +21,14 @@ pub fn read_window_info(window: &winit::window::Window, pixels_per_point: f32) -
         .map(|pos| pos.to_logical::<f32>(pixels_per_point.into()))
         .map(|pos| egui::Pos2 { x: pos.x, y: pos.y });
 
+    let monitor = window.current_monitor().is_some();
+    let monitor_size = if monitor {
+        let size = window.current_monitor().unwrap().size();
+        Some(egui::vec2(size.width as _, size.height as _))
+    } else {
+        None
+    };
+
     let size = window
         .inner_size()
         .to_logical::<f32>(pixels_per_point.into());
@@ -32,6 +40,7 @@ pub fn read_window_info(window: &winit::window::Window, pixels_per_point: f32) -
             x: size.width,
             y: size.height,
         },
+        monitor_size,
     }
 }
 
@@ -138,6 +147,7 @@ pub fn handle_app_output(
         drag_window,
         window_pos,
         visible,
+        always_on_top,
     } = app_output;
 
     if let Some(decorated) = decorated {
@@ -175,6 +185,10 @@ pub fn handle_app_output(
 
     if let Some(visible) = visible {
         window.set_visible(visible);
+    }
+
+    if let Some(always_on_top) = always_on_top {
+        window.set_always_on_top(always_on_top);
     }
 }
 
