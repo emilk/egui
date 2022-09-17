@@ -10,7 +10,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 * Allow empty textures with the glow renderer.
 * Added `shader_version` to `NativeOptions` for cross compiling support on different target OpenGL | ES versions (on native `glow` renderer only) ([#1993](https://github.com/emilk/egui/pull/1993)).
 * Fix: app state is now saved when user presses Cmd-Q on Mac ([#2013](https://github.com/emilk/egui/pull/2013)).
-* Added `center` to `NativeOptions`and `monitor_size` to `WindowInfo` on Desktop ([#2035](https://github.com/emilk/egui/pull/2035))
+* Added `center` to `NativeOptions` and `monitor_size` to `WindowInfo` on desktop ([#2035](https://github.com/emilk/egui/pull/2035)).
 
 ## 0.19.0 - 2022-08-20
 * MSRV (Minimum Supported Rust Version) is now `1.61.0` ([#1846](https://github.com/emilk/egui/pull/1846)).
