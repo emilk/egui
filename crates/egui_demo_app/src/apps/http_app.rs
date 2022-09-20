@@ -109,11 +109,6 @@ impl eframe::App for HttpApp {
             }
         });
     }
-
-    #[cfg(target_arch = "wasm32")]
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        &mut *self
-    }
 }
 
 fn ui_url(ui: &mut egui::Ui, frame: &mut eframe::Frame, url: &mut String) -> bool {

@@ -16,11 +16,6 @@ impl eframe::App for EasyMarkApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.editor.panels(ctx);
     }
-
-    #[cfg(target_arch = "wasm32")]
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        &mut *self
-    }
 }
 
 // ----------------------------------------------------------------------------
@@ -34,11 +29,6 @@ pub struct DemoApp {
 impl eframe::App for DemoApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.demo_windows.ui(ctx);
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        &mut *self
     }
 }
 
@@ -58,11 +48,6 @@ impl eframe::App for FractalClockApp {
                 self.fractal_clock
                     .ui(ui, Some(crate::seconds_since_midnight()));
             });
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        &mut *self
     }
 }
 
@@ -87,11 +72,6 @@ impl eframe::App for ColorTestApp {
                 self.color_test.ui(ui);
             });
         });
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        &mut *self
     }
 }
 
@@ -250,8 +230,8 @@ impl eframe::App for WrapApp {
     }
 
     #[cfg(target_arch = "wasm32")]
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        &mut *self
+    fn as_any_mut(&mut self) -> Option<&mut dyn Any> {
+        Some(&mut *self)
     }
 }
 

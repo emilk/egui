@@ -51,11 +51,6 @@ impl eframe::App for Custom3d {
             self.rotating_triangle.lock().destroy(gl);
         }
     }
-
-    #[cfg(target_arch = "wasm32")]
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        &mut *self
-    }
 }
 
 impl Custom3d {
