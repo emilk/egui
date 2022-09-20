@@ -266,8 +266,14 @@ impl AppRunner {
     }
 
     /// Get mutable access to the concrete [`App`] we enclose.
+    ///
+    /// This will panic if your app does not implement [`App::as_any_mut`].
     pub fn app_mut<ConreteApp: 'static + crate::App>(&mut self) -> &mut ConreteApp {
-        self.app.as_any_mut().downcast_mut::<ConreteApp>().unwrap()
+        self.app
+            .as_any_mut()
+            .expect("Your app must implement `as_any_mut`, but it doesn't")
+            .downcast_mut::<ConreteApp>()
+            .unwrap()
     }
 
     pub fn auto_save(&mut self) {

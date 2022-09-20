@@ -69,20 +69,25 @@ pub trait App {
     /// To force a repaint, call [`egui::Context::request_repaint`] at any time (e.g. from another thread).
     fn update(&mut self, ctx: &egui::Context, frame: &mut Frame);
 
-    /// Handle to the app.
+    /// Get a handle to the app.
     ///
-    /// Can be used from web to interact or other external context
-    /// Implementation is needed, because downcasting Box<dyn App> -> Box<dyn Any> to get &ConcreteApp is not simple in current rust.
+    /// Can be used from web to interact or other external context.
+    ///
+    /// You need to implement this if you want to be able to access the application from JS using [`AppRunner::app_mut`].
+    ///
+    /// This is needed because downcasting Box<dyn App> -> Box<dyn Any> to get &ConcreteApp is not simple in current rust.
     ///
     /// Just copy-paste this as your implementation:
     /// ```ignore
     /// #[cfg(target_arch = "wasm32")]
-    /// fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-    ///     &mut *self
+    /// fn as_any_mut(&mut self) -> Option<&mut dyn std::any::Any> {
+    ///     Some(&mut *self)
     /// }
     /// ```
     #[cfg(target_arch = "wasm32")]
-    fn as_any_mut(&mut self) -> &mut dyn Any;
+    fn as_any_mut(&mut self) -> Option<&mut dyn Any> {
+        None
+    }
 
     /// Called on shutdown, and perhaps at regular intervals. Allows you to save state.
     ///

@@ -1,8 +1,5 @@
 use std::sync::Arc;
 
-#[cfg(target_arch = "wasm32")]
-use core::any::Any;
-
 use eframe::egui_glow;
 use egui::mutex::Mutex;
 use egui_glow::glow;
@@ -50,11 +47,6 @@ impl eframe::App for Custom3d {
         if let Some(gl) = gl {
             self.rotating_triangle.lock().destroy(gl);
         }
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        &mut *self
     }
 }
 
