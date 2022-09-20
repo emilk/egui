@@ -1,8 +1,5 @@
 use std::sync::Arc;
 
-#[cfg(target_arch = "wasm32")]
-use core::any::Any;
-
 use eframe::egui_glow;
 use egui::mutex::Mutex;
 use egui_glow::glow;
