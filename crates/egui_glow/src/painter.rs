@@ -125,7 +125,7 @@ impl Painter {
                 // EXT_sRGB, GL_ARB_framebuffer_sRGB, GL_EXT_sRGB, GL_EXT_texture_sRGB_decode, …
                 extension.contains("sRGB")
             });
-        tracing::debug!("SRGB Support: {:?}.", srgb_textures);
+        tracing::debug!("SRGB Support: {:?}", srgb_textures);
 
         let (post_process, srgb_support_define) = if shader_version.is_embedded() {
             // WebGL doesn't support linear framebuffer blending… but maybe we can emulate it with `PostProcess`?
