@@ -194,7 +194,7 @@ impl DemoWindows {
                     ui.add_space(12.0);
                     ui.vertical_centered_justified(|ui| {
                         if ui
-                            .button(egui::RichText::new("Continue to the demo!").size(24.0))
+                            .button(egui::RichText::new("Continue to the demo!").size(20.0))
                             .clicked()
                         {
                             close = true;
@@ -211,7 +211,7 @@ impl DemoWindows {
     fn mobile_top_bar(&mut self, ctx: &Context) {
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
-                let font_size = 20.0;
+                let font_size = 16.5;
 
                 ui.menu_button(egui::RichText::new("⏷ demos").size(font_size), |ui| {
                     ui.set_style(ui.ctx().style()); // ignore the "menu" style set by `menu_button`.

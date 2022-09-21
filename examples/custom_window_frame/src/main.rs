@@ -70,7 +70,7 @@ fn custom_window_frame(
                 rect.center_top() + vec2(0.0, height / 2.0),
                 Align2::CENTER_CENTER,
                 title,
-                FontId::proportional(height - 2.0),
+                FontId::proportional(height * 0.8),
                 text_color,
             );
 

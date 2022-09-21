@@ -18,13 +18,13 @@ fn configure_text_styles(ctx: &egui::Context) {
 
     let mut style = (*ctx.style()).clone();
     style.text_styles = [
-        (TextStyle::Heading, FontId::new(30.0, Proportional)),
-        (heading2(), FontId::new(25.0, Proportional)),
-        (heading3(), FontId::new(23.0, Proportional)),
-        (TextStyle::Body, FontId::new(18.0, Proportional)),
-        (TextStyle::Monospace, FontId::new(14.0, Proportional)),
-        (TextStyle::Button, FontId::new(14.0, Proportional)),
-        (TextStyle::Small, FontId::new(10.0, Proportional)),
+        (TextStyle::Heading, FontId::new(25.0, Proportional)),
+        (heading2(), FontId::new(22.0, Proportional)),
+        (heading3(), FontId::new(19.0, Proportional)),
+        (TextStyle::Body, FontId::new(16.0, Proportional)),
+        (TextStyle::Monospace, FontId::new(12.0, Proportional)),
+        (TextStyle::Button, FontId::new(12.0, Proportional)),
+        (TextStyle::Small, FontId::new(8.0, Proportional)),
     ]
     .into();
     ctx.set_style(style);
