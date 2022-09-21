@@ -7,8 +7,14 @@ use std::convert::TryInto;
 #[allow(dead_code)]
 pub enum ShaderVersion {
     Gl120,
+
+    /// OpenGL 1.4 or later
     Gl140,
+
+    /// e.g. WebGL1
     Es100,
+
+    /// e.g. WebGL2
     Es300,
 }
 
@@ -68,6 +74,13 @@ impl ShaderVersion {
         match self {
             Self::Gl120 | Self::Es100 => false,
             Self::Es300 | Self::Gl140 => true,
+        }
+    }
+
+    pub fn is_embedded(&self) -> bool {
+        match self {
+            Self::Gl120 | Self::Gl140 => false,
+            Self::Es100 | Self::Es300 => true,
         }
     }
 }

@@ -1,3 +1,4 @@
+#![allow(clippy::collapsible_else_if)]
 #![allow(unsafe_code)]
 
 use std::{collections::HashMap, sync::Arc};
@@ -53,7 +54,7 @@ pub struct Painter {
     is_webgl_1: bool,
     is_embedded: bool,
     vao: crate::vao::VertexArrayObject,
-    srgb_support: bool,
+    srgb_textures: bool,
     post_process: Option<PostProcess>,
     vbo: glow::Buffer,
     element_array_buffer: glow::Buffer,
@@ -112,45 +113,41 @@ impl Painter {
         crate::check_for_gl_error_even_in_release!(&gl, "before Painter::new");
 
         let max_texture_side = unsafe { gl.get_parameter_i32(glow::MAX_TEXTURE_SIZE) } as usize;
-        let shader = shader_version.unwrap_or_else(|| ShaderVersion::get(&gl));
-        let is_webgl_1 = shader == ShaderVersion::Es100;
-        let header = shader.version_declaration();
+        let shader_version = shader_version.unwrap_or_else(|| ShaderVersion::get(&gl));
+        let is_webgl_1 = shader_version == ShaderVersion::Es100;
+        let header = shader_version.version_declaration();
         tracing::debug!("Shader header: {:?}.", header);
-        // Previously checking srgb_support on WebGL only, now we have to check on other GL | ES as well.
-        let srgb_support = gl.supported_extensions().contains("EXT_sRGB")
-            || gl.supported_extensions().contains("GL_EXT_sRGB")
-            || gl
-                .supported_extensions()
-                .contains("GL_ARB_framebuffer_sRGB");
-        tracing::debug!("SRGB Support: {:?}.", srgb_support);
 
-        let (post_process, srgb_support_define) = match (shader, srgb_support) {
-            // WebGL2 support sRGB default
-            (ShaderVersion::Es300, _) | (ShaderVersion::Es100, true) => unsafe {
-                // Add sRGB support marker for fragment shader
-                if let Some(size) = pp_fb_extent {
-                    tracing::debug!("WebGL with sRGB enabled. Turning on post processing for linear framebuffer blending.");
-                    // install post process to correct sRGB color:
-                    (
-                        Some(PostProcess::new(
-                            gl.clone(),
-                            shader_prefix,
-                            is_webgl_1,
-                            size,
-                        )?),
-                        "#define SRGB_SUPPORTED",
-                    )
-                } else {
-                    tracing::debug!("WebGL or OpenGL ES detected but PostProcess disabled because dimension is None");
-                    (None, "")
-                }
-            },
+        let supported_extensions = gl.supported_extensions();
+        tracing::trace!("OpenGL extensions: {supported_extensions:?}");
+        let srgb_textures = shader_version == ShaderVersion::Es300 // WebGL2 always support sRGB
+            || supported_extensions.iter().any(|extension| {
+                // EXT_sRGB, GL_ARB_framebuffer_sRGB, GL_EXT_sRGB, GL_EXT_texture_sRGB_decode, …
+                extension.contains("sRGB")
+            });
+        tracing::debug!("SRGB Support: {:?}", srgb_textures);
 
-            // WebGL1 without sRGB support disable postprocess and use fallback shader
-            (ShaderVersion::Es100, false) => (None, ""),
+        let (post_process, srgb_support_define) = if shader_version.is_embedded() {
+            // WebGL doesn't support linear framebuffer blending… but maybe we can emulate it with `PostProcess`?
 
-            // OpenGL 2.1 or above always support sRGB so add sRGB support marker
-            _ => (None, "#define SRGB_SUPPORTED"),
+            if let Some(size) = pp_fb_extent {
+                tracing::debug!("WebGL with sRGB support. Turning on post processing for linear framebuffer blending.");
+                // install post process to correct sRGB color:
+                (
+                    Some(unsafe { PostProcess::new(gl.clone(), shader_prefix, is_webgl_1, size)? }),
+                    "#define SRGB_SUPPORTED",
+                )
+            } else {
+                tracing::warn!("WebGL or OpenGL ES detected but PostProcess disabled because dimension is None. Linear framebuffer blending will not be supported.");
+                (None, "")
+            }
+        } else {
+            if srgb_textures {
+                (None, "#define SRGB_SUPPORTED")
+            } else {
+                tracing::warn!("sRGB aware texture filtering not available");
+                (None, "")
+            }
         };
 
         unsafe {
@@ -161,7 +158,7 @@ impl Painter {
                     "{}\n{}\n{}\n{}",
                     header,
                     shader_prefix,
-                    if shader.is_new_shader_interface() {
+                    if shader_version.is_new_shader_interface() {
                         "#define NEW_SHADER_INTERFACE\n"
                     } else {
                         ""
@@ -177,7 +174,7 @@ impl Painter {
                     header,
                     shader_prefix,
                     srgb_support_define,
-                    if shader.is_new_shader_interface() {
+                    if shader_version.is_new_shader_interface() {
                         "#define NEW_SHADER_INTERFACE\n"
                     } else {
                         ""
@@ -239,9 +236,9 @@ impl Painter {
                 u_screen_size,
                 u_sampler,
                 is_webgl_1,
-                is_embedded: matches!(shader, ShaderVersion::Es100 | ShaderVersion::Es300),
+                is_embedded: shader_version.is_embedded(),
                 vao,
-                srgb_support,
+                srgb_textures,
                 post_process,
                 vbo,
                 element_array_buffer,
@@ -591,16 +588,16 @@ impl Painter {
             check_for_gl_error!(&self.gl, "tex_parameter");
 
             let (internal_format, src_format) = if self.is_webgl_1 {
-                let format = if self.srgb_support {
+                let format = if self.srgb_textures {
                     glow::SRGB_ALPHA
                 } else {
                     glow::RGBA
                 };
                 (format, format)
-            } else if !self.srgb_support {
-                (glow::RGBA8, glow::RGBA)
-            } else {
+            } else if self.srgb_textures {
                 (glow::SRGB8_ALPHA8, glow::RGBA)
+            } else {
+                (glow::RGBA8, glow::RGBA)
             };
 
             self.gl.pixel_store_i32(glow::UNPACK_ALIGNMENT, 1);
