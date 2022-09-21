@@ -845,7 +845,7 @@ fn test_pre_cjk() {
         "日本語とEnglishの混在した文章".into(),
         super::TextFormat::default(),
     );
-    layout_job.wrap.max_width = 100.0;
+    layout_job.wrap.max_width = 110.0;
     let galley = super::layout(&mut fonts, layout_job.into());
     assert_eq!(
         galley
