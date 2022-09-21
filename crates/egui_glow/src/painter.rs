@@ -119,11 +119,12 @@ impl Painter {
         tracing::debug!("Shader header: {:?}.", header);
 
         let supported_extensions = gl.supported_extensions();
+        tracing::trace!("OpenGL extensions: {supported_extensions:?}");
         let srgb_textures = shader_version == ShaderVersion::Es300 // WebGL2 always support sRGB
-            || supported_extensions.contains("EXT_sRGB")
-            || supported_extensions.contains("GL_ARB_framebuffer_sRGB")
-            || supported_extensions.contains("GL_EXT_sRGB")
-            || supported_extensions.contains("GL_EXT_texture_sRGB_decode"); // GL_EXT_texture_sRGB_decode = M1 Apple
+            || supported_extensions.iter().any(|extension| {
+                // EXT_sRGB, GL_ARB_framebuffer_sRGB, GL_EXT_sRGB, GL_EXT_texture_sRGB_decode, …
+                extension.contains("sRGB")
+            });
         tracing::debug!("SRGB Support: {:?}.", srgb_textures);
 
         let (post_process, srgb_support_define) = if shader_version.is_embedded() {
