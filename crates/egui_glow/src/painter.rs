@@ -112,21 +112,21 @@ impl Painter {
         crate::check_for_gl_error_even_in_release!(&gl, "before Painter::new");
 
         let max_texture_side = unsafe { gl.get_parameter_i32(glow::MAX_TEXTURE_SIZE) } as usize;
-        let shader = shader_version.unwrap_or_else(|| ShaderVersion::get(&gl));
-        let is_webgl_1 = shader == ShaderVersion::Es100;
-        let header = shader.version_declaration();
+        let shader_version = shader_version.unwrap_or_else(|| ShaderVersion::get(&gl));
+        let is_webgl_1 = shader_version == ShaderVersion::Es100;
+        let header = shader_version.version_declaration();
         tracing::debug!("Shader header: {:?}.", header);
-        // Previously checking srgb_support on WebGL only, now we have to check on other GL | ES as well.
-        let srgb_support = gl.supported_extensions().contains("EXT_sRGB")
-            || gl.supported_extensions().contains("GL_EXT_sRGB")
-            || gl
-                .supported_extensions()
-                .contains("GL_ARB_framebuffer_sRGB");
+
+        let supported_extensions = gl.supported_extensions();
+        let srgb_support = shader_version == ShaderVersion::Es300 // WebGL2 always support sRGB
+            || supported_extensions.contains("EXT_sRGB")
+            || supported_extensions.contains("GL_ARB_framebuffer_sRGB")
+            || supported_extensions.contains("GL_EXT_sRGB")
+            || supported_extensions.contains("GL_EXT_texture_sRGB_decode"); // GL_EXT_texture_sRGB_decode = M1 Apple
         tracing::debug!("SRGB Support: {:?}.", srgb_support);
 
-        let (post_process, srgb_support_define) = match (shader, srgb_support) {
-            // WebGL2 support sRGB default
-            (ShaderVersion::Es300, _) | (ShaderVersion::Es100, true) => unsafe {
+        let (post_process, srgb_support_define) = match (shader_version, srgb_support) {
+            (ShaderVersion::Es100 | ShaderVersion::Es300, true) => unsafe {
                 // Add sRGB support marker for fragment shader
                 if let Some(size) = pp_fb_extent {
                     tracing::debug!("WebGL with sRGB enabled. Turning on post processing for linear framebuffer blending.");
@@ -161,7 +161,7 @@ impl Painter {
                     "{}\n{}\n{}\n{}",
                     header,
                     shader_prefix,
-                    if shader.is_new_shader_interface() {
+                    if shader_version.is_new_shader_interface() {
                         "#define NEW_SHADER_INTERFACE\n"
                     } else {
                         ""
@@ -177,7 +177,7 @@ impl Painter {
                     header,
                     shader_prefix,
                     srgb_support_define,
-                    if shader.is_new_shader_interface() {
+                    if shader_version.is_new_shader_interface() {
                         "#define NEW_SHADER_INTERFACE\n"
                     } else {
                         ""
@@ -239,7 +239,7 @@ impl Painter {
                 u_screen_size,
                 u_sampler,
                 is_webgl_1,
-                is_embedded: matches!(shader, ShaderVersion::Es100 | ShaderVersion::Es300),
+                is_embedded: matches!(shader_version, ShaderVersion::Es100 | ShaderVersion::Es300),
                 vao,
                 srgb_support,
                 post_process,

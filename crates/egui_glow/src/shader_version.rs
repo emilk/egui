@@ -7,8 +7,14 @@ use std::convert::TryInto;
 #[allow(dead_code)]
 pub enum ShaderVersion {
     Gl120,
+
+    /// OpenGL 1.4 or later
     Gl140,
+
+    /// e.g. WebGL1
     Es100,
+
+    /// e.g. WebGL2
     Es300,
 }
 
