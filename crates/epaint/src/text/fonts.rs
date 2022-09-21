@@ -1,5 +1,4 @@
-use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 
 use crate::{
     mutex::{Mutex, MutexGuard},
@@ -271,7 +270,13 @@ impl Default for FontDefinitions {
         // Some good looking emojis. Use as first priority:
         font_data.insert(
             "NotoEmoji-Regular".to_owned(),
-            FontData::from_static(include_bytes!("../../fonts/NotoEmoji-Regular.ttf")),
+            FontData::from_static(include_bytes!("../../fonts/NotoEmoji-Regular.ttf")).tweak(
+                FontTweak {
+                    scale: 0.81,           // make it smaller
+                    y_offset_factor: -0.2, // move it up
+                    y_offset: 0.0,
+                },
+            ),
         );
 
         // Bigger emojis, and more. <http://jslegers.github.io/emoji-icon-font/>:
@@ -279,7 +284,7 @@ impl Default for FontDefinitions {
             "emoji-icon-font".to_owned(),
             FontData::from_static(include_bytes!("../../fonts/emoji-icon-font.ttf")).tweak(
                 FontTweak {
-                    scale: 0.8,            // make it smaller
+                    scale: 0.88,           // make it smaller
                     y_offset_factor: 0.07, // move it down slightly
                     y_offset: 0.0,
                 },
@@ -526,6 +531,21 @@ impl FontsAndCache {
 
 // ----------------------------------------------------------------------------
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct HashableF32(f32);
+
+#[allow(clippy::derive_hash_xor_eq)]
+impl std::hash::Hash for HashableF32 {
+    #[inline(always)]
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        crate::f32_hash(state, self.0);
+    }
+}
+
+impl Eq for HashableF32 {}
+
+// ----------------------------------------------------------------------------
+
 /// The collection of fonts used by `epaint`.
 ///
 /// Required in order to paint text.
@@ -535,7 +555,7 @@ pub struct FontsImpl {
     definitions: FontDefinitions,
     atlas: Arc<Mutex<TextureAtlas>>,
     font_impl_cache: FontImplCache,
-    sized_family: ahash::HashMap<(u32, FontFamily), Font>,
+    sized_family: ahash::HashMap<(HashableF32, FontFamily), Font>,
 }
 
 impl FontsImpl {
@@ -584,10 +604,9 @@ impl FontsImpl {
     /// Get the right font implementation from size and [`FontFamily`].
     pub fn font(&mut self, font_id: &FontId) -> &mut Font {
         let FontId { size, family } = font_id;
-        let scale_in_pixels = self.font_impl_cache.scale_as_pixels(*size);
 
         self.sized_family
-            .entry((scale_in_pixels, family.clone()))
+            .entry((HashableF32(*size), family.clone()))
             .or_insert_with(|| {
                 let fonts = &self.definitions.families.get(family);
                 let fonts = fonts.unwrap_or_else(|| {
@@ -596,7 +615,7 @@ impl FontsImpl {
 
                 let fonts: Vec<Arc<FontImpl>> = fonts
                     .iter()
-                    .map(|font_name| self.font_impl_cache.font_impl(scale_in_pixels, font_name))
+                    .map(|font_name| self.font_impl_cache.font_impl(*size, font_name))
                     .collect();
 
                 Font::new(fonts)
@@ -699,23 +718,33 @@ impl FontImplCache {
         }
     }
 
-    #[inline]
-    pub fn scale_as_pixels(&self, scale_in_points: f32) -> u32 {
-        let scale_in_pixels = self.pixels_per_point * scale_in_points;
+    pub fn font_impl(&mut self, scale_in_points: f32, font_name: &str) -> Arc<FontImpl> {
+        use ab_glyph::Font as _;
 
-        // Round to an even number of physical pixels to get even kerning.
-        // See https://github.com/emilk/egui/issues/382
-        scale_in_pixels.round() as u32
-    }
-
-    pub fn font_impl(&mut self, scale_in_pixels: u32, font_name: &str) -> Arc<FontImpl> {
         let (tweak, ab_glyph_font) = self
             .ab_glyph_fonts
             .get(font_name)
             .unwrap_or_else(|| panic!("No font data found for {:?}", font_name))
             .clone();
 
-        let scale_in_pixels = (scale_in_pixels as f32 * tweak.scale).round() as u32;
+        let scale_in_pixels = self.pixels_per_point * scale_in_points;
+
+        // Scale the font properly (see https://github.com/emilk/egui/issues/2068).
+        let units_per_em = ab_glyph_font.units_per_em().unwrap_or_else(|| {
+            panic!(
+                "The font unit size of {:?} exceeds the expected range (16..=16384)",
+                font_name
+            )
+        });
+        let font_scaling = ab_glyph_font.height_unscaled() / units_per_em;
+        let scale_in_pixels = scale_in_pixels * font_scaling;
+
+        // Tweak the scale as the user desired:
+        let scale_in_pixels = scale_in_pixels * tweak.scale;
+
+        // Round to an even number of physical pixels to get even kerning.
+        // See https://github.com/emilk/egui/issues/382
+        let scale_in_pixels = scale_in_pixels.round() as u32;
 
         let y_offset_points = {
             let scale_in_points = scale_in_pixels as f32 / self.pixels_per_point;

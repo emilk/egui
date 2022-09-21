@@ -544,7 +544,7 @@ fn text_layout_ui(
         "mixing ",
         0.0,
         TextFormat {
-            font_id: FontId::proportional(20.0),
+            font_id: FontId::proportional(17.0),
             color: default_color,
             ..Default::default()
         },
@@ -553,7 +553,7 @@ fn text_layout_ui(
         "fonts, ",
         0.0,
         TextFormat {
-            font_id: FontId::monospace(14.0),
+            font_id: FontId::monospace(12.0),
             color: default_color,
             ..Default::default()
         },
@@ -562,7 +562,7 @@ fn text_layout_ui(
         "raised text, ",
         0.0,
         TextFormat {
-            font_id: FontId::proportional(8.0),
+            font_id: FontId::proportional(7.0),
             color: default_color,
             valign: Align::TOP,
             ..Default::default()
@@ -623,7 +623,7 @@ fn text_layout_ui(
         " mix these!",
         0.0,
         TextFormat {
-            font_id: FontId::proportional(8.0),
+            font_id: FontId::proportional(7.0),
             color: Color32::LIGHT_BLUE,
             background: Color32::from_rgb(128, 0, 0),
             underline: Stroke::new(1.0, strong_color),

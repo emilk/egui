@@ -195,7 +195,7 @@ impl CodeTheme {
 #[cfg(not(feature = "syntect"))]
 impl CodeTheme {
     pub fn dark() -> Self {
-        let font_id = egui::FontId::monospace(12.0);
+        let font_id = egui::FontId::monospace(10.0);
         use egui::{Color32, TextFormat};
         Self {
             dark_mode: true,
@@ -211,7 +211,7 @@ impl CodeTheme {
     }
 
     pub fn light() -> Self {
-        let font_id = egui::FontId::monospace(12.0);
+        let font_id = egui::FontId::monospace(10.0);
         use egui::{Color32, TextFormat};
         Self {
             dark_mode: false,
@@ -318,7 +318,7 @@ impl Highlighter {
             // Fallback:
             LayoutJob::simple(
                 code.into(),
-                egui::FontId::monospace(14.0),
+                egui::FontId::monospace(12.0),
                 if theme.dark_mode {
                     egui::Color32::LIGHT_GRAY
                 } else {
@@ -364,7 +364,7 @@ impl Highlighter {
                     leading_space: 0.0,
                     byte_range: as_byte_range(text, range),
                     format: TextFormat {
-                        font_id: egui::FontId::monospace(14.0),
+                        font_id: egui::FontId::monospace(12.0),
                         color: text_color,
                         italics,
                         underline,

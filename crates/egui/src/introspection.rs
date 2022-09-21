@@ -14,7 +14,7 @@ pub fn font_family_ui(ui: &mut Ui, font_family: &mut FontFamily) {
 pub fn font_id_ui(ui: &mut Ui, font_id: &mut FontId) {
     let families = ui.fonts().families();
     ui.horizontal(|ui| {
-        ui.add(Slider::new(&mut font_id.size, 4.0..=40.0).max_decimals(0));
+        ui.add(Slider::new(&mut font_id.size, 4.0..=40.0).max_decimals(1));
         for alternative in families {
             let text = alternative.to_string();
             ui.radio_value(&mut font_id.family, alternative, text);

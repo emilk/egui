@@ -3,6 +3,7 @@ All notable changes to the epaint crate will be documented in this file.
 
 
 ## Unreleased
+* ⚠️ BREAKING: Fix text being too small ([#2069](https://github.com/emilk/egui/pull/2069)).
 
 
 ## 0.19.0 - 2022-08-20

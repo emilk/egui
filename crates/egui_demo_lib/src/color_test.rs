@@ -405,21 +405,21 @@ fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Col
                 rect.center_top() + vec2(0.0, x),
                 Align2::LEFT_TOP,
                 format!("{:.0}% white", 100.0 * opacity),
-                FontId::proportional(16.0),
+                FontId::proportional(14.0),
                 Color32::WHITE.linear_multiply(opacity),
             );
             painter.text(
                 rect.center_top() + vec2(80.0, x),
                 Align2::LEFT_TOP,
                 format!("{:.0}% gray", 100.0 * opacity),
-                FontId::proportional(16.0),
+                FontId::proportional(14.0),
                 Color32::GRAY.linear_multiply(opacity),
             );
             painter.text(
                 rect.center_top() + vec2(160.0, x),
                 Align2::LEFT_TOP,
                 format!("{:.0}% black", 100.0 * opacity),
-                FontId::proportional(16.0),
+                FontId::proportional(14.0),
                 Color32::BLACK.linear_multiply(opacity),
             );
             x += 20.0;
@@ -434,7 +434,7 @@ fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Col
             rect.left_top(),
             Align2::CENTER_CENTER,
             width.to_string(),
-            FontId::monospace(14.0),
+            FontId::monospace(12.0),
             color,
         );
 
@@ -459,7 +459,7 @@ fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Col
         rect.left_top(),
         Align2::LEFT_CENTER,
         "transparent --> opaque",
-        FontId::monospace(11.0),
+        FontId::monospace(10.0),
         color,
     );
     rect.min.y += 12.0;
