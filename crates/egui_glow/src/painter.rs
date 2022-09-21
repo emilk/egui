@@ -1,3 +1,4 @@
+#![allow(clippy::collapsible_else_if)]
 #![allow(unsafe_code)]
 
 use std::{collections::HashMap, sync::Arc};
@@ -53,7 +54,7 @@ pub struct Painter {
     is_webgl_1: bool,
     is_embedded: bool,
     vao: crate::vao::VertexArrayObject,
-    srgb_support: bool,
+    srgb_textures: bool,
     post_process: Option<PostProcess>,
     vbo: glow::Buffer,
     element_array_buffer: glow::Buffer,
@@ -118,39 +119,34 @@ impl Painter {
         tracing::debug!("Shader header: {:?}.", header);
 
         let supported_extensions = gl.supported_extensions();
-        let srgb_support = shader_version == ShaderVersion::Es300 // WebGL2 always support sRGB
+        let srgb_textures = shader_version == ShaderVersion::Es300 // WebGL2 always support sRGB
             || supported_extensions.contains("EXT_sRGB")
             || supported_extensions.contains("GL_ARB_framebuffer_sRGB")
             || supported_extensions.contains("GL_EXT_sRGB")
             || supported_extensions.contains("GL_EXT_texture_sRGB_decode"); // GL_EXT_texture_sRGB_decode = M1 Apple
-        tracing::debug!("SRGB Support: {:?}.", srgb_support);
+        tracing::debug!("SRGB Support: {:?}.", srgb_textures);
 
-        let (post_process, srgb_support_define) = match (shader_version, srgb_support) {
-            (ShaderVersion::Es100 | ShaderVersion::Es300, true) => unsafe {
-                // Add sRGB support marker for fragment shader
-                if let Some(size) = pp_fb_extent {
-                    tracing::debug!("WebGL with sRGB enabled. Turning on post processing for linear framebuffer blending.");
-                    // install post process to correct sRGB color:
-                    (
-                        Some(PostProcess::new(
-                            gl.clone(),
-                            shader_prefix,
-                            is_webgl_1,
-                            size,
-                        )?),
-                        "#define SRGB_SUPPORTED",
-                    )
-                } else {
-                    tracing::debug!("WebGL or OpenGL ES detected but PostProcess disabled because dimension is None");
-                    (None, "")
-                }
-            },
+        let (post_process, srgb_support_define) = if shader_version.is_embedded() {
+            // WebGL doesn't support linear framebuffer blending… but maybe we can emulate it with `PostProcess`?
 
-            // WebGL1 without sRGB support disable postprocess and use fallback shader
-            (ShaderVersion::Es100, false) => (None, ""),
-
-            // OpenGL 2.1 or above always support sRGB so add sRGB support marker
-            _ => (None, "#define SRGB_SUPPORTED"),
+            if let Some(size) = pp_fb_extent {
+                tracing::debug!("WebGL with sRGB support. Turning on post processing for linear framebuffer blending.");
+                // install post process to correct sRGB color:
+                (
+                    Some(unsafe { PostProcess::new(gl.clone(), shader_prefix, is_webgl_1, size)? }),
+                    "#define SRGB_SUPPORTED",
+                )
+            } else {
+                tracing::warn!("WebGL or OpenGL ES detected but PostProcess disabled because dimension is None. Linear framebuffer blending will not be supported.");
+                (None, "")
+            }
+        } else {
+            if srgb_textures {
+                (None, "#define SRGB_SUPPORTED")
+            } else {
+                tracing::warn!("sRGB aware texture filtering not available");
+                (None, "")
+            }
         };
 
         unsafe {
@@ -239,9 +235,9 @@ impl Painter {
                 u_screen_size,
                 u_sampler,
                 is_webgl_1,
-                is_embedded: matches!(shader_version, ShaderVersion::Es100 | ShaderVersion::Es300),
+                is_embedded: shader_version.is_embedded(),
                 vao,
-                srgb_support,
+                srgb_textures,
                 post_process,
                 vbo,
                 element_array_buffer,
@@ -591,16 +587,16 @@ impl Painter {
             check_for_gl_error!(&self.gl, "tex_parameter");
 
             let (internal_format, src_format) = if self.is_webgl_1 {
-                let format = if self.srgb_support {
+                let format = if self.srgb_textures {
                     glow::SRGB_ALPHA
                 } else {
                     glow::RGBA
                 };
                 (format, format)
-            } else if !self.srgb_support {
-                (glow::RGBA8, glow::RGBA)
-            } else {
+            } else if self.srgb_textures {
                 (glow::SRGB8_ALPHA8, glow::RGBA)
+            } else {
+                (glow::RGBA8, glow::RGBA)
             };
 
             self.gl.pixel_store_i32(glow::UNPACK_ALIGNMENT, 1);

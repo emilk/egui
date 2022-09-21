@@ -76,6 +76,13 @@ impl ShaderVersion {
             Self::Es300 | Self::Gl140 => true,
         }
     }
+
+    pub fn is_embedded(&self) -> bool {
+        match self {
+            Self::Gl120 | Self::Gl140 => false,
+            Self::Es100 | Self::Es300 => true,
+        }
+    }
 }
 
 #[test]
