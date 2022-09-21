@@ -365,7 +365,7 @@ mod glow_integration {
             let gl = Arc::new(gl);
 
             let painter =
-                egui_glow::Painter::new(gl.clone(), None, "", self.native_options.shader_version)
+                egui_glow::Painter::new(gl.clone(), "", self.native_options.shader_version)
                     .unwrap_or_else(|error| panic!("some OpenGL error occurred {}\n", error));
 
             let system_theme = self.native_options.system_theme();

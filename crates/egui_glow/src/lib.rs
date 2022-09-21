@@ -15,7 +15,6 @@ pub mod painter;
 pub use glow;
 pub use painter::{CallbackFn, Painter};
 mod misc_util;
-mod post_process;
 mod shader_version;
 mod vao;
 

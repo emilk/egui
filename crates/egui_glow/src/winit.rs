@@ -20,7 +20,7 @@ impl EguiGlow {
         gl: std::sync::Arc<glow::Context>,
         shader_version: Option<ShaderVersion>,
     ) -> Self {
-        let painter = crate::Painter::new(gl, None, "", shader_version)
+        let painter = crate::Painter::new(gl, "", shader_version)
             .map_err(|error| {
                 tracing::error!("error occurred in initializing painter:\n{}", error);
             })
