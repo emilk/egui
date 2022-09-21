@@ -1,4 +1,4 @@
-#ifdef NEW_SHADER_INTERFACE
+#if NEW_SHADER_INTERFACE
     #define I in
     #define O out
     #define V(x) x

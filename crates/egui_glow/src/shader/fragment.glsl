@@ -4,7 +4,7 @@
 
 uniform sampler2D u_sampler;
 
-#ifdef NEW_SHADER_INTERFACE
+#if NEW_SHADER_INTERFACE
     in vec4 v_rgba;
     in vec2 v_tc;
     out vec4 f_color;

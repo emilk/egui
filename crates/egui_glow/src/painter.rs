@@ -112,8 +112,8 @@ impl Painter {
         let max_texture_side = unsafe { gl.get_parameter_i32(glow::MAX_TEXTURE_SIZE) } as usize;
         let shader_version = shader_version.unwrap_or_else(|| ShaderVersion::get(&gl));
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
-        let header = shader_version.version_declaration();
-        tracing::debug!("Shader header: {:?}.", header);
+        let shader_version_declaration = shader_version.version_declaration();
+        tracing::debug!("Shader header: {:?}.", shader_version_declaration);
 
         let supported_extensions = gl.supported_extensions();
         tracing::trace!("OpenGL extensions: {supported_extensions:?}");
@@ -129,14 +129,10 @@ impl Painter {
                 &gl,
                 glow::VERTEX_SHADER,
                 &format!(
-                    "{}\n{}\n{}\n{}",
-                    header,
+                    "{}\n#define NEW_SHADER_INTERFACE {}\n{}\n{}",
+                    shader_version_declaration,
+                    shader_version.is_new_shader_interface() as i32,
                     shader_prefix,
-                    if shader_version.is_new_shader_interface() {
-                        "#define NEW_SHADER_INTERFACE\n"
-                    } else {
-                        ""
-                    },
                     VERT_SRC
                 ),
             )?;
@@ -144,15 +140,11 @@ impl Painter {
                 &gl,
                 glow::FRAGMENT_SHADER,
                 &format!(
-                    "{}\n{}\n#define SRGB_TEXTURES {}\n{}\n{}",
-                    header,
-                    shader_prefix,
+                    "{}\n#define NEW_SHADER_INTERFACE {}\n#define SRGB_TEXTURES {}\n{}\n{}",
+                    shader_version_declaration,
+                    shader_version.is_new_shader_interface() as i32,
                     srgb_textures as i32,
-                    if shader_version.is_new_shader_interface() {
-                        "#define NEW_SHADER_INTERFACE\n"
-                    } else {
-                        ""
-                    },
+                    shader_prefix,
                     FRAG_SRC
                 ),
             )?;
