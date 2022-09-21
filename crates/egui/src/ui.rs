@@ -586,6 +586,7 @@ impl Ui {
         self.id.with(&id_source)
     }
 
+    /// This is the `Id` that will be assigned to the next widget added to this `Ui`.
     pub fn next_auto_id(&self) -> Id {
         Id::new(self.next_auto_id_source)
     }
