@@ -132,6 +132,16 @@ impl ColorTest {
         pixel_test(ui);
 
         ui.separator();
+        ui.label("Testing text rendering:");
+
+        text_on_bg(ui, Color32::from_gray(200), Color32::from_gray(230)); // gray on gray
+        text_on_bg(ui, Color32::from_gray(140), Color32::from_gray(28)); // dark mode normal text
+
+        // Matches Mac Font book (useful for testing):
+        text_on_bg(ui, Color32::from_gray(20), Color32::from_gray(255));
+        text_on_bg(ui, Color32::from_gray(230), Color32::from_gray(30));
+
+        ui.separator();
 
         blending_and_feathering_test(ui);
     }
@@ -380,8 +390,6 @@ fn pixel_test(ui: &mut Ui) {
 }
 
 fn blending_and_feathering_test(ui: &mut Ui) {
-    ui.label("Some fine lines for testing anti-aliasing and blending:");
-
     let size = vec2(512.0, 512.0);
     let (response, painter) = ui.allocate_painter(size, Sense::hover());
     let rect = response.rect;
@@ -397,32 +405,67 @@ fn blending_and_feathering_test(ui: &mut Ui) {
     paint_fine_lines_and_text(&painter, bottom_half, Color32::BLACK);
 }
 
+fn text_on_bg(ui: &mut egui::Ui, fg: Color32, bg: Color32) {
+    assert!(fg.is_opaque());
+    assert!(bg.is_opaque());
+
+    ui.horizontal(|ui| {
+        ui.label(
+            RichText::from("▣ The quick brown fox jumps over the lazy dog and runs away.")
+                .background_color(bg)
+                .color(fg),
+        );
+        ui.label(format!(
+            "({} {} {}) on ({} {} {})",
+            fg.r(),
+            fg.g(),
+            fg.b(),
+            bg.r(),
+            bg.g(),
+            bg.b(),
+        ));
+    });
+}
+
 fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Color32) {
     {
-        let mut x = 0.0;
+        let mut y = 0.0;
         for opacity in [1.00, 0.50, 0.25, 0.10, 0.05, 0.02, 0.01, 0.00] {
             painter.text(
-                rect.center_top() + vec2(0.0, x),
+                rect.center_top() + vec2(0.0, y),
                 Align2::LEFT_TOP,
                 format!("{:.0}% white", 100.0 * opacity),
                 FontId::proportional(14.0),
                 Color32::WHITE.linear_multiply(opacity),
             );
             painter.text(
-                rect.center_top() + vec2(80.0, x),
+                rect.center_top() + vec2(80.0, y),
                 Align2::LEFT_TOP,
                 format!("{:.0}% gray", 100.0 * opacity),
                 FontId::proportional(14.0),
                 Color32::GRAY.linear_multiply(opacity),
             );
             painter.text(
-                rect.center_top() + vec2(160.0, x),
+                rect.center_top() + vec2(160.0, y),
                 Align2::LEFT_TOP,
                 format!("{:.0}% black", 100.0 * opacity),
                 FontId::proportional(14.0),
                 Color32::BLACK.linear_multiply(opacity),
             );
-            x += 20.0;
+            y += 20.0;
+        }
+
+        for font_size in [6.0, 7.0, 8.0, 9.0, 10.0, 12.0, 14.0] {
+            painter.text(
+                rect.center_top() + vec2(0.0, y),
+                Align2::LEFT_TOP,
+                format!(
+                    "{font_size}px - The quick brown fox jumps over the lazy dog and runs away."
+                ),
+                FontId::proportional(font_size),
+                color,
+            );
+            y += font_size + 1.0;
         }
     }
 
