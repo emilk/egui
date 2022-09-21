@@ -116,7 +116,7 @@ impl Button {
         self
     }
 
-    pub(crate) fn min_size(mut self, min_size: Vec2) -> Self {
+    pub fn min_size(mut self, min_size: Vec2) -> Self {
         self.min_size = min_size;
         self
     }
