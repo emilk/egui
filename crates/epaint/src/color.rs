@@ -326,7 +326,7 @@ impl Rgba {
     /// Transparent white
     #[inline(always)]
     pub fn from_white_alpha(a: f32) -> Self {
-        crate::epaint_assert!(0.0 <= a && a <= 1.0);
+        crate::epaint_assert!(0.0 <= a && a <= 1.0, "a: {}", a);
         Self([a, a, a, a])
     }
 

@@ -51,7 +51,6 @@ pub struct Painter {
     u_screen_size: glow::UniformLocation,
     u_sampler: glow::UniformLocation,
     is_webgl_1: bool,
-    is_embedded: bool,
     vao: crate::vao::VertexArrayObject,
     srgb_textures: bool,
     vbo: glow::Buffer,
@@ -202,7 +201,6 @@ impl Painter {
                 u_screen_size,
                 u_sampler,
                 is_webgl_1,
-                is_embedded: shader_version.is_embedded(),
                 vao,
                 srgb_textures,
                 vbo,
@@ -464,9 +462,8 @@ impl Painter {
                     "Mismatch between texture size and texel count"
                 );
 
-                let gamma = if self.is_embedded { 1.0 / 2.2 } else { 1.0 };
                 let data: Vec<u8> = image
-                    .srgba_pixels(gamma)
+                    .srgba_pixels(None)
                     .flat_map(|a| a.to_array())
                     .collect();
 

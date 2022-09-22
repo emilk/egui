@@ -236,13 +236,10 @@ impl Painter {
                 );
                 image.pixels.iter().map(|color| color.to_tuple()).collect()
             }
-            egui::ImageData::Font(image) => {
-                let gamma = 1.0;
-                image
-                    .srgba_pixels(gamma)
-                    .map(|color| color.to_tuple())
-                    .collect()
-            }
+            egui::ImageData::Font(image) => image
+                .srgba_pixels(None)
+                .map(|color| color.to_tuple())
+                .collect(),
         };
         let glium_image = glium::texture::RawImage2d {
             data: std::borrow::Cow::Owned(pixels),
