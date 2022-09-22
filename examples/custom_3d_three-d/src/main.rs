@@ -103,7 +103,7 @@ impl FrameInput<'_> {
     pub fn new(
         context: &three_d::Context,
         info: &egui::PaintCallbackInfo,
-        _painter: &egui_glow::Painter,
+        painter: &egui_glow::Painter,
     ) -> Self {
         use three_d::*;
 
@@ -116,10 +116,22 @@ impl FrameInput<'_> {
         }
 
         // Constructs a screen render target to render the final image to
-        let screen = RenderTarget::screen(
-            context,
-            info.viewport.width() as u32,
-            info.viewport.height() as u32,
+        let screen = painter.intermediate_fbo().map_or_else(
+            || {
+                RenderTarget::screen(
+                    context,
+                    info.viewport.width() as u32,
+                    info.viewport.height() as u32,
+                )
+            },
+            |fbo| {
+                RenderTarget::from_framebuffer(
+                    context,
+                    info.viewport.width() as u32,
+                    info.viewport.height() as u32,
+                    fbo,
+                )
+            },
         );
 
         // Set where to paint

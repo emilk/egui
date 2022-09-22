@@ -222,6 +222,22 @@ impl Painter {
         self.max_texture_side
     }
 
+    /// The framebuffer we use as an intermediate render target,
+    /// or `None` if we are painting to the screen framebuffer directly.
+    ///
+    /// This is the framebuffer that is bound when [`egui::Shape::Callback`] is called,
+    /// and is where any callbacks should ultimately render onto.
+    ///
+    /// So if in a [`egui::Shape::Callback`] you need to use an offscreen FBO, you should
+    /// then restore to this afterwards with
+    /// `gl.bind_framebuffer(glow::FRAMEBUFFER, painter.intermediate_fbo());`
+    #[allow(clippy::unused_self)]
+    pub fn intermediate_fbo(&self) -> Option<glow::Framebuffer> {
+        // We don't currently ever render to an offscreen buffer,
+        // but we may want to start to in order to do anti-aliasing on web, for instance.
+        None
+    }
+
     unsafe fn prepare_painting(
         &mut self,
         [width_in_pixels, height_in_pixels]: [u32; 2],
