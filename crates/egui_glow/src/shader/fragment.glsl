@@ -34,24 +34,6 @@ vec4 gamma_from_linear_rgba(vec4 linear_rgba) {
     return vec4(srgb_from_linear(linear_rgba.rgb) / 255.0, linear_rgba.a);
 }
 
-// 0-1 linear  from  0-255 sRGB
-vec3 linear_from_srgb(vec3 srgb) {
-    bvec3 cutoff = lessThan(srgb, vec3(10.31475));
-    vec3 lower = srgb / vec3(3294.6);
-    vec3 higher = pow((srgb + vec3(14.025)) / vec3(269.025), vec3(2.4));
-    return mix(higher, lower, vec3(cutoff));
-}
-
-// 0-1 linear  from  0-255 sRGBA
-vec4 linear_from_srgba(vec4 srgba) {
-    return vec4(linear_from_srgb(srgba.rgb), srgba.a / 255.0);
-}
-
-// 0-1 linear  from  0-1 gamma
-vec4 linear_from_gamma_rgba(vec4 gamma_rgba) {
-    return vec4(linear_from_srgb(gamma_rgba.rgb * 255.0), gamma_rgba.a);
-}
-
 void main() {
 #if SRGB_TEXTURES
     vec4 texture_in_gamma = gamma_from_linear_rgba(texture2D(u_sampler, v_tc));

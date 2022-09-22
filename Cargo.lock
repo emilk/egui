@@ -1304,6 +1304,7 @@ dependencies = [
  "document-features",
  "egui",
  "egui-winit",
+ "egui_demo_lib",
  "glium",
  "image",
 ]

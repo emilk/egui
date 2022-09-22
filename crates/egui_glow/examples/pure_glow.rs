@@ -116,7 +116,7 @@ fn create_display(
     let gl_window = unsafe {
         glutin::ContextBuilder::new()
             .with_depth_buffer(0)
-            .with_srgb(true)
+            .with_srgb(false)
             .with_stencil_buffer(0)
             .with_vsync(true)
             .build_windowed(window_builder, event_loop)
