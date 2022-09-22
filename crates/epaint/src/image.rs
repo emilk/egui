@@ -202,9 +202,9 @@ impl FontImage {
         &'_ self,
         gamma: Option<f32>,
     ) -> impl ExactSizeIterator<Item = Color32> + '_ {
-        let gamma = gamma.unwrap_or(0.6); // TODO(emilk): this default coverage gamma is pretty weird and arbitrary.
+        let gamma = gamma.unwrap_or(0.7); // TODO(emilk): this default coverage gamma is a magic constant, chosen by eye. I don't even know why we need it.
         self.pixels.iter().map(move |coverage| {
-            let alpha = coverage.powf(gamma).clamp(0.0, 1.0);
+            let alpha = coverage.powf(gamma);
             // We want to multiply with `vec4(alpha)` in the fragment shader:
             let a = fast_round(alpha * 255.0);
             Color32::from_rgba_premultiplied(a, a, a, a)
