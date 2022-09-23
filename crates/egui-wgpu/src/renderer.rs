@@ -140,7 +140,8 @@ pub struct Renderer {
 impl Renderer {
     /// Creates a renderer for a egui UI.
     ///
-    /// `output_format` should preferably be [`wgpu::TextureFormat::Rgba8Unorm`] or [`wgpu::TextureFormat::Bgra8Unorm`], i.e. in gamma-space.
+    /// `output_format` should preferably be [`wgpu::TextureFormat::Rgba8Unorm`] or
+    /// [`wgpu::TextureFormat::Bgra8Unorm`], i.e. in gamma-space.
     pub fn new(
         device: &wgpu::Device,
         output_format: wgpu::TextureFormat,
