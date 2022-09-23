@@ -143,8 +143,8 @@ impl ColorTest {
         text_on_bg(ui, Color32::from_gray(140), Color32::from_gray(28)); // dark mode normal text
 
         // Matches Mac Font book (useful for testing):
-        text_on_bg(ui, Color32::from_gray(20), Color32::from_gray(255));
-        text_on_bg(ui, Color32::from_gray(230), Color32::from_gray(30));
+        text_on_bg(ui, Color32::from_gray(39), Color32::from_gray(255));
+        text_on_bg(ui, Color32::from_gray(220), Color32::from_gray(30));
 
         ui.separator();
 

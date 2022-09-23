@@ -202,7 +202,7 @@ impl FontImage {
         &'_ self,
         gamma: Option<f32>,
     ) -> impl ExactSizeIterator<Item = Color32> + '_ {
-        let gamma = gamma.unwrap_or(0.7); // TODO(emilk): this default coverage gamma is a magic constant, chosen by eye. I don't even know why we need it.
+        let gamma = gamma.unwrap_or(0.55); // TODO(emilk): this default coverage gamma is a magic constant, chosen by eye. I don't even know why we need it.
         self.pixels.iter().map(move |coverage| {
             let alpha = coverage.powf(gamma);
             // We want to multiply with `vec4(alpha)` in the fragment shader:
