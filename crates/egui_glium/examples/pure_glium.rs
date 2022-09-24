@@ -10,6 +10,8 @@ fn main() {
 
     let mut egui_glium = egui_glium::EguiGlium::new(&display, &event_loop);
 
+    let mut color_test = egui_demo_lib::ColorTest::default();
+
     event_loop.run(move |event, _, control_flow| {
         let mut redraw = || {
             let mut quit = false;
@@ -20,6 +22,12 @@ fn main() {
                     if ui.button("Quit").clicked() {
                         quit = true;
                     }
+                });
+
+                egui::CentralPanel::default().show(egui_ctx, |ui| {
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        color_test.ui(ui);
+                    });
                 });
             });
 
@@ -93,7 +101,7 @@ fn create_display(event_loop: &glutin::event_loop::EventLoop<()>) -> glium::Disp
 
     let context_builder = glutin::ContextBuilder::new()
         .with_depth_buffer(0)
-        .with_srgb(true)
+        .with_srgb(false)
         .with_stencil_buffer(0)
         .with_vsync(true);
 

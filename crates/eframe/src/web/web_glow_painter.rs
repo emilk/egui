@@ -22,8 +22,7 @@ impl WebPainter {
         let (gl, shader_prefix) = init_glow_context_from_canvas(&canvas, options)?;
         let gl = std::sync::Arc::new(gl);
 
-        let dimension = [canvas.width() as i32, canvas.height() as i32];
-        let painter = egui_glow::Painter::new(gl, Some(dimension), shader_prefix, None)
+        let painter = egui_glow::Painter::new(gl, shader_prefix, None)
             .map_err(|error| format!("Error starting glow painter: {}", error))?;
 
         Ok(Self {

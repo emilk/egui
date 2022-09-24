@@ -12,7 +12,6 @@ use memoffset::offset_of;
 
 use crate::check_for_gl_error;
 use crate::misc_util::{compile_shader, link_program};
-use crate::post_process::PostProcess;
 use crate::shader_version::ShaderVersion;
 use crate::vao;
 
@@ -52,10 +51,8 @@ pub struct Painter {
     u_screen_size: glow::UniformLocation,
     u_sampler: glow::UniformLocation,
     is_webgl_1: bool,
-    is_embedded: bool,
     vao: crate::vao::VertexArrayObject,
     srgb_textures: bool,
-    post_process: Option<PostProcess>,
     vbo: glow::Buffer,
     element_array_buffer: glow::Buffer,
 
@@ -105,7 +102,6 @@ impl Painter {
     /// * failed to create buffer
     pub fn new(
         gl: Arc<glow::Context>,
-        pp_fb_extent: Option<[i32; 2]>,
         shader_prefix: &str,
         shader_version: Option<ShaderVersion>,
     ) -> Result<Painter, String> {
@@ -115,8 +111,8 @@ impl Painter {
         let max_texture_side = unsafe { gl.get_parameter_i32(glow::MAX_TEXTURE_SIZE) } as usize;
         let shader_version = shader_version.unwrap_or_else(|| ShaderVersion::get(&gl));
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
-        let header = shader_version.version_declaration();
-        tracing::debug!("Shader header: {:?}.", header);
+        let shader_version_declaration = shader_version.version_declaration();
+        tracing::debug!("Shader header: {:?}.", shader_version_declaration);
 
         let supported_extensions = gl.supported_extensions();
         tracing::trace!("OpenGL extensions: {supported_extensions:?}");
@@ -125,44 +121,17 @@ impl Painter {
                 // EXT_sRGB, GL_ARB_framebuffer_sRGB, GL_EXT_sRGB, GL_EXT_texture_sRGB_decode, …
                 extension.contains("sRGB")
             });
-        tracing::debug!("SRGB Support: {:?}", srgb_textures);
-
-        let (post_process, srgb_support_define) = if shader_version.is_embedded() {
-            // WebGL doesn't support linear framebuffer blending… but maybe we can emulate it with `PostProcess`?
-
-            if let Some(size) = pp_fb_extent {
-                tracing::debug!("WebGL with sRGB support. Turning on post processing for linear framebuffer blending.");
-                // install post process to correct sRGB color:
-                (
-                    Some(unsafe { PostProcess::new(gl.clone(), shader_prefix, is_webgl_1, size)? }),
-                    "#define SRGB_SUPPORTED",
-                )
-            } else {
-                tracing::warn!("WebGL or OpenGL ES detected but PostProcess disabled because dimension is None. Linear framebuffer blending will not be supported.");
-                (None, "")
-            }
-        } else {
-            if srgb_textures {
-                (None, "#define SRGB_SUPPORTED")
-            } else {
-                tracing::warn!("sRGB aware texture filtering not available");
-                (None, "")
-            }
-        };
+        tracing::debug!("SRGB texture Support: {:?}", srgb_textures);
 
         unsafe {
             let vert = compile_shader(
                 &gl,
                 glow::VERTEX_SHADER,
                 &format!(
-                    "{}\n{}\n{}\n{}",
-                    header,
+                    "{}\n#define NEW_SHADER_INTERFACE {}\n{}\n{}",
+                    shader_version_declaration,
+                    shader_version.is_new_shader_interface() as i32,
                     shader_prefix,
-                    if shader_version.is_new_shader_interface() {
-                        "#define NEW_SHADER_INTERFACE\n"
-                    } else {
-                        ""
-                    },
                     VERT_SRC
                 ),
             )?;
@@ -170,15 +139,11 @@ impl Painter {
                 &gl,
                 glow::FRAGMENT_SHADER,
                 &format!(
-                    "{}\n{}\n{}\n{}\n{}",
-                    header,
+                    "{}\n#define NEW_SHADER_INTERFACE {}\n#define SRGB_TEXTURES {}\n{}\n{}",
+                    shader_version_declaration,
+                    shader_version.is_new_shader_interface() as i32,
+                    srgb_textures as i32,
                     shader_prefix,
-                    srgb_support_define,
-                    if shader_version.is_new_shader_interface() {
-                        "#define NEW_SHADER_INTERFACE\n"
-                    } else {
-                        ""
-                    },
                     FRAG_SRC
                 ),
             )?;
@@ -236,10 +201,8 @@ impl Painter {
                 u_screen_size,
                 u_sampler,
                 is_webgl_1,
-                is_embedded: shader_version.is_embedded(),
                 vao,
                 srgb_textures,
-                post_process,
                 vbo,
                 element_array_buffer,
                 textures: Default::default(),
@@ -268,8 +231,11 @@ impl Painter {
     /// So if in a [`egui::Shape::Callback`] you need to use an offscreen FBO, you should
     /// then restore to this afterwards with
     /// `gl.bind_framebuffer(glow::FRAMEBUFFER, painter.intermediate_fbo());`
+    #[allow(clippy::unused_self)]
     pub fn intermediate_fbo(&self) -> Option<glow::Framebuffer> {
-        self.post_process.as_ref().map(|pp| pp.fbo())
+        // We don't currently ever render to an offscreen buffer,
+        // but we may want to start to in order to do anti-aliasing on web, for instance.
+        None
     }
 
     unsafe fn prepare_painting(
@@ -298,7 +264,7 @@ impl Painter {
         );
 
         if !cfg!(target_arch = "wasm32") {
-            self.gl.enable(glow::FRAMEBUFFER_SRGB);
+            self.gl.disable(glow::FRAMEBUFFER_SRGB);
             check_for_gl_error!(&self.gl, "FRAMEBUFFER_SRGB");
         }
 
@@ -372,17 +338,6 @@ impl Painter {
         crate::profile_function!();
         self.assert_not_destroyed();
 
-        if let Some(ref mut post_process) = self.post_process {
-            unsafe {
-                post_process.begin(screen_size_px[0] as i32, screen_size_px[1] as i32);
-                post_process.bind();
-                self.gl.disable(glow::SCISSOR_TEST);
-                self.gl
-                    .viewport(0, 0, screen_size_px[0] as i32, screen_size_px[1] as i32);
-                // use the same clear-color as was set for the screen framebuffer.
-                self.gl.clear(glow::COLOR_BUFFER_BIT);
-            }
-        }
         let size_in_pixels = unsafe { self.prepare_painting(screen_size_px, pixels_per_point) };
 
         for egui::ClippedPrimitive {
@@ -435,12 +390,7 @@ impl Painter {
                         check_for_gl_error!(&self.gl, "callback");
 
                         // Restore state:
-                        unsafe {
-                            if let Some(ref mut post_process) = self.post_process {
-                                post_process.bind();
-                            }
-                            self.prepare_painting(screen_size_px, pixels_per_point)
-                        };
+                        unsafe { self.prepare_painting(screen_size_px, pixels_per_point) };
                     }
                 }
             }
@@ -449,10 +399,6 @@ impl Painter {
         unsafe {
             self.vao.unbind(&self.gl);
             self.gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, None);
-
-            if let Some(ref post_process) = self.post_process {
-                post_process.end();
-            }
 
             self.gl.disable(glow::SCISSOR_TEST);
 
@@ -532,13 +478,8 @@ impl Painter {
                     "Mismatch between texture size and texel count"
                 );
 
-                let gamma = if self.is_embedded && self.post_process.is_none() {
-                    1.0 / 2.2
-                } else {
-                    1.0
-                };
                 let data: Vec<u8> = image
-                    .srgba_pixels(gamma)
+                    .srgba_pixels(None)
                     .flat_map(|a| a.to_array())
                     .collect();
 
@@ -684,9 +625,6 @@ impl Painter {
         if !self.destroyed {
             unsafe {
                 self.destroy_gl();
-                if let Some(ref post_process) = self.post_process {
-                    post_process.destroy();
-                }
             }
             self.destroyed = true;
         }

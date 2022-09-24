@@ -338,7 +338,7 @@ mod glow_integration {
                     .with_hardware_acceleration(hardware_acceleration)
                     .with_depth_buffer(native_options.depth_buffer)
                     .with_multisampling(native_options.multisampling)
-                    .with_srgb(true)
+                    .with_srgb(false)
                     .with_stencil_buffer(native_options.stencil_buffer)
                     .with_vsync(native_options.vsync)
                     .build_windowed(window_builder, event_loop)
@@ -365,7 +365,7 @@ mod glow_integration {
             let gl = Arc::new(gl);
 
             let painter =
-                egui_glow::Painter::new(gl.clone(), None, "", self.native_options.shader_version)
+                egui_glow::Painter::new(gl.clone(), "", self.native_options.shader_version)
                     .unwrap_or_else(|error| panic!("some OpenGL error occurred {}\n", error));
 
             let system_theme = self.native_options.system_theme();

@@ -140,7 +140,8 @@ pub struct Renderer {
 impl Renderer {
     /// Creates a renderer for a egui UI.
     ///
-    /// If the format passed is not a *Srgb format, the shader will automatically convert to `sRGB` colors in the shader.
+    /// `output_format` should preferably be [`wgpu::TextureFormat::Rgba8Unorm`] or
+    /// [`wgpu::TextureFormat::Bgra8Unorm`], i.e. in gamma-space.
     pub fn new(
         device: &wgpu::Device,
         output_format: wgpu::TextureFormat,
@@ -235,11 +236,7 @@ impl Renderer {
             label: Some("egui_pipeline"),
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
-                entry_point: if output_format.describe().srgb {
-                    "vs_main"
-                } else {
-                    "vs_conv_main"
-                },
+                entry_point: "vs_main",
                 module: &module,
                 buffers: &[wgpu::VertexBufferLayout {
                     array_stride: 5 * 4,
@@ -268,7 +265,12 @@ impl Renderer {
 
             fragment: Some(wgpu::FragmentState {
                 module: &module,
-                entry_point: "fs_main",
+                entry_point: if output_format.describe().srgb {
+                    tracing::warn!("Detected a linear (sRGBA aware) framebuffer {:?}. egui prefers Rgba8Unorm or Bgra8Unorm", output_format);
+                    "fs_main_linear_framebuffer"
+                } else {
+                    "fs_main_gamma_framebuffer" // this is what we prefer
+                },
                 targets: &[Some(wgpu::ColorTargetState {
                     format: output_format,
                     blend: Some(wgpu::BlendState {
@@ -518,7 +520,7 @@ impl Renderer {
                     image.pixels.len(),
                     "Mismatch between texture size and texel count"
                 );
-                Cow::Owned(image.srgba_pixels(1.0).collect::<Vec<_>>())
+                Cow::Owned(image.srgba_pixels(None).collect::<Vec<_>>())
             }
         };
         let data_bytes: &[u8] = bytemuck::cast_slice(data_color32.as_slice());
@@ -564,7 +566,7 @@ impl Renderer {
                 mip_level_count: 1,
                 sample_count: 1,
                 dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                format: wgpu::TextureFormat::Rgba8UnormSrgb, // TODO(emilk): handle WebGL1 where this is not always supported!
                 usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
             });
             let filter = match image_delta.filter {

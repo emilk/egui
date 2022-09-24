@@ -8,7 +8,6 @@ use {
     glium::{
         implement_vertex,
         index::PrimitiveType,
-        program,
         texture::{self, srgb_texture2d::SrgbTexture2d},
         uniform,
         uniforms::{MagnifySamplerFilter, SamplerWrapFunction},
@@ -26,31 +25,77 @@ pub struct Painter {
     next_native_tex_id: u64,
 }
 
+fn create_program(
+    facade: &dyn glium::backend::Facade,
+    vertex_shader: &str,
+    fragment_shader: &str,
+) -> glium::program::Program {
+    let input = glium::program::ProgramCreationInput::SourceCode {
+        vertex_shader,
+        tessellation_control_shader: None,
+        tessellation_evaluation_shader: None,
+        geometry_shader: None,
+        fragment_shader,
+        transform_feedback_varyings: None,
+        outputs_srgb: true,
+        uses_point_size: false,
+    };
+
+    glium::program::Program::new(facade, input)
+        .unwrap_or_else(|err| panic!("Failed to compile shader: {}", err))
+}
+
 impl Painter {
     pub fn new(facade: &dyn glium::backend::Facade) -> Painter {
         use glium::CapabilitiesSource as _;
         let max_texture_side = facade.get_capabilities().max_texture_size as _;
 
-        let program = program! {
-            facade,
-            120 => {
-                vertex: include_str!("shader/vertex_120.glsl"),
-                fragment: include_str!("shader/fragment_120.glsl"),
-            },
-            140 => {
-                vertex: include_str!("shader/vertex_140.glsl"),
-                fragment: include_str!("shader/fragment_140.glsl"),
-            },
-            100 es => {
-                vertex: include_str!("shader/vertex_100es.glsl"),
-                fragment: include_str!("shader/fragment_100es.glsl"),
-            },
-            300 es => {
-                vertex: include_str!("shader/vertex_300es.glsl"),
-                fragment: include_str!("shader/fragment_300es.glsl"),
-            },
-        }
-        .expect("Failed to compile shader");
+        let program = if facade
+            .get_context()
+            .is_glsl_version_supported(&glium::Version(glium::Api::Gl, 1, 4))
+        {
+            eprintln!("Using GL 1.4");
+            create_program(
+                facade,
+                include_str!("shader/vertex_140.glsl"),
+                include_str!("shader/fragment_140.glsl"),
+            )
+        } else if facade
+            .get_context()
+            .is_glsl_version_supported(&glium::Version(glium::Api::Gl, 1, 2))
+        {
+            eprintln!("Using GL 1.2");
+            create_program(
+                facade,
+                include_str!("shader/vertex_120.glsl"),
+                include_str!("shader/fragment_120.glsl"),
+            )
+        } else if facade
+            .get_context()
+            .is_glsl_version_supported(&glium::Version(glium::Api::GlEs, 3, 0))
+        {
+            eprintln!("Using GL ES 3.0");
+            create_program(
+                facade,
+                include_str!("shader/vertex_300es.glsl"),
+                include_str!("shader/fragment_300es.glsl"),
+            )
+        } else if facade
+            .get_context()
+            .is_glsl_version_supported(&glium::Version(glium::Api::GlEs, 1, 0))
+        {
+            eprintln!("Using GL ES 1.0");
+            create_program(
+                facade,
+                include_str!("shader/vertex_100es.glsl"),
+                include_str!("shader/fragment_100es.glsl"),
+            )
+        } else {
+            panic!(
+                "Failed to find a compatible shader for OpenGL version {:?}",
+                facade.get_version()
+            )
+        };
 
         Painter {
             max_texture_side,
@@ -236,13 +281,10 @@ impl Painter {
                 );
                 image.pixels.iter().map(|color| color.to_tuple()).collect()
             }
-            egui::ImageData::Font(image) => {
-                let gamma = 1.0;
-                image
-                    .srgba_pixels(gamma)
-                    .map(|color| color.to_tuple())
-                    .collect()
-            }
+            egui::ImageData::Font(image) => image
+                .srgba_pixels(None)
+                .map(|color| color.to_tuple())
+                .collect(),
         };
         let glium_image = glium::texture::RawImage2d {
             data: std::borrow::Cow::Owned(pixels),
