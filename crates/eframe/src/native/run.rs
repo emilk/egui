@@ -383,6 +383,9 @@ mod glow_integration {
             integration.egui_ctx.set_visuals(theme.egui_visuals());
 
             gl_window.window().set_ime_allowed(true);
+            if self.native_options.mouse_passthrough {
+                gl_window.window().set_cursor_hittest(false).unwrap();
+            }
 
             {
                 let event_loop_proxy = self.repaint_proxy.clone();
