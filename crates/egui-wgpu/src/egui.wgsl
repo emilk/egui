@@ -14,40 +14,35 @@ struct Locals {
 };
 @group(0) @binding(0) var<uniform> r_locals: Locals;
 
-// 0-1 from 0-255
-fn linear_from_srgb(srgb: vec3<f32>) -> vec3<f32> {
-    let cutoff = srgb < vec3<f32>(10.31475);
-    let lower = srgb / vec3<f32>(3294.6);
-    let higher = pow((srgb + vec3<f32>(14.025)) / vec3<f32>(269.025), vec3<f32>(2.4));
+// 0-1 linear  from  0-1 sRGB gamma
+fn linear_from_gamma_rgb(srgb: vec3<f32>) -> vec3<f32> {
+    let cutoff = srgb < vec3<f32>(0.04045);
+    let lower = srgb / vec3<f32>(12.92);
+    let higher = pow((srgb + vec3<f32>(0.055)) / vec3<f32>(1.055), vec3<f32>(2.4));
     return select(higher, lower, cutoff);
 }
 
-// 0-255 sRGB  from  0-1 linear
-fn srgb_from_linear(rgb: vec3<f32>) -> vec3<f32> {
+// 0-1 sRGB gamma  from  0-1 linear
+fn gamma_from_linear_rgb(rgb: vec3<f32>) -> vec3<f32> {
     let cutoff = rgb < vec3<f32>(0.0031308);
-    let lower = rgb * vec3<f32>(3294.6);
-    let higher = vec3<f32>(269.025) * pow(rgb, vec3<f32>(1.0 / 2.4)) - vec3<f32>(14.025);
+    let lower = rgb * vec3<f32>(12.92);
+    let higher = vec3<f32>(1.055) * pow(rgb, vec3<f32>(1.0 / 2.4)) - vec3<f32>(0.055);
     return select(higher, lower, cutoff);
 }
 
-// 0-255 sRGBA  from  0-1 linear
-fn srgba_from_linear(rgba: vec4<f32>) -> vec4<f32> {
-    return vec4<f32>(srgb_from_linear(rgba.rgb), 255.0 * rgba.a);
-}
-
-// 0-1 gamma  from  0-1 linear
+// 0-1 sRGBA gamma  from  0-1 linear
 fn gamma_from_linear_rgba(linear_rgba: vec4<f32>) -> vec4<f32> {
-    return vec4<f32>(srgb_from_linear(linear_rgba.rgb) / 255.0, linear_rgba.a);
+    return vec4<f32>(gamma_from_linear_rgb(linear_rgba.rgb), linear_rgba.a);
 }
 
-// [u8; 4] SRGB as u32 -> [r, g, b, a]
+// [u8; 4] SRGB as u32 -> [r, g, b, a] in 0.-1
 fn unpack_color(color: u32) -> vec4<f32> {
     return vec4<f32>(
         f32(color & 255u),
         f32((color >> 8u) & 255u),
         f32((color >> 16u) & 255u),
         f32((color >> 24u) & 255u),
-    );
+    ) / 255.0;
 }
 
 fn position_from_screen(screen_pos: vec2<f32>) -> vec4<f32> {
@@ -67,8 +62,7 @@ fn vs_main(
 ) -> VertexOutput {
     var out: VertexOutput;
     out.tex_coord = a_tex_coord;
-    let color = unpack_color(a_color);
-    out.color = color / 255.0;
+    out.color = unpack_color(a_color);
     out.position = position_from_screen(a_pos);
     return out;
 }
@@ -84,7 +78,7 @@ fn fs_main_linear_framebuffer(in: VertexOutput) -> @location(0) vec4<f32> {
     let tex_linear = textureSample(r_tex_color, r_tex_sampler, in.tex_coord);
     let tex_gamma = gamma_from_linear_rgba(tex_linear);
     let out_color_gamma = in.color * tex_gamma;
-    return vec4<f32>(linear_from_srgb(out_color_gamma.rgb * 255.0), out_color_gamma.a);
+    return vec4<f32>(linear_from_gamma_rgb(out_color_gamma.rgb), out_color_gamma.a);
 }
 
 @fragment
