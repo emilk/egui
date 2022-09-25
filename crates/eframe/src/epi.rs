@@ -347,10 +347,7 @@ pub struct NativeOptions {
     pub event_loop_builder: Option<EventLoopBuilderHook>,
 
     #[cfg(feature = "glow")]
-    /// Needed for cross compiling for VirtualBox VMSVGA driver with OpenGL ES 2.0 and OpenGL 2.1 which doesn't support SRGB texture.
-    /// See <https://github.com/emilk/egui/pull/1993>.
-    ///
-    /// For OpenGL ES 2.0: set this to [`egui_glow::ShaderVersion::Es100`] to solve blank texture problem (by using the "fallback shader").
+    /// Needed for cross compiling.
     pub shader_version: Option<egui_glow::ShaderVersion>,
 
     /// On desktop: make the window position to be centered at initialization.
