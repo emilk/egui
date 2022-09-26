@@ -79,6 +79,13 @@ struct AxisBools {
     y: bool,
 }
 
+impl AxisBools {
+    #[inline]
+    fn any(&self) -> bool {
+        self.x || self.y
+    }
+}
+
 impl From<bool> for AxisBools {
     fn from(val: bool) -> Self {
         AxisBools { x: val, y: val }
@@ -843,8 +850,10 @@ impl Plot {
             if let Some(linked_axes) = &linked_axes {
                 let change_x = linked_axes.link_y && !linked_axes.link_x;
                 transform.set_aspect_by_changing_axis(data_aspect as f64, change_x);
-            } else {
+            } else if auto_bounds.any() {
                 transform.set_aspect_by_expanding(data_aspect as f64);
+            } else {
+                transform.set_aspect_by_changing_axis(data_aspect as f64, false);
             }
         }
 
