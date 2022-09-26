@@ -89,7 +89,9 @@ impl From<bool> for AxisBools {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone)]
 struct PlotMemory {
-    modified: AxisBools,
+    /// Indicates if the user has modified the bounds, for example by moving or zooming,
+    /// or if the bounds should be calculated based by included point or auto bounds.
+    bounds_modified: AxisBools,
     hovered_entry: Option<String>,
     hidden_items: ahash::HashSet<String>,
     last_screen_transform: ScreenTransform,
@@ -686,7 +688,7 @@ impl Plot {
             PlotMemory::load(ui.ctx(), plot_id)
         }
         .unwrap_or_else(|| PlotMemory {
-            modified: false.into(),
+            bounds_modified: false.into(),
             hovered_entry: None,
             hidden_items: Default::default(),
             last_screen_transform: ScreenTransform::new(
@@ -699,7 +701,7 @@ impl Plot {
         });
 
         let PlotMemory {
-            mut modified,
+            mut bounds_modified,
             mut hovered_entry,
             mut hidden_items,
             last_screen_transform,
@@ -786,31 +788,31 @@ impl Plot {
                 if axes.link_x {
                     bounds.set_x(&linked_bounds);
                     // Mark the axis as modified to prevent it from being changed.
-                    modified.x = true;
+                    bounds_modified.x = true;
                 }
                 if axes.link_y {
                     bounds.set_y(&linked_bounds);
                     // Mark the axis as modified to prevent it from being changed.
-                    modified.y = true;
+                    bounds_modified.y = true;
                 }
             }
         };
 
         // Allow double clicking to reset to the initial bounds.
         if response.double_clicked_by(PointerButton::Primary) {
-            modified = false.into();
+            bounds_modified = false.into();
         }
 
         // Reset bounds to initial bounds if we haven't been modified.
-        if !modified.x {
+        if !bounds_modified.x {
             bounds.set_x(&min_auto_bounds);
         }
-        if !modified.y {
+        if !bounds_modified.y {
             bounds.set_y(&min_auto_bounds);
         }
 
-        let auto_x = !modified.x && (!min_auto_bounds.is_valid_x() || auto_bounds.x);
-        let auto_y = !modified.y && (!min_auto_bounds.is_valid_y() || auto_bounds.y);
+        let auto_x = !bounds_modified.x && (!min_auto_bounds.is_valid_x() || auto_bounds.x);
+        let auto_y = !bounds_modified.y && (!min_auto_bounds.is_valid_y() || auto_bounds.y);
 
         // Set bounds automatically based on content.
         if auto_x || auto_y {
@@ -850,7 +852,7 @@ impl Plot {
         if allow_drag && response.dragged_by(PointerButton::Primary) {
             response = response.on_hover_cursor(CursorIcon::Grabbing);
             transform.translate_bounds(-response.drag_delta());
-            modified = true.into();
+            bounds_modified = true.into();
         }
 
         // Zooming
@@ -897,7 +899,7 @@ impl Plot {
                     };
                     if new_bounds.is_valid() {
                         transform.set_bounds(new_bounds);
-                        modified = true.into();
+                        bounds_modified = true.into();
                     }
                     // reset the boxed zoom state
                     last_click_pos_for_zoom = None;
@@ -914,14 +916,14 @@ impl Plot {
                 };
                 if zoom_factor != Vec2::splat(1.0) {
                     transform.zoom(zoom_factor, hover_pos);
-                    modified = true.into();
+                    bounds_modified = true.into();
                 }
             }
             if allow_scroll {
                 let scroll_delta = ui.input().scroll_delta;
                 if scroll_delta != Vec2::ZERO {
                     transform.translate_bounds(-scroll_delta);
-                    modified = true.into();
+                    bounds_modified = true.into();
                 }
             }
         }
@@ -971,7 +973,7 @@ impl Plot {
         }
 
         let memory = PlotMemory {
-            modified,
+            bounds_modified,
             hovered_entry,
             hidden_items,
             last_screen_transform: transform,
