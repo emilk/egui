@@ -347,8 +347,16 @@ pub struct NativeOptions {
     pub event_loop_builder: Option<EventLoopBuilderHook>,
 
     #[cfg(feature = "glow")]
-    /// Needed for cross compiling.
+    /// To support cross-compiling for specific platform.
     pub shader_version: Option<egui_glow::ShaderVersion>,
+
+    #[cfg(feature = "glow")]
+    /// Enable sRGB Pixel Format (disabled by default).
+    ///
+    ///	Addressing the issue `Err` value: `NoAvailablePixelFormat' on specific platform or similar,
+    ///
+    /// See: https://github.com/emilk/egui/issues/2085 enabling srgb might help.
+    pub srgb: bool,
 
     /// On desktop: make the window position to be centered at initialization.
     ///
@@ -398,6 +406,7 @@ impl Default for NativeOptions {
             event_loop_builder: None,
             #[cfg(feature = "glow")]
             shader_version: None,
+            srgb: false,
             centered: false,
         }
     }
