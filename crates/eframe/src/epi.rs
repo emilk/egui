@@ -355,7 +355,7 @@ pub struct NativeOptions {
     ///
     ///	Addressing the issue `Err` value: `NoAvailablePixelFormat' on specific platform or similar,
     ///
-    /// See: https://github.com/emilk/egui/issues/2085 enabling srgb might help.
+    /// See: <https://github.com/emilk/egui/issues/2085> enabling srgb might help.
     pub srgb: bool,
 
     /// On desktop: make the window position to be centered at initialization.
