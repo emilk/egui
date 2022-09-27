@@ -830,7 +830,7 @@ impl Renderer {
                     let cbfn = if let Some(c) = callback.callback.downcast_ref::<CallbackFn>() {
                         c
                     } else {
-                        tracing::warn!("Unknown paint callback: expected `egui_gpu::CallbackFn`");
+                        tracing::warn!("Unknown paint callback: expected `egui_wgpu::CallbackFn`");
                         continue;
                     };
 
