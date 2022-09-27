@@ -353,7 +353,7 @@ pub struct NativeOptions {
     #[cfg(feature = "glow")]
     /// Enable sRGB Pixel Format (disabled by default).
     ///
-    ///	Addressing the issue `Err` value: `NoAvailablePixelFormat' on specific platform or similar,
+    /// Addressing the issue `Err` value: `NoAvailablePixelFormat' on specific platform or similar,
     ///
     /// See: <https://github.com/emilk/egui/issues/2085> enabling srgb might help.
     pub srgb: bool,
