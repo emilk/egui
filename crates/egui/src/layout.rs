@@ -118,28 +118,28 @@ impl Direction {
 // #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Layout {
     /// Main axis direction
-    main_dir: Direction,
+    pub main_dir: Direction,
 
     /// If true, wrap around when reading the end of the main direction.
     /// For instance, for `main_dir == Direction::LeftToRight` this will
     /// wrap to a new row when we reach the right side of the `max_rect`.
-    main_wrap: bool,
+    pub main_wrap: bool,
 
     /// How to align things on the main axis.
-    main_align: Align,
+    pub main_align: Align,
 
     /// Justify the main axis?
-    main_justify: bool,
+    pub main_justify: bool,
 
     /// How to align things on the cross axis.
     /// For vertical layouts: put things to left, center or right?
     /// For horizontal layouts: put things to top, center or bottom?
-    cross_align: Align,
+    pub cross_align: Align,
 
     /// Justify the cross axis?
     /// For vertical layouts justify mean all widgets get maximum width.
     /// For horizontal layouts justify mean all widgets get maximum height.
-    cross_justify: bool,
+    pub cross_justify: bool,
 }
 
 impl Default for Layout {
