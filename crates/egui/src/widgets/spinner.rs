@@ -1,4 +1,4 @@
-use epaint::{emath::lerp, vec2, Pos2, Shape, Stroke};
+use epaint::{emath::lerp, vec2, Color32, Pos2, Shape, Stroke};
 
 use crate::{Response, Sense, Ui, Widget};
 
@@ -10,6 +10,7 @@ use crate::{Response, Sense, Ui, Widget};
 pub struct Spinner {
     /// Uses the style's `interact_size` if `None`.
     size: Option<f32>,
+    color: Option<Color32>,
 }
 
 impl Spinner {
@@ -24,6 +25,12 @@ impl Spinner {
         self.size = Some(size);
         self
     }
+
+    /// Sets the spinner's color.
+    pub fn color(mut self, color: impl Into<Color32>) -> Self {
+        self.color = Some(color.into());
+        self
+    }
 }
 
 impl Widget for Spinner {
@@ -31,6 +38,9 @@ impl Widget for Spinner {
         let size = self
             .size
             .unwrap_or_else(|| ui.style().spacing.interact_size.y);
+        let color = self
+            .color
+            .unwrap_or_else(|| ui.visuals().strong_text_color());
         let (rect, response) = ui.allocate_exact_size(vec2(size, size), Sense::hover());
 
         if ui.is_rect_visible(rect) {
@@ -47,10 +57,8 @@ impl Widget for Spinner {
                     rect.center() + radius * vec2(cos as f32, sin as f32)
                 })
                 .collect();
-            ui.painter().add(Shape::line(
-                points,
-                Stroke::new(3.0, ui.visuals().strong_text_color()),
-            ));
+            ui.painter()
+                .add(Shape::line(points, Stroke::new(3.0, color)));
         }
 
         response
