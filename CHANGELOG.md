@@ -8,6 +8,9 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * ⚠️ BREAKING: Fix text being too small ([#2069](https://github.com/emilk/egui/pull/2069)).
 * ⚠️ BREAKING: egui now expects integrations to do all color blending in gamma space ([#2071](https://github.com/emilk/egui/pull/2071)).
 
+### Added ⭐
+* Added `egui::Visuals::weak_text_color`.
+
 ### Fixed 🐛
 * Improved text rendering ([#2071](https://github.com/emilk/egui/pull/2071)).
 

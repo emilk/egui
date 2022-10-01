@@ -450,6 +450,9 @@ pub struct Visuals {
     /// Background color behind code-styled monospaced labels.
     pub code_bg_color: Color32,
 
+    /// Color used for weak text.
+    pub weak_text_color: Color32,
+
     /// A good color for warning text (e.g. orange).
     pub warn_fg_color: Color32,
 
@@ -488,8 +491,9 @@ impl Visuals {
             .unwrap_or_else(|| self.widgets.noninteractive.text_color())
     }
 
+    #[inline]
     pub fn weak_text_color(&self) -> Color32 {
-        crate::color::tint_color_towards(self.text_color(), self.window_fill())
+        self.weak_text_color
     }
 
     #[inline(always)]
@@ -675,6 +679,7 @@ impl Visuals {
             faint_bg_color: Color32::from_gray(35),
             extreme_bg_color: Color32::from_gray(10), // e.g. TextEdit background
             code_bg_color: Color32::from_gray(64),
+            weak_text_color: Color32::from_gray(83),
             warn_fg_color: Color32::from_rgb(255, 143, 0), // orange
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
             window_rounding: Rounding::same(6.0),
@@ -699,6 +704,7 @@ impl Visuals {
             faint_bg_color: Color32::from_gray(242),
             extreme_bg_color: Color32::from_gray(255), // e.g. TextEdit background
             code_bg_color: Color32::from_gray(230),
+            weak_text_color: Color32::from_gray(164),
             warn_fg_color: Color32::from_rgb(255, 0, 0), // red also, beecause orange doesn't look great because of https://github.com/emilk/egui/issues/1455
             error_fg_color: Color32::from_rgb(255, 0, 0), // red
             window_shadow: Shadow::big_light(),
@@ -1181,6 +1187,7 @@ impl Visuals {
             faint_bg_color,
             extreme_bg_color,
             code_bg_color,
+            weak_text_color,
             warn_fg_color,
             error_fg_color,
             window_rounding,
@@ -1224,6 +1231,7 @@ impl Visuals {
                 &mut widgets.noninteractive.fg_stroke.color,
                 "Text color",
             );
+            ui_color(ui, weak_text_color, RichText::new("Weak text"));
             ui_color(ui, warn_fg_color, RichText::new("Warnings"));
             ui_color(ui, error_fg_color, RichText::new("Errors"));
         });
