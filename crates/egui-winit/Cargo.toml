@@ -59,9 +59,9 @@ puffin = { version = "0.13", optional = true }
 serde = { version = "1.0", optional = true, features = ["derive"] }
 
 # feature screen_reader
-tts = { version = "0.20", optional = true } # Can't use 0.22 due to compilation problems on linux: https://github.com/emilk/egui/runs/7170127089?check_suite_focus=true#step:5:713
+tts = { version = "0.20", optional = true } # Can't use 0.21-0.24 due to compilation problems on linux
 
-webbrowser = { version = "0.7", optional = true }
+webbrowser = { version = "0.8", optional = true }
 
 [target.'cfg(any(target_os="linux", target_os="dragonfly", target_os="freebsd", target_os="netbsd", target_os="openbsd"))'.dependencies]
 smithay-clipboard = { version = "0.6.3", optional = true }
