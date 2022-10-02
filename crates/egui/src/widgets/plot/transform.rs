@@ -40,8 +40,24 @@ impl PlotBounds {
             && self.max[1].is_finite()
     }
 
+    pub fn is_finite_x(&self) -> bool {
+        self.min[0].is_finite() && self.max[0].is_finite()
+    }
+
+    pub fn is_finite_y(&self) -> bool {
+        self.min[1].is_finite() && self.max[1].is_finite()
+    }
+
     pub fn is_valid(&self) -> bool {
         self.is_finite() && self.width() > 0.0 && self.height() > 0.0
+    }
+
+    pub fn is_valid_x(&self) -> bool {
+        self.is_finite_x() && self.width() > 0.0
+    }
+
+    pub fn is_valid_y(&self) -> bool {
+        self.is_finite_y() && self.height() > 0.0
     }
 
     pub fn width(&self) -> f64 {
@@ -181,8 +197,11 @@ pub(crate) struct ScreenTransform {
 impl ScreenTransform {
     pub fn new(frame: Rect, mut bounds: PlotBounds, x_centered: bool, y_centered: bool) -> Self {
         // Make sure they are not empty.
-        if !bounds.is_valid() {
-            bounds = PlotBounds::new_symmetrical(1.0);
+        if !bounds.is_valid_x() {
+            bounds.set_x(&PlotBounds::new_symmetrical(1.0));
+        }
+        if !bounds.is_valid_y() {
+            bounds.set_y(&PlotBounds::new_symmetrical(1.0));
         }
 
         // Scale axes so that the origin is in the center.
