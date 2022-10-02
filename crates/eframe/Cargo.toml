@@ -144,4 +144,4 @@ web-sys = { version = "0.3.58", features = [
 
 # optional
 # feature screen_reader
-tts = { version = "0.20", optional = true } # Can't use 0.22 due to compilation problems on linux: https://github.com/emilk/egui/runs/7170127089?check_suite_focus=true#step:5:713
+tts = { version = "0.24", optional = true }
