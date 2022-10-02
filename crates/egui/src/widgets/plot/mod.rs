@@ -79,6 +79,13 @@ struct AxisBools {
     y: bool,
 }
 
+impl AxisBools {
+    #[inline]
+    pub fn any(&self) -> bool {
+        self.x || self.y
+    }
+}
+
 impl From<bool> for AxisBools {
     fn from(val: bool) -> Self {
         AxisBools { x: val, y: val }
