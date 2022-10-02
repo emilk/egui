@@ -45,7 +45,7 @@ syntect = { version = "5", optional = true, default-features = false, features =
 
 
 [dev-dependencies]
-criterion = { version = "0.3", default-features = false }
+criterion = { version = "0.4", default-features = false }
 
 
 [[bench]]
