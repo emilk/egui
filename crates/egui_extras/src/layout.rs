@@ -105,7 +105,7 @@ impl<'l> StripLayout<'l> {
         let rect = if !rect.contains_rect(used_rect) {
             Rect {
                 min: rect.min,
-                max: Pos2::new(self.ui.available_rect_before_wrap().max.x, rect.max.y)
+                max: Pos2::new(self.ui.available_rect_before_wrap().max.x, rect.max.y),
             }
         } else {
             used_rect
