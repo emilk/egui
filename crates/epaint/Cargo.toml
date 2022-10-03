@@ -85,7 +85,7 @@ atomic_refcell = "0.1" # Used instead of parking_lot on on wasm. See https://git
 
 
 [dev-dependencies]
-criterion = { version = "0.3", default-features = false }
+criterion = { version = "0.4", default-features = false }
 
 
 [[bench]]
