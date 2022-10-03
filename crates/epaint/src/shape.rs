@@ -233,6 +233,12 @@ impl Shape {
         Self::Mesh(mesh)
     }
 
+    /// An image at the given position.
+    ///
+    /// `uv` should normally be `Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0))`
+    /// unless you want to crop or flip the image.
+    ///
+    /// `tint` is a color multiplier. Use [`Color32::WHITE`] if you don't want to tint the image.
     pub fn image(texture_id: TextureId, rect: Rect, uv: Rect, tint: Color32) -> Self {
         let mut mesh = Mesh::with_texture(texture_id);
         mesh.add_rect_with_uv(rect, uv, tint);

@@ -352,6 +352,16 @@ impl Painter {
         self.line_segment([tip, tip - tip_length * (rot * dir)], stroke);
         self.line_segment([tip, tip - tip_length * (rot.inverse() * dir)], stroke);
     }
+
+    /// An image at the given position.
+    ///
+    /// `uv` should normally be `Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0))`
+    /// unless you want to crop or flip the image.
+    ///
+    /// `tint` is a color multiplier. Use [`Color32::WHITE`] if you don't want to tint the image.
+    pub fn image(&self, texture_id: epaint::TextureId, rect: Rect, uv: Rect, tint: Color32) {
+        self.add(Shape::image(texture_id, rect, uv, tint));
+    }
 }
 
 /// ## Text
