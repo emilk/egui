@@ -3,6 +3,7 @@
 targets = [
     { triple = "aarch64-apple-darwin" },
     { triple = "aarch64-linux-android" },
+    { triple = "wasm32-unknown-unknown" },
     { triple = "x86_64-apple-darwin" },
     { triple = "x86_64-pc-windows-msvc" },
     { triple = "x86_64-unknown-linux-gnu" },
