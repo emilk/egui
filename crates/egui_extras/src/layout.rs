@@ -101,9 +101,12 @@ impl<'l> StripLayout<'l> {
         let rect = self.cell_rect(&width, &height);
         let used_rect = self.cell(rect, add_contents);
         self.set_pos(rect);
-        // Make sure the content does not exceed the bounds of the parent rect
+        // Make sure the content does not exceed the width of the parent rect
         let rect = if !rect.contains_rect(used_rect) {
-            self.ui.available_rect_before_wrap()
+            Rect {
+                min: rect.min,
+                max: Pos2::new(self.ui.available_rect_before_wrap().max.x, rect.max.y)
+            }
         } else {
             used_rect
         };
