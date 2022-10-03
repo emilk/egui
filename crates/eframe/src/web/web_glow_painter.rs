@@ -6,7 +6,7 @@ use web_sys::{WebGl2RenderingContext, WebGlRenderingContext};
 use egui::{ClippedPrimitive, Rgba};
 use egui_glow::glow;
 
-use crate::WebOptions;
+use crate::{WebGlContextOption, WebOptions};
 
 pub(crate) struct WebPainter {
     pub(crate) canvas: HtmlCanvasElement,
