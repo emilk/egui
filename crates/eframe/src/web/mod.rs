@@ -8,12 +8,20 @@ mod input;
 pub mod screen_reader;
 pub mod storage;
 mod text_agent;
+
+#[cfg(feature = "glow")]
 mod web_glow_painter;
+#[cfg(feature = "glow")]
+pub(crate) use web_glow_painter::WebPainter;
+
+#[cfg(feature = "wgpu")]
+mod web_wgpu_painter;
+#[cfg(feature = "wgpu")]
+pub(crate) use web_wgpu_painter::WebPainter;
 
 pub use backend::*;
 pub use events::*;
 pub use storage::*;
-pub(crate) use web_glow_painter::WebPainter;
 
 use std::collections::BTreeMap;
 use std::sync::{

@@ -1,13 +1,12 @@
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
-#[cfg(not(target_arch = "wasm32"))]
 use web_sys::{WebGl2RenderingContext, WebGlRenderingContext};
 
 use egui::{ClippedPrimitive, Rgba};
 use egui_glow::glow;
 
-use crate::WebGlContextOption;
+use crate::WebOptions;
 
 pub(crate) struct WebPainter {
     pub(crate) canvas: HtmlCanvasElement,
@@ -16,10 +15,11 @@ pub(crate) struct WebPainter {
 }
 
 impl WebPainter {
-    pub fn new(canvas_id: &str, options: WebGlContextOption) -> Result<Self, String> {
+    pub fn new(canvas_id: &str, options: &WebOptions) -> Result<Self, String> {
         let canvas = super::canvas_element_or_die(canvas_id);
 
-        let (gl, shader_prefix) = init_glow_context_from_canvas(&canvas, options)?;
+        let (gl, shader_prefix) =
+            init_glow_context_from_canvas(&canvas, options.webgl_context_option)?;
         let gl = std::sync::Arc::new(gl);
 
         let painter = egui_glow::Painter::new(gl, shader_prefix, None)
@@ -31,9 +31,7 @@ impl WebPainter {
             painter,
         })
     }
-}
 
-impl WebPainter {
     pub fn gl(&self) -> &std::sync::Arc<glow::Context> {
         self.painter.gl()
     }
@@ -46,17 +44,14 @@ impl WebPainter {
         &self.canvas_id
     }
 
+    // TODO: cleanup
+
     pub fn set_texture(&mut self, tex_id: egui::TextureId, delta: &egui::epaint::ImageDelta) {
         self.painter.set_texture(tex_id, delta);
     }
 
     pub fn free_texture(&mut self, tex_id: egui::TextureId) {
         self.painter.free_texture(tex_id);
-    }
-
-    pub fn clear(&self, clear_color: Rgba) {
-        let canvas_dimension = [self.canvas.width(), self.canvas.height()];
-        egui_glow::painter::clear(self.painter.gl(), canvas_dimension, clear_color);
     }
 
     pub fn paint_primitives(
@@ -72,14 +67,18 @@ impl WebPainter {
 
     pub fn paint_and_update_textures(
         &mut self,
+        clear_color: Rgba,
         clipped_primitives: &[egui::ClippedPrimitive],
         pixels_per_point: f32,
         textures_delta: &egui::TexturesDelta,
     ) -> Result<(), JsValue> {
+        let canvas_dimension = [self.canvas.width(), self.canvas.height()];
+
         for (id, image_delta) in &textures_delta.set {
             self.set_texture(*id, image_delta);
         }
 
+        egui_glow::painter::clear(self.painter.gl(), canvas_dimension, clear_color);
         self.paint_primitives(clipped_primitives, pixels_per_point)?;
 
         for &id in &textures_delta.free {

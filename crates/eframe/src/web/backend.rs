@@ -187,8 +187,7 @@ impl AppRunner {
         web_options: crate::WebOptions,
         app_creator: epi::AppCreator,
     ) -> Result<Self, JsValue> {
-        let painter =
-            WebPainter::new(canvas_id, web_options.webgl_context_option).map_err(JsValue::from)?; // fail early
+        let painter = WebPainter::new(canvas_id, &web_options).map_err(JsValue::from)?; // fail early
 
         let system_theme = if web_options.follow_system_theme {
             super::system_theme()
@@ -357,16 +356,12 @@ impl AppRunner {
         Ok((repaint_after, clipped_primitives))
     }
 
-    pub fn clear_color_buffer(&self) {
-        self.painter
-            .clear(self.app.clear_color(&self.egui_ctx.style().visuals));
-    }
-
     /// Paint the results of the last call to [`Self::logic`].
     pub fn paint(&mut self, clipped_primitives: &[egui::ClippedPrimitive]) -> Result<(), JsValue> {
         let textures_delta = std::mem::take(&mut self.textures_delta);
 
         self.painter.paint_and_update_textures(
+            self.app.clear_color(&self.egui_ctx.style().visuals),
             clipped_primitives,
             self.egui_ctx.pixels_per_point(),
             &textures_delta,

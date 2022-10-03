@@ -4,17 +4,7 @@ use egui::mutex::RwLock;
 use tracing::error;
 use wgpu::{Adapter, Instance, Surface};
 
-use crate::{renderer, Renderer};
-
-/// Access to the render state for egui, which can be useful in combination with
-/// [`egui::PaintCallback`]s for custom rendering using WGPU.
-#[derive(Clone)]
-pub struct RenderState {
-    pub device: Arc<wgpu::Device>,
-    pub queue: Arc<wgpu::Queue>,
-    pub target_format: wgpu::TextureFormat,
-    pub renderer: Arc<RwLock<Renderer>>,
-}
+use crate::{renderer, RenderState, Renderer};
 
 struct SurfaceState {
     surface: Surface,

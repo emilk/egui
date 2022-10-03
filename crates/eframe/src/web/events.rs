@@ -13,7 +13,6 @@ pub fn paint_and_schedule(
 
         if !is_destroyed && runner_lock.needs_repaint.when_to_repaint() <= now_sec() {
             runner_lock.needs_repaint.clear();
-            runner_lock.clear_color_buffer();
             let (repaint_after, clipped_primitives) = runner_lock.logic()?;
             runner_lock.paint(&clipped_primitives)?;
             runner_lock
