@@ -27,6 +27,8 @@ impl WebPainterWgpu {
 
     #[allow(unused)] // only used if `wgpu` is the only active feature.
     pub async fn new(canvas_id: &str, _options: &WebOptions) -> Result<Self, String> {
+        tracing::debug!("Creating wgpu painter with WebGL backend…");
+
         let canvas = super::canvas_element_or_die(canvas_id);
         let limits = wgpu::Limits::downlevel_webgl2_defaults(); // TODO(Wumpf): Expose to eframe user
 
@@ -55,7 +57,7 @@ impl WebPainterWgpu {
         // TODO(Wumpf): MSAA & depth
 
         let target_format =
-            egui_wgpu::preferred_framebuffer_format(&surface.get_supported_formats(adapter));
+            egui_wgpu::preferred_framebuffer_format(&surface.get_supported_formats(&adapter));
 
         let renderer = egui_wgpu::Renderer::new(&device, target_format, 1, 0);
         let render_state = RenderState {
@@ -64,6 +66,8 @@ impl WebPainterWgpu {
             target_format,
             renderer: Arc::new(RwLock::new(renderer)),
         };
+
+        tracing::debug!("wgpu painter initialized.");
 
         Ok(Self {
             canvas,
