@@ -55,7 +55,7 @@ impl WebPainterWgpu {
         // TODO(Wumpf): MSAA & depth
 
         let target_format =
-            egui_whgpu::preferred_framebuffer_format(&surface.get_supported_formats(adapter));
+            egui_wgpu::preferred_framebuffer_format(&surface.get_supported_formats(adapter));
 
         let renderer = egui_wgpu::Renderer::new(&device, target_format, 1, 0);
         let render_state = RenderState {
