@@ -109,7 +109,7 @@ impl<'a> Painter<'a> {
             let adapter = self.adapter.as_ref().unwrap();
 
             let swapchain_format =
-                select_framebuffer_format(&surface.get_supported_formats(adapter));
+                crate::preferred_framebuffer_format(&surface.get_supported_formats(adapter));
 
             let rs = pollster::block_on(self.init_render_state(adapter, swapchain_format));
             self.render_state = Some(rs);
@@ -313,16 +313,4 @@ impl<'a> Painter<'a> {
     pub fn destroy(&mut self) {
         // TODO(emilk): something here?
     }
-}
-
-fn select_framebuffer_format(formats: &[wgpu::TextureFormat]) -> wgpu::TextureFormat {
-    for &format in formats {
-        if matches!(
-            format,
-            wgpu::TextureFormat::Rgba8Unorm | wgpu::TextureFormat::Bgra8Unorm
-        ) {
-            return format;
-        }
-    }
-    formats[0] // take the first
 }

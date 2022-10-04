@@ -29,3 +29,16 @@ pub struct RenderState {
     pub target_format: wgpu::TextureFormat,
     pub renderer: Arc<RwLock<Renderer>>,
 }
+
+/// Find the framebuffer format that egui prefers
+pub fn preferred_framebuffer_format(formats: &[wgpu::TextureFormat]) -> wgpu::TextureFormat {
+    for &format in formats {
+        if matches!(
+            format,
+            wgpu::TextureFormat::Rgba8Unorm | wgpu::TextureFormat::Bgra8Unorm
+        ) {
+            return format;
+        }
+    }
+    formats[0] // take the first
+}

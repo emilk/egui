@@ -54,8 +54,9 @@ impl WebPainterWgpu {
 
         // TODO(Wumpf): MSAA & depth
 
-        // TODO(emilk): use non-sRGB target once https://github.com/gfx-rs/wgpu/issues/3059 is solved.
-        let target_format = wgpu::TextureFormat::Rgba8UnormSrgb;
+        let target_format =
+            egui_whgpu::preferred_framebuffer_format(&surface.get_supported_formats(adapter));
+
         let renderer = egui_wgpu::Renderer::new(&device, target_format, 1, 0);
         let render_state = RenderState {
             device: Arc::new(device),
