@@ -1,16 +1,14 @@
 use std::sync::Arc;
 
-use egui::mutex::RwLock;
-use egui_wgpu::renderer::ScreenDescriptor;
-use egui_wgpu::RenderState;
-
 use wasm_bindgen::JsValue;
-
-use egui::Rgba;
 use web_sys::HtmlCanvasElement;
 
-use super::web_painter::WebPainter;
+use egui::{mutex::RwLock, Rgba};
+use egui_wgpu::{renderer::ScreenDescriptor, RenderState};
+
 use crate::WebOptions;
+
+use super::web_painter::WebPainter;
 
 pub(crate) struct WebPainterWgpu {
     canvas: HtmlCanvasElement,
@@ -28,9 +26,9 @@ impl WebPainterWgpu {
 
     pub async fn new(canvas_id: &str, _options: &WebOptions) -> Result<Self, String> {
         let canvas = super::canvas_element_or_die(canvas_id);
-        let limits = wgpu::Limits::downlevel_webgl2_defaults(); // TODO: Expose to eframe user
+        let limits = wgpu::Limits::downlevel_webgl2_defaults(); // TODO(Wumpf): Expose to eframe user
 
-        // TODO: Should be able to switch between webgl & webgpu (only)
+        // TODO(Wumpf): Should be able to switch between WebGL & WebGPU (only)
         let backends = wgpu::Backends::GL; //wgpu::util::backend_bits_from_env().unwrap_or_else(wgpu::Backends::all);
         let instance = wgpu::Instance::new(backends);
         let surface = instance.create_surface_from_canvas(&canvas);
@@ -52,8 +50,9 @@ impl WebPainterWgpu {
             .await
             .unwrap();
 
-        // TODO: MSAA & depth
-        // TODO: Renderer unhappy about srgb. Can't use anything else right now it seems.
+        // TODO(Wumpf): MSAA & depth
+
+        // TODO(emilk): use non-sRGB target once https://github.com/gfx-rs/wgpu/issues/3059 is solved.
         let target_format = wgpu::TextureFormat::Rgba8UnormSrgb;
         let renderer = egui_wgpu::Renderer::new(&device, target_format, 1, 0);
         let render_state = RenderState {
@@ -90,12 +89,13 @@ impl WebPainter for WebPainterWgpu {
         pixels_per_point: f32,
         textures_delta: &egui::TexturesDelta,
     ) -> Result<(), JsValue> {
-        if self.render_state.is_none() {
+        let render_state = if let Some(render_state) = &self.render_state {
+            render_state
+        } else {
             return Err(JsValue::from_str(
                 "Can't paint, wgpu renderer was already disposed",
             ));
-        }
-        let render_state = self.render_state.as_ref().unwrap();
+        };
 
         // Resize surface if needed
         let canvas_size = [self.canvas.width(), self.canvas.height()];
