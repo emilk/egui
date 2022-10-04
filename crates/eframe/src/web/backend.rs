@@ -1,5 +1,4 @@
-use super::{WebPainter, *};
-
+use super::{web_painter::WebPainter, *};
 use crate::epi;
 
 use egui::{
@@ -162,7 +161,7 @@ fn test_parse_query() {
 pub struct AppRunner {
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
-    painter: WebPainter,
+    painter: ActiveWebPainter,
     pub(crate) input: WebInput,
     app: Box<dyn epi::App>,
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
@@ -187,7 +186,7 @@ impl AppRunner {
         web_options: crate::WebOptions,
         app_creator: epi::AppCreator,
     ) -> Result<Self, JsValue> {
-        let painter = WebPainter::new(canvas_id, &web_options).map_err(JsValue::from)?; // fail early
+        let painter = ActiveWebPainter::new(canvas_id, &web_options).map_err(JsValue::from)?; // fail early
 
         let system_theme = if web_options.follow_system_theme {
             super::system_theme()
@@ -216,9 +215,9 @@ impl AppRunner {
             integration_info: info.clone(),
             storage: Some(&storage),
             #[cfg(feature = "glow")]
-            gl: Some(painter.painter.gl().clone()),
+            gl: Some(painter.gl().clone()),
             #[cfg(feature = "wgpu")]
-            wgpu_render_state: None,
+            wgpu_render_state: Some(painter.render_state()),
         });
 
         let frame = epi::Frame {
@@ -228,7 +227,7 @@ impl AppRunner {
             #[cfg(feature = "glow")]
             gl: Some(painter.gl().clone()),
             #[cfg(feature = "wgpu")]
-            wgpu_render_state: None,
+            wgpu_render_state: Some(painter.render_state()),
         };
 
         let needs_repaint: std::sync::Arc<NeedRepaint> = Default::default();

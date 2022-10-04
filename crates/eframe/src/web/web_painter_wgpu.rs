@@ -1,27 +1,48 @@
+use std::sync::Arc;
+
+use egui::mutex::RwLock;
 use egui_wgpu::renderer::ScreenDescriptor;
-use egui_wgpu::Renderer;
-use wasm_bindgen::JsCast;
+use egui_wgpu::RenderState;
+
 use wasm_bindgen::JsValue;
+
+use egui::Rgba;
 use web_sys::HtmlCanvasElement;
 
-use egui::{ClippedPrimitive, Rgba};
-use wgpu::Backends;
-
+use super::web_painter::WebPainter;
 use crate::WebOptions;
 
-pub(crate) struct WebPainter {
+pub(crate) struct WebPainterWgpu {
     canvas: HtmlCanvasElement,
     canvas_id: String,
-    device: wgpu::Device,
-    queue: wgpu::Queue,
     surface: wgpu::Surface,
     surface_size: [u32; 2],
-    renderer: Renderer,
     limits: wgpu::Limits,
+    render_state: RenderState,
 }
 
-impl WebPainter {
-    pub fn new(canvas_id: &str, _options: &WebOptions) -> Result<Self, String> {
+impl WebPainterWgpu {
+    fn configure_surface(&mut self, new_size: &[u32; 2]) {
+        self.surface.configure(
+            &self.render_state.device,
+            &wgpu::SurfaceConfiguration {
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                format: self.render_state.target_format,
+                width: new_size[0],
+                height: new_size[1],
+                present_mode: wgpu::PresentMode::Fifo,
+            },
+        );
+        self.surface_size = new_size.clone();
+    }
+
+    pub fn render_state(&self) -> RenderState {
+        self.render_state.clone()
+    }
+}
+
+impl WebPainter for WebPainterWgpu {
+    fn new(canvas_id: &str, _options: &WebOptions) -> Result<Self, String> {
         let canvas = super::canvas_element_or_die(canvas_id);
         let limits = wgpu::Limits::downlevel_webgl2_defaults(); // TODO: Expose to eframe user
 
@@ -49,44 +70,34 @@ impl WebPainter {
 
         // TODO: MSAA & depth
         // TODO: renderer unhappy about srgb. why? Can't use anything else
-        let renderer = egui_wgpu::Renderer::new(&device, wgpu::TextureFormat::Rgba8UnormSrgb, 1, 0);
+        let target_format = wgpu::TextureFormat::Rgba8UnormSrgb;
+        let renderer = egui_wgpu::Renderer::new(&device, target_format, 1, 0);
+        let render_state = RenderState {
+            device: Arc::new(device),
+            queue: Arc::new(queue),
+            target_format,
+            renderer: Arc::new(RwLock::new(renderer)),
+        };
 
         Ok(Self {
             canvas,
             canvas_id: canvas_id.to_owned(),
-            device,
-            queue,
-            renderer,
+            render_state,
             surface,
             surface_size: [0, 0],
             limits,
         })
     }
 
-    // TODO: do we need all of these??
-
-    pub fn canvas_id(&self) -> &str {
+    fn canvas_id(&self) -> &str {
         &self.canvas_id
     }
 
-    pub fn max_texture_side(&self) -> usize {
+    fn max_texture_side(&self) -> usize {
         self.limits.max_texture_dimension_2d as _
     }
 
-    fn configure_surface(&self) {
-        self.surface.configure(
-            &self.device,
-            &wgpu::SurfaceConfiguration {
-                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-                format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                width: self.canvas.width(),
-                height: self.canvas.height(),
-                present_mode: wgpu::PresentMode::Fifo,
-            },
-        );
-    }
-
-    pub fn paint_and_update_textures(
+    fn paint_and_update_textures(
         &mut self,
         clear_color: Rgba,
         clipped_primitives: &[egui::ClippedPrimitive],
@@ -96,8 +107,7 @@ impl WebPainter {
         // Resize surface if needed
         let canvas_size = [self.canvas.width(), self.canvas.height()];
         if canvas_size != self.surface_size {
-            self.configure_surface();
-            self.surface_size = canvas_size;
+            self.configure_surface(&canvas_size);
         }
 
         let frame = self
@@ -108,11 +118,12 @@ impl WebPainter {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("eframe encoder"),
-            });
+        let mut encoder =
+            self.render_state
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("eframe encoder"),
+                });
 
         // Upload all resources for the GPU.
         let screen_descriptor = ScreenDescriptor {
@@ -120,20 +131,27 @@ impl WebPainter {
             pixels_per_point,
         };
 
-        for (id, image_delta) in &textures_delta.set {
-            self.renderer
-                .update_texture(&self.device, &self.queue, *id, image_delta);
+        {
+            let mut renderer = self.render_state.renderer.write();
+            for (id, image_delta) in &textures_delta.set {
+                renderer.update_texture(
+                    &self.render_state.device,
+                    &self.render_state.queue,
+                    *id,
+                    image_delta,
+                );
+            }
+
+            renderer.update_buffers(
+                &self.render_state.device,
+                &self.render_state.queue,
+                clipped_primitives,
+                &screen_descriptor,
+            );
         }
 
-        self.renderer.update_buffers(
-            &self.device,
-            &self.queue,
-            clipped_primitives,
-            &screen_descriptor,
-        );
-
         // Record all render passes.
-        self.renderer.render(
+        self.render_state.renderer.read().render(
             &mut encoder,
             &view,
             clipped_primitives,
@@ -146,18 +164,23 @@ impl WebPainter {
             }),
         );
 
-        for id in &textures_delta.free {
-            self.renderer.free_texture(id);
+        {
+            let mut renderer = self.render_state.renderer.write();
+            for id in &textures_delta.free {
+                renderer.free_texture(id);
+            }
         }
 
         // Submit the commands.
-        self.queue.submit(std::iter::once(encoder.finish()));
+        self.render_state
+            .queue
+            .submit(std::iter::once(encoder.finish()));
         frame.present();
 
         Ok(())
     }
 
-    pub fn destroy(&mut self) {
+    fn destroy(&mut self) {
         // TODO: destroy things? doesn't fit well with wgpu
     }
 }
