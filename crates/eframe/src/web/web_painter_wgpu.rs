@@ -32,6 +32,9 @@ impl WebPainter for WebPainterWgpu {
         let canvas = super::canvas_element_or_die(canvas_id);
         let limits = wgpu::Limits::downlevel_webgl2_defaults(); // TODO: Expose to eframe user
 
+        // HACK
+        console_log::init_with_level(log::Level::Debug).unwrap();
+
         // TODO: Should be able to switch between webgl & webgpu (only)
         let backends = wgpu::Backends::GL; //wgpu::util::backend_bits_from_env().unwrap_or_else(wgpu::Backends::all);
         let instance = wgpu::Instance::new(backends);
@@ -55,7 +58,7 @@ impl WebPainter for WebPainterWgpu {
         .unwrap();
 
         // TODO: MSAA & depth
-        // TODO: renderer unhappy about srgb. why? Can't use anything else
+        // TODO: Renderer unhappy about srgb. Can't use anything else right now it seems.
         let target_format = wgpu::TextureFormat::Rgba8UnormSrgb;
         let renderer = egui_wgpu::Renderer::new(&device, target_format, 1, 0);
         let render_state = RenderState {
