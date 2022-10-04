@@ -216,20 +216,28 @@ impl AppRunner {
             egui_ctx: egui_ctx.clone(),
             integration_info: info.clone(),
             storage: Some(&storage),
+
             #[cfg(feature = "glow")]
             gl: Some(painter.gl().clone()),
-            #[cfg(feature = "wgpu")]
+
+            #[cfg(all(feature = "wgpu", not(feature = "glow")))]
             wgpu_render_state: painter.render_state(),
+            #[cfg(all(feature = "wgpu", feature = "glow"))]
+            wgpu_render_state: None,
         });
 
         let frame = epi::Frame {
             info,
             output: Default::default(),
             storage: Some(Box::new(storage)),
+
             #[cfg(feature = "glow")]
             gl: Some(painter.gl().clone()),
-            #[cfg(feature = "wgpu")]
+
+            #[cfg(all(feature = "wgpu", not(feature = "glow")))]
             wgpu_render_state: painter.render_state(),
+            #[cfg(all(feature = "wgpu", feature = "glow"))]
+            wgpu_render_state: None,
         };
 
         let needs_repaint: std::sync::Arc<NeedRepaint> = Default::default();

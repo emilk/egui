@@ -9,13 +9,11 @@ pub mod screen_reader;
 pub mod storage;
 mod text_agent;
 
-#[cfg(all(feature = "glow", feature = "wgpu"))]
-compile_error!("Can't enable both 'glow' and 'wgpu' as backends for the web painter. Need to choose either feature.");
-
 #[cfg(not(any(feature = "glow", feature = "wgpu")))]
 compile_error!("You must enable either the 'glow' or 'wgpu' feature");
 
 mod web_painter;
+
 #[cfg(feature = "glow")]
 mod web_painter_glow;
 #[cfg(feature = "glow")]
@@ -23,7 +21,7 @@ pub(crate) type ActiveWebPainter = web_painter_glow::WebPainterGlow;
 
 #[cfg(feature = "wgpu")]
 mod web_painter_wgpu;
-#[cfg(feature = "wgpu")]
+#[cfg(all(feature = "wgpu", not(feature = "glow")))]
 pub(crate) type ActiveWebPainter = web_painter_wgpu::WebPainterWgpu;
 
 pub use backend::*;

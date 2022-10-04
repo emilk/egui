@@ -20,10 +20,12 @@ pub(crate) struct WebPainterWgpu {
 }
 
 impl WebPainterWgpu {
+    #[allow(unused)] // only used if `wgpu` is the only active feature.
     pub fn render_state(&self) -> Option<RenderState> {
         self.render_state.clone()
     }
 
+    #[allow(unused)] // only used if `wgpu` is the only active feature.
     pub async fn new(canvas_id: &str, _options: &WebOptions) -> Result<Self, String> {
         let canvas = super::canvas_element_or_die(canvas_id);
         let limits = wgpu::Limits::downlevel_webgl2_defaults(); // TODO(Wumpf): Expose to eframe user
