@@ -36,7 +36,7 @@ impl WebPainterWgpu {
         let adapter =
             wgpu::util::initialize_adapter_from_env_or_default(&instance, backends, Some(&surface))
                 .await
-                .expect("No suitable GPU adapters found on the system!");
+                .ok_or_else(|| "No suitable GPU adapters found on the system".to_owned())?;
 
         let (device, queue) = adapter
             .request_device(
@@ -48,7 +48,7 @@ impl WebPainterWgpu {
                 None, // No capture exposed so far - unclear how we can expose this in a browser environment (?)
             )
             .await
-            .unwrap();
+            .map_err(|err| format!("Failed to find wgpu device: {}", err))?;
 
         // TODO(Wumpf): MSAA & depth
 
@@ -113,10 +113,12 @@ impl WebPainter for WebPainterWgpu {
             self.surface_size = canvas_size.clone();
         }
 
-        let frame = self
-            .surface
-            .get_current_texture()
-            .expect("Failed to acquire next swap chain texture");
+        let frame = self.surface.get_current_texture().map_err(|err| {
+            JsValue::from_str(&format!(
+                "Failed to acquire next swap chain texture: {}",
+                err
+            ))
+        })?;
         let view = frame
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
