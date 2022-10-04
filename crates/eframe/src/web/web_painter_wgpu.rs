@@ -32,9 +32,6 @@ impl WebPainter for WebPainterWgpu {
         let canvas = super::canvas_element_or_die(canvas_id);
         let limits = wgpu::Limits::downlevel_webgl2_defaults(); // TODO: Expose to eframe user
 
-        // HACK
-        console_log::init_with_level(log::Level::Debug).unwrap();
-
         // TODO: Should be able to switch between webgl & webgpu (only)
         let backends = wgpu::Backends::GL; //wgpu::util::backend_bits_from_env().unwrap_or_else(wgpu::Backends::all);
         let instance = wgpu::Instance::new(backends);
