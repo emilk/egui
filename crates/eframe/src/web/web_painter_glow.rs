@@ -19,10 +19,8 @@ impl WebPainterGlow {
     pub fn gl(&self) -> &std::sync::Arc<glow::Context> {
         self.painter.gl()
     }
-}
 
-impl WebPainter for WebPainterGlow {
-    fn new(canvas_id: &str, options: &WebOptions) -> Result<Self, String> {
+    pub async fn new(canvas_id: &str, options: &WebOptions) -> Result<Self, String> {
         let canvas = super::canvas_element_or_die(canvas_id);
 
         let (gl, shader_prefix) =
@@ -38,7 +36,9 @@ impl WebPainter for WebPainterGlow {
             painter,
         })
     }
+}
 
+impl WebPainter for WebPainterGlow {
     fn max_texture_side(&self) -> usize {
         self.painter.max_texture_side()
     }

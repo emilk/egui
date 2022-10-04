@@ -57,7 +57,7 @@ screen_reader = [
 
 ## Use [`wgpu`](https://docs.rs/wgpu) for painting (via [`egui-wgpu`](https://github.com/emilk/egui/tree/master/crates/egui-wgpu)).
 ## This overrides the `glow` feature.
-wgpu = ["dep:wgpu", "dep:egui-wgpu", "dep:pollster"]
+wgpu = ["dep:wgpu", "dep:egui-wgpu"]
 
 
 [dependencies]
@@ -75,7 +75,6 @@ egui_glow = { version = "0.19.0", path = "../egui_glow", optional = true, defaul
 glow = { version = "0.11", optional = true }
 ron = { version = "0.8", optional = true, features = ["integer128"] }
 serde = { version = "1", optional = true, features = ["derive"] }
-pollster = { version = "0.2", optional = true }
 
 # -------------------------------------------
 # native:

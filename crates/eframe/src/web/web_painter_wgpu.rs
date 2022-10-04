@@ -25,10 +25,8 @@ impl WebPainterWgpu {
     pub fn render_state(&self) -> Option<RenderState> {
         self.render_state.clone()
     }
-}
 
-impl WebPainter for WebPainterWgpu {
-    fn new(canvas_id: &str, _options: &WebOptions) -> Result<Self, String> {
+    pub async fn new(canvas_id: &str, _options: &WebOptions) -> Result<Self, String> {
         let canvas = super::canvas_element_or_die(canvas_id);
         let limits = wgpu::Limits::downlevel_webgl2_defaults(); // TODO: Expose to eframe user
 
@@ -37,22 +35,22 @@ impl WebPainter for WebPainterWgpu {
         let instance = wgpu::Instance::new(backends);
         let surface = instance.create_surface_from_canvas(&canvas);
 
-        let adapter = pollster::block_on(wgpu::util::initialize_adapter_from_env_or_default(
-            &instance,
-            backends,
-            Some(&surface),
-        ))
-        .expect("No suitable GPU adapters found on the system!");
+        let adapter =
+            wgpu::util::initialize_adapter_from_env_or_default(&instance, backends, Some(&surface))
+                .await
+                .expect("No suitable GPU adapters found on the system!");
 
-        let (device, queue) = pollster::block_on(adapter.request_device(
-            &wgpu::DeviceDescriptor {
-                label: Some("eframe device"),
-                features: wgpu::Features::empty(),
-                limits: limits.clone(),
-            },
-            None, // No capture exposed so far - unclear how we can expose this in a browser environment (?)
-        ))
-        .unwrap();
+        let (device, queue) = adapter
+            .request_device(
+                &wgpu::DeviceDescriptor {
+                    label: Some("eframe device"),
+                    features: wgpu::Features::empty(),
+                    limits: limits.clone(),
+                },
+                None, // No capture exposed so far - unclear how we can expose this in a browser environment (?)
+            )
+            .await
+            .unwrap();
 
         // TODO: MSAA & depth
         // TODO: Renderer unhappy about srgb. Can't use anything else right now it seems.
@@ -74,7 +72,9 @@ impl WebPainter for WebPainterWgpu {
             limits,
         })
     }
+}
 
+impl WebPainter for WebPainterWgpu {
     fn canvas_id(&self) -> &str {
         &self.canvas_id
     }

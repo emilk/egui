@@ -1,16 +1,14 @@
 use egui::Rgba;
 use wasm_bindgen::JsValue;
 
-use crate::WebOptions;
-
 /// Renderer for a browser canvas.
 /// As of writing we're not allowing to decide on the painter at runtime,
 /// therefore this trait is merely there for specifying and documenting the interface.
 pub(crate) trait WebPainter {
-    /// Create a new web painter targeting a given canvas.
-    fn new(canvas_id: &str, options: &WebOptions) -> Result<Self, String>
-    where
-        Self: Sized;
+    // Create a new web painter targeting a given canvas.
+    // fn new(canvas_id: &str, options: &WebOptions) -> Result<Self, String>
+    // where
+    //     Self: Sized;
 
     /// Id of the canvas in use.
     fn canvas_id(&self) -> &str;

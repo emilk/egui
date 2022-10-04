@@ -181,12 +181,14 @@ impl Drop for AppRunner {
 }
 
 impl AppRunner {
-    pub fn new(
+    pub async fn new(
         canvas_id: &str,
         web_options: crate::WebOptions,
         app_creator: epi::AppCreator,
     ) -> Result<Self, JsValue> {
-        let painter = ActiveWebPainter::new(canvas_id, &web_options).map_err(JsValue::from)?; // fail early
+        let painter = ActiveWebPainter::new(canvas_id, &web_options)
+            .await
+            .map_err(JsValue::from)?;
 
         let system_theme = if web_options.follow_system_theme {
             super::system_theme()
@@ -506,12 +508,12 @@ impl AppRunnerContainer {
 
 /// Install event listeners to register different input events
 /// and start running the given app.
-pub fn start(
+pub async fn start(
     canvas_id: &str,
     web_options: crate::WebOptions,
     app_creator: epi::AppCreator,
 ) -> Result<AppRunnerRef, JsValue> {
-    let mut runner = AppRunner::new(canvas_id, web_options, app_creator)?;
+    let mut runner = AppRunner::new(canvas_id, web_options, app_creator).await?;
     runner.warm_up()?;
     start_runner(runner)
 }

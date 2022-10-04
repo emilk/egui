@@ -109,12 +109,12 @@ pub use web_sys;
 /// }
 /// ```
 #[cfg(target_arch = "wasm32")]
-pub fn start_web(
+pub async fn start_web(
     canvas_id: &str,
     web_options: WebOptions,
     app_creator: AppCreator,
 ) -> Result<AppRunnerRef, wasm_bindgen::JsValue> {
-    let handle = web::start(canvas_id, web_options, app_creator)?;
+    let handle = web::start(canvas_id, web_options, app_creator).await?;
 
     Ok(handle)
 }

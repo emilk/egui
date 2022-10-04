@@ -62,13 +62,14 @@ pub fn init_wasm_hooks() {
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
-pub fn start_separate(canvas_id: &str) -> Result<WebHandle, wasm_bindgen::JsValue> {
+pub async fn start_separate(canvas_id: &str) -> Result<WebHandle, wasm_bindgen::JsValue> {
     let web_options = eframe::WebOptions::default();
     let handle = eframe::start_web(
         canvas_id,
         web_options,
         Box::new(|cc| Box::new(WrapApp::new(cc))),
     )
+    .await
     .map(|handle| WebHandle { handle });
 
     handle
@@ -80,7 +81,7 @@ pub fn start_separate(canvas_id: &str) -> Result<WebHandle, wasm_bindgen::JsValu
 /// You can add more callbacks like this if you want to call in to your code.
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
-pub fn start(canvas_id: &str) -> Result<WebHandle, wasm_bindgen::JsValue> {
+pub async fn start(canvas_id: &str) -> Result<WebHandle, wasm_bindgen::JsValue> {
     init_wasm_hooks();
-    start_separate(canvas_id)
+    start_separate(canvas_id).await
 }
