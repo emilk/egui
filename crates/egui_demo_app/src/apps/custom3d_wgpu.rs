@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{num::NonZeroU64, sync::Arc};
 
 use eframe::{
     egui_wgpu::{self, wgpu},
@@ -30,7 +30,7 @@ impl Custom3d {
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: false,
-                    min_binding_size: None,
+                    min_binding_size: NonZeroU64::new(16),
                 },
                 count: None,
             }],
@@ -165,7 +165,11 @@ struct TriangleRenderResources {
 impl TriangleRenderResources {
     fn prepare(&self, _device: &wgpu::Device, queue: &wgpu::Queue, angle: f32) {
         // Update our uniform buffer with the angle from the UI
-        queue.write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[angle]));
+        queue.write_buffer(
+            &self.uniform_buffer,
+            0,
+            bytemuck::cast_slice(&[angle, 0.0, 0.0, 0.0]),
+        );
     }
 
     fn paint<'rp>(&'rp self, render_pass: &mut wgpu::RenderPass<'rp>) {

@@ -8,6 +8,10 @@ struct Uniforms {
     _padding: vec3<f32>, // needed in order to make it 16 byte aligned
 };
 
+struct Uniforms {
+    @size(16) angle: f32, // pad to 16 bytes
+};
+
 @group(0) @binding(0)
 var<uniform> uniforms: Uniforms;
 

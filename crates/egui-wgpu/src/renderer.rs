@@ -1,5 +1,6 @@
 #![allow(unsafe_code)]
 
+use std::num::NonZeroU64;
 use std::{borrow::Cow, collections::HashMap, num::NonZeroU32};
 
 use egui::{epaint::Primitive, PaintCallbackInfo};
@@ -26,7 +27,7 @@ use wgpu::util::DeviceExt as _;
 ///
 /// # Example
 ///
-/// See the [`custom3d_glow`](https://github.com/emilk/egui/blob/master/crates/egui_demo_app/src/apps/custom3d_wgpu.rs) demo source for a detailed usage example.
+/// See the [`custom3d_wgpu`](https://github.com/emilk/egui/blob/master/crates/egui_demo_app/src/apps/custom3d_wgpu.rs) demo source for a detailed usage example.
 pub struct CallbackFn {
     prepare: Box<PrepareCallback>,
     paint: Box<PaintCallback>,
@@ -175,7 +176,7 @@ impl Renderer {
                     visibility: wgpu::ShaderStages::VERTEX,
                     ty: wgpu::BindingType::Buffer {
                         has_dynamic_offset: false,
-                        min_binding_size: None,
+                        min_binding_size: NonZeroU64::new(std::mem::size_of::<UniformBuffer>() as _),
                         ty: wgpu::BufferBindingType::Uniform,
                     },
                     count: None,
