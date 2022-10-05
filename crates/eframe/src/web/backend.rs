@@ -1,5 +1,4 @@
-use super::{WebPainter, *};
-
+use super::{web_painter::WebPainter, *};
 use crate::epi;
 
 use egui::{
@@ -162,7 +161,7 @@ fn test_parse_query() {
 pub struct AppRunner {
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
-    painter: WebPainter,
+    painter: ActiveWebPainter,
     pub(crate) input: WebInput,
     app: Box<dyn epi::App>,
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
@@ -182,13 +181,14 @@ impl Drop for AppRunner {
 }
 
 impl AppRunner {
-    pub fn new(
+    pub async fn new(
         canvas_id: &str,
         web_options: crate::WebOptions,
         app_creator: epi::AppCreator,
     ) -> Result<Self, JsValue> {
-        let painter =
-            WebPainter::new(canvas_id, web_options.webgl_context_option).map_err(JsValue::from)?; // fail early
+        let painter = ActiveWebPainter::new(canvas_id, &web_options)
+            .await
+            .map_err(JsValue::from)?;
 
         let system_theme = if web_options.follow_system_theme {
             super::system_theme()
@@ -216,9 +216,13 @@ impl AppRunner {
             egui_ctx: egui_ctx.clone(),
             integration_info: info.clone(),
             storage: Some(&storage),
+
             #[cfg(feature = "glow")]
-            gl: Some(painter.painter.gl().clone()),
-            #[cfg(feature = "wgpu")]
+            gl: Some(painter.gl().clone()),
+
+            #[cfg(all(feature = "wgpu", not(feature = "glow")))]
+            wgpu_render_state: painter.render_state(),
+            #[cfg(all(feature = "wgpu", feature = "glow"))]
             wgpu_render_state: None,
         });
 
@@ -226,9 +230,13 @@ impl AppRunner {
             info,
             output: Default::default(),
             storage: Some(Box::new(storage)),
+
             #[cfg(feature = "glow")]
             gl: Some(painter.gl().clone()),
-            #[cfg(feature = "wgpu")]
+
+            #[cfg(all(feature = "wgpu", not(feature = "glow")))]
+            wgpu_render_state: painter.render_state(),
+            #[cfg(all(feature = "wgpu", feature = "glow"))]
             wgpu_render_state: None,
         };
 
@@ -357,16 +365,12 @@ impl AppRunner {
         Ok((repaint_after, clipped_primitives))
     }
 
-    pub fn clear_color_buffer(&self) {
-        self.painter
-            .clear(self.app.clear_color(&self.egui_ctx.style().visuals));
-    }
-
     /// Paint the results of the last call to [`Self::logic`].
     pub fn paint(&mut self, clipped_primitives: &[egui::ClippedPrimitive]) -> Result<(), JsValue> {
         let textures_delta = std::mem::take(&mut self.textures_delta);
 
         self.painter.paint_and_update_textures(
+            self.app.clear_color(&self.egui_ctx.style().visuals),
             clipped_primitives,
             self.egui_ctx.pixels_per_point(),
             &textures_delta,
@@ -512,12 +516,12 @@ impl AppRunnerContainer {
 
 /// Install event listeners to register different input events
 /// and start running the given app.
-pub fn start(
+pub async fn start(
     canvas_id: &str,
     web_options: crate::WebOptions,
     app_creator: epi::AppCreator,
 ) -> Result<AppRunnerRef, JsValue> {
-    let mut runner = AppRunner::new(canvas_id, web_options, app_creator)?;
+    let mut runner = AppRunner::new(canvas_id, web_options, app_creator).await?;
     runner.warm_up()?;
     start_runner(runner)
 }
