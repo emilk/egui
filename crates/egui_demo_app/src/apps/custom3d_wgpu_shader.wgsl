@@ -4,11 +4,6 @@ struct VertexOut {
 };
 
 struct Uniforms {
-    angle: f32,
-    _padding: vec3<f32>, // needed in order to make it 16 byte aligned
-};
-
-struct Uniforms {
     @size(16) angle: f32, // pad to 16 bytes
 };
 
