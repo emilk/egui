@@ -45,7 +45,7 @@ impl WebPainterWgpu {
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
-                    label: Some("eframe device"),
+                    label: Some("egui_webpainter"),
                     features: wgpu::Features::empty(),
                     limits: limits.clone(),
                 },
@@ -134,7 +134,7 @@ impl WebPainter for WebPainterWgpu {
             render_state
                 .device
                 .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("eframe encoder"),
+                    label: Some("egui_webpainter_paint_and_update_textures"),
                 });
 
         // Upload all resources for the GPU.

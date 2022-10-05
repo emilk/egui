@@ -18,12 +18,12 @@ impl Custom3d {
         let device = &wgpu_render_state.device;
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: None,
+            label: Some("custom3d"),
             source: wgpu::ShaderSource::Wgsl(include_str!("./custom3d_wgpu_shader.wgsl").into()),
         });
 
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: None,
+            label: Some("custom3d"),
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
                 visibility: wgpu::ShaderStages::VERTEX,
@@ -37,13 +37,13 @@ impl Custom3d {
         });
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: None,
+            label: Some("custom3d"),
             bind_group_layouts: &[&bind_group_layout],
             push_constant_ranges: &[],
         });
 
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: None,
+            label: Some("custom3d"),
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
@@ -62,7 +62,7 @@ impl Custom3d {
         });
 
         let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: None,
+            label: Some("custom3d"),
             contents: bytemuck::cast_slice(&[0.0_f32; 4]), // 16 bytes aligned!
             // Mapping at creation (as done by the create_buffer_init utility) doesn't require us to to add the MAP_WRITE usage
             // (this *happens* to workaround this bug )
@@ -70,7 +70,7 @@ impl Custom3d {
         });
 
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: None,
+            label: Some("custom3d"),
             layout: &bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
