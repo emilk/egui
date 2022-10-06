@@ -18,7 +18,7 @@ pub struct State {
 
     /// Momentum, used for kinetic scrolling
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub vel: Vec2,
+    vel: Vec2,
 
     /// Mouse offset relative to the top of the handle when started moving the handle.
     scroll_start_offset_from_top_left: [Option<f32>; 2],
