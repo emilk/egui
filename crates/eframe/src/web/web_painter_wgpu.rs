@@ -115,6 +115,7 @@ impl WebPainter for WebPainterWgpu {
                     width: canvas_size[0],
                     height: canvas_size[1],
                     present_mode: wgpu::PresentMode::Fifo,
+                    alpha_mode: wgpu::CompositeAlphaMode::Auto,
                 },
             );
             self.surface_size = canvas_size.clone();
