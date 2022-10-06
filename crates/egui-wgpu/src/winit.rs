@@ -129,6 +129,7 @@ impl<'a> Painter<'a> {
             width: width_in_pixels,
             height: height_in_pixels,
             present_mode: self.present_mode,
+            alpha_mode: wgpu::CompositeAlphaMode::Auto,
         };
 
         let surface_state = self
