@@ -335,3 +335,50 @@ mod tests {
         other_thread.join().unwrap();
     }
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "deadlock_detection")]
+#[cfg(test)]
+mod tests_rwlock {
+    use crate::mutex::RwLock;
+    use std::time::Duration;
+
+    #[test]
+    fn lock_two_different_rwlocks_single_thread() {
+        let one = RwLock::new(());
+        let two = RwLock::new(());
+        let _a = one.write();
+        let _b = two.write();
+    }
+
+    #[test]
+    #[should_panic]
+    fn rwlock_reentry_single_thread() {
+        let one = RwLock::new(());
+        let _a = one.write();
+        let _a2 = one.read(); // panics
+    }
+
+    #[test]
+    fn rwlock_multiple_threads() {
+        use std::sync::Arc;
+        let one = Arc::new(RwLock::new(()));
+        let our_lock = one.write();
+        let other_thread1 = {
+            let one = Arc::clone(&one);
+            std::thread::spawn(move || {
+                let _ = one.write();
+            })
+        };
+        let other_thread2 = {
+            let one = Arc::clone(&one);
+            std::thread::spawn(move || {
+                let _ = one.read();
+            })
+        };
+        std::thread::sleep(Duration::from_millis(200));
+        drop(our_lock);
+        other_thread1.join().unwrap();
+        other_thread2.join().unwrap();
+    }
+}
