@@ -178,8 +178,11 @@ mod rw_lock_impl {
             if let Some(last_tid) = last_tid {
                 assert!(
                     last_tid != tid || !self.lock.is_locked_exclusive(),
-                    "{} DEAD-LOCK DETECTED! Previous lock held at:\n{}\n\n",
+                    "{} DEAD-LOCK DETECTED!\n
+                    \rTrying to grab lock at:\n{}\n
+                    \rwhich is already held by the same thread at:\n{}\n\n",
                     std::any::type_name::<Self>(),
+                    format_backtrace(&mut make_backtrace()),
                     format_backtrace(&mut self.last_lock.lock().1)
                 );
             }
@@ -200,8 +203,11 @@ mod rw_lock_impl {
             if let Some(last_tid) = last_tid {
                 assert!(
                     last_tid != tid || !self.lock.is_locked(),
-                    "{} DEAD-LOCK DETECTED! Previous lock held at:\n{}\n\n",
+                    "{} DEAD-LOCK DETECTED!\n
+                    \rTrying to grab lock at:\n{}\n
+                    \rwhich is already held by the same thread at:\n{}\n\n",
                     std::any::type_name::<Self>(),
+                    format_backtrace(&mut make_backtrace()),
                     format_backtrace(&mut self.last_lock.lock().1)
                 );
             }
