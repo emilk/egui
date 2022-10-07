@@ -146,6 +146,8 @@ mod rw_lock_impl {
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(feature = "deadlock_detection")]
 mod rw_lock_impl {
+    use std::thread::ThreadId;
+
     /// The lock you get from [`RwLock::read`].
     pub use parking_lot::MappedRwLockReadGuard as RwLockReadGuard;
 
@@ -158,7 +160,7 @@ mod rw_lock_impl {
     #[derive(Default)]
     pub struct RwLock<T> {
         lock: parking_lot::RwLock<T>,
-        last_lock: parking_lot::Mutex<backtrace::Backtrace>,
+        last_lock: parking_lot::Mutex<(Option<ThreadId>, backtrace::Backtrace)>,
     }
 
     impl<T> RwLock<T> {
@@ -170,26 +172,46 @@ mod rw_lock_impl {
         }
 
         pub fn read(&self) -> RwLockReadGuard<'_, T> {
-            assert!(
-                !self.lock.is_locked_exclusive(),
-                "{} DEAD-LOCK DETECTED! Previous lock held at:\n{}\n\n",
-                std::any::type_name::<Self>(),
-                format_backtrace(&mut self.last_lock.lock())
-            );
+            let tid = std::thread::current().id();
 
-            *self.last_lock.lock() = make_backtrace();
+            let last_tid = self.last_lock.lock().0; // if-let holds the guard otherwise
+            if let Some(last_tid) = last_tid {
+                assert!(
+                    last_tid != tid || !self.lock.is_locked_exclusive(),
+                    "{} DEAD-LOCK DETECTED! Previous lock held at:\n{}\n\n",
+                    std::any::type_name::<Self>(),
+                    format_backtrace(&mut self.last_lock.lock().1)
+                );
+            }
+
+            {
+                let mut last_lock = self.last_lock.lock();
+                last_lock.0 = tid.into();
+                last_lock.1 = make_backtrace();
+            }
+
             parking_lot::RwLockReadGuard::map(self.lock.read(), |v| v)
         }
 
         pub fn write(&self) -> RwLockWriteGuard<'_, T> {
-            assert!(
-                !self.lock.is_locked(),
-                "{} DEAD-LOCK DETECTED! Previous lock held at:\n{}\n\n",
-                std::any::type_name::<Self>(),
-                format_backtrace(&mut self.last_lock.lock())
-            );
+            let tid = std::thread::current().id();
 
-            *self.last_lock.lock() = make_backtrace();
+            let last_tid = self.last_lock.lock().0; // if-let holds the guard otherwise
+            if let Some(last_tid) = last_tid {
+                assert!(
+                    last_tid != tid || !self.lock.is_locked(),
+                    "{} DEAD-LOCK DETECTED! Previous lock held at:\n{}\n\n",
+                    std::any::type_name::<Self>(),
+                    format_backtrace(&mut self.last_lock.lock().1)
+                );
+            }
+
+            {
+                let mut last_lock = self.last_lock.lock();
+                last_lock.0 = tid.into();
+                last_lock.1 = make_backtrace();
+            }
+
             parking_lot::RwLockWriteGuard::map(self.lock.write(), |v| v)
         }
     }
