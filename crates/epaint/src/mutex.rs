@@ -155,14 +155,31 @@ mod rw_lock_impl {
     use parking_lot::MappedRwLockReadGuard;
     /// The lock you get from [`RwLock::read`].
     pub struct RwLockReadGuard<'a, T> {
-        guard: MappedRwLockReadGuard<'a, T>,
+        // The option is used only because we need to `take()` the guard out of self
+        // when doing remappings (`map()`), i.e. it's used as a safe `ManuallyDrop`.
+        guard: Option<MappedRwLockReadGuard<'a, T>>,
         holders: Arc<parking_lot::Mutex<HashMap<ThreadId, backtrace::Backtrace>>>,
     }
+    impl<'a, T> RwLockReadGuard<'a, T> {
+        #[inline]
+        pub fn map<U, F>(mut s: Self, f: F) -> RwLockReadGuard<'a, U>
+        where
+            F: FnOnce(&T) -> &U,
+        {
+            RwLockReadGuard {
+                guard: s
+                    .guard
+                    .take()
+                    .map(|g| parking_lot::MappedRwLockReadGuard::map(g, f)),
+                holders: Arc::clone(&s.holders),
+            }
+        }
+    }
     impl<'a, T> Deref for RwLockReadGuard<'a, T> {
-        type Target = MappedRwLockReadGuard<'a, T>;
+        type Target = T;
 
         fn deref(&self) -> &Self::Target {
-            &self.guard
+            self.guard.as_ref().unwrap().deref()
         }
     }
     impl<'a, T> Drop for RwLockReadGuard<'a, T> {
@@ -175,20 +192,36 @@ mod rw_lock_impl {
     use parking_lot::MappedRwLockWriteGuard;
     /// The lock you get from [`RwLock::write`].
     pub struct RwLockWriteGuard<'a, T> {
-        guard: MappedRwLockWriteGuard<'a, T>,
+        // The option is used only because we need to `take()` the guard out of self
+        // when doing remappings (`map()`), i.e. it's used as a safe `ManuallyDrop`.
+        guard: Option<MappedRwLockWriteGuard<'a, T>>,
         holders: Arc<parking_lot::Mutex<HashMap<ThreadId, backtrace::Backtrace>>>,
     }
-
+    impl<'a, T> RwLockWriteGuard<'a, T> {
+        #[inline]
+        pub fn map<U, F>(mut s: Self, f: F) -> RwLockWriteGuard<'a, U>
+        where
+            F: FnOnce(&mut T) -> &mut U,
+        {
+            RwLockWriteGuard {
+                guard: s
+                    .guard
+                    .take()
+                    .map(|g| parking_lot::MappedRwLockWriteGuard::map(g, f)),
+                holders: Arc::clone(&s.holders),
+            }
+        }
+    }
     impl<'a, T> Deref for RwLockWriteGuard<'a, T> {
-        type Target = MappedRwLockWriteGuard<'a, T>;
+        type Target = T;
 
         fn deref(&self) -> &Self::Target {
-            &self.guard
+            self.guard.as_ref().unwrap().deref()
         }
     }
     impl<'a, T> DerefMut for RwLockWriteGuard<'a, T> {
         fn deref_mut(&mut self) -> &mut Self::Target {
-            &mut self.guard
+            self.guard.as_mut().unwrap().deref_mut()
         }
     }
     impl<'a, T> Drop for RwLockWriteGuard<'a, T> {
@@ -243,7 +276,7 @@ mod rw_lock_impl {
                 .or_insert_with(|| make_backtrace());
 
             RwLockReadGuard {
-                guard: parking_lot::RwLockReadGuard::map(self.lock.read(), |v| v),
+                guard: parking_lot::RwLockReadGuard::map(self.lock.read(), |v| v).into(),
                 holders: Arc::clone(&self.holders),
             }
         }
@@ -272,7 +305,7 @@ mod rw_lock_impl {
                 .or_insert_with(|| make_backtrace());
 
             RwLockWriteGuard {
-                guard: parking_lot::RwLockWriteGuard::map(self.lock.write(), |v| v),
+                guard: parking_lot::RwLockWriteGuard::map(self.lock.write(), |v| v).into(),
                 holders: Arc::clone(&self.holders),
             }
         }
