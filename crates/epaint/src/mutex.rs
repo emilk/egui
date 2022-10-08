@@ -409,4 +409,85 @@ mod tests_rwlock {
         other_thread1.join().unwrap();
         other_thread2.join().unwrap();
     }
+
+    #[test]
+    #[should_panic]
+    fn rwlock_write_write_reentrancy() {
+        let one = RwLock::new(());
+        let _a1 = one.write();
+        let _a2 = one.write(); // panics
+    }
+
+    #[test]
+    #[should_panic]
+    fn rwlock_write_read_reentrancy() {
+        let one = RwLock::new(());
+        let _a1 = one.write();
+        let _a2 = one.read(); // panics
+    }
+
+    #[test]
+    #[should_panic]
+    fn rwlock_read_write_reentrancy() {
+        let one = RwLock::new(());
+        let _a1 = one.read();
+        let _a2 = one.write(); // panics
+    }
+
+    #[test]
+    fn rwlock_read_read_reentrancy() {
+        let one = RwLock::new(());
+        let _a1 = one.read();
+        // This is legal: this test suite specifically targets native, which relies
+        // parking_lot's rw-locks, which are reentrant.
+        let _a2 = one.read();
+    }
+
+    #[test]
+    fn rwlock_short_read_foreign_read_write_reentrancy() {
+        use std::sync::Arc;
+
+        let lock = Arc::new(RwLock::new(()));
+
+        // Thread #0 grabs a read lock
+        let t0r0 = lock.read();
+
+        // Thread #1 grabs the same read lock
+        let other_thread = {
+            let lock = Arc::clone(&lock);
+            std::thread::spawn(move || {
+                let _t1r0 = lock.read();
+            })
+        };
+        other_thread.join().unwrap();
+
+        // Thread #0 releases its read lock
+        drop(t0r0);
+
+        // Thread #0 now grabs a write lock, which is legal
+        let _t0w0 = lock.write();
+    }
+
+    #[test]
+    #[should_panic]
+    fn rwlock_read_foreign_read_write_reentrancy() {
+        use std::sync::Arc;
+
+        let lock = Arc::new(RwLock::new(()));
+
+        // Thread #0 grabs a read lock
+        let _a1 = lock.read();
+
+        // Thread #1 grabs the same read lock
+        let other_thread = {
+            let lock = Arc::clone(&lock);
+            std::thread::spawn(move || {
+                let _ = lock.read();
+            })
+        };
+        other_thread.join().unwrap();
+
+        // Thread #1 now grabs a write lock, which should panic
+        let _a2 = lock.write(); // panics
+    }
 }
