@@ -115,7 +115,6 @@ fn create_display(event_loop: &glutin::event_loop::EventLoop<()>) -> glium::Disp
 
     let context_builder = glutin::ContextBuilder::new()
         .with_depth_buffer(0)
-        .with_srgb(false)
         .with_stencil_buffer(0)
         .with_vsync(true);
 
