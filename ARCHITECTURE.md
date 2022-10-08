@@ -1,4 +1,4 @@
-# Arcitecture
+# Architecture
 This document describes how the crates that make up egui are all connected.
 
 Also see [`CONTRIBUTING.md`](https://github.com/emilk/egui/blob/master/CONTRIBUTING.md) for what to do before opening a PR.
