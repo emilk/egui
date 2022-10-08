@@ -146,13 +146,57 @@ mod rw_lock_impl {
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(feature = "deadlock_detection")]
 mod rw_lock_impl {
+    use ahash::HashMap;
+    use std::ops::Deref;
+    use std::ops::DerefMut;
+    use std::sync::Arc;
     use std::thread::ThreadId;
 
+    use parking_lot::MappedRwLockReadGuard;
     /// The lock you get from [`RwLock::read`].
-    pub use parking_lot::MappedRwLockReadGuard as RwLockReadGuard;
+    pub struct RwLockReadGuard<'a, T> {
+        guard: MappedRwLockReadGuard<'a, T>,
+        holders: Arc<parking_lot::Mutex<HashMap<ThreadId, backtrace::Backtrace>>>,
+    }
+    impl<'a, T> Deref for RwLockReadGuard<'a, T> {
+        type Target = MappedRwLockReadGuard<'a, T>;
 
+        fn deref(&self) -> &Self::Target {
+            &self.guard
+        }
+    }
+    impl<'a, T> Drop for RwLockReadGuard<'a, T> {
+        fn drop(&mut self) {
+            let tid = std::thread::current().id();
+            self.holders.lock().remove(&tid);
+        }
+    }
+
+    use parking_lot::MappedRwLockWriteGuard;
     /// The lock you get from [`RwLock::write`].
-    pub use parking_lot::MappedRwLockWriteGuard as RwLockWriteGuard;
+    pub struct RwLockWriteGuard<'a, T> {
+        guard: MappedRwLockWriteGuard<'a, T>,
+        holders: Arc<parking_lot::Mutex<HashMap<ThreadId, backtrace::Backtrace>>>,
+    }
+
+    impl<'a, T> Deref for RwLockWriteGuard<'a, T> {
+        type Target = MappedRwLockWriteGuard<'a, T>;
+
+        fn deref(&self) -> &Self::Target {
+            &self.guard
+        }
+    }
+    impl<'a, T> DerefMut for RwLockWriteGuard<'a, T> {
+        fn deref_mut(&mut self) -> &mut Self::Target {
+            &mut self.guard
+        }
+    }
+    impl<'a, T> Drop for RwLockWriteGuard<'a, T> {
+        fn drop(&mut self) {
+            let tid = std::thread::current().id();
+            self.holders.lock().remove(&tid);
+        }
+    }
 
     /// Provides interior mutability.
     ///
@@ -160,65 +204,77 @@ mod rw_lock_impl {
     #[derive(Default)]
     pub struct RwLock<T> {
         lock: parking_lot::RwLock<T>,
-        last_lock: parking_lot::Mutex<(Option<ThreadId>, backtrace::Backtrace)>,
+        // Technically we'd need a list of backtraces per thread-id since parking_lot's
+        // read-locks are reentrant.
+        // In practice it's not that useful to have the whole list though, so we only
+        // keep track of the first backtrace for now.
+        holders: Arc<parking_lot::Mutex<HashMap<ThreadId, backtrace::Backtrace>>>,
     }
 
     impl<T> RwLock<T> {
         pub fn new(val: T) -> Self {
             Self {
                 lock: parking_lot::RwLock::new(val),
-                last_lock: Default::default(),
+                holders: Default::default(),
             }
         }
 
         pub fn read(&self) -> RwLockReadGuard<'_, T> {
             let tid = std::thread::current().id();
 
-            let last_tid = self.last_lock.lock().0; // if-let holds the guard otherwise
-            if let Some(last_tid) = last_tid {
-                assert!(
-                    last_tid != tid || !self.lock.is_locked_exclusive(),
-                    "{} DEAD-LOCK DETECTED!\n
-                    \rTrying to grab lock at:\n{}\n
-                    \rwhich is already held by the same thread at:\n{}\n\n",
-                    std::any::type_name::<Self>(),
-                    format_backtrace(&mut make_backtrace()),
-                    format_backtrace(&mut self.last_lock.lock().1)
-                );
-            }
+            assert!(
+                // There are two ways we can get out of this situation without deadlocking:
+                // - either the lock is not currently exclusively held by anyone,
+                // - or the current thread is not already holding the lock in any way
+                //   (read reentrancy).
+                !self.lock.is_locked_exclusive() || !self.holders.lock().contains_key(&tid),
+                "{} DEAD-LOCK DETECTED ({:?})!\n
+                    \rTrying to grab read-lock at:\n{}\n
+                    \rwhich is already exclusively held by current thread at:\n{}\n\n",
+                std::any::type_name::<Self>(),
+                tid,
+                format_backtrace(&mut make_backtrace()),
+                format_backtrace(&mut self.holders.lock().get_mut(&tid).unwrap())
+            );
 
-            {
-                let mut last_lock = self.last_lock.lock();
-                last_lock.0 = tid.into();
-                last_lock.1 = make_backtrace();
-            }
+            self.holders
+                .lock()
+                .entry(tid)
+                .or_insert_with(|| make_backtrace());
 
-            parking_lot::RwLockReadGuard::map(self.lock.read(), |v| v)
+            RwLockReadGuard {
+                guard: parking_lot::RwLockReadGuard::map(self.lock.read(), |v| v),
+                holders: Arc::clone(&self.holders),
+            }
         }
 
         pub fn write(&self) -> RwLockWriteGuard<'_, T> {
             let tid = std::thread::current().id();
 
-            let last_tid = self.last_lock.lock().0; // if-let holds the guard otherwise
-            if let Some(last_tid) = last_tid {
-                assert!(
-                    last_tid != tid || !self.lock.is_locked(),
-                    "{} DEAD-LOCK DETECTED!\n
-                    \rTrying to grab lock at:\n{}\n
-                    \rwhich is already held by the same thread at:\n{}\n\n",
-                    std::any::type_name::<Self>(),
-                    format_backtrace(&mut make_backtrace()),
-                    format_backtrace(&mut self.last_lock.lock().1)
-                );
-            }
+            assert!(
+                // There are two ways we can get out of this situation without deadlocking:
+                // - either the lock is not currently held in any way by anyone,
+                // - or the current thread is not already holding the lock in any way
+                //   (contention).
+                !self.lock.is_locked() || !self.holders.lock().contains_key(&tid),
+                "{} DEAD-LOCK DETECTED ({:?})!\n
+                    \rTrying to grab write-lock at:\n{}\n
+                    \rwhich is already held by current thread at:\n{}\n\n",
+                std::any::type_name::<Self>(),
+                tid,
+                format_backtrace(&mut make_backtrace()),
+                format_backtrace(&mut self.holders.lock().get_mut(&tid).unwrap())
+            );
 
-            {
-                let mut last_lock = self.last_lock.lock();
-                last_lock.0 = tid.into();
-                last_lock.1 = make_backtrace();
-            }
+            self.holders
+                .lock()
+                .entry(tid)
+                .or_insert_with(|| make_backtrace());
 
-            parking_lot::RwLockWriteGuard::map(self.lock.write(), |v| v)
+            RwLockWriteGuard {
+                guard: parking_lot::RwLockWriteGuard::map(self.lock.write(), |v| v),
+                holders: Arc::clone(&self.holders),
+            }
         }
     }
 
@@ -439,7 +495,7 @@ mod tests_rwlock {
         let one = RwLock::new(());
         let _a1 = one.read();
         // This is legal: this test suite specifically targets native, which relies
-        // parking_lot's rw-locks, which are reentrant.
+        // on parking_lot's rw-locks, which are reentrant.
         let _a2 = one.read();
     }
 
@@ -476,18 +532,18 @@ mod tests_rwlock {
         let lock = Arc::new(RwLock::new(()));
 
         // Thread #0 grabs a read lock
-        let _a1 = lock.read();
+        let _t0r0 = lock.read();
 
         // Thread #1 grabs the same read lock
         let other_thread = {
             let lock = Arc::clone(&lock);
             std::thread::spawn(move || {
-                let _ = lock.read();
+                let _t1r0 = lock.read();
             })
         };
         other_thread.join().unwrap();
 
-        // Thread #1 now grabs a write lock, which should panic
-        let _a2 = lock.write(); // panics
+        // Thread #1 now grabs a write lock, which should panic (read-write)
+        let _t0w0 = lock.write(); // panics
     }
 }
