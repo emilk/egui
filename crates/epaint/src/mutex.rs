@@ -146,13 +146,15 @@ mod rw_lock_impl {
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(feature = "deadlock_detection")]
 mod rw_lock_impl {
-    use ahash::HashMap;
-    use std::ops::Deref;
-    use std::ops::DerefMut;
-    use std::sync::Arc;
-    use std::thread::ThreadId;
+    use std::{
+        ops::{Deref, DerefMut},
+        sync::Arc,
+        thread::ThreadId,
+    };
 
+    use ahash::HashMap;
     use parking_lot::MappedRwLockReadGuard;
+
     /// The lock you get from [`RwLock::read`].
     pub struct RwLockReadGuard<'a, T> {
         // The option is used only because we need to `take()` the guard out of self
@@ -160,6 +162,7 @@ mod rw_lock_impl {
         guard: Option<MappedRwLockReadGuard<'a, T>>,
         holders: Arc<parking_lot::Mutex<HashMap<ThreadId, backtrace::Backtrace>>>,
     }
+
     impl<'a, T> RwLockReadGuard<'a, T> {
         #[inline]
         pub fn map<U, F>(mut s: Self, f: F) -> RwLockReadGuard<'a, U>
@@ -175,6 +178,7 @@ mod rw_lock_impl {
             }
         }
     }
+
     impl<'a, T> Deref for RwLockReadGuard<'a, T> {
         type Target = T;
 
@@ -182,6 +186,7 @@ mod rw_lock_impl {
             self.guard.as_ref().unwrap().deref()
         }
     }
+
     impl<'a, T> Drop for RwLockReadGuard<'a, T> {
         fn drop(&mut self) {
             let tid = std::thread::current().id();
@@ -197,6 +202,7 @@ mod rw_lock_impl {
         guard: Option<MappedRwLockWriteGuard<'a, T>>,
         holders: Arc<parking_lot::Mutex<HashMap<ThreadId, backtrace::Backtrace>>>,
     }
+
     impl<'a, T> RwLockWriteGuard<'a, T> {
         #[inline]
         pub fn map<U, F>(mut s: Self, f: F) -> RwLockWriteGuard<'a, U>
@@ -212,6 +218,7 @@ mod rw_lock_impl {
             }
         }
     }
+
     impl<'a, T> Deref for RwLockWriteGuard<'a, T> {
         type Target = T;
 
@@ -219,11 +226,13 @@ mod rw_lock_impl {
             self.guard.as_ref().unwrap().deref()
         }
     }
+
     impl<'a, T> DerefMut for RwLockWriteGuard<'a, T> {
         fn deref_mut(&mut self) -> &mut Self::Target {
             self.guard.as_mut().unwrap().deref_mut()
         }
     }
+
     impl<'a, T> Drop for RwLockWriteGuard<'a, T> {
         fn drop(&mut self) {
             let tid = std::thread::current().id();
