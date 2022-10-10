@@ -581,7 +581,7 @@ impl Ui {
     /// Use this to generate widget ids for widgets that have persistent state in [`Memory`].
     pub fn make_persistent_id<IdSource>(&self, id_source: IdSource) -> Id
     where
-        IdSource: Hash + std::fmt::Debug,
+        IdSource: Hash,
     {
         self.id.with(&id_source)
     }
@@ -593,7 +593,7 @@ impl Ui {
 
     pub fn auto_id_with<IdSource>(&self, id_source: IdSource) -> Id
     where
-        IdSource: Hash + std::fmt::Debug,
+        IdSource: Hash,
     {
         Id::new(self.next_auto_id_source).with(id_source)
     }
