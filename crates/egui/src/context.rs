@@ -46,17 +46,25 @@ struct ContextImpl {
     output: PlatformOutput,
 
     paint_stats: PaintStats,
+
     /// the duration backend will poll for new events, before forcing another egui update
     /// even if there's no new events.
     repaint_after: std::time::Duration,
+
     /// While positive, keep requesting repaints. Decrement at the end of each frame.
     repaint_requests: u32,
     request_repaint_callback: Option<Box<dyn Fn() + Send + Sync>>,
+
+    /// used to suppress multiple calls to [`Self::request_repaint_callback`] during the same frame.
+    has_requested_repaint_this_frame: bool,
+
     requested_repaint_last_frame: bool,
 }
 
 impl ContextImpl {
     fn begin_frame_mut(&mut self, new_raw_input: RawInput) {
+        self.has_requested_repaint_this_frame = false; // allow new calls during the frame
+
         self.memory.begin_frame(&self.input, &new_raw_input);
 
         self.input = std::mem::take(&mut self.input)
@@ -571,7 +579,10 @@ impl Context {
         let mut ctx = self.write();
         ctx.repaint_requests = 2;
         if let Some(callback) = &ctx.request_repaint_callback {
-            (callback)();
+            if !ctx.has_requested_repaint_this_frame {
+                (callback)();
+                ctx.has_requested_repaint_this_frame = true;
+            }
         }
     }
 
@@ -850,12 +861,18 @@ impl Context {
             self.read().repaint_after
         };
 
-        self.write().requested_repaint_last_frame = repaint_after.is_zero();
-        // make sure we reset the repaint_after duration.
-        // otherwise, if repaint_after is low, then any widget setting repaint_after next frame,
-        // will fail to overwrite the previous lower value. and thus, repaints will never
-        // go back to higher values.
-        self.write().repaint_after = std::time::Duration::MAX;
+        {
+            let ctx_impl = &mut *self.write();
+            ctx_impl.requested_repaint_last_frame = repaint_after.is_zero();
+
+            ctx_impl.has_requested_repaint_this_frame = false; // allow new calls between frames
+
+            // make sure we reset the repaint_after duration.
+            // otherwise, if repaint_after is low, then any widget setting repaint_after next frame,
+            // will fail to overwrite the previous lower value. and thus, repaints will never
+            // go back to higher values.
+            ctx_impl.repaint_after = std::time::Duration::MAX;
+        }
         let shapes = self.drain_paint_lists();
 
         FullOutput {
