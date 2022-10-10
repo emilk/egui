@@ -153,7 +153,7 @@ mod rw_lock_impl {
     };
 
     use ahash::HashMap;
-    use parking_lot::MappedRwLockReadGuard;
+    use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard};
 
     /// The lock you get from [`RwLock::read`].
     pub struct RwLockReadGuard<'a, T> {
@@ -194,7 +194,6 @@ mod rw_lock_impl {
         }
     }
 
-    use parking_lot::MappedRwLockWriteGuard;
     /// The lock you get from [`RwLock::write`].
     pub struct RwLockWriteGuard<'a, T> {
         // The option is used only because we need to `take()` the guard out of self
