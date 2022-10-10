@@ -183,7 +183,7 @@ mod rw_lock_impl {
         type Target = T;
 
         fn deref(&self) -> &Self::Target {
-            self.guard.as_ref().unwrap().deref()
+            &**self.guard.as_ref().unwrap()
         }
     }
 
@@ -222,13 +222,13 @@ mod rw_lock_impl {
         type Target = T;
 
         fn deref(&self) -> &Self::Target {
-            self.guard.as_ref().unwrap().deref()
+            &**self.guard.as_ref().unwrap()
         }
     }
 
     impl<'a, T> DerefMut for RwLockWriteGuard<'a, T> {
         fn deref_mut(&mut self) -> &mut Self::Target {
-            self.guard.as_mut().unwrap().deref_mut()
+            &mut **self.guard.as_mut().unwrap()
         }
     }
 
@@ -275,13 +275,13 @@ mod rw_lock_impl {
                 std::any::type_name::<Self>(),
                 tid,
                 format_backtrace(&mut make_backtrace()),
-                format_backtrace(&mut self.holders.lock().get_mut(&tid).unwrap())
+                format_backtrace(self.holders.lock().get_mut(&tid).unwrap())
             );
 
             self.holders
                 .lock()
                 .entry(tid)
-                .or_insert_with(|| make_backtrace());
+                .or_insert_with(make_backtrace);
 
             RwLockReadGuard {
                 guard: parking_lot::RwLockReadGuard::map(self.lock.read(), |v| v).into(),
@@ -304,13 +304,13 @@ mod rw_lock_impl {
                 std::any::type_name::<Self>(),
                 tid,
                 format_backtrace(&mut make_backtrace()),
-                format_backtrace(&mut self.holders.lock().get_mut(&tid).unwrap())
+                format_backtrace(self.holders.lock().get_mut(&tid).unwrap())
             );
 
             self.holders
                 .lock()
                 .entry(tid)
-                .or_insert_with(|| make_backtrace());
+                .or_insert_with(make_backtrace);
 
             RwLockWriteGuard {
                 guard: parking_lot::RwLockWriteGuard::map(self.lock.write(), |v| v).into(),
