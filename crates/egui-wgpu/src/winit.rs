@@ -4,17 +4,7 @@ use egui::mutex::RwLock;
 use tracing::error;
 use wgpu::{Adapter, Instance, Surface};
 
-use crate::{renderer, Renderer};
-
-/// Access to the render state for egui, which can be useful in combination with
-/// [`egui::PaintCallback`]s for custom rendering using WGPU.
-#[derive(Clone)]
-pub struct RenderState {
-    pub device: Arc<wgpu::Device>,
-    pub queue: Arc<wgpu::Queue>,
-    pub target_format: wgpu::TextureFormat,
-    pub renderer: Arc<RwLock<Renderer>>,
-}
+use crate::{renderer, RenderState, Renderer};
 
 struct SurfaceState {
     surface: Surface,
@@ -119,7 +109,7 @@ impl<'a> Painter<'a> {
             let adapter = self.adapter.as_ref().unwrap();
 
             let swapchain_format =
-                select_framebuffer_format(&surface.get_supported_formats(adapter));
+                crate::preferred_framebuffer_format(&surface.get_supported_formats(adapter));
 
             let rs = pollster::block_on(self.init_render_state(adapter, swapchain_format));
             self.render_state = Some(rs);
@@ -139,6 +129,7 @@ impl<'a> Painter<'a> {
             width: width_in_pixels,
             height: height_in_pixels,
             present_mode: self.present_mode,
+            alpha_mode: wgpu::CompositeAlphaMode::Auto,
         };
 
         let surface_state = self
@@ -323,16 +314,4 @@ impl<'a> Painter<'a> {
     pub fn destroy(&mut self) {
         // TODO(emilk): something here?
     }
-}
-
-fn select_framebuffer_format(formats: &[wgpu::TextureFormat]) -> wgpu::TextureFormat {
-    for &format in formats {
-        if matches!(
-            format,
-            wgpu::TextureFormat::Rgba8Unorm | wgpu::TextureFormat::Bgra8Unorm
-        ) {
-            return format;
-        }
-    }
-    formats[0] // take the first
 }

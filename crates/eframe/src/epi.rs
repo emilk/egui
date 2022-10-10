@@ -455,6 +455,7 @@ pub struct WebOptions {
     /// Which version of WebGl context to select
     ///
     /// Default: [`WebGlContextOption::BestFirst`].
+    #[cfg(feature = "glow")]
     pub webgl_context_option: WebGlContextOption,
 }
 
@@ -464,6 +465,7 @@ impl Default for WebOptions {
         Self {
             follow_system_theme: true,
             default_theme: Theme::Dark,
+            #[cfg(feature = "glow")]
             webgl_context_option: WebGlContextOption::BestFirst,
         }
     }

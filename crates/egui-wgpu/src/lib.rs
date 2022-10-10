@@ -17,5 +17,28 @@ pub use renderer::Renderer;
 #[cfg(feature = "winit")]
 pub mod winit;
 
-#[cfg(feature = "winit")]
-pub use crate::winit::RenderState;
+use egui::mutex::RwLock;
+use std::sync::Arc;
+
+/// Access to the render state for egui, which can be useful in combination with
+/// [`egui::PaintCallback`]s for custom rendering using WGPU.
+#[derive(Clone)]
+pub struct RenderState {
+    pub device: Arc<wgpu::Device>,
+    pub queue: Arc<wgpu::Queue>,
+    pub target_format: wgpu::TextureFormat,
+    pub renderer: Arc<RwLock<Renderer>>,
+}
+
+/// Find the framebuffer format that egui prefers
+pub fn preferred_framebuffer_format(formats: &[wgpu::TextureFormat]) -> wgpu::TextureFormat {
+    for &format in formats {
+        if matches!(
+            format,
+            wgpu::TextureFormat::Rgba8Unorm | wgpu::TextureFormat::Bgra8Unorm
+        ) {
+            return format;
+        }
+    }
+    formats[0] // take the first
+}

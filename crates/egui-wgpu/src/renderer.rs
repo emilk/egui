@@ -1,5 +1,6 @@
 #![allow(unsafe_code)]
 
+use std::num::NonZeroU64;
 use std::{borrow::Cow, collections::HashMap, num::NonZeroU32};
 
 use egui::{epaint::Primitive, PaintCallbackInfo};
@@ -26,7 +27,7 @@ use wgpu::util::DeviceExt as _;
 ///
 /// # Example
 ///
-/// See the [`custom3d_glow`](https://github.com/emilk/egui/blob/master/crates/egui_demo_app/src/apps/custom3d_wgpu.rs) demo source for a detailed usage example.
+/// See the [`custom3d_wgpu`](https://github.com/emilk/egui/blob/master/crates/egui_demo_app/src/apps/custom3d_wgpu.rs) demo source for a detailed usage example.
 pub struct CallbackFn {
     prepare: Box<PrepareCallback>,
     paint: Box<PaintCallback>,
@@ -149,7 +150,7 @@ impl Renderer {
         depth_bits: u8,
     ) -> Self {
         let shader = wgpu::ShaderModuleDescriptor {
-            label: Some("egui_shader"),
+            label: Some("egui"),
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("egui.wgsl"))),
         };
         let module = device.create_shader_module(shader);
@@ -175,7 +176,7 @@ impl Renderer {
                     visibility: wgpu::ShaderStages::VERTEX,
                     ty: wgpu::BindingType::Buffer {
                         has_dynamic_offset: false,
-                        min_binding_size: None,
+                        min_binding_size: NonZeroU64::new(std::mem::size_of::<UniformBuffer>() as _),
                         ty: wgpu::BufferBindingType::Uniform,
                     },
                     count: None,
@@ -306,8 +307,9 @@ impl Renderer {
     }
 
     pub fn update_depth_texture(&mut self, device: &wgpu::Device, width: u32, height: u32) {
+        // TODO(wumpf) don't recreate texture if size hasn't changed
         let texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: None,
+            label: Some("egui_depth_texture"),
             size: wgpu::Extent3d {
                 width,
                 height,
@@ -361,7 +363,7 @@ impl Renderer {
                 },
             })],
             depth_stencil_attachment,
-            label: Some("egui_render_pass"),
+            label: Some("egui_render"),
         });
 
         self.render_onto_renderpass(&mut render_pass, paint_jobs, screen_descriptor);
@@ -559,9 +561,13 @@ impl Renderer {
                 origin,
             );
         } else {
+            // TODO(Wumpf): Create only a new texture if we need to
             // allocate a new texture
+            // Use same label for all resources associated with this texture id (no point in retyping the type)
+            let label_str = format!("egui_texid_{:?}", id);
+            let label = Some(label_str.as_str());
             let texture = device.create_texture(&wgpu::TextureDescriptor {
-                label: None,
+                label,
                 size,
                 mip_level_count: 1,
                 sample_count: 1,
@@ -573,14 +579,15 @@ impl Renderer {
                 egui::TextureFilter::Nearest => wgpu::FilterMode::Nearest,
                 egui::TextureFilter::Linear => wgpu::FilterMode::Linear,
             };
+            // TODO(Wumpf): Reuse this sampler.
             let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-                label: None,
+                label,
                 mag_filter: filter,
                 min_filter: filter,
                 ..Default::default()
             });
             let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: None,
+                label,
                 layout: &self.texture_bind_group_layout,
                 entries: &[
                     wgpu::BindGroupEntry {
@@ -633,13 +640,7 @@ impl Renderer {
             device,
             texture,
             wgpu::SamplerDescriptor {
-                label: Some(
-                    format!(
-                        "egui_user_image_{}_texture_sampler",
-                        self.next_user_texture_id
-                    )
-                    .as_str(),
-                ),
+                label: Some(format!("egui_user_image_{}", self.next_user_texture_id).as_str()),
                 mag_filter: texture_filter,
                 min_filter: texture_filter,
                 ..Default::default()
@@ -661,13 +662,7 @@ impl Renderer {
             device,
             texture,
             wgpu::SamplerDescriptor {
-                label: Some(
-                    format!(
-                        "egui_user_image_{}_texture_sampler",
-                        self.next_user_texture_id
-                    )
-                    .as_str(),
-                ),
+                label: Some(format!("egui_user_image_{}", self.next_user_texture_id).as_str()),
                 mag_filter: texture_filter,
                 min_filter: texture_filter,
                 ..Default::default()
@@ -698,13 +693,7 @@ impl Renderer {
         });
 
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some(
-                format!(
-                    "egui_user_image_{}_texture_bind_group",
-                    self.next_user_texture_id
-                )
-                .as_str(),
-            ),
+            label: Some(format!("egui_user_image_{}", self.next_user_texture_id).as_str()),
             layout: &self.texture_bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
@@ -748,9 +737,7 @@ impl Renderer {
         });
 
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some(
-                format!("egui_user_{}_texture_bind_group", self.next_user_texture_id).as_str(),
-            ),
+            label: Some(format!("egui_user_image_{}", self.next_user_texture_id).as_str()),
             layout: &self.texture_bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {

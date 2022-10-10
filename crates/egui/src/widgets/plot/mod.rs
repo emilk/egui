@@ -266,10 +266,11 @@ pub struct Plot {
     allow_zoom: bool,
     allow_drag: bool,
     allow_scroll: bool,
+    allow_double_click_reset: bool,
+    allow_boxed_zoom: bool,
     auto_bounds: AxisBools,
     min_auto_bounds: PlotBounds,
     margin_fraction: Vec2,
-    allow_boxed_zoom: bool,
     boxed_zoom_pointer_button: PointerButton,
     linked_axes: Option<LinkedAxisGroup>,
     linked_cursors: Option<LinkedCursorsGroup>,
@@ -304,10 +305,11 @@ impl Plot {
             allow_zoom: true,
             allow_drag: true,
             allow_scroll: true,
+            allow_double_click_reset: true,
+            allow_boxed_zoom: true,
             auto_bounds: false.into(),
             min_auto_bounds: PlotBounds::NOTHING,
             margin_fraction: Vec2::splat(0.05),
-            allow_boxed_zoom: true,
             boxed_zoom_pointer_button: PointerButton::Secondary,
             linked_axes: None,
             linked_cursors: None,
@@ -403,6 +405,13 @@ impl Plot {
     /// Whether to allow scrolling in the plot. Default: `true`.
     pub fn allow_scroll(mut self, on: bool) -> Self {
         self.allow_scroll = on;
+        self
+    }
+
+    /// Whether to allow double clicking to reset the view.
+    /// Default: `true`.
+    pub fn allow_double_click_reset(mut self, on: bool) -> Self {
+        self.allow_double_click_reset = on;
         self
     }
 
@@ -629,8 +638,9 @@ impl Plot {
             center_x_axis,
             center_y_axis,
             allow_zoom,
-            allow_scroll,
             allow_drag,
+            allow_scroll,
+            allow_double_click_reset,
             allow_boxed_zoom,
             boxed_zoom_pointer_button: boxed_zoom_pointer,
             auto_bounds,
@@ -805,8 +815,8 @@ impl Plot {
             }
         };
 
-        // Allow double clicking to reset to the initial bounds.
-        if response.double_clicked_by(PointerButton::Primary) {
+        // Allow double clicking to reset to the initial bounds?
+        if allow_double_click_reset && response.double_clicked_by(PointerButton::Primary) {
             bounds_modified = false.into();
         }
 
