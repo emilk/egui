@@ -263,15 +263,14 @@ mod rw_lock_impl {
         pub fn read(&self) -> RwLockReadGuard<'_, T> {
             let tid = std::thread::current().id();
 
+            // If it is write-locked, and we locked it (re-entrancy deadlock)
+            let would_deadlock =
+                self.lock.is_locked_exclusive() && self.holders.lock().contains_key(&tid);
             assert!(
-                // There are two ways we can get out of this situation without deadlocking:
-                // - either the lock is not currently exclusively held by anyone,
-                // - or the current thread is not already holding the lock in any way
-                //   (read reentrancy).
-                !self.lock.is_locked_exclusive() || !self.holders.lock().contains_key(&tid),
-                "{} DEAD-LOCK DETECTED ({:?})!\n
-                    \rTrying to grab read-lock at:\n{}\n
-                    \rwhich is already exclusively held by current thread at:\n{}\n\n",
+                !would_deadlock,
+                "{} DEAD-LOCK DETECTED ({:?})!\n\
+                    Trying to grab read-lock at:\n{}\n\
+                    which is already exclusively held by current thread at:\n{}\n\n",
                 std::any::type_name::<Self>(),
                 tid,
                 format_backtrace(&mut make_backtrace()),
@@ -292,15 +291,13 @@ mod rw_lock_impl {
         pub fn write(&self) -> RwLockWriteGuard<'_, T> {
             let tid = std::thread::current().id();
 
+            // If it is locked in any way, and we locked it (re-entrancy deadlock)
+            let would_deadlock = self.lock.is_locked() && self.holders.lock().contains_key(&tid);
             assert!(
-                // There are two ways we can get out of this situation without deadlocking:
-                // - either the lock is not currently held in any way by anyone,
-                // - or the current thread is not already holding the lock in any way
-                //   (contention).
-                !self.lock.is_locked() || !self.holders.lock().contains_key(&tid),
-                "{} DEAD-LOCK DETECTED ({:?})!\n
-                    \rTrying to grab write-lock at:\n{}\n
-                    \rwhich is already held by current thread at:\n{}\n\n",
+                !would_deadlock,
+                "{} DEAD-LOCK DETECTED ({:?})!\n\
+                    Trying to grab write-lock at:\n{}\n\
+                    which is already held by current thread at:\n{}\n\n",
                 std::any::type_name::<Self>(),
                 tid,
                 format_backtrace(&mut make_backtrace()),
@@ -477,14 +474,6 @@ mod tests_rwlock {
     }
 
     #[test]
-    #[should_panic]
-    fn rwlock_reentry_single_thread() {
-        let one = RwLock::new(());
-        let _a = one.write();
-        let _a2 = one.read(); // panics
-    }
-
-    #[test]
     fn rwlock_multiple_threads() {
         use std::sync::Arc;
         let one = Arc::new(RwLock::new(()));
@@ -584,7 +573,7 @@ mod tests_rwlock {
         };
         other_thread.join().unwrap();
 
-        // Thread #1 now grabs a write lock, which should panic (read-write)
+        // Thread #0 now grabs a write lock, which should panic (read-write)
         let _t0w0 = lock.write(); // panics
     }
 }
