@@ -816,7 +816,7 @@ impl Plot {
         };
 
         // Allow double clicking to reset to the initial bounds?
-        if response.double_clicked_by(PointerButton::Primary) && allow_double_click_reset {
+        if allow_double_click_reset && response.double_clicked_by(PointerButton::Primary) {
             bounds_modified = false.into();
         }
 
