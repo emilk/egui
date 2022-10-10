@@ -408,7 +408,8 @@ impl Plot {
         self
     }
 
-    /// Whether to allow double clicking to reset the
+    /// Whether to allow double clicking to reset the view.
+    /// Default: `true`.
     pub fn allow_double_click_reset(mut self, on: bool) -> Self {
         self.allow_double_click_reset = on;
         self
