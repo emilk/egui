@@ -309,7 +309,7 @@ impl<'a> Table<'a> {
 
         let mut new_widths = widths.clone();
 
-        let mut scroll_area = egui::ScrollArea::new([false, scroll])
+        let mut scroll_area = egui::ScrollArea::new([true, scroll])
             .auto_shrink([true; 2])
             .stick_to_bottom(stick_to_bottom);
 
