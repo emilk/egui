@@ -20,7 +20,8 @@ pub struct Painter<'a> {
     device_descriptor: wgpu::DeviceDescriptor<'a>,
     present_mode: wgpu::PresentMode,
     msaa_samples: u32,
-    depth_bits: u8,
+    depth_format: Option<wgpu::TextureFormat>,
+    depth_texture_view: Option<wgpu::TextureView>,
 
     instance: Instance,
     adapter: Option<Adapter>,
@@ -56,7 +57,8 @@ impl<'a> Painter<'a> {
             device_descriptor,
             present_mode,
             msaa_samples,
-            depth_bits,
+            depth_format: (depth_bits > 0).then(|| wgpu::TextureFormat::Depth32Float),
+            depth_texture_view: None,
 
             instance,
             adapter: None,
@@ -80,7 +82,7 @@ impl<'a> Painter<'a> {
         let (device, queue) =
             pollster::block_on(adapter.request_device(&self.device_descriptor, None)).unwrap();
 
-        let renderer = Renderer::new(&device, target_format, self.msaa_samples, self.depth_bits);
+        let renderer = Renderer::new(&device, target_format, self.depth_format, self.msaa_samples);
 
         RenderState {
             device: Arc::new(device),
@@ -141,14 +143,6 @@ impl<'a> Painter<'a> {
             .configure(&render_state.device, &config);
         surface_state.width = width_in_pixels;
         surface_state.height = height_in_pixels;
-
-        if self.depth_bits > 0 {
-            render_state.renderer.write().update_depth_texture(
-                &render_state.device,
-                width_in_pixels,
-                height_in_pixels,
-            );
-        }
     }
 
     /// Updates (or clears) the [`winit::window::Window`] associated with the [`Painter`]
@@ -212,6 +206,25 @@ impl<'a> Painter<'a> {
     pub fn on_window_resized(&mut self, width_in_pixels: u32, height_in_pixels: u32) {
         if self.surface_state.is_some() {
             self.configure_surface(width_in_pixels, height_in_pixels);
+            let device = &self.render_state.as_ref().unwrap().device;
+            self.depth_texture_view = self.depth_format.map(|depth_format| {
+                device
+                    .create_texture(&wgpu::TextureDescriptor {
+                        label: Some("egui_depth_texture"),
+                        size: wgpu::Extent3d {
+                            width: width_in_pixels,
+                            height: height_in_pixels,
+                            depth_or_array_layers: 1,
+                        },
+                        mip_level_count: 1,
+                        sample_count: 1,
+                        dimension: wgpu::TextureDimension::D2,
+                        format: depth_format,
+                        usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                            | wgpu::TextureUsages::TEXTURE_BINDING,
+                    })
+                    .create_view(&wgpu::TextureViewDescriptor::default())
+            });
         } else {
             error!("Ignoring window resize notification with no surface created via Painter::set_window()");
         }
@@ -246,9 +259,6 @@ impl<'a> Painter<'a> {
                 return;
             }
         };
-        let output_view = output_frame
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
 
         let mut encoder =
             render_state
@@ -282,19 +292,40 @@ impl<'a> Painter<'a> {
             );
         }
 
-        // Record all render passes.
-        render_state.renderer.read().render(
-            &mut encoder,
-            &output_view,
-            clipped_primitives,
-            &screen_descriptor,
-            Some(wgpu::Color {
-                r: clear_color.r() as f64,
-                g: clear_color.g() as f64,
-                b: clear_color.b() as f64,
-                a: clear_color.a() as f64,
-            }),
-        );
+        {
+            let renderer = render_state.renderer.read();
+            let frame_view = output_frame
+                .texture
+                .create_view(&wgpu::TextureViewDescriptor::default());
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &frame_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: clear_color.r() as f64,
+                            g: clear_color.g() as f64,
+                            b: clear_color.b() as f64,
+                            a: clear_color.a() as f64,
+                        }),
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: self.depth_texture_view.as_ref().map(|view| {
+                    wgpu::RenderPassDepthStencilAttachment {
+                        view,
+                        depth_ops: Some(wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(1.0),
+                            store: true,
+                        }),
+                        stencil_ops: None,
+                    }
+                }),
+                label: Some("egui_render"),
+            });
+
+            renderer.render(&mut render_pass, clipped_primitives, &screen_descriptor);
+        }
 
         {
             let mut renderer = render_state.renderer.write();

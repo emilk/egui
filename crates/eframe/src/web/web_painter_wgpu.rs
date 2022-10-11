@@ -54,12 +54,10 @@ impl WebPainterWgpu {
             .await
             .map_err(|err| format!("Failed to find wgpu device: {}", err))?;
 
-        // TODO(Wumpf): MSAA & depth
-
         let target_format =
             egui_wgpu::preferred_framebuffer_format(&surface.get_supported_formats(&adapter));
 
-        let renderer = egui_wgpu::Renderer::new(&device, target_format, 1, 0);
+        let renderer = egui_wgpu::Renderer::new(&device, target_format, None, 1);
         let render_state = RenderState {
             device: Arc::new(device),
             queue: Arc::new(queue),
@@ -127,9 +125,6 @@ impl WebPainter for WebPainterWgpu {
                 err
             ))
         })?;
-        let view = frame
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
 
         let mut encoder =
             render_state
@@ -163,19 +158,31 @@ impl WebPainter for WebPainterWgpu {
             );
         }
 
-        // Record all render passes.
-        render_state.renderer.read().render(
-            &mut encoder,
-            &view,
-            clipped_primitives,
-            &screen_descriptor,
-            Some(wgpu::Color {
-                r: clear_color.r() as f64,
-                g: clear_color.g() as f64,
-                b: clear_color.b() as f64,
-                a: clear_color.a() as f64,
-            }),
-        );
+        {
+            let renderer = render_state.renderer.read();
+            let frame_view = frame
+                .texture
+                .create_view(&wgpu::TextureViewDescriptor::default());
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &frame_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: clear_color.r() as f64,
+                            g: clear_color.g() as f64,
+                            b: clear_color.b() as f64,
+                            a: clear_color.a() as f64,
+                        }),
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                label: Some("egui_render"),
+            });
+
+            renderer.render(&mut render_pass, clipped_primitives, &screen_descriptor);
+        }
 
         {
             let mut renderer = render_state.renderer.write();

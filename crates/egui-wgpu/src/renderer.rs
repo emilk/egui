@@ -122,7 +122,6 @@ struct SizedBuffer {
 /// Renderer for a egui based GUI.
 pub struct Renderer {
     pipeline: wgpu::RenderPipeline,
-    depth_texture: Option<(wgpu::Texture, wgpu::TextureView)>,
     index_buffers: Vec<SizedBuffer>,
     vertex_buffers: Vec<SizedBuffer>,
     uniform_buffer: SizedBuffer,
@@ -146,8 +145,8 @@ impl Renderer {
     pub fn new(
         device: &wgpu::Device,
         output_format: wgpu::TextureFormat,
+        output_depth_format: Option<wgpu::TextureFormat>,
         msaa_samples: u32,
-        depth_bits: u8,
     ) -> Self {
         let shader = wgpu::ShaderModuleDescriptor {
             label: Some("egui"),
@@ -225,8 +224,8 @@ impl Renderer {
             push_constant_ranges: &[],
         });
 
-        let depth_stencil = (depth_bits > 0).then(|| wgpu::DepthStencilState {
-            format: wgpu::TextureFormat::Depth32Float,
+        let depth_stencil = output_depth_format.map(|format| wgpu::DepthStencilState {
+            format,
             depth_write_enabled: false,
             depth_compare: wgpu::CompareFunction::Always,
             stencil: wgpu::StencilState::default(),
@@ -302,75 +301,11 @@ impl Renderer {
             textures: HashMap::new(),
             next_user_texture_id: 0,
             paint_callback_resources: TypeMap::default(),
-            depth_texture: None,
         }
     }
 
-    pub fn update_depth_texture(&mut self, device: &wgpu::Device, width: u32, height: u32) {
-        // TODO(wumpf) don't recreate texture if size hasn't changed
-        let texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("egui_depth_texture"),
-            size: wgpu::Extent3d {
-                width,
-                height,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Depth32Float,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
-        });
-
-        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-
-        self.depth_texture = Some((texture, view));
-    }
-
-    /// Executes the renderer on its own render pass.
-    pub fn render(
-        &self,
-        encoder: &mut wgpu::CommandEncoder,
-        color_attachment: &wgpu::TextureView,
-        paint_jobs: &[egui::epaint::ClippedPrimitive],
-        screen_descriptor: &ScreenDescriptor,
-        clear_color: Option<wgpu::Color>,
-    ) {
-        let load_operation = if let Some(color) = clear_color {
-            wgpu::LoadOp::Clear(color)
-        } else {
-            wgpu::LoadOp::Load
-        };
-
-        let depth_stencil_attachment = self.depth_texture.as_ref().map(|(_texture, view)| {
-            wgpu::RenderPassDepthStencilAttachment {
-                view,
-                depth_ops: Some(wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(1.0),
-                    store: true,
-                }),
-                stencil_ops: None,
-            }
-        });
-
-        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: color_attachment,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: load_operation,
-                    store: true,
-                },
-            })],
-            depth_stencil_attachment,
-            label: Some("egui_render"),
-        });
-
-        self.render_onto_renderpass(&mut render_pass, paint_jobs, screen_descriptor);
-    }
-
     /// Executes the egui renderer onto an existing wgpu renderpass.
-    pub fn render_onto_renderpass<'rp>(
+    pub fn render<'rp>(
         &'rp self,
         render_pass: &mut wgpu::RenderPass<'rp>,
         paint_jobs: &[egui::epaint::ClippedPrimitive],
