@@ -153,6 +153,7 @@ impl WebPainter for WebPainterWgpu {
             renderer.update_buffers(
                 &render_state.device,
                 &render_state.queue,
+                &mut encoder,
                 clipped_primitives,
                 &screen_descriptor,
             );

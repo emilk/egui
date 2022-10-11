@@ -15,9 +15,13 @@ use wgpu::util::DeviceExt as _;
 ///
 /// `prepare` is called every frame before `paint`, and can use the passed-in [`wgpu::Device`] and
 /// [`wgpu::Buffer`] to allocate or modify GPU resources such as buffers.
+/// Additionally, a [`wgpu::CommandEncoder`] is provided in order to allow creation of
+/// custom [`wgpu::RenderPass`]/[`wgpu::ComputePass`] or perform buffer/texture copies
+/// which may serve as preparation to the final `paint`.
+/// (This allows reusing the same [`wgpu::CommandEncoder`] for all callbacks and egui rendering itself)
 ///
-/// `paint` is called after `prepare` and is given access to the the [`wgpu::RenderPass`] so that it
-/// can issue draw commands.
+/// `paint` is called after `prepare` and is given access to the [`wgpu::RenderPass`] so that it
+/// can issue draw commands into the same [`wgpu::RenderPass`] that is used for all other egui elements.
 ///
 /// The final argument of both the `prepare` and `paint` callbacks is a the
 /// [`paint_callback_resources`][crate::renderer::Renderer::paint_callback_resources].
@@ -33,7 +37,8 @@ pub struct CallbackFn {
     paint: Box<PaintCallback>,
 }
 
-type PrepareCallback = dyn Fn(&wgpu::Device, &wgpu::Queue, &mut TypeMap) + Sync + Send;
+type PrepareCallback =
+    dyn Fn(&wgpu::Device, &wgpu::Queue, &mut wgpu::CommandEncoder, &mut TypeMap) + Sync + Send;
 
 type PaintCallback =
     dyn for<'a, 'b> Fn(PaintCallbackInfo, &'a mut wgpu::RenderPass<'b>, &'b TypeMap) + Sync + Send;
@@ -41,7 +46,7 @@ type PaintCallback =
 impl Default for CallbackFn {
     fn default() -> Self {
         CallbackFn {
-            prepare: Box::new(|_, _, _| ()),
+            prepare: Box::new(|_, _, _, _| ()),
             paint: Box::new(|_, _, _| ()),
         }
     }
@@ -55,7 +60,10 @@ impl CallbackFn {
     /// Set the prepare callback
     pub fn prepare<F>(mut self, prepare: F) -> Self
     where
-        F: Fn(&wgpu::Device, &wgpu::Queue, &mut TypeMap) + Sync + Send + 'static,
+        F: Fn(&wgpu::Device, &wgpu::Queue, &mut wgpu::CommandEncoder, &mut TypeMap)
+            + Sync
+            + Send
+            + 'static,
     {
         self.prepare = Box::new(prepare) as _;
         self
@@ -695,6 +703,7 @@ impl Renderer {
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
+        encoder: &mut wgpu::CommandEncoder,
         paint_jobs: &[egui::epaint::ClippedPrimitive],
         screen_descriptor: &ScreenDescriptor,
     ) {
@@ -756,7 +765,7 @@ impl Renderer {
                         continue;
                     };
 
-                    (cbfn.prepare)(device, queue, &mut self.paint_callback_resources);
+                    (cbfn.prepare)(device, queue, encoder, &mut self.paint_callback_resources);
                 }
             }
         }

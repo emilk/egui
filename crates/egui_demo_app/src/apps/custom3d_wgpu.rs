@@ -138,7 +138,7 @@ impl Custom3d {
         // The paint callback is called after prepare and is given access to the render pass, which
         // can be used to issue draw commands.
         let cb = egui_wgpu::CallbackFn::new()
-            .prepare(move |device, queue, paint_callback_resources| {
+            .prepare(move |device, queue, _encoder, paint_callback_resources| {
                 let resources: &TriangleRenderResources = paint_callback_resources.get().unwrap();
                 resources.prepare(device, queue, angle);
             })
