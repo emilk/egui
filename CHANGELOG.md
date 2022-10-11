@@ -7,6 +7,11 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 ## Unreleased
 * ⚠️ BREAKING: Fix text being too small ([#2069](https://github.com/emilk/egui/pull/2069)).
 * ⚠️ BREAKING: egui now expects integrations to do all color blending in gamma space ([#2071](https://github.com/emilk/egui/pull/2071)).
+* ⚠️ BREAKING: wgpu-renderer no longer handles pass creation ([#2136](https://github.com/emilk/egui/pull/2136))
+* ⚠️ BREAKING: wgpu-renderer prepare callback now passes `wgpu::CommandEncoder` ([#2136](https://github.com/emilk/egui/pull/2136))
+
+### Added
+* eframe now supports wgpu on the web ([#2107](https://github.com/emilk/egui/pull/2107)
 
 ### Fixed 🐛
 * Improved text rendering ([#2071](https://github.com/emilk/egui/pull/2071)).
