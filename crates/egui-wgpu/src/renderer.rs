@@ -15,9 +15,13 @@ use wgpu::util::DeviceExt as _;
 ///
 /// `prepare` is called every frame before `paint`, and can use the passed-in [`wgpu::Device`] and
 /// [`wgpu::Buffer`] to allocate or modify GPU resources such as buffers.
+/// Additionally, a [`wgpu::CommandEncoder`] is provided in order to allow creation of
+/// custom [`wgpu::RenderPass`]/[`wgpu::ComputePass`] or perform buffer/texture copies
+/// which may serve as preparation to the final `paint`.
+/// (This allows reusing the same [`wgpu::CommandEncoder`] for all callbacks and egui rendering itself)
 ///
-/// `paint` is called after `prepare` and is given access to the the [`wgpu::RenderPass`] so that it
-/// can issue draw commands.
+/// `paint` is called after `prepare` and is given access to the [`wgpu::RenderPass`] so that it
+/// can issue draw commands into the same [`wgpu::RenderPass`] that is used for all other egui elements.
 ///
 /// The final argument of both the `prepare` and `paint` callbacks is a the
 /// [`paint_callback_resources`][crate::renderer::Renderer::paint_callback_resources].
@@ -33,7 +37,8 @@ pub struct CallbackFn {
     paint: Box<PaintCallback>,
 }
 
-type PrepareCallback = dyn Fn(&wgpu::Device, &wgpu::Queue, &mut TypeMap) + Sync + Send;
+type PrepareCallback =
+    dyn Fn(&wgpu::Device, &wgpu::Queue, &mut wgpu::CommandEncoder, &mut TypeMap) + Sync + Send;
 
 type PaintCallback =
     dyn for<'a, 'b> Fn(PaintCallbackInfo, &'a mut wgpu::RenderPass<'b>, &'b TypeMap) + Sync + Send;
@@ -41,7 +46,7 @@ type PaintCallback =
 impl Default for CallbackFn {
     fn default() -> Self {
         CallbackFn {
-            prepare: Box::new(|_, _, _| ()),
+            prepare: Box::new(|_, _, _, _| ()),
             paint: Box::new(|_, _, _| ()),
         }
     }
@@ -55,7 +60,10 @@ impl CallbackFn {
     /// Set the prepare callback
     pub fn prepare<F>(mut self, prepare: F) -> Self
     where
-        F: Fn(&wgpu::Device, &wgpu::Queue, &mut TypeMap) + Sync + Send + 'static,
+        F: Fn(&wgpu::Device, &wgpu::Queue, &mut wgpu::CommandEncoder, &mut TypeMap)
+            + Sync
+            + Send
+            + 'static,
     {
         self.prepare = Box::new(prepare) as _;
         self
@@ -122,7 +130,6 @@ struct SizedBuffer {
 /// Renderer for a egui based GUI.
 pub struct Renderer {
     pipeline: wgpu::RenderPipeline,
-    depth_texture: Option<(wgpu::Texture, wgpu::TextureView)>,
     index_buffers: Vec<SizedBuffer>,
     vertex_buffers: Vec<SizedBuffer>,
     uniform_buffer: SizedBuffer,
@@ -141,13 +148,13 @@ pub struct Renderer {
 impl Renderer {
     /// Creates a renderer for a egui UI.
     ///
-    /// `output_format` should preferably be [`wgpu::TextureFormat::Rgba8Unorm`] or
+    /// `output_color_format` should preferably be [`wgpu::TextureFormat::Rgba8Unorm`] or
     /// [`wgpu::TextureFormat::Bgra8Unorm`], i.e. in gamma-space.
     pub fn new(
         device: &wgpu::Device,
-        output_format: wgpu::TextureFormat,
+        output_color_format: wgpu::TextureFormat,
+        output_depth_format: Option<wgpu::TextureFormat>,
         msaa_samples: u32,
-        depth_bits: u8,
     ) -> Self {
         let shader = wgpu::ShaderModuleDescriptor {
             label: Some("egui"),
@@ -225,8 +232,8 @@ impl Renderer {
             push_constant_ranges: &[],
         });
 
-        let depth_stencil = (depth_bits > 0).then(|| wgpu::DepthStencilState {
-            format: wgpu::TextureFormat::Depth32Float,
+        let depth_stencil = output_depth_format.map(|format| wgpu::DepthStencilState {
+            format,
             depth_write_enabled: false,
             depth_compare: wgpu::CompareFunction::Always,
             stencil: wgpu::StencilState::default(),
@@ -266,14 +273,14 @@ impl Renderer {
 
             fragment: Some(wgpu::FragmentState {
                 module: &module,
-                entry_point: if output_format.describe().srgb {
-                    tracing::warn!("Detected a linear (sRGBA aware) framebuffer {:?}. egui prefers Rgba8Unorm or Bgra8Unorm", output_format);
+                entry_point: if output_color_format.describe().srgb {
+                    tracing::warn!("Detected a linear (sRGBA aware) framebuffer {:?}. egui prefers Rgba8Unorm or Bgra8Unorm", output_color_format);
                     "fs_main_linear_framebuffer"
                 } else {
                     "fs_main_gamma_framebuffer" // this is what we prefer
                 },
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: output_format,
+                    format: output_color_format,
                     blend: Some(wgpu::BlendState {
                         color: wgpu::BlendComponent {
                             src_factor: wgpu::BlendFactor::One,
@@ -302,75 +309,11 @@ impl Renderer {
             textures: HashMap::new(),
             next_user_texture_id: 0,
             paint_callback_resources: TypeMap::default(),
-            depth_texture: None,
         }
     }
 
-    pub fn update_depth_texture(&mut self, device: &wgpu::Device, width: u32, height: u32) {
-        // TODO(wumpf) don't recreate texture if size hasn't changed
-        let texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("egui_depth_texture"),
-            size: wgpu::Extent3d {
-                width,
-                height,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Depth32Float,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
-        });
-
-        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-
-        self.depth_texture = Some((texture, view));
-    }
-
-    /// Executes the renderer on its own render pass.
-    pub fn render(
-        &self,
-        encoder: &mut wgpu::CommandEncoder,
-        color_attachment: &wgpu::TextureView,
-        paint_jobs: &[egui::epaint::ClippedPrimitive],
-        screen_descriptor: &ScreenDescriptor,
-        clear_color: Option<wgpu::Color>,
-    ) {
-        let load_operation = if let Some(color) = clear_color {
-            wgpu::LoadOp::Clear(color)
-        } else {
-            wgpu::LoadOp::Load
-        };
-
-        let depth_stencil_attachment = self.depth_texture.as_ref().map(|(_texture, view)| {
-            wgpu::RenderPassDepthStencilAttachment {
-                view,
-                depth_ops: Some(wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(1.0),
-                    store: true,
-                }),
-                stencil_ops: None,
-            }
-        });
-
-        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: color_attachment,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: load_operation,
-                    store: true,
-                },
-            })],
-            depth_stencil_attachment,
-            label: Some("egui_render"),
-        });
-
-        self.render_onto_renderpass(&mut render_pass, paint_jobs, screen_descriptor);
-    }
-
     /// Executes the egui renderer onto an existing wgpu renderpass.
-    pub fn render_onto_renderpass<'rp>(
+    pub fn render<'rp>(
         &'rp self,
         render_pass: &mut wgpu::RenderPass<'rp>,
         paint_jobs: &[egui::epaint::ClippedPrimitive],
@@ -760,6 +703,7 @@ impl Renderer {
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
+        encoder: &mut wgpu::CommandEncoder,
         paint_jobs: &[egui::epaint::ClippedPrimitive],
         screen_descriptor: &ScreenDescriptor,
     ) {
@@ -821,7 +765,7 @@ impl Renderer {
                         continue;
                     };
 
-                    (cbfn.prepare)(device, queue, &mut self.paint_callback_resources);
+                    (cbfn.prepare)(device, queue, encoder, &mut self.paint_callback_resources);
                 }
             }
         }
