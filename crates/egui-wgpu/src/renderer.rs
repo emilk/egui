@@ -148,11 +148,11 @@ pub struct Renderer {
 impl Renderer {
     /// Creates a renderer for a egui UI.
     ///
-    /// `output_format` should preferably be [`wgpu::TextureFormat::Rgba8Unorm`] or
+    /// `output_color_format` should preferably be [`wgpu::TextureFormat::Rgba8Unorm`] or
     /// [`wgpu::TextureFormat::Bgra8Unorm`], i.e. in gamma-space.
     pub fn new(
         device: &wgpu::Device,
-        output_format: wgpu::TextureFormat,
+        output_color_format: wgpu::TextureFormat,
         output_depth_format: Option<wgpu::TextureFormat>,
         msaa_samples: u32,
     ) -> Self {
@@ -273,14 +273,14 @@ impl Renderer {
 
             fragment: Some(wgpu::FragmentState {
                 module: &module,
-                entry_point: if output_format.describe().srgb {
-                    tracing::warn!("Detected a linear (sRGBA aware) framebuffer {:?}. egui prefers Rgba8Unorm or Bgra8Unorm", output_format);
+                entry_point: if output_color_format.describe().srgb {
+                    tracing::warn!("Detected a linear (sRGBA aware) framebuffer {:?}. egui prefers Rgba8Unorm or Bgra8Unorm", output_color_format);
                     "fs_main_linear_framebuffer"
                 } else {
                     "fs_main_gamma_framebuffer" // this is what we prefer
                 },
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: output_format,
+                    format: output_color_format,
                     blend: Some(wgpu::BlendState {
                         color: wgpu::BlendComponent {
                             src_factor: wgpu::BlendFactor::One,
