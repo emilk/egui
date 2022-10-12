@@ -1040,6 +1040,11 @@ impl PlotUi {
         *self.last_screen_transform.bounds()
     }
 
+    /// Move the plot bounds. Can be useful for implementing alternative plot navigation methods.
+    pub fn translate_bounds(&mut self, delta_pos: Vec2) {
+        self.last_screen_transform.translate_bounds(delta_pos);
+    }
+
     /// Returns `true` if the plot area is currently hovered.
     pub fn plot_hovered(&self) -> bool {
         self.response.hovered()
