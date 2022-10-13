@@ -1,8 +1,11 @@
 #![allow(unsafe_code)]
 
 use std::num::NonZeroU64;
+use std::ops::Range;
 use std::{borrow::Cow, collections::HashMap, num::NonZeroU32};
 
+use egui::epaint::Vertex;
+use egui::NumExt;
 use egui::{epaint::Primitive, PaintCallbackInfo};
 use type_map::concurrent::TypeMap;
 use wgpu;
@@ -82,14 +85,6 @@ impl CallbackFn {
     }
 }
 
-/// Enum for selecting the right buffer type.
-#[derive(Debug)]
-enum BufferType {
-    Uniform,
-    Index,
-    Vertex,
-}
-
 /// Information about the screen used for rendering.
 pub struct ScreenDescriptor {
     /// Size of the window in physical pixels.
@@ -119,20 +114,20 @@ struct UniformBuffer {
     _padding: [u32; 2],
 }
 
-/// Wraps the buffers and includes additional information.
-#[derive(Debug)]
-struct SizedBuffer {
+struct SlicedBuffer {
     buffer: wgpu::Buffer,
-    /// number of bytes
-    size: usize,
+    slices: Vec<Range<wgpu::BufferAddress>>,
+    capacity: wgpu::BufferAddress,
 }
 
 /// Renderer for a egui based GUI.
 pub struct Renderer {
     pipeline: wgpu::RenderPipeline,
-    index_buffers: Vec<SizedBuffer>,
-    vertex_buffers: Vec<SizedBuffer>,
-    uniform_buffer: SizedBuffer,
+
+    index_buffer: SlicedBuffer,
+    vertex_buffer: SlicedBuffer,
+
+    uniform_buffer: wgpu::Buffer,
     uniform_bind_group: wgpu::BindGroup,
     texture_bind_group_layout: wgpu::BindGroupLayout,
     /// Map of egui texture IDs to textures and their associated bindgroups (texture view +
@@ -170,10 +165,6 @@ impl Renderer {
             }]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
-        let uniform_buffer = SizedBuffer {
-            buffer: uniform_buffer,
-            size: std::mem::size_of::<UniformBuffer>(),
-        };
 
         let uniform_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -196,7 +187,7 @@ impl Renderer {
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
                 resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                    buffer: &uniform_buffer.buffer,
+                    buffer: &uniform_buffer,
                     offset: 0,
                     size: None,
                 }),
@@ -299,10 +290,23 @@ impl Renderer {
             multiview: None,
         });
 
+        const VERTEX_BUFFER_START_CAPACITY: wgpu::BufferAddress =
+            std::mem::size_of::<Vertex>() as wgpu::BufferAddress * 1024;
+        const INDEX_BUFFER_START_CAPACITY: wgpu::BufferAddress =
+            std::mem::size_of::<u32>() as wgpu::BufferAddress * 1024 * 3;
+
         Self {
             pipeline,
-            vertex_buffers: Vec::with_capacity(64),
-            index_buffers: Vec::with_capacity(64),
+            vertex_buffer: SlicedBuffer {
+                buffer: create_vertex_buffer(device, VERTEX_BUFFER_START_CAPACITY),
+                slices: Vec::with_capacity(64),
+                capacity: VERTEX_BUFFER_START_CAPACITY,
+            },
+            index_buffer: SlicedBuffer {
+                buffer: create_index_buffer(device, INDEX_BUFFER_START_CAPACITY),
+                slices: Vec::with_capacity(64),
+                capacity: INDEX_BUFFER_START_CAPACITY,
+            },
             uniform_buffer,
             uniform_bind_group,
             texture_bind_group_layout,
@@ -326,8 +330,8 @@ impl Renderer {
         // run.
         let mut needs_reset = true;
 
-        let mut index_buffers = self.index_buffers.iter();
-        let mut vertex_buffers = self.vertex_buffers.iter();
+        let mut index_buffer_slices = self.index_buffer.slices.iter();
+        let mut vertex_buffer_slices = self.vertex_buffer.slices.iter();
 
         for egui::ClippedPrimitive {
             clip_rect,
@@ -355,8 +359,8 @@ impl Renderer {
                     // Skip rendering zero-sized clip areas.
                     if let Primitive::Mesh(_) = primitive {
                         // If this is a mesh, we need to advance the index and vertex buffer iterators:
-                        index_buffers.next().unwrap();
-                        vertex_buffers.next().unwrap();
+                        index_buffer_slices.next().unwrap();
+                        vertex_buffer_slices.next().unwrap();
                     }
                     continue;
                 }
@@ -366,16 +370,19 @@ impl Renderer {
 
             match primitive {
                 Primitive::Mesh(mesh) => {
-                    let index_buffer = index_buffers.next().unwrap();
-                    let vertex_buffer = vertex_buffers.next().unwrap();
+                    let index_buffer_slice = index_buffer_slices.next().unwrap();
+                    let vertex_buffer_slice = vertex_buffer_slices.next().unwrap();
 
                     if let Some((_texture, bind_group)) = self.textures.get(&mesh.texture_id) {
                         render_pass.set_bind_group(1, bind_group, &[]);
                         render_pass.set_index_buffer(
-                            index_buffer.buffer.slice(..),
+                            self.index_buffer.buffer.slice(index_buffer_slice.clone()),
                             wgpu::IndexFormat::Uint32,
                         );
-                        render_pass.set_vertex_buffer(0, vertex_buffer.buffer.slice(..));
+                        render_pass.set_vertex_buffer(
+                            0,
+                            self.vertex_buffer.buffer.slice(vertex_buffer_slice.clone()),
+                        );
                         render_pass.draw_indexed(0..mesh.indices.len() as u32, 0, 0..1);
                     } else {
                         tracing::warn!("Missing texture: {:?}", mesh.texture_id);
@@ -709,10 +716,9 @@ impl Renderer {
     ) {
         let screen_size_in_points = screen_descriptor.screen_size_in_points();
 
-        self.update_buffer(
-            device,
-            queue,
-            &BufferType::Uniform,
+        // Update uniform buffer
+        queue.write_buffer(
+            &self.uniform_buffer,
             0,
             bytemuck::cast_slice(&[UniformBuffer {
                 screen_size_in_points,
@@ -720,42 +726,58 @@ impl Renderer {
             }]),
         );
 
-        let mut mesh_idx = 0;
+        // Determine how many vertices & indices need to be rendered.
+        let (vertex_count, index_count) =
+            paint_jobs.iter().fold((0, 0), |acc, clipped_primitive| {
+                match &clipped_primitive.primitive {
+                    Primitive::Mesh(mesh) => {
+                        (acc.0 + mesh.vertices.len(), acc.1 + mesh.indices.len())
+                    }
+                    _ => acc,
+                }
+            });
+        // Resize index buffer if needed.
+        {
+            self.index_buffer.slices.clear();
+            let required_size = (std::mem::size_of::<u32>() * index_count) as u64;
+            if self.index_buffer.capacity < required_size {
+                self.index_buffer.capacity =
+                    (self.index_buffer.capacity * 2).at_least(required_size);
+                self.index_buffer.buffer = create_index_buffer(device, self.index_buffer.capacity);
+            }
+        }
+        // Resize vertex buffer if needed.
+        {
+            self.vertex_buffer.slices.clear();
+            let required_size = (std::mem::size_of::<Vertex>() * vertex_count) as u64;
+            if self.vertex_buffer.capacity < required_size {
+                self.vertex_buffer.capacity =
+                    (self.vertex_buffer.capacity * 2).at_least(required_size);
+                self.vertex_buffer.buffer =
+                    create_vertex_buffer(device, self.vertex_buffer.capacity);
+            }
+        }
+
+        // Upload index & vertex data and call user callbacks
         for egui::ClippedPrimitive { primitive, .. } in paint_jobs.iter() {
             match primitive {
                 Primitive::Mesh(mesh) => {
-                    let data: &[u8] = bytemuck::cast_slice(&mesh.indices);
-                    if mesh_idx < self.index_buffers.len() {
-                        self.update_buffer(device, queue, &BufferType::Index, mesh_idx, data);
-                    } else {
-                        let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                            label: Some("egui_index_buffer"),
-                            contents: data,
-                            usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
-                        });
-                        self.index_buffers.push(SizedBuffer {
-                            buffer,
-                            size: data.len(),
-                        });
+                    {
+                        let index_offset = self.index_buffer.slices.last().unwrap_or(&(0..0)).end;
+                        let data = bytemuck::cast_slice(&mesh.indices);
+                        queue.write_buffer(&self.index_buffer.buffer, index_offset, data);
+                        self.index_buffer
+                            .slices
+                            .push(index_offset..(data.len() as wgpu::BufferAddress + index_offset));
                     }
-
-                    let data: &[u8] = bytemuck::cast_slice(&mesh.vertices);
-                    if mesh_idx < self.vertex_buffers.len() {
-                        self.update_buffer(device, queue, &BufferType::Vertex, mesh_idx, data);
-                    } else {
-                        let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                            label: Some("egui_vertex_buffer"),
-                            contents: data,
-                            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                        });
-
-                        self.vertex_buffers.push(SizedBuffer {
-                            buffer,
-                            size: data.len(),
-                        });
+                    {
+                        let vertex_offset = self.vertex_buffer.slices.last().unwrap_or(&(0..0)).end;
+                        let data = bytemuck::cast_slice(&mesh.vertices);
+                        queue.write_buffer(&self.vertex_buffer.buffer, vertex_offset, data);
+                        self.vertex_buffer.slices.push(
+                            vertex_offset..(data.len() as wgpu::BufferAddress + vertex_offset),
+                        );
                     }
-
-                    mesh_idx += 1;
                 }
                 Primitive::Callback(callback) => {
                     let cbfn = if let Some(c) = callback.callback.downcast_ref::<CallbackFn>() {
@@ -770,45 +792,24 @@ impl Renderer {
             }
         }
     }
+}
 
-    /// Updates the buffers used by egui. Will properly re-size the buffers if needed.
-    fn update_buffer(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        buffer_type: &BufferType,
-        index: usize,
-        data: &[u8],
-    ) {
-        let (buffer, storage, label) = match buffer_type {
-            BufferType::Index => (
-                &mut self.index_buffers[index],
-                wgpu::BufferUsages::INDEX,
-                "egui_index_buffer",
-            ),
-            BufferType::Vertex => (
-                &mut self.vertex_buffers[index],
-                wgpu::BufferUsages::VERTEX,
-                "egui_vertex_buffer",
-            ),
-            BufferType::Uniform => (
-                &mut self.uniform_buffer,
-                wgpu::BufferUsages::UNIFORM,
-                "egui_uniform_buffer",
-            ),
-        };
+fn create_vertex_buffer(device: &wgpu::Device, size: u64) -> wgpu::Buffer {
+    device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("egui_vertex_buffer"),
+        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+        size,
+        mapped_at_creation: false,
+    })
+}
 
-        if data.len() > buffer.size {
-            buffer.size = data.len();
-            buffer.buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some(label),
-                contents: bytemuck::cast_slice(data),
-                usage: storage | wgpu::BufferUsages::COPY_DST,
-            });
-        } else {
-            queue.write_buffer(&buffer.buffer, 0, data);
-        }
-    }
+fn create_index_buffer(device: &wgpu::Device, size: u64) -> wgpu::Buffer {
+    device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("egui_index_buffer"),
+        usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
+        size,
+        mapped_at_creation: false,
+    })
 }
 
 /// A Rect in physical pixel space, used for setting cliipping rectangles.
