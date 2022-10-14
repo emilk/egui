@@ -733,7 +733,7 @@ impl Renderer {
                     Primitive::Mesh(mesh) => {
                         (acc.0 + mesh.vertices.len(), acc.1 + mesh.indices.len())
                     }
-                    _ => acc,
+                    Primitive::Callback(_) => acc,
                 }
             });
         // Resize index buffer if needed.
