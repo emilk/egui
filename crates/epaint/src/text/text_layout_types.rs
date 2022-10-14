@@ -306,7 +306,7 @@ impl Default for TextWrapping {
 
 // ----------------------------------------------------------------------------
 
-/// Text that has been layed out, ready for painting.
+/// Text that has been laid out, ready for painting.
 ///
 /// You can create a [`Galley`] using [`crate::Fonts::layout_job`];
 ///
