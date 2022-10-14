@@ -291,9 +291,9 @@ impl Renderer {
         });
 
         const VERTEX_BUFFER_START_CAPACITY: wgpu::BufferAddress =
-            std::mem::size_of::<Vertex>() as wgpu::BufferAddress * 1024;
+            (std::mem::size_of::<Vertex>() * 1024) as _;
         const INDEX_BUFFER_START_CAPACITY: wgpu::BufferAddress =
-            std::mem::size_of::<u32>() as wgpu::BufferAddress * 1024 * 3;
+            (std::mem::size_of::<u32>() * 1024 * 3) as _;
 
         Self {
             pipeline,
