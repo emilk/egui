@@ -357,10 +357,11 @@ impl<'a> Table<'a> {
                     .expand(ui.style().interaction.resize_grab_radius_side);
                 let mouse_over_resize_line = ui.rect_contains_pointer(line_rect);
 
-                if ui.input().pointer.any_pressed()
-                    && ui.input().pointer.any_down()
-                    && mouse_over_resize_line
-                {
+                let any_pressed_and_down = {
+                    let pointer = &ui.input().pointer;
+                    pointer.any_pressed() && pointer.any_down()
+                };
+                if any_pressed_and_down && mouse_over_resize_line {
                     ui.memory().set_dragged_id(resize_id);
                 }
                 let is_resizing = ui.memory().is_being_dragged(resize_id);
@@ -377,8 +378,10 @@ impl<'a> Table<'a> {
                     }
                 }
 
-                let dragging_something_else =
-                    ui.input().pointer.any_down() || ui.input().pointer.any_pressed();
+                let dragging_something_else = {
+                    let pointer = &ui.input().pointer;
+                    pointer.any_down() || pointer.any_pressed()
+                };
                 let resize_hover = mouse_over_resize_line && !dragging_something_else;
 
                 if resize_hover || is_resizing {
