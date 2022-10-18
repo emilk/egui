@@ -122,13 +122,14 @@ fn layout_section(
 
             paragraph.glyphs.push(Glyph {
                 chr,
-                pos: pos2(font.round_to_pixel(paragraph.cursor_x), f32::NAN),
+                pos: pos2(paragraph.cursor_x, f32::NAN),
                 size: vec2(glyph_info.advance_width, font_height),
                 uv_rect: glyph_info.uv_rect,
                 section_index,
             });
 
             paragraph.cursor_x += glyph_info.advance_width;
+            paragraph.cursor_x = font.round_to_pixel(paragraph.cursor_x);
             last_glyph_id = Some(glyph_info.id);
         }
     }
