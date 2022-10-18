@@ -254,7 +254,8 @@ impl ScrollArea {
         self
     }
 
-    /// Control the dragging behavior
+    /// Control the dragging behavior.
+    ///
     /// If `true` (default), the scroll area will respond to mouse dragging.
     /// If `false`, the scroll area will not respond to mouse dragging
     ///
