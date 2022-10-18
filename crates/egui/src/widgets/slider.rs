@@ -76,8 +76,7 @@ pub struct Slider<'a> {
     orientation: SliderOrientation,
     prefix: String,
     suffix: String,
-    text: String,
-    text_color: Option<Color32>,
+    text: WidgetText,
     /// Sets the minimal step of the widget value
     step: Option<f64>,
     min_decimals: usize,
@@ -123,7 +122,6 @@ impl<'a> Slider<'a> {
             prefix: Default::default(),
             suffix: Default::default(),
             text: Default::default(),
-            text_color: None,
             step: None,
             min_decimals: 0,
             max_decimals: None,
@@ -152,13 +150,13 @@ impl<'a> Slider<'a> {
     }
 
     /// Show a text next to the slider (e.g. explaining what the slider controls).
-    pub fn text(mut self, text: impl ToString) -> Self {
-        self.text = text.to_string();
+    pub fn text(mut self, text: impl Into<WidgetText>) -> Self {
+        self.text = text.into();
         self
     }
 
     pub fn text_color(mut self, text_color: Color32) -> Self {
-        self.text_color = Some(text_color);
+        self.text = self.text.color(text_color);
         self
     }
 
@@ -730,9 +728,7 @@ impl<'a> Slider<'a> {
         }
 
         if !self.text.is_empty() {
-            let text_color = self.text_color.unwrap_or_else(|| ui.visuals().text_color());
-            let text = RichText::new(&self.text).color(text_color);
-            ui.add(Label::new(text).wrap(false));
+            ui.add(Label::new(self.text.clone()).wrap(false));
         }
 
         response
@@ -751,7 +747,7 @@ impl<'a> Widget for Slider<'a> {
         let mut response = inner_response.inner | inner_response.response;
         let value = self.get_value();
         response.changed = value != old_value;
-        response.widget_info(|| WidgetInfo::slider(value, &self.text));
+        response.widget_info(|| WidgetInfo::slider(value, self.text.text()));
         response
     }
 }

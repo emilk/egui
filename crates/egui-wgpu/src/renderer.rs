@@ -1,8 +1,11 @@
 #![allow(unsafe_code)]
 
 use std::num::NonZeroU64;
+use std::ops::Range;
 use std::{borrow::Cow, collections::HashMap, num::NonZeroU32};
 
+use egui::epaint::Vertex;
+use egui::NumExt;
 use egui::{epaint::Primitive, PaintCallbackInfo};
 use type_map::concurrent::TypeMap;
 use wgpu;
@@ -15,9 +18,13 @@ use wgpu::util::DeviceExt as _;
 ///
 /// `prepare` is called every frame before `paint`, and can use the passed-in [`wgpu::Device`] and
 /// [`wgpu::Buffer`] to allocate or modify GPU resources such as buffers.
+/// Additionally, a [`wgpu::CommandEncoder`] is provided in order to allow creation of
+/// custom [`wgpu::RenderPass`]/[`wgpu::ComputePass`] or perform buffer/texture copies
+/// which may serve as preparation to the final `paint`.
+/// (This allows reusing the same [`wgpu::CommandEncoder`] for all callbacks and egui rendering itself)
 ///
-/// `paint` is called after `prepare` and is given access to the the [`wgpu::RenderPass`] so that it
-/// can issue draw commands.
+/// `paint` is called after `prepare` and is given access to the [`wgpu::RenderPass`] so that it
+/// can issue draw commands into the same [`wgpu::RenderPass`] that is used for all other egui elements.
 ///
 /// The final argument of both the `prepare` and `paint` callbacks is a the
 /// [`paint_callback_resources`][crate::renderer::Renderer::paint_callback_resources].
@@ -33,7 +40,8 @@ pub struct CallbackFn {
     paint: Box<PaintCallback>,
 }
 
-type PrepareCallback = dyn Fn(&wgpu::Device, &wgpu::Queue, &mut TypeMap) + Sync + Send;
+type PrepareCallback =
+    dyn Fn(&wgpu::Device, &wgpu::Queue, &mut wgpu::CommandEncoder, &mut TypeMap) + Sync + Send;
 
 type PaintCallback =
     dyn for<'a, 'b> Fn(PaintCallbackInfo, &'a mut wgpu::RenderPass<'b>, &'b TypeMap) + Sync + Send;
@@ -41,7 +49,7 @@ type PaintCallback =
 impl Default for CallbackFn {
     fn default() -> Self {
         CallbackFn {
-            prepare: Box::new(|_, _, _| ()),
+            prepare: Box::new(|_, _, _, _| ()),
             paint: Box::new(|_, _, _| ()),
         }
     }
@@ -55,7 +63,10 @@ impl CallbackFn {
     /// Set the prepare callback
     pub fn prepare<F>(mut self, prepare: F) -> Self
     where
-        F: Fn(&wgpu::Device, &wgpu::Queue, &mut TypeMap) + Sync + Send + 'static,
+        F: Fn(&wgpu::Device, &wgpu::Queue, &mut wgpu::CommandEncoder, &mut TypeMap)
+            + Sync
+            + Send
+            + 'static,
     {
         self.prepare = Box::new(prepare) as _;
         self
@@ -72,14 +83,6 @@ impl CallbackFn {
         self.paint = Box::new(paint) as _;
         self
     }
-}
-
-/// Enum for selecting the right buffer type.
-#[derive(Debug)]
-enum BufferType {
-    Uniform,
-    Index,
-    Vertex,
 }
 
 /// Information about the screen used for rendering.
@@ -111,21 +114,20 @@ struct UniformBuffer {
     _padding: [u32; 2],
 }
 
-/// Wraps the buffers and includes additional information.
-#[derive(Debug)]
-struct SizedBuffer {
+struct SlicedBuffer {
     buffer: wgpu::Buffer,
-    /// number of bytes
-    size: usize,
+    slices: Vec<Range<wgpu::BufferAddress>>,
+    capacity: wgpu::BufferAddress,
 }
 
 /// Renderer for a egui based GUI.
 pub struct Renderer {
     pipeline: wgpu::RenderPipeline,
-    depth_texture: Option<(wgpu::Texture, wgpu::TextureView)>,
-    index_buffers: Vec<SizedBuffer>,
-    vertex_buffers: Vec<SizedBuffer>,
-    uniform_buffer: SizedBuffer,
+
+    index_buffer: SlicedBuffer,
+    vertex_buffer: SlicedBuffer,
+
+    uniform_buffer: wgpu::Buffer,
     uniform_bind_group: wgpu::BindGroup,
     texture_bind_group_layout: wgpu::BindGroupLayout,
     /// Map of egui texture IDs to textures and their associated bindgroups (texture view +
@@ -141,13 +143,13 @@ pub struct Renderer {
 impl Renderer {
     /// Creates a renderer for a egui UI.
     ///
-    /// `output_format` should preferably be [`wgpu::TextureFormat::Rgba8Unorm`] or
+    /// `output_color_format` should preferably be [`wgpu::TextureFormat::Rgba8Unorm`] or
     /// [`wgpu::TextureFormat::Bgra8Unorm`], i.e. in gamma-space.
     pub fn new(
         device: &wgpu::Device,
-        output_format: wgpu::TextureFormat,
+        output_color_format: wgpu::TextureFormat,
+        output_depth_format: Option<wgpu::TextureFormat>,
         msaa_samples: u32,
-        depth_bits: u8,
     ) -> Self {
         let shader = wgpu::ShaderModuleDescriptor {
             label: Some("egui"),
@@ -163,10 +165,6 @@ impl Renderer {
             }]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
-        let uniform_buffer = SizedBuffer {
-            buffer: uniform_buffer,
-            size: std::mem::size_of::<UniformBuffer>(),
-        };
 
         let uniform_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -189,7 +187,7 @@ impl Renderer {
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
                 resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                    buffer: &uniform_buffer.buffer,
+                    buffer: &uniform_buffer,
                     offset: 0,
                     size: None,
                 }),
@@ -225,8 +223,8 @@ impl Renderer {
             push_constant_ranges: &[],
         });
 
-        let depth_stencil = (depth_bits > 0).then(|| wgpu::DepthStencilState {
-            format: wgpu::TextureFormat::Depth32Float,
+        let depth_stencil = output_depth_format.map(|format| wgpu::DepthStencilState {
+            format,
             depth_write_enabled: false,
             depth_compare: wgpu::CompareFunction::Always,
             stencil: wgpu::StencilState::default(),
@@ -266,14 +264,14 @@ impl Renderer {
 
             fragment: Some(wgpu::FragmentState {
                 module: &module,
-                entry_point: if output_format.describe().srgb {
-                    tracing::warn!("Detected a linear (sRGBA aware) framebuffer {:?}. egui prefers Rgba8Unorm or Bgra8Unorm", output_format);
+                entry_point: if output_color_format.describe().srgb {
+                    tracing::warn!("Detected a linear (sRGBA aware) framebuffer {:?}. egui prefers Rgba8Unorm or Bgra8Unorm", output_color_format);
                     "fs_main_linear_framebuffer"
                 } else {
                     "fs_main_gamma_framebuffer" // this is what we prefer
                 },
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: output_format,
+                    format: output_color_format,
                     blend: Some(wgpu::BlendState {
                         color: wgpu::BlendComponent {
                             src_factor: wgpu::BlendFactor::One,
@@ -292,85 +290,34 @@ impl Renderer {
             multiview: None,
         });
 
+        const VERTEX_BUFFER_START_CAPACITY: wgpu::BufferAddress =
+            (std::mem::size_of::<Vertex>() * 1024) as _;
+        const INDEX_BUFFER_START_CAPACITY: wgpu::BufferAddress =
+            (std::mem::size_of::<u32>() * 1024 * 3) as _;
+
         Self {
             pipeline,
-            vertex_buffers: Vec::with_capacity(64),
-            index_buffers: Vec::with_capacity(64),
+            vertex_buffer: SlicedBuffer {
+                buffer: create_vertex_buffer(device, VERTEX_BUFFER_START_CAPACITY),
+                slices: Vec::with_capacity(64),
+                capacity: VERTEX_BUFFER_START_CAPACITY,
+            },
+            index_buffer: SlicedBuffer {
+                buffer: create_index_buffer(device, INDEX_BUFFER_START_CAPACITY),
+                slices: Vec::with_capacity(64),
+                capacity: INDEX_BUFFER_START_CAPACITY,
+            },
             uniform_buffer,
             uniform_bind_group,
             texture_bind_group_layout,
             textures: HashMap::new(),
             next_user_texture_id: 0,
             paint_callback_resources: TypeMap::default(),
-            depth_texture: None,
         }
     }
 
-    pub fn update_depth_texture(&mut self, device: &wgpu::Device, width: u32, height: u32) {
-        // TODO(wumpf) don't recreate texture if size hasn't changed
-        let texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("egui_depth_texture"),
-            size: wgpu::Extent3d {
-                width,
-                height,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Depth32Float,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
-        });
-
-        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-
-        self.depth_texture = Some((texture, view));
-    }
-
-    /// Executes the renderer on its own render pass.
-    pub fn render(
-        &self,
-        encoder: &mut wgpu::CommandEncoder,
-        color_attachment: &wgpu::TextureView,
-        paint_jobs: &[egui::epaint::ClippedPrimitive],
-        screen_descriptor: &ScreenDescriptor,
-        clear_color: Option<wgpu::Color>,
-    ) {
-        let load_operation = if let Some(color) = clear_color {
-            wgpu::LoadOp::Clear(color)
-        } else {
-            wgpu::LoadOp::Load
-        };
-
-        let depth_stencil_attachment = self.depth_texture.as_ref().map(|(_texture, view)| {
-            wgpu::RenderPassDepthStencilAttachment {
-                view,
-                depth_ops: Some(wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(1.0),
-                    store: true,
-                }),
-                stencil_ops: None,
-            }
-        });
-
-        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: color_attachment,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: load_operation,
-                    store: true,
-                },
-            })],
-            depth_stencil_attachment,
-            label: Some("egui_render"),
-        });
-
-        self.render_onto_renderpass(&mut render_pass, paint_jobs, screen_descriptor);
-    }
-
     /// Executes the egui renderer onto an existing wgpu renderpass.
-    pub fn render_onto_renderpass<'rp>(
+    pub fn render<'rp>(
         &'rp self,
         render_pass: &mut wgpu::RenderPass<'rp>,
         paint_jobs: &[egui::epaint::ClippedPrimitive],
@@ -383,8 +330,8 @@ impl Renderer {
         // run.
         let mut needs_reset = true;
 
-        let mut index_buffers = self.index_buffers.iter();
-        let mut vertex_buffers = self.vertex_buffers.iter();
+        let mut index_buffer_slices = self.index_buffer.slices.iter();
+        let mut vertex_buffer_slices = self.vertex_buffer.slices.iter();
 
         for egui::ClippedPrimitive {
             clip_rect,
@@ -412,8 +359,8 @@ impl Renderer {
                     // Skip rendering zero-sized clip areas.
                     if let Primitive::Mesh(_) = primitive {
                         // If this is a mesh, we need to advance the index and vertex buffer iterators:
-                        index_buffers.next().unwrap();
-                        vertex_buffers.next().unwrap();
+                        index_buffer_slices.next().unwrap();
+                        vertex_buffer_slices.next().unwrap();
                     }
                     continue;
                 }
@@ -423,16 +370,19 @@ impl Renderer {
 
             match primitive {
                 Primitive::Mesh(mesh) => {
-                    let index_buffer = index_buffers.next().unwrap();
-                    let vertex_buffer = vertex_buffers.next().unwrap();
+                    let index_buffer_slice = index_buffer_slices.next().unwrap();
+                    let vertex_buffer_slice = vertex_buffer_slices.next().unwrap();
 
                     if let Some((_texture, bind_group)) = self.textures.get(&mesh.texture_id) {
                         render_pass.set_bind_group(1, bind_group, &[]);
                         render_pass.set_index_buffer(
-                            index_buffer.buffer.slice(..),
+                            self.index_buffer.buffer.slice(index_buffer_slice.clone()),
                             wgpu::IndexFormat::Uint32,
                         );
-                        render_pass.set_vertex_buffer(0, vertex_buffer.buffer.slice(..));
+                        render_pass.set_vertex_buffer(
+                            0,
+                            self.vertex_buffer.buffer.slice(vertex_buffer_slice.clone()),
+                        );
                         render_pass.draw_indexed(0..mesh.indices.len() as u32, 0, 0..1);
                     } else {
                         tracing::warn!("Missing texture: {:?}", mesh.texture_id);
@@ -760,15 +710,15 @@ impl Renderer {
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
+        encoder: &mut wgpu::CommandEncoder,
         paint_jobs: &[egui::epaint::ClippedPrimitive],
         screen_descriptor: &ScreenDescriptor,
     ) {
         let screen_size_in_points = screen_descriptor.screen_size_in_points();
 
-        self.update_buffer(
-            device,
-            queue,
-            &BufferType::Uniform,
+        // Update uniform buffer
+        queue.write_buffer(
+            &self.uniform_buffer,
             0,
             bytemuck::cast_slice(&[UniformBuffer {
                 screen_size_in_points,
@@ -776,42 +726,58 @@ impl Renderer {
             }]),
         );
 
-        let mut mesh_idx = 0;
+        // Determine how many vertices & indices need to be rendered.
+        let (vertex_count, index_count) =
+            paint_jobs.iter().fold((0, 0), |acc, clipped_primitive| {
+                match &clipped_primitive.primitive {
+                    Primitive::Mesh(mesh) => {
+                        (acc.0 + mesh.vertices.len(), acc.1 + mesh.indices.len())
+                    }
+                    Primitive::Callback(_) => acc,
+                }
+            });
+        // Resize index buffer if needed.
+        {
+            self.index_buffer.slices.clear();
+            let required_size = (std::mem::size_of::<u32>() * index_count) as u64;
+            if self.index_buffer.capacity < required_size {
+                self.index_buffer.capacity =
+                    (self.index_buffer.capacity * 2).at_least(required_size);
+                self.index_buffer.buffer = create_index_buffer(device, self.index_buffer.capacity);
+            }
+        }
+        // Resize vertex buffer if needed.
+        {
+            self.vertex_buffer.slices.clear();
+            let required_size = (std::mem::size_of::<Vertex>() * vertex_count) as u64;
+            if self.vertex_buffer.capacity < required_size {
+                self.vertex_buffer.capacity =
+                    (self.vertex_buffer.capacity * 2).at_least(required_size);
+                self.vertex_buffer.buffer =
+                    create_vertex_buffer(device, self.vertex_buffer.capacity);
+            }
+        }
+
+        // Upload index & vertex data and call user callbacks
         for egui::ClippedPrimitive { primitive, .. } in paint_jobs.iter() {
             match primitive {
                 Primitive::Mesh(mesh) => {
-                    let data: &[u8] = bytemuck::cast_slice(&mesh.indices);
-                    if mesh_idx < self.index_buffers.len() {
-                        self.update_buffer(device, queue, &BufferType::Index, mesh_idx, data);
-                    } else {
-                        let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                            label: Some("egui_index_buffer"),
-                            contents: data,
-                            usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
-                        });
-                        self.index_buffers.push(SizedBuffer {
-                            buffer,
-                            size: data.len(),
-                        });
+                    {
+                        let index_offset = self.index_buffer.slices.last().unwrap_or(&(0..0)).end;
+                        let data = bytemuck::cast_slice(&mesh.indices);
+                        queue.write_buffer(&self.index_buffer.buffer, index_offset, data);
+                        self.index_buffer
+                            .slices
+                            .push(index_offset..(data.len() as wgpu::BufferAddress + index_offset));
                     }
-
-                    let data: &[u8] = bytemuck::cast_slice(&mesh.vertices);
-                    if mesh_idx < self.vertex_buffers.len() {
-                        self.update_buffer(device, queue, &BufferType::Vertex, mesh_idx, data);
-                    } else {
-                        let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                            label: Some("egui_vertex_buffer"),
-                            contents: data,
-                            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                        });
-
-                        self.vertex_buffers.push(SizedBuffer {
-                            buffer,
-                            size: data.len(),
-                        });
+                    {
+                        let vertex_offset = self.vertex_buffer.slices.last().unwrap_or(&(0..0)).end;
+                        let data = bytemuck::cast_slice(&mesh.vertices);
+                        queue.write_buffer(&self.vertex_buffer.buffer, vertex_offset, data);
+                        self.vertex_buffer.slices.push(
+                            vertex_offset..(data.len() as wgpu::BufferAddress + vertex_offset),
+                        );
                     }
-
-                    mesh_idx += 1;
                 }
                 Primitive::Callback(callback) => {
                     let cbfn = if let Some(c) = callback.callback.downcast_ref::<CallbackFn>() {
@@ -821,50 +787,29 @@ impl Renderer {
                         continue;
                     };
 
-                    (cbfn.prepare)(device, queue, &mut self.paint_callback_resources);
+                    (cbfn.prepare)(device, queue, encoder, &mut self.paint_callback_resources);
                 }
             }
         }
     }
+}
 
-    /// Updates the buffers used by egui. Will properly re-size the buffers if needed.
-    fn update_buffer(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        buffer_type: &BufferType,
-        index: usize,
-        data: &[u8],
-    ) {
-        let (buffer, storage, label) = match buffer_type {
-            BufferType::Index => (
-                &mut self.index_buffers[index],
-                wgpu::BufferUsages::INDEX,
-                "egui_index_buffer",
-            ),
-            BufferType::Vertex => (
-                &mut self.vertex_buffers[index],
-                wgpu::BufferUsages::VERTEX,
-                "egui_vertex_buffer",
-            ),
-            BufferType::Uniform => (
-                &mut self.uniform_buffer,
-                wgpu::BufferUsages::UNIFORM,
-                "egui_uniform_buffer",
-            ),
-        };
+fn create_vertex_buffer(device: &wgpu::Device, size: u64) -> wgpu::Buffer {
+    device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("egui_vertex_buffer"),
+        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+        size,
+        mapped_at_creation: false,
+    })
+}
 
-        if data.len() > buffer.size {
-            buffer.size = data.len();
-            buffer.buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some(label),
-                contents: bytemuck::cast_slice(data),
-                usage: storage | wgpu::BufferUsages::COPY_DST,
-            });
-        } else {
-            queue.write_buffer(&buffer.buffer, 0, data);
-        }
-    }
+fn create_index_buffer(device: &wgpu::Device, size: u64) -> wgpu::Buffer {
+    device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("egui_index_buffer"),
+        usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
+        size,
+        mapped_at_creation: false,
+    })
 }
 
 /// A Rect in physical pixel space, used for setting cliipping rectangles.
