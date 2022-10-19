@@ -107,7 +107,7 @@ impl ColorImage {
     /// you are ignoring the alpha channel - considering it to always be 0xff)
     ///
     /// Panics if `size[0] * size[1] * 3 != rgba.len()`.
-    pub fn from_rgb_unmultiplied(size: [usize; 2], rgb: &[u8]) -> Self {
+    pub fn from_rgb(size: [usize; 2], rgb: &[u8]) -> Self {
         assert_eq!(size[0] * size[1] * 3, rgb.len());
         let pixels = rgb
             .chunks_exact(3)
