@@ -101,7 +101,7 @@ impl ColorImage {
         Self { size, pixels }
     }
 
-    /// Create a [`ColorImage`] from flat un-multiplied RGB data.
+    /// Create a [`ColorImage`] from flat RGB data.
     ///
     /// This is what you want to use after having loaded an image file (and if
     /// you are ignoring the alpha channel - considering it to always be 0xff)
