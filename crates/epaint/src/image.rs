@@ -101,6 +101,21 @@ impl ColorImage {
         Self { size, pixels }
     }
 
+    /// Create a [`ColorImage`] from flat un-multiplied RGB data.
+    ///
+    /// This is what you want to use after having loaded an image file (and if
+    /// you are ignoring the alpha channel - considering it to always be 0xff)
+    ///
+    /// Panics if `size[0] * size[1] * 3 != rgba.len()`.
+    pub fn from_rgb_unmultiplied(size: [usize; 2], rgb: &[u8]) -> Self {
+        assert_eq!(size[0] * size[1] * 3, rgb.len());
+        let pixels = rgb
+            .chunks_exact(3)
+            .map(|p| Color32::from_rgb(p[0], p[1], p[2]))
+            .collect();
+        Self { size, pixels }
+    }
+
     /// An example color image, useful for tests.
     pub fn example() -> Self {
         let width = 128;
