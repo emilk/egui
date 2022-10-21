@@ -233,6 +233,7 @@ pub struct NativeOptions {
     /// See [winit's documentation][with_fullsize_content_view] for information on Mac-specific options.
     ///
     /// [with_fullsize_content_view]: https://docs.rs/winit/latest/x86_64-apple-darwin/winit/platform/macos/trait.WindowBuilderExtMacOS.html#tymethod.with_fullsize_content_view
+    #[cfg(target_os = "macos")]
     pub fullsize_content: bool,
 
     /// On Windows: enable drag and drop support. Drag and drop can
@@ -384,6 +385,7 @@ impl Default for NativeOptions {
             maximized: false,
             decorated: true,
             fullscreen: false,
+            #[cfg(target_os = "macos")]
             fullsize_content: false,
             drag_and_drop_support: true,
             icon_data: None,
