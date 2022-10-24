@@ -599,13 +599,23 @@ impl CollapsingHeader {
         ui: &mut Ui,
         add_body: impl FnOnce(&mut Ui) -> R,
     ) -> CollapsingResponse<R> {
-        self.show_dyn(ui, Box::new(add_body))
+        self.show_dyn(ui, Box::new(add_body), true)
+    }
+
+    #[inline]
+    pub fn show_unindented<R>(
+        self,
+        ui: &mut Ui,
+        add_body: impl FnOnce(&mut Ui) -> R,
+    ) -> CollapsingResponse<R> {
+        self.show_dyn(ui, Box::new(add_body), false)
     }
 
     fn show_dyn<'c, R>(
         self,
         ui: &mut Ui,
         add_body: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
+        indented: bool,
     ) -> CollapsingResponse<R> {
         // Make sure body is bellow header,
         // and make sure it is one unit (necessary for putting a [`CollapsingHeader`] in a grid).
@@ -618,7 +628,11 @@ impl CollapsingHeader {
                 openness,
             } = self.begin(ui); // show the header
 
-            let ret_response = state.show_body_indented(&header_response, ui, add_body);
+            let ret_response = if indented {
+                state.show_body_indented(&header_response, ui, add_body)
+            } else {
+                state.show_body_unindented(ui, add_body)
+            };
 
             if let Some(ret_response) = ret_response {
                 CollapsingResponse {
