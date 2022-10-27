@@ -276,7 +276,41 @@ mod glow_integration {
 
         // Conceptually this will be split out eventually so that the rest of the state
         // can be persistent.
-        gl_window: glutin::WindowedContext<glutin::PossiblyCurrent>,
+        gl_window: GlutinWindowContext,
+    }
+    struct GlutinWindowContext {
+        window: winit::window::Window,
+        gl_context: glutin::context::PossiblyCurrentContext,
+        gl_display: glutin::display::Display,
+        gl_surface: glutin::surface::Surface<glutin::surface::WindowSurface>,
+    }
+
+    impl GlutinWindowContext {
+        fn window(&self) -> &winit::window::Window {
+            &self.window
+        }
+        fn resize(&self, physical_size: winit::dpi::PhysicalSize<u32>) {
+            use glutin::surface::GlSurface;
+            self.gl_surface.resize(
+                &self.gl_context,
+                physical_size
+                    .width
+                    .try_into()
+                    .expect("physical size must not be zero"),
+                physical_size
+                    .height
+                    .try_into()
+                    .expect("physical size must not be zero"),
+            );
+        }
+        fn swap_buffers(&self) -> glutin::error::Result<()> {
+            use glutin::surface::GlSurface;
+            self.gl_surface.swap_buffers(&self.gl_context)
+        }
+        fn get_proc_address(&self, addr: &std::ffi::CStr) -> *const std::ffi::c_void {
+            use glutin::display::GlDisplay;
+            self.gl_display.get_proc_address(addr)
+        }
     }
 
     struct GlowWinitApp {
@@ -315,10 +349,7 @@ mod glow_integration {
             storage: Option<&dyn epi::Storage>,
             title: &String,
             native_options: &NativeOptions,
-        ) -> (
-            glutin::WindowedContext<glutin::PossiblyCurrent>,
-            glow::Context,
-        ) {
+        ) -> (GlutinWindowContext, glow::Context) {
             crate::profile_function!();
 
             use crate::HardwareAcceleration;
@@ -330,24 +361,127 @@ mod glow_integration {
             };
             let window_settings = epi_integration::load_window_settings(storage);
 
-            let window_builder =
-                epi_integration::window_builder(native_options, &window_settings).with_title(title);
+            let window_builder = epi_integration::window_builder(native_options, &window_settings)
+                .with_title(title)
+                .with_transparent(native_options.transparent);
+            let winit_window = window_builder
+                .build(event_loop)
+                .expect("failed to create winit window");
 
             let gl_window = unsafe {
-                glutin::ContextBuilder::new()
-                    .with_hardware_acceleration(hardware_acceleration)
-                    .with_depth_buffer(native_options.depth_buffer)
-                    .with_multisampling(native_options.multisampling)
-                    .with_stencil_buffer(native_options.stencil_buffer)
-                    .with_vsync(native_options.vsync)
-                    .build_windowed(window_builder, event_loop)
-                    .unwrap()
-                    .make_current()
-                    .unwrap()
-            };
+                use glutin::prelude::*;
+                use raw_window_handle::*;
+                let (width, height): (u32, u32) = winit_window.inner_size().into();
 
-            let gl =
-                unsafe { glow::Context::from_loader_function(|s| gl_window.get_proc_address(s)) };
+                let display = winit_window.raw_display_handle();
+                let window_handle = winit_window.raw_window_handle();
+                dbg!(display, window_handle);
+                let surface_attributes = glutin::surface::SurfaceAttributesBuilder::<
+                    glutin::surface::WindowSurface,
+                >::new()
+                .build(
+                    window_handle,
+                    std::num::NonZeroU32::new(width).unwrap(),
+                    std::num::NonZeroU32::new(height).unwrap(),
+                );
+                let preference = glutin::display::DisplayApiPreference::Egl;
+
+                let gl_display = glutin::display::Display::new(display, preference)
+                    .expect("failed to create glutin display");
+                let swap_interval = if native_options.vsync {
+                    glutin::surface::SwapInterval::Wait(std::num::NonZeroU32::new(1).unwrap())
+                } else {
+                    glutin::surface::SwapInterval::DontWait
+                };
+
+                let config = glutin::config::ConfigTemplateBuilder::new()
+                    .prefer_hardware_accelerated(hardware_acceleration)
+                    .with_depth_size(native_options.depth_buffer);
+                // we don't know if multi sampling option is set. so, check if its more than 0.
+                let config = if native_options.multisampling > 0 {
+                    config.with_multisampling(
+                        native_options
+                            .multisampling
+                            .try_into()
+                            .expect("failed to fit multisamples into u8"),
+                    )
+                } else {
+                    config
+                };
+
+                let config = config
+                    .with_stencil_size(native_options.stencil_buffer)
+                    .with_transparency(native_options.transparent)
+                    .compatible_with_native_window(window_handle)
+                    .build();
+                let config = gl_display
+                    .find_configs(config)
+                    .expect("failed to find even a single matching configuration")
+                    // copy pasted from glutin examples
+                    .reduce(|accum, config| {
+                        // Find the config with the maximum number of samples.
+                        //
+                        // In general if you're not sure what you want in template you can request or
+                        // don't want to require multisampling for example, you can search for a
+                        // specific option you want afterwards.
+                        //
+                        // XXX however on macOS you can request only one config, so you should do
+                        // a search with the help of `find_configs` and adjusting your template.
+
+                        // Since we try to show off transparency try to pick the config that supports it
+                        // on X11 over the ones without it. XXX Configs that support
+                        // transparency on X11 tend to not have multisapmling, so be aware
+                        // of that.
+
+                        #[cfg(x11_platform)]
+                        let transparency_check = config
+                            .x11_visual()
+                            .map(|v| v.supports_transparency())
+                            .unwrap_or(false)
+                            & !accum
+                                .x11_visual()
+                                .map(|v| v.supports_transparency())
+                                .unwrap_or(false);
+
+                        #[cfg(not(x11_platform))]
+                        let transparency_check = false;
+
+                        if transparency_check || config.num_samples() > accum.num_samples() {
+                            config
+                        } else {
+                            accum
+                        }
+                    })
+                    .expect("failed to find a matching configuration for creating opengl context");
+                let context_attributes =
+                    glutin::context::ContextAttributesBuilder::new().build(Some(window_handle));
+                let gl_context = gl_display
+                    .create_context(&config, &context_attributes)
+                    .expect("failed to create opengl context");
+                let gl_surface = gl_display
+                    .create_window_surface(&config, &surface_attributes)
+                    .expect("failed to create glutin window surface");
+                let gl_context = gl_context
+                    .make_current(&gl_surface)
+                    .expect("failed to make gl context current");
+                gl_surface
+                    .set_swap_interval(&gl_context, swap_interval)
+                    .expect("failed to set vsync swap interval");
+                GlutinWindowContext {
+                    window: winit_window,
+                    gl_context,
+                    gl_display,
+                    gl_surface,
+                }
+            };
+            let gl = unsafe {
+                glow::Context::from_loader_function(|s| {
+                    let s = std::ffi::CString::new(s)
+                        .expect("failed to construct C string from string for gl proc address");
+
+                    gl_window.get_proc_address(&s)
+                })
+            };
 
             (gl_window, gl)
         }
