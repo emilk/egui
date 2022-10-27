@@ -621,7 +621,7 @@ impl Ui {
     /// Check for clicks, and drags on a specific region that is hovered.
     /// This can be used once you have checked that some shape you are painting has been hovered,
     /// and want to check for clicks and drags on hovered items this frame.
-    /// The given [`Rect`] should approximately where the thing is,
+    /// The given [`Rect`] should approximately be where the thing is,
     /// as it is just where warnings will be painted if there is an [`Id`] clash.
     pub fn interact_with_hovered(
         &self,
