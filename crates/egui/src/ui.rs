@@ -618,6 +618,22 @@ impl Ui {
         )
     }
 
+    /// Check for clicks, and drags on a specific region that is hovered.
+    /// This can be used once you have checked that some shape you are painting has been hovered,
+    /// and want to check for clicks and drags on hovered items this frame.
+    /// The given [`Rect`] should approximately where the thing is,
+    /// as it is just where warnings will be painted if there is an [`Id`] clash.
+    pub fn interact_with_hovered(
+        &self,
+        rect: Rect,
+        hovered: bool,
+        id: Id,
+        sense: Sense,
+    ) -> Response {
+        self.ctx()
+            .interact_with_hovered(self.layer_id(), id, rect, sense, self.enabled, hovered)
+    }
+
     /// Is the pointer (mouse/touch) above this rectangle in this [`Ui`]?
     ///
     /// The `clip_rect` and layer of this [`Ui`] will be respected, so, for instance,
