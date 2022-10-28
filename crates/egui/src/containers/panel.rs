@@ -344,13 +344,12 @@ impl SidePanel {
     ) -> Option<InnerResponse<R>> {
         let how_expanded = ctx.animate_bool(self.id.with("animation"), is_expanded);
 
-        if how_expanded == 1.0 {
-            // Show the real panel:
-            Some(self.show(ctx, add_contents))
-        } else if 0.0 < how_expanded {
+        if 0.0 == how_expanded {
+            None
+        } else if how_expanded < 1.0 {
             // Show a fake panel in this in-between animation state:
-            let expanded_width =
-                PanelState::load(ctx, self.id).map_or(self.default_width, |state| state.size().x);
+            let expanded_width = PanelState::load(ctx, self.id)
+                .map_or(self.default_width, |state| state.rect.width());
             let fake_width = how_expanded * expanded_width;
             Self {
                 id: self.id.with("animating_panel"),
@@ -361,7 +360,106 @@ impl SidePanel {
             .show(ctx, |_ui| {});
             None
         } else {
+            // Show the real panel:
+            Some(self.show(ctx, add_contents))
+        }
+    }
+
+    /// Show the panel if `is_expanded` is `true`,
+    /// otherwise don't show it, but with a nice animation between collapsed and expanded.
+    pub fn show_animated_inside<R>(
+        self,
+        ui: &mut Ui,
+        is_expanded: bool,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> Option<InnerResponse<R>> {
+        let how_expanded = ui
+            .ctx()
+            .animate_bool(self.id.with("animation"), is_expanded);
+
+        if 0.0 == how_expanded {
             None
+        } else if how_expanded < 1.0 {
+            // Show a fake panel in this in-between animation state:
+            let expanded_width = PanelState::load(ui.ctx(), self.id)
+                .map_or(self.default_width, |state| state.rect.width());
+            let fake_width = how_expanded * expanded_width;
+            Self {
+                id: self.id.with("animating_panel"),
+                ..self
+            }
+            .resizable(false)
+            .exact_width(fake_width)
+            .show_inside(ui, |_ui| {});
+            None
+        } else {
+            // Show the real panel:
+            Some(self.show_inside(ui, add_contents))
+        }
+    }
+
+    /// Show either a collapsed or a expanded panel, with a nice animation between.
+    pub fn show_animated_between<R>(
+        ctx: &Context,
+        is_expanded: bool,
+        collapsed_panel: Self,
+        expanded_panel: Self,
+        add_contents: impl FnOnce(&mut Ui, f32) -> R,
+    ) -> Option<InnerResponse<R>> {
+        let how_expanded = ctx.animate_bool(expanded_panel.id.with("animation"), is_expanded);
+
+        if 0.0 == how_expanded {
+            Some(collapsed_panel.show(ctx, |ui| add_contents(ui, how_expanded)))
+        } else if how_expanded < 1.0 {
+            // Show animation:
+            let collapsed_width = PanelState::load(ctx, collapsed_panel.id)
+                .map_or(collapsed_panel.default_width, |state| state.rect.width());
+            let expanded_width = PanelState::load(ctx, expanded_panel.id)
+                .map_or(expanded_panel.default_width, |state| state.rect.width());
+            let fake_width = lerp(collapsed_width..=expanded_width, how_expanded);
+            Self {
+                id: expanded_panel.id.with("animating_panel"),
+                ..expanded_panel
+            }
+            .resizable(false)
+            .exact_width(fake_width)
+            .show(ctx, |ui| add_contents(ui, how_expanded));
+            None
+        } else {
+            Some(expanded_panel.show(ctx, |ui| add_contents(ui, how_expanded)))
+        }
+    }
+
+    /// Show either a collapsed or a expanded panel, with a nice animation between.
+    pub fn show_animated_between_inside<R>(
+        ui: &mut Ui,
+        is_expanded: bool,
+        collapsed_panel: Self,
+        expanded_panel: Self,
+        add_contents: impl FnOnce(&mut Ui, f32) -> R,
+    ) -> InnerResponse<R> {
+        let how_expanded = ui
+            .ctx()
+            .animate_bool(expanded_panel.id.with("animation"), is_expanded);
+
+        if 0.0 == how_expanded {
+            collapsed_panel.show_inside(ui, |ui| add_contents(ui, how_expanded))
+        } else if how_expanded < 1.0 {
+            // Show animation:
+            let collapsed_width = PanelState::load(ui.ctx(), collapsed_panel.id)
+                .map_or(collapsed_panel.default_width, |state| state.rect.width());
+            let expanded_width = PanelState::load(ui.ctx(), expanded_panel.id)
+                .map_or(expanded_panel.default_width, |state| state.rect.width());
+            let fake_width = lerp(collapsed_width..=expanded_width, how_expanded);
+            Self {
+                id: expanded_panel.id.with("animating_panel"),
+                ..expanded_panel
+            }
+            .resizable(false)
+            .exact_width(fake_width)
+            .show_inside(ui, |ui| add_contents(ui, how_expanded))
+        } else {
+            expanded_panel.show_inside(ui, |ui| add_contents(ui, how_expanded))
         }
     }
 }
@@ -680,13 +778,12 @@ impl TopBottomPanel {
     ) -> Option<InnerResponse<R>> {
         let how_expanded = ctx.animate_bool(self.id.with("animation"), is_expanded);
 
-        if how_expanded == 1.0 {
-            // Show the real panel:
-            Some(self.show(ctx, add_contents))
-        } else if 0.0 < how_expanded {
+        if 0.0 == how_expanded {
+            None
+        } else if how_expanded < 1.0 {
             // Show a fake panel in this in-between animation state:
             let expanded_height = PanelState::load(ctx, self.id)
-                .map(|state| state.size().x)
+                .map(|state| state.rect.height())
                 .or(self.default_height)
                 .unwrap_or_else(|| ctx.style().spacing.interact_size.y);
             let fake_height = how_expanded * expanded_height;
@@ -699,7 +796,120 @@ impl TopBottomPanel {
             .show(ctx, |_ui| {});
             None
         } else {
+            // Show the real panel:
+            Some(self.show(ctx, add_contents))
+        }
+    }
+
+    /// Show the panel if `is_expanded` is `true`,
+    /// otherwise don't show it, but with a nice animation between collapsed and expanded.
+    pub fn show_animated_inside<R>(
+        self,
+        ui: &mut Ui,
+        is_expanded: bool,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> Option<InnerResponse<R>> {
+        let how_expanded = ui
+            .ctx()
+            .animate_bool(self.id.with("animation"), is_expanded);
+
+        if 0.0 == how_expanded {
             None
+        } else if how_expanded < 1.0 {
+            // Show a fake panel in this in-between animation state:
+            let expanded_height = PanelState::load(ui.ctx(), self.id)
+                .map(|state| state.rect.height())
+                .or(self.default_height)
+                .unwrap_or_else(|| ui.style().spacing.interact_size.y);
+            let fake_height = how_expanded * expanded_height;
+            Self {
+                id: self.id.with("animating_panel"),
+                ..self
+            }
+            .resizable(false)
+            .exact_height(fake_height)
+            .show_inside(ui, |_ui| {});
+            None
+        } else {
+            // Show the real panel:
+            Some(self.show_inside(ui, add_contents))
+        }
+    }
+
+    /// Show either a collapsed or a expanded panel, with a nice animation between.
+    pub fn show_animated_between<R>(
+        ctx: &Context,
+        is_expanded: bool,
+        collapsed_panel: Self,
+        expanded_panel: Self,
+        add_contents: impl FnOnce(&mut Ui, f32) -> R,
+    ) -> Option<InnerResponse<R>> {
+        let how_expanded = ctx.animate_bool(expanded_panel.id.with("animation"), is_expanded);
+
+        if 0.0 == how_expanded {
+            Some(collapsed_panel.show(ctx, |ui| add_contents(ui, how_expanded)))
+        } else if how_expanded < 1.0 {
+            // Show animation:
+            let collapsed_height = PanelState::load(ctx, collapsed_panel.id)
+                .map(|state| state.rect.height())
+                .or(collapsed_panel.default_height)
+                .unwrap_or_else(|| ctx.style().spacing.interact_size.y);
+
+            let expanded_height = PanelState::load(ctx, expanded_panel.id)
+                .map(|state| state.rect.height())
+                .or(expanded_panel.default_height)
+                .unwrap_or_else(|| ctx.style().spacing.interact_size.y);
+
+            let fake_height = lerp(collapsed_height..=expanded_height, how_expanded);
+            Self {
+                id: expanded_panel.id.with("animating_panel"),
+                ..expanded_panel
+            }
+            .resizable(false)
+            .exact_height(fake_height)
+            .show(ctx, |ui| add_contents(ui, how_expanded));
+            None
+        } else {
+            Some(expanded_panel.show(ctx, |ui| add_contents(ui, how_expanded)))
+        }
+    }
+
+    /// Show either a collapsed or a expanded panel, with a nice animation between.
+    pub fn show_animated_between_inside<R>(
+        ui: &mut Ui,
+        is_expanded: bool,
+        collapsed_panel: Self,
+        expanded_panel: Self,
+        add_contents: impl FnOnce(&mut Ui, f32) -> R,
+    ) -> InnerResponse<R> {
+        let how_expanded = ui
+            .ctx()
+            .animate_bool(expanded_panel.id.with("animation"), is_expanded);
+
+        if 0.0 == how_expanded {
+            collapsed_panel.show_inside(ui, |ui| add_contents(ui, how_expanded))
+        } else if how_expanded < 1.0 {
+            // Show animation:
+            let collapsed_height = PanelState::load(ui.ctx(), collapsed_panel.id)
+                .map(|state| state.rect.height())
+                .or(collapsed_panel.default_height)
+                .unwrap_or_else(|| ui.style().spacing.interact_size.y);
+
+            let expanded_height = PanelState::load(ui.ctx(), expanded_panel.id)
+                .map(|state| state.rect.height())
+                .or(expanded_panel.default_height)
+                .unwrap_or_else(|| ui.style().spacing.interact_size.y);
+
+            let fake_height = lerp(collapsed_height..=expanded_height, how_expanded);
+            Self {
+                id: expanded_panel.id.with("animating_panel"),
+                ..expanded_panel
+            }
+            .resizable(false)
+            .exact_height(fake_height)
+            .show_inside(ui, |ui| add_contents(ui, how_expanded))
+        } else {
+            expanded_panel.show_inside(ui, |ui| add_contents(ui, how_expanded))
         }
     }
 }
