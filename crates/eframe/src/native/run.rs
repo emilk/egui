@@ -375,7 +375,7 @@ mod glow_integration {
 
                 let display = winit_window.raw_display_handle();
                 let window_handle = winit_window.raw_window_handle();
-                dbg!(display, window_handle);
+
                 let surface_attributes = glutin::surface::SurfaceAttributesBuilder::<
                     glutin::surface::WindowSurface,
                 >::new()
@@ -384,6 +384,7 @@ mod glow_integration {
                     std::num::NonZeroU32::new(width).unwrap(),
                     std::num::NonZeroU32::new(height).unwrap(),
                 );
+
                 let preference = glutin::display::DisplayApiPreference::Egl;
 
                 let gl_display = glutin::display::Display::new(display, preference)
@@ -394,67 +395,54 @@ mod glow_integration {
                     glutin::surface::SwapInterval::DontWait
                 };
 
-                let config = glutin::config::ConfigTemplateBuilder::new()
+                let config_template = glutin::config::ConfigTemplateBuilder::new()
                     .prefer_hardware_accelerated(hardware_acceleration)
                     .with_depth_size(native_options.depth_buffer);
                 // we don't know if multi sampling option is set. so, check if its more than 0.
-                let config = if native_options.multisampling > 0 {
-                    config.with_multisampling(
+                let config_template = if native_options.multisampling > 0 {
+                    config_template.with_multisampling(
                         native_options
                             .multisampling
                             .try_into()
                             .expect("failed to fit multisamples into u8"),
                     )
                 } else {
-                    config
+                    config_template
                 };
 
-                let config = config
+                let config_template = config_template
                     .with_stencil_size(native_options.stencil_buffer)
                     .with_transparency(native_options.transparent)
+
                     .compatible_with_native_window(window_handle)
                     .build();
+                // finds all valid configurations supported by this display that match the template provided by us
+                // this is where we will try to get a "fallback" config if we are okay with ignoring some native
+                // options required by user like multi sampling, srgb, transparency etc..
+                // TODO: need to figure out a good fallback config template
                 let config = gl_display
-                    .find_configs(config)
+                    .find_configs(config_template)
                     .expect("failed to find even a single matching configuration")
-                    // copy pasted from glutin examples
-                    .reduce(|accum, config| {
-                        // Find the config with the maximum number of samples.
-                        //
-                        // In general if you're not sure what you want in template you can request or
-                        // don't want to require multisampling for example, you can search for a
-                        // specific option you want afterwards.
-                        //
-                        // XXX however on macOS you can request only one config, so you should do
-                        // a search with the help of `find_configs` and adjusting your template.
-
-                        // Since we try to show off transparency try to pick the config that supports it
-                        // on X11 over the ones without it. XXX Configs that support
-                        // transparency on X11 tend to not have multisapmling, so be aware
-                        // of that.
-
-                        #[cfg(x11_platform)]
-                        let transparency_check = config
-                            .x11_visual()
-                            .map(|v| v.supports_transparency())
-                            .unwrap_or(false)
-                            & !accum
-                                .x11_visual()
-                                .map(|v| v.supports_transparency())
-                                .unwrap_or(false);
-
-                        #[cfg(not(x11_platform))]
-                        let transparency_check = false;
-
-                        if transparency_check || config.num_samples() > accum.num_samples() {
-                            config
-                        } else {
-                            accum
-                        }
-                    })
+                    .next()
                     .expect("failed to find a matching configuration for creating opengl context");
+
+                dbg!(
+                    display,
+                    window_handle,
+                    &surface_attributes,
+                    &config,
+                    &config.num_samples(),
+                    &config.alpha_size(),
+                    &config.api(),
+                    &config.srgb_capable(),
+                    config.depth_size(),
+                    config.config_surface_types(),
+                    config.color_buffer_type()
+                );
+
                 let context_attributes =
                     glutin::context::ContextAttributesBuilder::new().build(Some(window_handle));
+                // start creating the gl objects
                 let gl_context = gl_display
                     .create_context(&config, &context_attributes)
                     .expect("failed to create opengl context");
