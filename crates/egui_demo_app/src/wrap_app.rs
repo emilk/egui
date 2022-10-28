@@ -200,19 +200,8 @@ impl eframe::App for WrapApp {
 
         self.state.backend_panel.update(ctx, frame);
 
-        if !is_mobile(ctx)
-            && (self.state.backend_panel.open || ctx.memory().everything_is_visible())
-        {
-            egui::SidePanel::left("backend_panel")
-                .resizable(false)
-                .show(ctx, |ui| {
-                    ui.vertical_centered(|ui| {
-                        ui.heading("💻 Backend");
-                    });
-
-                    ui.separator();
-                    self.backend_panel_contents(ui, frame);
-                });
+        if !is_mobile(ctx) {
+            self.backend_panel(ctx, frame);
         }
 
         self.show_selected_app(ctx, frame);
@@ -236,6 +225,38 @@ impl eframe::App for WrapApp {
 }
 
 impl WrapApp {
+    fn backend_panel(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        // The backend-panel can be toggled on/off.
+        // We show a little animation when the user switches it
+        let is_open = self.state.backend_panel.open || ctx.memory().everything_is_visible();
+
+        let backend_panel_id = egui::Id::new("backend_panel");
+        let how_expanded = ctx.animate_bool(egui::Id::new("backend_panel_expansion"), is_open);
+
+        if how_expanded == 1.0 {
+            // Show the real panel:
+            egui::SidePanel::left(backend_panel_id)
+                .resizable(false)
+                .show(ctx, |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.heading("💻 Backend");
+                    });
+
+                    ui.separator();
+                    self.backend_panel_contents(ui, frame);
+                });
+        } else if 0.0 < how_expanded {
+            // Show a fake panel in this in-between animation state:
+            let expanded_width = egui::containers::panel::PanelState::load(ctx, backend_panel_id)
+                .map_or(200.0, |state| state.size().x);
+            let fake_width = how_expanded * expanded_width;
+            egui::SidePanel::left("fake_animating_backend_panel")
+                .resizable(false)
+                .exact_width(fake_width)
+                .show(ctx, |_ui| {});
+        }
+    }
+
     fn backend_panel_contents(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         self.state.backend_panel.ui(ui, frame);
 
