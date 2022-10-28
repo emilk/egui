@@ -390,15 +390,17 @@ mod glow_integration {
 
                 // try egl and fallback to windows wgl thing
                 #[cfg(target_os = "windows")]
-                let preference = glutin::display::DisplayApiPreference::EglThenWgl(Some(window_handle));
+                let preference =
+                    glutin::display::DisplayApiPreference::EglThenWgl(Some(window_handle));
                 // try egl and fallback to x11 glx
                 #[cfg(target_os = "linux")]
-                let preference = glutin::display::DisplayApiPreference::EglThenGlx(Box::new(winit::platform::unix::register_xlib_error_hook));
+                let preference = glutin::display::DisplayApiPreference::EglThenGlx(Box::new(
+                    winit::platform::unix::register_xlib_error_hook,
+                ));
                 #[cfg(target_os = "macos")]
                 let preference = glutin::display::DisplayApiPreference::Cgl;
                 #[cfg(target_os = "android")]
                 let preference = glutin::display::DisplayApiPreference::Egl;
-
 
                 let gl_display = glutin::display::Display::new(display, preference)
                     .expect("failed to create glutin display");
