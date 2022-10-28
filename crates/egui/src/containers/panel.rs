@@ -137,22 +137,34 @@ impl SidePanel {
     /// The initial wrapping width of the [`SidePanel`].
     pub fn default_width(mut self, default_width: f32) -> Self {
         self.default_width = default_width;
+        self.width_range = self.width_range.start().at_most(default_width)
+            ..=self.width_range.end().at_least(default_width);
         self
     }
 
+    /// Minimum width of the panel.
     pub fn min_width(mut self, min_width: f32) -> Self {
-        self.width_range = min_width..=(*self.width_range.end());
+        self.width_range = min_width..=self.width_range.end().at_least(min_width);
         self
     }
 
+    /// Maximum width of the panel.
     pub fn max_width(mut self, max_width: f32) -> Self {
-        self.width_range = (*self.width_range.start())..=max_width;
+        self.width_range = self.width_range.start().at_most(max_width)..=max_width;
         self
     }
 
-    /// The allowable width range for resizable panels.
+    /// The allowable width range for the panel.
     pub fn width_range(mut self, width_range: RangeInclusive<f32>) -> Self {
+        self.default_width = clamp_to_range(self.default_width, width_range.clone());
         self.width_range = width_range;
+        self
+    }
+
+    /// Enforce this exact width.
+    pub fn exact_width(mut self, width: f32) -> Self {
+        self.default_width = width;
+        self.width_range = width..=width;
         self
     }
 
@@ -420,22 +432,36 @@ impl TopBottomPanel {
     /// Defaults to [`style::Spacing::interact_size`].y.
     pub fn default_height(mut self, default_height: f32) -> Self {
         self.default_height = Some(default_height);
+        self.height_range = self.height_range.start().at_most(default_height)
+            ..=self.height_range.end().at_least(default_height);
         self
     }
 
+    /// Minimum height of the panel.
     pub fn min_height(mut self, min_height: f32) -> Self {
-        self.height_range = min_height..=(*self.height_range.end());
+        self.height_range = min_height..=self.height_range.end().at_least(min_height);
         self
     }
 
+    /// Maximum height of the panel.
     pub fn max_height(mut self, max_height: f32) -> Self {
-        self.height_range = (*self.height_range.start())..=max_height;
+        self.height_range = self.height_range.start().at_most(max_height)..=max_height;
         self
     }
 
-    /// The allowable height range for resizable panels.
+    /// The allowable height range for the panel.
     pub fn height_range(mut self, height_range: RangeInclusive<f32>) -> Self {
+        self.default_height = self
+            .default_height
+            .map(|default_height| clamp_to_range(default_height, height_range.clone()));
         self.height_range = height_range;
+        self
+    }
+
+    /// Enforce this exact height.
+    pub fn exact_height(mut self, height: f32) -> Self {
+        self.default_height = Some(height);
+        self.height_range = height..=height;
         self
     }
 
