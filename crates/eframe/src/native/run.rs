@@ -367,7 +367,7 @@ mod glow_integration {
             let winit_window = window_builder
                 .build(event_loop)
                 .expect("failed to create winit window");
-
+            // a lot of the code below has been lifted from glutin example in their repo.
             let gl_window = unsafe {
                 use glutin::prelude::*;
                 use raw_window_handle::*;
@@ -384,8 +384,21 @@ mod glow_integration {
                     std::num::NonZeroU32::new(width).unwrap(),
                     std::num::NonZeroU32::new(height).unwrap(),
                 );
+                // EGL is crossplatform and the official khronos way
+                // but sometimes platforms/drivers may not have it, so we use back up options where possible.
+                // TODO: check whether we can expose these options as "features", so that users can select the relevant backend they want.
 
+                // try egl and fallback to windows wgl thing
+                #[cfg(target_os = "windows")]
+                let preference = glutin::display::DisplayApiPreference::EglThenWgl(Some(window_handle));
+                // try egl and fallback to x11 glx
+                #[cfg(target_os = "linux")]
+                let preference = glutin::display::DisplayApiPreference::EglThenGlx(Box::new(winit::platform::unix::register_xlib_error_hook));
+                #[cfg(target_os = "macos")]
+                let preference = glutin::display::DisplayApiPreference::Cgl;
+                #[cfg(target_os = "android")]
                 let preference = glutin::display::DisplayApiPreference::Egl;
+
 
                 let gl_display = glutin::display::Display::new(display, preference)
                     .expect("failed to create glutin display");

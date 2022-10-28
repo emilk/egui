@@ -80,7 +80,7 @@ serde = { version = "1", optional = true, features = ["derive"] }
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 egui-winit = { version = "0.19.0", path = "../egui-winit", default-features = false, features = ["clipboard", "links"] }
-glutin = { version = "0.30.0" }
+glutin = { version = "0.30.0", features = ["egl", "wgl"]}
 raw-window-handle = {version = "0.5.0"}
 winit = "0.27.2"
 
