@@ -19,15 +19,21 @@ use std::ops::RangeInclusive;
 
 use crate::*;
 
+/// State regarding panels.
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-struct PanelState {
-    rect: Rect,
+pub struct PanelState {
+    pub rect: Rect,
 }
 
 impl PanelState {
-    fn load(ctx: &Context, bar_id: Id) -> Option<Self> {
+    pub fn load(ctx: &Context, bar_id: Id) -> Option<Self> {
         ctx.data().get_persisted(bar_id)
+    }
+
+    /// The size of the panel (from previous frame).
+    pub fn size(&self) -> Vec2 {
+        self.rect.size()
     }
 
     fn store(self, ctx: &Context, bar_id: Id) {
@@ -96,21 +102,21 @@ pub struct SidePanel {
 }
 
 impl SidePanel {
-    /// `id_source`: Something unique, e.g. `"my_left_panel"`.
-    pub fn left(id_source: impl std::hash::Hash) -> Self {
-        Self::new(Side::Left, id_source)
+    /// The id should be globally unique, e.g. `Id::new("my_left_panel")`.
+    pub fn left(id: impl Into<Id>) -> Self {
+        Self::new(Side::Left, id)
     }
 
-    /// `id_source`: Something unique, e.g. `"my_right_panel"`.
-    pub fn right(id_source: impl std::hash::Hash) -> Self {
-        Self::new(Side::Right, id_source)
+    /// The id should be globally unique, e.g. `Id::new("my_right_panel")`.
+    pub fn right(id: impl Into<Id>) -> Self {
+        Self::new(Side::Right, id)
     }
 
-    /// `id_source`: Something unique, e.g. `"my_panel"`.
-    pub fn new(side: Side, id_source: impl std::hash::Hash) -> Self {
+    /// The id should be globally unique, e.g. `Id::new("my_panel")`.
+    pub fn new(side: Side, id: impl Into<Id>) -> Self {
         Self {
             side,
-            id: Id::new(id_source),
+            id: id.into(),
             frame: None,
             resizable: true,
             default_width: 200.0,
@@ -390,21 +396,21 @@ pub struct TopBottomPanel {
 }
 
 impl TopBottomPanel {
-    /// `id_source`: Something unique, e.g. `"my_top_panel"`.
-    pub fn top(id_source: impl std::hash::Hash) -> Self {
-        Self::new(TopBottomSide::Top, id_source)
+    /// The id should be globally unique, e.g. `Id::new("my_top_panel")`.
+    pub fn top(id: impl Into<Id>) -> Self {
+        Self::new(TopBottomSide::Top, id)
     }
 
-    /// `id_source`: Something unique, e.g. `"my_bottom_panel"`.
-    pub fn bottom(id_source: impl std::hash::Hash) -> Self {
-        Self::new(TopBottomSide::Bottom, id_source)
+    /// The id should be globally unique, e.g. `Id::new("my_bottom_panel")`.
+    pub fn bottom(id: impl Into<Id>) -> Self {
+        Self::new(TopBottomSide::Bottom, id)
     }
 
-    /// `id_source`: Something unique, e.g. `"my_panel"`.
-    pub fn new(side: TopBottomSide, id_source: impl std::hash::Hash) -> Self {
+    /// The id should be globally unique, e.g. `Id::new("my_panel")`.
+    pub fn new(side: TopBottomSide, id: impl Into<Id>) -> Self {
         Self {
             side,
-            id: Id::new(id_source),
+            id: id.into(),
             frame: None,
             resizable: false,
             default_height: None,
