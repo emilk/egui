@@ -413,7 +413,6 @@ mod glow_integration {
                 let config_template = config_template
                     .with_stencil_size(native_options.stencil_buffer)
                     .with_transparency(native_options.transparent)
-
                     .compatible_with_native_window(window_handle)
                     .build();
                 // finds all valid configurations supported by this display that match the template provided by us
@@ -426,19 +425,24 @@ mod glow_integration {
                     .next()
                     .expect("failed to find a matching configuration for creating opengl context");
 
-                dbg!(
-                    display,
-                    window_handle,
-                    &surface_attributes,
-                    &config,
-                    &config.num_samples(),
-                    &config.alpha_size(),
-                    &config.api(),
-                    &config.srgb_capable(),
-                    config.depth_size(),
-                    config.config_surface_types(),
-                    config.color_buffer_type()
-                );
+                // temporary debugging to help with testing
+                // TODO: remove before merge
+                #[allow(clippy::dbg_macro)]
+                {
+                    dbg!(
+                        display,
+                        window_handle,
+                        &surface_attributes,
+                        &config,
+                        &config.num_samples(),
+                        &config.alpha_size(),
+                        &config.api(),
+                        &config.srgb_capable(),
+                        config.depth_size(),
+                        config.config_surface_types(),
+                        config.color_buffer_type()
+                    );
+                }
 
                 let context_attributes =
                     glutin::context::ContextAttributesBuilder::new().build(Some(window_handle));
