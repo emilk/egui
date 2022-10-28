@@ -77,6 +77,14 @@ impl std::fmt::Debug for Id {
     }
 }
 
+/// Convenience
+impl From<&'static str> for Id {
+    #[inline]
+    fn from(string: &'static str) -> Self {
+        Self::new(string)
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 // Idea taken from the `nohash_hasher` crate.
