@@ -14,6 +14,6 @@ pub async fn start() -> Result<(), JsValue> {
         "my",
         web_options,
         Box::new(|cc| Box::new(main::MyApp::new(cc))),
-    )?;
+    ).await?;
     Ok(())
 }
