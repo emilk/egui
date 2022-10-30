@@ -601,10 +601,14 @@ impl Context {
                 ..
             } = ModifierNames::SYMBOLS;
 
-            let all = format!("{}{}{}{}", alt, ctrl, shift, mac_cmd);
-
             let font_id = TextStyle::Body.resolve(&self.style());
-            self.fonts().has_glyphs(&font_id, &all)
+            let fonts = self.fonts();
+            let mut fonts = fonts.lock();
+            let font = fonts.fonts.font(&font_id);
+            font.has_glyphs(alt)
+                && font.has_glyphs(ctrl)
+                && font.has_glyphs(shift)
+                && font.has_glyphs(mac_cmd)
         };
 
         if is_mac && can_show_symbols() {
