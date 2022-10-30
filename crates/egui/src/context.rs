@@ -585,6 +585,34 @@ impl Context {
     pub fn set_os(&self, os: OperatingSystem) {
         self.write().os = os;
     }
+
+    /// Format the given shortcut in a human-readable way (e.g. `Ctrl+Shift+X`).
+    pub fn format_keyboard_shortcut(&self, shortcut: &KeyboardShortcut) -> String {
+        let os = self.os();
+
+        let is_mac = matches!(os, OperatingSystem::Mac | OperatingSystem::IOS);
+
+        let can_show_symbols = || {
+            let ModifierNames {
+                alt,
+                ctrl,
+                shift,
+                mac_cmd,
+                ..
+            } = ModifierNames::SYMBOLS;
+
+            let all = format!("{}{}{}{}", alt, ctrl, shift, mac_cmd);
+
+            let font_id = TextStyle::Body.resolve(&self.style());
+            self.fonts().has_glyphs(&font_id, &all)
+        };
+
+        if is_mac && can_show_symbols() {
+            shortcut.format(&ModifierNames::SYMBOLS, is_mac)
+        } else {
+            shortcut.format(&ModifierNames::NAMES, is_mac)
+        }
+    }
 }
 
 impl Context {
