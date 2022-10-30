@@ -727,6 +727,34 @@ impl Key {
 
 // ----------------------------------------------------------------------------
 
+/// A keyboard shortcut, e.g. `Ctrl+Alt+W`
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct KeyboardShortcut {
+    pub modifiers: Modifiers,
+    pub key: Key,
+}
+
+impl KeyboardShortcut {
+    pub const fn new(modifiers: Modifiers, key: Key) -> Self {
+        Self { modifiers, key }
+    }
+
+    pub fn format(&self, names: &ModifierNames<'_>, is_mac: bool) -> String {
+        let mut s = names.format(&self.modifiers, is_mac);
+        if !s.is_empty() {
+            s += names.concat;
+        }
+        if names.is_short {
+            s += self.key.symbol_or_name();
+        } else {
+            s += self.key.name();
+        }
+        s
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 impl RawInput {
     pub fn ui(&self, ui: &mut crate::Ui) {
         let Self {
