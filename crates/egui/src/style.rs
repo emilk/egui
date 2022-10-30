@@ -21,11 +21,12 @@ pub enum TextStyle {
     /// Normal labels. Easily readable, doesn't take up too much space.
     Body,
 
-    /// Same size as [`Self::Body`], but used when monospace is important (for aligning number, code snippets, etc).
+    /// Same size as [`Self::Body`], but used when monospace is important (for code snippets, aligning numbers, etc).
     Monospace,
 
     /// Buttons. Maybe slightly bigger than [`Self::Body`].
-    /// Signifies that he item is interactive.
+    ///
+    /// Signifies that he item can be interacted with.
     Button,
 
     /// Heading. Probably larger than [`Self::Body`].

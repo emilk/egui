@@ -47,11 +47,11 @@ impl Button {
         }
     }
 
-    /// Creates a button with an image to the left of the text. The size of the image as displayed is defined by the size Vec2 provided.
+    /// Creates a button with an image to the left of the text. The size of the image as displayed is defined by the provided size.
     #[allow(clippy::needless_pass_by_value)]
     pub fn image_and_text(
         texture_id: TextureId,
-        size: impl Into<Vec2>,
+        image_size: impl Into<Vec2>,
         text: impl Into<WidgetText>,
     ) -> Self {
         Self {
@@ -63,7 +63,7 @@ impl Button {
             frame: None,
             wrap: None,
             min_size: Vec2::ZERO,
-            image: Some(widgets::Image::new(texture_id, size)),
+            image: Some(widgets::Image::new(texture_id, image_size)),
         }
     }
 
