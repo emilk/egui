@@ -136,7 +136,7 @@ pub struct TextureMeta {
 }
 
 /// How the texture texels are filtered.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum TextureFilter {
     /// Show the nearest pixel value.

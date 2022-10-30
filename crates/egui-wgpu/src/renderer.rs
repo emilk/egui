@@ -130,11 +130,14 @@ pub struct Renderer {
     uniform_buffer: wgpu::Buffer,
     uniform_bind_group: wgpu::BindGroup,
     texture_bind_group_layout: wgpu::BindGroupLayout,
+
     /// Map of egui texture IDs to textures and their associated bindgroups (texture view +
     /// sampler). The texture may be None if the TextureId is just a handle to a user-provided
     /// sampler.
     textures: HashMap<egui::TextureId, (Option<wgpu::Texture>, wgpu::BindGroup)>,
     next_user_texture_id: u64,
+    samplers: HashMap<egui::TextureFilter, wgpu::Sampler>,
+
     /// Storage for use by [`egui::PaintCallback`]'s that need to store resources such as render
     /// pipelines that must have the lifetime of the renderpass.
     pub paint_callback_resources: TypeMap,
@@ -312,6 +315,7 @@ impl Renderer {
             texture_bind_group_layout,
             textures: HashMap::new(),
             next_user_texture_id: 0,
+            samplers: HashMap::new(),
             paint_callback_resources: TypeMap::default(),
         }
     }
@@ -511,7 +515,6 @@ impl Renderer {
                 origin,
             );
         } else {
-            // TODO(Wumpf): Create only a new texture if we need to
             // allocate a new texture
             // Use same label for all resources associated with this texture id (no point in retyping the type)
             let label_str = format!("egui_texid_{:?}", id);
@@ -522,20 +525,13 @@ impl Renderer {
                 mip_level_count: 1,
                 sample_count: 1,
                 dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::Rgba8UnormSrgb, // TODO(emilk): handle WebGL1 where this is not always supported!
+                format: wgpu::TextureFormat::Rgba8UnormSrgb, // Minspec for wgpu WebGL emulation is WebGL2, so this should always be supported.
                 usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
             });
-            let filter = match image_delta.filter {
-                egui::TextureFilter::Nearest => wgpu::FilterMode::Nearest,
-                egui::TextureFilter::Linear => wgpu::FilterMode::Linear,
-            };
-            // TODO(Wumpf): Reuse this sampler.
-            let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-                label,
-                mag_filter: filter,
-                min_filter: filter,
-                ..Default::default()
-            });
+            let sampler = self
+                .samplers
+                .entry(image_delta.filter)
+                .or_insert_with(|| create_sampler(image_delta.filter, device));
             let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label,
                 layout: &self.texture_bind_group_layout,
@@ -548,7 +544,7 @@ impl Renderer {
                     },
                     wgpu::BindGroupEntry {
                         binding: 1,
-                        resource: wgpu::BindingResource::Sampler(&sampler),
+                        resource: wgpu::BindingResource::Sampler(sampler),
                     },
                 ],
             });
@@ -792,6 +788,19 @@ impl Renderer {
             }
         }
     }
+}
+
+fn create_sampler(filter: egui::TextureFilter, device: &wgpu::Device) -> wgpu::Sampler {
+    let wgpu_filter = match filter {
+        egui::TextureFilter::Nearest => wgpu::FilterMode::Nearest,
+        egui::TextureFilter::Linear => wgpu::FilterMode::Linear,
+    };
+    device.create_sampler(&wgpu::SamplerDescriptor {
+        label: Some(&format!("egui sampler ({:?})", filter)),
+        mag_filter: wgpu_filter,
+        min_filter: wgpu_filter,
+        ..Default::default()
+    })
 }
 
 fn create_vertex_buffer(device: &wgpu::Device, size: u64) -> wgpu::Buffer {
