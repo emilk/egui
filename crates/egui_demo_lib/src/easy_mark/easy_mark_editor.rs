@@ -121,7 +121,7 @@ fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRang
     let mut any_change = false;
     if ui
         .input_mut()
-        .consume_key(egui::Modifiers::ALT_SHIFT, Key::E)
+        .consume_key(egui::Modifiers::ALT | egui::Modifiers::SHIFT, Key::E)
     {
         // This is a placeholder till we can indent the active line
         any_change = true;
@@ -132,13 +132,13 @@ fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRang
         ccursor_range.secondary.index += advance;
     }
     for (modifier, key, surrounding) in [
-        (egui::Modifiers::COMMAND, Key::B, "*"),   // *bold*
-        (egui::Modifiers::COMMAND, Key::N, "`"),   // `code`
-        (egui::Modifiers::COMMAND, Key::I, "/"),   // /italics/
-        (egui::Modifiers::COMMAND, Key::L, "$"),   // $subscript$
-        (egui::Modifiers::COMMAND, Key::Y, "^"),   // ^superscript^
-        (egui::Modifiers::ALT_SHIFT, Key::Q, "~"), // ~strikethrough~
-        (egui::Modifiers::ALT_SHIFT, Key::W, "_"), // _underline_
+        (egui::Modifiers::COMMAND, Key::B, "*"), // *bold*
+        (egui::Modifiers::COMMAND, Key::N, "`"), // `code`
+        (egui::Modifiers::COMMAND, Key::I, "/"), // /italics/
+        (egui::Modifiers::COMMAND, Key::L, "$"), // $subscript$
+        (egui::Modifiers::COMMAND, Key::Y, "^"), // ^superscript^
+        (egui::Modifiers::ALT | egui::Modifiers::SHIFT, Key::Q, "~"), // ~strikethrough~
+        (egui::Modifiers::ALT | egui::Modifiers::SHIFT, Key::W, "_"), // _underline_
     ] {
         if ui.input_mut().consume_key(modifier, key) {
             any_change = true;

@@ -354,6 +354,8 @@ impl Modifiers {
         mac_cmd: false,
         command: false,
     };
+
+    #[deprecated = "Use `Modifiers::ALT | Modifiers::SHIFT` instead"]
     pub const ALT_SHIFT: Self = Self {
         alt: true,
         ctrl: false,
