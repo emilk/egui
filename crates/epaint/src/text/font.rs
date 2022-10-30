@@ -31,7 +31,7 @@ impl UvRect {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct GlyphInfo {
     pub(crate) id: ab_glyph::GlyphId,
 
@@ -265,6 +265,12 @@ impl Font {
         slf
     }
 
+    pub fn preload_characters(&mut self, s: &str) {
+        for c in s.chars() {
+            self.glyph_info(c);
+        }
+    }
+
     pub fn preload_common_characters(&mut self) {
         // Preload the printable ASCII characters [32, 126] (which excludes control codes):
         const FIRST_ASCII: usize = 32; // 32 == space
@@ -276,7 +282,7 @@ impl Font {
         self.glyph_info(crate::text::PASSWORD_REPLACEMENT_CHAR);
     }
 
-    /// All supported characters
+    /// All supported characters.
     pub fn characters(&mut self) -> &BTreeSet<char> {
         self.characters.get_or_insert_with(|| {
             let mut characters = BTreeSet::new();
@@ -308,6 +314,16 @@ impl Font {
     /// Width of this character in points.
     pub fn glyph_width(&mut self, c: char) -> f32 {
         self.glyph_info(c).1.advance_width
+    }
+
+    /// Can we display this glyph?
+    pub fn has_glyph(&mut self, c: char) -> bool {
+        self.glyph_info(c) != self.replacement_glyph // TODO(emilk): this is a false negative if the user asks about the replacement character itself 🤦‍♂️
+    }
+
+    /// Can we display all the glyphs in this text?
+    pub fn has_glyphs(&mut self, s: &str) -> bool {
+        s.chars().all(|c| self.has_glyph(c))
     }
 
     /// `\n` will (intentionally) show up as the replacement character.

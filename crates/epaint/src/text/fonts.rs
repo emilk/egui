@@ -430,6 +430,17 @@ impl Fonts {
         self.lock().fonts.glyph_width(font_id, c)
     }
 
+    /// Can we display this glyph?
+    #[inline]
+    pub fn has_glyph(&self, font_id: &FontId, c: char) -> bool {
+        self.lock().fonts.has_glyph(font_id, c)
+    }
+
+    /// Can we display all the glyphs in this text?
+    pub fn has_glyphs(&self, font_id: &FontId, s: &str) -> bool {
+        self.lock().fonts.has_glyphs(font_id, s)
+    }
+
     /// Height of one row of text in points
     #[inline]
     pub fn row_height(&self, font_id: &FontId) -> f32 {
@@ -625,6 +636,16 @@ impl FontsImpl {
     /// Width of this character in points.
     fn glyph_width(&mut self, font_id: &FontId, c: char) -> f32 {
         self.font(font_id).glyph_width(c)
+    }
+
+    /// Can we display this glyph?
+    pub fn has_glyph(&mut self, font_id: &FontId, c: char) -> bool {
+        self.font(font_id).has_glyph(c)
+    }
+
+    /// Can we display all the glyphs in this text?
+    pub fn has_glyphs(&mut self, font_id: &FontId, s: &str) -> bool {
+        self.font(font_id).has_glyphs(s)
     }
 
     /// Height of one row of text. In points
