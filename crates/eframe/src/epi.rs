@@ -75,7 +75,7 @@ pub trait App {
     ///
     /// You need to implement this if you want to be able to access the application from JS using [`AppRunner::app_mut`].
     ///
-    /// This is needed because downcasting Box<dyn App> -> Box<dyn Any> to get &ConcreteApp is not simple in current rust.
+    /// This is needed because downcasting `Box<dyn App>` -> `Box<dyn Any>` to get &`ConcreteApp` is not simple in current rust.
     ///
     /// Just copy-paste this as your implementation:
     /// ```ignore

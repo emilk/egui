@@ -101,7 +101,7 @@ fn web_location() -> epi::Location {
 
     let query_map = parse_query_map(&query)
         .iter()
-        .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
+        .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
         .collect();
 
     epi::Location {
@@ -181,14 +181,14 @@ impl Drop for AppRunner {
 }
 
 impl AppRunner {
+    /// # Errors
+    /// Failure to initialize WebGL renderer.
     pub async fn new(
         canvas_id: &str,
         web_options: crate::WebOptions,
         app_creator: epi::AppCreator,
-    ) -> Result<Self, JsValue> {
-        let painter = ActiveWebPainter::new(canvas_id, &web_options)
-            .await
-            .map_err(JsValue::from)?;
+    ) -> Result<Self, String> {
+        let painter = ActiveWebPainter::new(canvas_id, &web_options).await?;
 
         let system_theme = if web_options.follow_system_theme {
             super::system_theme()
@@ -469,9 +469,6 @@ pub struct AppRunnerContainer {
 impl AppRunnerContainer {
     /// Convenience function to reduce boilerplate and ensure that all event handlers
     /// are dealt with in the same way
-    ///
-
-    #[must_use]
     pub fn add_event_listener<E: wasm_bindgen::JsCast>(
         &mut self,
         target: &EventTarget,
@@ -502,7 +499,7 @@ impl AppRunnerContainer {
 
         let handle = TargetEvent {
             target: target.clone(),
-            event_name: event_name.to_string(),
+            event_name: event_name.to_owned(),
             closure,
         };
 

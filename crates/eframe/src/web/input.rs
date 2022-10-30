@@ -54,8 +54,8 @@ pub fn pos_from_touch_event(
 
 fn pos_from_touch(canvas_origin: egui::Pos2, touch: &web_sys::Touch) -> egui::Pos2 {
     egui::Pos2 {
-        x: touch.page_x() as f32 - canvas_origin.x as f32,
-        y: touch.page_y() as f32 - canvas_origin.y as f32,
+        x: touch.page_x() as f32 - canvas_origin.x,
+        y: touch.page_y() as f32 - canvas_origin.y,
     }
 }
 

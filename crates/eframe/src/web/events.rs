@@ -203,7 +203,7 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
 
         let closure =
             move |event: web_sys::MouseEvent,
-                  mut _runner_lock: egui::mutex::MutexGuard<AppRunner>| {
+                  mut _runner_lock: egui::mutex::MutexGuard<'_, AppRunner>| {
                 event.prevent_default();
             };
 
@@ -213,7 +213,7 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
     runner_container.add_event_listener(
         &canvas,
         "mousedown",
-        |event: web_sys::MouseEvent, mut runner_lock: egui::mutex::MutexGuard<AppRunner>| {
+        |event: web_sys::MouseEvent, mut runner_lock: egui::mutex::MutexGuard<'_, AppRunner>| {
             if let Some(button) = button_from_mouse_event(&event) {
                 let pos = pos_from_mouse_event(runner_lock.canvas_id(), &event);
                 let modifiers = runner_lock.input.raw.modifiers;
