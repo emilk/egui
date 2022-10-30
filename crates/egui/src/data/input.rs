@@ -466,6 +466,76 @@ impl std::ops::BitOr for Modifiers {
     }
 }
 
+// ----------------------------------------------------------------------------
+
+/// Names of different modifier keys.
+///
+/// Used to name modifiers.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ModifierNames<'a> {
+    pub is_short: bool,
+
+    pub alt: &'a str,
+    pub ctrl: &'a str,
+    pub shift: &'a str,
+    pub mac_cmd: &'a str,
+
+    /// What goes between the names
+    pub concat: &'a str,
+}
+
+impl ModifierNames<'static> {
+    /// ⌥ ^ ⇧ ⌘ - NOTE: not supported by the default egui font.
+    pub const SYMBOLS: Self = Self {
+        is_short: true,
+        alt: "⌥",
+        ctrl: "^",
+        shift: "⇧",
+        mac_cmd: "⌘",
+        concat: "",
+    };
+
+    /// Alt, Ctrl, Shift, Command
+    pub const NAMES: Self = Self {
+        is_short: false,
+        alt: "Alt",
+        ctrl: "Ctrl",
+        shift: "Shift",
+        mac_cmd: "Command",
+        concat: "+",
+    };
+}
+
+impl<'a> ModifierNames<'a> {
+    pub fn format(&self, modifiers: &Modifiers, is_mac: bool) -> String {
+        let mut s = String::new();
+
+        let mut append_if = |modifier_is_active, modifier_name| {
+            if modifier_is_active {
+                if !s.is_empty() {
+                    s += self.concat;
+                }
+                s += modifier_name;
+            }
+        };
+
+        if is_mac {
+            append_if(modifiers.ctrl, self.ctrl);
+            append_if(modifiers.shift, self.shift);
+            append_if(modifiers.alt, self.alt);
+            append_if(modifiers.mac_cmd || modifiers.command, self.mac_cmd);
+        } else {
+            append_if(modifiers.ctrl, self.ctrl);
+            append_if(modifiers.alt, self.alt);
+            append_if(modifiers.shift, self.shift);
+        }
+
+        s
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// Keyboard keys.
 ///
 /// Includes all keys egui is interested in (such as `Home` and `End`)
@@ -564,6 +634,98 @@ pub enum Key {
     F19,
     F20,
 }
+
+impl Key {
+    /// Emoji or name representing the key
+    pub fn symbol_or_name(self) -> &'static str {
+        match self {
+            Key::ArrowDown => "⏷",
+            Key::ArrowLeft => "⏴",
+            Key::ArrowRight => "⏵",
+            Key::ArrowUp => "⏶",
+            _ => self.name(),
+        }
+    }
+
+    /// Human-readable English name.
+    pub fn name(self) -> &'static str {
+        match self {
+            Key::ArrowDown => "Down",
+            Key::ArrowLeft => "Left",
+            Key::ArrowRight => "Right",
+            Key::ArrowUp => "Up",
+            Key::Escape => "Escape",
+            Key::Tab => "Tab",
+            Key::Backspace => "Backspace",
+            Key::Enter => "Enter",
+            Key::Space => "Space",
+            Key::Insert => "Insert",
+            Key::Delete => "Delete",
+            Key::Home => "Home",
+            Key::End => "End",
+            Key::PageUp => "PageUp",
+            Key::PageDown => "PageDown",
+            Key::Num0 => "0",
+            Key::Num1 => "1",
+            Key::Num2 => "2",
+            Key::Num3 => "3",
+            Key::Num4 => "4",
+            Key::Num5 => "5",
+            Key::Num6 => "6",
+            Key::Num7 => "7",
+            Key::Num8 => "8",
+            Key::Num9 => "9",
+            Key::A => "A",
+            Key::B => "B",
+            Key::C => "C",
+            Key::D => "D",
+            Key::E => "E",
+            Key::F => "F",
+            Key::G => "G",
+            Key::H => "H",
+            Key::I => "I",
+            Key::J => "J",
+            Key::K => "K",
+            Key::L => "L",
+            Key::M => "M",
+            Key::N => "N",
+            Key::O => "O",
+            Key::P => "P",
+            Key::Q => "Q",
+            Key::R => "R",
+            Key::S => "S",
+            Key::T => "T",
+            Key::U => "U",
+            Key::V => "V",
+            Key::W => "W",
+            Key::X => "X",
+            Key::Y => "Y",
+            Key::Z => "Z",
+            Key::F1 => "F1",
+            Key::F2 => "F2",
+            Key::F3 => "F3",
+            Key::F4 => "F4",
+            Key::F5 => "F5",
+            Key::F6 => "F6",
+            Key::F7 => "F7",
+            Key::F8 => "F8",
+            Key::F9 => "F9",
+            Key::F10 => "F10",
+            Key::F11 => "F11",
+            Key::F12 => "F12",
+            Key::F13 => "F13",
+            Key::F14 => "F14",
+            Key::F15 => "F15",
+            Key::F16 => "F16",
+            Key::F17 => "F17",
+            Key::F18 => "F18",
+            Key::F19 => "F19",
+            Key::F20 => "F20",
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 impl RawInput {
     pub fn ui(&self, ui: &mut crate::Ui) {
