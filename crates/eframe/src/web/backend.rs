@@ -212,6 +212,9 @@ impl AppRunner {
         let storage = LocalStorage::default();
 
         let egui_ctx = egui::Context::default();
+        egui_ctx.set_os(egui::os::OperatingSystem::from_user_agent(
+            &user_agent().unwrap_or_default(),
+        ));
         load_memory(&egui_ctx);
 
         let theme = system_theme.unwrap_or(web_options.default_theme);

@@ -3,7 +3,8 @@ use std::sync::Arc;
 
 use crate::{
     animation_manager::AnimationManager, data::output::PlatformOutput, frame_state::FrameState,
-    input_state::*, layers::GraphicLayers, memory::Options, output::FullOutput, TextureHandle, *,
+    input_state::*, layers::GraphicLayers, memory::Options, os::OperatingSystem,
+    output::FullOutput, TextureHandle, *,
 };
 use epaint::{mutex::*, stats::*, text::Fonts, textures::TextureFilter, TessellationOptions, *};
 
@@ -35,6 +36,8 @@ struct ContextImpl {
     memory: Memory,
     animation_manager: AnimationManager,
     tex_manager: WrappedTextureManager,
+
+    os: OperatingSystem,
 
     input: InputState,
 
@@ -562,6 +565,25 @@ impl Context {
     #[inline]
     pub fn tessellation_options(&self) -> RwLockWriteGuard<'_, TessellationOptions> {
         RwLockWriteGuard::map(self.write(), |c| &mut c.memory.options.tessellation_options)
+    }
+
+    /// What operating system are we running on?
+    ///
+    /// When compiling natively, this is
+    /// figured out from the `target_os`.
+    ///
+    /// For web, this can be figured out from the user-agent,
+    /// and is done so by [`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe).
+    pub fn os(&self) -> OperatingSystem {
+        self.read().os
+    }
+
+    /// Set the operating system we are running on.
+    ///
+    /// If you are writing wasm-based integration for egui you
+    /// may want to set this based on e.g. the user-agent.
+    pub fn set_os(&self, os: OperatingSystem) {
+        self.write().os = os;
     }
 }
 
