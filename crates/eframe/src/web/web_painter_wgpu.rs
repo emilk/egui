@@ -116,7 +116,7 @@ impl WebPainter for WebPainterWgpu {
                     alpha_mode: wgpu::CompositeAlphaMode::Auto,
                 },
             );
-            self.surface_size = canvas_size.clone();
+            self.surface_size = canvas_size;
         }
 
         let frame = self.surface.get_current_texture().map_err(|err| {

@@ -108,6 +108,9 @@ pub use web_sys;
 ///     eframe::start_web(canvas_id, web_options, Box::new(|cc| Box::new(MyEguiApp::new(cc)))).await
 /// }
 /// ```
+///
+/// # Errors
+/// Failing to initialize WebGL graphics.
 #[cfg(target_arch = "wasm32")]
 pub async fn start_web(
     canvas_id: &str,

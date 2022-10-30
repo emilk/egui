@@ -55,6 +55,8 @@ cargo doc --document-private-items --no-deps --all-features
 
 ./sh/wasm_bindgen_check.sh
 
+cargo cranky --target wasm32-unknown-unknown --all-features -p egui_demo_app --lib -- -D warnings
+
 # cargo install cargo-deny
 cargo deny check
 

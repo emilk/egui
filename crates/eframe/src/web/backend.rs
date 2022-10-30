@@ -101,7 +101,7 @@ fn web_location() -> epi::Location {
 
     let query_map = parse_query_map(&query)
         .iter()
-        .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
+        .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
         .collect();
 
     epi::Location {
@@ -469,9 +469,6 @@ pub struct AppRunnerContainer {
 impl AppRunnerContainer {
     /// Convenience function to reduce boilerplate and ensure that all event handlers
     /// are dealt with in the same way
-    ///
-
-    #[must_use]
     pub fn add_event_listener<E: wasm_bindgen::JsCast>(
         &mut self,
         target: &EventTarget,
@@ -502,7 +499,7 @@ impl AppRunnerContainer {
 
         let handle = TargetEvent {
             target: target.clone(),
-            event_name: event_name.to_string(),
+            event_name: event_name.to_owned(),
             closure,
         };
 
