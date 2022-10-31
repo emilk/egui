@@ -297,6 +297,10 @@ pub const NUM_POINTER_BUTTONS: usize = 5;
 /// State of the modifier keys. These must be fed to egui.
 ///
 /// The best way to compare [`Modifiers`] is by using [`Modifiers::matches`].
+///
+/// NOTE: For cross-platform uses, ALT+SHIFT is a bad combination of modifiers
+/// as on mac that is how you type special characters,
+/// so those key presses are usually not reported to egui.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Modifiers {
