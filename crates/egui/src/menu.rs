@@ -288,7 +288,22 @@ impl MenuRoot {
         {
             // menu not open and button clicked
             // or button hovered while other menu is open
-            let pos = response.rect.left_bottom();
+            drop(input);
+
+            let mut pos = response.rect.left_bottom();
+            if let Some(root) = root.inner.as_mut() {
+                let menu_rect = root.menu_state.read().rect;
+                let screen_rect = response.ctx.input().screen_rect;
+
+                if pos.y + menu_rect.height() > screen_rect.max.y {
+                    pos.y = screen_rect.max.y - menu_rect.height() - response.rect.height();
+                }
+
+                if pos.x + menu_rect.width() > screen_rect.max.x {
+                    pos.x = screen_rect.max.x - menu_rect.width();
+                }
+            }
+
             return MenuResponse::Create(pos, id);
         } else if input.pointer.any_pressed() && input.pointer.primary_down() {
             if let Some(pos) = input.pointer.interact_pos() {
