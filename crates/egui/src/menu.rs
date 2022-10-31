@@ -296,8 +296,7 @@ impl MenuRoot {
                 let screen_rect = response.ctx.input().screen_rect;
 
                 if pos.y + menu_rect.height() > screen_rect.max.y {
-                    pos.y = screen_rect.max.y - menu_rect.height();
-                    pos.x += response.rect.width();
+                    pos.y = screen_rect.max.y - menu_rect.height() - response.rect.height();
                 }
 
                 if pos.x + menu_rect.width() > screen_rect.max.x {
