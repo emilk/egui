@@ -1,6 +1,6 @@
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum OperatingSystem {
-    /// Unknown os - could be wasm
+    /// Unknown OS - could be wasm
     Unknown,
 
     /// Android OS.
