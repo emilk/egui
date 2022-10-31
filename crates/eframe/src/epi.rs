@@ -11,7 +11,7 @@ use std::any::Any;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use crate::native::run::RequestRepaintEvent;
-use egui_wgpu::WgpuConfiguration;
+
 #[cfg(not(target_arch = "wasm32"))]
 pub use winit::event_loop::EventLoopBuilder;
 
@@ -366,7 +366,7 @@ pub struct NativeOptions {
     /// Wayland desktop currently not supported.
     pub centered: bool,
 
-    /// Configures wgpu instance/device/adapter creation and renderloop.
+    /// Configures wgpu instance/device/adapter/surface creation and renderloop.
     #[cfg(feature = "wgpu")]
     pub wgpu_options: egui_wgpu::WgpuConfiguration,
 }
@@ -417,7 +417,7 @@ impl Default for NativeOptions {
             shader_version: None,
             centered: false,
             #[cfg(feature = "wgpu")]
-            wgpu_options: WgpuConfiguration::default(),
+            wgpu_options: egui_wgpu::WgpuConfiguration::default(),
         }
     }
 }
@@ -469,9 +469,9 @@ pub struct WebOptions {
     #[cfg(feature = "glow")]
     pub webgl_context_option: WebGlContextOption,
 
-    /// Configures wgpu instance/device/adapter creation and renderloop.
+    /// Configures wgpu instance/device/adapter/surface creation and renderloop.
     #[cfg(feature = "wgpu")]
-    pub wgpu_options: WgpuConfiguration,
+    pub wgpu_options: egui_wgpu::WgpuConfiguration,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -485,7 +485,7 @@ impl Default for WebOptions {
             webgl_context_option: WebGlContextOption::BestFirst,
 
             #[cfg(feature = "wgpu")]
-            wgpu_options: WgpuConfiguration {
+            wgpu_options: egui_wgpu::WgpuConfiguration {
                 // WebGPU is not stable enough yet, use WebGL emulation
                 backends: wgpu::Backends::GL,
                 device_descriptor: wgpu::DeviceDescriptor {
