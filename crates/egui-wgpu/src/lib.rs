@@ -34,7 +34,7 @@ pub enum SurfaceErrorAction {
     /// Do nothing and skip the current frame.
     SkipFrame,
 
-    /// Instructs egui to recreate the surface.
+    /// Instructs egui to recreate the surface, then skip the current frame.
     RecreateSurface,
 }
 

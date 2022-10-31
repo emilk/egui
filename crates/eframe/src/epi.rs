@@ -492,7 +492,8 @@ impl Default for WebOptions {
                     label: Some("egui wgpu device"),
                     features: wgpu::Features::default(),
                     limits: wgpu::Limits {
-                        // When using a depth buffer, we have to be able to create a texture large enough for the entire surface.
+                        // When using a depth buffer, we have to be able to create a texture
+                        // large enough for the entire surface, and we want to support 4k+ displays.
                         max_texture_dimension_2d: 8192,
                         ..wgpu::Limits::downlevel_webgl2_defaults()
                     },
