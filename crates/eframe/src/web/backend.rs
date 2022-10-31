@@ -87,6 +87,10 @@ impl IsDestroyed {
 
 // ----------------------------------------------------------------------------
 
+fn user_agent() -> Option<String> {
+    web_sys::window()?.navigator().user_agent().ok()
+}
+
 fn web_location() -> epi::Location {
     let location = web_sys::window().unwrap().location();
 
@@ -198,6 +202,7 @@ impl AppRunner {
 
         let info = epi::IntegrationInfo {
             web_info: epi::WebInfo {
+                user_agent: user_agent().unwrap_or_default(),
                 location: web_location(),
             },
             system_theme,
@@ -207,6 +212,9 @@ impl AppRunner {
         let storage = LocalStorage::default();
 
         let egui_ctx = egui::Context::default();
+        egui_ctx.set_os(egui::os::OperatingSystem::from_user_agent(
+            &user_agent().unwrap_or_default(),
+        ));
         load_memory(&egui_ctx);
 
         let theme = system_theme.unwrap_or(web_options.default_theme);

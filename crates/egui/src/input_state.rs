@@ -267,6 +267,14 @@ impl InputState {
         match_found
     }
 
+    /// Check if the given shortcut has been pressed.
+    ///
+    /// If so, `true` is returned and the key pressed is consumed, so that this will only return `true` once.
+    pub fn consume_shortcut(&mut self, shortcut: &KeyboardShortcut) -> bool {
+        let KeyboardShortcut { modifiers, key } = *shortcut;
+        self.consume_key(modifiers, key)
+    }
+
     /// Was the given key pressed this frame?
     pub fn key_pressed(&self, desired_key: Key) -> bool {
         self.num_presses(desired_key) > 0

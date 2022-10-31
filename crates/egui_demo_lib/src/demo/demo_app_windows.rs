@@ -1,4 +1,4 @@
-use egui::{Context, ScrollArea, Ui};
+use egui::{Context, Modifiers, ScrollArea, Ui};
 use std::collections::BTreeSet;
 
 use super::About;
@@ -239,7 +239,7 @@ impl DemoWindows {
     fn desktop_ui(&mut self, ctx: &Context) {
         egui::SidePanel::right("egui_demo_panel")
             .resizable(false)
-            .default_width(145.0)
+            .default_width(150.0)
             .show(ctx, |ui| {
                 egui::trace!(ui);
                 ui.vertical_centered(|ui| {
@@ -301,13 +301,42 @@ impl DemoWindows {
 // ----------------------------------------------------------------------------
 
 fn file_menu_button(ui: &mut Ui) {
+    let organize_shortcut =
+        egui::KeyboardShortcut::new(Modifiers::ALT | Modifiers::SHIFT, egui::Key::O);
+    let reset_shortcut =
+        egui::KeyboardShortcut::new(Modifiers::ALT | Modifiers::SHIFT, egui::Key::R);
+
+    // NOTE: we must check the shortcuts OUTSIDE of the actual "File" menu,
+    // or else they would only be checked if the "File" menu was actually open!
+
+    if ui.input_mut().consume_shortcut(&organize_shortcut) {
+        ui.ctx().memory().reset_areas();
+    }
+
+    if ui.input_mut().consume_shortcut(&reset_shortcut) {
+        *ui.ctx().memory() = Default::default();
+    }
+
     ui.menu_button("File", |ui| {
-        if ui.button("Organize windows").clicked() {
+        ui.set_min_width(220.0);
+        ui.style_mut().wrap = Some(false);
+
+        if ui
+            .add(
+                egui::Button::new("Organize Windows")
+                    .shortcut_text(ui.ctx().format_shortcut(&organize_shortcut)),
+            )
+            .clicked()
+        {
             ui.ctx().memory().reset_areas();
             ui.close_menu();
         }
+
         if ui
-            .button("Reset egui memory")
+            .add(
+                egui::Button::new("Reset egui memory")
+                    .shortcut_text(ui.ctx().format_shortcut(&reset_shortcut)),
+            )
             .on_hover_text("Forget scroll, positions, sizes etc")
             .clicked()
         {
