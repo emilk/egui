@@ -1,6 +1,6 @@
 #![allow(clippy::needless_pass_by_value)] // False positives with `impl ToString`
 
-use std::ops::RangeInclusive;
+use std::{cmp::Ordering, ops::RangeInclusive};
 
 use crate::*;
 
@@ -508,8 +508,11 @@ impl<'a> Widget for DragValue<'a> {
 }
 
 fn clamp_to_range(x: f64, range: RangeInclusive<f64>) -> f64 {
-    x.clamp(
-        range.start().min(*range.end()),
-        range.start().max(*range.end()),
-    )
+    match x.total_cmp(range.start()) {
+        Ordering::Less | Ordering::Equal => *range.start(),
+        Ordering::Greater => match x.total_cmp(range.end()) {
+            Ordering::Greater | Ordering::Equal => *range.end(),
+            Ordering::Less => x,
+        },
+    }
 }
