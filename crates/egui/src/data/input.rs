@@ -383,13 +383,18 @@ impl Modifiers {
     };
 
     /// ```
+    /// # use egui::Modifiers;
     /// assert_eq!(
-    ///     Modifiers::CTRL | Modifiers::Alt,
-    ///     Modifiers::CTRL.plus(Modifiers::Alt),
+    ///     Modifiers::CTRL | Modifiers::ALT,
+    ///     Modifiers { ctrl: true, alt: true, ..Default::default() }
     /// );
     /// assert_eq!(
-    ///     Modifiers::CTRL | Modifiers::Alt,
-    ///     Modifiers { ctrl: true, alt: true, ..Default::default() }
+    ///     Modifiers::ALT.plus(Modifiers::CTRL),
+    ///     Modifiers::CTRL.plus(Modifiers::ALT),
+    /// );
+    /// assert_eq!(
+    ///     Modifiers::CTRL | Modifiers::ALT,
+    ///     Modifiers::CTRL.plus(Modifiers::ALT),
     /// );
     /// ```
     #[inline]
