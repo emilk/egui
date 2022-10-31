@@ -321,10 +321,6 @@ pub struct Modifiers {
 }
 
 impl Modifiers {
-    pub fn new() -> Self {
-        Default::default()
-    }
-
     pub const NONE: Self = Self {
         alt: false,
         ctrl: false,
@@ -382,24 +378,45 @@ impl Modifiers {
         command: true,
     };
 
-    #[inline(always)]
+    /// ```
+    /// assert_eq!(
+    ///     Modifiers::CTRL | Modifiers::Alt,
+    ///     Modifiers::CTRL.plus(Modifiers::Alt),
+    /// );
+    /// assert_eq!(
+    ///     Modifiers::CTRL | Modifiers::Alt,
+    ///     Modifiers { ctrl: true, alt: true, ..Default::default() }
+    /// );
+    /// ```
+    #[inline]
+    pub const fn plus(self, rhs: Self) -> Self {
+        Self {
+            alt: self.alt | rhs.alt,
+            ctrl: self.ctrl | rhs.ctrl,
+            shift: self.shift | rhs.shift,
+            mac_cmd: self.mac_cmd | rhs.mac_cmd,
+            command: self.command | rhs.command,
+        }
+    }
+
+    #[inline]
     pub fn is_none(&self) -> bool {
         self == &Self::default()
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn any(&self) -> bool {
         !self.is_none()
     }
 
     /// Is shift the only pressed button?
-    #[inline(always)]
+    #[inline]
     pub fn shift_only(&self) -> bool {
         self.shift && !(self.alt || self.command)
     }
 
     /// true if only [`Self::ctrl`] or only [`Self::mac_cmd`] is pressed.
-    #[inline(always)]
+    #[inline]
     pub fn command_only(&self) -> bool {
         !self.alt && !self.shift && self.command
     }
@@ -455,14 +472,9 @@ impl Modifiers {
 impl std::ops::BitOr for Modifiers {
     type Output = Self;
 
+    #[inline]
     fn bitor(self, rhs: Self) -> Self {
-        Self {
-            alt: self.alt | rhs.alt,
-            ctrl: self.ctrl | rhs.ctrl,
-            shift: self.shift | rhs.shift,
-            mac_cmd: self.mac_cmd | rhs.mac_cmd,
-            command: self.command | rhs.command,
-        }
+        self.plus(rhs)
     }
 }
 
