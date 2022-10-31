@@ -33,7 +33,8 @@ pub(crate) struct DatePickerPopup<'a> {
 }
 
 impl<'a> DatePickerPopup<'a> {
-    pub fn draw(&mut self, ui: &mut Ui) {
+    /// Returns `true` if user pressed `Save` button.
+    pub fn draw(&mut self, ui: &mut Ui) -> bool {
         let id = ui.make_persistent_id("date_picker");
         let today = chrono::offset::Utc::now().date();
         let mut popup_state = ui
@@ -50,7 +51,7 @@ impl<'a> DatePickerPopup<'a> {
         }
 
         let weeks = month_data(popup_state.year, popup_state.month);
-        let mut close = false;
+        let (mut close, mut saved) = (false, false);
         let height = 20.0;
         let spacing = 2.0;
         ui.spacing_mut().item_spacing = Vec2::splat(spacing);
@@ -375,6 +376,7 @@ impl<'a> DatePickerPopup<'a> {
                                         ),
                                         Utc,
                                     );
+                                    saved = true;
                                     close = true;
                                 }
                             });
@@ -392,6 +394,8 @@ impl<'a> DatePickerPopup<'a> {
                 .get_persisted_mut_or_default::<DatePickerButtonState>(self.button_id)
                 .picker_visible = false;
         }
+
+        saved && close
     }
 }
 
