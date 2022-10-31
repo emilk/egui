@@ -11,6 +11,7 @@ use std::any::Any;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use crate::native::run::RequestRepaintEvent;
+
 #[cfg(not(target_arch = "wasm32"))]
 pub use winit::event_loop::EventLoopBuilder;
 
@@ -364,6 +365,10 @@ pub struct NativeOptions {
     ///
     /// Wayland desktop currently not supported.
     pub centered: bool,
+
+    /// Configures wgpu instance/device/adapter/surface creation and renderloop.
+    #[cfg(feature = "wgpu")]
+    pub wgpu_options: egui_wgpu::WgpuConfiguration,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -372,6 +377,8 @@ impl Clone for NativeOptions {
         Self {
             icon_data: self.icon_data.clone(),
             event_loop_builder: None, // Skip any builder callbacks if cloning
+            #[cfg(feature = "wgpu")]
+            wgpu_options: self.wgpu_options.clone(),
             ..*self
         }
     }
@@ -409,6 +416,8 @@ impl Default for NativeOptions {
             #[cfg(feature = "glow")]
             shader_version: None,
             centered: false,
+            #[cfg(feature = "wgpu")]
+            wgpu_options: egui_wgpu::WgpuConfiguration::default(),
         }
     }
 }
@@ -459,6 +468,10 @@ pub struct WebOptions {
     /// Default: [`WebGlContextOption::BestFirst`].
     #[cfg(feature = "glow")]
     pub webgl_context_option: WebGlContextOption,
+
+    /// Configures wgpu instance/device/adapter/surface creation and renderloop.
+    #[cfg(feature = "wgpu")]
+    pub wgpu_options: egui_wgpu::WgpuConfiguration,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -467,8 +480,26 @@ impl Default for WebOptions {
         Self {
             follow_system_theme: true,
             default_theme: Theme::Dark,
+
             #[cfg(feature = "glow")]
             webgl_context_option: WebGlContextOption::BestFirst,
+
+            #[cfg(feature = "wgpu")]
+            wgpu_options: egui_wgpu::WgpuConfiguration {
+                // WebGPU is not stable enough yet, use WebGL emulation
+                backends: wgpu::Backends::GL,
+                device_descriptor: wgpu::DeviceDescriptor {
+                    label: Some("egui wgpu device"),
+                    features: wgpu::Features::default(),
+                    limits: wgpu::Limits {
+                        // When using a depth buffer, we have to be able to create a texture
+                        // large enough for the entire surface, and we want to support 4k+ displays.
+                        max_texture_dimension_2d: 8192,
+                        ..wgpu::Limits::downlevel_webgl2_defaults()
+                    },
+                },
+                ..Default::default()
+            },
         }
     }
 }

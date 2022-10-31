@@ -4,7 +4,7 @@ use egui::mutex::RwLock;
 use tracing::error;
 use wgpu::{Adapter, Instance, Surface};
 
-use crate::{renderer, RenderState, Renderer};
+use crate::{renderer, RenderState, Renderer, SurfaceErrorAction, WgpuConfiguration};
 
 struct SurfaceState {
     surface: Surface,
@@ -15,10 +15,8 @@ struct SurfaceState {
 /// Everything you need to paint egui with [`wgpu`] on [`winit`].
 ///
 /// Alternatively you can use [`crate::renderer`] directly.
-pub struct Painter<'a> {
-    power_preference: wgpu::PowerPreference,
-    device_descriptor: wgpu::DeviceDescriptor<'a>,
-    present_mode: wgpu::PresentMode,
+pub struct Painter {
+    configuration: WgpuConfiguration,
     msaa_samples: u32,
     depth_format: Option<wgpu::TextureFormat>,
     depth_texture_view: Option<wgpu::TextureView>,
@@ -29,7 +27,7 @@ pub struct Painter<'a> {
     surface_state: Option<SurfaceState>,
 }
 
-impl<'a> Painter<'a> {
+impl Painter {
     /// Manages [`wgpu`] state, including surface state, required to render egui.
     ///
     /// Only the [`wgpu::Instance`] is initialized here. Device selection and the initialization
@@ -42,20 +40,11 @@ impl<'a> Painter<'a> {
     /// [`set_window()`](Self::set_window) once you have
     /// a [`winit::window::Window`] with a valid `.raw_window_handle()`
     /// associated.
-    pub fn new(
-        backends: wgpu::Backends,
-        power_preference: wgpu::PowerPreference,
-        device_descriptor: wgpu::DeviceDescriptor<'a>,
-        present_mode: wgpu::PresentMode,
-        msaa_samples: u32,
-        depth_bits: u8,
-    ) -> Self {
-        let instance = wgpu::Instance::new(backends);
+    pub fn new(configuration: WgpuConfiguration, msaa_samples: u32, depth_bits: u8) -> Self {
+        let instance = wgpu::Instance::new(configuration.backends);
 
         Self {
-            power_preference,
-            device_descriptor,
-            present_mode,
+            configuration,
             msaa_samples,
             depth_format: (depth_bits > 0).then(|| wgpu::TextureFormat::Depth32Float),
             depth_texture_view: None,
@@ -80,7 +69,8 @@ impl<'a> Painter<'a> {
         target_format: wgpu::TextureFormat,
     ) -> RenderState {
         let (device, queue) =
-            pollster::block_on(adapter.request_device(&self.device_descriptor, None)).unwrap();
+            pollster::block_on(adapter.request_device(&self.configuration.device_descriptor, None))
+                .unwrap();
 
         let renderer = Renderer::new(&device, target_format, self.depth_format, self.msaa_samples);
 
@@ -100,7 +90,7 @@ impl<'a> Painter<'a> {
     fn ensure_render_state_for_surface(&mut self, surface: &Surface) {
         self.adapter.get_or_insert_with(|| {
             pollster::block_on(self.instance.request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: self.power_preference,
+                power_preference: self.configuration.power_preference,
                 compatible_surface: Some(surface),
                 force_fallback_adapter: false,
             }))
@@ -130,7 +120,7 @@ impl<'a> Painter<'a> {
             format,
             width: width_in_pixels,
             height: height_in_pixels,
-            present_mode: self.present_mode,
+            present_mode: self.configuration.present_mode,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
         };
 
@@ -245,19 +235,20 @@ impl<'a> Painter<'a> {
             Some(rs) => rs,
             None => return,
         };
+        let (width, height) = (surface_state.width, surface_state.height);
 
         let output_frame = match surface_state.surface.get_current_texture() {
             Ok(frame) => frame,
-            Err(wgpu::SurfaceError::Outdated) => {
-                // This error occurs when the app is minimized on Windows.
-                // Silently return here to prevent spamming the console with:
-                // "The underlying surface has changed, and therefore the swap chain must be updated"
-                return;
-            }
-            Err(e) => {
-                tracing::warn!("Dropped frame with error: {e}");
-                return;
-            }
+            #[allow(clippy::single_match_else)]
+            Err(e) => match (*self.configuration.on_surface_error)(e) {
+                SurfaceErrorAction::RecreateSurface => {
+                    self.configure_surface(width, height);
+                    return;
+                }
+                SurfaceErrorAction::SkipFrame => {
+                    return;
+                }
+            },
         };
 
         let mut encoder =
@@ -269,7 +260,7 @@ impl<'a> Painter<'a> {
 
         // Upload all resources for the GPU.
         let screen_descriptor = renderer::ScreenDescriptor {
-            size_in_pixels: [surface_state.width, surface_state.height],
+            size_in_pixels: [width, height],
             pixels_per_point,
         };
 
