@@ -121,7 +121,7 @@ impl Button {
     ///
     /// Designed for menu buttons, for setting a keyboard shortcut text (e.g. `Ctrl+S`).
     ///
-    /// The text can be created with [`Context::format_keyboard_shortcut`].
+    /// The text can be created with [`Context::format_shortcut`].
     pub fn shortcut_text(mut self, shortcut_text: impl Into<WidgetText>) -> Self {
         self.shortcut_text = shortcut_text.into();
         self
@@ -150,18 +150,17 @@ impl Widget for Button {
             button_padding.y = 0.0;
         }
 
-        let mut wrap_width = ui.available_width() - 2.0 * button_padding.x;
+        let mut text_wrap_width = ui.available_width() - 2.0 * button_padding.x;
         if let Some(image) = image {
-            wrap_width -= image.size().x + ui.spacing().icon_spacing;
+            text_wrap_width -= image.size().x + ui.spacing().icon_spacing;
         }
         if !shortcut_text.is_empty() {
-            wrap_width -= ui.spacing().item_spacing.x; // space between texts
-            wrap_width /= 2.0; // half as much space per text
+            text_wrap_width -= 60.0; // Some space for the shortcut text (which we never wrap).
         }
 
-        let text = text.into_galley(ui, wrap, wrap_width, TextStyle::Button);
+        let text = text.into_galley(ui, wrap, text_wrap_width, TextStyle::Button);
         let shortcut_text = (!shortcut_text.is_empty())
-            .then(|| shortcut_text.into_galley(ui, wrap, wrap_width, TextStyle::Button));
+            .then(|| shortcut_text.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Button));
 
         let mut desired_size = text.size();
         if let Some(image) = image {

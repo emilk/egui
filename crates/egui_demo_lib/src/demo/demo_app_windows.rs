@@ -324,7 +324,7 @@ fn file_menu_button(ui: &mut Ui) {
         if ui
             .add(
                 egui::Button::new("Organize Windows")
-                    .shortcut_text(ui.ctx().format_keyboard_shortcut(&organize_shortcut)),
+                    .shortcut_text(ui.ctx().format_shortcut(&organize_shortcut)),
             )
             .clicked()
         {
@@ -335,7 +335,7 @@ fn file_menu_button(ui: &mut Ui) {
         if ui
             .add(
                 egui::Button::new("Reset egui memory")
-                    .shortcut_text(ui.ctx().format_keyboard_shortcut(&reset_shortcut)),
+                    .shortcut_text(ui.ctx().format_shortcut(&reset_shortcut)),
             )
             .on_hover_text("Forget scroll, positions, sizes etc")
             .clicked()

@@ -730,7 +730,7 @@ impl Key {
 /// A keyboard shortcut, e.g. `Ctrl+Alt+W`.
 ///
 /// Can be used with [`crate::InputState::consume_shortcut`]
-/// and [`crate::Context::format_keyboard_shortcut`].
+/// and [`crate::Context::format_shortcut`].
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct KeyboardShortcut {
     pub modifiers: Modifiers,

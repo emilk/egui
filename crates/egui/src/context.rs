@@ -589,7 +589,7 @@ impl Context {
     /// Format the given shortcut in a human-readable way (e.g. `Ctrl+Shift+X`).
     ///
     /// Can be used to get the text for [`Button::shortcut_text`].
-    pub fn format_keyboard_shortcut(&self, shortcut: &KeyboardShortcut) -> String {
+    pub fn format_shortcut(&self, shortcut: &KeyboardShortcut) -> String {
         let os = self.os();
 
         let is_mac = matches!(os, OperatingSystem::Mac | OperatingSystem::IOS);
