@@ -183,7 +183,7 @@ impl Layout {
 
     /// Place elements vertically, top to bottom.
     ///
-    /// Use the provided horizontal alignmen.
+    /// Use the provided horizontal alignment.
     #[inline(always)]
     pub fn top_down(halign: Align) -> Self {
         Self {
@@ -204,7 +204,7 @@ impl Layout {
 
     /// Place elements vertically, bottom up.
     ///
-    /// Use the provided horizontal alignmen.
+    /// Use the provided horizontal alignment.
     #[inline(always)]
     pub fn bottom_up(halign: Align) -> Self {
         Self {
