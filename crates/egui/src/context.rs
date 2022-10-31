@@ -3,7 +3,8 @@ use std::sync::Arc;
 
 use crate::{
     animation_manager::AnimationManager, data::output::PlatformOutput, frame_state::FrameState,
-    input_state::*, layers::GraphicLayers, memory::Options, output::FullOutput, TextureHandle, *,
+    input_state::*, layers::GraphicLayers, memory::Options, os::OperatingSystem,
+    output::FullOutput, TextureHandle, *,
 };
 use epaint::{mutex::*, stats::*, text::Fonts, textures::TextureFilter, TessellationOptions, *};
 
@@ -35,6 +36,8 @@ struct ContextImpl {
     memory: Memory,
     animation_manager: AnimationManager,
     tex_manager: WrappedTextureManager,
+
+    os: OperatingSystem,
 
     input: InputState,
 
@@ -562,6 +565,59 @@ impl Context {
     #[inline]
     pub fn tessellation_options(&self) -> RwLockWriteGuard<'_, TessellationOptions> {
         RwLockWriteGuard::map(self.write(), |c| &mut c.memory.options.tessellation_options)
+    }
+
+    /// What operating system are we running on?
+    ///
+    /// When compiling natively, this is
+    /// figured out from the `target_os`.
+    ///
+    /// For web, this can be figured out from the user-agent,
+    /// and is done so by [`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe).
+    pub fn os(&self) -> OperatingSystem {
+        self.read().os
+    }
+
+    /// Set the operating system we are running on.
+    ///
+    /// If you are writing wasm-based integration for egui you
+    /// may want to set this based on e.g. the user-agent.
+    pub fn set_os(&self, os: OperatingSystem) {
+        self.write().os = os;
+    }
+
+    /// Format the given shortcut in a human-readable way (e.g. `Ctrl+Shift+X`).
+    ///
+    /// Can be used to get the text for [`Button::shortcut_text`].
+    pub fn format_shortcut(&self, shortcut: &KeyboardShortcut) -> String {
+        let os = self.os();
+
+        let is_mac = matches!(os, OperatingSystem::Mac | OperatingSystem::IOS);
+
+        let can_show_symbols = || {
+            let ModifierNames {
+                alt,
+                ctrl,
+                shift,
+                mac_cmd,
+                ..
+            } = ModifierNames::SYMBOLS;
+
+            let font_id = TextStyle::Body.resolve(&self.style());
+            let fonts = self.fonts();
+            let mut fonts = fonts.lock();
+            let font = fonts.fonts.font(&font_id);
+            font.has_glyphs(alt)
+                && font.has_glyphs(ctrl)
+                && font.has_glyphs(shift)
+                && font.has_glyphs(mac_cmd)
+        };
+
+        if is_mac && can_show_symbols() {
+            shortcut.format(&ModifierNames::SYMBOLS, is_mac)
+        } else {
+            shortcut.format(&ModifierNames::NAMES, is_mac)
+        }
     }
 }
 
