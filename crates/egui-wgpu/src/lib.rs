@@ -29,6 +29,15 @@ pub struct RenderState {
     pub renderer: Arc<RwLock<Renderer>>,
 }
 
+/// Specifies which action should be taken as consequence of a [`wgpu::SurfaceError`]
+pub enum SurfaceErrorAction {
+    /// Do nothing and skip the current frame.
+    SkipFrame,
+
+    /// Instructs egui to recreate the surface.
+    RecreateSurface,
+}
+
 /// Configuration for using wgpu with eframe or the egui-wgpu winit feature.
 #[derive(Clone)]
 pub struct WgpuConfiguration {
@@ -45,7 +54,7 @@ pub struct WgpuConfiguration {
     pub power_preference: wgpu::PowerPreference,
 
     /// Callback for surface errors.
-    pub on_surface_error: Arc<dyn Fn(wgpu::SurfaceError)>,
+    pub on_surface_error: Arc<dyn Fn(wgpu::SurfaceError) -> SurfaceErrorAction>,
 }
 
 impl Default for WgpuConfiguration {
@@ -60,15 +69,15 @@ impl Default for WgpuConfiguration {
             present_mode: wgpu::PresentMode::AutoVsync,
             power_preference: wgpu::PowerPreference::HighPerformance,
 
-            on_surface_error: Arc::new(|err| match err {
-                wgpu::SurfaceError::Outdated => {
+            on_surface_error: Arc::new(|err| {
+                if err == wgpu::SurfaceError::Outdated {
                     // This error occurs when the app is minimized on Windows.
                     // Silently return here to prevent spamming the console with:
                     // "The underlying surface has changed, and therefore the swap chain must be updated"
-                }
-                _ => {
+                } else {
                     tracing::warn!("Dropped frame with error: {err}");
                 }
+                SurfaceErrorAction::SkipFrame
             }),
         }
     }

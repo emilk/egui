@@ -4,7 +4,7 @@ use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 
 use egui::{mutex::RwLock, Rgba};
-use egui_wgpu::{renderer::ScreenDescriptor, RenderState};
+use egui_wgpu::{renderer::ScreenDescriptor, RenderState, SurfaceErrorAction};
 
 use crate::WebOptions;
 
@@ -17,6 +17,7 @@ pub(crate) struct WebPainterWgpu {
     surface_configuration: wgpu::SurfaceConfiguration,
     limits: wgpu::Limits,
     render_state: Option<RenderState>,
+    on_surface_error: Arc<dyn Fn(wgpu::SurfaceError) -> SurfaceErrorAction>,
 }
 
 impl WebPainterWgpu {
@@ -80,6 +81,7 @@ impl WebPainterWgpu {
             surface,
             surface_configuration,
             limits: options.wgpu_options.device_descriptor.limits.clone(),
+            on_surface_error: options.wgpu_options.on_surface_error.clone(),
         })
     }
 }
@@ -119,12 +121,20 @@ impl WebPainter for WebPainterWgpu {
                 .configure(&render_state.device, &self.surface_configuration);
         }
 
-        let frame = self.surface.get_current_texture().map_err(|err| {
-            JsValue::from_str(&format!(
-                "Failed to acquire next swap chain texture: {}",
-                err
-            ))
-        })?;
+        let frame = match self.surface.get_current_texture() {
+            Ok(frame) => frame,
+            #[allow(clippy::single_match_else)]
+            Err(e) => match (*self.on_surface_error)(e) {
+                SurfaceErrorAction::RecreateSurface => {
+                    self.surface
+                        .configure(&render_state.device, &self.surface_configuration);
+                    return Ok(());
+                }
+                SurfaceErrorAction::SkipFrame => {
+                    return Ok(());
+                }
+            },
+        };
 
         let mut encoder =
             render_state

@@ -4,7 +4,7 @@ use egui::mutex::RwLock;
 use tracing::error;
 use wgpu::{Adapter, Instance, Surface};
 
-use crate::{renderer, RenderState, Renderer, WgpuConfiguration};
+use crate::{renderer, RenderState, Renderer, SurfaceErrorAction, WgpuConfiguration};
 
 struct SurfaceState {
     surface: Surface,
@@ -235,19 +235,20 @@ impl Painter {
             Some(rs) => rs,
             None => return,
         };
+        let (width, height) = (surface_state.width, surface_state.height);
 
         let output_frame = match surface_state.surface.get_current_texture() {
             Ok(frame) => frame,
-            Err(wgpu::SurfaceError::Outdated) => {
-                // This error occurs when the app is minimized on Windows.
-                // Silently return here to prevent spamming the console with:
-                // "The underlying surface has changed, and therefore the swap chain must be updated"
-                return;
-            }
-            Err(e) => {
-                tracing::warn!("Dropped frame with error: {e}");
-                return;
-            }
+            #[allow(clippy::single_match_else)]
+            Err(e) => match (*self.configuration.on_surface_error)(e) {
+                SurfaceErrorAction::RecreateSurface => {
+                    self.configure_surface(width, height);
+                    return;
+                }
+                SurfaceErrorAction::SkipFrame => {
+                    return;
+                }
+            },
         };
 
         let mut encoder =
@@ -259,7 +260,7 @@ impl Painter {
 
         // Upload all resources for the GPU.
         let screen_descriptor = renderer::ScreenDescriptor {
-            size_in_pixels: [surface_state.width, surface_state.height],
+            size_in_pixels: [width, height],
             pixels_per_point,
         };
 
