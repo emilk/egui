@@ -106,23 +106,42 @@ impl EasyMarkEditor {
     }
 }
 
+pub const SHORTCUT_BOLD: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::B);
+pub const SHORTCUT_CODE: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::N);
+pub const SHORTCUT_ITALICS: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::I);
+pub const SHORTCUT_SUBSCRIPT: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::L);
+pub const SHORTCUT_SUPERSCRIPT: KeyboardShortcut =
+    KeyboardShortcut::new(Modifiers::COMMAND, Key::Y);
+pub const SHORTCUT_STRIKETHROUGH: KeyboardShortcut =
+    KeyboardShortcut::new(Modifiers::CTRL.plus(Modifiers::SHIFT), Key::Q);
+pub const SHORTCUT_UNDERLINE: KeyboardShortcut =
+    KeyboardShortcut::new(Modifiers::CTRL.plus(Modifiers::SHIFT), Key::W);
+pub const SHORTCUT_INDENT: KeyboardShortcut =
+    KeyboardShortcut::new(Modifiers::CTRL.plus(Modifiers::SHIFT), Key::E);
+
 fn nested_hotkeys_ui(ui: &mut egui::Ui) {
-    let _ = ui.label("CTRL+B *bold*");
-    let _ = ui.label("CTRL+N `code`");
-    let _ = ui.label("CTRL+I /italics/");
-    let _ = ui.label("CTRL+L $subscript$");
-    let _ = ui.label("CTRL+Y ^superscript^");
-    let _ = ui.label("ALT+SHIFT+Q ~strikethrough~");
-    let _ = ui.label("ALT+SHIFT+W _underline_");
-    let _ = ui.label("ALT+SHIFT+E two spaces"); // Placeholder for tab indent
+    egui::Grid::new("shortcuts").striped(true).show(ui, |ui| {
+        let mut label = |shortcut, what| {
+            ui.label(what);
+            ui.weak(ui.ctx().format_shortcut(&shortcut));
+            ui.end_row();
+        };
+
+        label(SHORTCUT_BOLD, "*bold*");
+        label(SHORTCUT_CODE, "`code`");
+        label(SHORTCUT_ITALICS, "/italics/");
+        label(SHORTCUT_SUBSCRIPT, "$subscript$");
+        label(SHORTCUT_SUPERSCRIPT, "^superscript^");
+        label(SHORTCUT_STRIKETHROUGH, "~strikethrough~");
+        label(SHORTCUT_UNDERLINE, "_underline_");
+        label(SHORTCUT_INDENT, "two spaces"); // Placeholder for tab indent
+    });
 }
 
 fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRange) -> bool {
     let mut any_change = false;
-    if ui
-        .input_mut()
-        .consume_key(egui::Modifiers::ALT_SHIFT, Key::E)
-    {
+
+    if ui.input_mut().consume_shortcut(&SHORTCUT_INDENT) {
         // This is a placeholder till we can indent the active line
         any_change = true;
         let [primary, _secondary] = ccursor_range.sorted();
@@ -131,20 +150,22 @@ fn shortcuts(ui: &Ui, code: &mut dyn TextBuffer, ccursor_range: &mut CCursorRang
         ccursor_range.primary.index += advance;
         ccursor_range.secondary.index += advance;
     }
-    for (modifier, key, surrounding) in [
-        (egui::Modifiers::COMMAND, Key::B, "*"),   // *bold*
-        (egui::Modifiers::COMMAND, Key::N, "`"),   // `code`
-        (egui::Modifiers::COMMAND, Key::I, "/"),   // /italics/
-        (egui::Modifiers::COMMAND, Key::L, "$"),   // $subscript$
-        (egui::Modifiers::COMMAND, Key::Y, "^"),   // ^superscript^
-        (egui::Modifiers::ALT_SHIFT, Key::Q, "~"), // ~strikethrough~
-        (egui::Modifiers::ALT_SHIFT, Key::W, "_"), // _underline_
+
+    for (shortcut, surrounding) in [
+        (SHORTCUT_BOLD, "*"),
+        (SHORTCUT_CODE, "`"),
+        (SHORTCUT_ITALICS, "/"),
+        (SHORTCUT_SUBSCRIPT, "$"),
+        (SHORTCUT_SUPERSCRIPT, "^"),
+        (SHORTCUT_STRIKETHROUGH, "~"),
+        (SHORTCUT_UNDERLINE, "_"),
     ] {
-        if ui.input_mut().consume_key(modifier, key) {
+        if ui.input_mut().consume_shortcut(&shortcut) {
             any_change = true;
             toggle_surrounding(code, ccursor_range, surrounding);
         };
     }
+
     any_change
 }
 

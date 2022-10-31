@@ -798,6 +798,9 @@ impl Frame {
 #[derive(Clone, Debug)]
 #[cfg(target_arch = "wasm32")]
 pub struct WebInfo {
+    /// The browser user agent.
+    pub user_agent: String,
+
     /// Information about the URL.
     pub location: Location,
 }
