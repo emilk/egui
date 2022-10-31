@@ -516,3 +516,24 @@ fn clamp_to_range(x: f64, range: RangeInclusive<f64>) -> f64 {
         },
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::clamp_to_range;
+
+    macro_rules! total_assert_eq {
+        ($a:expr, $b:expr) => {
+            assert!(matches!($a.total_cmp(&$b), std::cmp::Ordering::Equal));
+        };
+    }
+
+    #[test]
+    fn test_total_cmp_clamp_to_range() {
+        total_assert_eq!(0.0_f64, clamp_to_range(-0.0, 0.0..=f64::MAX));
+        total_assert_eq!(-1.0_f64, clamp_to_range(-25.0, -1.0..=1.0));
+        total_assert_eq!(5.0_f64, clamp_to_range(5.0, -1.0..=10.0));
+        total_assert_eq!(15.0_f64, clamp_to_range(25.0, -1.0..=15.0));
+        total_assert_eq!(1.0_f64, clamp_to_range(1.0, 1.0..=10.0));
+        total_assert_eq!(10.0_f64, clamp_to_range(10.0, 1.0..=10.0));
+    }
+}
