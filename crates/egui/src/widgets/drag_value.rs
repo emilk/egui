@@ -508,10 +508,16 @@ impl<'a> Widget for DragValue<'a> {
 }
 
 fn clamp_to_range(x: f64, range: RangeInclusive<f64>) -> f64 {
-    match x.total_cmp(range.start()) {
-        Ordering::Less | Ordering::Equal => *range.start(),
-        Ordering::Greater => match x.total_cmp(range.end()) {
-            Ordering::Greater | Ordering::Equal => *range.end(),
+    let (mut min, mut max) = (*range.start(), *range.end());
+
+    if min.total_cmp(&max) == Ordering::Greater {
+        (min, max) = (max, min);
+    }
+
+    match x.total_cmp(&min) {
+        Ordering::Less | Ordering::Equal => min,
+        Ordering::Greater => match x.total_cmp(&max) {
+            Ordering::Greater | Ordering::Equal => max,
             Ordering::Less => x,
         },
     }
@@ -535,5 +541,6 @@ mod tests {
         total_assert_eq!(15.0_f64, clamp_to_range(25.0, -1.0..=15.0));
         total_assert_eq!(1.0_f64, clamp_to_range(1.0, 1.0..=10.0));
         total_assert_eq!(10.0_f64, clamp_to_range(10.0, 1.0..=10.0));
+        total_assert_eq!(5.0_f64, clamp_to_range(5.0, 10.0..=1.0));
     }
 }
