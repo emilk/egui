@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    emath::NumExt, mutex::RwLock, textures::TextureFilter, ImageData, ImageDelta, TextureId,
+    emath::NumExt, mutex::RwLock, textures::TextureOptions, ImageData, ImageDelta, TextureId,
     TextureManager,
 };
 
@@ -66,10 +66,10 @@ impl TextureHandle {
     }
 
     /// Assign a new image to an existing texture.
-    pub fn set(&mut self, image: impl Into<ImageData>, filter: TextureFilter) {
+    pub fn set(&mut self, image: impl Into<ImageData>, options: TextureOptions) {
         self.tex_mngr
             .write()
-            .set(self.id, ImageDelta::full(image.into(), filter));
+            .set(self.id, ImageDelta::full(image.into(), options));
     }
 
     /// Assign a new image to a subregion of the whole texture.
@@ -77,11 +77,11 @@ impl TextureHandle {
         &mut self,
         pos: [usize; 2],
         image: impl Into<ImageData>,
-        filter: TextureFilter,
+        options: TextureOptions,
     ) {
         self.tex_mngr
             .write()
-            .set(self.id, ImageDelta::partial(pos, image.into(), filter));
+            .set(self.id, ImageDelta::partial(pos, image.into(), options));
     }
 
     /// width x height

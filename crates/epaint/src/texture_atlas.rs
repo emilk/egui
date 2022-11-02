@@ -1,6 +1,6 @@
 use emath::{remap_clamp, Rect};
 
-use crate::{textures::TextureFilter, FontImage, ImageDelta};
+use crate::{FontImage, ImageDelta};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct Rectu {
@@ -174,16 +174,18 @@ impl TextureAtlas {
 
     /// Call to get the change to the image since last call.
     pub fn take_delta(&mut self) -> Option<ImageDelta> {
+        let texture_options = crate::textures::TextureOptions::LINEAR;
+
         let dirty = std::mem::replace(&mut self.dirty, Rectu::NOTHING);
         if dirty == Rectu::NOTHING {
             None
         } else if dirty == Rectu::EVERYTHING {
-            Some(ImageDelta::full(self.image.clone(), TextureFilter::Linear))
+            Some(ImageDelta::full(self.image.clone(), texture_options))
         } else {
             let pos = [dirty.min_x, dirty.min_y];
             let size = [dirty.max_x - dirty.min_x, dirty.max_y - dirty.min_y];
             let region = self.image.region(pos, size);
-            Some(ImageDelta::partial(pos, region, TextureFilter::Linear))
+            Some(ImageDelta::partial(pos, region, texture_options))
         }
     }
 

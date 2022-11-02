@@ -20,17 +20,15 @@ pub use glow::Context;
 const VERT_SRC: &str = include_str!("shader/vertex.glsl");
 const FRAG_SRC: &str = include_str!("shader/fragment.glsl");
 
-pub type TextureFilter = egui::TextureFilter;
-
 trait TextureFilterExt {
     fn glow_code(&self) -> u32;
 }
 
-impl TextureFilterExt for TextureFilter {
+impl TextureFilterExt for egui::TextureFilter {
     fn glow_code(&self) -> u32 {
         match self {
-            TextureFilter::Linear => glow::LINEAR,
-            TextureFilter::Nearest => glow::NEAREST,
+            egui::TextureFilter::Linear => glow::LINEAR,
+            egui::TextureFilter::Nearest => glow::NEAREST,
         }
     }
 }
@@ -469,7 +467,7 @@ impl Painter {
 
                 let data: &[u8] = bytemuck::cast_slice(image.pixels.as_ref());
 
-                self.upload_texture_srgb(delta.pos, image.size, delta.filter, data);
+                self.upload_texture_srgb(delta.pos, image.size, delta.options, data);
             }
             egui::ImageData::Font(image) => {
                 assert_eq!(
@@ -483,7 +481,7 @@ impl Painter {
                     .flat_map(|a| a.to_array())
                     .collect();
 
-                self.upload_texture_srgb(delta.pos, image.size, delta.filter, &data);
+                self.upload_texture_srgb(delta.pos, image.size, delta.options, &data);
             }
         };
     }
@@ -492,7 +490,7 @@ impl Painter {
         &mut self,
         pos: Option<[usize; 2]>,
         [w, h]: [usize; 2],
-        texture_filter: TextureFilter,
+        options: egui::TextureOptions,
         data: &[u8],
     ) {
         assert_eq!(data.len(), w * h * 4);
@@ -508,12 +506,12 @@ impl Painter {
             self.gl.tex_parameter_i32(
                 glow::TEXTURE_2D,
                 glow::TEXTURE_MAG_FILTER,
-                texture_filter.glow_code() as i32,
+                options.magnification.glow_code() as i32,
             );
             self.gl.tex_parameter_i32(
                 glow::TEXTURE_2D,
                 glow::TEXTURE_MIN_FILTER,
-                texture_filter.glow_code() as i32,
+                options.minification.glow_code() as i32,
             );
 
             self.gl.tex_parameter_i32(

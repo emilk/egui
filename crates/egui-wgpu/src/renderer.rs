@@ -136,7 +136,7 @@ pub struct Renderer {
     /// sampler.
     textures: HashMap<egui::TextureId, (Option<wgpu::Texture>, wgpu::BindGroup)>,
     next_user_texture_id: u64,
-    samplers: HashMap<egui::TextureFilter, wgpu::Sampler>,
+    samplers: HashMap<egui::TextureOptions, wgpu::Sampler>,
 
     /// Storage for use by [`egui::PaintCallback`]'s that need to store resources such as render
     /// pipelines that must have the lifetime of the renderpass.
@@ -530,8 +530,8 @@ impl Renderer {
             });
             let sampler = self
                 .samplers
-                .entry(image_delta.filter)
-                .or_insert_with(|| create_sampler(image_delta.filter, device));
+                .entry(image_delta.options)
+                .or_insert_with(|| create_sampler(image_delta.options, device));
             let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label,
                 layout: &self.texture_bind_group_layout,
@@ -790,15 +790,22 @@ impl Renderer {
     }
 }
 
-fn create_sampler(filter: egui::TextureFilter, device: &wgpu::Device) -> wgpu::Sampler {
-    let wgpu_filter = match filter {
+fn create_sampler(options: egui::TextureOptions, device: &wgpu::Device) -> wgpu::Sampler {
+    let mag_filter = match options.magnification {
+        egui::TextureFilter::Nearest => wgpu::FilterMode::Nearest,
+        egui::TextureFilter::Linear => wgpu::FilterMode::Linear,
+    };
+    let min_filter = match options.minification {
         egui::TextureFilter::Nearest => wgpu::FilterMode::Nearest,
         egui::TextureFilter::Linear => wgpu::FilterMode::Linear,
     };
     device.create_sampler(&wgpu::SamplerDescriptor {
-        label: Some(&format!("egui sampler ({:?})", filter)),
-        mag_filter: wgpu_filter,
-        min_filter: wgpu_filter,
+        label: Some(&format!(
+            "egui sampler (mag: {:?}, min {:?})",
+            mag_filter, min_filter
+        )),
+        mag_filter,
+        min_filter,
         ..Default::default()
     })
 }

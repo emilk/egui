@@ -6,7 +6,7 @@ use crate::{
     input_state::*, layers::GraphicLayers, memory::Options, os::OperatingSystem,
     output::FullOutput, TextureHandle, *,
 };
-use epaint::{mutex::*, stats::*, text::Fonts, textures::TextureFilter, TessellationOptions, *};
+use epaint::{mutex::*, stats::*, text::Fonts, TessellationOptions, *};
 
 // ----------------------------------------------------------------------------
 
@@ -815,7 +815,7 @@ impl Context {
         &self,
         name: impl Into<String>,
         image: impl Into<ImageData>,
-        filter: TextureFilter,
+        options: TextureOptions,
     ) -> TextureHandle {
         let name = name.into();
         let image = image.into();
@@ -829,7 +829,7 @@ impl Context {
             max_texture_side
         );
         let tex_mngr = self.tex_manager();
-        let tex_id = tex_mngr.write().alloc(name, image, filter);
+        let tex_id = tex_mngr.write().alloc(name, image, options);
         TextureHandle::new(tex_mngr, tex_id)
     }
 
