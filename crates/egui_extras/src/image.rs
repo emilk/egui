@@ -1,5 +1,4 @@
-use egui::mutex::Mutex;
-use egui::TextureOptions;
+use egui::{mutex::Mutex, TextureFilter, TextureOptions};
 
 /// An image to be shown in egui.
 ///
@@ -95,6 +94,14 @@ impl RetainedImage {
         *self.texture.lock() = None;
 
         self
+    }
+
+    #[deprecated = "Use with_options instead"]
+    pub fn with_texture_filter(self, filter: TextureFilter) -> Self {
+        self.with_options(TextureOptions {
+            magnification: filter,
+            minification: filter,
+        })
     }
 
     /// The size of the image data (number of pixels wide/high).
