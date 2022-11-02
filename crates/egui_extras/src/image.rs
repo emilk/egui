@@ -76,7 +76,7 @@ impl RetainedImage {
     /// # Example
     /// ```rust
     /// # use egui_extras::RetainedImage;
-    /// # use egui::{Color32, epaint::{ColorImage, textures::TextureFilter}};
+    /// # use egui::{Color32, epaint::{ColorImage, textures::TextureOptions}};
     /// # let pixels = vec![Color32::BLACK];
     /// # let color_image = ColorImage {
     /// #   size: [1, 1],
