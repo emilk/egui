@@ -1,7 +1,10 @@
 #![allow(deprecated)] // legacy implement_vertex macro
 #![allow(semicolon_in_expressions_from_macros)] // glium::program! macro
 
-use egui::{epaint::Primitive, TextureFilter};
+use egui::{
+    epaint::{textures::TextureFilter, Primitive},
+    TextureOptions,
+};
 
 use {
     egui::{emath::Rect, epaint::Mesh},
@@ -10,7 +13,7 @@ use {
         index::PrimitiveType,
         texture::{self, srgb_texture2d::SrgbTexture2d},
         uniform,
-        uniforms::{MagnifySamplerFilter, SamplerWrapFunction},
+        uniforms::{MagnifySamplerFilter, MinifySamplerFilter, SamplerWrapFunction},
     },
     std::rc::Rc,
 };
@@ -191,14 +194,25 @@ impl Painter {
 
         if let Some(texture) = self.texture(mesh.texture_id) {
             // The texture coordinates for text are so that both nearest and linear should work with the egui font texture.
-            let filter = match texture.filter {
+            let mag_filter = match texture.options.magnification {
                 TextureFilter::Nearest => MagnifySamplerFilter::Nearest,
                 TextureFilter::Linear => MagnifySamplerFilter::Linear,
             };
+            let min_filter = match texture.options.minification {
+                TextureFilter::Nearest => MinifySamplerFilter::Nearest,
+                TextureFilter::Linear => MinifySamplerFilter::Linear,
+            };
+
+            let sampler = texture
+                .glium_texture
+                .sampled()
+                .magnify_filter(mag_filter)
+                .minify_filter(min_filter)
+                .wrap_function(SamplerWrapFunction::Clamp);
 
             let uniforms = uniform! {
                 u_screen_size: [width_in_points, height_in_points],
-                u_sampler: texture.glium_texture.sampled().magnify_filter(filter).wrap_function(SamplerWrapFunction::Clamp),
+                u_sampler: sampler,
             };
 
             // egui outputs colors with premultiplied alpha:
@@ -309,13 +323,13 @@ impl Painter {
                     .main_level()
                     .write(rect, glium_image);
 
-                user_texture.filter = delta.filter;
+                user_texture.options = delta.options;
             }
         } else {
             let gl_texture =
                 SrgbTexture2d::with_format(facade, glium_image, format, mipmaps).unwrap();
 
-            let user_texture = EguiTexture::new(gl_texture.into(), delta.filter);
+            let user_texture = EguiTexture::new(gl_texture.into(), delta.options);
             self.textures.insert(tex_id, user_texture);
         }
     }
@@ -331,12 +345,12 @@ impl Painter {
     pub fn register_native_texture(
         &mut self,
         native: Rc<SrgbTexture2d>,
-        filter: TextureFilter,
+        options: TextureOptions,
     ) -> egui::TextureId {
         let id = egui::TextureId::User(self.next_native_tex_id);
         self.next_native_tex_id += 1;
 
-        let texture = EguiTexture::new(native, filter);
+        let texture = EguiTexture::new(native, options);
         self.textures.insert(id, texture);
         id
     }
@@ -345,23 +359,23 @@ impl Painter {
         &mut self,
         id: egui::TextureId,
         replacing: Rc<SrgbTexture2d>,
-        filter: TextureFilter,
+        options: TextureOptions,
     ) {
-        let texture = EguiTexture::new(replacing, filter);
+        let texture = EguiTexture::new(replacing, options);
         self.textures.insert(id, texture);
     }
 }
 
 struct EguiTexture {
     glium_texture: Rc<SrgbTexture2d>,
-    filter: TextureFilter,
+    options: TextureOptions,
 }
 
 impl EguiTexture {
-    fn new(glium_texture: Rc<SrgbTexture2d>, filter: TextureFilter) -> Self {
+    fn new(glium_texture: Rc<SrgbTexture2d>, options: TextureOptions) -> Self {
         Self {
             glium_texture,
-            filter,
+            options,
         }
     }
 }

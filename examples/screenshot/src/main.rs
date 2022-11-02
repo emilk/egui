@@ -30,7 +30,7 @@ impl eframe::App for MyApp {
                 self.texture = Some(ui.ctx().load_texture(
                     "screenshot",
                     screenshot,
-                    egui::TextureFilter::Linear,
+                    Default::default(),
                 ));
             }
 
