@@ -171,11 +171,9 @@ impl TextureOptions {
 }
 
 impl Default for TextureOptions {
+    /// The default is linear for both magnification and minification.
     fn default() -> Self {
-        Self {
-            magnification: TextureFilter::Nearest,
-            minification: TextureFilter::Linear,
-        }
+        Self::LINEAR
     }
 }
 
