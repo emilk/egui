@@ -36,7 +36,7 @@ fn content(ui: &mut egui::Ui) {
     ui.label(LOREM_IPSUM);
     ui.add_space(15.);
     ui.label(RichText::new("Sub Heading").text_style(heading2()).strong());
-    ui.label(RichText::new(LOREM_IPSUM).text_style(TextStyle::Monospace));
+    ui.monospace(LOREM_IPSUM);
     ui.add_space(15.);
     ui.label(RichText::new("Context").text_style(heading3()).strong());
     ui.add_space(5.);
