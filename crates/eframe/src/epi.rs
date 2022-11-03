@@ -454,7 +454,7 @@ pub struct WebOptions {
     ///
     /// See also [`Self::default_theme`].
     ///
-    /// Default: `false`.
+    /// Default: `true`.
     pub follow_system_theme: bool,
 
     /// Which theme to use in case [`Self::follow_system_theme`] is `false`
