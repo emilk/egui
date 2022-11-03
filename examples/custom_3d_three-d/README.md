@@ -18,3 +18,5 @@ cargo run -p custom_3d_three-d
 ```
 wasm-pack build examples/custom_3d_three-d --target web
 ```
+
+![Custom 3D painting in eframe](custom_3d_three-d.png)

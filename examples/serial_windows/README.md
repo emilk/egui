@@ -6,3 +6,5 @@ See also <https://github.com/emilk/egui/issues/1918>.
 ```sh
 cargo run -p serial_windows
 ```
+
+![Serial windows example](serial_windows.png)
