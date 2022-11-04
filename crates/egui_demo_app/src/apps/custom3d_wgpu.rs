@@ -135,12 +135,18 @@ impl Custom3d {
         // Device and Queue, which can be used, for instance, to update buffers and uniforms before
         // rendering.
         //
+        // You can use the main `CommandEncoder` that is passed-in, return an arbitrary number
+        // of user-defined `CommandBuffer`s, or both.
+        // The main command buffer, as well as all user-defined ones, will be submitted together
+        // to the GPU in a single call.
+        //
         // The paint callback is called after prepare and is given access to the render pass, which
         // can be used to issue draw commands.
         let cb = egui_wgpu::CallbackFn::new()
             .prepare(move |device, queue, _encoder, paint_callback_resources| {
                 let resources: &TriangleRenderResources = paint_callback_resources.get().unwrap();
                 resources.prepare(device, queue, angle);
+                Vec::new()
             })
             .paint(move |_info, render_pass, paint_callback_resources| {
                 let resources: &TriangleRenderResources = paint_callback_resources.get().unwrap();

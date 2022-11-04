@@ -264,7 +264,7 @@ impl Painter {
             pixels_per_point,
         };
 
-        {
+        let user_cmd_bufs = {
             let mut renderer = render_state.renderer.write();
             for (id, image_delta) in &textures_delta.set {
                 renderer.update_texture(
@@ -281,8 +281,8 @@ impl Painter {
                 &mut encoder,
                 clipped_primitives,
                 &screen_descriptor,
-            );
-        }
+            )
+        };
 
         {
             let renderer = render_state.renderer.read();
@@ -326,8 +326,12 @@ impl Painter {
             }
         }
 
-        // Submit the commands.
-        render_state.queue.submit(std::iter::once(encoder.finish()));
+        // Submit the commands: both the main buffer and user-defined ones.
+        render_state.queue.submit(
+            user_cmd_bufs
+                .into_iter()
+                .chain(std::iter::once(encoder.finish())),
+        );
 
         // Redraw egui
         output_frame.present();
