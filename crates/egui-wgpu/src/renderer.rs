@@ -14,17 +14,12 @@ use wgpu::util::DeviceExt as _;
 /// A callback function that can be used to compose an [`egui::PaintCallback`] for custom WGPU
 /// rendering.
 ///
-/// The callback is composed of two functions: `prepare` and `paint`.
-///
-/// `prepare` is called every frame before `paint`, and can use the passed-in [`wgpu::Device`] and
-/// [`wgpu::Buffer`] to allocate or modify GPU resources such as buffers.
-/// Additionally, a [`wgpu::CommandEncoder`] is provided in order to allow creation of
-/// custom [`wgpu::RenderPass`]/[`wgpu::ComputePass`] or perform buffer/texture copies
-/// which may serve as preparation to the final `paint`.
-/// (This allows reusing the same [`wgpu::CommandEncoder`] for all callbacks and egui rendering itself)
-///
-/// `paint` is called after `prepare` and is given access to the [`wgpu::RenderPass`] so that it
-/// can issue draw commands into the same [`wgpu::RenderPass`] that is used for all other egui elements.
+/// The callback is composed of two functions: `prepare` and `paint`:
+/// - `prepare` is called every frame before `paint`, and can use the passed-in
+///   [`wgpu::Device`] and [`wgpu::Buffer`] to allocate or modify GPU resources such as buffers.
+/// - `paint` is called after `prepare` and is given access to the [`wgpu::RenderPass`] so
+///   that it can issue draw commands into the same [`wgpu::RenderPass`] that is used for
+///   all other egui elements.
 ///
 /// The final argument of both the `prepare` and `paint` callbacks is a the
 /// [`paint_callback_resources`][crate::renderer::Renderer::paint_callback_resources].
@@ -70,14 +65,17 @@ impl CallbackFn {
     ///
     /// The passed-in `CommandEncoder` is egui's and can be used directly to register
     /// wgpu commands for simple use cases.
+    /// This allows reusing the same [`wgpu::CommandEncoder`] for all callbacks and egui
+    /// rendering itself.
     ///
     /// For more complicated use cases, one can also return a list of arbitrary
-    /// `CommandBuffer`s and have complete control over they get created and fed.
+    /// `CommandBuffer`s and have complete control over how they get created and fed.
     /// In particular, this gives an opportunity to parallelize command registration and
     /// prevents a faulty callback from poisoning the main wgpu pipeline.
     ///
-    /// The main egui command buffer, as well as all user-defined command buffers returned
-    /// by this function, are guaranteed to all be submitted at once in a single call.
+    /// When using eframe, the main egui command buffer, as well as all user-defined
+    /// command buffers returned by this function, are guaranteed to all be submitted
+    /// at once in a single call.
     pub fn prepare<F>(mut self, prepare: F) -> Self
     where
         F: Fn(
