@@ -1089,11 +1089,13 @@ impl Context {
     }
 
     pub(crate) fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
-        let pointer_pos = self.input().pointer.interact_pos();
-        if let Some(pointer_pos) = pointer_pos {
-            rect.contains(pointer_pos) && self.layer_id_at(pointer_pos) == Some(layer_id)
-        } else {
-            false
+        rect.is_positive() && {
+            let pointer_pos = self.input().pointer.interact_pos();
+            if let Some(pointer_pos) = pointer_pos {
+                rect.contains(pointer_pos) && self.layer_id_at(pointer_pos) == Some(layer_id)
+            } else {
+                false
+            }
         }
     }
 
