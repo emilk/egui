@@ -6,9 +6,8 @@ use crate::*;
 pub mod kb_shortcuts {
     use super::*;
 
-    // Using winit on Mac the key with the Plus sign on it is reported as the Equals key
-    // (with both English and Swedish keyboard).
-    pub const ZOOM_IN: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::Equals);
+    pub const ZOOM_IN: KeyboardShortcut =
+        KeyboardShortcut::new(Modifiers::COMMAND, Key::PlusEquals);
     pub const ZOOM_OUT: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::Minus);
     pub const ZOOM_RESET: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::Num0);
 }

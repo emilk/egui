@@ -134,9 +134,8 @@ pub fn translate_key(key: &str) -> Option<egui::Key> {
         "PageUp" => Some(Key::PageUp),
         "PageDown" => Some(Key::PageDown),
 
-        "+" => Some(Key::Plus),
         "-" => Some(Key::Minus),
-        "=" => Some(Key::Equals),
+        "+" | "=" => Some(Key::PlusEquals),
 
         "0" => Some(Key::Num0),
         "1" => Some(Key::Num1),

@@ -585,9 +585,10 @@ pub enum Key {
     PageUp,
     PageDown,
 
-    Plus,
+    /// The virtual keycode for the Minus key.
     Minus,
-    Equals,
+    /// The virtual keycode for the Plus/Equals key.
+    PlusEquals,
 
     /// Either from the main row or from the numpad.
     Num0,
@@ -671,9 +672,8 @@ impl Key {
             Key::ArrowLeft => "⏴",
             Key::ArrowRight => "⏵",
             Key::ArrowUp => "⏶",
-            Key::Plus => "+",
             Key::Minus => "-",
-            Key::Equals => "=",
+            Key::PlusEquals => "+",
             _ => self.name(),
         }
     }
@@ -696,9 +696,8 @@ impl Key {
             Key::End => "End",
             Key::PageUp => "PageUp",
             Key::PageDown => "PageDown",
-            Key::Plus => "Plus",
             Key::Minus => "Minus",
-            Key::Equals => "Equals",
+            Key::PlusEquals => "Equals",
             Key::Num0 => "0",
             Key::Num1 => "1",
             Key::Num2 => "2",
