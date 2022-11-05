@@ -74,7 +74,7 @@ pub fn zoom_out(ctx: &Context) {
 ///             ui,
 ///             frame.info().native_pixels_per_point,
 ///         );
-///     }
+///     });
 /// }
 /// ```
 pub fn zoom_menu_buttons(ui: &mut Ui, native_pixels_per_point: Option<f32>) {
