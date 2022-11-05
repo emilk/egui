@@ -13,10 +13,12 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Added `Button::shortcut_text` for showing keyboard shortcuts in menu buttons ([#2202](https://github.com/emilk/egui/pull/2202)).
 * Added `egui::KeyboardShortcut` for showing keyboard shortcuts in menu buttons ([#2202](https://github.com/emilk/egui/pull/2202)).
 * Texture loading now takes a `TexureOptions` with minification and magnification filters ([#2224](https://github.com/emilk/egui/pull/2224)).
+* Added `Key::Plus`, `Key::Minus`, `Key::Equals` ([#2239](https://github.com/emilk/egui/pull/2239)).
 
 ### Fixed 🐛
 * ⚠️ BREAKING: Fix text being too small ([#2069](https://github.com/emilk/egui/pull/2069)).
 * Improved text rendering ([#2071](https://github.com/emilk/egui/pull/2071)).
+* Less jitter when calling `Context::set_pixels_per_point` ([#2239](https://github.com/emilk/egui/pull/2239)).
 
 
 ## 0.19.0 - 2022-08-20
