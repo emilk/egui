@@ -212,10 +212,7 @@ impl eframe::App for WrapApp {
 
         // On web, the browser controls `pixels_per_point`.
         if !frame.is_web() {
-            egui::gui_zoom::scale_ui_with_keyboard_shortcuts(
-                ctx,
-                frame.info().native_pixels_per_point,
-            );
+            egui::gui_zoom::zoom_with_keyboard_shortcuts(ctx, frame.info().native_pixels_per_point);
         }
     }
 

@@ -1,4 +1,5 @@
-//! Helpers for zooming the whole GUI (changing [`Context::pixels_per_point`].
+//! Helpers for zooming the whole GUI of an app (changing [`Context::pixels_per_point`].
+//!
 use crate::*;
 
 /// The suggested keyboard shortcuts for global gui zooming.
@@ -17,15 +18,15 @@ pub mod kb_shortcuts {
 ///
 /// When using [`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe), you want to call this as:
 /// ```ignore
-/// // On web, the browser controls `pixels_per_point`.
+/// // On web, the browser controls the gui zoom.
 /// if !frame.is_web() {
-///     egui::gui_zoom::scale_ui_with_keyboard_shortcuts(
+///     egui::gui_zoom::zoom_with_keyboard_shortcuts(
 ///         ctx,
 ///         frame.info().native_pixels_per_point,
 ///     );
 /// }
 /// ```
-pub fn scale_ui_with_keyboard_shortcuts(ctx: &Context, native_pixels_per_point: Option<f32>) {
+pub fn zoom_with_keyboard_shortcuts(ctx: &Context, native_pixels_per_point: Option<f32>) {
     if ctx.input_mut().consume_shortcut(&kb_shortcuts::ZOOM_RESET) {
         if let Some(native_pixels_per_point) = native_pixels_per_point {
             ctx.set_pixels_per_point(native_pixels_per_point);
@@ -62,6 +63,21 @@ pub fn zoom_out(ctx: &Context) {
 }
 
 /// Show buttons for zooming the ui.
+///
+/// This is meant to be called from within a menu (See [`Ui::menu_button`]).
+///
+/// When using [`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe), you want to call this as:
+/// ```ignore
+/// // On web, the browser controls the gui zoom.
+/// if !frame.is_web() {
+///     ui.menu_button("View", |ui| {
+///         egui::gui_zoom::zoom_menu_buttons(
+///             ui,
+///             frame.info().native_pixels_per_point,
+///         );
+///     }
+/// }
+/// ```
 pub fn zoom_menu_buttons(ui: &mut Ui, native_pixels_per_point: Option<f32>) {
     if ui
         .add_enabled(
