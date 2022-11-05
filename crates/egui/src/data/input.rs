@@ -697,7 +697,7 @@ impl Key {
             Key::PageUp => "PageUp",
             Key::PageDown => "PageDown",
             Key::Minus => "Minus",
-            Key::PlusEquals => "Equals",
+            Key::PlusEquals => "Plus",
             Key::Num0 => "0",
             Key::Num1 => "1",
             Key::Num2 => "2",
