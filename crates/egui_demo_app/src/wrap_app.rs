@@ -212,7 +212,10 @@ impl eframe::App for WrapApp {
 
         // On web, the browser controls `pixels_per_point`.
         if !frame.is_web() {
-            scale_ui_with_keyboard_shortcuts(ctx, frame.info().native_pixels_per_point);
+            egui::gui_zoom::scale_ui_with_keyboard_shortcuts(
+                ctx,
+                frame.info().native_pixels_per_point,
+            );
         }
     }
 
@@ -403,39 +406,4 @@ fn clock_button(ui: &mut egui::Ui, seconds_since_midnight: f64) -> egui::Respons
     );
 
     ui.button(egui::RichText::new(time).monospace())
-}
-
-/// Let the user scale the GUI (change `pixels_per_point`) by pressing
-/// Cmd+Plus, Cmd+Minus or Cmd+0, just like in a browser.
-fn scale_ui_with_keyboard_shortcuts(ctx: &egui::Context, native_pixels_per_point: Option<f32>) {
-    // Using winit on Mac the key with the Plus sign on it is reported as the Equals key
-    // (with both English and Swedish keyboard).
-    let zoom_in = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND, egui::Key::Equals);
-    let zoom_out = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND, egui::Key::Minus);
-    let reset = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND, egui::Key::Num0);
-
-    let zoom_in = ctx.input_mut().consume_shortcut(&zoom_in);
-    let zoom_out = ctx.input_mut().consume_shortcut(&zoom_out);
-    let reset = ctx.input_mut().consume_shortcut(&reset);
-
-    let mut pixels_per_point = ctx.pixels_per_point();
-
-    if zoom_in {
-        pixels_per_point += 0.1;
-    }
-    if zoom_out {
-        pixels_per_point -= 0.1;
-    }
-    pixels_per_point = pixels_per_point.clamp(0.2, 5.);
-    pixels_per_point = (pixels_per_point * 10.).round() / 10.;
-    if reset {
-        if let Some(native_pixels_per_point) = native_pixels_per_point {
-            pixels_per_point = native_pixels_per_point;
-        }
-    }
-
-    if pixels_per_point != ctx.pixels_per_point() {
-        tracing::debug!("Changed GUI scale to {}", pixels_per_point);
-        ctx.set_pixels_per_point(pixels_per_point);
-    }
 }

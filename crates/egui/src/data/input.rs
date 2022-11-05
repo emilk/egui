@@ -516,13 +516,13 @@ impl ModifierNames<'static> {
         concat: "",
     };
 
-    /// Alt, Ctrl, Shift, Command
+    /// Alt, Ctrl, Shift, Cmd
     pub const NAMES: Self = Self {
         is_short: false,
         alt: "Alt",
         ctrl: "Ctrl",
         shift: "Shift",
-        mac_cmd: "Command",
+        mac_cmd: "Cmd",
         concat: "+",
     };
 }

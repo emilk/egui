@@ -305,6 +305,7 @@ mod context;
 mod data;
 mod frame_state;
 pub(crate) mod grid;
+pub mod gui_zoom;
 mod id;
 mod input_state;
 pub mod introspection;
