@@ -1926,6 +1926,7 @@ name = "hello_world"
 version = "0.1.0"
 dependencies = [
  "eframe",
+ "tracing-subscriber",
 ]
 
 [[package]]

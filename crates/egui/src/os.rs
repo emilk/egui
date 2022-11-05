@@ -65,6 +65,11 @@ impl OperatingSystem {
         {
             Self::Nix
         } else {
+            #[cfg(feature = "tracing")]
+            tracing::warn!(
+                "egui: Failed to guess operating system from User-Agent {:?}. Please file an issue at https://github.com/emilk/egui/issues",
+                user_agent);
+
             Self::Unknown
         }
     }

@@ -209,6 +209,11 @@ impl eframe::App for WrapApp {
         self.state.backend_panel.end_of_frame(ctx);
 
         self.ui_file_drag_and_drop(ctx);
+
+        // On web, the browser controls `pixels_per_point`.
+        if !frame.is_web() {
+            egui::gui_zoom::zoom_with_keyboard_shortcuts(ctx, frame.info().native_pixels_per_point);
+        }
     }
 
     #[cfg(feature = "glow")]

@@ -13,10 +13,10 @@ use crate::emath::*;
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct RawInput {
-    /// Position and size of the area that egui should use.
+    /// Position and size of the area that egui should use, in points.
     /// Usually you would set this to
     ///
-    /// `Some(Rect::from_pos_size(Default::default(), screen_size))`.
+    /// `Some(Rect::from_pos_size(Default::default(), screen_size_in_points))`.
     ///
     /// but you could also constrain egui to some smaller portion of your window if you like.
     ///
@@ -516,13 +516,13 @@ impl ModifierNames<'static> {
         concat: "",
     };
 
-    /// Alt, Ctrl, Shift, Command
+    /// Alt, Ctrl, Shift, Cmd
     pub const NAMES: Self = Self {
         is_short: false,
         alt: "Alt",
         ctrl: "Ctrl",
         shift: "Shift",
-        mac_cmd: "Command",
+        mac_cmd: "Cmd",
         concat: "+",
     };
 }
@@ -584,6 +584,11 @@ pub enum Key {
     End,
     PageUp,
     PageDown,
+
+    /// The virtual keycode for the Minus key.
+    Minus,
+    /// The virtual keycode for the Plus/Equals key.
+    PlusEquals,
 
     /// Either from the main row or from the numpad.
     Num0,
@@ -667,6 +672,8 @@ impl Key {
             Key::ArrowLeft => "⏴",
             Key::ArrowRight => "⏵",
             Key::ArrowUp => "⏶",
+            Key::Minus => "-",
+            Key::PlusEquals => "+",
             _ => self.name(),
         }
     }
@@ -689,6 +696,8 @@ impl Key {
             Key::End => "End",
             Key::PageUp => "PageUp",
             Key::PageDown => "PageDown",
+            Key::Minus => "Minus",
+            Key::PlusEquals => "Plus",
             Key::Num0 => "0",
             Key::Num1 => "1",
             Key::Num2 => "2",

@@ -10,3 +10,4 @@ publish = false
 
 [dependencies]
 eframe = { path = "../../crates/eframe" }
+tracing-subscriber = "0.3"

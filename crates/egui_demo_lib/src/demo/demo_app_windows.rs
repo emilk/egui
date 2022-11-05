@@ -321,6 +321,13 @@ fn file_menu_button(ui: &mut Ui) {
         ui.set_min_width(220.0);
         ui.style_mut().wrap = Some(false);
 
+        // On the web the browser controls the zoom
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            egui::gui_zoom::zoom_menu_buttons(ui, None);
+            ui.separator();
+        }
+
         if ui
             .add(
                 egui::Button::new("Organize Windows")

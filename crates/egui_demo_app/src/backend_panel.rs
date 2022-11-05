@@ -161,13 +161,10 @@ impl BackendPanel {
             ui.monospace(format!("{:#?}", frame.info().web_info.location));
         });
 
-        // For instance: `eframe` web sets `pixels_per_point` every frame to force
-        // egui to use the same scale as the web zoom factor.
-        let integration_controls_pixels_per_point = ui.input().raw.pixels_per_point.is_some();
+        // On web, the browser controls `pixels_per_point`.
+        let integration_controls_pixels_per_point = frame.is_web();
         if !integration_controls_pixels_per_point {
-            if let Some(new_pixels_per_point) = self.pixels_per_point_ui(ui, &frame.info()) {
-                ui.ctx().set_pixels_per_point(new_pixels_per_point);
-            }
+            self.pixels_per_point_ui(ui, &frame.info());
         }
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -202,27 +199,36 @@ impl BackendPanel {
         }
     }
 
-    fn pixels_per_point_ui(
-        &mut self,
-        ui: &mut egui::Ui,
-        info: &eframe::IntegrationInfo,
-    ) -> Option<f32> {
-        let pixels_per_point = self.pixels_per_point.get_or_insert_with(|| {
-            info.native_pixels_per_point
-                .unwrap_or_else(|| ui.ctx().pixels_per_point())
-        });
+    fn pixels_per_point_ui(&mut self, ui: &mut egui::Ui, info: &eframe::IntegrationInfo) {
+        let pixels_per_point = self
+            .pixels_per_point
+            .get_or_insert_with(|| ui.ctx().pixels_per_point());
+
+        let mut reset = false;
 
         ui.horizontal(|ui| {
             ui.spacing_mut().slider_width = 90.0;
-            ui.add(
-                egui::Slider::new(pixels_per_point, 0.5..=5.0)
-                    .logarithmic(true)
-                    .clamp_to_range(true)
-                    .text("Scale"),
-            )
-            .on_hover_text("Physical pixels per point.");
+
+            let response = ui
+                .add(
+                    egui::Slider::new(pixels_per_point, 0.5..=5.0)
+                        .logarithmic(true)
+                        .clamp_to_range(true)
+                        .text("Scale"),
+                )
+                .on_hover_text("Physical pixels per point.");
+
+            if response.drag_released() {
+                // We wait until mouse release to activate:
+                ui.ctx().set_pixels_per_point(*pixels_per_point);
+                reset = true;
+            } else if !response.is_pointer_button_down_on() {
+                // When not dragging, show the current pixels_per_point so others can change it.
+                reset = true;
+            }
+
             if let Some(native_pixels_per_point) = info.native_pixels_per_point {
-                let enabled = *pixels_per_point != native_pixels_per_point;
+                let enabled = ui.ctx().pixels_per_point() != native_pixels_per_point;
                 if ui
                     .add_enabled(enabled, egui::Button::new("Reset"))
                     .on_hover_text(format!(
@@ -231,16 +237,13 @@ impl BackendPanel {
                     ))
                     .clicked()
                 {
-                    *pixels_per_point = native_pixels_per_point;
+                    ui.ctx().set_pixels_per_point(native_pixels_per_point);
                 }
             }
         });
 
-        // We wait until mouse release to activate:
-        if ui.ctx().is_using_pointer() {
-            None
-        } else {
-            Some(*pixels_per_point)
+        if reset {
+            self.pixels_per_point = None;
         }
     }
 

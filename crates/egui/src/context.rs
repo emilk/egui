@@ -65,17 +65,24 @@ struct ContextImpl {
 }
 
 impl ContextImpl {
-    fn begin_frame_mut(&mut self, new_raw_input: RawInput) {
+    fn begin_frame_mut(&mut self, mut new_raw_input: RawInput) {
         self.has_requested_repaint_this_frame = false; // allow new calls during the frame
+
+        if let Some(new_pixels_per_point) = self.memory.new_pixels_per_point.take() {
+            new_raw_input.pixels_per_point = Some(new_pixels_per_point);
+
+            // This is a bit hacky, but is required to avoid jitter:
+            let ratio = self.input.pixels_per_point / new_pixels_per_point;
+            let mut rect = self.input.screen_rect;
+            rect.min = (ratio * rect.min.to_vec2()).to_pos2();
+            rect.max = (ratio * rect.max.to_vec2()).to_pos2();
+            new_raw_input.screen_rect = Some(rect);
+        }
 
         self.memory.begin_frame(&self.input, &new_raw_input);
 
         self.input = std::mem::take(&mut self.input)
             .begin_frame(new_raw_input, self.requested_repaint_last_frame);
-
-        if let Some(new_pixels_per_point) = self.memory.new_pixels_per_point.take() {
-            self.input.pixels_per_point = new_pixels_per_point;
-        }
 
         self.frame_state.begin_frame(&self.input);
 
