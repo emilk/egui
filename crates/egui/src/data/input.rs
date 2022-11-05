@@ -13,10 +13,10 @@ use crate::emath::*;
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct RawInput {
-    /// Position and size of the area that egui should use.
+    /// Position and size of the area that egui should use, in points.
     /// Usually you would set this to
     ///
-    /// `Some(Rect::from_pos_size(Default::default(), screen_size))`.
+    /// `Some(Rect::from_pos_size(Default::default(), screen_size_in_points))`.
     ///
     /// but you could also constrain egui to some smaller portion of your window if you like.
     ///
@@ -585,6 +585,10 @@ pub enum Key {
     PageUp,
     PageDown,
 
+    Plus,
+    Minus,
+    Equals,
+
     /// Either from the main row or from the numpad.
     Num0,
     /// Either from the main row or from the numpad.
@@ -667,6 +671,9 @@ impl Key {
             Key::ArrowLeft => "⏴",
             Key::ArrowRight => "⏵",
             Key::ArrowUp => "⏶",
+            Key::Plus => "+",
+            Key::Minus => "-",
+            Key::Equals => "=",
             _ => self.name(),
         }
     }
@@ -689,6 +696,9 @@ impl Key {
             Key::End => "End",
             Key::PageUp => "PageUp",
             Key::PageDown => "PageDown",
+            Key::Plus => "Plus",
+            Key::Minus => "Minus",
+            Key::Equals => "Equals",
             Key::Num0 => "0",
             Key::Num1 => "1",
             Key::Num2 => "2",

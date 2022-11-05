@@ -710,6 +710,10 @@ fn translate_virtual_key_code(key: winit::event::VirtualKeyCode) -> Option<egui:
         VirtualKeyCode::PageUp => Key::PageUp,
         VirtualKeyCode::PageDown => Key::PageDown,
 
+        VirtualKeyCode::Plus => Key::Plus,
+        VirtualKeyCode::Minus => Key::Minus,
+        VirtualKeyCode::Equals => Key::Equals,
+
         VirtualKeyCode::Key0 | VirtualKeyCode::Numpad0 => Key::Num0,
         VirtualKeyCode::Key1 | VirtualKeyCode::Numpad1 => Key::Num1,
         VirtualKeyCode::Key2 | VirtualKeyCode::Numpad2 => Key::Num2,
