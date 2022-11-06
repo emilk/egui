@@ -3,7 +3,7 @@
 use std::ops::RangeInclusive;
 
 use epaint::util::FloatOrd;
-use epaint::{Mesh, RectShape};
+use epaint::Mesh;
 
 use crate::*;
 
@@ -1575,6 +1575,7 @@ impl PlotItem for BoxPlot {
 #[derive(Debug)]
 pub enum HeatmapErr {
     ZeroColumns,
+    ZeroRows,
     BadLength,
 }
 
@@ -1582,7 +1583,11 @@ impl std::fmt::Display for HeatmapErr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::ZeroColumns => write!(f, "number of columns must not be zero"),
-            Self::BadLength => write!(f, "length of value vector is not divisible by number of columns")
+            Self::ZeroRows => write!(f, "number of rows must not be zero"),
+            Self::BadLength => write!(
+                f,
+                "length of value vector is not divisible by number of columns"
+            ),
         }
     }
 }
@@ -1615,8 +1620,6 @@ pub struct Heatmap<const RESOLUTION: usize> {
     palette: [Color32; RESOLUTION],
     /// is widget is highlighted
     highlight: bool,
-    /// Line with and color
-    stroke: Stroke,
     /// plot name
     name: String,
     /// Size of one tile in plot coordinates
@@ -1641,12 +1644,15 @@ impl<const RESOLUTION: usize> Heatmap<RESOLUTION> {
     /// Returns error type if provided parameters are inconsistent
     pub fn new(values: Vec<f64>, cols: usize) -> Result<Self, HeatmapErr> {
         if cols == 0 {
-            return Err(HeatmapErr::ZeroColumns)
+            return Err(HeatmapErr::ZeroColumns);
         }
         if (values.len() % cols) != 0 {
-            return Err(HeatmapErr::BadLength)
+            return Err(HeatmapErr::BadLength);
         }
         let rows = values.len() / cols;
+        if rows == 0 {
+            return Err(HeatmapErr::ZeroRows);
+        }
 
         // determine range
         let mut min = f64::MAX;
@@ -1665,25 +1671,22 @@ impl<const RESOLUTION: usize> Heatmap<RESOLUTION> {
             Color32::BLACK,
             Color32::DARK_RED,
             Color32::YELLOW,
-            Color32::BLACK
+            Color32::BLACK,
         ];
         Ok(Self {
-            pos: PlotPoint {x: 0.0, y: 0.0},
+            pos: PlotPoint { x: 0.0, y: 0.0 },
             values,
             cols,
             rows,
             min,
             max,
-            formatter: Box::new(|v| {
-                format!("{:.1}", v)
-            }),
+            formatter: Box::new(|v| format!("{:.1}", v)),
             custom_mapping: None,
             show_labels: true,
             palette: Heatmap::linear_gradient_from_base_colors(base_colors),
             highlight: false,
-            stroke: Stroke::none(),
             name: String::new(),
-            tile_size: Vec2 {x: 1.0, y: 1.0},
+            tile_size: Vec2 { x: 1.0, y: 1.0 },
         })
     }
 
@@ -1695,21 +1698,22 @@ impl<const RESOLUTION: usize> Heatmap<RESOLUTION> {
 
     /// Interpolate linear gradient with `RESOLUTION` steps from an arbitrary number of base colors.
     fn linear_gradient_from_base_colors(base_colors: Vec<Color32>) -> [Color32; RESOLUTION] {
-        let mut ret = [Color32::TRANSPARENT; RESOLUTION];
+        let mut interpolated = [Color32::TRANSPARENT; RESOLUTION];
         if base_colors.is_empty() {
-            return ret;
+            return interpolated;
         }
-        if base_colors.len() == 1 { // single color, no gradient
-            ret = [base_colors[0]; RESOLUTION];
-            return ret;
+        if base_colors.len() == 1 {
+            // single color, no gradient
+            interpolated = [base_colors[0]; RESOLUTION];
+            return interpolated;
         }
-        for i in 0..RESOLUTION {
-            let i_rel: f64 = i as f64 / (RESOLUTION-1) as f64;
-            if i_rel == 1.0 { // last element
-                ret[i] = *base_colors.last().unwrap();
-            }
-            else {
-                let base_index_float: f64 = i_rel * (base_colors.len()-1) as f64;
+        for (i, color) in interpolated.iter_mut().enumerate() {
+            let i_rel: f64 = i as f64 / (RESOLUTION - 1) as f64;
+            if i_rel == 1.0 {
+                // last element
+                *color = *base_colors.last().unwrap();
+            } else {
+                let base_index_float: f64 = i_rel * (base_colors.len() - 1) as f64;
                 let base_index: usize = base_index_float as usize;
                 let start_color = base_colors[base_index];
                 let end_color = base_colors[base_index + 1];
@@ -1723,10 +1727,10 @@ impl<const RESOLUTION: usize> Heatmap<RESOLUTION> {
                 let r = (start_color.r() as f64 + delta_r).round() as u8;
                 let g = (start_color.g() as f64 + delta_g).round() as u8;
                 let b = (start_color.b() as f64 + delta_b).round() as u8;
-                ret[i] = Color32::from_rgb(r, g, b);
+                *color = Color32::from_rgb(r, g, b);
             }
         }
-        return ret;
+        interpolated
     }
 
     /// Specify custom range of values to map onto color palette.
@@ -1786,7 +1790,7 @@ impl<const RESOLUTION: usize> Heatmap<RESOLUTION> {
     pub fn size(mut self, x: f32, y: f32) -> Self {
         self.tile_size = Vec2 {
             x: x / self.cols as f32,
-            y: y / self.rows as f32
+            y: y / self.rows as f32,
         };
         self
     }
@@ -1813,20 +1817,24 @@ impl<const RESOLUTION: usize> Heatmap<RESOLUTION> {
             shapes.extend(labels);
         }
     }
-    fn tile_view_info(&self, ui: &Ui, transform: &ScreenTransform, index: usize) -> (Rect, Color32, Shape) {
+    fn tile_view_info(
+        &self,
+        ui: &Ui,
+        transform: &ScreenTransform,
+        index: usize,
+    ) -> (Rect, Color32, Shape) {
         let v = self.values[index];
 
         // calculate color value
         let mut fill_color: Color32;
         if let Some(mapping) = &self.custom_mapping {
             fill_color = mapping(v);
-        }
-        else {
+        } else {
             // convert to value in [0.0, 1.0]
             let v_rel = (v - self.min) / (self.max - self.min);
 
             // convert to color palette index
-            let palette_index = (v_rel * (self.palette.len()-1) as f64).round() as usize;
+            let palette_index = (v_rel * (self.palette.len() - 1) as f64).round() as usize;
 
             fill_color = self.palette[palette_index];
         }
@@ -1843,12 +1851,12 @@ impl<const RESOLUTION: usize> Heatmap<RESOLUTION> {
         let tile_rect: Rect = transform.rect_from_values(
             &PlotPoint {
                 x: self.pos.x + self.tile_size.x as f64 * x as f64,
-                y: self.pos.y + self.tile_size.y as f64 * y as f64
+                y: self.pos.y + self.tile_size.y as f64 * y as f64,
             },
             &PlotPoint {
                 x: self.pos.x + self.tile_size.x as f64 * (x + 1) as f64,
-                y: self.pos.y + self.tile_size.y as f64 * (y + 1) as f64
-            }
+                y: self.pos.y + self.tile_size.y as f64 * (y + 1) as f64,
+            },
         );
         // Text
 
@@ -1861,8 +1869,7 @@ impl<const RESOLUTION: usize> Heatmap<RESOLUTION> {
 
         let inverted_color = if luminance < 140.0 {
             Color32::WHITE
-        }
-        else {
+        } else {
             Color32::BLACK
         };
 
@@ -1871,7 +1878,7 @@ impl<const RESOLUTION: usize> Heatmap<RESOLUTION> {
         let text_pos = tile_rect.center() - galley.size() / 2.0;
 
         let text = Shape::galley(text_pos, galley.galley().clone());
-        return (tile_rect, fill_color, text);
+        (tile_rect, fill_color, text)
     }
 }
 
@@ -1907,32 +1914,31 @@ impl<const RESOLUTION: usize> PlotItem for Heatmap<RESOLUTION> {
 
     fn bounds(&self) -> PlotBounds {
         PlotBounds {
-            min: [
-                self.pos.x, self.pos.y,
-            ],
+            min: [self.pos.x, self.pos.y],
             max: [
                 self.pos.x + self.tile_size.x as f64 * self.cols as f64,
                 self.pos.y + self.tile_size.y as f64 * self.rows as f64,
-            ]
+            ],
         }
     }
 
     fn find_closest(&self, point: Pos2, transform: &ScreenTransform) -> Option<ClosestElem> {
-        self.values.clone() // FIXME: is there a better solution that cloning?
+        self.values
+            .clone() // FIXME: is there a better solution that cloning?
             .into_iter()
             .enumerate()
             .map(|(index, _)| {
-                let x = index % self.rows;
-                let y = index / self.rows;
+                let x = index % self.cols;
+                let y = index / self.cols;
                 let tile_rect: Rect = transform.rect_from_values(
                     &PlotPoint {
                         x: self.pos.x + self.tile_size.x as f64 * x as f64,
-                        y: self.pos.y + self.tile_size.y as f64 * y as f64
+                        y: self.pos.y + self.tile_size.y as f64 * y as f64,
                     },
                     &PlotPoint {
                         x: self.pos.x + self.tile_size.x as f64 * (x + 1) as f64,
-                        y: self.pos.y + self.tile_size.y as f64 * (y + 1) as f64
-                    }
+                        y: self.pos.y + self.tile_size.y as f64 * (y + 1) as f64,
+                    },
                 );
                 let dist_sq = tile_rect.distance_sq_to_pos(point);
 

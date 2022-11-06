@@ -11,7 +11,7 @@ use items::PlotItem;
 use legend::LegendWidget;
 
 pub use items::{
-    Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, Heatmap, HLine, Line, LineStyle,
+    Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, HLine, Heatmap, Line, LineStyle,
     MarkerShape, Orientation, PlotImage, PlotPoint, PlotPoints, Points, Polygon, Text, VLine,
 };
 pub use legend::{Corner, Legend};
@@ -1239,7 +1239,7 @@ impl PlotUi {
     }
 
     /// Add a heatmap.
-    pub fn heatmap<const RESOLUTION: usize>(&mut self, mut heatmap: Heatmap<RESOLUTION>) {
+    pub fn heatmap<const RESOLUTION: usize>(&mut self, heatmap: Heatmap<RESOLUTION>) {
         if heatmap.values.is_empty() {
             return;
         }
