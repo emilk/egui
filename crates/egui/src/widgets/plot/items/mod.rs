@@ -1589,23 +1589,6 @@ impl std::fmt::Display for HeatmapErr {
 
 impl std::error::Error for HeatmapErr {}
 
-// pub struct Heatmap {
-//     origin: PlotPoint,
-//     pub(super) values: Vec<f64>,
-//     cols: usize,
-//     rows: usize,
-//     tile_size: Vec2,
-//     pub(super) default_color: Color32,
-//     pub(super) name: String,
-//     /// A custom element formatter
-//     pub(super) element_formatter: Option<Box<dyn Fn(&f64, &Heatmap) -> String>>,
-//     highlight: bool,
-//     /// Line width and color
-//     stroke: Stroke,
-//     min: f64,
-//     max: f64,
-//     show_labels: bool,
-// }
 /// A heatmap.
 pub struct Heatmap<const RESOLUTION: usize> {
     /// occupied space in absolute plot coordinates
@@ -1710,7 +1693,7 @@ impl<const RESOLUTION: usize> Heatmap<RESOLUTION> {
         self
     }
 
-    /// Generate linear gradient with `RESOLUTION` steps from an arbitrary number of base colors.
+    /// Interpolate linear gradient with `RESOLUTION` steps from an arbitrary number of base colors.
     fn linear_gradient_from_base_colors(base_colors: Vec<Color32>) -> [Color32; RESOLUTION] {
         let mut ret = [Color32::TRANSPARENT; RESOLUTION];
         if base_colors.is_empty() {
@@ -1731,15 +1714,15 @@ impl<const RESOLUTION: usize> Heatmap<RESOLUTION> {
                 let start_color = base_colors[base_index];
                 let end_color = base_colors[base_index + 1];
                 let gradient_level = base_index_float - base_index as f64;
-                let start_r = u8::min(start_color.r(), end_color.r());
-                let end_r = u8::max(start_color.r(), end_color.r());
-                let start_g = u8::min(start_color.g(), end_color.g());
-                let end_g = u8::max(start_color.g(), end_color.g());
-                let start_b = u8::min(start_color.b(), end_color.b());
-                let end_b = u8::max(start_color.b(), end_color.b());
-                let r = (start_r as f64 + (end_r as f64 - start_r as f64) * gradient_level).round() as u8;
-                let g = (start_g as f64 + (end_g as f64 - start_g as f64) * gradient_level).round() as u8;
-                let b = (start_b as f64 + (end_b as f64 - start_b as f64) * gradient_level).round() as u8;
+
+                let delta_r = (end_color.r() as f64 - start_color.r() as f64) * gradient_level;
+                let delta_g = (end_color.g() as f64 - start_color.g() as f64) * gradient_level;
+                let delta_b = (end_color.b() as f64 - start_color.b() as f64) * gradient_level;
+
+                // interpolate
+                let r = (start_color.r() as f64 + delta_r).round() as u8;
+                let g = (start_color.g() as f64 + delta_g).round() as u8;
+                let b = (start_color.b() as f64 + delta_b).round() as u8;
                 ret[i] = Color32::from_rgb(r, g, b);
             }
         }
@@ -1855,8 +1838,8 @@ impl<const RESOLUTION: usize> Heatmap<RESOLUTION> {
             fill_color = fill.into()
         }
 
-        let x = index % self.rows;
-        let y = index / self.rows;
+        let x = index % self.cols;
+        let y = index / self.cols;
         let tile_rect: Rect = transform.rect_from_values(
             &PlotPoint {
                 x: self.pos.x + self.tile_size.x as f64 * x as f64,
@@ -1938,7 +1921,7 @@ impl<const RESOLUTION: usize> PlotItem for Heatmap<RESOLUTION> {
         self.values.clone() // FIXME: is there a better solution that cloning?
             .into_iter()
             .enumerate()
-            .map(|(index, v)| {
+            .map(|(index, _)| {
                 let x = index % self.rows;
                 let y = index / self.rows;
                 let tile_rect: Rect = transform.rect_from_values(
