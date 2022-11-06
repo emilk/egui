@@ -3,7 +3,7 @@
 use std::ops::RangeInclusive;
 
 use epaint::util::FloatOrd;
-use epaint::Mesh;
+use epaint::{Mesh, RectShape};
 
 use crate::*;
 
@@ -1566,6 +1566,413 @@ impl PlotItem for BoxPlot {
 
         box_plot.add_shapes(plot.transform, true, shapes);
         box_plot.add_rulers_and_text(self, plot, shapes, cursors);
+    }
+}
+
+// ----------------------------------------------------------------------------
+// HEATMAP section
+
+#[derive(Debug)]
+pub enum HeatmapErr {
+    ZeroColumns,
+    BadLength,
+}
+
+impl std::fmt::Display for HeatmapErr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::ZeroColumns => write!(f, "number of columns must not be zero"),
+            Self::BadLength => write!(f, "length of value vector is not divisible by number of columns")
+        }
+    }
+}
+
+impl std::error::Error for HeatmapErr {}
+
+// pub struct Heatmap {
+//     origin: PlotPoint,
+//     pub(super) values: Vec<f64>,
+//     cols: usize,
+//     rows: usize,
+//     tile_size: Vec2,
+//     pub(super) default_color: Color32,
+//     pub(super) name: String,
+//     /// A custom element formatter
+//     pub(super) element_formatter: Option<Box<dyn Fn(&f64, &Heatmap) -> String>>,
+//     highlight: bool,
+//     /// Line width and color
+//     stroke: Stroke,
+//     min: f64,
+//     max: f64,
+//     show_labels: bool,
+// }
+/// A heatmap.
+pub struct Heatmap<const RESOLUTION: usize> {
+    /// occupied space in absolute plot coordinates
+    pos: PlotPoint,
+    /// values to plot
+    pub(super) values: Vec<f64>,
+    /// number of columns in heatmap
+    cols: usize,
+    /// number of rows in heatmap
+    rows: usize,
+    /// minimum value in colormap.
+    /// Everything smaller will be mapped to palette[0]
+    min: f64,
+    /// maximum value in heatmap
+    /// Everything greater will be mapped to palette.last()
+    max: f64,
+    /// formatter for labels on tiles
+    formatter: Box<dyn Fn(f64) -> String>,
+    /// custom mapping of values to color
+    custom_mapping: Option<Box<dyn Fn(f64) -> Color32>>,
+    /// show labels on tiles
+    show_labels: bool,
+    /// possible colors, sorted by index
+    palette: [Color32; RESOLUTION],
+    /// is widget is highlighted
+    highlight: bool,
+    /// Line with and color
+    stroke: Stroke,
+    /// plot name
+    name: String,
+    /// Size of one tile in plot coordinates
+    tile_size: Vec2,
+}
+
+impl<const RESOLUTION: usize> Heatmap<RESOLUTION> {
+    /// Create a 2D heatmap. Will automatically infer number of rows.
+    ///
+    /// - `values` contains magnitude of each tile. The alignment is row by row.
+    /// - `cols` is the number of columns (i.e. the length of each row) and must not be zero.
+    /// - `values.len()` must be a multiple of `cols`.
+    ///
+    /// Example: To display this
+    ///
+    /// | -- | -- |
+    /// | 0.0 | 0.1 |
+    /// | 0.3 | 0.4 |
+    ///
+    /// pass `values = vec![0.0, 0.1, 0.3, 0.4]` and `cols = 2`.
+    ///
+    /// Returns error type if provided parameters are inconsistent
+    pub fn new(values: Vec<f64>, cols: usize) -> Result<Self, HeatmapErr> {
+        if cols == 0 {
+            return Err(HeatmapErr::ZeroColumns)
+        }
+        if (values.len() % cols) != 0 {
+            return Err(HeatmapErr::BadLength)
+        }
+        let rows = values.len() / cols;
+
+        // determine range
+        let mut min = f64::MAX;
+        let mut max = f64::MIN;
+        for v in &values {
+            if v < &min {
+                min = *v;
+            }
+            if v > &max {
+                max = *v;
+            }
+        }
+
+        // calculate palette
+        let base_colors = vec![
+            Color32::BLACK,
+            Color32::DARK_RED,
+            Color32::YELLOW,
+            Color32::BLACK
+        ];
+        Ok(Self {
+            pos: PlotPoint {x: 0.0, y: 0.0},
+            values,
+            cols,
+            rows,
+            min,
+            max,
+            formatter: Box::new(|v| {
+                format!("{:.1}", v)
+            }),
+            custom_mapping: None,
+            show_labels: true,
+            palette: Heatmap::linear_gradient_from_base_colors(base_colors),
+            highlight: false,
+            stroke: Stroke::none(),
+            name: String::new(),
+            tile_size: Vec2 {x: 1.0, y: 1.0},
+        })
+    }
+
+    /// Set color palette by specifying base colors from low to high
+    pub fn palette(mut self, base_colors: Vec<Color32>) -> Self {
+        self.palette = Heatmap::linear_gradient_from_base_colors(base_colors);
+        self
+    }
+
+    /// Generate linear gradient with `RESOLUTION` steps from an arbitrary number of base colors.
+    fn linear_gradient_from_base_colors(base_colors: Vec<Color32>) -> [Color32; RESOLUTION] {
+        let mut ret = [Color32::TRANSPARENT; RESOLUTION];
+        if base_colors.is_empty() {
+            return ret;
+        }
+        if base_colors.len() == 1 { // single color, no gradient
+            ret = [base_colors[0]; RESOLUTION];
+            return ret;
+        }
+        for i in 0..RESOLUTION {
+            let i_rel: f64 = i as f64 / (RESOLUTION-1) as f64;
+            if i_rel == 1.0 { // last element
+                ret[i] = *base_colors.last().unwrap();
+            }
+            else {
+                let base_index_float: f64 = i_rel * (base_colors.len()-1) as f64;
+                let base_index: usize = base_index_float as usize;
+                let start_color = base_colors[base_index];
+                let end_color = base_colors[base_index + 1];
+                let gradient_level = base_index_float - base_index as f64;
+                let start_r = u8::min(start_color.r(), end_color.r());
+                let end_r = u8::max(start_color.r(), end_color.r());
+                let start_g = u8::min(start_color.g(), end_color.g());
+                let end_g = u8::max(start_color.g(), end_color.g());
+                let start_b = u8::min(start_color.b(), end_color.b());
+                let end_b = u8::max(start_color.b(), end_color.b());
+                let r = (start_r as f64 + (end_r as f64 - start_r as f64) * gradient_level).round() as u8;
+                let g = (start_g as f64 + (end_g as f64 - start_g as f64) * gradient_level).round() as u8;
+                let b = (start_b as f64 + (end_b as f64 - start_b as f64) * gradient_level).round() as u8;
+                ret[i] = Color32::from_rgb(r, g, b);
+            }
+        }
+        return ret;
+    }
+
+    /// Specify custom range of values to map onto color palette.
+    ///
+    /// - `min` and everything smaller will be the first color on the color palette.
+    /// - `max` and everything greater will be the last color on the color palette.
+    pub fn range(mut self, min: f64, max: f64) -> Self {
+        assert!(min < max);
+        self.min = min;
+        self.max = max;
+        self
+    }
+
+    /// Add a custom way to format an element.
+    /// Can be used to display a set number of decimals or custom labels.
+    pub fn formatter(mut self, formatter: Box<dyn Fn(f64) -> String>) -> Self {
+        self.formatter = formatter;
+        self
+    }
+
+    /// Add a custom way to map values to a color.
+    pub fn custom_mapping(mut self, custom_mapping: Box<dyn Fn(f64) -> Color32>) -> Self {
+        self.custom_mapping = Some(custom_mapping);
+        self
+    }
+
+    /// Show labels for each tile in heatmap. Defaults to 'true'
+    pub fn show_labels(mut self, en: bool) -> Self {
+        self.show_labels = en;
+        self
+    }
+
+    /// Place lower left corner of heatmap at `pos`. Default is (0.0, 0.0)
+    pub fn at(mut self, pos: PlotPoint) -> Self {
+        self.pos = pos;
+        self
+    }
+
+    /// Name of this heatmap.
+    ///
+    /// This name will show up in the plot legend, if legends are turned on. Multiple heatmaps may
+    /// share the same name, in which case they will also share an entry in the legend.
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn name(mut self, name: impl ToString) -> Self {
+        self.name = name.to_string();
+        self
+    }
+
+    /// Manually set width and height of tiles in plot coordinate space.
+    pub fn tile_size(mut self, x: f32, y: f32) -> Self {
+        self.tile_size = Vec2 { x, y };
+        self
+    }
+
+    /// Set size of heatmap in plot coordinate space.
+    /// Will adjust the heatmap tile size in plot coordinate space.
+    pub fn size(mut self, x: f32, y: f32) -> Self {
+        self.tile_size = Vec2 {
+            x: x / self.cols as f32,
+            y: y / self.rows as f32
+        };
+        self
+    }
+
+    /// Highlight all plot elements.
+    pub fn highlight(mut self, highlight: bool) -> Self {
+        // FIXME: for some reason highlighting is not detected
+        self.highlight = highlight;
+        self
+    }
+
+    fn push_shapes(&self, ui: &Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
+        let mut mesh = Mesh::default();
+        let mut labels: Vec<Shape> = Vec::new();
+        for i in 0..self.values.len() {
+            let (rect, color, text) = self.tile_view_info(ui, transform, i);
+            mesh.add_colored_rect(rect, color);
+            if self.show_labels {
+                labels.push(text);
+            }
+        }
+        shapes.push(Shape::mesh(mesh));
+        if self.show_labels {
+            shapes.extend(labels);
+        }
+    }
+    fn tile_view_info(&self, ui: &Ui, transform: &ScreenTransform, index: usize) -> (Rect, Color32, Shape) {
+        let v = self.values[index];
+
+        // calculate color value
+        let mut fill_color: Color32;
+        if let Some(mapping) = &self.custom_mapping {
+            fill_color = mapping(v);
+        }
+        else {
+            // convert to value in [0.0, 1.0]
+            let v_rel = (v - self.min) / (self.max - self.min);
+
+            // convert to color palette index
+            let palette_index = (v_rel * (self.palette.len()-1) as f64).round() as usize;
+
+            fill_color = self.palette[palette_index];
+        }
+
+        if self.highlight {
+            let fill = Rgba::from(fill_color);
+            let fill_alpha = (2.0 * fill.a()).at_most(1.0);
+            let fill = fill.to_opaque().multiply(fill_alpha);
+            fill_color = fill.into()
+        }
+
+        let x = index % self.rows;
+        let y = index / self.rows;
+        let tile_rect: Rect = transform.rect_from_values(
+            &PlotPoint {
+                x: self.pos.x + self.tile_size.x as f64 * x as f64,
+                y: self.pos.y + self.tile_size.y as f64 * y as f64
+            },
+            &PlotPoint {
+                x: self.pos.x + self.tile_size.x as f64 * (x + 1) as f64,
+                y: self.pos.y + self.tile_size.y as f64 * (y + 1) as f64
+            }
+        );
+        // Text
+
+        let text: WidgetText = (self.formatter)(v).into();
+
+        // calculate color that is readable on coloured tiles
+        let luminance = 0.2126 * fill_color.r() as f32
+            + 0.7151 * fill_color.g() as f32
+            + 0.0721 * fill_color.b() as f32;
+
+        let inverted_color = if luminance < 140.0 {
+            Color32::WHITE
+        }
+        else {
+            Color32::BLACK
+        };
+
+        let text = text.color(inverted_color);
+        let galley = text.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Monospace);
+        let text_pos = tile_rect.center() - galley.size() / 2.0;
+
+        let text = Shape::galley(text_pos, galley.galley().clone());
+        return (tile_rect, fill_color, text);
+    }
+}
+
+impl<const RESOLUTION: usize> PlotItem for Heatmap<RESOLUTION> {
+    fn shapes(&self, ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
+        self.push_shapes(ui, transform, shapes);
+    }
+
+    fn initialize(&mut self, _x_range: RangeInclusive<f64>) {
+        // nothing to do
+    }
+
+    fn name(&self) -> &str {
+        self.name.as_str()
+    }
+
+    // FIXME: heatmap has multiple colors
+    fn color(&self) -> Color32 {
+        self.palette[0]
+    }
+
+    fn highlight(&mut self) {
+        self.highlight = true;
+    }
+
+    fn highlighted(&self) -> bool {
+        self.highlight
+    }
+
+    fn geometry(&self) -> PlotGeometry<'_> {
+        PlotGeometry::Rects
+    }
+
+    fn bounds(&self) -> PlotBounds {
+        PlotBounds {
+            min: [
+                self.pos.x, self.pos.y,
+            ],
+            max: [
+                self.pos.x + self.tile_size.x as f64 * self.cols as f64,
+                self.pos.y + self.tile_size.y as f64 * self.rows as f64,
+            ]
+        }
+    }
+
+    fn find_closest(&self, point: Pos2, transform: &ScreenTransform) -> Option<ClosestElem> {
+        self.values.clone() // FIXME: is there a better solution that cloning?
+            .into_iter()
+            .enumerate()
+            .map(|(index, v)| {
+                let x = index % self.rows;
+                let y = index / self.rows;
+                let tile_rect: Rect = transform.rect_from_values(
+                    &PlotPoint {
+                        x: self.pos.x + self.tile_size.x as f64 * x as f64,
+                        y: self.pos.y + self.tile_size.y as f64 * y as f64
+                    },
+                    &PlotPoint {
+                        x: self.pos.x + self.tile_size.x as f64 * (x + 1) as f64,
+                        y: self.pos.y + self.tile_size.y as f64 * (y + 1) as f64
+                    }
+                );
+                let dist_sq = tile_rect.distance_sq_to_pos(point);
+
+                ClosestElem { index, dist_sq }
+            })
+            .min_by_key(|e| e.dist_sq.ord())
+    }
+    fn on_hover(
+        &self,
+        elem: ClosestElem,
+        shapes: &mut Vec<Shape>,
+        _cursors: &mut Vec<Cursor>,
+        plot: &PlotConfig<'_>,
+        _: &LabelFormatter,
+    ) {
+        let (rect, color, text) = self.tile_view_info(plot.ui, plot.transform, elem.index);
+        let mut mesh = Mesh::default();
+        mesh.add_colored_rect(rect, color);
+        shapes.push(Shape::mesh(mesh));
+        if self.show_labels {
+            shapes.push(text);
+        }
+        // v.add_rulers_and_text(self, plot, shapes, cursors); TODO
     }
 }
 
