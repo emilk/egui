@@ -187,9 +187,9 @@ impl Painter {
                 self.transform_shape(&mut shape);
                 shape
             });
-            self.paint_list().extend(self.clip_rect, shapes)
+            self.paint_list().extend(self.clip_rect, shapes);
         } else {
-            self.paint_list().extend(self.clip_rect, shapes)
+            self.paint_list().extend(self.clip_rect, shapes);
         };
     }
 
