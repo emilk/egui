@@ -270,10 +270,10 @@ impl SidePanel {
             let mut cursor = ui.cursor();
             match side {
                 Side::Left => {
-                    cursor.min.x = rect.max.x + ui.spacing().item_spacing.x;
+                    cursor.min.x = rect.max.x;
                 }
                 Side::Right => {
-                    cursor.max.x = rect.min.x - ui.spacing().item_spacing.x;
+                    cursor.max.x = rect.min.x;
                 }
             }
             ui.set_cursor(cursor);
@@ -703,10 +703,10 @@ impl TopBottomPanel {
             let mut cursor = ui.cursor();
             match side {
                 TopBottomSide::Top => {
-                    cursor.min.y = rect.max.y + ui.spacing().item_spacing.y;
+                    cursor.min.y = rect.max.y;
                 }
                 TopBottomSide::Bottom => {
-                    cursor.max.y = rect.min.y - ui.spacing().item_spacing.y;
+                    cursor.max.y = rect.min.y;
                 }
             }
             ui.set_cursor(cursor);
