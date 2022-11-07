@@ -46,7 +46,9 @@ wayland = ["winit/wayland"]
 egui = { version = "0.19.0", path = "../egui", default-features = false, features = [
   "tracing",
 ] }
-instant = { version = "0.1", features = ["wasm-bindgen"] } # We use instant so we can (maybe) compile for web
+instant = { version = "0.1", features = [
+  "wasm-bindgen",
+] } # We use instant so we can (maybe) compile for web
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 winit = { version = "0.27.2", default-features = false }
 
@@ -67,4 +69,4 @@ webbrowser = { version = "0.8", optional = true }
 smithay-clipboard = { version = "0.6.3", optional = true }
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
-arboard = { version = "3.0", optional = true, default-features = false }
+arboard = { version = "3.2", optional = true, default-features = false }

@@ -58,9 +58,9 @@ dependencies = [
 
 [[package]]
 name = "ahash"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57e6e951cfbb2db8de1828d49073a113a29fd7117b1596caa781a258c7e38d72"
+checksum = "464b3811b747f8f7ebc8849c9c728c39f6ac98a055edad93baf9eb330e3f8f9d"
 dependencies = [
  "cfg-if",
  "getrandom",
@@ -119,9 +119,9 @@ dependencies = [
 
 [[package]]
 name = "arboard"
-version = "3.1.0"
+version = "3.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79e8af4eff708b72e371acd4625ad3d01a88c946b9e8d6868cb5bb6e4d0d923c"
+checksum = "d6041616acea41d67c4a984709ddab1587fd0b10efe5cc563fee954d2f011854"
 dependencies = [
  "clipboard-win",
  "log",
@@ -1138,7 +1138,6 @@ dependencies = [
  "egui-wgpu",
  "egui-winit",
  "egui_glow",
- "getrandom",
  "glow",
  "glutin",
  "js-sys",
@@ -1159,7 +1158,7 @@ dependencies = [
 name = "egui"
 version = "0.19.0"
 dependencies = [
- "ahash 0.8.0",
+ "ahash 0.8.1",
  "document-features",
  "epaint",
  "nohash-hasher",
@@ -1255,7 +1254,7 @@ dependencies = [
 name = "egui_glium"
 version = "0.19.0"
 dependencies = [
- "ahash 0.8.0",
+ "ahash 0.8.1",
  "bytemuck",
  "document-features",
  "egui",
@@ -1371,7 +1370,7 @@ name = "epaint"
 version = "0.19.0"
 dependencies = [
  "ab_glyph",
- "ahash 0.8.0",
+ "ahash 0.8.1",
  "atomic_refcell",
  "backtrace",
  "bytemuck",

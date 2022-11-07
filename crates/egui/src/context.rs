@@ -175,6 +175,12 @@ impl ContextImpl {
 #[derive(Clone)]
 pub struct Context(Arc<RwLock<ContextImpl>>);
 
+impl std::fmt::Debug for Context {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Context").finish_non_exhaustive()
+    }
+}
+
 impl std::cmp::PartialEq for Context {
     fn eq(&self, other: &Context) -> bool {
         Arc::ptr_eq(&self.0, &other.0)
