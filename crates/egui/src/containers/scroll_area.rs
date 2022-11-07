@@ -90,6 +90,8 @@ pub struct ScrollArea {
     offset_y: Option<f32>,
     /// If false, we ignore scroll events.
     scrolling_enabled: bool,
+    /// If false we ignore mouse drag events.
+    drag_to_scroll_enabled: bool,
 
     /// If true for vertical or horizontal the scroll wheel will stick to the
     /// end position until user manually changes position. It will become true
@@ -132,6 +134,7 @@ impl ScrollArea {
             offset_x: None,
             offset_y: None,
             scrolling_enabled: true,
+            drag_to_scroll_enabled: true,
             stick_to_end: [false; 2],
         }
     }
@@ -251,6 +254,20 @@ impl ScrollArea {
         self
     }
 
+    /// Control the mouse dragging behavior.
+    ///
+    /// If `true` (default), the scroll area will respond to mouse dragging.
+    /// If `false`, the scroll area will not respond to mouse dragging
+    ///
+    /// This can be used, for example for code editors where
+    /// selecting and scrolling with a mouse is required.
+    ///
+    /// This controls both scrolling directions.
+    pub fn enable_drag_to_scroll(mut self, enable: bool) -> Self {
+        self.drag_to_scroll_enabled = enable;
+        self
+    }
+
     /// For each axis, should the containing area shrink if the content is small?
     ///
     /// If true, egui will add blank space outside the scroll area.
@@ -305,6 +322,7 @@ struct Prepared {
     /// `viewport.min == ZERO` means we scrolled to the top.
     viewport: Rect,
     scrolling_enabled: bool,
+    drag_to_scroll_enabled: bool,
     stick_to_end: [bool; 2],
 }
 
@@ -320,6 +338,7 @@ impl ScrollArea {
             offset_x,
             offset_y,
             scrolling_enabled,
+            drag_to_scroll_enabled,
             stick_to_end,
         } = self;
 
@@ -417,6 +436,7 @@ impl ScrollArea {
             content_ui,
             viewport,
             scrolling_enabled,
+            drag_to_scroll_enabled,
             stick_to_end,
         }
     }
@@ -521,6 +541,7 @@ impl Prepared {
             content_ui,
             viewport: _,
             scrolling_enabled,
+            drag_to_scroll_enabled: mouse_dragging_enabled,
             stick_to_end,
         } = self;
 
@@ -608,7 +629,7 @@ impl Prepared {
 
         if content_is_too_large[0] || content_is_too_large[1] {
             // Drag contents to scroll (for touch screens mostly):
-            let sense = if self.scrolling_enabled {
+            let sense = if self.drag_to_scroll_enabled {
                 Sense::drag()
             } else {
                 Sense::hover()
