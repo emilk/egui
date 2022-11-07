@@ -249,7 +249,7 @@ impl SidePanel {
                 let dragging_something_else = any_down || ui.input().pointer.any_pressed();
                 resize_hover = mouse_over_resize_line && !dragging_something_else;
 
-                if resize_hover || is_resizing {
+                {
                     ui.output().cursor_icon = CursorIcon::ResizeHorizontal;
                 }
             }
@@ -270,10 +270,10 @@ impl SidePanel {
             let mut cursor = ui.cursor();
             match side {
                 Side::Left => {
-                    cursor.min.x = rect.max.x + ui.spacing().item_spacing.x;
+                    cursor.min.x = rect.max.x;
                 }
                 Side::Right => {
-                    cursor.max.x = rect.min.x - ui.spacing().item_spacing.x;
+                    cursor.max.x = rect.min.x;
                 }
             }
             ui.set_cursor(cursor);
@@ -282,11 +282,14 @@ impl SidePanel {
 
         PanelState { rect }.store(ui.ctx(), id);
 
-        if resize_hover || is_resizing {
+        {
             let stroke = if is_resizing {
                 ui.style().visuals.widgets.active.bg_stroke
-            } else {
+            } else if resize_hover {
                 ui.style().visuals.widgets.hovered.bg_stroke
+            } else {
+                // TOOD(emilk): distinguish resizable from non-resizable
+                ui.style().visuals.widgets.noninteractive.bg_stroke
             };
             // draw on top of ALL panels so that the resize line won't be covered by subsequent panels
             let resize_layer = LayerId::new(Order::Foreground, Id::new("panel_resize"));
@@ -679,7 +682,7 @@ impl TopBottomPanel {
                 let dragging_something_else = any_down || ui.input().pointer.any_pressed();
                 resize_hover = mouse_over_resize_line && !dragging_something_else;
 
-                if resize_hover || is_resizing {
+                {
                     ui.output().cursor_icon = CursorIcon::ResizeVertical;
                 }
             }
@@ -700,10 +703,10 @@ impl TopBottomPanel {
             let mut cursor = ui.cursor();
             match side {
                 TopBottomSide::Top => {
-                    cursor.min.y = rect.max.y + ui.spacing().item_spacing.y;
+                    cursor.min.y = rect.max.y;
                 }
                 TopBottomSide::Bottom => {
-                    cursor.max.y = rect.min.y - ui.spacing().item_spacing.y;
+                    cursor.max.y = rect.min.y;
                 }
             }
             ui.set_cursor(cursor);
@@ -712,11 +715,14 @@ impl TopBottomPanel {
 
         PanelState { rect }.store(ui.ctx(), id);
 
-        if resize_hover || is_resizing {
+        {
             let stroke = if is_resizing {
                 ui.style().visuals.widgets.active.bg_stroke
-            } else {
+            } else if resize_hover {
                 ui.style().visuals.widgets.hovered.bg_stroke
+            } else {
+                // TOOD(emilk): distinguish resizable from non-resizable
+                ui.style().visuals.widgets.noninteractive.bg_stroke
             };
             // draw on top of ALL panels so that the resize line won't be covered by subsequent panels
             let resize_layer = LayerId::new(Order::Foreground, Id::new("panel_resize"));
