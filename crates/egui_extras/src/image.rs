@@ -1,5 +1,8 @@
 use egui::{mutex::Mutex, TextureFilter, TextureOptions};
 
+#[cfg(feature = "svg")]
+pub use usvg::FitTo;
+
 /// An image to be shown in egui.
 ///
 /// Load once, and save somewhere in your app state.
@@ -52,10 +55,7 @@ impl RetainedImage {
     /// On invalid image
     #[cfg(feature = "svg")]
     pub fn from_svg_bytes(debug_name: impl Into<String>, svg_bytes: &[u8]) -> Result<Self, String> {
-        Ok(Self::from_color_image(
-            debug_name,
-            load_svg_bytes(svg_bytes)?,
-        ))
+        Self::from_svg_bytes_with_size(debug_name, svg_bytes, FitTo::Original)
     }
 
     /// Pass in the str of an SVG that you've loaded.
@@ -65,6 +65,23 @@ impl RetainedImage {
     #[cfg(feature = "svg")]
     pub fn from_svg_str(debug_name: impl Into<String>, svg_str: &str) -> Result<Self, String> {
         Self::from_svg_bytes(debug_name, svg_str.as_bytes())
+    }
+
+    /// Pass in the bytes of an SVG that you've loaded
+    /// and the scaling option to resize the SVG with
+    ///
+    /// # Errors
+    /// On invalid image
+    #[cfg(feature = "svg")]
+    pub fn from_svg_bytes_with_size(
+        debug_name: impl Into<String>,
+        svg_bytes: &[u8],
+        size: FitTo,
+    ) -> Result<Self, String> {
+        Ok(Self::from_color_image(
+            debug_name,
+            load_svg_bytes_with_size(svg_bytes, size)?,
+        ))
     }
 
     /// Set the texture filters to use for the image.
@@ -200,29 +217,50 @@ pub fn load_image_bytes(image_bytes: &[u8]) -> Result<egui::ColorImage, String> 
 /// On invalid image
 #[cfg(feature = "svg")]
 pub fn load_svg_bytes(svg_bytes: &[u8]) -> Result<egui::ColorImage, String> {
+    load_svg_bytes_with_size(svg_bytes, FitTo::Original)
+}
+
+/// Load an SVG and rasterize it into an egui image with a scaling parameter.
+///
+/// Requires the "svg" feature.
+///
+/// # Errors
+/// On invalid image
+#[cfg(feature = "svg")]
+pub fn load_svg_bytes_with_size(
+    svg_bytes: &[u8],
+    fit_to: FitTo,
+) -> Result<egui::ColorImage, String> {
     let mut opt = usvg::Options::default();
     opt.fontdb.load_system_fonts();
 
     let rtree = usvg::Tree::from_data(svg_bytes, &opt.to_ref()).map_err(|err| err.to_string())?;
 
     let pixmap_size = rtree.svg_node().size.to_screen_size();
-    let [w, h] = [pixmap_size.width(), pixmap_size.height()];
+    let [w, h] = match fit_to {
+        FitTo::Original => [pixmap_size.width(), pixmap_size.height()],
+        FitTo::Size(w, h) => [w, h],
+        FitTo::Height(h) => [
+            (pixmap_size.width() as f32 * (h as f32 / pixmap_size.height() as f32)) as u32,
+            h,
+        ],
+        FitTo::Width(w) => [
+            w,
+            (pixmap_size.height() as f32 * (w as f32 / pixmap_size.width() as f32)) as u32,
+        ],
+        FitTo::Zoom(z) => [
+            (pixmap_size.width() as f32 * z) as u32,
+            (pixmap_size.height() as f32 * z) as u32,
+        ],
+    };
 
     let mut pixmap = tiny_skia::Pixmap::new(w, h)
         .ok_or_else(|| format!("Failed to create SVG Pixmap of size {}x{}", w, h))?;
 
-    resvg::render(
-        &rtree,
-        usvg::FitTo::Original,
-        Default::default(),
-        pixmap.as_mut(),
-    )
-    .ok_or_else(|| "Failed to render SVG".to_owned())?;
+    resvg::render(&rtree, fit_to, Default::default(), pixmap.as_mut())
+        .ok_or_else(|| "Failed to render SVG".to_owned())?;
 
-    let image = egui::ColorImage::from_rgba_unmultiplied(
-        [pixmap.width() as _, pixmap.height() as _],
-        pixmap.data(),
-    );
+    let image = egui::ColorImage::from_rgba_unmultiplied([w as _, h as _], pixmap.data());
 
     Ok(image)
 }
