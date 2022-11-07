@@ -526,6 +526,11 @@ pub async fn start(
     web_options: crate::WebOptions,
     app_creator: epi::AppCreator,
 ) -> Result<AppRunnerRef, JsValue> {
+    #[cfg(not(web_sys_unstable_apis))]
+    tracing::warn!(
+        "eframe compiled without RUSTFLAGS='--cfg=web_sys_unstable_apis'. Copying text won't work."
+    );
+
     let mut runner = AppRunner::new(canvas_id, web_options, app_creator).await?;
     runner.warm_up()?;
     start_runner(runner)
