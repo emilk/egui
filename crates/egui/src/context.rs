@@ -62,6 +62,11 @@ struct ContextImpl {
     has_requested_repaint_this_frame: bool,
 
     requested_repaint_last_frame: bool,
+
+    /// Written to during the frame.
+    layer_rects_this_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
+    /// Read
+    layer_rects_prev_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
 }
 
 impl ContextImpl {
@@ -78,6 +83,8 @@ impl ContextImpl {
             rect.max = (ratio * rect.max.to_vec2()).to_pos2();
             new_raw_input.screen_rect = Some(rect);
         }
+
+        self.layer_rects_prev_frame = std::mem::take(&mut self.layer_rects_this_frame);
 
         self.memory.begin_frame(&self.input, &new_raw_input);
 
@@ -328,8 +335,66 @@ impl Context {
             (0.5 * item_spacing - Vec2::splat(gap))
                 .at_least(Vec2::splat(0.0))
                 .at_most(Vec2::splat(5.0)),
-        ); // make it easier to click
-        let hovered = self.rect_contains_pointer(layer_id, clip_rect.intersect(interact_rect));
+        );
+
+        // Respect clip rectangle when interacting
+        let interact_rect = clip_rect.intersect(interact_rect);
+        let mut hovered = self.rect_contains_pointer(layer_id, interact_rect);
+
+        // This solves the problem of overlapping widgets.
+        // Whichever widget is added LAST (=on top) gets the input:
+        if interact_rect.is_positive() && sense.interactive() {
+            if self.style().debug.show_interactive_widgets {
+                Self::layer_painter(self, LayerId::debug()).rect(
+                    interact_rect,
+                    0.0,
+                    Color32::YELLOW.additive().linear_multiply(0.005),
+                    Stroke::new(1.0, Color32::YELLOW.additive().linear_multiply(0.05)),
+                );
+            }
+
+            let mut slf = self.write();
+
+            slf.layer_rects_this_frame
+                .entry(layer_id)
+                .or_default()
+                .push((id, interact_rect));
+
+            if hovered {
+                let pointer_pos = slf.input.pointer.interact_pos();
+                if let Some(pointer_pos) = pointer_pos {
+                    if let Some(rects) = slf.layer_rects_prev_frame.get(&layer_id) {
+                        for &(prev_id, prev_rect) in rects.iter().rev() {
+                            if prev_id == id {
+                                break; // there is no other interactive widget covering us at the pointer position.
+                            }
+                            if prev_rect.contains(pointer_pos) {
+                                // Another interactive widget is covering us at the pointer position,
+                                // so we aren't hovered.
+
+                                if slf.memory.options.style.debug.show_blocking_widget {
+                                    drop(slf);
+                                    Self::layer_painter(self, LayerId::debug()).debug_rect(
+                                        interact_rect,
+                                        Color32::GREEN,
+                                        "Covered",
+                                    );
+                                    Self::layer_painter(self, LayerId::debug()).debug_rect(
+                                        prev_rect,
+                                        Color32::LIGHT_BLUE,
+                                        "On top",
+                                    );
+                                }
+
+                                hovered = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         self.interact_with_hovered(layer_id, id, rect, sense, enabled, hovered)
     }
 
@@ -1095,11 +1160,13 @@ impl Context {
     }
 
     pub(crate) fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
-        let pointer_pos = self.input().pointer.interact_pos();
-        if let Some(pointer_pos) = pointer_pos {
-            rect.contains(pointer_pos) && self.layer_id_at(pointer_pos) == Some(layer_id)
-        } else {
-            false
+        rect.is_positive() && {
+            let pointer_pos = self.input().pointer.interact_pos();
+            if let Some(pointer_pos) = pointer_pos {
+                rect.contains(pointer_pos) && self.layer_id_at(pointer_pos) == Some(layer_id)
+            } else {
+                false
+            }
         }
     }
 

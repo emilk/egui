@@ -27,7 +27,7 @@ opt-level = 2 # fast and small wasm, basically same as `opt-level = 's'`
 
 [profile.dev]
 split-debuginfo = "unpacked" # faster debug builds on mac
-opt-level = 1                # Make debug builds run faster
+# opt-level = 1                # Make debug builds run faster
 
 # Optimize all dependencies even in debug builds (does not affect workspace packages):
 [profile.dev.package."*"]
