@@ -89,7 +89,7 @@ directories-next = { version = "2", optional = true }
 egui-wgpu = { version = "0.19.0", path = "../egui-wgpu", optional = true, features = [
   "winit",
 ] }
-puffin = { version = "0.13", optional = true }
+puffin = { version = "0.14", optional = true }
 wgpu = { version = "0.14", optional = true }
 
 # -------------------------------------------
