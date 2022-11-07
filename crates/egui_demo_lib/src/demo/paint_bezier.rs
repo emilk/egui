@@ -77,28 +77,28 @@ impl PaintBezier {
 
         let control_point_radius = 8.0;
 
-        let mut control_point_shapes = vec![];
+        let control_point_shapes: Vec<Shape> = self
+            .control_points
+            .iter_mut()
+            .enumerate()
+            .take(self.degree)
+            .map(|(i, point)| {
+                let size = Vec2::splat(2.0 * control_point_radius);
 
-        for (i, point) in self.control_points.iter_mut().enumerate().take(self.degree) {
-            let size = Vec2::splat(2.0 * control_point_radius);
+                let point_in_screen = to_screen.transform_pos(*point);
+                let point_rect = Rect::from_center_size(point_in_screen, size);
+                let point_id = response.id.with(i);
+                let point_response = ui.interact(point_rect, point_id, Sense::drag());
 
-            let point_in_screen = to_screen.transform_pos(*point);
-            let point_rect = Rect::from_center_size(point_in_screen, size);
-            let point_id = response.id.with(i);
-            let point_response = ui.interact(point_rect, point_id, Sense::drag());
+                *point += point_response.drag_delta();
+                *point = to_screen.from().clamp(*point);
 
-            *point += point_response.drag_delta();
-            *point = to_screen.from().clamp(*point);
+                let point_in_screen = to_screen.transform_pos(*point);
+                let stroke = ui.style().interact(&point_response).fg_stroke;
 
-            let point_in_screen = to_screen.transform_pos(*point);
-            let stroke = ui.style().interact(&point_response).fg_stroke;
-
-            control_point_shapes.push(Shape::circle_stroke(
-                point_in_screen,
-                control_point_radius,
-                stroke,
-            ));
-        }
+                Shape::circle_stroke(point_in_screen, control_point_radius, stroke)
+            })
+            .collect();
 
         let points_in_screen: Vec<Pos2> = self
             .control_points

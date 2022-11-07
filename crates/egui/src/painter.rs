@@ -178,19 +178,19 @@ impl Painter {
     /// Add many shapes at once.
     ///
     /// Calling this once is generally faster than calling [`Self::add`] multiple times.
-    pub fn extend(&self, mut shapes: Vec<Shape>) {
+    pub fn extend<I: IntoIterator<Item = Shape>>(&self, shapes: I) {
         if self.fade_to_color == Some(Color32::TRANSPARENT) {
             return;
         }
-        if !shapes.is_empty() {
-            if self.fade_to_color.is_some() {
-                for shape in &mut shapes {
-                    self.transform_shape(shape);
-                }
-            }
-
+        if self.fade_to_color.is_some() {
+            let shapes = shapes.into_iter().map(|mut shape| {
+                self.transform_shape(&mut shape);
+                shape
+            });
             self.paint_list().extend(self.clip_rect, shapes);
-        }
+        } else {
+            self.paint_list().extend(self.clip_rect, shapes);
+        };
     }
 
     /// Modify an existing [`Shape`].
