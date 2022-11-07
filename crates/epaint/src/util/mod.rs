@@ -6,7 +6,7 @@ pub use ordered_float::*;
 #[inline]
 pub fn hash(value: impl std::hash::Hash) -> u64 {
     use ahash::RandomState;
-    RandomState::with_seeds(15, 26, 37, 48).hash_one(value)
+    RandomState::with_seeds(1, 2, 3, 4).hash_one(value)
 }
 
 /// Hash the given value with the given hasher.
