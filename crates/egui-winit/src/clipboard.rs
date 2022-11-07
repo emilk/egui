@@ -5,6 +5,9 @@ use std::os::raw::c_void;
 /// If the "clipboard" feature is off, or we cannot connect to the OS clipboard,
 /// then a fallback clipboard that just works works within the same app is used instead.
 pub struct Clipboard {
+    #[cfg(all(feature = "arboard", not(target_os = "android")))]
+    arboard: Option<arboard::Clipboard>,
+
     #[cfg(all(
         any(
             target_os = "linux",
@@ -25,6 +28,8 @@ impl Clipboard {
     #[allow(unused_variables)]
     pub fn new(#[allow(unused_variables)] wayland_display: Option<*mut c_void>) -> Self {
         Self {
+            #[cfg(all(feature = "arboard", not(target_os = "android")))]
+            arboard: init_arboard(),
             #[cfg(all(
                 any(
                     target_os = "linux",
@@ -62,7 +67,7 @@ impl Clipboard {
         }
 
         #[cfg(all(feature = "arboard", not(target_os = "android")))]
-        if let Some(mut clipboard) = init_arboard() {
+        if let Some(clipboard) = &mut self.arboard {
             return match clipboard.get_text() {
                 Ok(text) => Some(text),
                 Err(err) => {
@@ -92,7 +97,7 @@ impl Clipboard {
         }
 
         #[cfg(all(feature = "arboard", not(target_os = "android")))]
-        if let Some(mut clipboard) = init_arboard() {
+        if let Some(clipboard) = &mut self.arboard {
             if let Err(err) = clipboard.set_text(text) {
                 tracing::error!("Copy/Cut error: {}", err);
             }
