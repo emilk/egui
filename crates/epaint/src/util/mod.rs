@@ -5,10 +5,8 @@ pub use ordered_float::*;
 /// Hash the given value with a predictable hasher.
 #[inline]
 pub fn hash(value: impl std::hash::Hash) -> u64 {
-    use std::hash::Hasher as _;
-    let mut hasher = ahash::AHasher::default();
-    value.hash(&mut hasher);
-    hasher.finish()
+    use ahash::RandomState;
+    RandomState::with_seeds(1, 2, 3, 4).hash_one(value)
 }
 
 /// Hash the given value with the given hasher.
