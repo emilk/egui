@@ -2760,9 +2760,9 @@ checksum = "2f61dcf0b917cd75d4521d7343d1ffff3d1583054133c9b5cbea3375c703c40d"
 
 [[package]]
 name = "puffin"
-version = "0.13.3"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b40725b2702b9c660938b8d9c56978091252374cc50d73a83b59695b8d32ec03"
+checksum = "796a1b7d7d0ec984dde24615178cbd14dc697ea4cdcddfd1fee9a5f87135f9e8"
 dependencies = [
  "anyhow",
  "bincode",
@@ -2776,9 +2776,9 @@ dependencies = [
 
 [[package]]
 name = "puffin_http"
-version = "0.10.0"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "784f1952bda562ec8b76651f0c879b61eb02eaf20fe9acd2a8ca69b4898b13fd"
+checksum = "77dae1a51a8887f161ae17809ec4159bb3fbc8be60d12947039fa063cf211f1b"
 dependencies = [
  "anyhow",
  "crossbeam-channel",
@@ -3063,11 +3063,12 @@ dependencies = [
 
 [[package]]
 name = "ruzstd"
-version = "0.2.4"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8cada0ef59efa6a5f4dc5e491f93d9f31e3fc7758df421ff1de8a706338e1100"
+checksum = "ffae8df4aa221781b715c27bbed0fac16b6f1e2643efb7af8a24dfc78d444493"
 dependencies = [
  "byteorder",
+ "thiserror",
  "twox-hash",
 ]
 
