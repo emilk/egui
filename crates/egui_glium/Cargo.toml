@@ -44,7 +44,10 @@ egui = { version = "0.19.0", path = "../egui", default-features = false, feature
 ] }
 egui-winit = { version = "0.19.0", path = "../egui-winit", default-features = false }
 
-ahash = "0.8"
+ahash = { version = "0.8.1", default-features = false, features = [
+  "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
+  "std",
+] }
 bytemuck = "1.7"
 glium = "0.32"
 
