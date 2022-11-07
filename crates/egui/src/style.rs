@@ -592,11 +592,20 @@ impl WidgetVisuals {
 pub struct DebugOptions {
     /// However over widgets to see their rectangles
     pub debug_on_hover: bool,
+
     /// Show which widgets make their parent wider
     pub show_expand_width: bool,
+
     /// Show which widgets make their parent higher
     pub show_expand_height: bool,
+
     pub show_resize: bool,
+
+    /// Show an overlay on all interactive widgets.
+    pub show_interactive_widgets: bool,
+
+    /// Show what widget blocks the interaction of another widget.
+    pub show_blocking_widget: bool,
 }
 
 // ----------------------------------------------------------------------------
@@ -1255,21 +1264,33 @@ impl DebugOptions {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             debug_on_hover,
-            show_expand_width: debug_expand_width,
-            show_expand_height: debug_expand_height,
-            show_resize: debug_resize,
+            show_expand_width,
+            show_expand_height,
+            show_resize,
+            show_interactive_widgets,
+            show_blocking_widget,
         } = self;
 
         ui.checkbox(debug_on_hover, "Show debug info on hover");
         ui.checkbox(
-            debug_expand_width,
+            show_expand_width,
             "Show which widgets make their parent wider",
         );
         ui.checkbox(
-            debug_expand_height,
+            show_expand_height,
             "Show which widgets make their parent higher",
         );
-        ui.checkbox(debug_resize, "Debug Resize");
+        ui.checkbox(show_resize, "Debug Resize");
+
+        ui.checkbox(
+            show_interactive_widgets,
+            "Show an overlay on all interactive widgets",
+        );
+
+        ui.checkbox(
+            show_blocking_widget,
+            "Show wha widget blocks the interaction of another widget",
+        );
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }

@@ -344,7 +344,7 @@ impl Context {
         // This solves the problem of overlapping widgets.
         // Whichever widget is added LAST (=on top) gets the input:
         if interact_rect.is_positive() && sense.interactive() {
-            if false {
+            if self.style().debug.show_interactive_widgets {
                 Self::layer_painter(self, LayerId::debug()).rect(
                     interact_rect,
                     0.0,
@@ -372,17 +372,17 @@ impl Context {
                                 // Another interactive widget is covering us at the pointer position,
                                 // so we aren't hovered.
 
-                                if false {
+                                if slf.memory.options.style.debug.show_blocking_widget {
                                     drop(slf);
-                                    Self::layer_painter(self, LayerId::debug()).debug_rect(
-                                        prev_rect,
-                                        Color32::RED,
-                                        "On top",
-                                    );
                                     Self::layer_painter(self, LayerId::debug()).debug_rect(
                                         interact_rect,
                                         Color32::GREEN,
                                         "Covered",
+                                    );
+                                    Self::layer_painter(self, LayerId::debug()).debug_rect(
+                                        prev_rect,
+                                        Color32::LIGHT_BLUE,
+                                        "On top",
                                     );
                                 }
 
