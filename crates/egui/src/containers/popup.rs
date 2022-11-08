@@ -209,7 +209,8 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
 
     let position = position.at_least(ctx.input().screen_rect().min);
 
-    let InnerResponse { inner, response } = show_tooltip_area_dyn(ctx, id, position, add_contents);
+    let InnerResponse { inner, response } =
+        show_tooltip_area_dyn(ctx, id.with(count), position, add_contents);
 
     state.set_tooltip_size(id, count, response.rect.size());
     state.store(ctx);
