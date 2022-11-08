@@ -291,12 +291,9 @@ impl SidePanel {
                 // TOOD(emilk): distinguish resizable from non-resizable
                 ui.style().visuals.widgets.noninteractive.bg_stroke
             };
-            // draw on top of ALL panels so that the resize line won't be covered by subsequent panels
-            let resize_layer = LayerId::new(Order::Foreground, Id::new("panel_resize"));
+            // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
             let resize_x = side.opposite().side_x(rect);
-            ui.ctx()
-                .layer_painter(resize_layer)
-                .vline(resize_x, rect.y_range(), stroke);
+            ui.painter().vline(resize_x, rect.y_range(), stroke);
         }
 
         inner_response
@@ -724,12 +721,9 @@ impl TopBottomPanel {
                 // TOOD(emilk): distinguish resizable from non-resizable
                 ui.style().visuals.widgets.noninteractive.bg_stroke
             };
-            // draw on top of ALL panels so that the resize line won't be covered by subsequent panels
-            let resize_layer = LayerId::new(Order::Foreground, Id::new("panel_resize"));
+            // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
             let resize_y = side.opposite().side_y(rect);
-            ui.ctx()
-                .layer_painter(resize_layer)
-                .hline(rect.x_range(), resize_y, stroke);
+            ui.painter().hline(rect.x_range(), resize_y, stroke);
         }
 
         inner_response
