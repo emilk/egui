@@ -6,13 +6,13 @@ use crate::*;
 
 /// Same state for all tooltips.
 #[derive(Clone, Debug, Default)]
-pub(crate) struct MonoState {
+pub(crate) struct PopupState {
     last_id: Option<Id>,
     last_size: Vec<Vec2>,
 }
 
-impl MonoState {
-    fn load(ctx: &Context) -> Option<Self> {
+impl PopupState {
+    pub fn load(ctx: &Context) -> Option<Self> {
         ctx.data().get_temp(Id::null())
     }
 
@@ -44,6 +44,10 @@ impl MonoState {
         self.last_size.clear();
         self.last_size.extend((0..index).map(|_| Vec2::ZERO));
         self.last_size.push(size);
+    }
+
+    pub fn is_open(ctx: &Context, id: &Id) -> bool {
+        Self::load(ctx).map_or(false, |state| state.last_id == Some(*id))
     }
 }
 
@@ -181,7 +185,7 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
         return None; // No good place for a tooltip :(
     };
 
-    let mut state = MonoState::load(ctx).unwrap_or_default();
+    let mut state = PopupState::load(ctx).unwrap_or_default();
     let expected_size = state.tooltip_size(id, count);
     let expected_size = expected_size.unwrap_or_else(|| vec2(64.0, 32.0));
 
