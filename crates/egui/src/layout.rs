@@ -196,7 +196,7 @@ impl Layout {
         }
     }
 
-    /// Top-down layout justifed so that buttons etc fill the full available width.
+    /// Top-down layout justified so that buttons etc fill the full available width.
     #[inline(always)]
     pub fn top_down_justified(halign: Align) -> Self {
         Self::top_down(halign).with_cross_justify(true)
@@ -225,6 +225,20 @@ impl Layout {
             main_align: Align::Center, // looks best to e.g. center text within a button
             main_justify: false,
             cross_align,
+            cross_justify: false,
+        }
+    }
+
+    /// For when you want to add a single widget to a layout, and that widget
+    /// should be centered horizontally and vertically.
+    #[inline(always)]
+    pub fn centered(main_dir: Direction) -> Self {
+        Self {
+            main_dir,
+            main_wrap: false,
+            main_align: Align::Center,
+            main_justify: false,
+            cross_align: Align::Center,
             cross_justify: false,
         }
     }
