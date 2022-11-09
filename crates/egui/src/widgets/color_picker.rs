@@ -352,25 +352,13 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
     }
 
     const COLOR_SLIDER_WIDTH: f32 = 210.0;
-    // TODO(ItsEthra): find a more precise way to evaluate color edit popup height
-    const WIDTH_TO_HIGHT: f32 = 1.3666667;
-
-    let screen_max = ui.input().screen_rect.max;
-    let mut anchor_pos = button_response.rect.max;
-
-    if anchor_pos.x + COLOR_SLIDER_WIDTH > screen_max.x {
-        anchor_pos.x = screen_max.x - COLOR_SLIDER_WIDTH - ui.spacing().window_margin.right * 2.;
-    }
-
-    if anchor_pos.y + COLOR_SLIDER_WIDTH * WIDTH_TO_HIGHT > screen_max.y {
-        anchor_pos.y = screen_max.y - COLOR_SLIDER_WIDTH * WIDTH_TO_HIGHT;
-    }
 
     // TODO(emilk): make it easier to show a temporary popup that closes when you click outside it
     if ui.memory().is_popup_open(popup_id) {
         let area_response = Area::new(popup_id)
             .order(Order::Foreground)
-            .fixed_pos(anchor_pos)
+            .fixed_pos(button_response.rect.max)
+            .constrain(true)
             .show(ui.ctx(), |ui| {
                 ui.spacing_mut().slider_width = COLOR_SLIDER_WIDTH;
                 Frame::popup(ui.style()).show(ui, |ui| {
