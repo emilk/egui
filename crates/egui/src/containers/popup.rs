@@ -8,7 +8,7 @@ use crate::*;
 #[derive(Clone, Debug, Default)]
 pub(crate) struct TooltipState {
     last_common_id: Option<Id>,
-    last_size: ahash::HashMap<usize, Vec2>,
+    individual_ids_and_sizes: ahash::HashMap<usize, (Id, Vec2)>,
 }
 
 impl TooltipState {
@@ -20,21 +20,28 @@ impl TooltipState {
         ctx.data().insert_temp(Id::null(), self);
     }
 
-    fn tooltip_size(&self, common_id: Id, index: usize) -> Option<Vec2> {
+    fn individual_tooltip_size(&self, common_id: Id, index: usize) -> Option<Vec2> {
         if self.last_common_id == Some(common_id) {
-            self.last_size.get(&index).cloned()
+            Some(self.individual_ids_and_sizes.get(&index).cloned()?.1)
         } else {
             None
         }
     }
 
-    fn set_tooltip_size(&mut self, common_id: Id, index: usize, size: Vec2) {
+    fn set_individual_tooltip(
+        &mut self,
+        common_id: Id,
+        index: usize,
+        individual_id: Id,
+        size: Vec2,
+    ) {
         if self.last_common_id != Some(common_id) {
             self.last_common_id = Some(common_id);
-            self.last_size.clear();
+            self.individual_ids_and_sizes.clear();
         }
 
-        self.last_size.insert(index, size);
+        self.individual_ids_and_sizes
+            .insert(index, (individual_id, size));
     }
 }
 
@@ -174,7 +181,8 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
     };
 
     let mut long_state = TooltipState::load(ctx).unwrap_or_default();
-    let expected_size = long_state.tooltip_size(frame_state.common_id, frame_state.count);
+    let expected_size =
+        long_state.individual_tooltip_size(frame_state.common_id, frame_state.count);
     let expected_size = expected_size.unwrap_or_else(|| vec2(64.0, 32.0));
 
     if above {
@@ -187,7 +195,7 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
     {
         let new_rect = Rect::from_min_size(position, expected_size);
 
-        // Note: We do not use Rect::intersects() since it returns true even if the rects only touch.
+        // Note: We use shrink so that we don't get false positives when the rects just touch
         if new_rect.shrink(1.0).intersects(avoid_rect) {
             if above {
                 // place below instead:
@@ -208,9 +216,10 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
         add_contents,
     );
 
-    long_state.set_tooltip_size(
+    long_state.set_individual_tooltip(
         frame_state.common_id,
         frame_state.count,
+        individual_id,
         response.rect.size(),
     );
     long_state.store(ctx);
@@ -267,9 +276,19 @@ fn show_tooltip_area_dyn<'c, R>(
 }
 
 /// Was this popup visible last frame?
-pub fn was_tooltip_open_last_frame(ctx: &Context, id: Id) -> bool {
-    let layer_id = LayerId::new(Order::Tooltip, id);
-    ctx.memory().areas.visible_last_frame(&layer_id)
+pub fn was_tooltip_open_last_frame(ctx: &Context, tooltip_id: Id) -> bool {
+    if let Some(state) = TooltipState::load(ctx) {
+        for (count, (individual_id, _size)) in &state.individual_ids_and_sizes {
+            if *individual_id == tooltip_id {
+                let layer_id = LayerId::new(Order::Tooltip, individual_id.with(count));
+                if ctx.memory().areas.visible_last_frame(&layer_id) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    false
 }
 
 /// Shows a popup below another widget.
