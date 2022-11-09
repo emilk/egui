@@ -18,6 +18,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Added `egui::gui_zoom` module with helpers for scaling the whole GUI of an app ([#2239](https://github.com/emilk/egui/pull/2239)).
 * You can now put one interactive widget on top of another, and only one will get interaction at a time ([#2244](https://github.com/emilk/egui/pull/2244)).
 * Add `ui.centered`.
+* Added possibility to specify text wrap for the selected text of `egui::ComboBox` via a `.wrap(width)` method ([#2272](https://github.com/emilk/egui/pull/2244))
 
 ### Changed 🔧
 * Panels always have a separator line, but no stroke on other sides. Their spacing has also changed slightly ([#2261](https://github.com/emilk/egui/pull/2261)).
