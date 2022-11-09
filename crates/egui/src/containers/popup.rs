@@ -209,12 +209,10 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
 
     let position = position.at_least(ctx.input().screen_rect().min);
 
-    let InnerResponse { inner, response } = show_tooltip_area_dyn(
-        ctx,
-        frame_state.common_id.with(frame_state.count),
-        position,
-        add_contents,
-    );
+    let area_id = frame_state.common_id.with(frame_state.count);
+
+    let InnerResponse { inner, response } =
+        show_tooltip_area_dyn(ctx, area_id, position, add_contents);
 
     long_state.set_individual_tooltip(
         frame_state.common_id,
@@ -255,12 +253,12 @@ pub fn show_tooltip_text(ctx: &Context, id: Id, text: impl Into<WidgetText>) -> 
 /// Show a pop-over window.
 fn show_tooltip_area_dyn<'c, R>(
     ctx: &Context,
-    id: Id,
+    area_id: Id,
     window_pos: Pos2,
     add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
 ) -> InnerResponse<R> {
     use containers::*;
-    Area::new(id)
+    Area::new(area_id)
         .order(Order::Tooltip)
         .fixed_pos(window_pos)
         .interactable(false)
@@ -278,11 +276,14 @@ fn show_tooltip_area_dyn<'c, R>(
 /// Was this popup visible last frame?
 pub fn was_tooltip_open_last_frame(ctx: &Context, tooltip_id: Id) -> bool {
     if let Some(state) = TooltipState::load(ctx) {
-        for (count, (individual_id, _size)) in &state.individual_ids_and_sizes {
-            if *individual_id == tooltip_id {
-                let layer_id = LayerId::new(Order::Tooltip, individual_id.with(count));
-                if ctx.memory().areas.visible_last_frame(&layer_id) {
-                    return true;
+        if let Some(common_id) = state.last_common_id {
+            for (count, (individual_id, _size)) in &state.individual_ids_and_sizes {
+                if *individual_id == tooltip_id {
+                    let area_id = common_id.with(count);
+                    let layer_id = LayerId::new(Order::Tooltip, area_id);
+                    if ctx.memory().areas.visible_last_frame(&layer_id) {
+                        return true;
+                    }
                 }
             }
         }

@@ -386,6 +386,11 @@ impl Response {
         self
     }
 
+    /// Was the tooltip open last frame?
+    pub fn is_tooltip_open(&self) -> bool {
+        crate::popup::was_tooltip_open_last_frame(&self.ctx, self.id.with("__tooltip"))
+    }
+
     fn should_show_hover_ui(&self) -> bool {
         if self.ctx.memory().everything_is_visible() {
             return true;
@@ -400,9 +405,7 @@ impl Response {
             // but once shown we keep showing it until the mouse leaves the parent.
 
             let is_pointer_still = self.ctx.input().pointer.is_still();
-            if !is_pointer_still
-                && !crate::popup::was_tooltip_open_last_frame(&self.ctx, self.id.with("__tooltip"))
-            {
+            if !is_pointer_still && !self.is_tooltip_open() {
                 // wait for mouse to stop
                 self.ctx.request_repaint();
                 return false;
