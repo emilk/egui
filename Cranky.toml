@@ -108,4 +108,8 @@ warn = [
 ]
 
 allow = [
+  "clippy::derive_partial_eq_without_eq",
+  "clippy::type_complexity",
+  "clippy::unnecessary_lazy_evaluations",
+  "clippy::let-and-return"
 ]

@@ -13,13 +13,13 @@ env:
 jobs:
   fmt-crank-check-test:
     name: Format + check + test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
           profile: default
-          toolchain: 1.62.0
+          toolchain: 1.64.0
           override: true
       - name: Install packages (Linux)
         if: runner.os == 'Linux'
@@ -78,13 +78,13 @@ jobs:
 
   check_wasm:
     name: Check wasm32 + wasm-bindgen
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.62.0
+          toolchain: 1.64.0
           target: wasm32-unknown-unknown
           override: true
 
@@ -131,7 +131,7 @@ jobs:
 
   cargo-deny:
     name: cargo deny
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
       - uses: EmbarkStudios/cargo-deny-action@v1
@@ -140,13 +140,13 @@ jobs:
 
   android:
     name: android
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.62.0
+          toolchain: 1.64.0
           target: aarch64-linux-android
           override: true
       - name: Set up cargo cache
