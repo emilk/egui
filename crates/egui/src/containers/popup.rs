@@ -6,12 +6,12 @@ use crate::*;
 
 /// Same state for all tooltips.
 #[derive(Clone, Debug, Default)]
-pub(crate) struct PopupState {
-    last_id: Option<Id>,
-    last_size: Vec<Vec2>,
+pub(crate) struct TooltipState {
+    last_common_id: Option<Id>,
+    last_size: ahash::HashMap<usize, Vec2>,
 }
 
-impl PopupState {
+impl TooltipState {
     pub fn load(ctx: &Context) -> Option<Self> {
         ctx.data().get_temp(Id::null())
     }
@@ -20,34 +20,21 @@ impl PopupState {
         ctx.data().insert_temp(Id::null(), self);
     }
 
-    fn tooltip_size(&self, id: Id, index: usize) -> Option<Vec2> {
-        if self.last_id == Some(id) {
-            self.last_size.get(index).cloned()
+    fn tooltip_size(&self, common_id: Id, index: usize) -> Option<Vec2> {
+        if self.last_common_id == Some(common_id) {
+            self.last_size.get(&index).cloned()
         } else {
             None
         }
     }
 
-    fn set_tooltip_size(&mut self, id: Id, index: usize, size: Vec2) {
-        if self.last_id == Some(id) {
-            if let Some(stored_size) = self.last_size.get_mut(index) {
-                *stored_size = size;
-            } else {
-                self.last_size
-                    .extend((0..index - self.last_size.len()).map(|_| Vec2::ZERO));
-                self.last_size.push(size);
-            }
-            return;
+    fn set_tooltip_size(&mut self, common_id: Id, index: usize, size: Vec2) {
+        if self.last_common_id != Some(common_id) {
+            self.last_common_id = Some(common_id);
+            self.last_size.clear();
         }
 
-        self.last_id = Some(id);
-        self.last_size.clear();
-        self.last_size.extend((0..index).map(|_| Vec2::ZERO));
-        self.last_size.push(size);
-    }
-
-    pub fn is_open(ctx: &Context, id: &Id) -> bool {
-        Self::load(ctx).map_or(false, |state| state.last_id == Some(*id))
+        self.last_size.insert(index, size);
     }
 }
 
@@ -155,27 +142,28 @@ pub fn show_tooltip_at<R>(
 
 fn show_tooltip_at_avoid_dyn<'c, R>(
     ctx: &Context,
-    mut id: Id,
+    individual_id: Id,
     suggested_position: Option<Pos2>,
     above: bool,
     mut avoid_rect: Rect,
     add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
 ) -> Option<R> {
-    let mut tooltip_rect = Rect::NOTHING;
-    let mut count = 0;
+    // if there are multiple tooltips open they should use the same common_id for the `tooltip_size` caching to work.
+    let mut frame_state =
+        ctx.frame_state()
+            .tooltip_state
+            .unwrap_or(crate::frame_state::TooltipFrameState {
+                common_id: individual_id,
+                rect: Rect::NOTHING,
+                count: 0,
+            });
 
-    let stored = ctx.frame_state().tooltip_rect;
-
-    let mut position = if let Some(stored) = stored {
-        // if there are multiple tooltips open they should use the same id for the `tooltip_size` caching to work.
-        id = stored.id;
-        tooltip_rect = stored.rect;
-        count = stored.count;
-        avoid_rect = avoid_rect.union(tooltip_rect);
+    let mut position = if frame_state.rect.is_positive() {
+        avoid_rect = avoid_rect.union(frame_state.rect);
         if above {
-            tooltip_rect.left_top()
+            frame_state.rect.left_top()
         } else {
-            tooltip_rect.left_bottom()
+            frame_state.rect.left_bottom()
         }
     } else if let Some(position) = suggested_position {
         position
@@ -185,8 +173,8 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
         return None; // No good place for a tooltip :(
     };
 
-    let mut state = PopupState::load(ctx).unwrap_or_default();
-    let expected_size = state.tooltip_size(id, count);
+    let mut long_state = TooltipState::load(ctx).unwrap_or_default();
+    let expected_size = long_state.tooltip_size(frame_state.common_id, frame_state.count);
     let expected_size = expected_size.unwrap_or_else(|| vec2(64.0, 32.0));
 
     if above {
@@ -213,17 +201,24 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
 
     let position = position.at_least(ctx.input().screen_rect().min);
 
-    let InnerResponse { inner, response } =
-        show_tooltip_area_dyn(ctx, id.with(count), position, add_contents);
+    let InnerResponse { inner, response } = show_tooltip_area_dyn(
+        ctx,
+        frame_state.common_id.with(frame_state.count),
+        position,
+        add_contents,
+    );
 
-    state.set_tooltip_size(id, count, response.rect.size());
-    state.store(ctx);
+    long_state.set_tooltip_size(
+        frame_state.common_id,
+        frame_state.count,
+        response.rect.size(),
+    );
+    long_state.store(ctx);
 
-    ctx.frame_state().tooltip_rect = Some(crate::frame_state::TooltipRect {
-        id,
-        rect: tooltip_rect.union(response.rect),
-        count: count + 1,
-    });
+    frame_state.count += 1;
+    frame_state.rect = frame_state.rect.union(response.rect);
+    ctx.frame_state().tooltip_state = Some(frame_state);
+
     Some(inner)
 }
 
@@ -269,6 +264,12 @@ fn show_tooltip_area_dyn<'c, R>(
                 })
                 .inner
         })
+}
+
+/// Was this popup visible last frame?
+pub fn was_tooltip_open_last_frame(ctx: &Context, id: Id) -> bool {
+    let layer_id = LayerId::new(Order::Tooltip, id);
+    ctx.memory().areas.visible_last_frame(&layer_id)
 }
 
 /// Shows a popup below another widget.

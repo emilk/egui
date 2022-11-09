@@ -399,10 +399,10 @@ impl Response {
             // We only show the tooltip when the mouse pointer is still,
             // but once shown we keep showing it until the mouse leaves the parent.
 
-            use crate::containers::popup::PopupState;
-
             let is_pointer_still = self.ctx.input().pointer.is_still();
-            if !is_pointer_still && !PopupState::is_open(&self.ctx, &self.id.with("__tooltip")) {
+            if !is_pointer_still
+                && !crate::popup::was_tooltip_open_last_frame(&self.ctx, self.id.with("__tooltip"))
+            {
                 // wait for mouse to stop
                 self.ctx.request_repaint();
                 return false;

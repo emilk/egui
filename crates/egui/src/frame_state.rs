@@ -3,8 +3,8 @@ use std::ops::RangeInclusive;
 use crate::*;
 
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct TooltipRect {
-    pub id: Id,
+pub(crate) struct TooltipFrameState {
+    pub common_id: Id,
     pub rect: Rect,
     pub count: usize,
 }
@@ -32,7 +32,7 @@ pub(crate) struct FrameState {
     /// If a tooltip has been shown this frame, where was it?
     /// This is used to prevent multiple tooltips to cover each other.
     /// Initialized to `None` at the start of each frame.
-    pub(crate) tooltip_rect: Option<TooltipRect>,
+    pub(crate) tooltip_state: Option<TooltipFrameState>,
 
     /// Set to [`InputState::scroll_delta`] on the start of each frame.
     ///
@@ -50,7 +50,7 @@ impl Default for FrameState {
             available_rect: Rect::NAN,
             unused_rect: Rect::NAN,
             used_by_panels: Rect::NAN,
-            tooltip_rect: None,
+            tooltip_state: None,
             scroll_delta: Vec2::ZERO,
             scroll_target: [None, None],
         }
@@ -64,7 +64,7 @@ impl FrameState {
             available_rect,
             unused_rect,
             used_by_panels,
-            tooltip_rect,
+            tooltip_state,
             scroll_delta,
             scroll_target,
         } = self;
@@ -73,7 +73,7 @@ impl FrameState {
         *available_rect = input.screen_rect();
         *unused_rect = input.screen_rect();
         *used_by_panels = Rect::NOTHING;
-        *tooltip_rect = None;
+        *tooltip_state = None;
         *scroll_delta = input.scroll_delta;
         *scroll_target = [None, None];
     }
