@@ -298,6 +298,7 @@ pub fn popup_below_widget<R>(
     if ui.memory().is_popup_open(popup_id) {
         let inner = Area::new(popup_id)
             .order(Order::Foreground)
+            .constrain(true)
             .fixed_pos(widget_response.rect.left_bottom())
             .show(ui.ctx(), |ui| {
                 // Note: we use a separate clip-rect for this area, so the popup can be outside the parent.
