@@ -2,8 +2,6 @@
 //! It has no frame or own size. It is potentially movable.
 //! It is the foundation for windows and popups.
 
-use std::{fmt::Debug, hash::Hash};
-
 use crate::*;
 
 /// State that is persisted between frames.
@@ -56,9 +54,9 @@ pub struct Area {
 }
 
 impl Area {
-    pub fn new(id_source: impl Hash) -> Self {
+    pub fn new(id: impl Into<Id>) -> Self {
         Self {
-            id: Id::new(id_source),
+            id: id.into(),
             movable: true,
             interactable: true,
             enabled: true,
