@@ -155,6 +155,8 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
     mut avoid_rect: Rect,
     add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
 ) -> Option<R> {
+    let spacing = 4.0;
+
     // if there are multiple tooltips open they should use the same common_id for the `tooltip_size` caching to work.
     let mut frame_state =
         ctx.frame_state()
@@ -168,9 +170,9 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
     let mut position = if frame_state.rect.is_positive() {
         avoid_rect = avoid_rect.union(frame_state.rect);
         if above {
-            frame_state.rect.left_top()
+            frame_state.rect.left_top() - spacing * Vec2::Y
         } else {
-            frame_state.rect.left_bottom()
+            frame_state.rect.left_bottom() + spacing * Vec2::Y
         }
     } else if let Some(position) = suggested_position {
         position
@@ -199,10 +201,10 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
         if new_rect.shrink(1.0).intersects(avoid_rect) {
             if above {
                 // place below instead:
-                position = avoid_rect.left_bottom();
+                position = avoid_rect.left_bottom() + spacing * Vec2::Y;
             } else {
                 // place above instead:
-                position = Pos2::new(position.x, avoid_rect.min.y - expected_size.y);
+                position = Pos2::new(position.x, avoid_rect.min.y - expected_size.y - spacing);
             }
         }
     }
