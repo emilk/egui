@@ -28,6 +28,7 @@ pub struct ComboBox {
     selected_text: WidgetText,
     width: Option<f32>,
     icon: Option<IconPainter>,
+    wrap: Option<f32>,
 }
 
 impl ComboBox {
@@ -39,6 +40,7 @@ impl ComboBox {
             selected_text: Default::default(),
             width: None,
             icon: None,
+            wrap: None,
         }
     }
 
@@ -51,6 +53,7 @@ impl ComboBox {
             selected_text: Default::default(),
             width: None,
             icon: None,
+            wrap: None,
         }
     }
 
@@ -62,6 +65,7 @@ impl ComboBox {
             selected_text: Default::default(),
             width: None,
             icon: None,
+            wrap: None,
         }
     }
 
@@ -112,6 +116,12 @@ impl ComboBox {
         self
     }
 
+    /// Set the wrap width for the selected text
+    pub fn wrap(mut self, wrap_width: f32) -> Self {
+        self.wrap.replace(wrap_width);
+        self
+    }
+
     /// Show the combo box, with the given ui code for the menu contents.
     ///
     /// Returns `InnerResponse { inner: None }` if the combo box is closed.
@@ -134,6 +144,7 @@ impl ComboBox {
             selected_text,
             width,
             icon,
+            wrap,
         } = self;
 
         let button_id = ui.make_persistent_id(id_source);
@@ -142,7 +153,7 @@ impl ComboBox {
             if let Some(width) = width {
                 ui.spacing_mut().slider_width = width; // yes, this is ugly. Will remove later.
             }
-            let mut ir = combo_box_dyn(ui, button_id, selected_text, menu_contents, icon);
+            let mut ir = combo_box_dyn(ui, button_id, selected_text, menu_contents, icon, wrap);
             if let Some(label) = label {
                 ir.response
                     .widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, label.text()));
@@ -209,6 +220,7 @@ fn combo_box_dyn<'c, R>(
     selected_text: WidgetText,
     menu_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     icon: Option<IconPainter>,
+    wrap: Option<f32>,
 ) -> InnerResponse<Option<R>> {
     let popup_id = button_id.with("popup");
 
@@ -218,7 +230,12 @@ fn combo_box_dyn<'c, R>(
         let full_minimum_width = ui.spacing().slider_width;
         let icon_size = Vec2::splat(ui.spacing().icon_width);
 
-        let galley = selected_text.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Button);
+        let galley = selected_text.into_galley(
+            ui,
+            wrap.map(|_| true),
+            wrap.unwrap_or(f32::INFINITY),
+            TextStyle::Button,
+        );
 
         let width = galley.size().x + ui.spacing().item_spacing.x + icon_size.x;
         let width = width.at_least(full_minimum_width);
