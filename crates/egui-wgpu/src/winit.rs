@@ -109,6 +109,8 @@ impl Painter {
     }
 
     fn configure_surface(&mut self, width_in_pixels: u32, height_in_pixels: u32) {
+        crate::profile_function!();
+
         let render_state = self
             .render_state
             .as_ref()
@@ -227,6 +229,8 @@ impl Painter {
         clipped_primitives: &[egui::ClippedPrimitive],
         textures_delta: &egui::TexturesDelta,
     ) {
+        crate::profile_function!();
+
         let render_state = match self.render_state.as_mut() {
             Some(rs) => rs,
             None => return,
@@ -237,7 +241,13 @@ impl Painter {
         };
         let (width, height) = (surface_state.width, surface_state.height);
 
-        let output_frame = match surface_state.surface.get_current_texture() {
+        let output_frame = {
+            crate::profile_scope!("get_current_texture");
+            // This is what vsync-waiting happens, at least on Mac.
+            surface_state.surface.get_current_texture()
+        };
+
+        let output_frame = match output_frame {
             Ok(frame) => frame,
             #[allow(clippy::single_match_else)]
             Err(e) => match (*self.configuration.on_surface_error)(e) {
@@ -326,15 +336,24 @@ impl Painter {
             }
         }
 
+        let encoded = {
+            crate::profile_scope!("CommandEncoder::finish");
+            encoder.finish()
+        };
+
         // Submit the commands: both the main buffer and user-defined ones.
-        render_state.queue.submit(
-            user_cmd_bufs
-                .into_iter()
-                .chain(std::iter::once(encoder.finish())),
-        );
+        {
+            crate::profile_scope!("Queue::submit");
+            render_state
+                .queue
+                .submit(user_cmd_bufs.into_iter().chain(std::iter::once(encoded)));
+        };
 
         // Redraw egui
-        output_frame.present();
+        {
+            crate::profile_scope!("present");
+            output_frame.present();
+        }
     }
 
     #[allow(clippy::unused_self)]

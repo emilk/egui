@@ -174,6 +174,8 @@ impl Renderer {
         output_depth_format: Option<wgpu::TextureFormat>,
         msaa_samples: u32,
     ) -> Self {
+        crate::profile_function!();
+
         let shader = wgpu::ShaderModuleDescriptor {
             label: Some("egui"),
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("egui.wgsl"))),
@@ -347,6 +349,8 @@ impl Renderer {
         paint_jobs: &[egui::epaint::ClippedPrimitive],
         screen_descriptor: &ScreenDescriptor,
     ) {
+        crate::profile_function!();
+
         let pixels_per_point = screen_descriptor.pixels_per_point;
         let size_in_pixels = screen_descriptor.size_in_pixels;
 
@@ -421,6 +425,8 @@ impl Renderer {
                     };
 
                     if callback.rect.is_positive() {
+                        crate::profile_scope!("callback");
+
                         needs_reset = true;
 
                         {
@@ -472,6 +478,8 @@ impl Renderer {
         id: egui::TextureId,
         image_delta: &egui::epaint::ImageDelta,
     ) {
+        crate::profile_function!();
+
         let width = image_delta.image.width() as u32;
         let height = image_delta.image.height() as u32;
 
@@ -653,6 +661,8 @@ impl Renderer {
         texture: &wgpu::TextureView,
         sampler_descriptor: wgpu::SamplerDescriptor<'_>,
     ) -> egui::TextureId {
+        crate::profile_function!();
+
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             compare: None,
             ..sampler_descriptor
@@ -692,6 +702,8 @@ impl Renderer {
         sampler_descriptor: wgpu::SamplerDescriptor<'_>,
         id: egui::TextureId,
     ) {
+        crate::profile_function!();
+
         let (_user_texture, user_texture_binding) = self
             .textures
             .get_mut(&id)
@@ -732,20 +744,26 @@ impl Renderer {
         paint_jobs: &[egui::epaint::ClippedPrimitive],
         screen_descriptor: &ScreenDescriptor,
     ) -> Vec<wgpu::CommandBuffer> {
+        crate::profile_function!();
+
         let screen_size_in_points = screen_descriptor.screen_size_in_points();
 
-        // Update uniform buffer
-        queue.write_buffer(
-            &self.uniform_buffer,
-            0,
-            bytemuck::cast_slice(&[UniformBuffer {
-                screen_size_in_points,
-                _padding: Default::default(),
-            }]),
-        );
+        {
+            crate::profile_scope!("uniforms");
+            // Update uniform buffer
+            queue.write_buffer(
+                &self.uniform_buffer,
+                0,
+                bytemuck::cast_slice(&[UniformBuffer {
+                    screen_size_in_points,
+                    _padding: Default::default(),
+                }]),
+            );
+        }
 
         // Determine how many vertices & indices need to be rendered.
-        let (vertex_count, index_count) =
+        let (vertex_count, index_count) = {
+            crate::profile_scope!("count_vertices_indices");
             paint_jobs.iter().fold((0, 0), |acc, clipped_primitive| {
                 match &clipped_primitive.primitive {
                     Primitive::Mesh(mesh) => {
@@ -753,9 +771,11 @@ impl Renderer {
                     }
                     Primitive::Callback(_) => acc,
                 }
-            });
-        // Resize index buffer if needed.
+            })
+        };
+
         {
+            // Resize index buffer if needed:
             self.index_buffer.slices.clear();
             let required_size = (std::mem::size_of::<u32>() * index_count) as u64;
             if self.index_buffer.capacity < required_size {
@@ -764,8 +784,9 @@ impl Renderer {
                 self.index_buffer.buffer = create_index_buffer(device, self.index_buffer.capacity);
             }
         }
-        // Resize vertex buffer if needed.
+
         {
+            // Resize vertex buffer if needed:
             self.vertex_buffer.slices.clear();
             let required_size = (std::mem::size_of::<Vertex>() * vertex_count) as u64;
             if self.vertex_buffer.capacity < required_size {
@@ -778,6 +799,8 @@ impl Renderer {
 
         // Upload index & vertex data and call user callbacks
         let mut user_cmd_bufs = Vec::new(); // collect user command buffers
+
+        crate::profile_scope!("primitives");
         for egui::ClippedPrimitive { primitive, .. } in paint_jobs.iter() {
             match primitive {
                 Primitive::Mesh(mesh) => {
@@ -806,6 +829,7 @@ impl Renderer {
                         continue;
                     };
 
+                    crate::profile_scope!("callback");
                     user_cmd_bufs.extend((cbfn.prepare)(
                         device,
                         queue,
@@ -841,6 +865,7 @@ fn create_sampler(options: egui::TextureOptions, device: &wgpu::Device) -> wgpu:
 }
 
 fn create_vertex_buffer(device: &wgpu::Device, size: u64) -> wgpu::Buffer {
+    crate::profile_function!();
     device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("egui_vertex_buffer"),
         usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
@@ -850,6 +875,7 @@ fn create_vertex_buffer(device: &wgpu::Device, size: u64) -> wgpu::Buffer {
 }
 
 fn create_index_buffer(device: &wgpu::Device, size: u64) -> wgpu::Buffer {
+    crate::profile_function!();
     device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("egui_index_buffer"),
         usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
