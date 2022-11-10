@@ -331,7 +331,7 @@ mod glow_integration {
             let window_settings = epi_integration::load_window_settings(storage);
 
             let window_builder =
-                epi_integration::window_builder(native_options, &window_settings).with_title(title);
+                epi_integration::window_builder(native_options, &window_settings).with_title(title).with_visible(false);
 
             let gl_window = unsafe {
                 glutin::ContextBuilder::new()
@@ -392,6 +392,8 @@ mod glow_integration {
                     event_loop_proxy.lock().send_event(RequestRepaintEvent).ok();
                 });
             }
+
+            gl_window.window().set_visible(true);
 
             let app_creator = std::mem::take(&mut self.app_creator)
                 .expect("Single-use AppCreator has unexpectedly already been taken");
@@ -692,6 +694,7 @@ mod wgpu_integration {
             let window_settings = epi_integration::load_window_settings(storage);
             epi_integration::window_builder(native_options, &window_settings)
                 .with_title(title)
+                .with_visible(false)
                 .build(event_loop)
                 .unwrap()
         }
@@ -762,6 +765,8 @@ mod wgpu_integration {
                         .ok();
                 });
             }
+
+            window.set_visible(true);
 
             let app_creator = std::mem::take(&mut self.app_creator)
                 .expect("Single-use AppCreator has unexpectedly already been taken");
