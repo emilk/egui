@@ -447,7 +447,7 @@ impl PlotItem for Line {
             let expected_intersections = 20;
             mesh.reserve_triangles((n_values - 1) * 2);
             mesh.reserve_vertices(n_values * 2 + expected_intersections);
-            values_tf[0..n_values - 1].windows(2).for_each(|w| {
+            values_tf.windows(2).for_each(|w| {
                 let i = mesh.vertices.len() as u32;
                 mesh.colored_vertex(w[0], fill_color);
                 mesh.colored_vertex(pos2(w[0].x, y), fill_color);
