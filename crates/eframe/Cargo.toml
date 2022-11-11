@@ -145,5 +145,5 @@ web-sys = { version = "0.3.58", features = [
 
 # optional web:
 egui-wgpu = { version = "0.19.0", path = "../egui-wgpu", optional = true } # if wgpu is used, use it without (!) winit
-tts = { version = "0.20", optional = true }                                # Can't use 0.21-0.24 due to compilation problems on linux
+tts = { version = "0.24", optional = true }
 wgpu = { version = "0.14", optional = true, features = ["webgl"] }

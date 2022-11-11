@@ -61,7 +61,7 @@ puffin = { version = "0.14", optional = true }
 serde = { version = "1.0", optional = true, features = ["derive"] }
 
 # feature screen_reader
-tts = { version = "0.20", optional = true } # Can't use 0.21-0.24 due to compilation problems on linux
+tts = { version = "0.24", optional = true }
 
 webbrowser = { version = "0.8", optional = true }
 
