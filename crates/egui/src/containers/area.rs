@@ -46,6 +46,7 @@ pub struct Area {
     movable: bool,
     interactable: bool,
     enabled: bool,
+    constrain: bool,
     order: Order,
     default_pos: Option<Pos2>,
     anchor: Option<(Align2, Vec2)>,
@@ -59,6 +60,7 @@ impl Area {
             id: id.into(),
             movable: true,
             interactable: true,
+            constrain: false,
             enabled: true,
             order: Order::Middle,
             default_pos: None,
@@ -117,6 +119,12 @@ impl Area {
 
     pub fn default_pos(mut self, default_pos: impl Into<Pos2>) -> Self {
         self.default_pos = Some(default_pos.into());
+        self
+    }
+
+    /// Constrains this area to the screen bounds.
+    pub fn constrain(mut self, constrain: bool) -> Self {
+        self.constrain = constrain;
         self
     }
 
@@ -202,6 +210,7 @@ impl Area {
             new_pos,
             anchor,
             drag_bounds,
+            constrain,
         } = self;
 
         let layer_id = LayerId::new(order, id);
@@ -273,6 +282,12 @@ impl Area {
         };
 
         state.pos = ctx.round_pos_to_pixels(state.pos);
+
+        if constrain {
+            state.pos = ctx
+                .constrain_window_rect_to_area(state.rect(), drag_bounds)
+                .min;
+        }
 
         Prepared {
             layer_id,
