@@ -765,12 +765,7 @@ impl Plot {
 
         // Allocate the plot window.
         // let (rect, response) = ui.allocate_exact_size(size, Sense::drag());
-
-        for widget in axis_widgets {
-            ui.add(widget);
-        }
-        let mut response = ui.allocate_rect(complete_rect, Sense::drag());
-        response.rect = plot_rect;
+        let response = ui.allocate_rect(plot_rect, Sense::drag());
         let rect = plot_rect;
         // Load or initialize the memory.
         let plot_id = ui.make_persistent_id(id_source);
@@ -1064,6 +1059,26 @@ impl Plot {
             }
         }
 
+        for mut widget in axis_widgets {
+            let axis = widget.config.axis;
+            let bounds = transform.bounds();
+            let axis_range = match axis {
+                Axis::X => bounds.range_x(),
+                Axis::Y => bounds.range_y(),
+            };
+            widget.range = axis_range;
+            let input = GridInput {
+                bounds: (bounds.min[axis as usize], bounds.max[axis as usize]),
+                base_step_size: transform.dvalue_dpos()[axis as usize]
+                    * MIN_LINE_SPACING_IN_POINTS
+                    * 2.0,
+            };
+            let steps = (grid_spacers[axis as usize])(input);
+            widget.transform = Some(transform.clone());
+            widget.steps = steps;
+            ui.add(widget);
+        }
+
         // Initialize values from functions.
         for item in &mut items {
             item.initialize(transform.bounds().range_x());
@@ -1085,6 +1100,7 @@ impl Plot {
             sharp_grid_lines,
             clamp_grid,
         };
+
         let plot_cursors = prepared.ui(ui, &response);
 
         if let Some(boxed_zoom_rect) = boxed_zoom_rect {
@@ -1139,7 +1155,7 @@ impl Plot {
         } else {
             response
         };
-
+        ui.advance_cursor_after_rect(complete_rect);
         PlotResponse {
             inner,
             response,
@@ -1375,6 +1391,7 @@ pub struct GridInput {
 }
 
 /// One mark (horizontal or vertical line) in the background grid of a plot.
+#[derive(Debug, Clone, Copy)]
 pub struct GridMark {
     /// X or Y value in the plot.
     pub value: f64,
@@ -1452,10 +1469,11 @@ impl PreparedPlot {
     fn ui(self, ui: &mut Ui, response: &Response) -> Vec<Cursor> {
         let mut axes_shapes = Vec::new();
 
-        for d in 0..2 {
-            if self.show_axes[d] {
-                self.paint_axis(ui, d, &mut axes_shapes, self.sharp_grid_lines);
-            }
+        if self.show_axes[Axis::X as usize] {
+            self.paint_axis(ui, Axis::X, &mut axes_shapes, self.sharp_grid_lines);
+        }
+        if self.show_axes[Axis::Y as usize] {
+            self.paint_axis(ui, Axis::Y, &mut axes_shapes, self.sharp_grid_lines);
         }
 
         // Sort the axes by strength so that those with higher strength are drawn in front.
@@ -1536,7 +1554,7 @@ impl PreparedPlot {
     fn paint_axis(
         &self,
         ui: &Ui,
-        axis: usize,
+        axis: Axis,
         shapes: &mut Vec<(Shape, f32)>,
         sharp_grid_lines: bool,
     ) {
@@ -1549,23 +1567,16 @@ impl PreparedPlot {
             ..
         } = self;
 
-        let bounds = transform.bounds();
-        let _axis_range = match axis {
-            0 => bounds.range_x(),
-            1 => bounds.range_y(),
-            _ => panic!("Axis {} does not exist.", axis),
-        };
-
-        let _font_id = TextStyle::Body.resolve(ui.style());
-
         // Where on the cross-dimension to show the label values
-        let value_cross = 0.0_f64.clamp(bounds.min[1 - axis], bounds.max[1 - axis]);
+        let bounds = transform.bounds();
+        let value_cross =
+            0.0_f64.clamp(bounds.min[1 - axis as usize], bounds.max[1 - axis as usize]);
 
         let input = GridInput {
-            bounds: (bounds.min[axis], bounds.max[axis]),
-            base_step_size: transform.dvalue_dpos()[axis] * MIN_LINE_SPACING_IN_POINTS,
+            bounds: (bounds.min[axis as usize], bounds.max[axis as usize]),
+            base_step_size: transform.dvalue_dpos()[axis as usize] * MIN_LINE_SPACING_IN_POINTS,
         };
-        let steps = (grid_spacers[axis])(input);
+        let steps = (grid_spacers[axis as usize])(input);
 
         let clamp_range = clamp_grid.then(|| {
             let mut tight_bounds = PlotBounds::NOTHING;
@@ -1581,7 +1592,7 @@ impl PreparedPlot {
             let value_main = step.value;
 
             if let Some(clamp_range) = clamp_range {
-                if axis == 0 {
+                if axis == Axis::X {
                     if !clamp_range.range_x().contains(&value_main) {
                         continue;
                     };
@@ -1592,14 +1603,14 @@ impl PreparedPlot {
                 }
             }
 
-            let value = if axis == 0 {
-                PlotPoint::new(value_main, value_cross)
-            } else {
-                PlotPoint::new(value_cross, value_main)
+            let value = match axis {
+                Axis::X => PlotPoint::new(value_main, value_cross),
+                Axis::Y => PlotPoint::new(value_cross, value_main),
             };
 
             let pos_in_gui = transform.position_from_point(&value);
-            let spacing_in_points = (transform.dpos_dvalue()[axis] * step.step_size).abs() as f32;
+            let spacing_in_points =
+                (transform.dpos_dvalue()[axis as usize] * step.step_size).abs() as f32;
 
             if spacing_in_points > MIN_LINE_SPACING_IN_POINTS as f32 {
                 let line_strength = remap_clamp(
@@ -1612,11 +1623,11 @@ impl PreparedPlot {
 
                 let mut p0 = pos_in_gui;
                 let mut p1 = pos_in_gui;
-                p0[1 - axis] = transform.frame().min[1 - axis];
-                p1[1 - axis] = transform.frame().max[1 - axis];
+                p0[1 - axis as usize] = transform.frame().min[1 - axis as usize];
+                p1[1 - axis as usize] = transform.frame().max[1 - axis as usize];
 
                 if let Some(clamp_range) = clamp_range {
-                    if axis == 0 {
+                    if axis == Axis::X {
                         p0.y = transform.position_from_point_y(clamp_range.min[1]);
                         p1.y = transform.position_from_point_y(clamp_range.max[1]);
                     } else {

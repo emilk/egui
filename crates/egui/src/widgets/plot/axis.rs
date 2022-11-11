@@ -3,9 +3,14 @@ use std::{
     ops::RangeInclusive,
 };
 
-use epaint::{Pos2, Rect, Stroke, TextShape};
+use epaint::{
+    emath::{remap_clamp, round_to_decimals, NumExt},
+    Color32, Pos2, Rect, Rgba, Shape, Stroke, TextShape,
+};
 
 use crate::{Response, Sense, TextStyle, Ui, Widget, WidgetText};
+
+use super::{transform::PlotTransform, GridMark, MIN_LINE_SPACING_IN_POINTS};
 
 pub(super) type AxisFormatterFn = fn(f64, &RangeInclusive<f64>) -> String;
 
@@ -87,7 +92,16 @@ impl AxisConfig {
     }
 
     fn default_formatter(tick: f64, _range: &RangeInclusive<f64>) -> String {
-        tick.to_string()
+        const MAX_DECIMALS: usize = 5;
+        if tick.abs() > 1e6 {
+            let tick_rounded = round_to_decimals(tick, MAX_DECIMALS);
+            format!("{:+e}", tick_rounded)
+        } else if tick.abs() < 1e-6 && tick != 0.0 {
+            format!("{:+e}", tick)
+        } else {
+            let tick_rounded = round_to_decimals(tick, MAX_DECIMALS);
+            format!("{}", tick_rounded)
+        }
     }
 
     pub(super) fn thickness(&self) -> f32 {
@@ -101,49 +115,29 @@ impl AxisConfig {
 
 #[derive(Clone)]
 pub(super) struct AxisWidget {
-    config: AxisConfig,
+    pub(super) range: RangeInclusive<f64>,
+    pub(super) config: AxisConfig,
     pub(super) rect: Rect,
+    pub(super) transform: Option<PlotTransform>,
+    pub(super) steps: Vec<GridMark>,
 }
 
 impl AxisWidget {
     /// if `rect` as width or height == 0, is will be automatically calculated from ticks and text.
     pub(super) fn new(config: AxisConfig, rect: Rect) -> Self {
-        Self { config, rect }
+        Self {
+            range: (0.0..=0.0),
+            config,
+            rect,
+            transform: None,
+            steps: Vec::new(),
+        }
     }
-
-    // fn calc_size(&mut self) {
-    //     if self.rect.height() == 0.0 {
-    //         if self.config.axis == Axis::X {
-    //             // calculate height of x-axis label: ticks + label
-    //             let y = self.rect.min.y;
-    //             if self.config.label.is_empty() {
-    //                 self.rect.extend_with_y(y + LINE_HEIGHT);
-    //             }
-    //             else {
-    //                 self.rect.extend_with_y(y + 2.0*LINE_HEIGHT)
-    //             }
-    //         }
-    //     }
-    //     if self.rect.width() == 0.0 {
-    //         if self.config.axis == Axis::Y {
-    //             // calculate width of y-axis label: ticks + label
-    //             if self.config.label.is_empty() {
-    //                 self.rect.extend_with_x(50.0);
-    //             }
-    //             else {
-    //                 self.rect.extend_with_x(100.0)
-    //             }
-    //         }
-    //     }
-    // }
-    // pub(super) fn exact_size(mut self, rect: Rect) -> Self  {
-    //     self.rect = rect;
-    //     self
-    // }
 }
 
 impl Widget for AxisWidget {
     fn ui(self, ui: &mut Ui) -> Response {
+        // --- add label ---
         let response = ui.allocate_rect(self.rect, Sense::click_and_drag());
         if ui.is_rect_visible(response.rect) {
             let visuals = ui.style().visuals.clone();
@@ -199,7 +193,64 @@ impl Widget for AxisWidget {
                 angle,
             };
             ui.painter().add(shape);
+
+            // --- add ticks ---
+            let font_id = TextStyle::Body.resolve(ui.style());
+            let transform = match self.transform {
+                Some(t) => t,
+                None => return response,
+            };
+
+            for step in self.steps {
+                let text = (self.config.formatter)(step.value, &self.range);
+                if !text.is_empty() {
+                    let spacing_in_points = (transform.dpos_dvalue()[self.config.axis as usize]
+                        * step.step_size)
+                        .abs() as f32;
+
+                    let line_alpha = remap_clamp(
+                        spacing_in_points,
+                        (MIN_LINE_SPACING_IN_POINTS as f32 * 2.0)..=300.0,
+                        0.0..=0.15,
+                    );
+
+                    if line_alpha > 0.0 {
+                        let line_color = color_from_alpha(ui, line_alpha);
+                        let galley = ui
+                            .painter()
+                            .layout_no_wrap(text, font_id.clone(), line_color);
+                        let text_pos = match self.config.axis {
+                            Axis::X => {
+                                let projected_point = super::PlotPoint::new(step.value, 0.0);
+                                Pos2 {
+                                    x: transform.position_from_point(&projected_point).x
+                                        - galley.size().x / 2.0,
+                                    y: self.rect.min.y,
+                                }
+                            }
+                            Axis::Y => {
+                                let projected_point = super::PlotPoint::new(0.0, step.value);
+                                Pos2 {
+                                    x: self.rect.max.x - galley.size().x,
+                                    y: transform.position_from_point(&projected_point).y
+                                        - galley.size().y / 2.0,
+                                }
+                            }
+                        };
+
+                        ui.painter().add(Shape::galley(text_pos, galley));
+                    }
+                }
+            }
         }
         response
+    }
+}
+
+fn color_from_alpha(ui: &Ui, alpha: f32) -> Color32 {
+    if ui.visuals().dark_mode {
+        Rgba::from_white_alpha(alpha).into()
+    } else {
+        Rgba::from_black_alpha((4.0 * alpha).at_most(1.0)).into()
     }
 }
