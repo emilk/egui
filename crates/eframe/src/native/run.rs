@@ -416,10 +416,6 @@ mod glow_integration {
                 integration,
                 app,
             });
-
-            // TODO(logandark): This is a hack. we should put window visibility into Frame
-            self.paint();
-            self.running.as_ref().unwrap().gl_window.window().set_visible(true);
         }
     }
 
@@ -498,6 +494,8 @@ mod glow_integration {
                     gl_window.swap_buffers().unwrap();
                 }
 
+                integration.post_present(window);
+
                 let control_flow = if integration.should_close() {
                     EventResult::Exit
                 } else if repaint_after.is_zero() {
@@ -542,10 +540,8 @@ mod glow_integration {
                 winit::event::Event::Resumed => {
                     if self.running.is_none() {
                         self.init_run_state(event_loop);
-                        EventResult::Wait
-                    } else {
-                        EventResult::RepaintNow
                     }
+                    EventResult::RepaintAsap
                 }
                 winit::event::Event::Suspended => {
                     #[cfg(target_os = "android")]
@@ -792,10 +788,6 @@ mod wgpu_integration {
                 app,
             });
             self.window = Some(window);
-
-            // TODO(logandark): This is a hack. we should put window visibility into Frame
-            self.paint();
-            self.window.as_ref().unwrap().set_visible(true);
         }
     }
 
@@ -862,6 +854,7 @@ mod wgpu_integration {
                 );
 
                 integration.post_rendering(app.as_mut(), window);
+                integration.post_present(window);
 
                 let control_flow = if integration.should_close() {
                     EventResult::Exit
@@ -915,7 +908,6 @@ mod wgpu_integration {
                             );
                             self.set_window(window);
                         }
-                        EventResult::RepaintNow
                     } else {
                         let storage = epi_integration::create_storage(&self.app_name);
                         let window = Self::create_window(
@@ -925,8 +917,8 @@ mod wgpu_integration {
                             &self.native_options,
                         );
                         self.init_run_state(event_loop, storage, window);
-                        EventResult::Wait
                     }
+                    EventResult::RepaintAsap
                 }
                 winit::event::Event::Suspended => {
                     #[cfg(target_os = "android")]
