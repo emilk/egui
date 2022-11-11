@@ -23,6 +23,7 @@ pub use epi::NativeOptions;
 enum EventResult {
     Wait,
     RepaintAsap,
+    RepaintNext,
     RepaintAt(Instant),
     Exit,
 }
@@ -124,6 +125,10 @@ fn run_and_return(event_loop: &mut EventLoop<RequestRepaintEvent>, mut winit_app
                 next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
                 winit_app.paint();
             }
+            EventResult::RepaintNext => {
+                tracing::trace!("Repaint caused by winit::Event: {:?}", event);
+                next_repaint_time = Instant::now();
+            }
             EventResult::RepaintAt(repaint_time) => {
                 next_repaint_time = next_repaint_time.min(repaint_time);
             }
@@ -199,6 +204,9 @@ fn run_and_exit(
             EventResult::RepaintAsap => {
                 next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
                 winit_app.paint();
+            }
+            EventResult::RepaintNext => {
+                next_repaint_time = Instant::now();
             }
             EventResult::RepaintAt(repaint_time) => {
                 next_repaint_time = next_repaint_time.min(repaint_time);
@@ -856,7 +864,7 @@ mod wgpu_integration {
                 let control_flow = if integration.should_close() {
                     EventResult::Exit
                 } else if repaint_after.is_zero() {
-                    EventResult::RepaintAsap
+                    EventResult::RepaintNext
                 } else if let Some(repaint_after_instant) =
                     std::time::Instant::now().checked_add(repaint_after)
                 {
