@@ -330,8 +330,9 @@ mod glow_integration {
             };
             let window_settings = epi_integration::load_window_settings(storage);
 
-            let window_builder =
-                epi_integration::window_builder(native_options, &window_settings).with_title(title).with_visible(false);
+            let window_builder = epi_integration::window_builder(native_options, &window_settings)
+                .with_title(title)
+                .with_visible(false);
 
             let gl_window = unsafe {
                 glutin::ContextBuilder::new()
