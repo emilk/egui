@@ -1,12 +1,12 @@
 //! Simple plotting library.
 
 use ahash::HashMap;
-use std::ops::RangeInclusive;
 
 use crate::*;
 use epaint::util::FloatOrd;
 use epaint::Hsva;
 
+use axis::AxisWidget;
 use items::PlotItem;
 use legend::LegendWidget;
 
@@ -17,16 +17,19 @@ pub use items::{
 pub use legend::{Corner, Legend};
 pub use transform::{PlotBounds, PlotTransform};
 
-use self::items::{horizontal_line, rulers_color, vertical_line};
+use self::{
+    axis::Axis,
+    axis::AxisConfig,
+    items::{horizontal_line, rulers_color, vertical_line},
+};
 
+pub mod axis;
 mod items;
 mod legend;
 mod transform;
 
 type LabelFormatterFn = dyn Fn(&str, &PlotPoint) -> String;
 type LabelFormatter = Option<Box<LabelFormatterFn>>;
-type AxisFormatterFn = dyn Fn(f64, &RangeInclusive<f64>) -> String;
-type AxisFormatter = Option<Box<AxisFormatterFn>>;
 
 type GridSpacerFn = dyn Fn(GridInput) -> Vec<GridMark>;
 type GridSpacer = Box<GridSpacerFn>;
@@ -206,7 +209,7 @@ pub struct Plot {
     show_y: bool,
     label_formatter: LabelFormatter,
     coordinates_formatter: Option<(Corner, CoordinatesFormatter)>,
-    axis_formatters: [AxisFormatter; 2],
+    axis_config: Vec<AxisConfig>,
     legend_config: Option<Legend>,
     show_background: bool,
     show_axes: [bool; 2],
@@ -248,7 +251,7 @@ impl Plot {
             show_y: true,
             label_formatter: None,
             coordinates_formatter: None,
-            axis_formatters: [None, None], // [None; 2] requires Copy
+            axis_config: vec![AxisConfig::default(Axis::X), AxisConfig::default(Axis::Y)],
             legend_config: None,
             show_background: true,
             show_axes: [true; 2],
@@ -415,36 +418,6 @@ impl Plot {
         self
     }
 
-    /// Provide a function to customize the labels for the X axis based on the current visible value range.
-    ///
-    /// This is useful for custom input domains, e.g. date/time.
-    ///
-    /// If axis labels should not appear for certain values or beyond a certain zoom/resolution,
-    /// the formatter function can return empty strings. This is also useful if your domain is
-    /// discrete (e.g. only full days in a calendar).
-    pub fn x_axis_formatter(
-        mut self,
-        func: impl Fn(f64, &RangeInclusive<f64>) -> String + 'static,
-    ) -> Self {
-        self.axis_formatters[0] = Some(Box::new(func));
-        self
-    }
-
-    /// Provide a function to customize the labels for the Y axis based on the current value range.
-    ///
-    /// This is useful for custom value representation, e.g. percentage or units.
-    ///
-    /// If axis labels should not appear for certain values or beyond a certain zoom/resolution,
-    /// the formatter function can return empty strings. This is also useful if your Y values are
-    /// discrete (e.g. only integers).
-    pub fn y_axis_formatter(
-        mut self,
-        func: impl Fn(f64, &RangeInclusive<f64>) -> String + 'static,
-    ) -> Self {
-        self.axis_formatters[1] = Some(Box::new(func));
-        self
-    }
-
     /// Configure how the grid in the background is spaced apart along the X axis.
     ///
     /// Default is a log-10 grid, i.e. every plot unit is divided into 10 other units.
@@ -583,6 +556,15 @@ impl Plot {
         self
     }
 
+    /// Configure Axes.
+    ///
+    /// Takes a vector of [`AxisConfig`] objects as argument to configure the plot axes.
+    /// See [`AxisConfig`] for available options.
+    pub fn axes(mut self, axis_config: Vec<AxisConfig>) -> Self {
+        self.axis_config = axis_config;
+        self
+    }
+
     /// Interact with and add items to the plot and finally draw it.
     pub fn show<R>(self, ui: &mut Ui, build_fn: impl FnOnce(&mut PlotUi) -> R) -> PlotResponse<R> {
         self.show_dyn(ui, Box::new(build_fn))
@@ -615,7 +597,7 @@ impl Plot {
             mut show_y,
             label_formatter,
             coordinates_formatter,
-            axis_formatters,
+            axis_config,
             legend_config,
             reset,
             show_background,
@@ -628,7 +610,9 @@ impl Plot {
             sharp_grid_lines,
         } = self;
 
-        // Determine the size of the plot in the UI
+        // Determine position of widget.
+        let pos = ui.available_rect_before_wrap().min;
+        // Determine size of widget.
         let size = {
             let width = width
                 .unwrap_or_else(|| {
@@ -651,10 +635,143 @@ impl Plot {
                 .at_least(min_size.y);
             vec2(width, height)
         };
+        // Determine complete rect of widget.
+        let complete_rect = Rect {
+            min: pos,
+            max: pos + size,
+        };
 
-        // Allocate the space.
-        let (rect, response) = ui.allocate_exact_size(size, Sense::drag());
+        // Next we want to create this layout.
+        // Incides are only examples.
+        //
+        //  +-b-+---------x----------+   +
+        //  |   |      x-Axis 3      |
+        //  c   +--------------------+
+        //  |   |      x-Axis 2      |
+        //  +-+-+--------------------+-+-+
+        //  |y|y|                    |y|y|
+        //  |-|-|                    |-|-|
+        //  |A|A|                    |A|A|
+        // y|x|x|    Plot Window     |x|x|
+        //  |i|i|                    |i|i|
+        //  |s|s|                    |s|s|
+        //  |1|0|                    |2|3|
+        //  +-+-+--------------------+-+-+
+        //      |      x-Axis 0      |   |
+        //      +--------------------+   a
+        //      |      x-Axis 1      |   |
+        //  +   +--------------------+-d-+
+        //
 
+        let mut axis_widgets = Vec::<AxisWidget>::new();
+        let plot_rect: Rect;
+        {
+            // find dimensions of axis labels
+            // for a, b, c, d meanings see picture
+            let mut a = 0.0;
+            let mut b = 0.0;
+            let mut c = 0.0;
+            let mut d = 0.0;
+            for cfg in &axis_config {
+                match cfg.placement {
+                    axis::Placement::Default => match cfg.axis {
+                        Axis::X => {
+                            a += cfg.thickness();
+                        }
+                        Axis::Y => {
+                            b += cfg.thickness();
+                        }
+                    },
+                    axis::Placement::Opposite => match cfg.axis {
+                        Axis::X => {
+                            c += cfg.thickness();
+                        }
+                        Axis::Y => {
+                            d += cfg.thickness();
+                        }
+                    },
+                }
+            }
+            // determine plot rectangle
+            plot_rect = Rect {
+                min: complete_rect.min + Vec2::new(b, c),
+                max: complete_rect.max - Vec2::new(d, a),
+            };
+
+            // determine absolute rectangle for each axis label widget
+            // widget cnt per border of plot in order left, top, right, bottom
+            struct WidgetCnt {
+                left: usize,
+                top: usize,
+                right: usize,
+                bottom: usize,
+            }
+            let mut widget_cnt = WidgetCnt {
+                left: 0,
+                top: 0,
+                right: 0,
+                bottom: 0,
+            };
+            for cfg in &axis_config {
+                let size_x = Vec2 {
+                    x: cfg.thickness(),
+                    y: 0.0,
+                };
+                let size_y = Vec2 {
+                    x: 0.0,
+                    y: cfg.thickness(),
+                };
+                let rect: Rect = match cfg.placement {
+                    axis::Placement::Default => match cfg.axis {
+                        Axis::X => {
+                            let off = widget_cnt.bottom as f32;
+                            widget_cnt.bottom += 1;
+                            Rect {
+                                min: plot_rect.left_bottom() + size_y * off,
+                                max: plot_rect.right_bottom() + size_y * (off + 1.0),
+                            }
+                        }
+                        Axis::Y => {
+                            let off = widget_cnt.left as f32;
+                            widget_cnt.left += 1;
+                            Rect {
+                                min: plot_rect.left_top() - size_x * (off + 1.0),
+                                max: plot_rect.left_bottom() - size_x * off,
+                            }
+                        }
+                    },
+                    axis::Placement::Opposite => match cfg.axis {
+                        Axis::X => {
+                            let off = widget_cnt.top as f32;
+                            widget_cnt.top += 1;
+                            Rect {
+                                min: plot_rect.left_top() - size_y * (off + 1.0),
+                                max: plot_rect.right_top() - size_y * off,
+                            }
+                        }
+                        Axis::Y => {
+                            let off = widget_cnt.right as f32;
+                            widget_cnt.right += 1;
+                            Rect {
+                                min: plot_rect.right_top() + size_x * off,
+                                max: plot_rect.right_bottom() + size_x * (off + 1.0),
+                            }
+                        }
+                    },
+                };
+                axis_widgets.push(AxisWidget::new(cfg.clone(), rect));
+            }
+        }
+
+        // Allocate the plot window.
+        // let (rect, response) = ui.allocate_exact_size(size, Sense::drag());
+
+        for widget in axis_widgets {
+            ui.add(widget);
+        }
+        let mut response = ui.allocate_rect(complete_rect, Sense::drag());
+        response.rect = plot_rect;
+        let rect = plot_rect;
         // Load or initialize the memory.
         let plot_id = ui.make_persistent_id(id_source);
         ui.ctx().check_for_id_clash(plot_id, rect, "Plot");
@@ -958,7 +1075,7 @@ impl Plot {
             show_y,
             label_formatter,
             coordinates_formatter,
-            axis_formatters,
+            // axis_config,
             show_axes,
             transform,
             draw_cursor_x: linked_cursors.as_ref().map_or(false, |(_, group)| group.x),
@@ -1319,7 +1436,7 @@ struct PreparedPlot {
     show_y: bool,
     label_formatter: LabelFormatter,
     coordinates_formatter: Option<(Corner, CoordinatesFormatter)>,
-    axis_formatters: [AxisFormatter; 2],
+    // axis_formatters: [AxisFormatter; 2],
     show_axes: [bool; 2],
     transform: PlotTransform,
     draw_cursor_x: bool,
@@ -1337,13 +1454,7 @@ impl PreparedPlot {
 
         for d in 0..2 {
             if self.show_axes[d] {
-                self.paint_axis(
-                    ui,
-                    d,
-                    self.show_axes[1 - d],
-                    &mut axes_shapes,
-                    self.sharp_grid_lines,
-                );
+                self.paint_axis(ui, d, &mut axes_shapes, self.sharp_grid_lines);
             }
         }
 
@@ -1426,27 +1537,26 @@ impl PreparedPlot {
         &self,
         ui: &Ui,
         axis: usize,
-        other_axis_shown: bool,
         shapes: &mut Vec<(Shape, f32)>,
         sharp_grid_lines: bool,
     ) {
         #![allow(clippy::collapsible_else_if)]
         let Self {
             transform,
-            axis_formatters,
+            // axis_formatters,
             grid_spacers,
             clamp_grid,
             ..
         } = self;
 
         let bounds = transform.bounds();
-        let axis_range = match axis {
+        let _axis_range = match axis {
             0 => bounds.range_x(),
             1 => bounds.range_y(),
             _ => panic!("Axis {} does not exist.", axis),
         };
 
-        let font_id = TextStyle::Body.resolve(ui.style());
+        let _font_id = TextStyle::Body.resolve(ui.style());
 
         // Where on the cross-dimension to show the label values
         let value_cross = 0.0_f64.clamp(bounds.min[1 - axis], bounds.max[1 - axis]);
@@ -1528,34 +1638,34 @@ impl PreparedPlot {
             }
 
             // --- axis labels
-            const MIN_TEXT_SPACING: f32 = 40.0;
-            if spacing_in_points > MIN_TEXT_SPACING {
-                let text_strength =
-                    remap_clamp(spacing_in_points, MIN_TEXT_SPACING..=150.0, 0.0..=1.0);
-                let color = color_from_contrast(ui, text_strength);
-                let text: String = if let Some(formatter) = axis_formatters[axis].as_deref() {
-                    formatter(value_main, &axis_range)
-                } else {
-                    emath::round_to_decimals(value_main, 5).to_string() // hack
-                };
+            // const MIN_TEXT_SPACING: f32 = 40.0;
+            // if spacing_in_points > MIN_TEXT_SPACING {
+            //     let text_strength =
+            //         remap_clamp(spacing_in_points, MIN_TEXT_SPACING..=150.0, 0.0..=1.0);
+            //     let color = color_from_contrast(ui, text_strength);
+            //     let text: String = if let Some(formatter) = axis_formatters[axis].as_deref() {
+            //         formatter(value_main, &axis_range)
+            //     } else {
+            //         emath::round_to_decimals(value_main, 5).to_string() // hack
+            //     };
 
-                // Skip origin label for y-axis if x-axis is already showing it (otherwise displayed twice)
-                let skip_origin_y = axis == 1 && other_axis_shown && value_main == 0.0;
+            //     // Skip origin label for y-axis if x-axis is already showing it (otherwise displayed twice)
+            //     let skip_origin_y = axis == 1 && other_axis_shown && value_main == 0.0;
 
-                // Custom formatters can return empty string to signal "no label at this resolution"
-                if !text.is_empty() && !skip_origin_y {
-                    let galley = ui.painter().layout_no_wrap(text, font_id.clone(), color);
+            //     // Custom formatters can return empty string to signal "no label at this resolution"
+            //     if !text.is_empty() && !skip_origin_y {
+            //         let galley = ui.painter().layout_no_wrap(text, font_id.clone(), color);
 
-                    let mut text_pos = pos_in_gui + vec2(1.0, -galley.size().y);
+            //         let mut text_pos = pos_in_gui + vec2(1.0, -galley.size().y);
 
-                    // Make sure we see the labels, even if the axis is off-screen:
-                    text_pos[1 - axis] = text_pos[1 - axis]
-                        .at_most(transform.frame().max[1 - axis] - galley.size()[1 - axis] - 2.0)
-                        .at_least(transform.frame().min[1 - axis] + 1.0);
+            //         // Make sure we see the labels, even if the axis is off-screen:
+            //         text_pos[1 - axis] = text_pos[1 - axis]
+            //             .at_most(transform.frame().max[1 - axis] - galley.size()[1 - axis] - 2.0)
+            //             .at_least(transform.frame().min[1 - axis] + 1.0);
 
-                    shapes.push((Shape::galley(text_pos, galley), text_strength));
-                }
-            }
+            //         shapes.push((Shape::galley(text_pos, galley), text_strength));
+            //     }
+            // }
         }
 
         fn color_from_contrast(ui: &Ui, contrast: f32) -> Color32 {

@@ -1,5 +1,4 @@
 use std::f64::consts::TAU;
-use std::ops::RangeInclusive;
 
 use egui::plot::{AxisBools, GridInput, GridMark, PlotResponse};
 use egui::*;
@@ -117,14 +116,6 @@ impl super::View for PlotDemo {
             }
         }
     }
-}
-
-fn is_approx_zero(val: f64) -> bool {
-    val.abs() < 1e-6
-}
-
-fn is_approx_integer(val: f64) -> bool {
-    val.fract().abs() < 1e-6
 }
 
 // ----------------------------------------------------------------------------
@@ -523,28 +514,6 @@ impl CustomAxisDemo {
             100.0 * y
         }
 
-        let x_fmt = |x, _range: &RangeInclusive<f64>| {
-            if x < 0.0 * MINS_PER_DAY || x >= 5.0 * MINS_PER_DAY {
-                // No labels outside value bounds
-                String::new()
-            } else if is_approx_integer(x / MINS_PER_DAY) {
-                // Days
-                format!("Day {}", day(x))
-            } else {
-                // Hours and minutes
-                format!("{h}:{m:02}", h = hour(x), m = minute(x))
-            }
-        };
-
-        let y_fmt = |y, _range: &RangeInclusive<f64>| {
-            // Display only integer percentages
-            if !is_approx_zero(y) && is_approx_integer(100.0 * y) {
-                format!("{:.0}%", percent(y))
-            } else {
-                String::new()
-            }
-        };
-
         let label_fmt = |_s: &str, val: &PlotPoint| {
             format!(
                 "Day {d}, {h}:{m:02}\n{p:.2}%",
@@ -559,8 +528,6 @@ impl CustomAxisDemo {
 
         Plot::new("custom_axes")
             .data_aspect(2.0 * MINS_PER_DAY as f32)
-            .x_axis_formatter(x_fmt)
-            .y_axis_formatter(y_fmt)
             .x_grid_spacer(CustomAxisDemo::x_grid)
             .label_formatter(label_fmt)
             .show(ui, |plot_ui| {
