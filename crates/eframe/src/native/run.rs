@@ -26,8 +26,8 @@ enum EventResult {
     /// be used in special situations if the window must be repainted while
     /// handling a specific event. This occurs on Windows when handling resizes.
     ///
-    /// `RepaintNow` introduces a one-frame delay, and should therefore only be
-    /// used for extremely urgent repaints.
+    /// `RepaintNow` creates a new frame synchronously, and should therefore
+    /// only be used for extremely urgent repaints.
     RepaintNow,
     /// Queues a repaint for once the event loop handles its next redraw. Exists
     /// so that multiple input events can be handled in one frame. Does not
