@@ -121,7 +121,8 @@ fn run_and_return(event_loop: &mut EventLoop<RequestRepaintEvent>, mut winit_app
             EventResult::Wait => {}
             EventResult::RepaintAsap => {
                 tracing::trace!("Repaint caused by winit::Event: {:?}", event);
-                next_repaint_time = Instant::now();
+                next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
+                winit_app.paint();
             }
             EventResult::RepaintAt(repaint_time) => {
                 next_repaint_time = next_repaint_time.min(repaint_time);
@@ -196,7 +197,8 @@ fn run_and_exit(
         match event_result {
             EventResult::Wait => {}
             EventResult::RepaintAsap => {
-                next_repaint_time = Instant::now();
+                next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
+                winit_app.paint();
             }
             EventResult::RepaintAt(repaint_time) => {
                 next_repaint_time = next_repaint_time.min(repaint_time);
