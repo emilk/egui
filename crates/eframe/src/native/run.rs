@@ -22,7 +22,16 @@ pub use epi::NativeOptions;
 #[derive(Debug)]
 enum EventResult {
     Wait,
+    /// Causes a synchronous repaint inside the event handler. This should only
+    /// be used in special situations if the window must be repainted while
+    /// handling a specific event. This occurs on Windows when handling resizes.
+    ///
+    /// `RepaintAsap` introduces a one-frame delay, and should therefore only be
+    /// used for extremely urgent repaints.
     RepaintAsap,
+    /// Queues a repaint for once the event loop handles its next redraw. Exists
+    /// so that multiple input events can be handled in one frame. Does not
+    /// cause any delay like `RepaintAsap`.
     RepaintNext,
     RepaintAt(Instant),
     Exit,
@@ -570,6 +579,19 @@ mod glow_integration {
 
                 winit::event::Event::WindowEvent { event, .. } => {
                     if let Some(running) = &mut self.running {
+                        // On Windows, if a window is resized by the user, it should repaint synchronously, inside the
+                        // event handler.
+                        //
+                        // If this is not done, the compositor will assume that the window does not want to redraw,
+                        // and continue ahead.
+                        //
+                        // In eframe's case, that causes the window to rapidly flicker, as it struggles to deliver
+                        // new frames to the compositor in time.
+                        //
+                        // The flickering is technically glutin or glow's fault, but we should be responding properly
+                        // to resizes anyway, as doing so avoids dropping frames.
+                        //
+                        // See: https://github.com/emilk/egui/issues/903
                         let mut repaint_asap = false;
 
                         match &event {
@@ -942,6 +964,19 @@ mod wgpu_integration {
 
                 winit::event::Event::WindowEvent { event, .. } => {
                     if let Some(running) = &mut self.running {
+                        // On Windows, if a window is resized by the user, it should repaint synchronously, inside the
+                        // event handler.
+                        //
+                        // If this is not done, the compositor will assume that the window does not want to redraw,
+                        // and continue ahead.
+                        //
+                        // In eframe's case, that causes the window to rapidly flicker, as it struggles to deliver
+                        // new frames to the compositor in time.
+                        //
+                        // The flickering is technically glutin or glow's fault, but we should be responding properly
+                        // to resizes anyway, as doing so avoids dropping frames.
+                        //
+                        // See: https://github.com/emilk/egui/issues/903
                         let mut repaint_asap = false;
 
                         match &event {
