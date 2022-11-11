@@ -1547,13 +1547,11 @@ impl PreparedPlot {
                     let galley = ui.painter().layout_no_wrap(text, font_id.clone(), color);
 
                     let mut text_pos = pos_in_gui + vec2(1.0, -galley.size().y);
-                    // move to border of plot frame
-                    if axis == 0 {
-                        text_pos.y = transform.frame().max[1] - galley.size()[1] - 2.0;
-                    }
-                    if axis == 1 {
-                        text_pos.x = transform.frame().min[0] + 1.0;
-                    }
+
+                    // Make sure we see the labels, even if the axis is off-screen:
+                    text_pos[1 - axis] = text_pos[1 - axis]
+                        .at_most(transform.frame().max[1 - axis] - galley.size()[1 - axis] - 2.0)
+                        .at_least(transform.frame().min[1 - axis] + 1.0);
 
                     shapes.push((Shape::galley(text_pos, galley), text_strength));
                 }
