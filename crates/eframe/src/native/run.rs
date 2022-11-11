@@ -26,12 +26,12 @@ enum EventResult {
     /// be used in special situations if the window must be repainted while
     /// handling a specific event. This occurs on Windows when handling resizes.
     ///
-    /// `RepaintAsap` introduces a one-frame delay, and should therefore only be
+    /// `RepaintNow` introduces a one-frame delay, and should therefore only be
     /// used for extremely urgent repaints.
-    RepaintAsap,
+    RepaintNow,
     /// Queues a repaint for once the event loop handles its next redraw. Exists
     /// so that multiple input events can be handled in one frame. Does not
-    /// cause any delay like `RepaintAsap`.
+    /// cause any delay like `RepaintNow`.
     RepaintNext,
     RepaintAt(Instant),
     Exit,
@@ -129,7 +129,7 @@ fn run_and_return(event_loop: &mut EventLoop<RequestRepaintEvent>, mut winit_app
 
         match event_result {
             EventResult::Wait => {}
-            EventResult::RepaintAsap => {
+            EventResult::RepaintNow => {
                 tracing::trace!("Repaint caused by winit::Event: {:?}", event);
                 next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
                 winit_app.paint();
@@ -210,7 +210,7 @@ fn run_and_exit(
 
         match event_result {
             EventResult::Wait => {}
-            EventResult::RepaintAsap => {
+            EventResult::RepaintNow => {
                 next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
                 winit_app.paint();
             }
@@ -557,7 +557,7 @@ mod glow_integration {
                     if self.running.is_none() {
                         self.init_run_state(event_loop);
                     }
-                    EventResult::RepaintAsap
+                    EventResult::RepaintNow
                 }
                 winit::event::Event::Suspended => {
                     #[cfg(target_os = "android")]
@@ -630,7 +630,7 @@ mod glow_integration {
                             EventResult::Exit
                         } else if event_response.repaint {
                             if repaint_asap {
-                                EventResult::RepaintAsap
+                                EventResult::RepaintNow
                             } else {
                                 EventResult::RepaintNext
                             }
@@ -954,7 +954,7 @@ mod wgpu_integration {
                         );
                         self.init_run_state(event_loop, storage, window);
                     }
-                    EventResult::RepaintAsap
+                    EventResult::RepaintNow
                 }
                 winit::event::Event::Suspended => {
                     #[cfg(target_os = "android")]
@@ -1019,7 +1019,7 @@ mod wgpu_integration {
                             EventResult::Exit
                         } else if event_response.repaint {
                             if repaint_asap {
-                                EventResult::RepaintAsap
+                                EventResult::RepaintNow
                             } else {
                                 EventResult::RepaintNext
                             }
