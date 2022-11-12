@@ -21,7 +21,9 @@ fn main() {
 }
 
 #[derive(Default)]
-struct MyApp {}
+struct MyApp {
+    maximized: bool,
+}
 
 impl eframe::App for MyApp {
     fn clear_color(&self, _visuals: &egui::Visuals) -> egui::Rgba {
@@ -29,7 +31,7 @@ impl eframe::App for MyApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        custom_window_frame(ctx, frame, "egui with custom frame", |ui| {
+        custom_window_frame(self, ctx, frame, "egui with custom frame", |ui| {
             ui.label("This is just the contents of the window");
             ui.horizontal(|ui| {
                 ui.label("egui theme:");
@@ -40,6 +42,7 @@ impl eframe::App for MyApp {
 }
 
 fn custom_window_frame(
+    app: &mut MyApp,
     ctx: &egui::Context,
     frame: &mut eframe::Frame,
     title: &str,
@@ -83,15 +86,6 @@ fn custom_window_frame(
                 Stroke::new(1.0, text_color),
             );
 
-            // Add the close button:
-            let close_response = ui.put(
-                Rect::from_min_size(rect.left_top(), Vec2::splat(height)),
-                Button::new(RichText::new("❌").size(height - 4.0)).frame(false),
-            );
-            if close_response.clicked() {
-                frame.close();
-            }
-
             // Interact with the title bar (drag to move window):
             let title_bar_rect = {
                 let mut rect = rect;
@@ -102,6 +96,38 @@ fn custom_window_frame(
                 ui.interact(title_bar_rect, Id::new("title_bar"), Sense::click());
             if title_bar_response.is_pointer_button_down_on() {
                 frame.drag_window();
+            }
+
+            // Add the close button:
+            let close_response = ui.put(
+                Rect::from_min_size(rect.left_top(), Vec2::splat(height)),
+                Button::new(RichText::new("❌").size(height - 4.0)).frame(false),
+            );
+            if close_response.clicked() {
+                frame.close();
+            }
+
+            let minimized_response = ui.put(
+                Rect::from_min_size(
+                    rect.left_top() + vec2((height - 4.0) * 1.0, 0.0),
+                    Vec2::splat(height),
+                ),
+                Button::new(RichText::new("--").size(height - 4.0)).frame(false),
+            );
+            if minimized_response.clicked() {
+                frame.set_minimized(true);
+            }
+
+            let maximized_response = ui.put(
+                Rect::from_min_size(
+                    rect.left_top() + vec2((height - 4.0) * 2.0, 0.0),
+                    Vec2::splat(height),
+                ),
+                Button::new(RichText::new("O").size(height - 4.0)).frame(false),
+            );
+            if maximized_response.clicked() {
+                app.maximized = !app.maximized;
+                frame.set_maximized(app.maximized);
             }
 
             // Add the contents:
