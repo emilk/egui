@@ -788,7 +788,7 @@ mod wgpu_integration {
     /// a Resumed event. On Android this ensures that any graphics state is only
     /// initialized once the application has an associated `SurfaceView`.
     struct WgpuWinitRunning {
-        painter: egui_wgpu::winit::Painter<'static>,
+        painter: egui_wgpu::winit::Painter,
         integration: epi_integration::EpiIntegration,
         app: Box<dyn epi::App>,
     }
@@ -864,23 +864,10 @@ mod wgpu_integration {
             storage: Option<Box<dyn epi::Storage>>,
             window: winit::window::Window,
         ) {
-            let mut limits = wgpu::Limits::downlevel_webgl2_defaults();
-            if self.native_options.depth_buffer > 0 {
-                // When using a depth buffer, we have to be able to create a texture large enough for the entire surface.
-                limits.max_texture_dimension_2d = 8192;
-            }
-
             #[allow(unsafe_code, unused_mut, unused_unsafe)]
             let painter = unsafe {
                 let mut painter = egui_wgpu::winit::Painter::new(
-                    wgpu::Backends::PRIMARY | wgpu::Backends::GL,
-                    wgpu::PowerPreference::HighPerformance,
-                    wgpu::DeviceDescriptor {
-                        label: None,
-                        features: wgpu::Features::default(),
-                        limits,
-                    },
-                    wgpu::PresentMode::Fifo,
+                    self.native_options.wgpu_options.clone(),
                     self.native_options.multisampling.max(1) as _,
                     self.native_options.depth_buffer,
                 );

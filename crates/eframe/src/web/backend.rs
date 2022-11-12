@@ -87,6 +87,10 @@ impl IsDestroyed {
 
 // ----------------------------------------------------------------------------
 
+fn user_agent() -> Option<String> {
+    web_sys::window()?.navigator().user_agent().ok()
+}
+
 fn web_location() -> epi::Location {
     let location = web_sys::window().unwrap().location();
 
@@ -101,7 +105,7 @@ fn web_location() -> epi::Location {
 
     let query_map = parse_query_map(&query)
         .iter()
-        .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
+        .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
         .collect();
 
     epi::Location {
@@ -181,14 +185,14 @@ impl Drop for AppRunner {
 }
 
 impl AppRunner {
+    /// # Errors
+    /// Failure to initialize WebGL renderer.
     pub async fn new(
         canvas_id: &str,
         web_options: crate::WebOptions,
         app_creator: epi::AppCreator,
-    ) -> Result<Self, JsValue> {
-        let painter = ActiveWebPainter::new(canvas_id, &web_options)
-            .await
-            .map_err(JsValue::from)?;
+    ) -> Result<Self, String> {
+        let painter = ActiveWebPainter::new(canvas_id, &web_options).await?;
 
         let system_theme = if web_options.follow_system_theme {
             super::system_theme()
@@ -198,6 +202,7 @@ impl AppRunner {
 
         let info = epi::IntegrationInfo {
             web_info: epi::WebInfo {
+                user_agent: user_agent().unwrap_or_default(),
                 location: web_location(),
             },
             system_theme,
@@ -207,6 +212,9 @@ impl AppRunner {
         let storage = LocalStorage::default();
 
         let egui_ctx = egui::Context::default();
+        egui_ctx.set_os(egui::os::OperatingSystem::from_user_agent(
+            &user_agent().unwrap_or_default(),
+        ));
         load_memory(&egui_ctx);
 
         let theme = system_theme.unwrap_or(web_options.default_theme);
@@ -469,9 +477,6 @@ pub struct AppRunnerContainer {
 impl AppRunnerContainer {
     /// Convenience function to reduce boilerplate and ensure that all event handlers
     /// are dealt with in the same way
-    ///
-
-    #[must_use]
     pub fn add_event_listener<E: wasm_bindgen::JsCast>(
         &mut self,
         target: &EventTarget,
@@ -502,7 +507,7 @@ impl AppRunnerContainer {
 
         let handle = TargetEvent {
             target: target.clone(),
-            event_name: event_name.to_string(),
+            event_name: event_name.to_owned(),
             closure,
         };
 
@@ -521,6 +526,11 @@ pub async fn start(
     web_options: crate::WebOptions,
     app_creator: epi::AppCreator,
 ) -> Result<AppRunnerRef, JsValue> {
+    #[cfg(not(web_sys_unstable_apis))]
+    tracing::warn!(
+        "eframe compiled without RUSTFLAGS='--cfg=web_sys_unstable_apis'. Copying text won't work."
+    );
+
     let mut runner = AppRunner::new(canvas_id, web_options, app_creator).await?;
     runner.warm_up()?;
     start_runner(runner)

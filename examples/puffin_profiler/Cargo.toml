@@ -4,11 +4,11 @@ version = "0.1.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
-rust-version = "1.61"
+rust-version = "1.62"
 publish = false
 
 
 [dependencies]
 eframe = { path = "../../crates/eframe", features = ["puffin"] }
-puffin = "0.13"
-puffin_http = "0.10"
+puffin = "0.14"
+puffin_http = "0.11"

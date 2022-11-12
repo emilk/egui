@@ -45,9 +45,7 @@ impl Frame {
     pub(crate) fn side_top_panel(style: &Style) -> Self {
         Self {
             inner_margin: Margin::symmetric(8.0, 2.0),
-            rounding: Rounding::none(),
             fill: style.visuals.window_fill(),
-            stroke: style.visuals.window_stroke(),
             ..Default::default()
         }
     }
@@ -55,9 +53,7 @@ impl Frame {
     pub(crate) fn central_panel(style: &Style) -> Self {
         Self {
             inner_margin: Margin::same(8.0),
-            rounding: Rounding::none(),
             fill: style.visuals.window_fill(),
-            stroke: Default::default(),
             ..Default::default()
         }
     }
@@ -119,38 +115,45 @@ impl Frame {
 }
 
 impl Frame {
+    #[inline]
     pub fn fill(mut self, fill: Color32) -> Self {
         self.fill = fill;
         self
     }
 
+    #[inline]
     pub fn stroke(mut self, stroke: Stroke) -> Self {
         self.stroke = stroke;
         self
     }
 
+    #[inline]
     pub fn rounding(mut self, rounding: impl Into<Rounding>) -> Self {
         self.rounding = rounding.into();
         self
     }
 
     /// Margin within the painted frame.
+    #[inline]
     pub fn inner_margin(mut self, inner_margin: impl Into<Margin>) -> Self {
         self.inner_margin = inner_margin.into();
         self
     }
 
     /// Margin outside the painted frame.
+    #[inline]
     pub fn outer_margin(mut self, outer_margin: impl Into<Margin>) -> Self {
         self.outer_margin = outer_margin.into();
         self
     }
 
     #[deprecated = "Renamed inner_margin in egui 0.18"]
+    #[inline]
     pub fn margin(self, margin: impl Into<Margin>) -> Self {
         self.inner_margin(margin)
     }
 
+    #[inline]
     pub fn shadow(mut self, shadow: Shadow) -> Self {
         self.shadow = shadow;
         self
@@ -163,6 +166,16 @@ impl Frame {
         self
     }
 }
+
+impl Frame {
+    /// inner margin plus outer margin.
+    #[inline]
+    pub fn total_margin(&self) -> Margin {
+        self.inner_margin + self.outer_margin
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 pub struct Prepared {
     pub frame: Frame,

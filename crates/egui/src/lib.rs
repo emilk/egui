@@ -3,7 +3,7 @@
 //! Try the live web demo: <https://www.egui.rs/#demo>. Read more about egui at <https://github.com/emilk/egui>.
 //!
 //! `egui` is in heavy development, with each new version having breaking changes.
-//! You need to have rust 1.61.0 or later to use `egui`.
+//! You need to have rust 1.62.0 or later to use `egui`.
 //!
 //! To quickly get started with egui, you can take a look at [`eframe_template`](https://github.com/emilk/eframe_template)
 //! which uses [`eframe`](https://docs.rs/eframe).
@@ -305,6 +305,7 @@ mod context;
 mod data;
 mod frame_state;
 pub(crate) mod grid;
+pub mod gui_zoom;
 mod id;
 mod input_state;
 pub mod introspection;
@@ -312,6 +313,7 @@ pub mod layers;
 mod layout;
 mod memory;
 pub mod menu;
+pub mod os;
 mod painter;
 pub(crate) mod placer;
 mod response;
@@ -331,7 +333,7 @@ pub use epaint::hex_color;
 pub use epaint::{
     color, mutex,
     text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
-    textures::{TextureFilter, TexturesDelta},
+    textures::{TextureFilter, TextureOptions, TexturesDelta},
     ClippedPrimitive, Color32, ColorImage, FontImage, ImageData, Mesh, PaintCallback,
     PaintCallbackInfo, Rgba, Rounding, Shape, Stroke, TextureHandle, TextureId,
 };

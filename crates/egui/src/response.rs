@@ -386,6 +386,11 @@ impl Response {
         self
     }
 
+    /// Was the tooltip open last frame?
+    pub fn is_tooltip_open(&self) -> bool {
+        crate::popup::was_tooltip_open_last_frame(&self.ctx, self.id.with("__tooltip"))
+    }
+
     fn should_show_hover_ui(&self) -> bool {
         if self.ctx.memory().everything_is_visible() {
             return true;
@@ -395,12 +400,16 @@ impl Response {
             return false;
         }
 
-        if self.ctx.style().interaction.show_tooltips_only_when_still
-            && !self.ctx.input().pointer.is_still()
-        {
-            // wait for mouse to stop
-            self.ctx.request_repaint();
-            return false;
+        if self.ctx.style().interaction.show_tooltips_only_when_still {
+            // We only show the tooltip when the mouse pointer is still,
+            // but once shown we keep showing it until the mouse leaves the parent.
+
+            let is_pointer_still = self.ctx.input().pointer.is_still();
+            if !is_pointer_still && !self.is_tooltip_open() {
+                // wait for mouse to stop
+                self.ctx.request_repaint();
+                return false;
+            }
         }
 
         // We don't want tooltips of things while we are dragging them,

@@ -4,7 +4,7 @@ version = "0.19.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui natively using the glow library"
 edition = "2021"
-rust-version = "1.61"
+rust-version = "1.62"
 homepage = "https://github.com/emilk/egui/tree/master/crates/egui_glow"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -43,7 +43,7 @@ screen_reader = ["egui-winit?/screen_reader"]
 puffin = ["dep:puffin", "egui-winit?/puffin"]
 
 ## Enable [`winit`](https://docs.rs/winit) integration.
-winit = ["egui-winit",]
+winit = ["egui-winit"]
 
 
 [dependencies]
@@ -63,7 +63,7 @@ document-features = { version = "0.2", optional = true }
 # Native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 egui-winit = { version = "0.19.0", path = "../egui-winit", optional = true, default-features = false }
-puffin = { version = "0.13", optional = true }
+puffin = { version = "0.14", optional = true }
 
 # Web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]

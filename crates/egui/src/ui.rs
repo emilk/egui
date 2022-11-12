@@ -618,6 +618,22 @@ impl Ui {
         )
     }
 
+    /// Check for clicks, and drags on a specific region that is hovered.
+    /// This can be used once you have checked that some shape you are painting has been hovered,
+    /// and want to check for clicks and drags on hovered items this frame.
+    /// The given [`Rect`] should approximately be where the thing is,
+    /// as it is just where warnings will be painted if there is an [`Id`] clash.
+    pub fn interact_with_hovered(
+        &self,
+        rect: Rect,
+        hovered: bool,
+        id: Id,
+        sense: Sense,
+    ) -> Response {
+        self.ctx()
+            .interact_with_hovered(self.layer_id(), id, rect, sense, self.enabled, hovered)
+    }
+
     /// Is the pointer (mouse/touch) above this rectangle in this [`Ui`]?
     ///
     /// The `clip_rect` and layer of this [`Ui`] will be respected, so, for instance,
@@ -1537,7 +1553,7 @@ impl Ui {
     ///             ui.ctx().load_texture(
     ///                 "my-image",
     ///                 egui::ColorImage::example(),
-    ///                 egui::TextureFilter::Linear
+    ///                 Default::default()
     ///             )
     ///         });
     ///
@@ -1989,6 +2005,11 @@ impl Ui {
         }
 
         InnerResponse::new(inner, self.interact(rect, child_ui.id, Sense::hover()))
+    }
+
+    /// This will make the next added widget centered in the available space.
+    pub fn centered<R>(&mut self, add_contents: impl FnOnce(&mut Self) -> R) -> InnerResponse<R> {
+        self.with_layout_dyn(Layout::centered(Direction::TopDown), Box::new(add_contents))
     }
 
     /// This will make the next added widget centered and justified in the available space.

@@ -14,7 +14,11 @@ pub struct State {
     /// Positive offset means scrolling down/right
     pub offset: Vec2,
 
+    /// Were the scroll bars visible last frame?
     show_scroll: [bool; 2],
+
+    /// The content were to large to fit large frame.
+    content_is_too_large: [bool; 2],
 
     /// Momentum, used for kinetic scrolling
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -34,6 +38,7 @@ impl Default for State {
         Self {
             offset: Vec2::ZERO,
             show_scroll: [false; 2],
+            content_is_too_large: [false; 2],
             vel: Vec2::ZERO,
             scroll_start_offset_from_top_left: [None; 2],
             scroll_stuck_to_end: [true; 2],
@@ -406,6 +411,40 @@ impl ScrollArea {
 
         let viewport = Rect::from_min_size(Pos2::ZERO + state.offset, inner_size);
 
+        if scrolling_enabled && (state.content_is_too_large[0] || state.content_is_too_large[1]) {
+            // Drag contents to scroll (for touch screens mostly).
+            // We must do this BEFORE adding content to the `ScrollArea`,
+            // or we will steal input from the widgets we contain.
+            let content_response = ui.interact(inner_rect, id.with("area"), Sense::drag());
+
+            if content_response.dragged() {
+                for d in 0..2 {
+                    if has_bar[d] {
+                        state.offset[d] -= ui.input().pointer.delta()[d];
+                        state.vel[d] = ui.input().pointer.velocity()[d];
+                        state.scroll_stuck_to_end[d] = false;
+                    } else {
+                        state.vel[d] = 0.0;
+                    }
+                }
+            } else {
+                let stop_speed = 20.0; // Pixels per second.
+                let friction_coeff = 1000.0; // Pixels per second squared.
+                let dt = ui.input().unstable_dt;
+
+                let friction = friction_coeff * dt;
+                if friction > state.vel.length() || state.vel.length() < stop_speed {
+                    state.vel = Vec2::ZERO;
+                } else {
+                    state.vel -= friction * state.vel.normalized();
+                    // Offset has an inverted coordinate system compared to
+                    // the velocity, so we subtract it instead of adding it
+                    state.offset -= state.vel * dt;
+                    ui.ctx().request_repaint();
+                }
+            }
+        }
+
         Prepared {
             id,
             state,
@@ -460,9 +499,13 @@ impl ScrollArea {
         self.show_viewport(ui, |ui, viewport| {
             ui.set_height((row_height_with_spacing * total_rows as f32 - spacing.y).at_least(0.0));
 
-            let min_row = (viewport.min.y / row_height_with_spacing).floor() as usize;
-            let max_row = (viewport.max.y / row_height_with_spacing).ceil() as usize + 1;
-            let max_row = max_row.at_most(total_rows);
+            let mut min_row = (viewport.min.y / row_height_with_spacing).floor() as usize;
+            let mut max_row = (viewport.max.y / row_height_with_spacing).ceil() as usize + 1;
+            if max_row > total_rows {
+                let diff = max_row.saturating_sub(min_row);
+                max_row = total_rows;
+                min_row = total_rows.saturating_sub(diff);
+            }
 
             let y_min = ui.max_rect().top() + min_row as f32 * row_height_with_spacing;
             let y_max = ui.max_rect().top() + max_row as f32 * row_height_with_spacing;
@@ -605,43 +648,6 @@ impl Prepared {
             content_size.x > inner_rect.width(),
             content_size.y > inner_rect.height(),
         ];
-
-        if content_is_too_large[0] || content_is_too_large[1] {
-            // Drag contents to scroll (for touch screens mostly):
-            let sense = if self.scrolling_enabled {
-                Sense::drag()
-            } else {
-                Sense::hover()
-            };
-            let content_response = ui.interact(inner_rect, id.with("area"), sense);
-
-            if content_response.dragged() {
-                for d in 0..2 {
-                    if has_bar[d] {
-                        state.offset[d] -= ui.input().pointer.delta()[d];
-                        state.vel[d] = ui.input().pointer.velocity()[d];
-                        state.scroll_stuck_to_end[d] = false;
-                    } else {
-                        state.vel[d] = 0.0;
-                    }
-                }
-            } else {
-                let stop_speed = 20.0; // Pixels per second.
-                let friction_coeff = 1000.0; // Pixels per second squared.
-                let dt = ui.input().unstable_dt;
-
-                let friction = friction_coeff * dt;
-                if friction > state.vel.length() || state.vel.length() < stop_speed {
-                    state.vel = Vec2::ZERO;
-                } else {
-                    state.vel -= friction * state.vel.normalized();
-                    // Offset has an inverted coordinate system compared to
-                    // the velocity, so we subtract it instead of adding it
-                    state.offset -= state.vel * dt;
-                    ui.ctx().request_repaint();
-                }
-            }
-        }
 
         let max_offset = content_size - inner_rect.size();
         if scrolling_enabled && ui.rect_contains_pointer(outer_rect) {
@@ -837,6 +843,7 @@ impl Prepared {
         ];
 
         state.show_scroll = show_scroll_this_frame;
+        state.content_is_too_large = content_is_too_large;
 
         state.store(ui.ctx(), id);
 

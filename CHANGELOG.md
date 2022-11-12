@@ -5,11 +5,30 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 
 
 ## Unreleased
-* ⚠️ BREAKING: Fix text being too small ([#2069](https://github.com/emilk/egui/pull/2069)).
 * ⚠️ BREAKING: egui now expects integrations to do all color blending in gamma space ([#2071](https://github.com/emilk/egui/pull/2071)).
+* ⚠️ BREAKING: if you have overlapping interactive widgets, only the top widget (last added) will be interactive ([#2244](https://github.com/emilk/egui/pull/2244)).
+
+### Added ⭐
+* Added helper functions for animating panels that collapse/expand ([#2190](https://github.com/emilk/egui/pull/2190)).
+* Added `Context::os/Context::set_os` to query/set what operating system egui believes it is running on ([#2202](https://github.com/emilk/egui/pull/2202)).
+* Added `Button::shortcut_text` for showing keyboard shortcuts in menu buttons ([#2202](https://github.com/emilk/egui/pull/2202)).
+* Added `egui::KeyboardShortcut` for showing keyboard shortcuts in menu buttons ([#2202](https://github.com/emilk/egui/pull/2202)).
+* Texture loading now takes a `TexureOptions` with minification and magnification filters ([#2224](https://github.com/emilk/egui/pull/2224)).
+* Added `Key::Minus` and `Key::Equals` ([#2239](https://github.com/emilk/egui/pull/2239)).
+* Added `egui::gui_zoom` module with helpers for scaling the whole GUI of an app ([#2239](https://github.com/emilk/egui/pull/2239)).
+* You can now put one interactive widget on top of another, and only one will get interaction at a time ([#2244](https://github.com/emilk/egui/pull/2244)).
+* Add `ui.centered`.
+* Added `Area::constrain` which constrains area to the screen bounds. ([#2270](https://github.com/emilk/egui/pull/2270)).
+
+### Changed 🔧
+* Panels always have a separator line, but no stroke on other sides. Their spacing has also changed slightly ([#2261](https://github.com/emilk/egui/pull/2261)).
+* Tooltips are only shown when mouse pointer is still ([#2263](https://github.com/emilk/egui/pull/2263)).
 
 ### Fixed 🐛
+* ⚠️ BREAKING: Fix text being too small ([#2069](https://github.com/emilk/egui/pull/2069)).
 * Improved text rendering ([#2071](https://github.com/emilk/egui/pull/2071)).
+* Less jitter when calling `Context::set_pixels_per_point` ([#2239](https://github.com/emilk/egui/pull/2239)).
+* Fixed popups and color edit going outside the screen.
 
 
 ## 0.19.0 - 2022-08-20
@@ -30,7 +49,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Added `PointerState::button_double_clicked()` and `PointerState::button_triple_clicked()` ([#1906](https://github.com/emilk/egui/issues/1906)).
 * Added `custom_formatter`, `binary`, `octal`, and `hexadecimal` to `DragValue` and `Slider` ([#1953](https://github.com/emilk/egui/issues/1953))
 
-### Changed
+### Changed 🔧
 * MSRV (Minimum Supported Rust Version) is now `1.61.0` ([#1846](https://github.com/emilk/egui/pull/1846)).
 * `PaintCallback` shapes now require the whole callback to be put in an `Arc<dyn Any>` with the value being a backend-specific callback type ([#1684](https://github.com/emilk/egui/pull/1684)).
 * Replaced `needs_repaint` in `FullOutput` with `repaint_after`. Used to force repaint after the set duration in reactive mode ([#1694](https://github.com/emilk/egui/pull/1694)).

@@ -14,17 +14,12 @@ use wgpu::util::DeviceExt as _;
 /// A callback function that can be used to compose an [`egui::PaintCallback`] for custom WGPU
 /// rendering.
 ///
-/// The callback is composed of two functions: `prepare` and `paint`.
-///
-/// `prepare` is called every frame before `paint`, and can use the passed-in [`wgpu::Device`] and
-/// [`wgpu::Buffer`] to allocate or modify GPU resources such as buffers.
-/// Additionally, a [`wgpu::CommandEncoder`] is provided in order to allow creation of
-/// custom [`wgpu::RenderPass`]/[`wgpu::ComputePass`] or perform buffer/texture copies
-/// which may serve as preparation to the final `paint`.
-/// (This allows reusing the same [`wgpu::CommandEncoder`] for all callbacks and egui rendering itself)
-///
-/// `paint` is called after `prepare` and is given access to the [`wgpu::RenderPass`] so that it
-/// can issue draw commands into the same [`wgpu::RenderPass`] that is used for all other egui elements.
+/// The callback is composed of two functions: `prepare` and `paint`:
+/// - `prepare` is called every frame before `paint`, and can use the passed-in
+///   [`wgpu::Device`] and [`wgpu::Buffer`] to allocate or modify GPU resources such as buffers.
+/// - `paint` is called after `prepare` and is given access to the [`wgpu::RenderPass`] so
+///   that it can issue draw commands into the same [`wgpu::RenderPass`] that is used for
+///   all other egui elements.
 ///
 /// The final argument of both the `prepare` and `paint` callbacks is a the
 /// [`paint_callback_resources`][crate::renderer::Renderer::paint_callback_resources].
@@ -40,8 +35,14 @@ pub struct CallbackFn {
     paint: Box<PaintCallback>,
 }
 
-type PrepareCallback =
-    dyn Fn(&wgpu::Device, &wgpu::Queue, &mut wgpu::CommandEncoder, &mut TypeMap) + Sync + Send;
+type PrepareCallback = dyn Fn(
+        &wgpu::Device,
+        &wgpu::Queue,
+        &mut wgpu::CommandEncoder,
+        &mut TypeMap,
+    ) -> Vec<wgpu::CommandBuffer>
+    + Sync
+    + Send;
 
 type PaintCallback =
     dyn for<'a, 'b> Fn(PaintCallbackInfo, &'a mut wgpu::RenderPass<'b>, &'b TypeMap) + Sync + Send;
@@ -49,7 +50,7 @@ type PaintCallback =
 impl Default for CallbackFn {
     fn default() -> Self {
         CallbackFn {
-            prepare: Box::new(|_, _, _, _| ()),
+            prepare: Box::new(|_, _, _, _| Vec::new()),
             paint: Box::new(|_, _, _| ()),
         }
     }
@@ -60,10 +61,29 @@ impl CallbackFn {
         Self::default()
     }
 
-    /// Set the prepare callback
+    /// Set the prepare callback.
+    ///
+    /// The passed-in `CommandEncoder` is egui's and can be used directly to register
+    /// wgpu commands for simple use cases.
+    /// This allows reusing the same [`wgpu::CommandEncoder`] for all callbacks and egui
+    /// rendering itself.
+    ///
+    /// For more complicated use cases, one can also return a list of arbitrary
+    /// `CommandBuffer`s and have complete control over how they get created and fed.
+    /// In particular, this gives an opportunity to parallelize command registration and
+    /// prevents a faulty callback from poisoning the main wgpu pipeline.
+    ///
+    /// When using eframe, the main egui command buffer, as well as all user-defined
+    /// command buffers returned by this function, are guaranteed to all be submitted
+    /// at once in a single call.
     pub fn prepare<F>(mut self, prepare: F) -> Self
     where
-        F: Fn(&wgpu::Device, &wgpu::Queue, &mut wgpu::CommandEncoder, &mut TypeMap)
+        F: Fn(
+                &wgpu::Device,
+                &wgpu::Queue,
+                &mut wgpu::CommandEncoder,
+                &mut TypeMap,
+            ) -> Vec<wgpu::CommandBuffer>
             + Sync
             + Send
             + 'static,
@@ -130,11 +150,14 @@ pub struct Renderer {
     uniform_buffer: wgpu::Buffer,
     uniform_bind_group: wgpu::BindGroup,
     texture_bind_group_layout: wgpu::BindGroupLayout,
+
     /// Map of egui texture IDs to textures and their associated bindgroups (texture view +
     /// sampler). The texture may be None if the TextureId is just a handle to a user-provided
     /// sampler.
     textures: HashMap<egui::TextureId, (Option<wgpu::Texture>, wgpu::BindGroup)>,
     next_user_texture_id: u64,
+    samplers: HashMap<egui::TextureOptions, wgpu::Sampler>,
+
     /// Storage for use by [`egui::PaintCallback`]'s that need to store resources such as render
     /// pipelines that must have the lifetime of the renderpass.
     pub paint_callback_resources: TypeMap,
@@ -151,6 +174,8 @@ impl Renderer {
         output_depth_format: Option<wgpu::TextureFormat>,
         msaa_samples: u32,
     ) -> Self {
+        crate::profile_function!();
+
         let shader = wgpu::ShaderModuleDescriptor {
             label: Some("egui"),
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("egui.wgsl"))),
@@ -312,6 +337,7 @@ impl Renderer {
             texture_bind_group_layout,
             textures: HashMap::new(),
             next_user_texture_id: 0,
+            samplers: HashMap::new(),
             paint_callback_resources: TypeMap::default(),
         }
     }
@@ -323,6 +349,8 @@ impl Renderer {
         paint_jobs: &[egui::epaint::ClippedPrimitive],
         screen_descriptor: &ScreenDescriptor,
     ) {
+        crate::profile_function!();
+
         let pixels_per_point = screen_descriptor.pixels_per_point;
         let size_in_pixels = screen_descriptor.size_in_pixels;
 
@@ -397,26 +425,28 @@ impl Renderer {
                     };
 
                     if callback.rect.is_positive() {
+                        crate::profile_scope!("callback");
+
                         needs_reset = true;
 
                         {
-                            // Set the viewport rect
-                            // Transform callback rect to physical pixels:
-                            let rect_min_x = pixels_per_point * callback.rect.min.x;
-                            let rect_min_y = pixels_per_point * callback.rect.min.y;
-                            let rect_max_x = pixels_per_point * callback.rect.max.x;
-                            let rect_max_y = pixels_per_point * callback.rect.max.y;
+                            // We're setting a default viewport for the render pass as a
+                            // courtesy for the user, so that they don't have to think about
+                            // it in the simple case where they just want to fill the whole
+                            // paint area.
+                            //
+                            // The user still has the possibility of setting their own custom
+                            // viewport during the paint callback, effectively overriding this
+                            // one.
 
-                            let rect_min_x = rect_min_x.round();
-                            let rect_min_y = rect_min_y.round();
-                            let rect_max_x = rect_max_x.round();
-                            let rect_max_y = rect_max_y.round();
+                            let min = (callback.rect.min.to_vec2() * pixels_per_point).round();
+                            let max = (callback.rect.max.to_vec2() * pixels_per_point).round();
 
                             render_pass.set_viewport(
-                                rect_min_x,
-                                rect_min_y,
-                                rect_max_x - rect_min_x,
-                                rect_max_y - rect_min_y,
+                                min.x,
+                                min.y,
+                                max.x - min.x,
+                                max.y - min.y,
                                 0.0,
                                 1.0,
                             );
@@ -448,6 +478,8 @@ impl Renderer {
         id: egui::TextureId,
         image_delta: &egui::epaint::ImageDelta,
     ) {
+        crate::profile_function!();
+
         let width = image_delta.image.width() as u32;
         let height = image_delta.image.height() as u32;
 
@@ -511,7 +543,6 @@ impl Renderer {
                 origin,
             );
         } else {
-            // TODO(Wumpf): Create only a new texture if we need to
             // allocate a new texture
             // Use same label for all resources associated with this texture id (no point in retyping the type)
             let label_str = format!("egui_texid_{:?}", id);
@@ -522,20 +553,13 @@ impl Renderer {
                 mip_level_count: 1,
                 sample_count: 1,
                 dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::Rgba8UnormSrgb, // TODO(emilk): handle WebGL1 where this is not always supported!
+                format: wgpu::TextureFormat::Rgba8UnormSrgb, // Minspec for wgpu WebGL emulation is WebGL2, so this should always be supported.
                 usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
             });
-            let filter = match image_delta.filter {
-                egui::TextureFilter::Nearest => wgpu::FilterMode::Nearest,
-                egui::TextureFilter::Linear => wgpu::FilterMode::Linear,
-            };
-            // TODO(Wumpf): Reuse this sampler.
-            let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-                label,
-                mag_filter: filter,
-                min_filter: filter,
-                ..Default::default()
-            });
+            let sampler = self
+                .samplers
+                .entry(image_delta.options)
+                .or_insert_with(|| create_sampler(image_delta.options, device));
             let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label,
                 layout: &self.texture_bind_group_layout,
@@ -548,7 +572,7 @@ impl Renderer {
                     },
                     wgpu::BindGroupEntry {
                         binding: 1,
-                        resource: wgpu::BindingResource::Sampler(&sampler),
+                        resource: wgpu::BindingResource::Sampler(sampler),
                     },
                 ],
             });
@@ -637,6 +661,8 @@ impl Renderer {
         texture: &wgpu::TextureView,
         sampler_descriptor: wgpu::SamplerDescriptor<'_>,
     ) -> egui::TextureId {
+        crate::profile_function!();
+
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             compare: None,
             ..sampler_descriptor
@@ -676,6 +702,8 @@ impl Renderer {
         sampler_descriptor: wgpu::SamplerDescriptor<'_>,
         id: egui::TextureId,
     ) {
+        crate::profile_function!();
+
         let (_user_texture, user_texture_binding) = self
             .textures
             .get_mut(&id)
@@ -706,6 +734,8 @@ impl Renderer {
 
     /// Uploads the uniform, vertex and index data used by the renderer.
     /// Should be called before `render()`.
+    ///
+    /// Returns all user-defined command buffers gathered from prepare callbacks.
     pub fn update_buffers(
         &mut self,
         device: &wgpu::Device,
@@ -713,21 +743,27 @@ impl Renderer {
         encoder: &mut wgpu::CommandEncoder,
         paint_jobs: &[egui::epaint::ClippedPrimitive],
         screen_descriptor: &ScreenDescriptor,
-    ) {
+    ) -> Vec<wgpu::CommandBuffer> {
+        crate::profile_function!();
+
         let screen_size_in_points = screen_descriptor.screen_size_in_points();
 
-        // Update uniform buffer
-        queue.write_buffer(
-            &self.uniform_buffer,
-            0,
-            bytemuck::cast_slice(&[UniformBuffer {
-                screen_size_in_points,
-                _padding: Default::default(),
-            }]),
-        );
+        {
+            crate::profile_scope!("uniforms");
+            // Update uniform buffer
+            queue.write_buffer(
+                &self.uniform_buffer,
+                0,
+                bytemuck::cast_slice(&[UniformBuffer {
+                    screen_size_in_points,
+                    _padding: Default::default(),
+                }]),
+            );
+        }
 
         // Determine how many vertices & indices need to be rendered.
-        let (vertex_count, index_count) =
+        let (vertex_count, index_count) = {
+            crate::profile_scope!("count_vertices_indices");
             paint_jobs.iter().fold((0, 0), |acc, clipped_primitive| {
                 match &clipped_primitive.primitive {
                     Primitive::Mesh(mesh) => {
@@ -735,9 +771,11 @@ impl Renderer {
                     }
                     Primitive::Callback(_) => acc,
                 }
-            });
-        // Resize index buffer if needed.
+            })
+        };
+
         {
+            // Resize index buffer if needed:
             self.index_buffer.slices.clear();
             let required_size = (std::mem::size_of::<u32>() * index_count) as u64;
             if self.index_buffer.capacity < required_size {
@@ -746,8 +784,9 @@ impl Renderer {
                 self.index_buffer.buffer = create_index_buffer(device, self.index_buffer.capacity);
             }
         }
-        // Resize vertex buffer if needed.
+
         {
+            // Resize vertex buffer if needed:
             self.vertex_buffer.slices.clear();
             let required_size = (std::mem::size_of::<Vertex>() * vertex_count) as u64;
             if self.vertex_buffer.capacity < required_size {
@@ -759,6 +798,9 @@ impl Renderer {
         }
 
         // Upload index & vertex data and call user callbacks
+        let mut user_cmd_bufs = Vec::new(); // collect user command buffers
+
+        crate::profile_scope!("primitives");
         for egui::ClippedPrimitive { primitive, .. } in paint_jobs.iter() {
             match primitive {
                 Primitive::Mesh(mesh) => {
@@ -787,14 +829,43 @@ impl Renderer {
                         continue;
                     };
 
-                    (cbfn.prepare)(device, queue, encoder, &mut self.paint_callback_resources);
+                    crate::profile_scope!("callback");
+                    user_cmd_bufs.extend((cbfn.prepare)(
+                        device,
+                        queue,
+                        encoder,
+                        &mut self.paint_callback_resources,
+                    ));
                 }
             }
         }
+
+        user_cmd_bufs
     }
 }
 
+fn create_sampler(options: egui::TextureOptions, device: &wgpu::Device) -> wgpu::Sampler {
+    let mag_filter = match options.magnification {
+        egui::TextureFilter::Nearest => wgpu::FilterMode::Nearest,
+        egui::TextureFilter::Linear => wgpu::FilterMode::Linear,
+    };
+    let min_filter = match options.minification {
+        egui::TextureFilter::Nearest => wgpu::FilterMode::Nearest,
+        egui::TextureFilter::Linear => wgpu::FilterMode::Linear,
+    };
+    device.create_sampler(&wgpu::SamplerDescriptor {
+        label: Some(&format!(
+            "egui sampler (mag: {:?}, min {:?})",
+            mag_filter, min_filter
+        )),
+        mag_filter,
+        min_filter,
+        ..Default::default()
+    })
+}
+
 fn create_vertex_buffer(device: &wgpu::Device, size: u64) -> wgpu::Buffer {
+    crate::profile_function!();
     device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("egui_vertex_buffer"),
         usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
@@ -804,6 +875,7 @@ fn create_vertex_buffer(device: &wgpu::Device, size: u64) -> wgpu::Buffer {
 }
 
 fn create_index_buffer(device: &wgpu::Device, size: u64) -> wgpu::Buffer {
+    crate::profile_function!();
     device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("egui_index_buffer"),
         usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,

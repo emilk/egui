@@ -72,7 +72,7 @@ impl WebPainter for WebPainterGlow {
     }
 
     fn destroy(&mut self) {
-        self.painter.destroy()
+        self.painter.destroy();
     }
 }
 

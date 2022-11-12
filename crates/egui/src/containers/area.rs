@@ -2,8 +2,6 @@
 //! It has no frame or own size. It is potentially movable.
 //! It is the foundation for windows and popups.
 
-use std::{fmt::Debug, hash::Hash};
-
 use crate::*;
 
 /// State that is persisted between frames.
@@ -48,6 +46,7 @@ pub struct Area {
     movable: bool,
     interactable: bool,
     enabled: bool,
+    constrain: bool,
     order: Order,
     default_pos: Option<Pos2>,
     anchor: Option<(Align2, Vec2)>,
@@ -56,11 +55,12 @@ pub struct Area {
 }
 
 impl Area {
-    pub fn new(id_source: impl Hash) -> Self {
+    pub fn new(id: impl Into<Id>) -> Self {
         Self {
-            id: Id::new(id_source),
+            id: id.into(),
             movable: true,
             interactable: true,
+            constrain: false,
             enabled: true,
             order: Order::Middle,
             default_pos: None,
@@ -122,6 +122,12 @@ impl Area {
         self
     }
 
+    /// Constrains this area to the screen bounds.
+    pub fn constrain(mut self, constrain: bool) -> Self {
+        self.constrain = constrain;
+        self
+    }
+
     /// Positions the window and prevents it from being moved
     pub fn fixed_pos(mut self, fixed_pos: impl Into<Pos2>) -> Self {
         self.new_pos = Some(fixed_pos.into());
@@ -169,7 +175,7 @@ impl Area {
 pub(crate) struct Prepared {
     layer_id: LayerId,
     state: State,
-    pub(crate) movable: bool,
+    move_response: Response,
     enabled: bool,
     drag_bounds: Option<Rect>,
     /// Set the first frame of new windows with anchors.
@@ -204,6 +210,7 @@ impl Area {
             new_pos,
             anchor,
             drag_bounds,
+            constrain,
         } = self;
 
         let layer_id = LayerId::new(order, id);
@@ -231,12 +238,61 @@ impl Area {
             }
         }
 
+        // interact right away to prevent frame-delay
+        let move_response = {
+            let interact_id = layer_id.id.with("move");
+            let sense = if movable {
+                Sense::click_and_drag()
+            } else if interactable {
+                Sense::click() // allow clicks to bring to front
+            } else {
+                Sense::hover()
+            };
+
+            let move_response = ctx.interact(
+                Rect::EVERYTHING,
+                ctx.style().spacing.item_spacing,
+                layer_id,
+                interact_id,
+                state.rect(),
+                sense,
+                enabled,
+            );
+
+            // Important check - don't try to move e.g. a combobox popup!
+            if movable {
+                if move_response.dragged() {
+                    state.pos += ctx.input().pointer.delta();
+                }
+
+                state.pos = ctx
+                    .constrain_window_rect_to_area(state.rect(), drag_bounds)
+                    .min;
+            }
+
+            if (move_response.dragged() || move_response.clicked())
+                || pointer_pressed_on_area(ctx, layer_id)
+                || !ctx.memory().areas.visible_last_frame(&layer_id)
+            {
+                ctx.memory().areas.move_to_top(layer_id);
+                ctx.request_repaint();
+            }
+
+            move_response
+        };
+
         state.pos = ctx.round_pos_to_pixels(state.pos);
+
+        if constrain {
+            state.pos = ctx
+                .constrain_window_rect_to_area(state.rect(), drag_bounds)
+                .min;
+        }
 
         Prepared {
             layer_id,
             state,
-            movable,
+            move_response,
             enabled,
             drag_bounds,
             temporarily_invisible,
@@ -330,49 +386,14 @@ impl Prepared {
         let Prepared {
             layer_id,
             mut state,
-            movable,
-            enabled,
-            drag_bounds,
+            move_response,
+            enabled: _,
+            drag_bounds: _,
             temporarily_invisible: _,
         } = self;
 
         state.size = content_ui.min_rect().size();
 
-        let interact_id = layer_id.id.with("move");
-        let sense = if movable {
-            Sense::click_and_drag()
-        } else {
-            Sense::click() // allow clicks to bring to front
-        };
-
-        let move_response = ctx.interact(
-            Rect::EVERYTHING,
-            ctx.style().spacing.item_spacing,
-            layer_id,
-            interact_id,
-            state.rect(),
-            sense,
-            enabled,
-        );
-
-        if move_response.dragged() && movable {
-            state.pos += ctx.input().pointer.delta();
-        }
-
-        // Important check - don't try to move e.g. a combobox popup!
-        if movable {
-            state.pos = ctx
-                .constrain_window_rect_to_area(state.rect(), drag_bounds)
-                .min;
-        }
-
-        if (move_response.dragged() || move_response.clicked())
-            || pointer_pressed_on_area(ctx, layer_id)
-            || !ctx.memory().areas.visible_last_frame(&layer_id)
-        {
-            ctx.memory().areas.move_to_top(layer_id);
-            ctx.request_repaint();
-        }
         ctx.memory().areas.set_state(layer_id, state);
 
         move_response

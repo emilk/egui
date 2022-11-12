@@ -231,11 +231,13 @@ impl EpiIntegration {
 
         *egui_ctx.memory() = load_egui_memory(storage.as_deref()).unwrap_or_default();
 
+        let native_pixels_per_point = window.scale_factor() as f32;
+
         let frame = epi::Frame {
             info: epi::IntegrationInfo {
                 system_theme,
                 cpu_usage: None,
-                native_pixels_per_point: Some(native_pixels_per_point(window)),
+                native_pixels_per_point: Some(native_pixels_per_point),
                 window_info: read_window_info(window, egui_ctx.pixels_per_point()),
             },
             output: Default::default(),
@@ -248,8 +250,7 @@ impl EpiIntegration {
 
         let mut egui_winit = egui_winit::State::new(event_loop);
         egui_winit.set_max_texture_side(max_texture_side);
-        let pixels_per_point = window.scale_factor() as f32;
-        egui_winit.set_pixels_per_point(pixels_per_point);
+        egui_winit.set_pixels_per_point(native_pixels_per_point);
 
         Self {
             frame,
@@ -292,6 +293,9 @@ impl EpiIntegration {
                 state: ElementState::Pressed,
                 ..
             } => self.can_drag_window = true,
+            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                self.frame.info.native_pixels_per_point = Some(*scale_factor as _);
+            }
             _ => {}
         }
 

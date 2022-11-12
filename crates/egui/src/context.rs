@@ -3,9 +3,10 @@ use std::sync::Arc;
 
 use crate::{
     animation_manager::AnimationManager, data::output::PlatformOutput, frame_state::FrameState,
-    input_state::*, layers::GraphicLayers, memory::Options, output::FullOutput, TextureHandle, *,
+    input_state::*, layers::GraphicLayers, memory::Options, os::OperatingSystem,
+    output::FullOutput, TextureHandle, *,
 };
-use epaint::{mutex::*, stats::*, text::Fonts, textures::TextureFilter, TessellationOptions, *};
+use epaint::{mutex::*, stats::*, text::Fonts, TessellationOptions, *};
 
 // ----------------------------------------------------------------------------
 
@@ -36,6 +37,8 @@ struct ContextImpl {
     animation_manager: AnimationManager,
     tex_manager: WrappedTextureManager,
 
+    os: OperatingSystem,
+
     input: InputState,
 
     /// State that is collected during a frame and then cleared
@@ -59,20 +62,34 @@ struct ContextImpl {
     has_requested_repaint_this_frame: bool,
 
     requested_repaint_last_frame: bool,
+
+    /// Written to during the frame.
+    layer_rects_this_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
+    /// Read
+    layer_rects_prev_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
 }
 
 impl ContextImpl {
-    fn begin_frame_mut(&mut self, new_raw_input: RawInput) {
+    fn begin_frame_mut(&mut self, mut new_raw_input: RawInput) {
         self.has_requested_repaint_this_frame = false; // allow new calls during the frame
+
+        if let Some(new_pixels_per_point) = self.memory.new_pixels_per_point.take() {
+            new_raw_input.pixels_per_point = Some(new_pixels_per_point);
+
+            // This is a bit hacky, but is required to avoid jitter:
+            let ratio = self.input.pixels_per_point / new_pixels_per_point;
+            let mut rect = self.input.screen_rect;
+            rect.min = (ratio * rect.min.to_vec2()).to_pos2();
+            rect.max = (ratio * rect.max.to_vec2()).to_pos2();
+            new_raw_input.screen_rect = Some(rect);
+        }
+
+        self.layer_rects_prev_frame = std::mem::take(&mut self.layer_rects_this_frame);
 
         self.memory.begin_frame(&self.input, &new_raw_input);
 
         self.input = std::mem::take(&mut self.input)
             .begin_frame(new_raw_input, self.requested_repaint_last_frame);
-
-        if let Some(new_pixels_per_point) = self.memory.new_pixels_per_point.take() {
-            self.input.pixels_per_point = new_pixels_per_point;
-        }
 
         self.frame_state.begin_frame(&self.input);
 
@@ -157,6 +174,12 @@ impl ContextImpl {
 /// ```
 #[derive(Clone)]
 pub struct Context(Arc<RwLock<ContextImpl>>);
+
+impl std::fmt::Debug for Context {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Context").finish_non_exhaustive()
+    }
+}
 
 impl std::cmp::PartialEq for Context {
     fn eq(&self, other: &Context) -> bool {
@@ -312,8 +335,66 @@ impl Context {
             (0.5 * item_spacing - Vec2::splat(gap))
                 .at_least(Vec2::splat(0.0))
                 .at_most(Vec2::splat(5.0)),
-        ); // make it easier to click
-        let hovered = self.rect_contains_pointer(layer_id, clip_rect.intersect(interact_rect));
+        );
+
+        // Respect clip rectangle when interacting
+        let interact_rect = clip_rect.intersect(interact_rect);
+        let mut hovered = self.rect_contains_pointer(layer_id, interact_rect);
+
+        // This solves the problem of overlapping widgets.
+        // Whichever widget is added LAST (=on top) gets the input:
+        if interact_rect.is_positive() && sense.interactive() {
+            if self.style().debug.show_interactive_widgets {
+                Self::layer_painter(self, LayerId::debug()).rect(
+                    interact_rect,
+                    0.0,
+                    Color32::YELLOW.additive().linear_multiply(0.005),
+                    Stroke::new(1.0, Color32::YELLOW.additive().linear_multiply(0.05)),
+                );
+            }
+
+            let mut slf = self.write();
+
+            slf.layer_rects_this_frame
+                .entry(layer_id)
+                .or_default()
+                .push((id, interact_rect));
+
+            if hovered {
+                let pointer_pos = slf.input.pointer.interact_pos();
+                if let Some(pointer_pos) = pointer_pos {
+                    if let Some(rects) = slf.layer_rects_prev_frame.get(&layer_id) {
+                        for &(prev_id, prev_rect) in rects.iter().rev() {
+                            if prev_id == id {
+                                break; // there is no other interactive widget covering us at the pointer position.
+                            }
+                            if prev_rect.contains(pointer_pos) {
+                                // Another interactive widget is covering us at the pointer position,
+                                // so we aren't hovered.
+
+                                if slf.memory.options.style.debug.show_blocking_widget {
+                                    drop(slf);
+                                    Self::layer_painter(self, LayerId::debug()).debug_rect(
+                                        interact_rect,
+                                        Color32::GREEN,
+                                        "Covered",
+                                    );
+                                    Self::layer_painter(self, LayerId::debug()).debug_rect(
+                                        prev_rect,
+                                        Color32::LIGHT_BLUE,
+                                        "On top",
+                                    );
+                                }
+
+                                hovered = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         self.interact_with_hovered(layer_id, id, rect, sense, enabled, hovered)
     }
 
@@ -563,6 +644,59 @@ impl Context {
     pub fn tessellation_options(&self) -> RwLockWriteGuard<'_, TessellationOptions> {
         RwLockWriteGuard::map(self.write(), |c| &mut c.memory.options.tessellation_options)
     }
+
+    /// What operating system are we running on?
+    ///
+    /// When compiling natively, this is
+    /// figured out from the `target_os`.
+    ///
+    /// For web, this can be figured out from the user-agent,
+    /// and is done so by [`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe).
+    pub fn os(&self) -> OperatingSystem {
+        self.read().os
+    }
+
+    /// Set the operating system we are running on.
+    ///
+    /// If you are writing wasm-based integration for egui you
+    /// may want to set this based on e.g. the user-agent.
+    pub fn set_os(&self, os: OperatingSystem) {
+        self.write().os = os;
+    }
+
+    /// Format the given shortcut in a human-readable way (e.g. `Ctrl+Shift+X`).
+    ///
+    /// Can be used to get the text for [`Button::shortcut_text`].
+    pub fn format_shortcut(&self, shortcut: &KeyboardShortcut) -> String {
+        let os = self.os();
+
+        let is_mac = matches!(os, OperatingSystem::Mac | OperatingSystem::IOS);
+
+        let can_show_symbols = || {
+            let ModifierNames {
+                alt,
+                ctrl,
+                shift,
+                mac_cmd,
+                ..
+            } = ModifierNames::SYMBOLS;
+
+            let font_id = TextStyle::Body.resolve(&self.style());
+            let fonts = self.fonts();
+            let mut fonts = fonts.lock();
+            let font = fonts.fonts.font(&font_id);
+            font.has_glyphs(alt)
+                && font.has_glyphs(ctrl)
+                && font.has_glyphs(shift)
+                && font.has_glyphs(mac_cmd)
+        };
+
+        if is_mac && can_show_symbols() {
+            shortcut.format(&ModifierNames::SYMBOLS, is_mac)
+        } else {
+            shortcut.format(&ModifierNames::NAMES, is_mac)
+        }
+    }
 }
 
 impl Context {
@@ -744,7 +878,7 @@ impl Context {
     ///             ui.ctx().load_texture(
     ///                 "my-image",
     ///                 egui::ColorImage::example(),
-    ///                 egui::TextureFilter::Linear
+    ///                 Default::default()
     ///             )
     ///         });
     ///
@@ -759,7 +893,7 @@ impl Context {
         &self,
         name: impl Into<String>,
         image: impl Into<ImageData>,
-        filter: TextureFilter,
+        options: TextureOptions,
     ) -> TextureHandle {
         let name = name.into();
         let image = image.into();
@@ -773,7 +907,7 @@ impl Context {
             max_texture_side
         );
         let tex_mngr = self.tex_manager();
-        let tex_id = tex_mngr.write().alloc(name, image, filter);
+        let tex_id = tex_mngr.write().alloc(name, image, options);
         TextureHandle::new(tex_mngr, tex_id)
     }
 
@@ -1026,11 +1160,13 @@ impl Context {
     }
 
     pub(crate) fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
-        let pointer_pos = self.input().pointer.interact_pos();
-        if let Some(pointer_pos) = pointer_pos {
-            rect.contains(pointer_pos) && self.layer_id_at(pointer_pos) == Some(layer_id)
-        } else {
-            false
+        rect.is_positive() && {
+            let pointer_pos = self.input().pointer.interact_pos();
+            if let Some(pointer_pos) = pointer_pos {
+                rect.contains(pointer_pos) && self.layer_id_at(pointer_pos) == Some(layer_id)
+            } else {
+                false
+            }
         }
     }
 

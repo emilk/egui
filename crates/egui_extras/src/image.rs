@@ -1,5 +1,7 @@
-use egui::mutex::Mutex;
-use egui::TextureFilter;
+use egui::{mutex::Mutex, TextureFilter, TextureOptions};
+
+#[cfg(feature = "svg")]
+pub use usvg::FitTo;
 
 /// An image to be shown in egui.
 ///
@@ -13,7 +15,7 @@ pub struct RetainedImage {
     image: Mutex<egui::ColorImage>,
     /// Lazily loaded when we have an egui context.
     texture: Mutex<Option<egui::TextureHandle>>,
-    filter: TextureFilter,
+    options: TextureOptions,
 }
 
 impl RetainedImage {
@@ -23,7 +25,7 @@ impl RetainedImage {
             size: image.size,
             image: Mutex::new(image),
             texture: Default::default(),
-            filter: Default::default(),
+            options: Default::default(),
         }
     }
 
@@ -53,10 +55,7 @@ impl RetainedImage {
     /// On invalid image
     #[cfg(feature = "svg")]
     pub fn from_svg_bytes(debug_name: impl Into<String>, svg_bytes: &[u8]) -> Result<Self, String> {
-        Ok(Self::from_color_image(
-            debug_name,
-            load_svg_bytes(svg_bytes)?,
-        ))
+        Self::from_svg_bytes_with_size(debug_name, svg_bytes, FitTo::Original)
     }
 
     /// Pass in the str of an SVG that you've loaded.
@@ -68,7 +67,24 @@ impl RetainedImage {
         Self::from_svg_bytes(debug_name, svg_str.as_bytes())
     }
 
-    /// Set the texture filter to use for the image.
+    /// Pass in the bytes of an SVG that you've loaded
+    /// and the scaling option to resize the SVG with
+    ///
+    /// # Errors
+    /// On invalid image
+    #[cfg(feature = "svg")]
+    pub fn from_svg_bytes_with_size(
+        debug_name: impl Into<String>,
+        svg_bytes: &[u8],
+        size: FitTo,
+    ) -> Result<Self, String> {
+        Ok(Self::from_color_image(
+            debug_name,
+            load_svg_bytes_with_size(svg_bytes, size)?,
+        ))
+    }
+
+    /// Set the texture filters to use for the image.
     ///
     /// **Note:** If the texture has already been uploaded to the GPU, this will require
     /// re-uploading the texture with the updated filter.
@@ -76,7 +92,7 @@ impl RetainedImage {
     /// # Example
     /// ```rust
     /// # use egui_extras::RetainedImage;
-    /// # use egui::{Color32, epaint::{ColorImage, textures::TextureFilter}};
+    /// # use egui::{Color32, epaint::{ColorImage, textures::TextureOptions}};
     /// # let pixels = vec![Color32::BLACK];
     /// # let color_image = ColorImage {
     /// #   size: [1, 1],
@@ -85,16 +101,24 @@ impl RetainedImage {
     /// #
     /// // Upload a pixel art image without it getting blurry when resized
     /// let image = RetainedImage::from_color_image("my_image", color_image)
-    ///     .with_texture_filter(TextureFilter::Nearest);
+    ///     .with_options(TextureOptions::NEAREST);
     /// ```
-    pub fn with_texture_filter(mut self, filter: TextureFilter) -> Self {
-        self.filter = filter;
+    pub fn with_options(mut self, options: TextureOptions) -> Self {
+        self.options = options;
 
         // If the texture has already been uploaded, this will force it to be re-uploaded with the
         // updated filter.
         *self.texture.lock() = None;
 
         self
+    }
+
+    #[deprecated = "Use with_options instead"]
+    pub fn with_texture_filter(self, filter: TextureFilter) -> Self {
+        self.with_options(TextureOptions {
+            magnification: filter,
+            minification: filter,
+        })
     }
 
     /// The size of the image data (number of pixels wide/high).
@@ -130,7 +154,7 @@ impl RetainedImage {
             .get_or_insert_with(|| {
                 let image: &mut ColorImage = &mut self.image.lock();
                 let image = std::mem::take(image);
-                ctx.load_texture(&self.debug_name, image, self.filter)
+                ctx.load_texture(&self.debug_name, image, self.options)
             })
             .id()
     }
@@ -193,29 +217,50 @@ pub fn load_image_bytes(image_bytes: &[u8]) -> Result<egui::ColorImage, String> 
 /// On invalid image
 #[cfg(feature = "svg")]
 pub fn load_svg_bytes(svg_bytes: &[u8]) -> Result<egui::ColorImage, String> {
+    load_svg_bytes_with_size(svg_bytes, FitTo::Original)
+}
+
+/// Load an SVG and rasterize it into an egui image with a scaling parameter.
+///
+/// Requires the "svg" feature.
+///
+/// # Errors
+/// On invalid image
+#[cfg(feature = "svg")]
+pub fn load_svg_bytes_with_size(
+    svg_bytes: &[u8],
+    fit_to: FitTo,
+) -> Result<egui::ColorImage, String> {
     let mut opt = usvg::Options::default();
     opt.fontdb.load_system_fonts();
 
     let rtree = usvg::Tree::from_data(svg_bytes, &opt.to_ref()).map_err(|err| err.to_string())?;
 
     let pixmap_size = rtree.svg_node().size.to_screen_size();
-    let [w, h] = [pixmap_size.width(), pixmap_size.height()];
+    let [w, h] = match fit_to {
+        FitTo::Original => [pixmap_size.width(), pixmap_size.height()],
+        FitTo::Size(w, h) => [w, h],
+        FitTo::Height(h) => [
+            (pixmap_size.width() as f32 * (h as f32 / pixmap_size.height() as f32)) as u32,
+            h,
+        ],
+        FitTo::Width(w) => [
+            w,
+            (pixmap_size.height() as f32 * (w as f32 / pixmap_size.width() as f32)) as u32,
+        ],
+        FitTo::Zoom(z) => [
+            (pixmap_size.width() as f32 * z) as u32,
+            (pixmap_size.height() as f32 * z) as u32,
+        ],
+    };
 
     let mut pixmap = tiny_skia::Pixmap::new(w, h)
         .ok_or_else(|| format!("Failed to create SVG Pixmap of size {}x{}", w, h))?;
 
-    resvg::render(
-        &rtree,
-        usvg::FitTo::Original,
-        Default::default(),
-        pixmap.as_mut(),
-    )
-    .ok_or_else(|| "Failed to render SVG".to_owned())?;
+    resvg::render(&rtree, fit_to, Default::default(), pixmap.as_mut())
+        .ok_or_else(|| "Failed to render SVG".to_owned())?;
 
-    let image = egui::ColorImage::from_rgba_unmultiplied(
-        [pixmap.width() as _, pixmap.height() as _],
-        pixmap.data(),
-    );
+    let image = egui::ColorImage::from_rgba_unmultiplied([w as _, h as _], pixmap.data());
 
     Ok(image)
 }

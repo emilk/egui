@@ -1,6 +1,6 @@
 #![allow(clippy::needless_pass_by_value)] // False positives with `impl ToString`
 
-use std::ops::RangeInclusive;
+use std::{cmp::Ordering, ops::RangeInclusive};
 
 use crate::*;
 
@@ -508,8 +508,47 @@ impl<'a> Widget for DragValue<'a> {
 }
 
 fn clamp_to_range(x: f64, range: RangeInclusive<f64>) -> f64 {
-    x.clamp(
-        range.start().min(*range.end()),
-        range.start().max(*range.end()),
-    )
+    let (mut min, mut max) = (*range.start(), *range.end());
+
+    if min.total_cmp(&max) == Ordering::Greater {
+        (min, max) = (max, min);
+    }
+
+    match x.total_cmp(&min) {
+        Ordering::Less | Ordering::Equal => min,
+        Ordering::Greater => match x.total_cmp(&max) {
+            Ordering::Greater | Ordering::Equal => max,
+            Ordering::Less => x,
+        },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::clamp_to_range;
+
+    macro_rules! total_assert_eq {
+        ($a:expr, $b:expr) => {
+            assert!(
+                matches!($a.total_cmp(&$b), std::cmp::Ordering::Equal),
+                "{} != {}",
+                $a,
+                $b
+            );
+        };
+    }
+
+    #[test]
+    fn test_total_cmp_clamp_to_range() {
+        total_assert_eq!(0.0_f64, clamp_to_range(-0.0, 0.0..=f64::MAX));
+        total_assert_eq!(-0.0_f64, clamp_to_range(0.0, -1.0..=-0.0));
+        total_assert_eq!(-1.0_f64, clamp_to_range(-25.0, -1.0..=1.0));
+        total_assert_eq!(5.0_f64, clamp_to_range(5.0, -1.0..=10.0));
+        total_assert_eq!(15.0_f64, clamp_to_range(25.0, -1.0..=15.0));
+        total_assert_eq!(1.0_f64, clamp_to_range(1.0, 1.0..=10.0));
+        total_assert_eq!(10.0_f64, clamp_to_range(10.0, 1.0..=10.0));
+        total_assert_eq!(5.0_f64, clamp_to_range(5.0, 10.0..=1.0));
+        total_assert_eq!(5.0_f64, clamp_to_range(15.0, 5.0..=1.0));
+        total_assert_eq!(1.0_f64, clamp_to_range(-5.0, 5.0..=1.0));
+    }
 }

@@ -710,6 +710,11 @@ fn translate_virtual_key_code(key: winit::event::VirtualKeyCode) -> Option<egui:
         VirtualKeyCode::PageUp => Key::PageUp,
         VirtualKeyCode::PageDown => Key::PageDown,
 
+        VirtualKeyCode::Minus => Key::Minus,
+        // Using Mac the key with the Plus sign on it is reported as the Equals key
+        // (with both English and Swedish keyboard).
+        VirtualKeyCode::Equals => Key::PlusEquals,
+
         VirtualKeyCode::Key0 | VirtualKeyCode::Numpad0 => Key::Num0,
         VirtualKeyCode::Key1 | VirtualKeyCode::Numpad1 => Key::Num1,
         VirtualKeyCode::Key2 | VirtualKeyCode::Numpad2 => Key::Num2,
