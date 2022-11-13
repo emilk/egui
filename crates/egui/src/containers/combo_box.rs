@@ -1,8 +1,16 @@
-use crate::{style::WidgetVisuals, *};
 use epaint::Shape;
 
+use crate::{style::WidgetVisuals, *};
+
+/// Indicate wether or not a popup will be shown above or below the box.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum AboveOrBelow {
+    Above,
+    Below,
+}
+
 /// A function that paints the [`ComboBox`] icon
-pub type IconPainter = Box<dyn FnOnce(&Ui, Rect, &WidgetVisuals, bool)>;
+pub type IconPainter = Box<dyn FnOnce(&Ui, Rect, &WidgetVisuals, bool, AboveOrBelow)>;
 
 /// A drop-down selection menu with a descriptive label.
 ///
@@ -89,6 +97,7 @@ impl ComboBox {
     ///     rect: egui::Rect,
     ///     visuals: &egui::style::WidgetVisuals,
     ///     _is_open: bool,
+    ///     _above_or_below: egui::AboveOrBelow,
     /// ) {
     ///     let rect = egui::Rect::from_center_size(
     ///         rect.center(),
@@ -107,7 +116,10 @@ impl ComboBox {
     ///     .show_ui(ui, |_ui| {});
     /// # });
     /// ```
-    pub fn icon(mut self, icon_fn: impl FnOnce(&Ui, Rect, &WidgetVisuals, bool) + 'static) -> Self {
+    pub fn icon(
+        mut self,
+        icon_fn: impl FnOnce(&Ui, Rect, &WidgetVisuals, bool, AboveOrBelow) + 'static,
+    ) -> Self {
         self.icon = Some(Box::new(icon_fn));
         self
     }
@@ -213,6 +225,23 @@ fn combo_box_dyn<'c, R>(
     let popup_id = button_id.with("popup");
 
     let is_popup_open = ui.memory().is_popup_open(popup_id);
+
+    let popup_height = ui
+        .ctx()
+        .memory()
+        .areas
+        .get(popup_id)
+        .map_or(100.0, |state| state.size.y);
+
+    let above_or_below =
+        if ui.next_widget_position().y + ui.spacing().interact_size.y + popup_height
+            < ui.ctx().input().screen_rect().bottom()
+        {
+            AboveOrBelow::Below
+        } else {
+            AboveOrBelow::Above
+        };
+
     let button_response = button_frame(ui, button_id, is_popup_open, Sense::click(), |ui| {
         // We don't want to change width when user selects something new
         let full_minimum_width = ui.spacing().slider_width;
@@ -243,9 +272,15 @@ fn combo_box_dyn<'c, R>(
                     icon_rect.expand(visuals.expansion),
                     visuals,
                     is_popup_open,
+                    above_or_below,
                 );
             } else {
-                paint_default_icon(ui.painter(), icon_rect.expand(visuals.expansion), visuals);
+                paint_default_icon(
+                    ui.painter(),
+                    icon_rect.expand(visuals.expansion),
+                    visuals,
+                    above_or_below,
+                );
             }
 
             let text_rect = Align2::LEFT_CENTER.align_size_within_rect(galley.size(), rect);
@@ -256,12 +291,18 @@ fn combo_box_dyn<'c, R>(
     if button_response.clicked() {
         ui.memory().toggle_popup(popup_id);
     }
-    let inner = crate::popup::popup_below_widget(ui, popup_id, &button_response, |ui| {
-        ScrollArea::vertical()
-            .max_height(ui.spacing().combo_height)
-            .show(ui, menu_contents)
-            .inner
-    });
+    let inner = crate::popup::popup_above_or_below_widget(
+        ui,
+        popup_id,
+        &button_response,
+        above_or_below,
+        |ui| {
+            ScrollArea::vertical()
+                .max_height(ui.spacing().combo_height)
+                .show(ui, menu_contents)
+                .inner
+        },
+    );
 
     InnerResponse {
         inner,
@@ -316,13 +357,31 @@ fn button_frame(
     response
 }
 
-fn paint_default_icon(painter: &Painter, rect: Rect, visuals: &WidgetVisuals) {
+fn paint_default_icon(
+    painter: &Painter,
+    rect: Rect,
+    visuals: &WidgetVisuals,
+    above_or_below: AboveOrBelow,
+) {
     let rect = Rect::from_center_size(
         rect.center(),
         vec2(rect.width() * 0.7, rect.height() * 0.45),
     );
-    painter.add(Shape::closed_line(
-        vec![rect.left_top(), rect.right_top(), rect.center_bottom()],
-        visuals.fg_stroke,
-    ));
+
+    match above_or_below {
+        AboveOrBelow::Above => {
+            // Upward pointing triangle
+            painter.add(Shape::closed_line(
+                vec![rect.left_bottom(), rect.right_bottom(), rect.center_top()],
+                visuals.fg_stroke,
+            ));
+        }
+        AboveOrBelow::Below => {
+            // Downward pointing triangle
+            painter.add(Shape::closed_line(
+                vec![rect.left_top(), rect.right_top(), rect.center_bottom()],
+                visuals.fg_stroke,
+            ));
+        }
+    }
 }

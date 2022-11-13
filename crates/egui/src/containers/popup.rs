@@ -294,7 +294,23 @@ pub fn was_tooltip_open_last_frame(ctx: &Context, tooltip_id: Id) -> bool {
     false
 }
 
-/// Shows a popup below another widget.
+/// Helper for [`popup_above_or_below_widget`].
+pub fn popup_below_widget<R>(
+    ui: &Ui,
+    popup_id: Id,
+    widget_response: &Response,
+    add_contents: impl FnOnce(&mut Ui) -> R,
+) -> Option<R> {
+    popup_above_or_below_widget(
+        ui,
+        popup_id,
+        widget_response,
+        AboveOrBelow::Below,
+        add_contents,
+    )
+}
+
+/// Shows a popup above or below another widget.
 ///
 /// Useful for drop-down menus (combo boxes) or suggestion menus under text fields.
 ///
@@ -309,24 +325,32 @@ pub fn was_tooltip_open_last_frame(ctx: &Context, tooltip_id: Id) -> bool {
 /// if response.clicked() {
 ///     ui.memory().toggle_popup(popup_id);
 /// }
-/// egui::popup::popup_below_widget(ui, popup_id, &response, |ui| {
+/// let below = egui::AboveOrBelow::Below;
+/// egui::popup::popup_above_or_below_widget(ui, popup_id, &response, below, |ui| {
 ///     ui.set_min_width(200.0); // if you want to control the size
 ///     ui.label("Some more info, or things you can select:");
 ///     ui.label("…");
 /// });
 /// # });
 /// ```
-pub fn popup_below_widget<R>(
+pub fn popup_above_or_below_widget<R>(
     ui: &Ui,
     popup_id: Id,
     widget_response: &Response,
+    above_or_below: AboveOrBelow,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
     if ui.memory().is_popup_open(popup_id) {
+        let (pos, pivot) = match above_or_below {
+            AboveOrBelow::Above => (widget_response.rect.left_top(), Align2::LEFT_BOTTOM),
+            AboveOrBelow::Below => (widget_response.rect.left_bottom(), Align2::LEFT_TOP),
+        };
+
         let inner = Area::new(popup_id)
             .order(Order::Foreground)
             .constrain(true)
-            .fixed_pos(widget_response.rect.left_bottom())
+            .fixed_pos(pos)
+            .pivot(pivot)
             .show(ui.ctx(), |ui| {
                 // Note: we use a separate clip-rect for this area, so the popup can be outside the parent.
                 // See https://github.com/emilk/egui/issues/825
