@@ -349,8 +349,9 @@ mod glow_integration {
             };
             let window_settings = epi_integration::load_window_settings(storage);
 
-            let window_builder =
-                epi_integration::window_builder(native_options, &window_settings).with_title(title);
+            let window_builder = epi_integration::window_builder(native_options, &window_settings)
+                .with_title(title)
+                .with_visible(false); // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
 
             let gl_window = unsafe {
                 glutin::ContextBuilder::new()
@@ -511,6 +512,8 @@ mod glow_integration {
                     crate::profile_scope!("swap_buffers");
                     gl_window.swap_buffers().unwrap();
                 }
+
+                integration.post_present(window);
 
                 let control_flow = if integration.should_close() {
                     EventResult::Exit
@@ -733,6 +736,7 @@ mod wgpu_integration {
             let window_settings = epi_integration::load_window_settings(storage);
             epi_integration::window_builder(native_options, &window_settings)
                 .with_title(title)
+                .with_visible(false) // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
                 .build(event_loop)
                 .unwrap()
         }
@@ -891,6 +895,7 @@ mod wgpu_integration {
                 );
 
                 integration.post_rendering(app.as_mut(), window);
+                integration.post_present(window);
 
                 let control_flow = if integration.should_close() {
                     EventResult::Exit
