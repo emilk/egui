@@ -2,7 +2,6 @@ use crate::{Color32, Pos2, Rect, Rounding, Stroke, Vec2};
 use epaint::Rgba;
 use hsluv::{lch_to_rgb, rgb_to_lch};
 use std::any::Any;
-use std::ops::Range;
 
 pub trait Lerp: PartialEq + Clone + Any {
     fn lerp(&self, to: &Self, t: f32) -> Self;

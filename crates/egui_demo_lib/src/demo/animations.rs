@@ -1,5 +1,5 @@
-use egui::animation::{AnimationImpl, Easing, Lerp};
-use egui::{Color32, Rect, Sense, Vec2, Widget};
+use egui::animation::Easing;
+use egui::{Rect, Sense, Vec2, Widget};
 
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
