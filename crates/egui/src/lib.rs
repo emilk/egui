@@ -299,6 +299,7 @@
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
 
+pub mod animation;
 mod animation_manager;
 pub mod containers;
 mod context;
@@ -323,7 +324,6 @@ mod ui;
 pub mod util;
 pub mod widget_text;
 pub mod widgets;
-pub mod animation;
 
 pub use epaint;
 pub use epaint::emath;

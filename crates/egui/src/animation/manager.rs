@@ -1,10 +1,10 @@
+use crate::animation::lerp::Lerp;
+use crate::animation::{Animation, AnimationImpl};
+use crate::Id;
 use ahash::AHashMap;
+use epaint::mutex::Mutex;
 use std::any::{type_name, Any};
 use std::sync::Arc;
-use epaint::mutex::Mutex;
-use crate::animation::{Animation, AnimationImpl};
-use crate::animation::lerp::Lerp;
-use crate::{Id};
 
 #[derive(Default)]
 pub struct AnimationManager {

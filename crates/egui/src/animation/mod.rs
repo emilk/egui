@@ -4,12 +4,12 @@ mod manager;
 
 use std::marker::PhantomData;
 
-use std::sync::Arc;
-use epaint::mutex::Mutex;
-pub use manager::AnimationManager;
 pub use crate::animation::easing::Easing;
 pub use crate::animation::lerp::Lerp;
 use crate::Id;
+use epaint::mutex::Mutex;
+pub use manager::AnimationManager;
+use std::sync::Arc;
 
 pub struct AnimationRef<L> {
     pub id: Id,
@@ -55,7 +55,8 @@ impl<L: Lerp + Send + Sync> Animation<L> {
             1.0
         } else {
             (self.time - self.inner.start) / self.inner.duration
-        }.clamp(0.0, 1.0)
+        }
+        .clamp(0.0, 1.0)
     }
 
     /// Gets the current value of the animation

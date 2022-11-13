@@ -93,7 +93,8 @@ impl ContextImpl {
             .begin_frame(new_raw_input, self.requested_repaint_last_frame);
 
         self.frame_state.begin_frame(&self.input);
-        self.animation.begin_frame(self.input.time, self.memory.options.style.animation_time);
+        self.animation
+            .begin_frame(self.input.time, self.memory.options.style.animation_time);
         self.update_fonts_mut();
 
         // Ensure we register the background area so panels and background ui can catch clicks:

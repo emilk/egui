@@ -44,23 +44,26 @@ impl super::View for Animations {
             ui.label("Speed");
             egui::Checkbox::new(&mut self.wait_until_done, "Wait until done").ui(ui);
             ui.separator();
-            egui::Slider::new(&mut self.to, 0.0..=1.0).text("Position").ui(ui);
+            egui::Slider::new(&mut self.to, 0.0..=1.0)
+                .text("Position")
+                .ui(ui);
         });
         ui.separator();
 
         if (!self.wait_until_done || animation.is_finished()) && self.to != *animation.target() {
-            animation.anchor_source().with_target(self.to).start_with_speed(self.speed);
+            animation
+                .anchor_source()
+                .with_target(self.to)
+                .start_with_speed(self.speed);
         }
 
         let width = ui.min_size().x;
 
         // Draw stack
         let (rect, _) = ui.allocate_exact_size(Vec2::new(width, 50.0), Sense::hover());
-        ui.painter().rect_filled(rect, 0.0, ui.visuals().faint_bg_color);
-        let object = Rect::from_min_size(
-            rect.min,
-            Vec2::splat(rect.height()),
-        );
+        ui.painter()
+            .rect_filled(rect, 0.0, ui.visuals().faint_bg_color);
+        let object = Rect::from_min_size(rect.min, Vec2::splat(rect.height()));
 
         let move_x = rect.width() - object.width();
         ui.painter().rect_filled(
@@ -72,7 +75,9 @@ impl super::View for Animations {
         ui.painter().rect_filled(
             object.translate(Vec2::new(move_x * *animation.source(), 0.0)),
             0.0,
-            ui.visuals().code_bg_color.linear_multiply(1.0 - animation.get_pos() as f32),
+            ui.visuals()
+                .code_bg_color
+                .linear_multiply(1.0 - animation.get_pos() as f32),
         );
 
         ui.painter().rect_filled(

@@ -1,8 +1,8 @@
 use crate::{Color32, Pos2, Rect, Rounding, Stroke, Vec2};
+use epaint::Rgba;
+use hsluv::{lch_to_rgb, rgb_to_lch};
 use std::any::Any;
 use std::ops::Range;
-use hsluv::{lch_to_rgb, rgb_to_lch};
-use epaint::Rgba;
 
 pub trait Lerp: PartialEq + Clone + Any {
     fn lerp(&self, to: &Self, t: f32) -> Self;
@@ -72,17 +72,18 @@ impl Lerp for Rgba {
         let lch = rgb_to_lch((v0[0] as f64, v0[1] as f64, v0[2] as f64));
         let to_lch = rgb_to_lch((v1[0] as f64, v1[1] as f64, v1[2] as f64));
 
+        let out = lch_to_rgb((
+            lch.0.lerp(&to_lch.0, t),
+            lch.1.lerp(&to_lch.1, t),
+            lch.2.lerp(&to_lch.2, t),
+        ));
 
-        let out = lch_to_rgb(
-            (
-                lch.0.lerp(&to_lch.0, t),
-                lch.1.lerp(&to_lch.1, t),
-                lch.2.lerp(&to_lch.2, t),
-            )
-        );
-
-        Rgba::from_rgba_unmultiplied(out.0 as f32, out.1 as f32, out.2 as f32,
-                                     self.a().lerp(&to.a(), t))
+        Rgba::from_rgba_unmultiplied(
+            out.0 as f32,
+            out.1 as f32,
+            out.2 as f32,
+            self.a().lerp(&to.a(), t),
+        )
     }
 }
 
