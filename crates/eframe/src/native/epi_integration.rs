@@ -324,10 +324,8 @@ impl EpiIntegration {
             if app_output.close {
                 self.close = app.on_close_event();
             }
-            let visible = app_output.visible;
+            self.frame.output.visible = app_output.visible; // this is handled by post_present
             handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
-            // TODO(logandark): find a nicer way to do this
-            self.frame.output.visible = visible;
         }
 
         let frame_time = (std::time::Instant::now() - frame_start).as_secs_f64() as f32;
