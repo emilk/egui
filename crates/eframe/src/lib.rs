@@ -7,7 +7,7 @@
 //! To learn how to set up `eframe` for web and native, go to <https://github.com/emilk/eframe_template/> and follow the instructions there!
 //!
 //! In short, you implement [`App`] (especially [`App::update`]) and then
-//! call [`crate::run_native`] from your `main.rs`, and/or call `eframe::start_web` from your `mod`.
+//! call [`crate::run_native`] from your `main.rs`, and/or call `eframe::start_web` from your `lib.rs`.
 //!
 //! ## Usage, native:
 //! ``` no_run
