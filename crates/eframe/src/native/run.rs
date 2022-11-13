@@ -332,7 +332,7 @@ mod glow_integration {
 
             let window_builder = epi_integration::window_builder(native_options, &window_settings)
                 .with_title(title)
-                .with_visible(false);
+                .with_visible(false); // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
 
             let gl_window = unsafe {
                 glutin::ContextBuilder::new()
