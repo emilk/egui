@@ -124,16 +124,16 @@ impl Area {
         self
     }
 
-    /// Constrains this area to the screen bounds.
-    pub fn constrain(mut self, constrain: bool) -> Self {
-        self.constrain = constrain;
-        self
-    }
-
     /// Positions the window and prevents it from being moved
     pub fn fixed_pos(mut self, fixed_pos: impl Into<Pos2>) -> Self {
         self.new_pos = Some(fixed_pos.into());
         self.movable = false;
+        self
+    }
+
+    /// Constrains this area to the screen bounds.
+    pub fn constrain(mut self, constrain: bool) -> Self {
+        self.constrain = constrain;
         self
     }
 

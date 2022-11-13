@@ -128,6 +128,12 @@ impl<'open> Window<'open> {
         self
     }
 
+    /// Constrains this window to the screen bounds.
+    pub fn constrain(mut self, constrain: bool) -> Self {
+        self.area = self.area.constrain(constrain);
+        self
+    }
+
     /// Where the "root" of the window is.
     ///
     /// For instance, if you set this to [`Align2::RIGHT_TOP`]
