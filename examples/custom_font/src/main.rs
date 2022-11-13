@@ -19,7 +19,9 @@ fn setup_custom_fonts(ctx: &egui::Context) {
     // .ttf and .otf files supported.
     fonts.font_data.insert(
         "my_font".to_owned(),
-        egui::FontData::from_static(include_bytes!("../../../epaint/fonts/Hack-Regular.ttf")),
+        egui::FontData::from_static(include_bytes!(
+            "../../../crates/epaint/fonts/Hack-Regular.ttf"
+        )),
     );
 
     // Put my font first (highest priority) for proportional text:

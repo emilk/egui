@@ -33,6 +33,8 @@
             overflow: hidden;
             margin: 0 !important;
             padding: 0 !important;
+            height: 100%;
+            width: 100%;
         }
 
         /* Position canvas in center-top: */
@@ -131,7 +133,11 @@
             console.debug("wasm loaded. starting app…");
 
             // This call installs a bunch of callbacks and then returns:
-            wasm_bindgen.start("the_canvas_id");
+            const handle = wasm_bindgen.start("the_canvas_id");
+
+            // call `handle.stop_web()` to stop
+            // uncomment to quick result
+            // setTimeout(() => {handle.stop_web(); handle.free())}, 2000)
 
             console.debug("app started.");
             document.getElementById("center_text").remove();

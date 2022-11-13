@@ -1,33 +1,19 @@
 [workspace]
 resolver = "2"
 members = [
-    "egui_demo_app",
-    "egui_demo_lib",
-    "egui_extras",
-    "egui_glium",
-    "egui_glow",
-    "egui-wgpu",
-    "egui-winit",
-    "egui",
-    "emath",
-    "epaint",
+    "crates/egui_demo_app",
+    "crates/egui_demo_lib",
+    "crates/egui_extras",
+    "crates/egui_glium",
+    "crates/egui_glow",
+    "crates/egui-wgpu",
+    "crates/egui-winit",
+    "crates/egui",
+    "crates/emath",
+    "crates/epaint",
 
-    "examples/confirm_exit",
-    "examples/custom_3d_glow",
-    "examples/custom_3d_three-d",
-    "examples/custom_font",
-    "examples/custom_font_style",
-    "examples/custom_window_frame",
-    "examples/download_image",
-    "examples/file_dialog",
-    "examples/hello_world",
-    "examples/puffin_profiler",
-    "examples/retained_image",
-    "examples/svg",
+    "examples/*",
 ]
-
-[profile.dev]
-split-debuginfo = "unpacked" # faster debug builds on mac
 
 [profile.release]
 # lto = true # VERY slightly smaller wasm
@@ -37,3 +23,12 @@ opt-level = 2 # fast and small wasm, basically same as `opt-level = 's'`
 # opt-level = 3 # unecessarily large wasm for no performance gain
 
 # debug = true # include debug symbols, useful when profiling wasm
+
+
+[profile.dev]
+split-debuginfo = "unpacked" # faster debug builds on mac
+# opt-level = 1                # Make debug builds run faster
+
+# Optimize all dependencies even in debug builds (does not affect workspace packages):
+[profile.dev.package."*"]
+opt-level = 2

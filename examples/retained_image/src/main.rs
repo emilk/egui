@@ -8,6 +8,7 @@ fn main() {
         initial_window_size: Some(egui::vec2(500.0, 900.0)),
         ..Default::default()
     };
+
     eframe::run_native(
         "Show an image with eframe/egui",
         options,
@@ -17,6 +18,7 @@ fn main() {
 
 struct MyApp {
     image: RetainedImage,
+    tint: egui::Color32,
 }
 
 impl Default for MyApp {
@@ -27,6 +29,7 @@ impl Default for MyApp {
                 include_bytes!("rust-logo-256x256.png"),
             )
             .unwrap(),
+            tint: egui::Color32::from_rgb(255, 0, 255),
         }
     }
 }
@@ -37,11 +40,21 @@ impl eframe::App for MyApp {
             ui.heading("This is an image:");
             self.image.show(ui);
 
-            ui.heading("This is a rotated image:");
+            ui.heading("This is a rotated image with a tint:");
             ui.add(
                 egui::Image::new(self.image.texture_id(ctx), self.image.size_vec2())
-                    .rotate(45.0_f32.to_radians(), egui::Vec2::splat(0.5)),
+                    .rotate(45.0_f32.to_radians(), egui::Vec2::splat(0.5))
+                    .tint(self.tint),
             );
+
+            ui.horizontal(|ui| {
+                ui.label("Tint:");
+                egui::color_picker::color_edit_button_srgba(
+                    ui,
+                    &mut self.tint,
+                    egui::color_picker::Alpha::BlendOrAdditive,
+                );
+            });
 
             ui.heading("This is an image you can click:");
             ui.add(egui::ImageButton::new(

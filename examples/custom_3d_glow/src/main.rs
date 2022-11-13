@@ -76,13 +76,9 @@ impl MyApp {
 
         let callback = egui::PaintCallback {
             rect,
-            callback: std::sync::Arc::new(move |_info, render_ctx| {
-                if let Some(painter) = render_ctx.downcast_ref::<egui_glow::Painter>() {
-                    rotating_triangle.lock().paint(painter.gl(), angle);
-                } else {
-                    eprintln!("Can't do custom painting because we are not using a glow context");
-                }
-            }),
+            callback: std::sync::Arc::new(egui_glow::CallbackFn::new(move |_info, painter| {
+                rotating_triangle.lock().paint(painter.gl(), angle);
+            })),
         };
         ui.painter().add(callback);
     }
@@ -100,7 +96,7 @@ impl RotatingTriangle {
         let shader_version = if cfg!(target_arch = "wasm32") {
             "#version 300 es"
         } else {
-            "#version 410"
+            "#version 330"
         };
 
         unsafe {
