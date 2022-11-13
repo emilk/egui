@@ -323,6 +323,7 @@ mod ui;
 pub mod util;
 pub mod widget_text;
 pub mod widgets;
+pub mod animation;
 
 pub use epaint;
 pub use epaint::emath;

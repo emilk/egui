@@ -29,6 +29,7 @@ pub mod toggle_switch;
 pub mod widget_gallery;
 pub mod window_options;
 pub mod window_with_panels;
+pub mod animations;
 
 pub use {
     about::About, demo_app_windows::DemoWindows, misc_demo_window::MiscDemoWindow,

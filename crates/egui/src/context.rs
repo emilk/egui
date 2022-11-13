@@ -35,6 +35,7 @@ struct ContextImpl {
     fonts: Option<Fonts>,
     memory: Memory,
     animation_manager: AnimationManager,
+    animation: animation::AnimationManager,
     tex_manager: WrappedTextureManager,
 
     os: OperatingSystem,
@@ -92,7 +93,7 @@ impl ContextImpl {
             .begin_frame(new_raw_input, self.requested_repaint_last_frame);
 
         self.frame_state.begin_frame(&self.input);
-
+        self.animation.begin_frame(self.input.time, self.memory.options.style.animation_time);
         self.update_fonts_mut();
 
         // Ensure we register the background area so panels and background ui can catch clicks:
@@ -618,6 +619,11 @@ impl Context {
         RwLockWriteGuard::map(self.write(), |c| &mut c.input)
     }
 
+    #[inline]
+    pub fn animation(&self) -> RwLockReadGuard<'_, animation::AnimationManager> {
+        RwLockReadGuard::map(self.read(), |c| &c.animation)
+    }
+
     /// Not valid until first call to [`Context::run()`].
     /// That's because since we don't know the proper `pixels_per_point` until then.
     #[inline]
@@ -961,7 +967,7 @@ impl Context {
     /// Call at the end of each frame.
     #[must_use]
     pub fn end_frame(&self) -> FullOutput {
-        if self.input().wants_repaint() {
+        if self.input().wants_repaint() || self.animation().wants_repaint() {
             self.request_repaint();
         }
 

@@ -62,6 +62,7 @@ ahash = { version = "0.8.1", default-features = false, features = [
     "std",
 ] }
 nohash-hasher = "0.2"
+rust-hsluv = "0.1.4"
 
 #! ### Optional dependencies
 ## Enable this when generating docs.
