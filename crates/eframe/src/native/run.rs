@@ -22,7 +22,17 @@ pub use epi::NativeOptions;
 #[derive(Debug)]
 enum EventResult {
     Wait,
-    RepaintAsap,
+    /// Causes a synchronous repaint inside the event handler. This should only
+    /// be used in special situations if the window must be repainted while
+    /// handling a specific event. This occurs on Windows when handling resizes.
+    ///
+    /// `RepaintNow` creates a new frame synchronously, and should therefore
+    /// only be used for extremely urgent repaints.
+    RepaintNow,
+    /// Queues a repaint for once the event loop handles its next redraw. Exists
+    /// so that multiple input events can be handled in one frame. Does not
+    /// cause any delay like `RepaintNow`.
+    RepaintNext,
     RepaintAt(Instant),
     Exit,
 }
@@ -103,7 +113,7 @@ fn run_and_return(event_loop: &mut EventLoop<RequestRepaintEvent>, mut winit_app
             winit::event::Event::UserEvent(RequestRepaintEvent)
             | winit::event::Event::NewEvents(winit::event::StartCause::ResumeTimeReached {
                 ..
-            }) => EventResult::RepaintAsap,
+            }) => EventResult::RepaintNext,
 
             winit::event::Event::WindowEvent { window_id, .. }
                 if winit_app.window().is_none()
@@ -119,7 +129,12 @@ fn run_and_return(event_loop: &mut EventLoop<RequestRepaintEvent>, mut winit_app
 
         match event_result {
             EventResult::Wait => {}
-            EventResult::RepaintAsap => {
+            EventResult::RepaintNow => {
+                tracing::trace!("Repaint caused by winit::Event: {:?}", event);
+                next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
+                winit_app.paint();
+            }
+            EventResult::RepaintNext => {
                 tracing::trace!("Repaint caused by winit::Event: {:?}", event);
                 next_repaint_time = Instant::now();
             }
@@ -188,14 +203,18 @@ fn run_and_exit(
             winit::event::Event::UserEvent(RequestRepaintEvent)
             | winit::event::Event::NewEvents(winit::event::StartCause::ResumeTimeReached {
                 ..
-            }) => EventResult::RepaintAsap,
+            }) => EventResult::RepaintNext,
 
             event => winit_app.on_event(event_loop, &event),
         };
 
         match event_result {
             EventResult::Wait => {}
-            EventResult::RepaintAsap => {
+            EventResult::RepaintNow => {
+                next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
+                winit_app.paint();
+            }
+            EventResult::RepaintNext => {
                 next_repaint_time = Instant::now();
             }
             EventResult::RepaintAt(repaint_time) => {
@@ -496,7 +515,7 @@ mod glow_integration {
                 let control_flow = if integration.should_close() {
                     EventResult::Exit
                 } else if repaint_after.is_zero() {
-                    EventResult::RepaintAsap
+                    EventResult::RepaintNext
                 } else if let Some(repaint_after_instant) =
                     std::time::Instant::now().checked_add(repaint_after)
                 {
@@ -538,7 +557,7 @@ mod glow_integration {
                     if self.running.is_none() {
                         self.init_run_state(event_loop);
                     }
-                    EventResult::RepaintAsap
+                    EventResult::RepaintNow
                 }
                 winit::event::Event::Suspended => {
                     #[cfg(target_os = "android")]
@@ -560,11 +579,28 @@ mod glow_integration {
 
                 winit::event::Event::WindowEvent { event, .. } => {
                     if let Some(running) = &mut self.running {
+                        // On Windows, if a window is resized by the user, it should repaint synchronously, inside the
+                        // event handler.
+                        //
+                        // If this is not done, the compositor will assume that the window does not want to redraw,
+                        // and continue ahead.
+                        //
+                        // In eframe's case, that causes the window to rapidly flicker, as it struggles to deliver
+                        // new frames to the compositor in time.
+                        //
+                        // The flickering is technically glutin or glow's fault, but we should be responding properly
+                        // to resizes anyway, as doing so avoids dropping frames.
+                        //
+                        // See: https://github.com/emilk/egui/issues/903
+                        let mut repaint_asap = false;
+
                         match &event {
                             winit::event::WindowEvent::Focused(new_focused) => {
                                 self.is_focused = *new_focused;
                             }
                             winit::event::WindowEvent::Resized(physical_size) => {
+                                repaint_asap = true;
+
                                 // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
                                 // See: https://github.com/rust-windowing/winit/issues/208
                                 // This solves an issue where the app would panic when minimizing on Windows.
@@ -576,6 +612,7 @@ mod glow_integration {
                                 new_inner_size,
                                 ..
                             } => {
+                                repaint_asap = true;
                                 running.gl_window.resize(**new_inner_size);
                             }
                             winit::event::WindowEvent::CloseRequested
@@ -592,7 +629,11 @@ mod glow_integration {
                         if running.integration.should_close() {
                             EventResult::Exit
                         } else if event_response.repaint {
-                            EventResult::RepaintAsap
+                            if repaint_asap {
+                                EventResult::RepaintNow
+                            } else {
+                                EventResult::RepaintNext
+                            }
                         } else {
                             EventResult::Wait
                         }
@@ -854,7 +895,7 @@ mod wgpu_integration {
                 let control_flow = if integration.should_close() {
                     EventResult::Exit
                 } else if repaint_after.is_zero() {
-                    EventResult::RepaintAsap
+                    EventResult::RepaintNext
                 } else if let Some(repaint_after_instant) =
                     std::time::Instant::now().checked_add(repaint_after)
                 {
@@ -913,7 +954,7 @@ mod wgpu_integration {
                         );
                         self.init_run_state(event_loop, storage, window);
                     }
-                    EventResult::RepaintAsap
+                    EventResult::RepaintNow
                 }
                 winit::event::Event::Suspended => {
                     #[cfg(target_os = "android")]
@@ -923,11 +964,28 @@ mod wgpu_integration {
 
                 winit::event::Event::WindowEvent { event, .. } => {
                     if let Some(running) = &mut self.running {
+                        // On Windows, if a window is resized by the user, it should repaint synchronously, inside the
+                        // event handler.
+                        //
+                        // If this is not done, the compositor will assume that the window does not want to redraw,
+                        // and continue ahead.
+                        //
+                        // In eframe's case, that causes the window to rapidly flicker, as it struggles to deliver
+                        // new frames to the compositor in time.
+                        //
+                        // The flickering is technically glutin or glow's fault, but we should be responding properly
+                        // to resizes anyway, as doing so avoids dropping frames.
+                        //
+                        // See: https://github.com/emilk/egui/issues/903
+                        let mut repaint_asap = false;
+
                         match &event {
                             winit::event::WindowEvent::Focused(new_focused) => {
                                 self.is_focused = *new_focused;
                             }
                             winit::event::WindowEvent::Resized(physical_size) => {
+                                repaint_asap = true;
+
                                 // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
                                 // See: https://github.com/rust-windowing/winit/issues/208
                                 // This solves an issue where the app would panic when minimizing on Windows.
@@ -942,6 +1000,7 @@ mod wgpu_integration {
                                 new_inner_size,
                                 ..
                             } => {
+                                repaint_asap = true;
                                 running
                                     .painter
                                     .on_window_resized(new_inner_size.width, new_inner_size.height);
@@ -959,7 +1018,11 @@ mod wgpu_integration {
                         if running.integration.should_close() {
                             EventResult::Exit
                         } else if event_response.repaint {
-                            EventResult::RepaintAsap
+                            if repaint_asap {
+                                EventResult::RepaintNow
+                            } else {
+                                EventResult::RepaintNext
+                            }
                         } else {
                             EventResult::Wait
                         }
