@@ -146,7 +146,7 @@ pub fn handle_app_output(
         fullscreen,
         drag_window,
         window_pos,
-        visible: _,
+        visible: _, // handled in post_present
         always_on_top,
     } = app_output;
 
