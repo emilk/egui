@@ -345,7 +345,7 @@ impl EpiIntegration {
 
     pub fn post_present(&mut self, window: &winit::window::Window) {
         if let Some(visible) = self.frame.output.visible.take() {
-           window.set_visible(visible);
+            window.set_visible(visible);
         }
     }
 
