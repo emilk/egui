@@ -695,7 +695,7 @@ mod wgpu_integration {
             let window_settings = epi_integration::load_window_settings(storage);
             epi_integration::window_builder(native_options, &window_settings)
                 .with_title(title)
-                .with_visible(false)
+                .with_visible(false) // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
                 .build(event_loop)
                 .unwrap()
         }
