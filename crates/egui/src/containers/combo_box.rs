@@ -1,5 +1,6 @@
-use crate::{style::WidgetVisuals, *};
 use epaint::Shape;
+
+use crate::{style::WidgetVisuals, *};
 
 /// Indicate wether or not a popup will be shown above or below the box.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -225,8 +226,17 @@ fn combo_box_dyn<'c, R>(
 
     let is_popup_open = ui.memory().is_popup_open(popup_id);
 
+    let popup_height = ui
+        .ctx()
+        .memory()
+        .areas
+        .get(popup_id)
+        .map_or(100.0, |state| state.size.y);
+
     let above_or_below =
-        if ui.next_widget_position().y < ui.ctx().input().screen_rect().bottom() - 32.0 {
+        if ui.next_widget_position().y + ui.spacing().interact_size.y + popup_height
+            < ui.ctx().input().screen_rect().bottom()
+        {
             AboveOrBelow::Below
         } else {
             AboveOrBelow::Above
@@ -281,12 +291,18 @@ fn combo_box_dyn<'c, R>(
     if button_response.clicked() {
         ui.memory().toggle_popup(popup_id);
     }
-    let inner = crate::popup::popup_below_widget(ui, popup_id, &button_response, |ui| {
-        ScrollArea::vertical()
-            .max_height(ui.spacing().combo_height)
-            .show(ui, menu_contents)
-            .inner
-    });
+    let inner = crate::popup::popup_above_or_below_widget(
+        ui,
+        popup_id,
+        &button_response,
+        above_or_below,
+        |ui| {
+            ScrollArea::vertical()
+                .max_height(ui.spacing().combo_height)
+                .show(ui, menu_contents)
+                .inner
+        },
+    );
 
     InnerResponse {
         inner,
