@@ -41,6 +41,7 @@ pub fn read_window_info(window: &winit::window::Window, pixels_per_point: f32) -
             y: size.height,
         },
         monitor_size,
+        maximized: window.is_maximized(),
     }
 }
 
@@ -194,7 +195,7 @@ pub fn handle_app_output(
     }
 
     if let Some(minimized) = minimized {
-        window.set_minimized(minimized)
+        window.set_minimized(minimized);
     }
 
     if let Some(maximized) = maximized {

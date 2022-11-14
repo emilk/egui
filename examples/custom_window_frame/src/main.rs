@@ -112,7 +112,7 @@ fn custom_window_frame(
                     rect.left_top() + vec2((height - 4.0) * 1.0, 0.0),
                     Vec2::splat(height),
                 ),
-                Button::new(RichText::new("--").size(height - 4.0)).frame(false),
+                Button::new(RichText::new("🗕").size(height - 4.0)).frame(false),
             );
             if minimized_response.clicked() {
                 frame.set_minimized(true);
@@ -123,7 +123,7 @@ fn custom_window_frame(
                     rect.left_top() + vec2((height - 4.0) * 2.0, 0.0),
                     Vec2::splat(height),
                 ),
-                Button::new(RichText::new("O").size(height - 4.0)).frame(false),
+                Button::new(RichText::new("🗖").size(height - 4.0)).frame(false),
             );
             if maximized_response.clicked() {
                 app.maximized = !app.maximized;
