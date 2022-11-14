@@ -332,7 +332,7 @@ impl Context {
 
         // Make it easier to click things:
         let interact_rect = rect.expand2(
-            (0.1 * item_spacing - Vec2::splat(gap))
+            (0.5 * item_spacing - Vec2::splat(gap))
                 .at_least(Vec2::splat(0.0))
                 .at_most(Vec2::splat(5.0)),
         );
