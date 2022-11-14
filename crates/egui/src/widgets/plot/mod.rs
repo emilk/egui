@@ -6,6 +6,7 @@ use crate::*;
 use epaint::util::FloatOrd;
 use epaint::Hsva;
 
+pub use axis::{AxisPlacement, Axis, AxisConfig};
 use axis::AxisWidget;
 use items::PlotItem;
 use legend::LegendWidget;
@@ -17,11 +18,7 @@ pub use items::{
 pub use legend::{Corner, Legend};
 pub use transform::{PlotBounds, PlotTransform};
 
-use self::{
-    axis::Axis,
-    axis::AxisConfig,
-    items::{horizontal_line, rulers_color, vertical_line},
-};
+use items::{horizontal_line, rulers_color, vertical_line};
 
 pub mod axis;
 mod items;
@@ -674,7 +671,7 @@ impl Plot {
             let mut d = 0.0;
             for cfg in &axis_config {
                 match cfg.placement {
-                    axis::Placement::Default => match cfg.axis {
+                    AxisPlacement::Default => match cfg.axis {
                         Axis::X => {
                             a += cfg.thickness();
                         }
@@ -682,7 +679,7 @@ impl Plot {
                             b += cfg.thickness();
                         }
                     },
-                    axis::Placement::Opposite => match cfg.axis {
+                    AxisPlacement::Opposite => match cfg.axis {
                         Axis::X => {
                             c += cfg.thickness();
                         }
@@ -722,7 +719,7 @@ impl Plot {
                     y: cfg.thickness(),
                 };
                 let rect: Rect = match cfg.placement {
-                    axis::Placement::Default => match cfg.axis {
+                    AxisPlacement::Default => match cfg.axis {
                         Axis::X => {
                             let off = widget_cnt.bottom as f32;
                             widget_cnt.bottom += 1;
@@ -740,7 +737,7 @@ impl Plot {
                             }
                         }
                     },
-                    axis::Placement::Opposite => match cfg.axis {
+                    AxisPlacement::Opposite => match cfg.axis {
                         Axis::X => {
                             let off = widget_cnt.top as f32;
                             widget_cnt.top += 1;

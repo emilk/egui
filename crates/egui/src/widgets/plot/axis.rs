@@ -12,7 +12,7 @@ use crate::{Response, Sense, TextStyle, Ui, Widget, WidgetText};
 
 use super::{transform::PlotTransform, GridMark, MIN_LINE_SPACING_IN_POINTS};
 
-pub(super) type AxisFormatterFn = fn(f64, &RangeInclusive<f64>) -> String;
+pub(super) type AxisFormatterFn = fn(f64, usize, &RangeInclusive<f64>) -> String;
 
 /// Axis specifier.
 ///
@@ -28,7 +28,7 @@ pub enum Axis {
 /// `Default` means bottom for x, left for y.
 /// `Opposite` means top for x, right for y.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Placement {
+pub enum AxisPlacement {
     Default,
     Opposite,
 }
@@ -38,9 +38,10 @@ pub enum Placement {
 /// Used to configure axis label and ticks.
 #[derive(Clone)]
 pub struct AxisConfig {
-    pub(super) placement: Placement,
+    pub(super) placement: AxisPlacement,
     label: String,
     pub(super) formatter: AxisFormatterFn,
+    digits: usize,
     pub(super) axis: Axis,
 }
 
@@ -53,6 +54,8 @@ impl Debug for AxisConfig {
         )
     }
 }
+// TODO: this just a guess. It might cease to work if a user changes font size.
+
 const LINE_HEIGHT: f32 = 12.0;
 
 impl AxisConfig {
@@ -63,9 +66,10 @@ impl AxisConfig {
     /// `formatter` is default float to string formatter
     pub const fn default(axis: Axis) -> Self {
         Self {
-            placement: Placement::Default,
+            placement: AxisPlacement::Default,
             label: String::new(),
             formatter: Self::default_formatter,
+            digits: 5,
             axis,
         }
     }
@@ -79,36 +83,55 @@ impl AxisConfig {
     /// Specify custom formatter for ticks.
     ///
     /// The first parameter of `formatter` is the raw tick value as `f64`.
+    /// The second paramter is the maximum number of characters that fit into y-labels.
     /// The second paramter of `formatter` is the currently shown range on this axis.
-    pub fn tick_formatter(mut self, formatter: fn(f64, &RangeInclusive<f64>) -> String) -> Self {
+    pub fn tick_formatter(
+        mut self,
+        formatter: fn(f64, usize, &RangeInclusive<f64>) -> String,
+    ) -> Self {
         self.formatter = formatter;
         self
     }
 
     /// Specify the placement for this axis.
-    pub fn placement(mut self, placement: Placement) -> Self {
+    pub fn placement(mut self, placement: AxisPlacement) -> Self {
         self.placement = placement;
         self
     }
 
-    fn default_formatter(tick: f64, _range: &RangeInclusive<f64>) -> String {
-        const MAX_DECIMALS: usize = 5;
-        if tick.abs() > 1e6 {
-            let tick_rounded = round_to_decimals(tick, MAX_DECIMALS);
-            format!("{:+e}", tick_rounded)
-        } else if tick.abs() < 1e-6 && tick != 0.0 {
-            format!("{:+e}", tick)
-        } else {
-            let tick_rounded = round_to_decimals(tick, MAX_DECIMALS);
-            format!("{}", tick_rounded)
+    fn default_formatter(tick: f64, max_digits: usize, _range: &RangeInclusive<f64>) -> String {
+        if tick.abs() > 10.0_f64.powf(max_digits as f64) {
+            let tick_rounded = tick as isize;
+            return format!("{:+e}", tick_rounded);
         }
+        let tick_rounded = round_to_decimals(tick, max_digits);
+        if tick.abs() < 10.0_f64.powf(-(max_digits as f64)) && tick != 0.0 {
+            return format!("{:+e}", tick_rounded);
+        }
+        format!("{}", tick_rounded)
+    }
+
+    pub fn max_digits(mut self, digits: usize) -> Self {
+        self.digits = digits;
+        self
     }
 
     pub(super) fn thickness(&self) -> f32 {
-        if self.label.is_empty() {
-            LINE_HEIGHT
-        } else {
-            2.0 * LINE_HEIGHT
+        match self.axis {
+            Axis::X => {
+                if self.label.is_empty() {
+                    1.0 * LINE_HEIGHT
+                } else {
+                    3.0 * LINE_HEIGHT
+                }
+            }
+            Axis::Y => {
+                if self.label.is_empty() {
+                    (self.digits as f32) * LINE_HEIGHT
+                } else {
+                    (self.digits as f32 + 1.0) * LINE_HEIGHT
+                }
+            }
         }
     }
 }
@@ -152,12 +175,12 @@ impl Widget for AxisWidget {
             };
             // select text_pos and angle depending on placement and orientation of widget
             let text_pos = match self.config.placement {
-                Placement::Default => match self.config.axis {
+                AxisPlacement::Default => match self.config.axis {
                     Axis::X => {
                         let pos = response.rect.center_bottom();
                         Pos2 {
                             x: pos.x - galley.size().x / 2.0,
-                            y: pos.y - galley.size().y,
+                            y: pos.y - galley.size().y * 1.25,
                         }
                     }
                     Axis::Y => {
@@ -168,18 +191,18 @@ impl Widget for AxisWidget {
                         }
                     }
                 },
-                Placement::Opposite => match self.config.axis {
+                AxisPlacement::Opposite => match self.config.axis {
                     Axis::X => {
                         let pos = response.rect.center_top();
                         Pos2 {
                             x: pos.x - galley.size().x / 2.0,
-                            y: pos.y + galley.size().y / 2.0,
+                            y: pos.y + galley.size().y * 0.25,
                         }
                     }
                     Axis::Y => {
                         let pos = response.rect.right_center();
                         Pos2 {
-                            x: pos.x - galley.size().y,
+                            x: pos.x - galley.size().y * 1.5,
                             y: pos.y + galley.size().x / 2.0,
                         }
                     }
@@ -202,7 +225,7 @@ impl Widget for AxisWidget {
             };
 
             for step in self.steps {
-                let text = (self.config.formatter)(step.value, &self.range);
+                let text = (self.config.formatter)(step.value, self.config.digits, &self.range);
                 if !text.is_empty() {
                     let spacing_in_points = (transform.dpos_dvalue()[self.config.axis as usize]
                         * step.step_size)
@@ -221,17 +244,25 @@ impl Widget for AxisWidget {
                             .layout_no_wrap(text, font_id.clone(), line_color);
                         let text_pos = match self.config.axis {
                             Axis::X => {
+                                let y = match self.config.placement {
+                                    AxisPlacement::Default => self.rect.min.y,
+                                    AxisPlacement::Opposite => self.rect.max.y - galley.size().y,
+                                };
                                 let projected_point = super::PlotPoint::new(step.value, 0.0);
                                 Pos2 {
                                     x: transform.position_from_point(&projected_point).x
                                         - galley.size().x / 2.0,
-                                    y: self.rect.min.y,
+                                    y,
                                 }
                             }
                             Axis::Y => {
+                                let x = match self.config.placement {
+                                    AxisPlacement::Default => self.rect.max.x - galley.size().x,
+                                    AxisPlacement::Opposite => self.rect.min.x,
+                                };
                                 let projected_point = super::PlotPoint::new(0.0, step.value);
                                 Pos2 {
-                                    x: self.rect.max.x - galley.size().x,
+                                    x,
                                     y: transform.position_from_point(&projected_point).y
                                         - galley.size().y / 2.0,
                                 }
