@@ -117,7 +117,7 @@ pub(crate) fn submenu_button<R>(
 /// wrapper for the contents of every menu.
 pub(crate) fn menu_ui<'c, R>(
     ctx: &Context,
-    menu_id: impl std::hash::Hash,
+    menu_id: impl Into<Id>,
     menu_state_arc: &Arc<RwLock<MenuState>>,
     add_contents: impl FnOnce(&mut Ui) -> R + 'c,
 ) -> InnerResponse<R> {
