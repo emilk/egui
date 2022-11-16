@@ -96,7 +96,7 @@ impl FrameHistory {
             let cpu_usage = to_screen.inverse().transform_pos(pointer_pos).y;
             let text = format!("{:.1} ms", 1e3 * cpu_usage);
             shapes.push(Shape::text(
-                &*ui.fonts(),
+                &ui.fonts(),
                 pos2(rect.left(), y),
                 egui::Align2::LEFT_BOTTOM,
                 text,

@@ -490,7 +490,7 @@ impl<'t> TextEdit<'t> {
                     if response.hovered() && ui.input().pointer.any_pressed() {
                         ui.memory().request_focus(id);
                         if ui.input().modifiers.shift {
-                            if let Some(mut cursor_range) = state.cursor_range(&*galley) {
+                            if let Some(mut cursor_range) = state.cursor_range(&galley) {
                                 cursor_range.primary = cursor_at_pointer;
                                 state.set_cursor_range(Some(cursor_range));
                             } else {
@@ -502,7 +502,7 @@ impl<'t> TextEdit<'t> {
                     } else if ui.input().pointer.any_down() && response.is_pointer_button_down_on()
                     {
                         // drag to select text:
-                        if let Some(mut cursor_range) = state.cursor_range(&*galley) {
+                        if let Some(mut cursor_range) = state.cursor_range(&galley) {
                             cursor_range.primary = cursor_at_pointer;
                             state.set_cursor_range(Some(cursor_range));
                         }
@@ -516,7 +516,7 @@ impl<'t> TextEdit<'t> {
         }
 
         let mut cursor_range = None;
-        let prev_cursor_range = state.cursor_range(&*galley);
+        let prev_cursor_range = state.cursor_range(&galley);
         if ui.memory().has_focus(id) && interactive {
             ui.memory().lock_focus(id, lock_focus);
 
@@ -595,7 +595,7 @@ impl<'t> TextEdit<'t> {
             }
 
             if ui.memory().has_focus(id) {
-                if let Some(cursor_range) = state.cursor_range(&*galley) {
+                if let Some(cursor_range) = state.cursor_range(&galley) {
                     // We paint the cursor on top of the text, in case
                     // the text galley has backgrounds (as e.g. `code` snippets in markup do).
                     paint_cursor_selection(ui, &painter, text_draw_pos, &galley, &cursor_range);
@@ -703,7 +703,7 @@ fn events(
     password: bool,
     default_cursor_range: CursorRange,
 ) -> (bool, CursorRange) {
-    let mut cursor_range = state.cursor_range(&*galley).unwrap_or(default_cursor_range);
+    let mut cursor_range = state.cursor_range(galley).unwrap_or(default_cursor_range);
 
     // We feed state to the undoer both before and after handling input
     // so that the undoer creates automatic saves even when there are no events for a while.

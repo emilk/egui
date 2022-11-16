@@ -464,7 +464,7 @@ impl<'a> Widget for DragValue<'a> {
 
                     // Since we round the value being dragged, we need to store the full precision value in memory:
                     let stored_value = (drag_state.last_dragged_id == Some(response.id))
-                        .then(|| drag_state.last_dragged_value)
+                        .then_some(drag_state.last_dragged_value)
                         .flatten();
                     let stored_value = stored_value.unwrap_or(value);
                     let stored_value = stored_value + delta_value;
