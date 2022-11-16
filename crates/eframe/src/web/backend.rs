@@ -471,7 +471,6 @@ pub struct AppRunnerContainer {
     /// Set to `true` if there is a panic.
     /// Used to ignore callbacks after a panic.
     pub panicked: Arc<AtomicBool>,
-    pub events: Vec<EventToUnsubscribe>,
 }
 
 impl AppRunnerContainer {
@@ -511,7 +510,10 @@ impl AppRunnerContainer {
             closure,
         };
 
-        self.events.push(EventToUnsubscribe::TargetEvent(handle));
+        self.runner
+            .lock()
+            .events_to_unsubscribe
+            .push(EventToUnsubscribe::TargetEvent(handle));
 
         Ok(())
     }
@@ -542,7 +544,6 @@ fn start_runner(app_runner: AppRunner) -> Result<AppRunnerRef, JsValue> {
     let mut runner_container = AppRunnerContainer {
         runner: Arc::new(Mutex::new(app_runner)),
         panicked: Arc::new(AtomicBool::new(false)),
-        events: Vec::with_capacity(20),
     };
 
     super::events::install_canvas_events(&mut runner_container)?;
@@ -553,8 +554,6 @@ fn start_runner(app_runner: AppRunner) -> Result<AppRunnerRef, JsValue> {
 
     // Disable all event handlers on panic
     let previous_hook = std::panic::take_hook();
-
-    runner_container.runner.lock().events_to_unsubscribe = runner_container.events;
 
     std::panic::set_hook(Box::new(move |panic_info| {
         tracing::info!("egui disabled all event handlers due to panic");
