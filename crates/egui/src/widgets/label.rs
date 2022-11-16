@@ -110,7 +110,7 @@ impl Label {
             if let Some(first_section) = text_job.job.sections.first_mut() {
                 first_section.leading_space = first_row_indentation;
             }
-            let text_galley = text_job.into_galley(&*ui.fonts());
+            let text_galley = text_job.into_galley(&ui.fonts());
 
             let pos = pos2(ui.max_rect().left(), ui.cursor().top());
             assert!(
@@ -143,7 +143,7 @@ impl Label {
                 text_job.job.justify = ui.layout().horizontal_justify();
             };
 
-            let text_galley = text_job.into_galley(&*ui.fonts());
+            let text_galley = text_job.into_galley(&ui.fonts());
             let (rect, response) = ui.allocate_exact_size(text_galley.size(), self.sense);
             let pos = match text_galley.galley.job.halign {
                 Align::LEFT => rect.left_top(),

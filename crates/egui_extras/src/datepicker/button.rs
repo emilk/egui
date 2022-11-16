@@ -63,7 +63,7 @@ impl<'a> DatePickerButton<'a> {
 
 impl<'a> Widget for DatePickerButton<'a> {
     fn ui(self, ui: &mut Ui) -> egui::Response {
-        let id = ui.make_persistent_id(&self.id_source);
+        let id = ui.make_persistent_id(self.id_source);
         let mut button_state = ui
             .memory()
             .data
@@ -104,7 +104,7 @@ impl<'a> Widget for DatePickerButton<'a> {
             let InnerResponse {
                 inner: saved,
                 response: area_response,
-            } = Area::new(ui.make_persistent_id(&self.id_source))
+            } = Area::new(ui.make_persistent_id(self.id_source))
                 .order(Order::Foreground)
                 .fixed_pos(pos)
                 .show(ui.ctx(), |ui| {

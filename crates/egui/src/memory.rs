@@ -293,7 +293,7 @@ impl Focus {
                 self.id_next_frame = self.last_interested; // frame-delay so gained_focus works
                 self.pressed_shift_tab = false;
             }
-        } else if self.pressed_tab && self.id == None && !self.give_to_next {
+        } else if self.pressed_tab && self.id.is_none() && !self.give_to_next {
             // nothing has focus and the user pressed tab - give focus to the first widgets that wants it:
             self.id = Some(id);
             self.pressed_tab = false;

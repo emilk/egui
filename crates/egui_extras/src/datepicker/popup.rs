@@ -67,7 +67,7 @@ impl<'a> DatePickerPopup<'a> {
             )
             .sizes(
                 Size::exact((spacing + height) * (weeks.len() + 1) as f32),
-                if self.calendar { 1 } else { 0 },
+                self.calendar as usize,
             )
             .size(Size::exact(height))
             .vertical(|mut strip| {

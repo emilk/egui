@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
-rust-version = "1.62"
+rust-version = "1.65"
 publish = false
 
 [lib]
@@ -17,6 +17,6 @@ glow = "0.11"
 three-d = { version = "0.13", default-features = false }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies] # Web dependencies
-wasm-bindgen = "0.2" # Core bindings
-wasm-bindgen-futures = "0.4" # Core bindings
 console_error_panic_hook = "0.1" # For logging
+wasm-bindgen = "0.2"             # Core bindings
+wasm-bindgen-futures = "0.4"     # Core bindings

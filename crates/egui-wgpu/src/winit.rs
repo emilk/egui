@@ -46,7 +46,7 @@ impl Painter {
         Self {
             configuration,
             msaa_samples,
-            depth_format: (depth_bits > 0).then(|| wgpu::TextureFormat::Depth32Float),
+            depth_format: (depth_bits > 0).then_some(wgpu::TextureFormat::Depth32Float),
             depth_texture_view: None,
 
             instance,

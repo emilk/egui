@@ -4,7 +4,7 @@ version = "0.19.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
-rust-version = "1.62"
+rust-version = "1.65"
 publish = false
 default-run = "egui_demo_app"
 
@@ -19,18 +19,9 @@ crate-type = ["cdylib", "rlib"]
 default = ["glow", "persistence"]
 
 http = ["ehttp", "image", "poll-promise", "egui_extras/image"]
-persistence = [
-    "eframe/persistence",
-    "egui/persistence",
-    "serde",
-]
-screen_reader = ["eframe/screen_reader"] # experimental
-serde = [
-    "dep:serde",
-    "egui_demo_lib/serde",
-    "egui_extras/serde",
-    "egui/serde",
-]
+persistence = ["eframe/persistence", "egui/persistence", "serde"]
+screen_reader = ["eframe/screen_reader"]                                        # experimental
+serde = ["dep:serde", "egui_demo_lib/serde", "egui_extras/serde", "egui/serde"]
 syntax_highlighting = ["egui_demo_lib/syntax_highlighting"]
 
 glow = ["eframe/glow"]
@@ -40,8 +31,12 @@ wgpu = ["eframe/wgpu", "bytemuck"]
 [dependencies]
 chrono = { version = "0.4", features = ["js-sys", "wasmbind"] }
 eframe = { version = "0.19.0", path = "../eframe", default-features = false }
-egui = { version = "0.19.0", path = "../egui", features = ["extra_debug_asserts"] }
-egui_demo_lib = { version = "0.19.0", path = "../egui_demo_lib", features = ["chrono"] }
+egui = { version = "0.19.0", path = "../egui", features = [
+  "extra_debug_asserts",
+] }
+egui_demo_lib = { version = "0.19.0", path = "../egui_demo_lib", features = [
+  "chrono",
+] }
 tracing = "0.1"
 
 # Optional dependencies:

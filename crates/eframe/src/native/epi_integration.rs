@@ -165,7 +165,7 @@ pub fn handle_app_output(
     }
 
     if let Some(fullscreen) = fullscreen {
-        window.set_fullscreen(fullscreen.then(|| winit::window::Fullscreen::Borderless(None)));
+        window.set_fullscreen(fullscreen.then_some(winit::window::Fullscreen::Borderless(None)));
     }
 
     if let Some(window_title) = window_title {
@@ -328,7 +328,7 @@ impl EpiIntegration {
             handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
         }
 
-        let frame_time = (std::time::Instant::now() - frame_start).as_secs_f64() as f32;
+        let frame_time = frame_start.elapsed().as_secs_f64() as f32;
         self.frame.info.cpu_usage = Some(frame_time);
 
         full_output
