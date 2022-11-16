@@ -13,7 +13,9 @@ use super::epi_integration::{self, EpiIntegration};
 use crate::epi;
 
 #[derive(Debug)]
-pub struct RequestRepaintEvent;
+pub enum UserEvent {
+    RequestRepaint,
+}
 
 // ----------------------------------------------------------------------------
 
@@ -45,14 +47,14 @@ trait WinitApp {
     fn paint(&mut self) -> EventResult;
     fn on_event(
         &mut self,
-        event_loop: &EventLoopWindowTarget<RequestRepaintEvent>,
-        event: &winit::event::Event<'_, RequestRepaintEvent>,
+        event_loop: &EventLoopWindowTarget<UserEvent>,
+        event: &winit::event::Event<'_, UserEvent>,
     ) -> EventResult;
 }
 
 fn create_event_loop_builder(
     native_options: &mut epi::NativeOptions,
-) -> EventLoopBuilder<RequestRepaintEvent> {
+) -> EventLoopBuilder<UserEvent> {
     let mut event_loop_builder = winit::event_loop::EventLoopBuilder::with_user_event();
 
     if let Some(hook) = std::mem::take(&mut native_options.event_loop_builder) {
@@ -68,10 +70,10 @@ fn create_event_loop_builder(
 /// multiple times. This is just a limitation of winit.
 fn with_event_loop(
     mut native_options: epi::NativeOptions,
-    f: impl FnOnce(&mut EventLoop<RequestRepaintEvent>, NativeOptions),
+    f: impl FnOnce(&mut EventLoop<UserEvent>, NativeOptions),
 ) {
     use std::cell::RefCell;
-    thread_local!(static EVENT_LOOP: RefCell<Option<EventLoop<RequestRepaintEvent>>> = RefCell::new(None));
+    thread_local!(static EVENT_LOOP: RefCell<Option<EventLoop<UserEvent>>> = RefCell::new(None));
 
     EVENT_LOOP.with(|event_loop| {
         // Since we want to reference NativeOptions when creating the EventLoop we can't
@@ -84,7 +86,7 @@ fn with_event_loop(
     });
 }
 
-fn run_and_return(event_loop: &mut EventLoop<RequestRepaintEvent>, mut winit_app: impl WinitApp) {
+fn run_and_return(event_loop: &mut EventLoop<UserEvent>, mut winit_app: impl WinitApp) {
     use winit::platform::run_return::EventLoopExtRunReturn as _;
 
     tracing::debug!("event_loop.run_return");
@@ -110,7 +112,7 @@ fn run_and_return(event_loop: &mut EventLoop<RequestRepaintEvent>, mut winit_app
                 winit_app.paint()
             }
 
-            winit::event::Event::UserEvent(RequestRepaintEvent)
+            winit::event::Event::UserEvent(UserEvent::RequestRepaint)
             | winit::event::Event::NewEvents(winit::event::StartCause::ResumeTimeReached {
                 ..
             }) => EventResult::RepaintNext,
@@ -176,10 +178,7 @@ fn run_and_return(event_loop: &mut EventLoop<RequestRepaintEvent>, mut winit_app
     });
 }
 
-fn run_and_exit(
-    event_loop: EventLoop<RequestRepaintEvent>,
-    mut winit_app: impl WinitApp + 'static,
-) -> ! {
+fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp + 'static) -> ! {
     tracing::debug!("event_loop.run");
 
     let mut next_repaint_time = Instant::now();
@@ -200,7 +199,7 @@ fn run_and_exit(
                 winit_app.paint()
             }
 
-            winit::event::Event::UserEvent(RequestRepaintEvent)
+            winit::event::Event::UserEvent(UserEvent::RequestRepaint)
             | winit::event::Event::NewEvents(winit::event::StartCause::ResumeTimeReached {
                 ..
             }) => EventResult::RepaintNext,
@@ -299,7 +298,7 @@ mod glow_integration {
     }
 
     struct GlowWinitApp {
-        repaint_proxy: Arc<egui::mutex::Mutex<EventLoopProxy<RequestRepaintEvent>>>,
+        repaint_proxy: Arc<egui::mutex::Mutex<EventLoopProxy<UserEvent>>>,
         app_name: String,
         native_options: epi::NativeOptions,
         running: Option<GlowWinitRunning>,
@@ -313,7 +312,7 @@ mod glow_integration {
 
     impl GlowWinitApp {
         fn new(
-            event_loop: &EventLoop<RequestRepaintEvent>,
+            event_loop: &EventLoop<UserEvent>,
             app_name: &str,
             native_options: epi::NativeOptions,
             app_creator: epi::AppCreator,
@@ -330,7 +329,7 @@ mod glow_integration {
 
         #[allow(unsafe_code)]
         fn create_glutin_windowed_context(
-            event_loop: &EventLoopWindowTarget<RequestRepaintEvent>,
+            event_loop: &EventLoopWindowTarget<UserEvent>,
             storage: Option<&dyn epi::Storage>,
             title: &String,
             native_options: &NativeOptions,
@@ -372,7 +371,7 @@ mod glow_integration {
             (gl_window, gl)
         }
 
-        fn init_run_state(&mut self, event_loop: &EventLoopWindowTarget<RequestRepaintEvent>) {
+        fn init_run_state(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) {
             let storage = epi_integration::create_storage(&self.app_name);
 
             let (gl_window, gl) = Self::create_glutin_windowed_context(
@@ -409,7 +408,10 @@ mod glow_integration {
             {
                 let event_loop_proxy = self.repaint_proxy.clone();
                 integration.egui_ctx.set_request_repaint_callback(move || {
-                    event_loop_proxy.lock().send_event(RequestRepaintEvent).ok();
+                    event_loop_proxy
+                        .lock()
+                        .send_event(UserEvent::RequestRepaint)
+                        .ok();
                 });
             }
 
@@ -552,8 +554,8 @@ mod glow_integration {
 
         fn on_event(
             &mut self,
-            event_loop: &EventLoopWindowTarget<RequestRepaintEvent>,
-            event: &winit::event::Event<'_, RequestRepaintEvent>,
+            event_loop: &EventLoopWindowTarget<UserEvent>,
+            event: &winit::event::Event<'_, UserEvent>,
         ) -> EventResult {
             match event {
                 winit::event::Event::Resumed => {
@@ -697,7 +699,7 @@ mod wgpu_integration {
     }
 
     struct WgpuWinitApp {
-        repaint_proxy: Arc<std::sync::Mutex<EventLoopProxy<RequestRepaintEvent>>>,
+        repaint_proxy: Arc<std::sync::Mutex<EventLoopProxy<UserEvent>>>,
         app_name: String,
         native_options: epi::NativeOptions,
         app_creator: Option<epi::AppCreator>,
@@ -711,7 +713,7 @@ mod wgpu_integration {
 
     impl WgpuWinitApp {
         fn new(
-            event_loop: &EventLoop<RequestRepaintEvent>,
+            event_loop: &EventLoop<UserEvent>,
             app_name: &str,
             native_options: epi::NativeOptions,
             app_creator: epi::AppCreator,
@@ -728,7 +730,7 @@ mod wgpu_integration {
         }
 
         fn create_window(
-            event_loop: &EventLoopWindowTarget<RequestRepaintEvent>,
+            event_loop: &EventLoopWindowTarget<UserEvent>,
             storage: Option<&dyn epi::Storage>,
             title: &String,
             native_options: &NativeOptions,
@@ -764,7 +766,7 @@ mod wgpu_integration {
 
         fn init_run_state(
             &mut self,
-            event_loop: &EventLoopWindowTarget<RequestRepaintEvent>,
+            event_loop: &EventLoopWindowTarget<UserEvent>,
             storage: Option<Box<dyn epi::Storage>>,
             window: winit::window::Window,
         ) {
@@ -803,7 +805,7 @@ mod wgpu_integration {
                     event_loop_proxy
                         .lock()
                         .unwrap()
-                        .send_event(RequestRepaintEvent)
+                        .send_event(UserEvent::RequestRepaint)
                         .ok();
                 });
             }
@@ -934,8 +936,8 @@ mod wgpu_integration {
 
         fn on_event(
             &mut self,
-            event_loop: &EventLoopWindowTarget<RequestRepaintEvent>,
-            event: &winit::event::Event<'_, RequestRepaintEvent>,
+            event_loop: &EventLoopWindowTarget<UserEvent>,
+            event: &winit::event::Event<'_, UserEvent>,
         ) -> EventResult {
             match event {
                 winit::event::Event::Resumed => {
