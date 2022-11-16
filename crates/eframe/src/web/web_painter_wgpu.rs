@@ -147,7 +147,9 @@ impl WebPainter for WebPainterWgpu {
 
         // Resize surface if needed
         let is_zero_sized_surface = size_in_pixels[0] == 0 || size_in_pixels[1] == 0;
-        let frame = if !is_zero_sized_surface {
+        let frame = if is_zero_sized_surface {
+            None
+        } else {
             if size_in_pixels[0] != self.surface_configuration.width
                 || size_in_pixels[1] != self.surface_configuration.height
             {
@@ -199,8 +201,6 @@ impl WebPainter for WebPainterWgpu {
             }
 
             Some(frame)
-        } else {
-            None
         };
 
         {
