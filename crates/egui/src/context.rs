@@ -328,7 +328,7 @@ impl Context {
         sense: Sense,
         enabled: bool,
     ) -> Response {
-        let gap = 0.5; // Just to make sure we don't accidentally hover two things at once (a small eps should be sufficient).
+        let gap = 0.1; // Just to make sure we don't accidentally hover two things at once (a small eps should be sufficient).
 
         // Make it easier to click things:
         let interact_rect = rect.expand2(
