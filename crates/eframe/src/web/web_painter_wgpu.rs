@@ -102,38 +102,14 @@ impl WebPainter for WebPainterWgpu {
         pixels_per_point: f32,
         textures_delta: &egui::TexturesDelta,
     ) -> Result<(), JsValue> {
+        let size_in_pixels = [self.canvas.width(), self.canvas.height()];
+
         let render_state = if let Some(render_state) = &self.render_state {
             render_state
         } else {
             return Err(JsValue::from_str(
                 "Can't paint, wgpu renderer was already disposed",
             ));
-        };
-
-        // Resize surface if needed
-        let size_in_pixels = [self.canvas.width(), self.canvas.height()];
-        if size_in_pixels[0] != self.surface_configuration.width
-            || size_in_pixels[1] != self.surface_configuration.height
-        {
-            self.surface_configuration.width = size_in_pixels[0];
-            self.surface_configuration.height = size_in_pixels[1];
-            self.surface
-                .configure(&render_state.device, &self.surface_configuration);
-        }
-
-        let frame = match self.surface.get_current_texture() {
-            Ok(frame) => frame,
-            #[allow(clippy::single_match_else)]
-            Err(e) => match (*self.on_surface_error)(e) {
-                SurfaceErrorAction::RecreateSurface => {
-                    self.surface
-                        .configure(&render_state.device, &self.surface_configuration);
-                    return Ok(());
-                }
-                SurfaceErrorAction::SkipFrame => {
-                    return Ok(());
-                }
-            },
         };
 
         let mut encoder =
@@ -169,31 +145,63 @@ impl WebPainter for WebPainterWgpu {
             )
         };
 
-        {
-            let renderer = render_state.renderer.read();
-            let frame_view = frame
-                .texture
-                .create_view(&wgpu::TextureViewDescriptor::default());
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &frame_view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: clear_color.r() as f64,
-                            g: clear_color.g() as f64,
-                            b: clear_color.b() as f64,
-                            a: clear_color.a() as f64,
-                        }),
-                        store: true,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                label: Some("egui_render"),
-            });
+        // Resize surface if needed
+        let is_zero_sized_surface = size_in_pixels[0] == 0 || size_in_pixels[1] == 0;
+        let frame = if is_zero_sized_surface {
+            None
+        } else {
+            if size_in_pixels[0] != self.surface_configuration.width
+                || size_in_pixels[1] != self.surface_configuration.height
+            {
+                self.surface_configuration.width = size_in_pixels[0];
+                self.surface_configuration.height = size_in_pixels[1];
+                self.surface
+                    .configure(&render_state.device, &self.surface_configuration);
+            }
 
-            renderer.render(&mut render_pass, clipped_primitives, &screen_descriptor);
-        }
+            let frame = match self.surface.get_current_texture() {
+                Ok(frame) => frame,
+                #[allow(clippy::single_match_else)]
+                Err(e) => match (*self.on_surface_error)(e) {
+                    SurfaceErrorAction::RecreateSurface => {
+                        self.surface
+                            .configure(&render_state.device, &self.surface_configuration);
+                        return Ok(());
+                    }
+                    SurfaceErrorAction::SkipFrame => {
+                        return Ok(());
+                    }
+                },
+            };
+
+            {
+                let renderer = render_state.renderer.read();
+                let frame_view = frame
+                    .texture
+                    .create_view(&wgpu::TextureViewDescriptor::default());
+                let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &frame_view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color {
+                                r: clear_color.r() as f64,
+                                g: clear_color.g() as f64,
+                                b: clear_color.b() as f64,
+                                a: clear_color.a() as f64,
+                            }),
+                            store: true,
+                        },
+                    })],
+                    depth_stencil_attachment: None,
+                    label: Some("egui_render"),
+                });
+
+                renderer.render(&mut render_pass, clipped_primitives, &screen_descriptor);
+            }
+
+            Some(frame)
+        };
 
         {
             let mut renderer = render_state.renderer.write();
@@ -208,7 +216,10 @@ impl WebPainter for WebPainterWgpu {
                 .into_iter()
                 .chain(std::iter::once(encoder.finish())),
         );
-        frame.present();
+
+        if let Some(frame) = frame {
+            frame.present();
+        }
 
         Ok(())
     }
