@@ -1055,6 +1055,11 @@ impl PlotUi {
         self.response.clicked()
     }
 
+    /// Returns `true` if the plot was clicked by the secondary button.
+    pub fn plot_secondary_clicked(&self) -> bool {
+        self.response.secondary_clicked()
+    }
+
     /// The pointer position in plot coordinates. Independent of whether the pointer is in the plot area.
     pub fn pointer_coordinate(&self) -> Option<PlotPoint> {
         // We need to subtract the drag delta to keep in sync with the frame-delayed screen transform:
