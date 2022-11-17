@@ -239,6 +239,14 @@ impl Painter {
     ) {
         crate::profile_function!();
 
+        if self.depth_format.is_some() && self.depth_texture_view.is_none() {
+            self.surface_state
+                .as_ref()
+                .map(|rs| (rs.width, rs.height))
+                .iter()
+                .for_each(|&(width, height)| self.on_window_resized(width, height));
+        }
+
         let render_state = match self.render_state.as_mut() {
             Some(rs) => rs,
             None => return,
