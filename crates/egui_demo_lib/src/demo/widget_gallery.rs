@@ -271,6 +271,7 @@ fn example_plot(ui: &mut egui::Ui) -> egui::Response {
     let line = Line::new(line_points);
     egui::plot::Plot::new("example_plot")
         .height(32.0)
+        .show_axes([false, false])
         .data_aspect(1.0)
         .show(ui, |plot_ui| plot_ui.line(line))
         .response
