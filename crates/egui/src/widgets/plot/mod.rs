@@ -1040,6 +1040,11 @@ impl PlotUi {
         *self.last_screen_transform.bounds()
     }
 
+    /// Set the plot bounds. Can be useful for implementing alternative plot navigation methods.
+    pub fn set_plot_bounds(&mut self, plot_bounds: PlotBounds) {
+        self.last_screen_transform.set_bounds(plot_bounds);
+    }
+
     /// Move the plot bounds. Can be useful for implementing alternative plot navigation methods.
     pub fn translate_bounds(&mut self, delta_pos: Vec2) {
         self.last_screen_transform.translate_bounds(delta_pos);
