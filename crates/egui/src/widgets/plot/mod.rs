@@ -1,13 +1,13 @@
 //! Simple plotting library.
 
 use ahash::HashMap;
+use std::ops::RangeInclusive;
 
 use crate::*;
 use epaint::util::FloatOrd;
 use epaint::Hsva;
 
-pub use axis::{AxisPlacement, Axis, AxisConfig};
-use axis::AxisWidget;
+use axis::{XAxisWidget, YAxisWidget, X_AXIS, Y_AXIS};
 use items::PlotItem;
 use legend::LegendWidget;
 
@@ -20,7 +20,9 @@ pub use transform::{PlotBounds, PlotTransform};
 
 use items::{horizontal_line, rulers_color, vertical_line};
 
-pub mod axis;
+pub use axis::{Placement, XAxisHints, YAxisHints};
+
+mod axis;
 mod items;
 mod legend;
 mod transform;
@@ -180,8 +182,7 @@ pub struct PlotResponse<R> {
 pub struct Plot {
     id_source: Id,
 
-    center_x_axis: bool,
-    center_y_axis: bool,
+    center_axis: AxisBools,
     allow_zoom: AxisBools,
     allow_drag: AxisBools,
     allow_scroll: bool,
@@ -206,11 +207,12 @@ pub struct Plot {
     show_y: bool,
     label_formatter: LabelFormatter,
     coordinates_formatter: Option<(Corner, CoordinatesFormatter)>,
-    axis_config: Vec<AxisConfig>,
+    x_axes: Vec<XAxisHints>, // default x axes
+    y_axes: Vec<YAxisHints>, // default y axes
     legend_config: Option<Legend>,
     show_background: bool,
-    show_axes: [bool; 2],
-
+    show_axes: AxisBools,
+    show_grid: AxisBools,
     grid_spacers: [GridSpacer; 2],
     sharp_grid_lines: bool,
     clamp_grid: bool,
@@ -222,8 +224,7 @@ impl Plot {
         Self {
             id_source: Id::new(id_source),
 
-            center_x_axis: false,
-            center_y_axis: false,
+            center_axis: false.into(),
             allow_zoom: true.into(),
             allow_drag: true.into(),
             allow_scroll: true,
@@ -248,11 +249,12 @@ impl Plot {
             show_y: true,
             label_formatter: None,
             coordinates_formatter: None,
-            axis_config: vec![AxisConfig::default(Axis::X), AxisConfig::default(Axis::Y)],
+            x_axes: vec![XAxisHints::default()],
+            y_axes: vec![YAxisHints::default()],
             legend_config: None,
             show_background: true,
-            show_axes: [true; 2],
-
+            show_axes: true.into(),
+            show_grid: true.into(),
             grid_spacers: [log_grid_spacer(10), log_grid_spacer(10)],
             sharp_grid_lines: true,
             clamp_grid: false,
@@ -311,13 +313,13 @@ impl Plot {
 
     /// Always keep the x-axis centered. Default: `false`.
     pub fn center_x_axis(mut self, on: bool) -> Self {
-        self.center_x_axis = on;
+        self.center_axis.x = on;
         self
     }
 
     /// Always keep the y-axis centered. Default: `false`.
     pub fn center_y_axis(mut self, on: bool) -> Self {
-        self.center_y_axis = on;
+        self.center_axis.y = on;
         self
     }
 
@@ -506,11 +508,21 @@ impl Plot {
         self
     }
 
-    /// Show the axes.
-    /// Can be useful to disable if the plot is overlaid over an existing grid or content.
+    /// Show axis labels.
+    ///
     /// Default: `[true; 2]`.
     pub fn show_axes(mut self, show: [bool; 2]) -> Self {
-        self.show_axes = show;
+        self.show_axes.x = show[0];
+        self.show_axes.y = show[1];
+        self
+    }
+
+    /// Show the grid.
+    /// Can be useful to disable if the plot is overlaid over an existing grid or content.
+    /// Default: `[true; 2]`.
+    pub fn show_grid(mut self, show: [bool; 2]) -> Self {
+        self.show_grid.x = show[0];
+        self.show_grid.y = show[1];
         self
     }
 
@@ -553,12 +565,74 @@ impl Plot {
         self
     }
 
-    /// Configure Axes.
+    /// Set the x axis label of the bottom x-axis
+    pub fn x_axis_label(mut self, label: String) -> Self {
+        if !self.x_axes.is_empty() {
+            self.x_axes[0].label = label;
+        }
+        self
+    }
+    /// Set the y axis label of the left y-axis
+    pub fn y_axis_label(mut self, label: String) -> Self {
+        if !self.y_axes.is_empty() {
+            self.y_axes[0].label = label;
+        }
+        self
+    }
+
+    /// Set the x-axis position
+    pub fn x_axis_position(mut self, placement: axis::Placement) -> Self {
+        if !self.x_axes.is_empty() {
+            self.x_axes[0].placement = placement;
+        }
+        self
+    }
+
+    /// Set the y-axis position
+    pub fn y_axis_position(mut self, placement: axis::Placement) -> Self {
+        if !self.y_axes.is_empty() {
+            self.y_axes[0].placement = placement;
+        }
+        self
+    }
+
+    /// Specify custom formatter for ticks on x-axis
     ///
-    /// Takes a vector of [`AxisConfig`] objects as argument to configure the plot axes.
-    /// See [`AxisConfig`] for available options.
-    pub fn axes(mut self, axis_config: Vec<AxisConfig>) -> Self {
-        self.axis_config = axis_config;
+    /// The first parameter of `fmt` is the raw tick value as `f64`.
+    /// The second paramter is the maximum requested number of characters per tick label.
+    /// The second paramter of `fmt` is the currently shown range on this axis.
+    pub fn x_axis_formatter(mut self, fmt: fn(f64, usize, &RangeInclusive<f64>) -> String) -> Self {
+        if !self.x_axes.is_empty() {
+            self.x_axes[0].formatter = fmt;
+        }
+        self
+    }
+
+    /// Specify custom formatter for ticks on y-axis
+    ///
+    /// The first parameter of `formatter` is the raw tick value as `f64`.
+    /// The second paramter is the maximum requested number of characters per tick label.
+    /// The second paramter of `formatter` is the currently shown range on this axis.
+    pub fn y_axis_formatter(mut self, fmt: fn(f64, usize, &RangeInclusive<f64>) -> String) -> Self {
+        if !self.y_axes.is_empty() {
+            self.y_axes[0].formatter = fmt;
+        }
+        self
+    }
+
+    /// Set custom configuration for bottom x-axis
+    ///
+    /// More than one axis may be specified.
+    pub fn custom_x_axes(mut self, hints: Vec<XAxisHints>) -> Self {
+        self.x_axes = hints;
+        self
+    }
+
+    /// Set custom configuration for left y-axis
+    ///
+    /// More than one axis may be specified.
+    pub fn custom_y_axes(mut self, hints: Vec<YAxisHints>) -> Self {
+        self.y_axes = hints;
         self
     }
 
@@ -574,8 +648,7 @@ impl Plot {
     ) -> PlotResponse<R> {
         let Self {
             id_source,
-            center_x_axis,
-            center_y_axis,
+            center_axis,
             allow_zoom,
             allow_drag,
             allow_scroll,
@@ -594,11 +667,13 @@ impl Plot {
             mut show_y,
             label_formatter,
             coordinates_formatter,
-            axis_config,
+            x_axes,
+            y_axes,
             legend_config,
             reset,
             show_background,
             show_axes,
+            show_grid,
             linked_axes,
             linked_cursors,
 
@@ -637,7 +712,6 @@ impl Plot {
             min: pos,
             max: pos + size,
         };
-
         // Next we want to create this layout.
         // Incides are only examples.
         //
@@ -660,41 +734,47 @@ impl Plot {
         //  +   +--------------------+-d-+
         //
 
-        let mut axis_widgets = Vec::<AxisWidget>::new();
-        let plot_rect: Rect;
-        {
+        let mut plot_rect: Rect = {
             // find dimensions of axis labels
             // for a, b, c, d meanings see picture
             let mut a = 0.0;
             let mut b = 0.0;
             let mut c = 0.0;
             let mut d = 0.0;
-            for cfg in &axis_config {
-                match cfg.placement {
-                    AxisPlacement::Default => match cfg.axis {
-                        Axis::X => {
+            if show_axes.x {
+                for cfg in &x_axes {
+                    match cfg.placement {
+                        axis::Placement::Default => {
                             a += cfg.thickness();
                         }
-                        Axis::Y => {
-                            b += cfg.thickness();
-                        }
-                    },
-                    AxisPlacement::Opposite => match cfg.axis {
-                        Axis::X => {
+                        axis::Placement::Opposite => {
                             c += cfg.thickness();
                         }
-                        Axis::Y => {
-                            d += cfg.thickness();
-                        }
-                    },
+                    }
                 }
             }
+            if show_axes.y {
+                for cfg in &y_axes {
+                    match cfg.placement {
+                        axis::Placement::Default => {
+                            b += cfg.thickness();
+                        }
+                        axis::Placement::Opposite => {
+                            d += cfg.thickness();
+                        }
+                    }
+                }
+            }
+
             // determine plot rectangle
-            plot_rect = Rect {
+            Rect {
                 min: complete_rect.min + Vec2::new(b, c),
                 max: complete_rect.max - Vec2::new(d, a),
-            };
-
+            }
+        };
+        let mut x_axis_widgets = Vec::<XAxisWidget>::new();
+        let mut y_axis_widgets = Vec::<YAxisWidget>::new();
+        {
             // determine absolute rectangle for each axis label widget
             // widget cnt per border of plot in order left, top, right, bottom
             struct WidgetCnt {
@@ -709,18 +789,11 @@ impl Plot {
                 right: 0,
                 bottom: 0,
             };
-            for cfg in &axis_config {
-                let size_x = Vec2 {
-                    x: cfg.thickness(),
-                    y: 0.0,
-                };
-                let size_y = Vec2 {
-                    x: 0.0,
-                    y: cfg.thickness(),
-                };
-                let rect: Rect = match cfg.placement {
-                    AxisPlacement::Default => match cfg.axis {
-                        Axis::X => {
+            if show_axes.x {
+                for cfg in &x_axes {
+                    let size_y = Vec2::new(0.0, cfg.thickness());
+                    let rect = match cfg.placement {
+                        axis::Placement::Default => {
                             let off = widget_cnt.bottom as f32;
                             widget_cnt.bottom += 1;
                             Rect {
@@ -728,17 +801,7 @@ impl Plot {
                                 max: plot_rect.right_bottom() + size_y * (off + 1.0),
                             }
                         }
-                        Axis::Y => {
-                            let off = widget_cnt.left as f32;
-                            widget_cnt.left += 1;
-                            Rect {
-                                min: plot_rect.left_top() - size_x * (off + 1.0),
-                                max: plot_rect.left_bottom() - size_x * off,
-                            }
-                        }
-                    },
-                    AxisPlacement::Opposite => match cfg.axis {
-                        Axis::X => {
+                        axis::Placement::Opposite => {
                             let off = widget_cnt.top as f32;
                             widget_cnt.top += 1;
                             Rect {
@@ -746,7 +809,23 @@ impl Plot {
                                 max: plot_rect.right_top() - size_y * off,
                             }
                         }
-                        Axis::Y => {
+                    };
+                    x_axis_widgets.push(XAxisWidget::new(cfg.clone(), rect));
+                }
+            }
+            if show_axes.y {
+                for cfg in &y_axes {
+                    let size_x = Vec2::new(cfg.thickness(), 0.0);
+                    let rect = match cfg.placement {
+                        axis::Placement::Default => {
+                            let off = widget_cnt.left as f32;
+                            widget_cnt.left += 1;
+                            Rect {
+                                min: plot_rect.left_top() - size_x * (off + 1.0),
+                                max: plot_rect.left_bottom() - size_x * off,
+                            }
+                        }
+                        axis::Placement::Opposite => {
                             let off = widget_cnt.right as f32;
                             widget_cnt.right += 1;
                             Rect {
@@ -754,14 +833,20 @@ impl Plot {
                                 max: plot_rect.right_bottom() + size_x * (off + 1.0),
                             }
                         }
-                    },
-                };
-                axis_widgets.push(AxisWidget::new(cfg.clone(), rect));
+                    };
+                    y_axis_widgets.push(YAxisWidget::new(cfg.clone(), rect));
+                }
             }
         }
 
+        // if to little space, remove axis widgets
+        if plot_rect.width() <= 0.0 || plot_rect.height() <= 0.0 {
+            y_axis_widgets.clear();
+            x_axis_widgets.clear();
+            plot_rect = complete_rect;
+        }
+
         // Allocate the plot window.
-        // let (rect, response) = ui.allocate_exact_size(size, Sense::drag());
         let response = ui.allocate_rect(plot_rect, Sense::drag());
         let rect = plot_rect;
         // Load or initialize the memory.
@@ -786,8 +871,8 @@ impl Plot {
             last_plot_transform: PlotTransform::new(
                 rect,
                 min_auto_bounds,
-                center_x_axis,
-                center_y_axis,
+                center_axis.x,
+                center_axis.y,
             ),
             last_click_pos_for_zoom: None,
         });
@@ -948,7 +1033,7 @@ impl Plot {
             }
         }
 
-        let mut transform = PlotTransform::new(rect, bounds, center_x_axis, center_y_axis);
+        let mut transform = PlotTransform::new(rect, bounds, center_axis.x, center_axis.y);
 
         // Enforce aspect ratio
         if let Some(data_aspect) = data_aspect {
@@ -1056,23 +1141,36 @@ impl Plot {
             }
         }
 
-        for mut widget in axis_widgets {
-            let axis = widget.config.axis;
-            let bounds = transform.bounds();
-            let axis_range = match axis {
-                Axis::X => bounds.range_x(),
-                Axis::Y => bounds.range_y(),
-            };
-            widget.range = axis_range;
+        // --- transform initialized
+
+        // Add legend widgets to plot
+        let bounds = transform.bounds();
+        let x_axis_range = bounds.range_x();
+        let x_steps = {
             let input = GridInput {
-                bounds: (bounds.min[axis as usize], bounds.max[axis as usize]),
-                base_step_size: transform.dvalue_dpos()[axis as usize]
-                    * MIN_LINE_SPACING_IN_POINTS
-                    * 2.0,
+                bounds: (bounds.min[X_AXIS], bounds.max[X_AXIS]),
+                base_step_size: transform.dvalue_dpos()[X_AXIS] * MIN_LINE_SPACING_IN_POINTS * 2.0,
             };
-            let steps = (grid_spacers[axis as usize])(input);
+            (grid_spacers[X_AXIS])(input)
+        };
+        let y_axis_range = bounds.range_y();
+        let y_steps = {
+            let input = GridInput {
+                bounds: (bounds.min[Y_AXIS], bounds.max[Y_AXIS]),
+                base_step_size: transform.dvalue_dpos()[Y_AXIS] * MIN_LINE_SPACING_IN_POINTS * 2.0,
+            };
+            (grid_spacers[Y_AXIS])(input)
+        };
+        for mut widget in x_axis_widgets {
+            widget.range = x_axis_range.clone();
             widget.transform = Some(transform.clone());
-            widget.steps = steps;
+            widget.steps = x_steps.clone();
+            ui.add(widget);
+        }
+        for mut widget in y_axis_widgets {
+            widget.range = y_axis_range.clone();
+            widget.transform = Some(transform.clone());
+            widget.steps = y_steps.clone();
             ui.add(widget);
         }
 
@@ -1087,11 +1185,10 @@ impl Plot {
             show_y,
             label_formatter,
             coordinates_formatter,
-            // axis_config,
-            show_axes,
-            transform,
-            draw_cursor_x: linked_cursors.as_ref().map_or(false, |(_, group)| group.x),
-            draw_cursor_y: linked_cursors.as_ref().map_or(false, |(_, group)| group.y),
+            show_grid,
+            transform: transform.clone(),
+            draw_cursor_x: linked_cursors.as_ref().map_or(false, |group| group.1.x),
+            draw_cursor_y: linked_cursors.as_ref().map_or(false, |group| group.1.y),
             draw_cursors,
             grid_spacers,
             sharp_grid_lines,
@@ -1451,13 +1548,13 @@ struct PreparedPlot {
     label_formatter: LabelFormatter,
     coordinates_formatter: Option<(Corner, CoordinatesFormatter)>,
     // axis_formatters: [AxisFormatter; 2],
-    show_axes: [bool; 2],
     transform: PlotTransform,
+    show_grid: AxisBools,
+    grid_spacers: [GridSpacer; 2],
     draw_cursor_x: bool,
     draw_cursor_y: bool,
     draw_cursors: Vec<Cursor>,
 
-    grid_spacers: [GridSpacer; 2],
     sharp_grid_lines: bool,
     clamp_grid: bool,
 }
@@ -1466,11 +1563,11 @@ impl PreparedPlot {
     fn ui(self, ui: &mut Ui, response: &Response) -> Vec<Cursor> {
         let mut axes_shapes = Vec::new();
 
-        if self.show_axes[Axis::X as usize] {
-            self.paint_axis(ui, Axis::X, &mut axes_shapes, self.sharp_grid_lines);
+        if self.show_grid.x {
+            self.paint_grid::<{ X_AXIS }>(ui, &mut axes_shapes);
         }
-        if self.show_axes[Axis::Y as usize] {
-            self.paint_axis(ui, Axis::Y, &mut axes_shapes, self.sharp_grid_lines);
+        if self.show_grid.y {
+            self.paint_grid::<{ Y_AXIS }>(ui, &mut axes_shapes);
         }
 
         // Sort the axes by strength so that those with higher strength are drawn in front.
@@ -1547,14 +1644,7 @@ impl PreparedPlot {
         cursors
     }
 
-    // `axis`=0 means x-axis, `axis`=1 means y-axis.
-    fn paint_axis(
-        &self,
-        ui: &Ui,
-        axis: Axis,
-        shapes: &mut Vec<(Shape, f32)>,
-        sharp_grid_lines: bool,
-    ) {
+    fn paint_grid<const AXIS: usize>(&self, ui: &Ui, shapes: &mut Vec<(Shape, f32)>) {
         #![allow(clippy::collapsible_else_if)]
         let Self {
             transform,
@@ -1566,14 +1656,13 @@ impl PreparedPlot {
 
         // Where on the cross-dimension to show the label values
         let bounds = transform.bounds();
-        let value_cross =
-            0.0_f64.clamp(bounds.min[1 - axis as usize], bounds.max[1 - axis as usize]);
+        let value_cross = 0.0_f64.clamp(bounds.min[1 - AXIS], bounds.max[1 - AXIS]);
 
         let input = GridInput {
-            bounds: (bounds.min[axis as usize], bounds.max[axis as usize]),
-            base_step_size: transform.dvalue_dpos()[axis as usize] * MIN_LINE_SPACING_IN_POINTS,
+            bounds: (bounds.min[AXIS], bounds.max[AXIS]),
+            base_step_size: transform.dvalue_dpos()[AXIS] * MIN_LINE_SPACING_IN_POINTS,
         };
-        let steps = (grid_spacers[axis as usize])(input);
+        let steps = (grid_spacers[AXIS])(input);
 
         let clamp_range = clamp_grid.then(|| {
             let mut tight_bounds = PlotBounds::NOTHING;
@@ -1589,7 +1678,7 @@ impl PreparedPlot {
             let value_main = step.value;
 
             if let Some(clamp_range) = clamp_range {
-                if axis == Axis::X {
+                if AXIS == X_AXIS {
                     if !clamp_range.range_x().contains(&value_main) {
                         continue;
                     };
@@ -1600,14 +1689,14 @@ impl PreparedPlot {
                 }
             }
 
-            let value = match axis {
-                Axis::X => PlotPoint::new(value_main, value_cross),
-                Axis::Y => PlotPoint::new(value_cross, value_main),
+            let value = match AXIS {
+                X_AXIS => PlotPoint::new(value_main, value_cross),
+                Y_AXIS => PlotPoint::new(value_cross, value_main),
+                _ => unreachable!(),
             };
 
             let pos_in_gui = transform.position_from_point(&value);
-            let spacing_in_points =
-                (transform.dpos_dvalue()[axis as usize] * step.step_size).abs() as f32;
+            let spacing_in_points = (transform.dpos_dvalue()[AXIS] * step.step_size).abs() as f32;
 
             if spacing_in_points > MIN_LINE_SPACING_IN_POINTS as f32 {
                 let line_strength = remap_clamp(
@@ -1620,11 +1709,11 @@ impl PreparedPlot {
 
                 let mut p0 = pos_in_gui;
                 let mut p1 = pos_in_gui;
-                p0[1 - axis as usize] = transform.frame().min[1 - axis as usize];
-                p1[1 - axis as usize] = transform.frame().max[1 - axis as usize];
+                p0[1 - AXIS] = transform.frame().min[1 - AXIS];
+                p1[1 - AXIS] = transform.frame().max[1 - AXIS];
 
                 if let Some(clamp_range) = clamp_range {
-                    if axis == Axis::X {
+                    if AXIS == X_AXIS {
                         p0.y = transform.position_from_point_y(clamp_range.min[1]);
                         p1.y = transform.position_from_point_y(clamp_range.max[1]);
                     } else {
@@ -1633,7 +1722,7 @@ impl PreparedPlot {
                     }
                 }
 
-                if sharp_grid_lines {
+                if self.sharp_grid_lines {
                     // Round to avoid aliasing
                     p0 = ui.ctx().round_pos_to_pixels(p0);
                     p1 = ui.ctx().round_pos_to_pixels(p1);

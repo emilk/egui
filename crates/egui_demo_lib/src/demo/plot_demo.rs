@@ -1,7 +1,7 @@
 use std::f64::consts::TAU;
 use std::ops::RangeInclusive;
 
-use egui::plot::{AxisBools, AxisConfig, GridInput, GridMark, PlotResponse};
+use egui::plot::{AxisBools, GridInput, GridMark, PlotResponse};
 use egui::*;
 use plot::{
     Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, CoordinatesFormatter, Corner, HLine,
@@ -265,10 +265,8 @@ impl LineDemo {
             self.time += ui.input(|i| i.unstable_dt).at_most(1.0 / 30.0) as f64;
         };
         let mut plot = Plot::new("lines_demo")
-            .axes(vec![
-                AxisConfig::default(plot::Axis::X).label("x".to_string()),
-                AxisConfig::default(plot::Axis::Y).label("y".to_string()),
-            ])
+            .x_axis_label("x".to_string())
+            .y_axis_label("y".to_string())
             .legend(Legend::default());
         if self.square {
             plot = plot.view_aspect(1.0);
@@ -554,19 +552,12 @@ impl CustomAxisDemo {
 
         ui.label("Zoom in on the X-axis to see hours and minutes");
 
-        let axes = vec![
-            AxisConfig::default(plot::Axis::X)
-                .tick_formatter(x_fmt)
-                .label("Percent".to_string()),
-            AxisConfig::default(plot::Axis::Y)
-                .tick_formatter(y_fmt)
-                .max_digits(4)
-                .label("Time".to_string()),
-        ];
-
         Plot::new("custom_axes")
             .data_aspect(2.0 * MINS_PER_DAY as f32)
-            .axes(axes)
+            .x_axis_label("Percent".to_string())
+            .x_axis_formatter(x_fmt)
+            .y_axis_label("Time".to_string())
+            .y_axis_formatter(y_fmt)
             .x_grid_spacer(CustomAxisDemo::x_grid)
             .label_formatter(label_fmt)
             .show(ui, |plot_ui| {
