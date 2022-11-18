@@ -187,7 +187,7 @@ impl<const AXIS: usize> Widget for AxisWidget<AXIS> {
             let galley = text.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Body);
             let text_color = visuals
                 .override_text_color
-                .unwrap_or(ui.visuals().text_color());
+                .unwrap_or_else(|| ui.visuals().text_color());
             let angle: f32 = match AXIS {
                 X_AXIS => 0.0,
                 Y_AXIS => -std::f32::consts::PI * 0.5,
