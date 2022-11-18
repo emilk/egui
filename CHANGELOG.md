@@ -5,7 +5,14 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 
 
 ## Unreleased
+* ⚠️ BREAKING: `egui::widgets::plot::Plot::show_axes` renamed to `egui::widgets::plot::Plot::show_grid`. The origin `show_axes` API now refers to the axis labels. ([#2284](https://github.com/emilk/egui/pull/2284))
 
+### Added
+* Added plot axis labels and the required API to customize them. ([#2284](https://github.com/emilk/egui/pull/2284))
+* Added support for multiple x-axis- and y-axis-labels and -ticks per plot.  ([#2284](https://github.com/emilk/egui/pull/2284))
+
+### Fixed
+* Draw plot ticks outside of plotting window. ([#2284](https://github.com/emilk/egui/pull/2284))
 
 ## 0.22.0 - 2023-05-23 - A plethora of small improvements
 ### ⭐ Added
