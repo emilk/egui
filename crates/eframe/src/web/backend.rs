@@ -465,6 +465,8 @@ impl EventToUnsubscribe {
         }
     }
 }
+
+/// Helper used when registering events.
 pub struct AppRunnerContainer {
     pub runner: AppRunnerRef,
 
