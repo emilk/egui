@@ -60,7 +60,7 @@ impl Default for MyApp {
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            // Draw the filled rectangle with the current curved opacity value.  You may use
+            // Draw a filled rectangle with the current curved opacity value.  You may use
             // self.current_opacity directly if you want a linear fade.
             let curved_opacity = curve(self.current_opacity, 50.0);
             ui.painter().rect_filled(
@@ -85,7 +85,7 @@ impl eframe::App for MyApp {
                     ctx.animate_value_with_time(self.rectangle_id, self.current_opacity, 0.0);
                 }
 
-                // Request a repaint to start the animation if necessary.
+                // Request a repaint to start the animation.
                 ctx.request_repaint();
             }
 
@@ -111,13 +111,13 @@ impl eframe::App for MyApp {
     }
 }
 
-// Creates an exponential curve with a given steepness (a) for x values between 0.0 and 1.0.
+/// Creates an exponential curve with a given steepness (a) for x values between 0.0 and 1.0.
 fn curve(x: f32, a: f32) -> f32 {
     // Curve algorithm pulled from the following post:
     // https://math.stackexchange.com/questions/384613/exponential-function-with-values-between-0-and-1-for-x-values-between-0-and-1
 
-    // Values must be greater than 1.0 to work in this algorithm so we assume a linear curve for
-    // 1.0 or below.
+    // Steepness values must be greater than 1.0 to work in this algorithm so we assume a linear
+    // curve for 1.0 or below.
     if a <= 1.0 {
         return x;
     }
