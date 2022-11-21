@@ -5,7 +5,8 @@ All notable changes to the epaint crate will be documented in this file.
 ## Unreleased
 * ⚠️ BREAKING: Fix text being too small ([#2069](https://github.com/emilk/egui/pull/2069)).
 * ⚠️ BREAKING: epaint now expects integrations to do all color blending in gamma space ([#2071](https://github.com/emilk/egui/pull/2071)).
-* Add `Fonts::has_glyph(s)` for querying if a glyph is supported ([#2202](https://github.com/emilk/egui/pull/2202)).
+* Added `Fonts::has_glyph(s)` for querying if a glyph is supported ([#2202](https://github.com/emilk/egui/pull/2202)).
+* Added support for [thin space](https://en.wikipedia.org/wiki/Thin_space).
 
 
 ## 0.19.0 - 2022-08-20

@@ -22,6 +22,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Added possibility to enable text wrap for the selected text of `egui::ComboBox` ([#2272](https://github.com/emilk/egui/pull/2244))
 * Added `Area::constrain` and `Window::constrain` which constrains area to the screen bounds. ([#2270](https://github.com/emilk/egui/pull/2270)).
 * Added `Area::pivot` and `Window::pivot` which controls what part of the window to position. ([#2303](https://github.com/emilk/egui/pull/2303)).
+* Added support for [thin space](https://en.wikipedia.org/wiki/Thin_space).
 
 ### Changed 🔧
 * Panels always have a separator line, but no stroke on other sides. Their spacing has also changed slightly ([#2261](https://github.com/emilk/egui/pull/2261)).
