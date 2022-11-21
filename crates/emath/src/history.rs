@@ -41,7 +41,7 @@ where
 {
     /// Example:
     /// ```
-    /// # use egui::util::History;
+    /// # use emath::History;
     /// # fn now() -> f64 { 0.0 }
     /// // Drop events that are older than one second,
     /// // as long we keep at least two events. Never keep more than a hundred events.
