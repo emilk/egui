@@ -176,7 +176,7 @@ impl Painter {
                     width,
                     height,
                 });
-                self.configure_surface(width, height);
+                self.resize_and_generate_depth_texture_view(width, height);
             }
             None => {
                 self.surface_state = None;
@@ -195,28 +195,36 @@ impl Painter {
             .map(|rs| rs.device.limits().max_texture_dimension_2d as usize)
     }
 
+    pub fn resize_and_generate_depth_texture_view(
+        &mut self,
+        width_in_pixels: u32,
+        height_in_pixels: u32,
+    ) {
+        self.configure_surface(width_in_pixels, height_in_pixels);
+        let device = &self.render_state.as_ref().unwrap().device;
+        self.depth_texture_view = self.depth_format.map(|depth_format| {
+            device
+                .create_texture(&wgpu::TextureDescriptor {
+                    label: Some("egui_depth_texture"),
+                    size: wgpu::Extent3d {
+                        width: width_in_pixels,
+                        height: height_in_pixels,
+                        depth_or_array_layers: 1,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: depth_format,
+                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                        | wgpu::TextureUsages::TEXTURE_BINDING,
+                })
+                .create_view(&wgpu::TextureViewDescriptor::default())
+        });
+    }
+
     pub fn on_window_resized(&mut self, width_in_pixels: u32, height_in_pixels: u32) {
         if self.surface_state.is_some() {
-            self.configure_surface(width_in_pixels, height_in_pixels);
-            let device = &self.render_state.as_ref().unwrap().device;
-            self.depth_texture_view = self.depth_format.map(|depth_format| {
-                device
-                    .create_texture(&wgpu::TextureDescriptor {
-                        label: Some("egui_depth_texture"),
-                        size: wgpu::Extent3d {
-                            width: width_in_pixels,
-                            height: height_in_pixels,
-                            depth_or_array_layers: 1,
-                        },
-                        mip_level_count: 1,
-                        sample_count: 1,
-                        dimension: wgpu::TextureDimension::D2,
-                        format: depth_format,
-                        usage: wgpu::TextureUsages::RENDER_ATTACHMENT
-                            | wgpu::TextureUsages::TEXTURE_BINDING,
-                    })
-                    .create_view(&wgpu::TextureViewDescriptor::default())
-            });
+            self.resize_and_generate_depth_texture_view(width_in_pixels, height_in_pixels);
         } else {
             error!("Ignoring window resize notification with no surface created via Painter::set_window()");
         }

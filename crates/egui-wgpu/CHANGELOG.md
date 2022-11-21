@@ -13,6 +13,7 @@ All notable changes to the `egui-wgpu` integration will be noted in this file.
 * Only a single vertex & index buffer is now created and resized when necessary (previously, vertex/index buffers were allocated for every mesh) ([#2148](https://github.com/emilk/egui/pull/2148)).
 * `Renderer::update_texture` no longer creates a new `wgpu::Sampler` with every new texture ([#2198](https://github.com/emilk/egui/pull/2198))
 * `Painter`'s instance/device/adapter/surface creation is now configurable via `WgpuConfiguration` ([#2207](https://github.com/emilk/egui/pull/2207))
+* Fix panic on using a depth buffer ([#2316](https://github.com/emilk/egui/pull/2316))
 
 ## 0.19.0 - 2022-08-20
 * Enables deferred render + surface state initialization for Android ([#1634](https://github.com/emilk/egui/pull/1634)).
