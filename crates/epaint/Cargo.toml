@@ -6,7 +6,7 @@ description = "Minimal 2D graphics library for GUI work"
 edition = "2021"
 rust-version = "1.65"
 homepage = "https://github.com/emilk/egui/tree/master/crates/epaint"
-license = "MIT OR Apache-2.0"
+license = "(MIT OR Apache-2.0) AND OFL-1.1 AND LicenseRef-UFL-1.0" # OFL and UFL used by default_fonts. See https://github.com/emilk/egui/issues/2321
 readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/master/crates/epaint"
 categories = ["graphics", "gui"]
@@ -18,6 +18,8 @@ include = [
   "Cargo.toml",
   "fonts/*.ttf",
   "fonts/*.txt",
+  "fonts/OFL.txt",
+  "fonts/UFL.txt",
 ]
 
 [package.metadata.docs.rs]
