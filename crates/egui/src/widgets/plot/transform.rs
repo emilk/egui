@@ -18,7 +18,7 @@ impl PlotBounds {
         max: [-f64::INFINITY; 2],
     };
 
-    pub fn new(min: [f64; 2], max: [f64; 2]) -> Self {
+    pub fn from_min_max(min: [f64; 2], max: [f64; 2]) -> Self {
         Self { min, max }
     }
 
