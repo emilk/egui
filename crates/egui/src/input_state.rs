@@ -138,7 +138,11 @@ impl Default for InputState {
 
 impl InputState {
     #[must_use]
-    pub fn begin_frame(mut self, new: RawInput, requested_repaint_last_frame: bool) -> InputState {
+    pub fn begin_frame(
+        mut self,
+        mut new: RawInput,
+        requested_repaint_last_frame: bool,
+    ) -> InputState {
         let time = new.time.unwrap_or(self.time + new.predicted_dt as f64);
         let unstable_dt = (time - self.time) as f32;
 
@@ -160,24 +164,26 @@ impl InputState {
         let mut keys_down = self.keys_down;
         let mut scroll_delta = Vec2::ZERO;
         let mut zoom_factor_delta = 1.0;
-        for event in &new.events {
-            match event {
-                Event::Key { key, pressed, .. } => {
-                    if *pressed {
-                        keys_down.insert(*key);
-                    } else {
-                        keys_down.remove(key);
-                    }
+        new.events.retain(|event| match event {
+            Event::Key { key, pressed, .. } => {
+                if *pressed {
+                    //return false (thus filtering out the Event) if the key already existed in the set of pressed keys
+                    keys_down.insert(*key)
+                } else {
+                    keys_down.remove(key);
+                    true
                 }
-                Event::Scroll(delta) => {
-                    scroll_delta += *delta;
-                }
-                Event::Zoom(factor) => {
-                    zoom_factor_delta *= *factor;
-                }
-                _ => {}
             }
-        }
+            Event::Scroll(delta) => {
+                scroll_delta += *delta;
+                true
+            }
+            Event::Zoom(factor) => {
+                zoom_factor_delta *= *factor;
+                true
+            }
+            _ => true,
+        });
         InputState {
             pointer,
             touch_states: self.touch_states,
@@ -280,7 +286,7 @@ impl InputState {
         self.num_presses(desired_key) > 0
     }
 
-    /// How many times were the given key pressed this frame?
+    /// How many times was the given key pressed this frame?
     pub fn num_presses(&self, desired_key: Key) -> usize {
         self.events
             .iter()
