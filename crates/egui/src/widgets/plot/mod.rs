@@ -1416,6 +1416,9 @@ impl PreparedPlot {
                 let mut p1 = pos_in_gui;
                 p0[1 - axis] = transform.frame().min[1 - axis];
                 p1[1 - axis] = transform.frame().max[1 - axis];
+                // Round to avoid aliasing
+                p0 = ui.ctx().round_pos_to_pixels(p0);
+                p1 = ui.ctx().round_pos_to_pixels(p1);
                 shapes.push(Shape::line_segment([p0, p1], Stroke::new(1.0, line_color)));
             }
 

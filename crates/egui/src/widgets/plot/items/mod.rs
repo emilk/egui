@@ -176,7 +176,7 @@ impl HLine {
 }
 
 impl PlotItem for HLine {
-    fn shapes(&self, _ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
+    fn shapes(&self, ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
         let HLine {
             y,
             stroke,
@@ -184,9 +184,15 @@ impl PlotItem for HLine {
             style,
             ..
         } = self;
+
+        // Round to minimize aliasing:
         let points = vec![
-            transform.position_from_point(&PlotPoint::new(transform.bounds().min[0], *y)),
-            transform.position_from_point(&PlotPoint::new(transform.bounds().max[0], *y)),
+            ui.ctx().round_pos_to_pixels(
+                transform.position_from_point(&PlotPoint::new(transform.bounds().min[0], *y)),
+            ),
+            ui.ctx().round_pos_to_pixels(
+                transform.position_from_point(&PlotPoint::new(transform.bounds().max[0], *y)),
+            ),
         ];
         style.style_line(points, *stroke, *highlight, shapes);
     }
@@ -286,7 +292,7 @@ impl VLine {
 }
 
 impl PlotItem for VLine {
-    fn shapes(&self, _ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
+    fn shapes(&self, ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
         let VLine {
             x,
             stroke,
@@ -294,9 +300,15 @@ impl PlotItem for VLine {
             style,
             ..
         } = self;
+
+        // Round to minimize aliasing:
         let points = vec![
-            transform.position_from_point(&PlotPoint::new(*x, transform.bounds().min[1])),
-            transform.position_from_point(&PlotPoint::new(*x, transform.bounds().max[1])),
+            ui.ctx().round_pos_to_pixels(
+                transform.position_from_point(&PlotPoint::new(*x, transform.bounds().min[1])),
+            ),
+            ui.ctx().round_pos_to_pixels(
+                transform.position_from_point(&PlotPoint::new(*x, transform.bounds().max[1])),
+            ),
         ];
         style.style_line(points, *stroke, *highlight, shapes);
     }
