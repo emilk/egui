@@ -29,8 +29,8 @@ impl WebPainterWgpu {
     }
 
     pub fn generate_depth_texture_view(&mut self, width_in_pixels: u32, height_in_pixels: u32) {
-        self.render_state.as_ref().map(|rs| {
-            let device = &rs.device;
+        if let Some(render_state) = self.render_state.as_ref() {
+            let device = render_state.device;
             self.depth_texture_view = self.depth_format.map(|depth_format| {
                 device
                     .create_texture(&wgpu::TextureDescriptor {
@@ -49,7 +49,7 @@ impl WebPainterWgpu {
                     })
                     .create_view(&wgpu::TextureViewDescriptor::default())
             });
-        });
+        }
     }
 
     #[allow(unused)] // only used if `wgpu` is the only active feature.
