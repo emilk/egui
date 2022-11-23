@@ -472,6 +472,10 @@ pub struct WebOptions {
     /// Configures wgpu instance/device/adapter/surface creation and renderloop.
     #[cfg(feature = "wgpu")]
     pub wgpu_options: egui_wgpu::WgpuConfiguration,
+
+    /// Configures if the render pass should use a depth buffer.
+    #[cfg(feature = "wgpu")]
+    pub depth_texture: bool,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -484,6 +488,8 @@ impl Default for WebOptions {
             #[cfg(feature = "glow")]
             webgl_context_option: WebGlContextOption::BestFirst,
 
+            #[cfg(feature = "wgpu")]
+            depth_texture: false,
             #[cfg(feature = "wgpu")]
             wgpu_options: egui_wgpu::WgpuConfiguration {
                 // WebGPU is not stable enough yet, use WebGL emulation
