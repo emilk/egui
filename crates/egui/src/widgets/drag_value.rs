@@ -372,6 +372,7 @@ impl<'a> Widget for DragValue<'a> {
         let is_slow_speed = shift && ui.memory().is_being_dragged(ui.next_auto_id());
 
         let kb_edit_id = ui.next_auto_id();
+        ui.memory().interested_in_focus(kb_edit_id);
         let is_kb_editing = ui.memory().has_focus(kb_edit_id);
 
         let old_value = get(&mut get_set_value);
