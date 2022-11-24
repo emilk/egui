@@ -403,7 +403,7 @@ impl Memory {
     /// This is normally done automatically when handling interactions,
     /// but it is sometimes useful to pre-register interest in focus,
     /// e.g. before deciding which type of underlying widget to use,
-    /// as in the `DragValue` widget, so a widget can be focused
+    /// as in the [`crate::DragValue`] widget, so a widget can be focused
     /// and rendered correctly in a single frame.
     #[inline(always)]
     pub fn interested_in_focus(&mut self, id: Id) {
