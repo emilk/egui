@@ -371,18 +371,35 @@ impl<'a> Widget for DragValue<'a> {
         let shift = ui.input().modifiers.shift_only();
         let is_slow_speed = shift && ui.memory().is_being_dragged(ui.next_auto_id());
 
+        let kb_edit_id = ui.next_auto_id();
+        let is_kb_editing = ui.memory().has_focus(kb_edit_id);
+
         let old_value = get(&mut get_set_value);
-        let value = clamp_to_range(old_value, clamp_range.clone());
-        if old_value != value {
-            set(&mut get_set_value, value);
-        }
+        let mut value = old_value;
         let aim_rad = ui.input().aim_radius() as f64;
 
         let auto_decimals = (aim_rad / speed.abs()).log10().ceil().clamp(0.0, 15.0) as usize;
         let auto_decimals = auto_decimals + is_slow_speed as usize;
-
         let max_decimals = max_decimals.unwrap_or(auto_decimals + 2);
         let auto_decimals = auto_decimals.clamp(min_decimals, max_decimals);
+
+        if is_kb_editing {
+            let mut input = ui.input_mut();
+            let change = input.count_and_consume_key(Modifiers::NONE, Key::ArrowUp) as f64
+                - input.count_and_consume_key(Modifiers::NONE, Key::ArrowDown) as f64;
+
+            if change != 0.0 {
+                value += speed * change;
+                value = emath::round_to_decimals(value, auto_decimals);
+            }
+        }
+
+        value = clamp_to_range(value, clamp_range.clone());
+        if old_value != value {
+            set(&mut get_set_value, value);
+            ui.memory().drag_value.edit_string = None;
+        }
+
         let value_text = match custom_formatter {
             Some(custom_formatter) => custom_formatter(value, auto_decimals..=max_decimals),
             None => {
@@ -393,9 +410,6 @@ impl<'a> Widget for DragValue<'a> {
                 }
             }
         };
-
-        let kb_edit_id = ui.next_auto_id();
-        let is_kb_editing = ui.memory().has_focus(kb_edit_id);
 
         let mut response = if is_kb_editing {
             let button_width = ui.spacing().interact_size.x;
@@ -482,18 +496,6 @@ impl<'a> Widget for DragValue<'a> {
                     drag_state.last_dragged_id = Some(response.id);
                     drag_state.last_dragged_value = Some(stored_value);
                     ui.memory().drag_value = drag_state;
-                }
-            } else if response.has_focus() {
-                let change = ui.input().num_presses(Key::ArrowUp) as f64
-                    + ui.input().num_presses(Key::ArrowRight) as f64
-                    - ui.input().num_presses(Key::ArrowDown) as f64
-                    - ui.input().num_presses(Key::ArrowLeft) as f64;
-
-                if change != 0.0 {
-                    let new_value = value + speed * change;
-                    let new_value = emath::round_to_decimals(new_value, auto_decimals);
-                    let new_value = clamp_to_range(new_value, clamp_range);
-                    set(&mut get_set_value, new_value);
                 }
             }
 
