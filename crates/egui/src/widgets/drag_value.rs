@@ -372,6 +372,10 @@ impl<'a> Widget for DragValue<'a> {
         let is_slow_speed = shift && ui.memory().is_being_dragged(ui.next_auto_id());
 
         let kb_edit_id = ui.next_auto_id();
+        // The following call ensures that when a `DragValue` receives focus,
+        // it is immediately rendered in edit mode, rather than being rendered
+        // in button mode for just one frame. This is important for
+        // screen readers.
         ui.memory().interested_in_focus(kb_edit_id);
         let is_kb_editing = ui.memory().has_focus(kb_edit_id);
 
@@ -434,14 +438,10 @@ impl<'a> Widget for DragValue<'a> {
                 let parsed_value = clamp_to_range(parsed_value, clamp_range);
                 set(&mut get_set_value, parsed_value);
             }
-            if ui.input().key_pressed(Key::Enter) {
-                ui.memory().surrender_focus(kb_edit_id);
-                ui.memory().drag_value.edit_string = None;
-            } else {
-                ui.memory().drag_value.edit_string = Some(value_text);
-            }
+            ui.memory().drag_value.edit_string = Some(value_text);
             response
         } else {
+            ui.memory().drag_value.edit_string = None;
             let button = Button::new(
                 RichText::new(format!("{}{}{}", prefix, value_text, suffix)).monospace(),
             )
@@ -463,7 +463,6 @@ impl<'a> Widget for DragValue<'a> {
 
             if response.clicked() {
                 ui.memory().request_focus(kb_edit_id);
-                ui.memory().drag_value.edit_string = None; // Filled in next frame
             } else if response.dragged() {
                 ui.output().cursor_icon = CursorIcon::ResizeHorizontal;
 
