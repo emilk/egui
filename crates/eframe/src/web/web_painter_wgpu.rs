@@ -18,12 +18,40 @@ pub(crate) struct WebPainterWgpu {
     limits: wgpu::Limits,
     render_state: Option<RenderState>,
     on_surface_error: Arc<dyn Fn(wgpu::SurfaceError) -> SurfaceErrorAction>,
+    depth_format: Option<wgpu::TextureFormat>,
+    depth_texture_view: Option<wgpu::TextureView>,
 }
 
 impl WebPainterWgpu {
     #[allow(unused)] // only used if `wgpu` is the only active feature.
     pub fn render_state(&self) -> Option<RenderState> {
         self.render_state.clone()
+    }
+
+    pub fn generate_depth_texture_view(
+        &self,
+        render_state: &RenderState,
+        width_in_pixels: u32,
+        height_in_pixels: u32,
+    ) -> Option<wgpu::TextureView> {
+        let device = &render_state.device;
+        self.depth_format.map(|depth_format| {
+            device
+                .create_texture(&wgpu::TextureDescriptor {
+                    label: Some("egui_depth_texture"),
+                    size: wgpu::Extent3d {
+                        width: width_in_pixels,
+                        height: height_in_pixels,
+                        depth_or_array_layers: 1,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: depth_format,
+                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                })
+                .create_view(&wgpu::TextureViewDescriptor::default())
+        })
     }
 
     #[allow(unused)] // only used if `wgpu` is the only active feature.
@@ -55,7 +83,8 @@ impl WebPainterWgpu {
         let target_format =
             egui_wgpu::preferred_framebuffer_format(&surface.get_supported_formats(&adapter));
 
-        let renderer = egui_wgpu::Renderer::new(&device, target_format, None, 1);
+        let depth_format = options.wgpu_options.depth_format;
+        let renderer = egui_wgpu::Renderer::new(&device, target_format, depth_format, 1);
         let render_state = RenderState {
             device: Arc::new(device),
             queue: Arc::new(queue),
@@ -80,6 +109,8 @@ impl WebPainterWgpu {
             render_state: Some(render_state),
             surface,
             surface_configuration,
+            depth_format,
+            depth_texture_view: None,
             limits: options.wgpu_options.device_descriptor.limits.clone(),
             on_surface_error: options.wgpu_options.on_surface_error.clone(),
         })
@@ -157,6 +188,11 @@ impl WebPainter for WebPainterWgpu {
                 self.surface_configuration.height = size_in_pixels[1];
                 self.surface
                     .configure(&render_state.device, &self.surface_configuration);
+                self.depth_texture_view = self.generate_depth_texture_view(
+                    render_state,
+                    size_in_pixels[0],
+                    size_in_pixels[1],
+                );
             }
 
             let frame = match self.surface.get_current_texture() {
@@ -193,7 +229,16 @@ impl WebPainter for WebPainterWgpu {
                             store: true,
                         },
                     })],
-                    depth_stencil_attachment: None,
+                    depth_stencil_attachment: self.depth_texture_view.as_ref().map(|view| {
+                        wgpu::RenderPassDepthStencilAttachment {
+                            view,
+                            depth_ops: Some(wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(1.0),
+                                store: false,
+                            }),
+                            stencil_ops: None,
+                        }
+                    }),
                     label: Some("egui_render"),
                 });
 
