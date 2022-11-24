@@ -28,28 +28,30 @@ impl WebPainterWgpu {
         self.render_state.clone()
     }
 
-    pub fn generate_depth_texture_view(&mut self, width_in_pixels: u32, height_in_pixels: u32) {
-        if let Some(render_state) = self.render_state.as_ref() {
-            let device = &render_state.device;
-            self.depth_texture_view = self.depth_format.map(|depth_format| {
-                device
-                    .create_texture(&wgpu::TextureDescriptor {
-                        label: Some("egui_depth_texture"),
-                        size: wgpu::Extent3d {
-                            width: width_in_pixels,
-                            height: height_in_pixels,
-                            depth_or_array_layers: 1,
-                        },
-                        mip_level_count: 1,
-                        sample_count: 1,
-                        dimension: wgpu::TextureDimension::D2,
-                        format: depth_format,
-                        usage: wgpu::TextureUsages::RENDER_ATTACHMENT
-                            | wgpu::TextureUsages::TEXTURE_BINDING,
-                    })
-                    .create_view(&wgpu::TextureViewDescriptor::default())
-            });
-        }
+    pub fn generate_depth_texture_view(
+        &self,
+        render_state: &RenderState,
+        width_in_pixels: u32,
+        height_in_pixels: u32,
+    ) -> Option<wgpu::TextureView> {
+        let device = &render_state.device;
+        self.depth_format.map(|depth_format| {
+            device
+                .create_texture(&wgpu::TextureDescriptor {
+                    label: Some("egui_depth_texture"),
+                    size: wgpu::Extent3d {
+                        width: width_in_pixels,
+                        height: height_in_pixels,
+                        depth_or_array_layers: 1,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: depth_format,
+                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                })
+                .create_view(&wgpu::TextureViewDescriptor::default())
+        })
     }
 
     #[allow(unused)] // only used if `wgpu` is the only active feature.
@@ -81,7 +83,7 @@ impl WebPainterWgpu {
         let target_format =
             egui_wgpu::preferred_framebuffer_format(&surface.get_supported_formats(&adapter));
 
-        let depth_format = (options.depth_texture).then_some(wgpu::TextureFormat::Depth32Float);
+        let depth_format = options.wgpu_options.depth_format;
         let renderer = egui_wgpu::Renderer::new(&device, target_format, depth_format, 1);
         let render_state = RenderState {
             device: Arc::new(device),
@@ -132,7 +134,6 @@ impl WebPainter for WebPainterWgpu {
         textures_delta: &egui::TexturesDelta,
     ) -> Result<(), JsValue> {
         let size_in_pixels = [self.canvas.width(), self.canvas.height()];
-        self.generate_depth_texture_view(size_in_pixels[0], size_in_pixels[1]);
 
         let render_state = if let Some(render_state) = &self.render_state {
             render_state
@@ -187,6 +188,11 @@ impl WebPainter for WebPainterWgpu {
                 self.surface_configuration.height = size_in_pixels[1];
                 self.surface
                     .configure(&render_state.device, &self.surface_configuration);
+                self.depth_texture_view = self.generate_depth_texture_view(
+                    render_state,
+                    size_in_pixels[0],
+                    size_in_pixels[1],
+                );
             }
 
             let frame = match self.surface.get_current_texture() {
@@ -228,7 +234,7 @@ impl WebPainter for WebPainterWgpu {
                             view,
                             depth_ops: Some(wgpu::Operations {
                                 load: wgpu::LoadOp::Clear(1.0),
-                                store: true,
+                                store: false,
                             }),
                             stencil_ops: None,
                         }
