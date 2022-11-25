@@ -1447,7 +1447,7 @@ impl Ui {
         text: impl Into<WidgetText>,
     ) -> Response {
         let mut response = self.radio(*current_value == alternative, text);
-        if response.clicked() {
+        if response.clicked() && *current_value != alternative {
             *current_value = alternative;
             response.mark_changed();
         }
@@ -1475,7 +1475,7 @@ impl Ui {
         text: impl Into<WidgetText>,
     ) -> Response {
         let mut response = self.selectable_label(*current_value == selected_value, text);
-        if response.clicked() {
+        if response.clicked() && *current_value != selected_value {
             *current_value = selected_value;
             response.mark_changed();
         }
