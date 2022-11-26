@@ -1,12 +1,13 @@
 use crate::{
     mutex::{Mutex, RwLock},
-    TextureAtlas,
+    Color32, TextureAtlas,
 };
 use emath::{vec2, Vec2};
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
 // ----------------------------------------------------------------------------
+pub type GlyphId = u32;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -33,8 +34,7 @@ impl UvRect {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct GlyphInfo {
-    pub(crate) id: ab_glyph::GlyphId,
-
+    pub(crate) id: GlyphId,
     /// Unit: points.
     pub advance_width: f32,
 
@@ -45,7 +45,7 @@ pub struct GlyphInfo {
 impl Default for GlyphInfo {
     fn default() -> Self {
         Self {
-            id: ab_glyph::GlyphId(0),
+            id: 0,
             advance_width: 0.0,
             uv_rect: Default::default(),
         }
@@ -58,7 +58,7 @@ impl Default for GlyphInfo {
 /// The interface uses points as the unit for everything.
 pub struct FontImpl {
     name: String,
-    ab_glyph_font: ab_glyph::FontArc,
+    freetype_face: freetype::Face,
     /// Maximum character height
     scale_in_pixels: u32,
     height_in_points: f32,
@@ -69,12 +69,53 @@ pub struct FontImpl {
     atlas: Arc<Mutex<TextureAtlas>>,
 }
 
+struct CharacterIter<'a> {
+    freetype_font: &'a freetype::Face,
+    gindex: u32,
+    charcode: Option<u32>,
+}
+
+impl<'a> CharacterIter<'a> {
+    pub fn new(freetype_face: &'a freetype::Face) -> Self {
+        Self {
+            freetype_font: freetype_face,
+            gindex: 0,
+            charcode: None,
+        }
+    }
+}
+
+impl Iterator for CharacterIter<'_> {
+    type Item = char;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let raw_font = unsafe { std::mem::transmute(self.freetype_font.raw()) };
+        match self.charcode {
+            Some(charcode) => {
+                self.charcode = Some(unsafe {
+                    freetype::ffi::FT_Get_Next_Char(raw_font, charcode, &mut self.gindex)
+                })
+            }
+            None => {
+                self.charcode =
+                    Some(unsafe { freetype::ffi::FT_Get_First_Char(raw_font, &mut self.gindex) })
+            }
+        };
+
+        match (self.gindex, self.charcode) {
+            (0, _) => None,
+            (_, None) => None,
+            (_, Some(charcode)) => char::from_u32(charcode),
+        }
+    }
+}
+
 impl FontImpl {
     pub fn new(
         atlas: Arc<Mutex<TextureAtlas>>,
         pixels_per_point: f32,
         name: String,
-        ab_glyph_font: ab_glyph::FontArc,
+        freetype_face: freetype::Face,
         scale_in_pixels: u32,
         y_offset_points: f32,
     ) -> FontImpl {
@@ -95,7 +136,7 @@ impl FontImpl {
 
         Self {
             name,
-            ab_glyph_font,
+            freetype_face,
             scale_in_pixels,
             height_in_points,
             y_offset,
@@ -126,11 +167,7 @@ impl FontImpl {
 
     /// An un-ordered iterator over all supported characters.
     fn characters(&self) -> impl Iterator<Item = char> + '_ {
-        use ab_glyph::Font as _;
-        self.ab_glyph_font
-            .codepoint_ids()
-            .map(|(_, chr)| chr)
-            .filter(|&chr| !self.ignore_character(chr))
+        CharacterIter::new(&self.freetype_face)
     }
 
     /// `\n` will result in `None`
@@ -174,10 +211,9 @@ impl FontImpl {
         }
 
         // Add new character:
-        use ab_glyph::Font as _;
-        let glyph_id = self.ab_glyph_font.glyph_id(c);
+        let glyph_id = self.freetype_face.get_char_index(c as usize);
 
-        if glyph_id.0 == 0 {
+        if glyph_id == 0 {
             if invisible_char(c) {
                 // hack
                 let glyph_info = GlyphInfo::default();
@@ -189,7 +225,7 @@ impl FontImpl {
         } else {
             let glyph_info = allocate_glyph(
                 &mut self.atlas.lock(),
-                &self.ab_glyph_font,
+                &self.freetype_face,
                 glyph_id,
                 self.scale_in_pixels as f32,
                 self.y_offset,
@@ -202,16 +238,16 @@ impl FontImpl {
     }
 
     #[inline]
-    pub fn pair_kerning(
-        &self,
-        last_glyph_id: ab_glyph::GlyphId,
-        glyph_id: ab_glyph::GlyphId,
-    ) -> f32 {
-        use ab_glyph::{Font as _, ScaleFont};
-        self.ab_glyph_font
-            .as_scaled(self.scale_in_pixels as f32)
-            .kern(last_glyph_id, glyph_id)
-            / self.pixels_per_point
+    pub fn pair_kerning(&self, last_glyph_id: GlyphId, glyph_id: GlyphId) -> f32 {
+        let result = self
+            .freetype_face
+            .get_kerning(
+                last_glyph_id,
+                glyph_id,
+                freetype::face::KerningMode::KerningUnfitted,
+            )
+            .unwrap();
+        result.x as f32 / (1 << 6) as f32 / self.pixels_per_point
     }
 
     /// Height of one row of text. In points
@@ -386,51 +422,74 @@ fn invisible_char(c: char) -> bool {
 
 fn allocate_glyph(
     atlas: &mut TextureAtlas,
-    font: &ab_glyph::FontArc,
-    glyph_id: ab_glyph::GlyphId,
+    font: &freetype::Face,
+    glyph_id: GlyphId,
     scale_in_pixels: f32,
     y_offset: f32,
     pixels_per_point: f32,
 ) -> GlyphInfo {
-    assert!(glyph_id.0 != 0);
-    use ab_glyph::{Font as _, ScaleFont};
+    assert!(glyph_id != 0);
+    use freetype::face::LoadFlag;
 
-    let glyph =
-        glyph_id.with_scale_and_position(scale_in_pixels, ab_glyph::Point { x: 0.0, y: 0.0 });
+    let mut advance_width_in_points = 0.0;
+    font.set_pixel_sizes(0, scale_in_pixels as u32).unwrap();
+    let uv_rect = || -> Result<UvRect, freetype::Error> {
+        font.load_glyph(glyph_id, LoadFlag::RENDER | LoadFlag::TARGET_LCD)?;
+        let glyph = font.glyph();
+        let bitmap = glyph.bitmap();
+        let glyph_width = bitmap.width() / 3;
+        let glyph_height = bitmap.rows();
 
-    let uv_rect = font.outline_glyph(glyph).map(|glyph| {
-        let bb = glyph.px_bounds();
-        let glyph_width = bb.width() as usize;
-        let glyph_height = bb.height() as usize;
-        if glyph_width == 0 || glyph_height == 0 {
-            UvRect::default()
-        } else {
-            let (glyph_pos, image) = atlas.allocate((glyph_width, glyph_height));
-            glyph.draw(|x, y, v| {
-                if v > 0.0 {
-                    let px = glyph_pos.0 + x as usize;
-                    let py = glyph_pos.1 + y as usize;
-                    image[(px, py)] = v;
-                }
-            });
+        // freetype-rs's Glyph type will call `FT_Done_Glyph` and `FT_Done_Library` when dropping, so we use a named variable to prevent it from dropping in this scope
+        let rendered_glyph = glyph.get_glyph()?;
+        advance_width_in_points =
+            rendered_glyph.advance_x() as f32 / (1 << 16) as f32 / pixels_per_point;
 
-            let offset_in_pixels = vec2(bb.min.x, scale_in_pixels + bb.min.y);
-            let offset = offset_in_pixels / pixels_per_point + y_offset * Vec2::Y;
-            UvRect {
-                offset,
-                size: vec2(glyph_width as f32, glyph_height as f32) / pixels_per_point,
-                min: [glyph_pos.0 as u16, glyph_pos.1 as u16],
-                max: [
-                    (glyph_pos.0 + glyph_width) as u16,
-                    (glyph_pos.1 + glyph_height) as u16,
-                ],
-            }
+        if glyph_width == 0
+            || glyph_height == 0
+            || bitmap.pitch() < 3
+            || bitmap.buffer().len() < (bitmap.pitch() as usize * glyph_height as usize)
+        {
+            return Ok(UvRect::default());
         }
-    });
-    let uv_rect = uv_rect.unwrap_or_default();
 
-    let advance_width_in_points =
-        font.as_scaled(scale_in_pixels).h_advance(glyph_id) / pixels_per_point;
+        let (glyph_pos, image) = atlas.allocate((glyph_width as usize, glyph_height as usize));
+        let mut buffer_cursor = 0;
+        for i in 0..glyph_height {
+            for j in 0..glyph_width {
+                let idx = (j * 3 + buffer_cursor) as usize;
+                let r = bitmap.buffer()[idx];
+                let g = bitmap.buffer()[idx + 1];
+                let b = bitmap.buffer()[idx + 2];
+                let px = glyph_pos.0 + j as usize;
+                let py = glyph_pos.1 + i as usize;
+
+                // Luminance Y is defined by the CIE 1931 XYZ color space. Linear RGB to Y is a weighted average based on factors from the color conversion matrix:
+                // Y = 0.2126*R + 0.7152*G + 0.0722*B. Computed on the integer pipe.
+                let a = (4732 * r as usize + 46871 * g as usize + 13933 * b as usize) >> 16;
+                image[(px, py)] = Color32::from_rgba_premultiplied(r, g, b, a as u8);
+            }
+            buffer_cursor += bitmap.pitch();
+        }
+
+        // Note that bitmap_left is the horizontal distance from the current pen position to the left-most border of the glyph bitmap, while bitmap_top is the vertical distance from the pen position (on the baseline) to the top-most border of the glyph bitmap. It is positive to indicate an upwards distance.
+        let offset_in_pixels = vec2(
+            glyph.bitmap_left() as f32,
+            scale_in_pixels - glyph.bitmap_top() as f32,
+        );
+
+        let offset = offset_in_pixels / pixels_per_point + y_offset * Vec2::Y;
+        Ok(UvRect {
+            offset,
+            size: vec2(glyph_width as f32, glyph_height as f32) / pixels_per_point,
+            min: [glyph_pos.0 as u16, glyph_pos.1 as u16],
+            max: [
+                (glyph_pos.0 + glyph_width as usize) as u16,
+                (glyph_pos.1 + glyph_height as usize) as u16,
+            ],
+        })
+    }()
+    .unwrap_or_default();
 
     GlyphInfo {
         id: glyph_id,

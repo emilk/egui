@@ -184,18 +184,22 @@ impl Default for FontTweak {
 
 // ----------------------------------------------------------------------------
 
-fn ab_glyph_font_from_font_data(name: &str, data: &FontData) -> ab_glyph::FontArc {
-    match &data.font {
-        std::borrow::Cow::Borrowed(bytes) => {
-            ab_glyph::FontRef::try_from_slice_and_index(bytes, data.index)
-                .map(ab_glyph::FontArc::from)
+static mut FREETYPE_LIB: Option<freetype::Library> = None;
+
+fn freetype_font_from_font_data(name: &str, data: &FontData) -> freetype::Face {
+    unsafe {
+        if FREETYPE_LIB.is_none() {
+            FREETYPE_LIB =
+                Some(freetype::Library::init().unwrap_or_else(|err| {
+                    panic!("Failed to initialize freetype library: {:?}", err)
+                }));
         }
-        std::borrow::Cow::Owned(bytes) => {
-            ab_glyph::FontVec::try_from_vec_and_index(bytes.clone(), data.index)
-                .map(ab_glyph::FontArc::from)
-        }
+        let lib = FREETYPE_LIB.as_ref().unwrap();
+        lib.set_lcd_filter(freetype::LcdFilter::LcdFilterDefault)
+            .unwrap_or_else(|err| panic!("Failed to set freetype lcdfilter: {}", err));
+        lib.new_memory_face(data.font.to_vec(), 0)
+            .unwrap_or_else(|err| panic!("Error parsing {:?} TTF/OTF font file: {}", name, err))
     }
-    .unwrap_or_else(|err| panic!("Error parsing {:?} TTF/OTF font file: {}", name, err))
 }
 
 /// Describes the font data and the sizes to use.
@@ -710,7 +714,7 @@ impl GalleyCache {
 struct FontImplCache {
     atlas: Arc<Mutex<TextureAtlas>>,
     pixels_per_point: f32,
-    ab_glyph_fonts: BTreeMap<String, (FontTweak, ab_glyph::FontArc)>,
+    freetype_fonts: BTreeMap<String, (FontTweak, freetype::Face)>,
 
     /// Map font pixel sizes and names to the cached [`FontImpl`].
     cache: ahash::HashMap<(u32, String), Arc<FontImpl>>,
@@ -722,28 +726,26 @@ impl FontImplCache {
         pixels_per_point: f32,
         font_data: &BTreeMap<String, FontData>,
     ) -> Self {
-        let ab_glyph_fonts = font_data
+        let freetype_fonts = font_data
             .iter()
             .map(|(name, font_data)| {
                 let tweak = font_data.tweak;
-                let ab_glyph = ab_glyph_font_from_font_data(name, font_data);
-                (name.clone(), (tweak, ab_glyph))
+                let freetype_font = freetype_font_from_font_data(name, font_data);
+                (name.clone(), (tweak, freetype_font))
             })
             .collect();
 
         Self {
             atlas,
             pixels_per_point,
-            ab_glyph_fonts,
+            freetype_fonts,
             cache: Default::default(),
         }
     }
 
     pub fn font_impl(&mut self, scale_in_points: f32, font_name: &str) -> Arc<FontImpl> {
-        use ab_glyph::Font as _;
-
-        let (tweak, ab_glyph_font) = self
-            .ab_glyph_fonts
+        let (tweak, freetype_font) = self
+            .freetype_fonts
             .get(font_name)
             .unwrap_or_else(|| panic!("No font data found for {:?}", font_name))
             .clone();
@@ -751,13 +753,8 @@ impl FontImplCache {
         let scale_in_pixels = self.pixels_per_point * scale_in_points;
 
         // Scale the font properly (see https://github.com/emilk/egui/issues/2068).
-        let units_per_em = ab_glyph_font.units_per_em().unwrap_or_else(|| {
-            panic!(
-                "The font unit size of {:?} exceeds the expected range (16..=16384)",
-                font_name
-            )
-        });
-        let font_scaling = ab_glyph_font.height_unscaled() / units_per_em;
+        let units_per_em = freetype_font.em_size();
+        let font_scaling = freetype_font.height() as f32 / units_per_em as f32;
         let scale_in_pixels = scale_in_pixels * font_scaling;
 
         // Tweak the scale as the user desired:
@@ -779,11 +776,29 @@ impl FontImplCache {
                     self.atlas.clone(),
                     self.pixels_per_point,
                     font_name.to_owned(),
-                    ab_glyph_font,
+                    freetype_font,
                     scale_in_pixels,
                     y_offset_points,
                 ))
             })
             .clone()
     }
+}
+
+#[test]
+fn test_font_characters() {
+    let fonts = Fonts::new(1.0, 8 * 1024, FontDefinitions::default());
+    let chars: Vec<char> = fonts
+        .lock()
+        .fonts
+        .font(&FontId::new(
+            10.0,
+            FontFamily::Name("emoji-icon-font".into()),
+        ))
+        .characters()
+        .into_iter()
+        .copied()
+        .collect();
+
+    println!("{:#?}", chars);
 }

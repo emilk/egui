@@ -1,6 +1,6 @@
 use emath::{remap_clamp, Rect};
 
-use crate::{FontImage, ImageDelta};
+use crate::{Color32, FontImage, ImageDelta};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct Rectu {
@@ -89,7 +89,7 @@ impl TextureAtlas {
         // Make the top left pixel fully white for `WHITE_UV`, i.e. painting something with solid color:
         let (pos, image) = atlas.allocate((1, 1));
         assert_eq!(pos, (0, 0));
-        image[pos] = 1.0;
+        image[pos] = Color32::WHITE;
 
         // Allocate a series of anti-aliased discs used to render small filled circles:
         // TODO(emilk): these circles can be packed A LOT better.
@@ -110,9 +110,10 @@ impl TextureAtlas {
                 for dy in -hw..=hw {
                     let distance_to_center = ((dx * dx + dy * dy) as f32).sqrt();
                     let coverage =
-                        remap_clamp(distance_to_center, (r - 0.5)..=(r + 0.5), 1.0..=0.0);
+                        remap_clamp(distance_to_center, (r - 0.5)..=(r + 0.5), 255.0..=0.0);
+                    let coverage = coverage as u8;
                     image[((x as i32 + hw + dx) as usize, (y as i32 + hw + dy) as usize)] =
-                        coverage;
+                        Color32::from_rgba_premultiplied(coverage, coverage, coverage, coverage);
                 }
             }
             atlas.discs.push(PrerasterizedDisc {
@@ -244,7 +245,9 @@ fn resize_to_min_height(image: &mut FontImage, required_height: usize) -> bool {
     }
 
     if image.width() * image.height() > image.pixels.len() {
-        image.pixels.resize(image.width() * image.height(), 0.0);
+        image
+            .pixels
+            .resize(image.width() * image.height(), Color32::BLACK);
         true
     } else {
         false

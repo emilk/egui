@@ -57,7 +57,8 @@ serde = ["dep:serde", "ahash/serde", "emath/serde"]
 [dependencies]
 emath = { version = "0.19.0", path = "../emath" }
 
-ab_glyph = "0.2.11"
+freetype-rs = "0.26.0"
+# ab_glyph = "0.2.11"
 ahash = { version = "0.8.1", default-features = false, features = [
   "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
   "std",

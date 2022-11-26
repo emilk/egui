@@ -187,14 +187,14 @@ pub struct FontImage {
     /// The coverage value.
     ///
     /// Often you want to use [`Self::srgba_pixels`] instead.
-    pub pixels: Vec<f32>,
+    pub pixels: Vec<Color32>,
 }
 
 impl FontImage {
     pub fn new(size: [usize; 2]) -> Self {
         Self {
             size,
-            pixels: vec![0.0; size[0] * size[1]],
+            pixels: vec![Color32::TRANSPARENT; size[0] * size[1]],
         }
     }
 
@@ -217,13 +217,14 @@ impl FontImage {
         &'_ self,
         gamma: Option<f32>,
     ) -> impl ExactSizeIterator<Item = Color32> + '_ {
-        let gamma = gamma.unwrap_or(0.55); // TODO(emilk): this default coverage gamma is a magic constant, chosen by eye. I don't even know why we need it.
-        self.pixels.iter().map(move |coverage| {
-            let alpha = coverage.powf(gamma);
-            // We want to multiply with `vec4(alpha)` in the fragment shader:
-            let a = fast_round(alpha * 255.0);
-            Color32::from_rgba_premultiplied(a, a, a, a)
-        })
+        self.pixels.iter().copied()
+        // let gamma = gamma.unwrap_or(0.55); // TODO(emilk): this default coverage gamma is a magic constant, chosen by eye. I don't even know why we need it.
+        // self.pixels.iter().map(move |coverage| {
+        //     let alpha = coverage.powf(gamma);
+        //     // We want to multiply with `vec4(alpha)` in the fragment shader:
+        //     let a = fast_round(alpha * 255.0);
+        //     Color32::from_rgba_premultiplied(a, a, a, a)
+        // })
     }
 
     /// Clone a sub-region as a new image.
@@ -245,10 +246,10 @@ impl FontImage {
 }
 
 impl std::ops::Index<(usize, usize)> for FontImage {
-    type Output = f32;
+    type Output = Color32;
 
     #[inline]
-    fn index(&self, (x, y): (usize, usize)) -> &f32 {
+    fn index(&self, (x, y): (usize, usize)) -> &Color32 {
         let [w, h] = self.size;
         assert!(x < w && y < h);
         &self.pixels[y * w + x]
@@ -257,7 +258,7 @@ impl std::ops::Index<(usize, usize)> for FontImage {
 
 impl std::ops::IndexMut<(usize, usize)> for FontImage {
     #[inline]
-    fn index_mut(&mut self, (x, y): (usize, usize)) -> &mut f32 {
+    fn index_mut(&mut self, (x, y): (usize, usize)) -> &mut Color32 {
         let [w, h] = self.size;
         assert!(x < w && y < h);
         &mut self.pixels[y * w + x]

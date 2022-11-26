@@ -25,7 +25,7 @@ opt-level = 2 # fast and small wasm, basically same as `opt-level = 's'`
 # debug = true # include debug symbols, useful when profiling wasm
 
 
-[profile.dev]
+[profile.dev.'cfg(!windows)']
 split-debuginfo = "unpacked" # faster debug builds on mac
 # opt-level = 1                # Make debug builds run faster
 

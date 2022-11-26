@@ -3,22 +3,6 @@
 version = 3
 
 [[package]]
-name = "ab_glyph"
-version = "0.2.16"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "846ffacb9d0c8b879ef9e565b59e18fb76d6a61013e5bd24ecc659864e6b1a1f"
-dependencies = [
- "ab_glyph_rasterizer",
- "owned_ttf_parser",
-]
-
-[[package]]
-name = "ab_glyph_rasterizer"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a13739d7177fbd22bb0ed28badfff9f372f8bef46c863db4e1c6248f6b223b6e"
-
-[[package]]
 name = "addr2line"
 version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -873,6 +857,7 @@ name = "custom_font"
 version = "0.1.0"
 dependencies = [
  "eframe",
+ "rfd",
 ]
 
 [[package]]
@@ -1364,7 +1349,6 @@ dependencies = [
 name = "epaint"
 version = "0.19.0"
 dependencies = [
- "ab_glyph",
  "ahash 0.8.1",
  "atomic_refcell",
  "backtrace",
@@ -1374,6 +1358,7 @@ dependencies = [
  "criterion",
  "document-features",
  "emath",
+ "freetype-rs",
  "nohash-hasher",
  "parking_lot",
  "serde",
@@ -2573,15 +2558,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "88cfece6e95d2e717e0872a7f53a8684712ad13822a7979bc760b9c77ec0013b"
 dependencies = [
  "shared_library",
-]
-
-[[package]]
-name = "owned_ttf_parser"
-version = "0.15.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07ef1a404ae479dd6906f4fa2c88b3c94028f1284beb42a47c183a7c27ee9a3e"
-dependencies = [
- "ttf-parser",
 ]
 
 [[package]]
