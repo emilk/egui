@@ -836,9 +836,6 @@ pub struct WindowInfo {
 
     /// Current monitor size in egui points (logical pixels)
     pub monitor_size: Option<egui::Vec2>,
-
-    /// Are we in maximize mode?
-    pub maximized: bool,
 }
 
 /// Information about the URL.

@@ -21,7 +21,9 @@ fn main() {
 }
 
 #[derive(Default)]
-struct MyApp {}
+struct MyApp {
+    maximized: bool,
+}
 
 impl eframe::App for MyApp {
     fn clear_color(&self, _visuals: &egui::Visuals) -> egui::Rgba {
@@ -29,7 +31,7 @@ impl eframe::App for MyApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        custom_window_frame(ctx, frame, "egui with custom frame", |ui| {
+        custom_window_frame(self, ctx, frame, "egui with custom frame", |ui| {
             ui.label("This is just the contents of the window");
             ui.horizontal(|ui| {
                 ui.label("egui theme:");
@@ -40,6 +42,7 @@ impl eframe::App for MyApp {
 }
 
 fn custom_window_frame(
+    app: &mut MyApp,
     ctx: &egui::Context,
     frame: &mut eframe::Frame,
     title: &str,
@@ -115,17 +118,19 @@ fn custom_window_frame(
                 frame.set_minimized(true);
             }
 
-            let is_maximized = frame.info().window_info.maximized;
             let maximized_response = ui.put(
                 Rect::from_min_size(
                     rect.left_top() + vec2((height - 4.0) * 2.0, 0.0),
                     Vec2::splat(height),
                 ),
-                Button::new(RichText::new(if is_maximized { "🗗" } else { "🗖" }).size(height - 4.0))
-                    .frame(false),
+                Button::new(
+                    RichText::new(if app.maximized { "🗗" } else { "🗖" }).size(height - 4.0),
+                )
+                .frame(false),
             );
             if maximized_response.clicked() {
-                frame.set_maximized(!is_maximized);
+                app.maximized = !app.maximized;
+                frame.set_maximized(app.maximized);
             }
 
             // Add the contents:
