@@ -85,6 +85,13 @@ impl From<&'static str> for Id {
     }
 }
 
+impl From<String> for Id {
+    #[inline]
+    fn from(string: String) -> Self {
+        Self::new(string)
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 // Idea taken from the `nohash_hasher` crate.
