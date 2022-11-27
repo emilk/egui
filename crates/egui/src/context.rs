@@ -827,9 +827,8 @@ impl Context {
     pub fn set_pixels_per_point(&self, pixels_per_point: f32) {
         if pixels_per_point != self.pixels_per_point() {
             self.request_repaint();
+            self.memory().new_pixels_per_point = Some(pixels_per_point);
         }
-
-        self.memory().new_pixels_per_point = Some(pixels_per_point);
     }
 
     /// Useful for pixel-perfect rendering
