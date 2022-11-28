@@ -72,7 +72,7 @@ pub struct FontImpl {
 struct CharacterIter<'a> {
     freetype_font: &'a freetype::Face,
     gindex: u32,
-    charcode: Option<u32>,
+    charcode: Option<char>,
 }
 
 impl<'a> CharacterIter<'a> {
@@ -93,19 +93,28 @@ impl Iterator for CharacterIter<'_> {
         match self.charcode {
             Some(charcode) => {
                 self.charcode = Some(unsafe {
-                    freetype::ffi::FT_Get_Next_Char(raw_font, charcode, &mut self.gindex)
+                    freetype::ffi::FT_Get_Next_Char(
+                        raw_font,
+                        charcode as freetype::ffi::FT_ULong,
+                        &mut self.gindex,
+                    )
+                    .try_into()
+                    .unwrap()
                 })
             }
             None => {
-                self.charcode =
-                    Some(unsafe { freetype::ffi::FT_Get_First_Char(raw_font, &mut self.gindex) })
+                self.charcode = Some(
+                    unsafe { freetype::ffi::FT_Get_First_Char(raw_font, &mut self.gindex) }
+                        .try_into()
+                        .unwrap(),
+                )
             }
         };
 
         match (self.gindex, self.charcode) {
             (0, _) => None,
             (_, None) => None,
-            (_, Some(charcode)) => char::from_u32(charcode),
+            (_, Some(charcode)) => Some(charcode),
         }
     }
 }
