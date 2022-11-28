@@ -13,13 +13,13 @@ pub struct Vertex {
     /// (0,0) is the top left corner of the screen.
     pub pos: Pos2, // 64 bit
 
+    /// sRGBA with premultiplied alpha
+    pub color: Color32, // 32 bit
+    
     /// Normalized texture coordinates.
     /// (0, 0) is the top left corner of the texture.
     /// (1, 1) is the bottom right corner of the texture.
     pub uv: Pos2, // 64 bit
-
-    /// sRGBA with premultiplied alpha
-    pub color: Color32, // 32 bit
 }
 
 /// Textured triangles in two dimensions.
