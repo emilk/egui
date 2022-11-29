@@ -20,8 +20,8 @@ default = ["glow", "persistence"]
 
 http = ["ehttp", "image", "poll-promise", "egui_extras/image"]
 persistence = ["eframe/persistence", "egui/persistence", "serde"]
-screen_reader = ["eframe/screen_reader"]                                        # experimental
-serde = ["dep:serde", "egui_demo_lib/serde", "egui_extras/serde", "egui/serde"]
+screen_reader = ["eframe/screen_reader"]                          # experimental
+serde = ["dep:serde", "egui_demo_lib/serde", "egui/serde"]
 syntax_highlighting = ["egui_demo_lib/syntax_highlighting"]
 
 glow = ["eframe/glow"]
