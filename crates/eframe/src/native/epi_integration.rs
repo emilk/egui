@@ -272,7 +272,8 @@ impl EpiIntegration {
         window: &winit::window::Window,
         event_loop_proxy: winit::event_loop::EventLoopProxy<E>,
     ) {
-        self.egui_winit.init_accesskit(window, event_loop_proxy);
+        self.egui_winit
+            .init_accesskit(window, event_loop_proxy, self.egui_ctx.clone());
     }
 
     pub fn warm_up(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {

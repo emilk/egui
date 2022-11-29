@@ -529,15 +529,17 @@ impl Response {
             self.output_event(event);
         } else {
             #[cfg(feature = "accesskit")]
-            {
-                self.fill_accesskit_node_from_widget_info(make_info());
-            }
+            self.ctx.mutate_accesskit_node(self.id, None, |node| {
+                self.fill_accesskit_node_from_widget_info(node, make_info());
+            });
         }
     }
 
     pub fn output_event(&self, event: crate::output::OutputEvent) {
         #[cfg(feature = "accesskit")]
-        self.fill_accesskit_node_from_widget_info(event.widget_info().clone());
+        self.ctx.mutate_accesskit_node(self.id, None, |node| {
+            self.fill_accesskit_node_from_widget_info(node, event.widget_info().clone());
+        });
         self.ctx.output().events.push(event);
     }
 
@@ -558,12 +560,15 @@ impl Response {
     }
 
     #[cfg(feature = "accesskit")]
-    fn fill_accesskit_node_from_widget_info(&self, info: crate::WidgetInfo) {
+    fn fill_accesskit_node_from_widget_info(
+        &self,
+        node: &mut accesskit::Node,
+        info: crate::WidgetInfo,
+    ) {
         use crate::WidgetType;
         use accesskit::{CheckedState, Role};
 
-        let mut node = self.ctx.accesskit_node(self.id, None);
-        self.fill_accesskit_node_common(&mut node);
+        self.fill_accesskit_node_common(node);
         node.role = match info.typ {
             WidgetType::Label => Role::StaticText,
             WidgetType::Link => Role::Link,
@@ -601,10 +606,9 @@ impl Response {
     /// Associate a label with a control for accessibility.
     pub fn labelled_by(self, id: Id) -> Self {
         #[cfg(feature = "accesskit")]
-        {
-            let mut node = self.ctx.accesskit_node(self.id, None);
+        self.ctx.mutate_accesskit_node(self.id, None, |node| {
             node.labelled_by.push(id.accesskit_id());
-        }
+        });
         #[cfg(not(feature = "accesskit"))]
         {
             let _ = id;

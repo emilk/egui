@@ -541,9 +541,8 @@ impl<'a> Widget for DragValue<'a> {
         response.widget_info(|| WidgetInfo::drag_value(value));
 
         #[cfg(feature = "accesskit")]
-        {
+        ui.ctx().mutate_accesskit_node(response.id, None, |node| {
             use accesskit::Action;
-            let mut node = ui.ctx().accesskit_node(response.id, None);
             // If either end of the range is unbounded, it's better
             // to leave the corresponding AccessKit field set to None,
             // to allow for platform-specific default behavior.
@@ -586,7 +585,7 @@ impl<'a> Widget for DragValue<'a> {
                 let value_text = format!("{}{}{}", prefix, value_text, suffix);
                 node.value = Some(value_text.into());
             }
-        }
+        });
 
         response
     }

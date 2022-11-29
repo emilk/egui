@@ -67,6 +67,9 @@ struct ContextImpl {
     layer_rects_this_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
     /// Read
     layer_rects_prev_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
+
+    #[cfg(feature = "accesskit")]
+    was_accesskit_activated: bool,
 }
 
 impl ContextImpl {
@@ -107,7 +110,7 @@ impl ContextImpl {
         );
 
         #[cfg(feature = "accesskit")]
-        {
+        if self.was_accesskit_activated {
             let nodes = &mut self.output.accesskit_update.nodes;
             assert!(nodes.is_empty());
             let id = crate::accesskit_root_id();
@@ -153,7 +156,22 @@ impl ContextImpl {
     }
 
     #[cfg(feature = "accesskit")]
-    fn accesskit_node(&mut self, id: Id, parent_id: Option<Id>) -> &mut accesskit::Node {
+    fn is_accesskit_active_this_frame(&self) -> bool {
+        // AccessKit is active this frame if a root node was created in
+        // `ContextImpl::begin_frame_mut`.
+        !self.output.accesskit_update.nodes.is_empty()
+    }
+
+    #[cfg(feature = "accesskit")]
+    fn mutate_accesskit_node(
+        &mut self,
+        id: Id,
+        parent_id: Option<Id>,
+        f: impl FnOnce(&mut accesskit::Node),
+    ) {
+        if !self.is_accesskit_active_this_frame() {
+            return;
+        }
         let nodes = &mut self.output.accesskit_update.nodes;
         let node_map = &mut self.frame_state.accesskit_nodes;
         let index = node_map.get(&id).copied().unwrap_or_else(|| {
@@ -167,7 +185,7 @@ impl ContextImpl {
             parent.children.push(accesskit_id);
             index
         });
-        Arc::get_mut(&mut nodes[index].1).unwrap()
+        f(Arc::get_mut(&mut nodes[index].1).unwrap());
     }
 }
 
@@ -474,14 +492,13 @@ impl Context {
         self.check_for_id_clash(id, rect, "widget");
 
         #[cfg(feature = "accesskit")]
-        {
-            if sense.focusable {
-                // Make sure anything that can receive focus has an AccessKit node.
-                // TODO(mwcampbell): For nodes that are filled from widget info,
-                // some information is written to the node twice.
-                let mut node = self.accesskit_node(id, None);
-                response.fill_accesskit_node_common(&mut node);
-            }
+        if self.is_accesskit_active() && sense.focusable {
+            // Make sure anything that can receive focus has an AccessKit node.
+            // TODO(mwcampbell): For nodes that are filled from widget info,
+            // some information is written to the node twice.
+            self.mutate_accesskit_node(id, None, |node| {
+                response.fill_accesskit_node_common(node);
+            });
         }
 
         let clicked_elsewhere = response.clicked_elsewhere();
@@ -1040,7 +1057,9 @@ impl Context {
         let mut platform_output: PlatformOutput = std::mem::take(&mut self.output());
 
         #[cfg(feature = "accesskit")]
-        {
+        // We have to duplicate the logic of `is_accesskit_active_this_frame`,
+        // because we just took the output.
+        if !platform_output.accesskit_update.nodes.is_empty() {
             let has_focus = self.input().raw.has_focus;
             platform_output.accesskit_update.focus = has_focus.then(|| {
                 let focus_id = self.memory().interaction.focus.id;
@@ -1571,12 +1590,28 @@ impl Context {
 /// ## Accessibility
 impl Context {
     #[cfg(feature = "accesskit")]
-    pub fn accesskit_node(
+    pub fn mutate_accesskit_node(
         &self,
         id: Id,
         parent_id: Option<Id>,
-    ) -> RwLockWriteGuard<'_, accesskit::Node> {
-        RwLockWriteGuard::map(self.write(), |c| c.accesskit_node(id, parent_id))
+        f: impl FnOnce(&mut accesskit::Node),
+    ) {
+        self.write().mutate_accesskit_node(id, parent_id, f)
+    }
+
+    #[cfg(feature = "accesskit")]
+    pub fn is_accesskit_active(&self) -> bool {
+        self.read().is_accesskit_active_this_frame()
+    }
+
+    #[cfg(feature = "accesskit")]
+    pub fn accesskit_activated(&self) {
+        let mut ctx = self.write();
+        if !ctx.was_accesskit_activated {
+            ctx.was_accesskit_activated = true;
+            drop(ctx);
+            self.request_repaint();
+        }
     }
 }
 

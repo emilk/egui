@@ -740,9 +740,8 @@ impl<'a> Slider<'a> {
         response.widget_info(|| WidgetInfo::slider(value, self.text.text()));
 
         #[cfg(feature = "accesskit")]
-        {
+        ui.ctx().mutate_accesskit_node(response.id, None, |node| {
             use accesskit::Action;
-            let mut node = ui.ctx().accesskit_node(response.id, None);
             node.min_numeric_value = Some(*self.range.start());
             node.max_numeric_value = Some(*self.range.end());
             node.numeric_value_step = self.step;
@@ -754,7 +753,7 @@ impl<'a> Slider<'a> {
             if value > *clamp_range.start() {
                 node.actions |= Action::Decrement;
             }
-        }
+        });
 
         let slider_response = response.clone();
 
