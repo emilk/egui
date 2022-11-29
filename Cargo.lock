@@ -2071,6 +2071,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "keyboard_events"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "khronos-egl"
 version = "4.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
