@@ -92,27 +92,35 @@ impl<'l> StripLayout<'l> {
         self.set_pos(self.cell_rect(&width, &height));
     }
 
+    /// This is the innermost part of [`Table`] and [`Strip`].
+    ///
+    /// Return the used space (`min_rect`) plus the [`Response`] of the whole cell.
     pub(crate) fn add(
         &mut self,
         striped: bool,
         width: CellSize,
         height: CellSize,
         add_contents: impl FnOnce(&mut Ui),
-    ) -> Response {
-        let rect = self.cell_rect(&width, &height);
+    ) -> (Rect, Response) {
+        let max_rect = self.cell_rect(&width, &height);
 
         if striped {
             // Make sure we don't have a gap in the stripe background:
-            let stripe_rect = rect.expand2(0.5 * self.ui.spacing().item_spacing);
+            let stripe_rect = max_rect.expand2(0.5 * self.ui.spacing().item_spacing);
 
             self.ui
                 .painter()
                 .rect_filled(stripe_rect, 0.0, self.ui.visuals().faint_bg_color);
         }
 
-        let used_rect = self.cell(rect, add_contents);
-        self.set_pos(rect);
-        self.ui.allocate_rect(rect.union(used_rect), Sense::hover())
+        let used_rect = self.cell(max_rect, add_contents);
+
+        self.set_pos(max_rect);
+        let response = self
+            .ui
+            .allocate_rect(max_rect.union(used_rect), Sense::hover());
+
+        (used_rect, response)
     }
     /// only needed for layouts with multiple lines, like [`Table`](crate::Table).
     pub fn end_line(&mut self) {
