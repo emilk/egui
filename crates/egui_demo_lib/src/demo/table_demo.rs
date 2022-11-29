@@ -10,6 +10,7 @@ enum DemoType {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TableDemo {
     demo: DemoType,
+    striped: bool,
     resizable: bool,
     num_rows: usize,
     row_to_scroll_to: i32,
@@ -20,6 +21,7 @@ impl Default for TableDemo {
     fn default() -> Self {
         Self {
             demo: DemoType::Manual,
+            striped: true,
             resizable: true,
             num_rows: 10_000,
             row_to_scroll_to: 0,
@@ -54,7 +56,10 @@ fn scroll_offset_for_row(ui: &egui::Ui, row: i32) -> f32 {
 impl super::View for TableDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.vertical(|ui| {
-            ui.checkbox(&mut self.resizable, "Resizable columns");
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut self.striped, "Striped");
+                ui.checkbox(&mut self.resizable, "Resizable columns");
+            });
 
             ui.label("Table type:");
             ui.radio_value(&mut self.demo, DemoType::Manual, "Few, manual rows");
@@ -118,7 +123,7 @@ impl TableDemo {
         let text_height = egui::TextStyle::Body.resolve(ui.style()).size;
 
         let mut table = TableBuilder::new(ui)
-            .striped(true)
+            .striped(self.striped)
             .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
             .column(Size::initial(60.0).at_least(40.0))
             .column(Size::initial(60.0).at_least(40.0))
