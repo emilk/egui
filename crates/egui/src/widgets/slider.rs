@@ -578,6 +578,19 @@ impl<'a> Slider<'a> {
             self.set_value(new_value);
         }
 
+        #[cfg(feature = "accesskit")]
+        {
+            use accesskit::{Action, ActionData};
+            for request in ui
+                .input()
+                .accesskit_action_requests(response.id, Action::SetValue)
+            {
+                if let Some(ActionData::NumericValue(new_value)) = request.data {
+                    self.set_value(new_value);
+                }
+            }
+        }
+
         // Paint it:
         if ui.is_rect_visible(response.rect) {
             let value = self.get_value();
@@ -732,6 +745,8 @@ impl<'a> Slider<'a> {
             let mut node = ui.ctx().accesskit_node(response.id, None);
             node.min_numeric_value = Some(*self.range.start());
             node.max_numeric_value = Some(*self.range.end());
+            node.numeric_value_step = self.step;
+            node.actions |= Action::SetValue;
             let clamp_range = self.clamp_range();
             if value < *clamp_range.end() {
                 node.actions |= Action::Increment;
