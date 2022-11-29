@@ -125,10 +125,11 @@ impl TableDemo {
         let mut table = TableBuilder::new(ui)
             .striped(self.striped)
             .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-            .column(Size::initial(60.0).at_least(40.0))
-            .column(Size::initial(60.0).at_least(40.0))
-            .column(Size::remainder().at_least(60.0))
+            .column(Size::initial(60.0))
+            .column(Size::initial(60.0))
+            .column(Size::remainder())
             .resizable(self.resizable)
+            .clip(false)
             .auto_size_columns(true);
 
         if let Some(y_scroll) = self.vertical_scroll_offset.take() {

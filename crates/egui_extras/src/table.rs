@@ -9,7 +9,7 @@ use crate::{
     Size, StripLayout,
 };
 
-use egui::{Rect, Response, Ui, Vec2};
+use egui::{NumExt as _, Rect, Response, Ui, Vec2};
 
 /// Builder for a [`Table`] with (optional) fixed header and scrolling body.
 ///
@@ -427,7 +427,12 @@ impl<'a> Table<'a> {
                         if let Some(pointer) = ui.ctx().pointer_latest_pos() {
                             let new_width = *column_width + pointer.x - x;
                             let (min, max) = sizing.sizes[i].range();
-                            let new_width = new_width.clamp(min, max);
+                            let mut new_width = new_width.clamp(min, max);
+                            if !clip {
+                                // If we don't clip, we don't want to shrink below the
+                                // size that was actually used.
+                                new_width = new_width.at_least(max_used_widths[i]);
+                            }
                             let x = x - *column_width + new_width;
                             p0.x = x;
                             p1.x = x;
