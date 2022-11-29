@@ -390,6 +390,15 @@ impl<'a> Widget for DragValue<'a> {
 
         if is_kb_editing {
             let mut input = ui.input_mut();
+            // This deliberately doesn't listen for left and right arrow keys,
+            // because when editing, these are used to move the caret.
+            // This behavior is consistent with other editable spinner/stepper
+            // implementations, such as Chromium's (for HTML5 number input).
+            // It is also normal for such controls to go directly into edit mode
+            // when they receive keyboard focus, and some screen readers
+            // assume this behavior, so having a separate mode for incrementing
+            // and decrementing, that supports all arrow keys, would be
+            // problematic.
             let change = input.count_and_consume_key(Modifiers::NONE, Key::ArrowUp) as f64
                 - input.count_and_consume_key(Modifiers::NONE, Key::ArrowDown) as f64;
 
