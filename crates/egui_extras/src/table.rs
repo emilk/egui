@@ -29,6 +29,8 @@ use egui::{Rect, Response, Ui, Vec2};
 /// TableBuilder::new(ui)
 ///     .column(Size::remainder().at_least(100.0))
 ///     .column(Size::exact(40.0))
+///     .resizable(true)
+///     .auto_size_columns(true)
 ///     .header(20.0, |mut header| {
 ///         header.col(|ui| {
 ///             ui.heading("Growing");
@@ -52,6 +54,7 @@ use egui::{Rect, Response, Ui, Vec2};
 pub struct TableBuilder<'a> {
     ui: &'a mut Ui,
     sizing: Sizing,
+    auto_size_columns: bool,
     scroll: bool,
     striped: bool,
     resizable: bool,
@@ -67,6 +70,7 @@ impl<'a> TableBuilder<'a> {
         Self {
             ui,
             sizing: Default::default(),
+            auto_size_columns: true,
             scroll: true,
             striped: false,
             resizable: false,
@@ -100,6 +104,17 @@ impl<'a> TableBuilder<'a> {
     /// you will need to give them unique id:s with [`Ui::push_id`].
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = resizable;
+        self
+    }
+
+    /// Automatically chose a size of the columns on the first frame
+    /// based on their actual sized.
+    ///
+    /// [`Sizing::range`] is respected.
+    ///
+    /// Only works with [`Self::resizable`] set to `true`.
+    pub fn auto_size_columns(mut self, auto_size_columns: bool) -> Self {
+        self.auto_size_columns = auto_size_columns;
         self
     }
 
@@ -159,6 +174,7 @@ impl<'a> TableBuilder<'a> {
         let Self {
             ui,
             sizing,
+            auto_size_columns,
             scroll,
             striped,
             resizable,
@@ -172,11 +188,13 @@ impl<'a> TableBuilder<'a> {
 
         let default_widths = sizing.to_lengths(available_width, ui.spacing().item_spacing.x);
         let mut max_used_widths = vec![0.0; default_widths.len()];
-        let state = TableReizeState::load(ui, default_widths, resize_id);
+        let (had_state, state) = TableReizeState::load(ui, default_widths, resize_id);
+        let first_frame_auto_size_columns = auto_size_columns && resize_id.is_some() && !had_state;
 
         let table_top = ui.cursor().top();
 
-        {
+        // Hide first-frame-jitters when auto-sizing.
+        ui.add_visible_ui(!first_frame_auto_size_columns, |ui| {
             let mut layout = StripLayout::new(ui, CellDirection::Horizontal, clip, cell_layout);
             header(TableRow {
                 layout: &mut layout,
@@ -187,7 +205,7 @@ impl<'a> TableBuilder<'a> {
                 height,
             });
             layout.allocate_rect();
-        }
+        });
 
         Table {
             ui,
@@ -197,6 +215,7 @@ impl<'a> TableBuilder<'a> {
             available_width,
             widths: state.column_widths,
             max_used_widths,
+            first_frame_auto_size_columns,
             scroll,
             striped,
             clip,
@@ -216,6 +235,7 @@ impl<'a> TableBuilder<'a> {
         let Self {
             ui,
             sizing,
+            auto_size_columns,
             scroll,
             striped,
             resizable,
@@ -229,7 +249,8 @@ impl<'a> TableBuilder<'a> {
 
         let default_widths = sizing.to_lengths(available_width, ui.spacing().item_spacing.x);
         let max_used_widths = vec![0.0; default_widths.len()];
-        let state = TableReizeState::load(ui, default_widths, resize_id);
+        let (had_state, state) = TableReizeState::load(ui, default_widths, resize_id);
+        let first_frame_auto_size_columns = auto_size_columns && resize_id.is_some() && !had_state;
 
         let table_top = ui.cursor().top();
 
@@ -241,6 +262,7 @@ impl<'a> TableBuilder<'a> {
             available_width,
             widths: state.column_widths,
             max_used_widths,
+            first_frame_auto_size_columns,
             scroll,
             striped,
             clip,
@@ -261,7 +283,8 @@ struct TableReizeState {
 }
 
 impl TableReizeState {
-    fn load(ui: &egui::Ui, default_widths: Vec<f32>, resize_id: Option<egui::Id>) -> Self {
+    /// Returns `true` if it did load.
+    fn load(ui: &egui::Ui, default_widths: Vec<f32>, resize_id: Option<egui::Id>) -> (bool, Self) {
         if let Some(resize_id) = resize_id {
             let rect = Rect::from_min_size(ui.available_rect_before_wrap().min, Vec2::ZERO);
             ui.ctx().check_for_id_clash(resize_id, rect, "Table");
@@ -269,14 +292,17 @@ impl TableReizeState {
             if let Some(state) = ui.data().get_persisted::<Self>(resize_id) {
                 // make sure that the stored widths aren't out-dated
                 if state.column_widths.len() == default_widths.len() {
-                    return state;
+                    return (true, state);
                 }
             }
         }
 
-        Self {
-            column_widths: default_widths,
-        }
+        (
+            false,
+            Self {
+                column_widths: default_widths,
+            },
+        )
     }
 
     fn store(self, ui: &egui::Ui, resize_id: egui::Id) {
@@ -299,6 +325,7 @@ pub struct Table<'a> {
     widths: Vec<f32>,
     /// Accumulated maximum used widths for each column.
     max_used_widths: Vec<f32>,
+    first_frame_auto_size_columns: bool,
     scroll: bool,
     striped: bool,
     clip: bool,
@@ -321,6 +348,7 @@ impl<'a> Table<'a> {
             mut available_width,
             widths,
             mut max_used_widths,
+            first_frame_auto_size_columns,
             scroll,
             striped,
             clip,
@@ -344,22 +372,24 @@ impl<'a> Table<'a> {
         let max_used_widths_ref = &mut max_used_widths;
 
         scroll_area.show(ui, move |ui| {
-            let layout = StripLayout::new(ui, CellDirection::Horizontal, clip, cell_layout);
+            // Hide first-frame-jitters when auto-sizing.
+            ui.add_visible_ui(!first_frame_auto_size_columns, |ui| {
+                let layout = StripLayout::new(ui, CellDirection::Horizontal, clip, cell_layout);
 
-            body(TableBody {
-                layout,
-                widths,
-                max_used_widths: max_used_widths_ref,
-                striped,
-                row_nr: 0,
-                start_y: avail_rect.top(),
-                end_y: avail_rect.bottom(),
+                body(TableBody {
+                    layout,
+                    widths,
+                    max_used_widths: max_used_widths_ref,
+                    striped,
+                    row_nr: 0,
+                    start_y: avail_rect.top(),
+                    end_y: avail_rect.bottom(),
+                });
             });
         });
 
         let bottom = ui.min_rect().bottom();
 
-        // TODO(emilk): fix frame-delay by interacting before laying out (but painting later).
         if let Some(resize_id) = resize_id {
             let spacing_x = ui.spacing().item_spacing.x;
             let mut x = avail_rect.left() - spacing_x * 0.5;
@@ -376,52 +406,57 @@ impl<'a> Table<'a> {
                     }
                 }
 
-                let resize_id = ui.id().with("__panel_resize").with(i);
-
-                let mut p0 = egui::pos2(x, table_top);
-                let mut p1 = egui::pos2(x, bottom);
-                let line_rect = egui::Rect::from_min_max(p0, p1)
-                    .expand(ui.style().interaction.resize_grab_radius_side);
-                let resize_response =
-                    ui.interact(line_rect, resize_id, egui::Sense::click_and_drag());
-
-                if resize_response.dragged() {
-                    if let Some(pointer) = ui.ctx().pointer_latest_pos() {
-                        let new_width = *column_width + pointer.x - x;
-                        let (min, max) = sizing.sizes[i].range();
-                        let new_width = new_width.clamp(min, max);
-                        let x = x - *column_width + new_width;
-                        p0.x = x;
-                        p1.x = x;
-
-                        *column_width = new_width;
-                    }
-                }
-
-                let dragging_something_else = {
-                    let pointer = &ui.input().pointer;
-                    pointer.any_down() || pointer.any_pressed()
-                };
-                let resize_hover = resize_response.hovered() && !dragging_something_else;
-
-                if resize_hover || resize_response.dragged() {
-                    ui.output().cursor_icon = egui::CursorIcon::ResizeColumn;
-                }
-
-                if resize_response.double_clicked() {
-                    // Resize to the minimum of what is needed.
+                if first_frame_auto_size_columns {
                     *column_width = max_used_widths[i];
-                }
-
-                let stroke = if resize_response.dragged() {
-                    ui.style().visuals.widgets.active.bg_stroke
-                } else if resize_hover {
-                    ui.style().visuals.widgets.hovered.bg_stroke
                 } else {
-                    // ui.visuals().widgets.inactive.bg_stroke
-                    ui.visuals().widgets.noninteractive.bg_stroke
+                    let column_resize_id = ui.id().with("resize_column").with(i);
+
+                    let mut p0 = egui::pos2(x, table_top);
+                    let mut p1 = egui::pos2(x, bottom);
+                    let line_rect = egui::Rect::from_min_max(p0, p1)
+                        .expand(ui.style().interaction.resize_grab_radius_side);
+
+                    let resize_response =
+                        ui.interact(line_rect, column_resize_id, egui::Sense::click_and_drag());
+
+                    if resize_response.double_clicked() {
+                        // Resize to the minimum of what is needed.
+                        let (min, max) = sizing.sizes[i].range();
+                        *column_width = max_used_widths[i].clamp(min, max);
+                    } else if resize_response.dragged() {
+                        if let Some(pointer) = ui.ctx().pointer_latest_pos() {
+                            let new_width = *column_width + pointer.x - x;
+                            let (min, max) = sizing.sizes[i].range();
+                            let new_width = new_width.clamp(min, max);
+                            let x = x - *column_width + new_width;
+                            p0.x = x;
+                            p1.x = x;
+
+                            *column_width = new_width;
+                        }
+                    }
+
+                    let dragging_something_else = {
+                        let pointer = &ui.input().pointer;
+                        pointer.any_down() || pointer.any_pressed()
+                    };
+                    let resize_hover = resize_response.hovered() && !dragging_something_else;
+
+                    if resize_hover || resize_response.dragged() {
+                        ui.output().cursor_icon = egui::CursorIcon::ResizeColumn;
+                    }
+
+                    let stroke = if resize_response.dragged() {
+                        ui.style().visuals.widgets.active.bg_stroke
+                    } else if resize_hover {
+                        ui.style().visuals.widgets.hovered.bg_stroke
+                    } else {
+                        // ui.visuals().widgets.inactive.bg_stroke
+                        ui.visuals().widgets.noninteractive.bg_stroke
+                    };
+
+                    ui.painter().line_segment([p0, p1], stroke);
                 };
-                ui.painter().line_segment([p0, p1], stroke);
 
                 available_width -= *column_width + spacing_x;
             }
@@ -553,7 +588,7 @@ impl<'a> TableBody<'a> {
     /// This takes a very slight performance hit compared to [`TableBody::rows`] due to the need to
     /// iterate over all row heights in to calculate the virtual table height above and below the
     /// visible region, but it is many orders of magnitude more performant than adding individual
-    /// heterogenously-sized rows using [`TableBody::row`] at the cost of the additional complexity
+    /// heterogeneously-sized rows using [`TableBody::row`] at the cost of the additional complexity
     /// that comes with pre-calculating row heights and representing them as an iterator.
     ///
     /// ### Example

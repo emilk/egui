@@ -128,7 +128,8 @@ impl TableDemo {
             .column(Size::initial(60.0).at_least(40.0))
             .column(Size::initial(60.0).at_least(40.0))
             .column(Size::remainder().at_least(60.0))
-            .resizable(self.resizable);
+            .resizable(self.resizable)
+            .auto_size_columns(true);
 
         if let Some(y_scroll) = self.vertical_scroll_offset.take() {
             table = table.vertical_scroll_offset(y_scroll);
