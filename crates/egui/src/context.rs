@@ -1596,7 +1596,7 @@ impl Context {
         parent_id: Option<Id>,
         f: impl FnOnce(&mut accesskit::Node),
     ) {
-        self.write().mutate_accesskit_node(id, parent_id, f)
+        self.write().mutate_accesskit_node(id, parent_id, f);
     }
 
     #[cfg(feature = "accesskit")]
