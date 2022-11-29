@@ -447,7 +447,7 @@ impl<'a> Widget for DragValue<'a> {
                 .drag_value
                 .edit_string
                 .take()
-                .unwrap_or(value_text.clone());
+                .unwrap_or_else(|| value_text.clone());
             let response = ui.add(
                 TextEdit::singleline(&mut value_text)
                     .id(id)
