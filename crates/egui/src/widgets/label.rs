@@ -16,7 +16,7 @@ use crate::{widget_text::WidgetTextGalley, *};
 pub struct Label {
     text: WidgetText,
     wrap: Option<bool>,
-    sense: Sense,
+    sense: Option<Sense>,
 }
 
 impl Label {
@@ -24,7 +24,7 @@ impl Label {
         Self {
             text: text.into(),
             wrap: None,
-            sense: Sense::focusable_noninteractive(),
+            sense: None,
         }
     }
 
@@ -60,7 +60,7 @@ impl Label {
     /// # });
     /// ```
     pub fn sense(mut self, sense: Sense) -> Self {
-        self.sense = sense;
+        self.sense = Some(sense);
         self
     }
 }
@@ -68,9 +68,17 @@ impl Label {
 impl Label {
     /// Do layout and position the galley in the ui, without painting it or adding widget info.
     pub fn layout_in_ui(self, ui: &mut Ui) -> (Pos2, WidgetTextGalley, Response) {
+        let sense = self.sense.unwrap_or_else(|| {
+            // We only want to focus labels if the screen reader is on.
+            if ui.memory().options.screen_reader {
+                Sense::focusable_noninteractive()
+            } else {
+                Sense::hover()
+            }
+        });
         if let WidgetText::Galley(galley) = self.text {
             // If the user said "use this specific galley", then just use it:
-            let (rect, response) = ui.allocate_exact_size(galley.size(), self.sense);
+            let (rect, response) = ui.allocate_exact_size(galley.size(), sense);
             let pos = match galley.job.halign {
                 Align::LEFT => rect.left_top(),
                 Align::Center => rect.center_top(),
@@ -121,10 +129,10 @@ impl Label {
             let rect = text_galley.galley.rows[0]
                 .rect
                 .translate(vec2(pos.x, pos.y));
-            let mut response = ui.allocate_rect(rect, self.sense);
+            let mut response = ui.allocate_rect(rect, sense);
             for row in text_galley.galley.rows.iter().skip(1) {
                 let rect = row.rect.translate(vec2(pos.x, pos.y));
-                response |= ui.allocate_rect(rect, self.sense);
+                response |= ui.allocate_rect(rect, sense);
             }
             (pos, text_galley, response)
         } else {
@@ -144,7 +152,7 @@ impl Label {
             };
 
             let text_galley = text_job.into_galley(&ui.fonts());
-            let (rect, response) = ui.allocate_exact_size(text_galley.size(), self.sense);
+            let (rect, response) = ui.allocate_exact_size(text_galley.size(), sense);
             let pos = match text_galley.galley.job.halign {
                 Align::LEFT => rect.left_top(),
                 Align::Center => rect.center_top(),

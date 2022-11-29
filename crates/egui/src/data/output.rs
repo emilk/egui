@@ -85,6 +85,9 @@ pub struct PlatformOutput {
 
     /// Screen-space position of text edit cursor (used for IME).
     pub text_cursor_pos: Option<crate::Pos2>,
+
+    #[cfg(feature = "accesskit")]
+    pub accesskit_update: accesskit::TreeUpdate,
 }
 
 impl PlatformOutput {
@@ -121,6 +124,8 @@ impl PlatformOutput {
             mut events,
             mutable_text_under_cursor,
             text_cursor_pos,
+            #[cfg(feature = "accesskit")]
+            accesskit_update,
         } = newer;
 
         self.cursor_icon = cursor_icon;
@@ -133,6 +138,13 @@ impl PlatformOutput {
         self.events.append(&mut events);
         self.mutable_text_under_cursor = mutable_text_under_cursor;
         self.text_cursor_pos = text_cursor_pos.or(self.text_cursor_pos);
+
+        #[cfg(feature = "accesskit")]
+        {
+            // egui produces a complete AccessKit tree for each frame,
+            // so overwrite rather than appending.
+            self.accesskit_update = accesskit_update;
+        }
     }
 
     /// Take everything ephemeral (everything except `cursor_icon` currently)
@@ -370,6 +382,19 @@ pub enum OutputEvent {
 
     /// A widget's value changed.
     ValueChanged(WidgetInfo),
+}
+
+impl OutputEvent {
+    pub fn widget_info(&self) -> &WidgetInfo {
+        match self {
+            OutputEvent::Clicked(info)
+            | OutputEvent::DoubleClicked(info)
+            | OutputEvent::TripleClicked(info)
+            | OutputEvent::FocusGained(info)
+            | OutputEvent::TextSelectionChanged(info)
+            | OutputEvent::ValueChanged(info) => info,
+        }
+    }
 }
 
 impl std::fmt::Debug for OutputEvent {

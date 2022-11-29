@@ -3,6 +3,10 @@ use winit::event_loop::EventLoopWindowTarget;
 #[cfg(target_os = "macos")]
 use winit::platform::macos::WindowBuilderExtMacOS as _;
 
+#[cfg(feature = "accesskit")]
+use egui::accesskit;
+#[cfg(feature = "accesskit")]
+use egui_winit::accesskit_winit;
 use egui_winit::{native_pixels_per_point, EventResponse, WindowSettings};
 
 use crate::{epi, Theme, WindowInfo};
@@ -262,6 +266,15 @@ impl EpiIntegration {
         }
     }
 
+    #[cfg(feature = "accesskit")]
+    pub fn init_accesskit<E: From<accesskit_winit::ActionRequestEvent> + Send>(
+        &mut self,
+        window: &winit::window::Window,
+        event_loop_proxy: winit::event_loop::EventLoopProxy<E>,
+    ) {
+        self.egui_winit.init_accesskit(window, event_loop_proxy);
+    }
+
     pub fn warm_up(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {
         crate::profile_function!();
         let saved_memory: egui::Memory = self.egui_ctx.memory().clone();
@@ -299,6 +312,11 @@ impl EpiIntegration {
         }
 
         self.egui_winit.on_event(&self.egui_ctx, event)
+    }
+
+    #[cfg(feature = "accesskit")]
+    pub fn on_accesskit_action_request(&mut self, request: accesskit::ActionRequest) {
+        self.egui_winit.on_accesskit_action_request(request);
     }
 
     pub fn update(

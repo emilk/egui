@@ -425,6 +425,7 @@ impl<'a> Widget for DragValue<'a> {
             }
         };
 
+        #[allow(clippy::redundant_clone)] // some clones below are dundant if AccessKit is disabled
         let mut response = if is_kb_editing {
             let button_width = ui.spacing().interact_size.x;
             let mut value_text = ui
@@ -444,7 +445,7 @@ impl<'a> Widget for DragValue<'a> {
                 None => value_text.parse().ok(),
             };
             if let Some(parsed_value) = parsed_value {
-                let parsed_value = clamp_to_range(parsed_value, clamp_range);
+                let parsed_value = clamp_to_range(parsed_value, clamp_range.clone());
                 set(&mut get_set_value, parsed_value);
             }
             ui.memory().drag_value.edit_string = Some(value_text);
@@ -499,7 +500,7 @@ impl<'a> Widget for DragValue<'a> {
                     );
                     let rounded_new_value =
                         emath::round_to_decimals(rounded_new_value, auto_decimals);
-                    let rounded_new_value = clamp_to_range(rounded_new_value, clamp_range);
+                    let rounded_new_value = clamp_to_range(rounded_new_value, clamp_range.clone());
                     set(&mut get_set_value, rounded_new_value);
 
                     drag_state.last_dragged_id = Some(response.id);
@@ -514,6 +515,24 @@ impl<'a> Widget for DragValue<'a> {
         response.changed = get(&mut get_set_value) != old_value;
 
         response.widget_info(|| WidgetInfo::drag_value(value));
+
+        #[cfg(feature = "accesskit")]
+        {
+            let mut node = ui.ctx().accesskit_node(response.id, None);
+            // If either end of the range is unbounded, it's better
+            // to leave the corresponding AccessKit field set to None,
+            // to allow for platform-specific default behavior.
+            if clamp_range.start().is_finite() {
+                node.min_numeric_value = Some(*clamp_range.start());
+            }
+            if clamp_range.end().is_finite() {
+                node.max_numeric_value = Some(*clamp_range.end());
+            }
+            // The name field is set to the current value by the button,
+            // but we don't want it set that way on this widget type.
+            node.name = None;
+        }
+
         response
     }
 }

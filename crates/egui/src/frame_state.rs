@@ -41,6 +41,9 @@ pub(crate) struct FrameState {
 
     /// horizontal, vertical
     pub(crate) scroll_target: [Option<(RangeInclusive<f32>, Option<Align>)>; 2],
+
+    #[cfg(feature = "accesskit")]
+    pub(crate) accesskit_nodes: IdMap<usize>,
 }
 
 impl Default for FrameState {
@@ -53,6 +56,8 @@ impl Default for FrameState {
             tooltip_state: None,
             scroll_delta: Vec2::ZERO,
             scroll_target: [None, None],
+            #[cfg(feature = "accesskit")]
+            accesskit_nodes: Default::default(),
         }
     }
 }
@@ -67,6 +72,8 @@ impl FrameState {
             tooltip_state,
             scroll_delta,
             scroll_target,
+            #[cfg(feature = "accesskit")]
+            accesskit_nodes,
         } = self;
 
         used_ids.clear();
@@ -76,6 +83,10 @@ impl FrameState {
         *tooltip_state = None;
         *scroll_delta = input.scroll_delta;
         *scroll_target = [None, None];
+        #[cfg(feature = "accesskit")]
+        {
+            accesskit_nodes.clear();
+        }
     }
 
     /// How much space is still available after panels has been added.

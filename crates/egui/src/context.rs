@@ -105,6 +105,25 @@ impl ContextImpl {
                 interactable: true,
             },
         );
+
+        #[cfg(feature = "accesskit")]
+        {
+            let nodes = &mut self.output.accesskit_update.nodes;
+            assert!(nodes.is_empty());
+            let id = crate::accesskit_root_id();
+            let accesskit_id = id.accesskit_id();
+            let node = accesskit::Node {
+                role: accesskit::Role::Window,
+                transform: Some(
+                    accesskit::kurbo::Affine::scale(self.input.pixels_per_point().into()).into(),
+                ),
+                ..Default::default()
+            };
+            nodes.push((accesskit_id, Arc::new(node)));
+            self.frame_state.accesskit_nodes.insert(id, nodes.len() - 1);
+            assert!(self.output.accesskit_update.tree.is_none());
+            self.output.accesskit_update.tree = Some(accesskit::Tree::new(accesskit_id));
+        }
     }
 
     /// Load fonts unless already loaded.
@@ -131,6 +150,24 @@ impl ContextImpl {
                 fonts.lock().fonts.font(font_id).preload_common_characters();
             }
         }
+    }
+
+    #[cfg(feature = "accesskit")]
+    fn accesskit_node(&mut self, id: Id, parent_id: Option<Id>) -> &mut accesskit::Node {
+        let nodes = &mut self.output.accesskit_update.nodes;
+        let node_map = &mut self.frame_state.accesskit_nodes;
+        let index = node_map.get(&id).copied().unwrap_or_else(|| {
+            let accesskit_id = id.accesskit_id();
+            nodes.push((accesskit_id, Arc::new(Default::default())));
+            let index = nodes.len() - 1;
+            node_map.insert(id, index);
+            let parent_id = parent_id.unwrap_or_else(crate::accesskit_root_id);
+            let parent_index = node_map.get(&parent_id).unwrap();
+            let parent = Arc::get_mut(&mut nodes[*parent_index].1).unwrap();
+            parent.children.push(accesskit_id);
+            index
+        });
+        Arc::get_mut(&mut nodes[index].1).unwrap()
     }
 }
 
@@ -436,16 +473,23 @@ impl Context {
 
         self.check_for_id_clash(id, rect, "widget");
 
+        #[cfg(feature = "accesskit")]
+        {
+            if sense.focusable {
+                // Make sure anything that can receive focus has an AccessKit node.
+                // TODO(mwcampbell): For nodes that are filled from widget info,
+                // some information is written to the node twice.
+                let mut node = self.accesskit_node(id, None);
+                response.fill_accesskit_node_common(&mut node);
+            }
+        }
+
         let clicked_elsewhere = response.clicked_elsewhere();
         let ctx_impl = &mut *self.write();
         let memory = &mut ctx_impl.memory;
         let input = &mut ctx_impl.input;
 
-        // We only want to focus labels if the screen reader is on.
-        let interested_in_focus =
-            sense.interactive() || sense.focusable && memory.options.screen_reader;
-
-        if interested_in_focus {
+        if sense.focusable {
             memory.interested_in_focus(id);
         }
 
@@ -455,6 +499,15 @@ impl Context {
         {
             // Space/enter works like a primary click for e.g. selected buttons
             response.clicked[PointerButton::Primary as usize] = true;
+        }
+
+        #[cfg(feature = "accesskit")]
+        {
+            if sense.click
+                && input.has_accesskit_action_request(response.id, accesskit::Action::Default)
+            {
+                response.clicked[PointerButton::Primary as usize] = true;
+            }
         }
 
         if sense.click || sense.drag {
@@ -983,7 +1036,20 @@ impl Context {
             textures_delta = ctx_impl.tex_manager.0.write().take_delta();
         };
 
-        let platform_output: PlatformOutput = std::mem::take(&mut self.output());
+        #[cfg_attr(not(feature = "accesskit"), allow(unused_mut))]
+        let mut platform_output: PlatformOutput = std::mem::take(&mut self.output());
+
+        #[cfg(feature = "accesskit")]
+        {
+            let has_focus = self.input().raw.has_focus;
+            platform_output.accesskit_update.focus = has_focus.then(|| {
+                let focus_id = self.memory().interaction.focus.id;
+                focus_id.map_or_else(
+                    || crate::accesskit_root_id().accesskit_id(),
+                    |id| id.accesskit_id(),
+                )
+            });
+        }
 
         // if repaint_requests is greater than zero. just set the duration to zero for immediate
         // repaint. if there's no repaint requests, then we can use the actual repaint_after instead.
@@ -1499,6 +1565,18 @@ impl Context {
         let mut style: Style = (*self.style()).clone();
         style.ui(ui);
         self.set_style(style);
+    }
+}
+
+/// ## Accessibility
+impl Context {
+    #[cfg(feature = "accesskit")]
+    pub fn accesskit_node(
+        &self,
+        id: Id,
+        parent_id: Option<Id>,
+    ) -> RwLockWriteGuard<'_, accesskit::Node> {
+        RwLockWriteGuard::map(self.write(), |c| c.accesskit_node(id, parent_id))
     }
 }
 

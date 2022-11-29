@@ -52,11 +52,12 @@ mint = ["epaint/mint"]
 persistence = ["serde", "epaint/serde", "ron"]
 
 ## Allow serialization using [`serde`](https://docs.rs/serde).
-serde = ["dep:serde", "epaint/serde"]
+serde = ["dep:serde", "epaint/serde", "accesskit?/serde"]
 
 [dependencies]
 epaint = { version = "0.19.0", path = "../epaint", default-features = false }
 
+accesskit = { version = "0.8.0", optional = true }
 ahash = { version = "0.8.1", default-features = false, features = [
     "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
     "std",

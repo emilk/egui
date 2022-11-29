@@ -268,6 +268,10 @@ pub enum Event {
         /// The value is in the range from 0.0 (no pressure) to 1.0 (maximum pressure).
         force: f32,
     },
+
+    /// An assistive technology (e.g. screen reader) requested an action.
+    #[cfg(feature = "accesskit")]
+    AccessKitActionRequest(accesskit::ActionRequest),
 }
 
 /// Mouse button (or similar for touch input)

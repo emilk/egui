@@ -113,7 +113,7 @@ impl PartialEq for PCursor {
 /// They all point to the same place, but in their own different ways.
 /// pcursor/rcursor can also point to after the end of the paragraph/row.
 /// Does not implement `PartialEq` because you must think which cursor should be equivalent.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Cursor {
     pub ccursor: CCursor,

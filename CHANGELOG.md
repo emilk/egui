@@ -23,6 +23,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Added `Area::constrain` and `Window::constrain` which constrains area to the screen bounds. ([#2270](https://github.com/emilk/egui/pull/2270)).
 * Added `Area::pivot` and `Window::pivot` which controls what part of the window to position. ([#2303](https://github.com/emilk/egui/pull/2303)).
 * Added support for [thin space](https://en.wikipedia.org/wiki/Thin_space).
+* Added optional integration with [AccessKit](https://accesskit.dev/) for implementing platform accessibility APIs. ([#2294](https://github.com/emilk/egui/pull/2294)).
 
 ### Changed 🔧
 * Panels always have a separator line, but no stroke on other sides. Their spacing has also changed slightly ([#2261](https://github.com/emilk/egui/pull/2261)).

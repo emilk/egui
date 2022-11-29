@@ -324,6 +324,9 @@ pub mod util;
 pub mod widget_text;
 pub mod widgets;
 
+#[cfg(feature = "accesskit")]
+pub use accesskit;
+
 pub use epaint;
 pub use epaint::emath;
 
@@ -548,4 +551,28 @@ pub fn __run_test_ui(mut add_contents: impl FnMut(&mut Ui)) {
             add_contents(ui);
         });
     });
+}
+
+#[cfg(feature = "accesskit")]
+pub fn accesskit_root_id() -> Id {
+    Id::new("accesskit_root")
+}
+
+#[cfg(feature = "accesskit")]
+pub fn accesskit_placeholder_tree_update() -> accesskit::TreeUpdate {
+    use accesskit::{Node, Role, Tree, TreeUpdate};
+    use std::sync::Arc;
+
+    let root_id = accesskit_root_id().accesskit_id();
+    TreeUpdate {
+        nodes: vec![(
+            root_id,
+            Arc::new(Node {
+                role: Role::Window,
+                ..Default::default()
+            }),
+        )],
+        tree: Some(Tree::new(root_id)),
+        focus: None,
+    }
 }
