@@ -447,7 +447,7 @@ impl<'a> Widget for DragValue<'a> {
                 .drag_value
                 .edit_string
                 .take()
-                .unwrap_or(value_text);
+                .unwrap_or(value_text.clone());
             let response = ui.add(
                 TextEdit::singleline(&mut value_text)
                     .id(id)
@@ -467,7 +467,7 @@ impl<'a> Widget for DragValue<'a> {
         } else {
             ui.memory().drag_value.edit_string = None;
             let button = Button::new(
-                RichText::new(format!("{}{}{}", prefix, value_text, suffix)).monospace(),
+                RichText::new(format!("{}{}{}", prefix, value_text.clone(), suffix)).monospace(),
             )
             .wrap(false)
             .sense(Sense::click_and_drag())
@@ -552,6 +552,28 @@ impl<'a> Widget for DragValue<'a> {
             // The name field is set to the current value by the button,
             // but we don't want it set that way on this widget type.
             node.name = None;
+            // Always expose the value as a string. This makes the widget
+            // more stable to accessibility users as it switches
+            // between edit and button modes. This is particularly important
+            // for VoiceOver on macOS; if the value is not exposed as a string
+            // when the widget is in button mode, then VoiceOver speaks
+            // the value (or a percentage if the widget has a clamp range)
+            // when the widget loses focus, overriding the announcement
+            // of the newly focused widget. This is certainly a VoiceOver bug,
+            // but it's good to make our software work as well as possible
+            // with existing assistive technology. However, if the widget
+            // has a prefix and/or suffix, expose those when in button mode,
+            // just as they're exposed on the screen. This triggers the
+            // VoiceOver bug just described, but exposing all information
+            // is more important, and at least we can avoid the bug
+            // for instances of the widget with no prefix or suffix.
+            //
+            // The value is exposed as a string by the text edit widget
+            // when in edit mode.
+            if !is_kb_editing {
+                let value_text = format!("{}{}{}", prefix, value_text, suffix);
+                node.value = Some(value_text.into());
+            }
         }
 
         response
