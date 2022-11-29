@@ -94,34 +94,26 @@ impl<'l> StripLayout<'l> {
 
     pub(crate) fn add(
         &mut self,
+        striped: bool,
         width: CellSize,
         height: CellSize,
         add_contents: impl FnOnce(&mut Ui),
     ) -> Response {
         let rect = self.cell_rect(&width, &height);
+
+        if striped {
+            // Make sure we don't have a gap in the stripe background:
+            let stripe_rect = rect.expand2(0.5 * self.ui.spacing().item_spacing);
+
+            self.ui
+                .painter()
+                .rect_filled(stripe_rect, 0.0, self.ui.visuals().faint_bg_color);
+        }
+
         let used_rect = self.cell(rect, add_contents);
         self.set_pos(rect);
         self.ui.allocate_rect(rect.union(used_rect), Sense::hover())
     }
-
-    pub(crate) fn add_striped(
-        &mut self,
-        width: CellSize,
-        height: CellSize,
-        add_contents: impl FnOnce(&mut Ui),
-    ) -> Response {
-        let rect = self.cell_rect(&width, &height);
-
-        // Make sure we don't have a gap in the stripe background:
-        let rect = rect.expand2(0.5 * self.ui.spacing().item_spacing);
-
-        self.ui
-            .painter()
-            .rect_filled(rect, 0.0, self.ui.visuals().faint_bg_color);
-
-        self.add(width, height, add_contents)
-    }
-
     /// only needed for layouts with multiple lines, like [`Table`](crate::Table).
     pub fn end_line(&mut self) {
         match self.direction {

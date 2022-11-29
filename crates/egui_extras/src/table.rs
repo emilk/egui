@@ -651,11 +651,7 @@ impl<'a, 'b> TableRow<'a, 'b> {
         let width = CellSize::Absolute(width);
         let height = CellSize::Absolute(self.height);
 
-        if self.striped {
-            self.layout.add_striped(width, height, add_contents)
-        } else {
-            self.layout.add(width, height, add_contents)
-        }
+        self.layout.add(self.striped, width, height, add_contents)
     }
 }
 

@@ -172,7 +172,8 @@ impl<'a, 'b> Strip<'a, 'b> {
     /// Add cell contents.
     pub fn cell(&mut self, add_contents: impl FnOnce(&mut Ui)) {
         let (width, height) = self.next_cell_size();
-        self.layout.add(width, height, add_contents);
+        let striped = false;
+        self.layout.add(striped, width, height, add_contents);
     }
 
     /// Add an empty cell.
