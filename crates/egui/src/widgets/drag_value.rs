@@ -417,6 +417,16 @@ impl<'a> Widget for DragValue<'a> {
             change
         };
 
+        #[cfg(feature = "accesskit")]
+        {
+            use accesskit::{Action, ActionData};
+            for request in ui.input().accesskit_action_requests(id, Action::SetValue) {
+                if let Some(ActionData::NumericValue(new_value)) = request.data {
+                    value = new_value;
+                }
+            }
+        }
+
         if change != 0.0 {
             value += speed * change;
             value = emath::round_to_decimals(value, auto_decimals);
@@ -543,6 +553,8 @@ impl<'a> Widget for DragValue<'a> {
             if clamp_range.end().is_finite() {
                 node.max_numeric_value = Some(*clamp_range.end());
             }
+            node.numeric_value_step = Some(speed);
+            node.actions |= Action::SetValue;
             if value < *clamp_range.end() {
                 node.actions |= Action::Increment;
             }
