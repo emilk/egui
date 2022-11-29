@@ -552,7 +552,7 @@ impl Response {
         if self.sense.focusable {
             node.focusable = true;
         }
-        if self.sense.click {
+        if self.sense.click && node.default_action_verb.is_none() {
             node.default_action_verb = Some(accesskit::DefaultActionVerb::Click);
         }
     }

@@ -719,8 +719,9 @@ impl<'t> TextEdit<'t> {
                 node.word_lengths = word_lengths.into();
             }
 
+            let mut node = ui.ctx().accesskit_node(parent_id, None);
+
             if let Some(cursor_range) = &cursor_range {
-                let mut node = ui.ctx().accesskit_node(parent_id, None);
                 let anchor = &cursor_range.secondary.rcursor;
                 let focus = &cursor_range.primary.rcursor;
                 node.text_selection = Some(TextSelection {
@@ -734,6 +735,8 @@ impl<'t> TextEdit<'t> {
                     },
                 });
             }
+
+            node.default_action_verb = Some(accesskit::DefaultActionVerb::Focus);
         }
 
         TextEditOutput {
