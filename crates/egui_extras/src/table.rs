@@ -355,17 +355,10 @@ impl<'a> Table<'a> {
                 let mut p1 = egui::pos2(x, bottom);
                 let line_rect = egui::Rect::from_min_max(p0, p1)
                     .expand(ui.style().interaction.resize_grab_radius_side);
-                let mouse_over_resize_line = ui.rect_contains_pointer(line_rect);
+                let resize_response =
+                    ui.interact(line_rect, resize_id, egui::Sense::click_and_drag());
 
-                let any_pressed_and_down = {
-                    let pointer = &ui.input().pointer;
-                    pointer.any_pressed() && pointer.any_down()
-                };
-                if any_pressed_and_down && mouse_over_resize_line {
-                    ui.memory().set_dragged_id(resize_id);
-                }
-                let is_resizing = ui.memory().is_being_dragged(resize_id);
-                if is_resizing {
+                if resize_response.dragged() {
                     if let Some(pointer) = ui.ctx().pointer_latest_pos() {
                         let new_width = *width + pointer.x - x;
                         let (min, max) = sizing.sizes[i].range();
@@ -382,13 +375,13 @@ impl<'a> Table<'a> {
                     let pointer = &ui.input().pointer;
                     pointer.any_down() || pointer.any_pressed()
                 };
-                let resize_hover = mouse_over_resize_line && !dragging_something_else;
+                let resize_hover = resize_response.hovered() && !dragging_something_else;
 
-                if resize_hover || is_resizing {
+                if resize_hover || resize_response.dragged() {
                     ui.output().cursor_icon = egui::CursorIcon::ResizeColumn;
                 }
 
-                let stroke = if is_resizing {
+                let stroke = if resize_response.dragged() {
                     ui.style().visuals.widgets.active.bg_stroke
                 } else if resize_hover {
                     ui.style().visuals.widgets.hovered.bg_stroke
