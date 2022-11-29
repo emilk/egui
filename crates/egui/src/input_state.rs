@@ -395,47 +395,30 @@ impl InputState {
     }
 
     #[cfg(feature = "accesskit")]
-    pub fn accesskit_action_request(
+    pub fn accesskit_action_requests(
         &self,
         id: crate::Id,
         action: accesskit::Action,
-    ) -> Option<&accesskit::ActionRequest> {
+    ) -> impl Iterator<Item = &accesskit::ActionRequest> {
         let accesskit_id = id.accesskit_id();
-        for event in &self.events {
+        self.events.iter().filter_map(move |event| {
             if let Event::AccessKitActionRequest(request) = event {
                 if request.target == accesskit_id && request.action == action {
                     return Some(request);
                 }
             }
-        }
-        None
+            None
+        })
     }
 
     #[cfg(feature = "accesskit")]
     pub fn has_accesskit_action_request(&self, id: crate::Id, action: accesskit::Action) -> bool {
-        self.accesskit_action_request(id, action).is_some()
+        self.accesskit_action_requests(id, action).next().is_some()
     }
 
     #[cfg(feature = "accesskit")]
-    pub fn num_accesskit_action_requests(
-        &self,
-        id: crate::Id,
-        desired_action: accesskit::Action,
-    ) -> usize {
-        let accesskit_id = id.accesskit_id();
-        self.events
-            .iter()
-            .filter(|event| {
-                matches!(
-                    event,
-                    Event::AccessKitActionRequest(accesskit::ActionRequest {
-                        target,
-                        action,
-                        ..
-                    }) if *target == accesskit_id && *action == desired_action
-                )
-            })
-            .count()
+    pub fn num_accesskit_action_requests(&self, id: crate::Id, action: accesskit::Action) -> usize {
+        self.accesskit_action_requests(id, action).count()
     }
 }
 
