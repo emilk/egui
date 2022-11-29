@@ -171,7 +171,7 @@ impl<'a> TableBuilder<'a> {
         let resize_id = resizable.then(|| ui.id().with("__table_resize"));
 
         let default_widths = sizing.to_lengths(available_width, ui.spacing().item_spacing.x);
-        let widths = read_persisted_widths(ui, default_widths, resize_id);
+        let state = TableReizeState::load(ui, default_widths, resize_id);
 
         let table_top = ui.cursor().top();
 
@@ -179,7 +179,7 @@ impl<'a> TableBuilder<'a> {
             let mut layout = StripLayout::new(ui, CellDirection::Horizontal, clip, cell_layout);
             header(TableRow {
                 layout: &mut layout,
-                widths: &widths,
+                widths: &state.column_widths,
                 width_index: 0,
                 striped: false,
                 height,
@@ -193,7 +193,7 @@ impl<'a> TableBuilder<'a> {
             resize_id,
             sizing,
             available_width,
-            widths,
+            widths: state.column_widths,
             scroll,
             striped,
             clip,
@@ -225,7 +225,7 @@ impl<'a> TableBuilder<'a> {
         let resize_id = resizable.then(|| ui.id().with("__table_resize"));
 
         let default_widths = sizing.to_lengths(available_width, ui.spacing().item_spacing.x);
-        let widths = read_persisted_widths(ui, default_widths, resize_id);
+        let state = TableReizeState::load(ui, default_widths, resize_id);
 
         let table_top = ui.cursor().top();
 
@@ -235,7 +235,7 @@ impl<'a> TableBuilder<'a> {
             resize_id,
             sizing,
             available_width,
-            widths,
+            widths: state.column_widths,
             scroll,
             striped,
             clip,
@@ -247,24 +247,39 @@ impl<'a> TableBuilder<'a> {
     }
 }
 
-fn read_persisted_widths(
-    ui: &egui::Ui,
-    default_widths: Vec<f32>,
-    resize_id: Option<egui::Id>,
-) -> Vec<f32> {
-    if let Some(resize_id) = resize_id {
-        let rect = Rect::from_min_size(ui.available_rect_before_wrap().min, Vec2::ZERO);
-        ui.ctx().check_for_id_clash(resize_id, rect, "Table");
-        if let Some(persisted) = ui.data().get_persisted::<Vec<f32>>(resize_id) {
-            // make sure that the stored widths aren't out-dated
-            if persisted.len() == default_widths.len() {
-                return persisted;
+// ----------------------------------------------------------------------------
+
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+struct TableReizeState {
+    column_widths: Vec<f32>,
+}
+
+impl TableReizeState {
+    fn load(ui: &egui::Ui, default_widths: Vec<f32>, resize_id: Option<egui::Id>) -> Self {
+        if let Some(resize_id) = resize_id {
+            let rect = Rect::from_min_size(ui.available_rect_before_wrap().min, Vec2::ZERO);
+            ui.ctx().check_for_id_clash(resize_id, rect, "Table");
+
+            if let Some(state) = ui.data().get_persisted::<Self>(resize_id) {
+                // make sure that the stored widths aren't out-dated
+                if state.column_widths.len() == default_widths.len() {
+                    return state;
+                }
             }
+        }
+
+        Self {
+            column_widths: default_widths,
         }
     }
 
-    default_widths
+    fn store(self, ui: &egui::Ui, resize_id: egui::Id) {
+        ui.data().insert_persisted(resize_id, self);
+    }
 }
+
+// ----------------------------------------------------------------------------
 
 /// Table struct which can construct a [`TableBody`].
 ///
@@ -394,7 +409,10 @@ impl<'a> Table<'a> {
                 available_width -= *width + spacing_x;
             }
 
-            ui.data().insert_persisted(resize_id, new_widths);
+            let state = TableReizeState {
+                column_widths: new_widths,
+            };
+            state.store(ui, resize_id);
         }
     }
 }
