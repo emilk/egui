@@ -756,7 +756,9 @@ impl<'a> Slider<'a> {
             }
         }
 
-        if self.show_value {
+        let slider_response = response.clone();
+
+        let value_response = if self.show_value {
             let position_range = self.position_range(&response.rect);
             let value_response = self.value_ui(ui, position_range);
             if value_response.gained_focus()
@@ -768,12 +770,23 @@ impl<'a> Slider<'a> {
                 response = value_response.union(response);
             } else {
                 // Use the slider id as the id for the whole widget
-                response = response.union(value_response);
+                response = response.union(value_response.clone());
             }
-        }
+            Some(value_response)
+        } else {
+            None
+        };
 
         if !self.text.is_empty() {
-            ui.add(Label::new(self.text.clone()).wrap(false));
+            let label_response = ui.add(Label::new(self.text.clone()).wrap(false));
+            // The slider already has an accessibility label via widget info,
+            // but sometimes it's useful for a screen reader to know
+            // that a piece of text is a label for another widget,
+            // e.g. so the text itself can be excluded from navigation.
+            slider_response.labelled_by(label_response.id);
+            if let Some(value_response) = value_response {
+                value_response.labelled_by(label_response.id);
+            }
         }
 
         response
