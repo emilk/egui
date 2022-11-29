@@ -245,9 +245,9 @@ impl InputState {
         self.pointer.wants_repaint() || self.scroll_delta != Vec2::ZERO || !self.events.is_empty()
     }
 
-    /// Check for a key press. If found, `true` is returned and the key pressed is consumed, so that this will only return `true` once.
-    pub fn consume_key(&mut self, modifiers: Modifiers, key: Key) -> bool {
-        let mut match_found = false;
+    /// Count presses of a key. If non-zero, the presses are consumed, so that this will only return non-zero once.
+    pub fn count_and_consume_key(&mut self, modifiers: Modifiers, key: Key) -> usize {
+        let mut count = 0usize;
 
         self.events.retain(|event| {
             let is_match = matches!(
@@ -259,12 +259,17 @@ impl InputState {
                 } if *ev_key == key && ev_mods.matches(modifiers)
             );
 
-            match_found |= is_match;
+            count += is_match as usize;
 
             !is_match
         });
 
-        match_found
+        count
+    }
+
+    /// Check for a key press. If found, `true` is returned and the key pressed is consumed, so that this will only return `true` once.
+    pub fn consume_key(&mut self, modifiers: Modifiers, key: Key) -> bool {
+        self.count_and_consume_key(modifiers, key) > 0
     }
 
     /// Check if the given shortcut has been pressed.

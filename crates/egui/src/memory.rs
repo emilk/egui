@@ -400,8 +400,13 @@ impl Memory {
 
     /// Register this widget as being interested in getting keyboard focus.
     /// This will allow the user to select it with tab and shift-tab.
+    /// This is normally done automatically when handling interactions,
+    /// but it is sometimes useful to pre-register interest in focus,
+    /// e.g. before deciding which type of underlying widget to use,
+    /// as in the [`crate::DragValue`] widget, so a widget can be focused
+    /// and rendered correctly in a single frame.
     #[inline(always)]
-    pub(crate) fn interested_in_focus(&mut self, id: Id) {
+    pub fn interested_in_focus(&mut self, id: Id) {
         self.interaction.focus.interested_in_focus(id);
     }
 
