@@ -154,6 +154,11 @@ impl ContextImpl {
     #[cfg(feature = "accesskit")]
     fn accesskit_node(&mut self, id: Id, parent_id: Option<Id>) -> &mut accesskit::Node {
         let nodes = self.frame_state.accesskit_nodes.as_mut().unwrap();
+        // We have to override clippy's map_entry lint here, because the
+        // insertion path also modifies another entry, to establish
+        // the parent/child relationship. Using `HashMap::entry` here
+        // would require two mutable borrows at once.
+        #[allow(clippy::map_entry)]
         if !nodes.contains_key(&id) {
             nodes.insert(id, Default::default());
             let parent_id = parent_id.unwrap_or_else(crate::accesskit_root_id);
