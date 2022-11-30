@@ -368,6 +368,7 @@ impl<'a> Table<'a> {
             scroll_area = scroll_area.vertical_scroll_offset(scroll_offset_y);
         }
 
+        let widths_ref = &widths;
         let max_used_widths_ref = &mut max_used_widths;
 
         scroll_area.show(ui, move |ui| {
@@ -377,7 +378,7 @@ impl<'a> Table<'a> {
 
                 body(TableBody {
                     layout,
-                    widths,
+                    widths: widths_ref,
                     max_used_widths: max_used_widths_ref,
                     striped,
                     row_nr: 0,
@@ -396,11 +397,13 @@ impl<'a> Table<'a> {
                 x += *column_width + spacing_x;
 
                 // If the last column is Size::Remainder, then let it fill the remainder!
-                let last_column = i + 1 == sizing.sizes.len();
-                if last_column {
+                let is_last_column = i + 1 == sizing.sizes.len();
+                if is_last_column {
                     if let Size::Remainder { range: (min, max) } = sizing.sizes[i] {
                         let eps = 0.1; // just to avoid some rounding errors.
-                        *column_width = (available_width - eps).clamp(min, max);
+                        *column_width = available_width - eps;
+                        *column_width = column_width.at_least(max_used_widths[i]);
+                        *column_width = column_width.clamp(min, max);
                         break;
                     }
                 }
@@ -424,14 +427,15 @@ impl<'a> Table<'a> {
                         *column_width = max_used_widths[i].clamp(min, max);
                     } else if resize_response.dragged() {
                         if let Some(pointer) = ui.ctx().pointer_latest_pos() {
-                            let new_width = *column_width + pointer.x - x;
-                            let (min, max) = sizing.sizes[i].range();
-                            let mut new_width = new_width.clamp(min, max);
-                            if !clip {
+                            let mut new_width = *column_width + pointer.x - x;
+                            if !clip || is_last_column {
                                 // If we don't clip, we don't want to shrink below the
                                 // size that was actually used.
                                 new_width = new_width.at_least(max_used_widths[i]);
                             }
+                            let (min, max) = sizing.sizes[i].range();
+                            new_width = new_width.clamp(min, max);
+
                             let x = x - *column_width + new_width;
                             p0.x = x;
                             p1.x = x;
@@ -479,7 +483,7 @@ pub struct TableBody<'a> {
     layout: StripLayout<'a>,
 
     /// Current column widths.
-    widths: Vec<f32>,
+    widths: &'a [f32],
 
     /// Accumulated maximum used widths for each column.
     max_used_widths: &'a mut [f32],
@@ -501,7 +505,7 @@ impl<'a> TableBody<'a> {
     /// heights are expected to according to the width of one or more cells -- for example, if text
     /// is wrapped rather than clipped within the cell.
     pub fn widths(&self) -> &[f32] {
-        &self.widths
+        self.widths
     }
 
     /// Add a single row with the given height.
@@ -510,7 +514,7 @@ impl<'a> TableBody<'a> {
     pub fn row(&mut self, height: f32, row: impl FnOnce(TableRow<'a, '_>)) {
         row(TableRow {
             layout: &mut self.layout,
-            widths: &self.widths,
+            widths: self.widths,
             max_used_widths: self.max_used_widths,
             col_index: 0,
             striped: self.striped && self.row_nr % 2 == 0,
@@ -572,7 +576,7 @@ impl<'a> TableBody<'a> {
                 idx,
                 TableRow {
                     layout: &mut self.layout,
-                    widths: &self.widths,
+                    widths: self.widths,
                     max_used_widths: self.max_used_widths,
                     col_index: 0,
                     striped: self.striped && idx % 2 == 0,
@@ -636,7 +640,7 @@ impl<'a> TableBody<'a> {
                 self.add_buffer(old_cursor_y as f32);
                 let tr = TableRow {
                     layout: &mut self.layout,
-                    widths: &self.widths,
+                    widths: self.widths,
                     max_used_widths: self.max_used_widths,
                     col_index: 0,
                     striped: self.striped && row_index % 2 == 0,
@@ -651,7 +655,7 @@ impl<'a> TableBody<'a> {
         for (row_index, row_height) in &mut enumerated_heights {
             let tr = TableRow {
                 layout: &mut self.layout,
-                widths: &self.widths,
+                widths: self.widths,
                 max_used_widths: self.max_used_widths,
                 col_index: 0,
                 striped: self.striped && row_index % 2 == 0,
