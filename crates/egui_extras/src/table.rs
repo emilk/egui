@@ -317,8 +317,6 @@ impl<'a> TableBuilder<'a> {
         self
     }
 
-    /// Only when scrolling is enabled.
-    ///
     /// For each axis (x,y):
     /// * If true, add blank space outside the table, keeping the table small.
     /// * If false, add blank space inside the table, expanding the table to fit the containing ui.
@@ -326,7 +324,7 @@ impl<'a> TableBuilder<'a> {
     /// Default: `[true; 2]`.
     ///
     /// See [`ScrollArea::auto_shrink`] for more.
-    pub fn scroll_auto_shrink(mut self, auto_shrink: [bool; 2]) -> Self {
+    pub fn auto_shrink(mut self, auto_shrink: [bool; 2]) -> Self {
         self.scroll_options.auto_shrink = auto_shrink;
         self
     }
