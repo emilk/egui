@@ -183,7 +183,7 @@ fn to_sizing(columns: &[Column]) -> Sizing {
 pub struct TableBuilder<'a> {
     ui: &'a mut Ui,
     columns: Vec<Column>,
-    scroll: bool,
+    vscroll: bool,
     striped: bool,
     resizable: bool,
     stick_to_bottom: bool,
@@ -197,7 +197,7 @@ impl<'a> TableBuilder<'a> {
         Self {
             ui,
             columns: Default::default(),
-            scroll: true,
+            vscroll: true,
             striped: false,
             resizable: false,
             stick_to_bottom: false,
@@ -206,10 +206,15 @@ impl<'a> TableBuilder<'a> {
         }
     }
 
-    /// Enable scrollview in body (default: true)
-    pub fn scroll(mut self, scroll: bool) -> Self {
-        self.scroll = scroll;
+    /// Enable vertical scrolling in body (default: true)
+    pub fn vscroll(mut self, vscroll: bool) -> Self {
+        self.vscroll = vscroll;
         self
+    }
+
+    #[deprecated = "Renamed to vscroll"]
+    pub fn scroll(self, vscroll: bool) -> Self {
+        self.vscroll(vscroll)
     }
 
     /// Enable striped row background for improved readability (default: false)
@@ -241,7 +246,7 @@ impl<'a> TableBuilder<'a> {
         self
     }
 
-    /// Set the vertical scroll offset position.
+    /// Set the vertical scroll offset position, in points.
     pub fn vertical_scroll_offset(mut self, offset: f32) -> Self {
         self.scroll_offset_y = Some(offset);
         self
@@ -269,7 +274,7 @@ impl<'a> TableBuilder<'a> {
 
     fn available_width(&self) -> f32 {
         self.ui.available_rect_before_wrap().width()
-            - if self.scroll {
+            - if self.vscroll {
                 self.ui.spacing().item_spacing.x + self.ui.spacing().scroll_bar_width
             } else {
                 0.0
@@ -283,7 +288,7 @@ impl<'a> TableBuilder<'a> {
         let Self {
             ui,
             columns,
-            scroll,
+            vscroll,
             striped,
             resizable,
             stick_to_bottom,
@@ -326,7 +331,7 @@ impl<'a> TableBuilder<'a> {
             widths: state.column_widths,
             max_used_widths,
             first_frame_auto_size_columns,
-            scroll,
+            vscroll,
             resizable,
             striped,
             stick_to_bottom,
@@ -345,7 +350,7 @@ impl<'a> TableBuilder<'a> {
         let Self {
             ui,
             columns,
-            scroll,
+            vscroll,
             striped,
             resizable,
             stick_to_bottom,
@@ -373,7 +378,7 @@ impl<'a> TableBuilder<'a> {
             widths: state.column_widths,
             max_used_widths,
             first_frame_auto_size_columns,
-            scroll,
+            vscroll,
             resizable,
             striped,
             stick_to_bottom,
@@ -433,7 +438,7 @@ pub struct Table<'a> {
     /// Accumulated maximum used widths for each column.
     max_used_widths: Vec<f32>,
     first_frame_auto_size_columns: bool,
-    scroll: bool,
+    vscroll: bool,
     resizable: bool,
     striped: bool,
     stick_to_bottom: bool,
@@ -457,7 +462,7 @@ impl<'a> Table<'a> {
             widths,
             mut max_used_widths,
             first_frame_auto_size_columns,
-            scroll,
+            vscroll,
             striped,
             stick_to_bottom,
             scroll_offset_y,
@@ -466,7 +471,7 @@ impl<'a> Table<'a> {
 
         let avail_rect = ui.available_rect_before_wrap();
 
-        let mut scroll_area = egui::ScrollArea::new([false, scroll])
+        let mut scroll_area = egui::ScrollArea::new([false, vscroll])
             .auto_shrink([true; 2])
             .stick_to_bottom(stick_to_bottom);
 

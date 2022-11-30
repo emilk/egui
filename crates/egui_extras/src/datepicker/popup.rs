@@ -245,7 +245,7 @@ impl<'a> DatePickerPopup<'a> {
                     strip.cell(|ui| {
                         ui.spacing_mut().item_spacing = Vec2::new(1.0, 2.0);
                         TableBuilder::new(ui)
-                            .scroll(false)
+                            .vscroll(false)
                             .columns(Column::remainder(), if self.calendar_week { 8 } else { 7 })
                             .header(height, |mut header| {
                                 if self.calendar_week {
