@@ -111,23 +111,17 @@ impl ContextImpl {
 
         #[cfg(feature = "accesskit")]
         if self.is_accesskit_enabled {
-            assert!(self.output.accesskit_update.is_none());
             let id = crate::accesskit_root_id();
-            let accesskit_id = id.accesskit_id();
-            let node = Arc::new(accesskit::Node {
+            let node = Box::new(accesskit::Node {
                 role: accesskit::Role::Window,
                 transform: Some(
                     accesskit::kurbo::Affine::scale(self.input.pixels_per_point().into()).into(),
                 ),
                 ..Default::default()
             });
-            let nodes = vec![(accesskit_id, node)];
-            self.frame_state.accesskit_nodes.insert(id, nodes.len() - 1);
-            self.output.accesskit_update = Some(accesskit::TreeUpdate {
-                nodes,
-                tree: Some(accesskit::Tree::new(accesskit_id)),
-                focus: None,
-            });
+            let mut nodes = IdMap::default();
+            nodes.insert(id, node);
+            self.frame_state.accesskit_nodes = Some(nodes);
         }
     }
 
@@ -159,21 +153,14 @@ impl ContextImpl {
 
     #[cfg(feature = "accesskit")]
     fn accesskit_node(&mut self, id: Id, parent_id: Option<Id>) -> &mut accesskit::Node {
-        let update = self.output.accesskit_update.as_mut().unwrap();
-        let nodes = &mut update.nodes;
-        let node_map = &mut self.frame_state.accesskit_nodes;
-        let index = node_map.get(&id).copied().unwrap_or_else(|| {
-            let accesskit_id = id.accesskit_id();
-            nodes.push((accesskit_id, Arc::new(Default::default())));
-            let index = nodes.len() - 1;
-            node_map.insert(id, index);
+        let nodes = self.frame_state.accesskit_nodes.as_mut().unwrap();
+        if !nodes.contains_key(&id) {
+            nodes.insert(id, Default::default());
             let parent_id = parent_id.unwrap_or_else(crate::accesskit_root_id);
-            let parent_index = node_map.get(&parent_id).unwrap();
-            let parent = Arc::get_mut(&mut nodes[*parent_index].1).unwrap();
-            parent.children.push(accesskit_id);
-            index
-        });
-        Arc::get_mut(&mut nodes[index].1).unwrap()
+            let parent = nodes.get_mut(&parent_id).unwrap();
+            parent.children.push(id.accesskit_id());
+        }
+        nodes.get_mut(&id).unwrap()
     }
 }
 
@@ -1045,15 +1032,23 @@ impl Context {
         let mut platform_output: PlatformOutput = std::mem::take(&mut self.output());
 
         #[cfg(feature = "accesskit")]
-        if let Some(accesskit_update) = &mut platform_output.accesskit_update {
-            let has_focus = self.input().raw.has_focus;
-            accesskit_update.focus = has_focus.then(|| {
-                let focus_id = self.memory().interaction.focus.id;
-                focus_id.map_or_else(
-                    || crate::accesskit_root_id().accesskit_id(),
-                    |id| id.accesskit_id(),
-                )
-            });
+        {
+            let nodes = self.frame_state().accesskit_nodes.take();
+            if let Some(nodes) = nodes {
+                let has_focus = self.input().raw.has_focus;
+                let root_id = crate::accesskit_root_id().accesskit_id();
+                platform_output.accesskit_update = Some(accesskit::TreeUpdate {
+                    nodes: nodes
+                        .into_iter()
+                        .map(|(id, node)| (id.accesskit_id(), Arc::from(node)))
+                        .collect(),
+                    tree: Some(accesskit::Tree::new(root_id)),
+                    focus: has_focus.then(|| {
+                        let focus_id = self.memory().interaction.focus.id;
+                        focus_id.map_or(root_id, |id| id.accesskit_id())
+                    }),
+                });
+            }
         }
 
         // if repaint_requests is greater than zero. just set the duration to zero for immediate
@@ -1585,8 +1580,8 @@ impl Context {
         parent_id: Option<Id>,
     ) -> Option<RwLockWriteGuard<'_, accesskit::Node>> {
         let ctx = self.write();
-        ctx.output
-            .accesskit_update
+        ctx.frame_state
+            .accesskit_nodes
             .is_some()
             .then(move || RwLockWriteGuard::map(ctx, |c| c.accesskit_node(id, parent_id)))
     }

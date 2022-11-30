@@ -43,7 +43,7 @@ pub(crate) struct FrameState {
     pub(crate) scroll_target: [Option<(RangeInclusive<f32>, Option<Align>)>; 2],
 
     #[cfg(feature = "accesskit")]
-    pub(crate) accesskit_nodes: IdMap<usize>,
+    pub(crate) accesskit_nodes: Option<IdMap<Box<accesskit::Node>>>,
 }
 
 impl Default for FrameState {
@@ -57,7 +57,7 @@ impl Default for FrameState {
             scroll_delta: Vec2::ZERO,
             scroll_target: [None, None],
             #[cfg(feature = "accesskit")]
-            accesskit_nodes: Default::default(),
+            accesskit_nodes: None,
         }
     }
 }
@@ -85,7 +85,7 @@ impl FrameState {
         *scroll_target = [None, None];
         #[cfg(feature = "accesskit")]
         {
-            accesskit_nodes.clear();
+            *accesskit_nodes = None;
         }
     }
 
