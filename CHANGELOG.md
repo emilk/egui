@@ -8,7 +8,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * MSRV (Minimum Supported Rust Version) is now `1.65.0` ([#2314](https://github.com/emilk/egui/pull/2314)).
 * ⚠️ BREAKING: egui now expects integrations to do all color blending in gamma space ([#2071](https://github.com/emilk/egui/pull/2071)).
 * ⚠️ BREAKING: if you have overlapping interactive widgets, only the top widget (last added) will be interactive ([#2244](https://github.com/emilk/egui/pull/2244)).
-* Keyboard press events are only pressent at the frame when the key was pressed, consistent with how key releases work.
+* Keyboard press events are only present at the frame when the key was pressed, consistent with how key releases work ([#2334](https://github.com/emilk/egui/pull/2334)).
 
 ### Added ⭐
 * Added helper functions for animating panels that collapse/expand ([#2190](https://github.com/emilk/egui/pull/2190)).
