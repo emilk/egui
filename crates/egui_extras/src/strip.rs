@@ -56,11 +56,11 @@ impl<'a> StripBuilder<'a> {
             ui,
             sizing: Default::default(),
             cell_layout,
-            clip: true,
+            clip: false,
         }
     }
 
-    /// Should we clip the contents of each cell? Default: `true`.
+    /// Should we clip the contents of each cell? Default: `false`.
     pub fn clip(mut self, clip: bool) -> Self {
         self.clip = clip;
         self
