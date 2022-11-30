@@ -132,21 +132,11 @@ impl State {
         &mut self,
         window: &winit::window::Window,
         event_loop_proxy: winit::event_loop::EventLoopProxy<T>,
-        egui_ctx: egui::Context,
+        initial_tree_update_factory: impl 'static + FnOnce() -> accesskit::TreeUpdate + Send,
     ) {
         self.accesskit = Some(accesskit_winit::Adapter::new(
             window,
-            move || {
-                // This function is called when an accessibility client
-                // (e.g. screen reader) makes its first request. If we got here,
-                // we know that an accessibility tree is actually wanted.
-                // Tell egui that AccessKit is active, and return a placeholder
-                // tree for now. `egui::Context::accesskit_activated`
-                // will request a repaint, and that will provide the first
-                // real accessibility tree.
-                egui_ctx.accesskit_activated();
-                egui::accesskit_placeholder_tree_update()
-            },
+            initial_tree_update_factory,
             event_loop_proxy,
         ));
     }

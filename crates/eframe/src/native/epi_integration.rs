@@ -272,8 +272,17 @@ impl EpiIntegration {
         window: &winit::window::Window,
         event_loop_proxy: winit::event_loop::EventLoopProxy<E>,
     ) {
+        let egui_ctx = self.egui_ctx.clone();
         self.egui_winit
-            .init_accesskit(window, event_loop_proxy, self.egui_ctx.clone());
+            .init_accesskit(window, event_loop_proxy, move || {
+                // This function is called when an accessibility client
+                // (e.g. screen reader) makes its first request. If we got here,
+                // we know that an accessibility tree is actually wanted.
+                egui_ctx.enable_accesskit();
+                // Enqueue a repaint so we'll receive a full tree update soon.
+                egui_ctx.request_repaint();
+                egui::accesskit_placeholder_tree_update()
+            });
     }
 
     pub fn warm_up(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {

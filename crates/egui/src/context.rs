@@ -69,7 +69,7 @@ struct ContextImpl {
     layer_rects_prev_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
 
     #[cfg(feature = "accesskit")]
-    was_accesskit_activated: bool,
+    is_accesskit_enabled: bool,
 }
 
 impl ContextImpl {
@@ -110,7 +110,7 @@ impl ContextImpl {
         );
 
         #[cfg(feature = "accesskit")]
-        if self.was_accesskit_activated {
+        if self.is_accesskit_enabled {
             assert!(self.output.accesskit_update.is_none());
             let id = crate::accesskit_root_id();
             let accesskit_id = id.accesskit_id();
@@ -1607,20 +1607,18 @@ impl Context {
         self.output().accesskit_update.is_some()
     }
 
-    /// Indicates that AccessKit has been activated and egui should generate
-    /// AccessKit tree updates for all subsequent frames. Also requests a repaint
-    /// so a full AccessKit tree will be available as soon as the repaint
-    /// is done. As soon as the egui integration knows that accessibility support
-    /// is desired, it must call this method and provide a placeholder tree
-    /// to AccessKit through the [`crate::accesskit_placeholder_tree_update`] method.
+    /// Enable generation of AccessKit tree updates in all future frames.
+    ///
+    /// If it's practical for the egui integration to immediately run the egui
+    /// application when it is either initializing the AccessKit adapter or
+    /// being called by the AccessKit adapter to provide the initial tree update,
+    /// then it should do so, to provide a complete AccessKit tree to the adapter
+    /// immediately. Otherwise, it should enqueue a repaint and use the
+    /// placeholder tree update from [`crate::accesskit_placeholder_tree_update`]
+    /// in the meantime.
     #[cfg(feature = "accesskit")]
-    pub fn accesskit_activated(&self) {
-        let mut ctx = self.write();
-        if !ctx.was_accesskit_activated {
-            ctx.was_accesskit_activated = true;
-            drop(ctx);
-            self.request_repaint();
-        }
+    pub fn enable_accesskit(&self) {
+        self.write().is_accesskit_enabled = true;
     }
 }
 
