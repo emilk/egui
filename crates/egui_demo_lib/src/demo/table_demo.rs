@@ -83,13 +83,12 @@ impl super::View for TableDemo {
             }
 
             if self.demo == DemoType::ManyHomogenous {
-                ui.add(
+                let slider_response = ui.add(
                     egui::Slider::new(&mut self.row_to_scroll_to, 0..=self.num_rows as i32)
                         .logarithmic(true)
                         .text("Row to scroll to"),
                 );
-
-                if ui.button("Scroll to row").clicked() {
+                if slider_response.changed() {
                     self.vertical_scroll_offset
                         .replace(scroll_offset_for_row(ui, self.row_to_scroll_to));
                 }
@@ -125,11 +124,14 @@ impl TableDemo {
         let mut table = TableBuilder::new(ui)
             .striped(self.striped)
             .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-            .column(Column::auto().resizable(false))
             .column(Column::auto())
-            .column(Column::remainder())
-            .resizable(self.resizable)
-            .auto_size_columns(true);
+            .column(
+                Column::initial(100.0)
+                    .at_least(40.0)
+                    .resizable(true)
+                    .clip(true),
+            )
+            .column(Column::remainder());
 
         if let Some(y_scroll) = self.vertical_scroll_offset.take() {
             table = table.vertical_scroll_offset(y_scroll);
@@ -138,13 +140,13 @@ impl TableDemo {
         table
             .header(20.0, |mut header| {
                 header.col(|ui| {
-                    ui.heading("Row");
+                    ui.strong("Row");
                 });
                 header.col(|ui| {
-                    ui.heading("Clock");
+                    ui.strong("Long text");
                 });
                 header.col(|ui| {
-                    ui.heading("Content");
+                    ui.strong("Content");
                 });
             })
             .body(|mut body| match self.demo {
@@ -157,7 +159,7 @@ impl TableDemo {
                                 ui.label(row_index.to_string());
                             });
                             row.col(|ui| {
-                                ui.label(clock_emoji(row_index));
+                                ui.label(long_text(row_index));
                             });
                             row.col(|ui| {
                                 ui.style_mut().wrap = Some(false);
@@ -176,7 +178,7 @@ impl TableDemo {
                             ui.label(row_index.to_string());
                         });
                         row.col(|ui| {
-                            ui.label(clock_emoji(row_index));
+                            ui.label(long_text(row_index));
                         });
                         row.col(|ui| {
                             ui.add(
@@ -203,7 +205,7 @@ impl TableDemo {
                             });
                             row.col(|ui| {
                                 ui.centered_and_justified(|ui| {
-                                    ui.label(clock_emoji(row_index));
+                                    ui.label(long_text(row_index));
                                 });
                             });
                             row.col(|ui| {
@@ -223,10 +225,8 @@ impl TableDemo {
     }
 }
 
-fn clock_emoji(row_index: usize) -> String {
-    char::from_u32(0x1f550 + row_index as u32 % 24)
-        .unwrap()
-        .to_string()
+fn long_text(row_index: usize) -> String {
+    format!("Row {row_index} has some long text that you may want to clip, or it will overflow")
 }
 
 fn thick_row(row_index: usize) -> bool {

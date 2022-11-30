@@ -37,9 +37,9 @@ pub struct Column {
 }
 
 impl Column {
-    /// Automatically sized.
+    /// Automatically sized based on content.
     pub fn auto() -> Self {
-        Self::auto_with_initial_suggestion(100.)
+        Self::auto_with_initial_suggestion(100.0)
     }
 
     /// Automatically sized.
@@ -119,6 +119,13 @@ impl Column {
         self.width_range = (*range.start(), *range.end());
         self
     }
+
+    fn is_auto(&self) -> bool {
+        match self.initial_width {
+            InitialColumnSize::Automatic(_) => true,
+            InitialColumnSize::Absolute(_) | InitialColumnSize::Remainder => false,
+        }
+    }
 }
 
 fn to_sizing(columns: &[Column]) -> Sizing {
@@ -153,7 +160,6 @@ fn to_sizing(columns: &[Column]) -> Sizing {
 ///     .column(Column::auto())
 ///     .column(Column::remainder())
 ///     .resizable(true)
-///     .auto_size_columns(true)
 ///     .header(20.0, |mut header| {
 ///         header.col(|ui| {
 ///             ui.heading("First column");
@@ -177,7 +183,6 @@ fn to_sizing(columns: &[Column]) -> Sizing {
 pub struct TableBuilder<'a> {
     ui: &'a mut Ui,
     columns: Vec<Column>,
-    auto_size_columns: bool,
     scroll: bool,
     striped: bool,
     resizable: bool,
@@ -192,7 +197,6 @@ impl<'a> TableBuilder<'a> {
         Self {
             ui,
             columns: Default::default(),
-            auto_size_columns: true,
             scroll: true,
             striped: false,
             resizable: false,
@@ -226,17 +230,6 @@ impl<'a> TableBuilder<'a> {
     /// Default is `false`.
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = resizable;
-        self
-    }
-
-    /// Automatically chose a size of the columns on the first frame
-    /// based on their actual sized.
-    ///
-    /// [`Sizing::range`] is respected.
-    ///
-    /// Only works with [`Self::resizable`] set to `true`.
-    pub fn auto_size_columns(mut self, auto_size_columns: bool) -> Self {
-        self.auto_size_columns = auto_size_columns;
         self
     }
 
@@ -290,7 +283,6 @@ impl<'a> TableBuilder<'a> {
         let Self {
             ui,
             columns,
-            auto_size_columns,
             scroll,
             striped,
             resizable,
@@ -305,7 +297,8 @@ impl<'a> TableBuilder<'a> {
             to_sizing(&columns).to_lengths(available_width, ui.spacing().item_spacing.x);
         let mut max_used_widths = vec![0.0; initial_widths.len()];
         let (had_state, state) = TableReizeState::load(ui, initial_widths, state_id);
-        let first_frame_auto_size_columns = auto_size_columns && !had_state;
+        let is_first_frame = !had_state;
+        let first_frame_auto_size_columns = is_first_frame && columns.iter().any(|c| c.is_auto());
 
         let table_top = ui.cursor().top();
 
@@ -352,7 +345,6 @@ impl<'a> TableBuilder<'a> {
         let Self {
             ui,
             columns,
-            auto_size_columns,
             scroll,
             striped,
             resizable,
@@ -367,7 +359,8 @@ impl<'a> TableBuilder<'a> {
             to_sizing(&columns).to_lengths(available_width, ui.spacing().item_spacing.x);
         let max_used_widths = vec![0.0; initial_widths.len()];
         let (had_state, state) = TableReizeState::load(ui, initial_widths, state_id);
-        let first_frame_auto_size_columns = auto_size_columns && !had_state;
+        let is_first_frame = !had_state;
+        let first_frame_auto_size_columns = is_first_frame && columns.iter().any(|c| c.is_auto());
 
         let table_top = ui.cursor().top();
 
@@ -510,7 +503,14 @@ impl<'a> Table<'a> {
         let mut widths = widths;
         for (i, column_width) in widths.iter_mut().enumerate() {
             let column = &columns[i];
+            let column_is_resizable = column.resizable.unwrap_or(resizable);
             let (min_width, max_width) = column.width_range;
+
+            if !column.clip {
+                // Unless we clip we don't want to shrink below the
+                // size that was actually used:
+                *column_width = column_width.at_least(max_used_widths[i]);
+            }
             *column_width = column_width.clamp(min_width, max_width);
 
             x += *column_width + spacing_x;
@@ -525,10 +525,10 @@ impl<'a> Table<'a> {
                 break;
             }
 
-            if first_frame_auto_size_columns {
+            if column.is_auto() && (first_frame_auto_size_columns || !column_is_resizable) {
                 *column_width = max_used_widths[i];
                 *column_width = column_width.clamp(min_width, max_width);
-            } else if column.resizable.unwrap_or(resizable) {
+            } else if column_is_resizable {
                 let column_resize_id = ui.id().with("resize_column").with(i);
 
                 let mut p0 = egui::pos2(x, table_top);
@@ -546,9 +546,9 @@ impl<'a> Table<'a> {
                 } else if resize_response.dragged() {
                     if let Some(pointer) = ui.ctx().pointer_latest_pos() {
                         let mut new_width = *column_width + pointer.x - x;
-                        if !column.clip || is_last_column {
-                            // If we don't clip, we don't want to shrink below the
-                            // size that was actually used.
+                        if !column.clip {
+                            // Unless we clip we don't want to shrink below the
+                            // size that was actually used:
                             new_width = new_width.at_least(max_used_widths[i]);
                         }
                         new_width = new_width.clamp(min_width, max_width);
