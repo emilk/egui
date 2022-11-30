@@ -66,6 +66,11 @@ impl Column {
             .clip(true)
     }
 
+    /// Take all the space remaining after the other columns have
+    /// been sized.
+    ///
+    /// If you have multiple [`Column::remainder`] they all
+    /// share the remaining space equally.
     pub fn remainder() -> Self {
         Self::new(InitialColumnSize::Remainder)
     }
@@ -162,9 +167,8 @@ fn to_sizing(columns: &[Column]) -> crate::sizing::Sizing {
 /// # egui::__run_test_ui(|ui| {
 /// use egui_extras::{TableBuilder, Column};
 /// TableBuilder::new(ui)
-///     .column(Column::auto())
+///     .column(Column::auto().resizable(true))
 ///     .column(Column::remainder())
-///     .resizable(true)
 ///     .header(20.0, |mut header| {
 ///         header.col(|ui| {
 ///             ui.heading("First column");
@@ -188,13 +192,12 @@ fn to_sizing(columns: &[Column]) -> crate::sizing::Sizing {
 pub struct TableBuilder<'a> {
     ui: &'a mut Ui,
     columns: Vec<Column>,
-    vscroll: bool,
     striped: bool,
     resizable: bool,
-
     cell_layout: egui::Layout,
 
     // Scroll stuff:
+    vscroll: bool,
     stick_to_bottom: bool,
     scroll_to_row: Option<(usize, Option<Align>)>,
     scroll_offset_y: Option<f32>,
@@ -208,11 +211,11 @@ impl<'a> TableBuilder<'a> {
         Self {
             ui,
             columns: Default::default(),
-            vscroll: true,
             striped: false,
             resizable: false,
             cell_layout,
 
+            vscroll: true,
             stick_to_bottom: false,
             scroll_to_row: None,
             scroll_offset_y: None,
@@ -221,7 +224,7 @@ impl<'a> TableBuilder<'a> {
         }
     }
 
-    /// Enable striped row background for improved readability (default: false)
+    /// Enable striped row background for improved readability (default: `false`)
     pub fn striped(mut self, striped: bool) -> Self {
         self.striped = striped;
         self
@@ -242,7 +245,7 @@ impl<'a> TableBuilder<'a> {
         self
     }
 
-    /// Enable vertical scrolling in body (default: true)
+    /// Enable vertical scrolling in body (default: `true`)
     pub fn vscroll(mut self, vscroll: bool) -> Self {
         self.vscroll = vscroll;
         self
@@ -295,7 +298,7 @@ impl<'a> TableBuilder<'a> {
     /// Don't make the scroll area higher than this (add scroll-bars instead!).
     ///
     /// In other words: add scroll-bars when this height is reached.
-    /// Default: 800.0.
+    /// Default: `800.0`.
     pub fn max_scroll_height(mut self, max_scroll_height: f32) -> Self {
         self.max_scroll_height = max_scroll_height;
         self
@@ -337,11 +340,11 @@ impl<'a> TableBuilder<'a> {
         let Self {
             ui,
             columns,
-            vscroll,
             striped,
             resizable,
             cell_layout,
 
+            vscroll,
             stick_to_bottom,
             scroll_to_row,
             scroll_offset_y,
@@ -384,11 +387,11 @@ impl<'a> TableBuilder<'a> {
             state,
             max_used_widths,
             first_frame_auto_size_columns,
-            vscroll,
             resizable,
             striped,
             cell_layout,
 
+            vscroll,
             stick_to_bottom,
             scroll_to_row,
             scroll_offset_y,
@@ -407,11 +410,11 @@ impl<'a> TableBuilder<'a> {
         let Self {
             ui,
             columns,
-            vscroll,
             striped,
             resizable,
             cell_layout,
 
+            vscroll,
             stick_to_bottom,
             scroll_to_row,
             scroll_offset_y,
@@ -439,11 +442,11 @@ impl<'a> TableBuilder<'a> {
             state,
             max_used_widths,
             first_frame_auto_size_columns,
-            vscroll,
             resizable,
             striped,
             cell_layout,
 
+            vscroll,
             stick_to_bottom,
             scroll_to_row,
             scroll_offset_y,
@@ -502,12 +505,12 @@ pub struct Table<'a> {
     /// Accumulated maximum used widths for each column.
     max_used_widths: Vec<f32>,
     first_frame_auto_size_columns: bool,
-    vscroll: bool,
     resizable: bool,
     striped: bool,
     cell_layout: egui::Layout,
 
     // Scroll stuff:
+    vscroll: bool,
     stick_to_bottom: bool,
     scroll_to_row: Option<(usize, Option<Align>)>,
     scroll_offset_y: Option<f32>,
@@ -608,17 +611,18 @@ impl<'a> Table<'a> {
             }
             *column_width = column_width.clamp(min_width, max_width);
 
-            x += *column_width + spacing_x;
-
-            // If the last column is 'remainder', then let it fill the remainder!
             let is_last_column = i + 1 == columns.len();
+
             if is_last_column && column.initial_width == InitialColumnSize::Remainder {
+                // If the last column is 'remainder', then let it fill the remainder!
                 let eps = 0.1; // just to avoid some rounding errors.
                 *column_width = available_width - eps;
                 *column_width = column_width.at_least(max_used_widths[i]);
                 *column_width = column_width.clamp(min_width, max_width);
                 break;
             }
+
+            x += *column_width + spacing_x;
 
             if column.is_auto() && (first_frame_auto_size_columns || !column_is_resizable) {
                 *column_width = max_used_widths[i];
