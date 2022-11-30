@@ -38,6 +38,10 @@ pub struct Column {
 
 impl Column {
     /// Automatically sized based on content.
+    ///
+    /// If you have many thousands of rows and are therefore using [`TableBody::rows`]
+    /// or [`TableBody::heterogeneous_rows`], then the automatic size will only be based
+    /// on the currently visible rows.
     pub fn auto() -> Self {
         Self::auto_with_initial_suggestion(100.0)
     }
@@ -186,10 +190,15 @@ pub struct TableBuilder<'a> {
     vscroll: bool,
     striped: bool,
     resizable: bool,
+
+    cell_layout: egui::Layout,
+
+    // Scroll stuff:
     stick_to_bottom: bool,
     scroll_to_row: Option<(usize, Option<Align>)>,
     scroll_offset_y: Option<f32>,
-    cell_layout: egui::Layout,
+    min_scrolled_height: f32,
+    max_scroll_height: f32,
 }
 
 impl<'a> TableBuilder<'a> {
@@ -201,22 +210,14 @@ impl<'a> TableBuilder<'a> {
             vscroll: true,
             striped: false,
             resizable: false,
+            cell_layout,
+
             stick_to_bottom: false,
             scroll_to_row: None,
             scroll_offset_y: None,
-            cell_layout,
+            min_scrolled_height: 200.0,
+            max_scroll_height: 800.0,
         }
-    }
-
-    /// Enable vertical scrolling in body (default: true)
-    pub fn vscroll(mut self, vscroll: bool) -> Self {
-        self.vscroll = vscroll;
-        self
-    }
-
-    #[deprecated = "Renamed to vscroll"]
-    pub fn scroll(self, vscroll: bool) -> Self {
-        self.vscroll(vscroll)
     }
 
     /// Enable striped row background for improved readability (default: false)
@@ -238,6 +239,17 @@ impl<'a> TableBuilder<'a> {
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = resizable;
         self
+    }
+
+    /// Enable vertical scrolling in body (default: true)
+    pub fn vscroll(mut self, vscroll: bool) -> Self {
+        self.vscroll = vscroll;
+        self
+    }
+
+    #[deprecated = "Renamed to vscroll"]
+    pub fn scroll(self, vscroll: bool) -> Self {
+        self.vscroll(vscroll)
     }
 
     /// Should the scroll handle stick to the bottom position even as the content size changes
@@ -265,6 +277,26 @@ impl<'a> TableBuilder<'a> {
     /// See also: [`Self::scroll_to_row`].
     pub fn vertical_scroll_offset(mut self, offset: f32) -> Self {
         self.scroll_offset_y = Some(offset);
+        self
+    }
+
+    /// The minimum height of a vertical scroll area which requires scroll bars.
+    ///
+    /// The scroll area will only become smaller than this if the content is smaller than this
+    /// (and so we don't require scroll bars).
+    ///
+    /// Default: `200.0`.
+    pub fn min_scrolled_height(mut self, min_scrolled_height: f32) -> Self {
+        self.min_scrolled_height = min_scrolled_height;
+        self
+    }
+
+    /// Don't make the scroll area higher than this (add scroll-bars instead!).
+    ///
+    /// In other words: add scroll-bars when this height is reached.
+    /// Default: 800.0.
+    pub fn max_scroll_height(mut self, max_scroll_height: f32) -> Self {
+        self.max_scroll_height = max_scroll_height;
         self
     }
 
@@ -307,10 +339,13 @@ impl<'a> TableBuilder<'a> {
             vscroll,
             striped,
             resizable,
+            cell_layout,
+
             stick_to_bottom,
             scroll_to_row,
             scroll_offset_y,
-            cell_layout,
+            min_scrolled_height,
+            max_scroll_height,
         } = self;
 
         let state_id = ui.id().with("__table_state");
@@ -351,10 +386,13 @@ impl<'a> TableBuilder<'a> {
             vscroll,
             resizable,
             striped,
+            cell_layout,
+
             stick_to_bottom,
             scroll_to_row,
             scroll_offset_y,
-            cell_layout,
+            min_scrolled_height,
+            max_scroll_height,
         }
     }
 
@@ -371,10 +409,13 @@ impl<'a> TableBuilder<'a> {
             vscroll,
             striped,
             resizable,
+            cell_layout,
+
             stick_to_bottom,
             scroll_to_row,
             scroll_offset_y,
-            cell_layout,
+            min_scrolled_height,
+            max_scroll_height,
         } = self;
 
         let state_id = ui.id().with("__table_state");
@@ -400,10 +441,13 @@ impl<'a> TableBuilder<'a> {
             vscroll,
             resizable,
             striped,
+            cell_layout,
+
             stick_to_bottom,
             scroll_to_row,
             scroll_offset_y,
-            cell_layout,
+            min_scrolled_height,
+            max_scroll_height,
         }
         .body(add_body_contents);
     }
@@ -460,10 +504,14 @@ pub struct Table<'a> {
     vscroll: bool,
     resizable: bool,
     striped: bool,
+    cell_layout: egui::Layout,
+
+    // Scroll stuff:
     stick_to_bottom: bool,
     scroll_to_row: Option<(usize, Option<Align>)>,
     scroll_offset_y: Option<f32>,
-    cell_layout: egui::Layout,
+    min_scrolled_height: f32,
+    max_scroll_height: f32,
 }
 
 impl<'a> Table<'a> {
@@ -484,17 +532,22 @@ impl<'a> Table<'a> {
             first_frame_auto_size_columns,
             vscroll,
             striped,
+            cell_layout,
+
             stick_to_bottom,
             scroll_to_row,
             scroll_offset_y,
-            cell_layout,
+            min_scrolled_height,
+            max_scroll_height,
         } = self;
 
         let avail_rect = ui.available_rect_before_wrap();
 
         let mut scroll_area = egui::ScrollArea::new([false, vscroll])
             .auto_shrink([true; 2])
-            .stick_to_bottom(stick_to_bottom);
+            .stick_to_bottom(stick_to_bottom)
+            .min_scrolled_height(min_scrolled_height)
+            .max_height(max_scroll_height);
 
         if let Some(scroll_offset_y) = scroll_offset_y {
             scroll_area = scroll_area.vertical_scroll_offset(scroll_offset_y);
