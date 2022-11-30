@@ -136,7 +136,7 @@ impl TableDemo {
             .column(Column::remainder());
 
         if let Some(row_nr) = self.scroll_to_row.take() {
-            table = table.scroll_to_row(row_nr);
+            table = table.scroll_to_row(row_nr, None);
         }
 
         table

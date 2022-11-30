@@ -3,7 +3,7 @@
 //! | fixed size | all available space/minimum | 30% of available width | fixed size |
 //! Takes all available height, so if you want something below the table, put it in a strip.
 
-use egui::{NumExt as _, Rect, Response, Ui, Vec2};
+use egui::{Align, NumExt as _, Rect, Response, Ui, Vec2};
 
 use crate::{
     layout::{CellDirection, CellSize},
@@ -187,7 +187,7 @@ pub struct TableBuilder<'a> {
     striped: bool,
     resizable: bool,
     stick_to_bottom: bool,
-    scroll_to_row: Option<usize>,
+    scroll_to_row: Option<(usize, Option<Align>)>,
     scroll_offset_y: Option<f32>,
     cell_layout: egui::Layout,
 }
@@ -250,9 +250,13 @@ impl<'a> TableBuilder<'a> {
 
     /// Set a row to scroll to.
     ///
+    /// `align` specifies if the row should be positioned in the top, center, or bottom of the view
+    /// (using [`Align::TOP`], [`Align::Center`] or [`Align::BOTTOM`]).
+    /// If `align` is `None`, the table will scroll just enough to bring the cursor into view.
+    ///
     /// See also: [`Self::vertical_scroll_offset`].
-    pub fn scroll_to_row(mut self, row: usize) -> Self {
-        self.scroll_to_row = Some(row);
+    pub fn scroll_to_row(mut self, row: usize, align: Option<Align>) -> Self {
+        self.scroll_to_row = Some((row, align));
         self
     }
 
@@ -410,8 +414,6 @@ impl<'a> TableBuilder<'a> {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 struct TableState {
     column_widths: Vec<f32>,
-    // frame-delayed scrolling action
-    scroll_to_y: Option<f32>,
 }
 
 impl TableState {
@@ -431,7 +433,6 @@ impl TableState {
             false,
             Self {
                 column_widths: default_widths,
-                scroll_to_y: None,
             },
         )
     }
@@ -460,7 +461,7 @@ pub struct Table<'a> {
     resizable: bool,
     striped: bool,
     stick_to_bottom: bool,
-    scroll_to_row: Option<usize>,
+    scroll_to_row: Option<(usize, Option<Align>)>,
     scroll_offset_y: Option<f32>,
     cell_layout: egui::Layout,
 }
@@ -495,8 +496,6 @@ impl<'a> Table<'a> {
             .auto_shrink([true; 2])
             .stick_to_bottom(stick_to_bottom);
 
-        let scroll_offset_y = state.scroll_to_y.take().or(scroll_offset_y);
-
         if let Some(scroll_offset_y) = scroll_offset_y {
             scroll_area = scroll_area.vertical_scroll_offset(scroll_offset_y);
         }
@@ -505,10 +504,9 @@ impl<'a> Table<'a> {
         let widths_ref = &state.column_widths;
         let max_used_widths_ref = &mut max_used_widths;
 
-        let mut scroll_to_y_range = None;
-        let scroll_to_y_range_ref = &mut scroll_to_y_range;
+        scroll_area.show(ui, move |ui| {
+            let mut scroll_to_y_range = None;
 
-        let scroll_output = scroll_area.show(ui, move |ui| {
             // Hide first-frame-jitters when auto-sizing.
             ui.add_visible_ui(!first_frame_auto_size_columns, |ui| {
                 let layout = StripLayout::new(ui, CellDirection::Horizontal, cell_layout);
@@ -522,30 +520,23 @@ impl<'a> Table<'a> {
                     row_nr: 0,
                     start_y: avail_rect.top(),
                     end_y: avail_rect.bottom(),
-                    scroll_to_row,
-                    scroll_to_y_range: scroll_to_y_range_ref,
+                    scroll_to_row: scroll_to_row.map(|(r, _)| r),
+                    scroll_to_y_range: &mut scroll_to_y_range,
                 });
 
-                if scroll_to_row.is_some() && scroll_to_y_range_ref.is_none() {
+                if scroll_to_row.is_some() && scroll_to_y_range.is_none() {
                     // TableBody::row didn't find the right row, so scroll to the bottom:
-                    *scroll_to_y_range_ref = Some((f32::INFINITY, f32::INFINITY));
+                    scroll_to_y_range = Some((f32::INFINITY, f32::INFINITY));
                 }
             });
+
+            if let Some((min_y, max_y)) = scroll_to_y_range {
+                let x = 0.0; // ignored, we only have vertical scrolling
+                let rect = egui::Rect::from_min_max(egui::pos2(x, min_y), egui::pos2(x, max_y));
+                let align = scroll_to_row.and_then(|(_, a)| a);
+                ui.scroll_to_rect(rect, align);
+            }
         });
-
-        if let Some((min_y, max_y)) = scroll_to_y_range {
-            // the scroll_to_y_range is in content coordinates!
-            let offset = egui::lerp(min_y..=max_y, 0.5);
-            let scroll_to_y =
-                offset + scroll_output.state.offset.y - scroll_output.inner_rect.top();
-
-            // clamp so we don't over-scroll:
-            let scroll_to_y = scroll_to_y
-                .at_most(scroll_output.content_size.y - scroll_output.inner_rect.height())
-                .at_least(0.0);
-
-            state.scroll_to_y = Some(scroll_to_y);
-        }
 
         let bottom = ui.min_rect().bottom();
 
