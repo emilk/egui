@@ -32,6 +32,8 @@ pub struct Column {
     width_range: (f32, f32),
     /// Clip contents if too narrow?
     clip: bool,
+
+    resizable: Option<bool>,
 }
 
 impl Column {
@@ -69,8 +71,18 @@ impl Column {
         Self {
             initial_width,
             width_range: (0.0, f32::INFINITY),
+            resizable: None,
             clip: false,
         }
+    }
+
+    /// Can this column be resized by dragging the column separator?
+    ///
+    /// If you don't call this, the fallback value of
+    /// [`Table::resizable`] is used (which by default is `false`).
+    pub fn resizable(mut self, resizable: bool) -> Self {
+        self.resizable = Some(resizable);
+        self
     }
 
     /// If `true`: Allow the column to shrink enough to clip the contents.
@@ -203,6 +215,10 @@ impl<'a> TableBuilder<'a> {
     }
 
     /// Make the columns resizable by dragging.
+    ///
+    /// You can set this for individual columns with [`Column::resizable`].
+    /// [`Self::resizable`] is used as a fallback for any column for which you don't call
+    /// [`Column::resizable`].
     ///
     /// If the _last_ column is [`Column::remainder`], then it won't be resizable
     /// (and instead use up the remainder).
@@ -512,7 +528,7 @@ impl<'a> Table<'a> {
             if first_frame_auto_size_columns {
                 *column_width = max_used_widths[i];
                 *column_width = column_width.clamp(min_width, max_width);
-            } else if resizable {
+            } else if column.resizable.unwrap_or(resizable) {
                 let column_resize_id = ui.id().with("resize_column").with(i);
 
                 let mut p0 = egui::pos2(x, table_top);
@@ -538,8 +554,7 @@ impl<'a> Table<'a> {
                         new_width = new_width.clamp(min_width, max_width);
 
                         let x = x - *column_width + new_width;
-                        p0.x = x;
-                        p1.x = x;
+                        (p0.x, p1.x) = (x, x);
 
                         *column_width = new_width;
                     }

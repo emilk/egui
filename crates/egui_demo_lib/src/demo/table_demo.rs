@@ -125,7 +125,7 @@ impl TableDemo {
         let mut table = TableBuilder::new(ui)
             .striped(self.striped)
             .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-            .column(Column::auto())
+            .column(Column::auto().resizable(false))
             .column(Column::auto())
             .column(Column::remainder())
             .resizable(self.resizable)
