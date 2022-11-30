@@ -125,6 +125,7 @@ impl TableDemo {
             .striped(self.striped)
             .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
             .column(Column::auto())
+            .column(Column::initial(100.0).range(40.0..=300.0).resizable(true))
             .column(
                 Column::initial(100.0)
                     .at_least(40.0)
@@ -143,7 +144,10 @@ impl TableDemo {
                     ui.strong("Row");
                 });
                 header.col(|ui| {
-                    ui.strong("Long text");
+                    ui.strong("Expanding content");
+                });
+                header.col(|ui| {
+                    ui.strong("Clipped text");
                 });
                 header.col(|ui| {
                     ui.strong("Content");
@@ -157,6 +161,9 @@ impl TableDemo {
                         body.row(row_height, |mut row| {
                             row.col(|ui| {
                                 ui.label(row_index.to_string());
+                            });
+                            row.col(|ui| {
+                                expanding_content(ui);
                             });
                             row.col(|ui| {
                                 ui.label(long_text(row_index));
@@ -176,6 +183,9 @@ impl TableDemo {
                     body.rows(text_height, self.num_rows, |row_index, mut row| {
                         row.col(|ui| {
                             ui.label(row_index.to_string());
+                        });
+                        row.col(|ui| {
+                            expanding_content(ui);
                         });
                         row.col(|ui| {
                             ui.label(long_text(row_index));
@@ -199,30 +209,38 @@ impl TableDemo {
                         (0..self.num_rows).into_iter().map(row_thickness),
                         |row_index, mut row| {
                             row.col(|ui| {
-                                ui.centered_and_justified(|ui| {
-                                    ui.label(row_index.to_string());
-                                });
+                                ui.label(row_index.to_string());
                             });
                             row.col(|ui| {
-                                ui.centered_and_justified(|ui| {
-                                    ui.label(long_text(row_index));
-                                });
+                                expanding_content(ui);
                             });
                             row.col(|ui| {
-                                ui.centered_and_justified(|ui| {
-                                    ui.style_mut().wrap = Some(false);
-                                    if thick_row(row_index) {
-                                        ui.heading("Extra thick row");
-                                    } else {
-                                        ui.label("Normal row");
-                                    }
-                                });
+                                ui.label(long_text(row_index));
+                            });
+                            row.col(|ui| {
+                                ui.style_mut().wrap = Some(false);
+                                if thick_row(row_index) {
+                                    ui.heading("Extra thick row");
+                                } else {
+                                    ui.label("Normal row");
+                                }
                             });
                         },
                     );
                 }
             });
     }
+}
+
+fn expanding_content(ui: &mut egui::Ui) {
+    let width = ui.available_width().clamp(20.0, 200.0);
+    let height = ui.available_height();
+    let (rect, _response) = ui.allocate_exact_size(egui::vec2(width, height), egui::Sense::hover());
+    ui.painter().hline(
+        rect.x_range(),
+        rect.center().y,
+        (1.0, ui.visuals().text_color()),
+    );
 }
 
 fn long_text(row_index: usize) -> String {

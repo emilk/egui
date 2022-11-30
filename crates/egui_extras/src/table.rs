@@ -548,8 +548,14 @@ impl<'a> Table<'a> {
                         let mut new_width = *column_width + pointer.x - x;
                         if !column.clip {
                             // Unless we clip we don't want to shrink below the
-                            // size that was actually used:
-                            new_width = new_width.at_least(max_used_widths[i]);
+                            // size that was actually used.
+                            // However, we still want to allow content that shrinks when you try
+                            // to make the column less wide, so we allow some small shrinkage each frame:
+                            // big enough to allow shrinking over time, small enough not to look ugly when
+                            // shrinking fails. This is a bit of a HACK around immediate mode.
+                            let max_shrinkage_per_frame = 8.0;
+                            new_width =
+                                new_width.at_least(max_used_widths[i] - max_shrinkage_per_frame);
                         }
                         new_width = new_width.clamp(min_width, max_width);
 
