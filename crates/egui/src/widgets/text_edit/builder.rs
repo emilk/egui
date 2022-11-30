@@ -659,7 +659,7 @@ impl<'t> TextEdit<'t> {
         }
 
         #[cfg(feature = "accesskit")]
-        if let Some(mut node) = ui.ctx().accesskit_node(response.id, None) {
+        if let Some(mut node) = ui.ctx().accesskit_node(response.id) {
             use accesskit::{Role, TextDirection, TextPosition, TextSelection};
 
             let parent_id = response.id;
@@ -683,61 +683,63 @@ impl<'t> TextEdit<'t> {
 
             drop(node);
 
-            for (i, row) in galley.rows.iter().enumerate() {
-                let id = parent_id.with(i);
-                let mut node = ui.ctx().accesskit_node(id, Some(parent_id)).unwrap();
-                node.role = Role::InlineTextBox;
-                let rect = row.rect.translate(text_draw_pos.to_vec2());
-                node.bounds = Some(accesskit::kurbo::Rect {
-                    x0: rect.min.x.into(),
-                    y0: rect.min.y.into(),
-                    x1: rect.max.x.into(),
-                    y1: rect.max.y.into(),
-                });
-                node.text_direction = Some(TextDirection::LeftToRight);
-                // TODO: more info for the whole row
+            ui.ctx().with_accessibility_parent(parent_id, || {
+                for (i, row) in galley.rows.iter().enumerate() {
+                    let id = parent_id.with(i);
+                    let mut node = ui.ctx().accesskit_node(id).unwrap();
+                    node.role = Role::InlineTextBox;
+                    let rect = row.rect.translate(text_draw_pos.to_vec2());
+                    node.bounds = Some(accesskit::kurbo::Rect {
+                        x0: rect.min.x.into(),
+                        y0: rect.min.y.into(),
+                        x1: rect.max.x.into(),
+                        y1: rect.max.y.into(),
+                    });
+                    node.text_direction = Some(TextDirection::LeftToRight);
+                    // TODO: more info for the whole row
 
-                let glyph_count = row.glyphs.len();
-                let mut value = String::new();
-                value.reserve(glyph_count);
-                let mut character_lengths = Vec::<u8>::new();
-                character_lengths.reserve(glyph_count);
-                let mut character_positions = Vec::<f32>::new();
-                character_positions.reserve(glyph_count);
-                let mut character_widths = Vec::<f32>::new();
-                character_widths.reserve(glyph_count);
-                let mut word_lengths = Vec::<u8>::new();
-                let mut was_at_word_end = false;
-                let mut last_word_start = 0usize;
+                    let glyph_count = row.glyphs.len();
+                    let mut value = String::new();
+                    value.reserve(glyph_count);
+                    let mut character_lengths = Vec::<u8>::new();
+                    character_lengths.reserve(glyph_count);
+                    let mut character_positions = Vec::<f32>::new();
+                    character_positions.reserve(glyph_count);
+                    let mut character_widths = Vec::<f32>::new();
+                    character_widths.reserve(glyph_count);
+                    let mut word_lengths = Vec::<u8>::new();
+                    let mut was_at_word_end = false;
+                    let mut last_word_start = 0usize;
 
-                for glyph in &row.glyphs {
-                    let is_word_char = is_word_char(glyph.chr);
-                    if is_word_char && was_at_word_end {
-                        word_lengths.push((character_lengths.len() - last_word_start) as _);
-                        last_word_start = character_lengths.len();
+                    for glyph in &row.glyphs {
+                        let is_word_char = is_word_char(glyph.chr);
+                        if is_word_char && was_at_word_end {
+                            word_lengths.push((character_lengths.len() - last_word_start) as _);
+                            last_word_start = character_lengths.len();
+                        }
+                        was_at_word_end = !is_word_char;
+                        let old_len = value.len();
+                        value.push(glyph.chr);
+                        character_lengths.push((value.len() - old_len) as _);
+                        character_positions.push(glyph.pos.x - row.rect.min.x);
+                        character_widths.push(glyph.size.x);
                     }
-                    was_at_word_end = !is_word_char;
-                    let old_len = value.len();
-                    value.push(glyph.chr);
-                    character_lengths.push((value.len() - old_len) as _);
-                    character_positions.push(glyph.pos.x - row.rect.min.x);
-                    character_widths.push(glyph.size.x);
-                }
 
-                if row.ends_with_newline {
-                    value.push('\n');
-                    character_lengths.push(1);
-                    character_positions.push(row.rect.max.x - row.rect.min.x);
-                    character_widths.push(0.0);
-                }
-                word_lengths.push((character_lengths.len() - last_word_start) as _);
+                    if row.ends_with_newline {
+                        value.push('\n');
+                        character_lengths.push(1);
+                        character_positions.push(row.rect.max.x - row.rect.min.x);
+                        character_widths.push(0.0);
+                    }
+                    word_lengths.push((character_lengths.len() - last_word_start) as _);
 
-                node.value = Some(value.into());
-                node.character_lengths = character_lengths.into();
-                node.character_positions = Some(character_positions.into());
-                node.character_widths = Some(character_widths.into());
-                node.word_lengths = word_lengths.into();
-            }
+                    node.value = Some(value.into());
+                    node.character_lengths = character_lengths.into();
+                    node.character_positions = Some(character_positions.into());
+                    node.character_widths = Some(character_widths.into());
+                    node.word_lengths = word_lengths.into();
+                }
+            });
         }
 
         TextEditOutput {

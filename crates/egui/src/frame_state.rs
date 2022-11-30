@@ -9,6 +9,13 @@ pub(crate) struct TooltipFrameState {
     pub count: usize,
 }
 
+#[cfg(feature = "accesskit")]
+#[derive(Clone)]
+pub(crate) struct AccessKitFrameState {
+    pub(crate) nodes: IdMap<Box<accesskit::Node>>,
+    pub(crate) parent_stack: Vec<Id>,
+}
+
 /// State that is collected during a frame and then cleared.
 /// Short-term (single frame) memory.
 #[derive(Clone)]
@@ -43,7 +50,7 @@ pub(crate) struct FrameState {
     pub(crate) scroll_target: [Option<(RangeInclusive<f32>, Option<Align>)>; 2],
 
     #[cfg(feature = "accesskit")]
-    pub(crate) accesskit_nodes: Option<IdMap<Box<accesskit::Node>>>,
+    pub(crate) accesskit_state: Option<AccessKitFrameState>,
 }
 
 impl Default for FrameState {
@@ -57,7 +64,7 @@ impl Default for FrameState {
             scroll_delta: Vec2::ZERO,
             scroll_target: [None, None],
             #[cfg(feature = "accesskit")]
-            accesskit_nodes: None,
+            accesskit_state: None,
         }
     }
 }
@@ -73,7 +80,7 @@ impl FrameState {
             scroll_delta,
             scroll_target,
             #[cfg(feature = "accesskit")]
-            accesskit_nodes,
+            accesskit_state,
         } = self;
 
         used_ids.clear();
@@ -85,7 +92,7 @@ impl FrameState {
         *scroll_target = [None, None];
         #[cfg(feature = "accesskit")]
         {
-            *accesskit_nodes = None;
+            *accesskit_state = None;
         }
     }
 

@@ -740,7 +740,7 @@ impl<'a> Slider<'a> {
         response.widget_info(|| WidgetInfo::slider(value, self.text.text()));
 
         #[cfg(feature = "accesskit")]
-        if let Some(mut node) = ui.ctx().accesskit_node(response.id, None) {
+        if let Some(mut node) = ui.ctx().accesskit_node(response.id) {
             use accesskit::Action;
             node.min_numeric_value = Some(*self.range.start());
             node.max_numeric_value = Some(*self.range.end());

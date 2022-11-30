@@ -111,6 +111,7 @@ impl ContextImpl {
 
         #[cfg(feature = "accesskit")]
         if self.is_accesskit_enabled {
+            use crate::frame_state::AccessKitFrameState;
             let id = crate::accesskit_root_id();
             let node = Box::new(accesskit::Node {
                 role: accesskit::Role::Window,
@@ -121,7 +122,10 @@ impl ContextImpl {
             });
             let mut nodes = IdMap::default();
             nodes.insert(id, node);
-            self.frame_state.accesskit_nodes = Some(nodes);
+            self.frame_state.accesskit_state = Some(AccessKitFrameState {
+                nodes,
+                parent_stack: vec![id],
+            });
         }
     }
 
@@ -152,8 +156,9 @@ impl ContextImpl {
     }
 
     #[cfg(feature = "accesskit")]
-    fn accesskit_node(&mut self, id: Id, parent_id: Option<Id>) -> &mut accesskit::Node {
-        let nodes = self.frame_state.accesskit_nodes.as_mut().unwrap();
+    fn accesskit_node(&mut self, id: Id) -> &mut accesskit::Node {
+        let state = self.frame_state.accesskit_state.as_mut().unwrap();
+        let nodes = &mut state.nodes;
         // We have to override clippy's map_entry lint here, because the
         // insertion path also modifies another entry, to establish
         // the parent/child relationship. Using `HashMap::entry` here
@@ -161,8 +166,8 @@ impl ContextImpl {
         #[allow(clippy::map_entry)]
         if !nodes.contains_key(&id) {
             nodes.insert(id, Default::default());
-            let parent_id = parent_id.unwrap_or_else(crate::accesskit_root_id);
-            let parent = nodes.get_mut(&parent_id).unwrap();
+            let parent_id = state.parent_stack.last().unwrap();
+            let parent = nodes.get_mut(parent_id).unwrap();
             parent.children.push(id.accesskit_id());
         }
         nodes.get_mut(&id).unwrap()
@@ -476,7 +481,7 @@ impl Context {
             // Make sure anything that can receive focus has an AccessKit node.
             // TODO(mwcampbell): For nodes that are filled from widget info,
             // some information is written to the node twice.
-            if let Some(mut node) = self.accesskit_node(id, None) {
+            if let Some(mut node) = self.accesskit_node(id) {
                 response.fill_accesskit_node_common(&mut node);
             }
         }
@@ -1038,12 +1043,13 @@ impl Context {
 
         #[cfg(feature = "accesskit")]
         {
-            let nodes = self.frame_state().accesskit_nodes.take();
-            if let Some(nodes) = nodes {
+            let state = self.frame_state().accesskit_state.take();
+            if let Some(state) = state {
                 let has_focus = self.input().raw.has_focus;
                 let root_id = crate::accesskit_root_id().accesskit_id();
                 platform_output.accesskit_update = Some(accesskit::TreeUpdate {
-                    nodes: nodes
+                    nodes: state
+                        .nodes
                         .into_iter()
                         .map(|(id, node)| (id.accesskit_id(), Arc::from(node)))
                         .collect(),
@@ -1575,20 +1581,43 @@ impl Context {
 
 /// ## Accessibility
 impl Context {
+    /// Call the provided function with the given ID pushed on the stack of
+    /// parent IDs for accessibility purposes. If the `accesskit` feature
+    /// is disabled or if AccessKit support is not active for this frame,
+    /// the function is still called, but with no other effect.
+    pub fn with_accessibility_parent(&self, id: Id, f: impl FnOnce()) {
+        #[cfg(feature = "accesskit")]
+        {
+            let mut frame_state = self.frame_state();
+            if let Some(state) = frame_state.accesskit_state.as_mut() {
+                state.parent_stack.push(id);
+            }
+        }
+        #[cfg(not(feature = "accesskit"))]
+        {
+            let _ = id;
+        }
+        f();
+        #[cfg(feature = "accesskit")]
+        {
+            let mut frame_state = self.frame_state();
+            if let Some(state) = frame_state.accesskit_state.as_mut() {
+                assert_eq!(state.parent_stack.pop(), Some(id));
+            }
+        }
+    }
+
     /// If AccessKit support is active for the current frame, get or create
     /// a node with the specified ID and return a mutable reference to it.
-    /// `parent_id` is ignored if the node already exists.
+    /// For newly crated nodes, the parent is the node with the ID at the top
+    /// of the stack managed by [`Context::with_accessibility_parent`].
     #[cfg(feature = "accesskit")]
-    pub fn accesskit_node(
-        &self,
-        id: Id,
-        parent_id: Option<Id>,
-    ) -> Option<RwLockWriteGuard<'_, accesskit::Node>> {
+    pub fn accesskit_node(&self, id: Id) -> Option<RwLockWriteGuard<'_, accesskit::Node>> {
         let ctx = self.write();
         ctx.frame_state
-            .accesskit_nodes
+            .accesskit_state
             .is_some()
-            .then(move || RwLockWriteGuard::map(ctx, |c| c.accesskit_node(id, parent_id)))
+            .then(move || RwLockWriteGuard::map(ctx, |c| c.accesskit_node(id)))
     }
 
     /// Enable generation of AccessKit tree updates in all future frames.
