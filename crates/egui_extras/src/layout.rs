@@ -33,17 +33,11 @@ pub struct StripLayout<'l> {
     pub(crate) rect: Rect,
     cursor: Pos2,
     max: Pos2,
-    pub(crate) clip: bool,
     cell_layout: egui::Layout,
 }
 
 impl<'l> StripLayout<'l> {
-    pub(crate) fn new(
-        ui: &'l mut Ui,
-        direction: CellDirection,
-        clip: bool,
-        cell_layout: egui::Layout,
-    ) -> Self {
+    pub(crate) fn new(ui: &'l mut Ui, direction: CellDirection, cell_layout: egui::Layout) -> Self {
         let rect = ui.available_rect_before_wrap();
         let pos = rect.left_top();
 
@@ -53,7 +47,6 @@ impl<'l> StripLayout<'l> {
             rect,
             cursor: pos,
             max: pos,
-            clip,
             cell_layout,
         }
     }
@@ -97,6 +90,7 @@ impl<'l> StripLayout<'l> {
     /// Return the used space (`min_rect`) plus the [`Response`] of the whole cell.
     pub(crate) fn add(
         &mut self,
+        clip: bool,
         striped: bool,
         width: CellSize,
         height: CellSize,
@@ -113,7 +107,7 @@ impl<'l> StripLayout<'l> {
                 .rect_filled(stripe_rect, 0.0, self.ui.visuals().faint_bg_color);
         }
 
-        let used_rect = self.cell(max_rect, add_cell_contents);
+        let used_rect = self.cell(clip, max_rect, add_cell_contents);
 
         self.set_pos(max_rect);
         let response = self
@@ -144,10 +138,10 @@ impl<'l> StripLayout<'l> {
         self.ui.allocate_rect(rect, Sense::hover());
     }
 
-    fn cell(&mut self, rect: Rect, add_cell_contents: impl FnOnce(&mut Ui)) -> Rect {
+    fn cell(&mut self, clip: bool, rect: Rect, add_cell_contents: impl FnOnce(&mut Ui)) -> Rect {
         let mut child_ui = self.ui.child_ui(rect, self.cell_layout);
 
-        if self.clip {
+        if clip {
             let margin = egui::Vec2::splat(self.ui.visuals().clip_rect_margin);
             let margin = margin.min(0.5 * self.ui.spacing().item_spacing);
             let clip_rect = rect.expand2(margin);

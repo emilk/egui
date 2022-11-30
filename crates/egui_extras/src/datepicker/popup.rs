@@ -1,7 +1,10 @@
-use super::{button::DatePickerButtonState, month_data};
-use crate::{Size, StripBuilder, TableBuilder};
 use chrono::{Date, Datelike, NaiveDate, Utc, Weekday};
+
 use egui::{Align, Button, Color32, ComboBox, Direction, Id, Layout, RichText, Ui, Vec2};
+
+use super::{button::DatePickerButtonState, month_data};
+
+use crate::{Column, Size, StripBuilder, TableBuilder};
 
 #[derive(Default, Clone, serde::Deserialize, serde::Serialize)]
 struct DatePickerPopupState {
@@ -243,8 +246,7 @@ impl<'a> DatePickerPopup<'a> {
                         ui.spacing_mut().item_spacing = Vec2::new(1.0, 2.0);
                         TableBuilder::new(ui)
                             .scroll(false)
-                            .clip(false)
-                            .columns(Size::remainder(), if self.calendar_week { 8 } else { 7 })
+                            .columns(Column::remainder(), if self.calendar_week { 8 } else { 7 })
                             .header(height, |mut header| {
                                 if self.calendar_week {
                                     header.col(|ui| {

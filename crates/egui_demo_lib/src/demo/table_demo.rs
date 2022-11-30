@@ -118,18 +118,17 @@ impl super::View for TableDemo {
 
 impl TableDemo {
     fn table_ui(&mut self, ui: &mut egui::Ui) {
-        use egui_extras::{Size, TableBuilder};
+        use egui_extras::{Column, TableBuilder};
 
         let text_height = egui::TextStyle::Body.resolve(ui.style()).size;
 
         let mut table = TableBuilder::new(ui)
             .striped(self.striped)
             .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-            .column(Size::initial(60.0))
-            .column(Size::initial(60.0))
-            .column(Size::remainder())
+            .column(Column::auto())
+            .column(Column::auto())
+            .column(Column::remainder())
             .resizable(self.resizable)
-            .clip(false)
             .auto_size_columns(true);
 
         if let Some(y_scroll) = self.vertical_scroll_offset.take() {

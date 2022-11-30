@@ -98,15 +98,11 @@ impl<'a> StripBuilder<'a> {
             self.ui.available_rect_before_wrap().width(),
             self.ui.spacing().item_spacing.x,
         );
-        let mut layout = StripLayout::new(
-            self.ui,
-            CellDirection::Horizontal,
-            self.clip,
-            self.cell_layout,
-        );
+        let mut layout = StripLayout::new(self.ui, CellDirection::Horizontal, self.cell_layout);
         strip(Strip {
             layout: &mut layout,
             direction: CellDirection::Horizontal,
+            clip: self.clip,
             sizes: widths,
             size_index: 0,
         });
@@ -125,15 +121,11 @@ impl<'a> StripBuilder<'a> {
             self.ui.available_rect_before_wrap().height(),
             self.ui.spacing().item_spacing.y,
         );
-        let mut layout = StripLayout::new(
-            self.ui,
-            CellDirection::Vertical,
-            self.clip,
-            self.cell_layout,
-        );
+        let mut layout = StripLayout::new(self.ui, CellDirection::Vertical, self.cell_layout);
         strip(Strip {
             layout: &mut layout,
             direction: CellDirection::Vertical,
+            clip: self.clip,
             sizes: heights,
             size_index: 0,
         });
@@ -146,6 +138,7 @@ impl<'a> StripBuilder<'a> {
 pub struct Strip<'a, 'b> {
     layout: &'b mut StripLayout<'a>,
     direction: CellDirection,
+    clip: bool,
     sizes: Vec<f32>,
     size_index: usize,
 }
@@ -173,7 +166,8 @@ impl<'a, 'b> Strip<'a, 'b> {
     pub fn cell(&mut self, add_contents: impl FnOnce(&mut Ui)) {
         let (width, height) = self.next_cell_size();
         let striped = false;
-        self.layout.add(striped, width, height, add_contents);
+        self.layout
+            .add(self.clip, striped, width, height, add_contents);
     }
 
     /// Add an empty cell.
@@ -184,7 +178,7 @@ impl<'a, 'b> Strip<'a, 'b> {
 
     /// Add a strip as cell.
     pub fn strip(&mut self, strip_builder: impl FnOnce(StripBuilder<'_>)) {
-        let clip = self.layout.clip;
+        let clip = self.clip;
         self.cell(|ui| {
             strip_builder(StripBuilder::new(ui).clip(clip));
         });
