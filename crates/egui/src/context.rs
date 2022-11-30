@@ -1589,6 +1589,11 @@ impl Context {
 
 /// ## Accessibility
 impl Context {
+    /// Create an AccessKit node with the specified ID if one doesn't already
+    /// exist, then call the provided function with a mutable reference
+    /// to the node. Node that the `parent_id` parameter is ignored if the node
+    /// already exists. If AccessKit isn't active for this frame, this method
+    /// does nothing.
     #[cfg(feature = "accesskit")]
     pub fn mutate_accesskit_node(
         &self,
@@ -1599,11 +1604,18 @@ impl Context {
         self.write().mutate_accesskit_node(id, parent_id, f);
     }
 
+    /// Returns whether AccessKit is active for the current frame.
     #[cfg(feature = "accesskit")]
     pub fn is_accesskit_active(&self) -> bool {
         self.read().is_accesskit_active_this_frame()
     }
 
+    /// Indicates that AccessKit has been activated and egui should generate
+    /// AccessKit tree updates for all subsequent frames. Also requests a repaint
+    /// so a full AccessKit tree will be available as soon as the repaint
+    /// is done. As soon as the egui integration knows that accessibility support
+    /// is desired, it must call this method and provide a placeholder tree
+    /// to AccessKit through the [`crate::accesskit_placeholder_tree_update`] method.
     #[cfg(feature = "accesskit")]
     pub fn accesskit_activated(&self) {
         let mut ctx = self.write();
