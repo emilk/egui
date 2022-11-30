@@ -480,7 +480,7 @@ impl Context {
         self.check_for_id_clash(id, rect, "widget");
 
         #[cfg(feature = "accesskit")]
-        if self.is_accesskit_active() && sense.focusable {
+        if sense.focusable {
             // Make sure anything that can receive focus has an AccessKit node.
             // TODO(mwcampbell): For nodes that are filled from widget info,
             // some information is written to the node twice.
@@ -1589,12 +1589,6 @@ impl Context {
             .accesskit_update
             .is_some()
             .then(move || RwLockWriteGuard::map(ctx, |c| c.accesskit_node(id, parent_id)))
-    }
-
-    /// Returns whether AccessKit is active for the current frame.
-    #[cfg(feature = "accesskit")]
-    pub fn is_accesskit_active(&self) -> bool {
-        self.output().accesskit_update.is_some()
     }
 
     /// Enable generation of AccessKit tree updates in all future frames.
