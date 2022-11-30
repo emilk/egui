@@ -637,6 +637,7 @@ impl<'a> Table<'a> {
 }
 
 /// The body of a table.
+///
 /// Is created by calling `body` on a [`Table`] (after adding a header row) or [`TableBuilder`] (without a header row).
 pub struct TableBody<'a> {
     layout: StripLayout<'a>,
@@ -654,6 +655,7 @@ pub struct TableBody<'a> {
     start_y: f32,
     end_y: f32,
 
+    /// Look for this row to scroll to.
     scroll_to_row: Option<usize>,
 
     /// If we find the correct row to scroll to,
@@ -662,6 +664,13 @@ pub struct TableBody<'a> {
 }
 
 impl<'a> TableBody<'a> {
+    /// Where in screen-space is the table body?
+    pub fn max_rect(&self) -> Rect {
+        self.layout
+            .rect
+            .translate(egui::vec2(0.0, self.scroll_offset_y()))
+    }
+
     fn scroll_offset_y(&self) -> f32 {
         self.start_y - self.layout.rect.top()
     }
