@@ -155,6 +155,30 @@ fn to_sizing(columns: &[Column]) -> crate::sizing::Sizing {
 
 // -----------------------------------------------------------------=----------
 
+struct TableScrollOptions {
+    vscroll: bool,
+    stick_to_bottom: bool,
+    scroll_to_row: Option<(usize, Option<Align>)>,
+    scroll_offset_y: Option<f32>,
+    min_scrolled_height: f32,
+    max_scroll_height: f32,
+}
+
+impl Default for TableScrollOptions {
+    fn default() -> Self {
+        Self {
+            vscroll: true,
+            stick_to_bottom: false,
+            scroll_to_row: None,
+            scroll_offset_y: None,
+            min_scrolled_height: 200.0,
+            max_scroll_height: 800.0,
+        }
+    }
+}
+
+// -----------------------------------------------------------------=----------
+
 /// Builder for a [`Table`] with (optional) fixed header and scrolling body.
 ///
 /// You must pre-allocate all columns with [`Self::column`]/[`Self::columns`].
@@ -195,14 +219,7 @@ pub struct TableBuilder<'a> {
     striped: bool,
     resizable: bool,
     cell_layout: egui::Layout,
-
-    // Scroll stuff:
-    vscroll: bool,
-    stick_to_bottom: bool,
-    scroll_to_row: Option<(usize, Option<Align>)>,
-    scroll_offset_y: Option<f32>,
-    min_scrolled_height: f32,
-    max_scroll_height: f32,
+    scroll_options: TableScrollOptions,
 }
 
 impl<'a> TableBuilder<'a> {
@@ -214,13 +231,7 @@ impl<'a> TableBuilder<'a> {
             striped: false,
             resizable: false,
             cell_layout,
-
-            vscroll: true,
-            stick_to_bottom: false,
-            scroll_to_row: None,
-            scroll_offset_y: None,
-            min_scrolled_height: 200.0,
-            max_scroll_height: 800.0,
+            scroll_options: Default::default(),
         }
     }
 
@@ -247,7 +258,7 @@ impl<'a> TableBuilder<'a> {
 
     /// Enable vertical scrolling in body (default: `true`)
     pub fn vscroll(mut self, vscroll: bool) -> Self {
-        self.vscroll = vscroll;
+        self.scroll_options.vscroll = vscroll;
         self
     }
 
@@ -260,7 +271,7 @@ impl<'a> TableBuilder<'a> {
     /// dynamically? The scroll handle remains stuck until manually changed, and will become stuck
     /// once again when repositioned to the bottom. Default: `false`.
     pub fn stick_to_bottom(mut self, stick: bool) -> Self {
-        self.stick_to_bottom = stick;
+        self.scroll_options.stick_to_bottom = stick;
         self
     }
 
@@ -272,7 +283,7 @@ impl<'a> TableBuilder<'a> {
     ///
     /// See also: [`Self::vertical_scroll_offset`].
     pub fn scroll_to_row(mut self, row: usize, align: Option<Align>) -> Self {
-        self.scroll_to_row = Some((row, align));
+        self.scroll_options.scroll_to_row = Some((row, align));
         self
     }
 
@@ -280,7 +291,7 @@ impl<'a> TableBuilder<'a> {
     ///
     /// See also: [`Self::scroll_to_row`].
     pub fn vertical_scroll_offset(mut self, offset: f32) -> Self {
-        self.scroll_offset_y = Some(offset);
+        self.scroll_options.scroll_offset_y = Some(offset);
         self
     }
 
@@ -291,7 +302,7 @@ impl<'a> TableBuilder<'a> {
     ///
     /// Default: `200.0`.
     pub fn min_scrolled_height(mut self, min_scrolled_height: f32) -> Self {
-        self.min_scrolled_height = min_scrolled_height;
+        self.scroll_options.min_scrolled_height = min_scrolled_height;
         self
     }
 
@@ -300,7 +311,7 @@ impl<'a> TableBuilder<'a> {
     /// In other words: add scroll-bars when this height is reached.
     /// Default: `800.0`.
     pub fn max_scroll_height(mut self, max_scroll_height: f32) -> Self {
-        self.max_scroll_height = max_scroll_height;
+        self.scroll_options.max_scroll_height = max_scroll_height;
         self
     }
 
@@ -326,7 +337,7 @@ impl<'a> TableBuilder<'a> {
 
     fn available_width(&self) -> f32 {
         self.ui.available_rect_before_wrap().width()
-            - if self.vscroll {
+            - if self.scroll_options.vscroll {
                 self.ui.spacing().scroll_bar_inner_margin
                     + self.ui.spacing().scroll_bar_width
                     + self.ui.spacing().scroll_bar_outer_margin
@@ -345,13 +356,7 @@ impl<'a> TableBuilder<'a> {
             striped,
             resizable,
             cell_layout,
-
-            vscroll,
-            stick_to_bottom,
-            scroll_to_row,
-            scroll_offset_y,
-            min_scrolled_height,
-            max_scroll_height,
+            scroll_options,
         } = self;
 
         let state_id = ui.id().with("__table_state");
@@ -392,13 +397,7 @@ impl<'a> TableBuilder<'a> {
             resizable,
             striped,
             cell_layout,
-
-            vscroll,
-            stick_to_bottom,
-            scroll_to_row,
-            scroll_offset_y,
-            min_scrolled_height,
-            max_scroll_height,
+            scroll_options,
         }
     }
 
@@ -415,13 +414,7 @@ impl<'a> TableBuilder<'a> {
             striped,
             resizable,
             cell_layout,
-
-            vscroll,
-            stick_to_bottom,
-            scroll_to_row,
-            scroll_offset_y,
-            min_scrolled_height,
-            max_scroll_height,
+            scroll_options,
         } = self;
 
         let state_id = ui.id().with("__table_state");
@@ -447,13 +440,7 @@ impl<'a> TableBuilder<'a> {
             resizable,
             striped,
             cell_layout,
-
-            vscroll,
-            stick_to_bottom,
-            scroll_to_row,
-            scroll_offset_y,
-            min_scrolled_height,
-            max_scroll_height,
+            scroll_options,
         }
         .body(add_body_contents);
     }
@@ -511,13 +498,7 @@ pub struct Table<'a> {
     striped: bool,
     cell_layout: egui::Layout,
 
-    // Scroll stuff:
-    vscroll: bool,
-    stick_to_bottom: bool,
-    scroll_to_row: Option<(usize, Option<Align>)>,
-    scroll_offset_y: Option<f32>,
-    min_scrolled_height: f32,
-    max_scroll_height: f32,
+    scroll_options: TableScrollOptions,
 }
 
 impl<'a> Table<'a> {
@@ -536,26 +517,20 @@ impl<'a> Table<'a> {
             mut state,
             mut max_used_widths,
             first_frame_auto_size_columns,
-            vscroll,
             striped,
             cell_layout,
-
-            stick_to_bottom,
-            scroll_to_row,
-            scroll_offset_y,
-            min_scrolled_height,
-            max_scroll_height,
+            scroll_options,
         } = self;
 
         let avail_rect = ui.available_rect_before_wrap();
 
-        let mut scroll_area = egui::ScrollArea::new([false, vscroll])
+        let mut scroll_area = egui::ScrollArea::new([false, scroll_options.vscroll])
             .auto_shrink([true; 2])
-            .stick_to_bottom(stick_to_bottom)
-            .min_scrolled_height(min_scrolled_height)
-            .max_height(max_scroll_height);
+            .stick_to_bottom(scroll_options.stick_to_bottom)
+            .min_scrolled_height(scroll_options.min_scrolled_height)
+            .max_height(scroll_options.max_scroll_height);
 
-        if let Some(scroll_offset_y) = scroll_offset_y {
+        if let Some(scroll_offset_y) = scroll_options.scroll_offset_y {
             scroll_area = scroll_area.vertical_scroll_offset(scroll_offset_y);
         }
 
@@ -579,11 +554,11 @@ impl<'a> Table<'a> {
                     row_nr: 0,
                     start_y: avail_rect.top(),
                     end_y: avail_rect.bottom(),
-                    scroll_to_row: scroll_to_row.map(|(r, _)| r),
+                    scroll_to_row: scroll_options.scroll_to_row.map(|(r, _)| r),
                     scroll_to_y_range: &mut scroll_to_y_range,
                 });
 
-                if scroll_to_row.is_some() && scroll_to_y_range.is_none() {
+                if scroll_options.scroll_to_row.is_some() && scroll_to_y_range.is_none() {
                     // TableBody::row didn't find the right row, so scroll to the bottom:
                     scroll_to_y_range = Some((f32::INFINITY, f32::INFINITY));
                 }
@@ -592,7 +567,7 @@ impl<'a> Table<'a> {
             if let Some((min_y, max_y)) = scroll_to_y_range {
                 let x = 0.0; // ignored, we only have vertical scrolling
                 let rect = egui::Rect::from_min_max(egui::pos2(x, min_y), egui::pos2(x, max_y));
-                let align = scroll_to_row.and_then(|(_, a)| a);
+                let align = scroll_options.scroll_to_row.and_then(|(_, a)| a);
                 ui.scroll_to_rect(rect, align);
             }
         });
