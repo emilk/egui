@@ -529,17 +529,17 @@ impl Response {
             self.output_event(event);
         } else {
             #[cfg(feature = "accesskit")]
-            self.ctx.mutate_accesskit_node(self.id, None, |node| {
-                self.fill_accesskit_node_from_widget_info(node, make_info());
-            });
+            if let Some(mut node) = self.ctx.accesskit_node(self.id, None) {
+                self.fill_accesskit_node_from_widget_info(&mut node, make_info());
+            }
         }
     }
 
     pub fn output_event(&self, event: crate::output::OutputEvent) {
         #[cfg(feature = "accesskit")]
-        self.ctx.mutate_accesskit_node(self.id, None, |node| {
-            self.fill_accesskit_node_from_widget_info(node, event.widget_info().clone());
-        });
+        if let Some(mut node) = self.ctx.accesskit_node(self.id, None) {
+            self.fill_accesskit_node_from_widget_info(&mut node, event.widget_info().clone());
+        }
         self.ctx.output().events.push(event);
     }
 
@@ -606,9 +606,9 @@ impl Response {
     /// Associate a label with a control for accessibility.
     pub fn labelled_by(self, id: Id) -> Self {
         #[cfg(feature = "accesskit")]
-        self.ctx.mutate_accesskit_node(self.id, None, |node| {
+        if let Some(mut node) = self.ctx.accesskit_node(self.id, None) {
             node.labelled_by.push(id.accesskit_id());
-        });
+        }
         #[cfg(not(feature = "accesskit"))]
         {
             let _ = id;

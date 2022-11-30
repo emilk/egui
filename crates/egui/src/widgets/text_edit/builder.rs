@@ -665,7 +665,7 @@ impl<'t> TextEdit<'t> {
             let parent_id = response.id;
             for (i, row) in galley.rows.iter().enumerate() {
                 let id = parent_id.with(i);
-                ui.ctx().mutate_accesskit_node(id, Some(parent_id), |node| {
+                if let Some(mut node) = ui.ctx().accesskit_node(id, Some(parent_id)) {
                     node.role = Role::InlineTextBox;
                     let rect = row.rect.translate(text_draw_pos.to_vec2());
                     node.bounds = Some(accesskit::kurbo::Rect {
@@ -717,10 +717,10 @@ impl<'t> TextEdit<'t> {
                     node.character_positions = Some(character_positions.into());
                     node.character_widths = Some(character_widths.into());
                     node.word_lengths = word_lengths.into();
-                });
+                }
             }
 
-            ui.ctx().mutate_accesskit_node(parent_id, None, |node| {
+            if let Some(mut node) = ui.ctx().accesskit_node(parent_id, None) {
                 if let Some(cursor_range) = &cursor_range {
                     let anchor = &cursor_range.secondary.rcursor;
                     let focus = &cursor_range.primary.rcursor;
@@ -737,7 +737,7 @@ impl<'t> TextEdit<'t> {
                 }
 
                 node.default_action_verb = Some(accesskit::DefaultActionVerb::Focus);
-            });
+            }
         }
 
         TextEditOutput {

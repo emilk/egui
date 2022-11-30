@@ -158,19 +158,8 @@ impl ContextImpl {
     }
 
     #[cfg(feature = "accesskit")]
-    fn mutate_accesskit_node(
-        &mut self,
-        id: Id,
-        parent_id: Option<Id>,
-        f: impl FnOnce(&mut accesskit::Node),
-    ) {
-        let update = match &mut self.output.accesskit_update {
-            Some(update) => update,
-            None => {
-                return;
-            }
-        };
-
+    fn accesskit_node(&mut self, id: Id, parent_id: Option<Id>) -> &mut accesskit::Node {
+        let update = self.output.accesskit_update.as_mut().unwrap();
         let nodes = &mut update.nodes;
         let node_map = &mut self.frame_state.accesskit_nodes;
         let index = node_map.get(&id).copied().unwrap_or_else(|| {
@@ -184,7 +173,7 @@ impl ContextImpl {
             parent.children.push(accesskit_id);
             index
         });
-        f(Arc::get_mut(&mut nodes[index].1).unwrap());
+        Arc::get_mut(&mut nodes[index].1).unwrap()
     }
 }
 
@@ -495,9 +484,9 @@ impl Context {
             // Make sure anything that can receive focus has an AccessKit node.
             // TODO(mwcampbell): For nodes that are filled from widget info,
             // some information is written to the node twice.
-            self.mutate_accesskit_node(id, None, |node| {
-                response.fill_accesskit_node_common(node);
-            });
+            if let Some(mut node) = self.accesskit_node(id, None) {
+                response.fill_accesskit_node_common(&mut node);
+            }
         }
 
         let clicked_elsewhere = response.clicked_elsewhere();
@@ -1586,19 +1575,20 @@ impl Context {
 
 /// ## Accessibility
 impl Context {
-    /// Create an AccessKit node with the specified ID if one doesn't already
-    /// exist, then call the provided function with a mutable reference
-    /// to the node. Node that the `parent_id` parameter is ignored if the node
-    /// already exists. If AccessKit isn't active for this frame, this method
-    /// does nothing.
+    /// If AccessKit support is active for the current frame, get or create
+    /// a node with the specified ID and return a mutable reference to it.
+    /// `parent_id is ignored if the node already exists.
     #[cfg(feature = "accesskit")]
-    pub fn mutate_accesskit_node(
+    pub fn accesskit_node(
         &self,
         id: Id,
         parent_id: Option<Id>,
-        f: impl FnOnce(&mut accesskit::Node),
-    ) {
-        self.write().mutate_accesskit_node(id, parent_id, f);
+    ) -> Option<RwLockWriteGuard<'_, accesskit::Node>> {
+        let ctx = self.write();
+        ctx.output
+            .accesskit_update
+            .is_some()
+            .then(move || RwLockWriteGuard::map(ctx, |c| c.accesskit_node(id, parent_id)))
     }
 
     /// Returns whether AccessKit is active for the current frame.
