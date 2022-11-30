@@ -100,7 +100,7 @@ impl<'l> StripLayout<'l> {
         striped: bool,
         width: CellSize,
         height: CellSize,
-        add_contents: impl FnOnce(&mut Ui),
+        add_cell_contents: impl FnOnce(&mut Ui),
     ) -> (Rect, Response) {
         let max_rect = self.cell_rect(&width, &height);
 
@@ -113,7 +113,7 @@ impl<'l> StripLayout<'l> {
                 .rect_filled(stripe_rect, 0.0, self.ui.visuals().faint_bg_color);
         }
 
-        let used_rect = self.cell(max_rect, add_contents);
+        let used_rect = self.cell(max_rect, add_cell_contents);
 
         self.set_pos(max_rect);
         let response = self
@@ -144,7 +144,7 @@ impl<'l> StripLayout<'l> {
         self.ui.allocate_rect(rect, Sense::hover());
     }
 
-    fn cell(&mut self, rect: Rect, add_contents: impl FnOnce(&mut Ui)) -> Rect {
+    fn cell(&mut self, rect: Rect, add_cell_contents: impl FnOnce(&mut Ui)) -> Rect {
         let mut child_ui = self.ui.child_ui(rect, self.cell_layout);
 
         if self.clip {
@@ -154,7 +154,7 @@ impl<'l> StripLayout<'l> {
             child_ui.set_clip_rect(clip_rect.intersect(child_ui.clip_rect()));
         }
 
-        add_contents(&mut child_ui);
+        add_cell_contents(&mut child_ui);
         child_ui.min_rect()
     }
 

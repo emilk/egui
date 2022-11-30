@@ -168,7 +168,7 @@ impl<'a> TableBuilder<'a> {
     }
 
     /// Create a header row which always stays visible and at the top
-    pub fn header(self, height: f32, header: impl FnOnce(TableRow<'_, '_>)) -> Table<'a> {
+    pub fn header(self, height: f32, add_header_row: impl FnOnce(TableRow<'_, '_>)) -> Table<'a> {
         let available_width = self.available_width();
 
         let Self {
@@ -196,7 +196,7 @@ impl<'a> TableBuilder<'a> {
         // Hide first-frame-jitters when auto-sizing.
         ui.add_visible_ui(!first_frame_auto_size_columns, |ui| {
             let mut layout = StripLayout::new(ui, CellDirection::Horizontal, clip, cell_layout);
-            header(TableRow {
+            add_header_row(TableRow {
                 layout: &mut layout,
                 widths: &state.column_widths,
                 max_used_widths: &mut max_used_widths,
@@ -511,8 +511,8 @@ impl<'a> TableBody<'a> {
     /// Add a single row with the given height.
     ///
     /// If you have many thousands of row it can be more performant to instead use [`Self::rows`] or [`Self::heterogeneous_rows`].
-    pub fn row(&mut self, height: f32, row: impl FnOnce(TableRow<'a, '_>)) {
-        row(TableRow {
+    pub fn row(&mut self, height: f32, add_row_content: impl FnOnce(TableRow<'a, '_>)) {
+        add_row_content(TableRow {
             layout: &mut self.layout,
             widths: self.widths,
             max_used_widths: self.max_used_widths,
@@ -551,7 +551,7 @@ impl<'a> TableBody<'a> {
         mut self,
         row_height_sans_spacing: f32,
         total_rows: usize,
-        mut row: impl FnMut(usize, TableRow<'_, '_>),
+        mut add_row_content: impl FnMut(usize, TableRow<'_, '_>),
     ) {
         let spacing = self.layout.ui.spacing().item_spacing;
         let row_height_with_spacing = row_height_sans_spacing + spacing.y;
@@ -572,7 +572,7 @@ impl<'a> TableBody<'a> {
         let max_row = max_row.min(total_rows);
 
         for idx in min_row..max_row {
-            row(
+            add_row_content(
                 idx,
                 TableRow {
                     layout: &mut self.layout,
@@ -621,7 +621,7 @@ impl<'a> TableBody<'a> {
     pub fn heterogeneous_rows(
         mut self,
         heights: impl Iterator<Item = f32>,
-        mut populate_row: impl FnMut(usize, TableRow<'_, '_>),
+        mut add_row_content: impl FnMut(usize, TableRow<'_, '_>),
     ) {
         let spacing = self.layout.ui.spacing().item_spacing;
         let mut enumerated_heights = heights.enumerate();
@@ -646,7 +646,7 @@ impl<'a> TableBody<'a> {
                     striped: self.striped && row_index % 2 == 0,
                     height: row_height,
                 };
-                populate_row(row_index, tr);
+                add_row_content(row_index, tr);
                 break;
             }
         }
@@ -661,7 +661,7 @@ impl<'a> TableBody<'a> {
                 striped: self.striped && row_index % 2 == 0,
                 height: row_height,
             };
-            populate_row(row_index, tr);
+            add_row_content(row_index, tr);
             cursor_y += (row_height + spacing.y) as f64;
 
             if cursor_y > scroll_offset_y + max_height as f64 {
@@ -710,7 +710,7 @@ impl<'a, 'b> TableRow<'a, 'b> {
     /// Add the contents of a column.
     ///
     /// Return the used space (`min_rect`) plus the [`Response`] of the whole cell.
-    pub fn col(&mut self, add_contents: impl FnOnce(&mut Ui)) -> (Rect, Response) {
+    pub fn col(&mut self, add_cell_contents: impl FnOnce(&mut Ui)) -> (Rect, Response) {
         let col_index = self.col_index;
 
         let width = if let Some(width) = self.widths.get(col_index) {
@@ -727,7 +727,9 @@ impl<'a, 'b> TableRow<'a, 'b> {
         let width = CellSize::Absolute(width);
         let height = CellSize::Absolute(self.height);
 
-        let (used_rect, response) = self.layout.add(self.striped, width, height, add_contents);
+        let (used_rect, response) = self
+            .layout
+            .add(self.striped, width, height, add_cell_contents);
 
         if let Some(max_w) = self.max_used_widths.get_mut(col_index) {
             *max_w = max_w.max(used_rect.width());
