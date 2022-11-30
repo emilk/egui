@@ -558,8 +558,9 @@ pub fn accesskit_root_id() -> Id {
     Id::new("accesskit_root")
 }
 
-/// Return a tree update that the egui integration should provide to AccessKit
-/// before a real tree update is available. See also [`crate::Context::accesskit_activated`].
+/// Return a tree update that the egui integration should provide to the
+/// AccessKit adapter before a real tree update is available. See also
+/// [`crate::Context::accesskit_activated`].
 #[cfg(feature = "accesskit")]
 pub fn accesskit_placeholder_tree_update() -> accesskit::TreeUpdate {
     use accesskit::{Node, Role, Tree, TreeUpdate};
