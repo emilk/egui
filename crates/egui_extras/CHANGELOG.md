@@ -18,6 +18,7 @@ All notable changes to the `egui_extras` integration will be noted in this file.
     * `egui_extras::Strip` now has `clip: false` by default.
     * Fix bugs when putting `Table` inside of a horizontal `ScrollArea`.
     * Many other bug fixes.
+* Add `Table::auto_shrink` - set to `false` to expand table to fit its containing `Ui` ([#2371](https://github.com/emilk/egui/pull/2371)).
 
 
 ## 0.19.0 - 2022-08-20

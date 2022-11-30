@@ -3,7 +3,7 @@
 //! | fixed size | all available space/minimum | 30% of available width | fixed size |
 //! Takes all available height, so if you want something below the table, put it in a strip.
 
-use egui::{Align, NumExt as _, Rect, Response, Ui, Vec2};
+use egui::{Align, NumExt as _, Rect, Response, ScrollArea, Ui, Vec2};
 
 use crate::{
     layout::{CellDirection, CellSize},
@@ -162,6 +162,7 @@ struct TableScrollOptions {
     scroll_offset_y: Option<f32>,
     min_scrolled_height: f32,
     max_scroll_height: f32,
+    auto_shrink: [bool; 2],
 }
 
 impl Default for TableScrollOptions {
@@ -173,6 +174,7 @@ impl Default for TableScrollOptions {
             scroll_offset_y: None,
             min_scrolled_height: 200.0,
             max_scroll_height: 800.0,
+            auto_shrink: [true; 2],
         }
     }
 }
@@ -312,6 +314,20 @@ impl<'a> TableBuilder<'a> {
     /// Default: `800.0`.
     pub fn max_scroll_height(mut self, max_scroll_height: f32) -> Self {
         self.scroll_options.max_scroll_height = max_scroll_height;
+        self
+    }
+
+    /// Only when scrolling is enabled.
+    ///
+    /// For each axis (x,y):
+    /// * If true, add blank space outside the table, keeping the table small.
+    /// * If false, add blank space inside the table, expanding the table to fit the containing ui.
+    ///
+    /// Default: `[true; 2]`.
+    ///
+    /// See [`ScrollArea::auto_shrink`] for more.
+    pub fn scroll_auto_shrink(mut self, auto_shrink: [bool; 2]) -> Self {
+        self.scroll_options.auto_shrink = auto_shrink;
         self
     }
 
@@ -522,15 +538,26 @@ impl<'a> Table<'a> {
             scroll_options,
         } = self;
 
+        let TableScrollOptions {
+            vscroll,
+            stick_to_bottom,
+            scroll_to_row,
+            scroll_offset_y,
+            min_scrolled_height,
+            max_scroll_height,
+            auto_shrink,
+        } = scroll_options;
+
         let avail_rect = ui.available_rect_before_wrap();
 
-        let mut scroll_area = egui::ScrollArea::new([false, scroll_options.vscroll])
+        let mut scroll_area = ScrollArea::new([false, vscroll])
             .auto_shrink([true; 2])
-            .stick_to_bottom(scroll_options.stick_to_bottom)
-            .min_scrolled_height(scroll_options.min_scrolled_height)
-            .max_height(scroll_options.max_scroll_height);
+            .stick_to_bottom(stick_to_bottom)
+            .min_scrolled_height(min_scrolled_height)
+            .max_height(max_scroll_height)
+            .auto_shrink(auto_shrink);
 
-        if let Some(scroll_offset_y) = scroll_options.scroll_offset_y {
+        if let Some(scroll_offset_y) = scroll_offset_y {
             scroll_area = scroll_area.vertical_scroll_offset(scroll_offset_y);
         }
 
@@ -554,11 +581,11 @@ impl<'a> Table<'a> {
                     row_nr: 0,
                     start_y: avail_rect.top(),
                     end_y: avail_rect.bottom(),
-                    scroll_to_row: scroll_options.scroll_to_row.map(|(r, _)| r),
+                    scroll_to_row: scroll_to_row.map(|(r, _)| r),
                     scroll_to_y_range: &mut scroll_to_y_range,
                 });
 
-                if scroll_options.scroll_to_row.is_some() && scroll_to_y_range.is_none() {
+                if scroll_to_row.is_some() && scroll_to_y_range.is_none() {
                     // TableBody::row didn't find the right row, so scroll to the bottom:
                     scroll_to_y_range = Some((f32::INFINITY, f32::INFINITY));
                 }
@@ -567,7 +594,7 @@ impl<'a> Table<'a> {
             if let Some((min_y, max_y)) = scroll_to_y_range {
                 let x = 0.0; // ignored, we only have vertical scrolling
                 let rect = egui::Rect::from_min_max(egui::pos2(x, min_y), egui::pos2(x, max_y));
-                let align = scroll_options.scroll_to_row.and_then(|(_, a)| a);
+                let align = scroll_to_row.and_then(|(_, a)| a);
                 ui.scroll_to_rect(rect, align);
             }
         });
