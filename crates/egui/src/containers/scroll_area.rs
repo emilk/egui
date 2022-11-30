@@ -66,6 +66,10 @@ pub struct ScrollAreaOutput<R> {
     /// The current state of the scroll area.
     pub state: State,
 
+    /// The size of the content. If this is larger than [`Self::inner_rect`],
+    /// then there was need for scrolling.
+    pub content_size: Vec2,
+
     /// Where on the screen the content is (excludes scroll bars).
     pub inner_rect: Rect,
 }
@@ -198,6 +202,8 @@ impl ScrollArea {
 
     /// Set the horizontal and vertical scroll offset position.
     ///
+    /// Positive offset means scrolling down/right.
+    ///
     /// See also: [`Self::vertical_scroll_offset`], [`Self::horizontal_scroll_offset`],
     /// [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
     /// [`Response::scroll_to_me`](crate::Response::scroll_to_me)
@@ -209,6 +215,8 @@ impl ScrollArea {
 
     /// Set the vertical scroll offset position.
     ///
+    /// Positive offset means scrolling down.
+    ///
     /// See also: [`Self::scroll_offset`], [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
     /// [`Response::scroll_to_me`](crate::Response::scroll_to_me)
     pub fn vertical_scroll_offset(mut self, offset: f32) -> Self {
@@ -217,6 +225,8 @@ impl ScrollArea {
     }
 
     /// Set the horizontal scroll offset position.
+    ///
+    /// Positive offset means scrolling right.
     ///
     /// See also: [`Self::scroll_offset`], [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
     /// [`Response::scroll_to_me`](crate::Response::scroll_to_me)
@@ -541,18 +551,20 @@ impl ScrollArea {
         let id = prepared.id;
         let inner_rect = prepared.inner_rect;
         let inner = add_contents(&mut prepared.content_ui, prepared.viewport);
-        let state = prepared.end(ui);
+        let (content_size, state) = prepared.end(ui);
         ScrollAreaOutput {
             inner,
             id,
             state,
+            content_size,
             inner_rect,
         }
     }
 }
 
 impl Prepared {
-    fn end(self, ui: &mut Ui) -> State {
+    /// Returns content size and state
+    fn end(self, ui: &mut Ui) -> (Vec2, State) {
         let Prepared {
             id,
             mut state,
@@ -847,7 +859,7 @@ impl Prepared {
 
         state.store(ui.ctx(), id);
 
-        state
+        (content_size, state)
     }
 }
 

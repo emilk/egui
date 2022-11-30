@@ -31,19 +31,15 @@ pub struct StripLayout<'l> {
     pub(crate) ui: &'l mut Ui,
     direction: CellDirection,
     pub(crate) rect: Rect,
-    cursor: Pos2,
+    pub(crate) cursor: Pos2,
+    /// Keeps track of the max used position,
+    /// so we know how much space we used.
     max: Pos2,
-    pub(crate) clip: bool,
     cell_layout: egui::Layout,
 }
 
 impl<'l> StripLayout<'l> {
-    pub(crate) fn new(
-        ui: &'l mut Ui,
-        direction: CellDirection,
-        clip: bool,
-        cell_layout: egui::Layout,
-    ) -> Self {
+    pub(crate) fn new(ui: &'l mut Ui, direction: CellDirection, cell_layout: egui::Layout) -> Self {
         let rect = ui.available_rect_before_wrap();
         let pos = rect.left_top();
 
@@ -53,7 +49,6 @@ impl<'l> StripLayout<'l> {
             rect,
             cursor: pos,
             max: pos,
-            clip,
             cell_layout,
         }
     }
@@ -92,34 +87,41 @@ impl<'l> StripLayout<'l> {
         self.set_pos(self.cell_rect(&width, &height));
     }
 
+    /// This is the innermost part of [`crate::Table`] and [`crate::Strip`].
+    ///
+    /// Return the used space (`min_rect`) plus the [`Response`] of the whole cell.
     pub(crate) fn add(
         &mut self,
+        clip: bool,
+        striped: bool,
         width: CellSize,
         height: CellSize,
-        add_contents: impl FnOnce(&mut Ui),
-    ) -> Response {
-        let rect = self.cell_rect(&width, &height);
-        let used_rect = self.cell(rect, add_contents);
-        self.set_pos(rect);
-        self.ui.allocate_rect(rect.union(used_rect), Sense::hover())
-    }
+        add_cell_contents: impl FnOnce(&mut Ui),
+    ) -> (Rect, Response) {
+        let max_rect = self.cell_rect(&width, &height);
 
-    pub(crate) fn add_striped(
-        &mut self,
-        width: CellSize,
-        height: CellSize,
-        add_contents: impl FnOnce(&mut Ui),
-    ) -> Response {
-        let rect = self.cell_rect(&width, &height);
+        if striped {
+            // Make sure we don't have a gap in the stripe background:
+            let stripe_rect = max_rect.expand2(0.5 * self.ui.spacing().item_spacing);
 
-        // Make sure we don't have a gap in the stripe background:
-        let rect = rect.expand2(0.5 * self.ui.spacing().item_spacing);
+            self.ui
+                .painter()
+                .rect_filled(stripe_rect, 0.0, self.ui.visuals().faint_bg_color);
+        }
 
-        self.ui
-            .painter()
-            .rect_filled(rect, 0.0, self.ui.visuals().faint_bg_color);
+        let used_rect = self.cell(clip, max_rect, add_cell_contents);
 
-        self.add(width, height, add_contents)
+        self.set_pos(max_rect);
+
+        let allocation_rect = if clip {
+            max_rect
+        } else {
+            max_rect.union(used_rect)
+        };
+
+        let response = self.ui.allocate_rect(allocation_rect, Sense::hover());
+
+        (used_rect, response)
     }
 
     /// only needed for layouts with multiple lines, like [`Table`](crate::Table).
@@ -144,17 +146,17 @@ impl<'l> StripLayout<'l> {
         self.ui.allocate_rect(rect, Sense::hover());
     }
 
-    fn cell(&mut self, rect: Rect, add_contents: impl FnOnce(&mut Ui)) -> Rect {
+    fn cell(&mut self, clip: bool, rect: Rect, add_cell_contents: impl FnOnce(&mut Ui)) -> Rect {
         let mut child_ui = self.ui.child_ui(rect, self.cell_layout);
 
-        if self.clip {
+        if clip {
             let margin = egui::Vec2::splat(self.ui.visuals().clip_rect_margin);
             let margin = margin.min(0.5 * self.ui.spacing().item_spacing);
             let clip_rect = rect.expand2(margin);
             child_ui.set_clip_rect(clip_rect.intersect(child_ui.clip_rect()));
         }
 
-        add_contents(&mut child_ui);
+        add_cell_contents(&mut child_ui);
         child_ui.min_rect()
     }
 
