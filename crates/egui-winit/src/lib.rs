@@ -136,7 +136,7 @@ impl State {
     ) {
         self.accesskit = Some(accesskit_winit::Adapter::new(
             window,
-            Box::new(move || {
+            move || {
                 // This function is called when an accessibility client
                 // (e.g. screen reader) makes its first request. If we got here,
                 // we know that an accessibility tree is actually wanted.
@@ -146,7 +146,7 @@ impl State {
                 // real accessibility tree.
                 egui_ctx.accesskit_activated();
                 egui::accesskit_placeholder_tree_update()
-            }),
+            },
             event_loop_proxy,
         ));
     }
