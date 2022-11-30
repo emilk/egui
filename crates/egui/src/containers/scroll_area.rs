@@ -687,14 +687,15 @@ impl Prepared {
                 continue;
             }
 
-            // margin between contents and scroll bar
-            let margin = animation_t * ui.spacing().item_spacing.x;
-            let mut min_cross = inner_rect.max[1 - d] + margin; // left of vertical scroll (d == 1)
-            let mut max_cross = outer_rect.max[1 - d]; // right of vertical scroll (d == 1)
+            // margin on either side of the scroll bar
+            let inner_margin = animation_t * ui.spacing().scroll_bar_inner_margin;
+            let outer_margin = animation_t * ui.spacing().scroll_bar_outer_margin;
+            let mut min_cross = inner_rect.max[1 - d] + inner_margin; // left of vertical scroll (d == 1)
+            let mut max_cross = outer_rect.max[1 - d] - outer_margin; // right of vertical scroll (d == 1)
             let min_main = inner_rect.min[d]; // top of vertical scroll (d == 1)
             let max_main = inner_rect.max[d]; // bottom of vertical scroll (d == 1)
 
-            if ui.clip_rect().max[1 - d] < max_cross + ui.spacing().item_spacing.x {
+            if ui.clip_rect().max[1 - d] < max_cross + outer_margin {
                 // Move the scrollbar so it is visible. This is needed in some cases.
                 // For instance:
                 // * When we have a vertical-only scroll area in a top level panel,
@@ -702,8 +703,10 @@ impl Prepared {
                 // * When one ScrollArea is nested inside another, and the outer
                 //   is scrolled so that the scroll-bars of the inner ScrollArea (us)
                 //   is outside the clip rectangle.
+                // Really this should use the tighter clip_rect that ignores clip_rect_margin, but we don't store that.
+                // clip_rect_margin is quite a hack. It would be nice to get rid of it.
                 let width = max_cross - min_cross;
-                max_cross = ui.clip_rect().max[1 - d] - ui.spacing().item_spacing.x;
+                max_cross = ui.clip_rect().max[1 - d] - outer_margin;
                 min_cross = max_cross - width;
             }
 
@@ -862,5 +865,7 @@ impl Prepared {
 
 /// Width of a vertical scrollbar, or height of a horizontal scroll bar
 fn max_scroll_bar_width_with_margin(ui: &Ui) -> f32 {
-    ui.spacing().item_spacing.x + ui.spacing().scroll_bar_width
+    ui.spacing().scroll_bar_inner_margin
+        + ui.spacing().scroll_bar_width
+        + ui.spacing().scroll_bar_outer_margin
 }
