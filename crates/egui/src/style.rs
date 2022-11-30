@@ -292,6 +292,11 @@ pub struct Spacing {
     pub combo_height: f32,
 
     pub scroll_bar_width: f32,
+
+    /// Margin between contents and scroll bar.
+    pub scroll_bar_inner_margin: f32,
+    /// Margin between scroll bar and the outer container (e.g. right of a vertical scroll bar).
+    pub scroll_bar_outer_margin: f32,
 }
 
 impl Spacing {
@@ -658,6 +663,8 @@ impl Default for Spacing {
             tooltip_width: 600.0,
             combo_height: 200.0,
             scroll_bar_width: 8.0,
+            scroll_bar_inner_margin: 4.0,
+            scroll_bar_outer_margin: 0.0,
             indent_ends_with_horizontal_line: false,
         }
     }
@@ -941,6 +948,8 @@ impl Spacing {
             indent_ends_with_horizontal_line,
             combo_height,
             scroll_bar_width,
+            scroll_bar_inner_margin,
+            scroll_bar_outer_margin,
         } = self;
 
         ui.add(slider_vec2(item_spacing, 0.0..=20.0, "Item spacing"));
@@ -1021,7 +1030,15 @@ impl Spacing {
         });
         ui.horizontal(|ui| {
             ui.add(DragValue::new(scroll_bar_width).clamp_range(0.0..=32.0));
-            ui.label("Scroll-bar width width");
+            ui.label("Scroll-bar width");
+        });
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(scroll_bar_inner_margin).clamp_range(0.0..=32.0));
+            ui.label("Scroll-bar inner margin");
+        });
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(scroll_bar_outer_margin).clamp_range(0.0..=32.0));
+            ui.label("Scroll-bar outer margin");
         });
 
         ui.horizontal(|ui| {

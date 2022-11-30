@@ -635,23 +635,7 @@ impl Prepared {
                 };
             }
 
-            let mut inner_rect = Rect::from_min_size(inner_rect.min, inner_size);
-
-            // The window that egui sits in can't be expanded by egui, so we need to respect it:
-            for d in 0..2 {
-                if !has_bar[d] {
-                    // HACK for when we have a vertical-only scroll area in a top level panel,
-                    // and that panel is not wide enough for the contents.
-                    // This code ensures we still see the scroll bar!
-                    let max = ui.input().screen_rect().max[d]
-                        - current_bar_use[d]
-                        - ui.spacing().item_spacing[d];
-                    inner_rect.max[d] = inner_rect.max[d].at_most(max);
-                    // TODO(emilk): maybe auto-enable horizontal/vertical scrolling if this limit is reached
-                }
-            }
-
-            inner_rect
+            Rect::from_min_size(inner_rect.min, inner_size)
         };
 
         let outer_rect = Rect::from_min_size(inner_rect.min, inner_rect.size() + current_bar_use);
@@ -703,12 +687,28 @@ impl Prepared {
                 continue;
             }
 
-            // margin between contents and scroll bar
-            let margin = animation_t * ui.spacing().item_spacing.x;
-            let min_cross = inner_rect.max[1 - d] + margin; // left of vertical scroll (d == 1)
-            let max_cross = outer_rect.max[1 - d]; // right of vertical scroll (d == 1)
+            // margin on either side of the scroll bar
+            let inner_margin = animation_t * ui.spacing().scroll_bar_inner_margin;
+            let outer_margin = animation_t * ui.spacing().scroll_bar_outer_margin;
+            let mut min_cross = inner_rect.max[1 - d] + inner_margin; // left of vertical scroll (d == 1)
+            let mut max_cross = outer_rect.max[1 - d] - outer_margin; // right of vertical scroll (d == 1)
             let min_main = inner_rect.min[d]; // top of vertical scroll (d == 1)
             let max_main = inner_rect.max[d]; // bottom of vertical scroll (d == 1)
+
+            if ui.clip_rect().max[1 - d] < max_cross + outer_margin {
+                // Move the scrollbar so it is visible. This is needed in some cases.
+                // For instance:
+                // * When we have a vertical-only scroll area in a top level panel,
+                //   and that panel is not wide enough for the contents.
+                // * When one ScrollArea is nested inside another, and the outer
+                //   is scrolled so that the scroll-bars of the inner ScrollArea (us)
+                //   is outside the clip rectangle.
+                // Really this should use the tighter clip_rect that ignores clip_rect_margin, but we don't store that.
+                // clip_rect_margin is quite a hack. It would be nice to get rid of it.
+                let width = max_cross - min_cross;
+                max_cross = ui.clip_rect().max[1 - d] - outer_margin;
+                min_cross = max_cross - width;
+            }
 
             let outer_scroll_rect = if d == 0 {
                 Rect::from_min_max(
@@ -865,5 +865,7 @@ impl Prepared {
 
 /// Width of a vertical scrollbar, or height of a horizontal scroll bar
 fn max_scroll_bar_width_with_margin(ui: &Ui) -> f32 {
-    ui.spacing().item_spacing.x + ui.spacing().scroll_bar_width
+    ui.spacing().scroll_bar_inner_margin
+        + ui.spacing().scroll_bar_width
+        + ui.spacing().scroll_bar_outer_margin
 }

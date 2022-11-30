@@ -47,7 +47,7 @@ impl super::Demo for TableDemo {
     }
 }
 
-const NUM_MANUAL_ROWS: usize = 32;
+const NUM_MANUAL_ROWS: usize = 20;
 
 impl super::View for TableDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
@@ -101,11 +101,13 @@ impl super::View for TableDemo {
         // Leave room for the source code link after the table demo:
         use egui_extras::{Size, StripBuilder};
         StripBuilder::new(ui)
-            .size(Size::remainder()) // for the table
+            .size(Size::remainder().at_least(100.0)) // for the table
             .size(Size::exact(10.0)) // for the source code link
             .vertical(|mut strip| {
                 strip.cell(|ui| {
-                    self.table_ui(ui);
+                    egui::ScrollArea::horizontal().show(ui, |ui| {
+                        self.table_ui(ui);
+                    });
                 });
                 strip.cell(|ui| {
                     ui.vertical_centered(|ui| {
@@ -133,7 +135,8 @@ impl TableDemo {
                     .resizable(true)
                     .clip(true),
             )
-            .column(Column::remainder());
+            .column(Column::remainder())
+            .min_scrolled_height(0.0);
 
         if let Some(row_nr) = self.scroll_to_row.take() {
             table = table.scroll_to_row(row_nr, None);
