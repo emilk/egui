@@ -13,8 +13,8 @@ pub struct TableDemo {
     striped: bool,
     resizable: bool,
     num_rows: usize,
-    row_to_scroll_to: i32,
-    vertical_scroll_offset: Option<f32>,
+    scroll_to_row_slider: usize,
+    scroll_to_row: Option<usize>,
 }
 
 impl Default for TableDemo {
@@ -24,8 +24,8 @@ impl Default for TableDemo {
             striped: true,
             resizable: true,
             num_rows: 10_000,
-            row_to_scroll_to: 0,
-            vertical_scroll_offset: None,
+            scroll_to_row_slider: 0,
+            scroll_to_row: None,
         }
     }
 }
@@ -47,11 +47,7 @@ impl super::Demo for TableDemo {
     }
 }
 
-fn scroll_offset_for_row(ui: &egui::Ui, row: i32) -> f32 {
-    let text_height = egui::TextStyle::Body.resolve(ui.style()).size;
-    let row_item_spacing = ui.spacing().item_spacing.y;
-    row as f32 * (text_height + row_item_spacing)
-}
+const NUM_MANUAL_ROWS: usize = 32;
 
 impl super::View for TableDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
@@ -82,15 +78,20 @@ impl super::View for TableDemo {
                 );
             }
 
-            if self.demo == DemoType::ManyHomogenous {
+            {
+                let max_rows = if self.demo == DemoType::Manual {
+                    NUM_MANUAL_ROWS
+                } else {
+                    self.num_rows
+                };
+
                 let slider_response = ui.add(
-                    egui::Slider::new(&mut self.row_to_scroll_to, 0..=self.num_rows as i32)
+                    egui::Slider::new(&mut self.scroll_to_row_slider, 0..=max_rows)
                         .logarithmic(true)
                         .text("Row to scroll to"),
                 );
                 if slider_response.changed() {
-                    self.vertical_scroll_offset
-                        .replace(scroll_offset_for_row(ui, self.row_to_scroll_to));
+                    self.scroll_to_row = Some(self.scroll_to_row_slider);
                 }
             }
         });
@@ -134,8 +135,8 @@ impl TableDemo {
             )
             .column(Column::remainder());
 
-        if let Some(y_scroll) = self.vertical_scroll_offset.take() {
-            table = table.vertical_scroll_offset(y_scroll);
+        if let Some(row_nr) = self.scroll_to_row.take() {
+            table = table.scroll_to_row(row_nr);
         }
 
         table
@@ -155,7 +156,7 @@ impl TableDemo {
             })
             .body(|mut body| match self.demo {
                 DemoType::Manual => {
-                    for row_index in 0..20 {
+                    for row_index in 0..NUM_MANUAL_ROWS {
                         let is_thick = thick_row(row_index);
                         let row_height = if is_thick { 30.0 } else { 18.0 };
                         body.row(row_height, |mut row| {

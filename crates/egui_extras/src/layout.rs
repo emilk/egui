@@ -31,7 +31,7 @@ pub struct StripLayout<'l> {
     pub(crate) ui: &'l mut Ui,
     direction: CellDirection,
     pub(crate) rect: Rect,
-    cursor: Pos2,
+    pub(crate) cursor: Pos2,
     max: Pos2,
     cell_layout: egui::Layout,
 }
