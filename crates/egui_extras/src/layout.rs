@@ -87,7 +87,7 @@ impl<'l> StripLayout<'l> {
         self.set_pos(self.cell_rect(&width, &height));
     }
 
-    /// This is the innermost part of [`Table`] and [`Strip`].
+    /// This is the innermost part of [`crate::Table`] and [`crate::Strip`].
     ///
     /// Return the used space (`min_rect`) plus the [`Response`] of the whole cell.
     pub(crate) fn add(

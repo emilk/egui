@@ -7,8 +7,7 @@ use egui::{Align, NumExt as _, Rect, Response, Ui, Vec2};
 
 use crate::{
     layout::{CellDirection, CellSize},
-    sizing::Sizing,
-    Size, StripLayout,
+    StripLayout,
 };
 
 // -----------------------------------------------------------------=----------
@@ -83,7 +82,7 @@ impl Column {
     /// Can this column be resized by dragging the column separator?
     ///
     /// If you don't call this, the fallback value of
-    /// [`Table::resizable`] is used (which by default is `false`).
+    /// [`TableBuilder::resizable`] is used (which by default is `false`).
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = Some(resizable);
         self
@@ -132,8 +131,10 @@ impl Column {
     }
 }
 
-fn to_sizing(columns: &[Column]) -> Sizing {
-    let mut sizing = Sizing::default();
+fn to_sizing(columns: &[Column]) -> crate::sizing::Sizing {
+    use crate::Size;
+
+    let mut sizing = crate::sizing::Sizing::default();
     for column in columns {
         let size = match column.initial_width {
             InitialColumnSize::Absolute(width) => Size::exact(width),
@@ -159,7 +160,7 @@ fn to_sizing(columns: &[Column]) -> Sizing {
 /// ### Example
 /// ```
 /// # egui::__run_test_ui(|ui| {
-/// use egui_extras::{TableBuilder, Size};
+/// use egui_extras::{TableBuilder, Column};
 /// TableBuilder::new(ui)
 ///     .column(Column::auto())
 ///     .column(Column::remainder())
@@ -609,7 +610,7 @@ impl<'a> Table<'a> {
 
             x += *column_width + spacing_x;
 
-            // If the last column is Size::Remainder, then let it fill the remainder!
+            // If the last column is 'remainder', then let it fill the remainder!
             let is_last_column = i + 1 == columns.len();
             if is_last_column && column.initial_width == InitialColumnSize::Remainder {
                 let eps = 0.1; // just to avoid some rounding errors.
@@ -769,9 +770,9 @@ impl<'a> TableBody<'a> {
     /// ### Example
     /// ```
     /// # egui::__run_test_ui(|ui| {
-    /// use egui_extras::{TableBuilder, Size};
+    /// use egui_extras::{TableBuilder, Column};
     /// TableBuilder::new(ui)
-    ///     .column(Size::remainder().at_least(100.0))
+    ///     .column(Column::remainder().at_least(100.0))
     ///     .body(|mut body| {
     ///         let row_height = 18.0;
     ///         let num_rows = 10_000;
@@ -847,9 +848,9 @@ impl<'a> TableBody<'a> {
     /// ### Example
     /// ```
     /// # egui::__run_test_ui(|ui| {
-    /// use egui_extras::{TableBuilder, Size};
+    /// use egui_extras::{TableBuilder, Column};
     /// TableBuilder::new(ui)
-    ///     .column(Size::remainder().at_least(100.0))
+    ///     .column(Column::remainder().at_least(100.0))
     ///     .body(|mut body| {
     ///         let row_heights: Vec<f32> = vec![60.0, 18.0, 31.0, 240.0];
     ///         body.heterogeneous_rows(row_heights.into_iter(), |row_index, mut row| {
