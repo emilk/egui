@@ -87,7 +87,7 @@ pub struct PlatformOutput {
     pub text_cursor_pos: Option<crate::Pos2>,
 
     #[cfg(feature = "accesskit")]
-    pub accesskit_update: accesskit::TreeUpdate,
+    pub accesskit_update: Option<accesskit::TreeUpdate>,
 }
 
 impl PlatformOutput {

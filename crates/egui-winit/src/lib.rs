@@ -657,7 +657,9 @@ impl State {
 
         #[cfg(feature = "accesskit")]
         if let Some(accesskit) = self.accesskit.as_ref() {
-            accesskit.update_if_active(|| accesskit_update);
+            if let Some(update) = accesskit_update {
+                accesskit.update_if_active(|| update);
+            }
         }
     }
 

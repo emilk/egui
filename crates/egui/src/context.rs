@@ -111,21 +111,23 @@ impl ContextImpl {
 
         #[cfg(feature = "accesskit")]
         if self.was_accesskit_activated {
-            let nodes = &mut self.output.accesskit_update.nodes;
-            assert!(nodes.is_empty());
+            assert!(self.output.accesskit_update.is_none());
             let id = crate::accesskit_root_id();
             let accesskit_id = id.accesskit_id();
-            let node = accesskit::Node {
+            let node = Arc::new(accesskit::Node {
                 role: accesskit::Role::Window,
                 transform: Some(
                     accesskit::kurbo::Affine::scale(self.input.pixels_per_point().into()).into(),
                 ),
                 ..Default::default()
-            };
-            nodes.push((accesskit_id, Arc::new(node)));
+            });
+            let nodes = vec![(accesskit_id, node)];
             self.frame_state.accesskit_nodes.insert(id, nodes.len() - 1);
-            assert!(self.output.accesskit_update.tree.is_none());
-            self.output.accesskit_update.tree = Some(accesskit::Tree::new(accesskit_id));
+            self.output.accesskit_update = Some(accesskit::TreeUpdate {
+                nodes,
+                tree: Some(accesskit::Tree::new(accesskit_id)),
+                focus: None,
+            });
         }
     }
 
@@ -156,23 +158,20 @@ impl ContextImpl {
     }
 
     #[cfg(feature = "accesskit")]
-    fn is_accesskit_active_this_frame(&self) -> bool {
-        // AccessKit is active this frame if a root node was created in
-        // `ContextImpl::begin_frame_mut`.
-        !self.output.accesskit_update.nodes.is_empty()
-    }
-
-    #[cfg(feature = "accesskit")]
     fn mutate_accesskit_node(
         &mut self,
         id: Id,
         parent_id: Option<Id>,
         f: impl FnOnce(&mut accesskit::Node),
     ) {
-        if !self.is_accesskit_active_this_frame() {
-            return;
-        }
-        let nodes = &mut self.output.accesskit_update.nodes;
+        let update = match &mut self.output.accesskit_update {
+            Some(update) => update,
+            None => {
+                return;
+            }
+        };
+
+        let nodes = &mut update.nodes;
         let node_map = &mut self.frame_state.accesskit_nodes;
         let index = node_map.get(&id).copied().unwrap_or_else(|| {
             let accesskit_id = id.accesskit_id();
@@ -1057,11 +1056,9 @@ impl Context {
         let mut platform_output: PlatformOutput = std::mem::take(&mut self.output());
 
         #[cfg(feature = "accesskit")]
-        // We have to duplicate the logic of `is_accesskit_active_this_frame`,
-        // because we just took the output.
-        if !platform_output.accesskit_update.nodes.is_empty() {
+        if let Some(accesskit_update) = &mut platform_output.accesskit_update {
             let has_focus = self.input().raw.has_focus;
-            platform_output.accesskit_update.focus = has_focus.then(|| {
+            accesskit_update.focus = has_focus.then(|| {
                 let focus_id = self.memory().interaction.focus.id;
                 focus_id.map_or_else(
                     || crate::accesskit_root_id().accesskit_id(),
@@ -1607,7 +1604,7 @@ impl Context {
     /// Returns whether AccessKit is active for the current frame.
     #[cfg(feature = "accesskit")]
     pub fn is_accesskit_active(&self) -> bool {
-        self.read().is_accesskit_active_this_frame()
+        self.output().accesskit_update.is_some()
     }
 
     /// Indicates that AccessKit has been activated and egui should generate
