@@ -283,13 +283,13 @@ impl<'a> TableBuilder<'a> {
             cell_layout,
         } = self;
 
-        let resize_id = resizable.then(|| ui.id().with("__table_resize"));
+        let state_id = ui.id().with("__table_state");
 
         let initial_widths =
             to_sizing(&columns).to_lengths(available_width, ui.spacing().item_spacing.x);
         let mut max_used_widths = vec![0.0; initial_widths.len()];
-        let (had_state, state) = TableReizeState::load(ui, initial_widths, resize_id);
-        let first_frame_auto_size_columns = auto_size_columns && resize_id.is_some() && !had_state;
+        let (had_state, state) = TableReizeState::load(ui, initial_widths, state_id);
+        let first_frame_auto_size_columns = auto_size_columns && !had_state;
 
         let table_top = ui.cursor().top();
 
@@ -311,13 +311,14 @@ impl<'a> TableBuilder<'a> {
         Table {
             ui,
             table_top,
-            resize_id,
+            state_id,
             columns,
             available_width,
             widths: state.column_widths,
             max_used_widths,
             first_frame_auto_size_columns,
             scroll,
+            resizable,
             striped,
             stick_to_bottom,
             scroll_offset_y,
@@ -344,26 +345,27 @@ impl<'a> TableBuilder<'a> {
             cell_layout,
         } = self;
 
-        let resize_id = resizable.then(|| ui.id().with("__table_resize"));
+        let state_id = ui.id().with("__table_state");
 
         let initial_widths =
             to_sizing(&columns).to_lengths(available_width, ui.spacing().item_spacing.x);
         let max_used_widths = vec![0.0; initial_widths.len()];
-        let (had_state, state) = TableReizeState::load(ui, initial_widths, resize_id);
-        let first_frame_auto_size_columns = auto_size_columns && resize_id.is_some() && !had_state;
+        let (had_state, state) = TableReizeState::load(ui, initial_widths, state_id);
+        let first_frame_auto_size_columns = auto_size_columns && !had_state;
 
         let table_top = ui.cursor().top();
 
         Table {
             ui,
             table_top,
-            resize_id,
+            state_id,
             columns,
             available_width,
             widths: state.column_widths,
             max_used_widths,
             first_frame_auto_size_columns,
             scroll,
+            resizable,
             striped,
             stick_to_bottom,
             scroll_offset_y,
@@ -382,16 +384,14 @@ struct TableReizeState {
 
 impl TableReizeState {
     /// Returns `true` if it did load.
-    fn load(ui: &egui::Ui, default_widths: Vec<f32>, resize_id: Option<egui::Id>) -> (bool, Self) {
-        if let Some(resize_id) = resize_id {
-            let rect = Rect::from_min_size(ui.available_rect_before_wrap().min, Vec2::ZERO);
-            ui.ctx().check_for_id_clash(resize_id, rect, "Table");
+    fn load(ui: &egui::Ui, default_widths: Vec<f32>, state_id: egui::Id) -> (bool, Self) {
+        let rect = Rect::from_min_size(ui.available_rect_before_wrap().min, Vec2::ZERO);
+        ui.ctx().check_for_id_clash(state_id, rect, "Table");
 
-            if let Some(state) = ui.data().get_persisted::<Self>(resize_id) {
-                // make sure that the stored widths aren't out-dated
-                if state.column_widths.len() == default_widths.len() {
-                    return (true, state);
-                }
+        if let Some(state) = ui.data().get_persisted::<Self>(state_id) {
+            // make sure that the stored widths aren't out-dated
+            if state.column_widths.len() == default_widths.len() {
+                return (true, state);
             }
         }
 
@@ -403,8 +403,8 @@ impl TableReizeState {
         )
     }
 
-    fn store(self, ui: &egui::Ui, resize_id: egui::Id) {
-        ui.data().insert_persisted(resize_id, self);
+    fn store(self, ui: &egui::Ui, state_id: egui::Id) {
+        ui.data().insert_persisted(state_id, self);
     }
 }
 
@@ -416,7 +416,7 @@ impl TableReizeState {
 pub struct Table<'a> {
     ui: &'a mut Ui,
     table_top: f32,
-    resize_id: Option<egui::Id>,
+    state_id: egui::Id,
     columns: Vec<Column>,
     available_width: f32,
     /// Current column widths.
@@ -425,6 +425,7 @@ pub struct Table<'a> {
     max_used_widths: Vec<f32>,
     first_frame_auto_size_columns: bool,
     scroll: bool,
+    resizable: bool,
     striped: bool,
     stick_to_bottom: bool,
     scroll_offset_y: Option<f32>,
@@ -440,8 +441,9 @@ impl<'a> Table<'a> {
         let Table {
             ui,
             table_top,
-            resize_id,
+            state_id,
             columns,
+            resizable,
             mut available_width,
             widths,
             mut max_used_widths,
@@ -454,8 +456,6 @@ impl<'a> Table<'a> {
         } = self;
 
         let avail_rect = ui.available_rect_before_wrap();
-
-        let mut new_widths = widths.clone();
 
         let mut scroll_area = egui::ScrollArea::new([false, scroll])
             .auto_shrink([true; 2])
@@ -489,92 +489,91 @@ impl<'a> Table<'a> {
 
         let bottom = ui.min_rect().bottom();
 
-        if let Some(resize_id) = resize_id {
-            let spacing_x = ui.spacing().item_spacing.x;
-            let mut x = avail_rect.left() - spacing_x * 0.5;
-            for (i, column_width) in new_widths.iter_mut().enumerate() {
-                let column = &columns[i];
-                let (min_width, max_width) = column.width_range;
+        let spacing_x = ui.spacing().item_spacing.x;
+        let mut x = avail_rect.left() - spacing_x * 0.5;
+        let mut widths = widths;
+        for (i, column_width) in widths.iter_mut().enumerate() {
+            let column = &columns[i];
+            let (min_width, max_width) = column.width_range;
+            *column_width = column_width.clamp(min_width, max_width);
+
+            x += *column_width + spacing_x;
+
+            // If the last column is Size::Remainder, then let it fill the remainder!
+            let is_last_column = i + 1 == columns.len();
+            if is_last_column && column.initial_width == InitialColumnSize::Remainder {
+                let eps = 0.1; // just to avoid some rounding errors.
+                *column_width = available_width - eps;
+                *column_width = column_width.at_least(max_used_widths[i]);
                 *column_width = column_width.clamp(min_width, max_width);
-
-                x += *column_width + spacing_x;
-
-                // If the last column is Size::Remainder, then let it fill the remainder!
-                let is_last_column = i + 1 == columns.len();
-                if is_last_column && column.initial_width == InitialColumnSize::Remainder {
-                    let eps = 0.1; // just to avoid some rounding errors.
-                    *column_width = available_width - eps;
-                    *column_width = column_width.at_least(max_used_widths[i]);
-                    *column_width = column_width.clamp(min_width, max_width);
-                    break;
-                }
-
-                if first_frame_auto_size_columns {
-                    *column_width = max_used_widths[i];
-                    *column_width = column_width.clamp(min_width, max_width);
-                } else {
-                    let column_resize_id = ui.id().with("resize_column").with(i);
-
-                    let mut p0 = egui::pos2(x, table_top);
-                    let mut p1 = egui::pos2(x, bottom);
-                    let line_rect = egui::Rect::from_min_max(p0, p1)
-                        .expand(ui.style().interaction.resize_grab_radius_side);
-
-                    let resize_response =
-                        ui.interact(line_rect, column_resize_id, egui::Sense::click_and_drag());
-
-                    if resize_response.double_clicked() {
-                        // Resize to the minimum of what is needed.
-
-                        *column_width = max_used_widths[i].clamp(min_width, max_width);
-                    } else if resize_response.dragged() {
-                        if let Some(pointer) = ui.ctx().pointer_latest_pos() {
-                            let mut new_width = *column_width + pointer.x - x;
-                            if !column.clip || is_last_column {
-                                // If we don't clip, we don't want to shrink below the
-                                // size that was actually used.
-                                new_width = new_width.at_least(max_used_widths[i]);
-                            }
-                            new_width = new_width.clamp(min_width, max_width);
-
-                            let x = x - *column_width + new_width;
-                            p0.x = x;
-                            p1.x = x;
-
-                            *column_width = new_width;
-                        }
-                    }
-
-                    let dragging_something_else = {
-                        let pointer = &ui.input().pointer;
-                        pointer.any_down() || pointer.any_pressed()
-                    };
-                    let resize_hover = resize_response.hovered() && !dragging_something_else;
-
-                    if resize_hover || resize_response.dragged() {
-                        ui.output().cursor_icon = egui::CursorIcon::ResizeColumn;
-                    }
-
-                    let stroke = if resize_response.dragged() {
-                        ui.style().visuals.widgets.active.bg_stroke
-                    } else if resize_hover {
-                        ui.style().visuals.widgets.hovered.bg_stroke
-                    } else {
-                        // ui.visuals().widgets.inactive.bg_stroke
-                        ui.visuals().widgets.noninteractive.bg_stroke
-                    };
-
-                    ui.painter().line_segment([p0, p1], stroke);
-                };
-
-                available_width -= *column_width + spacing_x;
+                break;
             }
 
-            let state = TableReizeState {
-                column_widths: new_widths,
+            if first_frame_auto_size_columns {
+                *column_width = max_used_widths[i];
+                *column_width = column_width.clamp(min_width, max_width);
+            } else if resizable {
+                let column_resize_id = ui.id().with("resize_column").with(i);
+
+                let mut p0 = egui::pos2(x, table_top);
+                let mut p1 = egui::pos2(x, bottom);
+                let line_rect = egui::Rect::from_min_max(p0, p1)
+                    .expand(ui.style().interaction.resize_grab_radius_side);
+
+                let resize_response =
+                    ui.interact(line_rect, column_resize_id, egui::Sense::click_and_drag());
+
+                if resize_response.double_clicked() {
+                    // Resize to the minimum of what is needed.
+
+                    *column_width = max_used_widths[i].clamp(min_width, max_width);
+                } else if resize_response.dragged() {
+                    if let Some(pointer) = ui.ctx().pointer_latest_pos() {
+                        let mut new_width = *column_width + pointer.x - x;
+                        if !column.clip || is_last_column {
+                            // If we don't clip, we don't want to shrink below the
+                            // size that was actually used.
+                            new_width = new_width.at_least(max_used_widths[i]);
+                        }
+                        new_width = new_width.clamp(min_width, max_width);
+
+                        let x = x - *column_width + new_width;
+                        p0.x = x;
+                        p1.x = x;
+
+                        *column_width = new_width;
+                    }
+                }
+
+                let dragging_something_else = {
+                    let pointer = &ui.input().pointer;
+                    pointer.any_down() || pointer.any_pressed()
+                };
+                let resize_hover = resize_response.hovered() && !dragging_something_else;
+
+                if resize_hover || resize_response.dragged() {
+                    ui.output().cursor_icon = egui::CursorIcon::ResizeColumn;
+                }
+
+                let stroke = if resize_response.dragged() {
+                    ui.style().visuals.widgets.active.bg_stroke
+                } else if resize_hover {
+                    ui.style().visuals.widgets.hovered.bg_stroke
+                } else {
+                    // ui.visuals().widgets.inactive.bg_stroke
+                    ui.visuals().widgets.noninteractive.bg_stroke
+                };
+
+                ui.painter().line_segment([p0, p1], stroke);
             };
-            state.store(ui, resize_id);
+
+            available_width -= *column_width + spacing_x;
         }
+
+        let state = TableReizeState {
+            column_widths: widths,
+        };
+        state.store(ui, state_id);
     }
 }
 
