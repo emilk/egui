@@ -245,7 +245,7 @@ fn expanding_content(ui: &mut egui::Ui) {
 }
 
 fn long_text(row_index: usize) -> String {
-    format!("Row {row_index} has some long text that you may want to clip, or it will overflow")
+    format!("Row {row_index} has some long text that you may want to clip, or it will take up too much horizontal space!")
 }
 
 fn thick_row(row_index: usize) -> bool {

@@ -32,6 +32,8 @@ pub struct StripLayout<'l> {
     direction: CellDirection,
     pub(crate) rect: Rect,
     pub(crate) cursor: Pos2,
+    /// Keeps track of the max used position,
+    /// so we know how much space we used.
     max: Pos2,
     cell_layout: egui::Layout,
 }
@@ -110,12 +112,18 @@ impl<'l> StripLayout<'l> {
         let used_rect = self.cell(clip, max_rect, add_cell_contents);
 
         self.set_pos(max_rect);
-        let response = self
-            .ui
-            .allocate_rect(max_rect.union(used_rect), Sense::hover());
+
+        let allocation_rect = if clip {
+            max_rect
+        } else {
+            max_rect.union(used_rect)
+        };
+
+        let response = self.ui.allocate_rect(allocation_rect, Sense::hover());
 
         (used_rect, response)
     }
+
     /// only needed for layouts with multiple lines, like [`Table`](crate::Table).
     pub fn end_line(&mut self) {
         match self.direction {
