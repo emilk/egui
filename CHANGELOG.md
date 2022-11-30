@@ -35,7 +35,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Less jitter when calling `Context::set_pixels_per_point` ([#2239](https://github.com/emilk/egui/pull/2239)).
 * Fixed popups and color edit going outside the screen.
 * Fixed keyboard support in `DragValue` ([#2342](https://github.com/emilk/egui/pull/2342)).
-* If you nest `ScrollAreas`, the inner scrollbar will now move its scroll bar so it is always visible ([#2371](https://github.com/emilk/egui/pull/2371)).
+* If you nest `ScrollAreas` inside each other, the inner area will now move its scroll bar so it is always visible ([#2371](https://github.com/emilk/egui/pull/2371)).
 
 
 ## 0.19.0 - 2022-08-20
