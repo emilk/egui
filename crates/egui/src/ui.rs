@@ -98,9 +98,7 @@ impl Ui {
     ) -> Self {
         crate::egui_assert!(!max_rect.any_nan());
         let child_id = self.id.with(id_source);
-        let child_next_auto_id_source = child_id.with(self.next_auto_id_source).value();
-
-        self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
+        let child_next_auto_id_source = child_id.with("auto").value();
 
         Ui {
             id: child_id,
