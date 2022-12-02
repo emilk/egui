@@ -243,7 +243,7 @@ impl Painter {
         self.add(Shape::rect_filled(
             frame_rect,
             0.0,
-            Color32::from_black_alpha(240),
+            Color32::from_black_alpha(150),
         ));
         self.galley(rect.min, galley);
         frame_rect
