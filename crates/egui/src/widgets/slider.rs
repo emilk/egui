@@ -450,7 +450,7 @@ impl<'a> Slider<'a> {
     /// If you use one of the integer constructors (e.g. `Slider::i32`) this is called for you,
     /// but if you want to have a slider for picking integer values in an `Slider::f64`, use this.
     pub fn integer(self) -> Self {
-        self.fixed_decimals(0).smallest_positive(1.0)
+        self.fixed_decimals(0).smallest_positive(1.0).step_by(1.0)
     }
 
     fn get_value(&mut self) -> f64 {

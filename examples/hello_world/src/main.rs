@@ -37,11 +37,7 @@ impl eframe::App for MyApp {
                 ui.text_edit_singleline(&mut self.name)
                     .labelled_by(name_label.id);
             });
-            ui.add(
-                egui::Slider::new(&mut self.age, 0..=120)
-                    .step_by(1.0)
-                    .text("age"),
-            );
+            ui.add(egui::Slider::new(&mut self.age, 0..=120).text("age"));
             if ui.button("Click each year").clicked() {
                 self.age += 1;
             }
