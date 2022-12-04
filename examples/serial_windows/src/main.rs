@@ -9,6 +9,7 @@ fn main() {
 
     let options = eframe::NativeOptions {
         run_and_return: true,
+        initial_window_size: Some(egui::vec2(320.0, 240.0)),
         ..Default::default()
     };
 

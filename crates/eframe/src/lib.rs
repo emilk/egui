@@ -168,6 +168,12 @@ mod native;
 pub fn run_native(app_name: &str, native_options: NativeOptions, app_creator: AppCreator) {
     let renderer = native_options.renderer;
 
+    #[cfg(not(feature = "__screenshot"))]
+    assert!(
+        std::env::var("EFRAME_SCREENSHOT_TO").is_err(),
+        "EFRAME_SCREENSHOT_TO found without compiling with the '__screenshot' feature"
+    );
+
     match renderer {
         #[cfg(feature = "glow")]
         Renderer::Glow => {

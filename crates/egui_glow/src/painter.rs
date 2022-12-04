@@ -605,6 +605,38 @@ impl Painter {
         }
     }
 
+    pub fn read_screen_rgba(&self, [w, h]: [u32; 2]) -> Vec<u8> {
+        let mut pixels = vec![0_u8; (w * h * 4) as usize];
+        unsafe {
+            self.gl.read_pixels(
+                0,
+                0,
+                w as _,
+                h as _,
+                glow::RGBA,
+                glow::UNSIGNED_BYTE,
+                glow::PixelPackData::Slice(&mut pixels),
+            );
+        }
+        pixels
+    }
+
+    pub fn read_screen_rgb(&self, [w, h]: [u32; 2]) -> Vec<u8> {
+        let mut pixels = vec![0_u8; (w * h * 3) as usize];
+        unsafe {
+            self.gl.read_pixels(
+                0,
+                0,
+                w as _,
+                h as _,
+                glow::RGB,
+                glow::UNSIGNED_BYTE,
+                glow::PixelPackData::Slice(&mut pixels),
+            );
+        }
+        pixels
+    }
+
     unsafe fn destroy_gl(&self) {
         self.gl.delete_program(self.program);
         for tex in self.textures.values() {
