@@ -241,7 +241,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
     })
 }
 
-fn centere_window_pos(
+fn center_window_pos(
     monitor: Option<winit::monitor::MonitorHandle>,
     native_options: &mut epi::NativeOptions,
 ) {
@@ -308,6 +308,8 @@ mod glow_integration {
         // suspends and resumes.
         app_creator: Option<epi::AppCreator>,
         is_focused: bool,
+
+        frame_nr: u64,
     }
 
     impl GlowWinitApp {
@@ -324,6 +326,7 @@ mod glow_integration {
                 running: None,
                 app_creator: Some(app_creator),
                 is_focused: true,
+                frame_nr: 0,
             }
         }
 
@@ -517,6 +520,26 @@ mod glow_integration {
 
                 integration.post_present(window);
 
+                #[cfg(feature = "__screenshot")]
+                // give it time to settle:
+                if self.frame_nr == 2 {
+                    if let Ok(path) = std::env::var("EFRAME_SCREENSHOT_TO") {
+                        assert!(
+                            path.ends_with(".png"),
+                            "Expected EFRAME_SCREENSHOT_TO to end with '.png', got {path:?}"
+                        );
+                        let [w, h] = screen_size_in_pixels;
+                        let pixels = painter.read_screen_rgba(screen_size_in_pixels);
+                        let image = image::RgbaImage::from_vec(w, h, pixels).unwrap();
+                        let image = image::imageops::flip_vertical(&image);
+                        image.save(&path).unwrap_or_else(|err| {
+                            panic!("Failed to save screenshot to {path:?}: {err}");
+                        });
+                        eprintln!("Screenshot saved to {path:?}.");
+                        std::process::exit(0);
+                    }
+                }
+
                 let control_flow = if integration.should_close() {
                     EventResult::Exit
                 } else if repaint_after.is_zero() {
@@ -545,6 +568,8 @@ mod glow_integration {
                     crate::profile_scope!("bg_sleep");
                     std::thread::sleep(std::time::Duration::from_millis(10));
                 }
+
+                self.frame_nr += 1;
 
                 control_flow
             } else {
@@ -659,7 +684,7 @@ mod glow_integration {
         if native_options.run_and_return {
             with_event_loop(native_options, |event_loop, mut native_options| {
                 if native_options.centered {
-                    centere_window_pos(event_loop.available_monitors().next(), &mut native_options);
+                    center_window_pos(event_loop.available_monitors().next(), &mut native_options);
                 }
 
                 let glow_eframe =
@@ -670,7 +695,7 @@ mod glow_integration {
             let event_loop = create_event_loop_builder(&mut native_options).build();
 
             if native_options.centered {
-                centere_window_pos(event_loop.available_monitors().next(), &mut native_options);
+                center_window_pos(event_loop.available_monitors().next(), &mut native_options);
             }
 
             let glow_eframe = GlowWinitApp::new(&event_loop, app_name, native_options, app_creator);
@@ -718,6 +743,12 @@ mod wgpu_integration {
             native_options: epi::NativeOptions,
             app_creator: epi::AppCreator,
         ) -> Self {
+            #[cfg(feature = "__screenshot")]
+            assert!(
+                std::env::var("EFRAME_SCREENSHOT_TO").is_err(),
+                "EFRAME_SCREENSHOT_TO not yet implemented for wgpu backend"
+            );
+
             Self {
                 repaint_proxy: Arc::new(std::sync::Mutex::new(event_loop.create_proxy())),
                 app_name: app_name.to_owned(),
@@ -1050,7 +1081,7 @@ mod wgpu_integration {
         if native_options.run_and_return {
             with_event_loop(native_options, |event_loop, mut native_options| {
                 if native_options.centered {
-                    centere_window_pos(event_loop.available_monitors().next(), &mut native_options);
+                    center_window_pos(event_loop.available_monitors().next(), &mut native_options);
                 }
 
                 let wgpu_eframe =
@@ -1061,7 +1092,7 @@ mod wgpu_integration {
             let event_loop = create_event_loop_builder(&mut native_options).build();
 
             if native_options.centered {
-                centere_window_pos(event_loop.available_monitors().next(), &mut native_options);
+                center_window_pos(event_loop.available_monitors().next(), &mut native_options);
             }
 
             let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);

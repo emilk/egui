@@ -11,6 +11,7 @@ fn main() {
         // To have rounded corners we need transparency:
         transparent: true,
         min_window_size: Some(egui::vec2(320.0, 100.0)),
+        initial_window_size: Some(egui::vec2(320.0, 240.0)),
         ..Default::default()
     };
     eframe::run_native(

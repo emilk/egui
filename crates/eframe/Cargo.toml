@@ -52,6 +52,10 @@ puffin = ["dep:puffin", "egui_glow?/puffin", "egui-wgpu?/puffin"]
 ## Enable screen reader support (requires `ctx.options().screen_reader = true;`)
 screen_reader = ["egui-winit/screen_reader", "tts"]
 
+## If set, eframe will look for the env-var `EFRAME_SCREENSHOT_TO` and write a screenshot to that location, and then quit.
+## This is used to generate images for the examples.
+__screenshot = ["dep:image"]
+
 ## Use [`wgpu`](https://docs.rs/wgpu) for painting (via [`egui-wgpu`](https://github.com/emilk/egui/tree/master/crates/egui-wgpu)).
 ## This overrides the `glow` feature.
 wgpu = ["dep:wgpu", "dep:egui-wgpu"]
@@ -88,6 +92,9 @@ dark-light = { version = "0.2.1", optional = true }
 directories-next = { version = "2", optional = true }
 egui-wgpu = { version = "0.19.0", path = "../egui-wgpu", optional = true, features = [
   "winit",
+] }
+image = { version = "0.24", optional = true, default-features = false, features = [
+  "png",
 ] }
 puffin = { version = "0.14", optional = true }
 wgpu = { version = "0.14", optional = true }
