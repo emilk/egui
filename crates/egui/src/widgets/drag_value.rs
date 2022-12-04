@@ -449,7 +449,8 @@ impl<'a> Widget for DragValue<'a> {
             }
         };
 
-        #[allow(clippy::redundant_clone)] // some clones below are redundant if AccessKit is disabled
+        // some clones below are redundant if AccessKit is disabled
+        #[allow(clippy::redundant_clone)]
         let mut response = if is_kb_editing {
             let button_width = ui.spacing().interact_size.x;
             let mut value_text = ui
