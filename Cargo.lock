@@ -20,9 +20,9 @@ checksum = "a13739d7177fbd22bb0ed28badfff9f372f8bef46c863db4e1c6248f6b223b6e"
 
 [[package]]
 name = "accesskit"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b2f58dda4ca012077ac19d2062ccc30187fa5588f377961be11674c3ca5f8df1"
+checksum = "3083ac5a97521e35388ca80cf365b6be5210962cc59f11ee238cd92ac2fa9524"
 dependencies = [
  "enumset",
  "kurbo",
@@ -31,9 +31,9 @@ dependencies = [
 
 [[package]]
 name = "accesskit_consumer"
-version = "0.9.1"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c22c90fa269beac30826b50ff07c4e0fb1dbc7a6dd80555e1d61f9c599db752"
+checksum = "df122220244ca3ab93f6a42da59a5f8b379c8846dbcaedf922d95636d22c4e10"
 dependencies = [
  "accesskit",
  "parking_lot",
@@ -41,9 +41,9 @@ dependencies = [
 
 [[package]]
 name = "accesskit_macos"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "efa5b671f649a554d8c27b238ba69e5eac8be4809713ebc6cfeca78ebb0ee639"
+checksum = "55c97d7b5cbb2409e05b016406a1bd057237d120205cb63220ca86c2ea3790a1"
 dependencies = [
  "accesskit",
  "accesskit_consumer",
@@ -54,9 +54,9 @@ dependencies = [
 
 [[package]]
 name = "accesskit_windows"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa69568d9c5df0b964f1ca1bc49e865732f256832cf21775b08a736975501682"
+checksum = "4b0cfda25182b83b24e350434a3f63676252a00a295f32760a14d3f55feb8493"
 dependencies = [
  "accesskit",
  "accesskit_consumer",
@@ -69,9 +69,9 @@ dependencies = [
 
 [[package]]
 name = "accesskit_winit"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee81f4dce90c61ccbf8579ad2f0c7650022e8a5bb8bd10cd62438cad6330a2ff"
+checksum = "cdf20fecd6573e03bebcb4de267f82431e5ea39a293b62aa51a45bdfd69ef39b"
 dependencies = [
  "accesskit",
  "accesskit_macos",
