@@ -55,6 +55,8 @@ pub struct WgpuConfiguration {
 
     /// Callback for surface errors.
     pub on_surface_error: Arc<dyn Fn(wgpu::SurfaceError) -> SurfaceErrorAction>,
+
+    pub depth_format: Option<wgpu::TextureFormat>,
 }
 
 impl Default for WgpuConfiguration {
@@ -68,6 +70,7 @@ impl Default for WgpuConfiguration {
             backends: wgpu::Backends::PRIMARY | wgpu::Backends::GL,
             present_mode: wgpu::PresentMode::AutoVsync,
             power_preference: wgpu::PowerPreference::HighPerformance,
+            depth_format: None,
 
             on_surface_error: Arc::new(|err| {
                 if err == wgpu::SurfaceError::Outdated {

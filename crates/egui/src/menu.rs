@@ -443,7 +443,7 @@ impl SubMenuButton {
 
         let (rect, response) = ui.allocate_at_least(desired_size, sense);
         response.widget_info(|| {
-            crate::WidgetInfo::labeled(crate::WidgetType::Button, &text_galley.text())
+            crate::WidgetInfo::labeled(crate::WidgetType::Button, text_galley.text())
         });
 
         if ui.is_rect_visible(rect) {
@@ -491,7 +491,7 @@ impl SubMenu {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<Option<R>> {
         let sub_id = ui.id().with(self.button.index);
-        let button = self.button.show(ui, &*self.parent_state.read(), sub_id);
+        let button = self.button.show(ui, &self.parent_state.read(), sub_id);
         self.parent_state
             .write()
             .submenu_button_interaction(ui, sub_id, &button);

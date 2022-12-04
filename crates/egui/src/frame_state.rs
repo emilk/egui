@@ -9,6 +9,13 @@ pub(crate) struct TooltipFrameState {
     pub count: usize,
 }
 
+#[cfg(feature = "accesskit")]
+#[derive(Clone)]
+pub(crate) struct AccessKitFrameState {
+    pub(crate) nodes: IdMap<Box<accesskit::Node>>,
+    pub(crate) parent_stack: Vec<Id>,
+}
+
 /// State that is collected during a frame and then cleared.
 /// Short-term (single frame) memory.
 #[derive(Clone)]
@@ -41,6 +48,9 @@ pub(crate) struct FrameState {
 
     /// horizontal, vertical
     pub(crate) scroll_target: [Option<(RangeInclusive<f32>, Option<Align>)>; 2],
+
+    #[cfg(feature = "accesskit")]
+    pub(crate) accesskit_state: Option<AccessKitFrameState>,
 }
 
 impl Default for FrameState {
@@ -53,6 +63,8 @@ impl Default for FrameState {
             tooltip_state: None,
             scroll_delta: Vec2::ZERO,
             scroll_target: [None, None],
+            #[cfg(feature = "accesskit")]
+            accesskit_state: None,
         }
     }
 }
@@ -67,6 +79,8 @@ impl FrameState {
             tooltip_state,
             scroll_delta,
             scroll_target,
+            #[cfg(feature = "accesskit")]
+            accesskit_state,
         } = self;
 
         used_ids.clear();
@@ -76,6 +90,10 @@ impl FrameState {
         *tooltip_state = None;
         *scroll_delta = input.scroll_delta;
         *scroll_target = [None, None];
+        #[cfg(feature = "accesskit")]
+        {
+            *accesskit_state = None;
+        }
     }
 
     /// How much space is still available after panels has been added.

@@ -299,7 +299,7 @@ impl PlotPoints {
     ) -> Option<RangeInclusive<f64>> {
         let start = range1.start().max(*range2.start());
         let end = range1.end().min(*range2.end());
-        (start < end).then(|| start..=end)
+        (start < end).then_some(start..=end)
     }
 
     pub(super) fn bounds(&self) -> PlotBounds {

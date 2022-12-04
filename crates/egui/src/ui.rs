@@ -1447,7 +1447,7 @@ impl Ui {
         text: impl Into<WidgetText>,
     ) -> Response {
         let mut response = self.radio(*current_value == alternative, text);
-        if response.clicked() {
+        if response.clicked() && *current_value != alternative {
             *current_value = alternative;
             response.mark_changed();
         }
@@ -1475,7 +1475,7 @@ impl Ui {
         text: impl Into<WidgetText>,
     ) -> Response {
         let mut response = self.selectable_label(*current_value == selected_value, text);
-        if response.clicked() {
+        if response.clicked() && *current_value != selected_value {
             *current_value = selected_value;
             response.mark_changed();
         }
@@ -2007,12 +2007,14 @@ impl Ui {
         InnerResponse::new(inner, self.interact(rect, child_ui.id, Sense::hover()))
     }
 
-    /// This will make the next added widget centered in the available space.
+    #[deprecated = "Use ui.vertical_centered instead"]
     pub fn centered<R>(&mut self, add_contents: impl FnOnce(&mut Self) -> R) -> InnerResponse<R> {
-        self.with_layout_dyn(Layout::centered(Direction::TopDown), Box::new(add_contents))
+        self.vertical_centered(add_contents)
     }
 
     /// This will make the next added widget centered and justified in the available space.
+    ///
+    /// Only one widget may be added to the inner `Ui`!
     pub fn centered_and_justified<R>(
         &mut self,
         add_contents: impl FnOnce(&mut Self) -> R,

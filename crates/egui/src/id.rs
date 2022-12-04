@@ -69,6 +69,11 @@ impl Id {
     pub(crate) fn value(&self) -> u64 {
         self.0
     }
+
+    #[cfg(feature = "accesskit")]
+    pub(crate) fn accesskit_id(&self) -> accesskit::NodeId {
+        std::num::NonZeroU64::new(self.0).unwrap().into()
+    }
 }
 
 impl std::fmt::Debug for Id {
@@ -81,6 +86,13 @@ impl std::fmt::Debug for Id {
 impl From<&'static str> for Id {
     #[inline]
     fn from(string: &'static str) -> Self {
+        Self::new(string)
+    }
+}
+
+impl From<String> for Id {
+    #[inline]
+    fn from(string: String) -> Self {
         Self::new(string)
     }
 }

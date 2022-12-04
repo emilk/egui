@@ -8,7 +8,7 @@ assignees: ''
 ---
 
 <!--
-First look if there is already a similar bug report. If there is, add a comment to it instead!
+First look if there is already a similar bug report. If there is, upvote the issue with 👍
 
 Please also check if the bug is still present in latest master! Do so by adding the following lines to your Cargo.toml:
 

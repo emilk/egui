@@ -400,6 +400,8 @@ impl AppRunner {
             events: _, // already handled
             mutable_text_under_cursor,
             text_cursor_pos,
+            #[cfg(feature = "accesskit")]
+                accesskit_update: _, // not currently implemented
         } = platform_output;
 
         set_cursor_icon(cursor_icon);

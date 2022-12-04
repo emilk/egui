@@ -49,6 +49,7 @@ pub struct Area {
     constrain: bool,
     order: Order,
     default_pos: Option<Pos2>,
+    pivot: Align2,
     anchor: Option<(Align2, Vec2)>,
     new_pos: Option<Pos2>,
     drag_bounds: Option<Rect>,
@@ -65,6 +66,7 @@ impl Area {
             order: Order::Middle,
             default_pos: None,
             new_pos: None,
+            pivot: Align2::LEFT_TOP,
             anchor: None,
             drag_bounds: None,
         }
@@ -122,16 +124,28 @@ impl Area {
         self
     }
 
+    /// Positions the window and prevents it from being moved
+    pub fn fixed_pos(mut self, fixed_pos: impl Into<Pos2>) -> Self {
+        self.new_pos = Some(fixed_pos.into());
+        self.movable = false;
+        self
+    }
+
     /// Constrains this area to the screen bounds.
     pub fn constrain(mut self, constrain: bool) -> Self {
         self.constrain = constrain;
         self
     }
 
-    /// Positions the window and prevents it from being moved
-    pub fn fixed_pos(mut self, fixed_pos: impl Into<Pos2>) -> Self {
-        self.new_pos = Some(fixed_pos.into());
-        self.movable = false;
+    /// Where the "root" of the area is.
+    ///
+    /// For instance, if you set this to [`Align2::RIGHT_TOP`]
+    /// then [`Self::fixed_pos`] will set the position of the right-top
+    /// corner of the area.
+    ///
+    /// Default: [`Align2::LEFT_TOP`].
+    pub fn pivot(mut self, pivot: Align2) -> Self {
+        self.pivot = pivot;
         self
     }
 
@@ -208,6 +222,7 @@ impl Area {
             enabled,
             default_pos,
             new_pos,
+            pivot,
             anchor,
             drag_bounds,
             constrain,
@@ -229,9 +244,18 @@ impl Area {
         state.interactable = interactable;
         let mut temporarily_invisible = false;
 
+        if pivot != Align2::LEFT_TOP {
+            if is_new {
+                temporarily_invisible = true; // figure out the size first
+            } else {
+                state.pos.x -= pivot.x().to_factor() * state.size.x;
+                state.pos.y -= pivot.y().to_factor() * state.size.y;
+            }
+        }
+
         if let Some((anchor, offset)) = anchor {
             if is_new {
-                temporarily_invisible = true;
+                temporarily_invisible = true; // figure out the size first
             } else {
                 let screen = ctx.available_rect();
                 state.pos = anchor.align_size_within_rect(state.size, screen).min + offset;

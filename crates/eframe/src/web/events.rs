@@ -308,7 +308,7 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
                     modifiers,
                 });
 
-            push_touches(&mut *runner_lock, egui::TouchPhase::Start, &event);
+            push_touches(&mut runner_lock, egui::TouchPhase::Start, &event);
             runner_lock.needs_repaint.repaint_asap();
             event.stop_propagation();
             event.prevent_default();
@@ -330,7 +330,7 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
                 .events
                 .push(egui::Event::PointerMoved(pos));
 
-            push_touches(&mut *runner_lock, egui::TouchPhase::Move, &event);
+            push_touches(&mut runner_lock, egui::TouchPhase::Move, &event);
             runner_lock.needs_repaint.repaint_asap();
             event.stop_propagation();
             event.prevent_default();
@@ -357,7 +357,7 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
                 // Then remove hover effect:
                 runner_lock.input.raw.events.push(egui::Event::PointerGone);
 
-                push_touches(&mut *runner_lock, egui::TouchPhase::End, &event);
+                push_touches(&mut runner_lock, egui::TouchPhase::End, &event);
                 runner_lock.needs_repaint.repaint_asap();
                 event.stop_propagation();
                 event.prevent_default();

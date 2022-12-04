@@ -268,6 +268,10 @@ pub enum Event {
         /// The value is in the range from 0.0 (no pressure) to 1.0 (maximum pressure).
         force: f32,
     },
+
+    /// An assistive technology (e.g. screen reader) requested an action.
+    #[cfg(feature = "accesskit")]
+    AccessKitActionRequest(accesskit::ActionRequest),
 }
 
 /// Mouse button (or similar for touch input)
@@ -546,7 +550,7 @@ impl<'a> ModifierNames<'a> {
             append_if(modifiers.alt, self.alt);
             append_if(modifiers.mac_cmd || modifiers.command, self.mac_cmd);
         } else {
-            append_if(modifiers.ctrl, self.ctrl);
+            append_if(modifiers.ctrl || modifiers.command, self.ctrl);
             append_if(modifiers.alt, self.alt);
             append_if(modifiers.shift, self.shift);
         }
@@ -787,6 +791,21 @@ impl KeyboardShortcut {
         }
         s
     }
+}
+
+#[test]
+fn format_kb_shortcut() {
+    let cmd_shift_f = KeyboardShortcut::new(Modifiers::COMMAND | Modifiers::SHIFT, Key::F);
+    assert_eq!(
+        cmd_shift_f.format(&ModifierNames::NAMES, false),
+        "Ctrl+Shift+F"
+    );
+    assert_eq!(
+        cmd_shift_f.format(&ModifierNames::NAMES, true),
+        "Shift+Cmd+F"
+    );
+    assert_eq!(cmd_shift_f.format(&ModifierNames::SYMBOLS, false), "^⇧F");
+    assert_eq!(cmd_shift_f.format(&ModifierNames::SYMBOLS, true), "⇧⌘F");
 }
 
 // ----------------------------------------------------------------------------
