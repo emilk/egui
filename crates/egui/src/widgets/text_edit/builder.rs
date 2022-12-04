@@ -696,7 +696,8 @@ impl<'t> TextEdit<'t> {
                         y1: rect.max.y.into(),
                     });
                     node.text_direction = Some(TextDirection::LeftToRight);
-                    // TODO: more info for the whole row
+                    // TODO(mwcampbell): Set more node fields for the row
+                    // once AccessKit adapters expose text formatting info.
 
                     let glyph_count = row.glyphs.len();
                     let mut value = String::new();
