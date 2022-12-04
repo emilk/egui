@@ -159,13 +159,8 @@ impl ContextImpl {
     fn accesskit_node(&mut self, id: Id) -> &mut accesskit::Node {
         let state = self.frame_state.accesskit_state.as_mut().unwrap();
         let nodes = &mut state.nodes;
-        // We have to override clippy's map_entry lint here, because the
-        // insertion path also modifies another entry, to establish
-        // the parent/child relationship. Using `HashMap::entry` here
-        // would require two mutable borrows at once.
-        #[allow(clippy::map_entry)]
-        if !nodes.contains_key(&id) {
-            nodes.insert(id, Default::default());
+        if let std::collections::hash_map::Entry::Vacant(entry) = nodes.entry(id) {
+            entry.insert(Default::default());
             let parent_id = state.parent_stack.last().unwrap();
             let parent = nodes.get_mut(parent_id).unwrap();
             parent.children.push(id.accesskit_id());
