@@ -208,7 +208,12 @@ impl Painter {
 impl Painter {
     #[allow(clippy::needless_pass_by_value)]
     pub fn debug_rect(&self, rect: Rect, color: Color32, text: impl ToString) {
-        self.rect_stroke(rect, 0.0, (1.0, color));
+        self.rect(
+            rect,
+            0.0,
+            color.additive().linear_multiply(0.015),
+            (1.0, color),
+        );
         self.text(
             rect.min,
             Align2::LEFT_TOP,
@@ -238,7 +243,7 @@ impl Painter {
         self.add(Shape::rect_filled(
             frame_rect,
             0.0,
-            Color32::from_black_alpha(240),
+            Color32::from_black_alpha(150),
         ));
         self.galley(rect.min, galley);
         frame_rect

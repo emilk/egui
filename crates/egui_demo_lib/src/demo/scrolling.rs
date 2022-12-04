@@ -7,6 +7,7 @@ enum ScrollDemo {
     ManyLines,
     LargeCanvas,
     StickToEnd,
+    Bidirectional,
 }
 
 impl Default for ScrollDemo {
@@ -55,6 +56,7 @@ impl super::View for Scrolling {
                 "Scroll a large canvas",
             );
             ui.selectable_value(&mut self.demo, ScrollDemo::StickToEnd, "Stick to end");
+            ui.selectable_value(&mut self.demo, ScrollDemo::Bidirectional, "Bidirectional");
         });
         ui.separator();
         match self.demo {
@@ -69,6 +71,14 @@ impl super::View for Scrolling {
             }
             ScrollDemo::StickToEnd => {
                 self.scroll_stick_to.ui(ui);
+            }
+            ScrollDemo::Bidirectional => {
+                egui::ScrollArea::both().show(ui, |ui| {
+                    ui.style_mut().wrap = Some(false);
+                    for _ in 0..100 {
+                        ui.label(crate::LOREM_IPSUM);
+                    }
+                });
             }
         }
     }

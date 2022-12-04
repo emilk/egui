@@ -319,16 +319,45 @@ impl Context {
                 return;
             }
 
-            let show_error = |pos: Pos2, text: String| {
+            let show_error = |widget_rect: Rect, text: String| {
+                let text = format!("🔥 {}", text);
+                let color = self.style().visuals.error_fg_color;
                 let painter = self.debug_painter();
-                let rect = painter.error(pos, text);
+                painter.rect_stroke(widget_rect, 0.0, (1.0, color));
+
+                let below = widget_rect.bottom() + 32.0 < self.input().screen_rect.bottom();
+
+                let text_rect = if below {
+                    painter.debug_text(
+                        widget_rect.left_bottom() + vec2(0.0, 2.0),
+                        Align2::LEFT_TOP,
+                        color,
+                        text,
+                    )
+                } else {
+                    painter.debug_text(
+                        widget_rect.left_top() - vec2(0.0, 2.0),
+                        Align2::LEFT_BOTTOM,
+                        color,
+                        text,
+                    )
+                };
+
                 if let Some(pointer_pos) = self.pointer_hover_pos() {
-                    if rect.contains(pointer_pos) {
+                    if text_rect.contains(pointer_pos) {
+                        let tooltip_pos = if below {
+                            text_rect.left_bottom() + vec2(2.0, 4.0)
+                        } else {
+                            text_rect.left_top() + vec2(2.0, -4.0)
+                        };
+
                         painter.error(
-                            rect.left_bottom() + vec2(2.0, 4.0),
-                            "ID clashes happens when things like Windows or CollapsingHeaders share names,\n\
+                            tooltip_pos,
+                            format!("Widget is {} this text.\n\n\
+                             ID clashes happens when things like Windows or CollapsingHeaders share names,\n\
                              or when things like Plot and Grid:s aren't given unique id_source:s.\n\n\
                              Sometimes the solution is to use ui.push_id.",
+                             if below { "above" } else { "below" })
                         );
                     }
                 }
@@ -337,19 +366,10 @@ impl Context {
             let id_str = id.short_debug_format();
 
             if prev_rect.min.distance(new_rect.min) < 4.0 {
-                show_error(
-                    new_rect.min,
-                    format!("Double use of {} ID {}", what, id_str),
-                );
+                show_error(new_rect, format!("Double use of {} ID {}", what, id_str));
             } else {
-                show_error(
-                    prev_rect.min,
-                    format!("First use of {} ID {}", what, id_str),
-                );
-                show_error(
-                    new_rect.min,
-                    format!("Second use of {} ID {}", what, id_str),
-                );
+                show_error(prev_rect, format!("First use of {} ID {}", what, id_str));
+                show_error(new_rect, format!("Second use of {} ID {}", what, id_str));
             }
         }
     }

@@ -8,6 +8,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * MSRV (Minimum Supported Rust Version) is now `1.65.0` ([#2314](https://github.com/emilk/egui/pull/2314)).
 * ⚠️ BREAKING: egui now expects integrations to do all color blending in gamma space ([#2071](https://github.com/emilk/egui/pull/2071)).
 * ⚠️ BREAKING: if you have overlapping interactive widgets, only the top widget (last added) will be interactive ([#2244](https://github.com/emilk/egui/pull/2244)).
+* Keyboard press events are only present at the frame when the key was pressed, consistent with how key releases work ([#2334](https://github.com/emilk/egui/pull/2334)).
 
 ### Added ⭐
 * Added helper functions for animating panels that collapse/expand ([#2190](https://github.com/emilk/egui/pull/2190)).
@@ -34,7 +35,8 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Improved text rendering ([#2071](https://github.com/emilk/egui/pull/2071)).
 * Less jitter when calling `Context::set_pixels_per_point` ([#2239](https://github.com/emilk/egui/pull/2239)).
 * Fixed popups and color edit going outside the screen.
-* Fixed keyboard support in `DragValue`. ([#2342](https://github.com/emilk/egui/pull/2342)).
+* Fixed keyboard support in `DragValue` ([#2342](https://github.com/emilk/egui/pull/2342)).
+* If you nest `ScrollAreas` inside each other, the inner area will now move its scroll bar so it is always visible ([#2371](https://github.com/emilk/egui/pull/2371)).
 
 
 ## 0.19.0 - 2022-08-20

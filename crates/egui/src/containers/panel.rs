@@ -215,6 +215,7 @@ impl SidePanel {
             }
             width = clamp_to_range(width, width_range.clone()).at_most(available_rect.width());
             side.set_rect_width(&mut panel_rect, width);
+            ui.ctx().check_for_id_clash(id, panel_rect, "SidePanel");
         }
 
         let mut resize_hover = false;
@@ -642,6 +643,8 @@ impl TopBottomPanel {
             };
             height = clamp_to_range(height, height_range.clone()).at_most(available_rect.height());
             side.set_rect_height(&mut panel_rect, height);
+            ui.ctx()
+                .check_for_id_clash(id, panel_rect, "TopBottomPanel");
         }
 
         let mut resize_hover = false;
